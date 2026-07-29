@@ -209,7 +209,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance).toMatchObject({
       passingAttempt: 2,
       callCount: 2,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v1',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v2',
     });
   });
 

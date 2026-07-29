@@ -20,6 +20,7 @@ import {
 } from '../visual-contract-compiler/coverSourceAuthority';
 import { renderVisualContractReview } from '../visual-contract-compiler/writeVisualContractReview';
 import { storyCoverSourceFidelityIssues } from '../visual-package/coverSourceFidelity';
+import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 
 const REPO = process.cwd();
 const STORY_KEY = 'fox_uri_adventure';
@@ -50,6 +51,10 @@ function withExactActionSourceEvidence(
   draft: BookVisualContractTemplate,
   input: TemplateCompileInput,
 ): BookVisualContractTemplate {
+  withCurrentActionSemanticCoverage({
+    draft,
+    pages: input.pages,
+  });
   for (const page of draft.pageContracts) {
     if (!page.actionRequirements?.length) continue;
     const sourcePage = input.pages.find(
@@ -69,6 +74,17 @@ function withExactActionSourceEvidence(
       ...action,
       sourcePhrase: sourcePage.text,
     }));
+    (
+      page as unknown as Record<string, unknown>
+    ).actionSemanticCoverage =
+      page.actionRequirements.map((action, index) => ({
+        beatId: `beat:p${page.pageNumber}:action_${index + 1}`,
+        sourcePhrase: sourcePage.text,
+        disposition: {
+          kind: 'action_requirement',
+          checkId: action.checkId,
+        },
+      }));
   }
   return draft;
 }

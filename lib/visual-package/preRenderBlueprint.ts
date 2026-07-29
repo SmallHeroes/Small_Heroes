@@ -13,6 +13,7 @@ import type {
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { validateBookVisualContractTemplate } from '@/lib/visual-contract-compiler/validateTemplateContract';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
+import { isActionPredicate } from '@/lib/visual-contract-compiler/actionSemanticCatalog';
 
 import { canonicalJsonDigest, normalizedTextDigest } from './integrity';
 import {
@@ -77,17 +78,6 @@ const CONNECTION_KINDS = new Set([
   'path',
   'portal',
   'continuous_space',
-]);
-const ACTION_PREDICATES = new Set([
-  'holds',
-  'offers',
-  'touches',
-  'looks_at',
-  'reaches_toward',
-  'climbs_onto',
-  'sits_on',
-  'stands_on',
-  'points_at',
 ]);
 const CAMERA_SHOTS = new Set(['wide', 'medium', 'close_up', 'over_shoulder', 'tracking']);
 const CAMERA_ANGLES = new Set([
@@ -934,7 +924,7 @@ function validateAffordanceShape(
       if (
         !Array.isArray(affordance.supportedPredicates) ||
         affordance.supportedPredicates.length === 0 ||
-        !affordance.supportedPredicates.every((predicate) => ACTION_PREDICATES.has(predicate)) ||
+        !affordance.supportedPredicates.every(isActionPredicate) ||
         !Array.isArray(affordance.supportedEntities) ||
         affordance.supportedEntities.length === 0 ||
         !Number.isInteger(affordance.maximumActors) ||

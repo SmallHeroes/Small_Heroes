@@ -21,6 +21,7 @@ import type {
   ContractLlmCaller,
   ContractLlmCallOptions,
 } from '../visual-contract-compiler/compileBookVisualContract';
+import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 
 const BUNNY_KEY = 'bunny_ometz_adventure';
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
@@ -28,7 +29,10 @@ function bunnySource(): TemplateCompileInput {
   return extractSourceFromMarkdown(BUNNY_KEY, fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.md`), 'utf8')) as TemplateCompileInput;
 }
 function bunnyTemplate(): unknown {
-  return JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8'));
+  return withCurrentActionSemanticCoverage({
+    draft: JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8')),
+    pages: bunnySource().pages,
+  });
 }
 
 /** Recursively assert OpenAI strict-mode compliance: every object sets additionalProperties:false + required=all keys. */
@@ -69,13 +73,12 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
     expect(root.properties.recurringProps.items?.properties).toHaveProperty('firstRevealPage');
     expect(root.properties.pageContracts.items?.properties).toHaveProperty('propConstraints');
     expect(root.properties.pageContracts.items?.properties).toHaveProperty('actionRequirements');
-    expect(root.properties.pageContracts.items?.properties).toHaveProperty('unsupportedActionSemantics');
+    expect(root.properties.pageContracts.items?.properties).toHaveProperty('actionSemanticCoverage');
     expect(
       root.properties.pageContracts.items?.properties
         ?.actionRequirements,
     ).toMatchObject({
       type: 'array',
-      minItems: 1,
     });
   });
 
@@ -131,7 +134,7 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(provenance.authoringModel).toBe('gpt-5.6-sol');
     expect(provenance.reasoningEffort).toBe('medium');
     expect(provenance.maxOutputTokens).toBe(36000);
-    expect(provenance.schemaVersion).toBe('vc-draft-schema/v6');
+    expect(provenance.schemaVersion).toBe('vc-draft-schema/v7');
     expect(provenance.attempt).toBe(1);
   });
 

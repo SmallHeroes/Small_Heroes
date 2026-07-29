@@ -11,6 +11,9 @@ import {
   ACTION_POLARITY_VALUES,
   ACTION_PREDICATE_VALUES,
 } from './types';
+import {
+  NON_VISUAL_RATIONALE_VALUES,
+} from './actionSemanticCoverage';
 
 /** Build a strict object schema: additionalProperties:false + required = every property. */
 function obj(properties: Record<string, unknown>): Record<string, unknown> {
@@ -195,12 +198,36 @@ const actionRequirement = obj({
    */
   sourcePhrase: { type: 'string' },
 });
-const unsupportedActionSemantic = obj({
+const actionSemanticCoverageDisposition = {
+  anyOf: [
+    obj({
+      kind: { const: 'action_requirement' },
+      checkId: { type: 'string' },
+    }),
+    obj({
+      kind: { const: 'represented_elsewhere' },
+      contractPointer: { type: 'string' },
+      contractValue: { type: 'string' },
+    }),
+    obj({
+      kind: { const: 'non_visual' },
+      rationale: {
+        type: 'string',
+        enum: NON_VISUAL_RATIONALE_VALUES,
+      },
+    }),
+    obj({
+      kind: { const: 'unsupported' },
+      reason: {
+        const: 'closed_action_catalog_gap',
+      },
+    }),
+  ],
+};
+const actionSemanticCoverage = obj({
+  beatId: { type: 'string' },
   sourcePhrase: { type: 'string' },
-  reason: {
-    type: 'string',
-    enum: ['closed_action_vocabulary_gap'],
-  },
+  disposition: actionSemanticCoverageDisposition,
 });
 
 const pageContract = obj({
@@ -214,12 +241,12 @@ const pageContract = obj({
   propConstraints: { type: 'array', items: propConstraint },
   actionRequirements: {
     type: 'array',
-    minItems: 1,
     items: actionRequirement,
   },
-  unsupportedActionSemantics: {
+  actionSemanticCoverage: {
     type: 'array',
-    items: unsupportedActionSemantic,
+    minItems: 1,
+    items: actionSemanticCoverage,
   },
   camera: { type: 'string' },
   transition,
@@ -240,7 +267,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v6' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v7' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

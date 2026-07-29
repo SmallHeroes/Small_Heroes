@@ -5,6 +5,10 @@ import {
 } from '@/lib/visual-contract-compiler/propLifecycle';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 import { validateBookVisualContractTemplate } from '@/lib/visual-contract-compiler/validateTemplateContract';
+import {
+  ACTION_SEMANTIC_CATALOG,
+  ACTION_SEMANTIC_CATALOG_VERSION,
+} from '@/lib/visual-contract-compiler/actionSemanticCatalog';
 
 import { canonicalJsonDigest, normalizedTextDigest, nonEmpty } from './integrity';
 import {
@@ -34,9 +38,9 @@ import {
 import { sourcePromptReconciliationIssues } from './sourcePromptReconciliation';
 
 export const PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION =
-  'pre-render-blueprint-authoring-prompt/v1' as const;
+  'pre-render-blueprint-authoring-prompt/v2' as const;
 export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION =
-  'pre-render-blueprint-repair-prompt/v1' as const;
+  'pre-render-blueprint-repair-prompt/v2' as const;
 export const PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS = 2 as const;
 
 type Obj = Record<string, unknown>;
@@ -367,6 +371,10 @@ export function preRenderBlueprintAuthoringInputErrors(
 }
 
 export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
+  const actionCatalog = ACTION_SEMANTIC_CATALOG.map(
+    (definition) =>
+      `${definition.predicate} (object=${definition.objectRule}; kinds=${definition.objectKinds.join('|') || 'none'}; laterality=${definition.lateralityAllowed ? 'allowed' : 'forbidden'})`,
+  ).join(', ');
   return [
     "You author one whole-book, portrait 2:3 schematic Blueprint for a children's picture book.",
     'Return exactly one strict JSON object matching the supplied schema. Never author one page at a time.',
@@ -381,6 +389,11 @@ export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
     'Historical direction may affect only approved action, interaction, expression, camera, composition, or',
     'staging beats. It never controls world, location, zone, cast, wardrobe, props, reveal timing, or prohibitions.',
     'Every preserved/superseded conflict is already explicit in reconciliation; do not invent another disposition.',
+    '',
+    `ACTION SEMANTIC CATALOG (${ACTION_SEMANTIC_CATALOG_VERSION}; closed, no free text):`,
+    actionCatalog,
+    'Every action_space.supportedPredicates value must come from this catalog. Blueprint support does not',
+    'self-approve Action Semantic Coverage or Semantic Reconciliation.',
     '',
     'Author the complete connection graph, spatial affordances, reveal-safe supporting geometry, and one frame',
     'for the cover plus every exact Story Source page. Each frame must show text-safe layout, placements, actions,',

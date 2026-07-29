@@ -21,6 +21,10 @@ import {
   type PageVisualContract,
   type VisualZone,
 } from './types';
+import {
+  actionSemanticDefinition,
+  isActionPredicate,
+} from './actionSemanticCatalog';
 import { setBoardStableAuthorityErrors } from './setBoardStableAuthority';
 
 export type ContractValidationResult =
@@ -71,14 +75,6 @@ const SYMMETRIC_RELATIONS = new Set(['on_same_wall_as', 'adjacent_to', 'opposite
 const INVERSE_RELATIONS: Record<string, string> = { above: 'below', below: 'above' };
 /** Relation pairs that cannot both hold between the same two nodes. */
 const MUTUALLY_EXCLUSIVE_RELATIONS: Array<[string, string]> = [['on_same_wall_as', 'opposite_to']];
-/** Positive predicates whose REQUIRED form is directly contradicted by a hazard on the same subject + target. */
-const ACTION_SAFETY_CONFLICT: Record<string, string> = {
-  sits_on: 'must_not_sit_on',
-  stands_on: 'must_not_stand_on',
-};
-const ACTION_PREDICATES = new Set<string>(
-  ACTION_PREDICATE_VALUES,
-);
 const ACTION_POLARITIES = new Set<string>(
   ACTION_POLARITY_VALUES,
 );
@@ -694,8 +690,37 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
             `${aLabel} actorId "${raw.actorId}" is NOT present on this page (must be in castIds) — no action requirement for an absent actor`
           );
         }
-        if (!isStr(raw.predicate) || !ACTION_PREDICATES.has(raw.predicate)) {
-          errors.push(`${aLabel} predicate "${String(raw.predicate)}" is not one of ${[...ACTION_PREDICATES].join(' | ')}`);
+        if (!isActionPredicate(raw.predicate)) {
+          errors.push(`${aLabel} predicate "${String(raw.predicate)}" is not one of ${ACTION_PREDICATE_VALUES.join(' | ')}`);
+        } else {
+          const definition = actionSemanticDefinition(raw.predicate);
+          if (definition.objectRule === 'required' && raw.object === undefined) {
+            errors.push(
+              `${aLabel}.object is required for predicate "${raw.predicate}" by the Action Semantic Catalog`,
+            );
+          }
+          if (definition.objectRule === 'forbidden' && raw.object !== undefined) {
+            errors.push(
+              `${aLabel}.object is forbidden for predicate "${raw.predicate}" by the Action Semantic Catalog`,
+            );
+          }
+          const objectKind = isObj(raw.object) &&
+              isStr(raw.object.kind)
+            ? raw.object.kind
+            : null;
+          if (
+            objectKind !== null &&
+            !definition.objectKinds.some((kind) => kind === objectKind)
+          ) {
+            errors.push(
+              `${aLabel}.object.kind "${objectKind}" is not allowed for predicate "${raw.predicate}"`,
+            );
+          }
+          if (raw.laterality !== undefined && !definition.lateralityAllowed) {
+            errors.push(
+              `${aLabel}.laterality is forbidden for predicate "${raw.predicate}" by the Action Semantic Catalog`,
+            );
+          }
         }
         if (!isStr(raw.polarity) || !ACTION_POLARITIES.has(raw.polarity)) {
           errors.push(`${aLabel} polarity "${String(raw.polarity)}" must be 'must' or 'must_not'`);
@@ -775,7 +800,9 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         }
 
         // vs a HAZARD — the page requires exactly what a safetyConstraint prohibits, for the same subject+target.
-        const banned = ACTION_SAFETY_CONFLICT[String(raw.predicate)];
+        const banned = isActionPredicate(raw.predicate)
+          ? actionSemanticDefinition(raw.predicate).safetyConflictRelation
+          : null;
         if (banned && objRef && isStr(objRef.id)) {
           for (const rawS of Array.isArray(pc.safetyConstraints) ? (pc.safetyConstraints as unknown[]) : []) {
             if (!isObj(rawS) || !isObj(rawS.target)) continue;

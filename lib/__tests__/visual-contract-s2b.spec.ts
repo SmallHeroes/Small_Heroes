@@ -17,6 +17,7 @@ import {
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import { InvalidTemplateContractError } from '../visual-contract-compiler/validateTemplateContract';
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
+import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 
 const BUNNY_KEY = 'bunny_ometz_adventure';
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
@@ -26,7 +27,10 @@ function bunnySource(): TemplateCompileInput {
 // A FRESH deep copy each call (re-parses the file) so per-test mutations never leak.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function bunnyDraft(): any {
-  return JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8'));
+  return withCurrentActionSemanticCoverage({
+    draft: JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8')),
+    pages: bunnySource().pages,
+  });
 }
 const stubFrom = (t: unknown): ContractLlmCaller => async () => JSON.stringify(t);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -5,6 +5,8 @@
  * portrait ratio, location/zone/cast, prop lifecycle, and transition kind are intentionally absent.
  * The compiler overlays those fields after authoring so model output cannot replace upstream authority.
  */
+import { ACTION_PREDICATE_VALUES } from '@/lib/visual-contract-compiler/actionSemanticCatalog';
+
 function obj(properties: Record<string, unknown>): Record<string, unknown> {
   return {
     type: 'object',
@@ -105,17 +107,7 @@ const affordance = {
         minItems: 1,
         items: {
           type: 'string',
-          enum: [
-            'holds',
-            'offers',
-            'touches',
-            'looks_at',
-            'reaches_toward',
-            'climbs_onto',
-            'sits_on',
-            'stands_on',
-            'points_at',
-          ],
+          enum: ACTION_PREDICATE_VALUES,
         },
       },
       supportedEntities: { type: 'array', items: entityRef, minItems: 1 },
@@ -231,6 +223,6 @@ export const PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA: Record<string, unknown> = o
 });
 
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION =
-  'pre-render-blueprint-draft-schema/v1' as const;
+  'pre-render-blueprint-draft-schema/v2' as const;
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME =
   'PreRenderBookVisualBlueprintWholeBookDraft' as const;

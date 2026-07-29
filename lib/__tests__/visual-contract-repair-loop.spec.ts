@@ -20,12 +20,16 @@ import {
 import { InvalidTemplateContractError } from '../visual-contract-compiler/validateTemplateContract';
 import { extractDeterministicFacts } from '../visual-contract-compiler/extractDeterministicFacts';
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
+import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
 const bunnySource = (): TemplateCompileInput =>
   extractSourceFromMarkdown('bunny_ometz_adventure', fs.readFileSync(path.join(BANK, 'bunny_ometz_adventure.md'), 'utf8')) as TemplateCompileInput;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const bunnyDraft = (): any => JSON.parse(fs.readFileSync(path.join(BANK, 'bunny_ometz_adventure.visual-contract-template.json'), 'utf8'));
+const bunnyDraft = (): any => withCurrentActionSemanticCoverage({
+  draft: JSON.parse(fs.readFileSync(path.join(BANK, 'bunny_ometz_adventure.visual-contract-template.json'), 'utf8')),
+  pages: bunnySource().pages,
+});
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const withEmptyMaterial = (): any => {
   const d = bunnyDraft();
@@ -57,7 +61,7 @@ describe('Stage 3 — bounded repair loop', () => {
     const { caller, prompts, calls } = recordingCaller([withEmptyMaterial(), bunnyDraft()]);
     const res = await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
     expect(res.provenance.attempt).toBe(2);
-    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v3');
+    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v4');
     expect(res.repairAttempts).toHaveLength(1);
     expect(res.repairAttempts[0].attempt).toBe(1);
     expect(res.repairAttempts[0].errors.some((e) => /material/i.test(e))).toBe(true);

@@ -267,6 +267,23 @@ function createDirectoryLink(
 }
 
 describe('canonical live request materialization validators', () => {
+  it('rejects legacy B0 materialization input versions and requires explicit v2 rematerialization', () => {
+    const fixture = writeFixture();
+    expect(
+      liveRequestMaterializationInputIssues({
+        ...inputFor(fixture),
+        version:
+          'canonical-live-request-materialization-input/v1',
+      }),
+    ).toContain('materialization_input_version_invalid');
+    expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
+      'canonical-live-request-materialization-input/v2',
+    );
+    expect(
+      LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
+    ).toBe('canonical-live-request-materialization/v2');
+  });
+
   it.each([
     {
       label: 'non-object',
@@ -417,7 +434,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v3',
+      version: 'visual-contract-authoring-request/v4',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',

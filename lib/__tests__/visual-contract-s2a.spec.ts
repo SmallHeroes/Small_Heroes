@@ -18,6 +18,7 @@ import {
 } from '../visual-contract-compiler/validateTemplateContract';
 import { PALETTE_VERSION } from '../visual-contract-compiler/contractTemplateTypes';
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
+import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 
 const BUNNY_KEY = 'bunny_ometz_adventure';
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
@@ -26,7 +27,10 @@ function bunnySource(): TemplateCompileInput {
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function bunnyTemplate(): any {
-  return JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8'));
+  return withCurrentActionSemanticCoverage({
+    draft: JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8')),
+    pages: bunnySource().pages,
+  });
 }
 const stubFrom = (t: unknown): ContractLlmCaller => async () => JSON.stringify(t);
 

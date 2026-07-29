@@ -15,6 +15,9 @@ import {
   TemplateRepairExhaustedError,
 } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 import {
+  ActionSemanticCapabilityGapError,
+} from '@/lib/visual-contract-compiler/actionSemanticCoverage';
+import {
   projectPageMustShow,
 } from '@/lib/visual-contract-compiler/projectContractProse';
 import type {
@@ -27,6 +30,7 @@ import type {
 import {
   buildStorySourceAuthoritySnapshot,
   buildProductionReconciliationDraftFromSourceSnapshot,
+  buildCanonicalImportPreflightAttestation,
   buildVisualContractAuthoringReadinessEvidence,
   buildVisualContractAuthoringRequest,
   authoringReservedExposureUsd,
@@ -42,6 +46,7 @@ import {
   persistVisualContractCandidate,
   runVisualContractAuthoring,
   sourcePromptReconciliationIssues,
+  visualContractAuthoringArtifactVersionStatus,
   type StorySourceAuthoritySnapshot,
   type VisualContractAuthoringProvider,
 } from '@/lib/visual-package';
@@ -243,7 +248,16 @@ function fullyActionedBunnyDraft(
     ).actionRequirements = [action];
     (
       page as unknown as Record<string, unknown>
-    ).unsupportedActionSemantics = [];
+    ).actionSemanticCoverage = [
+      {
+        beatId: `beat:p${page.pageNumber}:look`,
+        sourcePhrase: action.sourcePhrase,
+        disposition: {
+          kind: 'action_requirement',
+          checkId: action.checkId,
+        },
+      },
+    ];
   }
   for (const page of draft.pageContracts) {
     const projected = projectPageMustShow(
@@ -617,6 +631,37 @@ describe('exact zero-cost authoring preflight', () => {
     );
     expect(provider.call).not.toHaveBeenCalled();
   });
+
+  it('fails closed when the Action Semantic Catalog digest or version changes and requires rematerialization', async () => {
+    const snapshot = snapshotFor(
+      writeStoryFixture({ pageCount: 3 }),
+    );
+    const request = structuredClone(
+      requestFor(snapshot, 'live'),
+    );
+    request.actionSemanticAuthority.catalogDigest =
+      '0'.repeat(64);
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = request;
+    request.digest = canonicalJsonDigest(payload);
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+    expect(result.receipt.failure?.issues).toContain(
+      'action_semantic_authority_mismatch',
+    );
+    expect(provider.call).not.toHaveBeenCalled();
+  });
 });
 
 describe('source-grounded closed action authority', () => {
@@ -644,11 +689,11 @@ describe('source-grounded closed action authority', () => {
     expect(
       JSON.stringify(result.template),
     ).not.toContain('sourcePhrase');
-    expect(result.actionSourceEvidence).toHaveLength(
+    expect(result.actionSemanticCoverage).toHaveLength(
       snapshot.content.pages.length,
     );
     expect(
-      result.actionSourceEvidence.every((entry) =>
+      result.actionSemanticCoverage.every((entry) =>
         snapshot.content.pages
           .find(
             (page) => page.pageNumber === entry.pageNumber,
@@ -663,12 +708,30 @@ describe('source-grounded closed action authority', () => {
     const draft = fullyActionedBunnyDraft(snapshot);
     const first = draft.pageContracts[0] as PageVisualContract &
       Record<string, unknown>;
-    first.unsupportedActionSemantics = [
+    first.actionSemanticCoverage = [
       {
+        beatId: `beat:p${first.pageNumber}:unsupported`,
         sourcePhrase: exactSourcePhrase(
           snapshot.content.pages[0].text,
         ),
-        reason: 'closed_action_vocabulary_gap',
+        disposition: {
+          kind: 'unsupported',
+          reason: 'closed_action_catalog_gap',
+        },
+      },
+    ];
+    const second = draft.pageContracts[1] as PageVisualContract &
+      Record<string, unknown>;
+    second.actionSemanticCoverage = [
+      {
+        beatId: `beat:p${second.pageNumber}:unsupported`,
+        sourcePhrase: exactSourcePhrase(
+          snapshot.content.pages[1].text,
+        ),
+        disposition: {
+          kind: 'unsupported',
+          reason: 'closed_action_catalog_gap',
+        },
       },
     ];
     let thrown: unknown;
@@ -688,20 +751,16 @@ describe('source-grounded closed action authority', () => {
       thrown = error;
     }
     expect(thrown).toBeInstanceOf(
-      TemplateRepairExhaustedError,
+      ActionSemanticCapabilityGapError,
     );
     expect(
-      (
-        thrown as TemplateRepairExhaustedError
-      ).attempts.some((attempt) =>
-        attempt.errors.some((error) =>
-          error.includes('unsupported_action_semantic'),
-        ),
+      (thrown as ActionSemanticCapabilityGapError).gaps.map(
+        (gap) => gap.pageNumber,
       ),
-    ).toBe(true);
+    ).toEqual([1, 2]);
   });
 
-  it('rejects an empty per-page action list instead of treating property presence as authority', async () => {
+  it('rejects an action-bound coverage record when its same-page action list is empty', async () => {
     const snapshot = bunnySnapshot();
     const draft = fullyActionedBunnyDraft(snapshot);
     (
@@ -734,7 +793,7 @@ describe('source-grounded closed action authority', () => {
         thrown as TemplateRepairExhaustedError
       ).attempts.some((attempt) =>
         attempt.errors.some((error) =>
-          error.includes('actionRequirements'),
+          error.includes('same-page actionRequirement'),
         ),
       ),
     ).toBe(true);
@@ -826,6 +885,158 @@ describe('source-grounded closed action authority', () => {
 });
 
 describe('sanitized receipts and immutable artifact lifecycle', () => {
+  it('terminates a genuine catalog capability gap after the initial call with all page gaps and no candidate', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const draft = fullyActionedBunnyDraft(snapshot);
+    for (const pageIndex of [0, 1]) {
+      const page = draft.pageContracts[
+        pageIndex
+      ] as unknown as Record<string, unknown>;
+      page.actionSemanticCoverage = [
+        {
+          beatId: `beat:p${pageIndex + 1}:unsupported`,
+          sourcePhrase: exactSourcePhrase(
+            snapshot.content.pages[pageIndex].text,
+          ),
+          disposition: {
+            kind: 'unsupported',
+            reason: 'closed_action_catalog_gap',
+          },
+        },
+      ];
+    }
+    const provider = successfulProvider(draft);
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      compileResult: null,
+      receipt: {
+        status: 'failed',
+        callCount: 1,
+        repairCount: 0,
+        candidateDigest: null,
+        actionSemanticCoverage: {
+          status: 'capability_gap',
+          gapCount: 2,
+        },
+        failure: {
+          code: 'action_semantic_capability_gap',
+        },
+      },
+    });
+    expect(
+      result.receipt.failure?.issues.map((issue) =>
+        issue.match(/^page \d+/)?.[0],
+      ),
+    ).toEqual(['page 1', 'page 2']);
+  });
+
+  it('separates import-preflight attestation, authoring outcome, coverage, and candidate state in readiness v2', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: successfulProvider(
+        fullyActionedBunnyDraft(snapshot),
+      ),
+    });
+    const absent =
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: result.receipt,
+      });
+    expect(absent).toMatchObject({
+      version: 'visual-contract-authoring-readiness/v2',
+      canonicalImportPreflight: {
+        status: 'not_attested',
+      },
+      authoringOutcome: {
+        status: 'completed',
+        failureCode: null,
+      },
+      actionSemanticCoverage: {
+        status: 'complete_review_required',
+      },
+      visualContractCandidate: {
+        status: 'candidate',
+      },
+      semanticReconciliation: {
+        status: 'absent',
+      },
+      blueprintAuthoringReady: false,
+      d1a1Authorized: false,
+    });
+    expect(absent.blockers).toContain(
+      'canonical_import_preflight_not_attested',
+    );
+
+    const attestation =
+      buildCanonicalImportPreflightAttestation({
+        snapshot,
+        request,
+      });
+    const passed =
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: result.receipt,
+        canonicalImportPreflightAttestation: attestation,
+      });
+    expect(passed.canonicalImportPreflight.status).toBe(
+      'passed',
+    );
+    const stale = structuredClone(attestation);
+    stale.digest = '0'.repeat(64);
+    expect(
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: result.receipt,
+        canonicalImportPreflightAttestation: stale,
+      }).canonicalImportPreflight.status,
+    ).toBe('unknown');
+  });
+
+  it('classifies legacy v1/v3 authoring evidence as immutable rather than auto-upgrading it', () => {
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v3',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v3',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v1',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'candidate',
+        'visual-contract-candidate-artifact/v1',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v4',
+      ),
+    ).toBe('current');
+  });
+
   it('records exact per-attempt and aggregate usage/cost without raw prompt, response, or provider payload', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
@@ -838,7 +1049,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v3',
+      'visual-contract-authoring-receipt/v4',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.aggregateUsage).toEqual({
@@ -1117,22 +1328,22 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'utf8',
       ),
     ) as {
-      actionSourceEvidenceDigest: string;
-      actionSourceEvidence: Array<{
+      actionSemanticCoverageDigest: string;
+      actionSemanticCoverage: Array<{
         pageNumber: number;
-        checkId: string;
+        beatId: string;
         sourcePhrase: string;
       }>;
     };
-    expect(candidateArtifact.actionSourceEvidence).toHaveLength(
+    expect(candidateArtifact.actionSemanticCoverage).toHaveLength(
       snapshot.content.pages.length,
     );
-    expect(candidateArtifact.actionSourceEvidenceDigest).toBe(
+    expect(candidateArtifact.actionSemanticCoverageDigest).toBe(
       canonicalJsonDigest(
-        candidateArtifact.actionSourceEvidence,
+        candidateArtifact.actionSemanticCoverage,
       ),
     );
-    for (const evidenceEntry of candidateArtifact.actionSourceEvidence) {
+    for (const evidenceEntry of candidateArtifact.actionSemanticCoverage) {
       expect(
         snapshot.content.pages
           .find(
@@ -1257,7 +1468,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           receipt: result.receipt,
           compileResult: {
             template: fullyActionedBunnyDraft(snapshot),
-            actionSourceEvidence: [],
+            actionSemanticCoverage: [],
           },
           write: true,
         }),
@@ -1267,5 +1478,31 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         canonicalJsonDigest(result.receipt),
       ).toMatch(/^[a-f0-9]{64}$/);
     });
+  });
+
+  it('refuses a post-receipt substitution of otherwise complete Action Semantic Coverage', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: successfulProvider(
+        fullyActionedBunnyDraft(snapshot),
+      ),
+    });
+    const substituted = structuredClone(
+      result.compileResult!,
+    );
+    substituted.actionSemanticCoverage[0].sourcePhrase =
+      snapshot.content.pages[0].text;
+    expect(() =>
+      persistVisualContractCandidate({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/review',
+        receipt: result.receipt,
+        compileResult: substituted,
+        write: false,
+      }),
+    ).toThrow(/current Action Semantic Coverage authority/);
   });
 });

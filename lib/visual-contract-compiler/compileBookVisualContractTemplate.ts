@@ -47,7 +47,6 @@ import {
   type AuthoredCoverAuthority,
 } from './coverSourceAuthority';
 import { projectCoverMustNotShow } from './projectContractProse';
-import { stripNiqqud } from './extractDeterministicFacts';
 import {
   VISUAL_CONTRACT_AUTHORING_ENDPOINT,
   VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
@@ -60,6 +59,18 @@ import {
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
 } from './authoringPolicy';
+import {
+  ACTION_SEMANTIC_CATALOG,
+  ACTION_SEMANTIC_CATALOG_VERSION,
+} from './actionSemanticCatalog';
+import {
+  ACTION_SEMANTIC_COVERAGE_VERSION,
+  ActionSemanticCapabilityGapError,
+  NON_VISUAL_RATIONALE_VALUES,
+  actionSemanticCoverageIssues,
+  type ActionSemanticCapabilityGap,
+  type ActionSemanticCoverageRecord,
+} from './actionSemanticCoverage';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -70,15 +81,15 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v3' as const;
+  'vc-template-prompt/v4' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v3' as const;
+  'vc-template-user-prompt/v4' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v3' as const;
+  'vc-repair-prompt/v4' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v3' as const;
+  'vc-repair-user-prompt/v4' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -163,10 +174,11 @@ export interface TemplateCompileResult {
   template: BookVisualContractTemplate;
   facts: DeterministicFacts;
   /**
-   * Non-authoritative review citations copied verbatim from exact same-page
-   * Story Source prose. These are not part of the contract candidate.
+   * Non-authoritative whole-book review evidence. Every record keeps its exact
+   * same-page citation and remains explicitly unreviewed until later Semantic
+   * Reconciliation.
    */
-  actionSourceEvidence: TemplateActionSourceEvidence[];
+  actionSemanticCoverage: ActionSemanticCoverageRecord[];
   /** Non-fatal notes: e.g. a draft human the extractor did not detect (dropped as non-text-verified). */
   notes: string[];
   /** The authoring call's provenance (model / reasoning / budget / schema+prompt version / attempt). */
@@ -176,13 +188,21 @@ export interface TemplateCompileResult {
   repairAttempts: TemplateRepairAttempt[];
 }
 
-export interface TemplateActionSourceEvidence {
-  pageNumber: number;
-  checkId: string;
-  sourcePhrase: string;
-}
-
 // ── LLM prompt (real path; the pilot injects a stub) ─────────────────────────
+
+function actionSemanticCatalogPromptLines(): string[] {
+  return ACTION_SEMANTIC_CATALOG.map((definition) => {
+    const objectKinds =
+      definition.objectKinds.length > 0
+        ? definition.objectKinds.join('|')
+        : 'none';
+    return (
+      `- ${definition.predicate}: projection="${definition.proseProjection}"; ` +
+      `object=${definition.objectRule}[${objectKinds}]; ` +
+      `laterality=${definition.lateralityAllowed ? 'allowed' : 'forbidden'}`
+    );
+  });
+}
 
 export function buildTemplateCompileSystemPrompt(): string {
   return [
@@ -199,11 +219,16 @@ export function buildTemplateCompileSystemPrompt(): string {
     '  cast.child + cast.companion wardrobe,',
     '  recurringProps[] (material/scale/persistence/firstRevealPage), forbiddenGlobalElements[], coverContract, and per-page',
     '  mustShow/mustNotShow/propState/propConstraints/actionRequirements/camera/transition/zoneId/locationId.',
-    '- Every actionRequirements[] entry uses ONLY the closed predicate vocabulary in the schema and includes',
-    '  sourcePhrase containing exact words from that SAME page of Story Source prose. Historical imageDirection is',
-    '  never action authority and cannot supply sourcePhrase. If a required source beat cannot be represented',
-    '  faithfully, do not force-fit it: add it to unsupportedActionSemantics[] with reason',
-    '  "closed_action_vocabulary_gap". Empty unsupportedActionSemantics[] means no vocabulary gap was found.',
+    `- Action Semantic Catalog authority is ${ACTION_SEMANTIC_CATALOG_VERSION}. Use only these atomic predicates:`,
+    ...actionSemanticCatalogPromptLines(),
+    '- Every actionRequirements[] entry includes sourcePhrase containing exact words from that SAME page of Story',
+    '  Source prose. Historical imageDirection is never action authority and cannot supply sourcePhrase.',
+    '- Every required same-page Story Source visual beat gets one stable page-scoped actionSemanticCoverage[] record:',
+    '  action_requirement binds one same-page checkId; represented_elsewhere cites an exact same-page contract JSON',
+    '  pointer and its exact current string value; non_visual uses only a closed rationale; unsupported uses reason',
+    '  closed_action_catalog_gap. Never force-fit a broader/narrower predicate. Coverage is unreviewed evidence only',
+    '  and cannot approve its own semantic classification.',
+    `- Closed non_visual rationales: ${NON_VISUAL_RATIONALE_VALUES.join(' | ')}.`,
     '- For each given human, draft ONLY garments (each colour an explicit value) and forbiddenAppearance. Do NOT',
     '  output appearance (skinTone/hairColour/hairTexture/hairStyle) — the compiler injects those from a role policy.',
     '',
@@ -256,9 +281,11 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     'forbiddenGlobalElements[], coverContract{worldType,locationId,zoneId,castIds,timeOfDay,mustShow,mustNotShow},',
     'pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
     'mustShow[], mustNotShow[], propState[], propConstraints[{propId,visibility,stateId?,anchorId?}], camera, transition}].',
-    'Each page also requires actionRequirements[{checkId,actorId,predicate,object?,polarity,laterality?,sourcePhrase}]',
-    'and unsupportedActionSemantics[{sourcePhrase,reason}] arrays. sourcePhrase must quote exact same-page Story',
-    'Source prose; never quote or derive action authority from imageDirection.',
+    'Each page carries actionRequirements[{checkId,actorId,predicate,object?,polarity,laterality?,sourcePhrase}]. Use []',
+    'when no beat binds to a catalog action; do not invent an action merely to populate the array.',
+    'and actionSemanticCoverage[{beatId,sourcePhrase,disposition}] arrays. beatId must use beat:p{page}:name.',
+    'sourcePhrase must quote exact same-page Story Source prose; never quote or derive action authority from',
+    'imageDirection. represented_elsewhere uses a root JSON pointer under the exact current pageContracts[] item.',
     '',
     'FULL STORY TEXT:',
     // Build the page-marked story text from input.pages — the SAME field assertSourceHasRealProse validated — so
@@ -297,7 +324,9 @@ export function buildTemplateRepairSystemPrompt(): string {
     '- recurringProps[] (name/description, material/scale/persistence, and firstRevealPage — NO empty string in a field you include)',
     '- forbiddenGlobalElements[]; coverContract mustShow/mustNotShow/locationId/zoneId/castIds/timeOfDay',
     '- pageContracts[] mustShow/mustNotShow/propState/propConstraints/actionRequirements/',
-    '  unsupportedActionSemantics/camera and the transition kind/cue',
+    '  actionSemanticCoverage/camera and the transition kind/cue',
+    `- actionRequirements predicates must remain in ${ACTION_SEMANTIC_CATALOG_VERSION}; unsupported coverage is a`,
+    '  terminal capability gap under this catalog, not a repairable shape/relationship error',
     '',
     'You MUST NOT change these (they are COMPILER-owned or FACT-derived; your edits to them are IGNORED and',
     'overwritten, so changing them only wastes the repair):',
@@ -415,23 +444,20 @@ function mergeHuman(fact: HumanFact, draftHuman: Record<string, unknown>): Templ
   };
 }
 
-function normalizeActionEvidence(value: string): string {
-  return stripNiqqud(value)
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
-}
-
 /**
  * Action authority is descriptive but must remain source-grounded. The
- * evidence-only `sourcePhrase` and unsupported-semantics records belong to the
- * authoring draft/repair surface, not the candidate contract.
+ * evidence-only `sourcePhrase` and coverage records belong to the authoring
+ * draft/review surface, not the candidate contract.
  */
-function sourceGroundPageActions(
+function sourceGroundPageActionSemantics(
   pageDraft: Record<string, unknown>,
   sourcePages: TemplateCompileInput['pages'],
-  evidence: TemplateActionSourceEvidence[],
-): Record<string, unknown> {
+): {
+  page: Record<string, unknown>;
+  coverage: ActionSemanticCoverageRecord[];
+  capabilityGaps: ActionSemanticCapabilityGap[];
+  issues: string[];
+} {
   const pageNumber =
     typeof pageDraft.pageNumber === 'number'
       ? pageDraft.pageNumber
@@ -439,21 +465,23 @@ function sourceGroundPageActions(
   const sourcePage = sourcePages.find(
     (candidate) => candidate.pageNumber === pageNumber,
   );
-  const sourceText = normalizeActionEvidence(sourcePage?.text ?? '');
-  const evidenceIssues: string[] = [];
+  const sourceText = sourcePage?.text ?? '';
+  const issues: string[] = [];
   const assertPhrase = (
     rawPhrase: unknown,
     label: string,
   ): string | null => {
-    if (typeof rawPhrase !== 'string') {
-      evidenceIssues.push(
+    if (
+      typeof rawPhrase !== 'string' ||
+      rawPhrase.trim().length === 0
+    ) {
+      issues.push(
         `action_source_evidence_missing: ${label}.sourcePhrase must quote exact same-page Story Source prose`,
       );
       return null;
     }
-    const phrase = normalizeActionEvidence(rawPhrase);
-    if (!phrase || !sourceText.includes(phrase)) {
-      evidenceIssues.push(
+    if (!sourceText.includes(rawPhrase)) {
+      issues.push(
         `action_source_evidence_missing: ${label}.sourcePhrase does not occur in Story Source page ${pageNumber}`,
       );
       return null;
@@ -461,35 +489,9 @@ function sourceGroundPageActions(
     return rawPhrase;
   };
 
-  const unsupported = asArr(
-    pageDraft.unsupportedActionSemantics,
-  );
-  for (let index = 0; index < unsupported.length; index += 1) {
-    const record = asObj(unsupported[index]);
-    assertPhrase(
-      record.sourcePhrase,
-      `page ${pageNumber}.unsupportedActionSemantics[${index}]`,
-    );
-    if (
-      record.reason !== 'closed_action_vocabulary_gap'
-    ) {
-      evidenceIssues.push(
-        `unsupported_action_semantic: page ${pageNumber}.unsupportedActionSemantics[${index}].reason must be closed_action_vocabulary_gap`,
-      );
-    }
-  }
-  if (evidenceIssues.length > 0) {
-    throw new InvalidTemplateContractError(evidenceIssues);
-  }
-  if (unsupported.length > 0) {
-    throw new InvalidTemplateContractError([
-      `unsupported_action_semantic: page ${pageNumber} contains ${unsupported.length} Story Source beat(s) that the closed action vocabulary cannot faithfully represent`,
-    ]);
-  }
-
   const out = { ...pageDraft };
   if (pageDraft.actionRequirements !== undefined) {
-    out.actionRequirements = asArr(
+    const groundedActions = asArr(
       pageDraft.actionRequirements,
     ).map((raw, index) => {
       const action = { ...asObj(raw) };
@@ -497,27 +499,137 @@ function sourceGroundPageActions(
         action.sourcePhrase,
         `page ${pageNumber}.actionRequirements[${index}]`,
       );
-      if (
-        sourcePhrase &&
-        typeof action.checkId === 'string'
-      ) {
-        evidence.push({
-          pageNumber,
-          checkId: action.checkId,
-          sourcePhrase,
-        });
-      }
+      void sourcePhrase;
       delete action.sourcePhrase;
       if (action.object === null) delete action.object;
       if (action.laterality === null) delete action.laterality;
       return action;
     });
+    if (groundedActions.length > 0) {
+      out.actionRequirements = groundedActions;
+    } else {
+      delete out.actionRequirements;
+    }
   }
+
+  const coverage: ActionSemanticCoverageRecord[] = [];
+  const capabilityGaps: ActionSemanticCapabilityGap[] = [];
+  const rawCoverage = asArr(pageDraft.actionSemanticCoverage);
+  if (rawCoverage.length === 0) {
+    issues.push(
+      `page ${pageNumber}: action_semantic_coverage_missing`,
+    );
+  }
+  for (let index = 0; index < rawCoverage.length; index += 1) {
+    const label =
+      `page ${pageNumber}.actionSemanticCoverage[${index}]`;
+    const record = asObj(rawCoverage[index]);
+    const sourcePhrase = assertPhrase(
+      record.sourcePhrase,
+      label,
+    );
+    const rawBeatId =
+      typeof record.beatId === 'string' ? record.beatId : '';
+    const beatIdPattern = new RegExp(
+      `^beat:p${pageNumber}:[a-z0-9_]+$`,
+    );
+    const beatId = beatIdPattern.test(rawBeatId)
+      ? rawBeatId
+      : '';
+    if (!rawBeatId) {
+      issues.push(`${label}.beatId is missing`);
+    } else if (!beatId) {
+      issues.push(
+        `${label}.beatId "${rawBeatId}" must be stable and page-scoped (${String(beatIdPattern)})`,
+      );
+    }
+    const disposition = asObj(record.disposition);
+    if (disposition.kind === 'unsupported') {
+      if (
+        disposition.reason !== 'closed_action_catalog_gap'
+      ) {
+        issues.push(
+          `${label}.disposition.reason must be closed_action_catalog_gap`,
+        );
+      } else if (beatId && sourcePhrase) {
+        capabilityGaps.push({
+          pageNumber,
+          beatId,
+          sourcePhrase,
+          reason: 'closed_action_catalog_gap',
+        });
+      }
+      continue;
+    }
+
+    let typedDisposition:
+      | ActionSemanticCoverageRecord['disposition']
+      | null = null;
+    if (disposition.kind === 'action_requirement') {
+      if (typeof disposition.checkId !== 'string') {
+        issues.push(
+          `${label}.disposition.checkId is missing`,
+        );
+      } else {
+        typedDisposition = {
+          kind: 'action_requirement',
+          checkId: disposition.checkId,
+        };
+      }
+    } else if (disposition.kind === 'represented_elsewhere') {
+      if (
+        typeof disposition.contractPointer !== 'string' ||
+        typeof disposition.contractValue !== 'string'
+      ) {
+        issues.push(
+          `${label}.disposition represented_elsewhere requires contractPointer and exact string contractValue`,
+        );
+      } else {
+        typedDisposition = {
+          kind: 'represented_elsewhere',
+          contractPointer: disposition.contractPointer,
+          contractValue: disposition.contractValue,
+        };
+      }
+    } else if (disposition.kind === 'non_visual') {
+      if (
+        typeof disposition.rationale !== 'string' ||
+        !NON_VISUAL_RATIONALE_VALUES.includes(
+          disposition.rationale as (typeof NON_VISUAL_RATIONALE_VALUES)[number],
+        )
+      ) {
+        issues.push(
+          `${label}.disposition.rationale is not in the closed non-visual rationale catalog`,
+        );
+      } else {
+        typedDisposition = {
+          kind: 'non_visual',
+          rationale:
+            disposition.rationale as (typeof NON_VISUAL_RATIONALE_VALUES)[number],
+        };
+      }
+    } else {
+      issues.push(`${label}.disposition.kind is invalid`);
+    }
+    if (beatId && sourcePhrase && typedDisposition) {
+      coverage.push({
+        version: ACTION_SEMANTIC_COVERAGE_VERSION,
+        pageNumber,
+        beatId,
+        sourcePhrase,
+        disposition: typedDisposition,
+        reviewState: 'unreviewed',
+      });
+    }
+  }
+  delete out.actionSemanticCoverage;
   delete out.unsupportedActionSemantics;
-  if (evidenceIssues.length > 0) {
-    throw new InvalidTemplateContractError(evidenceIssues);
-  }
-  return out;
+  return {
+    page: out,
+    coverage,
+    capabilityGaps,
+    issues,
+  };
 }
 
 /** Recompute one page's castIds + characterPresence + laterality castStates from the deterministic facts. */
@@ -827,10 +939,10 @@ function assembleTemplateFromDraft(
 ): {
   template: BookVisualContractTemplate;
   notes: string[];
-  actionSourceEvidence: TemplateActionSourceEvidence[];
+  actionSemanticCoverage: ActionSemanticCoverageRecord[];
 } {
   const notes: string[] = [];
-  const actionSourceEvidence: TemplateActionSourceEvidence[] =
+  const actionSemanticCoverage: ActionSemanticCoverageRecord[] =
     [];
 
   // Cast IDENTITY + PRESENCE are AUTHORITATIVE from the input/facts — NEVER the draft. The child id is a fixed
@@ -887,18 +999,41 @@ function assembleTemplateFromDraft(
     input.authoredCoverAuthority,
   );
   notes.push(...topoNotes);
-  const pageContracts = canonicalPages.map((pc) =>
-    overlayPage(
-      sourceGroundPageActions(
-        pc,
-        input.pages,
-        actionSourceEvidence,
-      ),
+  const capabilityGaps: ActionSemanticCapabilityGap[] = [];
+  const coverageIssues: string[] = [];
+  const pageContracts = canonicalPages.map((pc) => {
+    const grounded = sourceGroundPageActionSemantics(
+      pc,
+      input.pages,
+    );
+    actionSemanticCoverage.push(...grounded.coverage);
+    capabilityGaps.push(...grounded.capabilityGaps);
+    coverageIssues.push(...grounded.issues);
+    return overlayPage(
+      grounded.page,
       facts,
       childId,
       companionId,
-    ),
-  );
+    );
+  });
+  const seenBeatIds = new Set<string>();
+  for (const beat of [
+    ...actionSemanticCoverage,
+    ...capabilityGaps,
+  ]) {
+    if (seenBeatIds.has(beat.beatId)) {
+      coverageIssues.push(
+        `Action Semantic Coverage beatId "${beat.beatId}" is duplicated`,
+      );
+    }
+    seenBeatIds.add(beat.beatId);
+  }
+  if (coverageIssues.length > 0) {
+    throw new InvalidTemplateContractError(coverageIssues);
+  }
+  if (capabilityGaps.length > 0) {
+    throw new ActionSemanticCapabilityGapError(capabilityGaps);
+  }
   if (!Array.isArray(canonicalCover.castIds) || canonicalCover.castIds.length === 0) {
     const firstPage = [...pageContracts].sort(
       (a, b) => Number(a.pageNumber ?? 0) - Number(b.pageNumber ?? 0),
@@ -975,7 +1110,16 @@ function assembleTemplateFromDraft(
 
   // FAIL-CLOSED — never return an invalid candidate.
   assertValidBookVisualContractTemplate(template);
-  return { template, notes, actionSourceEvidence };
+  const semanticCoverageIssues = actionSemanticCoverageIssues({
+    template: template as unknown as BookVisualContract,
+    coverage: actionSemanticCoverage,
+  });
+  if (semanticCoverageIssues.length > 0) {
+    throw new InvalidTemplateContractError(
+      semanticCoverageIssues,
+    );
+  }
+  return { template, notes, actionSemanticCoverage };
 }
 
 /**
@@ -1063,8 +1207,8 @@ export async function compileBookVisualContractTemplate(
       return {
         template: assembled.template,
         facts,
-        actionSourceEvidence:
-          assembled.actionSourceEvidence,
+        actionSemanticCoverage:
+          assembled.actionSemanticCoverage,
         notes: assembled.notes,
         provenance,
         repairAttempts,

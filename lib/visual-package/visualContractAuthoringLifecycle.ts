@@ -29,9 +29,19 @@ import {
   TEMPLATE_PROMPT_VERSION,
   TEMPLATE_USER_PROMPT_VERSION,
   TemplateRepairExhaustedError,
-  type TemplateActionSourceEvidence,
   type TemplateCompileResult,
 } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
+import {
+  ACTION_SEMANTIC_CATALOG,
+  ACTION_SEMANTIC_CATALOG_VERSION,
+} from '@/lib/visual-contract-compiler/actionSemanticCatalog';
+import {
+  ACTION_SEMANTIC_COVERAGE_VERSION,
+  ActionSemanticCapabilityGapError,
+  actionSemanticCoverageIssues,
+  assertCompleteActionSemanticCoverage,
+  type ActionSemanticCoverageRecord,
+} from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 import type {
   ContractLlmCallOptions,
   ContractLlmPromptAuthority,
@@ -64,15 +74,27 @@ import {
 } from './storySourceAuthority';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v3' as const;
+  'visual-contract-authoring-request/v4' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v3' as const;
+  'visual-contract-authoring-receipt/v4' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v1' as const;
+  'visual-contract-authoring-readiness/v2' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
+  'visual-contract-candidate-artifact/v2' as const;
+export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
+  'canonical-import-preflight-attestation/v1' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
+  'visual-contract-authoring-request/v3' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
+  'visual-contract-authoring-receipt/v3' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
+  'visual-contract-authoring-readiness/v1' as const;
+export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v1' as const;
 export const OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
   'openai-responses-authoring-evidence/v2' as const;
+export const ACTION_SEMANTIC_CATALOG_DIGEST =
+  canonicalJsonDigest(ACTION_SEMANTIC_CATALOG);
 
 const PROMPT_PROTOCOL_TOKEN_ALLOWANCE = 4_096;
 const MAX_RECEIPT_ERRORS = 128;
@@ -137,6 +159,11 @@ export interface VisualContractAuthoringRequest {
       userPromptVersion: typeof REPAIR_USER_PROMPT_VERSION;
       systemPromptDigest: string;
     };
+  };
+  actionSemanticAuthority: {
+    catalogVersion: typeof ACTION_SEMANTIC_CATALOG_VERSION;
+    catalogDigest: string;
+    coverageVersion: typeof ACTION_SEMANTIC_COVERAGE_VERSION;
   };
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
@@ -234,6 +261,19 @@ export interface VisualContractAuthoringReceipt {
   attempts: VisualContractAuthoringAttemptReceipt[];
   candidateDigest: string | null;
   reconciliationDigest: null;
+  actionSemanticCoverage: {
+    version: typeof ACTION_SEMANTIC_COVERAGE_VERSION;
+    catalogVersion: typeof ACTION_SEMANTIC_CATALOG_VERSION;
+    catalogDigest: string;
+    status:
+      | 'not_evaluated'
+      | 'complete_review_required'
+      | 'capability_gap'
+      | 'incomplete';
+    recordCount: number;
+    gapCount: number;
+    coverageDigest: string | null;
+  };
   failure: {
     code:
       | 'request_invalid'
@@ -246,7 +286,8 @@ export interface VisualContractAuthoringReceipt {
       | 'completion_status_invalid'
       | 'cost_ceiling_exceeded'
       | 'validation_exhausted'
-      | 'action_authority_incomplete';
+      | 'action_authority_incomplete'
+      | 'action_semantic_capability_gap';
     message: string;
     issues: string[];
   } | null;
@@ -265,7 +306,18 @@ export interface VisualContractAuthoringReadinessEvidence {
   sourceSnapshotDigest: string;
   authoringRequestDigest: string;
   authoringReceiptDigest: string;
-  preflightPassed: boolean;
+  canonicalImportPreflight: {
+    status: 'passed' | 'failed' | 'not_attested' | 'unknown';
+    attestationVersion: string | null;
+    attestationDigest: string | null;
+  };
+  authoringOutcome: {
+    status: VisualContractAuthoringReceipt['status'];
+    failureCode:
+      | NonNullable<VisualContractAuthoringReceipt['failure']>['code']
+      | null;
+  };
+  actionSemanticCoverage: VisualContractAuthoringReceipt['actionSemanticCoverage'];
   visualContractCandidate: {
     status: 'absent' | 'candidate';
     digest: string | null;
@@ -298,14 +350,58 @@ export interface VisualContractCandidateArtifact {
   authoringRequestDigest: string;
   authoringReceiptDigest: string;
   templateDigest: string;
-  actionSourceEvidenceDigest: string;
+  actionSemanticCatalogVersion:
+    typeof ACTION_SEMANTIC_CATALOG_VERSION;
+  actionSemanticCatalogDigest: string;
+  actionSemanticCoverageVersion:
+    typeof ACTION_SEMANTIC_COVERAGE_VERSION;
+  actionSemanticCoverageDigest: string;
   template: BookVisualContractTemplate;
-  /** Review evidence only; never contract or approval authority. */
-  actionSourceEvidence: TemplateActionSourceEvidence[];
+  /** Complete compiler-checked review evidence; never approval authority. */
+  actionSemanticCoverage: ActionSemanticCoverageRecord[];
   status: 'candidate';
   doesNotAuthorize: string[];
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
+}
+
+export interface CanonicalImportPreflightAttestation {
+  version: typeof CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION;
+  sourceSnapshotDigest: string;
+  authoringRequestDigest: string;
+  status: 'passed' | 'failed';
+  issues: string[];
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
+
+export type VisualContractAuthoringArtifactKind =
+  | 'request'
+  | 'receipt'
+  | 'readiness'
+  | 'candidate';
+
+export function visualContractAuthoringArtifactVersionStatus(
+  kind: VisualContractAuthoringArtifactKind,
+  version: unknown,
+): 'current' | 'legacy_immutable' | 'unsupported' {
+  const current = {
+    request: VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+    receipt: VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION,
+    readiness: VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
+    candidate: VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
+  } as const;
+  const legacy = {
+    request: LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+    receipt: LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION,
+    readiness: LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
+    candidate: LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
+  } as const;
+  return version === current[kind]
+    ? 'current'
+    : version === legacy[kind]
+      ? 'legacy_immutable'
+      : 'unsupported';
 }
 
 const DOES_NOT_AUTHORIZE = [
@@ -547,6 +643,11 @@ export function buildVisualContractAuthoringRequest(args: {
         ),
       },
     },
+    actionSemanticAuthority: {
+      catalogVersion: ACTION_SEMANTIC_CATALOG_VERSION,
+      catalogDigest: ACTION_SEMANTIC_CATALOG_DIGEST,
+      coverageVersion: ACTION_SEMANTIC_COVERAGE_VERSION,
+    },
   };
   return {
     ...withoutDigest,
@@ -681,6 +782,11 @@ export function visualContractAuthoringRequestIssues(args: {
       request.promptAuthority,
       exact.promptAuthority,
     ],
+    [
+      'action_semantic_authority_mismatch',
+      request.actionSemanticAuthority,
+      exact.actionSemanticAuthority,
+    ],
   ];
   for (const [code, actual, expected] of exactFields) {
     if (!exactJson(actual, expected)) issues.push(code);
@@ -747,6 +853,23 @@ function finalizeReceipt(
   };
 }
 
+function receiptActionSemanticCoverage(
+  status: VisualContractAuthoringReceipt['actionSemanticCoverage']['status'],
+  recordCount = 0,
+  gapCount = 0,
+  coverageDigest: string | null = null,
+): VisualContractAuthoringReceipt['actionSemanticCoverage'] {
+  return {
+    version: ACTION_SEMANTIC_COVERAGE_VERSION,
+    catalogVersion: ACTION_SEMANTIC_CATALOG_VERSION,
+    catalogDigest: ACTION_SEMANTIC_CATALOG_DIGEST,
+    status,
+    recordCount,
+    gapCount,
+    coverageDigest,
+  };
+}
+
 function failureReceipt(args: {
   request: VisualContractAuthoringRequest;
   attempts: VisualContractAuthoringAttemptReceipt[];
@@ -755,6 +878,8 @@ function failureReceipt(args: {
   >['code'];
   message: string;
   issues?: string[];
+  actionSemanticCoverage?:
+    VisualContractAuthoringReceipt['actionSemanticCoverage'];
 }): VisualContractAuthoringReceipt {
   const usage = aggregateUsage(args.attempts);
   return finalizeReceipt({
@@ -784,6 +909,9 @@ function failureReceipt(args: {
     attempts: args.attempts,
     candidateDigest: null,
     reconciliationDigest: null,
+    actionSemanticCoverage:
+      args.actionSemanticCoverage ??
+      receiptActionSemanticCoverage('not_evaluated'),
     failure: {
       code: args.code,
       message: args.message,
@@ -1099,19 +1227,12 @@ function expectedCallOptions(
 
 function actionAuthorityIssues(
   template: BookVisualContractTemplate,
+  coverage: readonly ActionSemanticCoverageRecord[],
 ): string[] {
-  const issues: string[] = [];
-  for (const page of template.pageContracts) {
-    if (
-      !Array.isArray(page.actionRequirements) ||
-      page.actionRequirements.length === 0
-    ) {
-      issues.push(
-        `page ${page.pageNumber}: action_authority_missing`,
-      );
-    }
-  }
-  return issues;
+  return actionSemanticCoverageIssues({
+    template,
+    coverage,
+  });
 }
 
 export function visualContractAuthoringCallPromptAuthorityIssues(
@@ -1232,6 +1353,8 @@ export async function runVisualContractAuthoring(args: {
         attempts: [],
         candidateDigest: null,
         reconciliationDigest: null,
+        actionSemanticCoverage:
+          receiptActionSemanticCoverage('not_evaluated'),
         failure: null,
         doesNotAuthorize: [...DOES_NOT_AUTHORIZE],
       }),
@@ -1622,6 +1745,7 @@ export async function runVisualContractAuthoring(args: {
     }
     const actionIssues = actionAuthorityIssues(
       compileResult.template,
+      compileResult.actionSemanticCoverage,
     );
     if (actionIssues.length > 0) {
       return {
@@ -1630,8 +1754,17 @@ export async function runVisualContractAuthoring(args: {
           attempts,
           code: 'action_authority_incomplete',
           message:
-            'candidate lacks explicit structured action authority on every page',
+            'candidate lacks complete compiler-checked Action Semantic Coverage',
           issues: actionIssues,
+          actionSemanticCoverage:
+            receiptActionSemanticCoverage(
+              'incomplete',
+              compileResult.actionSemanticCoverage.length,
+              0,
+              canonicalJsonDigest(
+                compileResult.actionSemanticCoverage,
+              ),
+            ),
         }),
         compileResult: null,
       };
@@ -1667,6 +1800,15 @@ export async function runVisualContractAuthoring(args: {
         attempts,
         candidateDigest,
         reconciliationDigest: null,
+        actionSemanticCoverage:
+          receiptActionSemanticCoverage(
+            'complete_review_required',
+            compileResult.actionSemanticCoverage.length,
+            0,
+            canonicalJsonDigest(
+              compileResult.actionSemanticCoverage,
+            ),
+          ),
         failure: null,
         doesNotAuthorize: [...DOES_NOT_AUTHORIZE],
       }),
@@ -1683,7 +1825,22 @@ export async function runVisualContractAuthoring(args: {
         }
       }
     }
-    const code = terminal.code ?? 'validation_exhausted';
+    const capabilityIssues =
+      error instanceof ActionSemanticCapabilityGapError
+        ? error.gaps.map(
+            (gap) =>
+              `page ${gap.pageNumber} ${gap.beatId}: ${gap.reason}; exact source phrase=${JSON.stringify(gap.sourcePhrase)}`,
+          )
+        : [];
+    if (capabilityIssues.length > 0 && attempts[0]) {
+      attempts[0].validationErrors =
+        boundedErrors(capabilityIssues);
+    }
+    const code =
+      terminal.code ??
+      (error instanceof ActionSemanticCapabilityGapError
+        ? 'action_semantic_capability_gap'
+        : 'validation_exhausted');
     return {
       receipt: failureReceipt({
         request: args.request,
@@ -1703,33 +1860,145 @@ export async function runVisualContractAuthoring(args: {
                   : code === 'completion_status_invalid'
                     ? 'provider response did not report a completed result'
                 : code === 'cost_ceiling_exceeded'
-                  ? 'authoring stopped at the approved hard cost ceiling'
+                ? 'authoring stopped at the approved hard cost ceiling'
+                : code === 'action_semantic_capability_gap'
+                  ? 'initial whole-book output exposed closed-catalog capability gaps; semantic repair is forbidden under the same catalog'
                   : 'all bounded whole-book validation attempts failed',
+        issues: capabilityIssues,
+        ...(code === 'action_semantic_capability_gap'
+          ? {
+              actionSemanticCoverage:
+                receiptActionSemanticCoverage(
+                  'capability_gap',
+                  0,
+                  capabilityIssues.length,
+                ),
+            }
+          : {}),
       }),
       compileResult: null,
     };
   }
 }
 
+export function buildCanonicalImportPreflightAttestation(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  request: VisualContractAuthoringRequest;
+  issues?: readonly string[];
+}): CanonicalImportPreflightAttestation {
+  const withoutDigest = {
+    version: CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION,
+    sourceSnapshotDigest: args.snapshot.digest,
+    authoringRequestDigest: args.request.digest,
+    status:
+      (args.issues?.length ?? 0) === 0
+        ? ('passed' as const)
+        : ('failed' as const),
+    issues: boundedErrors(args.issues ?? []),
+  };
+  return {
+    ...withoutDigest,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(withoutDigest),
+  };
+}
+
+function canonicalImportPreflightState(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  request: VisualContractAuthoringRequest;
+  attestation?: CanonicalImportPreflightAttestation;
+}): VisualContractAuthoringReadinessEvidence['canonicalImportPreflight'] {
+  if (!args.attestation) {
+    return {
+      status: 'not_attested',
+      attestationVersion: null,
+      attestationDigest: null,
+    };
+  }
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = args.attestation;
+  const valid =
+    args.attestation.version ===
+      CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION &&
+    args.attestation.sourceSnapshotDigest ===
+      args.snapshot.digest &&
+    args.attestation.authoringRequestDigest ===
+      args.request.digest &&
+    args.attestation.digestAlgorithm ===
+      'canonical-json-sha256' &&
+    args.attestation.digest === canonicalJsonDigest(payload);
+  return {
+    status: valid ? args.attestation.status : 'unknown',
+    attestationVersion: args.attestation.version,
+    attestationDigest: args.attestation.digest,
+  };
+}
+
 export function buildVisualContractAuthoringReadinessEvidence(args: {
   snapshot: StorySourceAuthoritySnapshot;
   request: VisualContractAuthoringRequest;
   receipt: VisualContractAuthoringReceipt;
+  canonicalImportPreflightAttestation?:
+    CanonicalImportPreflightAttestation;
 }): VisualContractAuthoringReadinessEvidence {
+  const {
+    digestAlgorithm: _receiptDigestAlgorithm,
+    digest: _receiptDigest,
+    ...receiptPayload
+  } = args.receipt;
+  if (
+    args.request.version !==
+      VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION ||
+    args.receipt.version !==
+      VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION ||
+    (args.receipt.status !== 'failed' &&
+      args.receipt.sourceSnapshotDigest !==
+        args.snapshot.digest) ||
+    args.receipt.requestDigest !== args.request.digest ||
+    args.receipt.digestAlgorithm !==
+      'canonical-json-sha256' ||
+    args.receipt.digest !==
+      canonicalJsonDigest(receiptPayload)
+  ) {
+    throw new Error(
+      'readiness v2 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
+    );
+  }
+  const canonicalImportPreflight =
+    canonicalImportPreflightState({
+      snapshot: args.snapshot,
+      request: args.request,
+      attestation:
+        args.canonicalImportPreflightAttestation,
+    });
   const candidate =
     args.receipt.status === 'completed' &&
-    args.receipt.candidateDigest
+    args.receipt.candidateDigest &&
+    args.receipt.actionSemanticCoverage.status ===
+      'complete_review_required'
       ? {
           status: 'candidate' as const,
           digest: args.receipt.candidateDigest,
         }
       : { status: 'absent' as const, digest: null };
-  const preflightPassed =
-    args.receipt.status !== 'failed';
   const blockers = [
-    ...(preflightPassed
+    ...(canonicalImportPreflight.status === 'passed'
       ? []
-      : ['authoring_preflight_not_passed']),
+      : [
+          `canonical_import_preflight_${canonicalImportPreflight.status}`,
+        ]),
+    ...(args.receipt.status === 'failed'
+      ? ['authoring_outcome_failed']
+      : []),
+    ...(args.receipt.actionSemanticCoverage.status ===
+    'complete_review_required'
+      ? []
+      : [
+          `action_semantic_coverage_${args.receipt.actionSemanticCoverage.status}`,
+        ]),
     ...(candidate.status === 'absent'
       ? ['visual_contract_candidate_absent']
       : []),
@@ -1741,7 +2010,13 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
     sourceSnapshotDigest: args.snapshot.digest,
     authoringRequestDigest: args.request.digest,
     authoringReceiptDigest: args.receipt.digest,
-    preflightPassed,
+    canonicalImportPreflight,
+    authoringOutcome: {
+      status: args.receipt.status,
+      failureCode: args.receipt.failure?.code ?? null,
+    },
+    actionSemanticCoverage:
+      args.receipt.actionSemanticCoverage,
     visualContractCandidate: candidate,
     semanticReconciliation: {
       status: 'absent' as const,
@@ -1826,23 +2101,54 @@ export function buildVisualContractCandidateArtifact(args: {
   receipt: VisualContractAuthoringReceipt;
   compileResult: Pick<
     TemplateCompileResult,
-    'template' | 'actionSourceEvidence'
+    'template' | 'actionSemanticCoverage'
   >;
 }): VisualContractCandidateArtifact {
   const templateDigest = canonicalJsonDigest(
     args.compileResult.template,
   );
+  const {
+    digestAlgorithm: _receiptDigestAlgorithm,
+    digest: _receiptDigest,
+    ...receiptPayload
+  } = args.receipt;
   if (
+    args.receipt.version !==
+      VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION ||
     args.receipt.status !== 'completed' ||
-    args.receipt.candidateDigest !== templateDigest
+    args.receipt.candidateDigest !== templateDigest ||
+    args.receipt.digestAlgorithm !==
+      'canonical-json-sha256' ||
+    args.receipt.digest !==
+      canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
       'refusing to persist an uncompleted or receipt-unbound Visual Contract candidate',
     );
   }
-  const actionSourceEvidenceDigest = canonicalJsonDigest(
-    args.compileResult.actionSourceEvidence,
+  const actionSemanticCoverageDigest = canonicalJsonDigest(
+    args.compileResult.actionSemanticCoverage,
   );
+  assertCompleteActionSemanticCoverage({
+    template: args.compileResult.template,
+    coverage: args.compileResult.actionSemanticCoverage,
+  });
+  if (
+    args.receipt.actionSemanticCoverage.status !==
+      'complete_review_required' ||
+    args.receipt.actionSemanticCoverage.catalogVersion !==
+      ACTION_SEMANTIC_CATALOG_VERSION ||
+    args.receipt.actionSemanticCoverage.catalogDigest !==
+      ACTION_SEMANTIC_CATALOG_DIGEST ||
+    args.receipt.actionSemanticCoverage.version !==
+      ACTION_SEMANTIC_COVERAGE_VERSION ||
+    args.receipt.actionSemanticCoverage.coverageDigest !==
+      actionSemanticCoverageDigest
+  ) {
+    throw new Error(
+      'refusing to persist a candidate without current Action Semantic Coverage authority',
+    );
+  }
   const artifactWithoutDigest = {
     version: VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
     sourceSnapshotDigest:
@@ -1850,10 +2156,16 @@ export function buildVisualContractCandidateArtifact(args: {
     authoringRequestDigest: args.receipt.requestDigest,
     authoringReceiptDigest: args.receipt.digest,
     templateDigest,
-    actionSourceEvidenceDigest,
+    actionSemanticCatalogVersion:
+      ACTION_SEMANTIC_CATALOG_VERSION,
+    actionSemanticCatalogDigest:
+      ACTION_SEMANTIC_CATALOG_DIGEST,
+    actionSemanticCoverageVersion:
+      ACTION_SEMANTIC_COVERAGE_VERSION,
+    actionSemanticCoverageDigest,
     template: args.compileResult.template,
-    actionSourceEvidence:
-      args.compileResult.actionSourceEvidence,
+    actionSemanticCoverage:
+      args.compileResult.actionSemanticCoverage,
     status: 'candidate' as const,
     doesNotAuthorize: [...DOES_NOT_AUTHORIZE],
   };
@@ -1871,7 +2183,7 @@ export function persistVisualContractCandidate(args: {
   receipt: VisualContractAuthoringReceipt;
   compileResult: Pick<
     TemplateCompileResult,
-    'template' | 'actionSourceEvidence'
+    'template' | 'actionSemanticCoverage'
   >;
   write?: boolean;
 }): VisualContractAuthoringArtifactWrite {

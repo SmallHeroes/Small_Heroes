@@ -171,7 +171,18 @@ function fullyActionedDraft(
     ];
     (
       page as unknown as Record<string, unknown>
-    ).unsupportedActionSemantics = [];
+    ).actionSemanticCoverage = [
+      {
+        beatId: `beat:p${page.pageNumber}:look`,
+        sourcePhrase: exactSourcePhrase(
+          sourcePage?.text ?? '',
+        ),
+        disposition: {
+          kind: 'action_requirement',
+          checkId: `action:p${page.pageNumber}_look`,
+        },
+      },
+    ];
   }
   for (const page of draft.pageContracts) {
     page.mustShow = [
@@ -435,7 +446,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v3',
+      'visual-contract-authoring-receipt/v4',
     );
     expect(adapter.readCredential).toHaveBeenCalledTimes(1);
     expect(adapter.transportCreate).toHaveBeenCalledTimes(1);
@@ -1658,6 +1669,7 @@ describe('canonical live authoring executable boundary', () => {
     'costBudget',
     'promptDigests',
     'promptAuthority',
+    'actionSemanticAuthority',
     'pricing',
   ] as const)(
     'preserves the exact camelCase rejection code for unknown %s fields',

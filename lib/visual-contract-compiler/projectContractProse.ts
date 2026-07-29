@@ -29,6 +29,7 @@ import type {
   SpatialRelationKind,
   VisualZone,
 } from './types';
+import { actionSemanticDefinition } from './actionSemanticCatalog';
 
 /* ── Closed-enum prose tables ────────────────────────────────────────────────────────────────────
  * Explicit `Record<Kind, string>` maps rather than string munging: TS then fails the build if an enum member is
@@ -42,18 +43,6 @@ const SPATIAL_RELATION_PROSE: Record<SpatialRelationKind, string> = {
   above: 'is above',
   below: 'is below',
   centered_in: 'is centered in the zone',
-};
-
-const ACTION_PREDICATE_PROSE: Record<PageActionRequirement['predicate'], string> = {
-  holds: 'holds',
-  offers: 'offers',
-  touches: 'touches',
-  looks_at: 'looks at',
-  reaches_toward: 'reaches toward',
-  climbs_onto: 'climbs onto',
-  sits_on: 'sits on',
-  stands_on: 'stands on',
-  points_at: 'points at',
 };
 
 const SAFETY_RELATION_PROSE: Record<SafetyConstraint['relation'], string> = {
@@ -180,13 +169,19 @@ export function projectZoneStableGeometry(zone: VisualZone): string[] | undefine
 /* ── TIER C — action + safety prose (wired to the prompt block; never stored, never hashed) ───── */
 
 /** One readable action beat. `polarity` decides the wording — and, upstream, which array it may land in. */
+export function projectActionPredicateProse(
+  predicate: PageActionRequirement['predicate'],
+): string {
+  return actionSemanticDefinition(predicate).proseProjection;
+}
+
 function actionProseLine(
   action: PageActionRequirement,
   page: PageVisualContract,
   contract: BookVisualContract
 ): string {
   const actor = castLabel(action.actorId, contract);
-  const verb = ACTION_PREDICATE_PROSE[action.predicate];
+  const verb = projectActionPredicateProse(action.predicate);
   const hand = action.laterality ? ` with the ${action.laterality} hand` : '';
   const object = action.object ? ` ${refLabel(action.object, page, contract)}` : '';
   const lead = action.polarity === 'must_not' ? `${actor} must NOT ${verb}` : `${actor} ${verb}`;

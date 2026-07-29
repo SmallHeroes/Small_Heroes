@@ -285,6 +285,33 @@ describe('Stage 4 — reject rule: relation coherence', () => {
 });
 
 describe('Stage 4 — reject rule: a required action conflicting with a visibility or safety constraint', () => {
+  it('enforces catalog object-kind and laterality rules for corpus-derived predicates', () => {
+    const common = {
+      checkId: 'action:catalog_rule',
+      actorId: 'child:hero',
+      polarity: 'must',
+    };
+    expect(errorsOf({ page1: { actionRequirements: [{
+      ...common,
+      predicate: 'opens',
+    }] } }).join(' ')).toContain('object is required');
+    expect(errorsOf({ page1: { actionRequirements: [{
+      ...common,
+      predicate: 'walks',
+      object: { kind: 'prop', id: 'exam_chair' },
+    }] } }).join(' ')).toContain('object is forbidden');
+    expect(errorsOf({ page1: { actionRequirements: [{
+      ...common,
+      predicate: 'places',
+      object: { kind: 'cast', id: 'child:hero' },
+    }] } }).join(' ')).toContain('object.kind "cast" is not allowed');
+    expect(errorsOf({ page1: { actionRequirements: [{
+      ...common,
+      predicate: 'looks_at',
+      laterality: 'left',
+    }] } }).join(' ')).toContain('laterality is forbidden');
+  });
+
   it('a REQUIRED action on a FORBIDDEN prop → rejected', () => {
     expect(errorsOf({ page1: {
       propConstraints: [{ propId: 'exam_chair', visibility: 'forbidden' }],

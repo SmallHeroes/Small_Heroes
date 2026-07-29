@@ -200,6 +200,10 @@ function authoringRequestValue(
     promptAuthority.repair,
     'visual contract authoring request repair promptAuthority',
   );
+  const actionSemanticAuthority = objectValue(
+    object.actionSemanticAuthority,
+    'visual contract authoring request actionSemanticAuthority',
+  );
   for (const field of [
     'version',
     'mode',
@@ -299,6 +303,14 @@ function authoringRequestValue(
           repairPromptAuthority.systemPromptDigest,
       },
     },
+    actionSemanticAuthority: {
+      catalogVersion:
+        actionSemanticAuthority.catalogVersion,
+      catalogDigest:
+        actionSemanticAuthority.catalogDigest,
+      coverageVersion:
+        actionSemanticAuthority.coverageVersion,
+    },
     digestAlgorithm: object.digestAlgorithm,
     digest: object.digest,
   } as VisualContractAuthoringRequest;
@@ -328,6 +340,7 @@ const REQUEST_KEYS = new Set([
   'costBudget',
   'promptDigests',
   'promptAuthority',
+  'actionSemanticAuthority',
   'digestAlgorithm',
   'digest',
 ]);
@@ -363,6 +376,11 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
   ]),
   promptDigests: new Set(['system', 'user']),
   promptAuthority: new Set(['initial', 'repair']),
+  actionSemanticAuthority: new Set([
+    'catalogVersion',
+    'catalogDigest',
+    'coverageVersion',
+  ]),
 };
 
 const REQUEST_TOP_LEVEL_FIELDS = {
@@ -421,6 +439,11 @@ const REQUEST_OBJECT_FIELDS = {
   promptDigests: {
     system: 'string',
     user: 'string',
+  },
+  actionSemanticAuthority: {
+    catalogVersion: 'string',
+    catalogDigest: 'string',
+    coverageVersion: 'string',
   },
 } as const;
 

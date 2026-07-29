@@ -11,6 +11,17 @@
  * generate them, and there is no vision-QA gate yet. Everything here is text-only and deterministic.
  */
 
+import type { ActionPredicate } from './actionSemanticCatalog';
+
+export {
+  ACTION_PREDICATE_VALUES,
+  ACTION_SEMANTIC_CATALOG,
+  ACTION_SEMANTIC_CATALOG_VERSION,
+  actionSemanticDefinition,
+  isActionPredicate,
+} from './actionSemanticCatalog';
+export type { ActionPredicate } from './actionSemanticCatalog';
+
 export const BOOK_VISUAL_CONTRACT_VERSION = 1 as const;
 
 /**
@@ -401,20 +412,6 @@ export interface PagePropConstraint {
  * possible. Deliberately small: the vision gate needs a FINITE check vocabulary (a free string would be the
  * prose-as-authority bug relocated; a mini-DSL would be unparseable downstream).
  */
-export const ACTION_PREDICATE_VALUES = [
-  'holds',
-  'offers',
-  'touches',
-  'looks_at',
-  'reaches_toward',
-  'climbs_onto',
-  'sits_on',
-  'stands_on',
-  'points_at',
-] as const;
-export type ActionPredicate =
-  (typeof ACTION_PREDICATE_VALUES)[number];
-
 export const ACTION_POLARITY_VALUES = [
   'must',
   'must_not',
