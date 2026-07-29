@@ -2,7 +2,23 @@
 
 **Updated:** 2026-07-29
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b2a-action-semantic-coverage` in `C:\Users\guyna\.codex\worktrees\202d\Small_Heroes`, created cleanly from exact approved base `853d700f14a7263b824d7b4146a54a5e36680abd`. Local implementation commit `91f823b7c782880bbf4b1716fb5da7e40c71b539` is complete and unpushed. This worktree/task alone held write authority. R1D-PVB-D1A1B2A remains **awaiting independent Claude Code first-pass read-only QA**; Codex does not self-award technical PASS. The milestone cost is `$0.00`, authorizes no Attempt 6, and grants no live authoring, Semantic Reconciliation, candidate acceptance, Blueprint/package publication, promotion, activation, deployment, or push.
+**Working branch:** `codex/r1d-pvb-d1a1b2a-action-semantic-coverage` in `C:\Users\guyna\.codex\worktrees\202d\Small_Heroes`, created cleanly from exact approved base `853d700f14a7263b824d7b4146a54a5e36680abd`. Independent Claude Code first-pass read-only QA returned **PASS** for exact immutable range `853d700f14a7263b824d7b4146a54a5e36680abd..63a797abc8421f8a669e4adfd782f6ebe10384c9`, with no BLOCKER, MAJOR, or MINOR. The faithful `CURRENT.md`-only closeout is local and unpushed. This worktree/task alone holds write authority. The milestone cost is `$0.00`, authorizes no B0 rematerialization or Attempt 6, and grants no credential/provider/live call, Semantic Reconciliation or approval, render, candidate/Blueprint/package publication, promotion, activation, deployment, or push.
+
+## R1D-PVB-D1A1B2A-QA-CLOSEOUT — Independent technical PASS
+
+Claude Code independently reviewed exact immutable range `853d700f14a7263b824d7b4146a54a5e36680abd..63a797abc8421f8a669e4adfd782f6ebe10384c9` on branch `codex/r1d-pvb-d1a1b2a-action-semantic-coverage` and returned **PASS** with no BLOCKER, MAJOR, or MINOR.
+
+### Independent evidence and accepted dispositions
+
+- Claude reconciled exact reviewed `HEAD` `63a797abc8421f8a669e4adfd782f6ebe10384c9`, exact base `853d700f14a7263b824d7b4146a54a5e36680abd`, clean unpushed B2A topology, and the clean Attempt-5 source worktree at source/origin parity `0/0`.
+- Claude substantiated all 12 implementation claims in the handoff: central closed catalog authority; general corpus-derived predicates; structured same-page coverage evidence; non-authorizing review state; fail-closed binding/pointer rules; deterministic whole-book aggregation; terminal capability-gap behavior with retained structural repairs; candidate coverage binding; honest readiness v2 separation; fail-closed current/legacy versioning; one generic 18-source corpus path; and unchanged historical/source/package evidence.
+- Claude independently reproduced `npx tsc --noEmit` **PASS**, the focused review set at **4 files / 163 tests PASS**, and the generic corpus audit at **18 sources / 216 pages PASS**. It explicitly did not rerun `npm run check`.
+- Full-suite limitation: the QA pass relies on the preserved implementation record that the one completed full gate passed TypeScript, exposed four B2A test-adapter failures that were corrected and re-proved in the affected 3-file / 39-test run, and otherwise retained only the six established missing ignored-fixture failures. Claude did not independently rerun the full suite, by instruction.
+- **NOTE 1 — failed-receipt snapshot exemption:** `visualContractAuthoringLifecycle.ts` around reviewed line 1957 permits readiness construction to pair a failed receipt with a mismatching snapshot. The evidence remains non-authorizing and live-path request validation backstops the production path. This is accepted as later evidence-accuracy hardening only; no code changes are authorized or made in this closeout.
+- **NOTE 2 — identical kind constants:** `ALL_OBJECT_KINDS` and `PHYSICAL_OBJECT_KINDS` currently contain the same values. This is cosmetic and non-blocking; no cleanup is warranted in this closeout.
+- **NOTE 3 — `coverageDigest` namespace reuse:** the name also exists under `runtimeAuthority` for a different namespace. This is a future naming-clarity cleanup only and does not create an authority collision in the reviewed implementation.
+- This faithful `CURRENT.md`-only PASS transcription sits outside the reviewed immutable range. No additional Claude QA round is required unless this closeout introduces a factual discrepancy. It changes no code, test, config, schema, prompt, Story Source, historical artifact, package, or lockfile.
+- The independent PASS is technical for exact immutable B2A range `853d700f14a7263b824d7b4146a54a5e36680abd..63a797abc8421f8a669e4adfd782f6ebe10384c9` only. It grants no B0 rematerialization, Attempt 6, credential/provider/live call, Semantic Reconciliation or approval, render, candidate/Blueprint/package publication, promotion, activation, deployment, push, product acceptance, or visual acceptance.
 
 ## R1D-PVB-D1A1B2A — Action Semantic Catalog, Full-Book Coverage and Readiness v2
 
@@ -27,7 +43,7 @@ Guy approved the general zero-cost root-cause milestone from immutable Attempt-5
 - The completed gate's synthetic ignored outputs and `tsconfig.tsbuildinfo` were removed after exact-path containment checks. Historical Story Sources, Attempt-5 artifacts, package files, and lockfiles have no Git diff.
 - No credential/env access, pricing/docs/network lookup, provider/model/live authoring, render/image/Vision/audio, storage/database/Supabase, Board action, real Semantic Reconciliation or approval, Blueprint/package publication, promotion, activation, deployment, push, Attempt-5 rerun, or Attempt-6 start occurred. Cost remains exactly `$0.00`.
 
-R1D-PVB-D1A1B2A is locally implemented and green apart from the six established ignored-fixture gate failures. It is not independently PASSed and grants no downstream authority.
+R1D-PVB-D1A1B2A is locally implemented and independently technically PASSed for the exact immutable range above. The six established ignored-fixture gate failures remain outside this milestone. The PASS grants no downstream authority.
 
 ## R1D-PVB-D1A1B1-ATTEMPT-5-QA-FIX — Independent technical PASS after record correction
 
