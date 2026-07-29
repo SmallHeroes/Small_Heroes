@@ -368,7 +368,12 @@ function runVerifierCli(
 }
 
 function runBoundaryProbe(
-  mode: 'coverage' | 'old-stack-shape' | 'paths',
+  mode:
+    | 'cache-file-alias'
+    | 'cache-root-signature'
+    | 'coverage'
+    | 'old-stack-shape'
+    | 'paths',
   boundary = isolatedBoundaryRuntime(),
 ) {
   const unsafeSource = path.join(
@@ -1139,6 +1144,61 @@ describe('production lifecycle canonical verification subprocess', () => {
         ),
       ),
     ).toBe(false);
+  });
+
+  it('rejects an existing cache-root junction or reparse alias', () => {
+    const boundary = isolatedBoundaryRuntime();
+    const actualCacheRoot = path.join(
+      boundary.runtimeTempRoot,
+      'actual-cache-root',
+    );
+    fs.mkdirSync(actualCacheRoot);
+    fs.symlinkSync(
+      actualCacheRoot,
+      boundary.cacheRoot,
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+
+    const result = runBoundaryProbe(
+      'cache-root-signature',
+      boundary,
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'TEST_VERIFICATION_WRITE_SENTINEL:fs:mkdirSync',
+    );
+  });
+
+  it('rejects an existing cache-file hard-link alias', () => {
+    const boundary = isolatedBoundaryRuntime();
+    fs.mkdirSync(boundary.cacheRoot);
+    const outsideTarget = path.join(
+      boundary.runtimeTempRoot,
+      'outside-cache-target.txt',
+    );
+    const original = 'must-remain-unchanged';
+    fs.writeFileSync(outsideTarget, original);
+    fs.linkSync(
+      outsideTarget,
+      path.join(
+        boundary.cacheRoot,
+        '12345-0123456789abcdef0123456789abcdef01234567',
+      ),
+    );
+
+    const result = runBoundaryProbe(
+      'cache-file-alias',
+      boundary,
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'TEST_VERIFICATION_WRITE_SENTINEL:promises:writeFile',
+    );
+    expect(fs.readFileSync(outsideTarget, 'utf8')).toBe(
+      original,
+    );
   });
 
   it('runs the exact script file through local tsx and the server-only shim without credentials, network, or writes', () => {
