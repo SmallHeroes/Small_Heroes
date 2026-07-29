@@ -98,6 +98,7 @@ export interface OpenAIResponsesAuthoringTransportRequest {
     maxRetries: 0;
     timeout: typeof VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS;
   };
+  observations: ProviderFailureBoundaryObservations;
 }
 
 export interface OpenAIResponsesAuthoringTransport {
@@ -334,15 +335,12 @@ export function createGuardedOpenAIResponsesAuthoringFetch(
 
 export const openAIResponsesAuthoringTransport: OpenAIResponsesAuthoringTransport =
   {
-    create: async ({ apiKey, body, requestOptions }) => {
-      const observations =
-        createProviderFailureBoundaryObservations({
-          adapterInvoked: true,
-          credentialReadSucceeded: true,
-          requestBodyDigest: canonicalJsonDigest(body),
-          requestOptionsDigest:
-            canonicalJsonDigest(requestOptions),
-        });
+    create: async ({
+      apiKey,
+      body,
+      requestOptions,
+      observations,
+    }) => {
       observations.sdkClientConstructionStarted = true;
       let client: OpenAI;
       try {
@@ -557,6 +555,7 @@ export function createOpenAIResponsesVisualContractAuthoringAdapter(
           apiKey,
           body,
           requestOptions,
+          observations,
         });
       } catch (error) {
         if (

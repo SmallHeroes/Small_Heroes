@@ -40,6 +40,7 @@ import {
   TEMPLATE_DRAFT_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/templateDraftSchema';
 import {
+  createGuardedOpenAIResponsesAuthoringFetch,
   createOpenAIResponsesVisualContractAuthoringAdapter,
 } from '@/lib/visual-package/openaiResponsesVisualContractAuthoringAdapter';
 import {
@@ -584,6 +585,82 @@ describe('installed OpenAI SDK 6.35.0 behind fake fetch', () => {
       httpResponseReceived: true,
       httpStatus: 200,
     });
+  });
+
+  it('preserves guarded transport observations when adapter response mapping fails', async () => {
+    const delegatedFetch = vi.fn(
+      async () =>
+        new Response('{}', {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'x-request-id': RAW_REQUEST_ID,
+          },
+        }),
+    );
+    const provider =
+      createOpenAIResponsesVisualContractAuthoringAdapter({
+        readCredential: () => FAKE_CREDENTIAL,
+        transport: {
+          create: async ({ observations }) => {
+            const guardedFetch =
+              createGuardedOpenAIResponsesAuthoringFetch(
+                delegatedFetch,
+                observations,
+              );
+            await guardedFetch(
+              'https://api.openai.com/v1/responses',
+              { method: 'POST' },
+            );
+            return new Proxy(
+              {},
+              {
+                get: () => {
+                  throw new Error(RAW_MESSAGE);
+                },
+              },
+            );
+          },
+        },
+      });
+
+    let thrown: unknown;
+    try {
+      await provider.call({
+        attempt: 1,
+        kind: 'initial',
+        systemPrompt: RAW_PROMPT,
+        userPrompt: RAW_PROMPT,
+        options: exactOptions(),
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(delegatedFetch).toHaveBeenCalledTimes(1);
+    expect(thrown).toBeInstanceOf(
+      ProviderCallFailureDiagnosticError,
+    );
+    expect(
+      (
+        thrown as ProviderCallFailureDiagnosticError
+      ).diagnostic,
+    ).toMatchObject({
+      phase: 'response_parse',
+      failureClass: 'provider_response_parse_failure',
+      adapterInvoked: true,
+      credentialReadSucceeded: true,
+      transportDispatchStarted: true,
+      httpResponseReceived: true,
+      httpStatus: 200,
+      requestBodyDigest: expect.any(String),
+      requestOptionsDigest: expect.any(String),
+      providerRequestIdDigest:
+        canonicalJsonDigest(RAW_REQUEST_ID),
+    });
+    expect(JSON.stringify(thrown)).not.toContain(
+      RAW_MESSAGE,
+    );
   });
 
   it('cannot bypass the installed global fetch sentinel and restores it after the call', async () => {

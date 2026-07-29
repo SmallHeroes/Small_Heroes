@@ -55,6 +55,9 @@ import {
   buildOpenAIResponsesVisualContractAuthoringBody,
   type OpenAIResponsesAuthoringTransport,
 } from '@/lib/visual-package/openaiResponsesVisualContractAuthoringAdapter';
+import {
+  createProviderFailureBoundaryObservations,
+} from '@/lib/visual-package/providerFailureDiagnostics';
 import type {
   CanonicalLiveAuthoringArtifactStore,
 } from '@/lib/visual-package/canonicalLiveAuthoringArtifacts';
@@ -663,6 +666,16 @@ describe('canonical OpenAI Responses authoring adapter', () => {
         maxRetries: 0,
         timeout: 1_200_000,
       },
+      observations:
+        createProviderFailureBoundaryObservations({
+          adapterInvoked: true,
+          credentialReadSucceeded: true,
+          requestBodyDigest: canonicalJsonDigest(body),
+          requestOptionsDigest: canonicalJsonDigest({
+            maxRetries: 0,
+            timeout: 1_200_000,
+          }),
+        }),
     });
     expect(delegated).toHaveBeenCalledTimes(1);
   });
