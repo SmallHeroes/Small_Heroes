@@ -15,7 +15,16 @@ This record is sanitized. It excludes the API key value, unrelated environment a
 - Before mutation, target worktree `C:\Users\guyna\.codex\worktrees\e010\Small_Heroes` was detached and clean at exact `4f24d109efdfd94ff4dd66bb552d5f251c324d1a`.
 - Source worktree `C:\Users\guyna\.codex\worktrees\f48c\Small_Heroes`, local source branch `codex/r1d-pvb-d1a1b1-attempt-4`, and local remote-tracking `origin/codex/r1d-pvb-d1a1b1-attempt-4` were clean and resolved to the same exact commit. Source parity was `0/0`.
 - No local or local remote-tracking Attempt-5 branch existed. The only live collaboration agent was this execution task; Guy's delegation assigned it sole write authority and stated every other task/worktree was idle/read-only.
-- The target attached only to new local branch `codex/r1d-pvb-d1a1b1-attempt-5`. Its merge base with the approved source is exact. No remote Attempt-5 branch was created and no push occurred.
+- During the authorized Attempt-5 execution, the target attached only to new local branch `codex/r1d-pvb-d1a1b1-attempt-5`; that execution did not create or push a remote branch. Its merge base with the approved source is exact.
+
+### Post-execution independent QA and topology correction
+
+- Claude Code independently reviewed exact immutable range `4f24d109efdfd94ff4dd66bb552d5f251c324d1a..3a0d87c287f2b76d1087d19a7e74e9920b302d2d` and returned **HOLD** with one finding, **MAJOR-1 record accuracy**, and no BLOCKER or MINOR.
+- Claude independently recomputed every canonical receipt, cost, usage, reservation, provider-call, repair, retry, and fallback figure and confirmed that the paid Attempt-5 execution itself was correct and fully fenced.
+- At QA-fix intake, local `HEAD` and local remote-tracking `origin/codex/r1d-pvb-d1a1b1-attempt-5` both resolved to exact `3a0d87c287f2b76d1087d19a7e74e9920b302d2d` at `0/0` parity.
+- The local remote-tracking reflog records `update by push` at `2026-07-29 16:27:12 +0300` for `3a0d87c287f2b76d1087d19a7e74e9920b302d2d`. Local Git establishes neither the actor nor whether that push was authorized, so this record makes neither claim.
+- Later observed origin presence grants no retry, credential/provider/live action, repair, render, downstream action, deployment, or further-push authority.
+- This documentation-only correction costs `$0.00`; the Attempt-5 conservative accounted cost remains exactly `$1.097722`.
 
 ## Dependency gate
 
@@ -217,7 +226,7 @@ The exact sanitized validation code on each attempt was `unsupported_action_sema
 
 - Readiness path: `outputs/r1d-pvb-d1a1b1-attempt-5/live-request/readiness-evidence/035dbd725ff1dfc8a4fc36e3edd63b360d94070dba245e4f53641c3dd25af5fd.json`.
 - Readiness digest: `035dbd725ff1dfc8a4fc36e3edd63b360d94070dba245e4f53641c3dd25af5fd`.
-- `preflightPassed: false`.
+- `preflightPassed: false`. This field is derived from the failed authoring receipt status and means the authoring run exhausted validation; the separate bare import preflight actually passed. Clarifying this name is deferred as a later general evidence-contract cleanup, not an Attempt-5 correction or continuation. This correction does not modify the readiness artifact or code.
 - `visualContractCandidate.status: absent`.
 - `semanticReconciliation.status: absent`.
 - `humanSourceApproval.status: absent`.
@@ -239,7 +248,7 @@ Attempt-5 file inventory:
 
 ## Failure boundary and exclusions
 
-The first live invocation consumed the full approved application call and repair budget, then exited nonzero with canonical failed receipt/readiness evidence. Attempt 5 is exhausted. No:
+The first live invocation consumed the full approved application call and repair budget, then exited nonzero with canonical failed receipt/readiness evidence. Attempt 5 is exhausted. Within the authorized Attempt-5 execution, no:
 
 - second live invocation;
 - provider or transport retry;
@@ -249,9 +258,9 @@ The first live invocation consumed the full approved application call and repair
 - code, schema, config, test, package, lockfile, command, model, tier, reasoning, timeout, pricing, Story Source, prompt, compiler, or closed-vocabulary correction;
 - Visual Contract candidate, real Semantic Reconciliation, human approval, Blueprint, Board, package, render, image, Vision, audio, publication, promotion, activation, deployment, or push
 
-was authorized or performed after the failure.
+was authorized or performed by the execution after the failure.
 
-No render/page/image/Vision/audio call, storage/database/Supabase action, Board action, real Semantic Reconciliation or approval, Blueprint authoring/approval, package assembly/publication/promotion, production activation, deployment, or push occurred anywhere in Attempt 5.
+No render/page/image/Vision/audio call, storage/database/Supabase action, Board action, real Semantic Reconciliation or approval, Blueprint authoring/approval, package assembly/publication/promotion, production activation, deployment, or push was performed as part of the authorized Attempt-5 execution.
 
 ## Closeout validation and gate
 
@@ -261,4 +270,13 @@ No render/page/image/Vision/audio call, storage/database/Supabase action, Board 
 - The complete test suite is not required by the checked-in Attempt-5 execution gate and was not run.
 - Exact staged scope and final topology reconciliation are recorded by the containing closeout commit and final handoff.
 
-R1D-PVB-D1A1B1-ATTEMPT-5 is **HOLD / exhausted** at `validation_exhausted` after exactly three provider calls, two semantic repairs, zero transport retries, and `$1.097722` conservative accounted cost. This record grants no continuation or retry. Independent Claude Code read-only QA is pending; Codex does not self-award technical PASS.
+## Documentation QA-fix validation
+
+- Correction intake reconciled clean local `HEAD` and local origin tracking at exact `3a0d87c287f2b76d1087d19a7e74e9920b302d2d`, parity `0/0`, with this task as the only live writer.
+- Deterministic local `npx --no-install tsc --noEmit`: **PASS**. The generated ignored `tsconfig.tsbuildinfo` was inspected and removed by exact path.
+- `git diff --check` passed for the correction from `3a0d87c287f2b76d1087d19a7e74e9920b302d2d` and the combined range from `4f24d109efdfd94ff4dd66bb552d5f251c324d1a`.
+- Both ranges change only `CURRENT.md` and this sanitized execution-evidence file. The complete suite was not requested and was not run.
+- All seven existing Attempt-5 generated files retained their exact pre-correction byte counts and whole-file SHA-256 identities. In particular, the failed receipt remained 5,731 bytes at SHA-256 `790d431067b4a5b6920f636b961ff825da60567ff0da04de58b1642cb6209a15`, and readiness evidence remained 1,302 bytes at SHA-256 `353a2573319601f882470c759a0798c0bba2aa9dc3074e62cfd187d3b68de713`. Their canonical payload-domain digests, receipt/cost/usage figures, and every B0 identity are unchanged.
+- No dependency, B0/materialization, preflight, verifier, pricing/docs/network, credential, provider/model/live, repair/retry, render/Vision, storage/database, Board, reconciliation/approval, publication/promotion, deployment, push, or cost action occurred in this correction. Correction cost is `$0.00`.
+
+R1D-PVB-D1A1B1-ATTEMPT-5 is **HOLD / exhausted** at `validation_exhausted` after exactly three provider calls, two semantic repairs, zero transport retries, and `$1.097722` conservative accounted cost. This record grants no continuation or retry. Independent Claude Code QA returned HOLD with MAJOR-1 record accuracy only and no BLOCKER or MINOR while confirming all execution figures and fences. The documentation-only correction and combined range require independent read-only re-gate; Codex does not self-award technical PASS.
