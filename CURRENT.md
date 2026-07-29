@@ -2,7 +2,47 @@
 
 **Updated:** 2026-07-29
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-live-authoring-attempt` in `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes`. Guy transferred sole-writer authority for R1D-FULL-SUITE-EXECUTION-STABILITY-LEAD-RESUME to the Lead Task while the previous execution Task remained idle/read-only. Exact implementation range `9cd108d673a1e425946696de1b911a3be9ef9e9a..5f61d3946e9c1989def1d5adc861e28010129266` has independent Claude Code **PASS**: no BLOCKER or MINOR, with one documentation/process MAJOR for the stale push-state record. At reconciliation, local `HEAD` and the origin branch both resolve to `5f61d3946e9c1989def1d5adc861e28010129266` at `0/0` parity. The remote-tracking reflog records `update by push` at 2026-07-29 00:02:33 +0300; local Git does not prove the push actor or authorization. No production behavior, package, B0, preflight, credential, provider, or external action other than that already-observed Git push changed.
+**Working branch:** `codex/r1d-pvb-d1a1b1-attempt-3` in `C:\Users\guyna\.codex\worktrees\2ad5\Small_Heroes`, based exactly on approved commit `eccf2ba1a4196babc838b369955cd603ef38c22a`. This dedicated execution Task is the sole writer for R1D-PVB-D1A1B1-ATTEMPT-3; the Lead Task remains the decision/re-gate hub, and the approved source plus previous execution worktrees remain idle/read-only. Attempt 3 is **HOLD / exhausted before pricing, credential access, and provider reachability** after the required post-preflight canonical verifier failed at its module-import boundary. The single canonical preflight passed and will not be rerun.
+
+## R1D-PVB-D1A1B1-ATTEMPT-3 — Post-preflight verifier HOLD
+
+Guy authorized one fail-closed Attempt 3 from exact pushed base `eccf2ba1a4196babc838b369955cd603ef38c22a`. The authority required isolated offline dependencies, canonical B0 payload-domain materialization/verification, exactly one bare import preflight, a post-preflight authority reconciliation, fresh official pricing authority, and only then one canonical live invocation with at most three application provider calls. Any mismatch or failure stopped the attempt without correction, retry, rerun, fallback, or replacement launcher.
+
+### Exact topology and isolated dependencies
+
+- The supplied worktree started detached and clean at exact approved base. It was attached before repository output creation to dedicated branch `codex/r1d-pvb-d1a1b1-attempt-3`; no other worktree owns that branch.
+- The approved source worktree `C:\Users\guyna\.codex\worktrees\4a16\Small_Heroes` remained clean at `codex/r1d-pvb-d1a1b1-live-authoring-attempt`. The previous execution worktree `C:\Users\guyna\.codex\worktrees\852a\Small_Heroes` remained clean at `codex/r1d-pvb-d1a1b1a-provider-usage-evidence`.
+- The approved commit, starting local ref, and starting origin ref all resolved to exact `eccf2ba1a4196babc838b369955cd603ef38c22a`; the source branch was at `0/0` parity.
+- `package.json` and `package-lock.json` matched approved SHA-256 identities `19ac6d7a01d5ac8c8f4ff16d0d7b57c5781a125d2d3ec3af43b6983fff082f7d` and `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`.
+- `node_modules` was absent. The one literal `npm ci --offline --ignore-scripts` exited `0`, added 200 packages, audited 201, and reported zero vulnerabilities. The result is a real local directory, not a link or reparse point.
+- Exact installed versions are Node `v22.19.0`, npm `10.9.3`, Prisma/Prisma Client `6.19.3`, TypeScript `6.0.3`, and tsx `4.22.2`.
+- Because scripts were disabled and the generated Prisma client was absent, the one exact installed CLI command `node node_modules/prisma/build/index.js generate --schema backend/schema.prisma` ran with update/checkpoint messaging disabled. It exited `0` and generated Prisma Client `6.19.3` locally without database access.
+
+### Canonical B0 materialization and one preflight
+
+- The ignored local control input retained approved request ID `r1d-pvb-d1a1b0-fox-calibration-001`, timestamp `2026-07-27T21:02:12.469Z`, Story Source key/path, and only substituted this worktree's required exact real root.
+- The existing production `source-authoring-live-request-materialize` path ran once through the exact installed local tsx and repository `server-only` shim. It returned `canonical_live_request_materialization / materialized_inputs_only` and created exactly the three input artifacts plus one non-authorizing manifest.
+- The canonical payload domains reproduced approved portable authority exactly: normalized Story Source `02629e886a9aaa1e714d9a8d652c24d94ca5843465ff8a9cb70d320a24e2231c`, source snapshot `d8a6bed426a3ea571242915dcd63851bd59de4f148c52fbf28d0cb49429123d9`, and live request `d3038f06ee172522445d438359d0b3bdef60ce7fa7dccb53f5d7853617d2ccff`.
+- As designed, worktree-bound payloads received current identities rather than being copied from the B0 worktree: source-authority request `ab8c569891325ba4a1a1934f9bf1e426b6d5bfa32dd87ed012b8416b6ef59ae1` and manifest `555a28a3e9ae4a1b488477769c4cff7342610411294f22cd5cdf5975f70c5e94`. No whole-file JSON digest or substitute writer was used.
+- The materialized request retained OpenAI Responses `gpt-5.6-sol`, service tier `default`, reasoning `medium`, 64K input, 36K output, at most three application calls, at most two semantic repairs, zero transport retries, no fallback, projected maximum `$4.884`, and hard ceiling `$5.00`.
+- The one literal bare command `node scripts/visual-contract-authoring.cjs preflight` ran exactly once with no credential loading, env file, `NODE_OPTIONS`, test sentinel, wrapper, npm/npx/tsx substitution, or extra argument. It exited `0` and reported the adapter factory, request-body builder, canonical live runner, `OPENAI_API_KEY` label, and `openai-responses-authoring-evidence/v2` label as checked.
+
+### Fail-closed post-preflight stop
+
+- The required post-preflight read-only command first attempted to import the repository's canonical source-authority, snapshot, request, and manifest validators and builders through the exact local tsx plus server-only shim. Its intended checks included all four payload-domain artifacts, a fresh Story Source snapshot rebuild, exact request-policy equality, the provider/model/call/cost fences, and the manifest-produced future live command.
+- The validator process failed before reading or evaluating any artifact. The local eval loader reported that `liveRequestMaterialization.ts` did not provide the requested named manifest-validator export. No PASS payload was produced.
+- The enclosing PowerShell block continued to its read-only Git commands and therefore returned a composite shell exit `0`; that does not convert the failed validator subprocess into a PASS. Those later Git checks did prove exact `HEAD`, merge base, dedicated branch ownership, and clean current/source/previous worktrees.
+- This was a verification-method/import-boundary failure, not evidence that a B0 artifact was stale. It nevertheless failed the mandatory post-preflight gate. The binding first-failure rule forbids changing the import form, rerunning the verifier, rerunning preflight, or continuing to pricing/credential/provider work.
+
+### Outcome, artifacts, and limits
+
+- Fresh official OpenAI pricing/model authority was not checked. `C:\GNart\Work\Small_Heroes\.env.local` was not read or checked. Application provider calls, semantic repairs, and transport retries were all `0`; nominal and conservative spend were `$0.00`.
+- No authoring receipt, readiness evidence, rejected-request artifact, Visual Contract candidate, response/usage/billing evidence, raw prompt/response, or provider exception exists. The four downstream category directories are absent.
+- The ignored local Attempt 3 tree contains only the 335-byte materialization input and the four canonical B0 artifacts: 349-byte source-authority request, 29,125-byte source snapshot, 2,432-byte live request, and 3,376-byte manifest.
+- Closeout validation used the isolated local dependency tree only: `npx --no-install tsc --noEmit` passed, and the focused tracked diff check passed. The full suite was not rerun.
+- No source code, schema, config, test, package, Story Source, tracked B0 authority, pricing authority, model policy, render/image/Vision, storage/database/Supabase, Board, Semantic Reconciliation, approval, Blueprint, package publication/promotion, production activation, deployment, or push changed or ran.
+- Sanitized durable evidence is tracked at `docs/ai-workflow/R1D_PVB_D1A1B1_ATTEMPT_3_EXECUTION_EVIDENCE.md`. Ignored local dependencies, generated Prisma Client, and materialized B0 files remain same-worktree QA evidence.
+- Attempt 3 is **HOLD / exhausted before pricing, credential access, and provider reachability**. No verifier correction/rerun, second preflight, pricing lookup, credential read, live invocation, or downstream action is authorized. Independent Claude Code first-pass review and a new explicit Guy ruling are required. Codex does not self-award technical PASS.
 
 ## R1D-FULL-SUITE-EXECUTION-STABILITY-LEAD-RESUME — Independent implementation PASS
 
