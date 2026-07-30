@@ -1,12 +1,23 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-07-30
+**Updated:** 2026-07-31
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-execution-request-materialization` in `C:\Users\guyna\.codex\worktrees\1e57\Small_Heroes`. The canonical execution-request materializer retains Claude Code's independent technical **PASS** for exact range `30745cf0b8fdc0798c96b7cda00951f900a89a86..efb7683c421b8fff04fda0bec9a0f0fa9d8c31ec`. Guy authorized one supervised live attempt from exact pushed start `7cfcccd1b1dfa0c5becbd1f7b730333acb2d9745` at local/upstream/origin parity `0/0`. That attempt is now **HOLD / exhausted** at its first execution-request materialization invocation, before pricing, preflight, credential access, supervisor verification/live mode, or provider reachability. The focused closeout is local-only and is not pushed.
+**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-execution-request-materialization` in `C:\Users\guyna\.codex\worktrees\1e57\Small_Heroes`. The canonical execution-request materializer retains Claude Code's independent technical **PASS** for exact range `30745cf0b8fdc0798c96b7cda00951f900a89a86..efb7683c421b8fff04fda0bec9a0f0fa9d8c31ec`. Claude Code independently returned record-fidelity **PASS** for the exhausted supervised-live-attempt range `7cfcccd1b1dfa0c5becbd1f7b730333acb2d9745..dc832c2505ab1a9265dd2baf03874dc5872489b2`. At this documentation intake, local `dc832c2505ab1a9265dd2baf03874dc5872489b2` was clean and ahead `1` / behind `0` of origin/upstream `7cfcccd1b1dfa0c5becbd1f7b730333acb2d9745`. The attempt remains **HOLD / exhausted** before pricing, preflight, credential access, supervisor verification/live mode, or provider reachability. This focused transcription adds one local-only documentation commit and is not pushed.
 
 ## R1D-PVB-D1A1B1-CANONICAL-SUPERVISED-LIVE-ATTEMPT — HOLD / exhausted before execution authority
 
 Guy authorized the canonical fail-closed sequence with a `$4.884` reservation and `$5.00` hard ceiling. The Task retained sole-writer authority in this branch/worktree; every other worktree remained read-only.
+
+### Independent record-fidelity QA closeout
+
+- Claude Code returned independent **PASS for record fidelity** on exact immutable range `7cfcccd1b1dfa0c5becbd1f7b730333acb2d9745..dc832c2505ab1a9265dd2baf03874dc5872489b2`, with no BLOCKER, MAJOR, or MINOR finding against the execution record.
+- Claude independently recomputed raw SHA-256 `5bdb857fdb9d855778d709e59f9208d7267f7e88351644f03b8228ffd538df70` and canonical SHA-256 `bcb5adc0457fa53c7b67780364e03e529fad313a4cf91fd006957dea850acbd9`. It confirmed identical parsed structure and identical `1,951`-byte length; the sole byte-level difference was top-level key order.
+- **General architectural conclusion:** execution-request materialization input requires canonical bytes, while the adjacent B0 materialization input does not. No repository-owned writer currently produces a canonical execution-request materialization input. This is a general missing canonical input-writer boundary and input-contract alignment gap, not a story-specific, provider, pricing, credential, or B0 defect.
+- The earlier external-boundary framing note is closed at the record level: zero fields are invariant/policy evidence supported by control flow and local evidence, not directly instrumented provider counters. No provider-account, billing, usage, request-log, or external service-log audit occurred.
+- **Advisory operational-disclosure NOTE:** the disclosed blocked dependency wrapper, unsuitable incomplete-tree deep-hash attempt, and failed read-only diagnostic expressions were recorded truthfully, changed no attempt authority, and crossed no credential, provider, or external-service boundary. This is advisory process evidence only.
+- The record-fidelity PASS does not change the operational result: the attempt remains **HOLD / exhausted**. It grants no corrected input, retry, pricing lookup, preflight, credential access/reuse, provider/model call, Execution Supervisor `verify`/`live`, repair, render/image/Vision/audio, storage/database/Supabase, Board, Semantic Reconciliation, approval, Blueprint/package publication, promotion, production activation, deployment, push, product acceptance, or visual acceptance.
+- The next Lead gate is a separate general Decision Gate for a repository-owned canonical materialization-input writer/normalizer and alignment of the B0 and execution-request input contracts. No implementation is authorized in this closeout.
+- This faithful `CURRENT.md`-only transcription is outside the reviewed immutable range. No additional Claude Code round is required unless the transcription is factually disputed.
 
 ### Zero-cost preparation and canonical B0
 
@@ -78,7 +89,7 @@ Guy approved a separate repository-owned, story-neutral command that materialize
 
 Claude Code's independent technical **PASS** is scoped only to the canonical execution-request materializer in exact reviewed range `30745cf0b8fdc0798c96b7cda00951f900a89a86..efb7683c421b8fff04fda0bec9a0f0fa9d8c31ec`. The materializer deliberately requires a configured upstream so it can derive bounded local/upstream refs and divergence; an unpushed preparation branch must fail closed. It materializes no real attempt in this milestone.
 
-Cost is exactly `$0`. The materializer PASS grants no B0 preparation/rematerialization, canonical preflight, credential access/check/read/load, pricing/network/provider/model call, live authoring, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, push, or spend authority. None of those actions occurred. The supervised live attempt remains **HOLD pending Guy's next explicit authorization after push/parity**. Durable evidence is recorded in `docs/ai-workflow/R1D_PVB_D1A1B1_CANONICAL_EXECUTION_REQUEST_MATERIALIZATION_EVIDENCE.md`.
+Cost is exactly `$0`. The materializer PASS grants no B0 preparation/rematerialization, canonical preflight, credential access/check/read/load, pricing/network/provider/model call, live authoring, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, push, or spend authority. The later supervised live attempt is **HOLD / exhausted** at its canonical input gate as recorded above; any continuation requires the separate general Decision Gate and new Guy authority. Durable evidence is recorded in `docs/ai-workflow/R1D_PVB_D1A1B1_CANONICAL_EXECUTION_REQUEST_MATERIALIZATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-POST-PREFLIGHT-EXECUTION-HARNESS-HARDENING — independent technical QA closeout PASS
 
