@@ -2,7 +2,39 @@
 
 **Updated:** 2026-07-30
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics` in `C:\Users\guyna\.codex\worktrees\9220\Small_Heroes`, based exactly on Attempt-6 head `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`. The original provider-failure implementation is `4d006e8bfafe8bb8541954977370cef69c1ca97c`; original closeout is `80ad3c70563683d627ddb19d232a4fd08503e74c`; push-record correction is `cbed0e55b44fb7b17ffb6c8ba7c822b9fd5ed3ac`; focused QA finding correction is `adae663e8853982a1ff936b5ebfc9b1182e214b7`; corrective validation/technical-state head is `c210c774966e31a84df0a386f470c31b5f11b5c2`; and topology reconciliation is `f1b34517e567e8a771f033113a90fd128002edb4`. Independent Claude Code returned technical **PASS** for exact reviewed range `f69bc6c63974c5f8c0bf04ad397baa025041b9d1..f1b34517e567e8a771f033113a90fd128002edb4`. This record attributes that verdict to Claude Code and does not self-award it. The PASS grants no live diagnostic attempt or downstream authority.
+**Working branch:** `codex/r1d-pvb-d1a1b1-diagnostic-live-attempt` in `C:\Users\guyna\.codex\worktrees\43cc\Small_Heroes`, based exactly on independently PASSed provider-diagnostics head `3b4e24ad9cb42e211c698c970ee9f2f22cf5c953`. The fresh diagnostic attempt is **HOLD / exhausted** after its single canonical import preflight passed but the mandatory post-preflight topology/artifact/hash harness failed at PowerShell parse time before running any check. No credential value was loaded, no live child was spawned, provider/model calls were `0`, and no receipt, diagnostic sidecar, readiness, candidate, or rejected-request artifact exists. The prior provider-diagnostics technical PASS remains attributed to Claude Code; Codex does not self-award PASS for this new closeout.
+
+## R1D-PVB-D1A1B1-DIAGNOSTIC-LIVE-ATTEMPT — HOLD / exhausted before credential loading
+
+Guy authorized one fail-closed diagnostic live attempt from exact provider-diagnostics head `3b4e24ad9cb42e211c698c970ee9f2f22cf5c953`. The task had sole-writer authority in `C:\Users\guyna\.codex\worktrees\43cc\Small_Heroes` on new local branch `codex/r1d-pvb-d1a1b1-diagnostic-live-attempt`; every other worktree remained read-only and no push occurred.
+
+### Zero-cost gates and fresh B0
+
+- Fail-closed intake passed exact base, clean state, unique target branch absence, and `0/0` local/origin parity for `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics`.
+- `package.json` and `package-lock.json` matched approved SHA-256 identities `19ac6d7a01d5ac8c8f4ff16d0d7b57c5781a125d2d3ec3af43b6983fff082f7d` and `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`.
+- `npm ci --offline --ignore-scripts --no-audit --no-fund` succeeded from the local cache. Required exact local Prisma generation succeeded without database access. The resulting `node_modules` is a real non-link directory with OpenAI SDK `6.35.0`, TypeScript `6.0.3`, tsx `4.22.2`, Vitest `3.2.4`, and Prisma/Prisma Client `6.19.3`.
+- The new ignored v2 calibration input cloned the approved input and changed only `repoRoot`. The generic production materializer created exactly four fresh B0 artifacts under `outputs/r1d-pvb-d1a1b1-diagnostic-live-attempt/b0/live-request`.
+- Portable authorities remained exact: normalized Story Source `02629e886a9aaa1e714d9a8d652c24d94ca5843465ff8a9cb70d320a24e2231c`, source snapshot `d8a6bed426a3ea571242915dcd63851bd59de4f148c52fbf28d0cb49429123d9`, and v4 live request `c047401a14ab14cf8766aa7eadd0b32a084ddf29f66c67fc06af2f1bc5a01390`.
+- New worktree-bound identities are source-authority request `defb3e74cfc37e208edf7df1841f5581129c7a200036ee03f54169463b29e402` and manifest `cdb1b5f883509c0db47379d404b5041f12c052c75fd890342749489784169706`.
+- The v2 verifier returned `verified / zeroWrite:true`. Repository canonical payload-domain recomputation matched all four claims and filenames. Exact live-request identity proved no prompt/schema/Action Semantic Catalog/pricing/model/timeout/budget/retry/fallback drift.
+- Deterministic TypeScript passed. The zero-credential focused matrix passed **6 files / 271 tests**, covering `provider-call-failure-evidence/v1`, SDK/fake-fetch classifications, bounded sanitization, content addressing/collisions, success with no sidecar, and receipt -> diagnostic -> readiness ordering.
+- Fresh official OpenAI authority confirmed `gpt-5.6-sol`, Responses, `service_tier: default`, short-context rates `$5.00` uncached input / `$0.50` cached input / `$6.25` cache-write input / `$30.00` output per million tokens, eligible regional uplift `10%`, and no separate Responses fee. The conservative calculation remained `$1.628` per call and `$4.884` across three calls, leaving `$0.116` below the hard `$5.00` ceiling.
+- Only after those gates, a byte-oriented presence/shape check found exactly one usable line-start `OPENAI_API_KEY=` assignment in the approved source. It did not decode, copy, load, print, hash, or persist the value.
+
+### Single preflight and terminal local failure
+
+- Exactly one canonical `node scripts/visual-contract-authoring.cjs preflight` ran with credential/routing environment names and `NODE_OPTIONS` removed, no env-file loading, no sentinel, no wrapper script, and no extra argument. It exited `0` with `LIVE-AUTHORING IMPORT PREFLIGHT PASS`.
+- The canonical v2 B0 verifier then ran once more and returned the same `verified / zeroWrite:true` identities and policy.
+- The next mandatory combined topology/artifact/historical-hash PowerShell harness failed at parse time with `Missing closing ')' in expression.` The harness ran none of its checks.
+- Under the approved rule that any failure after preflight starts exhausts the attempt, the harness was not corrected or rerun. The official authority lookup was not repeated, the credential value was not loaded, and the manifest `futureLiveCommand` was not invoked.
+- Classification is local validation/orchestration failure, not credential, SDK, transport, HTTP, authentication, quota, rate-limit, model/project access, provider rejection/server, or response-parsing failure.
+- Provider/model/live invocations, repairs, and transport retries were all `0`; provider-side exposure was `$0.00`. `provider_call_failed` did not occur, so no `provider-call-failure-evidence/v1` sidecar is expected.
+
+### Closeout boundary
+
+Closeout-only read inspection after authority was already exhausted found only the new control input plus four B0 artifacts, zero receipt/diagnostic/readiness/candidate/rejected-request files, and exact unchanged SHA-256 identities for all 14 inventoried Attempt-5/Attempt-6 files. This inspection does not restore the failed post-preflight live-authority gate.
+
+Sanitized durable evidence is tracked at `docs/ai-workflow/R1D_PVB_D1A1B1_DIAGNOSTIC_LIVE_ATTEMPT_EXECUTION_EVIDENCE.md`. The attempt grants no corrected fence, second preflight, credential reuse, live invocation, retry, render, downstream lifecycle action, deployment, or push authority. Any new attempt requires Lead investigation, a new Decision Gate/ruling, and Guy authorization. Independent Claude Code read-only QA is still required; Codex does not self-award technical PASS.
 
 ## R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS — Independent technical PASS
 
