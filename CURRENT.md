@@ -2,7 +2,32 @@
 
 **Updated:** 2026-07-30
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics` in `C:\Users\guyna\.codex\worktrees\9220\Small_Heroes`, based exactly on Attempt-6 head `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`. The original provider-failure implementation is `4d006e8bfafe8bb8541954977370cef69c1ca97c`; original closeout is `80ad3c70563683d627ddb19d232a4fd08503e74c`; push-record correction is `cbed0e55b44fb7b17ffb6c8ba7c822b9fd5ed3ac`; focused QA finding correction is `adae663e8853982a1ff936b5ebfc9b1182e214b7`; and corrective validation/technical-state head is `c210c774966e31a84df0a386f470c31b5f11b5c2`. At this reconciliation intake, local `c210c774966e31a84df0a386f470c31b5f11b5c2` and `origin/codex/r1d-pvb-d1a1b1-provider-failure-diagnostics` were identical at `0/0` divergence. Independent Claude Code re-gate is required. This task does not self-award technical PASS and grants no live diagnostic attempt or downstream authority.
+**Working branch:** `codex/r1d-pvb-d1a1b1-provider-failure-diagnostics` in `C:\Users\guyna\.codex\worktrees\9220\Small_Heroes`, based exactly on Attempt-6 head `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`. The original provider-failure implementation is `4d006e8bfafe8bb8541954977370cef69c1ca97c`; original closeout is `80ad3c70563683d627ddb19d232a4fd08503e74c`; push-record correction is `cbed0e55b44fb7b17ffb6c8ba7c822b9fd5ed3ac`; focused QA finding correction is `adae663e8853982a1ff936b5ebfc9b1182e214b7`; corrective validation/technical-state head is `c210c774966e31a84df0a386f470c31b5f11b5c2`; and topology reconciliation is `f1b34517e567e8a771f033113a90fd128002edb4`. Independent Claude Code returned technical **PASS** for exact reviewed range `f69bc6c63974c5f8c0bf04ad397baa025041b9d1..f1b34517e567e8a771f033113a90fd128002edb4`. This record attributes that verdict to Claude Code and does not self-award it. The PASS grants no live diagnostic attempt or downstream authority.
+
+## R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS — Independent technical PASS
+
+Claude Code independently reviewed and falsified the full exact range `f69bc6c63974c5f8c0bf04ad397baa025041b9d1..f1b34517e567e8a771f033113a90fd128002edb4` and returned **PASS** with zero BLOCKER, zero MAJOR, and zero MINOR findings.
+
+### Independent verification
+
+- Intake topology matched exactly: local `f1b34517e567e8a771f033113a90fd128002edb4`, origin `c210c774966e31a84df0a386f470c31b5f11b5c2`, ahead 1/behind 0, clean worktree, merge-base `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`, real local non-link `node_modules`, matching package hashes, and clean Attempt-5/Attempt-6 worktrees at origin parity.
+- Claude makes no claim about the actor or authorization for either observed origin update.
+- The prior missing-isolated-dependencies reproducibility **MAJOR is CLOSED**.
+- The prior push-record accuracy **MAJOR is CLOSED**.
+- The prior disjoint-observations diagnostic-accuracy **MINOR is CLOSED**.
+- The full implementation claims withstood adversarial falsification, including structured classification, one shared observation object across the guarded transport/mapping boundary, bounded sanitization, content-addressed sidecar behavior, receipt → sidecar → readiness ordering, unknown-adapter conservatism, historical immutability, and absence of request/prompt/schema/model/timeout/budget/retry/fallback/policy drift.
+- Claude independently reran deterministic TypeScript with exit `0`, the focused matrix at **6 files / 271 tests PASS**, and the historical fence at **14/14 matched / 0 changed**.
+- Claude did not rerun literal `npm run check`. It accepted the recorded six failures in five unchanged ignored-output-fixture-dependent tests as established baseline rather than a regression.
+
+### Independent notes
+
+- **NOTE 1 — future transport hardening:** `createGuardedOpenAIResponsesAuthoringFetch` currently accepts observations optionally. That is correct and non-blocking for today's production adapter, which supplies the shared object, but a future production custom transport could omit observations and lose transport facts. Track this as future hardening; no code change is authorized or required by this closeout.
+- **NOTE 2 — superseded verifier misfire:** the disclosed `manifest_path_invalid` invocation was fail-closed, returned `zeroWrite: true`, changed none of the fenced files, and was superseded by the passing documented invocation. No action is required.
+- This faithful `CURRENT.md`-only transcription is outside the reviewed immutable range. No additional Claude Code round is required unless this transcription introduces a factual discrepancy.
+
+### Verdict boundary
+
+The PASS is technical and applies only to exact reviewed range `f69bc6c63974c5f8c0bf04ad397baa025041b9d1..f1b34517e567e8a771f033113a90fd128002edb4`. It grants no live diagnostic attempt, credential use, provider/model/network call, retry/fallback/repair, render/image/Vision/audio, storage/database/Supabase or Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, deployment, push, product acceptance, or visual acceptance.
 
 ## R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS — post-correction push-topology reconciliation
 
@@ -34,7 +59,7 @@ Claude Code completed its first read-only implementation review after the push-r
 
 ### Gate and exclusions
 
-The implementation remains **HOLD pending independent Claude Code re-gate**. During the corrective implementation task, no credential was loaded and no pricing lookup, external network/provider/model call, live authoring, canonical live invocation, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, activation, deployment, `git push`, or provider-account/billing audit occurred. The later observed origin presence is reconciled above without an actor or authorization claim. Cost remains exactly `$0`.
+At that corrective handoff, the implementation remained **HOLD pending independent Claude Code re-gate**; the independent PASS recorded above subsequently closed that gate. During the corrective implementation task, no credential was loaded and no pricing lookup, external network/provider/model call, live authoring, canonical live invocation, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, activation, deployment, `git push`, or provider-account/billing audit occurred. The later observed origin presence is reconciled above without an actor or authorization claim. Cost remains exactly `$0`.
 
 ## R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS — QA intake HOLD and push-record correction
 
@@ -44,7 +69,7 @@ Claude Code performed the required read-only intake against original head `80ad3
 - The local remote-tracking reflog records `update by push` at `2026-07-30 00:49:37 +0300`. Local Git establishes neither the actor nor whether the push was authorized, so this record makes neither claim.
 - The implementation task itself created both original commits locally and did not invoke `git push`. Later observed origin presence is a separate topology fact; it invalidated the original present-tense “remains unpushed” record and the QA brief's target-remote-absence precondition.
 - Attempt-6 source parity remains exact at `f69bc6c63974c5f8c0bf04ad397baa025041b9d1`, `0/0`. Main and `feat/chunked-generation` retain their pre-existing user state.
-- Claude Code did not assess implementation claims 1–9 or any code falsification target. The implementation remains **HOLD**, with no positive or negative code verdict.
+- In that intake-halt review, Claude Code did not assess implementation claims 1–9 or any code falsification target. At that point the implementation remained **HOLD**, with no positive or negative code verdict; the later full-range PASS is recorded above.
 - This correction changes `CURRENT.md` only. It changes no implementation, test, request, prompt, schema, model, timeout, budget, retry/fallback policy, package, lockfile, Story Source, B0/historical artifact, runtime, or production state. No correction push is performed or authorized.
 
 ## R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS — local implementation awaiting independent QA
@@ -72,7 +97,7 @@ Guy approved the Decision Gate and all nine binding architectural decisions. The
 
 ### Gate and exclusions
 
-This implementation is **HOLD pending independent Claude Code review**. During the implementation task itself, no credential was loaded and no pricing lookup, network/provider/model call, live authoring, canonical live invocation, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, activation, deployment, `git push`, or provider-account/billing audit occurred. The later observed origin update is reconciled above without an actor or authorization claim and grants no further-push or downstream authority. Cost is exactly `$0`.
+At the original implementation handoff, this implementation was **HOLD pending independent Claude Code review**; the later full-range PASS is recorded above. During the implementation task itself, no credential was loaded and no pricing lookup, network/provider/model call, live authoring, canonical live invocation, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, activation, deployment, `git push`, or provider-account/billing audit occurred. The later observed origin update is reconciled above without an actor or authorization claim and grants no further-push or downstream authority. Cost is exactly `$0`.
 
 ## R1D-PVB-D1A1B1-ATTEMPT-6-QA-CLOSEOUT — Independent technical PASS
 
@@ -1717,7 +1742,7 @@ R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS is the active milestone. The so
 
 The approved scope is diagnostics only: a neutral structured classifier, accurate guarded-fetch observations, and an additive non-authorizing content-addressed failure sidecar. Requests, prompts, schemas, models, timeouts, call/repair/retry/fallback/cost policy, B0 artifacts, and successful authoring behavior are unchanged.
 
-Local deterministic validation is complete at `$0`. Independent Claude Code re-gate is the next technical gate. Origin presence grants no PASS and no live diagnostic attempt, credential/provider action, retry, render, downstream lifecycle action, deployment, or further-push authority.
+Local deterministic validation is complete at `$0`, and independent Claude Code technical PASS is recorded above for the exact reviewed range. No additional Claude Code round is required for this faithful `CURRENT.md`-only transcription unless it introduces a factual discrepancy. The PASS grants no live diagnostic attempt, credential/provider action, retry, render, downstream lifecycle action, deployment, push, product acceptance, or visual acceptance.
 
 ## Executive finding
 
