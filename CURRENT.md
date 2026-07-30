@@ -2,11 +2,19 @@
 
 **Updated:** 2026-07-30
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-execution-request-materialization` in `C:\Users\guyna\.codex\worktrees\1e57\Small_Heroes`, based exactly on immutable supervisor closeout `30745cf0b8fdc0798c96b7cda00951f900a89a86`. The focused implementation commit is `b9a7b145432c28c115599ee24f9abb16cab7101b`. This branch has no upstream and remains local-only. The milestone is **HOLD pending first-pass READ-ONLY Claude Code review**; Codex does not self-award independent technical PASS.
+**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-execution-request-materialization` in `C:\Users\guyna\.codex\worktrees\1e57\Small_Heroes`, based exactly on immutable supervisor closeout `30745cf0b8fdc0798c96b7cda00951f900a89a86`. The focused implementation commit is `b9a7b145432c28c115599ee24f9abb16cab7101b`; Claude Code independently reviewed exact range `30745cf0b8fdc0798c96b7cda00951f900a89a86..efb7683c421b8fff04fda0bec9a0f0fa9d8c31ec` and returned technical **PASS** for the canonical execution-request materializer. This branch has no upstream and remains local-only. The supervised live attempt remains **HOLD pending Guy's next explicit authorization after push/parity**.
 
-## R1D-PVB-D1A1B1-CANONICAL-EXECUTION-REQUEST-MATERIALIZATION — local implementation awaiting independent QA
+## R1D-PVB-D1A1B1-CANONICAL-EXECUTION-REQUEST-MATERIALIZATION — independent technical PASS
 
 Guy approved a separate repository-owned, story-neutral command that materializes `canonical-live-execution-request/v1` without extending the credential-bearing Execution Supervisor. The supervisor public modes remain exactly `verify` and `live`; its entrypoint and live behavior are unchanged.
+
+### Independent technical QA closeout
+
+- Claude Code returned independent technical **PASS** for exact immutable range `30745cf0b8fdc0798c96b7cda00951f900a89a86..efb7683c421b8fff04fda0bec9a0f0fa9d8c31ec`, with zero BLOCKER, zero MAJOR, one non-blocking MINOR, and two advisory NOTES.
+- **MINOR — external-boundary evidence semantics:** `externalBoundaryEvidence()` currently emits hardcoded zero values. For this materializer, those values are supported by structural control flow, call-graph review, boundary sentinels, and sentinel positive controls, but they are invariant/policy evidence rather than directly instrumented runtime counters. No provider-account audit or external service-log audit occurred. This is a deferred general evidence-semantics/naming follow-up, not a defect that invalidates the materializer PASS; no implementation change is authorized by this closeout.
+- **NOTE — ignored dependency quarantine:** the ignored dependency-quarantine directories remain low-risk housekeeping only. They are not runtime inputs or evidence inputs.
+- **NOTE — hard-kill staging residue:** a hard process kill between the staging write and `finally` cleanup can leave a noncanonical staging file. Claude found no committed or canonical artifact corruption. Cleanup hardening is deferred unless this surface grows.
+- This faithful `CURRENT.md`-only transcription is outside the reviewed immutable range. No additional Claude Code QA round is required unless this transcription introduces a factual discrepancy.
 
 ### Implemented boundary
 
@@ -29,9 +37,9 @@ Guy approved a separate repository-owned, story-neutral command that materialize
 
 ### Gate, limitations, and exclusions
 
-This implementation is **HOLD pending first-pass READ-ONLY Claude Code review** of exact range `30745cf0b8fdc0798c96b7cda00951f900a89a86..b9a7b145432c28c115599ee24f9abb16cab7101b` plus the following documentation commit. The materializer deliberately requires a configured upstream so it can derive bounded local/upstream refs and divergence; an unpushed preparation branch must fail closed. It materializes no real attempt in this milestone.
+Claude Code's independent technical **PASS** is scoped only to the canonical execution-request materializer in exact reviewed range `30745cf0b8fdc0798c96b7cda00951f900a89a86..efb7683c421b8fff04fda0bec9a0f0fa9d8c31ec`. The materializer deliberately requires a configured upstream so it can derive bounded local/upstream refs and divergence; an unpushed preparation branch must fail closed. It materializes no real attempt in this milestone.
 
-Cost is exactly `$0`. No real B0 preparation/rematerialization, canonical preflight, credential check/read/load, pricing/network/provider/model call, live authoring, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, or push occurred. The paid supervised live phase remains HOLD. Durable evidence is recorded in `docs/ai-workflow/R1D_PVB_D1A1B1_CANONICAL_EXECUTION_REQUEST_MATERIALIZATION_EVIDENCE.md`.
+Cost is exactly `$0`. The materializer PASS grants no B0 preparation/rematerialization, canonical preflight, credential access/check/read/load, pricing/network/provider/model call, live authoring, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, push, or spend authority. None of those actions occurred. The supervised live attempt remains **HOLD pending Guy's next explicit authorization after push/parity**. Durable evidence is recorded in `docs/ai-workflow/R1D_PVB_D1A1B1_CANONICAL_EXECUTION_REQUEST_MATERIALIZATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-POST-PREFLIGHT-EXECUTION-HARNESS-HARDENING — independent technical QA closeout PASS
 
