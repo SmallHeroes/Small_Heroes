@@ -2,7 +2,34 @@
 
 **Updated:** 2026-07-30
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-diagnostic-live-attempt` in `C:\Users\guyna\.codex\worktrees\43cc\Small_Heroes`, based exactly on independently PASSed provider-diagnostics head `3b4e24ad9cb42e211c698c970ee9f2f22cf5c953`. The fresh diagnostic attempt is **HOLD / exhausted** after its single canonical import preflight passed but the mandatory post-preflight topology/artifact/hash harness failed at PowerShell parse time before running any check. No credential value was loaded, no live child was spawned, provider/model calls were `0`, and no receipt, diagnostic sidecar, readiness, candidate, or rejected-request artifact exists. Independent Claude Code returned **PASS for record fidelity only** on exact range `3b4e24ad9cb42e211c698c970ee9f2f22cf5c953..f4bd95a88912baeb2c41b65ad6c186af7ffcb5e9`; the attempt itself remains HOLD / exhausted and Codex does not self-award technical PASS.
+**Working branch:** `codex/r1d-pvb-d1a1b1-post-preflight-execution-harness-hardening` in `C:\Users\guyna\.codex\worktrees\0ea6\Small_Heroes`, based exactly on immutable commit `6442e6ff4b45821ee53c1f20e4f29321390b6eec`. The additive execution-supervisor implementation is committed locally at `e72d3451a3b227d405d538d96d6165bde15a24ed` and remains **HOLD pending independent Claude Code review**. This milestone did not run canonical import preflight, inspect or load a real credential, invoke the future live command, reach a provider/network/write boundary, or push.
+
+## R1D-PVB-D1A1B1-POST-PREFLIGHT-EXECUTION-HARNESS-HARDENING — local implementation awaiting independent QA
+
+Guy approved a repository-owned, story-neutral replacement for the hand-authored post-preflight PowerShell harness that failed at parse time during the exhausted diagnostic attempt. The implementation is additive: the existing authoring CLI, canonical B0 verifier, B0 schemas/artifacts, request/prompt/model/timeout/call and repair budgets, retry/fallback policy, and manifest `futureLiveCommand` remain unchanged.
+
+### Implemented boundary
+
+- `canonical-live-execution-request/v1` binds structured Git/topology authority, canonical B0 manifest linkage, exact preservation fences, expected-absence checks, credential isolation, and the exact future-command identity. `canonical-live-execution-readiness/v1` emits bounded sanitized reason codes and evidence.
+- Public Node modes are strictly `verify` and future `live`. The launcher accepts no arbitrary command, shell text, eval, inline PowerShell, story-specific literal, or caller-defined child environment.
+- The readiness core composes `verifyCanonicalLiveRequestBundle` as the sole B0 authority. It does not reimplement payload-domain digest, Story Source, policy, model, budget, or future-command validation.
+- Git inspection uses fixed exact argv with `shell:false`: expected top-level, symbolic branch, HEAD, tracked and untracked cleanliness, explicit refs, and explicit divergence. Preservation fences accept only contained canonical file paths and verify byte length plus SHA-256 while rejecting traversal, globs, aliases, symlink/junction escape, and hard links.
+- `verify` is read-only and cannot inspect a real credential source or cross provider, network, storage, database, or write boundaries. Future `live` reruns the same readiness core immediately before credential access, rejects ambient key authority, reads only `OPENAI_API_KEY` from the declared source after all gates, constructs a minimal platform-aware environment, and spawns only the exact manifest command through `process.execPath`, exact argv, `shell:false`, and `windowsHide:true`. It has no retry or fallback and propagates child error, signal, nonstandard exit, and bounded-output failure.
+- A fixed repository-owned zero-cost probe exercises the same process-runner mechanics without accepting a command, credential, prompt, story literal, or external boundary. Unlike the real future-live child, the probe always runs the fixed local synthetic child and can never invoke the manifest command or provider/write behavior.
+- Canonical import preflight remains separate and was not executed. Any future separately authorized sequence remains `verify -> one preflight -> verify -> live`, with `live` internally verifying again before credential access.
+
+### Deterministic zero-cost evidence
+
+- The new supervisor suite passed **1 file / 31 tests**. It covers canonical bytes/digests/reason codes, temporary Git repositories and bare remotes, exact Git argv and failure propagation, B0 verifier composition/corruption, preservation and absence fences, strict CLI parsing, credential and external-boundary denial with positive controls, fake future-live spawning, paths with spaces/Unicode, minimal environment, secret suppression, output limits, child error/signal/nonstandard exit, and the fixed probe.
+- Existing B0 and authoring regression coverage passed **5 files / 263 tests**. Total focused evidence is **6 files / 294 tests PASS**.
+- Deterministic TypeScript passed before the implementation commit.
+- Literal `npm run check` ran exactly once, completed TypeScript and Vitest in 76 seconds, and reproduced exactly the six established ignored-fixture failures in five unchanged tests: `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two cases in `story-read-back-validation.spec.ts`. There was no timeout and no new failure. The run was not retried.
+- Full-check scratch outputs and this task's `tsconfig.tsbuildinfo` were removed by exact path. Four pre-existing ignored output files were preserved byte-for-byte by recorded SHA-256 identity.
+- Shared implementation scans found no selected Story Source/story ID literals, `eval`, `shell:true`, or PowerShell command construction.
+
+### Gate and exclusions
+
+This implementation remains **HOLD pending first-pass READ-ONLY Claude Code review**; Codex does not self-award independent technical PASS. Cost is exactly `$0`. No canonical preflight, real credential source access, pricing lookup, network/provider/model call, live authoring, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, or push occurred. Durable evidence is recorded in `docs/ai-workflow/R1D_PVB_D1A1B1_POST_PREFLIGHT_EXECUTION_HARNESS_HARDENING_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-DIAGNOSTIC-LIVE-ATTEMPT — independent record-fidelity PASS
 
