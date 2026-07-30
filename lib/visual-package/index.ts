@@ -26,3 +26,5 @@ export * from './providerFailureDiagnostics';
 export * from './liveRequestMaterialization';
 export * from './liveExecutionSupervisor';
 export * from './liveExecutionRequestMaterialization';
+export * from './canonicalMaterializationInput';
+export * from './canonicalMaterializationInputWriter';
