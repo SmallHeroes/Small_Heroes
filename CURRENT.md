@@ -2,7 +2,20 @@
 
 **Updated:** 2026-07-30
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-diagnostic-live-attempt` in `C:\Users\guyna\.codex\worktrees\43cc\Small_Heroes`, based exactly on independently PASSed provider-diagnostics head `3b4e24ad9cb42e211c698c970ee9f2f22cf5c953`. The fresh diagnostic attempt is **HOLD / exhausted** after its single canonical import preflight passed but the mandatory post-preflight topology/artifact/hash harness failed at PowerShell parse time before running any check. No credential value was loaded, no live child was spawned, provider/model calls were `0`, and no receipt, diagnostic sidecar, readiness, candidate, or rejected-request artifact exists. The prior provider-diagnostics technical PASS remains attributed to Claude Code; Codex does not self-award PASS for this new closeout.
+**Working branch:** `codex/r1d-pvb-d1a1b1-diagnostic-live-attempt` in `C:\Users\guyna\.codex\worktrees\43cc\Small_Heroes`, based exactly on independently PASSed provider-diagnostics head `3b4e24ad9cb42e211c698c970ee9f2f22cf5c953`. The fresh diagnostic attempt is **HOLD / exhausted** after its single canonical import preflight passed but the mandatory post-preflight topology/artifact/hash harness failed at PowerShell parse time before running any check. No credential value was loaded, no live child was spawned, provider/model calls were `0`, and no receipt, diagnostic sidecar, readiness, candidate, or rejected-request artifact exists. Independent Claude Code returned **PASS for record fidelity only** on exact range `3b4e24ad9cb42e211c698c970ee9f2f22cf5c953..f4bd95a88912baeb2c41b65ad6c186af7ffcb5e9`; the attempt itself remains HOLD / exhausted and Codex does not self-award technical PASS.
+
+## R1D-PVB-D1A1B1-DIAGNOSTIC-LIVE-ATTEMPT — independent record-fidelity PASS
+
+Claude Code independently reviewed exact range `3b4e24ad9cb42e211c698c970ee9f2f22cf5c953..f4bd95a88912baeb2c41b65ad6c186af7ffcb5e9` and returned **PASS** for the failure record with zero BLOCKER, zero MAJOR, and zero MINOR findings.
+
+- Topology, clean local-only state, absent target remote ref, single documentation commit, and the exact two changed tracked files were confirmed.
+- Claude found exactly one ignored control input plus four canonical B0 artifacts. It independently recomputed every payload-domain digest, confirmed the portable/path-bound identity split, and verified the exact snapshot, live-request, normalized-source, model, prompt, schema, Action Semantic Catalog, pricing, timeout, call/repair, retry, and fallback authorities without drift.
+- Claude independently reproduced deterministic TypeScript **PASS**, the focused **6 files / 271 tests PASS**, the canonical verifier's `verified / zeroWrite:true` result, and the historical Attempt-5/6 fence at **14/14 unchanged**.
+- It confirmed that exactly one bare canonical preflight passed, the post-preflight canonical B0 verifier passed, and the next PowerShell harness failed at parse time before executing checks. The harness was not corrected or rerun.
+- It confirmed that the API key was presence-checked only and its value was never decoded, loaded, printed, hashed, persisted, or passed to a child. Provider/model/live calls, repairs, retries, and provider-side exposure were all zero; no downstream artifact or diagnostic sidecar was expected or created.
+- Claude's sole advisory NOTE was positive: the record correctly classifies this as local orchestration rather than provider failure and honors the fail-closed rule without laundering later read-only inspection into restored authority.
+
+This PASS establishes record fidelity only. The diagnostic live attempt remains **HOLD / exhausted** and the verdict grants no corrected fence, second preflight, credential reuse, provider call, retry, diagnosis-through-rerun, render, downstream lifecycle action, deployment, push, product acceptance, or visual acceptance. A future attempt requires a separate general correction to the post-preflight execution harness, independent QA, a new Decision Gate, and Guy's explicit authorization.
 
 ## R1D-PVB-D1A1B1-DIAGNOSTIC-LIVE-ATTEMPT — HOLD / exhausted before credential loading
 
@@ -34,7 +47,7 @@ Guy authorized one fail-closed diagnostic live attempt from exact provider-diagn
 
 Closeout-only read inspection after authority was already exhausted found only the new control input plus four B0 artifacts, zero receipt/diagnostic/readiness/candidate/rejected-request files, and exact unchanged SHA-256 identities for all 14 inventoried Attempt-5/Attempt-6 files. This inspection does not restore the failed post-preflight live-authority gate.
 
-Sanitized durable evidence is tracked at `docs/ai-workflow/R1D_PVB_D1A1B1_DIAGNOSTIC_LIVE_ATTEMPT_EXECUTION_EVIDENCE.md`. The attempt grants no corrected fence, second preflight, credential reuse, live invocation, retry, render, downstream lifecycle action, deployment, or push authority. Any new attempt requires Lead investigation, a new Decision Gate/ruling, and Guy authorization. Independent Claude Code read-only QA is still required; Codex does not self-award technical PASS.
+Sanitized durable evidence is tracked at `docs/ai-workflow/R1D_PVB_D1A1B1_DIAGNOSTIC_LIVE_ATTEMPT_EXECUTION_EVIDENCE.md`. The attempt grants no corrected fence, second preflight, credential reuse, live invocation, retry, render, downstream lifecycle action, deployment, or push authority. Independent Claude Code subsequently returned the record-fidelity PASS captured above; that verdict does not restore or extend the exhausted execution authority. Any new attempt requires Lead investigation, a new Decision Gate/ruling, and Guy authorization.
 
 ## R1D-PVB-D1A1B1-PROVIDER-CALL-FAILURE-DIAGNOSTICS — Independent technical PASS
 
