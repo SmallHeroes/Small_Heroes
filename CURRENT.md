@@ -2,7 +2,46 @@
 
 **Updated:** 2026-07-30
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-execution-request-materialization` in `C:\Users\guyna\.codex\worktrees\1e57\Small_Heroes`, based exactly on immutable supervisor closeout `30745cf0b8fdc0798c96b7cda00951f900a89a86`. The focused implementation commit is `b9a7b145432c28c115599ee24f9abb16cab7101b`; Claude Code independently reviewed exact range `30745cf0b8fdc0798c96b7cda00951f900a89a86..efb7683c421b8fff04fda0bec9a0f0fa9d8c31ec` and returned technical **PASS** for the canonical execution-request materializer. This branch has no upstream and remains local-only. The supervised live attempt remains **HOLD pending Guy's next explicit authorization after push/parity**.
+**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-execution-request-materialization` in `C:\Users\guyna\.codex\worktrees\1e57\Small_Heroes`. The canonical execution-request materializer retains Claude Code's independent technical **PASS** for exact range `30745cf0b8fdc0798c96b7cda00951f900a89a86..efb7683c421b8fff04fda0bec9a0f0fa9d8c31ec`. Guy authorized one supervised live attempt from exact pushed start `7cfcccd1b1dfa0c5becbd1f7b730333acb2d9745` at local/upstream/origin parity `0/0`. That attempt is now **HOLD / exhausted** at its first execution-request materialization invocation, before pricing, preflight, credential access, supervisor verification/live mode, or provider reachability. The focused closeout is local-only and is not pushed.
+
+## R1D-PVB-D1A1B1-CANONICAL-SUPERVISED-LIVE-ATTEMPT — HOLD / exhausted before execution authority
+
+Guy authorized the canonical fail-closed sequence with a `$4.884` reservation and `$5.00` hard ceiling. The Task retained sole-writer authority in this branch/worktree; every other worktree remained read-only.
+
+### Zero-cost preparation and canonical B0
+
+- Intake matched exactly: branch, local HEAD, upstream, and origin were `7cfcccd1b1dfa0c5becbd1f7b730333acb2d9745`; divergence was `0/0`; the worktree was clean.
+- A fresh `npm ci --offline --ignore-scripts --no-audit --no-fund` succeeded. Local Prisma Client generation succeeded without database access. Node `22.19.0`, tsx `4.22.2`, TypeScript `6.0.3`, Vitest `3.2.4`, OpenAI SDK `6.35.0`, and Prisma/Client `6.19.3` were present in a real local `node_modules`.
+- Both ignored dependency-quarantine trees were preserved by exact directory rename and restored with unchanged file counts and byte totals. They remained housekeeping only and were not runtime or evidence inputs.
+- The generic `source-authoring-live-request-materialize` production path created one fresh ignored v2 B0 input plus four canonical authority artifacts under `outputs/r1d-pvb-d1a1b1-canonical-supervised-live-attempt/b0`.
+- Canonical identities are normalized Story Source `02629e886a9aaa1e714d9a8d652c24d94ca5843465ff8a9cb70d320a24e2231c`, source-authority request `f160ea6646e561bc68b7bf2b0a8eeffac2abf40422a6a8b0957155b399f99b8d`, portable source snapshot `d8a6bed426a3ea571242915dcd63851bd59de4f148c52fbf28d0cb49429123d9`, v4 live request `b3958e82cb9c1cb75eda0251e55fe041da110611f5e76445afe1c5f12162c8f2`, and worktree-bound manifest `b5b25fc4c9e2044f42758688e6ce1cc05e9fbdeee1ae5e79913ca7d43c5d376f`.
+- Materialized policy retained OpenAI Responses / `gpt-5.6-sol` / `default` / `medium`, 64K input, 36K output, three calls, two repairs, zero transport retries, no fallback, projected maximum `$4.884`, and hard ceiling `$5.00`. This is B0 policy authority, not a fresh official pricing verification or consumed reservation.
+
+### Terminal canonical-input rejection
+
+The new repository command ran once:
+
+```text
+node scripts/canonical-live-execution-request-materialize.cjs --repo-root C:\Users\guyna\.codex\worktrees\1e57\Small_Heroes --input outputs/r1d-pvb-d1a1b1-canonical-supervised-live-attempt/execution-request/materialization-inputs/canonical-live-execution-request-v1.json
+```
+
+It exited `1` with sanitized reason `execution_request_materialization_input_rejected`. It was not corrected or rerun.
+
+Read-only diagnosis found zero structured input issues, but the caller-created file was not byte-canonical: raw and canonical lengths were both `1,951`, raw SHA-256 was `5bdb857fdb9d855778d709e59f9208d7267f7e88351644f03b8228ffd538df70`, canonical-byte SHA-256 was `bcb5adc0457fa53c7b67780364e03e529fad313a4cf91fd006957dea850acbd9`, and exact equality was false. The production reader rejects that mismatch before Git derivation, B0 verification, staging, request building, or supervisor verification. No `canonical-live-execution-request/v1` file or partial canonical authority exists.
+
+### Calls, evidence limits, and gate
+
+- Fresh official OpenAI pricing/model lookup: `0`.
+- Canonical bare preflight: `0`.
+- Credential presence/read/load: `0`.
+- Execution Supervisor `verify` and `live`: `0` / `0`.
+- Provider calls, semantic repairs, and transport retries: `0` / `0` / `0`; fallback: none.
+- Locally observed spend: `$0.00`.
+- All five expected receipt/failure/readiness/rejected-request/candidate paths remain absent. No raw prompt, response, error, stack, or secret artifact was written.
+- The materializer's zero-valued `externalBoundaryEvidence` remains invariant/policy evidence supported by early control flow, call-graph review, command history, and artifact absence, not directly instrumented provider-account counters. No OpenAI account, billing, usage, request-log, or external service-log audit occurred.
+- No test suite or `npm run check` was run. Deterministic repository-local TypeScript and `git diff --check` passed for closeout.
+
+This failure does not invalidate the independently PASSed materializer implementation; it demonstrates its canonical-input refusal. The attempt itself is exhausted and receives no technical PASS. It grants no corrected input, second materialization, pricing lookup, preflight, credential reuse, supervisor verification/live invocation, provider/model call, repair/retry, render/image/Vision/audio, storage/database/Supabase, Board, Semantic Reconciliation, approval, Blueprint/package publication, promotion, production activation, deployment, or push. Any continuation requires a new Lead ruling and Guy's explicit authorization. Durable sanitized evidence is recorded in `docs/ai-workflow/R1D_PVB_D1A1B1_CANONICAL_SUPERVISED_LIVE_ATTEMPT_EXECUTION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-CANONICAL-EXECUTION-REQUEST-MATERIALIZATION — independent technical PASS
 
