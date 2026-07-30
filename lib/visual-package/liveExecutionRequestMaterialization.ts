@@ -7,6 +7,10 @@ import {
   canonicalLiveAuthoringJsonBytes,
 } from './canonicalLiveAuthoringArtifacts';
 import {
+  CanonicalMaterializationInputReadError,
+  readCanonicalMaterializationInputArtifact,
+} from './canonicalMaterializationInput';
+import {
   canonicalJsonDigest,
   repoRelativePath,
 } from './integrity';
@@ -463,36 +467,27 @@ function readCanonicalInput(args: {
   repositoryRealPath: string;
   inputPath: string;
 }): CanonicalLiveExecutionRequestMaterializationInput {
-  const absolute = resolveContainedRegularFile({
-    repositoryRealPath: args.repositoryRealPath,
-    relativePath: args.inputPath,
-    rejectHardLinks: true,
-  });
-  let raw: Buffer;
-  let value: unknown;
   try {
-    raw = fs.readFileSync(absolute);
-    value = JSON.parse(raw.toString('utf8')) as unknown;
-    if (
-      !raw.equals(
-        Buffer.from(
-          canonicalLiveAuthoringJsonBytes(value),
-          'utf8',
-        ),
-      )
-    ) {
-      throw new Error('bytes_noncanonical');
-    }
-    assertValidCanonicalLiveExecutionRequestMaterializationInput(
-      value,
-    );
-    return value;
+    return readCanonicalMaterializationInputArtifact({
+      repoRoot: args.repositoryRealPath,
+      inputPath: args.inputPath,
+      expectedKind: 'canonical-live-execution-request',
+      expectedPayloadSchemaVersion:
+        CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_INPUT_VERSION,
+      validatePayload:
+        assertValidCanonicalLiveExecutionRequestMaterializationInput,
+    }).payload;
   } catch (error) {
     if (
-      error instanceof
-      CanonicalLiveExecutionRequestMaterializationFailure
+      error instanceof CanonicalMaterializationInputReadError &&
+      (error.reasonCode ===
+        'canonical_materialization_input_filesystem_rejected' ||
+        error.reasonCode ===
+          'canonical_materialization_input_source_changed')
     ) {
-      throw error;
+      throw new CanonicalLiveExecutionRequestMaterializationFailure(
+        'execution_request_materialization_filesystem_rejected',
+      );
     }
     throw new CanonicalLiveExecutionRequestMaterializationFailure(
       'execution_request_materialization_input_rejected',

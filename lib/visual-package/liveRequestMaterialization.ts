@@ -10,6 +10,9 @@ import {
   createContainedContentAddressedJsonArtifactStore,
 } from './canonicalLiveAuthoringArtifacts';
 import {
+  readCanonicalMaterializationInputArtifact,
+} from './canonicalMaterializationInput';
+import {
   assertValidStorySourceAuthoritySnapshot,
   buildStorySourceAuthoritySnapshot,
   STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION,
@@ -1006,23 +1009,14 @@ function readMaterializationInput(args: {
   repositoryRealPath: string;
   requestPath: string;
 }): LiveRequestMaterializationInput {
-  const absolute = resolveCanonicalExistingFile({
-    repositoryRealPath: args.repositoryRealPath,
-    relativePath: args.requestPath,
-    label: 'materialization_request_path',
-  });
-  let value: unknown;
-  try {
-    value = JSON.parse(
-      fs.readFileSync(absolute, 'utf8'),
-    ) as unknown;
-  } catch {
-    throw new Error(
-      'materialization_request_missing_or_invalid_json',
-    );
-  }
-  assertValidLiveRequestMaterializationInput(value);
-  return value;
+  return readCanonicalMaterializationInputArtifact({
+    repoRoot: args.repositoryRealPath,
+    inputPath: args.requestPath,
+    expectedKind: 'source-authoring-live-request',
+    expectedPayloadSchemaVersion:
+      LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION,
+    validatePayload: assertValidLiveRequestMaterializationInput,
+  }).payload;
 }
 
 export function materializeCanonicalLiveRequestBundle(args: {

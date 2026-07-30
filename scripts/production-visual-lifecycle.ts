@@ -108,7 +108,7 @@ function usage(): string {
   return [
     'Production visual lifecycle (deterministic local authority tooling):',
     '  source-authoring-preflight --request <json> [--out <repo-relative-dir>] [--write true|false]',
-    '  source-authoring-live-request-materialize --repo-root <absolute-dir> --request <repo-relative-json> --out <repo-relative-dir>',
+    '  source-authoring-live-request-materialize --repo-root <absolute-dir> --request <canonical-materialization-input> --out <repo-relative-dir>',
     '  source-authoring-live-request-verify --repo-root <absolute-dir> --manifest <repo-relative-json>',
     '  readiness --request <json>',
     '  context --request <json>',
@@ -119,7 +119,7 @@ function usage(): string {
     '  finalize-plan --repo-root <dir> --candidate <json> --review <json> --review-artifact <repo-relative-json> --approval <json> [--board-registry-dir <dir>]',
     '  publication-plan --repo-root <dir> --package <json> --approved-dir <dir>',
     '',
-    'Write surfaces are limited to explicit --write true for source/preflight review artifacts and source-authoring-live-request-materialize for immutable future-live input artifacts.',
+    'Write surfaces are limited to explicit --write true for source/preflight review artifacts and source-authoring-live-request-materialize consuming repository-writer canonical materialization input for immutable future-live artifacts.',
     'There is no live provider adapter, approval command, publication write flag, fallback, render, Vision, network, database, or registry mutation in this entrypoint.',
   ].join('\n');
 }
