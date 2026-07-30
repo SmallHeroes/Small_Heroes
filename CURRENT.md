@@ -2,7 +2,28 @@
 
 **Updated:** 2026-07-30
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-post-preflight-execution-harness-hardening` in `C:\Users\guyna\.codex\worktrees\0ea6\Small_Heroes`, based exactly on immutable commit `6442e6ff4b45821ee53c1f20e4f29321390b6eec`. The additive execution-supervisor implementation is committed locally at `e72d3451a3b227d405d538d96d6165bde15a24ed` and remains **HOLD pending independent Claude Code review**. This milestone did not run canonical import preflight, inspect or load a real credential, invoke the future live command, reach a provider/network/write boundary, or push.
+**Working branch:** `codex/r1d-pvb-d1a1b1-post-preflight-execution-harness-hardening` in `C:\Users\guyna\.codex\worktrees\0ea6\Small_Heroes`, based exactly on immutable commit `6442e6ff4b45821ee53c1f20e4f29321390b6eec`. Claude Code returned independent technical **PASS** on the original implementation range `6442e6ff4b45821ee53c1f20e4f29321390b6eec..7667ab56e146045715b88f2fac8e32b1d444fb11`, with 10/10 claims confirmed, no BLOCKER or MAJOR, one valid non-blocking MINOR, and three advisory NOTES. Guy authorized only the MINOR correction, now committed locally at `b3452726f98372740cb58cc2b33d778a41ef7de3`; the correction remains **HOLD pending independent micro re-gate**. No canonical preflight, real credential access, future-live invocation, provider/network/write boundary, full-suite rerun, deployment, or push occurred.
+
+## R1D-PVB-D1A1B1-POST-PREFLIGHT-EXECUTION-HARNESS-HARDENING-QA-FIX — MINOR-1 corrected; micro re-gate required
+
+Claude Code independently reviewed exact immutable range `6442e6ff4b45821ee53c1f20e4f29321390b6eec..7667ab56e146045715b88f2fac8e32b1d444fb11` and returned technical **PASS** with all 10 implementation claims confirmed, zero BLOCKER, zero MAJOR, one valid non-blocking MINOR, and three advisory NOTES.
+
+### MINOR-1 and focused correction
+
+- **Finding:** the final unexpected-promise-rejection catch in `scripts/canonical-live-execution-supervisor-entry.ts` unconditionally emitted `canonicalLiveExecutionCliRejection('verify')`. An unexpected throw during requested `live` mode therefore failed closed and exited nonzero, but its sanitized evidence misattributed the mode as `verify`.
+- **Disposition:** Guy explicitly authorized correction of MINOR-1 only. Commit `b3452726f98372740cb58cc2b33d778a41ef7de3` captures the requested mode before invoking `main()` and uses that bounded enum in the outer catch. Requested `verify` remains `verify`; requested `live` now remains `live`. The catch still discards the raw exception and emits canonical rejected evidence with exit code `1`.
+- **Runtime regression:** a one-shot preload fixture forces the real entry subprocess's first output to throw a raw fake secret/path/message. Structurally valid `verify` and `live` argv then prove the outer catch actually ran: both return `canonical-live-execution-readiness/v1`, the requested mode, `status: rejected`, `zeroWrite: true`, bounded `execution_cli_arguments_invalid`, zero external-boundary counts, no error/message/path/stack fields, no raw marker, and nonzero exit.
+- Focused supervisor validation is **1 file / 33 tests PASS**. Deterministic TypeScript is **PASS**. Literal `npm run check` was not rerun under the approved tiny-correction boundary.
+
+### Advisory NOTES — recorded without scope expansion
+
+- **NOTE-1:** a JavaScript immutable string cannot be fully scrubbed from engine memory. The existing design minimizes exposure by keeping the credential out of shared evidence, zeroing mutable buffers, tightly bounding child authority, and dropping raw errors/output; this is an advisory runtime limitation, not a corrective code requirement.
+- **NOTE-2:** the credential sentinel follows the production `readFileSync` path actually used today. Broader future credential-read APIs would need corresponding sentinel expansion if introduced; no broader interception is required for the current implementation.
+- **NOTE-3:** `ComSpec` is deliberately retained in the minimal Windows inherited environment for compatibility. It is not a shell vector because all trusted child spawning remains exact-argv with `shell:false`; no change is authorized.
+
+### Gate and exclusions
+
+The original range retains Claude Code's independent technical PASS. The corrective commit is **HOLD pending a narrow READ-ONLY Claude Code micro re-gate** for MINOR-1 closure, advisory-note disposition, topology, and absence of scope drift; Codex does not self-award the correction PASS. Cost remains exactly `$0`. No canonical preflight, real credential check/read/load, provider/network/model call, live authoring, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval/publication/promotion/activation, deployment, full-suite rerun, or push occurred.
 
 ## R1D-PVB-D1A1B1-POST-PREFLIGHT-EXECUTION-HARNESS-HARDENING — local implementation awaiting independent QA
 
@@ -29,7 +50,7 @@ Guy approved a repository-owned, story-neutral replacement for the hand-authored
 
 ### Gate and exclusions
 
-This implementation remains **HOLD pending first-pass READ-ONLY Claude Code review**; Codex does not self-award independent technical PASS. Cost is exactly `$0`. No canonical preflight, real credential source access, pricing lookup, network/provider/model call, live authoring, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, or push occurred. Durable evidence is recorded in `docs/ai-workflow/R1D_PVB_D1A1B1_POST_PREFLIGHT_EXECUTION_HARNESS_HARDENING_EVIDENCE.md`.
+At this original implementation handoff, the range remained **HOLD pending first-pass READ-ONLY Claude Code review**; the later independent technical PASS and focused MINOR-1 correction are recorded above. Codex does not self-award the correction PASS. Cost is exactly `$0`. No canonical preflight, real credential source access, pricing lookup, network/provider/model call, live authoring, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, or push occurred. Durable implementation evidence is recorded in `docs/ai-workflow/R1D_PVB_D1A1B1_POST_PREFLIGHT_EXECUTION_HARNESS_HARDENING_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-DIAGNOSTIC-LIVE-ATTEMPT — independent record-fidelity PASS
 
