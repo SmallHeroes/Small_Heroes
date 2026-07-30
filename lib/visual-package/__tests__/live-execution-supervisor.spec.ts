@@ -71,6 +71,14 @@ const VERIFY_SENTINEL = path.join(
   'fixtures',
   'deny-live-execution-verify-boundaries.cjs',
 );
+const ENTRY_OUTPUT_THROW_SENTINEL = path.join(
+  REPO,
+  'lib',
+  'visual-package',
+  '__tests__',
+  'fixtures',
+  'throw-live-execution-entry-output-once.cjs',
+);
 const REQUEST_PATH =
   'outputs/live-execution/request.json';
 const BRANCH = 'codex/execution-fixture';
@@ -1222,6 +1230,75 @@ describe('verify boundary and public Node contract', () => {
         'execution_cli_arguments_invalid',
       ]);
       expect(result.stderr).toBe('');
+    },
+  );
+
+  it.each(['verify', 'live'] as const)(
+    'attributes an unexpected outer entry throw to requested %s mode',
+    (mode) => {
+      const missingRequestPath =
+        'outputs/live-execution/unexpected-throw-missing.json';
+      const result = spawnSync(
+        process.execPath,
+        [
+          TSX,
+          '--require',
+          SHIM,
+          '--require',
+          ENTRY_OUTPUT_THROW_SENTINEL,
+          SUPERVISOR_ENTRY,
+          mode,
+          '--repo-root',
+          REPO,
+          '--request',
+          missingRequestPath,
+        ],
+        {
+          cwd: REPO,
+          env: {
+            ...process.env,
+            TSX_DISABLE_CACHE: '1',
+          },
+          encoding: 'utf8',
+          shell: false,
+          windowsHide: true,
+        },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.signal).toBeNull();
+      expect(result.stderr).toBe('');
+      const evidence = JSON.parse(result.stdout) as unknown;
+      assertValidCanonicalLiveExecutionReadiness(evidence);
+      expect(evidence).toMatchObject({
+        version: CANONICAL_LIVE_EXECUTION_READINESS_VERSION,
+        mode,
+        status: 'rejected',
+        zeroWrite: true,
+        requestDigest: null,
+        reasonCodes: ['execution_cli_arguments_invalid'],
+        externalBoundaryEvidence: {
+          canonicalPreflightRuns: 0,
+          credentialReads: 0,
+          providerCalls: 0,
+          networkCalls: 0,
+          storageWrites: 0,
+          databaseWrites: 0,
+        },
+      });
+      expect(evidence).not.toHaveProperty('error');
+      expect(evidence).not.toHaveProperty('message');
+      expect(evidence).not.toHaveProperty('path');
+      expect(evidence).not.toHaveProperty('stack');
+      expect(`${result.stdout}${result.stderr}`).not.toContain(
+        'ENTRY_UNEXPECTED_RAW_SECRET',
+      );
+      expect(`${result.stdout}${result.stderr}`).not.toContain(
+        'OPENAI_API_KEY=fake-never-leak',
+      );
+      expect(`${result.stdout}${result.stderr}`).not.toContain(
+        'C:\\sensitive\\credential.env',
+      );
     },
   );
 

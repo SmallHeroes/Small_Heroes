@@ -77,7 +77,10 @@ async function main(): Promise<void> {
   }
 }
 
+const requestedMode =
+  process.argv.slice(2)[0] === 'live' ? 'live' : 'verify';
+
 main().catch(() => {
-  output(canonicalLiveExecutionCliRejection('verify'));
+  output(canonicalLiveExecutionCliRejection(requestedMode));
   process.exitCode = 1;
 });
