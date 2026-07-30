@@ -536,7 +536,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
       "'source-authoring-live-request-materialize'",
     );
     expect(cliSource).toContain(
-      'Write surfaces are limited to explicit --write true for source/preflight review artifacts and source-authoring-live-request-materialize for immutable future-live input artifacts.',
+      'Write surfaces are limited to explicit --write true for source/preflight review artifacts and source-authoring-live-request-materialize consuming repository-writer canonical materialization input for immutable future-live artifacts.',
     );
   });
 

@@ -24,6 +24,7 @@ import {
   materializeCanonicalLiveRequestBundle,
   verifyCanonicalLiveExecution,
   verifyCanonicalLiveRequestBundle,
+  writeCanonicalMaterializationInput,
   type CanonicalLiveExecutionRequest,
   type CanonicalLiveExecutionRequestMaterializationDependencies,
   type CanonicalLiveExecutionRequestMaterializationInput,
@@ -69,8 +70,8 @@ const BRANCH = 'codex/materialization-fixture';
 const BRANCH_REF = `refs/heads/${BRANCH}`;
 const UPSTREAM_REF = `refs/remotes/origin/${BRANCH}`;
 const REQUESTED_AT = '2026-07-30T09:00:00.000Z';
-const MATERIALIZATION_INPUT_PATH =
-  'outputs/execution-materialization/input.json';
+const MATERIALIZATION_INPUT_OUTPUT_DIR =
+  'outputs/execution-materialization/input-artifacts';
 const MATERIALIZATION_OUTPUT_DIR =
   'outputs/execution-materialization/result';
 const tempRoots: string[] = [];
@@ -87,6 +88,7 @@ interface MaterializationFixture {
   expectedAbsentPath: string;
   credentialPath: string;
   input: CanonicalLiveExecutionRequestMaterializationInput;
+  inputPath: string;
 }
 
 afterEach(() => {
@@ -164,12 +166,22 @@ function fixtureStory(): string {
 function writeMaterializationInput(
   fixture: MaterializationFixture,
   input = fixture.input,
-): void {
+): string {
   fixture.input = input;
-  writeCanonical(
-    path.join(fixture.repoRoot, MATERIALIZATION_INPUT_PATH),
-    input,
-  );
+  const result = writeCanonicalMaterializationInput({
+    mode: 'canonical-live-execution-request',
+    repoRoot: fixture.repoRoot,
+    outputDir: MATERIALIZATION_INPUT_OUTPUT_DIR,
+    requestId: input.requestId,
+    requestedAt: input.requestedAt,
+    manifestPath: input.manifestPath,
+    materializationOutputDir: input.outputDir,
+    preservationPaths: input.preservationPaths,
+    expectedAbsentPaths: input.expectedAbsentPaths,
+    credentialSourcePath: input.credentialSourcePath,
+  });
+  fixture.inputPath = result.artifact.path;
+  return result.artifact.path;
 }
 
 function createFixture(
@@ -220,8 +232,6 @@ function createFixture(
   const head = git(repoRoot, ['rev-parse', 'HEAD']);
   const canonicalRepoRoot = fs.realpathSync(repoRoot);
 
-  const b0InputPath =
-    'outputs/b0/materialization-input.json';
   const b0Input: LiveRequestMaterializationInput = {
     version: LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION,
     repoRoot: canonicalRepoRoot,
@@ -230,7 +240,15 @@ function createFixture(
     requestId: 'materialization-b0-request-001',
     requestedAt: REQUESTED_AT,
   };
-  writeCanonical(path.join(repoRoot, b0InputPath), b0Input);
+  const b0InputPath = writeCanonicalMaterializationInput({
+    mode: 'source-authoring-live-request',
+    repoRoot,
+    outputDir: 'outputs/b0/input-artifacts',
+    storyKey: b0Input.storyKey,
+    storyPath: b0Input.storyPath,
+    requestId: b0Input.requestId,
+    requestedAt: b0Input.requestedAt,
+  }).artifact.path;
   const materialized = materializeCanonicalLiveRequestBundle({
     repoRoot,
     requestPath: b0InputPath,
@@ -278,6 +296,7 @@ function createFixture(
     expectedAbsentPath,
     credentialPath,
     input,
+    inputPath: '',
   };
   writeMaterializationInput(fixture);
   return fixture;
@@ -328,7 +347,7 @@ describe('canonical live execution request materialization', () => {
     const fixture = createFixture(true);
     const result = materializeCanonicalLiveExecutionRequest({
       repoRoot: fixture.repoRoot,
-      inputPath: MATERIALIZATION_INPUT_PATH,
+      inputPath: fixture.inputPath,
     });
 
     expect(result).toMatchObject({
@@ -447,7 +466,7 @@ describe('canonical live execution request materialization', () => {
     const fixture = createFixture();
     const first = materializeCanonicalLiveExecutionRequest({
       repoRoot: fixture.repoRoot,
-      inputPath: MATERIALIZATION_INPUT_PATH,
+      inputPath: fixture.inputPath,
     });
     const absolute = path.join(
       fixture.repoRoot,
@@ -456,7 +475,7 @@ describe('canonical live execution request materialization', () => {
     const original = fs.readFileSync(absolute);
     const replay = materializeCanonicalLiveExecutionRequest({
       repoRoot: fixture.repoRoot,
-      inputPath: MATERIALIZATION_INPUT_PATH,
+      inputPath: fixture.inputPath,
     });
     expect(replay.request).toEqual({
       path: first.request.path,
@@ -472,7 +491,7 @@ describe('canonical live execution request materialization', () => {
     const rejection = rejectionFor(() =>
       materializeCanonicalLiveExecutionRequest({
         repoRoot: fixture.repoRoot,
-        inputPath: MATERIALIZATION_INPUT_PATH,
+        inputPath: fixture.inputPath,
       }),
     );
     expect(rejection.reasonCodes).toEqual([
@@ -508,7 +527,7 @@ describe('canonical live execution request materialization', () => {
       };
     materializeCanonicalLiveExecutionRequest({
       repoRoot: fixture.repoRoot,
-      inputPath: MATERIALIZATION_INPUT_PATH,
+      inputPath: fixture.inputPath,
       dependencies: { runGit },
     });
     expect(calls.map((entry) => entry.slice(3))).toEqual([
@@ -566,7 +585,7 @@ describe('public materializer command and external boundary', () => {
         '--repo-root',
         fixture.repoRoot,
         '--input',
-        MATERIALIZATION_INPUT_PATH,
+        fixture.inputPath,
       ],
       {
         cwd: REPO,
@@ -701,7 +720,7 @@ describe('public materializer command and external boundary', () => {
         '--repo-root',
         fixture.repoRoot,
         '--input',
-        MATERIALIZATION_INPUT_PATH,
+        fixture.inputPath,
       ],
       {
         cwd: REPO,
@@ -802,7 +821,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
     fs.writeFileSync(
       path.join(
         fixture.repoRoot,
-        MATERIALIZATION_INPUT_PATH,
+        fixture.inputPath,
       ),
       JSON.stringify(fixture.input),
       'utf8',
@@ -811,7 +830,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       rejectionFor(() =>
         materializeCanonicalLiveExecutionRequest({
           repoRoot: fixture.repoRoot,
-          inputPath: MATERIALIZATION_INPUT_PATH,
+          inputPath: fixture.inputPath,
         }),
       ).reasonCodes,
     ).toEqual([
@@ -840,7 +859,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       rejectionFor(() =>
         materializeCanonicalLiveExecutionRequest({
           repoRoot: fixture.repoRoot,
-          inputPath: MATERIALIZATION_INPUT_PATH,
+          inputPath: fixture.inputPath,
         }),
       ).reasonCodes,
     ).toEqual([
@@ -851,7 +870,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
     fs.unlinkSync(path.join(fixture.repoRoot, hardLinkPath));
     const inputAbsolute = path.join(
       fixture.repoRoot,
-      MATERIALIZATION_INPUT_PATH,
+      fixture.inputPath,
     );
     const originalInput =
       'outputs/execution-materialization/original-input.json';
@@ -867,7 +886,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       rejectionFor(() =>
         materializeCanonicalLiveExecutionRequest({
           repoRoot: fixture.repoRoot,
-          inputPath: MATERIALIZATION_INPUT_PATH,
+          inputPath: fixture.inputPath,
         }),
       ).reasonCodes,
     ).toEqual([
@@ -911,7 +930,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
         rejectionFor(() =>
           materializeCanonicalLiveExecutionRequest({
             repoRoot: fixture.repoRoot,
-            inputPath: MATERIALIZATION_INPUT_PATH,
+            inputPath: fixture.inputPath,
           }),
         ).reasonCodes,
       ).toEqual([
@@ -935,7 +954,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       rejectionFor(() =>
         materializeCanonicalLiveExecutionRequest({
           repoRoot: fixture.repoRoot,
-          inputPath: MATERIALIZATION_INPUT_PATH,
+          inputPath: fixture.inputPath,
         }),
       ).reasonCodes,
     ).toEqual([
@@ -955,7 +974,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       rejectionFor(() =>
         materializeCanonicalLiveExecutionRequest({
           repoRoot: tracked.repoRoot,
-          inputPath: MATERIALIZATION_INPUT_PATH,
+          inputPath: tracked.inputPath,
         }),
       ).reasonCodes,
     ).toEqual([
@@ -973,7 +992,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       rejectionFor(() =>
         materializeCanonicalLiveExecutionRequest({
           repoRoot: untracked.repoRoot,
-          inputPath: MATERIALIZATION_INPUT_PATH,
+          inputPath: untracked.inputPath,
         }),
       ).reasonCodes,
     ).toEqual([
@@ -989,7 +1008,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       rejectionFor(() =>
         materializeCanonicalLiveExecutionRequest({
           repoRoot: noUpstream.repoRoot,
-          inputPath: MATERIALIZATION_INPUT_PATH,
+          inputPath: noUpstream.inputPath,
         }),
       ).reasonCodes,
     ).toEqual([
@@ -1027,7 +1046,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
         rejectionFor(() =>
           materializeCanonicalLiveExecutionRequest({
             repoRoot: fixture.repoRoot,
-            inputPath: MATERIALIZATION_INPUT_PATH,
+            inputPath: fixture.inputPath,
             dependencies: { verifyExecution },
           }),
         ).reasonCodes,
@@ -1067,7 +1086,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
         rejectionFor(() =>
           materializeCanonicalLiveExecutionRequest({
             repoRoot: fixture.repoRoot,
-            inputPath: MATERIALIZATION_INPUT_PATH,
+            inputPath: fixture.inputPath,
             dependencies: { verifyExecution },
           }),
         ).reasonCodes,
@@ -1099,7 +1118,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       rejectionFor(() =>
         materializeCanonicalLiveExecutionRequest({
           repoRoot: corrupt.repoRoot,
-          inputPath: MATERIALIZATION_INPUT_PATH,
+          inputPath: corrupt.inputPath,
         }),
       ).reasonCodes,
     ).toEqual([
@@ -1129,7 +1148,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       rejectionFor(() =>
         materializeCanonicalLiveExecutionRequest({
           repoRoot: commandDrift.repoRoot,
-          inputPath: MATERIALIZATION_INPUT_PATH,
+          inputPath: commandDrift.inputPath,
           dependencies: { verifyBundle },
         }),
       ).reasonCodes,
@@ -1158,7 +1177,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       rejectionFor(() =>
         materializeCanonicalLiveExecutionRequest({
           repoRoot: preservationDrift.repoRoot,
-          inputPath: MATERIALIZATION_INPUT_PATH,
+          inputPath: preservationDrift.inputPath,
           dependencies: { verifyExecution },
         }),
       ).reasonCodes,

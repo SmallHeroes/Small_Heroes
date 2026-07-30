@@ -2,7 +2,30 @@
 
 **Updated:** 2026-07-31
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-execution-request-materialization` in `C:\Users\guyna\.codex\worktrees\1e57\Small_Heroes`. The canonical execution-request materializer retains Claude Code's independent technical **PASS** for exact range `30745cf0b8fdc0798c96b7cda00951f900a89a86..efb7683c421b8fff04fda0bec9a0f0fa9d8c31ec`. Claude Code independently returned record-fidelity **PASS** for the exhausted supervised-live-attempt range `7cfcccd1b1dfa0c5becbd1f7b730333acb2d9745..dc832c2505ab1a9265dd2baf03874dc5872489b2`. At this documentation intake, local `dc832c2505ab1a9265dd2baf03874dc5872489b2` was clean and ahead `1` / behind `0` of origin/upstream `7cfcccd1b1dfa0c5becbd1f7b730333acb2d9745`. The attempt remains **HOLD / exhausted** before pricing, preflight, credential access, supervisor verification/live mode, or provider reachability. This focused transcription adds one local-only documentation commit and is not pushed.
+**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-input-writer` in `C:\Users\guyna\.codex\worktrees\f9db\Small_Heroes`, created cleanly from exact immutable base `be19817106b16770477b1be15374aa7dd55eb6a2`. This task is the sole writer for its branch/worktree; every other worktree remains read-only. The canonical materialization-input writer milestone is locally implemented in focused commits `682fd074`, `d27574aa`, and the containing tests/evidence commit, with no push. It awaits independent first-pass READ-ONLY Claude Code QA. The exhausted supervised attempt remains separately **HOLD / exhausted** before pricing, preflight, credential access, supervisor verification/live mode, or provider reachability.
+
+## R1D-PVB-D1A1B1-CANONICAL-MATERIALIZATION-INPUT-WRITER — local implementation awaiting independent QA
+
+Guy approved one general repository-owned canonical input producer/reader boundary from exact base `be19817106b16770477b1be15374aa7dd55eb6a2`. The implementation cost is exactly `$0`.
+
+### General contract and consumer cutover
+
+- `canonical-materialization-input/v1` carries a fixed kind, existing payload schema version, validated kind-specific payload, canonical SHA-256 algorithm, and digest. It publishes atomically/no-overwrite at `<out>/canonical-materialization-inputs/<kind>/<digest>.json`; exact replay is idempotent and collisions reject.
+- One strict public writer exposes only `source-authoring-live-request` and `canonical-live-execution-request` with separate bounded logical flags. It accepts no raw JSON/payload JSON, executable, argv, shell/eval, inline PowerShell, or arbitrary environment. Equivalent scalar/repeated flag ordering yields identical bytes, digest, and path after duplicate rejection.
+- One common reader now serves both B0 and Execution Request. It proves contained canonical path, unique regular-file identity, link count, descriptor/path stability, canonical bytes, envelope kind/schema/digest, and filename content address before invoking the unchanged kind-specific validator.
+- The credential source remains an opaque absolute path label. The writer validates path syntax only and never stats, opens, existence-checks, resolves, reads, or prints the credential source. The fixed launcher uses exact local tsx/shim, `shell:false`, a minimal allowlisted environment, Windows spaces/Unicode-safe argv, and exact exit/signal disposition.
+- Raw legacy B0 v2 and Execution v1 inputs remain immutable historical evidence but reject in new-attempt production paths. Migration is rematerialization through the writer; there is no silent fallback.
+- Existing Story Source, model, prompt, schema, pricing, call/repair/retry/fallback, and `futureLiveCommand` authority is unchanged. Shared production code contains no selected story/child/companion/page/prop/reveal data.
+
+### Deterministic validation and limits
+
+- Offline dependencies were prepared with `npm ci --offline --ignore-scripts --no-audit --no-fund`; local Prisma generation used no database. Deterministic `npx tsc --noEmit` passed.
+- Final focused validation passed **9 files / 351 tests**. It covers both writer modes, both consumers, B0 verifier, Execution Supervisor, launcher/boundary, source authority, lifecycle guards, canonicality/digest/address binding, ordering invariance, collision/idempotence/cleanup, CLI grammar, links/races, credential non-access/redaction, and external-boundary positive controls.
+- Literal `npm run check` ran exactly once and was not rerun. TypeScript passed; Vitest completed without timeout and introduced no new failure. Its only failures were the six established missing ignored-fixture failures: one child-lexicon story, one momentum beat file, one page-entity PNG, one appearance-board PNG, and two story-read-back files.
+- The full gate's five exact scratch files and `tsconfig.tsbuildinfo` were moved into ignored task quarantine after direct deletion was blocked before execution. No test scratch remains at its repository/output path.
+- No real B0/Execution Request materialization, preflight, credential access, pricing/network/provider/model call, live authoring, render/image/Vision/audio, storage/database/Supabase, Board, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, PR, or push occurred. Cost remained exactly `$0`.
+
+Sanitized durable evidence is tracked at `docs/ai-workflow/R1D_PVB_D1A1B1_CANONICAL_MATERIALIZATION_INPUT_WRITER_EVIDENCE.md`. The approved Decision Gate is tracked beside it. Rollback is reverting the three focused commits; historical evidence remains untouched. Codex does not self-award independent PASS.
 
 ## R1D-PVB-D1A1B1-CANONICAL-SUPERVISED-LIVE-ATTEMPT — HOLD / exhausted before execution authority
 

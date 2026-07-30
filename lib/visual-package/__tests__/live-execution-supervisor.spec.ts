@@ -18,7 +18,6 @@ import {
   CANONICAL_LIVE_EXECUTION_READINESS_VERSION,
   CANONICAL_LIVE_EXECUTION_REQUEST_VERSION,
   CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
-  LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION,
   assertValidCanonicalLiveExecutionReadiness,
   buildCanonicalLiveExecutionRequest,
   canonicalJsonDigest,
@@ -31,9 +30,9 @@ import {
   runCanonicalLiveExecutionProbe,
   verifyCanonicalLiveExecution,
   verifyCanonicalLiveRequestBundle,
+  writeCanonicalMaterializationInput,
   type CanonicalLiveExecutionDependencies,
   type CanonicalLiveExecutionRequest,
-  type LiveRequestMaterializationInput,
 } from '@/lib/visual-package';
 import {
   canonicalLiveAuthoringJsonBytes,
@@ -329,17 +328,15 @@ function createExecutionFixture(
   git(repoRoot, ['push', '-u', 'origin', BRANCH]);
   const head = git(repoRoot, ['rev-parse', 'HEAD']);
 
-  const inputPath =
-    'outputs/b0/materialization-input.json';
-  const input: LiveRequestMaterializationInput = {
-    version: LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION,
-    repoRoot: fs.realpathSync(repoRoot),
+  const inputPath = writeCanonicalMaterializationInput({
+    mode: 'source-authoring-live-request',
+    repoRoot,
+    outputDir: 'outputs/b0/input-artifacts',
     storyKey: 'execution_fixture',
     storyPath,
     requestId: 'execution-b0-request-001',
     requestedAt: REQUESTED_AT,
-  };
-  writeCanonical(path.join(repoRoot, inputPath), input);
+  }).artifact.path;
   const materialized = materializeCanonicalLiveRequestBundle({
     repoRoot,
     requestPath: inputPath,

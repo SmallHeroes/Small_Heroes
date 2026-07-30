@@ -17,15 +17,18 @@ import {
   STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION,
   assertValidLiveRequestMaterializationManifest,
   assertValidStorySourceAuthorityRequestArtifact,
+  buildCanonicalMaterializationInputEnvelope,
   liveRequestMaterializationInputIssues,
   liveRequestMaterializationManifestIssues,
   materializeCanonicalLiveRequestBundle,
   storySourceAuthorityRequestArtifactIssues,
+  writeCanonicalMaterializationInput,
   type LiveRequestMaterializationInput,
   type StorySourceAuthorityRequestArtifact,
   type VisualContractAuthoringRequest,
 } from '@/lib/visual-package';
 import {
+  canonicalLiveAuthoringJsonBytes,
   createContainedContentAddressedJsonArtifactStore,
 } from '@/lib/visual-package/canonicalLiveAuthoringArtifacts';
 
@@ -170,7 +173,31 @@ function writeInput(
   fixture: ReturnType<typeof writeFixture>,
   value: unknown = inputFor(fixture),
 ): string {
-  const relativePath = 'inputs/materialize.json';
+  const issues = liveRequestMaterializationInputIssues(value);
+  if (
+    issues.length === 0 &&
+    (value as LiveRequestMaterializationInput).repoRoot ===
+      fixture.repoRoot
+  ) {
+    const input = value as LiveRequestMaterializationInput;
+    return writeCanonicalMaterializationInput({
+      mode: 'source-authoring-live-request',
+      repoRoot: fixture.repoRoot,
+      outputDir: 'inputs',
+      storyKey: input.storyKey,
+      storyPath: input.storyPath,
+      requestId: input.requestId,
+      requestedAt: input.requestedAt,
+    }).artifact.path;
+  }
+  const envelope = buildCanonicalMaterializationInputEnvelope({
+    kind: 'source-authoring-live-request',
+    payloadSchemaVersion:
+      LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION,
+    payload: value,
+  });
+  const relativePath =
+    `inputs/canonical-materialization-inputs/source-authoring-live-request/${envelope.digest}.json`;
   const absolute = path.join(
     fixture.repoRoot,
     relativePath,
@@ -178,7 +205,7 @@ function writeInput(
   fs.mkdirSync(path.dirname(absolute), { recursive: true });
   fs.writeFileSync(
     absolute,
-    `${JSON.stringify(value, null, 2)}\n`,
+    canonicalLiveAuthoringJsonBytes(envelope),
     'utf8',
   );
   return relativePath;
@@ -657,11 +684,11 @@ describe('canonical live request materialization artifacts', () => {
 
   it('refuses a 13-page source before creating an output root', () => {
     const fixture = writeFixture({ pageCount: 13 });
-    writeInput(fixture);
+    const requestPath = writeInput(fixture);
     expect(() =>
       materializeCanonicalLiveRequestBundle({
         repoRoot: fixture.repoRoot,
-        requestPath: 'inputs/materialize.json',
+        requestPath,
         outputDir: 'outputs/too-large',
       }),
     ).toThrow(/page_budget_partition_decision_required/);
@@ -677,11 +704,11 @@ describe('canonical live request materialization artifacts', () => {
       pageCount: 3,
       pageNumbers: [1, 3, 4],
     });
-    writeInput(fixture);
+    const requestPath = writeInput(fixture);
     expect(() =>
       materializeCanonicalLiveRequestBundle({
         repoRoot: fixture.repoRoot,
-        requestPath: 'inputs/materialize.json',
+        requestPath,
         outputDir: 'outputs/incomplete',
       }),
     ).toThrow(/materialization_source_page_map_incomplete/);
@@ -731,30 +758,34 @@ describe('live request materialization path and root safety', () => {
         requestPath: '../materialize.json',
         outputDir: 'outputs/live-request',
       }),
-    ).toThrow(/materialization_request_path_invalid/);
+    ).toThrow(
+      /canonical_materialization_input_filesystem_rejected/,
+    );
     expect(() =>
       materializeCanonicalLiveRequestBundle({
         repoRoot: fixture.repoRoot,
         requestPath: path.join(
           fixture.repoRoot,
-          'inputs/materialize.json',
+          'inputs/canonical-materialization-inputs/source-authoring-live-request/not-an-address.json',
         ),
         outputDir: 'outputs/live-request',
       }),
-    ).toThrow(/materialization_request_path_invalid/);
+    ).toThrow(
+      /canonical_materialization_input_filesystem_rejected/,
+    );
   });
 
   it('rejects a control request rooted in a different repository', () => {
     const fixture = writeFixture();
     const otherRoot = tempRoot('other-materialization-root-');
-    writeInput(
+    const requestPath = writeInput(
       fixture,
       inputFor(fixture, { repoRoot: otherRoot }),
     );
     expect(() =>
       materializeCanonicalLiveRequestBundle({
         repoRoot: fixture.repoRoot,
-        requestPath: 'inputs/materialize.json',
+        requestPath,
         outputDir: 'outputs/live-request',
       }),
     ).toThrow(/materialization_input_repo_root_mismatch/);
@@ -770,7 +801,7 @@ describe('live request materialization path and root safety', () => {
     );
     const linked = path.join(fixture.repoRoot, 'linked');
     if (!createDirectoryLink(outside, linked)) return;
-    writeInput(
+    const requestPath = writeInput(
       fixture,
       inputFor(fixture, {
         storyPath: 'linked/outside.md',
@@ -779,7 +810,7 @@ describe('live request materialization path and root safety', () => {
     expect(() =>
       materializeCanonicalLiveRequestBundle({
         repoRoot: fixture.repoRoot,
-        requestPath: 'inputs/materialize.json',
+        requestPath,
         outputDir: 'outputs/live-request',
       }),
     ).toThrow(/resolves_outside_repository/);
@@ -794,11 +825,11 @@ describe('live request materialization path and root safety', () => {
       'linked',
     );
     if (!createDirectoryLink(outside, linked)) return;
-    writeInput(fixture);
+    const requestPath = writeInput(fixture);
     expect(() =>
       materializeCanonicalLiveRequestBundle({
         repoRoot: fixture.repoRoot,
-        requestPath: 'inputs/materialize.json',
+        requestPath,
         outputDir: 'outputs/linked/bundle',
       }),
     ).toThrow(/resolves outside the repository/);

@@ -13,11 +13,10 @@ import {
 
 import {
   CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
-  LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION,
   canonicalJsonDigest,
   materializeCanonicalLiveRequestBundle,
   verifyCanonicalLiveRequestBundle,
-  type LiveRequestMaterializationInput,
+  writeCanonicalMaterializationInput,
   type LiveRequestMaterializationManifest,
 } from '@/lib/visual-package';
 import {
@@ -126,28 +125,15 @@ function writeFixture(): {
 function writeInput(
   fixture: ReturnType<typeof writeFixture>,
 ): string {
-  const relativePath = 'inputs/materialize.json';
-  const absolutePath = path.join(
-    fixture.repoRoot,
-    relativePath,
-  );
-  const input: LiveRequestMaterializationInput = {
-    version: LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION,
+  return writeCanonicalMaterializationInput({
+    mode: 'source-authoring-live-request',
     repoRoot: fixture.repoRoot,
+    outputDir: 'inputs',
     storyKey: fixture.storyKey,
     storyPath: fixture.storyPath,
     requestId: 'canonical-verification-request-001',
     requestedAt: REQUESTED_AT,
-  };
-  fs.mkdirSync(path.dirname(absolutePath), {
-    recursive: true,
-  });
-  fs.writeFileSync(
-    absolutePath,
-    canonicalLiveAuthoringJsonBytes(input),
-    'utf8',
-  );
-  return relativePath;
+  }).artifact.path;
 }
 
 function materialize(
