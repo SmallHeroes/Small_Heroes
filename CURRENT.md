@@ -2,7 +2,26 @@
 
 **Updated:** 2026-07-30
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-post-preflight-execution-harness-hardening` in `C:\Users\guyna\.codex\worktrees\0ea6\Small_Heroes`, based exactly on immutable commit `6442e6ff4b45821ee53c1f20e4f29321390b6eec`. Claude Code returned independent technical **PASS** on original implementation range `6442e6ff4b45821ee53c1f20e4f29321390b6eec..7667ab56e146045715b88f2fac8e32b1d444fb11`. Correction range `7667ab56e146045715b88f2fac8e32b1d444fb11..7c866ac9b3840162487a43d31daeceb5a4f2cce3` remains **HOLD pending an actual independent micro re-gate** because Claude Code halted at topology intake without reviewing the correction claims. Origin now contains exact correction head `7c866ac9b3840162487a43d31daeceb5a4f2cce3`; before this reconciliation edit, local and origin were clean at `0/0` parity. This `CURRENT.md`-only reconciliation is intentionally left by this Task as one local documentation commit ahead of that origin head.
+**Working branch:** `codex/r1d-pvb-d1a1b1-post-preflight-execution-harness-hardening` in `C:\Users\guyna\.codex\worktrees\0ea6\Small_Heroes`, based exactly on immutable commit `6442e6ff4b45821ee53c1f20e4f29321390b6eec`. Independent Claude Code has now returned technical **PASS** for original implementation range `6442e6ff4b45821ee53c1f20e4f29321390b6eec..7667ab56e146045715b88f2fac8e32b1d444fb11` and combined correction range `7667ab56e146045715b88f2fac8e32b1d444fb11..daf42ffb4fb7cc1bba4ee94e3801a80c1e581641`; therefore full implementation range `6442e6ff4b45821ee53c1f20e4f29321390b6eec..daf42ffb4fb7cc1bba4ee94e3801a80c1e581641` has independent technical **PASS** with MINOR-1 closed and no BLOCKER, MAJOR, or MINOR remaining. Origin remains at `7c866ac9b3840162487a43d31daeceb5a4f2cce3`. This `CURRENT.md`-only closeout is intentionally left by this Task as the second local documentation commit ahead of origin.
+
+## R1D-PVB-D1A1B1-POST-PREFLIGHT-EXECUTION-HARNESS-HARDENING — independent technical QA closeout PASS
+
+Claude Code completed the actual read-only micro re-gate for exact combined correction range `7667ab56e146045715b88f2fac8e32b1d444fb11..daf42ffb4fb7cc1bba4ee94e3801a80c1e581641` and returned **PASS**. MINOR-1 is closed; zero BLOCKER, zero MAJOR, and zero MINOR remain. Combined with the standing original-range PASS, exact full implementation range `6442e6ff4b45821ee53c1f20e4f29321390b6eec..daf42ffb4fb7cc1bba4ee94e3801a80c1e581641` has independent technical **PASS**.
+
+### Independent verification
+
+- Claude verified local head `daf42ffb4fb7cc1bba4ee94e3801a80c1e581641`, origin head `7c866ac9b3840162487a43d31daeceb5a4f2cce3`, ahead `1`, behind `0`, a clean tracked and untracked worktree, and the unchanged remote-tracking reflog entry `update by push` at `2026-07-30 15:54:21 +0300`.
+- Local Git establishes neither the actor nor whether the observed push was authorized. Claude and this record make neither claim.
+- Claude confirmed that unexpected requested `live` throws now emit sanitized rejected evidence with `mode: live`, requested `verify` remains `mode: verify`, exit remains nonzero, raw exception/path/stack/message/fake-secret material is absent, and the real-entry subprocess regression genuinely reaches the outer catch in both modes.
+- Claude reproduced deterministic TypeScript **PASS** and the supervisor suite at **1 file / 33 tests PASS**. The full suite was intentionally not rerun.
+- The prior three NOTES remain advisory with no code expansion: immutable JavaScript strings cannot be fully scrubbed; the credential sentinel follows the actual current `readFileSync` path; and `ComSpec` remains a deliberate Windows compatibility value that is not a shell vector under `shell:false`.
+
+### Process guidance and authority boundary
+
+- Claude recorded a process NOTE about recurring push-disclosure mismatches. Future handoff topology must be regenerated and reconciled from live Git state immediately before issuing a review brief, without asserting an unproven push actor or authorization.
+- That NOTE is process guidance only. This closeout opens no tooling milestone and changes no code, test, schema, prompt, package, lockfile, runtime, or production behavior.
+- This technical PASS grants no canonical preflight, real credential check/read/load, provider/network/model call, live authoring, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, further push, product acceptance, or visual acceptance.
+- This faithful `CURRENT.md`-only transcription is outside the reviewed immutable range. No additional Claude Code round is needed unless this transcription introduces a factual discrepancy.
 
 ## R1D-PVB-D1A1B1-POST-PREFLIGHT-EXECUTION-HARNESS-HARDENING-TOPOLOGY-RECONCILIATION — documentation-only intake HOLD record
 
@@ -19,7 +38,7 @@ Claude Code began the requested MINOR-1 micro re-gate but stopped at topology in
 ### Verdict boundaries
 
 - Original immutable range `6442e6ff4b45821ee53c1f20e4f29321390b6eec..7667ab56e146045715b88f2fac8e32b1d444fb11` retains Claude Code's independent technical **PASS**, with 10/10 claims confirmed, zero BLOCKER, zero MAJOR, one valid non-blocking MINOR, and three advisory NOTES.
-- Correction range `7667ab56e146045715b88f2fac8e32b1d444fb11..7c866ac9b3840162487a43d31daeceb5a4f2cce3` remains **HOLD pending actual read-only micro re-gate**. The topology intake halt is not a positive or negative verdict on the correction.
+- At this topology-reconciliation handoff, correction range `7667ab56e146045715b88f2fac8e32b1d444fb11..7c866ac9b3840162487a43d31daeceb5a4f2cce3` remained **HOLD pending actual read-only micro re-gate**. The later independent PASS recorded above closed MINOR-1 across the combined correction range.
 - This HOLD is documentation/topology-only and does not disturb the original range's PASS. It grants no further technical PASS, live/preflight/credential/provider authority, downstream action, deployment, or push authority.
 
 ## R1D-PVB-D1A1B1-POST-PREFLIGHT-EXECUTION-HARNESS-HARDENING-QA-FIX — MINOR-1 corrected; micro re-gate required
@@ -41,7 +60,7 @@ Claude Code independently reviewed exact immutable range `6442e6ff4b45821ee53c1f
 
 ### Gate and exclusions
 
-The original range retains Claude Code's independent technical PASS. The corrective commit is **HOLD pending a narrow READ-ONLY Claude Code micro re-gate** for MINOR-1 closure, advisory-note disposition, topology, and absence of scope drift; the first micro re-gate halted at topology intake as recorded above and did not review the correction. Codex does not self-award the correction PASS. Cost remains exactly `$0`. During the correction Task, no canonical preflight, real credential check/read/load, provider/network/model call, live authoring, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval/publication/promotion/activation, deployment, full-suite rerun, or `git push` invocation occurred. Later observed origin presence is reconciled above without an actor or authorization claim.
+At this correction handoff, the corrective commit was **HOLD pending a narrow READ-ONLY Claude Code micro re-gate** for MINOR-1 closure, advisory-note disposition, topology, and absence of scope drift; the first micro re-gate halted at topology intake and did not review the correction. The later independent micro re-gate PASS recorded above closed MINOR-1. Cost remains exactly `$0`. During the correction Task, no canonical preflight, real credential check/read/load, provider/network/model call, live authoring, render/image/Vision/audio, storage/database/Supabase action, Board action, Semantic Reconciliation, approval/publication/promotion/activation, deployment, full-suite rerun, or `git push` invocation occurred. Later observed origin presence is reconciled above without an actor or authorization claim.
 
 ## R1D-PVB-D1A1B1-POST-PREFLIGHT-EXECUTION-HARNESS-HARDENING — local implementation awaiting independent QA
 
