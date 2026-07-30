@@ -25,3 +25,4 @@ export * from './visualContractAuthoringLifecycle';
 export * from './providerFailureDiagnostics';
 export * from './liveRequestMaterialization';
 export * from './liveExecutionSupervisor';
+export * from './liveExecutionRequestMaterialization';
