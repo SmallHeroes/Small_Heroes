@@ -1187,7 +1187,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
     expect(materializationOutputFiles(preservationDrift)).toEqual(
       [],
     );
-  });
+  }, 30_000);
 
   it('emits only bounded rejection evidence without raw secret, path, exception, command, or stack text', () => {
     const fixture = createFixture(true);

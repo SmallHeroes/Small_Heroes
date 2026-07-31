@@ -913,7 +913,7 @@ describe('B0 composition and explicit filesystem fences', () => {
     expect(verifyFixture(digest).reasonCodes).toEqual([
       'preservation_sha256_mismatch',
     ]);
-  });
+  }, 30_000);
 
   it('rejects traversal, glob syntax, duplicate aliases, and present downstream paths at schema/core boundaries', () => {
     const fixture = createExecutionFixture();

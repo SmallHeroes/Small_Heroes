@@ -13,6 +13,7 @@
     "production-visual-lifecycle": "tsx --require ./scripts/shims/register-server-only.cjs scripts/production-visual-lifecycle.ts",
     "canonical-materialization-input": "node scripts/canonical-materialization-input.cjs",
     "materialize-canonical-live-execution-request": "node scripts/canonical-live-execution-request-materialize.cjs",
+    "canonical-pre-live-readiness": "node scripts/canonical-pre-live-readiness.cjs",
     "verify-v3-bank-safeguards": "tsx --require ./scripts/shims/register-server-only.cjs scripts/verify-v3-bank-import-safeguards.ts",
     "mint-set-identity-board": "node scripts/mint-set-identity-board.cjs",
     "check": "tsc --noEmit && vitest run",

@@ -28,3 +28,4 @@ export * from './liveExecutionSupervisor';
 export * from './liveExecutionRequestMaterialization';
 export * from './canonicalMaterializationInput';
 export * from './canonicalMaterializationInputWriter';
+export * from './canonicalPreLiveReadiness';
