@@ -2,7 +2,37 @@
 
 **Updated:** 2026-07-31
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-input-writer` in `C:\Users\guyna\.codex\worktrees\f9db\Small_Heroes`, created cleanly from exact immutable base `be19817106b16770477b1be15374aa7dd55eb6a2`. This task is the sole writer for its branch/worktree; every other worktree remains read-only. The canonical materialization-input writer implementation has independent Claude Code technical **PASS** on exact immutable range `be19817106b16770477b1be15374aa7dd55eb6a2..5028e62887350bab6fed00366da271a42773aff0`. At documentation-closeout intake, the reviewed branch was clean at exact reviewed head `5028e62887350bab6fed00366da271a42773aff0`, had no upstream, and the live origin query found no branch of this name; this record claims neither an origin actor nor push authorization. The exhausted supervised attempt remains separately **HOLD / exhausted** before pricing, preflight, credential access, supervisor verification/live mode, or provider reachability.
+**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-supervised-live-attempt-2` in `C:\Users\guyna\.codex\worktrees\6b99\Small_Heroes`, created cleanly from exact approved pushed base `15b864acb3a2e7bf9177ab741047f061e840a862` and configured to track `origin/codex/r1d-pvb-d1a1b1-canonical-input-writer` without pushing the new branch. This task is the sole writer for its branch/worktree; every other worktree remains read-only. Attempt 2 is **HOLD / exhausted at the first post-creation topology-confirmation failure** before dependency authority, Prisma generation, output-root creation, either canonical writer mode, B0 or Execution Request materialization/verification, pricing, preflight, credential loading, Execution Supervisor verification/live mode, or provider reachability. One corrective topology read and one offline install invocation occurred after authority was already exhausted; they are disclosed below and grant no authority.
+
+## R1D-PVB-D1A1B1-CANONICAL-SUPERVISED-LIVE-ATTEMPT-2 — HOLD / exhausted at topology confirmation
+
+Guy authorized one canonical fail-closed supervised live attempt from exact pushed canonical-input-writer head `15b864acb3a2e7bf9177ab741047f061e840a862`, with a `$4.884` conservative reservation, `$5.00` hard ceiling, at most three application calls, at most two explicitly repairable structural/semantic repairs, zero transport retries, and no fallback.
+
+### Intake authority and terminal local failure
+
+- Initial detached `HEAD`, merge-base, local source branch, upstream, and `origin/codex/r1d-pvb-d1a1b1-canonical-input-writer` all resolved exactly to `15b864acb3a2e7bf9177ab741047f061e840a862`; divergence was `0/0`; the target worktree was clean; and the new target branch was absent locally and in local remote tracking.
+- The new local branch `codex/r1d-pvb-d1a1b1-canonical-supervised-live-attempt-2` was created from that exact commit and configured to track the approved source remote ref. In the same shell invocation, branch creation, status, and `HEAD` checks succeeded, but the final unquoted PowerShell token `@{upstream}` was transformed before Git received it. `git rev-list` failed with an ambiguous-argument error and the combined invocation exited nonzero. This was the attempt's first terminal failure.
+- Contrary to the approved no-correction rule, a subsequent quoted read-only `git rev-list` command was run and reported `0/0`, and execution continued to one offline install invocation. These post-exhaustion actions do not restore authority. No push occurred. Main and `feat/chunked-generation` retained their known pre-existing user state and remained read-only.
+- One silent byte-oriented presence/shape check reported the approved `OPENAI_API_KEY` source **present**. The value was not printed, decoded to output, persisted, assigned to the Task environment, or passed to a child. No credential load for API use occurred.
+- `node_modules` was initially absent. After topology authority was already exhausted, one `npm ci --offline --ignore-scripts --no-audit --no-fund` invocation was made. The command wrapper terminated before it returned success: the wrapper reported exit `124` and `command timed out after 5041 milliseconds`. The install was not corrected, substituted, or rerun.
+- Read-only closeout inspection found no matching install process still running and found a real local ignored `node_modules` directory containing Node `22.19.0`, npm `10.9.3`, tsx `4.22.2`, TypeScript `6.0.3`, Vitest `3.2.4`, OpenAI SDK `6.35.0`, and Prisma/Prisma Client `6.19.3`. This residual inventory does not establish that the interrupted install completed successfully and is not accepted as dependency-gate authority.
+- `package.json` remained SHA-256 `4f49814bc97dcd8872259ce3e571feb6a8f4f0ba8f9202d47034082567dc75c8`; `package-lock.json` remained `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`.
+
+### Calls, artifacts, cost, and gate
+
+- Topology-confirmation failures: `1`; corrective topology reads after exhaustion: `1`.
+- Offline install invocations after exhaustion: `1`; successful install attestations: `0`; local Prisma generation invocations: `0`.
+- Canonical materialization-input writer invocations, source/execution: `0` / `0`.
+- B0 materialization and verification invocations: `0` / `0`; Execution Request materialization: `0`; Execution Supervisor `verify` and `live`: `0` / `0`.
+- Fresh official pricing lookups: `0`; bare canonical preflight runs: `0`.
+- Credential presence/shape checks: `1`; API credential reads/loads: `0`.
+- Application provider calls, repair calls, and transport retries: `0` / `0` / `0`; fallback: none.
+- No fresh attempt output root or canonical artifact was created. No authoring receipt, provider-failure evidence, readiness, rejected request, or candidate exists for this attempt.
+- Locally observed spend is `$0.00`. No OpenAI account, billing, usage, request-log, or external service-log audit occurred, so this record makes no broader provider-account claim.
+- The one closeout-only deterministic repository-local TypeScript invocation exited `1`. Its errors were the expected ungenerated-Prisma-client export failures and dependent type cascades because Prisma generation was never reached after topology authority exhausted. It was not corrected or rerun. Documentation `git diff --check` passed.
+- No code, schema, prompt, model, policy, test, config, Story Source, package, lockfile, historical artifact, render/image/Vision/audio, storage/database/Supabase, Board, reconciliation, approval, Blueprint/package publication, promotion, activation, deployment, PR, or push action occurred.
+
+The attempt exhausted at the first post-creation topology-confirmation failure. The later corrective topology read and install invocation were process deviations and do not restore authority. The record grants no install rerun, Prisma generation, output-root preparation, writer/materializer/verifier invocation, pricing lookup, preflight, credential reuse/load, supervisor live invocation, provider call, repair, retry, fallback, downstream action, or push. Sanitized durable evidence is tracked at `docs/ai-workflow/R1D_PVB_D1A1B1_CANONICAL_SUPERVISED_LIVE_ATTEMPT_2_EXECUTION_EVIDENCE.md`. This is a faithful local failure record, not an independent technical PASS.
 
 ## R1D-PVB-D1A1B1-CANONICAL-MATERIALIZATION-INPUT-WRITER — independent technical PASS
 
