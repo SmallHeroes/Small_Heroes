@@ -11,10 +11,10 @@
 - Documentation/evidence: this document's containing commit
 - Push: none
 - Cost: exactly `$0`
-- Gate: implementation complete; local technical status is **HOLD pending
-  independent first-pass READ-ONLY Claude Code QA and disclosure of the
-  non-green one-time full check**. Codex does not self-award independent
-  technical PASS.
+- Gate: independent technical **PASS** for exact immutable range
+  `5af3871db833df35a82970aa5fb2b10f6bde1b07..cd53963cb666fbfe5201b0d9afe33c4905a9a9d0`,
+  explicitly qualified by the non-green one-time full check. Claude Code
+  awarded the PASS; Codex did not self-award it.
 
 The target worktree began detached and clean at the exact approved base. The
 requested branch did not exist locally, was created only at that base, and was
@@ -26,6 +26,50 @@ The implementation branch intentionally has no upstream because push was not
 authorized. The public command therefore correctly rejects this worktree's
 current topology. Positive preparation is proved only in synthetic temporary
 repositories with a same-name `origin` tracking ref at exact `0/0` parity.
+
+## Independent technical QA closeout
+
+Claude Code reconciled the exact branch, reviewed `HEAD`
+`cd53963cb666fbfe5201b0d9afe33c4905a9a9d0`, merge-base
+`5af3871db833df35a82970aa5fb2b10f6bde1b07`, clean tracked/untracked state,
+absent upstream and target remote-tracking ref, sole worktree ownership,
+14-file scope, and clean range diff. It confirmed all **10/10 implementation
+claims** with zero BLOCKER, zero MAJOR, and zero MINOR findings.
+
+The independent review confirmed public mode/input closure, unchanged
+downstream authority composition, built-in topology proof before dependency
+writes, unique npm authority derived from `process.execPath`, fixed
+`shell:false` npm/Prisma execution, canonical sanitized evidence, write-free
+verify, credential/provider/network/live boundary unreachability, shared-code
+literal neutrality, and no prompt/model/schema/pricing/call/repair/retry/
+fallback/live-policy change.
+
+Claude reproduced deterministic TypeScript, the new **2-file / 16-test**
+suites, and an **11-file / 367-test PASS** superset of the recorded focused
+regression. It independently confirmed that every in-range existing-spec
+change is timeout-only and changes no assertion, fixture, retry, skip, or test
+logic.
+
+### Independent QA notes and verdict boundary
+
+- **NOTE-1 — full gate remains non-green:** Claude did not rerun
+  `npm run check`, correctly preserving the one-run limit. The technical PASS
+  rests on structural review and focused regression and does not convert the
+  disclosed full-check result into green evidence.
+- **NOTE-2 — allowance accounting:** the original wording correctly identified
+  three timed tests but imprecisely implied those were the only authored
+  allowances. The exact accounting is corrected in Validation below.
+- **NOTE-3 — probe disclosures:** Claude confirmed that the disclosed early
+  candidate-mapping rejection and later pre-final offline npm/Prisma probe
+  agree with the shipped correction that moved topology proof into built-in
+  CJS before dependency writes.
+
+The PASS applies only to the immutable implementation range. It grants no live
+attempt, arm/live mode, preflight, credential access, provider/network/
+storage/database contact, render, approval, publication, deployment, push,
+product acceptance, or visual acceptance. This documentation-only closeout is
+outside the reviewed range and requires no technical re-gate unless its
+record fidelity is disputed.
 
 ## Verified root cause
 
@@ -189,20 +233,31 @@ errors:
    `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`,
    `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two
    `story-read-back-validation.spec.ts` cases;
-2. three 5-second contention timeouts in the new topology test and two
-   adjacent canonical Execution multi-fixture tests.
+2. three 5-second contention timeouts:
+   - `requires a clean non-main branch with a same-name origin upstream at
+     exact parity before writes`;
+   - `rejects B0 corruption, post-verification future-command drift, and
+     preservation drift without output authority`;
+   - `rejects missing, byte-length-mismatched, and SHA-mismatched preservation
+     files`.
 
 This did not meet the approved “six only, no timeout” success condition and is
 not represented as green. The command was not rerun.
 
-The three timed cases had already passed in focused validation. After the
-one-time full check, each received a bounded `30_000` per-test allowance. No
-global timeout changed; no assertion, fixture, behavior, retry, skip, or test
-body changed. The exact three-test rerun passed, and the final 10-file /
-347-test authority regression passed with all three cases completing well
-below the allowance. Because the repository-wide command cannot be rerun,
-independent QA must treat the full gate as non-green evidence rather than
-infer a post-correction full-suite result.
+The three timed cases had already passed in focused validation. The two
+existing-spec cases and the new topology case received bounded `30_000`
+per-test allowances after the one-time full check. The entirely new
+orchestrator spec contains three additional `30_000` allowances for its
+idempotence, collision, and multi-authority drift cases, authored as bounded
+focused-suite contention allowances rather than in response to those three
+full-check timeouts; its real boundary-sentinel case has a `60_000` allowance.
+No global timeout changed, and no assertion, fixture, behavior, retry, skip,
+or test body changed. The exact three-test rerun passed, and the final
+10-file / 347-test authority regression passed with all three timed cases
+completing well below the allowance. Claude independently reproduced an
+11-file / 367-test PASS superset. Because the repository-wide command cannot
+be rerun, neither focused result is represented as a post-correction green
+full-suite result.
 
 The one-time check created `outputs/qa-anchors`,
 `outputs/test-fixtures`, `story-qa-logs`, and `tsconfig.tsbuildinfo`. The exact
@@ -231,4 +286,6 @@ pricing, call, repair, retry, fallback, or externally visible live behavior.
 Historical artifacts remain immutable evidence and are not new authority.
 
 Rollback is reverting the focused implementation and documentation commits.
-Independent Claude Code first-pass QA remains required before technical PASS.
+Claude Code independently awarded technical PASS to the exact immutable
+implementation range; no additional technical review is required for this
+faithful documentation-only closeout unless its record fidelity is disputed.

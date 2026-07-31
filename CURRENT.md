@@ -2,13 +2,41 @@
 
 **Updated:** 2026-07-31
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-pre-live-readiness-orchestrator` in `C:\Users\guyna\.codex\worktrees\c5fe\Small_Heroes`, created cleanly from exact approved immutable base `5af3871db833df35a82970aa5fb2b10f6bde1b07`. This task is the sole writer for its branch/worktree; every other worktree remains read-only. The general zero-cost canonical pre-live readiness orchestrator is implemented at `47e8ed4112a65e66f6974c091050aa8992114744`, unpushed, and awaiting independent first-pass READ-ONLY Claude Code QA. Local technical status is **HOLD** because the one-time full repository check reproduced the six established missing ignored-fixture failures plus three 5-second contention timeouts; bounded per-test allowances and the final 10-file / 347-test focused regression passed afterward, but the full command was not and must not be rerun.
+**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-pre-live-readiness-orchestrator` in `C:\Users\guyna\.codex\worktrees\c5fe\Small_Heroes`, created cleanly from exact approved immutable base `5af3871db833df35a82970aa5fb2b10f6bde1b07`. This task is the sole writer for its branch/worktree; every other worktree remains read-only. Claude Code awarded independent technical **PASS** to exact immutable range `5af3871db833df35a82970aa5fb2b10f6bde1b07..cd53963cb666fbfe5201b0d9afe33c4905a9a9d0`, with 10/10 claims confirmed and zero BLOCKER, MAJOR, or MINOR findings. The branch remains clean, unpushed, and without an upstream or target remote ref. The PASS is explicitly qualified by the non-green one-time full repository check; focused superset validation is corroborating and does not convert that full-check record into green evidence.
 
-## R1D-PVB-D1A1B1-CANONICAL-PRE-LIVE-READINESS-ORCHESTRATOR — implementation complete / local HOLD pending independent QA
+## R1D-PVB-D1A1B1-CANONICAL-PRE-LIVE-READINESS-ORCHESTRATOR — independent technical PASS
 
 Guy approved one general repository-owned canonical coordinator from exact
 base `5af3871db833df35a82970aa5fb2b10f6bde1b07`, with exactly `$0` cost and no
 live/spend authority.
+
+### Independent technical QA closeout
+
+- Claude Code reconciled reviewed `HEAD`
+  `cd53963cb666fbfe5201b0d9afe33c4905a9a9d0`, exact merge-base
+  `5af3871db833df35a82970aa5fb2b10f6bde1b07`, clean tracked/untracked state,
+  no upstream or target remote ref, sole worktree ownership, 14-file scope,
+  and clean range diff.
+- All **10/10 implementation claims** withstood falsification. There were zero
+  BLOCKER, zero MAJOR, and zero MINOR findings.
+- Claude reproduced deterministic TypeScript, the new **2-file / 16-test**
+  suites, and an **11-file / 367-test PASS** superset of Codex's recorded
+  10-file / 347-test focused regression.
+- **NOTE-1:** the one-time full check remains non-green and was not rerun. The
+  independent PASS rests on structural review and focused regression and does
+  not overwrite that limitation.
+- **NOTE-2:** the timeout accounting is corrected below: exactly three tests
+  timed out in the full check, while the new spec contains three other
+  defensive 30-second allowances plus one 60-second sentinel allowance.
+- **NOTE-3:** the disclosed cold-start probes agree with the final correction
+  that moved topology proof into built-in CJS before dependency writes.
+
+The PASS is scoped only to the reviewed immutable implementation range. It
+authorizes no live attempt, arm/live mode, preflight, credential access,
+provider/network/storage/database contact, render, approval, publication,
+deployment, push, product acceptance, or visual acceptance. This faithful
+documentation-only closeout is outside the reviewed range and requires no
+technical re-gate unless its record fidelity is disputed.
 
 ### Implemented authority boundary
 
@@ -47,11 +75,15 @@ live/spend authority.
   contention timeouts (the new topology case and two adjacent canonical
   execution multi-fixture cases), with two associated unhandled worker timeout
   errors. The result is not green and the command was not rerun.
-- Each timed case received only a `30_000` per-test allowance; no global
-  timeout, assertion, fixture, behavior, retry, or skip changed. The exact
-  three-case rerun passed, followed by the final 10-file / 347-test PASS.
-  Because the full command cannot be rerun, independent QA must evaluate this
-  disclosed limitation rather than infer a full-suite result.
+- The exact timed cases were the new same-name-origin topology test, the
+  Execution Request B0/future-command/preservation-drift test, and the
+  Supervisor preservation-fence test. Those three received `30_000` per-test
+  allowances. The entirely new orchestrator spec also contains three other
+  `30_000` focused-contention allowances and one `60_000` real-sentinel
+  allowance. No global timeout, assertion, fixture, behavior, retry, or skip
+  changed. The exact three-case rerun, final 10-file / 347-test regression,
+  and Claude's 11-file / 367-test superset passed. None is represented as a
+  post-correction green full-suite result.
 - Full-check scratch was moved by exact inspected paths outside the repository
   to
   `C:\Users\guyna\AppData\Local\Temp\small-heroes-r1d-check-scratch-20260731`.
