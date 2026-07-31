@@ -43,6 +43,9 @@ const launcher = require(
     environment: NodeJS.ProcessEnv,
     platform?: NodeJS.Platform,
   ) => NodeJS.ProcessEnv;
+  platformEnvironmentNames: (
+    platform?: NodeJS.Platform,
+  ) => string[];
   offlineNpmEnvironment: (
     environment: NodeJS.ProcessEnv,
     platform?: NodeJS.Platform,
@@ -78,6 +81,25 @@ const launcher = require(
     expectedRepoRoot?: string;
     verifyTopologyImpl?: () => unknown;
     resolveNpmCliImpl?: () => string;
+    verifyInstalledAuthorityImpl?: () => void;
+    gitSpawnSyncImpl?: (
+      executable: string,
+      argv: string[],
+      options: {
+        cwd: string;
+        env: NodeJS.ProcessEnv;
+        encoding: string;
+        maxBuffer: number;
+        shell: boolean;
+        timeout: number;
+        windowsHide: boolean;
+      },
+    ) => {
+      status: number | null;
+      signal: NodeJS.Signals | null;
+      error?: Error;
+      stdout?: string;
+    };
     spawnSyncImpl?: (
       executable: string,
       argv: string[],
@@ -225,6 +247,107 @@ function createInstalledAuthority(root: string): void {
   );
 }
 
+function hostileWindowsEnvironment(): {
+  environment: NodeJS.ProcessEnv;
+  reads: string[];
+} {
+  const reads: string[] = [];
+  const allowed = new Set(
+    launcher.platformEnvironmentNames('win32'),
+  );
+  const source: NodeJS.ProcessEnv = {
+    NODE_ENV: 'test',
+    PATH: 'hostile-path',
+    SystemRoot: 'C:\\Windows',
+    TEMP: 'C:\\Temp',
+    USERPROFILE: 'C:\\Users\\Fixture',
+    OPENAI_API_KEY: 'fake-secret-must-not-be-read',
+    UNAPPROVED_BOOTSTRAP_ENV:
+      'unapproved-environment-value',
+  };
+  return {
+    environment: new Proxy(source, {
+      get(target, property) {
+        if (property === 'OPENAI_API_KEY') {
+          throw new Error(
+            'credential environment access forbidden',
+          );
+        }
+        if (
+          typeof property === 'string' &&
+          !allowed.has(property)
+        ) {
+          throw new Error(
+            `unapproved environment read: ${property}`,
+          );
+        }
+        if (typeof property === 'string') {
+          reads.push(property);
+        }
+        return Reflect.get(target, property);
+      },
+      ownKeys() {
+        throw new Error('environment enumeration forbidden');
+      },
+    }),
+    reads,
+  };
+}
+
+function expectSanitizedBootstrapFailure(
+  outcome: {
+    kind: 'child' | 'failure';
+    failure?: Record<string, unknown>;
+    disposition:
+      | { kind: 'exit'; exitCode: number }
+      | { kind: 'signal'; signal: NodeJS.Signals };
+  },
+  phase: string,
+  reasonCode: string,
+): Record<string, unknown> {
+  expect(outcome).toMatchObject({
+    kind: 'failure',
+    failure: {
+      version: 'canonical-pre-live-readiness-failure/v1',
+      status: 'rejected',
+      mode: 'verify',
+      phase,
+      reasonCodes: [reasonCode],
+      authorityReasonCodes: [],
+      requestIdentityDigest: expect.stringMatching(
+        /^[a-f0-9]{64}$/,
+      ),
+      pricingAuthority: 'not_checked',
+      canonicalPreflight: 'not_run',
+      credentialAccess: 'none',
+      providerCalls: 0,
+      liveAuthority: 'none',
+      digestAlgorithm: 'canonical-json-sha256',
+      digest: expect.stringMatching(/^[a-f0-9]{64}$/),
+    },
+    disposition: { kind: 'exit', exitCode: 1 },
+  });
+  expect(Object.keys(outcome.failure ?? {}).sort()).toEqual(
+    [
+      'authorityReasonCodes',
+      'canonicalPreflight',
+      'credentialAccess',
+      'digest',
+      'digestAlgorithm',
+      'liveAuthority',
+      'mode',
+      'phase',
+      'pricingAuthority',
+      'providerCalls',
+      'reasonCodes',
+      'requestIdentityDigest',
+      'status',
+      'version',
+    ].sort(),
+  );
+  return outcome.failure!;
+}
+
 describe('canonical pre-live readiness built-in launcher', () => {
   it('cold-starts before node_modules with exact offline npm and exact local Prisma argv', () => {
     const fixture = createLauncherFixture(true);
@@ -352,6 +475,333 @@ describe('canonical pre-live readiness built-in launcher', () => {
       ).toBeUndefined();
       expect(call.options.env.HTTPS_PROXY).toBeUndefined();
     }
+  });
+
+  it('uses only direct allowlisted environment reads on success and sanitized diagnostic failure paths', () => {
+    const successFixture = createLauncherFixture();
+    const successEnvironment = hostileWindowsEnvironment();
+    const successCalls: string[][] = [];
+    const success =
+      launcher.runCanonicalPreLiveReadinessLauncher({
+        argv: publicArguments(successFixture.root),
+        environment: successEnvironment.environment,
+        execPath: successFixture.execPath,
+        platform: 'win32',
+        expectedRepoRoot: successFixture.root,
+        verifyTopologyImpl: () => ({}),
+        resolveNpmCliImpl: () => successFixture.npmCli,
+        spawnSyncImpl: (_executable, argv) => {
+          successCalls.push(argv);
+          if (successCalls.length === 1) {
+            writeFile(
+              successFixture.root,
+              'node_modules/prisma/build/index.js',
+            );
+            writeFile(
+              successFixture.root,
+              'node_modules/tsx/dist/cli.mjs',
+            );
+          }
+          if (successCalls.length === 2) {
+            writeFile(
+              successFixture.root,
+              'node_modules/.prisma/client/schema.prisma',
+            );
+          }
+          return { status: 0, signal: null };
+        },
+      });
+    expect(success.kind).toBe('child');
+    expect(successCalls).toHaveLength(3);
+    expect(
+      new Set(successEnvironment.reads),
+    ).toEqual(
+      new Set(
+        launcher.platformEnvironmentNames('win32'),
+      ),
+    );
+
+    const failureFixture = createLauncherFixture();
+    const failureEnvironment = hostileWindowsEnvironment();
+    const failure =
+      launcher.runCanonicalPreLiveReadinessLauncher({
+        argv: publicArguments(
+          failureFixture.root,
+          'verify',
+        ),
+        environment: failureEnvironment.environment,
+        execPath: failureFixture.execPath,
+        platform: 'win32',
+        expectedRepoRoot: failureFixture.root,
+        gitSpawnSyncImpl: () => ({
+          status: null,
+          signal: null,
+          error: Object.assign(
+            new Error(
+              'raw message fake-secret C:\\private\\repo',
+            ),
+            {
+              stack:
+                'fake stack UNAPPROVED_BOOTSTRAP_ENV',
+            },
+          ),
+        }),
+        resolveNpmCliImpl: () => {
+          throw new Error('npm resolution must be unreachable');
+        },
+        spawnSyncImpl: () => {
+          throw new Error('child spawn must be unreachable');
+        },
+      });
+    const failureRecord = expectSanitizedBootstrapFailure(
+      failure,
+      'topology',
+      'pre_live_topology_git_rejected',
+    );
+    expect(
+      new Set(failureEnvironment.reads),
+    ).toEqual(
+      new Set(
+        launcher.platformEnvironmentNames('win32'),
+      ),
+    );
+    const bytes = launcher.canonicalBytes(failureRecord);
+    for (const rejected of [
+      'fake-secret',
+      'C:\\private\\repo',
+      'fake stack',
+      'raw message',
+      'UNAPPROVED_BOOTSTRAP_ENV',
+      'unapproved-environment-value',
+    ]) {
+      expect(bytes).not.toContain(rejected);
+    }
+
+    const source = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'scripts/lib/canonical-pre-live-readiness-launcher.cjs',
+      ),
+      'utf8',
+    );
+    expect(source).not.toMatch(
+      /Object\.(?:keys|entries)\(\s*environment/,
+    );
+    expect(source).not.toContain('Reflect.ownKeys');
+    expect(source).not.toContain('OPENAI_API_KEY');
+  });
+
+  it('attributes launcher, topology, dependency, and npm CLI failures to fixed fail-closed boundaries', () => {
+    const fixture = createLauncherFixture();
+    createInstalledAuthority(fixture.root);
+    const argv = publicArguments(fixture.root, 'verify');
+    const base = {
+      argv,
+      environment: {} as NodeJS.ProcessEnv,
+      execPath: fixture.execPath,
+      platform: 'win32' as const,
+    };
+
+    let topologyCalls = 0;
+    let npmCalls = 0;
+    let dependencyCalls = 0;
+    let spawnCalls = 0;
+    const launcherFailure =
+      launcher.runCanonicalPreLiveReadinessLauncher({
+        ...base,
+        expectedRepoRoot: tempRoot(),
+        verifyTopologyImpl: () => {
+          topologyCalls += 1;
+        },
+        resolveNpmCliImpl: () => {
+          npmCalls += 1;
+          return fixture.npmCli;
+        },
+        verifyInstalledAuthorityImpl: () => {
+          dependencyCalls += 1;
+        },
+        spawnSyncImpl: () => {
+          spawnCalls += 1;
+          return { status: 0, signal: null };
+        },
+      });
+    expectSanitizedBootstrapFailure(
+      launcherFailure,
+      'launcher',
+      'pre_live_launcher_repository_authority_rejected',
+    );
+    expect({
+      topologyCalls,
+      npmCalls,
+      dependencyCalls,
+      spawnCalls,
+    }).toEqual({
+      topologyCalls: 0,
+      npmCalls: 0,
+      dependencyCalls: 0,
+      spawnCalls: 0,
+    });
+
+    const topologyCases = [
+      [
+        'bootstrap_repository_mismatch',
+        'pre_live_topology_repository_mismatch',
+      ],
+      [
+        'bootstrap_dedicated_branch_required',
+        'pre_live_topology_dedicated_branch_required',
+      ],
+      [
+        'bootstrap_same_name_upstream_required',
+        'pre_live_topology_same_name_origin_required',
+      ],
+      [
+        'bootstrap_head_mismatch',
+        'pre_live_topology_head_mismatch',
+      ],
+      [
+        'bootstrap_divergence_rejected',
+        'pre_live_topology_divergence_rejected',
+      ],
+      [
+        'bootstrap_dirty_rejected',
+        'pre_live_topology_dirty_rejected',
+      ],
+      [
+        'bootstrap_output_not_ignored',
+        'pre_live_output_root_must_be_ignored',
+      ],
+      [
+        'bootstrap_git_rejected',
+        'pre_live_topology_git_rejected',
+      ],
+      [
+        'raw unknown message fake-secret C:\\private\\repo',
+        'pre_live_topology_rejected',
+      ],
+    ] as const;
+    for (const [internalReason, publicReason] of topologyCases) {
+      npmCalls = 0;
+      dependencyCalls = 0;
+      spawnCalls = 0;
+      const error = new Error(internalReason);
+      error.stack =
+        'fake stack UNAPPROVED_BOOTSTRAP_ENV';
+      const outcome =
+        launcher.runCanonicalPreLiveReadinessLauncher({
+          ...base,
+          expectedRepoRoot: fixture.root,
+          verifyTopologyImpl: () => {
+            throw error;
+          },
+          resolveNpmCliImpl: () => {
+            npmCalls += 1;
+            return fixture.npmCli;
+          },
+          verifyInstalledAuthorityImpl: () => {
+            dependencyCalls += 1;
+          },
+          spawnSyncImpl: () => {
+            spawnCalls += 1;
+            return { status: 0, signal: null };
+          },
+        });
+      const failure = expectSanitizedBootstrapFailure(
+        outcome,
+        'topology',
+        publicReason,
+      );
+      expect({ npmCalls, dependencyCalls, spawnCalls }).toEqual({
+        npmCalls: 0,
+        dependencyCalls: 0,
+        spawnCalls: 0,
+      });
+      const bytes = launcher.canonicalBytes(failure);
+      expect(bytes).not.toContain('fake stack');
+      expect(bytes).not.toContain('UNAPPROVED_BOOTSTRAP_ENV');
+      if (publicReason === 'pre_live_topology_rejected') {
+        expect(bytes).not.toContain('raw unknown message');
+        expect(bytes).not.toContain('fake-secret');
+        expect(bytes).not.toContain('C:\\private\\repo');
+      }
+    }
+
+    topologyCalls = 0;
+    dependencyCalls = 0;
+    spawnCalls = 0;
+    const npmFailure =
+      launcher.runCanonicalPreLiveReadinessLauncher({
+        ...base,
+        expectedRepoRoot: fixture.root,
+        verifyTopologyImpl: () => {
+          topologyCalls += 1;
+        },
+        resolveNpmCliImpl: () => {
+          throw new Error(
+            'raw npm resolver failure C:\\private\\npm-cli.js',
+          );
+        },
+        verifyInstalledAuthorityImpl: () => {
+          dependencyCalls += 1;
+        },
+        spawnSyncImpl: () => {
+          spawnCalls += 1;
+          return { status: 0, signal: null };
+        },
+      });
+    const npmFailureRecord =
+      expectSanitizedBootstrapFailure(
+        npmFailure,
+        'dependency',
+        'pre_live_dependency_npm_cli_resolution_rejected',
+      );
+    expect({ topologyCalls, dependencyCalls, spawnCalls }).toEqual({
+      topologyCalls: 1,
+      dependencyCalls: 0,
+      spawnCalls: 0,
+    });
+    expect(
+      launcher.canonicalBytes(npmFailureRecord),
+    ).not.toContain('raw npm resolver failure');
+
+    topologyCalls = 0;
+    npmCalls = 0;
+    spawnCalls = 0;
+    const dependencyFailure =
+      launcher.runCanonicalPreLiveReadinessLauncher({
+        ...base,
+        expectedRepoRoot: fixture.root,
+        verifyTopologyImpl: () => {
+          topologyCalls += 1;
+        },
+        resolveNpmCliImpl: () => {
+          npmCalls += 1;
+          return fixture.npmCli;
+        },
+        verifyInstalledAuthorityImpl: () => {
+          throw new Error(
+            'raw dependency failure C:\\private\\node_modules',
+          );
+        },
+        spawnSyncImpl: () => {
+          spawnCalls += 1;
+          return { status: 0, signal: null };
+        },
+      });
+    const dependencyFailureRecord =
+      expectSanitizedBootstrapFailure(
+        dependencyFailure,
+        'dependency',
+        'pre_live_dependency_authority_rejected',
+      );
+    expect({ topologyCalls, npmCalls, spawnCalls }).toEqual({
+      topologyCalls: 1,
+      npmCalls: 1,
+      spawnCalls: 0,
+    });
+    expect(
+      launcher.canonicalBytes(dependencyFailureRecord),
+    ).not.toContain('raw dependency failure');
   });
 
   it('verify is read-only at the launcher and starts only the private entry', () => {
@@ -525,9 +975,9 @@ describe('canonical pre-live readiness built-in launcher', () => {
     expect(mismatched).toMatchObject({
       kind: 'failure',
       failure: {
-        phase: 'dependency',
+        phase: 'launcher',
         reasonCodes: [
-          'pre_live_dependency_authority_rejected',
+          'pre_live_launcher_repository_authority_rejected',
         ],
       },
     });

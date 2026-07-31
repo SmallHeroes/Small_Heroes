@@ -29,6 +29,41 @@ const PUBLIC_FLAGS = new Set([
   '--credential-source-path',
 ]);
 
+const BOOTSTRAP_TOPOLOGY_REASON_CODES = new Map([
+  [
+    'bootstrap_repository_mismatch',
+    'pre_live_topology_repository_mismatch',
+  ],
+  [
+    'bootstrap_dedicated_branch_required',
+    'pre_live_topology_dedicated_branch_required',
+  ],
+  [
+    'bootstrap_same_name_upstream_required',
+    'pre_live_topology_same_name_origin_required',
+  ],
+  [
+    'bootstrap_head_mismatch',
+    'pre_live_topology_head_mismatch',
+  ],
+  [
+    'bootstrap_divergence_rejected',
+    'pre_live_topology_divergence_rejected',
+  ],
+  [
+    'bootstrap_dirty_rejected',
+    'pre_live_topology_dirty_rejected',
+  ],
+  [
+    'bootstrap_output_not_ignored',
+    'pre_live_output_root_must_be_ignored',
+  ],
+  [
+    'bootstrap_git_rejected',
+    'pre_live_topology_git_rejected',
+  ],
+]);
+
 function canonicalValue(value) {
   if (typeof value === 'string') return value.normalize('NFC');
   if (
@@ -263,14 +298,8 @@ function resolveUniqueLocalNpmCli(options) {
 function inheritedValue(
   environment,
   name,
-  platform = process.platform,
 ) {
-  if (platform !== 'win32') return environment[name];
-  const key = Object.keys(environment).find(
-    (candidate) =>
-      candidate.toLowerCase() === name.toLowerCase(),
-  );
-  return key === undefined ? undefined : environment[key];
+  return environment[name];
 }
 
 function platformEnvironmentNames(platform = process.platform) {
@@ -308,7 +337,6 @@ function minimalEnvironment(
     const value = inheritedValue(
       environment,
       name,
-      platform,
     );
     if (value !== undefined) result[name] = value;
   }
@@ -481,6 +509,20 @@ function verifyBootstrapTopology(options) {
   };
 }
 
+function sanitizedBootstrapTopologyReasonCode(error) {
+  try {
+    if (!(error instanceof Error)) {
+      return 'pre_live_topology_rejected';
+    }
+    return (
+      BOOTSTRAP_TOPOLOGY_REASON_CODES.get(error.message) ??
+      'pre_live_topology_rejected'
+    );
+  } catch {
+    return 'pre_live_topology_rejected';
+  }
+}
+
 function entryEnvironment(options) {
   return {
     ...minimalEnvironment(options.environment, options.platform),
@@ -636,6 +678,21 @@ function runCanonicalPreLiveReadinessLauncher(options) {
       }
     }
     paths = localAuthorityPaths(parsed.repoRoot, platform);
+  } catch {
+    return {
+      kind: 'failure',
+      failure: buildLauncherFailure({
+        mode: parsed.mode,
+        phase: 'launcher',
+        reasonCode:
+          'pre_live_launcher_repository_authority_rejected',
+        parsed,
+      }),
+      disposition: { kind: 'exit', exitCode: 1 },
+    };
+  }
+
+  try {
     (
       options.verifyTopologyImpl ??
       verifyBootstrapTopology
@@ -646,6 +703,21 @@ function runCanonicalPreLiveReadinessLauncher(options) {
       platform,
       gitSpawnSyncImpl: options.gitSpawnSyncImpl,
     });
+  } catch (error) {
+    return {
+      kind: 'failure',
+      failure: buildLauncherFailure({
+        mode: parsed.mode,
+        phase: 'topology',
+        reasonCode:
+          sanitizedBootstrapTopologyReasonCode(error),
+        parsed,
+      }),
+      disposition: { kind: 'exit', exitCode: 1 },
+    };
+  }
+
+  try {
     npmCli = (
       options.resolveNpmCliImpl ??
       resolveUniqueLocalNpmCli
@@ -659,11 +731,9 @@ function runCanonicalPreLiveReadinessLauncher(options) {
       kind: 'failure',
       failure: buildLauncherFailure({
         mode: parsed.mode,
-        phase: paths ? 'topology' : 'dependency',
+        phase: 'dependency',
         reasonCode:
-          paths
-            ? 'pre_live_topology_rejected'
-            : 'pre_live_dependency_authority_rejected',
+          'pre_live_dependency_npm_cli_resolution_rejected',
         parsed,
       }),
       disposition: { kind: 'exit', exitCode: 1 },
@@ -773,7 +843,10 @@ function runCanonicalPreLiveReadinessLauncher(options) {
   }
 
   try {
-    verifyInstalledAuthority(paths, platform);
+    (
+      options.verifyInstalledAuthorityImpl ??
+      verifyInstalledAuthority
+    )(paths, platform);
   } catch {
     return {
       kind: 'failure',
