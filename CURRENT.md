@@ -4,6 +4,23 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-pvb-d1a1b1-canonical-supervised-live-attempt-2` in `C:\Users\guyna\.codex\worktrees\6b99\Small_Heroes`, created cleanly from exact approved pushed base `15b864acb3a2e7bf9177ab741047f061e840a862` and configured to track `origin/codex/r1d-pvb-d1a1b1-canonical-input-writer` without pushing the new branch. This task is the sole writer for its branch/worktree; every other worktree remains read-only. Attempt 2 is **HOLD / exhausted at the first post-creation topology-confirmation failure** before dependency authority, Prisma generation, output-root creation, either canonical writer mode, B0 or Execution Request materialization/verification, pricing, preflight, credential loading, Execution Supervisor verification/live mode, or provider reachability. One corrective topology read and one offline install invocation occurred after authority was already exhausted; they are disclosed below and grant no authority.
 
+## R1D-PVB-D1A1B1-CANONICAL-SUPERVISED-LIVE-ATTEMPT-2-QA-CLOSEOUT — independent record-fidelity PASS
+
+Claude Code independently reviewed exact immutable range `15b864acb3a2e7bf9177ab741047f061e840a862..b158bc8a48b1b197a7450d3279393d702753a66e` and returned **PASS for record fidelity**, with zero BLOCKER, zero MAJOR, and zero MINOR findings. This is not a technical implementation PASS.
+
+### Independent verification and notes
+
+- Exact topology and scope passed: reviewed branch `codex/r1d-pvb-d1a1b1-canonical-supervised-live-attempt-2`, reviewed `HEAD` `b158bc8a48b1b197a7450d3279393d702753a66e`, exact merge-base `15b864acb3a2e7bf9177ab741047f061e840a862`, clean worktree, source upstream `origin/codex/r1d-pvb-d1a1b1-canonical-input-writer` at that base with local ahead `1` / behind `0`, absent target remote-tracking branch, and exactly the two documentation/evidence files in the reviewed range.
+- Claude confirmed all **10/10 falsification points**: exact topology and two-file scope; truthful earliest terminal event and both post-exhaustion process deviations; bounded credential presence check with zero API credential load/disclosure; zero downstream command and provider boundaries; absent fresh attempt output authority; unchanged package inputs; honest non-green TypeScript record; bounded local `$0.00` accounting without provider-billing inference; and no code, policy, runtime, deployment, or push drift.
+- Independent inspection corroborated `package.json` SHA-256 `4f49814bc97dcd8872259ce3e571feb6a8f4f0ba8f9202d47034082567dc75c8`, `package-lock.json` SHA-256 `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`, and the physical Prisma state underlying the recorded ungenerated-client limitation.
+- **NOTE-1 — install outcome wording:** the record correctly limits its claim to zero successful install attestations. The substantially populated physical `node_modules` tree is corroborating residual state, not proof that the interrupted post-exhaustion install completed successfully.
+- **NOTE-2 — timestamp restraint:** the record correctly preserves the wrapper's `5.041`-second duration and closeout Git timestamps without inventing unavailable topology/install start or end timestamps.
+- **NOTE-3 — general control-surface boundary:** this was the third supervised termination caused by a hand-authored PowerShell control-surface defect. A future general boundary should move topology/readiness control into a repository-owned surface. This is advisory only and authorizes no correction or implementation.
+
+### Verdict boundary
+
+The independent PASS establishes record fidelity only. Attempt 2 remains **HOLD / exhausted** with zero provider calls, zero locally observed spend, and no API credential load. The verdict grants no corrected topology, install or Prisma action, retry, rematerialization, pricing lookup, preflight, credential reuse/load, provider or live call, downstream action, deployment, or push authority; it grants no technical implementation, product, or visual PASS. This faithful `CURRENT.md`-only transcription is outside the reviewed immutable range and changes no code, test, execution evidence, or runtime authority.
+
 ## R1D-PVB-D1A1B1-CANONICAL-SUPERVISED-LIVE-ATTEMPT-2 — HOLD / exhausted at topology confirmation
 
 Guy authorized one canonical fail-closed supervised live attempt from exact pushed canonical-input-writer head `15b864acb3a2e7bf9177ab741047f061e840a862`, with a `$4.884` conservative reservation, `$5.00` hard ceiling, at most three application calls, at most two explicitly repairable structural/semantic repairs, zero transport retries, and no fallback.
