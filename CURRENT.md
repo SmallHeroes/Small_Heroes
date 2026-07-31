@@ -2,7 +2,103 @@
 
 **Updated:** 2026-07-31
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-pre-live-readiness-orchestrator` in `C:\Users\guyna\.codex\worktrees\c5fe\Small_Heroes`, created cleanly from exact approved immutable base `5af3871db833df35a82970aa5fb2b10f6bde1b07`. This task is the sole writer for its branch/worktree; every other worktree remains read-only. Claude Code awarded independent technical **PASS** to exact immutable range `5af3871db833df35a82970aa5fb2b10f6bde1b07..cd53963cb666fbfe5201b0d9afe33c4905a9a9d0`, with 10/10 claims confirmed and zero BLOCKER, MAJOR, or MINOR findings. Before this transcription, live local Git inspection observed local `HEAD`, configured same-name upstream, and `origin/codex/r1d-pvb-d1a1b1-canonical-pre-live-readiness-orchestrator` all at `bc7a2e5fef4535c3b28f07016ed4dcdbd5656957`, with local/origin divergence `0/0`; the remote-tracking reflog records `update by push` at `2026-07-31T10:03:25+03:00`. The implementation/QA Task itself performed no push; Guy later reported that he pushed the completed branch, while the observed Git state and reflog do not establish a push actor or authorization. This `CURRENT.md`-only correction is intentionally committed locally without push, so its containing commit leaves the branch one documentation commit ahead of that observed origin state. The PASS remains explicitly qualified by the non-green one-time full repository check; focused superset validation is corroborating and does not convert that full-check record into green evidence.
+**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-pre-live-readiness-orchestrator` in `C:\Users\guyna\.codex\worktrees\c5fe\Small_Heroes`. Immediately before this documentation closeout, local `HEAD`, the configured same-name upstream, and the local remote-tracking ref were all exactly `c1694c0b814161fb51a0f8478f4e8b023fc2e0d2`, the worktree was clean, and divergence was `0/0`. The armed live-authoring attempt executed against that immutable authority and is now **HOLD / exhausted** after one OpenAI dispatch returned HTTP `401 invalid_api_key`. This post-attempt documentation commit changes no implementation or runtime authority and must not be reused as readiness authority for another live attempt. It is intentionally left local and unpushed; its containing commit leaves the branch one documentation commit ahead of the observed origin state. Local Git establishes neither a push actor nor authorization for the origin state. Claude Code independently awarded record-fidelity **PASS** to the ignored live artifacts, with no BLOCKER or MAJOR findings, one valid documentation MINOR closed by this record, and three advisory NOTEs preserved below.
+
+## R1D-PVB-D1A1B1-CANONICAL-ARMED-LIVE-AUTHORING-ATTEMPT - HOLD / exhausted
+
+Guy authorized one immutable, canonical, supervised live-authoring attempt at
+exact pushed `HEAD`
+`c1694c0b814161fb51a0f8478f4e8b023fc2e0d2`, using canonical pre-live
+readiness digest
+`e0172acc57dd6dd5e3e91596f0c0726f3cb5fb122f7f6e813f06221ad9bea4d5`.
+No tracked file was changed before or during execution.
+
+### Executed sequence
+
+- Fresh official OpenAI documentation confirmed the approved
+  `gpt-5.6-sol` Responses API, `service_tier:default`, short-context rates,
+  and the conservative `$4.884` three-call reservation under the `$5.00`
+  hard ceiling.
+- One bare canonical preflight ran from
+  `2026-07-31T10:46:46.9050095+03:00` through
+  `2026-07-31T10:46:47.6106461+03:00`, exited `0`, and reported
+  `LIVE-AUTHORING IMPORT PREFLIGHT PASS`. It did not read credentials or
+  contact the provider. No second preflight ran.
+- One explicit Execution Supervisor `verify` ran from
+  `2026-07-31T10:47:10.9564427+03:00` through
+  `2026-07-31T10:47:12.0940713+03:00`, exited `0`, returned `ready` with no
+  reason codes, and reproduced readiness digest
+  `e92ae63207b69d559a07b6717ec01f98dcbaa9e8e28374514f8f50b85ec47da5`.
+- Post-verify reconciliation at
+  `2026-07-31T10:47:26.0769315+03:00` reconfirmed exact branch, `HEAD`,
+  same-name origin parity `0/0`, clean state, preservation fences, expected
+  absences, no ambient `OPENAI_API_KEY`, and no `NODE_OPTIONS`.
+- One and only one Execution Supervisor `live` invocation ran from
+  `2026-07-31T10:48:11.2939029+03:00` through
+  `2026-07-31T10:48:13.6728232+03:00`, exited `1`, and returned sanitized
+  `child_failed / child_nonzero_exit`.
+- The Supervisor's internal live re-verification passed before credential
+  access. Only the Supervisor read the approved credential source, passed the
+  allowlisted value to the exact child, and cleared credential authority. No
+  credential value was printed, inspected, copied, summarized, or persisted.
+- The child dispatched exactly one Responses API request. OpenAI returned
+  HTTP `401`, `provider_authentication`, `invalid_api_key`. Provider calls,
+  repair calls, and transport retries were exactly `1 / 0 / 0`; fallback was
+  none. No correction, alternate key, retry, second verify, or second live
+  invocation occurred.
+
+### Durable canonical artifacts
+
+- Failed receipt v4:
+  `176757d9008ea821e7637dc9e1c697eae372f94d4a2f414c38e5f51984fb948d`
+  (raw SHA-256
+  `9bebb69fb4496be57dc618134d0c3481679b4bdea4814211efc8a0a47fc3d815`).
+- Provider-call-failure evidence:
+  `bd93ebdb01e8d2c6ba42077a13e76c575143d9a9c1a8293eaeda6c141594ac72`
+  (raw SHA-256
+  `ab1e3bb93ba2283888c92a988a2fac277f54887a32b3a9502dc480978727cbd8`).
+- Readiness v2:
+  `eda233a9b4fa4908a8d22e78bc752be7a733890570f0dd9cebc9cb9734cfa551`
+  (raw SHA-256
+  `cf45133f62206689c9d3a63a6e6780c442deb2ddd687d53091a67fa4fe8ce2ec`).
+
+The eight pre-live artifacts and all five preservation fences remained
+byte-identical. `contract-candidates` and `rejected-authoring-requests` exist
+only as prepared empty directories and contain zero files. The pre-live
+`expectedAbsentPaths` condition was consumed before live execution; the three
+new artifact categories becoming present is expected, not authority drift.
+No Visual Contract candidate exists.
+
+### Cost, attestation, and QA limits
+
+- The receipt reports local nominal and conservative cost of `$0.00` because
+  provider usage is absent. The provider sidecar correctly records
+  `billingState:unknown_no_usage`; no provider-account zero-spend claim is
+  made. One dispatched call had authorized maximum exposure of `$1.628`, and
+  the run retained its full `$4.884` reservation.
+- The standalone preflight passed but remains `not_attested` in readiness.
+  This is accurate: its console-only result is not fed into the persisted
+  lifecycle attestation contract.
+- Claude Code independently recomputed all canonical digests and crosslinks,
+  confirmed sanitization, the HTTP response classification, `1 / 0 / 0`
+  provider/repair/retry counts, unchanged fences, empty candidate/rejected
+  directories, clean `0/0` topology, and absence of tracked changes, commit,
+  or push during the attempt.
+- Claude Code returned record-fidelity **PASS** with one valid MINOR:
+  invocation counts and credential-boundary process facts lacked a durable
+  written attempt record. This section and
+  `docs/ai-workflow/R1D_PVB_D1A1B1_CANONICAL_ARMED_LIVE_AUTHORING_ATTEMPT_EXECUTION_EVIDENCE.md`
+  close that documentation gap.
+- **NOTE-1:** prepared output directories are not populated artifacts.
+  **NOTE-2:** the sole `api_key` text hit is the closed-vocabulary
+  `invalid_api_key` classification, not secret material. **NOTE-3:** the 401
+  is a credential-validity signal, not a demonstrated pipeline defect.
+
+This attempt remains **HOLD / exhausted**. This record authorizes no retry,
+alternate credential, provider call, spend, live continuation, candidate,
+Blueprint, Semantic Reconciliation, approval, render, publication, promotion,
+deployment, push, product acceptance, or visual acceptance. A new key and a
+new live attempt require separate Guy decisions.
 
 ## R1D-PVB-D1A1B1-CANONICAL-PRE-LIVE-READINESS-ORCHESTRATOR — independent technical PASS
 
