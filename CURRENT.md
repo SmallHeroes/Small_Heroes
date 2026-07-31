@@ -2,14 +2,50 @@
 
 **Updated:** 2026-07-31
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-pre-live-bootstrap-failure-attribution` in `C:\Users\guyna\.codex\worktrees\a065\Small_Heroes`, from exact immutable base `696e6eb27b82ac4b6e823bb9bc63edd2aec43852`. The focused implementation is committed at `f514971084bff5c0a19dd6bdcfb4810c44e70bbf`; this documentation/evidence closeout is its containing commit. The branch has no upstream, remains unpushed, and must receive independent Claude Code review before any technical PASS. Cost is exactly `$0`; the milestone grants no live, credential, provider, spend, or downstream authority.
+**Working branch:** `codex/r1d-pvb-d1a1b1-pre-live-bootstrap-failure-attribution` in `C:\Users\guyna\.codex\worktrees\a065\Small_Heroes`, from exact immutable base `696e6eb27b82ac4b6e823bb9bc63edd2aec43852`. Claude Code independently awarded technical **PASS** to exact immutable implementation range `696e6eb27b82ac4b6e823bb9bc63edd2aec43852..41ec1b38bad4d048f7137afb5db238f7fcfe115b`. Immediately before this documentation-only closeout, the worktree was clean at that reviewed head, the branch had no configured upstream, and the local target remote-tracking ref was absent. Those are local Git observations only; they establish neither a remote-server state nor a push actor or authorization. This faithful closeout is its containing commit, changes no reviewed implementation authority, and is intentionally left local without a push from this Task. Cost is exactly `$0`; the PASS grants no live, credential, provider, spend, or downstream authority.
 
-## R1D-PVB-D1A1B1-PRE-LIVE-BOOTSTRAP-FAILURE-ATTRIBUTION-HARDENING — local implementation awaiting independent QA
+## R1D-PVB-D1A1B1-PRE-LIVE-BOOTSTRAP-FAILURE-ATTRIBUTION-HARDENING — independent technical PASS
 
 Guy approved the Decision Gate and all nine architectural decisions from exact
 base `696e6eb27b82ac4b6e823bb9bc63edd2aec43852`. The implementation is a
 general bootstrap-control correction; it changes no prompt, model, schema,
 budget, policy, retry, fallback, or live behavior.
+
+### Independent technical QA closeout
+
+- Claude Code reconciled exact branch
+  `codex/r1d-pvb-d1a1b1-pre-live-bootstrap-failure-attribution`, reviewed
+  `HEAD` `41ec1b38bad4d048f7137afb5db238f7fcfe115b`, exact merge-base
+  `696e6eb27b82ac4b6e823bb9bc63edd2aec43852`, clean worktree, absent
+  configured upstream, absent local target remote-tracking ref, and the exact
+  five-file reviewed range.
+- Verdict: **PASS**, with zero BLOCKER, zero MAJOR, and zero MINOR findings.
+- Claude independently reproduced deterministic repository-local TypeScript
+  **PASS**, the focused launcher at **1 file / 9 tests PASS**, and a
+  **10-file / 349-test PASS** superset.
+- Claude intentionally did not rerun literal `npm run check`. Its recorded
+  result remains non-green only for the six established missing
+  ignored-fixture failures; no post-review green full-gate claim is made.
+- **Advisory NOTE-1 — earlier gate opportunity:** Claude notes that its review
+  of the earlier orchestrator milestone could have caught this latent
+  attribution defect. That hindsight changes no prior PASS scope or reviewed
+  range.
+- **Advisory NOTE-2 — injection seam:** the new dependency-authority injection
+  seam is production-inert because the production entry supplies no
+  overrides.
+- **Advisory NOTE-3 — Windows casing:** fixed direct Windows environment
+  indexing safely relies on Node's case-insensitive `process.env` behavior.
+  A hypothetical future plain-object caller using differently cased keys
+  could miss values. This is advisory only and authorizes no code change in
+  this closeout.
+
+The PASS is scoped to the immutable reviewed implementation range. This
+faithful `CURRENT.md`-only transcription sits outside that range and requires
+no additional Claude Code round unless its record fidelity is disputed. It
+does not authorize B0, Fresh Readiness, credential access, canonical
+preflight, pricing/network/provider/model calls, live authoring, render,
+storage/database, Board, approval, publication, promotion, activation,
+deployment, PR, or push.
 
 ### Implemented boundary
 
@@ -71,9 +107,9 @@ Reconciliation, approval, publication, promotion, production activation,
 deployment, PR, or push occurred. Cost remained exactly `$0`. Durable records
 are tracked at
 `docs/ai-workflow/R1D_PVB_D1A1B1_PRE_LIVE_BOOTSTRAP_FAILURE_ATTRIBUTION_HARDENING_*`.
-The next action is independent Claude Code read-only review of exact range
-`696e6eb27b82ac4b6e823bb9bc63edd2aec43852..HEAD`; Codex does not self-award
-technical PASS.
+Claude Code awarded the technical PASS recorded above; Codex did not
+self-award it. Any later operational continuation remains separately gated
+and requires the applicable Guy authorization.
 
 ## R1D-PVB-D1A1B1-CANONICAL-ARMED-LIVE-AUTHORING-ATTEMPT - HOLD / exhausted
 
