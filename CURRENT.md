@@ -2,7 +2,78 @@
 
 **Updated:** 2026-07-31
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-pre-live-readiness-orchestrator` in `C:\Users\guyna\.codex\worktrees\c5fe\Small_Heroes`. Immediately before this documentation closeout, local `HEAD`, the configured same-name upstream, and the local remote-tracking ref were all exactly `c1694c0b814161fb51a0f8478f4e8b023fc2e0d2`, the worktree was clean, and divergence was `0/0`. The armed live-authoring attempt executed against that immutable authority and is now **HOLD / exhausted** after one OpenAI dispatch returned HTTP `401 invalid_api_key`. This post-attempt documentation commit changes no implementation or runtime authority and must not be reused as readiness authority for another live attempt. It is intentionally left local and unpushed; its containing commit leaves the branch one documentation commit ahead of the observed origin state. Local Git establishes neither a push actor nor authorization for the origin state. Claude Code independently awarded record-fidelity **PASS** to the ignored live artifacts, with no BLOCKER or MAJOR findings, one valid documentation MINOR closed by this record, and three advisory NOTEs preserved below.
+**Working branch:** `codex/r1d-pvb-d1a1b1-pre-live-bootstrap-failure-attribution` in `C:\Users\guyna\.codex\worktrees\a065\Small_Heroes`, from exact immutable base `696e6eb27b82ac4b6e823bb9bc63edd2aec43852`. The focused implementation is committed at `f514971084bff5c0a19dd6bdcfb4810c44e70bbf`; this documentation/evidence closeout is its containing commit. The branch has no upstream, remains unpushed, and must receive independent Claude Code review before any technical PASS. Cost is exactly `$0`; the milestone grants no live, credential, provider, spend, or downstream authority.
+
+## R1D-PVB-D1A1B1-PRE-LIVE-BOOTSTRAP-FAILURE-ATTRIBUTION-HARDENING — local implementation awaiting independent QA
+
+Guy approved the Decision Gate and all nine architectural decisions from exact
+base `696e6eb27b82ac4b6e823bb9bc63edd2aec43852`. The implementation is a
+general bootstrap-control correction; it changes no prompt, model, schema,
+budget, policy, retry, fallback, or live behavior.
+
+### Implemented boundary
+
+- The launcher now uses separate fail-closed boundaries for launcher/repository
+  authority, bootstrap topology, npm CLI resolution, and installed dependency
+  authority. It no longer infers the failed phase from whether a local `paths`
+  variable happened to be assigned.
+- Launcher/repository authority failures are `launcher` /
+  `pre_live_launcher_repository_authority_rejected`. Npm resolution failures
+  are `dependency` /
+  `pre_live_dependency_npm_cli_resolution_rejected`, so the formerly
+  conflated resolver failure cannot be reported as topology.
+- A closed code-owned map translates only repository mismatch, dedicated
+  branch, same-name origin, head mismatch, divergence, dirty state,
+  ignored-output requirement, and generic Git rejection into the existing
+  sanitized topology vocabulary. Unknown thrown values collapse to
+  `pre_live_topology_rejected`.
+- Windows environment inheritance now performs direct reads of only the fixed
+  platform allowlist. It does not enumerate environment names and never
+  accesses or propagates `OPENAI_API_KEY`. Required child variables, exact
+  offline npm/Prisma argv, `shell:false`, sequencing, and exit/signal behavior
+  remain unchanged.
+- `canonical-pre-live-readiness-failure/v1`, its exact fields and digest rules,
+  `credentialAccess:none`, `providerCalls:0`,
+  `canonicalPreflight:not_run`, `pricingAuthority:not_checked`, and
+  `liveAuthority:none` are preserved. Early bootstrap failure remains
+  stdout-only and creates no output authority.
+
+### Deterministic validation and limitation
+
+- Pre-edit focused launcher baseline: **1 file / 7 tests PASS**. A direct
+  injected reproduction independently demonstrated the old npm resolver
+  failure as `topology / pre_live_topology_rejected`.
+- Final focused launcher suite: **1 file / 9 tests PASS**. It covers the four
+  fixed failure boundaries, all eight known topology classes plus unknown
+  fallback, downstream unreachability, exact sanitized v1 fields, hostile
+  environment enumeration/credential traps, exact argv, Unicode/spaces,
+  valid prepare/verify, and exit/signal propagation.
+- Adjacent authority regression: **10 files / 328 tests PASS**, covering the
+  readiness coordinator, canonical inputs, B0/live-request materialization,
+  Execution Request/Supervisor, canonical live boundary/launcher, source
+  authority, and production lifecycle.
+- Deterministic TypeScript, `npx --no-install tsc --noEmit`, touched CJS syntax,
+  structural scans, and `git diff --check`: **PASS**.
+- Literal `npm run check` ran exactly once and was not rerun. TypeScript passed.
+  Vitest reproduced only the established six missing ignored-fixture failures
+  across five files: `child-lexicon-ages-5-8.spec.ts`,
+  `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`,
+  `set-appearance-ref-budget.spec.ts`, and two cases in
+  `story-read-back-validation.spec.ts`. There was no timeout and no changed
+  launcher/readiness failure. The full gate is therefore truthfully non-green.
+- Full-check scratch was moved without deletion to
+  `C:\Users\guyna\AppData\Local\Temp\small-heroes-r1d-bootstrap-attribution-check-scratch-20260731-a065`.
+
+No B0 materialization, Fresh Readiness, credential check/read/load, canonical
+preflight, pricing/docs/network/provider/model call, live authoring,
+render/image/Vision/audio, storage/database/Supabase, Board, Semantic
+Reconciliation, approval, publication, promotion, production activation,
+deployment, PR, or push occurred. Cost remained exactly `$0`. Durable records
+are tracked at
+`docs/ai-workflow/R1D_PVB_D1A1B1_PRE_LIVE_BOOTSTRAP_FAILURE_ATTRIBUTION_HARDENING_*`.
+The next action is independent Claude Code read-only review of exact range
+`696e6eb27b82ac4b6e823bb9bc63edd2aec43852..HEAD`; Codex does not self-award
+technical PASS.
 
 ## R1D-PVB-D1A1B1-CANONICAL-ARMED-LIVE-AUTHORING-ATTEMPT - HOLD / exhausted
 
