@@ -2,11 +2,21 @@
 
 **Updated:** 2026-07-31
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-input-writer` in `C:\Users\guyna\.codex\worktrees\f9db\Small_Heroes`, created cleanly from exact immutable base `be19817106b16770477b1be15374aa7dd55eb6a2`. This task is the sole writer for its branch/worktree; every other worktree remains read-only. The canonical materialization-input writer milestone is locally implemented in focused commits `682fd074`, `d27574aa`, and the containing tests/evidence commit, with no push. It awaits independent first-pass READ-ONLY Claude Code QA. The exhausted supervised attempt remains separately **HOLD / exhausted** before pricing, preflight, credential access, supervisor verification/live mode, or provider reachability.
+**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-input-writer` in `C:\Users\guyna\.codex\worktrees\f9db\Small_Heroes`, created cleanly from exact immutable base `be19817106b16770477b1be15374aa7dd55eb6a2`. This task is the sole writer for its branch/worktree; every other worktree remains read-only. The canonical materialization-input writer implementation has independent Claude Code technical **PASS** on exact immutable range `be19817106b16770477b1be15374aa7dd55eb6a2..5028e62887350bab6fed00366da271a42773aff0`. At documentation-closeout intake, the reviewed branch was clean at exact reviewed head `5028e62887350bab6fed00366da271a42773aff0`, had no upstream, and the live origin query found no branch of this name; this record claims neither an origin actor nor push authorization. The exhausted supervised attempt remains separately **HOLD / exhausted** before pricing, preflight, credential access, supervisor verification/live mode, or provider reachability.
 
-## R1D-PVB-D1A1B1-CANONICAL-MATERIALIZATION-INPUT-WRITER — local implementation awaiting independent QA
+## R1D-PVB-D1A1B1-CANONICAL-MATERIALIZATION-INPUT-WRITER — independent technical PASS
 
 Guy approved one general repository-owned canonical input producer/reader boundary from exact base `be19817106b16770477b1be15374aa7dd55eb6a2`. The implementation cost is exactly `$0`.
+
+### Independent technical QA closeout
+
+- Claude Code returned independent technical **PASS** for exact immutable range `be19817106b16770477b1be15374aa7dd55eb6a2..5028e62887350bab6fed00366da271a42773aff0`. Topology passed, all **12/12 implementation claims** were confirmed, and there were zero BLOCKER, zero MAJOR, and zero MINOR findings.
+- Claude reproduced deterministic repository-local TypeScript with exit `0`, the new canonical materialization-input suite at **15/15 tests PASS**, the combined focused regression at **9 files / 351 tests PASS**, and a clean reviewed diff.
+- Two earlier advisory gaps are closed in the reviewed implementation: zero external-boundary fields are explicitly described as invariant/control-flow evidence rather than provider telemetry, and all six credential-access sentinel controls are present with positive controls.
+- **NOTE-1 — general root-cause correction:** the producer/contract mismatch was addressed generally through one repository-owned canonical writer and shared reader boundary. It was not patched for one story, provider, request, or exhausted attempt.
+- **NOTE-2 — intentional legacy behavior:** legacy bare B0 v2 and Execution v1 inputs are inert in new production consumer paths and remain immutable historical evidence. Historical replay requires rematerialization through the public writer rather than mutation or a silent fallback.
+- This technical PASS is scoped only to the immutable implementation range above. It grants no real materialization or live attempt, canonical preflight, credential access/check/read/load, provider/network/model call, storage/database/Supabase action, render/image/Vision/audio action, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, push, product acceptance, or visual acceptance.
+- This faithful `CURRENT.md`-only transcription is outside the reviewed immutable range. No additional Claude Code round is required for the transcription itself unless its factual fidelity is disputed.
 
 ### General contract and consumer cutover
 
@@ -25,7 +35,7 @@ Guy approved one general repository-owned canonical input producer/reader bounda
 - The full gate's five exact scratch files and `tsconfig.tsbuildinfo` were moved into ignored task quarantine after direct deletion was blocked before execution. No test scratch remains at its repository/output path.
 - No real B0/Execution Request materialization, preflight, credential access, pricing/network/provider/model call, live authoring, render/image/Vision/audio, storage/database/Supabase, Board, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, PR, or push occurred. Cost remained exactly `$0`.
 
-Sanitized durable evidence is tracked at `docs/ai-workflow/R1D_PVB_D1A1B1_CANONICAL_MATERIALIZATION_INPUT_WRITER_EVIDENCE.md`. The approved Decision Gate is tracked beside it. Rollback is reverting the three focused commits; historical evidence remains untouched. Codex does not self-award independent PASS.
+Sanitized durable evidence is tracked at `docs/ai-workflow/R1D_PVB_D1A1B1_CANONICAL_MATERIALIZATION_INPUT_WRITER_EVIDENCE.md`. The approved Decision Gate is tracked beside it. Rollback is reverting the three focused implementation commits; historical evidence remains untouched. The independent technical PASS recorded above was awarded by Claude Code, not Codex.
 
 ## R1D-PVB-D1A1B1-CANONICAL-SUPERVISED-LIVE-ATTEMPT — HOLD / exhausted before execution authority
 
