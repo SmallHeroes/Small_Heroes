@@ -2,7 +2,69 @@
 
 **Updated:** 2026-07-31
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-supervised-live-attempt-2` in `C:\Users\guyna\.codex\worktrees\6b99\Small_Heroes`, created cleanly from exact approved pushed base `15b864acb3a2e7bf9177ab741047f061e840a862` and configured to track `origin/codex/r1d-pvb-d1a1b1-canonical-input-writer` without pushing the new branch. This task is the sole writer for its branch/worktree; every other worktree remains read-only. Attempt 2 is **HOLD / exhausted at the first post-creation topology-confirmation failure** before dependency authority, Prisma generation, output-root creation, either canonical writer mode, B0 or Execution Request materialization/verification, pricing, preflight, credential loading, Execution Supervisor verification/live mode, or provider reachability. One corrective topology read and one offline install invocation occurred after authority was already exhausted; they are disclosed below and grant no authority.
+**Working branch:** `codex/r1d-pvb-d1a1b1-canonical-pre-live-readiness-orchestrator` in `C:\Users\guyna\.codex\worktrees\c5fe\Small_Heroes`, created cleanly from exact approved immutable base `5af3871db833df35a82970aa5fb2b10f6bde1b07`. This task is the sole writer for its branch/worktree; every other worktree remains read-only. The general zero-cost canonical pre-live readiness orchestrator is implemented at `47e8ed4112a65e66f6974c091050aa8992114744`, unpushed, and awaiting independent first-pass READ-ONLY Claude Code QA. Local technical status is **HOLD** because the one-time full repository check reproduced the six established missing ignored-fixture failures plus three 5-second contention timeouts; bounded per-test allowances and the final 10-file / 347-test focused regression passed afterward, but the full command was not and must not be rerun.
+
+## R1D-PVB-D1A1B1-CANONICAL-PRE-LIVE-READINESS-ORCHESTRATOR — implementation complete / local HOLD pending independent QA
+
+Guy approved one general repository-owned canonical coordinator from exact
+base `5af3871db833df35a82970aa5fb2b10f6bde1b07`, with exactly `$0` cost and no
+live/spend authority.
+
+### Implemented authority boundary
+
+- Public modes are exactly `prepare` and `verify`. Logical input is limited to
+  repository/output roots, Story Source key/path, request ID/timestamp, and an
+  opaque credential-source path.
+- The coordinator derives child identities, canonical Writer inputs, B0
+  layout, preservation fences, expected absences, canonical Execution
+  Request, Supervisor verification, and future-live-command identity. Existing
+  Writer, B0, Execution Request, and Supervisor surfaces remain their sole
+  authorities.
+- The built-in-only CJS bootstrap proves clean same-name `origin` parity before
+  dependency writes, proves one npm CLI derived from `process.execPath`, runs
+  fixed offline `npm ci`, runs exact local Prisma generation, then launches a
+  capability-bound private TypeScript entry with fixed argv, `shell:false`,
+  and a minimal environment.
+- Success evidence is content-addressed
+  `canonical-pre-live-readiness-evidence/v1` with
+  `ready_for_spend_gate`, `pricingAuthority:not_checked`,
+  `canonicalPreflight:not_run`, `credentialAccess:none`, `providerCalls:0`,
+  and `liveAuthority:none`. Failures are canonical sanitized phase/reason
+  evidence. Replay is idempotent, collision/drift fails closed, and one
+  invocation performs no retry/fallback.
+- `verify` rechecks dependency, topology, B0, Execution Request, Supervisor,
+  and complete evidence authority without writes. There is no arm/live mode.
+
+### Deterministic evidence and gate
+
+- Exact local TypeScript, both CJS syntax checks, structural scans, and
+  `git diff --check`: **PASS**.
+- Final focused authority regression: **10 files / 347 tests PASS**.
+- Real public `verify` on this intentionally unpushed implementation branch
+  returned sanitized topology rejection, exit `1`, and no Git-status change.
+- Literal `npm run check` ran exactly once. TypeScript passed. Vitest reported
+  the six established absent ignored-fixture failures plus three 5-second
+  contention timeouts (the new topology case and two adjacent canonical
+  execution multi-fixture cases), with two associated unhandled worker timeout
+  errors. The result is not green and the command was not rerun.
+- Each timed case received only a `30_000` per-test allowance; no global
+  timeout, assertion, fixture, behavior, retry, or skip changed. The exact
+  three-case rerun passed, followed by the final 10-file / 347-test PASS.
+  Because the full command cannot be rerun, independent QA must evaluate this
+  disclosed limitation rather than infer a full-suite result.
+- Full-check scratch was moved by exact inspected paths outside the repository
+  to
+  `C:\Users\guyna\AppData\Local\Temp\small-heroes-r1d-check-scratch-20260731`.
+
+No real B0/Execution authority, production readiness evidence, canonical
+preflight, pricing/network lookup, credential check/read/load, provider/model
+call, live authoring, render/image/Vision/audio, storage/database/Supabase,
+Board, reconciliation, approval, publication, promotion, activation,
+deployment, PR, or push occurred. Cost remained exactly `$0`. Durable
+Decision Gate and implementation evidence are tracked under
+`docs/ai-workflow/R1D_PVB_D1A1B1_CANONICAL_PRE_LIVE_READINESS_ORCHESTRATOR_*`.
+Historical artifacts remain immutable and no prompt/model/schema/pricing/
+call/repair/retry/fallback or externally visible live behavior changed.
 
 ## R1D-PVB-D1A1B1-CANONICAL-SUPERVISED-LIVE-ATTEMPT-2-QA-CLOSEOUT — independent record-fidelity PASS
 
