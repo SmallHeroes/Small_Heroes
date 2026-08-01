@@ -189,8 +189,11 @@ function requestFor(
 }
 
 function bunnySnapshot(): StorySourceAuthoritySnapshot {
+  return storySnapshot('bunny_ometz_adventure');
+}
+
+function storySnapshot(storyKey: string): StorySourceAuthoritySnapshot {
   const repoRoot = tempRoot();
-  const storyKey = 'bunny_ometz_adventure';
   const storyPath = `stories/${storyKey}.md`;
   const destination = path.join(repoRoot, storyPath);
   fs.mkdirSync(path.dirname(destination), {
@@ -205,6 +208,170 @@ function bunnySnapshot(): StorySourceAuthoritySnapshot {
     storyKey,
     storyPath,
   });
+}
+
+function actionCapabilityCalibrationDraft(
+  snapshot: StorySourceAuthoritySnapshot,
+): BookVisualContractTemplate & Record<string, unknown> {
+  const draft = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        BANK,
+        'fox_uri_adventure.visual-contract-template.json',
+      ),
+      'utf8',
+    ),
+  ) as BookVisualContractTemplate & Record<string, unknown>;
+  const evidence = (pageNumber: number, needle: string) => {
+    const entry =
+      snapshot.content.sourceEvidenceCatalog.entries.find(
+        (candidate) =>
+          candidate.pageNumber === pageNumber &&
+          candidate.excerpt.includes(needle),
+      );
+    if (!entry) {
+      throw new Error(`missing calibration evidence on page ${pageNumber}`);
+    }
+    return entry;
+  };
+
+  for (const [pageIndex, page] of draft.pageContracts.entries()) {
+    const pageRecord = page as unknown as Record<string, unknown>;
+    const firstEvidence =
+      snapshot.content.sourceEvidenceCatalog.entries.find(
+        (candidate) => candidate.pageNumber === page.pageNumber,
+      );
+    if (!firstEvidence) throw new Error(`missing page ${page.pageNumber}`);
+    const existingActions = Array.isArray(page.actionRequirements)
+      ? page.actionRequirements
+      : [];
+    pageRecord.actionSemanticCoverage =
+      existingActions.length > 0
+        ? existingActions.map((action, index) => ({
+            beatId: `beat:p${page.pageNumber}:existing_${index + 1}`,
+            sourceEvidenceId: firstEvidence.sourceEvidenceId,
+            disposition: {
+              kind: 'action_requirement',
+              checkId: action.checkId,
+            },
+          }))
+        : [
+            {
+              beatId: `beat:p${page.pageNumber}:structured_context`,
+              sourceEvidenceId: firstEvidence.sourceEvidenceId,
+              disposition: {
+                kind: 'represented_elsewhere',
+                contractPointer: `/pageContracts/${pageIndex}/locationId`,
+                contractValue: page.locationId,
+              },
+            },
+          ];
+  }
+
+  const sneeze = evidence(6, 'התעטש');
+  const touch = evidence(7, 'טיפה קרירה נגעה');
+  const move = evidence(9, 'הזיז');
+  const cases = [
+    {
+      pageNumber: 6,
+      beatId: 'beat:p6:intransitive_action',
+      evidence: sneeze,
+      action: {
+        checkId: 'action:intransitive_action',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'companion:fox_uri' },
+        },
+        predicate: 'sneezes',
+        object: null,
+        spatialEffect: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    },
+    {
+      pageNumber: 7,
+      beatId: 'beat:p7:phenomenon_contact',
+      evidence: touch,
+      action: {
+        checkId: 'action:phenomenon_contact',
+        subject: {
+          kind: 'source_phenomenon',
+          sourceEvidenceId: touch.sourceEvidenceId,
+        },
+        predicate: 'touches',
+        object: { kind: 'cast', id: 'child:hero' },
+        spatialEffect: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    },
+    {
+      pageNumber: 9,
+      beatId: 'beat:p9:object_movement',
+      evidence: move,
+      action: {
+        checkId: 'action:object_movement',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'moves',
+        object: { kind: 'prop', id: 'prop_tin_bucket' },
+        spatialEffect: {
+          kind: 'directional',
+          direction: 'sideways',
+        },
+        polarity: 'must',
+        laterality: null,
+      },
+    },
+  ] as const;
+
+  for (const semanticCase of cases) {
+    const page = draft.pageContracts.find(
+      (candidate) => candidate.pageNumber === semanticCase.pageNumber,
+    )!;
+    const pageRecord = page as unknown as Record<string, unknown>;
+    pageRecord.actionRequirements = [
+      structuredClone(semanticCase.action),
+    ];
+    pageRecord.actionSemanticCoverage = [
+      {
+        beatId: semanticCase.beatId,
+        sourceEvidenceId: semanticCase.evidence.sourceEvidenceId,
+        disposition: {
+          kind: 'action_requirement',
+          checkId: semanticCase.action.checkId,
+        },
+      },
+    ];
+    const projectionAction = structuredClone(
+      semanticCase.action,
+    ) as Record<string, unknown>;
+    const projectionSubject = projectionAction.subject as Record<
+      string,
+      unknown
+    >;
+    if (projectionSubject.kind === 'source_phenomenon') {
+      projectionSubject.sourcePhrase =
+        semanticCase.evidence.excerpt;
+    }
+    const projectionPage = {
+      ...page,
+      actionRequirements: [projectionAction],
+    } as unknown as PageVisualContract;
+    page.mustShow = [
+      ...new Set([
+        ...page.mustShow,
+        ...projectPageMustShow(
+          projectionPage,
+          draft as unknown as BookVisualContract,
+        ),
+      ]),
+    ];
+  }
+  return draft;
 }
 
 function fullyActionedBunnyDraft(
@@ -232,7 +399,10 @@ function fullyActionedBunnyDraft(
     }
     const action = {
       checkId: `action:p${page.pageNumber}_look`,
-      actorId: 'child:hero',
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
       predicate: 'looks_at' as const,
       object: null,
       polarity: 'must' as const,
@@ -696,6 +866,49 @@ describe('source-grounded closed action authority', () => {
           ?.text.includes(entry.sourcePhrase),
       ),
     ).toBe(true);
+  });
+
+  it('traverses the calibration source through sneeze, exact phenomenon contact, and typed movement without predicate substitution', async () => {
+    const snapshot = storySnapshot('fox_uri_adventure');
+    const draft = actionCapabilityCalibrationDraft(snapshot);
+    const result = await compileBookVisualContractTemplate(
+      {
+        ...snapshot.content,
+        storyKey: snapshot.content.storyKey,
+        pageCount: snapshot.content.pages.length,
+        authoredCoverAuthority:
+          snapshot.content.authoredCoverAuthority ?? undefined,
+      },
+      { callLLM: async () => JSON.stringify(draft) },
+    );
+    const actions = result.template.pageContracts.flatMap(
+      (page) => page.actionRequirements ?? [],
+    ) as unknown as Array<Record<string, unknown>>;
+    expect(actions.map((action) => action.predicate)).toEqual(
+      expect.arrayContaining(['sneezes', 'touches', 'moves']),
+    );
+    expect(actions.some((action) => action.predicate === 'pushes')).toBe(
+      false,
+    );
+    const phenomenon = actions.find(
+      (action) => action.predicate === 'touches',
+    )!.subject as Record<string, unknown>;
+    expect(phenomenon).toMatchObject({
+      kind: 'source_phenomenon',
+    });
+    expect(
+      snapshot.content.pages
+        .find((page) => page.pageNumber === 7)!
+        .text.includes(String(phenomenon.sourcePhrase)),
+    ).toBe(true);
+    expect(
+      actions.find((action) => action.predicate === 'moves'),
+    ).toMatchObject({
+      spatialEffect: {
+        kind: 'directional',
+        direction: 'sideways',
+      },
+    });
   });
 
   it('fails with a stable blocker when a source beat cannot fit the closed vocabulary', async () => {

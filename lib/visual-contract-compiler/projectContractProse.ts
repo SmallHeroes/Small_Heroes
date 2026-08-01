@@ -180,12 +180,22 @@ function actionProseLine(
   page: PageVisualContract,
   contract: BookVisualContract
 ): string {
-  const actor = castLabel(action.actorId, contract);
+  const actor =
+    action.subject?.kind === 'entity'
+      ? refLabel(action.subject.entity, page, contract)
+      : action.subject?.kind === 'source_phenomenon'
+        ? `the exact source phenomenon ${JSON.stringify(action.subject.sourcePhrase)}`
+        : castLabel(action.actorId, contract);
   const verb = projectActionPredicateProse(action.predicate);
   const hand = action.laterality ? ` with the ${action.laterality} hand` : '';
   const object = action.object ? ` ${refLabel(action.object, page, contract)}` : '';
+  const spatialResult = action.spatialEffect
+    ? action.spatialEffect.kind === 'directional'
+      ? ` ${action.spatialEffect.direction.replace(/_/g, ' ')}`
+      : ` ${action.spatialEffect.relation.replace(/_/g, ' ')} ${refLabel(action.spatialEffect.target, page, contract)}`
+    : '';
   const lead = action.polarity === 'must_not' ? `${actor} must NOT ${verb}` : `${actor} ${verb}`;
-  return `${lead}${object}${hand}`;
+  return `${lead}${object}${spatialResult}${hand}`;
 }
 
 /** One readable hazard prohibition. Always negative — hazards have no polarity. */

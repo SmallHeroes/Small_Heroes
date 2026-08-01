@@ -28,10 +28,7 @@ export function withCurrentActionSemanticCoverage<
     const sourcePage = args.pages.find(
       (candidate) => candidate.pageNumber === pageNumber,
     );
-    const mustShow = Array.isArray(page.mustShow)
-      ? page.mustShow
-      : [];
-    const contractValue = mustShow[0];
+    const contractValue = page.locationId;
     const sourceEvidence = args.sourceEvidenceCatalog.entries.find(
       (entry) => entry.pageNumber === pageNumber,
     );
@@ -51,7 +48,7 @@ export function withCurrentActionSemanticCoverage<
         sourceEvidenceId: sourceEvidence.sourceEvidenceId,
         disposition: {
           kind: 'represented_elsewhere',
-          contractPointer: `/pageContracts/${pageIndex}/mustShow/0`,
+          contractPointer: `/pageContracts/${pageIndex}/locationId`,
           contractValue,
         },
       },

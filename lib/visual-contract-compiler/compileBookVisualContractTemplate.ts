@@ -101,15 +101,15 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v5' as const;
+  'vc-template-prompt/v6' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v5' as const;
+  'vc-template-user-prompt/v6' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v5' as const;
+  'vc-repair-prompt/v6' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v5' as const;
+  'vc-repair-user-prompt/v6' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -236,7 +236,9 @@ function actionSemanticCatalogPromptLines(): string[] {
         : 'none';
     return (
       `- ${definition.predicate}: projection="${definition.proseProjection}"; ` +
+      `subjects=${definition.subjectKinds.join('|')}; ` +
       `object=${definition.objectRule}[${objectKinds}]; ` +
+      `spatialEffect=${definition.spatialEffectRule}; ` +
       `laterality=${definition.lateralityAllowed ? 'allowed' : 'forbidden'}`
     );
   });
@@ -268,7 +270,10 @@ export function buildTemplateCompileSystemPrompt(): string {
     '  mustShow/mustNotShow/propState/propConstraints/actionRequirements/camera/transition/zoneId/locationId.',
     `- Action Semantic Catalog authority is ${ACTION_SEMANTIC_CATALOG_VERSION}. Use only these atomic predicates:`,
     ...actionSemanticCatalogPromptLines(),
-    '- actionRequirements[] carries structured action only. Never add copied source prose or evidence fields there.',
+    '- actionRequirements[] carries structured action only: typed subject, predicate, typed object, and when required',
+    '  a closed spatialEffect (directional or relation+target). Never encode a movement result in prompt prose.',
+    '- source_phenomenon subjects select one exact same-page sourceEvidenceId. The compiler resolves and persists its',
+    '  exact excerpt; never invent a label, cast member, prop, or fuzzy identity for an environmental phenomenon.',
     '- Every required same-page Story Source visual beat gets one stable page-scoped actionSemanticCoverage[] record:',
     '  select one exact sourceEvidenceId from the compiler-owned catalog on that same page; never copy or invent',
     '  source prose. Historical imageDirection is never action authority and cannot supply source evidence.',
@@ -329,7 +334,9 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     'forbiddenGlobalElements[], coverContract{worldType,locationId,zoneId,castIds,timeOfDay,mustShow,mustNotShow},',
     'pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
     'mustShow[], mustNotShow[], propState[], propConstraints[{propId,visibility,stateId?,anchorId?}], camera, transition}].',
-    'Each page carries actionRequirements[{checkId,actorId,predicate,object?,polarity,laterality?}]. Use []',
+    'Each page carries actionRequirements[{checkId,subject,predicate,object?,spatialEffect?,polarity,laterality?}].',
+    'subject is either {kind:"entity",entity:{kind,id}} or',
+    '{kind:"source_phenomenon",sourceEvidenceId}; use []',
     'when no beat binds to a catalog action; do not invent an action merely to populate the array.',
     'and actionSemanticCoverage[{beatId,sourceEvidenceId,disposition}] arrays. beatId must use beat:p{page}:name.',
     'sourceEvidenceId must be selected exactly from the same-page catalog below. represented_elsewhere uses a root',
@@ -377,7 +384,7 @@ export function buildTemplateRepairSystemPrompt(): string {
     '- recurringProps[] (name/description, material/scale/persistence, and firstRevealPage — NO empty string in a field you include)',
     '- forbiddenGlobalElements[]; coverContract mustShow/mustNotShow/locationId/zoneId/castIds/timeOfDay',
     '- pageContracts[] mustShow/mustNotShow/propState/propConstraints/actionRequirements/',
-    '  actionSemanticCoverage/camera and the transition kind/cue',
+    '  actionSemanticCoverage/camera and the transition kind/cue; action subject/object/spatialEffect remain typed',
     '- actionSemanticCoverage sourceEvidenceId values may change only to exact same-page catalog IDs supplied in',
     '  the repair input; actionRequirements never carries a copied source-evidence field',
     `- actionRequirements predicates must remain in ${ACTION_SEMANTIC_CATALOG_VERSION}; unsupported coverage is a`,
@@ -542,26 +549,45 @@ function sourceGroundPageActionSemantics(
   const sourceEvidenceIssues: SourceEvidenceIdRepairAffectedRecord[] = [];
 
   const out = { ...pageDraft };
+  let groundedActions: Record<string, unknown>[] = [];
   if (pageDraft.actionRequirements !== undefined) {
-    const groundedActions = asArr(
+    groundedActions = asArr(
       pageDraft.actionRequirements,
     ).map((raw) => {
       const action = { ...asObj(raw) };
       delete action.sourcePhrase;
       delete action.sourceEvidenceId;
+      if (
+        action.subject === undefined &&
+        typeof action.actorId === 'string'
+      ) {
+        action.subject = {
+          kind: 'entity',
+          entity: { kind: 'cast', id: action.actorId },
+        };
+      }
+      delete action.actorId;
       if (action.object === null) delete action.object;
+      if (action.spatialEffect === null) delete action.spatialEffect;
       if (action.laterality === null) delete action.laterality;
       return action;
     });
-    if (groundedActions.length > 0) {
-      out.actionRequirements = groundedActions;
-    } else {
-      delete out.actionRequirements;
-    }
   }
 
   const coverage: ActionSemanticCoverageRecord[] = [];
   const capabilityGaps: ActionSemanticCapabilityGap[] = [];
+  const coverageByCheckId = new Map<
+    string,
+    {
+      coverageIndex: number;
+      beatId: string;
+      sourceEvidenceId: string;
+      sourcePhrase: string;
+      resolutionOk: boolean;
+      record: Record<string, unknown>;
+      disposition: Record<string, unknown>;
+    }
+  >();
   const rawCoverage = asArr(pageDraft.actionSemanticCoverage);
   if (rawCoverage.length === 0) {
     issues.push(
@@ -618,10 +644,15 @@ function sourceGroundPageActionSemantics(
           actionRequirement: actionRequirement
             ? {
                 checkId: actionRequirement.checkId,
-                actorId: actionRequirement.actorId,
+                subject: structuredClone(
+                  actionRequirement.subject,
+                ),
                 predicate: actionRequirement.predicate,
                 object: structuredClone(
                   actionRequirement.object,
+                ),
+                spatialEffect: structuredClone(
+                  actionRequirement.spatialEffect,
                 ),
                 polarity: actionRequirement.polarity,
                 laterality: actionRequirement.laterality,
@@ -674,6 +705,17 @@ function sourceGroundPageActionSemantics(
           kind: 'action_requirement',
           checkId: disposition.checkId,
         };
+        if (beatId) {
+          coverageByCheckId.set(disposition.checkId, {
+            coverageIndex: index,
+            beatId,
+            sourceEvidenceId,
+            sourcePhrase,
+            resolutionOk: resolution.ok,
+            record,
+            disposition,
+          });
+        }
       }
     } else if (disposition.kind === 'represented_elsewhere') {
       if (
@@ -721,6 +763,69 @@ function sourceGroundPageActionSemantics(
         reviewState: 'unreviewed',
       });
     }
+  }
+  for (const action of groundedActions) {
+    const subject = asObj(action.subject);
+    if (subject.kind !== 'source_phenomenon') continue;
+    const checkId =
+      typeof action.checkId === 'string' ? action.checkId : '';
+    const binding = coverageByCheckId.get(checkId);
+    if (!binding) {
+      issues.push(
+        `page ${pageNumber} actionRequirement "${checkId}" source_phenomenon subject must bind one same-page Action Semantic Coverage record`,
+      );
+      continue;
+    }
+    const subjectResolution = resolveSourceEvidenceId({
+      catalog: sourceEvidenceCatalog,
+      sourceEvidenceId: subject.sourceEvidenceId,
+      pageNumber,
+    });
+    if (!subjectResolution.ok) {
+      if (binding.resolutionOk) {
+        sourceEvidenceIssues.push({
+          pageNumber,
+          coverageIndex: binding.coverageIndex,
+          beatId: binding.beatId,
+          failureCode: subjectResolution.code,
+          coverageRecord: {
+            beatId: binding.beatId,
+            sourceEvidenceId: subject.sourceEvidenceId,
+            disposition: structuredClone(binding.disposition),
+          },
+          actionRequirement: {
+            checkId: action.checkId,
+            subject: structuredClone(action.subject),
+            predicate: action.predicate,
+            object: structuredClone(action.object),
+            spatialEffect: structuredClone(action.spatialEffect),
+            polarity: action.polarity,
+            laterality: action.laterality,
+          },
+        });
+      }
+      continue;
+    }
+    if (
+      !binding.resolutionOk ||
+      binding.sourceEvidenceId !==
+        subjectResolution.entry.sourceEvidenceId
+    ) {
+      issues.push(
+        `page ${pageNumber} actionRequirement "${checkId}" source_phenomenon subject must use the exact Source Evidence ID bound by its coverage record`,
+      );
+      continue;
+    }
+    action.subject = {
+      kind: 'source_phenomenon',
+      sourceEvidenceId: subjectResolution.entry.sourceEvidenceId,
+      sourcePhrase: subjectResolution.entry.excerpt,
+    };
+  }
+  if (groundedActions.length > 0) {
+    out.actionRequirements = groundedActions;
+  } else {
+    delete out.actionRequirements;
   }
   delete out.actionSemanticCoverage;
   delete out.unsupportedActionSemantics;

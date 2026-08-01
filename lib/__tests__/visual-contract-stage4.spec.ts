@@ -114,7 +114,7 @@ const errorsOf = (patch: Parameters<typeof build>[0]) => {
   return r.ok ? [] : r.errors;
 };
 
-const ACTION = { checkId: 'action:sits_on_chair', actorId: 'child:hero', predicate: 'sits_on', object: { kind: 'prop', id: 'exam_chair' }, polarity: 'must' };
+const ACTION = { checkId: 'action:sits_on_chair', subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } }, predicate: 'sits_on', object: { kind: 'prop', id: 'exam_chair' }, polarity: 'must' };
 
 describe('Stage 4 — the baseline still holds (additive proof)', () => {
   it('THE CANARY: the shipped bunny contract still validates and hashes to its pinned literal', () => {
@@ -123,10 +123,12 @@ describe('Stage 4 — the baseline still holds (additive proof)', () => {
     expect(validateBookVisualContract(artifact).ok).toBe(true);
   });
 
-  it('both shipped TEMPLATES still validate (bunny authors no structure; fox is the hand-authored proof slot)', () => {
+  it('historical vc-schema/v1 templates cannot become current vc-schema/v2 authority', () => {
     for (const key of ['bunny_ometz_adventure', 'fox_uri_adventure']) {
       const template = JSON.parse(readFileSync(`story-bank/v3-approved/${key}.visual-contract-template.json`, 'utf8'));
-      expect(() => assertValidBookVisualContractTemplate(template)).not.toThrow();
+      expect(() => assertValidBookVisualContractTemplate(template)).toThrow(
+        /vc-schema\/v2.*vc-schema\/v1/,
+      );
     }
   });
 
@@ -288,7 +290,7 @@ describe('Stage 4 — reject rule: a required action conflicting with a visibili
   it('enforces catalog object-kind and laterality rules for corpus-derived predicates', () => {
     const common = {
       checkId: 'action:catalog_rule',
-      actorId: 'child:hero',
+      subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } },
       polarity: 'must',
     };
     expect(errorsOf({ page1: { actionRequirements: [{

@@ -59,7 +59,7 @@ function identity(raw: string): StorySourceIdentity {
 function template(): BookVisualContractTemplate {
   return {
     contractKind: 'template',
-    schemaVersion: 'vc-schema/v1',
+    schemaVersion: 'vc-schema/v2',
     version: 1,
     storyKey: 'dunes_rescue',
     worldType: 'grounded near-future desert rescue',

@@ -1,5 +1,5 @@
 export const ACTION_SEMANTIC_COVERAGE_VERSION =
-  'action-semantic-coverage/v2' as const;
+  'action-semantic-coverage/v3' as const;
 
 export const ACTION_SEMANTIC_COVERAGE_DISPOSITION_VALUES = [
   'action_requirement',
@@ -74,8 +74,32 @@ export interface DraftActionSemanticCoverageRecord {
 export interface ActionSemanticCoverageTemplate {
   pageContracts: Array<{
     pageNumber: number;
-    actionRequirements?: Array<{ checkId: string }>;
+    actionRequirements?: Array<{
+      checkId: string;
+      subject?: unknown;
+    }>;
   }>;
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+  return value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function isProseOnlyPagePointer(prefix: string, pointer: string): boolean {
+  return [
+    `${prefix}mustShow/`,
+    `${prefix}mustNotShow/`,
+    `${prefix}camera`,
+    `${prefix}shot`,
+    `${prefix}transition/cue`,
+  ].some(
+    (candidate) =>
+      pointer === candidate || pointer.startsWith(candidate),
+  );
 }
 
 function lexicalCompare(left: string, right: string): number {
@@ -210,6 +234,17 @@ export function actionSemanticCoverageIssues(args: {
           `${label}.disposition.checkId "${checkId}" must bind exactly one same-page actionRequirement`,
         );
       } else {
+        const subject = recordValue(matches[0]?.subject);
+        if (subject?.kind === 'source_phenomenon') {
+          if (
+            subject.sourceEvidenceId !== record.sourceEvidenceId ||
+            subject.sourcePhrase !== record.sourcePhrase
+          ) {
+            issues.push(
+              `${label}.disposition.checkId "${checkId}" source_phenomenon subject must bind this exact same-page Source Evidence record`,
+            );
+          }
+        }
         const bound =
           boundActionCheckIdsByPage.get(record.pageNumber) ??
           new Set<string>();
@@ -228,10 +263,11 @@ export function actionSemanticCoverageIssues(args: {
       if (
         prefix === null ||
         !pointer.startsWith(prefix) ||
-        pointer.startsWith(`${prefix}actionRequirements/`)
+        pointer.startsWith(`${prefix}actionRequirements/`) ||
+        isProseOnlyPagePointer(prefix, pointer)
       ) {
         issues.push(
-          `${label}.disposition.contractPointer must target a non-action field on the exact same page`,
+          `${label}.disposition.contractPointer must target a structured non-action, non-prose field on the exact same page`,
         );
         continue;
       }

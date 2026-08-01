@@ -10,6 +10,8 @@
 import {
   ACTION_POLARITY_VALUES,
   ACTION_PREDICATE_VALUES,
+  ACTION_SPATIAL_DIRECTION_VALUES,
+  ACTION_SPATIAL_RELATION_VALUES,
 } from './types';
 import {
   NON_VISUAL_RATIONALE_VALUES,
@@ -173,14 +175,48 @@ const actionObject = obj({
   },
   id: { type: 'string' },
 });
+const actionSubject = {
+  anyOf: [
+    obj({
+      kind: { type: 'string', const: 'entity' },
+      entity: actionObject,
+    }),
+    obj({
+      kind: { type: 'string', const: 'source_phenomenon' },
+      sourceEvidenceId: { type: 'string' },
+    }),
+  ],
+};
+const actionSpatialEffect = {
+  anyOf: [
+    obj({
+      kind: { type: 'string', const: 'directional' },
+      direction: {
+        type: 'string',
+        enum: ACTION_SPATIAL_DIRECTION_VALUES,
+      },
+    }),
+    obj({
+      kind: { type: 'string', const: 'relation' },
+      relation: {
+        type: 'string',
+        enum: ACTION_SPATIAL_RELATION_VALUES,
+      },
+      target: actionObject,
+    }),
+  ],
+};
 const actionRequirement = obj({
   checkId: { type: 'string' },
-  actorId: { type: 'string' },
+  subject: actionSubject,
   predicate: {
     type: 'string',
     enum: ACTION_PREDICATE_VALUES,
   },
   object: { anyOf: [actionObject, { type: 'null' }] },
+  spatialEffect: {
+    anyOf: [actionSpatialEffect, { type: 'null' }],
+  },
   polarity: {
     type: 'string',
     enum: ACTION_POLARITY_VALUES,
@@ -262,7 +298,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v9' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v10' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

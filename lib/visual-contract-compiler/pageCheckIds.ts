@@ -68,15 +68,41 @@ export function resolvePageCheckIds(page: PageVisualContract): PageCheck[] {
   for (const raw of arr(page.actionRequirements)) {
     const action = obj(raw);
     const checkId = str(action?.checkId);
-    const actorId = str(action?.actorId);
     const predicate = str(action?.predicate);
-    if (!checkId || !actorId || !predicate) continue;
+    const subject = obj(action?.subject);
+    const entitySubject = obj(subject?.entity);
+    const entitySubjectKind = str(entitySubject?.kind);
+    const entitySubjectId = str(entitySubject?.id);
+    const subjectRef =
+      subject?.kind === 'entity' &&
+      entitySubjectKind &&
+      entitySubjectId
+        ? `${entitySubjectKind}:${entitySubjectId}`
+        : subject?.kind === 'source_phenomenon' &&
+            str(subject?.sourceEvidenceId)
+          ? `source_phenomenon:${subject.sourceEvidenceId}`
+          : str(action?.actorId);
+    if (!checkId || !subjectRef || !predicate) continue;
     const object = obj(action?.object);
     const objRef = object && str(object.kind) && str(object.id) ? `${object.kind}:${object.id}` : null;
+    const spatialEffect = obj(action?.spatialEffect);
+    const spatialTarget = obj(spatialEffect?.target);
+    const spatialTargetKind = str(spatialTarget?.kind);
+    const spatialTargetId = str(spatialTarget?.id);
+    const spatialResult =
+      spatialEffect?.kind === 'directional' &&
+      str(spatialEffect.direction)
+        ? ` -> ${spatialEffect.direction}`
+        : spatialEffect?.kind === 'relation' &&
+            str(spatialEffect.relation) &&
+            spatialTargetKind &&
+            spatialTargetId
+          ? ` -> ${spatialEffect.relation} ${spatialTargetKind}:${spatialTargetId}`
+          : '';
     checks.push({
       checkId,
       kind: 'action',
-      claim: `${actorId} ${action?.polarity === 'must_not' ? 'must NOT ' : ''}${predicate}${objRef ? ` ${objRef}` : ''}`,
+      claim: `${subjectRef} ${action?.polarity === 'must_not' ? 'must NOT ' : ''}${predicate}${objRef ? ` ${objRef}` : ''}${spatialResult}`,
     });
   }
 

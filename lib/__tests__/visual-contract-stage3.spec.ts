@@ -13,6 +13,7 @@ import {
   projectPageMustNotShow,
   projectCoverMustNotShow,
   type BookVisualContract,
+  type PageVisualContract,
   type VisualZone,
 } from '@/lib/visual-contract-compiler';
 
@@ -86,7 +87,7 @@ function structuredPage(c: BookVisualContract) {
     actionRequirements: [
       {
         checkId: 'action:sits_on_chair',
-        actorId: 'child:hero',
+        subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } },
         predicate: 'sits_on',
         object: { kind: 'prop', id: 'exam_chair' },
         polarity: 'must',
@@ -149,12 +150,15 @@ describe('Stage 3 — THE CANARY: the shipped artifacts still load, validate and
     expect(validateBookVisualContract(artifact).ok).toBe(true);
   });
 
-  it('both shipped TEMPLATES still validate end-to-end', () => {
+  it('historical vc-schema/v1 templates remain byte-preserved but are rejected as current authority', () => {
     for (const key of ['bunny_ometz_adventure', 'fox_uri_adventure']) {
-      const template = JSON.parse(
-        readFileSync(`story-bank/v3-approved/${key}.visual-contract-template.json`, 'utf8')
+      const artifactPath = `story-bank/v3-approved/${key}.visual-contract-template.json`;
+      const before = readFileSync(artifactPath);
+      const template = JSON.parse(before.toString('utf8'));
+      expect(() => assertValidBookVisualContractTemplate(template)).toThrow(
+        /vc-schema\/v2.*vc-schema\/v1/,
       );
-      expect(() => assertValidBookVisualContractTemplate(template)).not.toThrow();
+      expect(readFileSync(artifactPath)).toEqual(before);
     }
   });
 
@@ -250,12 +254,12 @@ describe('Stage 3 — closed enums are enforced at RUNTIME, not just by the TS t
     expect(pageWith({ propConstraints: [{ propId: 'exam_chair', visibility: 'maybe' }] })).toBe(false);
     expect(
       pageWith({
-        actionRequirements: [{ checkId: 'action:x', actorId: 'child:hero', predicate: 'hugs', polarity: 'must' }],
+        actionRequirements: [{ checkId: 'action:x', subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } }, predicate: 'hugs', polarity: 'must' }],
       })
     ).toBe(false);
     expect(
       pageWith({
-        actionRequirements: [{ checkId: 'action:x', actorId: 'child:hero', predicate: 'holds', polarity: 'maybe' }],
+        actionRequirements: [{ checkId: 'action:x', subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } }, predicate: 'holds', polarity: 'maybe' }],
       })
     ).toBe(false);
     expect(
@@ -282,6 +286,122 @@ describe('Stage 3 — closed enums are enforced at RUNTIME, not just by the TS t
           },
         ],
       })
+    ).toBe(false);
+  });
+});
+
+describe('Action Semantic Catalog v2 — typed subjects and movement results', () => {
+  function validateActions(actions: unknown[]): ReturnType<typeof validateBookVisualContract> {
+    const contract = baseContract();
+    const page = {
+      ...contract.pageContracts[0],
+      propConstraints: [
+        { propId: 'exam_chair', visibility: 'required' },
+      ],
+      actionRequirements: actions,
+    } as unknown as PageVisualContract;
+    return validateBookVisualContract(
+      withProjectedProse({
+        ...contract,
+        pageContracts: [page],
+      } as unknown as BookVisualContract),
+    );
+  }
+
+  const castSubject = {
+    kind: 'entity',
+    entity: { kind: 'cast', id: 'child:hero' },
+  } as const;
+
+  it('accepts the three neutral semantic classes through one closed action path', () => {
+    const result = validateActions([
+      {
+        checkId: 'action:body_event',
+        subject: castSubject,
+        predicate: 'sneezes',
+        polarity: 'must',
+      },
+      {
+        checkId: 'action:environment_contact',
+        subject: {
+          kind: 'source_phenomenon',
+          sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+          sourcePhrase: 'A cool current crossed the frame.',
+        },
+        predicate: 'touches',
+        object: { kind: 'cast', id: 'child:hero' },
+        polarity: 'must',
+      },
+      {
+        checkId: 'action:spatial_move',
+        subject: castSubject,
+        predicate: 'moves',
+        object: { kind: 'prop', id: 'exam_chair' },
+        spatialEffect: {
+          kind: 'directional',
+          direction: 'sideways',
+        },
+        polarity: 'must',
+      },
+    ]);
+    expect(result.ok).toBe(true);
+  });
+
+  it('requires a typed result for moves and cannot coerce it to pushes', () => {
+    const move = {
+      checkId: 'action:spatial_move',
+      subject: castSubject,
+      predicate: 'moves',
+      object: { kind: 'prop', id: 'exam_chair' },
+      polarity: 'must',
+    };
+    expect(validateActions([move]).ok).toBe(false);
+    expect(
+      validateActions([
+        {
+          ...move,
+          predicate: 'pushes',
+          spatialEffect: {
+            kind: 'directional',
+            direction: 'sideways',
+          },
+        },
+      ]).ok,
+    ).toBe(false);
+  });
+
+  it('rejects free-text phenomenon identity and unresolved relation targets', () => {
+    expect(
+      validateActions([
+        {
+          checkId: 'action:bad_phenomenon',
+          subject: {
+            kind: 'source_phenomenon',
+            sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+            sourcePhrase: 'Exact fixture sentence.',
+            label: 'invented wind',
+          },
+          predicate: 'touches',
+          object: { kind: 'cast', id: 'child:hero' },
+          polarity: 'must',
+        },
+      ]).ok,
+    ).toBe(false);
+    expect(
+      validateActions([
+        {
+          checkId: 'action:bad_destination',
+          subject: castSubject,
+          predicate: 'moves',
+          object: { kind: 'prop', id: 'exam_chair' },
+          spatialEffect: {
+            kind: 'relation',
+            relation: 'beside',
+            target: { kind: 'prop', id: 'missing_prop' },
+          },
+          polarity: 'must',
+        },
+      ]).ok,
     ).toBe(false);
   });
 });
@@ -317,7 +437,7 @@ describe('Stage 3 — single-hop id resolution + intra-page self-contradiction',
 
     // companion:buni is a declared cast member, but this page's castIds is ['child:hero'] only.
     expect(
-      ok({ actionRequirements: [{ checkId: 'action:x', actorId: 'companion:buni', predicate: 'holds', polarity: 'must' }] })
+      ok({ actionRequirements: [{ checkId: 'action:x', subject: { kind: 'entity', entity: { kind: 'cast', id: 'companion:buni' } }, predicate: 'holds', polarity: 'must' }] })
     ).toBe(false);
     expect(
       ok({
@@ -338,7 +458,7 @@ describe('Stage 3 — single-hop id resolution + intra-page self-contradiction',
       pageWith({
         actionRequirements: checkIds.map((checkId) => ({
           checkId,
-          actorId: 'child:hero',
+          subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } },
           predicate: 'holds',
           polarity: 'must',
         })),

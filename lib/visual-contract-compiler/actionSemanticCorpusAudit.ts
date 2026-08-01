@@ -5,7 +5,7 @@ import {
 } from './actionSemanticCatalog';
 
 export const ACTION_SEMANTIC_CORPUS_AUDIT_VERSION =
-  'action-semantic-corpus-audit/v1' as const;
+  'action-semantic-corpus-audit/v2' as const;
 
 export interface ActionSemanticCorpusSourceInput {
   sourceId: string;
@@ -25,6 +25,7 @@ export interface ActionSemanticCorpusAudit {
     pageNumbers: number[];
   }>;
   status: 'review_evidence_only';
+  semanticCompleteness: 'not_established_by_reachability';
   authorizes: [];
 }
 
@@ -90,6 +91,7 @@ export function auditActionSemanticCorpus(
       .sort(lexicalCompare),
     sources,
     status: 'review_evidence_only',
+    semanticCompleteness: 'not_established_by_reachability',
     authorizes: [],
   };
 }

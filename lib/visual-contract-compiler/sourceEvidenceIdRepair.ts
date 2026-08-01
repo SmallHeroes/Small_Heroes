@@ -58,9 +58,10 @@ export interface SourceEvidenceIdRepairAffectedRecord {
   };
   actionRequirement: {
     checkId: unknown;
-    actorId: unknown;
+    subject: unknown;
     predicate: unknown;
     object: unknown;
+    spatialEffect: unknown;
     polarity: unknown;
     laterality: unknown;
   } | null;
@@ -242,6 +243,34 @@ export function applySourceEvidenceIdPatches(args: {
       throw new Error('source_evidence_id_repair_beat_not_unique');
     }
     matchingRecords[0]!.sourceEvidenceId = patch.sourceEvidenceId;
+    const disposition = recordValue(
+      matchingRecords[0]!.disposition,
+    );
+    if (
+      disposition?.kind === 'action_requirement' &&
+      typeof disposition.checkId === 'string'
+    ) {
+      const actions = Array.isArray(
+        matchingPages[0]!.actionRequirements,
+      )
+        ? matchingPages[0]!.actionRequirements
+        : [];
+      const matchingActions = actions
+        .map(recordValue)
+        .filter(
+          (action) =>
+            action?.checkId === disposition.checkId,
+        );
+      if (matchingActions.length !== 1) {
+        throw new Error(
+          'source_evidence_id_repair_action_not_unique',
+        );
+      }
+      const subject = recordValue(matchingActions[0]!.subject);
+      if (subject?.kind === 'source_phenomenon') {
+        subject.sourceEvidenceId = patch.sourceEvidenceId;
+      }
+    }
   }
   if (seen.size !== expected.size) {
     throw new Error('source_evidence_id_repair_patch_set_incomplete');

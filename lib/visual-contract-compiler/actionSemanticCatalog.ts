@@ -4,13 +4,13 @@
  * validation.
  *
  * The catalog is deliberately finite. It is runtime-checkable data, not prompt
- * prose and not a free-text mini-language. The v1 expansion was reviewed
+ * prose and not a free-text mini-language. The v2 expansion was reviewed
  * against the complete production Story Source corpus; no story, character,
  * page, or prop identity participates in the runtime contract.
  */
 
 export const ACTION_SEMANTIC_CATALOG_VERSION =
-  'action-semantic-catalog/v1' as const;
+  'action-semantic-catalog/v2' as const;
 
 export const ACTION_SEMANTIC_ENTITY_KIND_VALUES = [
   'cast',
@@ -22,7 +22,20 @@ export const ACTION_SEMANTIC_ENTITY_KIND_VALUES = [
 export type ActionSemanticEntityKind =
   (typeof ACTION_SEMANTIC_ENTITY_KIND_VALUES)[number];
 
+export const ACTION_SEMANTIC_SUBJECT_KIND_VALUES = [
+  ...ACTION_SEMANTIC_ENTITY_KIND_VALUES,
+  'source_phenomenon',
+] as const;
+
+export type ActionSemanticSubjectKind =
+  (typeof ACTION_SEMANTIC_SUBJECT_KIND_VALUES)[number];
+
 export type ActionSemanticObjectRule =
+  | 'required'
+  | 'optional'
+  | 'forbidden';
+
+export type ActionSemanticSpatialEffectRule =
   | 'required'
   | 'optional'
   | 'forbidden';
@@ -30,8 +43,10 @@ export type ActionSemanticObjectRule =
 export interface ActionSemanticCatalogEntryShape {
   predicate: string;
   proseProjection: string;
+  subjectKinds: readonly ActionSemanticSubjectKind[];
   objectRule: ActionSemanticObjectRule;
   objectKinds: readonly ActionSemanticEntityKind[];
+  spatialEffectRule: ActionSemanticSpatialEffectRule;
   lateralityAllowed: boolean;
   blueprintCapability: 'action_space';
   safetyConflictRelation:
@@ -46,17 +61,28 @@ export interface ActionSemanticCatalogEntryShape {
 function entry<
   const Predicate extends string,
   const ObjectKinds extends readonly ActionSemanticEntityKind[],
+  const SubjectKinds extends readonly ActionSemanticSubjectKind[] = readonly ['cast'],
 >(
   definition: Omit<
     ActionSemanticCatalogEntryShape,
-    'predicate' | 'objectKinds' | 'blueprintCapability'
+    | 'predicate'
+    | 'subjectKinds'
+    | 'objectKinds'
+    | 'spatialEffectRule'
+    | 'blueprintCapability'
   > & {
     predicate: Predicate;
     objectKinds: ObjectKinds;
+    subjectKinds?: SubjectKinds;
+    spatialEffectRule?: ActionSemanticSpatialEffectRule;
   },
 ) {
   return {
     ...definition,
+    subjectKinds:
+      definition.subjectKinds ?? (['cast'] as const),
+    spatialEffectRule:
+      definition.spatialEffectRule ?? ('forbidden' as const),
     blueprintCapability: 'action_space' as const,
   };
 }
@@ -91,6 +117,7 @@ export const ACTION_SEMANTIC_CATALOG = [
   entry({
     predicate: 'touches',
     proseProjection: 'touches',
+    subjectKinds: ['cast', 'source_phenomenon'],
     objectRule: 'optional',
     objectKinds: ALL_OBJECT_KINDS,
     lateralityAllowed: true,
@@ -336,6 +363,26 @@ export const ACTION_SEMANTIC_CATALOG = [
     proseProjection: 'taps',
     objectRule: 'required',
     objectKinds: ALL_OBJECT_KINDS,
+    lateralityAllowed: true,
+    safetyConflictRelation: null,
+    corpusBasis: 'reviewed_production_corpus',
+  }),
+  entry({
+    predicate: 'sneezes',
+    proseProjection: 'sneezes',
+    objectRule: 'forbidden',
+    objectKinds: [],
+    lateralityAllowed: false,
+    safetyConflictRelation: null,
+    corpusBasis: 'reviewed_production_corpus',
+  }),
+  entry({
+    predicate: 'moves',
+    proseProjection: 'moves',
+    subjectKinds: ['cast', 'prop', 'source_phenomenon'],
+    objectRule: 'required',
+    objectKinds: ['cast', 'prop', 'spatial', 'anchor'],
+    spatialEffectRule: 'required',
     lateralityAllowed: true,
     safetyConflictRelation: null,
     corpusBasis: 'reviewed_production_corpus',

@@ -419,6 +419,54 @@ export const ACTION_POLARITY_VALUES = [
 export type ActionPolarity =
   (typeof ACTION_POLARITY_VALUES)[number];
 
+export type PageActionSubject =
+  | {
+      kind: 'entity';
+      entity: EntityRef;
+    }
+  | {
+      kind: 'source_phenomenon';
+      /** Exact same-page compiler-owned Source Evidence identity. */
+      sourceEvidenceId: string;
+      /** Exact excerpt resolved by the compiler; never model-authored free text. */
+      sourcePhrase: string;
+    };
+
+export const ACTION_SPATIAL_DIRECTION_VALUES = [
+  'left',
+  'right',
+  'forward',
+  'backward',
+  'up',
+  'down',
+  'sideways',
+] as const;
+export type ActionSpatialDirection =
+  (typeof ACTION_SPATIAL_DIRECTION_VALUES)[number];
+
+export const ACTION_SPATIAL_RELATION_VALUES = [
+  'toward',
+  'away_from',
+  'onto',
+  'into',
+  'beside',
+  'under',
+  'over',
+] as const;
+export type ActionSpatialRelation =
+  (typeof ACTION_SPATIAL_RELATION_VALUES)[number];
+
+export type PageActionSpatialEffect =
+  | {
+      kind: 'directional';
+      direction: ActionSpatialDirection;
+    }
+  | {
+      kind: 'relation';
+      relation: ActionSpatialRelation;
+      target: EntityRef;
+    };
+
 /**
  * vNext (Contract v2 / Stage 3): a per-page ACTION beat, structured.
  *
@@ -436,11 +484,11 @@ export interface PageActionRequirement {
    * is Stage 5; Stage 3 enforces only the namespace + per-page uniqueness.
    */
   checkId: string;
-  /**
-   * MUST be in THIS page's `castIds` — the "no steering for an absent cast member" rule generalized: no action
-   * requirement for an actor the page does not contain.
-   */
+  /** Transitional compile-only compatibility for pre-v2 TypeScript fixtures. Current vc-schema/v2 artifacts must
+   * author `subject`; validators reject actorId as current authority. Removed when Blueprint v3 lands. */
   actorId: string;
+  /** Closed subject authority. Phenomenon text/identity is resolved locally from same-page Source Evidence. */
+  subject?: PageActionSubject;
   predicate: ActionPredicate;
   /**
    * The thing acted upon. A typed `EntityRef` rather than the loose `objectId?`/`anchorId?` pair: those two can name
@@ -448,6 +496,8 @@ export interface PageActionRequirement {
    * ("climbs onto the LEDGE") — and the colliding id spaces make a bare id ambiguous. Omitted for intransitive uses.
    */
   object?: EntityRef;
+  /** Required only where the catalog demands an explicit spatial result (currently `moves`). */
+  spatialEffect?: PageActionSpatialEffect;
   polarity: ActionPolarity;
   /** Which arm/hand — reuses the existing closed `Laterality` enum rather than minting a parallel one. */
   laterality?: Laterality;

@@ -82,11 +82,15 @@ const template = {
   pageContracts: [
     {
       pageNumber: 1,
+      locationId: 'location:one',
       mustShow: ['current contract value'],
       actionRequirements: [
         {
           checkId: 'action:look',
-          actorId: 'child:hero',
+          subject: {
+            kind: 'entity',
+            entity: { kind: 'cast', id: 'child:hero' },
+          },
           predicate: 'looks_at',
           polarity: 'must',
         },
@@ -94,6 +98,7 @@ const template = {
     },
     {
       pageNumber: 2,
+      locationId: 'location:two',
       mustShow: ['second page value'],
     },
   ],
@@ -118,6 +123,18 @@ describe('central Action Semantic Catalog', () => {
         actionSemanticDefinition(definition.predicate),
       ).toBe(definition);
     }
+    expect(actionSemanticDefinition('sneezes')).toMatchObject({
+      subjectKinds: ['cast'],
+      objectRule: 'forbidden',
+      spatialEffectRule: 'forbidden',
+    });
+    expect(actionSemanticDefinition('touches').subjectKinds).toContain(
+      'source_phenomenon',
+    );
+    expect(actionSemanticDefinition('moves')).toMatchObject({
+      objectRule: 'required',
+      spatialEffectRule: 'required',
+    });
   });
 
   it('audits all production Story Sources through one generic parser path without embedding source identities in catalog data', () => {
@@ -147,6 +164,8 @@ describe('central Action Semantic Catalog', () => {
       parserPath: 'parseStorySourceContent',
       sourceCount: 18,
       status: 'review_evidence_only',
+      semanticCompleteness:
+        'not_established_by_reachability',
       authorizes: [],
     });
     expect(result.sources).toHaveLength(sourceFiles.length);
@@ -156,6 +175,42 @@ describe('central Action Semantic Catalog', () => {
     );
     for (const name of sourceFiles) {
       expect(catalogJson).not.toContain(name.slice(0, -3));
+    }
+  });
+
+  it('keeps calibration story identities and observed gap literals out of production action authority', () => {
+    const productionFiles = [
+      'actionSemanticCatalog.ts',
+      'actionSemanticCoverage.ts',
+      'actionSemanticCorpusAudit.ts',
+      'compileBookVisualContractTemplate.ts',
+      'pageCheckIds.ts',
+      'projectContractProse.ts',
+      'sourceEvidenceIdRepair.ts',
+      'templateDraftSchema.ts',
+      'types.ts',
+      'validateBookVisualContract.ts',
+    ].map((name) =>
+      fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'lib',
+          'visual-contract-compiler',
+          name,
+        ),
+        'utf8',
+      ),
+    );
+    const production = productionFiles.join('\n');
+    for (const literal of [
+      'fox_uri',
+      'uri_sneezes',
+      'drop_touches_finger',
+      'bucket_moves_sideways',
+      'אוּרי התעטש',
+      'טיפה קרירה נגעה',
+    ]) {
+      expect(production).not.toContain(literal);
     }
   });
 });
@@ -173,8 +228,8 @@ describe('Action Semantic Coverage validation', () => {
             disposition: {
               kind: 'represented_elsewhere',
               contractPointer:
-                '/pageContracts/1/mustShow/0',
-              contractValue: 'second page value',
+                '/pageContracts/1/locationId',
+              contractValue: 'location:two',
             },
           }),
         ],
@@ -186,7 +241,7 @@ describe('Action Semantic Coverage validation', () => {
       beatId: 'beat:p2:contract',
       disposition: {
         kind: 'represented_elsewhere',
-        contractPointer: '/pageContracts/1/mustShow/0',
+        contractPointer: '/pageContracts/1/locationId',
         contractValue: 'stale value',
       },
     });
@@ -205,8 +260,8 @@ describe('Action Semantic Coverage validation', () => {
       beatId: 'beat:p2:missing',
       disposition: {
         kind: 'represented_elsewhere',
-        contractPointer: '/pageContracts/1/mustShow/99',
-        contractValue: 'second page value',
+        contractPointer: '/pageContracts/1/locationId/extra',
+        contractValue: 'location:two',
       },
     });
     expect(
@@ -216,6 +271,63 @@ describe('Action Semantic Coverage validation', () => {
       }),
     ).toContainEqual(
       expect.stringContaining('does not resolve'),
+    );
+  });
+
+  it('rejects prose-only represented_elsewhere and exact-evidence drift for phenomenon subjects', () => {
+    const proseOnly = coverage({
+      pageNumber: 2,
+      beatId: 'beat:p2:prose_only',
+      disposition: {
+        kind: 'represented_elsewhere',
+        contractPointer: '/pageContracts/1/mustShow/0',
+        contractValue: 'second page value',
+      },
+    });
+    expect(
+      actionSemanticCoverageIssues({
+        template,
+        coverage: [coverage(), proseOnly],
+      }),
+    ).toContainEqual(
+      expect.stringContaining('structured non-action, non-prose'),
+    );
+
+    const phenomenonTemplate = structuredClone(template);
+    (phenomenonTemplate.pageContracts[0] as Obj).actionRequirements = [
+      {
+        checkId: 'action:touch',
+        subject: {
+          kind: 'source_phenomenon',
+          sourceEvidenceId: `se1_${'2'.repeat(64)}`,
+          sourcePhrase: 'Different exact phrase.',
+        },
+        predicate: 'touches',
+        polarity: 'must',
+      },
+    ];
+    expect(
+      actionSemanticCoverageIssues({
+        template: phenomenonTemplate,
+        coverage: [
+          coverage({
+            disposition: {
+              kind: 'action_requirement',
+              checkId: 'action:touch',
+            },
+          }),
+          coverage({
+            pageNumber: 2,
+            beatId: 'beat:p2:context',
+            disposition: {
+              kind: 'non_visual',
+              rationale: 'narrative_context',
+            },
+          }),
+        ],
+      }),
+    ).toContainEqual(
+      expect.stringContaining('exact same-page Source Evidence'),
     );
   });
 
@@ -240,7 +352,10 @@ describe('Action Semantic Coverage validation', () => {
     visualPage.pageContracts[1].actionRequirements = [
       {
         checkId: 'action:required_visual',
-        actorId: 'child:hero',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
         predicate: 'looks_at',
         polarity: 'must',
       },
