@@ -1,13 +1,13 @@
 # R1D-PVB-D1A1B1 Structured Output Schema Compatibility Hardening — Implementation Evidence
 
-**Status:** IMPLEMENTATION COMPLETE LOCALLY — AWAITING INDEPENDENT CLAUDE CODE QA
-**Review range:** `d18412c3635511935771771dbd2b6ad271731095..HEAD`
+**Status:** INDEPENDENT CLAUDE CODE TECHNICAL PASS
+**Review range:** `d18412c3635511935771771dbd2b6ad271731095..dd1104259176e6951fe81f87c6db406e8939b00a`
 **Branch:** `codex/r1d-pvb-d1a1b1-structured-output-schema-compatibility-hardening`
 **Worktree:** `C:\Users\guyna\.codex\worktrees\3862\Small_Heroes`
 **Push:** none
 **Cost:** `$0`
 
-The implementation commit is the commit containing this evidence. The exact immutable head is supplied in the Task handoff after the commit exists. Codex does not award independent technical PASS.
+The reviewed implementation commit is `dd1104259176e6951fe81f87c6db406e8939b00a`. Claude Code awarded the independent technical PASS; Codex only transcribes that verdict here.
 
 ## Verified starting state and diagnosis
 
@@ -38,6 +38,16 @@ The implementation commit is the commit containing this evidence. The exact immu
 - `git diff --check`: **PASS** before documentation/commit; final staged and committed checks are recorded in the Task handoff.
 - Exactly one `npm run check` was run and was not rerun. TypeScript passed. Vitest reproduced only the documented six missing ignored-fixture baseline failures across the same five files: `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two cases in `story-read-back-validation.spec.ts`. No milestone test failed.
 - Task-created ignored test scratch was moved intact to `C:\Users\guyna\AppData\Local\Temp\small-heroes-r1d-structured-output-check-scratch-20260801-3862`.
+
+## Independent QA closeout
+
+- Topology **PASS**: exact `HEAD` `dd1104259176e6951fe81f87c6db406e8939b00a`, merge-base `d18412c3635511935771771dbd2b6ad271731095`, clean worktree including untracked state, one commit / exactly 31 files, no configured upstream or same-name remote ref, and clean `git diff --check`.
+- Claims **8/8 confirmed**. Claude independently reproduced TypeScript **PASS**, the profile at **27/27 PASS**, and affected authority suites at **8 files / 293 tests PASS**. It did not rerun `npm run check`; the recorded six established ignored-fixture failures remain the only full-gate limitation.
+- Verdict: **PASS** with one accepted non-gating MINOR and three notes. MINOR-1 records that Blueprint v3 is compatible at nesting depth 10 but has zero headroom against the official maximum 10; future Blueprint schema changes must rerun the serialized-schema profile, and any extra nesting must fail locally. No schema redesign is required by this finding.
+- Claude's offline NOTE-1 was resolved after review by re-fetching the current official [OpenAI Structured Outputs supported-schemas guide](https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas). The guide confirms the supported types/constraints/formats, root-object/no-root-`anyOf`, all-fields-required, `additionalProperties: false`, definition/reference/recursive-schema rules, unsupported composition keywords, and all encoded quantitative limits: 5,000 properties, 10 nesting levels, 120,000 aggregate named/enum/const characters, 1,000 enum values, and the 15,000-character cap for a string enum with more than 250 values.
+- NOTE-2 records that the untyped-const defect originated in the earlier independently passed D1A1B2A milestone, whose semantic claim set did not include provider-schema compatibility and predated this profile. NOTE-3 preserves the limitation that the raw HTTP 400 body and rejected schema were not retained, so typed const remains the best-supported reconstruction rather than exact causal proof.
+
+This documentation-only closeout is outside the immutable reviewed range and changes no implementation claim. No further Claude round is required unless this transcription's fidelity is disputed.
 
 ## Limitations and exclusions
 

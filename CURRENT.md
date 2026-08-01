@@ -2,11 +2,22 @@
 
 **Updated:** 2026-08-01
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-structured-output-schema-compatibility-hardening` in `C:\Users\guyna\.codex\worktrees\3862\Small_Heroes`, from exact immutable base `d18412c3635511935771771dbd2b6ad271731095`. This milestone is implemented locally and awaits independent Claude Code QA; Codex has not awarded technical PASS. The implementation commit is the commit containing this section and remains unpushed. Cost is exactly `$0`; no credential, provider, live, render, storage, approval, promotion, deployment, or downstream authority was exercised or granted.
+**Working branch:** `codex/r1d-pvb-d1a1b1-structured-output-schema-compatibility-hardening` in `C:\Users\guyna\.codex\worktrees\3862\Small_Heroes`, from exact immutable base `d18412c3635511935771771dbd2b6ad271731095`. Claude Code independently returned technical **PASS** for exact implementation range `d18412c3635511935771771dbd2b6ad271731095..dd1104259176e6951fe81f87c6db406e8939b00a`; Codex is recording that verdict, not self-awarding it. The reviewed implementation and this faithful documentation closeout remain unpushed. Cost is exactly `$0`; no credential, provider, live, render, storage, approval, promotion, deployment, or downstream authority was exercised or granted.
 
-## R1D-PVB-D1A1B1-STRUCTURED-OUTPUT-SCHEMA-COMPATIBILITY-HARDENING — implementation complete / awaiting independent QA
+## R1D-PVB-D1A1B1-STRUCTURED-OUTPUT-SCHEMA-COMPATIBILITY-HARDENING — independent technical PASS
 
 Guy approved the delegated Decision Gate for a general OpenAI Responses Structured Outputs compatibility hardening from exact base `d18412c3635511935771771dbd2b6ad271731095`.
+
+### Independent technical QA closeout
+
+- Claude Code reconciled the exact dedicated branch, clean `HEAD` `dd1104259176e6951fe81f87c6db406e8939b00a`, merge-base `d18412c3635511935771771dbd2b6ad271731095`, one-commit / 31-file range, absent upstream and same-name remote ref, and clean `git diff --check`.
+- Verdict: **PASS**. All eight implementation claims withstood falsification. Claude independently reproduced repository-local TypeScript **PASS**, the compatibility profile at **1 file / 27 tests PASS**, and the affected authority suites at **8 files / 293 tests PASS**. It correctly did not rerun `npm run check`; the recorded six ignored-fixture baseline failures remain the only full-gate limitation.
+- **Accepted non-gating MINOR-1 — Blueprint nesting headroom:** Blueprint v3 measures depth **10** against the official maximum **10**, while Visual Contract v8 measures depth 8. The current schema is compatible but has zero nesting headroom. Any future Blueprint schema edit must rerun the compatibility-profile regression before authority versioning/materialization; one additional nesting level must fail locally rather than be discovered live. This closeout records the hard fence and does not redesign or loosen a passing schema.
+- **NOTE-1 resolved online:** after QA, Codex re-fetched the current official [OpenAI Structured Outputs supported-schemas guide](https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas). It confirms the root/object, required-fields, `additionalProperties: false`, supported constraint/format, unsupported-composition, definition/reference, and `anyOf` rules encoded by the repository profile, plus the limits of 5,000 object properties, 10 nesting levels, 120,000 aggregate property/definition/enum/const characters, 1,000 enum values, and 15,000 string characters for a single enum with more than 250 values.
+- **Advisory provenance:** Claude recorded that the untyped-const defect originated in the earlier independently passed D1A1B2A milestone but was outside that gate's claim set and predated a compatibility profile. That narrows how the earlier PASS should be read; it does not rewrite its immutable scope.
+- The raw provider HTTP 400 body/rejected schema remains unavailable. Typed const is still the best-supported reconstruction, not retroactive proof of the exact rejected node. Closing that causal loop would require a separately authorized live attempt.
+
+This faithful documentation closeout is outside the reviewed implementation range and changes no runtime behavior. The independent PASS authorizes no B0, Fresh Readiness, credential access, canonical preflight, pricing/network/provider/model call, live authoring, render, storage/database, Board action, approval, publication, promotion, activation, deployment, PR, push, product acceptance, or visual acceptance.
 
 ### Implemented boundary
 
@@ -26,7 +37,7 @@ Guy approved the delegated Decision Gate for a general OpenAI Responses Structur
 - Ignored scratch was preserved at `C:\Users\guyna\AppData\Local\Temp\small-heroes-r1d-structured-output-check-scratch-20260801-3862`.
 - Current official OpenAI Structured Outputs documentation and the installed `openai@6.35.0` Zod helper were used as compatibility evidence. Because the later HTTP 400's raw provider message/schema body was not retained in the immutable base, typed-const incompatibility remains a best-supported reconstruction rather than a retroactively proven exact rejected node. No live replay was authorized.
 
-Durable records are `docs/ai-workflow/R1D_PVB_D1A1B1_STRUCTURED_OUTPUT_SCHEMA_COMPATIBILITY_HARDENING_*`. The next action is an adversarial first-pass read-only Claude Code review of exact range `d18412c3635511935771771dbd2b6ad271731095..HEAD`; any valid findings require a separate fix milestone and re-gate. No push occurred.
+Durable records are `docs/ai-workflow/R1D_PVB_D1A1B1_STRUCTURED_OUTPUT_SCHEMA_COMPATIBILITY_HARDENING_*`. The implementation's independent technical gate is closed at exact range `d18412c3635511935771771dbd2b6ad271731095..dd1104259176e6951fe81f87c6db406e8939b00a`. No push occurred.
 
 ## R1D-PVB-D1A1B1-PRE-LIVE-BOOTSTRAP-FAILURE-ATTRIBUTION-HARDENING — independent technical PASS
 

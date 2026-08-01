@@ -4,6 +4,7 @@
 **Implementation base:** `d18412c3635511935771771dbd2b6ad271731095`
 **Branch:** `codex/r1d-pvb-d1a1b1-structured-output-schema-compatibility-hardening`
 **Worktree:** `C:\Users\guyna\.codex\worktrees\3862\Small_Heroes`
+**Independent QA:** Claude Code **PASS** for exact implementation range `d18412c3635511935771771dbd2b6ad271731095..dd1104259176e6951fe81f87c6db406e8939b00a`
 
 This file is the durable transcription of the Decision Gate that Guy approved in the implementation Task. It does not create new authority.
 
@@ -55,6 +56,8 @@ Historical versions remain immutable evidence. Exact current validators reject t
 ## 7. Validation plan
 
 Use repository-local unit/integration/subprocess tests only: profile positive/negative controls, typed string/boolean const controls, deterministic/sanitized issues, limits, migration/redigest fences, B0 materialize/verify, Execution Request/Supervisor, pre-live readiness, legacy compiler, Blueprint compiler, adapter pre-credential rejection, and repair lifecycle. Then run deterministic TypeScript, `git diff --check`, and exactly one `npm run check`. No full book or provider call.
+
+Post-implementation QA measured Blueprint v3 at nesting depth **10**, exactly the current official maximum of 10 and therefore with zero headroom; Visual Contract v8 is depth 8. This is an explicit future-change fence: every Blueprint schema edit must rerun the serialized-schema compatibility profile before authority versioning/materialization, and no additional nesting level may be accepted. The passing schema is not redesigned or loosened merely to create headroom. After QA, Codex re-fetched the current official guide online and confirmed this limit plus the profile's other supported-subset rules and quantitative constants.
 
 ## 8. Cost impact
 
