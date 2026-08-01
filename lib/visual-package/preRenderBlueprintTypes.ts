@@ -26,7 +26,7 @@ import type { SourcePromptReconciliation } from './sourcePromptReconciliation';
 export const PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION =
   'pre-render-book-visual-blueprint/v3' as const;
 export const PRE_RENDER_BLUEPRINT_AUTHORING_AUTHORITY_VERSION =
-  'pre-render-blueprint-authoring-authority/v1' as const;
+  'pre-render-blueprint-authoring-authority/v2' as const;
 export const PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM =
   'canonical-json-sha256' as const;
 export const PRE_RENDER_BLUEPRINT_RECONCILIATION_DIGEST_ALGORITHM =

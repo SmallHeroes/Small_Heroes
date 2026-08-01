@@ -102,7 +102,7 @@ function authority(
     contract,
   });
   return {
-    version: 'style01-runtime-authority/v4',
+    version: 'style01-runtime-authority/v5',
     repoRoot: process.cwd(),
     qualification: {
       storyKey: packageValue.storyKey,

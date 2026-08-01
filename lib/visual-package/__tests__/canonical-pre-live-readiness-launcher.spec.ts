@@ -308,7 +308,7 @@ function expectSanitizedBootstrapFailure(
   expect(outcome).toMatchObject({
     kind: 'failure',
     failure: {
-      version: 'canonical-pre-live-readiness-failure/v1',
+      version: 'canonical-pre-live-readiness-failure/v2',
       status: 'rejected',
       mode: 'verify',
       phase,
@@ -1015,7 +1015,7 @@ describe('canonical pre-live readiness built-in launcher', () => {
         kind: 'failure',
         failure: {
           version:
-            'canonical-pre-live-readiness-failure/v1',
+            'canonical-pre-live-readiness-failure/v2',
           status: 'rejected',
           phase: 'launcher',
           reasonCodes: [

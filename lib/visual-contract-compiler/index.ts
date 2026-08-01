@@ -178,6 +178,10 @@ export {
 } from './appearancePalette';
 export { materialize, MaterializationError } from './materializeContract';
 export {
+  LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION,
+  migrateLegacyBookVisualContractTemplateV1,
+} from './contractTemplateMigration';
+export {
   projectResolvedCoarseAppearance,
   projectResolvedWardrobeDescription,
   type ResolvedHumanProseSource,

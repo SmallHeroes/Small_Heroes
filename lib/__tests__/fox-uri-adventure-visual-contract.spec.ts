@@ -15,9 +15,11 @@
  * validator, this spec (and therefore `npm run check`) fails.
  */
 import { describe, it, expect } from 'vitest';
+import fs from 'fs';
 import path from 'path';
 import {
   loadVisualContractTemplateArtifact,
+  migrateLegacyBookVisualContractTemplateV1,
   validateBookVisualContractTemplate,
   materialize,
   validateResolvedBookVisualContract,
@@ -31,8 +33,14 @@ const V3_DIR = path.join(process.cwd(), 'story-bank', 'v3-approved');
 const STORY_KEY = 'fox_uri_adventure';
 
 function loadTemplate(): BookVisualContractTemplate {
-  // Real fail-closed loader: throws on invalid template OR artifact-key/storyKey disagreement.
-  return loadVisualContractTemplateArtifact(V3_DIR, STORY_KEY).template;
+  return migrateLegacyBookVisualContractTemplateV1(
+    JSON.parse(
+      fs.readFileSync(
+        path.join(V3_DIR, `${STORY_KEY}.visual-contract-template.json`),
+        'utf8',
+      ),
+    ),
+  );
 }
 function clone(t: BookVisualContractTemplate): BookVisualContractTemplate {
   return JSON.parse(JSON.stringify(t)) as BookVisualContractTemplate;
@@ -41,12 +49,36 @@ function clone(t: BookVisualContractTemplate): BookVisualContractTemplate {
 const FAMILY: ResolvedFamilyAppearanceProfile = { skinTone: 'warm olive', hairColour: 'dark brown', hairTexture: 'wavy' };
 
 describe('render-proof — fox_uri_adventure Template authoring', () => {
-  it('loads via the real fail-closed loader and passes the Template validator', () => {
+  it('rejects immutable v1 bytes as current, then validates their explicit typed-subject migration', () => {
+    const artifactPath = path.join(
+      V3_DIR,
+      `${STORY_KEY}.visual-contract-template.json`,
+    );
+    const historicalBytes = fs.readFileSync(artifactPath, 'utf8');
+    expect(() =>
+      loadVisualContractTemplateArtifact(V3_DIR, STORY_KEY),
+    ).toThrow(/vc-schema\/v2/);
     const template = loadTemplate();
     const r = validateBookVisualContractTemplate(template);
     expect(r.ok, r.ok ? '' : r.errors.join('; ')).toBe(true);
     expect(template.storyKey).toBe(STORY_KEY);
     expect(template.contractKind).toBe('template');
+    expect(template.pageContracts[2].actionRequirements).toEqual([
+      expect.objectContaining({
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'companion:fox_uri' },
+        },
+      }),
+      expect.objectContaining({
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+      }),
+    ]);
+    expect(JSON.stringify(template)).not.toContain('"actorId"');
+    expect(fs.readFileSync(artifactPath, 'utf8')).toBe(historicalBytes);
   });
 
   it('is the simplest render slot: NO humans, the fox_uri companion, exactly the 12 book pages', () => {

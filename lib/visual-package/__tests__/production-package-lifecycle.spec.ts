@@ -103,7 +103,7 @@ function provenanceFor(
   authoringAuthorityDigest: string,
 ): PreRenderBlueprintAuthoringProvenance {
   return {
-    version: 'pre-render-blueprint-authoring-provenance/v1',
+    version: 'pre-render-blueprint-authoring-provenance/v2',
     blueprintDigest,
     authoringAuthorityDigest,
     model: 'synthetic-offline-fixture',

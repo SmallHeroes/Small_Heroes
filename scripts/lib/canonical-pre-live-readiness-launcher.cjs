@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const FAILURE_VERSION =
-  'canonical-pre-live-readiness-failure/v1';
+  'canonical-pre-live-readiness-failure/v2';
 const INTERNAL_CAPABILITY_FLAG =
   '--internal-launch-capability';
 const INTERNAL_ENVIRONMENT_NAMES = {

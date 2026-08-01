@@ -8,6 +8,7 @@ import {
   derivePageVisualContracts,
   contractToLocationPlanBundle,
   assertValidBookVisualContractTemplate,
+  migrateLegacyBookVisualContractTemplateV1,
   type BookVisualContract,
 } from '@/lib/visual-contract-compiler';
 import { assembleStyle01BookReferencesWithZoneSheets } from '@/lib/story-location-bible/zone-sheets';
@@ -179,8 +180,11 @@ describe('Slice B — ref PROTECT tier is an empty-slot no-op', () => {
 
 describe('Slice B — the authored bunny template is the first valid instance', () => {
   it('the bunny TEMPLATE validates end-to-end with the Slice B fields (geometry + prop identity + castStates + mom-continuous)', () => {
-    const template = JSON.parse(
-      readFileSync('story-bank/v3-approved/bunny_ometz_adventure.visual-contract-template.json', 'utf8')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const template: any = migrateLegacyBookVisualContractTemplateV1(
+      JSON.parse(
+        readFileSync('story-bank/v3-approved/bunny_ometz_adventure.visual-contract-template.json', 'utf8'),
+      ),
     );
     expect(() => assertValidBookVisualContractTemplate(template)).not.toThrow();
     // carries the authored steering fields

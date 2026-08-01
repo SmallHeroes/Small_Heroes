@@ -85,7 +85,7 @@ export function assertStyle01RuntimeAuthorityForPage(args: {
     return null;
   }
   const authority = args.authority;
-  if (!authority || authority.version !== 'style01-runtime-authority/v4') {
+  if (!authority || authority.version !== 'style01-runtime-authority/v5') {
     throw new RuntimeVisualAuthorityBoundaryError(
       'runtime_authority_missing',
       'enforced Style01 provider call has no v4 preflight-issued authority',

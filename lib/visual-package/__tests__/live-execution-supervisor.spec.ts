@@ -465,7 +465,7 @@ function fakeCredential(
 }
 
 describe('canonical live execution request and readiness', () => {
-  it('builds canonical v2 request bytes/digest and emits canonical bounded readiness', () => {
+  it('builds canonical v4 request bytes/digest and emits canonical bounded readiness', () => {
     const fixture = createExecutionFixture(true);
     const before = treeIdentity(fixture.repoRoot);
     const readiness = verifyFixture(fixture);

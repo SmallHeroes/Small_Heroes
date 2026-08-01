@@ -13,10 +13,12 @@
  * PURE + offline: no image render, no flag, no DB, no network.
  */
 import { describe, it, expect } from 'vitest';
+import fs from 'fs';
 import path from 'path';
 import type { Order } from '@prisma/client';
 import {
   loadVisualContractTemplateArtifact,
+  migrateLegacyBookVisualContractTemplateV1,
   validateBookVisualContractTemplate,
   materialize,
   validateResolvedBookVisualContract,
@@ -30,8 +32,13 @@ const V3_DIR = path.join(process.cwd(), 'story-bank', 'v3-approved');
 const STORY_KEY = 'bunny_ometz_adventure';
 
 function loadTemplate(): BookVisualContractTemplate {
-  // Real fail-closed loader: throws on invalid template OR artifact-key/storyKey disagreement.
-  return loadVisualContractTemplateArtifact(V3_DIR, STORY_KEY).template;
+  const historical = JSON.parse(
+    fs.readFileSync(
+      path.join(V3_DIR, `${STORY_KEY}.visual-contract-template.json`),
+      'utf8',
+    ),
+  ) as unknown;
+  return migrateLegacyBookVisualContractTemplateV1(historical);
 }
 
 /** deriveResolvedFamilyAppearanceProfile arg shims (offline — no real Order/DB). */
@@ -49,12 +56,21 @@ const NO_PHOTO_FALLBACK = {
 };
 
 describe('WS0c pilot — bunny Template authoring', () => {
-  it('loads via the real fail-closed loader and passes the Template validator', () => {
+  it('rejects immutable v1 bytes as current, then validates an explicit in-memory migration without changing them', () => {
+    const artifactPath = path.join(
+      V3_DIR,
+      `${STORY_KEY}.visual-contract-template.json`,
+    );
+    const historicalBytes = fs.readFileSync(artifactPath, 'utf8');
+    expect(() =>
+      loadVisualContractTemplateArtifact(V3_DIR, STORY_KEY),
+    ).toThrow(/vc-schema\/v2/);
     const template = loadTemplate();
     const r = validateBookVisualContractTemplate(template);
     expect(r.ok, r.ok ? '' : r.errors.join('; ')).toBe(true);
     expect(template.storyKey).toBe(STORY_KEY);
     expect(template.contractKind).toBe('template');
+    expect(fs.readFileSync(artifactPath, 'utf8')).toBe(historicalBytes);
   });
 
   it('FIXES the violation: non-relative doctor → deterministic_palette; relative mother → family_profile', () => {

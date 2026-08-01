@@ -43,7 +43,7 @@ function provenanceFor(
   blueprint: PreRenderBookVisualBlueprint,
 ): PreRenderBlueprintAuthoringProvenance {
   return {
-    version: 'pre-render-blueprint-authoring-provenance/v1',
+    version: 'pre-render-blueprint-authoring-provenance/v2',
     blueprintDigest: blueprint.digest,
     authoringAuthorityDigest:
       blueprint.identity.authoringAuthority.digest,

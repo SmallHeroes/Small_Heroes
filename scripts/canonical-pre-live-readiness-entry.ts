@@ -70,7 +70,7 @@ function launcherFailure(
   mode: 'prepare' | 'verify',
 ): Record<string, unknown> {
   const withoutDigest = {
-    version: 'canonical-pre-live-readiness-failure/v1',
+    version: 'canonical-pre-live-readiness-failure/v2',
     status: 'rejected',
     mode,
     phase: 'launcher',

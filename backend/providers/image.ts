@@ -4713,7 +4713,7 @@ export async function generateAllPageImages(
   const normalizedStyle = normalizeStyleId(config.illustrationStyle);
   const pvbRuntimeActive =
     config.runtimeVisualAuthority?.version ===
-    'style01-runtime-authority/v4';
+    'style01-runtime-authority/v5';
   const printPdfOptimized = pvbRuntimeActive
     ? false
     : !!config.pdfEnabled;

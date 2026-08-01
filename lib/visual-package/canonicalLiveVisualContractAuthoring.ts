@@ -38,7 +38,7 @@ import {
 export const CANONICAL_LIVE_AUTHORING_INTERRUPTION_LIMITATION =
   'The exact source snapshot and approved live request are durable before provider reachability, but forced process termination or disk failure during or immediately after a provider request can still occur before the in-memory sanitized receipt is durable; no automatic rerun or resume authority exists, and any later action must reconcile provider-side evidence first.';
 export const CANONICAL_LIVE_REJECTED_REQUEST_EVIDENCE_VERSION =
-  'canonical-live-rejected-request-evidence/v1' as const;
+  'canonical-live-rejected-request-evidence/v2' as const;
 
 export interface CanonicalLiveVisualContractAuthoringInput {
   repoRoot: string;

@@ -31,6 +31,10 @@ import type {
   VisualZone,
 } from '@/lib/visual-contract-compiler/types';
 import {
+  parseStorySourceContent,
+  type ParsedStorySourceContent,
+} from '@/lib/visual-contract-compiler/storySourceContent';
+import {
   canonicalJsonDigest,
   normalizedTextDigest,
 } from '@/lib/visual-package/integrity';
@@ -49,10 +53,15 @@ export type BlueprintFixtureShape =
   | 'multi_zone_transition'
   | 'journey_fantastical'
   | 'no_companion'
-  | 'reveal_timeline';
+  | 'reveal_timeline'
+  | 'wizard_runtime_qualification';
 
 export interface BlueprintFixtureOptions {
   mutateTemplate?: (template: BookVisualContractTemplate) => void;
+  rawStorySource?: string;
+  sourcePath?: string;
+  styleId?: string;
+  styleContent?: unknown;
 }
 
 export interface BlueprintFixture {
@@ -111,6 +120,14 @@ const shapePlans: Record<BlueprintFixtureShape, ShapePlan> = {
     pageZoneIds: ['zone:workshop', 'zone:workshop', 'zone:workshop'],
     companion: true,
     revealPage: 2,
+  },
+  wizard_runtime_qualification: {
+    storyKey: 'bunny_ometz_adventure',
+    worldType: 'grounded_medical_clinic',
+    zoneIds: ['zone:clinic'],
+    locationIds: ['location:clinic'],
+    pageZoneIds: Array.from({ length: 12 }, () => 'zone:clinic'),
+    companion: true,
   },
 };
 
@@ -299,11 +316,15 @@ function makeRawStorySource(plan: ShapePlan): string {
   ].join('\n');
 }
 
-function makeSource(plan: ShapePlan, rawStorySource: string): StorySourceIdentity {
+function makeSource(
+  plan: ShapePlan,
+  rawStorySource: string,
+  sourcePath?: string,
+): StorySourceIdentity {
   const pageNumbers = plan.pageZoneIds.map((_, index) => index + 1);
   return {
     version: STORY_SOURCE_IDENTITY_VERSION,
-    path: `fixtures/${plan.storyKey}.md`,
+    path: sourcePath ?? `fixtures/${plan.storyKey}.md`,
     digestAlgorithm: 'sha256-normalized-utf8',
     digest: normalizedTextDigest(rawStorySource),
     pageCount: pageNumbers.length,
@@ -315,16 +336,20 @@ function makeReconciliation(
   plan: ShapePlan,
   source: StorySourceIdentity,
   template: BookVisualContractTemplate,
+  sourceContent?: ParsedStorySourceContent,
 ): SourcePromptReconciliation {
-  const pages = source.pageNumbers.map((pageNumber) => ({
-    pageNumber,
-    text: `authored source page ${pageNumber}`,
-  }));
+  const pages = sourceContent?.pages ?? source.pageNumbers.map((pageNumber) => ({
+      pageNumber,
+      text: `authored source page ${pageNumber}`,
+    }));
   const reconciliation = buildSourcePromptReconciliationDraft(
     {
       storyKey: plan.storyKey,
       sourceIdentity: source,
       pages,
+      ...(sourceContent?.pageImageDirections
+        ? { pageImageDirections: sourceContent.pageImageDirections }
+        : {}),
     },
     template,
   );
@@ -341,19 +366,23 @@ function makeReconciliation(
           )
         : -1;
     for (const [requirementIndex, requirement] of frame.sourceRequirements.entries()) {
-      const path =
-        frame.frameKind === 'cover'
+      const isHistoricalDirection =
+        requirement.sourceKind === 'historical_image_direction';
+      const path = isHistoricalDirection
+        ? `/pageContracts/${pageIndex}/camera`
+        : frame.frameKind === 'cover'
           ? '/coverContract/mustShow/0'
           : `/pageContracts/${pageIndex}/mustShow/0`;
-      const value =
-        frame.frameKind === 'cover'
+      const value = isHistoricalDirection
+        ? template.pageContracts[pageIndex].camera
+        : frame.frameKind === 'cover'
           ? template.coverContract.mustShow[0]
           : template.pageContracts[pageIndex].mustShow[0];
       requirement.visualBeats = [
         {
           id: `beat:${frame.frameKind}:${frame.pageNumber}:${requirementIndex}`,
           description: `Reviewed visual meaning for ${frame.frameKind} ${frame.pageNumber}`,
-          aspects: ['narrative_meaning'],
+          aspects: isHistoricalDirection ? ['camera'] : ['narrative_meaning'],
           disposition: 'preserved',
           contractEvidence: [{ path, value }],
           justification: null,
@@ -656,24 +685,31 @@ export function buildBlueprintFixture(
   const plan = shapePlans[shape];
   const template = makeTemplate(plan);
   options?.mutateTemplate?.(template);
-  const rawStorySource = makeRawStorySource(plan);
-  const source = makeSource(plan, rawStorySource);
+  const rawStorySource = options?.rawStorySource ?? makeRawStorySource(plan);
+  const parsedStorySource = parseStorySourceContent(rawStorySource);
+  const source = makeSource(plan, rawStorySource, options?.sourcePath);
   const templateIdentity: VisualPackageTemplateIdentity = {
     artifactPath: `fixtures/${plan.storyKey}.visual-contract-template.json`,
     digestAlgorithm: 'canonical-json-sha256',
     digest: canonicalJsonDigest(template),
     schemaVersion: template.schemaVersion,
   };
-  const reconciliation = makeReconciliation(plan, source, template);
+  const reconciliation = makeReconciliation(
+    plan,
+    source,
+    template,
+    parsedStorySource,
+  );
   const reconciliationArtifactPath =
     `fixtures/${plan.storyKey}.visual-contract-reconciliation.json`;
-  const styleContent = {
-    styleId: 'fixture_storybook_style',
+  const styleId = options?.styleId ?? 'fixture_storybook_style';
+  const styleContent = options?.styleContent ?? {
+    styleId,
     renderingContract: 'stable fixture storybook rendering contract',
   };
   const style: PreRenderBlueprintStyleAuthority = {
-    styleId: 'fixture_storybook_style',
-    artifactPath: 'fixtures/styles/fixture_storybook_style.json',
+    styleId,
+    artifactPath: `fixtures/styles/${styleId}.json`,
     digestAlgorithm: 'canonical-json-sha256',
     digest: canonicalJsonDigest(styleContent),
   };

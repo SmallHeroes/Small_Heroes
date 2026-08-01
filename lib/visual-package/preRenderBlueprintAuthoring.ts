@@ -44,6 +44,8 @@ export const PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION =
   'pre-render-blueprint-authoring-prompt/v3' as const;
 export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION =
   'pre-render-blueprint-repair-prompt/v3' as const;
+export const PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION =
+  'pre-render-blueprint-authoring-provenance/v2' as const;
 export const PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS = 2 as const;
 
 type Obj = Record<string, unknown>;
@@ -83,7 +85,7 @@ export interface PreRenderBlueprintAuthoringAttempt {
 }
 
 export interface PreRenderBlueprintAuthoringProvenance {
-  version: 'pre-render-blueprint-authoring-provenance/v1';
+  version: typeof PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION;
   blueprintDigest: string;
   authoringAuthorityDigest: string;
   model: string;
@@ -539,7 +541,7 @@ export async function compilePreRenderBookVisualBlueprint(
       return {
         blueprint: candidate,
         provenance: {
-          version: 'pre-render-blueprint-authoring-provenance/v1',
+          version: PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION,
           blueprintDigest: candidate.digest,
           authoringAuthorityDigest:
             candidate.identity.authoringAuthority.digest,

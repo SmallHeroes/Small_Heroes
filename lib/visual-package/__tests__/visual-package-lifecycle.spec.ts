@@ -9,6 +9,7 @@ import { STYLE_IDS } from '@/lib/styles';
 import {
   computeVisualContractHash,
   materialize,
+  migrateLegacyBookVisualContractTemplateV1,
   type BookVisualContract,
 } from '@/lib/visual-contract-compiler';
 import {
@@ -121,7 +122,9 @@ function makeFixture(): Fixture {
   fs.copyFileSync(path.join(REPO, propAssetRel), propAssetDestination);
   // R1C render qualification is stricter than the historical checked-in Fox candidate. Upgrade only this temporary
   // mock package; the real 0/18 package inventory remains untouched and unpromoted.
-  const runtimeTemplate = readJson<BookVisualContractTemplate>(templatePath);
+  const runtimeTemplate = migrateLegacyBookVisualContractTemplateV1(
+    readJson<unknown>(templatePath),
+  );
   const authority = authoredCoverAuthorityFromLocationBible(
     readJson<unknown>(locationBiblePath),
     runtimeTemplate.cast.companion

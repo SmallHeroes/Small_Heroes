@@ -17,6 +17,7 @@ import {
   InvalidTemplateContractError,
 } from '../visual-contract-compiler/validateTemplateContract';
 import { PALETTE_VERSION } from '../visual-contract-compiler/contractTemplateTypes';
+import { migrateLegacyBookVisualContractTemplateV1 } from '../visual-contract-compiler/contractTemplateMigration';
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 
@@ -28,7 +29,9 @@ function bunnySource(): TemplateCompileInput {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function bunnyTemplate(): any {
   return withCurrentActionSemanticCoverage({
-    draft: JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8')),
+    draft: migrateLegacyBookVisualContractTemplateV1(
+      JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8')),
+    ),
     pages: bunnySource().pages,
     sourceEvidenceCatalog: bunnySource().sourceEvidenceCatalog,
   });

@@ -32,6 +32,7 @@ import type {
 } from './preRenderBlueprintTypes';
 import {
   PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION,
+  PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION,
   PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS,
   PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION,
   type PreRenderBlueprintAuthoringAttempt,
@@ -44,13 +45,13 @@ import type {
 } from './sourcePromptReconciliation';
 
 export const PRE_RENDER_BLUEPRINT_VALIDATION_EVIDENCE_VERSION =
-  'pre-render-blueprint-validation-evidence/v1' as const;
+  'pre-render-blueprint-validation-evidence/v2' as const;
 export const PRE_RENDER_BLUEPRINT_REVIEW_PACKET_VERSION =
-  'pre-render-blueprint-review-packet/v1' as const;
+  'pre-render-blueprint-review-packet/v2' as const;
 export const PRE_RENDER_BLUEPRINT_REVIEW_RENDERER_VERSION =
-  'pre-render-blueprint-review-renderer/v1' as const;
+  'pre-render-blueprint-review-renderer/v2' as const;
 export const PRE_RENDER_BLUEPRINT_APPROVAL_VERSION =
-  'pre-render-blueprint-approval-attestation/v1' as const;
+  'pre-render-blueprint-approval-attestation/v2' as const;
 export const PRE_RENDER_BLUEPRINT_APPROVER = 'Guy' as const;
 
 const DIGEST_ALGORITHM = 'canonical-json-sha256' as const;
@@ -235,7 +236,7 @@ function authoringProvenanceIssues(args: {
 }): string[] {
   const { provenance } = args;
   const issues: string[] = [];
-  if (provenance.version !== 'pre-render-blueprint-authoring-provenance/v1') {
+  if (provenance.version !== PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION) {
     issues.push('unsupported authoring provenance version');
   }
   if (

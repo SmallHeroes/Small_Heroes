@@ -43,6 +43,7 @@ import type {
 } from './types';
 import {
   VISUAL_PACKAGE_V4_APPROVAL_VERSION,
+  VISUAL_PACKAGE_V4_CANDIDATE_VERSION,
   VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS,
   VISUAL_PACKAGE_V4_LAYOUT_POLICY,
   VISUAL_PACKAGE_V4_PACKAGE_REVIEW_EXCLUSIONS,
@@ -64,7 +65,7 @@ import {
 } from './visualPackageV4';
 
 export const VISUAL_PACKAGE_V4_QUALIFICATION_VERSION =
-  'visual-package-v4-offline-qualification/v1' as const;
+  'visual-package-v4-offline-qualification/v2' as const;
 
 export interface ApprovedBlueprintLifecyclePaths {
   blueprintPath: string;
@@ -585,7 +586,7 @@ function candidateShapeReasons(
   }
   if (
     !isRecord(value) ||
-    candidate.version !== 'visual-package-v4-candidate/v1' ||
+    candidate.version !== VISUAL_PACKAGE_V4_CANDIDATE_VERSION ||
     candidate.state !== 'candidate' ||
     candidate.digestAlgorithm !== 'canonical-json-sha256' ||
     manifestVersion !== VISUAL_PACKAGE_V4_VERSION ||

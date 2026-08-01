@@ -31,11 +31,11 @@ import {
 } from '@/lib/visual-package/runtimeAuthority';
 
 export const RUNTIME_BLUEPRINT_BOOK_PROJECTION_VERSION =
-  'runtime-blueprint-book-projection/v1' as const;
+  'runtime-blueprint-book-projection/v2' as const;
 export const RUNTIME_BLUEPRINT_FRAME_PROJECTION_VERSION =
-  'runtime-blueprint-frame-projection/v1' as const;
+  'runtime-blueprint-frame-projection/v2' as const;
 export const RUNTIME_BLUEPRINT_FRAME_EVIDENCE_VERSION =
-  'runtime-blueprint-frame-evidence/v1' as const;
+  'runtime-blueprint-frame-evidence/v2' as const;
 
 export interface RuntimeBlueprintReferenceIdentities {
   boards: VisualPackageV4['requiredBoards'];

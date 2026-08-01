@@ -13,10 +13,13 @@ import path from 'path';
 import { extractDeterministicFacts, hasCleanEnglishMention, type DeterministicFactsInput } from '../visual-contract-compiler/extractDeterministicFacts';
 import { validateBookVisualContractTemplate } from '../visual-contract-compiler/validateTemplateContract';
 import { mustShowAbsenceContradictions } from '../visual-contract-compiler/castPresenceContradiction';
+import { migrateLegacyBookVisualContractTemplateV1 } from '../visual-contract-compiler/contractTemplateMigration';
 
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const bunnyTemplate = (): any => JSON.parse(fs.readFileSync(path.join(BANK, 'bunny_ometz_adventure.visual-contract-template.json'), 'utf8'));
+const bunnyTemplate = (): any => migrateLegacyBookVisualContractTemplateV1(
+  JSON.parse(fs.readFileSync(path.join(BANK, 'bunny_ometz_adventure.visual-contract-template.json'), 'utf8')),
+);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const pageOf = (t: any, n: number) => t.pageContracts.find((p: any) => p.pageNumber === n);
 

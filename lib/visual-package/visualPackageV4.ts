@@ -43,13 +43,13 @@ import type {
 
 export const VISUAL_PACKAGE_V4_VERSION = 'visual-package/v4' as const;
 export const VISUAL_PACKAGE_V4_LOCATOR_VERSION =
-  'visual-package-current-locator/v1' as const;
+  'visual-package-current-locator/v2' as const;
 export const VISUAL_PACKAGE_V4_APPROVAL_VERSION =
-  'visual-package-v4-approval/v2' as const;
+  'visual-package-v4-approval/v3' as const;
 export const VISUAL_PACKAGE_V4_CANDIDATE_VERSION =
-  'visual-package-v4-candidate/v1' as const;
+  'visual-package-v4-candidate/v2' as const;
 export const VISUAL_PACKAGE_V4_PACKAGE_REVIEW_VERSION =
-  'visual-package-v4-package-review/v1' as const;
+  'visual-package-v4-package-review/v2' as const;
 export const VISUAL_PACKAGE_V4_PACKAGE_REVIEW_EXCLUSIONS = [
   'image_render',
   'publication',
@@ -69,7 +69,7 @@ export const VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS = [
 export const VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION =
   'portrait-layout-compatibility/v1' as const;
 export const VISUAL_PACKAGE_V4_FREEZE_VERSION =
-  'frozen-visual-package-authority/v1' as const;
+  'frozen-visual-package-authority/v2' as const;
 
 const SHA256_HEX = /^[a-f0-9]{64}$/;
 
