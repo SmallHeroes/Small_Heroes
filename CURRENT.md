@@ -2,11 +2,20 @@
 
 **Updated:** 2026-08-01
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-source-evidence-compact-repair` in `C:\Users\guyna\.codex\worktrees\600e\Small_Heroes`, based exactly on immutable commit `a9d2fd2c5d3b01d61a7ba598e9b1806e73b115be`. This branch has sole-writer authority for the approved source-evidence-ID and compact-repair hardening milestone. The calibration worktree `C:\Users\guyna\.codex\worktrees\3862\Small_Heroes` remains read-only at the immutable base. Implementation and repository-local validation are complete; independent Claude Code first-pass QA has not yet run, so Codex does not claim technical PASS. No future B0, Fresh Readiness, credential, provider, live-authoring, render, or downstream authority exists from this work.
+**Working branch:** `codex/r1d-pvb-d1a1b1-source-evidence-compact-repair` in `C:\Users\guyna\.codex\worktrees\600e\Small_Heroes`, based exactly on immutable commit `a9d2fd2c5d3b01d61a7ba598e9b1806e73b115be`. This branch has sole-writer authority for the approved source-evidence-ID and compact-repair hardening milestone and its narrow QA fix. The calibration worktree `C:\Users\guyna\.codex\worktrees\3862\Small_Heroes` remains read-only at the immutable base. Claude Code independently returned technical PASS for the original implementation range `a9d2fd2c5d3b01d61a7ba598e9b1806e73b115be..f0e9b147a33974c6c9c43352ff9865644116d269`, with one non-blocking test-coverage MINOR now addressed locally and awaiting a read-only micro re-gate. No future B0, Fresh Readiness, credential, provider, live-authoring, render, or downstream authority exists from this work.
 
-## R1D-PVB-D1A1B1-SOURCE-EVIDENCE-ID-AND-COMPACT-REPAIR-HARDENING — implementation complete / awaiting independent QA
+## R1D-PVB-D1A1B1-SOURCE-EVIDENCE-ID-AND-COMPACT-REPAIR-HARDENING — independent implementation PASS / QA fix awaiting micro re-gate
 
 Guy approved a general correction to the source-evidence authoring boundary and the repair-input failure observed after the exhausted live attempt. The exact implementation base is `a9d2fd2c5d3b01d61a7ba598e9b1806e73b115be`; the dedicated branch and worktree are recorded above.
+
+### Independent QA and focused correction
+
+- Claude Code independently reviewed exact immutable range `a9d2fd2c5d3b01d61a7ba598e9b1806e73b115be..f0e9b147a33974c6c9c43352ff9865644116d269` and returned technical **PASS**. It verified all eight implementation claims, with zero BLOCKER, zero MAJOR, one non-blocking MINOR, and four advisory notes. This verdict is technical and range-scoped; it grants no product, visual, candidate, Blueprint, render, readiness, provider, deployment, or push authority.
+- **MINOR-1 — direct patch-guard coverage:** Claude verified the fail-closed guards in `parseSourceEvidenceIdPatches` and `applySourceEvidenceIdPatches` by inspection but found no direct tests for their rejection paths. Guy authorized a tests-only correction. The focused spec now calls both guards directly across invalid JSON/root/patch shapes, duplicate affected records, incomplete/unexpected/duplicate patches, malformed/unknown/stale/wrong-page IDs, non-unique pages, and non-unique beats, plus a successful exact-patch control. Production behavior is unchanged. Closure remains pending Claude Code's read-only micro re-gate of the correction range.
+- **N1 — test-run environment:** Claude reproduced the recorded 406-test focused count. Two Supervisor tests timed out only under parallel worker load through this worktree's cross-worktree `node_modules` junction; all 34 Supervisor tests passed when rerun in isolation, and TypeScript independently passed. Claude classified this as an environment artifact, not a regression.
+- **N2 — Unicode normalization limitation:** catalog rebuild equality uses canonical hashing, which NFC-normalizes strings. Therefore the existing exactness claim is exact for already-NFC source bytes and equivalent across Unicode normalization forms. The catalog is compiler-built and resolution returns its exact stored excerpt, so Claude found no current exploit or blocker.
+- **N3 — dead indirection:** `catalogPayload()` is currently an identity helper. This is advisory cleanup only and is not changed by the QA fix.
+- **N4 — lookup complexity:** `resolveSourceEvidenceId` performs a linear catalog scan for each coverage record. Claude found this acceptable at current catalog sizes; no optimization or behavior change is authorized here.
 
 ### Verified cause and implemented boundary
 
@@ -19,6 +28,7 @@ Guy approved a general correction to the source-evidence authoring boundary and 
 
 ### Validation and limits
 
+- QA-fix direct guard regression: **1 file / 24 tests PASS**. Repository-local `npx --no-install tsc --noEmit` also passed, and `git diff --check` passed. Per the approved narrow scope, `npm run check` was not rerun.
 - Final focused regression: **16 files / 406 tests PASS**. It covers multilingual Unicode/punctuation, duplicate excerpts, exact byte offsets, deterministic IDs, malformed/unknown/stale/cross-source/wrong-page rejection, compiler-derived evidence, draft-field removal, the observed eleven-failure/six-page shape, compact prompt size below 64K, exact patching, mixed-error full repair, adapter mapping, structured-output compatibility, B0/verifier/materialization, Execution Request/Supervisor, and readiness.
 - Repository-local `npx --no-install tsc --noEmit`: **PASS**. `git diff --check`: **PASS** before documentation finalization and is required again before commit.
 - Exactly one literal `npm run check` ran and was not rerun. TypeScript passed. Vitest reproduced only the established six missing ignored-fixture baseline failures in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two cases in `story-read-back-validation.spec.ts`. No milestone test failed.
