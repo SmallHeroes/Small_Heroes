@@ -26,6 +26,7 @@ import {
 import type { BookVisualContractTemplate } from '../visual-contract-compiler/contractTemplateTypes';
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
+import { buildSourceEvidenceCatalog } from '../visual-contract-compiler/sourceEvidenceCatalog';
 
 const BUNNY_KEY = 'bunny_ometz_adventure';
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
@@ -38,6 +39,7 @@ function bunnyTemplate(): BookVisualContractTemplate {
   return withCurrentActionSemanticCoverage({
     draft: JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8')) as BookVisualContractTemplate,
     pages: bunnySource().pages,
+    sourceEvidenceCatalog: bunnySource().sourceEvidenceCatalog,
   });
 }
 /** A stub LLM that returns a descriptive draft (the given template JSON). */
@@ -184,7 +186,25 @@ describe('gate remediation — laterality is NEVER auto-bound; aliases come from
     expect(lat.reason).toContain('Side words');
     expect(lat.pages).toContain(9); // surfaced for the human, not bound
     // And the compiled candidate carries NO laterality anywhere (facts-overlay strips the draft's too).
-    const { template } = await compileBookVisualContractTemplate(src, { callLLM: stubFrom(bunnyTemplate()) });
+    src.sourceEvidenceCatalog = buildSourceEvidenceCatalog({
+      storyKey: src.storyKey,
+      sourceIdentity: src.sourceIdentity,
+      pages: src.pages,
+    });
+    const draft = withCurrentActionSemanticCoverage({
+      draft: JSON.parse(
+        fs.readFileSync(
+          path.join(
+            BANK,
+            `${BUNNY_KEY}.visual-contract-template.json`,
+          ),
+          'utf8',
+        ),
+      ) as BookVisualContractTemplate,
+      pages: src.pages,
+      sourceEvidenceCatalog: src.sourceEvidenceCatalog,
+    });
+    const { template } = await compileBookVisualContractTemplate(src, { callLLM: stubFrom(draft) });
     const anyLat = template.pageContracts.some((pc) =>
       (pc.castStates ?? []).some((cs) => cs.injectionArm || cs.bandageArm || cs.freeHand),
     );

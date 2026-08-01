@@ -26,9 +26,9 @@ import {
 } from './liveRequestMaterialization';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_VERSION =
-  'canonical-live-execution-request/v2' as const;
+  'canonical-live-execution-request/v3' as const;
 export const CANONICAL_LIVE_EXECUTION_READINESS_VERSION =
-  'canonical-live-execution-readiness/v2' as const;
+  'canonical-live-execution-readiness/v3' as const;
 export const CANONICAL_LIVE_EXECUTION_PROBE_VERSION =
   'canonical-live-execution-probe/v1' as const;
 
@@ -91,6 +91,8 @@ export interface CanonicalLiveExecutionRequest {
       typeof CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION;
     structuredOutputCompatibility:
       LiveRequestStructuredOutputCompatibilityAuthority;
+    compactRepairStructuredOutputCompatibility:
+      LiveRequestStructuredOutputCompatibilityAuthority;
   };
   preservationFences:
     CanonicalLiveExecutionPreservationFence[];
@@ -126,6 +128,9 @@ export interface CanonicalLiveExecutionReadiness {
       typeof CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION;
     manifestDigest: string | null;
     structuredOutputCompatibility:
+      | LiveRequestStructuredOutputCompatibilityAuthority
+      | null;
+    compactRepairStructuredOutputCompatibility:
       | LiveRequestStructuredOutputCompatibilityAuthority
       | null;
     reasonCodes: string[];
@@ -615,6 +620,7 @@ export function canonicalLiveExecutionRequestIssues(
         'manifestDigest',
         'verificationVersion',
         'structuredOutputCompatibility',
+        'compactRepairStructuredOutputCompatibility',
       ],
       'execution_canonical_bundle',
     ).length > 0 ||
@@ -631,6 +637,10 @@ export function canonicalLiveExecutionRequestIssues(
     liveRequestStructuredOutputCompatibilityAuthorityIssues(
       canonicalBundle.structuredOutputCompatibility,
       'execution_canonical_bundle_structured_output_compatibility',
+    ).length > 0 ||
+    liveRequestStructuredOutputCompatibilityAuthorityIssues(
+      canonicalBundle.compactRepairStructuredOutputCompatibility,
+      'execution_canonical_bundle_compact_repair_structured_output_compatibility',
     ).length > 0
   ) {
     issues.push('execution_canonical_bundle_invalid');
@@ -1465,6 +1475,7 @@ function initialReadinessState(args: {
         CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
       manifestDigest: null,
       structuredOutputCompatibility: null,
+      compactRepairStructuredOutputCompatibility: null,
       reasonCodes: [],
     },
     git: {
@@ -1675,6 +1686,8 @@ function evaluateReadinessCore(args: {
   state.b0.manifestDigest = b0.identities.manifestDigest;
   state.b0.structuredOutputCompatibility =
     b0.structuredOutputCompatibility;
+  state.b0.compactRepairStructuredOutputCompatibility =
+    b0.compactRepairStructuredOutputCompatibility;
   if (
     b0.identities.manifestDigest !==
       request.canonicalBundle.manifestDigest ||
@@ -1682,10 +1695,18 @@ function evaluateReadinessCore(args: {
       canonicalJsonDigest(
         request.canonicalBundle
           .structuredOutputCompatibility,
+      ) ||
+    canonicalJsonDigest(
+      b0.compactRepairStructuredOutputCompatibility,
+    ) !==
+      canonicalJsonDigest(
+        request.canonicalBundle
+          .compactRepairStructuredOutputCompatibility,
       )
   ) {
     state.b0.status = 'rejected';
     state.b0.structuredOutputCompatibility = null;
+    state.b0.compactRepairStructuredOutputCompatibility = null;
     state.reasonCodes = [
       b0.identities.manifestDigest !==
       request.canonicalBundle.manifestDigest
@@ -1865,6 +1886,7 @@ export function canonicalLiveExecutionReadinessIssues(
         'verificationVersion',
         'manifestDigest',
         'structuredOutputCompatibility',
+        'compactRepairStructuredOutputCompatibility',
         'reasonCodes',
       ],
       'execution_readiness_b0',
@@ -1882,10 +1904,17 @@ export function canonicalLiveExecutionReadinessIssues(
         b0.structuredOutputCompatibility,
         'execution_readiness_b0_structured_output_compatibility',
       ).length > 0) ||
+    (b0.compactRepairStructuredOutputCompatibility !== null &&
+      liveRequestStructuredOutputCompatibilityAuthorityIssues(
+        b0.compactRepairStructuredOutputCompatibility,
+        'execution_readiness_b0_compact_repair_structured_output_compatibility',
+      ).length > 0) ||
     (b0.status === 'verified' &&
-      b0.structuredOutputCompatibility === null) ||
+      (b0.structuredOutputCompatibility === null ||
+        b0.compactRepairStructuredOutputCompatibility === null)) ||
     (b0.status !== 'verified' &&
-      b0.structuredOutputCompatibility !== null) ||
+      (b0.structuredOutputCompatibility !== null ||
+        b0.compactRepairStructuredOutputCompatibility !== null)) ||
     !Array.isArray(b0.reasonCodes) ||
     b0.reasonCodes.some(
       (code) =>

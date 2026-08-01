@@ -171,6 +171,10 @@ function authoringRequestValue(
     object.structuredOutput,
     'visual contract authoring request structuredOutput',
   );
+  const compactRepairStructuredOutput = objectValue(
+    object.compactRepairStructuredOutput,
+    'visual contract authoring request compactRepairStructuredOutput',
+  );
   const tokenBudget = objectValue(
     object.tokenBudget,
     'visual contract authoring request tokenBudget',
@@ -202,6 +206,10 @@ function authoringRequestValue(
   const repairPromptAuthority = objectValue(
     promptAuthority.repair,
     'visual contract authoring request repair promptAuthority',
+  );
+  const sourceEvidenceIdRepairPromptAuthority = objectValue(
+    promptAuthority.sourceEvidenceIdRepair,
+    'visual contract authoring request sourceEvidenceIdRepair promptAuthority',
   );
   const actionSemanticAuthority = objectValue(
     object.actionSemanticAuthority,
@@ -257,6 +265,25 @@ function authoringRequestValue(
         structuredOutput.compatibilityStatus,
       serializedSchemaDigest:
         structuredOutput.serializedSchemaDigest,
+    },
+    compactRepairStructuredOutput: {
+      strict: compactRepairStructuredOutput.strict,
+      schemaName: compactRepairStructuredOutput.schemaName,
+      schemaVersion:
+        compactRepairStructuredOutput.schemaVersion,
+      schemaDigest: compactRepairStructuredOutput.schemaDigest,
+      compatibilityProfileVersion:
+        compactRepairStructuredOutput.compatibilityProfileVersion,
+      compatibilityProfileDigest:
+        compactRepairStructuredOutput.compatibilityProfileDigest,
+      compatibilityEvidenceVersion:
+        compactRepairStructuredOutput.compatibilityEvidenceVersion,
+      compatibilityEvidenceDigest:
+        compactRepairStructuredOutput.compatibilityEvidenceDigest,
+      compatibilityStatus:
+        compactRepairStructuredOutput.compatibilityStatus,
+      serializedSchemaDigest:
+        compactRepairStructuredOutput.serializedSchemaDigest,
     },
     toolsDisabled: object.toolsDisabled,
     noFallback: object.noFallback,
@@ -317,6 +344,14 @@ function authoringRequestValue(
         systemPromptDigest:
           repairPromptAuthority.systemPromptDigest,
       },
+      sourceEvidenceIdRepair: {
+        systemPromptVersion:
+          sourceEvidenceIdRepairPromptAuthority.systemPromptVersion,
+        userPromptVersion:
+          sourceEvidenceIdRepairPromptAuthority.userPromptVersion,
+        systemPromptDigest:
+          sourceEvidenceIdRepairPromptAuthority.systemPromptDigest,
+      },
     },
     actionSemanticAuthority: {
       catalogVersion:
@@ -325,6 +360,10 @@ function authoringRequestValue(
         actionSemanticAuthority.catalogDigest,
       coverageVersion:
         actionSemanticAuthority.coverageVersion,
+      sourceEvidenceCatalogVersion:
+        actionSemanticAuthority.sourceEvidenceCatalogVersion,
+      sourceEvidenceCatalogDigest:
+        actionSemanticAuthority.sourceEvidenceCatalogDigest,
     },
     digestAlgorithm: object.digestAlgorithm,
     digest: object.digest,
@@ -344,6 +383,7 @@ const REQUEST_KEYS = new Set([
   'serviceTier',
   'reasoningEffort',
   'structuredOutput',
+  'compactRepairStructuredOutput',
   'toolsDisabled',
   'noFallback',
   'transportRetries',
@@ -362,6 +402,18 @@ const REQUEST_KEYS = new Set([
 
 const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
   structuredOutput: new Set([
+    'strict',
+    'schemaName',
+    'schemaVersion',
+    'schemaDigest',
+    'compatibilityProfileVersion',
+    'compatibilityProfileDigest',
+    'compatibilityEvidenceVersion',
+    'compatibilityEvidenceDigest',
+    'compatibilityStatus',
+    'serializedSchemaDigest',
+  ]),
+  compactRepairStructuredOutput: new Set([
     'strict',
     'schemaName',
     'schemaVersion',
@@ -396,11 +448,17 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'hardCeilingUsd',
   ]),
   promptDigests: new Set(['system', 'user']),
-  promptAuthority: new Set(['initial', 'repair']),
+  promptAuthority: new Set([
+    'initial',
+    'repair',
+    'sourceEvidenceIdRepair',
+  ]),
   actionSemanticAuthority: new Set([
     'catalogVersion',
     'catalogDigest',
     'coverageVersion',
+    'sourceEvidenceCatalogVersion',
+    'sourceEvidenceCatalogDigest',
   ]),
 };
 
@@ -427,6 +485,18 @@ const REQUEST_TOP_LEVEL_FIELDS = {
 
 const REQUEST_OBJECT_FIELDS = {
   structuredOutput: {
+    strict: 'boolean',
+    schemaName: 'string',
+    schemaVersion: 'string',
+    schemaDigest: 'string',
+    compatibilityProfileVersion: 'string',
+    compatibilityProfileDigest: 'string',
+    compatibilityEvidenceVersion: 'string',
+    compatibilityEvidenceDigest: 'string',
+    compatibilityStatus: 'string',
+    serializedSchemaDigest: 'string',
+  },
+  compactRepairStructuredOutput: {
     strict: 'boolean',
     schemaName: 'string',
     schemaVersion: 'string',
@@ -471,6 +541,8 @@ const REQUEST_OBJECT_FIELDS = {
     catalogVersion: 'string',
     catalogDigest: 'string',
     coverageVersion: 'string',
+    sourceEvidenceCatalogVersion: 'string',
+    sourceEvidenceCatalogDigest: 'string',
   },
 } as const;
 
@@ -482,6 +554,11 @@ const PROMPT_AUTHORITY_FIELDS = {
     userPromptDigest: 'string',
   },
   repair: {
+    systemPromptVersion: 'string',
+    userPromptVersion: 'string',
+    systemPromptDigest: 'string',
+  },
+  sourceEvidenceIdRepair: {
     systemPromptVersion: 'string',
     userPromptVersion: 'string',
     systemPromptDigest: 'string',

@@ -15,6 +15,12 @@ export function withCurrentActionSemanticCoverage<
     pageNumber: number;
     text: string;
   }[];
+  sourceEvidenceCatalog: {
+    entries: Array<{
+      sourceEvidenceId: string;
+      pageNumber: number;
+    }>;
+  };
 }): Draft {
   for (const [pageIndex, rawPage] of args.draft.pageContracts.entries()) {
     const page = rawPage as Record<string, unknown>;
@@ -26,8 +32,12 @@ export function withCurrentActionSemanticCoverage<
       ? page.mustShow
       : [];
     const contractValue = mustShow[0];
+    const sourceEvidence = args.sourceEvidenceCatalog.entries.find(
+      (entry) => entry.pageNumber === pageNumber,
+    );
     if (
       !sourcePage ||
+      !sourceEvidence ||
       typeof contractValue !== 'string' ||
       contractValue.length === 0
     ) {
@@ -38,7 +48,7 @@ export function withCurrentActionSemanticCoverage<
     page.actionSemanticCoverage = [
       {
         beatId: `beat:p${pageNumber}:fixture_contract`,
-        sourcePhrase: sourcePage.text,
+        sourceEvidenceId: sourceEvidence.sourceEvidenceId,
         disposition: {
           kind: 'represented_elsewhere',
           contractPointer: `/pageContracts/${pageIndex}/mustShow/0`,

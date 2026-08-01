@@ -24,6 +24,10 @@ import {
   TEMPLATE_DRAFT_JSON_SCHEMA,
   TEMPLATE_DRAFT_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/templateDraftSchema';
+import {
+  SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+  SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/sourceEvidenceIdRepair';
 import type {
   BookVisualContract,
 } from '@/lib/visual-contract-compiler/types';
@@ -133,14 +137,6 @@ function tempRoot(): string {
   return root;
 }
 
-function exactSourcePhrase(text: string): string {
-  return text
-    .trim()
-    .split(/\s+/)
-    .slice(0, 6)
-    .join(' ');
-}
-
 function fullyActionedDraft(
   snapshot: StorySourceAuthoritySnapshot,
 ): BookVisualContractTemplate & Record<string, unknown> {
@@ -154,10 +150,11 @@ function fullyActionedDraft(
     ),
   ) as BookVisualContractTemplate & Record<string, unknown>;
   for (const page of draft.pageContracts) {
-    const sourcePage = snapshot.content.pages.find(
+    const sourceEvidence = snapshot.content.sourceEvidenceCatalog.entries.find(
       (candidate) =>
         candidate.pageNumber === page.pageNumber,
     );
+    if (!sourceEvidence) throw new Error('missing fixture source evidence');
     (
       page as unknown as Record<string, unknown>
     ).actionRequirements = [
@@ -168,9 +165,6 @@ function fullyActionedDraft(
         object: null,
         polarity: 'must',
         laterality: null,
-        sourcePhrase: exactSourcePhrase(
-          sourcePage?.text ?? '',
-        ),
       },
     ];
     (
@@ -178,9 +172,7 @@ function fullyActionedDraft(
     ).actionSemanticCoverage = [
       {
         beatId: `beat:p${page.pageNumber}:look`,
-        sourcePhrase: exactSourcePhrase(
-          sourcePage?.text ?? '',
-        ),
+        sourceEvidenceId: sourceEvidence.sourceEvidenceId,
         disposition: {
           kind: 'action_requirement',
           checkId: `action:p${page.pageNumber}_look`,
@@ -459,6 +451,38 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(transportCreate).not.toHaveBeenCalled();
   });
 
+  it('maps the compact repair schema without changing the locked provider policy', () => {
+    const fixture = createLiveFixture('compact-schema-body');
+    const options = exactOptions(fixture.request);
+    options.jsonSchema = {
+      name: SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
+      schema: SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+    };
+
+    const body = buildOpenAIResponsesVisualContractAuthoringBody({
+      systemPrompt: 'compact-system',
+      userPrompt: 'compact-user',
+      options,
+    });
+
+    expect(body).toMatchObject({
+      model: 'gpt-5.6-sol',
+      service_tier: 'default',
+      max_output_tokens: 36_000,
+      text: {
+        format: {
+          type: 'json_schema',
+          name: SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
+          schema: SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+          strict: true,
+        },
+      },
+      tools: [],
+      tool_choice: 'none',
+      store: false,
+    });
+  });
+
   it('maps the exact request body, zero-retry transport options, and complete provider evidence', async () => {
     const fixture = createLiveFixture('mapping');
     const draft = fullyActionedDraft(fixture.snapshot);
@@ -476,7 +500,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v4',
+      'visual-contract-authoring-receipt/v5',
     );
     expect(adapter.readCredential).toHaveBeenCalledTimes(1);
     expect(adapter.transportCreate).toHaveBeenCalledTimes(1);

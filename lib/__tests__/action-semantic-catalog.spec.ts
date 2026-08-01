@@ -67,6 +67,7 @@ function coverage(
     version: ACTION_SEMANTIC_COVERAGE_VERSION,
     pageNumber: 1,
     beatId: 'beat:p1:look',
+    sourceEvidenceId: `se1_${'1'.repeat(64)}`,
     sourcePhrase: 'Exact source phrase.',
     disposition: {
       kind: 'action_requirement',

@@ -191,12 +191,6 @@ const actionRequirement = obj({
       { type: 'null' },
     ],
   },
-  /**
-   * Exact same-page Story Source words that support this structured beat.
-   * Compiler validation removes this evidence-only field before the
-   * candidate contract is assembled.
-   */
-  sourcePhrase: { type: 'string' },
 });
 const actionSemanticCoverageDisposition = {
   anyOf: [
@@ -227,7 +221,7 @@ const actionSemanticCoverageDisposition = {
 };
 const actionSemanticCoverage = obj({
   beatId: { type: 'string' },
-  sourcePhrase: { type: 'string' },
+  sourceEvidenceId: { type: 'string' },
   disposition: actionSemanticCoverageDisposition,
 });
 
@@ -268,7 +262,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v8' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v9' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

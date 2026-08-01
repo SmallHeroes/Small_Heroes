@@ -53,7 +53,7 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION =
-  'canonical-pre-live-readiness-evidence/v2' as const;
+  'canonical-pre-live-readiness-evidence/v3' as const;
 export const CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION =
   'canonical-pre-live-readiness-failure/v1' as const;
 export const CANONICAL_PRE_LIVE_DEPENDENCY_AUTHORITY_VERSION =
@@ -203,6 +203,8 @@ export interface CanonicalPreLiveReadinessEvidence {
       normalizedSourceDigest: string;
       liveAuthoringRequestDigest: string;
       structuredOutputCompatibility:
+        LiveRequestStructuredOutputCompatibilityAuthority;
+      compactRepairStructuredOutputCompatibility:
         LiveRequestStructuredOutputCompatibilityAuthority;
     };
     executionRequest: {
@@ -1409,6 +1411,7 @@ function evidenceIssues(value: unknown): string[] {
         'normalizedSourceDigest',
         'liveAuthoringRequestDigest',
         'structuredOutputCompatibility',
+        'compactRepairStructuredOutputCompatibility',
       ]) ||
       typeof b0.manifestPath !== 'string' ||
       canonicalMaterializationRelativePathIssues(
@@ -1430,6 +1433,10 @@ function evidenceIssues(value: unknown): string[] {
       liveRequestStructuredOutputCompatibilityAuthorityIssues(
         b0.structuredOutputCompatibility,
         'pre_live_evidence_b0_structured_output_compatibility',
+      ).length > 0 ||
+      liveRequestStructuredOutputCompatibilityAuthorityIssues(
+        b0.compactRepairStructuredOutputCompatibility,
+        'pre_live_evidence_b0_compact_repair_structured_output_compatibility',
       ).length > 0 ||
       !validDescriptor(executionRequest) ||
       !supervisor ||
@@ -1896,6 +1903,8 @@ function evidenceValue(args: {
             .liveAuthoringRequestDigest,
         structuredOutputCompatibility:
           args.b0.structuredOutputCompatibility,
+        compactRepairStructuredOutputCompatibility:
+          args.b0.compactRepairStructuredOutputCompatibility,
       },
       executionRequest: args.executionRequest,
       supervisorVerification: {

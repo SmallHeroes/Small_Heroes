@@ -15,6 +15,11 @@ import {
   parseStorySourceContent,
   toVisualContractFrontmatterMarkdown,
 } from '@/lib/visual-contract-compiler/storySourceContent';
+import {
+  assertValidSourceEvidenceCatalog,
+  buildSourceEvidenceCatalog,
+  type SourceEvidenceCatalog,
+} from '@/lib/visual-contract-compiler/sourceEvidenceCatalog';
 import type {
   PageImageDirection,
 } from '@/lib/visual-contract-compiler/compileBookVisualContract';
@@ -36,7 +41,7 @@ import {
 import type { StorySourceIdentity } from './types';
 
 export const STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION =
-  'story-source-authority-snapshot/v1' as const;
+  'story-source-authority-snapshot/v2' as const;
 
 const DEFAULT_CHILD_GENDER = 'female';
 
@@ -51,6 +56,7 @@ export interface StorySourceAuthoritySnapshotContent {
   normalizedRawStorySource: string;
   fullStoryText: string;
   pages: StorySourceAuthorityPage[];
+  sourceEvidenceCatalog: SourceEvidenceCatalog;
   pageImageDirections: PageImageDirection[];
   authoredCoverAuthority: AuthoredCoverAuthority | null;
   childGender: string;
@@ -171,6 +177,11 @@ export function buildStorySourceAuthoritySnapshot(
     repoRoot: request.repoRoot,
     storyPath: request.storyPath,
   });
+  const sourceEvidenceCatalog = buildSourceEvidenceCatalog({
+    storyKey,
+    sourceIdentity,
+    pages: content.pages,
+  });
   const snapshotWithoutDigest = {
     version: STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION,
     content: {
@@ -181,6 +192,7 @@ export function buildStorySourceAuthoritySnapshot(
       pages: content.pages
         .slice()
         .sort((left, right) => left.pageNumber - right.pageNumber),
+      sourceEvidenceCatalog,
       pageImageDirections: content.pageImageDirections
         .slice()
         .sort((left, right) => left.pageNumber - right.pageNumber),
@@ -261,6 +273,18 @@ export function assertValidStorySourceAuthoritySnapshot(
   ) {
     issues.push('snapshot page coverage differs from source identity');
   }
+  try {
+    assertValidSourceEvidenceCatalog({
+      catalog: snapshot.content.sourceEvidenceCatalog,
+      storyKey: snapshot.content.storyKey,
+      sourceIdentity: snapshot.content.sourceIdentity,
+      pages: snapshot.content.pages,
+    });
+  } catch {
+    issues.push(
+      'snapshot Source Evidence Catalog is stale or malformed',
+    );
+  }
   if (issues.length > 0) {
     throw new Error(
       `Invalid Story Source authority snapshot:\n- ${issues.join('\n- ')}`,
@@ -279,6 +303,9 @@ export function storySourceSnapshotToTemplateInput(
     companion: snapshot.content.companion,
     pageImageDirections: snapshot.content.pageImageDirections,
     pages: snapshot.content.pages,
+    sourceEvidenceCatalog:
+      snapshot.content.sourceEvidenceCatalog,
+    sourceIdentity: snapshot.content.sourceIdentity,
     ...(snapshot.content.authoredCoverAuthority
       ? {
           authoredCoverAuthority:

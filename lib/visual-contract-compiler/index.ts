@@ -220,3 +220,5 @@ export {
   MIN_AVG_PROSE_LETTERS_PER_PAGE,
   type SourceProsePage,
 } from './assertSourceProse';
+export * from './sourceEvidenceCatalog';
+export * from './sourceEvidenceIdRepair';

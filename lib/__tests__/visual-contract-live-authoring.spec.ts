@@ -33,6 +33,7 @@ function bunnyTemplate(): unknown {
   return withCurrentActionSemanticCoverage({
     draft: JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8')),
     pages: bunnySource().pages,
+    sourceEvidenceCatalog: bunnySource().sourceEvidenceCatalog,
   });
 }
 
@@ -102,6 +103,23 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
     ).toMatchObject({
       type: 'array',
     });
+    const pageProperties = root.properties.pageContracts.items
+      ?.properties as Record<
+      string,
+      { items?: { properties?: Record<string, unknown> } }
+    >;
+    expect(
+      pageProperties.actionRequirements.items?.properties,
+    ).not.toHaveProperty('sourcePhrase');
+    expect(
+      pageProperties.actionRequirements.items?.properties,
+    ).not.toHaveProperty('sourceEvidenceId');
+    expect(
+      pageProperties.actionSemanticCoverage.items?.properties,
+    ).toHaveProperty('sourceEvidenceId');
+    expect(
+      pageProperties.actionSemanticCoverage.items?.properties,
+    ).not.toHaveProperty('sourcePhrase');
   });
 
   it('authors stable board authority as separate structured set/location/area/object fields', () => {
@@ -135,8 +153,10 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
 
   it('requests the exact gpt-5.6-sol authoring policy, strict schema, bounded output, and zero transport retries', async () => {
     let captured: ContractLlmCallOptions | undefined;
-    const spy: ContractLlmCaller = async (_s, _u, opts) => {
+    let capturedUser = '';
+    const spy: ContractLlmCaller = async (_s, user, opts) => {
       captured = opts;
+      capturedUser = user;
       return JSON.stringify(bunnyTemplate());
     };
     const { provenance } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: spy });
@@ -152,11 +172,14 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(captured?.maxInputTokens).toBe(64_000);
     expect(captured?.jsonSchema?.name).toBe(TEMPLATE_DRAFT_SCHEMA_NAME);
     expect(captured?.maxOutputTokens).toBe(36000);
+    expect(capturedUser).toMatch(
+      /occurrence \d+ \| utf8 \d+-\d+ \| se1_[a-f0-9]{64}/,
+    );
     // Provenance records the resolved model.
     expect(provenance.authoringModel).toBe('gpt-5.6-sol');
     expect(provenance.reasoningEffort).toBe('medium');
     expect(provenance.maxOutputTokens).toBe(36000);
-    expect(provenance.schemaVersion).toBe('vc-draft-schema/v8');
+    expect(provenance.schemaVersion).toBe('vc-draft-schema/v9');
     expect(provenance.attempt).toBe(1);
   });
 

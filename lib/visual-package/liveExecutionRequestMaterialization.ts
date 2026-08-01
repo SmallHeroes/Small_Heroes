@@ -1056,6 +1056,8 @@ export function materializeCanonicalLiveExecutionRequest(args: {
           CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
         structuredOutputCompatibility:
           verifiedBundle.structuredOutputCompatibility,
+        compactRepairStructuredOutputCompatibility:
+          verifiedBundle.compactRepairStructuredOutputCompatibility,
       },
       preservationFences,
       expectedAbsentPaths: input.expectedAbsentPaths.slice(),

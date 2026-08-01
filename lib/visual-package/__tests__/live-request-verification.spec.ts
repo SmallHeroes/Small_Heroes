@@ -516,6 +516,9 @@ describe('canonical live request verification library', () => {
       },
       structuredOutputCompatibility:
         materialized.manifest.structuredOutputCompatibility,
+      compactRepairStructuredOutputCompatibility:
+        materialized.manifest
+          .compactRepairStructuredOutputCompatibility,
       externalBoundaryEvidence: {
         credentialReadOrCheck: false,
         providerReachabilityCheck: false,
@@ -633,6 +636,7 @@ describe('canonical live request verification library', () => {
         value.version =
           'canonical-live-request-materialization/v2';
         delete value.structuredOutputCompatibility;
+        delete value.compactRepairStructuredOutputCompatibility;
       },
     );
     expect(
@@ -663,6 +667,44 @@ describe('canonical live request verification library', () => {
       reasonCodes: [
         'structured_output_compatibility_invalid',
       ],
+    });
+
+    const compactIncompatiblePath = rewriteManifest(
+      fixture,
+      materialized.manifest,
+      (value) => {
+        const authority =
+          value.compactRepairStructuredOutputCompatibility as {
+            compatibility: Record<string, unknown>;
+          };
+        authority.compatibility.profileDigest = '0'.repeat(64);
+      },
+    );
+    expect(
+      verificationResult(fixture, compactIncompatiblePath),
+    ).toMatchObject({
+      status: 'rejected',
+      reasonCodes: [
+        'structured_output_compatibility_invalid',
+      ],
+    });
+
+    const staleCatalogBindingPath = rewriteManifest(
+      fixture,
+      materialized.manifest,
+      (value) => {
+        const sourceRevision = value.sourceRevision as Record<
+          string,
+          unknown
+        >;
+        sourceRevision.sourceEvidenceCatalogDigest = '0'.repeat(64);
+      },
+    );
+    expect(
+      verificationResult(fixture, staleCatalogBindingPath),
+    ).toMatchObject({
+      status: 'rejected',
+      reasonCodes: ['manifest_source_revision_mismatch'],
     });
   });
 

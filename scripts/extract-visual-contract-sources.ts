@@ -30,6 +30,10 @@ import {
   authoredCoverAuthorityFromLocationBible,
   type AuthoredCoverAuthority,
 } from '@/lib/visual-contract-compiler/coverSourceAuthority';
+import {
+  buildSourceEvidenceCatalog,
+  type SourceEvidenceCatalog,
+} from '@/lib/visual-contract-compiler/sourceEvidenceCatalog';
 import { normalizedTextDigest } from '@/lib/visual-package/integrity';
 import {
   STORY_SOURCE_IDENTITY_VERSION,
@@ -50,6 +54,8 @@ export interface ContractSourceFile extends CompileBookVisualContractInput {
   storyKey: string;
   /** Exact normalized story markdown identity carried into compiler evidence and later promotion. */
   sourceIdentity: StorySourceIdentity;
+  /** Compiler-owned exact Story Source excerpt authority. */
+  sourceEvidenceCatalog: SourceEvidenceCatalog;
   /** ADDITIVE — per-page prose for deterministic extraction (Component 2). Ignored by the LLM compile. */
   pages: SourcePage[];
   /** Explicit page-0 location/spoiler authority from the adjacent location-bible, when authored. */
@@ -97,16 +103,22 @@ export function extractSourceFromMarkdown(
     ? { id: companionId, name: getCompanionById(companionId)?.name }
     : null;
 
+  const sourceIdentity: StorySourceIdentity = {
+    version: STORY_SOURCE_IDENTITY_VERSION,
+    path: sourcePath.split(path.sep).join('/'),
+    digestAlgorithm: 'sha256-normalized-utf8',
+    digest: normalizedTextDigest(rawMarkdown),
+    pageCount: pages.length,
+    pageNumbers: pages.map((page) => page.pageNumber),
+  };
   return {
     storyKey,
-    sourceIdentity: {
-      version: STORY_SOURCE_IDENTITY_VERSION,
-      path: sourcePath.split(path.sep).join('/'),
-      digestAlgorithm: 'sha256-normalized-utf8',
-      digest: normalizedTextDigest(rawMarkdown),
-      pageCount: pages.length,
-      pageNumbers: pages.map((page) => page.pageNumber),
-    },
+    sourceIdentity,
+    sourceEvidenceCatalog: buildSourceEvidenceCatalog({
+      storyKey,
+      sourceIdentity,
+      pages,
+    }),
     fullStoryText,
     pageCount: pages.length,
     childGender: gender,

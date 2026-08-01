@@ -74,6 +74,23 @@ import {
   type ActionSemanticCapabilityGap,
   type ActionSemanticCoverageRecord,
 } from './actionSemanticCoverage';
+import {
+  assertValidSourceEvidenceCatalog,
+  resolveSourceEvidenceId,
+  type SourceEvidenceCatalog,
+  type SourceEvidenceStoryIdentity,
+} from './sourceEvidenceCatalog';
+import {
+  SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+  SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION,
+  SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
+  SOURCE_EVIDENCE_ID_REPAIR_USER_PROMPT_VERSION,
+  applySourceEvidenceIdPatches,
+  buildSourceEvidenceIdRepairSystemPrompt,
+  buildSourceEvidenceIdRepairUserPrompt,
+  parseSourceEvidenceIdPatches,
+  type SourceEvidenceIdRepairAffectedRecord,
+} from './sourceEvidenceIdRepair';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -84,15 +101,15 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v4' as const;
+  'vc-template-prompt/v5' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v4' as const;
+  'vc-template-user-prompt/v5' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v4' as const;
+  'vc-repair-prompt/v5' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v4' as const;
+  'vc-repair-user-prompt/v5' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -135,6 +152,20 @@ export interface TemplateRepairAttempt {
   errors: string[];
   /** The descriptive draft object this attempt failed with (nested in the reviewability sidecar). */
   draft: unknown;
+  /** Narrow patch or existing whole-draft repair selected after this failure. */
+  nextRepairMode?:
+    | 'source_evidence_id_patch'
+    | 'full_draft';
+}
+
+export class SourceEvidenceIdValidationError extends InvalidTemplateContractError {
+  constructor(
+    readonly affectedRecords: SourceEvidenceIdRepairAffectedRecord[],
+    errors: string[],
+  ) {
+    super(errors);
+    this.name = 'SourceEvidenceIdValidationError';
+  }
 }
 
 /**
@@ -171,6 +202,10 @@ export interface TemplateCompileInput extends DeterministicFactsInput {
   worldType?: string;
   /** Explicit author-owned page-0 cover authority extracted from the adjacent location-bible. */
   authoredCoverAuthority?: AuthoredCoverAuthority;
+  /** Exact compiler-owned Story Source excerpt authority. */
+  sourceEvidenceCatalog: SourceEvidenceCatalog;
+  /** Source identity from which the catalog must deterministically rebuild. */
+  sourceIdentity: SourceEvidenceStoryIdentity;
 }
 
 export interface TemplateCompileResult {
@@ -207,6 +242,15 @@ function actionSemanticCatalogPromptLines(): string[] {
   });
 }
 
+function sourceEvidenceCatalogPromptLines(
+  catalog: SourceEvidenceCatalog,
+): string[] {
+  return catalog.entries.map(
+    (entry) =>
+      `- page ${entry.pageNumber} | occurrence ${entry.excerptOrdinal} | utf8 ${entry.startOffsetUtf8}-${entry.endOffsetUtf8} | ${entry.sourceEvidenceId} | ${JSON.stringify(entry.excerpt)}`,
+  );
+}
+
 export function buildTemplateCompileSystemPrompt(): string {
   return [
     "You are a visual-continuity compiler for a children's picture book, producing a DRAFT for human review.",
@@ -224,9 +268,10 @@ export function buildTemplateCompileSystemPrompt(): string {
     '  mustShow/mustNotShow/propState/propConstraints/actionRequirements/camera/transition/zoneId/locationId.',
     `- Action Semantic Catalog authority is ${ACTION_SEMANTIC_CATALOG_VERSION}. Use only these atomic predicates:`,
     ...actionSemanticCatalogPromptLines(),
-    '- Every actionRequirements[] entry includes sourcePhrase containing exact words from that SAME page of Story',
-    '  Source prose. Historical imageDirection is never action authority and cannot supply sourcePhrase.',
+    '- actionRequirements[] carries structured action only. Never add copied source prose or evidence fields there.',
     '- Every required same-page Story Source visual beat gets one stable page-scoped actionSemanticCoverage[] record:',
+    '  select one exact sourceEvidenceId from the compiler-owned catalog on that same page; never copy or invent',
+    '  source prose. Historical imageDirection is never action authority and cannot supply source evidence.',
     '  action_requirement binds one same-page checkId; represented_elsewhere cites an exact same-page contract JSON',
     '  pointer and its exact current string value; non_visual uses only a closed rationale; unsupported uses reason',
     '  closed_action_catalog_gap. Never force-fit a broader/narrower predicate. Coverage is unreviewed evidence only',
@@ -284,11 +329,16 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     'forbiddenGlobalElements[], coverContract{worldType,locationId,zoneId,castIds,timeOfDay,mustShow,mustNotShow},',
     'pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
     'mustShow[], mustNotShow[], propState[], propConstraints[{propId,visibility,stateId?,anchorId?}], camera, transition}].',
-    'Each page carries actionRequirements[{checkId,actorId,predicate,object?,polarity,laterality?,sourcePhrase}]. Use []',
+    'Each page carries actionRequirements[{checkId,actorId,predicate,object?,polarity,laterality?}]. Use []',
     'when no beat binds to a catalog action; do not invent an action merely to populate the array.',
-    'and actionSemanticCoverage[{beatId,sourcePhrase,disposition}] arrays. beatId must use beat:p{page}:name.',
-    'sourcePhrase must quote exact same-page Story Source prose; never quote or derive action authority from',
-    'imageDirection. represented_elsewhere uses a root JSON pointer under the exact current pageContracts[] item.',
+    'and actionSemanticCoverage[{beatId,sourceEvidenceId,disposition}] arrays. beatId must use beat:p{page}:name.',
+    'sourceEvidenceId must be selected exactly from the same-page catalog below. represented_elsewhere uses a root',
+    'JSON pointer under the exact current pageContracts[] item.',
+    '',
+    `SOURCE EVIDENCE CATALOG (${input.sourceEvidenceCatalog.version}; compiler-owned exact excerpts):`,
+    ...sourceEvidenceCatalogPromptLines(
+      input.sourceEvidenceCatalog,
+    ),
     '',
     'FULL STORY TEXT:',
     // Build the page-marked story text from input.pages — the SAME field assertSourceHasRealProse validated — so
@@ -328,6 +378,8 @@ export function buildTemplateRepairSystemPrompt(): string {
     '- forbiddenGlobalElements[]; coverContract mustShow/mustNotShow/locationId/zoneId/castIds/timeOfDay',
     '- pageContracts[] mustShow/mustNotShow/propState/propConstraints/actionRequirements/',
     '  actionSemanticCoverage/camera and the transition kind/cue',
+    '- actionSemanticCoverage sourceEvidenceId values may change only to exact same-page catalog IDs supplied in',
+    '  the repair input; actionRequirements never carries a copied source-evidence field',
     `- actionRequirements predicates must remain in ${ACTION_SEMANTIC_CATALOG_VERSION}; unsupported coverage is a`,
     '  terminal capability gap under this catalog, not a repairable shape/relationship error',
     '',
@@ -348,6 +400,23 @@ export function buildTemplateRepairUserPrompt(
   facts: DeterministicFacts,
   input: TemplateCompileInput,
 ): string {
+  const affectedPages = new Set<number>();
+  if (
+    errors.some((error) =>
+      error.startsWith('source_evidence_id_invalid:'),
+    )
+  ) {
+    for (const error of errors) {
+      const match = /\bpage (\d+)\b/.exec(error);
+      if (match) affectedPages.add(Number(match[1]));
+    }
+  }
+  const relevantCatalogLines = input.sourceEvidenceCatalog.entries
+    .filter((entry) => affectedPages.has(entry.pageNumber))
+    .map(
+      (entry) =>
+        `- page ${entry.pageNumber} | occurrence ${entry.excerptOrdinal} | utf8 ${entry.startOffsetUtf8}-${entry.endOffsetUtf8} | ${entry.sourceEvidenceId} | ${JSON.stringify(entry.excerpt)}`,
+    );
   return [
     `storyKey: ${input.storyKey}  pageCount: ${input.pageCount}`,
     '',
@@ -363,11 +432,18 @@ export function buildTemplateRepairUserPrompt(
           JSON.stringify(input.authoredCoverAuthority),
         ]
       : []),
+    ...(relevantCatalogLines.length > 0
+      ? [
+          '',
+          'RELEVANT SOURCE EVIDENCE CATALOG ENTRIES (exact same-page IDs only):',
+          ...relevantCatalogLines,
+        ]
+      : []),
     '',
     'PREVIOUS (INVALID) DRAFT — return a corrected COMPLETE version of this exact JSON object:',
     'Historical imageDirection remains ADVISORY only for action, interaction, expression, camera, composition, and',
     'staging. It cannot alter world/location/zone/cast/wardrobe/props/reveal timing/forbidden content; story prose and',
-    'authored page-0 authority win conflicts. It is not action authority and cannot be used as sourcePhrase.',
+    'authored page-0 authority win conflicts. It is not action authority and cannot supply sourceEvidenceId.',
     '',
     JSON.stringify(previousDraft),
   ].join('\n');
@@ -447,63 +523,32 @@ function mergeHuman(fact: HumanFact, draftHuman: Record<string, unknown>): Templ
   };
 }
 
-/**
- * Action authority is descriptive but must remain source-grounded. The
- * evidence-only `sourcePhrase` and coverage records belong to the authoring
- * draft/review surface, not the candidate contract.
- */
+/** Action authority is descriptive; evidence text is compiler-resolved only. */
 function sourceGroundPageActionSemantics(
   pageDraft: Record<string, unknown>,
-  sourcePages: TemplateCompileInput['pages'],
+  sourceEvidenceCatalog: SourceEvidenceCatalog,
 ): {
   page: Record<string, unknown>;
   coverage: ActionSemanticCoverageRecord[];
   capabilityGaps: ActionSemanticCapabilityGap[];
   issues: string[];
+  sourceEvidenceIssues: SourceEvidenceIdRepairAffectedRecord[];
 } {
   const pageNumber =
     typeof pageDraft.pageNumber === 'number'
       ? pageDraft.pageNumber
       : -1;
-  const sourcePage = sourcePages.find(
-    (candidate) => candidate.pageNumber === pageNumber,
-  );
-  const sourceText = sourcePage?.text ?? '';
   const issues: string[] = [];
-  const assertPhrase = (
-    rawPhrase: unknown,
-    label: string,
-  ): string | null => {
-    if (
-      typeof rawPhrase !== 'string' ||
-      rawPhrase.trim().length === 0
-    ) {
-      issues.push(
-        `action_source_evidence_missing: ${label}.sourcePhrase must quote exact same-page Story Source prose`,
-      );
-      return null;
-    }
-    if (!sourceText.includes(rawPhrase)) {
-      issues.push(
-        `action_source_evidence_missing: ${label}.sourcePhrase does not occur in Story Source page ${pageNumber}`,
-      );
-      return null;
-    }
-    return rawPhrase;
-  };
+  const sourceEvidenceIssues: SourceEvidenceIdRepairAffectedRecord[] = [];
 
   const out = { ...pageDraft };
   if (pageDraft.actionRequirements !== undefined) {
     const groundedActions = asArr(
       pageDraft.actionRequirements,
-    ).map((raw, index) => {
+    ).map((raw) => {
       const action = { ...asObj(raw) };
-      const sourcePhrase = assertPhrase(
-        action.sourcePhrase,
-        `page ${pageNumber}.actionRequirements[${index}]`,
-      );
-      void sourcePhrase;
       delete action.sourcePhrase;
+      delete action.sourceEvidenceId;
       if (action.object === null) delete action.object;
       if (action.laterality === null) delete action.laterality;
       return action;
@@ -527,10 +572,6 @@ function sourceGroundPageActionSemantics(
     const label =
       `page ${pageNumber}.actionSemanticCoverage[${index}]`;
     const record = asObj(rawCoverage[index]);
-    const sourcePhrase = assertPhrase(
-      record.sourcePhrase,
-      label,
-    );
     const rawBeatId =
       typeof record.beatId === 'string' ? record.beatId : '';
     const beatIdPattern = new RegExp(
@@ -547,6 +588,56 @@ function sourceGroundPageActionSemantics(
       );
     }
     const disposition = asObj(record.disposition);
+    const resolution = resolveSourceEvidenceId({
+      catalog: sourceEvidenceCatalog,
+      sourceEvidenceId: record.sourceEvidenceId,
+      pageNumber,
+    });
+    if (!resolution.ok) {
+      const actionRequirement =
+        disposition.kind === 'action_requirement' &&
+        typeof disposition.checkId === 'string'
+          ? asArr(pageDraft.actionRequirements)
+              .map(asObj)
+              .find(
+                (action) =>
+                  action.checkId === disposition.checkId,
+              ) ?? null
+          : null;
+      if (beatId) {
+        sourceEvidenceIssues.push({
+          pageNumber,
+          coverageIndex: index,
+          beatId,
+          failureCode: resolution.code,
+          coverageRecord: {
+            beatId,
+            sourceEvidenceId: record.sourceEvidenceId,
+            disposition: structuredClone(disposition),
+          },
+          actionRequirement: actionRequirement
+            ? {
+                checkId: actionRequirement.checkId,
+                actorId: actionRequirement.actorId,
+                predicate: actionRequirement.predicate,
+                object: structuredClone(
+                  actionRequirement.object,
+                ),
+                polarity: actionRequirement.polarity,
+                laterality: actionRequirement.laterality,
+              }
+            : null,
+        });
+      }
+    }
+    const sourceEvidenceId = resolution.ok
+      ? resolution.entry.sourceEvidenceId
+      : typeof record.sourceEvidenceId === 'string'
+        ? record.sourceEvidenceId
+        : '';
+    const sourcePhrase = resolution.ok
+      ? resolution.entry.excerpt
+      : '';
     if (disposition.kind === 'unsupported') {
       if (
         disposition.reason !== 'closed_action_catalog_gap'
@@ -554,13 +645,18 @@ function sourceGroundPageActionSemantics(
         issues.push(
           `${label}.disposition.reason must be closed_action_catalog_gap`,
         );
-      } else if (beatId && sourcePhrase) {
+      } else if (beatId && resolution.ok) {
         capabilityGaps.push({
           pageNumber,
           beatId,
+          sourceEvidenceId,
           sourcePhrase,
           reason: 'closed_action_catalog_gap',
         });
+      } else if (beatId) {
+        issues.push(
+          `${label}.disposition unsupported is a terminal action_semantic_capability_gap and is not eligible for compact ID repair`,
+        );
       }
       continue;
     }
@@ -614,11 +710,12 @@ function sourceGroundPageActionSemantics(
     } else {
       issues.push(`${label}.disposition.kind is invalid`);
     }
-    if (beatId && sourcePhrase && typedDisposition) {
+    if (beatId && typedDisposition) {
       coverage.push({
         version: ACTION_SEMANTIC_COVERAGE_VERSION,
         pageNumber,
         beatId,
+        sourceEvidenceId,
         sourcePhrase,
         disposition: typedDisposition,
         reviewState: 'unreviewed',
@@ -632,6 +729,7 @@ function sourceGroundPageActionSemantics(
     coverage,
     capabilityGaps,
     issues,
+    sourceEvidenceIssues,
   };
 }
 
@@ -928,6 +1026,15 @@ function normalizeDraftSetBoardAuthorities(
     : undefined;
 }
 
+function sourceEvidenceValidationMessages(
+  records: readonly SourceEvidenceIdRepairAffectedRecord[],
+): string[] {
+  return records.map(
+    (record) =>
+      `source_evidence_id_invalid:${record.failureCode}: page ${record.pageNumber}.actionSemanticCoverage[${record.coverageIndex}].sourceEvidenceId must resolve to one exact current-catalog excerpt on page ${record.pageNumber}`,
+  );
+}
+
 /**
  * Assemble ONE template CANDIDATE from a single descriptive draft: authoritative cast + compiler-owned
  * appearance/topology/worldType, the fact overlay LAST, then the structural cast invariant + the full fail-closed
@@ -946,6 +1053,8 @@ function assembleTemplateFromDraft(
 } {
   const notes: string[] = [];
   const actionSemanticCoverage: ActionSemanticCoverageRecord[] =
+    [];
+  const sourceEvidenceIssues: SourceEvidenceIdRepairAffectedRecord[] =
     [];
 
   // Cast IDENTITY + PRESENCE are AUTHORITATIVE from the input/facts — NEVER the draft. The child id is a fixed
@@ -1007,9 +1116,10 @@ function assembleTemplateFromDraft(
   const pageContracts = canonicalPages.map((pc) => {
     const grounded = sourceGroundPageActionSemantics(
       pc,
-      input.pages,
+      input.sourceEvidenceCatalog,
     );
     actionSemanticCoverage.push(...grounded.coverage);
+    sourceEvidenceIssues.push(...grounded.sourceEvidenceIssues);
     capabilityGaps.push(...grounded.capabilityGaps);
     coverageIssues.push(...grounded.issues);
     return overlayPage(
@@ -1032,7 +1142,10 @@ function assembleTemplateFromDraft(
     seenBeatIds.add(beat.beatId);
   }
   if (coverageIssues.length > 0) {
-    throw new InvalidTemplateContractError(coverageIssues);
+    throw new InvalidTemplateContractError([
+      ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
+      ...coverageIssues,
+    ]);
   }
   if (capabilityGaps.length > 0) {
     throw new ActionSemanticCapabilityGapError(capabilityGaps);
@@ -1119,7 +1232,16 @@ function assembleTemplateFromDraft(
   });
   if (semanticCoverageIssues.length > 0) {
     throw new InvalidTemplateContractError(
-      semanticCoverageIssues,
+      [
+        ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
+        ...semanticCoverageIssues,
+      ],
+    );
+  }
+  if (sourceEvidenceIssues.length > 0) {
+    throw new SourceEvidenceIdValidationError(
+      sourceEvidenceIssues,
+      sourceEvidenceValidationMessages(sourceEvidenceIssues),
     );
   }
   return { template, notes, actionSemanticCoverage };
@@ -1144,8 +1266,17 @@ export async function compileBookVisualContractTemplate(
   // reaches the compiler (the extractor guard is the first line), refuse before the LLM call so it cannot hallucinate
   // a fully-valid contract out of nothing.
   assertSourceHasRealProse(input.storyKey, input.pages, 'compile-vc-template');
+  assertValidSourceEvidenceCatalog({
+    catalog: input.sourceEvidenceCatalog,
+    storyKey: input.storyKey,
+    sourceIdentity: input.sourceIdentity,
+    pages: input.pages,
+  });
   assertOpenAIResponsesStructuredOutputSchemaCompatible(
     TEMPLATE_DRAFT_JSON_SCHEMA,
+  );
+  assertOpenAIResponsesStructuredOutputSchemaCompatible(
+    SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
   );
 
   const facts = extractDeterministicFacts(input);
@@ -1170,6 +1301,13 @@ export async function compileBookVisualContractTemplate(
     maxInputTokens:
       VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
   } satisfies ContractLlmCallOptions;
+  const compactRepairLlmOpts = {
+    ...llmOpts,
+    jsonSchema: {
+      name: SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
+      schema: SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+    },
+  } satisfies ContractLlmCallOptions;
 
   let draft = asObj(
     parseContractJson(
@@ -1192,14 +1330,22 @@ export async function compileBookVisualContractTemplate(
       | ReturnType<typeof assembleTemplateFromDraft>
       | null = null;
     let attemptErrors: string[] = [];
+    let sourceEvidenceAffectedRecords:
+      | SourceEvidenceIdRepairAffectedRecord[]
+      | null = null;
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
       if (!(err instanceof InvalidTemplateContractError)) throw err; // a non-validation failure is not repairable
       attemptErrors = err.errors;
+      if (err instanceof SourceEvidenceIdValidationError) {
+        sourceEvidenceAffectedRecords = err.affectedRecords;
+      }
     }
 
     if (assembled) {
+      const lastRepairMode =
+        repairAttempts[repairAttempts.length - 1]?.nextRepairMode;
       const provenance: TemplateAuthoringProvenance = {
         authoringModel,
         reasoningEffort: AUTHORING_REASONING_EFFORT,
@@ -1208,7 +1354,14 @@ export async function compileBookVisualContractTemplate(
         promptVersion: TEMPLATE_PROMPT_VERSION,
         policyVersion: APPEARANCE_POLICY_VERSION,
         attempt,
-        ...(attempt > 1 ? { repairPromptVersion: REPAIR_PROMPT_VERSION } : {}),
+        ...(attempt > 1
+          ? {
+              repairPromptVersion:
+                lastRepairMode === 'source_evidence_id_patch'
+                  ? SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION
+                  : REPAIR_PROMPT_VERSION,
+            }
+          : {}),
       };
       return {
         template: assembled.template,
@@ -1229,31 +1382,62 @@ export async function compileBookVisualContractTemplate(
       throw new TemplateRepairExhaustedError(repairAttempts, attemptErrors);
     }
 
+    repairAttempts[repairAttempts.length - 1]!.nextRepairMode =
+      sourceEvidenceAffectedRecords
+        ? 'source_evidence_id_patch'
+        : 'full_draft';
+
     // Request a bounded SEMANTIC repair: fix ONLY the descriptive draft against the exact errors (same model, no
     // fallback). Compiler-owned + fact fields are re-derived on the next assemble, so LLM edits to them are ignored.
     // If the repair call itself can't be turned into a usable draft (model error, or truncated/unparseable JSON),
     // we cannot continue — surface it as an exhaustion so the accumulated attempt trail is STILL persisted (never
     // silently lost), rather than letting the raw parse/model error escape and drop the trail.
     try {
-      draft = asObj(
-        parseContractJson(
-          await deps.callLLM(
-            buildTemplateRepairSystemPrompt(),
-            buildTemplateRepairUserPrompt(
-              draft,
-              attemptErrors,
-              facts,
-              input,
+      if (sourceEvidenceAffectedRecords) {
+        const rawPatch = await deps.callLLM(
+          buildSourceEvidenceIdRepairSystemPrompt(),
+          buildSourceEvidenceIdRepairUserPrompt({
+            catalog: input.sourceEvidenceCatalog,
+            affectedRecords: sourceEvidenceAffectedRecords,
+          }),
+          compactRepairLlmOpts,
+          {
+            kind: 'repair',
+            repairMode: 'source_evidence_id_patch',
+            systemPromptVersion:
+              SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION,
+            userPromptVersion:
+              SOURCE_EVIDENCE_ID_REPAIR_USER_PROMPT_VERSION,
+          },
+        );
+        draft = applySourceEvidenceIdPatches({
+          draft,
+          catalog: input.sourceEvidenceCatalog,
+          affectedRecords: sourceEvidenceAffectedRecords,
+          patches: parseSourceEvidenceIdPatches(rawPatch),
+        });
+      } else {
+        draft = asObj(
+          parseContractJson(
+            await deps.callLLM(
+              buildTemplateRepairSystemPrompt(),
+              buildTemplateRepairUserPrompt(
+                draft,
+                attemptErrors,
+                facts,
+                input,
+              ),
+              llmOpts,
+              {
+                kind: 'repair',
+                repairMode: 'full_draft',
+                systemPromptVersion: REPAIR_PROMPT_VERSION,
+                userPromptVersion: REPAIR_USER_PROMPT_VERSION,
+              },
             ),
-            llmOpts,
-            {
-              kind: 'repair',
-              systemPromptVersion: REPAIR_PROMPT_VERSION,
-              userPromptVersion: REPAIR_USER_PROMPT_VERSION,
-            },
           ),
-        ),
-      );
+        );
+      }
     } catch (err) {
       throw new TemplateRepairExhaustedError(repairAttempts, [
         `repair #${attempt} could not be produced (model error or unparseable/truncated JSON): ${(err as Error).message}`,

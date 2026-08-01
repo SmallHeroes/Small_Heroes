@@ -43,11 +43,18 @@ export interface ContractLlmCallOptions {
 }
 
 /** Minimal LLM seam: system+user prompt (+ optional per-call overrides) in, raw model text (expected JSON) out. */
-export interface ContractLlmPromptAuthority {
-  kind: 'initial' | 'repair';
-  systemPromptVersion: string;
-  userPromptVersion: string;
-}
+export type ContractLlmPromptAuthority =
+  | {
+      kind: 'initial';
+      systemPromptVersion: string;
+      userPromptVersion: string;
+    }
+  | {
+      kind: 'repair';
+      repairMode: 'full_draft' | 'source_evidence_id_patch';
+      systemPromptVersion: string;
+      userPromptVersion: string;
+    };
 
 export type ContractLlmCaller = (
   system: string,

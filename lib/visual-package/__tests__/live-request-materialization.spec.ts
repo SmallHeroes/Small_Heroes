@@ -311,7 +311,7 @@ describe('canonical live request materialization validators', () => {
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v3');
+    ).toBe('canonical-live-request-materialization/v4');
   });
 
   it.each([
@@ -464,7 +464,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v5',
+      version: 'visual-contract-authoring-request/v6',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -490,7 +490,7 @@ describe('canonical live request materialization artifacts', () => {
       },
       structuredOutput: {
         schemaName: 'BookVisualContractTemplateDraft',
-        schemaVersion: 'vc-draft-schema/v8',
+        schemaVersion: 'vc-draft-schema/v9',
         compatibilityProfileVersion:
           OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
         compatibilityProfileDigest:
@@ -539,10 +539,40 @@ describe('canonical live request materialization artifacts', () => {
             request.structuredOutput.serializedSchemaDigest,
         },
       },
+      compactRepairStructuredOutputCompatibility: {
+        schemaName:
+          request.compactRepairStructuredOutput.schemaName,
+        schemaVersion:
+          request.compactRepairStructuredOutput.schemaVersion,
+        schemaDigest:
+          request.compactRepairStructuredOutput.schemaDigest,
+        compatibility: {
+          profileVersion:
+            request.compactRepairStructuredOutput
+              .compatibilityProfileVersion,
+          profileDigest:
+            request.compactRepairStructuredOutput
+              .compatibilityProfileDigest,
+          evidenceVersion:
+            request.compactRepairStructuredOutput
+              .compatibilityEvidenceVersion,
+          evidenceDigest:
+            request.compactRepairStructuredOutput
+              .compatibilityEvidenceDigest,
+          status: 'compatible',
+          serializedSchemaDigest:
+            request.compactRepairStructuredOutput
+              .serializedSchemaDigest,
+        },
+      },
     });
     expect(
       request.structuredOutput.serializedSchemaDigest,
     ).toBe(request.structuredOutput.schemaDigest);
+    expect(
+      request.compactRepairStructuredOutput
+        .serializedSchemaDigest,
+    ).toBe(request.compactRepairStructuredOutput.schemaDigest);
     expect(
       result.manifest.futureLiveCommand.arguments,
     ).toEqual([

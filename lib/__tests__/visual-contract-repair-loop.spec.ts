@@ -17,6 +17,13 @@ import {
   TemplateRepairExhaustedError,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
+import {
+  SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+  SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION,
+  SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
+} from '../visual-contract-compiler/sourceEvidenceIdRepair';
+import { TEMPLATE_DRAFT_SCHEMA_NAME } from '../visual-contract-compiler/templateDraftSchema';
+import { VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS } from '../visual-contract-compiler/authoringPolicy';
 import { InvalidTemplateContractError } from '../visual-contract-compiler/validateTemplateContract';
 import { extractDeterministicFacts } from '../visual-contract-compiler/extractDeterministicFacts';
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
@@ -29,6 +36,7 @@ const bunnySource = (): TemplateCompileInput =>
 const bunnyDraft = (): any => withCurrentActionSemanticCoverage({
   draft: JSON.parse(fs.readFileSync(path.join(BANK, 'bunny_ometz_adventure.visual-contract-template.json'), 'utf8')),
   pages: bunnySource().pages,
+  sourceEvidenceCatalog: bunnySource().sourceEvidenceCatalog,
 });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const withEmptyMaterial = (): any => {
@@ -47,6 +55,36 @@ function recordingCaller(drafts: unknown[]): { caller: ContractLlmCaller; prompt
   return { caller, prompts, calls: () => prompts.length };
 }
 
+const OBSERVED_EVIDENCE_FAILURE_PAGES = [
+  6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12,
+] as const;
+
+// The failed live attempt had eleven evidence failures across these six pages.
+// This fixture preserves that general shape without using a story-specific
+// phrase or selection rule.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function withElevenInvalidEvidenceIds(): any {
+  const draft = bunnyDraft();
+  const occurrenceByPage = new Map<number, number>();
+  for (const pageNumber of OBSERVED_EVIDENCE_FAILURE_PAGES) {
+    const page = draft.pageContracts.find(
+      (candidate: { pageNumber: number }) =>
+        candidate.pageNumber === pageNumber,
+    );
+    if (!page) throw new Error(`missing page ${pageNumber}`);
+    const occurrence = occurrenceByPage.get(pageNumber) ?? 0;
+    occurrenceByPage.set(pageNumber, occurrence + 1);
+    const source = structuredClone(page.actionSemanticCoverage[0]);
+    source.beatId =
+      `beat:p${pageNumber}:observed_failure_${occurrence + 1}`;
+    source.sourceEvidenceId =
+      `se1_${String(pageNumber * 10 + occurrence).padStart(64, 'f')}`;
+    if (occurrence === 0) page.actionSemanticCoverage = [source];
+    else page.actionSemanticCoverage.push(source);
+  }
+  return draft;
+}
+
 describe('Stage 3 — bounded repair loop', () => {
   it('a valid initial draft passes on attempt 1 with NO repair', async () => {
     const { caller, calls } = recordingCaller([bunnyDraft()]);
@@ -61,7 +99,7 @@ describe('Stage 3 — bounded repair loop', () => {
     const { caller, prompts, calls } = recordingCaller([withEmptyMaterial(), bunnyDraft()]);
     const res = await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
     expect(res.provenance.attempt).toBe(2);
-    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v4');
+    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v5');
     expect(res.repairAttempts).toHaveLength(1);
     expect(res.repairAttempts[0].attempt).toBe(1);
     expect(res.repairAttempts[0].errors.some((e) => /material/i.test(e))).toBe(true);
@@ -139,5 +177,147 @@ describe('Stage 3 — repair prompt content (allowlist + inputs)', () => {
     expect(user).toMatch(/PREVIOUS \(INVALID\) DRAFT/);
     expect(user).toContain('wall_stickers'); // the previous draft is embedded
     if (facts.humans[0]) expect(user).toContain(facts.humans[0].id); // facts are embedded
+  });
+});
+
+describe('Source Evidence ID compact repair', () => {
+  it('repairs the observed eleven-failure shape with a compact ID patch and revalidates the full draft', async () => {
+    const input = bunnySource();
+    const invalid = withElevenInvalidEvidenceIds();
+    const calls: Array<{
+      system: string;
+      user: string;
+      options: Parameters<ContractLlmCaller>[2];
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      system,
+      user,
+      options,
+      authority,
+    ) => {
+      calls.push({ system, user, options, authority });
+      if (calls.length === 1) return JSON.stringify(invalid);
+      const affected = JSON.parse(user).affectedRecords as Array<{
+        pageNumber: number;
+        beatId: string;
+      }>;
+      return JSON.stringify({
+        patches: affected.map((record) => ({
+          pageNumber: record.pageNumber,
+          beatId: record.beatId,
+          sourceEvidenceId: input.sourceEvidenceCatalog.entries.find(
+            (entry) => entry.pageNumber === record.pageNumber,
+          )!.sourceEvidenceId,
+        })),
+      });
+    };
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM: caller,
+    });
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.authority).toEqual({
+      kind: 'repair',
+      repairMode: 'source_evidence_id_patch',
+      systemPromptVersion: SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION,
+      userPromptVersion: 'source-evidence-id-repair-user-prompt/v1',
+    });
+    expect(calls[1]!.options?.jsonSchema?.name).toBe(
+      SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
+    );
+    expect(calls[1]!.options?.maxInputTokens).toBe(
+      VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+    );
+    const compactPayload = JSON.parse(calls[1]!.user) as {
+      affectedRecords: unknown[];
+      catalogEntries: Array<{ pageNumber: number }>;
+    };
+    expect(compactPayload.affectedRecords).toHaveLength(11);
+    expect(
+      new Set(
+        compactPayload.catalogEntries.map((entry) => entry.pageNumber),
+      ),
+    ).toEqual(new Set([6, 8, 9, 10, 11, 12]));
+    expect(calls[1]!.user).not.toContain('"worldType"');
+    const conservativeUpperBound =
+      Buffer.byteLength(
+        [
+          calls[1]!.system,
+          calls[1]!.user,
+          JSON.stringify(SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA),
+        ].join('\n'),
+        'utf8',
+      ) + 256;
+    expect(conservativeUpperBound).toBeLessThan(
+      VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+    );
+    expect(result.provenance.attempt).toBe(2);
+    expect(result.provenance.repairPromptVersion).toBe(
+      SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION,
+    );
+    expect(result.repairAttempts).toHaveLength(1);
+    expect(result.repairAttempts[0]!.nextRepairMode).toBe(
+      'source_evidence_id_patch',
+    );
+    expect(result.actionSemanticCoverage).toHaveLength(17);
+    for (const record of result.actionSemanticCoverage) {
+      const entry = input.sourceEvidenceCatalog.entries.find(
+        (candidate) =>
+          candidate.sourceEvidenceId === record.sourceEvidenceId,
+      );
+      expect(entry?.pageNumber).toBe(record.pageNumber);
+      expect(record.sourcePhrase).toBe(entry?.excerpt);
+    }
+    expect(
+      result.template.pageContracts.flatMap(
+        (page) => page.actionRequirements ?? [],
+      ),
+    ).toSatisfy((actions: unknown[]) =>
+      actions.every(
+        (action) =>
+          !Object.prototype.hasOwnProperty.call(
+            action as object,
+            'sourcePhrase',
+          ),
+      ),
+    );
+  });
+
+  it('keeps mixed source-ID and other failures on the existing whole-draft repair path', async () => {
+    const invalid = withElevenInvalidEvidenceIds();
+    invalid.recurringProps[0].material = '';
+    const calls: Array<{
+      system: string;
+      user: string;
+      options: Parameters<ContractLlmCaller>[2];
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      system,
+      user,
+      options,
+      authority,
+    ) => {
+      calls.push({ system, user, options, authority });
+      return JSON.stringify(calls.length === 1 ? invalid : bunnyDraft());
+    };
+
+    const result = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: caller,
+    });
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.authority).toMatchObject({
+      kind: 'repair',
+      repairMode: 'full_draft',
+    });
+    expect(calls[1]!.options?.jsonSchema?.name).toBe(
+      TEMPLATE_DRAFT_SCHEMA_NAME,
+    );
+    expect(calls[1]!.system).toMatch(/REPAIRING/);
+    expect(calls[1]!.user).toContain('PREVIOUS (INVALID) DRAFT');
+    expect(result.repairAttempts[0]!.nextRepairMode).toBe('full_draft');
   });
 });

@@ -207,14 +207,6 @@ function bunnySnapshot(): StorySourceAuthoritySnapshot {
   });
 }
 
-function exactSourcePhrase(text: string): string {
-  return text
-    .trim()
-    .split(/\s+/)
-    .slice(0, 6)
-    .join(' ');
-}
-
 function fullyActionedBunnyDraft(
   snapshot: StorySourceAuthoritySnapshot,
 ): BookVisualContractTemplate & Record<string, unknown> {
@@ -228,10 +220,16 @@ function fullyActionedBunnyDraft(
     ),
   ) as BookVisualContractTemplate & Record<string, unknown>;
   for (const page of draft.pageContracts) {
-    const sourcePage = snapshot.content.pages.find(
-      (candidate) =>
-        candidate.pageNumber === page.pageNumber,
-    );
+    const sourceEvidence =
+      snapshot.content.sourceEvidenceCatalog.entries.find(
+        (candidate) =>
+          candidate.pageNumber === page.pageNumber,
+      );
+    if (!sourceEvidence) {
+      throw new Error(
+        `missing Source Evidence Catalog entry for page ${page.pageNumber}`,
+      );
+    }
     const action = {
       checkId: `action:p${page.pageNumber}_look`,
       actorId: 'child:hero',
@@ -239,9 +237,6 @@ function fullyActionedBunnyDraft(
       object: null,
       polarity: 'must' as const,
       laterality: null,
-      sourcePhrase: exactSourcePhrase(
-        sourcePage?.text ?? '',
-      ),
     };
     (
       page as unknown as Record<string, unknown>
@@ -251,7 +246,7 @@ function fullyActionedBunnyDraft(
     ).actionSemanticCoverage = [
       {
         beatId: `beat:p${page.pageNumber}:look`,
-        sourcePhrase: action.sourcePhrase,
+        sourceEvidenceId: sourceEvidence.sourceEvidenceId,
         disposition: {
           kind: 'action_requirement',
           checkId: action.checkId,
@@ -711,9 +706,10 @@ describe('source-grounded closed action authority', () => {
     first.actionSemanticCoverage = [
       {
         beatId: `beat:p${first.pageNumber}:unsupported`,
-        sourcePhrase: exactSourcePhrase(
-          snapshot.content.pages[0].text,
-        ),
+        sourceEvidenceId:
+          snapshot.content.sourceEvidenceCatalog.entries.find(
+            (entry) => entry.pageNumber === first.pageNumber,
+          )!.sourceEvidenceId,
         disposition: {
           kind: 'unsupported',
           reason: 'closed_action_catalog_gap',
@@ -725,9 +721,10 @@ describe('source-grounded closed action authority', () => {
     second.actionSemanticCoverage = [
       {
         beatId: `beat:p${second.pageNumber}:unsupported`,
-        sourcePhrase: exactSourcePhrase(
-          snapshot.content.pages[1].text,
-        ),
+        sourceEvidenceId:
+          snapshot.content.sourceEvidenceCatalog.entries.find(
+            (entry) => entry.pageNumber === second.pageNumber,
+          )!.sourceEvidenceId,
         disposition: {
           kind: 'unsupported',
           reason: 'closed_action_catalog_gap',
@@ -802,23 +799,10 @@ describe('source-grounded closed action authority', () => {
   it('rejects minted, malformed, and duplicate action authority through the repair path', async () => {
     const snapshot = bunnySnapshot();
     const minted = fullyActionedBunnyDraft(snapshot);
-    (
-      minted.pageContracts[0] as unknown as Record<
-        string,
-        unknown
-      >
-    ).actionRequirements = [
-      {
-        checkId: 'action:p1_minted',
-        actorId: 'child:hero',
-        predicate: 'holds',
-        object: null,
-        polarity: 'must',
-        laterality: null,
-        sourcePhrase:
-          'words that do not occur in the source page',
-      },
-    ];
+    const mintedCoverage = (
+      minted.pageContracts[0] as unknown as Record<string, unknown>
+    ).actionSemanticCoverage as Array<Record<string, unknown>>;
+    mintedCoverage[0].sourceEvidenceId = `se1_${'f'.repeat(64)}`;
     await expect(
       compileBookVisualContractTemplate(
         {
@@ -831,7 +815,7 @@ describe('source-grounded closed action authority', () => {
           callLLM: async () => JSON.stringify(minted),
         },
       ),
-    ).rejects.toThrow(/action_source_evidence_missing/);
+    ).rejects.toThrow(/source_evidence_id/);
 
     const malformed = fullyActionedBunnyDraft(snapshot);
     (
@@ -896,9 +880,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       page.actionSemanticCoverage = [
         {
           beatId: `beat:p${pageIndex + 1}:unsupported`,
-          sourcePhrase: exactSourcePhrase(
-            snapshot.content.pages[pageIndex].text,
-          ),
+          sourceEvidenceId:
+            snapshot.content.sourceEvidenceCatalog.entries.find(
+              (entry) => entry.pageNumber === pageIndex + 1,
+            )!.sourceEvidenceId,
           disposition: {
             kind: 'unsupported',
             reason: 'closed_action_catalog_gap',
@@ -936,7 +921,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toEqual(['page 1', 'page 2']);
   });
 
-  it('separates import-preflight attestation, authoring outcome, coverage, and candidate state in readiness v2', async () => {
+  it('separates import-preflight attestation, authoring outcome, coverage, and candidate state in readiness v3', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const result = await runVisualContractAuthoring({
@@ -953,7 +938,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v2',
+      version: 'visual-contract-authoring-readiness/v3',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -1040,6 +1025,30 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v5',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v4',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v2',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'candidate',
+        'visual-contract-candidate-artifact/v2',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v6',
+      ),
     ).toBe('current');
   });
 
@@ -1055,7 +1064,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v4',
+      'visual-contract-authoring-receipt/v5',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.aggregateUsage).toEqual({
@@ -1219,6 +1228,78 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
+  it('records the compact source-evidence repair as a bounded second provider call', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    const firstCoverage = (
+      invalid.pageContracts[0] as unknown as Record<
+        string,
+        unknown
+      >
+    ).actionSemanticCoverage as Array<Record<string, unknown>>;
+    firstCoverage[0]!.sourceEvidenceId = `se1_${'f'.repeat(64)}`;
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => {
+        const output =
+          args.attempt === 1
+            ? JSON.stringify(invalid)
+            : JSON.stringify({
+                patches: [
+                  {
+                    pageNumber: 1,
+                    beatId: 'beat:p1:look',
+                    sourceEvidenceId:
+                      snapshot.content.sourceEvidenceCatalog.entries.find(
+                        (entry) => entry.pageNumber === 1,
+                      )!.sourceEvidenceId,
+                  },
+                ],
+              });
+        return {
+          output,
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `response-${args.attempt}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+              output_tokens_details: {
+                reasoning_tokens: 500,
+              },
+            },
+          },
+        };
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt.status).toBe('completed');
+    expect(result.receipt.callCount).toBe(2);
+    expect(result.receipt.repairCount).toBe(1);
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([null, 'source_evidence_id_patch']);
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    const secondCall = vi.mocked(provider.call).mock.calls[1]![0];
+    expect(secondCall.options.jsonSchema?.name).toBe(
+      'SourceEvidenceIdRepairPatches',
+    );
+    expect(secondCall.options.maxInputTokens).toBe(64_000);
+    expect(secondCall.userPrompt).not.toContain('"worldType"');
+    expect(result.receipt.actionSemanticCoverage).toMatchObject({
+      sourceEvidenceCatalogVersion: 'source-evidence-catalog/v1',
+      sourceEvidenceCatalogDigest:
+        snapshot.content.sourceEvidenceCatalog.digest,
+    });
+  });
+
   it('rechecks the 64k input ceiling before a repair and never reaches the provider for an oversized repair prompt', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
@@ -1334,6 +1415,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'utf8',
       ),
     ) as {
+      sourceEvidenceCatalogVersion: string;
+      sourceEvidenceCatalogDigest: string;
       actionSemanticCoverageDigest: string;
       actionSemanticCoverage: Array<{
         pageNumber: number;
@@ -1341,6 +1424,11 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         sourcePhrase: string;
       }>;
     };
+    expect(candidateArtifact).toMatchObject({
+      sourceEvidenceCatalogVersion: 'source-evidence-catalog/v1',
+      sourceEvidenceCatalogDigest:
+        snapshot.content.sourceEvidenceCatalog.digest,
+    });
     expect(candidateArtifact.actionSemanticCoverage).toHaveLength(
       snapshot.content.pages.length,
     );

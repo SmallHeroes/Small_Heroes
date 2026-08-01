@@ -36,6 +36,10 @@ import {
   TEMPLATE_DRAFT_JSON_SCHEMA,
   TEMPLATE_DRAFT_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/templateDraftSchema';
+import {
+  SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+  SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/sourceEvidenceIdRepair';
 
 import { canonicalJsonDigest } from './integrity';
 import {
@@ -201,12 +205,17 @@ function exactCallOptionsIssues(
   ) {
     issues.push('max_output_tokens');
   }
-  if (
-    options.jsonSchema?.name !==
-      TEMPLATE_DRAFT_SCHEMA_NAME ||
-    canonicalJsonDigest(options.jsonSchema?.schema) !==
-      canonicalJsonDigest(TEMPLATE_DRAFT_JSON_SCHEMA)
-  ) {
+  const schemaName = options.jsonSchema?.name;
+  const schemaDigest = canonicalJsonDigest(
+    options.jsonSchema?.schema,
+  );
+  const structuredOutputMatches =
+    (schemaName === TEMPLATE_DRAFT_SCHEMA_NAME &&
+      schemaDigest === canonicalJsonDigest(TEMPLATE_DRAFT_JSON_SCHEMA)) ||
+    (schemaName === SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME &&
+      schemaDigest ===
+        canonicalJsonDigest(SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA));
+  if (!structuredOutputMatches) {
     issues.push('structured_output');
   }
   return issues;
@@ -239,8 +248,8 @@ export function buildOpenAIResponsesVisualContractAuthoringBody(
     text: {
       format: {
         type: 'json_schema',
-        name: TEMPLATE_DRAFT_SCHEMA_NAME,
-        schema: TEMPLATE_DRAFT_JSON_SCHEMA,
+        name: args.options.jsonSchema!.name,
+        schema: args.options.jsonSchema!.schema,
         strict: true,
       },
     },

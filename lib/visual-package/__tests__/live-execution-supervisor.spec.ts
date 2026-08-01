@@ -236,6 +236,9 @@ function executionRequestPayload(
         CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
       structuredOutputCompatibility:
         fixture.materialized.manifest.structuredOutputCompatibility,
+      compactRepairStructuredOutputCompatibility:
+        fixture.materialized.manifest
+          .compactRepairStructuredOutputCompatibility,
     },
     preservationFences:
       overrides.preservationFences ?? [

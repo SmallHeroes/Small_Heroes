@@ -54,6 +54,7 @@ function withExactActionSourceEvidence(
   withCurrentActionSemanticCoverage({
     draft,
     pages: input.pages,
+    sourceEvidenceCatalog: input.sourceEvidenceCatalog,
   });
   for (const page of draft.pageContracts) {
     if (!page.actionRequirements?.length) continue;
@@ -63,23 +64,18 @@ function withExactActionSourceEvidence(
     if (!sourcePage) {
       throw new Error(`Fox fixture is missing Story Source page ${page.pageNumber}`);
     }
-    // The checked-in template is a candidate artifact and intentionally omits
-    // authoring-only evidence. Reattach the exact page prose only at this test
-    // adapter boundary before using that candidate as a simulated model draft.
-    (
-      page as unknown as {
-        actionRequirements: Array<Record<string, unknown>>;
-      }
-    ).actionRequirements = page.actionRequirements.map((action) => ({
-      ...action,
-      sourcePhrase: sourcePage.text,
-    }));
+    const sourceEvidence = input.sourceEvidenceCatalog.entries.find(
+      (entry) => entry.pageNumber === page.pageNumber,
+    );
+    if (!sourceEvidence) {
+      throw new Error(`Fox fixture is missing source evidence for page ${page.pageNumber}`);
+    }
     (
       page as unknown as Record<string, unknown>
     ).actionSemanticCoverage =
       page.actionRequirements.map((action, index) => ({
         beatId: `beat:p${page.pageNumber}:action_${index + 1}`,
-        sourcePhrase: sourcePage.text,
+        sourceEvidenceId: sourceEvidence.sourceEvidenceId,
         disposition: {
           kind: 'action_requirement',
           checkId: action.checkId,

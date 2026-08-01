@@ -1,5 +1,5 @@
 export const ACTION_SEMANTIC_COVERAGE_VERSION =
-  'action-semantic-coverage/v1' as const;
+  'action-semantic-coverage/v2' as const;
 
 export const ACTION_SEMANTIC_COVERAGE_DISPOSITION_VALUES = [
   'action_requirement',
@@ -43,6 +43,8 @@ export interface ActionSemanticCoverageRecord {
   version: typeof ACTION_SEMANTIC_COVERAGE_VERSION;
   pageNumber: number;
   beatId: string;
+  sourceEvidenceId: string;
+  /** Exact Story Source excerpt resolved locally from sourceEvidenceId. */
   sourcePhrase: string;
   disposition: Exclude<
     ActionSemanticCoverageDisposition,
@@ -58,13 +60,14 @@ export interface ActionSemanticCoverageRecord {
 export interface ActionSemanticCapabilityGap {
   pageNumber: number;
   beatId: string;
+  sourceEvidenceId: string;
   sourcePhrase: string;
   reason: 'closed_action_catalog_gap';
 }
 
 export interface DraftActionSemanticCoverageRecord {
   beatId: string;
-  sourcePhrase: string;
+  sourceEvidenceId: string;
   disposition: ActionSemanticCoverageDisposition;
 }
 

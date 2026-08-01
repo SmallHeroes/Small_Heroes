@@ -2,7 +2,30 @@
 
 **Updated:** 2026-08-01
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-structured-output-schema-compatibility-hardening` in `C:\Users\guyna\.codex\worktrees\3862\Small_Heroes`, with implementation base `d18412c3635511935771771dbd2b6ad271731095` and latest immutable attempt authority `29ecd7d84f6d3633e5775dd716471b33df68be8b`. At the post-topology armed-attempt intake, local `HEAD`, the same-name origin-tracking ref, and the live remote branch all resolved to `29ecd7d84f6d3633e5775dd716471b33df68be8b` at `0/0` parity with a clean worktree. The attempt reached one completed `gpt-5.6-sol` Responses API result and then failed locally: eleven source-evidence citations did not match the Story Source, and repair construction exceeded the approved input-token ceiling before a second provider call. Provider/repair/transport-retry counts were `1/0/0`; local accounting was `$0.534101` nominal and `$0.587516` conservative, with no independent provider-account usage or billing audit. No candidate or render exists. The attempt is exhausted and its readiness cannot be reused.
+**Working branch:** `codex/r1d-pvb-d1a1b1-source-evidence-compact-repair` in `C:\Users\guyna\.codex\worktrees\600e\Small_Heroes`, based exactly on immutable commit `a9d2fd2c5d3b01d61a7ba598e9b1806e73b115be`. This branch has sole-writer authority for the approved source-evidence-ID and compact-repair hardening milestone. The calibration worktree `C:\Users\guyna\.codex\worktrees\3862\Small_Heroes` remains read-only at the immutable base. Implementation and repository-local validation are complete; independent Claude Code first-pass QA has not yet run, so Codex does not claim technical PASS. No future B0, Fresh Readiness, credential, provider, live-authoring, render, or downstream authority exists from this work.
+
+## R1D-PVB-D1A1B1-SOURCE-EVIDENCE-ID-AND-COMPACT-REPAIR-HARDENING — implementation complete / awaiting independent QA
+
+Guy approved a general correction to the source-evidence authoring boundary and the repair-input failure observed after the exhausted live attempt. The exact implementation base is `a9d2fd2c5d3b01d61a7ba598e9b1806e73b115be`; the dedicated branch and worktree are recorded above.
+
+### Verified cause and implemented boundary
+
+- The old draft duplicated free-form `sourcePhrase` evidence in `actionRequirements` and `actionSemanticCoverage`. The model could drift from exact Story Source text, while the only semantic repair path resent the complete draft and exceeded the 64K input ceiling for the observed eleven failures.
+- Story Source authority now derives `source-evidence-catalog/v1`: deterministic source-bound IDs, exact page/ordinal and UTF-16/UTF-8 offsets, exact original excerpts, and a canonical digest. Duplicate text is disambiguated by source, page, ordinal, and offset. Resolution is exact only; malformed, unknown, stale/cross-source, and wrong-page IDs fail closed with no fuzzy fallback.
+- Visual Contract draft schema `vc-draft-schema/v9` removes evidence from `actionRequirements` and replaces model-authored `actionSemanticCoverage.sourcePhrase` with `sourceEvidenceId`. The compiler is the only component that resolves and persists exact `sourcePhrase` evidence.
+- A dedicated `source-evidence-id-repair-schema/v1` accepts ID patches only. It activates only when every validation failure is a source-evidence-ID failure, receives only affected page/beat records plus relevant same-page catalog entries, applies an exact complete patch set deterministically, and revalidates the entire draft. Mixed and other failures retain the existing whole-draft repair path.
+- The canonical Responses adapter accepts only the exact full-draft or compact-repair schema while preserving the locked policy. Current authority versions are Story Source snapshot `v2`, authoring request `v6`, receipt `v5`, readiness `v3`, candidate `v3`, B0 manifest/verifier `v4`, Execution Request/readiness `v3`, and pre-live evidence `v3`. Superseded versions remain immutable historical evidence and cannot become current authority.
+- B0, its verifier, Execution Request/Supervisor, and pre-live readiness bind both structured-output compatibility authorities and the Source Evidence Catalog identity. Redigested compact-schema drift and stale catalog bindings are rejected.
+
+### Validation and limits
+
+- Final focused regression: **16 files / 406 tests PASS**. It covers multilingual Unicode/punctuation, duplicate excerpts, exact byte offsets, deterministic IDs, malformed/unknown/stale/cross-source/wrong-page rejection, compiler-derived evidence, draft-field removal, the observed eleven-failure/six-page shape, compact prompt size below 64K, exact patching, mixed-error full repair, adapter mapping, structured-output compatibility, B0/verifier/materialization, Execution Request/Supervisor, and readiness.
+- Repository-local `npx --no-install tsc --noEmit`: **PASS**. `git diff --check`: **PASS** before documentation finalization and is required again before commit.
+- Exactly one literal `npm run check` ran and was not rerun. TypeScript passed. Vitest reproduced only the established six missing ignored-fixture baseline failures in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two cases in `story-read-back-validation.spec.ts`. No milestone test failed.
+- Ignored full-check scratch was preserved without deletion at `C:\Users\guyna\AppData\Local\Temp\small-heroes-r1d-source-evidence-check-scratch-20260801-600e`.
+- Model/provider/API/service tier, 64K max input, output/timeout limits, maximum three calls, maximum two repairs, zero transport retries, no fallback, conservative accounting, and the hard `$5.00` ceiling are unchanged.
+
+No credential loading/check, pricing/docs/network lookup, provider/model call, live authoring, render, image/Vision/audio, storage/database, Board action, Semantic Reconciliation, approval, publication, promotion, production activation, deployment, PR, or push occurred. Cost was exactly `$0`. A later operational attempt requires independent technical QA, a new B0 rematerialization, and Fresh Readiness under separate Guy authorization.
 
 ## R1D-PVB-D1A1B1-POST-TOPOLOGY-ARMED-LIVE-AUTHORING-ATTEMPT - HOLD / attempt exhausted; execution record independently PASSed
 

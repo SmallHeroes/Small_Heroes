@@ -30,6 +30,7 @@ function bunnyDraft(): any {
   return withCurrentActionSemanticCoverage({
     draft: JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8')),
     pages: bunnySource().pages,
+    sourceEvidenceCatalog: bunnySource().sourceEvidenceCatalog,
   });
 }
 const stubFrom = (t: unknown): ContractLlmCaller => async () => JSON.stringify(t);

@@ -41,9 +41,9 @@ export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v3' as const;
+  'canonical-live-request-materialization/v4' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v3' as const;
+  'canonical-live-request-verification/v4' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -110,6 +110,9 @@ export interface LiveRequestMaterializationManifest {
     pageNumbers: number[];
     sourceSnapshotDigest: string;
     authoredCoverAuthorityPresent: boolean;
+    sourceEvidenceCatalogVersion: string;
+    sourceEvidenceCatalogDigest: string;
+    sourceEvidenceCatalogEntryCount: number;
   };
   artifacts: {
     sourceAuthorityRequest:
@@ -120,6 +123,8 @@ export interface LiveRequestMaterializationManifest {
       LiveRequestMaterializationArtifactDescriptor;
   };
   structuredOutputCompatibility:
+    LiveRequestStructuredOutputCompatibilityAuthority;
+  compactRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
   futureLiveCommand: {
     executable: 'node';
@@ -165,6 +170,8 @@ export interface CanonicalLiveRequestVerifiedResult {
     storyKey: string;
   };
   structuredOutputCompatibility:
+    LiveRequestStructuredOutputCompatibilityAuthority;
+  compactRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
   requestPolicy: {
     provider: 'openai';
@@ -728,6 +735,7 @@ export function liveRequestMaterializationManifestIssues(
       'sourceRevision',
       'artifacts',
       'structuredOutputCompatibility',
+      'compactRepairStructuredOutputCompatibility',
       'futureLiveCommand',
       'externalBoundaryEvidence',
       'doesNotAuthorize',
@@ -778,6 +786,9 @@ export function liveRequestMaterializationManifestIssues(
           'pageNumbers',
           'sourceSnapshotDigest',
           'authoredCoverAuthorityPresent',
+          'sourceEvidenceCatalogVersion',
+          'sourceEvidenceCatalogDigest',
+          'sourceEvidenceCatalogEntryCount',
         ],
         'materialization_manifest_source_revision',
       ),
@@ -859,6 +870,22 @@ export function liveRequestMaterializationManifestIssues(
         'materialization_manifest_cover_authority_invalid',
       );
     }
+    if (
+      typeof sourceRevision.sourceEvidenceCatalogVersion !== 'string' ||
+      sourceRevision.sourceEvidenceCatalogVersion.length === 0 ||
+      typeof sourceRevision.sourceEvidenceCatalogDigest !== 'string' ||
+      !DIGEST_PATTERN.test(
+        sourceRevision.sourceEvidenceCatalogDigest,
+      ) ||
+      !Number.isSafeInteger(
+        sourceRevision.sourceEvidenceCatalogEntryCount,
+      ) ||
+      (sourceRevision.sourceEvidenceCatalogEntryCount as number) < 1
+    ) {
+      issues.push(
+        'materialization_manifest_source_evidence_catalog_invalid',
+      );
+    }
   }
   const artifacts = recordValue(object.artifacts);
   if (!artifacts) {
@@ -936,6 +963,10 @@ export function liveRequestMaterializationManifestIssues(
     ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
       object.structuredOutputCompatibility,
       'materialization_manifest_structured_output_compatibility',
+    ),
+    ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
+      object.compactRepairStructuredOutputCompatibility,
+      'materialization_manifest_compact_repair_structured_output_compatibility',
     ),
   );
   const command = recordValue(object.futureLiveCommand);
@@ -1234,6 +1265,12 @@ export function materializeCanonicalLiveRequestBundle(args: {
       sourceSnapshotDigest: snapshot.digest,
       authoredCoverAuthorityPresent:
         snapshot.content.authoredCoverAuthority !== null,
+      sourceEvidenceCatalogVersion:
+        snapshot.content.sourceEvidenceCatalog.version,
+      sourceEvidenceCatalogDigest:
+        snapshot.content.sourceEvidenceCatalog.digest,
+      sourceEvidenceCatalogEntryCount:
+        snapshot.content.sourceEvidenceCatalog.entries.length,
     },
     artifacts: {
       sourceAuthorityRequest: {
@@ -1280,6 +1317,34 @@ export function materializeCanonicalLiveRequestBundle(args: {
             .compatibilityStatus,
         serializedSchemaDigest:
           liveAuthoringRequest.structuredOutput
+            .serializedSchemaDigest,
+      },
+    },
+    compactRepairStructuredOutputCompatibility: {
+      schemaName:
+        liveAuthoringRequest.compactRepairStructuredOutput.schemaName,
+      schemaVersion:
+        liveAuthoringRequest.compactRepairStructuredOutput.schemaVersion,
+      schemaDigest:
+        liveAuthoringRequest.compactRepairStructuredOutput.schemaDigest,
+      compatibility: {
+        profileVersion:
+          liveAuthoringRequest.compactRepairStructuredOutput
+            .compatibilityProfileVersion,
+        profileDigest:
+          liveAuthoringRequest.compactRepairStructuredOutput
+            .compatibilityProfileDigest,
+        evidenceVersion:
+          liveAuthoringRequest.compactRepairStructuredOutput
+            .compatibilityEvidenceVersion,
+        evidenceDigest:
+          liveAuthoringRequest.compactRepairStructuredOutput
+            .compatibilityEvidenceDigest,
+        status:
+          liveAuthoringRequest.compactRepairStructuredOutput
+            .compatibilityStatus,
+        serializedSchemaDigest:
+          liveAuthoringRequest.compactRepairStructuredOutput
             .serializedSchemaDigest,
       },
     },
@@ -1930,6 +1995,39 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
     expectedStructuredOutputCompatibility,
     'manifest_structured_output_compatibility_invalid',
   );
+  const expectedCompactRepairStructuredOutputCompatibility = {
+    schemaName:
+      rebuiltLiveRequest.compactRepairStructuredOutput.schemaName,
+    schemaVersion:
+      rebuiltLiveRequest.compactRepairStructuredOutput.schemaVersion,
+    schemaDigest:
+      rebuiltLiveRequest.compactRepairStructuredOutput.schemaDigest,
+    compatibility: {
+      profileVersion:
+        rebuiltLiveRequest.compactRepairStructuredOutput
+          .compatibilityProfileVersion,
+      profileDigest:
+        rebuiltLiveRequest.compactRepairStructuredOutput
+          .compatibilityProfileDigest,
+      evidenceVersion:
+        rebuiltLiveRequest.compactRepairStructuredOutput
+          .compatibilityEvidenceVersion,
+      evidenceDigest:
+        rebuiltLiveRequest.compactRepairStructuredOutput
+          .compatibilityEvidenceDigest,
+      status:
+        rebuiltLiveRequest.compactRepairStructuredOutput
+          .compatibilityStatus,
+      serializedSchemaDigest:
+        rebuiltLiveRequest.compactRepairStructuredOutput
+          .serializedSchemaDigest,
+    },
+  } satisfies LiveRequestStructuredOutputCompatibilityAuthority;
+  exactCanonicalValue(
+    manifest.compactRepairStructuredOutputCompatibility,
+    expectedCompactRepairStructuredOutputCompatibility,
+    'manifest_compact_repair_structured_output_compatibility_invalid',
+  );
 
   const expectedSourceRevision = {
     storyKey: rebuiltSnapshot.content.storyKey,
@@ -1946,6 +2044,12 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
     sourceSnapshotDigest: rebuiltSnapshot.digest,
     authoredCoverAuthorityPresent:
       rebuiltSnapshot.content.authoredCoverAuthority !== null,
+    sourceEvidenceCatalogVersion:
+      rebuiltSnapshot.content.sourceEvidenceCatalog.version,
+    sourceEvidenceCatalogDigest:
+      rebuiltSnapshot.content.sourceEvidenceCatalog.digest,
+    sourceEvidenceCatalogEntryCount:
+      rebuiltSnapshot.content.sourceEvidenceCatalog.entries.length,
   };
   exactCanonicalValue(
     manifest.sourceRevision,
@@ -2005,6 +2109,8 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
     },
     structuredOutputCompatibility:
       expectedStructuredOutputCompatibility,
+    compactRepairStructuredOutputCompatibility:
+      expectedCompactRepairStructuredOutputCompatibility,
     requestPolicy: {
       provider: 'openai',
       endpoint: 'responses',

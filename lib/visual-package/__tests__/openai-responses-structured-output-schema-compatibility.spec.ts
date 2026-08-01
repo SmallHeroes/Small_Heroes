@@ -7,6 +7,10 @@ import {
   TEMPLATE_DRAFT_SCHEMA_VERSION,
 } from '@/lib/visual-contract-compiler/templateDraftSchema';
 import {
+  SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+  SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_VERSION,
+} from '@/lib/visual-contract-compiler/sourceEvidenceIdRepair';
+import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
 } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
@@ -81,14 +85,18 @@ function allConstNodes(schema: unknown): Array<Record<string, unknown>> {
 describe('OpenAI Responses structured-output compatibility profile', () => {
   it('positive-controls the fully serialized current Visual Contract and Blueprint schemas', () => {
     expect(TEMPLATE_DRAFT_SCHEMA_VERSION).toBe(
-      'vc-draft-schema/v8',
+      'vc-draft-schema/v9',
     );
     expect(PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION).toBe(
       'pre-render-blueprint-draft-schema/v3',
     );
+    expect(SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_VERSION).toBe(
+      'source-evidence-id-repair-schema/v1',
+    );
 
     for (const schema of [
       TEMPLATE_DRAFT_JSON_SCHEMA,
+      SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     ]) {
       const serialized = JSON.parse(
