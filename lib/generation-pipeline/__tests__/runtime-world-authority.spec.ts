@@ -37,6 +37,7 @@ import {
 import type { Style01RuntimeAuthority } from '../render-qualification-preflight';
 import {
   RuntimeVisualAuthorityBoundaryError,
+  assertStyle01RuntimeAuthorityForPage,
   buildRuntimePageAuthorityProjection,
 } from '../runtime-visual-authority';
 
@@ -277,7 +278,31 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
     vi.restoreAllMocks();
   });
 
-  it('blocks direct page and cover provider entry before provider reachability when v4 authority is absent', async () => {
+  it('reports the exact v5 runtime-authority requirement for absent or stale authority', () => {
+    const expectedMessage =
+      '[runtime_world_authority:runtime_authority_missing] enforced Style01 provider call has no style01-runtime-authority/v5 preflight-issued authority';
+    expect(() =>
+      assertStyle01RuntimeAuthorityForPage({
+        illustrationStyle: 'soft_hand_drawn_storybook',
+        authority: null,
+        pageNumber: 1,
+      }),
+    ).toThrowError(expectedMessage);
+
+    const staleAuthority = {
+      ...authority(),
+      version: 'style01-runtime-authority/v4',
+    } as unknown as Style01RuntimeAuthority;
+    expect(() =>
+      assertStyle01RuntimeAuthorityForPage({
+        illustrationStyle: 'soft_hand_drawn_storybook',
+        authority: staleAuthority,
+        pageNumber: 1,
+      }),
+    ).toThrowError(expectedMessage);
+  });
+
+  it('blocks direct page and cover provider entry before provider reachability when v5 authority is absent', async () => {
     await expect(generateImage(imageInput(null))).rejects.toBeInstanceOf(
       RuntimeVisualAuthorityBoundaryError,
     );

@@ -111,6 +111,59 @@ function repairFixture() {
   };
 }
 
+function phenomenonActionRepairFixture() {
+  const fixture = repairFixture();
+  const oldSourceEvidenceId = `se1_${'f'.repeat(64)}`;
+  const beatId = 'beat:page-one';
+  const checkId = 'action:phenomenon_contact';
+  const action = {
+    checkId,
+    subject: {
+      kind: 'source_phenomenon',
+      sourceEvidenceId: oldSourceEvidenceId,
+    },
+    predicate: 'touches',
+    object: { kind: 'cast', id: 'child:hero' },
+    spatialEffect: null,
+    polarity: 'must',
+    laterality: null,
+  };
+  const coverageRecord = {
+    beatId,
+    sourceEvidenceId: oldSourceEvidenceId,
+    disposition: {
+      kind: 'action_requirement',
+      checkId,
+    },
+  };
+  const draft = {
+    pageContracts: [
+      {
+        pageNumber: 1,
+        actionSemanticCoverage: [coverageRecord],
+        actionRequirements: [action],
+      },
+    ],
+  };
+  const affectedRecords: SourceEvidenceIdRepairAffectedRecord[] = [
+    {
+      pageNumber: 1,
+      coverageIndex: 0,
+      beatId,
+      failureCode: 'source_evidence_id_unknown',
+      coverageRecord,
+      actionRequirement: action,
+    },
+  ];
+  return {
+    action,
+    affectedRecords,
+    catalog: fixture.catalog,
+    draft,
+    patch: fixture.patches[0]!,
+  };
+}
+
 describe('parseSourceEvidenceIdPatches rejection guards', () => {
   it('rejects invalid JSON', () => {
     expect(() => parseSourceEvidenceIdPatches('{')).toThrowError(
@@ -375,6 +428,64 @@ describe('applySourceEvidenceIdPatches rejection guards', () => {
         patches: [fixture.patches[0]!],
       }),
     ).toThrowError('source_evidence_id_repair_beat_not_unique');
+  });
+
+  it('rejects a bound action requirement with zero matching check IDs', () => {
+    const fixture = phenomenonActionRepairFixture();
+    fixture.draft.pageContracts[0]!.actionRequirements = [];
+
+    expect(() =>
+      applySourceEvidenceIdPatches({
+        draft: fixture.draft,
+        catalog: fixture.catalog,
+        affectedRecords: fixture.affectedRecords,
+        patches: [fixture.patch],
+      }),
+    ).toThrowError('source_evidence_id_repair_action_not_unique');
+  });
+
+  it('rejects a bound action requirement with two matching check IDs', () => {
+    const fixture = phenomenonActionRepairFixture();
+    fixture.draft.pageContracts[0]!.actionRequirements = [
+      fixture.action,
+      structuredClone(fixture.action),
+    ];
+
+    expect(() =>
+      applySourceEvidenceIdPatches({
+        draft: fixture.draft,
+        catalog: fixture.catalog,
+        affectedRecords: fixture.affectedRecords,
+        patches: [fixture.patch],
+      }),
+    ).toThrowError('source_evidence_id_repair_action_not_unique');
+  });
+
+  it('updates only coverage and phenomenon-subject evidence IDs without mutating input', () => {
+    const fixture = phenomenonActionRepairFixture();
+    const inputBefore = structuredClone(fixture.draft);
+    const expected = structuredClone(inputBefore);
+    expected.pageContracts[0]!.actionSemanticCoverage[0]!.sourceEvidenceId =
+      fixture.patch.sourceEvidenceId;
+    expected.pageContracts[0]!.actionRequirements[0]!.subject.sourceEvidenceId =
+      fixture.patch.sourceEvidenceId;
+
+    const result = applySourceEvidenceIdPatches({
+      draft: fixture.draft,
+      catalog: fixture.catalog,
+      affectedRecords: fixture.affectedRecords,
+      patches: [fixture.patch],
+    });
+
+    expect(result).toEqual(expected);
+    expect(expected.pageContracts[0]!.actionRequirements[0]).toEqual({
+      ...fixture.action,
+      subject: {
+        ...fixture.action.subject,
+        sourceEvidenceId: fixture.patch.sourceEvidenceId,
+      },
+    });
+    expect(fixture.draft).toEqual(inputBefore);
   });
 
   it('applies one exact patch per affected record without mutating the input', () => {

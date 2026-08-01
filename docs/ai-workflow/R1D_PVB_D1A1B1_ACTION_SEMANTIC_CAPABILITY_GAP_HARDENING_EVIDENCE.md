@@ -1,7 +1,7 @@
 # R1D-PVB-D1A1B1 Action Semantic Capability-Gap Hardening — Implementation Evidence
 
-**Status:** implementation complete; awaiting independent Claude Code first-pass QA
-**Date:** 2026-08-01
+**Status:** original range independently PASSed; two accepted MINOR corrections pending read-only micro re-gate
+**Date:** 2026-08-02
 **Immutable base:** `01a117570c0ee7c4e3de8d138ae1a8db4d8a00fa`
 **Branch:** `codex/r1d-pvb-d1a1b1-action-semantic-capability-hardening`
 **Worktree:** `C:\Users\guyna\.codex\worktrees\a7ee\Small_Heroes`
@@ -14,6 +14,26 @@ The closed Action Semantic authority now supports typed entity or exact Source-E
 Blueprint consumes the full typed action and proves participant support, action space, action placement, spatial directions/relations, target regions, and destination placement. Its capacity limit counts unique cast subjects only. Runtime book/frame projections preserve that structural authority.
 
 The lifecycle chain is fail-closed at current versions. The `visual-package/v4` family remains unchanged while its embedded approval, candidate, review, freeze, qualification, Blueprint, and runtime binders move forward. An explicit v1→v2 template migration clones and validates historical evidence; runtime loaders still reject the original bytes as current and never auto-migrate them.
+
+## Independent QA and narrow correction
+
+Claude Code independently reviewed exact immutable range `01a117570c0ee7c4e3de8d138ae1a8db4d8a00fa..d31c6021c8196bb31687d83c696feefcfde9d1a1` and returned technical **PASS** with zero BLOCKER, zero MAJOR, two non-blocking MINOR findings, and seven advisory notes. It independently ran repository-local TypeScript, complete-range `git diff --check`, 31 files / 763 tests across the changed specs plus repair-guard spec, and 13 files / 177 tests across the residual historical-v1-fixture consumers. This is Claude Code's range-scoped verdict; Codex does not self-award independent PASS.
+
+- **MINOR-1 — accepted and locally corrected, pending micro re-gate:** enforcement already required `style01-runtime-authority/v5`, but the `runtime_authority_missing` diagnostic named v4. The diagnostic now names `style01-runtime-authority/v5`; a direct exact-message assertion covers both absent authority and a stale v4 value, preventing required-version/message drift.
+- **MINOR-2 — accepted and locally corrected, pending micro re-gate:** the new `source_evidence_id_repair_action_not_unique` guard lacked direct coverage. Tests now exercise zero and two actionRequirements matching the bound check ID. A `source_phenomenon` positive control compares the complete output to an expected clone in which only coverage and subject Source Evidence IDs differ, explicitly preserving predicate, object, `spatialEffect`, polarity, laterality, check ID, coverage disposition, and every other action field while proving the input object remains unchanged.
+- Focused correction validation: **2 files / 49 tests PASS**. Repository-local `npx --no-install tsc --noEmit`: **PASS**. The authorized QA fix did not rerun `npm run check`.
+
+### Advisory limitations N1–N7
+
+- **N1 — schema-depth headroom:** Visual Contract draft schema v10 has depth 9 against the Structured Outputs profile limit of 10, leaving one level of headroom after the subject/spatial additions.
+- **N2 — duplicated object-kind values:** `PHYSICAL_OBJECT_KINDS` is currently value-identical to `ACTION_SEMANTIC_ENTITY_KIND_VALUES`; a future entity-kind expansion could make them silently diverge.
+- **N3 — unreachable legacy readers:** tolerant `actorId` readers remain in `pageCheckIds.ts` and `projectContractProse.ts`, including the `unresolved:legacy_actor` prose sentinel. Both are unreachable for v2-validated contracts; the prose reader nevertheless feeds the image-prompt block if that invariant is ever bypassed. This QA fix does not remove them.
+- **N4 — migration exposure by convention:** the offline v1→v2 migration is re-exported from the public barrel. No production caller exists, so the statement that runtime loaders never invoke it currently holds by convention rather than structural inaccessibility.
+- **N5 — pre-existing unqualified batch callers:** `generateAllPageImages` has pre-existing callers outside the qualification wrapper in `lib/qa-console-run.ts`, `app/api/dev/story-bank/route.ts`, debug routes, and `scripts/run-guarded-v2-risk-pages.ts`. They were not introduced by this range; the debug routes are non-production per repository guidance, while the dev story-bank route is not explicitly scoped out.
+- **N6 — full-check residual empirically closed with a boundary:** the 43→(27+12+4) classification was transcript-only. Claude identified and ran all 13 historical-v1-fixture consumer specs outside the changed/rerun set; all 177 tests passed because the bytes enter as draft input and are normalized. Database/network-dependent `*.staging.spec.ts` tests were not run and remain unverified by that review.
+- **N7 — test-worker environment:** vitest-worker `onTaskUpdate` RPC timeouts appeared under parallel load in a worktree whose `node_modules` is junctioned to the source worktree. Claude classified this as an environment artifact, not a regression.
+
+N1–N7 remain advisory limitations only. They do not expand the authorized correction and do not grant product, visual, Visual Contract candidate, Blueprint approval, Wizard product acceptance, render/readiness, live-authoring, release, or deployment acceptance.
 
 ## Versioned authority
 
@@ -60,7 +80,7 @@ The lifecycle chain is fail-closed at current versions. The `visual-package/v4` 
 - Exactly one literal `npm run check` ran. TypeScript passed. Its Vitest snapshot reported 49 failures: the six established absent ignored-fixture baseline failures plus 43 newly exposed stale test assumptions that treated immutable `vc-schema/v1` artifacts as current authority.
 - Those 43 were fully accounted for as 27 `visual-package-lifecycle`, 12 bunny/fox historical-template, and 4 adjacent direct-template failures. They were corrected through explicit in-memory migration and rerun at **6 files / 72 tests PASS**. The literal full check was not rerun, preserving the exactly-once instruction. No milestone failure remains in the reproduced failure inventory; the six established ignored-fixture failures remain the repository baseline.
 - Final focused aggregate after the correction: **20 files / 425 tests PASS** (required before commit).
-- `git diff --check`: required before the third commit and final handoff.
+- `git diff --check`: passed before the third commit and final handoff and was independently reproduced by Claude Code for the complete implementation range. Working, staged, and committed QA-fix range checks are recorded at correction handoff.
 
 ## Unchanged fences
 
@@ -77,6 +97,6 @@ No credential loading/check, pricing/docs/network lookup, provider/model call, l
 ## Limitations, rollback, and next gate
 
 - This is repository-local technical qualification only. It creates no candidate, Semantic Reconciliation, product/visual acceptance, render readiness, production authority, or launch decision.
-- Revert the three local commits to roll back; there is no external state to unwind.
-- Codex does not self-award independent technical PASS.
-- Claude Code must review immutable base-to-head read-only, reconcile the exact branch/HEAD, and falsify typed subject identity, phenomenon evidence binding, movement spatial results, push non-substitution, Blueprint feasibility, migration immutability, lifecycle version/digest completeness, Wizard/runtime authority equality, provider unreachability, and unchanged policy/budget fences.
+- Revert the narrow QA-fix commit to remove only the diagnostic/test/documentation correction; revert the three original local commits to roll back the implementation. There is no external state to unwind.
+- Codex does not self-award the QA-fix PASS. The original immutable range already carries Claude Code's independent technical PASS.
+- Claude Code must micro re-gate the exact correction range beginning at `d31c6021c8196bb31687d83c696feefcfde9d1a1`, verify the two MINOR closures, and falsify any production-behavior, test-scope, documentation, version, policy, or boundary drift. N1–N7 remain advisory and out of correction scope.
