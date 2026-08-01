@@ -5,7 +5,14 @@
  * portrait ratio, location/zone/cast, prop lifecycle, and transition kind are intentionally absent.
  * The compiler overlays those fields after authoring so model output cannot replace upstream authority.
  */
-import { ACTION_PREDICATE_VALUES } from '@/lib/visual-contract-compiler/actionSemanticCatalog';
+import {
+  ACTION_PREDICATE_VALUES,
+  ACTION_SEMANTIC_SUBJECT_KIND_VALUES,
+} from '@/lib/visual-contract-compiler/actionSemanticCatalog';
+import {
+  ACTION_SPATIAL_DIRECTION_VALUES,
+  ACTION_SPATIAL_RELATION_VALUES,
+} from '@/lib/visual-contract-compiler/types';
 
 function obj(properties: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -110,7 +117,27 @@ const affordance = {
           enum: ACTION_PREDICATE_VALUES,
         },
       },
-      supportedEntities: { type: 'array', items: entityRef, minItems: 1 },
+      supportedSubjectKinds: {
+        type: 'array',
+        minItems: 1,
+        items: {
+          type: 'string',
+          enum: ACTION_SEMANTIC_SUBJECT_KIND_VALUES,
+        },
+      },
+      supportedEntities: { type: 'array', items: entityRef },
+      supportedSpatialDirections: {
+        type: 'array',
+        items: { type: 'string', enum: ACTION_SPATIAL_DIRECTION_VALUES },
+      },
+      supportedSpatialRelations: {
+        type: 'array',
+        items: { type: 'string', enum: ACTION_SPATIAL_RELATION_VALUES },
+      },
+      spatialTargetRegions: {
+        type: 'array',
+        items: obj({ target: entityRef, region }),
+      },
       maximumActors: { type: 'integer', minimum: 1 },
     }),
     obj({
@@ -159,6 +186,10 @@ const placementSubject = {
     obj({ kind: { type: 'string', const: 'cast' }, castId: { type: 'string' } }),
     obj({ kind: { type: 'string', const: 'prop' }, propId: { type: 'string' } }),
     obj({ kind: { type: 'string', const: 'action' }, checkId: { type: 'string' } }),
+    obj({
+      kind: { type: 'string', const: 'action_destination' },
+      checkId: { type: 'string' },
+    }),
     obj({
       kind: { type: 'string', const: 'supporting_geometry' },
       geometryId: { type: 'string' },
@@ -223,6 +254,6 @@ export const PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA: Record<string, unknown> = o
 });
 
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION =
-  'pre-render-blueprint-draft-schema/v3' as const;
+  'pre-render-blueprint-draft-schema/v4' as const;
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME =
   'PreRenderBookVisualBlueprintWholeBookDraft' as const;

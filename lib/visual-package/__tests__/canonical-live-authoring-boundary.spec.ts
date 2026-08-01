@@ -160,7 +160,10 @@ function fullyActionedDraft(
     ).actionRequirements = [
       {
         checkId: `action:p${page.pageNumber}_look`,
-        actorId: 'child:hero',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
         predicate: 'looks_at',
         object: null,
         polarity: 'must',

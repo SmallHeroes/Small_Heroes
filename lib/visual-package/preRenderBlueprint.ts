@@ -4,16 +4,25 @@ import {
   requiredPropIdsForPage,
 } from '@/lib/visual-contract-compiler/propLifecycle';
 import type {
+  ActionSpatialDirection,
+  ActionSpatialRelation,
   EntityRef,
   PageActionRequirement,
   PagePropConstraint,
   PageVisualContract,
   VisualZone,
 } from '@/lib/visual-contract-compiler/types';
+import {
+  ACTION_SPATIAL_DIRECTION_VALUES,
+  ACTION_SPATIAL_RELATION_VALUES,
+} from '@/lib/visual-contract-compiler/types';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { validateBookVisualContractTemplate } from '@/lib/visual-contract-compiler/validateTemplateContract';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
-import { isActionPredicate } from '@/lib/visual-contract-compiler/actionSemanticCatalog';
+import {
+  ACTION_SEMANTIC_SUBJECT_KIND_VALUES,
+  isActionPredicate,
+} from '@/lib/visual-contract-compiler/actionSemanticCatalog';
 
 import { canonicalJsonDigest, normalizedTextDigest } from './integrity';
 import {
@@ -87,6 +96,13 @@ const CAMERA_ANGLES = new Set([
   'three_quarter',
   'overhead',
 ]);
+const ACTION_SUBJECT_KINDS = new Set(ACTION_SEMANTIC_SUBJECT_KIND_VALUES);
+const ACTION_SPATIAL_DIRECTIONS = new Set<ActionSpatialDirection>(
+  ACTION_SPATIAL_DIRECTION_VALUES,
+);
+const ACTION_SPATIAL_RELATIONS = new Set<ActionSpatialRelation>(
+  ACTION_SPATIAL_RELATION_VALUES,
+);
 const HEX_SHA256 = /^[a-f0-9]{64}$/;
 
 function isObj(value: unknown): value is Obj {
@@ -173,6 +189,12 @@ function normalizeOwnedArrays(
     }
     if (affordance.kind === 'action_space') {
       affordance.supportedPredicates.sort(lexicalCompare);
+      affordance.supportedSubjectKinds.sort(lexicalCompare);
+      affordance.supportedSpatialDirections.sort(lexicalCompare);
+      affordance.supportedSpatialRelations.sort(lexicalCompare);
+      affordance.spatialTargetRegions.sort((a, b) =>
+        lexicalCompare(entityRefKey(a.target), entityRefKey(b.target)),
+      );
     }
   }
   for (const geometry of normalized.worldPlan.revealSafeSupportingGeometry) {
@@ -604,6 +626,19 @@ function framePlacementForAction(
   );
 }
 
+function framePlacementForActionDestination(
+  placements: readonly BlueprintFramePlacement[],
+  checkId: string,
+): BlueprintFramePlacement | null {
+  return (
+    placements.find(
+      (placement) =>
+        placement.subject.kind === 'action_destination' &&
+        placement.subject.checkId === checkId,
+    ) ?? null
+  );
+}
+
 function expectedPropLifecycle(
   template: BookVisualContractTemplate,
   frame: PortraitBlueprintFrame,
@@ -925,12 +960,25 @@ function validateAffordanceShape(
         !Array.isArray(affordance.supportedPredicates) ||
         affordance.supportedPredicates.length === 0 ||
         !affordance.supportedPredicates.every(isActionPredicate) ||
+        !Array.isArray(affordance.supportedSubjectKinds) ||
+        affordance.supportedSubjectKinds.length === 0 ||
+        !affordance.supportedSubjectKinds.every((kind) =>
+          ACTION_SUBJECT_KINDS.has(kind),
+        ) ||
         !Array.isArray(affordance.supportedEntities) ||
-        affordance.supportedEntities.length === 0 ||
+        !Array.isArray(affordance.supportedSpatialDirections) ||
+        !affordance.supportedSpatialDirections.every((direction) =>
+          ACTION_SPATIAL_DIRECTIONS.has(direction),
+        ) ||
+        !Array.isArray(affordance.supportedSpatialRelations) ||
+        !affordance.supportedSpatialRelations.every((relation) =>
+          ACTION_SPATIAL_RELATIONS.has(relation),
+        ) ||
+        !Array.isArray(affordance.spatialTargetRegions) ||
         !Number.isInteger(affordance.maximumActors) ||
         affordance.maximumActors < 1
       ) {
-        issues.push(issue('schema_invalid', 'action-space predicates/entities/maximumActors are incomplete', {
+        issues.push(issue('schema_invalid', 'action-space semantic support and maximumActors are incomplete', {
           field,
         }));
       } else {
@@ -940,6 +988,28 @@ function validateAffordanceShape(
               field: `${field}.supportedEntities[${refIndex}]`,
             }));
           }
+        });
+        const targetKeys = new Set<string>();
+        affordance.spatialTargetRegions.forEach((entry, targetIndex) => {
+          const targetField = `${field}.spatialTargetRegions[${targetIndex}]`;
+          if (
+            !isObj(entry) ||
+            !entityRefResolves(entry.target, affordance.zoneId, index)
+          ) {
+            issues.push(issue('reference_unresolved', 'action-space spatial target does not resolve', {
+              field: `${targetField}.target`,
+            }));
+          } else {
+            const key = entityRefKey(entry.target);
+            if (targetKeys.has(key)) {
+              issues.push(issue('reference_duplicate', 'action-space spatial target region is duplicated', {
+                field: targetField,
+                actual: key,
+              }));
+            }
+            targetKeys.add(key);
+          }
+          addRegionIssue(issues, entry?.region, `${targetField}.region`);
         });
       }
       break;
@@ -1263,16 +1333,147 @@ function actionSupportIsCompatible(
   affordance: Extract<BlueprintSpatialAffordance, { kind: 'action_space' }>,
   action: PageActionRequirement,
 ): boolean {
-  const entities: EntityRef[] = [{ kind: 'cast', id: action.actorId }];
+  const subjectKind =
+    action.subject.kind === 'entity'
+      ? action.subject.entity.kind
+      : action.subject.kind;
+  const entities: EntityRef[] = [];
+  if (action.subject.kind === 'entity') entities.push(action.subject.entity);
   if (action.object) entities.push(action.object);
+  if (action.spatialEffect?.kind === 'relation') {
+    entities.push(action.spatialEffect.target);
+  }
   return (
     Array.isArray(affordance.supportedPredicates) &&
+    Array.isArray(affordance.supportedSubjectKinds) &&
     Array.isArray(affordance.supportedEntities) &&
+    Array.isArray(affordance.supportedSpatialDirections) &&
+    Array.isArray(affordance.supportedSpatialRelations) &&
     affordance.supportedPredicates.includes(action.predicate) &&
+    affordance.supportedSubjectKinds.includes(subjectKind) &&
     entities.every((expected) =>
       affordance.supportedEntities.some((actual) => entityRefEquals(actual, expected)),
-    )
+    ) &&
+    (action.spatialEffect?.kind !== 'directional' ||
+      affordance.supportedSpatialDirections.includes(action.spatialEffect.direction)) &&
+    (action.spatialEffect?.kind !== 'relation' ||
+      affordance.supportedSpatialRelations.includes(action.spatialEffect.relation))
   );
+}
+
+function regionCenter(region: BlueprintRegion): { x: number; y: number } {
+  return {
+    x: region.x + region.width / 2,
+    y: region.y + region.height / 2,
+  };
+}
+
+function distanceSquared(left: BlueprintRegion, right: BlueprintRegion): number {
+  const leftCenter = regionCenter(left);
+  const rightCenter = regionCenter(right);
+  const dx = leftCenter.x - rightCenter.x;
+  const dy = leftCenter.y - rightCenter.y;
+  return dx * dx + dy * dy;
+}
+
+function placementForEntity(
+  placements: readonly BlueprintFramePlacement[],
+  ref: EntityRef,
+): BlueprintFramePlacement | null {
+  if (ref.kind === 'cast') return framePlacementForCast(placements, ref.id);
+  if (ref.kind === 'prop') return framePlacementForProp(placements, ref.id);
+  return null;
+}
+
+function actionParticipantsFitSpace(
+  action: PageActionRequirement,
+  affordance: Extract<BlueprintSpatialAffordance, { kind: 'action_space' }>,
+  placements: readonly BlueprintFramePlacement[],
+): boolean {
+  const participants: EntityRef[] = [];
+  if (action.subject.kind === 'entity') participants.push(action.subject.entity);
+  if (action.object) participants.push(action.object);
+  if (action.spatialEffect?.kind === 'relation') participants.push(action.spatialEffect.target);
+  return participants.every((participant) => {
+    const placement = placementForEntity(placements, participant);
+    if (participant.kind !== 'cast' && participant.kind !== 'prop') return true;
+    return Boolean(
+      placement &&
+        regionIsValid(placement.region) &&
+        regionIsValid(affordance.footprint) &&
+        regionContains(affordance.footprint, placement.region),
+    );
+  });
+}
+
+function spatialDestinationIsFeasible(args: {
+  action: PageActionRequirement;
+  origin: BlueprintFramePlacement;
+  destination: BlueprintFramePlacement | null;
+  affordance: Extract<BlueprintSpatialAffordance, { kind: 'action_space' }>;
+  placements: readonly BlueprintFramePlacement[];
+}): boolean {
+  const { action, origin, destination, affordance, placements } = args;
+  const spatialEffect = action.spatialEffect;
+  if (!spatialEffect) return destination === null;
+  if (
+    !destination ||
+    !regionIsValid(origin.region) ||
+    !regionIsValid(destination.region) ||
+    !regionIsValid(affordance.footprint) ||
+    !regionContains(affordance.footprint, destination.region) ||
+    sameCanonical(origin.region, destination.region)
+  ) {
+    return false;
+  }
+  const originCenter = regionCenter(origin.region);
+  const destinationCenter = regionCenter(destination.region);
+  if (spatialEffect.kind === 'directional') {
+    switch (spatialEffect.direction) {
+      case 'left':
+        return destinationCenter.x < originCenter.x;
+      case 'right':
+        return destinationCenter.x > originCenter.x;
+      case 'up':
+        return destinationCenter.y < originCenter.y;
+      case 'down':
+        return destinationCenter.y > originCenter.y;
+      case 'sideways':
+        return destinationCenter.x !== originCenter.x;
+      case 'forward':
+        return destination.depth === 'foreground' && origin.depth !== 'foreground';
+      case 'backward':
+        return destination.depth === 'background' && origin.depth !== 'background';
+    }
+  }
+  const targetEntries = affordance.spatialTargetRegions.filter((entry) =>
+    entityRefEquals(entry.target, spatialEffect.target),
+  );
+  if (targetEntries.length !== 1 || !regionIsValid(targetEntries[0].region)) return false;
+  const targetRegion = targetEntries[0].region;
+  const targetPlacement = placementForEntity(placements, spatialEffect.target);
+  if (targetPlacement && !sameCanonical(targetPlacement.region, targetRegion)) return false;
+  const targetCenter = regionCenter(targetRegion);
+  switch (spatialEffect.relation) {
+    case 'toward':
+      return distanceSquared(destination.region, targetRegion) < distanceSquared(origin.region, targetRegion);
+    case 'away_from':
+      return distanceSquared(destination.region, targetRegion) > distanceSquared(origin.region, targetRegion);
+    case 'onto':
+      return regionsOverlap(destination.region, targetRegion) && destinationCenter.y <= targetCenter.y;
+    case 'into':
+      return regionContains(targetRegion, destination.region);
+    case 'beside':
+      return (
+        !regionsOverlap(destination.region, targetRegion) &&
+        Math.abs(destinationCenter.y - targetCenter.y) <=
+          Math.max(destination.region.height, targetRegion.height)
+      );
+    case 'under':
+      return destinationCenter.y > targetCenter.y;
+    case 'over':
+      return destinationCenter.y < targetCenter.y;
+  }
 }
 
 function placementSupportIsCompatible(
@@ -1481,6 +1682,21 @@ function validateFrame(args: {
           }));
         }
         break;
+      case 'action_destination':
+        if (
+          frame.kind === 'cover' ||
+          !page?.actionRequirements?.some(
+            (action) =>
+              action.checkId === subject.checkId &&
+              action.polarity === 'must' &&
+              Boolean(action.spatialEffect),
+          )
+        ) {
+          issues.push(issue('reference_unresolved', 'action destination does not resolve to a required spatial action', {
+            field: `${placementField}.subject`,
+          }));
+        }
+        break;
       case 'supporting_geometry': {
         const geometry = supportingGeometry.get(subject.geometryId);
         if (!geometry || geometry.zoneId !== frame.zoneId || geometry.spoilerNeutral !== true) {
@@ -1530,6 +1746,20 @@ function validateFrame(args: {
       }));
     } else {
       requiredPlacements.push(placement);
+    }
+    const destination = framePlacementForActionDestination(validPlacements, action.checkId);
+    if (action.spatialEffect) {
+      if (!destination || destination.importance !== 'key') {
+        issues.push(issue('action_infeasible', `spatial action "${action.checkId}" lacks exactly one key destination region`, {
+          field: `${field}.placements`,
+        }));
+      } else {
+        requiredPlacements.push(destination);
+      }
+    } else if (destination) {
+      issues.push(issue('action_infeasible', `non-spatial action "${action.checkId}" cannot author a destination region`, {
+        field: `${field}.placements`,
+      }));
     }
   }
   if (textRegionOk) {
@@ -1645,6 +1875,7 @@ function validateFrame(args: {
     const actionActorAssignments = new Map<string, Set<string>>();
     for (const action of mustActions) {
       const placement = framePlacementForAction(validPlacements, action.checkId);
+      const destination = framePlacementForActionDestination(validPlacements, action.checkId);
       const compatibleSupports = [...affordances.values()].filter(
         (candidate) =>
           candidate.kind === 'action_space' &&
@@ -1656,11 +1887,22 @@ function validateFrame(args: {
             checkId: action.checkId,
           }) &&
           actionSupportIsCompatible(candidate, action) &&
+          actionParticipantsFitSpace(action, candidate, validPlacements) &&
           Boolean(
             placement &&
               regionIsValid(candidate.footprint) &&
               regionIsValid(placement.region) &&
               regionContains(candidate.footprint, placement.region),
+          ) &&
+          Boolean(
+            placement &&
+              spatialDestinationIsFeasible({
+                action,
+                origin: placement,
+                destination,
+                affordance: candidate,
+                placements: validPlacements,
+              }),
           ),
       );
       if (compatibleSupports.length === 0) {
@@ -1675,9 +1917,14 @@ function validateFrame(args: {
       } else {
         const actors =
           actionActorAssignments.get(compatibleSupports[0].id) ?? new Set<string>();
-        // Capacity counts the unique cast members performing required actions. An action object,
-        // even when it is another cast member, is acted upon and is not a second actor.
-        actors.add(action.actorId);
+        // Capacity counts only unique cast entity subjects. Objects, prop subjects, and exact source
+        // phenomena are participants but are never promoted into cast actors.
+        if (
+          action.subject.kind === 'entity' &&
+          action.subject.entity.kind === 'cast'
+        ) {
+          actors.add(action.subject.entity.id);
+        }
         actionActorAssignments.set(compatibleSupports[0].id, actors);
       }
     }

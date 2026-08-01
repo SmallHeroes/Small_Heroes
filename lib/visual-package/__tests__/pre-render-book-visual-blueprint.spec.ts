@@ -314,7 +314,10 @@ function buildTwoActorCapacityFixture(maximumActors: number): BlueprintFixture {
     ...(page.actionRequirements ?? []),
     {
       checkId: 'action:page_1_companion_points',
-      actorId: companionId,
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: companionId },
+      },
       predicate: 'points_at',
       object: { kind: 'anchor', id: 'anchor:focus' },
       polarity: 'must',
@@ -346,6 +349,113 @@ function buildTwoActorCapacityFixture(maximumActors: number): BlueprintFixture {
     pageNumber: 1,
     checkId: 'action:page_1_companion_points',
   });
+  refreshContractProjections(blueprint);
+  return rebindEmbeddedAuthority({ blueprint, context: fixture.context });
+}
+
+function buildActionSemanticBlueprint(
+  semantic: 'phenomenon' | 'directional_move' | 'relation_move',
+): BlueprintFixture {
+  const fixture = buildBlueprintFixture('single_location');
+  const blueprint = clone(fixture.blueprint);
+  const page = blueprint.visualContract.pageContracts[0];
+  const action = page.actionRequirements?.[0];
+  const frame = blueprint.frames.find((entry) => entry.id === 'frame:page:1');
+  const actionSpace = blueprint.worldPlan.affordances.find(
+    (entry) => entry.kind === 'action_space',
+  );
+  if (!action || !frame || !actionSpace || actionSpace.kind !== 'action_space') {
+    throw new Error('action semantic fixture missing');
+  }
+  actionSpace.supportedPredicates = [semantic === 'phenomenon' ? 'touches' : 'moves'];
+  actionSpace.supportedSubjectKinds = [semantic === 'phenomenon' ? 'source_phenomenon' : 'cast'];
+  actionSpace.supportedSpatialDirections = semantic === 'directional_move' ? ['right'] : [];
+  actionSpace.supportedSpatialRelations = semantic === 'relation_move' ? ['toward'] : [];
+  actionSpace.spatialTargetRegions =
+    semantic === 'relation_move'
+      ? [
+          {
+            target: { kind: 'anchor', id: 'anchor:focus' },
+            region: { x: 500, y: 420, width: 40, height: 80 },
+          },
+        ]
+      : [];
+  if (semantic === 'phenomenon') {
+    action.subject = {
+      kind: 'source_phenomenon',
+      sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+      sourcePhrase: 'a cool draft brushes the traveler',
+    };
+    action.predicate = 'touches';
+    action.object = { kind: 'cast', id: 'child:hero' };
+    delete action.spatialEffect;
+  } else {
+    const movedPropId = 'prop:moved_object';
+    blueprint.visualContract.recurringProps.push({
+      id: movedPropId,
+      name: 'Movable object',
+      description: 'a neutral object that can change position',
+    });
+    page.propConstraints = [
+      ...(page.propConstraints ?? []),
+      {
+        propId: movedPropId,
+        visibility: 'required',
+        anchorId: 'anchor:support',
+      },
+    ];
+    frame.propLifecycle.requiredPropIds.push(movedPropId);
+    frame.placements.push({
+      id: 'placement:1:moved-object',
+      subject: { kind: 'prop', propId: movedPropId },
+      region: { x: 310, y: 520, width: 80, height: 80 },
+      depth: 'foreground',
+      importance: 'key',
+    });
+    const placementSupportId = 'affordance:placement:1:moved-object';
+    blueprint.worldPlan.affordances.push({
+      id: placementSupportId,
+      kind: 'placement_support',
+      zoneId: page.zoneId!,
+      footprint: { x: 280, y: 490, width: 140, height: 140 },
+      support: { kind: 'anchor', id: 'anchor:support' },
+      supportedEntities: [{ kind: 'prop', id: movedPropId }],
+      maximumOccupants: 1,
+      consumers: [
+        {
+          kind: 'placement',
+          pageNumber: page.pageNumber,
+          propId: movedPropId,
+        },
+      ],
+    });
+    frame.affordanceIds.push(placementSupportId);
+    actionSpace.supportedEntities.push({ kind: 'prop', id: movedPropId });
+    action.subject = {
+      kind: 'entity',
+      entity: { kind: 'cast', id: 'child:hero' },
+    };
+    action.predicate = 'moves';
+    action.object = { kind: 'prop', id: movedPropId };
+    action.spatialEffect =
+      semantic === 'directional_move'
+        ? { kind: 'directional', direction: 'right' }
+        : {
+            kind: 'relation',
+            relation: 'toward',
+            target: { kind: 'anchor', id: 'anchor:focus' },
+          };
+    frame.placements.push({
+      id: 'placement:1:action-destination',
+      subject: { kind: 'action_destination', checkId: action.checkId },
+      region:
+        semantic === 'directional_move'
+          ? { x: 390, y: 400, width: 100, height: 120 }
+          : { x: 430, y: 420, width: 40, height: 80 },
+      depth: 'midground',
+      importance: 'key',
+    });
+  }
   refreshContractProjections(blueprint);
   return rebindEmbeddedAuthority({ blueprint, context: fixture.context });
 }
@@ -536,6 +646,19 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
     const digestMutation = clone(fixture.blueprint);
     digestMutation.digest = '0'.repeat(64);
     expect(issueCodes(digestMutation, fixture.context)).toContain('digest_mismatch');
+  });
+
+  it('rejects immutable v2 Blueprint bytes as current v3 authority without mutating them', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const historical = clone(fixture.blueprint) as unknown as Record<string, unknown>;
+    historical.version = 'pre-render-book-visual-blueprint/v2';
+    const before = JSON.stringify(historical);
+    const result = validatePreRenderBookVisualBlueprint(historical, fixture.context);
+    expect(result.ok).toBe(false);
+    expect(
+      result.ok ? [] : result.issues.map((entry) => entry.code),
+    ).toContain('schema_version_unsupported');
+    expect(JSON.stringify(historical)).toBe(before);
   });
 
   it('returns structured issues instead of throwing on malformed nested arrays', () => {
@@ -1017,6 +1140,84 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
 });
 
 describe('R1D-PVB-A — spatial feasibility and safety', () => {
+  it('accepts an exact source phenomenon through typed action-space support without inventing cast', () => {
+    const fixture = buildActionSemanticBlueprint('phenomenon');
+    const result = validatePreRenderBookVisualBlueprint(
+      fixture.blueprint,
+      fixture.context,
+    );
+    expect(result.ok, result.ok ? '' : JSON.stringify(result.issues)).toBe(true);
+    const action = fixture.blueprint.visualContract.pageContracts[0].actionRequirements?.[0];
+    expect(action?.subject.kind).toBe('source_phenomenon');
+    expect(fixture.blueprint.frames[1].castIds).toEqual(
+      fixture.blueprint.visualContract.pageContracts[0].castIds,
+    );
+    expect(fixture.blueprint.frames[1].castIds).not.toContain(
+      action?.subject.kind === 'source_phenomenon'
+        ? action.subject.sourceEvidenceId
+        : 'unexpected-entity-subject',
+    );
+  });
+
+  it.each(['directional_move', 'relation_move'] as const)(
+    'proves %s using typed support plus a structural destination',
+    (semantic) => {
+      const fixture = buildActionSemanticBlueprint(semantic);
+      const result = validatePreRenderBookVisualBlueprint(
+        fixture.blueprint,
+        fixture.context,
+      );
+      expect(result.ok, result.ok ? '' : JSON.stringify(result.issues)).toBe(true);
+    },
+  );
+
+  it('rejects missing, unsupported, and geometrically false movement destinations', () => {
+    const fixture = buildActionSemanticBlueprint('directional_move');
+    const missing = clone(fixture.blueprint);
+    const frame = missing.frames.find((entry) => entry.id === 'frame:page:1')!;
+    frame.placements = frame.placements.filter(
+      (entry) => entry.subject.kind !== 'action_destination',
+    );
+    expect(issueCodes(restamp(missing), fixture.context)).toContain('action_infeasible');
+
+    const unsupported = clone(fixture.blueprint);
+    const unsupportedSpace = unsupported.worldPlan.affordances.find(
+      (entry) => entry.kind === 'action_space',
+    );
+    if (!unsupportedSpace || unsupportedSpace.kind !== 'action_space') {
+      throw new Error('action-space fixture missing');
+    }
+    unsupportedSpace.supportedSpatialDirections = ['left'];
+    expect(issueCodes(restamp(unsupported), fixture.context)).toContain('action_infeasible');
+
+    const falseDirection = clone(fixture.blueprint);
+    const falseDestination = falseDirection.frames
+      .find((entry) => entry.id === 'frame:page:1')!
+      .placements.find((entry) => entry.subject.kind === 'action_destination')!;
+    falseDestination.region = { x: 40, y: 400, width: 30, height: 120 };
+    expect(issueCodes(restamp(falseDirection), fixture.context)).toContain('action_infeasible');
+  });
+
+  it('rejects a prose-only or false relation target geometry', () => {
+    const fixture = buildActionSemanticBlueprint('relation_move');
+    const missingTarget = clone(fixture.blueprint);
+    const missingTargetSpace = missingTarget.worldPlan.affordances.find(
+      (entry) => entry.kind === 'action_space',
+    );
+    if (!missingTargetSpace || missingTargetSpace.kind !== 'action_space') {
+      throw new Error('action-space fixture missing');
+    }
+    missingTargetSpace.spatialTargetRegions = [];
+    expect(issueCodes(restamp(missingTarget), fixture.context)).toContain('action_infeasible');
+
+    const awayFromTarget = clone(fixture.blueprint);
+    const destination = awayFromTarget.frames
+      .find((entry) => entry.id === 'frame:page:1')!
+      .placements.find((entry) => entry.subject.kind === 'action_destination')!;
+    destination.region = { x: 60, y: 420, width: 40, height: 80 };
+    expect(issueCodes(restamp(awayFromTarget), fixture.context)).toContain('action_infeasible');
+  });
+
   it('rejects a declared action without compatible footprint/predicate support', () => {
     const fixture = buildBlueprintFixture('single_location');
     const bad = clone(fixture.blueprint);
@@ -1061,6 +1262,37 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
     expect(issueCodes(overbooked.blueprint, overbooked.context)).toContain(
       'action_infeasible',
     );
+  });
+
+  it('maximumActors counts cast subjects only, not source phenomena or cast objects', () => {
+    const fixture = buildTwoActorCapacityFixture(1);
+    const blueprint = clone(fixture.blueprint);
+    const action = blueprint.visualContract.pageContracts[0].actionRequirements?.[0];
+    const actionSpace = blueprint.worldPlan.affordances.find(
+      (entry) => entry.kind === 'action_space',
+    );
+    if (!action || !actionSpace || actionSpace.kind !== 'action_space') {
+      throw new Error('capacity semantic fixture missing');
+    }
+    action.subject = {
+      kind: 'source_phenomenon',
+      sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+      sourcePhrase: 'a soft breeze touches the child',
+    };
+    action.predicate = 'touches';
+    action.object = { kind: 'cast', id: 'child:hero' };
+    actionSpace.supportedSubjectKinds.push('source_phenomenon');
+    actionSpace.supportedPredicates.push('touches');
+    refreshContractProjections(blueprint);
+    const rebound = rebindEmbeddedAuthority({
+      blueprint,
+      context: fixture.context,
+    });
+    const result = validatePreRenderBookVisualBlueprint(
+      rebound.blueprint,
+      rebound.context,
+    );
+    expect(result.ok, result.ok ? '' : JSON.stringify(result.issues)).toBe(true);
   });
 
   it('rejects a transition without traversal/opening clearance and authored connection support', () => {

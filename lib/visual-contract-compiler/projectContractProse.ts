@@ -180,12 +180,13 @@ function actionProseLine(
   page: PageVisualContract,
   contract: BookVisualContract
 ): string {
+  const legacyActorId = (action as unknown as { actorId?: string }).actorId;
   const actor =
     action.subject?.kind === 'entity'
       ? refLabel(action.subject.entity, page, contract)
       : action.subject?.kind === 'source_phenomenon'
         ? `the exact source phenomenon ${JSON.stringify(action.subject.sourcePhrase)}`
-        : castLabel(action.actorId, contract);
+        : castLabel(legacyActorId ?? 'unresolved:legacy_actor', contract);
   const verb = projectActionPredicateProse(action.predicate);
   const hand = action.laterality ? ` with the ${action.laterality} hand` : '';
   const object = action.object ? ` ${refLabel(action.object, page, contract)}` : '';

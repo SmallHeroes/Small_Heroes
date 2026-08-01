@@ -418,7 +418,10 @@ describe('P0 — Template validator', () => {
     page.actionRequirements = [
       {
         checkId: 'action:mother_holds_token',
-        actorId: 'human:mother',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'human:mother' },
+        },
         predicate: 'holds',
         object: { kind: 'prop', id: prop.id },
         polarity: 'must',

@@ -250,7 +250,10 @@ function makeTemplate(plan: ShapePlan): BookVisualContractTemplate {
       actionRequirements: [
         {
           checkId: `action:page_${pageNumber}_look`,
-          actorId: childId,
+          subject: {
+            kind: 'entity',
+            entity: { kind: 'cast', id: childId },
+          },
           predicate: 'looks_at',
           object: { kind: 'anchor', id: 'anchor:focus' },
           polarity: 'must',
@@ -517,10 +520,14 @@ function makeWorldAndFrames(
         zoneId: page.zoneId!,
         footprint: { x: 40, y: 320, width: 520, height: 420 },
         supportedPredicates: ['looks_at'],
+        supportedSubjectKinds: ['cast'],
         supportedEntities: [
           { kind: 'cast', id: 'child:hero' },
           { kind: 'anchor', id: 'anchor:focus' },
         ],
+        supportedSpatialDirections: [],
+        supportedSpatialRelations: [],
+        spatialTargetRegions: [],
         maximumActors: 2,
         consumers: [actionConsumer],
       },

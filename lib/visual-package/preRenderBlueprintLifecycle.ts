@@ -617,6 +617,8 @@ function placementLabel(placement: BlueprintFramePlacement): string {
       return `prop ${placement.subject.propId}`;
     case 'action':
       return `action ${placement.subject.checkId}`;
+    case 'action_destination':
+      return `action destination ${placement.subject.checkId}`;
     case 'supporting_geometry':
       return `geometry ${placement.subject.geometryId}`;
   }

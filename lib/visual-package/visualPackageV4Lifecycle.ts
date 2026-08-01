@@ -139,7 +139,7 @@ function lifecycleArtifactDigest(content: unknown): string {
     typeof content === 'object' &&
     !Array.isArray(content) &&
     (content as { version?: unknown }).version ===
-      'pre-render-book-visual-blueprint/v2'
+      'pre-render-book-visual-blueprint/v3'
   ) {
     return computePreRenderBookVisualBlueprintDigest(
       content as PreRenderBookVisualBlueprint,

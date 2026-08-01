@@ -1,9 +1,12 @@
 import type {
   ActionPredicate,
+  ActionSpatialDirection,
+  ActionSpatialRelation,
   EntityRef,
   PageTransitionKind,
   SafetyRelation,
 } from '@/lib/visual-contract-compiler/types';
+import type { ActionSemanticSubjectKind } from '@/lib/visual-contract-compiler/actionSemanticCatalog';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import type { AuthoredCoverAuthority } from '@/lib/visual-contract-compiler/coverSourceAuthority';
 
@@ -21,7 +24,7 @@ import type { SourcePromptReconciliation } from './sourcePromptReconciliation';
  * Visual Package qualification. PVB-C owns the separate runtime cutover decision.
  */
 export const PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION =
-  'pre-render-book-visual-blueprint/v2' as const;
+  'pre-render-book-visual-blueprint/v3' as const;
 export const PRE_RENDER_BLUEPRINT_AUTHORING_AUTHORITY_VERSION =
   'pre-render-blueprint-authoring-authority/v1' as const;
 export const PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM =
@@ -157,8 +160,13 @@ export interface BlueprintPlacementSupportAffordance extends BlueprintAffordance
 export interface BlueprintActionSpaceAffordance extends BlueprintAffordanceBase {
   kind: 'action_space';
   supportedPredicates: ActionPredicate[];
+  supportedSubjectKinds: ActionSemanticSubjectKind[];
   supportedEntities: EntityRef[];
-  /** Maximum unique required-action `actorId` cast members assigned on one frame/page. */
+  supportedSpatialDirections: ActionSpatialDirection[];
+  supportedSpatialRelations: ActionSpatialRelation[];
+  /** Exact structural target regions used to prove relation-based movement destinations. */
+  spatialTargetRegions: Array<{ target: EntityRef; region: BlueprintRegion }>;
+  /** Maximum unique cast entity subjects assigned on one frame/page; objects and phenomena never count. */
   maximumActors: number;
 }
 
@@ -220,6 +228,7 @@ export type BlueprintFramePlacementSubject =
   | { kind: 'cast'; castId: string }
   | { kind: 'prop'; propId: string }
   | { kind: 'action'; checkId: string }
+  | { kind: 'action_destination'; checkId: string }
   | { kind: 'supporting_geometry'; geometryId: string };
 
 export interface BlueprintFramePlacement {

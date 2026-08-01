@@ -101,7 +101,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
   ];
 
   it.each(shapes)(
-    'uses one shared whole-book call for %s and returns exact valid v2 authority',
+    'uses one shared whole-book call for %s and returns exact valid v3 authority',
     async (shape) => {
       const fixture = buildBlueprintFixture(shape);
       const calls: Array<{
@@ -153,7 +153,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         ).ok,
       ).toBe(true);
       expect(result.blueprint.version).toBe(
-        'pre-render-book-visual-blueprint/v2',
+        'pre-render-book-visual-blueprint/v3',
       );
       expect(result.blueprint.identity.authoringAuthority.digest).toBe(
         fixture.blueprint.identity.authoringAuthority.digest,
@@ -231,7 +231,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance).toMatchObject({
       passingAttempt: 2,
       callCount: 2,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v2',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v3',
     });
   });
 

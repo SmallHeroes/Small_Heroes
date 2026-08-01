@@ -63,11 +63,16 @@ function storyPages(): Array<{ pageNumber: number; text: string }> {
 }
 
 describe('fox — the hand-authored structured contract validates end-to-end', () => {
-  it('passes the Template validator (⇒ vNext ⇒ base: every Stage-3 + Stage-4 rule)', () => {
-    const result = validateBookVisualContractTemplate(foxTemplate());
-    // Surface the real errors rather than a bare `false` if this ever breaks.
-    expect(result.ok ? [] : result.errors).toEqual([]);
-    expect(() => assertValidBookVisualContractTemplate(foxTemplate())).not.toThrow();
+  it('preserves historical v1 bytes while rejecting them as current v2 authority', () => {
+    const historical = foxTemplate();
+    const before = JSON.stringify(historical);
+    const result = validateBookVisualContractTemplate(historical);
+    expect(result.ok).toBe(false);
+    expect(result.ok ? [] : result.errors).toContain(
+      'schemaVersion must equal the supported "vc-schema/v2" (got "vc-schema/v1")',
+    );
+    expect(() => assertValidBookVisualContractTemplate(historical)).toThrow();
+    expect(JSON.stringify(historical)).toBe(before);
   });
 
   it('every story_evidence citation actually occurs on the page it cites (niqqud-insensitive)', () => {
@@ -142,8 +147,10 @@ describe('fox — DEFECT 2: the bucket is pinned to the drip ledge and hidden un
 describe('fox — DEFECT 3: the page-3 notebook belongs to exactly ONE actor', () => {
   it('Uri must hold it; the child must NOT — one beat, two polarities, one actor each', () => {
     const actions = page(foxTemplate(), 3).actionRequirements ?? [];
-    const uri = actions.find((a) => a.actorId === 'companion:fox_uri');
-    const child = actions.find((a) => a.actorId === 'child:hero');
+    const historicalActorId = (action: (typeof actions)[number]): string | undefined =>
+      (action as unknown as { actorId?: string }).actorId;
+    const uri = actions.find((a) => historicalActorId(a) === 'companion:fox_uri');
+    const child = actions.find((a) => historicalActorId(a) === 'child:hero');
     expect(uri?.polarity).toBe('must');
     expect(child?.polarity).toBe('must_not');
     for (const a of [uri, child]) {

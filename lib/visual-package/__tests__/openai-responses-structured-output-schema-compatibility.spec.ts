@@ -88,7 +88,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       'vc-draft-schema/v10',
     );
     expect(PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION).toBe(
-      'pre-render-blueprint-draft-schema/v3',
+      'pre-render-blueprint-draft-schema/v4',
     );
     expect(SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_VERSION).toBe(
       'source-evidence-id-repair-schema/v1',

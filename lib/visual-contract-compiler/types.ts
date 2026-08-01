@@ -473,8 +473,8 @@ export type PageActionSpatialEffect =
  * POLARITY IS LOAD-BEARING, not stylistic: it decides which array the prose projects into, and the wrong array
  * INVERTS a downstream lock. `staging-lock.ts` regex-mines ONLY `mustShow` for /floor|rug|cave|fort/i and emits an
  * ABSOLUTE floor lock; `mustNotShow` is not scanned and is the safe landing zone for negatives. Likewise the
- * cast-contradiction NLP parses ONLY `mustShow` as a positive cast reference — which the `actorId ∈ page.castIds`
- * rule makes safe by construction.
+ * cast-contradiction NLP parses ONLY `mustShow` as a positive cast reference. Cast entity subjects resolve against
+ * the same page's `castIds`, which makes that projection safe by construction.
  */
 export interface PageActionRequirement {
   /**
@@ -484,11 +484,8 @@ export interface PageActionRequirement {
    * is Stage 5; Stage 3 enforces only the namespace + per-page uniqueness.
    */
   checkId: string;
-  /** Transitional compile-only compatibility for pre-v2 TypeScript fixtures. Current vc-schema/v2 artifacts must
-   * author `subject`; validators reject actorId as current authority. Removed when Blueprint v3 lands. */
-  actorId: string;
   /** Closed subject authority. Phenomenon text/identity is resolved locally from same-page Source Evidence. */
-  subject?: PageActionSubject;
+  subject: PageActionSubject;
   predicate: ActionPredicate;
   /**
    * The thing acted upon. A typed `EntityRef` rather than the loose `objectId?`/`anchorId?` pair: those two can name
@@ -599,7 +596,8 @@ export interface PageVisualContract {
   propConstraints?: PagePropConstraint[];
   /**
    * vNext (Contract v2 / Stage 3): structured per-page ACTION beats — the source the action prose projects from.
-   * Same omit rule. Every `actorId` MUST be in this page's `castIds`.
+   * Same omit rule. Every cast entity subject MUST be in this page's `castIds`; source phenomena bind exactly to
+   * same-page Source Evidence and are never promoted into cast or props.
    */
   actionRequirements?: PageActionRequirement[];
   /**

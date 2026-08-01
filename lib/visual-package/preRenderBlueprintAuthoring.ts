@@ -41,9 +41,9 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION =
-  'pre-render-blueprint-authoring-prompt/v2' as const;
+  'pre-render-blueprint-authoring-prompt/v3' as const;
 export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION =
-  'pre-render-blueprint-repair-prompt/v2' as const;
+  'pre-render-blueprint-repair-prompt/v3' as const;
 export const PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS = 2 as const;
 
 type Obj = Record<string, unknown>;
@@ -376,7 +376,7 @@ export function preRenderBlueprintAuthoringInputErrors(
 export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
   const actionCatalog = ACTION_SEMANTIC_CATALOG.map(
     (definition) =>
-      `${definition.predicate} (object=${definition.objectRule}; kinds=${definition.objectKinds.join('|') || 'none'}; laterality=${definition.lateralityAllowed ? 'allowed' : 'forbidden'})`,
+      `${definition.predicate} (subjects=${definition.subjectKinds.join('|')}; object=${definition.objectRule}; objectKinds=${definition.objectKinds.join('|') || 'none'}; spatialResult=${definition.spatialEffectRule}; laterality=${definition.lateralityAllowed ? 'allowed' : 'forbidden'})`,
   ).join(', ');
   return [
     "You author one whole-book, portrait 2:3 schematic Blueprint for a children's picture book.",
@@ -395,7 +395,12 @@ export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
     '',
     `ACTION SEMANTIC CATALOG (${ACTION_SEMANTIC_CATALOG_VERSION}; closed, no free text):`,
     actionCatalog,
-    'Every action_space.supportedPredicates value must come from this catalog. Blueprint support does not',
+    'Every action_space must explicitly support the typed subject kind, predicate, entity participants, and any',
+    'closed spatial direction/relation. Every required spatial action needs both an action evidence placement and',
+    'an action_destination placement inside its unique action space. Relation movement also needs one exact typed',
+    'spatialTargetRegion whose geometry proves the destination relation; prose is never feasibility evidence.',
+    'maximumActors counts only unique cast entity subjects, never objects, prop subjects, or source phenomena.',
+    'All supported predicate/subject/result values must come from this catalog. Blueprint support does not',
     'self-approve Action Semantic Coverage or Semantic Reconciliation.',
     '',
     'Author the complete connection graph, spatial affordances, reveal-safe supporting geometry, and one frame',
