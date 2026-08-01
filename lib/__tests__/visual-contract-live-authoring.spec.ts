@@ -22,6 +22,7 @@ import type {
   ContractLlmCallOptions,
 } from '../visual-contract-compiler/compileBookVisualContract';
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
+import { OpenAIResponsesStructuredOutputSchemaCompatibilityError } from '../visual-package/openaiResponsesStructuredOutputSchemaCompatibility';
 
 const BUNNY_KEY = 'bunny_ometz_adventure';
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
@@ -33,6 +34,27 @@ function bunnyTemplate(): unknown {
     draft: JSON.parse(fs.readFileSync(path.join(BANK, `${BUNNY_KEY}.visual-contract-template.json`), 'utf8')),
     pages: bunnySource().pages,
   });
+}
+
+function findConstNode(
+  value: unknown,
+  literal: unknown,
+): Record<string, unknown> | null {
+  if (Array.isArray(value)) {
+    for (const child of value) {
+      const found = findConstNode(child, literal);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (!value || typeof value !== 'object') return null;
+  const node = value as Record<string, unknown>;
+  if (node.const === literal) return node;
+  for (const child of Object.values(node)) {
+    const found = findConstNode(child, literal);
+    if (found) return found;
+  }
+  return null;
 }
 
 /** Recursively assert OpenAI strict-mode compliance: every object sets additionalProperties:false + required=all keys. */
@@ -134,7 +156,7 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(provenance.authoringModel).toBe('gpt-5.6-sol');
     expect(provenance.reasoningEffort).toBe('medium');
     expect(provenance.maxOutputTokens).toBe(36000);
-    expect(provenance.schemaVersion).toBe('vc-draft-schema/v7');
+    expect(provenance.schemaVersion).toBe('vc-draft-schema/v8');
     expect(provenance.attempt).toBe(1);
   });
 
@@ -148,6 +170,31 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     const { provenance } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: spy });
     expect(captured?.model).toBe('gpt-5.6-sol');
     expect(provenance.authoringModel).toBe('gpt-5.6-sol');
+  });
+
+  it('rejects an incompatible serialized schema before the legacy injected caller can run', async () => {
+    const constNode = findConstNode(
+      TEMPLATE_DRAFT_JSON_SCHEMA,
+      'action_requirement',
+    );
+    expect(constNode).not.toBeNull();
+    const originalType = constNode!.type;
+    const callLLM = vi.fn<ContractLlmCaller>();
+    let caught: unknown;
+    delete constNode!.type;
+    try {
+      await compileBookVisualContractTemplate(bunnySource(), {
+        callLLM,
+      });
+    } catch (error) {
+      caught = error;
+    } finally {
+      constNode!.type = originalType;
+    }
+    expect(caught).toBeInstanceOf(
+      OpenAIResponsesStructuredOutputSchemaCompatibilityError,
+    );
+    expect(callLLM).not.toHaveBeenCalled();
   });
 });
 

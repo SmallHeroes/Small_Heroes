@@ -17,6 +17,9 @@ import {
   CANONICAL_PRE_LIVE_READINESS_FAILURE_CATEGORY,
   CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION,
   CANONICAL_PRE_LIVE_READINESS_PRIVATE_TESTING,
+  OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION,
+  OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_DIGEST,
+  OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
   canonicalPreLiveReadinessArtifactPath,
   prepareCanonicalPreLiveReadiness,
   verifyCanonicalPreLiveReadiness,
@@ -474,14 +477,38 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v2',
+            'canonical-live-request-verification/v3',
+          structuredOutputCompatibility: {
+            schemaName: 'BookVisualContractTemplateDraft',
+            schemaVersion: 'vc-draft-schema/v8',
+            compatibility: {
+              profileVersion:
+                OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
+              profileDigest:
+                OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_DIGEST,
+              evidenceVersion:
+                OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION,
+              status: 'compatible',
+            },
+          },
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v1',
+            'canonical-live-execution-readiness/v2',
         },
       },
     });
+    if (result.status !== 'ready_for_spend_gate') {
+      throw new Error('fixture preparation failed');
+    }
+    expect(
+      result.canonicalAuthorities.b0
+        .structuredOutputCompatibility.compatibility
+        .serializedSchemaDigest,
+    ).toEqual(
+      result.canonicalAuthorities.b0
+        .structuredOutputCompatibility.schemaDigest,
+    );
     expect(result.digest).toMatch(/^[a-f0-9]{64}$/);
     expect(JSON.stringify(result)).not.toContain(
       fixture.input.credentialSourcePath,

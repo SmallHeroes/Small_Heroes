@@ -11,6 +11,7 @@ export * from './releaseGate';
 export * from './preRenderBlueprintTypes';
 export * from './preRenderBlueprint';
 export * from './preRenderBlueprintDraftSchema';
+export * from './openaiResponsesStructuredOutputSchemaCompatibility';
 export * from './preRenderBlueprintAuthoring';
 export * from './preRenderBlueprintLifecycle';
 export * from './visualPackageV4';

@@ -35,12 +35,14 @@ import {
   LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION,
   assertValidLiveRequestMaterializationInput,
   assertValidLiveRequestMaterializationManifest,
+  liveRequestStructuredOutputCompatibilityAuthorityIssues,
   materializeCanonicalLiveRequestBundle,
   verifyCanonicalLiveRequestBundle,
   type CanonicalLiveRequestVerifiedResult,
   type LiveRequestMaterializationInput,
   type LiveRequestMaterializationManifest,
   type LiveRequestMaterializationResult,
+  type LiveRequestStructuredOutputCompatibilityAuthority,
 } from './liveRequestMaterialization';
 import {
   canonicalJsonDigest,
@@ -51,7 +53,7 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION =
-  'canonical-pre-live-readiness-evidence/v1' as const;
+  'canonical-pre-live-readiness-evidence/v2' as const;
 export const CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION =
   'canonical-pre-live-readiness-failure/v1' as const;
 export const CANONICAL_PRE_LIVE_DEPENDENCY_AUTHORITY_VERSION =
@@ -200,6 +202,8 @@ export interface CanonicalPreLiveReadinessEvidence {
       sourceSnapshotDigest: string;
       normalizedSourceDigest: string;
       liveAuthoringRequestDigest: string;
+      structuredOutputCompatibility:
+        LiveRequestStructuredOutputCompatibilityAuthority;
     };
     executionRequest: {
       path: string;
@@ -1404,6 +1408,7 @@ function evidenceIssues(value: unknown): string[] {
         'sourceSnapshotDigest',
         'normalizedSourceDigest',
         'liveAuthoringRequestDigest',
+        'structuredOutputCompatibility',
       ]) ||
       typeof b0.manifestPath !== 'string' ||
       canonicalMaterializationRelativePathIssues(
@@ -1422,6 +1427,10 @@ function evidenceIssues(value: unknown): string[] {
           typeof entry === 'string' &&
           DIGEST_PATTERN.test(entry),
       ) ||
+      liveRequestStructuredOutputCompatibilityAuthorityIssues(
+        b0.structuredOutputCompatibility,
+        'pre_live_evidence_b0_structured_output_compatibility',
+      ).length > 0 ||
       !validDescriptor(executionRequest) ||
       !supervisor ||
       !exactKeys(supervisor, [
@@ -1885,6 +1894,8 @@ function evidenceValue(args: {
         liveAuthoringRequestDigest:
           args.b0.identities
             .liveAuthoringRequestDigest,
+        structuredOutputCompatibility:
+          args.b0.structuredOutputCompatibility,
       },
       executionRequest: args.executionRequest,
       supervisorVerification: {

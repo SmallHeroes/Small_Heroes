@@ -67,7 +67,7 @@ function provenanceFor(
     reasoningEffort: 'medium',
     maxOutputTokens: 48_000,
     noFallback: true,
-    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v2',
+    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v3',
     promptVersion: 'pre-render-blueprint-authoring-prompt/v2',
     passingAttempt: 1,
     callCount: 1,

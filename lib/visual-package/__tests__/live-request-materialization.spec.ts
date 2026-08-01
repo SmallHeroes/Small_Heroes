@@ -14,6 +14,9 @@ import {
 import {
   LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION,
   LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
+  OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION,
+  OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_DIGEST,
+  OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
   STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION,
   assertValidLiveRequestMaterializationManifest,
   assertValidStorySourceAuthorityRequestArtifact,
@@ -308,7 +311,7 @@ describe('canonical live request materialization validators', () => {
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v2');
+    ).toBe('canonical-live-request-materialization/v3');
   });
 
   it.each([
@@ -461,7 +464,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v4',
+      version: 'visual-contract-authoring-request/v5',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -485,6 +488,17 @@ describe('canonical live request materialization artifacts', () => {
         projectedMaxUsd: 4.884,
         hardCeilingUsd: 5,
       },
+      structuredOutput: {
+        schemaName: 'BookVisualContractTemplateDraft',
+        schemaVersion: 'vc-draft-schema/v8',
+        compatibilityProfileVersion:
+          OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
+        compatibilityProfileDigest:
+          OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_DIGEST,
+        compatibilityEvidenceVersion:
+          OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION,
+        compatibilityStatus: 'compatible',
+      },
     });
     expect(result.manifest).toMatchObject({
       version:
@@ -507,7 +521,28 @@ describe('canonical live request materialization artifacts', () => {
         credentialLoadingAuthorized: false,
         pricingLookupPerformed: false,
       },
+      structuredOutputCompatibility: {
+        schemaName: request.structuredOutput.schemaName,
+        schemaVersion: request.structuredOutput.schemaVersion,
+        schemaDigest: request.structuredOutput.schemaDigest,
+        compatibility: {
+          profileVersion:
+            request.structuredOutput.compatibilityProfileVersion,
+          profileDigest:
+            request.structuredOutput.compatibilityProfileDigest,
+          evidenceVersion:
+            request.structuredOutput.compatibilityEvidenceVersion,
+          evidenceDigest:
+            request.structuredOutput.compatibilityEvidenceDigest,
+          status: 'compatible',
+          serializedSchemaDigest:
+            request.structuredOutput.serializedSchemaDigest,
+        },
+      },
     });
+    expect(
+      request.structuredOutput.serializedSchemaDigest,
+    ).toBe(request.structuredOutput.schemaDigest);
     expect(
       result.manifest.futureLiveCommand.arguments,
     ).toEqual([

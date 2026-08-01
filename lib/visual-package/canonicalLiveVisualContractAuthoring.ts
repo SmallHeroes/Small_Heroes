@@ -245,6 +245,18 @@ function authoringRequestValue(
       schemaName: structuredOutput.schemaName,
       schemaVersion: structuredOutput.schemaVersion,
       schemaDigest: structuredOutput.schemaDigest,
+      compatibilityProfileVersion:
+        structuredOutput.compatibilityProfileVersion,
+      compatibilityProfileDigest:
+        structuredOutput.compatibilityProfileDigest,
+      compatibilityEvidenceVersion:
+        structuredOutput.compatibilityEvidenceVersion,
+      compatibilityEvidenceDigest:
+        structuredOutput.compatibilityEvidenceDigest,
+      compatibilityStatus:
+        structuredOutput.compatibilityStatus,
+      serializedSchemaDigest:
+        structuredOutput.serializedSchemaDigest,
     },
     toolsDisabled: object.toolsDisabled,
     noFallback: object.noFallback,
@@ -354,6 +366,12 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'schemaName',
     'schemaVersion',
     'schemaDigest',
+    'compatibilityProfileVersion',
+    'compatibilityProfileDigest',
+    'compatibilityEvidenceVersion',
+    'compatibilityEvidenceDigest',
+    'compatibilityStatus',
+    'serializedSchemaDigest',
   ]),
   tokenBudget: new Set([
     'maxInputTokens',
@@ -413,6 +431,12 @@ const REQUEST_OBJECT_FIELDS = {
     schemaName: 'string',
     schemaVersion: 'string',
     schemaDigest: 'string',
+    compatibilityProfileVersion: 'string',
+    compatibilityProfileDigest: 'string',
+    compatibilityEvidenceVersion: 'string',
+    compatibilityEvidenceDigest: 'string',
+    compatibilityStatus: 'string',
+    serializedSchemaDigest: 'string',
   },
   tokenBudget: {
     maxInputTokens: 'number',

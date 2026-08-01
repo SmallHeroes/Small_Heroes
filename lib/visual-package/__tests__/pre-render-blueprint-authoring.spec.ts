@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+  OpenAIResponsesStructuredOutputSchemaCompatibilityError,
   PreRenderBlueprintAuthoringRepairExhaustedError,
   InvalidPreRenderBlueprintAuthoringInputError,
   compilePreRenderBookVisualBlueprint,
@@ -22,6 +23,27 @@ const CONFIG = {
   reasoningEffort: 'medium',
   maxOutputTokens: 48_000,
 };
+
+function findConstNode(
+  value: unknown,
+  literal: unknown,
+): Record<string, unknown> | null {
+  if (Array.isArray(value)) {
+    for (const child of value) {
+      const found = findConstNode(child, literal);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (!value || typeof value !== 'object') return null;
+  const node = value as Record<string, unknown>;
+  if (node.const === literal) return node;
+  for (const child of Object.values(node)) {
+    const found = findConstNode(child, literal);
+    if (found) return found;
+  }
+  return null;
+}
 
 function wholeBookDraft(blueprint: PreRenderBookVisualBlueprint): unknown {
   return {
@@ -251,6 +273,51 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         },
       }),
     ).rejects.toBeInstanceOf(InvalidPreRenderBlueprintAuthoringInputError);
+    expect(calls).toBe(0);
+  });
+
+  it('rejects an incompatible fully serialized Blueprint schema before author or repair calls', async () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const booleanConst = findConstNode(
+      PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+      true,
+    );
+    expect(booleanConst).not.toBeNull();
+    const originalType = booleanConst!.type;
+    let calls = 0;
+    let caught: unknown;
+    delete booleanConst!.type;
+    try {
+      await compilePreRenderBookVisualBlueprint(
+        fixture.context,
+        CONFIG,
+        {
+          callAuthor: async () => {
+            calls += 1;
+            return wholeBookDraft(fixture.blueprint);
+          },
+        },
+      );
+    } catch (error) {
+      caught = error;
+    } finally {
+      booleanConst!.type = originalType;
+    }
+    expect(caught).toBeInstanceOf(
+      OpenAIResponsesStructuredOutputSchemaCompatibilityError,
+    );
+    expect(
+      (
+        caught as OpenAIResponsesStructuredOutputSchemaCompatibilityError
+      ).evidence,
+    ).toMatchObject({
+      status: 'incompatible',
+      issues: expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: 'OAI_SO_CONST_TYPE_REQUIRED',
+        }),
+      ]),
+    });
     expect(calls).toBe(0);
   });
 

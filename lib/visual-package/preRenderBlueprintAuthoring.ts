@@ -36,6 +36,9 @@ import {
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
 } from './preRenderBlueprintDraftSchema';
 import { sourcePromptReconciliationIssues } from './sourcePromptReconciliation';
+import {
+  assertOpenAIResponsesStructuredOutputSchemaCompatible,
+} from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION =
   'pre-render-blueprint-authoring-prompt/v2' as const;
@@ -474,6 +477,9 @@ export async function compilePreRenderBookVisualBlueprint(
   if (inputErrors.length > 0) {
     throw new InvalidPreRenderBlueprintAuthoringInputError(inputErrors);
   }
+  assertOpenAIResponsesStructuredOutputSchemaCompatible(
+    PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+  );
 
   const systemPrompt = buildPreRenderBlueprintAuthoringSystemPrompt();
   const userPrompt = buildPreRenderBlueprintAuthoringUserPrompt(context);

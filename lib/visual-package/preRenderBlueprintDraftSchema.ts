@@ -33,23 +33,23 @@ const entityRef = obj({
 
 const consumer = {
   anyOf: [
-    obj({ kind: { const: 'frame' }, frameId: { type: 'string' } }),
+    obj({ kind: { type: 'string', const: 'frame' }, frameId: { type: 'string' } }),
     obj({
-      kind: { const: 'action' },
+      kind: { type: 'string', const: 'action' },
       pageNumber: { type: 'integer', minimum: 1 },
       checkId: { type: 'string' },
     }),
     obj({
-      kind: { const: 'placement' },
+      kind: { type: 'string', const: 'placement' },
       pageNumber: { type: 'integer', minimum: 1 },
       propId: { type: 'string' },
     }),
     obj({
-      kind: { const: 'transition' },
+      kind: { type: 'string', const: 'transition' },
       pageNumber: { type: 'integer', minimum: 1 },
     }),
     obj({
-      kind: { const: 'safety' },
+      kind: { type: 'string', const: 'safety' },
       pageNumber: { type: 'integer', minimum: 1 },
       subjectId: { type: 'string' },
       relation: {
@@ -80,28 +80,28 @@ const affordance = {
   anyOf: [
     obj({
       ...affordanceBase,
-      kind: { const: 'traversal' },
+      kind: { type: 'string', const: 'traversal' },
       connectionId: { type: 'string' },
       direction: { type: 'string', enum: ['forward', 'reverse', 'both'] },
       minimumClearance: { type: 'integer', minimum: 1, maximum: 1000 },
     }),
     obj({
       ...affordanceBase,
-      kind: { const: 'opening_clearance' },
+      kind: { type: 'string', const: 'opening_clearance' },
       connectionId: { type: 'string' },
       openingSpatialNodeId: nullableString,
       clearanceRegion: region,
     }),
     obj({
       ...affordanceBase,
-      kind: { const: 'placement_support' },
+      kind: { type: 'string', const: 'placement_support' },
       support: entityRef,
       supportedEntities: { type: 'array', items: entityRef, minItems: 1 },
       maximumOccupants: { type: 'integer', minimum: 1 },
     }),
     obj({
       ...affordanceBase,
-      kind: { const: 'action_space' },
+      kind: { type: 'string', const: 'action_space' },
       supportedPredicates: {
         type: 'array',
         minItems: 1,
@@ -115,12 +115,12 @@ const affordance = {
     }),
     obj({
       ...affordanceBase,
-      kind: { const: 'camera_access' },
+      kind: { type: 'string', const: 'camera_access' },
       visibleRegion: region,
     }),
     obj({
       ...affordanceBase,
-      kind: { const: 'safe_boundary' },
+      kind: { type: 'string', const: 'safe_boundary' },
       target: entityRef,
       permittedRegion: region,
     }),
@@ -151,16 +151,16 @@ const supportingGeometry = obj({
   zoneId: { type: 'string' },
   spatialNodeId: { type: 'string' },
   supportsPropIds: stringArray,
-  spoilerNeutral: { const: true },
+  spoilerNeutral: { type: 'boolean', const: true },
 });
 
 const placementSubject = {
   anyOf: [
-    obj({ kind: { const: 'cast' }, castId: { type: 'string' } }),
-    obj({ kind: { const: 'prop' }, propId: { type: 'string' } }),
-    obj({ kind: { const: 'action' }, checkId: { type: 'string' } }),
+    obj({ kind: { type: 'string', const: 'cast' }, castId: { type: 'string' } }),
+    obj({ kind: { type: 'string', const: 'prop' }, propId: { type: 'string' } }),
+    obj({ kind: { type: 'string', const: 'action' }, checkId: { type: 'string' } }),
     obj({
-      kind: { const: 'supporting_geometry' },
+      kind: { type: 'string', const: 'supporting_geometry' },
       geometryId: { type: 'string' },
     }),
   ],
@@ -223,6 +223,6 @@ export const PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA: Record<string, unknown> = o
 });
 
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION =
-  'pre-render-blueprint-draft-schema/v2' as const;
+  'pre-render-blueprint-draft-schema/v3' as const;
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME =
   'PreRenderBookVisualBlueprintWholeBookDraft' as const;

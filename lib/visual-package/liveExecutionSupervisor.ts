@@ -18,15 +18,17 @@ import {
 import {
   CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
   assertValidLiveRequestMaterializationManifest,
+  liveRequestStructuredOutputCompatibilityAuthorityIssues,
   verifyCanonicalLiveRequestBundle,
   type CanonicalLiveRequestVerificationResult,
   type LiveRequestMaterializationManifest,
+  type LiveRequestStructuredOutputCompatibilityAuthority,
 } from './liveRequestMaterialization';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_VERSION =
-  'canonical-live-execution-request/v1' as const;
+  'canonical-live-execution-request/v2' as const;
 export const CANONICAL_LIVE_EXECUTION_READINESS_VERSION =
-  'canonical-live-execution-readiness/v1' as const;
+  'canonical-live-execution-readiness/v2' as const;
 export const CANONICAL_LIVE_EXECUTION_PROBE_VERSION =
   'canonical-live-execution-probe/v1' as const;
 
@@ -87,6 +89,8 @@ export interface CanonicalLiveExecutionRequest {
     manifestDigest: string;
     verificationVersion:
       typeof CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION;
+    structuredOutputCompatibility:
+      LiveRequestStructuredOutputCompatibilityAuthority;
   };
   preservationFences:
     CanonicalLiveExecutionPreservationFence[];
@@ -121,6 +125,9 @@ export interface CanonicalLiveExecutionReadiness {
     verificationVersion:
       typeof CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION;
     manifestDigest: string | null;
+    structuredOutputCompatibility:
+      | LiveRequestStructuredOutputCompatibilityAuthority
+      | null;
     reasonCodes: string[];
   };
   git: {
@@ -607,6 +614,7 @@ export function canonicalLiveExecutionRequestIssues(
         'manifestPath',
         'manifestDigest',
         'verificationVersion',
+        'structuredOutputCompatibility',
       ],
       'execution_canonical_bundle',
     ).length > 0 ||
@@ -619,7 +627,11 @@ export function canonicalLiveExecutionRequestIssues(
       canonicalBundle.manifestDigest as string,
     ) ||
     canonicalBundle.verificationVersion !==
-      CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION
+      CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION ||
+    liveRequestStructuredOutputCompatibilityAuthorityIssues(
+      canonicalBundle.structuredOutputCompatibility,
+      'execution_canonical_bundle_structured_output_compatibility',
+    ).length > 0
   ) {
     issues.push('execution_canonical_bundle_invalid');
   }
@@ -1452,6 +1464,7 @@ function initialReadinessState(args: {
       verificationVersion:
         CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
       manifestDigest: null,
+      structuredOutputCompatibility: null,
       reasonCodes: [],
     },
     git: {
@@ -1660,12 +1673,25 @@ function evaluateReadinessCore(args: {
   }
   state.b0.status = 'verified';
   state.b0.manifestDigest = b0.identities.manifestDigest;
+  state.b0.structuredOutputCompatibility =
+    b0.structuredOutputCompatibility;
   if (
     b0.identities.manifestDigest !==
-    request.canonicalBundle.manifestDigest
+      request.canonicalBundle.manifestDigest ||
+    canonicalJsonDigest(b0.structuredOutputCompatibility) !==
+      canonicalJsonDigest(
+        request.canonicalBundle
+          .structuredOutputCompatibility,
+      )
   ) {
     state.b0.status = 'rejected';
-    state.reasonCodes = ['b0_manifest_identity_mismatch'];
+    state.b0.structuredOutputCompatibility = null;
+    state.reasonCodes = [
+      b0.identities.manifestDigest !==
+      request.canonicalBundle.manifestDigest
+        ? 'b0_manifest_identity_mismatch'
+        : 'b0_structured_output_compatibility_mismatch',
+    ];
     return {
       request,
       repositoryRealPath,
@@ -1838,6 +1864,7 @@ export function canonicalLiveExecutionReadinessIssues(
         'status',
         'verificationVersion',
         'manifestDigest',
+        'structuredOutputCompatibility',
         'reasonCodes',
       ],
       'execution_readiness_b0',
@@ -1850,6 +1877,15 @@ export function canonicalLiveExecutionReadinessIssues(
     (b0.manifestDigest !== null &&
       (typeof b0.manifestDigest !== 'string' ||
         !DIGEST_PATTERN.test(b0.manifestDigest))) ||
+    (b0.structuredOutputCompatibility !== null &&
+      liveRequestStructuredOutputCompatibilityAuthorityIssues(
+        b0.structuredOutputCompatibility,
+        'execution_readiness_b0_structured_output_compatibility',
+      ).length > 0) ||
+    (b0.status === 'verified' &&
+      b0.structuredOutputCompatibility === null) ||
+    (b0.status !== 'verified' &&
+      b0.structuredOutputCompatibility !== null) ||
     !Array.isArray(b0.reasonCodes) ||
     b0.reasonCodes.some(
       (code) =>

@@ -39,6 +39,9 @@ import {
   TEMPLATE_DRAFT_SCHEMA_NAME,
   TEMPLATE_DRAFT_SCHEMA_VERSION,
 } from './templateDraftSchema';
+import {
+  assertOpenAIResponsesStructuredOutputSchemaCompatible,
+} from '@/lib/visual-package/openaiResponsesStructuredOutputSchemaCompatibility';
 import { assertSourceHasRealProse } from './assertSourceProse';
 import {
   applyAuthoredCoverAuthority,
@@ -1141,6 +1144,9 @@ export async function compileBookVisualContractTemplate(
   // reaches the compiler (the extractor guard is the first line), refuse before the LLM call so it cannot hallucinate
   // a fully-valid contract out of nothing.
   assertSourceHasRealProse(input.storyKey, input.pages, 'compile-vc-template');
+  assertOpenAIResponsesStructuredOutputSchemaCompatible(
+    TEMPLATE_DRAFT_JSON_SCHEMA,
+  );
 
   const facts = extractDeterministicFacts(input);
 

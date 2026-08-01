@@ -514,6 +514,8 @@ describe('canonical live request verification library', () => {
         projectedMaxUsd: 4.884,
         hardCeilingUsd: 5,
       },
+      structuredOutputCompatibility:
+        materialized.manifest.structuredOutputCompatibility,
       externalBoundaryEvidence: {
         credentialReadOrCheck: false,
         providerReachabilityCheck: false,
@@ -618,6 +620,49 @@ describe('canonical live request verification library', () => {
     ).toMatchObject({
       status: 'rejected',
       reasonCodes: ['source_snapshot_bytes_noncanonical'],
+    });
+  });
+
+  it('rejects redigested legacy and incompatible B0 authority instead of arming it', () => {
+    const fixture = writeFixture();
+    const materialized = materialize(fixture);
+    const legacyPath = rewriteManifest(
+      fixture,
+      materialized.manifest,
+      (value) => {
+        value.version =
+          'canonical-live-request-materialization/v2';
+        delete value.structuredOutputCompatibility;
+      },
+    );
+    expect(
+      verificationResult(fixture, legacyPath),
+    ).toMatchObject({
+      status: 'rejected',
+      reasonCodes: expect.arrayContaining([
+        'manifest_schema_invalid',
+        'structured_output_compatibility_invalid',
+      ]),
+    });
+
+    const incompatiblePath = rewriteManifest(
+      fixture,
+      materialized.manifest,
+      (value) => {
+        const authority =
+          value.structuredOutputCompatibility as {
+            compatibility: Record<string, unknown>;
+          };
+        authority.compatibility.profileDigest = '0'.repeat(64);
+      },
+    );
+    expect(
+      verificationResult(fixture, incompatiblePath),
+    ).toMatchObject({
+      status: 'rejected',
+      reasonCodes: [
+        'structured_output_compatibility_invalid',
+      ],
     });
   });
 

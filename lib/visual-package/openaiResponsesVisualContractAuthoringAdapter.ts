@@ -48,6 +48,10 @@ import {
   type ProviderSdkErrorClasses,
 } from './providerFailureDiagnostics';
 import {
+  OpenAIResponsesStructuredOutputSchemaCompatibilityError,
+  assertOpenAIResponsesStructuredOutputSchemaCompatible,
+} from './openaiResponsesStructuredOutputSchemaCompatibility';
+import {
   OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
   type VisualContractAuthoringProvider,
   type VisualContractAuthoringProviderResponse,
@@ -221,7 +225,7 @@ export function buildOpenAIResponsesVisualContractAuthoringBody(
       `visual_contract_authoring_adapter_policy_mismatch: ${issues.join(',')}`,
     );
   }
-  return {
+  const body: ResponseCreateParamsNonStreaming = {
     model: VISUAL_CONTRACT_AUTHORING_MODEL,
     service_tier: VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
     max_output_tokens: args.options.maxOutputTokens!,
@@ -244,6 +248,13 @@ export function buildOpenAIResponsesVisualContractAuthoringBody(
     tool_choice: 'none',
     store: false,
   };
+  const format = body.text?.format;
+  assertOpenAIResponsesStructuredOutputSchemaCompatible(
+    format?.type === 'json_schema'
+      ? format.schema
+      : null,
+  );
+  return body;
 }
 
 function requestUrl(
@@ -526,7 +537,7 @@ export function createOpenAIResponsesVisualContractAuthoringAdapter(
           });
         observations.requestBodyDigest =
           canonicalJsonDigest(body);
-      } catch {
+      } catch (error) {
         throw new ProviderCallFailureDiagnosticError(
           localProviderFailureDiagnostic({
             phase: 'request_body_validation',
@@ -534,6 +545,10 @@ export function createOpenAIResponsesVisualContractAuthoringAdapter(
             observations,
           }),
           'visual_contract_authoring_adapter_policy_mismatch',
+          error instanceof
+            OpenAIResponsesStructuredOutputSchemaCompatibilityError
+            ? error.evidence
+            : null,
         );
       }
       let apiKey: string;

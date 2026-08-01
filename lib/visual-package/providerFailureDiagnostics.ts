@@ -1,4 +1,7 @@
 import { canonicalJsonDigest } from './integrity';
+import type {
+  OpenAIResponsesStructuredOutputCompatibilityEvidence,
+} from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const PROVIDER_CALL_FAILURE_EVIDENCE_VERSION =
   'provider-call-failure-evidence/v1' as const;
@@ -513,6 +516,9 @@ export class ProviderCallFailureDiagnosticError extends Error {
   constructor(
     readonly diagnostic: SanitizedProviderFailureDiagnostic,
     message = 'sanitized provider call failure',
+    readonly structuredOutputCompatibilityEvidence:
+      | OpenAIResponsesStructuredOutputCompatibilityEvidence
+      | null = null,
   ) {
     super(message);
     this.name = 'ProviderCallFailureDiagnosticError';

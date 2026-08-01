@@ -1,8 +1,32 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-07-31
+**Updated:** 2026-08-01
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-pre-live-bootstrap-failure-attribution` in `C:\Users\guyna\.codex\worktrees\a065\Small_Heroes`, from exact immutable base `696e6eb27b82ac4b6e823bb9bc63edd2aec43852`. Claude Code independently awarded technical **PASS** to exact immutable implementation range `696e6eb27b82ac4b6e823bb9bc63edd2aec43852..41ec1b38bad4d048f7137afb5db238f7fcfe115b`. Immediately before this documentation-only closeout, the worktree was clean at that reviewed head, the branch had no configured upstream, and the local target remote-tracking ref was absent. Those are local Git observations only; they establish neither a remote-server state nor a push actor or authorization. This faithful closeout is its containing commit, changes no reviewed implementation authority, and is intentionally left local without a push from this Task. Cost is exactly `$0`; the PASS grants no live, credential, provider, spend, or downstream authority.
+**Working branch:** `codex/r1d-pvb-d1a1b1-structured-output-schema-compatibility-hardening` in `C:\Users\guyna\.codex\worktrees\3862\Small_Heroes`, from exact immutable base `d18412c3635511935771771dbd2b6ad271731095`. This milestone is implemented locally and awaits independent Claude Code QA; Codex has not awarded technical PASS. The implementation commit is the commit containing this section and remains unpushed. Cost is exactly `$0`; no credential, provider, live, render, storage, approval, promotion, deployment, or downstream authority was exercised or granted.
+
+## R1D-PVB-D1A1B1-STRUCTURED-OUTPUT-SCHEMA-COMPATIBILITY-HARDENING — implementation complete / awaiting independent QA
+
+Guy approved the delegated Decision Gate for a general OpenAI Responses Structured Outputs compatibility hardening from exact base `d18412c3635511935771771dbd2b6ad271731095`.
+
+### Implemented boundary
+
+- Added versioned compatibility profile/evidence (`openai-responses-structured-output-compatibility-profile/v1`, `...-evidence/v1`) with deterministic serialization/traversal, stable sanitized rule IDs/index paths, supported-subset rules, and documented quantitative limits. The profile contains no Story Source literal.
+- Corrected five Visual Contract action-semantic const-only nodes and all analogous Blueprint nodes, including the boolean literal, to explicit matching `type` + `const`.
+- Fail-closed current versions are Visual Contract schema `v8`, Blueprint draft schema `v3`, authoring request `v5`, B0 manifest/verifier `v3`, Execution Request/readiness `v2`, and pre-live evidence `v2`. Older versions remain historical immutable evidence but are not current attempt authority.
+- B0 materialization/verifier, Execution Request/Supervisor, and canonical pre-live readiness now bind the schema identity and compatibility profile/evidence digests. Redigested stale/incompatible authority is rejected.
+- The canonical Responses adapter validates the fully serialized request-body schema before credential read, SDK construction, or transport dispatch and returns sanitized deterministic local evidence. The legacy Visual Contract compiler and Blueprint compiler also validate before their injected callers.
+- Provider/request-schema incompatibility is terminal and consumes zero semantic repairs. Existing semantic repair remains available only after a provider returns well-formed output that fails compilation gates.
+- Prompts, model, timeout, service tier, tokens/calls/repairs/cost budgets, retries, fallback, Story Source semantics, Board/render/storage/approval/promotion/deployment behavior are unchanged.
+
+### Evidence and limitations
+
+- Focused latest runs passed: compatibility **27**, canonical adapter **131**, source authority **29**, legacy Visual Contract **16**, B0/verifier plus Execution Request materialization **62**, Supervisor **34**, pre-live plus Blueprint **30**, and a broader compiler/package/materialization sweep **148** tests.
+- Repository-local TypeScript and `git diff --check` passed.
+- Exactly one `npm run check` ran. TypeScript passed; Vitest reproduced only the established six missing ignored-fixture failures in the same five files. No milestone test failed. The full gate is therefore truthfully non-green only at that documented baseline and was not rerun.
+- Ignored scratch was preserved at `C:\Users\guyna\AppData\Local\Temp\small-heroes-r1d-structured-output-check-scratch-20260801-3862`.
+- Current official OpenAI Structured Outputs documentation and the installed `openai@6.35.0` Zod helper were used as compatibility evidence. Because the later HTTP 400's raw provider message/schema body was not retained in the immutable base, typed-const incompatibility remains a best-supported reconstruction rather than a retroactively proven exact rejected node. No live replay was authorized.
+
+Durable records are `docs/ai-workflow/R1D_PVB_D1A1B1_STRUCTURED_OUTPUT_SCHEMA_COMPATIBILITY_HARDENING_*`. The next action is an adversarial first-pass read-only Claude Code review of exact range `d18412c3635511935771771dbd2b6ad271731095..HEAD`; any valid findings require a separate fix milestone and re-gate. No push occurred.
 
 ## R1D-PVB-D1A1B1-PRE-LIVE-BOOTSTRAP-FAILURE-ATTRIBUTION-HARDENING — independent technical PASS
 

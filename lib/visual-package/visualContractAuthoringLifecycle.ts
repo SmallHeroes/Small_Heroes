@@ -79,9 +79,15 @@ import {
   storySourceSnapshotToTemplateInput,
   type StorySourceAuthoritySnapshot,
 } from './storySourceAuthority';
+import {
+  OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION,
+  OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
+  assertOpenAIResponsesStructuredOutputSchemaCompatible,
+  compatibilityAuthorityFromEvidence,
+} from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v4' as const;
+  'visual-contract-authoring-request/v5' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
@@ -92,6 +98,8 @@ export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
   'canonical-import-preflight-attestation/v1' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
   'visual-contract-authoring-request/v3' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V4 =
+  'visual-contract-authoring-request/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v3' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
@@ -127,6 +135,14 @@ export interface VisualContractAuthoringRequest {
     schemaName: typeof TEMPLATE_DRAFT_SCHEMA_NAME;
     schemaVersion: typeof TEMPLATE_DRAFT_SCHEMA_VERSION;
     schemaDigest: string;
+    compatibilityProfileVersion:
+      typeof OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION;
+    compatibilityProfileDigest: string;
+    compatibilityEvidenceVersion:
+      typeof OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION;
+    compatibilityEvidenceDigest: string;
+    compatibilityStatus: 'compatible';
+    serializedSchemaDigest: string;
   };
   toolsDisabled:
     typeof VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED;
@@ -399,17 +415,23 @@ export function visualContractAuthoringArtifactVersionStatus(
     readiness: VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
     candidate: VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
   } as const;
+  if (version === current[kind]) return 'current';
+  if (kind === 'request') {
+    return version ===
+        LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION ||
+      version ===
+        LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V4
+      ? 'legacy_immutable'
+      : 'unsupported';
+  }
   const legacy = {
-    request: LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
     receipt: LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION,
     readiness: LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
     candidate: LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
   } as const;
-  return version === current[kind]
-    ? 'current'
-    : version === legacy[kind]
-      ? 'legacy_immutable'
-      : 'unsupported';
+  return version === legacy[kind]
+    ? 'legacy_immutable'
+    : 'unsupported';
 }
 
 const DOES_NOT_AUTHORIZE = [
@@ -573,6 +595,14 @@ export function buildVisualContractAuthoringRequest(args: {
   const maxOutputTokens = authoringMaxOutputTokens(
     args.snapshot.content.pages.length,
   );
+  const schemaCompatibilityEvidence =
+    assertOpenAIResponsesStructuredOutputSchemaCompatible(
+      TEMPLATE_DRAFT_JSON_SCHEMA,
+    );
+  const compatibilityAuthority =
+    compatibilityAuthorityFromEvidence(
+      schemaCompatibilityEvidence,
+    );
   const withoutDigest = {
     version: VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
     policyVersion:
@@ -595,6 +625,18 @@ export function buildVisualContractAuthoringRequest(args: {
       schemaDigest: canonicalJsonDigest(
         TEMPLATE_DRAFT_JSON_SCHEMA,
       ),
+      compatibilityProfileVersion:
+        compatibilityAuthority.profileVersion,
+      compatibilityProfileDigest:
+        compatibilityAuthority.profileDigest,
+      compatibilityEvidenceVersion:
+        compatibilityAuthority.evidenceVersion,
+      compatibilityEvidenceDigest:
+        compatibilityAuthority.evidenceDigest,
+      compatibilityStatus:
+        compatibilityAuthority.status,
+      serializedSchemaDigest:
+        compatibilityAuthority.serializedSchemaDigest,
     },
     toolsDisabled:
       VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,

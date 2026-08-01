@@ -234,6 +234,8 @@ function executionRequestPayload(
         fixture.materialized.persistence.manifest.digest,
       verificationVersion:
         CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
+      structuredOutputCompatibility:
+        fixture.materialized.manifest.structuredOutputCompatibility,
     },
     preservationFences:
       overrides.preservationFences ?? [
@@ -460,7 +462,7 @@ function fakeCredential(
 }
 
 describe('canonical live execution request and readiness', () => {
-  it('builds canonical v1 request bytes/digest and emits canonical bounded readiness', () => {
+  it('builds canonical v2 request bytes/digest and emits canonical bounded readiness', () => {
     const fixture = createExecutionFixture(true);
     const before = treeIdentity(fixture.repoRoot);
     const readiness = verifyFixture(fixture);
@@ -483,6 +485,12 @@ describe('canonical live execution request and readiness', () => {
         fixture.materialized.persistence.manifest.digest,
       reasonCodes: [],
     });
+    expect(
+      readiness.b0.structuredOutputCompatibility,
+    ).toEqual(
+      fixture.request.canonicalBundle
+        .structuredOutputCompatibility,
+    );
     expect(readiness.git).toMatchObject({
       status: 'verified',
       refCount: 2,
@@ -610,6 +618,58 @@ describe('canonical live execution request and readiness', () => {
         digest: canonicalJsonDigest(payload),
       }),
     ).toContain('execution_readiness_header_invalid');
+  });
+
+  it('rejects redigested legacy execution-request and readiness authority', () => {
+    const fixture = createExecutionFixture();
+    const legacyRequest = structuredClone(
+      fixture.request,
+    ) as unknown as Record<string, unknown>;
+    legacyRequest.version = 'canonical-live-execution-request/v1';
+    const canonicalBundle =
+      legacyRequest.canonicalBundle as Record<string, unknown>;
+    delete canonicalBundle.structuredOutputCompatibility;
+    const {
+      digestAlgorithm: _requestAlgorithm,
+      digest: _requestDigest,
+      ...requestPayload
+    } = legacyRequest;
+    const requestIssues = canonicalLiveExecutionRequestIssues({
+      ...requestPayload,
+      digestAlgorithm: 'canonical-json-sha256',
+      digest: canonicalJsonDigest(requestPayload),
+    });
+    expect(requestIssues).toEqual(
+      expect.arrayContaining([
+        'execution_request_version_invalid',
+        'execution_canonical_bundle_invalid',
+      ]),
+    );
+
+    const readiness = verifyFixture(fixture);
+    const legacyReadiness = structuredClone(
+      readiness,
+    ) as unknown as Record<string, unknown>;
+    legacyReadiness.version =
+      'canonical-live-execution-readiness/v1';
+    const b0 = legacyReadiness.b0 as Record<string, unknown>;
+    delete b0.structuredOutputCompatibility;
+    const {
+      digestAlgorithm: _readinessAlgorithm,
+      digest: _readinessDigest,
+      ...readinessPayload
+    } = legacyReadiness;
+    const readinessIssues = canonicalLiveExecutionReadinessIssues({
+      ...readinessPayload,
+      digestAlgorithm: 'canonical-json-sha256',
+      digest: canonicalJsonDigest(readinessPayload),
+    });
+    expect(readinessIssues).toEqual(
+      expect.arrayContaining([
+        'execution_readiness_header_invalid',
+        'execution_readiness_b0_invalid',
+      ]),
+    );
   });
 });
 

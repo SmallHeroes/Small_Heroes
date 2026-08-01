@@ -57,6 +57,7 @@ import {
 } from '@/lib/visual-package/openaiResponsesVisualContractAuthoringAdapter';
 import {
   createProviderFailureBoundaryObservations,
+  ProviderCallFailureDiagnosticError,
 } from '@/lib/visual-package/providerFailureDiagnostics';
 import type {
   CanonicalLiveAuthoringArtifactStore,
@@ -362,6 +363,32 @@ function exactOptions(
   };
 }
 
+function findConstSchemaNode(
+  value: unknown,
+  literal: unknown,
+): Record<string, unknown> | null {
+  if (Array.isArray(value)) {
+    for (const child of value) {
+      const found = findConstSchemaNode(child, literal);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (
+    value === null ||
+    typeof value !== 'object'
+  ) {
+    return null;
+  }
+  const node = value as Record<string, unknown>;
+  if (node.const === literal) return node;
+  for (const child of Object.values(node)) {
+    const found = findConstSchemaNode(child, literal);
+    if (found) return found;
+  }
+  return null;
+}
+
 function redigestRequest(
   request: Record<string, unknown>,
 ): void {
@@ -544,6 +571,120 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       ).toBe(true);
     },
   );
+
+  it('rejects an incompatible fully serialized schema before credential, SDK, or transport reachability', async () => {
+    const fixture = createLiveFixture(
+      'adapter-schema-compatibility',
+    );
+    const readCredential = vi.fn(() => FAKE_CREDENTIAL);
+    const transportCreate = vi.fn();
+    const provider =
+      createOpenAIResponsesVisualContractAuthoringAdapter({
+        readCredential,
+        transport: { create: transportCreate },
+      });
+    const constNode = findConstSchemaNode(
+      TEMPLATE_DRAFT_JSON_SCHEMA,
+      'action_requirement',
+    );
+    expect(constNode).not.toBeNull();
+    const originalType = constNode!.type;
+    let caught: unknown;
+    delete constNode!.type;
+    try {
+      await provider.call({
+        attempt: 1,
+        kind: 'initial',
+        systemPrompt: 'system',
+        userPrompt: 'user',
+        options: exactOptions(fixture.request),
+      });
+    } catch (error) {
+      caught = error;
+    } finally {
+      constNode!.type = originalType;
+    }
+
+    expect(caught).toBeInstanceOf(
+      ProviderCallFailureDiagnosticError,
+    );
+    const diagnosticError =
+      caught as ProviderCallFailureDiagnosticError;
+    expect(diagnosticError.diagnostic).toMatchObject({
+      phase: 'request_body_validation',
+      failureClass: 'local_request_validation',
+      adapterInvoked: true,
+      credentialReadSucceeded: false,
+      transportDispatchStarted: false,
+      httpResponseReceived: false,
+      requestBodyDigest: null,
+    });
+    expect(
+      diagnosticError.structuredOutputCompatibilityEvidence,
+    ).toMatchObject({
+      status: 'incompatible',
+      issues: expect.arrayContaining([
+        {
+          path: expect.stringMatching(/^root(?:\.|$)/),
+          ruleId: 'OAI_SO_CONST_TYPE_REQUIRED',
+        },
+      ]),
+    });
+    expect(
+      JSON.stringify(
+        diagnosticError.structuredOutputCompatibilityEvidence,
+      ),
+    ).not.toContain('action_requirement');
+    expect(readCredential).not.toHaveBeenCalled();
+    expect(transportCreate).not.toHaveBeenCalled();
+  });
+
+  it('treats adapter schema incompatibility as terminal without consuming a semantic repair', async () => {
+    const fixture = createLiveFixture(
+      'adapter-schema-terminal',
+    );
+    const readCredential = vi.fn(() => FAKE_CREDENTIAL);
+    const transportCreate = vi.fn();
+    const adapter =
+      createOpenAIResponsesVisualContractAuthoringAdapter({
+        readCredential,
+        transport: { create: transportCreate },
+      });
+    const constNode = findConstSchemaNode(
+      TEMPLATE_DRAFT_JSON_SCHEMA,
+      'action_requirement',
+    );
+    expect(constNode).not.toBeNull();
+    const originalType = constNode!.type;
+    const provider: VisualContractAuthoringProvider = {
+      call: async (args) => {
+        delete constNode!.type;
+        try {
+          return await adapter.call(args);
+        } finally {
+          constNode!.type = originalType;
+        }
+      },
+    };
+
+    const result = await runVisualContractAuthoring({
+      request: fixture.request,
+      snapshot: fixture.snapshot,
+      provider,
+      requiredMode: 'live',
+      requiredProviderEvidenceVersion:
+        OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+    });
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 1,
+      repairCount: 0,
+      failure: { code: 'provider_call_failed' },
+    });
+    expect(result.compileResult).toBeNull();
+    expect(readCredential).not.toHaveBeenCalled();
+    expect(transportCreate).not.toHaveBeenCalled();
+  });
 
   it('guards the final HTTPS Responses destination and refuses redirect or identity authority', async () => {
     const delegated = vi.fn(

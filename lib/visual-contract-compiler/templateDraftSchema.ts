@@ -201,24 +201,25 @@ const actionRequirement = obj({
 const actionSemanticCoverageDisposition = {
   anyOf: [
     obj({
-      kind: { const: 'action_requirement' },
+      kind: { type: 'string', const: 'action_requirement' },
       checkId: { type: 'string' },
     }),
     obj({
-      kind: { const: 'represented_elsewhere' },
+      kind: { type: 'string', const: 'represented_elsewhere' },
       contractPointer: { type: 'string' },
       contractValue: { type: 'string' },
     }),
     obj({
-      kind: { const: 'non_visual' },
+      kind: { type: 'string', const: 'non_visual' },
       rationale: {
         type: 'string',
         enum: NON_VISUAL_RATIONALE_VALUES,
       },
     }),
     obj({
-      kind: { const: 'unsupported' },
+      kind: { type: 'string', const: 'unsupported' },
       reason: {
+        type: 'string',
         const: 'closed_action_catalog_gap',
       },
     }),
@@ -267,7 +268,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v7' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v8' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;
