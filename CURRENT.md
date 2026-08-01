@@ -2,7 +2,28 @@
 
 **Updated:** 2026-08-01
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-structured-output-schema-compatibility-hardening` in `C:\Users\guyna\.codex\worktrees\3862\Small_Heroes`, from exact immutable base `d18412c3635511935771771dbd2b6ad271731095`. Claude Code independently returned technical **PASS** for exact implementation range `d18412c3635511935771771dbd2b6ad271731095..dd1104259176e6951fe81f87c6db406e8939b00a`; Codex is recording that verdict, not self-awarding it. The reviewed implementation and this faithful documentation closeout remain unpushed. Cost is exactly `$0`; no credential, provider, live, render, storage, approval, promotion, deployment, or downstream authority was exercised or granted.
+**Working branch:** `codex/r1d-pvb-d1a1b1-structured-output-schema-compatibility-hardening` in `C:\Users\guyna\.codex\worktrees\3862\Small_Heroes`, with implementation base `d18412c3635511935771771dbd2b6ad271731095` and attempted immutable authority `e0e40764e80d048990880ca6b050b37b65449c10`. At this documentation closeout's intake, local `HEAD` and the same-name origin-tracking ref both resolved to `e0e40764e80d048990880ca6b050b37b65449c10` at `0/0` parity; local Git does not establish the push actor or authorization. Claude Code independently returned technical **PASS** for exact implementation range `d18412c3635511935771771dbd2b6ad271731095..dd1104259176e6951fe81f87c6db406e8939b00a`; Codex is recording that verdict, not self-awarding it. The later armed attempt is exhausted without Supervisor or provider reachability. This documentation-only closeout is local and unpushed. Locally observed spend is `$0.00`, with no independent provider-account usage or billing audit.
+
+## R1D-PVB-D1A1B1-POST-SCHEMA-COMPATIBILITY-ARMED-LIVE-AUTHORING-ATTEMPT - HOLD / execution-record closeout pending micro re-gate
+
+Guy authorized one immutable, canonical, supervised live-authoring attempt at exact `HEAD` `e0e40764e80d048990880ca6b050b37b65449c10`, readiness authority `9bbe126d60c91d3def997c7933b3034a702405d150cc82a60496fc77e5f04b76`, and Execution Request `3ed7bbbebe9cb6da9142447d78db466e8bc731988751f2409ee83e11f1778af8`.
+
+### Recorded outcome and chronology
+
+- The archived Codex Task JSONL directly records the earliest strict terminal event: at `2026-08-01T13:59:46.266Z` (`16:59:46.266 +03:00`), one combined read-only intake command ended with an authority-reference `rg` search. Its output was recorded at `2026-08-01T13:59:46.863Z`; the final `rg` returned exit `1` with no matches. Under the attempt's literal "stop at the first failure" rule, authority was exhausted at that point. Exit `1` here means no match rather than an `rg` execution error, but the approved attempt did not distinguish those cases.
+- Subsequent repository/evidence reads, the official OpenAI documentation lookup, and the one canonical preflight were post-exhaustion process deviations. They did not restore authority and are not represented as authorized continuation.
+- The post-exhaustion official lookup ran between `2026-08-01T14:02:29.185Z` and `2026-08-01T14:02:52.991Z`. It reproduced the approved model/API/rates and `$4.884` calculation, but created no pricing artifact and grants no pricing, spend, or live authority.
+- Exactly one bare command, `node scripts/visual-contract-authoring.cjs preflight`, was invoked at `2026-08-01T14:03:13.772Z`. Its output was recorded at `2026-08-01T14:03:14.649Z`, exit `0`, with `LIVE-AUTHORING IMPORT PREFLIGHT PASS`. Because it ran after exhaustion, the PASS is a disclosed process fact only and cannot arm the attempt.
+- A later post-preflight reconciliation command was invoked at `2026-08-01T14:03:33.636Z` and returned exit `1` at `2026-08-01T14:03:34.072Z` with `ParserError / EmptyPipeElement` (`An empty pipe element is not allowed`). It was not corrected or rerun.
+- Execution Supervisor `verify` and `live` were never invoked. Counts are therefore preflight `1 PASS`, Supervisor verify/live `0/0`, provider/repair/transport-retry `0/0/0`, and credential-source reads `0`. Locally observed spend is `$0.00`; no independent OpenAI account, billing, usage, or provider-log audit was performed.
+
+### Artifact and boundary evidence
+
+- Claude Code's independent read-only audit returned **HOLD for record completeness only**, with one MAJOR: the process chronology and invocation counts lacked a durable tracked record. It independently confirmed exact clean `HEAD`, same-name upstream `0/0`, eight canonical content-addressed artifacts byte-identical to its preceding readiness baseline, all five expected-output paths absent, and no persisted raw prompt, response, provider message, stack, credential, or secret.
+- A long-path-safe closeout inventory independently rechecked the same eight raw SHA-256 values and byte lengths. The two deepest canonical materialization-input paths require long-path-safe access on Windows; ordinary `Get-FileHash` can report false absence there.
+- No authoring receipt, contract candidate, provider-call-failure evidence, post-live readiness, or rejected request exists under the approved output root. No tracked file, commit, push, render, image/Vision, storage/database, Board, Semantic Reconciliation, approval, publication, promotion, activation, or deployment occurred within the execution Task.
+
+The durable sanitized record is `docs/ai-workflow/R1D_PVB_D1A1B1_POST_SCHEMA_COMPATIBILITY_ARMED_LIVE_AUTHORING_ATTEMPT_EXECUTION_EVIDENCE.md`. This closeout intentionally changes documentation only after the attempt was exhausted; its resulting local `HEAD` cannot reuse the readiness bound to `e0e40764e80d048990880ca6b050b37b65449c10`. The next action is a read-only Claude Code micro re-gate of this record. No retry, Fresh Readiness, credential access, preflight, provider call, render, downstream action, or push is authorized.
 
 ## R1D-PVB-D1A1B1-STRUCTURED-OUTPUT-SCHEMA-COMPATIBILITY-HARDENING — independent technical PASS
 
