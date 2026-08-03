@@ -209,8 +209,11 @@ changing the immutable claims for the earlier reviewed range above.
   `2026-08-03 13:15:04 +0300`. Local Git establishes neither the actor nor the
   authorization; Guy separately confirmed in the Lead conversation that the
   push was intentional and authorized. The original implementation has
-  independent technical PASS. The correction remains HOLD pending completion
-  of its micro re-gate; Codex does not self-award that closure PASS.
+  independent technical PASS. At final closeout intake, local `HEAD` was
+  `b1cc6217a9216b0ecf6c780fb69c88cf8684e7bb`, clean and `0` behind / `1`
+  ahead of origin. The remote-tracking reflog was unchanged, so neither the
+  topology-reconciliation Task nor the final QA-closeout Task performed a
+  further push.
 
 ### Implemented boundary and migration
 
@@ -323,7 +326,7 @@ not self-award it. Claude verified all ten falsification targets against the
 source but could not reproduce tests or TypeScript because this worktree had
 no `node_modules`.
 
-### MINOR-1 - corrected locally, pending micro re-gate
+### MINOR-1 - closed by independent micro re-gate
 
 The public probe passed `allowOutputIgnoreStatusOne:false` while canonical
 topology collection passed `true` and then enforced
@@ -338,7 +341,7 @@ signal, and a genuine nonzero status remain rejected. The existing launcher
 test continues to prove canonical prepare rejects a non-ignored output root as
 `bootstrap_output_not_ignored`; no prepare authority was weakened.
 
-### MINOR-2 - deterministic environment restored, pending independent reproduction
+### MINOR-2 - deterministic environment restored and independently reproduced
 
 The QA fix created an isolated local dependency tree with exactly:
 
@@ -405,8 +408,23 @@ no-upstream/no-remote premise and the durable record had become stale after
 the observed push. It awarded no correction closure. Its provisional checks
 confirmed the one-line MINOR-1 fix, the local non-junction toolchain, package
 hashes, deterministic TypeScript, and 3 files / 161 tests PASS. The original
-implementation PASS remains intact; MINOR-1 and MINOR-2 remain pending the
-corrected-topology micro re-gate.
+implementation PASS remained intact.
+
+After the focused topology reconciliation, Claude Code independently reviewed
+QA correction range
+`829f3bc6a9e5db6def78f73235d9d13ddb1f353b..dd25ffe98160e597ea3117a0a7889616be7beb43`
+and documentation range
+`dd25ffe98160e597ea3117a0a7889616be7beb43..b1cc6217a9216b0ecf6c780fb69c88cf8684e7bb`.
+It returned **PASS**, closed its prior topology BLOCKER and both MINORs, and
+reported zero BLOCKER, zero MAJOR, and zero MINOR remaining. It independently
+reproduced repository-local TypeScript PASS, the probe spec at 1 file / 141
+tests PASS, and the readiness-plus-launcher specs at 2 files / 20 tests PASS,
+matching the recorded 3-file / 161-test split. It confirmed that status `1`
+is a successful semantic observation under both profiles without
+short-circuit, while spawn, timeout, signal, and genuine status `128` failures
+remain rejected. It also confirmed canonical prepare's separate
+`bootstrap_output_not_ignored` guard remains unchanged. Codex records Claude
+Code's verdict and does not self-award it. N1-N4 remain advisory only.
 
 Within the QA-fix Task before its handoff, no real probe,
 B0/rematerialization/readiness, credential access, preflight,
@@ -414,5 +432,7 @@ pricing/network/provider/model call, live authoring, render/image/Vision,
 storage/database, Board action, approval, publication, promotion, activation,
 deployment, PR, or push occurred. The later authorized origin update is
 recorded above; this documentation reconciliation performs no further push.
-Cost remained `$0`. The correction remains HOLD pending an independent Claude
-Code micro re-gate.
+Cost remained `$0`. Independent technical review is complete. This PASS grants
+no product, visual, Blueprint, readiness, render-readiness, live-authoring,
+release, deployment, credential, provider, real-probe, prepare/verify, or
+further-push authority.
