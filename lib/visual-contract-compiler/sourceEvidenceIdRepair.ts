@@ -57,7 +57,7 @@ export interface SourceEvidenceIdRepairAffectedRecord {
     disposition: unknown;
   };
   actionRequirement: {
-    checkId: unknown;
+    beatId: unknown;
     subject: unknown;
     predicate: unknown;
     object: unknown;
@@ -246,10 +246,7 @@ export function applySourceEvidenceIdPatches(args: {
     const disposition = recordValue(
       matchingRecords[0]!.disposition,
     );
-    if (
-      disposition?.kind === 'action_requirement' &&
-      typeof disposition.checkId === 'string'
-    ) {
+    if (disposition?.kind === 'action_requirement') {
       const actions = Array.isArray(
         matchingPages[0]!.actionRequirements,
       )
@@ -259,7 +256,7 @@ export function applySourceEvidenceIdPatches(args: {
         .map(recordValue)
         .filter(
           (action) =>
-            action?.checkId === disposition.checkId,
+            action?.beatId === patch.beatId,
         );
       if (matchingActions.length !== 1) {
         throw new Error(

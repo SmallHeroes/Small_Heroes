@@ -168,6 +168,30 @@ export class SourceEvidenceIdValidationError extends InvalidTemplateContractErro
   }
 }
 
+/** Deterministic closed-domain failures are never eligible for provider repair. */
+export class DraftAuthorityReferenceDomainError extends Error {
+  constructor(readonly issues: string[]) {
+    super(`draft authority/reference domain invalid: ${issues.join('; ')}`);
+    this.name = 'DraftAuthorityReferenceDomainError';
+  }
+}
+
+/** Stable compiler-owned action identity derived only from a page-scoped beat. */
+export function compilerOwnedActionCheckId(
+  pageNumber: number,
+  beatId: string,
+): string {
+  const match = new RegExp(
+    `^beat:p${pageNumber}:([a-z0-9_]+)$`,
+  ).exec(beatId);
+  if (!match) {
+    throw new DraftAuthorityReferenceDomainError([
+      `page ${pageNumber} action beatId "${beatId}" is not exact current page-scoped authority`,
+    ]);
+  }
+  return `action:p${pageNumber}_${match[1]}`;
+}
+
 /**
  * Thrown when the bounded repair loop is exhausted (the initial call + MAX_REPAIR_ATTEMPTS repairs were ALL invalid).
  * Extends the fail-closed error so existing `instanceof InvalidTemplateContractError` handlers still catch it, and
@@ -277,7 +301,8 @@ export function buildTemplateCompileSystemPrompt(): string {
     '- Every required same-page Story Source visual beat gets one stable page-scoped actionSemanticCoverage[] record:',
     '  select one exact sourceEvidenceId from the compiler-owned catalog on that same page; never copy or invent',
     '  source prose. Historical imageDirection is never action authority and cannot supply source evidence.',
-    '  action_requirement binds one same-page checkId; represented_elsewhere cites an exact same-page contract JSON',
+    '  action_requirement binds by the same exact beatId carried on one actionRequirement; the compiler derives',
+    '  checkId and rewrites both records. represented_elsewhere cites an exact same-page contract JSON',
     '  pointer and its exact current string value; non_visual uses only a closed rationale; unsupported uses reason',
     '  closed_action_catalog_gap. Never force-fit a broader/narrower predicate. Coverage is unreviewed evidence only',
     '  and cannot approve its own semantic classification.',
@@ -334,7 +359,8 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     'forbiddenGlobalElements[], coverContract{worldType,locationId,zoneId,castIds,timeOfDay,mustShow,mustNotShow},',
     'pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
     'mustShow[], mustNotShow[], propState[], propConstraints[{propId,visibility,stateId?,anchorId?}], camera, transition}].',
-    'Each page carries actionRequirements[{checkId,subject,predicate,object?,spatialEffect?,polarity,laterality?}].',
+    'Each page carries actionRequirements[{beatId,subject,predicate,object?,spatialEffect?,polarity,laterality?}].',
+    'beatId is the exact same page-scoped key as its one actionSemanticCoverage record; never emit checkId.',
     'subject is either {kind:"entity",entity:{kind,id}} or',
     '{kind:"source_phenomenon",sourceEvidenceId}; use []',
     'when no beat binds to a catalog action; do not invent an action merely to populate the array.',
@@ -546,6 +572,7 @@ function sourceGroundPageActionSemantics(
       ? pageDraft.pageNumber
       : -1;
   const issues: string[] = [];
+  const authorityIssues: string[] = [];
   const sourceEvidenceIssues: SourceEvidenceIdRepairAffectedRecord[] = [];
 
   const out = { ...pageDraft };
@@ -553,8 +580,13 @@ function sourceGroundPageActionSemantics(
   if (pageDraft.actionRequirements !== undefined) {
     groundedActions = asArr(
       pageDraft.actionRequirements,
-    ).map((raw) => {
+    ).map((raw, index) => {
       const action = { ...asObj(raw) };
+      if (Object.prototype.hasOwnProperty.call(action, 'checkId')) {
+        authorityIssues.push(
+          `page ${pageNumber}.actionRequirements[${index}].checkId is forbidden in current draft authority; the compiler derives it from beatId`,
+        );
+      }
       delete action.sourcePhrase;
       delete action.sourceEvidenceId;
       if (
@@ -570,8 +602,37 @@ function sourceGroundPageActionSemantics(
       if (action.object === null) delete action.object;
       if (action.spatialEffect === null) delete action.spatialEffect;
       if (action.laterality === null) delete action.laterality;
+      delete action.checkId;
       return action;
     });
+  }
+
+  const beatIdPattern = new RegExp(
+    `^beat:p${pageNumber}:[a-z0-9_]+$`,
+  );
+  const actionsByBeatId = new Map<
+    string,
+    Record<string, unknown>[]
+  >();
+  for (const [index, action] of groundedActions.entries()) {
+    const beatId =
+      typeof action.beatId === 'string' ? action.beatId : '';
+    if (!beatIdPattern.test(beatId)) {
+      authorityIssues.push(
+        `page ${pageNumber}.actionRequirements[${index}].beatId "${beatId}" must be exact current page-scoped authority (${String(beatIdPattern)})`,
+      );
+      continue;
+    }
+    const matches = actionsByBeatId.get(beatId) ?? [];
+    matches.push(action);
+    actionsByBeatId.set(beatId, matches);
+  }
+  for (const [beatId, matches] of actionsByBeatId) {
+    if (matches.length !== 1) {
+      authorityIssues.push(
+        `page ${pageNumber} beatId "${beatId}" binds ${matches.length} actionRequirements; exact binding requires one`,
+      );
+    }
   }
 
   const coverage: ActionSemanticCoverageRecord[] = [];
@@ -589,6 +650,8 @@ function sourceGroundPageActionSemantics(
     }
   >();
   const rawCoverage = asArr(pageDraft.actionSemanticCoverage);
+  const actionCoverageCounts = new Map<string, number>();
+  const allCoverageCounts = new Map<string, number>();
   if (rawCoverage.length === 0) {
     issues.push(
       `page ${pageNumber}: action_semantic_coverage_missing`,
@@ -600,9 +663,6 @@ function sourceGroundPageActionSemantics(
     const record = asObj(rawCoverage[index]);
     const rawBeatId =
       typeof record.beatId === 'string' ? record.beatId : '';
-    const beatIdPattern = new RegExp(
-      `^beat:p${pageNumber}:[a-z0-9_]+$`,
-    );
     const beatId = beatIdPattern.test(rawBeatId)
       ? rawBeatId
       : '';
@@ -611,6 +671,12 @@ function sourceGroundPageActionSemantics(
     } else if (!beatId) {
       issues.push(
         `${label}.beatId "${rawBeatId}" must be stable and page-scoped (${String(beatIdPattern)})`,
+      );
+    }
+    if (beatId) {
+      allCoverageCounts.set(
+        beatId,
+        (allCoverageCounts.get(beatId) ?? 0) + 1,
       );
     }
     const disposition = asObj(record.disposition);
@@ -622,13 +688,8 @@ function sourceGroundPageActionSemantics(
     if (!resolution.ok) {
       const actionRequirement =
         disposition.kind === 'action_requirement' &&
-        typeof disposition.checkId === 'string'
-          ? asArr(pageDraft.actionRequirements)
-              .map(asObj)
-              .find(
-                (action) =>
-                  action.checkId === disposition.checkId,
-              ) ?? null
+        beatId
+          ? actionsByBeatId.get(beatId)?.[0] ?? null
           : null;
       if (beatId) {
         sourceEvidenceIssues.push({
@@ -643,7 +704,7 @@ function sourceGroundPageActionSemantics(
           },
           actionRequirement: actionRequirement
             ? {
-                checkId: actionRequirement.checkId,
+                beatId,
                 subject: structuredClone(
                   actionRequirement.subject,
                 ),
@@ -696,17 +757,33 @@ function sourceGroundPageActionSemantics(
       | ActionSemanticCoverageRecord['disposition']
       | null = null;
     if (disposition.kind === 'action_requirement') {
-      if (typeof disposition.checkId !== 'string') {
-        issues.push(
-          `${label}.disposition.checkId is missing`,
+      if (Object.prototype.hasOwnProperty.call(disposition, 'checkId')) {
+        authorityIssues.push(
+          `${label}.disposition.checkId is forbidden in current draft authority; the compiler binds by beatId`,
         );
-      } else {
-        typedDisposition = {
-          kind: 'action_requirement',
-          checkId: disposition.checkId,
-        };
-        if (beatId) {
-          coverageByCheckId.set(disposition.checkId, {
+      }
+      if (beatId) {
+        actionCoverageCounts.set(
+          beatId,
+          (actionCoverageCounts.get(beatId) ?? 0) + 1,
+        );
+        const matches = actionsByBeatId.get(beatId) ?? [];
+        if (matches.length !== 1) {
+          authorityIssues.push(
+            `${label} beatId "${beatId}" binds ${matches.length} actionRequirements; exact binding requires one`,
+          );
+        } else {
+          const checkId = compilerOwnedActionCheckId(
+            pageNumber,
+            beatId,
+          );
+          matches[0]!.checkId = checkId;
+          delete matches[0]!.beatId;
+          typedDisposition = {
+            kind: 'action_requirement',
+            checkId,
+          };
+          coverageByCheckId.set(checkId, {
             coverageIndex: index,
             beatId,
             sourceEvidenceId,
@@ -764,6 +841,26 @@ function sourceGroundPageActionSemantics(
       });
     }
   }
+  for (const [beatId, count] of allCoverageCounts) {
+    if (count !== 1) {
+      authorityIssues.push(
+        `page ${pageNumber} beatId "${beatId}" appears in ${count} coverage records; exact binding requires one`,
+      );
+    }
+  }
+  for (const [beatId] of actionsByBeatId) {
+    const count = actionCoverageCounts.get(beatId) ?? 0;
+    if (count !== 1) {
+      authorityIssues.push(
+        `page ${pageNumber} action beatId "${beatId}" binds ${count} action_requirement coverage records; exact binding requires one`,
+      );
+    }
+  }
+  if (authorityIssues.length > 0) {
+    throw new DraftAuthorityReferenceDomainError([
+      ...new Set(authorityIssues),
+    ]);
+  }
   for (const action of groundedActions) {
     const subject = asObj(action.subject);
     if (subject.kind !== 'source_phenomenon') continue;
@@ -794,7 +891,7 @@ function sourceGroundPageActionSemantics(
             disposition: structuredClone(binding.disposition),
           },
           actionRequirement: {
-            checkId: action.checkId,
+            beatId: binding.beatId,
             subject: structuredClone(action.subject),
             predicate: action.predicate,
             object: structuredClone(action.object),
@@ -823,6 +920,7 @@ function sourceGroundPageActionSemantics(
     };
   }
   if (groundedActions.length > 0) {
+    for (const action of groundedActions) delete action.beatId;
     out.actionRequirements = groundedActions;
   } else {
     delete out.actionRequirements;

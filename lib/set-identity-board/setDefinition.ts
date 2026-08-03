@@ -142,7 +142,10 @@ function projectBoardGeometry(
   const lines = nodes.map((node) => `${aliases.get(node.id)}: ${node.description}`);
   for (const relation of relations) {
     const subject = aliases.get(relation.subjectId);
-    const object = relation.objectId ? aliases.get(relation.objectId) : undefined;
+    const object =
+      relation.relation === 'centered_in'
+        ? undefined
+        : aliases.get(relation.objectId);
     if (!subject) continue;
     const relationLabel = relation.relation.replace(/_/g, ' ');
     lines.push(object ? `${subject} ${relationLabel} ${object}` : `${subject} ${relationLabel}`);
@@ -162,7 +165,8 @@ function projectZones(areas: readonly SetBoardStableArea[]): SetDefinitionZone[]
     const spatialRelations = (area.spatialRelations ?? []).filter(
       (relation) =>
         retainedIds.has(relation.subjectId) &&
-        (relation.objectId === undefined || retainedIds.has(relation.objectId)),
+        (relation.relation === 'centered_in' ||
+          retainedIds.has(relation.objectId)),
     );
     return {
       id: area.id,

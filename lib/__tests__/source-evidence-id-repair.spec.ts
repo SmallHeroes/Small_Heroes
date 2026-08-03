@@ -114,10 +114,9 @@ function repairFixture() {
 function phenomenonActionRepairFixture() {
   const fixture = repairFixture();
   const oldSourceEvidenceId = `se1_${'f'.repeat(64)}`;
-  const beatId = 'beat:page-one';
-  const checkId = 'action:phenomenon_contact';
+  const beatId = 'beat:p1:phenomenon_contact';
   const action = {
-    checkId,
+    beatId,
     subject: {
       kind: 'source_phenomenon',
       sourceEvidenceId: oldSourceEvidenceId,
@@ -133,7 +132,6 @@ function phenomenonActionRepairFixture() {
     sourceEvidenceId: oldSourceEvidenceId,
     disposition: {
       kind: 'action_requirement',
-      checkId,
     },
   };
   const draft = {
@@ -160,7 +158,10 @@ function phenomenonActionRepairFixture() {
     affectedRecords,
     catalog: fixture.catalog,
     draft,
-    patch: fixture.patches[0]!,
+    patch: {
+      ...fixture.patches[0]!,
+      beatId,
+    },
   };
 }
 
@@ -430,7 +431,7 @@ describe('applySourceEvidenceIdPatches rejection guards', () => {
     ).toThrowError('source_evidence_id_repair_beat_not_unique');
   });
 
-  it('rejects a bound action requirement with zero matching check IDs', () => {
+  it('rejects a bound action requirement with zero matching beat IDs', () => {
     const fixture = phenomenonActionRepairFixture();
     fixture.draft.pageContracts[0]!.actionRequirements = [];
 
@@ -444,7 +445,7 @@ describe('applySourceEvidenceIdPatches rejection guards', () => {
     ).toThrowError('source_evidence_id_repair_action_not_unique');
   });
 
-  it('rejects a bound action requirement with two matching check IDs', () => {
+  it('rejects a bound action requirement with two matching beat IDs', () => {
     const fixture = phenomenonActionRepairFixture();
     fixture.draft.pageContracts[0]!.actionRequirements = [
       fixture.action,

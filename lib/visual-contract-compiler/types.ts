@@ -159,13 +159,30 @@ export type SpatialRelationKind =
   | 'below'
   | 'centered_in';
 
-export interface SpatialRelation {
+export type BinarySpatialRelationKind = Exclude<
+  SpatialRelationKind,
+  'centered_in'
+>;
+
+export interface CenteredInSpatialRelation {
   /** A `SpatialNode.id` in THIS zone. */
   subjectId: string;
-  relation: SpatialRelationKind;
-  /** A `SpatialNode.id` in THIS zone. Omitted ONLY for `centered_in`, whose object is the zone itself. */
-  objectId?: string;
+  /** Unary: the containing zone is the object by definition. */
+  relation: 'centered_in';
 }
+
+export interface BinarySpatialRelation {
+  /** A `SpatialNode.id` in THIS zone. */
+  subjectId: string;
+  relation: BinarySpatialRelationKind;
+  /** A second `SpatialNode.id` in THIS zone. */
+  objectId: string;
+}
+
+/** Arity is encoded in the type: unary centered_in can never carry objectId. */
+export type SpatialRelation =
+  | CenteredInSpatialRelation
+  | BinarySpatialRelation;
 
 /**
  * Explicit, reviewed source authority for one character-free Set Identity Board.
@@ -478,7 +495,8 @@ export type PageActionSpatialEffect =
  */
 export interface PageActionRequirement {
   /**
-   * Stable, NAMESPACED check id — MUST match /^action:[a-z0-9_]+$/ and be unique on this page. A SEPARATE id space
+   * Compiler-owned stable, NAMESPACED check id, derived from exact page-scoped beat authority. It MUST match
+   * /^action:[a-z0-9_]+$/ and be unique on this page. A SEPARATE id space
    * from the QA check union and from the `safety:` evidence tag — never collide with either. Follows the existing
    * namespaced-id idiom (`location:` / `zone:` / `transition:` / `cast:` / `prop:`). Binding a checkId to a QA check
    * is Stage 5; Stage 3 enforces only the namespace + per-page uniqueness.

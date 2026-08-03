@@ -3,7 +3,8 @@
  *
  * Stage 5 requires the QA response to carry EXACTLY ONE result per required check id — no missing, no duplicate, no
  * unknown. That is only possible if every enforceable claim on a page HAS a stable id. Today only
- * `PageActionRequirement` carries an authored `checkId`; prop-visibility and hazard claims carry none.
+ * `PageActionRequirement` carries the compiler-owned `checkId` derived from its exact page-scoped beat;
+ * prop-visibility and hazard claims carry none.
  *
  * So the ids are MINTED DETERMINISTICALLY from each claim's own content:
  *  - stable across compiles, so no authoring churn (and no hash churn — these ids are DERIVED at read time, never

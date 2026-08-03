@@ -76,14 +76,22 @@ const setBoardStableNode = obj({
   description: { type: 'string' },
   propId: nullableString,
 });
-const setBoardStableRelation = obj({
-  subjectId: { type: 'string' },
-  relation: {
-    type: 'string',
-    enum: ['on_same_wall_as', 'adjacent_to', 'opposite_to', 'above', 'below', 'centered_in'],
-  },
-  objectId: nullableString,
-});
+const setBoardStableRelation = {
+  anyOf: [
+    obj({
+      subjectId: { type: 'string' },
+      relation: { type: 'string', const: 'centered_in' },
+    }),
+    obj({
+      subjectId: { type: 'string' },
+      relation: {
+        type: 'string',
+        enum: ['on_same_wall_as', 'adjacent_to', 'opposite_to', 'above', 'below'],
+      },
+      objectId: { type: 'string' },
+    }),
+  ],
+};
 const setBoardStableArea = obj({
   id: { type: 'string' },
   locationId: { type: 'string' },
@@ -207,7 +215,10 @@ const actionSpatialEffect = {
   ],
 };
 const actionRequirement = obj({
-  checkId: { type: 'string' },
+  beatId: {
+    type: 'string',
+    pattern: '^beat:p[1-9][0-9]*:[a-z0-9_]+$',
+  },
   subject: actionSubject,
   predicate: {
     type: 'string',
@@ -232,7 +243,6 @@ const actionSemanticCoverageDisposition = {
   anyOf: [
     obj({
       kind: { type: 'string', const: 'action_requirement' },
-      checkId: { type: 'string' },
     }),
     obj({
       kind: { type: 'string', const: 'represented_elsewhere' },

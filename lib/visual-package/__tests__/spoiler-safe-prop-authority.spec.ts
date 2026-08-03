@@ -105,7 +105,9 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
       (node) => node.bindsTo?.kind === 'prop' && node.bindsTo.id === PROP_ID,
     )).toBe(false);
     expect(definition.zones.flatMap((zone) => zone.spatialRelations).some(
-      (relation) => relation.subjectId === 'bucket' || relation.objectId === 'bucket',
+      (relation) =>
+        relation.subjectId === 'bucket' ||
+        (relation.relation !== 'centered_in' && relation.objectId === 'bucket'),
     )).toBe(false);
     expect(definition.fixedSetFacts.find(
       (fact) => fact.propId === 'prop_metal_railing',

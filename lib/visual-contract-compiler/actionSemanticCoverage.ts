@@ -68,7 +68,12 @@ export interface ActionSemanticCapabilityGap {
 export interface DraftActionSemanticCoverageRecord {
   beatId: string;
   sourceEvidenceId: string;
-  disposition: ActionSemanticCoverageDisposition;
+  disposition:
+    | { kind: 'action_requirement' }
+    | Exclude<
+        ActionSemanticCoverageDisposition,
+        { kind: 'action_requirement' }
+      >;
 }
 
 export interface ActionSemanticCoverageTemplate {
