@@ -201,9 +201,16 @@ changing the immutable claims for the earlier reviewed range above.
 - Commit 2: this integration/evidence commit - shared private-entry/core
   consumption, failure v3, v2 historical fixture/reader, adjacent tests, and
   durable documentation.
-- Target branch: local, no configured upstream or same-name remote-tracking
-  ref, unpushed. Gate: **HOLD pending independent Claude Code review**. Codex
-  does not self-award PASS.
+- At the implementation and QA-fix handoffs, the target branch was local and
+  neither Task performed a push. It now has its same-name upstream and local
+  remote-tracking ref at exact correction head
+  `dd25ffe98160e597ea3117a0a7889616be7beb43`, parity `0/0`. The
+  remote-tracking reflog records `update by push` at
+  `2026-08-03 13:15:04 +0300`. Local Git establishes neither the actor nor the
+  authorization; Guy separately confirmed in the Lead conversation that the
+  push was intentional and authorized. The original implementation has
+  independent technical PASS. The correction remains HOLD pending completion
+  of its micro re-gate; Codex does not self-award that closure PASS.
 
 ### Implemented boundary and migration
 
@@ -288,11 +295,14 @@ six ignored-fixture failures because Vitest never started, and it exposed no
 test assertion failure. The command was not rerun. This is recorded as a new
 environment/startup limitation; the full gate is truthfully non-green.
 
-No real dependency install/Prisma generation, B0/rematerialization/readiness,
+Within the successor implementation Task before its handoff, no real
+dependency install/Prisma generation, B0/rematerialization/readiness,
 credential existence/check/access/load/hash, canonical preflight,
 pricing/network/provider/model call, live authoring, render/image/Vision,
 storage/database, Board, Semantic Reconciliation, approval, publication,
-promotion, activation, deployment, PR, or push occurred. Cost remained `$0`.
+promotion, activation, deployment, PR, or push occurred. The later authorized
+origin update does not change those execution-boundary facts. Cost remained
+`$0`.
 Rollback is reverting the two successor commits in reverse order; no external
 state or historical evidence cleanup is required.
 
@@ -390,8 +400,19 @@ through the strict public parser; dependency-injection seams are test-only;
 and the historical record correctly describes diagnostic loss rather than a
 proven topology or `safe.directory` cause.
 
-No real probe, B0/rematerialization/readiness, credential access, preflight,
+Claude Code's first correction micro re-gate stopped at intake because its
+no-upstream/no-remote premise and the durable record had become stale after
+the observed push. It awarded no correction closure. Its provisional checks
+confirmed the one-line MINOR-1 fix, the local non-junction toolchain, package
+hashes, deterministic TypeScript, and 3 files / 161 tests PASS. The original
+implementation PASS remains intact; MINOR-1 and MINOR-2 remain pending the
+corrected-topology micro re-gate.
+
+Within the QA-fix Task before its handoff, no real probe,
+B0/rematerialization/readiness, credential access, preflight,
 pricing/network/provider/model call, live authoring, render/image/Vision,
 storage/database, Board action, approval, publication, promotion, activation,
-deployment, PR, or push occurred. Cost remained `$0`. The correction remains
-HOLD pending an independent Claude Code micro re-gate.
+deployment, PR, or push occurred. The later authorized origin update is
+recorded above; this documentation reconciliation performs no further push.
+Cost remained `$0`. The correction remains HOLD pending an independent Claude
+Code micro re-gate.
