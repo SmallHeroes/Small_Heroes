@@ -4,6 +4,11 @@ const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const {
+  GIT_PROBE_EVIDENCE_VERSION,
+  runCanonicalPreLiveGitProbe,
+  verifyCanonicalPreLiveGitTopology,
+} = require('./canonical-pre-live-git-invocation.cjs');
 
 const FAILURE_VERSION =
   'canonical-pre-live-readiness-failure/v2';
@@ -27,6 +32,10 @@ const PUBLIC_FLAGS = new Set([
   '--request-id',
   '--requested-at',
   '--credential-source-path',
+]);
+const PUBLIC_PROBE_FLAGS = new Set([
+  '--repo-root',
+  '--output-root',
 ]);
 
 const BOOTSTRAP_TOPOLOGY_REASON_CODES = new Map([
@@ -154,6 +163,62 @@ function buildLauncherFailure(options) {
     digestAlgorithm: 'canonical-json-sha256',
     digest: canonicalDigest(withoutDigest),
   };
+}
+
+function buildGitProbeEvidence(options) {
+  const withoutDigest = {
+    version: GIT_PROBE_EVIDENCE_VERSION,
+    status: options.status,
+    observations: options.observations,
+    pricingAuthority: 'not_checked',
+    canonicalPreflight: 'not_run',
+    credentialAccess: 'none',
+    providerCalls: 0,
+    readinessAuthority: 'none',
+    liveAuthority: 'none',
+  };
+  return {
+    ...withoutDigest,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalDigest(withoutDigest),
+  };
+}
+
+function parseCanonicalPreLiveGitProbeArguments(argv) {
+  const [mode, ...tokens] = argv;
+  if (
+    mode !== 'probe-git' ||
+    tokens.length !== PUBLIC_PROBE_FLAGS.size * 2
+  ) {
+    return null;
+  }
+  const values = new Map();
+  for (let index = 0; index < tokens.length; index += 2) {
+    const flag = tokens[index];
+    const value = tokens[index + 1];
+    if (
+      typeof flag !== 'string' ||
+      typeof value !== 'string' ||
+      !PUBLIC_PROBE_FLAGS.has(flag) ||
+      flag.includes('=') ||
+      values.has(flag) ||
+      value.length === 0 ||
+      value.startsWith('--')
+    ) {
+      return null;
+    }
+    values.set(flag, value);
+  }
+  const repoRoot = values.get('--repo-root');
+  const outputRoot = values.get('--output-root');
+  if (
+    values.size !== PUBLIC_PROBE_FLAGS.size ||
+    !path.isAbsolute(repoRoot) ||
+    typeof outputRoot !== 'string'
+  ) {
+    return null;
+  }
+  return { mode, values, repoRoot, outputRoot };
 }
 
 function parseCanonicalPreLiveReadinessArguments(argv) {
@@ -357,156 +422,19 @@ function offlineNpmEnvironment(
   };
 }
 
-function gitEnvironment(
-  environment,
-  platform = process.platform,
-) {
-  return {
-    ...minimalEnvironment(environment, platform),
-    GIT_OPTIONAL_LOCKS: '0',
-  };
-}
-
-function runBootstrapGit(options, argv, allowStatusOne = false) {
-  const result = (
-    options.gitSpawnSyncImpl ?? spawnSync
-  )('git', argv, {
-    cwd: options.repoRoot,
-    env: gitEnvironment(
-      options.environment,
-      options.platform,
-    ),
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024,
-    shell: false,
-    timeout: 20_000,
-    windowsHide: true,
-  });
-  if (
-    result.error ||
-    result.signal ||
-    (result.status !== 0 &&
-      !(allowStatusOne && result.status === 1)) ||
-    typeof result.stdout !== 'string' ||
-    result.stdout.length > 64 * 1024
-  ) {
-    throw new Error('bootstrap_git_rejected');
-  }
-  return result;
-}
-
 function verifyBootstrapTopology(options) {
   const repositoryRealPath = assertCanonicalDirectory(
     options.repoRoot,
     options.platform,
   );
-  const topLevel = runBootstrapGit(
-    options,
-    ['rev-parse', '--show-toplevel'],
-  ).stdout.trim();
-  if (
-    !pathsEqual(
-      repositoryRealPath,
-      topLevel,
-      options.platform,
-    )
-  ) {
-    throw new Error('bootstrap_repository_mismatch');
-  }
-  const branch = runBootstrapGit(
-    options,
-    ['symbolic-ref', '--quiet', '--short', 'HEAD'],
-  ).stdout.trim();
-  if (
-    !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,239}$/.test(branch) ||
-    branch.includes('..') ||
-    branch.includes('//') ||
-    branch.endsWith('/') ||
-    branch.endsWith('.lock') ||
-    branch === 'main' ||
-    branch === 'master'
-  ) {
-    throw new Error('bootstrap_dedicated_branch_required');
-  }
-  const branchRef = `refs/heads/${branch}`;
-  const expectedUpstream =
-    `refs/remotes/origin/${branch}`;
-  const upstream = runBootstrapGit(
-    options,
-    [
-      'rev-parse',
-      '--symbolic-full-name',
-      '@{upstream}',
-    ],
-  ).stdout.trim();
-  if (upstream !== expectedUpstream) {
-    throw new Error('bootstrap_same_name_upstream_required');
-  }
-  const head = runBootstrapGit(
-    options,
-    ['rev-parse', '--verify', 'HEAD^{commit}'],
-  ).stdout.trim();
-  const upstreamHead = runBootstrapGit(
-    options,
-    [
-      'rev-parse',
-      '--verify',
-      `${upstream}^{commit}`,
-    ],
-  ).stdout.trim();
-  if (
-    !/^[a-f0-9]{40}$/.test(head) ||
-    head !== upstreamHead
-  ) {
-    throw new Error('bootstrap_head_mismatch');
-  }
-  if (
-    !/^0\s+0$/.test(
-      runBootstrapGit(
-        options,
-        [
-          'rev-list',
-          '--left-right',
-          '--count',
-          `${branchRef}...${upstream}`,
-        ],
-      ).stdout.trim(),
-    )
-  ) {
-    throw new Error('bootstrap_divergence_rejected');
-  }
-  if (
-    runBootstrapGit(
-      options,
-      [
-        'status',
-        '--porcelain=v2',
-        '--untracked-files=all',
-      ],
-    ).stdout.trim().length > 0
-  ) {
-    throw new Error('bootstrap_dirty_rejected');
-  }
-  const ignored = runBootstrapGit(
-    options,
-    [
-      'check-ignore',
-      '--quiet',
-      '--no-index',
-      '--',
-      options.outputRoot,
-    ],
-    true,
-  );
-  if (ignored.status !== 0) {
-    throw new Error('bootstrap_output_not_ignored');
-  }
-  return {
+  return verifyCanonicalPreLiveGitTopology({
+    profile: 'bootstrap_launcher',
     repositoryRealPath,
-    branchRef,
-    head,
-    upstreamRef: upstream,
-  };
+    outputRoot: options.outputRoot,
+    environment: options.environment,
+    platform: options.platform,
+    spawnSyncImpl: options.gitSpawnSyncImpl,
+  });
 }
 
 function sanitizedBootstrapTopologyReasonCode(error) {
@@ -631,6 +559,71 @@ function failedDisposition(result) {
 }
 
 function runCanonicalPreLiveReadinessLauncher(options) {
+  if (options.argv[0] === 'probe-git') {
+    const parsedProbe =
+      parseCanonicalPreLiveGitProbeArguments(options.argv);
+    if (!parsedProbe) {
+      return {
+        kind: 'probe',
+        evidence: buildGitProbeEvidence({
+          status: 'rejected',
+          observations: [],
+        }),
+        disposition: { kind: 'exit', exitCode: 1 },
+      };
+    }
+    const platform = options.platform ?? process.platform;
+    let repositoryRealPath;
+    try {
+      assertUniqueRegularFile(options.execPath, platform);
+      repositoryRealPath = assertCanonicalDirectory(
+        parsedProbe.repoRoot,
+        platform,
+      );
+      if (options.expectedRepoRoot) {
+        const expectedRepoRoot = assertCanonicalDirectory(
+          options.expectedRepoRoot,
+          platform,
+        );
+        if (
+          !pathsEqual(
+            expectedRepoRoot,
+            repositoryRealPath,
+            platform,
+          )
+        ) {
+          throw new Error('launcher_repository_mismatch');
+        }
+      }
+    } catch {
+      return {
+        kind: 'probe',
+        evidence: buildGitProbeEvidence({
+          status: 'rejected',
+          observations: [],
+        }),
+        disposition: { kind: 'exit', exitCode: 1 },
+      };
+    }
+    const probe = runCanonicalPreLiveGitProbe({
+      repositoryRealPath,
+      outputRoot: parsedProbe.outputRoot,
+      environment: options.environment,
+      platform,
+      spawnSyncImpl: options.gitSpawnSyncImpl,
+    });
+    return {
+      kind: 'probe',
+      evidence: buildGitProbeEvidence(probe),
+      disposition: {
+        kind: 'exit',
+        exitCode:
+          probe.status === 'ready_for_canonical_prepare'
+            ? 0
+            : 1,
+      },
+    };
+  }
   const parsed = parseCanonicalPreLiveReadinessArguments(
     options.argv,
   );
@@ -909,6 +902,7 @@ module.exports = {
   INTERNAL_CAPABILITY_FLAG,
   INTERNAL_ENVIRONMENT_NAMES,
   PUBLIC_FLAGS,
+  PUBLIC_PROBE_FLAGS,
   assertCanonicalDirectory,
   assertUniqueRegularFile,
   buildLauncherFailure,
@@ -919,6 +913,7 @@ module.exports = {
   minimalEnvironment,
   offlineNpmEnvironment,
   parseCanonicalPreLiveReadinessArguments,
+  parseCanonicalPreLiveGitProbeArguments,
   platformEnvironmentNames,
   resolveUniqueLocalNpmCli,
   runCanonicalPreLiveReadinessLauncher,

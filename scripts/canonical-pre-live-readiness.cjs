@@ -18,6 +18,10 @@ if (outcome.kind === 'failure') {
   process.stdout.write(canonicalBytes(outcome.failure));
 }
 
+if (outcome.kind === 'probe') {
+  process.stdout.write(canonicalBytes(outcome.evidence));
+}
+
 if (outcome.disposition.kind === 'signal') {
   process.kill(process.pid, outcome.disposition.signal);
 } else {
