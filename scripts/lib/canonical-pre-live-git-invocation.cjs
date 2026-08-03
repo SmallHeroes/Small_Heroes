@@ -699,7 +699,7 @@ function runCanonicalPreLiveGitProbe(options) {
       environment: options.environment,
       platform: options.platform,
       spawnSyncImpl: options.spawnSyncImpl,
-      allowOutputIgnoreStatusOne: false,
+      allowOutputIgnoreStatusOne: true,
     });
     observations.push(...result.observations);
     if (!result.ok) {

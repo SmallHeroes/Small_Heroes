@@ -198,6 +198,7 @@ function injectedProbe(options: {
   targetProfile?: GitProfile;
   targetCommand?: GitCommandId;
   failureVariant?: FailureVariant;
+  outputIgnoreStatusOneProfile?: GitProfile;
   environment?: NodeJS.ProcessEnv;
 } = {}): {
   outcome: ProbeOutcome;
@@ -244,6 +245,17 @@ function injectedProbe(options: {
       options.failureVariant
     ) {
       return failureResult(options.failureVariant);
+    }
+    if (
+      profile === options.outputIgnoreStatusOneProfile &&
+      commandId === 'output_root_ignore'
+    ) {
+      return {
+        status: 1,
+        signal: null,
+        stdout: '',
+        stderr: '',
+      };
     }
     return successResult(commandId, repoRoot);
   };
@@ -611,6 +623,66 @@ describe('canonical pre-live Git invocation probe', () => {
     );
     expect(new Set(reads)).toEqual(allowed);
   });
+
+  it.each(gitBoundary.GIT_PROFILES)(
+    'treats output-root check-ignore status 1 as a semantic observation for %s',
+    (profile) => {
+      const { outcome, calls } = injectedProbe({
+        outputIgnoreStatusOneProfile: profile,
+      });
+      expect(outcome).toMatchObject({
+        kind: 'probe',
+        evidence: {
+          status: 'ready_for_canonical_prepare',
+        },
+        disposition: { kind: 'exit', exitCode: 0 },
+      });
+      const observation = outcome.evidence!.observations.find(
+        (candidate) =>
+          candidate.profile === profile &&
+          candidate.commandId === 'output_root_ignore',
+      );
+      expect(observation).toMatchObject({
+        failureClass: null,
+        exitStatus: 1,
+        signalClass: 'none',
+        errorClass: 'none',
+        stderrClass: 'none',
+      });
+      expect(calls).toHaveLength(16);
+    },
+  );
+
+  it.each([
+    'spawn_error',
+    'timeout',
+    'signal',
+    'nonzero_exit',
+  ] as const)(
+    'still rejects a real output-root Git %s failure',
+    (failureVariant) => {
+      const { outcome } = injectedProbe({
+        targetProfile: 'bootstrap_launcher',
+        targetCommand: 'output_root_ignore',
+        failureVariant,
+      });
+      expect(outcome).toMatchObject({
+        kind: 'probe',
+        evidence: {
+          status: 'rejected',
+          observations: expect.arrayContaining([
+            expect.objectContaining({
+              profile: 'bootstrap_launcher',
+              commandId: 'output_root_ignore',
+              failureClass:
+                failureExpectation[failureVariant],
+            }),
+          ]),
+        },
+        disposition: { kind: 'exit', exitCode: 1 },
+      });
+    },
+  );
 
   const failureMatrix = gitBoundary.GIT_PROFILES.flatMap(
     (profile) =>

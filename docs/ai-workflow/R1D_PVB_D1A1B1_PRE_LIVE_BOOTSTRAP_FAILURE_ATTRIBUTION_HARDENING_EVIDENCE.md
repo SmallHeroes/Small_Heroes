@@ -302,3 +302,96 @@ command/later-boundary unreachability, content addressing, v2 byte/digest
 immutability, v3 strictness, raw-data exclusion, probe non-authority,
 dependency/credential/output non-touch, unchanged sequencing/argv/versions,
 and the absence of remediation or policy drift.
+
+## Successor QA fix - independent findings and disposition
+
+Claude Code independently reviewed exact immutable implementation range
+`f09cfc6d30e13110c5ec39596fded8a4ed7a52ba..829f3bc6a9e5db6def78f73235d9d13ddb1f353b`
+and returned technical **PASS** with zero BLOCKER, zero MAJOR, two non-blocking
+MINORs, and four advisory notes. Codex records that external verdict and does
+not self-award it. Claude verified all ten falsification targets against the
+source but could not reproduce tests or TypeScript because this worktree had
+no `node_modules`.
+
+### MINOR-1 - corrected locally, pending micro re-gate
+
+The public probe passed `allowOutputIgnoreStatusOne:false` while canonical
+topology collection passed `true` and then enforced
+`bootstrap_output_not_ignored` separately. Therefore the probe mislabeled the
+valid `git check-ignore --quiet` status `1` answer as an invocation failure.
+
+The probe now passes `allowOutputIgnoreStatusOne:true`. Direct regression
+tests cover both profiles and prove that status `1` is preserved as a
+successful observation with `failureClass:null`, `exitStatus:1`, and no
+signal/error/stderr class. Direct controls prove that spawn error, timeout,
+signal, and a genuine nonzero status remain rejected. The existing launcher
+test continues to prove canonical prepare rejects a non-ignored output root as
+`bootstrap_output_not_ignored`; no prepare authority was weakened.
+
+### MINOR-2 - deterministic environment restored, pending independent reproduction
+
+The QA fix created an isolated local dependency tree with exactly:
+
+```text
+npm ci --offline --ignore-scripts
+PASS - 200 packages installed from cache; no junction or network fallback
+
+node node_modules/prisma/build/index.js generate --schema backend/schema.prisma
+PASS - Prisma Client 6.19.3 generated locally
+```
+
+The package identities remained:
+
+```text
+package.json SHA-256
+ce94e69fdd50cd3a0983dbdf21111f168a1775f8ab9d6b238b869b77d00300d2
+
+package-lock.json SHA-256
+bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59
+```
+
+Validation was:
+
+```text
+direct probe regression
+PASS - 1 file / 141 tests
+
+seven-file aggregate
+264/264 assertions passed, but command exit 1 because Vitest reported one
+unhandled worker onTaskUpdate RPC timeout; not claimed as PASS
+
+affected split
+PASS - 3 files / 161 tests
+
+adjacent split
+PASS - 4 files / 103 tests
+
+node node_modules/typescript/lib/tsc.js --noEmit --project tsconfig.json --incremental false
+PASS
+
+git diff --check
+PASS
+```
+
+The QA-fix authorization allowed one literal `npm run check`. It ran exactly
+once and was not rerun. TypeScript passed. Vitest reproduced exactly the six
+established missing ignored-fixture failures across the five unchanged files
+`child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`,
+`page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and
+`story-read-back-validation.spec.ts`. It also emitted two unhandled worker
+`onTaskUpdate` RPC timeouts. No new assertion failure appeared, but the full
+gate remains non-green. No retry, timeout broadening, serialization, skip,
+assertion weakening, or fixture import was used.
+
+Claude's N1-N4 remain advisory limitations: the bootstrap allowlist makes
+user Git configuration readable without mutating it; two fixed-code internal
+validation throws sit outside the diagnostic envelope but are unreachable
+through the strict public parser; dependency-injection seams are test-only;
+and the historical record correctly describes diagnostic loss rather than a
+proven topology or `safe.directory` cause.
+
+No real probe, B0/rematerialization/readiness, credential access, preflight,
+pricing/network/provider/model call, live authoring, render/image/Vision,
+storage/database, Board action, approval, publication, promotion, activation,
+deployment, PR, or push occurred. Cost remained `$0`. The correction remains
+HOLD pending an independent Claude Code micro re-gate.
