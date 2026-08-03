@@ -1,7 +1,7 @@
 # R1D-PVB-D1A1B1 Action Semantic Capability-Gap Hardening — Implementation Evidence
 
-**Status:** original range independently PASSed; two accepted MINOR corrections pending read-only micro re-gate
-**Date:** 2026-08-02
+**Status:** original and QA-fix ranges independently PASSed; MINOR-1 and MINOR-2 closed
+**Date:** 2026-08-03
 **Immutable base:** `01a117570c0ee7c4e3de8d138ae1a8db4d8a00fa`
 **Branch:** `codex/r1d-pvb-d1a1b1-action-semantic-capability-hardening`
 **Worktree:** `C:\Users\guyna\.codex\worktrees\a7ee\Small_Heroes`
@@ -15,13 +15,16 @@ Blueprint consumes the full typed action and proves participant support, action 
 
 The lifecycle chain is fail-closed at current versions. The `visual-package/v4` family remains unchanged while its embedded approval, candidate, review, freeze, qualification, Blueprint, and runtime binders move forward. An explicit v1→v2 template migration clones and validates historical evidence; runtime loaders still reject the original bytes as current and never auto-migrate them.
 
-## Independent QA and narrow correction
+## Independent QA and closed narrow correction
 
 Claude Code independently reviewed exact immutable range `01a117570c0ee7c4e3de8d138ae1a8db4d8a00fa..d31c6021c8196bb31687d83c696feefcfde9d1a1` and returned technical **PASS** with zero BLOCKER, zero MAJOR, two non-blocking MINOR findings, and seven advisory notes. It independently ran repository-local TypeScript, complete-range `git diff --check`, 31 files / 763 tests across the changed specs plus repair-guard spec, and 13 files / 177 tests across the residual historical-v1-fixture consumers. This is Claude Code's range-scoped verdict; Codex does not self-award independent PASS.
 
-- **MINOR-1 — accepted and locally corrected, pending micro re-gate:** enforcement already required `style01-runtime-authority/v5`, but the `runtime_authority_missing` diagnostic named v4. The diagnostic now names `style01-runtime-authority/v5`; a direct exact-message assertion covers both absent authority and a stale v4 value, preventing required-version/message drift.
-- **MINOR-2 — accepted and locally corrected, pending micro re-gate:** the new `source_evidence_id_repair_action_not_unique` guard lacked direct coverage. Tests now exercise zero and two actionRequirements matching the bound check ID. A `source_phenomenon` positive control compares the complete output to an expected clone in which only coverage and subject Source Evidence IDs differ, explicitly preserving predicate, object, `spatialEffect`, polarity, laterality, check ID, coverage disposition, and every other action field while proving the input object remains unchanged.
-- Focused correction validation: **2 files / 49 tests PASS**. Repository-local `npx --no-install tsc --noEmit`: **PASS**. The authorized QA fix did not rerun `npm run check`.
+Claude Code then independently reviewed exact correction range `d31c6021c8196bb31687d83c696feefcfde9d1a1..b4544a79c00ba4328a5c4af12778a3375cb36804` and returned **PASS**. It verified the exact one-commit/five-file topology, clean target worktree, absent upstream/same-name remote, **2 files / 49 tests PASS**, repository-local TypeScript exit `0`, and correction-range `git diff --check` exit `0`. **MINOR-1 and MINOR-2 are closed; zero BLOCKER, zero MAJOR, and zero MINOR remain in the correction range.**
+
+- **MINOR-1 — closed by independent re-gate:** enforcement already required `style01-runtime-authority/v5`, but the `runtime_authority_missing` diagnostic named v4. The corrected diagnostic names `style01-runtime-authority/v5`; a direct exact-message assertion covers both absent authority and a stale v4 value, preventing required-version/message drift.
+- **MINOR-2 — closed by independent re-gate:** the new `source_evidence_id_repair_action_not_unique` guard lacked direct coverage. Tests exercise zero and two actionRequirements matching the bound check ID. A `source_phenomenon` positive control compares the complete output to an expected clone in which only coverage and subject Source Evidence IDs differ, explicitly preserving predicate, object, `spatialEffect`, polarity, laterality, check ID, coverage disposition, and every other action field while proving the input object remains unchanged.
+- The authorized QA fix did not rerun `npm run check`; the original full-check limitation below remains unchanged.
+- The three micro re-gate observations are advisory only, explicitly require no action, and are not findings. They do not alter either independent PASS, either closed MINOR disposition, or N1–N7.
 
 ### Advisory limitations N1–N7
 
@@ -33,7 +36,7 @@ Claude Code independently reviewed exact immutable range `01a117570c0ee7c4e3de8d
 - **N6 — full-check residual empirically closed with a boundary:** the 43→(27+12+4) classification was transcript-only. Claude identified and ran all 13 historical-v1-fixture consumer specs outside the changed/rerun set; all 177 tests passed because the bytes enter as draft input and are normalized. Database/network-dependent `*.staging.spec.ts` tests were not run and remain unverified by that review.
 - **N7 — test-worker environment:** vitest-worker `onTaskUpdate` RPC timeouts appeared under parallel load in a worktree whose `node_modules` is junctioned to the source worktree. Claude classified this as an environment artifact, not a regression.
 
-N1–N7 remain advisory limitations only. They do not expand the authorized correction and do not grant product, visual, Visual Contract candidate, Blueprint approval, Wizard product acceptance, render/readiness, live-authoring, release, or deployment acceptance.
+N1–N7 remain advisory limitations only. They do not expand the authorized correction and do not grant product, visual, Visual Contract candidate, Blueprint approval, Wizard product acceptance, render/readiness, live-authoring, release, or deployment acceptance. Closeout intake reverified exact clean target `HEAD` `b4544a79c00ba4328a5c4af12778a3375cb36804`, the expected branch, and absent upstream/same-name remote. The sandbox's `safe.directory` ownership checks limited a fresh non-target worktree status sweep; no global Git configuration changed, unreadable non-target worktrees were skipped, and no non-target state was touched.
 
 ## Versioned authority
 
@@ -98,5 +101,5 @@ No credential loading/check, pricing/docs/network lookup, provider/model call, l
 
 - This is repository-local technical qualification only. It creates no candidate, Semantic Reconciliation, product/visual acceptance, render readiness, production authority, or launch decision.
 - Revert the narrow QA-fix commit to remove only the diagnostic/test/documentation correction; revert the three original local commits to roll back the implementation. There is no external state to unwind.
-- Codex does not self-award the QA-fix PASS. The original immutable range already carries Claude Code's independent technical PASS.
-- Claude Code must micro re-gate the exact correction range beginning at `d31c6021c8196bb31687d83c696feefcfde9d1a1`, verify the two MINOR closures, and falsify any production-behavior, test-scope, documentation, version, policy, or boundary drift. N1–N7 remain advisory and out of correction scope.
+- Codex does not self-award either PASS. The original immutable implementation range and separate QA-fix correction range carry Claude Code's independent technical PASS verdicts.
+- MINOR-1 and MINOR-2 are closed. N1–N7 and the three no-action micro observations remain advisory and out of correction scope. No additional Claude Code round is required unless this closeout transcription is factually disputed.
