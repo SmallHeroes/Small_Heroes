@@ -141,7 +141,7 @@ export function classifyVitestProcessOutcome({
   if (launchErrorCode !== undefined && launchErrorCode !== null) {
     classes.add('launch_failure');
   }
-  if (signal || exitCode !== 0) {
+  if (signal || (exitCode !== null && exitCode !== 0)) {
     classes.add('signal_or_exit_failure');
   }
   if (!diagnosticProtocolOk) {

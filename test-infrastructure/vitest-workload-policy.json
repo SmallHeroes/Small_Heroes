@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "small-heroes-vitest-workload-policy/v1",
+  "canonicalIncludes": [
+    "lib/**/*.spec.ts",
+    "lib/**/__tests__/**/*.spec.ts"
+  ],
+  "ordinaryMaxWorkers": 4,
+  "resourceIntensiveMaxWorkers": 2,
+  "resourceIntensiveSpecs": [
+    {
+      "path": "lib/__tests__/book-ready-email-reachability.spec.ts",
+      "evidence": ["measured_repository_scan_contention"]
+    },
+    {
+      "path": "lib/__tests__/delivery-input-writer-coverage.spec.ts",
+      "evidence": ["measured_repository_scan_contention"]
+    },
+    {
+      "path": "lib/__tests__/order-authority-guard.spec.ts",
+      "evidence": ["measured_repository_scan_contention"]
+    },
+    {
+      "path": "lib/__tests__/production-qa-escape-hatches.spec.ts",
+      "evidence": ["measured_repository_scan_contention"]
+    },
+    {
+      "path": "lib/generation-pipeline/__tests__/asset-safety-writer-coverage.spec.ts",
+      "evidence": ["measured_repository_scan_contention"]
+    },
+    {
+      "path": "lib/generation-pipeline/__tests__/safety-release-transition-caller.spec.ts",
+      "evidence": ["measured_repository_scan_contention"]
+    },
+    {
+      "path": "lib/set-identity-board/__tests__/mint-launcher.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
+      "path": "lib/visual-package/__tests__/canonical-live-authoring-boundary.spec.ts",
+      "evidence": [
+        "direct_child_process_load",
+        "measured_full_load_timeout"
+      ]
+    },
+    {
+      "path": "lib/visual-package/__tests__/canonical-live-authoring-launcher.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
+      "path": "lib/visual-package/__tests__/canonical-materialization-input.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
+      "path": "lib/visual-package/__tests__/canonical-pre-live-git-probe.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
+      "path": "lib/visual-package/__tests__/canonical-pre-live-readiness-launcher.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
+      "path": "lib/visual-package/__tests__/canonical-pre-live-readiness.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
+      "path": "lib/visual-package/__tests__/legacy-visual-contract-authoring-boundary.spec.ts",
+      "evidence": [
+        "direct_child_process_load",
+        "measured_repository_scan_contention"
+      ]
+    },
+    {
+      "path": "lib/visual-package/__tests__/live-execution-request-materialization.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
+      "path": "lib/visual-package/__tests__/live-execution-supervisor.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
+      "path": "lib/visual-package/__tests__/live-request-materialization.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
+      "path": "lib/visual-package/__tests__/live-request-verification.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
+      "path": "lib/visual-package/__tests__/release-check-cli.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    }
+  ]
+}
