@@ -99,7 +99,7 @@ describe('Stage 3 — bounded repair loop', () => {
     const { caller, prompts, calls } = recordingCaller([withEmptyMaterial(), bunnyDraft()]);
     const res = await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
     expect(res.provenance.attempt).toBe(2);
-    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v6');
+    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v7');
     expect(res.repairAttempts).toHaveLength(1);
     expect(res.repairAttempts[0].attempt).toBe(1);
     expect(res.repairAttempts[0].errors.some((e) => /material/i.test(e))).toBe(true);

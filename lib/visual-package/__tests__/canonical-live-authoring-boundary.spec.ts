@@ -159,7 +159,7 @@ function fullyActionedDraft(
       page as unknown as Record<string, unknown>
     ).actionRequirements = [
       {
-        checkId: `action:p${page.pageNumber}_look`,
+        beatId: `beat:p${page.pageNumber}:look`,
         subject: {
           kind: 'entity',
           entity: { kind: 'cast', id: 'child:hero' },
@@ -178,7 +178,6 @@ function fullyActionedDraft(
         sourceEvidenceId: sourceEvidence.sourceEvidenceId,
         disposition: {
           kind: 'action_requirement',
-          checkId: `action:p${page.pageNumber}_look`,
         },
       },
     ];
@@ -503,7 +502,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v6',
+      'visual-contract-authoring-receipt/v7',
     );
     expect(adapter.readCredential).toHaveBeenCalledTimes(1);
     expect(adapter.transportCreate).toHaveBeenCalledTimes(1);

@@ -64,7 +64,7 @@ describe('WS0c pilot — bunny Template authoring', () => {
     const historicalBytes = fs.readFileSync(artifactPath, 'utf8');
     expect(() =>
       loadVisualContractTemplateArtifact(V3_DIR, STORY_KEY),
-    ).toThrow(/vc-schema\/v2/);
+    ).toThrow(/vc-schema\/v3/);
     const template = loadTemplate();
     const r = validateBookVisualContractTemplate(template);
     expect(r.ok, r.ok ? '' : r.errors.join('; ')).toBe(true);

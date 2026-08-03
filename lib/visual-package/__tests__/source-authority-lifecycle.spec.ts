@@ -12,6 +12,8 @@ import {
 
 import {
   compileBookVisualContractTemplate,
+  compilerOwnedActionCheckId,
+  DraftAuthorityReferenceDomainError,
   TemplateRepairExhaustedError,
 } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 import {
@@ -27,6 +29,7 @@ import type {
 import type {
   BookVisualContractTemplate,
 } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import { migrateLegacySetBoardFixture } from '@/lib/set-identity-board/__tests__/current-authority-fixtures';
 import {
   buildStorySourceAuthoritySnapshot,
   buildProductionReconciliationDraftFromSourceSnapshot,
@@ -213,15 +216,27 @@ function storySnapshot(storyKey: string): StorySourceAuthoritySnapshot {
 function actionCapabilityCalibrationDraft(
   snapshot: StorySourceAuthoritySnapshot,
 ): BookVisualContractTemplate & Record<string, unknown> {
-  const draft = JSON.parse(
-    fs.readFileSync(
-      path.join(
-        BANK,
-        'fox_uri_adventure.visual-contract-template.json',
+  const draft = migrateLegacySetBoardFixture(
+    JSON.parse(
+      fs.readFileSync(
+        path.join(
+          BANK,
+          'fox_uri_adventure.visual-contract-template.json',
+        ),
+        'utf8',
       ),
-      'utf8',
-    ),
-  ) as BookVisualContractTemplate & Record<string, unknown>;
+    ) as BookVisualContract,
+    {
+      board_room_openings: ['z_room_window', 'z_window_threshold'],
+      board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
+    },
+    {
+      z_balcony_railing: { railing: 'metal_railing' },
+    },
+  ) as unknown as BookVisualContractTemplate & Record<string, unknown>;
+  for (const authority of draft.setBoardAuthorities ?? []) {
+    delete (authority as unknown as { fixedObjects?: unknown }).fixedObjects;
+  }
   const evidence = (pageNumber: number, needle: string) => {
     const entry =
       snapshot.content.sourceEvidenceCatalog.entries.find(
@@ -247,14 +262,19 @@ function actionCapabilityCalibrationDraft(
       : [];
     pageRecord.actionSemanticCoverage =
       existingActions.length > 0
-        ? existingActions.map((action, index) => ({
-            beatId: `beat:p${page.pageNumber}:existing_${index + 1}`,
-            sourceEvidenceId: firstEvidence.sourceEvidenceId,
-            disposition: {
-              kind: 'action_requirement',
-              checkId: action.checkId,
-            },
-          }))
+        ? existingActions.map((action, index) => {
+            const beatId = `beat:p${page.pageNumber}:existing_${index + 1}`;
+            const draftAction = action as unknown as Record<string, unknown>;
+            delete draftAction.checkId;
+            draftAction.beatId = beatId;
+            return {
+              beatId,
+              sourceEvidenceId: firstEvidence.sourceEvidenceId,
+              disposition: {
+                kind: 'action_requirement',
+              },
+            };
+          })
         : [
             {
               beatId: `beat:p${page.pageNumber}:structured_context`,
@@ -277,7 +297,7 @@ function actionCapabilityCalibrationDraft(
       beatId: 'beat:p6:intransitive_action',
       evidence: sneeze,
       action: {
-        checkId: 'action:intransitive_action',
+        beatId: 'beat:p6:intransitive_action',
         subject: {
           kind: 'entity',
           entity: { kind: 'cast', id: 'companion:fox_uri' },
@@ -294,7 +314,7 @@ function actionCapabilityCalibrationDraft(
       beatId: 'beat:p7:phenomenon_contact',
       evidence: touch,
       action: {
-        checkId: 'action:phenomenon_contact',
+        beatId: 'beat:p7:phenomenon_contact',
         subject: {
           kind: 'source_phenomenon',
           sourceEvidenceId: touch.sourceEvidenceId,
@@ -311,7 +331,7 @@ function actionCapabilityCalibrationDraft(
       beatId: 'beat:p9:object_movement',
       evidence: move,
       action: {
-        checkId: 'action:object_movement',
+        beatId: 'beat:p9:object_movement',
         subject: {
           kind: 'entity',
           entity: { kind: 'cast', id: 'child:hero' },
@@ -342,13 +362,17 @@ function actionCapabilityCalibrationDraft(
         sourceEvidenceId: semanticCase.evidence.sourceEvidenceId,
         disposition: {
           kind: 'action_requirement',
-          checkId: semanticCase.action.checkId,
         },
       },
     ];
     const projectionAction = structuredClone(
       semanticCase.action,
     ) as Record<string, unknown>;
+    delete projectionAction.beatId;
+    projectionAction.checkId = compilerOwnedActionCheckId(
+      semanticCase.pageNumber,
+      semanticCase.beatId,
+    );
     const projectionSubject = projectionAction.subject as Record<
       string,
       unknown
@@ -398,7 +422,7 @@ function fullyActionedBunnyDraft(
       );
     }
     const action = {
-      checkId: `action:p${page.pageNumber}_look`,
+      beatId: `beat:p${page.pageNumber}:look`,
       subject: {
         kind: 'entity',
         entity: { kind: 'cast', id: 'child:hero' },
@@ -419,7 +443,6 @@ function fullyActionedBunnyDraft(
         sourceEvidenceId: sourceEvidence.sourceEvidenceId,
         disposition: {
           kind: 'action_requirement',
-          checkId: action.checkId,
         },
       },
     ];
@@ -929,6 +952,7 @@ describe('source-grounded closed action authority', () => {
         },
       },
     ];
+    first.actionRequirements = [];
     const second = draft.pageContracts[1] as PageVisualContract &
       Record<string, unknown>;
     second.actionSemanticCoverage = [
@@ -944,6 +968,7 @@ describe('source-grounded closed action authority', () => {
         },
       },
     ];
+    second.actionRequirements = [];
     let thrown: unknown;
     try {
       await compileBookVisualContractTemplate(
@@ -996,15 +1021,11 @@ describe('source-grounded closed action authority', () => {
       thrown = error;
     }
     expect(thrown).toBeInstanceOf(
-      TemplateRepairExhaustedError,
+      DraftAuthorityReferenceDomainError,
     );
     expect(
-      (
-        thrown as TemplateRepairExhaustedError
-      ).attempts.some((attempt) =>
-        attempt.errors.some((error) =>
-          error.includes('same-page actionRequirement'),
-        ),
+      (thrown as DraftAuthorityReferenceDomainError).issues.some(
+        (issue) => issue.includes('binds 0 actionRequirements'),
       ),
     ).toBe(true);
   });
@@ -1077,7 +1098,7 @@ describe('source-grounded closed action authority', () => {
           callLLM: async () => JSON.stringify(duplicate),
         },
       ),
-    ).rejects.toThrow(/duplicate checkId/);
+    ).rejects.toThrow(/binds 2 actionRequirements/);
   });
 });
 
@@ -1103,6 +1124,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           },
         },
       ];
+      page.actionRequirements = [];
     }
     const provider = successfulProvider(draft);
     const result = await runVisualContractAuthoring({
@@ -1151,7 +1173,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v4',
+      version: 'visual-contract-authoring-readiness/v5',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -1204,10 +1226,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
   it('classifies every prior authoring authority as immutable without mutating its bytes', () => {
     const immediatelyPrior = [
-      ['request', 'visual-contract-authoring-request/v6'],
-      ['receipt', 'visual-contract-authoring-receipt/v5'],
-      ['readiness', 'visual-contract-authoring-readiness/v3'],
-      ['candidate', 'visual-contract-candidate-artifact/v3'],
+      ['request', 'visual-contract-authoring-request/v7'],
+      ['receipt', 'visual-contract-authoring-receipt/v6'],
+      ['readiness', 'visual-contract-authoring-readiness/v4'],
+      ['candidate', 'visual-contract-candidate-artifact/v4'],
     ] as const;
     const historicalBytes = immediatelyPrior.map(([kind, version]) =>
       JSON.stringify({ kind, version, evidence: ['immutable'] }),
@@ -1279,25 +1301,25 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'request',
-        'visual-contract-authoring-request/v7',
+        'visual-contract-authoring-request/v8',
       ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'receipt',
-        'visual-contract-authoring-receipt/v6',
+        'visual-contract-authoring-receipt/v7',
       ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
-        'visual-contract-authoring-readiness/v4',
+        'visual-contract-authoring-readiness/v5',
       ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'candidate',
-        'visual-contract-candidate-artifact/v4',
+        'visual-contract-candidate-artifact/v5',
       ),
     ).toBe('current');
   });
@@ -1314,7 +1336,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v6',
+      'visual-contract-authoring-receipt/v7',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.aggregateUsage).toEqual({

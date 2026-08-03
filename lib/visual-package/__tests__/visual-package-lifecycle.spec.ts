@@ -124,6 +124,17 @@ function makeFixture(): Fixture {
   // mock package; the real 0/18 package inventory remains untouched and unpromoted.
   const runtimeTemplate = migrateLegacyBookVisualContractTemplateV1(
     readJson<unknown>(templatePath),
+    {
+      areaZoneIds: {
+        set_room_balcony_night: {
+          board_room_openings: ['z_room_window', 'z_window_threshold'],
+          board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
+        },
+      },
+      pageZoneNodeIds: {
+        z_balcony_railing: { railing: 'metal_railing' },
+      },
+    },
   );
   const authority = authoredCoverAuthorityFromLocationBible(
     readJson<unknown>(locationBiblePath),

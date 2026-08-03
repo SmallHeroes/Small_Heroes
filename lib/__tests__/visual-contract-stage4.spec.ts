@@ -123,11 +123,11 @@ describe('Stage 4 — the baseline still holds (additive proof)', () => {
     expect(validateBookVisualContract(artifact).ok).toBe(true);
   });
 
-  it('historical vc-schema/v1 templates cannot become current vc-schema/v2 authority', () => {
+  it('historical vc-schema/v1 templates cannot become current vc-schema/v3 authority', () => {
     for (const key of ['bunny_ometz_adventure', 'fox_uri_adventure']) {
       const template = JSON.parse(readFileSync(`story-bank/v3-approved/${key}.visual-contract-template.json`, 'utf8'));
       expect(() => assertValidBookVisualContractTemplate(template)).toThrow(
-        /vc-schema\/v2.*vc-schema\/v1/,
+        /vc-schema\/v3.*vc-schema\/v1/,
       );
     }
   });

@@ -331,7 +331,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v10' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v11' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

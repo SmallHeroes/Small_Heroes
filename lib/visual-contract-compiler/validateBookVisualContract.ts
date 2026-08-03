@@ -7,6 +7,7 @@
  * gate→cave class of bug) must FAIL CLOSED, never silently pass.
  */
 import { resolvePageCheckIds } from './pageCheckIds';
+import { VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTemplateTypes';
 import {
   projectCoverMustNotShow,
   projectPageMustNotShow,
@@ -692,7 +693,7 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         }
         if (raw.actorId !== undefined) {
           errors.push(
-            `${aLabel}.actorId is legacy authority and is forbidden by vc-schema/v2; use typed subject`,
+            `${aLabel}.actorId is legacy authority and is forbidden by ${VISUAL_CONTRACT_SCHEMA_VERSION}; use typed subject`,
           );
         }
         const subject = isObj(raw.subject) ? raw.subject : null;

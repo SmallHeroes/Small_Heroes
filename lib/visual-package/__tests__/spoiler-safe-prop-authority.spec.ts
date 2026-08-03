@@ -136,10 +136,10 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
       contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
       promptHash,
     }).toEqual({
-      boardVersion: 'set-board/v3',
-      setDefinitionHash: '2b5bc4a9afe9491161818db96dfa70f9799f2c4992df1e7e424b1b0da82ade05',
-      contentPolicyDigest: 'c00b9b6b6b6da477e045065b2ca4b364f5d1885a03385aa6757e3734bc3900df',
-      promptHash: '36c669c60f76566dc5e0d85c713047d2ed86134adcc30b0eb9d44a238d7bd09c',
+      boardVersion: 'set-board/v4',
+      setDefinitionHash: 'a1323cd835291da11a8b74dc1844a91a75bcd7578a0413a476be11c5ecd39aa8',
+      contentPolicyDigest: '94e3b2ece0c6486dc8fad19f8e998c13d336779112ff4a50f0d8676a12f2fb97',
+      promptHash: 'c40fe64cd5343d826e6853b4caa9a9b63e32e50afdb1fa982e194036f01869fd',
     });
     expect(definition.contentPolicy.includedPropIds).toEqual([
       'prop_chair_leg',

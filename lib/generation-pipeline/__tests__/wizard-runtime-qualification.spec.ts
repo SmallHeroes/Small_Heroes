@@ -11,6 +11,7 @@ import { STYLE_IDS } from '@/lib/styles';
 import {
   computeVisualContractHash,
   materialize,
+  type BookVisualContract,
   type ResolvedFamilyAppearanceProfile,
 } from '@/lib/visual-contract-compiler';
 import {
@@ -190,6 +191,30 @@ describe('Wizard/order to chunk-runner render qualification', () => {
       ),
     ).rejects.toBeInstanceOf(RenderQualificationPreflightError);
     expect(imageProvider).not.toHaveBeenCalled();
+
+    const staleContract = structuredClone(contract) as unknown as Record<string, unknown>;
+    staleContract.schemaVersion = 'vc-schema/v2';
+    const staleCache = {
+      ...cache,
+      visualContract: staleContract as Prisma.InputJsonValue,
+    };
+    const staleAuthorityImageProvider = vi.fn(async () => 'paid-image');
+    await expect(
+      runWithStyle01RenderQualification(
+        {
+          illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+          frozenContractHash: computeVisualContractHash(
+            staleContract as unknown as BookVisualContract,
+          ),
+          storySourceHash: frozenProduct.storySourceHash,
+          cache: staleCache,
+          repoRoot: qualificationRoot,
+          pageNumbers: [0, 1],
+        },
+        staleAuthorityImageProvider,
+      ),
+    ).rejects.toBeInstanceOf(RenderQualificationPreflightError);
+    expect(staleAuthorityImageProvider).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
 
     const chunkRunnerSource = fs.readFileSync(

@@ -16,13 +16,13 @@
 import type { SpatialNode, SpatialRelation } from '@/lib/visual-contract-compiler';
 
 /** Version of the spoiler-neutral SET projection + prompt derivation. */
-export const SET_IDENTITY_BOARD_VERSION = 'set-board/v3' as const;
+export const SET_IDENTITY_BOARD_VERSION = 'set-board/v4' as const;
 
 /** Version of the on-disk registry entry schema. Bump to invalidate previously-saved registry entries. */
-export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v3' as const;
+export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v4' as const;
 
 /** Version of the declared board-content policy carried through registry/package/runtime identities. */
-export const SET_BOARD_CONTENT_POLICY_VERSION = 'set-board-content/v2' as const;
+export const SET_BOARD_CONTENT_POLICY_VERSION = 'set-board-content/v3' as const;
 
 /** Version of the structured cast/undeclared-prop guard carried by every direct prompt input. */
 export const SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION =

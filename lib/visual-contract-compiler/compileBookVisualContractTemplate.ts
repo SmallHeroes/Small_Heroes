@@ -109,15 +109,15 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v6' as const;
+  'vc-template-prompt/v7' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v6' as const;
+  'vc-template-user-prompt/v7' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v6' as const;
+  'vc-repair-prompt/v7' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v6' as const;
+  'vc-repair-user-prompt/v7' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {

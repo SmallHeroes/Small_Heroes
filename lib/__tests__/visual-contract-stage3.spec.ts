@@ -156,7 +156,7 @@ describe('Stage 3 — THE CANARY: the shipped artifacts still load, validate and
       const before = readFileSync(artifactPath);
       const template = JSON.parse(before.toString('utf8'));
       expect(() => assertValidBookVisualContractTemplate(template)).toThrow(
-        /vc-schema\/v2.*vc-schema\/v1/,
+        /vc-schema\/v3.*vc-schema\/v1/,
       );
       expect(readFileSync(artifactPath)).toEqual(before);
     }

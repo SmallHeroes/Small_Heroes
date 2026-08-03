@@ -297,7 +297,7 @@ function createDirectoryLink(
 }
 
 describe('canonical live request materialization validators', () => {
-  it('rejects legacy B0 materialization input versions and requires explicit v2 rematerialization', () => {
+  it('rejects legacy B0 materialization input versions and requires explicit current rematerialization', () => {
     const fixture = writeFixture();
     expect(
       liveRequestMaterializationInputIssues({
@@ -307,11 +307,11 @@ describe('canonical live request materialization validators', () => {
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v3',
+      'canonical-live-request-materialization-input/v4',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v5');
+    ).toBe('canonical-live-request-materialization/v6');
   });
 
   it.each([
@@ -464,7 +464,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v7',
+      version: 'visual-contract-authoring-request/v8',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -490,7 +490,7 @@ describe('canonical live request materialization artifacts', () => {
       },
       structuredOutput: {
         schemaName: 'BookVisualContractTemplateDraft',
-        schemaVersion: 'vc-draft-schema/v10',
+        schemaVersion: 'vc-draft-schema/v11',
         compatibilityProfileVersion:
           OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
         compatibilityProfileDigest:

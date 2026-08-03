@@ -1,5 +1,5 @@
 export const ACTION_SEMANTIC_COVERAGE_VERSION =
-  'action-semantic-coverage/v3' as const;
+  'action-semantic-coverage/v4' as const;
 
 export const ACTION_SEMANTIC_COVERAGE_DISPOSITION_VALUES = [
   'action_requirement',

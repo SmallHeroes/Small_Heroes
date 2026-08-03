@@ -416,7 +416,7 @@ describe('canonical live execution request materialization', () => {
       manifestPath: fixture.manifestPath,
       manifestDigest: fixture.manifestDigest,
       verificationVersion:
-        'canonical-live-request-verification/v5',
+        'canonical-live-request-verification/v6',
       structuredOutputCompatibility:
         manifest.structuredOutputCompatibility,
       compactRepairStructuredOutputCompatibility:

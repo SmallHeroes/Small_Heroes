@@ -182,7 +182,7 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(provenance.authoringModel).toBe('gpt-5.6-sol');
     expect(provenance.reasoningEffort).toBe('medium');
     expect(provenance.maxOutputTokens).toBe(36000);
-    expect(provenance.schemaVersion).toBe('vc-draft-schema/v10');
+    expect(provenance.schemaVersion).toBe('vc-draft-schema/v11');
     expect(provenance.attempt).toBe(1);
   });
 

@@ -64,13 +64,13 @@ function storyPages(): Array<{ pageNumber: number; text: string }> {
 }
 
 describe('fox — the hand-authored structured contract validates end-to-end', () => {
-  it('preserves historical v1 bytes while rejecting them as current v2 authority', () => {
+  it('preserves historical v1 bytes while rejecting them as current v3 authority', () => {
     const historical = foxTemplate();
     const before = JSON.stringify(historical);
     const result = validateBookVisualContractTemplate(historical);
     expect(result.ok).toBe(false);
     expect(result.ok ? [] : result.errors).toContain(
-      'schemaVersion must equal the supported "vc-schema/v2" (got "vc-schema/v1")',
+      'schemaVersion must equal the supported "vc-schema/v3" (got "vc-schema/v1")',
     );
     expect(() => assertValidBookVisualContractTemplate(historical)).toThrow();
     expect(JSON.stringify(historical)).toBe(before);

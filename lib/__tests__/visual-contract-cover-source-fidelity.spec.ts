@@ -21,6 +21,8 @@ import {
 import { renderVisualContractReview } from '../visual-contract-compiler/writeVisualContractReview';
 import { storyCoverSourceFidelityIssues } from '../visual-package/coverSourceFidelity';
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
+import { migrateLegacySetBoardFixture } from '../set-identity-board/__tests__/current-authority-fixtures';
+import type { BookVisualContract } from '../visual-contract-compiler/types';
 
 const REPO = process.cwd();
 const STORY_KEY = 'fox_uri_adventure';
@@ -31,9 +33,18 @@ function jsonClone<T>(value: T): T {
 }
 
 function foxDraft(): BookVisualContractTemplate {
-  return JSON.parse(
-    fs.readFileSync(path.join(BANK, `${STORY_KEY}.visual-contract-template.json`), 'utf8'),
-  ) as BookVisualContractTemplate;
+  return migrateLegacySetBoardFixture(
+    JSON.parse(
+      fs.readFileSync(path.join(BANK, `${STORY_KEY}.visual-contract-template.json`), 'utf8'),
+    ) as BookVisualContract,
+    {
+      board_room_openings: ['z_room_window', 'z_window_threshold'],
+      board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
+    },
+    {
+      z_balcony_railing: { railing: 'metal_railing' },
+    },
+  ) as unknown as BookVisualContractTemplate;
 }
 
 function foxInput(): TemplateCompileInput & { authoredCoverAuthority: AuthoredCoverAuthority } {
@@ -51,6 +62,9 @@ function withExactActionSourceEvidence(
   draft: BookVisualContractTemplate,
   input: TemplateCompileInput,
 ): BookVisualContractTemplate {
+  for (const authority of draft.setBoardAuthorities ?? []) {
+    delete (authority as unknown as { fixedObjects?: unknown }).fixedObjects;
+  }
   withCurrentActionSemanticCoverage({
     draft,
     pages: input.pages,
@@ -70,15 +84,21 @@ function withExactActionSourceEvidence(
     if (!sourceEvidence) {
       throw new Error(`Fox fixture is missing source evidence for page ${page.pageNumber}`);
     }
+    const actions = page.actionRequirements.map((action, index) => {
+      const beatId = `beat:p${page.pageNumber}:action_${index + 1}`;
+      const current = action as unknown as Record<string, unknown>;
+      current.beatId = beatId;
+      delete current.checkId;
+      return beatId;
+    });
     (
       page as unknown as Record<string, unknown>
     ).actionSemanticCoverage =
-      page.actionRequirements.map((action, index) => ({
-        beatId: `beat:p${page.pageNumber}:action_${index + 1}`,
+      actions.map((beatId) => ({
+        beatId,
         sourceEvidenceId: sourceEvidence.sourceEvidenceId,
         disposition: {
           kind: 'action_requirement',
-          checkId: action.checkId,
         },
       }));
   }

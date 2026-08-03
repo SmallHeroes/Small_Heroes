@@ -4,7 +4,10 @@ import path from 'path';
 import { describe, expect, it } from 'vitest';
 
 import { canonicalHash } from '@/lib/canonical-json';
-import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import {
+  VISUAL_CONTRACT_SCHEMA_VERSION,
+  type BookVisualContractTemplate,
+} from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 import { normalizedTextDigest } from '@/lib/visual-package/integrity';
 import {
@@ -59,7 +62,7 @@ function identity(raw: string): StorySourceIdentity {
 function template(): BookVisualContractTemplate {
   return {
     contractKind: 'template',
-    schemaVersion: 'vc-schema/v2',
+    schemaVersion: VISUAL_CONTRACT_SCHEMA_VERSION,
     version: 1,
     storyKey: 'dunes_rescue',
     worldType: 'grounded near-future desert rescue',

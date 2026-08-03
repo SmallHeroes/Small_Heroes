@@ -29,7 +29,7 @@ import type {
 } from './types';
 
 /** Bump when the Template/Resolved SHAPE changes (part of the Resolved hash → a bump safely re-hashes). */
-export const VISUAL_CONTRACT_SCHEMA_VERSION = 'vc-schema/v2' as const;
+export const VISUAL_CONTRACT_SCHEMA_VERSION = 'vc-schema/v3' as const;
 /** Bump when the materialize() logic changes (recorded on the Resolved → auditable, safely re-hashes). */
 export const MATERIALIZER_VERSION = 'materializer/v1' as const;
 /** Bump when the deterministic palette table changes (recorded on the Resolved → auditable, safely re-hashes). */
