@@ -137,11 +137,17 @@ export function classifyVitestProcessOutcome({
   signal = null,
 }) {
   const classes = new Set(diagnosticClasses);
+  const hasLaunchError =
+    launchErrorCode !== undefined && launchErrorCode !== null;
 
-  if (launchErrorCode !== undefined && launchErrorCode !== null) {
+  if (hasLaunchError) {
     classes.add('launch_failure');
   }
-  if (signal || (exitCode !== null && exitCode !== 0)) {
+  if (
+    signal ||
+    (exitCode !== null && exitCode !== 0) ||
+    (exitCode === null && signal === null && !hasLaunchError)
+  ) {
     classes.add('signal_or_exit_failure');
   }
   if (!diagnosticProtocolOk) {

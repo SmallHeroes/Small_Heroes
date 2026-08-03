@@ -55,26 +55,87 @@ describe('Vitest diagnostic taxonomy', () => {
     ]);
   });
 
-  it('classifies launch, signal, exit, and diagnostic protocol failures', () => {
-    expect(
-      classifyVitestProcessOutcome({
-        diagnosticProtocolOk: false,
-        exitCode: null,
-        launchErrorCode: 'ENOENT',
-        signal: 'SIGTERM',
-      }),
-    ).toEqual([
-      'launch_failure',
-      'signal_or_exit_failure',
-      'diagnostic_protocol_failure',
-    ]);
-
+  it('fails closed when the process outcome is indeterminate', () => {
     expect(
       classifyVitestProcessOutcome({
         diagnosticProtocolOk: true,
-        exitCode: 1,
+        exitCode: null,
+        launchErrorCode: null,
+        signal: null,
       }),
     ).toEqual(['signal_or_exit_failure']);
+
+    const secret = 'OPENAI_API_KEY=raw-secret-value';
+    const evidence = createVitestPhaseDiagnosticEvidence({
+      diagnosticBytes: 0,
+      diagnosticClasses: classifyVitestDiagnostic({ message: secret }),
+      diagnosticProtocolOk: true,
+      diagnosticRecords: 0,
+      elapsedMs: 25,
+      exitCode: null,
+      fileCount: 1,
+      launchErrorCode: null,
+      phase: 'ordinary',
+      signal: null,
+      workerLimit: 4,
+    });
+
+    expect(evidence).toMatchObject({
+      classes: ['signal_or_exit_failure'],
+      exitCode: null,
+      gateStatus: 'failed',
+      launchErrorCode: null,
+      signal: null,
+    });
+    expect(JSON.stringify(evidence)).not.toContain(secret);
+    expect(JSON.stringify(evidence)).not.toContain('OPENAI_API_KEY');
+  });
+
+  it('keeps a normal exit zero passing', () => {
+    expect(
+      classifyVitestProcessOutcome({
+        diagnosticProtocolOk: true,
+        exitCode: 0,
+        launchErrorCode: null,
+        signal: null,
+      }),
+    ).toEqual([]);
+  });
+
+  it.each([
+    {
+      expected: ['signal_or_exit_failure'],
+      label: 'a signal',
+      outcome: { exitCode: null, launchErrorCode: null, signal: 'SIGTERM' },
+    },
+    {
+      expected: ['signal_or_exit_failure'],
+      label: 'a nonzero exit',
+      outcome: { exitCode: 1, launchErrorCode: null, signal: null },
+    },
+    {
+      expected: ['launch_failure'],
+      label: 'a launch failure',
+      outcome: { exitCode: null, launchErrorCode: 'ENOENT', signal: null },
+    },
+  ])('keeps $label gate-failing', ({ expected, outcome }) => {
+    expect(
+      classifyVitestProcessOutcome({
+        diagnosticProtocolOk: true,
+        ...outcome,
+      }),
+    ).toEqual(expected);
+  });
+
+  it('keeps diagnostic protocol failures gate-failing', () => {
+    expect(
+      classifyVitestProcessOutcome({
+        diagnosticProtocolOk: false,
+        exitCode: 0,
+        launchErrorCode: null,
+        signal: null,
+      }),
+    ).toEqual(['diagnostic_protocol_failure']);
   });
 
   it('emits bounded phase evidence without raw diagnostic text', () => {

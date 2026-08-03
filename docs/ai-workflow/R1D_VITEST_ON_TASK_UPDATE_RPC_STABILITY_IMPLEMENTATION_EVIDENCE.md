@@ -1,6 +1,6 @@
 # R1D-VITEST-ON-TASK-UPDATE-RPC-STABILITY Implementation Evidence
 
-Status: **local implementation complete; targeted RPC event absent in the one full run; repository gate HOLD; independent QA required**
+Status: **original implementation independently PASSed; MINOR-1 corrected pending read-only micro re-gate; targeted RPC event absent in the one full run; repository gate HOLD**
 
 Date: `2026-08-03`
 
@@ -49,6 +49,26 @@ The technical claim was checked against installed source rather than inferred fr
 - the same installed defaults retain isolated `forks`, `5,000ms` tests, and `10,000ms` teardown.
 
 The root-cause boundary remains causal uncertainty, not a falsely precise diagnosis.
+
+## Independent QA and focused MINOR-1 correction
+
+Claude Code independently reviewed exact immutable range `a65de8bc617da34c0db56bce48fd81299ca7d988..08100582e955ae67d660a6944ab665d1ac14436f` and returned technical **PASS** with **0 BLOCKER, 0 MAJOR, and 1 non-blocking MINOR**. It independently reproduced **4 files / 39 tests PASS**, TypeScript exit `0`, the exact **283 canonical / 264 ordinary / 19 resource-intensive** census, fourteen typed classifier negative controls, exact-once execution and bounded diagnostic behavior, and unchanged dependencies plus `test` / `test:watch`. This is Claude Code's verdict, not Codex self-awarding technical PASS.
+
+**MINOR-1 - corrected; independent closure pending.** The defensive input `exitCode:null`, `signal:null`, and `launchErrorCode:null` previously added no process-outcome class and therefore could produce `gateStatus:passed`. The correction maps only that indeterminate state to the existing closed `signal_or_exit_failure` class. It does not add a taxonomy value or change the reporter protocol. Direct regression tests prove:
+
+1. the indeterminate outcome fails with `signal_or_exit_failure`;
+2. normal exit `0` still passes;
+3. a signal, nonzero exit, launch failure, and diagnostic-protocol failure remain failures;
+4. indeterminate evidence contains only closed fields/classes, excludes the hostile input text, and carries `gateStatus:failed`.
+
+Focused correction validation passed **1 file / 21 tests**. Deterministic `npx --no-install tsc --noEmit` and `git diff --check` pass. The literal `npm run check` was not rerun because its one authorized run was already consumed. This correction remains pending a read-only Claude Code micro re-gate; Codex does not self-award its closure.
+
+Claude Code's advisory limitations remain preserved:
+
+- **N1 - include-surface boundary:** canonical includes are intentionally restricted to `lib/` and the classifier walks only `lib/`; a spec outside that shared Vitest/classifier surface is not discovered. This does not create divergence between the two consumers, which use the same policy.
+- **N2 - reviewer self-disclosure:** Claude's first independent census helper contained a glob-to-regex bug and assumed manifest entries were strings. Claude corrected both before reporting; its final **283 / 264 / 19** result was independently confirmed by the repository classifier.
+- **N3 - full-gate reproduction boundary:** Claude did not rerun or independently verify the recorded one literal `npm run check` exit `1`, by instruction. The six missing ignored-fixture failures remain a pre-existing, separate repository baseline.
+- **N4 - inherited environment:** Vitest children receive the parent environment as normal test-runner behavior; no environment value enters the diagnostic evidence.
 
 ## Implementation
 
@@ -110,7 +130,8 @@ No timeout, dependency, lockfile, Node, pool, isolation, reporter visibility, re
 
 1. `19d74225fe56ea376620ecbc1226fbafce3d0532` - `test: add sanitized Vitest failure diagnostics`
 2. `f017090c3a333cfb152bf49a62bdd958c775f8e8` - `test: schedule Vitest workloads exactly once`
-3. This containing documentation/evidence commit - `CURRENT.md`, durable Decision Gate, implementation evidence, validation record, limitations, rollback, and QA handoff
+3. `08100582e955ae67d660a6944ab665d1ac14436f` - `docs: record Vitest RPC stability evidence`
+4. This focused QA correction commit - fail-closed indeterminate process outcome, direct regression coverage, and independent-QA transcription
 
 ## Validation record
 
@@ -205,13 +226,14 @@ No historical ignored fixture, tracked file, or other worktree was removed or ch
 
 There is no migration or external state.
 
-1. Revert the documentation/evidence commit.
-2. Revert `f017090c3a333cfb152bf49a62bdd958c775f8e8` to restore the original `npm run check` launcher/config and remove classifier/supervisor policy.
-3. Revert `19d74225fe56ea376620ecbc1226fbafce3d0532` to remove diagnostic taxonomy/reporter/tests.
+1. Revert the focused QA correction commit to restore the original independently reviewed range and its documented MINOR-1.
+2. Revert `08100582e955ae67d660a6944ab665d1ac14436f` to remove the original documentation/evidence milestone.
+3. Revert `f017090c3a333cfb152bf49a62bdd958c775f8e8` to restore the original `npm run check` launcher/config and remove classifier/supervisor policy.
+4. Revert `19d74225fe56ea376620ecbc1226fbafce3d0532` to remove diagnostic taxonomy/reporter/tests.
 
 The ignored local dependency tree may then be removed only as a separate explicit cleanup action if desired.
 
-## Claude Code first-pass QA brief
+## Original Claude Code first-pass QA brief - completed
 
 Review mode: **read-only first pass**. Do not edit, push, rerun `npm run check`, copy/import ignored fixtures, or change dependency/pool/timeout policy.
 
@@ -259,6 +281,6 @@ node node_modules/typescript/lib/tsc.js --noEmit --project tsconfig.json --incre
 node node_modules/vitest/vitest.mjs run lib/__tests__/vitest-diagnostics.spec.ts lib/__tests__/vitest-execution-policy.spec.ts lib/__tests__/vitest-workload-classifier.spec.ts lib/__tests__/vitest-check-supervisor.spec.ts --pool=forks --isolate --fileParallelism --maxWorkers=2 --reporter=verbose
 ```
 
-Expected immutable review range is the approved base through the final documentation commit on `codex/r1d-vitest-on-task-update-rpc-stability`; Codex will provide the exact final head after creating commit 3. Any reviewer branch/HEAD mismatch must stop the review and be reconciled first.
+The completed immutable first-pass range was `a65de8bc617da34c0db56bce48fd81299ca7d988..08100582e955ae67d660a6944ab665d1ac14436f`. Claude Code returned the independent PASS and one non-blocking MINOR recorded above. Any correction reviewer branch/HEAD mismatch must stop the micro re-gate and be reconciled first.
 
 Codex does not self-award technical PASS. Guy retains product/priority authority; this milestone changes no customer-visible behavior.
