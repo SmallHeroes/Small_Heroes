@@ -1,6 +1,6 @@
 # R1D-PVB-D1A1B1 Draft Authority and Reference Domain Hardening - Implementation Evidence
 
-Status: **implementation complete / independent technical QA pending**
+Status: **independent Claude Code technical PASS / documentation closeout**
 
 Date: `2026-08-03`
 
@@ -16,7 +16,34 @@ Cost: `$0`
 
 Before edits, Codex reconciled `git worktree list --porcelain`, `git branch -vv`, and status across relevant worktrees. This worktree was clean at the exact required base, the target branch was created from that base, and no other task had write authority here. Other dirty worktrees were treated as user-owned and were not changed.
 
-This task is the sole writer for the milestone. It creates three focused local commits and does not push. The Lead task remains the decision and re-gate hub. Claude Code has not yet reviewed the implementation, so this document records local engineering evidence only and does not claim independent technical PASS.
+This task was the sole writer for the implementation milestone and is the sole writer for this two-file documentation closeout. The implementation created three focused local commits; this closeout adds one focused containing commit and does not push. The Lead task remains the decision and re-gate hub.
+
+## Independent technical review
+
+Claude Code independently reviewed exact implementation range `07adf0997eb7330c026fb5c395cf77e359e89e4f..5a51fea3da01eb9a4ad8cac5534b80809bd939de` and returned technical **PASS** with:
+
+- **0 BLOCKER**;
+- **0 MAJOR**;
+- **2 non-blocking MINORs**.
+
+Codex records Claude Code's verdict and does not self-award technical PASS.
+
+### MINOR-1 - closed by independent micro re-gate
+
+The inherited stale documentation statement identified by the review was already corrected in range `b735a22f..07adf099`. Claude Code independently micro-re-gated that exact correction range and closed MINOR-1. This document attributes the closure to Claude Code; it is not a Codex self-awarded result.
+
+### MINOR-2 - separate test-infrastructure limitation
+
+The Vitest worker RPC timeout calling `onTaskUpdate` was independently reproduced with a real isolated/local `node_modules`. That reproduction falsifies the earlier junction-only explanation. Claude found no implementation defect in the reviewed range that caused the event, but literal `npm run check` cannot currently produce a green exit until the separate test-infrastructure issue is resolved.
+
+### Advisory limitations
+
+Claude Code's N1-N4 remain advisory only:
+
+1. The spatial-node enum remains the pre-existing closed vocabulary.
+2. No raw artifact of the original 40 stale-fixture failures was preserved; Claude verified the corrected repository state.
+3. Claude did not map every one of the earlier 49 errors to individually named test cases, although the structural prevention and new specifications passed.
+4. Projection equality uses `JSON.stringify` and is key-order-sensitive. This is strict and fail-closed, but brittle.
 
 ## Implemented decisions
 
@@ -162,6 +189,19 @@ The command was not rerun after corrections. The stale shared Fox lifecycle/cove
 
 The aggregate is not claimed as a command PASS because its exit was nonzero. The smaller affected suites listed above all exited `0`. The repeated worker reporting timeout is an execution-stability limitation distinct from assertion correctness and was not hidden through retry, serialization, timeout expansion, skipping, or assertion weakening.
 
+### Independent reproduction
+
+Claude Code independently reproduced:
+
+- deterministic repository-local TypeScript: **PASS**;
+- corrected changed-spec surface: **26 changed spec files / 574 tests passed**;
+- assertion result: **zero assertion failures**;
+- command exit: `1` only because of one `[vitest-worker] Timeout calling "onTaskUpdate"`;
+- Structured Outputs draft v11, repair, and Blueprint v4 compatibility: **zero issues**;
+- measured draft schema depth: **9/10**.
+
+The nonzero command exit remains disclosed. The isolated/local dependency reproduction shows that the worker RPC limitation is not explained by a cross-worktree dependency junction.
+
 ## Files and implementation surface
 
 Primary production surfaces:
@@ -187,4 +227,4 @@ Focused story-neutral tests live under compiler, Set Board, visual-package, Blue
 
 There was no credential loading/check, pricing lookup, network/provider/model call, live authoring, real B0/readiness run, render, image/Vision, storage/database write, Board action, real Semantic Reconciliation, approval, publication, promotion, production activation, deployment, PR, or push. No full-book or page render occurred. Cost is exactly `$0`.
 
-This implementation does not authorize a new live attempt. It does not grant product, visual, Blueprint, render-readiness, release, or launch acceptance. Next action is independent Claude Code review of the immutable base-to-head range. Claude should attempt to falsify exact binding, order stability, ambiguity rejection, prop lifecycle safety, unary/binary schema arity, old-version rejection, migration immutability, digest closure, B0/readiness/runtime staleness fences, and provider/image unreachability.
+Independent technical PASS does not authorize a new live attempt. It grants no product, visual, Blueprint, Wizard, render-readiness, readiness, live-authoring, release, launch, provider, credential, deployment, or push acceptance. The `onTaskUpdate` worker RPC stability issue remains a separate planning concern and does not expand this milestone's authority.
