@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
-import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import {
@@ -55,6 +55,8 @@ import {
 export const CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION =
   'canonical-pre-live-readiness-evidence/v4' as const;
 export const CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION =
+  'canonical-pre-live-readiness-failure/v3' as const;
+export const CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION =
   'canonical-pre-live-readiness-failure/v2' as const;
 export const CANONICAL_PRE_LIVE_DEPENDENCY_AUTHORITY_VERSION =
   'canonical-pre-live-dependency-authority/v1' as const;
@@ -69,12 +71,9 @@ const STORY_KEY_PATTERN =
   /^[A-Za-z0-9][A-Za-z0-9_-]{0,159}$/;
 const TIMESTAMP_PATTERN =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-const GIT_BRANCH_PATTERN =
-  /^[A-Za-z0-9][A-Za-z0-9._/-]{0,239}$/;
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const COMMIT_PATTERN = /^[a-f0-9]{40}$/;
 const REASON_CODE_PATTERN = /^[a-z0-9_:-]{1,128}$/;
-const MAX_GIT_OUTPUT_BYTES = 64 * 1024;
 const MAX_EVIDENCE_BYTES = 1024 * 1024;
 const MAX_EVIDENCE_FILES = 64;
 
@@ -239,8 +238,82 @@ export type CanonicalPreLiveReadinessPhase =
   | 'supervisor_verification'
   | 'evidence';
 
+export type CanonicalPreLiveGitProfile =
+  | 'bootstrap_launcher'
+  | 'private_entry';
+export type CanonicalPreLiveGitCommandId =
+  | 'repository_top_level'
+  | 'symbolic_branch'
+  | 'upstream_ref'
+  | 'head_commit'
+  | 'upstream_head_commit'
+  | 'divergence'
+  | 'worktree_status'
+  | 'output_root_ignore';
+export type CanonicalPreLiveGitFailureClass =
+  | 'spawn_error'
+  | 'timeout'
+  | 'signal'
+  | 'output_ceiling'
+  | 'malformed_result'
+  | 'nonzero_exit';
+
+export interface CanonicalPreLiveGitDiagnostic {
+  profile: CanonicalPreLiveGitProfile;
+  commandId: CanonicalPreLiveGitCommandId;
+  failureClass: CanonicalPreLiveGitFailureClass | null;
+  exitStatus: number | null;
+  signalClass:
+    | 'none'
+    | 'termination'
+    | 'interrupt'
+    | 'kill'
+    | 'abort'
+    | 'hangup'
+    | 'unknown';
+  errorClass:
+    | 'none'
+    | 'timeout'
+    | 'output_limit'
+    | 'not_found'
+    | 'permission_denied'
+    | 'unknown';
+  stderrClass:
+    | 'none'
+    | 'safe_directory'
+    | 'not_a_git_repository'
+    | 'ref_not_found'
+    | 'permission_denied'
+    | 'unclassified';
+  stdoutBytes: number;
+  stderrBytes: number;
+}
+
 export interface CanonicalPreLiveReadinessFailure {
   version: typeof CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION;
+  status: 'rejected';
+  mode: CanonicalPreLiveReadinessMode;
+  phase: CanonicalPreLiveReadinessPhase;
+  reasonCodes: string[];
+  authorityReasonCodes: string[];
+  gitDiagnostic: CanonicalPreLiveGitDiagnostic | null;
+  requestIdentityDigest: string | null;
+  pricingAuthority: 'not_checked';
+  canonicalPreflight: 'not_run';
+  credentialAccess: 'none';
+  providerCalls: 0;
+  liveAuthority: 'none';
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
+
+export type CanonicalPreLiveReadinessResult =
+  | CanonicalPreLiveReadinessEvidence
+  | CanonicalPreLiveReadinessFailure;
+
+export interface HistoricalCanonicalPreLiveReadinessFailureV2 {
+  version:
+    typeof CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION;
   status: 'rejected';
   mode: CanonicalPreLiveReadinessMode;
   phase: CanonicalPreLiveReadinessPhase;
@@ -256,29 +329,23 @@ export interface CanonicalPreLiveReadinessFailure {
   digest: string;
 }
 
-export type CanonicalPreLiveReadinessResult =
-  | CanonicalPreLiveReadinessEvidence
-  | CanonicalPreLiveReadinessFailure;
-
-interface GitCommandResult {
+interface GitProviderResult {
   status: number | null;
-  signal: NodeJS.Signals | null;
-  error: boolean;
-  stdout: string;
+  signal: NodeJS.Signals | string | null;
+  error?: Error | { code?: unknown };
+  stdout?: string;
+  stderr?: string;
 }
 
-type GitCommandRunner = (
-  argv: readonly string[],
-  options: {
-    cwd: string;
-    env: NodeJS.ProcessEnv;
-  },
-) => GitCommandResult;
+type GitResultProvider = (options: {
+  profile: 'private_entry';
+  commandId: CanonicalPreLiveGitCommandId;
+}) => GitProviderResult;
 
 export interface CanonicalPreLiveReadinessDependencies {
   env: NodeJS.ProcessEnv;
   platform: NodeJS.Platform;
-  runGit: GitCommandRunner;
+  gitResultProvider?: GitResultProvider;
   inspectDependencies: (args: {
     repositoryRealPath: string;
     launchAuthority: CanonicalPreLiveReadinessLaunchAuthority;
@@ -290,6 +357,77 @@ export interface CanonicalPreLiveReadinessDependencies {
     typeof materializeCanonicalLiveExecutionRequest;
   verifyExecution: typeof verifyCanonicalLiveExecution;
 }
+
+interface SharedGitTopologyAuthority {
+  repositoryRealPath: string;
+  branchRef: string;
+  head: string;
+  upstreamRef: string;
+}
+
+type SharedGitTopologyError = Error & {
+  reasonCode: string;
+  diagnostic: CanonicalPreLiveGitDiagnostic | null;
+};
+
+const require = createRequire(import.meta.url);
+const canonicalPreLiveGitBoundary = require(
+  '../../scripts/lib/canonical-pre-live-git-invocation.cjs',
+) as {
+  CanonicalPreLiveGitTopologyError: new (
+    reasonCode: string,
+    diagnostic?: CanonicalPreLiveGitDiagnostic | null,
+  ) => SharedGitTopologyError;
+  isCanonicalPreLiveGitDiagnostic: (
+    value: unknown,
+  ) => value is CanonicalPreLiveGitDiagnostic;
+  verifyCanonicalPreLiveGitTopology: (options: {
+    profile: CanonicalPreLiveGitProfile;
+    repositoryRealPath: string;
+    outputRoot: string;
+    environment: NodeJS.ProcessEnv;
+    platform: NodeJS.Platform;
+    resultProvider?: (options: {
+      profile: CanonicalPreLiveGitProfile;
+      commandId: CanonicalPreLiveGitCommandId;
+    }) => GitProviderResult;
+  }) => SharedGitTopologyAuthority;
+};
+
+const PRIVATE_TOPOLOGY_REASON_CODES = new Map<string, string>([
+  [
+    'bootstrap_git_rejected',
+    'pre_live_topology_git_rejected',
+  ],
+  [
+    'bootstrap_repository_mismatch',
+    'pre_live_topology_repository_mismatch',
+  ],
+  [
+    'bootstrap_dedicated_branch_required',
+    'pre_live_topology_dedicated_branch_required',
+  ],
+  [
+    'bootstrap_same_name_upstream_required',
+    'pre_live_topology_same_name_origin_required',
+  ],
+  [
+    'bootstrap_head_mismatch',
+    'pre_live_topology_head_mismatch',
+  ],
+  [
+    'bootstrap_divergence_rejected',
+    'pre_live_topology_divergence_rejected',
+  ],
+  [
+    'bootstrap_dirty_rejected',
+    'pre_live_topology_dirty_rejected',
+  ],
+  [
+    'bootstrap_output_not_ignored',
+    'pre_live_output_root_must_be_ignored',
+  ],
+]);
 
 interface CanonicalPreLiveLayout {
   inputRoot: string;
@@ -303,6 +441,7 @@ class CanonicalPreLiveReadinessError extends Error {
     readonly phase: CanonicalPreLiveReadinessPhase,
     readonly reasonCode: string,
     readonly authorityReasonCodes: readonly string[] = [],
+    readonly gitDiagnostic: CanonicalPreLiveGitDiagnostic | null = null,
   ) {
     super(reasonCode);
     this.name = 'CanonicalPreLiveReadinessError';
@@ -430,8 +569,19 @@ export function buildCanonicalPreLiveReadinessFailure(args: {
   phase: CanonicalPreLiveReadinessPhase;
   reasonCodes: readonly string[];
   authorityReasonCodes?: readonly string[];
+  gitDiagnostic?: CanonicalPreLiveGitDiagnostic | null;
   input?: Partial<CanonicalPreLiveReadinessInput>;
 }): CanonicalPreLiveReadinessFailure {
+  const gitDiagnostic = args.gitDiagnostic ?? null;
+  if (
+    gitDiagnostic !== null &&
+    (!canonicalPreLiveGitBoundary.isCanonicalPreLiveGitDiagnostic(
+      gitDiagnostic,
+    ) ||
+      gitDiagnostic.failureClass === null)
+  ) {
+    throw new Error('pre_live_git_diagnostic_invalid');
+  }
   const withoutDigest = {
     version: CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION,
     status: 'rejected' as const,
@@ -449,6 +599,7 @@ export function buildCanonicalPreLiveReadinessFailure(args: {
         (args.authorityReasonCodes?.length ?? 0) > 0 ||
         value !== 'authority_rejected',
     ),
+    gitDiagnostic,
     requestIdentityDigest: requestIdentityDigest(
       args.input ?? {},
     ),
@@ -465,6 +616,160 @@ export function buildCanonicalPreLiveReadinessFailure(args: {
       failureWithoutDigest(withoutDigest),
     ),
   };
+}
+
+function validFailureReasonCodes(
+  value: unknown,
+  allowEmpty: boolean,
+): boolean {
+  if (
+    !Array.isArray(value) ||
+    (!allowEmpty && value.length === 0)
+  ) {
+    return false;
+  }
+  const values = value.filter(
+    (entry): entry is string =>
+      typeof entry === 'string' &&
+      REASON_CODE_PATTERN.test(entry),
+  );
+  return (
+    values.length === value.length &&
+    values.every(
+      (entry, index) =>
+        index === 0 || values[index - 1]! < entry,
+    )
+  );
+}
+
+export function canonicalPreLiveReadinessFailureIssues(
+  value: unknown,
+  options: { allowHistorical?: boolean } = {},
+): string[] {
+  const failure = recordValue(value);
+  if (!failure) return ['pre_live_failure_not_object'];
+  const current =
+    failure.version ===
+    CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION;
+  const historical =
+    failure.version ===
+    CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION;
+  const issues: string[] = [];
+  if (!current && !(historical && options.allowHistorical)) {
+    issues.push('pre_live_failure_version_not_current');
+  }
+  const expectedKeys = [
+    'version',
+    'status',
+    'mode',
+    'phase',
+    'reasonCodes',
+    'authorityReasonCodes',
+    ...(current ? ['gitDiagnostic'] : []),
+    'requestIdentityDigest',
+    'pricingAuthority',
+    'canonicalPreflight',
+    'credentialAccess',
+    'providerCalls',
+    'liveAuthority',
+    'digestAlgorithm',
+    'digest',
+  ];
+  if (!exactKeys(failure, expectedKeys)) {
+    issues.push('pre_live_failure_fields_invalid');
+  }
+  if (
+    failure.status !== 'rejected' ||
+    !['prepare', 'verify'].includes(String(failure.mode)) ||
+    ![
+      'launcher',
+      'input',
+      'dependency',
+      'topology',
+      'source_input',
+      'b0_materialization',
+      'b0_verification',
+      'execution_input',
+      'execution_materialization',
+      'supervisor_verification',
+      'evidence',
+    ].includes(String(failure.phase)) ||
+    !validFailureReasonCodes(failure.reasonCodes, false) ||
+    !validFailureReasonCodes(
+      failure.authorityReasonCodes,
+      true,
+    ) ||
+    !(
+      failure.requestIdentityDigest === null ||
+      (typeof failure.requestIdentityDigest === 'string' &&
+        DIGEST_PATTERN.test(failure.requestIdentityDigest))
+    ) ||
+    failure.pricingAuthority !== 'not_checked' ||
+    failure.canonicalPreflight !== 'not_run' ||
+    failure.credentialAccess !== 'none' ||
+    failure.providerCalls !== 0 ||
+    failure.liveAuthority !== 'none' ||
+    failure.digestAlgorithm !== 'canonical-json-sha256' ||
+    typeof failure.digest !== 'string' ||
+    !DIGEST_PATTERN.test(failure.digest)
+  ) {
+    issues.push('pre_live_failure_contract_invalid');
+  }
+  if (
+    current &&
+    failure.gitDiagnostic !== null &&
+    (!canonicalPreLiveGitBoundary.isCanonicalPreLiveGitDiagnostic(
+      failure.gitDiagnostic,
+    ) ||
+      failure.gitDiagnostic.failureClass === null)
+  ) {
+    issues.push('pre_live_failure_git_diagnostic_invalid');
+  }
+  if (
+    typeof failure.digest === 'string' &&
+    DIGEST_PATTERN.test(failure.digest)
+  ) {
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...withoutDigest
+    } = failure;
+    try {
+      if (canonicalJsonDigest(withoutDigest) !== failure.digest) {
+        issues.push('pre_live_failure_digest_invalid');
+      }
+    } catch {
+      issues.push('pre_live_failure_digest_invalid');
+    }
+  }
+  return [...new Set(issues)].sort();
+}
+
+export function inspectCanonicalPreLiveReadinessFailure(
+  value: unknown,
+):
+  | {
+      authority: 'current';
+      failure: CanonicalPreLiveReadinessFailure;
+    }
+  | {
+      authority: 'historical_evidence';
+      failure: HistoricalCanonicalPreLiveReadinessFailureV2;
+    } {
+  const issues = canonicalPreLiveReadinessFailureIssues(
+    value,
+    { allowHistorical: true },
+  );
+  if (issues.length > 0) {
+    throw new Error('pre_live_failure_rejected');
+  }
+  const failure = value as
+    | CanonicalPreLiveReadinessFailure
+    | HistoricalCanonicalPreLiveReadinessFailureV2;
+  return failure.version ===
+    CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION
+    ? { authority: 'current', failure }
+    : { authority: 'historical_evidence', failure };
 }
 
 function evidenceWithoutDigest(
@@ -597,236 +902,64 @@ function childRequestIds(
   };
 }
 
-function gitEnvironment(
-  environment: NodeJS.ProcessEnv,
-  platform: NodeJS.Platform,
-): NodeJS.ProcessEnv {
-  const names =
-    platform === 'win32'
-      ? [
-          'ComSpec',
-          'PATH',
-          'PATHEXT',
-          'SystemRoot',
-          'TEMP',
-          'TMP',
-          'WINDIR',
-        ]
-      : ['HOME', 'LANG', 'LC_ALL', 'PATH', 'TMPDIR', 'TZ'];
-  const result: NodeJS.ProcessEnv = {
-    GIT_OPTIONAL_LOCKS: '0',
-    NODE_ENV: 'production',
-  };
-  for (const name of names) {
-    const key =
-      platform === 'win32'
-        ? Object.keys(environment).find(
-            (candidate) =>
-              candidate.toLowerCase() === name.toLowerCase(),
-          )
-        : name;
-    if (key && environment[key] !== undefined) {
-      result[name] = environment[key];
-    }
-  }
-  return result;
-}
-
-function defaultGitCommandRunner(
-  argv: readonly string[],
-  options: {
-    cwd: string;
-    env: NodeJS.ProcessEnv;
-  },
-): GitCommandResult {
-  const result = spawnSync('git', argv, {
-    cwd: options.cwd,
-    env: options.env,
-    encoding: 'utf8',
-    shell: false,
-    windowsHide: true,
-    timeout: 20_000,
-    maxBuffer: MAX_GIT_OUTPUT_BYTES,
-  });
-  return {
-    status: result.status,
-    signal: result.signal,
-    error: result.error !== undefined,
-    stdout: result.stdout ?? '',
-  };
-}
-
-function runGit(args: {
-  repositoryRealPath: string;
-  argv: readonly string[];
-  dependencies: CanonicalPreLiveReadinessDependencies;
-  allowStatusOne?: boolean;
-}): GitCommandResult {
-  let result: GitCommandResult;
-  try {
-    result = args.dependencies.runGit(args.argv, {
-      cwd: args.repositoryRealPath,
-      env: gitEnvironment(
-        args.dependencies.env,
-        args.dependencies.platform,
-      ),
-    });
-  } catch {
-    throw new CanonicalPreLiveReadinessError(
-      'topology',
-      'pre_live_topology_git_rejected',
-    );
-  }
-  if (
-    result.error ||
-    result.signal !== null ||
-    result.stdout.length > MAX_GIT_OUTPUT_BYTES ||
-    (result.status !== 0 &&
-      !(args.allowStatusOne && result.status === 1))
-  ) {
-    throw new CanonicalPreLiveReadinessError(
-      'topology',
-      'pre_live_topology_git_rejected',
-    );
-  }
-  return result;
-}
-
 function verifyDedicatedTopology(args: {
   repositoryRealPath: string;
   outputRoot: string;
   dependencies: CanonicalPreLiveReadinessDependencies;
 }): CanonicalPreLiveRepositoryAuthority {
-  const topLevel = runGit({
-    ...args,
-    argv: ['rev-parse', '--show-toplevel'],
-  }).stdout.trim();
-  if (!pathsEqual(topLevel, args.repositoryRealPath)) {
-    throw new CanonicalPreLiveReadinessError(
-      'topology',
-      'pre_live_topology_repository_mismatch',
-    );
-  }
-  const branch = runGit({
-    ...args,
-    argv: ['symbolic-ref', '--quiet', '--short', 'HEAD'],
-  }).stdout.trim();
-  if (
-    !GIT_BRANCH_PATTERN.test(branch) ||
-    branch.includes('..') ||
-    branch.includes('//') ||
-    branch.endsWith('/') ||
-    branch.endsWith('.lock') ||
-    branch === 'main' ||
-    branch === 'master'
-  ) {
-    throw new CanonicalPreLiveReadinessError(
-      'topology',
-      'pre_live_topology_dedicated_branch_required',
-    );
-  }
-  const branchRef = `refs/heads/${branch}`;
-  let upstreamRef: string;
   try {
-    upstreamRef = runGit({
-      ...args,
-      argv: [
-        'rev-parse',
-        '--symbolic-full-name',
-        '@{upstream}',
-      ],
-    }).stdout.trim();
-  } catch {
+    const authority =
+      canonicalPreLiveGitBoundary.verifyCanonicalPreLiveGitTopology(
+        {
+          profile: 'private_entry',
+          repositoryRealPath: args.repositoryRealPath,
+          outputRoot: args.outputRoot,
+          environment: args.dependencies.env,
+          platform: args.dependencies.platform,
+          resultProvider: args.dependencies.gitResultProvider
+            ? ({ profile, commandId }) => {
+                if (profile !== 'private_entry') {
+                  throw new Error('git_profile_invalid');
+                }
+                return args.dependencies.gitResultProvider!({
+                  profile,
+                  commandId,
+                });
+              }
+            : undefined,
+        },
+      );
+    return {
+      repositoryRealPath: authority.repositoryRealPath,
+      branchRef: authority.branchRef,
+      head: authority.head,
+      upstreamRef: authority.upstreamRef,
+      upstreamHead: authority.head,
+      ahead: 0,
+      behind: 0,
+    };
+  } catch (error) {
+    if (
+      error instanceof
+      canonicalPreLiveGitBoundary.CanonicalPreLiveGitTopologyError
+    ) {
+      throw new CanonicalPreLiveReadinessError(
+        'topology',
+        PRIVATE_TOPOLOGY_REASON_CODES.get(error.reasonCode) ??
+          'pre_live_topology_git_rejected',
+        [],
+        canonicalPreLiveGitBoundary.isCanonicalPreLiveGitDiagnostic(
+          error.diagnostic,
+        )
+          ? error.diagnostic
+          : null,
+      );
+    }
     throw new CanonicalPreLiveReadinessError(
       'topology',
-      'pre_live_topology_same_name_origin_required',
+      'pre_live_topology_git_rejected',
     );
   }
-  const expectedUpstreamRef =
-    `refs/remotes/origin/${branch}`;
-  if (upstreamRef !== expectedUpstreamRef) {
-    throw new CanonicalPreLiveReadinessError(
-      'topology',
-      'pre_live_topology_same_name_origin_required',
-    );
-  }
-  const head = runGit({
-    ...args,
-    argv: ['rev-parse', '--verify', 'HEAD^{commit}'],
-  }).stdout.trim();
-  const upstreamHead = runGit({
-    ...args,
-    argv: [
-      'rev-parse',
-      '--verify',
-      `${upstreamRef}^{commit}`,
-    ],
-  }).stdout.trim();
-  if (
-    !COMMIT_PATTERN.test(head) ||
-    !COMMIT_PATTERN.test(upstreamHead) ||
-    head !== upstreamHead
-  ) {
-    throw new CanonicalPreLiveReadinessError(
-      'topology',
-      'pre_live_topology_head_mismatch',
-    );
-  }
-  const divergence = runGit({
-    ...args,
-    argv: [
-      'rev-list',
-      '--left-right',
-      '--count',
-      `${branchRef}...${upstreamRef}`,
-    ],
-  }).stdout.trim();
-  if (!/^0\s+0$/.test(divergence)) {
-    throw new CanonicalPreLiveReadinessError(
-      'topology',
-      'pre_live_topology_divergence_rejected',
-    );
-  }
-  const status = runGit({
-    ...args,
-    argv: [
-      'status',
-      '--porcelain=v2',
-      '--untracked-files=all',
-    ],
-  }).stdout;
-  if (status.trim().length > 0) {
-    throw new CanonicalPreLiveReadinessError(
-      'topology',
-      'pre_live_topology_dirty_rejected',
-    );
-  }
-  const ignore = runGit({
-    ...args,
-    argv: [
-      'check-ignore',
-      '--quiet',
-      '--no-index',
-      '--',
-      args.outputRoot,
-    ],
-    allowStatusOne: true,
-  });
-  if (ignore.status !== 0) {
-    throw new CanonicalPreLiveReadinessError(
-      'topology',
-      'pre_live_output_root_must_be_ignored',
-    );
-  }
-  return {
-    repositoryRealPath: args.repositoryRealPath,
-    branchRef,
-    head,
-    upstreamRef,
-    upstreamHead,
-    ahead: 0,
-    behind: 0,
-  };
 }
 
 function readUniqueFile(args: {
@@ -1059,7 +1192,6 @@ function defaultDependencies(): CanonicalPreLiveReadinessDependencies {
   return {
     env: process.env,
     platform: process.platform,
-    runGit: defaultGitCommandRunner,
     inspectDependencies:
       inspectCanonicalPreLiveDependencyAuthority,
     writeMaterializationInput:
@@ -2272,6 +2404,7 @@ function caughtFailure(args: {
       reasonCodes: [args.error.reasonCode],
       authorityReasonCodes:
         args.error.authorityReasonCodes,
+      gitDiagnostic: args.error.gitDiagnostic,
       input: args.input,
     });
   }

@@ -110,3 +110,47 @@ render/image/Vision/audio, storage/database/Supabase, Board, Semantic
 Reconciliation, approval, publication, promotion, production activation,
 deployment, PR, push, unrelated cleanup, or write in another worktree is
 authorized.
+
+## 8. Approved successor amendment - Git invocation diagnostics
+
+On 2026-08-03 Guy approved
+`R1D-PVB-D1A1B1-CANONICAL-PRE-LIVE-GIT-INVOCATION-DIAGNOSTICS-HARDENING`
+from exact pushed base `f09cfc6d30e13110c5ec39596fded8a4ed7a52ba` on branch
+`codex/r1d-pvb-d1a1b1-pre-live-git-invocation-diagnostics`. This amendment
+does not alter the historical decisions or review claims above. It supersedes
+the earlier "no diagnostic mode / no v2" restriction only for the new
+successor range after a later Fresh Readiness failure proved that generic Git
+rejection destroyed necessary sanitized attribution.
+
+The approved successor decisions are:
+
+1. One closed repository-owned catalog defines the exact Git commands for
+   top-level, branch, upstream, HEAD, upstream HEAD, divergence, status, and
+   output-ignore. No user/caller supplies executable, argv, shell text, cwd,
+   eval, or arbitrary command.
+2. Preserve distinct `bootstrap_launcher` and `private_entry` environment
+   profiles and their existing allowlists without merging or broadening them.
+3. Add public zero-cost `probe-git` before dependency/bootstrap consumption.
+   It must not resolve/install dependencies, access dependency authority,
+   write output roots, touch credentials, call network/provider, or award
+   readiness/live authority.
+4. Emit stdout-only, content-addressed
+   `canonical-pre-live-git-probe-evidence/v1` as diagnostic evidence only.
+5. Use only `spawn_error`, `timeout`, `signal`, `output_ceiling`,
+   `malformed_result`, and `nonzero_exit`, with stable reason mapping.
+6. Persist only the fixed profile/command identity, bounded status and
+   signal/error/stderr classes, byte counts, attestations, version, and
+   digest. Raw command/process/environment data must be discarded.
+7. Make `canonical-pre-live-readiness-failure/v3` current with a strict
+   nullable Git diagnostic. Historical v2 remains immutable/readable only as
+   evidence. Success readiness v4 and downstream authority do not bump unless
+   a verified binder requires it.
+8. Cover every command/failure class, both profiles, Windows repositories and
+   linked worktrees, spaces/Unicode, hostile environments, credential
+   non-access, raw-data exclusion, propagation, and unchanged sequencing.
+9. Add no remediation, Git configuration mutation, `safe.directory`, retry,
+   fallback, environment broadening, provider reachability, or story literal.
+
+The same stop-check and zero-cost exclusions continue to apply. A future
+probe may justify a separate remediation Decision Gate; it cannot authorize
+remediation itself.

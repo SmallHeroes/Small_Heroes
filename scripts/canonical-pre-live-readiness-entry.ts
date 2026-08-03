@@ -70,12 +70,13 @@ function launcherFailure(
   mode: 'prepare' | 'verify',
 ): Record<string, unknown> {
   const withoutDigest = {
-    version: 'canonical-pre-live-readiness-failure/v2',
+    version: 'canonical-pre-live-readiness-failure/v3',
     status: 'rejected',
     mode,
     phase: 'launcher',
     reasonCodes: ['pre_live_private_entry_rejected'],
     authorityReasonCodes: [],
+    gitDiagnostic: null,
     requestIdentityDigest: null,
     pricingAuthority: 'not_checked',
     canonicalPreflight: 'not_run',

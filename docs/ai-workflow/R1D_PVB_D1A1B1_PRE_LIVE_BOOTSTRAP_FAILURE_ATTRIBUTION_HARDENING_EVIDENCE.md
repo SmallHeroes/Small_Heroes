@@ -181,3 +181,124 @@ Independent Claude Code review should falsify:
   `shell:false`, and exit/signal behavior;
 - absence of TypeScript schema, prompt, model, budget, policy, retry, fallback,
   diagnostic-mode, raw-error, or live-authority drift.
+
+## Successor implementation evidence - Git invocation diagnostics
+
+This section records the approved 2026-08-03 successor milestone without
+changing the immutable claims for the earlier reviewed range above.
+
+### Topology and status
+
+- Worktree: `C:\Users\guyna\.codex\worktrees\a7ee\Small_Heroes`
+- Branch: `codex/r1d-pvb-d1a1b1-pre-live-git-invocation-diagnostics`
+- Exact pushed base/merge-base:
+  `f09cfc6d30e13110c5ec39596fded8a4ed7a52ba`
+- Source branch at intake: same-name upstream and local remote-tracking parity
+  `0/0` at the exact base. This observed fact does not identify or authorize a
+  push actor.
+- Commit 1: `eefd7d6d` - closed Git catalog, shared invocation sanitizer,
+  public probe, evidence v1, and subprocess matrix.
+- Commit 2: this integration/evidence commit - shared private-entry/core
+  consumption, failure v3, v2 historical fixture/reader, adjacent tests, and
+  durable documentation.
+- Target branch: local, no configured upstream or same-name remote-tracking
+  ref, unpushed. Gate: **HOLD pending independent Claude Code review**. Codex
+  does not self-award PASS.
+
+### Implemented boundary and migration
+
+- `scripts/lib/canonical-pre-live-git-invocation.cjs` is the sole command
+  catalog and process-classification boundary. Its eight command IDs and two
+  environment profiles are closed. Production callers cannot supply command
+  text, argv, executable, cwd, shell, or eval.
+- `probe-git` runs both profiles before dependency authority is resolved. It
+  emits only canonical `canonical-pre-live-git-probe-evidence/v1` on stdout.
+  The PASS-like status is `ready_for_canonical_prepare`, not readiness or live
+  authority.
+- The probe contract binds `credentialAccess:none`, `providerCalls:0`,
+  `canonicalPreflight:not_run`, `pricingAuthority:not_checked`,
+  `readinessAuthority:none`, and `liveAuthority:none`.
+- Every observation contains exactly profile, command ID, nullable closed
+  failure class, bounded exit/signal/error/stderr classes, and stdout/stderr
+  byte counts. Failure evidence requires a non-null failure class. The
+  `safe_directory` classifier requires a fixed stderr pattern; no inference
+  from context is allowed.
+- Launcher and private entry now produce current
+  `canonical-pre-live-readiness-failure/v3`. `gitDiagnostic` is always present
+  and nullable; unknown, extra, out-of-range, or otherwise malformed fields
+  fail closed. Non-Git failures carry `null`.
+- Historical v2 fixture payload digest is
+  `aa9a75d8b07b8706dcaf9cae440b2770a1d5e5c671ef703ab2ee803bda9fd59f`;
+  fixture-file SHA-256 is
+  `53ed113572a0d4f971dac7d20c424b498ca7646f7bee8261d8fd66de6b7141ba`.
+  The reader labels it `historical_evidence`; default current validation
+  rejects it. Its bytes are not rewritten or promoted.
+- Successful readiness remains v4. B0, Execution Request, Supervisor,
+  Wizard, dependency order, offline npm/Prisma argv, capability, public
+  prepare/verify, model, prompt, budget, retry, fallback, timeout, accounting,
+  and cost contracts remain unchanged.
+
+### Deterministic evidence
+
+```text
+CJS syntax for public wrapper, shared Git boundary, and launcher
+PASS
+
+focused + adjacent deterministic suite
+PASS - 7 files / 242 tests
+
+post-hostile-result focused integration suite
+PASS - 3 files / 155 tests
+
+repository-local TypeScript
+PASS
+
+structural raw-data/environment/command scan
+PASS
+
+working-tree git diff --check
+PASS
+
+literal npm run check - exactly once, not rerun
+NON-GREEN - TypeScript passed; Vitest config startup failed before collection
+```
+
+The 242-test matrix covers all eight commands under both profiles and all six
+failure classes, real Windows repositories and linked worktrees with
+spaces/Unicode, hostile environment reads, raw-data exclusion, content
+addressing, credential/output/dependency non-touch, launcher and private
+failure integration, immutable v2 compatibility, successful prepare/verify,
+canonical input and B0 materialization, Execution Request materialization,
+and Supervisor verification.
+
+The current worktree began without `node_modules` after the earlier failed
+readiness preparation. No install or generation ran. Deterministic validation
+used an ignored local junction to the already-prepared dependency tree in the
+read-only `600e` worktree. After the final syntax/TypeScript/focused gate, the
+junction and generated `tsconfig.tsbuildinfo` were removed while the junction
+target was reverified intact. The target worktree therefore returned to its
+intake dependency/scratch shape. This was test tooling, not
+dependency/bootstrap authority.
+
+The one literal `npm run check` reached and passed TypeScript, then exited `1`
+before collecting any Vitest test. Esbuild resolved the ignored dependency
+junction through the `600e` worktree and the sandbox denied a broader-directory
+read while loading `vitest.config.ts`. It did not reproduce the established
+six ignored-fixture failures because Vitest never started, and it exposed no
+test assertion failure. The command was not rerun. This is recorded as a new
+environment/startup limitation; the full gate is truthfully non-green.
+
+No real dependency install/Prisma generation, B0/rematerialization/readiness,
+credential existence/check/access/load/hash, canonical preflight,
+pricing/network/provider/model call, live authoring, render/image/Vision,
+storage/database, Board, Semantic Reconciliation, approval, publication,
+promotion, activation, deployment, PR, or push occurred. Cost remained `$0`.
+Rollback is reverting the two successor commits in reverse order; no external
+state or historical evidence cleanup is required.
+
+Independent Claude Code review should falsify the exact topology/range, closed
+catalog, both unbroadened profiles, every failure class and classifier,
+command/later-boundary unreachability, content addressing, v2 byte/digest
+immutability, v3 strictness, raw-data exclusion, probe non-authority,
+dependency/credential/output non-touch, unchanged sequencing/argv/versions,
+and the absence of remediation or policy drift.

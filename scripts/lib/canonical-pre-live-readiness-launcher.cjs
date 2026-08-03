@@ -5,13 +5,15 @@ const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
+  CanonicalPreLiveGitTopologyError,
   GIT_PROBE_EVIDENCE_VERSION,
+  isCanonicalPreLiveGitDiagnostic,
   runCanonicalPreLiveGitProbe,
   verifyCanonicalPreLiveGitTopology,
 } = require('./canonical-pre-live-git-invocation.cjs');
 
 const FAILURE_VERSION =
-  'canonical-pre-live-readiness-failure/v2';
+  'canonical-pre-live-readiness-failure/v3';
 const INTERNAL_CAPABILITY_FLAG =
   '--internal-launch-capability';
 const INTERNAL_ENVIRONMENT_NAMES = {
@@ -142,6 +144,14 @@ function requestIdentityDigest(parsed) {
 }
 
 function buildLauncherFailure(options) {
+  const gitDiagnostic = options.gitDiagnostic ?? null;
+  if (
+    gitDiagnostic !== null &&
+    (!isCanonicalPreLiveGitDiagnostic(gitDiagnostic) ||
+      gitDiagnostic.failureClass === null)
+  ) {
+    throw new Error('pre_live_git_diagnostic_invalid');
+  }
   const withoutDigest = {
     version: FAILURE_VERSION,
     status: 'rejected',
@@ -150,6 +160,7 @@ function buildLauncherFailure(options) {
     phase: options.phase,
     reasonCodes: [options.reasonCode],
     authorityReasonCodes: [],
+    gitDiagnostic,
     requestIdentityDigest:
       requestIdentityDigest(options.parsed),
     pricingAuthority: 'not_checked',
@@ -163,6 +174,13 @@ function buildLauncherFailure(options) {
     digestAlgorithm: 'canonical-json-sha256',
     digest: canonicalDigest(withoutDigest),
   };
+}
+
+function gitDiagnosticFromTopologyError(error) {
+  return error instanceof CanonicalPreLiveGitTopologyError &&
+    isCanonicalPreLiveGitDiagnostic(error.diagnostic)
+    ? error.diagnostic
+    : null;
 }
 
 function buildGitProbeEvidence(options) {
@@ -704,6 +722,8 @@ function runCanonicalPreLiveReadinessLauncher(options) {
         phase: 'topology',
         reasonCode:
           sanitizedBootstrapTopologyReasonCode(error),
+        gitDiagnostic:
+          gitDiagnosticFromTopologyError(error),
         parsed,
       }),
       disposition: { kind: 'exit', exitCode: 1 },

@@ -27,6 +27,31 @@ const GIT_FAILURE_CLASSES = Object.freeze([
   'malformed_result',
   'nonzero_exit',
 ]);
+const GIT_SIGNAL_CLASSES = Object.freeze([
+  'none',
+  'termination',
+  'interrupt',
+  'kill',
+  'abort',
+  'hangup',
+  'unknown',
+]);
+const GIT_ERROR_CLASSES = Object.freeze([
+  'none',
+  'timeout',
+  'output_limit',
+  'not_found',
+  'permission_denied',
+  'unknown',
+]);
+const GIT_STDERR_CLASSES = Object.freeze([
+  'none',
+  'safe_directory',
+  'not_a_git_repository',
+  'ref_not_found',
+  'permission_denied',
+  'unclassified',
+]);
 const MAX_GIT_OUTPUT_BYTES = 64 * 1024;
 const MAX_GIT_PATH_LABEL_LENGTH = 4096;
 
@@ -274,6 +299,51 @@ function diagnostic(options) {
   });
 }
 
+function isCanonicalPreLiveGitDiagnostic(value) {
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value)
+  ) {
+    return false;
+  }
+  const expectedKeys = [
+    'profile',
+    'commandId',
+    'failureClass',
+    'exitStatus',
+    'signalClass',
+    'errorClass',
+    'stderrClass',
+    'stdoutBytes',
+    'stderrBytes',
+  ].sort();
+  const actualKeys = Object.keys(value).sort();
+  return (
+    actualKeys.length === expectedKeys.length &&
+    actualKeys.every(
+      (key, index) => key === expectedKeys[index],
+    ) &&
+    GIT_PROFILES.includes(value.profile) &&
+    GIT_COMMAND_IDS.includes(value.commandId) &&
+    (value.failureClass === null ||
+      GIT_FAILURE_CLASSES.includes(value.failureClass)) &&
+    (value.exitStatus === null ||
+      (Number.isInteger(value.exitStatus) &&
+        value.exitStatus >= 0 &&
+        value.exitStatus <= 255)) &&
+    GIT_SIGNAL_CLASSES.includes(value.signalClass) &&
+    GIT_ERROR_CLASSES.includes(value.errorClass) &&
+    GIT_STDERR_CLASSES.includes(value.stderrClass) &&
+    Number.isInteger(value.stdoutBytes) &&
+    value.stdoutBytes >= 0 &&
+    value.stdoutBytes <= MAX_GIT_OUTPUT_BYTES + 1 &&
+    Number.isInteger(value.stderrBytes) &&
+    value.stderrBytes >= 0 &&
+    value.stderrBytes <= MAX_GIT_OUTPUT_BYTES + 1
+  );
+}
+
 function failedDiagnostic(options, failureClass, result) {
   const stdout = result && result.stdout;
   const stderr = result && result.stderr;
@@ -307,23 +377,28 @@ function invokeCanonicalPreLiveGitCommand(options) {
   );
   let result;
   try {
-    result = (options.spawnSyncImpl ?? spawnSync)(
-      'git',
-      argv,
-      {
-        cwd: options.repositoryRealPath,
-        env: gitEnvironmentForProfile({
+    result = options.resultProvider
+      ? options.resultProvider({
           profile: options.profile,
-          environment: options.environment,
-          platform: options.platform,
-        }),
-        encoding: 'utf8',
-        maxBuffer: MAX_GIT_OUTPUT_BYTES,
-        shell: false,
-        timeout: 20_000,
-        windowsHide: true,
-      },
-    );
+          commandId: options.commandId,
+        })
+      : (options.spawnSyncImpl ?? spawnSync)(
+          'git',
+          argv,
+          {
+            cwd: options.repositoryRealPath,
+            env: gitEnvironmentForProfile({
+              profile: options.profile,
+              environment: options.environment,
+              platform: options.platform,
+            }),
+            encoding: 'utf8',
+            maxBuffer: MAX_GIT_OUTPUT_BYTES,
+            shell: false,
+            timeout: 20_000,
+            windowsHide: true,
+          },
+        );
   } catch {
     const failure = failedDiagnostic(
       options,
@@ -332,8 +407,33 @@ function invokeCanonicalPreLiveGitCommand(options) {
     );
     return { ok: false, diagnostic: failure };
   }
-  const resultRecord =
-    result && typeof result === 'object' ? result : null;
+  let resultRecord = null;
+  try {
+    if (result && typeof result === 'object') {
+      resultRecord = {
+        status: result.status,
+        signal: result.signal,
+        error: result.error,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      };
+    }
+  } catch {
+    return {
+      ok: false,
+      diagnostic: diagnostic({
+        profile: options.profile,
+        commandId: options.commandId,
+        failureClass: 'malformed_result',
+        exitStatus: null,
+        signalClass: 'none',
+        errorClass: 'none',
+        stderrClass: 'none',
+        stdoutBytes: 0,
+        stderrBytes: 0,
+      }),
+    };
+  }
   const resultError = resultRecord && resultRecord.error;
   const resultErrorCode = errorCode(resultError);
   const stdoutBytes = boundedByteCount(
@@ -426,6 +526,7 @@ function collectCanonicalPreLiveGitProfile(options) {
       platform: options.platform,
       context,
       spawnSyncImpl: options.spawnSyncImpl,
+      resultProvider: options.resultProvider,
       allowOutputIgnoreStatusOne:
         options.allowOutputIgnoreStatusOne,
     });
@@ -618,14 +719,18 @@ module.exports = {
   CanonicalPreLiveGitTopologyError,
   FAILURE_REASON_CODES,
   GIT_COMMAND_IDS,
+  GIT_ERROR_CLASSES,
   GIT_FAILURE_CLASSES,
   GIT_PROBE_EVIDENCE_VERSION,
   GIT_PROFILES,
+  GIT_SIGNAL_CLASSES,
+  GIT_STDERR_CLASSES,
   MAX_GIT_OUTPUT_BYTES,
   collectCanonicalPreLiveGitProfile,
   exactGitArgv,
   gitEnvironmentForProfile,
   invokeCanonicalPreLiveGitCommand,
+  isCanonicalPreLiveGitDiagnostic,
   profileEnvironmentNames,
   runCanonicalPreLiveGitProbe,
   verifyCanonicalPreLiveGitTopology,

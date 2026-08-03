@@ -272,6 +272,7 @@ type FailureVariant =
   | 'signal'
   | 'output_ceiling'
   | 'malformed_result'
+  | 'hostile_result'
   | 'nonzero_exit';
 
 const failureExpectation: Record<
@@ -284,6 +285,7 @@ const failureExpectation: Record<
   signal: 'signal',
   output_ceiling: 'output_ceiling',
   malformed_result: 'malformed_result',
+  hostile_result: 'malformed_result',
   nonzero_exit: 'nonzero_exit',
 };
 
@@ -341,6 +343,15 @@ function failureResult(
       stdout: '',
       stderr: '',
     };
+  }
+  if (variant === 'hostile_result') {
+    return new Proxy({} as GitSpawnResult, {
+      get() {
+        throw new Error(
+          'raw hostile result fake-secret C:\\private\\repo',
+        );
+      },
+    });
   }
   return {
     status: 128,
@@ -672,6 +683,7 @@ describe('canonical pre-live Git invocation probe', () => {
         'raw spawn',
         'raw timeout',
         'raw signal',
+        'raw hostile',
         'dubious ownership',
         'safe.directory',
       ]) {

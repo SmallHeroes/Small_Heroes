@@ -1,0 +1,18 @@
+{
+  "authorityReasonCodes": [],
+  "canonicalPreflight": "not_run",
+  "credentialAccess": "none",
+  "digest": "aa9a75d8b07b8706dcaf9cae440b2770a1d5e5c671ef703ab2ee803bda9fd59f",
+  "digestAlgorithm": "canonical-json-sha256",
+  "liveAuthority": "none",
+  "mode": "prepare",
+  "phase": "topology",
+  "pricingAuthority": "not_checked",
+  "providerCalls": 0,
+  "reasonCodes": [
+    "pre_live_topology_git_rejected"
+  ],
+  "requestIdentityDigest": "c1b29448619fe4847608c81cec4a8784fd8411ef5f8d95ebdde1be9e2dde0ec2",
+  "status": "rejected",
+  "version": "canonical-pre-live-readiness-failure/v2"
+}

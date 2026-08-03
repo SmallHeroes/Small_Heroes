@@ -304,16 +304,18 @@ function expectSanitizedBootstrapFailure(
   },
   phase: string,
   reasonCode: string,
+  gitDiagnostic: unknown = null,
 ): Record<string, unknown> {
   expect(outcome).toMatchObject({
     kind: 'failure',
     failure: {
-      version: 'canonical-pre-live-readiness-failure/v2',
+      version: 'canonical-pre-live-readiness-failure/v3',
       status: 'rejected',
       mode: 'verify',
       phase,
       reasonCodes: [reasonCode],
       authorityReasonCodes: [],
+      gitDiagnostic,
       requestIdentityDigest: expect.stringMatching(
         /^[a-f0-9]{64}$/,
       ),
@@ -334,6 +336,7 @@ function expectSanitizedBootstrapFailure(
       'credentialAccess',
       'digest',
       'digestAlgorithm',
+      'gitDiagnostic',
       'liveAuthority',
       'mode',
       'phase',
@@ -557,6 +560,17 @@ describe('canonical pre-live readiness built-in launcher', () => {
       failure,
       'topology',
       'pre_live_topology_git_rejected',
+      {
+        profile: 'bootstrap_launcher',
+        commandId: 'repository_top_level',
+        failureClass: 'spawn_error',
+        exitStatus: null,
+        signalClass: 'none',
+        errorClass: 'unknown',
+        stderrClass: 'none',
+        stdoutBytes: 0,
+        stderrBytes: 0,
+      },
     );
     expect(
       new Set(failureEnvironment.reads),
@@ -1015,7 +1029,8 @@ describe('canonical pre-live readiness built-in launcher', () => {
         kind: 'failure',
         failure: {
           version:
-            'canonical-pre-live-readiness-failure/v2',
+            'canonical-pre-live-readiness-failure/v3',
+          gitDiagnostic: null,
           status: 'rejected',
           phase: 'launcher',
           reasonCodes: [

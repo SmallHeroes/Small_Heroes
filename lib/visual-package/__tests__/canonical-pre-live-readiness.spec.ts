@@ -16,11 +16,15 @@ import {
   CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION,
   CANONICAL_PRE_LIVE_READINESS_FAILURE_CATEGORY,
   CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION,
+  CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION,
   CANONICAL_PRE_LIVE_READINESS_PRIVATE_TESTING,
   OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION,
   OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_DIGEST,
   OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
+  buildCanonicalPreLiveReadinessFailure,
+  canonicalPreLiveReadinessFailureIssues,
   canonicalPreLiveReadinessArtifactPath,
+  inspectCanonicalPreLiveReadinessFailure,
   prepareCanonicalPreLiveReadiness,
   verifyCanonicalPreLiveReadiness,
   type CanonicalPreLiveReadinessInput,
@@ -53,6 +57,14 @@ const SENTINEL = path.join(
   '__tests__',
   'fixtures',
   'deny-canonical-pre-live-readiness-boundaries.cjs',
+);
+const HISTORICAL_FAILURE_V2 = path.join(
+  REPO,
+  'lib',
+  'visual-package',
+  '__tests__',
+  'fixtures',
+  'canonical-pre-live-readiness-failure-v2.json',
 );
 const INTERNAL_CAPABILITY_FLAG =
   '--internal-launch-capability';
@@ -443,6 +455,42 @@ function privateEntry(
   );
 }
 
+function injectedGitResult(
+  commandId:
+    | 'repository_top_level'
+    | 'symbolic_branch'
+    | 'upstream_ref'
+    | 'head_commit'
+    | 'upstream_head_commit'
+    | 'divergence'
+    | 'worktree_status'
+    | 'output_root_ignore',
+  repositoryRealPath: string,
+): {
+  status: number;
+  signal: null;
+  stdout: string;
+  stderr: string;
+} {
+  const commit = 'a'.repeat(40);
+  const stdout = {
+    repository_top_level: repositoryRealPath,
+    symbolic_branch: BRANCH,
+    upstream_ref: `refs/remotes/origin/${BRANCH}`,
+    head_commit: commit,
+    upstream_head_commit: commit,
+    divergence: '0 0',
+    worktree_status: '',
+    output_root_ignore: '',
+  }[commandId];
+  return {
+    status: 0,
+    signal: null,
+    stdout: `${stdout}${stdout.length > 0 ? '\n' : ''}`,
+    stderr: '',
+  };
+}
+
 describe('canonical pre-live readiness orchestrator', () => {
   it('composes the existing Writer, B0, Execution Request, and Supervisor authorities into ready evidence', () => {
     const fixture = createFixture(true);
@@ -536,6 +584,143 @@ describe('canonical pre-live readiness orchestrator', () => {
     expect(
       git(fixture.repoRoot, ['status', '--porcelain']),
     ).toBe('');
+  });
+
+  it('integrates the private-entry Git diagnostic without raw data or later work', () => {
+    const fixture = createFixture();
+    const repositoryRealPath = fs.realpathSync(
+      fixture.repoRoot,
+    );
+    const commandIds: string[] = [];
+    let writeCalls = 0;
+    const result = prepareCanonicalPreLiveReadiness({
+      input: fixture.input,
+      launchAuthority: fixture.launchAuthority,
+      dependencies: {
+        gitResultProvider: ({ commandId }) => {
+          commandIds.push(commandId);
+          if (commandId === 'upstream_head_commit') {
+            return {
+              status: 128,
+              signal: null,
+              stdout: 'raw stdout C:\\private\\repo',
+              stderr:
+                'fatal: detected dubious ownership; configure safe.directory fake-secret',
+            };
+          }
+          return injectedGitResult(
+            commandId,
+            repositoryRealPath,
+          );
+        },
+        writeMaterializationInput: () => {
+          writeCalls += 1;
+          throw new Error('write must be unreachable');
+        },
+      },
+    });
+    expect(result).toMatchObject({
+      version: CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION,
+      status: 'rejected',
+      phase: 'topology',
+      reasonCodes: ['pre_live_topology_git_rejected'],
+      gitDiagnostic: {
+        profile: 'private_entry',
+        commandId: 'upstream_head_commit',
+        failureClass: 'nonzero_exit',
+        exitStatus: 128,
+        signalClass: 'none',
+        errorClass: 'none',
+        stderrClass: 'safe_directory',
+        stdoutBytes: 26,
+        stderrBytes: 71,
+      },
+      credentialAccess: 'none',
+      providerCalls: 0,
+      canonicalPreflight: 'not_run',
+      pricingAuthority: 'not_checked',
+      liveAuthority: 'none',
+    });
+    expect(commandIds).toEqual([
+      'repository_top_level',
+      'symbolic_branch',
+      'upstream_ref',
+      'head_commit',
+      'upstream_head_commit',
+    ]);
+    expect(writeCalls).toBe(0);
+    const serialized = JSON.stringify(result);
+    for (const rejected of [
+      'raw stdout',
+      'C:\\private\\repo',
+      'dubious ownership',
+      'safe.directory',
+      'fake-secret',
+    ]) {
+      expect(serialized).not.toContain(rejected);
+    }
+    expect(
+      inspectCanonicalPreLiveReadinessFailure(result),
+    ).toMatchObject({ authority: 'current' });
+    expect(
+      canonicalPreLiveReadinessFailureIssues(result),
+    ).toEqual([]);
+    if (result.status !== 'rejected') {
+      throw new Error('expected failure fixture');
+    }
+    const diagnostic = result.gitDiagnostic!;
+    const malformedDiagnostics = [
+      { ...diagnostic, profile: 'arbitrary_profile' },
+      { ...diagnostic, commandId: 'git status --raw' },
+      { ...diagnostic, failureClass: null },
+      { ...diagnostic, failureClass: 'raw_failure' },
+      { ...diagnostic, exitStatus: 256 },
+      { ...diagnostic, signalClass: 'SIGSEGV' },
+      { ...diagnostic, errorClass: 'raw_error' },
+      { ...diagnostic, stderrClass: 'raw stderr' },
+      { ...diagnostic, stdoutBytes: 65_538 },
+      { ...diagnostic, stderrBytes: -1 },
+      { ...diagnostic, rawMessage: 'fake-secret' },
+    ];
+    for (const malformedDiagnostic of malformedDiagnostics) {
+      expect(() =>
+        buildCanonicalPreLiveReadinessFailure({
+          mode: 'prepare',
+          phase: 'topology',
+          reasonCodes: ['pre_live_topology_git_rejected'],
+          gitDiagnostic: malformedDiagnostic as never,
+        }),
+      ).toThrow('pre_live_git_diagnostic_invalid');
+    }
+  });
+
+  it('reads immutable v2 failure bytes only as historical evidence', () => {
+    const bytes = fs.readFileSync(HISTORICAL_FAILURE_V2);
+    expect(sha256(bytes)).toBe(
+      '53ed113572a0d4f971dac7d20c424b498ca7646f7bee8261d8fd66de6b7141ba',
+    );
+    const failure = JSON.parse(
+      bytes.toString('utf8'),
+    ) as unknown;
+    expect(
+      inspectCanonicalPreLiveReadinessFailure(failure),
+    ).toMatchObject({
+      authority: 'historical_evidence',
+      failure: {
+        version:
+          CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION,
+        digest:
+          'aa9a75d8b07b8706dcaf9cae440b2770a1d5e5c671ef703ab2ee803bda9fd59f',
+      },
+    });
+    expect(
+      canonicalPreLiveReadinessFailureIssues(failure),
+    ).toContain('pre_live_failure_version_not_current');
+    expect(
+      canonicalPreLiveReadinessFailureIssues(failure, {
+        allowHistorical: true,
+      }),
+    ).toEqual([]);
   });
 
   it('is byte-idempotent on replay and verify is write-free', () => {
