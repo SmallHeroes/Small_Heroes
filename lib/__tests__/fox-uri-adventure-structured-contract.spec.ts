@@ -17,6 +17,7 @@ import {
   projectSetDefinition,
 } from '@/lib/set-identity-board/setDefinition';
 import { buildSetIdentityBoardPrompt } from '@/lib/set-identity-board/boardPrompt';
+import { migrateLegacySetBoardFixture } from '@/lib/set-identity-board/__tests__/current-authority-fixtures';
 
 /**
  * The Contract-v2 PROOF slot: fox is the FIRST story whose structured fields are hand-authored, so it is the first
@@ -274,7 +275,11 @@ describe('fox — SET CONSISTENCY: TWO distinct openings (small listening window
   });
 
   it('the board WALL OPENINGS authorizes BOTH openings — the QA failure this reversal exists to fix', () => {
-    const def = projectSetDefinition(foxTemplate(), 'set_room_balcony_night', 'soft_hand_drawn_storybook');
+    const current = migrateLegacySetBoardFixture(foxTemplate(), {
+      board_room_openings: ['z_room_window', 'z_window_threshold'],
+      board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
+    });
+    const def = projectSetDefinition(current, 'set_room_balcony_night', 'soft_hand_drawn_storybook');
     const { prompt } = buildSetIdentityBoardPrompt(def);
     const openings = prompt.split('WALL OPENINGS:')[1]?.split('\n\n')[0] ?? '';
     expect(openings).toMatch(/window/i);

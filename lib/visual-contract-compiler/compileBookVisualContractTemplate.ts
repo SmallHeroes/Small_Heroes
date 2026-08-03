@@ -20,7 +20,12 @@ import type {
   TemplateTraitBinding,
 } from './contractTemplateTypes';
 import { PALETTE_VERSION, VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTemplateTypes';
-import type { BookVisualContract } from './types';
+import type {
+  BookVisualContract,
+  SetBoardStableAuthority,
+  SpatialRelation,
+  VisualZone,
+} from './types';
 import { assertValidBookVisualContractTemplate, InvalidTemplateContractError } from './validateTemplateContract';
 import { sourceEvidenceErrors } from './validateSourceEvidence';
 import { parseContractJson } from './compileBookVisualContract';
@@ -49,7 +54,10 @@ import {
   coverSourceFidelityIssues,
   type AuthoredCoverAuthority,
 } from './coverSourceAuthority';
-import { projectCoverMustNotShow } from './projectContractProse';
+import {
+  projectCoverMustNotShow,
+  projectZoneStableGeometry,
+} from './projectContractProse';
 import {
   VISUAL_CONTRACT_AUTHORING_ENDPOINT,
   VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
@@ -285,9 +293,12 @@ export function buildTemplateCompileSystemPrompt(): string {
     'you MUST NOT restate or contradict them.',
     '',
     'Draft ONLY the DESCRIPTIVE fields:',
-    '- worldType, locations[] (including authored setIdentityId/setReference bindings), zones[] (with stableGeometry),',
+    '- worldType, locations[] (including authored setIdentityId/setReference bindings), zones[] (with stableGeometry',
+    '  plus exact spatialNodes/spatialRelations selection authority for zones not projected from stable areas),',
     '- setBoardAuthorities[]: for every pending/ready set identity, author a SEPARATE stable, character-free physical',
-    '  projection. Use only environmental light, fixed architecture, and props safe on every consuming page. Never',
+    '  projection. Each area declares exact zoneProjection cardinality+zoneIds. Use only environmental light, fixed',
+    '  architecture as unbound nodes, and exact recurring-prop propId node bindings safe on every consuming page.',
+    '  fixedObjects is compiler-derived and MUST NOT be authored. Never',
     '  copy page action, cast/name/appearance, portable light, reveal language, or transient props into this field.',
     '  cast.child + cast.companion wardrobe,',
     '  recurringProps[] (material/scale/persistence/firstRevealPage), forbiddenGlobalElements[], coverContract, and per-page',
@@ -310,7 +321,9 @@ export function buildTemplateCompileSystemPrompt(): string {
     '- For each given human, draft ONLY garments (each colour an explicit value) and forbiddenAppearance. Do NOT',
     '  output appearance (skinTone/hairColour/hairTexture/hairStyle) — the compiler injects those from a role policy.',
     '',
-    'Topology: describe ONE location/zone graph in zones[] (each zone has a parent locationId). Every per-page',
+    'Topology: describe ONE location/zone graph in zones[] (each zone has a parent locationId). Stable-board area',
+    'zoneProjection uses exact zone ids; one_to_one carries exactly one and one_to_many carries at least two. The',
+    'compiler projects area nodes into those page zones; never assume an area id is a zone id. Every per-page',
     'zoneId and every transition fromZoneId/toZoneId MUST be an EXACT id from that zones[] list. A zone change',
     'between consecutive pages must be carried by a transition; before_transition renders in the ORIGIN zone,',
     'after_transition in the DESTINATION, threshold at either endpoint. Do not restate zones with new ids.',
@@ -353,7 +366,8 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
       : []),
     '',
     'Produce a JSON BookVisualContractTemplate DRAFT (descriptive fields only) with keys: worldType, locations[],',
-    'zones[], setBoardAuthorities[{setIdentityId,locations[],areas[],fixedObjects[]}],',
+    'zones[{id,locationId,name,description,stableGeometry[],spatialNodes[],spatialRelations[]}],',
+    'setBoardAuthorities[{setIdentityId,locations[],areas[{id,locationId,zoneProjection,spatialNodes,spatialRelations}]}],',
     'cast{child,companion?}, humanCast[{id, garments, forbiddenAppearance}],',
     'recurringProps[{id,name,description,material?,scale?,persistence?,firstRevealPage?}],',
     'forbiddenGlobalElements[], coverContract{worldType,locationId,zoneId,castIds,timeOfDay,mustShow,mustNotShow},',
@@ -403,9 +417,10 @@ export function buildTemplateRepairSystemPrompt(): string {
     'You MAY edit ONLY these DESCRIPTIVE fields:',
     '- worldType (the semantic world type)',
     '- locations[] (name/description/lighting/timeOfDay/environmentClass/anchors/topology/setIdentityId/setReference)',
-    '- setBoardAuthorities[] stable location light, fixed physical nodes/relations, and fixed objects only; never',
-    '  cast, page action/staging, portable light, reveal language, or props unsafe on any consuming page',
-    '- zones[] (name/description/stableGeometry — a present stableGeometry must be a NON-EMPTY string[])',
+    '- setBoardAuthorities[] stable location light and fixed physical nodes/relations with exact zoneProjection;',
+    '  architecture uses null propId; only safe recurring props use exact propId; never author fixedObjects; never',
+    '  include cast, page action/staging, portable light, reveal language, or unsafe props',
+    '- zones[] (name/description/stableGeometry/spatialNodes/spatialRelations exact page selection authority)',
     '- cast.child/cast.companion wardrobe; each human\'s garments (each colour an explicit value) + forbiddenAppearance',
     '- recurringProps[] (name/description, material/scale/persistence, and firstRevealPage — NO empty string in a field you include)',
     '- forbiddenGlobalElements[]; coverContract mustShow/mustNotShow/locationId/zoneId/castIds/timeOfDay',
@@ -1194,39 +1209,390 @@ function normalizeDraftProps(raw: unknown): BookVisualContractTemplate['recurrin
   }) as unknown as BookVisualContractTemplate['recurringProps'];
 }
 
-function normalizeDraftSetBoardAuthorities(
+function normalizeSpatialRelations(
   raw: unknown,
-): BookVisualContractTemplate['setBoardAuthorities'] {
-  const authorities = asArr(raw).map((rawAuthority) => {
-    const authority = { ...asObj(rawAuthority) };
-    authority.areas = asArr(authority.areas).map((rawArea) => {
-      const area = { ...asObj(rawArea) };
-      area.spatialNodes = asArr(area.spatialNodes).map((rawNode) => {
-        const node = { ...asObj(rawNode) };
-        if (node.propId === null) delete node.propId;
-        return node;
-      });
-      const relations = asArr(area.spatialRelations).map((rawRelation) => {
-        const relation = { ...asObj(rawRelation) };
-        if (relation.objectId === null) delete relation.objectId;
-        return relation;
-      });
-      if (relations.length > 0) area.spatialRelations = relations;
-      else delete area.spatialRelations;
-      return area;
-    });
-    authority.fixedObjects = asArr(authority.fixedObjects).map((rawObject) => {
-      const fixedObject = { ...asObj(rawObject) };
-      for (const field of ['material', 'scale']) {
-        if (fixedObject[field] === null) delete fixedObject[field];
+  label: string,
+  authorityIssues: string[],
+): SpatialRelation[] {
+  return asArr(raw).map((rawRelation, index) => {
+    const relation = { ...asObj(rawRelation) };
+    const relationLabel = `${label}[${index}]`;
+    if (relation.relation === 'centered_in') {
+      if (relation.objectId === null) delete relation.objectId;
+      if (Object.prototype.hasOwnProperty.call(relation, 'objectId')) {
+        authorityIssues.push(
+          `${relationLabel}.centered_in is unary and cannot carry objectId`,
+        );
       }
-      return fixedObject;
-    });
-    return authority;
+    } else if (
+      typeof relation.objectId !== 'string' ||
+      relation.objectId.length === 0
+    ) {
+      authorityIssues.push(
+        `${relationLabel}.${String(relation.relation)} is binary and requires an exact objectId`,
+      );
+    }
+    return relation as unknown as SpatialRelation;
   });
-  return authorities.length > 0
-    ? authorities as unknown as BookVisualContractTemplate['setBoardAuthorities']
-    : undefined;
+}
+
+function normalizeDraftZone(rawZone: unknown): Record<string, unknown> {
+  const zone = { ...asObj(rawZone) };
+  const nodes = asArr(zone.spatialNodes).map((rawNode) => {
+    const node = { ...asObj(rawNode) };
+    if (node.bindsTo === null) delete node.bindsTo;
+    return node;
+  });
+  if (nodes.length > 0) zone.spatialNodes = nodes;
+  else delete zone.spatialNodes;
+  return zone;
+}
+
+/**
+ * Close the set-area/page-zone and stable-prop domains before semantic
+ * validation. Projection uses exact IDs only; ambiguity is never repairable.
+ */
+function normalizeDraftSpatialAuthorities(args: {
+  draft: Record<string, unknown>;
+  pages: readonly Record<string, unknown>[];
+}): {
+  zones: BookVisualContractTemplate['zones'];
+  setBoardAuthorities: BookVisualContractTemplate['setBoardAuthorities'];
+} {
+  const authorityIssues: string[] = [];
+  const zones = asArr(args.draft.zones).map(normalizeDraftZone);
+  const zoneById = new Map<string, Record<string, unknown>>();
+  for (const zone of zones) {
+    if (typeof zone.id === 'string') {
+      const existing = zoneById.get(zone.id);
+      if (existing) {
+        authorityIssues.push(
+          `page-zone id "${zone.id}" is duplicated; spatial authority is ambiguous`,
+        );
+      } else {
+        zoneById.set(zone.id, zone);
+      }
+    }
+  }
+
+  const propCandidatesById = new Map<
+    string,
+    Record<string, unknown>[]
+  >();
+  for (const prop of asArr(args.draft.recurringProps).map(asObj)) {
+    if (typeof prop.id !== 'string') continue;
+    const matches = propCandidatesById.get(prop.id) ?? [];
+    matches.push(prop);
+    propCandidatesById.set(prop.id, matches);
+  }
+
+  const zoneOwner = new Map<string, string>();
+  const setIds = new Set<string>();
+  const authorities = asArr(args.draft.setBoardAuthorities).map(
+    (rawAuthority, authorityIndex) => {
+      const authority = { ...asObj(rawAuthority) };
+      const authorityLabel =
+        `setBoardAuthorities[${authorityIndex}]`;
+      if (
+        Object.prototype.hasOwnProperty.call(
+          authority,
+          'fixedObjects',
+        )
+      ) {
+        authorityIssues.push(
+          `${authorityLabel}.fixedObjects is forbidden in current draft authority; the compiler derives stable recurring objects from exact area-node propId bindings`,
+        );
+      }
+      const setIdentityId =
+        typeof authority.setIdentityId === 'string'
+          ? authority.setIdentityId
+          : '';
+      if (setIds.has(setIdentityId)) {
+        authorityIssues.push(
+          `${authorityLabel}.setIdentityId "${setIdentityId}" is duplicated`,
+        );
+      }
+      setIds.add(setIdentityId);
+
+      const stablePropIds = new Set<string>();
+      const areas = asArr(authority.areas).map(
+        (rawArea, areaIndex) => {
+          const area = { ...asObj(rawArea) };
+          const areaLabel = `${authorityLabel}.areas[${areaIndex}]`;
+          const nodes = asArr(area.spatialNodes).map(
+            (rawNode, nodeIndex) => {
+              const node = { ...asObj(rawNode) };
+              if (node.propId === null) delete node.propId;
+              if (node.propId !== undefined) {
+                if (typeof node.propId !== 'string') {
+                  authorityIssues.push(
+                    `${areaLabel}.spatialNodes[${nodeIndex}].propId must select one exact recurring prop`,
+                  );
+                } else {
+                  const candidates =
+                    propCandidatesById.get(node.propId) ?? [];
+                  if (candidates.length !== 1) {
+                    authorityIssues.push(
+                      `${areaLabel}.spatialNodes[${nodeIndex}].propId "${node.propId}" resolves to ${candidates.length} recurring props; exact binding requires one`,
+                    );
+                  } else {
+                    const prop = candidates[0]!;
+                    if (prop.firstRevealPage !== null && prop.firstRevealPage !== undefined) {
+                      authorityIssues.push(
+                        `${areaLabel}.spatialNodes[${nodeIndex}].propId "${node.propId}" is lifecycle-gated and cannot be stable board content`,
+                      );
+                    }
+                    const consumerLocationIds = new Set(
+                      asArr(authority.locations)
+                        .map((value) => asObj(value).locationId)
+                        .filter(isStr),
+                    );
+                    const forbidden = args.pages.some(
+                      (page) =>
+                        typeof page.locationId === 'string' &&
+                        consumerLocationIds.has(page.locationId) &&
+                        asArr(page.propConstraints).some(
+                          (rawConstraint) => {
+                            const constraint = asObj(rawConstraint);
+                            return (
+                              constraint.propId === node.propId &&
+                              constraint.visibility === 'forbidden'
+                            );
+                          },
+                        ),
+                    );
+                    if (forbidden) {
+                      authorityIssues.push(
+                        `${areaLabel}.spatialNodes[${nodeIndex}].propId "${node.propId}" is forbidden on a consumer page and cannot be stable board content`,
+                      );
+                    }
+                    stablePropIds.add(node.propId);
+                  }
+                }
+              }
+              return node;
+            },
+          );
+          area.spatialNodes = nodes;
+          const relations = normalizeSpatialRelations(
+            area.spatialRelations,
+            `${areaLabel}.spatialRelations`,
+            authorityIssues,
+          );
+          if (relations.length > 0) area.spatialRelations = relations;
+          else delete area.spatialRelations;
+
+          const projection = asObj(area.zoneProjection);
+          const cardinality = projection.cardinality;
+          const zoneIds = asArr(projection.zoneIds).filter(isStr);
+          if (
+            (cardinality === 'one_to_one' && zoneIds.length !== 1) ||
+            (cardinality === 'one_to_many' && zoneIds.length < 2) ||
+            (cardinality !== 'one_to_one' &&
+              cardinality !== 'one_to_many')
+          ) {
+            authorityIssues.push(
+              `${areaLabel}.zoneProjection cardinality does not match its exact zoneIds`,
+            );
+          }
+          if (new Set(zoneIds).size !== zoneIds.length) {
+            authorityIssues.push(
+              `${areaLabel}.zoneProjection.zoneIds contains a duplicate`,
+            );
+          }
+          area.zoneProjection = { cardinality, zoneIds };
+
+          for (const zoneId of zoneIds) {
+            const zone = zoneById.get(zoneId);
+            if (!zone) {
+              authorityIssues.push(
+                `${areaLabel}.zoneProjection references unknown exact page-zone "${zoneId}"`,
+              );
+              continue;
+            }
+            if (zone.locationId !== area.locationId) {
+              authorityIssues.push(
+                `${areaLabel}.zoneProjection zone "${zoneId}" belongs to location "${String(zone.locationId)}", not "${String(area.locationId)}"`,
+              );
+            }
+            const priorOwner = zoneOwner.get(zoneId);
+            if (priorOwner) {
+              authorityIssues.push(
+                `page-zone "${zoneId}" is projected by both ${priorOwner} and ${areaLabel}; mapping is ambiguous`,
+              );
+              continue;
+            }
+            zoneOwner.set(zoneId, areaLabel);
+            zone.spatialNodes = nodes.map((node) => ({
+              id: node.id,
+              kind: node.kind,
+              description: node.description,
+              ...(typeof node.propId === 'string'
+                ? {
+                    bindsTo: {
+                      kind: 'prop' as const,
+                      id: node.propId,
+                    },
+                  }
+                : {}),
+            }));
+            if (relations.length > 0) {
+              zone.spatialRelations = structuredClone(relations);
+            } else {
+              delete zone.spatialRelations;
+            }
+            zone.stableGeometry = projectZoneStableGeometry(
+              zone as unknown as VisualZone,
+            );
+          }
+          return area;
+        },
+      );
+      authority.areas = areas;
+
+      authority.fixedObjects = [...stablePropIds]
+        .map((propId) => {
+          const prop = propCandidatesById.get(propId)![0]!;
+          return {
+            propId,
+            name: prop.name,
+            quantity: 1,
+          };
+        })
+        .sort((left, right) =>
+          left.propId < right.propId
+            ? -1
+            : left.propId > right.propId
+              ? 1
+              : 0,
+        );
+      return authority;
+    },
+  );
+
+  const boardRequiredLocationIds = new Set(
+    asArr(args.draft.locations)
+      .map(asObj)
+      .filter((location) => {
+        const status = asObj(location.setReference).status;
+        return status === 'pending' || status === 'ready';
+      })
+      .map((location) => location.id)
+      .filter(isStr),
+  );
+  for (const zone of zones) {
+    if (
+      typeof zone.id === 'string' &&
+      typeof zone.locationId === 'string' &&
+      boardRequiredLocationIds.has(zone.locationId) &&
+      !zoneOwner.has(zone.id)
+    ) {
+      authorityIssues.push(
+        `board-required page-zone "${zone.id}" has no exact stable-area projection`,
+      );
+    }
+
+    if (!zoneOwner.has(String(zone.id))) {
+      const relations = normalizeSpatialRelations(
+        zone.spatialRelations,
+        `zone "${String(zone.id)}".spatialRelations`,
+        authorityIssues,
+      );
+      if (relations.length > 0) zone.spatialRelations = relations;
+      else delete zone.spatialRelations;
+    }
+    if (Array.isArray(zone.spatialNodes) && zone.spatialNodes.length > 0) {
+      zone.stableGeometry = projectZoneStableGeometry(
+        zone as unknown as VisualZone,
+      );
+    }
+  }
+
+  if (authorityIssues.length > 0) {
+    throw new DraftAuthorityReferenceDomainError([
+      ...new Set(authorityIssues),
+    ]);
+  }
+  return {
+    zones: zones as unknown as BookVisualContractTemplate['zones'],
+    setBoardAuthorities:
+      authorities.length > 0
+        ? (authorities as unknown as SetBoardStableAuthority[])
+        : undefined,
+  };
+}
+
+function assertPageSpatialReferenceDomains(args: {
+  pages: readonly Record<string, unknown>[];
+  zones: BookVisualContractTemplate['zones'];
+}): void {
+  const zoneNodeIds = new Map(
+    args.zones.map((zone) => [
+      zone.id,
+      new Set((zone.spatialNodes ?? []).map((node) => node.id)),
+    ]),
+  );
+  const issues: string[] = [];
+  const check = (
+    pageNumber: number,
+    zoneId: string,
+    value: unknown,
+    label: string,
+  ): void => {
+    const ref = asObj(value);
+    if (ref.kind !== 'spatial' || typeof ref.id !== 'string') return;
+    if (!(zoneNodeIds.get(zoneId) ?? new Set()).has(ref.id)) {
+      issues.push(
+        `page ${pageNumber} ${label} spatial id "${ref.id}" is outside exact page-zone "${zoneId}" selection authority`,
+      );
+    }
+  };
+  for (const page of args.pages) {
+    const pageNumber = Number(page.pageNumber);
+    const zoneId = typeof page.zoneId === 'string' ? page.zoneId : '';
+    for (const [index, rawAction] of asArr(
+      page.actionRequirements,
+    ).entries()) {
+      const action = asObj(rawAction);
+      const subject = asObj(action.subject);
+      if (subject.kind === 'entity') {
+        check(
+          pageNumber,
+          zoneId,
+          subject.entity,
+          `actionRequirements[${index}].subject`,
+        );
+      }
+      check(
+        pageNumber,
+        zoneId,
+        action.object,
+        `actionRequirements[${index}].object`,
+      );
+      const effect = asObj(action.spatialEffect);
+      if (effect.kind === 'relation') {
+        check(
+          pageNumber,
+          zoneId,
+          effect.target,
+          `actionRequirements[${index}].spatialEffect.target`,
+        );
+      }
+    }
+    for (const [index, rawConstraint] of asArr(
+      page.safetyConstraints,
+    ).entries()) {
+      check(
+        pageNumber,
+        zoneId,
+        asObj(rawConstraint).target,
+        `safetyConstraints[${index}].target`,
+      );
+    }
+  }
+  if (issues.length > 0) {
+    throw new DraftAuthorityReferenceDomainError(issues);
+  }
 }
 
 function sourceEvidenceValidationMessages(
@@ -1314,6 +1680,10 @@ function assembleTemplateFromDraft(
     input.authoredCoverAuthority,
   );
   notes.push(...topoNotes);
+  const spatialAuthority = normalizeDraftSpatialAuthorities({
+    draft,
+    pages: canonicalPages,
+  });
   const capabilityGaps: ActionSemanticCapabilityGap[] = [];
   const coverageIssues: string[] = [];
   const pageContracts = canonicalPages.map((pc) => {
@@ -1331,6 +1701,10 @@ function assembleTemplateFromDraft(
       childId,
       companionId,
     );
+  });
+  assertPageSpatialReferenceDomains({
+    pages: pageContracts,
+    zones: spatialAuthority.zones,
   });
   const seenBeatIds = new Set<string>();
   for (const beat of [
@@ -1370,7 +1744,7 @@ function assembleTemplateFromDraft(
     throw new InvalidTemplateContractError(['worldType is missing — the semantic world type must be set (no silent default); author or repair it.']);
   }
 
-  const setBoardAuthorities = normalizeDraftSetBoardAuthorities(draft.setBoardAuthorities);
+  const setBoardAuthorities = spatialAuthority.setBoardAuthorities;
   const template: BookVisualContractTemplate = {
     contractKind: 'template',
     schemaVersion: VISUAL_CONTRACT_SCHEMA_VERSION,
@@ -1378,7 +1752,7 @@ function assembleTemplateFromDraft(
     storyKey: input.storyKey,
     worldType,
     locations: normalizeDraftLocations(draft.locations),
-    zones: draft.zones as BookVisualContractTemplate['zones'],
+    zones: spatialAuthority.zones,
     ...(setBoardAuthorities ? { setBoardAuthorities } : {}),
     cast: authoritativeCast as unknown as BookVisualContractTemplate['cast'],
     humanCast,

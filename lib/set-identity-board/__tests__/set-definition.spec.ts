@@ -70,7 +70,7 @@ function makeContract(): BookVisualContract {
           {
             id: 'tall_lamp',
             kind: 'furniture',
-            description: 'a tall standing lamp',
+            description: 'a tall brass floor lamp with a linen shade',
             bindsTo: { kind: 'prop', id: 'floor_lamp' },
           },
         ],
@@ -82,7 +82,6 @@ function makeContract(): BookVisualContract {
         name: 'South Zone',
         description: 'the main south area',
         spatialNodes: [{ id: 'south_shelf', kind: 'wall', description: 'a long shelf on the south wall' }],
-        spatialRelations: [],
       },
       {
         id: 'z_meadow',
@@ -114,6 +113,7 @@ function makeContract(): BookVisualContract {
           {
             id: 'board_north',
             locationId: 'room_north',
+            zoneProjection: { cardinality: 'one_to_one', zoneIds: ['z_north'] },
             spatialNodes: [
               { id: 'main_door', kind: 'doorway', description: 'a wide wooden doorway in the east wall' },
               {
@@ -130,6 +130,7 @@ function makeContract(): BookVisualContract {
           {
             id: 'board_south',
             locationId: 'room_south',
+            zoneProjection: { cardinality: 'one_to_one', zoneIds: ['z_south'] },
             spatialNodes: [
               { id: 'south_shelf', kind: 'wall', description: 'a long shelf on the south wall' },
             ],
@@ -139,8 +140,6 @@ function makeContract(): BookVisualContract {
           {
             propId: 'floor_lamp',
             name: 'Floor Lamp',
-            material: 'brass and linen',
-            scale: 'tall floor-standing fixture',
             quantity: 1,
           },
         ],
@@ -236,7 +235,7 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
       .not.toBe(computeSetDefinitionHash(base, ID, STYLE));
   });
 
-  it('(b) is IDENTICAL when page-rich zone geometry changes', () => {
+  it('(b) rejects drift between a stable area and its compiler-owned page-zone projection', () => {
     const base = makeContract();
     const variant = clone(base);
     variant.zones[0].spatialNodes!.push({
@@ -244,14 +243,18 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
       kind: 'window',
       description: 'a round skylight in the ceiling',
     });
-    expect(computeSetDefinitionHash(variant, ID, STYLE)).toBe(computeSetDefinitionHash(base, ID, STYLE));
+    expect(() => computeSetDefinitionHash(variant, ID, STYLE)).toThrow(
+      /compiler-owned area projection/,
+    );
   });
 
-  it('(b) is IDENTICAL when a page-rich zone relation changes', () => {
+  it('(b) rejects relation drift in a compiler-owned page-zone projection', () => {
     const base = makeContract();
     const variant = clone(base);
     variant.zones[0].spatialRelations!.push({ subjectId: 'main_door', relation: 'centered_in' });
-    expect(computeSetDefinitionHash(variant, ID, STYLE)).toBe(computeSetDefinitionHash(base, ID, STYLE));
+    expect(() => computeSetDefinitionHash(variant, ID, STYLE)).toThrow(
+      /compiler-owned area projection/,
+    );
   });
 
   it('(b) is IDENTICAL when page-rich location light changes', () => {
@@ -265,6 +268,7 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
     const base = makeContract();
     const variant = clone(base);
     variant.setBoardAuthorities![0].areas[0].spatialNodes[0].kind = 'window';
+    variant.zones[0].spatialNodes![0].kind = 'window';
     expect(computeSetDefinitionHash(variant, ID, STYLE)).not.toBe(computeSetDefinitionHash(base, ID, STYLE));
   });
 

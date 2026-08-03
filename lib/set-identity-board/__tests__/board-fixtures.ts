@@ -72,7 +72,7 @@ export function makeContract(): BookVisualContract {
           {
             id: 'tall_lamp',
             kind: 'furniture',
-            description: 'a tall standing lamp',
+            description: 'a tall brass floor lamp with a linen shade',
             bindsTo: { kind: 'prop', id: 'floor_lamp' },
           },
         ],
@@ -81,7 +81,7 @@ export function makeContract(): BookVisualContract {
         // the contract and `readFrozenVisualContract` returns null (these fixtures must be genuinely renderable).
         stableGeometry: [
           'doorway "main_door": a wide wooden doorway in the east wall',
-          'furniture "tall_lamp": a tall standing lamp',
+          'furniture "tall_lamp": a tall brass floor lamp with a linen shade',
           '"tall_lamp" is adjacent to "main_door"',
         ],
       },
@@ -119,6 +119,7 @@ export function makeContract(): BookVisualContract {
           {
             id: 'board_north',
             locationId: 'room_north',
+            zoneProjection: { cardinality: 'one_to_one', zoneIds: ['z_north'] },
             spatialNodes: [
               { id: 'main_door', kind: 'doorway', description: 'a wide wooden doorway in the east wall' },
               {
@@ -135,6 +136,7 @@ export function makeContract(): BookVisualContract {
           {
             id: 'board_south',
             locationId: 'room_south',
+            zoneProjection: { cardinality: 'one_to_one', zoneIds: ['z_south'] },
             spatialNodes: [
               { id: 'south_shelf', kind: 'wall', description: 'a long shelf on the south wall' },
             ],
@@ -144,8 +146,6 @@ export function makeContract(): BookVisualContract {
           {
             propId: 'floor_lamp',
             name: 'Floor Lamp',
-            material: 'brass and linen',
-            scale: 'tall floor-standing fixture',
             quantity: 1,
           },
         ],

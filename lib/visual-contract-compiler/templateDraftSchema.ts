@@ -52,14 +52,6 @@ const location = obj({
   setReference: { anyOf: [setReference, { type: 'null' }] },
 });
 
-const zone = obj({
-  id: { type: 'string' },
-  locationId: { type: 'string' },
-  name: { type: 'string' },
-  description: { type: 'string' },
-  stableGeometry: stringArray,
-});
-
 const setBoardStableLocation = obj({
   locationId: { type: 'string' },
   name: { type: 'string' },
@@ -92,24 +84,55 @@ const setBoardStableRelation = {
     }),
   ],
 };
+const zoneNodeBinding = {
+  anyOf: [
+    obj({
+      kind: { type: 'string', const: 'prop' },
+      id: { type: 'string' },
+    }),
+    obj({
+      kind: { type: 'string', const: 'anchor' },
+      id: { type: 'string' },
+    }),
+    { type: 'null' },
+  ],
+};
+const zoneSpatialNode = obj({
+  id: { type: 'string' },
+  kind: {
+    type: 'string',
+    enum: ['doorway', 'window', 'balcony_door', 'railing', 'ledge', 'wall', 'floor', 'furniture'],
+  },
+  description: { type: 'string' },
+  bindsTo: zoneNodeBinding,
+});
+const zone = obj({
+  id: { type: 'string' },
+  locationId: { type: 'string' },
+  name: { type: 'string' },
+  description: { type: 'string' },
+  stableGeometry: stringArray,
+  spatialNodes: { type: 'array', items: zoneSpatialNode },
+  spatialRelations: { type: 'array', items: setBoardStableRelation },
+});
+const setBoardAreaZoneProjection = obj({
+  cardinality: {
+    type: 'string',
+    enum: ['one_to_one', 'one_to_many'],
+  },
+  zoneIds: { type: 'array', minItems: 1, items: { type: 'string' } },
+});
 const setBoardStableArea = obj({
   id: { type: 'string' },
   locationId: { type: 'string' },
+  zoneProjection: setBoardAreaZoneProjection,
   spatialNodes: { type: 'array', items: setBoardStableNode },
   spatialRelations: { type: 'array', items: setBoardStableRelation },
-});
-const setBoardStableFixedObject = obj({
-  propId: { type: 'string' },
-  name: { type: 'string' },
-  material: nullableString,
-  scale: nullableString,
-  quantity: { type: 'integer', minimum: 1 },
 });
 const setBoardStableAuthority = obj({
   setIdentityId: { type: 'string' },
   locations: { type: 'array', items: setBoardStableLocation },
   areas: { type: 'array', items: setBoardStableArea },
-  fixedObjects: { type: 'array', items: setBoardStableFixedObject },
 });
 
 const wardrobe = obj({ description: { type: 'string' }, forbidden: stringArray });

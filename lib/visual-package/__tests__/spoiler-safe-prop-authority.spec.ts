@@ -19,6 +19,7 @@ import {
   resolvePageReferenceAssets,
 } from '@/lib/generation-pipeline/page-reference-authority';
 import { resolveRequiredPropArtifacts } from '../propArtifacts';
+import { migrateLegacySetBoardFixture } from '@/lib/set-identity-board/__tests__/current-authority-fixtures';
 
 const REPO = process.cwd();
 const STORY_KEY = 'fox_uri_adventure';
@@ -33,7 +34,13 @@ const TEMPLATE_PATH = path.join(
 );
 
 function contract(): BookVisualContract {
-  return JSON.parse(fs.readFileSync(TEMPLATE_PATH, 'utf8')) as BookVisualContract;
+  return migrateLegacySetBoardFixture(
+    JSON.parse(fs.readFileSync(TEMPLATE_PATH, 'utf8')) as BookVisualContract,
+    {
+      board_room_openings: ['z_room_window', 'z_window_threshold'],
+      board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
+    },
+  );
 }
 
 function boardContext(source: BookVisualContract): SetIdentityBoardBindingContext {
@@ -130,9 +137,9 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
       promptHash,
     }).toEqual({
       boardVersion: 'set-board/v3',
-      setDefinitionHash: 'dc86d58e443bf9b3274f9d64c7b4ecbe9e443d1a2c8d52fb2f211dae32989bfe',
+      setDefinitionHash: '2b5bc4a9afe9491161818db96dfa70f9799f2c4992df1e7e424b1b0da82ade05',
       contentPolicyDigest: 'c00b9b6b6b6da477e045065b2ca4b364f5d1885a03385aa6757e3734bc3900df',
-      promptHash: '7ce108dadef5ab877bb945ae639fb3fd1bd561635b421cce6572ee1ff1eeeecd',
+      promptHash: '36c669c60f76566dc5e0d85c713047d2ed86134adcc30b0eb9d44a238d7bd09c',
     });
     expect(definition.contentPolicy.includedPropIds).toEqual([
       'prop_chair_leg',

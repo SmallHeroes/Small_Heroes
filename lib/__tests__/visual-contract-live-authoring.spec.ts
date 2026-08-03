@@ -122,7 +122,7 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
     ).not.toHaveProperty('sourcePhrase');
   });
 
-  it('authors stable board authority as separate structured set/location/area/object fields', () => {
+  it('authors exact zone projection and stable architecture separately from compiler-owned fixed objects', () => {
     const root = TEMPLATE_DRAFT_JSON_SCHEMA as {
       properties: Record<string, {
         items?: { properties?: Record<string, { items?: { properties?: Record<string, unknown> } }> };
@@ -132,9 +132,12 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
     expect(authority).toHaveProperty('setIdentityId');
     expect(authority).toHaveProperty('locations');
     expect(authority).toHaveProperty('areas');
-    expect(authority).toHaveProperty('fixedObjects');
+    expect(authority).not.toHaveProperty('fixedObjects');
+    expect(authority?.areas.items?.properties).toHaveProperty('zoneProjection');
     expect(authority?.areas.items?.properties).toHaveProperty('spatialNodes');
     expect(authority?.areas.items?.properties).toHaveProperty('spatialRelations');
+    expect(root.properties.zones.items?.properties).toHaveProperty('spatialNodes');
+    expect(root.properties.zones.items?.properties).toHaveProperty('spatialRelations');
   });
 });
 

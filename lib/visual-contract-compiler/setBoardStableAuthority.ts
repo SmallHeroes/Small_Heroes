@@ -53,10 +53,18 @@ export function setBoardStableAuthorityErrors(input: unknown): string[] {
   if (!isObj(input)) return ['contract is not an object'];
   const errors: string[] = [];
   const rawLocations = Array.isArray(input.locations) ? input.locations : [];
+  const rawZones = Array.isArray(input.zones) ? input.zones : [];
   const rawProps = Array.isArray(input.recurringProps) ? input.recurringProps : [];
   const rawPages = Array.isArray(input.pageContracts) ? input.pageContracts : [];
 
   const locationIdsBySet = new Map<string, Set<string>>();
+  const zonesById = new Map<string, Record<string, unknown>[]>();
+  for (const zone of rawZones) {
+    if (!isObj(zone) || !isStr(zone.id)) continue;
+    const matches = zonesById.get(zone.id) ?? [];
+    matches.push(zone);
+    zonesById.set(zone.id, matches);
+  }
   const requiredSetIds = new Set<string>();
   for (const location of rawLocations) {
     if (!isObj(location) || !isStr(location.id) || !isStr(location.setIdentityId)) continue;
@@ -204,6 +212,7 @@ export function setBoardStableAuthorityErrors(input: unknown): string[] {
     const areaIds = new Set<string>();
     const areaLocationIds = new Set<string>();
     const placedObjectIds = new Set<string>();
+    const projectedZoneOwners = new Map<string, string>();
     for (const [areaIndex, rawArea] of areas.entries()) {
       const areaLabel = `${label}.areas[${areaIndex}]`;
       if (!isObj(rawArea) || !isStr(rawArea.id) || !isStr(rawArea.locationId)) {
@@ -216,6 +225,47 @@ export function setBoardStableAuthorityErrors(input: unknown): string[] {
         errors.push(`${areaLabel}.locationId "${rawArea.locationId}" is not a stable location in this authority`);
       } else {
         areaLocationIds.add(rawArea.locationId);
+      }
+      const projection = isObj(rawArea.zoneProjection)
+        ? rawArea.zoneProjection
+        : null;
+      const cardinality = projection?.cardinality;
+      const zoneIds = Array.isArray(projection?.zoneIds)
+        ? projection!.zoneIds.filter(isStr)
+        : [];
+      if (
+        (cardinality === 'one_to_one' && zoneIds.length !== 1) ||
+        (cardinality === 'one_to_many' && zoneIds.length < 2) ||
+        (cardinality !== 'one_to_one' && cardinality !== 'one_to_many')
+      ) {
+        errors.push(
+          `${areaLabel}.zoneProjection must declare matching one_to_one or one_to_many exact zoneIds`,
+        );
+      }
+      if (new Set(zoneIds).size !== zoneIds.length) {
+        errors.push(`${areaLabel}.zoneProjection.zoneIds contains a duplicate`);
+      }
+      for (const zoneId of zoneIds) {
+        const matches = zonesById.get(zoneId) ?? [];
+        if (matches.length !== 1) {
+          errors.push(
+            `${areaLabel}.zoneProjection zoneId "${zoneId}" resolves to ${matches.length} page zones`,
+          );
+          continue;
+        }
+        if (matches[0]!.locationId !== rawArea.locationId) {
+          errors.push(
+            `${areaLabel}.zoneProjection zoneId "${zoneId}" belongs to a different location`,
+          );
+        }
+        const prior = projectedZoneOwners.get(zoneId);
+        if (prior) {
+          errors.push(
+            `${areaLabel}.zoneProjection zoneId "${zoneId}" is already projected by ${prior}`,
+          );
+        } else {
+          projectedZoneOwners.set(zoneId, areaLabel);
+        }
       }
       if (!Array.isArray(rawArea.spatialNodes) || rawArea.spatialNodes.length === 0) {
         errors.push(`${areaLabel}.spatialNodes must be a non-empty array`);
@@ -275,10 +325,71 @@ export function setBoardStableAuthorityErrors(input: unknown): string[] {
           }
         }
       }
+
+      for (const zoneId of zoneIds) {
+        const zone = (zonesById.get(zoneId) ?? [])[0];
+        if (!zone) continue;
+        const expectedNodes = rawArea.spatialNodes.map((rawNode) => {
+          const node = isObj(rawNode) ? rawNode : {};
+          return {
+            id: node.id,
+            kind: node.kind,
+            description: node.description,
+            ...(typeof node.propId === 'string'
+              ? { bindsTo: { kind: 'prop', id: node.propId } }
+              : {}),
+          };
+        });
+        if (JSON.stringify(zone.spatialNodes) !== JSON.stringify(expectedNodes)) {
+          errors.push(
+            `${areaLabel}.zoneProjection zoneId "${zoneId}" spatialNodes do not equal the compiler-owned area projection`,
+          );
+        }
+        const expectedRelations = Array.isArray(rawArea.spatialRelations)
+          ? rawArea.spatialRelations
+          : undefined;
+        if (
+          JSON.stringify(zone.spatialRelations) !==
+          JSON.stringify(expectedRelations)
+        ) {
+          errors.push(
+            `${areaLabel}.zoneProjection zoneId "${zoneId}" spatialRelations do not equal the compiler-owned area projection`,
+          );
+        }
+      }
     }
     for (const propId of fixedObjectIds) {
       if (!placedObjectIds.has(propId)) {
         errors.push(`${label}.fixedObjects prop "${propId}" has no stable area placement`);
+      }
+    }
+    for (const rawObject of fixedObjects ?? []) {
+      if (!isObj(rawObject) || !isStr(rawObject.propId)) continue;
+      const prop = propById.get(rawObject.propId);
+      if (!prop) continue;
+      const expected = {
+        propId: rawObject.propId,
+        name: prop.name,
+        quantity: 1,
+      };
+      if (JSON.stringify(rawObject) !== JSON.stringify(expected)) {
+        errors.push(
+          `${label}.fixedObjects prop "${rawObject.propId}" must equal its compiler-owned recurring-prop projection`,
+        );
+      }
+    }
+    for (const [zoneId, matches] of zonesById) {
+      const zone = matches[0];
+      if (
+        matches.length === 1 &&
+        zone &&
+        typeof zone.locationId === 'string' &&
+        expectedLocationIds?.has(zone.locationId) &&
+        !projectedZoneOwners.has(zoneId)
+      ) {
+        errors.push(
+          `${label} page-zone "${zoneId}" has no exact stable-area projection`,
+        );
       }
     }
     for (const locationId of stableLocationIds) {

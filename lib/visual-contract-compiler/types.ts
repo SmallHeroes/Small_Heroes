@@ -212,11 +212,25 @@ export interface SetBoardStableSpatialNode {
   propId?: string;
 }
 
+export type SetBoardAreaZoneProjection =
+  | {
+      cardinality: 'one_to_one';
+      /** Exactly one current page-zone id. */
+      zoneIds: [string];
+    }
+  | {
+      cardinality: 'one_to_many';
+      /** At least two exact current page-zone ids. */
+      zoneIds: [string, string, ...string[]];
+    };
+
 export interface SetBoardStableArea {
   /** Board-local stable area id. It need not reuse a page zone id. */
   id: string;
   /** MUST reference one of this authority's stable locations. */
   locationId: string;
+  /** Explicit typed projection into the page-zone reference domain. */
+  zoneProjection: SetBoardAreaZoneProjection;
   spatialNodes: SetBoardStableSpatialNode[];
   spatialRelations?: SpatialRelation[];
 }

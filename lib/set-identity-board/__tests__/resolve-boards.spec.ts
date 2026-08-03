@@ -304,6 +304,8 @@ describe('assertBoardsBoundForRender — the pre-image gate', () => {
     const edited = makeContract();
     edited.setBoardAuthorities![0].areas[0].spatialNodes[0].description =
       'a completely different fixed doorway';
+    edited.zones[0].spatialNodes![0].description =
+      'a completely different fixed doorway';
     await expect(
       assertBoardsBoundForRender(
         {

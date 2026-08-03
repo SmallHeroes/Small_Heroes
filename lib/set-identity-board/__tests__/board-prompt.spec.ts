@@ -40,7 +40,7 @@ function makeContract(): BookVisualContract {
           {
             id: 'stone_table',
             kind: 'furniture',
-            description: 'a heavy stone table',
+            description: 'a heavy grey granite table',
             bindsTo: { kind: 'prop', id: 'stone_table_prop' },
           },
         ],
@@ -63,6 +63,7 @@ function makeContract(): BookVisualContract {
           {
             id: 'board_hall',
             locationId: 'hall_main',
+            zoneProjection: { cardinality: 'one_to_one', zoneIds: ['z_hall'] },
             spatialNodes: [
               { id: 'east_door', kind: 'doorway', description: 'a tall arched doorway in the east wall' },
               {
@@ -79,8 +80,6 @@ function makeContract(): BookVisualContract {
           {
             propId: 'stone_table_prop',
             name: 'Stone Table',
-            material: 'grey granite',
-            scale: 'broad waist-high table',
             quantity: 1,
           },
         ],

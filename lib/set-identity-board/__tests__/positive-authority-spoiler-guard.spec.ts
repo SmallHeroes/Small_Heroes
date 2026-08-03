@@ -12,6 +12,7 @@ import {
 } from '../positiveAuthoritySpoilerGuard';
 import { projectSetDefinition } from '../setDefinition';
 import { clone, makeContract, STYLE } from './board-fixtures';
+import { migrateLegacySetBoardFixture } from './current-authority-fixtures';
 
 const SET_ID = 'set_alpha';
 
@@ -27,12 +28,6 @@ function revealGatedContract(args: {
     firstRevealPage: 2,
   };
   contract.recurringProps.push(prop);
-  contract.zones[0].spatialNodes!.push({
-    id: 'transient_object',
-    kind: 'furniture',
-    description: 'page-rich transient object placement',
-    bindsTo: { kind: 'prop', id: prop.id },
-  });
   contract.pageContracts[0].propState = [];
   contract.pageContracts[0].propConstraints = [
     { propId: prop.id, visibility: 'forbidden' },
@@ -119,15 +114,24 @@ describe('Set Board positive free-text spoiler guard', () => {
       kind: 'furniture',
       description: 'a narrow shelf directly above the bucket',
     });
+    geometryLeak.zones[1].spatialNodes!.push({
+      id: 'clean_shelf_extension',
+      kind: 'furniture',
+      description: 'a narrow shelf directly above the bucket',
+    });
     expectLeak(
       () => projectSetDefinition(geometryLeak, SET_ID, STYLE),
       { fieldPath: /zones\[\d+\]\.geometry\[\d+\]/ },
     );
 
-    const materialLeak = revealGatedContract();
-    materialLeak.setBoardAuthorities![0].fixedObjects[0].material = 'bucket-plated brass';
+    const materialLeak = projectSetDefinition(
+      revealGatedContract(),
+      SET_ID,
+      STYLE,
+    );
+    materialLeak.fixedSetFacts[0].material = 'bucket-plated brass';
     expectLeak(
-      () => projectSetDefinition(materialLeak, SET_ID, STYLE),
+      () => buildSetIdentityBoardPrompt(materialLeak),
       { fieldPath: /fixedSetFacts\[\d+\]\.material/ },
     );
   });
@@ -199,12 +203,18 @@ describe('Set Board positive free-text spoiler guard', () => {
 
   it('keeps the existing Fox projection valid and spoiler-neutral', () => {
     const repoRoot = process.cwd();
-    const fox = JSON.parse(fs.readFileSync(path.join(
-      repoRoot,
-      'story-bank',
-      'v3-approved',
-      'fox_uri_adventure.visual-contract-template.json',
-    ), 'utf8')) as BookVisualContract;
+    const fox = migrateLegacySetBoardFixture(
+      JSON.parse(fs.readFileSync(path.join(
+        repoRoot,
+        'story-bank',
+        'v3-approved',
+        'fox_uri_adventure.visual-contract-template.json',
+      ), 'utf8')) as BookVisualContract,
+      {
+        board_room_openings: ['z_room_window', 'z_window_threshold'],
+        board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
+      },
+    );
 
     const definition = projectSetDefinition(
       fox,

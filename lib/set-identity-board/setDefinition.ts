@@ -154,7 +154,7 @@ function projectBoardGeometry(
 }
 
 function projectZones(areas: readonly SetBoardStableArea[]): SetDefinitionZone[] {
-  return byId(areas).map((area) => {
+  return byId(areas).flatMap((area) => {
     const spatialNodes: SpatialNode[] = area.spatialNodes.map((node) => ({
       id: node.id,
       kind: node.kind,
@@ -168,23 +168,34 @@ function projectZones(areas: readonly SetBoardStableArea[]): SetDefinitionZone[]
         (relation.relation === 'centered_in' ||
           retainedIds.has(relation.objectId)),
     );
-    return {
-      id: area.id,
+    return area.zoneProjection.zoneIds.map((zoneId) => ({
+      id: zoneId,
       locationId: area.locationId,
-      spatialNodes,
-      spatialRelations,
+      spatialNodes: structuredClone(spatialNodes),
+      spatialRelations: structuredClone(spatialRelations),
       geometry: projectBoardGeometry(spatialNodes, spatialRelations),
-    };
-  });
+    }));
+  }).sort((left, right) =>
+    left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
+  );
 }
 
-function boundPropIds(contract: BookVisualContract, locationIds: ReadonlySet<string>): Set<string> {
+function propsAssociatedWithSet(
+  contract: BookVisualContract,
+  locationIds: ReadonlySet<string>,
+  consumers: readonly number[],
+): Set<string> {
   const ids = new Set<string>();
   for (const zone of contract.zones ?? []) {
     if (!locationIds.has(zone.locationId)) continue;
     for (const node of zone.spatialNodes ?? []) {
       if (node.bindsTo?.kind === 'prop') ids.add(node.bindsTo.id);
     }
+  }
+  for (const pageNumber of consumers) {
+    const page = pageFor(contract, pageNumber);
+    for (const state of page?.propState ?? []) ids.add(state.propId);
+    for (const constraint of page?.propConstraints ?? []) ids.add(constraint.propId);
   }
   return ids;
 }
@@ -272,7 +283,7 @@ export function projectSetDefinition(
     .map(projectLocation);
   const locationIds = new Set(group.map((location) => location.id));
   const consumers = consumingPageNumbers(contract, locationIds);
-  const propsBoundToSet = boundPropIds(contract, locationIds);
+  const propsBoundToSet = propsAssociatedWithSet(contract, locationIds, consumers);
 
   const excludedProps: SetBoardExcludedProp[] = contract.recurringProps
     .filter((prop) => propsBoundToSet.has(prop.id))

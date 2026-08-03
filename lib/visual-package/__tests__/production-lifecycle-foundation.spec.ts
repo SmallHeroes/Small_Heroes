@@ -19,6 +19,7 @@ import {
   type ProductionAuthoringContext,
   type ProductionAuthoringRunRequest,
 } from '@/lib/visual-package';
+import { projectZoneStableGeometry } from '@/lib/visual-contract-compiler';
 
 import {
   buildBlueprintFixture,
@@ -304,6 +305,14 @@ describe('Story Source readiness and authoring context', () => {
               grouping === 'one' ? 'set:whole_world' : `set:${index + 1}`;
             location.setReference = { status: 'pending' };
           }
+          for (const zone of template.zones) {
+            zone.spatialNodes = zone.spatialNodes!.map((node) => ({
+              id: node.id,
+              kind: node.kind,
+              description: `stable physical ${node.kind}`,
+            }));
+            zone.stableGeometry = projectZoneStableGeometry(zone);
+          }
           const setIds = [
             ...new Set(
               template.locations.map(
@@ -332,10 +341,14 @@ describe('Story Source readiness and authoring context', () => {
                 .map((zone) => ({
                   id: `board:${zone.id}`,
                   locationId: zone.locationId,
+                  zoneProjection: {
+                    cardinality: 'one_to_one' as const,
+                    zoneIds: [zone.id] as [string],
+                  },
                   spatialNodes: zone.spatialNodes!.map((node) => ({
                     id: node.id,
                     kind: node.kind,
-                    description: `stable physical ${node.kind}`,
+                    description: node.description,
                   })),
                   ...(zone.spatialRelations
                     ? {

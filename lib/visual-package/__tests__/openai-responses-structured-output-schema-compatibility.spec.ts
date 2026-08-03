@@ -142,7 +142,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
     const blueprintConsts = allConstNodes(
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     );
-    expect(visualContractConsts).toHaveLength(9);
+    expect(visualContractConsts).toHaveLength(13);
     expect(blueprintConsts.length).toBeGreaterThan(5);
     for (const node of [
       ...visualContractConsts,

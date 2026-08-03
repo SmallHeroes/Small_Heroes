@@ -28,17 +28,27 @@ import {
   type BookVisualContractTemplate,
   type ResolvedFamilyAppearanceProfile,
 } from '@/lib/visual-contract-compiler';
+import { migrateLegacySetBoardFixture } from '@/lib/set-identity-board/__tests__/current-authority-fixtures';
 
 const V3_DIR = path.join(process.cwd(), 'story-bank', 'v3-approved');
 const STORY_KEY = 'fox_uri_adventure';
 
 function loadTemplate(): BookVisualContractTemplate {
   return migrateLegacyBookVisualContractTemplateV1(
-    JSON.parse(
-      fs.readFileSync(
-        path.join(V3_DIR, `${STORY_KEY}.visual-contract-template.json`),
-        'utf8',
+    migrateLegacySetBoardFixture(
+      JSON.parse(
+        fs.readFileSync(
+          path.join(V3_DIR, `${STORY_KEY}.visual-contract-template.json`),
+          'utf8',
+        ),
       ),
+      {
+        board_room_openings: ['z_room_window', 'z_window_threshold'],
+        board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
+      },
+      {
+        z_balcony_railing: { railing: 'metal_railing' },
+      },
     ),
   );
 }
@@ -49,7 +59,7 @@ function clone(t: BookVisualContractTemplate): BookVisualContractTemplate {
 const FAMILY: ResolvedFamilyAppearanceProfile = { skinTone: 'warm olive', hairColour: 'dark brown', hairTexture: 'wavy' };
 
 describe('render-proof — fox_uri_adventure Template authoring', () => {
-  it('rejects immutable v1 bytes as current, then validates their explicit typed-subject migration', () => {
+  it('rejects immutable v1 bytes as current, then validates explicit typed-subject and board-domain migration', () => {
     const artifactPath = path.join(
       V3_DIR,
       `${STORY_KEY}.visual-contract-template.json`,
