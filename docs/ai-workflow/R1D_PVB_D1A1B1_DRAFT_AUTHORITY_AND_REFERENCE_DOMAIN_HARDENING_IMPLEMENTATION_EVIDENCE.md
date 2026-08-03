@@ -30,7 +30,7 @@ Codex records Claude Code's verdict and does not self-award technical PASS.
 
 ### MINOR-1 - closed by independent micro re-gate
 
-The inherited stale documentation statement identified by the review was already corrected in range `b735a22f..07adf099`. Claude Code independently micro-re-gated that exact correction range and closed MINOR-1. This document attributes the closure to Claude Code; it is not a Codex self-awarded result.
+The statement that closure remained pending was introduced at `07adf099` while it was accurate. Claude Code subsequently performed a read-only micro re-gate of exact range `b735a22f..07adf099`, closed that topology MINOR, and thereby made the pending wording stale. This document attributes the closure to Claude Code; it is not a Codex self-awarded result.
 
 ### MINOR-2 - separate test-infrastructure limitation
 
