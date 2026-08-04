@@ -11,6 +11,9 @@ import { STYLE_IDS } from '@/lib/styles';
 import {
   computeVisualContractHash,
   materialize,
+  projectCoverMustNotShow,
+  projectPageMustNotShow,
+  projectPageMustShow,
   type BookVisualContract,
   type ResolvedFamilyAppearanceProfile,
 } from '@/lib/visual-contract-compiler';
@@ -58,9 +61,9 @@ describe('Wizard/order to chunk-runner render qualification', () => {
     );
 
     const selectedSlot = enforceMvpOrderSlot({
-      challengeCategory: 'MEDICAL_PROCEDURE',
+      challengeCategory: 'NIGHT_FEAR',
       clientDirection: 'adventure',
-      clientCompanionId: 'bunny_ometz',
+      clientCompanionId: 'fox_uri',
     });
     const productTruth = resolveStoryProductTruth({
       challengeCategory: selectedSlot.category,
@@ -80,19 +83,186 @@ describe('Wizard/order to chunk-runner render qualification', () => {
       storyDirection: productTruth.storyDirection,
     });
     expect(frozenProduct.selectionFilename).toBe(
-      'story-bank/v3-approved/bunny_ometz_adventure.md',
+      'story-bank/v3-approved/fox_uri_adventure.md',
     );
     const rawStorySource = fs.readFileSync(productTruth.storyFile, 'utf8');
+    expect(rawStorySource).toContain('אוּרי נרתע.');
+    expect(rawStorySource).toContain('הם ישבו ליד הדלי.');
     const { packageValue } = buildVisualPackageV4Fixture(
       'wizard_runtime_qualification',
       undefined,
       {
         rawStorySource,
         sourcePath: frozenProduct.selectionFilename,
+        storyKey: 'fox_uri_adventure',
         styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
         styleContent: {
           styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
           renderingContract: 'offline qualification fixture',
+        },
+        mutateTemplate(template) {
+          const page6 = template.pageContracts.find(
+            (page) => page.pageNumber === 6,
+          )!;
+          page6.actionRequirements = [
+            {
+              checkId: 'action:p6_uri_recoils',
+              subject: {
+                kind: 'entity',
+                entity: { kind: 'cast', id: 'child:hero' },
+              },
+              predicate: 'recoils',
+              polarity: 'must',
+            },
+          ];
+          const page11 = template.pageContracts.find(
+            (page) => page.pageNumber === 11,
+          )!;
+          const companionId = template.cast.companion?.id;
+          if (!companionId) throw new Error('wizard companion is missing');
+          template.recurringProps.push({
+            id: 'prop:bucket',
+            name: 'Bucket',
+            description: 'the exact stable bucket from the Story Source',
+          });
+          page11.propConstraints = [
+            ...(page11.propConstraints ?? []),
+            {
+              propId: 'prop:bucket',
+              visibility: 'required',
+              anchorId: 'anchor:support',
+            },
+          ];
+          page11.actionRequirements = [
+            {
+              checkId: 'action:p11_seated_beside_bucket',
+              subject: {
+                kind: 'cast_group',
+                castIds: ['child:hero', companionId],
+              },
+              predicate: 'sits',
+              spatialConstraint: {
+                relation: 'beside',
+                target: { kind: 'prop', id: 'prop:bucket' },
+              },
+              polarity: 'must',
+            },
+          ];
+          const projectionContract = template as unknown as BookVisualContract;
+          template.coverContract.mustNotShow =
+            projectCoverMustNotShow(projectionContract);
+          for (const page of template.pageContracts) {
+            page.mustShow = [
+              `authored narrative beat ${page.pageNumber}`,
+              ...projectPageMustShow(page, projectionContract),
+            ];
+            page.mustNotShow = projectPageMustNotShow(
+              page,
+              projectionContract,
+            );
+          }
+        },
+        mutateWorld({ template, affordances, frames }) {
+          const updateAction = (
+            pageNumber: number,
+            checkId: string,
+            predicate: 'recoils' | 'sits',
+          ) => {
+            const frame = frames.find(
+              (entry) =>
+                entry.kind === 'page' && entry.pageNumber === pageNumber,
+            )!;
+            const actionPlacement = frame.placements.find(
+              (placement) => placement.subject.kind === 'action',
+            )!;
+            actionPlacement.subject = { kind: 'action', checkId };
+            const actionSpace = affordances.find(
+              (affordance) =>
+                affordance.kind === 'action_space' &&
+                affordance.consumers.some(
+                  (consumer) =>
+                    consumer.kind === 'action' &&
+                    consumer.pageNumber === pageNumber,
+                ),
+            );
+            if (!actionSpace || actionSpace.kind !== 'action_space') {
+              throw new Error(`wizard action space ${pageNumber} is missing`);
+            }
+            actionSpace.supportedPredicates = [predicate];
+            actionSpace.consumers = [
+              { kind: 'action', pageNumber, checkId },
+            ];
+            return { frame, actionSpace };
+          };
+
+          const recoil = updateAction(6, 'action:p6_uri_recoils', 'recoils');
+          recoil.actionSpace.supportedSubjectKinds = ['cast'];
+          recoil.actionSpace.supportedEntities = [
+            { kind: 'cast', id: 'child:hero' },
+          ];
+
+          const seated = updateAction(
+            11,
+            'action:p11_seated_beside_bucket',
+            'sits',
+          );
+          const companionId = template.cast.companion?.id;
+          if (!companionId) throw new Error('wizard companion is missing');
+          seated.actionSpace.supportedSubjectKinds = ['cast_group'];
+          seated.actionSpace.supportedEntities = [
+            { kind: 'cast', id: 'child:hero' },
+            { kind: 'cast', id: companionId },
+            { kind: 'prop', id: 'prop:bucket' },
+          ];
+          seated.actionSpace.supportedSpatialDirections = [];
+          seated.actionSpace.supportedSpatialRelations = [];
+          seated.actionSpace.supportedSpatialConstraintRelations = ['beside'];
+          seated.actionSpace.spatialTargetRegions = [];
+          seated.actionSpace.maximumActors = 2;
+          const childPlacement = seated.frame.placements.find(
+            (placement) =>
+              placement.subject.kind === 'cast' &&
+              placement.subject.castId === 'child:hero',
+          )!;
+          const companionPlacement = seated.frame.placements.find(
+            (placement) =>
+              placement.subject.kind === 'cast' &&
+              placement.subject.castId === companionId,
+          )!;
+          childPlacement.region = {
+            x: 100,
+            y: 420,
+            width: 100,
+            height: 220,
+          };
+          companionPlacement.region = {
+            x: 210,
+            y: 420,
+            width: 100,
+            height: 220,
+          };
+          seated.frame.placements.push({
+            id: 'placement:11:bucket',
+            subject: { kind: 'prop', propId: 'prop:bucket' },
+            region: { x: 330, y: 450, width: 80, height: 100 },
+            depth: 'foreground',
+            importance: 'key',
+          });
+          seated.frame.propLifecycle.requiredPropIds.push('prop:bucket');
+          const supportId = 'affordance:placement:11:bucket';
+          affordances.push({
+            id: supportId,
+            kind: 'placement_support',
+            zoneId: seated.frame.zoneId,
+            footprint: { x: 320, y: 440, width: 100, height: 120 },
+            support: { kind: 'anchor', id: 'anchor:support' },
+            supportedEntities: [{ kind: 'prop', id: 'prop:bucket' }],
+            maximumOccupants: 1,
+            consumers: [
+              { kind: 'placement', pageNumber: 11, propId: 'prop:bucket' },
+            ],
+          });
+          seated.frame.affordanceIds.push(supportId);
         },
       },
     );
@@ -145,7 +315,7 @@ describe('Wizard/order to chunk-runner render qualification', () => {
     });
     expect(runtimeAuthority).not.toBeNull();
     expect(runtimeAuthority).toMatchObject({
-      version: 'style01-runtime-authority/v5',
+      version: 'style01-runtime-authority/v6',
       qualification: {
         renderQualified: true,
         approvedPackagePath: publication.packagePath,
@@ -153,7 +323,7 @@ describe('Wizard/order to chunk-runner render qualification', () => {
       frozenAuthority: frozenPackage,
       contractHash: frozenContractHash,
       bookProjection: {
-        version: 'runtime-blueprint-book-projection/v2',
+        version: 'runtime-blueprint-book-projection/v3',
         packageRevisionDigest: packageValue.revisionDigest,
         blueprintDigest: packageValue.blueprint.digest,
       },
@@ -162,7 +332,7 @@ describe('Wizard/order to chunk-runner render qualification', () => {
       'visual-package/v4',
     );
     expect(runtimeAuthority?.packageValue.blueprint.content.version).toBe(
-      'pre-render-book-visual-blueprint/v3',
+      'pre-render-book-visual-blueprint/v4',
     );
     expect(runtimeAuthority?.bookProjection.frames).toHaveLength(13);
     expect(runtimeAuthority?.bookProjection.frames.map((frame) => frame.pageNumber))
@@ -175,6 +345,37 @@ describe('Wizard/order to chunk-runner render qualification', () => {
       supportedPredicates: ['looks_at'],
       supportedSubjectKinds: ['cast'],
     });
+    const recoilFrame = runtimeAuthority?.bookProjection.frames.find(
+      (frame) => frame.pageNumber === 6,
+    );
+    expect(recoilFrame?.contractPage.actionRequirements).toMatchObject([
+      { predicate: 'recoils', subject: { kind: 'entity' } },
+    ]);
+    expect(recoilFrame?.blueprintPromptBlock).toContain('"predicate":"recoils"');
+    const seatedFrame = runtimeAuthority?.bookProjection.frames.find(
+      (frame) => frame.pageNumber === 11,
+    );
+    expect(seatedFrame?.contractPage.actionRequirements).toMatchObject([
+      {
+        subject: {
+          kind: 'cast_group',
+          castIds: ['child:hero', 'companion:guide'],
+        },
+        predicate: 'sits',
+        spatialConstraint: {
+          relation: 'beside',
+          target: { kind: 'prop', id: 'prop:bucket' },
+        },
+      },
+    ]);
+    expect(seatedFrame?.blueprintPromptBlock).toContain(
+      '"spatialConstraint":{"relation":"beside"',
+    );
+    expect(
+      seatedFrame?.placements.some(
+        (placement) => placement.subject.kind === 'action_destination',
+      ),
+    ).toBe(false);
 
     const imageProvider = vi.fn(async () => 'paid-image');
     await expect(
@@ -193,7 +394,7 @@ describe('Wizard/order to chunk-runner render qualification', () => {
     expect(imageProvider).not.toHaveBeenCalled();
 
     const staleContract = structuredClone(contract) as unknown as Record<string, unknown>;
-    staleContract.schemaVersion = 'vc-schema/v2';
+    staleContract.schemaVersion = 'vc-schema/v3';
     const staleCache = {
       ...cache,
       visualContract: staleContract as Prisma.InputJsonValue,

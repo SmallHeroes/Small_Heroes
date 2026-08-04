@@ -12,6 +12,7 @@ import {
   InvalidPreRenderBookVisualBlueprintError,
   type PreRenderBlueprintIssueCode,
   type PreRenderBookVisualBlueprint,
+  type BlueprintRegion,
 } from '@/lib/visual-package';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import { buildSourcePromptProjectionDigest } from '@/lib/visual-package/sourcePromptReconciliation';
@@ -353,6 +354,132 @@ function buildTwoActorCapacityFixture(maximumActors: number): BlueprintFixture {
   return rebindEmbeddedAuthority({ blueprint, context: fixture.context });
 }
 
+function buildStaticBesideGroupFixture(options: {
+  maximumActors?: number;
+  childRegion?: BlueprintRegion;
+  companionRegion?: BlueprintRegion;
+  targetRegion?: BlueprintRegion;
+} = {}): BlueprintFixture {
+  const fixture = buildBlueprintFixture('single_location');
+  const blueprint = clone(fixture.blueprint);
+  const page = blueprint.visualContract.pageContracts[0]!;
+  const frame = blueprint.frames.find(
+    (entry) => entry.id === 'frame:page:1',
+  )!;
+  const companionId = blueprint.visualContract.cast.companion?.id;
+  if (!companionId || frame.kind !== 'page') {
+    throw new Error('static group fixture is incomplete');
+  }
+  const targetId = 'prop:static_target';
+  const checkId = 'action:page_1_group_sits';
+  const targetRegion =
+    options.targetRegion ?? { x: 330, y: 450, width: 80, height: 100 };
+  blueprint.visualContract.recurringProps.push({
+    id: targetId,
+    name: 'Static target',
+    description: 'one stable current-frame target',
+  });
+  page.propConstraints = [
+    ...(page.propConstraints ?? []),
+    {
+      propId: targetId,
+      visibility: 'required',
+      anchorId: 'anchor:support',
+    },
+  ];
+  page.actionRequirements = [
+    {
+      checkId,
+      subject: {
+        kind: 'cast_group',
+        castIds: ['child:hero', companionId],
+      },
+      predicate: 'sits',
+      spatialConstraint: {
+        relation: 'beside',
+        target: { kind: 'prop', id: targetId },
+      },
+      polarity: 'must',
+    },
+  ];
+
+  const childPlacement = frame.placements.find(
+    (placement) =>
+      placement.subject.kind === 'cast' &&
+      placement.subject.castId === 'child:hero',
+  )!;
+  const companionPlacement = frame.placements.find(
+    (placement) =>
+      placement.subject.kind === 'cast' &&
+      placement.subject.castId === companionId,
+  )!;
+  const actionPlacement = frame.placements.find(
+    (placement) => placement.subject.kind === 'action',
+  )!;
+  childPlacement.region =
+    options.childRegion ?? { x: 100, y: 420, width: 100, height: 220 };
+  companionPlacement.region =
+    options.companionRegion ?? { x: 210, y: 420, width: 100, height: 220 };
+  actionPlacement.subject = { kind: 'action', checkId };
+  frame.placements.push({
+    id: 'placement:1:static-target',
+    subject: { kind: 'prop', propId: targetId },
+    region: targetRegion,
+    depth: 'foreground',
+    importance: 'key',
+  });
+  frame.propLifecycle.requiredPropIds.push(targetId);
+
+  const actionSpace = blueprint.worldPlan.affordances.find(
+    (affordance) =>
+      affordance.kind === 'action_space' &&
+      affordance.consumers.some(
+        (consumer) =>
+          consumer.kind === 'action' && consumer.pageNumber === 1,
+      ),
+  );
+  if (!actionSpace || actionSpace.kind !== 'action_space') {
+    throw new Error('static action space fixture is missing');
+  }
+  actionSpace.supportedPredicates = ['sits'];
+  actionSpace.supportedSubjectKinds = ['cast_group'];
+  actionSpace.supportedEntities = [
+    { kind: 'cast', id: 'child:hero' },
+    { kind: 'cast', id: companionId },
+    { kind: 'prop', id: targetId },
+  ];
+  actionSpace.supportedSpatialDirections = [];
+  actionSpace.supportedSpatialRelations = [];
+  actionSpace.supportedSpatialConstraintRelations = ['beside'];
+  actionSpace.spatialTargetRegions = [];
+  actionSpace.maximumActors = options.maximumActors ?? 2;
+  actionSpace.consumers = [
+    { kind: 'action', pageNumber: 1, checkId },
+  ];
+
+  const supportId = 'affordance:placement:1:static-target';
+  blueprint.worldPlan.affordances.push({
+    id: supportId,
+    kind: 'placement_support',
+    zoneId: page.zoneId!,
+    footprint: {
+      x: Math.max(0, targetRegion.x - 10),
+      y: Math.max(0, targetRegion.y - 10),
+      width: Math.min(1000 - Math.max(0, targetRegion.x - 10), targetRegion.width + 20),
+      height: Math.min(1000 - Math.max(0, targetRegion.y - 10), targetRegion.height + 20),
+    },
+    support: { kind: 'anchor', id: 'anchor:support' },
+    supportedEntities: [{ kind: 'prop', id: targetId }],
+    maximumOccupants: 1,
+    consumers: [
+      { kind: 'placement', pageNumber: 1, propId: targetId },
+    ],
+  });
+  frame.affordanceIds.push(supportId);
+  refreshContractProjections(blueprint);
+  return rebindEmbeddedAuthority({ blueprint, context: fixture.context });
+}
+
 function buildActionSemanticBlueprint(
   semantic: 'phenomenon' | 'directional_move' | 'relation_move',
 ): BlueprintFixture {
@@ -648,17 +775,25 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
     expect(issueCodes(digestMutation, fixture.context)).toContain('digest_mismatch');
   });
 
-  it('rejects immutable v2 Blueprint bytes as current v3 authority without mutating them', () => {
+  it('rejects immutable v2/v3 Blueprint bytes as current v4 authority without mutating them', () => {
     const fixture = buildBlueprintFixture('single_location');
-    const historical = clone(fixture.blueprint) as unknown as Record<string, unknown>;
-    historical.version = 'pre-render-book-visual-blueprint/v2';
-    const before = JSON.stringify(historical);
-    const result = validatePreRenderBookVisualBlueprint(historical, fixture.context);
-    expect(result.ok).toBe(false);
-    expect(
-      result.ok ? [] : result.issues.map((entry) => entry.code),
-    ).toContain('schema_version_unsupported');
-    expect(JSON.stringify(historical)).toBe(before);
+    for (const version of [
+      'pre-render-book-visual-blueprint/v2',
+      'pre-render-book-visual-blueprint/v3',
+    ]) {
+      const historical = clone(fixture.blueprint) as unknown as Record<string, unknown>;
+      historical.version = version;
+      const before = JSON.stringify(historical);
+      const result = validatePreRenderBookVisualBlueprint(
+        historical,
+        fixture.context,
+      );
+      expect(result.ok).toBe(false);
+      expect(
+        result.ok ? [] : result.issues.map((entry) => entry.code),
+      ).toContain('schema_version_unsupported');
+      expect(JSON.stringify(historical)).toBe(before);
+    }
   });
 
   it('returns structured issues instead of throwing on malformed nested arrays', () => {
@@ -1262,6 +1397,146 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
     expect(issueCodes(overbooked.blueprint, overbooked.context)).toContain(
       'action_infeasible',
     );
+  });
+
+  it('expands cast_group subjects into participant support and current-frame static beside geometry', () => {
+    const fixture = buildStaticBesideGroupFixture();
+    const result = validatePreRenderBookVisualBlueprint(
+      fixture.blueprint,
+      fixture.context,
+    );
+    expect(result.ok, result.ok ? '' : JSON.stringify(result.issues)).toBe(true);
+    const action =
+      fixture.blueprint.visualContract.pageContracts[0]!
+        .actionRequirements?.[0];
+    expect(action).toMatchObject({
+      subject: {
+        kind: 'cast_group',
+        castIds: ['child:hero', 'companion:guide'],
+      },
+      predicate: 'sits',
+      spatialConstraint: {
+        relation: 'beside',
+        target: { kind: 'prop', id: 'prop:static_target' },
+      },
+    });
+    expect(
+      fixture.blueprint.frames[1]!.placements.some(
+        (placement) => placement.subject.kind === 'action_destination',
+      ),
+    ).toBe(false);
+
+    const missingMemberSupport = clone(fixture.blueprint);
+    const actionSpace = missingMemberSupport.worldPlan.affordances.find(
+      (entry) => entry.kind === 'action_space',
+    );
+    if (!actionSpace || actionSpace.kind !== 'action_space') {
+      throw new Error('group action space missing');
+    }
+    actionSpace.supportedEntities = actionSpace.supportedEntities.filter(
+      (entry) =>
+        !(entry.kind === 'cast' && entry.id === 'companion:guide'),
+    );
+    expect(
+      issueCodes(restamp(missingMemberSupport), fixture.context),
+    ).toContain('action_infeasible');
+
+    const memberOutsideFootprint = clone(fixture.blueprint);
+    const memberPlacement = memberOutsideFootprint.frames[1]!.placements.find(
+      (placement) =>
+        placement.subject.kind === 'cast' &&
+        placement.subject.castId === 'child:hero',
+    )!;
+    memberPlacement.region = { x: 0, y: 420, width: 100, height: 220 };
+    expect(
+      issueCodes(restamp(memberOutsideFootprint), fixture.context),
+    ).toContain('action_infeasible');
+  });
+
+  it('counts every cast_group member against maximumActors', () => {
+    const exact = buildStaticBesideGroupFixture({ maximumActors: 2 });
+    expect(
+      validatePreRenderBookVisualBlueprint(exact.blueprint, exact.context).ok,
+    ).toBe(true);
+    const overbooked = buildStaticBesideGroupFixture({ maximumActors: 1 });
+    expect(issueCodes(overbooked.blueprint, overbooked.context)).toContain(
+      'action_infeasible',
+    );
+  });
+
+  it('enforces deterministic beside horizontal-gap and vertical-overlap boundaries for every group member', () => {
+    const exactHorizontal = buildStaticBesideGroupFixture({
+      targetRegion: { x: 350, y: 450, width: 80, height: 100 },
+    });
+    expect(
+      validatePreRenderBookVisualBlueprint(
+        exactHorizontal.blueprint,
+        exactHorizontal.context,
+      ).ok,
+    ).toBe(true);
+    const tooFar = buildStaticBesideGroupFixture({
+      targetRegion: { x: 351, y: 450, width: 80, height: 100 },
+    });
+    expect(issueCodes(tooFar.blueprint, tooFar.context)).toContain(
+      'action_infeasible',
+    );
+
+    const exactVertical = buildStaticBesideGroupFixture({
+      targetRegion: { x: 330, y: 590, width: 80, height: 100 },
+    });
+    expect(
+      validatePreRenderBookVisualBlueprint(
+        exactVertical.blueprint,
+        exactVertical.context,
+      ).ok,
+    ).toBe(true);
+    const insufficientVerticalOverlap = buildStaticBesideGroupFixture({
+      targetRegion: { x: 330, y: 591, width: 80, height: 100 },
+    });
+    expect(
+      issueCodes(
+        insufficientVerticalOverlap.blueprint,
+        insufficientVerticalOverlap.context,
+      ),
+    ).toContain('action_infeasible');
+
+    const overlap = buildStaticBesideGroupFixture({
+      targetRegion: { x: 250, y: 450, width: 80, height: 100 },
+    });
+    expect(issueCodes(overlap.blueprint, overlap.context)).toContain(
+      'action_infeasible',
+    );
+  });
+
+  it('requires the exact static target current placement and forbids a fabricated destination', () => {
+    const fixture = buildStaticBesideGroupFixture();
+    const missingTarget = clone(fixture.blueprint);
+    missingTarget.frames[1]!.placements =
+      missingTarget.frames[1]!.placements.filter(
+        (placement) =>
+          !(
+            placement.subject.kind === 'prop' &&
+            placement.subject.propId === 'prop:static_target'
+          ),
+      );
+    expect(issueCodes(restamp(missingTarget), fixture.context)).toContain(
+      'action_infeasible',
+    );
+
+    const fabricatedDestination = clone(fixture.blueprint);
+    fabricatedDestination.frames[1]!.placements.push({
+      id: 'placement:1:fabricated-static-destination',
+      subject: {
+        kind: 'action_destination',
+        checkId: 'action:page_1_group_sits',
+      },
+      region: { x: 420, y: 450, width: 80, height: 100 },
+      depth: 'midground',
+      importance: 'key',
+    });
+    expect(
+      issueCodes(restamp(fabricatedDestination), fixture.context),
+    ).toContain('action_infeasible');
   });
 
   it('maximumActors counts cast subjects only, not source phenomena or cast objects', () => {

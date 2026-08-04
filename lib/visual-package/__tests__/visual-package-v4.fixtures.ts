@@ -59,7 +59,7 @@ function provenanceFor(
   blueprint: PreRenderBookVisualBlueprint,
 ): PreRenderBlueprintAuthoringProvenance {
   return {
-    version: 'pre-render-blueprint-authoring-provenance/v2',
+    version: 'pre-render-blueprint-authoring-provenance/v3',
     blueprintDigest: blueprint.digest,
     authoringAuthorityDigest:
       blueprint.identity.authoringAuthority.digest,
@@ -67,8 +67,8 @@ function provenanceFor(
     reasoningEffort: 'medium',
     maxOutputTokens: 48_000,
     noFallback: true,
-    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v4',
-    promptVersion: 'pre-render-blueprint-authoring-prompt/v3',
+    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v5',
+    promptVersion: 'pre-render-blueprint-authoring-prompt/v4',
     passingAttempt: 1,
     callCount: 1,
     systemPromptDigest: 'a'.repeat(64),

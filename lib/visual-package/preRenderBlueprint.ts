@@ -4,6 +4,7 @@ import {
   requiredPropIdsForPage,
 } from '@/lib/visual-contract-compiler/propLifecycle';
 import type {
+  ActionSpatialConstraintRelation,
   ActionSpatialDirection,
   ActionSpatialRelation,
   EntityRef,
@@ -13,6 +14,7 @@ import type {
   VisualZone,
 } from '@/lib/visual-contract-compiler/types';
 import {
+  ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES,
   ACTION_SPATIAL_DIRECTION_VALUES,
   ACTION_SPATIAL_RELATION_VALUES,
 } from '@/lib/visual-contract-compiler/types';
@@ -103,6 +105,10 @@ const ACTION_SPATIAL_DIRECTIONS = new Set<ActionSpatialDirection>(
 const ACTION_SPATIAL_RELATIONS = new Set<ActionSpatialRelation>(
   ACTION_SPATIAL_RELATION_VALUES,
 );
+const ACTION_SPATIAL_CONSTRAINT_RELATIONS =
+  new Set<ActionSpatialConstraintRelation>(
+    ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES,
+  );
 const HEX_SHA256 = /^[a-f0-9]{64}$/;
 
 function isObj(value: unknown): value is Obj {
@@ -192,6 +198,7 @@ function normalizeOwnedArrays(
       affordance.supportedSubjectKinds.sort(lexicalCompare);
       affordance.supportedSpatialDirections.sort(lexicalCompare);
       affordance.supportedSpatialRelations.sort(lexicalCompare);
+      affordance.supportedSpatialConstraintRelations.sort(lexicalCompare);
       affordance.spatialTargetRegions.sort((a, b) =>
         lexicalCompare(entityRefKey(a.target), entityRefKey(b.target)),
       );
@@ -974,6 +981,10 @@ function validateAffordanceShape(
         !affordance.supportedSpatialRelations.every((relation) =>
           ACTION_SPATIAL_RELATIONS.has(relation),
         ) ||
+        !Array.isArray(affordance.supportedSpatialConstraintRelations) ||
+        !affordance.supportedSpatialConstraintRelations.every((relation) =>
+          ACTION_SPATIAL_CONSTRAINT_RELATIONS.has(relation),
+        ) ||
         !Array.isArray(affordance.spatialTargetRegions) ||
         !Number.isInteger(affordance.maximumActors) ||
         affordance.maximumActors < 1
@@ -1329,6 +1340,32 @@ function validateSupportingGeometry(
   }
 }
 
+function actionSubjectEntities(
+  action: PageActionRequirement,
+): EntityRef[] {
+  if (action.subject.kind === 'entity') {
+    return [action.subject.entity];
+  }
+  if (action.subject.kind === 'cast_group') {
+    return action.subject.castIds.map((id) => ({ kind: 'cast', id }));
+  }
+  return [];
+}
+
+function actionParticipantEntities(
+  action: PageActionRequirement,
+): EntityRef[] {
+  const entities = actionSubjectEntities(action);
+  if (action.object) entities.push(action.object);
+  if (action.spatialEffect?.kind === 'relation') {
+    entities.push(action.spatialEffect.target);
+  }
+  if (action.spatialConstraint) {
+    entities.push(action.spatialConstraint.target);
+  }
+  return entities;
+}
+
 function actionSupportIsCompatible(
   affordance: Extract<BlueprintSpatialAffordance, { kind: 'action_space' }>,
   action: PageActionRequirement,
@@ -1337,18 +1374,14 @@ function actionSupportIsCompatible(
     action.subject.kind === 'entity'
       ? action.subject.entity.kind
       : action.subject.kind;
-  const entities: EntityRef[] = [];
-  if (action.subject.kind === 'entity') entities.push(action.subject.entity);
-  if (action.object) entities.push(action.object);
-  if (action.spatialEffect?.kind === 'relation') {
-    entities.push(action.spatialEffect.target);
-  }
+  const entities = actionParticipantEntities(action);
   return (
     Array.isArray(affordance.supportedPredicates) &&
     Array.isArray(affordance.supportedSubjectKinds) &&
     Array.isArray(affordance.supportedEntities) &&
     Array.isArray(affordance.supportedSpatialDirections) &&
     Array.isArray(affordance.supportedSpatialRelations) &&
+    Array.isArray(affordance.supportedSpatialConstraintRelations) &&
     affordance.supportedPredicates.includes(action.predicate) &&
     affordance.supportedSubjectKinds.includes(subjectKind) &&
     entities.every((expected) =>
@@ -1357,7 +1390,11 @@ function actionSupportIsCompatible(
     (action.spatialEffect?.kind !== 'directional' ||
       affordance.supportedSpatialDirections.includes(action.spatialEffect.direction)) &&
     (action.spatialEffect?.kind !== 'relation' ||
-      affordance.supportedSpatialRelations.includes(action.spatialEffect.relation))
+      affordance.supportedSpatialRelations.includes(action.spatialEffect.relation)) &&
+    (!action.spatialConstraint ||
+      affordance.supportedSpatialConstraintRelations.includes(
+        action.spatialConstraint.relation,
+      ))
   );
 }
 
@@ -1390,10 +1427,7 @@ function actionParticipantsFitSpace(
   affordance: Extract<BlueprintSpatialAffordance, { kind: 'action_space' }>,
   placements: readonly BlueprintFramePlacement[],
 ): boolean {
-  const participants: EntityRef[] = [];
-  if (action.subject.kind === 'entity') participants.push(action.subject.entity);
-  if (action.object) participants.push(action.object);
-  if (action.spatialEffect?.kind === 'relation') participants.push(action.spatialEffect.target);
+  const participants = actionParticipantEntities(action);
   return participants.every((participant) => {
     const placement = placementForEntity(placements, participant);
     if (participant.kind !== 'cast' && participant.kind !== 'prop') return true;
@@ -1404,6 +1438,66 @@ function actionParticipantsFitSpace(
         regionContains(affordance.footprint, placement.region),
     );
   });
+}
+
+const BESIDE_MAX_HORIZONTAL_EDGE_GAP = 150;
+
+/** Static `beside`: disjoint boxes, at least half of the shorter height aligned, and a bounded edge gap. */
+function regionsAreStaticallyBeside(
+  subject: BlueprintRegion,
+  target: BlueprintRegion,
+): boolean {
+  if (regionsOverlap(subject, target)) return false;
+  const verticalOverlap = Math.max(
+    0,
+    Math.min(subject.y + subject.height, target.y + target.height) -
+      Math.max(subject.y, target.y),
+  );
+  if (verticalOverlap * 2 < Math.min(subject.height, target.height)) {
+    return false;
+  }
+  const horizontalEdgeGap = Math.max(
+    target.x - (subject.x + subject.width),
+    subject.x - (target.x + target.width),
+    0,
+  );
+  return horizontalEdgeGap <= BESIDE_MAX_HORIZONTAL_EDGE_GAP;
+}
+
+function staticSpatialConstraintIsFeasible(args: {
+  action: PageActionRequirement;
+  placements: readonly BlueprintFramePlacement[];
+}): boolean {
+  const { action, placements } = args;
+  const constraint = action.spatialConstraint;
+  if (!constraint) return true;
+  const targetPlacement = placementForEntity(
+    placements,
+    constraint.target,
+  );
+  if (!targetPlacement || !regionIsValid(targetPlacement.region)) {
+    return false;
+  }
+  const subjectPlacements = actionSubjectEntities(action).map((subject) =>
+    placementForEntity(placements, subject),
+  );
+  if (
+    subjectPlacements.length === 0 ||
+    subjectPlacements.some(
+      (placement) => !placement || !regionIsValid(placement.region),
+    )
+  ) {
+    return false;
+  }
+  switch (constraint.relation) {
+    case 'beside':
+      return subjectPlacements.every((placement) =>
+        regionsAreStaticallyBeside(
+          placement!.region,
+          targetPlacement.region,
+        ),
+      );
+  }
 }
 
 function spatialDestinationIsFeasible(args: {
@@ -1888,6 +1982,10 @@ function validateFrame(args: {
           }) &&
           actionSupportIsCompatible(candidate, action) &&
           actionParticipantsFitSpace(action, candidate, validPlacements) &&
+          staticSpatialConstraintIsFeasible({
+            action,
+            placements: validPlacements,
+          }) &&
           Boolean(
             placement &&
               regionIsValid(candidate.footprint) &&
@@ -1917,13 +2015,17 @@ function validateFrame(args: {
       } else {
         const actors =
           actionActorAssignments.get(compatibleSupports[0].id) ?? new Set<string>();
-        // Capacity counts only unique cast entity subjects. Objects, prop subjects, and exact source
-        // phenomena are participants but are never promoted into cast actors.
+        // Capacity counts every unique cast subject, including every cast_group member. Objects,
+        // prop subjects, and exact source phenomena remain participants but never become cast actors.
         if (
           action.subject.kind === 'entity' &&
           action.subject.entity.kind === 'cast'
         ) {
           actors.add(action.subject.entity.id);
+        } else if (action.subject.kind === 'cast_group') {
+          for (const castId of action.subject.castIds) {
+            actors.add(castId);
+          }
         }
         actionActorAssignments.set(compatibleSupports[0].id, actors);
       }

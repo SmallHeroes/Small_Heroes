@@ -57,7 +57,15 @@ export type BlueprintFixtureShape =
   | 'wizard_runtime_qualification';
 
 export interface BlueprintFixtureOptions {
+  storyKey?: string;
   mutateTemplate?: (template: BookVisualContractTemplate) => void;
+  mutateWorld?: (args: {
+    template: BookVisualContractTemplate;
+    connections: BlueprintWorldConnection[];
+    affordances: BlueprintSpatialAffordance[];
+    revealSafeSupportingGeometry: RevealSafeSupportingGeometry[];
+    frames: PortraitBlueprintFrame[];
+  }) => void;
   rawStorySource?: string;
   sourcePath?: string;
   styleId?: string;
@@ -556,6 +564,7 @@ function makeWorldAndFrames(
         ],
         supportedSpatialDirections: [],
         supportedSpatialRelations: [],
+        supportedSpatialConstraintRelations: [],
         spatialTargetRegions: [],
         maximumActors: 2,
         consumers: [actionConsumer],
@@ -682,7 +691,9 @@ export function buildBlueprintFixture(
   shape: BlueprintFixtureShape,
   options?: BlueprintFixtureOptions,
 ): BlueprintFixture {
-  const plan = shapePlans[shape];
+  const plan = options?.storyKey
+    ? { ...shapePlans[shape], storyKey: options.storyKey }
+    : shapePlans[shape];
   const template = makeTemplate(plan);
   options?.mutateTemplate?.(template);
   const rawStorySource = options?.rawStorySource ?? makeRawStorySource(plan);
@@ -722,6 +733,7 @@ export function buildBlueprintFixture(
     style,
   });
   const world = makeWorldAndFrames(plan, template);
+  options?.mutateWorld?.({ template, ...world });
   const blueprint = finalizePreRenderBookVisualBlueprint({
     version: PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
     identity: buildPreRenderBlueprintIdentity({ authority: authoringAuthority }),

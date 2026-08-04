@@ -1,6 +1,7 @@
 import type {
   ActionPredicate,
   ActionSpatialDirection,
+  ActionSpatialConstraintRelation,
   ActionSpatialRelation,
   EntityRef,
   PageTransitionKind,
@@ -24,9 +25,9 @@ import type { SourcePromptReconciliation } from './sourcePromptReconciliation';
  * Visual Package qualification. PVB-C owns the separate runtime cutover decision.
  */
 export const PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION =
-  'pre-render-book-visual-blueprint/v3' as const;
+  'pre-render-book-visual-blueprint/v4' as const;
 export const PRE_RENDER_BLUEPRINT_AUTHORING_AUTHORITY_VERSION =
-  'pre-render-blueprint-authoring-authority/v2' as const;
+  'pre-render-blueprint-authoring-authority/v3' as const;
 export const PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM =
   'canonical-json-sha256' as const;
 export const PRE_RENDER_BLUEPRINT_RECONCILIATION_DIGEST_ALGORITHM =
@@ -164,6 +165,7 @@ export interface BlueprintActionSpaceAffordance extends BlueprintAffordanceBase 
   supportedEntities: EntityRef[];
   supportedSpatialDirections: ActionSpatialDirection[];
   supportedSpatialRelations: ActionSpatialRelation[];
+  supportedSpatialConstraintRelations: ActionSpatialConstraintRelation[];
   /** Exact structural target regions used to prove relation-based movement destinations. */
   spatialTargetRegions: Array<{ target: EntityRef; region: BlueprintRegion }>;
   /** Maximum unique cast entity subjects assigned on one frame/page; objects and phenomena never count. */

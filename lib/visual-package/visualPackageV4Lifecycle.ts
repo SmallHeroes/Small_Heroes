@@ -29,7 +29,10 @@ import {
   type PreRenderBlueprintReviewPacket,
   type PreRenderBlueprintValidationEvidence,
 } from './preRenderBlueprintLifecycle';
-import type { PreRenderBookVisualBlueprint } from './preRenderBlueprintTypes';
+import {
+  PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
+  type PreRenderBookVisualBlueprint,
+} from './preRenderBlueprintTypes';
 import {
   comparePropArtifacts,
   resolveRequiredPropArtifacts,
@@ -140,7 +143,7 @@ function lifecycleArtifactDigest(content: unknown): string {
     typeof content === 'object' &&
     !Array.isArray(content) &&
     (content as { version?: unknown }).version ===
-      'pre-render-book-visual-blueprint/v3'
+      PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION
   ) {
     return computePreRenderBookVisualBlueprintDigest(
       content as PreRenderBookVisualBlueprint,

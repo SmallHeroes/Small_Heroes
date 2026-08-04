@@ -36,7 +36,7 @@ export const MATERIALIZER_VERSION = 'materializer/v2' as const;
 export const PALETTE_VERSION = 'palette/v1' as const;
 export const APPROVED_RUNTIME_AUTHORITY_VERSION = 'approved-runtime-authority/v3' as const;
 export const APPROVED_PVB_RUNTIME_AUTHORITY_VERSION =
-  'approved-pvb-runtime-authority/v5' as const;
+  'approved-pvb-runtime-authority/v6' as const;
 
 /**
  * Exact approved-package identity carried inside the resolved/frozen contract. This is reviewer-owned metadata,

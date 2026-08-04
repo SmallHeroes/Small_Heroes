@@ -12,6 +12,7 @@ import {
 import {
   ACTION_SPATIAL_DIRECTION_VALUES,
   ACTION_SPATIAL_RELATION_VALUES,
+  ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES,
 } from '@/lib/visual-contract-compiler/types';
 
 function obj(properties: Record<string, unknown>): Record<string, unknown> {
@@ -134,6 +135,13 @@ const affordance = {
         type: 'array',
         items: { type: 'string', enum: ACTION_SPATIAL_RELATION_VALUES },
       },
+      supportedSpatialConstraintRelations: {
+        type: 'array',
+        items: {
+          type: 'string',
+          enum: ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES,
+        },
+      },
       spatialTargetRegions: {
         type: 'array',
         items: obj({ target: entityRef, region }),
@@ -254,6 +262,6 @@ export const PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA: Record<string, unknown> = o
 });
 
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION =
-  'pre-render-blueprint-draft-schema/v4' as const;
+  'pre-render-blueprint-draft-schema/v5' as const;
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME =
   'PreRenderBookVisualBlueprintWholeBookDraft' as const;

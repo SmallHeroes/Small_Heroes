@@ -153,7 +153,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         ).ok,
       ).toBe(true);
       expect(result.blueprint.version).toBe(
-        'pre-render-book-visual-blueprint/v3',
+        'pre-render-book-visual-blueprint/v4',
       );
       expect(result.blueprint.identity.authoringAuthority.digest).toBe(
         fixture.blueprint.identity.authoringAuthority.digest,
@@ -231,7 +231,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance).toMatchObject({
       passingAttempt: 2,
       callCount: 2,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v3',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v4',
     });
   });
 

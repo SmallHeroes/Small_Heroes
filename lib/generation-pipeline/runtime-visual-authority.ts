@@ -85,10 +85,10 @@ export function assertStyle01RuntimeAuthorityForPage(args: {
     return null;
   }
   const authority = args.authority;
-  if (!authority || authority.version !== 'style01-runtime-authority/v5') {
+  if (!authority || authority.version !== 'style01-runtime-authority/v6') {
     throw new RuntimeVisualAuthorityBoundaryError(
       'runtime_authority_missing',
-      'enforced Style01 provider call has no style01-runtime-authority/v5 preflight-issued authority',
+      'enforced Style01 provider call has no style01-runtime-authority/v6 preflight-issued authority',
       args.pageNumber,
     );
   }

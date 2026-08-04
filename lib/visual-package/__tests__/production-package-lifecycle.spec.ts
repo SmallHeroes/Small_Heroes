@@ -103,15 +103,15 @@ function provenanceFor(
   authoringAuthorityDigest: string,
 ): PreRenderBlueprintAuthoringProvenance {
   return {
-    version: 'pre-render-blueprint-authoring-provenance/v2',
+    version: 'pre-render-blueprint-authoring-provenance/v3',
     blueprintDigest,
     authoringAuthorityDigest,
     model: 'synthetic-offline-fixture',
     reasoningEffort: 'high',
     maxOutputTokens: 48_000,
     noFallback: true,
-    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v4',
-    promptVersion: 'pre-render-blueprint-authoring-prompt/v3',
+    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v5',
+    promptVersion: 'pre-render-blueprint-authoring-prompt/v4',
     passingAttempt: 1,
     callCount: 1,
     systemPromptDigest: 'a'.repeat(64),

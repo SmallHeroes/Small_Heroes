@@ -76,7 +76,7 @@ export interface RenderQualificationPreflightArgs {
 }
 
 export interface Style01RuntimeAuthority {
-  version: 'style01-runtime-authority/v5';
+  version: 'style01-runtime-authority/v6';
   repoRoot: string;
   qualification: Style01PvbQualification;
   packageValue: VisualPackageV4;
@@ -309,7 +309,7 @@ function requireFrozenAuthority(
     contract,
   });
   return {
-    version: 'style01-runtime-authority/v5',
+    version: 'style01-runtime-authority/v6',
     repoRoot: args.repoRoot ?? process.cwd(),
     qualification,
     packageValue,

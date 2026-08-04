@@ -103,7 +103,7 @@ function authority(
     contract,
   });
   return {
-    version: 'style01-runtime-authority/v5',
+    version: 'style01-runtime-authority/v6',
     repoRoot: process.cwd(),
     qualification: {
       storyKey: packageValue.storyKey,
@@ -280,7 +280,7 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
 
   it('reports the exact v5 runtime-authority requirement for absent or stale authority', () => {
     const expectedMessage =
-      '[runtime_world_authority:runtime_authority_missing] enforced Style01 provider call has no style01-runtime-authority/v5 preflight-issued authority';
+      '[runtime_world_authority:runtime_authority_missing] enforced Style01 provider call has no style01-runtime-authority/v6 preflight-issued authority';
     expect(() =>
       assertStyle01RuntimeAuthorityForPage({
         illustrationStyle: 'soft_hand_drawn_storybook',

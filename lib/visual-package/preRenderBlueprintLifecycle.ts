@@ -45,13 +45,13 @@ import type {
 } from './sourcePromptReconciliation';
 
 export const PRE_RENDER_BLUEPRINT_VALIDATION_EVIDENCE_VERSION =
-  'pre-render-blueprint-validation-evidence/v2' as const;
+  'pre-render-blueprint-validation-evidence/v3' as const;
 export const PRE_RENDER_BLUEPRINT_REVIEW_PACKET_VERSION =
-  'pre-render-blueprint-review-packet/v2' as const;
+  'pre-render-blueprint-review-packet/v3' as const;
 export const PRE_RENDER_BLUEPRINT_REVIEW_RENDERER_VERSION =
-  'pre-render-blueprint-review-renderer/v2' as const;
+  'pre-render-blueprint-review-renderer/v3' as const;
 export const PRE_RENDER_BLUEPRINT_APPROVAL_VERSION =
-  'pre-render-blueprint-approval-attestation/v2' as const;
+  'pre-render-blueprint-approval-attestation/v3' as const;
 export const PRE_RENDER_BLUEPRINT_APPROVER = 'Guy' as const;
 
 const DIGEST_ALGORITHM = 'canonical-json-sha256' as const;
