@@ -174,7 +174,7 @@ function fakeGraph(
         liveRunnerType: 'function',
         credentialEnvironmentName: 'OPENAI_API_KEY',
         providerEvidenceVersion:
-          'openai-responses-authoring-evidence/v2',
+          'openai-responses-authoring-evidence/v3',
       })),
   };
 }
@@ -713,7 +713,7 @@ describe('canonical Visual Contract authoring launcher', () => {
             credentialEnvironmentName:
               'OPENAI_API_KEY',
             providerEvidenceVersion:
-              'openai-responses-authoring-evidence/v2',
+              'openai-responses-authoring-evidence/v3',
           };
         }),
       );

@@ -15,6 +15,7 @@ import {
   buildTemplateRepairSystemPrompt,
   buildTemplateRepairUserPrompt,
   TemplateRepairExhaustedError,
+  TemplateRepairOutputInvalidError,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import {
@@ -118,7 +119,7 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(calls()).toBe(3);
   });
 
-  it('a repair call that returns unparseable JSON surfaces as exhaustion WITH the recorded trail (never lost)', async () => {
+  it('a completed repair response that is unparseable remains distinct from full validation exhaustion', async () => {
     let calls = 0;
     const caller: ContractLlmCaller = async () => {
       calls += 1;
@@ -131,11 +132,17 @@ describe('Stage 3 — bounded repair loop', () => {
     } catch (e) {
       thrown = e;
     }
-    expect(thrown).toBeInstanceOf(TemplateRepairExhaustedError);
-    const err = thrown as TemplateRepairExhaustedError;
+    expect(thrown).toBeInstanceOf(
+      TemplateRepairOutputInvalidError,
+    );
+    const err = thrown as TemplateRepairOutputInvalidError;
     expect(err.attempts).toHaveLength(1); // the failing initial attempt is still carried
     expect(err.attempts[0].errors.some((e) => /material/i.test(e))).toBe(true);
-    expect(err.message).toMatch(/could not be produced/i);
+    expect(err.repairAttempt).toBe(2);
+    expect(err.repairMode).toBe('full_draft');
+    expect(err.message).toBe(
+      'completed template repair output was unusable',
+    );
     expect(calls).toBe(2); // initial + the one (failed) repair call
   });
 

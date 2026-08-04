@@ -26,9 +26,11 @@ import {
   compileBookVisualContractTemplate,
   REPAIR_PROMPT_VERSION,
   REPAIR_USER_PROMPT_VERSION,
+  DraftAuthorityReferenceDomainError,
   TEMPLATE_PROMPT_VERSION,
   TEMPLATE_USER_PROMPT_VERSION,
   TemplateRepairExhaustedError,
+  TemplateRepairOutputInvalidError,
   type TemplateCompileResult,
 } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 import {
@@ -58,6 +60,9 @@ import type {
   ContractLlmPromptAuthority,
 } from '@/lib/visual-contract-compiler/compileBookVisualContract';
 import {
+  InvalidVisualContractError,
+} from '@/lib/visual-contract-compiler/validateBookVisualContract';
+import {
   extractDeterministicFacts,
 } from '@/lib/visual-contract-compiler/extractDeterministicFacts';
 import {
@@ -86,6 +91,19 @@ import {
   type SanitizedProviderFailureDiagnostic,
 } from './providerFailureDiagnostics';
 import {
+  aggregateAuthoringExecutionAttestations,
+  authoringExecutionAttestationIsValid,
+  authoringTerminalFailureIsValid,
+  buildAuthoringTerminalFailure,
+  canonicalCompletedExecutionAttestationIsValid,
+  injectedAuthoringExecutionAttestation,
+  notRunAuthoringExecutionAttestation,
+  sanitizedAuthoringDiagnostics,
+  type AuthoringExecutionAttestation,
+  type AuthoringTerminalFailure,
+  type AuthoringTerminalFailureCode,
+} from './authoringTerminalDiagnostics';
+import {
   assertValidStorySourceAuthoritySnapshot,
   storySourceSnapshotToTemplateInput,
   type StorySourceAuthoritySnapshot,
@@ -100,9 +118,9 @@ import {
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
   'visual-contract-authoring-request/v9' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v8' as const;
+  'visual-contract-authoring-receipt/v9' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v6' as const;
+  'visual-contract-authoring-readiness/v7' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v6' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -129,6 +147,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V6 =
   'visual-contract-authoring-receipt/v6' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V7 =
   'visual-contract-authoring-receipt/v7' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V8 =
+  'visual-contract-authoring-receipt/v8' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -139,6 +159,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V4 =
   'visual-contract-authoring-readiness/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V5 =
   'visual-contract-authoring-readiness/v5' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V6 =
+  'visual-contract-authoring-readiness/v6' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -150,9 +172,23 @@ export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V4 =
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V5 =
   'visual-contract-candidate-artifact/v5' as const;
 export const OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
+  'openai-responses-authoring-evidence/v3' as const;
+export const LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
   'openai-responses-authoring-evidence/v2' as const;
 export const ACTION_SEMANTIC_CATALOG_DIGEST =
   canonicalJsonDigest(ACTION_SEMANTIC_CATALOG);
+
+export function openAIResponsesAuthoringEvidenceVersionStatus(
+  version: unknown,
+): 'current' | 'legacy_immutable' | 'unsupported' {
+  if (version === OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION) {
+    return 'current';
+  }
+  return version ===
+    LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION
+    ? 'legacy_immutable'
+    : 'unsupported';
+}
 
 const PROMPT_PROTOCOL_TOKEN_ALLOWANCE = 4_096;
 const MAX_RECEIPT_ERRORS = 128;
@@ -283,6 +319,7 @@ export interface VisualContractAuthoringProviderResponse {
     evidenceVersion?: string;
     completionStatus?: string;
     usageEvidenceComplete?: boolean;
+    executionAttestation?: AuthoringExecutionAttestation;
   };
 }
 
@@ -328,10 +365,14 @@ export interface VisualContractAuthoringAttemptReceipt {
     | null;
   completionStatus?: string;
   usageEvidenceComplete?: boolean;
+  executionAttestation: AuthoringExecutionAttestation;
   reservedExposureBeforeCallUsd: number;
   nominalEstimatedCostUsd: number | null;
   conservativeAccountedCostUsd: number | null;
-  validationErrors: string[];
+  validationDiagnostics: {
+    count: number;
+    codes: string[];
+  };
 }
 
 export interface VisualContractAuthoringReceipt {
@@ -346,6 +387,7 @@ export interface VisualContractAuthoringReceipt {
   status: 'preflight_passed' | 'completed' | 'failed';
   callCount: number;
   repairCount: number;
+  executionAttestation: AuthoringExecutionAttestation;
   pricing: typeof VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS;
   pricingDigest: string;
   projectedMaxCostUsd: number;
@@ -371,23 +413,7 @@ export interface VisualContractAuthoringReceipt {
       typeof SOURCE_EVIDENCE_CATALOG_VERSION;
     sourceEvidenceCatalogDigest: string;
   };
-  failure: {
-    code:
-      | 'request_invalid'
-      | 'provider_required'
-      | 'provider_call_failed'
-      | 'provider_policy_mismatch'
-      | 'input_token_ceiling_exceeded'
-      | 'usage_invalid'
-      | 'provider_evidence_invalid'
-      | 'completion_status_invalid'
-      | 'cost_ceiling_exceeded'
-      | 'validation_exhausted'
-      | 'action_authority_incomplete'
-      | 'action_semantic_capability_gap';
-    message: string;
-    issues: string[];
-  } | null;
+  failure: AuthoringTerminalFailure | null;
   doesNotAuthorize: string[];
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
@@ -414,7 +440,9 @@ export interface VisualContractAuthoringReadinessEvidence {
     failureCode:
       | NonNullable<VisualContractAuthoringReceipt['failure']>['code']
       | null;
+    terminalClassification: VisualContractAuthoringReceipt['failure'];
   };
+  executionAttestation: AuthoringExecutionAttestation;
   actionSemanticCoverage: VisualContractAuthoringReceipt['actionSemanticCoverage'];
   visualContractCandidate: {
     status: 'absent' | 'candidate';
@@ -516,6 +544,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V5,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V6,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V7,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V8,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -523,6 +552,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V3,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V4,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V5,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V6,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -1079,11 +1109,10 @@ function receiptActionSemanticCoverage(
 function failureReceipt(args: {
   request: VisualContractAuthoringRequest;
   attempts: VisualContractAuthoringAttemptReceipt[];
-  code: NonNullable<
-    VisualContractAuthoringReceipt['failure']
-  >['code'];
-  message: string;
-  issues?: string[];
+  code: AuthoringTerminalFailureCode;
+  diagnosticInputs?: readonly unknown[];
+  diagnosticCountOverride?: number;
+  issueCodes?: readonly unknown[];
   actionSemanticCoverage?:
     VisualContractAuthoringReceipt['actionSemanticCoverage'];
 }): VisualContractAuthoringReceipt {
@@ -1101,6 +1130,12 @@ function failureReceipt(args: {
     status: 'failed',
     callCount: providerCallCount(args.attempts),
     repairCount: providerRepairCallCount(args.attempts),
+    executionAttestation:
+      aggregateAuthoringExecutionAttestations(
+        args.attempts.map(
+          (attempt) => attempt.executionAttestation,
+        ),
+      ),
     pricing: VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
     pricingDigest: canonicalJsonDigest(
       VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
@@ -1121,11 +1156,13 @@ function failureReceipt(args: {
         args.request,
         'not_evaluated',
       ),
-    failure: {
+    failure: buildAuthoringTerminalFailure({
       code: args.code,
-      message: args.message,
-      issues: boundedErrors(args.issues ?? []),
-    },
+      diagnosticInputs: args.diagnosticInputs,
+      diagnosticCountOverride:
+        args.diagnosticCountOverride,
+      issueCodes: args.issueCodes,
+    }),
     doesNotAuthorize: [...DOES_NOT_AUTHORIZE],
   });
 }
@@ -1387,6 +1424,46 @@ function providerRepairCallCount(
   ).length;
 }
 
+function setAttemptValidationDiagnostics(
+  attempt: VisualContractAuthoringAttemptReceipt,
+  inputs: readonly unknown[],
+): void {
+  attempt.validationDiagnostics =
+    sanitizedAuthoringDiagnostics({
+      inputs,
+      fallbackCode: 'draft_contract_validation_failed',
+    });
+}
+
+function templateRepairExhaustionIsProven(args: {
+  error: TemplateRepairExhaustedError;
+  request: VisualContractAuthoringRequest;
+  attempts: readonly VisualContractAuthoringAttemptReceipt[];
+}): boolean {
+  const expectedCalls = args.request.callBudget.maxCalls;
+  const expectedRepairs =
+    args.request.callBudget.maxRepairCount;
+  return (
+    expectedCalls === expectedRepairs + 1 &&
+    expectedCalls === VISUAL_CONTRACT_AUTHORING_MAX_CALLS &&
+    expectedRepairs === VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS &&
+    args.error.attempts.length === expectedCalls &&
+    args.attempts.length === expectedCalls &&
+    providerCallCount(args.attempts) === expectedCalls &&
+    providerRepairCallCount(args.attempts) === expectedRepairs &&
+    args.attempts.every(
+      (attempt, index) =>
+        attempt.attempt === index + 1 &&
+        attempt.status === 'response_received',
+    ) &&
+    args.error.attempts.every(
+      (attempt, index) =>
+        attempt.attempt === index + 1 &&
+        attempt.errors.length > 0,
+    )
+  );
+}
+
 function safeLabel(value: unknown, fallback: string): string {
   return nonEmpty(value)
     ? value
@@ -1527,28 +1604,42 @@ export async function runVisualContractAuthoring(args: {
   requiredProviderEvidenceVersion?:
     typeof OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION;
 }): Promise<VisualContractAuthoringRunResult> {
-  const requestIssues = [
-    ...new Set([
-      ...visualContractAuthoringRequestIssues({
+  let requestIssues: string[];
+  try {
+    requestIssues = [
+      ...new Set([
+        ...visualContractAuthoringRequestIssues({
+          request: args.request,
+          snapshot: args.snapshot,
+        }),
+        ...(args.requiredMode &&
+        args.request.mode !== args.requiredMode
+          ? [`request_mode_must_be_${args.requiredMode}`]
+          : []),
+        ...(args.additionalRequestIssues ?? []),
+      ]),
+    ];
+  } catch {
+    return {
+      receipt: failureReceipt({
         request: args.request,
-        snapshot: args.snapshot,
+        attempts: [],
+        code: 'local_processing_failed',
+        diagnosticCountOverride: 1,
+        issueCodes: ['local_processing_failed'],
       }),
-      ...(args.requiredMode &&
-      args.request.mode !== args.requiredMode
-        ? [`request_mode_must_be_${args.requiredMode}`]
-        : []),
-      ...(args.additionalRequestIssues ?? []),
-    ]),
-  ];
+      compileResult: null,
+      providerFailureEvidence: null,
+    };
+  }
   if (requestIssues.length > 0) {
     return {
       receipt: failureReceipt({
         request: args.request,
         attempts: [],
         code: 'request_invalid',
-        message:
-          'authoring request failed deterministic preflight',
-        issues: requestIssues,
+        diagnosticInputs: requestIssues,
+        issueCodes: requestIssues,
       }),
       compileResult: null,
       providerFailureEvidence: null,
@@ -1569,6 +1660,8 @@ export async function runVisualContractAuthoring(args: {
         status: 'preflight_passed',
         callCount: 0,
         repairCount: 0,
+        executionAttestation:
+          notRunAuthoringExecutionAttestation(),
         pricing: VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
         pricingDigest: canonicalJsonDigest(
           VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
@@ -1599,8 +1692,6 @@ export async function runVisualContractAuthoring(args: {
         request: args.request,
         attempts: [],
         code: 'provider_required',
-        message:
-          'live mode requires one explicitly injected provider adapter',
       }),
       compileResult: null,
       providerFailureEvidence: null,
@@ -1609,6 +1700,9 @@ export async function runVisualContractAuthoring(args: {
 
   const attempts: VisualContractAuthoringAttemptReceipt[] =
     [];
+  let completedUnrecordedProviderAttempt:
+    | Omit<VisualContractAuthoringAttemptReceipt, 'status'>
+    | null = null;
   let providerFailureDiagnostic:
     | SanitizedProviderFailureDiagnostic
     | null = null;
@@ -1657,10 +1751,15 @@ export async function runVisualContractAuthoring(args: {
               responseDigest: null,
               usage: null,
               usageEvidenceKind: null,
+              executionAttestation:
+                notRunAuthoringExecutionAttestation(),
               reservedExposureBeforeCallUsd,
               nominalEstimatedCostUsd: null,
               conservativeAccountedCostUsd: null,
-              validationErrors: [],
+              validationDiagnostics: {
+                count: 0,
+                codes: [],
+              },
             } satisfies Omit<
               VisualContractAuthoringAttemptReceipt,
               'status'
@@ -1669,7 +1768,7 @@ export async function runVisualContractAuthoring(args: {
               attempt >
               args.request.callBudget.maxCalls
             ) {
-              terminal.code = 'validation_exhausted';
+              terminal.code = 'local_processing_failed';
               throw new Error(
                 'application call budget exhausted',
               );
@@ -1687,7 +1786,12 @@ export async function runVisualContractAuthoring(args: {
               attempts.push({
                 ...base,
                 status: 'policy_mismatch',
-                validationErrors: promptAuthorityIssues,
+                validationDiagnostics:
+                  sanitizedAuthoringDiagnostics({
+                    inputs: promptAuthorityIssues,
+                    fallbackCode:
+                      'provider_policy_mismatch',
+                  }),
               });
               throw new Error(
                 'compiler prompts differ from approved request authority',
@@ -1750,6 +1854,12 @@ export async function runVisualContractAuthoring(args: {
                 userPrompt,
                 options: expected,
               });
+              completedUnrecordedProviderAttempt = {
+                ...base,
+                providerReached: true,
+                executionAttestation:
+                  injectedAuthoringExecutionAttestation(1),
+              };
             } catch (error) {
               terminal.code = 'provider_call_failed';
               providerFailureDiagnostic =
@@ -1763,6 +1873,9 @@ export async function runVisualContractAuthoring(args: {
               attempts.push({
                 ...base,
                 providerReached: true,
+                executionAttestation:
+                  providerFailureDiagnostic
+                    .executionAttestation,
                 status: 'provider_failed',
               });
               throw new Error(
@@ -1796,6 +1909,11 @@ export async function runVisualContractAuthoring(args: {
             const canonicalProviderEvidence =
               observedProviderEvidenceVersion ===
               OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION;
+            const canonicalExecutionEvidence =
+              canonicalProviderEvidence &&
+              canonicalCompletedExecutionAttestationIsValid(
+                response.receipt.executionAttestation,
+              );
             const completionStatus =
               canonicalProviderEvidence
                 ? safeLabel(
@@ -1838,6 +1956,10 @@ export async function runVisualContractAuthoring(args: {
                 canonicalJsonDigest(responseOutput),
               usage,
               usageEvidenceKind,
+              executionAttestation:
+                canonicalExecutionEvidence
+                  ? response.receipt.executionAttestation!
+                  : injectedAuthoringExecutionAttestation(),
               nominalEstimatedCostUsd,
               conservativeAccountedCostUsd,
               ...(observedProviderEvidenceVersion
@@ -1884,15 +2006,19 @@ export async function runVisualContractAuthoring(args: {
               (observedProviderEvidenceVersion !== undefined &&
                 !canonicalProviderEvidence) ||
               (args.requiredProviderEvidenceVersion &&
-                !canonicalProviderEvidence)
+                (!canonicalProviderEvidence ||
+                  !canonicalExecutionEvidence))
             ) {
               terminal.code = 'provider_evidence_invalid';
               attempts.push({
                 ...receivedBase,
                 status: 'provider_evidence_invalid',
-                validationErrors: [
-                  'provider_evidence_version_mismatch',
-                ],
+                validationDiagnostics: {
+                  count: 1,
+                  codes: [
+                    'provider_execution_evidence_invalid',
+                  ],
+                },
               });
               throw new Error(
                 'provider response did not supply the required evidence contract',
@@ -1992,7 +2118,8 @@ export async function runVisualContractAuthoring(args: {
     for (const repair of compileResult.repairAttempts) {
       const receipt = attempts[repair.attempt - 1];
       if (receipt) {
-        receipt.validationErrors = boundedErrors(
+        setAttemptValidationDiagnostics(
+          receipt,
           repair.errors,
         );
       }
@@ -2006,10 +2133,12 @@ export async function runVisualContractAuthoring(args: {
         receipt: failureReceipt({
           request: args.request,
           attempts,
-          code: 'action_authority_incomplete',
-          message:
-            'candidate lacks complete compiler-checked Action Semantic Coverage',
-          issues: actionIssues,
+          code: 'post_compile_authority_incomplete',
+          diagnosticInputs: actionIssues,
+          diagnosticCountOverride: actionIssues.length,
+          issueCodes: [
+            'post_compile_authority_incomplete',
+          ],
           actionSemanticCoverage:
             receiptActionSemanticCoverage(
               args.request,
@@ -2042,6 +2171,12 @@ export async function runVisualContractAuthoring(args: {
         status: 'completed',
         callCount: providerCallCount(attempts),
         repairCount: providerRepairCallCount(attempts),
+        executionAttestation:
+          aggregateAuthoringExecutionAttestations(
+            attempts.map(
+              (attempt) => attempt.executionAttestation,
+            ),
+          ),
         pricing: VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
         pricingDigest: canonicalJsonDigest(
           VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
@@ -2073,55 +2208,135 @@ export async function runVisualContractAuthoring(args: {
       providerFailureEvidence: null,
     };
   } catch (error) {
+    const unrecordedProviderAttempt =
+      completedUnrecordedProviderAttempt as
+        | Omit<VisualContractAuthoringAttemptReceipt, 'status'>
+        | null;
+    if (
+      unrecordedProviderAttempt !== null &&
+      !attempts.some(
+        (attempt) =>
+          attempt.attempt ===
+          unrecordedProviderAttempt.attempt,
+      )
+    ) {
+      const localFailure = buildAuthoringTerminalFailure({
+        code: 'local_processing_failed',
+        diagnosticInputs: [
+          'unexpected_local_processing_failure',
+        ],
+      });
+      attempts.push({
+        ...unrecordedProviderAttempt,
+        status: 'provider_evidence_invalid',
+        validationDiagnostics: {
+          count: localFailure.diagnosticCount,
+          codes: localFailure.diagnosticCodes,
+        },
+      });
+    }
+
     if (error instanceof TemplateRepairExhaustedError) {
       for (const repair of error.attempts) {
         const receipt = attempts[repair.attempt - 1];
         if (receipt) {
-          receipt.validationErrors = boundedErrors(
+          setAttemptValidationDiagnostics(
+            receipt,
             repair.errors,
           );
         }
       }
     }
-    const capabilityIssues =
-      error instanceof ActionSemanticCapabilityGapError
-        ? error.gaps.map(
-            (gap) =>
-              `page ${gap.pageNumber} ${gap.beatId}: ${gap.reason}; exact source phrase=${JSON.stringify(gap.sourcePhrase)}`,
-          )
-        : [];
-    if (capabilityIssues.length > 0 && attempts[0]) {
-      attempts[0].validationErrors =
-        boundedErrors(capabilityIssues);
+    if (error instanceof TemplateRepairOutputInvalidError) {
+      for (const repair of error.attempts) {
+        const receipt = attempts[repair.attempt - 1];
+        if (receipt) {
+          setAttemptValidationDiagnostics(
+            receipt,
+            repair.errors,
+          );
+        }
+      }
     }
-    const code =
-      terminal.code ??
-      (error instanceof ActionSemanticCapabilityGapError
-        ? 'action_semantic_capability_gap'
-        : 'validation_exhausted');
+    const capabilityGapCount =
+      error instanceof ActionSemanticCapabilityGapError
+        ? error.gaps.length
+        : 0;
+    let code: AuthoringTerminalFailureCode;
+    let diagnosticInputs: readonly unknown[] = [];
+    let diagnosticCountOverride: number | undefined;
+    if (terminal.code) {
+      code = terminal.code;
+    } else if (error instanceof InvalidVisualContractError) {
+      code = 'provider_output_decode_failed';
+      diagnosticCountOverride = 1;
+    } else if (
+      error instanceof TemplateRepairExhaustedError &&
+      templateRepairExhaustionIsProven({
+        error,
+        request: args.request,
+        attempts,
+      })
+    ) {
+      code = 'draft_validation_repair_exhausted';
+      diagnosticInputs = error.attempts.flatMap(
+        (attempt) => attempt.errors,
+      );
+      diagnosticCountOverride = diagnosticInputs.length;
+    } else if (
+      error instanceof TemplateRepairOutputInvalidError
+    ) {
+      code = 'repair_output_invalid';
+      diagnosticInputs = error.attempts.flatMap(
+        (attempt) => attempt.errors,
+      );
+      diagnosticCountOverride =
+        diagnosticInputs.length + 1;
+    } else if (
+      error instanceof DraftAuthorityReferenceDomainError
+    ) {
+      code = 'draft_authority_reference_domain_invalid';
+      diagnosticInputs = error.issues;
+      diagnosticCountOverride = error.issues.length;
+    } else if (
+      error instanceof ActionSemanticCapabilityGapError
+    ) {
+      code = 'action_semantic_capability_gap';
+      diagnosticCountOverride = capabilityGapCount;
+    } else {
+      code = 'local_processing_failed';
+      diagnosticCountOverride = 1;
+    }
+    const lastAttempt = attempts[attempts.length - 1];
+    if (
+      lastAttempt &&
+      lastAttempt.validationDiagnostics.count === 0 &&
+      [
+        'provider_output_decode_failed',
+        'repair_output_invalid',
+        'draft_authority_reference_domain_invalid',
+        'action_semantic_capability_gap',
+        'local_processing_failed',
+      ].includes(code)
+    ) {
+      const projected = buildAuthoringTerminalFailure({
+        code,
+        diagnosticInputs,
+        diagnosticCountOverride,
+        issueCodes: [code],
+      });
+      lastAttempt.validationDiagnostics = {
+        count: projected.diagnosticCount,
+        codes: projected.diagnosticCodes,
+      };
+    }
     const receipt = failureReceipt({
       request: args.request,
       attempts,
       code,
-      message:
-        code === 'provider_call_failed'
-          ? 'injected provider adapter failed; raw provider errors were discarded'
-          : code === 'provider_policy_mismatch'
-            ? 'provider execution differed from the exact approved request'
-            : code === 'input_token_ceiling_exceeded'
-              ? 'authoring stopped before provider reachability at the approved input-token ceiling'
-            : code === 'usage_invalid'
-              ? 'provider usage was missing or outside approved token bounds'
-              : code === 'provider_evidence_invalid'
-                ? 'provider response identity or output evidence was incomplete'
-                : code === 'completion_status_invalid'
-                  ? 'provider response did not report a completed result'
-              : code === 'cost_ceiling_exceeded'
-              ? 'authoring stopped at the approved hard cost ceiling'
-              : code === 'action_semantic_capability_gap'
-                ? 'initial whole-book output exposed closed-catalog capability gaps; semantic repair is forbidden under the same catalog'
-                : 'all bounded whole-book validation attempts failed',
-      issues: capabilityIssues,
+      diagnosticInputs,
+      diagnosticCountOverride,
+      issueCodes: [code],
       ...(code === 'action_semantic_capability_gap'
         ? {
             actionSemanticCoverage:
@@ -2129,7 +2344,7 @@ export async function runVisualContractAuthoring(args: {
                 args.request,
                 'capability_gap',
                 0,
-                capabilityIssues.length,
+                capabilityGapCount,
               ),
           }
         : {}),
@@ -2230,6 +2445,26 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
     digest: _receiptDigest,
     ...receiptPayload
   } = args.receipt;
+  const receiptFailureIsValid =
+    args.receipt.status === 'failed'
+      ? authoringTerminalFailureIsValid(
+          args.receipt.failure,
+        )
+      : args.receipt.failure === null;
+  const attemptsHaveValidExecution =
+    args.receipt.attempts.every((attempt) =>
+      authoringExecutionAttestationIsValid(
+        attempt.executionAttestation,
+      ),
+    );
+  const aggregateExecution =
+    attemptsHaveValidExecution
+      ? aggregateAuthoringExecutionAttestations(
+          args.receipt.attempts.map(
+            (attempt) => attempt.executionAttestation,
+          ),
+        )
+      : null;
   if (
     args.request.version !==
       VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION ||
@@ -2239,13 +2474,29 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       args.receipt.sourceSnapshotDigest !==
         args.snapshot.digest) ||
     args.receipt.requestDigest !== args.request.digest ||
+    !receiptFailureIsValid ||
+    !authoringExecutionAttestationIsValid(
+      args.receipt.executionAttestation,
+    ) ||
+    !attemptsHaveValidExecution ||
+    aggregateExecution === null ||
+    !exactJson(
+      args.receipt.executionAttestation,
+      aggregateExecution,
+    ) ||
+    args.receipt.callCount !==
+      providerCallCount(args.receipt.attempts) ||
+    args.receipt.repairCount !==
+      providerRepairCallCount(args.receipt.attempts) ||
+    args.receipt.executionAttestation.logicalProviderCalls !==
+      args.receipt.callCount ||
     args.receipt.digestAlgorithm !==
       'canonical-json-sha256' ||
     args.receipt.digest !==
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'readiness v2 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
+      'readiness v7 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
     );
   }
   const canonicalImportPreflight =
@@ -2295,7 +2546,10 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
     authoringOutcome: {
       status: args.receipt.status,
       failureCode: args.receipt.failure?.code ?? null,
+      terminalClassification: args.receipt.failure,
     },
+    executionAttestation:
+      args.receipt.executionAttestation,
     actionSemanticCoverage:
       args.receipt.actionSemanticCoverage,
     visualContractCandidate: candidate,

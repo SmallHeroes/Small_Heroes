@@ -20,11 +20,35 @@ import {
   computeProductionAuthoringContextDigest,
   type ProductionAuthoringContext,
 } from './productionAuthoringContext';
+import {
+  aggregateAuthoringExecutionAttestations,
+  buildAuthoringTerminalFailure,
+  injectedAuthoringExecutionAttestation,
+  notRunAuthoringExecutionAttestation,
+  sanitizedAuthoringDiagnostics,
+  type AuthoringExecutionAttestation,
+  type AuthoringTerminalFailure,
+  type AuthoringTerminalFailureCode,
+} from './authoringTerminalDiagnostics';
 
 export const PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
   'production-blueprint-authoring-request/v3' as const;
 export const PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION =
+  'production-blueprint-authoring-receipt/v4' as const;
+export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION =
   'production-blueprint-authoring-receipt/v3' as const;
+
+export function productionAuthoringReceiptVersionStatus(
+  version: unknown,
+): 'current' | 'legacy_immutable' | 'unsupported' {
+  if (version === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
+    return 'current';
+  }
+  return version ===
+    LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
+    ? 'legacy_immutable'
+    : 'unsupported';
+}
 
 export interface ProductionAuthoringCallBudget {
   maxCalls: number;
@@ -84,7 +108,11 @@ export interface ProductionAuthoringAttemptReceipt {
   userPromptDigest: string;
   responseDigest: string | null;
   usage: SafeAuthoringUsage | null;
-  validationErrors: string[];
+  executionAttestation: AuthoringExecutionAttestation;
+  validationDiagnostics: {
+    count: number;
+    codes: string[];
+  };
   failureCode: 'provider_call_failed' | 'call_budget_exhausted' | null;
 }
 
@@ -103,18 +131,11 @@ export interface ProductionAuthoringRunReceipt {
   status: 'preflight_passed' | 'completed' | 'failed';
   callCount: number;
   repairCount: number;
+  executionAttestation: AuthoringExecutionAttestation;
   attempts: ProductionAuthoringAttemptReceipt[];
   blueprintDigest: string | null;
   authoringProvenanceDigest: string | null;
-  failure: {
-    code:
-      | 'request_invalid'
-      | 'context_invalid'
-      | 'provider_call_failed'
-      | 'validation_exhausted'
-      | 'call_budget_exhausted';
-    message: string;
-  } | null;
+  failure: AuthoringTerminalFailure | null;
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
 }
@@ -254,12 +275,17 @@ function finalizeReceipt(
 function failureReceipt(args: {
   request: ProductionAuthoringRunRequest;
   attempts: ProductionAuthoringAttemptReceipt[];
-  code: NonNullable<ProductionAuthoringRunReceipt['failure']>['code'];
-  message: string;
+  code: AuthoringTerminalFailureCode;
+  diagnosticInputs?: readonly unknown[];
+  diagnosticCountOverride?: number;
+  issueCodes?: readonly unknown[];
+  requestDigestOverride?: string;
 }): ProductionAuthoringRunReceipt {
   return finalizeReceipt({
     version: PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
-    requestDigest: canonicalJsonDigest(args.request),
+    requestDigest:
+      args.requestDigestOverride ??
+      canonicalJsonDigest(args.request),
     requestId: args.request.requestId,
     requestedAt: args.request.requestedAt,
     mode: args.request.mode,
@@ -272,25 +298,23 @@ function failureReceipt(args: {
     status: 'failed',
     callCount: args.attempts.length,
     repairCount: Math.max(0, args.attempts.length - 1),
+    executionAttestation:
+      aggregateAuthoringExecutionAttestations(
+        args.attempts.map(
+          (attempt) => attempt.executionAttestation,
+        ),
+      ),
     attempts: args.attempts,
     blueprintDigest: null,
     authoringProvenanceDigest: null,
-    failure: { code: args.code, message: args.message },
+    failure: buildAuthoringTerminalFailure({
+      code: args.code,
+      diagnosticInputs: args.diagnosticInputs,
+      diagnosticCountOverride:
+        args.diagnosticCountOverride,
+      issueCodes: args.issueCodes,
+    }),
   });
-}
-
-const MAX_PERSISTED_VALIDATION_ERRORS_PER_ATTEMPT = 128;
-const MAX_PERSISTED_VALIDATION_ERROR_LENGTH = 2_000;
-
-function boundedValidationErrors(errors: readonly unknown[]): string[] {
-  return errors
-    .filter((error): error is string => typeof error === 'string')
-    .slice(0, MAX_PERSISTED_VALIDATION_ERRORS_PER_ATTEMPT)
-    .map((error) =>
-      error
-        .slice(0, MAX_PERSISTED_VALIDATION_ERROR_LENGTH)
-        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ''),
-    );
 }
 
 function copyValidationExhaustionEvidence(args: {
@@ -307,10 +331,40 @@ function copyValidationExhaustionEvidence(args: {
     }
     const receipt = args.receipts[repairAttempt.attempt - 1];
     if (!receipt || receipt.failureCode !== null) continue;
-    receipt.validationErrors = boundedValidationErrors(
-      repairAttempt.errors,
-    );
+    receipt.validationDiagnostics =
+      sanitizedAuthoringDiagnostics({
+        inputs: repairAttempt.errors,
+        fallbackCode: 'draft_contract_validation_failed',
+      });
   }
+}
+
+function productionRepairExhaustionIsProven(args: {
+  error: PreRenderBlueprintAuthoringRepairExhaustedError;
+  request: ProductionAuthoringRunRequest;
+  attempts: readonly ProductionAuthoringAttemptReceipt[];
+}): boolean {
+  const expectedCalls = args.request.callBudget.maxCalls;
+  const expectedRepairs =
+    args.request.callBudget.maxRepairCount;
+  return (
+    expectedCalls ===
+      PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS + 1 &&
+    expectedRepairs === PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS &&
+    expectedCalls === expectedRepairs + 1 &&
+    args.error.attempts.length === expectedCalls &&
+    args.attempts.length === expectedCalls &&
+    args.attempts.every(
+      (attempt, index) =>
+        attempt.attempt === index + 1 &&
+        attempt.failureCode === null,
+    ) &&
+    args.error.attempts.every(
+      (attempt, index) =>
+        attempt.attempt === index + 1 &&
+        attempt.errors.length > 0,
+    )
+  );
 }
 
 export async function runProductionBlueprintAuthoring(args: {
@@ -318,7 +372,24 @@ export async function runProductionBlueprintAuthoring(args: {
   context: ProductionAuthoringContext;
   provider?: ProductionAuthoringProvider;
 }): Promise<ProductionAuthoringRunResult> {
-  const invalidRequest = requestIssues(args.request, args.context);
+  let invalidRequest: string[];
+  try {
+    invalidRequest = requestIssues(args.request, args.context);
+  } catch {
+    return {
+      receipt: failureReceipt({
+        request: args.request,
+        attempts: [],
+        code: 'local_processing_failed',
+        diagnosticCountOverride: 1,
+        issueCodes: ['local_processing_failed'],
+        requestDigestOverride: canonicalJsonDigest({
+          state: 'request_digest_unavailable',
+        }),
+      }),
+      authoringResult: null,
+    };
+  }
   if (invalidRequest.length > 0) {
     throw new InvalidProductionAuthoringRunRequestError(invalidRequest);
   }
@@ -327,17 +398,32 @@ export async function runProductionBlueprintAuthoring(args: {
     reasoningEffort: args.request.reasoningEffort,
     maxOutputTokens: args.request.maxOutputTokens,
   };
-  const contextIssues = preRenderBlueprintAuthoringInputErrors(
-    args.context.validationContext,
-    config,
-  );
+  let contextIssues: string[];
+  try {
+    contextIssues = preRenderBlueprintAuthoringInputErrors(
+      args.context.validationContext,
+      config,
+    );
+  } catch {
+    return {
+      receipt: failureReceipt({
+        request: args.request,
+        attempts: [],
+        code: 'local_processing_failed',
+        diagnosticCountOverride: 1,
+        issueCodes: ['local_processing_failed'],
+      }),
+      authoringResult: null,
+    };
+  }
   if (contextIssues.length > 0) {
     return {
       receipt: failureReceipt({
         request: args.request,
         attempts: [],
         code: 'context_invalid',
-        message: 'authoring context failed deterministic validation',
+        diagnosticInputs: contextIssues,
+        issueCodes: ['context_invalid'],
       }),
       authoringResult: null,
     };
@@ -359,6 +445,8 @@ export async function runProductionBlueprintAuthoring(args: {
         status: 'preflight_passed',
         callCount: 0,
         repairCount: 0,
+        executionAttestation:
+          notRunAuthoringExecutionAttestation(),
         attempts: [],
         blueprintDigest: null,
         authoringProvenanceDigest: null,
@@ -397,7 +485,12 @@ export async function runProductionBlueprintAuthoring(args: {
             userPromptDigest: canonicalJsonDigest(userPrompt),
             responseDigest: null,
             usage: null,
-            validationErrors: [],
+            executionAttestation:
+              injectedAuthoringExecutionAttestation(),
+            validationDiagnostics: {
+              count: 0,
+              codes: [],
+            },
             failureCode: null,
           } satisfies ProductionAuthoringAttemptReceipt;
           try {
@@ -438,7 +531,14 @@ export async function runProductionBlueprintAuthoring(args: {
     );
     for (const repair of authoringResult.repairAttempts) {
       const receipt = attempts[repair.attempt - 1];
-      if (receipt) receipt.validationErrors = [...repair.errors];
+      if (receipt) {
+        receipt.validationDiagnostics =
+          sanitizedAuthoringDiagnostics({
+            inputs: repair.errors,
+            fallbackCode:
+              'draft_contract_validation_failed',
+          });
+      }
     }
     const receipt = finalizeReceipt({
       version: PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
@@ -455,6 +555,12 @@ export async function runProductionBlueprintAuthoring(args: {
       status: 'completed',
       callCount: attempts.length,
       repairCount: Math.max(0, attempts.length - 1),
+      executionAttestation:
+        aggregateAuthoringExecutionAttestations(
+          attempts.map(
+            (attempt) => attempt.executionAttestation,
+          ),
+        ),
       attempts,
       blueprintDigest: authoringResult.blueprint.digest,
       authoringProvenanceDigest: canonicalJsonDigest(
@@ -473,13 +579,21 @@ export async function runProductionBlueprintAuthoring(args: {
     const providerFailure = attempts.some(
       (attempt) => attempt.failureCode === 'provider_call_failed',
     );
-    const failureCode = budgetFailure
+    const failureCode: AuthoringTerminalFailureCode = budgetFailure
       ? 'call_budget_exhausted'
       : providerFailure
         ? 'provider_call_failed'
-        : 'validation_exhausted';
+        : error instanceof
+              PreRenderBlueprintAuthoringRepairExhaustedError &&
+            productionRepairExhaustionIsProven({
+              error,
+              request: args.request,
+              attempts,
+            })
+          ? 'draft_validation_repair_exhausted'
+          : 'local_processing_failed';
     if (
-      failureCode === 'validation_exhausted' &&
+      failureCode === 'draft_validation_repair_exhausted' &&
       error instanceof PreRenderBlueprintAuthoringRepairExhaustedError
     ) {
       copyValidationExhaustionEvidence({
@@ -492,11 +606,23 @@ export async function runProductionBlueprintAuthoring(args: {
         request: args.request,
         attempts,
         code: failureCode,
-        message: budgetFailure
-          ? 'authoring stopped at the exact call budget'
-          : providerFailure
-            ? 'injected provider adapter failed; raw provider errors are not persisted'
-            : 'all bounded whole-book validation attempts failed',
+        diagnosticInputs:
+          error instanceof
+          PreRenderBlueprintAuthoringRepairExhaustedError
+            ? error.attempts.flatMap(
+                (attempt) => attempt.errors,
+              )
+            : [],
+        diagnosticCountOverride:
+          error instanceof
+          PreRenderBlueprintAuthoringRepairExhaustedError
+            ? error.attempts.reduce(
+                (sum, attempt) =>
+                  sum + attempt.errors.length,
+                0,
+              )
+            : 1,
+        issueCodes: [failureCode],
       }),
       authoringResult: null,
     };

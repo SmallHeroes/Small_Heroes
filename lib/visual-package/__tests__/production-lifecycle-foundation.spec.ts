@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
+  PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
   auditProductionStoryReadiness,
   buildProductionAuthoringContext,
@@ -15,6 +16,7 @@ import {
   loadProductionStyleAuthority,
   persistProductionAuthoringReceipt,
   persistReconciliationDraftBundle,
+  productionAuthoringReceiptVersionStatus,
   runProductionBlueprintAuthoring,
   type ProductionAuthoringContext,
   type ProductionAuthoringRunRequest,
@@ -577,8 +579,20 @@ describe('provider-isolated Blueprint authoring runner', () => {
       provider,
     });
     expect(result.receipt.status).toBe('completed');
+    expect(result.receipt.version).toBe(
+      'production-blueprint-authoring-receipt/v4',
+    );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.repairCount).toBe(0);
+    expect(result.receipt.executionAttestation).toEqual({
+      evidenceKind: 'injected_adapter_unattested',
+      logicalProviderCalls: 1,
+      transportDispatchCount: null,
+      transportRetryCount: null,
+      fallbackUsed: null,
+      canonicalRouteConfirmed: null,
+      canonicalModelConfirmed: null,
+    });
     expect(result.receipt.attempts[0]?.usage).toEqual({
       inputTokens: 120,
       outputTokens: 80,
@@ -609,7 +623,9 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.failure?.code).toBe('provider_call_failed');
     expect(JSON.stringify(result.receipt)).not.toContain('secret-token');
-    expect(result.receipt.attempts[0]?.validationErrors).toEqual([]);
+    expect(
+      result.receipt.attempts[0]?.validationDiagnostics,
+    ).toEqual({ count: 0, codes: [] });
     expect(provider.call).toHaveBeenCalledTimes(1);
   });
 
@@ -636,13 +652,24 @@ describe('provider-isolated Blueprint authoring runner', () => {
     });
 
     expect(result.receipt.status).toBe('failed');
-    expect(result.receipt.failure?.code).toBe('validation_exhausted');
+    expect(result.receipt.failure?.code).toBe(
+      'draft_validation_repair_exhausted',
+    );
+    expect(result.receipt.failure).toMatchObject({
+      phase: 'draft_validation',
+      errorClass: 'draft_validation_budget_exhausted',
+      repairEligibility: 'budget_exhausted',
+      repairReasonCode:
+        'draft_validation_budget_consumed',
+    });
     expect(result.receipt.callCount).toBe(3);
     expect(result.receipt.repairCount).toBe(2);
     expect(provider.call).toHaveBeenCalledTimes(3);
     expect(result.receipt.attempts).toHaveLength(3);
     for (const attempt of result.receipt.attempts) {
-      expect(attempt.validationErrors.length).toBeGreaterThan(0);
+      expect(
+        attempt.validationDiagnostics.count,
+      ).toBeGreaterThan(0);
       expect(attempt.failureCode).toBeNull();
     }
     const serialized = JSON.stringify(result.receipt);
@@ -674,11 +701,70 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(result.receipt.failure?.code).toBe('call_budget_exhausted');
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.repairCount).toBe(0);
-    expect(result.receipt.attempts[0]?.validationErrors).toEqual([]);
+    expect(
+      result.receipt.attempts[0]?.validationDiagnostics,
+    ).toEqual({ count: 0, codes: [] });
     expect(provider.call).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(result.receipt)).not.toMatch(
       /call-budget-secret-sentinel|authoring call budget exhausted|repair call failed/i,
     );
+  });
+
+  it('fails unexpected local request processing closed and retains v3 only as immutable legacy evidence', async () => {
+    const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    const rawError = 'raw-blueprint-local-error-must-not-persist';
+    const hostileRequest = new Proxy(request, {
+      get(target, property, receiver) {
+        if (property === 'version') throw new Error(rawError);
+        return Reflect.get(target, property, receiver);
+      },
+    });
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('provider must remain unreachable');
+      }),
+    };
+
+    const result = await runProductionBlueprintAuthoring({
+      request: hostileRequest,
+      context,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      version: PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+      status: 'failed',
+      callCount: 0,
+      repairCount: 0,
+      failure: {
+        code: 'local_processing_failed',
+        phase: 'local_processing',
+        errorClass: 'unexpected_local_failure',
+        repairEligibility: 'ineligible',
+      },
+    });
+    expect(provider.call).not.toHaveBeenCalled();
+    expect(JSON.stringify(result.receipt)).not.toContain(rawError);
+    expect(
+      productionAuthoringReceiptVersionStatus(
+        PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+      ),
+    ).toBe('current');
+    expect(
+      productionAuthoringReceiptVersionStatus(
+        'production-blueprint-authoring-receipt/v3',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'lib/visual-package/productionAuthoringRunner.ts',
+        ),
+        'utf8',
+      ),
+    ).not.toContain("'validation_exhausted'");
   });
 
   it('rejects mutated context and live mode without an adapter before any call', async () => {

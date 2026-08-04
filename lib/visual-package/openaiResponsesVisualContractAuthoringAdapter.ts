@@ -43,6 +43,10 @@ import {
 
 import { canonicalJsonDigest } from './integrity';
 import {
+  canonicalAuthoringExecutionAttestation,
+  type AuthoringExecutionAttestation,
+} from './authoringTerminalDiagnostics';
+import {
   ProviderCallFailureDiagnosticError,
   ProviderTransportGuardRejectionError,
   classifyProviderFailure,
@@ -332,6 +336,8 @@ export function createGuardedOpenAIResponsesAuthoringFetch(
     }
     if (observations) {
       observations.transportDispatchStarted = true;
+      observations.transportDispatchCount += 1;
+      observations.canonicalRouteConfirmed = true;
     }
     const response = await delegatedFetch(input, {
       ...init,
@@ -476,6 +482,13 @@ function mapUsage(rawUsage: unknown): {
 
 export function mapOpenAIResponsesAuthoringResponse(
   rawResponse: unknown,
+  executionAttestation: AuthoringExecutionAttestation =
+    canonicalAuthoringExecutionAttestation({
+      transportDispatchCount: 0,
+      fallbackUsed: false,
+      canonicalRouteConfirmed: false,
+      canonicalModelConfirmed: false,
+    }),
 ): VisualContractAuthoringProviderResponse {
   const response = record(rawResponse);
   const mappedUsage = mapUsage(response?.usage);
@@ -501,6 +514,7 @@ export function mapOpenAIResponsesAuthoringResponse(
           ? response.status
           : '',
       usageEvidenceComplete: mappedUsage.complete,
+      executionAttestation,
     },
   };
 }
@@ -546,6 +560,8 @@ export function createOpenAIResponsesVisualContractAuthoringAdapter(
           });
         observations.requestBodyDigest =
           canonicalJsonDigest(body);
+        observations.canonicalModelConfirmed =
+          body.model === VISUAL_CONTRACT_AUTHORING_MODEL;
       } catch (error) {
         throw new ProviderCallFailureDiagnosticError(
           localProviderFailureDiagnostic({
@@ -599,6 +615,15 @@ export function createOpenAIResponsesVisualContractAuthoringAdapter(
       try {
         return mapOpenAIResponsesAuthoringResponse(
           rawResponse,
+          canonicalAuthoringExecutionAttestation({
+            transportDispatchCount:
+              observations.transportDispatchCount,
+            fallbackUsed: false,
+            canonicalRouteConfirmed:
+              observations.canonicalRouteConfirmed,
+            canonicalModelConfirmed:
+              observations.canonicalModelConfirmed,
+          }),
         );
       } catch (error) {
         throw new ProviderCallFailureDiagnosticError(

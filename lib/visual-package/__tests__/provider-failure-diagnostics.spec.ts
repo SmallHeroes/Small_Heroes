@@ -51,6 +51,7 @@ import {
   classifyProviderParameter,
   createProviderFailureBoundaryObservations,
   localProviderFailureDiagnostic,
+  providerCallFailureEvidenceVersionStatus,
   unclassifiedAdapterFailureDiagnostic,
   type ProviderFailureBoundaryObservations,
   type ProviderSdkErrorClasses,
@@ -813,6 +814,14 @@ describe('provider call failure evidence sanitization', () => {
     const first = buildProviderCallFailureEvidence(args);
     const second = buildProviderCallFailureEvidence(args);
     expect(first).toEqual(second);
+    expect(
+      providerCallFailureEvidenceVersionStatus(first.version),
+    ).toBe('current');
+    expect(
+      providerCallFailureEvidenceVersionStatus(
+        'provider-call-failure-evidence/v1',
+      ),
+    ).toBe('legacy_immutable');
     const {
       digestAlgorithm: _digestAlgorithm,
       digest: _digest,
@@ -822,7 +831,7 @@ describe('provider call failure evidence sanitization', () => {
       canonicalJsonDigest(payload),
     );
     expect(first).toMatchObject({
-      version: 'provider-call-failure-evidence/v1',
+      version: 'provider-call-failure-evidence/v2',
       authoringRequestDigest: '1'.repeat(64),
       sourceSnapshotDigest: '2'.repeat(64),
       authoringReceiptDigest: '3'.repeat(64),

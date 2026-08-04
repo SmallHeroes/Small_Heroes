@@ -303,13 +303,27 @@ function fakeAdapter(args: {
   const readCredential =
     args.readCredential ??
     vi.fn(() => FAKE_CREDENTIAL);
-  const transportCreate =
+  const transportDelegate =
     args.transportCreate ??
     vi.fn(async () => {
       const next = args.responses.shift();
       if (next instanceof Error) throw next;
       return next;
     });
+  const transportCreate = vi.fn(
+    async (
+      request: Parameters<
+        OpenAIResponsesAuthoringTransport['create']
+      >[0],
+    ) => {
+      request.observations.transportDispatchStarted = true;
+      request.observations.transportDispatchCount += 1;
+      request.observations.canonicalRouteConfirmed = true;
+      request.observations.canonicalModelConfirmed =
+        request.body.model === 'gpt-5.6-sol';
+      return transportDelegate(request);
+    },
+  );
   const transport: OpenAIResponsesAuthoringTransport = {
     create: transportCreate,
   };
@@ -502,8 +516,17 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v8',
+      'visual-contract-authoring-receipt/v9',
     );
+    expect(result.receipt.executionAttestation).toEqual({
+      evidenceKind: 'canonical_adapter_observed',
+      logicalProviderCalls: 1,
+      transportDispatchCount: 1,
+      transportRetryCount: 0,
+      fallbackUsed: false,
+      canonicalRouteConfirmed: true,
+      canonicalModelConfirmed: true,
+    });
     expect(adapter.readCredential).toHaveBeenCalledTimes(1);
     expect(adapter.transportCreate).toHaveBeenCalledTimes(1);
     const transportRequest =
@@ -549,6 +572,8 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       usageEvidenceKind: 'canonical_provider_reported',
       completionStatus: 'completed',
       usageEvidenceComplete: true,
+      executionAttestation:
+        result.receipt.executionAttestation,
       status: 'response_received',
     });
   });
@@ -826,6 +851,18 @@ describe('canonical OpenAI Responses authoring adapter', () => {
         userPrompt: 'user',
         options: exactOptions(fixture.request),
       });
+    const observations =
+      createProviderFailureBoundaryObservations({
+        adapterInvoked: true,
+        credentialReadSucceeded: true,
+        requestBodyDigest: canonicalJsonDigest(body),
+        requestOptionsDigest: canonicalJsonDigest({
+          maxRetries: 0,
+          timeout: 1_200_000,
+        }),
+        canonicalModelConfirmed:
+          body.model === 'gpt-5.6-sol',
+      });
     await openAIResponsesAuthoringTransport.create({
       apiKey: FAKE_CREDENTIAL,
       body,
@@ -833,18 +870,16 @@ describe('canonical OpenAI Responses authoring adapter', () => {
         maxRetries: 0,
         timeout: 1_200_000,
       },
-      observations:
-        createProviderFailureBoundaryObservations({
-          adapterInvoked: true,
-          credentialReadSucceeded: true,
-          requestBodyDigest: canonicalJsonDigest(body),
-          requestOptionsDigest: canonicalJsonDigest({
-            maxRetries: 0,
-            timeout: 1_200_000,
-          }),
-        }),
+      observations,
     });
     expect(delegated).toHaveBeenCalledTimes(1);
+    expect(observations).toMatchObject({
+      transportDispatchStarted: true,
+      transportDispatchCount: 1,
+      canonicalRouteConfirmed: true,
+      canonicalModelConfirmed: true,
+      httpResponseReceived: true,
+    });
   });
 
   it.each([
@@ -1216,15 +1251,24 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(serialized).not.toContain(FAKE_CREDENTIAL);
     expect(serialized).not.toContain('stack');
     expect(result.providerFailureEvidence).toMatchObject({
-      version: 'provider-call-failure-evidence/v1',
+      version: 'provider-call-failure-evidence/v2',
       failureClass: 'unclassified_adapter_failure',
       phase: 'unknown_adapter',
       adapterInvoked: true,
       credentialReadSucceeded: true,
-      transportDispatchStarted: false,
+      transportDispatchStarted: true,
       httpResponseReceived: false,
       httpStatus: null,
       billingState: 'unknown_no_usage',
+      executionAttestation: {
+        evidenceKind: 'canonical_adapter_observed',
+        logicalProviderCalls: 1,
+        transportDispatchCount: 1,
+        transportRetryCount: 0,
+        fallbackUsed: false,
+        canonicalRouteConfirmed: true,
+        canonicalModelConfirmed: true,
+      },
       authoringRequestDigest: fixture.request.digest,
       sourceSnapshotDigest: fixture.snapshot.digest,
       authoringReceiptDigest: result.receipt.digest,
@@ -1307,7 +1351,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
             ...(brandKind === 'wrong'
               ? {
                   evidenceVersion:
-                    'openai-responses-authoring-evidence/v1',
+                    'openai-responses-authoring-evidence/v2',
                 }
               : {}),
             completionStatus: 'completed',
@@ -1328,14 +1372,15 @@ describe('canonical OpenAI Responses authoring adapter', () => {
         'provider_evidence_invalid',
       );
       expect(
-        result.receipt.attempts[0]?.validationErrors,
-      ).toContain('provider_evidence_version_mismatch');
+        result.receipt.attempts[0]
+          ?.validationDiagnostics.codes,
+      ).toContain('provider_execution_evidence_invalid');
       if (brandKind === 'wrong') {
         expect(
           result.receipt.attempts[0]
             ?.providerEvidenceVersion,
         ).toBe(
-          'openai-responses-authoring-evidence/v1',
+          'openai-responses-authoring-evidence/v2',
         );
       }
     },
@@ -1945,7 +1990,7 @@ describe('canonical live authoring executable boundary', () => {
       fs.readFileSync(sidecarPath, 'utf8'),
     ) as Record<string, unknown>;
     expect(sidecar).toMatchObject({
-      version: 'provider-call-failure-evidence/v1',
+      version: 'provider-call-failure-evidence/v2',
       authoringRequestDigest: fixture.request.digest,
       sourceSnapshotDigest: fixture.snapshot.digest,
       authoringReceiptDigest: first.receipt.digest,
@@ -2061,7 +2106,22 @@ describe('canonical live authoring executable boundary', () => {
       billingState: 'unknown_no_usage',
       providerRequestIdDigest:
         canonicalJsonDigest(rawRequestId),
+      executionAttestation: {
+        evidenceKind: 'canonical_adapter_observed',
+        logicalProviderCalls: 1,
+        transportDispatchCount: 1,
+        transportRetryCount: 0,
+        fallbackUsed: false,
+        canonicalRouteConfirmed: true,
+        canonicalModelConfirmed: true,
+      },
     });
+    expect(result.receipt.executionAttestation).toEqual(
+      sidecar.executionAttestation,
+    );
+    expect(result.readiness.executionAttestation).toEqual(
+      result.receipt.executionAttestation,
+    );
     expect(sidecar.requestBodyDigest).toMatch(
       /^[a-f0-9]{64}$/,
     );
@@ -2685,7 +2745,7 @@ describe('canonical live authoring executable boundary', () => {
       );
     expect(result.status).toBe('failed');
     expect(result.receipt.failure?.code).toBe(
-      'validation_exhausted',
+      'draft_validation_repair_exhausted',
     );
     expect(result.receipt.callCount).toBe(3);
     expect(result.receipt.repairCount).toBe(2);

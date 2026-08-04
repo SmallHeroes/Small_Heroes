@@ -2,9 +2,27 @@ import { canonicalJsonDigest } from './integrity';
 import type {
   OpenAIResponsesStructuredOutputCompatibilityEvidence,
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
+import {
+  canonicalAuthoringExecutionAttestation,
+  injectedAuthoringExecutionAttestation,
+  type AuthoringExecutionAttestation,
+} from './authoringTerminalDiagnostics';
 
-export const PROVIDER_CALL_FAILURE_EVIDENCE_VERSION =
+export const LEGACY_PROVIDER_CALL_FAILURE_EVIDENCE_VERSION =
   'provider-call-failure-evidence/v1' as const;
+export const PROVIDER_CALL_FAILURE_EVIDENCE_VERSION =
+  'provider-call-failure-evidence/v2' as const;
+
+export function providerCallFailureEvidenceVersionStatus(
+  version: unknown,
+): 'current' | 'legacy_immutable' | 'unsupported' {
+  if (version === PROVIDER_CALL_FAILURE_EVIDENCE_VERSION) {
+    return 'current';
+  }
+  return version === LEGACY_PROVIDER_CALL_FAILURE_EVIDENCE_VERSION
+    ? 'legacy_immutable'
+    : 'unsupported';
+}
 
 export type ProviderFailurePhase =
   | 'request_body_validation'
@@ -101,6 +119,9 @@ export interface ProviderFailureBoundaryObservations {
   sdkClientConstructionSucceeded: boolean;
   sdkRequestBuildStarted: boolean;
   transportDispatchStarted: boolean;
+  transportDispatchCount: number;
+  canonicalRouteConfirmed: boolean;
+  canonicalModelConfirmed: boolean;
   httpResponseReceived: boolean;
   httpStatus: number | null;
   requestBodyDigest: string | null;
@@ -122,6 +143,7 @@ export interface SanitizedProviderFailureDiagnostic {
   requestBodyDigest: string | null;
   requestOptionsDigest: string | null;
   providerRequestIdDigest: string | null;
+  executionAttestation: AuthoringExecutionAttestation;
 }
 
 export interface ProviderCallFailureEvidence {
@@ -149,6 +171,7 @@ export interface ProviderCallFailureEvidence {
   requestBodyDigest: string | null;
   requestOptionsDigest: string | null;
   providerRequestIdDigest: string | null;
+  executionAttestation: AuthoringExecutionAttestation;
   billingState: 'unknown_no_usage';
   doesNotAuthorize: string[];
   digestAlgorithm: 'canonical-json-sha256';
@@ -456,6 +479,16 @@ export function createProviderFailureBoundaryObservations(
       args.sdkRequestBuildStarted ?? false,
     transportDispatchStarted:
       args.transportDispatchStarted ?? false,
+    transportDispatchCount:
+      typeof args.transportDispatchCount === 'number' &&
+      Number.isSafeInteger(args.transportDispatchCount) &&
+      args.transportDispatchCount >= 0
+        ? args.transportDispatchCount
+        : 0,
+    canonicalRouteConfirmed:
+      args.canonicalRouteConfirmed ?? false,
+    canonicalModelConfirmed:
+      args.canonicalModelConfirmed ?? false,
     httpResponseReceived:
       args.httpResponseReceived ?? false,
     httpStatus: safeHttpStatus(args.httpStatus),
@@ -491,6 +524,16 @@ function diagnosticBase(
       observations.requestOptionsDigest,
     providerRequestIdDigest:
       observations.providerRequestIdDigest,
+    executionAttestation:
+      canonicalAuthoringExecutionAttestation({
+        transportDispatchCount:
+          observations.transportDispatchCount,
+        fallbackUsed: false,
+        canonicalRouteConfirmed:
+          observations.canonicalRouteConfirmed,
+        canonicalModelConfirmed:
+          observations.canonicalModelConfirmed,
+      }),
   };
 }
 
@@ -662,6 +705,8 @@ export function unclassifiedAdapterFailureDiagnostic(args: {
     requestOptionsDigest:
       args.requestOptionsDigest ?? null,
     providerRequestIdDigest: null,
+    executionAttestation:
+      injectedAuthoringExecutionAttestation(),
   };
 }
 
@@ -708,6 +753,8 @@ export function buildProviderCallFailureEvidence(args: {
       args.diagnostic.requestOptionsDigest,
     providerRequestIdDigest:
       args.diagnostic.providerRequestIdDigest,
+    executionAttestation:
+      args.diagnostic.executionAttestation,
     billingState: 'unknown_no_usage' as const,
     doesNotAuthorize: [
       ...PROVIDER_FAILURE_DOES_NOT_AUTHORIZE,

@@ -15,6 +15,7 @@ import {
   compilerOwnedActionCheckId,
   DraftAuthorityReferenceDomainError,
   TemplateRepairExhaustedError,
+  TemplateRepairOutputInvalidError,
 } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 import {
   ActionSemanticCapabilityGapError,
@@ -32,6 +33,7 @@ import type {
 import { migrateLegacySetBoardFixture } from '@/lib/set-identity-board/__tests__/current-authority-fixtures';
 import {
   buildStorySourceAuthoritySnapshot,
+  buildAuthoringTerminalFailure,
   buildProductionReconciliationDraftFromSourceSnapshot,
   buildCanonicalImportPreflightAttestation,
   buildVisualContractAuthoringReadinessEvidence,
@@ -41,6 +43,7 @@ import {
   canonicalJsonDigest,
   conservativeAuthoringCostUsd,
   nominalAuthoringUsageCostUsd,
+  openAIResponsesAuthoringEvidenceVersionStatus,
   persistStorySourceAuthoritySnapshot,
   persistReconciliationDraftBundle,
   persistVisualContractAuthoringReadiness,
@@ -1089,8 +1092,9 @@ describe('source-grounded closed action authority', () => {
       minted.pageContracts[0] as unknown as Record<string, unknown>
     ).actionSemanticCoverage as Array<Record<string, unknown>>;
     mintedCoverage[0].sourceEvidenceId = `se1_${'f'.repeat(64)}`;
-    await expect(
-      compileBookVisualContractTemplate(
+    let mintedFailure: unknown;
+    try {
+      await compileBookVisualContractTemplate(
         {
           ...snapshot.content,
           storyKey: snapshot.content.storyKey,
@@ -1100,8 +1104,16 @@ describe('source-grounded closed action authority', () => {
         {
           callLLM: async () => JSON.stringify(minted),
         },
-      ),
-    ).rejects.toThrow(/source_evidence_id/);
+      );
+    } catch (error) {
+      mintedFailure = error;
+    }
+    expect(mintedFailure).toBeInstanceOf(
+      TemplateRepairOutputInvalidError,
+    );
+    expect(String(mintedFailure)).not.toMatch(
+      /source_evidence_id|se1_/i,
+    );
 
     const malformed = fullyActionedBunnyDraft(snapshot);
     (
@@ -1201,14 +1213,22 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         },
       },
     });
-    expect(
-      result.receipt.failure?.issues.map((issue) =>
-        issue.match(/^page \d+/)?.[0],
-      ),
-    ).toEqual(['page 1', 'page 2']);
+    expect(result.receipt.failure).toMatchObject({
+      phase: 'action_semantic_capability',
+      repairEligibility: 'ineligible',
+      repairReasonCode:
+        'semantic_capability_not_repairable',
+      diagnosticCount: 2,
+      diagnosticCodes: [
+        'action_semantic_capability_gap',
+      ],
+    });
+    expect(JSON.stringify(result.receipt)).not.toMatch(
+      /exact source phrase|beat:p\d+:unsupported/i,
+    );
   });
 
-  it('separates import-preflight attestation, authoring outcome, coverage, and candidate state in readiness v6', async () => {
+  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v7', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const result = await runVisualContractAuthoring({
@@ -1225,14 +1245,17 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v6',
+      version: 'visual-contract-authoring-readiness/v7',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
       authoringOutcome: {
         status: 'completed',
         failureCode: null,
+        terminalClassification: null,
       },
+      executionAttestation:
+        result.receipt.executionAttestation,
       actionSemanticCoverage: {
         status: 'complete_review_required',
       },
@@ -1276,11 +1299,54 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toBe('unknown');
   });
 
+  it('copies failed terminal classification and execution attestation into readiness without reinterpreting counters', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: {
+        call: vi.fn(async () => ({
+          output: '{"truncated":',
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: 'response-truncated',
+            usage: {
+              input_tokens: 100,
+              output_tokens: 20,
+              total_tokens: 120,
+            },
+          },
+        })),
+      },
+    });
+    const readiness =
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: result.receipt,
+      });
+
+    expect(readiness.authoringOutcome.failureCode).toBe(
+      'provider_output_decode_failed',
+    );
+    expect(
+      readiness.authoringOutcome.terminalClassification,
+    ).toEqual(result.receipt.failure);
+    expect(readiness.executionAttestation).toEqual(
+      result.receipt.executionAttestation,
+    );
+    expect(
+      readiness.executionAttestation.logicalProviderCalls,
+    ).toBe(result.receipt.callCount);
+  });
+
   it('classifies every prior authoring authority as immutable without mutating its bytes', () => {
     const immediatelyPrior = [
       ['request', 'visual-contract-authoring-request/v8'],
-      ['receipt', 'visual-contract-authoring-receipt/v7'],
-      ['readiness', 'visual-contract-authoring-readiness/v5'],
+      ['receipt', 'visual-contract-authoring-receipt/v8'],
+      ['readiness', 'visual-contract-authoring-readiness/v6'],
       ['candidate', 'visual-contract-candidate-artifact/v5'],
     ] as const;
     const historicalBytes = immediatelyPrior.map(([kind, version]) =>
@@ -1359,13 +1425,13 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'receipt',
-        'visual-contract-authoring-receipt/v8',
+        'visual-contract-authoring-receipt/v9',
       ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
-        'visual-contract-authoring-readiness/v6',
+        'visual-contract-authoring-readiness/v7',
       ),
     ).toBe('current');
     expect(
@@ -1374,6 +1440,125 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'visual-contract-candidate-artifact/v6',
       ),
     ).toBe('current');
+    expect(
+      openAIResponsesAuthoringEvidenceVersionStatus(
+        'openai-responses-authoring-evidence/v3',
+      ),
+    ).toBe('current');
+    expect(
+      openAIResponsesAuthoringEvidenceVersionStatus(
+        'openai-responses-authoring-evidence/v2',
+      ),
+    ).toBe('legacy_immutable');
+  });
+
+  it('rejects the immediately prior receipt as current readiness authority after canonical redigest', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: successfulProvider(
+        fullyActionedBunnyDraft(snapshot),
+      ),
+    });
+    const prior = structuredClone(
+      result.receipt,
+    ) as unknown as Record<string, unknown>;
+    prior.version = 'visual-contract-authoring-receipt/v8';
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = prior;
+    prior.digest = canonicalJsonDigest(payload);
+
+    expect(() =>
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt:
+          prior as unknown as typeof result.receipt,
+      }),
+    ).toThrow(/requires current, digest-bound request and receipt/);
+  });
+
+  it('rejects a re-digested current receipt with an open-ended terminal code', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async () => ({
+        output: '{',
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: 'response-invalid-json',
+          usage: {
+            input_tokens: 100,
+            output_tokens: 10,
+            total_tokens: 110,
+          },
+        },
+      })),
+    };
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+    const forged = structuredClone(
+      result.receipt,
+    ) as unknown as Record<string, unknown>;
+    const failure = forged.failure as Record<string, unknown>;
+    failure.code = 'validation_exhausted';
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = forged;
+    forged.digest = canonicalJsonDigest(payload);
+
+    expect(() =>
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt:
+          forged as unknown as typeof result.receipt,
+      }),
+    ).toThrow(/requires current, digest-bound request and receipt/);
+  });
+
+  it('rejects re-digested current receipt execution counters that do not match attempt evidence', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: successfulProvider(
+        fullyActionedBunnyDraft(snapshot),
+      ),
+    });
+    const forged = structuredClone(
+      result.receipt,
+    ) as unknown as Record<string, unknown>;
+    const execution =
+      forged.executionAttestation as Record<string, unknown>;
+    execution.logicalProviderCalls = 2;
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = forged;
+    forged.digest = canonicalJsonDigest(payload);
+
+    expect(() =>
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt:
+          forged as unknown as typeof result.receipt,
+      }),
+    ).toThrow(/requires current, digest-bound request and receipt/);
   });
 
   it('records exact per-attempt and aggregate usage/cost without raw prompt, response, or provider payload', async () => {
@@ -1388,7 +1573,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v8',
+      'visual-contract-authoring-receipt/v9',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.aggregateUsage).toEqual({
@@ -1490,6 +1675,273 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(mismatch.receipt.callCount).toBe(1);
   });
 
+  it('classifies an unusable initial provider output as a one-call zero-repair decode failure', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const rawOutput =
+      '{"raw_initial_secret":"must-not-persist"';
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async () => ({
+        output: rawOutput,
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: 'response-decode-failure',
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 100,
+            total_tokens: 1_100,
+          },
+        },
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 1,
+      repairCount: 0,
+      failure: {
+        code: 'provider_output_decode_failed',
+        phase: 'provider_output_decode',
+        errorClass: 'provider_output_decode_failure',
+        repairEligibility: 'ineligible',
+        repairReasonCode: 'initial_output_not_decodable',
+        diagnosticCount: 1,
+        diagnosticCodes: ['provider_output_json_invalid'],
+      },
+    });
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    const serialized = JSON.stringify(result.receipt);
+    expect(serialized).not.toContain('raw_initial_secret');
+    expect(serialized).not.toContain('must-not-persist');
+    expect(serialized).not.toMatch(/stack|unexpected end/i);
+  });
+
+  it('classifies a completed unusable repair response without claiming the full repair budget', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    invalid.recurringProps[0].material = '';
+    const rawRepair =
+      '{"raw_repair_secret":"must-not-persist"';
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async ({ attempt }) => ({
+        output:
+          attempt === 1
+            ? JSON.stringify(invalid)
+            : rawRepair,
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: `response-${attempt}`,
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 100,
+            total_tokens: 1_100,
+          },
+        },
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 2,
+      repairCount: 1,
+      failure: {
+        code: 'repair_output_invalid',
+        phase: 'repair_output_validation',
+        errorClass: 'repair_output_failure',
+        repairEligibility: 'ineligible',
+        repairReasonCode: 'completed_repair_output_unusable',
+      },
+    });
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(result.receipt.failure?.code).not.toBe(
+      'draft_validation_repair_exhausted',
+    );
+    const serialized = JSON.stringify(result.receipt);
+    expect(serialized).not.toContain('raw_repair_secret');
+    expect(serialized).not.toContain('must-not-persist');
+    expect(serialized).not.toContain('recurringProps');
+    expect(serialized).not.toMatch(/stack|unexpected end/i);
+  });
+
+  it('keeps deterministic draft authority/reference-domain failures terminal and non-repairable', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    const page = invalid.pageContracts[0] as unknown as Record<
+      string,
+      unknown
+    >;
+    const actions = page.actionRequirements as Array<
+      Record<string, unknown>
+    >;
+    const coverage = page.actionSemanticCoverage as Array<
+      Record<string, unknown>
+    >;
+    actions[0]!.beatId = 'beat:p999:invalid';
+    coverage[0]!.beatId = 'beat:p999:invalid';
+    const provider = successfulProvider(invalid);
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 1,
+      repairCount: 0,
+      failure: {
+        code: 'draft_authority_reference_domain_invalid',
+        phase: 'draft_authority_reference_domain',
+        errorClass: 'authority_reference_domain_failure',
+        repairEligibility: 'ineligible',
+        repairReasonCode:
+          'authority_reference_domain_not_repairable',
+      },
+    });
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(result.receipt)).not.toContain(
+      'beat:p999:invalid',
+    );
+  });
+
+  it('fails closed on an unexpected request-validation throw without provider reachability or raw error persistence', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const rawError = 'raw-local-error-must-not-persist';
+    const hostileRequest = new Proxy(request, {
+      get(target, property, receiver) {
+        if (property === 'version') throw new Error(rawError);
+        return Reflect.get(target, property, receiver);
+      },
+    });
+    const provider = successfulProvider(
+      fullyActionedBunnyDraft(snapshot),
+    );
+
+    const result = await runVisualContractAuthoring({
+      request: hostileRequest,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 0,
+      repairCount: 0,
+      failure: {
+        code: 'local_processing_failed',
+        phase: 'local_processing',
+        errorClass: 'unexpected_local_failure',
+        repairEligibility: 'ineligible',
+        repairReasonCode:
+          'unexpected_local_failure_not_repairable',
+      },
+    });
+    expect(provider.call).not.toHaveBeenCalled();
+    expect(JSON.stringify(result.receipt)).not.toContain(rawError);
+  });
+
+  it('retains the completed logical call when local response-evidence inspection throws', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const rawError =
+      'raw-response-receipt-error-must-not-persist';
+    const hostileReceipt = new Proxy(
+      {
+        provider: 'openai',
+        model: 'gpt-5.6-sol',
+        responseId: 'response-hostile-receipt',
+        usage: {
+          input_tokens: 1_000,
+          output_tokens: 2_000,
+          total_tokens: 3_000,
+        },
+      },
+      {
+        get(target, property, receiver) {
+          if (property === 'provider') throw new Error(rawError);
+          return Reflect.get(target, property, receiver);
+        },
+      },
+    );
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async () => ({
+        output: JSON.stringify(
+          fullyActionedBunnyDraft(snapshot),
+        ),
+        receipt: hostileReceipt,
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 1,
+      repairCount: 0,
+      failure: {
+        code: 'local_processing_failed',
+        phase: 'local_processing',
+        errorClass: 'unexpected_local_failure',
+        repairEligibility: 'ineligible',
+      },
+      executionAttestation: {
+        evidenceKind: 'injected_adapter_unattested',
+        logicalProviderCalls: 1,
+      },
+    });
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(result.receipt)).not.toContain(rawError);
+  });
+
+  it('keeps post-compile authority failure metadata distinct and closed', () => {
+    const failure = buildAuthoringTerminalFailure({
+        code: 'post_compile_authority_incomplete',
+        diagnosticInputs: [
+          'raw post-compile authority detail must not persist',
+        ],
+        diagnosticCountOverride: 1,
+        issueCodes: ['post_compile_authority_incomplete'],
+      });
+    expect(failure).toMatchObject({
+      code: 'post_compile_authority_incomplete',
+      phase: 'post_compile_authority',
+      errorClass: 'post_compile_authority_failure',
+      repairEligibility: 'ineligible',
+      repairReasonCode:
+        'post_compile_authority_not_repairable',
+      diagnosticCount: 1,
+      diagnosticCodes: expect.arrayContaining([
+        'post_compile_authority_incomplete',
+      ]),
+      issues: ['post_compile_authority_incomplete'],
+    });
+    expect(JSON.stringify(failure)).not.toContain(
+      'raw post-compile authority detail',
+    );
+  });
+
   it('preserves all three bounded attempt receipts and aggregate evidence on validation exhaustion', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
@@ -1503,15 +1955,28 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('failed');
     expect(result.receipt.failure?.code).toBe(
-      'validation_exhausted',
+      'draft_validation_repair_exhausted',
     );
+    expect(result.receipt.failure).toMatchObject({
+      phase: 'draft_validation',
+      errorClass: 'draft_validation_budget_exhausted',
+      repairEligibility: 'budget_exhausted',
+      repairReasonCode:
+        'draft_validation_budget_consumed',
+      diagnosticCodes: expect.arrayContaining([
+        'draft_contract_validation_failed',
+      ]),
+    });
+    expect(
+      result.receipt.failure?.diagnosticCount,
+    ).toBeGreaterThan(0);
     expect(result.receipt.callCount).toBe(3);
     expect(result.receipt.repairCount).toBe(2);
     expect(result.receipt.attempts).toHaveLength(3);
     expect(
       result.receipt.attempts.every(
         (attempt) =>
-          attempt.validationErrors.length > 0,
+          attempt.validationDiagnostics.count > 0,
       ),
     ).toBe(true);
     expect(result.receipt.aggregateUsage.inputTokens).toBe(

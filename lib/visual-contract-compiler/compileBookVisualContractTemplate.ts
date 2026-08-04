@@ -220,6 +220,26 @@ export class TemplateRepairExhaustedError extends InvalidTemplateContractError {
 }
 
 /**
+ * A completed repair response that cannot become the next descriptive draft.
+ * This is not validation exhaustion: the remaining repair budget was never
+ * exercised because the returned repair bytes were unusable. The raw output
+ * and parse/provider exception stay inside the call stack and are never
+ * carried by this error.
+ */
+export class TemplateRepairOutputInvalidError extends Error {
+  constructor(
+    readonly attempts: TemplateRepairAttempt[],
+    readonly repairAttempt: number,
+    readonly repairMode:
+      | 'source_evidence_id_patch'
+      | 'full_draft',
+  ) {
+    super('completed template repair output was unusable');
+    this.name = 'TemplateRepairOutputInvalidError';
+  }
+}
+
+/**
  * The AUTHORITATIVE companion CAST id, derived from the order's companion (input.companion) — namespaced the same
  * way as child:hero / human:role. Never from the draft. Returns null when the order has no companion.
  */
@@ -2049,16 +2069,17 @@ export async function compileBookVisualContractTemplate(
       throw new TemplateRepairExhaustedError(repairAttempts, attemptErrors);
     }
 
+    const repairMode = sourceEvidenceAffectedRecords
+      ? 'source_evidence_id_patch'
+      : 'full_draft';
     repairAttempts[repairAttempts.length - 1]!.nextRepairMode =
-      sourceEvidenceAffectedRecords
-        ? 'source_evidence_id_patch'
-        : 'full_draft';
+      repairMode;
 
     // Request a bounded SEMANTIC repair: fix ONLY the descriptive draft against the exact errors (same model, no
     // fallback). Compiler-owned + fact fields are re-derived on the next assemble, so LLM edits to them are ignored.
-    // If the repair call itself can't be turned into a usable draft (model error, or truncated/unparseable JSON),
-    // we cannot continue — surface it as an exhaustion so the accumulated attempt trail is STILL persisted (never
-    // silently lost), rather than letting the raw parse/model error escape and drop the trail.
+    // If a completed repair response cannot become a usable draft, stop with
+    // a distinct terminal while retaining the prior validation trail only in
+    // memory. Provider/policy/budget failures remain classified by the caller.
     try {
       if (sourceEvidenceAffectedRecords) {
         const rawPatch = await deps.callLLM(
@@ -2105,10 +2126,12 @@ export async function compileBookVisualContractTemplate(
           ),
         );
       }
-    } catch (err) {
-      throw new TemplateRepairExhaustedError(repairAttempts, [
-        `repair #${attempt} could not be produced (model error or unparseable/truncated JSON): ${(err as Error).message}`,
-      ]);
+    } catch {
+      throw new TemplateRepairOutputInvalidError(
+        repairAttempts,
+        attempt + 1,
+        repairMode,
+      );
     }
   }
 }
