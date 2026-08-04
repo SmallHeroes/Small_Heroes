@@ -92,6 +92,7 @@ import {
 } from './providerFailureDiagnostics';
 import {
   aggregateAuthoringExecutionAttestations,
+  authoringBudgetExhaustionBindingIsValid,
   authoringExecutionAttestationIsValid,
   authoringTerminalFailureIsValid,
   buildAuthoringTerminalFailure,
@@ -100,6 +101,7 @@ import {
   notRunAuthoringExecutionAttestation,
   sanitizedAuthoringDiagnostics,
   type AuthoringExecutionAttestation,
+  type AuthoringDiagnosticCode,
   type AuthoringTerminalFailure,
   type AuthoringTerminalFailureCode,
 } from './authoringTerminalDiagnostics';
@@ -1112,6 +1114,7 @@ function failureReceipt(args: {
   code: AuthoringTerminalFailureCode;
   diagnosticInputs?: readonly unknown[];
   diagnosticCountOverride?: number;
+  diagnosticCodeOverride?: AuthoringDiagnosticCode;
   issueCodes?: readonly unknown[];
   actionSemanticCoverage?:
     VisualContractAuthoringReceipt['actionSemanticCoverage'];
@@ -1161,6 +1164,8 @@ function failureReceipt(args: {
       diagnosticInputs: args.diagnosticInputs,
       diagnosticCountOverride:
         args.diagnosticCountOverride,
+      diagnosticCodeOverride:
+        args.diagnosticCodeOverride,
       issueCodes: args.issueCodes,
     }),
     doesNotAuthorize: [...DOES_NOT_AUTHORIZE],
@@ -1712,6 +1717,7 @@ export async function runVisualContractAuthoring(args: {
           VisualContractAuthoringReceipt['failure']
         >['code']
       | null;
+    diagnosticCodeOverride?: AuthoringDiagnosticCode;
   } = { code: null };
   try {
     const compileResult =
@@ -1769,6 +1775,8 @@ export async function runVisualContractAuthoring(args: {
               args.request.callBudget.maxCalls
             ) {
               terminal.code = 'local_processing_failed';
+              terminal.diagnosticCodeOverride =
+                'call_budget_invariant_failed';
               throw new Error(
                 'application call budget exhausted',
               );
@@ -2265,8 +2273,13 @@ export async function runVisualContractAuthoring(args: {
     let code: AuthoringTerminalFailureCode;
     let diagnosticInputs: readonly unknown[] = [];
     let diagnosticCountOverride: number | undefined;
+    let diagnosticCodeOverride:
+      | AuthoringDiagnosticCode
+      | undefined;
     if (terminal.code) {
       code = terminal.code;
+      diagnosticCodeOverride =
+        terminal.diagnosticCodeOverride;
     } else if (error instanceof InvalidVisualContractError) {
       code = 'provider_output_decode_failed';
       diagnosticCountOverride = 1;
@@ -2336,6 +2349,7 @@ export async function runVisualContractAuthoring(args: {
       code,
       diagnosticInputs,
       diagnosticCountOverride,
+      diagnosticCodeOverride,
       issueCodes: [code],
       ...(code === 'action_semantic_capability_gap'
         ? {
@@ -2433,6 +2447,21 @@ function canonicalImportPreflightState(args: {
   };
 }
 
+function visualContractAuthoringReceiptExhaustionBindingIsValid(
+  receipt: VisualContractAuthoringReceipt,
+): boolean {
+  return authoringBudgetExhaustionBindingIsValid({
+    failure: receipt.failure,
+    logicalProviderCalls:
+      receipt.executionAttestation.logicalProviderCalls,
+    repairCount: receipt.repairCount,
+    expectedLogicalProviderCalls:
+      VISUAL_CONTRACT_AUTHORING_MAX_CALLS,
+    expectedRepairCount:
+      VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS,
+  });
+}
+
 export function buildVisualContractAuthoringReadinessEvidence(args: {
   snapshot: StorySourceAuthoritySnapshot;
   request: VisualContractAuthoringRequest;
@@ -2490,6 +2519,9 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       providerRepairCallCount(args.receipt.attempts) ||
     args.receipt.executionAttestation.logicalProviderCalls !==
       args.receipt.callCount ||
+    !visualContractAuthoringReceiptExhaustionBindingIsValid(
+      args.receipt,
+    ) ||
     args.receipt.digestAlgorithm !==
       'canonical-json-sha256' ||
     args.receipt.digest !==
@@ -2624,6 +2656,15 @@ export function persistVisualContractAuthoringReceipt(args: {
   receipt: VisualContractAuthoringReceipt;
   write?: boolean;
 }): VisualContractAuthoringArtifactWrite {
+  if (
+    !visualContractAuthoringReceiptExhaustionBindingIsValid(
+      args.receipt,
+    )
+  ) {
+    throw new Error(
+      'receipt v9 budget exhaustion evidence requires exactly three logical calls and two repairs',
+    );
+  }
   return persistJsonArtifact({
     ...args,
     category: 'authoring-receipts',

@@ -2,7 +2,7 @@
 
 Date: `2026-08-04`
 
-Status: **locally implemented and focused-green; independent Claude Code QA pending**
+Status: **original implementation independently passed with two MINOR findings; focused QA fix locally green and awaiting read-only micro re-gate**
 
 Decision Gate: `docs/ai-workflow/R1D_PVB_D1A1B1_TERMINAL_VALIDATION_CLASSIFICATION_AND_REPAIR_OBSERVABILITY_HARDENING_DECISION_GATE.md`
 
@@ -123,7 +123,7 @@ No seventh assertion or execution-protocol failure occurred. The literal command
 
 ## 6. Boundaries and limitations
 
-- Claude Code independent QA has not yet occurred. Codex does not self-award technical PASS.
+- Claude Code independently passed the original implementation range and raised two MINOR findings. The focused corrections described below have not yet received their micro re-gate. Codex does not self-award their closure.
 - No real provider execution was authorized; guarded transport observations are proved with deterministic injected transport tests and sentinels.
 - No prior live-attempt artifact or historical evidence version was modified.
 - No dependency, package manifest, lockfile, worker policy, timeout, retry, skip, or assertion was changed.
@@ -146,3 +146,27 @@ Claude Code should review the immutable base-to-head range read-only and try to 
 10. production Blueprint using exhaustion as a residual fallback or changing output/Wizard semantics;
 11. any prompt/schema/model/endpoint/tier/token/budget/timeout/retry/fallback/pricing/candidate/dependency/lockfile drift;
 12. any story, page, character, companion, phrase, or live-attempt special case.
+
+## 8. Independent QA and focused QA fix
+
+Claude Code independently reviewed exact immutable range `f66a5dd6877aedaa5174b6b4f51a679c049f0883..463575ba63d7e5c6d764e358051b5c36e2c2c00c` read-only and returned technical **PASS** with two MINOR findings. Claude did not execute Vitest or TypeScript because `node_modules` was absent in its review worktree; its verdict is an independent static falsification result supported, but not independently reproduced, by Codex's recorded executable evidence.
+
+- **MINOR-1:** `call_budget_invariant_failed` was declared and admitted but unreachable. The actual `attempt > maxCalls` invariant breach fell through the `local_processing_failed` definition to `unexpected_local_error`.
+- **MINOR-2:** readiness checked internally consistent counters but did not bind an exhaustion classification to the complete three-call/two-repair budget, so self-consistent redigested one-call/zero-repair exhaustion evidence could pass the boundary.
+- **NOTE-1:** a pre-existing, out-of-range canonical-import-preflight path still uses bounded errors rather than a safe issue-code field, while its feed emits closed snake-case codes. Claude did not charge this to the reviewed range.
+- **NOTE-2:** the remediation fixes the terminal-classification defect class but does not establish the original runtime cause of the historical one-call/zero-repair receipt. Under the hardened fallback, an equivalent unknown local failure records `local_processing_failed` rather than false exhaustion.
+
+Guy authorized `R1D-PVB-D1A1B1-TERMINAL-VALIDATION-OBSERVABILITY-QA-FIX` at exact base `463575ba63d7e5c6d764e358051b5c36e2c2c00c`, limited to those two findings. The focused correction:
+
+- wires the exact `attempt > maxCalls` breach to the existing closed `call_budget_invariant_failed` diagnostic while retaining the closed terminal code `local_processing_failed`;
+- adds one shared fail-closed predicate requiring either exhaustion claim--terminal code or repair eligibility--to be jointly present and bound to exactly three observed logical provider calls and two repairs;
+- applies that predicate at Visual Contract receipt persistence and readiness validation;
+- adds a direct invariant-breach regression plus self-consistent redigested receipt-persistence and readiness tamper regressions.
+
+QA-fix validation, using only the existing locked local dependency tree:
+
+- `npx --no-install vitest run lib/visual-package/__tests__/source-authority-lifecycle.spec.ts lib/visual-package/__tests__/canonical-live-authoring-boundary.spec.ts lib/visual-package/__tests__/production-lifecycle-foundation.spec.ts lib/visual-package/__tests__/provider-failure-diagnostics.spec.ts --maxWorkers=1`: **4 files / 236 tests PASS**;
+- `npx --no-install tsc --noEmit`: **PASS**;
+- `git diff --check`: **PASS**.
+
+Per authorization, `npm run check` was not rerun. No credential read/check/load, provider or network call, real B0/readiness, live authoring, render, deployment, or push occurred. No taxonomy member, budget, repair route, provider behavior, schema, model, timeout, retry, fallback, dependency, lockfile, or policy changed. Independent closure of MINOR-1 and MINOR-2 remains pending the Claude Code micro re-gate.

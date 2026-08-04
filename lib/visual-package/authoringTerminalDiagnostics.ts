@@ -352,12 +352,19 @@ export function buildAuthoringTerminalFailure(args: {
   code: AuthoringTerminalFailureCode;
   diagnosticInputs?: readonly unknown[];
   diagnosticCountOverride?: number;
+  diagnosticCodeOverride?: AuthoringDiagnosticCode;
   issueCodes?: readonly unknown[];
 }): AuthoringTerminalFailure {
   const definition = TERMINAL_DEFINITIONS[args.code];
+  const primaryDiagnosticCode =
+    args.code === 'local_processing_failed' &&
+    args.diagnosticCodeOverride ===
+      'call_budget_invariant_failed'
+      ? args.diagnosticCodeOverride
+      : definition.diagnosticCode;
   const diagnostics = sanitizedAuthoringDiagnostics({
     inputs: args.diagnosticInputs,
-    fallbackCode: definition.diagnosticCode,
+    fallbackCode: primaryDiagnosticCode,
     countOverride: args.diagnosticCountOverride,
   });
   return {
@@ -436,6 +443,13 @@ export function authoringTerminalFailureIsValid(
     TERMINAL_DEFINITIONS[
       failure.code as AuthoringTerminalFailureCode
     ];
+  const permittedPrimaryDiagnosticCodes =
+    failure.code === 'local_processing_failed'
+      ? [
+          definition.diagnosticCode,
+          'call_budget_invariant_failed',
+        ]
+      : [definition.diagnosticCode];
   const diagnosticCodes = failure.diagnosticCodes;
   const issues = failure.issues;
   return (
@@ -459,7 +473,9 @@ export function authoringTerminalFailureIsValid(
           code as AuthoringDiagnosticCode,
         ),
     ) &&
-    diagnosticCodes.includes(definition.diagnosticCode) &&
+    permittedPrimaryDiagnosticCodes.some((code) =>
+      diagnosticCodes.includes(code),
+    ) &&
     Array.isArray(issues) &&
     issues.length >= 1 &&
     issues.length <= MAX_PERSISTED_AUTHORING_ISSUE_CODES &&
@@ -467,6 +483,33 @@ export function authoringTerminalFailureIsValid(
       (issue) =>
         typeof issue === 'string' && SAFE_ISSUE_CODE.test(issue),
     )
+  );
+}
+
+export function authoringBudgetExhaustionBindingIsValid(args: {
+  failure: AuthoringTerminalFailure | null;
+  logicalProviderCalls: number;
+  repairCount: number;
+  expectedLogicalProviderCalls: number;
+  expectedRepairCount: number;
+}): boolean {
+  const claimsExhaustionByCode =
+    args.failure?.code ===
+    'draft_validation_repair_exhausted';
+  const claimsExhaustionByEligibility =
+    args.failure?.repairEligibility === 'budget_exhausted';
+  if (
+    !claimsExhaustionByCode &&
+    !claimsExhaustionByEligibility
+  ) {
+    return true;
+  }
+  return (
+    claimsExhaustionByCode &&
+    claimsExhaustionByEligibility &&
+    args.logicalProviderCalls ===
+      args.expectedLogicalProviderCalls &&
+    args.repairCount === args.expectedRepairCount
   );
 }
 

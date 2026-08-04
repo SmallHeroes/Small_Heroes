@@ -1561,6 +1561,79 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toThrow(/requires current, digest-bound request and receipt/);
   });
 
+  it('rejects persistence of re-digested exhaustion receipt evidence bound to only one logical call and zero repairs', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    invalid.recurringProps[0].material = '';
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: successfulProvider(invalid),
+    });
+    expect(result.receipt.failure).toMatchObject({
+      code: 'draft_validation_repair_exhausted',
+      repairEligibility: 'budget_exhausted',
+    });
+    const forged = structuredClone(result.receipt);
+    forged.attempts = forged.attempts.slice(0, 1);
+    forged.callCount = 1;
+    forged.repairCount = 0;
+    forged.executionAttestation = structuredClone(
+      forged.attempts[0]!.executionAttestation,
+    );
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = forged;
+    forged.digest = canonicalJsonDigest(payload);
+
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/review',
+        receipt: forged,
+        write: false,
+      }),
+    ).toThrow(
+      /budget exhaustion evidence requires exactly three logical calls and two repairs/,
+    );
+  });
+
+  it('rejects readiness from re-digested exhaustion evidence bound to only one logical call and zero repairs', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    invalid.recurringProps[0].material = '';
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: successfulProvider(invalid),
+    });
+    const forged = structuredClone(result.receipt);
+    forged.attempts = forged.attempts.slice(0, 1);
+    forged.callCount = 1;
+    forged.repairCount = 0;
+    forged.executionAttestation = structuredClone(
+      forged.attempts[0]!.executionAttestation,
+    );
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = forged;
+    forged.digest = canonicalJsonDigest(payload);
+
+    expect(() =>
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: forged,
+      }),
+    ).toThrow(/requires current, digest-bound request and receipt/);
+  });
+
   it('records exact per-attempt and aggregate usage/cost without raw prompt, response, or provider payload', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
@@ -1913,6 +1986,65 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(provider.call).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(result.receipt)).not.toContain(rawError);
+  });
+
+  it('emits the closed call-budget invariant diagnostic when the compiler requests a call beyond the admitted budget', async () => {
+    const snapshot = bunnySnapshot();
+    const request = structuredClone(
+      requestFor(snapshot, 'live'),
+    );
+    let completedProviderCalls = 0;
+    const admittedCallBudget = request.callBudget;
+    Object.defineProperty(request, 'callBudget', {
+      enumerable: true,
+      value: {
+        ...admittedCallBudget,
+        get maxCalls() {
+          return completedProviderCalls === 0 ? 3 : 1;
+        },
+      },
+    });
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    invalid.recurringProps[0].material = '';
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async () => {
+        completedProviderCalls += 1;
+        return {
+          output: JSON.stringify(invalid),
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `response-${completedProviderCalls}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+            },
+          },
+        };
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 1,
+      repairCount: 0,
+      failure: {
+        code: 'local_processing_failed',
+        diagnosticCount: 1,
+        diagnosticCodes: ['call_budget_invariant_failed'],
+      },
+    });
+    expect(
+      result.receipt.failure?.diagnosticCodes,
+    ).not.toContain('unexpected_local_error');
+    expect(provider.call).toHaveBeenCalledTimes(1);
   });
 
   it('keeps post-compile authority failure metadata distinct and closed', () => {
