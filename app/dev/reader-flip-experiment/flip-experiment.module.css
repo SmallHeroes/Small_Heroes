@@ -1,0 +1,440 @@
+/* EXPERIMENT — RTL page-flip prototype (dev-only). Tokens from public/CSS/tokens.css. */
+
+.root {
+  min-height: 100dvh;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #3d3357 0%, #2b2440 55%, #221c33 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px clamp(12px, 3vw, 40px) 24px;
+  font-family: var(--font-body, 'Heebo', sans-serif);
+  color: #fff;
+}
+
+.toolbar {
+  width: 100%;
+  max-width: 1240px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.title {
+  font-family: var(--font-display, 'Rubik', sans-serif);
+  font-size: clamp(17px, 2.2vw, 22px);
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+}
+
+.toolbarControls { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.toolBtn {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-base, 200ms) ease;
+}
+.toolBtn:hover { background: rgba(255, 255, 255, 0.16); }
+.toolBtn[aria-pressed='true'] { background: var(--brand-purple, #886cff); border-color: var(--brand-purple, #886cff); }
+
+/* ── Stage + book ── */
+.stage {
+  position: relative;
+  width: min(1240px, 100%);
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.book {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2594 / 1588; /* real OpenBook.png proportions */
+  perspective: 2600px;
+  filter: drop-shadow(0 40px 60px rgba(10, 6, 24, 0.55));
+}
+
+/* layers stack — physical screen-space geometry: pin to LTR so RTL page
+   direction can't mirror the book mechanics (prose stays rtl inside). */
+.baseLayer, .idleLayer, .flatSpread {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  direction: ltr;
+}
+
+.sheet { direction: ltr; }
+
+.flatSpread { animation: flatIn 200ms ease; }
+@keyframes flatIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* a HALF window: full spread rendered inside, clipped to one half */
+.half {
+  position: relative;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+  flex: 0 0 50%;
+}
+.halfLeft { order: 1; }
+.halfRight { order: 2; }
+.halfEmpty { width: 50%; flex: 0 0 50%; }
+
+.spreadInner {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 200%; /* full spread inside a half-window */
+}
+.halfLeft .spreadInner { left: 0; }
+.halfRight .spreadInner { left: -100%; }
+
+.openBookImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+}
+
+/* left-page illustration — production recipe: the mask layer spans the FULL
+   spread (1:1 with OpenBook.png), the image is positioned inside it. */
+.illustrationLayer {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: url('/Images/BookImageBottomMask.png');
+  mask-image: url('/Images/BookImageBottomMask.png');
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.illustrationImg {
+  position: absolute;
+  left: 6.2%;
+  top: 6.5%;
+  width: 40.5%;
+  height: 87%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.proseLayer {
+  position: absolute;
+  right: 8%;
+  top: 9%;
+  width: 36%;
+  height: 82%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.9em;
+  direction: rtl;
+  text-align: right;
+  padding-inline: 2.5%;
+}
+
+.proseLine {
+  margin: 0;
+  font-family: var(--font-body, 'Heebo', sans-serif);
+  font-size: clamp(11px, 1.35cqi, 22px);
+  line-height: 1.85;
+  color: #2b2620;
+  font-weight: 500;
+}
+
+.tornOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+/* container queries for prose sizing */
+.stage { container-type: inline-size; }
+
+/* ── The turning PAPER sheet — two hinged segments, frame never moves ──
+   Paper bounds inside OpenBook.png: x 2.6→97.4% (spine 50%), y 2.6→96.6%.
+   Pose vars set per-frame by JS: --deg (spine rotation), --bend (outer-segment
+   lag, peaks mid-flight), --sag (dip toward the table), --lift (off the paper),
+   --turn-progress (0→1→0 arc for shading). */
+.sheet {
+  position: absolute;
+  top: 2.6%;
+  height: 94%;
+  width: 47.4%;
+  transform-style: preserve-3d;
+  will-change: transform;
+  z-index: 3;
+  direction: ltr;
+  pointer-events: none;
+}
+
+.sheetForward {
+  left: 2.6%;
+  transform-origin: right center;
+  transform: rotateX(var(--sag, 0deg)) rotateY(var(--deg, 0deg)) translateZ(var(--lift, 0px));
+}
+
+.sheetBackward {
+  right: 2.6%;
+  transform-origin: left center;
+  transform: rotateX(var(--sag, 0deg)) rotateY(var(--deg, 0deg)) translateZ(var(--lift, 0px));
+}
+
+/* segment A — spine side (62% of the page) */
+.segA {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 62%;
+  transform-style: preserve-3d;
+}
+.sheetForward .segA { right: 0; }
+.sheetBackward .segA { left: 0; }
+
+/* segment B — outer 38%, hinged on its spine-side edge; lags via --bend */
+.segB {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 38.2%; /* +0.2 overlap kills the seam gap at high bend */
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.sheetForward .segB {
+  left: 0;
+  transform-origin: right center;
+  transform: rotateY(var(--bend, 0deg));
+}
+.sheetBackward .segB {
+  right: 0;
+  transform-origin: left center;
+  transform: rotateY(var(--bend, 0deg));
+}
+
+/* faces */
+.face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+  background: linear-gradient(105deg, #f9f5ec 0%, #f4eee1 55%, #efe8d8 100%);
+}
+.faceBack { transform: rotateY(180deg); }
+
+/* slice windows — page content is 100% page-wide; each segment shows its slice */
+.sliceWindow { position: absolute; top: 0; height: 100%; }
+/* forward sheet: front = LEFT page (spine right) */
+.sheetForward .faceFront.sliceA .sliceWindow { width: 161.29%; left: -61.29%; }
+.sheetForward .faceFront.sliceB .sliceWindow { width: 263.16%; left: 0; }
+.sheetForward .faceBack.sliceA .sliceWindow { width: 161.29%; left: 0; }
+.sheetForward .faceBack.sliceB .sliceWindow { width: 263.16%; left: -163.16%; }
+/* backward sheet: front = RIGHT page (spine left) — offsets mirror */
+.sheetBackward .faceFront.sliceA .sliceWindow { width: 161.29%; left: 0; }
+.sheetBackward .faceFront.sliceB .sliceWindow { width: 263.16%; left: -163.16%; }
+.sheetBackward .faceBack.sliceA .sliceWindow { width: 161.29%; left: -61.29%; }
+.sheetBackward .faceBack.sliceB .sliceWindow { width: 263.16%; left: 0; }
+
+/* paper page content (page-space, no photo frame) */
+.paperPage { position: absolute; inset: 0; }
+.paperBlank { position: absolute; inset: 0; background: #f6f1e7; }
+
+.paperIllustration {
+  position: absolute;
+  left: 7.6%;
+  top: 4.7%;
+  width: 85.4%;
+  height: 91%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.paperProse {
+  position: absolute;
+  left: 12.6%;
+  top: 7.3%;
+  width: 76%;
+  height: 85.8%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.9em;
+  direction: rtl;
+  text-align: right;
+}
+
+/* self-shading peaks mid-flight */
+.sheetShade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to left, rgba(30, 20, 10, 0.22), rgba(30, 20, 10, 0) 55%);
+  opacity: var(--turn-progress, 0);
+}
+.sheetBackward .sheetShade {
+  background: linear-gradient(to right, rgba(30, 20, 10, 0.22), rgba(30, 20, 10, 0) 55%);
+}
+
+/* crease light at the segment hinge */
+.crease {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 7%;
+  pointer-events: none;
+  opacity: calc(var(--turn-progress, 0) * 0.8);
+}
+.sheetForward .crease {
+  right: -1%;
+  background: linear-gradient(to left, rgba(90, 70, 40, 0.18), transparent 80%);
+}
+.sheetBackward .crease {
+  left: -1%;
+  background: linear-gradient(to right, rgba(90, 70, 40, 0.18), transparent 80%);
+}
+
+/* cast shadow onto the base while sheet is airborne */
+.castShadow {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 50%;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.5;
+}
+.castForward {
+  left: 50%;
+  background: linear-gradient(to right, rgba(20, 12, 40, 0.35), transparent 70%);
+}
+.castBackward {
+  right: 50%;
+  background: linear-gradient(to left, rgba(20, 12, 40, 0.35), transparent 70%);
+}
+
+/* ── Edge zones (click targets + drag affordance) ── */
+.edgeZone {
+  position: absolute;
+  top: 6%;
+  height: 88%;
+  width: 9%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 4;
+  border-radius: 12px;
+  transition: background 200ms ease;
+}
+.edgeZone:hover:not(:disabled) { background: rgba(255, 255, 255, 0.07); }
+.edgeZone:disabled { cursor: default; opacity: 0; }
+.edgeForward { left: 0; }
+.edgeBackward { right: 0; }
+
+/* ── Bottom nav ── */
+.navBar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+}
+
+.navBtn {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 999px;
+  min-height: 44px;
+  padding: 0 22px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 200ms ease, transform 140ms ease;
+}
+.navBtn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); transform: translateY(-1px); }
+.navBtn:disabled { opacity: 0.35; cursor: default; }
+.navBtnPrimary { background: var(--brand-purple, #886cff); border-color: var(--brand-purple, #886cff); }
+.navBtnPrimary:hover:not(:disabled) { background: var(--brand-purple-strong, #7459f0); }
+
+.pageIndicator { font-size: 14px; font-weight: 600; color: rgba(255, 255, 255, 0.85); min-width: 130px; text-align: center; }
+
+.perfHud {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.75);
+  direction: ltr;
+  z-index: 9;
+}
+
+/* ── Mobile: single page card with lightweight lift-slide (intentional) ── */
+@media (max-width: 899px) {
+  .book { aspect-ratio: auto; min-height: 70dvh; perspective: 1400px; }
+  .half, .halfLeft, .halfRight { width: 100%; flex: 0 0 100%; }
+  .spreadInner { width: 100%; left: 0 !important; }
+  .openBookImg { display: none; }
+  .tornOverlay { display: none; }
+  .spreadInner { background: #f8f3e9; border-radius: 14px; box-shadow: 0 18px 40px rgba(10, 6, 24, 0.5); }
+  .illustrationLayer {
+    position: relative;
+    inset: auto;
+    left: auto; top: auto;
+    width: 100%;
+    height: 52%;
+    -webkit-mask-image: none;
+    mask-image: none;
+    padding: 4% 4% 0;
+  }
+  .proseLayer {
+    position: relative;
+    right: auto; top: auto;
+    width: 100%;
+    height: auto;
+    padding: 5% 7% 7%;
+    justify-content: flex-start;
+  }
+  .proseLine { font-size: 15.5px; line-height: 1.8; }
+  /* mobile turn = lift + slide (reduced depth by design) */
+  .sheet { width: 100%; }
+  .sheetForward { transform-origin: right center; }
+  .sheetBackward { transform-origin: left center; }
+  .baseLayer .halfRight, .idleLayer .halfRight, .flatSpread .halfRight { display: none; }
+  .castShadow { display: none; }
+  .edgeZone { width: 14%; }
+}
+
+/* mobile slide-turn entrance (Hebrew forward = new page arrives from the left) */
+.flatSlide[data-dir='forward'] { animation: slideFromStart 300ms cubic-bezier(0.22, 1, 0.36, 1); }
+.flatSlide[data-dir='backward'] { animation: slideFromEnd 300ms cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes slideFromStart {
+  from { opacity: 0.4; transform: translateX(-7%) rotateY(6deg); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slideFromEnd {
+  from { opacity: 0.4; transform: translateX(7%) rotateY(-6deg); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flatSlide[data-dir='forward'], .flatSlide[data-dir='backward'] { animation: flatIn 150ms ease; }
+}
