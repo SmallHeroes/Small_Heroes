@@ -147,11 +147,13 @@
 
 .proseLine {
   margin: 0;
-  font-family: var(--font-body, 'Heebo', sans-serif);
-  font-size: clamp(11px, 1.35cqi, 22px);
-  line-height: 1.85;
+  /* the reader's real book-prose face (Frank Ruhl Libre) — NOT the UI sans;
+     regression caught by Guy: book pages must keep the book serif */
+  font-family: var(--font-frank), 'Frank Ruhl Libre', var(--font-noto-serif-hebrew), 'Noto Serif Hebrew', serif;
+  font-size: clamp(11px, 1.4cqi, 23px);
+  line-height: 1.9;
   color: #2b2620;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .tornOverlay {
