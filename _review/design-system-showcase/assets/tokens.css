@@ -1,0 +1,327 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SmallHeroes design tokens — VERBATIM COPY for the standalone showcase.
+   Source of truth: public/CSS/tokens.css in the product repository.
+   Last synchronized: commit 3f60a4a4 · 2026-08-04
+   To update: re-copy the source file below this header, refresh the
+   'Last synchronized' label in index.html, and rerun build-assets.mjs.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOKENS.CSS — גיבורים קטנים · Small Heroes Design System (single source)
+   ─────────────────────────────────────────────────────────────────────────
+   Loaded by BOTH worlds:
+     • React app  → imported in app/layout.tsx (before any other css)
+     • Legacy shells (public/HTML/*.html) → <link rel="stylesheet" href="/CSS/tokens.css">
+   Rules:
+     • Semantic tokens first; legacy aliases (--purple, --fd, …) are re-pointed
+       at the bottom so old CSS inherits fixes without a big-bang rewrite.
+     • 8-pt spacing scale. Optical exceptions (borders, icon strokes) are allowed
+       and intentionally NOT tokenized.
+     • RTL-first: tokens are direction-agnostic; use logical properties in CSS.
+   Docs: /design-system (dev-only route) shows every token rendered live.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Brand core ──────────────────────────────────────────────────────── */
+  --brand-purple:        #886cff;  /* primary brand + interactive */
+  --brand-purple-strong: #7459f0;  /* hover / pressed / high-emphasis */
+  --brand-purple-deep:   #5b43cc;  /* active text on light, gradients end */
+  --brand-purple-soft:   #ede8ff;  /* selected fills, chips */
+  --brand-purple-faint:  #f6f3ff;  /* tinted surfaces, hovers */
+  --brand-yellow:        #ffee6c;  /* accent highlight (badges, marks) */
+  --brand-yellow-ink:    #3d2f10;  /* text on yellow */
+
+  /* ── Neutrals (ink on light) ─────────────────────────────────────────── */
+  --ink-strong: #18171a;   /* display headings */
+  --ink:        #2b2833;   /* primary body text */
+  --ink-2:      #5f5a70;   /* secondary text */
+  --ink-3:      #8b86a0;   /* muted / captions / placeholders */
+  --ink-inverse:#ffffff;
+
+  /* ── Surfaces ────────────────────────────────────────────────────────── */
+  --surface-page:     #ffffff;
+  --surface-alt:      #faf9fc;  /* quiet alternating sections */
+  --surface-raised:   #ffffff;  /* cards on any section bg */
+  --surface-cream:    #fffcf5;  /* warm storybook band */
+  --surface-cream-2:  #fdf6e2;  /* deeper cream (notes, launch band) */
+  --surface-sunken:   #f3f1f9;  /* wells, progress track */
+  --surface-dark:     #2b2b31;  /* footer */
+  /* Shared page atmosphere for the funnel (start + wizard + login/gate/ready) */
+  --surface-wizard-gradient: linear-gradient(165deg, #fffcf1 0%, #f7f2ff 45%, #eef6fa 100%);
+
+  /* ── Borders ─────────────────────────────────────────────────────────── */
+  --border-soft:   #efecf8;  /* hairlines inside cards */
+  --border:        #e5e0f3;  /* default component border */
+  --border-strong: #d8cdfd;  /* hover / open */
+  --border-cream:  #f4edda;  /* on cream surfaces */
+
+  /* ── Interactive states ──────────────────────────────────────────────── */
+  --interactive:          var(--brand-purple);
+  --interactive-hover:    var(--brand-purple-strong);
+  --interactive-active:   var(--brand-purple-deep);
+  --interactive-selected-bg: var(--brand-purple-soft);
+  --interactive-disabled-bg: #efedf5;
+  --interactive-disabled-ink:#a6a1b8;
+
+  /* ── Feedback ────────────────────────────────────────────────────────── */
+  --success:      #1d8a63;
+  --success-bg:   #e9f7f1;
+  --success-border:#bfe7d6;
+  --warning:      #9a7420;
+  --warning-bg:   #fdf3d7;
+  --warning-border:#f3e4b6;
+  --error:        #d4453c;
+  --error-bg:     #fdefee;
+  --error-border: #f5cdca;
+  --info:         var(--brand-purple-deep);
+  --info-bg:      var(--brand-purple-faint);
+
+  /* ── Focus ───────────────────────────────────────────────────────────── */
+  --focus-ring-color: #7459f0;
+  --focus-ring: 3px solid var(--focus-ring-color);
+  --focus-ring-offset: 2px;
+
+  /* ── Typography ──────────────────────────────────────────────────────── */
+  /* React resolves --font-rubik / --font-heebo (next/font); legacy shells fall
+     back to the literal Google-Fonts families linked in their <head>. */
+  --font-display: var(--font-rubik, 'Rubik'), 'Rubik', 'Heebo', sans-serif;
+  --font-body:    var(--font-heebo, 'Heebo'), 'Heebo', sans-serif;
+
+  /* Roles: size / line-height / weight / letter-spacing.
+     Hebrew needs looser line-height than Latin at display sizes — never below 1.12. */
+  --text-display-size: clamp(42px, 6vw, 74px);
+  --text-display-lh: 1.12;
+  --text-display-weight: 900;
+  --text-display-ls: -0.01em;
+
+  --text-h1-size: clamp(34px, 4.6vw, 52px);
+  --text-h1-lh: 1.16;
+  --text-h1-weight: 800;
+
+  --text-h2-size: clamp(28px, 3.6vw, 40px);
+  --text-h2-lh: 1.2;
+  --text-h2-weight: 800;
+
+  --text-h3-size: clamp(20px, 2.4vw, 25px);
+  --text-h3-lh: 1.3;
+  --text-h3-weight: 700;
+
+  --text-h4-size: 18px;
+  --text-h4-lh: 1.4;
+  --text-h4-weight: 700;
+
+  --text-eyebrow-size: 13.5px;
+  --text-eyebrow-lh: 1.4;
+  --text-eyebrow-weight: 700;
+  --text-eyebrow-ls: 0.02em;
+
+  --text-body-lg-size: clamp(17px, 1.5vw, 19px);
+  --text-body-lg-lh: 1.7;
+  --text-body-size: 16px;
+  --text-body-lh: 1.65;
+  --text-body-sm-size: 14px;
+  --text-body-sm-lh: 1.6;
+
+  --text-label-size: 14px;
+  --text-label-lh: 1.45;
+  --text-label-weight: 600;
+
+  --text-button-size: 16px;
+  --text-button-weight: 700;
+
+  --text-caption-size: 13px;
+  --text-caption-lh: 1.5;
+
+  --text-helper-size: 13px;
+  --text-helper-lh: 1.55;
+
+  --text-error-size: 13.5px;
+  --text-error-weight: 600;
+
+  /* Max comfortable line lengths (logical, RTL-safe) */
+  --measure-heading: 24ch;
+  --measure-sub: 52ch;
+  --measure-body: 65ch;
+
+  /* ── Spacing — 8-pt scale (4 = micro exception) ──────────────────────── */
+  --sp-3xs: 4px;
+  --sp-2xs: 8px;
+  --sp-xs:  12px;
+  --sp-sm:  16px;
+  --sp-md:  24px;
+  --sp-lg:  32px;
+  --sp-xl:  40px;
+  --sp-2xl: 48px;
+  --sp-3xl: 64px;
+  --sp-4xl: 80px;
+  --sp-5xl: 96px;
+  --sp-6xl: 120px;
+
+  /* Section rhythm + containers */
+  --section-pad-y: clamp(56px, 7vw, 88px);
+  --section-gap-title: var(--sp-md);      /* h2 → sub */
+  --section-gap-body: var(--sp-2xl);      /* sub → content */
+  --container-max: 1440px;   /* wide grids (cards, gallery) */
+  --container-content: 1180px; /* standard sections */
+  --container-text: 760px;   /* prose / faq */
+  --gutter: clamp(16px, 4vw, 48px);
+
+  /* ── Radii ───────────────────────────────────────────────────────────── */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+
+  /* ── Elevation ───────────────────────────────────────────────────────── */
+  --shadow-1: 0 2px 10px rgba(40, 33, 74, 0.05);
+  --shadow-2: 0 10px 28px rgba(40, 33, 74, 0.07);
+  --shadow-3: 0 18px 44px rgba(40, 33, 74, 0.12);
+  --shadow-primary-btn: 0 10px 22px rgba(136, 108, 255, 0.18);
+  --shadow-primary-btn-hover: 0 14px 30px rgba(136, 108, 255, 0.30);
+  --ring-selected: 0 0 0 3px rgba(136, 108, 255, 0.22);
+
+  /* ── Z-index layers ──────────────────────────────────────────────────── */
+  --z-nav: 100;
+  --z-sticky: 120;
+  --z-overlay: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+
+  /* ── Controls ────────────────────────────────────────────────────────── */
+  --control-h-sm: 40px;
+  --control-h: 48px;
+  --control-h-lg: 54px;
+  --touch-target: 44px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+
+  /* ── Motion ──────────────────────────────────────────────────────────── */
+  --ease-out:  cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 140ms;   /* micro: hover, press */
+  --dur-base: 200ms;   /* component state */
+  --dur-slow: 280ms;   /* panel / accordion */
+  --dur-page: 400ms;   /* step / route transitions */
+
+  /* ═══ Legacy aliases — old names re-pointed at tokens (do not add new usages) ═══ */
+  --purple:     var(--brand-purple);
+  --purple-d:   var(--brand-purple-strong);
+  --purple-lt:  var(--brand-purple-soft);
+  --purple-bg:  #faf8ff;
+  --yellow:     var(--brand-yellow);
+  --dark:       var(--ink-strong);
+  --mid:        var(--ink-2);
+  --soft:       var(--ink-3);
+  --white:      #ffffff;
+  --bg-light:   var(--surface-alt);
+  --bg-lighter: var(--surface-alt);
+  --cream:      var(--surface-cream);      /* was referenced-but-undefined (dead gradient fix) */
+  --accent:     var(--brand-purple);       /* was referenced-but-undefined */
+  --fd: var(--font-display);
+  --fb: var(--font-body);
+  --max-w: var(--container-max);
+  --site-max: var(--container-max);
+  --nav-h: 78px;
+  --shadow-card: var(--shadow-2);
+  --shadow-btn: var(--shadow-primary-btn);
+  /* Motion aliases used by app/landing/motion.css */
+  --motion-ease-out: var(--ease-out);
+  --motion-ease-soft: var(--ease-soft);
+  --motion-duration-tap: var(--dur-fast);
+}
+
+/* ═══ Shared base behaviors (both worlds) ═══════════════════════════════ */
+
+/* Visible keyboard focus everywhere — was completely absent. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-xs);
+}
+:where(a, button, input, select, textarea, summary, [tabindex]):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Tabular numerals for prices/counters */
+.t-tnum { font-feature-settings: 'tnum'; font-variant-numeric: tabular-nums; }
+
+/* Screen-reader-only helper (legacy shells lack one) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Typography role utilities — use for new markup; existing selectors may map
+   their rules to the same variables instead. */
+.t-display {
+  font-family: var(--font-display);
+  font-size: var(--text-display-size);
+  line-height: var(--text-display-lh);
+  font-weight: var(--text-display-weight);
+  letter-spacing: var(--text-display-ls);
+  color: var(--ink-strong);
+}
+.t-h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-h1-size);
+  line-height: var(--text-h1-lh);
+  font-weight: var(--text-h1-weight);
+  color: var(--ink-strong);
+}
+.t-h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-h2-size);
+  line-height: var(--text-h2-lh);
+  font-weight: var(--text-h2-weight);
+  color: var(--ink-strong);
+}
+.t-h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-h3-size);
+  line-height: var(--text-h3-lh);
+  font-weight: var(--text-h3-weight);
+  color: var(--ink-strong);
+}
+.t-h4 {
+  font-family: var(--font-body);
+  font-size: var(--text-h4-size);
+  line-height: var(--text-h4-lh);
+  font-weight: var(--text-h4-weight);
+  color: var(--ink-strong);
+}
+.t-eyebrow {
+  font-family: var(--font-body);
+  font-size: var(--text-eyebrow-size);
+  line-height: var(--text-eyebrow-lh);
+  font-weight: var(--text-eyebrow-weight);
+  letter-spacing: var(--text-eyebrow-ls);
+  color: var(--brand-purple-deep);
+}
+.t-body-lg { font-size: var(--text-body-lg-size); line-height: var(--text-body-lg-lh); color: var(--ink-2); }
+.t-body { font-size: var(--text-body-size); line-height: var(--text-body-lh); color: var(--ink-2); }
+.t-body-sm { font-size: var(--text-body-sm-size); line-height: var(--text-body-sm-lh); color: var(--ink-2); }
+.t-label { font-size: var(--text-label-size); line-height: var(--text-label-lh); font-weight: var(--text-label-weight); color: var(--ink); }
+.t-caption { font-size: var(--text-caption-size); line-height: var(--text-caption-lh); color: var(--ink-3); }
+.t-helper { font-size: var(--text-helper-size); line-height: var(--text-helper-lh); color: var(--ink-3); }
+.t-error { font-size: var(--text-error-size); font-weight: var(--text-error-weight); color: var(--error); }
+
+/* Reduced motion: global guarantee for token-driven transitions */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0.01ms;
+    --dur-base: 0.01ms;
+    --dur-slow: 0.01ms;
+    --dur-page: 0.01ms;
+  }
+}

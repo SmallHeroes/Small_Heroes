@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SmallHeroes Design System — מערכת עיצוב לסיפורי ילדים מותאמים אישית</title>
+<meta name="description" content="שפת מוצר חמה וסקיילבילית לספרי ילדים אישיים בעברית — טיפוגרפיה, צבע, תנועה, RTL וזרימת מוצר. Case-study artifact." />
+<meta name="robots" content="noindex" />
+<!-- Synced with product design tokens: commit 3f60a4a4 · 2026-08-04 (see assets/tokens.css header) -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='%23886cff'/%3E%3Crect x='16' y='6' width='10' height='10' rx='3.5' fill='%23ffee6c'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="assets/tokens.css" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body data-motion="on">
+
+<!-- ═══ Chapter nav ═══ -->
+<header class="topbar" id="top">
+  <a class="topbar-brand" href="#top">
+    <span class="brand-mark" aria-hidden="true"><span></span></span>
+    <span class="topbar-brand-text">SmallHeroes · Design System</span>
+  </a>
+  <nav class="topbar-nav" aria-label="פרקי המסמך">
+    <a href="#principles">עקרונות</a>
+    <a href="#foundations">יסודות</a>
+    <a href="#components">קומפוננטות</a>
+    <a href="#motion">תנועה</a>
+    <a href="#ai">התאמה אישית</a>
+    <a href="#flow">זרימת המוצר</a>
+    <a href="#signature">אינטראקציות</a>
+    <a href="#rules">כללים</a>
+  </nav>
+  <button class="motion-switch" id="motionSwitch" type="button" aria-pressed="true" title="הפעלה/כיבוי של אנימציות בעמוד">
+    <span class="motion-switch-dot" aria-hidden="true"></span>
+    תנועה
+  </button>
+</header>
+
+<main>
+
+<!-- ═══ 1 · Hero ═══════════════════════════════════════════════ -->
+<section class="hero" aria-labelledby="heroTitle">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <p class="eyebrow">Case Study Artifact · 2026–2027</p>
+      <h1 id="heroTitle">SmallHeroes<br /><span class="hero-he">מערכת העיצוב של גיבורים קטנים</span></h1>
+      <p class="hero-lede">
+        שפת מוצר חמה וסקיילבילית לסיפורי חוסן אישיים בעברית — מערכת אחת שמחברת
+        סטוריטלינג מותאם־אישית, איור ילדים, אמון הורי ועיצוב RTL מהיסוד.
+      </p>
+      <dl class="hero-meta">
+        <div><dt>סוג מוצר</dt><dd>ספרי ילדים דיגיטליים בהתאמה אישית</dd></div>
+        <div><dt>פלטפורמה</dt><dd>Web · רספונסיבי מלא</dd></div>
+        <div><dt>שפה וכיוון</dt><dd>עברית · RTL-first</dd></div>
+        <div><dt>קהל</dt><dd>הורים לילדים בגילאי 2–10</dd></div>
+        <div><dt>אחריות</dt><dd>מערכת עיצוב, טיפוגרפיה, אינטראקציה, RTL, יישום Frontend</dd></div>
+      </dl>
+    </div>
+    <figure class="hero-scene" aria-hidden="true">
+      <div class="hero-scene-glow"></div>
+      <img class="hero-scene-art float-soft" src="assets/art-hero-child-fox.webp" alt="" width="380" loading="eager" />
+      <div class="hero-scene-chip chip-frag frag-1">פחדים בלילה 🌙</div>
+      <div class="hero-scene-chip frag-2">
+        <span class="mini-pills"><i class="done"></i><i class="done"></i><i class="act"></i><i></i><i></i><i></i><i></i></span>
+        שלב 3 מתוך 7
+      </div>
+      <div class="hero-scene-chip frag-3"><b class="tnum">₪79</b> הרפתקה אישית</div>
+    </figure>
+  </div>
+</section>
+
+<!-- ═══ 2 · Principles ═════════════════════════════════════════ -->
+<section class="chapter" id="principles" aria-labelledby="principlesTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">01</span>
+    <h2 id="principlesTitle">עקרונות המערכת</h2>
+    <p>שישה עקרונות שכל החלטה במערכת נמדדת מולם.</p>
+  </header>
+
+  <ol class="principles">
+    <li class="principle" data-reveal>
+      <h3>הסיפור לפני הממשק</h3>
+      <p>הממשק הוא הכריכה — הספר הוא הלב. היררכיה, צבע ותנועה מפנים את הבמה לאיור ולטקסט הסיפורי.</p>
+      <div class="principle-visual">
+        <img src="assets/gallery-1.webp" alt="כפולת עמודים מאוירת מתוך ספר" loading="lazy" width="280" class="tilt-l paper" />
+      </div>
+    </li>
+    <li class="principle" data-reveal>
+      <h3>התאמה אישית שרואים</h3>
+      <p>השם של הילד מופיע כבר בשלבי היצירה — בכותרות, בהסברים ובסיכום. ההורה רואה את הספר נהיה שלו.</p>
+      <div class="principle-visual">
+        <div class="demo-title-swap" aria-hidden="true">
+          <span class="demo-title-line">כמה מילים על <b class="swap-name">נועה</b></span>
+          <span class="demo-title-line small">הספר של <b class="swap-name">נועה</b> מוכן לצאת לדרך</span>
+        </div>
+      </div>
+    </li>
+    <li class="principle" data-reveal>
+      <h3>קסום — לא ילדותי</h3>
+      <p>חום נבנה מקרם, נייר ואיור — לא מבלונים ופונטים מקפצים. ההורה קונה, הילד מקבל.</p>
+      <div class="principle-visual">
+        <img src="assets/companion-uri.webp" alt="אוּרי השועל — דמות מלווה" loading="lazy" width="150" class="companion-cameo" />
+      </div>
+    </li>
+    <li class="principle" data-reveal>
+      <h3>הכוונה רגועה להורים</h3>
+      <p>שלב אחד בכל מסך, התקדמות גלויה, שגיאות שמדברות בגובה העיניים. אף רגע של "מה עכשיו?".</p>
+      <div class="principle-visual">
+        <div class="mini-progress" aria-hidden="true">
+          <span class="mini-progress-label">שלב 3 מתוך 7</span>
+          <span class="mini-pills lg"><i class="done"></i><i class="done"></i><i class="act"></i><i></i><i></i><i></i><i></i></span>
+        </div>
+      </div>
+    </li>
+    <li class="principle" data-reveal>
+      <h3>RTL מהיסוד</h3>
+      <p>לא שכבת תרגום על מוצר לועזי: מאפיינים לוגיים, מספרים שנשארים יציבים, וכיווני תנועה שקוראים עברית.</p>
+      <div class="principle-visual">
+        <div class="rtl-cameo" aria-hidden="true"><span>המשך</span><span class="rtl-cameo-arrow">←</span></div>
+      </div>
+    </li>
+    <li class="principle" data-reveal>
+      <h3>AI דרך התאמה — לא דרך קלישאות</h3>
+      <p>אין מוח זוהר ואין רשת נוירונים. האינטליגנציה מופיעה כשמשהו על המסך משתנה בעקבות בחירה של ההורה.</p>
+      <div class="principle-visual">
+        <div class="adapt-cameo" aria-hidden="true">
+          <span class="adapt-from">ספר לילה טוב</span>
+          <span class="adapt-arrow">←</span>
+          <span class="adapt-to">הלילה של <b>נועה</b></span>
+        </div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ═══ 3 · Foundations ════════════════════════════════════════ -->
+<section class="chapter chapter--cream" id="foundations" aria-labelledby="foundationsTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">02</span>
+    <h2 id="foundationsTitle">יסודות</h2>
+    <p>הערכים כאן נטענים מקובץ הטוקנים של המוצר עצמו — לא לוח צבעים נפרד לפורטפוליו.</p>
+  </header>
+
+  <!-- Color -->
+  <div class="foundation-block">
+    <h3 class="foundation-title">צבע</h3>
+    <div class="color-plates">
+      <figure class="plate plate--purple">
+        <figcaption>
+          <b>--brand-purple</b><span class="tnum">#886CFF</span>
+          <em>מותג ואינטראקציה — כל מה שלחיץ</em>
+        </figcaption>
+      </figure>
+      <figure class="plate plate--purple-strong">
+        <figcaption><b>--brand-purple-strong</b><span class="tnum">#7459F0</span><em>hover / לחוץ</em></figcaption>
+      </figure>
+      <figure class="plate plate--purple-deep">
+        <figcaption><b>--brand-purple-deep</b><span class="tnum">#5B43CC</span><em>טקסט סגול על רקע בהיר — AA</em></figcaption>
+      </figure>
+      <figure class="plate plate--yellow">
+        <figcaption><b>--brand-yellow</b><span class="tnum">#FFEE6C</span><em>הדגשה בלבד — אף פעם לא כפתור</em></figcaption>
+      </figure>
+      <figure class="plate plate--ink">
+        <figcaption><b>--ink-strong</b><span class="tnum">#18171A</span><em>כותרות</em></figcaption>
+      </figure>
+      <figure class="plate plate--cream">
+        <figcaption><b>--surface-cream</b><span class="tnum">#FFFCF5</span><em>פסי סיפור חמים</em></figcaption>
+      </figure>
+    </div>
+    <div class="color-rows">
+      <div class="color-row"><i style="background:var(--ink)"></i><b>--ink</b><span>טקסט גוף · יחס ניגודיות 14.9:1 על לבן</span></div>
+      <div class="color-row"><i style="background:var(--ink-2)"></i><b>--ink-2</b><span>טקסט משני · 6.6:1</span></div>
+      <div class="color-row"><i style="background:var(--ink-3)"></i><b>--ink-3</b><span>מעומעם וכיתובים · לטקסט גדול/עזר בלבד</span></div>
+      <div class="color-row"><i style="background:var(--border)"></i><b>--border</b><span>מסגרות רכיבים</span></div>
+      <div class="color-row"><i style="background:var(--surface-sunken)"></i><b>--surface-sunken</b><span>מסילות התקדמות, שקעים</span></div>
+      <div class="color-row"><i style="background:var(--success)"></i><b>--success</b><span>אישור — קופון הוחל</span></div>
+      <div class="color-row"><i style="background:var(--warning)"></i><b>--warning</b><span>לב רגע — בחירת קול סופית</span></div>
+      <div class="color-row"><i style="background:var(--error)"></i><b>--error</b><span>שגיאת ולידציה — תמיד עם טקסט, לא צבע בלבד</span></div>
+      <div class="color-row"><i style="background:var(--focus-ring-color)"></i><b>--focus-ring-color</b><span>טבעת פוקוס מקלדת — 3px + offset</span></div>
+    </div>
+  </div>
+
+  <!-- Typography -->
+  <div class="foundation-block">
+    <h3 class="foundation-title">טיפוגרפיה</h3>
+    <p class="foundation-note">
+      תצוגה: <b>Rubik</b> (משתנה, 800–900) · גוף: <b>Heebo</b>. שתי המשפחות עם עברית מלאה —
+      אין נפילה שקטה לפונט אחר, והספרות במחירים חדות.
+    </p>
+    <div class="type-specimens">
+      <div class="specimen specimen--display">
+        <span class="specimen-tag">display · Rubik 900 · clamp(42→74) · lh 1.12</span>
+        <p class="t-display">גיבורים קטנים</p>
+      </div>
+      <div class="specimen">
+        <span class="specimen-tag">h1 · Rubik 800 · clamp(34→52) · lh 1.16</span>
+        <p class="t-h1">ספר שילדים גדלים איתו</p>
+      </div>
+      <div class="specimen">
+        <span class="specimen-tag">h2 · Rubik 800 · clamp(28→40) · lh 1.2</span>
+        <p class="t-h2">איך זה עובד?</p>
+      </div>
+      <div class="specimen">
+        <span class="specimen-tag">h3 · Rubik 700 · clamp(20→25) · lh 1.3</span>
+        <p class="t-h3">הרפתקה אישית — 24 עמודים</p>
+      </div>
+      <div class="specimen">
+        <span class="specimen-tag">body-lg · Heebo 400 · 17→19 · lh 1.7 · עד 52ch</span>
+        <p class="t-body-lg">טקסט מוביל מתחת לכותרות. שורה נעימה לקריאה בעברית, אף פעם לא רחבה מדי.</p>
+      </div>
+      <div class="specimen">
+        <span class="specimen-tag">label · Heebo 600 · 14 — מעל כל שדה</span>
+        <p class="t-label">איך קוראים לו?</p>
+      </div>
+      <div class="specimen">
+        <span class="specimen-tag">מספרים ומחירים · tnum tabular</span>
+        <p class="t-h2 tnum">₪59 · ₪79 · ₪99</p>
+      </div>
+      <div class="specimen">
+        <span class="specimen-tag">עברית + English באותה שורה</span>
+        <p class="t-h3">סיפור עם AI ולב גדול — SmallHeroes</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spacing -->
+  <div class="foundation-block">
+    <h3 class="foundation-title">ריווח — סולם 8pt</h3>
+    <div class="space-scale" role="img" aria-label="סולם ריווח: 4 עד 120 פיקסלים">
+      <div class="space-step"><b>4</b><i style="inline-size:4px"></i><span>3xs — חריג מיקרו יחיד</span></div>
+      <div class="space-step"><b>8</b><i style="inline-size:8px"></i><span>2xs</span></div>
+      <div class="space-step"><b>12</b><i style="inline-size:12px"></i><span>xs</span></div>
+      <div class="space-step"><b>16</b><i style="inline-size:16px"></i><span>sm — ריווח פנים־רכיב</span></div>
+      <div class="space-step"><b>24</b><i style="inline-size:24px"></i><span>md — בין רכיבים קשורים</span></div>
+      <div class="space-step"><b>32</b><i style="inline-size:32px"></i><span>lg</span></div>
+      <div class="space-step"><b>48</b><i style="inline-size:48px"></i><span>2xl — בין קבוצות</span></div>
+      <div class="space-step"><b>64</b><i style="inline-size:64px"></i><span>3xl</span></div>
+      <div class="space-step"><b>96</b><i style="inline-size:96px"></i><span>5xl — נשימת סקשן</span></div>
+      <div class="space-step"><b>120</b><i style="inline-size:120px"></i><span>6xl</span></div>
+    </div>
+    <figure class="anatomy" aria-label="אנטומיית ריווח של כרטיס חבילה">
+      <div class="anatomy-card">
+        <span class="ann ann-pad">padding 24</span>
+        <span class="anatomy-kicker">הרפתקה</span>
+        <span class="anatomy-name">הרפתקה אישית</span>
+        <span class="ann ann-gap">gap 8–12</span>
+        <span class="anatomy-desc">לילד שצריך אומץ מול משהו חדש.</span>
+        <span class="anatomy-price tnum">₪79</span>
+        <span class="anatomy-cta">לבחירה</span>
+        <span class="ann ann-radius">radius 20 (--radius-lg)</span>
+      </div>
+      <figcaption>סקאלת הריווח בתוך כרטיס אמיתי — פנים 24, בין שורות 8–12, סביב הקבוצה 48.</figcaption>
+    </figure>
+  </div>
+
+  <!-- Grid + shape -->
+  <div class="foundation-block foundation-block--split">
+    <div>
+      <h3 class="foundation-title">רשת ומידות</h3>
+      <div class="grid-diagram" role="img" aria-label="שלושה רוחבי קונטיינר מקוננים">
+        <div class="gd gd-max"><span>1440 — גרידים רחבים</span>
+          <div class="gd gd-content"><span>1180 — סקשן רגיל</span>
+            <div class="gd gd-text"><span>760 — טקסט · עד 65ch</span></div>
+          </div>
+        </div>
+      </div>
+      <ul class="mini-list">
+        <li>Gutter נוזל: clamp(16 → 48)</li>
+        <li>שבירות: 480 · 640/680 · 768 · 900/980 · 1180</li>
+        <li>יישור RTL: <code>text-align:start</code>, <code>margin-inline</code> — אף פעם left/right קשיחים</li>
+      </ul>
+    </div>
+    <div>
+      <h3 class="foundation-title">צורה, עומק ופוקוס</h3>
+      <div class="shape-row">
+        <div class="radius-demo" style="border-radius:var(--radius-xs)">8</div>
+        <div class="radius-demo" style="border-radius:var(--radius-sm)">12</div>
+        <div class="radius-demo" style="border-radius:var(--radius-md)">16</div>
+        <div class="radius-demo" style="border-radius:var(--radius-lg)">20</div>
+        <div class="radius-demo" style="border-radius:var(--radius-xl)">28</div>
+        <div class="radius-demo" style="border-radius:var(--radius-pill)">pill</div>
+      </div>
+      <div class="shape-row">
+        <div class="shadow-demo" style="box-shadow:var(--shadow-1)">רגיעה</div>
+        <div class="shadow-demo" style="box-shadow:var(--shadow-2)">ריחוף</div>
+        <div class="shadow-demo" style="box-shadow:var(--shadow-3)">הצפה</div>
+        <div class="shadow-demo" style="box-shadow:var(--ring-selected)">נבחר</div>
+        <button class="shadow-demo shadow-demo--focus" type="button">פוקוס ⇥</button>
+      </div>
+      <p class="foundation-note">עומק שמור לדברים שמרחפים באמת: כרטיסים, בר תחתון, בחירה. שאר הממשק שטוח ושקט.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 4 · Components ═════════════════════════════════════════ -->
+<section class="chapter" id="components" aria-labelledby="componentsTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">03</span>
+    <h2 id="componentsTitle">קומפוננטות</h2>
+    <p>נבנו מחדש כאן עם אותם ערכי טוקנים — כל מצב לחיץ וחי, לא צילומי מסך.</p>
+  </header>
+
+  <!-- Buttons -->
+  <article class="comp-block">
+    <h3 class="comp-title">כפתורים</h3>
+    <div class="comp-stage">
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button">ליצירת הספר</button>
+        <button class="btn btn-outline" type="button">לראות דוגמה</button>
+        <button class="btn btn-light" type="button">אולי אחר־כך</button>
+        <button class="btn btn-text" type="button">אפשר להמשיך גם בלי זה</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button" disabled>לא זמין</button>
+        <button class="btn btn-primary is-loading" type="button" aria-label="טוען"><span class="spinner" aria-hidden="true"></span>יוצרים את הספר…</button>
+        <button class="btn btn-back-pair" type="button">חזור</button>
+      </div>
+    </div>
+    <ul class="comp-notes">
+      <li>גובה 48 · מגע 44+ · רדיוס pill · Heebo 700 · 16px</li>
+      <li>ראשי אחד לכל מסך; צהוב לעולם אינו כפתור</li>
+      <li>hover = הרמה 2px + העמקת צל · לחיצה = scale 0.97 · פוקוס = טבעת 3px</li>
+    </ul>
+  </article>
+
+  <!-- Form fields -->
+  <article class="comp-block">
+    <h3 class="comp-title">שדות טופס</h3>
+    <div class="comp-stage comp-stage--form">
+      <div class="field">
+        <label class="t-label" for="f-name">איך קוראים לו?</label>
+        <input class="input" id="f-name" type="text" placeholder="למשל: נועה" />
+        <span class="t-helper">נשתמש בשם בתוך הסיפור עצמו</span>
+      </div>
+      <div class="field">
+        <label class="t-label" for="f-age">בן כמה הוא?</label>
+        <span class="select-wrap"><select class="input" id="f-age"><option>2</option><option>3</option><option>4</option><option selected>5</option><option>6</option></select></span>
+      </div>
+      <div class="field field--error">
+        <label class="t-label" for="f-err">איך קוראים לו?</label>
+        <input class="input has-error" id="f-err" type="text" aria-invalid="true" aria-describedby="f-err-msg" />
+        <span class="t-error" id="f-err-msg" role="alert">כדי להמשיך, ספרו לנו איך קוראים לילד/ה</span>
+      </div>
+      <div class="field">
+        <label class="t-label" for="f-ded">הקדשה אישית <span class="optional">(אופציונלי)</span></label>
+        <textarea class="input textarea" id="f-ded" rows="3">לנועה האהובה שלנו, שתמיד תזכרי כמה את אמיצה.</textarea>
+        <span class="t-caption tnum char-count">52/300</span>
+      </div>
+      <div class="field">
+        <span class="t-label">העלאת תמונה</span>
+        <div class="upload-demo">
+          <span class="upload-plus" aria-hidden="true">+</span>
+          <span>תמונה אחת ברורה של הפנים</span>
+          <span class="t-helper">אופציונלי — אפשר להוסיף עד שלב התשלום</span>
+        </div>
+      </div>
+      <div class="field">
+        <label class="t-label" for="f-dis">שדה נעול</label>
+        <input class="input" id="f-dis" type="text" disabled value="ריאליסטי מאוייר" />
+      </div>
+    </div>
+    <ul class="comp-notes">
+      <li>מתכון אחד לכל שדה: לבן · מסגרת 1.5px · רדיוס 12 · גובה 48 · פוקוס סגול עם הילה</li>
+      <li>שגיאה = טקסט + <code>aria-invalid</code> + <code>role=alert</code> — אף פעם לא צבע בלבד</li>
+      <li>מונה תווים טבלרי; ריחוף על אזור ההעלאה מחזק את המסגרת המקווקוות</li>
+    </ul>
+  </article>
+
+  <!-- Selection semantics -->
+  <article class="comp-block">
+    <h3 class="comp-title">בחירה — נבחר ≠ מומלץ ≠ ריחוף</h3>
+    <p class="comp-lede">ההבחנה החשובה ביותר במסך הכסף: תג צהוב אומר "אנחנו ממליצים", טבעת + ✓ אומרים "בחרת".</p>
+    <div class="comp-stage">
+      <div class="pick-grid" role="radiogroup" aria-label="הדגמת מצבי בחירה">
+        <label class="pick-card">
+          <input type="radio" name="pick" value="a" />
+          <span class="pick-name">רגיל</span>
+          <span class="pick-desc">מצב מנוחה — מסגרת שקטה</span>
+          <span class="pick-cta">לבחירה</span>
+        </label>
+        <label class="pick-card pick-card--featured">
+          <input type="radio" name="pick" value="b" checked />
+          <span class="pick-flag">בחירת ההשקה</span>
+          <span class="pick-name">מומלץ + נבחר</span>
+          <span class="pick-desc">התג נשאר; הטבעת וה־✓ הם הבחירה</span>
+          <span class="pick-cta">לבחירה</span>
+        </label>
+        <label class="pick-card">
+          <input type="radio" name="pick" value="c" />
+          <span class="pick-name">ריחוף</span>
+          <span class="pick-desc">הרמה קלה — הזמנה, לא בחירה</span>
+          <span class="pick-cta">לבחירה</span>
+        </label>
+        <label class="pick-card pick-card--soon" aria-disabled="true">
+          <input type="radio" name="pick" value="d" disabled />
+          <span class="pick-soon">בקרוב</span>
+          <span class="pick-name">לא זמין</span>
+          <span class="pick-desc">גלוי אבל כבוי — יושר לפני מכירה</span>
+          <span class="pick-cta">לבחירה</span>
+        </label>
+      </div>
+      <div class="chip-demo-row">
+        <span class="t-label">צ'יפים רב־בחירתיים:</span>
+        <label class="chip"><input type="checkbox" /><span>דמיון עשיר</span></label>
+        <label class="chip"><input type="checkbox" checked /><span>לב טוב</span></label>
+        <label class="chip"><input type="checkbox" /><span>אומץ מבפנים</span></label>
+        <label class="chip"><input type="checkbox" checked /><span>חושב לעומק</span></label>
+      </div>
+      <div class="chip-demo-row">
+        <span class="t-label">מתג מקטעים (גלריית סגנונות):</span>
+        <div class="segmented" role="tablist" aria-label="סגנון איור">
+          <label class="seg"><input type="radio" name="seg" checked /><span>מאוייר</span></label>
+          <label class="seg"><input type="radio" name="seg" /><span>ריאליסטי</span></label>
+        </div>
+        <span class="t-label">מתג בינארי:</span>
+        <label class="toggle"><input type="checkbox" checked /><span class="toggle-track" aria-hidden="true"></span><span>מותאם לשינה 🌙</span></label>
+      </div>
+    </div>
+  </article>
+
+  <!-- Cards -->
+  <article class="comp-block">
+    <h3 class="comp-title">כרטיסים</h3>
+    <div class="comp-stage card-zoo">
+      <figure class="zoo-item">
+        <div class="cat-card">
+          <img src="assets/category-uri.webp" alt="" loading="lazy" />
+          <span class="cat-card-label">פחדים בלילה</span>
+          <span class="cat-card-companion">עם השועל אוּרי</span>
+          <span class="cat-card-line">סיפור שעוזר להכיר את הלילה במקום לפחד ממנו</span>
+        </div>
+        <figcaption>כרטיס אתגר — הדלת הראשית: איור גדול, כותרת רגשית, חיבור לדמות</figcaption>
+      </figure>
+      <figure class="zoo-item">
+        <div class="style-card-demo is-selected">
+          <span class="style-img"><img src="assets/gallery-2.webp" alt="" loading="lazy" /><i class="check-badge" aria-hidden="true">✓</i></span>
+          <span class="style-name">ריאליסטי מאוייר</span>
+        </div>
+        <figcaption>כרטיס סגנון — התמונה היא ההחלטה; ה־✓ יושב עליה</figcaption>
+      </figure>
+      <figure class="zoo-item">
+        <div class="voice-card-demo">
+          <span class="voice-face" aria-hidden="true">👩</span>
+          <span class="voice-name">אמא</span>
+          <button class="voice-play" type="button" aria-label="השמעת דוגמה">▶</button>
+        </div>
+        <figcaption>כרטיס קול — האזנה לפני בחירה</figcaption>
+      </figure>
+      <figure class="zoo-item">
+        <div class="product-card-demo">
+          <span class="pick-flag">בחירת ההשקה</span>
+          <span class="pc-kicker">הרפתקה</span>
+          <span class="pc-name">הרפתקה אישית</span>
+          <span class="pc-pages">24 עמודים</span>
+          <span class="pc-price"><s class="tnum">₪119</s><b class="tnum">₪79</b><i>מחיר השקה</i></span>
+          <span class="pc-cta">✓ זו הבחירה שלי</span>
+        </div>
+        <figcaption>כרטיס חבילה — מחיר Rubik טבלרי, מבצע מעל, בחירה מפורשת</figcaption>
+      </figure>
+      <figure class="zoo-item">
+        <div class="callout callout--warning">האזינו לפני הבחירה — לא ניתן לשנות את הקול לאחר מכן.</div>
+        <div class="callout callout--info">בלי תמונה ניצור דמות מאוירת לפי הגיל והמין שבחרתם.</div>
+        <figcaption>קריאות מידע ואזהרה — רגועות, בלי אדום מיותר</figcaption>
+      </figure>
+    </div>
+  </article>
+
+  <!-- Feedback + progress -->
+  <article class="comp-block">
+    <h3 class="comp-title">משוב והתקדמות</h3>
+    <div class="comp-stage feedback-stage">
+      <div class="feedback-col">
+        <span class="coupon-ok">✓ קוד LAUNCH הוחל — הנחה של ₪20</span>
+        <span class="coupon-err">הקוד כבר לא בתוקף</span>
+        <div class="gen-state" aria-label="מצב יצירה">
+          <span class="gen-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          יוצרים את העמוד של נועה…
+        </div>
+        <div class="empty-state">
+          <span aria-hidden="true">📚</span>
+          עוד אין כאן ספרים — הסיפור הראשון שלכם מחכה להיכתב.
+        </div>
+      </div>
+      <div class="feedback-col">
+        <div class="wizard-shell-demo" id="wizardDemo">
+          <div class="mini-progress">
+            <span class="mini-progress-label">שלב <b class="wd-step tnum">1</b> מתוך 2</span>
+            <span class="mini-pills lg"><i class="wd-pill act"></i><i class="wd-pill"></i></span>
+          </div>
+          <div class="wd-stage">
+            <div class="wd-panel wd-panel--1">
+              <p class="t-h3">באיזה סגנון נאייר?</p>
+              <div class="wd-options">
+                <button class="wd-opt" type="button">מאוייר</button>
+                <button class="wd-opt" type="button">ריאליסטי</button>
+              </div>
+            </div>
+            <div class="wd-panel wd-panel--2" hidden>
+              <p class="t-h3">מי יקריא את הסיפור?</p>
+              <div class="wd-options">
+                <button class="wd-opt" type="button">אמא</button>
+                <button class="wd-opt" type="button">אבא</button>
+              </div>
+            </div>
+          </div>
+          <div class="wd-bar">
+            <button class="btn btn-back-pair" type="button" id="wdBack" disabled>חזור</button>
+            <button class="btn btn-primary" type="button" id="wdNext">ממשיכים</button>
+          </div>
+        </div>
+        <p class="t-caption">שלד הוויזרד: התקדמות למעלה, תוכן באמצע, פעולות בבר קבוע — מעבר שלב 400ms.</p>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ═══ 5 · Motion ═════════════════════════════════════════════ -->
+<section class="chapter chapter--cream" id="motion" aria-labelledby="motionTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">04</span>
+    <h2 id="motionTitle">תנועה</h2>
+    <p>ארבעה משכים, שלוש עקומות, חוק אחד: תנועה מסבירה טרנספורמציה — או שאינה קיימת.</p>
+  </header>
+  <div class="motion-tokens">
+    <button class="motion-card" type="button" data-motion-demo="fast">
+      <b class="tnum">140ms</b><span>מיקרו — לחיצה</span><i class="motion-ball"></i>
+    </button>
+    <button class="motion-card" type="button" data-motion-demo="base">
+      <b class="tnum">200ms</b><span>מצב רכיב — hover, בחירה</span><i class="motion-ball"></i>
+    </button>
+    <button class="motion-card" type="button" data-motion-demo="slow">
+      <b class="tnum">280ms</b><span>פאנל — אקורדיון, קריסה</span><i class="motion-ball"></i>
+    </button>
+    <button class="motion-card" type="button" data-motion-demo="page">
+      <b class="tnum">400ms</b><span>מעבר שלב ועמוד</span><i class="motion-ball"></i>
+    </button>
+  </div>
+  <ul class="comp-notes comp-notes--center">
+    <li>רק opacity + transform — אף פעם לא אנימציית layout</li>
+    <li>ease-out (0.22, 1, 0.36, 1) לכניסות · ease-soft ללחיצות · ease-in-out להחלפות</li>
+    <li>תנועת אווירה (ריחוף איור, נצנוץ) איטית פי 15 מתנועת ממשק — רקע, לא הסחה</li>
+    <li><code>prefers-reduced-motion</code> מאפס את כל משכי הטוקנים גלובלית + כיבויים מפורשים — וגם המתג שלמעלה עושה זאת ידנית</li>
+  </ul>
+</section>
+
+<!-- ═══ 6 · AI-native personalization ══════════════════════════ -->
+<section class="chapter" id="ai" aria-labelledby="aiTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">05</span>
+    <h2 id="aiTitle">שפת ההתאמה האישית</h2>
+    <p>
+      כך המערכת מבטאת אינטליגנציה — בלי מוח זוהר: ההורה מספר, והמסך משתנה.
+      <em class="concept-note">המחשה אינטראקטיבית המבוססת על התנהגות המוצר בפועל (שם ← כותרת, אתגר ← דמות, כיוון ← ספר).</em>
+    </p>
+  </header>
+  <div class="ai-demo" id="aiDemo">
+    <div class="ai-controls">
+      <div class="field">
+        <label class="t-label" for="aiName">1 · איך קוראים לילד/ה?</label>
+        <input class="input" id="aiName" type="text" value="נועה" maxlength="20" autocomplete="off" />
+      </div>
+      <div class="field">
+        <span class="t-label">2 · מה מעסיק אותו/ה עכשיו?</span>
+        <div class="ai-topic-row" role="radiogroup" aria-label="בחירת אתגר">
+          <label class="chip chip--ai"><input type="radio" name="aiTopic" value="night" checked /><span>🌙 פחדים בלילה</span></label>
+          <label class="chip chip--ai"><input type="radio" name="aiTopic" value="social" /><span>🤝 קושי חברתי</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <span class="t-label">3 · איזו חוויה?</span>
+        <div class="ai-topic-row" role="radiogroup" aria-label="בחירת כיוון">
+          <label class="chip chip--ai"><input type="radio" name="aiDir" value="bedtime" checked /><span>סיפור לפני שינה · 16 עמ׳</span></label>
+          <label class="chip chip--ai"><input type="radio" name="aiDir" value="adventure" /><span>הרפתקה · 24 עמ׳</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="ai-arrow" aria-hidden="true">←</div>
+    <figure class="ai-book paper" aria-live="polite">
+      <img class="ai-book-companion" id="aiCompanion" src="assets/companion-uri.webp" alt="הדמות המלווה" width="150" />
+      <figcaption>
+        <span class="ai-book-title t-h3" id="aiBookTitle">הלילה של נועה</span>
+        <span class="ai-book-sub" id="aiBookSub">סיפור לפני שינה עם השועל אוּרי · 16 עמודים</span>
+      </figcaption>
+    </figure>
+  </div>
+  <ol class="ai-steps">
+    <li><b>ההורה מספר</b> — שם, גיל, מה קשה עכשיו</li>
+    <li><b>המערכת מפרשת</b> — האתגר קובע דמות מלווה וטון</li>
+    <li><b>הילד הופך לגיבור</b> — השם נכנס לכותרות עוד לפני התשלום</li>
+    <li><b>הספר מתאים את עצמו</b> — כותרת, דמות, אורך ואווירה</li>
+    <li><b>התוצאה אישית</b> — ספר אחד, של ילד אחד</li>
+  </ol>
+</section>
+
+<!-- ═══ 7 · Responsive ═════════════════════════════════════════ -->
+<section class="chapter chapter--cream" id="responsive" aria-labelledby="respTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">06</span>
+    <h2 id="respTitle">רספונסיביות</h2>
+    <p>אותו מסך כסף בשלושה עולמות — לא הקטנה, אלא ארגון מחדש.</p>
+  </header>
+  <div class="devices">
+    <figure class="device device--desktop">
+      <div class="device-screen"><img src="assets/flow-package.webp" alt="בחירת חבילה בדסקטופ — שלוש עמודות" loading="lazy" /></div>
+      <figcaption>1440 · שלוש עמודות שוות, בר פעולות צף</figcaption>
+    </figure>
+    <figure class="device device--tablet">
+      <div class="device-screen"><img src="assets/tablet-package.webp" alt="בחירת חבילה בטאבלט" loading="lazy" /></div>
+      <figcaption>768 · ערימה אנכית מוקדמת — קריאות לפני צפיפות</figcaption>
+    </figure>
+    <figure class="device device--phone">
+      <div class="device-screen"><img src="assets/mobile-package.webp" alt="בחירת חבילה במובייל" loading="lazy" /></div>
+      <figcaption>390 · כרטיס אחד בשורה, סה"כ + המשך דבוקים למטה</figcaption>
+    </figure>
+  </div>
+  <ul class="resp-rules">
+    <li><b>עמודות ← ערימות.</b> גריד הכרטיסים נערם; סדר הקריאה נשמר ימין←שמאל, למעלה←למטה.</li>
+    <li><b>ריחוף ← מגע.</b> אפקטי hover כבויים במגע; מטרות מגע גדלות ל־44px+.</li>
+    <li><b>הבר התחתון נשאר.</b> ההמשך והמחיר תמיד בהישג אגודל — עם safe-area ל־iOS.</li>
+    <li><b>טיפוגרפיה נוזלת.</b> clamp() בכל תפקיד — אין קפיצות בין שבירות.</li>
+    <li><b>קישוט מצטמצם.</b> זוהר, ריחוף ופרלקסה נעלמים במסכים קטנים; התוכן לא.</li>
+  </ul>
+</section>
+
+<!-- ═══ 8 · Accessibility + RTL ════════════════════════════════ -->
+<section class="chapter" id="a11y" aria-labelledby="a11yTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">07</span>
+    <h2 id="a11yTitle">נגישות ו־RTL</h2>
+    <p>עברית היא לא "מצב" של המוצר — היא המוצר. הנגישות נבנתה לתוך הטוקנים.</p>
+  </header>
+  <div class="rtl-compare">
+    <figure class="rtl-panel rtl-panel--wrong" dir="ltr">
+      <figcaption>✗ תרגום מכני של ממשק LTR</figcaption>
+      <div class="rtl-demo-form">
+        <label>שם הילד</label>
+        <input type="text" value="נועה" />
+        <div class="rtl-demo-actions"><button class="fake-btn fake-primary">המשך →</button><button class="fake-btn">חזור</button></div>
+      </div>
+      <ul class="rtl-flaws">
+        <li>הטקסט צמוד לצד הלא־נכון של השדה</li>
+        <li>"המשך" מצביע ימינה — נגד כיוון הקריאה</li>
+        <li>סדר הכפתורים הפוך ליד הדומיננטית</li>
+      </ul>
+    </figure>
+    <figure class="rtl-panel rtl-panel--right">
+      <figcaption>✓ היישום של SmallHeroes</figcaption>
+      <div class="rtl-demo-form">
+        <label class="t-label">שם הילד</label>
+        <input class="input" type="text" value="נועה" />
+        <div class="rtl-demo-actions"><button class="btn btn-back-pair" type="button">חזור</button><button class="btn btn-primary" type="button">ממשיכים ←</button></div>
+      </div>
+      <ul class="rtl-flaws rtl-flaws--good">
+        <li>מאפיינים לוגיים בלבד — <code>inline-start</code>, לא left</li>
+        <li>קדימה = שמאלה; ההתקדמות נמלאת מימין</li>
+        <li>מחירים ומונים יציבים: <span class="tnum">‎₪79 · 52/300</span></li>
+      </ul>
+    </figure>
+  </div>
+  <ul class="a11y-list">
+    <li><b>פוקוס גלוי בכל מקום</b> — טבעת 3px גלובלית ב־<code>:focus-visible</code> (נסו Tab בעמוד הזה)</li>
+    <li><b>שגיאות מדברות</b> — טקסט + <code>aria-invalid</code> + <code>role=alert</code>, לא צבע בלבד</li>
+    <li><b>ניגודיות</b> — טקסט רץ ≥ 6.6:1; סגול־עמוק לטקסט אינטראקטיבי על בהיר</li>
+    <li><b>מגע</b> — 44px מינימום לכל פעולה</li>
+    <li><b>תנועה מכבדת</b> — reduced-motion מאפס משכים גלובלית</li>
+    <li><b>עבודה בהמשך</b> — החלפת אימוג'י פונקציונליים בסט אייקונים; ניקוי רעש קורא־מסך בכרטיסים עתירי־קישוט <em class="concept-note">(מסומן כ־future work)</em></li>
+  </ul>
+</section>
+
+<!-- ═══ 9 · Product flow ═══════════════════════════════════════ -->
+<section class="chapter chapter--cream" id="flow" aria-labelledby="flowTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">08</span>
+    <h2 id="flowTitle">זרימת המוצר</h2>
+    <p>
+      מהסקרנות הראשונה ועד ספר עם שם — כל מסך צילום אמיתי מהמוצר (נתוני דמו).
+      הקשר בין ההחלטות: <b>אתגר ← דמות ← פרטי הילד ← סגנון ← קול ← חבילה ← ספר.</b>
+    </p>
+  </header>
+  <div class="flow-strip" tabindex="0" aria-label="מסכי המסע — גלילה אופקית">
+    <figure class="flow-frame"><img src="assets/flow-home-hero.webp" alt="דף הבית" loading="lazy" /><figcaption><b>01 · גילוי</b><span>שאלה רגשית, לא מכירה</span></figcaption></figure>
+    <figure class="flow-frame"><img src="assets/flow-start.webp" alt="בחירת אתגר" loading="lazy" /><figcaption><b>02 · האתגר</b><span>שישה אתגרים, דמות מלווה לכל אחד</span></figcaption></figure>
+    <figure class="flow-frame"><img src="assets/flow-child.webp" alt="פרטי הילד" loading="lazy" /><figcaption><b>03 · הילד</b><span>שם, גיל, תמונה אופציונלית</span></figcaption></figure>
+    <figure class="flow-frame"><img src="assets/flow-notes.webp" alt="כמה מילים על הילד" loading="lazy" /><figcaption><b>04 · הניואנסים</b><span>חוזקות ותחושות — הכותרת כבר עם השם</span></figcaption></figure>
+    <figure class="flow-frame"><img src="assets/flow-style.webp" alt="בחירת סגנון" loading="lazy" /><figcaption><b>05 · הסגנון</b><span>התמונה היא ההחלטה</span></figcaption></figure>
+    <figure class="flow-frame"><img src="assets/flow-voice.webp" alt="בחירת קול" loading="lazy" /><figcaption><b>06 · הקול</b><span>מאזינים לפני שבוחרים — ואזהרה הוגנת</span></figcaption></figure>
+    <figure class="flow-frame"><img src="assets/flow-name.webp" alt="שם והקדשה" loading="lazy" /><figcaption><b>07 · המילים שלכם</b><span>שם לספר והקדשה אישית</span></figcaption></figure>
+    <figure class="flow-frame"><img src="assets/flow-package.webp" alt="בחירת חבילה" loading="lazy" /><figcaption><b>08 · החבילה</b><span>בחירה חד־משמעית, מחיר שעוקב</span></figcaption></figure>
+    <figure class="flow-frame"><img src="assets/flow-review.webp" alt="סיכום ותשלום" loading="lazy" /><figcaption><b>09 · הסיכום</b><span>"הספר של נועה מוכן לצאת לדרך"</span></figcaption></figure>
+    <figure class="flow-frame flow-frame--concept">
+      <div class="concept-frame">
+        <span class="gen-dots lg" aria-hidden="true"><i></i><i></i><i></i></span>
+        <b>יוצרים את הספר של נועה…</b>
+        <span>איור, סיפור וקריינות נטווים יחד</span>
+      </div>
+      <figcaption><b>10 · היצירה</b><span class="concept-note">קונספט — מסך ההמתנה החי דורש הזמנה אמיתית</span></figcaption>
+    </figure>
+    <figure class="flow-frame flow-frame--concept">
+      <div class="concept-frame concept-frame--done">
+        <img src="assets/art-book.webp" alt="" loading="lazy" />
+        <b>הספרייה של המשפחה</b>
+      </div>
+      <figcaption><b>11 · הספר</b><span class="concept-note">קונספט — מצב "ספר מוכן" מוצג רק עם נכס מאומת</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ═══ 10 · Signature interactions ════════════════════════════ -->
+<section class="chapter" id="signature" aria-labelledby="sigTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">09</span>
+    <h2 id="sigTitle">אינטראקציות חתימה</h2>
+    <p>ארבעה רגעים שמגדירים את התחושה של SmallHeroes — כולם חיים כאן, בקטן.</p>
+  </header>
+
+  <article class="sig" data-reveal>
+    <div class="sig-copy">
+      <h3>1 · בחירה שאי־אפשר לפספס</h3>
+      <p class="sig-problem"><b>הבעיה:</b> במסך התשלום, כרטיס "מומלץ" נראה כמו "נבחר" — הורים לא היו בטוחים מה הם קונים.</p>
+      <p><b>הרעיון:</b> להפריד סמנטיקה: המלצה = תג. בחירה = טבעת, רקע וסימן ✓ על הכפתור.</p>
+      <p class="sig-meta">דסקטופ: hover מרים · מובייל: הקשה בוחרת מיד · reduced-motion: המצב קופץ ללא מעבר — הטבעת נשארת.</p>
+    </div>
+    <div class="sig-demo">
+      <div class="pick-grid pick-grid--duo" role="radiogroup" aria-label="הדגמת בחירת חבילה">
+        <label class="pick-card pick-card--featured">
+          <input type="radio" name="sig1" checked />
+          <span class="pick-flag">בחירת ההשקה</span>
+          <span class="pick-name">הרפתקה אישית</span>
+          <span class="pick-price tnum">₪79</span>
+          <span class="pick-cta">לבחירה</span>
+        </label>
+        <label class="pick-card">
+          <input type="radio" name="sig1" />
+          <span class="pick-name">ספר לילה טוב</span>
+          <span class="pick-price tnum">₪59</span>
+          <span class="pick-cta">לבחירה</span>
+        </label>
+      </div>
+    </div>
+  </article>
+
+  <article class="sig sig--flip" data-reveal>
+    <div class="sig-copy">
+      <h3>2 · ולידציה שמדברת</h3>
+      <p class="sig-problem"><b>הבעיה:</b> שדה חסר גרם לרעידה של 0.4 שניות — ונעלם. קוראי מסך לא שמעו כלום.</p>
+      <p><b>הרעיון:</b> שגיאה היא משפט אנושי שנשאר עד שמתקנים: טקסט גלוי, <code>aria-invalid</code>, <code>role=alert</code> — ונמחק ברגע שמתחילים להקליד.</p>
+      <p class="sig-meta">אותה התנהגות בכל שדה ובכל רוחב מסך; ב־reduced-motion אין רעידה — רק ההודעה.</p>
+    </div>
+    <div class="sig-demo">
+      <form class="val-demo" id="valDemo">
+        <label class="t-label" for="valName">איך קוראים לו?</label>
+        <input class="input" id="valName" type="text" placeholder="למשל: נועה" />
+        <p class="t-error val-msg" role="alert" hidden id="valMsg">כדי להמשיך, ספרו לנו איך קוראים לילד/ה</p>
+        <button class="btn btn-primary" type="submit">ממשיכים</button>
+      </form>
+    </div>
+  </article>
+
+  <article class="sig" data-reveal>
+    <div class="sig-copy">
+      <h3>3 · מחיר שעוקב אחרי הבחירה</h3>
+      <p class="sig-problem"><b>הבעיה:</b> סכום שמופיע רק בסוף מרגיש כמו מלכודת; סכום שלא מתעדכן שובר אמון.</p>
+      <p><b>הרעיון:</b> הסה"כ חי בבר הפעולות, מתעדכן עם כל בחירה בספרות טבלריות — בלי קפיצות רוחב.</p>
+      <p class="sig-meta">במובייל הבר דבוק מעל האגודל עם safe-area; הספרות מתחלפות ב־200ms.</p>
+    </div>
+    <div class="sig-demo">
+      <div class="price-demo" id="priceDemo">
+        <div class="price-demo-opts" role="radiogroup" aria-label="בחירת חבילה להדגמת מחיר">
+          <label class="chip"><input type="radio" name="sigPrice" value="59" /><span>לילה טוב · 16</span></label>
+          <label class="chip"><input type="radio" name="sigPrice" value="79" checked /><span>הרפתקה · 24</span></label>
+          <label class="chip"><input type="radio" name="sigPrice" value="99" /><span>פנטזיה · 32</span></label>
+        </div>
+        <div class="price-demo-bar">
+          <span class="pdb-total">סה"כ: <b class="tnum" id="pdbAmount">₪79</b></span>
+          <span class="btn btn-primary btn-static">ממשיכים</span>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="sig sig--flip" data-reveal>
+    <div class="sig-copy">
+      <h3>4 · הספר שמתאים את עצמו</h3>
+      <p class="sig-problem"><b>הבעיה:</b> "ספר בהתאמה אישית" היא הבטחה מופשטת עד שרואים אותה.</p>
+      <p><b>הרעיון:</b> השם, האתגר והכיוון משתקפים מיידית בכריכה חיה — הכותרת, הדמות והאורך מתעדכנים תוך כדי הזנה.</p>
+      <p class="sig-meta">זה לב הסקשן "שפת ההתאמה האישית" למעלה — <a href="#ai">לנסות שוב ↑</a></p>
+    </div>
+    <div class="sig-demo">
+      <figure class="ai-book paper ai-book--mini">
+        <img src="assets/companion-anat.webp" alt="" width="110" loading="lazy" />
+        <figcaption>
+          <span class="ai-book-title t-h3">החברים של דניאל</span>
+          <span class="ai-book-sub">הרפתקה עם הפנדה עֲנָת · 24 עמודים</span>
+        </figcaption>
+      </figure>
+    </div>
+  </article>
+</section>
+
+<!-- ═══ 11 · System in practice ════════════════════════════════ -->
+<section class="chapter chapter--cream" id="practice" aria-labelledby="practiceTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">10</span>
+    <h2 id="practiceTitle">המערכת בפועל</h2>
+    <p>איך היסודות מתחברים למסך שלם — שתי דוגמאות עם הערות מדודות.</p>
+  </header>
+  <figure class="annotated" data-reveal>
+    <div class="annotated-shot">
+      <img src="assets/flow-home-hero.webp" alt="הירו של דף הבית עם הערות מערכת" loading="lazy" />
+      <span class="pin" style="inset-block-start:18%; inset-inline-start:12%"><i>1</i></span>
+      <span class="pin" style="inset-block-start:38%; inset-inline-start:30%"><i>2</i></span>
+      <span class="pin" style="inset-block-start:74%; inset-inline-start:18%"><i>3</i></span>
+      <span class="pin" style="inset-block-start:40%; inset-inline-start:78%"><i>4</i></span>
+    </div>
+    <figcaption>
+      <ol class="pin-legend">
+        <li><b>display · Rubik 900</b> — שאלה רגשית ברוחב עד 24ch</li>
+        <li><b>body-lg</b> על measure 52ch — ההסבר לא נמרח</li>
+        <li><b>btn-primary + btn-light</b> — ראשי אחד, משני שקט</li>
+        <li><b>איור עם glow אווירה</b> — תנועת רקע 7s, כבויה ב-reduced-motion</li>
+      </ol>
+    </figcaption>
+  </figure>
+  <figure class="annotated" data-reveal>
+    <div class="annotated-shot">
+      <img src="assets/flow-child.webp" alt="מסך פרטי הילד עם הערות מערכת" loading="lazy" />
+      <span class="pin" style="inset-block-start:14%; inset-inline-start:42%"><i>1</i></span>
+      <span class="pin" style="inset-block-start:36%; inset-inline-start:56%"><i>2</i></span>
+      <span class="pin" style="inset-block-start:40%; inset-inline-start:24%"><i>3</i></span>
+      <span class="pin" style="inset-block-start:88%; inset-inline-start:50%"><i>4</i></span>
+    </div>
+    <figcaption>
+      <ol class="pin-legend">
+        <li><b>progress card</b> — "שלב 1 מתוך 7", נמלא מימין</li>
+        <li><b>מתכון שדה אחיד</b> — לבן, 1.5px, פוקוס סגול</li>
+        <li><b>אזור העלאה</b> — מקווקו, אופציונלי במפורש</li>
+        <li><b>בר פעולות</b> — המשך ראשי + חזרה משנית, קבועים</li>
+      </ol>
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ═══ 12 · Before / after ════════════════════════════════════ -->
+<section class="chapter" id="beforeafter" aria-labelledby="baTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">11</span>
+    <h2 id="baTitle">לפני ואחרי</h2>
+    <p>אותם מסכים, אותו רוחב, אותם מצבים — רק המערכת השתנתה.</p>
+  </header>
+  <div class="ba-pair" data-reveal>
+    <figure><span class="ba-tag ba-tag--before">לפני</span><img src="assets/before-package.webp" alt="מסך חבילות לפני — מצב נבחר עמום וסכום שגוי" loading="lazy" /><figcaption>כרטיס "מומלץ" נראה נבחר; הסה"כ למטה הציג ₪59 כשנבחרה חבילת ₪79</figcaption></figure>
+    <figure><span class="ba-tag">אחרי</span><img src="assets/flow-package.webp" alt="מסך חבילות אחרי — בחירה מפורשת וסכום נכון" loading="lazy" /><figcaption>טבעת + ✓ על הבחירה בלבד; הסה"כ עוקב: ₪79 · ספרות Rubik נקיות</figcaption></figure>
+  </div>
+  <div class="ba-pair" data-reveal>
+    <figure><span class="ba-tag ba-tag--before">לפני</span><img src="assets/before-validation.webp" alt="ולידציה לפני — ללא חיווי" loading="lazy" /><figcaption>המשך עם שדה ריק: רעידה בת 0.4 שניות — המסך הזה צולם אחריה, ואין שום זכר לשגיאה</figcaption></figure>
+    <figure><span class="ba-tag">אחרי</span><img src="assets/after-validation.webp" alt="ולידציה אחרי — הודעה אדומה מוצמדת לשדה" loading="lazy" /><figcaption>הודעה אנושית שנשארת + aria — ונעלמת ברגע שמקלידים</figcaption></figure>
+  </div>
+  <div class="ba-pair" data-reveal>
+    <figure><span class="ba-tag ba-tag--before">לפני</span><img src="assets/before-review.webp" alt="סיכום לפני — ספרות שבורות" loading="lazy" /><figcaption>פונט התצוגה הישן שבר ספרות — הסכום לתשלום הוצג בגליפים פגומים</figcaption></figure>
+    <figure><span class="ba-tag">אחרי</span><img src="assets/flow-review.webp" alt="סיכום אחרי — טיפוגרפיה נקייה" loading="lazy" /><figcaption>Rubik עם עברית מלאה וספרות טבלריות — כותרת אישית וסכום חד</figcaption></figure>
+  </div>
+</section>
+
+<!-- ═══ 13 · Rules ═════════════════════════════════════════════ -->
+<section class="chapter chapter--cream" id="rules" aria-labelledby="rulesTitle">
+  <header class="chapter-head">
+    <span class="chapter-num" aria-hidden="true">12</span>
+    <h2 id="rulesTitle">כללי שימוש</h2>
+    <p>התמצית שמונעת סחף — מה כן ומה לא.</p>
+  </header>
+  <div class="rules-cols">
+    <div class="rules-col rules-col--do">
+      <h3>כן</h3>
+      <ul>
+        <li>Rubik לרגעים רגשיים; Heebo לבהירות</li>
+        <li>להראות התאמה אישית מוקדם ככל האפשר</li>
+        <li>תנועה שמסבירה טרנספורמציה</li>
+        <li>פעולות הורים רגועות וצפויות — ראשי אחד למסך</li>
+        <li>מאפיינים לוגיים בלבד (RTL by design)</li>
+        <li>טוקנים סמנטיים — <code>--interactive</code>, לא "סגול"</li>
+        <li>ספרות טבלריות לכל מחיר ומונה</li>
+      </ul>
+    </div>
+    <div class="rules-col rules-col--dont">
+      <h3>לא</h3>
+      <ul>
+        <li>תנועה דקורטיבית אקראית</li>
+        <li>hover כמשוב יחיד</li>
+        <li>לערבב "נבחר" עם "מומלץ"</li>
+        <li>ריווח מחוץ לסולם</li>
+        <li>גוון סגול חדש</li>
+        <li>גרפיקת AI גנרית — מוח, רשת, ניצוצות קוד</li>
+        <li>לכלוא כל תוכן בכרטיס</li>
+        <li>דימויי ילדים רועשים או מתיילדים</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Colophon ═══════════════════════════════════════════════ -->
+<footer class="colophon">
+  <div class="colophon-inner">
+    <p class="colophon-brand"><span class="brand-mark sm" aria-hidden="true"><span></span></span> SmallHeroes · גיבורים קטנים</p>
+    <p>
+      מסמך תצוגה שנבנה ישירות מטוקני העיצוב של המוצר —
+      <b>Last synchronized: commit <span class="tnum">3f60a4a4</span> · 2026-08-04</b>.
+      צבעים, טיפוגרפיה, ריווח ותנועה נטענים מקובץ הטוקנים המקורי; צילומי המסך מריצות אימות עם נתוני דמו בלבד.
+      אין בעמוד מידע לקוחות, נתוני אמת או פרטי תשתית. מסכים מושגיים מסומנים "קונספט".
+    </p>
+    <p class="colophon-credits">עיצוב, מערכת ויישום: גיא נגר · Product Design & Frontend</p>
+  </div>
+</footer>
+
+</main>
+<script src="interactions.js" defer></script>
+</body>
+</html>
