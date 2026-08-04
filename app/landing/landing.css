@@ -349,9 +349,12 @@
   background: var(--surface-alt);
 }
 
+/* Cards center as a group at any count (was repeat(4) — 2 cards hugged the
+   inline-start edge with two empty tracks). */
 .why-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 300px));
+  justify-content: center;
   gap: var(--sp-sm);
   align-items: stretch;
 }
@@ -955,7 +958,7 @@
 
 @media (max-width: 960px) {
   .why-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 300px));
   }
 
   .trust-points {
@@ -1085,7 +1088,9 @@
   }
 
   .why-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 420px;
+    margin-inline: auto;
   }
 
   .trust-points {
