@@ -704,6 +704,15 @@ function normalizeProductStateFromLegacy() {
 function applyProductSelection(packageId, options = {}) {
   const pkg = PRODUCT_PACKAGES.find((p) => p.id === packageId);
   if (!pkg) return;
+  // Confirmed bug fix (design-system pass): step-8 entry pre-fetches product
+  // truth for the server's DEFAULT direction (no user pick yet). computeTotal
+  // prefers productTruth, so after the user picked a different package the
+  // bottom bar kept showing the stale default price (e.g. ₪59 while adventure
+  // ₪79 was selected) until the next sync. Truth must never describe a
+  // direction other than the user's selection — drop it and re-resolve.
+  if (state.productTruth && state.productTruth.direction !== packageId) {
+    state.productTruth = null;
+  }
   state.storyDirection = packageId;
   state.productId = packageId;
   state.priceILS = pkg.priceILS;
@@ -1442,6 +1451,7 @@ function goNext() {
         grid.style.animation = 'none';
         void grid.offsetHeight;
         grid.style.animation = 'shake 0.4s ease';
+        showGroupError(grid, WIZ.validation?.companion);
       }
       return;
     }
@@ -1453,7 +1463,9 @@ function goNext() {
     state.childGender = document.getElementById("child-gender")?.value || "";
 
     if (!state.childName) {
-      shake(document.getElementById("child-name"));
+      const nameEl = document.getElementById("child-name");
+      shake(nameEl);
+      showFieldError(nameEl, WIZ.validation?.childName);
       return;
     }
 
@@ -1472,6 +1484,7 @@ function goNext() {
       grid.style.animation = 'none';
       void grid.offsetHeight;
       grid.style.animation = 'shake 0.4s ease';
+      showGroupError(grid, WIZ.validation?.product);
     }
     return;
   }
@@ -1482,8 +1495,16 @@ function goNext() {
     state.contactEmail = document.getElementById("contact-email")?.value.trim() || "";
 
     if (!state.contactName || !state.contactEmail) {
-      if (!state.contactName)  shake(document.getElementById("contact-name"));
-      if (!state.contactEmail) shake(document.getElementById("contact-email"));
+      if (!state.contactName) {
+        const el = document.getElementById("contact-name");
+        shake(el);
+        showFieldError(el, WIZ.validation?.contactName);
+      }
+      if (!state.contactEmail) {
+        const el = document.getElementById("contact-email");
+        shake(el);
+        showFieldError(el, WIZ.validation?.contactEmail);
+      }
       return;
     }
     // Photo quality never blocks checkout.
@@ -1502,10 +1523,12 @@ function goNext() {
       grid.style.animation = 'none';
       void grid.offsetHeight;
       grid.style.animation = 'shake 0.4s ease';
+      showGroupError(grid, WIZ.validation?.style);
     }
     return;
   }
 
+  clearAllFieldErrors();
   state.currentStep = nextPhysicalStep(stepBeforeAdvance);
   updateUI();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1514,17 +1537,70 @@ function goNext() {
 function shake(el) {
   if (!el) return;
 
-  el.style.borderColor = "#ff6b6b";
-  el.style.animation   = "shake 0.4s ease";
+  el.style.animation = "shake 0.4s ease";
   el.focus();
 
   setTimeout(() => {
-    el.style.borderColor = "";
-    el.style.animation   = "";
+    el.style.animation = "";
   }, 2200);
 }
 
+/* ── Inline validation messages (visible + announced) ─────────────
+   Renders a .field-error line after the anchor element, marks the field
+   aria-invalid, and clears on the field's next input/change or step move.
+   Presentational only — validation RULES are unchanged. */
+function showFieldError(anchorEl, message, fieldEl) {
+  if (!anchorEl || !message) return;
+  const field = fieldEl || anchorEl;
+  clearFieldError(field);
+  const err = document.createElement('p');
+  err.className = 'field-error';
+  err.setAttribute('role', 'alert');
+  err.textContent = message;
+  err.dataset.fieldError = '1';
+  anchorEl.insertAdjacentElement('afterend', err);
+  field.setAttribute('aria-invalid', 'true');
+  field.classList.add('has-error');
+  const clear = () => clearFieldError(field);
+  field.addEventListener('input', clear, { once: true });
+  field.addEventListener('change', clear, { once: true });
+}
+
+function clearFieldError(field) {
+  if (!field) return;
+  field.removeAttribute('aria-invalid');
+  field.classList.remove('has-error');
+  const next = field.parentElement
+    ? field.parentElement.querySelector('[data-field-error]')
+    : null;
+  if (next) next.remove();
+}
+
+function clearAllFieldErrors() {
+  document.querySelectorAll('[data-field-error]').forEach((el) => el.remove());
+  document.querySelectorAll('.has-error').forEach((el) => {
+    el.classList.remove('has-error');
+    el.removeAttribute('aria-invalid');
+  });
+}
+
+/* Grid-level error (companion/style/product groups): message above the grid */
+function showGroupError(gridEl, message) {
+  if (!gridEl || !message) return;
+  const existing = gridEl.parentElement
+    ? gridEl.parentElement.querySelector('[data-field-error]')
+    : null;
+  if (existing) existing.remove();
+  const err = document.createElement('p');
+  err.className = 'field-error field-error--group';
+  err.setAttribute('role', 'alert');
+  err.textContent = message;
+  err.dataset.fieldError = '1';
+  gridEl.insertAdjacentElement('beforebegin', err);
+}
+
 function goBack() {
+  clearAllFieldErrors();
   if (state.currentStep === 3 && state.challengeCategory) {
     window.location.replace('/start');
     return;
@@ -2297,8 +2373,11 @@ function renderProductCards() {
       card.title = 'הכיוון הזה יהיה זמין בקרוב';
     } else {
       card.addEventListener('click', () => {
+        clearAllFieldErrors();
         applyProductSelection(pkg.id);
         renderProductCards();
+        // Re-resolve server truth for the NEW direction (stale-truth price fix)
+        syncProductTruthFromServer();
         const cont = document.getElementById('btn-continue');
         if (cont && state.currentStep === 8) cont.disabled = false;
         queueWizardSave();
@@ -2352,6 +2431,7 @@ function renderStyleStepGrid() {
     }
 
     btn.addEventListener('click', () => {
+      clearAllFieldErrors();
       document.querySelectorAll('#style-step-grid .style-btn').forEach((b) => b.classList.remove('selected'));
       btn.classList.add('selected');
       state.style = s.id;

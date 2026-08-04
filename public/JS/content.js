@@ -333,6 +333,17 @@ const CONTENT = {
         back:              'חזור',
       },
 
+      /* Inline validation — visible text + screen-reader announcement
+         (was: shake animation only, invisible to AT and to anyone who blinked) */
+      validation: {
+        childName:    'כדי להמשיך, ספרו לנו איך קוראים לילד/ה',
+        companion:    'בחרו דמות מלווה כדי להמשיך',
+        style:        'בחרו סגנון איור כדי להמשיך',
+        product:      'בחרו חבילה כדי להמשיך',
+        contactName:  'צריך שם מלא כדי שנדע למי שייך הספר',
+        contactEmail: 'צריך אימייל תקין — לשם נשלח את הספר המוכן',
+      },
+
       /** Filled at load by canonical-topics.js (10 wizard topics). */
       topics: [],
 
