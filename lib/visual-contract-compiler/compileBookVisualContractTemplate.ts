@@ -1240,7 +1240,7 @@ function buildZoneGraph(draft: Record<string, unknown>): ZoneGraph {
   );
   const exact = new Map<string, CanonicalZone>();
   const byNorm = new Map<string, CanonicalZone[]>();
-  for (const raw of asArr(draft.zones)) {
+  for (const [zoneIndex, raw] of asArr(draft.zones).entries()) {
     const z = asObj(raw);
     if (!isStr(z.id) || !isStr(z.locationId)) {
       throw new InvalidTemplateContractError(['a zone is missing id/locationId — the semantic zone graph is malformed (repair).']);
@@ -1249,7 +1249,17 @@ function buildZoneGraph(draft: Record<string, unknown>): ZoneGraph {
       throw new InvalidTemplateContractError([`zone "${z.id}" references unknown locationId "${z.locationId}" — the semantic zone graph is malformed (repair).`]);
     }
     if (exact.has(z.id)) {
-      throw new InvalidTemplateContractError([`duplicate zone id "${z.id}" in the graph (repair).`]);
+      throw new DraftAuthorityReferenceDomainError([
+        {
+          code: 'page_zone_id_duplicate',
+          locator: {
+            kind: 'page_zone',
+            referenceClass: 'page_zone',
+            fieldRole: 'zones.id',
+            zoneIndex,
+          },
+        },
+      ]);
     }
     const cz: CanonicalZone = { id: z.id, locationId: z.locationId };
     exact.set(cz.id, cz);

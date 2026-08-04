@@ -201,6 +201,49 @@ async function compile(draft: unknown) {
   return { callLLM, result };
 }
 
+async function emittedAuthorityIssues(
+  draft: Record<string, unknown>,
+) {
+  const callLLM = vi.fn(async () => JSON.stringify(draft));
+  let failure: unknown;
+  try {
+    await compileBookVisualContractTemplate(input, { callLLM });
+  } catch (error) {
+    failure = error;
+  }
+  expect(failure).toBeInstanceOf(DraftAuthorityReferenceDomainError);
+  expect(callLLM).toHaveBeenCalledTimes(1);
+  return (failure as DraftAuthorityReferenceDomainError).issues;
+}
+
+function pageRecord(draft: Record<string, unknown>) {
+  return (draft.pageContracts as Array<Record<string, unknown>>)[0]!;
+}
+
+function actions(draft: Record<string, unknown>) {
+  return pageRecord(draft).actionRequirements as Array<
+    Record<string, unknown>
+  >;
+}
+
+function coverage(draft: Record<string, unknown>) {
+  return pageRecord(draft).actionSemanticCoverage as Array<
+    Record<string, unknown>
+  >;
+}
+
+function authority(draft: Record<string, unknown>) {
+  return (draft.setBoardAuthorities as Array<Record<string, unknown>>)[0]!;
+}
+
+function area(draft: Record<string, unknown>) {
+  return (authority(draft).areas as Array<Record<string, unknown>>)[0]!;
+}
+
+function nodes(draft: Record<string, unknown>) {
+  return area(draft).spatialNodes as Array<Record<string, unknown>>;
+}
+
 describe('captured reference-domain matrix', () => {
   it('compiles 37 actions, five spatial selections, six architecture nodes, and unary centered_in without repair', async () => {
     const { callLLM, result } = await compile(matrixDraft());
@@ -290,5 +333,263 @@ describe('captured reference-domain matrix', () => {
       compileBookVisualContractTemplate(input, { callLLM }),
     ).rejects.toBeInstanceOf(DraftAuthorityReferenceDomainError);
     expect(callLLM).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [
+      'action_check_id_forbidden',
+      (draft: Record<string, unknown>) => {
+        actions(draft)[0]!.checkId = 'authored_check';
+      },
+    ],
+    [
+      'action_beat_id_outside_page_authority',
+      (draft: Record<string, unknown>) => {
+        actions(draft)[0]!.beatId = 'beat:p2:wrong_page';
+      },
+    ],
+    [
+      'action_beat_binding_cardinality_invalid',
+      (draft: Record<string, unknown>) => {
+        actions(draft)[1]!.beatId = actions(draft)[0]!.beatId;
+      },
+    ],
+    [
+      'coverage_check_id_forbidden',
+      (draft: Record<string, unknown>) => {
+        const disposition = coverage(draft)[0]!
+          .disposition as Record<string, unknown>;
+        disposition.checkId = 'authored_check';
+      },
+    ],
+    [
+      'coverage_action_binding_cardinality_invalid',
+      (draft: Record<string, unknown>) => {
+        coverage(draft)[0]!.beatId = 'beat:p1:no_action';
+      },
+    ],
+    [
+      'coverage_beat_cardinality_invalid',
+      (draft: Record<string, unknown>) => {
+        coverage(draft).push(structuredClone(coverage(draft)[0]!));
+      },
+    ],
+    [
+      'action_coverage_cardinality_invalid',
+      (draft: Record<string, unknown>) => {
+        coverage(draft).shift();
+      },
+    ],
+    [
+      'unary_relation_object_forbidden',
+      (draft: Record<string, unknown>) => {
+        const relation = (
+          area(draft).spatialRelations as Array<Record<string, unknown>>
+        )[0]!;
+        relation.objectId = 'structure_1';
+      },
+    ],
+    [
+      'binary_relation_object_required',
+      (draft: Record<string, unknown>) => {
+        area(draft).spatialRelations = [
+          { subjectId: 'structure_1', relation: 'left_of' },
+        ];
+      },
+    ],
+    [
+      'page_zone_id_duplicate',
+      (draft: Record<string, unknown>) => {
+        const zones = draft.zones as Array<Record<string, unknown>>;
+        zones.push(structuredClone(zones[0]!));
+      },
+    ],
+    [
+      'set_fixed_objects_forbidden',
+      (draft: Record<string, unknown>) => {
+        authority(draft).fixedObjects = [];
+      },
+    ],
+    [
+      'set_identity_id_duplicate',
+      (draft: Record<string, unknown>) => {
+        const authorities = draft.setBoardAuthorities as Array<
+          Record<string, unknown>
+        >;
+        authorities.push(structuredClone(authorities[0]!));
+      },
+    ],
+    [
+      'recurring_prop_reference_type_invalid',
+      (draft: Record<string, unknown>) => {
+        nodes(draft)[0]!.propId = 7;
+      },
+    ],
+    [
+      'recurring_prop_reference_cardinality_invalid',
+      (draft: Record<string, unknown>) => {
+        nodes(draft)[0]!.propId = 'prop:missing';
+      },
+    ],
+    [
+      'recurring_prop_lifecycle_gated',
+      (draft: Record<string, unknown>) => {
+        draft.recurringProps = [
+          {
+            id: 'prop:gated',
+            name: 'Gated prop',
+            description: 'Appears later.',
+            firstRevealPage: 1,
+          },
+        ];
+        nodes(draft)[0]!.propId = 'prop:gated';
+      },
+    ],
+    [
+      'recurring_prop_consumer_forbidden',
+      (draft: Record<string, unknown>) => {
+        draft.recurringProps = [
+          {
+            id: 'prop:forbidden',
+            name: 'Forbidden prop',
+            description: 'Forbidden on the page.',
+            firstRevealPage: null,
+          },
+        ];
+        nodes(draft)[0]!.propId = 'prop:forbidden';
+        pageRecord(draft).propConstraints = [
+          { propId: 'prop:forbidden', visibility: 'forbidden' },
+        ];
+      },
+    ],
+    [
+      'zone_projection_cardinality_invalid',
+      (draft: Record<string, unknown>) => {
+        const projection = area(draft).zoneProjection as Record<
+          string,
+          unknown
+        >;
+        projection.cardinality = 'one_to_many';
+      },
+    ],
+    [
+      'zone_projection_duplicate_zone',
+      (draft: Record<string, unknown>) => {
+        area(draft).zoneProjection = {
+          cardinality: 'one_to_many',
+          zoneIds: ['zone:room', 'zone:room'],
+        };
+      },
+    ],
+    [
+      'zone_projection_unknown_zone',
+      (draft: Record<string, unknown>) => {
+        area(draft).zoneProjection = {
+          cardinality: 'one_to_one',
+          zoneIds: ['zone:unknown'],
+        };
+      },
+    ],
+    [
+      'zone_projection_location_mismatch',
+      (draft: Record<string, unknown>) => {
+        area(draft).locationId = 'location:other';
+      },
+    ],
+    [
+      'zone_projection_ambiguous_owner',
+      (draft: Record<string, unknown>) => {
+        const areas = authority(draft).areas as Array<
+          Record<string, unknown>
+        >;
+        areas.push(structuredClone(areas[0]!));
+      },
+    ],
+    [
+      'board_required_zone_unprojected',
+      (draft: Record<string, unknown>) => {
+        authority(draft).areas = [];
+      },
+    ],
+  ] as const)(
+    'emits compiler-owned issue identity %s before repair',
+    async (expectedCode, mutate) => {
+      const draft = matrixDraft();
+      mutate(draft);
+      const issues = await emittedAuthorityIssues(draft);
+      expect(issues.map((issue) => issue.code)).toContain(expectedCode);
+    },
+  );
+
+  it('emits both relation locator variants from structural context', async () => {
+    const draft = matrixDraft();
+    const location = (draft.locations as Array<Record<string, unknown>>)[0]!;
+    location.setReference = {
+      status: 'none',
+      url: null,
+      storageKey: null,
+      prompt: null,
+    };
+    draft.setBoardAuthorities = [];
+    const zone = (draft.zones as Array<Record<string, unknown>>)[0]!;
+    zone.spatialRelations = [
+      { subjectId: 'structure_1', relation: 'left_of' },
+    ];
+    const issues = await emittedAuthorityIssues(draft);
+    expect(issues).toContainEqual({
+      code: 'binary_relation_object_required',
+      locator: {
+        kind: 'page_zone_relation',
+        referenceClass: 'spatial_relation',
+        fieldRole: 'spatialRelations.objectId',
+        zoneIndex: 0,
+        relationIndex: 0,
+      },
+    });
+  });
+
+  it('emits all five closed page-spatial field roles without authored values', async () => {
+    const draft = matrixDraft();
+    const pageActions = actions(draft);
+    pageActions[0]!.subject = {
+      kind: 'entity',
+      entity: { kind: 'spatial', id: 'hostile_subject' },
+    };
+    pageActions[1]!.object = {
+      kind: 'spatial',
+      id: 'hostile_object',
+    };
+    pageActions[2]!.spatialEffect = {
+      kind: 'relation',
+      relation: 'beside',
+      target: { kind: 'spatial', id: 'hostile_effect' },
+    };
+    pageActions[3]!.spatialConstraint = {
+      relation: 'beside',
+      target: { kind: 'spatial', id: 'hostile_constraint' },
+    };
+    pageRecord(draft).safetyConstraints = [
+      {
+        relation: 'beside',
+        target: { kind: 'spatial', id: 'hostile_safety' },
+      },
+    ];
+    const issues = await emittedAuthorityIssues(draft);
+    expect(
+      issues
+        .filter(
+          (issue) =>
+            issue.code === 'page_spatial_reference_outside_zone',
+        )
+        .map((issue) => issue.locator.fieldRole)
+        .sort(),
+    ).toEqual([
+      'object',
+      'safetyConstraints.target',
+      'spatialConstraint.target',
+      'spatialEffect.target',
+      'subject',
+    ]);
+    expect(JSON.stringify(issues)).not.toMatch(/hostile_/);
   });
 });

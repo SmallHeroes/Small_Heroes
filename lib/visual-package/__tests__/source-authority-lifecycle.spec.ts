@@ -1883,8 +1883,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const coverage = page.actionSemanticCoverage as Array<
       Record<string, unknown>
     >;
-    actions[0]!.beatId = 'beat:p999:invalid';
-    coverage[0]!.beatId = 'beat:p999:invalid';
+    const hostileAuthoredValue =
+      'beat:p999:invalid\n{"provider":"raw"}\nError: stack C:\\private\\source';
+    actions[0]!.beatId = hostileAuthoredValue;
+    coverage[0]!.beatId = hostileAuthoredValue;
     const provider = successfulProvider(invalid);
 
     const result = await runVisualContractAuthoring({
@@ -1942,9 +1944,18 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       readiness.authoringOutcome.terminalClassification,
     ).toEqual(result.receipt.failure);
     expect(provider.call).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(result.receipt)).not.toContain(
+    const serialized = JSON.stringify({
+      receipt: result.receipt,
+      readiness,
+    });
+    for (const forbidden of [
       'beat:p999:invalid',
-    );
+      '"provider":"raw"',
+      'Error: stack',
+      'C:\\private\\source',
+    ]) {
+      expect(serialized).not.toContain(forbidden);
+    }
   });
 
   it('fails closed on an unexpected request-validation throw without provider reachability or raw error persistence', async () => {
