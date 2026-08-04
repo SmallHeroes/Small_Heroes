@@ -83,6 +83,11 @@ import {
   type ActionSemanticCoverageRecord,
 } from './actionSemanticCoverage';
 import {
+  normalizeDraftAuthorityReferenceIssues,
+  type DraftAuthorityReferenceFieldRole,
+  type DraftAuthorityReferenceIssue,
+} from './draftAuthorityReferenceDiagnostics';
+import {
   assertValidSourceEvidenceCatalog,
   resolveSourceEvidenceId,
   type SourceEvidenceCatalog,
@@ -179,9 +184,15 @@ export class SourceEvidenceIdValidationError extends InvalidTemplateContractErro
 
 /** Deterministic closed-domain failures are never eligible for provider repair. */
 export class DraftAuthorityReferenceDomainError extends Error {
-  constructor(readonly issues: string[]) {
-    super(`draft authority/reference domain invalid: ${issues.join('; ')}`);
+  readonly issues: readonly DraftAuthorityReferenceIssue[];
+
+  constructor(issues: readonly DraftAuthorityReferenceIssue[]) {
+    super('draft authority/reference domain invalid');
     this.name = 'DraftAuthorityReferenceDomainError';
+    this.issues = normalizeDraftAuthorityReferenceIssues(issues);
+    if (this.issues.length === 0) {
+      throw new Error('draft authority/reference diagnostic contract invalid');
+    }
   }
 }
 
@@ -189,13 +200,32 @@ export class DraftAuthorityReferenceDomainError extends Error {
 export function compilerOwnedActionCheckId(
   pageNumber: number,
   beatId: string,
+  actionIndex?: number,
 ): string {
   const match = new RegExp(
     `^beat:p${pageNumber}:([a-z0-9_]+)$`,
   ).exec(beatId);
   if (!match) {
     throw new DraftAuthorityReferenceDomainError([
-      `page ${pageNumber} action beatId "${beatId}" is not exact current page-scoped authority`,
+      {
+        code: 'action_beat_id_outside_page_authority',
+        locator:
+          Number.isSafeInteger(actionIndex) &&
+          (actionIndex as number) >= 0
+            ? {
+                kind: 'page_action',
+                referenceClass: 'action_identity',
+                fieldRole: 'actionRequirements.beatId',
+                pageNumber,
+                actionIndex: actionIndex as number,
+              }
+            : {
+                kind: 'page_action_field',
+                referenceClass: 'action_identity',
+                fieldRole: 'actionRequirements.beatId',
+                pageNumber,
+              },
+      },
     ]);
   }
   return `action:p${pageNumber}_${match[1]}`;
@@ -678,7 +708,7 @@ function sourceGroundPageActionSemantics(
       ? pageDraft.pageNumber
       : -1;
   const issues: string[] = [];
-  const authorityIssues: string[] = [];
+  const authorityIssues: DraftAuthorityReferenceIssue[] = [];
   const sourceEvidenceIssues: SourceEvidenceIdRepairAffectedRecord[] = [];
 
   const out = { ...pageDraft };
@@ -690,7 +720,16 @@ function sourceGroundPageActionSemantics(
       const action = { ...asObj(raw) };
       if (Object.prototype.hasOwnProperty.call(action, 'checkId')) {
         authorityIssues.push(
-          `page ${pageNumber}.actionRequirements[${index}].checkId is forbidden in current draft authority; the compiler derives it from beatId`,
+          {
+            code: 'action_check_id_forbidden',
+            locator: {
+              kind: 'page_action',
+              referenceClass: 'action_identity',
+              fieldRole: 'actionRequirements.checkId',
+              pageNumber,
+              actionIndex: index,
+            },
+          },
         );
       }
       delete action.sourcePhrase;
@@ -719,25 +758,46 @@ function sourceGroundPageActionSemantics(
   );
   const actionsByBeatId = new Map<
     string,
-    Record<string, unknown>[]
+    Array<{
+      action: Record<string, unknown>;
+      actionIndex: number;
+    }>
   >();
   for (const [index, action] of groundedActions.entries()) {
     const beatId =
       typeof action.beatId === 'string' ? action.beatId : '';
     if (!beatIdPattern.test(beatId)) {
       authorityIssues.push(
-        `page ${pageNumber}.actionRequirements[${index}].beatId "${beatId}" must be exact current page-scoped authority (${String(beatIdPattern)})`,
+        {
+          code: 'action_beat_id_outside_page_authority',
+          locator: {
+            kind: 'page_action',
+            referenceClass: 'action_identity',
+            fieldRole: 'actionRequirements.beatId',
+            pageNumber,
+            actionIndex: index,
+          },
+        },
       );
       continue;
     }
     const matches = actionsByBeatId.get(beatId) ?? [];
-    matches.push(action);
+    matches.push({ action, actionIndex: index });
     actionsByBeatId.set(beatId, matches);
   }
-  for (const [beatId, matches] of actionsByBeatId) {
+  for (const matches of actionsByBeatId.values()) {
     if (matches.length !== 1) {
       authorityIssues.push(
-        `page ${pageNumber} beatId "${beatId}" binds ${matches.length} actionRequirements; exact binding requires one`,
+        ...matches.map(({ actionIndex }) => ({
+          code: 'action_beat_binding_cardinality_invalid' as const,
+          locator: {
+            kind: 'page_action' as const,
+            referenceClass: 'action_identity' as const,
+            fieldRole: 'actionRequirements.beatId' as const,
+            pageNumber,
+            actionIndex,
+          },
+        })),
       );
     }
   }
@@ -757,8 +817,8 @@ function sourceGroundPageActionSemantics(
     }
   >();
   const rawCoverage = asArr(pageDraft.actionSemanticCoverage);
-  const actionCoverageCounts = new Map<string, number>();
-  const allCoverageCounts = new Map<string, number>();
+  const actionCoverageIndices = new Map<string, number[]>();
+  const allCoverageIndices = new Map<string, number[]>();
   if (rawCoverage.length === 0) {
     issues.push(
       `page ${pageNumber}: action_semantic_coverage_missing`,
@@ -781,10 +841,9 @@ function sourceGroundPageActionSemantics(
       );
     }
     if (beatId) {
-      allCoverageCounts.set(
-        beatId,
-        (allCoverageCounts.get(beatId) ?? 0) + 1,
-      );
+      const indices = allCoverageIndices.get(beatId) ?? [];
+      indices.push(index);
+      allCoverageIndices.set(beatId, indices);
     }
     const disposition = asObj(record.disposition);
     const resolution = resolveSourceEvidenceId({
@@ -796,7 +855,7 @@ function sourceGroundPageActionSemantics(
       const actionRequirement =
         disposition.kind === 'action_requirement' &&
         beatId
-          ? actionsByBeatId.get(beatId)?.[0] ?? null
+          ? actionsByBeatId.get(beatId)?.[0]?.action ?? null
           : null;
       if (beatId) {
         sourceEvidenceIssues.push({
@@ -869,26 +928,46 @@ function sourceGroundPageActionSemantics(
     if (disposition.kind === 'action_requirement') {
       if (Object.prototype.hasOwnProperty.call(disposition, 'checkId')) {
         authorityIssues.push(
-          `${label}.disposition.checkId is forbidden in current draft authority; the compiler binds by beatId`,
+          {
+            code: 'coverage_check_id_forbidden',
+            locator: {
+              kind: 'page_coverage',
+              referenceClass: 'action_coverage',
+              fieldRole: 'actionSemanticCoverage.checkId',
+              pageNumber,
+              coverageIndex: index,
+            },
+          },
         );
       }
       if (beatId) {
-        actionCoverageCounts.set(
-          beatId,
-          (actionCoverageCounts.get(beatId) ?? 0) + 1,
-        );
+        const coverageIndices =
+          actionCoverageIndices.get(beatId) ?? [];
+        coverageIndices.push(index);
+        actionCoverageIndices.set(beatId, coverageIndices);
         const matches = actionsByBeatId.get(beatId) ?? [];
         if (matches.length !== 1) {
           authorityIssues.push(
-            `${label} beatId "${beatId}" binds ${matches.length} actionRequirements; exact binding requires one`,
+            {
+              code: 'coverage_action_binding_cardinality_invalid',
+              locator: {
+                kind: 'page_coverage',
+                referenceClass: 'action_coverage',
+                fieldRole:
+                  'actionSemanticCoverage.actionRequirementBinding',
+                pageNumber,
+                coverageIndex: index,
+              },
+            },
           );
         } else {
           const checkId = compilerOwnedActionCheckId(
             pageNumber,
             beatId,
+            matches[0]!.actionIndex,
           );
-          matches[0]!.checkId = checkId;
-          delete matches[0]!.beatId;
+          matches[0]!.action.checkId = checkId;
+          delete matches[0]!.action.beatId;
           typedDisposition = {
             kind: 'action_requirement',
             checkId,
@@ -951,25 +1030,43 @@ function sourceGroundPageActionSemantics(
       });
     }
   }
-  for (const [beatId, count] of allCoverageCounts) {
-    if (count !== 1) {
+  for (const coverageIndices of allCoverageIndices.values()) {
+    if (coverageIndices.length !== 1) {
       authorityIssues.push(
-        `page ${pageNumber} beatId "${beatId}" appears in ${count} coverage records; exact binding requires one`,
+        ...coverageIndices.map((coverageIndex) => ({
+          code: 'coverage_beat_cardinality_invalid' as const,
+          locator: {
+            kind: 'page_coverage' as const,
+            referenceClass: 'action_coverage' as const,
+            fieldRole: 'actionSemanticCoverage.beatId' as const,
+            pageNumber,
+            coverageIndex,
+          },
+        })),
       );
     }
   }
-  for (const [beatId] of actionsByBeatId) {
-    const count = actionCoverageCounts.get(beatId) ?? 0;
-    if (count !== 1) {
+  for (const [beatId, actions] of actionsByBeatId) {
+    const coverageCount =
+      actionCoverageIndices.get(beatId)?.length ?? 0;
+    if (coverageCount !== 1) {
       authorityIssues.push(
-        `page ${pageNumber} action beatId "${beatId}" binds ${count} action_requirement coverage records; exact binding requires one`,
+        ...actions.map(({ actionIndex }) => ({
+          code: 'action_coverage_cardinality_invalid' as const,
+          locator: {
+            kind: 'page_action' as const,
+            referenceClass: 'action_coverage' as const,
+            fieldRole:
+              'actionRequirements.actionSemanticCoverage' as const,
+            pageNumber,
+            actionIndex,
+          },
+        })),
       );
     }
   }
   if (authorityIssues.length > 0) {
-    throw new DraftAuthorityReferenceDomainError([
-      ...new Set(authorityIssues),
-    ]);
+    throw new DraftAuthorityReferenceDomainError(authorityIssues);
   }
   for (const action of groundedActions) {
     const subject = asObj(action.subject);
@@ -1310,19 +1407,49 @@ function normalizeDraftProps(raw: unknown): BookVisualContractTemplate['recurrin
   }) as unknown as BookVisualContractTemplate['recurringProps'];
 }
 
+type SpatialRelationDiagnosticContext =
+  | {
+      kind: 'set_area_relation';
+      authorityIndex: number;
+      areaIndex: number;
+    }
+  | {
+      kind: 'page_zone_relation';
+      zoneIndex: number;
+    };
+
 function normalizeSpatialRelations(
   raw: unknown,
-  label: string,
-  authorityIssues: string[],
+  context: SpatialRelationDiagnosticContext,
+  authorityIssues: DraftAuthorityReferenceIssue[],
 ): SpatialRelation[] {
   return asArr(raw).map((rawRelation, index) => {
     const relation = { ...asObj(rawRelation) };
-    const relationLabel = `${label}[${index}]`;
+    const locator =
+      context.kind === 'set_area_relation'
+        ? {
+            kind: 'set_area_relation' as const,
+            referenceClass: 'spatial_relation' as const,
+            fieldRole: 'spatialRelations.objectId' as const,
+            authorityIndex: context.authorityIndex,
+            areaIndex: context.areaIndex,
+            relationIndex: index,
+          }
+        : {
+            kind: 'page_zone_relation' as const,
+            referenceClass: 'spatial_relation' as const,
+            fieldRole: 'spatialRelations.objectId' as const,
+            zoneIndex: context.zoneIndex,
+            relationIndex: index,
+          };
     if (relation.relation === 'centered_in') {
       if (relation.objectId === null) delete relation.objectId;
       if (Object.prototype.hasOwnProperty.call(relation, 'objectId')) {
         authorityIssues.push(
-          `${relationLabel}.centered_in is unary and cannot carry objectId`,
+          {
+            code: 'unary_relation_object_forbidden',
+            locator,
+          },
         );
       }
     } else if (
@@ -1330,7 +1457,10 @@ function normalizeSpatialRelations(
       relation.objectId.length === 0
     ) {
       authorityIssues.push(
-        `${relationLabel}.${String(relation.relation)} is binary and requires an exact objectId`,
+        {
+          code: 'binary_relation_object_required',
+          locator,
+        },
       );
     }
     return relation as unknown as SpatialRelation;
@@ -1360,18 +1490,29 @@ function normalizeDraftSpatialAuthorities(args: {
   zones: BookVisualContractTemplate['zones'];
   setBoardAuthorities: BookVisualContractTemplate['setBoardAuthorities'];
 } {
-  const authorityIssues: string[] = [];
+  const authorityIssues: DraftAuthorityReferenceIssue[] = [];
   const zones = asArr(args.draft.zones).map(normalizeDraftZone);
-  const zoneById = new Map<string, Record<string, unknown>>();
-  for (const zone of zones) {
+  const zoneById = new Map<
+    string,
+    { zone: Record<string, unknown>; zoneIndex: number }
+  >();
+  for (const [zoneIndex, zone] of zones.entries()) {
     if (typeof zone.id === 'string') {
       const existing = zoneById.get(zone.id);
       if (existing) {
         authorityIssues.push(
-          `page-zone id "${zone.id}" is duplicated; spatial authority is ambiguous`,
+          {
+            code: 'page_zone_id_duplicate',
+            locator: {
+              kind: 'page_zone',
+              referenceClass: 'page_zone',
+              fieldRole: 'zones.id',
+              zoneIndex,
+            },
+          },
         );
       } else {
-        zoneById.set(zone.id, zone);
+        zoneById.set(zone.id, { zone, zoneIndex });
       }
     }
   }
@@ -1387,13 +1528,18 @@ function normalizeDraftSpatialAuthorities(args: {
     propCandidatesById.set(prop.id, matches);
   }
 
-  const zoneOwner = new Map<string, string>();
+  const zoneOwner = new Map<
+    string,
+    {
+      authorityIndex: number;
+      areaIndex: number;
+      projectionIndex: number;
+    }
+  >();
   const setIds = new Set<string>();
   const authorities = asArr(args.draft.setBoardAuthorities).map(
     (rawAuthority, authorityIndex) => {
       const authority = { ...asObj(rawAuthority) };
-      const authorityLabel =
-        `setBoardAuthorities[${authorityIndex}]`;
       if (
         Object.prototype.hasOwnProperty.call(
           authority,
@@ -1401,7 +1547,15 @@ function normalizeDraftSpatialAuthorities(args: {
         )
       ) {
         authorityIssues.push(
-          `${authorityLabel}.fixedObjects is forbidden in current draft authority; the compiler derives stable recurring objects from exact area-node propId bindings`,
+          {
+            code: 'set_fixed_objects_forbidden',
+            locator: {
+              kind: 'set_authority',
+              referenceClass: 'set_identity',
+              fieldRole: 'setBoardAuthorities.fixedObjects',
+              authorityIndex,
+            },
+          },
         );
       }
       const setIdentityId =
@@ -1410,7 +1564,15 @@ function normalizeDraftSpatialAuthorities(args: {
           : '';
       if (setIds.has(setIdentityId)) {
         authorityIssues.push(
-          `${authorityLabel}.setIdentityId "${setIdentityId}" is duplicated`,
+          {
+            code: 'set_identity_id_duplicate',
+            locator: {
+              kind: 'set_authority',
+              referenceClass: 'set_identity',
+              fieldRole: 'setBoardAuthorities.setIdentityId',
+              authorityIndex,
+            },
+          },
         );
       }
       setIds.add(setIdentityId);
@@ -1419,7 +1581,6 @@ function normalizeDraftSpatialAuthorities(args: {
       const areas = asArr(authority.areas).map(
         (rawArea, areaIndex) => {
           const area = { ...asObj(rawArea) };
-          const areaLabel = `${authorityLabel}.areas[${areaIndex}]`;
           const nodes = asArr(area.spatialNodes).map(
             (rawNode, nodeIndex) => {
               const node = { ...asObj(rawNode) };
@@ -1427,20 +1588,50 @@ function normalizeDraftSpatialAuthorities(args: {
               if (node.propId !== undefined) {
                 if (typeof node.propId !== 'string') {
                   authorityIssues.push(
-                    `${areaLabel}.spatialNodes[${nodeIndex}].propId must select one exact recurring prop`,
+                    {
+                      code: 'recurring_prop_reference_type_invalid',
+                      locator: {
+                        kind: 'set_area_node',
+                        referenceClass: 'recurring_prop',
+                        fieldRole: 'spatialNodes.propId',
+                        authorityIndex,
+                        areaIndex,
+                        nodeIndex,
+                      },
+                    },
                   );
                 } else {
                   const candidates =
                     propCandidatesById.get(node.propId) ?? [];
                   if (candidates.length !== 1) {
                     authorityIssues.push(
-                      `${areaLabel}.spatialNodes[${nodeIndex}].propId "${node.propId}" resolves to ${candidates.length} recurring props; exact binding requires one`,
+                      {
+                        code: 'recurring_prop_reference_cardinality_invalid',
+                        locator: {
+                          kind: 'set_area_node',
+                          referenceClass: 'recurring_prop',
+                          fieldRole: 'spatialNodes.propId',
+                          authorityIndex,
+                          areaIndex,
+                          nodeIndex,
+                        },
+                      },
                     );
                   } else {
                     const prop = candidates[0]!;
                     if (prop.firstRevealPage !== null && prop.firstRevealPage !== undefined) {
                       authorityIssues.push(
-                        `${areaLabel}.spatialNodes[${nodeIndex}].propId "${node.propId}" is lifecycle-gated and cannot be stable board content`,
+                        {
+                          code: 'recurring_prop_lifecycle_gated',
+                          locator: {
+                            kind: 'set_area_node',
+                            referenceClass: 'recurring_prop',
+                            fieldRole: 'spatialNodes.propId',
+                            authorityIndex,
+                            areaIndex,
+                            nodeIndex,
+                          },
+                        },
                       );
                     }
                     const consumerLocationIds = new Set(
@@ -1464,7 +1655,17 @@ function normalizeDraftSpatialAuthorities(args: {
                     );
                     if (forbidden) {
                       authorityIssues.push(
-                        `${areaLabel}.spatialNodes[${nodeIndex}].propId "${node.propId}" is forbidden on a consumer page and cannot be stable board content`,
+                        {
+                          code: 'recurring_prop_consumer_forbidden',
+                          locator: {
+                            kind: 'set_area_node',
+                            referenceClass: 'recurring_prop',
+                            fieldRole: 'spatialNodes.propId',
+                            authorityIndex,
+                            areaIndex,
+                            nodeIndex,
+                          },
+                        },
                       );
                     }
                     stablePropIds.add(node.propId);
@@ -1477,7 +1678,11 @@ function normalizeDraftSpatialAuthorities(args: {
           area.spatialNodes = nodes;
           const relations = normalizeSpatialRelations(
             area.spatialRelations,
-            `${areaLabel}.spatialRelations`,
+            {
+              kind: 'set_area_relation',
+              authorityIndex,
+              areaIndex,
+            },
             authorityIssues,
           );
           if (relations.length > 0) area.spatialRelations = relations;
@@ -1485,7 +1690,20 @@ function normalizeDraftSpatialAuthorities(args: {
 
           const projection = asObj(area.zoneProjection);
           const cardinality = projection.cardinality;
-          const zoneIds = asArr(projection.zoneIds).filter(isStr);
+          const zoneSelections = asArr(projection.zoneIds)
+            .map((zoneId, projectionIndex) => ({
+              zoneId,
+              projectionIndex,
+            }))
+            .filter(
+              (selection): selection is {
+                zoneId: string;
+                projectionIndex: number;
+              } => isStr(selection.zoneId),
+            );
+          const zoneIds = zoneSelections.map(
+            (selection) => selection.zoneId,
+          );
           if (
             (cardinality === 'one_to_one' && zoneIds.length !== 1) ||
             (cardinality === 'one_to_many' && zoneIds.length < 2) ||
@@ -1493,37 +1711,80 @@ function normalizeDraftSpatialAuthorities(args: {
               cardinality !== 'one_to_many')
           ) {
             authorityIssues.push(
-              `${areaLabel}.zoneProjection cardinality does not match its exact zoneIds`,
+              {
+                code: 'zone_projection_cardinality_invalid',
+                locator: {
+                  kind: 'set_area_projection',
+                  referenceClass: 'zone_projection',
+                  fieldRole: 'zoneProjection.cardinality',
+                  authorityIndex,
+                  areaIndex,
+                },
+              },
             );
           }
-          if (new Set(zoneIds).size !== zoneIds.length) {
-            authorityIssues.push(
-              `${areaLabel}.zoneProjection.zoneIds contains a duplicate`,
-            );
+          const seenZoneIds = new Set<string>();
+          for (const selection of zoneSelections) {
+            if (seenZoneIds.has(selection.zoneId)) {
+              authorityIssues.push({
+                code: 'zone_projection_duplicate_zone',
+                locator: {
+                  kind: 'set_area_projection_zone',
+                  referenceClass: 'zone_projection',
+                  fieldRole: 'zoneProjection.zoneIds',
+                  authorityIndex,
+                  areaIndex,
+                  projectionIndex: selection.projectionIndex,
+                },
+              });
+            }
+            seenZoneIds.add(selection.zoneId);
           }
           area.zoneProjection = { cardinality, zoneIds };
 
-          for (const zoneId of zoneIds) {
-            const zone = zoneById.get(zoneId);
-            if (!zone) {
+          for (const selection of zoneSelections) {
+            const zoneRecord = zoneById.get(selection.zoneId);
+            const projectionLocator = {
+              kind: 'set_area_projection_zone' as const,
+              referenceClass: 'zone_projection' as const,
+              fieldRole: 'zoneProjection.zoneIds' as const,
+              authorityIndex,
+              areaIndex,
+              projectionIndex: selection.projectionIndex,
+            };
+            if (!zoneRecord) {
               authorityIssues.push(
-                `${areaLabel}.zoneProjection references unknown exact page-zone "${zoneId}"`,
+                {
+                  code: 'zone_projection_unknown_zone',
+                  locator: projectionLocator,
+                },
               );
               continue;
             }
+            const zone = zoneRecord.zone;
             if (zone.locationId !== area.locationId) {
               authorityIssues.push(
-                `${areaLabel}.zoneProjection zone "${zoneId}" belongs to location "${String(zone.locationId)}", not "${String(area.locationId)}"`,
+                {
+                  code: 'zone_projection_location_mismatch',
+                  locator: projectionLocator,
+                },
               );
             }
-            const priorOwner = zoneOwner.get(zoneId);
+            const priorOwner = zoneOwner.get(selection.zoneId);
             if (priorOwner) {
               authorityIssues.push(
-                `page-zone "${zoneId}" is projected by both ${priorOwner} and ${areaLabel}; mapping is ambiguous`,
+                {
+                  code: 'zone_projection_ambiguous_owner',
+                  locator: projectionLocator,
+                },
               );
               continue;
             }
-            zoneOwner.set(zoneId, areaLabel);
+            zoneOwner.set(selection.zoneId, {
+              authorityIndex,
+              areaIndex,
+              projectionIndex: selection.projectionIndex,
+            });
             zone.spatialNodes = nodes.map((node) => ({
               id: node.id,
               kind: node.kind,
@@ -1581,7 +1842,7 @@ function normalizeDraftSpatialAuthorities(args: {
       .map((location) => location.id)
       .filter(isStr),
   );
-  for (const zone of zones) {
+  for (const [zoneIndex, zone] of zones.entries()) {
     if (
       typeof zone.id === 'string' &&
       typeof zone.locationId === 'string' &&
@@ -1589,14 +1850,22 @@ function normalizeDraftSpatialAuthorities(args: {
       !zoneOwner.has(zone.id)
     ) {
       authorityIssues.push(
-        `board-required page-zone "${zone.id}" has no exact stable-area projection`,
+        {
+          code: 'board_required_zone_unprojected',
+          locator: {
+            kind: 'page_zone',
+            referenceClass: 'zone_projection',
+            fieldRole: 'zones.stableAreaProjection',
+            zoneIndex,
+          },
+        },
       );
     }
 
     if (!zoneOwner.has(String(zone.id))) {
       const relations = normalizeSpatialRelations(
         zone.spatialRelations,
-        `zone "${String(zone.id)}".spatialRelations`,
+        { kind: 'page_zone_relation', zoneIndex },
         authorityIssues,
       );
       if (relations.length > 0) zone.spatialRelations = relations;
@@ -1610,9 +1879,7 @@ function normalizeDraftSpatialAuthorities(args: {
   }
 
   if (authorityIssues.length > 0) {
-    throw new DraftAuthorityReferenceDomainError([
-      ...new Set(authorityIssues),
-    ]);
+    throw new DraftAuthorityReferenceDomainError(authorityIssues);
   }
   return {
     zones: zones as unknown as BookVisualContractTemplate['zones'],
@@ -1633,19 +1900,40 @@ function assertPageSpatialReferenceDomains(args: {
       new Set((zone.spatialNodes ?? []).map((node) => node.id)),
     ]),
   );
-  const issues: string[] = [];
+  const issues: DraftAuthorityReferenceIssue[] = [];
   const check = (
     pageNumber: number,
     zoneId: string,
     value: unknown,
-    label: string,
+    locator:
+      | {
+          kind: 'page_spatial_action';
+          actionIndex: number;
+          fieldRole: Extract<
+            DraftAuthorityReferenceFieldRole,
+            | 'subject'
+            | 'object'
+            | 'spatialEffect.target'
+            | 'spatialConstraint.target'
+          >;
+        }
+      | {
+          kind: 'page_spatial_safety_constraint';
+          safetyConstraintIndex: number;
+          fieldRole: 'safetyConstraints.target';
+        },
   ): void => {
     const ref = asObj(value);
     if (ref.kind !== 'spatial' || typeof ref.id !== 'string') return;
     if (!(zoneNodeIds.get(zoneId) ?? new Set()).has(ref.id)) {
-      issues.push(
-        `page ${pageNumber} ${label} spatial id "${ref.id}" is outside exact page-zone "${zoneId}" selection authority`,
-      );
+      issues.push({
+        code: 'page_spatial_reference_outside_zone',
+        locator: {
+          ...locator,
+          referenceClass: 'page_spatial_selection',
+          pageNumber,
+        },
+      });
     }
   };
   for (const page of args.pages) {
@@ -1661,14 +1949,22 @@ function assertPageSpatialReferenceDomains(args: {
           pageNumber,
           zoneId,
           subject.entity,
-          `actionRequirements[${index}].subject`,
+          {
+            kind: 'page_spatial_action',
+            actionIndex: index,
+            fieldRole: 'subject',
+          },
         );
       }
       check(
         pageNumber,
         zoneId,
         action.object,
-        `actionRequirements[${index}].object`,
+        {
+          kind: 'page_spatial_action',
+          actionIndex: index,
+          fieldRole: 'object',
+        },
       );
       const effect = asObj(action.spatialEffect);
       if (effect.kind === 'relation') {
@@ -1676,7 +1972,11 @@ function assertPageSpatialReferenceDomains(args: {
           pageNumber,
           zoneId,
           effect.target,
-          `actionRequirements[${index}].spatialEffect.target`,
+          {
+            kind: 'page_spatial_action',
+            actionIndex: index,
+            fieldRole: 'spatialEffect.target',
+          },
         );
       }
       const constraint = asObj(action.spatialConstraint);
@@ -1685,7 +1985,11 @@ function assertPageSpatialReferenceDomains(args: {
           pageNumber,
           zoneId,
           constraint.target,
-          `actionRequirements[${index}].spatialConstraint.target`,
+          {
+            kind: 'page_spatial_action',
+            actionIndex: index,
+            fieldRole: 'spatialConstraint.target',
+          },
         );
       }
     }
@@ -1696,7 +2000,11 @@ function assertPageSpatialReferenceDomains(args: {
         pageNumber,
         zoneId,
         asObj(rawConstraint).target,
-        `safetyConstraints[${index}].target`,
+        {
+          kind: 'page_spatial_safety_constraint',
+          safetyConstraintIndex: index,
+          fieldRole: 'safetyConstraints.target',
+        },
       );
     }
   }

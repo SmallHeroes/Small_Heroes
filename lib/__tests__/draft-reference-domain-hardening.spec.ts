@@ -237,7 +237,10 @@ describe('captured reference-domain matrix', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(DraftAuthorityReferenceDomainError);
       expect((error as DraftAuthorityReferenceDomainError).issues.filter(
-        (issue) => issue.includes('outside exact page-zone'),
+        (issue) =>
+          issue.code === 'page_spatial_reference_outside_zone' &&
+          issue.locator.kind === 'page_spatial_action' &&
+          issue.locator.fieldRole === 'object',
       )).toHaveLength(5);
     }
     expect(callLLM).toHaveBeenCalledTimes(1);
@@ -264,10 +267,10 @@ describe('captured reference-domain matrix', () => {
       expect(error).toBeInstanceOf(DraftAuthorityReferenceDomainError);
       const issues = (error as DraftAuthorityReferenceDomainError).issues;
       expect(issues.filter((issue) =>
-        issue.includes('resolves to 0 recurring props'),
+        issue.code === 'recurring_prop_reference_cardinality_invalid',
       )).toHaveLength(6);
       expect(issues.filter((issue) =>
-        issue.includes('centered_in is unary and cannot carry objectId'),
+        issue.code === 'unary_relation_object_forbidden',
       )).toHaveLength(1);
     }
     expect(callLLM).toHaveBeenCalledTimes(1);

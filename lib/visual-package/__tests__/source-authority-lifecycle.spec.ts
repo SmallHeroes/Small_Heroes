@@ -1080,7 +1080,9 @@ describe('source-grounded closed action authority', () => {
     );
     expect(
       (thrown as DraftAuthorityReferenceDomainError).issues.some(
-        (issue) => issue.includes('binds 0 actionRequirements'),
+        (issue) =>
+          issue.code ===
+          'coverage_action_binding_cardinality_invalid',
       ),
     ).toBe(true);
   });
@@ -1150,8 +1152,9 @@ describe('source-grounded closed action authority', () => {
       (first.actionRequirements as unknown[])[0],
     );
     first.actionRequirements = [existing, existing];
-    await expect(
-      compileBookVisualContractTemplate(
+    let duplicateFailure: unknown;
+    try {
+      await compileBookVisualContractTemplate(
         {
           ...snapshot.content,
           storyKey: snapshot.content.storyKey,
@@ -1161,8 +1164,22 @@ describe('source-grounded closed action authority', () => {
         {
           callLLM: async () => JSON.stringify(duplicate),
         },
+      );
+    } catch (error) {
+      duplicateFailure = error;
+    }
+    expect(duplicateFailure).toBeInstanceOf(
+      DraftAuthorityReferenceDomainError,
+    );
+    expect(
+      (
+        duplicateFailure as DraftAuthorityReferenceDomainError
+      ).issues.filter(
+        (issue) =>
+          issue.code ===
+          'action_beat_binding_cardinality_invalid',
       ),
-    ).rejects.toThrow(/binds 2 actionRequirements/);
+    ).toHaveLength(2);
   });
 });
 
