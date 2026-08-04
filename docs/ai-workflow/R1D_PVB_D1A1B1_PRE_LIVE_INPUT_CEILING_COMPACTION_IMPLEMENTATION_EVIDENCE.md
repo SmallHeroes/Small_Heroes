@@ -1,12 +1,14 @@
 # Implementation Evidence — R1D-PVB-D1A1B1-PRE-LIVE-INPUT-CEILING-COMPACTION
 
-**Status:** Local implementation complete; ready for independent Claude Code read-only adversarial QA. Codex does not self-award technical PASS.
+**Status:** Claude Code independently returned technical PASS for the exact immutable implementation range; repository gate remains HOLD at the six-fixture baseline. Codex records the external verdict and does not self-award technical PASS.
 **Date:** 2026-08-04
 **Exact base:** `b6155df9b3e142c9e667bba7f1dc395b50f45a82`
 **Branch:** `codex/r1d-pvb-d1a1b1-pre-live-input-ceiling-compaction`
 **Worktree:** `C:\Users\guyna\.codex\worktrees\c327\Small_Heroes`
 **Commit 1:** `276fc8a96c1986af6558a25fdf8cc04660d291a3` — compact prompt authority tables and direct/corpus regressions.
-**Commit 2:** lifecycle/current-authority bindings, validation-resume inventory correction, current state, and this evidence record.
+**Commit 2:** `6fb97e6b0fa1fc87db899eed651c2ae2adc251ec` — lifecycle/current-authority bindings, validation-resume inventory correction, current state, and this evidence record.
+**Reviewed implementation range:** `b6155df9b3e142c9e667bba7f1dc395b50f45a82..6fb97e6b0fa1fc87db899eed651c2ae2adc251ec`.
+**QA closeout commit:** documentation only; outside the reviewed implementation range.
 **External state/cost:** none / `$0`.
 
 ## Verified starting condition
@@ -88,6 +90,33 @@ Fresh check outcome:
 
 The repository gate remains truthfully non-green/HOLD because the six fixture assertions still fail. This milestone does not waive or conceal them.
 
+## Independent Claude Code QA closeout
+
+Claude Code independently reviewed exact immutable implementation range `b6155df9b3e142c9e667bba7f1dc395b50f45a82..6fb97e6b0fa1fc87db899eed651c2ae2adc251ec` read-only and returned technical **PASS** with **zero BLOCKER, zero MAJOR, and zero MINOR**. Codex records Claude Code's external verdict; it does not self-award technical PASS.
+
+Claude probed all eleven handoff falsification targets and reported:
+
+- exact two-commit, zero-merge topology, clean worktree, no upstream or same-name origin ref, and clean range `git diff --check`;
+- independent reconstruction of the tuple-table mechanism as lossless, deterministic, and general;
+- one shared Source Evidence serializer and no divergent production formatter;
+- schema, dependencies, catalogs, runtime policy, and workload policy byte-identical to the exact base;
+- exact template-system/template-user/repair-system/repair-user authority split v9/v9/v8/v9;
+- recomputed-content-address stale-v8 rejection before provider reachability; and
+- no story-specific production literal or excluded external action.
+
+Claude's N1-N4 are advisory only:
+
+1. Empty arrays now project explicitly as `[]` rather than the legacy string `none`. This is a more faithful typed projection, not data loss.
+2. UTF-16 offsets remain absent from the prompt projection exactly as before. “No field omitted” is relative to the prior prompt projection, not the full Source Evidence catalog entry.
+3. Full-draft repair retains the pre-existing affected-page-only Source Evidence subset. The subset is now self-describing through the explicit header.
+4. The initial user-prompt heading lost its trailing colon. This is cosmetic.
+
+Independent reproduction was intentionally limited. Claude's worktree had no `node_modules`, dependency installation was prohibited, and Claude did not execute tests or TypeScript. The absolute `4,361` / `2,060` savings, Fox `57,677`, all-18-source result, worst-case `62,683`, schema `13,060` bytes/digest, focused suite outcomes, and literal repository-check results remain supported by Codex's existing executable evidence rather than independent Claude execution. Claude still returned PASS for the mechanism, boundaries, and authority behavior after independent reconstruction and blob comparison. This verdict must not be overstated as independent reproduction of numeric or test results.
+
+`node_modules` remained absent during this documentation-only closeout. TypeScript was therefore not rerun; no dependency was installed or linked, and the already-recorded implementation TypeScript PASS remains the applicable evidence. No further Claude Code round is required for a faithful transcription unless a factual discrepancy is found.
+
+Claude's technical PASS does not clear the repository HOLD caused by the six known ignored-fixture failures and grants no product, visual, Fresh Readiness, provider, live-authoring, render, publication, release, deployment, or push authority.
+
 ## Changed-file scope
 
 Commit 1:
@@ -112,13 +141,13 @@ No dependency or lockfile changed.
 
 No real B0 materialization, Fresh Readiness, canonical preflight, credential check/read/load, pricing/network/provider/model call, live authoring, render, image/Vision/audio, storage/database/Supabase, Board, Semantic Reconciliation, approval, candidate/Blueprint/package publication, promotion, production activation, deployment, PR, push, branch cleanup, Story Source edit, or external spend occurred.
 
-The temporary local `node_modules` junction used for deterministic validation pointed to a sibling dependency tree with the identical `package-lock.json` SHA-256 `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`. It must be removed without traversing or modifying its target before final handoff. Current-run ignored test scratch and the local diagnostic log must also be removed by exact path.
+The temporary local `node_modules` junction used for deterministic validation pointed to a sibling dependency tree with the identical `package-lock.json` SHA-256 `bf7932428ac1bc2cb8885e83a21f231486f35ea36820381b7d1763a77ba03d59`. It was removed without traversing or modifying its target before implementation handoff. Current-run ignored test scratch and the local diagnostic log were also removed by their exact paths.
 
 ## Rollback
 
 Revert the two focused local commits. No external state requires rollback.
 
-## Independent QA falsification targets
+## Independently reviewed falsification targets
 
 1. Reconcile exact base, head, two-commit range, sole-writer worktree, clean status, and unpushed/no-upstream facts.
 2. Recompute both tuple tables and prove complete lossless canonical reconstruction, deterministic ordering, Unicode/punctuation, duplicates, and escaping.
@@ -129,6 +158,7 @@ Revert the two focused local commits. No external state requires rollback.
 7. Confirm provider sentinels remain unreachable and the synthetic genuinely over-budget input still fails closed.
 8. Verify the workload correction changes only inventory `283 -> 284` and ordinary `264 -> 265`, with resource-intensive `19` and all worker/runtime policy unchanged.
 9. Validate the literal check record as six established fixture assertions only, with clean diagnostic protocol and no infrastructure-class failure.
-10. Confirm no excluded external action, dependency/lockfile change, publication, deployment, or push occurred.
+10. Validate `CURRENT.md` and this record against the implementation and executable evidence without converting Codex measurements into independent Claude reproduction.
+11. Confirm no excluded external action, dependency/lockfile change, publication, deployment, or push occurred.
 
-Independent QA must return PASS/HOLD and findings; this record is implementation evidence, not an independent verdict.
+Claude Code probed all eleven targets and returned technical PASS with zero findings for the immutable implementation range. The repository gate remains HOLD, and this documentation-only transcription requires no further Claude round unless a factual discrepancy is found.
