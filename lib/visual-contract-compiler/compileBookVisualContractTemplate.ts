@@ -86,6 +86,7 @@ import {
   assertValidSourceEvidenceCatalog,
   resolveSourceEvidenceId,
   type SourceEvidenceCatalog,
+  type SourceEvidenceCatalogEntry,
   type SourceEvidenceStoryIdentity,
 } from './sourceEvidenceCatalog';
 import {
@@ -109,15 +110,15 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v8' as const;
+  'vc-template-prompt/v9' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v8' as const;
+  'vc-template-user-prompt/v9' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
   'vc-repair-prompt/v8' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v8' as const;
+  'vc-repair-user-prompt/v9' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -260,31 +261,71 @@ export interface TemplateCompileResult {
 
 // ── LLM prompt (real path; the pilot injects a stub) ─────────────────────────
 
-function actionSemanticCatalogPromptLines(): string[] {
-  return ACTION_SEMANTIC_CATALOG.map((definition) => {
-    const objectKinds =
-      definition.objectKinds.length > 0
-        ? definition.objectKinds.join('|')
-        : 'none';
-    return (
-      `- ${definition.predicate}: projection="${definition.proseProjection}"; ` +
-      `subjects=${definition.subjectKinds.join('|')}; ` +
-      `object=${definition.objectRule}[${objectKinds}]; ` +
-      `spatialEffect=${definition.spatialEffectRule}; ` +
-      `spatialConstraint=${definition.spatialConstraintRule}` +
-      `[${definition.spatialConstraintRelations.join('|') || 'none'}]; ` +
-      `laterality=${definition.lateralityAllowed ? 'allowed' : 'forbidden'}`
-    );
-  });
+export const ACTION_SEMANTIC_CATALOG_PROMPT_COLUMNS = [
+  'predicate',
+  'subjectKinds',
+  'objectRule',
+  'objectKinds',
+  'spatialEffectRule',
+  'spatialConstraintRule',
+  'spatialConstraintRelations',
+  'lateralityAllowed',
+  'proseProjection',
+] as const;
+
+export const SOURCE_EVIDENCE_CATALOG_PROMPT_COLUMNS = [
+  'pageNumber',
+  'excerptOrdinal',
+  'startOffsetUtf8',
+  'endOffsetUtf8',
+  'sourceEvidenceId',
+  'excerpt',
+] as const;
+
+/**
+ * Deterministic, lossless prompt projection of the closed Action Semantic
+ * Catalog. The first JSON tuple is the sole column declaration; every
+ * following tuple preserves catalog order and contains every prompt field.
+ */
+export function actionSemanticCatalogPromptTable(): string[] {
+  return [
+    JSON.stringify(ACTION_SEMANTIC_CATALOG_PROMPT_COLUMNS),
+    ...ACTION_SEMANTIC_CATALOG.map((definition) =>
+      JSON.stringify([
+        definition.predicate,
+        definition.subjectKinds,
+        definition.objectRule,
+        definition.objectKinds,
+        definition.spatialEffectRule,
+        definition.spatialConstraintRule,
+        definition.spatialConstraintRelations,
+        definition.lateralityAllowed,
+        definition.proseProjection,
+      ]),
+    ),
+  ];
 }
 
-function sourceEvidenceCatalogPromptLines(
-  catalog: SourceEvidenceCatalog,
+/**
+ * Shared deterministic Source Evidence prompt projection. The initial prompt
+ * and relevant full-draft repair subset use this exact serializer.
+ */
+export function sourceEvidenceCatalogPromptTable(
+  entries: readonly SourceEvidenceCatalogEntry[],
 ): string[] {
-  return catalog.entries.map(
-    (entry) =>
-      `- page ${entry.pageNumber} | occurrence ${entry.excerptOrdinal} | utf8 ${entry.startOffsetUtf8}-${entry.endOffsetUtf8} | ${entry.sourceEvidenceId} | ${JSON.stringify(entry.excerpt)}`,
-  );
+  return [
+    JSON.stringify(SOURCE_EVIDENCE_CATALOG_PROMPT_COLUMNS),
+    ...entries.map((entry) =>
+      JSON.stringify([
+        entry.pageNumber,
+        entry.excerptOrdinal,
+        entry.startOffsetUtf8,
+        entry.endOffsetUtf8,
+        entry.sourceEvidenceId,
+        entry.excerpt,
+      ]),
+    ),
+  ];
 }
 
 export function buildTemplateCompileSystemPrompt(): string {
@@ -305,8 +346,8 @@ export function buildTemplateCompileSystemPrompt(): string {
     '  cast.child + cast.companion wardrobe,',
     '  recurringProps[] (material/scale/persistence/firstRevealPage), forbiddenGlobalElements[], coverContract, and per-page',
     '  mustShow/mustNotShow/propState/propConstraints/actionRequirements/camera/transition/zoneId/locationId.',
-    `- Action Semantic Catalog authority is ${ACTION_SEMANTIC_CATALOG_VERSION}. Use only these atomic predicates:`,
-    ...actionSemanticCatalogPromptLines(),
+    `- Action Semantic Catalog authority is ${ACTION_SEMANTIC_CATALOG_VERSION}. Use this JSON tuple table:`,
+    ...actionSemanticCatalogPromptTable(),
     '- actionRequirements[] carries structured action only: typed subject, predicate, typed object, and when required',
     '  a closed spatialEffect (directional or relation+target). A cast_group uses only exact same-page castIds and',
     '  carries at least two unique members. spatialConstraint is separate current-frame state, never movement.',
@@ -386,9 +427,9 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     'sourceEvidenceId must be selected exactly from the same-page catalog below. represented_elsewhere uses a root',
     'JSON pointer under the exact current pageContracts[] item.',
     '',
-    `SOURCE EVIDENCE CATALOG (${input.sourceEvidenceCatalog.version}; compiler-owned exact excerpts):`,
-    ...sourceEvidenceCatalogPromptLines(
-      input.sourceEvidenceCatalog,
+    `SOURCE EVIDENCE CATALOG (${input.sourceEvidenceCatalog.version}; compiler-owned exact excerpts)`,
+    ...sourceEvidenceCatalogPromptTable(
+      input.sourceEvidenceCatalog.entries,
     ),
     '',
     'FULL STORY TEXT:',
@@ -463,11 +504,9 @@ export function buildTemplateRepairUserPrompt(
       if (match) affectedPages.add(Number(match[1]));
     }
   }
-  const relevantCatalogLines = input.sourceEvidenceCatalog.entries
-    .filter((entry) => affectedPages.has(entry.pageNumber))
-    .map(
-      (entry) =>
-        `- page ${entry.pageNumber} | occurrence ${entry.excerptOrdinal} | utf8 ${entry.startOffsetUtf8}-${entry.endOffsetUtf8} | ${entry.sourceEvidenceId} | ${JSON.stringify(entry.excerpt)}`,
+  const relevantCatalogEntries =
+    input.sourceEvidenceCatalog.entries.filter((entry) =>
+      affectedPages.has(entry.pageNumber),
     );
   return [
     `storyKey: ${input.storyKey}  pageCount: ${input.pageCount}`,
@@ -484,11 +523,13 @@ export function buildTemplateRepairUserPrompt(
           JSON.stringify(input.authoredCoverAuthority),
         ]
       : []),
-    ...(relevantCatalogLines.length > 0
+    ...(relevantCatalogEntries.length > 0
       ? [
           '',
           'RELEVANT SOURCE EVIDENCE CATALOG ENTRIES (exact same-page IDs only):',
-          ...relevantCatalogLines,
+          ...sourceEvidenceCatalogPromptTable(
+            relevantCatalogEntries,
+          ),
         ]
       : []),
     '',

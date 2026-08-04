@@ -11,6 +11,7 @@ import {
   compileBookVisualContractTemplate,
   authoringMaxOutputTokens,
   resolveAuthoringModel,
+  SOURCE_EVIDENCE_CATALOG_PROMPT_COLUMNS,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import {
@@ -175,8 +176,20 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(captured?.maxInputTokens).toBe(64_000);
     expect(captured?.jsonSchema?.name).toBe(TEMPLATE_DRAFT_SCHEMA_NAME);
     expect(captured?.maxOutputTokens).toBe(36000);
-    expect(capturedUser).toMatch(
-      /occurrence \d+ \| utf8 \d+-\d+ \| se1_[a-f0-9]{64}/,
+    const firstEvidence =
+      bunnySource().sourceEvidenceCatalog.entries[0]!;
+    expect(capturedUser).toContain(
+      JSON.stringify(SOURCE_EVIDENCE_CATALOG_PROMPT_COLUMNS),
+    );
+    expect(capturedUser).toContain(
+      JSON.stringify([
+        firstEvidence.pageNumber,
+        firstEvidence.excerptOrdinal,
+        firstEvidence.startOffsetUtf8,
+        firstEvidence.endOffsetUtf8,
+        firstEvidence.sourceEvidenceId,
+        firstEvidence.excerpt,
+      ]),
     );
     // Provenance records the resolved model.
     expect(provenance.authoringModel).toBe('gpt-5.6-sol');
