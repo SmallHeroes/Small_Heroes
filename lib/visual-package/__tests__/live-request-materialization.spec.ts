@@ -484,6 +484,16 @@ describe('canonical live request materialization artifacts', () => {
         maxCalls: 3,
         maxRepairCount: 2,
       },
+      promptAuthority: {
+        initial: {
+          systemPromptVersion: 'vc-template-prompt/v9',
+          userPromptVersion: 'vc-template-user-prompt/v9',
+        },
+        repair: {
+          systemPromptVersion: 'vc-repair-prompt/v8',
+          userPromptVersion: 'vc-repair-user-prompt/v9',
+        },
+      },
       costBudget: {
         projectedMaxUsd: 4.884,
         hardCeilingUsd: 5,

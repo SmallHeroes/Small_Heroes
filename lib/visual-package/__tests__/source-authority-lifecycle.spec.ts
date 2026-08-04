@@ -647,6 +647,16 @@ describe('exact zero-cost authoring preflight', () => {
         maxCalls: 3,
         maxRepairCount: 2,
       },
+      promptAuthority: {
+        initial: {
+          systemPromptVersion: 'vc-template-prompt/v9',
+          userPromptVersion: 'vc-template-user-prompt/v9',
+        },
+        repair: {
+          systemPromptVersion: 'vc-repair-prompt/v8',
+          userPromptVersion: 'vc-repair-user-prompt/v9',
+        },
+      },
       pricing: {
         version: 'openai-standard-pricing/2026-07-27-v2',
         uncachedInputUsdPerUnit: 5,
@@ -672,6 +682,48 @@ describe('exact zero-cost authoring preflight', () => {
       'preflight_passed',
     );
     expect(result.receipt.callCount).toBe(0);
+    expect(provider.call).not.toHaveBeenCalled();
+  });
+
+  it('rejects the prior prompt authority after canonical redigest before provider reachability', async () => {
+    const snapshot = snapshotFor(
+      writeStoryFixture({
+        pageCount: 12,
+        companion: true,
+        multiLocation: true,
+        cover: true,
+      }),
+    );
+    const request = structuredClone(
+      requestFor(snapshot, 'preflight'),
+    );
+    request.promptAuthority.initial.systemPromptVersion =
+      'vc-template-prompt/v8' as typeof request.promptAuthority.initial.systemPromptVersion;
+    request.promptAuthority.initial.userPromptVersion =
+      'vc-template-user-prompt/v8' as typeof request.promptAuthority.initial.userPromptVersion;
+    request.promptAuthority.repair.userPromptVersion =
+      'vc-repair-user-prompt/v8' as typeof request.promptAuthority.repair.userPromptVersion;
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = request;
+    request.digest = canonicalJsonDigest(payload);
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.issues).toContain(
+      'prompt_authority_mismatch',
+    );
     expect(provider.call).not.toHaveBeenCalled();
   });
 

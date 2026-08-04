@@ -870,6 +870,23 @@ describe('canonical live request verification library', () => {
       reason: 'live_authoring_request_policy_invalid',
     },
     {
+      label: 'prior prompt authority',
+      mutate(value: Record<string, unknown>) {
+        const promptAuthority = value.promptAuthority as {
+          initial: Record<string, unknown>;
+          repair: Record<string, unknown>;
+        };
+        promptAuthority.initial.systemPromptVersion =
+          'vc-template-prompt/v8';
+        promptAuthority.initial.userPromptVersion =
+          'vc-template-user-prompt/v8';
+        promptAuthority.repair.userPromptVersion =
+          'vc-repair-user-prompt/v8';
+      },
+      reason:
+        'live_authoring_request_not_canonical_current_policy',
+    },
+    {
       label: 'conservative reservation',
       mutate(value: Record<string, unknown>) {
         const costBudget = value.costBudget as Record<
