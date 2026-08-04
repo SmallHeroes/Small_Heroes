@@ -53,6 +53,7 @@ import {
   runVisualContractAuthoring,
   sourcePromptReconciliationIssues,
   visualContractAuthoringArtifactVersionStatus,
+  visualContractAuthoringTerminalFailureIsValid,
   type StorySourceAuthoritySnapshot,
   type VisualContractAuthoringProvider,
 } from '@/lib/visual-package';
@@ -1245,7 +1246,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v7', async () => {
+  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v8', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const result = await runVisualContractAuthoring({
@@ -1262,7 +1263,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v7',
+      version: 'visual-contract-authoring-readiness/v8',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -1362,8 +1363,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
   it('classifies every prior authoring authority as immutable without mutating its bytes', () => {
     const immediatelyPrior = [
       ['request', 'visual-contract-authoring-request/v8'],
-      ['receipt', 'visual-contract-authoring-receipt/v8'],
-      ['readiness', 'visual-contract-authoring-readiness/v6'],
+      ['receipt', 'visual-contract-authoring-receipt/v9'],
+      ['readiness', 'visual-contract-authoring-readiness/v7'],
       ['candidate', 'visual-contract-candidate-artifact/v5'],
     ] as const;
     const historicalBytes = immediatelyPrior.map(([kind, version]) =>
@@ -1442,13 +1443,13 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'receipt',
-        'visual-contract-authoring-receipt/v9',
+        'visual-contract-authoring-receipt/v10',
       ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
-        'visual-contract-authoring-readiness/v7',
+        'visual-contract-authoring-readiness/v8',
       ),
     ).toBe('current');
     expect(
@@ -1482,7 +1483,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const prior = structuredClone(
       result.receipt,
     ) as unknown as Record<string, unknown>;
-    prior.version = 'visual-contract-authoring-receipt/v8';
+    prior.version = 'visual-contract-authoring-receipt/v9';
     const {
       digestAlgorithm: _digestAlgorithm,
       digest: _digest,
@@ -1614,7 +1615,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).toThrow(
-      /budget exhaustion evidence requires exactly three logical calls and two repairs/,
+      /exact Visual Contract terminal and valid budget-exhaustion binding/,
     );
   });
 
@@ -1663,7 +1664,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v9',
+      'visual-contract-authoring-receipt/v10',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.aggregateUsage).toEqual({
@@ -1903,8 +1904,43 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         repairEligibility: 'ineligible',
         repairReasonCode:
           'authority_reference_domain_not_repairable',
+        diagnosticCount: 1,
+        diagnosticCodes: [
+          'authority_reference_validation_failed',
+          'draft_authority_reference_domain_invalid',
+        ],
+        authorityReferenceDiagnostics: {
+          totalCount: 1,
+          truncated: false,
+          items: [
+            {
+              code: 'action_beat_id_outside_page_authority',
+              locator: {
+                kind: 'page_action',
+                referenceClass: 'action_identity',
+                fieldRole: 'actionRequirements.beatId',
+                pageNumber: 1,
+                actionIndex: 0,
+              },
+            },
+          ],
+        },
       },
     });
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        result.receipt.failure,
+      ),
+    ).toBe(true);
+    const readiness =
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: result.receipt,
+      });
+    expect(
+      readiness.authoringOutcome.terminalClassification,
+    ).toEqual(result.receipt.failure);
     expect(provider.call).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(result.receipt)).not.toContain(
       'beat:p999:invalid',

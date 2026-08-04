@@ -24,6 +24,7 @@ export * from './visualPackageV4Lifecycle';
 export * from './storySourceAuthority';
 export * from './visualContractAuthoringLifecycle';
 export * from './authoringTerminalDiagnostics';
+export * from './visualContractAuthoringTerminalDiagnostics';
 export * from './providerFailureDiagnostics';
 export * from './liveRequestMaterialization';
 export * from './liveExecutionSupervisor';
