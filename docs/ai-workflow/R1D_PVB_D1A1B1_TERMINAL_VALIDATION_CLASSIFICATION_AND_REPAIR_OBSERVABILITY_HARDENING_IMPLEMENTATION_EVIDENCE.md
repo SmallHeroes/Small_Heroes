@@ -2,7 +2,7 @@
 
 Date: `2026-08-04`
 
-Status: **original implementation independently passed with two MINOR findings; focused QA fix locally green and awaiting read-only micro re-gate**
+Status: **independent technical PASS; MINOR-1 and MINOR-2 independently closed; repository gate remains HOLD at the six-fixture baseline**
 
 Decision Gate: `docs/ai-workflow/R1D_PVB_D1A1B1_TERMINAL_VALIDATION_CLASSIFICATION_AND_REPAIR_OBSERVABILITY_HARDENING_DECISION_GATE.md`
 
@@ -123,7 +123,7 @@ No seventh assertion or execution-protocol failure occurred. The literal command
 
 ## 6. Boundaries and limitations
 
-- Claude Code independently passed the original implementation range and raised two MINOR findings. The focused corrections described below have not yet received their micro re-gate. Codex does not self-award their closure.
+- Claude Code independently passed the original implementation range and raised two MINOR findings, then independently passed the focused correction range and closed both findings with no new finding. Codex records those verdicts; it does not self-award them.
 - No real provider execution was authorized; guarded transport observations are proved with deterministic injected transport tests and sentinels.
 - No prior live-attempt artifact or historical evidence version was modified.
 - No dependency, package manifest, lockfile, worker policy, timeout, retry, skip, or assertion was changed.
@@ -169,4 +169,18 @@ QA-fix validation, using only the existing locked local dependency tree:
 - `npx --no-install tsc --noEmit`: **PASS**;
 - `git diff --check`: **PASS**.
 
-Per authorization, `npm run check` was not rerun. No credential read/check/load, provider or network call, real B0/readiness, live authoring, render, deployment, or push occurred. No taxonomy member, budget, repair route, provider behavior, schema, model, timeout, retry, fallback, dependency, lockfile, or policy changed. Independent closure of MINOR-1 and MINOR-2 remains pending the Claude Code micro re-gate.
+Per authorization, `npm run check` was not rerun. No credential read/check/load, provider or network call, real B0/readiness, live authoring, render, deployment, or push occurred. No taxonomy member, budget, repair route, provider behavior, schema, model, timeout, retry, fallback, dependency, lockfile, or policy changed.
+
+### Independent correction micro re-gate
+
+Claude Code independently reviewed exact immutable range `463575ba63d7e5c6d764e358051b5c36e2c2c00c..cf26fba3ebda1005142bb5d732e31304ad1b95f2` read-only and returned **PASS** with zero BLOCKER, zero MAJOR, zero MINOR, and no new finding. It verified one commit, zero merges, exactly five declared files, a clean unpushed branch with no upstream or same-name origin ref, no package/lockfile change, and correction-range `git diff --check` exit `0`.
+
+- **MINOR-1 independently closed:** the real `attempt > maxCalls` breach emits only the existing `call_budget_invariant_failed` diagnostic while retaining `local_processing_failed`. The override is restricted at runtime to that one terminal code and one closed diagnostic literal; every other terminal class retains its prior definition-pinned diagnostic.
+- **MINOR-2 independently closed:** the shared predicate rejects either one-sided exhaustion claim, rejects every logical-call/repair count other than exact 3/2, accepts genuine joint 3/2 exhaustion, leaves non-exhaustion results unconstrained, and cannot be bypassed by redigesting forged evidence because persistence and readiness enforce the binding before authority is accepted.
+- **N1 advisory:** the QA-fix validation record says it used the existing locked local dependency tree but does not itself state that dependency access was through the temporary junction later removed. Claude found no false statement or residue and did not charge this as a finding; it limits reproduction from this document alone.
+- **NOTE-1 carried unchanged:** the pre-existing, out-of-range canonical-import-preflight path still uses bounded errors rather than a safe issue-code field while its feed emits closed snake-case codes.
+- **NOTE-2 carried unchanged:** the remediation fixes the defect class but does not establish the historical runtime cause of the one-call/zero-repair receipt; an equivalent unknown local failure now records `local_processing_failed` rather than false exhaustion.
+
+`node_modules` was absent during the micro re-gate and installation was prohibited, so Claude executed no Vitest and no TypeScript. The focused **4 files / 236 tests**, TypeScript PASS, and three direct regressions remain Codex's executable evidence; Claude independently verified their presence and properties and awarded closure through static falsification of the fully decidable predicate and override logic. The six ignored-fixture failures remain a separate repository-gate HOLD outside the correction and were not charged against it.
+
+No further Claude Code round is required unless a factual discrepancy is found. This independent technical PASS and both closures grant no product, visual, candidate, Blueprint, Wizard, Fresh Readiness, provider, live-authoring, render, spend, publication, release, deployment, or push authority.
