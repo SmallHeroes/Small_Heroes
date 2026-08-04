@@ -22,9 +22,9 @@ import {
 } from './productionAuthoringContext';
 
 export const PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
-  'production-blueprint-authoring-request/v2' as const;
+  'production-blueprint-authoring-request/v3' as const;
 export const PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION =
-  'production-blueprint-authoring-receipt/v2' as const;
+  'production-blueprint-authoring-receipt/v3' as const;
 
 export interface ProductionAuthoringCallBudget {
   maxCalls: number;

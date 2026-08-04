@@ -300,13 +300,13 @@ afterEach(() => {
   }
 });
 
-describe('R1D-PVB-C1 immutable visual-package/v4', () => {
+describe('R1D-PVB-C1 immutable visual-package/v5', () => {
   it.each(shapes)(
     'qualifies the same public package path for %s',
     (shape) => {
       const packageValue = packageFor(buildBlueprintFixture(shape));
       expect(validateVisualPackageV4(packageValue)).toEqual([]);
-      expect(packageValue.manifestVersion).toBe('visual-package/v4');
+      expect(packageValue.manifestVersion).toBe('visual-package/v5');
       expect(packageValue.blueprint.content.frames.every((frame) =>
         frame.kind === 'cover'
           ? frame.textSafeRegion.y === 0
@@ -390,7 +390,7 @@ describe('R1D-PVB-C1 immutable visual-package/v4', () => {
       validateVisualPackageV4({
         manifestVersion: 'visual-package/v3',
       }),
-    ).toContain('manifestVersion must be "visual-package/v4"');
+    ).toContain('manifestVersion must be "visual-package/v5"');
 
     const valid = packageFor(buildBlueprintFixture('reveal_timeline'));
     const sourceChanged = clone(valid);

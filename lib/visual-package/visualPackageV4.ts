@@ -41,15 +41,15 @@ import type {
   VisualPackageTemplateIdentity,
 } from './types';
 
-export const VISUAL_PACKAGE_V4_VERSION = 'visual-package/v4' as const;
+export const VISUAL_PACKAGE_V4_VERSION = 'visual-package/v5' as const;
 export const VISUAL_PACKAGE_V4_LOCATOR_VERSION =
-  'visual-package-current-locator/v2' as const;
+  'visual-package-current-locator/v3' as const;
 export const VISUAL_PACKAGE_V4_APPROVAL_VERSION =
-  'visual-package-v4-approval/v3' as const;
+  'visual-package-v5-approval/v4' as const;
 export const VISUAL_PACKAGE_V4_CANDIDATE_VERSION =
-  'visual-package-v4-candidate/v2' as const;
+  'visual-package-v5-candidate/v3' as const;
 export const VISUAL_PACKAGE_V4_PACKAGE_REVIEW_VERSION =
-  'visual-package-v4-package-review/v2' as const;
+  'visual-package-v5-package-review/v3' as const;
 export const VISUAL_PACKAGE_V4_PACKAGE_REVIEW_EXCLUSIONS = [
   'image_render',
   'publication',
@@ -69,7 +69,7 @@ export const VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS = [
 export const VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION =
   'portrait-layout-compatibility/v1' as const;
 export const VISUAL_PACKAGE_V4_FREEZE_VERSION =
-  'frozen-visual-package-authority/v2' as const;
+  'frozen-visual-package-authority/v3' as const;
 
 const SHA256_HEX = /^[a-f0-9]{64}$/;
 
@@ -274,7 +274,7 @@ export class InvalidVisualPackageV4Error extends Error {
     const stable = [...new Set(issues)].sort((left, right) =>
       left.localeCompare(right),
     );
-    super(`visual-package/v4 is not render-qualified:\n- ${stable.join('\n- ')}`);
+    super(`visual-package/v5 is not render-qualified:\n- ${stable.join('\n- ')}`);
     this.name = 'InvalidVisualPackageV4Error';
     this.issues = stable;
   }

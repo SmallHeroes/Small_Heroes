@@ -182,7 +182,7 @@ export async function ensureFrozenVisualContract(
       if (!runtimeAuthorityEnforced) return cache;
       if (!cache.visualPackageAuthority) {
         throw new InvalidVisualPackageV4Error([
-          'frozen order visual-package/v4 authority is missing',
+          'frozen order visual-package/v5 authority is missing',
         ]);
       }
       const qualification = evaluateVisualPackageV4Qualification({
@@ -229,7 +229,7 @@ export async function ensureFrozenVisualContract(
   const { contract, contractHash, visualPackageAuthority } = produced;
   if (runtimeAuthorityEnforced && !visualPackageAuthority) {
     throw new InvalidVisualPackageV4Error([
-      'enforced Style01 freeze produced no immutable visual-package/v4 authority',
+      'enforced Style01 freeze produced no immutable visual-package/v5 authority',
     ]);
   }
   // (Fix 1 — belt, before :persist) Defense-in-depth on the money fence: never hash/persist a resolved-shaped contract

@@ -1156,7 +1156,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toEqual(['page 1', 'page 2']);
   });
 
-  it('separates import-preflight attestation, authoring outcome, coverage, and candidate state in readiness v3', async () => {
+  it('separates import-preflight attestation, authoring outcome, coverage, and candidate state in readiness v6', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const result = await runVisualContractAuthoring({
@@ -1173,7 +1173,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v5',
+      version: 'visual-contract-authoring-readiness/v6',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -1226,10 +1226,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
   it('classifies every prior authoring authority as immutable without mutating its bytes', () => {
     const immediatelyPrior = [
-      ['request', 'visual-contract-authoring-request/v7'],
-      ['receipt', 'visual-contract-authoring-receipt/v6'],
-      ['readiness', 'visual-contract-authoring-readiness/v4'],
-      ['candidate', 'visual-contract-candidate-artifact/v4'],
+      ['request', 'visual-contract-authoring-request/v8'],
+      ['receipt', 'visual-contract-authoring-receipt/v7'],
+      ['readiness', 'visual-contract-authoring-readiness/v5'],
+      ['candidate', 'visual-contract-candidate-artifact/v5'],
     ] as const;
     const historicalBytes = immediatelyPrior.map(([kind, version]) =>
       JSON.stringify({ kind, version, evidence: ['immutable'] }),
@@ -1301,25 +1301,25 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'request',
-        'visual-contract-authoring-request/v8',
+        'visual-contract-authoring-request/v9',
       ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'receipt',
-        'visual-contract-authoring-receipt/v7',
+        'visual-contract-authoring-receipt/v8',
       ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
-        'visual-contract-authoring-readiness/v5',
+        'visual-contract-authoring-readiness/v6',
       ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'candidate',
-        'visual-contract-candidate-artifact/v5',
+        'visual-contract-candidate-artifact/v6',
       ),
     ).toBe('current');
   });
@@ -1336,7 +1336,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v7',
+      'visual-contract-authoring-receipt/v8',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.aggregateUsage).toEqual({

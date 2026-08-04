@@ -49,7 +49,7 @@ describe('Wizard/order to chunk-runner render qualification', () => {
     }
   });
 
-  it('projects the exact frozen visual-package/v4 and Blueprint authority without reaching an image provider', async () => {
+  it('projects the exact frozen visual-package/v5 and Blueprint authority without reaching an image provider', async () => {
     vi.stubEnv('ENABLE_V3_APPROVED_BANK', 'true');
     vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'true');
@@ -329,7 +329,7 @@ describe('Wizard/order to chunk-runner render qualification', () => {
       },
     });
     expect(runtimeAuthority?.packageValue.manifestVersion).toBe(
-      'visual-package/v4',
+      'visual-package/v5',
     );
     expect(runtimeAuthority?.packageValue.blueprint.content.version).toBe(
       'pre-render-book-visual-blueprint/v4',

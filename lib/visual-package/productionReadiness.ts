@@ -29,7 +29,7 @@ import type {
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 
 export const PRODUCTION_READINESS_AUDIT_VERSION =
-  'production-story-readiness-audit/v2' as const;
+  'production-story-readiness-audit/v3' as const;
 
 export type ProductionLifecycleStage =
   | 'source_authority'

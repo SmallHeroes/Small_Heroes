@@ -120,9 +120,9 @@ export function validateResolvedBookVisualContract(input: unknown): ResolvedVali
     if (!isObj(authority)) {
       errors.push('approvedRuntimeAuthority must be an object when present');
     } else if (authority.version === APPROVED_PVB_RUNTIME_AUTHORITY_VERSION) {
-      if (authority.manifestVersion !== 'visual-package/v4') {
+      if (authority.manifestVersion !== 'visual-package/v5') {
         errors.push(
-          'approvedRuntimeAuthority.manifestVersion must equal "visual-package/v4"',
+          'approvedRuntimeAuthority.manifestVersion must equal "visual-package/v5"',
         );
       }
       for (const field of [

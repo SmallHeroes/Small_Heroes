@@ -98,13 +98,13 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v8' as const;
+  'visual-contract-authoring-request/v9' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v7' as const;
+  'visual-contract-authoring-receipt/v8' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v5' as const;
+  'visual-contract-authoring-readiness/v6' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
-  'visual-contract-candidate-artifact/v5' as const;
+  'visual-contract-candidate-artifact/v6' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
   'canonical-import-preflight-attestation/v1' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
@@ -117,6 +117,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V6 =
   'visual-contract-authoring-request/v6' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V7 =
   'visual-contract-authoring-request/v7' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V8 =
+  'visual-contract-authoring-request/v8' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -125,6 +127,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V5 =
   'visual-contract-authoring-receipt/v5' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V6 =
   'visual-contract-authoring-receipt/v6' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V7 =
+  'visual-contract-authoring-receipt/v7' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -133,6 +137,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V3 =
   'visual-contract-authoring-readiness/v3' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V4 =
   'visual-contract-authoring-readiness/v4' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V5 =
+  'visual-contract-authoring-readiness/v5' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -141,6 +147,8 @@ export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V3 =
   'visual-contract-candidate-artifact/v3' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V4 =
   'visual-contract-candidate-artifact/v4' as const;
+export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V5 =
+  'visual-contract-candidate-artifact/v5' as const;
 export const OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
   'openai-responses-authoring-evidence/v2' as const;
 export const ACTION_SEMANTIC_CATALOG_DIGEST =
@@ -495,7 +503,9 @@ export function visualContractAuthoringArtifactVersionStatus(
       version ===
         LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V6 ||
       version ===
-        LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V7
+        LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V7 ||
+      version ===
+        LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V8
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -505,18 +515,21 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V5,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V6,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V7,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V3,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V4,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V5,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1,
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V3,
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V4,
+      LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V5,
     ],
   } as const;
   return (legacy[kind] as readonly unknown[]).includes(version)

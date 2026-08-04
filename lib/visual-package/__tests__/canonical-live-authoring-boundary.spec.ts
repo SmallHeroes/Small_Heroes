@@ -502,7 +502,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v7',
+      'visual-contract-authoring-receipt/v8',
     );
     expect(adapter.readCredential).toHaveBeenCalledTimes(1);
     expect(adapter.transportCreate).toHaveBeenCalledTimes(1);

@@ -68,7 +68,7 @@ import {
 } from './visualPackageV4';
 
 export const VISUAL_PACKAGE_V4_QUALIFICATION_VERSION =
-  'visual-package-v4-offline-qualification/v2' as const;
+  'visual-package-v5-offline-qualification/v3' as const;
 
 export interface ApprovedBlueprintLifecyclePaths {
   blueprintPath: string;
@@ -128,7 +128,7 @@ export interface VisualPackageV4OfflineQualification {
 
 export class InvalidVisualPackageV4LifecycleError extends Error {
   constructor(readonly issues: string[]) {
-    super(`Invalid visual-package/v4 lifecycle:\n- ${issues.join('\n- ')}`);
+    super(`Invalid visual-package/v5 lifecycle:\n- ${issues.join('\n- ')}`);
     this.name = 'InvalidVisualPackageV4LifecycleError';
   }
 }

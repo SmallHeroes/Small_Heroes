@@ -26,7 +26,7 @@ import type {
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 
 export const PRODUCTION_AUTHORING_CONTEXT_VERSION =
-  'production-authoring-context/v2' as const;
+  'production-authoring-context/v3' as const;
 
 export interface ProductionStorySourceSnapshot {
   identity: StorySourceIdentity;

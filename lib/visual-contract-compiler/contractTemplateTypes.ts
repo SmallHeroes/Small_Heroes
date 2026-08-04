@@ -63,7 +63,7 @@ export interface ApprovedRuntimeAuthorityBinding {
 /** Exact immutable successor authority for the enforced PVB runtime. */
 export interface ApprovedPvbRuntimeAuthorityBinding {
   version: typeof APPROVED_PVB_RUNTIME_AUTHORITY_VERSION;
-  manifestVersion: 'visual-package/v4';
+  manifestVersion: 'visual-package/v5';
   storyKey: string;
   styleId: string;
   packagePath: string;

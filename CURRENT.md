@@ -1,8 +1,22 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-03
+**Updated:** 2026-08-04
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-vitest-on-task-update-rpc-stability` in `C:\Users\guyna\.codex\worktrees\97a1\Small_Heroes`, based exactly on `a65de8bc617da34c0db56bce48fd81299ca7d988`. This test-infrastructure milestone contains the original three focused local commits plus one focused QA correction commit and remains unpushed. The dedicated worktree is the sole writer; no other worktree was changed.
+**Working branch:** `codex/r1d-pvb-d1a1b1-residual-action-semantic-coverage` in `C:\Users\guyna\.codex\worktrees\5bed\Small_Heroes`, based exactly on `84d779d14f9175d863738db6e35a81917c7b3dcb`. The dedicated worktree is the sole writer. Two focused implementation commits are complete; the lifecycle/version cutover and this evidence form the third local milestone commit. The branch remains unpushed.
+
+## R1D-PVB-D1A1B1-RESIDUAL-ACTION-SEMANTIC-COVERAGE - implementation complete / independent QA pending
+
+The general residual semantic gap exposed by the first Wizard-connected LOW-page authoring measurement is implemented without story, character, page, or phrase literals in production code. The earlier readiness was consumed and is not reusable; this implementation itself grants no Fresh Readiness, provider, Wizard, render, approval, or release authority.
+
+- Commit 1, `edbfd0d8`, extends the closed Action Semantic Catalog to v3 with general `recoils`, typed `cast_group` subjects, unary `sits`, and an optional current-frame typed `beside` spatial constraint. Compiler, schema, validator, migration, prompt/prose projection, exact source-evidence repair behavior, and corpus coverage are updated fail-closed. Focused validation passed **26 files / 500 tests** and deterministic TypeScript.
+- Commit 2, `7b9182c0`, carries those semantics through Blueprint authoring and feasibility, including group capacity, participant placement, static `beside` geometry, and zero-cost Wizard qualification. Focused validation passed **10 files / 243 tests** and deterministic TypeScript.
+- The lifecycle cutover binds current authority to VC schema v4, draft schema v12, prompt/repair family v8, Action Semantic Catalog v3, Action Semantic Coverage v5, Blueprint v4 / draft schema v5, approved PVB runtime authority v6, visual-package v5, authoring request/receipt/readiness/candidate v9/v8/v6/v6, B0 materialization/manifest/verifier v5/v7/v7, pre-live readiness evidence v6, and Execution Request/readiness/result v6/v6/v4. Prior versions remain explicit immutable legacy evidence and are not current authority.
+- The initial lifecycle batch passed 316 tests but stopped on one stale v11 expectation, one 5-second timeout in a spec already classified resource-intensive, and two Vitest `onTaskUpdate` RPC timeouts. The authorized validation resume changed only the stale expectation to v12 and did not change production behavior, timeouts, workers, retries, skips, dependencies, or the lockfile.
+- Deterministic focused revalidation passed all seven changed specs in workload-policy phases: **ordinary 3 files / 39 tests** at up to four workers; **resource-intensive 4 files / 197 tests** at one or two workers. The previously timed-out exact spec passed alone at one worker (**1 file / 20 tests**); its target idempotency/collision test completed in 3.9 seconds. No timeout, RPC/IPC, reporter, launch, or teardown failure recurred.
+- Deterministic TypeScript passed. Literal `npm run check` ran exactly once and was not retried: TypeScript passed; ordinary ran 264 files and failed only on the established six absent ignored-output fixture tests in five unchanged files; resource-intensive ran 19 files and passed. No seventh failure and no timeout/RPC/IPC/reporter/launch/teardown failure appeared. The command therefore exited `1` at the accepted non-production fixture baseline; those six failures remain release-blocking and receive no launch waiver.
+- The temporary dependency junction used only for local validation pointed to a real dependency tree with the identical `package-lock.json` digest, was removed without traversing or modifying its target, and made no tracked change.
+- Durable implementation record: `docs/ai-workflow/R1D_PVB_D1A1B1_RESIDUAL_ACTION_SEMANTIC_COVERAGE_IMPLEMENTATION_EVIDENCE.md`. Independent Claude Code QA is required for exact range `84d779d14f9175d863738db6e35a81917c7b3dcb..HEAD`; Codex does not self-award technical PASS.
+- No credential access, pricing/network/provider/model call, B0/Fresh Readiness, live authoring, Semantic Reconciliation, Blueprint/package approval, Wizard execution, image/Vision render, storage/database, Board action, publication, promotion, activation, deployment, or push occurred. Cost is `$0`.
 
 ## R1D-VITEST-ON-TASK-UPDATE-RPC-STABILITY - independent implementation PASS; MINOR-1 corrected pending micro re-gate; repository gate HOLD at established fixture baseline
 
