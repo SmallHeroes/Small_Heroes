@@ -4,29 +4,30 @@
   align-items: center;
   justify-content: center;
   padding: 32px 16px;
-  background: linear-gradient(180deg, #f8f5ff 0%, #ffffff 60%);
+  background: var(--surface-wizard-gradient);
 }
 
 .login-card {
   width: min(440px, 100%);
   background: #fff;
-  border: 1px solid #ece7fb;
-  border-radius: 24px;
-  box-shadow: 0 16px 44px rgba(36, 26, 70, 0.08);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-3);
   padding: 36px 32px;
   text-align: center;
 }
 
 .login-card h1 {
-  font-size: 30px;
+  font-family: var(--font-display);
+  font-size: clamp(26px, 4vw, 30px);
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.2;
   margin-bottom: 6px;
-  color: var(--dark);
+  color: var(--ink-strong);
 }
 
 .login-subtitle {
-  color: #6f6a80;
+  color: var(--ink-2);
   font-size: 15px;
   margin-bottom: 24px;
 }
@@ -52,8 +53,8 @@
 
 .login-form input[type='email'] {
   height: 48px;
-  border-radius: 12px;
-  border: 1.5px solid #dcd3f9;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-strong);
   padding: 0 14px;
   font-size: 16px;
   text-align: right;
@@ -69,7 +70,7 @@
 /* ── Login button ──────────────────────────── */
 .login-btn {
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-sm);
   font-size: 16px;
   font-weight: 700;
   position: relative;
@@ -102,8 +103,8 @@
 .otp-input {
   width: 48px;
   height: 56px;
-  border: 2px solid #dcd3f9;
-  border-radius: 12px;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   text-align: center;
   font-size: 24px;
   font-weight: 700;
@@ -124,7 +125,7 @@
 }
 
 .otp-input.error {
-  border-color: #e53e3e;
+  border-color: var(--error);
   animation: shake 0.3s ease;
 }
 
@@ -140,7 +141,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: #5e5a70;
+  color: var(--ink-2);
   font-weight: 500;
   font-size: 14px;
   cursor: pointer;
@@ -155,7 +156,7 @@
 /* ── Error message ─────────────────────────── */
 .login-error {
   min-height: 20px;
-  color: #c53030;
+  color: var(--error);
   font-weight: 600;
   font-size: 14px;
   margin-top: 4px;
@@ -186,7 +187,7 @@
 }
 
 .link-btn:disabled {
-  color: #a0a0a0;
+  color: var(--interactive-disabled-ink);
   cursor: default;
 }
 
@@ -201,12 +202,20 @@
 
 /* ── Step transition ───────────────────────── */
 .login-step {
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn var(--dur-slow) var(--ease-out);
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-step,
+  .otp-input.error,
+  .btn-loader {
+    animation: none !important;
+  }
 }
 
 /* ── Mobile ────────────────────────────────── */

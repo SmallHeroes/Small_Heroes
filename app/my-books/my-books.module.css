@@ -8,14 +8,14 @@
 .head h1 {
   font-family: var(--fd, 'Heebo', sans-serif);
   font-size: clamp(28px, 4vw, 36px);
-  font-weight: 900;
+  font-weight: var(--text-h1-weight);
   margin: 0 0 8px;
   color: var(--dark, #18171d);
 }
 
 .head p {
   margin: 0 0 24px;
-  color: #6f6a80;
+  color: var(--ink-3);
   font-size: 15px;
 }
 
@@ -27,15 +27,15 @@
 
 .card {
   display: block;
-  border: 1px solid #e4dfef;
-  border-radius: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: #fff;
-  box-shadow: 0 6px 18px rgba(36, 24, 74, 0.05);
+  box-shadow: var(--shadow-1);
   text-decoration: none;
   color: inherit;
   cursor: default;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
 
 .cardReady {
@@ -44,7 +44,7 @@
 
 .cardReady:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 28px rgba(36, 24, 74, 0.1);
+  box-shadow: var(--shadow-2);
 }
 
 .cover {
@@ -72,7 +72,7 @@
   gap: 6px;
   margin-bottom: 2px;
   font-size: 13px;
-  color: #6f6a80;
+  color: var(--ink-3);
 }
 
 .companionImg {
@@ -86,7 +86,7 @@
 
 .meta {
   font-size: 12px;
-  color: #886cff;
+  color: var(--interactive);
   font-weight: 600;
   margin-top: 4px;
 }
@@ -94,7 +94,7 @@
 .empty {
   text-align: center;
   padding: 48px 16px;
-  color: #7c7498;
+  color: var(--ink-3);
   font-size: 16px;
 }
 

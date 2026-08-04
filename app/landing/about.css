@@ -7,13 +7,13 @@
   background:
     radial-gradient(90% 60% at 50% 0%, #fffdf4 0%, transparent 70%),
     linear-gradient(180deg, #fffcf5 0%, #fdf9ef 100%);
-  border-top: 1px solid #f4edda;
-  border-bottom: 1px solid #f4edda;
+  border-top: 1px solid var(--border-cream);
+  border-bottom: 1px solid var(--border-cream);
 }
 
 .about-intro {
   font-size: 19px;
-  color: var(--mid);
+  color: var(--ink-2);
   line-height: 1.75;
   text-align: center;
   max-width: 720px;
@@ -21,10 +21,10 @@
 }
 
 .about-belief {
-  font-family: var(--fd);
+  font-family: var(--font-display);
   font-weight: 800;
   font-size: clamp(19px, 2.3vw, 24px);
-  color: var(--dark);
+  color: var(--ink-strong);
   line-height: 1.55;
   text-align: center;
   max-width: 640px;
@@ -43,7 +43,7 @@
 
 .about-person {
   background: #fff;
-  border: 1px solid #f1e9d2;
+  border: 1px solid var(--border-cream);
   border-radius: 24px;
   padding: 34px 28px 30px;
   text-align: center;
@@ -68,10 +68,10 @@
 }
 
 .about-name {
-  font-family: var(--fd);
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: 22px;
-  color: var(--dark);
+  color: var(--ink-strong);
   margin-bottom: 6px;
 }
 
@@ -80,8 +80,8 @@
   font-size: 13.5px;
   font-weight: 700;
   color: #8a6d2f;
-  background: #fdf3d7;
-  border: 1px solid #f3e4b6;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
   border-radius: 999px;
   padding: 4px 14px;
   margin-bottom: 14px;
@@ -89,14 +89,14 @@
 
 .about-bio {
   font-size: 15.5px;
-  color: var(--mid);
+  color: var(--ink-2);
   line-height: 1.75;
 }
 
 /* ── שורת הטכנולוגיה־נשארת־אנושית ───────────────────────── */
 
 .about-tech-line {
-  font-family: var(--fd);
+  font-family: var(--font-display);
   font-weight: 800;
   font-size: 17.5px;
   color: #6d5a2e;
@@ -104,7 +104,7 @@
   max-width: 560px;
   margin: 36px auto 0;
   padding: 16px 22px;
-  background: #fdf6e2;
+  background: var(--surface-cream-2);
   border: 1px dashed #ecdcae;
   border-radius: 18px;
   line-height: 1.7;
@@ -117,10 +117,10 @@
 }
 
 .about-approach-h3 {
-  font-family: var(--fd);
+  font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(24px, 3vw, 34px);
-  color: var(--dark);
+  color: var(--ink-strong);
   text-align: center;
   margin-bottom: 12px;
   line-height: 1.15;
@@ -128,7 +128,7 @@
 
 .about-approach-p {
   font-size: 17px;
-  color: var(--mid);
+  color: var(--ink-2);
   line-height: 1.75;
   text-align: center;
   max-width: 620px;
@@ -145,7 +145,7 @@
 
 .about-approach-card {
   background: #fff;
-  border: 1px solid #f1e9d2;
+  border: 1px solid var(--border-cream);
   border-radius: 20px;
   padding: 26px 22px;
   text-align: center;
@@ -159,7 +159,7 @@
   justify-content: center;
   border-radius: 14px;
   color: #b48a2c;
-  background: #fdf3d7;
+  background: var(--warning-bg);
   margin-bottom: 12px;
 }
 
@@ -169,16 +169,16 @@
 }
 
 .about-approach-title {
-  font-family: var(--fd);
+  font-family: var(--font-display);
   font-weight: 800;
   font-size: 18px;
-  color: var(--dark);
+  color: var(--ink-strong);
   margin-bottom: 8px;
 }
 
 .about-approach-body {
   font-size: 15px;
-  color: var(--mid);
+  color: var(--ink-2);
   line-height: 1.7;
 }
 
