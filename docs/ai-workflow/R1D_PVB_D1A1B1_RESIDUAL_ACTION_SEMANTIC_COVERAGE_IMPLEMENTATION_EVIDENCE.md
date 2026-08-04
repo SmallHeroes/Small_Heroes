@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-04
 
-**Status:** implementation complete locally; independent Claude Code QA pending
+**Status:** independent Claude Code technical PASS; documentation closeout local and unpushed
 
 **Branch:** `codex/r1d-pvb-d1a1b1-residual-action-semantic-coverage`
 
@@ -121,7 +121,31 @@ Implementation acceptance criteria are locally satisfied:
 5. All changed tests pass under the repository workload policy.
 6. The one repository check reproduces no failure beyond the six accepted experiment-only fixture failures.
 
-Independent Claude Code QA is still required over the exact base-to-final-head range. Codex does not self-award technical PASS.
+## Independent Claude Code QA
+
+Claude Code independently reviewed exact immutable implementation range `84d779d14f9175d863738db6e35a81917c7b3dcb..f6d013b9065ee286fe378f4cf82009e40a38ed7b` and returned **PASS** with **zero BLOCKER, zero MAJOR, and zero MINOR**. Codex records this external verdict; it does not self-award technical PASS.
+
+Claude statically verified all ten handoff targets:
+
+1. exact clean three-commit topology with no merge, upstream, remote ref, reflog update, or push;
+2. general typed `recoils`, `cast_group`, unary `sits`, and static `beside` semantics;
+3. fail-closed unknown-field, group-membership, reference, target, contradiction, and forbidden-prop validation;
+4. source-evidence repair mutates only `sourceEvidenceId`;
+5. exact participant, capacity, geometry, ambiguity, and feasibility enforcement in Blueprint;
+6. Wizard qualification holds the paid image seam unreachable;
+7. the complete lifecycle/version cutover without policy drift;
+8. explicit immutable legacy migrations with no loader fallback;
+9. validation-resume scope limited to v11-to-v12 test expectations, with no production/test-policy drift; and
+10. documentation does not claim Codex PASS or render authority.
+
+Advisory limitations retained from the review:
+
+- **N1:** `node_modules` was absent during Claude's review, so Claude did not independently reproduce TypeScript or Vitest. The test figures remain Codex execution evidence; Claude's PASS is static.
+- **N2:** unary `sits` cannot bypass `sits_on` safety semantics because it forbids an object and permits only the distinct current-frame `beside` constraint.
+- **N3:** the general `BESIDE_MAX_HORIZONTAL_EDGE_GAP = 150` tolerance is not a story literal, but its basis should be named if it is tuned later.
+- **N4:** the constraint switch is exhaustive for today's single closed relation; it must remain exhaustive if that union grows.
+
+None is a BLOCKER, MAJOR, MINOR, or prerequisite for the next zero-cost Fresh Readiness. No further Claude round is required for this faithful closeout unless its record fidelity is disputed.
 
 This implementation grants no product or visual acceptance, candidate, Semantic Reconciliation, Blueprint/package approval, Wizard execution, Fresh Readiness, credential access, provider/model/network call, render/image/Vision call, storage/database/Board action, publication, promotion, production activation, deployment, push, or release authority.
 
