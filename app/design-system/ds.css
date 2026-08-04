@@ -1,0 +1,212 @@
+/* Design-system showcase chrome — consumes tokens only (no new magic values). */
+
+.ds-root {
+  background: var(--surface-page);
+  color: var(--ink);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+.ds-shell {
+  max-width: var(--container-content);
+  margin-inline: auto;
+  padding: var(--sp-2xl) var(--gutter) var(--sp-6xl);
+}
+
+.ds-intro {
+  max-width: var(--measure-body);
+  margin-block-end: var(--sp-3xl);
+}
+
+.ds-section {
+  padding-block: var(--sp-xl);
+  border-block-start: 1px solid var(--border-soft);
+}
+
+.ds-section > h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-h3-size);
+  font-weight: var(--text-h3-weight);
+  line-height: var(--text-h3-lh);
+  color: var(--ink-strong);
+  margin-block-end: var(--sp-3xs);
+}
+
+.ds-section-note {
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-lh);
+  color: var(--ink-3);
+  max-width: var(--measure-body);
+  margin-block-end: var(--sp-md);
+}
+
+.ds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--sp-sm);
+}
+
+.ds-swatch {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-raised);
+}
+
+.ds-swatch-color {
+  height: 56px;
+}
+
+.ds-swatch-meta {
+  padding: var(--sp-2xs) var(--sp-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ds-swatch-name {
+  font-size: var(--text-caption-size);
+  font-weight: 700;
+  color: var(--ink);
+  direction: ltr;
+  text-align: end;
+}
+
+.ds-swatch-value {
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+  direction: ltr;
+  text-align: end;
+  font-feature-settings: 'tnum';
+}
+
+.ds-type-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-xs);
+  border-block-end: 1px dashed var(--border-soft);
+}
+
+.ds-type-label {
+  flex: 0 0 150px;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+  direction: ltr;
+  text-align: end;
+}
+
+.ds-space-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding-block: var(--sp-3xs);
+}
+
+.ds-space-bar {
+  height: 14px;
+  background: var(--brand-purple-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+}
+
+.ds-space-label {
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+  direction: ltr;
+  min-width: 110px;
+  text-align: end;
+}
+
+.ds-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-sm);
+  margin-block-end: var(--sp-sm);
+}
+
+.ds-radius-demo {
+  width: 88px;
+  height: 64px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+  direction: ltr;
+}
+
+.ds-shadow-demo {
+  width: 150px;
+  height: 84px;
+  background: var(--surface-raised);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+  direction: ltr;
+}
+
+.ds-card-stage {
+  background: var(--surface-alt);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+  align-items: flex-start;
+}
+
+.ds-motion-box {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-md);
+  background: var(--brand-purple);
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+
+.ds-motion-box:hover {
+  transform: translateY(-10px);
+}
+
+.ds-doc {
+  max-width: var(--measure-body);
+}
+
+.ds-doc h3 {
+  font-size: var(--text-h4-size);
+  font-weight: var(--text-h4-weight);
+  color: var(--ink-strong);
+  margin-block: var(--sp-md) var(--sp-3xs);
+}
+
+.ds-doc p,
+.ds-doc li {
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-lh);
+  color: var(--ink-2);
+}
+
+.ds-doc code {
+  font-size: 13px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-xs);
+  padding: 1px 6px;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* Form specimen row uses the wizard's real classes (wizard.css linked on this page) */
+.ds-form-stage {
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}

@@ -6,7 +6,7 @@
   padding: 24px;
   background: #f7f6fb;
   direction: rtl;
-  font-family: 'Heebo', 'Abraham', sans-serif;
+  font-family: var(--fb, 'Heebo', sans-serif);
 }
 
 .gateCard {
@@ -70,7 +70,7 @@
   min-height: 100dvh;
   background: #f7f6fb;
   direction: rtl;
-  font-family: 'Heebo', 'Abraham', sans-serif;
+  font-family: var(--fb, 'Heebo', sans-serif);
   color: #18171a;
 }
 

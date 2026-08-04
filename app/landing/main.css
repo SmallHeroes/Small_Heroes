@@ -3,38 +3,8 @@
    Shared foundation
    ═══════════════════════════════════════════════════════════ */
 
-@font-face {
-  font-family: 'Abraham';
-  src: url('/Fonts/Abraham-Regular.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-:root {
-  --purple: #886cff;
-  --purple-d: #7459f0;
-  --purple-lt: #ede8ff;
-  --purple-bg: #faf8ff;
-  --yellow: #ffee6c;
-  --dark: #18171a;
-  --mid: #5f5a70;
-  --soft: #9692aa;
-  --white: #ffffff;
-  --border: #ebe7f7;
-  --bg-light: #f7f6fb;
-  --bg-lighter: #fafafa;
-
-  --fd: 'Abraham', 'Heebo', sans-serif;
-  --fb: 'Heebo', sans-serif;
-
-  --max-w: 1440px;
-  --site-max: 1440px;
-  --nav-h: 78px;
-
-  --shadow-card: 0 10px 28px rgba(40, 33, 74, 0.05);
-  --shadow-btn: 0 10px 22px rgba(136, 108, 255, 0.18);
-}
+/* Fonts + design tokens live in public/CSS/tokens.css (imported globally in
+   app/layout.tsx). Abraham (unlicensed TTF) removed — display face is Rubik. */
 
 /* Global hidden attribute — must beat class-level display rules */
 [hidden] { display: none !important; }
