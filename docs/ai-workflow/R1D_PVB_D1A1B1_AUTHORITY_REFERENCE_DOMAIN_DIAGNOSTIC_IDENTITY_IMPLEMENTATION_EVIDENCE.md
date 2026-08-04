@@ -2,7 +2,7 @@
 
 Date: `2026-08-05`
 
-Status: **implementation complete; repository gate HOLD only at the established six-fixture baseline; independent Claude Code QA pending**
+Status: **independent Claude Code TECHNICAL PASS; zero findings; repository gate HOLD only at the established six-fixture baseline**
 
 Decision Gate: `docs/ai-workflow/R1D_PVB_D1A1B1_AUTHORITY_REFERENCE_DOMAIN_DIAGNOSTIC_IDENTITY_DECISION_GATE.md`
 
@@ -221,6 +221,21 @@ No missing ignored fixture was copied, generated, imported, or fabricated.
 
 ## 7. Preserved boundaries and limitations
 
+### Independent Claude Code QA
+
+Claude Code independently reviewed exact immutable range `e7842b01ce9effce12dd40fabdd69505b5fdabca..d374562e5db851e72ad4086f690060055cfce9b6` read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR, and zero MINOR. Codex records Claude Code's verdict; it does not self-award independent technical PASS.
+
+Claude independently reproduced `npx --no-install tsc --noEmit` with exit `0` and ran a separate six-file selection with **223 tests PASS**. Its hostile probes rejected all **740** illegal catalog combinations and all **35** hostile-material mutations. It also confirmed the version cutover and strict legacy behavior, every typed compiler producer including the early `buildZoneGraph` duplicate-zone path, direct typed lifecycle transport without regex classification, Visual Contract-specific exact-key validation, unchanged shared nine-key terminal validation, unchanged Blueprint v4, receipt/readiness equality, and the absence of story-specific or authored-material persistence.
+
+Claude retained four advisory limitations without charging a finding:
+
+- **N1:** its six-file/223-test selection was not the recorded ordinary 6/143 plus resource-intensive 5/231 policy partition, and it did not rerun `npm run check`; those partition and repository-gate results remain Codex's recorded executable evidence;
+- **N2:** once evidence is truthfully truncated to 128 persisted items, the artifact alone cannot distinguish a pre-cap `totalCount` of 200 from 5,000, although normalization and every persisted field remain cross-validated;
+- **N3:** `pageNumber` accepts any positive safe integer while structural indices are capped at 1,000,000; Claude found no leakage or validation defect;
+- **N4:** the implementation uses eight closed reference classes where the Decision Gate grouped the same domain into seven classes, splitting `page_zone` from `set_identity` and separating `spatial_relation`; the 23 issue identities are unchanged.
+
+The six established missing ignored-output fixture assertions remain a separate repository-gate HOLD outside the reviewed implementation range. Claude did not rerun the full gate and neither confirmed nor extended that baseline. They are not implementation findings and remain release-blocking under their existing scope.
+
 - Shared `AuthoringTerminalFailure` and `authoringTerminalFailureIsValid` are byte/behavior unchanged by the feature commits.
 - Production Blueprint receipt/validator v4 and its bytes are unchanged.
 - Request, candidate, prompt/schema, OpenAI evidence, provider-failure evidence, pricing/policy, and Blueprint versions are unchanged.
@@ -228,15 +243,15 @@ No missing ignored fixture was copied, generated, imported, or fabricated.
 - No credential access/check/load; pricing/network/provider/model call; B0/Fresh Readiness or Execution Request materialization; canonical preflight; live authoring; candidate approval; Semantic Reconciliation; Blueprint/Wizard execution; render/image/Vision; storage/database/Supabase; Board; publication/promotion/activation; deployment/firewall change; PR; or push occurred.
 - No current receipt/readiness artifacts were materialized. The version cutover is proved with deterministic local construction/validation only.
 - The six ignored-output fixtures remain a repository-gate HOLD outside this milestone.
-- Independent Claude Code first-pass review is still required. Codex does not self-award technical PASS.
+- Independent Claude Code first-pass review is complete with TECHNICAL PASS and zero findings. The verdict is technical only and grants no product, visual, readiness, live, render, release, deployment, or push authority.
 
 ## 8. Rollback
 
 There is no data migration and no external state. Before any v10/v8 evidence is produced, rollback is the three focused commits in reverse order. Because this milestone produced no readiness, request, candidate, Blueprint, render, database, or published artifact, rollback has no artifact migration. Existing v9/v7 evidence remains immutable legacy evidence either way.
 
-## 9. Independent QA falsification targets
+## 9. Independent QA falsification record
 
-Claude Code should review the immutable base-to-head range read-only and try to falsify:
+Claude Code reviewed the immutable base-to-head range read-only and attempted to falsify:
 
 1. whether any authority/reference producer still emits prose, throws a repairable generic error, or bypasses the typed catalog;
 2. whether any issue code/reference-class/locator-kind/field-role combination is admitted outside the single catalog;
