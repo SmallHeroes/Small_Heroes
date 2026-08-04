@@ -111,7 +111,7 @@
   max-width: 840px;
   padding-top: 24px;
   padding-bottom: 24px;
-  animation: fadeUp .32s ease;
+  animation: fadeUp var(--dur-page) var(--ease-out);
   box-sizing: border-box;
   overflow-x: hidden;
 }
@@ -1427,9 +1427,9 @@
   min-height: 18px;
   line-height: 1.4;
 }
-.coupon-status--pending { color: #8b83a6; }
-.coupon-status--ok { color: #2e9e5b; font-weight: 700; }
-.coupon-status--err { color: #d1495b; font-weight: 600; }
+.coupon-status--pending { color: var(--ink-3); }
+.coupon-status--ok { color: var(--success); font-weight: 700; }
+.coupon-status--err { color: var(--error); font-weight: 600; }
 
 /* Coupon-applied price rows: struck full price + a discount line above the total. */
 .price-row--was .val--was {
