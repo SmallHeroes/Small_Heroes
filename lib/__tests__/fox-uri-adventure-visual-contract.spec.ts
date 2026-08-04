@@ -69,7 +69,7 @@ describe('render-proof — fox_uri_adventure Template authoring', () => {
     const historicalBytes = fs.readFileSync(artifactPath, 'utf8');
     expect(() =>
       loadVisualContractTemplateArtifact(V3_DIR, STORY_KEY),
-    ).toThrow(/vc-schema\/v3/);
+    ).toThrow(/vc-schema\/v4/);
     const template = loadTemplate();
     const r = validateBookVisualContractTemplate(template);
     expect(r.ok, r.ok ? '' : r.errors.join('; ')).toBe(true);
@@ -127,7 +127,7 @@ describe('render-proof — fox_uri_adventure Template authoring', () => {
     });
     const result = validateBookVisualContractTemplate(migrated);
     expect(result.ok, result.ok ? '' : result.errors.join('; ')).toBe(true);
-    expect(migrated.schemaVersion).toBe('vc-schema/v3');
+    expect(migrated.schemaVersion).toBe('vc-schema/v4');
     expect(JSON.stringify(legacy)).toBe(immutableBytes);
   });
 

@@ -12,10 +12,14 @@ import {
   projectPageMustShow,
   projectPageMustNotShow,
   projectCoverMustNotShow,
+  projectPageActionProse,
   type BookVisualContract,
   type PageVisualContract,
   type VisualZone,
 } from '@/lib/visual-contract-compiler';
+import {
+  canonicalizePageActionCastGroups,
+} from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 
 /**
  * Stage 3 — Contract v2 STRUCTURED SCHEMA.
@@ -156,7 +160,7 @@ describe('Stage 3 — THE CANARY: the shipped artifacts still load, validate and
       const before = readFileSync(artifactPath);
       const template = JSON.parse(before.toString('utf8'));
       expect(() => assertValidBookVisualContractTemplate(template)).toThrow(
-        /vc-schema\/v3.*vc-schema\/v1/,
+        /vc-schema\/v4.*vc-schema\/v1/,
       );
       expect(readFileSync(artifactPath)).toEqual(before);
     }
@@ -290,7 +294,7 @@ describe('Stage 3 — closed enums are enforced at RUNTIME, not just by the TS t
   });
 });
 
-describe('Action Semantic Catalog v2 — typed subjects and movement results', () => {
+describe('Action Semantic Catalog v3 — typed subjects, static constraints, and movement results', () => {
   function validateActions(actions: unknown[]): ReturnType<typeof validateBookVisualContract> {
     const contract = baseContract();
     const page = {
@@ -345,6 +349,116 @@ describe('Action Semantic Catalog v2 — typed subjects and movement results', (
       },
     ]);
     expect(result.ok).toBe(true);
+  });
+
+  it('accepts recoils only as an intransitive cast reaction', () => {
+    const valid = {
+      checkId: 'action:recoil',
+      subject: castSubject,
+      predicate: 'recoils',
+      polarity: 'must',
+    };
+    expect(validateActions([valid]).ok).toBe(true);
+    for (const invalid of [
+      {
+        ...valid,
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'prop', id: 'exam_chair' },
+        },
+      },
+      { ...valid, object: { kind: 'prop', id: 'exam_chair' } },
+      {
+        ...valid,
+        spatialEffect: { kind: 'directional', direction: 'backward' },
+      },
+      {
+        ...valid,
+        spatialConstraint: {
+          relation: 'beside',
+          target: { kind: 'prop', id: 'exam_chair' },
+        },
+      },
+      { ...valid, laterality: 'left' },
+    ]) {
+      expect(validateActions([invalid]).ok).toBe(false);
+    }
+  });
+
+  it('accepts sits with no constraint or one exact static beside constraint', () => {
+    const sits = {
+      checkId: 'action:sits',
+      subject: castSubject,
+      predicate: 'sits',
+      polarity: 'must',
+    };
+    expect(validateActions([sits]).ok).toBe(true);
+    expect(
+      validateActions([
+        {
+          ...sits,
+          spatialConstraint: {
+            relation: 'beside',
+            target: { kind: 'prop', id: 'exam_chair' },
+          },
+        },
+      ]).ok,
+    ).toBe(true);
+    for (const spatialConstraint of [
+      {
+        relation: 'near',
+        target: { kind: 'prop', id: 'exam_chair' },
+      },
+      { relation: 'beside', target: { kind: 'prop', id: 'missing' } },
+      { relation: 'beside', target: { kind: 'cast', id: 'child:hero' } },
+      {
+        relation: 'beside',
+        target: { kind: 'prop', id: 'exam_chair' },
+        prose: 'nearby',
+      },
+      {
+        relation: 'beside',
+        target: { kind: 'prop', id: 'exam_chair', label: 'chair' },
+      },
+    ]) {
+      expect(
+        validateActions([{ ...sits, spatialConstraint }]).ok,
+      ).toBe(false);
+    }
+  });
+
+  it('keeps static spatialConstraint strictly separate from movement spatialEffect', () => {
+    expect(
+      validateActions([
+        {
+          checkId: 'action:bad_static_movement',
+          subject: castSubject,
+          predicate: 'moves',
+          object: { kind: 'prop', id: 'exam_chair' },
+          spatialEffect: { kind: 'directional', direction: 'sideways' },
+          spatialConstraint: {
+            relation: 'beside',
+            target: { kind: 'prop', id: 'exam_chair' },
+          },
+          polarity: 'must',
+        },
+      ]).ok,
+    ).toBe(false);
+    expect(
+      validateActions([
+        {
+          checkId: 'action:bad_posture_movement',
+          subject: castSubject,
+          predicate: 'sits',
+          spatialEffect: {
+            kind: 'relation',
+            relation: 'beside',
+            target: { kind: 'prop', id: 'exam_chair' },
+          },
+          polarity: 'must',
+        },
+      ]).ok,
+    ).toBe(false);
   });
 
   it('requires a typed result for moves and cannot coerce it to pushes', () => {
@@ -403,6 +517,156 @@ describe('Action Semantic Catalog v2 — typed subjects and movement results', (
         },
       ]).ok,
     ).toBe(false);
+  });
+
+  it('validates canonical same-page cast_group membership without dropping or selecting a member', () => {
+    const contract = baseContract();
+    contract.cast.companion = {
+      id: 'companion:buni',
+      role: 'companion',
+      name: 'Buni',
+      wardrobe: { description: 'heart badge' },
+    };
+    const validateGroup = (castIds: unknown[]) => {
+      const page = {
+        ...contract.pageContracts[0],
+        castIds: ['child:hero', 'companion:buni'],
+        characterPresence: { child: true, companion: true },
+        actionRequirements: [
+          {
+            checkId: 'action:group_sits',
+            subject: { kind: 'cast_group', castIds },
+            predicate: 'sits',
+            spatialConstraint: {
+              relation: 'beside',
+              target: { kind: 'prop', id: 'exam_chair' },
+            },
+            polarity: 'must',
+          },
+        ],
+      } as unknown as PageVisualContract;
+      return validateBookVisualContract(
+        withProjectedProse({
+          ...contract,
+          pageContracts: [page],
+        } as BookVisualContract),
+      );
+    };
+    expect(
+      validateGroup(['child:hero', 'companion:buni']).ok,
+    ).toBe(true);
+    expect(validateGroup(['child:hero']).ok).toBe(false);
+    expect(
+      validateGroup(['child:hero', '']).ok,
+    ).toBe(false);
+    expect(
+      validateGroup(['child:hero', 'child:hero']).ok,
+    ).toBe(false);
+    expect(
+      validateGroup(['companion:buni', 'child:hero']).ok,
+    ).toBe(false);
+    expect(
+      validateGroup(['child:hero', 'cast:unknown']).ok,
+    ).toBe(false);
+
+    const absent = baseContract();
+    absent.cast.companion = contract.cast.companion;
+    const absentPage = {
+      ...absent.pageContracts[0],
+      actionRequirements: [
+        {
+          checkId: 'action:cross_page_group',
+          subject: {
+            kind: 'cast_group',
+            castIds: ['child:hero', 'companion:buni'],
+          },
+          predicate: 'sits',
+          polarity: 'must',
+        },
+      ],
+    } as unknown as PageVisualContract;
+    expect(
+      validateBookVisualContract(
+        withProjectedProse({
+          ...absent,
+          pageContracts: [absentPage],
+        } as BookVisualContract),
+      ).ok,
+    ).toBe(false);
+  });
+
+  it('canonically projects a multi-cast seated-beside beat and does not mutate draft membership', () => {
+    const draft = [
+      {
+        beatId: 'beat:p11:seated_beside',
+        subject: {
+          kind: 'cast_group',
+          castIds: ['companion:buni', 'child:hero'],
+        },
+        predicate: 'sits',
+        object: null,
+        spatialEffect: null,
+        spatialConstraint: {
+          relation: 'beside',
+          target: { kind: 'prop', id: 'exam_chair' },
+        },
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    const before = structuredClone(draft);
+    const normalized = canonicalizePageActionCastGroups(draft);
+    expect(draft).toEqual(before);
+    expect(
+      (normalized[0].subject as { castIds: string[] }).castIds,
+    ).toEqual(['child:hero', 'companion:buni']);
+    const malformed = canonicalizePageActionCastGroups([
+      {
+        subject: {
+          kind: 'cast_group',
+          castIds: 'not-an-array',
+          label: 'must survive for fail-closed validation',
+        },
+      },
+    ]);
+    expect(malformed[0]!.subject).toEqual({
+      kind: 'cast_group',
+      castIds: 'not-an-array',
+      label: 'must survive for fail-closed validation',
+    });
+
+    const contract = baseContract();
+    contract.cast.child.name = 'Hero';
+    contract.cast.companion = {
+      id: 'companion:buni',
+      role: 'companion',
+      name: 'Buni',
+      wardrobe: { description: 'heart badge' },
+    };
+    const page = {
+      ...contract.pageContracts[0],
+      pageNumber: 11,
+      castIds: ['child:hero', 'companion:buni'],
+      characterPresence: { child: true, companion: true },
+      actionRequirements: [
+        {
+          checkId: 'action:p11_seated_beside',
+          subject: {
+            kind: 'cast_group',
+            castIds: ['child:hero', 'companion:buni'],
+          },
+          predicate: 'sits',
+          spatialConstraint: {
+            relation: 'beside',
+            target: { kind: 'prop', id: 'exam_chair' },
+          },
+          polarity: 'must',
+        },
+      ],
+    } as unknown as PageVisualContract;
+    expect(projectPageActionProse(page, contract)).toBe(
+      'the cast group (Hero and Buni) sits beside Examination chair',
+    );
   });
 });
 

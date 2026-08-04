@@ -70,7 +70,7 @@ describe('fox — the hand-authored structured contract validates end-to-end', (
     const result = validateBookVisualContractTemplate(historical);
     expect(result.ok).toBe(false);
     expect(result.ok ? [] : result.errors).toContain(
-      'schemaVersion must equal the supported "vc-schema/v3" (got "vc-schema/v1")',
+      'schemaVersion must equal the supported "vc-schema/v4" (got "vc-schema/v1")',
     );
     expect(() => assertValidBookVisualContractTemplate(historical)).toThrow();
     expect(JSON.stringify(historical)).toBe(before);

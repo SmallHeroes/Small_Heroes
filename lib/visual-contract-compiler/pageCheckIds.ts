@@ -79,6 +79,10 @@ export function resolvePageCheckIds(page: PageVisualContract): PageCheck[] {
       entitySubjectKind &&
       entitySubjectId
         ? `${entitySubjectKind}:${entitySubjectId}`
+        : subject?.kind === 'cast_group' &&
+            Array.isArray(subject.castIds) &&
+            subject.castIds.every((castId) => str(castId) !== null)
+          ? `cast_group:${subject.castIds.join(',')}`
         : subject?.kind === 'source_phenomenon' &&
             str(subject?.sourceEvidenceId)
           ? `source_phenomenon:${subject.sourceEvidenceId}`
@@ -100,10 +104,20 @@ export function resolvePageCheckIds(page: PageVisualContract): PageCheck[] {
             spatialTargetId
           ? ` -> ${spatialEffect.relation} ${spatialTargetKind}:${spatialTargetId}`
           : '';
+    const spatialConstraint = obj(action?.spatialConstraint);
+    const constraintTarget = obj(spatialConstraint?.target);
+    const constraintTargetKind = str(constraintTarget?.kind);
+    const constraintTargetId = str(constraintTarget?.id);
+    const staticState =
+      str(spatialConstraint?.relation) &&
+      constraintTargetKind &&
+      constraintTargetId
+        ? ` @ ${spatialConstraint!.relation} ${constraintTargetKind}:${constraintTargetId}`
+        : '';
     checks.push({
       checkId,
       kind: 'action',
-      claim: `${subjectRef} ${action?.polarity === 'must_not' ? 'must NOT ' : ''}${predicate}${objRef ? ` ${objRef}` : ''}${spatialResult}`,
+      claim: `${subjectRef} ${action?.polarity === 'must_not' ? 'must NOT ' : ''}${predicate}${objRef ? ` ${objRef}` : ''}${spatialResult}${staticState}`,
     });
   }
 

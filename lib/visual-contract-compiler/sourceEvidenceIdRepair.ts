@@ -10,7 +10,7 @@ export const SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME =
 export const SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION =
   'source-evidence-id-repair-prompt/v1' as const;
 export const SOURCE_EVIDENCE_ID_REPAIR_USER_PROMPT_VERSION =
-  'source-evidence-id-repair-user-prompt/v1' as const;
+  'source-evidence-id-repair-user-prompt/v2' as const;
 
 function strictObject(
   properties: Record<string, unknown>,
@@ -62,6 +62,7 @@ export interface SourceEvidenceIdRepairAffectedRecord {
     predicate: unknown;
     object: unknown;
     spatialEffect: unknown;
+    spatialConstraint?: unknown;
     polarity: unknown;
     laterality: unknown;
   } | null;

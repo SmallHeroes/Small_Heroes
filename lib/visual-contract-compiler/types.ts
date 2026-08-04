@@ -456,6 +456,11 @@ export type PageActionSubject =
       entity: EntityRef;
     }
   | {
+      kind: 'cast_group';
+      /** Unordered semantic membership, serialized in deterministic canonical id order. */
+      castIds: [string, string, ...string[]];
+    }
+  | {
       kind: 'source_phenomenon';
       /** Exact same-page compiler-owned Source Evidence identity. */
       sourceEvidenceId: string;
@@ -498,6 +503,18 @@ export type PageActionSpatialEffect =
       target: EntityRef;
     };
 
+export const ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES = [
+  'beside',
+] as const;
+export type ActionSpatialConstraintRelation =
+  (typeof ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES)[number];
+
+/** Current-frame spatial state, deliberately separate from a movement result. */
+export interface PageActionSpatialConstraint {
+  relation: ActionSpatialConstraintRelation;
+  target: EntityRef;
+}
+
 /**
  * vNext (Contract v2 / Stage 3): a per-page ACTION beat, structured.
  *
@@ -527,6 +544,8 @@ export interface PageActionRequirement {
   object?: EntityRef;
   /** Required only where the catalog demands an explicit spatial result (currently `moves`). */
   spatialEffect?: PageActionSpatialEffect;
+  /** Optional current-frame static state where explicitly allowed by the catalog. */
+  spatialConstraint?: PageActionSpatialConstraint;
   polarity: ActionPolarity;
   /** Which arm/hand — reuses the existing closed `Laterality` enum rather than minting a parallel one. */
   laterality?: Laterality;

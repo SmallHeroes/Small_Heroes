@@ -109,15 +109,15 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v7' as const;
+  'vc-template-prompt/v8' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v7' as const;
+  'vc-template-user-prompt/v8' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v7' as const;
+  'vc-repair-prompt/v8' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v7' as const;
+  'vc-repair-user-prompt/v8' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -271,6 +271,8 @@ function actionSemanticCatalogPromptLines(): string[] {
       `subjects=${definition.subjectKinds.join('|')}; ` +
       `object=${definition.objectRule}[${objectKinds}]; ` +
       `spatialEffect=${definition.spatialEffectRule}; ` +
+      `spatialConstraint=${definition.spatialConstraintRule}` +
+      `[${definition.spatialConstraintRelations.join('|') || 'none'}]; ` +
       `laterality=${definition.lateralityAllowed ? 'allowed' : 'forbidden'}`
     );
   });
@@ -306,7 +308,9 @@ export function buildTemplateCompileSystemPrompt(): string {
     `- Action Semantic Catalog authority is ${ACTION_SEMANTIC_CATALOG_VERSION}. Use only these atomic predicates:`,
     ...actionSemanticCatalogPromptLines(),
     '- actionRequirements[] carries structured action only: typed subject, predicate, typed object, and when required',
-    '  a closed spatialEffect (directional or relation+target). Never encode a movement result in prompt prose.',
+    '  a closed spatialEffect (directional or relation+target). A cast_group uses only exact same-page castIds and',
+    '  carries at least two unique members. spatialConstraint is separate current-frame state, never movement.',
+    '  Never encode a movement result or static relation in prompt prose.',
     '- source_phenomenon subjects select one exact same-page sourceEvidenceId. The compiler resolves and persists its',
     '  exact excerpt; never invent a label, cast member, prop, or fuzzy identity for an environmental phenomenon.',
     '- Every required same-page Story Source visual beat gets one stable page-scoped actionSemanticCoverage[] record:',
@@ -373,9 +377,9 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     'forbiddenGlobalElements[], coverContract{worldType,locationId,zoneId,castIds,timeOfDay,mustShow,mustNotShow},',
     'pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
     'mustShow[], mustNotShow[], propState[], propConstraints[{propId,visibility,stateId?,anchorId?}], camera, transition}].',
-    'Each page carries actionRequirements[{beatId,subject,predicate,object?,spatialEffect?,polarity,laterality?}].',
+    'Each page carries actionRequirements[{beatId,subject,predicate,object?,spatialEffect?,spatialConstraint?,polarity,laterality?}].',
     'beatId is the exact same page-scoped key as its one actionSemanticCoverage record; never emit checkId.',
-    'subject is either {kind:"entity",entity:{kind,id}} or',
+    'subject is {kind:"entity",entity:{kind,id}}, {kind:"cast_group",castIds:[...]}, or',
     '{kind:"source_phenomenon",sourceEvidenceId}; use []',
     'when no beat binds to a catalog action; do not invent an action merely to populate the array.',
     'and actionSemanticCoverage[{beatId,sourceEvidenceId,disposition}] arrays. beatId must use beat:p{page}:name.',
@@ -425,7 +429,7 @@ export function buildTemplateRepairSystemPrompt(): string {
     '- recurringProps[] (name/description, material/scale/persistence, and firstRevealPage — NO empty string in a field you include)',
     '- forbiddenGlobalElements[]; coverContract mustShow/mustNotShow/locationId/zoneId/castIds/timeOfDay',
     '- pageContracts[] mustShow/mustNotShow/propState/propConstraints/actionRequirements/',
-    '  actionSemanticCoverage/camera and the transition kind/cue; action subject/object/spatialEffect remain typed',
+    '  actionSemanticCoverage/camera and the transition kind/cue; action subject/object/spatialEffect/spatialConstraint remain typed',
     '- actionSemanticCoverage sourceEvidenceId values may change only to exact same-page catalog IDs supplied in',
     '  the repair input; actionRequirements never carries a copied source-evidence field',
     `- actionRequirements predicates must remain in ${ACTION_SEMANTIC_CATALOG_VERSION}; unsupported coverage is a`,
@@ -507,6 +511,32 @@ function asArr(v: unknown): unknown[] {
 }
 function isStr(v: unknown): v is string {
   return typeof v === 'string';
+}
+
+/**
+ * Canonicalize only valid string group membership order. Malformed values and
+ * duplicates are preserved byte-for-member for the validator to reject; the
+ * caller's draft is never mutated.
+ */
+export function canonicalizePageActionCastGroups(
+  value: unknown,
+): Record<string, unknown>[] {
+  return asArr(value).map((raw) => {
+    const action = { ...asObj(raw) };
+    const subject = asObj(action.subject);
+    if (subject.kind === 'cast_group') {
+      const authoredCastIds = Array.isArray(subject.castIds)
+        ? subject.castIds.slice()
+        : subject.castIds;
+      action.subject = {
+        ...subject,
+        castIds: Array.isArray(authoredCastIds) && authoredCastIds.every(isStr)
+          ? authoredCastIds.sort()
+          : authoredCastIds,
+      };
+    }
+    return action;
+  });
 }
 
 /** Format a real evidence phrase into the textEvidence string (never fabricated — a real page + phrase). */
@@ -616,6 +646,7 @@ function sourceGroundPageActionSemantics(
       delete action.actorId;
       if (action.object === null) delete action.object;
       if (action.spatialEffect === null) delete action.spatialEffect;
+      if (action.spatialConstraint === null) delete action.spatialConstraint;
       if (action.laterality === null) delete action.laterality;
       delete action.checkId;
       return action;
@@ -729,6 +760,9 @@ function sourceGroundPageActionSemantics(
                 ),
                 spatialEffect: structuredClone(
                   actionRequirement.spatialEffect,
+                ),
+                spatialConstraint: structuredClone(
+                  actionRequirement.spatialConstraint,
                 ),
                 polarity: actionRequirement.polarity,
                 laterality: actionRequirement.laterality,
@@ -911,6 +945,7 @@ function sourceGroundPageActionSemantics(
             predicate: action.predicate,
             object: structuredClone(action.object),
             spatialEffect: structuredClone(action.spatialEffect),
+            spatialConstraint: structuredClone(action.spatialConstraint),
             polarity: action.polarity,
             laterality: action.laterality,
           },
@@ -988,6 +1023,11 @@ function overlayPage(
     castIds,
     characterPresence: { child: true, companion: companionPresent },
   };
+  const actions = canonicalizePageActionCastGroups(
+    pc.actionRequirements,
+  );
+  if (actions.length > 0) out.actionRequirements = actions;
+  else delete out.actionRequirements;
   const propConstraints = asArr(pc.propConstraints).map((raw) => {
     const constraint = { ...asObj(raw) };
     if (constraint.stateId === null) delete constraint.stateId;
@@ -1576,6 +1616,15 @@ function assertPageSpatialReferenceDomains(args: {
           zoneId,
           effect.target,
           `actionRequirements[${index}].spatialEffect.target`,
+        );
+      }
+      const constraint = asObj(action.spatialConstraint);
+      if (constraint.relation === 'beside') {
+        check(
+          pageNumber,
+          zoneId,
+          constraint.target,
+          `actionRequirements[${index}].spatialConstraint.target`,
         );
       }
     }

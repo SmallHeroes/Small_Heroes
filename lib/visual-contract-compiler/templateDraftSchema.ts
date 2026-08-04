@@ -12,6 +12,7 @@ import {
   ACTION_PREDICATE_VALUES,
   ACTION_SPATIAL_DIRECTION_VALUES,
   ACTION_SPATIAL_RELATION_VALUES,
+  ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES,
 } from './types';
 import {
   NON_VISUAL_RATIONALE_VALUES,
@@ -216,6 +217,14 @@ const actionSubject = {
       kind: { type: 'string', const: 'source_phenomenon' },
       sourceEvidenceId: { type: 'string' },
     }),
+    obj({
+      kind: { type: 'string', const: 'cast_group' },
+      castIds: {
+        type: 'array',
+        items: { type: 'string' },
+        minItems: 2,
+      },
+    }),
   ],
 };
 const actionSpatialEffect = {
@@ -237,6 +246,13 @@ const actionSpatialEffect = {
     }),
   ],
 };
+const actionSpatialConstraint = obj({
+  relation: {
+    type: 'string',
+    enum: ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES,
+  },
+  target: actionObject,
+});
 const actionRequirement = obj({
   beatId: {
     type: 'string',
@@ -250,6 +266,9 @@ const actionRequirement = obj({
   object: { anyOf: [actionObject, { type: 'null' }] },
   spatialEffect: {
     anyOf: [actionSpatialEffect, { type: 'null' }],
+  },
+  spatialConstraint: {
+    anyOf: [actionSpatialConstraint, { type: 'null' }],
   },
   polarity: {
     type: 'string',
@@ -331,7 +350,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v11' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v12' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

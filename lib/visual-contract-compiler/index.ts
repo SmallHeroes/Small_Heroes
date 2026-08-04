@@ -180,8 +180,10 @@ export { materialize, MaterializationError } from './materializeContract';
 export {
   LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION,
   LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION_V2,
+  LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION_V3,
   migrateLegacyBookVisualContractTemplateV1,
   migrateLegacyBookVisualContractTemplateV2,
+  migrateLegacyBookVisualContractTemplateV3,
   type VisualContractReferenceDomainMigration,
 } from './contractTemplateMigration';
 export {

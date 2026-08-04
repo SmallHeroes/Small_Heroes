@@ -246,6 +246,26 @@ describe('strict draft authority shapes', () => {
     expect(page.actionRequirements.items.properties).not.toHaveProperty(
       'checkId',
     );
+    const subjectBranches =
+      page.actionRequirements.items.properties.subject.anyOf;
+    const castGroupBranch = subjectBranches.find(
+      (branch: any) =>
+        branch.properties.kind.const === 'cast_group',
+    );
+    expect(castGroupBranch.properties.castIds).toMatchObject({
+      type: 'array',
+      minItems: 2,
+      items: { type: 'string' },
+    });
+    const constraint =
+      page.actionRequirements.items.properties.spatialConstraint;
+    expect(constraint.anyOf[0].properties.relation.enum).toEqual([
+      'beside',
+    ]);
+    expect(constraint.anyOf[0].required).toEqual([
+      'relation',
+      'target',
+    ]);
     const dispositionBranches =
       page.actionSemanticCoverage.items.properties.disposition.anyOf;
     const actionBranch = dispositionBranches.find(

@@ -4,6 +4,8 @@ import {
   computeVisualContractHash,
   validateBookVisualContract,
   assertValidBookVisualContractTemplate,
+  migrateLegacyBookVisualContractTemplateV1,
+  migrateLegacyBookVisualContractTemplateV3,
   projectPageMustShow,
   projectPageMustNotShow,
   projectCoverMustNotShow,
@@ -123,13 +125,43 @@ describe('Stage 4 — the baseline still holds (additive proof)', () => {
     expect(validateBookVisualContract(artifact).ok).toBe(true);
   });
 
-  it('historical vc-schema/v1 templates cannot become current vc-schema/v3 authority', () => {
+  it('historical vc-schema/v1 templates cannot become current vc-schema/v4 authority', () => {
     for (const key of ['bunny_ometz_adventure', 'fox_uri_adventure']) {
       const template = JSON.parse(readFileSync(`story-bank/v3-approved/${key}.visual-contract-template.json`, 'utf8'));
       expect(() => assertValidBookVisualContractTemplate(template)).toThrow(
-        /vc-schema\/v3.*vc-schema\/v1/,
+        /vc-schema\/v4.*vc-schema\/v1/,
       );
     }
+  });
+
+  it('migrates prior-current vc-schema/v3 offline without mutation while loaders fail closed', () => {
+    const historical = JSON.parse(
+      readFileSync(
+        'story-bank/v3-approved/bunny_ometz_adventure.visual-contract-template.json',
+        'utf8',
+      ),
+    );
+    const priorCurrent = structuredClone(
+      migrateLegacyBookVisualContractTemplateV1(historical),
+    ) as unknown as Record<string, unknown>;
+    const priorV2 = structuredClone(priorCurrent);
+    priorV2.schemaVersion = 'vc-schema/v2';
+    expect(() =>
+      assertValidBookVisualContractTemplate(priorV2),
+    ).toThrow(/vc-schema\/v4.*vc-schema\/v2/);
+    priorCurrent.schemaVersion = 'vc-schema/v3';
+    const before = structuredClone(priorCurrent);
+    expect(() =>
+      assertValidBookVisualContractTemplate(priorCurrent),
+    ).toThrow(/vc-schema\/v4.*vc-schema\/v3/);
+    const migrated = migrateLegacyBookVisualContractTemplateV3(
+      priorCurrent,
+    );
+    expect(migrated.schemaVersion).toBe('vc-schema/v4');
+    expect(priorCurrent).toEqual(before);
+    const { schemaVersion: _beforeVersion, ...beforePayload } = before;
+    const { schemaVersion: _afterVersion, ...afterPayload } = migrated;
+    expect(afterPayload).toEqual(beforePayload);
   });
 
   it('a structure-free contract is untouched, and a well-formed structured one passes', () => {

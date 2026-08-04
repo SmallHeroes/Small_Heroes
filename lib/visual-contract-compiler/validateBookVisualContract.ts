@@ -19,6 +19,7 @@ import {
   ACTION_PREDICATE_VALUES,
   ACTION_SPATIAL_DIRECTION_VALUES,
   ACTION_SPATIAL_RELATION_VALUES,
+  ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES,
   BOOK_VISUAL_CONTRACT_VERSION,
   type BookVisualContract,
   type PageVisualContract,
@@ -77,6 +78,9 @@ const ACTION_SPATIAL_DIRECTIONS = new Set<string>(
 const ACTION_SPATIAL_RELATIONS = new Set<string>(
   ACTION_SPATIAL_RELATION_VALUES,
 );
+const ACTION_SPATIAL_CONSTRAINT_RELATIONS = new Set<string>(
+  ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES,
+);
 
 /* ── Stage 4 — relation coherence tables ────────────────────────────────────────────────────────── */
 /** Order-independent relations: `adjacent_to(a,b)` states the SAME fact as `adjacent_to(b,a)`. */
@@ -120,6 +124,12 @@ function nonEmptyArrayOrNull(value: unknown, label: string, errors: string[]): u
   return value;
 }
 
+function canonicalStringCompare(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 /** The id spaces an `EntityRef` may resolve against, narrowed to ONE page's scope. */
 interface RefScope {
   castIdSet: Set<string>;
@@ -135,6 +145,12 @@ function validateEntityRef(ref: unknown, label: string, scope: RefScope, errors:
   if (!isObj(ref) || !isStr(ref.kind) || !isStr(ref.id)) {
     errors.push(`${label} must be an EntityRef { kind, id }`);
     return;
+  }
+  if (
+    JSON.stringify(Object.keys(ref).sort()) !==
+    JSON.stringify(['id', 'kind'])
+  ) {
+    errors.push(`${label} must contain only kind + id`);
   }
   if (!ENTITY_REF_KINDS.has(ref.kind)) {
     errors.push(`${label}.kind "${ref.kind}" is not one of ${[...ENTITY_REF_KINDS].join(' | ')}`);
@@ -684,6 +700,28 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
           errors.push(`${aLabel} is not an object`);
           return;
         }
+        const allowedActionFields = [
+          'checkId',
+          'subject',
+          'predicate',
+          'object',
+          'spatialEffect',
+          'spatialConstraint',
+          'polarity',
+          'laterality',
+        ];
+        if (
+          JSON.stringify(Object.keys(raw).sort()) !==
+          JSON.stringify(
+            Object.keys(raw)
+              .filter((key) => allowedActionFields.includes(key))
+              .sort(),
+          )
+        ) {
+          errors.push(
+            `${aLabel} contains an unknown field; action requirements use only ${allowedActionFields.join(' | ')}`,
+          );
+        }
         if (!isStr(raw.checkId) || !CHECK_ID_RE.test(raw.checkId)) {
           errors.push(`${aLabel} checkId "${String(raw.checkId)}" must match ${String(CHECK_ID_RE)} (a namespaced, stable id)`);
         } else if (checkIds.has(raw.checkId)) {
@@ -698,6 +736,8 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         }
         const subject = isObj(raw.subject) ? raw.subject : null;
         let subjectKind: string | null = null;
+        let subjectEntity: Record<string, unknown> | null = null;
+        let subjectCastIds = new Set<string>();
         if (!subject || !isStr(subject.kind)) {
           errors.push(`${aLabel}.subject missing`);
         } else if (subject.kind === 'entity') {
@@ -714,6 +754,7 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
             errors,
           );
           const entity = isObj(subject.entity) ? subject.entity : null;
+          subjectEntity = entity;
           subjectKind = isStr(entity?.kind) ? entity.kind : null;
           if (
             entity?.kind === 'cast' &&
@@ -724,6 +765,56 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
               `${aLabel}.subject.entity cast "${entity.id}" is NOT present on this page`,
             );
           }
+          if (entity?.kind === 'cast' && isStr(entity.id)) {
+            subjectCastIds = new Set([entity.id]);
+          }
+        } else if (subject.kind === 'cast_group') {
+          if (
+            JSON.stringify(Object.keys(subject).sort()) !==
+            JSON.stringify(['castIds', 'kind'])
+          ) {
+            errors.push(
+              `${aLabel}.subject cast_group must contain only kind + castIds`,
+            );
+          }
+          const castIds = Array.isArray(subject.castIds)
+            ? subject.castIds
+            : null;
+          if (
+            !castIds ||
+            castIds.length < 2 ||
+            !castIds.every(isStr)
+          ) {
+            errors.push(
+              `${aLabel}.subject.castIds must contain at least two non-empty cast ids`,
+            );
+          } else {
+            const typedCastIds = castIds as string[];
+            subjectCastIds = new Set(typedCastIds);
+            if (subjectCastIds.size !== typedCastIds.length) {
+              errors.push(
+                `${aLabel}.subject.castIds contains a duplicate member`,
+              );
+            }
+            for (const castId of typedCastIds) {
+              if (!castIdSet.has(castId)) {
+                errors.push(
+                  `${aLabel}.subject.castIds references unknown cast "${castId}"`,
+                );
+              } else if (!pageCastIdSet.has(castId)) {
+                errors.push(
+                  `${aLabel}.subject.castIds cast "${castId}" is NOT present on this page`,
+                );
+              }
+            }
+            const canonical = typedCastIds.slice().sort(canonicalStringCompare);
+            if (JSON.stringify(typedCastIds) !== JSON.stringify(canonical)) {
+              errors.push(
+                `${aLabel}.subject.castIds must use deterministic canonical ordering`,
+              );
+            }
+          }
+          subjectKind = 'cast_group';
         } else if (subject.kind === 'source_phenomenon') {
           if (
             JSON.stringify(Object.keys(subject).sort()) !==
@@ -749,7 +840,7 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
           subjectKind = 'source_phenomenon';
         } else {
           errors.push(
-            `${aLabel}.subject.kind "${String(subject.kind)}" is not entity | source_phenomenon`,
+            `${aLabel}.subject.kind "${String(subject.kind)}" is not entity | cast_group | source_phenomenon`,
           );
         }
         if (!isActionPredicate(raw.predicate)) {
@@ -790,6 +881,36 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
           ) {
             errors.push(
               `${aLabel}.spatialEffect is forbidden for predicate "${raw.predicate}" by the Action Semantic Catalog`,
+            );
+          }
+          if (
+            definition.spatialConstraintRule === 'required' &&
+            raw.spatialConstraint === undefined
+          ) {
+            errors.push(
+              `${aLabel}.spatialConstraint is required for predicate "${raw.predicate}" by the Action Semantic Catalog`,
+            );
+          }
+          if (
+            definition.spatialConstraintRule === 'forbidden' &&
+            raw.spatialConstraint !== undefined
+          ) {
+            errors.push(
+              `${aLabel}.spatialConstraint is forbidden for predicate "${raw.predicate}" by the Action Semantic Catalog`,
+            );
+          }
+          const catalogConstraintRelation = isObj(raw.spatialConstraint) &&
+            isStr(raw.spatialConstraint.relation)
+            ? raw.spatialConstraint.relation
+            : null;
+          if (
+            catalogConstraintRelation !== null &&
+            !definition.spatialConstraintRelations.some(
+              (relation) => relation === catalogConstraintRelation,
+            )
+          ) {
+            errors.push(
+              `${aLabel}.spatialConstraint.relation "${catalogConstraintRelation}" is not allowed for predicate "${raw.predicate}"`,
             );
           }
           const objectKind = isObj(raw.object) &&
@@ -882,6 +1003,53 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
             );
           }
         }
+        if (raw.spatialConstraint !== undefined) {
+          const constraint = isObj(raw.spatialConstraint)
+            ? raw.spatialConstraint
+            : null;
+          if (
+            !constraint ||
+            JSON.stringify(Object.keys(constraint).sort()) !==
+              JSON.stringify(['relation', 'target']) ||
+            !isStr(constraint.relation) ||
+            !ACTION_SPATIAL_CONSTRAINT_RELATIONS.has(constraint.relation)
+          ) {
+            errors.push(
+              `${aLabel}.spatialConstraint must contain only one closed relation + typed target`,
+            );
+          }
+          validateEntityRef(
+            constraint?.target,
+            `${aLabel}.spatialConstraint.target`,
+            scope,
+            errors,
+          );
+          const target = isObj(constraint?.target)
+            ? constraint.target
+            : null;
+          if (
+            target?.kind === 'cast' &&
+            isStr(target.id) &&
+            !pageCastIdSet.has(target.id)
+          ) {
+            errors.push(
+              `${aLabel}.spatialConstraint.target cast "${target.id}" is NOT present on this page`,
+            );
+          }
+          if (
+            target &&
+            ((subjectEntity &&
+              target.kind === subjectEntity.kind &&
+              target.id === subjectEntity.id) ||
+              (target.kind === 'cast' &&
+                isStr(target.id) &&
+                subjectCastIds.has(target.id)))
+          ) {
+            errors.push(
+              `${aLabel}.spatialConstraint.target cannot reference its own subject`,
+            );
+          }
+        }
         if (raw.laterality !== undefined && raw.laterality !== 'left' && raw.laterality !== 'right') {
           errors.push(`${aLabel}.laterality must be 'left' or 'right' when present`);
         }
@@ -948,6 +1116,8 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
             : null;
         const subjectKey = subjectEntity
           ? `${String(subjectEntity.kind)}:${String(subjectEntity.id)}`
+          : subject?.kind === 'cast_group' && Array.isArray(subject.castIds)
+            ? `cast_group:${subject.castIds.map(String).join(',')}`
           : subject?.kind === 'source_phenomenon'
             ? `source_phenomenon:${String(subject.sourceEvidenceId)}`
             : 'invalid_subject';
@@ -959,6 +1129,9 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         const effect = isObj(raw.spatialEffect)
           ? raw.spatialEffect
           : null;
+        const constraint = isObj(raw.spatialConstraint)
+          ? raw.spatialConstraint
+          : null;
         const effectTarget =
           effect?.kind === 'relation' && isObj(effect.target)
             ? effect.target
@@ -968,7 +1141,14 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
             ? `directional:${String(effect.direction)}`
             : `relation:${String(effect.relation)}:${String(effectTarget?.kind)}:${String(effectTarget?.id)}`
           : '-';
-        const beatKey = `${subjectKey}|${String(raw.predicate)}|${objRef ? `${String(objRef.kind)}:${String(objRef.id)}` : '-'}|${effectKey}`;
+        const constraintTarget =
+          constraint && isObj(constraint.target)
+            ? constraint.target
+            : null;
+        const constraintKey = constraint
+          ? `${String(constraint.relation)}:${String(constraintTarget?.kind)}:${String(constraintTarget?.id)}`
+          : '-';
+        const beatKey = `${subjectKey}|${String(raw.predicate)}|${objRef ? `${String(objRef.kind)}:${String(objRef.id)}` : '-'}|${effectKey}|${constraintKey}`;
         if (!beats.has(beatKey)) beats.set(beatKey, new Set());
         beats.get(beatKey)!.add(String(raw.polarity));
 
@@ -996,6 +1176,15 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         ) {
           errors.push(
             `${aLabel} spatial result targets forbidden prop "${effectTarget.id}" on this page`,
+          );
+        }
+        if (
+          constraintTarget?.kind === 'prop' &&
+          isStr(constraintTarget.id) &&
+          visibilityByProp.get(constraintTarget.id) === 'forbidden'
+        ) {
+          errors.push(
+            `${aLabel} static spatial constraint targets forbidden prop "${constraintTarget.id}" on this page`,
           );
         }
 

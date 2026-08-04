@@ -90,6 +90,18 @@ function castLabel(castId: string, contract: BookVisualContract): string {
   return castId;
 }
 
+function castGroupLabel(
+  castIds: readonly string[],
+  contract: BookVisualContract,
+): string {
+  const labels = castIds.map((castId) => castLabel(castId, contract));
+  const members =
+    labels.length === 2
+      ? `${labels[0]} and ${labels[1]}`
+      : `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1] ?? ''}`;
+  return `the cast group (${members})`;
+}
+
 /**
  * A typed reference's readable label. Falls back to the raw id when a ref does not resolve: this is a PURE
  * projection, never a validator — dangling ids are rejected by validateBookVisualContract, and a projection must
@@ -184,6 +196,8 @@ function actionProseLine(
   const actor =
     action.subject?.kind === 'entity'
       ? refLabel(action.subject.entity, page, contract)
+      : action.subject?.kind === 'cast_group'
+        ? castGroupLabel(action.subject.castIds, contract)
       : action.subject?.kind === 'source_phenomenon'
         ? `the exact source phenomenon ${JSON.stringify(action.subject.sourcePhrase)}`
         : castLabel(legacyActorId ?? 'unresolved:legacy_actor', contract);
@@ -195,8 +209,11 @@ function actionProseLine(
       ? ` ${action.spatialEffect.direction.replace(/_/g, ' ')}`
       : ` ${action.spatialEffect.relation.replace(/_/g, ' ')} ${refLabel(action.spatialEffect.target, page, contract)}`
     : '';
+  const spatialConstraint = action.spatialConstraint
+    ? ` ${action.spatialConstraint.relation} ${refLabel(action.spatialConstraint.target, page, contract)}`
+    : '';
   const lead = action.polarity === 'must_not' ? `${actor} must NOT ${verb}` : `${actor} ${verb}`;
-  return `${lead}${object}${spatialResult}${hand}`;
+  return `${lead}${object}${spatialResult}${spatialConstraint}${hand}`;
 }
 
 /** One readable hazard prohibition. Always negative — hazards have no polarity. */

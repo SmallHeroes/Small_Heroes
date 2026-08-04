@@ -4,13 +4,13 @@
  * validation.
  *
  * The catalog is deliberately finite. It is runtime-checkable data, not prompt
- * prose and not a free-text mini-language. The v2 expansion was reviewed
+ * prose and not a free-text mini-language. The v3 expansion was reviewed
  * against the complete production Story Source corpus; no story, character,
  * page, or prop identity participates in the runtime contract.
  */
 
 export const ACTION_SEMANTIC_CATALOG_VERSION =
-  'action-semantic-catalog/v2' as const;
+  'action-semantic-catalog/v3' as const;
 
 export const ACTION_SEMANTIC_ENTITY_KIND_VALUES = [
   'cast',
@@ -24,6 +24,7 @@ export type ActionSemanticEntityKind =
 
 export const ACTION_SEMANTIC_SUBJECT_KIND_VALUES = [
   ...ACTION_SEMANTIC_ENTITY_KIND_VALUES,
+  'cast_group',
   'source_phenomenon',
 ] as const;
 
@@ -40,6 +41,17 @@ export type ActionSemanticSpatialEffectRule =
   | 'optional'
   | 'forbidden';
 
+export type ActionSemanticSpatialConstraintRule =
+  | 'required'
+  | 'optional'
+  | 'forbidden';
+
+export const ACTION_SEMANTIC_SPATIAL_CONSTRAINT_RELATION_VALUES = [
+  'beside',
+] as const;
+export type ActionSemanticSpatialConstraintRelation =
+  (typeof ACTION_SEMANTIC_SPATIAL_CONSTRAINT_RELATION_VALUES)[number];
+
 export interface ActionSemanticCatalogEntryShape {
   predicate: string;
   proseProjection: string;
@@ -47,6 +59,8 @@ export interface ActionSemanticCatalogEntryShape {
   objectRule: ActionSemanticObjectRule;
   objectKinds: readonly ActionSemanticEntityKind[];
   spatialEffectRule: ActionSemanticSpatialEffectRule;
+  spatialConstraintRule: ActionSemanticSpatialConstraintRule;
+  spatialConstraintRelations: readonly ActionSemanticSpatialConstraintRelation[];
   lateralityAllowed: boolean;
   blueprintCapability: 'action_space';
   safetyConflictRelation:
@@ -69,12 +83,16 @@ function entry<
     | 'subjectKinds'
     | 'objectKinds'
     | 'spatialEffectRule'
+    | 'spatialConstraintRule'
+    | 'spatialConstraintRelations'
     | 'blueprintCapability'
   > & {
     predicate: Predicate;
     objectKinds: ObjectKinds;
     subjectKinds?: SubjectKinds;
     spatialEffectRule?: ActionSemanticSpatialEffectRule;
+    spatialConstraintRule?: ActionSemanticSpatialConstraintRule;
+    spatialConstraintRelations?: readonly ActionSemanticSpatialConstraintRelation[];
   },
 ) {
   return {
@@ -83,6 +101,10 @@ function entry<
       definition.subjectKinds ?? (['cast'] as const),
     spatialEffectRule:
       definition.spatialEffectRule ?? ('forbidden' as const),
+    spatialConstraintRule:
+      definition.spatialConstraintRule ?? ('forbidden' as const),
+    spatialConstraintRelations:
+      definition.spatialConstraintRelations ?? ([] as const),
     blueprintCapability: 'action_space' as const,
   };
 }
@@ -159,6 +181,18 @@ export const ACTION_SEMANTIC_CATALOG = [
     lateralityAllowed: false,
     safetyConflictRelation: 'must_not_sit_on',
     corpusBasis: 'existing_contract_authority',
+  }),
+  entry({
+    predicate: 'sits',
+    proseProjection: 'sits',
+    subjectKinds: ['cast', 'cast_group'],
+    objectRule: 'forbidden',
+    objectKinds: [],
+    spatialConstraintRule: 'optional',
+    spatialConstraintRelations: ['beside'],
+    lateralityAllowed: false,
+    safetyConflictRelation: null,
+    corpusBasis: 'reviewed_production_corpus',
   }),
   entry({
     predicate: 'stands_on',
@@ -370,6 +404,15 @@ export const ACTION_SEMANTIC_CATALOG = [
   entry({
     predicate: 'sneezes',
     proseProjection: 'sneezes',
+    objectRule: 'forbidden',
+    objectKinds: [],
+    lateralityAllowed: false,
+    safetyConflictRelation: null,
+    corpusBasis: 'reviewed_production_corpus',
+  }),
+  entry({
+    predicate: 'recoils',
+    proseProjection: 'recoils',
     objectRule: 'forbidden',
     objectKinds: [],
     lateralityAllowed: false,

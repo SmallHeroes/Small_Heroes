@@ -128,6 +128,21 @@ describe('central Action Semantic Catalog', () => {
       objectRule: 'forbidden',
       spatialEffectRule: 'forbidden',
     });
+    expect(actionSemanticDefinition('recoils')).toMatchObject({
+      subjectKinds: ['cast'],
+      objectRule: 'forbidden',
+      spatialEffectRule: 'forbidden',
+      spatialConstraintRule: 'forbidden',
+      lateralityAllowed: false,
+    });
+    expect(actionSemanticDefinition('sits')).toMatchObject({
+      subjectKinds: ['cast', 'cast_group'],
+      objectRule: 'forbidden',
+      spatialEffectRule: 'forbidden',
+      spatialConstraintRule: 'optional',
+      spatialConstraintRelations: ['beside'],
+      lateralityAllowed: false,
+    });
     expect(actionSemanticDefinition('touches').subjectKinds).toContain(
       'source_phenomenon',
     );
@@ -207,8 +222,12 @@ describe('central Action Semantic Catalog', () => {
       'uri_sneezes',
       'drop_touches_finger',
       'bucket_moves_sideways',
+      'p6:uri_recoils',
+      'p11:seated_beside_bucket',
       'אוּרי התעטש',
       'טיפה קרירה נגעה',
+      'אוּרי נרתע.',
+      'הם ישבו ליד הדלי.',
     ]) {
       expect(production).not.toContain(literal);
     }

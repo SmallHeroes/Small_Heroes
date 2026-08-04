@@ -99,7 +99,7 @@ describe('Stage 3 — bounded repair loop', () => {
     const { caller, prompts, calls } = recordingCaller([withEmptyMaterial(), bunnyDraft()]);
     const res = await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
     expect(res.provenance.attempt).toBe(2);
-    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v7');
+    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v8');
     expect(res.repairAttempts).toHaveLength(1);
     expect(res.repairAttempts[0].attempt).toBe(1);
     expect(res.repairAttempts[0].errors.some((e) => /material/i.test(e))).toBe(true);
@@ -222,7 +222,7 @@ describe('Source Evidence ID compact repair', () => {
       kind: 'repair',
       repairMode: 'source_evidence_id_patch',
       systemPromptVersion: SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'source-evidence-id-repair-user-prompt/v1',
+      userPromptVersion: 'source-evidence-id-repair-user-prompt/v2',
     });
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
       SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,

@@ -11,6 +11,7 @@ import {
 
 export const LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION = 'vc-schema/v1' as const;
 export const LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION_V2 = 'vc-schema/v2' as const;
+export const LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION_V3 = 'vc-schema/v3' as const;
 
 export interface VisualContractReferenceDomainMigration {
   /** Exact Set Board area -> page-zone projection, keyed first by set identity and then area id. */
@@ -166,6 +167,12 @@ function migrateReferenceDomains(
           ? rawAction.spatialEffect
           : null;
         if (spatialEffect?.kind === 'relation') remap(spatialEffect.target);
+        const spatialConstraint = objectValue(rawAction.spatialConstraint)
+          ? rawAction.spatialConstraint
+          : null;
+        if (spatialConstraint?.relation === 'beside') {
+          remap(spatialConstraint.target);
+        }
       }
     }
     if (Array.isArray(page.safetyConstraints)) {
@@ -220,6 +227,28 @@ export function migrateLegacyBookVisualContractTemplateV2(
   const candidate = structuredClone(input);
   candidate.schemaVersion = VISUAL_CONTRACT_SCHEMA_VERSION;
   migrateReferenceDomains(candidate, referenceDomains);
+  assertValidBookVisualContractTemplate(candidate);
+  return candidate;
+}
+
+/**
+ * Explicit offline vc-schema/v3 -> current migration. The v3/current delta is
+ * additive action authority, so existing templates migrate losslessly by
+ * restamping and validating a clone. Runtime loaders never invoke this path.
+ */
+export function migrateLegacyBookVisualContractTemplateV3(
+  input: unknown,
+): BookVisualContractTemplate {
+  if (
+    !objectValue(input) ||
+    input.schemaVersion !== LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION_V3
+  ) {
+    throw new InvalidTemplateContractError([
+      `explicit migration requires ${LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION_V3} input`,
+    ]);
+  }
+  const candidate = structuredClone(input);
+  candidate.schemaVersion = VISUAL_CONTRACT_SCHEMA_VERSION;
   assertValidBookVisualContractTemplate(candidate);
   return candidate;
 }
