@@ -13,6 +13,7 @@ import path from 'path';
 import { extractSourceFromMarkdown } from '../../scripts/extract-visual-contract-sources';
 import {
   compileBookVisualContractTemplate,
+  TemplateRepairExhaustedError,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import { InvalidTemplateContractError } from '../visual-contract-compiler/validateTemplateContract';
@@ -36,6 +37,35 @@ function bunnyDraft(): any {
 const stubFrom = (t: unknown): ContractLlmCaller => async () => JSON.stringify(t);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const page = (t: any, n: number) => t.pageContracts.find((p: any) => p.pageNumber === n);
+
+async function expectTypedRepairExhaustion(
+  draft: unknown,
+  code:
+    | 'unresolved_reference'
+    | 'ambiguous_reference'
+    | 'final_structural_invariant_invalid'
+    | 'topology_malformed',
+): Promise<void> {
+  let thrown: unknown;
+  try {
+    await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: stubFrom(draft),
+    });
+  } catch (error) {
+    thrown = error;
+  }
+  expect(thrown).toBeInstanceOf(TemplateRepairExhaustedError);
+  const exhaustion = thrown as TemplateRepairExhaustedError;
+  expect(exhaustion.attempts).toHaveLength(3);
+  expect(
+    exhaustion.attempts.every((attempt) =>
+      attempt.diagnosticIssues.some((issue) => issue.code === code),
+    ),
+  ).toBe(true);
+  expect(JSON.stringify(exhaustion.attempts)).not.toContain(
+    'clinic.nonexistent_room',
+  );
+}
 
 describe('S2b — the valid bunny graph is a NO-OP (canonicalization never disturbs a consistent graph)', () => {
   it('preserves every page zoneId/locationId/transition + emits no topology notes', async () => {
@@ -73,8 +103,9 @@ describe('S2b — the compiler OWNS the zone-ref canonicalization', () => {
   it('an unresolved zone ref (no declared zone) → repair (throws, never guesses)', async () => {
     const draft = bunnyDraft();
     page(draft, 5).zoneId = 'clinic.nonexistent_room';
-    await expect(compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(draft) })).rejects.toThrow(
-      /not a declared zone/i,
+    await expectTypedRepairExhaustion(
+      draft,
+      'unresolved_reference',
     );
   });
 
@@ -83,8 +114,9 @@ describe('S2b — the compiler OWNS the zone-ref canonicalization', () => {
     // Two distinct exact ids that share a normalized form → any non-exact ref matching that form is ambiguous.
     draft.zones.push({ id: 'clinic_exam_room', locationId: 'clinic', name: 'dup', description: 'dup', stableGeometry: ['x'] });
     page(draft, 1).zoneId = 'CLINIC-EXAM-ROOM'; // normalizes to clinic.exam.room, exact-matches neither
-    await expect(compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(draft) })).rejects.toThrow(
-      /ambiguous/i,
+    await expectTypedRepairExhaustion(
+      draft,
+      'ambiguous_reference',
     );
   });
 
@@ -106,8 +138,9 @@ describe('S2b — genuine transition-CONTINUITY violations are left for the vali
       fromZoneId: 'clinic.waiting_room',
       toZoneId: 'clinic.exam_room',
     };
-    await expect(compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(draft) })).rejects.toThrow(
-      /before_transition/i,
+    await expectTypedRepairExhaustion(
+      draft,
+      'final_structural_invariant_invalid',
     );
   });
 
@@ -116,8 +149,9 @@ describe('S2b — genuine transition-CONTINUITY violations are left for the vali
     // p6 was a steady exam_room page; teleport it to a different declared zone while still "steady".
     page(draft, 6).zoneId = 'clinic_exterior.entrance';
     page(draft, 6).transition = { kind: 'steady' };
-    await expect(compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(draft) })).rejects.toThrow(
-      /without a transition|undeclared/i,
+    await expectTypedRepairExhaustion(
+      draft,
+      'topology_malformed',
     );
   });
 });

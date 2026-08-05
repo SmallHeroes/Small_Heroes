@@ -1710,6 +1710,21 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       'visual-contract-authoring-receipt/v12',
     );
     expect(result.receipt.callCount).toBe(1);
+    expect(result.receipt.draftValidationStatus).toBe(
+      'completed',
+    );
+    expect(
+      result.receipt.attempts[0].draftValidationDiagnostics,
+    ).toMatchObject({
+      emittedCount: 0,
+      currentUniqueCount: 0,
+      newlyIntroducedCount: 0,
+      persistentCount: 0,
+      resolvedCount: 0,
+      items: [],
+      finalAttempt: true,
+      truncated: false,
+    });
     expect(result.receipt.aggregateUsage).toEqual({
       inputTokens: 1_000,
       cachedInputTokens: 0,
@@ -1851,6 +1866,14 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       },
     });
     expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(result.receipt.draftValidationStatus).toBe(
+      'interrupted',
+    );
+    expect(
+      result.receipt.attempts.map(
+        (attempt) => attempt.draftValidationDiagnostics,
+      ),
+    ).toEqual([null]);
     const serialized = JSON.stringify(result.receipt);
     expect(serialized).not.toContain('raw_initial_secret');
     expect(serialized).not.toContain('must-not-persist');
@@ -1902,6 +1925,22 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       },
     });
     expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(result.receipt.draftValidationStatus).toBe(
+      'interrupted',
+    );
+    expect(
+      result.receipt.attempts[0].draftValidationDiagnostics,
+    ).toMatchObject({
+      currentUniqueCount: expect.any(Number),
+      finalAttempt: true,
+    });
+    expect(
+      result.receipt.attempts[0].draftValidationDiagnostics
+        ?.currentUniqueCount,
+    ).toBeGreaterThan(0);
+    expect(
+      result.receipt.attempts[1].draftValidationDiagnostics,
+    ).toBeNull();
     expect(result.receipt.failure?.code).not.toBe(
       'draft_validation_repair_exhausted',
     );
@@ -2260,6 +2299,27 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(result.receipt.callCount).toBe(3);
     expect(result.receipt.repairCount).toBe(2);
     expect(result.receipt.attempts).toHaveLength(3);
+    expect(result.receipt.draftValidationStatus).toBe(
+      'repair_exhausted',
+    );
+    expect(
+      result.receipt.attempts.map(
+        (attempt) =>
+          attempt.draftValidationDiagnostics?.finalAttempt,
+      ),
+    ).toEqual([false, false, true]);
+    expect(
+      result.receipt.attempts.map(
+        (attempt) =>
+          attempt.draftValidationDiagnostics?.currentUniqueCount,
+      ),
+    ).toEqual([1, 1, 1]);
+    expect(
+      result.receipt.attempts.map(
+        (attempt) =>
+          attempt.draftValidationDiagnostics?.persistentCount,
+      ),
+    ).toEqual([0, 1, 1]);
     expect(
       result.receipt.attempts.every(
         (attempt) =>
@@ -2360,6 +2420,31 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.callCount).toBe(2);
     expect(result.receipt.repairCount).toBe(1);
+    expect(result.receipt.draftValidationStatus).toBe(
+      'completed',
+    );
+    expect(
+      result.receipt.attempts[0].draftValidationDiagnostics,
+    ).toMatchObject({
+      currentUniqueCount: 1,
+      newlyIntroducedCount: 1,
+      persistentCount: 0,
+      resolvedCount: 0,
+      finalAttempt: false,
+    });
+    expect(
+      result.receipt.attempts[0].draftValidationDiagnostics
+        ?.items[0]?.issue.family,
+    ).toBe('source_evidence_id');
+    expect(
+      result.receipt.attempts[1].draftValidationDiagnostics,
+    ).toMatchObject({
+      currentUniqueCount: 0,
+      newlyIntroducedCount: 0,
+      persistentCount: 0,
+      resolvedCount: 1,
+      finalAttempt: true,
+    });
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
       .toEqual([null, 'source_evidence_id_patch']);
     expect(provider.call).toHaveBeenCalledTimes(2);
