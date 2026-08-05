@@ -2,9 +2,9 @@
 
 **Updated:** 2026-08-05
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-authority-reference-diagnostic-identity` in `C:\Users\guyna\.codex\worktrees\6331\Small_Heroes`, based exactly on `e7842b01ce9effce12dd40fabdd69505b5fdabca`. The requested branch has one worktree owner. The same-name upstream/origin contains `c78edadbeff15ea193eb0c5a84803476acf3d0d3`; the persisted-round-trip QA fix is local and unpushed.
+**Working branch:** `codex/r1d-pvb-d1a1b1-authority-reference-diagnostic-identity` in `C:\Users\guyna\.codex\worktrees\6331\Small_Heroes`, based exactly on `e7842b01ce9effce12dd40fabdd69505b5fdabca`. The requested branch has one worktree owner. The same-name upstream/origin contains `c78edadbeff15ea193eb0c5a84803476acf3d0d3`; the persisted-round-trip QA fix and its documentation closeout are local and unpushed.
 
-## R1D-PVB-D1A1B1-AUTHORITY-DIAGNOSTICS-PERSISTED-ROUNDTRIP-QA-FIX - implemented / pending Claude Code micro re-gate
+## R1D-PVB-D1A1B1-AUTHORITY-DIAGNOSTICS-PERSISTED-ROUNDTRIP-QA-FIX - independent PASS / MAJOR-1 closed
 
 Claude Code's read-only artifact audit of the consumed post-diagnostic-identity live attempt confirmed every persisted content, digest, crosslink, usage/cost, typed issue, sanitization, fence, and absence claim, but returned **HOLD** with one **MAJOR**: a canonical v10 receipt and v8 readiness could not revalidate after JSON reload. `draftAuthorityReferenceDiagnosticsIsValid` normalized issues into declaration-order locator objects and then compared them to canonical persisted objects with order-sensitive `JSON.stringify`, so semantically identical key-sorted JSON failed only after round-trip.
 
@@ -13,7 +13,9 @@ Claude Code's read-only artifact audit of the consumed post-diagnostic-identity 
 - Regression coverage now proves valid in-memory diagnostics, canonical key-sorted diagnostics, real receipt v10 write/read/revalidation, real readiness v8 write/read/revalidation, and rebuilt-readiness equality. Reordered or duplicate items, count/truncation drift, extra/missing keys, and invalid locators remain rejected.
 - Focused validation passed **2 files / 53 tests**; deterministic TypeScript and `git diff --check` passed. `npm run check` was not run, as authorized. The separate six-known-ignored-fixture release HOLD remains unchanged.
 - The consumed attempt's ten canonical artifacts were inventoried and hashed before the edit and remain immutable. No artifact was rewritten, redigested, repaired, or promoted. No credential access, pricing/network/provider call, Fresh Readiness, preflight, live authoring, render, storage/database, deployment, or push occurred in this QA-fix task.
-- **Next action:** Claude Code must perform a read-only micro re-gate of this narrow correction. The prior live attempt remains exhausted, and this local fix grants no retry, spend, readiness, candidate, Blueprint, Wizard, render, release, deployment, or push authority.
+- Claude Code independently reviewed exact correction range `c78edadbeff15ea193eb0c5a84803476acf3d0d3..67b42a26c29c078c6ae03e379271f3871f7eb9e1`, returned **PASS**, and closed **MAJOR-1** with zero BLOCKER, zero MAJOR, zero MINOR, and no new finding. It independently reproduced TypeScript and **2 files / 53 tests PASS**, reran its original proof unchanged against the actual persisted receipt/readiness, and confirmed that both now validate while reordered/duplicate items and every hostile/tampered form remain rejected. This is Claude Code's closure, not a Codex self-awarded result.
+- Claude's round-trip re-gate **N1** discloses stale prose in Claude's own proof-script label, not a repository defect. **N2** confirms the fix reuses the repository's existing canonicalization authority. **N3** preserves the separate six-known-ignored-fixture release HOLD and notes that `npm run check` was intentionally not rerun. **N4** records that this correction remains local and unpushed. All four are advisory only.
+- **Next action:** after this documentation-only closeout is locally committed, Guy may inspect and explicitly authorize pushing the local correction and closeout. The prior live attempt remains exhausted, and this PASS grants no retry, spend, readiness, candidate, Blueprint, Wizard, render, release, deployment, or push authority.
 
 ## R1D-PVB-D1A1B1-AUTHORITY-REFERENCE-DOMAIN-DIAGNOSTIC-IDENTITY - independent technical PASS / repository gate HOLD only at six-fixture baseline
 

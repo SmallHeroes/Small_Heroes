@@ -2,7 +2,7 @@
 
 Date: `2026-08-05`
 
-Status: **implementation range independently PASSed; post-live persisted-round-trip MAJOR corrected locally and pending Claude Code micro re-gate; repository gate HOLD only at the established six-fixture baseline**
+Status: **implementation and persisted-round-trip correction independently PASSed; MAJOR-1 closed; repository gate HOLD only at the established six-fixture baseline**
 
 Decision Gate: `docs/ai-workflow/R1D_PVB_D1A1B1_AUTHORITY_REFERENCE_DOMAIN_DIAGNOSTIC_IDENTITY_DECISION_GATE.md`
 
@@ -294,4 +294,13 @@ Regression evidence:
 
 Before editing, the consumed output root was recorded as exactly ten regular files / 128,459 bytes. Receipt whole-file SHA-256 remained `39ea5c401ae7b2f43f6e29eac99e554bbf36ed9e20ed7938470767f136c1fb42`; readiness whole-file SHA-256 remained `ba729f449ec43551a8a994dd471204ebec9828dae132f82b693b2959ab381dca`; the original eight artifact hashes also remain unchanged. This correction did not open, rewrite, redigest, repair, or promote any artifact.
 
-Claude Code's MAJOR is corrected locally but is not independently closed until a read-only micro re-gate. The consumed live attempt remains exhausted. No credential access, pricing/network/provider call, Fresh Readiness, preflight, live authoring, candidate, Semantic Reconciliation, Blueprint/Wizard execution, render, storage/database, Board, approval, publication, promotion, activation, deployment, firewall change, or push occurred in the correction task.
+Claude Code independently reviewed exact correction range `c78edadbeff15ea193eb0c5a84803476acf3d0d3..67b42a26c29c078c6ae03e379271f3871f7eb9e1` and returned **PASS** with zero BLOCKER, zero MAJOR, zero MINOR, and no new finding. It closed **MAJOR-1** by rerunning its original proof unchanged against the actual persisted receipt v10 and readiness v8: both validators now return `true` while the on-disk and in-memory locator key orders still differ. It independently reproduced TypeScript and **2 files / 53 tests PASS**, and its unchanged hostile probe confirmed that array reordering, duplicates, all 740 illegal catalog combinations, all 35 hostile mutations, bounds violations, exact-key violations, count/truncation drift, and under-cap truncation remain rejected. Closure is Claude Code's independently executed result, not a Codex self-awarded PASS.
+
+Claude's round-trip micro re-gate retained four advisory notes:
+
+- **N1:** a stale static label in Claude's own proof script still described the now-`true` result as a fail-closed rejection; this is reviewer-tool prose, not repository state;
+- **N2:** the correction reuses the pre-existing `lib/canonical-json.ts` authority rather than adding a parallel canonical-equality implementation;
+- **N3:** the separate six-known-ignored-fixture release HOLD remains unchanged, and `npm run check` was intentionally not rerun;
+- **N4:** the correction and this closeout remain local and unpushed at the time of documentation.
+
+The documentation-only closeout changes no production code, test, schema, artifact, policy, or runtime behavior. The consumed live attempt remains exhausted. No credential access, pricing/network/provider call, Fresh Readiness, preflight, live authoring, candidate, Semantic Reconciliation, Blueprint/Wizard execution, render, storage/database, Board, approval, publication, promotion, activation, deployment, firewall change, or push occurred in the correction or closeout tasks.
