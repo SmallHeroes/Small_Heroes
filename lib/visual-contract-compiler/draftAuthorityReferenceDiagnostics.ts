@@ -1,3 +1,5 @@
+import { canonicalize } from '@/lib/canonical-json';
+
 export const MAX_PERSISTED_DRAFT_AUTHORITY_REFERENCE_ISSUES = 128;
 export const MAX_DRAFT_AUTHORITY_REFERENCE_STRUCTURAL_INDEX = 1_000_000;
 
@@ -619,15 +621,19 @@ export function draftAuthorityReferenceDiagnosticsIsValid(
     return false;
   }
   let normalized: readonly DraftAuthorityReferenceIssue[];
+  let itemsMatchCanonicalNormalization: boolean;
   try {
     normalized = normalizeDraftAuthorityReferenceIssues(
       diagnostics.items,
     );
+    itemsMatchCanonicalNormalization =
+      JSON.stringify(canonicalize(normalized)) ===
+      JSON.stringify(canonicalize(diagnostics.items));
   } catch {
     return false;
   }
   if (
-    JSON.stringify(normalized) !== JSON.stringify(diagnostics.items) ||
+    !itemsMatchCanonicalNormalization ||
     diagnostics.truncated !==
       ((diagnostics.totalCount as number) >
         MAX_PERSISTED_DRAFT_AUTHORITY_REFERENCE_ISSUES)

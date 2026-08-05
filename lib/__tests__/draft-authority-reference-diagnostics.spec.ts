@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { canonicalize } from '../canonical-json';
 import {
   DraftAuthorityReferenceDomainError,
   compilerOwnedActionCheckId,
@@ -305,6 +306,74 @@ describe('closed draft authority/reference diagnostic contract', () => {
       MAX_PERSISTED_DRAFT_AUTHORITY_REFERENCE_ISSUES,
     );
     expect(draftAuthorityReferenceDiagnosticsIsValid(diagnostics)).toBe(true);
+  });
+
+  it('accepts canonical key-sorted round trips without weakening tamper rejection', () => {
+    const diagnostics = buildDraftAuthorityReferenceDiagnostics([
+      representativeIssues[6]!,
+      representativeIssues[0]!,
+    ]);
+    expect(
+      draftAuthorityReferenceDiagnosticsIsValid(diagnostics),
+    ).toBe(true);
+
+    const persisted = JSON.parse(
+      JSON.stringify(canonicalize(diagnostics)),
+    ) as {
+      totalCount: number;
+      items: DraftAuthorityReferenceIssue[];
+      truncated: boolean;
+    };
+    expect(Object.keys(persisted.items[0]!.locator)).not.toEqual(
+      Object.keys(diagnostics.items[0]!.locator),
+    );
+    expect(
+      draftAuthorityReferenceDiagnosticsIsValid(persisted),
+    ).toBe(true);
+
+    expect(
+      draftAuthorityReferenceDiagnosticsIsValid({
+        ...persisted,
+        items: [...persisted.items].reverse(),
+      }),
+    ).toBe(false);
+    expect(
+      draftAuthorityReferenceDiagnosticsIsValid({
+        ...persisted,
+        totalCount: 2,
+        items: [persisted.items[0], persisted.items[0]],
+      }),
+    ).toBe(false);
+    expect(
+      draftAuthorityReferenceDiagnosticsIsValid({
+        ...persisted,
+        totalCount: persisted.totalCount + 1,
+      }),
+    ).toBe(false);
+    expect(
+      draftAuthorityReferenceDiagnosticsIsValid({
+        ...persisted,
+        truncated: true,
+      }),
+    ).toBe(false);
+    expect(
+      draftAuthorityReferenceDiagnosticsIsValid({
+        ...persisted,
+        rawIssue: 'forbidden',
+      }),
+    ).toBe(false);
+    const { truncated: _truncated, ...missingKey } = persisted;
+    expect(
+      draftAuthorityReferenceDiagnosticsIsValid(missingKey),
+    ).toBe(false);
+    const invalidLocator = structuredClone(persisted);
+    invalidLocator.items[0]!.locator = {
+      ...invalidLocator.items[0]!.locator,
+      referenceClass: 'story_specific_identity',
+    } as unknown as DraftAuthorityReferenceIssue['locator'];
+    expect(
+      draftAuthorityReferenceDiagnosticsIsValid(invalidLocator),
+    ).toBe(false);
   });
 
   it('fails closed on extra keys, unknown enums, invalid numbers, and forbidden strings', () => {

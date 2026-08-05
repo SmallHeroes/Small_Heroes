@@ -2,7 +2,7 @@
 
 Date: `2026-08-05`
 
-Status: **independent Claude Code TECHNICAL PASS; zero findings; repository gate HOLD only at the established six-fixture baseline**
+Status: **implementation range independently PASSed; post-live persisted-round-trip MAJOR corrected locally and pending Claude Code micro re-gate; repository gate HOLD only at the established six-fixture baseline**
 
 Decision Gate: `docs/ai-workflow/R1D_PVB_D1A1B1_AUTHORITY_REFERENCE_DOMAIN_DIAGNOSTIC_IDENTITY_DECISION_GATE.md`
 
@@ -269,3 +269,29 @@ Claude Code reviewed the immutable base-to-head range read-only and attempted to
 14. whether the validation record accurately distinguishes the rejected four-worker aggregate, policy-correct focused replacement, first seven-failure repository HOLD, narrow inventory correction, and final six-fixture HOLD.
 
 Independent technical review does not grant product, visual, candidate, Blueprint, Wizard, Fresh Readiness, provider, live-authoring, render, spend, publication, release, deployment, or push authority.
+
+## 10. Post-live persisted-round-trip QA finding and correction
+
+The first live attempt using this diagnostic authority produced one canonical receipt v10 and one readiness v8, then stopped terminally on two typed recurring-prop issues. Claude Code's read-only artifact audit independently recomputed and confirmed the artifact contents, digests, typed issue identities/locators, usage and cost arithmetic, receipt/readiness equality, sanitization, original fences, and absence of candidate or downstream authority. It nevertheless returned **HOLD** with one **MAJOR** because the persisted terminal diagnostics failed their own production validator after JSON reload.
+
+The defect was isolated to `draftAuthorityReferenceDiagnosticsIsValid`. The function correctly validated every item and rebuilt canonical normalized issues, but compared the rebuilt array to the supplied array with raw `JSON.stringify`. In-memory locators used declaration-order keys, whereas repository canonical persistence recursively sorts object keys. The semantic content was identical, but insertion-order-sensitive serialization differed. The shared terminal validator was unaffected; only the new Visual Contract diagnostics extension had this round-trip defect.
+
+The authorized narrow correction:
+
+- applies the existing repository `canonicalize` authority to both arrays before equality comparison;
+- preserves array order and duplicates as meaningful while making only object-key order and Unicode normalization invariant;
+- keeps canonicalization inside the validator's fail-closed `try` boundary;
+- changes no schema, artifact version, persisted byte contract, producer, terminal taxonomy, receipt/readiness projection, prompt, model, policy, budget, repair route, retry/fallback behavior, or downstream authorization.
+
+Regression evidence:
+
+- `lib/__tests__/draft-authority-reference-diagnostics.spec.ts` proves in-memory validity, canonical key-sorted round-trip validity, and continued rejection of reordered items, duplicates, count drift, truncation drift, extra/missing keys, and invalid locators;
+- `lib/visual-package/__tests__/source-authority-lifecycle.spec.ts` performs real canonical receipt v10 and readiness v8 writes, reloads both JSON files, validates both terminal classifications, confirms their equality, and rebuilds byte-equivalent readiness from the reloaded receipt;
+- focused validation: **2 files / 53 tests PASS**;
+- `npx --no-install tsc --noEmit`: PASS;
+- `git diff --check`: PASS;
+- `npm run check`: intentionally not run under the approved scope.
+
+Before editing, the consumed output root was recorded as exactly ten regular files / 128,459 bytes. Receipt whole-file SHA-256 remained `39ea5c401ae7b2f43f6e29eac99e554bbf36ed9e20ed7938470767f136c1fb42`; readiness whole-file SHA-256 remained `ba729f449ec43551a8a994dd471204ebec9828dae132f82b693b2959ab381dca`; the original eight artifact hashes also remain unchanged. This correction did not open, rewrite, redigest, repair, or promote any artifact.
+
+Claude Code's MAJOR is corrected locally but is not independently closed until a read-only micro re-gate. The consumed live attempt remains exhausted. No credential access, pricing/network/provider call, Fresh Readiness, preflight, live authoring, candidate, Semantic Reconciliation, Blueprint/Wizard execution, render, storage/database, Board, approval, publication, promotion, activation, deployment, firewall change, or push occurred in the correction task.

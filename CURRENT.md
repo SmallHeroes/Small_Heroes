@@ -2,7 +2,18 @@
 
 **Updated:** 2026-08-05
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-authority-reference-diagnostic-identity` in `C:\Users\guyna\.codex\worktrees\6331\Small_Heroes`, based exactly on `e7842b01ce9effce12dd40fabdd69505b5fdabca`. The requested branch has one worktree owner. The implementation is local and unpushed.
+**Working branch:** `codex/r1d-pvb-d1a1b1-authority-reference-diagnostic-identity` in `C:\Users\guyna\.codex\worktrees\6331\Small_Heroes`, based exactly on `e7842b01ce9effce12dd40fabdd69505b5fdabca`. The requested branch has one worktree owner. The same-name upstream/origin contains `c78edadbeff15ea193eb0c5a84803476acf3d0d3`; the persisted-round-trip QA fix is local and unpushed.
+
+## R1D-PVB-D1A1B1-AUTHORITY-DIAGNOSTICS-PERSISTED-ROUNDTRIP-QA-FIX - implemented / pending Claude Code micro re-gate
+
+Claude Code's read-only artifact audit of the consumed post-diagnostic-identity live attempt confirmed every persisted content, digest, crosslink, usage/cost, typed issue, sanitization, fence, and absence claim, but returned **HOLD** with one **MAJOR**: a canonical v10 receipt and v8 readiness could not revalidate after JSON reload. `draftAuthorityReferenceDiagnosticsIsValid` normalized issues into declaration-order locator objects and then compared them to canonical persisted objects with order-sensitive `JSON.stringify`, so semantically identical key-sorted JSON failed only after round-trip.
+
+- The correction uses the repository's existing `canonicalize` authority on both normalized and supplied item arrays before comparison. Array order and multiplicity remain significant; object-key order and Unicode composition do not. The comparison remains fail-closed if canonicalization throws.
+- No exact-key, catalog-combination, locator, structural-index, ordering, deduplication, `totalCount`, 128-item cap, truncation, or tamper guard was weakened. Shared `AuthoringTerminalFailure`, Blueprint v4, receipt/readiness bytes and versions, prompt/schema, model, budgets, repair routing, timeout, retries, fallback, candidate semantics, and downstream behavior are unchanged.
+- Regression coverage now proves valid in-memory diagnostics, canonical key-sorted diagnostics, real receipt v10 write/read/revalidation, real readiness v8 write/read/revalidation, and rebuilt-readiness equality. Reordered or duplicate items, count/truncation drift, extra/missing keys, and invalid locators remain rejected.
+- Focused validation passed **2 files / 53 tests**; deterministic TypeScript and `git diff --check` passed. `npm run check` was not run, as authorized. The separate six-known-ignored-fixture release HOLD remains unchanged.
+- The consumed attempt's ten canonical artifacts were inventoried and hashed before the edit and remain immutable. No artifact was rewritten, redigested, repaired, or promoted. No credential access, pricing/network/provider call, Fresh Readiness, preflight, live authoring, render, storage/database, deployment, or push occurred in this QA-fix task.
+- **Next action:** Claude Code must perform a read-only micro re-gate of this narrow correction. The prior live attempt remains exhausted, and this local fix grants no retry, spend, readiness, candidate, Blueprint, Wizard, render, release, deployment, or push authority.
 
 ## R1D-PVB-D1A1B1-AUTHORITY-REFERENCE-DOMAIN-DIAGNOSTIC-IDENTITY - independent technical PASS / repository gate HOLD only at six-fixture baseline
 

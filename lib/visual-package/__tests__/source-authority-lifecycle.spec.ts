@@ -1943,6 +1943,53 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       readiness.authoringOutcome.terminalClassification,
     ).toEqual(result.receipt.failure);
+    const repoRoot = tempRoot();
+    const outputDir = 'outputs/authority-round-trip';
+    const receiptWrite = persistVisualContractAuthoringReceipt({
+      repoRoot,
+      outputDir,
+      receipt: result.receipt,
+      write: true,
+    });
+    const readinessWrite = persistVisualContractAuthoringReadiness({
+      repoRoot,
+      outputDir,
+      evidence: readiness,
+      write: true,
+    });
+    const loadedReceipt = JSON.parse(
+      fs.readFileSync(
+        path.join(repoRoot, receiptWrite.path),
+        'utf8',
+      ),
+    ) as typeof result.receipt;
+    const loadedReadiness = JSON.parse(
+      fs.readFileSync(
+        path.join(repoRoot, readinessWrite.path),
+        'utf8',
+      ),
+    ) as typeof readiness;
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        loadedReceipt.failure,
+      ),
+    ).toBe(true);
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        loadedReadiness.authoringOutcome
+          .terminalClassification,
+      ),
+    ).toBe(true);
+    expect(
+      loadedReadiness.authoringOutcome.terminalClassification,
+    ).toEqual(loadedReceipt.failure);
+    expect(
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: loadedReceipt,
+      }),
+    ).toEqual(loadedReadiness);
     expect(provider.call).toHaveBeenCalledTimes(1);
     const serialized = JSON.stringify({
       receipt: result.receipt,
