@@ -13,6 +13,7 @@ import type {
   PageActionRequirement,
   PageVisualContract,
 } from '../visual-contract-compiler/types';
+import { RECURRING_PROP_SPATIAL_CONSUMER_SCOPES } from '../visual-contract-compiler/types';
 
 const sourceIdentity = {
   version: 'story-source-identity/v2',
@@ -245,6 +246,13 @@ function nodes(draft: Record<string, unknown>) {
 }
 
 describe('captured reference-domain matrix', () => {
+  it('keeps the recurring-prop consumer domain closed to stable Set Board binding and page-frame placement', () => {
+    expect(RECURRING_PROP_SPATIAL_CONSUMER_SCOPES).toEqual([
+      'stable_set',
+      'page_frame',
+    ]);
+  });
+
   it('compiles 37 actions, five spatial selections, six architecture nodes, and unary centered_in without repair', async () => {
     const { callLLM, result } = await compile(matrixDraft());
     const page = result.template.pageContracts[0]!;
@@ -263,6 +271,201 @@ describe('captured reference-domain matrix', () => {
       subjectId: 'structure_6',
       relation: 'centered_in',
     }]);
+  });
+
+  it('projects one unique ungated stablePropId into the unchanged final Set Board and zone binding domains', async () => {
+    const draft = matrixDraft();
+    draft.recurringProps = [{
+      id: 'prop:fixed_marker',
+      name: 'Fixed marker',
+      description: 'one fixed marker integrated into the room',
+    }];
+    nodes(draft)[0]!.stablePropId = 'prop:fixed_marker';
+
+    const { callLLM, result } = await compile(draft);
+    const authority = result.template.setBoardAuthorities![0]!;
+    const boundNode = result.template.zones[0]!.spatialNodes![0]!;
+
+    expect(callLLM).toHaveBeenCalledTimes(1);
+    expect(authority.fixedObjects).toEqual([{
+      propId: 'prop:fixed_marker',
+      name: 'Fixed marker',
+      quantity: 1,
+    }]);
+    expect(authority.areas[0]!.spatialNodes[0]).toMatchObject({
+      id: 'structure_1',
+      propId: 'prop:fixed_marker',
+    });
+    expect(boundNode.bindsTo).toEqual({
+      kind: 'prop',
+      id: 'prop:fixed_marker',
+    });
+    expect(JSON.stringify(result.template)).not.toContain('stablePropId');
+  });
+
+  it('rejects a new v13 draft that binds the same stablePropId on two nodes', async () => {
+    const draft = matrixDraft();
+    draft.recurringProps = [{
+      id: 'prop:fixed_marker',
+      name: 'Fixed marker',
+      description: 'one fixed marker integrated into the room',
+    }];
+    nodes(draft)[0]!.stablePropId = 'prop:fixed_marker';
+    nodes(draft)[1]!.stablePropId = 'prop:fixed_marker';
+
+    const issues = await emittedAuthorityIssues(draft);
+
+    expect(issues).toContainEqual({
+      code: 'recurring_prop_reference_cardinality_invalid',
+      locator: {
+        kind: 'set_area_node',
+        referenceClass: 'recurring_prop',
+        fieldRole: 'spatialNodes.stablePropId',
+        authorityIndex: 0,
+        areaIndex: 0,
+        nodeIndex: 1,
+      },
+    });
+  });
+
+  it('keeps an explicitly required reveal-gated portable prop outside Set Board projection', async () => {
+    const draft = matrixDraft();
+    draft.recurringProps = [{
+      id: 'prop:portable_token',
+      name: 'Portable token',
+      description: 'one portable token revealed through the page action',
+      firstRevealPage: 1,
+    }];
+    pageRecord(draft).propConstraints = [{
+      propId: 'prop:portable_token',
+      visibility: 'required',
+      anchorId: 'anchor:focus',
+    }];
+    (pageRecord(draft).mustShow as string[]).unshift('Portable token');
+    const cover = draft.coverContract as Record<string, unknown>;
+    cover.mustNotShow = [
+      'Portable token (first revealed on page 1 â€” no spoiler)',
+    ];
+    const location = (draft.locations as Array<Record<string, unknown>>)[0]!;
+    location.anchors = [{
+      id: 'anchor:focus',
+      description: 'the exact page placement support',
+    }];
+
+    const { result } = await compile(draft);
+    const authority = result.template.setBoardAuthorities![0]!;
+
+    expect(authority.fixedObjects).toEqual([]);
+    expect(authority.areas.flatMap((entry) => entry.spatialNodes)).not.toContainEqual(
+      expect.objectContaining({ propId: 'prop:portable_token' }),
+    );
+    expect(result.template.zones[0]!.spatialNodes).not.toContainEqual(
+      expect.objectContaining({
+        bindsTo: { kind: 'prop', id: 'prop:portable_token' },
+      }),
+    );
+    expect(result.template.pageContracts[0]!.propConstraints).toContainEqual({
+      propId: 'prop:portable_token',
+      visibility: 'required',
+      anchorId: 'anchor:focus',
+    });
+  });
+
+  it('does not create a consumer for a merely permitted gated prop and leaves neutral support geometry unbound', async () => {
+    const draft = matrixDraft();
+    draft.recurringProps = [{
+      id: 'prop:portable_token',
+      name: 'Portable token',
+      description: 'one portable token available only after its reveal',
+      firstRevealPage: 1,
+    }];
+    const cover = draft.coverContract as Record<string, unknown>;
+    cover.mustNotShow = [
+      'Portable token (first revealed on page 1 â€” no spoiler)',
+    ];
+    nodes(draft)[0]!.description =
+      'a plain fixed low platform integrated into the room';
+
+    const { result } = await compile(draft);
+    const neutralNode = result.template.zones[0]!.spatialNodes![0]!;
+
+    expect(result.template.pageContracts[0]!.propConstraints).toBeUndefined();
+    expect(result.template.setBoardAuthorities![0]!.fixedObjects).toEqual([]);
+    expect(neutralNode).toMatchObject({
+      id: 'structure_1',
+      description: 'a plain fixed low platform integrated into the room',
+    });
+    expect(neutralNode).not.toHaveProperty('bindsTo');
+  });
+
+  it('rejects legacy draft spatialNodes.propId fail-closed before repair', async () => {
+    const draft = matrixDraft();
+    nodes(draft)[0]!.propId = 'prop:legacy';
+
+    const issues = await emittedAuthorityIssues(draft);
+
+    expect(issues).toContainEqual({
+      code: 'recurring_prop_reference_type_invalid',
+      locator: {
+        kind: 'set_area_node',
+        referenceClass: 'recurring_prop',
+        fieldRole: 'spatialNodes.stablePropId',
+        authorityIndex: 0,
+        areaIndex: 0,
+        nodeIndex: 0,
+      },
+    });
+  });
+
+  it.each([
+    {
+      expectedCode: 'recurring_prop_lifecycle_gated',
+      propId: 'prop:gated',
+      prop: {
+        id: 'prop:gated',
+        name: 'Gated prop',
+        description: 'Appears later.',
+        firstRevealPage: 1,
+      },
+      constraint: undefined,
+    },
+    {
+      expectedCode: 'recurring_prop_consumer_forbidden',
+      propId: 'prop:forbidden',
+      prop: {
+        id: 'prop:forbidden',
+        name: 'Forbidden prop',
+        description: 'Forbidden on the consuming page.',
+      },
+      constraint: {
+        propId: 'prop:forbidden',
+        visibility: 'forbidden',
+      },
+    },
+  ])('keeps terminal issue identity $expectedCode on spatialNodes.stablePropId', async ({
+    expectedCode,
+    propId,
+    prop,
+    constraint,
+  }) => {
+    const draft = matrixDraft();
+    draft.recurringProps = [prop];
+    nodes(draft)[0]!.stablePropId = propId;
+    if (constraint) pageRecord(draft).propConstraints = [constraint];
+
+    const issues = await emittedAuthorityIssues(draft);
+
+    expect(issues).toContainEqual({
+      code: expectedCode,
+      locator: {
+        kind: 'set_area_node',
+        referenceClass: 'recurring_prop',
+        fieldRole: 'spatialNodes.stablePropId',
+        authorityIndex: 0,
+        areaIndex: 0,
+        nodeIndex: 0,
+      },
+    });
   });
 
   it('reports all five unknown page-zone spatial selections and spends no repair call', async () => {

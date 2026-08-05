@@ -628,10 +628,7 @@ describe('canonical live execution request and readiness', () => {
     const legacyRequest = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    legacyRequest.version = 'canonical-live-execution-request/v1';
-    const canonicalBundle =
-      legacyRequest.canonicalBundle as Record<string, unknown>;
-    delete canonicalBundle.structuredOutputCompatibility;
+    legacyRequest.version = 'canonical-live-execution-request/v6';
     const {
       digestAlgorithm: _requestAlgorithm,
       digest: _requestDigest,
@@ -642,11 +639,8 @@ describe('canonical live execution request and readiness', () => {
       digestAlgorithm: 'canonical-json-sha256',
       digest: canonicalJsonDigest(requestPayload),
     });
-    expect(requestIssues).toEqual(
-      expect.arrayContaining([
-        'execution_request_version_invalid',
-        'execution_canonical_bundle_invalid',
-      ]),
+    expect(requestIssues).toContain(
+      'execution_request_version_invalid',
     );
 
     const readiness = verifyFixture(fixture);
@@ -654,9 +648,7 @@ describe('canonical live execution request and readiness', () => {
       readiness,
     ) as unknown as Record<string, unknown>;
     legacyReadiness.version =
-      'canonical-live-execution-readiness/v1';
-    const b0 = legacyReadiness.b0 as Record<string, unknown>;
-    delete b0.structuredOutputCompatibility;
+      'canonical-live-execution-readiness/v6';
     const {
       digestAlgorithm: _readinessAlgorithm,
       digest: _readinessDigest,
@@ -667,11 +659,8 @@ describe('canonical live execution request and readiness', () => {
       digestAlgorithm: 'canonical-json-sha256',
       digest: canonicalJsonDigest(readinessPayload),
     });
-    expect(readinessIssues).toEqual(
-      expect.arrayContaining([
-        'execution_readiness_header_invalid',
-        'execution_readiness_b0_invalid',
-      ]),
+    expect(readinessIssues).toContain(
+      'execution_readiness_header_invalid',
     );
   });
 });

@@ -124,7 +124,18 @@ describe('Wizard/order to chunk-runner render qualification', () => {
             id: 'prop:bucket',
             name: 'Bucket',
             description: 'the exact stable bucket from the Story Source',
+            firstRevealPage: 11,
           });
+          for (const page of template.pageContracts) {
+            if (page.pageNumber >= 11) continue;
+            page.propConstraints = [
+              ...(page.propConstraints ?? []),
+              {
+                propId: 'prop:bucket',
+                visibility: 'forbidden',
+              },
+            ];
+          }
           page11.propConstraints = [
             ...(page11.propConstraints ?? []),
             {
@@ -163,6 +174,11 @@ describe('Wizard/order to chunk-runner render qualification', () => {
           }
         },
         mutateWorld({ template, affordances, frames }) {
+          for (const frame of frames) {
+            if (frame.kind === 'cover' || (frame.pageNumber ?? 0) < 11) {
+              frame.propLifecycle.forbiddenPropIds.push('prop:bucket');
+            }
+          }
           const updateAction = (
             pageNumber: number,
             checkId: string,
@@ -268,6 +284,56 @@ describe('Wizard/order to chunk-runner render qualification', () => {
     );
     expect(packageValue.sourceSnapshot.rawDigest).toBe(
       frozenProduct.storySourceHash,
+    );
+    const bucketProp = packageValue.visualContractTemplate.content.recurringProps
+      .find((prop) => prop.id === 'prop:bucket');
+    const bucketRevealFrame = packageValue.blueprint.content.frames.find(
+      (frame) => frame.kind === 'page' && frame.pageNumber === 11,
+    )!;
+    const bucketPermittedFrame = packageValue.blueprint.content.frames.find(
+      (frame) => frame.kind === 'page' && frame.pageNumber === 12,
+    )!;
+    expect(bucketProp?.firstRevealPage).toBe(11);
+    expect(
+      packageValue.visualContractTemplate.content.setBoardAuthorities ?? [],
+    ).toEqual([]);
+    expect(
+      packageValue.visualContractTemplate.content.zones
+        .flatMap((zone) => zone.spatialNodes ?? [])
+        .some(
+          (node) =>
+            node.bindsTo?.kind === 'prop' &&
+            node.bindsTo.id === 'prop:bucket',
+        ),
+    ).toBe(false);
+    expect(bucketRevealFrame.propLifecycle.requiredPropIds).toContain(
+      'prop:bucket',
+    );
+    expect(bucketRevealFrame.placements).toContainEqual(
+      expect.objectContaining({
+        subject: { kind: 'prop', propId: 'prop:bucket' },
+      }),
+    );
+    expect(
+      packageValue.blueprint.content.worldPlan.affordances,
+    ).toContainEqual(
+      expect.objectContaining({
+        kind: 'placement_support',
+        zoneId: bucketRevealFrame.zoneId,
+        support: { kind: 'anchor', id: 'anchor:support' },
+        consumers: [
+          { kind: 'placement', pageNumber: 11, propId: 'prop:bucket' },
+        ],
+      }),
+    );
+    expect(bucketPermittedFrame.propLifecycle).toEqual({
+      requiredPropIds: [],
+      forbiddenPropIds: [],
+    });
+    expect(bucketPermittedFrame.placements).not.toContainEqual(
+      expect.objectContaining({
+        subject: { kind: 'prop', propId: 'prop:bucket' },
+      }),
     );
 
     const qualificationRoot = fs.mkdtempSync(

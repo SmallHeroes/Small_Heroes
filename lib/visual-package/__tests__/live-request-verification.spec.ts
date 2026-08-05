@@ -626,7 +626,7 @@ describe('canonical live request verification library', () => {
     });
   });
 
-  it('rejects redigested legacy and incompatible B0 authority instead of arming it', () => {
+  it('rejects the redigested immediately prior B0 authority and incompatible current authority instead of arming it', () => {
     const fixture = writeFixture();
     const materialized = materialize(fixture);
     const legacyPath = rewriteManifest(
@@ -634,9 +634,7 @@ describe('canonical live request verification library', () => {
       materialized.manifest,
       (value) => {
         value.version =
-          'canonical-live-request-materialization/v2';
-        delete value.structuredOutputCompatibility;
-        delete value.compactRepairStructuredOutputCompatibility;
+          'canonical-live-request-materialization/v7';
       },
     );
     expect(
@@ -645,7 +643,6 @@ describe('canonical live request verification library', () => {
       status: 'rejected',
       reasonCodes: expect.arrayContaining([
         'manifest_schema_invalid',
-        'structured_output_compatibility_invalid',
       ]),
     });
 

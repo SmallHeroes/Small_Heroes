@@ -22,6 +22,8 @@ import {
   OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_DIGEST,
   OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
   buildCanonicalPreLiveReadinessFailure,
+  assertValidCanonicalPreLiveReadinessEvidence,
+  canonicalJsonDigest,
   canonicalPreLiveReadinessFailureIssues,
   canonicalPreLiveReadinessArtifactPath,
   inspectCanonicalPreLiveReadinessFailure,
@@ -748,6 +750,28 @@ describe('canonical pre-live readiness orchestrator', () => {
       beforeVerify,
     );
   }, 30_000);
+
+  it('rejects redigested immediately prior pre-live readiness evidence as current authority', () => {
+    const fixture = createFixture();
+    const current = prepare(fixture);
+    expect(current.status).toBe('ready_for_spend_gate');
+    const prior = structuredClone(current) as unknown as Record<string, unknown>;
+    prior.version = 'canonical-pre-live-readiness-evidence/v6';
+    const {
+      digestAlgorithm: _algorithm,
+      digest: _digest,
+      ...payload
+    } = prior;
+    const redigested = {
+      ...payload,
+      digestAlgorithm: 'canonical-json-sha256',
+      digest: canonicalJsonDigest(payload),
+    };
+
+    expect(() =>
+      assertValidCanonicalPreLiveReadinessEvidence(redigested),
+    ).toThrow(/pre_live_evidence_rejected/);
+  });
 
   it('fails closed on immutable evidence collision without overwriting it', () => {
     const fixture = createFixture();

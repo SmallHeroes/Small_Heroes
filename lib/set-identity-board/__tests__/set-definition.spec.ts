@@ -321,6 +321,24 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
 });
 
 describe('reviewed stable Set Board authority validation', () => {
+  it('keeps final v4 compatible with multiple stable nodes describing one persistent fixed installation', () => {
+    const contract = makeContract();
+    contract.setBoardAuthorities![0]!.areas[1]!.spatialNodes.push({
+      id: 'lamp_feed',
+      kind: 'wall',
+      description: 'the fixed conduit feeding the same installed floor lamp',
+      propId: 'floor_lamp',
+    });
+    contract.zones[1]!.spatialNodes!.push({
+      id: 'lamp_feed',
+      kind: 'wall',
+      description: 'the fixed conduit feeding the same installed floor lamp',
+      bindsTo: { kind: 'prop', id: 'floor_lamp' },
+    });
+
+    expect(setBoardStableAuthorityErrors(contract)).toEqual([]);
+  });
+
   it('requires complete authority for every pending/ready physical set', () => {
     const missing = makeContract();
     delete missing.setBoardAuthorities;

@@ -123,6 +123,38 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
     ).not.toHaveProperty('sourcePhrase');
   });
 
+  it('exposes only nullable spatialNodes.stablePropId in the provider-facing Set Board node schema', () => {
+    const root = TEMPLATE_DRAFT_JSON_SCHEMA as unknown as {
+      properties: {
+        setBoardAuthorities: {
+          items: {
+            properties: {
+              areas: {
+                items: {
+                  properties: {
+                    spatialNodes: {
+                      items: {
+                        properties: Record<string, unknown>;
+                      };
+                    };
+                  };
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+    const properties = root.properties.setBoardAuthorities.items.properties
+      .areas.items.properties.spatialNodes.items.properties;
+
+    expect(properties).toHaveProperty('stablePropId');
+    expect(properties).not.toHaveProperty('propId');
+    expect(properties.stablePropId).toEqual({
+      type: ['string', 'null'],
+    });
+  });
+
   it('authors exact zone projection and stable architecture separately from compiler-owned fixed objects', () => {
     const root = TEMPLATE_DRAFT_JSON_SCHEMA as {
       properties: Record<string, {

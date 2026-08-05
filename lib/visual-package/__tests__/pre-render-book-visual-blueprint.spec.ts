@@ -1794,6 +1794,85 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
 });
 
 describe('R1D-PVB-A — reveal lifecycle and staleness', () => {
+  it('admits only the explicit reveal-page placement consumer and keeps later permission consumer-free', () => {
+    const fixture = buildBlueprintFixture('reveal_timeline');
+    const result = validatePreRenderBookVisualBlueprint(
+      fixture.blueprint,
+      fixture.context,
+    );
+    const revealFrame = fixture.blueprint.frames.find(
+      (frame) => frame.id === 'frame:page:2',
+    )!;
+    const permittedFrame = fixture.blueprint.frames.find(
+      (frame) => frame.id === 'frame:page:3',
+    )!;
+    const placementSupport = fixture.blueprint.worldPlan.affordances.find(
+      (entry) =>
+        entry.kind === 'placement_support' &&
+        entry.consumers.some(
+          (consumer) =>
+            consumer.kind === 'placement' &&
+            consumer.pageNumber === 2 &&
+            consumer.propId === 'prop:hidden_keepsake',
+        ),
+    );
+
+    expect(result.ok, result.ok ? '' : JSON.stringify(result.issues, null, 2)).toBe(true);
+    expect(revealFrame.propLifecycle.requiredPropIds).toEqual([
+      'prop:hidden_keepsake',
+    ]);
+    expect(revealFrame.placements).toContainEqual(
+      expect.objectContaining({
+        subject: { kind: 'prop', propId: 'prop:hidden_keepsake' },
+      }),
+    );
+    expect(placementSupport).toMatchObject({
+      kind: 'placement_support',
+      zoneId: revealFrame.zoneId,
+      support: { kind: 'anchor', id: 'anchor:support' },
+      supportedEntities: [{ kind: 'prop', id: 'prop:hidden_keepsake' }],
+    });
+    expect(permittedFrame.propLifecycle).toEqual({
+      requiredPropIds: [],
+      forbiddenPropIds: [],
+    });
+    expect(permittedFrame.placements).not.toContainEqual(
+      expect.objectContaining({
+        subject: { kind: 'prop', propId: 'prop:hidden_keepsake' },
+      }),
+    );
+    expect(
+      fixture.blueprint.worldPlan.affordances.some(
+        (entry) =>
+          entry.kind === 'placement_support' &&
+          entry.consumers.some(
+            (consumer) =>
+              consumer.kind === 'placement' &&
+              consumer.pageNumber === 3,
+          ),
+      ),
+    ).toBe(false);
+  });
+
+  it('keeps spoiler-neutral pre-reveal support geometry outside fixed-prop binding authority', () => {
+    const fixture = buildBlueprintFixture('reveal_timeline');
+    const supportNode = fixture.blueprint.visualContract.zones[0]!
+      .spatialNodes?.find((entry) => entry.id === 'future_support');
+
+    expect(fixture.blueprint.visualContract.setBoardAuthorities ?? []).toEqual([]);
+    expect(supportNode).toMatchObject({
+      id: 'future_support',
+      description: 'a plain fixed low platform integrated into the set',
+    });
+    expect(supportNode).not.toHaveProperty('bindsTo');
+    expect(
+      fixture.blueprint.frames
+        .filter((frame) => frame.kind === 'cover' || frame.pageNumber === 1)
+        .flatMap((frame) => frame.placements)
+        .some((placement) => placement.subject.kind === 'prop'),
+    ).toBe(false);
+  });
+
   it('allows explicitly spoiler-neutral supporting geometry before reveal', () => {
     const fixture = buildBlueprintFixture('reveal_timeline');
     const result = validatePreRenderBookVisualBlueprint(fixture.blueprint, fixture.context);

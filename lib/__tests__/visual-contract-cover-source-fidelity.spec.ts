@@ -33,7 +33,7 @@ function jsonClone<T>(value: T): T {
 }
 
 function foxDraft(): BookVisualContractTemplate {
-  return migrateLegacySetBoardFixture(
+  const draft = migrateLegacySetBoardFixture(
     JSON.parse(
       fs.readFileSync(path.join(BANK, `${STORY_KEY}.visual-contract-template.json`), 'utf8'),
     ) as BookVisualContract,
@@ -45,6 +45,25 @@ function foxDraft(): BookVisualContractTemplate {
       z_balcony_railing: { railing: 'metal_railing' },
     },
   ) as unknown as BookVisualContractTemplate;
+  const seenStablePropIds = new Set<string>();
+  for (const authority of draft.setBoardAuthorities ?? []) {
+    for (const area of authority.areas) {
+      for (const node of area.spatialNodes) {
+        const providerNode = node as unknown as Record<string, unknown>;
+        const finalPropId =
+          typeof providerNode.propId === 'string' && providerNode.propId.length > 0
+            ? providerNode.propId
+            : null;
+        providerNode.stablePropId =
+          finalPropId !== null && !seenStablePropIds.has(finalPropId) ? finalPropId : null;
+        if (finalPropId !== null) {
+          seenStablePropIds.add(finalPropId);
+        }
+        delete providerNode.propId;
+      }
+    }
+  }
+  return draft;
 }
 
 function foxInput(): TemplateCompileInput & { authoredCoverAuthority: AuthoredCoverAuthority } {

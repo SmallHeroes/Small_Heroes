@@ -248,7 +248,7 @@ function makeTemplate(plan: ShapePlan): BookVisualContractTemplate {
 
   template.pageContracts = plan.pageZoneIds.map((zoneId, pageIndex) => {
     const pageNumber = pageIndex + 1;
-    const requiredProp = plan.revealPage !== undefined && pageNumber >= plan.revealPage;
+    const requiredProp = plan.revealPage !== undefined && pageNumber === plan.revealPage;
     const forbiddenProp = plan.revealPage !== undefined && pageNumber < plan.revealPage;
     const page: PageVisualContract = {
       pageNumber,

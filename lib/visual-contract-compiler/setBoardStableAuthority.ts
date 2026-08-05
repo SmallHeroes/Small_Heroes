@@ -211,7 +211,7 @@ export function setBoardStableAuthorityErrors(input: unknown): string[] {
     if (areas.length === 0) errors.push(`${label}.areas must be a non-empty array`);
     const areaIds = new Set<string>();
     const areaLocationIds = new Set<string>();
-    const placedObjectCounts = new Map<string, number>();
+    const placedObjectIds = new Set<string>();
     const projectedZoneOwners = new Map<string, string>();
     for (const [areaIndex, rawArea] of areas.entries()) {
       const areaLabel = `${label}.areas[${areaIndex}]`;
@@ -290,10 +290,7 @@ export function setBoardStableAuthorityErrors(input: unknown): string[] {
               `${nodeLabel}.propId must reference an explicitly declared stable fixed object`,
             );
           } else {
-            placedObjectCounts.set(
-              rawNode.propId,
-              (placedObjectCounts.get(rawNode.propId) ?? 0) + 1,
-            );
+            placedObjectIds.add(rawNode.propId);
           }
         }
       }
@@ -362,11 +359,8 @@ export function setBoardStableAuthorityErrors(input: unknown): string[] {
       }
     }
     for (const propId of fixedObjectIds) {
-      const placementCount = placedObjectCounts.get(propId) ?? 0;
-      if (placementCount !== 1) {
-        errors.push(
-          `${label}.fixedObjects prop "${propId}" must have exactly one stable area placement (got ${placementCount})`,
-        );
+      if (!placedObjectIds.has(propId)) {
+        errors.push(`${label}.fixedObjects prop "${propId}" has no stable area placement`);
       }
     }
     for (const rawObject of fixedObjects ?? []) {

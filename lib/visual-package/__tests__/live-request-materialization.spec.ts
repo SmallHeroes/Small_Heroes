@@ -303,7 +303,7 @@ describe('canonical live request materialization validators', () => {
       liveRequestMaterializationInputIssues({
         ...inputFor(fixture),
         version:
-          'canonical-live-request-materialization-input/v1',
+          'canonical-live-request-materialization-input/v5',
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
