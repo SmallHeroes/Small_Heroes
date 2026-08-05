@@ -152,7 +152,7 @@ const representativeIssues: DraftAuthorityReferenceIssue[] = [
     locator: {
       kind: 'set_area_node' as const,
       referenceClass: 'recurring_prop' as const,
-      fieldRole: 'spatialNodes.propId' as const,
+      fieldRole: 'spatialNodes.stablePropId' as const,
       authorityIndex: 0,
       areaIndex: 0,
       nodeIndex,
@@ -258,7 +258,7 @@ describe('closed draft authority/reference diagnostic contract', () => {
       'setBoardAuthorities.setIdentityId',
       'spatialConstraint.target',
       'spatialEffect.target',
-      'spatialNodes.propId',
+      'spatialNodes.stablePropId',
       'spatialRelations.objectId',
       'subject',
       'zoneProjection.cardinality',

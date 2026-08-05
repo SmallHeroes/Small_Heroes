@@ -115,15 +115,15 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v9' as const;
+  'vc-template-prompt/v10' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v9' as const;
+  'vc-template-user-prompt/v10' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v8' as const;
+  'vc-repair-prompt/v9' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v9' as const;
+  'vc-repair-user-prompt/v10' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -390,9 +390,11 @@ export function buildTemplateCompileSystemPrompt(): string {
     '  plus exact spatialNodes/spatialRelations selection authority for zones not projected from stable areas),',
     '- setBoardAuthorities[]: for every pending/ready set identity, author a SEPARATE stable, character-free physical',
     '  projection. Each area declares exact zoneProjection cardinality+zoneIds. Use only environmental light, fixed',
-    '  architecture as unbound nodes, and exact recurring-prop propId node bindings safe on every consuming page.',
+    '  architecture as unbound nodes, and exact recurring-prop stablePropId node bindings safe on every consuming page.',
     '  fixedObjects is compiler-derived and MUST NOT be authored. Never',
     '  copy page action, cast/name/appearance, portable light, reveal language, or transient props into this field.',
+    '- Prop consumers: stable_set=one ungated/never-forbidden stablePropId; page_frame=required at/after-reveal+',
+    '  Blueprint placement_support. Else unbound; never infer.',
     '  cast.child + cast.companion wardrobe,',
     '  recurringProps[] (material/scale/persistence/firstRevealPage), forbiddenGlobalElements[], coverContract, and per-page',
     '  mustShow/mustNotShow/propState/propConstraints/actionRequirements/camera/transition/zoneId/locationId.',
@@ -474,6 +476,7 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     '{kind:"source_phenomenon",sourceEvidenceId}; use []',
     'when no beat binds to a catalog action; do not invent an action merely to populate the array.',
     'and actionSemanticCoverage[{beatId,sourceEvidenceId,disposition}] arrays. beatId must use beat:p{page}:name.',
+    'Prop scopes: stable_set or page_frame only; follow system rules.',
     'sourceEvidenceId must be selected exactly from the same-page catalog below. represented_elsewhere uses a root',
     'JSON pointer under the exact current pageContracts[] item.',
     '',
@@ -513,8 +516,11 @@ export function buildTemplateRepairSystemPrompt(): string {
     '- worldType (the semantic world type)',
     '- locations[] (name/description/lighting/timeOfDay/environmentClass/anchors/topology/setIdentityId/setReference)',
     '- setBoardAuthorities[] stable location light and fixed physical nodes/relations with exact zoneProjection;',
-    '  architecture uses null propId; only safe recurring props use exact propId; never author fixedObjects; never',
+    '  architecture uses null stablePropId; only one uniquely declared, ungated, never-forbidden prop with one stable',
+    '  placement may use exact stablePropId; never author fixedObjects; never',
     '  include cast, page action/staging, portable light, reveal language, or unsafe props',
+    '- prop scopes are only stable_set via stablePropId or page_frame via required at/after-reveal propConstraint plus',
+    '  Blueprint placement_support; every other state stays unbound, and scopes are never inferred',
     '- zones[] (name/description/stableGeometry/spatialNodes/spatialRelations exact page selection authority)',
     '- cast.child/cast.companion wardrobe; each human\'s garments (each colour an explicit value) + forbiddenAppearance',
     '- recurringProps[] (name/description, material/scale/persistence, and firstRevealPage — NO empty string in a field you include)',
@@ -582,6 +588,9 @@ export function buildTemplateRepairUserPrompt(
           ),
         ]
       : []),
+    '',
+    'PROP SCOPES: stable_set=one ungated/never-forbidden stablePropId; page_frame=required at/after-reveal+',
+    'Blueprint placement_support; every other state stays unbound and never inferred.',
     '',
     'PREVIOUS (INVALID) DRAFT — return a corrected COMPLETE version of this exact JSON object:',
     'Historical imageDirection remains ADVISORY only for action, interaction, expression, camera, composition, and',
@@ -1546,6 +1555,7 @@ function normalizeDraftSpatialAuthorities(args: {
       projectionIndex: number;
     }
   >();
+  const stablePropPlacementIds = new Set<string>();
   const setIds = new Set<string>();
   const authorities = asArr(args.draft.setBoardAuthorities).map(
     (rawAuthority, authorityIndex) => {
@@ -1594,16 +1604,35 @@ function normalizeDraftSpatialAuthorities(args: {
           const nodes = asArr(area.spatialNodes).map(
             (rawNode, nodeIndex) => {
               const node = { ...asObj(rawNode) };
-              if (node.propId === null) delete node.propId;
-              if (node.propId !== undefined) {
-                if (typeof node.propId !== 'string') {
+              const hasLegacyPropId =
+                Object.prototype.hasOwnProperty.call(node, 'propId');
+              const stablePropId = node.stablePropId;
+              delete node.stablePropId;
+              delete node.propId;
+              if (hasLegacyPropId) {
+                authorityIssues.push(
+                  {
+                    code: 'recurring_prop_reference_type_invalid',
+                    locator: {
+                      kind: 'set_area_node',
+                      referenceClass: 'recurring_prop',
+                      fieldRole: 'spatialNodes.stablePropId',
+                      authorityIndex,
+                      areaIndex,
+                      nodeIndex,
+                    },
+                  },
+                );
+              }
+              if (stablePropId !== null && stablePropId !== undefined) {
+                if (typeof stablePropId !== 'string') {
                   authorityIssues.push(
                     {
                       code: 'recurring_prop_reference_type_invalid',
                       locator: {
                         kind: 'set_area_node',
                         referenceClass: 'recurring_prop',
-                        fieldRole: 'spatialNodes.propId',
+                        fieldRole: 'spatialNodes.stablePropId',
                         authorityIndex,
                         areaIndex,
                         nodeIndex,
@@ -1612,15 +1641,18 @@ function normalizeDraftSpatialAuthorities(args: {
                   );
                 } else {
                   const candidates =
-                    propCandidatesById.get(node.propId) ?? [];
-                  if (candidates.length !== 1) {
+                    propCandidatesById.get(stablePropId) ?? [];
+                  if (
+                    candidates.length !== 1 ||
+                    stablePropPlacementIds.has(stablePropId)
+                  ) {
                     authorityIssues.push(
                       {
                         code: 'recurring_prop_reference_cardinality_invalid',
                         locator: {
                           kind: 'set_area_node',
                           referenceClass: 'recurring_prop',
-                          fieldRole: 'spatialNodes.propId',
+                          fieldRole: 'spatialNodes.stablePropId',
                           authorityIndex,
                           areaIndex,
                           nodeIndex,
@@ -1628,6 +1660,7 @@ function normalizeDraftSpatialAuthorities(args: {
                       },
                     );
                   } else {
+                    stablePropPlacementIds.add(stablePropId);
                     const prop = candidates[0]!;
                     if (prop.firstRevealPage !== null && prop.firstRevealPage !== undefined) {
                       authorityIssues.push(
@@ -1636,7 +1669,7 @@ function normalizeDraftSpatialAuthorities(args: {
                           locator: {
                             kind: 'set_area_node',
                             referenceClass: 'recurring_prop',
-                            fieldRole: 'spatialNodes.propId',
+                            fieldRole: 'spatialNodes.stablePropId',
                             authorityIndex,
                             areaIndex,
                             nodeIndex,
@@ -1657,7 +1690,7 @@ function normalizeDraftSpatialAuthorities(args: {
                           (rawConstraint) => {
                             const constraint = asObj(rawConstraint);
                             return (
-                              constraint.propId === node.propId &&
+                              constraint.propId === stablePropId &&
                               constraint.visibility === 'forbidden'
                             );
                           },
@@ -1670,7 +1703,7 @@ function normalizeDraftSpatialAuthorities(args: {
                           locator: {
                             kind: 'set_area_node',
                             referenceClass: 'recurring_prop',
-                            fieldRole: 'spatialNodes.propId',
+                            fieldRole: 'spatialNodes.stablePropId',
                             authorityIndex,
                             areaIndex,
                             nodeIndex,
@@ -1678,8 +1711,9 @@ function normalizeDraftSpatialAuthorities(args: {
                         },
                       );
                     }
-                    stablePropIds.add(node.propId);
+                    stablePropIds.add(stablePropId);
                   }
+                  node.propId = stablePropId;
                 }
               }
               return node;

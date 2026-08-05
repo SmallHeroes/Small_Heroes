@@ -88,7 +88,7 @@ function matrixDraft(): Record<string, unknown> {
     id: `structure_${index + 1}`,
     kind: index === 0 ? 'window' : 'wall',
     description: `stable architectural feature ${index + 1}`,
-    propId: null,
+    stablePropId: null,
   }));
   const draft = {
     worldType: 'grounded_room',
@@ -294,7 +294,7 @@ describe('captured reference-domain matrix', () => {
     const authority = (draft.setBoardAuthorities as Array<Record<string, unknown>>)[0]!;
     const area = (authority.areas as Array<Record<string, unknown>>)[0]!;
     for (const [index, node] of (area.spatialNodes as Array<Record<string, unknown>>).entries()) {
-      node.propId = `fixed_architecture_${index + 1}`;
+      node.stablePropId = `fixed_architecture_${index + 1}`;
     }
     area.spatialRelations = [{
       subjectId: 'structure_6',
@@ -422,13 +422,13 @@ describe('captured reference-domain matrix', () => {
     [
       'recurring_prop_reference_type_invalid',
       (draft: Record<string, unknown>) => {
-        nodes(draft)[0]!.propId = 7;
+        nodes(draft)[0]!.stablePropId = 7;
       },
     ],
     [
       'recurring_prop_reference_cardinality_invalid',
       (draft: Record<string, unknown>) => {
-        nodes(draft)[0]!.propId = 'prop:missing';
+        nodes(draft)[0]!.stablePropId = 'prop:missing';
       },
     ],
     [
@@ -442,7 +442,7 @@ describe('captured reference-domain matrix', () => {
             firstRevealPage: 1,
           },
         ];
-        nodes(draft)[0]!.propId = 'prop:gated';
+        nodes(draft)[0]!.stablePropId = 'prop:gated';
       },
     ],
     [
@@ -456,7 +456,7 @@ describe('captured reference-domain matrix', () => {
             firstRevealPage: null,
           },
         ];
-        nodes(draft)[0]!.propId = 'prop:forbidden';
+        nodes(draft)[0]!.stablePropId = 'prop:forbidden';
         pageRecord(draft).propConstraints = [
           { propId: 'prop:forbidden', visibility: 'forbidden' },
         ];

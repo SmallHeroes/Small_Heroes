@@ -185,6 +185,19 @@ export type SpatialRelation =
   | BinarySpatialRelation;
 
 /**
+ * The only recurring-prop spatial-consumer scopes. This is a closed authoring
+ * domain, not a serialized final-contract field: stable Set Board binding and
+ * per-page Blueprint placement must never be inferred from one another.
+ */
+export const RECURRING_PROP_SPATIAL_CONSUMER_SCOPES = [
+  'stable_set',
+  'page_frame',
+] as const;
+
+export type RecurringPropSpatialConsumerScope =
+  (typeof RECURRING_PROP_SPATIAL_CONSUMER_SCOPES)[number];
+
+/**
  * Explicit, reviewed source authority for one character-free Set Identity Board.
  *
  * This is deliberately separate from `VisualLocation.description` / `lighting`, `VisualZone.description`, and

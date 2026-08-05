@@ -24,7 +24,7 @@ export type DraftAuthorityReferenceFieldRole =
   | 'zones.id'
   | 'setBoardAuthorities.fixedObjects'
   | 'setBoardAuthorities.setIdentityId'
-  | 'spatialNodes.propId'
+  | 'spatialNodes.stablePropId'
   | 'zoneProjection.cardinality'
   | 'zoneProjection.zoneIds'
   | 'zones.stableAreaProjection'
@@ -196,22 +196,22 @@ export const DRAFT_AUTHORITY_REFERENCE_INVARIANT_CATALOG = {
   recurring_prop_reference_type_invalid: {
     referenceClass: 'recurring_prop',
     locatorKinds: ['set_area_node'],
-    fieldRoles: ['spatialNodes.propId'],
+    fieldRoles: ['spatialNodes.stablePropId'],
   },
   recurring_prop_reference_cardinality_invalid: {
     referenceClass: 'recurring_prop',
     locatorKinds: ['set_area_node'],
-    fieldRoles: ['spatialNodes.propId'],
+    fieldRoles: ['spatialNodes.stablePropId'],
   },
   recurring_prop_lifecycle_gated: {
     referenceClass: 'recurring_prop',
     locatorKinds: ['set_area_node'],
-    fieldRoles: ['spatialNodes.propId'],
+    fieldRoles: ['spatialNodes.stablePropId'],
   },
   recurring_prop_consumer_forbidden: {
     referenceClass: 'recurring_prop',
     locatorKinds: ['set_area_node'],
-    fieldRoles: ['spatialNodes.propId'],
+    fieldRoles: ['spatialNodes.stablePropId'],
   },
   zone_projection_cardinality_invalid: {
     referenceClass: 'zone_projection',
