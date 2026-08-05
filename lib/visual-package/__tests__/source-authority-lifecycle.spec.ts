@@ -1142,8 +1142,9 @@ describe('source-grounded closed action authority', () => {
         Record<string, unknown>
       >
     )[0].predicate = 'flies_over';
-    await expect(
-      compileBookVisualContractTemplate(
+    let malformedFailure: unknown;
+    try {
+      await compileBookVisualContractTemplate(
         {
           ...snapshot.content,
           storyKey: snapshot.content.storyKey,
@@ -1153,8 +1154,19 @@ describe('source-grounded closed action authority', () => {
         {
           callLLM: async () => JSON.stringify(malformed),
         },
+      );
+    } catch (error) {
+      malformedFailure = error;
+    }
+    expect(malformedFailure).toBeInstanceOf(
+      TemplateRepairExhaustedError,
+    );
+    expect(
+      (malformedFailure as TemplateRepairExhaustedError).attempts.every(
+        (attempt) => attempt.diagnosticIssues.length > 0,
       ),
-    ).rejects.toThrow(/predicate.*not one of/);
+    ).toBe(true);
+    expect(String(malformedFailure)).not.toMatch(/flies_over/);
 
     const duplicate = fullyActionedBunnyDraft(snapshot);
     const first =
@@ -1259,7 +1271,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v9', async () => {
+  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v10', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const result = await runVisualContractAuthoring({
@@ -1276,7 +1288,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v9',
+      version: 'visual-contract-authoring-readiness/v10',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -1287,6 +1299,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       },
       executionAttestation:
         result.receipt.executionAttestation,
+      draftValidation: {
+        status: 'completed',
+        attempts: result.receipt.attempts.map(
+          (attempt) => attempt.draftValidationDiagnostics,
+        ),
+      },
       actionSemanticCoverage: {
         status: 'complete_review_required',
       },
@@ -1376,8 +1394,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
   it('classifies every prior authoring authority as immutable without mutating its bytes', () => {
     const immediatelyPrior = [
       ['request', 'visual-contract-authoring-request/v9'],
-      ['receipt', 'visual-contract-authoring-receipt/v10'],
-      ['readiness', 'visual-contract-authoring-readiness/v8'],
+      ['receipt', 'visual-contract-authoring-receipt/v11'],
+      ['readiness', 'visual-contract-authoring-readiness/v9'],
       ['candidate', 'visual-contract-candidate-artifact/v6'],
     ] as const;
     const historicalBytes = immediatelyPrior.map(([kind, version]) =>
@@ -1458,11 +1476,23 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v11',
       ),
-    ).toBe('current');
+    ).toBe('legacy_immutable');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v9',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v12',
+      ),
+    ).toBe('current');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v10',
       ),
     ).toBe('current');
     expect(
@@ -1628,7 +1658,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).toThrow(
-      /exact Visual Contract terminal and valid budget-exhaustion binding/,
+      /receipt v12 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -1677,7 +1707,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v11',
+      'visual-contract-authoring-receipt/v12',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.aggregateUsage).toEqual({
@@ -1968,6 +1998,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       repoRoot,
       outputDir,
       evidence: readiness,
+      receipt: result.receipt,
       write: true,
     });
     const loadedReceipt = JSON.parse(
@@ -2432,6 +2463,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         repoRoot,
         outputDir,
         evidence,
+        receipt: result.receipt,
         write: true,
       });
     const candidateWrite = persistVisualContractCandidate({

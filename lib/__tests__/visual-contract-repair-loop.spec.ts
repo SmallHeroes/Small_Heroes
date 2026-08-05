@@ -137,8 +137,9 @@ describe('Stage 3 — bounded repair loop', () => {
       TemplateRepairOutputInvalidError,
     );
     const err = thrown as TemplateRepairOutputInvalidError;
-    expect(err.attempts).toHaveLength(1); // the failing initial attempt is still carried
-    expect(err.attempts[0].errors.some((e) => /material/i.test(e))).toBe(true);
+    expect(err.attempts).toHaveLength(1); // only the typed failing-attempt summary is carried
+    expect(err.attempts[0].diagnosticIssues.length).toBeGreaterThan(0);
+    expect(JSON.stringify(err.attempts)).not.toMatch(/material/i);
     expect(err.repairAttempt).toBe(2);
     expect(err.repairMode).toBe('full_draft');
     expect(err.message).toBe(
@@ -160,7 +161,10 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(thrown).toBeInstanceOf(InvalidTemplateContractError); // still catchable as the fail-closed type
     const err = thrown as TemplateRepairExhaustedError;
     expect(err.attempts).toHaveLength(3);
-    expect(err.attempts.every((a) => a.errors.some((e) => /material/i.test(e)))).toBe(true);
+    expect(
+      err.attempts.every((a) => a.diagnosticIssues.length > 0),
+    ).toBe(true);
+    expect(JSON.stringify(err.attempts)).not.toMatch(/material/i);
     expect(calls()).toBe(3); // initial + 2 repairs — the 4th valid draft was never requested
   });
 });

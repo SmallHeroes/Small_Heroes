@@ -38,6 +38,9 @@ import type {
 } from '@/lib/visual-contract-compiler/draftAuthorityReferenceDiagnostics';
 import {
   draftValidationDiagnosticCodesForIssues,
+  draftValidationAttemptDiagnosticsIsValid,
+  draftValidationDiagnosticTrailIsValid,
+  type DraftValidationAttemptDiagnostics,
   type DraftValidationIssue,
 } from '@/lib/visual-contract-compiler/draftValidationDiagnostics';
 import {
@@ -130,9 +133,9 @@ import {
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
   'visual-contract-authoring-request/v10' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v11' as const;
+  'visual-contract-authoring-receipt/v12' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v9' as const;
+  'visual-contract-authoring-readiness/v10' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v7' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -167,6 +170,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V9 =
   'visual-contract-authoring-receipt/v9' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V10 =
   'visual-contract-authoring-receipt/v10' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V11 =
+  'visual-contract-authoring-receipt/v11' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -183,6 +188,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V7 =
   'visual-contract-authoring-readiness/v7' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V8 =
   'visual-contract-authoring-readiness/v8' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V9 =
+  'visual-contract-authoring-readiness/v9' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -397,6 +404,18 @@ export interface VisualContractAuthoringAttemptReceipt {
     count: number;
     codes: string[];
   };
+  draftValidationDiagnostics: DraftValidationAttemptDiagnostics | null;
+}
+
+export type VisualContractDraftValidationStatus =
+  | 'not_evaluated'
+  | 'completed'
+  | 'interrupted'
+  | 'repair_exhausted';
+
+export interface VisualContractDraftValidationEvidence {
+  status: VisualContractDraftValidationStatus;
+  attempts: Array<DraftValidationAttemptDiagnostics | null>;
 }
 
 export interface VisualContractAuthoringReceipt {
@@ -419,6 +438,7 @@ export interface VisualContractAuthoringReceipt {
   conservativeAccountedCostUsd: number;
   aggregateUsage: VisualContractAuthoringUsage;
   attempts: VisualContractAuthoringAttemptReceipt[];
+  draftValidationStatus: VisualContractDraftValidationStatus;
   candidateDigest: string | null;
   reconciliationDigest: null;
   actionSemanticCoverage: {
@@ -467,6 +487,7 @@ export interface VisualContractAuthoringReadinessEvidence {
     terminalClassification: VisualContractAuthoringReceipt['failure'];
   };
   executionAttestation: AuthoringExecutionAttestation;
+  draftValidation: VisualContractDraftValidationEvidence;
   actionSemanticCoverage: VisualContractAuthoringReceipt['actionSemanticCoverage'];
   visualContractCandidate: {
     status: 'absent' | 'candidate';
@@ -573,6 +594,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V8,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V9,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V10,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V11,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -583,6 +605,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V6,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V7,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V8,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V9,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -1141,6 +1164,7 @@ function failureReceipt(args: {
   request: VisualContractAuthoringRequest;
   attempts: VisualContractAuthoringAttemptReceipt[];
   code: AuthoringTerminalFailureCode;
+  draftValidationStatus?: VisualContractDraftValidationStatus;
   diagnosticInputs?: readonly unknown[];
   diagnosticCountOverride?: number;
   diagnosticCodeOverride?: AuthoringDiagnosticCode;
@@ -1181,6 +1205,8 @@ function failureReceipt(args: {
       aggregateConservativeAccountedCost(args.attempts),
     aggregateUsage: usage,
     attempts: args.attempts,
+    draftValidationStatus:
+      args.draftValidationStatus ?? 'not_evaluated',
     candidateDigest: null,
     reconciliationDigest: null,
     actionSemanticCoverage:
@@ -1461,14 +1487,215 @@ function providerRepairCallCount(
   ).length;
 }
 
+function cloneDraftValidationAttemptDiagnostics(
+  diagnostics: DraftValidationAttemptDiagnostics,
+): DraftValidationAttemptDiagnostics {
+  return {
+    ...diagnostics,
+    items: diagnostics.items.map((item) => ({
+      state: item.state,
+      issue: {
+        family: item.issue.family,
+        code: item.issue.code,
+        locator: { ...item.issue.locator },
+      } as DraftValidationIssue,
+    })),
+  };
+}
+
 function setAttemptValidationDiagnostics(
   attempt: VisualContractAuthoringAttemptReceipt,
+  diagnostics: DraftValidationAttemptDiagnostics,
   issues: readonly DraftValidationIssue[],
 ): void {
+  if (
+    !draftValidationAttemptDiagnosticsIsValid(diagnostics) ||
+    diagnostics.emittedCount !== issues.length
+  ) {
+    throw new Error(
+      'compiler draft-validation diagnostics do not match typed emissions',
+    );
+  }
   attempt.validationDiagnostics = {
     count: Math.min(issues.length, MAX_RECEIPT_ERRORS),
     codes: draftValidationDiagnosticCodesForIssues(issues),
   };
+  attempt.draftValidationDiagnostics =
+    cloneDraftValidationAttemptDiagnostics(diagnostics);
+}
+
+function applyDraftValidationDiagnosticTrail(args: {
+  attempts: VisualContractAuthoringAttemptReceipt[];
+  trail: readonly DraftValidationAttemptDiagnostics[];
+  emissionsByAttempt: readonly (readonly DraftValidationIssue[])[];
+}): void {
+  if (
+    !draftValidationDiagnosticTrailIsValid(args.trail) ||
+    args.trail.length !== args.emissionsByAttempt.length ||
+    args.trail.length > args.attempts.length
+  ) {
+    throw new Error(
+      'compiler draft-validation diagnostic trail is inconsistent',
+    );
+  }
+  args.trail.forEach((diagnostics, index) => {
+    const attempt = args.attempts[index];
+    if (!attempt || attempt.status !== 'response_received') {
+      throw new Error(
+        'draft-validation diagnostics require a matching completed provider attempt',
+      );
+    }
+    setAttemptValidationDiagnostics(
+      attempt,
+      diagnostics,
+      args.emissionsByAttempt[index] ?? [],
+    );
+  });
+}
+
+const DRAFT_VALIDATION_EVIDENCE_KEYS = [
+  'attempts',
+  'status',
+].sort();
+
+export function visualContractDraftValidationEvidenceIsValid(
+  value: unknown,
+): value is VisualContractDraftValidationEvidence {
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value)
+  ) {
+    return false;
+  }
+  const evidence = value as Record<string, unknown>;
+  if (
+    JSON.stringify(Object.keys(evidence).sort()) !==
+      JSON.stringify(DRAFT_VALIDATION_EVIDENCE_KEYS) ||
+    ![
+      'not_evaluated',
+      'completed',
+      'interrupted',
+      'repair_exhausted',
+    ].includes(evidence.status as string) ||
+    !Array.isArray(evidence.attempts)
+  ) {
+    return false;
+  }
+  const attempts = evidence.attempts;
+  if (
+    attempts.some(
+      (attempt) =>
+        attempt !== null &&
+        !draftValidationAttemptDiagnosticsIsValid(attempt),
+    )
+  ) {
+    return false;
+  }
+  const firstNull = attempts.findIndex((attempt) => attempt === null);
+  if (
+    firstNull >= 0 &&
+    attempts.slice(firstNull).some((attempt) => attempt !== null)
+  ) {
+    return false;
+  }
+  const trail = attempts.filter(
+    (attempt): attempt is DraftValidationAttemptDiagnostics =>
+      attempt !== null,
+  );
+  const status = evidence.status as VisualContractDraftValidationStatus;
+  if (trail.length === 0) {
+    return status === 'not_evaluated' || status === 'interrupted';
+  }
+  if (!draftValidationDiagnosticTrailIsValid(trail)) return false;
+  if (status === 'not_evaluated') return false;
+  if (status === 'completed') {
+    return (
+      attempts[attempts.length - 1] !== null &&
+      trail[trail.length - 1]?.currentUniqueCount === 0
+    );
+  }
+  if (status === 'repair_exhausted') {
+    return (
+      attempts.every((attempt) => attempt !== null) &&
+      (trail[trail.length - 1]?.currentUniqueCount ?? 0) > 0
+    );
+  }
+  return true;
+}
+
+function draftValidationEvidenceForReceipt(
+  receipt: VisualContractAuthoringReceipt,
+): VisualContractDraftValidationEvidence {
+  return {
+    status: receipt.draftValidationStatus,
+    attempts: receipt.attempts.map(
+      (attempt) => attempt.draftValidationDiagnostics,
+    ),
+  };
+}
+
+export function visualContractAuthoringReceiptDraftValidationIsValid(
+  receipt: VisualContractAuthoringReceipt,
+): boolean {
+  const evidence = draftValidationEvidenceForReceipt(receipt);
+  if (!visualContractDraftValidationEvidenceIsValid(evidence)) return false;
+  for (const attempt of receipt.attempts) {
+    const diagnostics = attempt.draftValidationDiagnostics;
+    if (diagnostics === null) continue;
+    if (
+      attempt.validationDiagnostics.count !==
+      Math.min(diagnostics.emittedCount, MAX_RECEIPT_ERRORS)
+    ) {
+      return false;
+    }
+    const currentPersistedIssues = diagnostics.items
+      .filter((item) => item.state !== 'resolved')
+      .map((item) => item.issue);
+    const persistedCodes =
+      draftValidationDiagnosticCodesForIssues(currentPersistedIssues);
+    const allowedCodes = [
+      'action_semantic_validation_failed',
+      'draft_contract_validation_failed',
+      'draft_schema_validation_failed',
+      'source_evidence_validation_failed',
+    ];
+    const actualCodes = attempt.validationDiagnostics.codes;
+    if (
+      actualCodes.some((code) => !allowedCodes.includes(code)) ||
+      !exactJson(actualCodes, [...new Set(actualCodes)].sort()) ||
+      (diagnostics.currentUniqueCount === 0
+        ? actualCodes.length !== 0
+        : actualCodes.length === 0)
+    ) {
+      return false;
+    }
+    if (
+      diagnostics.truncated
+        ? persistedCodes.some((code) => !actualCodes.includes(code))
+        : !exactJson(actualCodes, persistedCodes)
+    ) {
+      return false;
+    }
+  }
+  if (receipt.draftValidationStatus === 'completed') {
+    return (
+      receipt.status === 'completed' ||
+      (receipt.status === 'failed' &&
+        receipt.failure?.code ===
+          'post_compile_authority_incomplete')
+    );
+  }
+  if (receipt.draftValidationStatus === 'repair_exhausted') {
+    return (
+      receipt.status === 'failed' &&
+      receipt.failure?.code === 'draft_validation_repair_exhausted'
+    );
+  }
+  if (receipt.draftValidationStatus === 'not_evaluated') {
+    return receipt.status !== 'completed' && receipt.attempts.length === 0;
+  }
+  return receipt.status === 'failed';
 }
 
 function templateRepairExhaustionIsProven(args: {
@@ -1495,7 +1722,7 @@ function templateRepairExhaustionIsProven(args: {
     args.error.attempts.every(
       (attempt, index) =>
         attempt.attempt === index + 1 &&
-        attempt.errors.length > 0,
+        attempt.diagnosticIssues.length > 0,
     )
   );
 }
@@ -1708,6 +1935,7 @@ export async function runVisualContractAuthoring(args: {
         conservativeAccountedCostUsd: 0,
         aggregateUsage: zeroUsage(),
         attempts: [],
+        draftValidationStatus: 'not_evaluated',
         candidateDigest: null,
         reconciliationDigest: null,
         actionSemanticCoverage:
@@ -1797,6 +2025,7 @@ export async function runVisualContractAuthoring(args: {
                 count: 0,
                 codes: [],
               },
+              draftValidationDiagnostics: null,
             } satisfies Omit<
               VisualContractAuthoringAttemptReceipt,
               'status'
@@ -2154,15 +2383,16 @@ export async function runVisualContractAuthoring(args: {
           },
         },
       );
-    for (const repair of compileResult.repairAttempts) {
-      const receipt = attempts[repair.attempt - 1];
-      if (receipt) {
-        setAttemptValidationDiagnostics(
-          receipt,
-          repair.diagnosticIssues,
-        );
-      }
-    }
+    applyDraftValidationDiagnosticTrail({
+      attempts,
+      trail: compileResult.draftValidationDiagnostics,
+      emissionsByAttempt: [
+        ...compileResult.repairAttempts.map(
+          (repair) => repair.diagnosticIssues,
+        ),
+        [],
+      ],
+    });
     const actionIssues = actionAuthorityIssues(
       compileResult.template,
       compileResult.actionSemanticCoverage,
@@ -2173,6 +2403,7 @@ export async function runVisualContractAuthoring(args: {
           request: args.request,
           attempts,
           code: 'post_compile_authority_incomplete',
+          draftValidationStatus: 'completed',
           diagnosticInputs: actionIssues,
           diagnosticCountOverride: actionIssues.length,
           issueCodes: [
@@ -2228,6 +2459,7 @@ export async function runVisualContractAuthoring(args: {
           aggregateConservativeAccountedCost(attempts),
         aggregateUsage: aggregateUsage(attempts),
         attempts,
+        draftValidationStatus: 'completed',
         candidateDigest,
         reconciliationDigest: null,
         actionSemanticCoverage:
@@ -2275,27 +2507,17 @@ export async function runVisualContractAuthoring(args: {
       });
     }
 
-    if (error instanceof TemplateRepairExhaustedError) {
-      for (const repair of error.attempts) {
-        const receipt = attempts[repair.attempt - 1];
-        if (receipt) {
-          setAttemptValidationDiagnostics(
-            receipt,
-            repair.diagnosticIssues,
-          );
-        }
-      }
-    }
-    if (error instanceof TemplateRepairOutputInvalidError) {
-      for (const repair of error.attempts) {
-        const receipt = attempts[repair.attempt - 1];
-        if (receipt) {
-          setAttemptValidationDiagnostics(
-            receipt,
-            repair.diagnosticIssues,
-          );
-        }
-      }
+    if (
+      error instanceof TemplateRepairExhaustedError ||
+      error instanceof TemplateRepairOutputInvalidError
+    ) {
+      applyDraftValidationDiagnosticTrail({
+        attempts,
+        trail: error.draftValidationDiagnostics,
+        emissionsByAttempt: error.attempts.map(
+          (repair) => repair.diagnosticIssues,
+        ),
+      });
     }
     const capabilityGapCount =
       error instanceof ActionSemanticCapabilityGapError
@@ -2326,19 +2548,21 @@ export async function runVisualContractAuthoring(args: {
       })
     ) {
       code = 'draft_validation_repair_exhausted';
-      diagnosticInputs = error.attempts.flatMap(
-        (attempt) => attempt.errors,
+      diagnosticCountOverride = error.attempts.reduce(
+        (count, attempt) =>
+          count + attempt.diagnosticIssues.length,
+        0,
       );
-      diagnosticCountOverride = diagnosticInputs.length;
     } else if (
       error instanceof TemplateRepairOutputInvalidError
     ) {
       code = 'repair_output_invalid';
-      diagnosticInputs = error.attempts.flatMap(
-        (attempt) => attempt.errors,
-      );
       diagnosticCountOverride =
-        diagnosticInputs.length + 1;
+        error.attempts.reduce(
+          (count, attempt) =>
+            count + attempt.diagnosticIssues.length,
+          0,
+        ) + 1;
     } else if (
       error instanceof DraftAuthorityReferenceDomainError
     ) {
@@ -2382,6 +2606,10 @@ export async function runVisualContractAuthoring(args: {
       request: args.request,
       attempts,
       code,
+      draftValidationStatus:
+        code === 'draft_validation_repair_exhausted'
+          ? 'repair_exhausted'
+          : 'interrupted',
       diagnosticInputs,
       diagnosticCountOverride,
       diagnosticCodeOverride,
@@ -2530,6 +2758,10 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
           ),
         )
       : null;
+  const receiptDraftValidationIsValid =
+    visualContractAuthoringReceiptDraftValidationIsValid(
+      args.receipt,
+    );
   if (
     args.request.version !==
       VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION ||
@@ -2558,13 +2790,14 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
     !visualContractAuthoringReceiptExhaustionBindingIsValid(
       args.receipt,
     ) ||
+    !receiptDraftValidationIsValid ||
     args.receipt.digestAlgorithm !==
       'canonical-json-sha256' ||
     args.receipt.digest !==
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'readiness v9 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
+      'readiness v10 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
     );
   }
   const canonicalImportPreflight =
@@ -2605,6 +2838,16 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
     'semantic_reconciliation_absent',
     'human_source_approval_absent',
   ];
+  const receiptDraftValidation =
+    draftValidationEvidenceForReceipt(args.receipt);
+  const draftValidation: VisualContractDraftValidationEvidence = {
+    status: receiptDraftValidation.status,
+    attempts: receiptDraftValidation.attempts.map((attempt) =>
+      attempt === null
+        ? null
+        : cloneDraftValidationAttemptDiagnostics(attempt),
+    ),
+  };
   const withoutDigest = {
     version: VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
     sourceSnapshotDigest: args.snapshot.digest,
@@ -2618,6 +2861,7 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
     },
     executionAttestation:
       args.receipt.executionAttestation,
+    draftValidation,
     actionSemanticCoverage:
       args.receipt.actionSemanticCoverage,
     visualContractCandidate: candidate,
@@ -2692,7 +2936,14 @@ export function persistVisualContractAuthoringReceipt(args: {
   receipt: VisualContractAuthoringReceipt;
   write?: boolean;
 }): VisualContractAuthoringArtifactWrite {
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...receiptPayload
+  } = args.receipt;
   if (
+    args.receipt.version !==
+      VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION ||
     (args.receipt.status === 'failed'
       ? !visualContractAuthoringTerminalFailureIsValid(
           args.receipt.failure,
@@ -2700,10 +2951,17 @@ export function persistVisualContractAuthoringReceipt(args: {
       : args.receipt.failure !== null) ||
     !visualContractAuthoringReceiptExhaustionBindingIsValid(
       args.receipt,
-    )
+    ) ||
+    !visualContractAuthoringReceiptDraftValidationIsValid(
+      args.receipt,
+    ) ||
+    args.receipt.digestAlgorithm !==
+      'canonical-json-sha256' ||
+    args.receipt.digest !==
+      canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'receipt v11 requires an exact Visual Contract terminal and valid budget-exhaustion binding',
+      'receipt v12 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
     );
   }
   return persistJsonArtifact({
@@ -2828,8 +3086,37 @@ export function persistVisualContractAuthoringReadiness(args: {
   repoRoot: string;
   outputDir: string;
   evidence: VisualContractAuthoringReadinessEvidence;
+  receipt: VisualContractAuthoringReceipt;
   write?: boolean;
 }): VisualContractAuthoringArtifactWrite {
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...readinessPayload
+  } = args.evidence;
+  if (
+    args.evidence.version !==
+      VISUAL_CONTRACT_AUTHORING_READINESS_VERSION ||
+    !visualContractAuthoringReceiptDraftValidationIsValid(
+      args.receipt,
+    ) ||
+    args.evidence.authoringReceiptDigest !== args.receipt.digest ||
+    !visualContractDraftValidationEvidenceIsValid(
+      args.evidence.draftValidation,
+    ) ||
+    !exactJson(
+      args.evidence.draftValidation,
+      draftValidationEvidenceForReceipt(args.receipt),
+    ) ||
+    args.evidence.digestAlgorithm !==
+      'canonical-json-sha256' ||
+    args.evidence.digest !==
+      canonicalJsonDigest(readinessPayload)
+  ) {
+    throw new Error(
+      'readiness v10 requires exact typed draft-validation evidence and a valid current digest',
+    );
+  }
   return persistJsonArtifact({
     ...args,
     category: 'readiness-evidence',

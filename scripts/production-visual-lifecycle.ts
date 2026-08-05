@@ -329,6 +329,7 @@ async function sourceAuthoringPreflight(
             repoRoot: request.repoRoot,
             outputDir,
             evidence: readiness,
+            receipt: result.receipt,
             write: shouldWrite,
           }),
       }

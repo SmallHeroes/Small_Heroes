@@ -165,7 +165,7 @@ export interface TemplateAuthoringProvenance {
 }
 
 /** In-memory repair state. Exact prose and rejected drafts never cross the compiler boundary. */
-export interface TemplateRepairAttempt {
+interface TemplateRepairAttempt {
   /** 1 = the initial authoring call; 2 = repair #1; 3 = repair #2. */
   attempt: number;
   /** The exact validator/assembly errors this attempt failed with. */
@@ -266,23 +266,28 @@ export function compilerOwnedActionCheckId(
 /**
  * Thrown when the bounded repair loop is exhausted (the initial call + MAX_REPAIR_ATTEMPTS repairs were ALL invalid).
  * Extends the fail-closed error so existing `instanceof InvalidTemplateContractError` handlers still catch it, and
- * carries the in-memory attempt trail so the lifecycle can project typed diagnostics even though NO template was
- * produced (the Stage-3 contract: write nothing unless an attempt fully passes).
+ * carries only sanitized typed attempt summaries so the lifecycle can project diagnostics even though NO template
+ * was produced (the Stage-3 contract: write nothing unless an attempt fully passes).
  */
 export class TemplateRepairExhaustedError extends InvalidTemplateContractError {
   readonly draftValidationDiagnostics: readonly DraftValidationAttemptDiagnostics[];
+  readonly attempts: readonly TemplateRepairSummary[];
 
-  constructor(
-    readonly attempts: TemplateRepairAttempt[],
-    lastErrors: string[],
-  ) {
+  constructor(attempts: readonly TemplateRepairAttempt[]) {
     super(
       [
-        `template repair loop exhausted after ${attempts.length} attempt(s) — wrote nothing; last errors: ${lastErrors.join('; ')}`,
+        `template repair loop exhausted after ${attempts.length} attempt(s) — wrote nothing`,
       ],
       attempts[attempts.length - 1]?.diagnosticIssues ?? [],
     );
     this.name = 'TemplateRepairExhaustedError';
+    this.attempts = attempts.map((attempt) => ({
+      attempt: attempt.attempt,
+      diagnosticIssues: attempt.diagnosticIssues,
+      ...(attempt.nextRepairMode
+        ? { nextRepairMode: attempt.nextRepairMode }
+        : {}),
+    }));
     this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
       attempts.map((attempt) => attempt.diagnosticIssues),
     );
@@ -298,9 +303,10 @@ export class TemplateRepairExhaustedError extends InvalidTemplateContractError {
  */
 export class TemplateRepairOutputInvalidError extends Error {
   readonly draftValidationDiagnostics: readonly DraftValidationAttemptDiagnostics[];
+  readonly attempts: readonly TemplateRepairSummary[];
 
   constructor(
-    readonly attempts: TemplateRepairAttempt[],
+    attempts: readonly TemplateRepairAttempt[],
     readonly repairAttempt: number,
     readonly repairMode:
       | 'source_evidence_id_patch'
@@ -308,6 +314,13 @@ export class TemplateRepairOutputInvalidError extends Error {
   ) {
     super('completed template repair output was unusable');
     this.name = 'TemplateRepairOutputInvalidError';
+    this.attempts = attempts.map((attempt) => ({
+      attempt: attempt.attempt,
+      diagnosticIssues: attempt.diagnosticIssues,
+      ...(attempt.nextRepairMode
+        ? { nextRepairMode: attempt.nextRepairMode }
+        : {}),
+    }));
     this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
       attempts.map((attempt) => attempt.diagnosticIssues),
     );
@@ -2679,7 +2692,7 @@ export async function compileBookVisualContractTemplate(
 
     if (attempt > MAX_REPAIR_ATTEMPTS) {
       // Initial + MAX_REPAIR_ATTEMPTS repairs all failed — fail closed, write nothing, carry the trail.
-      throw new TemplateRepairExhaustedError(repairAttempts, attemptErrors);
+      throw new TemplateRepairExhaustedError(repairAttempts);
     }
 
     const repairMode = sourceEvidenceAffectedRecords
