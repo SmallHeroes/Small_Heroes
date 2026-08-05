@@ -27,7 +27,7 @@ import type {
   VisualZone,
 } from './types';
 import { assertValidBookVisualContractTemplate, InvalidTemplateContractError } from './validateTemplateContract';
-import { sourceEvidenceErrors } from './validateSourceEvidence';
+import { sourceEvidenceValidation } from './validateSourceEvidence';
 import { parseContractJson } from './compileBookVisualContract';
 import type {
   ContractLlmCaller,
@@ -78,10 +78,16 @@ import {
   ACTION_SEMANTIC_COVERAGE_VERSION,
   ActionSemanticCapabilityGapError,
   NON_VISUAL_RATIONALE_VALUES,
-  actionSemanticCoverageIssues,
+  actionSemanticCoverageValidation,
   type ActionSemanticCapabilityGap,
   type ActionSemanticCoverageRecord,
 } from './actionSemanticCoverage';
+import {
+  buildDraftValidationDiagnosticTrail,
+  type DraftValidationAttemptDiagnostics,
+  type DraftValidationIssue,
+  type DraftValidationLocator,
+} from './draftValidationDiagnostics';
 import {
   normalizeDraftAuthorityReferenceIssues,
   type DraftAuthorityReferenceFieldRole,
@@ -158,13 +164,15 @@ export interface TemplateAuthoringProvenance {
   repairPromptVersion?: string;
 }
 
-/** A recorded repair attempt — persisted beside the review for human reviewability (Stage 3). */
+/** In-memory repair state. Exact prose and rejected drafts never cross the compiler boundary. */
 export interface TemplateRepairAttempt {
   /** 1 = the initial authoring call; 2 = repair #1; 3 = repair #2. */
   attempt: number;
   /** The exact validator/assembly errors this attempt failed with. */
   errors: string[];
-  /** The descriptive draft object this attempt failed with (nested in the reviewability sidecar). */
+  /** Closed compiler-owned sibling identities; never used to select repair input or mode. */
+  diagnosticIssues: readonly DraftValidationIssue[];
+  /** The descriptive draft object this attempt failed with; retained only for the next repair prompt. */
   draft: unknown;
   /** Narrow patch or existing whole-draft repair selected after this failure. */
   nextRepairMode?:
@@ -172,12 +180,36 @@ export interface TemplateRepairAttempt {
     | 'full_draft';
 }
 
+export interface TemplateRepairSummary {
+  attempt: number;
+  diagnosticIssues: readonly DraftValidationIssue[];
+  nextRepairMode?: 'source_evidence_id_patch' | 'full_draft';
+}
+
+function sourceEvidenceIdDiagnosticIssues(
+  affectedRecords: readonly SourceEvidenceIdRepairAffectedRecord[],
+): DraftValidationIssue[] {
+  return affectedRecords.map((record) => ({
+    family: 'source_evidence_id',
+    code: record.failureCode,
+    locator: {
+      kind: 'source_evidence',
+      fieldRole: 'source_evidence',
+      pageNumber: record.pageNumber,
+      coverageIndex: record.coverageIndex,
+    },
+  }));
+}
+
 export class SourceEvidenceIdValidationError extends InvalidTemplateContractError {
   constructor(
     readonly affectedRecords: SourceEvidenceIdRepairAffectedRecord[],
     errors: string[],
   ) {
-    super(errors);
+    super(
+      errors,
+      sourceEvidenceIdDiagnosticIssues(affectedRecords),
+    );
     this.name = 'SourceEvidenceIdValidationError';
   }
 }
@@ -234,18 +266,26 @@ export function compilerOwnedActionCheckId(
 /**
  * Thrown when the bounded repair loop is exhausted (the initial call + MAX_REPAIR_ATTEMPTS repairs were ALL invalid).
  * Extends the fail-closed error so existing `instanceof InvalidTemplateContractError` handlers still catch it, and
- * carries the attempt trail so the driver can persist it beside the review even though NO template was produced
- * (the Stage-3 contract: write nothing unless an attempt fully passes).
+ * carries the in-memory attempt trail so the lifecycle can project typed diagnostics even though NO template was
+ * produced (the Stage-3 contract: write nothing unless an attempt fully passes).
  */
 export class TemplateRepairExhaustedError extends InvalidTemplateContractError {
+  readonly draftValidationDiagnostics: readonly DraftValidationAttemptDiagnostics[];
+
   constructor(
     readonly attempts: TemplateRepairAttempt[],
     lastErrors: string[],
   ) {
-    super([
-      `template repair loop exhausted after ${attempts.length} attempt(s) — wrote nothing; last errors: ${lastErrors.join('; ')}`,
-    ]);
+    super(
+      [
+        `template repair loop exhausted after ${attempts.length} attempt(s) — wrote nothing; last errors: ${lastErrors.join('; ')}`,
+      ],
+      attempts[attempts.length - 1]?.diagnosticIssues ?? [],
+    );
     this.name = 'TemplateRepairExhaustedError';
+    this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
+      attempts.map((attempt) => attempt.diagnosticIssues),
+    );
   }
 }
 
@@ -257,6 +297,8 @@ export class TemplateRepairExhaustedError extends InvalidTemplateContractError {
  * carried by this error.
  */
 export class TemplateRepairOutputInvalidError extends Error {
+  readonly draftValidationDiagnostics: readonly DraftValidationAttemptDiagnostics[];
+
   constructor(
     readonly attempts: TemplateRepairAttempt[],
     readonly repairAttempt: number,
@@ -266,6 +308,9 @@ export class TemplateRepairOutputInvalidError extends Error {
   ) {
     super('completed template repair output was unusable');
     this.name = 'TemplateRepairOutputInvalidError';
+    this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
+      attempts.map((attempt) => attempt.diagnosticIssues),
+    );
   }
 }
 
@@ -304,9 +349,10 @@ export interface TemplateCompileResult {
   notes: string[];
   /** The authoring call's provenance (model / reasoning / budget / schema+prompt version / attempt). */
   provenance: TemplateAuthoringProvenance;
-  /** The FAILED repair attempts before the passing one (empty when the initial draft was valid). Persist beside
-   *  the review for reviewability (Stage 3). */
-  repairAttempts: TemplateRepairAttempt[];
+  /** Sanitized FAILED-attempt metadata. Exact errors and drafts never leave the in-memory repair loop. */
+  repairAttempts: TemplateRepairSummary[];
+  /** Complete validated-attempt trail, including a zero-current successful final attempt. */
+  draftValidationDiagnostics: readonly DraftValidationAttemptDiagnostics[];
 }
 
 // ── LLM prompt (real path; the pilot injects a stub) ─────────────────────────
@@ -669,7 +715,11 @@ export function injectAppearance(role: string, humanId: string): HumanAppearance
   if (!hair) {
     throw new InvalidTemplateContractError([
       `humanCast "${humanId}" role "${role}" has no appearance policy — a role that is neither a known relative nor a known non-relative must be authored by a human (never auto-classified).`,
-    ]);
+    ], [{
+      family: 'draft_contract',
+      code: 'fact_authority_mismatch',
+      locator: { kind: 'root', fieldRole: 'appearance' },
+    }]);
   }
   const skinHair = (): TemplateTraitBinding =>
     FAMILY_PROFILE_ROLES.has(role)
@@ -710,13 +760,34 @@ function sourceGroundPageActionSemantics(
   coverage: ActionSemanticCoverageRecord[];
   capabilityGaps: ActionSemanticCapabilityGap[];
   issues: string[];
+  diagnosticIssues: DraftValidationIssue[];
   sourceEvidenceIssues: SourceEvidenceIdRepairAffectedRecord[];
 } {
   const pageNumber =
     typeof pageDraft.pageNumber === 'number'
       ? pageDraft.pageNumber
       : -1;
+  const pageCollectionLocator = (
+    collectionRole: 'page_actions' | 'page_action_semantic_coverage',
+    itemIndex: number,
+    fieldRole: DraftValidationLocator['fieldRole'],
+  ): DraftValidationLocator =>
+    Number.isSafeInteger(pageNumber) && pageNumber > 0
+      ? {
+          kind: 'page_item',
+          collectionRole,
+          fieldRole,
+          pageNumber,
+          itemIndex,
+        }
+      : {
+          kind: 'collection_item',
+          collectionRole,
+          fieldRole,
+          itemIndex,
+        };
   const issues: string[] = [];
+  const diagnosticIssues: DraftValidationIssue[] = [];
   const authorityIssues: DraftAuthorityReferenceIssue[] = [];
   const sourceEvidenceIssues: SourceEvidenceIdRepairAffectedRecord[] = [];
 
@@ -832,6 +903,13 @@ function sourceGroundPageActionSemantics(
     issues.push(
       `page ${pageNumber}: action_semantic_coverage_missing`,
     );
+    diagnosticIssues.push({
+      family: 'action_semantic',
+      code: 'coverage_missing',
+      locator: Number.isSafeInteger(pageNumber) && pageNumber > 0
+        ? { kind: 'page', fieldRole: 'coverage', pageNumber }
+        : { kind: 'collection', collectionRole: 'page_action_semantic_coverage', fieldRole: 'coverage' },
+    });
   }
   for (let index = 0; index < rawCoverage.length; index += 1) {
     const label =
@@ -844,10 +922,20 @@ function sourceGroundPageActionSemantics(
       : '';
     if (!rawBeatId) {
       issues.push(`${label}.beatId is missing`);
+      diagnosticIssues.push({
+        family: 'action_semantic',
+        code: 'beat_identity_missing',
+        locator: pageCollectionLocator('page_action_semantic_coverage', index, 'identity'),
+      });
     } else if (!beatId) {
       issues.push(
         `${label}.beatId "${rawBeatId}" must be stable and page-scoped (${String(beatIdPattern)})`,
       );
+      diagnosticIssues.push({
+        family: 'action_semantic',
+        code: 'beat_identity_out_of_scope',
+        locator: pageCollectionLocator('page_action_semantic_coverage', index, 'identity'),
+      });
     }
     if (beatId) {
       const indices = allCoverageIndices.get(beatId) ?? [];
@@ -915,6 +1003,11 @@ function sourceGroundPageActionSemantics(
         issues.push(
           `${label}.disposition.reason must be closed_action_catalog_gap`,
         );
+        diagnosticIssues.push({
+          family: 'action_semantic',
+          code: 'disposition_reason_invalid',
+          locator: pageCollectionLocator('page_action_semantic_coverage', index, 'reason'),
+        });
       } else if (beatId && resolution.ok) {
         capabilityGaps.push({
           pageNumber,
@@ -927,6 +1020,11 @@ function sourceGroundPageActionSemantics(
         issues.push(
           `${label}.disposition unsupported is a terminal action_semantic_capability_gap and is not eligible for compact ID repair`,
         );
+        diagnosticIssues.push({
+          family: 'action_semantic',
+          code: 'disposition_payload_invalid',
+          locator: pageCollectionLocator('page_action_semantic_coverage', index, 'payload'),
+        });
       }
       continue;
     }
@@ -1000,6 +1098,11 @@ function sourceGroundPageActionSemantics(
         issues.push(
           `${label}.disposition represented_elsewhere requires contractPointer and exact string contractValue`,
         );
+        diagnosticIssues.push({
+          family: 'action_semantic',
+          code: 'disposition_payload_invalid',
+          locator: pageCollectionLocator('page_action_semantic_coverage', index, 'payload'),
+        });
       } else {
         typedDisposition = {
           kind: 'represented_elsewhere',
@@ -1017,6 +1120,11 @@ function sourceGroundPageActionSemantics(
         issues.push(
           `${label}.disposition.rationale is not in the closed non-visual rationale catalog`,
         );
+        diagnosticIssues.push({
+          family: 'action_semantic',
+          code: 'disposition_reason_invalid',
+          locator: pageCollectionLocator('page_action_semantic_coverage', index, 'reason'),
+        });
       } else {
         typedDisposition = {
           kind: 'non_visual',
@@ -1026,6 +1134,11 @@ function sourceGroundPageActionSemantics(
       }
     } else {
       issues.push(`${label}.disposition.kind is invalid`);
+      diagnosticIssues.push({
+        family: 'action_semantic',
+        code: 'disposition_kind_invalid',
+        locator: pageCollectionLocator('page_action_semantic_coverage', index, 'disposition'),
+      });
     }
     if (beatId && typedDisposition) {
       coverage.push({
@@ -1077,7 +1190,7 @@ function sourceGroundPageActionSemantics(
   if (authorityIssues.length > 0) {
     throw new DraftAuthorityReferenceDomainError(authorityIssues);
   }
-  for (const action of groundedActions) {
+  for (const [actionIndex, action] of groundedActions.entries()) {
     const subject = asObj(action.subject);
     if (subject.kind !== 'source_phenomenon') continue;
     const checkId =
@@ -1087,6 +1200,11 @@ function sourceGroundPageActionSemantics(
       issues.push(
         `page ${pageNumber} actionRequirement "${checkId}" source_phenomenon subject must bind one same-page Action Semantic Coverage record`,
       );
+      diagnosticIssues.push({
+        family: 'action_semantic',
+        code: 'action_binding_missing',
+        locator: pageCollectionLocator('page_actions', actionIndex, 'action_binding'),
+      });
       continue;
     }
     const subjectResolution = resolveSourceEvidenceId({
@@ -1128,6 +1246,11 @@ function sourceGroundPageActionSemantics(
       issues.push(
         `page ${pageNumber} actionRequirement "${checkId}" source_phenomenon subject must use the exact Source Evidence ID bound by its coverage record`,
       );
+      diagnosticIssues.push({
+        family: 'action_semantic',
+        code: 'source_phenomenon_binding_mismatch',
+        locator: pageCollectionLocator('page_actions', actionIndex, 'source_evidence'),
+      });
       continue;
     }
     action.subject = {
@@ -1149,6 +1272,7 @@ function sourceGroundPageActionSemantics(
     coverage,
     capabilityGaps,
     issues,
+    diagnosticIssues,
     sourceEvidenceIssues,
   };
 }
@@ -1252,10 +1376,34 @@ function buildZoneGraph(draft: Record<string, unknown>): ZoneGraph {
   for (const [zoneIndex, raw] of asArr(draft.zones).entries()) {
     const z = asObj(raw);
     if (!isStr(z.id) || !isStr(z.locationId)) {
-      throw new InvalidTemplateContractError(['a zone is missing id/locationId — the semantic zone graph is malformed (repair).']);
+      throw new InvalidTemplateContractError(
+        ['a zone is missing id/locationId — the semantic zone graph is malformed (repair).'],
+        [{
+          family: 'draft_contract',
+          code: 'topology_malformed',
+          locator: {
+            kind: 'collection_item',
+            collectionRole: 'zones',
+            fieldRole: 'topology',
+            itemIndex: zoneIndex,
+          },
+        }],
+      );
     }
     if (!locationIds.has(z.locationId)) {
-      throw new InvalidTemplateContractError([`zone "${z.id}" references unknown locationId "${z.locationId}" — the semantic zone graph is malformed (repair).`]);
+      throw new InvalidTemplateContractError(
+        [`zone "${z.id}" references unknown locationId "${z.locationId}" — the semantic zone graph is malformed (repair).`],
+        [{
+          family: 'draft_contract',
+          code: 'unresolved_reference',
+          locator: {
+            kind: 'collection_item',
+            collectionRole: 'zones',
+            fieldRole: 'reference',
+            itemIndex: zoneIndex,
+          },
+        }],
+      );
     }
     if (exact.has(z.id)) {
       throw new DraftAuthorityReferenceDomainError([
@@ -1278,24 +1426,46 @@ function buildZoneGraph(draft: Record<string, unknown>): ZoneGraph {
     else byNorm.set(norm, [cz]);
   }
   if (exact.size === 0) {
-    throw new InvalidTemplateContractError(['the zone graph is empty — the LLM must describe at least one zone (repair).']);
+    throw new InvalidTemplateContractError(
+      ['the zone graph is empty — the LLM must describe at least one zone (repair).'],
+      [{
+        family: 'draft_contract',
+        code: 'topology_empty',
+        locator: {
+          kind: 'collection',
+          collectionRole: 'zones',
+          fieldRole: 'topology',
+        },
+      }],
+    );
   }
   return { exact, byNorm };
 }
 
 /** Resolve a page/transition zone REFERENCE to exactly one canonical zone, or throw (→ repair). Exact id wins;
  *  otherwise a single normalized match; 0 or >1 candidates is unresolved/ambiguous — never guessed. */
-function resolveZoneRef(ref: string, graph: ZoneGraph, label: string): CanonicalZone {
+function resolveZoneRef(
+  ref: string,
+  graph: ZoneGraph,
+  label: string,
+  locator: DraftValidationLocator,
+): CanonicalZone {
   const exact = graph.exact.get(ref);
   if (exact) return exact;
   const candidates = graph.byNorm.get(normalizeTopoId(ref)) ?? [];
   if (candidates.length === 1) return candidates[0];
   if (candidates.length === 0) {
-    throw new InvalidTemplateContractError([`${label} references zone "${ref}" which is not a declared zone — canonicalize the id or repair (no guess).`]);
+    throw new InvalidTemplateContractError(
+      [`${label} references zone "${ref}" which is not a declared zone — canonicalize the id or repair (no guess).`],
+      [{ family: 'draft_contract', code: 'unresolved_reference', locator }],
+    );
   }
-  throw new InvalidTemplateContractError([
-    `${label} reference "${ref}" is ambiguous — it matches ${candidates.length} declared zones (${candidates.map((c) => c.id).join(', ')}); repair (no guess).`,
-  ]);
+  throw new InvalidTemplateContractError(
+    [
+      `${label} reference "${ref}" is ambiguous — it matches ${candidates.length} declared zones (${candidates.map((c) => c.id).join(', ')}); repair (no guess).`,
+    ],
+    [{ family: 'draft_contract', code: 'ambiguous_reference', locator }],
+  );
 }
 
 /**
@@ -1317,10 +1487,21 @@ function canonicalizeTopology(
   const pages = asArr(draft.pageContracts).map((raw) => {
     const pc: Record<string, unknown> = { ...asObj(raw) };
     const label = typeof pc.pageNumber === 'number' ? `page ${pc.pageNumber}` : 'a page';
+    const pageLocator: DraftValidationLocator =
+      Number.isSafeInteger(pc.pageNumber) && Number(pc.pageNumber) > 0
+        ? {
+            kind: 'page',
+            fieldRole: 'topology',
+            pageNumber: Number(pc.pageNumber),
+          }
+        : { kind: 'root', fieldRole: 'topology' };
     if (!isStr(pc.zoneId) || !pc.zoneId.trim()) {
-      throw new InvalidTemplateContractError([`${label} has no zoneId — it cannot be placed in the zone graph (repair).`]);
+      throw new InvalidTemplateContractError(
+        [`${label} has no zoneId — it cannot be placed in the zone graph (repair).`],
+        [{ family: 'draft_contract', code: 'unresolved_reference', locator: pageLocator }],
+      );
     }
-    const zone = resolveZoneRef(pc.zoneId, graph, label);
+    const zone = resolveZoneRef(pc.zoneId, graph, label, pageLocator);
     if (pc.zoneId !== zone.id) notes.push(`${label} zoneId "${pc.zoneId}" canonicalized to "${zone.id}"`);
     if (isStr(pc.locationId) && pc.locationId !== zone.locationId) {
       notes.push(`${label} locationId "${pc.locationId}" overridden to "${zone.locationId}" (derived from zone "${zone.id}")`);
@@ -1331,8 +1512,12 @@ function canonicalizeTopology(
     const t = asObj(pc.transition);
     if (Object.keys(t).length > 0) {
       const t2: Record<string, unknown> = { ...t };
-      if (isStr(t.fromZoneId)) t2.fromZoneId = resolveZoneRef(t.fromZoneId, graph, `${label}.transition.fromZoneId`).id;
-      if (isStr(t.toZoneId)) t2.toZoneId = resolveZoneRef(t.toZoneId, graph, `${label}.transition.toZoneId`).id;
+      const transitionLocator: DraftValidationLocator = {
+        ...pageLocator,
+        fieldRole: 'transition',
+      };
+      if (isStr(t.fromZoneId)) t2.fromZoneId = resolveZoneRef(t.fromZoneId, graph, `${label}.transition.fromZoneId`, transitionLocator).id;
+      if (isStr(t.toZoneId)) t2.toZoneId = resolveZoneRef(t.toZoneId, graph, `${label}.transition.toZoneId`, transitionLocator).id;
       pc.transition = t2;
     }
     return pc;
@@ -1353,6 +1538,11 @@ function canonicalizeTopology(
       if (error instanceof AuthoredCoverAuthorityError) {
         throw new InvalidTemplateContractError(
           error.issues.map((candidate) => `${candidate.code}: ${candidate.message}`),
+          error.issues.map(() => ({
+            family: 'draft_contract' as const,
+            code: 'cover_source_fidelity_invalid' as const,
+            locator: { kind: 'cover' as const, fieldRole: 'authority' as const },
+          })),
         );
       }
       throw error;
@@ -1376,11 +1566,20 @@ function canonicalizeTopology(
     if (!authoredCoverZoneId) {
       throw new InvalidTemplateContractError([
         'coverContract has no zoneId and no unambiguous compiler-time proposal exists (repair).',
-      ]);
+      ], [{
+        family: 'draft_contract',
+        code: 'unresolved_reference',
+        locator: { kind: 'cover', fieldRole: 'topology' },
+      }]);
     }
     notes.push(`coverContract zoneId proposed as "${authoredCoverZoneId}" from its authored location/page graph`);
   }
-  const coverZone = resolveZoneRef(authoredCoverZoneId, graph, 'coverContract');
+  const coverZone = resolveZoneRef(
+    authoredCoverZoneId,
+    graph,
+    'coverContract',
+    { kind: 'cover', fieldRole: 'topology' },
+  );
   if (isStr(cover.zoneId) && cover.zoneId !== coverZone.id) {
     notes.push(`coverContract zoneId "${cover.zoneId}" canonicalized to "${coverZone.id}"`);
   }
@@ -2148,6 +2347,7 @@ function assembleTemplateFromDraft(
   });
   const capabilityGaps: ActionSemanticCapabilityGap[] = [];
   const coverageIssues: string[] = [];
+  const coverageDiagnosticIssues: DraftValidationIssue[] = [];
   const pageContracts = canonicalPages.map((pc) => {
     const grounded = sourceGroundPageActionSemantics(
       pc,
@@ -2157,6 +2357,7 @@ function assembleTemplateFromDraft(
     sourceEvidenceIssues.push(...grounded.sourceEvidenceIssues);
     capabilityGaps.push(...grounded.capabilityGaps);
     coverageIssues.push(...grounded.issues);
+    coverageDiagnosticIssues.push(...grounded.diagnosticIssues);
     return overlayPage(
       grounded.page,
       facts,
@@ -2177,14 +2378,29 @@ function assembleTemplateFromDraft(
       coverageIssues.push(
         `Action Semantic Coverage beatId "${beat.beatId}" is duplicated`,
       );
+      coverageDiagnosticIssues.push({
+        family: 'action_semantic',
+        code: 'beat_identity_duplicate',
+        locator: {
+          kind: 'page',
+          fieldRole: 'identity',
+          pageNumber: beat.pageNumber,
+        },
+      });
     }
     seenBeatIds.add(beat.beatId);
   }
   if (coverageIssues.length > 0) {
-    throw new InvalidTemplateContractError([
-      ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
-      ...coverageIssues,
-    ]);
+    throw new InvalidTemplateContractError(
+      [
+        ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
+        ...coverageIssues,
+      ],
+      [
+        ...sourceEvidenceIdDiagnosticIssues(sourceEvidenceIssues),
+        ...coverageDiagnosticIssues,
+      ],
+    );
   }
   if (capabilityGaps.length > 0) {
     throw new ActionSemanticCapabilityGapError(capabilityGaps);
@@ -2203,7 +2419,14 @@ function assembleTemplateFromDraft(
   const worldType =
     (typeof draft.worldType === 'string' && draft.worldType.trim() ? draft.worldType.trim() : input.worldType?.trim()) ?? '';
   if (!worldType) {
-    throw new InvalidTemplateContractError(['worldType is missing — the semantic world type must be set (no silent default); author or repair it.']);
+    throw new InvalidTemplateContractError(
+      ['worldType is missing — the semantic world type must be set (no silent default); author or repair it.'],
+      [{
+        family: 'draft_contract',
+        code: 'world_type_missing',
+        locator: { kind: 'root', fieldRole: 'world_type' },
+      }],
+    );
   }
 
   const setBoardAuthorities = spatialAuthority.setBoardAuthorities;
@@ -2239,7 +2462,11 @@ function assembleTemplateFromDraft(
   if ((template.coverContract as { worldType?: unknown }).worldType !== template.worldType) {
     throw new InvalidTemplateContractError([
       `coverContract.worldType "${String((template.coverContract as { worldType?: unknown }).worldType)}" != top-level worldType "${template.worldType}"`,
-    ]);
+    ], [{
+      family: 'draft_contract',
+      code: 'cover_projection_invalid',
+      locator: { kind: 'cover', fieldRole: 'world_type' },
+    }]);
   }
 
   if (input.authoredCoverAuthority) {
@@ -2247,6 +2474,11 @@ function assembleTemplateFromDraft(
     if (sourceIssues.length > 0) {
       throw new InvalidTemplateContractError(
         sourceIssues.map((candidate) => `${candidate.code}: ${candidate.message}`),
+        sourceIssues.map(() => ({
+          family: 'draft_contract' as const,
+          code: 'cover_source_fidelity_invalid' as const,
+          locator: { kind: 'cover' as const, fieldRole: 'authority' as const },
+        })),
       );
     }
   }
@@ -2260,20 +2492,32 @@ function assembleTemplateFromDraft(
   // the same hallucination surface assertSourceHasRealProse closes — an invented-but-consistent claim passes every
   // structural check. Errors are thrown as InvalidTemplateContractError so the bounded repair loop consumes them
   // exactly like validator errors.
-  const evidenceErrors = sourceEvidenceErrors(template as unknown as BookVisualContract, input.pages);
-  if (evidenceErrors.length > 0) throw new InvalidTemplateContractError(evidenceErrors);
+  const evidenceValidation = sourceEvidenceValidation(
+    template as unknown as BookVisualContract,
+    input.pages,
+  );
+  if (evidenceValidation.errors.length > 0) {
+    throw new InvalidTemplateContractError(
+      evidenceValidation.errors,
+      evidenceValidation.diagnosticIssues,
+    );
+  }
 
   // FAIL-CLOSED — never return an invalid candidate.
   assertValidBookVisualContractTemplate(template);
-  const semanticCoverageIssues = actionSemanticCoverageIssues({
+  const semanticCoverageValidation = actionSemanticCoverageValidation({
     template: template as unknown as BookVisualContract,
     coverage: actionSemanticCoverage,
   });
-  if (semanticCoverageIssues.length > 0) {
+  if (semanticCoverageValidation.errors.length > 0) {
     throw new InvalidTemplateContractError(
       [
         ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
-        ...semanticCoverageIssues,
+        ...semanticCoverageValidation.errors,
+      ],
+      [
+        ...sourceEvidenceIdDiagnosticIssues(sourceEvidenceIssues),
+        ...semanticCoverageValidation.diagnosticIssues,
       ],
     );
   }
@@ -2369,6 +2613,7 @@ export async function compileBookVisualContractTemplate(
       | ReturnType<typeof assembleTemplateFromDraft>
       | null = null;
     let attemptErrors: string[] = [];
+    let attemptDiagnosticIssues: readonly DraftValidationIssue[] = [];
     let sourceEvidenceAffectedRecords:
       | SourceEvidenceIdRepairAffectedRecord[]
       | null = null;
@@ -2377,6 +2622,7 @@ export async function compileBookVisualContractTemplate(
     } catch (err) {
       if (!(err instanceof InvalidTemplateContractError)) throw err; // a non-validation failure is not repairable
       attemptErrors = err.errors;
+      attemptDiagnosticIssues = err.diagnosticIssues;
       if (err instanceof SourceEvidenceIdValidationError) {
         sourceEvidenceAffectedRecords = err.affectedRecords;
       }
@@ -2409,12 +2655,27 @@ export async function compileBookVisualContractTemplate(
           assembled.actionSemanticCoverage,
         notes: assembled.notes,
         provenance,
-        repairAttempts,
+        repairAttempts: repairAttempts.map((repair) => ({
+          attempt: repair.attempt,
+          diagnosticIssues: repair.diagnosticIssues,
+          ...(repair.nextRepairMode
+            ? { nextRepairMode: repair.nextRepairMode }
+            : {}),
+        })),
+        draftValidationDiagnostics: buildDraftValidationDiagnosticTrail([
+          ...repairAttempts.map((repair) => repair.diagnosticIssues),
+          [],
+        ]),
       };
     }
 
     // This attempt's draft was invalid — record it (raw draft + exact errors) for reviewability.
-    repairAttempts.push({ attempt, errors: attemptErrors, draft });
+    repairAttempts.push({
+      attempt,
+      errors: attemptErrors,
+      diagnosticIssues: attemptDiagnosticIssues,
+      draft,
+    });
 
     if (attempt > MAX_REPAIR_ATTEMPTS) {
       // Initial + MAX_REPAIR_ATTEMPTS repairs all failed — fail closed, write nothing, carry the trail.
@@ -2500,23 +2761,52 @@ export function assertCastIsFactAuthoritative(
   input: { companion?: { id: string; name?: string } | null },
 ): void {
   const errs: string[] = [];
+  const diagnosticIssues: DraftValidationIssue[] = [];
   const cast = asObj(template.cast);
   const childId = typeof asObj(cast.child).id === 'string' ? (asObj(cast.child).id as string) : '';
-  if (childId !== CHILD_ID) errs.push(`cast.child.id "${childId}" != authoritative "${CHILD_ID}"`);
+  if (childId !== CHILD_ID) {
+    errs.push(`cast.child.id "${childId}" != authoritative "${CHILD_ID}"`);
+    diagnosticIssues.push({
+      family: 'draft_contract',
+      code: 'cast_authority_mismatch',
+      locator: { kind: 'root', fieldRole: 'cast_presence' },
+    });
+  }
 
   const companionId = authoritativeCompanionCastId(input);
   const companion = cast.companion;
   if (companionId) {
     const cid = typeof asObj(companion).id === 'string' ? (asObj(companion).id as string) : undefined;
-    if (!companion || cid !== companionId) errs.push(`cast.companion.id "${cid ?? '(none)'}" != authoritative "${companionId}"`);
+    if (!companion || cid !== companionId) {
+      errs.push(`cast.companion.id "${cid ?? '(none)'}" != authoritative "${companionId}"`);
+      diagnosticIssues.push({
+        family: 'draft_contract',
+        code: 'cast_authority_mismatch',
+        locator: { kind: 'root', fieldRole: 'cast_presence' },
+      });
+    }
   } else if (companion) {
     errs.push('cast.companion present but the order has no companion');
+    diagnosticIssues.push({
+      family: 'draft_contract',
+      code: 'cast_authority_mismatch',
+      locator: { kind: 'root', fieldRole: 'cast_presence' },
+    });
   }
 
   const factHumanIds = new Set(facts.humans.map((h) => h.id));
   const tmplHumanIds = new Set(template.humanCast.map((h) => h.id));
   if (factHumanIds.size !== tmplHumanIds.size || [...factHumanIds].some((id) => !tmplHumanIds.has(id))) {
     errs.push(`humanCast ids [${[...tmplHumanIds].join(', ')}] != facts [${[...factHumanIds].join(', ')}]`);
+    diagnosticIssues.push({
+      family: 'draft_contract',
+      code: 'fact_authority_mismatch',
+      locator: {
+        kind: 'collection',
+        collectionRole: 'human_cast',
+        fieldRole: 'cast_presence',
+      },
+    });
   }
 
   for (const pc of template.pageContracts) {
@@ -2528,14 +2818,35 @@ export function assertCastIsFactAuthoritative(
     const extra = [...actual].filter((id) => !expected.has(id));
     if (missing.length || extra.length) {
       errs.push(`p${pc.pageNumber} castIds not fact-authoritative — missing [${missing.join(', ')}], extra [${extra.join(', ')}]`);
+      diagnosticIssues.push({
+        family: 'draft_contract',
+        code: 'fact_authority_mismatch',
+        locator: {
+          kind: 'page',
+          fieldRole: 'cast_presence',
+          pageNumber: pc.pageNumber,
+        },
+      });
     }
     const shouldCompanion = !!companionId && facts.companionPresentPages.includes(pc.pageNumber);
     if (asObj(pc.characterPresence).companion !== shouldCompanion) {
       errs.push(`p${pc.pageNumber} characterPresence.companion ${String(asObj(pc.characterPresence).companion)} != facts ${shouldCompanion}`);
+      diagnosticIssues.push({
+        family: 'draft_contract',
+        code: 'fact_authority_mismatch',
+        locator: {
+          kind: 'page',
+          fieldRole: 'cast_presence',
+          pageNumber: pc.pageNumber,
+        },
+      });
     }
   }
 
   if (errs.length) {
-    throw new InvalidTemplateContractError([`cast/presence not fact-authoritative (draft leak): ${errs.join('; ')}`]);
+    throw new InvalidTemplateContractError(
+      [`cast/presence not fact-authoritative (draft leak): ${errs.join('; ')}`],
+      diagnosticIssues,
+    );
   }
 }

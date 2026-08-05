@@ -37,7 +37,11 @@ function assertTemplateStoryKeyAgrees(template: BookVisualContractTemplate, stor
   if (template.storyKey !== storyKey) {
     throw new InvalidTemplateContractError([
       `storyKey mismatch: artifact at ${artifactPath} declares storyKey ${JSON.stringify(template.storyKey)} but was loaded as "${storyKey}" (artifact-key/storyKey must agree so the deterministic palette seed is stable)`,
-    ]);
+    ], [{
+      family: 'draft_contract',
+      code: 'cover_source_fidelity_invalid',
+      locator: { kind: 'root', fieldRole: 'identity' },
+    }]);
   }
 }
 

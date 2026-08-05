@@ -160,7 +160,14 @@ export function buildCompileUserPrompt(input: CompileBookVisualContractInput): s
 /** Strip markdown fences / surrounding prose and parse the first JSON object. Throws on failure. */
 export function parseContractJson(raw: string): unknown {
   if (typeof raw !== 'string' || raw.trim().length === 0) {
-    throw new InvalidVisualContractError(['compiler returned empty output']);
+    throw new InvalidVisualContractError(
+      ['compiler returned empty output'],
+      [{
+        family: 'draft_schema',
+        code: 'value_type_invalid',
+        locator: { kind: 'root', fieldRole: 'root' },
+      }],
+    );
   }
   let text = raw.trim();
   // Strip ```json ... ``` or ``` ... ``` fences.
@@ -171,14 +178,28 @@ export function parseContractJson(raw: string): unknown {
     const first = text.indexOf('{');
     const last = text.lastIndexOf('}');
     if (first === -1 || last === -1 || last <= first) {
-      throw new InvalidVisualContractError(['compiler output is not JSON']);
+      throw new InvalidVisualContractError(
+        ['compiler output is not JSON'],
+        [{
+          family: 'draft_schema',
+          code: 'value_type_invalid',
+          locator: { kind: 'root', fieldRole: 'root' },
+        }],
+      );
     }
     text = text.slice(first, last + 1);
   }
   try {
     return JSON.parse(text);
   } catch (err) {
-    throw new InvalidVisualContractError([`compiler output failed to parse as JSON: ${(err as Error).message}`]);
+    throw new InvalidVisualContractError(
+      [`compiler output failed to parse as JSON: ${(err as Error).message}`],
+      [{
+        family: 'draft_schema',
+        code: 'value_type_invalid',
+        locator: { kind: 'root', fieldRole: 'root' },
+      }],
+    );
   }
 }
 

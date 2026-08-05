@@ -37,6 +37,10 @@ import type {
   DraftAuthorityReferenceIssue,
 } from '@/lib/visual-contract-compiler/draftAuthorityReferenceDiagnostics';
 import {
+  draftValidationDiagnosticCodesForIssues,
+  type DraftValidationIssue,
+} from '@/lib/visual-contract-compiler/draftValidationDiagnostics';
+import {
   ACTION_SEMANTIC_CATALOG,
   ACTION_SEMANTIC_CATALOG_VERSION,
 } from '@/lib/visual-contract-compiler/actionSemanticCatalog';
@@ -1459,13 +1463,12 @@ function providerRepairCallCount(
 
 function setAttemptValidationDiagnostics(
   attempt: VisualContractAuthoringAttemptReceipt,
-  inputs: readonly unknown[],
+  issues: readonly DraftValidationIssue[],
 ): void {
-  attempt.validationDiagnostics =
-    sanitizedAuthoringDiagnostics({
-      inputs,
-      fallbackCode: 'draft_contract_validation_failed',
-    });
+  attempt.validationDiagnostics = {
+    count: Math.min(issues.length, MAX_RECEIPT_ERRORS),
+    codes: draftValidationDiagnosticCodesForIssues(issues),
+  };
 }
 
 function templateRepairExhaustionIsProven(args: {
@@ -2156,7 +2159,7 @@ export async function runVisualContractAuthoring(args: {
       if (receipt) {
         setAttemptValidationDiagnostics(
           receipt,
-          repair.errors,
+          repair.diagnosticIssues,
         );
       }
     }
@@ -2278,7 +2281,7 @@ export async function runVisualContractAuthoring(args: {
         if (receipt) {
           setAttemptValidationDiagnostics(
             receipt,
-            repair.errors,
+            repair.diagnosticIssues,
           );
         }
       }
@@ -2289,7 +2292,7 @@ export async function runVisualContractAuthoring(args: {
         if (receipt) {
           setAttemptValidationDiagnostics(
             receipt,
-            repair.errors,
+            repair.diagnosticIssues,
           );
         }
       }

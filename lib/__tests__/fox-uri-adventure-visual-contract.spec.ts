@@ -183,7 +183,12 @@ describe('render-proof — the promoted fox contract is a REAL guard (tampers fa
     if (!r.ok) expect(r.errors.join(' ')).toMatch(/missing pageContract for page 12/);
     expect(() => {
       const res = validateBookVisualContractTemplate(bad);
-      if (!res.ok) throw new InvalidTemplateContractError(res.errors);
+      if (!res.ok) {
+        throw new InvalidTemplateContractError(
+          res.errors,
+          res.diagnosticIssues,
+        );
+      }
     }).toThrow(InvalidTemplateContractError);
   });
 });

@@ -131,14 +131,21 @@ export function requireValidContractForRender(
     const kind = (contract as { contractKind?: unknown }).contractKind;
     throw new InvalidVisualContractError([
       `contract is not a renderable frozen contract (contractKind=${JSON.stringify(kind)}) — a Template, an unknown kind, or a discriminant-stripped Resolved must never render (fail-closed)`,
-    ]);
+    ], [{
+      family: 'draft_contract',
+      code: 'consumer_invariant_invalid',
+      locator: { kind: 'root', fieldRole: 'consumer' },
+    }]);
   }
 
   // 'legacy' → a genuine legacy contract (no Resolved fingerprints) keeps the base validator (backward-compatible).
   const result = validateBookVisualContract(contract);
   if (!result.ok) {
     // A present-but-invalid legacy contract is always a hard stop (even with enforcement off).
-    throw new InvalidVisualContractError(result.errors);
+    throw new InvalidVisualContractError(
+      result.errors,
+      result.diagnosticIssues,
+    );
   }
   return result.contract;
 }

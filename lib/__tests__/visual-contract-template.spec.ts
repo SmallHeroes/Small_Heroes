@@ -402,6 +402,11 @@ describe('P0 — Template validator', () => {
     expect(first).toEqual({
       ok: false,
       errors: ['template validation could not safely inspect malformed nested input'],
+      diagnosticIssues: [{
+        family: 'draft_schema',
+        code: 'value_type_invalid',
+        locator: { kind: 'root', fieldRole: 'final_structure' },
+      }],
     });
     expect(() => assertValidBookVisualContractTemplate(explosive)).toThrow(
       InvalidTemplateContractError,

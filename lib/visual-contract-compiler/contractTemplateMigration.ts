@@ -41,12 +41,20 @@ function migrateLegacyActionSubjects(candidate: Record<string, unknown>): void {
       if (hasOwn(requirement, 'subject')) {
         throw new InvalidTemplateContractError([
           'legacy action requirement cannot carry both actorId and subject',
-        ]);
+        ], [{
+          family: 'draft_schema',
+          code: 'value_domain_invalid',
+          locator: { kind: 'root', fieldRole: 'value' },
+        }]);
       }
       if (typeof requirement.actorId !== 'string' || !requirement.actorId.trim()) {
         throw new InvalidTemplateContractError([
           'legacy action requirement actorId must be a non-empty string',
-        ]);
+        ], [{
+          family: 'draft_schema',
+          code: 'value_type_invalid',
+          locator: { kind: 'root', fieldRole: 'value' },
+        }]);
       }
       requirement.subject = {
         kind: 'entity',
@@ -87,12 +95,20 @@ function migrateReferenceDomains(
       if (!zoneIds || zoneIds.length === 0) {
         throw new InvalidTemplateContractError([
           `explicit reference-domain migration missing exact zone ids for set ${JSON.stringify(setIdentityId)} area ${JSON.stringify(areaId)}`,
-        ]);
+        ], [{
+          family: 'draft_contract',
+          code: 'unresolved_reference',
+          locator: { kind: 'root', fieldRole: 'reference' },
+        }]);
       }
       if (new Set(zoneIds).size !== zoneIds.length) {
         throw new InvalidTemplateContractError([
           `explicit reference-domain migration duplicates a zone id for set ${JSON.stringify(setIdentityId)} area ${JSON.stringify(areaId)}`,
-        ]);
+        ], [{
+          family: 'draft_contract',
+          code: 'duplicate_identity',
+          locator: { kind: 'root', fieldRole: 'reference' },
+        }]);
       }
       area.zoneProjection = zoneIds.length === 1
         ? { cardinality: 'one_to_one', zoneIds: [zoneIds[0]!] }
@@ -114,7 +130,11 @@ function migrateReferenceDomains(
         ) {
           throw new InvalidTemplateContractError([
             `explicit reference-domain migration cannot bind set ${JSON.stringify(setIdentityId)} area ${JSON.stringify(areaId)} to exact zone ${JSON.stringify(zoneId)}`,
-          ]);
+          ], [{
+            family: 'draft_contract',
+            code: 'unresolved_reference',
+            locator: { kind: 'root', fieldRole: 'reference' },
+          }]);
         }
         const zone = matches[0]!;
         zone.spatialNodes = spatialNodes.map((node) => ({
@@ -142,7 +162,11 @@ function migrateReferenceDomains(
         if (matches.length !== 1 || typeof matches[0]!.name !== 'string') {
           throw new InvalidTemplateContractError([
             `explicit reference-domain migration cannot bind recurring prop ${JSON.stringify(propId)}`,
-          ]);
+          ], [{
+            family: 'draft_contract',
+            code: 'unresolved_reference',
+            locator: { kind: 'root', fieldRole: 'reference' },
+          }]);
         }
         return { propId, name: matches[0]!.name, quantity: 1 };
       });
@@ -197,7 +221,11 @@ export function migrateLegacyBookVisualContractTemplateV1(
   if (!objectValue(input) || input.schemaVersion !== LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION) {
     throw new InvalidTemplateContractError([
       `explicit migration requires ${LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION} input`,
-    ]);
+    ], [{
+      family: 'draft_schema',
+      code: 'schema_version_invalid',
+      locator: { kind: 'root', fieldRole: 'schema_version' },
+    }]);
   }
   const candidate = structuredClone(input);
   candidate.schemaVersion = VISUAL_CONTRACT_SCHEMA_VERSION;
@@ -222,7 +250,11 @@ export function migrateLegacyBookVisualContractTemplateV2(
   ) {
     throw new InvalidTemplateContractError([
       `explicit migration requires ${LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION_V2} input`,
-    ]);
+    ], [{
+      family: 'draft_schema',
+      code: 'schema_version_invalid',
+      locator: { kind: 'root', fieldRole: 'schema_version' },
+    }]);
   }
   const candidate = structuredClone(input);
   candidate.schemaVersion = VISUAL_CONTRACT_SCHEMA_VERSION;
@@ -245,7 +277,11 @@ export function migrateLegacyBookVisualContractTemplateV3(
   ) {
     throw new InvalidTemplateContractError([
       `explicit migration requires ${LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION_V3} input`,
-    ]);
+    ], [{
+      family: 'draft_schema',
+      code: 'schema_version_invalid',
+      locator: { kind: 'root', fieldRole: 'schema_version' },
+    }]);
   }
   const candidate = structuredClone(input);
   candidate.schemaVersion = VISUAL_CONTRACT_SCHEMA_VERSION;

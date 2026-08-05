@@ -16,11 +16,19 @@
  * fact extractor uses to match needles against vowelized source.
  */
 import { stripNiqqud } from './extractDeterministicFacts';
+import {
+  type DraftValidationIssue,
+} from './draftValidationDiagnostics';
 import type { BookVisualContract } from './types';
 
 export interface SourceEvidencePage {
   pageNumber: number;
   text: string;
+}
+
+export interface SourceEvidenceValidation {
+  errors: string[];
+  diagnosticIssues: readonly DraftValidationIssue[];
 }
 
 function normalize(value: string): string {
@@ -34,11 +42,12 @@ function normalize(value: string): string {
  * Every problem with the contract's story-evidence citations, given the source pages the contract was authored from.
  * Returns `[]` when nothing cites the source (a v1 contract authors no safetyConstraints at all).
  */
-export function sourceEvidenceErrors(
+export function sourceEvidenceValidation(
   contract: BookVisualContract,
   pages: SourceEvidencePage[]
-): string[] {
+): SourceEvidenceValidation {
   const errors: string[] = [];
+  const diagnosticIssues: DraftValidationIssue[] = [];
   const textByPage = new Map<number, string>(
     (Array.isArray(pages) ? pages : []).map((p) => [p?.pageNumber, normalize(p?.text ?? '')])
   );
@@ -50,24 +59,52 @@ export function sourceEvidenceErrors(
       const origin = safety?.origin;
       if (!origin || origin.kind !== 'story_evidence') return;
       const label = `page ${page.pageNumber}.safetyConstraints[${i}].origin(story_evidence)`;
+      const locator: DraftValidationIssue['locator'] =
+        Number.isSafeInteger(page.pageNumber) && page.pageNumber > 0
+          ? {
+              kind: 'page_item',
+              collectionRole: 'page_safety_constraints',
+              fieldRole: 'source_evidence',
+              pageNumber: page.pageNumber,
+              itemIndex: i,
+            }
+          : {
+              kind: 'collection_item',
+              collectionRole: 'page_safety_constraints',
+              fieldRole: 'source_evidence',
+              itemIndex: i,
+            };
 
       const sourceText = textByPage.get(origin.page);
       if (sourceText === undefined) {
         errors.push(`${label} cites page ${String(origin.page)}, which is not one of the story's source pages`);
+        diagnosticIssues.push({ family: 'draft_contract', code: 'source_evidence_phrase_invalid', locator });
         return;
       }
       const needle = normalize(origin.phrase);
       if (!needle) {
         errors.push(`${label} has an empty phrase — cite the exact story words the hazard rests on`);
+        diagnosticIssues.push({ family: 'draft_contract', code: 'source_evidence_phrase_invalid', locator });
         return;
       }
       if (!sourceText.includes(needle)) {
         errors.push(
           `${label} quote ${JSON.stringify(origin.phrase)} does not occur on page ${origin.page} — a hazard's source citation must be verifiable in the story text (never invent evidence)`
         );
+        diagnosticIssues.push({ family: 'draft_contract', code: 'source_evidence_phrase_invalid', locator });
       }
     });
   }
 
-  return errors;
+  return {
+    errors,
+    diagnosticIssues,
+  };
+}
+
+export function sourceEvidenceErrors(
+  contract: BookVisualContract,
+  pages: SourceEvidencePage[],
+): string[] {
+  return sourceEvidenceValidation(contract, pages).errors;
 }

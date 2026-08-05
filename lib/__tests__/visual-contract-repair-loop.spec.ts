@@ -103,7 +103,8 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v9');
     expect(res.repairAttempts).toHaveLength(1);
     expect(res.repairAttempts[0].attempt).toBe(1);
-    expect(res.repairAttempts[0].errors.some((e) => /material/i.test(e))).toBe(true);
+    expect(res.repairAttempts[0].diagnosticIssues.length).toBeGreaterThan(0);
+    expect(JSON.stringify(res.repairAttempts)).not.toMatch(/material/i);
     expect(calls()).toBe(2);
     // the SECOND call is the repair call: repair system prompt + the exact errors + the previous draft
     expect(prompts[1].system).toMatch(/REPAIRING/);

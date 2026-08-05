@@ -210,7 +210,13 @@ export {
  */
 export { resolvePageCheckIds, type PageCheck, type PageCheckKind } from './pageCheckIds';
 /** (Stage 4) A hazard citing a story quote must be quoting that page — needs the SOURCE, so the compiler calls it. */
-export { sourceEvidenceErrors, type SourceEvidencePage } from './validateSourceEvidence';
+export {
+  sourceEvidenceErrors,
+  sourceEvidenceValidation,
+  type SourceEvidencePage,
+  type SourceEvidenceValidation,
+} from './validateSourceEvidence';
+export * from './draftValidationDiagnostics';
 export {
   effectivePropVisibility,
   requiredPropIdsForPage,

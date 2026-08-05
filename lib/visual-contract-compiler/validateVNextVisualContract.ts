@@ -27,6 +27,10 @@
  */
 import { validateBookVisualContract } from './validateBookVisualContract';
 import { mustShowAbsenceContradictions } from './castPresenceContradiction';
+import {
+  draftValidationIssueIsValid,
+  type DraftValidationIssue,
+} from './draftValidationDiagnostics';
 import type {
   BookVisualContract,
   EnvironmentClass,
@@ -37,13 +41,30 @@ import type {
 
 export type VNextContractValidationResult =
   | { ok: true; contract: BookVisualContract }
-  | { ok: false; errors: string[] };
+  | {
+      ok: false;
+      errors: string[];
+      diagnosticIssues: readonly DraftValidationIssue[];
+    };
 
 export class InvalidVNextVisualContractError extends Error {
   readonly isInvalidVNextVisualContract = true as const;
-  constructor(readonly errors: string[]) {
+  readonly diagnosticIssues: readonly DraftValidationIssue[];
+
+  constructor(
+    readonly errors: string[],
+    diagnosticIssues: readonly DraftValidationIssue[],
+  ) {
     super(`Invalid vNext BookVisualContract: ${errors.join('; ')}`);
     this.name = 'InvalidVNextVisualContractError';
+    if (
+      !Array.isArray(diagnosticIssues) ||
+      diagnosticIssues.length === 0 ||
+      !diagnosticIssues.every(draftValidationIssueIsValid)
+    ) {
+      throw new Error('draft validation diagnostic contract invalid');
+    }
+    this.diagnosticIssues = diagnosticIssues.map((issue) => structuredClone(issue));
   }
 }
 
@@ -71,6 +92,17 @@ const ENVIRONMENT_CLASSES = new Set<EnvironmentClass>(['indoor', 'outdoor', 'neu
 
 function isStr(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
+}
+
+function repeatIssueForNewErrors(
+  errors: readonly string[],
+  priorErrorCount: number,
+  diagnosticIssues: DraftValidationIssue[],
+  issue: DraftValidationIssue,
+): void {
+  for (let index = priorErrorCount; index < errors.length; index += 1) {
+    diagnosticIssues.push(issue);
+  }
 }
 
 /** Collect every id a per-page `castIds[]` entry is allowed to resolve to. */
@@ -184,9 +216,16 @@ function validateHumanCast(
  */
 export function validateVNextVisualContract(input: unknown): VNextContractValidationResult {
   const base = validateBookVisualContract(input);
-  if (!base.ok) return base;
+  if (!base.ok) {
+    return {
+      ok: false,
+      errors: base.errors,
+      diagnosticIssues: base.diagnosticIssues,
+    };
+  }
   const contract = base.contract;
   const errors: string[] = [];
+  const diagnosticIssues: DraftValidationIssue[] = [];
 
   const zoneIds = new Set<string>((contract.zones ?? []).map((z) => z.id).filter(isStr));
   const castIds = collectCastIds(contract);
@@ -212,18 +251,35 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
 
   // (5) environmentClass — validate at RUNTIME against the allowed set (the TS type is not enforced on JSON
   // parsed from an artifact). It is REQUIRED (it is the style-ref lock); an unknown/absent value fails closed.
-  for (const loc of contract.locations ?? []) {
+  for (const [locationIndex, loc] of (contract.locations ?? []).entries()) {
+    const errorCountBeforeLocation = errors.length;
     if (!isStr(loc?.id)) continue; // base validator already reported a missing location id
     if (loc.environmentClass === undefined) {
       errors.push(`location "${loc.id}" is missing environmentClass (the style-ref lock)`);
     } else if (!ENVIRONMENT_CLASSES.has(loc.environmentClass)) {
       errors.push(`location "${loc.id}" has unknown environmentClass "${String(loc.environmentClass)}"`);
     }
+    repeatIssueForNewErrors(
+      errors,
+      errorCountBeforeLocation,
+      diagnosticIssues,
+      {
+        family: 'draft_schema',
+        code: 'value_domain_invalid',
+        locator: {
+          kind: 'collection_item',
+          collectionRole: 'locations',
+          fieldRole: 'value',
+          itemIndex: locationIndex,
+        },
+      },
+    );
   }
 
   // (1) EXACT page coverage — pages must be exactly 1..N, each present once (N = the authoritative compiled
   // count when available, else the max declared page). Gaps, duplicates, and out-of-range numbers fail closed.
   {
+    const errorCountBeforeCoverage = errors.length;
     const rawPageNumbers = (contract.pageContracts ?? []).map((p) => p.pageNumber);
     const provenanceCount = contract.provenance?.compiledFromPages;
     const expectedCount =
@@ -245,9 +301,24 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
     for (let i = 1; i <= expectedCount; i++) {
       if (!seen.has(i)) errors.push(`missing pageContract for page ${i} (expected exactly pages 1..${expectedCount})`);
     }
+    repeatIssueForNewErrors(
+      errors,
+      errorCountBeforeCoverage,
+      diagnosticIssues,
+      {
+        family: 'draft_contract',
+        code: 'coverage_invalid',
+        locator: {
+          kind: 'collection',
+          collectionRole: 'page_contracts',
+          fieldRole: 'coverage',
+        },
+      },
+    );
   }
 
-  for (const page of contract.pageContracts ?? []) {
+  for (const [pageIndex, page] of (contract.pageContracts ?? []).entries()) {
+    const errorCountBeforePage = errors.length;
     const label = typeof page.pageNumber === 'number' ? `page ${page.pageNumber}` : 'page (?)';
 
     // (1) exact per-page coverage — a zone is REQUIRED in vNext (base already verified the location and that a
@@ -301,6 +372,33 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
 
     // (3) transitions well-formed.
     validateTransition(label, page, zoneIds, errors);
+    repeatIssueForNewErrors(
+      errors,
+      errorCountBeforePage,
+      diagnosticIssues,
+      typeof page.pageNumber === 'number' &&
+      Number.isSafeInteger(page.pageNumber) &&
+      page.pageNumber > 0
+        ? {
+            family: 'draft_contract',
+            code: 'final_structural_invariant_invalid',
+            locator: {
+              kind: 'page',
+              fieldRole: 'final_structure',
+              pageNumber: page.pageNumber,
+            },
+          }
+        : {
+            family: 'draft_contract',
+            code: 'final_structural_invariant_invalid',
+            locator: {
+              kind: 'collection_item',
+              collectionRole: 'page_contracts',
+              fieldRole: 'final_structure',
+              itemIndex: pageIndex,
+            },
+          },
+    );
   }
 
   // (2d) CROSS-FIELD fail-closed: a page whose `mustShow` POSITIVELY references a cast member declared ABSENT (its
@@ -312,15 +410,31 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
     errors.push(
       `page ${c.page}.mustShow positively references ${c.role} "${c.id}" but that cast member is ABSENT on this page (not in castIds) — cross-field contradiction`,
     );
+    diagnosticIssues.push({
+      family: 'draft_contract',
+      code: 'cast_authority_mismatch',
+      locator: { kind: 'page', fieldRole: 'cast_presence', pageNumber: c.page },
+    });
   }
 
   // (4) recurring human cast well-formed (+ forward castIds binding).
   if (contract.humanCast !== undefined) {
+    const errorCountBeforeHumanCast = errors.length;
     if (!Array.isArray(contract.humanCast)) {
       errors.push('humanCast must be an array');
     } else {
       validateHumanCast(contract.humanCast, pageNumbers, castIdsByPage, errors);
     }
+    repeatIssueForNewErrors(
+      errors,
+      errorCountBeforeHumanCast,
+      diagnosticIssues,
+      {
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        locator: { kind: 'collection', collectionRole: 'human_cast', fieldRole: 'final_structure' },
+      },
+    );
   }
 
   // (3b) cross-page CONTINUITY — consecutive pages must be connected by a DECLARED move (a forward state
@@ -336,6 +450,7 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
   // transition) and, by induction from the first page, guarantees a page can never sit in a zone the story has
   // not transitioned into. The first page establishes the opening zone (nothing precedes it).
   {
+    const errorCountBeforeContinuity = errors.length;
     const pagesSorted = [...(contract.pageContracts ?? [])]
       .filter((p) => typeof p.pageNumber === 'number')
       .sort((a, b) => a.pageNumber - b.pageNumber);
@@ -395,9 +510,25 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
         previousPage = p.pageNumber;
       }
     }
+    repeatIssueForNewErrors(
+      errors,
+      errorCountBeforeContinuity,
+      diagnosticIssues,
+      {
+        family: 'draft_contract',
+        code: 'topology_malformed',
+        locator: { kind: 'collection', collectionRole: 'page_contracts', fieldRole: 'transition' },
+      },
+    );
   }
 
-  if (errors.length > 0) return { ok: false, errors };
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors,
+      diagnosticIssues,
+    };
+  }
   return { ok: true, contract };
 }
 
@@ -406,5 +537,10 @@ export function assertValidVNextVisualContract(
   input: unknown,
 ): asserts input is BookVisualContract {
   const result = validateVNextVisualContract(input);
-  if (!result.ok) throw new InvalidVNextVisualContractError(result.errors);
+  if (!result.ok) {
+    throw new InvalidVNextVisualContractError(
+      result.errors,
+      result.diagnosticIssues,
+    );
+  }
 }

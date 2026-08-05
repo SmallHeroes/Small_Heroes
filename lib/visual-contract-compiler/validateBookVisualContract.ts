@@ -31,16 +31,63 @@ import {
 } from './actionSemanticCatalog';
 import { SOURCE_EVIDENCE_ID_PATTERN } from './sourceEvidenceCatalog';
 import { setBoardStableAuthorityErrors } from './setBoardStableAuthority';
+import {
+  draftValidationIssueIsValid,
+  type DraftValidationIssue,
+} from './draftValidationDiagnostics';
 
 export type ContractValidationResult =
   | { ok: true; contract: BookVisualContract }
-  | { ok: false; errors: string[] };
+  | {
+      ok: false;
+      errors: string[];
+      diagnosticIssues: readonly DraftValidationIssue[];
+    };
 
 export class InvalidVisualContractError extends Error {
   readonly isInvalidVisualContract = true as const;
-  constructor(readonly errors: string[]) {
+  readonly diagnosticIssues: readonly DraftValidationIssue[];
+
+  constructor(
+    readonly errors: string[],
+    diagnosticIssues: readonly DraftValidationIssue[],
+  ) {
     super(`Invalid BookVisualContract: ${errors.join('; ')}`);
     this.name = 'InvalidVisualContractError';
+    if (
+      !Array.isArray(diagnosticIssues) ||
+      diagnosticIssues.length === 0 ||
+      !diagnosticIssues.every(draftValidationIssueIsValid)
+    ) {
+      throw new Error('draft validation diagnostic contract invalid');
+    }
+    this.diagnosticIssues = diagnosticIssues.map((issue) =>
+      structuredClone(issue),
+    );
+  }
+}
+
+class DraftValidationErrorCollector extends Array<string> {
+  readonly diagnosticIssues: DraftValidationIssue[] = [];
+  private currentIssue: DraftValidationIssue;
+
+  constructor(initialIssue: DraftValidationIssue) {
+    super();
+    this.currentIssue = initialIssue;
+  }
+
+  useIssue(issue: DraftValidationIssue): void {
+    if (!draftValidationIssueIsValid(issue)) {
+      throw new Error('draft validation diagnostic contract invalid');
+    }
+    this.currentIssue = issue;
+  }
+
+  override push(...items: string[]): number {
+    for (const _item of items) {
+      this.diagnosticIssues.push(structuredClone(this.currentIssue));
+    }
+    return super.push(...items);
   }
 }
 
@@ -176,12 +223,24 @@ function validateEntityRef(ref: unknown, label: string, scope: RefScope, errors:
 
 /** Pure, exhaustive validation. Returns ok + the narrowed contract, or the full list of problems. */
 export function validateBookVisualContract(input: unknown): ContractValidationResult {
-  const errors: string[] = [];
   const c = input as Record<string, unknown>;
 
   if (!isObj(input)) {
-    return { ok: false, errors: ['contract is not an object'] };
+    return {
+      ok: false,
+      errors: ['contract is not an object'],
+      diagnosticIssues: [{
+        family: 'draft_schema',
+        code: 'value_type_invalid',
+        locator: { kind: 'root', fieldRole: 'root' },
+      }],
+    };
   }
+  const errors = new DraftValidationErrorCollector({
+    family: 'draft_schema',
+    code: 'value_domain_invalid',
+    locator: { kind: 'root', fieldRole: 'root' },
+  });
   if (c.version !== BOOK_VISUAL_CONTRACT_VERSION) {
     errors.push(`version must be ${BOOK_VISUAL_CONTRACT_VERSION}`);
   }
@@ -189,6 +248,15 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   if (!isStrArr(c.forbiddenGlobalElements)) errors.push('forbiddenGlobalElements must be a string[]');
 
   // Locations
+  errors.useIssue({
+    family: 'draft_contract',
+    code: 'final_structural_invariant_invalid',
+    locator: {
+      kind: 'collection',
+      collectionRole: 'locations',
+      fieldRole: 'final_structure',
+    },
+  });
   const locations = Array.isArray(c.locations) ? c.locations : [];
   if (locations.length === 0) errors.push('locations[] must be non-empty');
   const locationIds = new Set<string>();
@@ -247,6 +315,15 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   });
 
   // Zones — every zone must belong to a declared location (the gate→cave guard).
+  errors.useIssue({
+    family: 'draft_contract',
+    code: 'topology_malformed',
+    locator: {
+      kind: 'collection',
+      collectionRole: 'zones',
+      fieldRole: 'topology',
+    },
+  });
   const zones = Array.isArray(c.zones) ? c.zones : [];
   const zoneByLocation = new Map<string, Set<string>>();
   /** (Stage 3) zone lookup — a page resolves `{ kind:'spatial' }` refs against its OWN zone's nodes only. */
@@ -271,6 +348,11 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   });
 
   // Cast — child mandatory with a wardrobe.
+  errors.useIssue({
+    family: 'draft_contract',
+    code: 'cast_authority_mismatch',
+    locator: { kind: 'root', fieldRole: 'cast_presence' },
+  });
   const cast = isObj(c.cast) ? c.cast : undefined;
   if (!cast) {
     errors.push('cast missing');
@@ -300,6 +382,15 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   });
 
   // Recurring props — collect ids for propState validation.
+  errors.useIssue({
+    family: 'draft_contract',
+    code: 'final_structural_invariant_invalid',
+    locator: {
+      kind: 'collection',
+      collectionRole: 'recurring_props',
+      fieldRole: 'final_structure',
+    },
+  });
   const propIds = new Set<string>();
   const props = Array.isArray(c.recurringProps) ? c.recurringProps : [];
   props.forEach((p, i) => {
@@ -326,6 +417,15 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   });
 
   // ── Contract v2 (Stage 3): structured zone GEOMETRY. Runs after props/anchors are collected (a node may bind to
+  errors.useIssue({
+    family: 'draft_contract',
+    code: 'topology_malformed',
+    locator: {
+      kind: 'collection',
+      collectionRole: 'zones',
+      fieldRole: 'topology',
+    },
+  });
   // either). EVERY check below fires only when the new key is PRESENT, so v1 contracts — which author none of this —
   // are untouched and keep hashing byte-identically. That is a correctness requirement, not politeness: a rule that
   // rejected a shipped artifact would NOT fail loudly, because the freeze path catches a contract-load throw and
@@ -501,6 +601,11 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   });
 
   // Cover contract — must point at a real location.
+  errors.useIssue({
+    family: 'draft_contract',
+    code: 'cover_projection_invalid',
+    locator: { kind: 'cover', fieldRole: 'final_structure' },
+  });
   const cover = isObj(c.coverContract) ? c.coverContract : undefined;
   if (!cover) {
     errors.push('coverContract missing');
@@ -547,9 +652,43 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   }
 
   // Page contracts — the core authority checks.
+  errors.useIssue({
+    family: 'draft_contract',
+    code: 'coverage_invalid',
+    locator: {
+      kind: 'collection',
+      collectionRole: 'page_contracts',
+      fieldRole: 'coverage',
+    },
+  });
   const pages = Array.isArray(c.pageContracts) ? c.pageContracts : [];
   if (pages.length === 0) errors.push('pageContracts[] must be non-empty');
   pages.forEach((p, i) => {
+    errors.useIssue(
+      isObj(p) &&
+      typeof p.pageNumber === 'number' &&
+      Number.isSafeInteger(p.pageNumber) &&
+      p.pageNumber > 0
+        ? {
+            family: 'draft_contract',
+            code: 'final_structural_invariant_invalid',
+            locator: {
+              kind: 'page',
+              fieldRole: 'final_structure',
+              pageNumber: p.pageNumber,
+            },
+          }
+        : {
+            family: 'draft_contract',
+            code: 'final_structural_invariant_invalid',
+            locator: {
+              kind: 'collection_item',
+              collectionRole: 'page_contracts',
+              fieldRole: 'final_structure',
+              itemIndex: i,
+            },
+          },
+    );
     if (!isObj(p)) {
       errors.push(`pageContracts[${i}] is not an object`);
       return;
@@ -1251,6 +1390,15 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   // ── Stage 4: PROP LIFECYCLE (cross-page). `firstRevealPage` lives on the PROP precisely so ONE book-level fact
   // governs every page — this is where that fact is enforced against them. Gated on the key being authored, so a
   // contract with no lifecycle is untouched.
+  errors.useIssue({
+    family: 'draft_contract',
+    code: 'lifecycle_invariant_invalid',
+    locator: {
+      kind: 'collection',
+      collectionRole: 'recurring_props',
+      fieldRole: 'lifecycle',
+    },
+  });
   {
     const firstReveal = new Map<string, number>();
     props.forEach((p) => {
@@ -1318,14 +1466,34 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     }
   }
 
+  errors.useIssue({
+    family: 'draft_contract',
+    code: 'final_structural_invariant_invalid',
+    locator: {
+      kind: 'collection',
+      collectionRole: 'set_board_authorities',
+      fieldRole: 'authority',
+    },
+  });
   errors.push(...setBoardStableAuthorityErrors(input));
 
-  if (errors.length > 0) return { ok: false, errors };
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors: [...errors],
+      diagnosticIssues: errors.diagnosticIssues,
+    };
+  }
   return { ok: true, contract: input as unknown as BookVisualContract };
 }
 
 /** Fail-closed assertion for the production path: throws InvalidVisualContractError on any problem. */
 export function assertValidBookVisualContract(input: unknown): asserts input is BookVisualContract {
   const result = validateBookVisualContract(input);
-  if (!result.ok) throw new InvalidVisualContractError(result.errors);
+  if (!result.ok) {
+    throw new InvalidVisualContractError(
+      result.errors,
+      result.diagnosticIssues,
+    );
+  }
 }

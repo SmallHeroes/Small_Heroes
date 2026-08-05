@@ -12,6 +12,12 @@
  */
 import { validateVNextVisualContract } from './validateVNextVisualContract';
 import { bindingCoherenceError } from './appearanceBindingCoherence';
+import {
+  draftValidationIssueIsValid,
+  type DraftValidationCollectionRole,
+  type DraftValidationIssue,
+  type DraftValidationLocator,
+} from './draftValidationDiagnostics';
 import type { BookVisualContract, RecurringHumanCastMember } from './types';
 import {
   RELATIVE_ROLES,
@@ -35,17 +41,34 @@ function safeObjectArray(
   value: unknown,
   field: string,
   errors: string[],
+  diagnosticIssues: DraftValidationIssue[],
+  collectionRole: DraftValidationCollectionRole,
   options: { optional?: boolean } = {},
 ): Record<string, unknown>[] | undefined {
   if (value === undefined && options.optional) return undefined;
   if (!Array.isArray(value)) {
     errors.push(`${field} must be an array`);
+    diagnosticIssues.push({
+      family: 'draft_schema',
+      code: 'array_shape_invalid',
+      locator: { kind: 'collection', collectionRole, fieldRole: 'array' },
+    });
     return [];
   }
   const safe: Record<string, unknown>[] = [];
   value.forEach((entry, index) => {
     if (!isObj(entry)) {
       errors.push(`${field}[${index}] must be an object`);
+      diagnosticIssues.push({
+        family: 'draft_schema',
+        code: 'array_member_invalid',
+        locator: {
+          kind: 'collection_item',
+          collectionRole,
+          fieldRole: 'member',
+          itemIndex: index,
+        },
+      });
       // Preserve the durable source index for subsequent field-level validation
       // while ensuring typed projectors only receive object-shaped elements.
       safe.push({});
@@ -60,15 +83,30 @@ function safeStringArray(
   value: unknown,
   field: string,
   errors: string[],
+  diagnosticIssues: DraftValidationIssue[] = [],
+  locator: DraftValidationLocator = {
+    kind: 'root',
+    fieldRole: 'array',
+  },
 ): string[] {
   if (!Array.isArray(value)) {
     errors.push(`${field} must be an array`);
+    diagnosticIssues.push({
+      family: 'draft_schema',
+      code: 'array_shape_invalid',
+      locator,
+    });
     return [];
   }
   const safe: string[] = [];
   value.forEach((entry, index) => {
     if (typeof entry !== 'string') {
       errors.push(`${field}[${index}] must be a string`);
+      diagnosticIssues.push({
+        family: 'draft_schema',
+        code: 'array_member_invalid',
+        locator,
+      });
       return;
     }
     safe.push(entry);
@@ -80,15 +118,30 @@ function safeNumberArray(
   value: unknown,
   field: string,
   errors: string[],
+  diagnosticIssues: DraftValidationIssue[] = [],
+  locator: DraftValidationLocator = {
+    kind: 'root',
+    fieldRole: 'array',
+  },
 ): number[] {
   if (!Array.isArray(value)) {
     errors.push(`${field} must be an array`);
+    diagnosticIssues.push({
+      family: 'draft_schema',
+      code: 'array_shape_invalid',
+      locator,
+    });
     return [];
   }
   const safe: number[] = [];
   value.forEach((entry, index) => {
     if (typeof entry !== 'number' || !Number.isFinite(entry)) {
       errors.push(`${field}[${index}] must be a finite number`);
+      diagnosticIssues.push({
+        family: 'draft_schema',
+        code: 'array_member_invalid',
+        locator,
+      });
       return;
     }
     safe.push(entry);
@@ -106,13 +159,30 @@ export const DEFERRAL_MARKERS =
 
 export type TemplateValidationResult =
   | { ok: true; template: BookVisualContractTemplate }
-  | { ok: false; errors: string[] };
+  | {
+      ok: false;
+      errors: string[];
+      diagnosticIssues: readonly DraftValidationIssue[];
+    };
 
 export class InvalidTemplateContractError extends Error {
   readonly isInvalidTemplateContract = true as const;
-  constructor(readonly errors: string[]) {
+  readonly diagnosticIssues: readonly DraftValidationIssue[];
+
+  constructor(
+    readonly errors: string[],
+    diagnosticIssues: readonly DraftValidationIssue[],
+  ) {
     super(`Invalid BookVisualContractTemplate: ${errors.join('; ')}`);
     this.name = 'InvalidTemplateContractError';
+    if (
+      !Array.isArray(diagnosticIssues) ||
+      diagnosticIssues.length === 0 ||
+      !diagnosticIssues.every(draftValidationIssueIsValid)
+    ) {
+      throw new Error('draft validation diagnostic contract invalid');
+    }
+    this.diagnosticIssues = diagnosticIssues.map((issue) => structuredClone(issue));
   }
 }
 
@@ -121,11 +191,26 @@ export class InvalidTemplateContractError extends Error {
  * missing/malformed. EXPORTED as the single source of origin-payload validation — `validateResolvedContract.ts`
  * reuses it so Template and Resolved can't drift on what a complete origin looks like.
  */
-export function validateEvidenceOrigin(label: string, origin: unknown, errors: string[]): string | undefined {
+export function validateEvidenceOrigin(
+  label: string,
+  origin: unknown,
+  errors: string[],
+  diagnosticIssues: DraftValidationIssue[] = [],
+  locator: DraftValidationLocator = {
+    kind: 'root',
+    fieldRole: 'binding_origin',
+  },
+): string | undefined {
   if (!isObj(origin) || !isStr(origin.kind)) {
     errors.push(`${label}.origin missing/invalid (a typed evidence origin is required)`);
+    diagnosticIssues.push({
+      family: 'draft_schema',
+      code: 'binding_origin_invalid',
+      locator,
+    });
     return undefined;
   }
+  const errorCountBeforePayloadValidation = errors.length;
   switch (origin.kind) {
     case 'story_evidence':
       if (typeof origin.page !== 'number') errors.push(`${label}.origin(story_evidence).page must be a number`);
@@ -144,39 +229,68 @@ export function validateEvidenceOrigin(label: string, origin: unknown, errors: s
     default:
       errors.push(`${label}.origin.kind unknown "${String(origin.kind)}"`);
   }
+  if (errors.length > errorCountBeforePayloadValidation) {
+    diagnosticIssues.push({
+      family: 'draft_schema',
+      code: 'binding_origin_invalid',
+      locator,
+    });
+  }
   return origin.kind;
 }
 
 /** A trait binding: valid mode + relatives-only family_profile + a mode-coherent typed origin + value rules. */
-function validateBinding(label: string, role: string, binding: unknown, errors: string[]): void {
+function validateBinding(
+  label: string,
+  role: string,
+  binding: unknown,
+  errors: string[],
+  diagnosticIssues: DraftValidationIssue[],
+  locator: DraftValidationLocator,
+): void {
   if (!isObj(binding) || !isStr(binding.mode)) {
     errors.push(`${label} is missing or not a binding object`);
+    diagnosticIssues.push({ family: 'draft_schema', code: 'binding_shape_invalid', locator });
     return;
   }
   const mode = binding.mode as AppearanceBindingMode;
   if (!BINDING_MODES.has(mode)) {
     errors.push(`${label}.mode invalid "${String(binding.mode)}"`);
+    diagnosticIssues.push({ family: 'draft_schema', code: 'binding_mode_invalid', locator });
     return;
   }
   if (mode === 'family_profile' && !RELATIVE.has(role)) {
     errors.push(
       `${label}.mode=family_profile is illegal for non-relative role "${role}" (relatives only: ${[...RELATIVE].join('|')})`,
     );
+    diagnosticIssues.push({ family: 'draft_contract', code: 'out_of_scope_reference', locator });
   }
-  const originKind = validateEvidenceOrigin(label, binding.origin, errors);
+  const originKind = validateEvidenceOrigin(
+    label,
+    binding.origin,
+    errors,
+    diagnosticIssues,
+    locator,
+  );
   // The origin must be COHERENT with the mode — never a fabricated story phrase for a compiler pick (shared rule).
   const coherenceError = bindingCoherenceError(label, mode, originKind);
-  if (coherenceError) errors.push(coherenceError);
+  if (coherenceError) {
+    errors.push(coherenceError);
+    diagnosticIssues.push({ family: 'draft_schema', code: 'binding_mode_origin_incoherent', locator });
+  }
   if (mode === 'explicit') {
     if (!isStr(binding.value)) {
       errors.push(`${label} explicit binding must carry a concrete value`);
+      diagnosticIssues.push({ family: 'draft_schema', code: 'binding_value_required', locator });
     } else if (DEFERRAL_MARKERS.test(binding.value)) {
+      diagnosticIssues.push({ family: 'draft_schema', code: 'binding_value_placeholder', locator });
       // An `explicit` value is authored + concrete; deferral/placeholder prose smuggled in here would materialize
       // verbatim into the Resolved. Reject it at authoring time (belt; the Resolved validator is the money-path gate).
       errors.push(`${label} explicit binding value looks like deferral/placeholder text (${JSON.stringify(binding.value)}) — author a concrete value`);
     }
   } else if (binding.value !== undefined) {
     errors.push(`${label} ${mode} binding must NOT carry a value in a Template (it is resolved per order)`);
+    diagnosticIssues.push({ family: 'draft_schema', code: 'binding_value_forbidden', locator });
   }
 }
 
@@ -203,38 +317,72 @@ function toShadowHuman(m: TemplateHumanCastMember): RecurringHumanCastMember {
 
 function validateBookVisualContractTemplateInternal(input: unknown): TemplateValidationResult {
   const errors: string[] = [];
-  if (!isObj(input)) return { ok: false, errors: ['template is not an object'] };
+  const diagnosticIssues: DraftValidationIssue[] = [];
+  if (!isObj(input)) {
+    return {
+      ok: false,
+      errors: ['template is not an object'],
+      diagnosticIssues: [{
+        family: 'draft_schema',
+        code: 'value_type_invalid',
+        locator: { kind: 'root', fieldRole: 'root' },
+      }],
+    };
+  }
 
-  if (input.contractKind !== 'template') errors.push('contractKind must be "template"');
+  if (input.contractKind !== 'template') {
+    errors.push('contractKind must be "template"');
+    diagnosticIssues.push({
+      family: 'draft_schema',
+      code: 'value_domain_invalid',
+      locator: { kind: 'root', fieldRole: 'value' },
+    });
+  }
   if (input.schemaVersion !== VISUAL_CONTRACT_SCHEMA_VERSION) {
     errors.push(`schemaVersion must equal the supported "${VISUAL_CONTRACT_SCHEMA_VERSION}" (got ${JSON.stringify(input.schemaVersion)})`);
+    diagnosticIssues.push({
+      family: 'draft_schema',
+      code: 'schema_version_invalid',
+      locator: { kind: 'root', fieldRole: 'schema_version' },
+    });
   }
   // storyKey is REQUIRED + non-empty: it seeds the deterministic palette; an empty key collapses the seed across stories.
-  if (!isStr(input.storyKey)) errors.push('storyKey missing (required — it seeds the deterministic appearance palette)');
+  if (!isStr(input.storyKey)) {
+    errors.push('storyKey missing (required — it seeds the deterministic appearance palette)');
+    diagnosticIssues.push({
+      family: 'draft_schema',
+      code: 'required_field_missing',
+      locator: { kind: 'root', fieldRole: 'identity' },
+    });
+  }
 
   // Durable arrays remain invalid when malformed, but only safe local elements reach typed projectors and the
   // vNext shadow. Sanitizing here is solely for deterministic continued error collection; `errors` preserves the
   // rejection of the original artifact.
-  const humanCast = (safeObjectArray(input.humanCast, 'humanCast', errors) ??
+  const humanCast = (safeObjectArray(input.humanCast, 'humanCast', errors, diagnosticIssues, 'human_cast') ??
     []) as unknown as TemplateHumanCastMember[];
-  const recurringProps = (safeObjectArray(input.recurringProps, 'recurringProps', errors) ??
+  const recurringProps = (safeObjectArray(input.recurringProps, 'recurringProps', errors, diagnosticIssues, 'recurring_props') ??
     []) as unknown as BookVisualContract['recurringProps'];
-  const locations = (safeObjectArray(input.locations, 'locations', errors) ??
+  const locations = (safeObjectArray(input.locations, 'locations', errors, diagnosticIssues, 'locations') ??
     []) as unknown as BookVisualContract['locations'];
-  const zones = (safeObjectArray(input.zones, 'zones', errors) ??
+  const zones = (safeObjectArray(input.zones, 'zones', errors, diagnosticIssues, 'zones') ??
     []) as unknown as BookVisualContract['zones'];
-  const pageContracts = (safeObjectArray(input.pageContracts, 'pageContracts', errors) ??
+  const pageContracts = (safeObjectArray(input.pageContracts, 'pageContracts', errors, diagnosticIssues, 'page_contracts') ??
     []) as unknown as BookVisualContract['pageContracts'];
   const setBoardAuthorities = safeObjectArray(
     input.setBoardAuthorities,
     'setBoardAuthorities',
     errors,
+    diagnosticIssues,
+    'set_board_authorities',
     { optional: true },
   ) as BookVisualContract['setBoardAuthorities'] | undefined;
   const forbiddenGlobalElements = safeStringArray(
     input.forbiddenGlobalElements,
     'forbiddenGlobalElements',
     errors,
+    diagnosticIssues,
+    { kind: 'collection', collectionRole: 'forbidden_global_elements', fieldRole: 'array' },
   );
 
   // Structural reuse: a vNext shadow with placeholder prose exercises the exact coverage/transition/castIds/
@@ -255,57 +403,112 @@ function validateBookVisualContractTemplateInternal(input: unknown): TemplateVal
     ...(input.provenance ? { provenance: input.provenance as BookVisualContract['provenance'] } : {}),
   };
   const base = validateVNextVisualContract(shadow);
-  if (!base.ok) errors.push(...base.errors.map((e) => `structure: ${e}`));
+  if (!base.ok) {
+    errors.push(...base.errors.map((e) => `structure: ${e}`));
+    diagnosticIssues.push(...base.diagnosticIssues);
+  }
 
   recurringProps.forEach((prop, index) => {
-    if (!isStr(prop.name)) errors.push(`recurringProps[${index}].name missing`);
-    if (!isStr(prop.description)) errors.push(`recurringProps[${index}].description missing`);
+    if (!isStr(prop.name)) {
+      errors.push(`recurringProps[${index}].name missing`);
+      diagnosticIssues.push({
+        family: 'draft_schema',
+        code: 'required_field_missing',
+        locator: { kind: 'collection_item', collectionRole: 'recurring_props', fieldRole: 'name', itemIndex: index },
+      });
+    }
+    if (!isStr(prop.description)) {
+      errors.push(`recurringProps[${index}].description missing`);
+      diagnosticIssues.push({
+        family: 'draft_schema',
+        code: 'required_field_missing',
+        locator: { kind: 'collection_item', collectionRole: 'recurring_props', fieldRole: 'description', itemIndex: index },
+      });
+    }
   });
 
   humanCast.forEach((m, i) => {
     const label = isStr(m?.id) ? `humanCast "${m.id}"` : `humanCast[${i}]`;
     const role = isStr(m?.role) ? m.role : '';
-    if (!isStr(m?.textEvidence)) errors.push(`${label}.textEvidence missing (identity must bind to a story phrase)`);
-    safeStringArray(m.aliases, `${label}.aliases`, errors);
-    safeStringArray(m.forbiddenAppearance, `${label}.forbiddenAppearance`, errors);
-    safeNumberArray(m.pagesPresent, `${label}.pagesPresent`, errors);
+    const humanLocator: DraftValidationLocator = {
+      kind: 'collection_item',
+      collectionRole: 'human_cast',
+      fieldRole: 'member',
+      itemIndex: i,
+    };
+    if (!isStr(m?.textEvidence)) {
+      errors.push(`${label}.textEvidence missing (identity must bind to a story phrase)`);
+      diagnosticIssues.push({ family: 'draft_schema', code: 'required_field_missing', locator: humanLocator });
+    }
+    safeStringArray(m.aliases, `${label}.aliases`, errors, diagnosticIssues, humanLocator);
+    safeStringArray(m.forbiddenAppearance, `${label}.forbiddenAppearance`, errors, diagnosticIssues, humanLocator);
+    safeNumberArray(m.pagesPresent, `${label}.pagesPresent`, errors, diagnosticIssues, humanLocator);
     const appearance = isObj((m as unknown as Record<string, unknown>)?.appearance)
       ? ((m as unknown as Record<string, unknown>).appearance as Record<string, unknown>)
       : null;
     if (!appearance) {
       errors.push(`${label}.appearance missing (structured skinTone/hairColour/hairStyle bindings)`);
+      diagnosticIssues.push({ family: 'draft_schema', code: 'required_field_missing', locator: { ...humanLocator, fieldRole: 'appearance' } });
     } else {
       for (const trait of ['skinTone', 'hairColour', 'hairTexture', 'hairStyle'] as const) {
-        if (appearance[trait] === undefined) errors.push(`${label}.appearance.${trait} missing`);
-        else validateBinding(`${label}.appearance.${trait}`, role, appearance[trait], errors);
+        const appearanceLocator = { ...humanLocator, fieldRole: 'appearance' as const };
+        if (appearance[trait] === undefined) {
+          errors.push(`${label}.appearance.${trait} missing`);
+          diagnosticIssues.push({ family: 'draft_schema', code: 'required_field_missing', locator: appearanceLocator });
+        } else {
+          validateBinding(`${label}.appearance.${trait}`, role, appearance[trait], errors, diagnosticIssues, appearanceLocator);
+        }
       }
     }
     if (!Array.isArray(m.garments)) {
       errors.push(`${label}.garments must be an array`);
+      diagnosticIssues.push({ family: 'draft_schema', code: 'array_shape_invalid', locator: { ...humanLocator, fieldRole: 'array' } });
     } else {
       m.garments.forEach((g, gi) => {
         const path = `${label}.garments[${gi}]`;
         if (!isObj(g)) {
           errors.push(`${path} must be an object`);
+          diagnosticIssues.push({
+            family: 'draft_schema',
+            code: 'array_member_invalid',
+            locator: { kind: 'human_garment', fieldRole: 'member', humanIndex: i, garmentIndex: gi },
+          });
           return;
         }
+        const garmentLocator: DraftValidationLocator = {
+          kind: 'human_garment',
+          fieldRole: 'binding',
+          humanIndex: i,
+          garmentIndex: gi,
+        };
         const glabel = isStr(g.id) ? `${label}.garments[${g.id}]` : path;
-        if (!isStr(g.id)) errors.push(`${glabel}.id missing`);
+        if (!isStr(g.id)) {
+          errors.push(`${glabel}.id missing`);
+          diagnosticIssues.push({ family: 'draft_schema', code: 'required_field_missing', locator: { ...garmentLocator, fieldRole: 'identity' } });
+        }
         const colour = g.colour;
         if (colour === undefined) {
           errors.push(`${glabel}.colour missing`);
+          diagnosticIssues.push({ family: 'draft_schema', code: 'required_field_missing', locator: garmentLocator });
         } else {
-          validateBinding(`${glabel}.colour`, role, colour, errors);
+          validateBinding(`${glabel}.colour`, role, colour, errors, diagnosticIssues, garmentLocator);
           // Garment colours are AUTHORED — never family/palette (a garment colour is not ethnicity).
           if (isObj(colour) && colour.mode !== 'explicit') {
             errors.push(`${glabel}.colour must be an explicit binding (garment colours are authored, not family/palette)`);
+            diagnosticIssues.push({ family: 'draft_schema', code: 'binding_mode_invalid', locator: garmentLocator });
           }
         }
       });
     }
   });
 
-  if (errors.length > 0) return { ok: false, errors };
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors,
+      diagnosticIssues,
+    };
+  }
   return { ok: true, template: input as unknown as BookVisualContractTemplate };
 }
 
@@ -320,6 +523,11 @@ export function validateBookVisualContractTemplate(input: unknown): TemplateVali
     return {
       ok: false,
       errors: ['template validation could not safely inspect malformed nested input'],
+      diagnosticIssues: [{
+        family: 'draft_schema',
+        code: 'value_type_invalid',
+        locator: { kind: 'root', fieldRole: 'final_structure' },
+      }],
     };
   }
 }
@@ -329,5 +537,10 @@ export function assertValidBookVisualContractTemplate(
   input: unknown,
 ): asserts input is BookVisualContractTemplate {
   const result = validateBookVisualContractTemplate(input);
-  if (!result.ok) throw new InvalidTemplateContractError(result.errors);
+  if (!result.ok) {
+    throw new InvalidTemplateContractError(
+      result.errors,
+      result.diagnosticIssues,
+    );
+  }
 }

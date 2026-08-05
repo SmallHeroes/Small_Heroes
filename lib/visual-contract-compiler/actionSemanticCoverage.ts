@@ -1,3 +1,7 @@
+import {
+  type DraftValidationIssue,
+} from './draftValidationDiagnostics';
+
 export const ACTION_SEMANTIC_COVERAGE_VERSION =
   'action-semantic-coverage/v5' as const;
 
@@ -84,6 +88,49 @@ export interface ActionSemanticCoverageTemplate {
       subject?: unknown;
     }>;
   }>;
+}
+
+export interface ActionSemanticCoverageValidation {
+  errors: string[];
+  diagnosticIssues: readonly DraftValidationIssue[];
+}
+
+function emitActionSemanticIssue(
+  errors: string[],
+  diagnosticIssues: DraftValidationIssue[],
+  error: string,
+  issue: DraftValidationIssue,
+): void {
+  errors.push(error);
+  diagnosticIssues.push(issue);
+}
+
+function actionSemanticCoverageLocator(
+  record: Pick<ActionSemanticCoverageRecord, 'pageNumber'>,
+  index: number,
+  fieldRole:
+    | 'identity'
+    | 'reference'
+    | 'coverage'
+    | 'action_binding'
+    | 'source_evidence'
+    | 'disposition'
+    | 'payload',
+): DraftValidationIssue['locator'] {
+  return Number.isSafeInteger(record.pageNumber) && record.pageNumber > 0
+    ? {
+        kind: 'page_item',
+        collectionRole: 'page_action_semantic_coverage',
+        fieldRole,
+        pageNumber: record.pageNumber,
+        itemIndex: index,
+      }
+    : {
+        kind: 'collection_item',
+        collectionRole: 'page_action_semantic_coverage',
+        fieldRole,
+        itemIndex: index,
+      };
 }
 
 function recordValue(value: unknown): Record<string, unknown> | null {
@@ -192,11 +239,12 @@ function pageByNumber(
   );
 }
 
-export function actionSemanticCoverageIssues(args: {
+export function actionSemanticCoverageValidation(args: {
   template: ActionSemanticCoverageTemplate;
   coverage: readonly ActionSemanticCoverageRecord[];
-}): string[] {
+}): ActionSemanticCoverageValidation {
   const issues: string[] = [];
+  const diagnosticIssues: DraftValidationIssue[] = [];
   const seenBeatIds = new Set<string>();
   const pagesWithCoverage = new Set<number>();
   const boundActionCheckIdsByPage = new Map<
@@ -210,11 +258,27 @@ export function actionSemanticCoverageIssues(args: {
       `^beat:p${record.pageNumber}:[a-z0-9_]+$`,
     );
     if (!expectedBeatPattern.test(record.beatId)) {
-      issues.push(
+      emitActionSemanticIssue(
+        issues,
+        diagnosticIssues,
         `${label}.beatId "${record.beatId}" must be stable and page-scoped (${String(expectedBeatPattern)})`,
+        {
+          family: 'action_semantic',
+          code: 'beat_identity_out_of_scope',
+          locator: actionSemanticCoverageLocator(record, index, 'identity'),
+        },
       );
     } else if (seenBeatIds.has(record.beatId)) {
-      issues.push(`${label}.beatId "${record.beatId}" is duplicated`);
+      emitActionSemanticIssue(
+        issues,
+        diagnosticIssues,
+        `${label}.beatId "${record.beatId}" is duplicated`,
+        {
+          family: 'action_semantic',
+          code: 'beat_identity_duplicate',
+          locator: actionSemanticCoverageLocator(record, index, 'identity'),
+        },
+      );
     } else {
       seenBeatIds.add(record.beatId);
     }
@@ -222,8 +286,15 @@ export function actionSemanticCoverageIssues(args: {
 
     const page = pageByNumber(args.template, record.pageNumber);
     if (!page) {
-      issues.push(
+      emitActionSemanticIssue(
+        issues,
+        diagnosticIssues,
         `${label}.pageNumber ${record.pageNumber} does not resolve`,
+        {
+          family: 'action_semantic',
+          code: 'beat_identity_out_of_scope',
+          locator: actionSemanticCoverageLocator(record, index, 'reference'),
+        },
       );
       continue;
     }
@@ -235,8 +306,15 @@ export function actionSemanticCoverageIssues(args: {
           action.checkId === checkId,
       );
       if (matches.length !== 1) {
-        issues.push(
+        emitActionSemanticIssue(
+          issues,
+          diagnosticIssues,
           `${label}.disposition.checkId "${checkId}" must bind exactly one same-page actionRequirement`,
+          {
+            family: 'action_semantic',
+            code: 'action_binding_cardinality_invalid',
+            locator: actionSemanticCoverageLocator(record, index, 'action_binding'),
+          },
         );
       } else {
         const subject = recordValue(matches[0]?.subject);
@@ -245,8 +323,15 @@ export function actionSemanticCoverageIssues(args: {
             subject.sourceEvidenceId !== record.sourceEvidenceId ||
             subject.sourcePhrase !== record.sourcePhrase
           ) {
-            issues.push(
+            emitActionSemanticIssue(
+              issues,
+              diagnosticIssues,
               `${label}.disposition.checkId "${checkId}" source_phenomenon subject must bind this exact same-page Source Evidence record`,
+              {
+                family: 'action_semantic',
+                code: 'source_phenomenon_binding_mismatch',
+                locator: actionSemanticCoverageLocator(record, index, 'source_evidence'),
+              },
             );
           }
         }
@@ -271,55 +356,115 @@ export function actionSemanticCoverageIssues(args: {
         pointer.startsWith(`${prefix}actionRequirements/`) ||
         isProseOnlyPagePointer(prefix, pointer)
       ) {
-        issues.push(
+        emitActionSemanticIssue(
+          issues,
+          diagnosticIssues,
           `${label}.disposition.contractPointer must target a structured non-action, non-prose field on the exact same page`,
+          {
+            family: 'action_semantic',
+            code: 'represented_elsewhere_pointer_out_of_scope',
+            locator: actionSemanticCoverageLocator(record, index, 'reference'),
+          },
         );
         continue;
       }
       const resolved = resolveJsonPointer(args.template, pointer);
       if (!resolved.found) {
-        issues.push(
+        emitActionSemanticIssue(
+          issues,
+          diagnosticIssues,
           `${label}.disposition.contractPointer "${pointer}" does not resolve`,
+          {
+            family: 'action_semantic',
+            code: 'represented_elsewhere_pointer_unresolved',
+            locator: actionSemanticCoverageLocator(record, index, 'reference'),
+          },
         );
       } else if (
         typeof resolved.value !== 'string' ||
         resolved.value !== record.disposition.contractValue
       ) {
-        issues.push(
+        emitActionSemanticIssue(
+          issues,
+          diagnosticIssues,
           `${label}.disposition.contractValue does not exactly match the current pointed-to string value`,
+          {
+            family: 'action_semantic',
+            code: 'represented_elsewhere_value_mismatch',
+            locator: actionSemanticCoverageLocator(record, index, 'payload'),
+          },
         );
       }
     }
   }
 
-  for (const page of args.template.pageContracts) {
+  for (const [pageIndex, page] of args.template.pageContracts.entries()) {
     if (!pagesWithCoverage.has(page.pageNumber)) {
-      issues.push(
+      emitActionSemanticIssue(
+        issues,
+        diagnosticIssues,
         `page ${page.pageNumber}: action_semantic_coverage_missing`,
+        {
+          family: 'action_semantic',
+          code: 'coverage_missing',
+          locator: Number.isSafeInteger(page.pageNumber) && page.pageNumber > 0
+            ? { kind: 'page', fieldRole: 'coverage', pageNumber: page.pageNumber }
+            : { kind: 'collection_item', collectionRole: 'page_contracts', fieldRole: 'coverage', itemIndex: pageIndex },
+        },
       );
     }
     const bound =
       boundActionCheckIdsByPage.get(page.pageNumber) ??
       new Set<string>();
-    for (const action of page.actionRequirements ?? []) {
+    for (const [actionIndex, action] of (page.actionRequirements ?? []).entries()) {
       if (!bound.has(action.checkId)) {
-        issues.push(
+        emitActionSemanticIssue(
+          issues,
+          diagnosticIssues,
           `page ${page.pageNumber}: actionRequirement "${action.checkId}" has no Action Semantic Coverage binding`,
+          {
+            family: 'action_semantic',
+            code: 'action_binding_missing',
+            locator: Number.isSafeInteger(page.pageNumber) && page.pageNumber > 0
+              ? {
+                  kind: 'page_item',
+                  collectionRole: 'page_actions',
+                  fieldRole: 'action_binding',
+                  pageNumber: page.pageNumber,
+                  itemIndex: actionIndex,
+                }
+              : {
+                  kind: 'collection_item',
+                  collectionRole: 'page_actions',
+                  fieldRole: 'action_binding',
+                  itemIndex: actionIndex,
+                },
+          },
         );
       }
     }
   }
-  return issues;
+  return {
+    errors: issues,
+    diagnosticIssues,
+  };
+}
+
+export function actionSemanticCoverageIssues(args: {
+  template: ActionSemanticCoverageTemplate;
+  coverage: readonly ActionSemanticCoverageRecord[];
+}): string[] {
+  return actionSemanticCoverageValidation(args).errors;
 }
 
 export function assertCompleteActionSemanticCoverage(args: {
   template: ActionSemanticCoverageTemplate;
   coverage: readonly ActionSemanticCoverageRecord[];
 }): void {
-  const issues = actionSemanticCoverageIssues(args);
-  if (issues.length > 0) {
+  const validation = actionSemanticCoverageValidation(args);
+  if (validation.errors.length > 0) {
     throw new Error(
-      `Action Semantic Coverage is incomplete:\n- ${issues.join('\n- ')}`,
+      `Action Semantic Coverage is incomplete:\n- ${validation.errors.join('\n- ')}`,
     );
   }
 }
