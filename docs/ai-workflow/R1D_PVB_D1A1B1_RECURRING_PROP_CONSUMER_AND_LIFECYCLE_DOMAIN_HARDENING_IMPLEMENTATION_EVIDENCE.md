@@ -2,7 +2,7 @@
 
 Date: `2026-08-05`
 
-Status: **implementation complete; independent Claude Code QA pending; repository gate HOLD**
+Status: **independent technical PASS; repository and release HOLD**
 
 Decision Gate: `docs/ai-workflow/R1D_PVB_D1A1B1_RECURRING_PROP_CONSUMER_AND_LIFECYCLE_DOMAIN_HARDENING_DECISION_GATE.md`
 
@@ -17,7 +17,7 @@ Committed milestones before this evidence commit:
 1. `8d9e60e0` - draft schema/contract, compiler, prompts, and exact diagnostics;
 2. `ff0a37ae` - lifecycle migration and B0/readiness/execution authority bindings.
 
-Commit 3 is the commit containing final-v4 compatibility, Blueprint/Wizard qualification, exhaustive regressions, the cover-fidelity input converter, `CURRENT.md`, and this evidence. The QA handoff records its exact hash and immutable `base..HEAD` range.
+Commit 3 is `a984e13bf41862a95bba8d86a28c03a5e1bd2dd5`, containing final-v4 compatibility, Blueprint/Wizard qualification, exhaustive regressions, the cover-fidelity input converter, `CURRENT.md`, and this evidence. Claude Code independently reviewed exact immutable range `5a24001f516e431d0341c9bd94a11b3d1674e17d..a984e13bf41862a95bba8d86a28c03a5e1bd2dd5`.
 
 External cost: `$0`.
 
@@ -161,9 +161,13 @@ No credential was checked, read, or loaded. No pricing/network/provider/model ca
 
 Before any new authority is consumed, rollback is the three focused commits in reverse order. If a later current-version artifact exists, it must remain immutable historical evidence and the path must stop on HOLD for a reviewed forward correction; it must never be rewritten into current authority.
 
-## 9. Independent QA assignment
+## 9. Independent Claude Code QA
 
-Claude Code must review the final immutable `base..HEAD` range read-only and try to falsify:
+Claude Code independently reviewed exact immutable range `5a24001f516e431d0341c9bd94a11b3d1674e17d..a984e13bf41862a95bba8d86a28c03a5e1bd2dd5` read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR, and zero MINOR. This is Claude Code's verdict; Codex records it and does not self-award independent technical PASS.
+
+Claude independently ran deterministic TypeScript PASS and a self-selected **11 files / 284 tests PASS**. Claude did not run `npm run check`, the resource-intensive phase, or the isolated one-worker replacement of `live-execution-request-materialization.spec.ts`. Its 284-test selection differs from Codex's recorded 309-test ordinary partition and does not independently reproduce that partition or the resource evidence.
+
+Claude's review attempted to falsify:
 
 1. that any third recurring-prop consumer scope or implicit stable/page inference exists;
 2. that legacy draft `propId` can bypass v13 or that `stablePropId` can duplicate, bind a gated prop, or bind a prop forbidden on any Set Board consumer page;
@@ -177,4 +181,13 @@ Claude Code must review the final immutable `base..HEAD` range read-only and try
 10. that provider, credential, image/render, storage/database, Board, publication, deployment, or external reachability became possible in qualification;
 11. that this evidence overstates the focused results, hides either full-gate failure, implies a third check, or misclassifies the release HOLD.
 
-Claude Code must distinguish implementation correctness from the explicit repository-infrastructure/release HOLD. Codex does not self-award independent technical PASS.
+Claude retained four advisory notes without charging a finding:
+
+- **N1 - net path inventory:** the handoff listed 29 changed paths, while the net base-to-head range contains 28. `lib/visual-contract-compiler/setBoardStableAuthority.ts` was changed and then exactly reverted during the compatibility correction, so it is byte-identical to base and absent from the net range.
+- **N2 - page-frame provenance:** `page_frame` enforcement is pre-existing. This implementation adds the `stable_set` fail-closed codes and prompt instructions that mirror existing page-frame validators; it does not introduce new page-frame validator behavior.
+- **N3 - independent test selection:** Claude's 11-file/284-test selection differs from Codex's 11-file/309-test ordinary workload-policy partition and does not independently reproduce the latter.
+- **N4 - scope tuple role:** `RECURRING_PROP_SPATIAL_CONSUMER_SCOPES` is a type-level/test anchor. The stable-set/page-frame separation is realized by the distinct existing code paths rather than runtime dispatch through that tuple.
+
+Claude's implementation-correctness PASS is distinct from the unchanged repository and release HOLD for the six missing ignored-output fixtures plus the recurring resource-phase 5-second timeout/`onTaskUpdate` RPC failure. Claude did not reproduce or clear either HOLD boundary. No additional Claude round is required unless a factual discrepancy is found.
+
+No product, visual, candidate, Blueprint, Wizard, Fresh Readiness, provider, render, spend, publication, release, deployment, or push authority follows from this technical review alone.
