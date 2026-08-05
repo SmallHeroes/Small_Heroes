@@ -28,6 +28,7 @@
 import { validateBookVisualContract } from './validateBookVisualContract';
 import { mustShowAbsenceContradictions } from './castPresenceContradiction';
 import {
+  draftValidationLocatorForUntrustedPage,
   draftValidationIssueIsValid,
   type DraftValidationIssue,
 } from './draftValidationDiagnostics';
@@ -407,13 +408,22 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
   // (positive) is checked — `mustNotShow`/camera negative references are legitimate — and possessive/genitive
   // references ("the doctor's door", "דלת הרופא") are excluded by the present-mention matcher.
   for (const c of mustShowAbsenceContradictions(contract)) {
+    const pageIndex = contract.pageContracts.findIndex(
+      (page) => page.pageNumber === c.page,
+    );
     errors.push(
       `page ${c.page}.mustShow positively references ${c.role} "${c.id}" but that cast member is ABSENT on this page (not in castIds) — cross-field contradiction`,
     );
     diagnosticIssues.push({
       family: 'draft_contract',
       code: 'cast_authority_mismatch',
-      locator: { kind: 'page', fieldRole: 'cast_presence', pageNumber: c.page },
+      locator: draftValidationLocatorForUntrustedPage({
+        positiveKind: 'page',
+        pageNumber: c.page,
+        fieldRole: 'cast_presence',
+        fallbackCollectionRole: 'page_contracts',
+        itemIndex: pageIndex,
+      }),
     });
   }
 

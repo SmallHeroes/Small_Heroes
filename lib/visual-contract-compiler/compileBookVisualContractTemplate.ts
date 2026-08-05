@@ -84,6 +84,7 @@ import {
 } from './actionSemanticCoverage';
 import {
   buildDraftValidationDiagnosticTrail,
+  draftValidationLocatorForUntrustedPage,
   type DraftValidationAttemptDiagnostics,
   type DraftValidationIssue,
   type DraftValidationLocator,
@@ -192,12 +193,13 @@ function sourceEvidenceIdDiagnosticIssues(
   return affectedRecords.map((record) => ({
     family: 'source_evidence_id',
     code: record.failureCode,
-    locator: {
-      kind: 'source_evidence',
+    locator: draftValidationLocatorForUntrustedPage({
+      positiveKind: 'source_evidence',
       fieldRole: 'source_evidence',
       pageNumber: record.pageNumber,
-      coverageIndex: record.coverageIndex,
-    },
+      fallbackCollectionRole: 'page_action_semantic_coverage',
+      itemIndex: record.coverageIndex,
+    }),
   }));
 }
 
@@ -2383,10 +2385,10 @@ function assembleTemplateFromDraft(
     zones: spatialAuthority.zones,
   });
   const seenBeatIds = new Set<string>();
-  for (const beat of [
+  for (const [beatIndex, beat] of [
     ...actionSemanticCoverage,
     ...capabilityGaps,
-  ]) {
+  ].entries()) {
     if (seenBeatIds.has(beat.beatId)) {
       coverageIssues.push(
         `Action Semantic Coverage beatId "${beat.beatId}" is duplicated`,
@@ -2394,11 +2396,13 @@ function assembleTemplateFromDraft(
       coverageDiagnosticIssues.push({
         family: 'action_semantic',
         code: 'beat_identity_duplicate',
-        locator: {
-          kind: 'page',
+        locator: draftValidationLocatorForUntrustedPage({
+          positiveKind: 'page',
           fieldRole: 'identity',
           pageNumber: beat.pageNumber,
-        },
+          fallbackCollectionRole: 'page_action_semantic_coverage',
+          itemIndex: beatIndex,
+        }),
       });
     }
     seenBeatIds.add(beat.beatId);
@@ -2822,7 +2826,7 @@ export function assertCastIsFactAuthoritative(
     });
   }
 
-  for (const pc of template.pageContracts) {
+  for (const [pageIndex, pc] of template.pageContracts.entries()) {
     const expected = new Set<string>([CHILD_ID]);
     if (companionId && facts.companionPresentPages.includes(pc.pageNumber)) expected.add(companionId);
     for (const h of facts.humans) if (h.pagesPresent.includes(pc.pageNumber)) expected.add(h.id);
@@ -2834,11 +2838,13 @@ export function assertCastIsFactAuthoritative(
       diagnosticIssues.push({
         family: 'draft_contract',
         code: 'fact_authority_mismatch',
-        locator: {
-          kind: 'page',
+        locator: draftValidationLocatorForUntrustedPage({
+          positiveKind: 'page',
           fieldRole: 'cast_presence',
           pageNumber: pc.pageNumber,
-        },
+          fallbackCollectionRole: 'page_contracts',
+          itemIndex: pageIndex,
+        }),
       });
     }
     const shouldCompanion = !!companionId && facts.companionPresentPages.includes(pc.pageNumber);
@@ -2847,11 +2853,13 @@ export function assertCastIsFactAuthoritative(
       diagnosticIssues.push({
         family: 'draft_contract',
         code: 'fact_authority_mismatch',
-        locator: {
-          kind: 'page',
+        locator: draftValidationLocatorForUntrustedPage({
+          positiveKind: 'page',
           fieldRole: 'cast_presence',
           pageNumber: pc.pageNumber,
-        },
+          fallbackCollectionRole: 'page_contracts',
+          itemIndex: pageIndex,
+        }),
       });
     }
   }

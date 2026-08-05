@@ -1,6 +1,6 @@
 # R1D-PVB-D1A1B1 per-attempt typed draft-validation diagnostics hardening — implementation evidence
 
-**Status:** Local implementation complete; independent Claude Code technical review pending; repository/release HOLD remains
+**Status:** Claude Code implementation review returned HOLD; F1-F3 corrected locally; F4/F5 dispositions recorded; independent micro re-gate pending; repository/release HOLD remains
 
 **Date:** 2026-08-05
 
@@ -22,6 +22,18 @@ Receipt authority is cut over from v11 to v12. Readiness authority is cut over f
 
 This implementation does not recover the identities of the already-consumed historical `15 -> 2 -> 2` run. Its v11 receipt, v9 readiness, and associated evidence remain immutable historical records.
 
+### Independent review and focused QA correction
+
+Claude Code independently reviewed immutable range `84bea6b6017026935ac588f4e98a7e3ca7d42791..6f96466ac3259a36dae806d7ba609f4c8adcf41e` read-only and returned **HOLD**. The accepted findings and dispositions are:
+
+- **F1 BLOCKER — corrected:** four repairable producer paths could construct a page-bearing typed locator directly from an untrusted invalid page number, causing the typed error constructor to throw a plain diagnostic-contract `Error`. A single producer-time helper now emits a page locator only for a safe positive integer; otherwise it emits a bounded `collection_item`, or the closed collection root if the structural position is also unusable. The vNext cast-presence contradiction, fact-authority assertion, Source-Evidence-ID bridge, and duplicate-beat producer use the helper. Error classes and repair-mode predicates are unchanged.
+- **F2 MEDIUM — corrected:** the old formatting-sensitive regex census could miss the actual non-`readonly` parameter declaration syntax. The guard now parses all compiler TypeScript files with the TypeScript AST, freezes constructor call-site maps for `InvalidTemplateContractError`, `InvalidVisualContractError`, and `InvalidVNextVisualContractError`, and inspects the actual declarations to prove both parameters lack initializers.
+- **F3 MEDIUM — corrected:** the old fixture assertion incorrectly required one typed issue per prose error. The invariant is now that every repairable rejection carries a non-empty valid typed sibling. A direct `policy_default` origin-payload fixture reaches the payload switch and proves two missing fields yield two prose errors but one correct structural identity.
+- **F4 LOW — accepted advisory limitation:** the validator proves a sorted, unique, count-consistent capped window but cannot independently prove the provenance of omitted items without persisting new authority. Content-addressed outer artifacts still detect artifact-level mutation. No digest, field, schema, receipt version, or readiness version was added.
+- **F5 INFO — accepted deliberate fallback:** page-less `collection_item` is used only when an untrusted page value is unusable. It carries the existing closed collection/field roles and never the authored page value. Runtime validation restricts the Source-Evidence-ID fallback to `page_action_semantic_coverage` plus `source_evidence`. No locator kind or vocabulary was added.
+
+The three implementation commits are preserved byte-for-commit. The QA correction starts from exact base `6f96466ac3259a36dae806d7ba609f4c8adcf41e`, is one new local commit, and remains unpushed pending Claude Code micro re-gate.
+
 ## 2. Root cause and implemented correction
 
 Before this milestone, validators knew the failing invariant and structural context but exposed only strings. The compiler preserved those strings and rejected drafts for repair, then the lifecycle reduced them with regexes to broad count/code summaries before discarding raw material. Stable issue identity was therefore lost before persistence.
@@ -37,7 +49,7 @@ The correction introduces a parallel typed channel:
 - per-attempt emitted/current/new/persistent/resolved counts, transition items, `finalAttempt`, and `truncated`;
 - a 128-item persisted transition cap with complete pre-cap counts.
 
-`InvalidTemplateContractError`, the base Visual Contract validator, and vNext assertions now require non-empty typed issues. A string-only repairable construction fails the diagnostic invariant. The mechanical producer census is frozen by test and TypeScript checks every constructor call.
+`InvalidTemplateContractError`, the base Visual Contract validator, and vNext assertions require non-empty typed issues. A string-only repairable construction fails the diagnostic invariant. The QA-fix AST census freezes all three repairable error-class producer maps, inspects their actual constructor parameters for default initializers, and leaves TypeScript to check every call.
 
 ## 3. Producer and routing coverage
 
@@ -86,10 +98,12 @@ Historical receipt v11 and readiness v9 are explicit `legacy_immutable` versions
    - closed contract, normalization, validators, producer emissions, typed base/vNext/Template assertions, Source-Evidence-ID bridge, and compiler-only sanitized summaries.
 2. `7f59e9afcd14f49ed522362d5d9768533ba15cb1` — `feat(visual-contract): persist typed validation trails`
    - receipt v12/readiness v10, attempt/status projection, exact persistence/binding validation, legacy cutover, and raw exhaustion/output-invalid disposal.
-3. Branch `HEAD` — `test(visual-contract): prove typed diagnostic lifecycle`
+3. `6f96466ac3259a36dae806d7ba609f4c8adcf41e` — `test(visual-contract): prove typed diagnostic lifecycle`
    - exhaustive catalog/locator/census/transition/cap/privacy tests, lifecycle scenarios, workload count-only correction, `CURRENT.md`, and this evidence.
+4. Branch `HEAD` — focused QA-fix commit
+   - F1 safe untrusted-page locator construction across four producers, F2 AST census across all three error classes, F3 corrected typed-sibling invariant and origin-payload fixture, F4/F5 dispositions, focused validation, and state/evidence updates.
 
-The immutable QA range is the base above through the final branch `HEAD`; the copy-ready handoff supplies the resolved full head hash after this evidence commit is finalized.
+The original immutable QA range ends at commit 3. The micro re-gate range is `6f96466ac3259a36dae806d7ba609f4c8adcf41e..QA_FIX_HEAD`; the copy-ready handoff supplies the resolved full head hash after the QA-fix commit is finalized.
 
 ## 6. Files and scope
 
@@ -122,6 +136,16 @@ All ordinary and resource-intensive focused phases used the repository workload 
 - After the repository gate exposed four stale raw-prose expectations, the exact corrected `visual-contract-s2b.spec.ts` passed **1 file / 8 tests** at ordinary maximum four workers.
 - Repository-local `npx --no-install tsc --noEmit`: PASS.
 - `git diff --check`: PASS.
+
+### QA-fix focused PASS
+
+- Directly affected invalid-page/census/invariant/routing phase: **4 files / 84 tests passed** at the ordinary maximum four workers.
+- Adjacent compiler, compact/mixed repair, action authority, Stage 4, S2B, Template, and lifecycle phase: **9 files / 216 tests passed** at the ordinary maximum four workers.
+- Direct tables cover page values `0`, `-1`, `1.5`, `"1"`, `undefined`, and positive controls at the vNext contradiction, fact-authority, Source-Evidence-ID bridge, and duplicate-beat boundaries.
+- Duplicate-beat cases prove all three bounded attempts remain repairable and exhaust as `TemplateRepairExhaustedError` with full-draft routing; existing compact-only and mixed/full routing suites remain green.
+- The page-less fallback contains only closed roles and bounded indices, contains no `pageNumber` or raw page value, and rejects hostile alternative Source-Evidence-ID collection/field roles.
+- After the final exact Source-Evidence-ID runtime-combination guard, its directly affected spec passed **1 file / 16 tests**; repository-local TypeScript and `git diff --check` then passed.
+- Per the QA-fix instruction, literal `npm run check` was not rerun; its single implementation-gate result and the separate six-fixture release HOLD remain unchanged.
 
 The new exhaustive spec proves:
 
@@ -201,9 +225,11 @@ All provider behavior in tests used local injected fakes/sentinels. External cos
 - The known resource RPC/timeout did not recur in the completed gate; this single pass does not erase its historical status.
 - The full repository gate was not rerun after the four test-only typed-assertion corrections, so no whole-repository green claim is made.
 - This implementation does not identify historical final-attempt issues retroactively.
+- F4 remains an explicit advisory persistence limitation: without new persisted authority, omitted capped items cannot be provenance-proven independently of the content-addressed outer artifact.
+- F5 remains a deliberate closed fallback, not a new diagnostic locator kind or expanded persisted schema.
 - Codex does not self-award independent technical PASS.
 
-Next action is immutable read-only Claude Code adversarial review of the exact base-to-head range. No Fresh Readiness, provider call, render, publication, release, deployment, or push is authorized by this evidence.
+Next action is immutable read-only Claude Code micro re-gate of exact range `6f96466ac3259a36dae806d7ba609f4c8adcf41e..QA_FIX_HEAD`. It must falsify F1-F3 closure and verify F4/F5 are documentation-only dispositions. No Fresh Readiness, provider call, render, publication, release, deployment, or push is authorized by this evidence.
 
 ## 12. Claude Code falsification targets
 

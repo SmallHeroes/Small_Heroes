@@ -14,6 +14,11 @@ import { extractDeterministicFacts, hasCleanEnglishMention, type DeterministicFa
 import { validateBookVisualContractTemplate } from '../visual-contract-compiler/validateTemplateContract';
 import { mustShowAbsenceContradictions } from '../visual-contract-compiler/castPresenceContradiction';
 import { migrateLegacyBookVisualContractTemplateV1 } from '../visual-contract-compiler/contractTemplateMigration';
+import {
+  assertValidVNextVisualContract,
+  InvalidVNextVisualContractError,
+} from '../visual-contract-compiler/validateVNextVisualContract';
+import { draftValidationIssueIsValid } from '../visual-contract-compiler/draftValidationDiagnostics';
 
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,6 +108,55 @@ describe('Fix 2 — cross-field fail-closed validator', () => {
     p1.mustNotShow = [...(p1.mustNotShow ?? []), 'no bunny or rabbit visible yet — the companion has not appeared'];
     expect(validateBookVisualContractTemplate(t).ok).toBe(true);
   });
+
+  it.each([
+    ['zero', 0, 'collection_item'],
+    ['negative', -1, 'collection_item'],
+    ['fractional', 1.5, 'collection_item'],
+    ['string', '1', null],
+    ['missing', undefined, null],
+    ['positive control', 2, 'page'],
+  ])(
+    'keeps the cast-presence rejection typed when pageNumber is %s',
+    (_label, pageNumber, expectedCastLocatorKind) => {
+      const t = bunnyTemplate();
+      const companionId = t.cast.companion.id;
+      const page = pageOf(t, 2);
+      page.castIds = page.castIds.filter(
+        (id: string) => id !== companionId,
+      );
+      page.characterPresence = {
+        ...page.characterPresence,
+        companion: false,
+      };
+      page.pageNumber = pageNumber;
+
+      let thrown: unknown;
+      try {
+        assertValidVNextVisualContract(t);
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(InvalidVNextVisualContractError);
+      const invalid = thrown as InvalidVNextVisualContractError;
+      expect(invalid.diagnosticIssues.length).toBeGreaterThan(0);
+      expect(
+        invalid.diagnosticIssues.every(draftValidationIssueIsValid),
+      ).toBe(true);
+      if (expectedCastLocatorKind) {
+        expect(invalid.diagnosticIssues).toContainEqual(
+          expect.objectContaining({
+            family: 'draft_contract',
+            code: 'cast_authority_mismatch',
+            locator: expect.objectContaining({
+              kind: expectedCastLocatorKind,
+              fieldRole: 'cast_presence',
+            }),
+          }),
+        );
+      }
+    },
+  );
 });
 
 describe('mustShowAbsenceContradictions — helper unit', () => {

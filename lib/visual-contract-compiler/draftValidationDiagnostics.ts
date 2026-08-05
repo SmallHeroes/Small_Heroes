@@ -231,6 +231,20 @@ export type DraftValidationLocator =
 
 type DraftValidationLocatorKind = DraftValidationLocator['kind'];
 
+export type SourceEvidenceIdDraftValidationLocator =
+  | Extract<DraftValidationLocator, { kind: 'source_evidence' }>
+  | {
+      kind: 'collection';
+      collectionRole: 'page_action_semantic_coverage';
+      fieldRole: 'source_evidence';
+    }
+  | {
+      kind: 'collection_item';
+      collectionRole: 'page_action_semantic_coverage';
+      fieldRole: 'source_evidence';
+      itemIndex: number;
+    };
+
 export type DraftValidationIssue =
   | {
       family: 'draft_schema';
@@ -250,7 +264,7 @@ export type DraftValidationIssue =
   | {
       family: 'source_evidence_id';
       code: SourceEvidenceIdValidationIssueCode;
-      locator: Extract<DraftValidationLocator, { kind: 'source_evidence' }>;
+      locator: SourceEvidenceIdDraftValidationLocator;
     };
 
 export type DraftValidationTransitionState =
@@ -450,7 +464,11 @@ const ALLOWED_LOCATOR_KINDS: Record<
     'page_item',
   ],
   action_semantic: ['root', 'collection', 'collection_item', 'page', 'page_item'],
-  source_evidence_id: ['source_evidence'],
+  source_evidence_id: [
+    'collection',
+    'collection_item',
+    'source_evidence',
+  ],
 };
 
 function exactKeys(
@@ -482,6 +500,83 @@ function pageNumberIsValid(value: unknown): value is number {
     Number.isSafeInteger(value) &&
     value > 0
   );
+}
+
+/**
+ * Build a closed locator at a producer boundary without ever copying an
+ * unusable authored page value into typed evidence. Positive safe integers
+ * retain page precision. Otherwise the caller's array position is used when
+ * it is itself a bounded structural index; an impossible oversized position
+ * degrades once more to the closed collection root.
+ *
+ * `source_evidence` needs its coverage index on the positive-page path. Its
+ * fallback deliberately uses the already-closed action-semantic collection
+ * vocabulary and carries no authored page value.
+ */
+export function draftValidationLocatorForUntrustedPage(args: {
+  positiveKind: 'source_evidence';
+  pageNumber: unknown;
+  fieldRole: 'source_evidence';
+  fallbackCollectionRole: 'page_action_semantic_coverage';
+  itemIndex: unknown;
+}): SourceEvidenceIdDraftValidationLocator;
+export function draftValidationLocatorForUntrustedPage(args: {
+  positiveKind: 'page';
+  pageNumber: unknown;
+  fieldRole: DraftValidationFieldRole;
+  fallbackCollectionRole: DraftValidationCollectionRole;
+  itemIndex: unknown;
+}): DraftValidationLocator;
+export function draftValidationLocatorForUntrustedPage(
+  args:
+    | {
+        positiveKind: 'page';
+        pageNumber: unknown;
+        fieldRole: DraftValidationFieldRole;
+        fallbackCollectionRole: DraftValidationCollectionRole;
+        itemIndex: unknown;
+      }
+    | {
+        positiveKind: 'source_evidence';
+        pageNumber: unknown;
+        fieldRole: 'source_evidence';
+        fallbackCollectionRole: 'page_action_semantic_coverage';
+        itemIndex: unknown;
+      },
+): DraftValidationLocator {
+  if (pageNumberIsValid(args.pageNumber)) {
+    if (
+      args.positiveKind === 'source_evidence' &&
+      structuralIndexIsValid(args.itemIndex)
+    ) {
+      return {
+        kind: 'source_evidence',
+        fieldRole: args.fieldRole,
+        pageNumber: args.pageNumber,
+        coverageIndex: args.itemIndex,
+      };
+    }
+    if (args.positiveKind === 'page') {
+      return {
+        kind: 'page',
+        fieldRole: args.fieldRole,
+        pageNumber: args.pageNumber,
+      };
+    }
+  }
+  if (structuralIndexIsValid(args.itemIndex)) {
+    return {
+      kind: 'collection_item',
+      collectionRole: args.fallbackCollectionRole,
+      fieldRole: args.fieldRole,
+      itemIndex: args.itemIndex,
+    };
+  }
+  return {
+    kind: 'collection',
+    collectionRole: args.fallbackCollectionRole,
+    fieldRole: args.fieldRole,
+  };
 }
 
 function countIsValid(value: unknown): value is number {
@@ -549,10 +644,27 @@ export function draftValidationIssueIsValid(
     string,
     true
   >;
-  return (
-    Object.prototype.hasOwnProperty.call(catalog, value.code) &&
-    ALLOWED_LOCATOR_KINDS[family].includes(value.locator.kind)
-  );
+  if (
+    !Object.prototype.hasOwnProperty.call(catalog, value.code) ||
+    !ALLOWED_LOCATOR_KINDS[family].includes(value.locator.kind)
+  ) {
+    return false;
+  }
+  if (family === 'source_evidence_id') {
+    if (value.locator.kind === 'source_evidence') return true;
+    if (
+      value.locator.kind !== 'collection' &&
+      value.locator.kind !== 'collection_item'
+    ) {
+      return false;
+    }
+    return (
+      value.locator.collectionRole ===
+        'page_action_semantic_coverage' &&
+      value.locator.fieldRole === 'source_evidence'
+    );
+  }
+  return true;
 }
 
 function canonicalLocator(

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import * as ts from 'typescript';
 
 import { describe, expect, it } from 'vitest';
 
@@ -13,18 +14,22 @@ import {
   draftValidationDiagnosticCodesForIssues,
   draftValidationDiagnosticTrailIsValid,
   draftValidationIssueIsValid,
+  draftValidationLocatorForUntrustedPage,
   draftValidationLocatorIsValid,
   normalizeDraftValidationIssues,
   type DraftValidationIssue,
 } from '@/lib/visual-contract-compiler/draftValidationDiagnostics';
 import {
   InvalidTemplateContractError,
+  validateEvidenceOrigin,
   validateBookVisualContractTemplate,
 } from '@/lib/visual-contract-compiler/validateTemplateContract';
 import {
+  InvalidVisualContractError,
   validateBookVisualContract,
 } from '@/lib/visual-contract-compiler/validateBookVisualContract';
 import {
+  InvalidVNextVisualContractError,
   validateVNextVisualContract,
 } from '@/lib/visual-contract-compiler/validateVNextVisualContract';
 import {
@@ -59,6 +64,88 @@ const sourceEvidenceIssue: DraftValidationIssue = {
 
 function source(relativePath: string): string {
   return fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
+}
+
+const REPAIRABLE_ERROR_CLASSES = [
+  'InvalidTemplateContractError',
+  'InvalidVisualContractError',
+  'InvalidVNextVisualContractError',
+] as const;
+type RepairableErrorClassName =
+  (typeof REPAIRABLE_ERROR_CLASSES)[number];
+
+function repairableProducerCensus(): {
+  producers: Record<RepairableErrorClassName, Record<string, number>>;
+  constructors: Record<
+    RepairableErrorClassName,
+    Array<{ name: string; hasInitializer: boolean }>
+  >;
+} {
+  const compilerDir = path.join(
+    process.cwd(),
+    'lib/visual-contract-compiler',
+  );
+  const producerMaps = Object.fromEntries(
+    REPAIRABLE_ERROR_CLASSES.map((name) => [name, new Map<string, number>()]),
+  ) as Record<RepairableErrorClassName, Map<string, number>>;
+  const constructors = Object.fromEntries(
+    REPAIRABLE_ERROR_CLASSES.map((name) => [name, []]),
+  ) as unknown as Record<
+    RepairableErrorClassName,
+    Array<{ name: string; hasInitializer: boolean }>
+  >;
+  const classNames = new Set<string>(REPAIRABLE_ERROR_CLASSES);
+
+  for (const fileName of fs.readdirSync(compilerDir).sort()) {
+    if (!fileName.endsWith('.ts')) continue;
+    const contents = source(`lib/visual-contract-compiler/${fileName}`);
+    const sourceFile = ts.createSourceFile(
+      fileName,
+      contents,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    );
+    const visit = (node: ts.Node): void => {
+      if (
+        ts.isNewExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        classNames.has(node.expression.text)
+      ) {
+        const name = node.expression.text as RepairableErrorClassName;
+        producerMaps[name].set(
+          fileName,
+          (producerMaps[name].get(fileName) ?? 0) + 1,
+        );
+      }
+      if (
+        ts.isClassDeclaration(node) &&
+        node.name &&
+        classNames.has(node.name.text)
+      ) {
+        const name = node.name.text as RepairableErrorClassName;
+        const constructor = node.members.find(ts.isConstructorDeclaration);
+        if (constructor) {
+          constructors[name] = constructor.parameters.map((parameter) => ({
+            name: parameter.name.getText(sourceFile),
+            hasInitializer: parameter.initializer !== undefined,
+          }));
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+  }
+
+  return {
+    producers: Object.fromEntries(
+      REPAIRABLE_ERROR_CLASSES.map((name) => [
+        name,
+        Object.fromEntries(producerMaps[name]),
+      ]),
+    ) as Record<RepairableErrorClassName, Record<string, number>>,
+    constructors,
+  };
 }
 
 describe('closed draft-validation issue contract', () => {
@@ -184,6 +271,16 @@ describe('closed draft-validation issue contract', () => {
         code: 'source_evidence_id_unknown',
         locator: { kind: 'root', fieldRole: 'source_evidence' },
       },
+      {
+        family: 'source_evidence_id',
+        code: 'source_evidence_id_unknown',
+        locator: {
+          kind: 'collection_item',
+          collectionRole: 'locations',
+          fieldRole: 'name',
+          itemIndex: 0,
+        },
+      },
     ];
     expect(
       hostileValues.every(
@@ -192,6 +289,98 @@ describe('closed draft-validation issue contract', () => {
           !draftValidationIssueIsValid(value),
       ),
     ).toBe(true);
+  });
+
+  it.each([
+    ['zero', 0],
+    ['negative', -1],
+    ['fractional', 1.5],
+    ['string', '1'],
+    ['missing', undefined],
+  ])(
+    'uses a closed collection-item fallback for an unusable $0 page without retaining it',
+    (_label, pageNumber) => {
+      const pageLocator = draftValidationLocatorForUntrustedPage({
+        positiveKind: 'page',
+        pageNumber,
+        fieldRole: 'cast_presence',
+        fallbackCollectionRole: 'page_contracts',
+        itemIndex: 4,
+      });
+      const sourceEvidenceLocator =
+        draftValidationLocatorForUntrustedPage({
+          positiveKind: 'source_evidence',
+          pageNumber,
+          fieldRole: 'source_evidence',
+          fallbackCollectionRole: 'page_action_semantic_coverage',
+          itemIndex: 2,
+        });
+      expect(pageLocator).toEqual({
+        kind: 'collection_item',
+        collectionRole: 'page_contracts',
+        fieldRole: 'cast_presence',
+        itemIndex: 4,
+      });
+      expect(sourceEvidenceLocator).toEqual({
+        kind: 'collection_item',
+        collectionRole: 'page_action_semantic_coverage',
+        fieldRole: 'source_evidence',
+        itemIndex: 2,
+      });
+      expect(JSON.stringify([pageLocator, sourceEvidenceLocator])).not.toContain(
+        'pageNumber',
+      );
+      expect(
+        draftValidationIssueIsValid({
+          family: 'source_evidence_id',
+          code: 'source_evidence_id_unknown',
+          locator: sourceEvidenceLocator,
+        }),
+      ).toBe(true);
+    },
+  );
+
+  it('retains a safe positive page and degrades an unusable structural index to the closed collection root', () => {
+    expect(
+      draftValidationLocatorForUntrustedPage({
+        positiveKind: 'page',
+        pageNumber: 1,
+        fieldRole: 'identity',
+        fallbackCollectionRole: 'page_contracts',
+        itemIndex: 0,
+      }),
+    ).toEqual({
+      kind: 'page',
+      fieldRole: 'identity',
+      pageNumber: 1,
+    });
+    expect(
+      draftValidationLocatorForUntrustedPage({
+        positiveKind: 'source_evidence',
+        pageNumber: 1,
+        fieldRole: 'source_evidence',
+        fallbackCollectionRole: 'page_action_semantic_coverage',
+        itemIndex: 3,
+      }),
+    ).toEqual({
+      kind: 'source_evidence',
+      fieldRole: 'source_evidence',
+      pageNumber: 1,
+      coverageIndex: 3,
+    });
+    expect(
+      draftValidationLocatorForUntrustedPage({
+        positiveKind: 'page',
+        pageNumber: 0,
+        fieldRole: 'identity',
+        fallbackCollectionRole: 'page_contracts',
+        itemIndex: MAX_DRAFT_VALIDATION_STRUCTURAL_INDEX + 1,
+      }),
+    ).toEqual({
+      kind: 'collection',
+      collectionRole: 'page_contracts',
+      fieldRole: 'identity',
+    });
   });
 
   it('normalizes and deduplicates by family + code + canonical locator independent of emission/key order', () => {
@@ -342,48 +531,57 @@ describe('canonical per-attempt transitions', () => {
 });
 
 describe('repairable producer census and typed-only boundary', () => {
-  it('keeps the closed mechanical producer map exhaustive and rejects a string-only repair error', () => {
-    const producerCounts = new Map<string, number>([
-      ['compileBookVisualContractTemplate.ts', 16],
-      ['contractArtifact.ts', 1],
-      ['contractTemplateMigration.ts', 9],
-      ['validateTemplateContract.ts', 1],
-    ]);
-    const compilerDir = path.join(
-      process.cwd(),
-      'lib/visual-contract-compiler',
-    );
-    const actual = new Map<string, number>();
-    for (const fileName of fs.readdirSync(compilerDir).sort()) {
-      if (!fileName.endsWith('.ts')) continue;
-      const contents = source(
-        `lib/visual-contract-compiler/${fileName}`,
-      );
-      const count = contents.match(
-        /new InvalidTemplateContractError\(/g,
-      )?.length ?? 0;
-      if (count > 0) actual.set(fileName, count);
-    }
-    expect(actual).toEqual(producerCounts);
+  it('keeps the AST-based producer map exhaustive and every typed parameter required', () => {
+    const census = repairableProducerCensus();
+    expect(census.producers).toEqual({
+      InvalidTemplateContractError: {
+        'compileBookVisualContractTemplate.ts': 16,
+        'contractArtifact.ts': 1,
+        'contractTemplateMigration.ts': 9,
+        'validateTemplateContract.ts': 1,
+      },
+      InvalidVisualContractError: {
+        'compileBookVisualContract.ts': 3,
+        'contractRenderGuards.ts': 2,
+        'validateBookVisualContract.ts': 1,
+      },
+      InvalidVNextVisualContractError: {
+        'validateVNextVisualContract.ts': 1,
+      },
+    });
+    expect(census.constructors).toEqual({
+      InvalidTemplateContractError: [
+        { name: 'errors', hasInitializer: false },
+        { name: 'diagnosticIssues', hasInitializer: false },
+      ],
+      InvalidVisualContractError: [
+        { name: 'errors', hasInitializer: false },
+        { name: 'diagnosticIssues', hasInitializer: false },
+      ],
+      InvalidVNextVisualContractError: [
+        { name: 'errors', hasInitializer: false },
+        { name: 'diagnosticIssues', hasInitializer: false },
+      ],
+    });
 
-    const templateValidator = source(
-      'lib/visual-contract-compiler/validateTemplateContract.ts',
-    );
-    expect(templateValidator).not.toMatch(
-      /diagnosticIssues:\s*readonly DraftValidationIssue\[\]\s*=/,
-    );
-    expect(() =>
-      new (InvalidTemplateContractError as unknown as new (
-        errors: string[],
-      ) => InvalidTemplateContractError)(['raw prose only']),
-    ).toThrow('draft validation diagnostic contract invalid');
+    for (const ErrorClass of [
+      InvalidTemplateContractError,
+      InvalidVisualContractError,
+      InvalidVNextVisualContractError,
+    ]) {
+      expect(() =>
+        new (ErrorClass as unknown as new (
+          errors: string[],
+        ) => Error)(['raw prose only']),
+      ).toThrow('draft validation diagnostic contract invalid');
+    }
   });
 
-  it('emits one valid typed sibling for every base/template/vNext validation error without parsing prose', () => {
+  it('gives every repairable rejection a non-empty valid typed sibling without requiring one issue per prose error', () => {
     const base = validateBookVisualContract({});
     expect(base.ok).toBe(false);
     if (!base.ok) {
-      expect(base.diagnosticIssues).toHaveLength(base.errors.length);
+      expect(base.diagnosticIssues.length).toBeGreaterThan(0);
       expect(base.diagnosticIssues.every(draftValidationIssueIsValid)).toBe(
         true,
       );
@@ -392,7 +590,7 @@ describe('repairable producer census and typed-only boundary', () => {
     const vNext = validateVNextVisualContract({});
     expect(vNext.ok).toBe(false);
     if (!vNext.ok) {
-      expect(vNext.diagnosticIssues).toHaveLength(vNext.errors.length);
+      expect(vNext.diagnosticIssues.length).toBeGreaterThan(0);
       expect(vNext.diagnosticIssues.every(draftValidationIssueIsValid)).toBe(
         true,
       );
@@ -401,11 +599,34 @@ describe('repairable producer census and typed-only boundary', () => {
     const template = validateBookVisualContractTemplate({});
     expect(template.ok).toBe(false);
     if (!template.ok) {
-      expect(template.diagnosticIssues).toHaveLength(template.errors.length);
+      expect(template.diagnosticIssues.length).toBeGreaterThan(0);
       expect(
         template.diagnosticIssues.every(draftValidationIssueIsValid),
       ).toBe(true);
     }
+
+    const originErrors: string[] = [];
+    const originIssues: DraftValidationIssue[] = [];
+    expect(
+      validateEvidenceOrigin(
+        'fixture.binding',
+        { kind: 'policy_default' },
+        originErrors,
+        originIssues,
+      ),
+    ).toBe('policy_default');
+    expect(originErrors).toEqual([
+      'fixture.binding.origin(policy_default).policyId missing',
+      'fixture.binding.origin(policy_default).version missing',
+    ]);
+    expect(originIssues).toEqual([
+      {
+        family: 'draft_schema',
+        code: 'binding_origin_invalid',
+        locator: { kind: 'root', fieldRole: 'binding_origin' },
+      },
+    ]);
+    expect(originIssues.every(draftValidationIssueIsValid)).toBe(true);
 
     const lifecycle = source(
       'lib/visual-package/visualContractAuthoringLifecycle.ts',

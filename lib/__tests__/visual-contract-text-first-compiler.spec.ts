@@ -27,6 +27,7 @@ import type { BookVisualContractTemplate } from '../visual-contract-compiler/con
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 import { buildSourceEvidenceCatalog } from '../visual-contract-compiler/sourceEvidenceCatalog';
+import { draftValidationIssueIsValid } from '../visual-contract-compiler/draftValidationDiagnostics';
 
 const BUNNY_KEY = 'bunny_ometz_adventure';
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
@@ -292,6 +293,51 @@ describe('cast identity + presence is fact-authoritative (Codex FAIL #3 — comp
     p1.castIds = [...(p1.castIds ?? []), 'companion:bunny_ometz'];
     expect(() => assertCastIsFactAuthoritative(bad, facts, bunnySource())).toThrow(InvalidTemplateContractError);
   });
+
+  it.each([
+    ['zero', 0, 'collection_item'],
+    ['negative', -1, 'collection_item'],
+    ['fractional', 1.5, 'collection_item'],
+    ['string', '1', 'collection_item'],
+    ['missing', undefined, 'collection_item'],
+    ['positive control', 1, 'page'],
+  ])(
+    'keeps fact-authority rejection typed when pageNumber is %s',
+    async (_label, pageNumber, expectedLocatorKind) => {
+      const { template, facts } =
+        await compileBookVisualContractTemplate(bunnySource(), {
+          callLLM: stubFrom(bunnyTemplate()),
+        });
+      const bad = JSON.parse(JSON.stringify(template)) as typeof template;
+      const page = bad.pageContracts[0]!;
+      page.pageNumber = pageNumber as number;
+      page.castIds = [];
+      page.characterPresence.child = false;
+
+      let thrown: unknown;
+      try {
+        assertCastIsFactAuthoritative(bad, facts, bunnySource());
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(InvalidTemplateContractError);
+      const invalid = thrown as InvalidTemplateContractError;
+      expect(invalid.diagnosticIssues.length).toBeGreaterThan(0);
+      expect(
+        invalid.diagnosticIssues.every(draftValidationIssueIsValid),
+      ).toBe(true);
+      expect(invalid.diagnosticIssues).toContainEqual(
+        expect.objectContaining({
+          family: 'draft_contract',
+          code: 'fact_authority_mismatch',
+          locator: expect.objectContaining({
+            kind: expectedLocatorKind,
+            fieldRole: 'cast_presence',
+          }),
+        }),
+      );
+    },
+  );
 });
 
 describe('leak-class closure — a character named in prose but ABSENT per facts is FLAGGED (not blocked)', () => {

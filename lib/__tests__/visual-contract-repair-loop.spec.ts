@@ -14,6 +14,7 @@ import {
   compileBookVisualContractTemplate,
   buildTemplateRepairSystemPrompt,
   buildTemplateRepairUserPrompt,
+  SourceEvidenceIdValidationError,
   TemplateRepairExhaustedError,
   TemplateRepairOutputInvalidError,
   type TemplateCompileInput,
@@ -29,6 +30,7 @@ import { InvalidTemplateContractError } from '../visual-contract-compiler/valida
 import { extractDeterministicFacts } from '../visual-contract-compiler/extractDeterministicFacts';
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
+import { draftValidationIssueIsValid } from '../visual-contract-compiler/draftValidationDiagnostics';
 
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
 const bunnySource = (): TemplateCompileInput =>
@@ -82,6 +84,32 @@ function withElevenInvalidEvidenceIds(): any {
       `se1_${String(pageNumber * 10 + occurrence).padStart(64, 'f')}`;
     if (occurrence === 0) page.actionSemanticCoverage = [source];
     else page.actionSemanticCoverage.push(source);
+  }
+  return draft;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function withDuplicateBeatOnRawPage(rawPageNumber: unknown): any {
+  const input = bunnySource();
+  const draft = bunnyDraft();
+  const compilerPageNumber =
+    typeof rawPageNumber === 'number' ? rawPageNumber : -1;
+  const sourceEvidenceId = input.sourceEvidenceCatalog.entries.find(
+    (entry) => entry.pageNumber === 1,
+  )!.sourceEvidenceId;
+  for (const page of draft.pageContracts.slice(0, 2)) {
+    page.pageNumber = rawPageNumber;
+    page.actionRequirements = [];
+    page.actionSemanticCoverage = [
+      {
+        beatId: `beat:p${compilerPageNumber}:qa_duplicate`,
+        sourceEvidenceId,
+        disposition: {
+          kind: 'non_visual',
+          rationale: 'narrative_context',
+        },
+      },
+    ];
   }
   return draft;
 }
@@ -167,6 +195,54 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(JSON.stringify(err.attempts)).not.toMatch(/material/i);
     expect(calls()).toBe(3); // initial + 2 repairs — the 4th valid draft was never requested
   });
+  it.each([
+    ['zero', 0, 'collection_item'],
+    ['negative', -1, 'collection_item'],
+    ['fractional', 1.5, 'collection_item'],
+    ['string', '1', 'collection_item'],
+    ['missing', undefined, 'collection_item'],
+    ['positive control', 1, 'page'],
+  ])(
+    'keeps duplicate-beat diagnostics typed through bounded exhaustion for %s pageNumber',
+    async (_label, pageNumber, expectedLocatorKind) => {
+      const invalid = withDuplicateBeatOnRawPage(pageNumber);
+      const { caller, calls } = recordingCaller([
+        invalid,
+        invalid,
+        invalid,
+      ]);
+      let thrown: unknown;
+      try {
+        await compileBookVisualContractTemplate(bunnySource(), {
+          callLLM: caller,
+        });
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(TemplateRepairExhaustedError);
+      const exhausted = thrown as TemplateRepairExhaustedError;
+      expect(calls()).toBe(3);
+      expect(exhausted.attempts).toHaveLength(3);
+      expect(
+        exhausted.attempts.every(
+          (attempt) =>
+            attempt.diagnosticIssues.length > 0 &&
+            attempt.diagnosticIssues.every(draftValidationIssueIsValid),
+        ),
+      ).toBe(true);
+      expect(exhausted.attempts[0]!.diagnosticIssues).toContainEqual(
+        expect.objectContaining({
+          family: 'action_semantic',
+          code: 'beat_identity_duplicate',
+          locator: expect.objectContaining({
+            kind: expectedLocatorKind,
+            fieldRole: 'identity',
+          }),
+        }),
+      );
+      expect(exhausted.attempts[0]!.nextRepairMode).toBe('full_draft');
+    },
+  );
 });
 
 describe('Stage 3 — repair prompt content (allowlist + inputs)', () => {
@@ -193,6 +269,66 @@ describe('Stage 3 — repair prompt content (allowlist + inputs)', () => {
 });
 
 describe('Source Evidence ID compact repair', () => {
+  it.each([
+    ['zero', 0, 'collection_item'],
+    ['negative', -1, 'collection_item'],
+    ['fractional', 1.5, 'collection_item'],
+    ['string', '1', 'collection_item'],
+    ['missing', undefined, 'collection_item'],
+    ['positive control', 1, 'source_evidence'],
+  ])(
+    'constructs the typed bridge without a plain Error for %s pageNumber',
+    (_label, pageNumber, expectedLocatorKind) => {
+      let thrown: unknown;
+      try {
+        throw new SourceEvidenceIdValidationError(
+          [
+            {
+              pageNumber: pageNumber as number,
+              coverageIndex: 0,
+              beatId: 'beat:p1:qa_source',
+              failureCode: 'source_evidence_id_unknown',
+              coverageRecord: {
+                beatId: 'beat:p1:qa_source',
+                sourceEvidenceId: 'invalid',
+                disposition: {
+                  kind: 'non_visual',
+                  rationale: 'narrative_context',
+                },
+              },
+              actionRequirement: null,
+            },
+          ],
+          ['source evidence id is invalid'],
+        );
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(SourceEvidenceIdValidationError);
+      expect(thrown).toBeInstanceOf(InvalidTemplateContractError);
+      const invalid = thrown as SourceEvidenceIdValidationError;
+      expect(invalid.diagnosticIssues).toHaveLength(1);
+      expect(invalid.diagnosticIssues[0]).toEqual(
+        expect.objectContaining({
+          family: 'source_evidence_id',
+          code: 'source_evidence_id_unknown',
+          locator: expect.objectContaining({
+            kind: expectedLocatorKind,
+            fieldRole: 'source_evidence',
+          }),
+        }),
+      );
+      expect(invalid.diagnosticIssues.every(draftValidationIssueIsValid)).toBe(
+        true,
+      );
+      if (expectedLocatorKind === 'collection_item') {
+        expect(JSON.stringify(invalid.diagnosticIssues)).not.toContain(
+          'pageNumber',
+        );
+      }
+    },
+  );
+
   it('repairs the observed eleven-failure shape with a compact ID patch and revalidates the full draft', async () => {
     const input = bunnySource();
     const invalid = withElevenInvalidEvidenceIds();
