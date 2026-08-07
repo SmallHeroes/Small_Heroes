@@ -41,7 +41,7 @@
   padding: 0;
   border: 1px solid rgba(220, 210, 198, 0.28);
   border-radius: 18px;
-  background: #fffcf8;
+  background: var(--surface-raised);
   box-shadow: 0 4px 18px rgba(92, 75, 138, 0.06);
   text-align: right;
   font: inherit;
@@ -79,7 +79,7 @@ button.mvp-challenge-card {
   justify-content: center;
   overflow: hidden;
   padding: 0;
-  background: #fdf8ee;
+  background: var(--surface-alt);
   border-radius: 17px 17px 0 0;
   border-bottom: 1px solid rgba(210, 198, 185, 0.35);
 }
@@ -105,7 +105,7 @@ button.mvp-challenge-card {
   height: 100%;
   margin: 0;
   border-radius: 0;
-  background: #fdf8ee;
+  background: var(--surface-alt);
 }
 
 .mvp-challenge-card-text {
@@ -115,7 +115,7 @@ button.mvp-challenge-card {
   gap: 6px;
   flex: 1 1 auto;
   min-height: 0;
-  background: #fffcf8;
+  background: var(--surface-raised);
 }
 
 .mvp-challenge-card-label {

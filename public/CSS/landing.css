@@ -193,7 +193,7 @@
   font-weight: 600;
   line-height: 1.45;
   margin-bottom: 14px;
-  box-shadow: 0 2px 12px rgba(255, 209, 102, 0.35);
+  box-shadow: var(--shadow-1);
 }
 
 .hero-h1 {
@@ -271,7 +271,7 @@
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(255, 238, 108, 0.78) 0%,
+    rgba(136, 108, 255, 0.34) 0%,
     rgba(136, 108, 255, 0.22) 46%,
     rgba(255, 255, 255, 0) 72%
   );

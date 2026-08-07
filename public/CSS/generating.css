@@ -109,7 +109,7 @@
   height: 10px;
   border-radius: 50%;
   background: var(--yellow, #ffd166);
-  box-shadow: 0 0 10px rgba(255, 209, 102, 0.55);
+  box-shadow: 0 0 10px rgba(136, 108, 255, 0.45);
 }
 
 .gen-body {

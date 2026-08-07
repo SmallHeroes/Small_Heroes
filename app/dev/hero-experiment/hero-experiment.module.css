@@ -4,7 +4,7 @@
   min-height: 100dvh;
   background:
     radial-gradient(85% 60% at 72% 18%, #f6efff 0%, transparent 55%),
-    linear-gradient(180deg, var(--surface-cream, #fffcf5) 0%, #ffffff 88%);
+    linear-gradient(180deg, var(--surface-alt, #faf9fc) 0%, #ffffff 88%);
   display: flex;
   align-items: center;
   font-family: var(--font-body, 'Heebo', sans-serif);
@@ -135,7 +135,7 @@
   width: 84%;
   height: 44%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 238, 108, 0.45) 0%, rgba(136, 108, 255, 0.15) 50%, transparent 74%);
+  background: radial-gradient(circle, rgba(136, 108, 255, 0.30) 0%, rgba(136, 108, 255, 0.12) 50%, transparent 74%);
   filter: blur(36px);
   animation: glowBreathe 6s ease-in-out infinite alternate;
 }

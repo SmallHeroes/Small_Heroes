@@ -30,22 +30,23 @@
   --ink-3:      #8b86a0;   /* muted / captions / placeholders */
   --ink-inverse:#ffffff;
 
-  /* ── Surfaces ────────────────────────────────────────────────────────── */
+  /* ── Surfaces ──────────────────────────────────────────────────────────
+     PALETTE RULE: white → grey-lavender → strong purple, plus --brand-yellow
+     as a pointed accent ONLY (badges/marks). No pale-yellow / cream washes:
+     the cream surface family was removed on purpose — do not reintroduce it,
+     and do not add new shades outside this ladder. */
   --surface-page:     #ffffff;
   --surface-alt:      #faf9fc;  /* quiet alternating sections */
   --surface-raised:   #ffffff;  /* cards on any section bg */
-  --surface-cream:    #fffcf5;  /* warm storybook band */
-  --surface-cream-2:  #fdf6e2;  /* deeper cream (notes, launch band) */
   --surface-sunken:   #f3f1f9;  /* wells, progress track */
   --surface-dark:     #2b2b31;  /* footer */
   /* Shared page atmosphere for the funnel (start + wizard + login/gate/ready) */
-  --surface-wizard-gradient: linear-gradient(165deg, #fffcf1 0%, #f7f2ff 45%, #eef6fa 100%);
+  --surface-wizard-gradient: linear-gradient(165deg, var(--surface-page) 0%, var(--surface-alt) 45%, var(--surface-sunken) 100%);
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
   --border-soft:   #efecf8;  /* hairlines inside cards */
   --border:        #e5e0f3;  /* default component border */
   --border-strong: #d8cdfd;  /* hover / open */
-  --border-cream:  #f4edda;  /* on cream surfaces */
 
   /* ── Interactive states ──────────────────────────────────────────────── */
   --interactive:          var(--brand-purple);
@@ -211,7 +212,7 @@
   --white:      #ffffff;
   --bg-light:   var(--surface-alt);
   --bg-lighter: var(--surface-alt);
-  --cream:      var(--surface-cream);      /* was referenced-but-undefined (dead gradient fix) */
+  --cream:      var(--surface-alt);        /* legacy alias — cream family removed; maps to grey-lavender */
   --accent:     var(--brand-purple);       /* was referenced-but-undefined */
   --fd: var(--font-display);
   --fb: var(--font-body);

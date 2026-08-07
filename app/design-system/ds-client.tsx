@@ -13,10 +13,10 @@ const BRAND_TOKENS = [
 ];
 const INK_TOKENS = ['--ink-strong', '--ink', '--ink-2', '--ink-3'];
 const SURFACE_TOKENS = [
-  '--surface-page', '--surface-alt', '--surface-cream', '--surface-cream-2',
+  '--surface-page', '--surface-alt',
   '--surface-sunken', '--surface-dark',
 ];
-const BORDER_TOKENS = ['--border-soft', '--border', '--border-strong', '--border-cream'];
+const BORDER_TOKENS = ['--border-soft', '--border', '--border-strong'];
 const FEEDBACK_TOKENS = [
   '--success', '--success-bg', '--warning', '--warning-bg', '--error', '--error-bg',
 ];
@@ -273,7 +273,7 @@ export default function DesignSystemClient() {
           <h2>כללי שימוש</h2>
           <h3>שמות טוקנים</h3>
           <p>
-            סמנטיים תחילה: <code>--interactive</code>, <code>--ink-2</code>, <code>--surface-cream</code>.
+            סמנטיים תחילה: <code>--interactive</code>, <code>--ink-2</code>, <code>--surface-alt</code>.
             כינויי legacy (<code>--purple</code>, <code>--fd</code>…) קיימים רק לתאימות — לא לשימוש חדש.
           </p>
           <h3>טיפוגרפיה</h3>
