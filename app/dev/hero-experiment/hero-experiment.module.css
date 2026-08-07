@@ -146,32 +146,83 @@
 
 .book {
   position: relative;
-  width: min(660px, 100%);
+  width: min(700px, 100%);
   transform-style: preserve-3d;
-  /* entrance: deeper angle + drop-in → settles to presentation pose */
-  transform: rotateX(calc(16deg + var(--px, 0deg))) rotateY(calc(-22deg + var(--py, 0deg))) translateY(12px);
+  /* perspective is BAKED into the rendered asset — CSS keeps only a whisper
+     of live depth (pointer micro-tilt) + a settle-in entrance */
+  transform: rotateX(calc(2deg + var(--px, 0deg))) rotateY(var(--py, 0deg)) translateY(16px) scale(0.985);
   opacity: 0;
   transition: transform 1100ms cubic-bezier(0.22, 1, 0.36, 1), opacity 700ms ease;
 }
 
 .hero[data-settled='yes'] .book {
-  /* presentation pose: gentle Hebrew-book perspective (spine slightly right) */
-  transform: rotateX(calc(7deg + var(--px, 0deg))) rotateY(calc(-9deg + var(--py, 0deg))) translateY(0);
+  transform: rotateX(var(--px, 0deg)) rotateY(var(--py, 0deg)) translateY(0) scale(1);
   opacity: 1;
 }
 
 .spreadPhoto {
   width: 100%;
   height: auto;
-  border-radius: 6px;
-  filter: drop-shadow(0 30px 42px rgba(45, 30, 90, 0.30));
+  /* transparent render — the hero background shows through; shadow follows the silhouette */
+  filter: drop-shadow(0 26px 34px rgba(45, 30, 90, 0.26));
+}
+
+/* ── Composited page content, mapped to the rendered page planes ──
+   The blank render is 1536x1024; page quads eyeballed + iterated via
+   screenshots. Approximation: position box + rotate/skew per page. */
+.pageArt {
+  /* full-bleed container over the book image; the page QUAD is cut by
+     clip-path in % — exact page edges at any size */
+  position: absolute;
+  inset: 0;
+  /* measured off the % grid: left-page paper quad */
+  clip-path: polygon(9.2% 36%, 42% 21.5%, 58.5% 70%, 15% 82%);
+  opacity: 0.94;
+  mix-blend-mode: multiply;
+}
+.pageArt img {
+  position: absolute;
+  left: 3%;
+  top: 14%;
+  width: 60%;
+  height: 76%;
+  object-fit: cover;
+  /* keep Yuval's raised 'ear-statue' arms in frame */
+  object-position: 28% 12%;
+  /* grain follows the page's mean tilt (top-edge slope ≈ -11°) */
+  transform: rotate(-11deg) scale(1.12);
+}
+
+.pageProse {
+  position: absolute;
+  left: 52%;
+  top: 22%;
+  width: 24%;
+  height: 34%;
+  /* text lines parallel to the right page's top edge (≈ -9°) */
+  transform: rotate(-9deg);
+  transform-origin: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.85em;
+  direction: rtl;
+  text-align: right;
+}
+.pageProse p {
+  margin: 0;
+  font-family: var(--font-frank), 'Frank Ruhl Libre', var(--font-noto-serif-hebrew), 'Noto Serif Hebrew', serif;
+  font-size: clamp(8px, 1.25cqi, 15px);
+  line-height: 1.9;
+  color: #3a332a;
+  font-weight: 400;
 }
 
 /* personalization ribbon — a bookmark hanging over the top of the right page */
 .ribbon {
   position: absolute;
-  top: -2.5%;
-  right: 14%;
+  top: 4%;
+  right: 17%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -246,8 +297,18 @@
 @media (prefers-reduced-motion: reduce) {
   .book {
     transition: none;
-    transform: rotateX(7deg) rotateY(-9deg);
+    transform: none;
     opacity: 1;
   }
   .glow { animation: none; }
 }
+
+/* caption under the book — carries the live-name line */
+.bookCaption {
+  margin: 8px auto 0;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--ink-2, #5f5a70);
+  direction: rtl;
+}
+.bookCaption b { color: var(--brand-purple-deep, #5b43cc); font-weight: 800; }

@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import styles from './hero-experiment.module.css';
 
-const DEFAULT_NAME = 'נועה';
+const DEFAULT_NAME = 'יובל';
 
 export function HeroExperiment() {
   const [name, setName] = useState(DEFAULT_NAME);
@@ -103,25 +103,24 @@ export function HeroExperiment() {
           <p className={styles.ctaNote}>דקה שאלון · ספר דיגיטלי · קריינות · בעברית</p>
         </div>
 
-        {/* ── The real spread, in perspective ── */}
+        {/* ── Rendered blank book + REAL composited content (reader technique) ── */}
         <div className={styles.stage}>
           <div className={styles.glow} aria-hidden />
           <div ref={bookRef} className={styles.book} aria-hidden>
             <img
               className={styles.spreadPhoto}
-              src="/Images/Book.webp"
+              src="/Images/hero-rnd/hero-spread-baked.webp"
               alt=""
-              width={2739}
-              height={1670}
+              width={1500}
+              height={1000}
               draggable={false}
               fetchPriority="high"
             />
-            {/* personalization ribbon — updates live as the parent types */}
-            <div className={styles.ribbon}>
-              <span className={styles.ribbonKicker}>ספר אישי</span>
-              <span className={styles.ribbonName}>הסיפור של {shownName}</span>
-            </div>
-            <span className={styles.tableShadow} aria-hidden />
+            {/* page + text are baked into the render (bank prose, bedtime p1);
+                the caption below carries the live-name moment honestly */}
+            <p className={styles.bookCaption}>
+              עמוד מתוך ספר אמיתי · הסיפור של <b>{shownName}</b> ייכתב במיוחד בשבילו
+            </p>
           </div>
         </div>
       </div>
