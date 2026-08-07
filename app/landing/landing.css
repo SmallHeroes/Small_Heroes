@@ -349,14 +349,130 @@
   background: var(--surface-alt);
 }
 
-/* Cards center as a group at any count (was repeat(4) — 2 cards hugged the
-   inline-start edge with two empty tracks). */
+/* Two substantial value panels, centered as a group (was 4 thin text cards —
+   2 of them hugged the inline-start edge and read as an empty section). */
 .why-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 300px));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 460px));
   justify-content: center;
-  gap: var(--sp-sm);
+  gap: var(--sp-md);
   align-items: stretch;
+}
+
+/* ── Value panel: visual on top, copy below ── */
+.why-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+  transition: transform var(--dur-base) var(--ease-soft), box-shadow var(--dur-base) var(--ease-soft);
+}
+
+.why-panel:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-2);
+}
+
+.why-panel-visual {
+  position: relative;
+  display: grid;
+  place-items: center;
+  /* fixed height so both panels' chips/titles share one baseline */
+  block-size: 268px;
+  padding: var(--sp-md) var(--sp-sm);
+  background:
+    radial-gradient(72% 78% at 50% 42%, rgba(255, 238, 108, 0.28) 0%, transparent 68%),
+    linear-gradient(180deg, var(--surface-cream) 0%, var(--surface-cream-2) 100%);
+  border-block-end: 1px solid var(--border-cream);
+}
+
+.why-panel-book {
+  inline-size: auto;
+  max-inline-size: 100%;
+  max-block-size: 208px;
+  object-fit: contain;
+  filter: drop-shadow(0 16px 24px rgba(45, 30, 90, 0.22));
+  transform: rotate(-1.5deg);
+}
+
+/* narration: the medium made visible — play control + waveform */
+.why-audio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-xs);
+}
+
+.why-audio-play {
+  inline-size: 56px;
+  block-size: 56px;
+  border-radius: 50%;
+  background: var(--interactive);
+  color: var(--ink-inverse);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  padding-inline-start: 3px; /* optical centering of the ▶ glyph */
+  box-shadow: 0 10px 22px rgba(132, 103, 255, 0.3);
+}
+
+.why-audio-wave {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  block-size: 44px;
+}
+
+.why-audio-wave i {
+  inline-size: 4px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, var(--brand-purple), var(--brand-purple-soft));
+  animation: why-wave 1.9s var(--ease-in-out) infinite alternate;
+  transform-origin: center;
+}
+
+@keyframes why-wave {
+  from { transform: scaleY(0.55); opacity: 0.75; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+.why-audio-caption {
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.why-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2xs);
+  padding: var(--sp-md);
+}
+
+.why-panel-chip {
+  align-self: flex-start;
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
+  border-radius: var(--radius-pill);
+  padding: 3px 12px;
+  font-size: var(--text-caption-size);
+  font-weight: 700;
+}
+
+.why-panel-title {
+  font-family: var(--font-display);
+  font-size: var(--text-h3-size);
+  font-weight: var(--text-h3-weight);
+  line-height: var(--text-h3-lh);
+  color: var(--ink-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .why-audio-wave i { animation: none; }
 }
 
 /* Shared card typography — why + how sections */
@@ -606,6 +722,10 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  /* Bodies differ a lot in length (the privacy pillar is ~3x the others).
+     Centering the stack splits the leftover space top/bottom so the short
+     cards read as deliberate instead of "text with a hole underneath". */
+  justify-content: center;
   text-align: center;
   box-shadow: var(--shadow-1);
 }
@@ -638,7 +758,9 @@
 }
 
 .trust-point__text {
-  flex: 1;
+  /* NOT flex:1 — it used to swallow the card's leftover space, which pinned
+     short bodies to the top and left a visible hole underneath. Natural height
+     hands the slack back to the card, where justify-content:center splits it. */
   font-size: var(--text-body-size);
   color: var(--ink-2);
   line-height: var(--text-body-lh);
