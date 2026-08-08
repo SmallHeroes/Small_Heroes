@@ -1,8 +1,8 @@
 # R1D-PVB-D1A1B1 per-attempt typed draft-validation diagnostics hardening — implementation evidence
 
-**Status:** Claude Code implementation review returned HOLD; F1-F3 corrected locally; F4/F5 dispositions recorded; independent micro re-gate pending; repository/release HOLD remains
+**Status:** Claude Code independent micro re-gate PASS; F1-F3 closed; F4/F5 dispositions retained; repository/release HOLD remains
 
-**Date:** 2026-08-05
+**Date:** 2026-08-05; QA closeout 2026-08-08
 
 **Immutable base:** `84bea6b6017026935ac588f4e98a7e3ca7d42791`
 
@@ -32,7 +32,17 @@ Claude Code independently reviewed immutable range `84bea6b6017026935ac588f4e98a
 - **F4 LOW — accepted advisory limitation:** the validator proves a sorted, unique, count-consistent capped window but cannot independently prove the provenance of omitted items without persisting new authority. Content-addressed outer artifacts still detect artifact-level mutation. No digest, field, schema, receipt version, or readiness version was added.
 - **F5 INFO — accepted deliberate fallback:** page-less `collection_item` is used only when an untrusted page value is unusable. It carries the existing closed collection/field roles and never the authored page value. Runtime validation restricts the Source-Evidence-ID fallback to `page_action_semantic_coverage` plus `source_evidence`. No locator kind or vocabulary was added.
 
-The three implementation commits are preserved byte-for-commit. The QA correction starts from exact base `6f96466ac3259a36dae806d7ba609f4c8adcf41e`, is one new local commit, and remains unpushed pending Claude Code micro re-gate.
+The three implementation commits are preserved byte-for-commit. The QA correction starts from exact base `6f96466ac3259a36dae806d7ba609f4c8adcf41e`, is one new local commit, and remains unpushed.
+
+Claude Code independently micro re-gated exact immutable range `6f96466ac3259a36dae806d7ba609f4c8adcf41e..e7ec9204e081e9a2ec57447e42a1e597da17505a` and returned **PASS**. It independently closed F1, F2, and F3 and reported no new BLOCKER. Codex records that external verdict and does not self-award it.
+
+Claude retained one non-blocking future regression-hardening residual: three defaulted diagnostic parameters in `validateTemplateContract.ts`. The residual is not a current live defect, does not reopen the closed findings, and is not a blocker for Fresh Readiness or the bounded LOW measurement. It is explicitly outside this closeout and may be addressed later as regression hardening.
+
+F4 remains the accepted advisory persistence limitation described above. F5 remains the deliberate closed fallback. Neither disposition became a defect or required a persisted schema/version change.
+
+The independent reviewer could not rerun npm, Vitest, or TypeScript because `node_modules` was absent in the review worktree. Claude instead used targeted runtime falsification of the corrected paths. The implementation's previously recorded focused tests and TypeScript run remain the validation record; this documentation-only closeout reruns neither.
+
+The independent PASS grants no product, visual, render, candidate, publication, release, deployment, or push acceptance. The separate six-fixture repository/release HOLD remains unchanged and is accepted only for the separately bounded LOW experiment, never for release.
 
 ## 2. Root cause and implemented correction
 
@@ -100,10 +110,12 @@ Historical receipt v11 and readiness v9 are explicit `legacy_immutable` versions
    - receipt v12/readiness v10, attempt/status projection, exact persistence/binding validation, legacy cutover, and raw exhaustion/output-invalid disposal.
 3. `6f96466ac3259a36dae806d7ba609f4c8adcf41e` — `test(visual-contract): prove typed diagnostic lifecycle`
    - exhaustive catalog/locator/census/transition/cap/privacy tests, lifecycle scenarios, workload count-only correction, `CURRENT.md`, and this evidence.
-4. Branch `HEAD` — focused QA-fix commit
+4. `e7ec9204e081e9a2ec57447e42a1e597da17505a` — `fix(visual-contract): harden typed page diagnostics`
    - F1 safe untrusted-page locator construction across four producers, F2 AST census across all three error classes, F3 corrected typed-sibling invariant and origin-payload fixture, F4/F5 dispositions, focused validation, and state/evidence updates.
+5. Branch `HEAD` — documentation-only independent-QA closeout
+   - Claude Code micro re-gate PASS, independently closed findings, residual disposition, unchanged release HOLD, and authority limitations only.
 
-The original immutable QA range ends at commit 3. The micro re-gate range is `6f96466ac3259a36dae806d7ba609f4c8adcf41e..QA_FIX_HEAD`; the copy-ready handoff supplies the resolved full head hash after the QA-fix commit is finalized.
+The original immutable QA range ends at commit 3. Claude Code independently passed micro re-gate range `6f96466ac3259a36dae806d7ba609f4c8adcf41e..e7ec9204e081e9a2ec57447e42a1e597da17505a`. Commit 5 records that verdict without changing its reviewed range.
 
 ## 6. Files and scope
 
@@ -221,19 +233,21 @@ All provider behavior in tests used local injected fakes/sentinels. External cos
 
 ## 11. Limitations and next action
 
-- The six established ignored-output fixture failures remain repository/release blockers.
+- The six established ignored-output fixture failures remain repository/release blockers. Their exception is accepted only for the separately bounded LOW experiment, not release.
 - The known resource RPC/timeout did not recur in the completed gate; this single pass does not erase its historical status.
 - The full repository gate was not rerun after the four test-only typed-assertion corrections, so no whole-repository green claim is made.
 - This implementation does not identify historical final-attempt issues retroactively.
 - F4 remains an explicit advisory persistence limitation: without new persisted authority, omitted capped items cannot be provenance-proven independently of the content-addressed outer artifact.
 - F5 remains a deliberate closed fallback, not a new diagnostic locator kind or expanded persisted schema.
+- Three defaulted diagnostic parameters in `validateTemplateContract.ts` remain a non-blocking future regression-hardening follow-up, not a current live defect or a blocker for Fresh Readiness/LOW measurement.
+- Claude's PASS grants no product, visual, render, candidate, publication, release, deployment, or push acceptance.
 - Codex does not self-award independent technical PASS.
 
-Next action is immutable read-only Claude Code micro re-gate of exact range `6f96466ac3259a36dae806d7ba609f4c8adcf41e..QA_FIX_HEAD`. It must falsify F1-F3 closure and verify F4/F5 are documentation-only dispositions. No Fresh Readiness, provider call, render, publication, release, deployment, or push is authorized by this evidence.
+No further Claude Code round is required absent a factual discrepancy. After this documentation-only closeout commit, Guy may inspect and explicitly decide whether to push. Any Fresh Readiness or bounded LOW operation remains a separate Lead-controlled action with its own authority; no provider call, render, publication, release, deployment, or push is authorized by this evidence.
 
-## 12. Claude Code falsification targets
+## 12. Claude Code falsification targets — micro re-gate completed
 
-Claude Code should try to falsify:
+The completed micro re-gate targeted the following claims:
 
 1. every repairable producer has a non-empty closed typed sibling and no string-only/default/prose-parsed path remains;
 2. family/code/locator combinations and exact keys reject arbitrary authored/provider material;
