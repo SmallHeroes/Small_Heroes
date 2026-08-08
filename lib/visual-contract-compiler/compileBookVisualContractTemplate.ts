@@ -230,6 +230,79 @@ export class DraftAuthorityReferenceDomainError extends Error {
   }
 }
 
+type RepairablePageSpatialReferenceIssue = DraftAuthorityReferenceIssue & {
+  code: 'page_spatial_reference_outside_zone';
+  locator:
+    | Extract<
+        DraftAuthorityReferenceIssue['locator'],
+        { kind: 'page_spatial_action' }
+      >
+    | Extract<
+        DraftAuthorityReferenceIssue['locator'],
+        { kind: 'page_spatial_safety_constraint' }
+      >;
+};
+
+function pageSpatialReferenceIssueIsRepairable(
+  issue: DraftAuthorityReferenceIssue,
+): issue is RepairablePageSpatialReferenceIssue {
+  return (
+    issue.code === 'page_spatial_reference_outside_zone' &&
+    issue.locator.referenceClass === 'page_spatial_selection' &&
+    (issue.locator.kind === 'page_spatial_action' ||
+      issue.locator.kind === 'page_spatial_safety_constraint')
+  );
+}
+
+/**
+ * The only authority/reference-domain family that the descriptive author can
+ * correct without guessing compiler-owned authority. Eligibility is all-or-
+ * nothing so a mixed deterministic-authority failure still exits terminally.
+ */
+export function pageSpatialReferenceIssuesAreRepairable(
+  issues: readonly DraftAuthorityReferenceIssue[],
+): issues is readonly RepairablePageSpatialReferenceIssue[] {
+  return issues.length > 0 && issues.every(pageSpatialReferenceIssueIsRepairable);
+}
+
+function pageSpatialReferenceRepairDiagnostic(
+  issue: RepairablePageSpatialReferenceIssue,
+): DraftValidationIssue {
+  return {
+    family: 'draft_contract',
+    code: 'out_of_scope_reference',
+    locator:
+      issue.locator.kind === 'page_spatial_action'
+        ? {
+            kind: 'page_item',
+            collectionRole: 'page_actions',
+            fieldRole: 'reference',
+            pageNumber: issue.locator.pageNumber,
+            itemIndex: issue.locator.actionIndex,
+          }
+        : {
+            kind: 'page_item',
+            collectionRole: 'page_safety_constraints',
+            fieldRole: 'reference',
+            pageNumber: issue.locator.pageNumber,
+            itemIndex: issue.locator.safetyConstraintIndex,
+          },
+  };
+}
+
+function pageSpatialReferenceRepairInstruction(
+  issue: RepairablePageSpatialReferenceIssue,
+): string {
+  const structuralPath =
+    issue.locator.kind === 'page_spatial_action'
+      ? `page ${issue.locator.pageNumber} actionRequirements[${issue.locator.actionIndex}].${issue.locator.fieldRole}`
+      : `page ${issue.locator.pageNumber} safetyConstraints[${issue.locator.safetyConstraintIndex}].target`;
+  return (
+    `page_spatial_reference_outside_zone: ${structuralPath} must use an exact spatialNodes id declared by that page's zone, ` +
+    'or a schema-valid non-spatial typed reference; do not change page zone authority'
+  );
+}
+
 /** Stable compiler-owned action identity derived only from a page-scoped beat. */
 export function compilerOwnedActionCheckId(
   pageNumber: number,
@@ -2637,11 +2710,24 @@ export async function compileBookVisualContractTemplate(
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
-      if (!(err instanceof InvalidTemplateContractError)) throw err; // a non-validation failure is not repairable
-      attemptErrors = err.errors;
-      attemptDiagnosticIssues = err.diagnosticIssues;
-      if (err instanceof SourceEvidenceIdValidationError) {
-        sourceEvidenceAffectedRecords = err.affectedRecords;
+      if (err instanceof InvalidTemplateContractError) {
+        attemptErrors = err.errors;
+        attemptDiagnosticIssues = err.diagnosticIssues;
+        if (err instanceof SourceEvidenceIdValidationError) {
+          sourceEvidenceAffectedRecords = err.affectedRecords;
+        }
+      } else if (
+        err instanceof DraftAuthorityReferenceDomainError &&
+        pageSpatialReferenceIssuesAreRepairable(err.issues)
+      ) {
+        attemptErrors = err.issues.map(
+          pageSpatialReferenceRepairInstruction,
+        );
+        attemptDiagnosticIssues = err.issues.map(
+          pageSpatialReferenceRepairDiagnostic,
+        );
+      } else {
+        throw err; // all other deterministic-authority and local failures remain terminal
       }
     }
 

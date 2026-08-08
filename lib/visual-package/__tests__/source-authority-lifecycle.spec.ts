@@ -22,6 +22,7 @@ import {
 } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 import {
   projectPageMustShow,
+  projectZoneStableGeometry,
 } from '@/lib/visual-contract-compiler/projectContractProse';
 import type {
   BookVisualContract,
@@ -506,6 +507,34 @@ function successfulProvider(
             : overrides.usage,
       },
     })),
+  };
+}
+
+function sequencedSuccessfulProvider(
+  drafts: readonly unknown[],
+): VisualContractAuthoringProvider {
+  let callIndex = 0;
+  return {
+    call: vi.fn(async () => {
+      const output = drafts[Math.min(callIndex, drafts.length - 1)];
+      callIndex += 1;
+      return {
+        output: JSON.stringify(output),
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: `response-${callIndex}`,
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 2_000,
+            total_tokens: 3_000,
+            output_tokens_details: {
+              reasoning_tokens: 500,
+            },
+          },
+        },
+      };
+    }),
   };
 }
 
@@ -2086,6 +2115,140 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ]) {
       expect(serialized).not.toContain(forbidden);
     }
+  });
+
+  it('persists a sanitized typed trail when page-spatial authority is repaired on the second call', async () => {
+    const snapshot = bunnySnapshot();
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    const page = invalid.pageContracts[0]!;
+    const zone = invalid.zones.find(
+      (candidate) => candidate.id === page.zoneId,
+    );
+    if (!zone) throw new Error('missing spatial repair fixture zone');
+    zone.spatialNodes = [
+      {
+        id: 'fixture_waiting_chair',
+        kind: 'furniture',
+        description: 'A stable waiting-room chair.',
+      },
+    ];
+    zone.stableGeometry = projectZoneStableGeometry(zone)!;
+    const repaired = structuredClone(invalid);
+    const repairedPage = repaired.pageContracts.find(
+      (candidate) => candidate.pageNumber === page.pageNumber,
+    )!;
+    const rejectedId = 'raw-provider-outside-zone-id';
+    (
+      page.actionRequirements![0] as unknown as Record<string, unknown>
+    ).object = { kind: 'spatial', id: rejectedId };
+    (
+      repairedPage.actionRequirements![0] as unknown as Record<
+        string,
+        unknown
+      >
+    ).object = {
+      kind: 'spatial',
+      id: 'fixture_waiting_chair',
+    };
+    const repairedAction = structuredClone(
+      repairedPage.actionRequirements![0],
+    ) as unknown as Record<string, unknown>;
+    const beatId = String(repairedAction.beatId);
+    delete repairedAction.beatId;
+    repairedAction.checkId = compilerOwnedActionCheckId(
+      repairedPage.pageNumber,
+      beatId,
+    );
+    const repairedProjectionPage = {
+      ...repairedPage,
+      actionRequirements: [repairedAction],
+    } as unknown as PageVisualContract;
+    repairedPage.mustShow = [
+      ...new Set([
+        ...repairedPage.mustShow,
+        ...projectPageMustShow(
+          repairedProjectionPage,
+          repaired as unknown as BookVisualContract,
+        ),
+      ]),
+    ];
+    const provider = sequencedSuccessfulProvider([
+      invalid,
+      repaired,
+    ]);
+
+    const result = await runVisualContractAuthoring({
+      request: requestFor(snapshot, 'live'),
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'completed',
+      callCount: 2,
+      repairCount: 1,
+      failure: null,
+      draftValidationStatus: 'completed',
+    });
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(result.receipt.attempts[0]).toMatchObject({
+      kind: 'initial',
+      repairMode: null,
+      validationDiagnostics: {
+        count: 1,
+        codes: ['draft_contract_validation_failed'],
+      },
+      draftValidationDiagnostics: {
+        emittedCount: 1,
+        currentUniqueCount: 1,
+        finalAttempt: false,
+        items: [
+          {
+            state: 'newly_introduced',
+            issue: {
+              family: 'draft_contract',
+              code: 'out_of_scope_reference',
+              locator: {
+                kind: 'page_item',
+                collectionRole: 'page_actions',
+                fieldRole: 'reference',
+                pageNumber: page.pageNumber,
+                itemIndex: 0,
+              },
+            },
+          },
+        ],
+      },
+    });
+    expect(result.receipt.attempts[1]).toMatchObject({
+      kind: 'repair',
+      repairMode: 'full_draft',
+      draftValidationDiagnostics: {
+        emittedCount: 0,
+        currentUniqueCount: 0,
+        resolvedCount: 1,
+        finalAttempt: true,
+      },
+    });
+    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(result.receipt)).not.toContain(rejectedId);
+    const repoRoot = tempRoot();
+    const receiptWrite = persistVisualContractAuthoringReceipt({
+      repoRoot,
+      outputDir: 'outputs/page-spatial-repair',
+      receipt: result.receipt,
+      write: true,
+    });
+    const loadedReceipt = JSON.parse(
+      fs.readFileSync(
+        path.join(repoRoot, receiptWrite.path),
+        'utf8',
+      ),
+    ) as typeof result.receipt;
+    expect(loadedReceipt.attempts).toEqual(
+      result.receipt.attempts,
+    );
+    expect(JSON.stringify(loadedReceipt)).not.toContain(rejectedId);
   });
 
   it('fails closed on an unexpected request-validation throw without provider reachability or raw error persistence', async () => {

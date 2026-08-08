@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   DraftAuthorityReferenceDomainError,
+  TemplateRepairExhaustedError,
   compileBookVisualContractTemplate,
   compilerOwnedActionCheckId,
+  pageSpatialReferenceIssuesAreRepairable,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import { projectPageMustShow } from '../visual-contract-compiler/projectContractProse';
@@ -468,31 +470,65 @@ describe('captured reference-domain matrix', () => {
     });
   });
 
-  it('reports all five unknown page-zone spatial selections and spends no repair call', async () => {
+  it('routes only page-zone spatial selection failures through one full-draft repair', async () => {
     const draft = matrixDraft();
     const page = (draft.pageContracts as Array<Record<string, unknown>>)[0]!;
     for (const [index, action] of (page.actionRequirements as Array<Record<string, unknown>>).entries()) {
       if (index >= 5) break;
       action.object = { kind: 'spatial', id: `outside_zone_${index + 1}` };
     }
-    const callLLM = vi.fn(async () => JSON.stringify(draft));
-
-    try {
-      await compileBookVisualContractTemplate(input, { callLLM });
-      throw new Error('expected exact page-zone authority failure');
-    } catch (error) {
-      expect(error).toBeInstanceOf(DraftAuthorityReferenceDomainError);
-      expect((error as DraftAuthorityReferenceDomainError).issues.filter(
-        (issue) =>
-          issue.code === 'page_spatial_reference_outside_zone' &&
-          issue.locator.kind === 'page_spatial_action' &&
-          issue.locator.fieldRole === 'object',
-      )).toHaveLength(5);
+    const repaired = structuredClone(draft);
+    const inZoneNodeId = String(nodes(repaired)[0]!.id);
+    for (const [index, action] of actions(repaired).entries()) {
+      if (index >= 5) break;
+      action.object = { kind: 'spatial', id: inZoneNodeId };
     }
-    expect(callLLM).toHaveBeenCalledTimes(1);
+    let callIndex = 0;
+    const callLLM = vi.fn(async (_system: string, user: string) => {
+      const output = callIndex === 0 ? draft : repaired;
+      if (callIndex === 1) {
+        const diagnosticSection = user.split(
+          'AUTHORITATIVE FACTS',
+        )[0]!;
+        expect(diagnosticSection).toContain(
+          'page_spatial_reference_outside_zone',
+        );
+        expect(diagnosticSection).toContain(
+          'page 1 actionRequirements[0].object',
+        );
+        expect(diagnosticSection).not.toContain('outside_zone_1');
+      }
+      callIndex += 1;
+      return JSON.stringify(output);
+    });
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+
+    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(result.provenance.attempt).toBe(2);
+    expect(result.repairAttempts).toEqual([
+      expect.objectContaining({
+        attempt: 1,
+        nextRepairMode: 'full_draft',
+        diagnosticIssues: expect.arrayContaining([
+          expect.objectContaining({
+            family: 'draft_contract',
+            code: 'out_of_scope_reference',
+            locator: expect.objectContaining({
+              kind: 'page_item',
+              collectionRole: 'page_actions',
+              pageNumber: 1,
+              itemIndex: 0,
+            }),
+          }),
+        ]),
+      }),
+    ]);
   });
 
-  it('reports six invented recurring-prop bindings plus centered_in arity before repair', async () => {
+  it('keeps deterministic authority issues terminal before repair', async () => {
     const draft = matrixDraft();
     const authority = (draft.setBoardAuthorities as Array<Record<string, unknown>>)[0]!;
     const area = (authority.areas as Array<Record<string, unknown>>)[0]!;
@@ -504,7 +540,8 @@ describe('captured reference-domain matrix', () => {
       relation: 'centered_in',
       objectId: 'structure_1',
     }];
-    const callLLM = vi.fn(async () => JSON.stringify(draft));
+    const callLLM = vi.fn(async (_system: string, _user: string) =>
+      JSON.stringify(draft));
 
     try {
       await compileBookVisualContractTemplate(input, { callLLM });
@@ -520,6 +557,39 @@ describe('captured reference-domain matrix', () => {
       )).toHaveLength(1);
     }
     expect(callLLM).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects mixed typed authority issues from page-spatial repair eligibility', () => {
+    const pageSpatial = {
+      code: 'page_spatial_reference_outside_zone' as const,
+      locator: {
+        kind: 'page_spatial_action' as const,
+        referenceClass: 'page_spatial_selection' as const,
+        fieldRole: 'object' as const,
+        pageNumber: 1,
+        actionIndex: 0,
+      },
+    };
+    expect(
+      pageSpatialReferenceIssuesAreRepairable([pageSpatial]),
+    ).toBe(true);
+    expect(
+      pageSpatialReferenceIssuesAreRepairable([
+        pageSpatial,
+        {
+          code: 'recurring_prop_consumer_forbidden',
+          locator: {
+            kind: 'set_area_node',
+            referenceClass: 'recurring_prop',
+            fieldRole: 'spatialNodes.stablePropId',
+            authorityIndex: 0,
+            areaIndex: 0,
+            nodeIndex: 0,
+          },
+        },
+      ]),
+    ).toBe(false);
+    expect(pageSpatialReferenceIssuesAreRepairable([])).toBe(false);
   });
 
   it('fails an ambiguous two-area mapping before repair', async () => {
@@ -751,7 +821,7 @@ describe('captured reference-domain matrix', () => {
     });
   });
 
-  it('emits all five closed page-spatial field roles without authored values', async () => {
+  it('routes all five closed page-spatial field roles with sanitized structural instructions', async () => {
     const draft = matrixDraft();
     const pageActions = actions(draft);
     pageActions[0]!.subject = {
@@ -777,22 +847,31 @@ describe('captured reference-domain matrix', () => {
         target: { kind: 'spatial', id: 'hostile_safety' },
       },
     ];
-    const issues = await emittedAuthorityIssues(draft);
-    expect(
-      issues
-        .filter(
-          (issue) =>
-            issue.code === 'page_spatial_reference_outside_zone',
-        )
-        .map((issue) => issue.locator.fieldRole)
-        .sort(),
-    ).toEqual([
-      'object',
-      'safetyConstraints.target',
-      'spatialConstraint.target',
-      'spatialEffect.target',
-      'subject',
-    ]);
-    expect(JSON.stringify(issues)).not.toMatch(/hostile_/);
+    const callLLM = vi.fn(async (_system: string, _user: string) =>
+      JSON.stringify(draft));
+    await expect(
+      compileBookVisualContractTemplate(input, { callLLM }),
+    ).rejects.toBeInstanceOf(TemplateRepairExhaustedError);
+    expect(callLLM).toHaveBeenCalledTimes(3);
+    const repairPrompt = String(callLLM.mock.calls[1]![1]);
+    const diagnosticSection = repairPrompt.split(
+      'AUTHORITATIVE FACTS',
+    )[0]!;
+    expect(diagnosticSection).toContain(
+      'actionRequirements[0].subject',
+    );
+    expect(diagnosticSection).toContain(
+      'actionRequirements[1].object',
+    );
+    expect(diagnosticSection).toContain(
+      'actionRequirements[2].spatialEffect.target',
+    );
+    expect(diagnosticSection).toContain(
+      'actionRequirements[3].spatialConstraint.target',
+    );
+    expect(diagnosticSection).toContain(
+      'safetyConstraints[0].target',
+    );
+    expect(diagnosticSection).not.toMatch(/hostile_/);
   });
 });

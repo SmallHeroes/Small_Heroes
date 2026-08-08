@@ -20,6 +20,7 @@ import {
   actionSemanticCatalogPromptTable,
   buildTemplateCompileSystemPrompt,
   buildTemplateCompileUserPrompt,
+  buildTemplateRepairSystemPrompt,
   buildTemplateRepairUserPrompt,
   sourceEvidenceCatalogPromptTable,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
@@ -290,6 +291,55 @@ describe('Visual Contract prompt authority-table compaction', () => {
     expect(initial).not.toContain(' | occurrence ');
     expect(repair).not.toContain(' | occurrence ');
     expect(pageSixEntries.length).toBeGreaterThan(0);
+  });
+
+  it('keeps the exact five-issue Fox page-spatial full-draft repair below 64K with safety headroom', () => {
+    const snapshot = approvedSnapshot(
+      'fox_uri_adventure.md',
+    );
+    const input = storySourceSnapshotToTemplateInput(snapshot);
+    const facts = extractDeterministicFacts(input);
+    const previousDraft = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          BANK,
+          'fox_uri_adventure.visual-contract-template.json',
+        ),
+        'utf8',
+      ),
+    ) as Record<string, unknown>;
+    const errors = [
+      [1, 0],
+      [1, 1],
+      [2, 0],
+      [2, 1],
+      [4, 0],
+    ].map(
+      ([pageNumber, actionIndex]) =>
+        `page_spatial_reference_outside_zone: page ${pageNumber} actionRequirements[${actionIndex}].object must use an exact spatialNodes id declared by that page's zone, or a schema-valid non-spatial typed reference; do not change page zone authority`,
+    );
+    const systemPrompt = buildTemplateRepairSystemPrompt();
+    const userPrompt = buildTemplateRepairUserPrompt(
+      previousDraft,
+      errors,
+      facts,
+      input,
+    );
+    const promptAndSchemaTokenUpperBound =
+      Buffer.byteLength(
+        [
+          systemPrompt,
+          userPrompt,
+          JSON.stringify(TEMPLATE_DRAFT_JSON_SCHEMA),
+        ].join('\n'),
+        'utf8',
+      ) + 4_096;
+
+    expect(promptAndSchemaTokenUpperBound).toBe(62_242);
+    expect(64_000 - promptAndSchemaTokenUpperBound).toBeGreaterThan(
+      1_024,
+    );
+    expect(userPrompt).not.toContain('outside_zone_');
   });
 
   it('saves the approved exact Fox upper-bound units while preserving the immutable draft schema', () => {
