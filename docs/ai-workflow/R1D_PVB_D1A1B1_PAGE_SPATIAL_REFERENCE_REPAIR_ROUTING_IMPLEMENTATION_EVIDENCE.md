@@ -1,6 +1,6 @@
 # Implementation Evidence - R1D-PVB-D1A1B1-PAGE-SPATIAL-REFERENCE-REPAIR-ROUTING
 
-**Status:** implementation and local validation complete; independent Claude Code QA pending. Codex does not self-award independent technical PASS.
+**Status:** Claude Code independently returned technical PASS for the immutable implementation range, with zero BLOCKER, zero MAJOR, and two non-blocking MINORs. Codex records the external verdict and does not self-award independent technical PASS.
 
 **Date:** 2026-08-08
 
@@ -78,7 +78,7 @@ Focused ordinary phase:
 - `visual-contract-prompt-table-compaction.spec.ts`
 - `visual-contract-live-authoring.spec.ts`
 - `source-authority-lifecycle.spec.ts`
-- Result: **6 files / 143 tests passed** at up to four workers.
+- Result: **6 files / 144 tests passed** at up to four workers. Claude independently reproduced the exact file selection twice; the previously recorded `143` was a transcription error.
 
 Focused canonical resource phase:
 
@@ -115,6 +115,19 @@ Unchanged: prompt/schema authority, model, Responses endpoint, service tier, rea
 
 Rollback is a clean revert of this milestone's implementation commit(s). That restores every `DraftAuthorityReferenceDomainError` to terminal behavior. Historical artifacts remain immutable and are not migration inputs or authority for a future attempt.
 
-## Independent QA required
+## Independent Claude Code QA
 
-Claude Code must review the exact immutable base-to-head range read-only, try to falsify the all-or-nothing guard, verify that deterministic authority issues remain terminal, inspect prompt/receipt sanitization, reproduce the lifecycle/persistence path, validate the `62,242` ceiling measurement, and confirm that no excluded authority or behavior changed. Until that review returns PASS, this implementation is not technically closed and no new live attempt should be armed from it.
+Claude Code independently reviewed exact immutable range `3707dc82cb4f39e165d2ed88174e9c5319255828..e569528a0bdf8aadc81e6b302551699bc700b8bf` read-only and returned **technical PASS**. Preconditions, topology, one-commit scope, clean `git diff --check`, and absent upstream/same-name origin ref all passed. Claude independently reproduced deterministic TypeScript, the exact six-file ordinary selection at **144 tests**, the exact three-file resource selection at **209 tests**, the `62,242` repair ceiling, persisted receipt round-trip, and an exhaustive 35-combination issue-catalog eligibility sweep.
+
+Findings were zero BLOCKER, zero MAJOR, and two non-blocking MINORs:
+
+1. The existing persisted diagnostic locator collapses multiple same-action page-spatial roles to `fieldRole: reference`. This can reduce `currentUniqueCount` granularity when subject/object/effect/constraint fail on the same action. The in-memory repair instruction still carries every closed role, aggregate emitted counts remain truthful, and successful repair/candidate behavior is unaffected. A fix would require separate locator/versioning hardening, so the limitation is explicitly accepted for the bounded LOW measurement and deferred rather than expanding this milestone.
+2. Codex's ordinary focused count was transcribed as `143`; Claude's two exact reruns proved `144`. This document and `CURRENT.md` correct the record without changing code, tests, or authority.
+
+Claude's advisories are retained:
+
+- **A1:** invalid/non-positive page-number handling can still terminate as local processing through code byte-identical to the base. It is pre-existing and does not reintroduce the preceding milestone's persisted-locator defect.
+- **A2:** the eligibility guard redundantly rechecks catalog-enforced reference class and locator kind. This is intentional defense-in-depth.
+- **A3:** Claude did not run literal `npm run check`. The `286/267/19`, exact-six-fixture, and no-seventh-failure claims remain Codex execution evidence; the separate repository/release HOLD remains unchanged.
+
+This independent PASS is implementation-range technical acceptance only. It grants no product, visual, candidate, Blueprint, Wizard, render, release, deployment, or push acceptance. No further Claude round is required unless this documentation transcription is factually disputed.
