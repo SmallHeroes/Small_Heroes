@@ -1099,6 +1099,7 @@ function sourceGroundPageActionSemantics(
       } else if (beatId && resolution.ok) {
         capabilityGaps.push({
           pageNumber,
+          coverageIndex: index,
           beatId,
           sourceEvidenceId,
           sourcePhrase,
@@ -2726,6 +2727,15 @@ export async function compileBookVisualContractTemplate(
         attemptDiagnosticIssues = err.issues.map(
           pageSpatialReferenceRepairDiagnostic,
         );
+      } else if (err instanceof ActionSemanticCapabilityGapError) {
+        throw repairAttempts.length === 0
+          ? err
+          : new ActionSemanticCapabilityGapError(
+              err.gaps,
+              repairAttempts.map(
+                (repair) => repair.diagnosticIssues,
+              ),
+            );
       } else {
         throw err; // all other deterministic-authority and local failures remain terminal
       }

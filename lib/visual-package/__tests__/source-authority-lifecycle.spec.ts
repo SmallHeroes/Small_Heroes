@@ -19,6 +19,7 @@ import {
 } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 import {
   ActionSemanticCapabilityGapError,
+  actionSemanticCapabilityGapDiagnosticIssues,
 } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 import {
   projectPageMustShow,
@@ -1091,6 +1092,67 @@ describe('source-grounded closed action authority', () => {
         (gap) => gap.pageNumber,
       ),
     ).toEqual([1, 2]);
+    expect(
+      (thrown as ActionSemanticCapabilityGapError)
+        .diagnosticIssues,
+    ).toEqual([
+      {
+        family: 'action_semantic',
+        code: 'closed_catalog_capability_gap',
+        locator: {
+          kind: 'page_item',
+          collectionRole: 'page_action_semantic_coverage',
+          fieldRole: 'disposition',
+          pageNumber: 1,
+          itemIndex: 0,
+        },
+      },
+      {
+        family: 'action_semantic',
+        code: 'closed_catalog_capability_gap',
+        locator: {
+          kind: 'page_item',
+          collectionRole: 'page_action_semantic_coverage',
+          fieldRole: 'disposition',
+          pageNumber: 2,
+          itemIndex: 0,
+        },
+      },
+    ]);
+    expect(
+      JSON.stringify(
+        (thrown as ActionSemanticCapabilityGapError)
+          .draftValidationDiagnostics,
+      ),
+    ).not.toMatch(/beat:p\d+:unsupported|exact source phrase/i);
+  });
+
+  it('uses a sanitized collection locator when a capability-gap page is unsafe', () => {
+    const issues = actionSemanticCapabilityGapDiagnosticIssues([
+      {
+        pageNumber: 0,
+        coverageIndex: 7,
+        beatId: 'raw-authored-beat',
+        sourceEvidenceId: 'raw-authored-evidence',
+        sourcePhrase: 'raw authored source phrase',
+        reason: 'closed_action_catalog_gap',
+      },
+    ]);
+    expect(issues).toEqual([
+      {
+        family: 'action_semantic',
+        code: 'closed_catalog_capability_gap',
+        locator: {
+          kind: 'collection_item',
+          collectionRole: 'page_action_semantic_coverage',
+          fieldRole: 'disposition',
+          itemIndex: 7,
+        },
+      },
+    ]);
+    expect(JSON.stringify(issues)).not.toMatch(
+      /raw-authored|raw authored/i,
+    );
   });
 
   it('rejects an action-bound coverage record when its same-page action list is empty', async () => {
@@ -1295,12 +1357,106 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'action_semantic_capability_gap',
       ],
     });
+    expect(result.receipt.draftValidationStatus).toBe(
+      'interrupted',
+    );
+    expect(
+      result.receipt.attempts[0]
+        .draftValidationDiagnostics,
+    ).toMatchObject({
+      version: 'draft-validation-attempt-diagnostics/v2',
+      emittedCount: 2,
+      currentUniqueCount: 2,
+      finalAttempt: true,
+      items: [
+        {
+          state: 'newly_introduced',
+          issue: {
+            family: 'action_semantic',
+            code: 'closed_catalog_capability_gap',
+            locator: {
+              kind: 'page_item',
+              collectionRole:
+                'page_action_semantic_coverage',
+              fieldRole: 'disposition',
+              pageNumber: 1,
+              itemIndex: 0,
+            },
+          },
+        },
+        {
+          state: 'newly_introduced',
+          issue: {
+            family: 'action_semantic',
+            code: 'closed_catalog_capability_gap',
+            locator: {
+              kind: 'page_item',
+              collectionRole:
+                'page_action_semantic_coverage',
+              fieldRole: 'disposition',
+              pageNumber: 2,
+              itemIndex: 0,
+            },
+          },
+        },
+      ],
+    });
+    const readiness =
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: result.receipt,
+      });
+    expect(readiness).toMatchObject({
+      version: 'visual-contract-authoring-readiness/v11',
+      draftValidation: {
+        status: 'interrupted',
+        attempts: [
+          result.receipt.attempts[0]
+            .draftValidationDiagnostics,
+        ],
+      },
+    });
+    const repoRoot = tempRoot();
+    const receiptWrite = persistVisualContractAuthoringReceipt({
+      repoRoot,
+      outputDir: 'outputs/action-semantic-gap',
+      receipt: result.receipt,
+      write: true,
+    });
+    const readinessWrite =
+      persistVisualContractAuthoringReadiness({
+        repoRoot,
+        outputDir: 'outputs/action-semantic-gap',
+        evidence: readiness,
+        receipt: result.receipt,
+        write: true,
+      });
+    const loadedReceipt = JSON.parse(
+      fs.readFileSync(
+        path.join(repoRoot, receiptWrite.path),
+        'utf8',
+      ),
+    ) as typeof result.receipt;
+    const loadedReadiness = JSON.parse(
+      fs.readFileSync(
+        path.join(repoRoot, readinessWrite.path),
+        'utf8',
+      ),
+    ) as typeof readiness;
+    expect(
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: loadedReceipt,
+      }),
+    ).toEqual(loadedReadiness);
     expect(JSON.stringify(result.receipt)).not.toMatch(
       /exact source phrase|beat:p\d+:unsupported/i,
     );
   });
 
-  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v10', async () => {
+  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v11', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const result = await runVisualContractAuthoring({
@@ -1317,7 +1473,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v10',
+      version: 'visual-contract-authoring-readiness/v11',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -1517,11 +1673,23 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v12',
       ),
-    ).toBe('current');
+    ).toBe('legacy_immutable');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v10',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v13',
+      ),
+    ).toBe('current');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v11',
       ),
     ).toBe('current');
     expect(
@@ -1687,7 +1855,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).toThrow(
-      /receipt v12 requires exact typed draft-validation evidence/,
+      /receipt v13 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -1736,7 +1904,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v12',
+      'visual-contract-authoring-receipt/v13',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -2249,6 +2417,161 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       result.receipt.attempts,
     );
     expect(JSON.stringify(loadedReceipt)).not.toContain(rejectedId);
+  });
+
+  it('binds a capability gap after full-draft repair to the completed repair attempt', async () => {
+    const snapshot = bunnySnapshot();
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    const firstPage = invalid.pageContracts[0]!;
+    const zone = invalid.zones.find(
+      (candidate) => candidate.id === firstPage.zoneId,
+    );
+    if (!zone) throw new Error('missing capability-gap fixture zone');
+    zone.spatialNodes = [
+      {
+        id: 'fixture_waiting_chair',
+        kind: 'furniture',
+        description: 'A stable waiting-room chair.',
+      },
+    ];
+    zone.stableGeometry = projectZoneStableGeometry(zone)!;
+    const rejectedId = 'raw-provider-outside-zone-id';
+    (
+      firstPage.actionRequirements![0] as unknown as Record<
+        string,
+        unknown
+      >
+    ).object = { kind: 'spatial', id: rejectedId };
+
+    const repairedWithGap = structuredClone(invalid);
+    const repairedFirstPage = repairedWithGap.pageContracts.find(
+      (candidate) =>
+        candidate.pageNumber === firstPage.pageNumber,
+    )!;
+    (
+      repairedFirstPage.actionRequirements![0] as unknown as Record<
+        string,
+        unknown
+      >
+    ).object = {
+      kind: 'spatial',
+      id: 'fixture_waiting_chair',
+    };
+    const repairedAction = structuredClone(
+      repairedFirstPage.actionRequirements![0],
+    ) as unknown as Record<string, unknown>;
+    const beatId = String(repairedAction.beatId);
+    delete repairedAction.beatId;
+    repairedAction.checkId = compilerOwnedActionCheckId(
+      repairedFirstPage.pageNumber,
+      beatId,
+    );
+    repairedFirstPage.mustShow = [
+      ...new Set([
+        ...repairedFirstPage.mustShow,
+        ...projectPageMustShow(
+          {
+            ...repairedFirstPage,
+            actionRequirements: [repairedAction],
+          } as unknown as PageVisualContract,
+          repairedWithGap as unknown as BookVisualContract,
+        ),
+      ]),
+    ];
+    const gapPage = repairedWithGap.pageContracts[1]!;
+    (
+      gapPage as unknown as Record<string, unknown>
+    ).actionSemanticCoverage = [
+      {
+        beatId: `beat:p${gapPage.pageNumber}:unsupported`,
+        sourceEvidenceId:
+          snapshot.content.sourceEvidenceCatalog.entries.find(
+            (entry) => entry.pageNumber === gapPage.pageNumber,
+          )!.sourceEvidenceId,
+        disposition: {
+          kind: 'unsupported',
+          reason: 'closed_action_catalog_gap',
+        },
+      },
+    ];
+    gapPage.actionRequirements = [];
+    const provider = sequencedSuccessfulProvider([
+      invalid,
+      repairedWithGap,
+    ]);
+
+    const result = await runVisualContractAuthoring({
+      request: requestFor(snapshot, 'live'),
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 2,
+      repairCount: 1,
+      candidateDigest: null,
+      draftValidationStatus: 'interrupted',
+      actionSemanticCoverage: {
+        status: 'capability_gap',
+        gapCount: 1,
+      },
+      failure: {
+        code: 'action_semantic_capability_gap',
+        repairEligibility: 'ineligible',
+      },
+    });
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(result.receipt.attempts[0]).toMatchObject({
+      kind: 'initial',
+      draftValidationDiagnostics: {
+        emittedCount: 1,
+        currentUniqueCount: 1,
+        finalAttempt: false,
+        items: [
+          {
+            state: 'newly_introduced',
+            issue: {
+              family: 'draft_contract',
+              code: 'out_of_scope_reference',
+            },
+          },
+        ],
+      },
+    });
+    expect(result.receipt.attempts[1]).toMatchObject({
+      kind: 'repair',
+      repairMode: 'full_draft',
+      draftValidationDiagnostics: {
+        emittedCount: 1,
+        currentUniqueCount: 1,
+        newlyIntroducedCount: 1,
+        resolvedCount: 1,
+        finalAttempt: true,
+        items: expect.arrayContaining([
+          {
+            state: 'newly_introduced',
+            issue: {
+              family: 'action_semantic',
+              code: 'closed_catalog_capability_gap',
+              locator: {
+                kind: 'page_item',
+                collectionRole:
+                  'page_action_semantic_coverage',
+                fieldRole: 'disposition',
+                pageNumber: gapPage.pageNumber,
+                itemIndex: 0,
+              },
+            },
+          },
+        ]),
+      },
+    });
+    const serialized = JSON.stringify(result.receipt);
+    expect(serialized).not.toContain(rejectedId);
+    expect(serialized).not.toContain(
+      `beat:p${gapPage.pageNumber}:unsupported`,
+    );
   });
 
   it('fails closed on an unexpected request-validation throw without provider reachability or raw error persistence', async () => {

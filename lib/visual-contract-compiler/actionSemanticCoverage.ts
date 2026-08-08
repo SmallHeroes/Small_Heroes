@@ -1,4 +1,6 @@
 import {
+  buildDraftValidationDiagnosticTrail,
+  type DraftValidationAttemptDiagnostics,
   type DraftValidationIssue,
 } from './draftValidationDiagnostics';
 
@@ -63,6 +65,7 @@ export interface ActionSemanticCoverageRecord {
 
 export interface ActionSemanticCapabilityGap {
   pageNumber: number;
+  coverageIndex: number;
   beatId: string;
   sourceEvidenceId: string;
   sourcePhrase: string;
@@ -164,21 +167,57 @@ export function sortActionSemanticCapabilityGaps(
   return [...gaps].sort(
     (left, right) =>
       left.pageNumber - right.pageNumber ||
+      left.coverageIndex - right.coverageIndex ||
       lexicalCompare(left.beatId, right.beatId) ||
       lexicalCompare(left.sourcePhrase, right.sourcePhrase),
   );
 }
 
+export function actionSemanticCapabilityGapDiagnosticIssues(
+  gaps: readonly ActionSemanticCapabilityGap[],
+): DraftValidationIssue[] {
+  return sortActionSemanticCapabilityGaps(gaps).map((gap) => ({
+    family: 'action_semantic',
+    code: 'closed_catalog_capability_gap',
+    locator: actionSemanticCoverageLocator(
+      gap,
+      gap.coverageIndex,
+      'disposition',
+    ),
+  }));
+}
+
 export class ActionSemanticCapabilityGapError extends Error {
   readonly gaps: ActionSemanticCapabilityGap[];
+  readonly diagnosticIssues: DraftValidationIssue[];
+  readonly diagnosticIssuesByAttempt: readonly (
+    readonly DraftValidationIssue[]
+  )[];
+  readonly draftValidationDiagnostics: readonly DraftValidationAttemptDiagnostics[];
 
-  constructor(gaps: readonly ActionSemanticCapabilityGap[]) {
+  constructor(
+    gaps: readonly ActionSemanticCapabilityGap[],
+    previousDiagnosticIssuesByAttempt: readonly (
+      readonly DraftValidationIssue[]
+    )[] = [],
+  ) {
     const sorted = sortActionSemanticCapabilityGaps(gaps);
     super(
       `closed Action Semantic Catalog cannot represent ${sorted.length} required visual beat(s) across ${new Set(sorted.map((gap) => gap.pageNumber)).size} page(s)`,
     );
     this.name = 'ActionSemanticCapabilityGapError';
     this.gaps = sorted;
+    this.diagnosticIssues = actionSemanticCapabilityGapDiagnosticIssues(
+      sorted,
+    );
+    this.diagnosticIssuesByAttempt = [
+      ...previousDiagnosticIssuesByAttempt.map((issues) => [...issues]),
+      this.diagnosticIssues,
+    ];
+    this.draftValidationDiagnostics =
+      buildDraftValidationDiagnosticTrail(
+        this.diagnosticIssuesByAttempt,
+      );
   }
 }
 

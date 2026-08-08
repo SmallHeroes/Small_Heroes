@@ -51,6 +51,17 @@ const actionIssue: DraftValidationIssue = {
   code: 'coverage_missing',
   locator: { kind: 'page', fieldRole: 'coverage', pageNumber: 3 },
 };
+const capabilityGapIssue: DraftValidationIssue = {
+  family: 'action_semantic',
+  code: 'closed_catalog_capability_gap',
+  locator: {
+    kind: 'page_item',
+    collectionRole: 'page_action_semantic_coverage',
+    fieldRole: 'disposition',
+    pageNumber: 5,
+    itemIndex: 2,
+  },
+};
 const sourceEvidenceIssue: DraftValidationIssue = {
   family: 'source_evidence_id',
   code: 'source_evidence_id_wrong_page',
@@ -208,6 +219,7 @@ describe('closed draft-validation issue contract', () => {
       'represented_elsewhere_pointer_unresolved',
       'represented_elsewhere_value_mismatch',
       'source_phenomenon_binding_mismatch',
+      'closed_catalog_capability_gap',
     ]);
     expect(
       Object.keys(DRAFT_VALIDATION_ISSUE_CATALOG.source_evidence_id),
@@ -494,6 +506,76 @@ describe('canonical per-attempt transitions', () => {
     });
     expect(attempt?.items).toHaveLength(128);
     expect(draftValidationAttemptDiagnosticsIsValid(attempt)).toBe(true);
+  });
+
+  it('normalizes duplicate capability gaps and rejects structural or envelope tampering', () => {
+    const [attempt] = buildDraftValidationDiagnosticTrail([
+      [capabilityGapIssue, capabilityGapIssue],
+    ]);
+    expect(attempt).toMatchObject({
+      emittedCount: 2,
+      currentUniqueCount: 1,
+      newlyIntroducedCount: 1,
+      items: [
+        {
+          state: 'newly_introduced',
+          issue: capabilityGapIssue,
+        },
+      ],
+      finalAttempt: true,
+      truncated: false,
+    });
+    expect(draftValidationAttemptDiagnosticsIsValid(attempt)).toBe(true);
+
+    const mutations: Array<(value: Record<string, unknown>) => void> = [
+      (value) => {
+        const items = value.items as Array<Record<string, unknown>>;
+        const issue = items[0]!.issue as Record<string, unknown>;
+        issue.code = 'open_ended_capability_gap';
+      },
+      (value) => {
+        const items = value.items as Array<Record<string, unknown>>;
+        const issue = items[0]!.issue as Record<string, unknown>;
+        const locator = issue.locator as Record<string, unknown>;
+        locator.pageNumber = 0;
+      },
+      (value) => {
+        const items = value.items as Array<Record<string, unknown>>;
+        const issue = items[0]!.issue as Record<string, unknown>;
+        const locator = issue.locator as Record<string, unknown>;
+        locator.itemIndex = -1;
+      },
+      (value) => {
+        const items = value.items as Array<Record<string, unknown>>;
+        const issue = items[0]!.issue as Record<string, unknown>;
+        const locator = issue.locator as Record<string, unknown>;
+        locator.fieldRole = 'raw_provider_field';
+      },
+      (value) => {
+        value.currentUniqueCount = 2;
+      },
+      (value) => {
+        value.truncated = true;
+      },
+      (value) => {
+        value.version = 'draft-validation-attempt-diagnostics/v1';
+      },
+      (value) => {
+        value.rawProviderMessage = 'must-not-be-accepted';
+      },
+      (value) => {
+        delete value.items;
+      },
+    ];
+    for (const mutate of mutations) {
+      const forged = structuredClone(
+        attempt,
+      ) as unknown as Record<string, unknown>;
+      mutate(forged);
+      expect(
+        draftValidationAttemptDiagnosticsIsValid(forged),
+      ).toBe(false);
+    }
   });
 
   it('rejects extra keys, noncanonical ordering, false counts, and invalid status/trail combinations', () => {

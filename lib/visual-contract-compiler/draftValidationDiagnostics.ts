@@ -1,6 +1,8 @@
 import { canonicalize } from '@/lib/canonical-json';
 
 export const DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION =
+  'draft-validation-attempt-diagnostics/v2' as const;
+export const LEGACY_DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION =
   'draft-validation-attempt-diagnostics/v1' as const;
 export const MAX_PERSISTED_DRAFT_VALIDATION_TRANSITION_ITEMS = 128;
 export const MAX_DRAFT_VALIDATION_STRUCTURAL_INDEX = 1_000_000;
@@ -65,6 +67,7 @@ export const DRAFT_VALIDATION_ISSUE_CATALOG = {
     represented_elsewhere_pointer_unresolved: true,
     represented_elsewhere_value_mismatch: true,
     source_phenomenon_binding_mismatch: true,
+    closed_catalog_capability_gap: true,
   },
   source_evidence_id: {
     source_evidence_id_malformed: true,
