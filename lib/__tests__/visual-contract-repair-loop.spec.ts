@@ -525,7 +525,9 @@ describe('page-contract compact repair routing', () => {
       },
     ]);
     expect(payload.affectedPages[0].permittedPointerValues).toEqual([]);
-    expect(payload.affectedPages[0].permittedSpatialReferences).toEqual([]);
+    expect(payload.affectedPages[0]).not.toHaveProperty(
+      'permittedSpatialReferences',
+    );
     expect(payload).not.toHaveProperty('validatorErrors');
     expect(payload).not.toHaveProperty('referenceAuthority');
     expect(payload).not.toHaveProperty('worldType');

@@ -470,36 +470,31 @@ describe('captured reference-domain matrix', () => {
     });
   });
 
-  it('routes only page-zone spatial selection failures through one compact page-contract repair', async () => {
+  it('routes only page-zone spatial selection failures through one field-scoped spatial repair', async () => {
     const draft = matrixDraft();
     const page = (draft.pageContracts as Array<Record<string, unknown>>)[0]!;
     for (const [index, action] of (page.actionRequirements as Array<Record<string, unknown>>).entries()) {
       if (index >= 5) break;
       action.object = { kind: 'spatial', id: `outside_zone_${index + 1}` };
     }
-    const repaired = structuredClone(draft);
-    for (const [index, action] of actions(repaired).entries()) {
-      if (index >= 5) break;
-      action.object = {
-        kind: 'spatial',
-        id: String(nodes(repaired)[index]!.id),
-      };
-    }
-    const repairedPageContract = structuredClone(
-      (repaired.pageContracts as Array<Record<string, unknown>>)[0]!,
-    );
-    delete repairedPageContract.castIds;
-    delete repairedPageContract.characterPresence;
     let callIndex = 0;
     let repairUserPrompt = '';
-    const callLLM = vi.fn(async (_system: string, user: string) => {
+    const callLLM = vi.fn(async (
+      _system: string,
+      user: string,
+      _options?: unknown,
+      _authority?: unknown,
+    ) => {
       const output =
         callIndex === 0
           ? draft
           : {
-              pageContracts: [
-                repairedPageContract,
-              ],
+              patches: Array.from({ length: 5 }, (_, index) => ({
+                pageNumber: 1,
+                actionIndex: index,
+                fieldRole: 'object',
+                spatialReferenceId: `structure_${index + 1}`,
+              })),
             };
       if (callIndex === 1) {
         repairUserPrompt = user;
@@ -513,23 +508,20 @@ describe('captured reference-domain matrix', () => {
     });
 
     expect(callLLM).toHaveBeenCalledTimes(2);
-    expect(repairUserPrompt).toContain(
-      'page_spatial_reference_outside_zone',
-    );
-    expect(repairUserPrompt).toContain(
-      '"collectionRole":"page_actions"',
-    );
+    expect(repairUserPrompt).not.toContain('pageContracts');
+    expect(repairUserPrompt).not.toContain('outside_zone_1');
+    expect(repairUserPrompt).toContain('"actionIndex":0');
     expect(repairUserPrompt).toContain('"fieldRole":"object"');
     expect(repairUserPrompt).toContain(
       '"permittedSpatialReferences"',
     );
     const repairPayload = JSON.parse(repairUserPrompt) as {
-      affectedPages: Array<{
+      targets: Array<{
         permittedSpatialReferences: Array<{ id: string }>;
       }>;
     };
     expect(
-      repairPayload.affectedPages[0]!.permittedSpatialReferences.some(
+      repairPayload.targets[0]!.permittedSpatialReferences.some(
         (value) => value.id === 'outside_zone_1',
       ),
     ).toBe(false);
@@ -537,7 +529,7 @@ describe('captured reference-domain matrix', () => {
     expect(result.repairAttempts).toEqual([
       expect.objectContaining({
         attempt: 1,
-        nextRepairMode: 'page_contract_patch',
+        nextRepairMode: 'page_spatial_reference_patch',
         diagnosticIssues: expect.arrayContaining([
           expect.objectContaining({
             family: 'draft_contract',
@@ -848,22 +840,21 @@ describe('captured reference-domain matrix', () => {
     });
   });
 
-  it('routes all four strict draft-page spatial field roles with typed compact targets and closed authority', async () => {
+  it('routes all currently reachable draft-page spatial field roles with typed compact targets and closed authority', async () => {
     const draft = matrixDraft();
     const pageActions = actions(draft);
-    pageActions[0]!.subject = {
-      kind: 'entity',
-      entity: { kind: 'spatial', id: 'hostile_subject' },
-    };
     pageActions[1]!.object = {
       kind: 'spatial',
       id: 'hostile_object',
     };
+    pageActions[2]!.predicate = 'moves';
     pageActions[2]!.spatialEffect = {
       kind: 'relation',
-      relation: 'beside',
+      relation: 'toward',
       target: { kind: 'spatial', id: 'hostile_effect' },
     };
+    pageActions[3]!.predicate = 'sits';
+    pageActions[3]!.object = null;
     pageActions[3]!.spatialConstraint = {
       relation: 'beside',
       target: { kind: 'spatial', id: 'hostile_constraint' },
@@ -872,11 +863,37 @@ describe('captured reference-domain matrix', () => {
     delete repairPage.castIds;
     delete repairPage.characterPresence;
     let callIndex = 0;
-    const callLLM = vi.fn(async (_system: string, _user: string) => {
+    const callLLM = vi.fn(async (
+      _system: string,
+      user: string,
+      _options?: unknown,
+      _authority?: unknown,
+    ) => {
+      const repairInput =
+        callIndex !== 1
+          ? null
+          : (JSON.parse(user) as {
+              targets: Array<{
+                pageNumber: number;
+                actionIndex: number;
+                fieldRole: string;
+                permittedSpatialReferences: Array<{ id: string }>;
+              }>;
+            });
       const output =
         callIndex === 0
           ? draft
-          : { pageContracts: [repairPage] };
+          : callIndex === 1
+            ? {
+              patches: repairInput!.targets.map((target) => ({
+                pageNumber: target.pageNumber,
+                actionIndex: target.actionIndex,
+                fieldRole: target.fieldRole,
+                spatialReferenceId:
+                  target.permittedSpatialReferences[0]!.id,
+              })),
+              }
+            : { pageContracts: [repairPage] };
       callIndex += 1;
       return JSON.stringify(output);
     });
@@ -885,25 +902,23 @@ describe('captured reference-domain matrix', () => {
     ).rejects.toBeInstanceOf(TemplateRepairExhaustedError);
     expect(callLLM).toHaveBeenCalledTimes(3);
     const repairPrompt = String(callLLM.mock.calls[1]![1]);
+    expect(repairPrompt).not.toContain('"fieldRole":"subject"');
     expect(repairPrompt).toContain(
-      '"itemIndex":0,"fieldRole":"subject"',
+      '"actionIndex":1,"fieldRole":"object"',
     );
     expect(repairPrompt).toContain(
-      '"itemIndex":1,"fieldRole":"object"',
+      '"actionIndex":2,"fieldRole":"spatialEffect.target"',
     );
     expect(repairPrompt).toContain(
-      '"itemIndex":2,"fieldRole":"spatialEffect.target"',
-    );
-    expect(repairPrompt).toContain(
-      '"itemIndex":3,"fieldRole":"spatialConstraint.target"',
+      '"actionIndex":3,"fieldRole":"spatialConstraint.target"',
     );
     const payload = JSON.parse(repairPrompt) as {
-      affectedPages: Array<{
+      targets: Array<{
         permittedSpatialReferences: Array<{ id: string }>;
       }>;
     };
     expect(
-      payload.affectedPages[0]!.permittedSpatialReferences.map(
+      payload.targets[0]!.permittedSpatialReferences.map(
         (value) => value.id,
       ),
     ).toEqual([
@@ -916,9 +931,17 @@ describe('captured reference-domain matrix', () => {
     ]);
     expect(
       JSON.stringify(
-        payload.affectedPages[0]!.permittedSpatialReferences,
+        payload.targets[0]!.permittedSpatialReferences,
       ),
     ).not.toMatch(/hostile_/);
+    expect(callLLM.mock.calls[1]![3]).toMatchObject({
+      kind: 'repair',
+      repairMode: 'page_spatial_reference_patch',
+    });
+    expect(callLLM.mock.calls[2]![3]).toMatchObject({
+      kind: 'repair',
+      repairMode: 'page_contract_patch',
+    });
   });
 
   it('keeps final-only safety spatial fields on the legacy full-draft route', async () => {
