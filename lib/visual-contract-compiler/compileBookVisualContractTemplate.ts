@@ -81,6 +81,7 @@ import {
   actionSemanticCoverageValidation,
   type ActionSemanticCapabilityGap,
   type ActionSemanticCoverageRecord,
+  type ActionSemanticCoverageTemplate,
 } from './actionSemanticCoverage';
 import {
   buildDraftValidationDiagnosticTrail,
@@ -416,6 +417,20 @@ export class TemplateRepairOutputInvalidError extends Error {
     this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
       attempts.map((attempt) => attempt.diagnosticIssues),
     );
+  }
+}
+
+class ActionSemanticCoverageValidationError extends InvalidTemplateContractError {
+  readonly pointerTemplate: ActionSemanticCoverageTemplate;
+
+  constructor(
+    errors: readonly string[],
+    diagnosticIssues: readonly DraftValidationIssue[],
+    pointerTemplate: ActionSemanticCoverageTemplate,
+  ) {
+    super([...errors], [...diagnosticIssues]);
+    this.name = 'ActionSemanticCoverageValidationError';
+    this.pointerTemplate = structuredClone(pointerTemplate);
   }
 }
 
@@ -2618,7 +2633,7 @@ function assembleTemplateFromDraft(
     coverage: actionSemanticCoverage,
   });
   if (semanticCoverageValidation.errors.length > 0) {
-    throw new InvalidTemplateContractError(
+    throw new ActionSemanticCoverageValidationError(
       [
         ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
         ...semanticCoverageValidation.errors,
@@ -2627,6 +2642,7 @@ function assembleTemplateFromDraft(
         ...sourceEvidenceIdDiagnosticIssues(sourceEvidenceIssues),
         ...semanticCoverageValidation.diagnosticIssues,
       ],
+      template as unknown as ActionSemanticCoverageTemplate,
     );
   }
   if (sourceEvidenceIssues.length > 0) {
@@ -2738,12 +2754,18 @@ export async function compileBookVisualContractTemplate(
     let pageContractAffectedPages:
       | PageContractRepairAffectedPage[]
       | null = null;
+    let pageContractPointerTemplate:
+      | ActionSemanticCoverageTemplate
+      | undefined;
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
       if (err instanceof InvalidTemplateContractError) {
         attemptErrors = err.errors;
         attemptDiagnosticIssues = err.diagnosticIssues;
+        if (err instanceof ActionSemanticCoverageValidationError) {
+          pageContractPointerTemplate = err.pointerTemplate;
+        }
         if (err instanceof SourceEvidenceIdValidationError) {
           sourceEvidenceAffectedRecords = err.affectedRecords;
         }
@@ -2775,6 +2797,7 @@ export async function compileBookVisualContractTemplate(
       pageContractAffectedPages = pageContractRepairAffectedPages({
         draft,
         diagnosticIssues: attemptDiagnosticIssues,
+        pointerTemplate: pageContractPointerTemplate,
       });
     }
 
@@ -2875,9 +2898,7 @@ export async function compileBookVisualContractTemplate(
         const rawPatch = await deps.callLLM(
           buildPageContractRepairSystemPrompt(),
           buildPageContractRepairUserPrompt({
-            draft,
             affectedPages: pageContractAffectedPages,
-            errors: attemptErrors,
           }),
           pageContractRepairLlmOpts,
           {

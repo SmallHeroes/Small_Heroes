@@ -98,6 +98,11 @@ export interface ActionSemanticCoverageValidation {
   diagnosticIssues: readonly DraftValidationIssue[];
 }
 
+export interface RepresentedElsewherePointerValue {
+  contractPointer: string;
+  contractValue: string;
+}
+
 function emitActionSemanticIssue(
   errors: string[],
   diagnosticIssues: DraftValidationIssue[],
@@ -269,6 +274,79 @@ function coveragePrefixForPage(
   return pageIndex < 0 ? null : `/pageContracts/${pageIndex}/`;
 }
 
+export function representedElsewherePointerIsPermittedForPage(args: {
+  template: ActionSemanticCoverageTemplate;
+  pageNumber: number;
+  pointer: string;
+}): boolean {
+  const prefix = coveragePrefixForPage(args.template, args.pageNumber);
+  return (
+    prefix !== null &&
+    args.pointer.startsWith(prefix) &&
+    !args.pointer.startsWith(`${prefix}actionRequirements/`) &&
+    !isProseOnlyPagePointer(prefix, args.pointer)
+  );
+}
+
+function encodeJsonPointerToken(token: string): string {
+  return token.replace(/~/g, '~0').replace(/\//g, '~1');
+}
+
+/**
+ * Projects the exact same-page structured string domain accepted by the
+ * represented-elsewhere validator. The validator predicate above is the one
+ * authority for both admission and projection so the repair prompt cannot
+ * advertise a pointer that final validation would reject.
+ */
+export function permittedRepresentedElsewherePointerValuesForPage(args: {
+  template: ActionSemanticCoverageTemplate;
+  pageNumber: number;
+}): RepresentedElsewherePointerValue[] {
+  const pageIndex = args.template.pageContracts.findIndex(
+    (page) => page.pageNumber === args.pageNumber,
+  );
+  if (pageIndex < 0) return [];
+  const values: RepresentedElsewherePointerValue[] = [];
+  const visit = (value: unknown, pointer: string): void => {
+    if (typeof value === 'string') {
+      if (
+        representedElsewherePointerIsPermittedForPage({
+          template: args.template,
+          pageNumber: args.pageNumber,
+          pointer,
+        })
+      ) {
+        const resolved = resolveJsonPointer(args.template, pointer);
+        if (resolved.found && resolved.value === value) {
+          values.push({
+            contractPointer: pointer,
+            contractValue: value,
+          });
+        }
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((entry, index) => visit(entry, `${pointer}/${index}`));
+      return;
+    }
+    const record = recordValue(value);
+    if (!record) return;
+    for (const key of Object.keys(record).sort(lexicalCompare)) {
+      visit(record[key], `${pointer}/${encodeJsonPointerToken(key)}`);
+    }
+  };
+  visit(
+    args.template.pageContracts[pageIndex],
+    `/pageContracts/${pageIndex}`,
+  );
+  return values.sort(
+    (left, right) =>
+      lexicalCompare(left.contractPointer, right.contractPointer) ||
+      lexicalCompare(left.contractValue, right.contractValue),
+  );
+}
+
 function pageByNumber(
   template: ActionSemanticCoverageTemplate,
   pageNumber: number,
@@ -384,16 +462,13 @@ export function actionSemanticCoverageValidation(args: {
     }
 
     if (record.disposition.kind === 'represented_elsewhere') {
-      const prefix = coveragePrefixForPage(
-        args.template,
-        record.pageNumber,
-      );
       const pointer = record.disposition.contractPointer;
       if (
-        prefix === null ||
-        !pointer.startsWith(prefix) ||
-        pointer.startsWith(`${prefix}actionRequirements/`) ||
-        isProseOnlyPagePointer(prefix, pointer)
+        !representedElsewherePointerIsPermittedForPage({
+          template: args.template,
+          pageNumber: record.pageNumber,
+          pointer,
+        })
       ) {
         emitActionSemanticIssue(
           issues,

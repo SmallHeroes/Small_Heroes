@@ -1,4 +1,12 @@
-import type { DraftValidationIssue } from './draftValidationDiagnostics';
+import {
+  draftValidationIssueIsValid,
+  type DraftValidationIssue,
+} from './draftValidationDiagnostics';
+import {
+  permittedRepresentedElsewherePointerValuesForPage,
+  type ActionSemanticCoverageTemplate,
+  type RepresentedElsewherePointerValue,
+} from './actionSemanticCoverage';
 import {
   TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
 } from './templateDraftSchema';
@@ -8,9 +16,9 @@ export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
-  'page-contract-repair-prompt/v1' as const;
+  'page-contract-repair-prompt/v2' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
-  'page-contract-repair-user-prompt/v1' as const;
+  'page-contract-repair-user-prompt/v2' as const;
 
 function strictObject(
   properties: Record<string, unknown>,
@@ -48,7 +56,24 @@ const PAGE_CONTRACT_KEYS = Object.freeze(
 export interface PageContractRepairAffectedPage {
   pageNumber: number;
   pageContract: Record<string, unknown>;
+  repairTargets: PageContractRepairTarget[];
+  permittedPointerValues: RepresentedElsewherePointerValue[];
 }
+
+export type PageContractRepairTarget =
+  | {
+      family: 'draft_contract';
+      code: 'final_structural_invariant_invalid';
+      pageNumber: number;
+    }
+  | {
+      family: 'action_semantic';
+      code:
+        | 'represented_elsewhere_pointer_out_of_scope'
+        | 'represented_elsewhere_pointer_unresolved'
+        | 'represented_elsewhere_value_mismatch';
+      pageNumber: number;
+    };
 
 function recordValue(value: unknown): Record<string, unknown> | null {
   return value !== null &&
@@ -68,10 +93,11 @@ function exactKeys(
   );
 }
 
-function affectedPageNumber(
+function structuralRepairTarget(
   issue: DraftValidationIssue,
-): number | null {
+): PageContractRepairTarget | null {
   if (
+    !draftValidationIssueIsValid(issue) ||
     issue.family !== 'draft_contract' ||
     issue.code !== 'final_structural_invariant_invalid' ||
     issue.locator.fieldRole !== 'final_structure' ||
@@ -80,10 +106,74 @@ function affectedPageNumber(
   ) {
     return null;
   }
-  return Number.isSafeInteger(issue.locator.pageNumber) &&
-    issue.locator.pageNumber > 0
-    ? issue.locator.pageNumber
-    : null;
+  return {
+    family: issue.family,
+    code: issue.code,
+    pageNumber: issue.locator.pageNumber,
+  };
+}
+
+const REPRESENTED_ELSEWHERE_REPAIR_FIELD_ROLES = {
+  represented_elsewhere_pointer_out_of_scope: 'reference',
+  represented_elsewhere_pointer_unresolved: 'reference',
+  represented_elsewhere_value_mismatch: 'payload',
+} as const;
+
+function representedElsewhereRepairTarget(
+  issue: DraftValidationIssue,
+): PageContractRepairTarget | null {
+  if (
+    !draftValidationIssueIsValid(issue) ||
+    issue.family !== 'action_semantic' ||
+    !Object.prototype.hasOwnProperty.call(
+      REPRESENTED_ELSEWHERE_REPAIR_FIELD_ROLES,
+      issue.code,
+    ) ||
+    issue.locator.kind !== 'page_item' ||
+    issue.locator.collectionRole !==
+      'page_action_semantic_coverage'
+  ) {
+    return null;
+  }
+  const code = issue.code as keyof typeof REPRESENTED_ELSEWHERE_REPAIR_FIELD_ROLES;
+  if (
+    issue.locator.fieldRole !==
+    REPRESENTED_ELSEWHERE_REPAIR_FIELD_ROLES[code]
+  ) {
+    return null;
+  }
+  return {
+    family: issue.family,
+    code,
+    pageNumber: issue.locator.pageNumber,
+  };
+}
+
+function repairTargets(
+  issues: readonly DraftValidationIssue[],
+): PageContractRepairTarget[] | null {
+  if (issues.length === 0) return null;
+  const targetForIssue = structuralRepairTarget(issues[0]!)
+    ? structuralRepairTarget
+    : representedElsewhereRepairTarget(issues[0]!)
+      ? representedElsewhereRepairTarget
+      : null;
+  if (!targetForIssue) return null;
+  const targets = issues.map(targetForIssue);
+  if (targets.some((target) => target === null)) return null;
+  const unique = new Map<string, PageContractRepairTarget>();
+  for (const target of targets as PageContractRepairTarget[]) {
+    unique.set(
+      JSON.stringify([target.pageNumber, target.family, target.code]),
+      target,
+    );
+  }
+  return [...unique.values()].sort(
+    (left, right) =>
+      left.pageNumber - right.pageNumber ||
+      left.family.localeCompare(right.family) ||
+      left.code.localeCompare(right.code),
+  );
 }
 
 /**
@@ -94,14 +184,16 @@ function affectedPageNumber(
 export function pageContractRepairAffectedPages(args: {
   draft: Record<string, unknown>;
   diagnosticIssues: readonly DraftValidationIssue[];
+  pointerTemplate?: ActionSemanticCoverageTemplate;
 }): PageContractRepairAffectedPage[] | null {
-  if (args.diagnosticIssues.length === 0) return null;
-  const pageNumbers = new Set<number>();
-  for (const issue of args.diagnosticIssues) {
-    const pageNumber = affectedPageNumber(issue);
-    if (pageNumber === null) return null;
-    pageNumbers.add(pageNumber);
-  }
+  const targets = repairTargets(args.diagnosticIssues);
+  if (!targets) return null;
+  const actionSemanticRepair =
+    targets[0]?.family === 'action_semantic';
+  if (actionSemanticRepair && !args.pointerTemplate) return null;
+  const pageNumbers = new Set(
+    targets.map((target) => target.pageNumber),
+  );
   const pageContracts = Array.isArray(args.draft.pageContracts)
     ? args.draft.pageContracts
     : [];
@@ -115,11 +207,24 @@ export function pageContractRepairAffectedPages(args: {
         ? {
             pageNumber,
             pageContract: structuredClone(matches[0]!),
+            repairTargets: targets.filter(
+              (target) => target.pageNumber === pageNumber,
+            ),
+            permittedPointerValues: actionSemanticRepair
+              ? permittedRepresentedElsewherePointerValuesForPage({
+                  template: args.pointerTemplate!,
+                  pageNumber,
+                })
+              : [],
           }
         : null;
     });
   return result.every(
-    (value): value is PageContractRepairAffectedPage => value !== null,
+    (value): value is PageContractRepairAffectedPage =>
+      value !== null &&
+      value.repairTargets.length > 0 &&
+      (!actionSemanticRepair ||
+        value.permittedPointerValues.length > 0),
   )
     ? result
     : null;
@@ -129,59 +234,17 @@ export function buildPageContractRepairSystemPrompt(): string {
   return [
     'You repair ONLY the complete page contracts identified by the input.',
     'Return exactly one complete page contract for every affected pageNumber and no other page.',
-    'Keep pageNumber unchanged and use only IDs present in referenceAuthority.',
+    'Keep pageNumber and all authority IDs unchanged; never invent a new ID.',
     'Do not rewrite locations, zones, set boards, cast, recurring props, cover, or global fields.',
-    'Resolve every supplied validator error while preserving unaffected page semantics.',
+    'Resolve only the closed typed repairTargets while preserving unaffected page semantics.',
+    'For represented_elsewhere, contractPointer and contractValue must be copied as one exact pair from permittedPointerValues on that page.',
+    'Never rewrite a pointer silently or infer an authoring record from an item/list position.',
     'Output only the JSON object required by the strict repair schema.',
   ].join('\n');
 }
 
-function stringField(value: unknown): string | null {
-  return typeof value === 'string' && value.length > 0 ? value : null;
-}
-
-function stringIds(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value
-        .map(recordValue)
-        .map((entry) => stringField(entry?.id))
-        .filter((entry): entry is string => entry !== null)
-        .sort()
-    : [];
-}
-
-function referenceAuthority(draft: Record<string, unknown>): unknown {
-  const zones = Array.isArray(draft.zones) ? draft.zones : [];
-  const cast = recordValue(draft.cast);
-  const child = recordValue(cast?.child);
-  const companion = recordValue(cast?.companion);
-  return {
-    locationIds: stringIds(draft.locations),
-    zones: zones
-      .map(recordValue)
-      .filter((zone): zone is Record<string, unknown> => zone !== null)
-      .map((zone) => ({
-        id: stringField(zone.id),
-        locationId: stringField(zone.locationId),
-        spatialNodeIds: stringIds(zone.spatialNodes),
-      }))
-      .filter((zone) => zone.id !== null)
-      .sort((left, right) => left.id!.localeCompare(right.id!)),
-    recurringPropIds: stringIds(draft.recurringProps),
-    castIds: [
-      stringField(child?.id),
-      stringField(companion?.id),
-      ...stringIds(draft.humanCast),
-    ]
-      .filter((entry): entry is string => entry !== null)
-      .sort(),
-  };
-}
-
 export function buildPageContractRepairUserPrompt(args: {
-  draft: Record<string, unknown>;
   affectedPages: readonly PageContractRepairAffectedPage[];
-  errors: readonly string[];
 }): string {
   return JSON.stringify({
     affectedPages: [...args.affectedPages]
@@ -189,9 +252,9 @@ export function buildPageContractRepairUserPrompt(args: {
       .map((value) => ({
         pageNumber: value.pageNumber,
         pageContract: value.pageContract,
+        repairTargets: value.repairTargets,
+        permittedPointerValues: value.permittedPointerValues,
       })),
-    validatorErrors: [...args.errors],
-    referenceAuthority: referenceAuthority(args.draft),
   });
 }
 

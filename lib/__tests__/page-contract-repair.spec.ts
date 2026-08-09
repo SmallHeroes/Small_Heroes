@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+  PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+  PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
   applyPageContractRepairs,
   buildPageContractRepairSystemPrompt,
   buildPageContractRepairUserPrompt,
@@ -9,6 +11,7 @@ import {
   parsePageContractRepairs,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
 import type { DraftValidationIssue } from '@/lib/visual-contract-compiler/draftValidationDiagnostics';
+import type { ActionSemanticCoverageTemplate } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 
 function page(pageNumber: number) {
   return {
@@ -69,6 +72,51 @@ function issue(pageNumber: number): DraftValidationIssue {
   };
 }
 
+const representedElsewhereIssueCodes = [
+  'represented_elsewhere_pointer_out_of_scope',
+  'represented_elsewhere_pointer_unresolved',
+  'represented_elsewhere_value_mismatch',
+] as const;
+
+function representedElsewhereIssue(
+  code: (typeof representedElsewhereIssueCodes)[number],
+  pageNumber: number,
+): DraftValidationIssue {
+  return {
+    family: 'action_semantic',
+    code,
+    locator: {
+      kind: 'page_item',
+      collectionRole: 'page_action_semantic_coverage',
+      fieldRole:
+        code === 'represented_elsewhere_value_mismatch'
+          ? 'payload'
+          : 'reference',
+      pageNumber,
+      itemIndex: 999,
+    },
+  };
+}
+
+function pointerTemplate(): ActionSemanticCoverageTemplate {
+  return {
+    pageContracts: [
+      {
+        ...page(1),
+        locationId: 'loc:home',
+        zoneId: 'zone:1',
+        actionRequirements: [],
+      },
+      {
+        ...page(2),
+        locationId: 'loc:home',
+        zoneId: 'zone:2',
+        actionRequirements: [],
+      },
+    ],
+  } as unknown as ActionSemanticCoverageTemplate;
+}
+
 describe('page-contract compact repair', () => {
   it('uses the exact exported page-contract member schema', () => {
     const properties = PAGE_CONTRACT_REPAIR_JSON_SCHEMA.properties as {
@@ -103,8 +151,204 @@ describe('page-contract compact repair', () => {
     ).toBeNull();
   });
 
-  it('builds a bounded payload without unrelated draft sections', () => {
+  it.each(representedElsewhereIssueCodes)(
+    'directly admits the closed %s identity from its typed pageNumber',
+    (code) => {
+      const affected = pageContractRepairAffectedPages({
+        draft: draft(),
+        diagnosticIssues: [representedElsewhereIssue(code, 2)],
+        pointerTemplate: pointerTemplate(),
+      });
+      expect(affected).toMatchObject([
+        {
+          pageNumber: 2,
+          repairTargets: [
+            { family: 'action_semantic', code, pageNumber: 2 },
+          ],
+        },
+      ]);
+      expect(affected?.[0]?.permittedPointerValues).toContainEqual({
+        contractPointer: '/pageContracts/1/locationId',
+        contractValue: 'loc:home',
+      });
+      expect(
+        JSON.stringify(affected?.[0]?.repairTargets),
+      ).not.toContain('999');
+    },
+  );
+
+  it.each([
+    [
+      'page locator',
+      {
+        family: 'action_semantic',
+        code: 'represented_elsewhere_pointer_unresolved',
+        locator: { kind: 'page', fieldRole: 'reference', pageNumber: 1 },
+      },
+    ],
+    [
+      'wrong page-item collection',
+      {
+        family: 'action_semantic',
+        code: 'represented_elsewhere_pointer_unresolved',
+        locator: {
+          kind: 'page_item',
+          collectionRole: 'page_actions',
+          fieldRole: 'reference',
+          pageNumber: 1,
+          itemIndex: 0,
+        },
+      },
+    ],
+    [
+      'collection item without page identity',
+      {
+        family: 'action_semantic',
+        code: 'represented_elsewhere_pointer_unresolved',
+        locator: {
+          kind: 'collection_item',
+          collectionRole: 'page_action_semantic_coverage',
+          fieldRole: 'reference',
+          itemIndex: 0,
+        },
+      },
+    ],
+    [
+      'source-evidence locator',
+      {
+        family: 'action_semantic',
+        code: 'represented_elsewhere_pointer_unresolved',
+        locator: {
+          kind: 'source_evidence',
+          fieldRole: 'source_evidence',
+          pageNumber: 1,
+          coverageIndex: 0,
+        },
+      },
+    ],
+    [
+      'wrong field role',
+      {
+        family: 'action_semantic',
+        code: 'represented_elsewhere_value_mismatch',
+        locator: {
+          kind: 'page_item',
+          collectionRole: 'page_action_semantic_coverage',
+          fieldRole: 'reference',
+          pageNumber: 1,
+          itemIndex: 0,
+        },
+      },
+    ],
+    [
+      'non-positive page',
+      {
+        family: 'action_semantic',
+        code: 'represented_elsewhere_pointer_out_of_scope',
+        locator: {
+          kind: 'page_item',
+          collectionRole: 'page_action_semantic_coverage',
+          fieldRole: 'reference',
+          pageNumber: 0,
+          itemIndex: 0,
+        },
+      },
+    ],
+    [
+      'invalid persisted item index',
+      {
+        family: 'action_semantic',
+        code: 'represented_elsewhere_pointer_out_of_scope',
+        locator: {
+          kind: 'page_item',
+          collectionRole: 'page_action_semantic_coverage',
+          fieldRole: 'reference',
+          pageNumber: 1,
+          itemIndex: -1,
+        },
+      },
+    ],
+  ])('rejects the %s locator shape fail-closed', (_label, candidate) => {
+    expect(
+      pageContractRepairAffectedPages({
+        draft: draft(),
+        diagnosticIssues: [candidate as DraftValidationIssue],
+        pointerTemplate: pointerTemplate(),
+      }),
+    ).toBeNull();
+  });
+
+  it('rejects mixed, unsafe, unlocatable, and projection-less sets', () => {
+    expect(
+      pageContractRepairAffectedPages({
+        draft: draft(),
+        diagnosticIssues: [
+          issue(1),
+          representedElsewhereIssue(
+            'represented_elsewhere_pointer_unresolved',
+            1,
+          ),
+        ],
+        pointerTemplate: pointerTemplate(),
+      }),
+    ).toBeNull();
+    expect(
+      pageContractRepairAffectedPages({
+        draft: draft(),
+        diagnosticIssues: [
+          representedElsewhereIssue(
+            'represented_elsewhere_pointer_unresolved',
+            1,
+          ),
+          {
+            family: 'action_semantic',
+            code: 'closed_catalog_capability_gap',
+            locator: {
+              kind: 'page_item',
+              collectionRole: 'page_action_semantic_coverage',
+              fieldRole: 'disposition',
+              pageNumber: 1,
+              itemIndex: 0,
+            },
+          },
+        ],
+        pointerTemplate: pointerTemplate(),
+      }),
+    ).toBeNull();
+    expect(
+      pageContractRepairAffectedPages({
+        draft: draft(),
+        diagnosticIssues: [
+          representedElsewhereIssue(
+            'represented_elsewhere_value_mismatch',
+            1,
+          ),
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      pageContractRepairAffectedPages({
+        draft: draft(),
+        diagnosticIssues: [
+          representedElsewhereIssue(
+            'represented_elsewhere_value_mismatch',
+            3,
+          ),
+        ],
+        pointerTemplate: pointerTemplate(),
+      }),
+    ).toBeNull();
+  });
+
+  it('builds the v2 closed payload without prose, provider, secret, stack, or executable leakage', () => {
     const original = draft();
+    Object.assign(original, {
+      unrelatedStorySource: 'RAW_STORY_SOURCE_PROSE_SENTINEL',
+      providerMaterial: 'PROVIDER_RESPONSE_SENTINEL',
+      credential: 'SECRET_CREDENTIAL_SENTINEL',
+      stack: 'STACK_TRACE_SENTINEL',
+      executable: 'powershell -Command REMOVE_SENTINEL',
+    });
     const affected = pageContractRepairAffectedPages({
       draft: original,
       diagnosticIssues: [issue(1)],
@@ -112,19 +356,38 @@ describe('page-contract compact repair', () => {
     const system = buildPageContractRepairSystemPrompt();
     const parsed = JSON.parse(
       buildPageContractRepairUserPrompt({
-        draft: original,
         affectedPages: affected,
-        errors: ['page 1 transition is invalid'],
       }),
     );
     expect(system).toContain('ONLY');
+    expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
+      'page-contract-repair-prompt/v2',
+    );
+    expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
+      'page-contract-repair-user-prompt/v2',
+    );
     expect(parsed.affectedPages).toHaveLength(1);
-    expect(parsed.validatorErrors).toEqual([
-      'page 1 transition is invalid',
+    expect(parsed.affectedPages[0].repairTargets).toEqual([
+      {
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        pageNumber: 1,
+      },
     ]);
-    expect(parsed.referenceAuthority.zoneIds).toBeUndefined();
+    expect(parsed.affectedPages[0].permittedPointerValues).toEqual([]);
+    expect(parsed).not.toHaveProperty('validatorErrors');
+    expect(parsed).not.toHaveProperty('referenceAuthority');
     expect(parsed).not.toHaveProperty('worldType');
-    expect(JSON.stringify(parsed)).not.toContain('preserved');
+    const serialized = JSON.stringify(parsed);
+    for (const sentinel of [
+      'RAW_STORY_SOURCE_PROSE_SENTINEL',
+      'PROVIDER_RESPONSE_SENTINEL',
+      'SECRET_CREDENTIAL_SENTINEL',
+      'STACK_TRACE_SENTINEL',
+      'REMOVE_SENTINEL',
+    ]) {
+      expect(serialized).not.toContain(sentinel);
+    }
   });
 
   it('replaces exactly the affected page and never mutates its input', () => {

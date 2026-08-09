@@ -509,7 +509,7 @@ describe('page-contract compact repair routing', () => {
       kind: 'repair',
       repairMode: 'page_contract_patch',
       systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'page-contract-repair-user-prompt/v1',
+      userPromptVersion: 'page-contract-repair-user-prompt/v2',
     });
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
       PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
@@ -517,6 +517,16 @@ describe('page-contract compact repair routing', () => {
     const payload = JSON.parse(calls[1]!.user);
     expect(payload.affectedPages).toHaveLength(1);
     expect(payload.affectedPages[0].pageNumber).toBe(1);
+    expect(payload.affectedPages[0].repairTargets).toEqual([
+      {
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        pageNumber: 1,
+      },
+    ]);
+    expect(payload.affectedPages[0].permittedPointerValues).toEqual([]);
+    expect(payload).not.toHaveProperty('validatorErrors');
+    expect(payload).not.toHaveProperty('referenceAuthority');
     expect(payload).not.toHaveProperty('worldType');
     expect(result.provenance.attempt).toBe(2);
     expect(result.provenance.repairPromptVersion).toBe(
@@ -525,6 +535,88 @@ describe('page-contract compact repair routing', () => {
     expect(result.repairAttempts[0]!.nextRepairMode).toBe(
       'page_contract_patch',
     );
+  });
+
+  it('routes structural page repair then one represented-elsewhere issue through a second page repair and returns a candidate', async () => {
+    const initial = bunnyDraft();
+    initial.pageContracts[0].camera = '';
+    const representedElsewhereInvalid = structuredClone(
+      bunnyDraft().pageContracts[0],
+    );
+    delete representedElsewhereInvalid.castIds;
+    delete representedElsewhereInvalid.characterPresence;
+    representedElsewhereInvalid.propConstraints ??= [];
+    representedElsewhereInvalid.actionRequirements ??= [];
+    representedElsewhereInvalid.actionSemanticCoverage[0].disposition.contractValue =
+      'stale-structured-value';
+    const finalPage = structuredClone(bunnyDraft().pageContracts[0]);
+    delete finalPage.castIds;
+    delete finalPage.characterPresence;
+    finalPage.propConstraints ??= [];
+    finalPage.actionRequirements ??= [];
+    const calls: Array<{
+      user: string;
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      user,
+      _options,
+      authority,
+    ) => {
+      calls.push({ user, authority });
+      if (calls.length === 1) return JSON.stringify(initial);
+      return JSON.stringify({
+        pageContracts: [
+          calls.length === 2 ? representedElsewhereInvalid : finalPage,
+        ],
+      });
+    };
+
+    const result = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: caller,
+    });
+
+    expect(calls).toHaveLength(3);
+    expect(calls.map((call) => call.authority)).toEqual([
+      expect.objectContaining({ kind: 'initial' }),
+      expect.objectContaining({
+        kind: 'repair',
+        repairMode: 'page_contract_patch',
+      }),
+      expect.objectContaining({
+        kind: 'repair',
+        repairMode: 'page_contract_patch',
+      }),
+    ]);
+    const thirdPayload = JSON.parse(calls[2]!.user);
+    expect(thirdPayload.affectedPages).toHaveLength(1);
+    expect(thirdPayload.affectedPages[0]).toMatchObject({
+      pageNumber: 1,
+      repairTargets: [
+        {
+          family: 'action_semantic',
+          code: 'represented_elsewhere_value_mismatch',
+          pageNumber: 1,
+        },
+      ],
+    });
+    expect(
+      thirdPayload.affectedPages[0].permittedPointerValues,
+    ).toContainEqual({
+      contractPointer: '/pageContracts/0/locationId',
+      contractValue: finalPage.locationId,
+    });
+    expect(thirdPayload).not.toHaveProperty('validatorErrors');
+    expect(result.provenance.attempt).toBe(3);
+    expect(result.repairAttempts.map((attempt) => attempt.nextRepairMode)).toEqual(
+      ['page_contract_patch', 'page_contract_patch'],
+    );
+    expect(result.actionSemanticCoverage[0]?.disposition).toMatchObject({
+      kind: 'represented_elsewhere',
+      contractPointer: '/pageContracts/0/locationId',
+      contractValue: finalPage.locationId,
+    });
   });
 
   it('keeps mixed page and non-page structural failures on full-draft repair', async () => {

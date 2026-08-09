@@ -12,7 +12,11 @@ import {
 import {
   ACTION_SEMANTIC_COVERAGE_VERSION,
   actionSemanticCoverageIssues,
+  permittedRepresentedElsewherePointerValuesForPage,
+  representedElsewherePointerIsPermittedForPage,
+  resolveJsonPointer,
   type ActionSemanticCoverageRecord,
+  type ActionSemanticCoverageTemplate,
 } from '../visual-contract-compiler/actionSemanticCoverage';
 import {
   auditActionSemanticCorpus,
@@ -235,6 +239,111 @@ describe('central Action Semantic Catalog', () => {
 });
 
 describe('Action Semantic Coverage validation', () => {
+  it('projects exactly the validator-accepted same-page structured string domain', () => {
+    const projectionTemplate = {
+      pageContracts: [
+        {
+          pageNumber: 7,
+          locationId: 'location:seven',
+          zoneId: 'zone:seven',
+          castIds: ['child:hero'],
+          mustShow: ['raw page prose'],
+          mustNotShow: ['other raw page prose'],
+          camera: 'portrait close shot',
+          shot: 'close',
+          propState: [{ propId: 'prop:key', state: 'held' }],
+          actionRequirements: [
+            {
+              checkId: 'action:look',
+              predicate: 'looks_at',
+            },
+          ],
+          transition: {
+            kind: 'steady',
+            fromZoneId: 'zone:six',
+            toZoneId: null,
+            cue: 'raw transition prose',
+          },
+        },
+        {
+          pageNumber: 8,
+          locationId: 'location:eight',
+          actionRequirements: [],
+        },
+      ],
+    } as unknown as ActionSemanticCoverageTemplate;
+    const projected =
+      permittedRepresentedElsewherePointerValuesForPage({
+        template: projectionTemplate,
+        pageNumber: 7,
+      });
+    expect(projected).toEqual([
+      {
+        contractPointer: '/pageContracts/0/castIds/0',
+        contractValue: 'child:hero',
+      },
+      {
+        contractPointer: '/pageContracts/0/locationId',
+        contractValue: 'location:seven',
+      },
+      {
+        contractPointer: '/pageContracts/0/propState/0/propId',
+        contractValue: 'prop:key',
+      },
+      {
+        contractPointer: '/pageContracts/0/propState/0/state',
+        contractValue: 'held',
+      },
+      {
+        contractPointer: '/pageContracts/0/transition/fromZoneId',
+        contractValue: 'zone:six',
+      },
+      {
+        contractPointer: '/pageContracts/0/transition/kind',
+        contractValue: 'steady',
+      },
+      {
+        contractPointer: '/pageContracts/0/zoneId',
+        contractValue: 'zone:seven',
+      },
+    ]);
+    for (const pair of projected) {
+      expect(
+        representedElsewherePointerIsPermittedForPage({
+          template: projectionTemplate,
+          pageNumber: 7,
+          pointer: pair.contractPointer,
+        }),
+      ).toBe(true);
+      expect(
+        resolveJsonPointer(
+          projectionTemplate,
+          pair.contractPointer,
+        ),
+      ).toEqual({ found: true, value: pair.contractValue });
+    }
+    for (const pointer of [
+      '/pageContracts/0/mustShow/0',
+      '/pageContracts/0/mustNotShow/0',
+      '/pageContracts/0/camera',
+      '/pageContracts/0/shot',
+      '/pageContracts/0/transition/cue',
+      '/pageContracts/0/actionRequirements/0/checkId',
+      '/pageContracts/1/locationId',
+    ]) {
+      expect(
+        representedElsewherePointerIsPermittedForPage({
+          template: projectionTemplate,
+          pageNumber: 7,
+          pointer,
+        }),
+      ).toBe(false);
+      expect(projected.map((pair) => pair.contractPointer)).not.toContain(
+        pointer,
+      );
+    }
+  });
+
   it('requires exact same-page action or real current contract-pointer evidence', () => {
     expect(
       actionSemanticCoverageIssues({
