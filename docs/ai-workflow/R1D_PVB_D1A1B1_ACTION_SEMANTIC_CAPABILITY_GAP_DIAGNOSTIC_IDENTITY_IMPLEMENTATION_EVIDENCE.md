@@ -4,7 +4,7 @@
 **Base:** `769ab56f1ec332172a9976c2bbd567ba79121f3c`
 **Branch:** `codex/r1d-pvb-d1a1b1-action-semantic-gap-diagnostic-identity`
 **Implementation commit:** `456ac1cc33380dab6de2e903cb3dc846596df9dd`
-**Independent QA:** pending
+**Independent QA:** TECHNICAL PASS on `769ab56f1ec332172a9976c2bbd567ba79121f3c..d23b8ed99170638f29d04811629c17046a5538ea`
 
 ## Outcome
 
@@ -148,11 +148,32 @@ Readiness, canonical preflight, live authoring, candidate, Semantic Reconciliati
 Blueprint/Wizard execution, render/image/Vision, storage/database, Board action,
 publication, promotion, activation, deployment, or push occurred. External cost was `$0`.
 
-## Independent QA target
+## Independent QA result
 
-Claude Code must review exact immutable range:
+Claude Code independently reviewed exact immutable range:
 
-`769ab56f1ec332172a9976c2bbd567ba79121f3c..456ac1cc33380dab6de2e903cb3dc846596df9dd`
+`769ab56f1ec332172a9976c2bbd567ba79121f3c..d23b8ed99170638f29d04811629c17046a5538ea`
 
-Codex claims implementation completion and local validation only; it does not self-award
-independent technical PASS.
+Claude returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR, and zero MINOR. It
+reproduced the exact `2/65`, `1/132`, and `5/78` focused groups, deterministic TypeScript,
+and `git diff --check`; it also ran hostile page/secret probes and independently falsified
+ordering, deduplication, tamper, migration, sanitization, terminal, and attempt-binding
+claims. Codex records Claude's verdict and does not self-award independent PASS.
+
+Claude retained five advisory notes:
+
+1. A capability-gap attempt's broad `validationDiagnostics.codes` is now the required
+   family-derived `action_semantic_validation_failed`, while the terminal failure remains
+   `action_semantic_capability_gap`. No direct test currently freezes that broad label.
+2. `LEGACY_DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION` is exported but unused; current
+   equality already rejects v1.
+3. Code-specific locator narrowing is producer-enforced rather than duplicated in the
+   family-wide validator, consistent with existing Action Semantic issue behavior.
+4. Invalid coverage indices can still reach a generic diagnostic-contract error. The
+   index is producer-owned, array-derived, and bounded; hostile page values safely fall
+   back as designed.
+5. Claude did not rerun `npm run check`; its six-fixture result remains Codex execution
+   evidence and the separate repository/release HOLD.
+
+None is a technical finding or blocks push, Fresh Readiness, or the next bounded LOW
+authoring measurement. No further Claude round is required absent a factual discrepancy.
