@@ -2,7 +2,18 @@
 
 **Updated:** 2026-08-09
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-page-spatial-compact-repair-routing` in `C:\Users\guyna\.codex\worktrees\spatialcompact1\Small_Heroes`, based exactly on immutable pushed commit `22857995df578d366809226a5d693cd783a10ed7`. Claude Code independently PASSed the implementation range through `1ff6ab22e58c058dbb018ac6e8b84a677c8287f0`; this documentation closeout remains local and unpushed.
+**Working branch:** `codex/r1d-pvb-d1a1b1-field-scoped-page-spatial-repair` in `C:\Users\guyna\.codex\worktrees\spatialfield1\Small_Heroes`, based exactly on pushed commit `40fd3968e2bb73297a9e10c14acfae31e1ce1a30`.
+
+## R1D-PVB-D1A1B1-FIELD-SCOPED-PAGE-SPATIAL-REPAIR - implementation in progress
+
+The post-spatial-compact bounded live attempt reached OpenAI and consumed exactly three logical calls: one initial response and two `page_contract_patch` repairs. The first repair resolved all six original typed page-spatial reference failures, but complete-page replacement introduced twelve `final_structural_invariant_invalid` issues, one for every page 1-12. The final repair preserved those twelve issues. Receipt v16 `fbcfafb0...` and readiness v14 `20a5c505...` truthfully record `draft_validation_repair_exhausted`; candidate and reconciliation are absent, Blueprint readiness is false, and no render or downstream authority exists. Conservative authoring cost was `$1.376857`.
+
+The approved technical response is a field-scoped typed spatial patch. The provider may select only one compiler-owned spatial ID for each exact `{pageNumber, actionIndex, fieldRole}` target; the compiler constructs and applies the EntityRef at that exact field. Complete-page repair remains unchanged for its existing structural and represented-elsewhere families. Model, schema authority outside the new repair output, budgets, retries, fallback, candidate, Blueprint, Wizard, and render behavior remain unchanged.
+
+- Exact base: `40fd3968e2bb73297a9e10c14acfae31e1ce1a30`.
+- No implementation provider call, credential access, B0/Fresh Readiness, preflight, render, storage/database action, deployment, or push is authorized.
+- Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_POST_SPATIAL_COMPACT_LIVE_ATTEMPT_EXECUTION_EVIDENCE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_FIELD_SCOPED_PAGE_SPATIAL_REPAIR_DECISION_GATE.md`.
+- Next action: implement the strict patch contract, lifecycle cutover, tests, evidence, and independent Claude Code QA. Only after QA PASS and push may a new Fresh Readiness and bounded live attempt be created.
 
 ## R1D-PVB-D1A1B1-PAGE-SPATIAL-COMPACT-REPAIR-ROUTING — independent technical PASS / repository release HOLD
 
