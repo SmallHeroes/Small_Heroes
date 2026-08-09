@@ -55,7 +55,8 @@ export type ContractLlmPromptAuthority =
         | 'full_draft'
         | 'source_evidence_id_patch'
         | 'page_contract_patch'
-        | 'page_spatial_reference_patch';
+        | 'page_spatial_reference_patch'
+        | 'structural_bundle_patch';
       systemPromptVersion: string;
       userPromptVersion: string;
     };

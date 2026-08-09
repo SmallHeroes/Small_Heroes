@@ -238,3 +238,4 @@ export {
 export * from './sourceEvidenceCatalog';
 export * from './sourceEvidenceIdRepair';
 export * from './pageContractRepair';
+export * from './structuralBundleRepair';

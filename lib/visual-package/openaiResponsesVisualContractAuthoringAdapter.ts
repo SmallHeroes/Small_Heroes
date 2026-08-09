@@ -46,6 +46,10 @@ import {
   PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
   PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
+import {
+  STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+  STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/structuralBundleRepair';
 
 import { canonicalJsonDigest } from './integrity';
 import {
@@ -230,7 +234,10 @@ function exactCallOptionsIssues(
         canonicalJsonDigest(PAGE_CONTRACT_REPAIR_JSON_SCHEMA)) ||
     (schemaName === PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME &&
       schemaDigest ===
-        canonicalJsonDigest(PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA));
+        canonicalJsonDigest(PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA)) ||
+    (schemaName === STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME &&
+      schemaDigest ===
+        canonicalJsonDigest(STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA));
   if (!structuredOutputMatches) {
     issues.push('structured_output');
   }

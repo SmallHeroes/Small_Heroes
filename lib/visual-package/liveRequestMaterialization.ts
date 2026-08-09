@@ -41,9 +41,9 @@ export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v12' as const;
+  'canonical-live-request-materialization/v13' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v12' as const;
+  'canonical-live-request-verification/v13' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -130,6 +130,8 @@ export interface LiveRequestMaterializationManifest {
     LiveRequestStructuredOutputCompatibilityAuthority;
   pageSpatialReferenceRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
+  structuralBundleRepairStructuredOutputCompatibility:
+    LiveRequestStructuredOutputCompatibilityAuthority;
   futureLiveCommand: {
     executable: 'node';
     arguments: string[];
@@ -180,6 +182,8 @@ export interface CanonicalLiveRequestVerifiedResult {
   pageContractRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
   pageSpatialReferenceRepairStructuredOutputCompatibility:
+    LiveRequestStructuredOutputCompatibilityAuthority;
+  structuralBundleRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
   requestPolicy: {
     provider: 'openai';
@@ -746,6 +750,7 @@ export function liveRequestMaterializationManifestIssues(
       'compactRepairStructuredOutputCompatibility',
       'pageContractRepairStructuredOutputCompatibility',
       'pageSpatialReferenceRepairStructuredOutputCompatibility',
+      'structuralBundleRepairStructuredOutputCompatibility',
       'futureLiveCommand',
       'externalBoundaryEvidence',
       'doesNotAuthorize',
@@ -985,6 +990,10 @@ export function liveRequestMaterializationManifestIssues(
     ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
       object.pageSpatialReferenceRepairStructuredOutputCompatibility,
       'materialization_manifest_page_spatial_reference_repair_structured_output_compatibility',
+    ),
+    ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
+      object.structuralBundleRepairStructuredOutputCompatibility,
+      'materialization_manifest_structural_bundle_repair_structured_output_compatibility',
     ),
   );
   const command = recordValue(object.futureLiveCommand);
@@ -1419,6 +1428,34 @@ export function materializeCanonicalLiveRequestBundle(args: {
             .compatibilityStatus,
         serializedSchemaDigest:
           liveAuthoringRequest.pageSpatialReferenceRepairStructuredOutput
+            .serializedSchemaDigest,
+      },
+    },
+    structuralBundleRepairStructuredOutputCompatibility: {
+      schemaName:
+        liveAuthoringRequest.structuralBundleRepairStructuredOutput.schemaName,
+      schemaVersion:
+        liveAuthoringRequest.structuralBundleRepairStructuredOutput.schemaVersion,
+      schemaDigest:
+        liveAuthoringRequest.structuralBundleRepairStructuredOutput.schemaDigest,
+      compatibility: {
+        profileVersion:
+          liveAuthoringRequest.structuralBundleRepairStructuredOutput
+            .compatibilityProfileVersion,
+        profileDigest:
+          liveAuthoringRequest.structuralBundleRepairStructuredOutput
+            .compatibilityProfileDigest,
+        evidenceVersion:
+          liveAuthoringRequest.structuralBundleRepairStructuredOutput
+            .compatibilityEvidenceVersion,
+        evidenceDigest:
+          liveAuthoringRequest.structuralBundleRepairStructuredOutput
+            .compatibilityEvidenceDigest,
+        status:
+          liveAuthoringRequest.structuralBundleRepairStructuredOutput
+            .compatibilityStatus,
+        serializedSchemaDigest:
+          liveAuthoringRequest.structuralBundleRepairStructuredOutput
             .serializedSchemaDigest,
       },
     },
@@ -2168,6 +2205,39 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
     expectedPageSpatialReferenceRepairStructuredOutputCompatibility,
     'manifest_page_spatial_reference_repair_structured_output_compatibility_invalid',
   );
+  const expectedStructuralBundleRepairStructuredOutputCompatibility = {
+    schemaName:
+      rebuiltLiveRequest.structuralBundleRepairStructuredOutput.schemaName,
+    schemaVersion:
+      rebuiltLiveRequest.structuralBundleRepairStructuredOutput.schemaVersion,
+    schemaDigest:
+      rebuiltLiveRequest.structuralBundleRepairStructuredOutput.schemaDigest,
+    compatibility: {
+      profileVersion:
+        rebuiltLiveRequest.structuralBundleRepairStructuredOutput
+          .compatibilityProfileVersion,
+      profileDigest:
+        rebuiltLiveRequest.structuralBundleRepairStructuredOutput
+          .compatibilityProfileDigest,
+      evidenceVersion:
+        rebuiltLiveRequest.structuralBundleRepairStructuredOutput
+          .compatibilityEvidenceVersion,
+      evidenceDigest:
+        rebuiltLiveRequest.structuralBundleRepairStructuredOutput
+          .compatibilityEvidenceDigest,
+      status:
+        rebuiltLiveRequest.structuralBundleRepairStructuredOutput
+          .compatibilityStatus,
+      serializedSchemaDigest:
+        rebuiltLiveRequest.structuralBundleRepairStructuredOutput
+          .serializedSchemaDigest,
+    },
+  } satisfies LiveRequestStructuredOutputCompatibilityAuthority;
+  exactCanonicalValue(
+    manifest.structuralBundleRepairStructuredOutputCompatibility,
+    expectedStructuralBundleRepairStructuredOutputCompatibility,
+    'manifest_structural_bundle_repair_structured_output_compatibility_invalid',
+  );
 
   const expectedSourceRevision = {
     storyKey: rebuiltSnapshot.content.storyKey,
@@ -2255,6 +2325,8 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
       expectedPageContractRepairStructuredOutputCompatibility,
     pageSpatialReferenceRepairStructuredOutputCompatibility:
       expectedPageSpatialReferenceRepairStructuredOutputCompatibility,
+    structuralBundleRepairStructuredOutputCompatibility:
+      expectedStructuralBundleRepairStructuredOutputCompatibility,
     requestPolicy: {
       provider: 'openai',
       endpoint: 'responses',

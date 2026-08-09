@@ -37,7 +37,7 @@ import {
 export const CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_INPUT_VERSION =
   'canonical-live-execution-request-materialization-input/v4' as const;
 export const CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_RESULT_VERSION =
-  'canonical-live-execution-request-materialization-result/v6' as const;
+  'canonical-live-execution-request-materialization-result/v7' as const;
 
 const REQUEST_CATEGORY =
   'canonical-live-execution-requests' as const;
@@ -1062,6 +1062,8 @@ export function materializeCanonicalLiveExecutionRequest(args: {
           verifiedBundle.pageContractRepairStructuredOutputCompatibility,
         pageSpatialReferenceRepairStructuredOutputCompatibility:
           verifiedBundle.pageSpatialReferenceRepairStructuredOutputCompatibility,
+        structuralBundleRepairStructuredOutputCompatibility:
+          verifiedBundle.structuralBundleRepairStructuredOutputCompatibility,
       },
       preservationFences,
       expectedAbsentPaths: input.expectedAbsentPaths.slice(),

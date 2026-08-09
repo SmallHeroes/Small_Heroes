@@ -26,9 +26,9 @@ import {
 } from './liveRequestMaterialization';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_VERSION =
-  'canonical-live-execution-request/v11' as const;
+  'canonical-live-execution-request/v12' as const;
 export const CANONICAL_LIVE_EXECUTION_READINESS_VERSION =
-  'canonical-live-execution-readiness/v11' as const;
+  'canonical-live-execution-readiness/v12' as const;
 export const CANONICAL_LIVE_EXECUTION_PROBE_VERSION =
   'canonical-live-execution-probe/v1' as const;
 export const CANONICAL_LIVE_EXECUTION_RESULT_VERSION =
@@ -99,6 +99,8 @@ export interface CanonicalLiveExecutionRequest {
       LiveRequestStructuredOutputCompatibilityAuthority;
     pageSpatialReferenceRepairStructuredOutputCompatibility:
       LiveRequestStructuredOutputCompatibilityAuthority;
+    structuralBundleRepairStructuredOutputCompatibility:
+      LiveRequestStructuredOutputCompatibilityAuthority;
   };
   preservationFences:
     CanonicalLiveExecutionPreservationFence[];
@@ -143,6 +145,9 @@ export interface CanonicalLiveExecutionReadiness {
       | LiveRequestStructuredOutputCompatibilityAuthority
       | null;
     pageSpatialReferenceRepairStructuredOutputCompatibility:
+      | LiveRequestStructuredOutputCompatibilityAuthority
+      | null;
+    structuralBundleRepairStructuredOutputCompatibility:
       | LiveRequestStructuredOutputCompatibilityAuthority
       | null;
     reasonCodes: string[];
@@ -635,6 +640,7 @@ export function canonicalLiveExecutionRequestIssues(
         'compactRepairStructuredOutputCompatibility',
         'pageContractRepairStructuredOutputCompatibility',
         'pageSpatialReferenceRepairStructuredOutputCompatibility',
+        'structuralBundleRepairStructuredOutputCompatibility',
       ],
       'execution_canonical_bundle',
     ).length > 0 ||
@@ -663,6 +669,10 @@ export function canonicalLiveExecutionRequestIssues(
     liveRequestStructuredOutputCompatibilityAuthorityIssues(
       canonicalBundle.pageSpatialReferenceRepairStructuredOutputCompatibility,
       'execution_canonical_bundle_page_spatial_reference_repair_structured_output_compatibility',
+    ).length > 0 ||
+    liveRequestStructuredOutputCompatibilityAuthorityIssues(
+      canonicalBundle.structuralBundleRepairStructuredOutputCompatibility,
+      'execution_canonical_bundle_structural_bundle_repair_structured_output_compatibility',
     ).length > 0
   ) {
     issues.push('execution_canonical_bundle_invalid');
@@ -1500,6 +1510,7 @@ function initialReadinessState(args: {
       compactRepairStructuredOutputCompatibility: null,
       pageContractRepairStructuredOutputCompatibility: null,
       pageSpatialReferenceRepairStructuredOutputCompatibility: null,
+      structuralBundleRepairStructuredOutputCompatibility: null,
       reasonCodes: [],
     },
     git: {
@@ -1716,6 +1727,8 @@ function evaluateReadinessCore(args: {
     b0.pageContractRepairStructuredOutputCompatibility;
   state.b0.pageSpatialReferenceRepairStructuredOutputCompatibility =
     b0.pageSpatialReferenceRepairStructuredOutputCompatibility;
+  state.b0.structuralBundleRepairStructuredOutputCompatibility =
+    b0.structuralBundleRepairStructuredOutputCompatibility;
   if (
     b0.identities.manifestDigest !==
       request.canonicalBundle.manifestDigest ||
@@ -1744,6 +1757,13 @@ function evaluateReadinessCore(args: {
       canonicalJsonDigest(
         request.canonicalBundle
           .pageSpatialReferenceRepairStructuredOutputCompatibility,
+      ) ||
+    canonicalJsonDigest(
+      b0.structuralBundleRepairStructuredOutputCompatibility,
+    ) !==
+      canonicalJsonDigest(
+        request.canonicalBundle
+          .structuralBundleRepairStructuredOutputCompatibility,
       )
   ) {
     state.b0.status = 'rejected';
@@ -1751,6 +1771,7 @@ function evaluateReadinessCore(args: {
     state.b0.compactRepairStructuredOutputCompatibility = null;
     state.b0.pageContractRepairStructuredOutputCompatibility = null;
     state.b0.pageSpatialReferenceRepairStructuredOutputCompatibility = null;
+    state.b0.structuralBundleRepairStructuredOutputCompatibility = null;
     state.reasonCodes = [
       b0.identities.manifestDigest !==
       request.canonicalBundle.manifestDigest
@@ -1933,6 +1954,7 @@ export function canonicalLiveExecutionReadinessIssues(
         'compactRepairStructuredOutputCompatibility',
         'pageContractRepairStructuredOutputCompatibility',
         'pageSpatialReferenceRepairStructuredOutputCompatibility',
+        'structuralBundleRepairStructuredOutputCompatibility',
         'reasonCodes',
       ],
       'execution_readiness_b0',
@@ -1965,16 +1987,23 @@ export function canonicalLiveExecutionReadinessIssues(
         b0.pageSpatialReferenceRepairStructuredOutputCompatibility,
         'execution_readiness_b0_page_spatial_reference_repair_structured_output_compatibility',
       ).length > 0) ||
+    (b0.structuralBundleRepairStructuredOutputCompatibility !== null &&
+      liveRequestStructuredOutputCompatibilityAuthorityIssues(
+        b0.structuralBundleRepairStructuredOutputCompatibility,
+        'execution_readiness_b0_structural_bundle_repair_structured_output_compatibility',
+      ).length > 0) ||
     (b0.status === 'verified' &&
       (b0.structuredOutputCompatibility === null ||
         b0.compactRepairStructuredOutputCompatibility === null ||
         b0.pageContractRepairStructuredOutputCompatibility === null ||
-        b0.pageSpatialReferenceRepairStructuredOutputCompatibility === null)) ||
+        b0.pageSpatialReferenceRepairStructuredOutputCompatibility === null ||
+        b0.structuralBundleRepairStructuredOutputCompatibility === null)) ||
     (b0.status !== 'verified' &&
       (b0.structuredOutputCompatibility !== null ||
         b0.compactRepairStructuredOutputCompatibility !== null ||
         b0.pageContractRepairStructuredOutputCompatibility !== null ||
-        b0.pageSpatialReferenceRepairStructuredOutputCompatibility !== null)) ||
+        b0.pageSpatialReferenceRepairStructuredOutputCompatibility !== null ||
+        b0.structuralBundleRepairStructuredOutputCompatibility !== null)) ||
     !Array.isArray(b0.reasonCodes) ||
     b0.reasonCodes.some(
       (code) =>

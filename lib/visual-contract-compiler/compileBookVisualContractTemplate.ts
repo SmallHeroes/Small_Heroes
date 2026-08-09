@@ -136,6 +136,18 @@ import {
   type PageSpatialReferenceRepairTarget,
   type PageSpatialRepairAuthority,
 } from './pageContractRepair';
+import {
+  STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+  STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
+  STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
+  STRUCTURAL_BUNDLE_REPAIR_USER_PROMPT_VERSION,
+  applyStructuralBundleRepairPatch,
+  buildStructuralBundleRepairSystemPrompt,
+  buildStructuralBundleRepairUserPrompt,
+  parseStructuralBundleRepairPatch,
+  structuralBundleRepairAuthority,
+  type StructuralBundleRepairAuthority,
+} from './structuralBundleRepair';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -204,6 +216,7 @@ interface TemplateRepairAttempt {
     | 'source_evidence_id_patch'
     | 'page_contract_patch'
     | 'page_spatial_reference_patch'
+    | 'structural_bundle_patch'
     | 'full_draft';
 }
 
@@ -214,6 +227,7 @@ export interface TemplateRepairSummary {
     | 'source_evidence_id_patch'
     | 'page_contract_patch'
     | 'page_spatial_reference_patch'
+    | 'structural_bundle_patch'
     | 'full_draft';
 }
 
@@ -426,6 +440,7 @@ export class TemplateRepairOutputInvalidError extends Error {
       | 'source_evidence_id_patch'
       | 'page_contract_patch'
       | 'page_spatial_reference_patch'
+      | 'structural_bundle_patch'
       | 'full_draft',
   ) {
     super('completed template repair output was unusable');
@@ -2760,6 +2775,9 @@ export async function compileBookVisualContractTemplate(
   assertOpenAIResponsesStructuredOutputSchemaCompatible(
     PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
   );
+  assertOpenAIResponsesStructuredOutputSchemaCompatible(
+    STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+  );
 
   const facts = extractDeterministicFacts(input);
 
@@ -2804,6 +2822,13 @@ export async function compileBookVisualContractTemplate(
       schema: PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
     },
   } satisfies ContractLlmCallOptions;
+  const structuralBundleRepairLlmOpts = {
+    ...llmOpts,
+    jsonSchema: {
+      name: STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
+      schema: STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+    },
+  } satisfies ContractLlmCallOptions;
 
   let draft = asObj(
     parseContractJson(
@@ -2844,6 +2869,9 @@ export async function compileBookVisualContractTemplate(
       | undefined;
     let pageSpatialRepairAuthority:
       | readonly PageSpatialRepairAuthority[]
+      | undefined;
+    let structuralBundleAuthority:
+      | StructuralBundleRepairAuthority
       | undefined;
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
@@ -2893,11 +2921,19 @@ export async function compileBookVisualContractTemplate(
             authority: pageSpatialRepairAuthority,
           });
       } else {
-        pageContractAffectedPages = pageContractRepairAffectedPages({
-          draft,
-          diagnosticIssues: attemptDiagnosticIssues,
-          pointerTemplate: pageContractPointerTemplate,
-        });
+        structuralBundleAuthority =
+          structuralBundleRepairAuthority({
+            draft,
+            validationMessages: attemptErrors,
+            diagnosticIssues: attemptDiagnosticIssues,
+          }) ?? undefined;
+        if (!structuralBundleAuthority) {
+          pageContractAffectedPages = pageContractRepairAffectedPages({
+            draft,
+            diagnosticIssues: attemptDiagnosticIssues,
+            pointerTemplate: pageContractPointerTemplate,
+          });
+        }
       }
     }
 
@@ -2922,7 +2958,10 @@ export async function compileBookVisualContractTemplate(
                     : lastRepairMode ===
                         'page_spatial_reference_patch'
                       ? PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION
-                   : REPAIR_PROMPT_VERSION,
+                      : lastRepairMode ===
+                          'structural_bundle_patch'
+                        ? STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION
+                        : REPAIR_PROMPT_VERSION,
             }
           : {}),
       };
@@ -2964,6 +3003,8 @@ export async function compileBookVisualContractTemplate(
       ? 'source_evidence_id_patch'
       : pageSpatialReferenceAffectedTargets
         ? 'page_spatial_reference_patch'
+        : structuralBundleAuthority
+          ? 'structural_bundle_patch'
         : pageContractAffectedPages
           ? 'page_contract_patch'
           : 'full_draft';
@@ -3019,6 +3060,27 @@ export async function compileBookVisualContractTemplate(
           draft,
           targets: pageSpatialReferenceAffectedTargets,
           patches: parsePageSpatialReferenceRepairPatches(rawPatch),
+        });
+      } else if (structuralBundleAuthority) {
+        const rawPatch = await deps.callLLM(
+          buildStructuralBundleRepairSystemPrompt(),
+          buildStructuralBundleRepairUserPrompt({
+            authority: structuralBundleAuthority,
+          }),
+          structuralBundleRepairLlmOpts,
+          {
+            kind: 'repair',
+            repairMode: 'structural_bundle_patch',
+            systemPromptVersion:
+              STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
+            userPromptVersion:
+              STRUCTURAL_BUNDLE_REPAIR_USER_PROMPT_VERSION,
+          },
+        );
+        draft = applyStructuralBundleRepairPatch({
+          draft,
+          authority: structuralBundleAuthority,
+          patch: parseStructuralBundleRepairPatch(rawPatch),
         });
       } else if (pageContractAffectedPages) {
         const rawPatch = await deps.callLLM(

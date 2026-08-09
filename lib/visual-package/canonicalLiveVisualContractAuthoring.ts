@@ -183,6 +183,10 @@ function authoringRequestValue(
     object.pageSpatialReferenceRepairStructuredOutput,
     'visual contract authoring request pageSpatialReferenceRepairStructuredOutput',
   );
+  const structuralBundleRepairStructuredOutput = objectValue(
+    object.structuralBundleRepairStructuredOutput,
+    'visual contract authoring request structuralBundleRepairStructuredOutput',
+  );
   const tokenBudget = objectValue(
     object.tokenBudget,
     'visual contract authoring request tokenBudget',
@@ -226,6 +230,10 @@ function authoringRequestValue(
   const pageSpatialReferenceRepairPromptAuthority = objectValue(
     promptAuthority.pageSpatialReferenceRepair,
     'visual contract authoring request pageSpatialReferenceRepair promptAuthority',
+  );
+  const structuralBundleRepairPromptAuthority = objectValue(
+    promptAuthority.structuralBundleRepair,
+    'visual contract authoring request structuralBundleRepair promptAuthority',
   );
   const actionSemanticAuthority = objectValue(
     object.actionSemanticAuthority,
@@ -340,6 +348,26 @@ function authoringRequestValue(
       serializedSchemaDigest:
         pageSpatialReferenceRepairStructuredOutput.serializedSchemaDigest,
     },
+    structuralBundleRepairStructuredOutput: {
+      strict: structuralBundleRepairStructuredOutput.strict,
+      schemaName: structuralBundleRepairStructuredOutput.schemaName,
+      schemaVersion:
+        structuralBundleRepairStructuredOutput.schemaVersion,
+      schemaDigest:
+        structuralBundleRepairStructuredOutput.schemaDigest,
+      compatibilityProfileVersion:
+        structuralBundleRepairStructuredOutput.compatibilityProfileVersion,
+      compatibilityProfileDigest:
+        structuralBundleRepairStructuredOutput.compatibilityProfileDigest,
+      compatibilityEvidenceVersion:
+        structuralBundleRepairStructuredOutput.compatibilityEvidenceVersion,
+      compatibilityEvidenceDigest:
+        structuralBundleRepairStructuredOutput.compatibilityEvidenceDigest,
+      compatibilityStatus:
+        structuralBundleRepairStructuredOutput.compatibilityStatus,
+      serializedSchemaDigest:
+        structuralBundleRepairStructuredOutput.serializedSchemaDigest,
+    },
     toolsDisabled: object.toolsDisabled,
     noFallback: object.noFallback,
     transportRetries: object.transportRetries,
@@ -423,6 +451,14 @@ function authoringRequestValue(
         systemPromptDigest:
           pageSpatialReferenceRepairPromptAuthority.systemPromptDigest,
       },
+      structuralBundleRepair: {
+        systemPromptVersion:
+          structuralBundleRepairPromptAuthority.systemPromptVersion,
+        userPromptVersion:
+          structuralBundleRepairPromptAuthority.userPromptVersion,
+        systemPromptDigest:
+          structuralBundleRepairPromptAuthority.systemPromptDigest,
+      },
     },
     actionSemanticAuthority: {
       catalogVersion:
@@ -457,6 +493,7 @@ const REQUEST_KEYS = new Set([
   'compactRepairStructuredOutput',
   'pageContractRepairStructuredOutput',
   'pageSpatialReferenceRepairStructuredOutput',
+  'structuralBundleRepairStructuredOutput',
   'toolsDisabled',
   'noFallback',
   'transportRetries',
@@ -522,6 +559,18 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'compatibilityStatus',
     'serializedSchemaDigest',
   ]),
+  structuralBundleRepairStructuredOutput: new Set([
+    'strict',
+    'schemaName',
+    'schemaVersion',
+    'schemaDigest',
+    'compatibilityProfileVersion',
+    'compatibilityProfileDigest',
+    'compatibilityEvidenceVersion',
+    'compatibilityEvidenceDigest',
+    'compatibilityStatus',
+    'serializedSchemaDigest',
+  ]),
   tokenBudget: new Set([
     'maxInputTokens',
     'promptAndSchemaTokenUpperBound',
@@ -551,6 +600,7 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'sourceEvidenceIdRepair',
     'pageContractRepair',
     'pageSpatialReferenceRepair',
+    'structuralBundleRepair',
   ]),
   actionSemanticAuthority: new Set([
     'catalogVersion',
@@ -631,6 +681,18 @@ const REQUEST_OBJECT_FIELDS = {
     compatibilityStatus: 'string',
     serializedSchemaDigest: 'string',
   },
+  structuralBundleRepairStructuredOutput: {
+    strict: 'boolean',
+    schemaName: 'string',
+    schemaVersion: 'string',
+    schemaDigest: 'string',
+    compatibilityProfileVersion: 'string',
+    compatibilityProfileDigest: 'string',
+    compatibilityEvidenceVersion: 'string',
+    compatibilityEvidenceDigest: 'string',
+    compatibilityStatus: 'string',
+    serializedSchemaDigest: 'string',
+  },
   tokenBudget: {
     maxInputTokens: 'number',
     promptAndSchemaTokenUpperBound: 'number',
@@ -692,6 +754,11 @@ const PROMPT_AUTHORITY_FIELDS = {
     systemPromptDigest: 'string',
   },
   pageSpatialReferenceRepair: {
+    systemPromptVersion: 'string',
+    userPromptVersion: 'string',
+    systemPromptDigest: 'string',
+  },
+  structuralBundleRepair: {
     systemPromptVersion: 'string',
     userPromptVersion: 'string',
     systemPromptDigest: 'string',
