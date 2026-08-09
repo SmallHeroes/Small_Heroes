@@ -704,9 +704,9 @@ describe('exact zero-cost authoring preflight', () => {
           userPromptVersion: 'vc-repair-user-prompt/v10',
         },
         pageContractRepair: {
-          systemPromptVersion: 'page-contract-repair-prompt/v1',
+          systemPromptVersion: 'page-contract-repair-prompt/v2',
           userPromptVersion:
-            'page-contract-repair-user-prompt/v1',
+            'page-contract-repair-user-prompt/v2',
         },
       },
       pricing: {
@@ -1468,7 +1468,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v12',
+      version: 'visual-contract-authoring-readiness/v13',
       draftValidation: {
         status: 'interrupted',
         attempts: [
@@ -1516,7 +1516,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v12', async () => {
+  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v13', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const result = await runVisualContractAuthoring({
@@ -1533,7 +1533,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v12',
+      version: 'visual-contract-authoring-readiness/v13',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -1721,6 +1721,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v11',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v12',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -1763,11 +1769,23 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v14',
       ),
-    ).toBe('current');
+    ).toBe('legacy_immutable');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v12',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v15',
+      ),
+    ).toBe('current');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v13',
       ),
     ).toBe('current');
     expect(
@@ -1933,7 +1951,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).toThrow(
-      /receipt v13 requires exact typed draft-validation evidence/,
+      /receipt v15 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -1982,7 +2000,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v14',
+      'visual-contract-authoring-receipt/v15',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -3102,6 +3120,173 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       request.tokenBudget.maxInputTokens - admittedUpperBound,
     ).toBeGreaterThanOrEqual(4_096);
+  });
+
+  it('routes 12 structural failures through page repair, then one represented-elsewhere issue through a second page repair, with exactly three fake-provider calls', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const valid = fullyActionedBunnyDraft(snapshot);
+    const invalid = structuredClone(valid);
+    for (const page of invalid.pageContracts) page.camera = '';
+    const repairedPages = valid.pageContracts.map((page) => {
+      const repaired = structuredClone(
+        page,
+      ) as unknown as Record<string, unknown>;
+      delete repaired.castIds;
+      delete repaired.castStates;
+      delete repaired.characterPresence;
+      repaired.propConstraints ??= [];
+      repaired.actionRequirements ??= [];
+      return repaired;
+    });
+    const firstPage = repairedPages[0]!;
+    const firstCoverage = (
+      firstPage.actionSemanticCoverage as Array<{
+        beatId: string;
+        sourceEvidenceId: string;
+      }>
+    )[0]!;
+    firstPage.actionRequirements = [];
+    firstPage.actionSemanticCoverage = [
+      {
+        beatId: firstCoverage.beatId,
+        sourceEvidenceId: firstCoverage.sourceEvidenceId,
+        disposition: {
+          kind: 'represented_elsewhere',
+          contractPointer: '/pageContracts/0/locationId',
+          contractValue: firstPage.locationId,
+        },
+      },
+    ];
+    const representedElsewhereInvalid = structuredClone(
+      firstPage,
+    ) as Record<string, unknown>;
+    const coverage = representedElsewhereInvalid.actionSemanticCoverage as Array<{
+      disposition: { contractValue: string };
+    }>;
+    coverage[0]!.disposition.contractValue =
+      'stale-structured-value';
+    const firstRepairPages = [
+      representedElsewhereInvalid,
+      ...repairedPages.slice(1),
+    ];
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => ({
+        output:
+          args.attempt === 1
+            ? JSON.stringify(invalid)
+            : JSON.stringify({
+                pageContracts:
+                  args.attempt === 2
+                    ? firstRepairPages
+                    : [repairedPages[0]],
+              }),
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: `represented-elsewhere-response-${args.attempt}`,
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 2_000,
+            total_tokens: 3_000,
+            output_tokens_details: { reasoning_tokens: 500 },
+          },
+        },
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'completed',
+      callCount: 3,
+      repairCount: 2,
+      failure: null,
+      draftValidationStatus: 'completed',
+    });
+    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([
+        null,
+        'page_contract_patch',
+        'page_contract_patch',
+      ]);
+    expect(
+      result.receipt.attempts[0].draftValidationDiagnostics,
+    ).toMatchObject({
+      emittedCount: 12,
+      currentUniqueCount: 12,
+      finalAttempt: false,
+    });
+    expect(
+      result.receipt.attempts[1].draftValidationDiagnostics,
+    ).toMatchObject({
+      emittedCount: 1,
+      currentUniqueCount: 1,
+      finalAttempt: false,
+    });
+    expect(
+      result.receipt.attempts[1].draftValidationDiagnostics?.items,
+    ).toContainEqual(
+      expect.objectContaining({
+        issue: expect.objectContaining({
+          family: 'action_semantic',
+          code: 'represented_elsewhere_value_mismatch',
+        }),
+      }),
+    );
+    expect(
+      result.receipt.attempts[2].draftValidationDiagnostics,
+    ).toMatchObject({
+      emittedCount: 0,
+      currentUniqueCount: 0,
+      finalAttempt: true,
+    });
+    const thirdCall = vi.mocked(provider.call).mock.calls[2]![0];
+    expect(thirdCall.options.jsonSchema?.name).toBe(
+      'PageContractRepairPatches',
+    );
+    const thirdPayload = JSON.parse(thirdCall.userPrompt);
+    expect(thirdPayload.affectedPages).toHaveLength(1);
+    expect(thirdPayload.affectedPages[0]).toMatchObject({
+      pageNumber: 1,
+      repairTargets: [
+        {
+          family: 'action_semantic',
+          code: 'represented_elsewhere_value_mismatch',
+          pageNumber: 1,
+        },
+      ],
+    });
+    expect(
+      thirdPayload.affectedPages[0].permittedPointerValues,
+    ).toContainEqual({
+      contractPointer: '/pageContracts/0/locationId',
+      contractValue: repairedPages[0]!.locationId,
+    });
+    expect(thirdCall.userPrompt).not.toContain('validatorErrors');
+    expect(thirdCall.userPrompt).not.toContain('does not exactly match');
+    expect(thirdCall.userPrompt).not.toContain('provider');
+    expect(thirdCall.userPrompt).not.toContain('stack');
+    expect(thirdCall.userPrompt).not.toContain('credential');
+    const thirdPromptUpperBound =
+      Buffer.byteLength(
+        [
+          thirdCall.systemPrompt,
+          thirdCall.userPrompt,
+          JSON.stringify(thirdCall.options.jsonSchema?.schema),
+        ].join('\n'),
+        'utf8',
+      ) + 4_096;
+    expect(thirdPromptUpperBound).toBeLessThanOrEqual(64_000);
+    expect(64_000 - thirdPromptUpperBound).toBeGreaterThanOrEqual(
+      4_096,
+    );
   });
 
   it('rechecks the 64k input ceiling before a repair and never reaches the provider for an oversized repair prompt', async () => {

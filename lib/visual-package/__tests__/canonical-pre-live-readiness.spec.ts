@@ -527,7 +527,7 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v9',
+            'canonical-live-request-verification/v10',
           structuredOutputCompatibility: {
             schemaName: 'BookVisualContractTemplateDraft',
             schemaVersion: 'vc-draft-schema/v13',
@@ -556,7 +556,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v8',
+            'canonical-live-execution-readiness/v9',
         },
       },
     });
