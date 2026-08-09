@@ -51,7 +51,10 @@ export type ContractLlmPromptAuthority =
     }
   | {
       kind: 'repair';
-      repairMode: 'full_draft' | 'source_evidence_id_patch';
+      repairMode:
+        | 'full_draft'
+        | 'source_evidence_id_patch'
+        | 'page_contract_patch';
       systemPromptVersion: string;
       userPromptVersion: string;
     };

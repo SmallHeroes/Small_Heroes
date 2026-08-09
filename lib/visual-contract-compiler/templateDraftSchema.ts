@@ -313,7 +313,15 @@ const actionSemanticCoverage = obj({
   disposition: actionSemanticCoverageDisposition,
 });
 
-const pageContract = obj({
+/**
+ * Strict page-contract member schema. Exported so the bounded page-only repair
+ * route can reuse the exact authoring authority instead of maintaining a
+ * second, drift-prone copy.
+ */
+export const TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA: Record<
+  string,
+  unknown
+> = obj({
   pageNumber: { type: 'number' },
   locationId: { type: 'string' },
   zoneId: { type: 'string' },
@@ -346,7 +354,10 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
   recurringProps: { type: 'array', items: prop },
   forbiddenGlobalElements: stringArray,
   coverContract,
-  pageContracts: { type: 'array', items: pageContract },
+  pageContracts: {
+    type: 'array',
+    items: TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
+  },
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */

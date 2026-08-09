@@ -25,6 +25,10 @@ import {
   SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
 } from '../visual-contract-compiler/sourceEvidenceIdRepair';
 import { TEMPLATE_DRAFT_SCHEMA_NAME } from '../visual-contract-compiler/templateDraftSchema';
+import {
+  PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+  PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+} from '../visual-contract-compiler/pageContractRepair';
 import { VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS } from '../visual-contract-compiler/authoringPolicy';
 import { InvalidTemplateContractError } from '../visual-contract-compiler/validateTemplateContract';
 import { extractDeterministicFacts } from '../visual-contract-compiler/extractDeterministicFacts';
@@ -467,5 +471,82 @@ describe('Source Evidence ID compact repair', () => {
     expect(calls[1]!.system).toMatch(/REPAIRING/);
     expect(calls[1]!.user).toContain('PREVIOUS (INVALID) DRAFT');
     expect(result.repairAttempts[0]!.nextRepairMode).toBe('full_draft');
+  });
+});
+
+describe('page-contract compact repair routing', () => {
+  it('repairs an all-page final structural failure without resending the full draft', async () => {
+    const invalid = bunnyDraft();
+    invalid.pageContracts[0].camera = '';
+    const validPage = structuredClone(bunnyDraft().pageContracts[0]);
+    delete validPage.castIds;
+    delete validPage.characterPresence;
+    validPage.propConstraints ??= [];
+    validPage.actionRequirements ??= [];
+    const calls: Array<{
+      user: string;
+      options: Parameters<ContractLlmCaller>[2];
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      user,
+      options,
+      authority,
+    ) => {
+      calls.push({ user, options, authority });
+      return calls.length === 1
+        ? JSON.stringify(invalid)
+        : JSON.stringify({ pageContracts: [validPage] });
+    };
+
+    const result = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: caller,
+    });
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.authority).toEqual({
+      kind: 'repair',
+      repairMode: 'page_contract_patch',
+      systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+      userPromptVersion: 'page-contract-repair-user-prompt/v1',
+    });
+    expect(calls[1]!.options?.jsonSchema?.name).toBe(
+      PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+    );
+    const payload = JSON.parse(calls[1]!.user);
+    expect(payload.affectedPages).toHaveLength(1);
+    expect(payload.affectedPages[0].pageNumber).toBe(1);
+    expect(payload).not.toHaveProperty('worldType');
+    expect(result.provenance.attempt).toBe(2);
+    expect(result.provenance.repairPromptVersion).toBe(
+      PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+    );
+    expect(result.repairAttempts[0]!.nextRepairMode).toBe(
+      'page_contract_patch',
+    );
+  });
+
+  it('keeps mixed page and non-page structural failures on full-draft repair', async () => {
+    const invalid = bunnyDraft();
+    invalid.pageContracts[0].camera = '';
+    invalid.recurringProps[0].material = '';
+    const calls: Array<Parameters<ContractLlmCaller>[3]> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      _user,
+      _options,
+      authority,
+    ) => {
+      calls.push(authority);
+      return JSON.stringify(calls.length === 1 ? invalid : bunnyDraft());
+    };
+    await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: caller,
+    });
+    expect(calls[1]).toMatchObject({
+      kind: 'repair',
+      repairMode: 'full_draft',
+    });
   });
 });

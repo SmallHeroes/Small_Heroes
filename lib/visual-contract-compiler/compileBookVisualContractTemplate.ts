@@ -112,6 +112,18 @@ import {
   parseSourceEvidenceIdPatches,
   type SourceEvidenceIdRepairAffectedRecord,
 } from './sourceEvidenceIdRepair';
+import {
+  PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+  PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+  PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+  PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
+  applyPageContractRepairs,
+  buildPageContractRepairSystemPrompt,
+  buildPageContractRepairUserPrompt,
+  pageContractRepairAffectedPages,
+  parsePageContractRepairs,
+  type PageContractRepairAffectedPage,
+} from './pageContractRepair';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -178,13 +190,17 @@ interface TemplateRepairAttempt {
   /** Narrow patch or existing whole-draft repair selected after this failure. */
   nextRepairMode?:
     | 'source_evidence_id_patch'
+    | 'page_contract_patch'
     | 'full_draft';
 }
 
 export interface TemplateRepairSummary {
   attempt: number;
   diagnosticIssues: readonly DraftValidationIssue[];
-  nextRepairMode?: 'source_evidence_id_patch' | 'full_draft';
+  nextRepairMode?:
+    | 'source_evidence_id_patch'
+    | 'page_contract_patch'
+    | 'full_draft';
 }
 
 function sourceEvidenceIdDiagnosticIssues(
@@ -385,6 +401,7 @@ export class TemplateRepairOutputInvalidError extends Error {
     readonly repairAttempt: number,
     readonly repairMode:
       | 'source_evidence_id_patch'
+      | 'page_contract_patch'
       | 'full_draft',
   ) {
     super('completed template repair output was unusable');
@@ -2652,6 +2669,9 @@ export async function compileBookVisualContractTemplate(
   assertOpenAIResponsesStructuredOutputSchemaCompatible(
     SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
   );
+  assertOpenAIResponsesStructuredOutputSchemaCompatible(
+    PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+  );
 
   const facts = extractDeterministicFacts(input);
 
@@ -2682,6 +2702,13 @@ export async function compileBookVisualContractTemplate(
       schema: SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
     },
   } satisfies ContractLlmCallOptions;
+  const pageContractRepairLlmOpts = {
+    ...llmOpts,
+    jsonSchema: {
+      name: PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+      schema: PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+    },
+  } satisfies ContractLlmCallOptions;
 
   let draft = asObj(
     parseContractJson(
@@ -2707,6 +2734,9 @@ export async function compileBookVisualContractTemplate(
     let attemptDiagnosticIssues: readonly DraftValidationIssue[] = [];
     let sourceEvidenceAffectedRecords:
       | SourceEvidenceIdRepairAffectedRecord[]
+      | null = null;
+    let pageContractAffectedPages:
+      | PageContractRepairAffectedPage[]
       | null = null;
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
@@ -2741,6 +2771,13 @@ export async function compileBookVisualContractTemplate(
       }
     }
 
+    if (!assembled && !sourceEvidenceAffectedRecords) {
+      pageContractAffectedPages = pageContractRepairAffectedPages({
+        draft,
+        diagnosticIssues: attemptDiagnosticIssues,
+      });
+    }
+
     if (assembled) {
       const lastRepairMode =
         repairAttempts[repairAttempts.length - 1]?.nextRepairMode;
@@ -2757,6 +2794,8 @@ export async function compileBookVisualContractTemplate(
               repairPromptVersion:
                 lastRepairMode === 'source_evidence_id_patch'
                   ? SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION
+                  : lastRepairMode === 'page_contract_patch'
+                    ? PAGE_CONTRACT_REPAIR_PROMPT_VERSION
                   : REPAIR_PROMPT_VERSION,
             }
           : {}),
@@ -2797,7 +2836,9 @@ export async function compileBookVisualContractTemplate(
 
     const repairMode = sourceEvidenceAffectedRecords
       ? 'source_evidence_id_patch'
-      : 'full_draft';
+      : pageContractAffectedPages
+        ? 'page_contract_patch'
+        : 'full_draft';
     repairAttempts[repairAttempts.length - 1]!.nextRepairMode =
       repairMode;
 
@@ -2829,6 +2870,29 @@ export async function compileBookVisualContractTemplate(
           catalog: input.sourceEvidenceCatalog,
           affectedRecords: sourceEvidenceAffectedRecords,
           patches: parseSourceEvidenceIdPatches(rawPatch),
+        });
+      } else if (pageContractAffectedPages) {
+        const rawPatch = await deps.callLLM(
+          buildPageContractRepairSystemPrompt(),
+          buildPageContractRepairUserPrompt({
+            draft,
+            affectedPages: pageContractAffectedPages,
+            errors: attemptErrors,
+          }),
+          pageContractRepairLlmOpts,
+          {
+            kind: 'repair',
+            repairMode: 'page_contract_patch',
+            systemPromptVersion:
+              PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+            userPromptVersion:
+              PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
+          },
+        );
+        draft = applyPageContractRepairs({
+          draft,
+          affectedPages: pageContractAffectedPages,
+          pageContracts: parsePageContractRepairs(rawPatch),
         });
       } else {
         draft = asObj(
