@@ -2,7 +2,22 @@
 
 **Updated:** 2026-08-09
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-represented-elsewhere-page-repair-routing` in `C:\Users\guyna\.codex\worktrees\1602\Small_Heroes`, based exactly on immutable pushed commit `1d2a5a8f6cfa72db3a4d2375c4728bb7305697b8`. The implementation range is independently PASSed; this documentation closeout remains local and unpushed.
+**Working branch:** `codex/r1d-pvb-d1a1b1-page-spatial-compact-repair-routing` in `C:\Users\guyna\.codex\worktrees\spatialcompact1\Small_Heroes`, based exactly on immutable pushed commit `22857995df578d366809226a5d693cd783a10ed7`. The implementation is complete locally in two green commits; independent Claude Code QA is pending and the branch remains unpushed.
+
+## R1D-PVB-D1A1B1-PAGE-SPATIAL-COMPACT-REPAIR-ROUTING — implementation complete / independent QA pending / repository release HOLD
+
+The latest consumed authoring attempt completed one provider response and returned five typed `page_spatial_reference_outside_zone` failures on pages 1, 2, and 4. They were repairable, but the existing router selected `full_draft`; that complete repair input exceeded the unchanged `64,000` ceiling before a second provider dispatch. This milestone routes only that closed family through the existing compact `page_contract_patch` boundary.
+
+- Eligibility is homogeneous and fail-closed. Exact typed page/action locators admit only `subject`, `object`, `spatialEffect.target`, and `spatialConstraint.target`, the four roles represented by the strict draft-page schema. Final-only `safetyConstraints.target`, mixed or malformed issues, missing authority, and every other failure retain prior behavior.
+- The compiler captures exact page-zone spatial authority after Set Board projection. Each compact page carries only its complete page contract, exact typed targets, and the sorted non-empty spatial-node set of its unique effective zone. Rejected authored values, fuzzy matching, prose parsing, guessed IDs, and story-specific production literals are never authority.
+- Patch parsing/application remain exact-set, clone/non-mutating, and complete-page. Full assembly, authority, Action Semantic, candidate, Blueprint/Wizard feasibility, and downstream validation rerun after repair.
+- The exact five-issue calibration is reduced to three affected page contracts, remains below the unchanged `64,000` input ceiling with more than `4,096` conservative units of headroom, and contains no complete authoring-facts block.
+- Authority cutovers are page repair prompts v3; Visual Contract request v13, receipt v16, readiness v14; canonical materialization/verification v11; Execution Request/readiness v10; and Pre-Live Readiness evidence v10. Prior authorities are immutable and legacy-only. Draft schema v13, candidate v7, Blueprint v4, Wizard, and render semantics are unchanged.
+- Green commits are `3d92615b` and `bc2c1311`. Focused validation passed **4 files / 96 tests**, full source lifecycle **1 / 52**, canonical resource boundaries **5 / 233**, deterministic TypeScript, and `git diff --check`.
+- Literal `npm run check` ran once and was not retried. Inventory was **287** files: the **19** resource-intensive files passed at two workers in `96,383 ms` with valid diagnostics and no infrastructure class; the **268** ordinary files reported exactly the six established missing ignored-output fixtures and no seventh failure. Repository/release status remains HOLD solely on those six pre-existing fixtures; they are not waived.
+- Model, service tier, reasoning, call/repair budgets, timeout, transport retries, fallback, `$4.884` reservation, and `$5.00` hard ceiling are unchanged. No credential, pricing/network/provider call, B0/Fresh Readiness, preflight, live authoring, candidate, render, storage/database, Board, approval, publication, deployment, or push occurred. Cost is `$0`.
+- Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_PAGE_SPATIAL_COMPACT_REPAIR_ROUTING_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_PAGE_SPATIAL_COMPACT_REPAIR_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
+- **Next action:** independent Claude Code read-only adversarial QA of `22857995..HEAD`. After PASS and explicit push, rematerialize Fresh Readiness on the exact pushed head and run one bounded authoring attempt. No candidate, Blueprint, Wizard, render, release, deployment, or push authority follows from this implementation.
 
 ## R1D-PVB-D1A1B1-REPRESENTED-ELSEWHERE-PAGE-REPAIR-ROUTING - independent technical PASS / repository release HOLD
 
