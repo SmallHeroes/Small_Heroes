@@ -4,6 +4,19 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-pvb-d1a1b1-field-scoped-page-spatial-repair` in `C:\Users\guyna\.codex\worktrees\spatialfield1\Small_Heroes`, based exactly on pushed commit `40fd3968e2bb73297a9e10c14acfae31e1ce1a30`.
 
+## R1D-PVB-D1A1B1-POST-FIELD-SCOPED-SPATIAL-LIVE-ATTEMPT - execution-record PASS / attempt exhausted / no candidate
+
+Fresh Readiness at pushed `ab1bf2055167a18cdd927c2f94583edd238f548e` passed and the bounded live attempt reached OpenAI. The field-scoped `page_spatial_reference_patch` worked: it resolved all three original spatial-reference failures using 642 input and 282 output tokens while preserving unrelated fields. Whole-book validation then exposed a different closed set: one `recurring_props/final_structure` collection identity plus page `final_structure` identities for pages 1-12. Because the existing compact route can replace pages only, routing correctly selected `full_draft`; that third request exceeded the unchanged 64K ceiling before provider reachability.
+
+- Receipt v17 `b6380ac57f1d0e3213a5007a7bf3e4544890a23bcd92cff5b6880f4b1a51f323`; readiness v15 `a012cfa0287e64fb9aac7fa460e596bfdcb14df09d42e450ccc8b5887a97992f`.
+- Logical provider calls / repairs / retries / fallback: `2 / 1 / 0 / false`. Aggregate usage was input `18,073`, cache-write `17,428`, cached `0`, output `17,476`, reasoning `4,546`, total `35,549`. Nominal cost was `$0.636430`; conservative cost was `$0.700961` against projected `$4.884` and hard `$5.00`.
+- Terminal classification is `input_limit_violation / input_token_ceiling_exceeded / provider_admission / ineligible / input_limit_not_repairable`. Candidate and reconciliation are absent, Action Semantic coverage is `not_evaluated`, Blueprint readiness is false, and no render/downstream authority exists.
+- Claude Code independently audited the consumed 8-to-10 artifact delta and returned **PASS for execution-record fidelity**, zero BLOCKER and zero MAJOR. Its recurring non-blocking MINOR is that aggregate execution attestation degrades when attempt 3 is `not_run`; attempts 1-2 retain complete canonical adapter evidence and are the authority for route/dispatch/retry/fallback claims.
+- Runtime preflight/Supervisor/credential facts remain Task-transcript evidence rather than artifact-persisted facts. Cost is local canonical accounting, not a provider-account billing audit.
+- Durable record: `docs/ai-workflow/R1D_PVB_D1A1B1_POST_FIELD_SCOPED_SPATIAL_LIVE_ATTEMPT_EXECUTION_EVIDENCE.md`.
+- The next general gate is `R1D-PVB-D1A1B1-RECURRING-PROP-AND-PAGE-STRUCTURAL-BUNDLE-REPAIR`: a strict bounded bundle for exactly the global recurring-prop plus page structural identity set. Model, 64K ceiling, budgets, candidate, Blueprint, Wizard, and renderer remain unchanged.
+- The attempt is consumed. No retry, Fresh Readiness, provider, candidate, Reconciliation, Blueprint, Wizard, render, release, deployment, or push authority follows from this PASS.
+
 ## R1D-PVB-D1A1B1-FIELD-SCOPED-PAGE-SPATIAL-REPAIR - independent technical PASS / QA closed / repository release HOLD
 
 The post-spatial-compact bounded live attempt reached OpenAI and consumed exactly three logical calls: one initial response and two `page_contract_patch` repairs. The first repair resolved all six original typed page-spatial reference failures, but complete-page replacement introduced twelve `final_structural_invariant_invalid` issues, one for every page 1-12. The final repair preserved those twelve issues. Receipt v16 `fbcfafb0...` and readiness v14 `20a5c505...` truthfully record `draft_validation_repair_exhausted`; candidate and reconciliation are absent, Blueprint readiness is false, and no render or downstream authority exists. Conservative authoring cost was `$1.376857`.
