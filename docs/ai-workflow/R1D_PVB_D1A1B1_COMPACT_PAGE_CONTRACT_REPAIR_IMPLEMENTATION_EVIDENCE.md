@@ -1,6 +1,6 @@
 # Implementation Evidence — R1D-PVB-D1A1B1-COMPACT-PAGE-CONTRACT-REPAIR
 
-**Status:** implementation and bounded validation resume complete locally; independent Claude Code QA pending; repository/release HOLD remains at the six established ignored-fixture failures. Codex does not self-award technical PASS.
+**Status:** Claude Code independently returned TECHNICAL PASS for the exact immutable implementation range with zero findings; repository/release HOLD remains at the six established ignored-fixture failures. Codex records the external verdict and does not self-award technical PASS.
 **Date:** 2026-08-09
 **Exact base:** `41ffec0aeb8a6ab0344956134bb22edfd22175ec`
 **Branch:** `codex/r1d-pvb-d1a1b1-compact-page-contract-repair`
@@ -132,6 +132,32 @@ No assertion, test timeout, RPC/IPC, reporter, launch, signal, teardown, or diag
 
 This replacement proves the affected resource suite can complete cleanly under the approved bounded worker setting. It does not erase the original infrastructure failure and does not turn the literal repository gate green; the six ignored-fixture failures remain release-blocking.
 
+## Independent Claude Code QA
+
+Claude Code independently reviewed exact immutable range `41ffec0aeb8a6ab0344956134bb22edfd22175ec..d8acbbe7e40a6f483959b562d62115efb0897a04` read-only and returned **TECHNICAL PASS** with **zero BLOCKER, zero MAJOR, and zero MINOR**. Codex records Claude Code's independent verdict; it does not self-award technical PASS.
+
+Claude independently confirmed:
+
+- exact three-commit, zero-merge topology; clean worktree; blob-identical `package.json` and `package-lock.json`; and clean range `git diff --check`;
+- workload classifier **1 file / 7 tests**, source lifecycle **1 / 51**, deterministic TypeScript, and the complete replacement resource phase at exactly **19 files / 547 tests PASS**, exit `0`, one worker and no timeout;
+- 17 eligibility cases covering the three accepted page/page-item forms and all empty, mixed, unsafe, malformed, out-of-draft, non-integral and duplicate-draft-page rejection classes;
+- 15 direct fail-closed parser/application rejection cases, caller non-mutation, affected-page-only replacement and byte-identical preservation of non-page values;
+- the 12-page two-call lifecycle, `page_contract_patch` accounting, candidate digest, dedicated schema and at least `4,096` units of production-formula headroom;
+- the compact request's exact affected-page/error/reference shape and absence of complete-draft/unrelated authority fields;
+- B0, verifier, Execution Request, Supervisor and Fresh Readiness authority binding and pre-provider tamper rejection;
+- byte-neutral draft-schema serialization against the prior readiness anchor, candidate v7 stability, complete legacy/current cutover registration and unchanged model/budget/timeout/retry/fallback/cost fences; and
+- absence of story-specific literals, fuzzy matching, credential/network reachability, external dependencies or excluded external actions.
+
+Claude's advisories are retained as non-blocking limitations:
+
+1. **A1 — version-cutover handoff framing:** nine authority versions cut over: request v10 to v11, receipt v13 to v14, readiness v11 to v12, materialization/verification v8 to v9, execution-request materialization result v4 to v5, execution request/readiness v7 to v8, and pre-live readiness evidence v7 to v8. The repository documentation already discloses them and each predecessor is `legacy_immutable`. Operationally, every prior Fresh Readiness bundle is legacy; new authority must be materialized on a later pushed closeout head.
+2. **A2 — schema/runtime responsibility:** the dedicated JSON schema enforces strict complete page-contract shape and a non-empty array. Exact equality with the affected page set is enforced by `parsePageContractRepairs` and `applyPageContractRepairs`, not by JSON Schema alone. The combined behavior is correct and fail-closed.
+3. **A3 — independent reproduction scope:** Claude did not run the ordinary phase or literal `npm run check`. The `287 / 268 / 19` inventory and exact six-fixture ordinary failure record remain Codex evidence. The separate repository/release HOLD remains in force.
+4. **A4 — discarded false alarm:** Claude's first draft-schema digest calculation used a guessed formula and mismatched. Under the production compatibility formula, the serialized digest reproduced the prior readiness anchor exactly; the intermediate mismatch is not evidence of drift.
+5. **A5 — elapsed boundaries:** `224.36 s` is Vitest's duration and `227642 ms` is the enclosing phase-runner wall time. Both values are accurate and measure different boundaries.
+
+Claude's technical PASS grants no product, visual, Fresh Readiness, spend, provider, live-authoring, candidate, Semantic Reconciliation, Blueprint, Wizard, render, publication, release or deployment authority. No further Claude round is required for a faithful documentation-only transcription unless a factual discrepancy is identified.
+
 ## Commit scope
 
 Commit 1 owns the compiler contract and direct repair behavior:
@@ -153,7 +179,7 @@ The final documentation commit adds only `CURRENT.md` and this implementation-ev
 
 No credential check/read/load, pricing lookup, network/provider/model call, real B0 materialization, Fresh Readiness, canonical preflight, live authoring, candidate generation, Semantic Reconciliation, Blueprint/Wizard execution, render/image/Vision, storage/database, Board action, approval, publication, promotion, production activation, deployment, PR, or push occurred. No historical artifact was rewritten or reinterpreted.
 
-Accordingly, this milestone grants no Fresh Readiness, spend, live-authoring, candidate, Blueprint, Wizard, render, product, visual, release, deployment, or push authority. Independent Claude Code technical QA remains required.
+Accordingly, this milestone grants no Fresh Readiness, spend, live-authoring, candidate, Blueprint, Wizard, render, product, visual, release, deployment, or push authority. Independent Claude Code technical QA passed the immutable implementation range; a new pushed head and new Fresh Readiness are still required before any bounded live attempt.
 
 ## Rollback
 
