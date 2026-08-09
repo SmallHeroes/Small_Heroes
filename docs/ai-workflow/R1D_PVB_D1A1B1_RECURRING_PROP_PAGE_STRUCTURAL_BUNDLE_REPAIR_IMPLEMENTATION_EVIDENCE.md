@@ -2,7 +2,7 @@
 
 Date: `2026-08-10`
 
-Status: **independent technical PASS on the original implementation; focused MINOR correction pending micro re-gate; repository/release HOLD at the established six-fixture baseline**
+Status: **independent technical PASS; focused MINOR independently closed; repository/release HOLD at the established six-fixture baseline**
 
 Decision Gate: `docs/ai-workflow/R1D_PVB_D1A1B1_RECURRING_PROP_PAGE_STRUCTURAL_BUNDLE_REPAIR_DECISION_GATE.md`
 
@@ -110,7 +110,7 @@ Engineering acceptance criteria are met locally:
 7. unchanged model, service tier, budgets, timeout, retry/fallback, candidate, Blueprint, Wizard and renderer;
 8. focused, TypeScript and repository-gate evidence with the historical fixture HOLD separated truthfully.
 
-The original implementation range has independent technical PASS. The focused correction below still requires a read-only micro re-gate. Codex does not self-award that closure. This record grants no credentials, pricing/provider call, Fresh Readiness, preflight, live authoring, candidate approval, Semantic Reconciliation, Blueprint/Wizard, render, storage/database, publication, deployment, or push authority.
+The original implementation range has independent technical PASS, and the focused correction below is independently closed. Codex does not self-award either verdict. This record grants no credentials, pricing/provider call, Fresh Readiness, preflight, live authoring, candidate approval, Semantic Reconciliation, Blueprint/Wizard, render, storage/database, publication, deployment, or push authority.
 
 ## Independent QA and focused correction
 
@@ -128,7 +128,7 @@ Focused correction validation:
 
 `npm run check` was intentionally not rerun for this narrow correction. The original single-run evidence and separate six-fixture release HOLD remain unchanged.
 
-Claude's advisory notes remain recorded without scope expansion: explicit named tamper tests are uneven across two surfaces whose production bindings are present; the three-call lifecycle does not directly assert per-attempt retry/fallback fields although the unchanged constants prohibit them; Claude did not independently run `npm run check`; and the documentation was faithful. Independent closure of the MINOR remains pending a read-only micro re-gate of the focused correction range.
+Claude's advisory notes remain recorded without scope expansion: explicit named tamper tests are uneven across two surfaces whose production bindings are present; the three-call lifecycle does not directly assert per-attempt retry/fallback fields although the unchanged constants prohibit them; Claude did not independently run `npm run check`; and the documentation was faithful. Claude Code independently re-gated exact correction range `6c21e2c32e5bbaee761275230c9eb22939937d26..cddd8ea9318ad4f0f3c92884314243baef3f17d6`, returned **PASS**, closed MINOR-1, and reported zero new BLOCKER, MAJOR, or MINOR. No further Claude round is required unless this documentation transcription is factually disputed.
 
 ## Rollback
 
