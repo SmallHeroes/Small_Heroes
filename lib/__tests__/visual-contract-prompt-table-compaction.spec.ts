@@ -39,6 +39,14 @@ import {
   TEMPLATE_DRAFT_SCHEMA_VERSION,
 } from '../visual-contract-compiler/templateDraftSchema';
 import {
+  PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+  buildPageContractRepairSystemPrompt,
+  buildPageContractRepairUserPrompt,
+  pageContractRepairAffectedPages,
+} from '../visual-contract-compiler/pageContractRepair';
+import type { DraftAuthorityReferenceIssue } from '../visual-contract-compiler/draftAuthorityReferenceDiagnostics';
+import type { DraftValidationIssue } from '../visual-contract-compiler/draftValidationDiagnostics';
+import {
   buildStorySourceAuthoritySnapshot,
   buildVisualContractAuthoringRequest,
   canonicalJsonDigest,
@@ -293,12 +301,10 @@ describe('Visual Contract prompt authority-table compaction', () => {
     expect(pageSixEntries.length).toBeGreaterThan(0);
   });
 
-  it('keeps the exact five-issue Fox page-spatial full-draft repair below 64K with safety headroom', () => {
+  it('keeps the exact five-issue Fox page-spatial compact repair below 64K with safety headroom', () => {
     const snapshot = approvedSnapshot(
       'fox_uri_adventure.md',
     );
-    const input = storySourceSnapshotToTemplateInput(snapshot);
-    const facts = extractDeterministicFacts(input);
     const previousDraft = JSON.parse(
       fs.readFileSync(
         path.join(
@@ -308,38 +314,87 @@ describe('Visual Contract prompt authority-table compaction', () => {
         'utf8',
       ),
     ) as Record<string, unknown>;
-    const errors = [
+    const positions = [
       [1, 0],
       [1, 1],
       [2, 0],
       [2, 1],
       [4, 0],
-    ].map(
-      ([pageNumber, actionIndex]) =>
-        `page_spatial_reference_outside_zone: page ${pageNumber} actionRequirements[${actionIndex}].object must use an exact spatialNodes id declared by that page's zone, or a schema-valid non-spatial typed reference; do not change page zone authority`,
+    ] as const;
+    const authorityIssues: DraftAuthorityReferenceIssue[] = positions.map(
+      ([pageNumber, actionIndex]) => ({
+        code: 'page_spatial_reference_outside_zone',
+        locator: {
+          kind: 'page_spatial_action',
+          referenceClass: 'page_spatial_selection',
+          fieldRole: 'object',
+          pageNumber,
+          actionIndex,
+        },
+      }),
     );
-    const systemPrompt = buildTemplateRepairSystemPrompt();
-    const userPrompt = buildTemplateRepairUserPrompt(
-      previousDraft,
-      errors,
-      facts,
-      input,
+    const diagnosticIssues: DraftValidationIssue[] = positions.map(
+      ([pageNumber, actionIndex]) => ({
+        family: 'draft_contract',
+        code: 'out_of_scope_reference',
+        locator: {
+          kind: 'page_item',
+          collectionRole: 'page_actions',
+          fieldRole: 'reference',
+          pageNumber,
+          itemIndex: actionIndex,
+        },
+      }),
     );
+    const affectedPages = pageContractRepairAffectedPages({
+      draft: previousDraft,
+      diagnosticIssues,
+      pageSpatialIssues: authorityIssues,
+      pageSpatialAuthority: [...new Set(positions.map(([page]) => page))]
+        .sort((left, right) => left - right)
+        .map((pageNumber) => {
+          const pageContract = (
+            previousDraft.pageContracts as Array<Record<string, unknown>>
+          ).find((page) => page.pageNumber === pageNumber)!;
+          const zone = (
+            previousDraft.zones as Array<Record<string, unknown>>
+          ).find((candidate) => candidate.id === pageContract.zoneId)!;
+          return {
+            pageNumber,
+            zoneId: String(pageContract.zoneId),
+            permittedSpatialReferences: (
+              zone.spatialNodes as Array<Record<string, unknown>>
+            ).map((node) => ({
+              id: String(node.id),
+              kind: String(node.kind),
+              description: String(node.description),
+            })),
+          };
+        }),
+    });
+    expect(affectedPages?.map((page) => page.pageNumber)).toEqual([
+      1, 2, 4,
+    ]);
+    const systemPrompt = buildPageContractRepairSystemPrompt();
+    const userPrompt = buildPageContractRepairUserPrompt({
+      affectedPages: affectedPages!,
+    });
     const promptAndSchemaTokenUpperBound =
       Buffer.byteLength(
         [
           systemPrompt,
           userPrompt,
-          JSON.stringify(TEMPLATE_DRAFT_JSON_SCHEMA),
+          JSON.stringify(PAGE_CONTRACT_REPAIR_JSON_SCHEMA),
         ].join('\n'),
         'utf8',
       ) + 4_096;
 
-    expect(promptAndSchemaTokenUpperBound).toBe(62_242);
+    expect(promptAndSchemaTokenUpperBound).toBeLessThan(64_000);
     expect(64_000 - promptAndSchemaTokenUpperBound).toBeGreaterThan(
-      1_024,
+      4_096,
     );
-    expect(userPrompt).not.toContain('outside_zone_');
+    expect(userPrompt).toContain('permittedSpatialReferences');
+    expect(userPrompt).not.toContain('AUTHORITATIVE FACTS');
   });
 
   it('saves the approved exact Fox upper-bound units while preserving the immutable draft schema', () => {

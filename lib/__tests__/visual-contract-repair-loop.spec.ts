@@ -509,7 +509,7 @@ describe('page-contract compact repair routing', () => {
       kind: 'repair',
       repairMode: 'page_contract_patch',
       systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'page-contract-repair-user-prompt/v2',
+      userPromptVersion: 'page-contract-repair-user-prompt/v3',
     });
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
       PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
@@ -525,6 +525,7 @@ describe('page-contract compact repair routing', () => {
       },
     ]);
     expect(payload.affectedPages[0].permittedPointerValues).toEqual([]);
+    expect(payload.affectedPages[0].permittedSpatialReferences).toEqual([]);
     expect(payload).not.toHaveProperty('validatorErrors');
     expect(payload).not.toHaveProperty('referenceAuthority');
     expect(payload).not.toHaveProperty('worldType');

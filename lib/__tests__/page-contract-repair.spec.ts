@@ -12,6 +12,7 @@ import {
 } from '@/lib/visual-contract-compiler/pageContractRepair';
 import type { DraftValidationIssue } from '@/lib/visual-contract-compiler/draftValidationDiagnostics';
 import type { ActionSemanticCoverageTemplate } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
+import type { DraftAuthorityReferenceIssue } from '@/lib/visual-contract-compiler/draftAuthorityReferenceDiagnostics';
 
 function page(pageNumber: number) {
   return {
@@ -58,6 +59,97 @@ function draft() {
     coverContract: { marker: 'preserved' },
     pageContracts: [page(1), page(2)],
   };
+}
+
+function spatialDraft(): Record<string, unknown> {
+  const value = draft() as Record<string, unknown>;
+  value.zones = [
+    {
+      id: 'zone:1',
+      locationId: 'loc:home',
+      spatialNodes: [
+        {
+          id: 'node:window',
+          kind: 'window',
+          description: 'the window beside the reading chair',
+        },
+        {
+          id: 'node:door',
+          kind: 'doorway',
+          description: 'the doorway into the hall',
+        },
+      ],
+    },
+    { id: 'zone:2', locationId: 'loc:home', spatialNodes: [] },
+  ];
+  return value;
+}
+
+function pageSpatialIssue(
+  fieldRole:
+    | 'subject'
+    | 'object'
+    | 'spatialEffect.target'
+    | 'spatialConstraint.target'
+    | 'safetyConstraints.target',
+  itemIndex = 0,
+): DraftAuthorityReferenceIssue {
+  return fieldRole === 'safetyConstraints.target'
+    ? {
+        code: 'page_spatial_reference_outside_zone',
+        locator: {
+          kind: 'page_spatial_safety_constraint',
+          referenceClass: 'page_spatial_selection',
+          fieldRole,
+          pageNumber: 1,
+          safetyConstraintIndex: itemIndex,
+        },
+      }
+    : {
+        code: 'page_spatial_reference_outside_zone',
+        locator: {
+          kind: 'page_spatial_action',
+          referenceClass: 'page_spatial_selection',
+          fieldRole,
+          pageNumber: 1,
+          actionIndex: itemIndex,
+        },
+      };
+}
+
+function pageSpatialDiagnostic(itemIndex = 0): DraftValidationIssue {
+  return {
+    family: 'draft_contract',
+    code: 'out_of_scope_reference',
+    locator: {
+      kind: 'page_item',
+      collectionRole: 'page_actions',
+      fieldRole: 'reference',
+      pageNumber: 1,
+      itemIndex,
+    },
+  };
+}
+
+function pageSpatialAuthority() {
+  return [
+    {
+      pageNumber: 1,
+      zoneId: 'zone:1',
+      permittedSpatialReferences: [
+        {
+          id: 'node:window',
+          kind: 'window',
+          description: 'the window beside the reading chair',
+        },
+        {
+          id: 'node:door',
+          kind: 'doorway',
+          description: 'the doorway into the hall',
+        },
+      ],
+    },
+  ];
 }
 
 function issue(pageNumber: number): DraftValidationIssue {
@@ -176,6 +268,124 @@ describe('page-contract compact repair', () => {
       ).not.toContain('999');
     },
   );
+
+  it.each([
+    'subject',
+    'object',
+    'spatialEffect.target',
+    'spatialConstraint.target',
+  ] as const)(
+    'admits the closed page-spatial %s locator with exact zone authority',
+    (fieldRole) => {
+      const affected = pageContractRepairAffectedPages({
+        draft: spatialDraft(),
+        diagnosticIssues: [pageSpatialDiagnostic()],
+        pageSpatialIssues: [pageSpatialIssue(fieldRole)],
+        pageSpatialAuthority: pageSpatialAuthority(),
+      });
+      expect(affected).toMatchObject([
+        {
+          pageNumber: 1,
+          repairTargets: [
+            {
+              family: 'draft_contract',
+              code: 'page_spatial_reference_outside_zone',
+              pageNumber: 1,
+              collectionRole: 'page_actions',
+              itemIndex: 0,
+              fieldRole,
+            },
+          ],
+          permittedPointerValues: [],
+          permittedSpatialReferences: [
+            {
+              id: 'node:door',
+              kind: 'doorway',
+              description: 'the doorway into the hall',
+            },
+            {
+              id: 'node:window',
+              kind: 'window',
+              description: 'the window beside the reading chair',
+            },
+          ],
+        },
+      ]);
+    },
+  );
+
+  it('keeps final-only safety-constraint locators off the strict draft-page repair schema', () => {
+    expect(
+      pageContractRepairAffectedPages({
+        draft: spatialDraft(),
+        diagnosticIssues: [pageSpatialDiagnostic()],
+        pageSpatialIssues: [
+          pageSpatialIssue('safetyConstraints.target'),
+        ],
+        pageSpatialAuthority: pageSpatialAuthority(),
+      }),
+    ).toBeNull();
+  });
+
+  it('rejects page-spatial input without exact issue parity or unique nonempty zone authority', () => {
+    const original = spatialDraft();
+    expect(
+      pageContractRepairAffectedPages({
+        draft: original,
+        diagnosticIssues: [],
+        pageSpatialIssues: [pageSpatialIssue('object')],
+        pageSpatialAuthority: pageSpatialAuthority(),
+      }),
+    ).toBeNull();
+
+    expect(
+      pageContractRepairAffectedPages({
+        draft: original,
+        diagnosticIssues: [pageSpatialDiagnostic()],
+        pageSpatialIssues: [pageSpatialIssue('object')],
+        pageSpatialAuthority: [
+          ...pageSpatialAuthority(),
+          ...pageSpatialAuthority(),
+        ],
+      }),
+    ).toBeNull();
+
+    expect(
+      pageContractRepairAffectedPages({
+        draft: original,
+        diagnosticIssues: [pageSpatialDiagnostic()],
+        pageSpatialIssues: [pageSpatialIssue('object')],
+        pageSpatialAuthority: [
+          {
+            pageNumber: 1,
+            zoneId: 'zone:1',
+            permittedSpatialReferences: [],
+          },
+        ],
+      }),
+    ).toBeNull();
+
+    expect(
+      pageContractRepairAffectedPages({
+        draft: original,
+        diagnosticIssues: [pageSpatialDiagnostic()],
+        pageSpatialIssues: [
+          {
+            code: 'recurring_prop_consumer_forbidden',
+            locator: {
+              kind: 'set_area_node',
+              referenceClass: 'recurring_prop',
+              fieldRole: 'spatialNodes.stablePropId',
+              authorityIndex: 0,
+              areaIndex: 0,
+              nodeIndex: 0,
+            },
+          },
+        ],
+        pageSpatialAuthority: pageSpatialAuthority(),
+      }),
+    ).toBeNull();
+  });
 
   it.each([
     [
@@ -340,7 +550,7 @@ describe('page-contract compact repair', () => {
     ).toBeNull();
   });
 
-  it('builds the v2 closed payload without prose, provider, secret, stack, or executable leakage', () => {
+  it('builds the v3 closed payload without prose, provider, secret, stack, or executable leakage', () => {
     const original = draft();
     Object.assign(original, {
       unrelatedStorySource: 'RAW_STORY_SOURCE_PROSE_SENTINEL',
@@ -361,10 +571,10 @@ describe('page-contract compact repair', () => {
     );
     expect(system).toContain('ONLY');
     expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
-      'page-contract-repair-prompt/v2',
+      'page-contract-repair-prompt/v3',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'page-contract-repair-user-prompt/v2',
+      'page-contract-repair-user-prompt/v3',
     );
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([
@@ -375,6 +585,7 @@ describe('page-contract compact repair', () => {
       },
     ]);
     expect(parsed.affectedPages[0].permittedPointerValues).toEqual([]);
+    expect(parsed.affectedPages[0].permittedSpatialReferences).toEqual([]);
     expect(parsed).not.toHaveProperty('validatorErrors');
     expect(parsed).not.toHaveProperty('referenceAuthority');
     expect(parsed).not.toHaveProperty('worldType');

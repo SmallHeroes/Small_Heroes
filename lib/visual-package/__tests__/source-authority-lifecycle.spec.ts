@@ -704,9 +704,9 @@ describe('exact zero-cost authoring preflight', () => {
           userPromptVersion: 'vc-repair-user-prompt/v10',
         },
         pageContractRepair: {
-          systemPromptVersion: 'page-contract-repair-prompt/v2',
+          systemPromptVersion: 'page-contract-repair-prompt/v3',
           userPromptVersion:
-            'page-contract-repair-user-prompt/v2',
+            'page-contract-repair-user-prompt/v3',
         },
       },
       pricing: {
@@ -2436,9 +2436,15 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         ),
       ]),
     ];
+    const repairedPageContract = structuredClone(
+      repairedPage,
+    ) as unknown as Record<string, unknown>;
+    delete repairedPageContract.castIds;
+    delete repairedPageContract.characterPresence;
+    repairedPageContract.propConstraints ??= [];
     const provider = sequencedSuccessfulProvider([
       invalid,
-      repaired,
+      { pageContracts: [repairedPageContract] },
     ]);
 
     const result = await runVisualContractAuthoring({
@@ -2486,7 +2492,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.attempts[1]).toMatchObject({
       kind: 'repair',
-      repairMode: 'full_draft',
+      repairMode: 'page_contract_patch',
       draftValidationDiagnostics: {
         emittedCount: 0,
         currentUniqueCount: 0,
@@ -2518,62 +2524,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
   it('binds a capability gap after full-draft repair to the completed repair attempt', async () => {
     const snapshot = bunnySnapshot();
     const invalid = fullyActionedBunnyDraft(snapshot);
-    const firstPage = invalid.pageContracts[0]!;
-    const zone = invalid.zones.find(
-      (candidate) => candidate.id === firstPage.zoneId,
-    );
-    if (!zone) throw new Error('missing capability-gap fixture zone');
-    zone.spatialNodes = [
-      {
-        id: 'fixture_waiting_chair',
-        kind: 'furniture',
-        description: 'A stable waiting-room chair.',
-      },
-    ];
-    zone.stableGeometry = projectZoneStableGeometry(zone)!;
-    const rejectedId = 'raw-provider-outside-zone-id';
-    (
-      firstPage.actionRequirements![0] as unknown as Record<
-        string,
-        unknown
-      >
-    ).object = { kind: 'spatial', id: rejectedId };
+    invalid.worldType = '';
 
     const repairedWithGap = structuredClone(invalid);
-    const repairedFirstPage = repairedWithGap.pageContracts.find(
-      (candidate) =>
-        candidate.pageNumber === firstPage.pageNumber,
-    )!;
-    (
-      repairedFirstPage.actionRequirements![0] as unknown as Record<
-        string,
-        unknown
-      >
-    ).object = {
-      kind: 'spatial',
-      id: 'fixture_waiting_chair',
-    };
-    const repairedAction = structuredClone(
-      repairedFirstPage.actionRequirements![0],
-    ) as unknown as Record<string, unknown>;
-    const beatId = String(repairedAction.beatId);
-    delete repairedAction.beatId;
-    repairedAction.checkId = compilerOwnedActionCheckId(
-      repairedFirstPage.pageNumber,
-      beatId,
-    );
-    repairedFirstPage.mustShow = [
-      ...new Set([
-        ...repairedFirstPage.mustShow,
-        ...projectPageMustShow(
-          {
-            ...repairedFirstPage,
-            actionRequirements: [repairedAction],
-          } as unknown as PageVisualContract,
-          repairedWithGap as unknown as BookVisualContract,
-        ),
-      ]),
-    ];
+    repairedWithGap.worldType = 'grounded';
     const gapPage = repairedWithGap.pageContracts[1]!;
     (
       gapPage as unknown as Record<string, unknown>
@@ -2629,7 +2583,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
             state: 'newly_introduced',
             issue: {
               family: 'draft_contract',
-              code: 'out_of_scope_reference',
+              code: 'world_type_missing',
             },
           },
         ],
@@ -2664,7 +2618,6 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       },
     });
     const serialized = JSON.stringify(result.receipt);
-    expect(serialized).not.toContain(rejectedId);
     expect(serialized).not.toContain(
       `beat:p${gapPage.pageNumber}:unsupported`,
     );

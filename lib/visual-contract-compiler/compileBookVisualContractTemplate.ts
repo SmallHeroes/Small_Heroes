@@ -124,6 +124,7 @@ import {
   pageContractRepairAffectedPages,
   parsePageContractRepairs,
   type PageContractRepairAffectedPage,
+  type PageSpatialRepairAuthority,
 } from './pageContractRepair';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
@@ -236,14 +237,23 @@ export class SourceEvidenceIdValidationError extends InvalidTemplateContractErro
 /** Deterministic closed-domain failures are never eligible for provider repair. */
 export class DraftAuthorityReferenceDomainError extends Error {
   readonly issues: readonly DraftAuthorityReferenceIssue[];
+  readonly pageSpatialRepairAuthority:
+    | readonly PageSpatialRepairAuthority[]
+    | undefined;
 
-  constructor(issues: readonly DraftAuthorityReferenceIssue[]) {
+  constructor(
+    issues: readonly DraftAuthorityReferenceIssue[],
+    pageSpatialRepairAuthority?: readonly PageSpatialRepairAuthority[],
+  ) {
     super('draft authority/reference domain invalid');
     this.name = 'DraftAuthorityReferenceDomainError';
     this.issues = normalizeDraftAuthorityReferenceIssues(issues);
     if (this.issues.length === 0) {
       throw new Error('draft authority/reference diagnostic contract invalid');
     }
+    this.pageSpatialRepairAuthority = pageSpatialRepairAuthority
+      ? structuredClone(pageSpatialRepairAuthority)
+      : undefined;
   }
 }
 
@@ -2264,6 +2274,16 @@ function assertPageSpatialReferenceDomains(args: {
       new Set((zone.spatialNodes ?? []).map((node) => node.id)),
     ]),
   );
+  const zoneSpatialAuthority = new Map(
+    args.zones.map((zone) => [
+      zone.id,
+      (zone.spatialNodes ?? []).map((node) => ({
+        id: node.id,
+        kind: node.kind,
+        description: node.description,
+      })),
+    ]),
+  );
   const issues: DraftAuthorityReferenceIssue[] = [];
   const check = (
     pageNumber: number,
@@ -2373,7 +2393,46 @@ function assertPageSpatialReferenceDomains(args: {
     }
   }
   if (issues.length > 0) {
-    throw new DraftAuthorityReferenceDomainError(issues);
+    const affectedPageNumbers = [
+      ...new Set(
+        issues.flatMap((issue) =>
+          'pageNumber' in issue.locator
+            ? [issue.locator.pageNumber]
+            : [],
+        ),
+      ),
+    ].sort((left, right) => left - right);
+    const authority: Array<PageSpatialRepairAuthority | null> =
+      affectedPageNumbers.map((pageNumber) => {
+        const pages = args.pages.filter(
+          (page) => Number(page.pageNumber) === pageNumber,
+        );
+        const zoneId =
+          pages.length === 1 && typeof pages[0]!.zoneId === 'string'
+            ? pages[0]!.zoneId
+            : null;
+        const permittedSpatialReferences = zoneId
+          ? zoneSpatialAuthority.get(zoneId)
+          : undefined;
+        return zoneId && permittedSpatialReferences
+          ? {
+              pageNumber,
+              zoneId,
+              permittedSpatialReferences,
+            }
+          : null;
+      });
+    const completeAuthority = authority.every(
+      (value) =>
+        value !== null &&
+        value.permittedSpatialReferences.length > 0,
+    )
+      ? (authority as PageSpatialRepairAuthority[])
+      : undefined;
+    throw new DraftAuthorityReferenceDomainError(
+      issues,
+      completeAuthority,
+    );
   }
 }
 
@@ -2757,6 +2816,12 @@ export async function compileBookVisualContractTemplate(
     let pageContractPointerTemplate:
       | ActionSemanticCoverageTemplate
       | undefined;
+    let pageSpatialRepairIssues:
+      | readonly DraftAuthorityReferenceIssue[]
+      | undefined;
+    let pageSpatialRepairAuthority:
+      | readonly PageSpatialRepairAuthority[]
+      | undefined;
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
@@ -2773,6 +2838,9 @@ export async function compileBookVisualContractTemplate(
         err instanceof DraftAuthorityReferenceDomainError &&
         pageSpatialReferenceIssuesAreRepairable(err.issues)
       ) {
+        pageSpatialRepairIssues = err.issues;
+        pageSpatialRepairAuthority =
+          err.pageSpatialRepairAuthority;
         attemptErrors = err.issues.map(
           pageSpatialReferenceRepairInstruction,
         );
@@ -2798,6 +2866,8 @@ export async function compileBookVisualContractTemplate(
         draft,
         diagnosticIssues: attemptDiagnosticIssues,
         pointerTemplate: pageContractPointerTemplate,
+        pageSpatialIssues: pageSpatialRepairIssues,
+        pageSpatialAuthority: pageSpatialRepairAuthority,
       });
     }
 
