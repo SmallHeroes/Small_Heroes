@@ -2,7 +2,7 @@
 
 Date: 2026-08-09
 
-Status: independent technical PASS; focused prompt-version QA fix pending read-only micro re-gate; repository/release HOLD remains on six known ignored-output fixtures.
+Status: independent technical PASS; focused prompt-version QA fix independently closed; repository/release HOLD remains on six known ignored-output fixtures.
 
 ## Topology and scope
 
@@ -148,7 +148,17 @@ It also proves that a canonically redigested request carrying the prior v3 syste
 - deterministic TypeScript: PASS;
 - `git diff --check`: PASS.
 
-No routing, schema, payload, repair eligibility, mutation behavior, provider behavior, budget, or downstream policy changed. Independent closure of the MINOR remains pending a read-only micro re-gate.
+No routing, schema, payload, repair eligibility, mutation behavior, provider behavior, budget, or downstream policy changed.
+
+Claude Code independently reviewed exact correction range `73783fab3e072a35f6eab89acf8bf199e0dadcaa..689bff89985caa3247e40bc32bf62345c1be82e9` and returned **PASS — MINOR closure only**. It independently reproduced the 54 + 54 focused tests, TypeScript, `git diff --check`, the redigested v3 pre-provider rejection, and the separate call-time rejection of stale system version, user version, or system digest. It found zero new BLOCKER, MAJOR, or MINOR. This is Claude Code's closure, not a Codex self-awarded result.
+
+Claude's correction re-gate advisories are retained without action:
+
+- future user-prompt text changes must continue to bump the explicit version because that repair template has no independent digest;
+- `npm run check` was not rerun for the focused correction;
+- the original review advisories A1-A5 remain unchanged.
+
+The milestone is technically closed. The six known missing ignored-output fixtures remain a separate repository/release HOLD. No Fresh Readiness, live, candidate, Blueprint, Wizard, render, release, deployment, or push authority follows from the QA verdict itself.
 
 Advisory notes retained without scope expansion:
 
