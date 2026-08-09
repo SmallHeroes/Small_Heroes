@@ -242,6 +242,9 @@ function executionRequestPayload(
       pageContractRepairStructuredOutputCompatibility:
         fixture.materialized.manifest
           .pageContractRepairStructuredOutputCompatibility,
+      pageSpatialReferenceRepairStructuredOutputCompatibility:
+        fixture.materialized.manifest
+          .pageSpatialReferenceRepairStructuredOutputCompatibility,
     },
     preservationFences:
       overrides.preservationFences ?? [

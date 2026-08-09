@@ -4,11 +4,19 @@ import {
   PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
+  PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+  PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION,
+  PAGE_SPATIAL_REFERENCE_REPAIR_USER_PROMPT_VERSION,
   applyPageContractRepairs,
+  applyPageSpatialReferenceRepairPatches,
   buildPageContractRepairSystemPrompt,
   buildPageContractRepairUserPrompt,
+  buildPageSpatialReferenceRepairSystemPrompt,
+  buildPageSpatialReferenceRepairUserPrompt,
   pageContractRepairAffectedPages,
+  pageSpatialReferenceRepairTargets,
   parsePageContractRepairs,
+  parsePageSpatialReferenceRepairPatches,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
 import type { DraftValidationIssue } from '@/lib/visual-contract-compiler/draftValidationDiagnostics';
 import type { ActionSemanticCoverageTemplate } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
@@ -81,6 +89,70 @@ function spatialDraft(): Record<string, unknown> {
       ],
     },
     { id: 'zone:2', locationId: 'loc:home', spatialNodes: [] },
+  ];
+  const pages = value.pageContracts as Array<
+    Record<string, unknown>
+  >;
+  pages[0]!.actionRequirements = [
+    {
+      beatId: 'beat:p1:subject',
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'spatial', id: 'node:outside' },
+      },
+      predicate: 'touches',
+      object: null,
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'affirmative',
+      laterality: null,
+    },
+    {
+      beatId: 'beat:p1:object',
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: 'touches',
+      object: { kind: 'spatial', id: 'node:outside' },
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'affirmative',
+      laterality: null,
+    },
+    {
+      beatId: 'beat:p1:effect',
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: 'moves',
+      object: null,
+      spatialEffect: {
+        kind: 'relation',
+        relation: 'toward',
+        target: { kind: 'spatial', id: 'node:outside' },
+      },
+      spatialConstraint: null,
+      polarity: 'affirmative',
+      laterality: null,
+    },
+    {
+      beatId: 'beat:p1:constraint',
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: 'sits',
+      object: null,
+      spatialEffect: null,
+      spatialConstraint: {
+        relation: 'beside',
+        target: { kind: 'spatial', id: 'node:outside' },
+      },
+      polarity: 'affirmative',
+      laterality: null,
+    },
   ];
   return value;
 }
@@ -270,33 +342,23 @@ describe('page-contract compact repair', () => {
   );
 
   it.each([
-    'subject',
-    'object',
-    'spatialEffect.target',
-    'spatialConstraint.target',
+    ['subject', 0],
+    ['object', 1],
+    ['spatialEffect.target', 2],
+    ['spatialConstraint.target', 3],
   ] as const)(
-    'admits the closed page-spatial %s locator with exact zone authority',
-    (fieldRole) => {
-      const affected = pageContractRepairAffectedPages({
+    'builds the closed field-scoped %s target with exact zone authority',
+    (fieldRole, actionIndex) => {
+      const affected = pageSpatialReferenceRepairTargets({
         draft: spatialDraft(),
-        diagnosticIssues: [pageSpatialDiagnostic()],
-        pageSpatialIssues: [pageSpatialIssue(fieldRole)],
-        pageSpatialAuthority: pageSpatialAuthority(),
+        issues: [pageSpatialIssue(fieldRole, actionIndex)],
+        authority: pageSpatialAuthority(),
       });
       expect(affected).toMatchObject([
         {
           pageNumber: 1,
-          repairTargets: [
-            {
-              family: 'draft_contract',
-              code: 'page_spatial_reference_outside_zone',
-              pageNumber: 1,
-              collectionRole: 'page_actions',
-              itemIndex: 0,
-              fieldRole,
-            },
-          ],
-          permittedPointerValues: [],
+          actionIndex,
+          fieldRole,
           permittedSpatialReferences: [
             {
               id: 'node:door',
@@ -311,65 +373,22 @@ describe('page-contract compact repair', () => {
           ],
         },
       ]);
+      expect(JSON.stringify(affected)).not.toContain('node:outside');
     },
   );
 
-  it('keeps final-only safety-constraint locators off the strict draft-page repair schema', () => {
+  it('keeps safety constraints and malformed or authority-less targets off the field-scoped route', () => {
     expect(
-      pageContractRepairAffectedPages({
+      pageSpatialReferenceRepairTargets({
         draft: spatialDraft(),
-        diagnosticIssues: [pageSpatialDiagnostic()],
-        pageSpatialIssues: [
-          pageSpatialIssue('safetyConstraints.target'),
-        ],
-        pageSpatialAuthority: pageSpatialAuthority(),
+        issues: [pageSpatialIssue('safetyConstraints.target')],
+        authority: pageSpatialAuthority(),
       }),
     ).toBeNull();
-  });
-
-  it('rejects page-spatial input without exact issue parity or unique nonempty zone authority', () => {
-    const original = spatialDraft();
     expect(
-      pageContractRepairAffectedPages({
-        draft: original,
-        diagnosticIssues: [],
-        pageSpatialIssues: [pageSpatialIssue('object')],
-        pageSpatialAuthority: pageSpatialAuthority(),
-      }),
-    ).toBeNull();
-
-    expect(
-      pageContractRepairAffectedPages({
-        draft: original,
-        diagnosticIssues: [pageSpatialDiagnostic()],
-        pageSpatialIssues: [pageSpatialIssue('object')],
-        pageSpatialAuthority: [
-          ...pageSpatialAuthority(),
-          ...pageSpatialAuthority(),
-        ],
-      }),
-    ).toBeNull();
-
-    expect(
-      pageContractRepairAffectedPages({
-        draft: original,
-        diagnosticIssues: [pageSpatialDiagnostic()],
-        pageSpatialIssues: [pageSpatialIssue('object')],
-        pageSpatialAuthority: [
-          {
-            pageNumber: 1,
-            zoneId: 'zone:1',
-            permittedSpatialReferences: [],
-          },
-        ],
-      }),
-    ).toBeNull();
-
-    expect(
-      pageContractRepairAffectedPages({
-        draft: original,
-        diagnosticIssues: [pageSpatialDiagnostic()],
-        pageSpatialIssues: [
+      pageSpatialReferenceRepairTargets({
+        draft: spatialDraft(),
+        issues: [
           {
             code: 'recurring_prop_consumer_forbidden',
             locator: {
@@ -382,9 +401,216 @@ describe('page-contract compact repair', () => {
             },
           },
         ],
-        pageSpatialAuthority: pageSpatialAuthority(),
+        authority: pageSpatialAuthority(),
       }),
     ).toBeNull();
+    expect(
+      pageSpatialReferenceRepairTargets({
+        draft: spatialDraft(),
+        issues: [pageSpatialIssue('object', 99)],
+        authority: pageSpatialAuthority(),
+      }),
+    ).toBeNull();
+    expect(
+      pageSpatialReferenceRepairTargets({
+        draft: spatialDraft(),
+        issues: [pageSpatialIssue('object', 1)],
+        authority: [
+          {
+            pageNumber: 1,
+            zoneId: 'zone:1',
+            permittedSpatialReferences: [],
+          },
+        ],
+      }),
+    ).toBeNull();
+  });
+
+  it('uses a strict field-patch schema and sanitized bounded prompt', () => {
+    const targets = pageSpatialReferenceRepairTargets({
+      draft: spatialDraft(),
+      issues: [pageSpatialIssue('object', 1)],
+      authority: pageSpatialAuthority(),
+    })!;
+    const prompt = buildPageSpatialReferenceRepairUserPrompt({ targets });
+    expect(PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA).toMatchObject({
+      type: 'object',
+      additionalProperties: false,
+      required: ['patches'],
+    });
+    expect(PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION).toBe(
+      'page-spatial-reference-repair-prompt/v1',
+    );
+    expect(PAGE_SPATIAL_REFERENCE_REPAIR_USER_PROMPT_VERSION).toBe(
+      'page-spatial-reference-repair-user-prompt/v1',
+    );
+    expect(buildPageSpatialReferenceRepairSystemPrompt()).toContain(
+      'ONLY the exact page-spatial reference targets',
+    );
+    expect(prompt).toContain('node:door');
+    expect(prompt).not.toContain('node:outside');
+    expect(prompt).not.toContain('pageContracts');
+    expect(prompt).not.toContain('beat:p1:object');
+  });
+
+  it('applies all four target roles exactly and preserves every non-target byte canonically', () => {
+    const original = spatialDraft();
+    const snapshot = structuredClone(original);
+    const targets = pageSpatialReferenceRepairTargets({
+      draft: original,
+      issues: [
+        pageSpatialIssue('subject', 0),
+        pageSpatialIssue('object', 1),
+        pageSpatialIssue('spatialEffect.target', 2),
+        pageSpatialIssue('spatialConstraint.target', 3),
+      ],
+      authority: pageSpatialAuthority(),
+    })!;
+    const patches = targets.map((target, index) => ({
+      pageNumber: target.pageNumber,
+      actionIndex: target.actionIndex,
+      fieldRole: target.fieldRole,
+      spatialReferenceId:
+        index % 2 === 0 ? 'node:door' : 'node:window',
+    }));
+    const result = applyPageSpatialReferenceRepairPatches({
+      draft: original,
+      targets,
+      patches,
+    });
+    expect(original).toEqual(snapshot);
+    const actions = (
+      (result.pageContracts as Record<string, unknown>[])[0]!
+        .actionRequirements as Record<string, unknown>[]
+    );
+    expect(
+      ((actions[0]!.subject as Record<string, unknown>)
+        .entity as Record<string, unknown>).id,
+    ).toBe('node:door');
+    expect((actions[1]!.object as Record<string, unknown>).id).toBe(
+      'node:window',
+    );
+    expect(
+      ((actions[2]!.spatialEffect as Record<string, unknown>)
+        .target as Record<string, unknown>).id,
+    ).toBe('node:door');
+    expect(
+      ((actions[3]!.spatialConstraint as Record<string, unknown>)
+        .target as Record<string, unknown>).id,
+    ).toBe('node:window');
+  });
+
+  it('parses exact patches and rejects malformed and unsafe patch sets fail-closed', () => {
+    const original = spatialDraft();
+    const targets = pageSpatialReferenceRepairTargets({
+      draft: original,
+      issues: [pageSpatialIssue('object', 1)],
+      authority: pageSpatialAuthority(),
+    })!;
+    const valid = {
+      pageNumber: 1,
+      actionIndex: 1,
+      fieldRole: 'object' as const,
+      spatialReferenceId: 'node:door',
+    };
+    expect(
+      parsePageSpatialReferenceRepairPatches(
+        JSON.stringify({ patches: [valid] }),
+      ),
+    ).toEqual([valid]);
+    expect(() =>
+      parsePageSpatialReferenceRepairPatches('not json'),
+    ).toThrow('page_spatial_repair_response_invalid_json');
+    expect(() =>
+      parsePageSpatialReferenceRepairPatches('{}'),
+    ).toThrow('page_spatial_repair_response_invalid_shape');
+    expect(() =>
+      parsePageSpatialReferenceRepairPatches(
+        JSON.stringify({ patches: [{ ...valid, extra: true }] }),
+      ),
+    ).toThrow('page_spatial_repair_patch_invalid');
+    expect(() =>
+      parsePageSpatialReferenceRepairPatches(
+        JSON.stringify({
+          patches: [{ ...valid, fieldRole: 'safetyConstraints.target' }],
+        }),
+      ),
+    ).toThrow('page_spatial_repair_patch_invalid');
+    const { spatialReferenceId: _spatialReferenceId, ...missingId } =
+      valid;
+    expect(() =>
+      parsePageSpatialReferenceRepairPatches(
+        JSON.stringify({ patches: [missingId] }),
+      ),
+    ).toThrow('page_spatial_repair_patch_invalid');
+    expect(() =>
+      applyPageSpatialReferenceRepairPatches({
+        draft: original,
+        targets,
+        patches: [],
+      }),
+    ).toThrow('page_spatial_repair_patch_set_incomplete');
+    expect(() =>
+      applyPageSpatialReferenceRepairPatches({
+        draft: original,
+        targets,
+        patches: [{ ...valid, actionIndex: 0 }],
+      }),
+    ).toThrow('page_spatial_repair_patch_unexpected_or_duplicate');
+    expect(() =>
+      applyPageSpatialReferenceRepairPatches({
+        draft: original,
+        targets,
+        patches: [{ ...valid, spatialReferenceId: 'node:outside' }],
+      }),
+    ).toThrow('page_spatial_repair_reference_not_permitted');
+  });
+
+  it('rejects duplicate targets, duplicate patches, and stale typed targets', () => {
+    const original = spatialDraft();
+    const targets = pageSpatialReferenceRepairTargets({
+      draft: original,
+      issues: [
+        pageSpatialIssue('object', 1),
+        pageSpatialIssue('spatialEffect.target', 2),
+      ],
+      authority: pageSpatialAuthority(),
+    })!;
+    expect(() =>
+      applyPageSpatialReferenceRepairPatches({
+        draft: original,
+        targets: [targets[0]!, targets[0]!],
+        patches: [],
+      }),
+    ).toThrow('page_spatial_repair_target_duplicate');
+
+    const firstPatch = {
+      pageNumber: targets[0]!.pageNumber,
+      actionIndex: targets[0]!.actionIndex,
+      fieldRole: targets[0]!.fieldRole,
+      spatialReferenceId: 'node:door',
+    };
+    expect(() =>
+      applyPageSpatialReferenceRepairPatches({
+        draft: original,
+        targets,
+        patches: [firstPatch, firstPatch],
+      }),
+    ).toThrow('page_spatial_repair_patch_unexpected_or_duplicate');
+
+    const stale = structuredClone(original);
+    const staleActions = (
+      (stale.pageContracts as Record<string, unknown>[])[0]!
+        .actionRequirements as Record<string, unknown>[]
+    );
+    staleActions[1]!.object = { kind: 'cast', id: 'child:hero' };
+    expect(() =>
+      applyPageSpatialReferenceRepairPatches({
+        draft: stale,
+        targets: [targets[0]!],
+        patches: [firstPatch],
+      }),
+    ).toThrow('page_spatial_repair_target_stale');
   });
 
   it.each([
@@ -585,7 +811,9 @@ describe('page-contract compact repair', () => {
       },
     ]);
     expect(parsed.affectedPages[0].permittedPointerValues).toEqual([]);
-    expect(parsed.affectedPages[0].permittedSpatialReferences).toEqual([]);
+    expect(parsed.affectedPages[0]).not.toHaveProperty(
+      'permittedSpatialReferences',
+    );
     expect(parsed).not.toHaveProperty('validatorErrors');
     expect(parsed).not.toHaveProperty('referenceAuthority');
     expect(parsed).not.toHaveProperty('worldType');

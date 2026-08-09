@@ -522,6 +522,9 @@ describe('canonical live request verification library', () => {
       pageContractRepairStructuredOutputCompatibility:
         materialized.manifest
           .pageContractRepairStructuredOutputCompatibility,
+      pageSpatialReferenceRepairStructuredOutputCompatibility:
+        materialized.manifest
+          .pageSpatialReferenceRepairStructuredOutputCompatibility,
       externalBoundaryEvidence: {
         credentialReadOrCheck: false,
         providerReachabilityCheck: false,

@@ -39,13 +39,12 @@ import {
   TEMPLATE_DRAFT_SCHEMA_VERSION,
 } from '../visual-contract-compiler/templateDraftSchema';
 import {
-  PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
-  buildPageContractRepairSystemPrompt,
-  buildPageContractRepairUserPrompt,
-  pageContractRepairAffectedPages,
+  PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+  buildPageSpatialReferenceRepairSystemPrompt,
+  buildPageSpatialReferenceRepairUserPrompt,
+  pageSpatialReferenceRepairTargets,
 } from '../visual-contract-compiler/pageContractRepair';
 import type { DraftAuthorityReferenceIssue } from '../visual-contract-compiler/draftAuthorityReferenceDiagnostics';
-import type { DraftValidationIssue } from '../visual-contract-compiler/draftValidationDiagnostics';
 import {
   buildStorySourceAuthoritySnapshot,
   buildVisualContractAuthoringRequest,
@@ -333,24 +332,41 @@ describe('Visual Contract prompt authority-table compaction', () => {
         },
       }),
     );
-    const diagnosticIssues: DraftValidationIssue[] = positions.map(
-      ([pageNumber, actionIndex]) => ({
-        family: 'draft_contract',
-        code: 'out_of_scope_reference',
-        locator: {
-          kind: 'page_item',
-          collectionRole: 'page_actions',
-          fieldRole: 'reference',
-          pageNumber,
-          itemIndex: actionIndex,
-        },
-      }),
-    );
-    const affectedPages = pageContractRepairAffectedPages({
+    for (const [pageNumber, actionIndex] of positions) {
+      const pageContract = (
+        previousDraft.pageContracts as Array<Record<string, unknown>>
+      ).find((page) => page.pageNumber === pageNumber)!;
+      const actions = Array.isArray(pageContract.actionRequirements)
+        ? (pageContract.actionRequirements as Array<
+            Record<string, unknown>
+          >)
+        : [];
+      while (actions.length <= actionIndex) {
+        actions.push({
+          beatId: `beat:p${pageNumber}:spatial-${actions.length}`,
+          subject: {
+            kind: 'entity',
+            entity: { kind: 'cast', id: 'child:hero' },
+          },
+          predicate: 'looks_at',
+          object: null,
+          spatialEffect: null,
+          spatialConstraint: null,
+          polarity: 'must',
+          laterality: null,
+        });
+      }
+      pageContract.actionRequirements = actions;
+      const action = actions[actionIndex]!;
+      action.object = {
+        kind: 'spatial',
+        id: 'provider-outside-zone',
+      };
+    }
+    const targets = pageSpatialReferenceRepairTargets({
       draft: previousDraft,
-      diagnosticIssues,
-      pageSpatialIssues: authorityIssues,
-      pageSpatialAuthority: [...new Set(positions.map(([page]) => page))]
+      issues: authorityIssues,
+      authority: [...new Set(positions.map(([page]) => page))]
         .sort((left, right) => left - right)
         .map((pageNumber) => {
           const pageContract = (
@@ -372,19 +388,22 @@ describe('Visual Contract prompt authority-table compaction', () => {
           };
         }),
     });
-    expect(affectedPages?.map((page) => page.pageNumber)).toEqual([
-      1, 2, 4,
+    expect(targets?.map((target) => target.pageNumber)).toEqual([
+      1, 1, 2, 2, 4,
     ]);
-    const systemPrompt = buildPageContractRepairSystemPrompt();
-    const userPrompt = buildPageContractRepairUserPrompt({
-      affectedPages: affectedPages!,
+    const systemPrompt =
+      buildPageSpatialReferenceRepairSystemPrompt();
+    const userPrompt = buildPageSpatialReferenceRepairUserPrompt({
+      targets: targets!,
     });
     const promptAndSchemaTokenUpperBound =
       Buffer.byteLength(
         [
           systemPrompt,
           userPrompt,
-          JSON.stringify(PAGE_CONTRACT_REPAIR_JSON_SCHEMA),
+          JSON.stringify(
+            PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+          ),
         ].join('\n'),
         'utf8',
       ) + 4_096;
@@ -394,6 +413,8 @@ describe('Visual Contract prompt authority-table compaction', () => {
       4_096,
     );
     expect(userPrompt).toContain('permittedSpatialReferences');
+    expect(userPrompt).not.toContain('provider-outside-zone');
+    expect(userPrompt).not.toContain('pageContracts');
     expect(userPrompt).not.toContain('AUTHORITATIVE FACTS');
   });
 

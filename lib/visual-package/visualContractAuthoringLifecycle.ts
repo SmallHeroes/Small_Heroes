@@ -71,7 +71,13 @@ import {
   PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
   PAGE_CONTRACT_REPAIR_SCHEMA_VERSION,
   PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
+  PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+  PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION,
+  PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
+  PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION,
+  PAGE_SPATIAL_REFERENCE_REPAIR_USER_PROMPT_VERSION,
   buildPageContractRepairSystemPrompt,
+  buildPageSpatialReferenceRepairSystemPrompt,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
 import type {
   ContractLlmCallOptions,
@@ -139,11 +145,11 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v13' as const;
+  'visual-contract-authoring-request/v14' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v16' as const;
+  'visual-contract-authoring-receipt/v17' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v14' as const;
+  'visual-contract-authoring-readiness/v15' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v7' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -168,6 +174,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V11 =
   'visual-contract-authoring-request/v11' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V12 =
   'visual-contract-authoring-request/v12' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V13 =
+  'visual-contract-authoring-request/v13' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -194,6 +202,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V14 =
   'visual-contract-authoring-receipt/v14' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V15 =
   'visual-contract-authoring-receipt/v15' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V16 =
+  'visual-contract-authoring-receipt/v16' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -220,6 +230,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V12 =
   'visual-contract-authoring-readiness/v12' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V13 =
   'visual-contract-authoring-readiness/v13' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V14 =
+  'visual-contract-authoring-readiness/v14' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -312,6 +324,20 @@ export interface VisualContractAuthoringRequest {
     compatibilityStatus: 'compatible';
     serializedSchemaDigest: string;
   };
+  pageSpatialReferenceRepairStructuredOutput: {
+    strict: true;
+    schemaName: typeof PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME;
+    schemaVersion: typeof PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION;
+    schemaDigest: string;
+    compatibilityProfileVersion:
+      typeof OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION;
+    compatibilityProfileDigest: string;
+    compatibilityEvidenceVersion:
+      typeof OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION;
+    compatibilityEvidenceDigest: string;
+    compatibilityStatus: 'compatible';
+    serializedSchemaDigest: string;
+  };
   toolsDisabled:
     typeof VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED;
   noFallback: typeof VISUAL_CONTRACT_AUTHORING_NO_FALLBACK;
@@ -362,6 +388,13 @@ export interface VisualContractAuthoringRequest {
         typeof PAGE_CONTRACT_REPAIR_PROMPT_VERSION;
       userPromptVersion:
         typeof PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION;
+      systemPromptDigest: string;
+    };
+    pageSpatialReferenceRepair: {
+      systemPromptVersion:
+        typeof PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION;
+      userPromptVersion:
+        typeof PAGE_SPATIAL_REFERENCE_REPAIR_USER_PROMPT_VERSION;
       systemPromptDigest: string;
     };
   };
@@ -422,6 +455,7 @@ export interface VisualContractAuthoringAttemptReceipt {
     | 'full_draft'
     | 'source_evidence_id_patch'
     | 'page_contract_patch'
+    | 'page_spatial_reference_patch'
     | null;
   providerReached: boolean;
   status:
@@ -638,7 +672,9 @@ export function visualContractAuthoringArtifactVersionStatus(
       version ===
         LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V11 ||
       version ===
-        LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V12
+        LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V12 ||
+      version ===
+        LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V13
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -657,6 +693,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V13,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V14,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V15,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V16,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -672,6 +709,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V11,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V12,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V13,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V14,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -874,6 +912,14 @@ export function buildVisualContractAuthoringRequest(args: {
     compatibilityAuthorityFromEvidence(
       pageContractRepairCompatibilityEvidence,
     );
+  const pageSpatialReferenceRepairCompatibilityEvidence =
+    assertOpenAIResponsesStructuredOutputSchemaCompatible(
+      PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+    );
+  const pageSpatialReferenceRepairCompatibilityAuthority =
+    compatibilityAuthorityFromEvidence(
+      pageSpatialReferenceRepairCompatibilityEvidence,
+    );
   const withoutDigest = {
     version: VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
     policyVersion:
@@ -949,6 +995,26 @@ export function buildVisualContractAuthoringRequest(args: {
       serializedSchemaDigest:
         pageContractRepairCompatibilityAuthority.serializedSchemaDigest,
     },
+    pageSpatialReferenceRepairStructuredOutput: {
+      strict: true as const,
+      schemaName: PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
+      schemaVersion: PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION,
+      schemaDigest: canonicalJsonDigest(
+        PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+      ),
+      compatibilityProfileVersion:
+        pageSpatialReferenceRepairCompatibilityAuthority.profileVersion,
+      compatibilityProfileDigest:
+        pageSpatialReferenceRepairCompatibilityAuthority.profileDigest,
+      compatibilityEvidenceVersion:
+        pageSpatialReferenceRepairCompatibilityAuthority.evidenceVersion,
+      compatibilityEvidenceDigest:
+        pageSpatialReferenceRepairCompatibilityAuthority.evidenceDigest,
+      compatibilityStatus:
+        pageSpatialReferenceRepairCompatibilityAuthority.status,
+      serializedSchemaDigest:
+        pageSpatialReferenceRepairCompatibilityAuthority.serializedSchemaDigest,
+    },
     toolsDisabled:
       VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
     noFallback: VISUAL_CONTRACT_AUTHORING_NO_FALLBACK,
@@ -1019,6 +1085,15 @@ export function buildVisualContractAuthoringRequest(args: {
           PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
         systemPromptDigest: canonicalJsonDigest(
           buildPageContractRepairSystemPrompt(),
+        ),
+      },
+      pageSpatialReferenceRepair: {
+        systemPromptVersion:
+          PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          PAGE_SPATIAL_REFERENCE_REPAIR_USER_PROMPT_VERSION,
+        systemPromptDigest: canonicalJsonDigest(
+          buildPageSpatialReferenceRepairSystemPrompt(),
         ),
       },
     },
@@ -1119,6 +1194,11 @@ export function visualContractAuthoringRequestIssues(args: {
       'page_contract_repair_structured_output_mismatch',
       request.pageContractRepairStructuredOutput,
       exact.pageContractRepairStructuredOutput,
+    ],
+    [
+      'page_spatial_reference_repair_structured_output_mismatch',
+      request.pageSpatialReferenceRepairStructuredOutput,
+      exact.pageSpatialReferenceRepairStructuredOutput,
     ],
     [
       'tools_policy_mismatch',
@@ -1871,6 +1951,10 @@ function expectedCallOptions(
   const pageContractRepair =
     promptAuthority?.kind === 'repair' &&
     promptAuthority.repairMode === 'page_contract_patch';
+  const pageSpatialReferenceRepair =
+    promptAuthority?.kind === 'repair' &&
+    promptAuthority.repairMode ===
+      'page_spatial_reference_patch';
   return {
     maxOutputTokens: request.tokenBudget.maxOutputTokens,
     model: request.model,
@@ -1880,12 +1964,17 @@ function expectedCallOptions(
         ? request.compactRepairStructuredOutput.schemaName
         : pageContractRepair
           ? request.pageContractRepairStructuredOutput.schemaName
-        : request.structuredOutput.schemaName,
+          : pageSpatialReferenceRepair
+            ? request.pageSpatialReferenceRepairStructuredOutput
+                .schemaName
+            : request.structuredOutput.schemaName,
       schema: compactRepair
         ? SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA
         : pageContractRepair
           ? PAGE_CONTRACT_REPAIR_JSON_SCHEMA
-        : TEMPLATE_DRAFT_JSON_SCHEMA,
+          : pageSpatialReferenceRepair
+            ? PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA
+            : TEMPLATE_DRAFT_JSON_SCHEMA,
     },
     noFallback: true,
     provider: 'openai',
@@ -1955,7 +2044,11 @@ export function visualContractAuthoringCallPromptAuthorityIssues(
         : repairPromptAuthority?.repairMode ===
             'page_contract_patch'
           ? args.request.promptAuthority?.pageContractRepair
-        : args.request.promptAuthority?.repair;
+          : repairPromptAuthority?.repairMode ===
+              'page_spatial_reference_patch'
+            ? args.request.promptAuthority
+                ?.pageSpatialReferenceRepair
+            : args.request.promptAuthority?.repair;
     if (
       !repairPromptAuthority?.repairMode ||
       args.promptAuthority?.systemPromptVersion !==

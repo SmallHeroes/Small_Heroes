@@ -41,9 +41,9 @@ export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v11' as const;
+  'canonical-live-request-materialization/v12' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v11' as const;
+  'canonical-live-request-verification/v12' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -128,6 +128,8 @@ export interface LiveRequestMaterializationManifest {
     LiveRequestStructuredOutputCompatibilityAuthority;
   pageContractRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
+  pageSpatialReferenceRepairStructuredOutputCompatibility:
+    LiveRequestStructuredOutputCompatibilityAuthority;
   futureLiveCommand: {
     executable: 'node';
     arguments: string[];
@@ -176,6 +178,8 @@ export interface CanonicalLiveRequestVerifiedResult {
   compactRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
   pageContractRepairStructuredOutputCompatibility:
+    LiveRequestStructuredOutputCompatibilityAuthority;
+  pageSpatialReferenceRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
   requestPolicy: {
     provider: 'openai';
@@ -741,6 +745,7 @@ export function liveRequestMaterializationManifestIssues(
       'structuredOutputCompatibility',
       'compactRepairStructuredOutputCompatibility',
       'pageContractRepairStructuredOutputCompatibility',
+      'pageSpatialReferenceRepairStructuredOutputCompatibility',
       'futureLiveCommand',
       'externalBoundaryEvidence',
       'doesNotAuthorize',
@@ -976,6 +981,10 @@ export function liveRequestMaterializationManifestIssues(
     ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
       object.pageContractRepairStructuredOutputCompatibility,
       'materialization_manifest_page_contract_repair_structured_output_compatibility',
+    ),
+    ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
+      object.pageSpatialReferenceRepairStructuredOutputCompatibility,
+      'materialization_manifest_page_spatial_reference_repair_structured_output_compatibility',
     ),
   );
   const command = recordValue(object.futureLiveCommand);
@@ -1382,6 +1391,34 @@ export function materializeCanonicalLiveRequestBundle(args: {
             .compatibilityStatus,
         serializedSchemaDigest:
           liveAuthoringRequest.pageContractRepairStructuredOutput
+            .serializedSchemaDigest,
+      },
+    },
+    pageSpatialReferenceRepairStructuredOutputCompatibility: {
+      schemaName:
+        liveAuthoringRequest.pageSpatialReferenceRepairStructuredOutput.schemaName,
+      schemaVersion:
+        liveAuthoringRequest.pageSpatialReferenceRepairStructuredOutput.schemaVersion,
+      schemaDigest:
+        liveAuthoringRequest.pageSpatialReferenceRepairStructuredOutput.schemaDigest,
+      compatibility: {
+        profileVersion:
+          liveAuthoringRequest.pageSpatialReferenceRepairStructuredOutput
+            .compatibilityProfileVersion,
+        profileDigest:
+          liveAuthoringRequest.pageSpatialReferenceRepairStructuredOutput
+            .compatibilityProfileDigest,
+        evidenceVersion:
+          liveAuthoringRequest.pageSpatialReferenceRepairStructuredOutput
+            .compatibilityEvidenceVersion,
+        evidenceDigest:
+          liveAuthoringRequest.pageSpatialReferenceRepairStructuredOutput
+            .compatibilityEvidenceDigest,
+        status:
+          liveAuthoringRequest.pageSpatialReferenceRepairStructuredOutput
+            .compatibilityStatus,
+        serializedSchemaDigest:
+          liveAuthoringRequest.pageSpatialReferenceRepairStructuredOutput
             .serializedSchemaDigest,
       },
     },
@@ -2098,6 +2135,39 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
     expectedPageContractRepairStructuredOutputCompatibility,
     'manifest_page_contract_repair_structured_output_compatibility_invalid',
   );
+  const expectedPageSpatialReferenceRepairStructuredOutputCompatibility = {
+    schemaName:
+      rebuiltLiveRequest.pageSpatialReferenceRepairStructuredOutput.schemaName,
+    schemaVersion:
+      rebuiltLiveRequest.pageSpatialReferenceRepairStructuredOutput.schemaVersion,
+    schemaDigest:
+      rebuiltLiveRequest.pageSpatialReferenceRepairStructuredOutput.schemaDigest,
+    compatibility: {
+      profileVersion:
+        rebuiltLiveRequest.pageSpatialReferenceRepairStructuredOutput
+          .compatibilityProfileVersion,
+      profileDigest:
+        rebuiltLiveRequest.pageSpatialReferenceRepairStructuredOutput
+          .compatibilityProfileDigest,
+      evidenceVersion:
+        rebuiltLiveRequest.pageSpatialReferenceRepairStructuredOutput
+          .compatibilityEvidenceVersion,
+      evidenceDigest:
+        rebuiltLiveRequest.pageSpatialReferenceRepairStructuredOutput
+          .compatibilityEvidenceDigest,
+      status:
+        rebuiltLiveRequest.pageSpatialReferenceRepairStructuredOutput
+          .compatibilityStatus,
+      serializedSchemaDigest:
+        rebuiltLiveRequest.pageSpatialReferenceRepairStructuredOutput
+          .serializedSchemaDigest,
+    },
+  } satisfies LiveRequestStructuredOutputCompatibilityAuthority;
+  exactCanonicalValue(
+    manifest.pageSpatialReferenceRepairStructuredOutputCompatibility,
+    expectedPageSpatialReferenceRepairStructuredOutputCompatibility,
+    'manifest_page_spatial_reference_repair_structured_output_compatibility_invalid',
+  );
 
   const expectedSourceRevision = {
     storyKey: rebuiltSnapshot.content.storyKey,
@@ -2183,6 +2253,8 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
       expectedCompactRepairStructuredOutputCompatibility,
     pageContractRepairStructuredOutputCompatibility:
       expectedPageContractRepairStructuredOutputCompatibility,
+    pageSpatialReferenceRepairStructuredOutputCompatibility:
+      expectedPageSpatialReferenceRepairStructuredOutputCompatibility,
     requestPolicy: {
       provider: 'openai',
       endpoint: 'responses',

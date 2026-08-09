@@ -14,6 +14,7 @@ import {
   draftAuthorityReferenceIssueIsValid,
   type DraftAuthorityReferenceIssue,
 } from './draftAuthorityReferenceDiagnostics';
+import { canonicalize } from '@/lib/canonical-json';
 
 export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
   'page-contract-repair-schema/v1' as const;
@@ -23,6 +24,14 @@ export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
   'page-contract-repair-prompt/v3' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
   'page-contract-repair-user-prompt/v3' as const;
+export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION =
+  'page-spatial-reference-repair-schema/v1' as const;
+export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME =
+  'PageSpatialReferenceRepairPatches' as const;
+export const PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION =
+  'page-spatial-reference-repair-prompt/v1' as const;
+export const PAGE_SPATIAL_REFERENCE_REPAIR_USER_PROMPT_VERSION =
+  'page-spatial-reference-repair-user-prompt/v1' as const;
 
 function strictObject(
   properties: Record<string, unknown>,
@@ -46,6 +55,37 @@ export const PAGE_CONTRACT_REPAIR_JSON_SCHEMA: Record<
   },
 });
 
+const PAGE_SPATIAL_REPAIR_FIELD_ROLES = [
+  'subject',
+  'object',
+  'spatialEffect.target',
+  'spatialConstraint.target',
+] as const;
+
+export type PageSpatialReferenceRepairFieldRole =
+  (typeof PAGE_SPATIAL_REPAIR_FIELD_ROLES)[number];
+
+const pageSpatialReferencePatch = strictObject({
+  pageNumber: { type: 'integer', minimum: 1 },
+  actionIndex: { type: 'integer', minimum: 0 },
+  fieldRole: {
+    type: 'string',
+    enum: PAGE_SPATIAL_REPAIR_FIELD_ROLES,
+  },
+  spatialReferenceId: { type: 'string' },
+});
+
+export const PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA: Record<
+  string,
+  unknown
+> = strictObject({
+  patches: {
+    type: 'array',
+    minItems: 1,
+    items: pageSpatialReferencePatch,
+  },
+});
+
 const PAGE_CONTRACT_KEYS = Object.freeze(
   Object.keys(
     (
@@ -62,7 +102,6 @@ export interface PageContractRepairAffectedPage {
   pageContract: Record<string, unknown>;
   repairTargets: PageContractRepairTarget[];
   permittedPointerValues: RepresentedElsewherePointerValue[];
-  permittedSpatialReferences: PageSpatialReferenceValue[];
 }
 
 export interface PageSpatialReferenceValue {
@@ -75,6 +114,27 @@ export interface PageSpatialRepairAuthority {
   pageNumber: number;
   zoneId: string;
   permittedSpatialReferences: PageSpatialReferenceValue[];
+}
+
+export interface PageSpatialReferenceRepairTarget {
+  pageNumber: number;
+  actionIndex: number;
+  fieldRole: PageSpatialReferenceRepairFieldRole;
+  actionContext: {
+    predicate: string;
+    polarity: string;
+    spatialEffectKind: string | null;
+    spatialEffectRelation: string | null;
+    spatialConstraintRelation: string | null;
+  };
+  permittedSpatialReferences: PageSpatialReferenceValue[];
+}
+
+export interface PageSpatialReferenceRepairPatch {
+  pageNumber: number;
+  actionIndex: number;
+  fieldRole: PageSpatialReferenceRepairFieldRole;
+  spatialReferenceId: string;
 }
 
 export type PageContractRepairTarget =
@@ -319,6 +379,369 @@ function pageSpatialAuthorityForPage(args: {
   );
 }
 
+function spatialRepairTargetKey(value: {
+  pageNumber: number;
+  actionIndex: number;
+  fieldRole: PageSpatialReferenceRepairFieldRole;
+}): string {
+  return JSON.stringify([
+    value.pageNumber,
+    value.actionIndex,
+    value.fieldRole,
+  ]);
+}
+
+function pageActionForTarget(args: {
+  draft: Record<string, unknown>;
+  pageNumber: number;
+  actionIndex: number;
+}): Record<string, unknown> | null {
+  const pages = Array.isArray(args.draft.pageContracts)
+    ? args.draft.pageContracts.map(recordValue)
+    : [];
+  const matches = pages.filter(
+    (page) => page?.pageNumber === args.pageNumber,
+  );
+  if (matches.length !== 1) return null;
+  const actions = Array.isArray(matches[0]!.actionRequirements)
+    ? matches[0]!.actionRequirements
+    : [];
+  return args.actionIndex >= 0 && args.actionIndex < actions.length
+    ? recordValue(actions[args.actionIndex])
+    : null;
+}
+
+function currentSpatialReferenceForRole(
+  action: Record<string, unknown>,
+  fieldRole: PageSpatialReferenceRepairFieldRole,
+): Record<string, unknown> | null {
+  if (fieldRole === 'subject') {
+    const subject = recordValue(action.subject);
+    return subject?.kind === 'entity'
+      ? recordValue(subject.entity)
+      : null;
+  }
+  if (fieldRole === 'object') return recordValue(action.object);
+  if (fieldRole === 'spatialEffect.target') {
+    const effect = recordValue(action.spatialEffect);
+    return effect?.kind === 'relation'
+      ? recordValue(effect.target)
+      : null;
+  }
+  const constraint = recordValue(action.spatialConstraint);
+  return constraint ? recordValue(constraint.target) : null;
+}
+
+function spatialReferenceShapeIsRepairable(
+  value: Record<string, unknown> | null,
+): value is Record<string, unknown> & { kind: 'spatial'; id: string } {
+  return (
+    value?.kind === 'spatial' &&
+    typeof value.id === 'string' &&
+    value.id.length > 0
+  );
+}
+
+function replaceSpatialReferenceForRole(args: {
+  action: Record<string, unknown>;
+  fieldRole: PageSpatialReferenceRepairFieldRole;
+  value: Record<string, unknown>;
+}): boolean {
+  if (
+    !spatialReferenceShapeIsRepairable(
+      currentSpatialReferenceForRole(args.action, args.fieldRole),
+    )
+  ) {
+    return false;
+  }
+  if (args.fieldRole === 'subject') {
+    const subject = recordValue(args.action.subject)!;
+    subject.entity = args.value;
+    return true;
+  }
+  if (args.fieldRole === 'object') {
+    args.action.object = args.value;
+    return true;
+  }
+  if (args.fieldRole === 'spatialEffect.target') {
+    recordValue(args.action.spatialEffect)!.target = args.value;
+    return true;
+  }
+  recordValue(args.action.spatialConstraint)!.target = args.value;
+  return true;
+}
+
+function actionContextForSpatialRepair(
+  action: Record<string, unknown>,
+): PageSpatialReferenceRepairTarget['actionContext'] | null {
+  if (
+    typeof action.predicate !== 'string' ||
+    action.predicate.length === 0 ||
+    typeof action.polarity !== 'string' ||
+    action.polarity.length === 0
+  ) {
+    return null;
+  }
+  const effect = recordValue(action.spatialEffect);
+  const constraint = recordValue(action.spatialConstraint);
+  return {
+    predicate: action.predicate,
+    polarity: action.polarity,
+    spatialEffectKind:
+      typeof effect?.kind === 'string' ? effect.kind : null,
+    spatialEffectRelation:
+      typeof effect?.relation === 'string' ? effect.relation : null,
+    spatialConstraintRelation:
+      typeof constraint?.relation === 'string'
+        ? constraint.relation
+        : null,
+  };
+}
+
+/**
+ * Builds an exact field-level repair set for the one closed page-spatial
+ * authority family. Rejected authored IDs are validated as spatial refs but
+ * never copied into repair authority or prompt context.
+ */
+export function pageSpatialReferenceRepairTargets(args: {
+  draft: Record<string, unknown>;
+  issues: readonly DraftAuthorityReferenceIssue[];
+  authority: readonly PageSpatialRepairAuthority[];
+}): PageSpatialReferenceRepairTarget[] | null {
+  const targets = pageSpatialRepairTargets(args.issues);
+  if (!targets) return null;
+  const result = targets.map((target) => {
+    if (
+      !('itemIndex' in target) ||
+      !('fieldRole' in target) ||
+      !PAGE_SPATIAL_REPAIR_FIELD_ROLES.includes(target.fieldRole)
+    ) {
+      return null;
+    }
+    const pages = Array.isArray(args.draft.pageContracts)
+      ? args.draft.pageContracts.map(recordValue)
+      : [];
+    const pageMatches = pages.filter(
+      (page) => page?.pageNumber === target.pageNumber,
+    );
+    if (pageMatches.length !== 1) return null;
+    const action = pageActionForTarget({
+      draft: args.draft,
+      pageNumber: target.pageNumber,
+      actionIndex: target.itemIndex,
+    });
+    if (
+      !action ||
+      !spatialReferenceShapeIsRepairable(
+        currentSpatialReferenceForRole(action, target.fieldRole),
+      )
+    ) {
+      return null;
+    }
+    const actionContext = actionContextForSpatialRepair(action);
+    const permittedSpatialReferences = pageSpatialAuthorityForPage({
+      authority: args.authority,
+      pageContract: pageMatches[0]!,
+      pageNumber: target.pageNumber,
+    });
+    return actionContext && permittedSpatialReferences
+      ? {
+          pageNumber: target.pageNumber,
+          actionIndex: target.itemIndex,
+          fieldRole: target.fieldRole,
+          actionContext,
+          permittedSpatialReferences,
+        }
+      : null;
+  });
+  if (result.some((value) => value === null)) return null;
+  const unique = new Map<string, PageSpatialReferenceRepairTarget>();
+  for (const target of result as PageSpatialReferenceRepairTarget[]) {
+    const key = spatialRepairTargetKey(target);
+    if (unique.has(key)) return null;
+    unique.set(key, target);
+  }
+  return [...unique.values()].sort(
+    (left, right) =>
+      left.pageNumber - right.pageNumber ||
+      left.actionIndex - right.actionIndex ||
+      left.fieldRole.localeCompare(right.fieldRole),
+  );
+}
+
+export function buildPageSpatialReferenceRepairSystemPrompt(): string {
+  return [
+    'Repair ONLY the exact page-spatial reference targets listed by the input.',
+    'Return exactly one patch for every target identity and no other patch.',
+    'For each patch copy one exact id from that target permittedSpatialReferences.',
+    'Do not return a page, action, EntityRef object, JSON pointer, prose, or any extra key.',
+    'The compiler applies the selected id at the exact typed target and preserves every other field.',
+    'Output only the JSON object required by the strict repair schema.',
+  ].join('\n');
+}
+
+export function buildPageSpatialReferenceRepairUserPrompt(args: {
+  targets: readonly PageSpatialReferenceRepairTarget[];
+}): string {
+  return JSON.stringify({
+    targets: [...args.targets]
+      .sort(
+        (left, right) =>
+          left.pageNumber - right.pageNumber ||
+          left.actionIndex - right.actionIndex ||
+          left.fieldRole.localeCompare(right.fieldRole),
+      )
+      .map((target) => structuredClone(target)),
+  });
+}
+
+const PAGE_SPATIAL_REFERENCE_PATCH_KEYS = [
+  'pageNumber',
+  'actionIndex',
+  'fieldRole',
+  'spatialReferenceId',
+] as const;
+
+export function parsePageSpatialReferenceRepairPatches(
+  raw: string,
+): PageSpatialReferenceRepairPatch[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('page_spatial_repair_response_invalid_json');
+  }
+  const root = recordValue(parsed);
+  if (
+    !root ||
+    !exactKeys(root, ['patches']) ||
+    !Array.isArray(root.patches) ||
+    root.patches.length === 0
+  ) {
+    throw new Error('page_spatial_repair_response_invalid_shape');
+  }
+  return root.patches.map((value) => {
+    const patch = recordValue(value);
+    if (
+      !patch ||
+      !exactKeys(patch, PAGE_SPATIAL_REFERENCE_PATCH_KEYS) ||
+      !Number.isSafeInteger(patch.pageNumber) ||
+      (patch.pageNumber as number) < 1 ||
+      !Number.isSafeInteger(patch.actionIndex) ||
+      (patch.actionIndex as number) < 0 ||
+      typeof patch.fieldRole !== 'string' ||
+      !PAGE_SPATIAL_REPAIR_FIELD_ROLES.includes(
+        patch.fieldRole as PageSpatialReferenceRepairFieldRole,
+      ) ||
+      typeof patch.spatialReferenceId !== 'string' ||
+      patch.spatialReferenceId.length === 0
+    ) {
+      throw new Error('page_spatial_repair_patch_invalid');
+    }
+    return patch as unknown as PageSpatialReferenceRepairPatch;
+  });
+}
+
+function maskedSpatialTargets(args: {
+  draft: Record<string, unknown>;
+  targets: readonly PageSpatialReferenceRepairTarget[];
+}): unknown {
+  const masked = structuredClone(args.draft);
+  for (const target of args.targets) {
+    const action = pageActionForTarget({
+      draft: masked,
+      pageNumber: target.pageNumber,
+      actionIndex: target.actionIndex,
+    });
+    if (
+      !action ||
+      !replaceSpatialReferenceForRole({
+        action,
+        fieldRole: target.fieldRole,
+        value: { kind: 'spatial', id: '__repair_target__' },
+      })
+    ) {
+      throw new Error('page_spatial_repair_target_stale');
+    }
+  }
+  return canonicalize(masked);
+}
+
+export function applyPageSpatialReferenceRepairPatches(args: {
+  draft: Record<string, unknown>;
+  targets: readonly PageSpatialReferenceRepairTarget[];
+  patches: readonly PageSpatialReferenceRepairPatch[];
+}): Record<string, unknown> {
+  if (args.targets.length === 0) {
+    throw new Error('page_spatial_repair_target_set_empty');
+  }
+  const expected = new Map<string, PageSpatialReferenceRepairTarget>();
+  for (const target of args.targets) {
+    const key = spatialRepairTargetKey(target);
+    if (expected.has(key)) {
+      throw new Error('page_spatial_repair_target_duplicate');
+    }
+    expected.set(key, target);
+  }
+  if (args.patches.length !== expected.size) {
+    throw new Error('page_spatial_repair_patch_set_incomplete');
+  }
+  const replacements = new Map<
+    string,
+    PageSpatialReferenceRepairPatch
+  >();
+  for (const patch of args.patches) {
+    const key = spatialRepairTargetKey(patch);
+    const target = expected.get(key);
+    if (!target || replacements.has(key)) {
+      throw new Error('page_spatial_repair_patch_unexpected_or_duplicate');
+    }
+    if (
+      !target.permittedSpatialReferences.some(
+        (value) => value.id === patch.spatialReferenceId,
+      )
+    ) {
+      throw new Error('page_spatial_repair_reference_not_permitted');
+    }
+    replacements.set(key, patch);
+  }
+
+  const beforeMasked = maskedSpatialTargets({
+    draft: args.draft,
+    targets: args.targets,
+  });
+  const result = structuredClone(args.draft);
+  for (const target of args.targets) {
+    const action = pageActionForTarget({
+      draft: result,
+      pageNumber: target.pageNumber,
+      actionIndex: target.actionIndex,
+    });
+    const patch = replacements.get(spatialRepairTargetKey(target))!;
+    if (
+      !action ||
+      !replaceSpatialReferenceForRole({
+        action,
+        fieldRole: target.fieldRole,
+        value: {
+          kind: 'spatial',
+          id: patch.spatialReferenceId,
+        },
+      })
+    ) {
+      throw new Error('page_spatial_repair_target_stale');
+    }
+  }
+  const afterMasked = maskedSpatialTargets({
+    draft: result,
+    targets: args.targets,
+  });
+  if (JSON.stringify(beforeMasked) !== JSON.stringify(afterMasked)) {
+    throw new Error('page_spatial_repair_non_target_drift');
+  }
+  return result;
+}
+
 /**
  * Returns a complete, deterministic affected-page set only when every emitted
  * diagnostic belongs to one homogeneous closed repair family. Mixed or
@@ -328,25 +751,11 @@ export function pageContractRepairAffectedPages(args: {
   draft: Record<string, unknown>;
   diagnosticIssues: readonly DraftValidationIssue[];
   pointerTemplate?: ActionSemanticCoverageTemplate;
-  pageSpatialIssues?: readonly DraftAuthorityReferenceIssue[];
-  pageSpatialAuthority?: readonly PageSpatialRepairAuthority[];
 }): PageContractRepairAffectedPage[] | null {
-  if (
-    args.pageSpatialIssues &&
-    args.diagnosticIssues.length !== args.pageSpatialIssues.length
-  ) {
-    return null;
-  }
-  const targets = args.pageSpatialIssues
-    ? pageSpatialRepairTargets(args.pageSpatialIssues)
-    : repairTargets(args.diagnosticIssues);
+  const targets = repairTargets(args.diagnosticIssues);
   if (!targets) return null;
   const actionSemanticRepair =
     targets[0]?.family === 'action_semantic';
-  const pageSpatialRepair = args.pageSpatialIssues !== undefined;
-  if (pageSpatialRepair !== (args.pageSpatialAuthority !== undefined)) {
-    return null;
-  }
   if (actionSemanticRepair && !args.pointerTemplate) return null;
   const pageNumbers = new Set(
     targets.map((target) => target.pageNumber),
@@ -362,29 +771,19 @@ export function pageContractRepairAffectedPages(args: {
         .filter((page) => page?.pageNumber === pageNumber);
       return matches.length === 1
         ? (() => {
-            const permittedSpatialReferences = pageSpatialRepair
-              ? pageSpatialAuthorityForPage({
-                  authority: args.pageSpatialAuthority!,
-                  pageContract: matches[0]!,
-                  pageNumber,
-                })
-              : [];
-            return permittedSpatialReferences === null
-              ? null
-              : {
-                  pageNumber,
-                  pageContract: structuredClone(matches[0]!),
-                  repairTargets: targets.filter(
-                    (target) => target.pageNumber === pageNumber,
-                  ),
-                  permittedPointerValues: actionSemanticRepair
-                    ? permittedRepresentedElsewherePointerValuesForPage({
-                        template: args.pointerTemplate!,
-                        pageNumber,
-                      })
-                    : [],
-                  permittedSpatialReferences,
-                };
+            return {
+              pageNumber,
+              pageContract: structuredClone(matches[0]!),
+              repairTargets: targets.filter(
+                (target) => target.pageNumber === pageNumber,
+              ),
+              permittedPointerValues: actionSemanticRepair
+                ? permittedRepresentedElsewherePointerValuesForPage({
+                    template: args.pointerTemplate!,
+                    pageNumber,
+                  })
+                : [],
+            };
           })()
         : null;
     });
@@ -393,9 +792,7 @@ export function pageContractRepairAffectedPages(args: {
       value !== null &&
       value.repairTargets.length > 0 &&
       (!actionSemanticRepair ||
-        value.permittedPointerValues.length > 0) &&
-      (!pageSpatialRepair ||
-        value.permittedSpatialReferences.length > 0),
+        value.permittedPointerValues.length > 0),
   )
     ? result
     : null;
@@ -409,7 +806,6 @@ export function buildPageContractRepairSystemPrompt(): string {
     'Do not rewrite locations, zones, set boards, cast, recurring props, cover, or global fields.',
     'Resolve only the closed typed repairTargets while preserving unaffected page semantics.',
     'For represented_elsewhere, contractPointer and contractValue must be copied as one exact pair from permittedPointerValues on that page.',
-    'For page-spatial targets, preserve the action meaning. Any kind:"spatial" reference at a listed target must copy one exact id from permittedSpatialReferences on that page; never change zoneId or invent an id.',
     'Never rewrite a pointer silently or infer an authoring record from an item/list position.',
     'Output only the JSON object required by the strict repair schema.',
   ].join('\n');
@@ -426,8 +822,6 @@ export function buildPageContractRepairUserPrompt(args: {
         pageContract: value.pageContract,
         repairTargets: value.repairTargets,
         permittedPointerValues: value.permittedPointerValues,
-        permittedSpatialReferences:
-          value.permittedSpatialReferences,
       })),
   });
 }

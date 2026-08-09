@@ -13,6 +13,8 @@ import {
 import {
   PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
   PAGE_CONTRACT_REPAIR_SCHEMA_VERSION,
+  PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+  PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
 import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
@@ -100,11 +102,15 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
     expect(PAGE_CONTRACT_REPAIR_SCHEMA_VERSION).toBe(
       'page-contract-repair-schema/v1',
     );
+    expect(PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION).toBe(
+      'page-spatial-reference-repair-schema/v1',
+    );
 
     for (const schema of [
       TEMPLATE_DRAFT_JSON_SCHEMA,
       SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
       PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+      PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     ]) {
       const serialized = JSON.parse(

@@ -118,12 +118,22 @@ import {
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
   PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
+  PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+  PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION,
+  PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
+  PAGE_SPATIAL_REFERENCE_REPAIR_USER_PROMPT_VERSION,
   applyPageContractRepairs,
+  applyPageSpatialReferenceRepairPatches,
   buildPageContractRepairSystemPrompt,
   buildPageContractRepairUserPrompt,
+  buildPageSpatialReferenceRepairSystemPrompt,
+  buildPageSpatialReferenceRepairUserPrompt,
   pageContractRepairAffectedPages,
+  pageSpatialReferenceRepairTargets,
   parsePageContractRepairs,
+  parsePageSpatialReferenceRepairPatches,
   type PageContractRepairAffectedPage,
+  type PageSpatialReferenceRepairTarget,
   type PageSpatialRepairAuthority,
 } from './pageContractRepair';
 
@@ -193,6 +203,7 @@ interface TemplateRepairAttempt {
   nextRepairMode?:
     | 'source_evidence_id_patch'
     | 'page_contract_patch'
+    | 'page_spatial_reference_patch'
     | 'full_draft';
 }
 
@@ -202,6 +213,7 @@ export interface TemplateRepairSummary {
   nextRepairMode?:
     | 'source_evidence_id_patch'
     | 'page_contract_patch'
+    | 'page_spatial_reference_patch'
     | 'full_draft';
 }
 
@@ -413,6 +425,7 @@ export class TemplateRepairOutputInvalidError extends Error {
     readonly repairMode:
       | 'source_evidence_id_patch'
       | 'page_contract_patch'
+      | 'page_spatial_reference_patch'
       | 'full_draft',
   ) {
     super('completed template repair output was unusable');
@@ -2784,6 +2797,13 @@ export async function compileBookVisualContractTemplate(
       schema: PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
     },
   } satisfies ContractLlmCallOptions;
+  const pageSpatialReferenceRepairLlmOpts = {
+    ...llmOpts,
+    jsonSchema: {
+      name: PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
+      schema: PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+    },
+  } satisfies ContractLlmCallOptions;
 
   let draft = asObj(
     parseContractJson(
@@ -2812,6 +2832,9 @@ export async function compileBookVisualContractTemplate(
       | null = null;
     let pageContractAffectedPages:
       | PageContractRepairAffectedPage[]
+      | null = null;
+    let pageSpatialReferenceAffectedTargets:
+      | PageSpatialReferenceRepairTarget[]
       | null = null;
     let pageContractPointerTemplate:
       | ActionSemanticCoverageTemplate
@@ -2862,13 +2885,20 @@ export async function compileBookVisualContractTemplate(
     }
 
     if (!assembled && !sourceEvidenceAffectedRecords) {
-      pageContractAffectedPages = pageContractRepairAffectedPages({
-        draft,
-        diagnosticIssues: attemptDiagnosticIssues,
-        pointerTemplate: pageContractPointerTemplate,
-        pageSpatialIssues: pageSpatialRepairIssues,
-        pageSpatialAuthority: pageSpatialRepairAuthority,
-      });
+      if (pageSpatialRepairIssues && pageSpatialRepairAuthority) {
+        pageSpatialReferenceAffectedTargets =
+          pageSpatialReferenceRepairTargets({
+            draft,
+            issues: pageSpatialRepairIssues,
+            authority: pageSpatialRepairAuthority,
+          });
+      } else {
+        pageContractAffectedPages = pageContractRepairAffectedPages({
+          draft,
+          diagnosticIssues: attemptDiagnosticIssues,
+          pointerTemplate: pageContractPointerTemplate,
+        });
+      }
     }
 
     if (assembled) {
@@ -2889,7 +2919,10 @@ export async function compileBookVisualContractTemplate(
                   ? SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION
                   : lastRepairMode === 'page_contract_patch'
                     ? PAGE_CONTRACT_REPAIR_PROMPT_VERSION
-                  : REPAIR_PROMPT_VERSION,
+                    : lastRepairMode ===
+                        'page_spatial_reference_patch'
+                      ? PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION
+                   : REPAIR_PROMPT_VERSION,
             }
           : {}),
       };
@@ -2929,9 +2962,11 @@ export async function compileBookVisualContractTemplate(
 
     const repairMode = sourceEvidenceAffectedRecords
       ? 'source_evidence_id_patch'
-      : pageContractAffectedPages
-        ? 'page_contract_patch'
-        : 'full_draft';
+      : pageSpatialReferenceAffectedTargets
+        ? 'page_spatial_reference_patch'
+        : pageContractAffectedPages
+          ? 'page_contract_patch'
+          : 'full_draft';
     repairAttempts[repairAttempts.length - 1]!.nextRepairMode =
       repairMode;
 
@@ -2963,6 +2998,27 @@ export async function compileBookVisualContractTemplate(
           catalog: input.sourceEvidenceCatalog,
           affectedRecords: sourceEvidenceAffectedRecords,
           patches: parseSourceEvidenceIdPatches(rawPatch),
+        });
+      } else if (pageSpatialReferenceAffectedTargets) {
+        const rawPatch = await deps.callLLM(
+          buildPageSpatialReferenceRepairSystemPrompt(),
+          buildPageSpatialReferenceRepairUserPrompt({
+            targets: pageSpatialReferenceAffectedTargets,
+          }),
+          pageSpatialReferenceRepairLlmOpts,
+          {
+            kind: 'repair',
+            repairMode: 'page_spatial_reference_patch',
+            systemPromptVersion:
+              PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION,
+            userPromptVersion:
+              PAGE_SPATIAL_REFERENCE_REPAIR_USER_PROMPT_VERSION,
+          },
+        );
+        draft = applyPageSpatialReferenceRepairPatches({
+          draft,
+          targets: pageSpatialReferenceAffectedTargets,
+          patches: parsePageSpatialReferenceRepairPatches(rawPatch),
         });
       } else if (pageContractAffectedPages) {
         const rawPatch = await deps.callLLM(
