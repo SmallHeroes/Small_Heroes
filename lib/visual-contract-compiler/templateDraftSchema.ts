@@ -167,7 +167,7 @@ const humanDraft = obj({
   forbiddenAppearance: stringArray,
 });
 
-const prop = obj({
+export const TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA = obj({
   id: { type: 'string' },
   name: { type: 'string' },
   description: { type: 'string' },
@@ -351,7 +351,10 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
   setBoardAuthorities: { type: 'array', items: setBoardStableAuthority },
   cast,
   humanCast: { type: 'array', items: humanDraft },
-  recurringProps: { type: 'array', items: prop },
+  recurringProps: {
+    type: 'array',
+    items: TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA,
+  },
   forbiddenGlobalElements: stringArray,
   coverContract,
   pageContracts: {
