@@ -703,6 +703,11 @@ describe('exact zero-cost authoring preflight', () => {
           systemPromptVersion: 'vc-repair-prompt/v9',
           userPromptVersion: 'vc-repair-user-prompt/v10',
         },
+        pageContractRepair: {
+          systemPromptVersion: 'page-contract-repair-prompt/v1',
+          userPromptVersion:
+            'page-contract-repair-user-prompt/v1',
+        },
       },
       pricing: {
         version: 'openai-standard-pricing/2026-07-27-v2',
@@ -771,6 +776,63 @@ describe('exact zero-cost authoring preflight', () => {
     expect(result.receipt.failure?.issues).toContain(
       'prompt_authority_mismatch',
     );
+    expect(provider.call).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'schema authority',
+      'page_contract_repair_structured_output_mismatch',
+      (request: ReturnType<typeof requestFor>) => {
+        request.pageContractRepairStructuredOutput.schemaDigest =
+          'f'.repeat(64);
+      },
+    ],
+    [
+      'prompt authority',
+      'prompt_authority_mismatch',
+      (request: ReturnType<typeof requestFor>) => {
+        request.promptAuthority.pageContractRepair.systemPromptDigest =
+          'e'.repeat(64);
+      },
+    ],
+  ])('rejects altered page-contract repair %s before provider reachability', async (
+    _label,
+    expectedIssue,
+    mutate,
+  ) => {
+    const snapshot = snapshotFor(
+      writeStoryFixture({
+        pageCount: 12,
+        companion: true,
+        multiLocation: true,
+        cover: true,
+      }),
+    );
+    const request = structuredClone(
+      requestFor(snapshot, 'preflight'),
+    );
+    mutate(request);
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = request;
+    request.digest = canonicalJsonDigest(payload);
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.issues).toContain(expectedIssue);
     expect(provider.call).not.toHaveBeenCalled();
   });
 
@@ -1250,13 +1312,11 @@ describe('source-grounded closed action authority', () => {
       malformedFailure = error;
     }
     expect(malformedFailure).toBeInstanceOf(
-      TemplateRepairExhaustedError,
+      TemplateRepairOutputInvalidError,
     );
     expect(
-      (malformedFailure as TemplateRepairExhaustedError).attempts.every(
-        (attempt) => attempt.diagnosticIssues.length > 0,
-      ),
-    ).toBe(true);
+      (malformedFailure as TemplateRepairOutputInvalidError).repairMode,
+    ).toBe('page_contract_patch');
     expect(String(malformedFailure)).not.toMatch(/flies_over/);
 
     const duplicate = fullyActionedBunnyDraft(snapshot);
@@ -1408,7 +1468,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v11',
+      version: 'visual-contract-authoring-readiness/v12',
       draftValidation: {
         status: 'interrupted',
         attempts: [
@@ -1456,7 +1516,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v11', async () => {
+  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v12', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const result = await runVisualContractAuthoring({
@@ -1473,7 +1533,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v11',
+      version: 'visual-contract-authoring-readiness/v12',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -1655,6 +1715,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v10',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v11',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -1685,11 +1751,23 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v13',
       ),
-    ).toBe('current');
+    ).toBe('legacy_immutable');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v11',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v14',
+      ),
+    ).toBe('current');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v12',
       ),
     ).toBe('current');
     expect(
@@ -1904,7 +1982,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v13',
+      'visual-contract-authoring-receipt/v14',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -2945,6 +3023,85 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       sourceEvidenceCatalogDigest:
         snapshot.content.sourceEvidenceCatalog.digest,
     });
+  });
+
+  it('records a bounded complete-page repair and completes without resending global draft authority', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const valid = fullyActionedBunnyDraft(snapshot);
+    const invalid = structuredClone(valid);
+    for (const page of invalid.pageContracts) {
+      page.camera = '';
+    }
+    const repairedPages = valid.pageContracts.map((page) => {
+      const repaired = structuredClone(
+        page,
+      ) as unknown as Record<string, unknown>;
+      delete repaired.castIds;
+      delete repaired.castStates;
+      delete repaired.characterPresence;
+      repaired.propConstraints ??= [];
+      repaired.actionRequirements ??= [];
+      return repaired;
+    });
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => ({
+        output:
+          args.attempt === 1
+            ? JSON.stringify(invalid)
+            : JSON.stringify({
+                pageContracts: repairedPages,
+              }),
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: `response-${args.attempt}`,
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 2_000,
+            total_tokens: 3_000,
+            output_tokens_details: {
+              reasoning_tokens: 500,
+            },
+          },
+        },
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt.status).toBe('completed');
+    expect(result.receipt.callCount).toBe(2);
+    expect(result.receipt.repairCount).toBe(1);
+    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([null, 'page_contract_patch']);
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    const secondCall = vi.mocked(provider.call).mock.calls[1]![0];
+    expect(secondCall.options.jsonSchema?.name).toBe(
+      'PageContractRepairPatches',
+    );
+    expect(secondCall.userPrompt).not.toContain('"worldType"');
+    expect(secondCall.userPrompt).not.toContain('"coverContract"');
+    const admittedUpperBound =
+      Buffer.byteLength(
+        [
+          secondCall.systemPrompt,
+          secondCall.userPrompt,
+          JSON.stringify(secondCall.options.jsonSchema?.schema),
+        ].join('\n'),
+        'utf8',
+      ) + 4_096;
+    expect(admittedUpperBound).toBeLessThanOrEqual(
+      request.tokenBudget.maxInputTokens,
+    );
+    expect(
+      request.tokenBudget.maxInputTokens - admittedUpperBound,
+    ).toBeGreaterThanOrEqual(4_096);
   });
 
   it('rechecks the 64k input ceiling before a repair and never reaches the provider for an oversized repair prompt', async () => {

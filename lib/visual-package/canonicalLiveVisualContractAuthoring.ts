@@ -175,6 +175,10 @@ function authoringRequestValue(
     object.compactRepairStructuredOutput,
     'visual contract authoring request compactRepairStructuredOutput',
   );
+  const pageContractRepairStructuredOutput = objectValue(
+    object.pageContractRepairStructuredOutput,
+    'visual contract authoring request pageContractRepairStructuredOutput',
+  );
   const tokenBudget = objectValue(
     object.tokenBudget,
     'visual contract authoring request tokenBudget',
@@ -210,6 +214,10 @@ function authoringRequestValue(
   const sourceEvidenceIdRepairPromptAuthority = objectValue(
     promptAuthority.sourceEvidenceIdRepair,
     'visual contract authoring request sourceEvidenceIdRepair promptAuthority',
+  );
+  const pageContractRepairPromptAuthority = objectValue(
+    promptAuthority.pageContractRepair,
+    'visual contract authoring request pageContractRepair promptAuthority',
   );
   const actionSemanticAuthority = objectValue(
     object.actionSemanticAuthority,
@@ -285,6 +293,25 @@ function authoringRequestValue(
       serializedSchemaDigest:
         compactRepairStructuredOutput.serializedSchemaDigest,
     },
+    pageContractRepairStructuredOutput: {
+      strict: pageContractRepairStructuredOutput.strict,
+      schemaName: pageContractRepairStructuredOutput.schemaName,
+      schemaVersion:
+        pageContractRepairStructuredOutput.schemaVersion,
+      schemaDigest: pageContractRepairStructuredOutput.schemaDigest,
+      compatibilityProfileVersion:
+        pageContractRepairStructuredOutput.compatibilityProfileVersion,
+      compatibilityProfileDigest:
+        pageContractRepairStructuredOutput.compatibilityProfileDigest,
+      compatibilityEvidenceVersion:
+        pageContractRepairStructuredOutput.compatibilityEvidenceVersion,
+      compatibilityEvidenceDigest:
+        pageContractRepairStructuredOutput.compatibilityEvidenceDigest,
+      compatibilityStatus:
+        pageContractRepairStructuredOutput.compatibilityStatus,
+      serializedSchemaDigest:
+        pageContractRepairStructuredOutput.serializedSchemaDigest,
+    },
     toolsDisabled: object.toolsDisabled,
     noFallback: object.noFallback,
     transportRetries: object.transportRetries,
@@ -352,6 +379,14 @@ function authoringRequestValue(
         systemPromptDigest:
           sourceEvidenceIdRepairPromptAuthority.systemPromptDigest,
       },
+      pageContractRepair: {
+        systemPromptVersion:
+          pageContractRepairPromptAuthority.systemPromptVersion,
+        userPromptVersion:
+          pageContractRepairPromptAuthority.userPromptVersion,
+        systemPromptDigest:
+          pageContractRepairPromptAuthority.systemPromptDigest,
+      },
     },
     actionSemanticAuthority: {
       catalogVersion:
@@ -384,6 +419,7 @@ const REQUEST_KEYS = new Set([
   'reasoningEffort',
   'structuredOutput',
   'compactRepairStructuredOutput',
+  'pageContractRepairStructuredOutput',
   'toolsDisabled',
   'noFallback',
   'transportRetries',
@@ -425,6 +461,18 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'compatibilityStatus',
     'serializedSchemaDigest',
   ]),
+  pageContractRepairStructuredOutput: new Set([
+    'strict',
+    'schemaName',
+    'schemaVersion',
+    'schemaDigest',
+    'compatibilityProfileVersion',
+    'compatibilityProfileDigest',
+    'compatibilityEvidenceVersion',
+    'compatibilityEvidenceDigest',
+    'compatibilityStatus',
+    'serializedSchemaDigest',
+  ]),
   tokenBudget: new Set([
     'maxInputTokens',
     'promptAndSchemaTokenUpperBound',
@@ -452,6 +500,7 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'initial',
     'repair',
     'sourceEvidenceIdRepair',
+    'pageContractRepair',
   ]),
   actionSemanticAuthority: new Set([
     'catalogVersion',
@@ -497,6 +546,18 @@ const REQUEST_OBJECT_FIELDS = {
     serializedSchemaDigest: 'string',
   },
   compactRepairStructuredOutput: {
+    strict: 'boolean',
+    schemaName: 'string',
+    schemaVersion: 'string',
+    schemaDigest: 'string',
+    compatibilityProfileVersion: 'string',
+    compatibilityProfileDigest: 'string',
+    compatibilityEvidenceVersion: 'string',
+    compatibilityEvidenceDigest: 'string',
+    compatibilityStatus: 'string',
+    serializedSchemaDigest: 'string',
+  },
+  pageContractRepairStructuredOutput: {
     strict: 'boolean',
     schemaName: 'string',
     schemaVersion: 'string',
@@ -559,6 +620,11 @@ const PROMPT_AUTHORITY_FIELDS = {
     systemPromptDigest: 'string',
   },
   sourceEvidenceIdRepair: {
+    systemPromptVersion: 'string',
+    userPromptVersion: 'string',
+    systemPromptDigest: 'string',
+  },
+  pageContractRepair: {
     systemPromptVersion: 'string',
     userPromptVersion: 'string',
     systemPromptDigest: 'string',

@@ -519,6 +519,9 @@ describe('canonical live request verification library', () => {
       compactRepairStructuredOutputCompatibility:
         materialized.manifest
           .compactRepairStructuredOutputCompatibility,
+      pageContractRepairStructuredOutputCompatibility:
+        materialized.manifest
+          .pageContractRepairStructuredOutputCompatibility,
       externalBoundaryEvidence: {
         credentialReadOrCheck: false,
         providerReachabilityCheck: false,
@@ -965,6 +968,31 @@ describe('canonical live request verification library', () => {
     ).toMatchObject({
       status: 'rejected',
       reasonCodes: ['future_live_command_invalid'],
+    });
+  });
+
+  it('rejects recomputed page-contract repair compatibility drift', () => {
+    const fixture = writeFixture();
+    const materialized = materialize(fixture);
+    const manifestPath = rewriteManifest(
+      fixture,
+      materialized.manifest,
+      (manifest) => {
+        const authority =
+          manifest.pageContractRepairStructuredOutputCompatibility as {
+            schemaDigest: string;
+          };
+        authority.schemaDigest = 'f'.repeat(64);
+      },
+    );
+
+    expect(
+      verificationResult(fixture, manifestPath),
+    ).toMatchObject({
+      status: 'rejected',
+      reasonCodes: [
+        'structured_output_compatibility_invalid',
+      ],
     });
   });
 

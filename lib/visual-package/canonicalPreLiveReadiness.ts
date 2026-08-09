@@ -53,7 +53,7 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION =
-  'canonical-pre-live-readiness-evidence/v7' as const;
+  'canonical-pre-live-readiness-evidence/v8' as const;
 export const CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION =
   'canonical-pre-live-readiness-failure/v3' as const;
 export const CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION =
@@ -204,6 +204,8 @@ export interface CanonicalPreLiveReadinessEvidence {
       structuredOutputCompatibility:
         LiveRequestStructuredOutputCompatibilityAuthority;
       compactRepairStructuredOutputCompatibility:
+        LiveRequestStructuredOutputCompatibilityAuthority;
+      pageContractRepairStructuredOutputCompatibility:
         LiveRequestStructuredOutputCompatibilityAuthority;
     };
     executionRequest: {
@@ -1544,6 +1546,7 @@ function evidenceIssues(value: unknown): string[] {
         'liveAuthoringRequestDigest',
         'structuredOutputCompatibility',
         'compactRepairStructuredOutputCompatibility',
+        'pageContractRepairStructuredOutputCompatibility',
       ]) ||
       typeof b0.manifestPath !== 'string' ||
       canonicalMaterializationRelativePathIssues(
@@ -1569,6 +1572,10 @@ function evidenceIssues(value: unknown): string[] {
       liveRequestStructuredOutputCompatibilityAuthorityIssues(
         b0.compactRepairStructuredOutputCompatibility,
         'pre_live_evidence_b0_compact_repair_structured_output_compatibility',
+      ).length > 0 ||
+      liveRequestStructuredOutputCompatibilityAuthorityIssues(
+        b0.pageContractRepairStructuredOutputCompatibility,
+        'pre_live_evidence_b0_page_contract_repair_structured_output_compatibility',
       ).length > 0 ||
       !validDescriptor(executionRequest) ||
       !supervisor ||
@@ -2037,6 +2044,8 @@ function evidenceValue(args: {
           args.b0.structuredOutputCompatibility,
         compactRepairStructuredOutputCompatibility:
           args.b0.compactRepairStructuredOutputCompatibility,
+        pageContractRepairStructuredOutputCompatibility:
+          args.b0.pageContractRepairStructuredOutputCompatibility,
       },
       executionRequest: args.executionRequest,
       supervisorVerification: {

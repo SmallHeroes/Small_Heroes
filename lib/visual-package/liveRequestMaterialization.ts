@@ -41,9 +41,9 @@ export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v8' as const;
+  'canonical-live-request-materialization/v9' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v8' as const;
+  'canonical-live-request-verification/v9' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -126,6 +126,8 @@ export interface LiveRequestMaterializationManifest {
     LiveRequestStructuredOutputCompatibilityAuthority;
   compactRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
+  pageContractRepairStructuredOutputCompatibility:
+    LiveRequestStructuredOutputCompatibilityAuthority;
   futureLiveCommand: {
     executable: 'node';
     arguments: string[];
@@ -172,6 +174,8 @@ export interface CanonicalLiveRequestVerifiedResult {
   structuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
   compactRepairStructuredOutputCompatibility:
+    LiveRequestStructuredOutputCompatibilityAuthority;
+  pageContractRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
   requestPolicy: {
     provider: 'openai';
@@ -736,6 +740,7 @@ export function liveRequestMaterializationManifestIssues(
       'artifacts',
       'structuredOutputCompatibility',
       'compactRepairStructuredOutputCompatibility',
+      'pageContractRepairStructuredOutputCompatibility',
       'futureLiveCommand',
       'externalBoundaryEvidence',
       'doesNotAuthorize',
@@ -967,6 +972,10 @@ export function liveRequestMaterializationManifestIssues(
     ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
       object.compactRepairStructuredOutputCompatibility,
       'materialization_manifest_compact_repair_structured_output_compatibility',
+    ),
+    ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
+      object.pageContractRepairStructuredOutputCompatibility,
+      'materialization_manifest_page_contract_repair_structured_output_compatibility',
     ),
   );
   const command = recordValue(object.futureLiveCommand);
@@ -1345,6 +1354,34 @@ export function materializeCanonicalLiveRequestBundle(args: {
             .compatibilityStatus,
         serializedSchemaDigest:
           liveAuthoringRequest.compactRepairStructuredOutput
+            .serializedSchemaDigest,
+      },
+    },
+    pageContractRepairStructuredOutputCompatibility: {
+      schemaName:
+        liveAuthoringRequest.pageContractRepairStructuredOutput.schemaName,
+      schemaVersion:
+        liveAuthoringRequest.pageContractRepairStructuredOutput.schemaVersion,
+      schemaDigest:
+        liveAuthoringRequest.pageContractRepairStructuredOutput.schemaDigest,
+      compatibility: {
+        profileVersion:
+          liveAuthoringRequest.pageContractRepairStructuredOutput
+            .compatibilityProfileVersion,
+        profileDigest:
+          liveAuthoringRequest.pageContractRepairStructuredOutput
+            .compatibilityProfileDigest,
+        evidenceVersion:
+          liveAuthoringRequest.pageContractRepairStructuredOutput
+            .compatibilityEvidenceVersion,
+        evidenceDigest:
+          liveAuthoringRequest.pageContractRepairStructuredOutput
+            .compatibilityEvidenceDigest,
+        status:
+          liveAuthoringRequest.pageContractRepairStructuredOutput
+            .compatibilityStatus,
+        serializedSchemaDigest:
+          liveAuthoringRequest.pageContractRepairStructuredOutput
             .serializedSchemaDigest,
       },
     },
@@ -2028,6 +2065,39 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
     expectedCompactRepairStructuredOutputCompatibility,
     'manifest_compact_repair_structured_output_compatibility_invalid',
   );
+  const expectedPageContractRepairStructuredOutputCompatibility = {
+    schemaName:
+      rebuiltLiveRequest.pageContractRepairStructuredOutput.schemaName,
+    schemaVersion:
+      rebuiltLiveRequest.pageContractRepairStructuredOutput.schemaVersion,
+    schemaDigest:
+      rebuiltLiveRequest.pageContractRepairStructuredOutput.schemaDigest,
+    compatibility: {
+      profileVersion:
+        rebuiltLiveRequest.pageContractRepairStructuredOutput
+          .compatibilityProfileVersion,
+      profileDigest:
+        rebuiltLiveRequest.pageContractRepairStructuredOutput
+          .compatibilityProfileDigest,
+      evidenceVersion:
+        rebuiltLiveRequest.pageContractRepairStructuredOutput
+          .compatibilityEvidenceVersion,
+      evidenceDigest:
+        rebuiltLiveRequest.pageContractRepairStructuredOutput
+          .compatibilityEvidenceDigest,
+      status:
+        rebuiltLiveRequest.pageContractRepairStructuredOutput
+          .compatibilityStatus,
+      serializedSchemaDigest:
+        rebuiltLiveRequest.pageContractRepairStructuredOutput
+          .serializedSchemaDigest,
+    },
+  } satisfies LiveRequestStructuredOutputCompatibilityAuthority;
+  exactCanonicalValue(
+    manifest.pageContractRepairStructuredOutputCompatibility,
+    expectedPageContractRepairStructuredOutputCompatibility,
+    'manifest_page_contract_repair_structured_output_compatibility_invalid',
+  );
 
   const expectedSourceRevision = {
     storyKey: rebuiltSnapshot.content.storyKey,
@@ -2111,6 +2181,8 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
       expectedStructuredOutputCompatibility,
     compactRepairStructuredOutputCompatibility:
       expectedCompactRepairStructuredOutputCompatibility,
+    pageContractRepairStructuredOutputCompatibility:
+      expectedPageContractRepairStructuredOutputCompatibility,
     requestPolicy: {
       provider: 'openai',
       endpoint: 'responses',

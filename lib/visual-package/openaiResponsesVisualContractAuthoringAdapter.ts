@@ -40,6 +40,10 @@ import {
   SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
   SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/sourceEvidenceIdRepair';
+import {
+  PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+  PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/pageContractRepair';
 
 import { canonicalJsonDigest } from './integrity';
 import {
@@ -218,7 +222,10 @@ function exactCallOptionsIssues(
       schemaDigest === canonicalJsonDigest(TEMPLATE_DRAFT_JSON_SCHEMA)) ||
     (schemaName === SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME &&
       schemaDigest ===
-        canonicalJsonDigest(SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA));
+        canonicalJsonDigest(SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA)) ||
+    (schemaName === PAGE_CONTRACT_REPAIR_SCHEMA_NAME &&
+      schemaDigest ===
+        canonicalJsonDigest(PAGE_CONTRACT_REPAIR_JSON_SCHEMA));
   if (!structuredOutputMatches) {
     issues.push('structured_output');
   }

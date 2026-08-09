@@ -239,6 +239,9 @@ function executionRequestPayload(
       compactRepairStructuredOutputCompatibility:
         fixture.materialized.manifest
           .compactRepairStructuredOutputCompatibility,
+      pageContractRepairStructuredOutputCompatibility:
+        fixture.materialized.manifest
+          .pageContractRepairStructuredOutputCompatibility,
     },
     preservationFences:
       overrides.preservationFences ?? [

@@ -28,6 +28,10 @@ import {
   SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
   SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/sourceEvidenceIdRepair';
+import {
+  PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+  PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/pageContractRepair';
 import type {
   BookVisualContract,
 } from '@/lib/visual-contract-compiler/types';
@@ -499,6 +503,33 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     });
   });
 
+  it('maps the page-contract repair schema without changing the locked provider policy', () => {
+    const fixture = createLiveFixture('page-contract-schema-body');
+    const options = exactOptions(fixture.request);
+    options.jsonSchema = {
+      name: PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+      schema: PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+    };
+    const body = buildOpenAIResponsesVisualContractAuthoringBody({
+      systemPrompt: 'page-contract-system',
+      userPrompt: 'page-contract-user',
+      options,
+    });
+    expect(body.text?.format).toMatchObject({
+      type: 'json_schema',
+      name: PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+      schema: PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+      strict: true,
+    });
+    expect(body).toMatchObject({
+      model: 'gpt-5.6-sol',
+      service_tier: 'default',
+      tools: [],
+      tool_choice: 'none',
+      store: false,
+    });
+  });
+
   it('maps the exact request body, zero-retry transport options, and complete provider evidence', async () => {
     const fixture = createLiveFixture('mapping');
     const draft = fullyActionedDraft(fixture.snapshot);
@@ -516,7 +547,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v13',
+      'visual-contract-authoring-receipt/v14',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',

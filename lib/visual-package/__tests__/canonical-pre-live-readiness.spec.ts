@@ -527,7 +527,7 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v8',
+            'canonical-live-request-verification/v9',
           structuredOutputCompatibility: {
             schemaName: 'BookVisualContractTemplateDraft',
             schemaVersion: 'vc-draft-schema/v13',
@@ -547,10 +547,16 @@ describe('canonical pre-live readiness orchestrator', () => {
               status: 'compatible',
             },
           },
+          pageContractRepairStructuredOutputCompatibility: {
+            schemaName: 'PageContractRepairPatches',
+            compatibility: {
+              status: 'compatible',
+            },
+          },
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v7',
+            'canonical-live-execution-readiness/v8',
         },
       },
     });

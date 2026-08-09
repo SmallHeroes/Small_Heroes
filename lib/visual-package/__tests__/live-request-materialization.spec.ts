@@ -311,7 +311,7 @@ describe('canonical live request materialization validators', () => {
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v8');
+    ).toBe('canonical-live-request-materialization/v9');
   });
 
   it.each([
@@ -464,7 +464,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v10',
+      version: 'visual-contract-authoring-request/v11',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -575,6 +575,32 @@ describe('canonical live request materialization artifacts', () => {
               .serializedSchemaDigest,
         },
       },
+      pageContractRepairStructuredOutputCompatibility: {
+        schemaName:
+          request.pageContractRepairStructuredOutput.schemaName,
+        schemaVersion:
+          request.pageContractRepairStructuredOutput.schemaVersion,
+        schemaDigest:
+          request.pageContractRepairStructuredOutput.schemaDigest,
+        compatibility: {
+          profileVersion:
+            request.pageContractRepairStructuredOutput
+              .compatibilityProfileVersion,
+          profileDigest:
+            request.pageContractRepairStructuredOutput
+              .compatibilityProfileDigest,
+          evidenceVersion:
+            request.pageContractRepairStructuredOutput
+              .compatibilityEvidenceVersion,
+          evidenceDigest:
+            request.pageContractRepairStructuredOutput
+              .compatibilityEvidenceDigest,
+          status: 'compatible',
+          serializedSchemaDigest:
+            request.pageContractRepairStructuredOutput
+              .serializedSchemaDigest,
+        },
+      },
     });
     expect(
       request.structuredOutput.serializedSchemaDigest,
@@ -583,6 +609,10 @@ describe('canonical live request materialization artifacts', () => {
       request.compactRepairStructuredOutput
         .serializedSchemaDigest,
     ).toBe(request.compactRepairStructuredOutput.schemaDigest);
+    expect(
+      request.pageContractRepairStructuredOutput
+        .serializedSchemaDigest,
+    ).toBe(request.pageContractRepairStructuredOutput.schemaDigest);
     expect(
       result.manifest.futureLiveCommand.arguments,
     ).toEqual([
