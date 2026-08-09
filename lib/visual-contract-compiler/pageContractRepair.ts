@@ -178,7 +178,7 @@ function repairTargets(
 
 /**
  * Returns a complete, deterministic affected-page set only when every emitted
- * diagnostic belongs to the single closed structural family. Mixed or
+ * diagnostic belongs to one homogeneous closed repair family. Mixed or
  * unlocatable failures deliberately stay on the existing route.
  */
 export function pageContractRepairAffectedPages(args: {
