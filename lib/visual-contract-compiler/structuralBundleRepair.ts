@@ -490,6 +490,17 @@ export function applyStructuralBundleRepairPatch(args: {
   ) {
     throw new Error('structural_bundle_repair_prop_target_stale');
   }
+  const currentPropIds = new Set(
+    (currentProps as Record<string, unknown>[]).map(
+      (value) => value.id as string,
+    ),
+  );
+  if (
+    currentPropIds.size !== patchProps.size ||
+    [...currentPropIds].some((id) => !patchProps.has(id))
+  ) {
+    throw new Error('structural_bundle_repair_prop_target_stale');
+  }
   result.recurringProps = currentProps.map((value) =>
     structuredClone(patchProps.get(value!.id as string)!),
   );

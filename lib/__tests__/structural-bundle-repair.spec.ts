@@ -383,6 +383,24 @@ describe('recurring-prop and page structural bundle repair', () => {
       }),
     ).toThrow('structural_bundle_repair_page_unexpected_or_duplicate');
 
+    for (const staleRecurringProps of [
+      [prop('prop:bucket')],
+      [prop('prop:bucket'), prop('prop:book'), prop('prop:unknown')],
+    ]) {
+      const stale = structuredClone(original);
+      stale.recurringProps = staleRecurringProps;
+      expect(() =>
+        applyStructuralBundleRepairPatch({
+          draft: stale,
+          authority: selected,
+          patch: {
+            recurringProps: [prop('prop:bucket'), prop('prop:book')],
+            pageContracts: [page(1), page(2)],
+          },
+        }),
+      ).toThrow('structural_bundle_repair_prop_target_stale');
+    }
+
     const stale = structuredClone(original);
     (stale.pageContracts as Array<Record<string, unknown>>).push(page(1));
     expect(() =>

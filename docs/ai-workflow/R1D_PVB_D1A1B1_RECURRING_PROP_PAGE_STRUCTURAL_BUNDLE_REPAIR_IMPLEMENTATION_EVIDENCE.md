@@ -1,8 +1,8 @@
 # R1D-PVB-D1A1B1 Recurring-Prop Page Structural Bundle Repair - Implementation Evidence
 
-Date: `2026-08-09`
+Date: `2026-08-10`
 
-Status: **implementation complete; independent Claude Code QA pending; repository/release HOLD at the established six-fixture baseline**
+Status: **independent technical PASS on the original implementation; focused MINOR correction pending micro re-gate; repository/release HOLD at the established six-fixture baseline**
 
 Decision Gate: `docs/ai-workflow/R1D_PVB_D1A1B1_RECURRING_PROP_PAGE_STRUCTURAL_BUNDLE_REPAIR_DECISION_GATE.md`
 
@@ -110,8 +110,26 @@ Engineering acceptance criteria are met locally:
 7. unchanged model, service tier, budgets, timeout, retry/fallback, candidate, Blueprint, Wizard and renderer;
 8. focused, TypeScript and repository-gate evidence with the historical fixture HOLD separated truthfully.
 
-Independent Claude Code adversarial review remains required over `ed7580a6d4ffe0159799821d7d067d883d34f8b6..HEAD`. Codex does not self-award technical PASS. This record grants no credentials, pricing/provider call, Fresh Readiness, preflight, live authoring, candidate approval, Semantic Reconciliation, Blueprint/Wizard, render, storage/database, publication, deployment, or push authority.
+The original implementation range has independent technical PASS. The focused correction below still requires a read-only micro re-gate. Codex does not self-award that closure. This record grants no credentials, pricing/provider call, Fresh Readiness, preflight, live authoring, candidate approval, Semantic Reconciliation, Blueprint/Wizard, render, storage/database, publication, deployment, or push authority.
+
+## Independent QA and focused correction
+
+Claude Code independently reviewed immutable implementation range `ed7580a6d4ffe0159799821d7d067d883d34f8b6..6c21e2c32e5bbaee761275230c9eb22939937d26` and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR, and one non-blocking MINOR. It independently reproduced **379** focused assertions, TypeScript, schema compatibility, routing, sanitization, parser/application rejection classes, containment, lifecycle shape and every authority cutover. Codex records Claude's verdict and does not self-award independent PASS.
+
+The valid MINOR concerned only the exported application helper's draft-side stale guard. Shape and unique-ID validation did not prove that the current draft recurring-prop IDs were exactly the authority/patch IDs. An additional current-draft identity could therefore reach a non-null assertion and be replaced with `undefined`, although the production lifecycle derives authority and patch targets from the same in-memory draft and downstream validation would reject the corrupted result.
+
+The focused QA correction now computes the validated current-draft prop ID set and requires exact size and membership equality with the patch set before mapping. Both a missing current-draft prop and an additional current-draft prop throw `structural_bundle_repair_prop_target_stale`. The correction changes no routing, response schema, prompt, authority version, model, budget, retry/fallback rule, provider behavior, candidate semantics or downstream behavior.
+
+Focused correction validation:
+
+- `structural-bundle-repair.spec.ts` and `visual-contract-repair-loop.spec.ts`: **2 files / 35 tests PASS**;
+- `npx --no-install tsc --noEmit`: **PASS**;
+- `git diff --check`: **PASS**.
+
+`npm run check` was intentionally not rerun for this narrow correction. The original single-run evidence and separate six-fixture release HOLD remain unchanged.
+
+Claude's advisory notes remain recorded without scope expansion: explicit named tamper tests are uneven across two surfaces whose production bindings are present; the three-call lifecycle does not directly assert per-attempt retry/fallback fields although the unchanged constants prohibit them; Claude did not independently run `npm run check`; and the documentation was faithful. Independent closure of the MINOR remains pending a read-only micro re-gate of the focused correction range.
 
 ## Rollback
 
-Rollback is the three-commit milestone range beginning after `ed7580a6d4ffe0159799821d7d067d883d34f8b6`. Prior artifacts remain immutable and legacy-classified. A rollback restores the prior route behavior and prior authority versions; it must not rewrite any historical live-attempt artifact.
+Rollback of the original implementation is the three-commit range ending at `6c21e2c32e5bbaee761275230c9eb22939937d26`; the focused QA correction is a separate following commit. Prior artifacts remain immutable and legacy-classified. A rollback restores the prior route behavior and prior authority versions; it must not rewrite any historical live-attempt artifact.
