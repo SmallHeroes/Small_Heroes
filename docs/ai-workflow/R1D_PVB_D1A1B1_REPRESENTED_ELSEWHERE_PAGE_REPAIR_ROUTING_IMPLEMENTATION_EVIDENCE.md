@@ -1,6 +1,6 @@
 # Implementation Evidence — R1D-PVB-D1A1B1-REPRESENTED-ELSEWHERE-PAGE-REPAIR-ROUTING
 
-**Status:** Implementation complete; independent Claude Code QA pending. The literal repository gate remains HOLD on its recorded seven-failure ordinary run. Codex does not self-award technical PASS.
+**Status:** Independent Claude Code TECHNICAL PASS for the exact implementation range. The six established missing-output fixtures remain a separate repository/release HOLD. Codex records Claude's verdict and does not self-award independent PASS.
 
 **Date:** 2026-08-09
 
@@ -95,7 +95,7 @@ The load-bearing fake-provider scenario starts with 12 page-local structural fai
 
 Direct negative tests cover every accepted/rejected locator shape; mixed, unsafe, malformed, missing-page, missing-projection, and unrelated issue rejection; exact projection equality; prompt leakage sentinels; strict returned page sets; caller non-mutation; complete revalidation; prompt/schema digest tampering; stale authorities; and unchanged downstream versions/semantics.
 
-## Literal repository check — HOLD retained
+## Literal repository checks — implementation finding cleared; release HOLD retained
 
 The authorized literal `npm run check` was invoked exactly once and was not rerun.
 
@@ -114,7 +114,28 @@ The established six assertions were:
 
 The seventh assertion was implementation-caused and accurately exposed census drift: one direct `new InvalidTemplateContractError` became a typed subclass construction, so the previous expected count of 16 became 15. The correction does not hide or waive that producer. The exhaustive census now includes `ActionSemanticCoverageValidationError: 1` and checks its required `errors`, `diagnosticIssues`, and `pointerTemplate` parameters; focused result is **17/17 PASS**.
 
-Per the approved fail-closed instruction, `npm run check` was not rerun. The historical literal result remains seven failures even though the implementation-caused census assertion has focused proof of correction. Therefore the literal repository gate and release state remain **HOLD** pending Guy's decision on whether a second literal run is authorized; independent review must not describe this range as repository-green.
+After the first independent QA pass, the Lead ran one replacement literal `npm run check` at unchanged HEAD `35934cc67ae45037dfd1fba2c8d439d3c0d0ebc5` to falsify the census/process finding.
+
+- TypeScript: PASS.
+- Canonical inventory: `287` files — ordinary `268`, resource-intensive `19`.
+- Ordinary: `31524 ms`, exactly the six established missing-output fixtures above; the census assertion did not recur and there was no seventh assertion.
+- Resource-intensive: `102746 ms`, exit `0`, valid diagnostic protocol, and no timeout, RPC/IPC, reporter, launch, signal, teardown, or protocol failure class.
+- Worktree after the run: clean at unchanged HEAD; range diff-check remained clean.
+
+The command still exits `1` because of the six established fixtures. They remain a separate repository/release **HOLD** and are not waived. The implementation-caused census/process finding is closed because it did not reproduce at byte-identical HEAD.
+
+## Independent Claude Code verdict
+
+Claude Code first reviewed the range read-only and found all 13 implementation claims technically sound, with zero code BLOCKER or MAJOR findings. It initially returned HOLD solely because the corrected census had not yet been exercised by a replacement literal repository check. After the unchanged-HEAD run above, Claude Code performed a second read-only micro re-gate and returned **TECHNICAL PASS** for exact range `1d2a5a8f6cfa72db3a4d2375c4728bb7305697b8..35934cc67ae45037dfd1fba2c8d439d3c0d0ebc5`.
+
+Disposition:
+
+- Prior census/process MAJOR: independently closed as a non-reproducing process artifact.
+- All 13 static implementation conclusions: retained.
+- Compact third-prompt headroom MINOR: retained as non-blocking advisory because the claim has no dedicated in-range test; Claude assessed practical risk as negligible.
+- Six missing-output fixtures: separate standing repository/release HOLD outside this implementation range.
+
+Claude did not rerun the test suites itself. Its runtime disposition relies on the Lead's single documented replacement run and independently corroborated topology, classifier inventory, manifest partition, range scope, and absence of a census failure class. No additional Claude round is required absent a factual discrepancy in this transcription.
 
 ## Commit scope
 
@@ -128,7 +149,7 @@ The closeout commit owns the explicit typed-producer census update, `CURRENT.md`
 
 No credential access/check/load, pricing lookup, network/provider/model call, real B0 or Fresh Readiness, canonical preflight, live authoring, candidate generation, render/image/Vision, storage/database, Board action, Semantic Reconciliation, approval, publication, promotion, activation, deployment, PR, or push occurred. No historical artifact changed. External cost is `$0`.
 
-This milestone grants no Fresh Readiness, spend, live-authoring, candidate, Blueprint, Wizard, render, product, visual, release, deployment, or push authority. Independent Claude Code review is still required.
+This milestone grants no Fresh Readiness, spend, live-authoring, candidate, Blueprint, Wizard, render, product, visual, release, deployment, or push authority. Independent technical QA is complete; new operational authority must be rematerialized from a separately pushed immutable closeout head.
 
 ## Rollback
 
