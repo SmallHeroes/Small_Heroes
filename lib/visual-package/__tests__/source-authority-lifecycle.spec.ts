@@ -704,9 +704,9 @@ describe('exact zero-cost authoring preflight', () => {
           userPromptVersion: 'vc-repair-user-prompt/v10',
         },
         pageContractRepair: {
-          systemPromptVersion: 'page-contract-repair-prompt/v3',
+          systemPromptVersion: 'page-contract-repair-prompt/v4',
           userPromptVersion:
-            'page-contract-repair-user-prompt/v3',
+            'page-contract-repair-user-prompt/v4',
         },
       },
       pricing: {
@@ -755,6 +755,10 @@ describe('exact zero-cost authoring preflight', () => {
       'vc-template-user-prompt/v8' as typeof request.promptAuthority.initial.userPromptVersion;
     request.promptAuthority.repair.userPromptVersion =
       'vc-repair-user-prompt/v8' as typeof request.promptAuthority.repair.userPromptVersion;
+    request.promptAuthority.pageContractRepair.systemPromptVersion =
+      'page-contract-repair-prompt/v3' as typeof request.promptAuthority.pageContractRepair.systemPromptVersion;
+    request.promptAuthority.pageContractRepair.userPromptVersion =
+      'page-contract-repair-user-prompt/v3' as typeof request.promptAuthority.pageContractRepair.userPromptVersion;
     const {
       digestAlgorithm: _digestAlgorithm,
       digest: _digest,

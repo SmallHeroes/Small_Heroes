@@ -797,10 +797,10 @@ describe('page-contract compact repair', () => {
     );
     expect(system).toContain('ONLY');
     expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
-      'page-contract-repair-prompt/v3',
+      'page-contract-repair-prompt/v4',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'page-contract-repair-user-prompt/v3',
+      'page-contract-repair-user-prompt/v4',
     );
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([

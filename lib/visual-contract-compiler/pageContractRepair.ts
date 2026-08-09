@@ -21,9 +21,9 @@ export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
-  'page-contract-repair-prompt/v3' as const;
+  'page-contract-repair-prompt/v4' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
-  'page-contract-repair-user-prompt/v3' as const;
+  'page-contract-repair-user-prompt/v4' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION =
   'page-spatial-reference-repair-schema/v1' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME =

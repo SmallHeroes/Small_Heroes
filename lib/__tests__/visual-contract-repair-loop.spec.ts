@@ -509,7 +509,7 @@ describe('page-contract compact repair routing', () => {
       kind: 'repair',
       repairMode: 'page_contract_patch',
       systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'page-contract-repair-user-prompt/v3',
+      userPromptVersion: 'page-contract-repair-user-prompt/v4',
     });
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
       PAGE_CONTRACT_REPAIR_SCHEMA_NAME,

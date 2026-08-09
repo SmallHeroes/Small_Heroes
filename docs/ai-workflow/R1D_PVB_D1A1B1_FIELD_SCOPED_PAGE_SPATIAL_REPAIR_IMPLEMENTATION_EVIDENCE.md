@@ -2,7 +2,7 @@
 
 Date: 2026-08-09
 
-Status: implementation complete; independent Claude Code QA pending; repository/release HOLD remains on six known ignored-output fixtures.
+Status: independent technical PASS; focused prompt-version QA fix pending read-only micro re-gate; repository/release HOLD remains on six known ignored-output fixtures.
 
 ## Topology and scope
 
@@ -44,6 +44,8 @@ patches[] = { pageNumber, actionIndex, fieldRole, spatialReferenceId }
 The repair input contains exact typed targets and compiler-owned permitted IDs. It excludes the complete page, complete draft, unrelated Story Source prose, rejected authored value, raw validator prose, provider response/message, stack, credential, executable, shell text, and arbitrary patch language.
 
 The OpenAI Responses adapter allowlists the new repair schema identity. Structured-output compatibility and pre-provider authority checks remain fail-closed.
+
+The complete-page repair system and user prompt labels are v4. Claude Code's first-pass QA identified that removal of the page-spatial capability had changed both retained complete-page prompt texts while their labels remained v3. The QA fix changes only those two labels and adds a pre-provider rejection control for redigested v3 authority. It does not add a user-prompt digest or change the request shape; the explicit user-prompt version is already part of the digest-bound request authority.
 
 ## Authority migration
 
@@ -121,3 +123,37 @@ Claude Code must review the immutable range from exact base through the document
 10. repository-gate record fidelity, including the separate six-fixture HOLD.
 
 Codex does not self-award independent technical PASS.
+
+## Independent QA result and focused correction
+
+Claude Code independently reviewed exact immutable range `40fd3968e2bb73297a9e10c14acfae31e1ce1a30..73783fab3e072a35f6eab89acf8bf199e0dadcaa` and returned **TECHNICAL PASS**:
+
+- zero BLOCKER;
+- zero MAJOR;
+- one non-blocking MINOR on complete-page prompt version hygiene;
+- five advisory notes.
+
+Claude independently reproduced deterministic TypeScript, `git diff --check`, the canonical 19-file resource phase at 548 tests PASS, a 6-file ordinary superset at 180 tests PASS, and adversarial selection, parse, application, and containment probes. It did not rerun `npm run check`; the six-fixture repository/release HOLD remains Codex-recorded evidence rather than Claude-reproduced evidence.
+
+The focused correction bumps:
+
+- `page-contract-repair-prompt/v3` to `page-contract-repair-prompt/v4`;
+- `page-contract-repair-user-prompt/v3` to `page-contract-repair-user-prompt/v4`.
+
+It also proves that a canonically redigested request carrying the prior v3 system/user authority rejects before provider reachability. Focused correction validation passed:
+
+- page-contract repair and repair-loop: 2 files / 54 tests;
+- source-authority lifecycle: 1 file / 54 tests;
+- total: 3 files / 108 tests;
+- deterministic TypeScript: PASS;
+- `git diff --check`: PASS.
+
+No routing, schema, payload, repair eligibility, mutation behavior, provider behavior, budget, or downstream policy changed. Independent closure of the MINOR remains pending a read-only micro re-gate.
+
+Advisory notes retained without scope expansion:
+
+1. The containment proof masks all selected target leaves, while exact identity-key application prevents cross-application.
+2. Claude's review begins at the stated base and does not review preceding milestones.
+3. Permitted spatial descriptions are authored compiler-owned authority text already present on the prior route, not rejected provider-authored values.
+4. Claude did not rerun the literal repository gate.
+5. The evidence otherwise faithfully separates the first and replacement repository-check results and the six-fixture release HOLD.
