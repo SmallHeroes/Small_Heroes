@@ -2,7 +2,7 @@
 
 Date: 2026-08-09
 
-Status: implementation complete locally; independent Claude Code QA pending
+Status: independent Claude Code technical PASS; documentation closeout local and unpushed
 
 ## Authority and topology
 
@@ -80,10 +80,23 @@ The calibration regression reconstructs the exact five typed page/action positio
 
 Revert `bc2c1311` and `3d92615b` in reverse order. Historical artifacts remain byte-immutable. The prior behavior returns: this closed issue family can only reach whole-draft repair and may stop locally at the unchanged input ceiling.
 
+## Independent Claude Code QA
+
+Claude Code independently reviewed exact immutable range `22857995df578d366809226a5d693cd783a10ed7..1ff6ab22e58c058dbb018ac6e8b84a677c8287f0` read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR, and zero MINOR.
+
+It inspected topology, all producers/callers, the two-tier repair gate, post-Set-Board authority capture, strict page schema, exact-set application, route priority, prompt sanitization, ceiling proof, migration, tamper coverage, and unchanged downstream/operational fences. It found all ten handoff claims internally consistent. The PASS rests on independent static analysis plus the recorded validation; Claude did not rerun tests under the read-only mandate.
+
+Advisory notes only:
+
+1. The ceiling regression constructs the calibration authority directly; the compiler derivation path is covered separately in `draft-reference-domain-hardening.spec.ts`, so aggregate coverage is complete.
+2. If the raw draft page `zoneId` differs from the post-projection authority `zoneId`, compact eligibility conservatively falls back to `full_draft`.
+3. One evidence sentence describes only the compact-admitted subset, while final-only safety routing to `full_draft` is correctly stated elsewhere.
+
+This is Claude Code's independent verdict. Codex records it and does not self-award technical PASS. The verdict grants no product, visual, candidate, Blueprint, Wizard, render, release, deployment, or push authority.
+
 ## Limitations and next action
 
-- Independent Claude Code technical QA is pending; Codex does not self-award independent PASS.
 - No Fresh Readiness or live authority exists for this local head.
-- After independent technical PASS and an explicit push, create Fresh Readiness on the exact pushed head, then run one bounded authoring attempt.
+- After this documentation-only closeout commit and an explicit push, create Fresh Readiness on the exact pushed closeout head, then run one bounded authoring attempt.
 - Candidate success must still traverse Semantic Reconciliation, Blueprint feasibility, Wizard qualification, render pricing, and a separately authorized one-page `gpt-image-2` LOW portrait render.
 - This milestone grants no product, visual, candidate, Blueprint, Wizard, render, release, deployment, or push acceptance.
