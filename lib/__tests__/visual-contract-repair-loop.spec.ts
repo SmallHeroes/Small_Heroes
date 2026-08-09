@@ -29,6 +29,10 @@ import {
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
 } from '../visual-contract-compiler/pageContractRepair';
+import {
+  STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
+  STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
+} from '../visual-contract-compiler/structuralBundleRepair';
 import { VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS } from '../visual-contract-compiler/authoringPolicy';
 import { InvalidTemplateContractError } from '../visual-contract-compiler/validateTemplateContract';
 import { extractDeterministicFacts } from '../visual-contract-compiler/extractDeterministicFacts';
@@ -622,10 +626,75 @@ describe('page-contract compact repair routing', () => {
     });
   });
 
-  it('keeps mixed page and non-page structural failures on full-draft repair', async () => {
+  it('routes one recurring-prop collection failure plus page failures through a bounded structural-bundle repair', async () => {
     const invalid = bunnyDraft();
+    for (const prop of invalid.recurringProps) {
+      prop.firstRevealPage ??= null;
+    }
+    for (const page of invalid.pageContracts) {
+      delete page.characterPresence;
+      delete page.castIds;
+      page.propConstraints ??= [];
+      page.actionRequirements ??= [];
+    }
     invalid.pageContracts[0].camera = '';
     invalid.recurringProps[0].material = '';
+    const calls: Array<{
+      user: string;
+      options: Parameters<ContractLlmCaller>[2];
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      user,
+      options,
+      authority,
+    ) => {
+      calls.push({ user, options, authority });
+      if (calls.length === 1) return JSON.stringify(invalid);
+      const payload = JSON.parse(user);
+      const recurringProps = structuredClone(payload.recurringProps);
+      const pageContracts = payload.affectedPages.map(
+        (value: { pageContract: Record<string, unknown> }) =>
+          structuredClone(value.pageContract),
+      );
+      recurringProps[0].material = 'durable printed material';
+      pageContracts[0].camera = 'portrait medium shot';
+      return JSON.stringify({
+        recurringProps,
+        pageContracts,
+      });
+    };
+    const result = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: caller,
+    });
+    expect(calls[1]?.authority).toEqual({
+      kind: 'repair',
+      repairMode: 'structural_bundle_patch',
+      systemPromptVersion: STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
+      userPromptVersion: 'structural-bundle-repair-user-prompt/v1',
+    });
+    expect(calls[1]?.options?.jsonSchema?.name).toBe(
+      STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
+    );
+    const payload = JSON.parse(calls[1]!.user);
+    expect(payload.recurringProps).toHaveLength(
+      invalid.recurringProps.length,
+    );
+    expect(payload.affectedPages).toHaveLength(1);
+    expect(payload.affectedPages[0].pageNumber).toBe(1);
+    expect(payload).not.toHaveProperty('previousDraft');
+    expect(payload).not.toHaveProperty('storySource');
+    expect(result.provenance.attempt).toBe(2);
+    expect(result.repairAttempts[0]!.nextRepairMode).toBe(
+      'structural_bundle_patch',
+    );
+  });
+
+  it('keeps unsupported mixed collection and page failures on full-draft repair', async () => {
+    const invalid = bunnyDraft();
+    invalid.pageContracts[0].camera = '';
+    invalid.locations[0].name = '';
     const calls: Array<Parameters<ContractLlmCaller>[3]> = [];
     const caller: ContractLlmCaller = async (
       _system,

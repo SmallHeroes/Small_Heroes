@@ -32,6 +32,7 @@ import type {
 import type {
   BookVisualContractTemplate,
 } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import { parseStructuralBundleRepairPatch } from '@/lib/visual-contract-compiler/structuralBundleRepair';
 import { migrateLegacySetBoardFixture } from '@/lib/set-identity-board/__tests__/current-authority-fixtures';
 import {
   buildStorySourceAuthoritySnapshot,
@@ -897,6 +898,63 @@ describe('exact zero-cost authoring preflight', () => {
     expect(provider.call).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      'schema authority',
+      'structural_bundle_repair_structured_output_mismatch',
+      (request: ReturnType<typeof requestFor>) => {
+        request.structuralBundleRepairStructuredOutput.schemaDigest =
+          'b'.repeat(64);
+      },
+    ],
+    [
+      'prompt authority',
+      'prompt_authority_mismatch',
+      (request: ReturnType<typeof requestFor>) => {
+        request.promptAuthority.structuralBundleRepair.systemPromptDigest =
+          'a'.repeat(64);
+      },
+    ],
+  ])('rejects altered structural-bundle repair %s before provider reachability', async (
+    _label,
+    expectedIssue,
+    mutate,
+  ) => {
+    const snapshot = snapshotFor(
+      writeStoryFixture({
+        pageCount: 12,
+        companion: true,
+        multiLocation: true,
+        cover: true,
+      }),
+    );
+    const request = structuredClone(
+      requestFor(snapshot, 'preflight'),
+    );
+    mutate(request);
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = request;
+    request.digest = canonicalJsonDigest(payload);
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.issues).toContain(expectedIssue);
+    expect(provider.call).not.toHaveBeenCalled();
+  });
+
   it('blocks a generally-derived longer-story live budget above the approved ceiling before provider reachability', async () => {
     const snapshot = snapshotFor(
       writeStoryFixture({
@@ -1529,7 +1587,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v15',
+      version: 'visual-contract-authoring-readiness/v16',
       draftValidation: {
         status: 'interrupted',
         attempts: [
@@ -1577,7 +1635,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v14', async () => {
+  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v16', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const result = await runVisualContractAuthoring({
@@ -1594,7 +1652,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v15',
+      version: 'visual-contract-authoring-readiness/v16',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -1800,6 +1858,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v14',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v15',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -1872,6 +1936,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v17',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v18',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -1883,6 +1953,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v15',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v16',
       ),
     ).toBe('current');
     expect(
@@ -2097,7 +2173,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v17',
+      'visual-contract-authoring-receipt/v18',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -2611,6 +2687,193 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       result.receipt.attempts,
     );
     expect(JSON.stringify(loadedReceipt)).not.toContain(rejectedId);
+  });
+
+  it('routes a spatial repair that exposes structural collection/page failures through one bounded structural-bundle repair', async () => {
+    const snapshot = bunnySnapshot();
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    for (const prop of invalid.recurringProps) {
+      const draftProp = prop as unknown as Record<string, unknown>;
+      draftProp.firstRevealPage ??= null;
+    }
+    for (const candidate of invalid.pageContracts) {
+      const draftPage = candidate as unknown as Record<string, unknown>;
+      delete draftPage.characterPresence;
+      delete draftPage.castIds;
+      delete draftPage.castStates;
+      candidate.propConstraints ??= [];
+      candidate.actionRequirements ??= [];
+    }
+    const page = invalid.pageContracts[0]!;
+    const zone = invalid.zones.find(
+      (candidate) => candidate.id === page.zoneId,
+    );
+    if (!zone) throw new Error('missing structural-bundle fixture zone');
+    zone.spatialNodes = [
+      {
+        id: 'fixture_structural_chair',
+        kind: 'furniture',
+        description: 'A stable chair used by the bounded fixture.',
+      },
+    ];
+    zone.stableGeometry = projectZoneStableGeometry(zone)!;
+    (
+      page.actionRequirements![0] as unknown as Record<string, unknown>
+    ).object = {
+      kind: 'spatial',
+      id: 'outside-structural-fixture-zone',
+    };
+    const repairedProjectionPage = structuredClone(
+      page,
+    ) as PageVisualContract;
+    (
+      repairedProjectionPage.actionRequirements![0] as unknown as Record<
+        string,
+        unknown
+      >
+    ).object = {
+      kind: 'spatial',
+      id: 'fixture_structural_chair',
+    };
+    page.mustShow = [
+      ...new Set([
+        ...page.mustShow,
+        ...projectPageMustShow(
+          repairedProjectionPage,
+          invalid as unknown as BookVisualContract,
+        ),
+      ]),
+    ];
+    invalid.recurringProps[0]!.material = '';
+    page.camera = '';
+
+    let thirdRepairOutput: unknown = null;
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => {
+        let output: unknown;
+        if (args.attempt === 1) {
+          output = invalid;
+        } else if (args.attempt === 2) {
+          output = {
+            patches: [
+              {
+                pageNumber: page.pageNumber,
+                actionIndex: 0,
+                fieldRole: 'object',
+                spatialReferenceId: 'fixture_structural_chair',
+              },
+            ],
+          };
+        } else {
+          const authority = JSON.parse(args.userPrompt) as {
+            recurringProps: Array<Record<string, unknown>>;
+            affectedPages: Array<{
+              pageContract: Record<string, unknown>;
+            }>;
+          };
+          const recurringProps = structuredClone(
+            authority.recurringProps,
+          );
+          const pageContracts = authority.affectedPages.map(
+            ({ pageContract }) => structuredClone(pageContract),
+          );
+          recurringProps[0]!.material = 'durable fixture material';
+          pageContracts[0]!.camera = 'portrait medium shot';
+          output = { recurringProps, pageContracts };
+          thirdRepairOutput = output;
+        }
+        return {
+          output: JSON.stringify(output),
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `structural-bundle-response-${args.attempt}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+              output_tokens_details: { reasoning_tokens: 500 },
+            },
+          },
+        };
+      }),
+    };
+
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(thirdRepairOutput).not.toBeNull();
+    expect(() =>
+      parseStructuralBundleRepairPatch(
+        JSON.stringify(thirdRepairOutput),
+      ),
+    ).not.toThrow();
+    expect(result.receipt).toMatchObject({
+      status: 'completed',
+      callCount: 3,
+      repairCount: 2,
+      failure: null,
+      draftValidationStatus: 'completed',
+    });
+    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([
+        null,
+        'page_spatial_reference_patch',
+        'structural_bundle_patch',
+      ]);
+    expect(
+      result.receipt.attempts[0].draftValidationDiagnostics,
+    ).toMatchObject({
+      currentUniqueCount: 1,
+      finalAttempt: false,
+    });
+    expect(
+      result.receipt.attempts[1].draftValidationDiagnostics,
+    ).toMatchObject({
+      currentUniqueCount: 2,
+      finalAttempt: false,
+    });
+    expect(
+      result.receipt.attempts[2].draftValidationDiagnostics,
+    ).toMatchObject({
+      currentUniqueCount: 0,
+      finalAttempt: true,
+    });
+    const thirdCall = vi.mocked(provider.call).mock.calls[2]![0];
+    expect(thirdCall.options.jsonSchema?.name).toBe(
+      'StructuralBundleRepairPatch',
+    );
+    const thirdPayload = JSON.parse(thirdCall.userPrompt);
+    expect(thirdPayload.recurringProps).toHaveLength(
+      invalid.recurringProps.length,
+    );
+    expect(thirdPayload.affectedPages).toHaveLength(1);
+    expect(thirdPayload.affectedPages[0].pageNumber).toBe(
+      page.pageNumber,
+    );
+    expect(thirdPayload).not.toHaveProperty('previousDraft');
+    expect(thirdPayload).not.toHaveProperty('storySource');
+    const thirdPromptUpperBound =
+      Buffer.byteLength(
+        [
+          thirdCall.systemPrompt,
+          thirdCall.userPrompt,
+          JSON.stringify(thirdCall.options.jsonSchema?.schema),
+        ].join('\n'),
+        'utf8',
+      ) + 4_096;
+    expect(thirdPromptUpperBound).toBeLessThanOrEqual(
+      request.tokenBudget.maxInputTokens,
+    );
+    expect(
+      request.tokenBudget.maxInputTokens - thirdPromptUpperBound,
+    ).toBeGreaterThanOrEqual(4_096);
   });
 
   it('binds a capability gap after full-draft repair to the completed repair attempt', async () => {

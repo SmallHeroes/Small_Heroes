@@ -245,6 +245,9 @@ function executionRequestPayload(
       pageSpatialReferenceRepairStructuredOutputCompatibility:
         fixture.materialized.manifest
           .pageSpatialReferenceRepairStructuredOutputCompatibility,
+      structuralBundleRepairStructuredOutputCompatibility:
+        fixture.materialized.manifest
+          .structuralBundleRepairStructuredOutputCompatibility,
     },
     preservationFences:
       overrides.preservationFences ?? [

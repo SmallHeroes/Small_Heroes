@@ -34,6 +34,10 @@ import {
   PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
   PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
+import {
+  STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+  STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/structuralBundleRepair';
 import type {
   BookVisualContract,
 } from '@/lib/visual-contract-compiler/types';
@@ -559,6 +563,33 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     });
   });
 
+  it('maps the structural-bundle repair schema without changing the locked provider policy', () => {
+    const fixture = createLiveFixture('structural-bundle-schema-body');
+    const options = exactOptions(fixture.request);
+    options.jsonSchema = {
+      name: STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
+      schema: STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+    };
+    const body = buildOpenAIResponsesVisualContractAuthoringBody({
+      systemPrompt: 'structural-bundle-system',
+      userPrompt: 'structural-bundle-user',
+      options,
+    });
+    expect(body.text?.format).toMatchObject({
+      type: 'json_schema',
+      name: STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
+      schema: STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+      strict: true,
+    });
+    expect(body).toMatchObject({
+      model: 'gpt-5.6-sol',
+      service_tier: 'default',
+      tools: [],
+      tool_choice: 'none',
+      store: false,
+    });
+  });
+
   it('maps the exact request body, zero-retry transport options, and complete provider evidence', async () => {
     const fixture = createLiveFixture('mapping');
     const draft = fullyActionedDraft(fixture.snapshot);
@@ -576,7 +607,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v17',
+      'visual-contract-authoring-receipt/v18',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',

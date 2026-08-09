@@ -525,6 +525,9 @@ describe('canonical live request verification library', () => {
       pageSpatialReferenceRepairStructuredOutputCompatibility:
         materialized.manifest
           .pageSpatialReferenceRepairStructuredOutputCompatibility,
+      structuralBundleRepairStructuredOutputCompatibility:
+        materialized.manifest
+          .structuralBundleRepairStructuredOutputCompatibility,
       externalBoundaryEvidence: {
         credentialReadOrCheck: false,
         providerReachabilityCheck: false,
@@ -974,7 +977,10 @@ describe('canonical live request verification library', () => {
     });
   });
 
-  it('rejects recomputed page-contract repair compatibility drift', () => {
+  it.each([
+    'pageContractRepairStructuredOutputCompatibility',
+    'structuralBundleRepairStructuredOutputCompatibility',
+  ] as const)('rejects recomputed %s drift', (authorityKey) => {
     const fixture = writeFixture();
     const materialized = materialize(fixture);
     const manifestPath = rewriteManifest(
@@ -982,7 +988,7 @@ describe('canonical live request verification library', () => {
       materialized.manifest,
       (manifest) => {
         const authority =
-          manifest.pageContractRepairStructuredOutputCompatibility as {
+          manifest[authorityKey] as {
             schemaDigest: string;
           };
         authority.schemaDigest = 'f'.repeat(64);
