@@ -2,7 +2,18 @@
 
 **Updated:** 2026-08-10
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-action-beat-binding-page-repair-routing` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `8a7243f13a4aab873511d344d0e8592ec3824d1a`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-whole-book-action-binding-diagnostics` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `49a9ede5400bc86f6b969c69ef5ad9990909d915`.
+
+## R1D-PVB-D1A1B1-WHOLE-BOOK-ACTION-BINDING-DIAGNOSTIC-AGGREGATION - implementation green / independent QA pending
+
+The bounded post-routing attempt completed all three permitted provider calls. Each complete-page repair resolved the current page's three action-binding issues but local assembly then discovered the same three-issue family on the next page (2, then 6, then 8). Receipt v21 `47e240f3…` records three calls, two repairs, zero transport retries/fallback, `$1.050838 / $1.164474` nominal/conservative accounting and terminal `draft_validation_repair_exhausted`; no candidate or downstream authority exists.
+
+- Root cause was page-by-page fail-fast authority validation. The complete-page repair planner supports multiple affected pages, but assembly threw on the first invalid page and never exposed the remaining pages to the same repair call.
+- Assembly now collects `DraftAuthorityReferenceDomainError` issues across every canonical page and throws one deterministic combined typed set before repair classification. Non-authority errors still fail immediately and all existing exact locator, eligibility, application and revalidation guards remain unchanged.
+- A two-page regression fails under the old behavior and now proves six typed issues across both pages are repaired in one complete exact-page-set call. Focused validation passed **5 files / 178 tests**, TypeScript and `git diff --check` passed.
+- No prompt/schema/model/budget/retry/fallback/candidate/downstream policy changed. Implementation cost is `$0`; production remains blocked. Independent Claude Code QA is pending.
+
+Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_WHOLE_BOOK_ACTION_BINDING_DIAGNOSTIC_AGGREGATION_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_WHOLE_BOOK_ACTION_BINDING_DIAGNOSTIC_AGGREGATION_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-ACTION-BEAT-BINDING-PAGE-REPAIR-ROUTING - implementation green / independent QA pending
 

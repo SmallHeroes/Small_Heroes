@@ -2635,23 +2635,40 @@ function assembleTemplateFromDraft(
   const capabilityGaps: ActionSemanticCapabilityGap[] = [];
   const coverageIssues: string[] = [];
   const coverageDiagnosticIssues: DraftValidationIssue[] = [];
-  const pageContracts = canonicalPages.map((pc) => {
-    const grounded = sourceGroundPageActionSemantics(
-      pc,
-      input.sourceEvidenceCatalog,
+  const pageAuthorityIssues: DraftAuthorityReferenceIssue[] = [];
+  const pageContracts: ReturnType<typeof overlayPage>[] = [];
+  for (const pc of canonicalPages) {
+    try {
+      const grounded = sourceGroundPageActionSemantics(
+        pc,
+        input.sourceEvidenceCatalog,
+      );
+      actionSemanticCoverage.push(...grounded.coverage);
+      sourceEvidenceIssues.push(...grounded.sourceEvidenceIssues);
+      capabilityGaps.push(...grounded.capabilityGaps);
+      coverageIssues.push(...grounded.issues);
+      coverageDiagnosticIssues.push(...grounded.diagnosticIssues);
+      pageContracts.push(
+        overlayPage(
+          grounded.page,
+          facts,
+          childId,
+          companionId,
+        ),
+      );
+    } catch (error) {
+      if (error instanceof DraftAuthorityReferenceDomainError) {
+        pageAuthorityIssues.push(...error.issues);
+        continue;
+      }
+      throw error;
+    }
+  }
+  if (pageAuthorityIssues.length > 0) {
+    throw new DraftAuthorityReferenceDomainError(
+      pageAuthorityIssues,
     );
-    actionSemanticCoverage.push(...grounded.coverage);
-    sourceEvidenceIssues.push(...grounded.sourceEvidenceIssues);
-    capabilityGaps.push(...grounded.capabilityGaps);
-    coverageIssues.push(...grounded.issues);
-    coverageDiagnosticIssues.push(...grounded.diagnosticIssues);
-    return overlayPage(
-      grounded.page,
-      facts,
-      childId,
-      companionId,
-    );
-  });
+  }
   assertPageSpatialReferenceDomains({
     pages: pageContracts,
     zones: spatialAuthority.zones,

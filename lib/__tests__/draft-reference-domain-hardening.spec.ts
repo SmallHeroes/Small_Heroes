@@ -945,6 +945,105 @@ describe('captured reference-domain matrix', () => {
     expect(result.provenance.attempt).toBe(2);
   });
 
+  it('aggregates action binding authority across every affected page before one complete-page repair', async () => {
+    const multiPages = [
+      {
+        pageNumber: 1,
+        text: 'The hero studies the room and waves beside the stable wall.',
+      },
+      {
+        pageNumber: 2,
+        text: 'The hero crosses the room and looks toward the quiet window.',
+      },
+    ];
+    const multiSourceIdentity = {
+      ...sourceIdentity,
+      digest: 'c'.repeat(64),
+      pageCount: 2,
+      pageNumbers: [1, 2],
+    };
+    const multiCatalog = buildSourceEvidenceCatalog({
+      storyKey: 'reference_domain_matrix_two_pages',
+      sourceIdentity: multiSourceIdentity,
+      pages: multiPages,
+    });
+    const multiInput: TemplateCompileInput = {
+      ...input,
+      storyKey: 'reference_domain_matrix_two_pages',
+      pageCount: 2,
+      fullStoryText: multiPages.map((page) => page.text).join('\n'),
+      pages: multiPages,
+      sourceIdentity: multiSourceIdentity,
+      sourceEvidenceCatalog: multiCatalog,
+    };
+    const pageFor = (
+      pageNumber: number,
+      duplicateAction: boolean,
+    ): Record<string, unknown> => {
+      const page = structuredClone(pageRecord(matrixDraft()));
+      page.pageNumber = pageNumber;
+      const pageActions = page.actionRequirements as Array<
+        Record<string, unknown>
+      >;
+      const pageCoverage = page.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+      const evidence = multiCatalog.entries.find(
+        (entry) => entry.pageNumber === pageNumber,
+      )!;
+      for (const action of pageActions) {
+        action.beatId = String(action.beatId).replace(
+          'beat:p1:',
+          `beat:p${pageNumber}:`,
+        );
+      }
+      for (const record of pageCoverage) {
+        record.beatId = String(record.beatId).replace(
+          'beat:p1:',
+          `beat:p${pageNumber}:`,
+        );
+        record.sourceEvidenceId = evidence.sourceEvidenceId;
+      }
+      if (duplicateAction) {
+        pageActions.push(structuredClone(pageActions[0]!));
+      }
+      delete page.castIds;
+      delete page.characterPresence;
+      return page;
+    };
+    const invalid = matrixDraft();
+    invalid.pageContracts = [pageFor(1, true), pageFor(2, true)];
+    const repairedPages = [pageFor(1, false), pageFor(2, false)];
+    const callLLM = vi.fn(async () =>
+      callLLM.mock.calls.length === 1
+        ? JSON.stringify(invalid)
+        : JSON.stringify({ pageContracts: repairedPages }),
+    );
+
+    const result = await compileBookVisualContractTemplate(
+      multiInput,
+      { callLLM },
+    );
+
+    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(result.repairAttempts).toHaveLength(1);
+    expect(result.repairAttempts[0]?.nextRepairMode).toBe(
+      'page_contract_patch',
+    );
+    expect(result.repairAttempts[0]?.diagnosticIssues).toHaveLength(6);
+    expect([
+      ...new Set(
+        result.repairAttempts[0]?.diagnosticIssues.flatMap((issue) =>
+          'pageNumber' in issue.locator
+            ? [issue.locator.pageNumber]
+            : [],
+        ),
+      ),
+    ]).toEqual([1, 2]);
+    expect(result.template.pageContracts).toHaveLength(2);
+    expect(result.provenance.attempt).toBe(2);
+  });
+
   it('emits both relation locator variants from structural context', async () => {
     const draft = matrixDraft();
     const location = (draft.locations as Array<Record<string, unknown>>)[0]!;
