@@ -6,7 +6,7 @@
 
 **Branch:** `codex/r1d-pvb-d1a1b1-presentation-capability-gap-repair-routing`
 
-**Independent QA:** pending
+**Independent QA:** Claude Code PASS for `9ac7ef4293cc724dbda72afc21c0fe2481cd494a..5f10e5f9`
 
 ## Implemented result
 
@@ -43,3 +43,9 @@ The six unchanged release-HOLD failures are `child-lexicon-ages-5-8.spec.ts`, `m
 - External cost is `$0`.
 - The compact repair does not prove product or visual quality. It only creates a bounded chance for complete validation to produce a candidate; downstream qualification remains mandatory.
 - Codex does not self-award independent technical PASS. Claude Code must review the immutable implementation range.
+
+## Independent QA closeout
+
+Claude Code independently reconciled the clean two-commit immutable range and returned **PASS** with zero BLOCKER and zero MAJOR. It verified exact target identity, compiler-filled values, duplicate/stale/pointer guards, non-target containment, adapter and canonical request parsing, B0 rebuild-and-compare, Supervisor/readiness nullability and digest bindings, fail-closed legacy cutover, two-call candidate lifecycle coverage, and pre-provider schema/prompt tamper rejection. Codex records Claude's verdict; it does not self-award it.
+
+Two non-blocking defense-in-depth limitations remain advisory for the bounded LOW experiment. First, target pointers use the draft page index while final validation resolves the template page by page number; any divergence rejects fail-closed rather than accepting an incorrect candidate. Second, the parser's runtime `beatId` and `sourceEvidenceId` string checks are broader than the strict provider schema, while exact target matching is the decisive apply-side guard. Neither grants product, visual, candidate, Blueprint, Wizard, render or release acceptance, and neither justifies another pre-measurement hardening loop.
