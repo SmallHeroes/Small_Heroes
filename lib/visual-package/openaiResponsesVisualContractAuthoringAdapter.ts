@@ -14,7 +14,7 @@ import OpenAI, {
   UnprocessableEntityError,
 } from 'openai';
 import type {
-  ResponseCreateParamsNonStreaming,
+  ResponseCreateParamsStreaming,
 } from 'openai/resources/responses/responses';
 
 import {
@@ -123,7 +123,7 @@ export type OpenAIResponsesAuthoringFetch = (
 
 export interface OpenAIResponsesAuthoringTransportRequest {
   apiKey: string;
-  body: ResponseCreateParamsNonStreaming;
+  body: ResponseCreateParamsStreaming;
   requestOptions: {
     maxRetries: 0;
     timeout: typeof VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS;
@@ -264,14 +264,14 @@ export function buildOpenAIResponsesVisualContractAuthoringBody(
     userPrompt: string;
     options: ContractLlmCallOptions;
   },
-): ResponseCreateParamsNonStreaming {
+): ResponseCreateParamsStreaming {
   const issues = exactCallOptionsIssues(args.options);
   if (issues.length > 0) {
     throw new Error(
       `visual_contract_authoring_adapter_policy_mismatch: ${issues.join(',')}`,
     );
   }
-  const body: ResponseCreateParamsNonStreaming = {
+  const body: ResponseCreateParamsStreaming = {
     model: VISUAL_CONTRACT_AUTHORING_MODEL,
     service_tier: VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
     max_output_tokens: args.options.maxOutputTokens!,
@@ -293,6 +293,7 @@ export function buildOpenAIResponsesVisualContractAuthoringBody(
     tools: [],
     tool_choice: 'none',
     store: false,
+    stream: true,
   };
   const format = body.text?.format;
   assertOpenAIResponsesStructuredOutputSchemaCompatible(
@@ -301,6 +302,50 @@ export function buildOpenAIResponsesVisualContractAuthoringBody(
       : null,
   );
   return body;
+}
+
+const TERMINAL_RESPONSE_STREAM_EVENT_TYPES = new Set([
+  'response.completed',
+  'response.failed',
+  'response.incomplete',
+]);
+
+/**
+ * Reduces one Responses SSE stream to its sole terminal response without
+ * retaining deltas. Raw provider error events are deliberately discarded;
+ * callers receive only a stable local error that the existing sanitized
+ * provider-failure boundary can classify.
+ */
+export async function collectOpenAIResponsesAuthoringStream(
+  stream: AsyncIterable<unknown>,
+): Promise<unknown> {
+  let terminalResponse: unknown;
+  let terminalSeen = false;
+  for await (const rawEvent of stream) {
+    const event = record(rawEvent);
+    const eventType = event?.type;
+    if (!event || typeof eventType !== 'string') {
+      throw new Error('provider_stream_event_invalid');
+    }
+    if (terminalSeen) {
+      throw new Error('provider_stream_event_after_terminal');
+    }
+    if (eventType === 'error') {
+      throw new Error('provider_stream_error_event');
+    }
+    if (!TERMINAL_RESPONSE_STREAM_EVENT_TYPES.has(eventType)) {
+      continue;
+    }
+    if (!record(event.response)) {
+      throw new Error('provider_stream_terminal_response_invalid');
+    }
+    terminalResponse = event.response;
+    terminalSeen = true;
+  }
+  if (!terminalSeen) {
+    throw new Error('provider_stream_terminal_event_missing');
+  }
+  return terminalResponse;
 }
 
 function requestUrl(
@@ -438,9 +483,12 @@ export const openAIResponsesAuthoringTransport: OpenAIResponsesAuthoringTranspor
       }
       observations.sdkRequestBuildStarted = true;
       try {
-        return await client.responses.create(
+        const stream = await client.responses.create(
           body,
           requestOptions,
+        );
+        return await collectOpenAIResponsesAuthoringStream(
+          stream,
         );
       } catch (error) {
         throw new ProviderCallFailureDiagnosticError(
@@ -583,7 +631,7 @@ export function createOpenAIResponsesVisualContractAuthoringAdapter(
           requestOptionsDigest:
             canonicalJsonDigest(requestOptions),
         });
-      let body: ResponseCreateParamsNonStreaming;
+      let body: ResponseCreateParamsStreaming;
       try {
         body =
           buildOpenAIResponsesVisualContractAuthoringBody({

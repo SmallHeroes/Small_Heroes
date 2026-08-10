@@ -193,7 +193,7 @@ export async function runVisualContractAuthoringImportPreflight(
       graph.liveRunnerType !== 'function' ||
       graph.credentialEnvironmentName !== 'OPENAI_API_KEY' ||
       graph.providerEvidenceVersion !==
-        'openai-responses-authoring-evidence/v4'
+        'openai-responses-authoring-evidence/v5'
     ) {
       throw new Error(
         'visual-contract-authoring import preflight found an incomplete exact live graph',

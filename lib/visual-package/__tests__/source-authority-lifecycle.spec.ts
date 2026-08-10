@@ -2141,6 +2141,11 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       openAIResponsesAuthoringEvidenceVersionStatus(
         'openai-responses-authoring-evidence/v4',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      openAIResponsesAuthoringEvidenceVersionStatus(
+        'openai-responses-authoring-evidence/v5',
+      ),
     ).toBe('current');
     expect(
       openAIResponsesAuthoringEvidenceVersionStatus(

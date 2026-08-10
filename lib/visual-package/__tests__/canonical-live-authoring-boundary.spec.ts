@@ -72,6 +72,7 @@ import {
 import {
   createGuardedOpenAIResponsesAuthoringFetch,
   createOpenAIResponsesVisualContractAuthoringAdapter,
+  collectOpenAIResponsesAuthoringStream,
   mapOpenAIResponsesAuthoringResponse,
   openAIResponsesAuthoringTransport,
   buildOpenAIResponsesVisualContractAuthoringBody,
@@ -313,6 +314,24 @@ function responseFor(
   };
 }
 
+function completedResponseStream(
+  response: Record<string, unknown>,
+): Response {
+  return new Response(
+    `event: response.completed\ndata: ${JSON.stringify({
+      type: 'response.completed',
+      sequence_number: 1,
+      response,
+    })}\n\n`,
+    {
+      status: 200,
+      headers: {
+        'content-type': 'text/event-stream',
+      },
+    },
+  );
+}
+
 function fakeAdapter(args: {
   responses: unknown[];
   readCredential?: ReturnType<typeof vi.fn>;
@@ -485,6 +504,98 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(transportCreate).not.toHaveBeenCalled();
   });
 
+  it('reduces one response stream to its sole completed response', async () => {
+    const response = responseFor('streamed-output');
+    const stream = (async function* () {
+      yield {
+        type: 'response.created',
+        response: { id: 'resp_test_1' },
+      };
+      yield {
+        type: 'response.output_text.delta',
+        delta: 'streamed-output',
+      };
+      yield {
+        type: 'response.completed',
+        response,
+      };
+    })();
+
+    await expect(
+      collectOpenAIResponsesAuthoringStream(stream),
+    ).resolves.toBe(response);
+  });
+
+  it.each(['response.failed', 'response.incomplete'])(
+    'returns the terminal response for lifecycle rejection of %s',
+    async (eventType) => {
+      const response = responseFor('', {
+        status:
+          eventType === 'response.failed'
+            ? 'failed'
+            : 'incomplete',
+      });
+      const stream = (async function* () {
+        yield { type: eventType, response };
+      })();
+      await expect(
+        collectOpenAIResponsesAuthoringStream(stream),
+      ).resolves.toBe(response);
+    },
+  );
+
+  it.each([
+    [
+      'missing terminal',
+      [{ type: 'response.output_text.delta', delta: 'x' }],
+      'provider_stream_terminal_event_missing',
+    ],
+    [
+      'raw error event',
+      [{ type: 'error', message: RAW_PROVIDER_ERROR }],
+      'provider_stream_error_event',
+    ],
+    [
+      'invalid event',
+      [{ delta: 'x' }],
+      'provider_stream_event_invalid',
+    ],
+    [
+      'invalid terminal response',
+      [{ type: 'response.completed', response: null }],
+      'provider_stream_terminal_response_invalid',
+    ],
+    [
+      'event after terminal',
+      [
+        {
+          type: 'response.completed',
+          response: responseFor('done'),
+        },
+        { type: 'response.output_text.delta', delta: 'late' },
+      ],
+      'provider_stream_event_after_terminal',
+    ],
+  ])('rejects %s fail closed without retaining provider prose', async (
+    _label,
+    events,
+    expectedCode,
+  ) => {
+    const stream = (async function* () {
+      yield* events;
+    })();
+    await expect(
+      collectOpenAIResponsesAuthoringStream(stream),
+    ).rejects.toThrow(expectedCode);
+    await expect(
+      collectOpenAIResponsesAuthoringStream(
+        (async function* () {
+          yield* events;
+        })(),
+      ),
+    ).rejects.not.toThrow(RAW_PROVIDER_ERROR);
+  });
+
   it('maps the compact repair schema without changing the locked provider policy', () => {
     const fixture = createLiveFixture('compact-schema-body');
     const options = exactOptions(fixture.request);
@@ -514,6 +625,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       tools: [],
       tool_choice: 'none',
       store: false,
+      stream: true,
     });
   });
 
@@ -979,21 +1091,14 @@ describe('canonical OpenAI Responses authoring adapter', () => {
           String(init?.body),
         ) as Record<string, unknown>;
         expect(body.store).toBe(false);
+        expect(body.stream).toBe(true);
         expect(JSON.stringify(body)).not.toMatch(
           /redirect\.invalid|org-marker|project-marker|webhook-marker/,
         );
-        return new Response(
-          JSON.stringify(
-            responseFor(
-              fullyActionedDraft(fixture.snapshot),
-            ),
+        return completedResponseStream(
+          responseFor(
+            fullyActionedDraft(fixture.snapshot),
           ),
-          {
-            status: 200,
-            headers: {
-              'content-type': 'application/json',
-            },
-          },
         );
       },
     );
