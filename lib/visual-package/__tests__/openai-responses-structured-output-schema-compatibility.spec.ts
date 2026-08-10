@@ -91,7 +91,7 @@ function allConstNodes(schema: unknown): Array<Record<string, unknown>> {
 describe('OpenAI Responses structured-output compatibility profile', () => {
   it('positive-controls the fully serialized current Visual Contract and Blueprint schemas', () => {
     expect(TEMPLATE_DRAFT_SCHEMA_VERSION).toBe(
-      'vc-draft-schema/v13',
+      'vc-draft-schema/v14',
     );
     expect(PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION).toBe(
       'pre-render-blueprint-draft-schema/v5',
@@ -156,7 +156,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
     const blueprintConsts = allConstNodes(
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     );
-    expect(visualContractConsts).toHaveLength(14);
+    expect(visualContractConsts).toHaveLength(15);
     expect(blueprintConsts.length).toBeGreaterThan(5);
     for (const node of [
       ...visualContractConsts,

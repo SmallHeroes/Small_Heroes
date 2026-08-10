@@ -258,7 +258,7 @@ const TERMINAL_DEFINITIONS: Record<
     repairEligibility: 'ineligible',
     repairReasonCode: 'semantic_capability_not_repairable',
     diagnosticCode: 'action_semantic_capability_gap',
-    message: 'initial whole-book output exposed a closed-catalog Action Semantic capability gap',
+    message: 'authoring output exposed a closed-catalog Action Semantic capability gap',
   },
   post_compile_authority_incomplete: {
     phase: 'post_compile_authority',

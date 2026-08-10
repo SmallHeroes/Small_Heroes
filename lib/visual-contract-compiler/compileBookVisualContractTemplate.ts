@@ -78,6 +78,7 @@ import {
   ACTION_SEMANTIC_COVERAGE_VERSION,
   ActionSemanticCapabilityGapError,
   NON_VISUAL_RATIONALE_VALUES,
+  PRESENTATION_REQUIREMENT_CLASS_VALUES,
   actionSemanticCoverageValidation,
   type ActionSemanticCapabilityGap,
   type ActionSemanticCoverageRecord,
@@ -158,15 +159,15 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v10' as const;
+  'vc-template-prompt/v11' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v10' as const;
+  'vc-template-user-prompt/v11' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v9' as const;
+  'vc-repair-prompt/v10' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v10' as const;
+  'vc-repair-user-prompt/v11' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -592,11 +593,10 @@ export function buildTemplateCompileSystemPrompt(): string {
     'Draft ONLY the DESCRIPTIVE fields:',
     '- worldType, locations[] (including authored setIdentityId/setReference bindings), zones[] (with stableGeometry',
     '  plus exact spatialNodes/spatialRelations selection authority for zones not projected from stable areas),',
-    '- setBoardAuthorities[]: for every pending/ready set identity, author a SEPARATE stable, character-free physical',
-    '  projection. Each area declares exact zoneProjection cardinality+zoneIds. Use only environmental light, fixed',
-    '  architecture as unbound nodes, and exact recurring-prop stablePropId node bindings safe on every consuming page.',
-    '  fixedObjects is compiler-derived and MUST NOT be authored. Never',
-    '  copy page action, cast/name/appearance, portable light, reveal language, or transient props into this field.',
+    '- setBoardAuthorities: separate stable character-free projection per pending/ready set. Areas declare exact',
+    '  zoneProjection; only environmental light, unbound fixed architecture, and recurring-prop stablePropId safe on',
+    '  every consuming page. fixedObjects is compiler-derived; no page action, cast/name/appearance, portable light,',
+    '  reveal language, or transient props.',
     '- Prop consumers: stable_set=one ungated/never-forbidden stablePropId; page_frame=required at/after-reveal+',
     '  Blueprint placement_support. Else unbound; never infer.',
     '  cast.child + cast.companion wardrobe,',
@@ -604,20 +604,16 @@ export function buildTemplateCompileSystemPrompt(): string {
     '  mustShow/mustNotShow/propState/propConstraints/actionRequirements/camera/transition/zoneId/locationId.',
     `- Action Semantic Catalog authority is ${ACTION_SEMANTIC_CATALOG_VERSION}. Use this JSON tuple table:`,
     ...actionSemanticCatalogPromptTable(),
-    '- actionRequirements[] carries structured action only: typed subject, predicate, typed object, and when required',
-    '  a closed spatialEffect (directional or relation+target). A cast_group uses only exact same-page castIds and',
-    '  carries at least two unique members. spatialConstraint is separate current-frame state, never movement.',
-    '  Never encode a movement result or static relation in prompt prose.',
-    '- source_phenomenon subjects select one exact same-page sourceEvidenceId. The compiler resolves and persists its',
-    '  exact excerpt; never invent a label, cast member, prop, or fuzzy identity for an environmental phenomenon.',
-    '- Every required same-page Story Source visual beat gets one stable page-scoped actionSemanticCoverage[] record:',
-    '  select one exact sourceEvidenceId from the compiler-owned catalog on that same page; never copy or invent',
-    '  source prose. Historical imageDirection is never action authority and cannot supply source evidence.',
-    '  action_requirement binds by the same exact beatId carried on one actionRequirement; the compiler derives',
-    '  checkId and rewrites both records. represented_elsewhere cites an exact same-page contract JSON',
-    '  pointer and its exact current string value; non_visual uses only a closed rationale; unsupported uses reason',
-    '  closed_action_catalog_gap. Never force-fit a broader/narrower predicate. Coverage is unreviewed evidence only',
-    '  and cannot approve its own semantic classification.',
+    '- actionRequirements: typed subject/predicate/object/required closed spatialEffect; cast_group=2+ unique same-page',
+    '  castIds; spatialConstraint=static. No movement/relation prose. source_phenomenon=exact same-page sourceEvidenceId;',
+    '  compiler resolves it; no invented/fuzzy identity.',
+    '- Cover each same-page Story Source visual beat once in actionSemanticCoverage with exact catalog sourceEvidenceId;',
+    '  no source prose/imageDirection. action_requirement shares one action beatId; represented_elsewhere uses exact',
+    '  same-page pointer/value; non_visual closed rationale; unsupported only closed_action_catalog_gap; no self-approval.',
+    `- presentation_requirement classes=${PRESENTATION_REQUIREMENT_CLASS_VALUES.join('|')}; use one exact same-page`,
+    '  /pageContracts/{page-index}/mustShow/{item-index} pointer/value only for static state, light, composition, graphic sound,',
+    '  event not acting on an entity; never action/interaction/entity-acting phenomenon/movement/spatial relation,',
+    '  authored IDs, prose matching, fuzzy lookup, or force-fit.',
     `- Closed non_visual rationales: ${NON_VISUAL_RATIONALE_VALUES.join(' | ')}.`,
     '- For each given human, draft ONLY garments (each colour an explicit value) and forbiddenAppearance. Do NOT',
     '  output appearance (skinTone/hairColour/hairTexture/hairStyle) — the compiler injects those from a role policy.',
@@ -1265,6 +1261,32 @@ function sourceGroundPageActionSemantics(
       } else {
         typedDisposition = {
           kind: 'represented_elsewhere',
+          contractPointer: disposition.contractPointer,
+          contractValue: disposition.contractValue,
+        };
+      }
+    } else if (disposition.kind === 'presentation_requirement') {
+      if (
+        typeof disposition.presentationClass !== 'string' ||
+        !PRESENTATION_REQUIREMENT_CLASS_VALUES.includes(
+          disposition.presentationClass as (typeof PRESENTATION_REQUIREMENT_CLASS_VALUES)[number],
+        ) ||
+        typeof disposition.contractPointer !== 'string' ||
+        typeof disposition.contractValue !== 'string'
+      ) {
+        issues.push(
+          `${label}.disposition presentation_requirement requires a closed presentationClass, contractPointer and exact string contractValue`,
+        );
+        diagnosticIssues.push({
+          family: 'action_semantic',
+          code: 'disposition_payload_invalid',
+          locator: pageCollectionLocator('page_action_semantic_coverage', index, 'payload'),
+        });
+      } else {
+        typedDisposition = {
+          kind: 'presentation_requirement',
+          presentationClass:
+            disposition.presentationClass as (typeof PRESENTATION_REQUIREMENT_CLASS_VALUES)[number],
           contractPointer: disposition.contractPointer,
           contractValue: disposition.contractValue,
         };

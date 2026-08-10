@@ -16,6 +16,7 @@ import {
 } from './types';
 import {
   NON_VISUAL_RATIONALE_VALUES,
+  PRESENTATION_REQUIREMENT_CLASS_VALUES,
 } from './actionSemanticCoverage';
 
 /** Build a strict object schema: additionalProperties:false + required = every property. */
@@ -292,6 +293,15 @@ const actionSemanticCoverageDisposition = {
       contractValue: { type: 'string' },
     }),
     obj({
+      kind: { type: 'string', const: 'presentation_requirement' },
+      presentationClass: {
+        type: 'string',
+        enum: PRESENTATION_REQUIREMENT_CLASS_VALUES,
+      },
+      contractPointer: { type: 'string' },
+      contractValue: { type: 'string' },
+    }),
+    obj({
       kind: { type: 'string', const: 'non_visual' },
       rationale: {
         type: 'string',
@@ -364,7 +374,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v13' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v14' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

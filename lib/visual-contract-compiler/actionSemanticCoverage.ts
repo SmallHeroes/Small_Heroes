@@ -5,14 +5,26 @@ import {
 } from './draftValidationDiagnostics';
 
 export const ACTION_SEMANTIC_COVERAGE_VERSION =
-  'action-semantic-coverage/v5' as const;
+  'action-semantic-coverage/v6' as const;
 
 export const ACTION_SEMANTIC_COVERAGE_DISPOSITION_VALUES = [
   'action_requirement',
   'represented_elsewhere',
+  'presentation_requirement',
   'non_visual',
   'unsupported',
 ] as const;
+
+export const PRESENTATION_REQUIREMENT_CLASS_VALUES = [
+  'static_state',
+  'lighting_state',
+  'composition_focus',
+  'graphic_sound_cue',
+  'ambient_event',
+] as const;
+
+export type PresentationRequirementClass =
+  (typeof PRESENTATION_REQUIREMENT_CLASS_VALUES)[number];
 
 export const NON_VISUAL_RATIONALE_VALUES = [
   'internal_state',
@@ -33,6 +45,12 @@ export type ActionSemanticCoverageDisposition =
     }
   | {
       kind: 'represented_elsewhere';
+      contractPointer: string;
+      contractValue: string;
+    }
+  | {
+      kind: 'presentation_requirement';
+      presentationClass: PresentationRequirementClass;
       contractPointer: string;
       contractValue: string;
     }
@@ -288,6 +306,22 @@ export function representedElsewherePointerIsPermittedForPage(args: {
   );
 }
 
+export function presentationRequirementPointerIsPermittedForPage(args: {
+  template: ActionSemanticCoverageTemplate;
+  pageNumber: number;
+  pointer: string;
+}): boolean {
+  const prefix = coveragePrefixForPage(args.template, args.pageNumber);
+  const mustShowPrefix = `${prefix ?? ''}mustShow/`;
+  return (
+    prefix !== null &&
+    args.pointer.startsWith(mustShowPrefix) &&
+    /^(?:0|[1-9]\d*)$/.test(
+      args.pointer.slice(mustShowPrefix.length),
+    )
+  );
+}
+
 function encodeJsonPointerToken(token: string): string {
   return token.replace(/~/g, '~0').replace(/\//g, '~1');
 }
@@ -505,6 +539,73 @@ export function actionSemanticCoverageValidation(args: {
           {
             family: 'action_semantic',
             code: 'represented_elsewhere_value_mismatch',
+            locator: actionSemanticCoverageLocator(record, index, 'payload'),
+          },
+        );
+      }
+      continue;
+    }
+
+    if (record.disposition.kind === 'presentation_requirement') {
+      const pointer = record.disposition.contractPointer;
+      if (
+        !PRESENTATION_REQUIREMENT_CLASS_VALUES.includes(
+          record.disposition.presentationClass,
+        )
+      ) {
+        emitActionSemanticIssue(
+          issues,
+          diagnosticIssues,
+          `${label}.disposition.presentationClass is not in the closed presentation-requirement catalog`,
+          {
+            family: 'action_semantic',
+            code: 'disposition_reason_invalid',
+            locator: actionSemanticCoverageLocator(record, index, 'disposition'),
+          },
+        );
+      }
+      if (
+        !presentationRequirementPointerIsPermittedForPage({
+          template: args.template,
+          pageNumber: record.pageNumber,
+          pointer,
+        })
+      ) {
+        emitActionSemanticIssue(
+          issues,
+          diagnosticIssues,
+          `${label}.disposition.contractPointer must target one exact same-page mustShow item`,
+          {
+            family: 'action_semantic',
+            code: 'presentation_requirement_pointer_out_of_scope',
+            locator: actionSemanticCoverageLocator(record, index, 'reference'),
+          },
+        );
+        continue;
+      }
+      const resolved = resolveJsonPointer(args.template, pointer);
+      if (!resolved.found) {
+        emitActionSemanticIssue(
+          issues,
+          diagnosticIssues,
+          `${label}.disposition.contractPointer "${pointer}" does not resolve`,
+          {
+            family: 'action_semantic',
+            code: 'presentation_requirement_pointer_unresolved',
+            locator: actionSemanticCoverageLocator(record, index, 'reference'),
+          },
+        );
+      } else if (
+        typeof resolved.value !== 'string' ||
+        resolved.value !== record.disposition.contractValue
+      ) {
+        emitActionSemanticIssue(
+          issues,
+          diagnosticIssues,
+          `${label}.disposition.contractValue does not exactly match the current mustShow item`,
+          {
+            family: 'action_semantic',
+            code: 'presentation_requirement_value_mismatch',
             locator: actionSemanticCoverageLocator(record, index, 'payload'),
           },
         );

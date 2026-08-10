@@ -11,9 +11,11 @@ import {
 } from '../visual-contract-compiler/actionSemanticCatalog';
 import {
   ACTION_SEMANTIC_COVERAGE_VERSION,
+  PRESENTATION_REQUIREMENT_CLASS_VALUES,
   actionSemanticCoverageIssues,
   permittedRepresentedElsewherePointerValuesForPage,
   representedElsewherePointerIsPermittedForPage,
+  presentationRequirementPointerIsPermittedForPage,
   resolveJsonPointer,
   type ActionSemanticCoverageRecord,
   type ActionSemanticCoverageTemplate,
@@ -456,6 +458,107 @@ describe('Action Semantic Coverage validation', () => {
       }),
     ).toContainEqual(
       expect.stringContaining('exact same-page Source Evidence'),
+    );
+  });
+
+  it('admits visible non-action beats only through exact same-page typed presentation requirements', () => {
+    const requirement = coverage({
+      pageNumber: 2,
+      beatId: 'beat:p2:quiet_light',
+      disposition: {
+        kind: 'presentation_requirement',
+        presentationClass: 'lighting_state',
+        contractPointer: '/pageContracts/1/mustShow/0',
+        contractValue: 'second page value',
+      },
+    });
+    expect(PRESENTATION_REQUIREMENT_CLASS_VALUES).toEqual([
+      'static_state',
+      'lighting_state',
+      'composition_focus',
+      'graphic_sound_cue',
+      'ambient_event',
+    ]);
+    expect(
+      presentationRequirementPointerIsPermittedForPage({
+        template,
+        pageNumber: 2,
+        pointer: '/pageContracts/1/mustShow/0',
+      }),
+    ).toBe(true);
+    expect(
+      actionSemanticCoverageIssues({
+        template,
+        coverage: [coverage(), requirement],
+      }),
+    ).toEqual([]);
+
+    for (const bad of [
+      {
+        ...requirement,
+        disposition: {
+          ...requirement.disposition,
+          contractPointer: '/pageContracts/0/mustShow/0',
+        },
+      },
+      {
+        ...requirement,
+        disposition: {
+          ...requirement.disposition,
+          contractPointer: '/pageContracts/1/locationId',
+        },
+      },
+      {
+        ...requirement,
+        disposition: {
+          ...requirement.disposition,
+          contractValue: 'stale',
+        },
+      },
+    ]) {
+      expect(
+        actionSemanticCoverageIssues({
+          template,
+          coverage: [coverage(), bad as ActionSemanticCoverageRecord],
+        }),
+      ).not.toEqual([]);
+    }
+  });
+
+  it('never lets a presentation requirement satisfy an actionRequirement binding', () => {
+    const visualPage = structuredClone(template);
+    visualPage.pageContracts[1].actionRequirements = [
+      {
+        checkId: 'action:required_visual',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        polarity: 'must',
+      },
+    ];
+    expect(
+      actionSemanticCoverageIssues({
+        template: visualPage,
+        coverage: [
+          coverage(),
+          coverage({
+            pageNumber: 2,
+            beatId: 'beat:p2:presentation',
+            disposition: {
+              kind: 'presentation_requirement',
+              presentationClass: 'static_state',
+              contractPointer: '/pageContracts/1/mustShow/0',
+              contractValue: 'second page value',
+            },
+          }),
+        ],
+      }),
+    ).toContainEqual(
+      expect.stringContaining(
+        'actionRequirement "action:required_visual" has no Action Semantic Coverage binding',
+      ),
     );
   });
 

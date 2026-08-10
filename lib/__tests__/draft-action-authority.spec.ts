@@ -234,6 +234,39 @@ describe('compiler-owned draft action identity', () => {
     ).rejects.toBeInstanceOf(DraftAuthorityReferenceDomainError);
     expect(callLLM).toHaveBeenCalledTimes(1);
   });
+
+  it('normalizes a typed same-page presentation requirement without inventing an action', async () => {
+    const draft = draftFor(['look']);
+    const page = (draft.pageContracts as Array<Record<string, unknown>>)[0]!;
+    const mustShow = page.mustShow as string[];
+    (page.actionSemanticCoverage as Array<Record<string, unknown>>).push({
+      beatId: 'beat:p1:bright_wall',
+      sourceEvidenceId:
+        sourceEvidenceCatalog.entries[0]!.sourceEvidenceId,
+      disposition: {
+        kind: 'presentation_requirement',
+        presentationClass: 'lighting_state',
+        contractPointer: '/pageContracts/0/mustShow/0',
+        contractValue: mustShow[0],
+      },
+    });
+
+    const { callLLM, result } = await compileDraft(draft);
+    expect(callLLM).toHaveBeenCalledTimes(1);
+    expect(result.template.pageContracts[0]!.actionRequirements).toHaveLength(1);
+    expect(result.actionSemanticCoverage).toContainEqual(
+      expect.objectContaining({
+        beatId: 'beat:p1:bright_wall',
+        disposition: {
+          kind: 'presentation_requirement',
+          presentationClass: 'lighting_state',
+          contractPointer: '/pageContracts/0/mustShow/0',
+          contractValue: mustShow[0],
+        },
+        reviewState: 'unreviewed',
+      }),
+    );
+  });
 });
 
 describe('strict draft authority shapes', () => {
@@ -275,6 +308,17 @@ describe('strict draft authority shapes', () => {
     expect(actionBranch.properties).toEqual({
       kind: { type: 'string', const: 'action_requirement' },
     });
+    const presentationBranch = dispositionBranches.find(
+      (branch: any) =>
+        branch.properties.kind.const === 'presentation_requirement',
+    );
+    expect(presentationBranch.properties.presentationClass.enum).toEqual([
+      'static_state',
+      'lighting_state',
+      'composition_focus',
+      'graphic_sound_cue',
+      'ambient_event',
+    ]);
 
     const relationBranches =
       root.properties.setBoardAuthorities.items.properties.areas.items
