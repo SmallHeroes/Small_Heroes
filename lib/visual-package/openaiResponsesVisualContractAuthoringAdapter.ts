@@ -561,6 +561,28 @@ function mapUsage(rawUsage: unknown): {
   };
 }
 
+function mappedResponseOutputText(
+  response: Record<string, unknown> | null,
+): string {
+  if (typeof response?.output_text === 'string') {
+    return response.output_text;
+  }
+  if (!Array.isArray(response?.output)) return '';
+  const texts: string[] = [];
+  for (const rawItem of response.output) {
+    const item = record(rawItem);
+    if (item?.type !== 'message') continue;
+    if (!Array.isArray(item.content)) return '';
+    for (const rawContent of item.content) {
+      const content = record(rawContent);
+      if (content?.type !== 'output_text') continue;
+      if (typeof content.text !== 'string') return '';
+      texts.push(content.text);
+    }
+  }
+  return texts.join('');
+}
+
 export function mapOpenAIResponsesAuthoringResponse(
   rawResponse: unknown,
   executionAttestation: AuthoringExecutionAttestation =
@@ -574,10 +596,7 @@ export function mapOpenAIResponsesAuthoringResponse(
   const response = record(rawResponse);
   const mappedUsage = mapUsage(response?.usage);
   return {
-    output:
-      typeof response?.output_text === 'string'
-        ? response.output_text
-        : '',
+    output: mappedResponseOutputText(response),
     receipt: {
       provider: VISUAL_CONTRACT_AUTHORING_PROVIDER,
       model:

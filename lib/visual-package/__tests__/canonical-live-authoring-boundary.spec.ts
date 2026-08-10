@@ -314,6 +314,35 @@ function responseFor(
   };
 }
 
+function streamedTerminalResponseFor(
+  output: unknown,
+): Record<string, unknown> {
+  const response = responseFor(output);
+  const outputText = String(response.output_text);
+  delete response.output_text;
+  response.output = [
+    {
+      id: 'reasoning_test_1',
+      type: 'reasoning',
+      summary: [],
+    },
+    {
+      id: 'message_test_1',
+      type: 'message',
+      role: 'assistant',
+      status: 'completed',
+      content: [
+        {
+          annotations: [],
+          text: outputText,
+          type: 'output_text',
+        },
+      ],
+    },
+  ];
+  return response;
+}
+
 function completedResponseStream(
   response: Record<string, unknown>,
 ): Response {
@@ -544,6 +573,54 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     },
   );
 
+  it('maps streamed terminal output items when the SDK convenience output_text field is absent', () => {
+    const raw = streamedTerminalResponseFor({
+      pages: [{ pageNumber: 1 }],
+    });
+    const mapped = mapOpenAIResponsesAuthoringResponse(raw);
+    expect(mapped.output).toBe(
+      JSON.stringify({ pages: [{ pageNumber: 1 }] }),
+    );
+    expect(mapped.receipt).toMatchObject({
+      completionStatus: 'completed',
+      evidenceVersion:
+        OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+      usageEvidenceComplete: true,
+    });
+  });
+
+  it.each([
+    ['missing output array', {}],
+    [
+      'malformed message content',
+      {
+        output: [{ type: 'message', content: null }],
+      },
+    ],
+    [
+      'malformed output text',
+      {
+        output: [
+          {
+            type: 'message',
+            content: [
+              { type: 'output_text', text: 17 },
+            ],
+          },
+        ],
+      },
+    ],
+  ])('fails closed to empty mapped output for %s', (
+    _label,
+    override,
+  ) => {
+    const raw = responseFor('not-authoritative', override);
+    delete raw.output_text;
+    expect(
+      mapOpenAIResponsesAuthoringResponse(raw).output,
+    ).toBe('');
+  });
+
   it.each([
     [
       'missing terminal',
@@ -768,7 +845,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     const fixture = createLiveFixture('mapping');
     const draft = fullyActionedDraft(fixture.snapshot);
     const adapter = fakeAdapter({
-      responses: [responseFor(draft)],
+      responses: [streamedTerminalResponseFor(draft)],
     });
     const result = await runVisualContractAuthoring({
       request: fixture.request,
@@ -1096,7 +1173,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
           /redirect\.invalid|org-marker|project-marker|webhook-marker/,
         );
         return completedResponseStream(
-          responseFor(
+          streamedTerminalResponseFor(
             fullyActionedDraft(fixture.snapshot),
           ),
         );
