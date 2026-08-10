@@ -2,7 +2,7 @@
 
 ## Status
 
-The original implementation received an independent Claude Code HOLD. Its one MAJOR and first MINOR are corrected locally and await a focused read-only micro re-gate. Codex does not self-award independent technical PASS. Repository/release status also retains the separate six-fixture HOLD and the reproduced Vitest `onTaskUpdate` infrastructure limitation.
+The original implementation and first correction each received an independent Claude Code HOLD. MINOR-1 is independently closed; the remaining MAJOR-1 and the documentation overstatement identified in the first micro re-gate are corrected locally and await a second focused read-only micro re-gate. Codex does not self-award independent technical PASS. Repository/release status also retains the separate six-fixture HOLD and the reproduced Vitest `onTaskUpdate` infrastructure limitation.
 
 ## Topology and scope
 
@@ -15,6 +15,8 @@ The original implementation received an independent Claude Code HOLD. Its one MA
   - `caeff81a` — closed diagnostic-catalog assertion
   - `fd7638f7` — original implementation evidence
   - `f2500ba0` — candidate-bound reconciliation QA correction
+  - `483bd8c8` - first-correction evidence and micro re-gate handoff
+  - `e628ab88` - externally bound production-consumer correction
 - No merge commit, upstream, remote branch, or push was created by this task.
 
 ## Root cause and implemented boundary
@@ -77,6 +79,19 @@ Claude Code reviewed exact immutable range `0d5338e2c3e283f49c9023993348e8d902a3
 
 Regression coverage proves missing and empty bindings, forged digests, missing embedded authority, altered coverage with recomputed local digests, candidate mismatch, missing candidate, and legacy v1 all fail closed. It also proves JSON round-trip, exact persisted-candidate construction, Blueprint feasibility, and Wizard dry qualification.
 
+Claude Code then reviewed exact immutable correction range `fd7638f7..483bd8c8` and returned **HOLD** with zero BLOCKER, one remaining MAJOR, and one new documentation MINOR. It independently closed the original MINOR-1, but proved that the candidate equality limb was optional and unreachable from every production consumption path because no consumer supplied `actionSemanticCoverage`. It also found that the durable record overstated altered-coverage rejection beyond the producer-side bound probe. Codex records that verdict; it does not self-award closure.
+
+The second correction `e628ab88` closes that exact reachability defect:
+
+- `sourcePromptReconciliationIssues` and `loadSourcePromptReconciliation` require external coverage; no unbound current validation mode remains.
+- Public production context construction and production readiness load the exact persisted Visual Contract candidate and verify its source snapshot, envelope digest, declared template digest, actual template-body digest and current coverage authority.
+- Blueprint authoring and Blueprint qualification receive the external coverage explicitly through the required validation-context field.
+- Visual Package v4 requalification uses the immutable, content-addressed frozen package candidate as the external anchor without changing Blueprint v4 or its render contract.
+- Legacy promotion/qualification paths supply an empty external authority, so a current nonempty reconciliation fails closed instead of becoming self-declared authority.
+- The production authoring runner re-hashes stored reconciliation content and compares the validation-context copy before preflight or provider reachability, preventing a caller from mutating reconciliation plus the external coverage together after context construction.
+
+Direct regressions reproduce the internally self-consistent coverage substitution that Claude used and prove rejection at production context, production readiness, Blueprint authoring and Blueprint qualification. Separate tamper coverage proves that a redigested candidate with a template body inconsistent with its declared template digest is rejected and that post-construction reconciliation/coverage mutation cannot reach preflight.
+
 ## Structured-output and input-budget proof
 
 - Canonical serialized draft schema: `13,473` bytes
@@ -118,13 +133,20 @@ QA-correction validation:
 - A narrow one-worker replacement for only the two affected files completed 2 files / 32 assertions PASS, then Vitest exited 1 solely for one unhandled `onTaskUpdate` RPC timeout after 115.56 seconds. No assertion, launch, signal, or product-code failure occurred. It was not retried.
 - No new literal `npm run check` was run after the correction because the focused resource command did not produce a clean process exit. The original two repository-check results above remain unchanged evidence rather than being restated as post-correction proof.
 
+Second-correction validation:
+
+- Exact bound-consumer regression set: **5 files / 122 tests PASS**.
+- `npx --no-install tsc --noEmit --incremental false`: PASS. Incremental output was disabled because this execution environment could not write the ignored `tsconfig.tsbuildinfo`; no compiler diagnostic remained.
+- `git diff --check`: PASS.
+- No additional literal `npm run check` was run. The earlier assertion-clean resource evidence, resource-infrastructure limitation and separate six-fixture repository/release HOLD remain unchanged and are not restated as post-second-correction full-suite proof.
+
 ## Boundaries and cost
 
 No credential access, pricing/network/provider/model call, real B0/Fresh Readiness, canonical preflight, live authoring, candidate persistence, Semantic Reconciliation execution, Blueprint/Wizard execution, render/image/Vision, storage/database, deployment, or push occurred. External cost is `$0`.
 
 ## Rollback
 
-Revert the focused implementation series and `f2500ba0`. Historical artifacts remain immutable, so rollback restores the preceding coverage and lifecycle authorities without data rewriting.
+Revert the focused implementation series, `f2500ba0`, and `e628ab88`. Historical artifacts remain immutable, so rollback restores the preceding coverage and lifecycle authorities without data rewriting.
 
 ## Next operational sequence
 
