@@ -21,9 +21,9 @@ export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
-  'page-contract-repair-prompt/v5' as const;
+  'page-contract-repair-prompt/v6' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
-  'page-contract-repair-user-prompt/v5' as const;
+  'page-contract-repair-user-prompt/v6' as const;
 export const PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION =
   'page-contract-repair-input-encoding/v1' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION =
@@ -44,6 +44,10 @@ function strictObject(
     properties,
     required: Object.keys(properties),
   };
+}
+
+function lexicalCompare(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 export const PAGE_CONTRACT_REPAIR_JSON_SCHEMA: Record<
@@ -103,6 +107,12 @@ export interface PageContractRepairAffectedPage {
   pageNumber: number;
   pageContract: Record<string, unknown>;
   repairTargets: PageContractRepairTarget[];
+  /**
+   * Exact repository-validator messages for this page and this failed attempt.
+   * These are in-memory repair input only; canonical receipts retain the typed
+   * issue identities instead of this prose.
+   */
+  validationHints: string[];
   permittedPointerValues: RepresentedElsewherePointerValue[];
 }
 
@@ -766,8 +776,17 @@ export function applyPageSpatialReferenceRepairPatches(args: {
 export function pageContractRepairAffectedPages(args: {
   draft: Record<string, unknown>;
   diagnosticIssues: readonly DraftValidationIssue[];
+  validationMessages: readonly string[];
   pointerTemplate?: ActionSemanticCoverageTemplate;
 }): PageContractRepairAffectedPage[] | null {
+  if (
+    args.validationMessages.length !== args.diagnosticIssues.length ||
+    !args.validationMessages.every(
+      (message) => typeof message === 'string' && message.length > 0,
+    )
+  ) {
+    return null;
+  }
   const targets = repairTargets(args.diagnosticIssues);
   if (!targets) return null;
   const actionSemanticRepair =
@@ -779,6 +798,16 @@ export function pageContractRepairAffectedPages(args: {
   const pageContracts = Array.isArray(args.draft.pageContracts)
     ? args.draft.pageContracts
     : [];
+  const validationHintsByPage = new Map<number, Set<string>>();
+  for (const [index, issue] of args.diagnosticIssues.entries()) {
+    const target = actionSemanticRepair
+      ? representedElsewhereRepairTarget(issue)
+      : structuralRepairTarget(issue);
+    if (!target) return null;
+    const hints = validationHintsByPage.get(target.pageNumber) ?? new Set<string>();
+    hints.add(args.validationMessages[index]!);
+    validationHintsByPage.set(target.pageNumber, hints);
+  }
   const result = [...pageNumbers]
     .sort((left, right) => left - right)
     .map((pageNumber) => {
@@ -793,6 +822,9 @@ export function pageContractRepairAffectedPages(args: {
               repairTargets: targets.filter(
                 (target) => target.pageNumber === pageNumber,
               ),
+              validationHints: [
+                ...(validationHintsByPage.get(pageNumber) ?? []),
+              ].sort(lexicalCompare),
               permittedPointerValues: actionSemanticRepair
                 ? permittedRepresentedElsewherePointerValuesForPage({
                     template: args.pointerTemplate!,
@@ -807,6 +839,7 @@ export function pageContractRepairAffectedPages(args: {
     (value): value is PageContractRepairAffectedPage =>
       value !== null &&
       value.repairTargets.length > 0 &&
+      value.validationHints.length > 0 &&
       (!actionSemanticRepair ||
         value.permittedPointerValues.length > 0),
   )
@@ -1133,7 +1166,7 @@ export function buildPageContractRepairSystemPrompt(): string {
     'Return exactly one complete page contract for every affected pageNumber and no other page.',
     'Keep pageNumber and all authority IDs unchanged; never invent a new ID.',
     'Do not rewrite locations, zones, set boards, cast, recurring props, cover, or global fields.',
-    'Resolve only the closed typed repairTargets while preserving unaffected page semantics.',
+    'Resolve only the closed typed repairTargets and the exact repository-validator validationHints on that page while preserving unaffected page semantics.',
     'For represented_elsewhere, contractPointer and contractValue must be copied as one exact pair from permittedPointerValues on that page.',
     'Never rewrite a pointer silently or infer an authoring record from an item/list position.',
     'Output only the JSON object required by the strict repair schema.',
@@ -1150,6 +1183,7 @@ export function buildPageContractRepairUserPrompt(args: {
         pageNumber: value.pageNumber,
         pageContract: value.pageContract,
         repairTargets: value.repairTargets,
+        validationHints: value.validationHints,
         permittedPointerValues: value.permittedPointerValues,
       })),
   };
