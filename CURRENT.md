@@ -2,7 +2,18 @@
 
 **Updated:** 2026-08-10
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-typed-presentation-requirement-coverage` in `C:\Users\guyna\.codex\worktrees\presentationcov1\Small_Heroes`, based exactly on `0d5338e2c3e283f49c9023993348e8d902a3456f`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-presentation-capability-gap-repair-routing` in `C:\Users\guyna\.codex\worktrees\presentationrepair1\Small_Heroes`, based exactly on `9ac7ef4293cc724dbda72afc21c0fe2481cd494a`.
+
+## R1D-PVB-D1A1B1-PRESENTATION-CAPABILITY-GAP-COMPACT-REPAIR-ROUTING — implementation complete / independent QA pending
+
+The terminal fallthrough that blocked visually representable closed Action Semantic capability gaps now has a strict compact route to the existing typed `presentation_requirement` lane. The model may select only one closed presentation class and one exact same-page compiler-owned `mustShow` pointer; the compiler fills the exact value and proves that only the targeted coverage disposition changed. Mixed, unsafe, stale, malformed, out-of-domain and true action gaps remain terminal, and complete validation reruns before any candidate can exist.
+
+- Exact base: `9ac7ef4293cc724dbda72afc21c0fe2481cd494a`; implementation commit: `b83956da` on `codex/r1d-pvb-d1a1b1-presentation-capability-gap-repair-routing`.
+- Authority cutover is Visual Contract request v17, receipt v20, readiness v18, candidate v9; B0 input v8 / manifest+verifier v15; Execution Request input v6/result v9; Supervisor request+readiness v14/result v7; Fresh Readiness v14; OpenAI evidence v4. Older artifacts remain immutable legacy-only.
+- Focused validation passed direct repair **8**, compiler **26**, lifecycle **62**, canonical live boundary **136**, launcher **30**, B0 materialization **34**, verifier **45**, execution materialization **20**, Supervisor **34**, Fresh Readiness **12**, and classifier **7** tests. TypeScript and `git diff --check` passed.
+- The replacement repository check passed the full 19-file resource phase with clean diagnostics and reported only the six established ignored-output fixtures in the ordinary phase. Those remain a separate release HOLD and are accepted only for the bounded LOW measurement.
+- No credential, provider, B0/Fresh Readiness, live, candidate, downstream or render action occurred; cost is `$0`. Independent Claude Code QA is the next gate. Only after PASS will this exact head be pushed and rematerialized for one bounded attempt toward a single local LOW portrait-page render.
+- Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_PRESENTATION_CAPABILITY_GAP_COMPACT_REPAIR_ROUTING_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_PRESENTATION_CAPABILITY_GAP_COMPACT_REPAIR_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-TYPED-PRESENTATION-REQUIREMENT-COVERAGE - independent technical PASS / QA findings closed / repository release HOLD
 
