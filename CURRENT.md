@@ -4,6 +4,20 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-pvb-d1a1b1-stable-prop-scope-compact-repair` in `C:\Users\guyna\.codex\worktrees\presentationrepair1\Small_Heroes`, based exactly on `72d25784454de9da61f081bbf42546f3a121e7cc`.
 
+## R1D-PVB-D1A1B1-POST-STABLE-PROP-REPAIR-LIVE-ATTEMPT-1 — provider timeout / attempt exhausted
+
+Fresh Readiness v15 passed on pushed head `8b088d1ecc8c0a636e7c8aec95d4819063625fbf` with digest `93f219dd8f4bdea446cc40b13c2359ce8db753be399c7da9b052e946f6b6d61e` and Execution Request `dbf15b0215df4228b81a548ba5665b8ae5739329d4ca2bf5b7e86a6c7d36b1b9`. Official OpenAI model documentation confirmed `gpt-5.6-sol`, Responses, standard/default pricing `$5/$0.50/$30` per million input/cached/output tokens and cache-write pricing at `1.25×` input. The unchanged three-call conservative calculation remains `$4.884` under the hard `$5.00` ceiling.
+
+One canonical preflight passed and one Supervisor verify returned ready. The single live invocation then dispatched exactly one logical provider call and terminated after 306 seconds with canonical `provider_call_failed`. Provider-failure evidence v2 classifies it as `transport_dispatch / connection_timeout / api_connection_timeout_error`: no HTTP response, status, request ID, response, usage or billing evidence was received. Receipt v21 `e8b53425a0f4651bac3309f1895cc6b0902dee1f12a57cf95d283198fbcda5b3`, provider-failure evidence `29571da7564de93341b37631e0b4f567d3ce056a6ab195a98d607adb7d450cb1`, and readiness v19 `e9dbcf1288a6f30d4c3c7f536cef0d6cf2719a37d073c6836406d6af6d460c40` preserve the result.
+
+- Provider / repair / transport retry / fallback: `1 / 0 / 0 / false`.
+- Local usage and accounted cost: zero because no provider usage was returned; provider-account billing state is explicitly `unknown_no_usage`, not audited.
+- Credential source access occurred only inside the Supervisor child, succeeded, ambient inheritance was false, authority was cleared, and raw stdout/stderr were suppressed.
+- Candidate, Action Semantic evaluation, Semantic Reconciliation, Blueprint, Wizard and render authority are absent. No image, storage/database, publication, deployment or production action occurred.
+- This readiness and attempt are consumed. No rerun is permitted inside it. Guy's standing 2026-08-10 instruction authorizes continuation through a separately materialized attempt without changing timeout, retry/fallback, model or budgets. Production remains blocked.
+
+Durable record: `docs/ai-workflow/R1D_PVB_D1A1B1_POST_STABLE_PROP_REPAIR_LIVE_ATTEMPT_1_EXECUTION_EVIDENCE.md`.
+
 ## R1D-PVB-D1A1B1-STABLE-PROP-SCOPE-COMPACT-REPAIR — independent technical PASS / repository release HOLD
 
 The latest bounded live attempt reached OpenAI once and completed, but produced no candidate because complete local validation found exactly two homogeneous `recurring_prop_lifecycle_gated` issues at Set Board `spatialNodes.stablePropId` locators. That consumed readiness is preserved unchanged. A new general compact repair lane now permits only the two closed stable-prop scope identities `recurring_prop_lifecycle_gated` and `recurring_prop_consumer_forbidden`, and only at exact `set_area_node / recurring_prop / spatialNodes.stablePropId` locators.
