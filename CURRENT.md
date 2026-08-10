@@ -2,7 +2,21 @@
 
 **Updated:** 2026-08-10
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-structural-bundle-input-compaction` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `b3b38710b65b538ccad24d1f97bffe8ae0ba64e0`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-action-beat-binding-page-repair-routing` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `8a7243f13a4aab873511d344d0e8592ec3824d1a`.
+
+## R1D-PVB-D1A1B1-ACTION-BEAT-BINDING-PAGE-REPAIR-ROUTING - implementation green / independent QA pending
+
+The post-structural-compaction live attempt completed one provider response and reached local authority validation. It produced three coherent page-2 issues: two `action_beat_binding_cardinality_invalid` action locators and one `coverage_action_binding_cardinality_invalid` coverage locator. These identities described one incomplete page contract but fell through as terminal before the existing complete-page repair lane, so no candidate or downstream authority was produced.
+
+- The closed page-repair planner now admits only the existing `action_coverage_cardinality_invalid` identity plus the two exact new binding-cardinality identities. Every typed locator must resolve to its exact page/action or page/coverage record; malformed, mixed, duplicate, stale and unlocatable sets remain terminal.
+- Eligible issues reuse the existing complete-page `page_contract_patch`. The provider must return the complete exact affected-page set and the repaired draft must pass full validation before candidate persistence. No new repair framework or response schema exists.
+- Page-contract repair system/user prompt authority advances from v7 to v8 solely to state the exact beat-to-action and coverage-to-action binding invariants. Model, schema, service tier, 64K/36K ceilings, three-call budget, timeout, retries, fallback, candidate semantics and `$4.884/$5.00` ceilings are unchanged.
+- Focused validation passed **4 files / 172 tests**, the adjacent action-authority correction passed **1 file / 5 tests**, and canonical materialization/verifier/Supervisor/Fresh Readiness validation passed **7 files / 310 tests**. TypeScript and `git diff --check` passed.
+- The one literal `npm run check` passed TypeScript and all **19 resource-intensive files** with valid diagnostics. Its **271-file ordinary phase** reported the six established missing ignored-output fixture failures plus two stale expectations that still required these newly repairable identities to remain terminal. Those two test-only expectations were corrected and passed focused validation; the literal gate was not rerun. The six fixtures remain a separate release HOLD and are accepted only for the bounded local LOW measurement.
+- Implementation cost is `$0`. No credential, pricing/network/provider call, real B0/Fresh Readiness, preflight, live authoring, candidate, Reconciliation, Blueprint/Wizard, render, storage/database, publication, deployment or production action occurred. Production remains blocked.
+- Independent Claude Code QA is pending for the exact committed implementation range. Codex does not self-award technical PASS.
+
+Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_ACTION_BEAT_BINDING_PAGE_REPAIR_ROUTING_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_ACTION_BEAT_BINDING_PAGE_REPAIR_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-STRUCTURAL-BUNDLE-REPAIR-INPUT-COMPACTION - independent technical PASS / repository release HOLD
 

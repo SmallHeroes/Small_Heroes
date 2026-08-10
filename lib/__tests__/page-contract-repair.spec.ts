@@ -576,6 +576,104 @@ describe('page-contract compact repair', () => {
     ]);
   });
 
+  it('builds one closed complete-page plan for the mixed action beat-binding cardinality set', () => {
+    const input = draft();
+    const pageTwo = (
+      input.pageContracts as Array<Record<string, unknown>>
+    ).find((candidate) => candidate.pageNumber === 2)!;
+    const action = {
+      beatId: 'beat:p2:shared',
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: 'looks_at',
+      object: null,
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'must',
+      laterality: null,
+    };
+    pageTwo.actionRequirements = [
+      structuredClone(action),
+      structuredClone(action),
+    ];
+    pageTwo.actionSemanticCoverage = [
+      {
+        beatId: 'beat:p2:shared',
+        sourceEvidenceId: 'se1_test',
+        disposition: { kind: 'action_requirement' },
+      },
+    ];
+    const plan = pageContractAuthorityRepairPlan({
+      draft: input,
+      issues: [
+        {
+          code: 'action_beat_binding_cardinality_invalid',
+          locator: {
+            kind: 'page_action',
+            referenceClass: 'action_identity',
+            fieldRole: 'actionRequirements.beatId',
+            pageNumber: 2,
+            actionIndex: 0,
+          },
+        },
+        {
+          code: 'action_beat_binding_cardinality_invalid',
+          locator: {
+            kind: 'page_action',
+            referenceClass: 'action_identity',
+            fieldRole: 'actionRequirements.beatId',
+            pageNumber: 2,
+            actionIndex: 1,
+          },
+        },
+        {
+          code: 'coverage_action_binding_cardinality_invalid',
+          locator: {
+            kind: 'page_coverage',
+            referenceClass: 'action_coverage',
+            fieldRole:
+              'actionSemanticCoverage.actionRequirementBinding',
+            pageNumber: 2,
+            coverageIndex: 0,
+          },
+        },
+      ],
+    });
+    expect(plan?.affectedPages).toHaveLength(1);
+    expect(plan?.affectedPages[0]).toMatchObject({
+      pageNumber: 2,
+      permittedPointerValues: [],
+    });
+    expect(plan?.affectedPages[0]?.repairTargets).toHaveLength(3);
+    expect(plan?.validationMessages).toEqual([
+      expect.stringContaining('actionRequirements[0].beatId'),
+      expect.stringContaining('actionRequirements[1].beatId'),
+      expect.stringContaining('actionSemanticCoverage[0]'),
+    ]);
+    expect(plan?.diagnosticIssues).toEqual([
+      expect.objectContaining({
+        locator: expect.objectContaining({
+          collectionRole: 'page_actions',
+          itemIndex: 0,
+        }),
+      }),
+      expect.objectContaining({
+        locator: expect.objectContaining({
+          collectionRole: 'page_actions',
+          itemIndex: 1,
+        }),
+      }),
+      expect.objectContaining({
+        locator: expect.objectContaining({
+          collectionRole: 'page_action_semantic_coverage',
+          itemIndex: 0,
+        }),
+      }),
+    ]);
+  });
+
   it('rejects mixed, duplicate, malformed, stale, and unlocatable authority plans', () => {
     const valid = {
       code: 'action_coverage_cardinality_invalid' as const,
@@ -1105,10 +1203,10 @@ describe('page-contract compact repair', () => {
       PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
     );
     expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
-      'page-contract-repair-prompt/v7',
+      'page-contract-repair-prompt/v8',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'page-contract-repair-user-prompt/v7',
+      'page-contract-repair-user-prompt/v8',
     );
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([

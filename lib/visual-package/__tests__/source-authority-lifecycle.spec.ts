@@ -741,9 +741,9 @@ describe('exact zero-cost authoring preflight', () => {
           userPromptVersion: 'vc-repair-user-prompt/v11',
         },
         pageContractRepair: {
-          systemPromptVersion: 'page-contract-repair-prompt/v7',
+          systemPromptVersion: 'page-contract-repair-prompt/v8',
           userPromptVersion:
-            'page-contract-repair-user-prompt/v7',
+            'page-contract-repair-user-prompt/v8',
         },
       },
       pricing: {
@@ -1465,15 +1465,11 @@ describe('source-grounded closed action authority', () => {
       thrown = error;
     }
     expect(thrown).toBeInstanceOf(
-      DraftAuthorityReferenceDomainError,
+      TemplateRepairOutputInvalidError,
     );
     expect(
-      (thrown as DraftAuthorityReferenceDomainError).issues.some(
-        (issue) =>
-          issue.code ===
-          'coverage_action_binding_cardinality_invalid',
-      ),
-    ).toBe(true);
+      (thrown as TemplateRepairOutputInvalidError).repairMode,
+    ).toBe('page_contract_patch');
   });
 
   it('rejects minted, malformed, and duplicate action authority through the repair path', async () => {
@@ -1568,17 +1564,11 @@ describe('source-grounded closed action authority', () => {
       duplicateFailure = error;
     }
     expect(duplicateFailure).toBeInstanceOf(
-      DraftAuthorityReferenceDomainError,
+      TemplateRepairOutputInvalidError,
     );
     expect(
-      (
-        duplicateFailure as DraftAuthorityReferenceDomainError
-      ).issues.filter(
-        (issue) =>
-          issue.code ===
-          'action_beat_binding_cardinality_invalid',
-      ),
-    ).toHaveLength(2);
+      (duplicateFailure as TemplateRepairOutputInvalidError).repairMode,
+    ).toBe('page_contract_patch');
   });
 });
 

@@ -745,23 +745,11 @@ describe('captured reference-domain matrix', () => {
       },
     ],
     [
-      'action_beat_binding_cardinality_invalid',
-      (draft: Record<string, unknown>) => {
-        actions(draft)[1]!.beatId = actions(draft)[0]!.beatId;
-      },
-    ],
-    [
       'coverage_check_id_forbidden',
       (draft: Record<string, unknown>) => {
         const disposition = coverage(draft)[0]!
           .disposition as Record<string, unknown>;
         disposition.checkId = 'authored_check';
-      },
-    ],
-    [
-      'coverage_action_binding_cardinality_invalid',
-      (draft: Record<string, unknown>) => {
-        coverage(draft)[0]!.beatId = 'beat:p1:no_action';
       },
     ],
     [
@@ -915,6 +903,44 @@ describe('captured reference-domain matrix', () => {
           },
         ],
       },
+    ]);
+    expect(result.provenance.attempt).toBe(2);
+  });
+
+  it('routes the mixed action beat-binding cardinality family through one complete-page repair', async () => {
+    const invalid = matrixDraft();
+    const firstAction = structuredClone(actions(invalid)[0]!);
+    actions(invalid).push(firstAction);
+    const validPage = structuredClone(pageRecord(matrixDraft()));
+    delete validPage.castIds;
+    delete validPage.characterPresence;
+    const callLLM = vi.fn(async () =>
+      callLLM.mock.calls.length === 1
+        ? JSON.stringify(invalid)
+        : JSON.stringify({ pageContracts: [validPage] }),
+    );
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+
+    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(result.repairAttempts).toHaveLength(1);
+    expect(result.repairAttempts[0]?.nextRepairMode).toBe(
+      'page_contract_patch',
+    );
+    expect(result.repairAttempts[0]?.diagnosticIssues).toHaveLength(3);
+    expect(
+      result.repairAttempts[0]?.diagnosticIssues.map(
+        (issue) =>
+          issue.locator.kind === 'page_item'
+            ? issue.locator.collectionRole
+            : null,
+      ),
+    ).toEqual([
+      'page_actions',
+      'page_actions',
+      'page_action_semantic_coverage',
     ]);
     expect(result.provenance.attempt).toBe(2);
   });

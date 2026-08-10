@@ -21,9 +21,9 @@ export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
-  'page-contract-repair-prompt/v7' as const;
+  'page-contract-repair-prompt/v8' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
-  'page-contract-repair-user-prompt/v7' as const;
+  'page-contract-repair-user-prompt/v8' as const;
 export const PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION =
   'page-contract-repair-input-encoding/v1' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION =
@@ -182,6 +182,18 @@ export type PageContractRepairTarget =
       code: 'action_coverage_cardinality_invalid';
       pageNumber: number;
       actionIndex: number;
+    }
+  | {
+      family: 'action_semantic';
+      code: 'action_beat_binding_cardinality_invalid';
+      pageNumber: number;
+      actionIndex: number;
+    }
+  | {
+      family: 'action_semantic';
+      code: 'coverage_action_binding_cardinality_invalid';
+      pageNumber: number;
+      coverageIndex: number;
     }
   | {
       family: 'draft_contract';
@@ -440,6 +452,27 @@ function pageActionForTarget(args: {
     : [];
   return args.actionIndex >= 0 && args.actionIndex < actions.length
     ? recordValue(actions[args.actionIndex])
+    : null;
+}
+
+function pageCoverageForTarget(args: {
+  draft: Record<string, unknown>;
+  pageNumber: number;
+  coverageIndex: number;
+}): Record<string, unknown> | null {
+  const pages = Array.isArray(args.draft.pageContracts)
+    ? args.draft.pageContracts.map(recordValue)
+    : [];
+  const matches = pages.filter(
+    (page) => page?.pageNumber === args.pageNumber,
+  );
+  if (matches.length !== 1) return null;
+  const coverage = Array.isArray(matches[0]!.actionSemanticCoverage)
+    ? matches[0]!.actionSemanticCoverage
+    : [];
+  return args.coverageIndex >= 0 &&
+    args.coverageIndex < coverage.length
+    ? recordValue(coverage[args.coverageIndex])
     : null;
 }
 
@@ -859,28 +892,62 @@ export interface PageContractAuthorityRepairPlan {
   validationMessages: string[];
 }
 
-function actionCoverageCardinalityRepairTarget(
-  issue: DraftAuthorityReferenceIssue,
-): Extract<
+type ActionBindingCardinalityRepairTarget = Extract<
   PageContractRepairTarget,
-  { code: 'action_coverage_cardinality_invalid' }
-> | null {
+  {
+    code:
+      | 'action_coverage_cardinality_invalid'
+      | 'action_beat_binding_cardinality_invalid'
+      | 'coverage_action_binding_cardinality_invalid';
+  }
+>;
+
+function actionBindingCardinalityRepairTarget(
+  issue: DraftAuthorityReferenceIssue,
+): ActionBindingCardinalityRepairTarget | null {
+  if (!draftAuthorityReferenceIssueIsValid(issue)) return null;
   if (
-    !draftAuthorityReferenceIssueIsValid(issue) ||
-    issue.code !== 'action_coverage_cardinality_invalid' ||
-    issue.locator.kind !== 'page_action' ||
-    issue.locator.referenceClass !== 'action_coverage' ||
-    issue.locator.fieldRole !==
+    issue.code === 'action_coverage_cardinality_invalid' &&
+    issue.locator.kind === 'page_action' &&
+    issue.locator.referenceClass === 'action_coverage' &&
+    issue.locator.fieldRole ===
       'actionRequirements.actionSemanticCoverage'
   ) {
-    return null;
+    return {
+      family: 'action_semantic',
+      code: issue.code,
+      pageNumber: issue.locator.pageNumber,
+      actionIndex: issue.locator.actionIndex,
+    };
   }
-  return {
-    family: 'action_semantic',
-    code: issue.code,
-    pageNumber: issue.locator.pageNumber,
-    actionIndex: issue.locator.actionIndex,
-  };
+  if (
+    issue.code === 'action_beat_binding_cardinality_invalid' &&
+    issue.locator.kind === 'page_action' &&
+    issue.locator.referenceClass === 'action_identity' &&
+    issue.locator.fieldRole === 'actionRequirements.beatId'
+  ) {
+    return {
+      family: 'action_semantic',
+      code: issue.code,
+      pageNumber: issue.locator.pageNumber,
+      actionIndex: issue.locator.actionIndex,
+    };
+  }
+  if (
+    issue.code === 'coverage_action_binding_cardinality_invalid' &&
+    issue.locator.kind === 'page_coverage' &&
+    issue.locator.referenceClass === 'action_coverage' &&
+    issue.locator.fieldRole ===
+      'actionSemanticCoverage.actionRequirementBinding'
+  ) {
+    return {
+      family: 'action_semantic',
+      code: issue.code,
+      pageNumber: issue.locator.pageNumber,
+      coverageIndex: issue.locator.coverageIndex,
+    };
+  }
+  return null;
 }
 
 /**
@@ -894,25 +961,19 @@ export function pageContractAuthorityRepairPlan(args: {
 }): PageContractAuthorityRepairPlan | null {
   if (args.issues.length === 0) return null;
   const targets = args.issues.map(
-    actionCoverageCardinalityRepairTarget,
+    actionBindingCardinalityRepairTarget,
   );
   if (targets.some((target) => target === null)) return null;
-  const unique = new Map<
-    string,
-    Extract<
-      PageContractRepairTarget,
-      { code: 'action_coverage_cardinality_invalid' }
-    >
-  >();
-  for (const target of targets as Array<
-    Extract<
-      PageContractRepairTarget,
-      { code: 'action_coverage_cardinality_invalid' }
-    >
-  >) {
+  const unique = new Map<string, ActionBindingCardinalityRepairTarget>();
+  for (const target of targets as ActionBindingCardinalityRepairTarget[]) {
+    const itemIndex =
+      'actionIndex' in target
+        ? target.actionIndex
+        : target.coverageIndex;
     const key = JSON.stringify([
+      target.code,
       target.pageNumber,
-      target.actionIndex,
+      itemIndex,
     ]);
     if (unique.has(key)) return null;
     unique.set(key, target);
@@ -920,16 +981,30 @@ export function pageContractAuthorityRepairPlan(args: {
   const normalizedTargets = [...unique.values()].sort(
     (left, right) =>
       left.pageNumber - right.pageNumber ||
-      left.actionIndex - right.actionIndex,
+      left.code.localeCompare(right.code) ||
+      ('actionIndex' in left
+        ? left.actionIndex
+        : left.coverageIndex) -
+        ('actionIndex' in right
+          ? right.actionIndex
+          : right.coverageIndex),
   );
   if (
     normalizedTargets.some(
-      (target) =>
-        !pageActionForTarget({
+      (target) => {
+        if ('actionIndex' in target) {
+          return !pageActionForTarget({
+            draft: args.draft,
+            pageNumber: target.pageNumber,
+            actionIndex: target.actionIndex,
+          });
+        }
+        return !pageCoverageForTarget({
           draft: args.draft,
           pageNumber: target.pageNumber,
-          actionIndex: target.actionIndex,
-        }),
+          coverageIndex: target.coverageIndex,
+        });
+      },
     )
   ) {
     return null;
@@ -952,10 +1027,15 @@ export function pageContractAuthorityRepairPlan(args: {
       pageNumber,
       pageContract: structuredClone(matches[0]!),
       repairTargets: pageTargets,
-      validationHints: pageTargets.map(
-        (target) =>
-          `action_coverage_cardinality_invalid: actionRequirements[${target.actionIndex}] must bind exactly one same-page actionSemanticCoverage record with disposition.kind action_requirement`,
-      ),
+      validationHints: pageTargets.map((target) => {
+        if (target.code === 'action_coverage_cardinality_invalid') {
+          return `action_coverage_cardinality_invalid: actionRequirements[${target.actionIndex}] must bind exactly one same-page actionSemanticCoverage record with disposition.kind action_requirement`;
+        }
+        if (target.code === 'action_beat_binding_cardinality_invalid') {
+          return `action_beat_binding_cardinality_invalid: actionRequirements[${target.actionIndex}].beatId must be unique on the page and bind exactly one same-page actionSemanticCoverage record with disposition.kind action_requirement`;
+        }
+        return `coverage_action_binding_cardinality_invalid: actionSemanticCoverage[${target.coverageIndex}] must bind exactly one same-page actionRequirement through one unique beatId`;
+      }),
       permittedPointerValues: [],
     } satisfies PageContractRepairAffectedPage;
   });
@@ -975,10 +1055,16 @@ export function pageContractAuthorityRepairPlan(args: {
       code: 'action_binding_cardinality_invalid',
       locator: {
         kind: 'page_item',
-        collectionRole: 'page_actions',
+        collectionRole:
+          'actionIndex' in target
+            ? 'page_actions'
+            : 'page_action_semantic_coverage',
         fieldRole: 'cardinality',
         pageNumber: target.pageNumber,
-        itemIndex: target.actionIndex,
+        itemIndex:
+          'actionIndex' in target
+            ? target.actionIndex
+            : target.coverageIndex,
       },
     }),
   );
@@ -1311,6 +1397,8 @@ export function buildPageContractRepairSystemPrompt(): string {
     'Do not rewrite locations, zones, set boards, cast, recurring props, cover, or global fields.',
     'Resolve only the closed typed repairTargets and the exact repository-validator validationHints on that page while preserving unaffected page semantics.',
     'For action_coverage_cardinality_invalid, align the targeted action beatId with exactly one same-page actionSemanticCoverage record whose disposition.kind is action_requirement.',
+    'For action_beat_binding_cardinality_invalid, make the targeted action beatId unique on its page and bind it to exactly one same-page actionSemanticCoverage action_requirement record.',
+    'For coverage_action_binding_cardinality_invalid, bind the targeted actionSemanticCoverage record to exactly one same-page actionRequirement through one unique beatId.',
     'For represented_elsewhere, contractPointer and contractValue must be copied as one exact pair from permittedPointerValues on that page.',
     'Never rewrite a pointer silently or infer an authoring record from an item/list position.',
     'Output only the JSON object required by the strict repair schema.',

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  DraftAuthorityReferenceDomainError,
+  TemplateRepairOutputInvalidError,
   compileBookVisualContractTemplate,
   compilerOwnedActionCheckId,
   type TemplateCompileInput,
@@ -209,7 +209,7 @@ describe('compiler-owned draft action identity', () => {
     expect(second.callLLM).toHaveBeenCalledTimes(1);
   });
 
-  it('fails exact near-miss bindings locally without spending a repair call', async () => {
+  it('routes exact near-miss bindings through one bounded page repair', async () => {
     const draft = draftFor(['look']);
     const page = (draft.pageContracts as Array<Record<string, unknown>>)[0]!;
     (page.actionRequirements as Array<Record<string, unknown>>)[0]!.beatId =
@@ -218,11 +218,11 @@ describe('compiler-owned draft action identity', () => {
 
     await expect(
       compileBookVisualContractTemplate(input, { callLLM }),
-    ).rejects.toBeInstanceOf(DraftAuthorityReferenceDomainError);
-    expect(callLLM).toHaveBeenCalledTimes(1);
+    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
+    expect(callLLM).toHaveBeenCalledTimes(2);
   });
 
-  it('fails duplicate stable-key ambiguity locally without spending a repair call', async () => {
+  it('routes duplicate stable-key ambiguity through one bounded page repair', async () => {
     const draft = draftFor(['look']);
     const page = (draft.pageContracts as Array<Record<string, unknown>>)[0]!;
     const actions = page.actionRequirements as Array<Record<string, unknown>>;
@@ -231,8 +231,8 @@ describe('compiler-owned draft action identity', () => {
 
     await expect(
       compileBookVisualContractTemplate(input, { callLLM }),
-    ).rejects.toBeInstanceOf(DraftAuthorityReferenceDomainError);
-    expect(callLLM).toHaveBeenCalledTimes(1);
+    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
+    expect(callLLM).toHaveBeenCalledTimes(2);
   });
 
   it('normalizes a typed same-page presentation requirement without inventing an action', async () => {
