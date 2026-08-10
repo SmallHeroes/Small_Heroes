@@ -129,6 +129,7 @@ import {
   buildPageContractRepairUserPrompt,
   buildPageSpatialReferenceRepairSystemPrompt,
   buildPageSpatialReferenceRepairUserPrompt,
+  pageContractAuthorityRepairPlan,
   pageContractRepairAffectedPages,
   pageSpatialReferenceRepairTargets,
   parsePageContractRepairs,
@@ -3017,6 +3018,15 @@ export async function compileBookVisualContractTemplate(
         attemptDiagnosticIssues = err.issues.map(
           pageSpatialReferenceRepairDiagnostic,
         );
+      } else if (err instanceof DraftAuthorityReferenceDomainError) {
+        const repairPlan = pageContractAuthorityRepairPlan({
+          draft,
+          issues: err.issues,
+        });
+        if (!repairPlan) throw err;
+        pageContractAffectedPages = repairPlan.affectedPages;
+        attemptErrors = repairPlan.validationMessages;
+        attemptDiagnosticIssues = repairPlan.diagnosticIssues;
       } else if (err instanceof ActionSemanticCapabilityGapError) {
         presentationRequirementAffectedTargets =
           presentationRequirementRepairTargets({
@@ -3046,7 +3056,8 @@ export async function compileBookVisualContractTemplate(
       !assembled &&
       !sourceEvidenceAffectedRecords &&
       !stablePropScopeAffectedTargets &&
-      !presentationRequirementAffectedTargets
+      !presentationRequirementAffectedTargets &&
+      !pageContractAffectedPages
     ) {
       if (pageSpatialRepairIssues && pageSpatialRepairAuthority) {
         pageSpatialReferenceAffectedTargets =

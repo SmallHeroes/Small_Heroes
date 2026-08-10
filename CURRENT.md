@@ -4,6 +4,19 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-pvb-d1a1b1-streaming-authoring-transport` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `d3070cbded13891ba964466ca2bbbd1e1b96d227`.
 
+## R1D-PVB-D1A1B1-ACTION-COVERAGE-CARDINALITY-PAGE-REPAIR-ROUTING - implementation green / independent QA pending
+
+The first post-stream-mapper live attempt completed one provider response and reached local draft validation. It produced exactly one typed `action_coverage_cardinality_invalid` issue at page 2, action index 3. The existing complete-page repair lane was not entered because this closed authority identity fell through as terminal before repair classification; no candidate or downstream authority was produced.
+
+- A closed planner now admits only a non-empty homogeneous set of exact `page_action / action_coverage / actionRequirements.actionSemanticCoverage` locators whose positive page/action indices resolve uniquely in the same draft. Duplicate, mixed, malformed, stale and unlocatable sets remain terminal.
+- Eligible issues reuse the existing complete-page `page_contract_patch`; no new repair schema or framework exists. Prompt authority advances to `page-contract-repair-prompt/v7` and `page-contract-repair-user-prompt/v7` to state the exact action-to-coverage cardinality invariant. Model, structured-output authority, service tier, token/call/repair budgets, timeout, retries, fallback, candidate semantics and `$4.884/$5.00` ceilings are unchanged.
+- Direct compiler/lifecycle validation passed **4 files / 285 tests**. Canonical materialization, verifier, Execution Supervisor and Fresh Readiness validation passed **7 files / 170 tests**. The adjacent reference-domain matrix passed **1 file / 36 tests**. TypeScript and `git diff --check` passed.
+- The first literal repository check exposed one stale assertion that still required this identity to remain terminal. After correcting that test-only expectation, the authorized replacement repository check passed all **19 resource-intensive files** with valid diagnostics; its **271-file ordinary phase** contained exactly the six established missing ignored-output fixture failures and no seventh assertion or infrastructure failure. Those six remain a release HOLD and are accepted only for the bounded local LOW measurement.
+- Implementation cost is `$0`. No credential, pricing/network/provider call, real B0/Fresh Readiness, preflight, live authoring, candidate, Reconciliation, Blueprint/Wizard, render, storage/database, publication, deployment or production action occurred. Production remains blocked.
+- Independent Claude Code QA is pending for the exact committed implementation range. Codex does not self-award technical PASS.
+
+Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_ACTION_COVERAGE_CARDINALITY_PAGE_REPAIR_ROUTING_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_ACTION_COVERAGE_CARDINALITY_PAGE_REPAIR_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
+
 ## R1D-PVB-D1A1B1-RESPONSES-STREAMING-AUTHORING-TRANSPORT - transport PASS / terminal-output correction green / repository release HOLD
 
 Two separately materialized live attempts on pushed head `d3070cbded13891ba964466ca2bbbd1e1b96d227` failed after approximately 306 seconds before any HTTP response, usage, response ID, or provider billing evidence was returned. Both canonical failures are `transport_dispatch / connection_timeout / api_connection_timeout_error`, with one logical provider call, one transport dispatch, zero transport retries, no fallback, zero locally accounted cost, and no candidate or downstream authority. The repository request timeout is twenty minutes, so the repeated failure occurs before the repository timeout and before response mapping or validation.

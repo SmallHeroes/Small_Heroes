@@ -62,6 +62,7 @@ function actionBeat(index: number) {
       ? { kind: 'spatial' as const, id: spatialId }
       : null,
     spatialEffect: null,
+    spatialConstraint: null,
     polarity: 'must' as const,
     laterality: null,
   };
@@ -70,7 +71,7 @@ function actionBeat(index: number) {
 function matrixDraft(): Record<string, unknown> {
   const draftActions = Array.from({ length: 37 }, (_, index) =>
     actionBeat(index));
-  const finalActions = draftActions.map(({ beatId, object, spatialEffect, laterality, ...action }) => ({
+  const finalActions = draftActions.map(({ beatId, object, spatialEffect, spatialConstraint, laterality, ...action }) => ({
     ...action,
     checkId: compilerOwnedActionCheckId(1, beatId),
     ...(object ? { object } : {}),
@@ -770,12 +771,6 @@ describe('captured reference-domain matrix', () => {
       },
     ],
     [
-      'action_coverage_cardinality_invalid',
-      (draft: Record<string, unknown>) => {
-        coverage(draft).shift();
-      },
-    ],
-    [
       'unary_relation_object_forbidden',
       (draft: Record<string, unknown>) => {
         const relation = (
@@ -884,6 +879,45 @@ describe('captured reference-domain matrix', () => {
       expect(issues.map((issue) => issue.code)).toContain(expectedCode);
     },
   );
+
+  it('emits and routes action_coverage_cardinality_invalid through complete-page repair', async () => {
+    const invalid = matrixDraft();
+    coverage(invalid).shift();
+    const validPage = structuredClone(pageRecord(matrixDraft()));
+    delete validPage.castIds;
+    delete validPage.characterPresence;
+    const callLLM = vi.fn(async () =>
+      callLLM.mock.calls.length === 1
+        ? JSON.stringify(invalid)
+        : JSON.stringify({ pageContracts: [validPage] }),
+    );
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+
+    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(result.repairAttempts).toMatchObject([
+      {
+        attempt: 1,
+        nextRepairMode: 'page_contract_patch',
+        diagnosticIssues: [
+          {
+            family: 'action_semantic',
+            code: 'action_binding_cardinality_invalid',
+            locator: {
+              kind: 'page_item',
+              collectionRole: 'page_actions',
+              fieldRole: 'cardinality',
+              pageNumber: 1,
+              itemIndex: 0,
+            },
+          },
+        ],
+      },
+    ]);
+    expect(result.provenance.attempt).toBe(2);
+  });
 
   it('emits both relation locator variants from structural context', async () => {
     const draft = matrixDraft();

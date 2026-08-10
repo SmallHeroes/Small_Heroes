@@ -29,6 +29,7 @@ import {
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
   decodePageContractRepairUserPrompt,
+  parsePageContractRepairs,
 } from '../visual-contract-compiler/pageContractRepair';
 import {
   STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
@@ -44,6 +45,7 @@ import { extractDeterministicFacts } from '../visual-contract-compiler/extractDe
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 import { draftValidationIssueIsValid } from '../visual-contract-compiler/draftValidationDiagnostics';
+import { projectPageMustShow } from '../visual-contract-compiler/projectContractProse';
 
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
 const bunnySource = (): TemplateCompileInput =>
@@ -214,6 +216,102 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(prompts[1].system).toMatch(/REPAIRING/);
     expect(prompts[1].user).toMatch(/FAILED validation/);
     expect(prompts[1].user).toMatch(/material/i);
+  });
+
+  it('routes action coverage cardinality through one complete-page repair', async () => {
+    const valid = bunnyDraft();
+    const validPage = valid.pageContracts[0];
+    const actionIndex = 0;
+    const beatId = validPage.actionSemanticCoverage[0].beatId;
+    validPage.actionRequirements = [
+      {
+        beatId,
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: null,
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    validPage.actionSemanticCoverage[0].disposition = {
+      kind: 'action_requirement',
+    };
+    validPage.mustShow = [
+      ...new Set([
+        ...validPage.mustShow,
+        ...projectPageMustShow(validPage, valid),
+      ]),
+    ];
+    const invalid = structuredClone(valid);
+    const invalidPage = invalid.pageContracts[0];
+    const invalidCoverage = invalidPage.actionSemanticCoverage[0];
+    invalidCoverage.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
+    const repairedPage = structuredClone(validPage);
+    delete repairedPage.castIds;
+    delete repairedPage.characterPresence;
+    repairedPage.propConstraints ??= [];
+    expect(() =>
+      parsePageContractRepairs(
+        JSON.stringify({ pageContracts: [repairedPage] }),
+      ),
+    ).not.toThrow();
+    const calls: Array<{
+      user: string;
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      user,
+      _options,
+      authority,
+    ) => {
+      calls.push({ user, authority });
+      return calls.length === 1
+        ? JSON.stringify(invalid)
+        : JSON.stringify({ pageContracts: [repairedPage] });
+    };
+
+    const result = await compileBookVisualContractTemplate(
+      bunnySource(),
+      { callLLM: caller },
+    );
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.authority).toMatchObject({
+      kind: 'repair',
+      repairMode: 'page_contract_patch',
+      systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+      userPromptVersion: 'page-contract-repair-user-prompt/v7',
+    });
+    const payload = decodePageContractRepairUserPrompt(
+      calls[1]!.user,
+    );
+    expect(payload.affectedPages).toMatchObject([
+      {
+        pageNumber: invalidPage.pageNumber,
+        repairTargets: [
+          {
+            family: 'action_semantic',
+            code: 'action_coverage_cardinality_invalid',
+            pageNumber: invalidPage.pageNumber,
+            actionIndex,
+          },
+        ],
+        permittedPointerValues: [],
+      },
+    ]);
+    expect(result.provenance.attempt).toBe(2);
+    expect(result.repairAttempts[0]?.nextRepairMode).toBe(
+      'page_contract_patch',
+    );
   });
 
   it('two invalid drafts are repaired and pass on attempt 3 (the 2-repair budget)', async () => {
@@ -581,7 +679,7 @@ describe('page-contract compact repair routing', () => {
       kind: 'repair',
       repairMode: 'page_contract_patch',
       systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'page-contract-repair-user-prompt/v6',
+      userPromptVersion: 'page-contract-repair-user-prompt/v7',
     });
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
       PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
