@@ -2,7 +2,22 @@
 
 **Updated:** 2026-08-10
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-page-contract-repair-input-compaction` in `C:\Users\guyna\.codex\worktrees\presentationrepair1\Small_Heroes`, based exactly on `48e9e29cafdfee8906ce0855dfde182e6109e538`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-stable-prop-scope-compact-repair` in `C:\Users\guyna\.codex\worktrees\presentationrepair1\Small_Heroes`, based exactly on `72d25784454de9da61f081bbf42546f3a121e7cc`.
+
+## R1D-PVB-D1A1B1-STABLE-PROP-SCOPE-COMPACT-REPAIR — local green / independent QA pending
+
+The latest bounded live attempt reached OpenAI once and completed, but produced no candidate because complete local validation found exactly two homogeneous `recurring_prop_lifecycle_gated` issues at Set Board `spatialNodes.stablePropId` locators. That consumed readiness is preserved unchanged. A new general compact repair lane now permits only the two closed stable-prop scope identities `recurring_prop_lifecycle_gated` and `recurring_prop_consumer_forbidden`, and only at exact `set_area_node / recurring_prop / spatialNodes.stablePropId` locators.
+
+- Exact base: `72d25784454de9da61f081bbf42546f3a121e7cc`; implementation commit: `50cf1b2f`.
+- The repair request contains only structural indices, the closed field role and closed reason codes. It contains no authored prop ID, Story Source phrase, raw draft, raw provider response or story-specific literal. The strict response can only return the exact target set with `stablePropId: null`.
+- Application rejects missing, extra, duplicate, stale, wrong-field and non-null patches, clones before mutation, proves all non-target content unchanged with canonical comparison, and reruns full validation. Mixed or unsupported issue sets retain terminal behavior.
+- Authority cutover is Visual Contract request v18, receipt v21 and readiness v19; B0 manifest/verifier v16; Execution Request/readiness v15; execution-request materialization result v10; Fresh Readiness v15. Prior artifacts remain immutable legacy evidence and are not authority for a new attempt.
+- Focused validation passed: direct repair plus compiler-domain tests **2 files / 45 tests**; lifecycle and adapter **2 / 201**; canonical materialization, verification, Supervisor and Fresh Readiness **5 / 145**; final targeted tamper/classifier **3 / 62**. Deterministic TypeScript and `git diff --check` passed.
+- The single literal `npm run check` passed TypeScript and the complete **19-file resource-intensive phase** with valid diagnostics. Its **271-file ordinary phase** reported exactly the six established ignored-output fixture failures and no seventh assertion or infrastructure failure. Those six remain a separate release HOLD and are accepted only for the bounded local LOW measurement.
+- No credential, pricing/network/provider call, real B0/Fresh Readiness, canonical preflight, live authoring, candidate, reconciliation, Blueprint/Wizard, render, storage/database, deployment or production action occurred during implementation. External implementation cost is `$0`.
+- Independent Claude Code QA is pending for exact range `72d25784454de9da61f081bbf42546f3a121e7cc..50cf1b2f`. No technical PASS is self-awarded. After QA closure and push, the authorized route is Fresh Readiness → one bounded live authoring attempt → candidate-only Semantic Reconciliation → Blueprint/Wizard qualification → one local `gpt-image-2` LOW portrait-page render. Production remains blocked.
+
+Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_STABLE_PROP_SCOPE_COMPACT_REPAIR_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_STABLE_PROP_SCOPE_COMPACT_REPAIR_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-PAGE-CONTRACT-REPAIR-INPUT-COMPACTION — independent technical PASS / repository release HOLD
 
