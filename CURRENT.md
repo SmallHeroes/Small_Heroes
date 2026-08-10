@@ -2,7 +2,19 @@
 
 **Updated:** 2026-08-11
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-cross-family-page-repair-routing` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `824e8b3acb0c64e9220bd44542c6821553cd284d`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-cross-family-repair-input-compaction-v2` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `f4cf27ea64494ec7a8697c013dff705797552f3a`.
+
+## R1D-PVB-D1A1B1-CROSS-FAMILY-PAGE-REPAIR-INPUT-COMPACTION-V2 - implementation green / independent QA pending
+
+The post-routing live attempt proved the closed cross-family planner and first spatial repair, then stopped before its third provider call because the complete twelve-page structural-plus-presentation repair input exceeded the unchanged 64K conservative ceiling. Receipt `f5881b3f...` records two completed provider calls, one repair, zero retries/fallback, `$0.775545/$0.963994` nominal/conservative accounting, seven presentation issues plus twelve final-structure page issues, and no candidate or downstream authority.
+
+- The general lossless page-repair codec advances from v1 to v2. It retains the existing whole-string/object-shape encoding and adds canonical repeated-fragment and repeated-composite dictionaries. Local decode plus canonical equality proves that no page, target, validator hint, ID, pointer, value or prose authority is omitted or summarized.
+- Decoder guards reject malformed, noncanonical, duplicate, unused, recursive and out-of-range authority. Page-contract prompt authority advances from v9 to v10; output schema/application, complete-page exact set, full validation, model/tier, 64K/36K ceilings, three-call/two-repair budget, timeout, zero retries, no fallback, candidate semantics and `$4.884/$5.00` ceilings are unchanged.
+- A provider-sized twelve-page mixed regression transports `108,461` raw bytes as a `45,322`-byte user prompt. The full conservative call bound is `57,384`, leaving `6,616` headroom. Direct compiler/lifecycle validation passed **4 files / 180 tests** and canonical authority validation passed **7 files / 310 tests**. TypeScript and `git diff --check` passed.
+- The one literal `npm run check` passed TypeScript and all **19 resource-intensive files** with valid diagnostics. Its ordinary phase reported exactly the six established missing ignored-output fixtures and no seventh assertion or infrastructure failure. They remain a separate production/release HOLD accepted only for the bounded local LOW measurement.
+- Implementation cost is `$0`. No credential, provider, real readiness, live authoring, candidate, Reconciliation, Blueprint/Wizard, render, storage/database, deployment or production action occurred. Independent Claude Code QA is pending; Codex does not self-award PASS.
+
+Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_CROSS_FAMILY_PAGE_REPAIR_INPUT_COMPACTION_V2_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_CROSS_FAMILY_PAGE_REPAIR_INPUT_COMPACTION_V2_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-CROSS-FAMILY-PAGE-REPAIR-ROUTING - independent technical PASS / repository release HOLD
 

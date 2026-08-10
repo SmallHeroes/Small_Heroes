@@ -741,9 +741,9 @@ describe('exact zero-cost authoring preflight', () => {
           userPromptVersion: 'vc-repair-user-prompt/v11',
         },
         pageContractRepair: {
-          systemPromptVersion: 'page-contract-repair-prompt/v9',
+          systemPromptVersion: 'page-contract-repair-prompt/v10',
           userPromptVersion:
-            'page-contract-repair-user-prompt/v9',
+            'page-contract-repair-user-prompt/v10',
         },
       },
       pricing: {

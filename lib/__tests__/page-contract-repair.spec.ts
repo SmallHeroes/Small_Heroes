@@ -350,6 +350,20 @@ describe('page-contract compact repair', () => {
       }),
     ],
     [
+      'unsorted fragment dictionary',
+      (value: any) => ({
+        ...value,
+        fragmentDictionary: ['z-repeat-fragment', 'a-repeat-fragment'],
+      }),
+    ],
+    [
+      'unused fragment dictionary entry',
+      (value: any) => ({
+        ...value,
+        fragmentDictionary: ['unused-fragment'],
+      }),
+    ],
+    [
       'unsorted object shape',
       (value: any) => ({ ...value, objectShapes: [['z', 'a']] }),
     ],
@@ -369,6 +383,18 @@ describe('page-contract compact repair', () => {
       (value: any) => ({ ...value, rootTuple: ['o', 999] }),
     ],
     [
+      'out-of-range fragment reference',
+      (value: any) => ({
+        ...value,
+        fragmentDictionary: ['repeat-fragment'],
+        rootTuple: ['t', 999],
+      }),
+    ],
+    [
+      'out-of-range value reference',
+      (value: any) => ({ ...value, rootTuple: ['v', 999] }),
+    ],
+    [
       'malformed tuple tag',
       (value: any) => ({ ...value, rootTuple: ['x', 0] }),
     ],
@@ -377,6 +403,39 @@ describe('page-contract compact repair', () => {
     expect(() => decodePageContractRepairInput(mutate(encoded))).toThrow(
       'page_contract_repair_input_encoding_invalid',
     );
+  });
+
+  it('uses closed composite refs and rejects duplicate, unused, and nested value refs', () => {
+    const shared = {
+      contractPointer: '/shared/reference',
+      contractValue: 'shared-value',
+    };
+    const original = { values: [shared, shared, shared] };
+    const encoded = encodePageContractRepairInput(original);
+    expect(encoded.valueDictionary.length).toBeGreaterThan(0);
+    expect(decodePageContractRepairInput(encoded)).toEqual(original);
+    expect(() =>
+      decodePageContractRepairInput({
+        ...encoded,
+        valueDictionary: [
+          ...encoded.valueDictionary,
+          encoded.valueDictionary[0],
+        ],
+      }),
+    ).toThrow('page_contract_repair_input_encoding_invalid');
+    expect(() =>
+      decodePageContractRepairInput({
+        ...encoded,
+        rootTuple: ['o', 0],
+      }),
+    ).toThrow('page_contract_repair_input_encoding_invalid');
+    expect(() =>
+      decodePageContractRepairInput({
+        ...encoded,
+        valueDictionary: [['v', 0]],
+        rootTuple: ['v', 0],
+      }),
+    ).toThrow('page_contract_repair_input_encoding_invalid');
   });
 
   it('rejects non-JSON and cyclic input before prompt serialization', () => {
@@ -428,6 +487,115 @@ describe('page-contract compact repair', () => {
     expect(Buffer.byteLength(compact, 'utf8')).toBeLessThan(
       Buffer.byteLength(raw, 'utf8'),
     );
+    const admittedUpperBound =
+      Buffer.byteLength(
+        [
+          buildPageContractRepairSystemPrompt(),
+          compact,
+          JSON.stringify(PAGE_CONTRACT_REPAIR_JSON_SCHEMA),
+        ].join('\n'),
+        'utf8',
+      ) + 4_096;
+    expect(admittedUpperBound).toBeLessThanOrEqual(64_000);
+    expect(64_000 - admittedUpperBound).toBeGreaterThanOrEqual(4_096);
+  });
+
+  it('admits a provider-sized 12-page mixed structural and presentation repair with 4K headroom', () => {
+    const affectedPages = Array.from({ length: 12 }, (_, pageIndex) => {
+      const pageNumber = pageIndex + 1;
+      const actionRequirements = Array.from({ length: 15 }, (_unused, actionIndex) => ({
+        beatId: `beat:p${pageNumber}:action_${actionIndex + 1}`,
+        subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } },
+        predicate: actionIndex % 2 === 0 ? 'moves' : 'looks_at',
+        object: { kind: 'spatial', id: `structure_${(actionIndex % 6) + 1}` },
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      }));
+      const actionSemanticCoverage = actionRequirements.map((action, actionIndex) => ({
+        beatId: action.beatId,
+        sourceEvidenceId: `se1_${String(pageNumber).padStart(2, '0')}_${String(actionIndex).padStart(2, '0')}_${'a'.repeat(52)}`,
+        disposition:
+          actionIndex === 14 && pageNumber !== 5 && pageNumber < 10
+            ? { kind: 'unsupported', reason: 'closed_action_catalog_gap' }
+            : {
+                kind: 'action_requirement',
+                actionCheckId: `check:p${pageNumber}:action_${actionIndex + 1}`,
+              },
+      }));
+      const mustShow = Array.from(
+        { length: 5 },
+        (_unused, index) =>
+          `page ${pageNumber} must show stable visual detail ${index} beside the recurring architectural feature`,
+      );
+      const pageContract = {
+        pageNumber,
+        locationId: 'loc_child_room',
+        zoneId: 'z_room_window',
+        sameLocationAs: null,
+        mustShow,
+        mustNotShow: Array.from(
+          { length: 6 },
+          (_unused, index) =>
+            `page ${pageNumber} must not show forbidden visual detail ${index} before the reveal`,
+        ),
+        propState: Array.from({ length: 4 }, (_unused, index) => ({
+          propId: `prop_${index}`,
+          state: `page ${pageNumber} state ${index} preserves exact recurring prop continuity and reveal timing`,
+        })),
+        propConstraints: [{ propId: 'prop_0', visibility: 'required' }],
+        actionRequirements,
+        actionSemanticCoverage,
+        camera: `portrait medium-wide child-height camera for page ${pageNumber} preserving the exact action and spatial relationship`,
+        transition: {
+          kind: 'steady',
+          fromZoneId: null,
+          toZoneId: null,
+          cue: null,
+        },
+      };
+      const hasPresentationTarget = pageNumber !== 5 && pageNumber < 10;
+      return {
+        pageNumber,
+        pageContract,
+        repairTargets: [
+          {
+            family: 'draft_contract' as const,
+            code: 'final_structural_invariant_invalid' as const,
+            pageNumber,
+          },
+          ...(hasPresentationTarget
+            ? [{
+                family: 'action_semantic' as const,
+                code: 'closed_catalog_capability_gap' as const,
+                pageNumber,
+                coverageIndex: 14,
+                beatId: `beat:p${pageNumber}:action_15`,
+                sourceEvidenceId: actionSemanticCoverage[14]!.sourceEvidenceId,
+                sourcePhrase: `source phrase for page ${pageNumber} action 15`,
+                permittedPointerValues: [{
+                  contractPointer: `/pageContracts/${pageIndex}/mustShow/0`,
+                  contractValue: mustShow[0]!,
+                }],
+              }]
+            : []),
+        ],
+        validationHints: [
+          `pageContracts[${pageIndex}] final structural invariant invalid`,
+          ...(hasPresentationTarget
+            ? ['closed_catalog_capability_gap: actionSemanticCoverage[14] must become one same-page presentation_requirement using one exact permitted pointer/value']
+            : []),
+        ],
+        permittedPointerValues: [],
+      };
+    });
+    const raw = JSON.stringify({ affectedPages });
+    const compact = buildPageContractRepairUserPrompt({ affectedPages });
+    expect(Buffer.byteLength(raw, 'utf8')).toBeGreaterThan(100_000);
+    expect(decodePageContractRepairUserPrompt(compact)).toEqual({
+      affectedPages,
+    });
     const admittedUpperBound =
       Buffer.byteLength(
         [
@@ -1178,7 +1346,7 @@ describe('page-contract compact repair', () => {
     ).toBeNull();
   });
 
-  it('builds the v7 closed payload without story, provider, secret, stack, or executable leakage', () => {
+  it('builds the v10 closed payload without story, provider, secret, stack, or executable leakage', () => {
     const original = draft();
     Object.assign(original, {
       unrelatedStorySource: 'RAW_STORY_SOURCE_PROSE_SENTINEL',
@@ -1203,10 +1371,10 @@ describe('page-contract compact repair', () => {
       PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
     );
     expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
-      'page-contract-repair-prompt/v9',
+      'page-contract-repair-prompt/v10',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'page-contract-repair-user-prompt/v9',
+      'page-contract-repair-user-prompt/v10',
     );
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([

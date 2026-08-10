@@ -22,11 +22,11 @@ export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
-  'page-contract-repair-prompt/v9' as const;
+  'page-contract-repair-prompt/v10' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
-  'page-contract-repair-user-prompt/v9' as const;
+  'page-contract-repair-user-prompt/v10' as const;
 export const PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION =
-  'page-contract-repair-input-encoding/v1' as const;
+  'page-contract-repair-input-encoding/v2' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION =
   'page-spatial-reference-repair-schema/v1' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME =
@@ -127,7 +127,9 @@ type PageContractRepairEncodedValue =
 export interface PageContractRepairEncodedInput {
   encodingVersion: typeof PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION;
   stringDictionary: string[];
+  fragmentDictionary: string[];
   objectShapes: string[][];
+  valueDictionary: PageContractRepairEncodedValue[];
   rootTuple: PageContractRepairEncodedValue;
 }
 
@@ -1313,10 +1315,201 @@ function repeatedStringDictionary(value: unknown): string[] {
   });
 }
 
+function pageContractRepairStringFragments(value: string): string[] {
+  return value.match(/[\p{L}\p{N}]+|[^\p{L}\p{N}]+/gu) ?? [value];
+}
+
+function repeatedFragmentCandidates(
+  value: unknown,
+  exactStrings: ReadonlySet<string>,
+): string[] {
+  const counts = new Map<string, number>();
+  const candidateLengths = [8, 12, 16, 24, 32] as const;
+  const visit = (entry: unknown): void => {
+    if (typeof entry === 'string') {
+      if (exactStrings.has(entry)) return;
+      for (const fragment of pageContractRepairStringFragments(entry)) {
+        if (Buffer.byteLength(fragment, 'utf8') < 6) continue;
+        counts.set(fragment, (counts.get(fragment) ?? 0) + 1);
+      }
+      const codePoints = Array.from(entry);
+      for (const length of candidateLengths) {
+        if (codePoints.length < length) continue;
+        for (let index = 0; index + length <= codePoints.length; index += 1) {
+          const fragment = codePoints.slice(index, index + length).join('');
+          counts.set(fragment, (counts.get(fragment) ?? 0) + 1);
+        }
+      }
+      return;
+    }
+    if (Array.isArray(entry)) {
+      entry.forEach(visit);
+      return;
+    }
+    const record = recordValue(entry);
+    if (record) Object.values(record).forEach(visit);
+  };
+  visit(value);
+  const candidates = [...counts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([fragment, count]) => {
+      const rawBytes = Buffer.byteLength(fragment, 'utf8');
+      const dictionaryBytes =
+        Buffer.byteLength(JSON.stringify(fragment), 'utf8') + 1;
+      const score = count * (rawBytes - 4) - dictionaryBytes;
+      return { fragment, score };
+    })
+    .filter((entry) => entry.score > 12)
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        lexicalCompare(left.fragment, right.fragment),
+    )
+    .slice(0, 384)
+    .map((entry) => entry.fragment)
+    .sort();
+  return candidates;
+}
+
+function encodePageContractRepairString(
+  value: string,
+  exactStringIndexes: ReadonlyMap<string, number>,
+  fragmentIndexes: ReadonlyMap<string, number>,
+  usedFragments?: Set<number>,
+): PageContractRepairEncodedValue {
+  const exactIndex = exactStringIndexes.get(value);
+  if (exactIndex !== undefined) return ['s', exactIndex];
+  const parts: Array<string | number> = [];
+  let usedAnyFragment = false;
+  const fragmentsByPriority = [...fragmentIndexes.entries()].sort(
+    ([left], [right]) =>
+      Array.from(right).length - Array.from(left).length ||
+      lexicalCompare(left, right),
+  );
+  for (let offset = 0; offset < value.length; ) {
+    const match = fragmentsByPriority.find(([fragment]) =>
+      value.startsWith(fragment, offset),
+    );
+    if (!match) {
+      const codePoint = value.codePointAt(offset);
+      if (codePoint === undefined) break;
+      const fragment = String.fromCodePoint(codePoint);
+      const last = parts[parts.length - 1];
+      if (typeof last === 'string') {
+        parts[parts.length - 1] = last + fragment;
+      } else {
+        parts.push(fragment);
+      }
+      offset += fragment.length;
+      continue;
+    }
+    const [fragment, fragmentIndex] = match;
+    parts.push(fragmentIndex);
+    usedAnyFragment = true;
+    offset += fragment.length;
+  }
+  if (!usedAnyFragment) return value;
+  const encoded: PageContractRepairEncodedValue = ['t', ...parts];
+  if (
+    Buffer.byteLength(JSON.stringify(encoded), 'utf8') >=
+    Buffer.byteLength(JSON.stringify(value), 'utf8')
+  ) {
+    return value;
+  }
+  for (const part of parts) {
+    if (typeof part === 'number') usedFragments?.add(part);
+  }
+  return encoded;
+}
+
+function usedFragmentDictionary(
+  value: unknown,
+  exactStringIndexes: ReadonlyMap<string, number>,
+  candidates: readonly string[],
+): string[] {
+  let fragments = [...candidates];
+  for (;;) {
+    const indexes = new Map(
+      fragments.map((fragment, index) => [fragment, index]),
+    );
+    const used = new Set<number>();
+    const visit = (entry: unknown): void => {
+      if (typeof entry === 'string') {
+        encodePageContractRepairString(
+          entry,
+          exactStringIndexes,
+          indexes,
+          used,
+        );
+        return;
+      }
+      if (Array.isArray(entry)) {
+        entry.forEach(visit);
+        return;
+      }
+      const record = recordValue(entry);
+      if (record) Object.values(record).forEach(visit);
+    };
+    visit(value);
+    const next = fragments.filter((_fragment, index) => used.has(index));
+    if (next.length === fragments.length) return fragments;
+    fragments = next;
+  }
+}
+
+function repeatedCompositeValues(value: unknown): unknown[] {
+  const counts = new Map<string, { count: number; value: unknown }>();
+  const visit = (entry: unknown, root: boolean): void => {
+    if (Array.isArray(entry)) {
+      if (!root) {
+        const key = JSON.stringify(entry);
+        const current = counts.get(key);
+        counts.set(key, {
+          count: (current?.count ?? 0) + 1,
+          value: entry,
+        });
+      }
+      entry.forEach((child) => visit(child, false));
+      return;
+    }
+    const record = recordValue(entry);
+    if (!record) return;
+    if (!root) {
+      const key = JSON.stringify(record);
+      const current = counts.get(key);
+      counts.set(key, {
+        count: (current?.count ?? 0) + 1,
+        value: record,
+      });
+    }
+    Object.values(record).forEach((child) => visit(child, false));
+  };
+  visit(value, true);
+  return [...counts.entries()]
+    .filter(([raw, entry]) => {
+      if (entry.count < 2 || Buffer.byteLength(raw, 'utf8') < 24) {
+        return false;
+      }
+      const referenceBytes = Buffer.byteLength(
+        JSON.stringify(['v', 999]),
+        'utf8',
+      );
+      return (
+        entry.count * Buffer.byteLength(raw, 'utf8') -
+          Buffer.byteLength(raw, 'utf8') -
+          entry.count * referenceBytes >
+        16
+      );
+    })
+    .sort(([left], [right]) => lexicalCompare(left, right))
+    .map(([, entry]) => entry.value);
+}
+
 /**
  * Canonically compacts a JSON-domain authority without omitting or summarizing
  * any value. Object keys live in deterministic shape tables, arrays are tagged,
- * and only repeated strings with positive byte savings use dictionary refs.
+ * repeated strings and repeated string fragments use byte-beneficial refs, and
+ * repeated composite values may be referenced from a closed value dictionary.
  */
 export function encodePageContractRepairInput(
   value: unknown,
@@ -1326,6 +1519,14 @@ export function encodePageContractRepairInput(
   const stringDictionary = repeatedStringDictionary(canonical);
   const stringIndexes = new Map(
     stringDictionary.map((entry, index) => [entry, index]),
+  );
+  const fragmentDictionary = usedFragmentDictionary(
+    canonical,
+    stringIndexes,
+    repeatedFragmentCandidates(canonical, new Set(stringDictionary)),
+  );
+  const fragmentIndexes = new Map(
+    fragmentDictionary.map((entry, index) => [entry, index]),
   );
   const shapeMap = new Map<string, string[]>();
   pageContractRepairObjectShapes(canonical, shapeMap);
@@ -1338,10 +1539,21 @@ export function encodePageContractRepairInput(
     objectShapes.map((keys, index) => [JSON.stringify(keys), index]),
   );
 
-  const encode = (entry: unknown): PageContractRepairEncodedValue => {
+  const compositeCandidates = repeatedCompositeValues(canonical);
+  let valueDictionaryValues = [...compositeCandidates];
+
+  const encode = (
+    entry: unknown,
+    valueIndexes: ReadonlyMap<string, number>,
+    allowValueReference: boolean,
+    usedValues?: Set<number>,
+  ): PageContractRepairEncodedValue => {
     if (typeof entry === 'string') {
-      const index = stringIndexes.get(entry);
-      return index === undefined ? entry : ['s', index];
+      return encodePageContractRepairString(
+        entry,
+        stringIndexes,
+        fragmentIndexes,
+      );
     }
     if (
       entry === null ||
@@ -1351,11 +1563,30 @@ export function encodePageContractRepairInput(
       return entry;
     }
     if (Array.isArray(entry)) {
-      return ['a', ...entry.map(encode)];
+      const valueIndex = allowValueReference
+        ? valueIndexes.get(JSON.stringify(entry))
+        : undefined;
+      if (valueIndex !== undefined) {
+        usedValues?.add(valueIndex);
+        return ['v', valueIndex];
+      }
+      return [
+        'a',
+        ...entry.map((child) =>
+          encode(child, valueIndexes, allowValueReference, usedValues),
+        ),
+      ];
     }
     const record = recordValue(entry);
     if (!record) {
       throw new Error('page_contract_repair_input_non_json');
+    }
+    const valueIndex = allowValueReference
+      ? valueIndexes.get(JSON.stringify(record))
+      : undefined;
+    if (valueIndex !== undefined) {
+      usedValues?.add(valueIndex);
+      return ['v', valueIndex];
     }
     const keys = Object.keys(record).sort();
     const shapeIndex = shapeIndexes.get(JSON.stringify(keys));
@@ -1365,16 +1596,71 @@ export function encodePageContractRepairInput(
     return [
       'o',
       shapeIndex,
-      ...keys.map((key) => encode(record[key])),
+      ...keys.map((key) =>
+        encode(
+          record[key],
+          valueIndexes,
+          allowValueReference,
+          usedValues,
+        ),
+      ),
     ];
   };
 
-  return {
+  for (;;) {
+    const indexes = new Map(
+      valueDictionaryValues.map((entry, index) => [
+        JSON.stringify(entry),
+        index,
+      ]),
+    );
+    const used = new Set<number>();
+    encode(canonical, indexes, true, used);
+    const next = valueDictionaryValues.filter((_entry, index) =>
+      used.has(index),
+    );
+    if (next.length === valueDictionaryValues.length) break;
+    valueDictionaryValues = next;
+  }
+
+  const valueIndexes = new Map(
+    valueDictionaryValues.map((entry, index) => [
+      JSON.stringify(entry),
+      index,
+    ]),
+  );
+  const valueDictionary = valueDictionaryValues.map((entry) =>
+    encode(entry, valueIndexes, false),
+  );
+  const rootTuple = encode(canonical, valueIndexes, true);
+
+  const withoutValueDictionary: PageContractRepairEncodedInput = {
     encodingVersion: PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
     stringDictionary,
+    fragmentDictionary,
     objectShapes,
-    rootTuple: encode(canonical),
+    valueDictionary: [],
+    rootTuple: encode(canonical, new Map(), false),
   };
+  const withValueDictionary: PageContractRepairEncodedInput = {
+    encodingVersion: PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
+    stringDictionary,
+    fragmentDictionary,
+    objectShapes,
+    valueDictionary,
+    rootTuple,
+  };
+
+  return Buffer.byteLength(
+    JSON.stringify(canonicalize(withValueDictionary)),
+    'utf8',
+  ) <
+    Buffer.byteLength(
+      JSON.stringify(canonicalize(withoutValueDictionary)),
+      'utf8',
+    )
+    ? withValueDictionary
+    : withoutValueDictionary;
 }
 
 /** Strict local decoder used to prove that the provider-facing compact input is lossless. */
@@ -1387,7 +1673,9 @@ export function decodePageContractRepairInput(
     !exactKeys(envelope, [
       'encodingVersion',
       'stringDictionary',
+      'fragmentDictionary',
       'objectShapes',
+      'valueDictionary',
       'rootTuple',
     ]) ||
     envelope.encodingVersion !==
@@ -1398,7 +1686,14 @@ export function decodePageContractRepairInput(
     ) ||
     new Set(envelope.stringDictionary).size !==
       envelope.stringDictionary.length ||
-    !Array.isArray(envelope.objectShapes)
+    !Array.isArray(envelope.fragmentDictionary) ||
+    !envelope.fragmentDictionary.every(
+      (entry) => typeof entry === 'string' && entry.length > 0,
+    ) ||
+    new Set(envelope.fragmentDictionary).size !==
+      envelope.fragmentDictionary.length ||
+    !Array.isArray(envelope.objectShapes) ||
+    !Array.isArray(envelope.valueDictionary)
   ) {
     throw new Error('page_contract_repair_input_encoding_invalid');
   }
@@ -1406,6 +1701,13 @@ export function decodePageContractRepairInput(
   if (
     JSON.stringify([...dictionary].sort()) !==
     JSON.stringify(dictionary)
+  ) {
+    throw new Error('page_contract_repair_input_encoding_invalid');
+  }
+  const fragments = envelope.fragmentDictionary as string[];
+  if (
+    JSON.stringify([...fragments].sort()) !==
+    JSON.stringify(fragments)
   ) {
     throw new Error('page_contract_repair_input_encoding_invalid');
   }
@@ -1433,7 +1735,13 @@ export function decodePageContractRepairInput(
     throw new Error('page_contract_repair_input_encoding_invalid');
   }
 
-  const decode = (entry: unknown): unknown => {
+  const usedFragments = new Set<number>();
+  const usedValues = new Set<number>();
+  let decodedValueDictionary: unknown[] = [];
+  const decode = (
+    entry: unknown,
+    allowValueReference: boolean,
+  ): unknown => {
     if (
       entry === null ||
       typeof entry === 'string' ||
@@ -1461,8 +1769,47 @@ export function decodePageContractRepairInput(
       }
       return dictionary[entry[1] as number];
     }
+    if (entry[0] === 't') {
+      if (entry.length < 2) {
+        throw new Error('page_contract_repair_input_encoding_invalid');
+      }
+      let output = '';
+      for (const part of entry.slice(1)) {
+        if (typeof part === 'string') {
+          output += part;
+          continue;
+        }
+        if (
+          !Number.isSafeInteger(part) ||
+          (part as number) < 0 ||
+          (part as number) >= fragments.length
+        ) {
+          throw new Error('page_contract_repair_input_encoding_invalid');
+        }
+        usedFragments.add(part as number);
+        output += fragments[part as number];
+      }
+      return output;
+    }
+    if (entry[0] === 'v') {
+      if (
+        !allowValueReference ||
+        entry.length !== 2 ||
+        !Number.isSafeInteger(entry[1]) ||
+        (entry[1] as number) < 0 ||
+        (entry[1] as number) >= decodedValueDictionary.length
+      ) {
+        throw new Error('page_contract_repair_input_encoding_invalid');
+      }
+      usedValues.add(entry[1] as number);
+      return structuredClone(
+        decodedValueDictionary[entry[1] as number],
+      );
+    }
     if (entry[0] === 'a') {
-      return entry.slice(1).map(decode);
+      return entry
+        .slice(1)
+        .map((child) => decode(child, allowValueReference));
     }
     if (entry[0] === 'o') {
       if (
@@ -1478,13 +1825,35 @@ export function decodePageContractRepairInput(
         throw new Error('page_contract_repair_input_encoding_invalid');
       }
       return Object.fromEntries(
-        keys.map((key, index) => [key, decode(entry[index + 2])]),
+        keys.map((key, index) => [
+          key,
+          decode(entry[index + 2], allowValueReference),
+        ]),
       );
     }
     throw new Error('page_contract_repair_input_encoding_invalid');
   };
-
-  return decode(envelope.rootTuple);
+  decodedValueDictionary = envelope.valueDictionary.map((entry) =>
+    decode(entry, false),
+  );
+  const decodedValueKeys = decodedValueDictionary.map((entry) =>
+    JSON.stringify(canonicalize(entry)),
+  );
+  if (
+    new Set(decodedValueKeys).size !== decodedValueKeys.length ||
+    JSON.stringify([...decodedValueKeys].sort()) !==
+      JSON.stringify(decodedValueKeys)
+  ) {
+    throw new Error('page_contract_repair_input_encoding_invalid');
+  }
+  const decoded = decode(envelope.rootTuple, true);
+  if (
+    usedFragments.size !== fragments.length ||
+    usedValues.size !== decodedValueDictionary.length
+  ) {
+    throw new Error('page_contract_repair_input_encoding_invalid');
+  }
+  return decoded;
 }
 
 export function decodePageContractRepairUserPrompt(
@@ -1513,7 +1882,7 @@ export function decodePageContractRepairUserPrompt(
 export function buildPageContractRepairSystemPrompt(): string {
   return [
     'You repair ONLY the complete page contracts identified by the input.',
-    'Decode the compact input exactly: ["s",i] references stringDictionary[i], ["a",...items] is an array, and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
+    'Decode the compact input exactly: ["s",i] references stringDictionary[i]; ["t",...parts] concatenates raw string parts and numeric fragmentDictionary indexes; ["v",i] deep-copies valueDictionary[i]; ["a",...items] is an array; and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
     'The decoded root has affectedPages; the compact representation omits no authority value.',
     'Return exactly one complete page contract for every affected pageNumber and no other page.',
     'Keep pageNumber and all authority IDs unchanged; never invent a new ID.',
