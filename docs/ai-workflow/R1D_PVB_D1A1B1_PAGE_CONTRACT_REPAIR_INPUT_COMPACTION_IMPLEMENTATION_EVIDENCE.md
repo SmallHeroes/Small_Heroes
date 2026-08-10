@@ -6,7 +6,7 @@
 
 **Branch:** `codex/r1d-pvb-d1a1b1-page-contract-repair-input-compaction`
 
-**Independent QA:** pending
+**Independent QA:** Claude Code cloud ultrareview completed with no findings for exact immutable range `48e9e29cafdfee8906ce0855dfde182e6109e538..15b0a2287c5949ce74d56a585af9889208e1a59d`
 
 ## Consumed live-attempt evidence
 
@@ -67,4 +67,12 @@ The six known failures are `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko
 - No raw prompt/response/provider message, stack or secret is persisted by this milestone.
 - No credential access, provider/network call, B0/Fresh Readiness, canonical preflight, live authoring, candidate, reconciliation, Blueprint/Wizard, render/image/Vision, storage/database, publication, deployment or production action occurred. Cost is `$0`.
 - Rollback is a revert of implementation commit `4b3fed8a512cb40346d5890cc5ff3363a8f887d0`; it restores prompt v4 and the prior oversized input behavior without changing historical artifacts.
-- Independent Claude Code QA is required before push/rematerialization. A QA PASS is technical only and grants no candidate, visual, render, product or release acceptance.
+- Independent Claude Code QA was required before rematerialization. The branch was pushed only to create the isolated Draft PR required by Claude ultrareview after the local Claude wrappers repeatedly timed out. A QA PASS is technical only and grants no candidate, visual, render, product or release acceptance.
+
+## Independent QA closeout
+
+Local Claude Code print-mode review was attempted three times, but each process reached its outer wrapper timeout without returning a verdict or modifying the repository. The local background daemon also failed before review with a control-pipe error. These are tool limitations, not review results.
+
+After the exact head was pushed for review, Draft PR [#41](https://github.com/SmallHeroes/Small_Heroes/pull/41) targeted the exact presentation-repair base branch. Claude Code cloud ultrareview completed its independent review with **no findings** (`0 found, 0 verified, 0 refuted`). The reviewed range remained clean and immutable. Codex records this independent no-findings technical PASS; it does not self-award it.
+
+The PASS grants no candidate, Semantic Reconciliation, Blueprint, Wizard, image, render, product, production, deployment or release acceptance. The six missing ignored-output fixtures remain a separate repository/release HOLD.
