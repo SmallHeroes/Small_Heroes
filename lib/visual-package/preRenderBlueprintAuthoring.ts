@@ -365,6 +365,7 @@ export function preRenderBlueprintAuthoringInputErrors(
     template: context.template,
     templateDigest,
     authoredCoverAuthority: context.authoredCoverAuthority,
+    actionSemanticCoverage: context.actionSemanticCoverage,
     requireComplete: true,
   });
   errors.push(

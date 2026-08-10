@@ -39,6 +39,7 @@ import {
 } from './propArtifacts';
 import {
   buildProductionAuthoringContext,
+  buildProductionAuthoringContextFromFrozenVisualPackageCandidate,
   type ProductionAuthoringContext,
 } from './productionAuthoringContext';
 import type {
@@ -904,7 +905,8 @@ function qualifyVisualPackageV4CandidateUnchecked(
   let currentContext: ProductionAuthoringContext | null = null;
   if (reasons.length === 0) {
     try {
-      currentContext = buildProductionAuthoringContext({
+      currentContext =
+        buildProductionAuthoringContextFromFrozenVisualPackageCandidate({
         repoRoot: args.repoRoot,
         storyKey: candidate.content.storyKey,
         storyPath:
@@ -918,6 +920,7 @@ function qualifyVisualPackageV4CandidateUnchecked(
           candidate.content.styleAuthority.artifactPath,
         expectedStyleAuthorityDigest:
           candidate.content.styleAuthority.digest,
+        frozenCandidate: candidate,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

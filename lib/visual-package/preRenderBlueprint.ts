@@ -771,6 +771,7 @@ function validateIdentity(
     template: context.template,
     templateDigest: contextTemplateDigest,
     authoredCoverAuthority: context.authoredCoverAuthority,
+    actionSemanticCoverage: context.actionSemanticCoverage,
     requireComplete: true,
   });
   for (const reconciliationIssue of reconciliationIssues) {

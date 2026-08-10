@@ -144,6 +144,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         },
       ],
     };
+    fixture.context.actionSemanticCoverage = coverage;
     expect(
       preRenderBlueprintAuthoringInputErrors(fixture.context, CONFIG),
     ).toEqual([]);
@@ -160,6 +161,40 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         'presentationRequirements.requirements[0] lacks one approved preserved story-prose beat',
       ),
     );
+  });
+
+  it('rejects internally consistent reconciliation coverage substitution at both Blueprint gates', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const substituted = clone(fixture.context.reconciliation);
+    const record = substituted.actionSemanticCoverageAuthority.records[0]!;
+    record.sourceEvidenceId = `se1_${'f'.repeat(64)}`;
+    record.sourcePhrase = 'substituted but internally consistent evidence';
+    const substitutedDigest = canonicalHash(
+      substituted.actionSemanticCoverageAuthority.records,
+    );
+    substituted.actionSemanticCoverageAuthority
+      .actionSemanticCoverageDigest = substitutedDigest;
+    substituted.presentationRequirements
+      .actionSemanticCoverageDigest = substitutedDigest;
+    fixture.context.reconciliation = substituted;
+
+    expect(
+      preRenderBlueprintAuthoringInputErrors(fixture.context, CONFIG),
+    ).toContainEqual(
+      expect.stringContaining('candidate-mismatched'),
+    );
+    const validation = validatePreRenderBookVisualBlueprint(
+      fixture.blueprint,
+      fixture.context,
+    );
+    expect(validation.ok).toBe(false);
+    if (!validation.ok) {
+      expect(validation.issues).toContainEqual(
+        expect.objectContaining({
+          message: expect.stringContaining('candidate-mismatched'),
+        }),
+      );
+    }
   });
 
   it.each(shapes)(

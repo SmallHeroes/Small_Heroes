@@ -206,6 +206,8 @@ export function evaluateRenderQualification(args: {
         template: loaded.template,
         templateDigest: manifest.template.digest,
         authoredCoverAuthority: coverAuthority.authority ?? undefined,
+        // The legacy manifest lifecycle cannot self-declare current candidate coverage.
+        actionSemanticCoverage: [],
       });
       reasons.push(...reconciliation.issues);
       if (

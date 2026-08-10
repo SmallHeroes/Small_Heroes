@@ -188,6 +188,14 @@ function requestIssues(
   ) {
     issues.push('production authoring context digest is stale');
   }
+  if (
+    context.reconciliation.digest !==
+      canonicalJsonDigest(context.reconciliation.content) ||
+    canonicalJsonDigest(context.validationContext.reconciliation) !==
+      canonicalJsonDigest(context.reconciliation.content)
+  ) {
+    issues.push('production authoring reconciliation content is stale');
+  }
   if (!nonEmpty(request.model) || !nonEmpty(request.reasoningEffort)) {
     issues.push('exact model and reasoningEffort are required');
   }

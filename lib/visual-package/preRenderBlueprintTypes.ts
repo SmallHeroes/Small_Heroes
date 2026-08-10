@@ -10,6 +10,7 @@ import type {
 import type { ActionSemanticSubjectKind } from '@/lib/visual-contract-compiler/actionSemanticCatalog';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import type { AuthoredCoverAuthority } from '@/lib/visual-contract-compiler/coverSourceAuthority';
+import type { ActionSemanticCoverageRecord } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 
 import type {
   StorySourceIdentity,
@@ -316,6 +317,8 @@ export interface PreRenderBlueprintValidationContext {
   template: BookVisualContractTemplate;
   templateIdentity: VisualPackageTemplateIdentity;
   reconciliation: SourcePromptReconciliation;
+  /** Exact externally verified Visual Contract candidate coverage authority. */
+  actionSemanticCoverage: readonly ActionSemanticCoverageRecord[];
   reconciliationArtifactPath: string;
   authoredCoverAuthority?: AuthoredCoverAuthority;
   style: PreRenderBlueprintStyleAuthority;

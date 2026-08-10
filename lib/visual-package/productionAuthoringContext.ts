@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import fs from 'fs';
 
 import type { AuthoredCoverAuthority } from '@/lib/visual-contract-compiler/coverSourceAuthority';
+import type { ActionSemanticCoverageRecord } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 
 import { loadTemplateForPackage } from './artifacts';
 import { loadStoryAuthoredCoverAuthority } from './coverSourceFidelity';
@@ -10,6 +11,12 @@ import {
   canonicalJsonDigest,
   resolveRepoPath,
 } from './integrity';
+import {
+  loadVisualContractCandidateForReconciliation,
+} from './reconciliationLifecycle';
+import {
+  buildStorySourceAuthoritySnapshot,
+} from './storySourceAuthority';
 import type { PreRenderBlueprintValidationContext } from './preRenderBlueprintTypes';
 import {
   loadSourcePromptReconciliation,
@@ -24,6 +31,11 @@ import type {
   VisualPackageTemplateIdentity,
 } from './types';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import {
+  VISUAL_PACKAGE_V4_CANDIDATE_VERSION,
+  computeVisualPackageV4CandidateDigest,
+  type VisualPackageV4Candidate,
+} from './visualPackageV4';
 
 export const PRODUCTION_AUTHORING_CONTEXT_VERSION =
   'production-authoring-context/v3' as const;
@@ -106,7 +118,7 @@ export function computeProductionAuthoringContextDigest(
   return canonicalJsonDigest(contextDigestPayload(context));
 }
 
-export function buildProductionAuthoringContext(args: {
+interface ProductionAuthoringContextBaseArgs {
   repoRoot: string;
   storyKey: string;
   storyPath: string;
@@ -115,7 +127,12 @@ export function buildProductionAuthoringContext(args: {
   styleId: string;
   styleAuthorityPath: string;
   expectedStyleAuthorityDigest?: string;
-}): ProductionAuthoringContext {
+}
+
+function buildProductionAuthoringContextWithCoverage(
+  args: ProductionAuthoringContextBaseArgs,
+  actionSemanticCoverage: readonly ActionSemanticCoverageRecord[],
+): ProductionAuthoringContext {
   const storyAbsolute = resolveRepoPath(args.repoRoot, args.storyPath);
   if (!fs.existsSync(storyAbsolute)) {
     throw new InvalidProductionAuthoringContextError([
@@ -183,6 +200,7 @@ export function buildProductionAuthoringContext(args: {
     template,
     templateDigest: templateIdentity.digest,
     authoredCoverAuthority: coverAuthority.authority ?? undefined,
+    actionSemanticCoverage,
     requireComplete: true,
   });
   if (
@@ -221,6 +239,7 @@ export function buildProductionAuthoringContext(args: {
     templateIdentity,
     reconciliation: loadedReconciliation.reconciliation,
     reconciliationArtifactPath: reconciliation.artifactPath,
+    actionSemanticCoverage,
     ...(coverAuthority.authority
       ? { authoredCoverAuthority: coverAuthority.authority }
       : {}),
@@ -246,4 +265,68 @@ export function buildProductionAuthoringContext(args: {
     digestAlgorithm: 'canonical-json-sha256',
     digest: computeProductionAuthoringContextDigest(withoutDigest),
   };
+}
+
+export function buildProductionAuthoringContext(
+  args: ProductionAuthoringContextBaseArgs & { candidatePath: string },
+): ProductionAuthoringContext {
+  const snapshot = buildStorySourceAuthoritySnapshot({
+    repoRoot: args.repoRoot,
+    storyKey: args.storyKey,
+    storyPath: args.storyPath,
+  });
+  const loadedTemplate = loadTemplateForPackage({
+    repoRoot: args.repoRoot,
+    templatePath: args.templatePath,
+    storyKey: args.storyKey,
+    source: snapshot.content.sourceIdentity,
+  });
+  if (
+    loadedTemplate.issues.length > 0 ||
+    !loadedTemplate.identity
+  ) {
+    throw new InvalidProductionAuthoringContextError(
+      loadedTemplate.issues.map(
+        (issue) => `${issue.code}: ${issue.message}`,
+      ),
+    );
+  }
+  const candidate = loadVisualContractCandidateForReconciliation({
+    repoRoot: args.repoRoot,
+    candidatePath: args.candidatePath,
+    snapshot,
+    expectedTemplateDigest: loadedTemplate.identity.digest,
+  });
+  return buildProductionAuthoringContextWithCoverage(
+    args,
+    candidate.actionSemanticCoverage,
+  );
+}
+
+/**
+ * Requalification uses the immutable, content-addressed package candidate as
+ * the independent coverage anchor. Public construction must use candidatePath.
+ */
+export function buildProductionAuthoringContextFromFrozenVisualPackageCandidate(
+  args: ProductionAuthoringContextBaseArgs & {
+    frozenCandidate: VisualPackageV4Candidate;
+  },
+): ProductionAuthoringContext {
+  const candidate = args.frozenCandidate;
+  if (
+    candidate.version !== VISUAL_PACKAGE_V4_CANDIDATE_VERSION ||
+    candidate.state !== 'candidate' ||
+    candidate.digestAlgorithm !== 'canonical-json-sha256' ||
+    candidate.digest !==
+      computeVisualPackageV4CandidateDigest(candidate.content)
+  ) {
+    throw new InvalidProductionAuthoringContextError([
+      'frozen Visual Package candidate coverage authority is invalid',
+    ]);
+  }
+  return buildProductionAuthoringContextWithCoverage(
+    args,
+    candidate.content.reconciliation.content
+      .actionSemanticCoverageAuthority.records,
+  );
 }

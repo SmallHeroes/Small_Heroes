@@ -2,6 +2,7 @@ import fs from 'fs';
 
 import { listRequiredSetIdentityIds } from '@/lib/set-identity-board/setDefinition';
 import type { BookVisualContract } from '@/lib/visual-contract-compiler/types';
+import type { ActionSemanticCoverageRecord } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 
 import {
   loadTemplateForPackage,
@@ -17,6 +18,8 @@ import {
   resolveRepoPath,
 } from './integrity';
 import { loadSourcePromptReconciliation } from './sourcePromptReconciliation';
+import { loadVisualContractCandidateForReconciliation } from './reconciliationLifecycle';
+import { buildStorySourceAuthoritySnapshot } from './storySourceAuthority';
 import {
   loadProductionStyleAuthority,
   type LoadedProductionStyleAuthority,
@@ -241,6 +244,7 @@ export function auditProductionStoryReadiness(args: {
   templatePath: string;
   styleId: string;
   styleAuthorityPath: string;
+  candidatePath?: string;
   reconciliationPath?: string;
   boardRegistryRoot?: string;
   blueprintArtifacts?: ProductionBlueprintArtifactPaths;
@@ -253,6 +257,9 @@ export function auditProductionStoryReadiness(args: {
   let templateIdentity: VisualPackageTemplateIdentity | null = null;
   let styleAuthority: LoadedProductionStyleAuthority | null = null;
   let reconciliationDigest: string | null = null;
+  let actionSemanticCoverage:
+    | readonly ActionSemanticCoverageRecord[]
+    | null = null;
   let requiredSetIdentityIds: string[] = [];
   let resolvedBoards: VisualPackageBoardArtifactIdentity[] = [];
   let storyAbsolute: string | null = null;
@@ -388,6 +395,40 @@ export function auditProductionStoryReadiness(args: {
     templateIdentity &&
     storyAbsolute
   ) {
+    if (!args.candidatePath) {
+      reasons.push(
+        reason(
+          'lifecycle_prerequisite_missing',
+          'reconciliation_review',
+          'current Visual Contract candidate is required to bind reconciliation coverage',
+          { field: 'candidatePath' },
+        ),
+      );
+    } else {
+      try {
+        const snapshot = buildStorySourceAuthoritySnapshot({
+          repoRoot: args.repoRoot,
+          storyKey: args.storyKey,
+          storyPath: args.storyPath,
+        });
+        const candidate = loadVisualContractCandidateForReconciliation({
+          repoRoot: args.repoRoot,
+          candidatePath: args.candidatePath,
+          snapshot,
+          expectedTemplateDigest: templateIdentity.digest,
+        });
+        actionSemanticCoverage = candidate.actionSemanticCoverage;
+      } catch (error) {
+        reasons.push(
+          reason(
+            'reconciliation_stale',
+            'reconciliation_review',
+            error instanceof Error ? error.message : String(error),
+            { field: 'candidatePath' },
+          ),
+        );
+      }
+    }
     if (!args.reconciliationPath) {
       reasons.push(
         reason(
@@ -397,7 +438,7 @@ export function auditProductionStoryReadiness(args: {
           { field: 'reconciliationPath' },
         ),
       );
-    } else {
+    } else if (actionSemanticCoverage) {
       const coverAuthority = loadStoryAuthoredCoverAuthority({
         storyPath: storyAbsolute,
         template,
@@ -413,6 +454,7 @@ export function auditProductionStoryReadiness(args: {
           template,
           templateDigest: templateIdentity.digest,
           authoredCoverAuthority: coverAuthority.authority ?? undefined,
+          actionSemanticCoverage,
           requireComplete: true,
         });
         reconciliationDigest = loaded.identity?.digest ?? null;

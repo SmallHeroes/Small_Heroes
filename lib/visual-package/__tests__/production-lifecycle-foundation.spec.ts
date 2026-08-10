@@ -10,6 +10,7 @@ import {
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
   auditProductionStoryReadiness,
   buildProductionAuthoringContext,
+  buildStorySourceAuthoritySnapshot,
   buildProductionReconciliationDraftBundle,
   buildReconciliationReviewBundle,
   canonicalJsonDigest,
@@ -25,6 +26,7 @@ import { projectZoneStableGeometry } from '@/lib/visual-contract-compiler';
 
 import {
   buildBlueprintFixture,
+  buildVisualContractCandidateFixture,
   type BlueprintFixtureOptions,
   type BlueprintFixtureShape,
 } from './pre-render-book-visual-blueprint.fixtures';
@@ -82,6 +84,7 @@ function materializeFixture(
   storyPath: string;
   templatePath: string;
   reconciliationPath: string;
+  candidatePath: string;
   fixture: ReturnType<typeof buildBlueprintFixture>;
 } {
   const repoRoot = tempRoot();
@@ -90,9 +93,23 @@ function materializeFixture(
   const storyPath = fixture.context.source.path;
   const templatePath = fixture.context.templateIdentity.artifactPath;
   const reconciliationPath = fixture.context.reconciliationArtifactPath;
+  const candidatePath = 'authorities/visual-contract-candidate.json';
   writeText(repoRoot, storyPath, fixture.context.rawStorySource);
   writeJson(repoRoot, templatePath, fixture.context.template);
   writeJson(repoRoot, reconciliationPath, fixture.context.reconciliation);
+  const snapshot = buildStorySourceAuthoritySnapshot({
+    repoRoot,
+    storyKey,
+    storyPath,
+  });
+  writeJson(
+    repoRoot,
+    candidatePath,
+    buildVisualContractCandidateFixture({
+      fixture,
+      sourceSnapshotDigest: snapshot.digest,
+    }),
+  );
   writeJson(
     repoRoot,
     STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
@@ -104,6 +121,7 @@ function materializeFixture(
     storyPath,
     templatePath,
     reconciliationPath,
+    candidatePath,
     fixture,
   };
 }
@@ -121,6 +139,7 @@ function buildContext(
     storyPath: materialized.storyPath,
     templatePath: materialized.templatePath,
     reconciliationPath: materialized.reconciliationPath,
+    candidatePath: materialized.candidatePath,
     styleId: STYLE_ID,
     styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
   });
@@ -241,6 +260,7 @@ describe('Story Source readiness and authoring context', () => {
         storyPath: materialized.storyPath,
         templatePath: materialized.templatePath,
         reconciliationPath: materialized.reconciliationPath,
+        candidatePath: materialized.candidatePath,
         styleId: STYLE_ID,
         styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
         throughStage: 'blueprint_authoring',
@@ -249,6 +269,98 @@ describe('Story Source readiness and authoring context', () => {
       expect(audit.reasons).toEqual([]);
     });
   }
+
+  it('rejects a self-consistent persisted reconciliation that diverges from the exact candidate', () => {
+    const materialized = materializeFixture('single_location');
+    const substituted = structuredClone(
+      materialized.fixture.context.reconciliation,
+    );
+    const record =
+      substituted.actionSemanticCoverageAuthority.records[0]!;
+    record.beatId = `beat:p${record.pageNumber}:substituted_identity`;
+    const substitutedDigest = canonicalJsonDigest(
+      substituted.actionSemanticCoverageAuthority.records,
+    );
+    substituted.actionSemanticCoverageAuthority
+      .actionSemanticCoverageDigest = substitutedDigest;
+    substituted.presentationRequirements
+      .actionSemanticCoverageDigest = substitutedDigest;
+    writeJson(
+      materialized.repoRoot,
+      materialized.reconciliationPath,
+      substituted,
+    );
+
+    expect(() =>
+      buildProductionAuthoringContext({
+        repoRoot: materialized.repoRoot,
+        storyKey: materialized.storyKey,
+        storyPath: materialized.storyPath,
+        templatePath: materialized.templatePath,
+        reconciliationPath: materialized.reconciliationPath,
+        candidatePath: materialized.candidatePath,
+        styleId: STYLE_ID,
+        styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+      }),
+    ).toThrow(/candidate-mismatched/);
+
+    const audit = auditProductionStoryReadiness({
+      repoRoot: materialized.repoRoot,
+      storyKey: materialized.storyKey,
+      storyPath: materialized.storyPath,
+      templatePath: materialized.templatePath,
+      reconciliationPath: materialized.reconciliationPath,
+      candidatePath: materialized.candidatePath,
+      styleId: STYLE_ID,
+      styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+      throughStage: 'blueprint_authoring',
+    });
+    expect(audit.ready).toBe(false);
+    expect(audit.reasons).toContainEqual(
+      expect.objectContaining({
+        stage: 'reconciliation_review',
+        message: expect.stringContaining('candidate-mismatched'),
+      }),
+    );
+  });
+
+  it('rejects a redigested candidate whose template body does not match its declared template digest', () => {
+    const materialized = materializeFixture('single_location');
+    const snapshot = buildStorySourceAuthoritySnapshot({
+      repoRoot: materialized.repoRoot,
+      storyKey: materialized.storyKey,
+      storyPath: materialized.storyPath,
+    });
+    const candidate = buildVisualContractCandidateFixture({
+      fixture: materialized.fixture,
+      sourceSnapshotDigest: snapshot.digest,
+    });
+    candidate.template.worldType = 'tampered_world';
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...candidatePayload
+    } = candidate;
+    candidate.digest = canonicalJsonDigest(candidatePayload);
+    writeJson(
+      materialized.repoRoot,
+      materialized.candidatePath,
+      candidate,
+    );
+
+    expect(() =>
+      buildProductionAuthoringContext({
+        repoRoot: materialized.repoRoot,
+        storyKey: materialized.storyKey,
+        storyPath: materialized.storyPath,
+        templatePath: materialized.templatePath,
+        reconciliationPath: materialized.reconciliationPath,
+        candidatePath: materialized.candidatePath,
+        styleId: STYLE_ID,
+        styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+      }),
+    ).toThrow(/candidate is stale, malformed/);
+  });
 
   it('returns structured reasons for incomplete cover, stale source, and unresolved reconciliation', () => {
     const materialized = materializeFixture('reveal_timeline');
@@ -261,6 +373,7 @@ describe('Story Source readiness and authoring context', () => {
       storyPath: materialized.storyPath,
       templatePath: materialized.templatePath,
       reconciliationPath: materialized.reconciliationPath,
+      candidatePath: materialized.candidatePath,
       styleId: STYLE_ID,
       styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
       throughStage: 'blueprint_authoring',
@@ -284,6 +397,7 @@ describe('Story Source readiness and authoring context', () => {
       storyPath: materialized.storyPath,
       templatePath: materialized.templatePath,
       reconciliationPath: materialized.reconciliationPath,
+      candidatePath: materialized.candidatePath,
       styleId: STYLE_ID,
       styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
       throughStage: 'blueprint_authoring',
@@ -371,6 +485,7 @@ describe('Story Source readiness and authoring context', () => {
         storyPath: materialized.storyPath,
         templatePath: materialized.templatePath,
         reconciliationPath: materialized.reconciliationPath,
+        candidatePath: materialized.candidatePath,
         styleId: STYLE_ID,
         styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
         throughStage: 'board_compatibility',
@@ -414,6 +529,7 @@ describe('Story Source readiness and authoring context', () => {
         storyPath: path.join(materialized.repoRoot, materialized.storyPath),
         templatePath: materialized.templatePath,
         reconciliationPath: materialized.reconciliationPath,
+        candidatePath: materialized.candidatePath,
         styleId: STYLE_ID,
         styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
       }),
@@ -781,6 +897,25 @@ describe('provider-isolated Blueprint authoring runner', () => {
         context: stale,
       }),
     ).rejects.toThrow(/context digest is stale/);
+
+    const staleCoverage = structuredClone(context);
+    staleCoverage.reconciliation.content
+      .actionSemanticCoverageAuthority.records[0]!.sourcePhrase =
+        'mutated self-declared coverage';
+    staleCoverage.validationContext.reconciliation =
+      staleCoverage.reconciliation.content;
+    staleCoverage.validationContext.actionSemanticCoverage =
+      structuredClone(
+        staleCoverage.reconciliation.content
+          .actionSemanticCoverageAuthority.records,
+      );
+    await expect(
+      runProductionBlueprintAuthoring({
+        request: requestFor(context, 'preflight'),
+        context: staleCoverage,
+      }),
+    ).rejects.toThrow(/reconciliation content is stale/);
+
     await expect(
       runProductionBlueprintAuthoring({
         request: requestFor(context, 'live'),

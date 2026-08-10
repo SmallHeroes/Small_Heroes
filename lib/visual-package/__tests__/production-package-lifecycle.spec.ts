@@ -13,6 +13,7 @@ import {
   assembleVisualPackageV4Candidate,
   buildPreRenderBlueprintReviewBundle,
   buildProductionAuthoringContext,
+  buildStorySourceAuthoritySnapshot,
   buildVisualPackageV4Candidate,
   buildVisualPackageV4PackageReview,
   canonicalJsonDigest,
@@ -36,6 +37,7 @@ import {
 
 import {
   buildBlueprintFixture,
+  buildVisualContractCandidateFixture,
   type BlueprintFixtureShape,
 } from './pre-render-book-visual-blueprint.fixtures';
 
@@ -182,10 +184,25 @@ function materialize(
   const storyPath = fixture.context.source.path;
   const templatePath = fixture.context.templateIdentity.artifactPath;
   const reconciliationPath = fixture.context.reconciliationArtifactPath;
+  const visualContractCandidatePath =
+    'authorities/visual-contract-candidate.json';
   const stylePath = STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH;
   writeText(repoRoot, storyPath, fixture.context.rawStorySource);
   writeJson(repoRoot, templatePath, fixture.context.template);
   writeJson(repoRoot, reconciliationPath, fixture.context.reconciliation);
+  const sourceSnapshot = buildStorySourceAuthoritySnapshot({
+    repoRoot,
+    storyKey,
+    storyPath,
+  });
+  writeJson(
+    repoRoot,
+    visualContractCandidatePath,
+    buildVisualContractCandidateFixture({
+      fixture,
+      sourceSnapshotDigest: sourceSnapshot.digest,
+    }),
+  );
   writeJson(repoRoot, stylePath, styleAuthorityContent());
 
   const context = buildProductionAuthoringContext({
@@ -194,6 +211,7 @@ function materialize(
     storyPath,
     templatePath,
     reconciliationPath,
+    candidatePath: visualContractCandidatePath,
     styleId: STYLE_ID,
     styleAuthorityPath: stylePath,
   });

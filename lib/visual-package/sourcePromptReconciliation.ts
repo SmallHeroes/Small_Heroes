@@ -430,7 +430,7 @@ export function sourcePromptReconciliationIssues(args: {
   template: BookVisualContractTemplate;
   templateDigest: string;
   authoredCoverAuthority?: AuthoredCoverAuthority;
-  actionSemanticCoverage?: readonly ActionSemanticCoverageRecord[];
+  actionSemanticCoverage: readonly ActionSemanticCoverageRecord[];
   requireComplete?: boolean;
 }): VisualPackageIssue[] {
   const issues: VisualPackageIssue[] = [];
@@ -548,9 +548,8 @@ export function sourcePromptReconciliationIssues(args: {
     !Array.isArray(coverageAuthority.records) ||
     coverageAuthority.actionSemanticCoverageDigest !==
       canonicalJsonDigest(coverageAuthority.records) ||
-    (args.actionSemanticCoverage !== undefined &&
-      canonicalJsonDigest(coverageAuthority.records) !==
-        canonicalJsonDigest(args.actionSemanticCoverage))
+    canonicalJsonDigest(coverageAuthority.records) !==
+      canonicalJsonDigest(args.actionSemanticCoverage)
   ) {
     issues.push(
       packageIssue(
@@ -584,27 +583,9 @@ export function sourcePromptReconciliationIssues(args: {
       ),
     );
   } else {
-    if (
-      !presentationBinding ||
-      typeof presentationBinding !== 'object' ||
-      Array.isArray(presentationBinding) ||
-      presentationBinding.version !==
-        PRESENTATION_REQUIREMENT_RECONCILIATION_VERSION ||
-      presentationBinding.actionSemanticCoverageVersion !==
-        ACTION_SEMANTIC_COVERAGE_VERSION ||
-      !Array.isArray(presentationBinding.requirements)
-    ) {
-      issues.push(
-        packageIssue(
-          'reconciliation_invalid',
-          'presentation-requirement reconciliation binding is malformed or stale',
-          { field: 'presentationRequirements' },
-        ),
-      );
-    } else {
-      const identities = new Set<string>();
-      for (const [index, requirement] of
-        presentationBinding.requirements.entries()) {
+    const identities = new Set<string>();
+    for (const [index, requirement] of
+      presentationBinding.requirements.entries()) {
         const field = `presentationRequirements.requirements[${index}]`;
         const identity = `${requirement.pageNumber}:${requirement.beatId}`;
         const resolved = resolveCoverageJsonPointer(
@@ -666,7 +647,6 @@ export function sourcePromptReconciliationIssues(args: {
             ),
           );
         }
-      }
     }
   }
   if (frames.length !== expectedFrames.length) {
@@ -871,6 +851,7 @@ export function loadSourcePromptReconciliation(args: {
   template: BookVisualContractTemplate;
   templateDigest: string;
   authoredCoverAuthority?: AuthoredCoverAuthority;
+  actionSemanticCoverage: readonly ActionSemanticCoverageRecord[];
   requireComplete?: boolean;
 }): {
   reconciliation: SourcePromptReconciliation | null;
@@ -918,6 +899,7 @@ export function loadSourcePromptReconciliation(args: {
     template: args.template,
     templateDigest: args.templateDigest,
     authoredCoverAuthority: args.authoredCoverAuthority,
+    actionSemanticCoverage: args.actionSemanticCoverage,
     requireComplete: args.requireComplete,
   });
   const typed = raw as SourcePromptReconciliation;

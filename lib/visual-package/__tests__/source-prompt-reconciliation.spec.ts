@@ -222,6 +222,8 @@ function validate(
   artifact: SourcePromptReconciliation,
   contract: BookVisualContractTemplate,
   sourceIdentity = identity(rawSource),
+  actionSemanticCoverage =
+    artifact.actionSemanticCoverageAuthority.records,
 ) {
   return sourcePromptReconciliationIssues({
     raw: artifact,
@@ -230,6 +232,7 @@ function validate(
     rawStorySource: rawSource,
     template: contract,
     templateDigest: canonicalHash(contract),
+    actionSemanticCoverage,
   });
 }
 

@@ -3985,6 +3985,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         authoredCoverAuthority:
           snapshot.content.authoredCoverAuthority ??
           undefined,
+        actionSemanticCoverage:
+          authored.compileResult!.actionSemanticCoverage,
         requireComplete: false,
       }).some(
         (issue) =>

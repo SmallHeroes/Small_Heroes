@@ -2,6 +2,7 @@ import {
   PRE_RENDER_BLUEPRINT_COORDINATE_SPACE,
   PRE_RENDER_BLUEPRINT_PORTRAIT_ASPECT_RATIO,
   PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
+  VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
   buildPreRenderBlueprintAuthoringAuthority,
   buildPreRenderBlueprintIdentity,
   finalizePreRenderBookVisualBlueprint,
@@ -13,6 +14,7 @@ import {
   type PreRenderBlueprintStyleAuthority,
   type PreRenderBlueprintValidationContext,
   type PreRenderBookVisualBlueprint,
+  type VisualContractCandidateArtifact,
   type RevealSafeSupportingGeometry,
 } from '@/lib/visual-package';
 import {
@@ -23,6 +25,10 @@ import {
   projectZoneStableGeometry,
   type BookVisualContractTemplate,
 } from '@/lib/visual-contract-compiler';
+import {
+  ACTION_SEMANTIC_COVERAGE_VERSION,
+  type ActionSemanticCoverageRecord,
+} from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 import type {
   BookVisualContract,
   PageTransition,
@@ -79,6 +85,40 @@ export interface BlueprintFixtureOptions {
 export interface BlueprintFixture {
   blueprint: PreRenderBookVisualBlueprint;
   context: PreRenderBlueprintValidationContext;
+}
+
+export function buildVisualContractCandidateFixture(args: {
+  fixture: BlueprintFixture;
+  sourceSnapshotDigest: string;
+}): VisualContractCandidateArtifact {
+  const coverage = structuredClone(
+    args.fixture.context.actionSemanticCoverage,
+  );
+  const payload = {
+    version: VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
+    sourceSnapshotDigest: args.sourceSnapshotDigest,
+    authoringRequestDigest: '1'.repeat(64),
+    authoringReceiptDigest: '2'.repeat(64),
+    templateDigest: canonicalJsonDigest(args.fixture.context.template),
+    actionSemanticCatalogVersion: 'fixture-catalog',
+    actionSemanticCatalogDigest: '3'.repeat(64),
+    actionSemanticCoverageVersion: ACTION_SEMANTIC_COVERAGE_VERSION,
+    actionSemanticCoverageDigest: canonicalJsonDigest(coverage),
+    sourceEvidenceCatalogVersion: 'fixture-source-evidence',
+    sourceEvidenceCatalogDigest: '4'.repeat(64),
+    template: structuredClone(args.fixture.context.template),
+    actionSemanticCoverage: coverage,
+    status: 'candidate',
+    doesNotAuthorize: ['fixture-only'],
+  } as unknown as Omit<
+    VisualContractCandidateArtifact,
+    'digestAlgorithm' | 'digest'
+  >;
+  return {
+    ...payload,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(payload),
+  };
 }
 
 interface ShapePlan {
@@ -322,7 +362,7 @@ function makeRawStorySource(plan: ShapePlan): string {
     '',
     ...plan.pageZoneIds.flatMap((_, index) => [
       `--- Page ${index + 1} ---`,
-      `authored source page ${index + 1}`,
+      `authored source page ${index + 1} contains enough narrative detail for deterministic authority testing`,
       '',
     ]),
   ].join('\n');
@@ -362,7 +402,7 @@ function makeReconciliation(
       ...(sourceContent?.pageImageDirections
         ? { pageImageDirections: sourceContent.pageImageDirections }
         : {}),
-      actionSemanticCoverage: [],
+      actionSemanticCoverage: makeActionSemanticCoverage(template),
     },
     template,
   );
@@ -405,6 +445,53 @@ function makeReconciliation(
     }
   }
   return reconciliation;
+}
+
+function makeActionSemanticCoverage(
+  template: BookVisualContractTemplate,
+): ActionSemanticCoverageRecord[] {
+  return template.pageContracts.flatMap<ActionSemanticCoverageRecord>((page) => {
+    const actions = page.actionRequirements ?? [];
+    if (actions.length === 0) {
+      return [{
+        version: ACTION_SEMANTIC_COVERAGE_VERSION,
+        pageNumber: page.pageNumber,
+        beatId: `beat:p${page.pageNumber}:fixture_non_visual`,
+        sourceEvidenceId: `se1_${String(page.pageNumber).padStart(64, '0')}`,
+        sourcePhrase: `fixture source evidence for page ${page.pageNumber}`,
+        disposition: {
+          kind: 'non_visual' as const,
+          rationale: 'narrative_context' as const,
+        },
+        reviewState: 'unreviewed' as const,
+      }];
+    }
+    return actions.map((action, actionIndex) => {
+      const subject = action.subject as unknown as Record<string, unknown>;
+      const sourceEvidenceId =
+        subject.kind === 'source_phenomenon' &&
+        typeof subject.sourceEvidenceId === 'string'
+          ? subject.sourceEvidenceId
+          : `se1_${String(page.pageNumber * 100 + actionIndex).padStart(64, '0')}`;
+      const sourcePhrase =
+        subject.kind === 'source_phenomenon' &&
+        typeof subject.sourcePhrase === 'string'
+          ? subject.sourcePhrase
+          : `fixture source evidence for page ${page.pageNumber} action ${actionIndex}`;
+      return {
+        version: ACTION_SEMANTIC_COVERAGE_VERSION,
+        pageNumber: page.pageNumber,
+        beatId: `beat:p${page.pageNumber}:fixture_action_${actionIndex}`,
+        sourceEvidenceId,
+        sourcePhrase,
+        disposition: {
+          kind: 'action_requirement' as const,
+          checkId: action.checkId,
+        },
+        reviewState: 'unreviewed' as const,
+      };
+    });
+  });
 }
 
 function cameraAffordance(frameId: string, zoneId: string): BlueprintSpatialAffordance {
@@ -760,6 +847,8 @@ export function buildBlueprintFixture(
       templateIdentity,
       reconciliation,
       reconciliationArtifactPath,
+      actionSemanticCoverage:
+        reconciliation.actionSemanticCoverageAuthority.records,
       style,
       styleContent,
     },

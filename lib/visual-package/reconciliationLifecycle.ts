@@ -270,6 +270,24 @@ export function buildProductionReconciliationDraftFromVisualContractCandidate(
     candidate: VisualContractCandidateArtifact;
   },
 ): ReturnType<typeof buildProductionReconciliationDraftBundle> {
+  assertVisualContractCandidateForReconciliation(args);
+  return buildProductionReconciliationDraftFromSourceSnapshot({
+    snapshot: args.snapshot,
+    template: args.candidate.template,
+    actionSemanticCoverage:
+      args.candidate.actionSemanticCoverage,
+  });
+}
+
+/**
+ * Verify the complete persisted Visual Contract candidate envelope before any
+ * downstream consumer may use its Action Semantic Coverage as authority.
+ */
+export function assertVisualContractCandidateForReconciliation(args: {
+  snapshot: StorySourceAuthoritySnapshot;
+  candidate: VisualContractCandidateArtifact;
+  expectedTemplateDigest?: string;
+}): void {
   assertValidStorySourceAuthoritySnapshot(args.snapshot);
   const {
     digestAlgorithm: _digestAlgorithm,
@@ -295,18 +313,57 @@ export function buildProductionReconciliationDraftFromVisualContractCandidate(
     args.candidate.status !== 'candidate' ||
     args.candidate.digestAlgorithm !== 'canonical-json-sha256' ||
     args.candidate.digest !== canonicalJsonDigest(candidatePayload) ||
+    canonicalJsonDigest(args.candidate.template) !==
+      args.candidate.templateDigest ||
+    (
+      args.expectedTemplateDigest !== undefined &&
+      args.candidate.templateDigest !== args.expectedTemplateDigest
+    ) ||
     coverageIssues.length > 0
   ) {
     throw new Error(
       'Visual Contract candidate is stale, malformed, or lacks current complete coverage authority',
     );
   }
-  return buildProductionReconciliationDraftFromSourceSnapshot({
+}
+
+export function loadVisualContractCandidateForReconciliation(args: {
+  repoRoot: string;
+  candidatePath: string;
+  snapshot: StorySourceAuthoritySnapshot;
+  expectedTemplateDigest: string;
+}): VisualContractCandidateArtifact {
+  const candidateAbsolute = resolveRepoPath(
+    args.repoRoot,
+    args.candidatePath,
+  );
+  if (!fs.existsSync(candidateAbsolute)) {
+    throw new Error(
+      `Visual Contract candidate is missing: ${args.candidatePath}`,
+    );
+  }
+  let candidateRaw: unknown;
+  try {
+    candidateRaw = JSON.parse(
+      fs.readFileSync(candidateAbsolute, 'utf8'),
+    ) as unknown;
+  } catch {
+    throw new Error('Visual Contract candidate JSON is invalid');
+  }
+  if (
+    !candidateRaw ||
+    typeof candidateRaw !== 'object' ||
+    Array.isArray(candidateRaw)
+  ) {
+    throw new Error('Visual Contract candidate is not an object');
+  }
+  const candidate = candidateRaw as VisualContractCandidateArtifact;
+  assertVisualContractCandidateForReconciliation({
     snapshot: args.snapshot,
-    template: args.candidate.template,
-    actionSemanticCoverage:
-      args.candidate.actionSemanticCoverage,
+    candidate,
+    expectedTemplateDigest: args.expectedTemplateDigest,
   });
+  return candidate;
 }
 
 export function buildProductionReconciliationDraftFromFiles(args: {
@@ -340,39 +397,12 @@ export function buildProductionReconciliationDraftFromFiles(args: {
         .join('\n- ')}`,
     );
   }
-  const candidateAbsolute = resolveRepoPath(
-    args.repoRoot,
-    args.candidatePath,
-  );
-  if (!fs.existsSync(candidateAbsolute)) {
-    throw new Error(
-      `Visual Contract candidate is missing: ${args.candidatePath}`,
-    );
-  }
-  let candidateRaw: unknown;
-  try {
-    candidateRaw = JSON.parse(
-      fs.readFileSync(candidateAbsolute, 'utf8'),
-    ) as unknown;
-  } catch {
-    throw new Error('Visual Contract candidate JSON is invalid');
-  }
-  if (
-    !candidateRaw ||
-    typeof candidateRaw !== 'object' ||
-    Array.isArray(candidateRaw)
-  ) {
-    throw new Error('Visual Contract candidate is not an object');
-  }
-  const candidate = candidateRaw as VisualContractCandidateArtifact;
-  if (
-    candidate.templateDigest !== loaded.identity.digest ||
-    canonicalJsonDigest(candidate.template) !== loaded.identity.digest
-  ) {
-    throw new Error(
-      'Visual Contract candidate does not match the requested template authority',
-    );
-  }
+  const candidate = loadVisualContractCandidateForReconciliation({
+    repoRoot: args.repoRoot,
+    candidatePath: args.candidatePath,
+    snapshot,
+    expectedTemplateDigest: loaded.identity.digest,
+  });
   const bundle =
     buildProductionReconciliationDraftFromVisualContractCandidate({
       snapshot,

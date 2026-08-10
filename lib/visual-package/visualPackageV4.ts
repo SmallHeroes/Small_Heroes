@@ -620,6 +620,9 @@ export function validateVisualPackageV4(value: unknown): string[] {
       reconciliation: packageValue.reconciliation.content,
       reconciliationArtifactPath:
         packageValue.reconciliation.identity.artifactPath,
+      actionSemanticCoverage:
+        packageValue.reconciliation.content
+          .actionSemanticCoverageAuthority.records,
       ...(packageValue.authoredCoverAuthority
         ? { authoredCoverAuthority: packageValue.authoredCoverAuthority }
         : {}),

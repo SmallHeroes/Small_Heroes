@@ -189,6 +189,9 @@ export function prepareVisualPackageCandidate(
     template: loaded.template,
     templateDigest: loaded.identity.digest,
     authoredCoverAuthority: coverAuthority.authority ?? undefined,
+    // The legacy manifest lifecycle has no Visual Contract candidate authority.
+    // Current non-empty coverage therefore fails closed on this path.
+    actionSemanticCoverage: [],
   });
   issues.push(...reconciliation.issues);
 
@@ -355,6 +358,8 @@ export function promoteVisualPackage(args: PromoteVisualPackageArgs): VisualPack
       template: loaded.template,
       templateDigest: manifest.template.digest,
       authoredCoverAuthority: coverAuthority.authority ?? undefined,
+      // The legacy manifest lifecycle cannot self-declare current candidate coverage.
+      actionSemanticCoverage: [],
     });
     issues.push(...reconciliation.issues);
     if (
