@@ -1035,6 +1035,53 @@ describe('exact zero-cost authoring preflight', () => {
     expect(provider.call).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      'schema authority',
+      'stable_prop_scope_repair_structured_output_mismatch',
+      (request: ReturnType<typeof requestFor>) => {
+        request.stablePropScopeRepairStructuredOutput.schemaDigest =
+          '7'.repeat(64);
+      },
+    ],
+    [
+      'prompt authority',
+      'prompt_authority_mismatch',
+      (request: ReturnType<typeof requestFor>) => {
+        request.promptAuthority.stablePropScopeRepair.systemPromptDigest =
+          '6'.repeat(64);
+      },
+    ],
+  ])('rejects altered stable-prop scope repair %s before provider reachability', async (
+    _label,
+    expectedIssue,
+    mutate,
+  ) => {
+    const snapshot = snapshotFor(
+      writeStoryFixture({
+        pageCount: 12,
+        companion: true,
+        multiLocation: true,
+        cover: true,
+      }),
+    );
+    const request = structuredClone(requestFor(snapshot, 'preflight'));
+    mutate(request);
+    const { digestAlgorithm: _algorithm, digest: _digest, ...payload } = request;
+    request.digest = canonicalJsonDigest(payload);
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({ request, snapshot, provider });
+
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.issues).toContain(expectedIssue);
+    expect(provider.call).not.toHaveBeenCalled();
+  });
+
   it('blocks a generally-derived longer-story live budget above the approved ceiling before provider reachability', async () => {
     const snapshot = snapshotFor(
       writeStoryFixture({
@@ -1640,7 +1687,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v18',
+      version: 'visual-contract-authoring-readiness/v19',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -1704,7 +1751,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v18',
+      version: 'visual-contract-authoring-readiness/v19',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -1920,7 +1967,19 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'request',
+        'visual-contract-authoring-request/v16',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
         'visual-contract-authoring-request/v17',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v18',
       ),
     ).toBe('current');
     expect(
@@ -2012,6 +2071,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v20',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v21',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -2041,6 +2106,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v18',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v19',
       ),
     ).toBe('current');
     expect(
@@ -2272,7 +2343,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v20',
+      'visual-contract-authoring-receipt/v21',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(

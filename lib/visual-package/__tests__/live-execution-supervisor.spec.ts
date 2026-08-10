@@ -251,6 +251,9 @@ function executionRequestPayload(
       presentationRequirementRepairStructuredOutputCompatibility:
         fixture.materialized.manifest
           .presentationRequirementRepairStructuredOutputCompatibility,
+      stablePropScopeRepairStructuredOutputCompatibility:
+        fixture.materialized.manifest
+          .stablePropScopeRepairStructuredOutputCompatibility,
     },
     preservationFences:
       overrides.preservationFences ?? [

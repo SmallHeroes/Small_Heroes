@@ -161,6 +161,19 @@ import {
   presentationRequirementRepairTargets,
   type PresentationRequirementRepairTarget,
 } from './presentationRequirementRepair';
+import {
+  STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
+  STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION,
+  STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
+  STABLE_PROP_SCOPE_REPAIR_USER_PROMPT_VERSION,
+  applyStablePropScopeRepairPatches,
+  buildStablePropScopeRepairSystemPrompt,
+  buildStablePropScopeRepairUserPrompt,
+  parseStablePropScopeRepairPatches,
+  stablePropScopeIssuesAreRepairable,
+  stablePropScopeRepairTargets,
+  type StablePropScopeRepairTarget,
+} from './stablePropScopeRepair';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -229,6 +242,7 @@ interface TemplateRepairAttempt {
     | 'source_evidence_id_patch'
     | 'page_contract_patch'
     | 'page_spatial_reference_patch'
+    | 'stable_prop_scope_patch'
     | 'presentation_requirement_patch'
     | 'structural_bundle_patch'
     | 'full_draft';
@@ -241,6 +255,7 @@ export interface TemplateRepairSummary {
     | 'source_evidence_id_patch'
     | 'page_contract_patch'
     | 'page_spatial_reference_patch'
+    | 'stable_prop_scope_patch'
     | 'presentation_requirement_patch'
     | 'structural_bundle_patch'
     | 'full_draft';
@@ -371,6 +386,31 @@ function pageSpatialReferenceRepairInstruction(
   );
 }
 
+function stablePropScopeRepairDiagnostic(
+  issue: DraftAuthorityReferenceIssue,
+): DraftValidationIssue {
+  if (issue.locator.kind !== 'set_area_node') {
+    throw new Error('stable prop scope repair locator invalid');
+  }
+  return {
+    family: 'draft_contract',
+    code:
+      issue.code === 'recurring_prop_lifecycle_gated'
+        ? 'lifecycle_invariant_invalid'
+        : 'consumer_invariant_invalid',
+    locator: {
+      kind: 'set_area_node',
+      fieldRole:
+        issue.code === 'recurring_prop_lifecycle_gated'
+          ? 'lifecycle'
+          : 'consumer',
+      authorityIndex: issue.locator.authorityIndex,
+      areaIndex: issue.locator.areaIndex,
+      nodeIndex: issue.locator.nodeIndex,
+    },
+  };
+}
+
 /** Stable compiler-owned action identity derived only from a page-scoped beat. */
 export function compilerOwnedActionCheckId(
   pageNumber: number,
@@ -455,6 +495,7 @@ export class TemplateRepairOutputInvalidError extends Error {
       | 'source_evidence_id_patch'
       | 'page_contract_patch'
       | 'page_spatial_reference_patch'
+      | 'stable_prop_scope_patch'
       | 'presentation_requirement_patch'
       | 'structural_bundle_patch'
       | 'full_draft',
@@ -2818,6 +2859,9 @@ export async function compileBookVisualContractTemplate(
   assertOpenAIResponsesStructuredOutputSchemaCompatible(
     PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
   );
+  assertOpenAIResponsesStructuredOutputSchemaCompatible(
+    STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
+  );
 
   const facts = extractDeterministicFacts(input);
 
@@ -2876,6 +2920,13 @@ export async function compileBookVisualContractTemplate(
       schema: PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
     },
   } satisfies ContractLlmCallOptions;
+  const stablePropScopeRepairLlmOpts = {
+    ...llmOpts,
+    jsonSchema: {
+      name: STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
+      schema: STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
+    },
+  } satisfies ContractLlmCallOptions;
 
   let draft = asObj(
     parseContractJson(
@@ -2908,6 +2959,9 @@ export async function compileBookVisualContractTemplate(
     let pageSpatialReferenceAffectedTargets:
       | PageSpatialReferenceRepairTarget[]
       | null = null;
+    let stablePropScopeAffectedTargets:
+      | StablePropScopeRepairTarget[]
+      | null = null;
     let presentationRequirementAffectedTargets:
       | PresentationRequirementRepairTarget[]
       | null = null;
@@ -2935,6 +2989,21 @@ export async function compileBookVisualContractTemplate(
         if (err instanceof SourceEvidenceIdValidationError) {
           sourceEvidenceAffectedRecords = err.affectedRecords;
         }
+      } else if (
+        err instanceof DraftAuthorityReferenceDomainError &&
+        stablePropScopeIssuesAreRepairable(err.issues)
+      ) {
+        stablePropScopeAffectedTargets = stablePropScopeRepairTargets({
+          draft,
+          issues: err.issues,
+        });
+        if (!stablePropScopeAffectedTargets) throw err;
+        attemptErrors = err.issues.map(
+          (issue) => `${issue.code}: remove the invalid stable Set Board prop consumer at the exact structural locator`,
+        );
+        attemptDiagnosticIssues = err.issues.map(
+          stablePropScopeRepairDiagnostic,
+        );
       } else if (
         err instanceof DraftAuthorityReferenceDomainError &&
         pageSpatialReferenceIssuesAreRepairable(err.issues)
@@ -2976,6 +3045,7 @@ export async function compileBookVisualContractTemplate(
     if (
       !assembled &&
       !sourceEvidenceAffectedRecords &&
+      !stablePropScopeAffectedTargets &&
       !presentationRequirementAffectedTargets
     ) {
       if (pageSpatialRepairIssues && pageSpatialRepairAuthority) {
@@ -3020,6 +3090,8 @@ export async function compileBookVisualContractTemplate(
                   ? SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION
                   : lastRepairMode === 'page_contract_patch'
                     ? PAGE_CONTRACT_REPAIR_PROMPT_VERSION
+                    : lastRepairMode === 'stable_prop_scope_patch'
+                      ? STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION
                     : lastRepairMode ===
                         'page_spatial_reference_patch'
                       ? PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION
@@ -3069,6 +3141,8 @@ export async function compileBookVisualContractTemplate(
 
     const repairMode = sourceEvidenceAffectedRecords
       ? 'source_evidence_id_patch'
+      : stablePropScopeAffectedTargets
+        ? 'stable_prop_scope_patch'
       : pageSpatialReferenceAffectedTargets
         ? 'page_spatial_reference_patch'
         : presentationRequirementAffectedTargets
@@ -3109,6 +3183,27 @@ export async function compileBookVisualContractTemplate(
           catalog: input.sourceEvidenceCatalog,
           affectedRecords: sourceEvidenceAffectedRecords,
           patches: parseSourceEvidenceIdPatches(rawPatch),
+        });
+      } else if (stablePropScopeAffectedTargets) {
+        const rawPatch = await deps.callLLM(
+          buildStablePropScopeRepairSystemPrompt(),
+          buildStablePropScopeRepairUserPrompt({
+            targets: stablePropScopeAffectedTargets,
+          }),
+          stablePropScopeRepairLlmOpts,
+          {
+            kind: 'repair',
+            repairMode: 'stable_prop_scope_patch',
+            systemPromptVersion:
+              STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION,
+            userPromptVersion:
+              STABLE_PROP_SCOPE_REPAIR_USER_PROMPT_VERSION,
+          },
+        );
+        draft = applyStablePropScopeRepairPatches({
+          draft,
+          targets: stablePropScopeAffectedTargets,
+          patches: parseStablePropScopeRepairPatches(rawPatch),
         });
       } else if (pageSpatialReferenceAffectedTargets) {
         const rawPatch = await deps.callLLM(

@@ -16,6 +16,10 @@ import type {
   PageVisualContract,
 } from '../visual-contract-compiler/types';
 import { RECURRING_PROP_SPATIAL_CONSUMER_SCOPES } from '../visual-contract-compiler/types';
+import {
+  STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION,
+  STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
+} from '../visual-contract-compiler/stablePropScopeRepair';
 
 const sourceIdentity = {
   version: 'story-source-identity/v2',
@@ -431,20 +435,7 @@ describe('captured reference-domain matrix', () => {
       },
       constraint: undefined,
     },
-    {
-      expectedCode: 'recurring_prop_consumer_forbidden',
-      propId: 'prop:forbidden',
-      prop: {
-        id: 'prop:forbidden',
-        name: 'Forbidden prop',
-        description: 'Forbidden on the consuming page.',
-      },
-      constraint: {
-        propId: 'prop:forbidden',
-        visibility: 'forbidden',
-      },
-    },
-  ])('keeps terminal issue identity $expectedCode on spatialNodes.stablePropId', async ({
+  ])('routes $expectedCode on spatialNodes.stablePropId through the closed repair lane', async ({
     expectedCode,
     propId,
     prop,
@@ -454,20 +445,132 @@ describe('captured reference-domain matrix', () => {
     draft.recurringProps = [prop];
     nodes(draft)[0]!.stablePropId = propId;
     if (constraint) pageRecord(draft).propConstraints = [constraint];
-
-    const issues = await emittedAuthorityIssues(draft);
-
-    expect(issues).toContainEqual({
-      code: expectedCode,
-      locator: {
-        kind: 'set_area_node',
-        referenceClass: 'recurring_prop',
-        fieldRole: 'spatialNodes.stablePropId',
-        authorityIndex: 0,
-        areaIndex: 0,
-        nodeIndex: 0,
-      },
+    let callIndex = 0;
+    const callLLM = vi.fn(async () => {
+      const output = callIndex === 0
+        ? draft
+        : {
+            patches: [{
+              authorityIndex: 0,
+              areaIndex: 0,
+              nodeIndex: 0,
+              fieldRole: 'spatialNodes.stablePropId',
+              stablePropId: null,
+            }],
+          };
+      callIndex += 1;
+      return JSON.stringify(output);
     });
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+
+    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(result.repairAttempts[0]).toMatchObject({
+      nextRepairMode: 'stable_prop_scope_patch',
+      diagnosticIssues: [{
+        family: 'draft_contract',
+        code: expectedCode === 'recurring_prop_lifecycle_gated'
+          ? 'lifecycle_invariant_invalid'
+          : 'consumer_invariant_invalid',
+        locator: {
+          kind: 'set_area_node',
+          fieldRole: expectedCode === 'recurring_prop_lifecycle_gated'
+            ? 'lifecycle'
+            : 'consumer',
+          authorityIndex: 0,
+          areaIndex: 0,
+          nodeIndex: 0,
+        },
+      }],
+    });
+    expect(result.template.setBoardAuthorities?.[0]?.fixedObjects).toEqual([]);
+  });
+
+  it('routes only closed stable-prop scope failures through one null-only compact repair', async () => {
+    const draft = matrixDraft();
+    draft.recurringProps = [
+      {
+        id: 'prop:gated-a',
+        name: 'Gated prop A',
+        description: 'Appears only after its reveal.',
+        firstRevealPage: 1,
+      },
+      {
+        id: 'prop:gated-b',
+        name: 'Gated prop B',
+        description: 'Also appears only after its reveal.',
+        firstRevealPage: 1,
+      },
+    ];
+    nodes(draft)[0]!.stablePropId = 'prop:gated-a';
+    nodes(draft)[2]!.stablePropId = 'prop:gated-b';
+    let callIndex = 0;
+    let repairUserPrompt = '';
+    const authorities: unknown[] = [];
+    const callLLM = vi.fn(async (
+      _system: string,
+      user: string,
+      options?: unknown,
+      promptAuthority?: unknown,
+    ) => {
+      authorities.push({ options, promptAuthority });
+      const output =
+        callIndex === 0
+          ? draft
+          : {
+              patches: [
+                {
+                  authorityIndex: 0,
+                  areaIndex: 0,
+                  nodeIndex: 0,
+                  fieldRole: 'spatialNodes.stablePropId',
+                  stablePropId: null,
+                },
+                {
+                  authorityIndex: 0,
+                  areaIndex: 0,
+                  nodeIndex: 2,
+                  fieldRole: 'spatialNodes.stablePropId',
+                  stablePropId: null,
+                },
+              ],
+            };
+      if (callIndex === 1) repairUserPrompt = user;
+      callIndex += 1;
+      return JSON.stringify(output);
+    });
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+
+    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(repairUserPrompt).not.toContain('prop:gated-a');
+    expect(repairUserPrompt).not.toContain('prop:gated-b');
+    expect(repairUserPrompt).not.toContain('previousDraft');
+    expect(result.provenance.attempt).toBe(2);
+    expect(result.provenance.repairPromptVersion).toBe(
+      STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION,
+    );
+    expect(result.repairAttempts[0]).toMatchObject({
+      attempt: 1,
+      nextRepairMode: 'stable_prop_scope_patch',
+    });
+    const repair = authorities[1] as {
+      options: { jsonSchema?: { name?: string } };
+      promptAuthority: { repairMode?: string };
+    };
+    expect(repair.options.jsonSchema?.name).toBe(
+      STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
+    );
+    expect(repair.promptAuthority.repairMode).toBe(
+      'stable_prop_scope_patch',
+    );
+    expect(
+      result.template.setBoardAuthorities?.[0]?.fixedObjects,
+    ).toEqual([]);
   });
 
   it('routes only page-zone spatial selection failures through one field-scoped spatial repair', async () => {
@@ -721,37 +824,6 @@ describe('captured reference-domain matrix', () => {
       'recurring_prop_reference_cardinality_invalid',
       (draft: Record<string, unknown>) => {
         nodes(draft)[0]!.stablePropId = 'prop:missing';
-      },
-    ],
-    [
-      'recurring_prop_lifecycle_gated',
-      (draft: Record<string, unknown>) => {
-        draft.recurringProps = [
-          {
-            id: 'prop:gated',
-            name: 'Gated prop',
-            description: 'Appears later.',
-            firstRevealPage: 1,
-          },
-        ];
-        nodes(draft)[0]!.stablePropId = 'prop:gated';
-      },
-    ],
-    [
-      'recurring_prop_consumer_forbidden',
-      (draft: Record<string, unknown>) => {
-        draft.recurringProps = [
-          {
-            id: 'prop:forbidden',
-            name: 'Forbidden prop',
-            description: 'Forbidden on the page.',
-            firstRevealPage: null,
-          },
-        ];
-        nodes(draft)[0]!.stablePropId = 'prop:forbidden';
-        pageRecord(draft).propConstraints = [
-          { propId: 'prop:forbidden', visibility: 'forbidden' },
-        ];
       },
     ],
     [

@@ -531,6 +531,9 @@ describe('canonical live request verification library', () => {
       presentationRequirementRepairStructuredOutputCompatibility:
         materialized.manifest
           .presentationRequirementRepairStructuredOutputCompatibility,
+      stablePropScopeRepairStructuredOutputCompatibility:
+        materialized.manifest
+          .stablePropScopeRepairStructuredOutputCompatibility,
       externalBoundaryEvidence: {
         credentialReadOrCheck: false,
         providerReachabilityCheck: false,
@@ -983,6 +986,7 @@ describe('canonical live request verification library', () => {
   it.each([
     'pageContractRepairStructuredOutputCompatibility',
     'structuralBundleRepairStructuredOutputCompatibility',
+    'stablePropScopeRepairStructuredOutputCompatibility',
   ] as const)('rejects recomputed %s drift', (authorityKey) => {
     const fixture = writeFixture();
     const materialized = materialize(fixture);

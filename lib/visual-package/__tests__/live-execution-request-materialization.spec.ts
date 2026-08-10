@@ -394,6 +394,8 @@ describe('canonical live execution request materialization', () => {
         typeof request.canonicalBundle.structuralBundleRepairStructuredOutputCompatibility;
       presentationRequirementRepairStructuredOutputCompatibility:
         typeof request.canonicalBundle.presentationRequirementRepairStructuredOutputCompatibility;
+      stablePropScopeRepairStructuredOutputCompatibility:
+        typeof request.canonicalBundle.stablePropScopeRepairStructuredOutputCompatibility;
     };
     expect(request.repository).toEqual({
       realPath: fixture.repoRoot,
@@ -424,7 +426,7 @@ describe('canonical live execution request materialization', () => {
       manifestPath: fixture.manifestPath,
       manifestDigest: fixture.manifestDigest,
       verificationVersion:
-        'canonical-live-request-verification/v15',
+        'canonical-live-request-verification/v16',
       structuredOutputCompatibility:
         manifest.structuredOutputCompatibility,
       compactRepairStructuredOutputCompatibility:
@@ -437,6 +439,8 @@ describe('canonical live execution request materialization', () => {
         manifest.structuralBundleRepairStructuredOutputCompatibility,
       presentationRequirementRepairStructuredOutputCompatibility:
         manifest.presentationRequirementRepairStructuredOutputCompatibility,
+      stablePropScopeRepairStructuredOutputCompatibility:
+        manifest.stablePropScopeRepairStructuredOutputCompatibility,
     });
     const preserved = fs.readFileSync(
       path.join(fixture.repoRoot, fixture.preservationPath),

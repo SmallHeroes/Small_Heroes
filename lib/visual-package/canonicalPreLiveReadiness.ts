@@ -53,7 +53,7 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION =
-  'canonical-pre-live-readiness-evidence/v14' as const;
+  'canonical-pre-live-readiness-evidence/v15' as const;
 export const CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION =
   'canonical-pre-live-readiness-failure/v3' as const;
 export const CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION =
@@ -212,6 +212,8 @@ export interface CanonicalPreLiveReadinessEvidence {
       structuralBundleRepairStructuredOutputCompatibility:
         LiveRequestStructuredOutputCompatibilityAuthority;
       presentationRequirementRepairStructuredOutputCompatibility:
+        LiveRequestStructuredOutputCompatibilityAuthority;
+      stablePropScopeRepairStructuredOutputCompatibility:
         LiveRequestStructuredOutputCompatibilityAuthority;
     };
     executionRequest: {
@@ -1556,6 +1558,7 @@ function evidenceIssues(value: unknown): string[] {
         'pageSpatialReferenceRepairStructuredOutputCompatibility',
         'structuralBundleRepairStructuredOutputCompatibility',
         'presentationRequirementRepairStructuredOutputCompatibility',
+        'stablePropScopeRepairStructuredOutputCompatibility',
       ]) ||
       typeof b0.manifestPath !== 'string' ||
       canonicalMaterializationRelativePathIssues(
@@ -1597,6 +1600,10 @@ function evidenceIssues(value: unknown): string[] {
       liveRequestStructuredOutputCompatibilityAuthorityIssues(
         b0.presentationRequirementRepairStructuredOutputCompatibility,
         'pre_live_evidence_b0_presentation_requirement_repair_structured_output_compatibility',
+      ).length > 0 ||
+      liveRequestStructuredOutputCompatibilityAuthorityIssues(
+        b0.stablePropScopeRepairStructuredOutputCompatibility,
+        'pre_live_evidence_b0_stable_prop_scope_repair_structured_output_compatibility',
       ).length > 0 ||
       !validDescriptor(executionRequest) ||
       !supervisor ||
@@ -2073,6 +2080,8 @@ function evidenceValue(args: {
           args.b0.structuralBundleRepairStructuredOutputCompatibility,
         presentationRequirementRepairStructuredOutputCompatibility:
           args.b0.presentationRequirementRepairStructuredOutputCompatibility,
+        stablePropScopeRepairStructuredOutputCompatibility:
+          args.b0.stablePropScopeRepairStructuredOutputCompatibility,
       },
       executionRequest: args.executionRequest,
       supervisorVerification: {

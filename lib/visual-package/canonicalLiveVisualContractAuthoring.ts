@@ -191,6 +191,10 @@ function authoringRequestValue(
     object.presentationRequirementRepairStructuredOutput,
     'visual contract authoring request presentationRequirementRepairStructuredOutput',
   );
+  const stablePropScopeRepairStructuredOutput = objectValue(
+    object.stablePropScopeRepairStructuredOutput,
+    'visual contract authoring request stablePropScopeRepairStructuredOutput',
+  );
   const tokenBudget = objectValue(
     object.tokenBudget,
     'visual contract authoring request tokenBudget',
@@ -242,6 +246,10 @@ function authoringRequestValue(
   const presentationRequirementRepairPromptAuthority = objectValue(
     promptAuthority.presentationRequirementRepair,
     'visual contract authoring request presentationRequirementRepair promptAuthority',
+  );
+  const stablePropScopeRepairPromptAuthority = objectValue(
+    promptAuthority.stablePropScopeRepair,
+    'visual contract authoring request stablePropScopeRepair promptAuthority',
   );
   const actionSemanticAuthority = objectValue(
     object.actionSemanticAuthority,
@@ -397,6 +405,24 @@ function authoringRequestValue(
       serializedSchemaDigest:
         presentationRequirementRepairStructuredOutput.serializedSchemaDigest,
     },
+    stablePropScopeRepairStructuredOutput: {
+      strict: stablePropScopeRepairStructuredOutput.strict,
+      schemaName: stablePropScopeRepairStructuredOutput.schemaName,
+      schemaVersion: stablePropScopeRepairStructuredOutput.schemaVersion,
+      schemaDigest: stablePropScopeRepairStructuredOutput.schemaDigest,
+      compatibilityProfileVersion:
+        stablePropScopeRepairStructuredOutput.compatibilityProfileVersion,
+      compatibilityProfileDigest:
+        stablePropScopeRepairStructuredOutput.compatibilityProfileDigest,
+      compatibilityEvidenceVersion:
+        stablePropScopeRepairStructuredOutput.compatibilityEvidenceVersion,
+      compatibilityEvidenceDigest:
+        stablePropScopeRepairStructuredOutput.compatibilityEvidenceDigest,
+      compatibilityStatus:
+        stablePropScopeRepairStructuredOutput.compatibilityStatus,
+      serializedSchemaDigest:
+        stablePropScopeRepairStructuredOutput.serializedSchemaDigest,
+    },
     toolsDisabled: object.toolsDisabled,
     noFallback: object.noFallback,
     transportRetries: object.transportRetries,
@@ -496,6 +522,14 @@ function authoringRequestValue(
         systemPromptDigest:
           presentationRequirementRepairPromptAuthority.systemPromptDigest,
       },
+      stablePropScopeRepair: {
+        systemPromptVersion:
+          stablePropScopeRepairPromptAuthority.systemPromptVersion,
+        userPromptVersion:
+          stablePropScopeRepairPromptAuthority.userPromptVersion,
+        systemPromptDigest:
+          stablePropScopeRepairPromptAuthority.systemPromptDigest,
+      },
     },
     actionSemanticAuthority: {
       catalogVersion:
@@ -532,6 +566,7 @@ const REQUEST_KEYS = new Set([
   'pageSpatialReferenceRepairStructuredOutput',
   'structuralBundleRepairStructuredOutput',
   'presentationRequirementRepairStructuredOutput',
+  'stablePropScopeRepairStructuredOutput',
   'toolsDisabled',
   'noFallback',
   'transportRetries',
@@ -621,6 +656,18 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'compatibilityStatus',
     'serializedSchemaDigest',
   ]),
+  stablePropScopeRepairStructuredOutput: new Set([
+    'strict',
+    'schemaName',
+    'schemaVersion',
+    'schemaDigest',
+    'compatibilityProfileVersion',
+    'compatibilityProfileDigest',
+    'compatibilityEvidenceVersion',
+    'compatibilityEvidenceDigest',
+    'compatibilityStatus',
+    'serializedSchemaDigest',
+  ]),
   tokenBudget: new Set([
     'maxInputTokens',
     'promptAndSchemaTokenUpperBound',
@@ -652,6 +699,7 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'pageSpatialReferenceRepair',
     'structuralBundleRepair',
     'presentationRequirementRepair',
+    'stablePropScopeRepair',
   ]),
   actionSemanticAuthority: new Set([
     'catalogVersion',
@@ -756,6 +804,18 @@ const REQUEST_OBJECT_FIELDS = {
     compatibilityStatus: 'string',
     serializedSchemaDigest: 'string',
   },
+  stablePropScopeRepairStructuredOutput: {
+    strict: 'boolean',
+    schemaName: 'string',
+    schemaVersion: 'string',
+    schemaDigest: 'string',
+    compatibilityProfileVersion: 'string',
+    compatibilityProfileDigest: 'string',
+    compatibilityEvidenceVersion: 'string',
+    compatibilityEvidenceDigest: 'string',
+    compatibilityStatus: 'string',
+    serializedSchemaDigest: 'string',
+  },
   tokenBudget: {
     maxInputTokens: 'number',
     promptAndSchemaTokenUpperBound: 'number',
@@ -827,6 +887,11 @@ const PROMPT_AUTHORITY_FIELDS = {
     systemPromptDigest: 'string',
   },
   presentationRequirementRepair: {
+    systemPromptVersion: 'string',
+    userPromptVersion: 'string',
+    systemPromptDigest: 'string',
+  },
+  stablePropScopeRepair: {
     systemPromptVersion: 'string',
     userPromptVersion: 'string',
     systemPromptDigest: 'string',
