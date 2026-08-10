@@ -219,6 +219,9 @@ describe('closed draft-validation issue contract', () => {
       'represented_elsewhere_pointer_out_of_scope',
       'represented_elsewhere_pointer_unresolved',
       'represented_elsewhere_value_mismatch',
+      'presentation_requirement_pointer_out_of_scope',
+      'presentation_requirement_pointer_unresolved',
+      'presentation_requirement_value_mismatch',
       'source_phenomenon_binding_mismatch',
       'closed_catalog_capability_gap',
     ]);
