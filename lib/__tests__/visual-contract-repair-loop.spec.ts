@@ -28,6 +28,7 @@ import { TEMPLATE_DRAFT_SCHEMA_NAME } from '../visual-contract-compiler/template
 import {
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+  decodePageContractRepairUserPrompt,
 } from '../visual-contract-compiler/pageContractRepair';
 import {
   STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
@@ -580,12 +581,12 @@ describe('page-contract compact repair routing', () => {
       kind: 'repair',
       repairMode: 'page_contract_patch',
       systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'page-contract-repair-user-prompt/v4',
+      userPromptVersion: 'page-contract-repair-user-prompt/v5',
     });
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
       PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
     );
-    const payload = JSON.parse(calls[1]!.user);
+    const payload = decodePageContractRepairUserPrompt(calls[1]!.user);
     expect(payload.affectedPages).toHaveLength(1);
     expect(payload.affectedPages[0].pageNumber).toBe(1);
     expect(payload.affectedPages[0].repairTargets).toEqual([
@@ -663,7 +664,7 @@ describe('page-contract compact repair routing', () => {
         repairMode: 'page_contract_patch',
       }),
     ]);
-    const thirdPayload = JSON.parse(calls[2]!.user);
+    const thirdPayload = decodePageContractRepairUserPrompt(calls[2]!.user);
     expect(thirdPayload.affectedPages).toHaveLength(1);
     expect(thirdPayload.affectedPages[0]).toMatchObject({
       pageNumber: 1,

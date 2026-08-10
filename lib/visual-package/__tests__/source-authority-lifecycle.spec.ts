@@ -21,6 +21,7 @@ import {
   ActionSemanticCapabilityGapError,
   actionSemanticCapabilityGapDiagnosticIssues,
 } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
+import { decodePageContractRepairUserPrompt } from '@/lib/visual-contract-compiler/pageContractRepair';
 import {
   projectPageMustShow,
   projectZoneStableGeometry,
@@ -737,9 +738,9 @@ describe('exact zero-cost authoring preflight', () => {
           userPromptVersion: 'vc-repair-user-prompt/v11',
         },
         pageContractRepair: {
-          systemPromptVersion: 'page-contract-repair-prompt/v4',
+          systemPromptVersion: 'page-contract-repair-prompt/v5',
           userPromptVersion:
-            'page-contract-repair-user-prompt/v4',
+            'page-contract-repair-user-prompt/v5',
         },
       },
       pricing: {
@@ -3702,6 +3703,24 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(provider.call).toHaveBeenCalledTimes(3);
+    const secondCall = vi.mocked(provider.call).mock.calls[1]![0];
+    const secondPayload = decodePageContractRepairUserPrompt(
+      secondCall.userPrompt,
+    );
+    expect(secondPayload.affectedPages).toHaveLength(12);
+    const secondPromptUpperBound =
+      Buffer.byteLength(
+        [
+          secondCall.systemPrompt,
+          secondCall.userPrompt,
+          JSON.stringify(secondCall.options.jsonSchema?.schema),
+        ].join('\n'),
+        'utf8',
+      ) + 4_096;
+    expect(secondPromptUpperBound).toBeLessThanOrEqual(64_000);
+    expect(64_000 - secondPromptUpperBound).toBeGreaterThanOrEqual(
+      4_096,
+    );
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
       .toEqual([
         null,
@@ -3743,7 +3762,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(thirdCall.options.jsonSchema?.name).toBe(
       'PageContractRepairPatches',
     );
-    const thirdPayload = JSON.parse(thirdCall.userPrompt);
+    const thirdPayload = decodePageContractRepairUserPrompt(
+      thirdCall.userPrompt,
+    );
     expect(thirdPayload.affectedPages).toHaveLength(1);
     expect(thirdPayload.affectedPages[0]).toMatchObject({
       pageNumber: 1,
