@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation is complete locally and awaits independent Claude Code review. Codex does not self-award independent technical PASS. Repository/release status remains HOLD only for the six established missing ignored-output fixtures.
+The original implementation received an independent Claude Code HOLD. Its one MAJOR and first MINOR are corrected locally and await a focused read-only micro re-gate. Codex does not self-award independent technical PASS. Repository/release status also retains the separate six-fixture HOLD and the reproduced Vitest `onTaskUpdate` infrastructure limitation.
 
 ## Topology and scope
 
@@ -13,6 +13,8 @@ Implementation is complete locally and awaits independent Claude Code review. Co
   - `25cea1c0` — coverage contract, schema, compiler, prompt policy and diagnostics
   - `4ba000e3` — reconciliation, lifecycle authority, Blueprint/Wizard qualification
   - `caeff81a` — closed diagnostic-catalog assertion
+  - `fd7638f7` — original implementation evidence
+  - `f2500ba0` — candidate-bound reconciliation QA correction
 - No merge commit, upstream, remote branch, or push was created by this task.
 
 ## Root cause and implemented boundary
@@ -49,7 +51,7 @@ Exact pointer scope, pointer resolution, value equality, array order, duplicate 
 
 ## Reconciliation and downstream qualification
 
-`presentation-requirement-reconciliation/v1` binds page, beat, source-evidence ID, presentation class, contract pointer, and contract value. The candidate bridge validates current candidate, template, coverage, and digest authority before constructing a reconciliation draft. A complete Story Source reconciliation requires the preserved beat to cite that same pointer and value. Blueprint v4 and Wizard/render contracts are unchanged; tests prove that the existing Blueprint and Wizard qualification surfaces accept only the correctly reconciled authority.
+Current `source-prompt-reconciliation/v2` embeds a mandatory, content-addressed copy of the exact candidate Action Semantic Coverage and a mandatory derived `presentation-requirement-reconciliation/v1` binding. The binding records page, beat, source-evidence ID, presentation class, contract pointer, and contract value. The candidate bridge validates the current candidate, source snapshot, template, coverage, and envelope digests before construction. The production file builder requires an exact persisted candidate path and routes through that bridge; Story Source plus template alone cannot create current reconciliation. A complete Story Source reconciliation requires the preserved beat to cite the same pointer and value. Blueprint v4 and Wizard/render contracts are unchanged.
 
 ## Version and migration cutover
 
@@ -61,6 +63,19 @@ Exact pointer scope, pointer resolution, value equality, array order, duplicate 
 - Canonical Pre-Live Readiness evidence: `v13`
 
 Immediately prior versions are legacy immutable and cannot authorize a new attempt. Blueprint v4, Wizard/render contracts, model, service tier, reasoning, 64K ceiling, call/repair budget, timeout, retries, fallback, candidate policy, and `$4.884/$5.00` cost ceilings are unchanged.
+
+Source Prompt Reconciliation cuts over from v1 to v2. V1 remains historical immutable evidence and fails current package qualification; no historical artifact is rewritten.
+
+## Independent QA and focused correction
+
+Claude Code reviewed exact immutable range `0d5338e2c3e283f49c9023993348e8d902a3456f..fd7638f7540b4d0eb1ee429178a60e45a9f6f970` and returned **HOLD** with zero BLOCKER, one MAJOR, and three MINOR findings.
+
+- **MAJOR-1:** presentation requirements were optional in the reconciliation artifact and the ordinary file builder could construct reconciliation without candidate coverage authority. Corrected by mandatory Source Prompt Reconciliation v2 coverage authority/binding, candidate-path-only production construction, and exact candidate/coverage equality checks.
+- **MINOR-1:** the stored coverage digest was regex-checked rather than recomputed. Corrected by canonical digest recomputation plus exact candidate-bound equality.
+- **MINOR-2 advisory:** distinct beats may still cite the same contract pointer. Duplicate beat identity remains rejected; shared pointer citation can be semantically intentional and stays subject to human reconciliation review.
+- **MINOR-3 advisory:** the compact prompt omits some redundant action-guidance prose. Typed structured output and complete local validators remain authoritative, and the omission preserves the measured 64K headroom. No prompt or budget change is made in this correction.
+
+Regression coverage proves missing and empty bindings, forged digests, missing embedded authority, altered coverage with recomputed local digests, candidate mismatch, missing candidate, and legacy v1 all fail closed. It also proves JSON round-trip, exact persisted-candidate construction, Blueprint feasibility, and Wizard dry qualification.
 
 ## Structured-output and input-budget proof
 
@@ -93,13 +108,23 @@ One authorized replacement literal `npm run check` then completed:
 
 The six known failures are in `child-lexicon-ages-5-8.spec.ts`, `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts`, `set-appearance-ref-budget.spec.ts`, and two cases in `story-read-back-validation.spec.ts`. They remain a separate release HOLD; no fixture was copied, fabricated, or waived.
 
+QA-correction validation:
+
+- Direct reconciliation and lifecycle proof: 3 files / 96 tests PASS.
+- Affected ordinary proof: 13 files / 199 tests PASS.
+- Deterministic TypeScript: PASS.
+- `git diff --check`: PASS.
+- A four-file resource aggregate reproduced the established resource-contention class: nine test timeouts and two `onTaskUpdate` RPC timeouts; its two other files passed 169 assertions.
+- A narrow one-worker replacement for only the two affected files completed 2 files / 32 assertions PASS, then Vitest exited 1 solely for one unhandled `onTaskUpdate` RPC timeout after 115.56 seconds. No assertion, launch, signal, or product-code failure occurred. It was not retried.
+- No new literal `npm run check` was run after the correction because the focused resource command did not produce a clean process exit. The original two repository-check results above remain unchanged evidence rather than being restated as post-correction proof.
+
 ## Boundaries and cost
 
 No credential access, pricing/network/provider/model call, real B0/Fresh Readiness, canonical preflight, live authoring, candidate persistence, Semantic Reconciliation execution, Blueprint/Wizard execution, render/image/Vision, storage/database, deployment, or push occurred. External cost is `$0`.
 
 ## Rollback
 
-Revert the three focused commits and the documentation closeout. Historical artifacts remain immutable, so rollback restores the preceding coverage and lifecycle authorities without data rewriting.
+Revert the focused implementation series and `f2500ba0`. Historical artifacts remain immutable, so rollback restores the preceding coverage and lifecycle authorities without data rewriting.
 
 ## Next operational sequence
 

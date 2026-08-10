@@ -29,7 +29,7 @@ The defect is an authority-domain conflation: complete visual-beat accounting is
 4. Reject the lane when the pointer is missing, cross-page, outside `mustShow`, unresolved, or value-mismatched; keep `represented_elsewhere` unchanged.
 5. Prompt policy forbids using this lane for bodily action, interaction, environmental phenomena acting on entities, movement/spatial effects, or current-frame typed spatial relations.
 6. Candidate evidence remains `reviewState: unreviewed`; no authoring result self-approves the classification.
-7. Semantic Reconciliation must contain an approved preserved beat whose exact `contractEvidence` includes the presentation pointer and value. Missing evidence blocks Blueprint authoring.
+7. Current Source Prompt Reconciliation must embed the exact candidate Action Semantic Coverage authority and derive its mandatory presentation binding from that authority. Production file construction requires the exact persisted candidate. Semantic Reconciliation must then contain an approved preserved beat whose exact `contractEvidence` includes the presentation pointer and value. Missing or candidate-mismatched authority/evidence blocks Blueprint authoring.
 8. Blueprint v4 and Wizard/render contracts remain unchanged; their existing reconciliation and Visual Contract inputs carry the qualified presentation evidence downstream.
 9. Cut over draft/prompt/coverage and lifecycle authority versions fail-closed, keep historical artifacts immutable, and add exact positive, tamper, migration, Blueprint and Wizard qualification tests.
 
@@ -47,6 +47,7 @@ The defect is an authority-domain conflation: complete visual-beat accounting is
 - Pointer/value tampering, cross-page references, duplicates and malformed classes fail closed with sanitized diagnostics.
 - An unreviewed or unresolved presentation requirement blocks Blueprint authoring.
 - An approved preserved reconciliation beat with exact pointer/value evidence passes Blueprint and Wizard dry qualification without changing Blueprint v4 or renderer behavior.
+- Current reconciliation cannot be built or validated from Story Source plus template alone; an exact current candidate and its canonically verified coverage authority are mandatory.
 - Old versions are rejected as legacy/non-authoritative for a new attempt.
 - No provider, credential, Fresh Readiness, render or external-cost action occurs in this milestone.
 
