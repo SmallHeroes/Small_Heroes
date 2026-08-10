@@ -528,6 +528,9 @@ describe('canonical live request verification library', () => {
       structuralBundleRepairStructuredOutputCompatibility:
         materialized.manifest
           .structuralBundleRepairStructuredOutputCompatibility,
+      presentationRequirementRepairStructuredOutputCompatibility:
+        materialized.manifest
+          .presentationRequirementRepairStructuredOutputCompatibility,
       externalBoundaryEvidence: {
         credentialReadOrCheck: false,
         providerReachabilityCheck: false,

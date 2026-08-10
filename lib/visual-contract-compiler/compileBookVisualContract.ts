@@ -56,6 +56,7 @@ export type ContractLlmPromptAuthority =
         | 'source_evidence_id_patch'
         | 'page_contract_patch'
         | 'page_spatial_reference_patch'
+        | 'presentation_requirement_patch'
         | 'structural_bundle_patch';
       systemPromptVersion: string;
       userPromptVersion: string;

@@ -33,6 +33,10 @@ import {
   STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
   STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
 } from '../visual-contract-compiler/structuralBundleRepair';
+import {
+  PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
+  PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+} from '../visual-contract-compiler/presentationRequirementRepair';
 import { VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS } from '../visual-contract-compiler/authoringPolicy';
 import { InvalidTemplateContractError } from '../visual-contract-compiler/validateTemplateContract';
 import { extractDeterministicFacts } from '../visual-contract-compiler/extractDeterministicFacts';
@@ -130,6 +134,69 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(res.repairAttempts).toHaveLength(0);
     expect(res.provenance.repairPromptVersion).toBeUndefined();
     expect(calls()).toBe(1);
+  });
+
+  it('routes a homogeneous closed-catalog gap through the compact presentation repair', async () => {
+    const invalid = bunnyDraft();
+    const pageIndex = 0;
+    const firstPage = invalid.pageContracts[pageIndex];
+    const coverageIndex = 0;
+    const firstCoverage = firstPage.actionSemanticCoverage[coverageIndex];
+    const targetBeatId = firstCoverage.beatId;
+    firstCoverage.disposition = {
+      kind: 'unsupported',
+      reason: 'closed_action_catalog_gap',
+    };
+    let calls = 0;
+    const authorities: unknown[] = [];
+    const caller: ContractLlmCaller = async (_system, _user, options, authority) => {
+      calls += 1;
+      authorities.push({ options, authority });
+      if (calls === 1) return JSON.stringify(invalid);
+      return JSON.stringify({
+        patches: [
+          {
+            pageNumber: firstPage.pageNumber,
+            coverageIndex,
+            beatId: targetBeatId,
+            sourceEvidenceId: firstCoverage.sourceEvidenceId,
+            presentationClass: 'composition_focus',
+            contractPointer: `/pageContracts/${pageIndex}/mustShow/0`,
+          },
+        ],
+      });
+    };
+
+    const result = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: caller,
+    });
+
+    expect(calls).toBe(2);
+    expect(result.provenance.attempt).toBe(2);
+    expect(result.provenance.repairPromptVersion).toBe(
+      PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
+    );
+    expect(result.repairAttempts[0]?.nextRepairMode).toBe(
+      'presentation_requirement_patch',
+    );
+    expect(
+      result.actionSemanticCoverage.find(
+        (record) => record.beatId === targetBeatId,
+      )?.disposition,
+    ).toMatchObject({
+      kind: 'presentation_requirement',
+      presentationClass: 'composition_focus',
+    });
+    const second = authorities[1] as {
+      options: { jsonSchema?: { name: string } };
+      authority: { repairMode: string };
+    };
+    expect(second.options.jsonSchema?.name).toBe(
+      PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+    );
+    expect(second.authority.repairMode).toBe(
+      'presentation_requirement_patch',
+    );
   });
 
   it('an invalid draft is REPAIRED and passes on attempt 2', async () => {

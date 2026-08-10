@@ -149,6 +149,18 @@ import {
   structuralBundleRepairAuthority,
   type StructuralBundleRepairAuthority,
 } from './structuralBundleRepair';
+import {
+  PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+  PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
+  PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+  PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION,
+  applyPresentationRequirementRepairPatches,
+  buildPresentationRequirementRepairSystemPrompt,
+  buildPresentationRequirementRepairUserPrompt,
+  parsePresentationRequirementRepairPatches,
+  presentationRequirementRepairTargets,
+  type PresentationRequirementRepairTarget,
+} from './presentationRequirementRepair';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -217,6 +229,7 @@ interface TemplateRepairAttempt {
     | 'source_evidence_id_patch'
     | 'page_contract_patch'
     | 'page_spatial_reference_patch'
+    | 'presentation_requirement_patch'
     | 'structural_bundle_patch'
     | 'full_draft';
 }
@@ -228,6 +241,7 @@ export interface TemplateRepairSummary {
     | 'source_evidence_id_patch'
     | 'page_contract_patch'
     | 'page_spatial_reference_patch'
+    | 'presentation_requirement_patch'
     | 'structural_bundle_patch'
     | 'full_draft';
 }
@@ -441,6 +455,7 @@ export class TemplateRepairOutputInvalidError extends Error {
       | 'source_evidence_id_patch'
       | 'page_contract_patch'
       | 'page_spatial_reference_patch'
+      | 'presentation_requirement_patch'
       | 'structural_bundle_patch'
       | 'full_draft',
   ) {
@@ -2800,6 +2815,9 @@ export async function compileBookVisualContractTemplate(
   assertOpenAIResponsesStructuredOutputSchemaCompatible(
     STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
   );
+  assertOpenAIResponsesStructuredOutputSchemaCompatible(
+    PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+  );
 
   const facts = extractDeterministicFacts(input);
 
@@ -2851,6 +2869,13 @@ export async function compileBookVisualContractTemplate(
       schema: STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
     },
   } satisfies ContractLlmCallOptions;
+  const presentationRequirementRepairLlmOpts = {
+    ...llmOpts,
+    jsonSchema: {
+      name: PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+      schema: PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+    },
+  } satisfies ContractLlmCallOptions;
 
   let draft = asObj(
     parseContractJson(
@@ -2882,6 +2907,9 @@ export async function compileBookVisualContractTemplate(
       | null = null;
     let pageSpatialReferenceAffectedTargets:
       | PageSpatialReferenceRepairTarget[]
+      | null = null;
+    let presentationRequirementAffectedTargets:
+      | PresentationRequirementRepairTarget[]
       | null = null;
     let pageContractPointerTemplate:
       | ActionSemanticCoverageTemplate
@@ -2921,20 +2949,35 @@ export async function compileBookVisualContractTemplate(
           pageSpatialReferenceRepairDiagnostic,
         );
       } else if (err instanceof ActionSemanticCapabilityGapError) {
-        throw repairAttempts.length === 0
-          ? err
-          : new ActionSemanticCapabilityGapError(
-              err.gaps,
-              repairAttempts.map(
-                (repair) => repair.diagnosticIssues,
-              ),
-            );
+        presentationRequirementAffectedTargets =
+          presentationRequirementRepairTargets({
+            draft,
+            gaps: err.gaps,
+          });
+        if (!presentationRequirementAffectedTargets) {
+          throw repairAttempts.length === 0
+            ? err
+            : new ActionSemanticCapabilityGapError(
+                err.gaps,
+                repairAttempts.map(
+                  (repair) => repair.diagnosticIssues,
+                ),
+              );
+        }
+        attemptErrors = err.gaps.map(
+          () => 'closed action catalog gap requires a same-page presentation requirement classification',
+        );
+        attemptDiagnosticIssues = err.diagnosticIssues;
       } else {
         throw err; // all other deterministic-authority and local failures remain terminal
       }
     }
 
-    if (!assembled && !sourceEvidenceAffectedRecords) {
+    if (
+      !assembled &&
+      !sourceEvidenceAffectedRecords &&
+      !presentationRequirementAffectedTargets
+    ) {
       if (pageSpatialRepairIssues && pageSpatialRepairAuthority) {
         pageSpatialReferenceAffectedTargets =
           pageSpatialReferenceRepairTargets({
@@ -2981,6 +3024,9 @@ export async function compileBookVisualContractTemplate(
                         'page_spatial_reference_patch'
                       ? PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION
                       : lastRepairMode ===
+                          'presentation_requirement_patch'
+                        ? PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION
+                      : lastRepairMode ===
                           'structural_bundle_patch'
                         ? STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION
                         : REPAIR_PROMPT_VERSION,
@@ -3025,6 +3071,8 @@ export async function compileBookVisualContractTemplate(
       ? 'source_evidence_id_patch'
       : pageSpatialReferenceAffectedTargets
         ? 'page_spatial_reference_patch'
+        : presentationRequirementAffectedTargets
+          ? 'presentation_requirement_patch'
         : structuralBundleAuthority
           ? 'structural_bundle_patch'
         : pageContractAffectedPages
@@ -3082,6 +3130,28 @@ export async function compileBookVisualContractTemplate(
           draft,
           targets: pageSpatialReferenceAffectedTargets,
           patches: parsePageSpatialReferenceRepairPatches(rawPatch),
+        });
+      } else if (presentationRequirementAffectedTargets) {
+        const rawPatch = await deps.callLLM(
+          buildPresentationRequirementRepairSystemPrompt(),
+          buildPresentationRequirementRepairUserPrompt({
+            targets: presentationRequirementAffectedTargets,
+          }),
+          presentationRequirementRepairLlmOpts,
+          {
+            kind: 'repair',
+            repairMode: 'presentation_requirement_patch',
+            systemPromptVersion:
+              PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
+            userPromptVersion:
+              PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION,
+          },
+        );
+        draft = applyPresentationRequirementRepairPatches({
+          draft,
+          targets: presentationRequirementAffectedTargets,
+          patches:
+            parsePresentationRequirementRepairPatches(rawPatch),
         });
       } else if (structuralBundleAuthority) {
         const rawPatch = await deps.callLLM(

@@ -38,6 +38,10 @@ import {
   STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
   STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
+import {
+  PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+  PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/presentationRequirementRepair';
 import type {
   BookVisualContract,
 } from '@/lib/visual-contract-compiler/types';
@@ -590,6 +594,33 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     });
   });
 
+  it('maps the presentation-requirement repair schema without changing the locked provider policy', () => {
+    const fixture = createLiveFixture('presentation-requirement-schema-body');
+    const options = exactOptions(fixture.request);
+    options.jsonSchema = {
+      name: PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+      schema: PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+    };
+    const body = buildOpenAIResponsesVisualContractAuthoringBody({
+      systemPrompt: 'presentation-requirement-system',
+      userPrompt: 'presentation-requirement-user',
+      options,
+    });
+    expect(body.text?.format).toMatchObject({
+      type: 'json_schema',
+      name: PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+      schema: PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+      strict: true,
+    });
+    expect(body).toMatchObject({
+      model: 'gpt-5.6-sol',
+      service_tier: 'default',
+      tools: [],
+      tool_choice: 'none',
+      store: false,
+    });
+  });
+
   it('maps the exact request body, zero-retry transport options, and complete provider evidence', async () => {
     const fixture = createLiveFixture('mapping');
     const draft = fullyActionedDraft(fixture.snapshot);
@@ -607,7 +638,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v19',
+      'visual-contract-authoring-receipt/v20',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',

@@ -53,7 +53,7 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION =
-  'canonical-pre-live-readiness-evidence/v13' as const;
+  'canonical-pre-live-readiness-evidence/v14' as const;
 export const CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION =
   'canonical-pre-live-readiness-failure/v3' as const;
 export const CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION =
@@ -210,6 +210,8 @@ export interface CanonicalPreLiveReadinessEvidence {
       pageSpatialReferenceRepairStructuredOutputCompatibility:
         LiveRequestStructuredOutputCompatibilityAuthority;
       structuralBundleRepairStructuredOutputCompatibility:
+        LiveRequestStructuredOutputCompatibilityAuthority;
+      presentationRequirementRepairStructuredOutputCompatibility:
         LiveRequestStructuredOutputCompatibilityAuthority;
     };
     executionRequest: {
@@ -1553,6 +1555,7 @@ function evidenceIssues(value: unknown): string[] {
         'pageContractRepairStructuredOutputCompatibility',
         'pageSpatialReferenceRepairStructuredOutputCompatibility',
         'structuralBundleRepairStructuredOutputCompatibility',
+        'presentationRequirementRepairStructuredOutputCompatibility',
       ]) ||
       typeof b0.manifestPath !== 'string' ||
       canonicalMaterializationRelativePathIssues(
@@ -1590,6 +1593,10 @@ function evidenceIssues(value: unknown): string[] {
       liveRequestStructuredOutputCompatibilityAuthorityIssues(
         b0.structuralBundleRepairStructuredOutputCompatibility,
         'pre_live_evidence_b0_structural_bundle_repair_structured_output_compatibility',
+      ).length > 0 ||
+      liveRequestStructuredOutputCompatibilityAuthorityIssues(
+        b0.presentationRequirementRepairStructuredOutputCompatibility,
+        'pre_live_evidence_b0_presentation_requirement_repair_structured_output_compatibility',
       ).length > 0 ||
       !validDescriptor(executionRequest) ||
       !supervisor ||
@@ -2064,6 +2071,8 @@ function evidenceValue(args: {
           args.b0.pageSpatialReferenceRepairStructuredOutputCompatibility,
         structuralBundleRepairStructuredOutputCompatibility:
           args.b0.structuralBundleRepairStructuredOutputCompatibility,
+        presentationRequirementRepairStructuredOutputCompatibility:
+          args.b0.presentationRequirementRepairStructuredOutputCompatibility,
       },
       executionRequest: args.executionRequest,
       supervisorVerification: {

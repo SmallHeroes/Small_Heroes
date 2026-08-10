@@ -187,6 +187,10 @@ function authoringRequestValue(
     object.structuralBundleRepairStructuredOutput,
     'visual contract authoring request structuralBundleRepairStructuredOutput',
   );
+  const presentationRequirementRepairStructuredOutput = objectValue(
+    object.presentationRequirementRepairStructuredOutput,
+    'visual contract authoring request presentationRequirementRepairStructuredOutput',
+  );
   const tokenBudget = objectValue(
     object.tokenBudget,
     'visual contract authoring request tokenBudget',
@@ -234,6 +238,10 @@ function authoringRequestValue(
   const structuralBundleRepairPromptAuthority = objectValue(
     promptAuthority.structuralBundleRepair,
     'visual contract authoring request structuralBundleRepair promptAuthority',
+  );
+  const presentationRequirementRepairPromptAuthority = objectValue(
+    promptAuthority.presentationRequirementRepair,
+    'visual contract authoring request presentationRequirementRepair promptAuthority',
   );
   const actionSemanticAuthority = objectValue(
     object.actionSemanticAuthority,
@@ -368,6 +376,27 @@ function authoringRequestValue(
       serializedSchemaDigest:
         structuralBundleRepairStructuredOutput.serializedSchemaDigest,
     },
+    presentationRequirementRepairStructuredOutput: {
+      strict: presentationRequirementRepairStructuredOutput.strict,
+      schemaName:
+        presentationRequirementRepairStructuredOutput.schemaName,
+      schemaVersion:
+        presentationRequirementRepairStructuredOutput.schemaVersion,
+      schemaDigest:
+        presentationRequirementRepairStructuredOutput.schemaDigest,
+      compatibilityProfileVersion:
+        presentationRequirementRepairStructuredOutput.compatibilityProfileVersion,
+      compatibilityProfileDigest:
+        presentationRequirementRepairStructuredOutput.compatibilityProfileDigest,
+      compatibilityEvidenceVersion:
+        presentationRequirementRepairStructuredOutput.compatibilityEvidenceVersion,
+      compatibilityEvidenceDigest:
+        presentationRequirementRepairStructuredOutput.compatibilityEvidenceDigest,
+      compatibilityStatus:
+        presentationRequirementRepairStructuredOutput.compatibilityStatus,
+      serializedSchemaDigest:
+        presentationRequirementRepairStructuredOutput.serializedSchemaDigest,
+    },
     toolsDisabled: object.toolsDisabled,
     noFallback: object.noFallback,
     transportRetries: object.transportRetries,
@@ -459,6 +488,14 @@ function authoringRequestValue(
         systemPromptDigest:
           structuralBundleRepairPromptAuthority.systemPromptDigest,
       },
+      presentationRequirementRepair: {
+        systemPromptVersion:
+          presentationRequirementRepairPromptAuthority.systemPromptVersion,
+        userPromptVersion:
+          presentationRequirementRepairPromptAuthority.userPromptVersion,
+        systemPromptDigest:
+          presentationRequirementRepairPromptAuthority.systemPromptDigest,
+      },
     },
     actionSemanticAuthority: {
       catalogVersion:
@@ -494,6 +531,7 @@ const REQUEST_KEYS = new Set([
   'pageContractRepairStructuredOutput',
   'pageSpatialReferenceRepairStructuredOutput',
   'structuralBundleRepairStructuredOutput',
+  'presentationRequirementRepairStructuredOutput',
   'toolsDisabled',
   'noFallback',
   'transportRetries',
@@ -571,6 +609,18 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'compatibilityStatus',
     'serializedSchemaDigest',
   ]),
+  presentationRequirementRepairStructuredOutput: new Set([
+    'strict',
+    'schemaName',
+    'schemaVersion',
+    'schemaDigest',
+    'compatibilityProfileVersion',
+    'compatibilityProfileDigest',
+    'compatibilityEvidenceVersion',
+    'compatibilityEvidenceDigest',
+    'compatibilityStatus',
+    'serializedSchemaDigest',
+  ]),
   tokenBudget: new Set([
     'maxInputTokens',
     'promptAndSchemaTokenUpperBound',
@@ -601,6 +651,7 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'pageContractRepair',
     'pageSpatialReferenceRepair',
     'structuralBundleRepair',
+    'presentationRequirementRepair',
   ]),
   actionSemanticAuthority: new Set([
     'catalogVersion',
@@ -693,6 +744,18 @@ const REQUEST_OBJECT_FIELDS = {
     compatibilityStatus: 'string',
     serializedSchemaDigest: 'string',
   },
+  presentationRequirementRepairStructuredOutput: {
+    strict: 'boolean',
+    schemaName: 'string',
+    schemaVersion: 'string',
+    schemaDigest: 'string',
+    compatibilityProfileVersion: 'string',
+    compatibilityProfileDigest: 'string',
+    compatibilityEvidenceVersion: 'string',
+    compatibilityEvidenceDigest: 'string',
+    compatibilityStatus: 'string',
+    serializedSchemaDigest: 'string',
+  },
   tokenBudget: {
     maxInputTokens: 'number',
     promptAndSchemaTokenUpperBound: 'number',
@@ -759,6 +822,11 @@ const PROMPT_AUTHORITY_FIELDS = {
     systemPromptDigest: 'string',
   },
   structuralBundleRepair: {
+    systemPromptVersion: 'string',
+    userPromptVersion: 'string',
+    systemPromptDigest: 'string',
+  },
+  presentationRequirementRepair: {
     systemPromptVersion: 'string',
     userPromptVersion: 'string',
     systemPromptDigest: 'string',

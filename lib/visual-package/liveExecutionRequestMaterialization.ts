@@ -35,9 +35,9 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-execution-request-materialization-input/v5' as const;
+  'canonical-live-execution-request-materialization-input/v6' as const;
 export const CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_RESULT_VERSION =
-  'canonical-live-execution-request-materialization-result/v8' as const;
+  'canonical-live-execution-request-materialization-result/v9' as const;
 
 const REQUEST_CATEGORY =
   'canonical-live-execution-requests' as const;
@@ -1064,6 +1064,8 @@ export function materializeCanonicalLiveExecutionRequest(args: {
           verifiedBundle.pageSpatialReferenceRepairStructuredOutputCompatibility,
         structuralBundleRepairStructuredOutputCompatibility:
           verifiedBundle.structuralBundleRepairStructuredOutputCompatibility,
+        presentationRequirementRepairStructuredOutputCompatibility:
+          verifiedBundle.presentationRequirementRepairStructuredOutputCompatibility,
       },
       preservationFences,
       expectedAbsentPaths: input.expectedAbsentPaths.slice(),

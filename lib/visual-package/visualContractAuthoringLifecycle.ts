@@ -87,6 +87,14 @@ import {
   STRUCTURAL_BUNDLE_REPAIR_USER_PROMPT_VERSION,
   buildStructuralBundleRepairSystemPrompt,
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
+import {
+  PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+  PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
+  PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+  PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION,
+  PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION,
+  buildPresentationRequirementRepairSystemPrompt,
+} from '@/lib/visual-contract-compiler/presentationRequirementRepair';
 import type {
   ContractLlmCallOptions,
   ContractLlmPromptAuthority,
@@ -153,13 +161,13 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v16' as const;
+  'visual-contract-authoring-request/v17' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v19' as const;
+  'visual-contract-authoring-receipt/v20' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v17' as const;
+  'visual-contract-authoring-readiness/v18' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
-  'visual-contract-candidate-artifact/v8' as const;
+  'visual-contract-candidate-artifact/v9' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
   'canonical-import-preflight-attestation/v1' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
@@ -188,6 +196,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V14 =
   'visual-contract-authoring-request/v14' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V15 =
   'visual-contract-authoring-request/v15' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V16 =
+  'visual-contract-authoring-request/v16' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -220,6 +230,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V17 =
   'visual-contract-authoring-receipt/v17' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V18 =
   'visual-contract-authoring-receipt/v18' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V19 =
+  'visual-contract-authoring-receipt/v19' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -252,6 +264,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V15 =
   'visual-contract-authoring-readiness/v15' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V16 =
   'visual-contract-authoring-readiness/v16' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V17 =
+  'visual-contract-authoring-readiness/v17' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -266,10 +280,14 @@ export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V6 =
   'visual-contract-candidate-artifact/v6' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V7 =
   'visual-contract-candidate-artifact/v7' as const;
+export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V8 =
+  'visual-contract-candidate-artifact/v8' as const;
 export const OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
-  'openai-responses-authoring-evidence/v3' as const;
+  'openai-responses-authoring-evidence/v4' as const;
 export const LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
   'openai-responses-authoring-evidence/v2' as const;
+export const LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V3 =
+  'openai-responses-authoring-evidence/v3' as const;
 export const ACTION_SEMANTIC_CATALOG_DIGEST =
   canonicalJsonDigest(ACTION_SEMANTIC_CATALOG);
 
@@ -280,7 +298,9 @@ export function openAIResponsesAuthoringEvidenceVersionStatus(
     return 'current';
   }
   return version ===
-    LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION
+      LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION ||
+    version ===
+      LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V3
     ? 'legacy_immutable'
     : 'unsupported';
 }
@@ -374,6 +394,20 @@ export interface VisualContractAuthoringRequest {
     compatibilityStatus: 'compatible';
     serializedSchemaDigest: string;
   };
+  presentationRequirementRepairStructuredOutput: {
+    strict: true;
+    schemaName: typeof PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME;
+    schemaVersion: typeof PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION;
+    schemaDigest: string;
+    compatibilityProfileVersion:
+      typeof OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION;
+    compatibilityProfileDigest: string;
+    compatibilityEvidenceVersion:
+      typeof OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION;
+    compatibilityEvidenceDigest: string;
+    compatibilityStatus: 'compatible';
+    serializedSchemaDigest: string;
+  };
   toolsDisabled:
     typeof VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED;
   noFallback: typeof VISUAL_CONTRACT_AUTHORING_NO_FALLBACK;
@@ -440,6 +474,13 @@ export interface VisualContractAuthoringRequest {
         typeof STRUCTURAL_BUNDLE_REPAIR_USER_PROMPT_VERSION;
       systemPromptDigest: string;
     };
+    presentationRequirementRepair: {
+      systemPromptVersion:
+        typeof PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION;
+      userPromptVersion:
+        typeof PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION;
+      systemPromptDigest: string;
+    };
   };
   actionSemanticAuthority: {
     catalogVersion: typeof ACTION_SEMANTIC_CATALOG_VERSION;
@@ -499,6 +540,7 @@ export interface VisualContractAuthoringAttemptReceipt {
     | 'source_evidence_id_patch'
     | 'page_contract_patch'
     | 'page_spatial_reference_patch'
+    | 'presentation_requirement_patch'
     | 'structural_bundle_patch'
     | null;
   providerReached: boolean;
@@ -721,8 +763,8 @@ export function visualContractAuthoringArtifactVersionStatus(
         LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V13 ||
         version ===
         LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V14 ||
-        version ===
-        LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V15
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V15 ||
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V16
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -744,6 +786,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V16,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V17,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V18,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V19,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -762,6 +805,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V14,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V15,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V16,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V17,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -771,6 +815,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V5,
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V6,
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V7,
+      LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V8,
     ],
   } as const;
   return (legacy[kind] as readonly unknown[]).includes(version)
@@ -981,6 +1026,14 @@ export function buildVisualContractAuthoringRequest(args: {
     compatibilityAuthorityFromEvidence(
       structuralBundleRepairCompatibilityEvidence,
     );
+  const presentationRequirementRepairCompatibilityEvidence =
+    assertOpenAIResponsesStructuredOutputSchemaCompatible(
+      PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+    );
+  const presentationRequirementRepairCompatibilityAuthority =
+    compatibilityAuthorityFromEvidence(
+      presentationRequirementRepairCompatibilityEvidence,
+    );
   const withoutDigest = {
     version: VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
     policyVersion:
@@ -1096,6 +1149,26 @@ export function buildVisualContractAuthoringRequest(args: {
       serializedSchemaDigest:
         structuralBundleRepairCompatibilityAuthority.serializedSchemaDigest,
     },
+    presentationRequirementRepairStructuredOutput: {
+      strict: true as const,
+      schemaName: PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+      schemaVersion: PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION,
+      schemaDigest: canonicalJsonDigest(
+        PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+      ),
+      compatibilityProfileVersion:
+        presentationRequirementRepairCompatibilityAuthority.profileVersion,
+      compatibilityProfileDigest:
+        presentationRequirementRepairCompatibilityAuthority.profileDigest,
+      compatibilityEvidenceVersion:
+        presentationRequirementRepairCompatibilityAuthority.evidenceVersion,
+      compatibilityEvidenceDigest:
+        presentationRequirementRepairCompatibilityAuthority.evidenceDigest,
+      compatibilityStatus:
+        presentationRequirementRepairCompatibilityAuthority.status,
+      serializedSchemaDigest:
+        presentationRequirementRepairCompatibilityAuthority.serializedSchemaDigest,
+    },
     toolsDisabled:
       VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
     noFallback: VISUAL_CONTRACT_AUTHORING_NO_FALLBACK,
@@ -1186,6 +1259,15 @@ export function buildVisualContractAuthoringRequest(args: {
           buildStructuralBundleRepairSystemPrompt(),
         ),
       },
+      presentationRequirementRepair: {
+        systemPromptVersion:
+          PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION,
+        systemPromptDigest: canonicalJsonDigest(
+          buildPresentationRequirementRepairSystemPrompt(),
+        ),
+      },
     },
     actionSemanticAuthority: {
       catalogVersion: ACTION_SEMANTIC_CATALOG_VERSION,
@@ -1207,7 +1289,11 @@ export function buildVisualContractAuthoringRequest(args: {
 }
 
 function exactJson(left: unknown, right: unknown): boolean {
-  return canonicalJsonDigest(left) === canonicalJsonDigest(right);
+  try {
+    return canonicalJsonDigest(left) === canonicalJsonDigest(right);
+  } catch {
+    return false;
+  }
 }
 
 export function visualContractAuthoringRequestIssues(args: {
@@ -1294,6 +1380,11 @@ export function visualContractAuthoringRequestIssues(args: {
       'structural_bundle_repair_structured_output_mismatch',
       request.structuralBundleRepairStructuredOutput,
       exact.structuralBundleRepairStructuredOutput,
+    ],
+    [
+      'presentation_requirement_repair_structured_output_mismatch',
+      request.presentationRequirementRepairStructuredOutput,
+      exact.presentationRequirementRepairStructuredOutput,
     ],
     [
       'tools_policy_mismatch',
@@ -2054,6 +2145,10 @@ function expectedCallOptions(
     promptAuthority?.kind === 'repair' &&
     promptAuthority.repairMode ===
       'structural_bundle_patch';
+  const presentationRequirementRepair =
+    promptAuthority?.kind === 'repair' &&
+    promptAuthority.repairMode ===
+      'presentation_requirement_patch';
   return {
     maxOutputTokens: request.tokenBudget.maxOutputTokens,
     model: request.model,
@@ -2069,6 +2164,9 @@ function expectedCallOptions(
             : structuralBundleRepair
               ? request.structuralBundleRepairStructuredOutput
                   .schemaName
+              : presentationRequirementRepair
+                ? request.presentationRequirementRepairStructuredOutput
+                    .schemaName
             : request.structuredOutput.schemaName,
       schema: compactRepair
         ? SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA
@@ -2078,6 +2176,8 @@ function expectedCallOptions(
             ? PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA
             : structuralBundleRepair
               ? STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA
+              : presentationRequirementRepair
+                ? PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA
             : TEMPLATE_DRAFT_JSON_SCHEMA,
     },
     noFallback: true,
@@ -2156,6 +2256,10 @@ export function visualContractAuthoringCallPromptAuthorityIssues(
                 'structural_bundle_patch'
               ? args.request.promptAuthority
                   ?.structuralBundleRepair
+              : repairPromptAuthority?.repairMode ===
+                  'presentation_requirement_patch'
+                ? args.request.promptAuthority
+                    ?.presentationRequirementRepair
             : args.request.promptAuthority?.repair;
     if (
       !repairPromptAuthority?.repairMode ||

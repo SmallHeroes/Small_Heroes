@@ -50,6 +50,10 @@ import {
   STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
   STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
+import {
+  PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+  PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/presentationRequirementRepair';
 
 import { canonicalJsonDigest } from './integrity';
 import {
@@ -237,7 +241,10 @@ function exactCallOptionsIssues(
         canonicalJsonDigest(PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA)) ||
     (schemaName === STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME &&
       schemaDigest ===
-        canonicalJsonDigest(STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA));
+        canonicalJsonDigest(STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA)) ||
+    (schemaName === PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME &&
+      schemaDigest ===
+        canonicalJsonDigest(PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA));
   if (!structuredOutputMatches) {
     issues.push('structured_output');
   }
