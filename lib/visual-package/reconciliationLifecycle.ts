@@ -11,7 +11,6 @@ import {
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 
 import {
-  buildStorySourceIdentity,
   canonicalJsonDigest,
   repoRelativePath,
   resolveRepoPath,
@@ -30,6 +29,7 @@ import type {
 import { writeImmutableLocalArtifact } from './preRenderBlueprintLifecycle';
 import {
   assertValidStorySourceAuthoritySnapshot,
+  buildStorySourceAuthoritySnapshot,
   type StorySourceAuthoritySnapshot,
 } from './storySourceAuthority';
 import {
@@ -113,6 +113,7 @@ export function buildReconciliationReviewBundle(args: {
   rawStorySource: string;
   template: BookVisualContractTemplate;
   authoredCoverAuthority?: AuthoredCoverAuthority;
+  actionSemanticCoverage: readonly ActionSemanticCoverageRecord[];
 }): ReconciliationReviewBundle {
   const templateDigest = canonicalJsonDigest(args.template);
   const blockingIssues = sourcePromptReconciliationIssues({
@@ -125,6 +126,7 @@ export function buildReconciliationReviewBundle(args: {
     template: args.template,
     templateDigest,
     authoredCoverAuthority: args.authoredCoverAuthority,
+    actionSemanticCoverage: args.actionSemanticCoverage,
     requireComplete: true,
   });
   const requirements = args.reconciliation.frames.flatMap((frame) =>
@@ -188,7 +190,7 @@ export function buildProductionReconciliationDraftBundle(args: {
   rawStorySource: string;
   template: BookVisualContractTemplate;
   authoredCoverAuthority?: AuthoredCoverAuthority;
-  actionSemanticCoverage?: readonly ActionSemanticCoverageRecord[];
+  actionSemanticCoverage: readonly ActionSemanticCoverageRecord[];
 }): {
   reconciliation: SourcePromptReconciliation;
   reviewBundle: ReconciliationReviewBundle;
@@ -216,6 +218,7 @@ export function buildProductionReconciliationDraftBundle(args: {
     rawStorySource: args.rawStorySource,
     template: args.template,
     authoredCoverAuthority: args.authoredCoverAuthority,
+    actionSemanticCoverage: args.actionSemanticCoverage,
   });
   return {
     reconciliation,
@@ -233,7 +236,7 @@ export function buildProductionReconciliationDraftFromSourceSnapshot(
   args: {
     snapshot: StorySourceAuthoritySnapshot;
     template: BookVisualContractTemplate;
-    actionSemanticCoverage?: readonly ActionSemanticCoverageRecord[];
+    actionSemanticCoverage: readonly ActionSemanticCoverageRecord[];
   },
 ): ReturnType<
   typeof buildProductionReconciliationDraftBundle
@@ -311,16 +314,18 @@ export function buildProductionReconciliationDraftFromFiles(args: {
   storyKey: string;
   storyPath: string;
   templatePath: string;
+  candidatePath: string;
 }): ProductionReconciliationDraftFromFiles {
   const storyAbsolute = resolveRepoPath(args.repoRoot, args.storyPath);
   if (!fs.existsSync(storyAbsolute)) {
     throw new Error(`Story Source is missing: ${args.storyPath}`);
   }
-  const rawStorySource = fs.readFileSync(storyAbsolute, 'utf8');
-  const sourceIdentity = buildStorySourceIdentity({
+  const snapshot = buildStorySourceAuthoritySnapshot({
     repoRoot: args.repoRoot,
+    storyKey: args.storyKey,
     storyPath: args.storyPath,
   });
+  const sourceIdentity = snapshot.content.sourceIdentity;
   resolveRepoPath(args.repoRoot, args.templatePath);
   const loaded = loadTemplateForPackage({
     repoRoot: args.repoRoot,
@@ -335,24 +340,44 @@ export function buildProductionReconciliationDraftFromFiles(args: {
         .join('\n- ')}`,
     );
   }
-  const cover = loadStoryAuthoredCoverAuthority({
-    storyPath: storyAbsolute,
-    template: loaded.template,
-  });
-  if (cover.issues.length > 0) {
+  const candidateAbsolute = resolveRepoPath(
+    args.repoRoot,
+    args.candidatePath,
+  );
+  if (!fs.existsSync(candidateAbsolute)) {
     throw new Error(
-      `authored cover authority is invalid:\n- ${cover.issues
-        .map((issue) => `${issue.code}: ${issue.message}`)
-        .join('\n- ')}`,
+      `Visual Contract candidate is missing: ${args.candidatePath}`,
     );
   }
-  const bundle = buildProductionReconciliationDraftBundle({
-    storyKey: args.storyKey,
-    sourceIdentity,
-    rawStorySource,
-    template: loaded.template,
-    ...(cover.authority ? { authoredCoverAuthority: cover.authority } : {}),
-  });
+  let candidateRaw: unknown;
+  try {
+    candidateRaw = JSON.parse(
+      fs.readFileSync(candidateAbsolute, 'utf8'),
+    ) as unknown;
+  } catch {
+    throw new Error('Visual Contract candidate JSON is invalid');
+  }
+  if (
+    !candidateRaw ||
+    typeof candidateRaw !== 'object' ||
+    Array.isArray(candidateRaw)
+  ) {
+    throw new Error('Visual Contract candidate is not an object');
+  }
+  const candidate = candidateRaw as VisualContractCandidateArtifact;
+  if (
+    candidate.templateDigest !== loaded.identity.digest ||
+    canonicalJsonDigest(candidate.template) !== loaded.identity.digest
+  ) {
+    throw new Error(
+      'Visual Contract candidate does not match the requested template authority',
+    );
+  }
+  const bundle =
+    buildProductionReconciliationDraftFromVisualContractCandidate({
+      snapshot,
+      candidate,
+    });
   return {
     sourceIdentity,
     templateIdentity: loaded.identity,

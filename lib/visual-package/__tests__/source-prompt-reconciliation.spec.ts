@@ -168,6 +168,7 @@ function reviewedArtifact(
     sourceIdentity,
     pages: content.pages,
     pageImageDirections: content.pageImageDirections,
+    actionSemanticCoverage: [],
   }, contract);
   artifact.review = REVIEW;
   const cover = artifact.frames[0]!;
@@ -232,7 +233,7 @@ function validate(
   });
 }
 
-describe('source-prompt reconciliation v1', () => {
+describe('source-prompt reconciliation v2', () => {
   it('keeps the shared reconciliation/selector/package authority free of the Fox key, prop id, and page literal', () => {
     const sharedModules = [
       'lib/visual-package/sourcePromptReconciliation.ts',
@@ -326,7 +327,131 @@ describe('source-prompt reconciliation v1', () => {
         },
       ],
     });
+    expect(artifact.actionSemanticCoverageAuthority).toMatchObject({
+      version:
+        'action-semantic-coverage-reconciliation-authority/v1',
+      actionSemanticCoverageVersion:
+        ACTION_SEMANTIC_COVERAGE_VERSION,
+      actionSemanticCoverageDigest:
+        artifact.presentationRequirements
+          .actionSemanticCoverageDigest,
+      records: coverage,
+    });
     expect(validate(raw, artifact, contract, sourceIdentity)).toEqual([]);
+
+    const roundTripped = JSON.parse(
+      JSON.stringify(artifact),
+    ) as SourcePromptReconciliation;
+    expect(
+      sourcePromptReconciliationIssues({
+        raw: roundTripped,
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        rawStorySource: raw,
+        template: contract,
+        templateDigest: canonicalHash(contract),
+        actionSemanticCoverage: coverage,
+      }),
+    ).toEqual([]);
+
+    const missingBinding = structuredClone(artifact) as Partial<
+      SourcePromptReconciliation
+    >;
+    delete missingBinding.presentationRequirements;
+    expect(
+      sourcePromptReconciliationIssues({
+        raw: missingBinding,
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        rawStorySource: raw,
+        template: contract,
+        templateDigest: canonicalHash(contract),
+        actionSemanticCoverage: coverage,
+      }).map((issue) => issue.code),
+    ).toContain('reconciliation_invalid');
+
+    const emptyBinding = structuredClone(artifact);
+    emptyBinding.presentationRequirements.requirements = [];
+    expect(
+      sourcePromptReconciliationIssues({
+        raw: emptyBinding,
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        rawStorySource: raw,
+        template: contract,
+        templateDigest: canonicalHash(contract),
+        actionSemanticCoverage: coverage,
+      }).map((issue) => issue.code),
+    ).toContain('reconciliation_invalid');
+
+    const forgedDigest = structuredClone(artifact);
+    forgedDigest.presentationRequirements
+      .actionSemanticCoverageDigest = 'f'.repeat(64);
+    expect(
+      sourcePromptReconciliationIssues({
+        raw: forgedDigest,
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        rawStorySource: raw,
+        template: contract,
+        templateDigest: canonicalHash(contract),
+        actionSemanticCoverage: coverage,
+      }).map((issue) => issue.code),
+    ).toContain('reconciliation_invalid');
+
+    const missingAuthority = structuredClone(artifact) as Partial<
+      SourcePromptReconciliation
+    >;
+    delete missingAuthority.actionSemanticCoverageAuthority;
+    expect(
+      sourcePromptReconciliationIssues({
+        raw: missingAuthority,
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        rawStorySource: raw,
+        template: contract,
+        templateDigest: canonicalHash(contract),
+        actionSemanticCoverage: coverage,
+      }).map((issue) => issue.code),
+    ).toContain('reconciliation_invalid');
+
+    const substitutedAuthority = structuredClone(artifact);
+    substitutedAuthority.actionSemanticCoverageAuthority.records[0]!
+      .sourcePhrase = 'substituted source evidence';
+    const substitutedDigest = canonicalHash(
+      substitutedAuthority.actionSemanticCoverageAuthority.records,
+    );
+    substitutedAuthority.actionSemanticCoverageAuthority
+      .actionSemanticCoverageDigest = substitutedDigest;
+    substitutedAuthority.presentationRequirements
+      .actionSemanticCoverageDigest = substitutedDigest;
+    expect(
+      sourcePromptReconciliationIssues({
+        raw: substitutedAuthority,
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        rawStorySource: raw,
+        template: contract,
+        templateDigest: canonicalHash(contract),
+        actionSemanticCoverage: coverage,
+      }).map((issue) => issue.code),
+    ).toContain('reconciliation_invalid');
+
+    const legacy = {
+      ...structuredClone(artifact),
+      version: 'source-prompt-reconciliation/v1',
+    };
+    expect(
+      sourcePromptReconciliationIssues({
+        raw: legacy,
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        rawStorySource: raw,
+        template: contract,
+        templateDigest: canonicalHash(contract),
+        actionSemanticCoverage: coverage,
+      }).map((issue) => issue.code),
+    ).toContain('reconciliation_invalid');
 
     const missingReview = structuredClone(artifact);
     missingReview.frames[1]!.sourceRequirements[0]!.visualBeats = [];

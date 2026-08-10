@@ -362,6 +362,7 @@ function makeReconciliation(
       ...(sourceContent?.pageImageDirections
         ? { pageImageDirections: sourceContent.pageImageDirections }
         : {}),
+      actionSemanticCoverage: [],
     },
     template,
   );

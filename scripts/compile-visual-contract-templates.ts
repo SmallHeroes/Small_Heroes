@@ -112,7 +112,14 @@ async function main(): Promise<void> {
       }
       lastAuthoringUsage = null;
       lastFinishReason = null;
-      const { template, facts, notes, provenance, repairAttempts } = await compileBookVisualContractTemplate({ ...raw, storyKey }, { callLLM });
+      const {
+        template,
+        facts,
+        actionSemanticCoverage,
+        notes,
+        provenance,
+        repairAttempts,
+      } = await compileBookVisualContractTemplate({ ...raw, storyKey }, { callLLM });
       const templatePath = path.join(out, `${storyKey}${TEMPLATE_SUFFIX}`);
       writeFileSync(templatePath, `${JSON.stringify(template, null, 2)}\n`, 'utf8');
       const reconciliationDraft = buildSourcePromptReconciliationDraft(
@@ -122,6 +129,7 @@ async function main(): Promise<void> {
           pages: raw.pages,
           pageImageDirections: raw.pageImageDirections,
           authoredCoverAuthority: raw.authoredCoverAuthority,
+          actionSemanticCoverage,
         },
         template,
       );

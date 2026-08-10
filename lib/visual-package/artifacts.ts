@@ -35,6 +35,7 @@ import {
 } from './integrity';
 import {
   VISUAL_PACKAGE_MANIFEST_VERSION,
+  SOURCE_PROMPT_RECONCILIATION_VERSION,
   type StorySourceIdentity,
   type VisualPackageBoardArtifactIdentity,
   type VisualPackageCoverageIdentity,
@@ -370,7 +371,7 @@ export function basicManifestIssues(raw: unknown): VisualPackageIssue[] {
     issues.push(issue('manifest_invalid', 'source-prompt reconciliation identity is incomplete'));
   } else if (
     manifest.reconciliation.digestAlgorithm !== 'canonical-json-sha256' ||
-    manifest.reconciliation.version !== 'source-prompt-reconciliation/v1' ||
+    manifest.reconciliation.version !== SOURCE_PROMPT_RECONCILIATION_VERSION ||
     manifest.reconciliation.projectionVersion !== 'style01-source-prompt-projection/v1'
   ) {
     issues.push(issue('manifest_invalid', 'source-prompt reconciliation identity is unsupported'));

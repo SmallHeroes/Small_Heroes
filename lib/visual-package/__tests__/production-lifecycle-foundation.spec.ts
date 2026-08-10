@@ -440,6 +440,7 @@ describe('reconciliation draft and review workflow', () => {
       sourceIdentity: fixture.context.source,
       rawStorySource: fixture.context.rawStorySource,
       template: fixture.context.template,
+      actionSemanticCoverage: [],
     });
     expect(
       bundle.reconciliation.frames.flatMap((frame) =>
@@ -468,6 +469,9 @@ describe('reconciliation draft and review workflow', () => {
       sourceIdentity: fixture.context.source,
       rawStorySource: fixture.context.rawStorySource,
       template: fixture.context.template,
+      actionSemanticCoverage:
+        fixture.context.reconciliation
+          .actionSemanticCoverageAuthority.records,
     });
     expect(bundle.readyForApproval).toBe(true);
     expect(bundle.blockingIssues).toEqual([]);

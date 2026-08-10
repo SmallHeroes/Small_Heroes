@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { canonicalHash } from '@/lib/canonical-json';
+
 import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   OpenAIResponsesStructuredOutputSchemaCompatibilityError,
@@ -103,15 +105,38 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
 
   it('carries approved typed presentation evidence into the Blueprint authoring gate', () => {
     const fixture = buildBlueprintFixture('single_location');
+    const coverage = [{
+      version: 'action-semantic-coverage/v6' as const,
+      pageNumber: 1,
+      beatId: 'beat:p1:static_presentation',
+      sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+      sourcePhrase: 'fixture presentation source evidence',
+      disposition: {
+        kind: 'presentation_requirement' as const,
+        presentationClass: 'composition_focus' as const,
+        contractPointer: '/pageContracts/0/mustShow/0',
+        contractValue:
+          fixture.context.template.pageContracts[0]!.mustShow[0]!,
+      },
+      reviewState: 'unreviewed' as const,
+    }];
+    const coverageDigest = canonicalHash(coverage);
+    fixture.context.reconciliation.actionSemanticCoverageAuthority = {
+      version:
+        'action-semantic-coverage-reconciliation-authority/v1',
+      actionSemanticCoverageVersion: 'action-semantic-coverage/v6',
+      actionSemanticCoverageDigest: coverageDigest,
+      records: coverage,
+    };
     fixture.context.reconciliation.presentationRequirements = {
       version: 'presentation-requirement-reconciliation/v1',
       actionSemanticCoverageVersion: 'action-semantic-coverage/v6',
-      actionSemanticCoverageDigest: 'a'.repeat(64),
+      actionSemanticCoverageDigest: coverageDigest,
       requirements: [
         {
           pageNumber: 1,
           beatId: 'beat:p1:static_presentation',
-          sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+          sourceEvidenceId: coverage[0]!.sourceEvidenceId,
           presentationClass: 'composition_focus',
           contractPointer: '/pageContracts/0/mustShow/0',
           contractValue:

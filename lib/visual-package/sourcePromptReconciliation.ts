@@ -81,6 +81,8 @@ export interface SourcePromptReconciliationFrame {
 
 export const PRESENTATION_REQUIREMENT_RECONCILIATION_VERSION =
   'presentation-requirement-reconciliation/v1' as const;
+export const ACTION_SEMANTIC_COVERAGE_RECONCILIATION_AUTHORITY_VERSION =
+  'action-semantic-coverage-reconciliation-authority/v1' as const;
 
 export interface ReconciliationPresentationRequirement {
   pageNumber: number;
@@ -98,6 +100,13 @@ export interface PresentationRequirementReconciliationBinding {
   requirements: ReconciliationPresentationRequirement[];
 }
 
+export interface ActionSemanticCoverageReconciliationAuthority {
+  version: typeof ACTION_SEMANTIC_COVERAGE_RECONCILIATION_AUTHORITY_VERSION;
+  actionSemanticCoverageVersion: typeof ACTION_SEMANTIC_COVERAGE_VERSION;
+  actionSemanticCoverageDigest: string;
+  records: ActionSemanticCoverageRecord[];
+}
+
 /**
  * Offline authoring/promotion evidence. This artifact never becomes prompt text: it proves that the frozen
  * contract's provider projection preserves (or explicitly supersedes) every human-reviewed source beat.
@@ -112,8 +121,10 @@ export interface SourcePromptReconciliation {
   templateDigest: string;
   templateSchemaVersion: string;
   frames: SourcePromptReconciliationFrame[];
+  /** Exact candidate coverage authority from which presentation obligations are derived. */
+  actionSemanticCoverageAuthority: ActionSemanticCoverageReconciliationAuthority;
   /** Candidate-bound visible non-action beats that require explicit preserved review evidence. */
-  presentationRequirements?: PresentationRequirementReconciliationBinding;
+  presentationRequirements: PresentationRequirementReconciliationBinding;
   review: ReconciliationReviewState;
 }
 
@@ -124,7 +135,7 @@ export interface SourcePromptReconciliationInput {
   pages: Array<{ pageNumber: number; text: string }>;
   pageImageDirections?: Array<{ pageNumber: number; imageDirection: string }>;
   authoredCoverAuthority?: AuthoredCoverAuthority;
-  actionSemanticCoverage?: readonly ActionSemanticCoverageRecord[];
+  actionSemanticCoverage: readonly ActionSemanticCoverageRecord[];
 }
 
 function packageIssue(
@@ -204,6 +215,20 @@ function presentationRequirementBinding(
   };
 }
 
+function actionSemanticCoverageAuthority(
+  coverage: readonly ActionSemanticCoverageRecord[],
+): ActionSemanticCoverageReconciliationAuthority {
+  const records = structuredClone([...coverage]);
+  return {
+    version:
+      ACTION_SEMANTIC_COVERAGE_RECONCILIATION_AUTHORITY_VERSION,
+    actionSemanticCoverageVersion:
+      ACTION_SEMANTIC_COVERAGE_VERSION,
+    actionSemanticCoverageDigest: canonicalJsonDigest(records),
+    records,
+  };
+}
+
 /**
  * Produce an intentionally incomplete review draft. A model/compiler cannot approve its own semantic coverage:
  * a reviewer must enumerate the visual beats, cite exact contract fields, and approve the finished artifact.
@@ -212,6 +237,7 @@ export function buildSourcePromptReconciliationDraft(
   input: SourcePromptReconciliationInput,
   template: BookVisualContractTemplate,
 ): SourcePromptReconciliation {
+  const actionSemanticCoverage = input.actionSemanticCoverage;
   const directions = new Map(
     (input.pageImageDirections ?? []).map((candidate) => [
       candidate.pageNumber,
@@ -269,14 +295,10 @@ export function buildSourcePromptReconciliationDraft(
         };
       }),
     ],
-    ...(input.actionSemanticCoverage
-      ? {
-          presentationRequirements:
-            presentationRequirementBinding(
-              input.actionSemanticCoverage,
-            ),
-        }
-      : {}),
+    actionSemanticCoverageAuthority:
+      actionSemanticCoverageAuthority(actionSemanticCoverage),
+    presentationRequirements:
+      presentationRequirementBinding(actionSemanticCoverage),
     review: { status: 'pending', reviewedBy: null, reviewedAt: null },
   };
 }
@@ -408,6 +430,7 @@ export function sourcePromptReconciliationIssues(args: {
   template: BookVisualContractTemplate;
   templateDigest: string;
   authoredCoverAuthority?: AuthoredCoverAuthority;
+  actionSemanticCoverage?: readonly ActionSemanticCoverageRecord[];
   requireComplete?: boolean;
 }): VisualPackageIssue[] {
   const issues: VisualPackageIssue[] = [];
@@ -509,9 +532,58 @@ export function sourcePromptReconciliationIssues(args: {
     ...content.pages.map((page) => ({ frameKind: 'page' as const, pageNumber: page.pageNumber })),
   ];
   const frames = Array.isArray(reconciliation.frames) ? reconciliation.frames : [];
+  const coverageAuthority =
+    reconciliation.actionSemanticCoverageAuthority;
+  let authoritativeCoverage:
+    | readonly ActionSemanticCoverageRecord[]
+    | null = null;
+  if (
+    !coverageAuthority ||
+    typeof coverageAuthority !== 'object' ||
+    Array.isArray(coverageAuthority) ||
+    coverageAuthority.version !==
+      ACTION_SEMANTIC_COVERAGE_RECONCILIATION_AUTHORITY_VERSION ||
+    coverageAuthority.actionSemanticCoverageVersion !==
+      ACTION_SEMANTIC_COVERAGE_VERSION ||
+    !Array.isArray(coverageAuthority.records) ||
+    coverageAuthority.actionSemanticCoverageDigest !==
+      canonicalJsonDigest(coverageAuthority.records) ||
+    (args.actionSemanticCoverage !== undefined &&
+      canonicalJsonDigest(coverageAuthority.records) !==
+        canonicalJsonDigest(args.actionSemanticCoverage))
+  ) {
+    issues.push(
+      packageIssue(
+        'reconciliation_invalid',
+        'Action Semantic Coverage reconciliation authority is missing, malformed, stale, or candidate-mismatched',
+        { field: 'actionSemanticCoverageAuthority' },
+      ),
+    );
+  } else {
+    authoritativeCoverage = coverageAuthority.records;
+  }
+
   const presentationBinding =
     reconciliation.presentationRequirements;
-  if (presentationBinding !== undefined) {
+  const expectedPresentationBinding = authoritativeCoverage
+    ? presentationRequirementBinding(authoritativeCoverage)
+    : null;
+  if (
+    !presentationBinding ||
+    typeof presentationBinding !== 'object' ||
+    Array.isArray(presentationBinding) ||
+    expectedPresentationBinding === null ||
+    canonicalJsonDigest(presentationBinding) !==
+      canonicalJsonDigest(expectedPresentationBinding)
+  ) {
+    issues.push(
+      packageIssue(
+        'reconciliation_invalid',
+        'presentation-requirement reconciliation binding is missing or differs from candidate coverage authority',
+        { field: 'presentationRequirements' },
+      ),
+    );
+  } else {
     if (
       !presentationBinding ||
       typeof presentationBinding !== 'object' ||
@@ -520,9 +592,6 @@ export function sourcePromptReconciliationIssues(args: {
         PRESENTATION_REQUIREMENT_RECONCILIATION_VERSION ||
       presentationBinding.actionSemanticCoverageVersion !==
         ACTION_SEMANTIC_COVERAGE_VERSION ||
-      !/^[a-f0-9]{64}$/.test(
-        presentationBinding.actionSemanticCoverageDigest ?? '',
-      ) ||
       !Array.isArray(presentationBinding.requirements)
     ) {
       issues.push(

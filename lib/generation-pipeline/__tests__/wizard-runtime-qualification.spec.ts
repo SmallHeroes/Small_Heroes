@@ -5,6 +5,8 @@ import path from 'path';
 import type { Prisma } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { canonicalHash } from '@/lib/canonical-json';
+
 import { enforceMvpOrderSlot } from '@/backend/config/mvp-story-matrix';
 import { resolveStoryProductTruth } from '@/backend/providers/story-product-resolver';
 import { STYLE_IDS } from '@/lib/styles';
@@ -174,16 +176,40 @@ describe('Wizard/order to chunk-runner render qualification', () => {
           }
         },
         mutateReconciliation(reconciliation, template) {
+          const coverage = [{
+            version: 'action-semantic-coverage/v6' as const,
+            pageNumber: 1,
+            beatId: 'beat:p1:visual_presentation',
+            sourceEvidenceId: `se1_${'d'.repeat(64)}`,
+            sourcePhrase: 'fixture presentation source evidence',
+            disposition: {
+              kind: 'presentation_requirement' as const,
+              presentationClass: 'composition_focus' as const,
+              contractPointer: '/pageContracts/0/mustShow/0',
+              contractValue:
+                template.pageContracts[0]!.mustShow[0]!,
+            },
+            reviewState: 'unreviewed' as const,
+          }];
+          const coverageDigest = canonicalHash(coverage);
+          reconciliation.actionSemanticCoverageAuthority = {
+            version:
+              'action-semantic-coverage-reconciliation-authority/v1',
+            actionSemanticCoverageVersion:
+              'action-semantic-coverage/v6',
+            actionSemanticCoverageDigest: coverageDigest,
+            records: coverage,
+          };
           reconciliation.presentationRequirements = {
             version: 'presentation-requirement-reconciliation/v1',
             actionSemanticCoverageVersion:
               'action-semantic-coverage/v6',
-            actionSemanticCoverageDigest: 'c'.repeat(64),
+            actionSemanticCoverageDigest: coverageDigest,
             requirements: [
               {
                 pageNumber: 1,
                 beatId: 'beat:p1:visual_presentation',
-                sourceEvidenceId: `se1_${'d'.repeat(64)}`,
+                sourceEvidenceId: coverage[0]!.sourceEvidenceId,
                 presentationClass: 'composition_focus',
                 contractPointer: '/pageContracts/0/mustShow/0',
                 contractValue:

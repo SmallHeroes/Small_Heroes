@@ -208,6 +208,7 @@ function makeFixture(): Fixture {
       pages: sourceContent.pages,
       pageImageDirections: sourceContent.pageImageDirections,
       authoredCoverAuthority: authority,
+      actionSemanticCoverage: [],
     },
     runtimeTemplate,
   );

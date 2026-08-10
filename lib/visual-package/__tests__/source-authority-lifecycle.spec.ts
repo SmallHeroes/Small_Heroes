@@ -38,6 +38,7 @@ import {
   buildStorySourceAuthoritySnapshot,
   buildAuthoringTerminalFailure,
   buildProductionReconciliationDraftFromVisualContractCandidate,
+  buildProductionReconciliationDraftFromFiles,
   buildProductionReconciliationDraftFromSourceSnapshot,
   buildCanonicalImportPreflightAttestation,
   buildVisualContractAuthoringReadinessEvidence,
@@ -3743,6 +3744,64 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toThrow(/candidate is stale, malformed/);
   });
 
+  it('requires the exact persisted candidate when constructing the production reconciliation draft from files', async () => {
+    const snapshot = bunnySnapshot();
+    const repoRoot = tempRoots[tempRoots.length - 1]!;
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: successfulProvider(
+        presentationAwareBunnyDraft(snapshot),
+      ),
+    });
+    const candidate = buildVisualContractCandidateArtifact({
+      receipt: result.receipt,
+      compileResult: result.compileResult!,
+    });
+    const templatePath = 'authorities/template.json';
+    const candidatePath = 'authorities/candidate.json';
+    fs.mkdirSync(path.join(repoRoot, 'authorities'), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(repoRoot, templatePath),
+      `${JSON.stringify(candidate.template)}\n`,
+      'utf8',
+    );
+    fs.writeFileSync(
+      path.join(repoRoot, candidatePath),
+      `${JSON.stringify(candidate)}\n`,
+      'utf8',
+    );
+
+    const bundle = buildProductionReconciliationDraftFromFiles({
+      repoRoot,
+      storyKey: snapshot.content.storyKey,
+      storyPath: snapshot.content.sourceIdentity.path,
+      templatePath,
+      candidatePath,
+    });
+    expect(
+      bundle.reconciliation.actionSemanticCoverageAuthority
+        .actionSemanticCoverageDigest,
+    ).toBe(candidate.actionSemanticCoverageDigest);
+    expect(
+      bundle.reconciliation.presentationRequirements.requirements,
+    ).toHaveLength(1);
+    expect(bundle.reviewBundle.readyForApproval).toBe(false);
+
+    expect(() =>
+      buildProductionReconciliationDraftFromFiles({
+        repoRoot,
+        storyKey: snapshot.content.storyKey,
+        storyPath: snapshot.content.sourceIdentity.path,
+        templatePath,
+        candidatePath: 'authorities/missing-candidate.json',
+      }),
+    ).toThrow(/candidate is missing/);
+  });
+
   it('persists source/request/receipt/readiness/candidate by digest, is idempotent, and fails on collision', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
@@ -3896,6 +3955,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       buildProductionReconciliationDraftFromSourceSnapshot({
         snapshot,
         template,
+        actionSemanticCoverage:
+          authored.compileResult!.actionSemanticCoverage,
       });
     expect(
       bundle.reconciliation.sourceAuthoritySnapshotDigest,
