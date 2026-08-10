@@ -2,7 +2,7 @@
 
 **Base:** `824e8b3acb0c64e9220bd44542c6821553cd284d`
 **Branch:** `codex/r1d-pvb-d1a1b1-cross-family-page-repair-routing`
-**Status:** local implementation green; independent QA pending.
+**Status:** independent technical PASS; repository release HOLD remains separate.
 
 ## Change
 
@@ -22,6 +22,12 @@
 - One literal `npm run check`: resource phase 19/19 files PASS with valid diagnostics. Ordinary phase reported the six established missing ignored-output fixtures and one new AST producer-census mismatch. The mismatch came from an unnecessary new fallback `InvalidTemplateContractError`; the final implementation rethrows the original typed structural error, and the exact census regression passes. The literal gate was not rerun.
 
 The decisive regression starts with an out-of-zone action reference, an unsupported presentation record and an invalid page camera. It proves call 2 is the existing field-scoped spatial patch, call 3 is one complete-page patch containing both exact target families, and complete validation returns a candidate. Under the prior ordering, the presentation repair would consume call 3 and final structure would exhaust the budget.
+
+## Independent QA
+
+Claude Code independently reviewed exact immutable range `824e8b3acb0c64e9220bd44542c6821553cd284d..91b3a62efe42f0c44213c62055196ef6134bc7a3` and returned **PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It verified all ten implementation claims, including exact mixed-family routing, fail-closed rejection paths, original structural-error preservation, unchanged homogeneous routes and budgets, prompt-v9 authority propagation, the decisive three-call regression, sanitized persistence and honest repository-check accounting. Codex records Claude's verdict; it does not self-award technical PASS.
+
+Claude retained two advisory notes only: non-page-scoped structural mixtures intentionally remain terminal, and one unreachable/fail-closed fallback omits the accumulated repair-attempt trail. Neither changes candidate semantics or blocks the bounded LOW measurement. Claude could not independently execute Vitest in its plan-mode sandbox, so its test assessment was source- and evidence-based; this is a verification limitation, not a finding.
 
 ## Boundaries and rollback
 
