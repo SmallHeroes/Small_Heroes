@@ -2,7 +2,21 @@
 
 **Updated:** 2026-08-10
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-page-repair-validation-hints` in `C:\Users\guyna\.codex\worktrees\presentationrepair1\Small_Heroes`, based exactly on `c3c0937d15eef84a26caa22735f809031ce10012`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-streaming-authoring-transport` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `d3070cbded13891ba964466ca2bbbd1e1b96d227`.
+
+## R1D-PVB-D1A1B1-RESPONSES-STREAMING-AUTHORING-TRANSPORT - implementation green / independent QA pending
+
+Two separately materialized live attempts on pushed head `d3070cbded13891ba964466ca2bbbd1e1b96d227` failed after approximately 306 seconds before any HTTP response, usage, response ID, or provider billing evidence was returned. Both canonical failures are `transport_dispatch / connection_timeout / api_connection_timeout_error`, with one logical provider call, one transport dispatch, zero transport retries, no fallback, zero locally accounted cost, and no candidate or downstream authority. The repository request timeout is twenty minutes, so the repeated failure occurs before the repository timeout and before response mapping or validation.
+
+- The canonical OpenAI Responses adapter now sends the same request once with `stream: true`, consumes SDK SSE events without retaining deltas, and returns the sole terminal `response.completed`, `response.failed`, or `response.incomplete` Response to the unchanged mapper and lifecycle.
+- Missing/invalid terminal events, raw provider error events, malformed events, and events after terminal fail closed with stable local codes. Raw provider event prose is discarded.
+- OpenAI Responses authoring evidence cuts over to v5; v4 remains legacy immutable and canonical preflight now requires v5. Prompt/schema/model/tier/reasoning, token/call/repair budgets, twenty-minute timeout, zero retries, no fallback, candidate policy, and `$4.884/$5.00` ceilings are unchanged.
+- Direct transport validation passed **1 file / 145 tests**. The canonical materialization/verifier/Supervisor/Fresh Readiness chain passed **7 files / 310 tests**. Adjacent provider/lifecycle validation passed **4 files / 149 tests**. TypeScript, `git diff --check`, and canonical zero-cost import preflight passed.
+- The one literal `npm run check` passed TypeScript and all **19 resource-intensive files** with valid diagnostics. Its **271-file ordinary phase** reported exactly the six established missing ignored-output fixture failures and no seventh assertion or infrastructure failure. They remain a release HOLD and are accepted only for the bounded local LOW measurement.
+- Implementation cost is `$0`; no credential, provider/network call, real readiness, live authoring, candidate, downstream action, render, storage/database, publication, deployment, or production action occurred. Production remains blocked.
+- Independent Claude Code QA is required before push-head Fresh Readiness and a new bounded live attempt. A successful candidate must still pass Semantic Reconciliation, Blueprint and Wizard qualification before one local `gpt-image-2` LOW portrait-page render.
+
+Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_RESPONSES_STREAMING_AUTHORING_TRANSPORT_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_RESPONSES_STREAMING_AUTHORING_TRANSPORT_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-PAGE-REPAIR-VALIDATION-HINTS - independent technical PASS / repository release HOLD
 
