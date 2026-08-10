@@ -2,7 +2,23 @@
 
 **Updated:** 2026-08-10
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-presentation-capability-gap-repair-routing` in `C:\Users\guyna\.codex\worktrees\presentationrepair1\Small_Heroes`, based exactly on `9ac7ef4293cc724dbda72afc21c0fe2481cd494a`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-page-contract-repair-input-compaction` in `C:\Users\guyna\.codex\worktrees\presentationrepair1\Small_Heroes`, based exactly on `48e9e29cafdfee8906ce0855dfde182e6109e538`.
+
+## R1D-PVB-D1A1B1-PAGE-CONTRACT-REPAIR-INPUT-COMPACTION — local green / independent QA pending
+
+The post-presentation-repair live attempt reached the provider and consumed exactly two logical calls: the initial response produced four page-spatial reference issues, and the approved compact spatial repair resolved all four. Complete validation then produced one `final_structural_invariant_invalid` issue on each of pages 1–12. The already-approved `page_contract_patch` route was selected, but its third-call input was rejected locally by the unchanged 64K ceiling before provider reachability. Receipt v20 digest `54cc9db09541ee9a24856f3a68cec4943c866f381ff33d9133c563c659aab921` and readiness v18 digest `ef9e04be40037e49bf7ba7b5d281b8ee084dc44f6bc2f7e53becde5a96d5a604` preserve that exhausted attempt. Claude Code independently returned PASS for the sanitized post-live artifact record with no blocking finding; no candidate or downstream authority exists from it.
+
+The input-ceiling defect is now corrected without changing repair semantics. `page-contract-repair-input-encoding/v1` represents the same complete affected-page authority with deterministic object-shape tables, tagged arrays and only byte-beneficial repeated-string references. The provider still returns the unchanged `PageContractRepairPatches` v1 output; parser, apply, full validation, call/repair budgets, model, timeout, retry/fallback policy and cost ceilings are unchanged. Local encoding rejects non-JSON, cyclic, malformed and non-canonical input, and build-time decode/re-encode equality proves no authority value is omitted or summarized.
+
+- Exact base: `48e9e29cafdfee8906ce0855dfde182e6109e538`; implementation commit: `4b3fed8a512cb40346d5890cc5ff3363a8f887d0`.
+- Prompt authority cutover: `page-contract-repair-prompt/v5`, `page-contract-repair-user-prompt/v5`; prior prompt authorities and all prior artifacts remain immutable historical evidence and are not authority for a new attempt.
+- A 12-page Fox-shaped authority measured `20,231` raw bytes and `15,372` compact bytes, saving `4,859` bytes. The conservative prompt/schema/admission upper bound was `26,345`, leaving `37,655` bytes under the unchanged `64,000` ceiling. The full 12-page lifecycle fixture independently retains at least `4,096` bytes of headroom.
+- Focused ordinary validation passed **4 files / 156 tests**. Canonical materialization/B0/Fresh Readiness/Supervisor validation passed **7 files / 296 tests**. TypeScript and `git diff --check` passed.
+- The single literal `npm run check` passed TypeScript and the complete **19-file resource-intensive phase** with valid diagnostics and no infrastructure class. Its **270-file ordinary phase** reported exactly the six established missing ignored-output fixtures and no seventh assertion. Those six remain a separate release HOLD and are accepted only for the bounded local LOW measurement.
+- No credential, provider/network call, B0/Fresh Readiness, canonical preflight, live authoring, candidate, reconciliation, Blueprint/Wizard, render, storage/database, deployment or production action occurred during this implementation. External implementation cost is `$0`.
+- Next action after independent Claude Code PASS is push, new zero-cost Fresh Readiness, one bounded live attempt, then candidate-only Semantic Reconciliation → Blueprint → Wizard qualification → one local `gpt-image-2` LOW portrait-page render. Production remains blocked.
+
+Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_PAGE_CONTRACT_REPAIR_INPUT_COMPACTION_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_PAGE_CONTRACT_REPAIR_INPUT_COMPACTION_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-PRESENTATION-CAPABILITY-GAP-COMPACT-REPAIR-ROUTING — independent technical PASS / repository release HOLD
 
