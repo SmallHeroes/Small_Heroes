@@ -3,6 +3,11 @@ import path from 'path';
 
 import type { AuthoredCoverAuthority } from '@/lib/visual-contract-compiler/coverSourceAuthority';
 import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import {
+  ACTION_SEMANTIC_COVERAGE_VERSION,
+  actionSemanticCoverageIssues,
+  type ActionSemanticCoverageRecord,
+} from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 
 import {
@@ -27,6 +32,10 @@ import {
   assertValidStorySourceAuthoritySnapshot,
   type StorySourceAuthoritySnapshot,
 } from './storySourceAuthority';
+import {
+  VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
+  type VisualContractCandidateArtifact,
+} from './visualContractAuthoringLifecycle';
 
 export const RECONCILIATION_REVIEW_BUNDLE_VERSION =
   'source-prompt-reconciliation-review-bundle/v2' as const;
@@ -179,6 +188,7 @@ export function buildProductionReconciliationDraftBundle(args: {
   rawStorySource: string;
   template: BookVisualContractTemplate;
   authoredCoverAuthority?: AuthoredCoverAuthority;
+  actionSemanticCoverage?: readonly ActionSemanticCoverageRecord[];
 }): {
   reconciliation: SourcePromptReconciliation;
   reviewBundle: ReconciliationReviewBundle;
@@ -194,6 +204,7 @@ export function buildProductionReconciliationDraftBundle(args: {
       pages: content.pages,
       pageImageDirections: content.pageImageDirections,
       authoredCoverAuthority: args.authoredCoverAuthority,
+      actionSemanticCoverage: args.actionSemanticCoverage,
     },
     args.template,
   );
@@ -222,6 +233,7 @@ export function buildProductionReconciliationDraftFromSourceSnapshot(
   args: {
     snapshot: StorySourceAuthoritySnapshot;
     template: BookVisualContractTemplate;
+    actionSemanticCoverage?: readonly ActionSemanticCoverageRecord[];
   },
 ): ReturnType<
   typeof buildProductionReconciliationDraftBundle
@@ -234,12 +246,63 @@ export function buildProductionReconciliationDraftFromSourceSnapshot(
     rawStorySource:
       args.snapshot.content.normalizedRawStorySource,
     template: args.template,
+    actionSemanticCoverage: args.actionSemanticCoverage,
     ...(args.snapshot.content.authoredCoverAuthority
       ? {
           authoredCoverAuthority:
             args.snapshot.content.authoredCoverAuthority,
         }
       : {}),
+  });
+}
+
+/**
+ * Candidate-to-reconciliation bridge for the live Visual Contract path. It
+ * verifies the immutable candidate envelope before projecting presentation
+ * requirements into the human-review artifact. No approval is inferred.
+ */
+export function buildProductionReconciliationDraftFromVisualContractCandidate(
+  args: {
+    snapshot: StorySourceAuthoritySnapshot;
+    candidate: VisualContractCandidateArtifact;
+  },
+): ReturnType<typeof buildProductionReconciliationDraftBundle> {
+  assertValidStorySourceAuthoritySnapshot(args.snapshot);
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...candidatePayload
+  } = args.candidate;
+  const coverageDigest = canonicalJsonDigest(
+    args.candidate.actionSemanticCoverage,
+  );
+  const coverageIssues = actionSemanticCoverageIssues({
+    template: args.candidate.template,
+    coverage: args.candidate.actionSemanticCoverage,
+  });
+  if (
+    args.candidate.version !==
+      VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION ||
+    args.candidate.sourceSnapshotDigest !== args.snapshot.digest ||
+    args.candidate.templateDigest !==
+      canonicalJsonDigest(args.candidate.template) ||
+    args.candidate.actionSemanticCoverageVersion !==
+      ACTION_SEMANTIC_COVERAGE_VERSION ||
+    args.candidate.actionSemanticCoverageDigest !== coverageDigest ||
+    args.candidate.status !== 'candidate' ||
+    args.candidate.digestAlgorithm !== 'canonical-json-sha256' ||
+    args.candidate.digest !== canonicalJsonDigest(candidatePayload) ||
+    coverageIssues.length > 0
+  ) {
+    throw new Error(
+      'Visual Contract candidate is stale, malformed, or lacks current complete coverage authority',
+    );
+  }
+  return buildProductionReconciliationDraftFromSourceSnapshot({
+    snapshot: args.snapshot,
+    template: args.candidate.template,
+    actionSemanticCoverage:
+      args.candidate.actionSemanticCoverage,
   });
 }
 

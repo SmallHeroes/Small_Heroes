@@ -53,7 +53,7 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION =
-  'canonical-pre-live-readiness-evidence/v12' as const;
+  'canonical-pre-live-readiness-evidence/v13' as const;
 export const CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION =
   'canonical-pre-live-readiness-failure/v3' as const;
 export const CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION =

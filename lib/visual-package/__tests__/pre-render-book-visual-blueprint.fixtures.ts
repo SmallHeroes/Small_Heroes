@@ -59,6 +59,10 @@ export type BlueprintFixtureShape =
 export interface BlueprintFixtureOptions {
   storyKey?: string;
   mutateTemplate?: (template: BookVisualContractTemplate) => void;
+  mutateReconciliation?: (
+    reconciliation: SourcePromptReconciliation,
+    template: BookVisualContractTemplate,
+  ) => void;
   mutateWorld?: (args: {
     template: BookVisualContractTemplate;
     connections: BlueprintWorldConnection[];
@@ -711,6 +715,7 @@ export function buildBlueprintFixture(
     template,
     parsedStorySource,
   );
+  options?.mutateReconciliation?.(reconciliation, template);
   const reconciliationArtifactPath =
     `fixtures/${plan.storyKey}.visual-contract-reconciliation.json`;
   const styleId = options?.styleId ?? 'fixture_storybook_style';

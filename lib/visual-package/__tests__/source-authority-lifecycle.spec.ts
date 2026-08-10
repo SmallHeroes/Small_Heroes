@@ -37,10 +37,12 @@ import { migrateLegacySetBoardFixture } from '@/lib/set-identity-board/__tests__
 import {
   buildStorySourceAuthoritySnapshot,
   buildAuthoringTerminalFailure,
+  buildProductionReconciliationDraftFromVisualContractCandidate,
   buildProductionReconciliationDraftFromSourceSnapshot,
   buildCanonicalImportPreflightAttestation,
   buildVisualContractAuthoringReadinessEvidence,
   buildVisualContractAuthoringRequest,
+  buildVisualContractCandidateArtifact,
   authoringReservedExposureUsd,
   authoringSpendIsWithinCeiling,
   canonicalJsonDigest,
@@ -479,6 +481,34 @@ function fullyActionedBunnyDraft(
   return draft;
 }
 
+function presentationAwareBunnyDraft(
+  snapshot: StorySourceAuthoritySnapshot,
+): BookVisualContractTemplate & Record<string, unknown> {
+  const draft = fullyActionedBunnyDraft(snapshot);
+  const page = draft.pageContracts[0]!;
+  const coverage = (
+    page as unknown as {
+      actionSemanticCoverage: Array<{
+        beatId: string;
+        sourceEvidenceId: string;
+        disposition: Record<string, unknown>;
+      }>;
+    }
+  ).actionSemanticCoverage;
+  const requirement = coverage[0]!;
+  const contractValue = page.mustShow[0]!;
+  (
+    page as unknown as { actionRequirements: unknown[] }
+  ).actionRequirements = [];
+  requirement.disposition = {
+    kind: 'presentation_requirement',
+    presentationClass: 'static_state',
+    contractPointer: '/pageContracts/0/mustShow/0',
+    contractValue,
+  };
+  return draft;
+}
+
 function successfulProvider(
   draft: unknown,
   overrides: Partial<{
@@ -697,12 +727,12 @@ describe('exact zero-cost authoring preflight', () => {
       },
       promptAuthority: {
         initial: {
-          systemPromptVersion: 'vc-template-prompt/v10',
-          userPromptVersion: 'vc-template-user-prompt/v10',
+          systemPromptVersion: 'vc-template-prompt/v11',
+          userPromptVersion: 'vc-template-user-prompt/v11',
         },
         repair: {
-          systemPromptVersion: 'vc-repair-prompt/v9',
-          userPromptVersion: 'vc-repair-user-prompt/v10',
+          systemPromptVersion: 'vc-repair-prompt/v10',
+          userPromptVersion: 'vc-repair-user-prompt/v11',
         },
         pageContractRepair: {
           systemPromptVersion: 'page-contract-repair-prompt/v4',
@@ -1587,7 +1617,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v16',
+      version: 'visual-contract-authoring-readiness/v17',
       draftValidation: {
         status: 'interrupted',
         attempts: [
@@ -1635,7 +1665,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v16', async () => {
+  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v17', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const result = await runVisualContractAuthoring({
@@ -1652,7 +1682,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v16',
+      version: 'visual-contract-authoring-readiness/v17',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -1864,6 +1894,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v15',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v16',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -1942,6 +1978,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v18',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v19',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -1960,11 +2002,23 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'readiness',
         'visual-contract-authoring-readiness/v16',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v17',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'candidate',
         'visual-contract-candidate-artifact/v7',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'candidate',
+        'visual-contract-candidate-artifact/v8',
       ),
     ).toBe('current');
     expect(
@@ -2124,7 +2178,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).toThrow(
-      /receipt v16 requires exact typed draft-validation evidence/,
+      /receipt v19 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -2173,7 +2227,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v18',
+      'visual-contract-authoring-receipt/v19',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -3629,6 +3683,64 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       JSON.stringify(result.receipt),
     ).not.toContain('x'.repeat(100));
+  });
+
+  it('bridges a current candidate presentation requirement into pending Semantic Reconciliation without self-approval', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: successfulProvider(
+        presentationAwareBunnyDraft(snapshot),
+      ),
+    });
+    expect(result.receipt.status).toBe('completed');
+    expect(result.compileResult).not.toBeNull();
+    const candidate = buildVisualContractCandidateArtifact({
+      receipt: result.receipt,
+      compileResult: result.compileResult!,
+    });
+    const reconciliation =
+      buildProductionReconciliationDraftFromVisualContractCandidate({
+        snapshot,
+        candidate,
+      });
+
+    expect(
+      reconciliation.reconciliation.presentationRequirements,
+    ).toMatchObject({
+      version: 'presentation-requirement-reconciliation/v1',
+      actionSemanticCoverageVersion:
+        'action-semantic-coverage/v6',
+      actionSemanticCoverageDigest:
+        candidate.actionSemanticCoverageDigest,
+      requirements: [
+        {
+          pageNumber: 1,
+          presentationClass: 'static_state',
+          contractPointer: '/pageContracts/0/mustShow/0',
+          contractValue:
+            candidate.template.pageContracts[0]!.mustShow[0],
+        },
+      ],
+    });
+    expect(reconciliation.reconciliation.review.status).toBe(
+      'pending',
+    );
+    expect(reconciliation.reviewBundle.readyForApproval).toBe(
+      false,
+    );
+
+    expect(() =>
+      buildProductionReconciliationDraftFromVisualContractCandidate({
+        snapshot,
+        candidate: {
+          ...candidate,
+          status: 'forged' as 'candidate',
+        },
+      }),
+    ).toThrow(/candidate is stale, malformed/);
   });
 
   it('persists source/request/receipt/readiness/candidate by digest, is idempotent, and fails on collision', async () => {

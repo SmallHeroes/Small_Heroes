@@ -9,6 +9,10 @@ import {
   type BookVisualContractTemplate,
 } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
+import {
+  ACTION_SEMANTIC_COVERAGE_VERSION,
+  type ActionSemanticCoverageRecord,
+} from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 import { normalizedTextDigest } from '@/lib/visual-package/integrity';
 import {
   buildSourcePromptReconciliationDraft,
@@ -258,6 +262,88 @@ describe('source-prompt reconciliation v1', () => {
     expect(validate(raw, artifact, contract)).toEqual([]);
     expect(artifact.frames.flatMap((frame) => frame.sourceRequirements)
       .some((requirement) => requirement.sourceKind === 'historical_image_direction')).toBe(false);
+  });
+
+  it('binds typed presentation requirements to exact preserved story-prose evidence', () => {
+    const raw = source(false);
+    const contract = template();
+    const content = parseStorySourceContent(raw);
+    const sourceIdentity = identity(raw);
+    const coverage: ActionSemanticCoverageRecord[] = [
+      {
+        version: ACTION_SEMANTIC_COVERAGE_VERSION,
+        pageNumber: 1,
+        beatId: 'beat:p1:beacon_light',
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+        sourcePhrase: 'The child follows a blinking rescue beacon across the windy dunes.',
+        disposition: {
+          kind: 'presentation_requirement',
+          presentationClass: 'lighting_state',
+          contractPointer: '/pageContracts/0/mustShow/0',
+          contractValue: contract.pageContracts[0]!.mustShow[0]!,
+        },
+        reviewState: 'unreviewed',
+      },
+    ];
+    const artifact = buildSourcePromptReconciliationDraft(
+      {
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        pages: content.pages,
+        actionSemanticCoverage: coverage,
+      },
+      contract,
+    );
+    artifact.review = REVIEW;
+    preserved(
+      artifact.frames[0]!.sourceRequirements[0]!,
+      'cover:story-promise',
+      '/coverContract/mustShow/0',
+      contract.coverContract.mustShow[0],
+    );
+    preserved(
+      artifact.frames[1]!.sourceRequirements[0]!,
+      'page:1:presentation',
+      '/pageContracts/0/mustShow/0',
+      contract.pageContracts[0]!.mustShow[0],
+    );
+    preserved(
+      artifact.frames[2]!.sourceRequirements[0]!,
+      'page:2:story',
+      '/pageContracts/1/mustShow/0',
+      contract.pageContracts[1]!.mustShow[0],
+    );
+    expect(artifact.presentationRequirements).toMatchObject({
+      version: 'presentation-requirement-reconciliation/v1',
+      actionSemanticCoverageVersion:
+        ACTION_SEMANTIC_COVERAGE_VERSION,
+      requirements: [
+        {
+          pageNumber: 1,
+          beatId: 'beat:p1:beacon_light',
+          presentationClass: 'lighting_state',
+          contractPointer: '/pageContracts/0/mustShow/0',
+        },
+      ],
+    });
+    expect(validate(raw, artifact, contract, sourceIdentity)).toEqual([]);
+
+    const missingReview = structuredClone(artifact);
+    missingReview.frames[1]!.sourceRequirements[0]!.visualBeats = [];
+    expect(
+      validate(raw, missingReview, contract, sourceIdentity).map(
+        (issue) => issue.code,
+      ),
+    ).toContain('reconciliation_incomplete');
+
+    const tampered = structuredClone(artifact);
+    tampered.presentationRequirements!.requirements[0]!.contractValue =
+      'stale';
+    expect(
+      validate(raw, tampered, contract, sourceIdentity).map(
+        (issue) => issue.code,
+      ),
+    ).toContain('reconciliation_invalid');
   });
 
   it('invalidates an old package after any plot/source edit and accepts a rebuilt evidence artifact without shared-code changes', () => {

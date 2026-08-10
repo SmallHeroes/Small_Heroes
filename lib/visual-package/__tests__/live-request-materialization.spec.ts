@@ -303,15 +303,15 @@ describe('canonical live request materialization validators', () => {
       liveRequestMaterializationInputIssues({
         ...inputFor(fixture),
         version:
-          'canonical-live-request-materialization-input/v5',
+          'canonical-live-request-materialization-input/v6',
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v6',
+      'canonical-live-request-materialization-input/v7',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v13');
+    ).toBe('canonical-live-request-materialization/v14');
   });
 
   it.each([
@@ -464,7 +464,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v15',
+      version: 'visual-contract-authoring-request/v16',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -486,12 +486,12 @@ describe('canonical live request materialization artifacts', () => {
       },
       promptAuthority: {
         initial: {
-          systemPromptVersion: 'vc-template-prompt/v10',
-          userPromptVersion: 'vc-template-user-prompt/v10',
+          systemPromptVersion: 'vc-template-prompt/v11',
+          userPromptVersion: 'vc-template-user-prompt/v11',
         },
         repair: {
-          systemPromptVersion: 'vc-repair-prompt/v9',
-          userPromptVersion: 'vc-repair-user-prompt/v10',
+          systemPromptVersion: 'vc-repair-prompt/v10',
+          userPromptVersion: 'vc-repair-user-prompt/v11',
         },
       },
       costBudget: {
@@ -500,7 +500,7 @@ describe('canonical live request materialization artifacts', () => {
       },
       structuredOutput: {
         schemaName: 'BookVisualContractTemplateDraft',
-        schemaVersion: 'vc-draft-schema/v13',
+        schemaVersion: 'vc-draft-schema/v14',
         compatibilityProfileVersion:
           OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
         compatibilityProfileDigest:

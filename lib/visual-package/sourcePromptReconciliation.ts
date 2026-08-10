@@ -6,6 +6,14 @@ import {
   type ParsedStorySourceContent,
 } from '@/lib/visual-contract-compiler/storySourceContent';
 import type { AuthoredCoverAuthority } from '@/lib/visual-contract-compiler/coverSourceAuthority';
+import {
+  ACTION_SEMANTIC_COVERAGE_VERSION,
+  PRESENTATION_REQUIREMENT_CLASS_VALUES,
+  presentationRequirementPointerIsPermittedForPage,
+  resolveJsonPointer as resolveCoverageJsonPointer,
+  type ActionSemanticCoverageRecord,
+  type PresentationRequirementClass,
+} from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 
 import { canonicalJsonDigest, isoTimestampIsValid, nonEmpty, resolveRepoPath } from './integrity';
 import {
@@ -71,6 +79,25 @@ export interface SourcePromptReconciliationFrame {
   sourceRequirements: ReconciliationSourceRequirement[];
 }
 
+export const PRESENTATION_REQUIREMENT_RECONCILIATION_VERSION =
+  'presentation-requirement-reconciliation/v1' as const;
+
+export interface ReconciliationPresentationRequirement {
+  pageNumber: number;
+  beatId: string;
+  sourceEvidenceId: string;
+  presentationClass: PresentationRequirementClass;
+  contractPointer: string;
+  contractValue: string;
+}
+
+export interface PresentationRequirementReconciliationBinding {
+  version: typeof PRESENTATION_REQUIREMENT_RECONCILIATION_VERSION;
+  actionSemanticCoverageVersion: typeof ACTION_SEMANTIC_COVERAGE_VERSION;
+  actionSemanticCoverageDigest: string;
+  requirements: ReconciliationPresentationRequirement[];
+}
+
 /**
  * Offline authoring/promotion evidence. This artifact never becomes prompt text: it proves that the frozen
  * contract's provider projection preserves (or explicitly supersedes) every human-reviewed source beat.
@@ -85,6 +112,8 @@ export interface SourcePromptReconciliation {
   templateDigest: string;
   templateSchemaVersion: string;
   frames: SourcePromptReconciliationFrame[];
+  /** Candidate-bound visible non-action beats that require explicit preserved review evidence. */
+  presentationRequirements?: PresentationRequirementReconciliationBinding;
   review: ReconciliationReviewState;
 }
 
@@ -95,6 +124,7 @@ export interface SourcePromptReconciliationInput {
   pages: Array<{ pageNumber: number; text: string }>;
   pageImageDirections?: Array<{ pageNumber: number; imageDirection: string }>;
   authoredCoverAuthority?: AuthoredCoverAuthority;
+  actionSemanticCoverage?: readonly ActionSemanticCoverageRecord[];
 }
 
 function packageIssue(
@@ -142,6 +172,36 @@ function sourceRequirement(
   sourceText: string,
 ): ReconciliationSourceRequirement {
   return { sourceKind, sourceText, visualBeats: [] };
+}
+
+function presentationRequirementBinding(
+  coverage: readonly ActionSemanticCoverageRecord[],
+): PresentationRequirementReconciliationBinding {
+  const requirements = coverage
+    .filter(
+      (record) =>
+        record.disposition.kind === 'presentation_requirement',
+    )
+    .map((record): ReconciliationPresentationRequirement => {
+      const disposition = record.disposition;
+      if (disposition.kind !== 'presentation_requirement') {
+        throw new Error('presentation requirement projection drift');
+      }
+      return {
+        pageNumber: record.pageNumber,
+        beatId: record.beatId,
+        sourceEvidenceId: record.sourceEvidenceId,
+        presentationClass: disposition.presentationClass,
+        contractPointer: disposition.contractPointer,
+        contractValue: disposition.contractValue,
+      };
+    });
+  return {
+    version: PRESENTATION_REQUIREMENT_RECONCILIATION_VERSION,
+    actionSemanticCoverageVersion: ACTION_SEMANTIC_COVERAGE_VERSION,
+    actionSemanticCoverageDigest: canonicalJsonDigest(coverage),
+    requirements,
+  };
 }
 
 /**
@@ -209,6 +269,14 @@ export function buildSourcePromptReconciliationDraft(
         };
       }),
     ],
+    ...(input.actionSemanticCoverage
+      ? {
+          presentationRequirements:
+            presentationRequirementBinding(
+              input.actionSemanticCoverage,
+            ),
+        }
+      : {}),
     review: { status: 'pending', reviewedBy: null, reviewedAt: null },
   };
 }
@@ -366,6 +434,7 @@ export function sourcePromptReconciliationIssues(args: {
       },
     ));
   }
+
   if (reconciliation.storyKey !== args.storyKey) {
     issues.push(packageIssue('reconciliation_identity_mismatch', 'reconciliation storyKey changed', {
       expected: args.storyKey,
@@ -440,6 +509,97 @@ export function sourcePromptReconciliationIssues(args: {
     ...content.pages.map((page) => ({ frameKind: 'page' as const, pageNumber: page.pageNumber })),
   ];
   const frames = Array.isArray(reconciliation.frames) ? reconciliation.frames : [];
+  const presentationBinding =
+    reconciliation.presentationRequirements;
+  if (presentationBinding !== undefined) {
+    if (
+      !presentationBinding ||
+      typeof presentationBinding !== 'object' ||
+      Array.isArray(presentationBinding) ||
+      presentationBinding.version !==
+        PRESENTATION_REQUIREMENT_RECONCILIATION_VERSION ||
+      presentationBinding.actionSemanticCoverageVersion !==
+        ACTION_SEMANTIC_COVERAGE_VERSION ||
+      !/^[a-f0-9]{64}$/.test(
+        presentationBinding.actionSemanticCoverageDigest ?? '',
+      ) ||
+      !Array.isArray(presentationBinding.requirements)
+    ) {
+      issues.push(
+        packageIssue(
+          'reconciliation_invalid',
+          'presentation-requirement reconciliation binding is malformed or stale',
+          { field: 'presentationRequirements' },
+        ),
+      );
+    } else {
+      const identities = new Set<string>();
+      for (const [index, requirement] of
+        presentationBinding.requirements.entries()) {
+        const field = `presentationRequirements.requirements[${index}]`;
+        const identity = `${requirement.pageNumber}:${requirement.beatId}`;
+        const resolved = resolveCoverageJsonPointer(
+          args.template,
+          requirement.contractPointer,
+        );
+        if (
+          !Number.isSafeInteger(requirement.pageNumber) ||
+          requirement.pageNumber <= 0 ||
+          !nonEmpty(requirement.beatId) ||
+          identities.has(identity) ||
+          !nonEmpty(requirement.sourceEvidenceId) ||
+          !PRESENTATION_REQUIREMENT_CLASS_VALUES.includes(
+            requirement.presentationClass,
+          ) ||
+          !presentationRequirementPointerIsPermittedForPage({
+            template: args.template,
+            pageNumber: requirement.pageNumber,
+            pointer: requirement.contractPointer,
+          }) ||
+          !resolved.found ||
+          typeof resolved.value !== 'string' ||
+          resolved.value !== requirement.contractValue
+        ) {
+          issues.push(
+            packageIssue(
+              'reconciliation_invalid',
+              `${field} is not an exact unique same-page presentation requirement`,
+              { field },
+            ),
+          );
+          continue;
+        }
+        identities.add(identity);
+        const frame = frames.find(
+          (candidate) =>
+            candidate?.frameKind === 'page' &&
+            candidate?.pageNumber === requirement.pageNumber,
+        );
+        const storyRequirement = frame?.sourceRequirements?.find(
+          (candidate) => candidate.sourceKind === 'story_prose',
+        );
+        const preserved = storyRequirement?.visualBeats?.some(
+          (beat) =>
+            beat.disposition === 'preserved' &&
+            beat.contractEvidence?.some(
+              (citation) =>
+                citation.path === requirement.contractPointer &&
+                canonicalJsonDigest(citation.value) ===
+                  canonicalJsonDigest(requirement.contractValue),
+            ),
+        );
+        if (args.requireComplete !== false && !preserved) {
+          issues.push(
+            packageIssue(
+              'reconciliation_incomplete',
+              `${field} lacks one approved preserved story-prose beat with exact contract evidence`,
+              { field },
+            ),
+          );
+        }
+      }
+    }
+  }
   if (frames.length !== expectedFrames.length) {
     issues.push(packageIssue('reconciliation_incomplete', 'reconciliation does not cover every source frame', {
       expected: expectedFrames,

@@ -173,6 +173,25 @@ describe('Wizard/order to chunk-runner render qualification', () => {
             );
           }
         },
+        mutateReconciliation(reconciliation, template) {
+          reconciliation.presentationRequirements = {
+            version: 'presentation-requirement-reconciliation/v1',
+            actionSemanticCoverageVersion:
+              'action-semantic-coverage/v6',
+            actionSemanticCoverageDigest: 'c'.repeat(64),
+            requirements: [
+              {
+                pageNumber: 1,
+                beatId: 'beat:p1:visual_presentation',
+                sourceEvidenceId: `se1_${'d'.repeat(64)}`,
+                presentationClass: 'composition_focus',
+                contractPointer: '/pageContracts/0/mustShow/0',
+                contractValue:
+                  template.pageContracts[0]!.mustShow[0]!,
+              },
+            ],
+          };
+        },
         mutateWorld({ template, affordances, frames }) {
           for (const frame of frames) {
             if (frame.kind === 'cover' || (frame.pageNumber ?? 0) < 11) {
@@ -285,6 +304,18 @@ describe('Wizard/order to chunk-runner render qualification', () => {
     expect(packageValue.sourceSnapshot.rawDigest).toBe(
       frozenProduct.storySourceHash,
     );
+    expect(
+      packageValue.reconciliation.content.presentationRequirements,
+    ).toMatchObject({
+      actionSemanticCoverageVersion: 'action-semantic-coverage/v6',
+      requirements: [
+        {
+          pageNumber: 1,
+          presentationClass: 'composition_focus',
+          contractPointer: '/pageContracts/0/mustShow/0',
+        },
+      ],
+    });
     const bucketProp = packageValue.visualContractTemplate.content.recurringProps
       .find((prop) => prop.id === 'prop:bucket');
     const bucketRevealFrame = packageValue.blueprint.content.frames.find(

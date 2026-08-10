@@ -5,6 +5,7 @@ import {
   OpenAIResponsesStructuredOutputSchemaCompatibilityError,
   PreRenderBlueprintAuthoringRepairExhaustedError,
   InvalidPreRenderBlueprintAuthoringInputError,
+  preRenderBlueprintAuthoringInputErrors,
   compilePreRenderBookVisualBlueprint,
   serializePreRenderBookVisualBlueprint,
   validatePreRenderBookVisualBlueprint,
@@ -99,6 +100,42 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     'no_companion',
     'reveal_timeline',
   ];
+
+  it('carries approved typed presentation evidence into the Blueprint authoring gate', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    fixture.context.reconciliation.presentationRequirements = {
+      version: 'presentation-requirement-reconciliation/v1',
+      actionSemanticCoverageVersion: 'action-semantic-coverage/v6',
+      actionSemanticCoverageDigest: 'a'.repeat(64),
+      requirements: [
+        {
+          pageNumber: 1,
+          beatId: 'beat:p1:static_presentation',
+          sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+          presentationClass: 'composition_focus',
+          contractPointer: '/pageContracts/0/mustShow/0',
+          contractValue:
+            fixture.context.template.pageContracts[0]!.mustShow[0]!,
+        },
+      ],
+    };
+    expect(
+      preRenderBlueprintAuthoringInputErrors(fixture.context, CONFIG),
+    ).toEqual([]);
+
+    fixture.context.reconciliation.frames.find(
+      (frame) => frame.frameKind === 'page' && frame.pageNumber === 1,
+    )!.sourceRequirements.find(
+      (requirement) => requirement.sourceKind === 'story_prose',
+    )!.visualBeats = [];
+    expect(
+      preRenderBlueprintAuthoringInputErrors(fixture.context, CONFIG),
+    ).toContainEqual(
+      expect.stringContaining(
+        'presentationRequirements.requirements[0] lacks one approved preserved story-prose beat',
+      ),
+    );
+  });
 
   it.each(shapes)(
     'uses one shared whole-book call for %s and returns exact valid v3 authority',
