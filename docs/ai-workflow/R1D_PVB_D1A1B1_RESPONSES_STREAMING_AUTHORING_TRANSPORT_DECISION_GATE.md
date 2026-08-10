@@ -6,7 +6,7 @@ Proceed under Guy's standing 2026-08-10 authority to reach one local Wizard-conn
 
 ## 1. Proposed change
 
-Set `stream: true` on the existing OpenAI Responses request, consume the returned SDK event stream, discard nonterminal deltas, and return the one terminal response object to the unchanged response mapper and authoring lifecycle. Persisted provider evidence cuts over from v4 to v5 so newly materialized authority proves the streaming request body and current code path.
+Set `stream: true` on the existing OpenAI Responses request, consume the returned SDK event stream, discard nonterminal deltas, and return the one terminal response object to the existing response mapper and authoring lifecycle. At that trust boundary, normalize the SDK convenience `output_text` from the canonical terminal Response `output[].content[]` representation when streaming does not add the convenience field. Persisted provider evidence cuts over from v4 to v5 so newly materialized authority proves the streaming request body and current code path.
 
 ## 2. Why now?
 
@@ -32,7 +32,7 @@ No authored value, Story Source phrase, request ID, response ID, output delta, o
 
 ## 6. Expected behavior
 
-The adapter makes exactly one `responses.create` call with the unchanged model, tier, prompts, structured-output schema, token limits, request timeout, and retry policy plus `stream: true`. It consumes SSE events until exactly one terminal Response is observed. That terminal Response enters the existing mapper and authoring lifecycle unchanged. Deltas are not retained. Raw provider error-event prose is discarded. Failed or incomplete terminal Responses remain subject to the existing terminal classification.
+The adapter makes exactly one `responses.create` call with the unchanged model, tier, prompts, structured-output schema, token limits, request timeout, and retry policy plus `stream: true`. It consumes SSE events until exactly one terminal Response is observed. The mapper accepts either the non-streaming SDK convenience `output_text` or deterministically joins string `output_text` content parts from terminal message items, matching the SDK's documented helper behavior. Missing or malformed canonical output fails closed to the existing provider-evidence rejection. Deltas are not retained. Raw provider error-event prose is discarded. Failed or incomplete terminal Responses remain subject to the existing terminal classification.
 
 ## 7. Validation plan
 
@@ -60,7 +60,7 @@ Revert the focused implementation and evidence commits. Evidence v5 becomes unsu
 3. Reduce only the closed terminal event set `response.completed`, `response.failed`, and `response.incomplete`; every other event is non-authoritative progress.
 4. Require exactly one valid terminal Response; missing terminal, invalid terminal, provider error event, or any event after terminal fails closed.
 5. Do not persist deltas, raw provider error events, raw response material, prompt text, stack, or credential material.
-6. Pass the terminal Response into the unchanged mapper, validation, repair routing, candidate, receipt, readiness, and cost-accounting logic.
+6. Normalize only the terminal Response's canonical message `output_text` content into the SDK convenience representation expected by the mapper; leave validation, repair routing, candidate, receipt, readiness, and cost-accounting logic unchanged.
 7. Cut current OpenAI Responses authoring evidence to v5 and retain v4 as legacy immutable; preflight must bind v5 before credential access.
 8. Leave model, service tier, reasoning, prompt/schema authority, 64K/36K limits, twenty-minute timeout, call/repair budget, zero retries, no fallback, and cost ceilings unchanged.
 9. Permit another bounded live attempt only after focused validation, repository-gate accounting, independent Claude Code QA, push, Fresh Readiness, pricing, one preflight, and one Supervisor verify.

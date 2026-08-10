@@ -2,7 +2,7 @@
 
 ## Status
 
-Independent technical PASS within the bounded LOW exception. Repository/release status remains HOLD only on the separate six known fixture failures.
+Streaming transport independently PASSed within the bounded LOW exception. The post-live terminal-output mapper correction is locally green and pending an independent focused re-gate. Repository/release status remains HOLD on the separate six known fixture failures.
 
 - Base: `d3070cbded13891ba964466ca2bbbd1e1b96d227`
 - Branch: `codex/r1d-pvb-d1a1b1-streaming-authoring-transport`
@@ -43,6 +43,22 @@ The canonical OpenAI Responses request body now uses `ResponseCreateParamsStream
 
 This removes the whole-response wait that repeatedly died before HTTP headers while preserving one HTTP request and every downstream validation and repair rule.
 
+## First streamed live attempt and terminal-output correction
+
+Fresh Readiness v15 on pushed head `8e3b0285f8d2613c3e1e1f307c9675cb2362cdbb` passed with digest `547faae405fbad83aad8dda33fad3d790efc00ae487fa3f073597ac558ed0940` and Execution Request `dcc21d432ce1c12a0dbaaed6c4716944de27a9b286f8f71bb3806481015cc238`. Canonical preflight and Supervisor verify passed. The sole live invocation then proved the transport correction: OpenAI completed one streamed response instead of timing out.
+
+- Receipt v21: `aa26771305e3843f8c4e5ff2b7c91fa91be4cff5ebe206f0e73196c668809497`.
+- Readiness v19: `c24fb855107b19688969eb269b21116ce605c404383b184a862a2680809db7f3`.
+- Provider response ID: `resp_0e0abdce6bc056de016a79fb4cc57c81a2b627972001cf5f7e`.
+- Calls / repairs / transport retries / fallback: `1 / 0 / 0 / false`.
+- Usage: input `17,402`; cache-write `17,399`; cached input `0`; output `23,736`; reasoning `1,974`; total `41,138`.
+- Nominal / conservative accounting: `$0.820839 / $0.902927`.
+- No provider-failure evidence exists because the provider completed. No candidate or downstream/render authority was produced.
+
+The terminal result was `provider_evidence_invalid / provider_execution_evidence_invalid`. Receipt usage and completion evidence were present, but mapped output was empty. Repository and installed-SDK inspection established the exact compatibility gap: non-streaming SDK parsing adds the convenience `response.output_text`, while a raw `response.completed` SSE event carries the same text in `response.output[].content[]`. The mapper read only the convenience field.
+
+Focused commit `7d3858f2` corrects that boundary without changing provider input or lifecycle policy. It prefers a string `output_text` when present; otherwise it joins only string `output_text` content parts from terminal message items, equivalent to the SDK helper. Missing/malformed arrays, message content, or text fail closed to empty mapped output and the existing evidence-invalid path. It does not retain raw deltas or provider prose.
+
 ## Authority and unchanged policy
 
 - Current provider evidence: `openai-responses-authoring-evidence/v5`.
@@ -63,6 +79,17 @@ npx --no-install vitest run lib/visual-package/__tests__/canonical-live-authorin
 npx --no-install tsc --noEmit
 PASS
 ```
+
+Post-live terminal-output correction:
+
+```text
+canonical-live-authoring-boundary.spec.ts: 1 file / 149 tests PASS
+adjacent adapter/launcher/lifecycle/provider suites: 5 files / 298 tests PASS
+npx --no-install tsc --noEmit: PASS
+git diff --check: PASS
+```
+
+The replacement literal `npm run check` for the correction passed TypeScript and all 19 resource-intensive files with valid diagnostic protocol. Its 271-file ordinary phase reported exactly the same six established ignored-output fixture failures and no seventh assertion or infrastructure failure.
 
 Canonical authority regression chain:
 
@@ -97,7 +124,7 @@ The one literal `npm run check` passed TypeScript and the complete 19-file resou
 
 ## Boundaries
 
-No credential access, provider/model/network call, real B0/Fresh Readiness materialization, live authoring, candidate, Semantic Reconciliation, Blueprint/Wizard execution, image/Vision/render, storage/database, publication, deployment, or production action occurred during implementation. Production remains blocked.
+Implementation and correction validation did not access credentials or providers. The separately authorized streamed live attempt accessed the credential source only inside the Supervisor child, completed exactly one provider call, and persisted only the canonical receipt/readiness evidence listed above. It produced no candidate, Semantic Reconciliation, Blueprint/Wizard execution, image/Vision/render, storage/database, publication, deployment, or production action. Production remains blocked.
 
 ## Independent QA
 
