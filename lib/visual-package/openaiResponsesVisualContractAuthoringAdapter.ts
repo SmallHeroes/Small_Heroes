@@ -54,6 +54,10 @@ import {
   PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
   PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
+import {
+  STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
+  STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/stablePropScopeRepair';
 
 import { canonicalJsonDigest } from './integrity';
 import {
@@ -244,7 +248,10 @@ function exactCallOptionsIssues(
         canonicalJsonDigest(STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA)) ||
     (schemaName === PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME &&
       schemaDigest ===
-        canonicalJsonDigest(PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA));
+        canonicalJsonDigest(PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA)) ||
+    (schemaName === STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME &&
+      schemaDigest ===
+        canonicalJsonDigest(STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA));
   if (!structuredOutputMatches) {
     issues.push('structured_output');
   }

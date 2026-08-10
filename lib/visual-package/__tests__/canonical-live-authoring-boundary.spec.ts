@@ -42,6 +42,10 @@ import {
   PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
   PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
+import {
+  STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
+  STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/stablePropScopeRepair';
 import type {
   BookVisualContract,
 } from '@/lib/visual-contract-compiler/types';
@@ -621,6 +625,33 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     });
   });
 
+  it('maps the stable-prop scope repair schema without changing the locked provider policy', () => {
+    const fixture = createLiveFixture('stable-prop-scope-schema-body');
+    const options = exactOptions(fixture.request);
+    options.jsonSchema = {
+      name: STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
+      schema: STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
+    };
+    const body = buildOpenAIResponsesVisualContractAuthoringBody({
+      systemPrompt: 'stable-prop-scope-system',
+      userPrompt: 'stable-prop-scope-user',
+      options,
+    });
+    expect(body.text?.format).toMatchObject({
+      type: 'json_schema',
+      name: STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
+      schema: STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
+      strict: true,
+    });
+    expect(body).toMatchObject({
+      model: 'gpt-5.6-sol',
+      service_tier: 'default',
+      tools: [],
+      tool_choice: 'none',
+      store: false,
+    });
+  });
+
   it('maps the exact request body, zero-retry transport options, and complete provider evidence', async () => {
     const fixture = createLiveFixture('mapping');
     const draft = fullyActionedDraft(fixture.snapshot);
@@ -638,7 +669,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v20',
+      'visual-contract-authoring-receipt/v21',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
