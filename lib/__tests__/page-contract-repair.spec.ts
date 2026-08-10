@@ -1203,10 +1203,10 @@ describe('page-contract compact repair', () => {
       PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
     );
     expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
-      'page-contract-repair-prompt/v8',
+      'page-contract-repair-prompt/v9',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'page-contract-repair-user-prompt/v8',
+      'page-contract-repair-user-prompt/v9',
     );
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([

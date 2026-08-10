@@ -2,7 +2,20 @@
 
 **Updated:** 2026-08-10
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-whole-book-action-binding-diagnostics` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `49a9ede5400bc86f6b969c69ef5ad9990909d915`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-cross-family-page-repair-routing` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `824e8b3acb0c64e9220bd44542c6821553cd284d`.
+
+## R1D-PVB-D1A1B1-CROSS-FAMILY-PAGE-REPAIR-ROUTING - implementation green / independent QA pending
+
+The post-aggregation live attempt proved that the first page-spatial repair resolved all five initial references. Validation then exposed six closed-catalog presentation gaps, and their compact repair resolved all six, but final validation exposed twelve page-structure failures only after the two-repair budget was consumed. Receipt v21 `4b491d45…` records three calls, two repairs, zero transport retries/fallback and `$0.801634 / $0.993205` nominal/conservative accounting; no candidate or downstream authority exists.
+
+- Root cause was serial validation-family visibility: `ActionSemanticCapabilityGapError` was thrown before final template validation, forcing presentation and final-structure repairs into separate provider calls even when both were already present in the same draft.
+- Assembly now defers only that closed capability-gap throw long enough to run the unchanged final template validator. When both exact families are present, one closed planner creates a union of exact affected pages and reuses the complete-page repair lane. Each presentation target carries its exact source evidence and same-page permitted pointer/value authority; final structure keeps its exact validator hints.
+- Page-contract repair prompt authority advances from v8 to v9. Its structured output schema, complete-page exact-set application, full revalidation, model, service tier, 64K/36K ceilings, initial-plus-two-repair budget, timeout, retries, fallback, candidate semantics and `$4.884/$5.00` ceilings are unchanged. All other mixed families remain fail-closed.
+- Direct compiler/planner/lifecycle validation passed **4 files / 174 tests**; the diagnostic census plus focused compiler/planner set passed **4 files / 127 tests**; canonical materialization, Supervisor and Fresh Readiness validation passed **7 files / 269 tests**. TypeScript and `git diff --check` passed.
+- The one literal `npm run check` passed TypeScript and all **19 resource-intensive files** with valid diagnostics. Its ordinary phase reported the six established missing ignored-output fixtures plus one producer-census mismatch caused by an unnecessary newly constructed fallback error. The implementation now rethrows the original typed structural error instead; the exact census and adjacent focused set pass. The literal gate was not rerun. The six fixtures remain a separate release HOLD accepted only for the bounded LOW measurement.
+- Implementation cost is `$0`; no credential, provider call, real Fresh Readiness, preflight, live authoring, candidate, Reconciliation, Blueprint/Wizard, render, storage/database, publication, deployment or production action occurred. Production remains blocked. Independent Claude Code QA is pending.
+
+Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_CROSS_FAMILY_PAGE_REPAIR_ROUTING_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_CROSS_FAMILY_PAGE_REPAIR_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-WHOLE-BOOK-ACTION-BINDING-DIAGNOSTIC-AGGREGATION - implementation green / independent QA pending
 

@@ -130,6 +130,7 @@ import {
   buildPageSpatialReferenceRepairSystemPrompt,
   buildPageSpatialReferenceRepairUserPrompt,
   pageContractAuthorityRepairPlan,
+  pageContractPresentationStructuralRepairAffectedPages,
   pageContractRepairAffectedPages,
   pageSpatialReferenceRepairTargets,
   parsePageContractRepairs,
@@ -527,6 +528,30 @@ class ActionSemanticCoverageValidationError extends InvalidTemplateContractError
     super([...errors], [...diagnosticIssues]);
     this.name = 'ActionSemanticCoverageValidationError';
     this.pointerTemplate = structuredClone(pointerTemplate);
+  }
+}
+
+class PresentationStructuralValidationError extends Error {
+  readonly gaps: readonly ActionSemanticCapabilityGap[];
+  readonly structuralError: InvalidTemplateContractError;
+  readonly structuralErrors: readonly string[];
+  readonly structuralDiagnosticIssues: readonly DraftValidationIssue[];
+
+  constructor(args: {
+    gaps: readonly ActionSemanticCapabilityGap[];
+    structuralError: InvalidTemplateContractError;
+  }) {
+    super(
+      'closed presentation gaps and final page-structure failures require one bounded complete-page repair',
+    );
+    this.name = 'PresentationStructuralValidationError';
+    this.gaps = args.gaps.map((gap) => structuredClone(gap));
+    this.structuralError = args.structuralError;
+    this.structuralErrors = [...args.structuralError.errors];
+    this.structuralDiagnosticIssues =
+      args.structuralError.diagnosticIssues.map((issue) =>
+        structuredClone(issue),
+      );
   }
 }
 
@@ -2708,9 +2733,6 @@ function assembleTemplateFromDraft(
       ],
     );
   }
-  if (capabilityGaps.length > 0) {
-    throw new ActionSemanticCapabilityGapError(capabilityGaps);
-  }
   if (!Array.isArray(canonicalCover.castIds) || canonicalCover.castIds.length === 0) {
     const firstPage = [...pageContracts].sort(
       (a, b) => Number(a.pageNumber ?? 0) - Number(b.pageNumber ?? 0),
@@ -2810,7 +2832,23 @@ function assembleTemplateFromDraft(
   }
 
   // FAIL-CLOSED — never return an invalid candidate.
-  assertValidBookVisualContractTemplate(template);
+  try {
+    assertValidBookVisualContractTemplate(template);
+  } catch (error) {
+    if (
+      capabilityGaps.length > 0 &&
+      error instanceof InvalidTemplateContractError
+    ) {
+      throw new PresentationStructuralValidationError({
+        gaps: capabilityGaps,
+        structuralError: error,
+      });
+    }
+    throw error;
+  }
+  if (capabilityGaps.length > 0) {
+    throw new ActionSemanticCapabilityGapError(capabilityGaps);
+  }
   const semanticCoverageValidation = actionSemanticCoverageValidation({
     template: template as unknown as BookVisualContract,
     coverage: actionSemanticCoverage,
@@ -2998,7 +3036,44 @@ export async function compileBookVisualContractTemplate(
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
-      if (err instanceof InvalidTemplateContractError) {
+      if (err instanceof PresentationStructuralValidationError) {
+        presentationRequirementAffectedTargets =
+          presentationRequirementRepairTargets({
+            draft,
+            gaps: err.gaps,
+          });
+        if (!presentationRequirementAffectedTargets) {
+          throw new ActionSemanticCapabilityGapError(err.gaps);
+        }
+        pageContractAffectedPages =
+          pageContractPresentationStructuralRepairAffectedPages({
+            draft,
+            presentationTargets:
+              presentationRequirementAffectedTargets,
+            structuralDiagnosticIssues:
+              err.structuralDiagnosticIssues,
+            structuralValidationMessages: err.structuralErrors,
+          });
+        if (!pageContractAffectedPages) {
+          throw err.structuralError;
+        }
+        const capabilityDiagnostics =
+          new ActionSemanticCapabilityGapError(
+            err.gaps,
+          ).diagnosticIssues;
+        attemptErrors = [
+          ...err.structuralErrors,
+          ...err.gaps.map(
+            () =>
+              'closed action catalog gap requires a same-page presentation requirement classification',
+          ),
+        ];
+        attemptDiagnosticIssues = [
+          ...err.structuralDiagnosticIssues,
+          ...capabilityDiagnostics,
+        ];
+        presentationRequirementAffectedTargets = null;
+      } else if (err instanceof InvalidTemplateContractError) {
         attemptErrors = err.errors;
         attemptDiagnosticIssues = err.diagnosticIssues;
         if (err instanceof ActionSemanticCoverageValidationError) {

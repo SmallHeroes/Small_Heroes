@@ -20,6 +20,7 @@ import {
   STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION,
   STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
 } from '../visual-contract-compiler/stablePropScopeRepair';
+import { decodePageContractRepairUserPrompt } from '../visual-contract-compiler/pageContractRepair';
 
 const sourceIdentity = {
   version: 'story-source-identity/v2',
@@ -1042,6 +1043,143 @@ describe('captured reference-domain matrix', () => {
     ]).toEqual([1, 2]);
     expect(result.template.pageContracts).toHaveLength(2);
     expect(result.provenance.attempt).toBe(2);
+  });
+
+  it('uses one complete-page repair for presentation gaps and final structure after a spatial repair', async () => {
+    const invalid = matrixDraft();
+    actions(invalid)[0]!.object = {
+      kind: 'spatial',
+      id: 'outside_current_page_zone',
+    };
+    pageRecord(invalid).camera = '';
+    coverage(invalid).push({
+      beatId: 'beat:p1:presentation_gap',
+      sourceEvidenceId:
+        sourceEvidenceCatalog.entries[0]!.sourceEvidenceId,
+      disposition: {
+        kind: 'unsupported',
+        reason: 'closed_action_catalog_gap',
+      },
+    });
+
+    const repairedPage = structuredClone(pageRecord(matrixDraft()));
+    repairedPage.actionSemanticCoverage = [
+      ...(repairedPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >),
+      {
+        beatId: 'beat:p1:presentation_gap',
+        sourceEvidenceId:
+          sourceEvidenceCatalog.entries[0]!.sourceEvidenceId,
+        disposition: {
+          kind: 'presentation_requirement',
+          presentationClass: 'composition_focus',
+          contractPointer: '/pageContracts/0/mustShow/0',
+          contractValue: (repairedPage.mustShow as string[])[0],
+        },
+      },
+    ];
+    delete repairedPage.castIds;
+    delete repairedPage.characterPresence;
+
+    let callIndex = 0;
+    const authorities: unknown[] = [];
+    const userPrompts: string[] = [];
+    const callLLM = vi.fn(async (
+      _system: string,
+      user: string,
+      _options?: unknown,
+      authority?: unknown,
+    ) => {
+      authorities.push(authority);
+      userPrompts.push(user);
+      const output =
+        callIndex === 0
+          ? invalid
+          : callIndex === 1
+            ? {
+                patches: [
+                  {
+                    pageNumber: 1,
+                    actionIndex: 0,
+                    fieldRole: 'object',
+                    spatialReferenceId: 'structure_1',
+                  },
+                ],
+              }
+            : { pageContracts: [repairedPage] };
+      callIndex += 1;
+      return JSON.stringify(output);
+    });
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+
+    expect(callLLM).toHaveBeenCalledTimes(3);
+    expect(authorities).toEqual([
+      expect.objectContaining({ kind: 'initial' }),
+      expect.objectContaining({
+        kind: 'repair',
+        repairMode: 'page_spatial_reference_patch',
+      }),
+      expect.objectContaining({
+        kind: 'repair',
+        repairMode: 'page_contract_patch',
+      }),
+    ]);
+    const encoded = JSON.parse(userPrompts[2]!) as Record<
+      string,
+      unknown
+    >;
+    expect(encoded).toHaveProperty('encodingVersion');
+    const combined = decodePageContractRepairUserPrompt(
+      userPrompts[2]!,
+    );
+    expect(combined.affectedPages).toHaveLength(1);
+    expect(combined.affectedPages[0]!.repairTargets).toEqual([
+      {
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        pageNumber: 1,
+      },
+      expect.objectContaining({
+        family: 'action_semantic',
+        code: 'closed_catalog_capability_gap',
+        pageNumber: 1,
+        coverageIndex: 37,
+        beatId: 'beat:p1:presentation_gap',
+        permittedPointerValues: expect.arrayContaining([
+          expect.objectContaining({
+            contractPointer: '/pageContracts/0/mustShow/0',
+          }),
+        ]),
+      }),
+    ]);
+    expect(combined.affectedPages[0]!.validationHints).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('camera'),
+        expect.stringContaining('closed_catalog_capability_gap'),
+      ]),
+    );
+    expect(result.repairAttempts).toHaveLength(2);
+    expect(
+      result.repairAttempts.map((attempt) =>
+        attempt.nextRepairMode,
+      ),
+    ).toEqual([
+      'page_spatial_reference_patch',
+      'page_contract_patch',
+    ]);
+    expect(result.provenance.attempt).toBe(3);
+    expect(
+      result.actionSemanticCoverage.find(
+        (record) => record.beatId === 'beat:p1:presentation_gap',
+      )?.disposition,
+    ).toMatchObject({
+      kind: 'presentation_requirement',
+      presentationClass: 'composition_focus',
+    });
   });
 
   it('emits both relation locator variants from structural context', async () => {

@@ -14,6 +14,7 @@ import {
   draftAuthorityReferenceIssueIsValid,
   type DraftAuthorityReferenceIssue,
 } from './draftAuthorityReferenceDiagnostics';
+import type { PresentationRequirementRepairTarget } from './presentationRequirementRepair';
 import { canonicalize } from '@/lib/canonical-json';
 
 export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
@@ -21,9 +22,9 @@ export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
-  'page-contract-repair-prompt/v8' as const;
+  'page-contract-repair-prompt/v9' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
-  'page-contract-repair-user-prompt/v8' as const;
+  'page-contract-repair-user-prompt/v9' as const;
 export const PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION =
   'page-contract-repair-input-encoding/v1' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION =
@@ -194,6 +195,16 @@ export type PageContractRepairTarget =
       code: 'coverage_action_binding_cardinality_invalid';
       pageNumber: number;
       coverageIndex: number;
+    }
+  | {
+      family: 'action_semantic';
+      code: 'closed_catalog_capability_gap';
+      pageNumber: number;
+      coverageIndex: number;
+      beatId: string;
+      sourceEvidenceId: string;
+      sourcePhrase: string;
+      permittedPointerValues: PresentationRequirementRepairTarget['permittedPointerValues'];
     }
   | {
       family: 'draft_contract';
@@ -886,6 +897,118 @@ export function pageContractRepairAffectedPages(args: {
     : null;
 }
 
+/**
+ * Builds one complete-page repair authority when a draft exposes both closed
+ * presentation gaps and final page-structure failures in the same validation
+ * pass. The two existing provider repairs would otherwise serialize and
+ * consume the bounded two-repair budget. No other family is admitted.
+ */
+export function pageContractPresentationStructuralRepairAffectedPages(args: {
+  draft: Record<string, unknown>;
+  presentationTargets: readonly PresentationRequirementRepairTarget[];
+  structuralDiagnosticIssues: readonly DraftValidationIssue[];
+  structuralValidationMessages: readonly string[];
+}): PageContractRepairAffectedPage[] | null {
+  if (args.presentationTargets.length === 0) return null;
+  const structuralPages = pageContractRepairAffectedPages({
+    draft: args.draft,
+    diagnosticIssues: args.structuralDiagnosticIssues,
+    validationMessages: args.structuralValidationMessages,
+  });
+  if (!structuralPages) return null;
+
+  const presentationKeys = new Set<string>();
+  for (const target of args.presentationTargets) {
+    if (
+      !Number.isSafeInteger(target.pageNumber) ||
+      target.pageNumber < 1 ||
+      !Number.isSafeInteger(target.coverageIndex) ||
+      target.coverageIndex < 0 ||
+      target.beatId.length === 0 ||
+      target.sourceEvidenceId.length === 0 ||
+      target.sourcePhrase.length === 0 ||
+      target.permittedPointerValues.length === 0
+    ) {
+      return null;
+    }
+    const key = JSON.stringify([
+      target.pageNumber,
+      target.coverageIndex,
+      target.beatId,
+      target.sourceEvidenceId,
+    ]);
+    if (presentationKeys.has(key)) return null;
+    presentationKeys.add(key);
+  }
+
+  const pageContracts = Array.isArray(args.draft.pageContracts)
+    ? args.draft.pageContracts.map(recordValue)
+    : [];
+  if (pageContracts.some((page) => page === null)) return null;
+  const structuralByPage = new Map(
+    structuralPages.map((page) => [page.pageNumber, page]),
+  );
+  const pageNumbers = new Set<number>([
+    ...structuralByPage.keys(),
+    ...args.presentationTargets.map((target) => target.pageNumber),
+  ]);
+
+  const combined = [...pageNumbers]
+    .sort((left, right) => left - right)
+    .map((pageNumber): PageContractRepairAffectedPage | null => {
+      const matches = pageContracts.filter(
+        (page) => page?.pageNumber === pageNumber,
+      );
+      if (matches.length !== 1 || !matches[0]) return null;
+      const presentationTargets = args.presentationTargets
+        .filter((target) => target.pageNumber === pageNumber)
+        .sort(
+          (left, right) =>
+            left.coverageIndex - right.coverageIndex ||
+            lexicalCompare(left.beatId, right.beatId),
+        );
+      const presentationRepairTargets: PageContractRepairTarget[] =
+        presentationTargets.map((target) => ({
+          family: 'action_semantic',
+          code: 'closed_catalog_capability_gap',
+          pageNumber: target.pageNumber,
+          coverageIndex: target.coverageIndex,
+          beatId: target.beatId,
+          sourceEvidenceId: target.sourceEvidenceId,
+          sourcePhrase: target.sourcePhrase,
+          permittedPointerValues: structuredClone(
+            target.permittedPointerValues,
+          ),
+        }));
+      const structural = structuralByPage.get(pageNumber);
+      return {
+        pageNumber,
+        pageContract: structuredClone(matches[0]),
+        repairTargets: [
+          ...(structural?.repairTargets ?? []),
+          ...presentationRepairTargets,
+        ],
+        validationHints: [
+          ...(structural?.validationHints ?? []),
+          ...presentationTargets.map(
+            (target) =>
+              `closed_catalog_capability_gap: actionSemanticCoverage[${target.coverageIndex}] must become one same-page presentation_requirement using one exact permitted pointer/value`,
+          ),
+        ].sort(lexicalCompare),
+        permittedPointerValues: [],
+      };
+    });
+
+  return combined.every(
+    (page): page is PageContractRepairAffectedPage =>
+      page !== null &&
+      page.repairTargets.length > 0 &&
+      page.validationHints.length > 0,
+  )
+    ? combined
+    : null;
+}
+
 export interface PageContractAuthorityRepairPlan {
   affectedPages: PageContractRepairAffectedPage[];
   diagnosticIssues: DraftValidationIssue[];
@@ -1399,6 +1522,8 @@ export function buildPageContractRepairSystemPrompt(): string {
     'For action_coverage_cardinality_invalid, align the targeted action beatId with exactly one same-page actionSemanticCoverage record whose disposition.kind is action_requirement.',
     'For action_beat_binding_cardinality_invalid, make the targeted action beatId unique on its page and bind it to exactly one same-page actionSemanticCoverage action_requirement record.',
     'For coverage_action_binding_cardinality_invalid, bind the targeted actionSemanticCoverage record to exactly one same-page actionRequirement through one unique beatId.',
+    'For closed_catalog_capability_gap, replace only the exact targeted unsupported disposition with one presentation_requirement: choose a closed presentationClass and copy one exact contractPointer/contractValue pair from that target permittedPointerValues.',
+    'Never use closed_catalog_capability_gap repair to disguise a physical action, spatial action, or unsupported predicate.',
     'For represented_elsewhere, contractPointer and contractValue must be copied as one exact pair from permittedPointerValues on that page.',
     'Never rewrite a pointer silently or infer an authoring record from an item/list position.',
     'Output only the JSON object required by the strict repair schema.',
