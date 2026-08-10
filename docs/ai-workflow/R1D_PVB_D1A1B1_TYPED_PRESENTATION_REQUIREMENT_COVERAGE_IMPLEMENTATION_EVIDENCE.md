@@ -2,7 +2,7 @@
 
 ## Status
 
-The original implementation and first correction each received an independent Claude Code HOLD. MINOR-1 is independently closed; the remaining MAJOR-1 and the documentation overstatement identified in the first micro re-gate are corrected locally and await a second focused read-only micro re-gate. Codex does not self-award independent technical PASS. Repository/release status also retains the separate six-fixture HOLD and the reproduced Vitest `onTaskUpdate` infrastructure limitation.
+Claude Code independently PASSed the second correction and closed the remaining MAJOR-1 and documentation MINOR with zero new BLOCKER, MAJOR or MINOR. Codex records Claude Code's result; it does not self-award independent technical PASS. Repository/release status separately retains the six-fixture HOLD and the reproduced Vitest `onTaskUpdate` infrastructure limitation.
 
 ## Topology and scope
 
@@ -91,6 +91,17 @@ The second correction `e628ab88` closes that exact reachability defect:
 - The production authoring runner re-hashes stored reconciliation content and compares the validation-context copy before preflight or provider reachability, preventing a caller from mutating reconciliation plus the external coverage together after context construction.
 
 Direct regressions reproduce the internally self-consistent coverage substitution that Claude used and prove rejection at production context, production readiness, Blueprint authoring and Blueprint qualification. Separate tamper coverage proves that a redigested candidate with a template body inconsistent with its declared template digest is rejected and that post-construction reconciliation/coverage mutation cannot reach preflight.
+
+Claude Code independently reviewed exact immutable range `483bd8c8f46a34a1d3ab996d100a400dad84acbc..07da76e77010be3a1c5bfae34297e22edf90f109` and returned **PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It independently:
+
+- proved that no optional or unbound current validation path remains;
+- traced every named production consumer to a verified persisted or frozen candidate anchor;
+- verified all five candidate-validation identities;
+- reran the four previously accepted internally consistent substitutions and observed all four rejected;
+- verified the runner's coupled reconciliation/coverage mutation fence;
+- reproduced **5 files / 122 tests PASS**, **1 file / 108 Blueprint tests PASS**, deterministic TypeScript and `git diff --check`.
+
+This independently closes the remaining MAJOR-1 and the documentation MINOR. Claude's seven notes remain advisory only: duplicate equivalent template-digest comparison; dynamic-JS `undefined` exception shape; optional-but-blocking readiness `candidatePath`; unreachable legacy empty-coverage edge; package-local validation's dependence on the frozen-candidate chain; no post-correction `npm run check`; and the prior shared-pointer/prompt-compaction advisories. They do not expand scope or block the bounded LOW measurement. The six-fixture repository/release HOLD remains separate and unwaived.
 
 ## Structured-output and input-budget proof
 
