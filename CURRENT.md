@@ -2,7 +2,22 @@
 
 **Updated:** 2026-08-10
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-stable-prop-scope-compact-repair` in `C:\Users\guyna\.codex\worktrees\presentationrepair1\Small_Heroes`, based exactly on `72d25784454de9da61f081bbf42546f3a121e7cc`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-page-repair-validation-hints` in `C:\Users\guyna\.codex\worktrees\presentationrepair1\Small_Heroes`, based exactly on `c3c0937d15eef84a26caa22735f809031ce10012`.
+
+## R1D-PVB-D1A1B1-PAGE-REPAIR-VALIDATION-HINTS - independent technical PASS / repository release HOLD
+
+Two separately materialized live attempts reached the existing `page_contract_patch` route after earlier compact repairs succeeded. In both, the provider received all twelve complete affected page contracts plus the typed `final_structural_invariant_invalid` target, but received no information identifying the concrete repository invariant that failed. Both completed page-repair responses and still left one final structural failure on every page. No candidate, Reconciliation, Blueprint, Wizard or render authority was produced.
+
+- Exact base: `c3c0937d15eef84a26caa22735f809031ce10012`; implementation commit: `bba169c2`.
+- The existing page-repair prompt now carries `validationHints`: the exact deterministic validator messages already produced in memory for the same failed attempt. Typed issue identities and positive page locators remain the only route/scope authority. Messages are one-to-one with diagnostics, grouped by that typed page locator, deduplicated and lexically sorted; missing, empty, mismatched or unsafe input fails closed.
+- The repair output remains unchanged `PageContractRepairPatches` v1. Complete-page exact-set application, complete validation, model, service tier, 64K/36K token ceilings, one-initial/two-repair call budget, timeout, zero transport retries, no fallback, candidate policy and `$4.884/$5.00` ceilings are unchanged.
+- Prompt authority cuts over to `page-contract-repair-prompt/v6` and `page-contract-repair-user-prompt/v6`. Validation messages are provider input only: receipt/readiness retain the closed typed diagnostics and do not persist validator prose.
+- Focused compiler/lifecycle validation passed **3 files / 133 tests**. Canonical B0/materialization/Execution Supervisor/Fresh Readiness validation passed **6 files / 283 tests**. Deterministic TypeScript and `git diff --check` passed.
+- The one literal `npm run check` passed TypeScript and the complete **19-file resource-intensive phase** with valid diagnostics. Its **271-file ordinary phase** reported exactly the six established missing ignored-output fixture failures and no seventh assertion or infrastructure failure. They remain a separate release HOLD and are accepted only for the bounded local LOW measurement.
+- Implementation cost is `$0`; no credential access, pricing/network/provider call, real B0/Fresh Readiness, canonical preflight, live authoring, candidate, downstream action, render, storage/database, deployment or production action occurred. Production remains blocked.
+- Claude Code cloud Ultrareview independently reviewed exact immutable pushed range `c3c0937d15eef84a26caa22735f809031ce10012..3c165cb43ca5568d1d64c586af3c71951eab67be` through Draft PR [#43](https://github.com/SmallHeroes/Small_Heroes/pull/43) and returned **zero findings**: `0 found / 0 verified / 0 refuted`. Codex records that independent technical PASS; it does not self-award it. The next authorized route is Fresh Readiness -> one bounded live authoring attempt -> candidate-only Semantic Reconciliation -> Blueprint/Wizard qualification -> one local `gpt-image-2` LOW portrait-page render. Production remains blocked.
+
+Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_PAGE_REPAIR_VALIDATION_HINTS_DECISION_GATE.md`, `docs/ai-workflow/R1D_PVB_D1A1B1_POST_STABLE_PROP_REPAIR_LIVE_ATTEMPTS_2_3_EXECUTION_EVIDENCE.md`, and `docs/ai-workflow/R1D_PVB_D1A1B1_PAGE_REPAIR_VALIDATION_HINTS_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-POST-STABLE-PROP-REPAIR-LIVE-ATTEMPT-1 — provider timeout / attempt exhausted
 

@@ -738,9 +738,9 @@ describe('exact zero-cost authoring preflight', () => {
           userPromptVersion: 'vc-repair-user-prompt/v11',
         },
         pageContractRepair: {
-          systemPromptVersion: 'page-contract-repair-prompt/v5',
+          systemPromptVersion: 'page-contract-repair-prompt/v6',
           userPromptVersion:
-            'page-contract-repair-user-prompt/v5',
+            'page-contract-repair-user-prompt/v6',
         },
       },
       pricing: {
@@ -3853,8 +3853,13 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       contractPointer: '/pageContracts/0/locationId',
       contractValue: repairedPages[0]!.locationId,
     });
+    expect(thirdPayload.affectedPages[0].validationHints).toEqual([
+      'actionSemanticCoverage[0].disposition.contractValue does not exactly match the current pointed-to string value',
+    ]);
     expect(thirdCall.userPrompt).not.toContain('validatorErrors');
-    expect(thirdCall.userPrompt).not.toContain('does not exactly match');
+    expect(JSON.stringify(result.receipt)).not.toContain(
+      'does not exactly match',
+    );
     expect(thirdCall.userPrompt).not.toContain('provider');
     expect(thirdCall.userPrompt).not.toContain('stack');
     expect(thirdCall.userPrompt).not.toContain('credential');

@@ -242,6 +242,15 @@ function issue(pageNumber: number): DraftValidationIssue {
   };
 }
 
+function validationMessages(
+  issues: readonly DraftValidationIssue[],
+): string[] {
+  return issues.map(
+    (entry, index) =>
+      `validator:${entry.family}:${entry.code}:${index}`,
+  );
+}
+
 const representedElsewhereIssueCodes = [
   'represented_elsewhere_pointer_out_of_scope',
   'represented_elsewhere_pointer_unresolved',
@@ -405,6 +414,9 @@ describe('page-contract compact repair', () => {
           pageNumber: pageContract.pageNumber as number,
         },
       ],
+      validationHints: [
+        `pageContracts[${(pageContract.pageNumber as number) - 1}].camera is invalid`,
+      ],
       permittedPointerValues: [],
     }));
     const raw = JSON.stringify({ affectedPages });
@@ -429,26 +441,66 @@ describe('page-contract compact repair', () => {
   });
 
   it('selects only an all-page final-structure diagnostic set', () => {
+    const structuralIssues = [issue(2), issue(1), issue(2)];
     const affected = pageContractRepairAffectedPages({
       draft: draft(),
-      diagnosticIssues: [issue(2), issue(1), issue(2)],
+      diagnosticIssues: structuralIssues,
+      validationMessages: validationMessages(structuralIssues),
     });
     expect(affected?.map((value) => value.pageNumber)).toEqual([1, 2]);
+    const mixedIssues = [
+      issue(1),
+      {
+        family: 'draft_contract',
+        code: 'unresolved_reference',
+        locator: {
+          kind: 'page',
+          fieldRole: 'reference',
+          pageNumber: 1,
+        },
+      },
+    ] satisfies DraftValidationIssue[];
     expect(
       pageContractRepairAffectedPages({
         draft: draft(),
-        diagnosticIssues: [
-          issue(1),
-          {
-            family: 'draft_contract',
-            code: 'unresolved_reference',
-            locator: {
-              kind: 'page',
-              fieldRole: 'reference',
-              pageNumber: 1,
-            },
-          },
-        ],
+        diagnosticIssues: mixedIssues,
+        validationMessages: validationMessages(mixedIssues),
+      }),
+    ).toBeNull();
+  });
+
+  it('groups, deduplicates, and canonically sorts page-local validation hints', () => {
+    const issues = [issue(2), issue(1), issue(2), issue(1)];
+    const affected = pageContractRepairAffectedPages({
+      draft: draft(),
+      diagnosticIssues: issues,
+      validationMessages: [
+        'page 2 zeta invariant',
+        'page 1 zeta invariant',
+        'page 2 alpha invariant',
+        'page 1 zeta invariant',
+      ],
+    });
+    expect(affected?.map((entry) => entry.validationHints)).toEqual([
+      ['page 1 zeta invariant'],
+      ['page 2 alpha invariant', 'page 2 zeta invariant'],
+    ]);
+  });
+
+  it('rejects missing, empty, or cardinality-mismatched validation hints', () => {
+    const issues = [issue(1), issue(2)];
+    expect(
+      pageContractRepairAffectedPages({
+        draft: draft(),
+        diagnosticIssues: issues,
+        validationMessages: ['only one'],
+      }),
+    ).toBeNull();
+    expect(
+      pageContractRepairAffectedPages({
+        draft: draft(),
+        diagnosticIssues: issues,
+        validationMessages: ['page 1 invalid', ''],
       }),
     ).toBeNull();
   });
@@ -459,6 +511,7 @@ describe('page-contract compact repair', () => {
       const affected = pageContractRepairAffectedPages({
         draft: draft(),
         diagnosticIssues: [representedElsewhereIssue(code, 2)],
+        validationMessages: [`page 2 ${code}`],
         pointerTemplate: pointerTemplate(),
       });
       expect(affected).toMatchObject([
@@ -847,45 +900,50 @@ describe('page-contract compact repair', () => {
       pageContractRepairAffectedPages({
         draft: draft(),
         diagnosticIssues: [candidate as DraftValidationIssue],
+        validationMessages: ['invalid locator'],
         pointerTemplate: pointerTemplate(),
       }),
     ).toBeNull();
   });
 
   it('rejects mixed, unsafe, unlocatable, and projection-less sets', () => {
+    const mixedFamilies = [
+      issue(1),
+      representedElsewhereIssue(
+        'represented_elsewhere_pointer_unresolved',
+        1,
+      ),
+    ];
     expect(
       pageContractRepairAffectedPages({
         draft: draft(),
-        diagnosticIssues: [
-          issue(1),
-          representedElsewhereIssue(
-            'represented_elsewhere_pointer_unresolved',
-            1,
-          ),
-        ],
+        diagnosticIssues: mixedFamilies,
+        validationMessages: validationMessages(mixedFamilies),
         pointerTemplate: pointerTemplate(),
       }),
     ).toBeNull();
+    const unsafeIssues = [
+      representedElsewhereIssue(
+        'represented_elsewhere_pointer_unresolved',
+        1,
+      ),
+      {
+        family: 'action_semantic',
+        code: 'closed_catalog_capability_gap',
+        locator: {
+          kind: 'page_item',
+          collectionRole: 'page_action_semantic_coverage',
+          fieldRole: 'disposition',
+          pageNumber: 1,
+          itemIndex: 0,
+        },
+      },
+    ] satisfies DraftValidationIssue[];
     expect(
       pageContractRepairAffectedPages({
         draft: draft(),
-        diagnosticIssues: [
-          representedElsewhereIssue(
-            'represented_elsewhere_pointer_unresolved',
-            1,
-          ),
-          {
-            family: 'action_semantic',
-            code: 'closed_catalog_capability_gap',
-            locator: {
-              kind: 'page_item',
-              collectionRole: 'page_action_semantic_coverage',
-              fieldRole: 'disposition',
-              pageNumber: 1,
-              itemIndex: 0,
-            },
-          },
-        ],
+        diagnosticIssues: unsafeIssues,
+        validationMessages: validationMessages(unsafeIssues),
         pointerTemplate: pointerTemplate(),
       }),
     ).toBeNull();
@@ -898,6 +956,7 @@ describe('page-contract compact repair', () => {
             1,
           ),
         ],
+        validationMessages: ['page 1 represented-elsewhere value mismatch'],
       }),
     ).toBeNull();
     expect(
@@ -909,12 +968,13 @@ describe('page-contract compact repair', () => {
             3,
           ),
         ],
+        validationMessages: ['page 3 represented-elsewhere value mismatch'],
         pointerTemplate: pointerTemplate(),
       }),
     ).toBeNull();
   });
 
-  it('builds the v5 closed payload without prose, provider, secret, stack, or executable leakage', () => {
+  it('builds the v6 closed payload without story, provider, secret, stack, or executable leakage', () => {
     const original = draft();
     Object.assign(original, {
       unrelatedStorySource: 'RAW_STORY_SOURCE_PROSE_SENTINEL',
@@ -926,6 +986,7 @@ describe('page-contract compact repair', () => {
     const affected = pageContractRepairAffectedPages({
       draft: original,
       diagnosticIssues: [issue(1)],
+      validationMessages: ['pageContracts[0].camera is invalid'],
     })!;
     const system = buildPageContractRepairSystemPrompt();
     const rawPrompt = buildPageContractRepairUserPrompt({
@@ -938,10 +999,10 @@ describe('page-contract compact repair', () => {
       PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
     );
     expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
-      'page-contract-repair-prompt/v5',
+      'page-contract-repair-prompt/v6',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'page-contract-repair-user-prompt/v5',
+      'page-contract-repair-user-prompt/v6',
     );
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([
@@ -952,6 +1013,10 @@ describe('page-contract compact repair', () => {
       },
     ]);
     expect(parsed.affectedPages[0].permittedPointerValues).toEqual([]);
+    expect(parsed.affectedPages[0].validationHints).toEqual([
+      'pageContracts[0].camera is invalid',
+    ]);
+    expect(system).toContain('validationHints');
     expect(parsed.affectedPages[0]).not.toHaveProperty(
       'permittedSpatialReferences',
     );
@@ -976,6 +1041,7 @@ describe('page-contract compact repair', () => {
     const affected = pageContractRepairAffectedPages({
       draft: original,
       diagnosticIssues: [issue(2)],
+      validationMessages: ['pageContracts[1].camera is invalid'],
     })!;
     const replacement = page(2);
     replacement.camera = 'corrected portrait shot';
@@ -1038,6 +1104,10 @@ describe('page-contract compact repair', () => {
     const affected = pageContractRepairAffectedPages({
       draft: original,
       diagnosticIssues: [issue(1), issue(2)],
+      validationMessages: [
+        'pageContracts[0].camera is invalid',
+        'pageContracts[1].camera is invalid',
+      ],
     })!;
     expect(() =>
       applyPageContractRepairs({
@@ -1066,6 +1136,7 @@ describe('page-contract compact repair', () => {
       pageContractRepairAffectedPages({
         draft: duplicated,
         diagnosticIssues: [issue(1)],
+        validationMessages: ['pageContracts[0].camera is invalid'],
       }),
     ).toBeNull();
   });

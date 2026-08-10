@@ -581,7 +581,7 @@ describe('page-contract compact repair routing', () => {
       kind: 'repair',
       repairMode: 'page_contract_patch',
       systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'page-contract-repair-user-prompt/v5',
+      userPromptVersion: 'page-contract-repair-user-prompt/v6',
     });
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
       PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
@@ -596,6 +596,9 @@ describe('page-contract compact repair routing', () => {
         pageNumber: 1,
       },
     ]);
+    expect(payload.affectedPages[0].validationHints).toEqual(
+      expect.arrayContaining([expect.stringContaining('camera')]),
+    );
     expect(payload.affectedPages[0].permittedPointerValues).toEqual([]);
     expect(payload.affectedPages[0]).not.toHaveProperty(
       'permittedSpatialReferences',
@@ -676,6 +679,9 @@ describe('page-contract compact repair routing', () => {
         },
       ],
     });
+    expect(thirdPayload.affectedPages[0].validationHints.length).toBeGreaterThan(
+      0,
+    );
     expect(
       thirdPayload.affectedPages[0].permittedPointerValues,
     ).toContainEqual({

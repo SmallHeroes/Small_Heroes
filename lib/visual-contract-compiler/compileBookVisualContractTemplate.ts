@@ -3066,6 +3066,7 @@ export async function compileBookVisualContractTemplate(
           pageContractAffectedPages = pageContractRepairAffectedPages({
             draft,
             diagnosticIssues: attemptDiagnosticIssues,
+            validationMessages: attemptErrors,
             pointerTemplate: pageContractPointerTemplate,
           });
         }
