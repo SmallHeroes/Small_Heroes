@@ -2,7 +2,7 @@
 
 ## Status
 
-Streaming transport independently PASSed within the bounded LOW exception. The post-live terminal-output mapper correction is locally green and pending an independent focused re-gate. Repository/release status remains HOLD on the separate six known fixture failures.
+Streaming transport and the post-live terminal-output mapper correction independently PASSed within the bounded LOW exception. Repository/release status remains HOLD on the separate six known fixture failures.
 
 - Base: `d3070cbded13891ba964466ca2bbbd1e1b96d227`
 - Branch: `codex/r1d-pvb-d1a1b1-streaming-authoring-transport`
@@ -131,6 +131,10 @@ Implementation and correction validation did not access credentials or providers
 Claude Code independently reviewed exact immutable pushed range `d3070cbded13891ba964466ca2bbbd1e1b96d227..d1beac4bb89222f7ab84abd07a769412cdb74eee` and returned **PASS** with zero BLOCKER, zero MAJOR, and zero MINOR. It verified the single `responses.create` dispatch with `stream: true`, closed terminal-event reduction, every fail-closed malformed/error/missing/after-terminal path, raw provider prose and delta suppression, unchanged mapper/validation/repair/cost flow, evidence v5/v4 migration, preflight binding, locked request policy, and meaningful SDK/SSE test coverage. Codex records Claude Code's independent verdict; it does not self-award technical PASS.
 
 Claude retained two non-blocking advisory notes: the pre-existing diagnostic observations expose `sdkRequestBuildStarted` but not a separate succeeded flag, and the deliberate no-retention policy means operators receive no token-level streaming telemetry. Neither changes correctness, authority, cost, or the bounded LOW route.
+
+Claude Code then independently re-gated correction range `8e3b0285f8d2613c3e1e1f307c9675cb2362cdbb..6dbd1a4f` and returned **PASS** with zero BLOCKER, zero MAJOR, and zero MINOR. It verified the exact SDK-compatible output join, provider-order preservation, fail-closed malformed paths, exclusion of reasoning/tool/non-text content, no raw material retention, unchanged request/lifecycle policy, direct/full-lifecycle/real-SSE test coverage, documentation fidelity, usage arithmetic, and repository-gate accounting. Codex records Claude Code's verdict; it does not self-award technical PASS.
+
+The re-gate retained two advisory notes only: returning empty output when any message item is malformed is intentionally conservative but not explicitly commented, and the streamed test helper's `String()` conversion could be stylistically clearer. Neither is a correctness, authority, or bounded-LOW blocker.
 
 ## Rollback
 
