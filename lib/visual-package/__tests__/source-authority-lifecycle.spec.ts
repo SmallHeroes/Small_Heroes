@@ -33,7 +33,10 @@ import type {
 import type {
   BookVisualContractTemplate,
 } from '@/lib/visual-contract-compiler/contractTemplateTypes';
-import { parseStructuralBundleRepairPatch } from '@/lib/visual-contract-compiler/structuralBundleRepair';
+import {
+  decodeStructuralBundleRepairUserPrompt,
+  parseStructuralBundleRepairPatch,
+} from '@/lib/visual-contract-compiler/structuralBundleRepair';
 import { PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
 import { migrateLegacySetBoardFixture } from '@/lib/set-identity-board/__tests__/current-authority-fixtures';
 import {
@@ -2920,7 +2923,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       ]),
     ];
     invalid.recurringProps[0]!.material = '';
-    page.camera = '';
+    expect(invalid.pageContracts).toHaveLength(12);
+    for (const candidate of invalid.pageContracts) {
+      candidate.camera = '';
+    }
 
     let thirdRepairOutput: unknown = null;
     const provider: VisualContractAuthoringProvider = {
@@ -2940,12 +2946,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
             ],
           };
         } else {
-          const authority = JSON.parse(args.userPrompt) as {
-            recurringProps: Array<Record<string, unknown>>;
-            affectedPages: Array<{
-              pageContract: Record<string, unknown>;
-            }>;
-          };
+          const authority = decodeStructuralBundleRepairUserPrompt(
+            args.userPrompt,
+          );
           const recurringProps = structuredClone(
             authority.recurringProps,
           );
@@ -2953,7 +2956,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
             ({ pageContract }) => structuredClone(pageContract),
           );
           recurringProps[0]!.material = 'durable fixture material';
-          pageContracts[0]!.camera = 'portrait medium shot';
+          for (const pageContract of pageContracts) {
+            pageContract.camera = 'portrait medium shot';
+          }
           output = { recurringProps, pageContracts };
           thirdRepairOutput = output;
         }
@@ -3011,7 +3016,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       result.receipt.attempts[1].draftValidationDiagnostics,
     ).toMatchObject({
-      currentUniqueCount: 2,
+      currentUniqueCount: 13,
       finalAttempt: false,
     });
     expect(
@@ -3024,14 +3029,18 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(thirdCall.options.jsonSchema?.name).toBe(
       'StructuralBundleRepairPatch',
     );
-    const thirdPayload = JSON.parse(thirdCall.userPrompt);
+    const thirdPayload = decodeStructuralBundleRepairUserPrompt(
+      thirdCall.userPrompt,
+    );
     expect(thirdPayload.recurringProps).toHaveLength(
       invalid.recurringProps.length,
     );
-    expect(thirdPayload.affectedPages).toHaveLength(1);
-    expect(thirdPayload.affectedPages[0].pageNumber).toBe(
-      page.pageNumber,
-    );
+    expect(thirdPayload.affectedPages).toHaveLength(12);
+    expect(
+      thirdPayload.affectedPages.map(
+        (candidate) => candidate.pageNumber,
+      ),
+    ).toEqual(Array.from({ length: 12 }, (_, index) => index + 1));
     expect(thirdPayload).not.toHaveProperty('previousDraft');
     expect(thirdPayload).not.toHaveProperty('storySource');
     const thirdPromptUpperBound =

@@ -8,6 +8,7 @@ import {
   applyStructuralBundleRepairPatch,
   buildStructuralBundleRepairSystemPrompt,
   buildStructuralBundleRepairUserPrompt,
+  decodeStructuralBundleRepairUserPrompt,
   parseStructuralBundleRepairPatch,
   structuralBundleRepairAuthority,
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
@@ -228,15 +229,16 @@ describe('recurring-prop and page structural bundle repair', () => {
     expect(schema.recurringProps.items).toBeTruthy();
     expect(schema.pageContracts.items).toBeTruthy();
     expect(STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION).toBe(
-      'structural-bundle-repair-prompt/v1',
+      'structural-bundle-repair-prompt/v2',
     );
     expect(STRUCTURAL_BUNDLE_REPAIR_USER_PROMPT_VERSION).toBe(
-      'structural-bundle-repair-user-prompt/v1',
+      'structural-bundle-repair-user-prompt/v2',
     );
     expect(buildStructuralBundleRepairSystemPrompt()).toContain('ONLY');
-    const payload = JSON.parse(
-      buildStructuralBundleRepairUserPrompt({ authority: selected }),
-    );
+    const rawPrompt = buildStructuralBundleRepairUserPrompt({
+      authority: selected,
+    });
+    const payload = decodeStructuralBundleRepairUserPrompt(rawPrompt);
     expect(payload.recurringProps).toHaveLength(2);
     expect(payload.affectedPages.map((value: { pageNumber: number }) => value.pageNumber)).toEqual([
       1,
@@ -251,6 +253,19 @@ describe('recurring-prop and page structural bundle repair', () => {
     ]) {
       expect(serialized).not.toContain(sentinel);
     }
+    const reordered = structuredClone(selected);
+    reordered.recurringProps = reordered.recurringProps.map((value) =>
+      Object.fromEntries(Object.entries(value).reverse()),
+    );
+    expect(
+      buildStructuralBundleRepairUserPrompt({ authority: reordered }),
+    ).toBe(rawPrompt);
+    const encoded = JSON.parse(rawPrompt) as Record<string, unknown>;
+    expect(() =>
+      decodeStructuralBundleRepairUserPrompt(
+        JSON.stringify({ ...encoded, extra: true }),
+      ),
+    ).toThrow('structural_bundle_repair_input_encoding_invalid');
   });
 
   it('parses exact output and rejects root/member drift', () => {

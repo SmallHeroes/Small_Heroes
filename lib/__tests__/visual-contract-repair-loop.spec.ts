@@ -32,6 +32,7 @@ import {
   parsePageContractRepairs,
 } from '../visual-contract-compiler/pageContractRepair';
 import {
+  decodeStructuralBundleRepairUserPrompt,
   STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
   STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
 } from '../visual-contract-compiler/structuralBundleRepair';
@@ -824,7 +825,7 @@ describe('page-contract compact repair routing', () => {
     ) => {
       calls.push({ user, options, authority });
       if (calls.length === 1) return JSON.stringify(invalid);
-      const payload = JSON.parse(user);
+      const payload = decodeStructuralBundleRepairUserPrompt(user);
       const recurringProps = structuredClone(payload.recurringProps);
       const pageContracts = payload.affectedPages.map(
         (value: { pageContract: Record<string, unknown> }) =>
@@ -844,12 +845,14 @@ describe('page-contract compact repair routing', () => {
       kind: 'repair',
       repairMode: 'structural_bundle_patch',
       systemPromptVersion: STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'structural-bundle-repair-user-prompt/v1',
+      userPromptVersion: 'structural-bundle-repair-user-prompt/v2',
     });
     expect(calls[1]?.options?.jsonSchema?.name).toBe(
       STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
     );
-    const payload = JSON.parse(calls[1]!.user);
+    const payload = decodeStructuralBundleRepairUserPrompt(
+      calls[1]!.user,
+    );
     expect(payload.recurringProps).toHaveLength(
       invalid.recurringProps.length,
     );

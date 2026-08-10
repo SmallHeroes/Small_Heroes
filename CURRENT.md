@@ -2,7 +2,20 @@
 
 **Updated:** 2026-08-10
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-streaming-authoring-transport` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `d3070cbded13891ba964466ca2bbbd1e1b96d227`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-structural-bundle-input-compaction` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `b3b38710b65b538ccad24d1f97bffe8ae0ba64e0`.
+
+## R1D-PVB-D1A1B1-STRUCTURAL-BUNDLE-REPAIR-INPUT-COMPACTION - implementation green / independent QA pending
+
+The latest consumed live attempt completed an initial provider response and one `page_spatial_reference_patch`, resolving all four original out-of-scope references. Complete validation then exposed one recurring-props collection issue plus twelve page final-structure issues. The planned third call correctly selected `structural_bundle_patch` but stopped locally before provider reachability because its repeated-key JSON input exceeded the unchanged 64K ceiling.
+
+- The existing lossless canonical repair-input codec now carries the structural-bundle provider input without omitting, summarizing or inferring any value. The decoded root remains exactly `recurringProps`, `affectedPages`, `validationMessages` and `referenceAuthority`; prompt construction proves canonical roundtrip equality before returning bytes.
+- Only structural-bundle prompt authority advances to system/user v2. Its eligibility, output schema v1, response parser, exact prop/page sets, clone/application boundary, complete revalidation, model, service tier, 64K/36K ceilings, three-call budget, timeout, retries, fallback, candidate semantics and `$4.884/$5.00` ceilings are unchanged.
+- Direct lifecycle validation passed **3 files / 101 tests** including the initial spatial repair followed by a twelve-page structural-bundle repair and a completed fake candidate with at least 4,096 units of input headroom. Canonical materialization, verifier, Supervisor and Fresh Readiness validation passed **10 files / 389 tests**. TypeScript and `git diff --check` passed.
+- The one literal `npm run check` passed TypeScript and all **19 resource-intensive files** with valid diagnostics. Its **271-file ordinary phase** reported exactly the six established missing ignored-output fixture failures and no seventh assertion or infrastructure failure. Those six remain a separate release HOLD and are accepted only for the bounded local LOW measurement.
+- Implementation cost is `$0`. No credential, pricing/network/provider call, real B0/Fresh Readiness, preflight, live authoring, candidate, Reconciliation, Blueprint/Wizard, render, storage/database, publication, deployment or production action occurred. Production remains blocked.
+- Independent Claude Code QA is pending. The cloud reviewer quota was exhausted and three bounded local reviewer invocations produced no verdict; Codex records this tooling limitation and does not self-award independent technical PASS.
+
+Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_STRUCTURAL_BUNDLE_REPAIR_INPUT_COMPACTION_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_STRUCTURAL_BUNDLE_REPAIR_INPUT_COMPACTION_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-ACTION-COVERAGE-CARDINALITY-PAGE-REPAIR-ROUTING - implementation green / independent QA pending
 

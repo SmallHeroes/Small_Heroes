@@ -7,15 +7,19 @@ import {
   TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
   TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA,
 } from './templateDraftSchema';
+import {
+  decodePageContractRepairInput,
+  encodePageContractRepairInput,
+} from './pageContractRepair';
 
 export const STRUCTURAL_BUNDLE_REPAIR_SCHEMA_VERSION =
   'structural-bundle-repair-schema/v1' as const;
 export const STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME =
   'StructuralBundleRepairPatch' as const;
 export const STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION =
-  'structural-bundle-repair-prompt/v1' as const;
+  'structural-bundle-repair-prompt/v2' as const;
 export const STRUCTURAL_BUNDLE_REPAIR_USER_PROMPT_VERSION =
-  'structural-bundle-repair-user-prompt/v1' as const;
+  'structural-bundle-repair-user-prompt/v2' as const;
 
 const MAX_VALIDATION_MESSAGES = 128;
 const MAX_VALIDATION_MESSAGE_LENGTH = 1_024;
@@ -318,6 +322,8 @@ export function structuralBundleRepairAuthority(args: {
 export function buildStructuralBundleRepairSystemPrompt(): string {
   return [
     'Repair ONLY the recurringProps collection and complete page contracts identified by the input.',
+    'Decode the compact input exactly: ["s",i] references stringDictionary[i], ["a",...items] is an array, and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
+    'The decoded root contains recurringProps, affectedPages, validationMessages, and referenceAuthority; the compact representation omits no authority value.',
     'Return the same recurring prop IDs and exactly the affected pageNumbers; never add, remove, or rename an identity.',
     'Use only IDs present in referenceAuthority and resolve every listed validationMessage.',
     'Preserve all valid semantics and do not infer or return any unrelated global field.',
@@ -328,7 +334,7 @@ export function buildStructuralBundleRepairSystemPrompt(): string {
 export function buildStructuralBundleRepairUserPrompt(args: {
   authority: StructuralBundleRepairAuthority;
 }): string {
-  return JSON.stringify({
+  const payload = {
     recurringProps: structuredClone(args.authority.recurringProps),
     affectedPages: args.authority.affectedPages.map((value) => ({
       pageNumber: value.pageNumber,
@@ -338,7 +344,64 @@ export function buildStructuralBundleRepairUserPrompt(args: {
     referenceAuthority: structuredClone(
       args.authority.referenceAuthority,
     ),
-  });
+  };
+  const encoded = encodePageContractRepairInput(payload);
+  let decoded: unknown;
+  try {
+    decoded = decodePageContractRepairInput(encoded);
+  } catch {
+    throw new Error('structural_bundle_repair_input_encoding_invalid');
+  }
+  if (
+    JSON.stringify(canonicalize(payload)) !==
+    JSON.stringify(canonicalize(decoded))
+  ) {
+    throw new Error('structural_bundle_repair_input_roundtrip_mismatch');
+  }
+  return JSON.stringify(canonicalize(encoded));
+}
+
+/** Strict local decoder used by tests and diagnostics to prove losslessness. */
+export function decodeStructuralBundleRepairUserPrompt(raw: string): {
+  recurringProps: Record<string, unknown>[];
+  affectedPages: StructuralBundleRepairAffectedPage[];
+  validationMessages: string[];
+  referenceAuthority: StructuralBundleReferenceAuthority;
+} {
+  let encoded: unknown;
+  try {
+    encoded = JSON.parse(raw);
+  } catch {
+    throw new Error('structural_bundle_repair_input_encoding_invalid');
+  }
+  let decoded: unknown;
+  try {
+    decoded = decodePageContractRepairInput(encoded);
+  } catch {
+    throw new Error('structural_bundle_repair_input_encoding_invalid');
+  }
+  const root = recordValue(decoded);
+  if (
+    !root ||
+    !exactKeys(root, [
+      'recurringProps',
+      'affectedPages',
+      'validationMessages',
+      'referenceAuthority',
+    ]) ||
+    !Array.isArray(root.recurringProps) ||
+    !Array.isArray(root.affectedPages) ||
+    !Array.isArray(root.validationMessages) ||
+    !recordValue(root.referenceAuthority)
+  ) {
+    throw new Error('structural_bundle_repair_input_encoding_invalid');
+  }
+  return root as unknown as {
+    recurringProps: Record<string, unknown>[];
+    affectedPages: StructuralBundleRepairAffectedPage[];
+    validationMessages: string[];
+    referenceAuthority: StructuralBundleReferenceAuthority;
+  };
 }
 
 export function parseStructuralBundleRepairPatch(
