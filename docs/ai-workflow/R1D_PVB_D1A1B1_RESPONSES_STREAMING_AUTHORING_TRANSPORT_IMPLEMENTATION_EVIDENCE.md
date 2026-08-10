@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation validation is locally green within the bounded LOW exception. Independent Claude Code QA is pending.
+Independent technical PASS within the bounded LOW exception. Repository/release status remains HOLD only on the separate six known fixture failures.
 
 - Base: `d3070cbded13891ba964466ca2bbbd1e1b96d227`
 - Branch: `codex/r1d-pvb-d1a1b1-streaming-authoring-transport`
@@ -101,7 +101,9 @@ No credential access, provider/model/network call, real B0/Fresh Readiness mater
 
 ## Independent QA
 
-Pending after the focused local commit and push. Claude Code must falsify single-dispatch behavior, terminal-event reduction, raw-event suppression, current/legacy evidence classification, request-body binding, canonical authority regressions, and unchanged budgets/retry/fallback policy.
+Claude Code independently reviewed exact immutable pushed range `d3070cbded13891ba964466ca2bbbd1e1b96d227..d1beac4bb89222f7ab84abd07a769412cdb74eee` and returned **PASS** with zero BLOCKER, zero MAJOR, and zero MINOR. It verified the single `responses.create` dispatch with `stream: true`, closed terminal-event reduction, every fail-closed malformed/error/missing/after-terminal path, raw provider prose and delta suppression, unchanged mapper/validation/repair/cost flow, evidence v5/v4 migration, preflight binding, locked request policy, and meaningful SDK/SSE test coverage. Codex records Claude Code's independent verdict; it does not self-award technical PASS.
+
+Claude retained two non-blocking advisory notes: the pre-existing diagnostic observations expose `sdkRequestBuildStarted` but not a separate succeeded flag, and the deliberate no-retention policy means operators receive no token-level streaming telemetry. Neither changes correctness, authority, cost, or the bounded LOW route.
 
 ## Rollback
 

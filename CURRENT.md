@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-pvb-d1a1b1-streaming-authoring-transport` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `d3070cbded13891ba964466ca2bbbd1e1b96d227`.
 
-## R1D-PVB-D1A1B1-RESPONSES-STREAMING-AUTHORING-TRANSPORT - implementation green / independent QA pending
+## R1D-PVB-D1A1B1-RESPONSES-STREAMING-AUTHORING-TRANSPORT - independent technical PASS / repository release HOLD
 
 Two separately materialized live attempts on pushed head `d3070cbded13891ba964466ca2bbbd1e1b96d227` failed after approximately 306 seconds before any HTTP response, usage, response ID, or provider billing evidence was returned. Both canonical failures are `transport_dispatch / connection_timeout / api_connection_timeout_error`, with one logical provider call, one transport dispatch, zero transport retries, no fallback, zero locally accounted cost, and no candidate or downstream authority. The repository request timeout is twenty minutes, so the repeated failure occurs before the repository timeout and before response mapping or validation.
 
@@ -14,7 +14,8 @@ Two separately materialized live attempts on pushed head `d3070cbded13891ba96446
 - Direct transport validation passed **1 file / 145 tests**. The canonical materialization/verifier/Supervisor/Fresh Readiness chain passed **7 files / 310 tests**. Adjacent provider/lifecycle validation passed **4 files / 149 tests**. TypeScript, `git diff --check`, and canonical zero-cost import preflight passed.
 - The one literal `npm run check` passed TypeScript and all **19 resource-intensive files** with valid diagnostics. Its **271-file ordinary phase** reported exactly the six established missing ignored-output fixture failures and no seventh assertion or infrastructure failure. They remain a release HOLD and are accepted only for the bounded local LOW measurement.
 - Implementation cost is `$0`; no credential, provider/network call, real readiness, live authoring, candidate, downstream action, render, storage/database, publication, deployment, or production action occurred. Production remains blocked.
-- Independent Claude Code QA is required before push-head Fresh Readiness and a new bounded live attempt. A successful candidate must still pass Semantic Reconciliation, Blueprint and Wizard qualification before one local `gpt-image-2` LOW portrait-page render.
+- Claude Code independently reviewed exact immutable pushed range `d3070cbded13891ba964466ca2bbbd1e1b96d227..d1beac4bb89222f7ab84abd07a769412cdb74eee` and returned **PASS** with zero BLOCKER, zero MAJOR, and zero MINOR. It verified one dispatch, closed terminal-event reduction, fail-closed invalid streams, raw event suppression, unchanged mapper/validation/repair/cost flow, evidence v5/v4 migration, preflight binding, and unchanged policy. Codex records Claude's verdict; it does not self-award technical PASS. The two advisory notes concern the pre-existing absence of a separate SDK-build-succeeded observation and the intentional absence of token-level stream telemetry.
+- The next action is push-head Fresh Readiness and one bounded live attempt. A successful candidate must still pass Semantic Reconciliation, Blueprint and Wizard qualification before one local `gpt-image-2` LOW portrait-page render.
 
 Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_RESPONSES_STREAMING_AUTHORING_TRANSPORT_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_RESPONSES_STREAMING_AUTHORING_TRANSPORT_IMPLEMENTATION_EVIDENCE.md`.
 
