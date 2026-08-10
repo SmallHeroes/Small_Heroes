@@ -21,9 +21,11 @@ export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
-  'page-contract-repair-prompt/v4' as const;
+  'page-contract-repair-prompt/v5' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
-  'page-contract-repair-user-prompt/v4' as const;
+  'page-contract-repair-user-prompt/v5' as const;
+export const PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION =
+  'page-contract-repair-input-encoding/v1' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION =
   'page-spatial-reference-repair-schema/v1' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME =
@@ -102,6 +104,20 @@ export interface PageContractRepairAffectedPage {
   pageContract: Record<string, unknown>;
   repairTargets: PageContractRepairTarget[];
   permittedPointerValues: RepresentedElsewherePointerValue[];
+}
+
+type PageContractRepairEncodedValue =
+  | null
+  | boolean
+  | number
+  | string
+  | PageContractRepairEncodedValue[];
+
+export interface PageContractRepairEncodedInput {
+  encodingVersion: typeof PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION;
+  stringDictionary: string[];
+  objectShapes: string[][];
+  rootTuple: PageContractRepairEncodedValue;
 }
 
 export interface PageSpatialReferenceValue {
@@ -798,9 +814,322 @@ export function pageContractRepairAffectedPages(args: {
     : null;
 }
 
+function assertPageContractRepairJsonValue(
+  value: unknown,
+  location: string,
+  ancestors: Set<object>,
+): void {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'boolean'
+  ) {
+    return;
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error('page_contract_repair_input_non_json');
+    }
+    return;
+  }
+  if (typeof value !== 'object') {
+    throw new Error('page_contract_repair_input_non_json');
+  }
+  if (ancestors.has(value)) {
+    throw new Error('page_contract_repair_input_non_json');
+  }
+  ancestors.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) =>
+      assertPageContractRepairJsonValue(
+        entry,
+        `${location}[${index}]`,
+        ancestors,
+      ),
+    );
+  } else {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new Error('page_contract_repair_input_non_json');
+    }
+    for (const [key, entry] of Object.entries(value)) {
+      assertPageContractRepairJsonValue(
+        entry,
+        `${location}.${key}`,
+        ancestors,
+      );
+    }
+  }
+  ancestors.delete(value);
+}
+
+function pageContractRepairStringCounts(
+  value: unknown,
+  counts: Map<string, number>,
+): void {
+  if (typeof value === 'string') {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      pageContractRepairStringCounts(entry, counts);
+    }
+    return;
+  }
+  const record = recordValue(value);
+  if (record) {
+    for (const entry of Object.values(record)) {
+      pageContractRepairStringCounts(entry, counts);
+    }
+  }
+}
+
+function pageContractRepairObjectShapes(
+  value: unknown,
+  shapes: Map<string, string[]>,
+): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      pageContractRepairObjectShapes(entry, shapes);
+    }
+    return;
+  }
+  const record = recordValue(value);
+  if (!record) return;
+  const keys = Object.keys(record).sort();
+  shapes.set(JSON.stringify(keys), keys);
+  for (const key of keys) {
+    pageContractRepairObjectShapes(record[key], shapes);
+  }
+}
+
+function repeatedStringDictionary(value: unknown): string[] {
+  const counts = new Map<string, number>();
+  pageContractRepairStringCounts(value, counts);
+  const candidates = [...counts.entries()]
+    .filter(([text, count]) => count > 1 && Buffer.byteLength(text, 'utf8') >= 8)
+    .map(([text]) => text)
+    .sort();
+  return candidates.filter((text, index) => {
+    const count = counts.get(text)!;
+    const rawBytes = Buffer.byteLength(JSON.stringify(text), 'utf8');
+    const referenceBytes = Buffer.byteLength(
+      JSON.stringify(['s', index]),
+      'utf8',
+    );
+    return (
+      count * rawBytes -
+        count * referenceBytes -
+        rawBytes -
+        1 >
+      0
+    );
+  });
+}
+
+/**
+ * Canonically compacts a JSON-domain authority without omitting or summarizing
+ * any value. Object keys live in deterministic shape tables, arrays are tagged,
+ * and only repeated strings with positive byte savings use dictionary refs.
+ */
+export function encodePageContractRepairInput(
+  value: unknown,
+): PageContractRepairEncodedInput {
+  assertPageContractRepairJsonValue(value, '$', new Set());
+  const canonical = canonicalize(value);
+  const stringDictionary = repeatedStringDictionary(canonical);
+  const stringIndexes = new Map(
+    stringDictionary.map((entry, index) => [entry, index]),
+  );
+  const shapeMap = new Map<string, string[]>();
+  pageContractRepairObjectShapes(canonical, shapeMap);
+  const objectShapes = [...shapeMap.values()].sort((left, right) => {
+    const leftKey = JSON.stringify(left);
+    const rightKey = JSON.stringify(right);
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+  const shapeIndexes = new Map(
+    objectShapes.map((keys, index) => [JSON.stringify(keys), index]),
+  );
+
+  const encode = (entry: unknown): PageContractRepairEncodedValue => {
+    if (typeof entry === 'string') {
+      const index = stringIndexes.get(entry);
+      return index === undefined ? entry : ['s', index];
+    }
+    if (
+      entry === null ||
+      typeof entry === 'boolean' ||
+      typeof entry === 'number'
+    ) {
+      return entry;
+    }
+    if (Array.isArray(entry)) {
+      return ['a', ...entry.map(encode)];
+    }
+    const record = recordValue(entry);
+    if (!record) {
+      throw new Error('page_contract_repair_input_non_json');
+    }
+    const keys = Object.keys(record).sort();
+    const shapeIndex = shapeIndexes.get(JSON.stringify(keys));
+    if (shapeIndex === undefined) {
+      throw new Error('page_contract_repair_input_encoding_invalid');
+    }
+    return [
+      'o',
+      shapeIndex,
+      ...keys.map((key) => encode(record[key])),
+    ];
+  };
+
+  return {
+    encodingVersion: PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
+    stringDictionary,
+    objectShapes,
+    rootTuple: encode(canonical),
+  };
+}
+
+/** Strict local decoder used to prove that the provider-facing compact input is lossless. */
+export function decodePageContractRepairInput(
+  value: unknown,
+): unknown {
+  const envelope = recordValue(value);
+  if (
+    !envelope ||
+    !exactKeys(envelope, [
+      'encodingVersion',
+      'stringDictionary',
+      'objectShapes',
+      'rootTuple',
+    ]) ||
+    envelope.encodingVersion !==
+      PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION ||
+    !Array.isArray(envelope.stringDictionary) ||
+    !envelope.stringDictionary.every(
+      (entry) => typeof entry === 'string',
+    ) ||
+    new Set(envelope.stringDictionary).size !==
+      envelope.stringDictionary.length ||
+    !Array.isArray(envelope.objectShapes)
+  ) {
+    throw new Error('page_contract_repair_input_encoding_invalid');
+  }
+  const dictionary = envelope.stringDictionary as string[];
+  if (
+    JSON.stringify([...dictionary].sort()) !==
+    JSON.stringify(dictionary)
+  ) {
+    throw new Error('page_contract_repair_input_encoding_invalid');
+  }
+  const shapes = envelope.objectShapes.map((entry) => {
+    if (
+      !Array.isArray(entry) ||
+      !entry.every((key) => typeof key === 'string') ||
+      new Set(entry).size !== entry.length ||
+      JSON.stringify([...entry].sort()) !== JSON.stringify(entry)
+    ) {
+      throw new Error('page_contract_repair_input_encoding_invalid');
+    }
+    return entry as string[];
+  });
+  if (
+    new Set(shapes.map((shape) => JSON.stringify(shape))).size !==
+      shapes.length ||
+    JSON.stringify(
+      shapes
+        .map((shape) => JSON.stringify(shape))
+        .sort(),
+    ) !==
+      JSON.stringify(shapes.map((shape) => JSON.stringify(shape)))
+  ) {
+    throw new Error('page_contract_repair_input_encoding_invalid');
+  }
+
+  const decode = (entry: unknown): unknown => {
+    if (
+      entry === null ||
+      typeof entry === 'string' ||
+      typeof entry === 'boolean'
+    ) {
+      return entry;
+    }
+    if (typeof entry === 'number') {
+      if (!Number.isFinite(entry)) {
+        throw new Error('page_contract_repair_input_encoding_invalid');
+      }
+      return entry;
+    }
+    if (!Array.isArray(entry) || entry.length === 0) {
+      throw new Error('page_contract_repair_input_encoding_invalid');
+    }
+    if (entry[0] === 's') {
+      if (
+        entry.length !== 2 ||
+        !Number.isSafeInteger(entry[1]) ||
+        (entry[1] as number) < 0 ||
+        (entry[1] as number) >= dictionary.length
+      ) {
+        throw new Error('page_contract_repair_input_encoding_invalid');
+      }
+      return dictionary[entry[1] as number];
+    }
+    if (entry[0] === 'a') {
+      return entry.slice(1).map(decode);
+    }
+    if (entry[0] === 'o') {
+      if (
+        entry.length < 2 ||
+        !Number.isSafeInteger(entry[1]) ||
+        (entry[1] as number) < 0 ||
+        (entry[1] as number) >= shapes.length
+      ) {
+        throw new Error('page_contract_repair_input_encoding_invalid');
+      }
+      const keys = shapes[entry[1] as number]!;
+      if (entry.length !== keys.length + 2) {
+        throw new Error('page_contract_repair_input_encoding_invalid');
+      }
+      return Object.fromEntries(
+        keys.map((key, index) => [key, decode(entry[index + 2])]),
+      );
+    }
+    throw new Error('page_contract_repair_input_encoding_invalid');
+  };
+
+  return decode(envelope.rootTuple);
+}
+
+export function decodePageContractRepairUserPrompt(
+  raw: string,
+): { affectedPages: PageContractRepairAffectedPage[] } {
+  let encoded: unknown;
+  try {
+    encoded = JSON.parse(raw);
+  } catch {
+    throw new Error('page_contract_repair_input_encoding_invalid');
+  }
+  const decoded = decodePageContractRepairInput(encoded);
+  const root = recordValue(decoded);
+  if (
+    !root ||
+    !exactKeys(root, ['affectedPages']) ||
+    !Array.isArray(root.affectedPages)
+  ) {
+    throw new Error('page_contract_repair_input_encoding_invalid');
+  }
+  return root as unknown as {
+    affectedPages: PageContractRepairAffectedPage[];
+  };
+}
+
 export function buildPageContractRepairSystemPrompt(): string {
   return [
     'You repair ONLY the complete page contracts identified by the input.',
+    'Decode the compact input exactly: ["s",i] references stringDictionary[i], ["a",...items] is an array, and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
+    'The decoded root has affectedPages; the compact representation omits no authority value.',
     'Return exactly one complete page contract for every affected pageNumber and no other page.',
     'Keep pageNumber and all authority IDs unchanged; never invent a new ID.',
     'Do not rewrite locations, zones, set boards, cast, recurring props, cover, or global fields.',
@@ -814,7 +1143,7 @@ export function buildPageContractRepairSystemPrompt(): string {
 export function buildPageContractRepairUserPrompt(args: {
   affectedPages: readonly PageContractRepairAffectedPage[];
 }): string {
-  return JSON.stringify({
+  const payload = {
     affectedPages: [...args.affectedPages]
       .sort((left, right) => left.pageNumber - right.pageNumber)
       .map((value) => ({
@@ -823,7 +1152,16 @@ export function buildPageContractRepairUserPrompt(args: {
         repairTargets: value.repairTargets,
         permittedPointerValues: value.permittedPointerValues,
       })),
-  });
+  };
+  const encoded = encodePageContractRepairInput(payload);
+  const decoded = decodePageContractRepairInput(encoded);
+  if (
+    JSON.stringify(canonicalize(payload)) !==
+    JSON.stringify(canonicalize(decoded))
+  ) {
+    throw new Error('page_contract_repair_input_roundtrip_mismatch');
+  }
+  return JSON.stringify(canonicalize(encoded));
 }
 
 export function parsePageContractRepairs(

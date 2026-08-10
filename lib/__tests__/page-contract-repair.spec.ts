@@ -1,7 +1,10 @@
+import fs from 'fs';
+import path from 'path';
 import { describe, expect, it } from 'vitest';
 
 import {
   PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+  PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
   PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
@@ -11,6 +14,9 @@ import {
   applyPageSpatialReferenceRepairPatches,
   buildPageContractRepairSystemPrompt,
   buildPageContractRepairUserPrompt,
+  decodePageContractRepairInput,
+  decodePageContractRepairUserPrompt,
+  encodePageContractRepairInput,
   buildPageSpatialReferenceRepairSystemPrompt,
   buildPageSpatialReferenceRepairUserPrompt,
   pageContractRepairAffectedPages,
@@ -288,6 +294,138 @@ describe('page-contract compact repair', () => {
     };
     expect(properties.pageContracts.items).toBeTruthy();
     expect(PAGE_CONTRACT_REPAIR_JSON_SCHEMA.additionalProperties).toBe(false);
+  });
+
+  it('canonically round-trips compact JSON input independent of object key order', () => {
+    const left = {
+      affectedPages: [
+        {
+          pageNumber: 1,
+          repeated: 'repeatable-authority-value',
+          nested: { z: true, a: 'repeatable-authority-value' },
+        },
+      ],
+    };
+    const right = {
+      affectedPages: [
+        {
+          nested: { a: 'repeatable-authority-value', z: true },
+          repeated: 'repeatable-authority-value',
+          pageNumber: 1,
+        },
+      ],
+    };
+    const encoded = encodePageContractRepairInput(left);
+    expect(encoded.encodingVersion).toBe(
+      PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
+    );
+    expect(encoded).toEqual(encodePageContractRepairInput(right));
+    expect(decodePageContractRepairInput(encoded)).toEqual(right);
+  });
+
+  it.each([
+    ['extra envelope key', (value: any) => ({ ...value, extra: true })],
+    [
+      'duplicate dictionary value',
+      (value: any) => ({
+        ...value,
+        stringDictionary: ['duplicate-value', 'duplicate-value'],
+      }),
+    ],
+    [
+      'unsorted dictionary',
+      (value: any) => ({
+        ...value,
+        stringDictionary: ['z-repeat-value', 'a-repeat-value'],
+      }),
+    ],
+    [
+      'unsorted object shape',
+      (value: any) => ({ ...value, objectShapes: [['z', 'a']] }),
+    ],
+    [
+      'unsorted shape table',
+      (value: any) => ({
+        ...value,
+        objectShapes: [['z'], ['a']],
+      }),
+    ],
+    [
+      'out-of-range string reference',
+      (value: any) => ({ ...value, rootTuple: ['s', 999] }),
+    ],
+    [
+      'out-of-range shape reference',
+      (value: any) => ({ ...value, rootTuple: ['o', 999] }),
+    ],
+    [
+      'malformed tuple tag',
+      (value: any) => ({ ...value, rootTuple: ['x', 0] }),
+    ],
+  ])('rejects %s in compact input fail-closed', (_label, mutate) => {
+    const encoded = encodePageContractRepairInput({ value: 'safe' });
+    expect(() => decodePageContractRepairInput(mutate(encoded))).toThrow(
+      'page_contract_repair_input_encoding_invalid',
+    );
+  });
+
+  it('rejects non-JSON and cyclic input before prompt serialization', () => {
+    expect(() => encodePageContractRepairInput({ value: NaN })).toThrow(
+      'page_contract_repair_input_non_json',
+    );
+    expect(() =>
+      encodePageContractRepairInput({ value: undefined }),
+    ).toThrow('page_contract_repair_input_non_json');
+    const cyclic: { self?: unknown } = {};
+    cyclic.self = cyclic;
+    expect(() => encodePageContractRepairInput(cyclic)).toThrow(
+      'page_contract_repair_input_non_json',
+    );
+  });
+
+  it('losslessly compacts a 12-page Fox-shaped authority with at least 4K admission headroom', () => {
+    const template = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          process.cwd(),
+          'story-bank',
+          'v3-approved',
+          'fox_uri_adventure.visual-contract-template.json',
+        ),
+        'utf8',
+      ),
+    ) as { pageContracts: Array<Record<string, unknown>> };
+    const affectedPages = template.pageContracts.map((pageContract) => ({
+      pageNumber: pageContract.pageNumber as number,
+      pageContract,
+      repairTargets: [
+        {
+          family: 'draft_contract' as const,
+          code: 'final_structural_invariant_invalid' as const,
+          pageNumber: pageContract.pageNumber as number,
+        },
+      ],
+      permittedPointerValues: [],
+    }));
+    const raw = JSON.stringify({ affectedPages });
+    const compact = buildPageContractRepairUserPrompt({ affectedPages });
+    expect(decodePageContractRepairUserPrompt(compact)).toEqual({
+      affectedPages,
+    });
+    expect(Buffer.byteLength(compact, 'utf8')).toBeLessThan(
+      Buffer.byteLength(raw, 'utf8'),
+    );
+    const admittedUpperBound =
+      Buffer.byteLength(
+        [
+          buildPageContractRepairSystemPrompt(),
+          compact,
+          JSON.stringify(PAGE_CONTRACT_REPAIR_JSON_SCHEMA),
+        ].join('\n'),
+        'utf8',
+      ) + 4_096;
+    expect(admittedUpperBound).toBeLessThanOrEqual(64_000);
+    expect(64_000 - admittedUpperBound).toBeGreaterThanOrEqual(4_096);
   });
 
   it('selects only an all-page final-structure diagnostic set', () => {
@@ -776,7 +914,7 @@ describe('page-contract compact repair', () => {
     ).toBeNull();
   });
 
-  it('builds the v3 closed payload without prose, provider, secret, stack, or executable leakage', () => {
+  it('builds the v5 closed payload without prose, provider, secret, stack, or executable leakage', () => {
     const original = draft();
     Object.assign(original, {
       unrelatedStorySource: 'RAW_STORY_SOURCE_PROSE_SENTINEL',
@@ -790,17 +928,20 @@ describe('page-contract compact repair', () => {
       diagnosticIssues: [issue(1)],
     })!;
     const system = buildPageContractRepairSystemPrompt();
-    const parsed = JSON.parse(
-      buildPageContractRepairUserPrompt({
-        affectedPages: affected,
-      }),
-    );
+    const rawPrompt = buildPageContractRepairUserPrompt({
+      affectedPages: affected,
+    });
+    const encoded = JSON.parse(rawPrompt);
+    const parsed = decodePageContractRepairUserPrompt(rawPrompt);
     expect(system).toContain('ONLY');
+    expect(encoded.encodingVersion).toBe(
+      PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
+    );
     expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
-      'page-contract-repair-prompt/v4',
+      'page-contract-repair-prompt/v5',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'page-contract-repair-user-prompt/v4',
+      'page-contract-repair-user-prompt/v5',
     );
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([
