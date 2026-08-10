@@ -1432,6 +1432,44 @@ describe('page-contract compact repair', () => {
     });
   });
 
+  it('preserves compiler-owned page topology while applying an otherwise valid complete-page repair', () => {
+    const original = draft();
+    const snapshot = structuredClone(original);
+    const affected = pageContractRepairAffectedPages({
+      draft: original,
+      diagnosticIssues: [issue(1)],
+      validationMessages: ['pageContracts[0].camera is invalid'],
+    })!;
+    const replacement = page(1);
+    replacement.locationId = 'invented:location';
+    replacement.zoneId = 'invented:zone';
+    replacement.camera = 'corrected portrait shot';
+
+    const result = applyPageContractRepairs({
+      draft: original,
+      affectedPages: affected,
+      pageContracts: [replacement],
+    });
+    const repaired = (
+      result.pageContracts as Record<string, unknown>[]
+    )[0]!;
+
+    expect(original).toEqual(snapshot);
+    expect(repaired.locationId).toBe(
+      (snapshot.pageContracts[0] as Record<string, unknown>)
+        .locationId,
+    );
+    expect(repaired.zoneId).toBe(
+      (snapshot.pageContracts[0] as Record<string, unknown>).zoneId,
+    );
+    expect(repaired.camera).toBe('corrected portrait shot');
+    expect({
+      ...repaired,
+      locationId: replacement.locationId,
+      zoneId: replacement.zoneId,
+    }).toEqual(replacement);
+  });
+
   it.each([
     ['invalid JSON', 'not json', 'page_contract_repair_response_invalid_json'],
     ['wrong root', '{}', 'page_contract_repair_response_invalid_shape'],

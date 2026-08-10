@@ -1987,6 +1987,7 @@ export function applyPageContractRepairs(args: {
     const page = recordValue(value);
     const pageNumber = page?.pageNumber;
     if (
+      page &&
       typeof pageNumber === 'number' &&
       replacements.has(pageNumber)
     ) {
@@ -1994,7 +1995,17 @@ export function applyPageContractRepairs(args: {
         throw new Error('page_contract_repair_page_not_unique');
       }
       seen.add(pageNumber);
-      return replacements.get(pageNumber)!;
+      const replacement = replacements.get(pageNumber)!;
+      // Complete-page repair may change only the typed targets and validation
+      // hints carried by the repair authority. The page's zone membership is
+      // already-valid compiler authority and is never a repair target in this
+      // lane. Preserve both topology identifiers locally so a provider cannot
+      // introduce a new or unresolved zone while fixing unrelated page fields.
+      return {
+        ...replacement,
+        locationId: page.locationId,
+        zoneId: page.zoneId,
+      };
     }
     return value;
   });

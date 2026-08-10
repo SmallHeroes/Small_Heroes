@@ -2,7 +2,17 @@
 
 **Updated:** 2026-08-11
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-cross-family-repair-input-compaction-v2` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `f4cf27ea64494ec7a8697c013dff705797552f3a`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-page-repair-topology-preservation` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `28fc4c2f637b633d3a2b4a88e1df43d30b88a777`.
+
+## R1D-PVB-D1A1B1-PAGE-REPAIR-TOPOLOGY-PRESERVATION - implementation green / LOW continuation authorized
+
+The first live attempt after repair-input compaction proved the full three-call route. Call 2 fixed all four initial spatial-reference issues; call 3 entered below the unchanged 64K ceiling and resolved all six action-semantic gaps plus all twelve final-structure page issues. The complete-page response nevertheless changed page 1's already-valid zone identity and introduced one new `unresolved_reference` topology issue after the repair budget was exhausted. Receipt v21 `f08065ff...` records three completed provider calls, two repairs, zero transport retries/fallback, `$1.630824 / $1.794927` nominal/conservative accounting and no candidate or downstream authority.
+
+- Complete-page repair now locally preserves each affected page's existing `zoneId` and derived `locationId`. Those fields are compiler-owned topology authority and are not admitted repair targets in this lane. All targeted action/coverage/structure fields still come from the strict provider response and pass complete validation.
+- A direct regression proves invented replacement topology is discarded, the intended camera repair is retained and the input is not mutated. Focused repair/lifecycle validation passed **3 files / 144 tests**; TypeScript and `git diff --check` passed.
+- No prompt, schema, model, 64K/36K ceilings, call/repair budget, timeout, retry/fallback, candidate semantics or cost ceiling changed. Production remains blocked. Guy explicitly authorized autonomous continuation through Fresh Readiness, one bounded live attempt, Wizard dry-run and one local `gpt-image-2` LOW portrait render.
+
+Durable records: `docs/ai-workflow/R1D_PVB_D1A1B1_PAGE_REPAIR_TOPOLOGY_PRESERVATION_DECISION_GATE.md` and `docs/ai-workflow/R1D_PVB_D1A1B1_PAGE_REPAIR_TOPOLOGY_PRESERVATION_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-CROSS-FAMILY-PAGE-REPAIR-INPUT-COMPACTION-V2 - implementation green / independent QA pending
 
