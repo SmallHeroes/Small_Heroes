@@ -20,6 +20,7 @@ import {
   buildPageSpatialReferenceRepairSystemPrompt,
   buildPageSpatialReferenceRepairUserPrompt,
   pageContractRepairAffectedPages,
+  pageContractAuthorityRepairPlan,
   pageSpatialReferenceRepairTargets,
   parsePageContractRepairs,
   parsePageSpatialReferenceRepairPatches,
@@ -505,6 +506,111 @@ describe('page-contract compact repair', () => {
     ).toBeNull();
   });
 
+  it('builds a closed complete-page plan for action coverage cardinality', () => {
+    const input = draft();
+    const pageTwo = (
+      input.pageContracts as Array<Record<string, unknown>>
+    ).find((candidate) => candidate.pageNumber === 2)!;
+    pageTwo.actionRequirements = [
+      {
+        beatId: 'beat:p2:test',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: null,
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    const plan = pageContractAuthorityRepairPlan({
+      draft: input,
+      issues: [
+        {
+          code: 'action_coverage_cardinality_invalid',
+          locator: {
+            kind: 'page_action',
+            referenceClass: 'action_coverage',
+            fieldRole:
+              'actionRequirements.actionSemanticCoverage',
+            pageNumber: 2,
+            actionIndex: 0,
+          },
+        },
+      ],
+    });
+    expect(plan?.affectedPages).toMatchObject([
+      {
+        pageNumber: 2,
+        repairTargets: [
+          {
+            family: 'action_semantic',
+            code: 'action_coverage_cardinality_invalid',
+            pageNumber: 2,
+            actionIndex: 0,
+          },
+        ],
+        permittedPointerValues: [],
+      },
+    ]);
+    expect(plan?.validationMessages).toEqual([
+      expect.stringContaining(
+        'actionRequirements[0] must bind exactly one',
+      ),
+    ]);
+    expect(plan?.diagnosticIssues).toEqual([
+      {
+        family: 'action_semantic',
+        code: 'action_binding_cardinality_invalid',
+        locator: {
+          kind: 'page_item',
+          collectionRole: 'page_actions',
+          fieldRole: 'cardinality',
+          pageNumber: 2,
+          itemIndex: 0,
+        },
+      },
+    ]);
+  });
+
+  it('rejects mixed, duplicate, malformed, stale, and unlocatable authority plans', () => {
+    const valid = {
+      code: 'action_coverage_cardinality_invalid' as const,
+      locator: {
+        kind: 'page_action' as const,
+        referenceClass: 'action_coverage' as const,
+        fieldRole:
+          'actionRequirements.actionSemanticCoverage' as const,
+        pageNumber: 2,
+        actionIndex: 0,
+      },
+    };
+    const invalidSets = [
+      [valid, structuredClone(valid)],
+      [{ ...valid, code: 'action_check_id_forbidden' as const }],
+      [{ ...valid, locator: { ...valid.locator, actionIndex: 999 } }],
+      [{ ...valid, locator: { ...valid.locator, pageNumber: 999 } }],
+      [{
+        ...valid,
+        locator: {
+          ...valid.locator,
+          fieldRole: 'actionSemanticCoverage.beatId' as const,
+        },
+      }],
+    ];
+    for (const issues of invalidSets) {
+      expect(
+        pageContractAuthorityRepairPlan({
+          draft: draft(),
+          issues,
+        }),
+      ).toBeNull();
+    }
+  });
+
   it.each(representedElsewhereIssueCodes)(
     'directly admits the closed %s identity from its typed pageNumber',
     (code) => {
@@ -974,7 +1080,7 @@ describe('page-contract compact repair', () => {
     ).toBeNull();
   });
 
-  it('builds the v6 closed payload without story, provider, secret, stack, or executable leakage', () => {
+  it('builds the v7 closed payload without story, provider, secret, stack, or executable leakage', () => {
     const original = draft();
     Object.assign(original, {
       unrelatedStorySource: 'RAW_STORY_SOURCE_PROSE_SENTINEL',
@@ -999,10 +1105,10 @@ describe('page-contract compact repair', () => {
       PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
     );
     expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
-      'page-contract-repair-prompt/v6',
+      'page-contract-repair-prompt/v7',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'page-contract-repair-user-prompt/v6',
+      'page-contract-repair-user-prompt/v7',
     );
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([

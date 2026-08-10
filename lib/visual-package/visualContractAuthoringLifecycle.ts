@@ -297,11 +297,13 @@ export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V7 =
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V8 =
   'visual-contract-candidate-artifact/v8' as const;
 export const OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
-  'openai-responses-authoring-evidence/v4' as const;
+  'openai-responses-authoring-evidence/v5' as const;
 export const LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
   'openai-responses-authoring-evidence/v2' as const;
 export const LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V3 =
   'openai-responses-authoring-evidence/v3' as const;
+export const LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V4 =
+  'openai-responses-authoring-evidence/v4' as const;
 export const ACTION_SEMANTIC_CATALOG_DIGEST =
   canonicalJsonDigest(ACTION_SEMANTIC_CATALOG);
 
@@ -314,7 +316,9 @@ export function openAIResponsesAuthoringEvidenceVersionStatus(
   return version ===
       LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION ||
     version ===
-      LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V3
+      LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V3 ||
+    version ===
+      LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V4
     ? 'legacy_immutable'
     : 'unsupported';
 }

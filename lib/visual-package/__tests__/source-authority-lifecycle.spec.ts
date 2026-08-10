@@ -738,9 +738,9 @@ describe('exact zero-cost authoring preflight', () => {
           userPromptVersion: 'vc-repair-user-prompt/v11',
         },
         pageContractRepair: {
-          systemPromptVersion: 'page-contract-repair-prompt/v6',
+          systemPromptVersion: 'page-contract-repair-prompt/v7',
           userPromptVersion:
-            'page-contract-repair-user-prompt/v6',
+            'page-contract-repair-user-prompt/v7',
         },
       },
       pricing: {
@@ -2140,6 +2140,11 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       openAIResponsesAuthoringEvidenceVersionStatus(
         'openai-responses-authoring-evidence/v4',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      openAIResponsesAuthoringEvidenceVersionStatus(
+        'openai-responses-authoring-evidence/v5',
       ),
     ).toBe('current');
     expect(

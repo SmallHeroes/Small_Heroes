@@ -21,9 +21,9 @@ export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
-  'page-contract-repair-prompt/v6' as const;
+  'page-contract-repair-prompt/v7' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
-  'page-contract-repair-user-prompt/v6' as const;
+  'page-contract-repair-user-prompt/v7' as const;
 export const PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION =
   'page-contract-repair-input-encoding/v1' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION =
@@ -176,6 +176,12 @@ export type PageContractRepairTarget =
         | 'represented_elsewhere_pointer_unresolved'
         | 'represented_elsewhere_value_mismatch';
       pageNumber: number;
+    }
+  | {
+      family: 'action_semantic';
+      code: 'action_coverage_cardinality_invalid';
+      pageNumber: number;
+      actionIndex: number;
     }
   | {
       family: 'draft_contract';
@@ -847,6 +853,143 @@ export function pageContractRepairAffectedPages(args: {
     : null;
 }
 
+export interface PageContractAuthorityRepairPlan {
+  affectedPages: PageContractRepairAffectedPage[];
+  diagnosticIssues: DraftValidationIssue[];
+  validationMessages: string[];
+}
+
+function actionCoverageCardinalityRepairTarget(
+  issue: DraftAuthorityReferenceIssue,
+): Extract<
+  PageContractRepairTarget,
+  { code: 'action_coverage_cardinality_invalid' }
+> | null {
+  if (
+    !draftAuthorityReferenceIssueIsValid(issue) ||
+    issue.code !== 'action_coverage_cardinality_invalid' ||
+    issue.locator.kind !== 'page_action' ||
+    issue.locator.referenceClass !== 'action_coverage' ||
+    issue.locator.fieldRole !==
+      'actionRequirements.actionSemanticCoverage'
+  ) {
+    return null;
+  }
+  return {
+    family: 'action_semantic',
+    code: issue.code,
+    pageNumber: issue.locator.pageNumber,
+    actionIndex: issue.locator.actionIndex,
+  };
+}
+
+/**
+ * Builds the one closed DraftAuthorityReferenceDomainError plan that may use
+ * the existing complete-page repair lane. All other authority families remain
+ * terminal at this boundary.
+ */
+export function pageContractAuthorityRepairPlan(args: {
+  draft: Record<string, unknown>;
+  issues: readonly DraftAuthorityReferenceIssue[];
+}): PageContractAuthorityRepairPlan | null {
+  if (args.issues.length === 0) return null;
+  const targets = args.issues.map(
+    actionCoverageCardinalityRepairTarget,
+  );
+  if (targets.some((target) => target === null)) return null;
+  const unique = new Map<
+    string,
+    Extract<
+      PageContractRepairTarget,
+      { code: 'action_coverage_cardinality_invalid' }
+    >
+  >();
+  for (const target of targets as Array<
+    Extract<
+      PageContractRepairTarget,
+      { code: 'action_coverage_cardinality_invalid' }
+    >
+  >) {
+    const key = JSON.stringify([
+      target.pageNumber,
+      target.actionIndex,
+    ]);
+    if (unique.has(key)) return null;
+    unique.set(key, target);
+  }
+  const normalizedTargets = [...unique.values()].sort(
+    (left, right) =>
+      left.pageNumber - right.pageNumber ||
+      left.actionIndex - right.actionIndex,
+  );
+  if (
+    normalizedTargets.some(
+      (target) =>
+        !pageActionForTarget({
+          draft: args.draft,
+          pageNumber: target.pageNumber,
+          actionIndex: target.actionIndex,
+        }),
+    )
+  ) {
+    return null;
+  }
+  const pageContracts = Array.isArray(args.draft.pageContracts)
+    ? args.draft.pageContracts.map(recordValue)
+    : [];
+  const pageNumbers = [
+    ...new Set(normalizedTargets.map((target) => target.pageNumber)),
+  ].sort((left, right) => left - right);
+  const affectedPages = pageNumbers.map((pageNumber) => {
+    const matches = pageContracts.filter(
+      (page) => page?.pageNumber === pageNumber,
+    );
+    if (matches.length !== 1) return null;
+    const pageTargets = normalizedTargets.filter(
+      (target) => target.pageNumber === pageNumber,
+    );
+    return {
+      pageNumber,
+      pageContract: structuredClone(matches[0]!),
+      repairTargets: pageTargets,
+      validationHints: pageTargets.map(
+        (target) =>
+          `action_coverage_cardinality_invalid: actionRequirements[${target.actionIndex}] must bind exactly one same-page actionSemanticCoverage record with disposition.kind action_requirement`,
+      ),
+      permittedPointerValues: [],
+    } satisfies PageContractRepairAffectedPage;
+  });
+  if (
+    affectedPages.some(
+      (page): page is null => page === null,
+    )
+  ) {
+    return null;
+  }
+  const validationMessages = (
+    affectedPages as PageContractRepairAffectedPage[]
+  ).flatMap((page) => page.validationHints);
+  const diagnosticIssues = normalizedTargets.map(
+    (target): DraftValidationIssue => ({
+      family: 'action_semantic',
+      code: 'action_binding_cardinality_invalid',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_actions',
+        fieldRole: 'cardinality',
+        pageNumber: target.pageNumber,
+        itemIndex: target.actionIndex,
+      },
+    }),
+  );
+  return {
+    affectedPages:
+      affectedPages as PageContractRepairAffectedPage[],
+    diagnosticIssues,
+    validationMessages,
+  };
+}
+
 function assertPageContractRepairJsonValue(
   value: unknown,
   location: string,
@@ -1167,6 +1310,7 @@ export function buildPageContractRepairSystemPrompt(): string {
     'Keep pageNumber and all authority IDs unchanged; never invent a new ID.',
     'Do not rewrite locations, zones, set boards, cast, recurring props, cover, or global fields.',
     'Resolve only the closed typed repairTargets and the exact repository-validator validationHints on that page while preserving unaffected page semantics.',
+    'For action_coverage_cardinality_invalid, align the targeted action beatId with exactly one same-page actionSemanticCoverage record whose disposition.kind is action_requirement.',
     'For represented_elsewhere, contractPointer and contractValue must be copied as one exact pair from permittedPointerValues on that page.',
     'Never rewrite a pointer silently or infer an authoring record from an item/list position.',
     'Output only the JSON object required by the strict repair schema.',
