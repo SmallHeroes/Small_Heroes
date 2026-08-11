@@ -3,6 +3,11 @@ import page02Asset from '../qa-fixtures/reader/r1d-dini-bar-canonical-anchor-d72
 import page03Asset from '../qa-fixtures/reader/r1d-dini-bar-canonical-anchor-d728849a/page-03.webp';
 import page04Asset from '../qa-fixtures/reader/r1d-dini-bar-canonical-anchor-d728849a/page-04.webp';
 import page05Asset from '../qa-fixtures/reader/r1d-dini-bar-canonical-anchor-d728849a/page-05.webp';
+import bunnyPage01Asset from '../qa-fixtures/reader/r1d-bunny-bar-expression-generalization-fe97f823/page-01.webp';
+import bunnyPage02Asset from '../qa-fixtures/reader/r1d-bunny-bar-expression-generalization-fe97f823/page-02.webp';
+import bunnyPage03Asset from '../qa-fixtures/reader/r1d-bunny-bar-expression-generalization-fe97f823/page-03.webp';
+import bunnyPage04Asset from '../qa-fixtures/reader/r1d-bunny-bar-expression-generalization-fe97f823/page-04.webp';
+import bunnyPage05Asset from '../qa-fixtures/reader/r1d-bunny-bar-expression-generalization-fe97f823/page-05.webp';
 
 type ImportedImageAsset = string | { src: string };
 
@@ -47,6 +52,29 @@ const TRACKED_QA_READER_FIXTURES: readonly TrackedQaReaderFixture[] = [
         imageUrl: assetUrl(asset),
       })
     ),
+  },
+  {
+    id: 'r1d-bunny-bar-expression-generalization-reader-qa-fe97f823',
+    label: 'Buni + Bar · expression generalization · pages 1–5',
+    sourceRenderHead: 'fe97f823',
+    storyFile: 'bunny_ometz_adventure.md',
+    companionId: 'bunny_ometz',
+    direction: 'adventure',
+    childProfile: {
+      name: 'Bar',
+      gender: 'boy',
+    },
+    totalStoryPages: 12,
+    pages: [
+      bunnyPage01Asset,
+      bunnyPage02Asset,
+      bunnyPage03Asset,
+      bunnyPage04Asset,
+      bunnyPage05Asset,
+    ].map((asset, index) => ({
+      pageNumber: index + 1,
+      imageUrl: assetUrl(asset),
+    })),
   },
 ] as const;
 

@@ -60,8 +60,13 @@ describe('listDevViewerLibrary resilience', () => {
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
     const entries = await listDevViewerLibrary();
-    expect(entries).toHaveLength(3);
-    expect(entries.map((e) => e.kind)).toEqual(['audition', 'audition', 'order']);
+    expect(entries).toHaveLength(4);
+    expect(entries.map((e) => e.kind)).toEqual([
+      'audition',
+      'audition',
+      'audition',
+      'order',
+    ]);
     expect(entries[0].key).toBe(
       'audition:tracked:r1d-dini-bar-canonical-anchor-reader-qa-d728849a'
     );
@@ -74,7 +79,7 @@ describe('listDevViewerLibrary resilience', () => {
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
     const entries = await listDevViewerLibrary();
-    expect(entries).toHaveLength(2);
+    expect(entries).toHaveLength(3);
     expect(entries.every((entry) => entry.kind === 'audition')).toBe(true);
   });
 
@@ -84,7 +89,7 @@ describe('listDevViewerLibrary resilience', () => {
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
     const entries = await listDevViewerLibrary();
-    expect(entries).toHaveLength(2);
+    expect(entries).toHaveLength(3);
     expect(entries.some((entry) => entry.kind === 'order')).toBe(true);
   });
 
@@ -94,11 +99,12 @@ describe('listDevViewerLibrary resilience', () => {
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
     const entries = await listDevViewerLibrary();
-    expect(entries).toHaveLength(1);
-    expect(entries[0]).toMatchObject({
-      key: 'audition:tracked:r1d-dini-bar-canonical-anchor-reader-qa-d728849a',
-      kind: 'audition',
-    });
+    expect(entries).toHaveLength(2);
+    expect(entries.map((entry) => entry.key)).toEqual([
+      'audition:tracked:r1d-dini-bar-canonical-anchor-reader-qa-d728849a',
+      'audition:tracked:r1d-bunny-bar-expression-generalization-reader-qa-fe97f823',
+    ]);
+    expect(entries.every((entry) => entry.kind === 'audition')).toBe(true);
   });
 });
 
@@ -113,5 +119,23 @@ describe('tracked QA reader fixture', () => {
     expect(fixture?.pages.every((page) => page.imageUrl.length > 0)).toBe(true);
     expect(fixture?.pages.some((page) => /^[A-Za-z]:\\/.test(page.imageUrl))).toBe(false);
     expect(fixture?.storyFile).toBe('dragon_dini_fantasy.md');
+  });
+
+  it('binds the Bunny and Bar expression-generalization pages for the QA Reader', async () => {
+    const { trackedQaReaderFixtureForDir } = await import('@/lib/tracked-qa-reader-fixtures');
+    const fixture = trackedQaReaderFixtureForDir(
+      'r1d-bunny-bar-expression-generalization-reader-qa-fe97f823'
+    );
+
+    expect(fixture).toMatchObject({
+      storyFile: 'bunny_ometz_adventure.md',
+      companionId: 'bunny_ometz',
+      direction: 'adventure',
+      childProfile: { name: 'Bar', gender: 'boy' },
+      totalStoryPages: 12,
+    });
+    expect(fixture?.pages.map((page) => page.pageNumber)).toEqual([1, 2, 3, 4, 5]);
+    expect(fixture?.pages.every((page) => page.imageUrl.length > 0)).toBe(true);
+    expect(fixture?.pages.some((page) => /^[A-Za-z]:\\/.test(page.imageUrl))).toBe(false);
   });
 });
