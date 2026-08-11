@@ -250,6 +250,25 @@ function nodes(draft: Record<string, unknown>) {
 }
 
 describe('captured reference-domain matrix', () => {
+  it('routes an untrusted non-positive page identity through deterministic draft repair instead of a local crash', async () => {
+    const invalid = matrixDraft();
+    pageRecord(invalid).pageNumber = 0;
+    const valid = matrixDraft();
+    const callLLM = vi.fn(async () =>
+      JSON.stringify(callLLM.mock.calls.length === 1 ? invalid : valid),
+    );
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+
+    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(result.template.pageContracts.map((page) => page.pageNumber)).toEqual([
+      1,
+    ]);
+    expect(result.repairAttempts).toHaveLength(1);
+  });
+
   it('keeps the recurring-prop consumer domain closed to stable Set Board binding and page-frame placement', () => {
     expect(RECURRING_PROP_SPATIAL_CONSUMER_SCOPES).toEqual([
       'stable_set',

@@ -40,6 +40,12 @@ The first canonical Bunny/Bar authoring attempt reached the provider and complet
 
 The general correction is therefore deterministic and local. During draft-to-final authority normalization, and before final validation, the compiler omits only a uniquely resolved `stablePropId` whose consumer violates exactly `recurring_prop_lifecycle_gated` or `recurring_prop_consumer_forbidden`. It records a sanitized structural note with authority/area/node indices and the closed reason code. It does not choose a replacement prop, alter geometry, repair source prose, change page constraints, broaden repair eligibility or hide any other validation failure. Unknown, ambiguous, duplicate and wrong-domain references remain fail-closed. This is the smallest implementation of decisions 3, 5 and 8; rollback is the focused compiler commit and the prior repair lane remains available for historical evidence only.
 
+### Approved execution addendum — malformed diagnostic coordinates stay repairable
+
+The next canonical attempt proved that stable-prop normalization completed without a provider repair, but a completed initial response still stopped as `unexpected_local_error`. A deterministic reproduction isolated the remaining boundary: provider-authored page identities are untrusted until draft validation, yet closed authority diagnostics required a positive page number. A non-positive page identity therefore made the diagnostic normalizer throw its own generic `Error`, bypassing all typed validation and the existing repair budget.
+
+The correction does not accept or canonicalize the invalid page identity. When and only when a closed authority issue cannot be represented because its structural locator is invalid, `DraftAuthorityReferenceDomainError` converts that condition to one sanitized `InvalidTemplateContractError` at root authority. The existing bounded full-draft repair receives the fixed validation instruction in memory and must return a fully valid draft; all ordinary exact-locator issues retain their typed terminal/repair routing. No issue catalog, receipt schema, prompt, model, call budget, timeout or cost ceiling changes. Rollback is the focused compiler/test commit.
+
 ## 6. Expected behavior after change
 
 - The public Wizard presents only matrix-owned companions and directions.

@@ -305,7 +305,27 @@ export class DraftAuthorityReferenceDomainError extends Error {
   ) {
     super('draft authority/reference domain invalid');
     this.name = 'DraftAuthorityReferenceDomainError';
-    this.issues = normalizeDraftAuthorityReferenceIssues(issues);
+    try {
+      this.issues = normalizeDraftAuthorityReferenceIssues(issues);
+    } catch {
+      // Provider-authored page identities and other structural coordinates are
+      // untrusted until the draft validator accepts them. A malformed
+      // coordinate must enter the bounded draft-repair route; allowing the
+      // diagnostic normalizer itself to escape as a generic Error loses the
+      // repair opportunity and collapses the receipt to unexpected_local_error.
+      throw new InvalidTemplateContractError(
+        [
+          'draft authority/reference issue has an invalid structural locator and requires deterministic draft repair',
+        ],
+        [
+          {
+            family: 'draft_contract',
+            code: 'final_structural_invariant_invalid',
+            locator: { kind: 'root', fieldRole: 'authority' },
+          },
+        ],
+      );
+    }
     if (this.issues.length === 0) {
       throw new Error('draft authority/reference diagnostic contract invalid');
     }

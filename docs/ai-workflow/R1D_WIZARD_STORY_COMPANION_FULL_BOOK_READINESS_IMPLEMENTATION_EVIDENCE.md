@@ -48,6 +48,22 @@ Investigation proved that both closed scope failures carry a compiler-owned outc
 
 Focused correction validation passes **4 files / 143 tests**, including direct lifecycle-gated, consumer-forbidden and multi-target controls, all 18 Story Source input-ceiling checks with more than 1,024 units of headroom, live-request materialization and source-authority lifecycle. Deterministic TypeScript and `git diff --check` pass. Repository-wide validation is recorded below when complete.
 
+## Second canonical attempt and diagnostic-coordinate correction
+
+At pushed HEAD `cb59140a5a183bd5a8db6873a9a9e265bd2ec1fa`, the fresh Bunny/Bar attempt used output root `outputs/r1d-wizard-bunny-bedtime-full-book-cb59140a-20260811T1946Z`. Probe `59938307…`, Fresh Readiness `7da97545…`, Execution Request `c794cceb…`, Supervisor readiness `9172d790…`, official pricing, the sole preflight and the sole Supervisor verify all passed. The one live invocation completed after 216.7 seconds and exited 1.
+
+- Receipt: `66d035d74bcef03edd65c0ea35dec4cb4e359e3539abd0ec5b0d47d23ea7790b`; readiness: `7cfb3f6571c827b9489b3fbc68ff4e62c9a1fe2816b05076efee75ab62558693`.
+- Provider calls / repairs / transport retries / fallback: `1 / 0 / 0 / none`.
+- Usage: input `12,650`; cache-write `12,647`; cached `0`; output `15,906`; reasoning `2,403`; total `28,556`.
+- Local accounting: `$0.556239` nominal and `$0.611867` conservative; not a provider-account audit.
+- Terminal: `local_processing_failed` / `unexpected_local_failure` / `unexpected_local_error`. Candidate and all downstream authorities remained absent.
+
+The exact response was intentionally not persisted, but the generic local signature was reproduced without provider access by giving the compiler a structured draft whose page identity is non-positive. Before correction it throws `draft authority/reference diagnostic contract invalid` from `normalizeDraftAuthorityReferenceIssues`, exactly bypassing the repair loop. The root is a trust-order defect: the compiler emits closed authority issues before final draft validation, while their persisted structural locators correctly reject non-positive page identities.
+
+The correction preserves the locator validator and fail-closed issue catalog. `DraftAuthorityReferenceDomainError` catches only failure to normalize its own untrusted structural coordinate and converts it to a sanitized `InvalidTemplateContractError` with a root-authority locator. The existing full-draft repair then receives the fixed instruction; it must still produce a completely valid draft. A direct red/green regression proves an invalid initial page identity consumes one repair and returns the unchanged valid page identity from the corrected response. The adjacent focused set passes **4 files / 157 tests**; deterministic TypeScript and `git diff --check` pass.
+
+The correction's one literal `npm run check` passed TypeScript and all **19 resource-intensive files** with valid diagnostics. Ordinary reported the six established missing ignored-output fixture failures plus one AST producer-census mismatch: the new intentional `InvalidTemplateContractError` raised the exact compiler producer count from `15` to `16`. Only that frozen test expectation was corrected; its focused regression and TypeScript passed, and the literal full gate was not rerun. The six fixtures remain a separate Production/release HOLD.
+
 ## Boundaries
 
-This milestone does not promote candidates, approve reconciliation, author a Blueprint, build a Production Visual Package, access credentials, call a provider, render images, write database/storage, publish, deploy or open Production. It proves that all active Wizard slots have exact general inputs for the next Blueprint-authoring boundary; it does not claim that all eighteen have pre-authored Blueprints or Production packages.
+This milestone does not promote candidates, approve reconciliation, author a Blueprint, build a Production Visual Package, render images, write database/storage, publish, deploy or open Production. Credential/provider access occurred only inside the two bounded authoring attempts recorded above and produced no candidate. It proves that all active Wizard slots have exact general inputs for the next Blueprint-authoring boundary; it does not claim that all eighteen have pre-authored Blueprints or Production packages.
