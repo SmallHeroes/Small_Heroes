@@ -186,9 +186,9 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v11' as const;
+  'vc-template-prompt/v12' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v11' as const;
+  'vc-template-user-prompt/v12' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
@@ -1970,8 +1970,26 @@ function normalizeDraftSpatialAuthorities(args: {
 }): {
   zones: BookVisualContractTemplate['zones'];
   setBoardAuthorities: BookVisualContractTemplate['setBoardAuthorities'];
+  stablePropScopeNormalizations: Array<{
+    authorityIndex: number;
+    areaIndex: number;
+    nodeIndex: number;
+    reasonCodes: Array<
+      | 'recurring_prop_lifecycle_gated'
+      | 'recurring_prop_consumer_forbidden'
+    >;
+  }>;
 } {
   const authorityIssues: DraftAuthorityReferenceIssue[] = [];
+  const stablePropScopeNormalizations: Array<{
+    authorityIndex: number;
+    areaIndex: number;
+    nodeIndex: number;
+    reasonCodes: Array<
+      | 'recurring_prop_lifecycle_gated'
+      | 'recurring_prop_consumer_forbidden'
+    >;
+  }> = [];
   const zones = asArr(args.draft.zones).map(normalizeDraftZone);
   const zoneById = new Map<
     string,
@@ -2122,21 +2140,14 @@ function normalizeDraftSpatialAuthorities(args: {
                       },
                     );
                   } else {
-                    stablePropPlacementIds.add(stablePropId);
                     const prop = candidates[0]!;
+                    const scopeReasonCodes: Array<
+                      | 'recurring_prop_lifecycle_gated'
+                      | 'recurring_prop_consumer_forbidden'
+                    > = [];
                     if (prop.firstRevealPage !== null && prop.firstRevealPage !== undefined) {
-                      authorityIssues.push(
-                        {
-                          code: 'recurring_prop_lifecycle_gated',
-                          locator: {
-                            kind: 'set_area_node',
-                            referenceClass: 'recurring_prop',
-                            fieldRole: 'spatialNodes.stablePropId',
-                            authorityIndex,
-                            areaIndex,
-                            nodeIndex,
-                          },
-                        },
+                      scopeReasonCodes.push(
+                        'recurring_prop_lifecycle_gated',
                       );
                     }
                     const consumerLocationIds = new Set(
@@ -2159,23 +2170,23 @@ function normalizeDraftSpatialAuthorities(args: {
                         ),
                     );
                     if (forbidden) {
-                      authorityIssues.push(
-                        {
-                          code: 'recurring_prop_consumer_forbidden',
-                          locator: {
-                            kind: 'set_area_node',
-                            referenceClass: 'recurring_prop',
-                            fieldRole: 'spatialNodes.stablePropId',
-                            authorityIndex,
-                            areaIndex,
-                            nodeIndex,
-                          },
-                        },
+                      scopeReasonCodes.push(
+                        'recurring_prop_consumer_forbidden',
                       );
                     }
-                    stablePropIds.add(stablePropId);
+                    if (scopeReasonCodes.length > 0) {
+                      stablePropScopeNormalizations.push({
+                        authorityIndex,
+                        areaIndex,
+                        nodeIndex,
+                        reasonCodes: scopeReasonCodes,
+                      });
+                    } else {
+                      stablePropPlacementIds.add(stablePropId);
+                      stablePropIds.add(stablePropId);
+                      node.propId = stablePropId;
+                    }
                   }
-                  node.propId = stablePropId;
                 }
               }
               return node;
@@ -2393,6 +2404,7 @@ function normalizeDraftSpatialAuthorities(args: {
       authorities.length > 0
         ? (authorities as unknown as SetBoardStableAuthority[])
         : undefined,
+    stablePropScopeNormalizations,
   };
 }
 
@@ -2657,6 +2669,12 @@ function assembleTemplateFromDraft(
     draft,
     pages: canonicalPages,
   });
+  notes.push(
+    ...spatialAuthority.stablePropScopeNormalizations.map(
+      (normalization) =>
+        `compiler normalized non-authoritative stable-prop consumer at setBoardAuthorities[${normalization.authorityIndex}].areas[${normalization.areaIndex}].spatialNodes[${normalization.nodeIndex}] (${normalization.reasonCodes.join('+')})`,
+    ),
+  );
   const capabilityGaps: ActionSemanticCapabilityGap[] = [];
   const coverageIssues: string[] = [];
   const coverageDiagnosticIssues: DraftValidationIssue[] = [];

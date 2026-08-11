@@ -34,6 +34,12 @@ High if fixed by copying the Fox/Bunny measurement overlays or by special-casing
 8. **Full-book proof.** After 18/18 zero-cost qualification, prove one complete book through the Wizard-derived QA route and Reader. Use `gpt-image-2` LOW only; persist local/QA evidence and never publish, promote or activate Production. Stop before wider spend if the qualified full-book path is not green.
 9. **Migration and rollback.** Existing stories, imported sidecars, historical candidates, approved evidence and rendered outputs remain immutable. Rollback is commit-level for code plus deletion of newly generated QA-only artifacts; no previous authority becomes current by fallback.
 
+### Approved execution addendum — compiler-owned invalid stable-prop projection
+
+The first canonical Bunny/Bar authoring attempt reached the provider and completed an initial response. Its only repair was the closed `stable_prop_scope_patch`: the model was asked to echo three compiler-owned array indices and replace one invalid `stablePropId` with `null`. That second provider response completed, but no candidate survived local processing. The invalid consumer contained no narrative choice: the compiler already knew that the recurring prop was reveal-gated or forbidden on a consuming page and that the safe projection was unbound support geometry.
+
+The general correction is therefore deterministic and local. During draft-to-final authority normalization, and before final validation, the compiler omits only a uniquely resolved `stablePropId` whose consumer violates exactly `recurring_prop_lifecycle_gated` or `recurring_prop_consumer_forbidden`. It records a sanitized structural note with authority/area/node indices and the closed reason code. It does not choose a replacement prop, alter geometry, repair source prose, change page constraints, broaden repair eligibility or hide any other validation failure. Unknown, ambiguous, duplicate and wrong-domain references remain fail-closed. This is the smallest implementation of decisions 3, 5 and 8; rollback is the focused compiler commit and the prior repair lane remains available for historical evidence only.
+
 ## 6. Expected behavior after change
 
 - The public Wizard presents only matrix-owned companions and directions.

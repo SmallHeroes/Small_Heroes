@@ -16,10 +16,6 @@ import type {
   PageVisualContract,
 } from '../visual-contract-compiler/types';
 import { RECURRING_PROP_SPATIAL_CONSUMER_SCOPES } from '../visual-contract-compiler/types';
-import {
-  STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION,
-  STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
-} from '../visual-contract-compiler/stablePropScopeRepair';
 import { decodePageContractRepairUserPrompt } from '../visual-contract-compiler/pageContractRepair';
 
 const sourceIdentity = {
@@ -437,7 +433,20 @@ describe('captured reference-domain matrix', () => {
       },
       constraint: undefined,
     },
-  ])('routes $expectedCode on spatialNodes.stablePropId through the closed repair lane', async ({
+    {
+      expectedCode: 'recurring_prop_consumer_forbidden',
+      propId: 'prop:forbidden',
+      prop: {
+        id: 'prop:forbidden',
+        name: 'Forbidden prop',
+        description: 'A portable prop forbidden on this page.',
+      },
+      constraint: {
+        propId: 'prop:forbidden',
+        visibility: 'forbidden',
+      },
+    },
+  ])('normalizes $expectedCode on spatialNodes.stablePropId locally without a repair call', async ({
     expectedCode,
     propId,
     prop,
@@ -446,51 +455,25 @@ describe('captured reference-domain matrix', () => {
     const draft = matrixDraft();
     draft.recurringProps = [prop];
     nodes(draft)[0]!.stablePropId = propId;
-    if (constraint) pageRecord(draft).propConstraints = [constraint];
-    let callIndex = 0;
-    const callLLM = vi.fn(async () => {
-      const output = callIndex === 0
-        ? draft
-        : {
-            patches: [{
-              authorityIndex: 0,
-              areaIndex: 0,
-              nodeIndex: 0,
-              fieldRole: 'spatialNodes.stablePropId',
-              stablePropId: null,
-            }],
-          };
-      callIndex += 1;
-      return JSON.stringify(output);
-    });
+    if (constraint) {
+      pageRecord(draft).propConstraints = [constraint];
+      pageRecord(draft).mustNotShow = [prop.name];
+    }
+    const callLLM = vi.fn(async () => JSON.stringify(draft));
 
-    const result = await compileBookVisualContractTemplate(input, {
-      callLLM,
-    });
+    const result = await compileBookVisualContractTemplate(input, { callLLM });
 
-    expect(callLLM).toHaveBeenCalledTimes(2);
-    expect(result.repairAttempts[0]).toMatchObject({
-      nextRepairMode: 'stable_prop_scope_patch',
-      diagnosticIssues: [{
-        family: 'draft_contract',
-        code: expectedCode === 'recurring_prop_lifecycle_gated'
-          ? 'lifecycle_invariant_invalid'
-          : 'consumer_invariant_invalid',
-        locator: {
-          kind: 'set_area_node',
-          fieldRole: expectedCode === 'recurring_prop_lifecycle_gated'
-            ? 'lifecycle'
-            : 'consumer',
-          authorityIndex: 0,
-          areaIndex: 0,
-          nodeIndex: 0,
-        },
-      }],
-    });
+    expect(callLLM).toHaveBeenCalledTimes(1);
+    expect(result.repairAttempts).toEqual([]);
+    expect(result.provenance.attempt).toBe(1);
+    expect(result.provenance.repairPromptVersion).toBeUndefined();
+    expect(result.notes).toContain(
+      `compiler normalized non-authoritative stable-prop consumer at setBoardAuthorities[0].areas[0].spatialNodes[0] (${expectedCode})`,
+    );
     expect(result.template.setBoardAuthorities?.[0]?.fixedObjects).toEqual([]);
   });
 
-  it('routes only closed stable-prop scope failures through one null-only compact repair', async () => {
+  it('normalizes every closed stable-prop scope target deterministically in one provider call', async () => {
     const draft = matrixDraft();
     draft.recurringProps = [
       {
@@ -508,68 +491,18 @@ describe('captured reference-domain matrix', () => {
     ];
     nodes(draft)[0]!.stablePropId = 'prop:gated-a';
     nodes(draft)[2]!.stablePropId = 'prop:gated-b';
-    let callIndex = 0;
-    let repairUserPrompt = '';
-    const authorities: unknown[] = [];
-    const callLLM = vi.fn(async (
-      _system: string,
-      user: string,
-      options?: unknown,
-      promptAuthority?: unknown,
-    ) => {
-      authorities.push({ options, promptAuthority });
-      const output =
-        callIndex === 0
-          ? draft
-          : {
-              patches: [
-                {
-                  authorityIndex: 0,
-                  areaIndex: 0,
-                  nodeIndex: 0,
-                  fieldRole: 'spatialNodes.stablePropId',
-                  stablePropId: null,
-                },
-                {
-                  authorityIndex: 0,
-                  areaIndex: 0,
-                  nodeIndex: 2,
-                  fieldRole: 'spatialNodes.stablePropId',
-                  stablePropId: null,
-                },
-              ],
-            };
-      if (callIndex === 1) repairUserPrompt = user;
-      callIndex += 1;
-      return JSON.stringify(output);
-    });
+    const callLLM = vi.fn(async () => JSON.stringify(draft));
 
     const result = await compileBookVisualContractTemplate(input, {
       callLLM,
     });
 
-    expect(callLLM).toHaveBeenCalledTimes(2);
-    expect(repairUserPrompt).not.toContain('prop:gated-a');
-    expect(repairUserPrompt).not.toContain('prop:gated-b');
-    expect(repairUserPrompt).not.toContain('previousDraft');
-    expect(result.provenance.attempt).toBe(2);
-    expect(result.provenance.repairPromptVersion).toBe(
-      STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION,
-    );
-    expect(result.repairAttempts[0]).toMatchObject({
-      attempt: 1,
-      nextRepairMode: 'stable_prop_scope_patch',
-    });
-    const repair = authorities[1] as {
-      options: { jsonSchema?: { name?: string } };
-      promptAuthority: { repairMode?: string };
-    };
-    expect(repair.options.jsonSchema?.name).toBe(
-      STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
-    );
-    expect(repair.promptAuthority.repairMode).toBe(
-      'stable_prop_scope_patch',
-    );
+    expect(callLLM).toHaveBeenCalledTimes(1);
+    expect(result.provenance.attempt).toBe(1);
+    expect(result.repairAttempts).toEqual([]);
+    expect(result.notes.filter((note) =>
+      note.startsWith('compiler normalized non-authoritative stable-prop consumer'),
+    )).toHaveLength(2);
     expect(
       result.template.setBoardAuthorities?.[0]?.fixedObjects,
     ).toEqual([]);

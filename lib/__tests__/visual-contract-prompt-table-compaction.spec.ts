@@ -559,10 +559,10 @@ describe('Visual Contract prompt authority-table compaction', () => {
 
   it('binds only the changed prompt authorities and fails closed on a genuinely over-budget synthetic input before provider reachability', async () => {
     expect(TEMPLATE_PROMPT_VERSION).toBe(
-      'vc-template-prompt/v11',
+      'vc-template-prompt/v12',
     );
     expect(TEMPLATE_USER_PROMPT_VERSION).toBe(
-      'vc-template-user-prompt/v11',
+      'vc-template-user-prompt/v12',
     );
     expect(REPAIR_PROMPT_VERSION).toBe(
       'vc-repair-prompt/v10',
