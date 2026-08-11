@@ -10,14 +10,14 @@ import { COMMON } from '@/content';
  * Assistant: contemporary readable Hebrew body (variable 200-800).
  */
 const suezOne = localFont({
-  src: '../public/fonts/SuezOne-Regular.ttf',
+  src: '../public/Fonts/SuezOne-Regular.ttf',
   weight: '400',
   variable: '--font-suez',
   display: 'swap',
 });
 
 const assistant = localFont({
-  src: '../public/fonts/Assistant[wght].ttf',
+  src: '../public/Fonts/Assistant[wght].ttf',
   weight: '200 800',
   variable: '--font-assistant',
   display: 'swap',
