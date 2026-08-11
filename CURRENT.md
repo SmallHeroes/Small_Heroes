@@ -1,8 +1,21 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-11
+**Updated:** 2026-08-12
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-reader-production-experience-polish` in `C:\Users\guyna\.codex\worktrees\readerpolish1\Small_Heroes`, based exactly on `d328b3e4220101eb642f09270bc340fe494af477`.
+**Working branch:** `codex/r1d-reader-premium-site-qa-integration` in `C:\Users\guyna\.codex\worktrees\qaexperience1\Small_Heroes`, combining the Reader milestone at `773f364fddada45eee236a8e4876bb93ae673eef` with Claude's two website commits `4ebf319c` and `b3582646`.
+
+## R1D-READER-PREMIUM-SITE-QA-INTEGRATION - locally integrated / product-design HOLD
+
+The production Reader connection and Claude's premium-playful website layer now coexist on one QA integration branch. Their implementation pathsets are disjoint, both cherry-picks applied without conflict, and Production remains unchanged and blocked.
+
+- Browser audit at 1440x900 and 390x844 confirmed RTL, responsive reflow, zero console warnings/errors, Home -> `/start` -> Wizard navigation, visible keyboard-oriented focus treatment, and an 8px desktop card lift. The mobile homepage and two-column selection grid remain usable without horizontal overflow.
+- The visual uplift is real but incremental. The first fold remains compositionally close to the preceding site, the opaque companion assets still expose a cream plate across most of each image well, and legacy Wizard CSS retains two cream-tinted panel gradients. Codex therefore does not classify this as Guy's requested final "2027 WOW" product result.
+- Reader-focused validation on the combined branch passes **6 files / 36 tests**, deterministic TypeScript and `git diff --check`. Offline `npm ci --ignore-scripts` and local Prisma generation pass.
+- A production build reached Next compilation but failed only while `next/font` attempted to download Google-hosted font files. The website source branch failed on Rubik and the clean integration worktree failed on Frank Ruhl Libre. No application compile/type error was reported before that external font-fetch boundary; build portability remains unresolved and is not waived.
+- Claude's ignored `.env.local` copy was not committed and was not propagated into the integration worktree. No secret value was inspected or printed. The integration validation used no credential file.
+- This local integration grants no independent technical PASS, product acceptance, QA deployment, Production promotion, payment, provider, storage/database or release authority. A separate independent review and a stronger visual follow-up remain required.
+
+Durable record: `docs/ai-workflow/R1D_READER_PREMIUM_SITE_QA_INTEGRATION_EVIDENCE.md`.
 
 ## R1D-READER-PRODUCTION-EXPERIENCE-POLISH — implementation complete / independent QA pending
 
