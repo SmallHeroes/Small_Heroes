@@ -41,24 +41,44 @@ import type {
 } from '@/lib/visual-package/preRenderBlueprintTypes';
 import { bindApprovedPvbRuntimeAuthority } from '@/lib/visual-package/runtimeAuthority';
 import { buildVisualPackageV4Fixture } from '@/lib/visual-package/__tests__/visual-package-v4.fixtures';
+import {
+  applyDiniBarFivePageMeasurementOverlay,
+  DINI_BAR_MEASUREMENT_PAGES,
+  DINI_BAR_SHOT_PLAN,
+} from './lib/r1d-dini-bar-five-page-measurement-authority';
 
 const ROOT = process.cwd();
+const MEASUREMENT =
+  process.argv.find((value) => value.startsWith('--measurement='))?.slice(14) ?? 'fox-full-book';
+const IS_DINI_BAR = MEASUREMENT === 'dini-bar-five-page';
+if (!IS_DINI_BAR && MEASUREMENT !== 'fox-full-book') {
+  throw new Error(`Unsupported measurement: ${MEASUREMENT}`);
+}
 const OUTPUT_ARG = process.argv.find((value) => value.startsWith('--output-root='))?.slice(14);
 const OUTPUT_ROOT = path.resolve(
   ROOT,
-  OUTPUT_ARG ?? 'outputs/r1d-full-book-storyboard-low-20260811',
+  OUTPUT_ARG ??
+    (IS_DINI_BAR
+      ? 'outputs/r1d-dini-bar-five-page-low-20260811'
+      : 'outputs/r1d-full-book-storyboard-low-20260811'),
 );
 const AUTHORITY_ROOT = path.join(OUTPUT_ROOT, 'local-authority');
 const STORAGE_ROOT = path.join(OUTPUT_ROOT, 'local-storage');
-const PAGE_NUMBERS = Array.from({ length: 12 }, (_, index) => index + 1);
-const ORDER_ID = 'local-wizard-low-full-book-storyboard-measurement';
+const PAGE_NUMBERS = IS_DINI_BAR
+  ? [...DINI_BAR_MEASUREMENT_PAGES]
+  : Array.from({ length: 12 }, (_, index) => index + 1);
+const ORDER_ID = IS_DINI_BAR
+  ? 'local-wizard-low-dini-bar-five-page-measurement'
+  : 'local-wizard-low-full-book-storyboard-measurement';
 const CHILD_ANCHOR =
   process.argv.find((value) => value.startsWith('--child-anchor='))?.slice(15) ??
-  'C:\\GNart\\Work\\Small_Heroes\\outputs\\qa-anchors\\fox_uri_bedtime__98abe88141e4ae16__de8a6c41\\anchor.png';
+  (IS_DINI_BAR
+    ? 'C:\\GNart\\Work\\Small_Heroes\\public\\Images\\Bar.png'
+    : 'C:\\GNart\\Work\\Small_Heroes\\outputs\\qa-anchors\\fox_uri_bedtime__98abe88141e4ae16__de8a6c41\\anchor.png');
 const FAMILY: ResolvedFamilyAppearanceProfile = {
-  skinTone: 'warm light-brown',
-  hairColour: 'warm brown',
-  hairTexture: 'soft wavy',
+  skinTone: IS_DINI_BAR ? 'warm medium-light olive' : 'warm light-brown',
+  hairColour: IS_DINI_BAR ? 'deep dark brown' : 'warm brown',
+  hairTexture: IS_DINI_BAR ? 'dense soft curls' : 'soft wavy',
 };
 
 function replaceObject(target: Record<string, unknown>, source: Record<string, unknown>): void {
@@ -159,7 +179,23 @@ function focalPropRegion(
   propId: string,
   focalRegion: BlueprintRegion,
   propIndex: number,
+  pageNumber: number,
 ): BlueprintRegion {
+  if (IS_DINI_BAR) {
+    if (pageNumber === 2 && propId === 'prop_toy_chest_portal') return { ...focalRegion };
+    if (pageNumber === 4 && propId === 'prop_small_stone') {
+      return {
+        x: focalRegion.x + Math.floor(focalRegion.width * 0.58),
+        y: focalRegion.y + Math.floor(focalRegion.height * 0.72),
+        width: 54,
+        height: 42,
+      };
+    }
+    if (pageNumber === 5 && propId === 'prop_soft_nest') return { ...focalRegion };
+    if (pageNumber === 5 && propId === 'prop_green_speckled_egg') {
+      return regionInside(focalRegion);
+    }
+  }
   if (propId === 'prop_tin_bucket') return { ...focalRegion };
   if (propId === 'prop_water_drops') return verticalPathInto(focalRegion);
   return {
@@ -184,14 +220,19 @@ function buildPackage(
   }
 
   return buildVisualPackageV4Fixture('wizard_runtime_qualification', undefined, {
-    storyKey: 'fox_uri_adventure',
+    storyKey: IS_DINI_BAR ? 'dragon_dini_fantasy' : 'fox_uri_adventure',
+    pageCount: shotPlan.pageCount,
     rawStorySource,
-    sourcePath: 'story-bank/v3-approved/fox_uri_adventure.md',
+    sourcePath: IS_DINI_BAR
+      ? 'story-bank/v3-approved/dragon_dini_fantasy.md'
+      : 'story-bank/v3-approved/fox_uri_adventure.md',
     styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
     styleContent: {
       styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
       renderingContract:
-        'soft hand-drawn storybook watercolor; observational semi-naturalistic child anatomy; ordinary human eyes, nose, mouth, hands and feet; expressive but never mascot-like; non-photographic',
+        IS_DINI_BAR
+          ? 'premium cinematic hand-painted storybook watercolor and gouache on textured paper; Bar must retain recognisable real facial structure from the supplied photo with anatomically natural five-year-old proportions; richly modeled light and dimensional environments; expressive but never flat cartoon, mascot, chibi, plastic 3D or photorealistic'
+          : 'soft hand-drawn storybook watercolor; observational semi-naturalistic child anatomy; ordinary human eyes, nose, mouth, hands and feet; expressive but never mascot-like; non-photographic',
     },
     mutateTemplate(template) {
       replaceObject(
@@ -236,7 +277,9 @@ function buildPackage(
           pageNumber == null
             ? {
                 purpose: 'cover_promise',
-                summary: 'A quiet nighttime mystery becomes a safe shared rhythm.',
+                summary: IS_DINI_BAR
+                  ? 'A bedroom portal opens onto Dini’s orange-hill world and a lesson about protective space.'
+                  : 'A quiet nighttime mystery becomes a safe shared rhythm.',
               }
             : {
                 purpose:
@@ -271,14 +314,14 @@ function buildPackage(
           });
         }
         for (const [propIndex, propId] of requiredProps.entries()) {
-          const region =
+          const projectedRegion =
             pageNumber == null
               ? { x: 380 + propIndex * 120, y: 600, width: 120, height: 110 }
-              : focalPropRegion(propId, storyboard!.focalRegion, propIndex);
+              : focalPropRegion(propId, storyboard!.focalRegion, propIndex, pageNumber);
           placements.push({
             id: `placement:${pageNumber ?? 'cover'}:prop:${propIndex}`,
             subject: { kind: 'prop', propId },
-            region,
+            region: projectedRegion,
             depth: 'foreground',
             importance: 'key',
           });
@@ -595,6 +638,49 @@ async function startLocalStorage(): Promise<http.Server> {
   return server;
 }
 
+async function createFivePageContactSheet(
+  renders: Array<{ pageNumber: number; localImage: string }>,
+): Promise<{ path: string; sha256: string } | null> {
+  if (!IS_DINI_BAR || renders.length !== 5) return null;
+  const sharp = (await import('sharp')).default;
+  const cellWidth = 320;
+  const cellHeight = 500;
+  const composites: Array<{ input: Buffer; left: number; top: number }> = [];
+  for (const [index, render] of renders.entries()) {
+    const column = index % 3;
+    const row = Math.floor(index / 3);
+    const imagePath = path.resolve(ROOT, render.localImage);
+    const resized = await sharp(imagePath)
+      .resize({ width: 300, height: 450, fit: 'contain', background: '#f6f0e6' })
+      .png()
+      .toBuffer();
+    composites.push({ input: resized, left: column * cellWidth + 10, top: row * cellHeight + 38 });
+    composites.push({
+      input: Buffer.from(
+        `<svg width="300" height="32"><text x="150" y="23" text-anchor="middle" font-family="Arial" font-size="22" font-weight="700" fill="#2d241d">Page ${render.pageNumber}</text></svg>`,
+      ),
+      left: column * cellWidth + 10,
+      top: row * cellHeight + 4,
+    });
+  }
+  const contactPath = path.join(OUTPUT_ROOT, 'contact-sheet-pages-01-05.png');
+  await sharp({
+    create: {
+      width: cellWidth * 3,
+      height: cellHeight * 2,
+      channels: 4,
+      background: '#f6f0e6',
+    },
+  })
+    .composite(composites)
+    .png()
+    .toFile(contactPath);
+  return {
+    path: path.relative(ROOT, contactPath).replace(/\\/g, '/'),
+    sha256: createHash('sha256').update(fs.readFileSync(contactPath)).digest('hex'),
+  };
+}
+
 async function main(): Promise<void> {
   if (fs.existsSync(OUTPUT_ROOT) && fs.readdirSync(OUTPUT_ROOT).length > 0) {
     throw new Error(`Output root already exists and is non-empty: ${OUTPUT_ROOT}`);
@@ -603,43 +689,61 @@ async function main(): Promise<void> {
   process.env.ENABLE_V3_APPROVED_BANK = 'true';
   process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
 
-  const sourcePath = path.join(ROOT, 'story-bank', 'v3-approved', 'fox_uri_adventure.md');
-  const templatePath = path.join(
+  const sourcePath = path.join(
     ROOT,
     'story-bank',
     'v3-approved',
-    'fox_uri_adventure.visual-contract-template.json',
+    IS_DINI_BAR ? 'dragon_dini_fantasy.md' : 'fox_uri_adventure.md',
   );
-  const shotPlanPath = path.join(
-    ROOT,
-    'story-bank',
-    'v3-approved',
-    'fox_uri_adventure.shot-plan.json',
-  );
+  const explicitTemplatePath = process.argv
+    .find((value) => value.startsWith('--template-path='))
+    ?.slice(16);
+  const templatePath = IS_DINI_BAR
+    ? path.resolve(
+        explicitTemplatePath ??
+          'C:\\GNart\\Work\\Small_Heroes\\_review\\vc-live-cheap\\dragon_dini_fantasy.visual-contract-template.json',
+      )
+    : path.join(
+        ROOT,
+        'story-bank',
+        'v3-approved',
+        'fox_uri_adventure.visual-contract-template.json',
+      );
+  const shotPlanPath = IS_DINI_BAR
+    ? null
+    : path.join(ROOT, 'story-bank', 'v3-approved', 'fox_uri_adventure.shot-plan.json');
   const rawStorySource = fs.readFileSync(sourcePath, 'utf8');
   const legacyTemplate = JSON.parse(fs.readFileSync(templatePath, 'utf8')) as unknown;
-  const shotPlan = JSON.parse(fs.readFileSync(shotPlanPath, 'utf8')) as BookShotPlan;
-  const migrated = migrateLegacyBookVisualContractTemplateV1(legacyTemplate, {
-    areaZoneIds: {
-      set_room_balcony_night: {
-        board_room_openings: ['z_room_window', 'z_window_threshold'],
-        board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
-      },
-    },
-    pageZoneNodeIds: {
-      z_balcony_railing: { railing: 'metal_railing' },
-    },
-  });
-  applyQaCausalOverlay(migrated);
+  const shotPlan = IS_DINI_BAR
+    ? DINI_BAR_SHOT_PLAN
+    : (JSON.parse(fs.readFileSync(shotPlanPath!, 'utf8')) as BookShotPlan);
+  const migrated = migrateLegacyBookVisualContractTemplateV1(
+    legacyTemplate,
+    IS_DINI_BAR
+      ? undefined
+      : {
+          areaZoneIds: {
+            set_room_balcony_night: {
+              board_room_openings: ['z_room_window', 'z_window_threshold'],
+              board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
+            },
+          },
+          pageZoneNodeIds: {
+            z_balcony_railing: { railing: 'metal_railing' },
+          },
+        },
+  );
+  if (IS_DINI_BAR) applyDiniBarFivePageMeasurementOverlay(migrated);
+  else applyQaCausalOverlay(migrated);
   const migratedValidation = validateBookVisualContractTemplate(migrated);
   if (!migratedValidation.ok) {
     throw new Error(`Measurement Visual Contract invalid: ${migratedValidation.errors.join(' | ')}`);
   }
 
   const selectedSlot = enforceMvpOrderSlot({
-    challengeCategory: 'NIGHT_FEAR',
-    clientDirection: 'adventure',
-    clientCompanionId: 'fox_uri',
+    challengeCategory: IS_DINI_BAR ? 'NEW_SIBLING' : 'NIGHT_FEAR',
+    clientDirection: IS_DINI_BAR ? 'fantasy' : 'adventure',
+    clientCompanionId: IS_DINI_BAR ? 'dragon_dini' : 'fox_uri',
   });
   const productTruth = resolveStoryProductTruth({
     challengeCategory: selectedSlot.category,
@@ -671,8 +775,9 @@ async function main(): Promise<void> {
         signature: blueprintStoryboardFrameSignature(layout),
       };
     });
-  if (new Set(storyboardRows.map((entry) => entry.signature)).size !== 12) {
-    throw new Error('Twelve-page storyboard does not have twelve distinct frame signatures');
+  const measuredRows = storyboardRows.filter((entry) => PAGE_NUMBERS.includes(entry.pageNumber));
+  if (new Set(measuredRows.map((entry) => entry.signature)).size !== PAGE_NUMBERS.length) {
+    throw new Error('Measured pages do not have distinct frame signatures');
   }
   fs.writeFileSync(
     path.join(OUTPUT_ROOT, 'storyboard-dry-run-evidence.json'),
@@ -680,10 +785,15 @@ async function main(): Promise<void> {
       {
         version: 'local-wizard-storyboard-dry-run/v1',
         storySource: path.relative(ROOT, sourcePath).replace(/\\/g, '/'),
-        shotPlan: path.relative(ROOT, shotPlanPath).replace(/\\/g, '/'),
+        shotPlan: shotPlanPath
+          ? path.relative(ROOT, shotPlanPath).replace(/\\/g, '/')
+          : 'embedded:r1d-dini-bar-five-page-measurement-authority',
         pageCount: storyboardRows.length,
-        distinctFrameSignatures: new Set(storyboardRows.map((entry) => entry.signature)).size,
-        rows: storyboardRows,
+        measuredPageCount: measuredRows.length,
+        distinctMeasuredFrameSignatures: new Set(
+          measuredRows.map((entry) => entry.signature),
+        ).size,
+        rows: measuredRows,
         credentialAccess: 'none',
         providerCalls: 0,
         productionBlocked: true,
@@ -726,12 +836,21 @@ async function main(): Promise<void> {
   });
   if (!authority) throw new Error('Wizard render qualification did not return runtime authority');
   const authorityEvidence = {
-    version: 'local-wizard-full-book-authority-evidence/v1',
+    version: IS_DINI_BAR
+      ? 'local-wizard-dini-bar-five-page-authority-evidence/v1'
+      : 'local-wizard-full-book-authority-evidence/v1',
+    measurement: MEASUREMENT,
     storySource: frozenProduct.selectionFilename,
     storySourceHash: frozenProduct.storySourceHash,
-    shotPlanPath: path.relative(ROOT, shotPlanPath).replace(/\\/g, '/'),
-    shotPlanSha256: createHash('sha256').update(fs.readFileSync(shotPlanPath)).digest('hex'),
-    distinctFrameSignatures: 12,
+    shotPlanPath: shotPlanPath
+      ? path.relative(ROOT, shotPlanPath).replace(/\\/g, '/')
+      : 'embedded:r1d-dini-bar-five-page-measurement-authority',
+    shotPlanSha256: shotPlanPath
+      ? createHash('sha256').update(fs.readFileSync(shotPlanPath)).digest('hex')
+      : createHash('sha256').update(JSON.stringify(shotPlan)).digest('hex'),
+    templateInputPath: templatePath,
+    templateInputSha256: createHash('sha256').update(fs.readFileSync(templatePath)).digest('hex'),
+    distinctMeasuredFrameSignatures: new Set(measuredRows.map((entry) => entry.signature)).size,
     migratedTemplateVersion: migrated.schemaVersion,
     packageVersion: packageValue.manifestVersion,
     packageRevisionDigest: packageValue.revisionDigest,
@@ -741,7 +860,9 @@ async function main(): Promise<void> {
     runtimeContractHash: authority.contractHash,
     wizardRenderQualified: authority.qualification.renderQualified,
     pageNumbers: PAGE_NUMBERS,
-    qaCausalOverlay: 'local-qa-causal-overlay/v2',
+    measurementOverlay: IS_DINI_BAR
+      ? 'dini-bar-five-page-prop-placement-overlay/v1'
+      : 'local-qa-causal-overlay/v2',
     childAnchorSha256: createHash('sha256').update(fs.readFileSync(CHILD_ANCHOR)).digest('hex'),
     productionBlocked: true,
   };
@@ -766,8 +887,9 @@ async function main(): Promise<void> {
 
   const storageServer = await startLocalStorage();
   try {
-    const companion = getCompanionById('fox_uri');
-    if (!companion) throw new Error('fox_uri companion is missing');
+    const companionId = IS_DINI_BAR ? 'dragon_dini' : 'fox_uri';
+    const companion = getCompanionById(companionId);
+    if (!companion) throw new Error(`${companionId} companion is missing`);
     const renders = [];
     for (const pageNumber of PAGE_NUMBERS) {
       const result = await generateImage({
@@ -777,16 +899,24 @@ async function main(): Promise<void> {
         companion,
         orderId: ORDER_ID,
         pageNumber,
-        totalPages: 12,
-        childFirstName: 'Noam',
-        childAge: 7,
+        totalPages: shotPlan.pageCount,
+        childFirstName: IS_DINI_BAR ? 'Bar' : 'Noam',
+        childAge: IS_DINI_BAR ? 5 : 7,
         childGender: 'boy',
         childStructured: {
-          face: 'soft round-oval face, warm brown eyes, gentle expressive brows',
-          hair: 'warm brown, softly wavy, short child haircut',
-          body: 'small seven-year-old child proportions',
+          face: IS_DINI_BAR
+            ? 'recognisable real face from the supplied photo: warm brown almond eyes, round-oval cheeks, natural child nose and broad open smile'
+            : 'soft round-oval face, warm brown eyes, gentle expressive brows',
+          hair: IS_DINI_BAR
+            ? 'dense short dark-brown curls with the same curl silhouette as the supplied photo'
+            : 'warm brown, softly wavy, short child haircut',
+          body: IS_DINI_BAR
+            ? 'anatomically natural small five-year-old boy proportions, never chibi or mascot-like'
+            : 'small seven-year-old child proportions',
           clothing: 'authority supplied',
-          signature: 'gentle curious expression',
+          signature: IS_DINI_BAR
+            ? 'same real Bar identity across all five pages; lively eyes and recognisable smile without caricature'
+            : 'gentle curious expression',
         },
         referenceImages: [CHILD_ANCHOR],
         requestTimeoutMs: 10 * 60 * 1000,
@@ -801,6 +931,11 @@ async function main(): Promise<void> {
         `page-${String(pageNumber).padStart(2, '0')}-wizard-storyboard-gpt-image-2-low.png`,
       );
       fs.copyFileSync(storedPath, finalPath);
+      const promptPath = path.join(
+        OUTPUT_ROOT,
+        `page-${String(pageNumber).padStart(2, '0')}-final-prompt.txt`,
+      );
+      fs.writeFileSync(promptPath, `${result.prompt}\n`, 'utf8');
       const bytes = fs.readFileSync(finalPath);
       const cost = estimateGptImage2CostUsd(result.style01Meta?.usage ?? undefined);
       renders.push({
@@ -814,6 +949,7 @@ async function main(): Promise<void> {
         usage: result.style01Meta?.usage ?? null,
         estimatedCostUsd: cost.estimatedCostUsd,
         promptSha256: createHash('sha256').update(result.prompt, 'utf8').digest('hex'),
+        promptPath: path.relative(ROOT, promptPath).replace(/\\/g, '/'),
       });
       console.log(
         JSON.stringify({
@@ -823,9 +959,12 @@ async function main(): Promise<void> {
         }),
       );
     }
+    const contactSheet = await createFivePageContactSheet(renders);
     const evidence = {
       ...authorityEvidence,
-      status: 'rendered_local_low_full_book_measurement',
+      status: IS_DINI_BAR
+        ? 'rendered_local_low_dini_bar_five_page_measurement'
+        : 'rendered_local_low_full_book_measurement',
       quality: 'low',
       providerCalls: renders.length,
       transportRetries: 0,
@@ -833,10 +972,14 @@ async function main(): Promise<void> {
       remoteDatabaseAccess: false,
       remoteStorageAccess: false,
       visualQaProviderCalls: 0,
+      contactSheet,
       renders,
     };
     fs.writeFileSync(
-      path.join(OUTPUT_ROOT, 'render-evidence-full-book.json'),
+      path.join(
+        OUTPUT_ROOT,
+        IS_DINI_BAR ? 'render-evidence-five-pages.json' : 'render-evidence-full-book.json',
+      ),
       `${JSON.stringify(evidence, null, 2)}\n`,
     );
     console.log(JSON.stringify(evidence, null, 2));

@@ -64,6 +64,8 @@ export type BlueprintFixtureShape =
 
 export interface BlueprintFixtureOptions {
   storyKey?: string;
+  /** Override the synthetic source/page count while preserving the selected fixture shape. */
+  pageCount?: number;
   mutateTemplate?: (template: BookVisualContractTemplate) => void;
   mutateReconciliation?: (
     reconciliation: SourcePromptReconciliation,
@@ -783,9 +785,21 @@ export function buildBlueprintFixture(
   shape: BlueprintFixtureShape,
   options?: BlueprintFixtureOptions,
 ): BlueprintFixture {
-  const plan = options?.storyKey
+  const selectedPlan = options?.storyKey
     ? { ...shapePlans[shape], storyKey: options.storyKey }
     : shapePlans[shape];
+  const requestedPageCount = options?.pageCount ?? selectedPlan.pageZoneIds.length;
+  if (!Number.isInteger(requestedPageCount) || requestedPageCount < 1) {
+    throw new Error('Blueprint fixture pageCount must be a positive integer');
+  }
+  const fallbackZoneId = selectedPlan.pageZoneIds[selectedPlan.pageZoneIds.length - 1]!;
+  const plan: ShapePlan = {
+    ...selectedPlan,
+    pageZoneIds: Array.from(
+      { length: requestedPageCount },
+      (_, index) => selectedPlan.pageZoneIds[index] ?? fallbackZoneId,
+    ),
+  };
   const template = makeTemplate(plan);
   options?.mutateTemplate?.(template);
   const rawStorySource = options?.rawStorySource ?? makeRawStorySource(plan);

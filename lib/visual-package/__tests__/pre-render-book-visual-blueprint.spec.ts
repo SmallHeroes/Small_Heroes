@@ -588,6 +588,18 @@ function buildActionSemanticBlueprint(
 }
 
 describe('R1D-PVB-A — schema generalization fixtures', () => {
+  it('supports an explicit positive fixture page count without changing the shape vocabulary', () => {
+    const fixture = buildBlueprintFixture('wizard_runtime_qualification', { pageCount: 16 });
+    const pageFrames = fixture.blueprint.frames.filter((frame) => frame.kind === 'page');
+
+    expect(pageFrames).toHaveLength(16);
+    expect(fixture.context.source.pageCount).toBe(16);
+    expect(fixture.context.template.pageContracts).toHaveLength(16);
+    expect(() =>
+      buildBlueprintFixture('wizard_runtime_qualification', { pageCount: 0 }),
+    ).toThrow('Blueprint fixture pageCount must be a positive integer');
+  });
+
   const shapes: BlueprintFixtureShape[] = [
     'single_location',
     'multi_zone_transition',
