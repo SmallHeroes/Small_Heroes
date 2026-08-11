@@ -2,7 +2,19 @@
 
 **Updated:** 2026-08-11
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-child-expression-style-fidelity` in `C:\Users\guyna\.codex\worktrees\barfidelity1\Small_Heroes`, based exactly on `ced2f4e19dcaf843f772ba88b09adf2fc5509604`.
+**Working branch:** `codex/r1d-wizard-story-companion-full-book-readiness` in `C:\Users\guyna\.codex\worktrees\wizardcoverage1\Small_Heroes`, based exactly on `5e27f9496d9bec9f3def8da801c954a71ddbd887`.
+
+## R1D-WIZARD-STORY-COMPANION-FULL-BOOK-READINESS — catalog authority green / full-book proof in progress
+
+Guy authorized an end-to-end audit and correction so every public Wizard story/companion selection can enter one coherent Visual Contract, Blueprint and LOW QA render path. The initial audit found that the public matrix had 18 nominally sellable slots but zero production render-qualified packages, mixed v5 and v3-approved source declarations, and still exposed legacy companion data in one summary lookup. All 18 current v3-approved Story Sources and import sidecars exist; all six matrix-owned companions have complete six-view Style01 sheets whose manifest QA status passes and whose minimum resemblance is at least `0.70`.
+
+- `MVP_STORY_MATRIX` now binds all 18 category/direction slots to the exact v3-approved source selected by runtime. The wider 30-companion legacy roster remains dev/reference content and does not become Wizard inventory.
+- A repository-owned zero-cost migration creates 18 QA-only `wizard-qa-visual-contract-candidate/v1` authorities from the immutable historical inputs. Each binds exact Story Source identity, import sidecar, companion manifest and six image hashes, migrated current-schema template and full page coverage. Historical bytes remain unchanged and `productionEligible` is always false.
+- The content-addressed `wizard-qa-render-catalog/v1` has digest `fe3bb36235a94cc169e0f017e89ab9f9f529dadfab2159799ce1b58fa229e4cf`, exactly 18 disjoint slots and six companions. Every slot is `storyReady:true`, `qaAuthoringReady:true`, `productionRenderQualified:false` and `ready_for_blueprint_authoring`.
+- Wizard API output now separates source readiness, QA authoring readiness and Production render qualification. QA authority is visible only behind `ENABLE_WIZARD_QA_RENDER_CATALOG=true` in an already permitted local/Preview QA environment; real Production ignores the flag and remains unavailable. The Wizard summary now resolves its companion only from the matrix response, not the legacy roster.
+- Focused validation currently passes 4 files / 23 tests, deterministic TypeScript and `git diff --check`. A repository-wide check and independent Claude Code review remain pending until the selected full-book QA proof is connected.
+
+No provider, credential, database/storage, Board, publication, deployment or Production action occurred in this catalog milestone. The next implementation step is the QA-only Wizard request plus one page-complete, source-bound Blueprint and one complete LOW book for visual review. This section does not claim Production readiness, release acceptance or independent technical PASS.
 
 ## R1D-BUNNY-BAR-FIVE-PAGE-EXPRESSION-GENERALIZATION - five LOW pages complete / remote QA Reader ready
 

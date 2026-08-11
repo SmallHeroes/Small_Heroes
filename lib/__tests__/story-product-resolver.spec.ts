@@ -88,6 +88,10 @@ describe('resolveStoryProductTruth', () => {
           challengeCategory: category,
         });
         expect(resolved.storyDirection).toBe(direction);
+        expect(resolved.source).toBe('v3_approved_binding');
+        expect(resolved.storyFile).toBe(
+          path.join(V3_APPROVED_DIR, `${companionId}_${direction}.md`),
+        );
       }
     }
   });

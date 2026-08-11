@@ -19,27 +19,27 @@ const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
 export const MVP_STORY_MATRIX = {
   NIGHT_FEAR: {
     companionId: 'fox_uri',
-    directions: { bedtime: 'approved', adventure: 'approved_v3', fantasy: 'approved_v3' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved_v3', fantasy: 'approved_v3' },
   },
   SOCIAL: {
     companionId: 'panda_anat',
-    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'approved_v3' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved_v3', fantasy: 'approved_v3' },
   },
   MEDICAL_PROCEDURE: {
     companionId: 'bunny_ometz',
-    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'approved_v3' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved_v3', fantasy: 'approved_v3' },
   },
   NEW_SIBLING: {
     companionId: 'dragon_dini',
-    directions: { bedtime: 'approved_v3', adventure: 'approved_v3', fantasy: 'approved' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved_v3', fantasy: 'approved_v3' },
   },
   TRANSITION: {
     companionId: 'chameleon_koko',
-    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'approved_v3' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved_v3', fantasy: 'approved_v3' },
   },
   ANGER_FRUSTRATION: {
     companionId: 'lion_shaket',
-    directions: { bedtime: 'approved_v3', adventure: 'approved', fantasy: 'approved_v3' },
+    directions: { bedtime: 'approved_v3', adventure: 'approved_v3', fantasy: 'approved_v3' },
   },
 } as const satisfies Record<
   string,

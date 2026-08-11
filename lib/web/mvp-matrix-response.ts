@@ -18,6 +18,10 @@ import {
   type StoryDirection,
 } from '@/backend/config/mvp-story-matrix';
 import { DIRECTION_PAGE_MAP, displayPagesForBeats } from '@/backend/config/wizard';
+import { STYLE_IDS } from '@/lib/styles';
+import { evaluateRenderQualification } from '@/lib/visual-package/qualification';
+import { wizardQaSlotReadiness } from '@/lib/wizard-render-readiness';
+import path from 'node:path';
 
 const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
 
@@ -64,10 +68,35 @@ function buildCategoryPayload(category: MvpCategory, publicVisible: boolean) {
     DIRECTIONS.map((direction) => {
       const summary = matrixSlotSummary(category, direction);
       const pageMap = DIRECTION_PAGE_MAP[direction];
+      const storyKey = `${companionId}_${direction}`;
+      const qaAuthority = wizardQaSlotReadiness({
+        repoRoot: process.cwd(),
+        category,
+        direction,
+      });
+      const productionQualification = evaluateRenderQualification({
+        repoRoot: process.cwd(),
+        storyKey,
+        storyPath: path.join('story-bank', 'v3-approved', `${storyKey}.md`),
+        styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      });
       return [
         direction,
         {
           configured: summary.configured,
+          storyReady: summary.sellable,
+          qaAuthoringReady: qaAuthority !== null,
+          productionRenderQualified: productionQualification.renderQualified,
+          selectable:
+            productionQualification.renderQualified || qaAuthority !== null,
+          availabilityStage: productionQualification.renderQualified
+            ? 'production_render_qualified'
+            : qaAuthority
+              ? 'qa_ready_for_blueprint_authoring'
+              : summary.sellable
+                ? 'story_ready_only'
+                : 'unavailable',
+          candidateDigest: qaAuthority?.candidateDigest ?? null,
           sellable: summary.sellable,
           priceILS: pageMap?.priceILS ?? 0,
           displayPages: displayPagesForBeats(pageMap?.pages ?? 0),
@@ -76,7 +105,18 @@ function buildCategoryPayload(category: MvpCategory, publicVisible: boolean) {
     })
   ) as Record<
     StoryDirection,
-    { configured: string; sellable: boolean; priceILS: number; displayPages: number }
+    {
+      configured: string;
+      storyReady: boolean;
+      qaAuthoringReady: boolean;
+      productionRenderQualified: boolean;
+      selectable: boolean;
+      availabilityStage: string;
+      candidateDigest: string | null;
+      sellable: boolean;
+      priceILS: number;
+      displayPages: number;
+    }
   >;
 
   return {

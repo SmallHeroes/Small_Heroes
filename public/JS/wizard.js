@@ -495,9 +495,14 @@ function getMvpSlotForTopic(topicId) {
 
 function getDirectionSellability(direction) {
   const cat = state.challengeCategory;
-  if (!cat || !state.mvpMatrix?.categories) return { sellable: true, configured: 'approved' };
+  if (!cat || !state.mvpMatrix?.categories) {
+    return { sellable: true, selectable: true, configured: 'approved' };
+  }
   const slot = state.mvpMatrix.categories.find((c) => c.category === cat);
-  return slot?.directions?.[direction] || { sellable: false, configured: 'missing' };
+  return (
+    slot?.directions?.[direction] ||
+    { sellable: false, selectable: false, configured: 'missing' }
+  );
 }
 
 function applyMatrixCompanionForCategory(category) {
@@ -615,12 +620,6 @@ function persistPreferredDirection(direction) {
 }
 
 function getCompanionImageForSummary() {
-  const cat = state.challengeCategory;
-  const companionId = state.companionCharacterId;
-  if (cat && companionId && globalThis.COMPANIONS_BY_CATEGORY?.[cat]) {
-    const found = globalThis.COMPANIONS_BY_CATEGORY[cat].find((c) => c.id === companionId);
-    if (found?.image) return found.image;
-  }
   const slot = getMvpSlotForTopic(state.topic);
   if (slot?.companion?.image) return slot.companion.image;
   return '';
@@ -2257,7 +2256,7 @@ function renderProductCards() {
 
   pkgs.forEach((pkg) => {
     const dirMeta = getDirectionSellability(pkg.id);
-    const comingSoon = dirMeta.sellable === false;
+    const comingSoon = dirMeta.selectable === false;
     const card = document.createElement('button');
     card.type = 'button';
     const selected = !comingSoon && (pkg.id === state.productId || pkg.id === state.storyDirection);
@@ -2308,7 +2307,7 @@ function renderProductCards() {
     wrap.appendChild(card);
   });
 
-  if (state.productId && !getDirectionSellability(state.productId).sellable) {
+  if (state.productId && !getDirectionSellability(state.productId).selectable) {
     state.productId = null;
     state.storyDirection = null;
     state.priceILS = null;

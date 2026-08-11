@@ -14,11 +14,6 @@ import {
 } from '../../backend/config/mvp-story-matrix';
 
 const V3_APPROVED_DIR = path.join(process.cwd(), 'story-bank', 'v3-approved');
-const V5_DIR = path.join(
-  process.cwd(),
-  'story-bank',
-  (process.env.STORY_BANK_V3_DIR || 'v5-fixed-v2').trim()
-);
 const originalFlag = process.env.ENABLE_V3_APPROVED_BANK;
 
 describe('MVP_STORY_MATRIX helpers', () => {
@@ -44,11 +39,11 @@ describe('MVP_STORY_MATRIX helpers', () => {
     delete process.env.ENABLE_V3_APPROVED_BANK;
 
     const nightDirs = sellableDirectionsFor('NIGHT_FEAR');
-    expect(nightDirs).toContain('bedtime');
+    expect(nightDirs).not.toContain('bedtime');
     expect(nightDirs).not.toContain('fantasy');
 
     const medicalDirs = sellableDirectionsFor('MEDICAL_PROCEDURE');
-    expect(medicalDirs).toContain('adventure');
+    expect(medicalDirs).not.toContain('adventure');
     // bedtime is approved_v3 — flag off → not sellable
     expect(medicalDirs).not.toContain('bedtime');
   });
@@ -78,11 +73,16 @@ describe('MVP_STORY_MATRIX helpers', () => {
     expect(isSlotSellable('HIDDEN_CATEGORY', 'bedtime')).toBe(false);
   });
 
-  it('golden approved slots resolve when v5 file exists', () => {
-    const foxBedtime = path.join(V5_DIR, 'fox_uri_bedtime.md');
-    if (fs.existsSync(foxBedtime)) {
-      expect(isSlotSellable('NIGHT_FEAR', 'bedtime')).toBe(true);
+  it('binds every public slot to the approved-v3 bank rather than a mixed v5 source', () => {
+    process.env.ENABLE_V3_APPROVED_BANK = 'true';
+    for (const category of allMvpCategories()) {
+      const companionId = companionForCategory(category)!;
+      for (const direction of ['bedtime', 'adventure', 'fantasy'] as const) {
+        expect(configuredSlotStatus(category, direction)).toBe('approved_v3');
+        expect(fs.existsSync(path.join(V3_APPROVED_DIR, `${companionId}_${direction}.md`))).toBe(true);
+        expect(fs.existsSync(path.join(V3_APPROVED_DIR, `${companionId}_${direction}.import.json`))).toBe(true);
+        expect(isSlotSellable(category, direction)).toBe(true);
+      }
     }
-    expect(MVP_STORY_MATRIX.NIGHT_FEAR.directions.bedtime).toBe('approved');
   });
 });
