@@ -62,6 +62,10 @@ Bar's stable identity, hair, clothing and semi-naturalistic watercolor anatomy r
 
 The exact five images are compressed into tracked WebP assets under `qa-fixtures/reader/r1d-bunny-bar-expression-generalization-fe97f823/` and bound through `lib/tracked-qa-reader-fixtures.ts`. The Reader implementation contains no legacy whole-book tilt/fade animation; standard desktop story spreads use only the physical paper-sheet turn, while unsupported geometry navigates instantly.
 
+Vercel Preview deployment `dpl_ECXhVoBKBH4DANDDgBhdUhLAzFdK` reached `Ready` for exact fixture commit `845a2ed3`. An authenticated remote-browser check selected `[QA fixture] Buni + Bar · expression generalization · pages 1–5`, loaded counter states 1 through 5 and five distinct static WebP URLs, then returned to page 1. During forward navigation the Reader exposed one `data-physical-page-turn="forward"` sheet and `data-page-turn-mode="physical-sheet"`; backward navigation exposed the equivalent single `backward` sheet. The host returns to `instant` at rest, which means there is no persistent or competing whole-book movement. The verified immutable Preview URL is:
+
+`https://small-heroes-fteat3ll2-smallheroes-projects.vercel.app/dev/viewer?dir=r1d-bunny-bar-expression-generalization-reader-qa-fe97f823&root=outputs`
+
 ## Exclusions and remaining gates
 
 No full book, HIGH image, Vision, remote database/storage, Board, publication, production promotion or deployment occurred during rendering. Production remains blocked. Independent Claude Code technical QA and Guy's product/visual acceptance remain outstanding.

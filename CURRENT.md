@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-child-expression-style-fidelity` in `C:\Users\guyna\.codex\worktrees\barfidelity1\Small_Heroes`, based exactly on `ced2f4e19dcaf843f772ba88b09adf2fc5509604`.
 
-## R1D-BUNNY-BAR-FIVE-PAGE-EXPRESSION-GENERALIZATION - five LOW pages complete / QA Reader connection in progress
+## R1D-BUNNY-BAR-FIVE-PAGE-EXPRESSION-GENERALIZATION - five LOW pages complete / remote QA Reader ready
 
 Guy asked for a cross-story proof after the Dini pages exposed style and expression drift. The approved `bunny_ometz_adventure.md` opening provides five distinct emotional beats while keeping the same canonical Bar anchor and advancing from the waiting room into the examination room.
 
@@ -14,7 +14,7 @@ Guy asked for a cross-story proof after the Dini pages exposed style and express
 - The bounded completion rendered only pages 4-5. It completed exactly two `gpt-image-2` LOW calls, with zero retries, no fallback and no Vision. Page 4 SHA-256 is `6cc4a5a6ec7c671491ff88c47300824769726ebc896fcc0392dcab5572318b58`; page 5 is `c6c84d3a086833fb01f15172fd31f0e4e76a546241d0b727e6cf37e206da047c`. Each completion reported 8 text-input and 158 image-output tokens; conservative local accounting for those two calls is `$0.009608`, not a provider-account audit.
 - Retained page hashes are page 1 `28057f986650f8dc9e0a3a2c91646b3b4843c62b9834b9b731586e78db0cb48c`, page 2 `fc74ac6864645a5d929d41881ef994ee11617fdda515bf659dee6dfca37cfc81`, and page 3 `17aecf6439505b073cb2aef53e3574c67cf0e626b181de1bdfff5dc16b60df0e`. Their first-attempt usage was not persisted after the page-4 rejection, so no exact five-call billing claim is made.
 - Visual inspection shows a materially stable Bar identity, teal/rust wardrobe and semi-naturalistic watercolor treatment across wide, close, medium, doorway and examination-chair frames. The expression arc changes from anxious to tentative attention, restrained amusement, hesitation and focused action instead of copying one smile. This is a meaningful LOW product proof, not final visual or launch acceptance.
-- A tracked five-page QA Reader fixture now packages those exact bytes. The Reader retains only its physical paper-sheet turn; the former whole-book tilt/fade animation is absent and unsupported paths navigate instantly. Production remains blocked.
+- A tracked five-page QA Reader fixture packages those exact bytes. Vercel Preview deployment `dpl_ECXhVoBKBH4DANDDgBhdUhLAzFdK` reached Ready for commit `845a2ed3`; authenticated remote-browser verification loaded pages 1-5 and their five distinct static assets. Forward and backward navigation each exposed exactly one `data-physical-page-turn` sheet with `physical-sheet` mode during the turn. The former whole-book tilt/fade animation is absent; at rest the book frame is static and unsupported paths navigate instantly. Production remains blocked and was not promoted or modified.
 
 Local artifacts: `outputs/r1d-bunny-bar-expression-generalization-20260811-render-1/`, `outputs/r1d-bunny-bar-expression-generalization-20260811-render-3/`, and `outputs/r1d-bunny-bar-expression-generalization-20260811-combined/`. Durable records: `docs/ai-workflow/R1D_BUNNY_BAR_FIVE_PAGE_EXPRESSION_GENERALIZATION_DECISION_GATE.md`, `docs/ai-workflow/R1D_PVB_RUNTIME_PROMPT_DEDUPLICATION_DECISION_GATE.md`, and `docs/ai-workflow/R1D_BUNNY_BAR_FIVE_PAGE_EXPRESSION_GENERALIZATION_IMPLEMENTATION_EVIDENCE.md`. Independent technical QA and Guy's product acceptance remain pending.
 
