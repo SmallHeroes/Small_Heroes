@@ -81,6 +81,8 @@ export function buildStyle01AnatomyIntegrityLock(): string {
     'ANATOMY INTEGRITY (always):',
     'All body parts stay ATTACHED — ears, tails, limbs never detach or float.',
     'Comic exaggeration is expressed through posture, stretch, and motion lines — NEVER through detachment.',
+    'HUMAN CHILDREN: use observational semi-naturalistic drawing with believable age-appropriate anatomy — ordinary-size eyes with visible eyelids, a developed nose bridge and mouth, a credible head-to-body ratio, articulated fingers, ordinary feet, and natural joints.',
+    'Keep the child clearly hand-painted in watercolor, but never chibi, bobble-headed, anime-eyed, shortened into a doll face, plastic-doll-like, mascot-like, or toy-proportioned.',
   ].join('\n');
 }
 

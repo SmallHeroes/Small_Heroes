@@ -79,6 +79,122 @@ import {
   resolvePageSceneFidelityAddendum,
 } from './style01-visual-polish';
 import type { RuntimeBlueprintFrameProjection } from './generation-pipeline/runtime-blueprint-projection';
+import { canonicalize } from './canonical-json';
+
+const SPATIAL_RELATION_RENDER_RULES = {
+  toward:
+    'The visible movement must finish closer to the target than it starts.',
+  away_from:
+    'The visible movement must finish farther from the target than it starts.',
+  onto:
+    'The visible movement must terminate on top of and visibly overlap the target surface.',
+  into:
+    'The visible movement path must terminate inside the target region. When the target is a container, entry must pass through its visible opening; never depict the path landing beside or beyond it.',
+  beside:
+    'The visible movement must terminate beside the target without overlapping it.',
+  under:
+    'The visible movement must terminate below the target.',
+  over:
+    'The visible movement must terminate above the target.',
+} as const;
+
+function placementRegionForEntity(
+  frame: RuntimeBlueprintFrameProjection,
+  target: { kind: string; id: string },
+) {
+  const placement = frame.placements.find((entry) => {
+    if (target.kind === 'cast') {
+      return entry.subject.kind === 'cast' && entry.subject.castId === target.id;
+    }
+    if (target.kind === 'prop') {
+      return entry.subject.kind === 'prop' && entry.subject.propId === target.id;
+    }
+    return false;
+  });
+  return placement?.region ?? null;
+}
+
+/**
+ * Deterministic provider-facing projection of already validated Blueprint action geometry.
+ * It never parses Story Source prose and never invents a target or placement.
+ */
+export function buildPvbTypedActionGeometryBlock(
+  frame: RuntimeBlueprintFrameProjection,
+): string {
+  const actions: Array<Record<string, unknown>> = [];
+  for (const action of frame.contractPage.actionRequirements ?? []) {
+      if (!action.spatialEffect) continue;
+      const origin = frame.placements.find(
+        (entry) =>
+          entry.subject.kind === 'action' &&
+          entry.subject.checkId === action.checkId,
+      );
+      const destination = frame.placements.find(
+        (entry) =>
+          entry.subject.kind === 'action_destination' &&
+          entry.subject.checkId === action.checkId,
+      );
+      if (!origin || !destination) continue;
+
+      if (action.spatialEffect.kind === 'directional') {
+        actions.push({
+            checkId: action.checkId,
+            subject: action.subject,
+            predicate: action.predicate,
+            spatialEffect: action.spatialEffect,
+            originRegion: origin.region,
+            destinationRegion: destination.region,
+            renderRule: `The visible movement must travel ${action.spatialEffect.direction} from the exact origin region to the exact destination region.`,
+          });
+        continue;
+      }
+
+      const target = action.spatialEffect.target;
+      const actionSpace = frame.affordances.find(
+        (entry) =>
+          entry.kind === 'action_space' &&
+          entry.consumers.some(
+            (consumer) =>
+              consumer.kind === 'action' &&
+              consumer.pageNumber === frame.pageNumber &&
+              consumer.checkId === action.checkId,
+          ),
+      );
+      const targetRegion =
+        placementRegionForEntity(frame, target) ??
+        (actionSpace?.kind === 'action_space'
+          ? actionSpace.spatialTargetRegions.find(
+              (entry) =>
+                entry.target.kind === target.kind && entry.target.id === target.id,
+            )?.region ?? null
+          : null);
+      if (!targetRegion) continue;
+
+      actions.push({
+          checkId: action.checkId,
+          subject: action.subject,
+          predicate: action.predicate,
+          spatialEffect: action.spatialEffect,
+          originRegion: origin.region,
+          destinationRegion: destination.region,
+          targetRegion,
+          renderRule:
+            SPATIAL_RELATION_RENDER_RULES[action.spatialEffect.relation],
+        });
+  }
+  if (actions.length === 0) return '';
+  return [
+    '[PVB TYPED ACTION GEOMETRY — STRUCTURAL AUTHORITY]',
+    JSON.stringify(
+      canonicalize({
+        version: 'pvb-typed-action-geometry/v1',
+        coordinateSpace: frame.layoutPlan.coordinateSpace,
+        actions,
+      }),
+    ),
+    'These coordinates and relation rules are mandatory. Render one coherent physical event; do not add a contradictory duplicate path, destination, splash, impact, or target.',
+  ].join('\n');
+}
 
 export type Style01PromptAssemblyInput = {
   pageNumber: number;
@@ -241,7 +357,13 @@ export function assembleStyle01Phase2Prompt(
       companionPresence: entityPresence.companionPresence,
       forbiddenEntities: entityPresence.forbiddenEntities,
     });
-    const compositionBlock = frame.blueprintPromptBlock;
+    const typedActionGeometryBlock = buildPvbTypedActionGeometryBlock(frame);
+    const compositionBlock = [
+      frame.blueprintPromptBlock,
+      typedActionGeometryBlock,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
     const framingRule = [
       'PVB FRAMING RULE — immutable approved frame:',
       `Frame ${frame.frameId} (${frame.frameDigest}); camera ${frame.camera.shot}/${frame.camera.angle}.`,

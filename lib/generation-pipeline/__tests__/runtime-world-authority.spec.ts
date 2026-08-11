@@ -24,6 +24,12 @@ import {
 } from '@/lib/visual-package/runtimeAuthority';
 import { buildVisualPackageV4Fixture } from '@/lib/visual-package/__tests__/visual-package-v4.fixtures';
 import type { BlueprintFixtureShape } from '@/lib/visual-package/__tests__/pre-render-book-visual-blueprint.fixtures';
+import { buildPvbTypedActionGeometryBlock } from '@/lib/style01-prompt-assembly';
+import {
+  STYLE_01_ANTI_STYLE02,
+  STYLE_01_RENDERING_CORRECTION,
+} from '@/lib/style01-gptimage';
+import { buildStyle01AnatomyIntegrityLock } from '@/lib/style01-visual-polish';
 
 import {
   RuntimeBlueprintCanvasError,
@@ -349,6 +355,100 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
       `${frame.camera.shot} ${frame.camera.angle}`,
     );
     expect(page?.safeScenePrompt).not.toMatch(/MALICIOUS_|castle|dragon/);
+  });
+
+  it('projects an exact typed into relation as mandatory provider geometry', () => {
+    const runtime = authority();
+    const frame = structuredClone(
+      requireRuntimeBlueprintFrame(runtime.bookProjection, 1),
+    );
+    const checkId = 'action:page_1_water_enters_container';
+    const targetId = 'prop:container';
+    frame.contractPage.actionRequirements = [
+      {
+        checkId,
+        subject: {
+          kind: 'source_phenomenon',
+          sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+          sourcePhrase: 'one drop falls',
+        },
+        predicate: 'moves',
+        object: { kind: 'prop', id: 'prop:moving_drop' },
+        spatialEffect: {
+          kind: 'relation',
+          relation: 'into',
+          target: { kind: 'prop', id: targetId },
+        },
+        polarity: 'must',
+      },
+    ];
+    frame.placements.push(
+      {
+        id: 'placement:action:origin',
+        subject: { kind: 'action', checkId },
+        region: { x: 480, y: 280, width: 80, height: 320 },
+        depth: 'midground',
+        importance: 'key',
+      },
+      {
+        id: 'placement:action:destination',
+        subject: { kind: 'action_destination', checkId },
+        region: { x: 500, y: 590, width: 30, height: 30 },
+        depth: 'foreground',
+        importance: 'key',
+      },
+      {
+        id: 'placement:target',
+        subject: { kind: 'prop', propId: targetId },
+        region: { x: 450, y: 560, width: 150, height: 170 },
+        depth: 'foreground',
+        importance: 'key',
+      },
+    );
+
+    const block = buildPvbTypedActionGeometryBlock(frame);
+    expect(block).toContain(
+      '[PVB TYPED ACTION GEOMETRY — STRUCTURAL AUTHORITY]',
+    );
+    expect(block).toContain('"relation":"into"');
+    expect(block).toContain('"targetRegion":{"height":170');
+    expect(block).toContain(
+      'entry must pass through its visible opening',
+    );
+    expect(block).toContain('do not add a contradictory duplicate path');
+  });
+
+  it('does not invent geometry for non-spatial or incomplete actions', () => {
+    const runtime = authority();
+    const frame = structuredClone(
+      requireRuntimeBlueprintFrame(runtime.bookProjection, 1),
+    );
+    expect(buildPvbTypedActionGeometryBlock(frame)).toBe('');
+
+    const action = frame.contractPage.actionRequirements?.[0];
+    if (!action) throw new Error('expected action fixture');
+    action.spatialEffect = { kind: 'directional', direction: 'down' };
+    frame.placements = frame.placements.filter(
+      (placement) => placement.subject.kind !== 'action_destination',
+    );
+    expect(buildPvbTypedActionGeometryBlock(frame)).toBe('');
+  });
+
+  it('keeps watercolor illustration while requiring naturalistic child anatomy', () => {
+    expect(STYLE_01_RENDERING_CORRECTION).toContain(
+      'observational semi-naturalistic human drawing',
+    );
+    expect(STYLE_01_RENDERING_CORRECTION).not.toContain(
+      'rounded expressive characters',
+    );
+    expect(STYLE_01_ANTI_STYLE02).toContain('NOT chibi');
+    expect(STYLE_01_ANTI_STYLE02).toContain('NOT photoreal skin');
+    expect(buildStyle01AnatomyIntegrityLock()).toContain(
+      'ordinary-size eyes with visible eyelids',
+    );
+    expect(buildStyle01AnatomyIntegrityLock()).toContain(
+      'clearly hand-painted in watercolor',
+    );
   });
 
   it.each<BlueprintFixtureShape>([

@@ -54,7 +54,7 @@ export const STYLE_01_SHARED =
   "Style 01: soft hand-drawn children's storybook illustration on warm cream paper. Gentle transparent watercolor washes, delicate linework, luminous muted palette, cozy picture-book warmth. NOT cinematic Style 02. NOT dense ink-and-gouache. NOT photorealistic. NOT Pixar CGI.";
 
 export const STYLE_01_RENDERING_CORRECTION =
-  'RENDERING: soft watercolor storybook — visible paper texture, gentle pigment bleeds, rounded expressive characters, warm local color, airy negative space. NOT harsh shadows. NOT global orange filter. NOT empty cream void background.';
+  'RENDERING: soft watercolor storybook — visible paper texture, gentle pigment bleeds, observational semi-naturalistic human drawing, warm local color, airy negative space. Render the child with recognizably human facial proportions: ordinary-size eyes with visible eyelids, a developed nose bridge and mouth, a head proportionate to an age-appropriate body, and non-mascot hands and feet. Human emotion comes from subtle posture, gaze, brows, and mouth — never from enlarged eyes, a shortened doll face, or an oversized round head. Keep the result hand-painted rather than photographic. NOT harsh shadows. NOT global orange filter. NOT empty cream void background.';
 
 export const STYLE_01_FRAMING_RULE = `FRAMING RULE — BREATHE:
 - Medium-wide storybook scene; environment visible; child and companion mostly full-figure; no giant cropped faces or oversized foreground characters unless shotType=close_up explicitly.
@@ -79,7 +79,7 @@ export const STYLE_01_NO_TEXT =
   '[NO TEXT] No readable Hebrew, English, letters, numbers, signs, labels, or watermarks.';
 
 export const STYLE_01_ANTI_STYLE02 =
-  'NOT Style 02. NOT cinematic fantasy. NOT dense ink crosshatching. NOT dramatic spotlight noir. NOT semi-realistic portrait rendering.';
+  'NOT Style 02. NOT cinematic fantasy. NOT dense ink crosshatching. NOT dramatic spotlight noir. NOT glossy digital portrait rendering. NOT photoreal skin. NOT chibi, anime, Disney/Pixar-like eye scaling, bobble-head proportions, toy-like hands, or plastic doll faces.';
 
 export const STYLE_01_CHILD_PHOTO_IDENTITY_RULE =
   'CHILD PHOTO (if attached): IDENTITY ONLY — face shape, hair, skin tone, age, gender. ' +

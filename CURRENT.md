@@ -2,7 +2,20 @@
 
 **Updated:** 2026-08-11
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-page-repair-topology-preservation` in `C:\Users\guyna\.codex\worktrees\streamtransport1\Small_Heroes`, based exactly on `28fc4c2f637b633d3a2b4a88e1df43d30b88a777`.
+**Working branch:** `codex/r1d-first-render-causal-alignment-style-fidelity` in `C:\Users\guyna\.codex\worktrees\renderfidelity1\Small_Heroes`, based exactly on `c58525f31c767b69a6295aa24eb77aef8ecc5597`.
+
+## R1D-FIRST-RENDER-CAUSAL-ALIGNMENT-AND-STYLE-FIDELITY - local LOW visual measurement PASS / independent QA pending
+
+The first visible LOW page proved Wizard-to-image connectivity but exposed two direct product defects: the falling-water trajectory missed the bucket, so the authored cause of the sound did not read, and the child was materially more cartoon-like than Guy's Style 01 target. The root causes were separate: spatial intent existed only as prose rather than typed action geometry, while Style 01 still encouraged rounded expressive anatomy and explicitly rejected semi-naturalistic rendering.
+
+- The PVB prompt path now derives deterministic relation-specific provider geometry only from typed action requirements, exact Blueprint action/action-destination placements, target placements and action-space target regions. For `into`, the visible path must enter through the target opening and terminate inside it. Missing or non-spatial authority adds no geometry, and no Story Source prose is parsed.
+- Style 01 keeps watercolor texture and non-photographic rendering while requiring observational semi-naturalistic human drawing: ordinary-size eyes and eyelids, developed nose/mouth structure, credible head/body proportion, articulated hands, ordinary feet and no chibi, bobble-head, mascot, doll or Disney/Pixar-like exaggeration.
+- Direct runtime validation passed **1 file / 25 tests**; the adjacent runtime/Wizard/prompt set passed **3 files / 27 tests**; TypeScript and `git diff --check` passed. The literal repository check passed all **19 resource-intensive files** with valid diagnostics and reported exactly the six established missing ignored-output fixtures in the ordinary phase, with no seventh failure. They remain a separate production/release HOLD.
+- The bounded local runner qualified the exact approved Story Source through `visual-package/v5`, `pre-render-book-visual-blueprint/v4` and `style01-runtime-authority/v6`. Its local QA overlay typed the already-authored falling-drop-into-bucket relation for pages 10-12; this overlay is ignored measurement data and is not production authority.
+- Exactly two corrected page-11 LOW calls and one three-page LOW sequence (pages 10-12) completed: **5 image-provider calls total**, zero transport retries, no fallback, no Vision, no remote database/storage and no production action. Every corrected image places the drip trajectory inside the bucket opening. The second page-11 correction and the three-page sequence materially reduce the child's cartoon proportions while retaining watercolor Style 01.
+- The local sequence proves meaningful progress, not launch readiness. Character identity and set continuity are directionally consistent but still require Guy's visual acceptance and later production reference locking. No full book, HIGH image, approval, publication, deployment or production activation is authorized. Production remains blocked.
+
+Local artifacts: `outputs/r1d-first-visible-low-page-fidelity-20260811/`. Durable records: `docs/ai-workflow/R1D_FIRST_RENDER_CAUSAL_ALIGNMENT_AND_STYLE_FIDELITY_DECISION_GATE.md` and `docs/ai-workflow/R1D_FIRST_RENDER_CAUSAL_ALIGNMENT_AND_STYLE_FIDELITY_IMPLEMENTATION_EVIDENCE.md`.
 
 ## R1D-PVB-D1A1B1-PAGE-REPAIR-TOPOLOGY-PRESERVATION - implementation green / LOW continuation authorized
 
