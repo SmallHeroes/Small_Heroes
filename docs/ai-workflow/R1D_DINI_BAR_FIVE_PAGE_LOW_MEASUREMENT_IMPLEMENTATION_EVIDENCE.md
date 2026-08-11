@@ -2,7 +2,7 @@
 
 ## Status
 
-Local implementation and bounded five-page LOW measurement are complete. Independent Claude Code technical-record QA and Guy's product/visual acceptance remain pending. Production remains blocked.
+Local implementation and bounded five-page LOW measurement are complete. Independent Claude Code technical/evidence QA passed the exact pushed implementation range; Guy's product/visual acceptance remains pending. Production remains blocked.
 
 ## Repository authority
 
@@ -125,3 +125,16 @@ The provider reported `8` text-input tokens and `158` image-output tokens for ev
 ## Rollback and exclusions
 
 Delete the ignored local output roots and revert this focused branch. No production authority, remote storage/database, publication, deployment or production state changed. No full-book render, HIGH render, Vision, authoring-model call, approval or release action occurred.
+
+## Independent Claude Code QA
+
+Claude Code independently reviewed exact pushed range `78d1cb12461580f42ef38d6ffa6e86c3a9e76635..86179894c131fd8902061690e6e5b39dacde2502` read-only and returned technical/evidence **PASS** with zero BLOCKER and zero MAJOR.
+
+It verified the clean `0/0` topology, preserved Fox default, closed local-only Dini mode, actual qualification-to-`generateImage` path, production/storage/Vision exclusions, deterministic sixteen-page authority, five distinct opening shot signatures, measurement-copy-only typed prop constraints, backward-compatible `pageCount` extension, five sequential LOW calls with zero retry/fallback, and faithful validation/cost/limitation records.
+
+Two non-blocking MINOR notes remain recorded rather than expanded into new work:
+
+1. The literal `npm run check` was not rerun after the four numeric workload-inventory expectations were corrected. The correction received its direct `7/7` classifier regression, and this limitation was already disclosed.
+2. The local-only runner has three absolute `C:\GNart\Work\Small_Heroes\...` defaults. Each is overridable by a closed CLI argument, and the Decision Gate explicitly limits the runner to local measurement.
+
+One advisory notes that the repository estimator returned `null`; `$0.023900` is nominal reported-token accounting and not a provider billing audit. Claude's PASS grants no product, visual, production, launch, deployment or full-book authority. The six missing ignored-output fixtures remain a separate release HOLD.
