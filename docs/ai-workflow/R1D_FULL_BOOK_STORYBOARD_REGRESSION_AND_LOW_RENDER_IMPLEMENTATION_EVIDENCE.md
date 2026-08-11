@@ -1,6 +1,6 @@
 # R1D-FULL-BOOK-STORYBOARD-REGRESSION-AND-LOW-RENDER - implementation evidence
 
-Status: local implementation and twelve-page LOW measurement complete; Claude Code first pass complete with disclosure findings corrected locally and micro re-gate pending; product/visual acceptance pending; production blocked.
+Status: local implementation and twelve-page LOW measurement complete; independent Claude Code technical-record QA closed; product/visual acceptance pending; production blocked.
 
 ## Authority and scope
 
@@ -117,7 +117,7 @@ Claude Code audited exact pushed range `21e501794ea7931c8bdd73366056ad0a9bf9eb3a
 2. Twelve non-identical signatures are partly achieved through single-digit deterministic nudges within repeated layout families, a weaker guarantee than materially different composition.
 3. The zero retry/fallback/Visual-QA counts are structural literal attestations rather than separately measured provider telemetry.
 
-This correction records those limits without changing code, artifacts or product claims. Closure of the disclosure findings remains pending a focused Claude Code micro re-gate; Codex does not self-award it.
+This correction records those limits without changing code, artifacts or product claims. Claude Code then micro-re-gated exact correction range `e01cfde83410ae33ea8fbec064c8751cbf58852a..3a69832673c7b24cf6320c6b1170c2ccac216c88` and returned **PASS**, closing the MAJOR and both MINOR disclosure findings with no new findings and two advisory notes only. This is Claude's closure, not a Codex self-awarded result.
 
 ## Validation
 
@@ -133,4 +133,4 @@ The literal `npm run check` ran once and was not rerun. TypeScript and all ninet
 
 ## Rollback and authority limits
 
-Rollback is a focused revert of this milestone's commit plus deletion of only the ignored local output/qualification roots. Historical authorities and earlier images are not rewritten. Production remains blocked. This work grants no publication, approval, deployment, release, remote storage/database or full-book production-render authority. Codex does not self-award independent finding closure or product PASS; Guy retains product/visual acceptance.
+Rollback is a focused revert of this milestone's commits plus deletion of only the ignored local output/qualification roots. Historical authorities and earlier images are not rewritten. Production remains blocked. This work grants no publication, approval, deployment, release, remote storage/database or full-book production-render authority. Independent technical-record QA is closed; Guy retains product/visual acceptance.
