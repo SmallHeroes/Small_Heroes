@@ -4208,9 +4208,9 @@ function applyRuntimeWorldAuthority(input: ImageInput): ImageInput {
 
   return {
     ...input,
-    pagePrompt: projection.safeScenePrompt,
+    pagePrompt: projection.blueprintFrame.narrative.summary,
     bookPageText: null,
-    stage4Prompt: projection.safeScenePrompt,
+    stage4Prompt: projection.blueprintFrame.narrative.summary,
     rawScenePrompt: null,
     visualDirection: projection.visualDirection,
     blocking: null,
@@ -4236,10 +4236,7 @@ function applyRuntimeWorldAuthority(input: ImageInput): ImageInput {
       : undefined,
     anchorCharacters: authorizedAnchors.length > 0 ? authorizedAnchors : undefined,
     contractStyleRefEnvironment: projection.contractStyleRefEnvironment,
-    visualContractPromptBlock: [
-      projection.blueprintPromptBlock,
-      projection.contractPromptBlock,
-    ].join('\n\n'),
+    visualContractPromptBlock: projection.contractPromptBlock,
     expectedCharacterIds: projection.expectedCharacterIds,
     expectedCharacterNames: projection.expectedCharacterNames,
     supportingCharacters: projection.supportingCharacters,

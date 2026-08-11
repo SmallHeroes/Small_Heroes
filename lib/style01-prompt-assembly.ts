@@ -308,6 +308,8 @@ export function assembleStyle01Phase2Prompt(
 ): Style01PromptAssemblyResult {
   if (input.authoritativeBlueprintFrame) {
     const frame = input.authoritativeBlueprintFrame;
+    const safeNarrativeSummary =
+      frame.narrative.summary.trim() || 'Render the exact approved Blueprint frame.';
     const entityPresence = structuredClone(frame.entityPresence);
     const childPresent =
       entityPresence.childPresence === 'present' ||
@@ -382,7 +384,7 @@ export function assembleStyle01Phase2Prompt(
           childPresence: entityPresence.childPresence,
           narrativeSummary: frame.narrative.summary,
           bookPageText: input.bookPageText,
-          imageDirection: input.rawScenePrompt ?? input.pagePrompt,
+          imageDirection: safeNarrativeSummary,
         })
       : undefined;
     const smallFrameChildFidelityLock = childPresent
@@ -393,7 +395,7 @@ export function assembleStyle01Phase2Prompt(
         })
       : undefined;
     const prompt = buildStyle01BookPagePrompt({
-      sceneDescription: frame.safeScenePrompt,
+      sceneDescription: safeNarrativeSummary,
       childVisualLock,
       wardrobeLock,
       companionTextLock,
@@ -435,7 +437,7 @@ export function assembleStyle01Phase2Prompt(
       });
     return {
       prompt,
-      sceneDescription: frame.safeScenePrompt,
+      sceneDescription: safeNarrativeSummary,
       sceneClass,
       entityPresence,
       pageStoryState: null,

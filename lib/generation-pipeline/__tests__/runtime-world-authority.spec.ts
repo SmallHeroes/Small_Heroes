@@ -513,6 +513,8 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
       '[PVB RUNTIME FRAME — SOLE WORLD/COMPOSITION AUTHORITY]',
     );
     expect(providerInput.finalPrompt).toContain(frame.frameId);
+    expect(providerInput.finalPrompt.match(/\[PVB RUNTIME FRAME/g)).toHaveLength(1);
+    expect(providerInput.finalPrompt.match(/=== VISUAL CONTRACT FACTS/g)).toHaveLength(1);
     expect(providerInput.finalPrompt).toContain(frame.frameDigest);
     expect(providerInput.finalPrompt).toContain(
       runtime.packageValue.revisionDigest,
