@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-reader-premium-site-qa-integration` in `C:\Users\guyna\.codex\worktrees\qaexperience1\Small_Heroes`, combining the Reader milestone at `773f364fddada45eee236a8e4876bb93ae673eef` with Claude's two website commits `4ebf319c` and `b3582646`.
 
-## R1D-READER-PREMIUM-SITE-QA-INTEGRATION - locally integrated / product-design HOLD
+## R1D-READER-PREMIUM-SITE-QA-INTEGRATION - independent technical PASS / product-design HOLD
 
 The production Reader connection and Claude's premium-playful website layer now coexist on one QA integration branch. Their implementation pathsets are disjoint, both cherry-picks applied without conflict, and Production remains unchanged and blocked.
 
@@ -13,7 +13,9 @@ The production Reader connection and Claude's premium-playful website layer now 
 - Reader-focused validation on the combined branch passes **6 files / 36 tests**, deterministic TypeScript and `git diff --check`. Offline `npm ci --ignore-scripts` and local Prisma generation pass.
 - A production build reached Next compilation but failed only while `next/font` attempted to download Google-hosted font files. The website source branch failed on Rubik and the clean integration worktree failed on Frank Ruhl Libre. No application compile/type error was reported before that external font-fetch boundary; build portability remains unresolved and is not waived.
 - Claude's ignored `.env.local` copy was not committed and was not propagated into the integration worktree. No secret value was inspected or printed. The integration validation used no credential file.
-- This local integration grants no independent technical PASS, product acceptance, QA deployment, Production promotion, payment, provider, storage/database or release authority. A separate independent review and a stronger visual follow-up remain required.
+- Claude Code independently reviewed integration range `773f364fddada45eee236a8e4876bb93ae673eef..5fbfa92f47ab13ff9a1a3bb3d3a6acea4e79540e` read-only and returned **PASS** with zero BLOCKER, zero MAJOR and one advisory MINOR. It verified exact topology, absence of credential/forbidden-surface changes, RTL/logical CSS, hover/reduced-motion guards, legacy fallbacks, connectivity and faithful separation of technical PASS from product/build/release HOLDs. Claude disclosed that the two website commits were its own work, so this is adversarial self-review rather than a second-author implementation review.
+- MINOR-1 found that challenge-card depth variables lacked local fallbacks: a future consumer omitting `premium-2027.css` could invalidate the full `box-shadow` declaration and hide the selected-state ring. The integration branch now supplies exact local fallbacks for all six depth/rim variables and a direct source-contract regression. Closure awaits a focused read-only micro re-gate.
+- This technical PASS grants no product acceptance, QA deployment, Production promotion, payment, provider, storage/database or release authority. The stronger visual follow-up remains required.
 
 Durable record: `docs/ai-workflow/R1D_READER_PREMIUM_SITE_QA_INTEGRATION_EVIDENCE.md`.
 

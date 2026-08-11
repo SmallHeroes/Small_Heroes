@@ -1,6 +1,6 @@
 # R1D Reader + Premium Site QA Integration Evidence
 
-Status: locally integrated; the Reader component has independent Claude Code technical PASS; website/integration QA and Guy product acceptance are pending.
+Status: locally integrated; Reader and integration technical PASSes recorded; one integration MINOR corrected locally pending micro re-gate; product-design HOLD remains.
 
 ## Authority and topology
 
@@ -41,6 +41,12 @@ Product/design HOLDs:
 
 These are product-quality findings, not evidence of a Reader regression. They block final visual acceptance but do not require reverting the safe depth/motion foundation.
 
+## Independent integration QA and MINOR correction
+
+Claude Code reviewed exact integration range `773f364fddada45eee236a8e4876bb93ae673eef..5fbfa92f47ab13ff9a1a3bb3d3a6acea4e79540e` read-only and returned **PASS** with zero BLOCKER, zero MAJOR and one advisory MINOR. It verified the four-commit topology, clean range, no credential or forbidden-surface changes, logical RTL CSS, pointer/hover gating, reduced-motion behavior, legacy stylesheet fallbacks, unchanged connectivity and faithful documentation. Claude disclosed that the two website commits were its own work; its integration review is therefore adversarial self-review, not a second-author review of those website changes.
+
+MINOR-1 identified latent custom-property coupling in `app/category-challenge-card.css`. Six depth/rim variables had no fallback, so a future page importing the reusable card without `premium-2027.css` could invalidate complete shadow declarations, including the selected-state ring. The correction gives every depth/rim reference an exact local fallback matching the premium contract. A direct source-contract regression rejects any return to bare `var(--lift-*)` or `var(--rim*)` calls. This does not change current rendering when the premium layer is loaded. Independent closure remains pending a focused micro re-gate.
+
 ## Validation
 
 Executed on the combined integration branch:
@@ -63,7 +69,7 @@ No provider/model call, credential read, image generation, narration generation,
 
 Recommended next sequence:
 
-1. Independent read-only QA of the website and combined integration range; the Reader-only range is already independently PASSed.
+1. Focused read-only micro re-gate of the challenge-card fallback correction.
 2. A bounded visual follow-up that targets the still-flat Home reveal, opaque companion plates, and remaining legacy Wizard cream surfaces without touching Reader behavior.
 3. Replace build-time Google font fetching with repository-owned font assets in a separate general build-reliability milestone.
 4. Only after QA deployment proof, continue to narration and payment integration.

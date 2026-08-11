@@ -42,7 +42,9 @@
   border: 1px solid var(--border-soft, #efecf8);
   border-radius: 20px;
   background: var(--surface-raised, #fff);
-  box-shadow: var(--lift-2), var(--rim);
+  box-shadow:
+    var(--lift-2, 0 2px 4px rgba(38, 26, 74, 0.07), 0 10px 22px rgba(38, 26, 74, 0.08)),
+    var(--rim, inset 0 1px 0 rgba(255, 255, 255, 0.9));
   text-align: right;
   font: inherit;
   color: inherit;
@@ -60,7 +62,9 @@
 @media (hover: hover) and (pointer: fine) {
   .mvp-challenge-card:hover:not(:disabled):not(.mvp-challenge-card--parked) {
     transform: translate3d(0, -8px, 0);
-    box-shadow: var(--lift-4), var(--rim);
+    box-shadow:
+      var(--lift-4, 0 8px 16px rgba(38, 26, 74, 0.10), 0 34px 68px rgba(38, 26, 74, 0.16)),
+      var(--rim, inset 0 1px 0 rgba(255, 255, 255, 0.9));
     border-color: var(--border-strong, #d8cdfd);
   }
   /* the companion leans out of its frame — the "alive" beat */
@@ -86,7 +90,9 @@ button.mvp-challenge-card {
 .mvp-challenge-card.selected {
   border-color: var(--brand-purple, #886cff);
   background: #fdfcff;
-  box-shadow: 0 0 0 3px rgba(136, 108, 255, 0.22), var(--lift-hold);
+  box-shadow:
+    0 0 0 3px rgba(136, 108, 255, 0.22),
+    var(--lift-hold, 0 10px 20px rgba(38, 26, 74, 0.12), 0 44px 88px rgba(38, 26, 74, 0.20));
 }
 
 .mvp-challenge-card--parked {
@@ -210,7 +216,9 @@ button.mvp-challenge-card {
   }
   .mvp-challenge-card:hover:not(:disabled):not(.mvp-challenge-card--parked) {
     transform: none;
-    box-shadow: var(--lift-3), var(--rim-purple);
+    box-shadow:
+      var(--lift-3, 0 4px 8px rgba(38, 26, 74, 0.08), 0 20px 40px rgba(38, 26, 74, 0.12)),
+      var(--rim-purple, inset 0 0 0 1px rgba(136, 108, 255, 0.28));
   }
   .mvp-challenge-card:hover:not(:disabled):not(.mvp-challenge-card--parked) .mvp-challenge-card-img {
     transform: scale(1.1) translateY(3%);
