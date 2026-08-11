@@ -2,7 +2,20 @@
 
 **Updated:** 2026-08-11
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-dini-bar-five-page-low-measurement` in `C:\Users\guyna\.codex\worktrees\fullbookaudit1\Small_Heroes`, based exactly on `78d1cb12461580f42ef38d6ffa6e86c3a9e76635`.
+**Working branch:** `codex/r1d-child-expression-style-fidelity` in `C:\Users\guyna\.codex\worktrees\barfidelity1\Small_Heroes`, based exactly on `ced2f4e19dcaf843f772ba88b09adf2fc5509604`.
+
+## R1D-CHILD-EXPRESSION-AND-STYLE-FIDELITY - implementation green / bounded LOW proof pending
+
+Guy's Dini/Bar five-page review exposed two direct visual defects: Bar repeated the supplied photo's open-mouth smile across incompatible story beats, and the smaller page-3/page-4 child placements simplified toward Dini's mascot language. The defects were traced to the canonical Blueprint prompt branch, not to random provider variation: the local child identity literally contained `broad open smile`, the authoritative branch bypassed the existing expression lock and identity sanitizer, and no small-in-frame human-fidelity boundary existed.
+
+- Photo expression is now removed deterministically from child face/signature identity at the final Style 01 prompt boundary. Stable morphology remains; smile, mouth pose, gaze and transient emotion do not.
+- A closed general expression classifier maps immutable Blueprint narrative plus supplied Story Source page inputs to typed prompt states. The relevant proof states are `subdued` for crowded-out/quiet, `wary` for too-tight spatial pressure, and `restrained_amusement` for an almost-smile. Ambiguous pages receive attentive closed-mouth neutrality rather than the source photo's expression.
+- Approved Blueprint camera, placement, cast, action, prop and layout authority are unchanged. When the child occupies a small approved region, a geometry-derived guard requires the same semi-naturalistic human identity inside that region and forbids chibi/mascot/companion anatomy without moving or enlarging the placement.
+- The Dini/Bar local measurement runner now passes the exact frozen Story Source page text/direction to the general resolver and no longer authors Bar's smile as identity. It can render an explicit bounded page subset, allowing pages 1/3/4 to be remeasured without buying replacements for retained pages 2/5.
+- Focused validation passed **5 files / 44 tests**, the direct expression/sanitizer/classifier set passed **3 files / 23 tests**, TypeScript and `git diff --check` passed. The one literal `npm run check` passed TypeScript and all **19 resource-intensive files** with valid diagnostics; ordinary reported exactly the six established missing ignored-output fixture failures and no seventh failure. They remain a separate production/release HOLD.
+- No credential or provider boundary has been reached by this milestone yet. The next authorized action is exactly three local `gpt-image-2` LOW renders for pages 1, 3 and 4, followed by a mixed old/new local Reader manifest for Guy's product judgment. A second unsuccessful visual attempt stops for joint review. Production remains blocked.
+
+Durable records: `docs/ai-workflow/R1D_CHILD_EXPRESSION_AND_STYLE_FIDELITY_DECISION_GATE.md` and `docs/ai-workflow/R1D_CHILD_EXPRESSION_AND_STYLE_FIDELITY_IMPLEMENTATION_EVIDENCE.md`. Independent Claude Code QA and Guy's visual acceptance remain pending.
 
 ## R1D-DINI-BAR-FIVE-PAGE-LOW-MEASUREMENT - five-page local LOW measurement complete / product review pending
 

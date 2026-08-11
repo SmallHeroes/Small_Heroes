@@ -197,6 +197,35 @@ export function sanitizeIncidentalFaceMarkPhrasing(
   return out.replace(/\s{2,}/g, ' ').replace(/,\s*,/g, ',').replace(/\.\s*\./g, '.').trim();
 }
 
+/**
+ * A photographed expression is a transient pose, never child identity.
+ * Keep stable facial morphology while removing expression instructions that
+ * would otherwise be repeated on every illustrated page.
+ */
+const TRANSIENT_EXPRESSION_IDENTITY_RE = [
+  /\bwhen\s+(?:smiling|grinning|laughing|frowning|pouting|crying)\b/gi,
+  /\b(?:(?:broad|big|wide|open|bright|warm|gentle|small|slight|subtle|tentative|recognisable|recognizable|happy|hopeful|cheerful)\s+)*(?:open[- ]mouthed\s+)?smile\b/gi,
+  /\b(?:smiling|grinning|laughing|frowning|pouting|crying)\b/gi,
+  /\b(?:open\s+mouth|mouth\s+(?:held\s+)?open|mouth\s+agape)\b/gi,
+  /\b(?:happy|sad|worried|surprised|angry|excited|fearful|cheerful)\s+(?:look|expression|face)\b/gi,
+];
+
+export function sanitizeTransientExpressionFromIdentity(text: string): string {
+  if (!text?.trim()) return text;
+  let out = text;
+  for (const re of TRANSIENT_EXPRESSION_IDENTITY_RE) {
+    out = out.replace(re, '');
+  }
+  return out
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;:])/g, '$1')
+    .replace(/([,;:])\s*([,;:])/g, '$1')
+    .replace(/^[,;:]\s*/g, '')
+    .replace(/\b(?:and|with)\s*$/i, '')
+    .replace(/(?:[,;:]\s*)+$/g, '')
+    .trim();
+}
+
 /** Facial-only anchor from photo text — never invent props. */
 function signatureFromPhotoOnly(photoDescription: string): string {
   const lower = photoDescription.toLowerCase();
@@ -263,7 +292,9 @@ export function sanitizeChildStructuredAgainstPhoto(
   }
   let { face, hair, signature } = working;
 
-  face = sanitizeIncidentalFaceMarkPhrasing(face, childPhotoDescription);
+  face = sanitizeTransientExpressionFromIdentity(
+    sanitizeIncidentalFaceMarkPhrasing(face, childPhotoDescription)
+  );
   hair = reconcileStructuredHairWithPhoto(hair, childPhotoDescription);
 
   if (signature && photoMentionsAccessory(signature, photoLower)) {
@@ -286,7 +317,9 @@ export function sanitizeChildStructuredAgainstPhoto(
     ...child,
     face,
     hair,
-    signature: sanitizeIncidentalFaceMarkPhrasing(signature.trim(), childPhotoDescription),
+    signature: sanitizeTransientExpressionFromIdentity(
+      sanitizeIncidentalFaceMarkPhrasing(signature.trim(), childPhotoDescription)
+    ),
     clothing: SAFE_CHILD_CLOTHING_POINTER,
   };
 }

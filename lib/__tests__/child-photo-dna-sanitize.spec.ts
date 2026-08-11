@@ -6,6 +6,7 @@ import {
   joinChildStructuredDNA,
   SAFE_CHILD_CLOTHING_POINTER,
   sanitizeChildStructuredAgainstPhoto,
+  sanitizeTransientExpressionFromIdentity,
   type StructuredChildDNA,
 } from '../child-photo-dna-sanitize';
 import { LION_SHAKET_BEDTIME_WARDROBE_LOCK } from '../style01-story-wardrobe';
@@ -19,6 +20,34 @@ const childWithDayClothes: StructuredChildDNA = {
 };
 
 describe('child-photo-dna-sanitize — identity vs wardrobe', () => {
+  it('removes transient photographed expressions while preserving facial morphology', () => {
+    expect(
+      sanitizeTransientExpressionFromIdentity(
+        'warm brown almond eyes, round-oval cheeks, natural child nose and broad open smile'
+      )
+    ).toBe('warm brown almond eyes, round-oval cheeks, natural child nose');
+    expect(
+      sanitizeTransientExpressionFromIdentity(
+        'developed nose and mouth proportions; thick brows; smiling'
+      )
+    ).toBe('developed nose and mouth proportions; thick brows');
+  });
+
+  it('sanitizes photo-expression leakage from both face and signature fields', () => {
+    const sanitized = sanitizeChildStructuredAgainstPhoto(
+      {
+        ...childWithDayClothes,
+        face: 'Round face, warm olive skin, broad open smile.',
+        signature: 'Recognisable smile; thick arched brows.',
+      },
+      'Round-faced child with dark curls.'
+    );
+    expect(sanitized.face).not.toMatch(/smile|open mouth/i);
+    expect(sanitized.signature).not.toMatch(/smile|open mouth/i);
+    expect(sanitized.face).toContain('Round face');
+    expect(sanitized.signature).toContain('thick arched brows');
+  });
+
   it('joinChildStructuredDNA omits clothing — no day-clothes phrase in identity lock', () => {
     const joined = joinChildStructuredDNA(childWithDayClothes);
     expect(joined).not.toMatch(/t-shirt/i);

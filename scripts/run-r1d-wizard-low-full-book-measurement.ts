@@ -39,6 +39,7 @@ import type {
   BlueprintFramePlacement,
   BlueprintRegion,
 } from '@/lib/visual-package/preRenderBlueprintTypes';
+import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 import { bindApprovedPvbRuntimeAuthority } from '@/lib/visual-package/runtimeAuthority';
 import { buildVisualPackageV4Fixture } from '@/lib/visual-package/__tests__/visual-package-v4.fixtures';
 import {
@@ -67,6 +68,23 @@ const STORAGE_ROOT = path.join(OUTPUT_ROOT, 'local-storage');
 const PAGE_NUMBERS = IS_DINI_BAR
   ? [...DINI_BAR_MEASUREMENT_PAGES]
   : Array.from({ length: 12 }, (_, index) => index + 1);
+const RENDER_PAGE_ARG = process.argv
+  .find((value) => value.startsWith('--render-pages='))
+  ?.slice(15);
+const RENDER_PAGE_NUMBERS = RENDER_PAGE_ARG
+  ? RENDER_PAGE_ARG.split(',').map((value) => Number(value.trim()))
+  : PAGE_NUMBERS;
+if (
+  RENDER_PAGE_NUMBERS.length === 0 ||
+  RENDER_PAGE_NUMBERS.some(
+    (pageNumber) =>
+      !Number.isInteger(pageNumber) ||
+      !PAGE_NUMBERS.some((candidate) => candidate === pageNumber),
+  ) ||
+  new Set(RENDER_PAGE_NUMBERS).size !== RENDER_PAGE_NUMBERS.length
+) {
+  throw new Error(`Invalid --render-pages subset: ${RENDER_PAGE_ARG ?? ''}`);
+}
 const ORDER_ID = IS_DINI_BAR
   ? 'local-wizard-low-dini-bar-five-page-measurement'
   : 'local-wizard-low-full-book-storyboard-measurement';
@@ -713,6 +731,16 @@ async function main(): Promise<void> {
     ? null
     : path.join(ROOT, 'story-bank', 'v3-approved', 'fox_uri_adventure.shot-plan.json');
   const rawStorySource = fs.readFileSync(sourcePath, 'utf8');
+  const parsedStorySource = parseStorySourceContent(rawStorySource);
+  const storyPageText = new Map(
+    parsedStorySource.pages.map((page) => [page.pageNumber, page.text]),
+  );
+  const storyPageDirection = new Map(
+    parsedStorySource.pageImageDirections.map((page) => [
+      page.pageNumber,
+      page.imageDirection,
+    ]),
+  );
   const legacyTemplate = JSON.parse(fs.readFileSync(templatePath, 'utf8')) as unknown;
   const shotPlan = IS_DINI_BAR
     ? DINI_BAR_SHOT_PLAN
@@ -891,9 +919,11 @@ async function main(): Promise<void> {
     const companion = getCompanionById(companionId);
     if (!companion) throw new Error(`${companionId} companion is missing`);
     const renders = [];
-    for (const pageNumber of PAGE_NUMBERS) {
+    for (const pageNumber of RENDER_PAGE_NUMBERS) {
       const result = await generateImage({
-        pagePrompt: '',
+        pagePrompt: storyPageDirection.get(pageNumber) ?? '',
+        rawScenePrompt: storyPageDirection.get(pageNumber) ?? '',
+        bookPageText: storyPageText.get(pageNumber) ?? '',
         illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
         runtimeVisualAuthority: authority,
         companion,
@@ -905,7 +935,7 @@ async function main(): Promise<void> {
         childGender: 'boy',
         childStructured: {
           face: IS_DINI_BAR
-            ? 'recognisable real face from the supplied photo: warm brown almond eyes, round-oval cheeks, natural child nose and broad open smile'
+            ? 'recognisable real face from the supplied photo: warm brown almond eyes, round-oval cheeks, natural child nose and mouth proportions'
             : 'soft round-oval face, warm brown eyes, gentle expressive brows',
           hair: IS_DINI_BAR
             ? 'dense short dark-brown curls with the same curl silhouette as the supplied photo'
@@ -915,7 +945,7 @@ async function main(): Promise<void> {
             : 'small seven-year-old child proportions',
           clothing: 'authority supplied',
           signature: IS_DINI_BAR
-            ? 'same real Bar identity across all five pages; lively eyes and recognisable smile without caricature'
+            ? 'same real Bar identity across all five pages; consistent facial structure and curl silhouette without caricature'
             : 'gentle curious expression',
         },
         referenceImages: [CHILD_ANCHOR],

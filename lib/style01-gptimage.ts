@@ -16,7 +16,10 @@ import {
   resolveCompanionViewIntentForPage,
 } from './generation-pipeline/companion-sheet-page-map';
 import type { CompanionPresence } from './image-entity-presence';
-import { sanitizeIncidentalFaceMarkPhrasing } from './child-photo-dna-sanitize';
+import {
+  sanitizeIncidentalFaceMarkPhrasing,
+  sanitizeTransientExpressionFromIdentity,
+} from './child-photo-dna-sanitize';
 import { resolveCompanionLockSource } from './companion-lock-source';
 import {
   classifyStyle01SceneClass,
@@ -83,7 +86,9 @@ export const STYLE_01_ANTI_STYLE02 =
 
 export const STYLE_01_CHILD_PHOTO_IDENTITY_RULE =
   'CHILD PHOTO (if attached): IDENTITY ONLY — face shape, hair, skin tone, age, gender. ' +
+  'The photographed gaze, mouth pose, smile, and transient emotion are NOT identity and MUST NOT be copied; PAGE EXPRESSION owns them. ' +
   'If the photo shows more than one person, anchor ONLY on the most prominent / foreground child; ignore background people or faces completely. ' +
+  'The child photo is the PRIMARY HUMAN identity anchor; companion and style references MUST NOT alter the child\'s human anatomy or facial proportions. ' +
   'Render as soft hand-drawn watercolor storybook child — NEVER photoreal cutout. Outfit from WARDROBE LOCK and scene, never from photo.';
 
 /** When reference[0] is the per-order canonical child anchor (not the raw upload). */
@@ -585,16 +590,22 @@ export function buildStyle01ChildVisualLock(input: {
   if (cs?.face?.trim() && cs?.hair?.trim()) {
     const ageBit = input.childAge ? ` Age ${input.childAge}.` : '';
     const genderBit = input.childGender ? ` ${input.childGender}.` : '';
-    const face = sanitizeIncidentalFaceMarkPhrasing(cs.face);
-    let signature = sanitizeIncidentalFaceMarkPhrasing((cs.signature ?? '').trim());
+    const face = sanitizeTransientExpressionFromIdentity(
+      sanitizeIncidentalFaceMarkPhrasing(cs.face)
+    );
+    let signature = sanitizeTransientExpressionFromIdentity(
+      sanitizeIncidentalFaceMarkPhrasing((cs.signature ?? '').trim())
+    );
     if (input.companionId === 'dragon_dini' && /dinosaur|dino toy|green toy/i.test(signature)) {
       signature = 'Identity-only — no clothing or toy props in this line (see WARDROBE LOCK and scene).';
     }
     return `CHILD VISUAL LOCK (verbatim when child appears): ${face}. ${cs.hair}. ${cs.body}.${ageBit}${genderBit} ${signature}`.trim();
   }
   const name = (input.childName ?? 'the child').trim();
-  const desc = sanitizeIncidentalFaceMarkPhrasing(
-    (input.childDescription ?? 'young child protagonist').trim()
+  const desc = sanitizeTransientExpressionFromIdentity(
+    sanitizeIncidentalFaceMarkPhrasing(
+      (input.childDescription ?? 'young child protagonist').trim()
+    )
   );
   return `CHILD VISUAL LOCK (verbatim when child appears): ${name} — ${desc}.`.trim();
 }
@@ -925,6 +936,7 @@ export function buildStyle01BookPagePrompt(input: {
   /** Defaults to STYLE_01_FRAMING_RULE; close_up pages use relaxed variant. */
   framingRule?: string;
   pageExpressionLock?: string;
+  smallFrameChildFidelityLock?: string;
   mutualGazeLock?: string;
   companionSizeLock?: string;
   /** Mandatory page action — placed after identity locks, before location text. */
@@ -948,6 +960,7 @@ export function buildStyle01BookPagePrompt(input: {
     input.isolatedObjectRefBlock ?? '',
     input.environmentLock ?? '',
     input.pageExpressionLock ?? '',
+    input.smallFrameChildFidelityLock ?? '',
     input.mutualGazeLock ?? '',
     input.companionSizeLock ?? '',
     input.isCover ? '' : (input.framingRule ?? STYLE_01_FRAMING_RULE),

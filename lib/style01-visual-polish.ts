@@ -23,10 +23,77 @@ const BUNNY_PAGE_EXPRESSIONS: Record<number, string> = {
   8: 'relieved warm smile, quiet pride',
 };
 
+export type Style01PageExpressionKind =
+  | 'subdued'
+  | 'wary'
+  | 'worried'
+  | 'restrained_amusement'
+  | 'surprised'
+  | 'curious_uncertain'
+  | 'joyful'
+  | 'focused'
+  | 'attentive_neutral';
+
+const PAGE_EXPRESSION_DIRECTIVES: Record<Style01PageExpressionKind, string> = {
+  subdued:
+    'subdued and inward — relaxed closed mouth, softened gaze, slightly lowered brows; quiet hurt is readable without tears or a smile',
+  wary:
+    'wary and slightly crowded — closed mouth, alert sideways gaze, small brow tension; NOT cheerful and NOT frightened',
+  worried:
+    'worried — closed or barely parted mouth, knitted brows, concerned gaze; no smile',
+  restrained_amusement:
+    'surprised almost-smile — one restrained mouth corner and lifted brows, not a broad or open-mouth smile',
+  surprised:
+    'surprised — lifted brows and attentive eyes with a small naturally parted mouth, not a fixed grin',
+  curious_uncertain:
+    'curious and unsure — focused gaze, gently raised brows, relaxed closed mouth',
+  joyful:
+    'genuinely joyful — warm page-specific smile with natural eyes and cheeks, never a copied photo pose or mascot grin',
+  focused:
+    'focused — intent gaze, neutral relaxed mouth, subtle brow concentration',
+  attentive_neutral:
+    'attentive neutral — relaxed closed mouth, natural gaze and brows; no default smile',
+};
+
+const SUBDUED_RE =
+  /\b(crowded out|left out|lonely|dejected|downcast|disappointed|hurt feelings|quiet hush|withdrawn)\b/i;
+const WARY_RE = /\b(too tight|hemmed in|trapped|crowded by|wary|guarded|uneasy)\b/i;
+const WORRIED_EXPRESSION_RE =
+  /\b(worried|anxious|nervous|afraid|frightened|fearful|concerned|distressed)\b/i;
+const RESTRAINED_AMUSEMENT_RE =
+  /\b(almost[- ]smile|suppressed (?:smile|laugh|laughter)|trying not to (?:smile|laugh)|restrained (?:smile|amusement)|amused)\b/i;
+const SURPRISED_RE = /\b(surprised|startled|shocked|astonished|wide eyes)\b/i;
+const CURIOUS_UNCERTAIN_RE =
+  /\b(curious|unsure|uncertain|hesitant|peeks?|peering|looks? inside|observing|investigating)\b/i;
+const JOYFUL_RE = /\b(joyful|delighted|happy|beaming|smiles? with relief|proud and gentle)\b/i;
+const FOCUSED_RE = /\b(focused|concentrating|determined|intent)\b/i;
+
+export function resolveStyle01PageExpressionKind(input: {
+  narrativeSummary?: string | null;
+  bookPageText?: string | null;
+  imageDirection?: string | null;
+}): Style01PageExpressionKind {
+  const evidence = [input.narrativeSummary, input.bookPageText, input.imageDirection]
+    .filter(Boolean)
+    .join('\n');
+  if (SUBDUED_RE.test(evidence)) return 'subdued';
+  if (WARY_RE.test(evidence)) return 'wary';
+  if (WORRIED_EXPRESSION_RE.test(evidence)) return 'worried';
+  if (RESTRAINED_AMUSEMENT_RE.test(evidence)) return 'restrained_amusement';
+  if (SURPRISED_RE.test(evidence)) return 'surprised';
+  if (CURIOUS_UNCERTAIN_RE.test(evidence)) return 'curious_uncertain';
+  if (JOYFUL_RE.test(evidence)) return 'joyful';
+  if (FOCUSED_RE.test(evidence)) return 'focused';
+  return 'attentive_neutral';
+}
+
 export function buildPageExpressionLock(input: {
   pageNumber: number;
   companionId?: string | null;
   childPresence?: string;
+  narrativeSummary?: string | null;
+  bookPageText?: string | null;
+  imageDirection?: string | null;
 }): string {
   if (input.childPresence && !['present', 'partial', 'background'].includes(input.childPresence)) {
     return '';
@@ -37,7 +104,44 @@ export function buildPageExpressionLock(input: {
       return `PAGE EXPRESSION: ${expr}. Override the default hopeful mood for THIS page only.`;
     }
   }
-  return '';
+  const hasPageEvidence = Boolean(
+    input.narrativeSummary?.trim() ||
+      input.bookPageText?.trim() ||
+      input.imageDirection?.trim()
+  );
+  if (!hasPageEvidence) return '';
+  const kind = resolveStyle01PageExpressionKind(input);
+  return [
+    `PAGE EXPRESSION [${kind}]: ${PAGE_EXPRESSION_DIRECTIVES[kind]}.`,
+    'This page expression overrides the child-photo expression. Preserve identity, but do NOT copy the photographed smile, open mouth, or gaze.',
+  ].join('\n');
+}
+
+export function buildSmallFrameChildFidelityLock(input: {
+  cameraShot?: string | null;
+  childCastId: string;
+  placements: Array<{
+    subject: { kind: string; castId?: string };
+    region: { width: number; height: number };
+  }>;
+}): string {
+  const placement = input.placements.find(
+    (entry) =>
+      entry.subject.kind === 'cast' && entry.subject.castId === input.childCastId
+  );
+  if (!placement) return '';
+  const smallInFrame =
+    placement.region.height <= 300 ||
+    placement.region.width <= 300 ||
+    ['wide', 'tracking'].includes(input.cameraShot ?? '');
+  if (!smallInFrame) return '';
+  return [
+    'SMALL-IN-FRAME CHILD FIDELITY (within the approved Blueprint region):',
+    'Render the same recognisable human child with the photo\'s stable facial morphology, curl silhouette, age, and natural head-to-body ratio even at this scale.',
+    'Keep ordinary-size human eyes, visible eyelids, a developed nose and mouth, articulated limbs, and semi-naturalistic watercolor modelling.',
+    'Do NOT simplify the child into chibi, mascot, doll, or companion-like anatomy, and do NOT inherit facial proportions from a creature reference.',
+    'Improve readable identity detail only inside the approved placement; do not move, enlarge beyond, crop, or replan the Blueprint region.',
+  ].join('\n');
 }
 
 const INTERACTION_RE =

@@ -73,6 +73,7 @@ import {
   buildMutualGazeInteractionLock,
   buildPageExpressionLock,
   buildReflectionRuleLock,
+  buildSmallFrameChildFidelityLock,
   buildStyle01AnatomyIntegrityLock,
   buildStyle01CoverCompositionBlock,
   buildStyle01CoverSceneDescription,
@@ -315,14 +316,15 @@ export function assembleStyle01Phase2Prompt(
     const childVisualLock = childPresent
       ? [
           'PER-ORDER CHILD IDENTITY (identity only; Blueprint owns composition):',
-          input.childFirstName ? `Name: ${input.childFirstName}.` : '',
-          input.childAge != null ? `Age: ${input.childAge}.` : '',
-          input.childGender ? `Gender: ${input.childGender}.` : '',
-          input.childDescription ?? '',
-          input.childStructured
-            ? `Face: ${input.childStructured.face}; hair: ${input.childStructured.hair}; body: ${input.childStructured.body}.`
-            : '',
-        ].filter(Boolean).join('\n')
+          buildStyle01ChildVisualLock({
+            companionId: input.companion?.id,
+            childName: input.childFirstName,
+            childDescription: input.childDescription,
+            childStructured: input.childStructured,
+            childAge: input.childAge,
+            childGender: input.childGender,
+          }),
+        ].join('\n')
       : undefined;
     const wardrobeLock = childPresent
       ? [
@@ -373,6 +375,23 @@ export function assembleStyle01Phase2Prompt(
     ].join('\n');
     const effectivePageTimeOfDay =
       input.authoritativeTimeOfDay ?? frame.timeOfDay;
+    const pageExpressionLock = childPresent
+      ? buildPageExpressionLock({
+          pageNumber: input.pageNumber,
+          companionId: input.companion?.id,
+          childPresence: entityPresence.childPresence,
+          narrativeSummary: frame.narrative.summary,
+          bookPageText: input.bookPageText,
+          imageDirection: input.rawScenePrompt ?? input.pagePrompt,
+        })
+      : undefined;
+    const smallFrameChildFidelityLock = childPresent
+      ? buildSmallFrameChildFidelityLock({
+          cameraShot: frame.camera.shot,
+          childCastId: frame.resolvedAppearance.child.id,
+          placements: frame.placements,
+        })
+      : undefined;
     const prompt = buildStyle01BookPagePrompt({
       sceneDescription: frame.safeScenePrompt,
       childVisualLock,
@@ -393,6 +412,8 @@ export function assembleStyle01Phase2Prompt(
       useCanonicalChildAnchorRef: input.useCanonicalChildAnchorRef,
       isCover: frame.kind === 'cover',
       framingRule: frame.kind === 'cover' ? undefined : framingRule,
+      pageExpressionLock,
+      smallFrameChildFidelityLock,
       companionSizeLock: buildCompanionSizeVsChildLock({
         childPresence: entityPresence.childPresence,
         companionPresence: entityPresence.companionPresence,
@@ -762,6 +783,8 @@ export function assembleStyle01Phase2Prompt(
         pageNumber: input.pageNumber,
         companionId: input.companion?.id,
         childPresence: entityPresence.childPresence,
+        bookPageText: input.bookPageText,
+        imageDirection,
       });
   const mutualGazeLock = isCover
     ? undefined
