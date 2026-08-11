@@ -210,3 +210,20 @@ It independently confirmed:
 - The exact focused set reproduced at **4 files / 33 tests PASS**; TypeScript and `git diff --check` passed.
 
 Claude retained advisory limitations only: the three textual style authorities are test-pinned rather than compile-time unified; CGI is implicit in the classifier criteria; style Vision QA's pre-existing missing-key/HTTP/exception behavior remains fail-open; no real Vision call exercised the corrected classifier; the Reader test does not mount React; and the local path/full-check/six-fixture limitations remain separate. These advisories grant no render, provider, production, deployment or release authority and do not reopen the three closed findings.
+
+## Remote QA Reader connection
+
+After Guy explicitly requested the non-local Reader, commit `182b21d922663b5364abe83aa5cb99a0f2107061` added a closed tracked-QA-fixture registry and five WebP copies of the already-rendered pages. It did not regenerate or semantically edit an image. The fixture is general infrastructure: it identifies a Story Source, companion, child profile and ordered static page assets; the book loader resolves page text through the existing Story Source loader rather than copying story prose into the fixture.
+
+Validation and deployment evidence:
+
+- Focused library/fixture validation: **1 file / 5 tests PASS**.
+- Deterministic TypeScript and `git diff --check`: PASS.
+- The local production build attempt was blocked before Next compilation by an existing locked Prisma query-engine DLL held by the active local Reader. Vercel's clean builder generated Prisma successfully and Next compiled, generated all static pages and completed the build.
+- Branch-scoped Preview flag: `ALLOW_STAGING_QA=true` only for `codex/r1d-child-expression-style-fidelity`.
+- Vercel target: Preview, deployment `dpl_FZ3FEr6SLU2c87sKa64YDCdC4uvY`; no production promotion or production environment mutation.
+- Authenticated remote API verification returned fixture id `r1d-dini-bar-canonical-anchor-reader-qa-d728849a`, five pages numbered `1,2,3,4,5`, five image URLs, authority `tracked-qa-reader-fixture/v1`, and source-render HEAD `d728849a9b1192321b34fc2ab61f48a6a00ca1f2`.
+- Chrome loaded the protected remote Reader, selected `[QA fixture] Dini + Bar · canonical anchor · pages 1–5`, and rendered the exact Story Source text. Forward navigation exposed `data-page-turn-direction=forward` with `readerPageTurnForward` at `0.52s`; backward navigation exposed `backward` with `readerPageTurnBackward` at `0.52s`.
+- The protected Preview requires Vercel login. The Production Reader route at `https://smallheroes.co.il/dev/viewer` returned `403`; Production remains blocked.
+
+This connection grants QA product-review access only. It creates no provider, render, storage/database, approval, publication, production or release authority.
