@@ -6,7 +6,7 @@ Base: `ced2f4e19dcaf843f772ba88b09adf2fc5509604`
 
 Branch: `codex/r1d-child-expression-style-fidelity`
 
-Status: implementation green; independent QA and bounded LOW product proof pending
+Status: implementation and bounded LOW proof complete; independent QA and Guy product review pending
 
 ## Observed defect and root cause
 
@@ -48,6 +48,31 @@ The six fixtures remain a separate release HOLD. They are accepted only for this
 ## LOW proof boundary
 
 The approved first proof is pages 1, 3 and 4 only on `gpt-image-2` LOW. Pages 2 and 5 remain the comparison baseline. No Vision call, automatic retry, fallback, full-book render, remote storage/database, Board action, publication, promotion, deployment or production enablement is authorized. If the first proof remains materially wrong, at most one evidence-driven second visual attempt is allowed before stopping for Guy.
+
+## LOW proof result
+
+Official OpenAI pricing was checked immediately before dispatch. The current `gpt-image-2` model page lists image generation and editing support; the official API pricing page lists `$8/M` image-input tokens, `$2/M` cached image-input tokens, `$30/M` image-output tokens, `$5/M` text-input tokens and `$1.25/M` cached text-input tokens.
+
+Exactly three sequential local LOW calls completed in `101` seconds:
+
+| Page | Prompt state | Image SHA-256 | Provider usage |
+|---|---|---|---|
+| 1 | `subdued` | `d6b6cd590e0bd860092a39ae6a397625784b6b63136a53d0a0ac68ae1b5e0425` | 8 text input / 158 image output |
+| 3 | `attentive_neutral` | `9731dbd4ec8a32b07a823292e0892ca51e01f4921ebddd7140a7fdbb15c8653a` | 8 text input / 158 image output |
+| 4 | `surprised` | `b2a8ddd388234c81b9ecfc44c148cc223bffa07d894bf6f987d5c862dd70f078` | 8 text input / 158 image output |
+
+All outputs are `1024x1536`. Total provider-reported usage was 24 text-input and 474 image-output tokens. Applying the official rates gives `$0.014340` nominal accounting. This is not an OpenAI billing/account audit. Transport retries were 0, fallback was false, Vision calls were 0 and remote database/storage access was false.
+
+The visual comparison proves that the uploaded-photo smile is no longer immutable identity. Page 1 is subdued and closed-mouth; page 3 is attentive/uncertain; page 4 is surprised. No new prompt contains `broad open smile` or `recognisable smile`. Bar's identity, hair and outfit are directionally more coherent. The smaller page-3/page-4 figures remain somewhat more illustrated than page 1, so Guy's visual acceptance remains open.
+
+Artifacts:
+
+- `outputs/r1d-dini-bar-expression-style-fidelity-20260811-render-1/`
+- `before-after-pages-1-3-4.png`
+- `reader-verification.png`
+- mixed Reader manifest `outputs/style01-auditions/r1d-dini-bar-expression-style-fidelity-reader/manifest.json` in the local Reader worktree
+
+The real local Reader returned HTTP 200, displayed page 1 with the exact corrected PNG, and advanced to page 2 through its navigation control. All five page asset routes returned `200 image/png`. No Next.js error overlay appeared. One unrelated `/favicon.ico` request returned 404. The Reader has working navigation but no true page-turn animation; that is a separate UI implementation gap and was not smuggled into this image-authoring milestone.
 
 ## Independent QA targets
 
