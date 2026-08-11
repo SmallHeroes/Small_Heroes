@@ -686,7 +686,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
       throw new Error(
         orderBranch === 'style02'
           ? `ANCHOR_QA_BLOCK: Style 02 anchor HARD fail — not semi-realistic illustrated storybook (photorealCutout=${'looksPhotorealCutout' in styleQa ? styleQa.looksPhotorealCutout : false} portrait=${styleQa.looksPortrait} notes=${styleQa.notes})`
-          : `ANCHOR_QA_BLOCK: style HARD fail — not cute Style 01 watercolor (photoreal=${'looksPhotoreal' in styleQa ? styleQa.looksPhotoreal : false} portrait=${styleQa.looksPortrait} notes=${styleQa.notes})`
+          : `ANCHOR_QA_BLOCK: style HARD fail — not refined semi-naturalistic Style 01 watercolor (photoreal=${'looksPhotoreal' in styleQa ? styleQa.looksPhotoreal : false} portrait=${styleQa.looksPortrait} notes=${styleQa.notes})`
       );
     }
 

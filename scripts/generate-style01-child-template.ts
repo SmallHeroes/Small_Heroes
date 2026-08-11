@@ -20,17 +20,20 @@ async function main() {
   }
 
   const { generateGPTImage } = await import('@/lib/generate-image');
-  const { STYLE_01_AVOIDANCE_NEGATIVE, STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION } =
-    await import('@/lib/style01-gptimage');
+  const {
+    STYLE_01_AVOIDANCE_NEGATIVE,
+    STYLE_01_CHILD_TEMPLATE_STYLE_RULE,
+    STYLE_01_SHARED,
+    STYLE_01_RENDERING_CORRECTION,
+  } = await import('@/lib/style01-gptimage');
   const { STYLE01_CHILD_TEMPLATE_DIR } = await import('@/lib/style01-child-template');
 
   const genderWord = variant === 'girl' ? 'girl' : 'boy';
   const prompt = [
     'SYSTEM ASSET: Style 01 child character TEMPLATE for storybook personalization.',
-    `Generic cute simplified ${genderWord} child age 5, neutral standing front 3/4 view, half body.`,
+    `Generic identity-neutral ${genderWord} child age 5, neutral standing front 3/4 view, half body.`,
     'Clean near-empty warm cream background. NO props. NO animals. NO text. NO name.',
-    'Large expressive storybook eyes, small nose, rounded cheeks, soft watercolor on cream paper.',
-    'Hand-drawn children\'s picture book — NOT photorealistic, NOT photographic portrait.',
+    STYLE_01_CHILD_TEMPLATE_STYLE_RULE,
     STYLE_01_SHARED,
     STYLE_01_RENDERING_CORRECTION,
   ].join('\n\n');

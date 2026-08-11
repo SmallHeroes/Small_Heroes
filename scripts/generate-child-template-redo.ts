@@ -16,12 +16,11 @@ const OUT_DIR = path.join(process.cwd(), 'outputs', 'child-template-redo');
 
 const NEUTRAL_PROMPT_BASE = [
   'SYSTEM ASSET: Style 01 DEFAULT child archetype template (identity-neutral).',
-  'Generic cute simplified girl child age 5, neutral standing front 3/4, half body.',
+  'Generic identity-neutral girl child age 5, neutral standing front 3/4, half body.',
   'Clean near-empty warm cream background. NO props. NO animals. NO text. NO name.',
   'HAIR: medium-length straight or wavy brown hair — NOT long curly, NOT ringlets.',
   'OUTFIT: simple neutral storybook clothes (plain soft sweater and pants) — NO bird pajamas, NO prints, NO bracelets.',
-  'Large expressive storybook eyes, rounded cheeks, soft watercolor on cream paper.',
-  'Small Heroes default child feel — NOT any real child, NOT photorealistic.',
+  'Small Heroes default child feel — NOT any real child.',
 ].join('\n\n');
 
 const VARIANTS = [
@@ -32,8 +31,12 @@ const VARIANTS = [
 
 async function main() {
   const { generateGPTImage } = await import('@/lib/generate-image');
-  const { STYLE_01_AVOIDANCE_NEGATIVE, STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION } =
-    await import('@/lib/style01-gptimage');
+  const {
+    STYLE_01_AVOIDANCE_NEGATIVE,
+    STYLE_01_CHILD_TEMPLATE_STYLE_RULE,
+    STYLE_01_SHARED,
+    STYLE_01_RENDERING_CORRECTION,
+  } = await import('@/lib/style01-gptimage');
   const { STYLE01_CHILD_TEMPLATE_DIR } = await import('@/lib/style01-child-template');
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -57,9 +60,13 @@ async function main() {
 
   const results: Array<{ id: string; path: string }> = [];
   for (const v of VARIANTS) {
-    const prompt = [NEUTRAL_PROMPT_BASE, v.extra, STYLE_01_SHARED, STYLE_01_RENDERING_CORRECTION].join(
-      '\n\n'
-    );
+    const prompt = [
+      NEUTRAL_PROMPT_BASE,
+      v.extra,
+      STYLE_01_CHILD_TEMPLATE_STYLE_RULE,
+      STYLE_01_SHARED,
+      STYLE_01_RENDERING_CORRECTION,
+    ].join('\n\n');
     const gen = await generateGPTImage({
       finalPrompt: prompt,
       negativePrompt: STYLE_01_AVOIDANCE_NEGATIVE,

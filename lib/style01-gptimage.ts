@@ -59,6 +59,10 @@ export const STYLE_01_SHARED =
 export const STYLE_01_RENDERING_CORRECTION =
   'RENDERING: soft watercolor storybook — visible paper texture, gentle pigment bleeds, observational semi-naturalistic human drawing, warm local color, airy negative space. Render the child with recognizably human facial proportions: ordinary-size eyes with visible eyelids, a developed nose bridge and mouth, a head proportionate to an age-appropriate body, and non-mascot hands and feet. Human emotion comes from subtle posture, gaze, brows, and mouth — never from enlarged eyes, a shortened doll face, or an oversized round head. Keep the result hand-painted rather than photographic. NOT harsh shadows. NOT global orange filter. NOT empty cream void background.';
 
+/** Shared target for identity-neutral Style 01 templates and personalized canonical anchors. */
+export const STYLE_01_CHILD_TEMPLATE_STYLE_RULE =
+  'CHILD STYLE: refined semi-naturalistic Style 01 watercolor with recognizably human facial anatomy, natural eye scale, age-appropriate body proportions, fine illustrated hair strands, and subtle skin-value modeling. Keep visible paper and pigment texture. The result is hand-painted and storybook-warm, never photographic, hyperreal, mascot-like, chibi, flat cartoon, CGI, or doll-like.';
+
 export const STYLE_01_FRAMING_RULE = `FRAMING RULE — BREATHE:
 - Medium-wide storybook scene; environment visible; child and companion mostly full-figure; no giant cropped faces or oversized foreground characters unless shotType=close_up explicitly.
 - Characters fill NO MORE than 35-50% of frame height.

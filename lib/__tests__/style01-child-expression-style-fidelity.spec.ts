@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { assembleStyle01Phase2Prompt } from '../style01-prompt-assembly';
 import {
@@ -8,7 +8,12 @@ import {
 import {
   style01UsesCanonicalChildAnchor,
   STYLE_01_CANONICAL_CHILD_ANCHOR_RULE,
+  STYLE_01_CHILD_TEMPLATE_STYLE_RULE,
 } from '../style01-gptimage';
+import {
+  evaluateAnchorStyleFromVision,
+  STYLE01_ANCHOR_STYLE_QA_PROMPT,
+} from '../anchor-style-qa';
 import type { RuntimeBlueprintFrameProjection } from '../generation-pipeline/runtime-blueprint-projection';
 
 function frame(input?: {
@@ -169,6 +174,49 @@ describe('Style 01 child expression and small-frame fidelity', () => {
     expect(STYLE_01_CANONICAL_CHILD_ANCHOR_RULE).toContain('exact level of human realism');
     expect(STYLE_01_CANONICAL_CHILD_ANCHOR_RULE).toContain('natural, varied pose');
     expect(STYLE_01_CANONICAL_CHILD_ANCHOR_RULE).not.toMatch(/Mia|Bar|Dini/i);
+  });
+
+  it('aligns canonical-anchor generation, generic templates, and the hard style gate', async () => {
+    expect(STYLE_01_CHILD_TEMPLATE_STYLE_RULE).toContain('refined semi-naturalistic Style 01');
+    expect(STYLE01_ANCHOR_STYLE_QA_PROMPT).toContain('refined semi-naturalistic');
+    expect(STYLE01_ANCHOR_STYLE_QA_PROMPT).toContain('Do NOT reject');
+    expect(STYLE01_ANCHOR_STYLE_QA_PROMPT).not.toMatch(/cute simplified|semi-realistic digital portrait/i);
+
+    const previousKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = 'test-only-key';
+    const fetchSpy = vi.fn(async (_url: string, _init?: RequestInit) => ({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                style01Match: true,
+                looksPhotoreal: false,
+                looksPortrait: false,
+                notes: 'hand-painted semi-naturalistic watercolor',
+              }),
+            },
+          },
+        ],
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchSpy);
+    try {
+      await expect(evaluateAnchorStyleFromVision('data:image/png;base64,fixture')).resolves.toMatchObject({
+        ok: true,
+        style01Match: true,
+        looksPhotoreal: false,
+        looksPortrait: false,
+      });
+      const request = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+      expect(String(request.body)).toContain('refined semi-naturalistic');
+      expect(String(request.body)).not.toMatch(/cute simplified|semi-realistic digital portrait/i);
+    } finally {
+      vi.unstubAllGlobals();
+      if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = previousKey;
+    }
   });
 
   it.each([

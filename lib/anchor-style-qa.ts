@@ -18,17 +18,17 @@ export type AnchorStyle02QaResult = {
   notes: string;
 };
 
-const STYLE_QA_PROMPT = `You are QA for a children's book anchor portrait.
+export const STYLE01_ANCHOR_STYLE_QA_PROMPT = `You are QA for a Style 01 children's book anchor illustration.
 
 Look at this generated image and answer ONLY with JSON:
 {
-  "style01Match": true if clearly a cute simplified hand-drawn watercolor storybook illustration (NOT photoreal),
-  "looksPhotoreal": true if it looks like a photograph or semi-realistic digital portrait,
-  "looksPortrait": true if tight photographic portrait framing / realistic skin / camera-like lighting,
+  "style01Match": true if clearly a refined semi-naturalistic hand-drawn watercolor storybook illustration with recognizably human anatomy, natural eye scale, visible paper/pigment texture, and no mascot/chibi/flat-cartoon treatment,
+  "looksPhotoreal": true only if it reads as an actual photograph or hyperreal photographic rendering rather than a hand-painted illustration,
+  "looksPortrait": true only if camera-like studio portrait treatment, photographic skin, or photographic lighting dominates the image,
   "notes": "one short sentence"
 }
 
-STYLE FIRST: if photoreal or portrait-like → style01Match must be false.`;
+STYLE FIRST: reject photographs, hyperreal photographic renderings, and camera-like portrait cutouts. Do NOT reject a visibly hand-painted semi-naturalistic watercolor character merely because its anatomy, face, hair, or expression is believable and portrait-faithful.`;
 
 export async function evaluateAnchorStyleFromVision(imageUrl: string): Promise<AnchorStyleQaResult> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -56,7 +56,7 @@ export async function evaluateAnchorStyleFromVision(imageUrl: string): Promise<A
             role: 'user',
             content: [
               { type: 'image_url', image_url: { url: imageUrl, detail: 'low' } },
-              { type: 'text', text: STYLE_QA_PROMPT },
+              { type: 'text', text: STYLE01_ANCHOR_STYLE_QA_PROMPT },
             ],
           },
         ],

@@ -124,4 +124,15 @@ describe('Stage0 Method B reference layouts (Brief F)', () => {
     expect(source).toContain('refined semi-naturalistic Style 01 watercolor child');
     expect(source).toContain('preserve the exact child identity');
   });
+
+  it('keeps all identity-neutral Style 01 template generators on the same fidelity target', () => {
+    for (const relativePath of [
+      ['scripts', 'generate-style01-child-template.ts'],
+      ['scripts', 'generate-child-template-redo.ts'],
+    ]) {
+      const source = fs.readFileSync(path.join(process.cwd(), ...relativePath), 'utf8');
+      expect(source).not.toMatch(/cute simplified/i);
+      expect(source).toContain('STYLE_01_CHILD_TEMPLATE_STYLE_RULE');
+    }
+  });
 });

@@ -1,6 +1,6 @@
 # R1D — Canonical Child Style Anchor and QA Reader Page Turn — Implementation Evidence
 
-Status: local implementation and bounded LOW proof complete; independent Claude Code QA pending. Product, production and release acceptance are not claimed.
+Status: local implementation and bounded LOW proof complete; first independent Claude Code review returned HOLD and the focused QA correction is locally green pending a read-only micro re-gate. Product, production and release acceptance are not claimed.
 
 ## Repository authority
 
@@ -160,3 +160,38 @@ Claude Code should review the exact implementation range from `f508038d` through
 6. All-scene forward/backward Reader animation and reduced-motion behavior.
 7. Test, full-check, provider-call, retry/fallback, pricing and artifact claims.
 8. Local-only QA/production-block boundaries.
+
+## Independent QA findings and focused correction
+
+Claude Code reviewed immutable range `f508038d..1eab57ed` read-only and returned **HOLD** with zero BLOCKER, one MAJOR and two MINOR findings. Codex validated all three as accurate:
+
+1. **MAJOR-1:** Stage-0 and page prompts required refined semi-naturalistic Style 01, but `evaluateAnchorStyleFromVision` still required `cute simplified` and treated a semi-realistic digital portrait as photoreal. The local proof had not called Vision, so it did not exercise that production hard gate.
+2. **MINOR-1:** “read again from the beginning” reset the scene without resetting `data-page-turn-direction`, leaving a stale `forward` or `backward` state label.
+3. **MINOR-2:** the two generic Style 01 child-template generators retained `cute simplified` language and therefore pulled against the current Method B prompt.
+
+The focused correction, based at `1eab57ed`, makes these bounded changes:
+
+- `STYLE01_ANCHOR_STYLE_QA_PROMPT` accepts a visibly hand-painted, refined semi-naturalistic watercolor child with believable human anatomy and natural eye scale. It continues to reject actual photographs, hyperreal photographic renderings, camera-like portrait cutouts, mascot/chibi/flat-cartoon treatment and CGI. `ANCHOR_QA_BLOCK` remains a hard production failure and now reports the aligned target.
+- `STYLE_01_CHILD_TEMPLATE_STYLE_RULE` is the shared identity-neutral template target consumed by both template generators. Neither generator contains `cute simplified`; no real child, story or page literal was added.
+- `readerRestartTransition()` returns `{ sceneIndex: 0, pageTurnDirection: 'initial' }`. The production Reader consumes both fields and does not replay a page-turn animation on restart.
+
+Focused correction validation:
+
+```text
+npx --no-install vitest run
+  lib/__tests__/stage0-method-b-references.spec.ts
+  lib/__tests__/style01-child-expression-style-fidelity.spec.ts
+  lib/__tests__/reader-page-turn.spec.ts
+  lib/__tests__/reader-nav.spec.ts
+```
+
+Result: **4 files / 33 tests PASS**. `npx --no-install tsc --noEmit` and `git diff --check` both passed. The literal repository gate was not rerun; the separate six-fixture release HOLD is unchanged. No credential, network/provider, Vision, image generation, render, storage, deployment or push action occurred, and the three existing LOW artifacts remain byte-untouched.
+
+Advisory limitations retained from Claude's first pass:
+
+- Style Vision QA still has its pre-existing fail-open behavior for a missing key, HTTP failure or exception; that is outside this three-finding correction and remains observable in the returned notes.
+- The Reader test now directly proves the pure restart-state contract and asserts its production wiring, but still does not mount the full React Reader.
+- The local measurement runner retains machine-bound defaults outside the Dini/Bar child-anchor branch.
+- Claude did not rerun `npm run check` or the browser verification; the six fixture failures remain an unwaived release HOLD and visual product acceptance remains Guy's.
+
+The correction does not grant a new render, provider, product, QA deployment, production or release authority. Claude Code must independently close MAJOR-1, MINOR-1 and MINOR-2 on the exact correction range.

@@ -6,6 +6,7 @@ import {
   applyDevLayoutOverrides,
   buildRenderedBookMeta,
   pageTurnDirectionForIndexChange,
+  readerRestartTransition,
   splitIntoSentences,
   storySceneToDesktopSpread,
   type DevLayoutQueryFlags,
@@ -987,9 +988,11 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
             type="button"
             className={styles.controlBtn}
             onClick={() => {
+              const restart = readerRestartTransition();
               storytimeAutoAdvanceRef.current = false;
               clearAutoAdvanceTimer();
-              setCurrentSceneIndex(0);
+              setCurrentSceneIndex(restart.sceneIndex);
+              setPageTurnDirection(restart.pageTurnDirection);
               setShowEndScreen(false);
             }}
           >
