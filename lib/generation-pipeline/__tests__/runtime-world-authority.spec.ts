@@ -24,7 +24,10 @@ import {
 } from '@/lib/visual-package/runtimeAuthority';
 import { buildVisualPackageV4Fixture } from '@/lib/visual-package/__tests__/visual-package-v4.fixtures';
 import type { BlueprintFixtureShape } from '@/lib/visual-package/__tests__/pre-render-book-visual-blueprint.fixtures';
-import { buildPvbTypedActionGeometryBlock } from '@/lib/style01-prompt-assembly';
+import {
+  assembleStyle01Phase2Prompt,
+  buildPvbTypedActionGeometryBlock,
+} from '@/lib/style01-prompt-assembly';
 import {
   STYLE_01_ANTI_STYLE02,
   STYLE_01_RENDERING_CORRECTION,
@@ -416,6 +419,16 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
       'entry must pass through its visible opening',
     );
     expect(block).toContain('do not add a contradictory duplicate path');
+
+    const assembled = assembleStyle01Phase2Prompt({
+      pageNumber: frame.pageNumber,
+      authoritativeBlueprintFrame: frame,
+    });
+    expect(assembled.compositionBlock).toContain(block);
+    expect(assembled.prompt).toContain(
+      '[PVB TYPED ACTION GEOMETRY — STRUCTURAL AUTHORITY]',
+    );
+    expect(assembled.prompt).toContain('"relation":"into"');
   });
 
   it('does not invent geometry for non-spatial or incomplete actions', () => {

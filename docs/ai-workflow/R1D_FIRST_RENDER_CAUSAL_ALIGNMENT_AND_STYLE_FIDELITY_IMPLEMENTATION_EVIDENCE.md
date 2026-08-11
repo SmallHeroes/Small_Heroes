@@ -130,3 +130,9 @@ Claude Code should review the committed base-to-head range and attempt to falsif
 8. the visual claim that the drip terminates inside the bucket and child anatomy materially improved.
 
 Claude Code's first pass is read-only. Codex does not self-award independent technical PASS.
+
+## Independent QA and focused correction
+
+Claude Code independently reviewed exact pushed range `c58525f31c767b69a6295aa24eb77aef8ecc5597..676abde7e478b7c4c9fc1851008d0442ef569ca3` and returned **PASS** for technical/documentation scope with zero BLOCKER, zero MAJOR and one non-blocking MINOR. It confirmed all six falsification groups: typed-only fail-closed geometry, unchanged Blueprint/Wizard ownership, watercolor-preserving Style 01 anatomy, direct unit coverage, faithful evidence/boundaries and the exact seven-file range.
+
+The valid MINOR observed that the geometry helper was tested directly but prompt-assembly wiring was not asserted. The focused QA correction adds an integration assertion that an exact typed `into` block appears in both `compositionBlock` and the final assembled provider prompt. It changes no production code or behavior. Claude's advisory about older story-specific composition maps is outside this range and remains non-blocking.
