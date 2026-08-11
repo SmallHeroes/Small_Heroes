@@ -60,7 +60,11 @@ describe('listDevViewerLibrary resilience', () => {
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
     const entries = await listDevViewerLibrary();
-    expect(entries.map((e) => e.kind)).toEqual(['audition', 'order']); // mtime 2000 > 1000
+    expect(entries).toHaveLength(3);
+    expect(entries.map((e) => e.kind)).toEqual(['audition', 'audition', 'order']);
+    expect(entries[0].key).toBe(
+      'audition:tracked:r1d-dini-bar-canonical-anchor-reader-qa-d728849a'
+    );
     expect(entries.find((e) => e.kind === 'order')?.accessKey).toBe('pay_abc');
   });
 
@@ -70,8 +74,8 @@ describe('listDevViewerLibrary resilience', () => {
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
     const entries = await listDevViewerLibrary();
-    expect(entries).toHaveLength(1);
-    expect(entries[0].kind).toBe('audition');
+    expect(entries).toHaveLength(2);
+    expect(entries.every((entry) => entry.kind === 'audition')).toBe(true);
   });
 
   it('still lists orders when the audition (Supabase) source throws', async () => {
@@ -80,15 +84,34 @@ describe('listDevViewerLibrary resilience', () => {
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
     const entries = await listDevViewerLibrary();
-    expect(entries).toHaveLength(1);
-    expect(entries[0].kind).toBe('order');
+    expect(entries).toHaveLength(2);
+    expect(entries.some((entry) => entry.kind === 'order')).toBe(true);
   });
 
-  it('returns [] (never throws) when BOTH sources fail', async () => {
+  it('keeps the tracked QA fixture when BOTH remote sources fail', async () => {
     listAuditions.mockRejectedValue(new Error('supabase down'));
     findMany.mockRejectedValue(new Error('db down'));
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
-    await expect(listDevViewerLibrary()).resolves.toEqual([]);
+    const entries = await listDevViewerLibrary();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      key: 'audition:tracked:r1d-dini-bar-canonical-anchor-reader-qa-d728849a',
+      kind: 'audition',
+    });
+  });
+});
+
+describe('tracked QA reader fixture', () => {
+  it('binds five deployable page assets without local absolute paths', async () => {
+    const { trackedQaReaderFixtureForDir } = await import('@/lib/tracked-qa-reader-fixtures');
+    const fixture = trackedQaReaderFixtureForDir(
+      'r1d-dini-bar-canonical-anchor-reader-qa-d728849a'
+    );
+
+    expect(fixture?.pages.map((page) => page.pageNumber)).toEqual([1, 2, 3, 4, 5]);
+    expect(fixture?.pages.every((page) => page.imageUrl.length > 0)).toBe(true);
+    expect(fixture?.pages.some((page) => /^[A-Za-z]:\\/.test(page.imageUrl))).toBe(false);
+    expect(fixture?.storyFile).toBe('dragon_dini_fantasy.md');
   });
 });

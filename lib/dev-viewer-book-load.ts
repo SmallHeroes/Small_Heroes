@@ -17,6 +17,10 @@ import { loadStoryFromBank } from '@/backend/providers/story-bank-loader';
 import { getCompanionById } from '@/lib/companions';
 import { storyBankRoot } from '@/lib/qa-console-stories';
 import { V3_APPROVED_DIR_NAME } from '@/backend/providers/story-bank-index';
+import {
+  trackedQaReaderFixtureForDir,
+  type TrackedQaReaderFixture,
+} from '@/lib/tracked-qa-reader-fixtures';
 
 export type DevViewerPage = {
   pageNumber: number;
@@ -69,10 +73,61 @@ function resolveViewerStoryPath(storyFile: string): string {
   return v5;
 }
 
+async function loadTrackedQaReaderFixtureBook(
+  fixture: TrackedQaReaderFixture
+): Promise<DevViewerBookPayload> {
+  const companion = getCompanionById(fixture.companionId);
+  const story = await loadStoryFromBank(
+    resolveViewerStoryPath(fixture.storyFile),
+    fixture.childProfile.name,
+    companion?.name ?? fixture.companionId,
+    fixture.childProfile.gender,
+    { maxPages: fixture.totalStoryPages }
+  );
+
+  const pages: DevViewerPage[] = fixture.pages.map((fixturePage) => {
+    const storyPage = story.pages.find((page) => page.pageNumber === fixturePage.pageNumber);
+    if (!storyPage) {
+      throw new Error(
+        `Tracked QA reader fixture references missing story page ${fixturePage.pageNumber}`
+      );
+    }
+    return {
+      pageNumber: fixturePage.pageNumber,
+      text: storyPage.text,
+      narrationText: storyPage.narrationText,
+      imageUrl: fixturePage.imageUrl,
+      audioUrl: null,
+      renderStatus: 'rendered',
+      pageLayout: 'standard',
+    };
+  });
+
+  return {
+    id: fixture.id,
+    childName: fixture.childProfile.name,
+    storyDirection: fixture.direction,
+    storyLength: 'long',
+    book: { title: story.title, pages },
+    manifestMeta: {
+      authority: 'tracked-qa-reader-fixture/v1',
+      sourceRenderHead: fixture.sourceRenderHead,
+      storyFile: fixture.storyFile,
+      renderedPageNumbers: fixture.pages.map((page) => page.pageNumber),
+      totalStoryPages: fixture.totalStoryPages,
+    },
+  };
+}
+
 export async function loadDevViewerAuditionBook(
   dir: string,
   root?: 'phase2-logs' | 'outputs'
 ): Promise<DevViewerBookPayload> {
+  const trackedFixture = trackedQaReaderFixtureForDir(dir);
+  if (trackedFixture) {
+    return loadTrackedQaReaderFixtureBook(trackedFixture);
+  }
+
   const { dirPath, manifest } = await loadStyle01AuditionManifest(dir, root);
 
   const storyFile =

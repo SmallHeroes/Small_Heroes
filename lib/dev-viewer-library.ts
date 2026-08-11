@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { listStyle01DiniAuditions } from '@/lib/style01-audition-preview';
 import { createLogger } from '@/lib/logger';
+import { listTrackedQaReaderFixtures } from '@/lib/tracked-qa-reader-fixtures';
 
 const logger = createLogger({ subsystem: 'dev-viewer-library' });
 
@@ -84,6 +85,17 @@ async function listOrderEntries(): Promise<DevLibraryEntry[]> {
     });
 }
 
+function listTrackedQaEntries(): DevLibraryEntry[] {
+  return listTrackedQaReaderFixtures().map((fixture) => ({
+    key: `audition:tracked:${fixture.id}`,
+    kind: 'audition',
+    label: `[QA fixture] ${fixture.label}`,
+    mtimeMs: Date.parse('2026-08-11T00:00:00.000Z'),
+    dir: fixture.id,
+    root: 'outputs',
+  }));
+}
+
 /**
  * The library is assembled from two INDEPENDENT sources: cloud-persisted auditions (Supabase storage)
  * and generated-book orders (Postgres). Isolate them so a failure in one source can't 500 the whole
@@ -92,6 +104,7 @@ async function listOrderEntries(): Promise<DevLibraryEntry[]> {
  * Each failure is logged with its stack so the cause is observable instead of an opaque 500.
  */
 export async function listDevViewerLibrary(): Promise<DevLibraryEntry[]> {
+  const trackedEntries = listTrackedQaEntries();
   const [auditionEntries, orderEntries] = await Promise.all([
     listAuditionEntries().catch((err) => {
       logger.error('Failed to list audition entries (Supabase storage)', err);
@@ -103,5 +116,7 @@ export async function listDevViewerLibrary(): Promise<DevLibraryEntry[]> {
     }),
   ]);
 
-  return [...auditionEntries, ...orderEntries].sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return [...trackedEntries, ...auditionEntries, ...orderEntries].sort(
+    (a, b) => b.mtimeMs - a.mtimeMs
+  );
 }
