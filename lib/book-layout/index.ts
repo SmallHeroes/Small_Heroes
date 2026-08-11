@@ -12,3 +12,4 @@ export * from './typography-tokens';
 export * from './recompute-scene-layout';
 export * from './dev-layout-overrides';
 export * from './open-book-layout';
+export * from './page-turn';

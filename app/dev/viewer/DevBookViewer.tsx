@@ -7,6 +7,8 @@ import {
   storySceneToDesktopSpread,
   storySceneToMobilePage,
   useSceneImageQueue,
+  pageTurnDirectionForIndexChange,
+  type PageTurnDirection,
   type StoryDirection,
 } from '@/lib/book-layout';
 import { DesktopBookSpread } from '@/app/book/[id]/read-v2/components/DesktopBookSpread';
@@ -60,6 +62,7 @@ export function DevBookViewer({
   const [bookTitle, setBookTitle] = useState('');
   const [sceneIndex, setSceneIndex] = useState(0);
   const [transitionKey, setTransitionKey] = useState(0);
+  const [pageTurnDirection, setPageTurnDirection] = useState<PageTurnDirection>('initial');
   const [scenes, setScenes] = useState<ReturnType<typeof adaptLegacyBookToStoryScenes>>([]);
   const [previewPages, setPreviewPages] = useState<PreviewPage[]>([]);
 
@@ -129,6 +132,7 @@ export function DevBookViewer({
       setScenes(adapted);
       setSceneIndex(0);
       setTransitionKey(0);
+      setPageTurnDirection('initial');
       setStatus('ready');
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Load failed');
@@ -198,13 +202,17 @@ export function DevBookViewer({
 
   const goPrev = () => {
     if (sceneIndex <= 0) return;
-    setSceneIndex((i) => i - 1);
+    const nextIndex = sceneIndex - 1;
+    setPageTurnDirection(pageTurnDirectionForIndexChange(sceneIndex, nextIndex));
+    setSceneIndex(nextIndex);
     setTransitionKey((k) => k + 1);
   };
 
   const goNext = () => {
     if (sceneIndex >= scenes.length - 1) return;
-    setSceneIndex((i) => i + 1);
+    const nextIndex = sceneIndex + 1;
+    setPageTurnDirection(pageTurnDirectionForIndexChange(sceneIndex, nextIndex));
+    setSceneIndex(nextIndex);
     setTransitionKey((k) => k + 1);
   };
 
@@ -297,7 +305,17 @@ export function DevBookViewer({
           <section className={`${styles.pageStage} ${styles.bookStageInner}`}>
             <div className={styles.bookTableStage}>
               <div className={styles.bookSpreadWrap}>
-                <div key={transitionKey} className={styles.sceneTransition}>
+                <div
+                  key={transitionKey}
+                  className={`${styles.sceneTransition} ${
+                    pageTurnDirection === 'forward'
+                      ? styles.sceneTurnForward
+                      : pageTurnDirection === 'backward'
+                        ? styles.sceneTurnBackward
+                        : ''
+                  }`}
+                  data-page-turn-direction={pageTurnDirection}
+                >
                   {isPlaceholder ? (
                     <div
                       className={styles.centerState}

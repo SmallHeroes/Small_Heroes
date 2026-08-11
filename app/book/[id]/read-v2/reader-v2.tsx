@@ -5,9 +5,11 @@ import {
   adaptLegacyBookToStoryScenes,
   applyDevLayoutOverrides,
   buildRenderedBookMeta,
+  pageTurnDirectionForIndexChange,
   splitIntoSentences,
   storySceneToDesktopSpread,
   type DevLayoutQueryFlags,
+  type PageTurnDirection,
   storySceneToMobilePage,
   type StoryScene,
 } from '@/lib/book-layout';
@@ -114,6 +116,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   const [renderMeta, setRenderMeta] = useState<ReturnType<typeof buildRenderedBookMeta> | null>(null);
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [transitionKey, setTransitionKey] = useState(0);
+  const [pageTurnDirection, setPageTurnDirection] = useState<PageTurnDirection>('initial');
   const [showEndScreen, setShowEndScreen] = useState(false);
   const [showPowerCardScreen, setShowPowerCardScreen] = useState(false);
   const [powerCardInput, setPowerCardInput] = useState<PowerCardRenderInput | null>(null);
@@ -293,6 +296,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
         setRenderMeta(buildRenderedBookMeta(scenes));
         setCurrentSceneIndex(0);
         setTransitionKey(0);
+        setPageTurnDirection('initial');
         setFallbackBookAudioUrl(
           typeof data.book?.audioUrl === 'string' && data.book.audioUrl.trim()
             ? data.book.audioUrl.trim()
@@ -340,6 +344,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     if (currentSceneIndex >= storyScenes.length - 1) return;
     setShowEndScreen(false);
     setShowPowerCardScreen(false);
+    setPageTurnDirection('forward');
     bumpTransition();
     setCurrentSceneIndex((prev) => Math.min(prev + 1, storyScenes.length - 1));
   }, [bumpTransition, currentSceneIndex, stopNarration, storyScenes.length]);
@@ -361,6 +366,9 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   const applyNav = useCallback(
     (next: ReaderNavState) => {
       if (next.index !== currentSceneIndex) {
+        setPageTurnDirection(
+          pageTurnDirectionForIndexChange(currentSceneIndex, next.index),
+        );
         bumpTransition();
         setCurrentSceneIndex(next.index);
       }
@@ -758,7 +766,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     }
 
     return (
-      <div key={transitionKey} className={styles.sceneTransition}>
+      <>
         <div className={styles.desktopOnly}>
           {desktopSpread ? (
             <DesktopBookSpread spread={desktopSpread} isCurrent />
@@ -768,7 +776,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
           {mobilePage ? <MobileBookPage page={mobilePage} isCurrent /> : null}
           {sceneFooter}
         </div>
-      </div>
+      </>
     );
   };
 
@@ -834,6 +842,17 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
                 >
                   ‹
                 </button>
+                <div
+                  key={transitionKey}
+                  className={`${styles.sceneTransition} ${
+                    pageTurnDirection === 'forward'
+                      ? styles.sceneTurnForward
+                      : pageTurnDirection === 'backward'
+                        ? styles.sceneTurnBackward
+                        : ''
+                  }`}
+                  data-page-turn-direction={pageTurnDirection}
+                >
                 {currentScene.kind === 'cover' ? (
                   <article className={`${styles.pageCanvas} ${styles.tplCover}`}>
                     <div className={styles.coverBleed}>
@@ -861,6 +880,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
                 ) : (
                   renderInteriorScene(currentScene)
                 )}
+                </div>
                 <button
                   type="button"
                   className={`${styles.spreadNavBtn} ${styles.spreadNavBack}`}
