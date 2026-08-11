@@ -227,3 +227,33 @@ Validation and deployment evidence:
 - The protected Preview requires Vercel login. The Production Reader route at `https://smallheroes.co.il/dev/viewer` returned `403`; Production remains blocked.
 
 This connection grants QA product-review access only. It creates no provider, render, storage/database, approval, publication, production or release authority.
+
+## Physical-sheet correction after Guy's product review
+
+Guy correctly rejected the first connected animation. The implementation in `f014861b` animated the entire incoming scene from `translateX(5%) rotateY(8deg)` to rest. It exposed direction and looked smoother than replacement, but it never lifted a paper page. The repository already contained the intended dev prototype in `597e4325`: a static photographed book frame plus a two-segment, two-faced CSS-3D paper sheet. The correction ports that general engine into the shared Reader rather than adding QA-only motion.
+
+Commit `49196535ce7e4462147c120f26d40f769f08a013` adds:
+
+- `DesktopPhysicalPageTurn`, with outgoing front content, incoming back content, 180-degree RTL direction, hinged outer segment, bend/sag/lift, crease and cast shadow;
+- `useDesktopPhysicalPageTurn`, which provides synchronous double-navigation exclusion, desktop/reduced-motion eligibility and a bounded completion fallback;
+- one `DesktopBookSpread` overlay seam consumed by both the production Reader and `DevBookViewer`;
+- scene fallback for cover, dedication, wide, text-only, mobile and reduced-motion paths rather than force-fitting unsupported geometry;
+- regression coverage for shared wiring, 180-degree mechanics, two sheet segments, front/back faces, static-frame overlay composition and motion reduction.
+
+Validation:
+
+- `npx vitest run lib/__tests__/reader-page-turn.spec.ts`: **1 file / 5 tests PASS**.
+- `npx --no-install tsc --noEmit`: PASS.
+- `git diff --check`: PASS.
+- `npm run lint`: exits 0 through the repository's honest lint gate; that gate records that interactive `next lint` is intentionally unavailable and names `npm run check` as the stability contract.
+- `npm run build`: PASS; Prisma generation succeeded, Next.js compiled, generated 35 static pages and completed trace collection.
+
+Remote proof:
+
+- Preview deployment `dpl_7gXx1VbtR8tEKSMR7AATuryDpcW9` reached Ready for commit `49196535`; stable branch alias unchanged.
+- Authenticated Chrome loaded the five-page tracked QA fixture and exercised both directions.
+- Backward mid-flight: `data-physical-page-turn=backward`, `--physical-turn-deg=-90.96deg`, bend `14.00deg`, distinct front/back faces and nontrivial `matrix3d`.
+- Forward mid-flight: `data-physical-page-turn=forward`, `--physical-turn-deg=66.08deg`, bend `-12.80deg`, distinct front/back faces and nontrivial `matrix3d`.
+- The `openBookFrame` rectangle remained exactly `x=309.7109375, y=155.078125, width=1285.5859375, height=787.015625` before and during the sampled backward turn, and the same exact before/mid equality held forward. The sheet count returned to zero after landing and the visible reader advanced to page 2/5.
+
+The correction changed no image, story, prompt, model, provider, storage/database, approval, publication or production setting. It spent no provider/image budget. The Preview remains Vercel-login protected and Production remains blocked.
