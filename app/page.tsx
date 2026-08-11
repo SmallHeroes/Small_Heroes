@@ -13,6 +13,7 @@ import './landing/landing.css';
 import './landing/motion.css';
 import './landing/about.css';
 import './category-challenge-card.css';
+import './landing/wow-2027.css';
 import './premium-2027.css';
 
 export const metadata: Metadata = {

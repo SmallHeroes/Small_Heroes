@@ -95,52 +95,71 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
         <SiteHeader variant="full" />
 
         <main>
-          <section className="hero">
-            <div className="wrap hero-wrap">
-              <div className="hero-text">
-                <div className="hero-badge" data-reveal="hero" data-reveal-delay="0">{L.hero.badge}</div>
-                <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">{L.hero.h1}</h1>
-                <p className="hero-sub2" data-reveal="hero" data-reveal-delay="120">{L.hero.sub}</p>
+          {/* R1D-2027 WOW hero — "the child rises out of the book".
+              Night-indigo first fold; the story world (open book + child +
+              floating page fragments) replaces the old white split layout.
+              Same content source, same CTA target and analytics event. */}
+          <section className="hero wow-hero">
+            <div className="wow-stars" aria-hidden="true" />
+            <div className="wrap wow-hero-wrap">
+              <div className="wow-hero-text">
+                <h1 className="wow-h1" data-reveal="hero" data-reveal-delay="0">
+                  הלילה,
+                  <span className="wow-h1-glow"> הילד שלכם</span>
+                  <span className="wow-h1-aqua">הוא גיבור הסיפור</span>
+                </h1>
+                <p className="wow-sub" data-reveal="hero" data-reveal-delay="90">{L.hero.sub}</p>
 
-                <ul className="hero-bullets" data-reveal="hero" data-reveal-delay="180">
-                  {L.hero.bullets.map((bullet) => (
-                    <li key={bullet}>{bullet}</li>
-                  ))}
-                </ul>
-
-                <div className="hero-btns" data-reveal="hero" data-reveal-delay="240">
+                <div className="hero-btns wow-btns" data-reveal="hero" data-reveal-delay="180">
                   <a
                     href={startHref}
-                    className="btn-primary"
+                    className="wow-cta"
                     data-event="landing_start_click"
                   >
                     {L.hero.ctaPrimary}
                   </a>
-                  <a href="#sample" className="btn-light">
+                  <a href="#sample" className="wow-cta-ghost">
                     {L.hero.ctaSecondary}
                   </a>
                 </div>
 
-                <p className="hero-cta-note" data-reveal="hero" data-reveal-delay="300">{L.hero.ctaNote}</p>
+                <p className="wow-note" data-reveal="hero" data-reveal-delay="260">{L.hero.ctaNote}</p>
+
+                <div className="wow-trust" data-reveal="hero" data-reveal-delay="320">
+                  <span className="wow-trust-chip">✓ {L.hero.bullets[0]}</span>
+                </div>
               </div>
 
-              <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120">
-                <div className="hero-glow" aria-hidden="true" />
-                {/* .hero-float carries the ambient float animation; parallax stays on the img itself
-                    (inline transform) so the two never fight over the same transform. */}
+              <div className="wow-scene" data-reveal="scale" data-reveal-delay="120" aria-hidden="true">
+                <img src="/Images/OpenBook.png" alt="" className="wow-book" draggable={false} />
                 <div className="hero-float">
                   <img
-                    src="/Images/hero-child-fox.png"
-                    alt="ילד וחבר הסיפור"
-                    className="hero-img"
+                    src="/Images/HeroIllustrated-nobg.png"
+                    alt=""
+                    className="wow-kid"
                     data-parallax="hero-img"
+                    draggable={false}
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}
                   />
                 </div>
+                <span className="wow-fragment wow-fragment-1">
+                  <img src="/Images/gallery/gallery-1.jpg" alt="" draggable={false} />
+                </span>
+                <span className="wow-fragment wow-fragment-2">
+                  <img src="/Images/gallery/gallery-4.jpg" alt="" draggable={false} />
+                </span>
+                <span className="wow-page-art" aria-hidden="true">
+                  <img src="/Images/gallery/gallery-3.jpg" alt="" draggable={false} />
+                </span>
+                <span className="wow-spark wow-spark-1" />
+                <span className="wow-spark wow-spark-2" />
+                <span className="wow-spark wow-spark-3" />
               </div>
             </div>
+            {/* the night melts into the day sections — direction C's narrative seam */}
+            <div className="wow-dawn" aria-hidden="true" />
           </section>
 
           <section className="section helps-section" id="helps">
