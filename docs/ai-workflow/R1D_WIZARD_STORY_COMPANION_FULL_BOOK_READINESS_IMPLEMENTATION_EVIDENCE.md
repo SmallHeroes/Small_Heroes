@@ -19,7 +19,7 @@ The public Wizard matrix contained six categories and eighteen category/directio
 ## Materialized authority
 
 - Catalog version: `wizard-qa-render-catalog/v1`
-- Catalog digest: `fe3bb36235a94cc169e0f017e89ab9f9f529dadfab2159799ce1b58fa229e4cf`
+- Current catalog digest: `c497e6801bc34daffe473a33caa6c2ffce48fdba26b238f4f838de17cf24799d`
 - Candidate version: `wizard-qa-visual-contract-candidate/v1`
 - Slots: 18/18
 - Companions: 6/6
@@ -80,6 +80,31 @@ The compiler boundary now admits exactly two internal error identities into that
 
 Validation passes **4 files / 270 tests** (`draft-reference-domain-hardening`, `draft-validation-diagnostics`, `source-authority-lifecycle`, and `canonical-live-authoring-boundary`), deterministic TypeScript and `git diff --check`. No second repository-wide check was run; the earlier recorded literal gate and its separate six-fixture release HOLD remain the repository-wide evidence for this branch.
 
+## All-slot qualification and complete LOW book proof
+
+The general runner mode `wizard-catalog-full-book` accepts only an exact catalog `storyKey` plus the canonical child anchor and output root. It resolves the selected Story Source, direction, companion and Visual Contract candidate from the current content-addressed catalog, then derives the page-complete shot plan, Visual Package, Blueprint and runtime authority. It does not accept story prose, prompt text, raw schema or a story-specific overlay.
+
+All eighteen public Wizard slots passed the same zero-cost qualify-only path: six companions multiplied by bedtime, adventure and fantasy. The completed validation also exposed and fixed three general legacy-input defects before spend: missing structured cover zone/cast, time-of-day values outside the current closed domain, and final-page replacement erasing the only member of a required shot-plan quota. Focused validation after correction passed `3 files / 13 tests`; deterministic TypeScript and `git diff --check` passed.
+
+The selected proof was `bunny_ometz_bedtime`, eight pages, Bar and the approved canonical Style01 anchor SHA-256 `3715cf8f6dcb1775abba4a81138ac41a2bb2db437b38efaad6aaea936cdbcb88`. Output root:
+
+`outputs/r1d-wizard-bunny-bedtime-full-book-low-9a58a967-20260811T2100Z`
+
+- Authority status: `rendered_local_low_wizard_catalog_full_book_measurement`.
+- Story Source SHA-256: `99f0782c666d4eac95e20b7c3059a273a4a5478910835f74c99f595a243af6f1`.
+- Shot-plan SHA-256: `80fc2d873e448a10140c005c2302c46416c154543ae35cd06b817b6721529e6b`; distinct measured frame signatures: `8`.
+- Visual Package v5 revision: `d7b5edb0b7b1ef3cb9ec5039e83bc52e3beaff6b4e4e0cfb42ce4a4446259258`.
+- Blueprint v4 digest: `0d706f6cd4db84ef77e2517c86315245e533a2658236f9d5e18e362dde7f782f`.
+- Runtime v6 contract: `c1811709535789b29ca5ced9abf68f1b585aad1a50b5594cabe04267793dccb6`.
+- Calls/retries/fallback/Vision: `8 / 0 / false / 0`; quality `low`; size `1024x1536`.
+- Contact sheet SHA-256: `a4b83b15dbd826448a34e9991ee657daedc90cc56565c8180d54d6117216328e`.
+- Provider cost estimate: unavailable (`estimatedCostUsd:null` on every page), so this evidence makes no invoice or billing-account claim.
+- Remote database/storage, Board, publication and Production: none. `productionEligible:false`, `productionBlocked:true`.
+
+Visual inspection confirms one recognizable Bar and Buni, one coherent watercolor treatment and a changing expression/story arc across eight distinct compositions. It also records two LOW defects rather than calling the book final: the shoes shift between brown and blue, and the pajama shirt briefly loses its star pattern. The complete book is therefore a meaningful Wizard-connected visual proof and a product-review candidate, not Production acceptance.
+
+The eight exact rendered pages were compressed to tracked WebP assets without regeneration and bound to `bunny_ometz_bedtime.md` through the existing `tracked-qa-reader-fixture/v1` loader. Reader/library and physical-page-turn validation passed `2 files / 12 tests`, deterministic TypeScript and `git diff --check`. A Preview deployment and remote animation check are the next steps; Production remains blocked.
+
 ## Boundaries
 
-This milestone does not promote candidates, approve reconciliation, author a Blueprint, build a Production Visual Package, render images, write database/storage, publish, deploy or open Production. Credential/provider access occurred only inside the three bounded authoring attempts recorded above and produced no candidate. It proves that all active Wizard slots have exact general inputs for the next Blueprint-authoring boundary; it does not claim that all eighteen have pre-authored Blueprints or Production packages.
+This milestone does not promote a Production candidate, approve Production reconciliation, build a Production Visual Package, write database/storage, publish or open Production. The complete LOW book uses explicitly QA-only derived authority and tracked Reader fixtures. All eighteen slots are proven through the zero-cost qualification boundary; only the selected eight-page Bunny bedtime slot was rendered. No claim is made that all eighteen have Production Blueprints or packages.

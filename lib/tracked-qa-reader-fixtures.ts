@@ -8,6 +8,14 @@ import bunnyPage02Asset from '../qa-fixtures/reader/r1d-bunny-bar-expression-gen
 import bunnyPage03Asset from '../qa-fixtures/reader/r1d-bunny-bar-expression-generalization-fe97f823/page-03.webp';
 import bunnyPage04Asset from '../qa-fixtures/reader/r1d-bunny-bar-expression-generalization-fe97f823/page-04.webp';
 import bunnyPage05Asset from '../qa-fixtures/reader/r1d-bunny-bar-expression-generalization-fe97f823/page-05.webp';
+import bunnyFullBookPage01Asset from '../qa-fixtures/reader/r1d-bunny-bar-full-bedtime-book-9a58a967/page-01.webp';
+import bunnyFullBookPage02Asset from '../qa-fixtures/reader/r1d-bunny-bar-full-bedtime-book-9a58a967/page-02.webp';
+import bunnyFullBookPage03Asset from '../qa-fixtures/reader/r1d-bunny-bar-full-bedtime-book-9a58a967/page-03.webp';
+import bunnyFullBookPage04Asset from '../qa-fixtures/reader/r1d-bunny-bar-full-bedtime-book-9a58a967/page-04.webp';
+import bunnyFullBookPage05Asset from '../qa-fixtures/reader/r1d-bunny-bar-full-bedtime-book-9a58a967/page-05.webp';
+import bunnyFullBookPage06Asset from '../qa-fixtures/reader/r1d-bunny-bar-full-bedtime-book-9a58a967/page-06.webp';
+import bunnyFullBookPage07Asset from '../qa-fixtures/reader/r1d-bunny-bar-full-bedtime-book-9a58a967/page-07.webp';
+import bunnyFullBookPage08Asset from '../qa-fixtures/reader/r1d-bunny-bar-full-bedtime-book-9a58a967/page-08.webp';
 
 type ImportedImageAsset = string | { src: string };
 
@@ -34,6 +42,32 @@ function assetUrl(asset: ImportedImageAsset): string {
 }
 
 const TRACKED_QA_READER_FIXTURES: readonly TrackedQaReaderFixture[] = [
+  {
+    id: 'r1d-bunny-bar-full-bedtime-book-reader-qa-9a58a967',
+    label: 'Buni + Bar - full bedtime book - 8 pages',
+    sourceRenderHead: '9a58a967e0b6486af4a7897c67314d8f199cd17d',
+    storyFile: 'bunny_ometz_bedtime.md',
+    companionId: 'bunny_ometz',
+    direction: 'bedtime',
+    childProfile: {
+      name: 'Bar',
+      gender: 'boy',
+    },
+    totalStoryPages: 8,
+    pages: [
+      bunnyFullBookPage01Asset,
+      bunnyFullBookPage02Asset,
+      bunnyFullBookPage03Asset,
+      bunnyFullBookPage04Asset,
+      bunnyFullBookPage05Asset,
+      bunnyFullBookPage06Asset,
+      bunnyFullBookPage07Asset,
+      bunnyFullBookPage08Asset,
+    ].map((asset, index) => ({
+      pageNumber: index + 1,
+      imageUrl: assetUrl(asset),
+    })),
+  },
   {
     id: 'r1d-dini-bar-canonical-anchor-reader-qa-d728849a',
     label: 'Dini + Bar · canonical anchor · pages 1–5',

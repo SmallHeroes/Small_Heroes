@@ -60,15 +60,16 @@ describe('listDevViewerLibrary resilience', () => {
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
     const entries = await listDevViewerLibrary();
-    expect(entries).toHaveLength(4);
+    expect(entries).toHaveLength(5);
     expect(entries.map((e) => e.kind)).toEqual([
+      'audition',
       'audition',
       'audition',
       'audition',
       'order',
     ]);
     expect(entries[0].key).toBe(
-      'audition:tracked:r1d-dini-bar-canonical-anchor-reader-qa-d728849a'
+      'audition:tracked:r1d-bunny-bar-full-bedtime-book-reader-qa-9a58a967'
     );
     expect(entries.find((e) => e.kind === 'order')?.accessKey).toBe('pay_abc');
   });
@@ -79,7 +80,7 @@ describe('listDevViewerLibrary resilience', () => {
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
     const entries = await listDevViewerLibrary();
-    expect(entries).toHaveLength(3);
+    expect(entries).toHaveLength(4);
     expect(entries.every((entry) => entry.kind === 'audition')).toBe(true);
   });
 
@@ -89,7 +90,7 @@ describe('listDevViewerLibrary resilience', () => {
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
     const entries = await listDevViewerLibrary();
-    expect(entries).toHaveLength(3);
+    expect(entries).toHaveLength(4);
     expect(entries.some((entry) => entry.kind === 'order')).toBe(true);
   });
 
@@ -99,8 +100,9 @@ describe('listDevViewerLibrary resilience', () => {
     const { listDevViewerLibrary } = await import('@/lib/dev-viewer-library');
 
     const entries = await listDevViewerLibrary();
-    expect(entries).toHaveLength(2);
+    expect(entries).toHaveLength(3);
     expect(entries.map((entry) => entry.key)).toEqual([
+      'audition:tracked:r1d-bunny-bar-full-bedtime-book-reader-qa-9a58a967',
       'audition:tracked:r1d-dini-bar-canonical-anchor-reader-qa-d728849a',
       'audition:tracked:r1d-bunny-bar-expression-generalization-reader-qa-fe97f823',
     ]);
@@ -135,6 +137,25 @@ describe('tracked QA reader fixture', () => {
       totalStoryPages: 12,
     });
     expect(fixture?.pages.map((page) => page.pageNumber)).toEqual([1, 2, 3, 4, 5]);
+    expect(fixture?.pages.every((page) => page.imageUrl.length > 0)).toBe(true);
+    expect(fixture?.pages.some((page) => /^[A-Za-z]:\\/.test(page.imageUrl))).toBe(false);
+  });
+
+  it('binds the complete Bunny and Bar bedtime book for the QA Reader', async () => {
+    const { trackedQaReaderFixtureForDir } = await import('@/lib/tracked-qa-reader-fixtures');
+    const fixture = trackedQaReaderFixtureForDir(
+      'r1d-bunny-bar-full-bedtime-book-reader-qa-9a58a967'
+    );
+
+    expect(fixture).toMatchObject({
+      sourceRenderHead: '9a58a967e0b6486af4a7897c67314d8f199cd17d',
+      storyFile: 'bunny_ometz_bedtime.md',
+      companionId: 'bunny_ometz',
+      direction: 'bedtime',
+      childProfile: { name: 'Bar', gender: 'boy' },
+      totalStoryPages: 8,
+    });
+    expect(fixture?.pages.map((page) => page.pageNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(fixture?.pages.every((page) => page.imageUrl.length > 0)).toBe(true);
     expect(fixture?.pages.some((page) => /^[A-Za-z]:\\/.test(page.imageUrl))).toBe(false);
   });
