@@ -3,6 +3,8 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  DESKTOP_PAGE_CURL_SLICE_COUNT,
+  desktopPageCurlSlicePoses,
   pageTurnDirectionForIndexChange,
   readerRestartTransition,
 } from '../book-layout/page-turn';
@@ -63,7 +65,7 @@ describe('shared Reader page-turn contract', () => {
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
   });
 
-  it('turns a two-segment paper sheet through 180 degrees while the book frame stays static', () => {
+  it('turns a connected paper mesh through 180 degrees while the book frame stays static', () => {
     const engine = fs.readFileSync(
       path.join(
         process.cwd(),
@@ -93,13 +95,76 @@ describe('shared Reader page-turn contract', () => {
       'utf8',
     );
 
-    expect(engine).toContain('clamped * 180');
-    expect(engine).toContain('styles.physicalTurnSegmentSpine');
-    expect(engine).toContain('styles.physicalTurnSegmentOuter');
+    expect(engine).toContain('DESKTOP_PAGE_CURL_SLICE_COUNT');
+    expect(engine).toContain('desktopPageCurlSlicePoses');
+    expect(engine).toContain('styles.physicalTurnSlice');
+    expect(engine).not.toContain('styles.physicalTurnSegmentSpine');
+    expect(engine).not.toContain('styles.physicalTurnSegmentOuter');
     expect(engine).toContain('styles.physicalTurnFaceBack');
     expect(spread).toContain('{pageTurnOverlay}');
     expect(css).toContain('backface-visibility: hidden');
-    expect(css).toContain('rotateY(var(--physical-turn-deg');
+    expect(css).toContain('rotateY(var(--physical-turn-rotate-y');
+    expect(css).toContain('var(--physical-turn-slice-count)');
+  });
+
+  it('keeps every paper-mesh edge connected throughout the curl', () => {
+    const pageWidth = 480;
+    const sliceWidth = pageWidth / DESKTOP_PAGE_CURL_SLICE_COUNT;
+
+    for (const direction of ['forward', 'backward'] as const) {
+      for (const progress of [0, 0.2, 0.5, 0.8, 1]) {
+        const poses = [...desktopPageCurlSlicePoses(direction, progress, pageWidth)]
+          .sort((left, right) => left.outwardIndex - right.outwardIndex);
+        let previousOuterEdge: { x: number; z: number } | null = null;
+
+        for (const pose of poses) {
+          const radians = Math.abs(pose.rotationYDeg) * Math.PI / 180;
+          const outwardSign = direction === 'forward' ? -1 : 1;
+          const segment = {
+            x: outwardSign * sliceWidth * Math.cos(radians),
+            z: sliceWidth * Math.sin(radians),
+          };
+          const center = {
+            x: (pose.sourceIndex + 0.5) * sliceWidth + pose.translateXPx,
+            z: pose.translateZPx,
+          };
+          const innerEdge = {
+            x: center.x - segment.x / 2,
+            z: center.z - segment.z / 2,
+          };
+          const outerEdge = {
+            x: center.x + segment.x / 2,
+            z: center.z + segment.z / 2,
+          };
+
+          if (previousOuterEdge) {
+            expect(innerEdge.x).toBeCloseTo(previousOuterEdge.x, 8);
+            expect(innerEdge.z).toBeCloseTo(previousOuterEdge.z, 8);
+          }
+          previousOuterEdge = outerEdge;
+        }
+      }
+    }
+  });
+
+  it('is flat at rest and landing but visibly non-rigid mid-turn', () => {
+    for (const direction of ['forward', 'backward'] as const) {
+      const start = desktopPageCurlSlicePoses(direction, 0, 480);
+      const middle = desktopPageCurlSlicePoses(direction, 0.5, 480);
+      const end = desktopPageCurlSlicePoses(direction, 1, 480);
+
+      expect(start).toHaveLength(DESKTOP_PAGE_CURL_SLICE_COUNT);
+      expect(start.every(
+        (pose) => pose.backSourceIndex === DESKTOP_PAGE_CURL_SLICE_COUNT - 1 - pose.sourceIndex,
+      )).toBe(true);
+      expect(start.every((pose) => pose.rotationYDeg === 0)).toBe(true);
+      expect(start.every((pose) => Math.abs(pose.translateZPx) < 1e-10)).toBe(true);
+      expect(new Set(middle.map((pose) => pose.rotationYDeg.toFixed(3))).size).toBeGreaterThan(6);
+      expect(middle.every((pose) => pose.translateZPx > 0)).toBe(true);
+      expect(Math.max(...middle.map((pose) => pose.shadeOpacity))).toBeLessThan(0.07);
+      expect(end.every((pose) => Math.abs(Math.abs(pose.rotationYDeg) - 180) < 1e-10)).toBe(true);
+      expect(end.every((pose) => Math.abs(pose.translateZPx) < 1e-10)).toBe(true);
+    }
   });
 
   it('keeps short mobile prose over the illustration and moves dense prose to paper', () => {

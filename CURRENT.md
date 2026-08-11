@@ -4,6 +4,18 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-reader-premium-site-qa-integration` in `C:\Users\guyna\.codex\worktrees\qaexperience1\Small_Heroes`, combining the Reader milestone at `773f364fddada45eee236a8e4876bb93ae673eef` with Claude's two website commits `4ebf319c` and `b3582646`.
 
+## R1D-READER-FLEXIBLE-PAGE-CURL - locally verified / independent QA pending
+
+Guy identified that the desktop physical page turn still read as a rigid board. Repository inspection confirmed the cause: one 180-degree parent rotation plus one 14-degree outer hinge created only two moving planes. The correction is general across books and changes only the existing desktop physical-sheet renderer.
+
+- The sheet is now a deterministic connected mesh of **12 vertical paper strips**. Every strip receives its own rotation, but its centre is integrated from the preceding strip's outer edge, preserving edge continuity throughout forward and backward turns.
+- A bounded cosine/sine profile produces multiple local angles during the turn and returns every strip to an exactly coplanar state at rest and landing. The book frame, 560ms budget, navigation state, incoming/outgoing content, mobile behavior and reduced-motion skip remain unchanged.
+- Browser verification on the tracked eight-page Bunny/Bar QA book confirmed 12 live strips, both forward and backward completion, no Next error overlay and no console errors. The first visual pass exposed per-strip shadow banding; that was removed before handoff. Final curvature shading is deliberately subtle and no per-strip box shadow remains.
+- Focused validation passes **6 files / 38 tests**, including direct connected-edge geometry, non-rigid mid-turn shape, exact flat endpoints, Reader navigation/narration/storytime, tracked-QA routing and open-book layout. Deterministic TypeScript and `git diff --check` pass.
+- No provider, credential, image/audio generation, storage/database, payment, website/Wizard, Production deployment or push occurred. The existing separate repository/release HOLD remains unchanged. Codex does not self-award independent technical or product PASS.
+
+Durable records: `docs/ai-workflow/R1D_READER_FLEXIBLE_PAGE_CURL_DECISION_GATE.md` and `docs/ai-workflow/R1D_READER_FLEXIBLE_PAGE_CURL_IMPLEMENTATION_EVIDENCE.md`.
+
 ## R1D-READER-PREMIUM-SITE-QA-INTEGRATION - independent technical PASS / product-design HOLD
 
 The production Reader connection and Claude's premium-playful website layer now coexist on one QA integration branch. Their implementation pathsets are disjoint, both cherry-picks applied without conflict, and Production remains unchanged and blocked.

@@ -1,23 +1,22 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
-import { splitIntoSentences, type DesktopSpread } from '@/lib/book-layout';
+import { useLayoutEffect, useRef, type CSSProperties } from 'react';
+import {
+  DESKTOP_PAGE_CURL_SLICE_COUNT,
+  desktopPageCurlSlicePoses,
+  splitIntoSentences,
+  type DesktopSpread,
+} from '@/lib/book-layout';
 import styles from '../reader-v2.module.css';
 import {
   DESKTOP_PHYSICAL_PAGE_TURN_MS,
   type DesktopPhysicalPageTurn as DesktopPhysicalPageTurnState,
 } from './useDesktopPhysicalPageTurn';
 
-const MAX_BEND_DEG = 14;
-const MAX_SAG_DEG = 2.4;
-const MAX_LIFT_PX = 30;
-
 type PaperSide = 'illustration' | 'prose';
 
-function easeInOutCubic(value: number): number {
-  return value < 0.5
-    ? 4 * value * value * value
-    : 1 - Math.pow(-2 * value + 2, 3) / 2;
+function easeInOutSine(value: number): number {
+  return -(Math.cos(Math.PI * value) - 1) / 2;
 }
 
 function PaperPage({ spread, side }: { spread: DesktopSpread; side: PaperSide }) {
@@ -55,56 +54,83 @@ function PaperPage({ spread, side }: { spread: DesktopSpread; side: PaperSide })
   );
 }
 
-function SheetSlices({
+function SheetSlice({
   outgoing,
   incoming,
   frontSide,
   backSide,
-  segment,
+  sourceIndex,
 }: {
   outgoing: DesktopSpread;
   incoming: DesktopSpread;
   frontSide: PaperSide;
   backSide: PaperSide;
-  segment: 'spine' | 'outer';
+  sourceIndex: number;
 }) {
-  const sliceClass = segment === 'spine' ? styles.physicalSliceSpine : styles.physicalSliceOuter;
+  const backSourceIndex = DESKTOP_PAGE_CURL_SLICE_COUNT - 1 - sourceIndex;
+  const sliceStyle = {
+    '--physical-turn-source-index': sourceIndex,
+  } as CSSProperties;
+  const frontWindowStyle = {
+    '--physical-turn-texture-index': sourceIndex,
+  } as CSSProperties;
+  const backWindowStyle = {
+    '--physical-turn-texture-index': backSourceIndex,
+  } as CSSProperties;
+
   return (
-    <>
-      <div className={`${styles.physicalTurnFace} ${styles.physicalTurnFaceFront} ${sliceClass}`}>
-        <div className={styles.physicalSliceWindow}>
+    <div
+      className={styles.physicalTurnSlice}
+      data-physical-turn-slice={sourceIndex}
+      style={sliceStyle}
+    >
+      <div className={`${styles.physicalTurnFace} ${styles.physicalTurnFaceFront}`}>
+        <div className={styles.physicalSliceWindow} style={frontWindowStyle}>
           <PaperPage spread={outgoing} side={frontSide} />
         </div>
         <span className={styles.physicalTurnSheetShade} aria-hidden />
       </div>
-      <div className={`${styles.physicalTurnFace} ${styles.physicalTurnFaceBack} ${sliceClass}`}>
-        <div className={styles.physicalSliceWindow}>
+      <div className={`${styles.physicalTurnFace} ${styles.physicalTurnFaceBack}`}>
+        <div className={styles.physicalSliceWindow} style={backWindowStyle}>
           <PaperPage spread={incoming} side={backSide} />
         </div>
         <span className={styles.physicalTurnSheetShade} aria-hidden />
       </div>
-    </>
+    </div>
   );
 }
 
 function setSheetPose(
   sheet: HTMLDivElement,
+  slices: readonly HTMLDivElement[],
   direction: DesktopPhysicalPageTurnState['direction'],
+  pageWidth: number,
   progress: number,
 ) {
-  const sign = direction === 'forward' ? 1 : -1;
   const clamped = Math.min(1, Math.max(0, progress));
   const arc = Math.sin(clamped * Math.PI);
-  sheet.style.setProperty('--physical-turn-deg', `${(sign * clamped * 180).toFixed(2)}deg`);
-  sheet.style.setProperty('--physical-turn-bend', `${(-sign * arc * MAX_BEND_DEG).toFixed(2)}deg`);
-  sheet.style.setProperty('--physical-turn-sag', `${(-arc * MAX_SAG_DEG).toFixed(2)}deg`);
-  sheet.style.setProperty('--physical-turn-lift', `${(arc * MAX_LIFT_PX).toFixed(1)}px`);
   sheet.style.setProperty('--physical-turn-progress', arc.toFixed(3));
+  sheet.style.setProperty('--physical-turn-y', `${(-arc * 1.5).toFixed(3)}px`);
+  const poses = desktopPageCurlSlicePoses(
+    direction,
+    clamped,
+    pageWidth,
+    DESKTOP_PAGE_CURL_SLICE_COUNT,
+  );
+
+  for (const pose of poses) {
+    const slice = slices[pose.sourceIndex];
+    if (!slice) continue;
+    slice.style.setProperty('--physical-turn-x', `${pose.translateXPx.toFixed(3)}px`);
+    slice.style.setProperty('--physical-turn-z', `${pose.translateZPx.toFixed(3)}px`);
+    slice.style.setProperty('--physical-turn-rotate-y', `${pose.rotationYDeg.toFixed(3)}deg`);
+    slice.style.setProperty('--physical-turn-shade', pose.shadeOpacity.toFixed(3));
+  }
 }
 
 /**
  * The photographed book stays fixed. Only a paper sheet (front + back) moves,
- * using the two-segment bend proven in the original Reader experiment.
+ * using a connected strip mesh whose curvature changes along the sheet.
  */
 export function DesktopPhysicalPageTurn({
   turn,
@@ -118,13 +144,17 @@ export function DesktopPhysicalPageTurn({
   useLayoutEffect(() => {
     const sheet = sheetRef.current;
     if (!sheet) return;
+    const slices = Array.from(
+      sheet.querySelectorAll<HTMLDivElement>('[data-physical-turn-slice]'),
+    );
+    const pageWidth = sheet.getBoundingClientRect().width || sheet.clientWidth || 1;
     let frame = 0;
     const startedAt = performance.now();
-    setSheetPose(sheet, turn.direction, 0);
+    setSheetPose(sheet, slices, turn.direction, pageWidth, 0);
 
     const animate = (now: number) => {
       const elapsed = Math.min(1, (now - startedAt) / DESKTOP_PHYSICAL_PAGE_TURN_MS);
-      setSheetPose(sheet, turn.direction, easeInOutCubic(elapsed));
+      setSheetPose(sheet, slices, turn.direction, pageWidth, easeInOutSine(elapsed));
       if (elapsed < 1) {
         frame = window.requestAnimationFrame(animate);
       } else {
@@ -164,26 +194,20 @@ export function DesktopPhysicalPageTurn({
         className={`${styles.physicalTurnSheet} ${
           isForward ? styles.physicalTurnSheetForward : styles.physicalTurnSheetBackward
         }`}
+        style={{
+          '--physical-turn-slice-count': DESKTOP_PAGE_CURL_SLICE_COUNT,
+        } as CSSProperties}
       >
-        <div className={styles.physicalTurnSegmentSpine}>
-          <SheetSlices
+        {Array.from({ length: DESKTOP_PAGE_CURL_SLICE_COUNT }, (_, sourceIndex) => (
+          <SheetSlice
+            key={sourceIndex}
             outgoing={turn.outgoing}
             incoming={turn.incoming}
             frontSide={frontSide}
             backSide={backSide}
-            segment="spine"
+            sourceIndex={sourceIndex}
           />
-        </div>
-        <div className={styles.physicalTurnSegmentOuter}>
-          <SheetSlices
-            outgoing={turn.outgoing}
-            incoming={turn.incoming}
-            frontSide={frontSide}
-            backSide={backSide}
-            segment="outer"
-          />
-          <span className={styles.physicalTurnCrease} aria-hidden />
-        </div>
+        ))}
       </div>
     </div>
   );
