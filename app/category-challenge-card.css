@@ -39,31 +39,54 @@
   align-items: stretch;
   min-height: 320px;
   padding: 0;
-  border: 1px solid rgba(220, 210, 198, 0.28);
-  border-radius: 18px;
-  background: #fffcf8;
-  box-shadow: 0 4px 18px rgba(92, 75, 138, 0.06);
+  border: 1px solid var(--border-soft, #efecf8);
+  border-radius: 20px;
+  background: var(--surface-raised, #fff);
+  box-shadow: var(--lift-2), var(--rim);
   text-align: right;
   font: inherit;
   color: inherit;
   cursor: default;
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  /* compositor-only; weighted lift on the way up, settle on the way down */
+  transition:
+    transform var(--beat-lift, 280ms) var(--ease-lift, cubic-bezier(0.34, 1.4, 0.5, 1)),
+    box-shadow var(--beat-lift, 280ms) var(--ease-settle, cubic-bezier(0.22, 1, 0.36, 1)),
+    border-color var(--beat-hover, 190ms) ease;
+  will-change: transform;
+}
+
+/* The card is a physical object: it rises toward the parent and casts further. */
+@media (hover: hover) and (pointer: fine) {
+  .mvp-challenge-card:hover:not(:disabled):not(.mvp-challenge-card--parked) {
+    transform: translate3d(0, -8px, 0);
+    box-shadow: var(--lift-4), var(--rim);
+    border-color: var(--border-strong, #d8cdfd);
+  }
+  /* the companion leans out of its frame — the "alive" beat */
+  .mvp-challenge-card:hover:not(:disabled):not(.mvp-challenge-card--parked) .mvp-challenge-card-img {
+    transform: scale(1.16) translateY(0);
+  }
+}
+
+.mvp-challenge-card:active:not(:disabled):not(.mvp-challenge-card--parked) {
+  transform: translate3d(0, -3px, 0) scale(0.995);
+  transition-duration: var(--beat-tap, 110ms);
+}
+
+button.mvp-challenge-card:focus-visible {
+  outline: 3px solid var(--brand-purple, #886cff);
+  outline-offset: 3px;
 }
 
 button.mvp-challenge-card {
   cursor: pointer;
 }
 
-.mvp-challenge-card:hover:not(:disabled) {
-  border-color: rgba(196, 176, 240, 0.55);
-  box-shadow: 0 8px 24px rgba(92, 75, 138, 0.1);
-  transform: translateY(-2px);
-}
-
 .mvp-challenge-card.selected {
-  border-color: rgba(136, 108, 255, 0.65);
-  box-shadow: 0 0 0 3px rgba(136, 108, 255, 0.18);
+  border-color: var(--brand-purple, #886cff);
+  background: #fdfcff;
+  box-shadow: 0 0 0 3px rgba(136, 108, 255, 0.22), var(--lift-hold);
 }
 
 .mvp-challenge-card--parked {
@@ -79,9 +102,11 @@ button.mvp-challenge-card {
   justify-content: center;
   overflow: hidden;
   padding: 0;
-  background: #fdf8ee;
-  border-radius: 17px 17px 0 0;
-  border-bottom: 1px solid rgba(210, 198, 185, 0.35);
+  background:
+    radial-gradient(78% 62% at 50% 96%, rgba(136, 108, 255, 0.10) 0%, transparent 70%),
+    var(--surface-alt, #faf9fc);
+  border-radius: 19px 19px 0 0;
+  border-bottom: 1px solid var(--border-soft, #efecf8);
 }
 
 .mvp-challenge-card-img {
@@ -97,6 +122,7 @@ button.mvp-challenge-card {
      translateY% = bottom-gap knob (pushes art down, wrap clips the empty cream). */
   transform: scale(1.1) translateY(3%);
   transform-origin: center bottom;
+  transition: transform var(--beat-lift, 280ms) var(--ease-lift, cubic-bezier(0.34, 1.4, 0.5, 1));
 }
 
 .mvp-challenge-card-img--placeholder {
@@ -105,7 +131,7 @@ button.mvp-challenge-card {
   height: 100%;
   margin: 0;
   border-radius: 0;
-  background: #fdf8ee;
+  background: var(--surface-alt, #faf9fc);
 }
 
 .mvp-challenge-card-text {
@@ -115,7 +141,7 @@ button.mvp-challenge-card {
   gap: 6px;
   flex: 1 1 auto;
   min-height: 0;
-  background: #fffcf8;
+  background: var(--surface-raised, #fff);
 }
 
 .mvp-challenge-card-label {
@@ -173,4 +199,33 @@ button.mvp-challenge-card {
   .mvp-challenge-grid .mvp-challenge-card-label {
     font-size: 20px;
   }
+}
+
+
+/* Honour reduced motion: keep every state, remove the travel. */
+@media (prefers-reduced-motion: reduce) {
+  .mvp-challenge-card,
+  .mvp-challenge-card-img {
+    transition-duration: 0.01ms !important;
+  }
+  .mvp-challenge-card:hover:not(:disabled):not(.mvp-challenge-card--parked) {
+    transform: none;
+    box-shadow: var(--lift-3), var(--rim-purple);
+  }
+  .mvp-challenge-card:hover:not(:disabled):not(.mvp-challenge-card--parked) .mvp-challenge-card-img {
+    transform: scale(1.1) translateY(3%);
+  }
+}
+
+
+/* ── Companion art: melt the plate, keep the character ──────────────
+   The Categories/*.webp are opaque renders with a warm paper plate baked in
+   (no alpha), and one companion (the bunny) is itself near-white — a chroma
+   cut would eat the character. Instead the art's own edges are feathered so
+   the plate reads as a soft halo inside the lavender well rather than a hard
+   cream rectangle. Mask is a gradient, so it costs nothing and never clips
+   the figure, which sits centre-bottom. */
+.mvp-challenge-card-img {
+  -webkit-mask-image: radial-gradient(118% 92% at 50% 88%, #000 52%, rgba(0, 0, 0, 0.55) 74%, transparent 97%);
+  mask-image: radial-gradient(118% 92% at 50% 88%, #000 52%, rgba(0, 0, 0, 0.55) 74%, transparent 97%);
 }

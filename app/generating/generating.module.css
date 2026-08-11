@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px 16px 40px;
-  background: linear-gradient(165deg, #fffcf1 0%, #f7f2ff 38%, #eef6fa 100%);
+  background: linear-gradient(165deg, var(--surface-page, #fff) 0%, #f7f2ff 38%, #eef6fa 100%);
 }
 
 .errorWrap {

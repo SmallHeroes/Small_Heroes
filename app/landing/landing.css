@@ -193,7 +193,7 @@
   font-weight: 600;
   line-height: 1.45;
   margin-bottom: 14px;
-  box-shadow: 0 2px 12px rgba(255, 209, 102, 0.35);
+  box-shadow: var(--lift-1);
 }
 
 .hero-h1 {
@@ -269,10 +269,12 @@
   top: 62%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
+  /* Staged key light, not a yellow blob: a cool purple pool that reads as a
+     spotlight on a shelf. (Pale-yellow washes are out of the palette.) */
   background: radial-gradient(
     circle,
-    rgba(255, 238, 108, 0.78) 0%,
-    rgba(136, 108, 255, 0.22) 46%,
+    rgba(136, 108, 255, 0.34) 0%,
+    rgba(136, 108, 255, 0.14) 46%,
     rgba(255, 255, 255, 0) 72%
   );
   filter: blur(36px);
@@ -1817,7 +1819,54 @@
 
 /* ── פס ההשקה: מהצהוב־לימון אל משפחת הקרם (מתחבר לסקשן עלינו) ── */
 .early-stage-band {
-  background: #fdf6e2;
+  background: var(--surface-sunken, #f1eff9);
   border-top: 1px solid #f4e8c8;
   border-bottom: 1px solid #f4e8c8;
+}
+
+
+/* ── 2027 hero staging ──────────────────────────────────────────────
+   The illustration is a held object on a lit surface: key light above,
+   contact shadow below. Depth comes from the shadow pair, not from scale. */
+.hero-img {
+  filter: drop-shadow(0 18px 28px rgba(38, 26, 74, 0.18));
+}
+
+.hero-img-wrap::after {
+  content: '';
+  position: absolute;
+  inset-inline: 12%;
+  bottom: 2%;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(50% 100% at 50% 50%, rgba(38, 26, 74, 0.22), transparent 72%);
+  filter: blur(9px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Primary CTA reads as the one lit object on the page. */
+.hero-btns .btn-primary {
+  box-shadow: var(--lift-3);
+  transition:
+    transform var(--beat-lift, 280ms) var(--ease-lift, cubic-bezier(0.34, 1.4, 0.5, 1)),
+    box-shadow var(--beat-lift, 280ms) var(--ease-settle, cubic-bezier(0.22, 1, 0.36, 1)),
+    background var(--beat-hover, 190ms) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hero-btns .btn-primary:hover {
+    transform: translate3d(0, -3px, 0);
+    box-shadow: var(--lift-4);
+  }
+}
+
+.hero-btns .btn-primary:active {
+  transform: translate3d(0, -1px, 0) scale(0.99);
+  transition-duration: var(--beat-tap, 110ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-btns .btn-primary { transition-duration: 0.01ms !important; }
+  .hero-btns .btn-primary:hover { transform: none; box-shadow: var(--lift-3); }
 }
