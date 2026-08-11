@@ -1,5 +1,7 @@
 'use client';
 
+import type { ReactNode } from 'react';
+
 import type { DesktopSpread } from '@/lib/book-layout';
 import {
   getDirectionTemplate,
@@ -18,6 +20,7 @@ import { StickerSlots } from './StickerSlots';
 type Props = {
   spread: DesktopSpread;
   isCurrent: boolean;
+  pageTurnOverlay?: ReactNode;
 };
 
 /**
@@ -25,7 +28,7 @@ type Props = {
  * Top decorative layer: MaskOnBook.png torn-paper frame.
  * Motifs disabled for composite revision; direction templates kept for typography/colors.
  */
-export function DesktopBookSpread({ spread, isCurrent }: Props) {
+export function DesktopBookSpread({ spread, isCurrent, pageTurnOverlay }: Props) {
   const template = getDirectionTemplate(spread.direction);
   const cssVars = { ...tokensToCssVars(), ...templateCssVars(template), ...openBookLayoutCssVars() };
   const lines = splitTextByRhythm(spread.text);
@@ -76,6 +79,7 @@ export function DesktopBookSpread({ spread, isCurrent }: Props) {
           aria-hidden
           draggable={false}
         />
+        {pageTurnOverlay}
       </article>
     );
   }
@@ -136,6 +140,7 @@ export function DesktopBookSpread({ spread, isCurrent }: Props) {
         aria-hidden
         draggable={false}
       />
+      {pageTurnOverlay}
     </article>
   );
 }

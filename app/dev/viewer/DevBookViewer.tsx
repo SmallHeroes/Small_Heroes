@@ -12,7 +12,9 @@ import {
   type StoryDirection,
 } from '@/lib/book-layout';
 import { DesktopBookSpread } from '@/app/book/[id]/read-v2/components/DesktopBookSpread';
+import { DesktopPhysicalPageTurn } from '@/app/book/[id]/read-v2/components/DesktopPhysicalPageTurn';
 import { MobileBookPage } from '@/app/book/[id]/read-v2/components/MobileBookPage';
+import { useDesktopPhysicalPageTurn } from '@/app/book/[id]/read-v2/components/useDesktopPhysicalPageTurn';
 import styles from '@/app/book/[id]/read-v2/reader-v2.module.css';
 
 type LibraryEntry = {
@@ -65,6 +67,12 @@ export function DevBookViewer({
   const [pageTurnDirection, setPageTurnDirection] = useState<PageTurnDirection>('initial');
   const [scenes, setScenes] = useState<ReturnType<typeof adaptLegacyBookToStoryScenes>>([]);
   const [previewPages, setPreviewPages] = useState<PreviewPage[]>([]);
+  const {
+    turn: physicalPageTurn,
+    start: startPhysicalPageTurn,
+    complete: completePhysicalPageTurn,
+    cancel: cancelPhysicalPageTurn,
+  } = useDesktopPhysicalPageTurn();
 
   const currentScene = scenes[sceneIndex] ?? null;
   const currentPreviewPage = previewPages[sceneIndex];
@@ -133,12 +141,13 @@ export function DevBookViewer({
       setSceneIndex(0);
       setTransitionKey(0);
       setPageTurnDirection('initial');
+      cancelPhysicalPageTurn();
       setStatus('ready');
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Load failed');
       setStatus('error');
     }
-  }, []);
+  }, [cancelPhysicalPageTurn]);
 
   const resolveInitialEntry = useCallback(
     (entries: LibraryEntry[]): LibraryEntry | null => {
@@ -200,20 +209,31 @@ export function DevBookViewer({
     loadEntry(entry).catch(() => undefined);
   };
 
-  const goPrev = () => {
-    if (sceneIndex <= 0) return;
-    const nextIndex = sceneIndex - 1;
-    setPageTurnDirection(pageTurnDirectionForIndexChange(sceneIndex, nextIndex));
+  const navigateTo = (nextIndex: number) => {
+    const direction = pageTurnDirectionForIndexChange(sceneIndex, nextIndex);
+    const outgoingScene = scenes[sceneIndex];
+    const incomingScene = scenes[nextIndex];
+    if (direction !== 'initial' && outgoingScene?.kind === 'story' && incomingScene?.kind === 'story') {
+      const outcome = startPhysicalPageTurn({
+        direction,
+        outgoing: storySceneToDesktopSpread(outgoingScene, bookTitle),
+        incoming: storySceneToDesktopSpread(incomingScene, bookTitle),
+      });
+      if (outcome === 'blocked') return;
+    }
+    setPageTurnDirection(direction);
     setSceneIndex(nextIndex);
     setTransitionKey((k) => k + 1);
   };
 
+  const goPrev = () => {
+    if (sceneIndex <= 0) return;
+    navigateTo(sceneIndex - 1);
+  };
+
   const goNext = () => {
     if (sceneIndex >= scenes.length - 1) return;
-    const nextIndex = sceneIndex + 1;
-    setPageTurnDirection(pageTurnDirectionForIndexChange(sceneIndex, nextIndex));
-    setSceneIndex(nextIndex);
-    setTransitionKey((k) => k + 1);
+    navigateTo(sceneIndex + 1);
   };
 
   const isFirst = sceneIndex === 0;
@@ -256,10 +276,18 @@ export function DevBookViewer({
         <span style={{ color: '#64748b' }}>
           ‹ עמוד {sceneIndex + 1} / {scenes.length || 0} ›
         </span>
-        <button type="button" onClick={goPrev} disabled={isFirst || status !== 'ready'}>
+        <button
+          type="button"
+          onClick={goPrev}
+          disabled={isFirst || status !== 'ready' || Boolean(physicalPageTurn)}
+        >
           ‹
         </button>
-        <button type="button" onClick={goNext} disabled={isLast || status !== 'ready'}>
+        <button
+          type="button"
+          onClick={goNext}
+          disabled={isLast || status !== 'ready' || Boolean(physicalPageTurn)}
+        >
           ›
         </button>
         {currentPreviewPage?.audioUrl ? (
@@ -308,13 +336,16 @@ export function DevBookViewer({
                 <div
                   key={transitionKey}
                   className={`${styles.sceneTransition} ${
-                    pageTurnDirection === 'forward'
+                    physicalPageTurn
+                      ? ''
+                      : pageTurnDirection === 'forward'
                       ? styles.sceneTurnForward
                       : pageTurnDirection === 'backward'
                         ? styles.sceneTurnBackward
                         : ''
                   }`}
                   data-page-turn-direction={pageTurnDirection}
+                  data-page-turn-mode={physicalPageTurn ? 'physical-sheet' : 'scene-fallback'}
                 >
                   {isPlaceholder ? (
                     <div
@@ -358,7 +389,20 @@ export function DevBookViewer({
                   ) : (
                     <>
                       <div className={styles.desktopOnly}>
-                        {desktopSpread ? <DesktopBookSpread spread={desktopSpread} isCurrent /> : null}
+                        {desktopSpread ? (
+                          <DesktopBookSpread
+                            spread={desktopSpread}
+                            isCurrent
+                            pageTurnOverlay={
+                              physicalPageTurn ? (
+                                <DesktopPhysicalPageTurn
+                                  turn={physicalPageTurn}
+                                  onComplete={completePhysicalPageTurn}
+                                />
+                              ) : null
+                            }
+                          />
+                        ) : null}
                       </div>
                       <div className={styles.mobileOnly}>
                         {mobilePage ? <MobileBookPage page={mobilePage} isCurrent /> : null}

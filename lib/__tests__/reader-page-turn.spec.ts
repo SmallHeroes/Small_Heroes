@@ -32,6 +32,8 @@ describe('shared Reader page-turn contract', () => {
     );
     for (const source of [qa, reader]) {
       expect(source).toContain('data-page-turn-direction={pageTurnDirection}');
+      expect(source).toContain("data-page-turn-mode={physicalPageTurn ? 'physical-sheet' : 'scene-fallback'}");
+      expect(source).toContain('<DesktopPhysicalPageTurn');
       expect(source).toContain('styles.sceneTurnForward');
       expect(source).toContain('styles.sceneTurnBackward');
     }
@@ -46,5 +48,44 @@ describe('shared Reader page-turn contract', () => {
     expect(css).toContain('@keyframes readerPageTurnForward');
     expect(css).toContain('@keyframes readerPageTurnBackward');
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+  });
+
+  it('turns a two-segment paper sheet through 180 degrees while the book frame stays static', () => {
+    const engine = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'app',
+        'book',
+        '[id]',
+        'read-v2',
+        'components',
+        'DesktopPhysicalPageTurn.tsx',
+      ),
+      'utf8',
+    );
+    const spread = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'app',
+        'book',
+        '[id]',
+        'read-v2',
+        'components',
+        'DesktopBookSpread.tsx',
+      ),
+      'utf8',
+    );
+    const css = fs.readFileSync(
+      path.join(process.cwd(), 'app', 'book', '[id]', 'read-v2', 'reader-v2.module.css'),
+      'utf8',
+    );
+
+    expect(engine).toContain('clamped * 180');
+    expect(engine).toContain('styles.physicalTurnSegmentSpine');
+    expect(engine).toContain('styles.physicalTurnSegmentOuter');
+    expect(engine).toContain('styles.physicalTurnFaceBack');
+    expect(spread).toContain('{pageTurnOverlay}');
+    expect(css).toContain('backface-visibility: hidden');
+    expect(css).toContain('rotateY(var(--physical-turn-deg');
   });
 });

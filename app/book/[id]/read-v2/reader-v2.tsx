@@ -16,7 +16,9 @@ import {
 } from '@/lib/book-layout';
 import { useAdjacentImagePreload } from './useAdjacentImagePreload';
 import { DesktopBookSpread } from './components/DesktopBookSpread';
+import { DesktopPhysicalPageTurn } from './components/DesktopPhysicalPageTurn';
 import { MobileBookPage } from './components/MobileBookPage';
+import { useDesktopPhysicalPageTurn } from './components/useDesktopPhysicalPageTurn';
 import { PowerCardEndScreen } from './components/PowerCardEndScreen';
 import {
   readerNavForward,
@@ -131,6 +133,12 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   /** Browser autoplay policy — one user gesture unlocks hands-free narration for the session. */
   const [handsFreeUnlocked, setHandsFreeUnlocked] = useState(false);
   const handsFreeUnlockedRef = useRef(false);
+  const {
+    turn: physicalPageTurn,
+    start: startPhysicalPageTurn,
+    complete: completePhysicalPageTurn,
+    cancel: cancelPhysicalPageTurn,
+  } = useDesktopPhysicalPageTurn();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoPlayTimerRef = useRef<number | null>(null);
@@ -244,6 +252,20 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     [currentScene, bookTitle]
   );
 
+  const requestPhysicalPageTurn = useCallback(
+    (fromIndex: number, toIndex: number, direction: Exclude<PageTurnDirection, 'initial'>) => {
+      const outgoingScene = storyScenes[fromIndex];
+      const incomingScene = storyScenes[toIndex];
+      if (outgoingScene?.kind !== 'story' || incomingScene?.kind !== 'story') return 'skipped' as const;
+      return startPhysicalPageTurn({
+        direction,
+        outgoing: storySceneToDesktopSpread(outgoingScene, bookTitle),
+        incoming: storySceneToDesktopSpread(incomingScene, bookTitle),
+      });
+    },
+    [bookTitle, startPhysicalPageTurn, storyScenes],
+  );
+
   useEffect(() => {
     if (!resolvedAccessKey) {
       setErrorMessage('נדרש קישור גישה מלא כדי לפתוח את הספר. חזרו לעמוד ההזמנה ונסו שוב.');
@@ -298,6 +320,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
         setCurrentSceneIndex(0);
         setTransitionKey(0);
         setPageTurnDirection('initial');
+        cancelPhysicalPageTurn();
         setFallbackBookAudioUrl(
           typeof data.book?.audioUrl === 'string' && data.book.audioUrl.trim()
             ? data.book.audioUrl.trim()
@@ -316,7 +339,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
       setErrorMessage('נכשלה טעינת הספר. נסו שוב בעוד רגע.');
       setStatus('error');
     });
-  }, [bookId, resolvedAccessKey, devLayoutFlags]);
+  }, [bookId, resolvedAccessKey, devLayoutFlags, cancelPhysicalPageTurn]);
 
   useEffect(() => () => {
     stopNarration();
@@ -345,10 +368,18 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     if (currentSceneIndex >= storyScenes.length - 1) return;
     setShowEndScreen(false);
     setShowPowerCardScreen(false);
+    const nextIndex = Math.min(currentSceneIndex + 1, storyScenes.length - 1);
+    if (requestPhysicalPageTurn(currentSceneIndex, nextIndex, 'forward') === 'blocked') return;
     setPageTurnDirection('forward');
     bumpTransition();
-    setCurrentSceneIndex((prev) => Math.min(prev + 1, storyScenes.length - 1));
-  }, [bumpTransition, currentSceneIndex, stopNarration, storyScenes.length]);
+    setCurrentSceneIndex(nextIndex);
+  }, [
+    bumpTransition,
+    currentSceneIndex,
+    requestPhysicalPageTurn,
+    stopNarration,
+    storyScenes.length,
+  ]);
 
   advancePageAutoRef.current = advancePageAuto;
 
@@ -367,16 +398,21 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   const applyNav = useCallback(
     (next: ReaderNavState) => {
       if (next.index !== currentSceneIndex) {
-        setPageTurnDirection(
-          pageTurnDirectionForIndexChange(currentSceneIndex, next.index),
-        );
+        const direction = pageTurnDirectionForIndexChange(currentSceneIndex, next.index);
+        if (
+          direction !== 'initial' &&
+          requestPhysicalPageTurn(currentSceneIndex, next.index, direction) === 'blocked'
+        ) {
+          return;
+        }
+        setPageTurnDirection(direction);
         bumpTransition();
         setCurrentSceneIndex(next.index);
       }
       setShowPowerCardScreen(next.powerCard);
       setShowEndScreen(next.end);
     },
-    [bumpTransition, currentSceneIndex]
+    [bumpTransition, currentSceneIndex, requestPhysicalPageTurn]
   );
 
   const nextManual = useCallback(() => {
@@ -770,7 +806,18 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
       <>
         <div className={styles.desktopOnly}>
           {desktopSpread ? (
-            <DesktopBookSpread spread={desktopSpread} isCurrent />
+            <DesktopBookSpread
+              spread={desktopSpread}
+              isCurrent
+              pageTurnOverlay={
+                physicalPageTurn ? (
+                  <DesktopPhysicalPageTurn
+                    turn={physicalPageTurn}
+                    onComplete={completePhysicalPageTurn}
+                  />
+                ) : null
+              }
+            />
           ) : null}
         </div>
         <div className={styles.mobileOnly}>
@@ -839,6 +886,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
                   type="button"
                   className={`${styles.spreadNavBtn} ${styles.spreadNavForward}`}
                   onClick={nextManual}
+                  disabled={Boolean(physicalPageTurn)}
                   aria-label={isLastPage ? 'סיום הספר' : 'עמוד הבא'}
                 >
                   ‹
@@ -846,13 +894,16 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
                 <div
                   key={transitionKey}
                   className={`${styles.sceneTransition} ${
-                    pageTurnDirection === 'forward'
+                    physicalPageTurn
+                      ? ''
+                      : pageTurnDirection === 'forward'
                       ? styles.sceneTurnForward
                       : pageTurnDirection === 'backward'
                         ? styles.sceneTurnBackward
                         : ''
                   }`}
                   data-page-turn-direction={pageTurnDirection}
+                  data-page-turn-mode={physicalPageTurn ? 'physical-sheet' : 'scene-fallback'}
                 >
                 {currentScene.kind === 'cover' ? (
                   <article className={`${styles.pageCanvas} ${styles.tplCover}`}>
@@ -886,7 +937,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
                   type="button"
                   className={`${styles.spreadNavBtn} ${styles.spreadNavBack}`}
                   onClick={prevManual}
-                  disabled={isFirstPage}
+                  disabled={isFirstPage || Boolean(physicalPageTurn)}
                   aria-label="עמוד קודם"
                 >
                   ›
@@ -905,7 +956,15 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
                 </>
               ) : null}
             </p>
-            <button type="button" className={styles.controlBtn} onClick={prevManual} disabled={isFirstPage && !showEndScreen && !showPowerCardScreen}>
+            <button
+              type="button"
+              className={styles.controlBtn}
+              onClick={prevManual}
+              disabled={
+                (isFirstPage && !showEndScreen && !showPowerCardScreen) ||
+                Boolean(physicalPageTurn)
+              }
+            >
               הקודם
             </button>
             {showAudioButton ? (
@@ -920,7 +979,12 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
                 )}
               </button>
             ) : null}
-            <button type="button" className={styles.controlBtn} onClick={nextManual}>
+            <button
+              type="button"
+              className={styles.controlBtn}
+              onClick={nextManual}
+              disabled={Boolean(physicalPageTurn)}
+            >
               {isLastPage ? 'סיום' : 'הבא'}
             </button>
           </div>
@@ -993,6 +1057,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
               clearAutoAdvanceTimer();
               setCurrentSceneIndex(restart.sceneIndex);
               setPageTurnDirection(restart.pageTurnDirection);
+              cancelPhysicalPageTurn();
               setShowEndScreen(false);
             }}
           >
