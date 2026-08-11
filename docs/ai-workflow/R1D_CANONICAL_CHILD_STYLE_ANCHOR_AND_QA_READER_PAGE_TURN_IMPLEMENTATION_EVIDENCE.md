@@ -1,6 +1,6 @@
 # R1D — Canonical Child Style Anchor and QA Reader Page Turn — Implementation Evidence
 
-Status: local implementation and bounded LOW proof complete; first independent Claude Code review returned HOLD and the focused QA correction is locally green pending a read-only micro re-gate. Product, production and release acceptance are not claimed.
+Status: local implementation and bounded LOW proof complete; independent Claude Code technical QA closed after one focused correction. Product, production and release acceptance are not claimed.
 
 ## Repository authority
 
@@ -194,4 +194,19 @@ Advisory limitations retained from Claude's first pass:
 - The local measurement runner retains machine-bound defaults outside the Dini/Bar child-anchor branch.
 - Claude did not rerun `npm run check` or the browser verification; the six fixture failures remain an unwaived release HOLD and visual product acceptance remains Guy's.
 
-The correction does not grant a new render, provider, product, QA deployment, production or release authority. Claude Code must independently close MAJOR-1, MINOR-1 and MINOR-2 on the exact correction range.
+At correction handoff, this work granted no new render, provider, product, QA deployment, production or release authority and still required Claude Code to close MAJOR-1, MINOR-1 and MINOR-2 on the exact correction range. The subsequent independent closure is recorded below.
+
+## Independent micro re-gate closure
+
+Claude Code independently reviewed exact correction range `1eab57eded2b30983a079b02e813460d1bf735ee..07cd2f534143b5a1941623fcf1809342af8e3817` and returned **PASS**. MAJOR-1, MINOR-1 and MINOR-2 are closed with zero new BLOCKER, MAJOR or MINOR.
+
+It independently confirmed:
+
+- Stage-0, the shared generic-template rule and the Vision classifier now converge on the same refined semi-naturalistic, recognizably human, visibly hand-painted Style 01 target.
+- The unchanged `ok = style01Match && !looksPhotoreal && !looksPortrait` and `ANCHOR_QA_BLOCK` throw preserve the hard production gate.
+- `readerRestartTransition()` resets both scene and direction to `initial` without incrementing the transition key or replaying animation.
+- Both generic child-template generators consume `STYLE_01_CHILD_TEMPLATE_STYLE_RULE` and no child path retains `cute simplified`.
+- No model, budget, retry/fallback, Blueprint, candidate, page-semantics, output-artifact or resemblance-threshold drift occurred.
+- The exact focused set reproduced at **4 files / 33 tests PASS**; TypeScript and `git diff --check` passed.
+
+Claude retained advisory limitations only: the three textual style authorities are test-pinned rather than compile-time unified; CGI is implicit in the classifier criteria; style Vision QA's pre-existing missing-key/HTTP/exception behavior remains fail-open; no real Vision call exercised the corrected classifier; the Reader test does not mount React; and the local path/full-check/six-fixture limitations remain separate. These advisories grant no render, provider, production, deployment or release authority and do not reopen the three closed findings.
