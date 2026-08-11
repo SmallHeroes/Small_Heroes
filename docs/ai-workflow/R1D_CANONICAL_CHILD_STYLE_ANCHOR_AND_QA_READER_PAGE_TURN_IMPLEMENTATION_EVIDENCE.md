@@ -257,3 +257,14 @@ Remote proof:
 - The `openBookFrame` rectangle remained exactly `x=309.7109375, y=155.078125, width=1285.5859375, height=787.015625` before and during the sampled backward turn, and the same exact before/mid equality held forward. The sheet count returned to zero after landing and the visible reader advanced to page 2/5.
 
 The correction changed no image, story, prompt, model, provider, storage/database, approval, publication or production setting. It spent no provider/image budget. The Preview remains Vercel-login protected and Production remains blocked.
+
+## Physical-sheet-only follow-up
+
+Guy's remote product review found that the old composite tilt/fade remained wired as a fallback around the new paper-sheet engine. Keeping both made a single navigation appear to have two different motion languages. The follow-up removes the composite animation rather than masking it:
+
+- production Reader and QA Viewer always use `sceneTransition` as a static content wrapper;
+- standard desktop story spreads retain `DesktopPhysicalPageTurn` as the sole animation;
+- unsupported cover, dedication, wide, text-only, mobile and reduced-motion paths report `data-page-turn-mode=instant` and perform no substitute motion;
+- the obsolete scene classes, pseudo-element shadow and all three whole-book keyframes are deleted.
+
+Focused validation passed **2 files / 10 tests**, including a negative regression that rejects reintroduction of the old class/keyframe names. `git diff --check` and a deterministic Reader-scoped TypeScript compile passed. The root TypeScript command remains blocked by the pre-existing Next route export error for `app/api/generate/route.ts: triggerGeneration`, outside this Reader range. No image/provider call, credential access, storage/database action or production change occurred.

@@ -335,17 +335,9 @@ export function DevBookViewer({
               <div className={styles.bookSpreadWrap}>
                 <div
                   key={transitionKey}
-                  className={`${styles.sceneTransition} ${
-                    physicalPageTurn
-                      ? ''
-                      : pageTurnDirection === 'forward'
-                      ? styles.sceneTurnForward
-                      : pageTurnDirection === 'backward'
-                        ? styles.sceneTurnBackward
-                        : ''
-                  }`}
+                  className={styles.sceneTransition}
                   data-page-turn-direction={pageTurnDirection}
-                  data-page-turn-mode={physicalPageTurn ? 'physical-sheet' : 'scene-fallback'}
+                  data-page-turn-mode={physicalPageTurn ? 'physical-sheet' : 'instant'}
                 >
                   {isPlaceholder ? (
                     <div

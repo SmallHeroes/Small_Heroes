@@ -893,17 +893,9 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
                 </button>
                 <div
                   key={transitionKey}
-                  className={`${styles.sceneTransition} ${
-                    physicalPageTurn
-                      ? ''
-                      : pageTurnDirection === 'forward'
-                      ? styles.sceneTurnForward
-                      : pageTurnDirection === 'backward'
-                        ? styles.sceneTurnBackward
-                        : ''
-                  }`}
+                  className={styles.sceneTransition}
                   data-page-turn-direction={pageTurnDirection}
-                  data-page-turn-mode={physicalPageTurn ? 'physical-sheet' : 'scene-fallback'}
+                  data-page-turn-mode={physicalPageTurn ? 'physical-sheet' : 'instant'}
                 >
                 {currentScene.kind === 'cover' ? (
                   <article className={`${styles.pageCanvas} ${styles.tplCover}`}>

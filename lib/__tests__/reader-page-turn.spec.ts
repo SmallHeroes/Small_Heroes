@@ -32,21 +32,24 @@ describe('shared Reader page-turn contract', () => {
     );
     for (const source of [qa, reader]) {
       expect(source).toContain('data-page-turn-direction={pageTurnDirection}');
-      expect(source).toContain("data-page-turn-mode={physicalPageTurn ? 'physical-sheet' : 'scene-fallback'}");
+      expect(source).toContain("data-page-turn-mode={physicalPageTurn ? 'physical-sheet' : 'instant'}");
       expect(source).toContain('<DesktopPhysicalPageTurn');
-      expect(source).toContain('styles.sceneTurnForward');
-      expect(source).toContain('styles.sceneTurnBackward');
+      expect(source).not.toContain('styles.sceneTurnForward');
+      expect(source).not.toContain('styles.sceneTurnBackward');
     }
     expect(reader).toContain('setPageTurnDirection(restart.pageTurnDirection)');
   });
 
-  it('provides motion reduction and two distinct directional animations', () => {
+  it('keeps the old whole-book tilt/fade animation removed', () => {
     const css = fs.readFileSync(
       path.join(process.cwd(), 'app', 'book', '[id]', 'read-v2', 'reader-v2.module.css'),
       'utf8',
     );
-    expect(css).toContain('@keyframes readerPageTurnForward');
-    expect(css).toContain('@keyframes readerPageTurnBackward');
+    expect(css).not.toContain('@keyframes readerPageTurnForward');
+    expect(css).not.toContain('@keyframes readerPageTurnBackward');
+    expect(css).not.toContain('@keyframes readerPageTurnShadow');
+    expect(css).not.toContain('.sceneTurnForward');
+    expect(css).not.toContain('.sceneTurnBackward');
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
   });
 

@@ -1215,81 +1215,6 @@
 .sceneTransition {
   position: relative;
   width: 100%;
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-  will-change: transform, opacity, filter;
-}
-
-.sceneTransition::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  pointer-events: none;
-  opacity: 0;
-  border-radius: inherit;
-}
-
-.sceneTurnForward {
-  transform-origin: 100% 50%;
-  animation: readerPageTurnForward 520ms cubic-bezier(0.2, 0.74, 0.2, 1) both;
-}
-
-.sceneTurnForward::after {
-  background: linear-gradient(90deg, rgba(27, 20, 15, 0.24), transparent 28%);
-  animation: readerPageTurnShadow 520ms ease-out both;
-}
-
-.sceneTurnBackward {
-  transform-origin: 0% 50%;
-  animation: readerPageTurnBackward 520ms cubic-bezier(0.2, 0.74, 0.2, 1) both;
-}
-
-.sceneTurnBackward::after {
-  background: linear-gradient(270deg, rgba(27, 20, 15, 0.24), transparent 28%);
-  animation: readerPageTurnShadow 520ms ease-out both;
-}
-
-@keyframes readerPageTurnForward {
-  0% {
-    opacity: 0.58;
-    transform: perspective(1800px) translateX(5%) rotateY(-8deg) scale(0.99);
-    filter: brightness(0.88);
-  }
-  62% {
-    opacity: 1;
-    transform: perspective(1800px) translateX(-0.7%) rotateY(1.2deg) scale(1);
-    filter: brightness(1.02);
-  }
-  100% {
-    opacity: 1;
-    transform: perspective(1800px) translateX(0) rotateY(0) scale(1);
-    filter: brightness(1);
-  }
-}
-
-@keyframes readerPageTurnBackward {
-  0% {
-    opacity: 0.58;
-    transform: perspective(1800px) translateX(-5%) rotateY(8deg) scale(0.99);
-    filter: brightness(0.88);
-  }
-  62% {
-    opacity: 1;
-    transform: perspective(1800px) translateX(0.7%) rotateY(-1.2deg) scale(1);
-    filter: brightness(1.02);
-  }
-  100% {
-    opacity: 1;
-    transform: perspective(1800px) translateX(0) rotateY(0) scale(1);
-    filter: brightness(1);
-  }
-}
-
-@keyframes readerPageTurnShadow {
-  0% { opacity: 0.72; }
-  58% { opacity: 0.14; }
-  100% { opacity: 0; }
 }
 
 /* Physical desktop page turn -------------------------------------------------
@@ -1558,13 +1483,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sceneTurnForward,
-  .sceneTurnBackward,
-  .sceneTurnForward::after,
-  .sceneTurnBackward::after {
-    animation: none !important;
-  }
-
   .physicalTurnOverlay {
     display: none;
   }
