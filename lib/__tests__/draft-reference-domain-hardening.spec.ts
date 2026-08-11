@@ -5,6 +5,7 @@ import {
   TemplateRepairExhaustedError,
   compileBookVisualContractTemplate,
   compilerOwnedActionCheckId,
+  isDraftDiagnosticNormalizationRejection,
   pageSpatialReferenceIssuesAreRepairable,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
@@ -250,6 +251,28 @@ function nodes(draft: Record<string, unknown>) {
 }
 
 describe('captured reference-domain matrix', () => {
+  it('keeps the repairable diagnostic-normalization boundary closed to two internal identities', () => {
+    expect(
+      isDraftDiagnosticNormalizationRejection(
+        new Error('draft validation diagnostic contract invalid'),
+      ),
+    ).toBe(true);
+    expect(
+      isDraftDiagnosticNormalizationRejection(
+        new Error('draft authority/reference diagnostic contract invalid'),
+      ),
+    ).toBe(true);
+    expect(
+      isDraftDiagnosticNormalizationRejection(
+        new Error('unexpected local programming error'),
+      ),
+    ).toBe(false);
+    expect(
+      isDraftDiagnosticNormalizationRejection(
+        'draft validation diagnostic contract invalid',
+      ),
+    ).toBe(false);
+  });
   it('routes an untrusted non-positive page identity through deterministic draft repair instead of a local crash', async () => {
     const invalid = matrixDraft();
     pageRecord(invalid).pageNumber = 0;

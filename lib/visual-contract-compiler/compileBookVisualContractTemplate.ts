@@ -308,11 +308,6 @@ export class DraftAuthorityReferenceDomainError extends Error {
     try {
       this.issues = normalizeDraftAuthorityReferenceIssues(issues);
     } catch {
-      // Provider-authored page identities and other structural coordinates are
-      // untrusted until the draft validator accepts them. A malformed
-      // coordinate must enter the bounded draft-repair route; allowing the
-      // diagnostic normalizer itself to escape as a generic Error loses the
-      // repair opportunity and collapses the receipt to unexpected_local_error.
       throw new InvalidTemplateContractError(
         [
           'draft authority/reference issue has an invalid structural locator and requires deterministic draft repair',
@@ -333,6 +328,24 @@ export class DraftAuthorityReferenceDomainError extends Error {
       ? structuredClone(pageSpatialRepairAuthority)
       : undefined;
   }
+}
+
+/**
+ * Diagnostic identities are derived from provider-authored structural
+ * coordinates. Those coordinates are untrusted until draft validation has
+ * accepted them, so a normalizer rejection is a draft defect rather than an
+ * unexpected local crash. Keep this allowlist closed: arbitrary programming
+ * errors must still escape and fail closed instead of consuming repair spend.
+ */
+export function isDraftDiagnosticNormalizationRejection(
+  error: unknown,
+): error is Error {
+  return (
+    error instanceof Error &&
+    (error.message === 'draft validation diagnostic contract invalid' ||
+      error.message ===
+        'draft authority/reference diagnostic contract invalid')
+  );
 }
 
 type RepairablePageSpatialReferenceIssue = DraftAuthorityReferenceIssue & {
@@ -3177,6 +3190,20 @@ export async function compileBookVisualContractTemplate(
           () => 'closed action catalog gap requires a same-page presentation requirement classification',
         );
         attemptDiagnosticIssues = err.diagnosticIssues;
+      } else if (isDraftDiagnosticNormalizationRejection(err)) {
+        // A producer attempted to describe an invalid provider-authored
+        // coordinate. Preserve fail-closed validation while allowing the
+        // existing bounded full-draft repair to correct the draft itself.
+        attemptErrors = [
+          'draft diagnostic normalization rejected an invalid structural coordinate and requires deterministic draft repair',
+        ];
+        attemptDiagnosticIssues = [
+          {
+            family: 'draft_contract',
+            code: 'final_structural_invariant_invalid',
+            locator: { kind: 'root', fieldRole: 'authority' },
+          },
+        ];
       } else {
         throw err; // all other deterministic-authority and local failures remain terminal
       }

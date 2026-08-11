@@ -64,6 +64,22 @@ The correction preserves the locator validator and fail-closed issue catalog. `D
 
 The correction's one literal `npm run check` passed TypeScript and all **19 resource-intensive files** with valid diagnostics. Ordinary reported the six established missing ignored-output fixture failures plus one AST producer-census mismatch: the new intentional `InvalidTemplateContractError` raised the exact compiler producer count from `15` to `16`. Only that frozen test expectation was corrected; its focused regression and TypeScript passed, and the literal full gate was not rerun. The six fixtures remain a separate Production/release HOLD.
 
+## Third canonical attempt and compiler-boundary normalization correction
+
+At pushed HEAD `da8bf931819a66a60631c5abf43d825ca4b3d932`, output root `outputs/r1d-wizard-bunny-bedtime-full-book-da8bf931-20260811T171008861Z` passed canonical probe `59938307…`, Fresh Readiness plus replay verify `f91e5177…`, Execution Request `31e55139…`, Supervisor readiness `f9044a17…`, official pricing, one canonical preflight and one Supervisor verify. The one live invocation ran for 225.3 seconds and exited 1 after one completed provider response.
+
+- Receipt: `ce0d7c7aa97690c3e6adfbbb2c2adb945c35d5359f58f4568f25b8a0e86776dd`; readiness: `a38716922f5dadf13d448ce15a1269975c738d774e456ce9ed48b7c6e963fde8`.
+- Provider calls / repairs / transport retries / fallback: `1 / 0 / 0 / none`.
+- Usage: input `12,650`; cache-write `0`; cached `12,647`; output `16,275`; reasoning `2,531`; total `28,925`.
+- Local accounting: `$0.494589` nominal and `$0.624044` conservative; not a provider-account audit.
+- Terminal: `local_processing_failed` / `unexpected_local_failure` / `unexpected_local_error`; candidate and all downstream authorities absent. The Supervisor alone read the approved credential source and cleared its authority; raw stdout/stderr were suppressed.
+
+The sanitized receipt intentionally cannot identify the exact producer because neither raw provider output nor exception material is persisted. Therefore the correction does not invent that provenance. What the repeated result does falsify is the earlier constructor-only scope: provider-authored structural coordinates pass through several typed diagnostic producers, and rejection by either closed diagnostic normalizer must reach the bounded draft-repair boundary rather than collapse into a generic local terminal.
+
+The compiler boundary now admits exactly two internal error identities into that route: `draft validation diagnostic contract invalid` and `draft authority/reference diagnostic contract invalid`. Both become the same sanitized `draft_contract/final_structural_invariant_invalid` root-authority issue and retain the existing full-draft repair semantics. Every other `Error`, including arbitrary programming failures, remains terminal and cannot consume repair spend. A direct regression freezes the two-value allowlist and rejects arbitrary errors/non-Error strings; the non-positive-page repair regression remains green.
+
+Validation passes **4 files / 270 tests** (`draft-reference-domain-hardening`, `draft-validation-diagnostics`, `source-authority-lifecycle`, and `canonical-live-authoring-boundary`), deterministic TypeScript and `git diff --check`. No second repository-wide check was run; the earlier recorded literal gate and its separate six-fixture release HOLD remain the repository-wide evidence for this branch.
+
 ## Boundaries
 
-This milestone does not promote candidates, approve reconciliation, author a Blueprint, build a Production Visual Package, render images, write database/storage, publish, deploy or open Production. Credential/provider access occurred only inside the two bounded authoring attempts recorded above and produced no candidate. It proves that all active Wizard slots have exact general inputs for the next Blueprint-authoring boundary; it does not claim that all eighteen have pre-authored Blueprints or Production packages.
+This milestone does not promote candidates, approve reconciliation, author a Blueprint, build a Production Visual Package, render images, write database/storage, publish, deploy or open Production. Credential/provider access occurred only inside the three bounded authoring attempts recorded above and produced no candidate. It proves that all active Wizard slots have exact general inputs for the next Blueprint-authoring boundary; it does not claim that all eighteen have pre-authored Blueprints or Production packages.
