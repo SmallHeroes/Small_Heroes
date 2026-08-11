@@ -1,6 +1,6 @@
 # R1D-FULL-BOOK-STORYBOARD-REGRESSION-AND-LOW-RENDER - implementation evidence
 
-Status: local implementation and twelve-page LOW measurement complete; independent Claude Code QA pending; product/visual acceptance pending; production blocked.
+Status: local implementation and twelve-page LOW measurement complete; Claude Code first pass complete with disclosure findings corrected locally and micro re-gate pending; product/visual acceptance pending; production blocked.
 
 ## Authority and scope
 
@@ -24,10 +24,10 @@ The approved shot plan already carried twelve page-specific shot decisions. The 
 - maps canonical shot and angle vocabulary to typed Blueprint camera authority;
 - projects deterministic child, companion and focal regions per page;
 - applies deterministic bounded page nudges so adjacent pages cannot collapse to one signature;
-- uniformly fits composition regions into the Visual Package body illustration band while preserving the required bottom text-safe band;
+- uniformly scales composition regions by `0.75` into the normalized body illustration space so they stay above the required bottom text-safe band;
 - rejects adjacent identity and insufficient shot/angle/rhythm vocabulary.
 
-`scripts/run-r1d-wizard-low-full-book-measurement.ts` consumes the real Story Source, approved Visual Contract and shot plan, builds a twelve-page Visual Package and Blueprint, passes the actual Wizard qualification boundary, and dispatches one local-only `gpt-image-2` LOW render per page. Pages 10-12 derive their typed falling-water action path and destination from that page's actual bucket placement. The runner has no retry, fallback or Vision path and clears credential authority in `finally`.
+`scripts/run-r1d-wizard-low-full-book-measurement.ts` consumes the real Story Source, approved Visual Contract and shot plan and passes the actual Visual Package, Blueprint, runtime-binding and Wizard qualification validators. Its twelve-page Visual Package/Blueprint is assembled from `buildVisualPackageV4Fixture` plus measurement-only placements in `mutateWorld`, and the contract receives `local-qa-causal-overlay/v2`. It does **not** execute the production authoring/chunk-runner path. The result proves Story Source and storyboard connectivity at the qualification boundary, not production-path authoring. Pages 10-12 derive their typed falling-water action path and destination from that page's actual bucket placement. The runner has no retry, fallback or Vision branch and clears credential authority in `finally`.
 
 ## Zero-cost authority and qualification
 
@@ -37,7 +37,7 @@ Successful qualification root:
 
 The dry-run proved:
 
-- twelve pages and twelve distinct camera-plus-placement signatures;
+- twelve pages and twelve non-identical camera-plus-placement signatures. The validator proves identity non-equality, not perceptual diversity: some pages reuse a layout family and differ only through bounded single-digit coordinate nudges;
 - `visual-package/v5` revision `c173d0922326df0e29d275b1cee20d7c76170744e9e75fc89a1fd769ff63f1b5`;
 - `pre-render-book-visual-blueprint/v4` digest `5609cadef3a998b4538c2bd1f32714f61f79a9e2acfa2054617b3603eecbbb17`;
 - `style01-runtime-authority/v6` runtime contract hash `d9b58021c0fcff20b48df7084844d5538d4dbbbe5328bb34ed75456463df04a9`;
@@ -64,9 +64,9 @@ Observed execution:
 - pages: `1..12`, sequential;
 - model/quality/size: `gpt-image-2`, LOW, `1024x1536`;
 - provider calls: `12`;
-- transport retries: `0`;
-- fallback used: `false`;
-- Visual QA provider calls: `0`;
+- transport retries: literal structural attestation `0`;
+- fallback used: literal structural attestation `false`;
+- Visual QA provider calls: literal structural attestation `0`;
 - remote database access: `false`;
 - remote storage access: `false`;
 - production blocked: `true`;
@@ -109,6 +109,16 @@ Material progress is visible and the prior same-image regression is falsified:
 
 The book is useful measurement evidence, not production art. Remaining visible defects are child realism/anatomy, mascot-like fox rendering, child/fox continuity drift, repeated slippers/background clutter, and insufficient second-half environment/camera separation. No Vision service was used; this judgment comes from direct local inspection of all twelve images and the contact sheet.
 
+## Independent Claude Code first pass
+
+Claude Code audited exact pushed range `21e501794ea7931c8bdd73366056ad0a9bf9eb3a..e01cfde83410ae33ea8fbec064c8751cbf58852a` read-only. It verified HEAD/origin `0/0`, the exact seven-file range, ignored output status, all twelve image hashes/dimensions/byte counts, usage records, qualification facts, causal geometry and the visual-audit limitations. It returned technical/artifact PASS with zero BLOCKER and identified one MAJOR disclosure gap plus two MINOR disclosure limits:
+
+1. The original record did not state that Visual Package/Blueprint assembly uses a repository test fixture and measurement-only overlay, so its connectivity claim could be overread as production authoring-path proof.
+2. Twelve non-identical signatures are partly achieved through single-digit deterministic nudges within repeated layout families, a weaker guarantee than materially different composition.
+3. The zero retry/fallback/Visual-QA counts are structural literal attestations rather than separately measured provider telemetry.
+
+This correction records those limits without changing code, artifacts or product claims. Closure of the disclosure findings remains pending a focused Claude Code micro re-gate; Codex does not self-award it.
+
 ## Validation
 
 - `npm ci --offline --ignore-scripts`: PASS.
@@ -123,4 +133,4 @@ The literal `npm run check` ran once and was not rerun. TypeScript and all ninet
 
 ## Rollback and authority limits
 
-Rollback is a focused revert of this milestone's commit plus deletion of only the ignored local output/qualification roots. Historical authorities and earlier images are not rewritten. Production remains blocked. This work grants no publication, approval, deployment, release, remote storage/database or full-book production-render authority. Codex does not self-award independent technical PASS; Claude Code must review the committed range, and Guy retains product/visual acceptance.
+Rollback is a focused revert of this milestone's commit plus deletion of only the ignored local output/qualification roots. Historical authorities and earlier images are not rewritten. Production remains blocked. This work grants no publication, approval, deployment, release, remote storage/database or full-book production-render authority. Codex does not self-award independent finding closure or product PASS; Guy retains product/visual acceptance.
