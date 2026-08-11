@@ -115,6 +115,16 @@ Preview URL:
 
 This Preview is the QA handoff. It was not promoted, aliased to Production or made anonymous; Production remains blocked.
 
+### Stable QA domain and Wizard runtime packaging
+
+Operational inspection found that `qa.smallheroes.co.il` was already verified in the Vercel project but still tracked `feat/chunked-generation`. The project-domain binding was changed to `codex/r1d-wizard-story-companion-full-book-readiness`; the apex `smallheroes.co.il`, Production branch, Production environment and Deployment Protection were not changed. Preview environment variables `ALLOW_STAGING_QA=true` and `ENABLE_WIZARD_QA_RENDER_CATALOG=true` are scoped only to this branch.
+
+The first redeploy with both flags still returned `qaAuthoringReady:false` for all eighteen slots. This falsified configuration as the remaining cause. The committed catalog existed in the source tree, but `/api/wizard/mvp-matrix` reads it through dynamic filesystem paths that Next.js cannot infer for serverless output tracing. The route bundle therefore omitted the catalog and failed closed at runtime.
+
+The correction adds `./qa-authorities/wizard/**/*` only to the matrix route's `outputFileTracingIncludes`. It does not modify any catalog/candidate byte, authority digest, selectable rule, Production qualification or runtime flag. Regression validation passes `wizard-mvp-matrix-api.spec.ts` plus `wizard-render-readiness.spec.ts` at **2 files / 9 tests**, deterministic TypeScript and `git diff --check`. A complete `npm run build` passed, and direct inspection of `.next/server/app/api/wizard/mvp-matrix/route.js.nft.json` found exactly **19** authority files: one catalog and eighteen candidates.
+
+The pre-correction redeploy is `dpl_3pVveNJVbkBU4TEmYLu7ASm5kGZY`; it reached Ready and `qa.smallheroes.co.il` resolved to it, proving the stable branch-domain routing. A new Preview deployment is required for the tracing correction; after that deployment the acceptance check is the live matrix reporting six categories, eighteen story-ready slots, eighteen QA-authoring-ready/selectable slots, eighteen unique candidate digests and zero Production-qualified slots, plus the Reader returning eight pages and eight distinct images.
+
 ## Boundaries
 
 This milestone does not promote a Production candidate, approve Production reconciliation, build a Production Visual Package, write database/storage, publish or open Production. The complete LOW book uses explicitly QA-only derived authority and tracked Reader fixtures. All eighteen slots are proven through the zero-cost qualification boundary; only the selected eight-page Bunny bedtime slot was rendered. No claim is made that all eighteen have Production Blueprints or packages.

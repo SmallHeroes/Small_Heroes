@@ -28,6 +28,11 @@ const nextConfig = {
    */
   outputFileTracingIncludes: (() => {
     const STYLE01_REFS = ['./style-references/01/**/*', './style-references/01-child-template/**/*'];
+    // The QA Wizard matrix validates its committed, content-addressed catalog at request time.
+    // Next cannot infer these dynamic fs reads, so the Preview-only API function must carry the
+    // catalog and its candidate records. The runtime flag and dev-only guard still fail closed;
+    // this include only makes the already-authorized files reachable when those gates are open.
+    const WIZARD_QA_AUTHORITIES = ['./qa-authorities/wizard/**/*'];
     // (#35) The Style01 multi-view companion sheets (public/companions/<id>/style01-sheets/**) have NO URL fallback:
     // resolveStyle01CompanionReferencePaths() does existsSync()->readFileSync() on the FUNCTION disk. Bundle them
     // into the render functions so the strong multi-view anchor is reachable in serverless (~49 files: 42 png + 7
@@ -40,6 +45,7 @@ const nextConfig = {
       '/api/generate/cron/sweep': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/generation/resume': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/debug/regen-page': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/wizard/mvp-matrix': WIZARD_QA_AUTHORITIES,
       '/api/orders/[orderId]/power-card': ['./story-bank/**/*', './node_modules/@sparticuz/chromium/**/*'],
     };
     return includes;

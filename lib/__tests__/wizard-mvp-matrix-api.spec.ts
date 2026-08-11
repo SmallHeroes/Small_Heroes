@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createRequire } from 'node:module';
 
 import { GET } from '../../app/api/wizard/mvp-matrix/route';
+
+const require = createRequire(import.meta.url);
+const nextConfig = require('../../next.config.js') as {
+  outputFileTracingIncludes?: Record<string, string[]>;
+};
 
 describe('GET /api/wizard/mvp-matrix', () => {
   const originalBank = process.env.ENABLE_V3_APPROVED_BANK;
@@ -17,6 +23,12 @@ describe('GET /api/wizard/mvp-matrix', () => {
     else process.env.ENABLE_V3_APPROVED_BANK = originalBank;
     if (originalQaCatalog === undefined) delete process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
     else process.env.ENABLE_WIZARD_QA_RENDER_CATALOG = originalQaCatalog;
+  });
+
+  it('bundles the committed QA catalog into the Vercel matrix function', () => {
+    expect(nextConfig.outputFileTracingIncludes?.['/api/wizard/mvp-matrix']).toEqual([
+      './qa-authorities/wizard/**/*',
+    ]);
   });
 
   it('returns exactly 6 public MVP categories with companions', async () => {
