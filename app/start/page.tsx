@@ -3,6 +3,7 @@ import { buildMvpMatrixResponse } from '@/lib/web/mvp-matrix-response';
 import StartClient from './start-client';
 import '../landing/main.css';
 import '../category-challenge-card.css';
+import '../landing/wow-2027.css';
 import '../premium-2027.css';
 
 export const metadata: Metadata = {

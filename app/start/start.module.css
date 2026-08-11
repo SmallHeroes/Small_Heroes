@@ -5,9 +5,14 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(165deg, var(--surface-page, #fff) 0%, #f7f2ff 38%, #eef6fa 100%);
+  /* WOW-2027: the wizard entry continues the hero's night -> day narrative:
+     a night band up top (behind the header + intro) melting into daylight
+     where the choices live. */
+  background:
+    linear-gradient(180deg, #241b4d 0%, #2c2158 26%, #38296b 38%, rgba(56, 41, 107, 0) 54%),
+    linear-gradient(165deg, var(--surface-page, #fff) 0%, #f7f2ff 38%, #eef6fa 100%);
   color: var(--dark);
-  font-family: var(--fb);
+  font-family: var(--font-assistant, var(--fb));
 }
 
 .navbar {
@@ -121,20 +126,20 @@
 }
 
 .title {
-  font-family: var(--fd);
-  font-size: clamp(30px, 4.2vw, 48px);
-  font-weight: 900;
-  line-height: 1.12;
-  color: var(--dark);
-  margin: 0 0 12px;
-  letter-spacing: -0.02em;
+  font-family: var(--font-suez, var(--fd));
+  font-size: clamp(32px, 4.2vw, 52px);
+  font-weight: 400;
+  line-height: 1.14;
+  color: #ffffff;
+  margin: 0;
+  text-wrap: balance;
 }
 
 .sub {
   margin: 0;
   font-size: clamp(16px, 2.2vw, 20px);
   line-height: 1.75;
-  color: var(--mid);
+  color: #d9d2f5;
 }
 
 .challengeWrap {
