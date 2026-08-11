@@ -1,0 +1,137 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   PREMIUM-2027.CSS — R1D-2027-PREMIUM-PLAYFUL-SITE-EXPERIENCE
+
+   One coherent north star: "המדף שקם לחיים" (the shelf comes alive).
+   SmallHeroes should feel like a beautifully art-directed children's-book
+   publisher, not a SaaS page: editorial restraint + real physical depth +
+   ONE magical reveal (the child becomes the hero).
+
+   Layered ON TOP of public/CSS/tokens.css — it adds a depth ladder, a motion
+   choreography scale and interaction primitives. It introduces no new hue
+   family: white → grey-lavender → strong purple, with --brand-yellow kept as
+   a pointed accent only (Guy's palette ruling; the pale-yellow/cream washes
+   are removed here too).
+
+   What makes this read "premium" rather than "cute":
+   - TWO-PART SHADOWS (ambient occlusion + directional key light) instead of
+     one flat blur. This is the single biggest cheap-vs-expensive signal.
+   - A rim light on lifted surfaces, so edges catch light like real paper.
+   - Motion that has weight: overshoot on lift, settle on release.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Semantic bridge ─────────────────────────────────────────────────
+     This branch's base ships a small legacy palette (--purple, --bg-light…).
+     The premium layer names those semantically so components stop reaching
+     for raw hexes. Values are the base's own — no new hue is introduced.
+     PALETTE RULE: white → grey-lavender → strong purple, with --brand-yellow
+     as a pointed accent ONLY. No pale-yellow / cream surfaces (Guy's ruling);
+     do not reintroduce them and do not add shades outside this ladder. */
+  --brand-purple: var(--purple, #886cff);
+  --brand-purple-strong: var(--purple-d, #7459f0);
+  --brand-purple-soft: var(--purple-lt, #ede8ff);
+  --brand-purple-faint: var(--purple-bg, #faf8ff);
+  --brand-yellow: var(--yellow, #ffee6c);
+
+  --surface-page: var(--white, #ffffff);
+  --surface-raised: var(--white, #ffffff);
+  --surface-alt: var(--bg-light, #f7f6fb);
+  --surface-sunken: #f1eff9;
+
+  --border-soft: var(--border, #ebe7f7);
+  --border-strong: #d8cdfd;
+
+  --ink-strong: var(--dark, #18171a);
+  --ink-2: var(--mid, #5f5a70);
+  --ink-3: var(--soft, #9692aa);
+
+  /* ── Depth ladder ────────────────────────────────────────────────────
+     Each level = ambient (soft, wide, neutral-cool) + key (tighter, warmer,
+     offset down). Purple-tinted because the page ground is grey-lavender. */
+  --lift-0: 0 1px 2px rgba(38, 26, 74, 0.05);
+  --lift-1: 0 1px 2px rgba(38, 26, 74, 0.06), 0 3px 8px rgba(38, 26, 74, 0.05);
+  --lift-2: 0 2px 4px rgba(38, 26, 74, 0.07), 0 10px 22px rgba(38, 26, 74, 0.08);
+  --lift-3: 0 4px 8px rgba(38, 26, 74, 0.08), 0 20px 40px rgba(38, 26, 74, 0.12);
+  --lift-4: 0 8px 16px rgba(38, 26, 74, 0.10), 0 34px 68px rgba(38, 26, 74, 0.16);
+  /* the "held object" — used only for the hero book and a picked card */
+  --lift-hold: 0 10px 20px rgba(38, 26, 74, 0.12), 0 44px 88px rgba(38, 26, 74, 0.20);
+
+  /* rim light: a hairline that reads as an edge catching light */
+  --rim: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --rim-purple: inset 0 0 0 1px rgba(136, 108, 255, 0.28);
+
+  /* ── Motion choreography ─────────────────────────────────────────────
+     Four speeds only. Anything slower than --beat-page must be ambient. */
+  --beat-tap: 110ms;   /* press / release  */
+  --beat-hover: 190ms; /* hover, rim, tint */
+  --beat-lift: 280ms;  /* card lift, panel */
+  --beat-page: 420ms;  /* step + route     */
+
+  /* weight: things being picked up overshoot slightly, then settle */
+  --ease-lift: cubic-bezier(0.34, 1.4, 0.5, 1);
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* stagger unit for choreographed entrances */
+  --stagger: 70ms;
+}
+
+/* ══ Interaction primitives ══════════════════════════════════════════ */
+
+/* Anything the parent can pick up. Compositor-only (transform/box-shadow). */
+.u-liftable {
+  transition:
+    transform var(--beat-lift) var(--ease-lift),
+    box-shadow var(--beat-lift) var(--ease-settle);
+  will-change: transform;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .u-liftable:hover {
+    transform: translate3d(0, -6px, 0);
+    box-shadow: var(--lift-4), var(--rim);
+  }
+}
+
+.u-liftable:active {
+  transform: translate3d(0, -2px, 0) scale(0.995);
+  transition-duration: var(--beat-tap);
+}
+
+/* One focus treatment everywhere: a ring that never shifts layout. */
+.u-focusable:focus-visible {
+  outline: 3px solid var(--brand-purple);
+  outline-offset: 3px;
+  border-radius: inherit;
+}
+
+/* ══ Choreographed entrance ══════════════════════════════════════════
+   Content is VISIBLE by default; JS only adds the pre-state. If JS never
+   runs, nothing is hidden — required for a page parents must be able to buy
+   from. */
+.js [data-enter]:not(.is-in) {
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+}
+
+[data-enter] {
+  transition:
+    opacity var(--beat-page) var(--ease-settle),
+    transform var(--beat-page) var(--ease-settle);
+}
+
+/* ══ Reduced motion: keep every state, drop the travel ══════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .u-liftable,
+  [data-enter] {
+    transition-duration: 0.01ms !important;
+  }
+  .u-liftable:hover {
+    transform: none;
+    box-shadow: var(--lift-3), var(--rim-purple);
+  }
+  .js [data-enter]:not(.is-in) {
+    opacity: 1;
+    transform: none;
+  }
+}
