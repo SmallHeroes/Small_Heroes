@@ -26,6 +26,7 @@ type LibraryEntry = {
   orderId?: string;
   accessKey?: string;
   viewerUrl?: string;
+  readerUrl?: string | null;
 };
 
 type PreviewPage = {
@@ -238,6 +239,7 @@ export function DevBookViewer({
 
   const isFirst = sceneIndex === 0;
   const isLast = sceneIndex >= scenes.length - 1;
+  const selectedEntry = library.find((entry) => entry.key === selectedKey) ?? null;
   const renderLabel = currentPreviewPage?.renderStatus ?? '';
   const isPlaceholder = renderLabel === 'not rendered in this audition';
 
@@ -297,6 +299,11 @@ export function DevBookViewer({
             src={currentPreviewPage.audioUrl}
             style={{ height: 28, maxWidth: 220 }}
           />
+        ) : null}
+        {selectedEntry?.readerUrl ? (
+          <Link href={selectedEntry.readerUrl} style={{ color: '#166534', fontWeight: 700 }}>
+            open in READER
+          </Link>
         ) : null}
         <Link href="/dev/creator" style={{ marginLeft: 'auto', color: '#2563eb' }}>
           open in CREATOR

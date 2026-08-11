@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { devOnlyJsonError, isDevEnvironment } from '@/lib/dev-only-guard';
-import { devViewerUrlForEntry, listDevViewerLibrary } from '@/lib/dev-viewer-library';
+import {
+  devReaderUrlForEntry,
+  devViewerUrlForEntry,
+  listDevViewerLibrary,
+} from '@/lib/dev-viewer-library';
 import { createLogger } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -17,6 +21,7 @@ export async function GET() {
       entries: entries.map((e) => ({
         ...e,
         viewerUrl: devViewerUrlForEntry(e),
+        readerUrl: devReaderUrlForEntry(e),
       })),
     });
   } catch (err) {

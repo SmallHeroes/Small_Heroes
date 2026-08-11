@@ -2120,6 +2120,60 @@
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
 }
 
+.mobileScenePaperPanel {
+  display: grid;
+  grid-template-rows: minmax(0, 56dvh) minmax(0, 44dvh);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.82), transparent 42%),
+    var(--book-paper-bg, #f7f3eb);
+}
+
+.mobileScenePaperPanel .mobileIllustration {
+  height: 100%;
+  min-height: 0;
+}
+
+.mobilePaperPanel {
+  position: relative;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 22px 34px calc(68px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(111, 86, 56, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.58), transparent 24%),
+    var(--book-paper-bg, #f7f3eb);
+  box-shadow: 0 -14px 32px rgba(45, 31, 18, 0.14);
+  color: var(--book-text, #34281e);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(111, 86, 56, 0.35) transparent;
+}
+
+.mobilePaperProse {
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+.mobilePaperProse .sentence {
+  margin: 0 0 0.16em;
+  font-family: var(--font-book-prose);
+  font-size: clamp(16px, 4.4vw, 19px);
+  line-height: 1.55;
+  font-weight: var(--book-prose-weight, 400);
+  color: inherit;
+  text-align: right;
+}
+
+.mobilePaperProse .sentence:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-height: 700px) {
+  .mobileScenePaperPanel {
+    grid-template-rows: minmax(0, 48dvh) minmax(0, 52dvh);
+  }
+}
+
 /* Sticker slots — zero footprint when empty */
 .stickerSlot {
   position: absolute;
@@ -2162,8 +2216,8 @@
   color: rgba(255, 248, 235, 0.72);
   font-size: 16px;
   line-height: 1;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;

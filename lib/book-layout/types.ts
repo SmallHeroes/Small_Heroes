@@ -10,6 +10,8 @@ export type IllustrationAspect = 'portrait' | 'wide';
 
 export type TextTreatment = 'standard' | 'overlay' | 'captionless';
 
+export type MobileTextPresentation = 'overlay' | 'paper_panel' | 'captionless';
+
 export type SceneKind = 'cover' | 'dedication' | 'story' | 'end';
 
 export type StorySceneIllustration = {
@@ -97,6 +99,7 @@ export type MobilePage = {
   text: string;
   showText: boolean;
   textTreatment: TextTreatment;
+  textPresentation: MobileTextPresentation;
   illustrationUrl: string | null;
   audioUrl: string | null;
   playAudio: boolean;

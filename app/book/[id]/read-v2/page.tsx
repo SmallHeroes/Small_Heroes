@@ -40,7 +40,10 @@ export default async function BookReadV2Page({ params, searchParams }: PageProps
       <div className={shellStyles.headerSlot}>
         <SiteHeader variant="compact" />
       </div>
-      <ReaderV2 bookId={id} accessKey={accessKey} devLayoutFlags={devLayoutFlags} />
+      <ReaderV2
+        source={{ kind: 'order', bookId: id, accessKey }}
+        devLayoutFlags={devLayoutFlags}
+      />
     </div>
   );
 }
@@ -50,4 +53,3 @@ function parseOptionalInt(value: string | undefined): number | undefined {
   const n = Number.parseInt(value.trim(), 10);
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
-

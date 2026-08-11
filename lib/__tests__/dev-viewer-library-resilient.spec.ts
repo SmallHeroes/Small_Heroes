@@ -111,6 +111,41 @@ describe('listDevViewerLibrary resilience', () => {
 });
 
 describe('tracked QA reader fixture', () => {
+  it('opens tracked fixtures and real orders in the production Reader controller', async () => {
+    const { devReaderUrlForEntry } = await import('@/lib/dev-viewer-library');
+
+    expect(
+      devReaderUrlForEntry({
+        key: 'audition:tracked:fixture-one',
+        kind: 'audition',
+        label: 'fixture',
+        mtimeMs: 1,
+        dir: 'fixture-one',
+        root: 'outputs',
+      })
+    ).toBe('/dev/reader?dir=fixture-one');
+    expect(
+      devReaderUrlForEntry({
+        key: 'audition:outputs:untracked',
+        kind: 'audition',
+        label: 'untracked',
+        mtimeMs: 1,
+        dir: 'untracked',
+        root: 'outputs',
+      })
+    ).toBeNull();
+    expect(
+      devReaderUrlForEntry({
+        key: 'order:order/1',
+        kind: 'order',
+        label: 'order',
+        mtimeMs: 1,
+        orderId: 'order/1',
+        accessKey: 'key value',
+      })
+    ).toBe('/book/order%2F1/read-v2?accessKey=key%20value&v2=1');
+  });
+
   it('binds five deployable page assets without local absolute paths', async () => {
     const { trackedQaReaderFixtureForDir } = await import('@/lib/tracked-qa-reader-fixtures');
     const fixture = trackedQaReaderFixtureForDir(

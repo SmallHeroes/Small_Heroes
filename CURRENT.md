@@ -2,7 +2,21 @@
 
 **Updated:** 2026-08-11
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-wizard-story-companion-full-book-readiness` in `C:\Users\guyna\.codex\worktrees\wizardcoverage1\Small_Heroes`, based exactly on `5e27f9496d9bec9f3def8da801c954a71ddbd887`.
+**Working branch:** `codex/r1d-reader-production-experience-polish` in `C:\Users\guyna\.codex\worktrees\readerpolish1\Small_Heroes`, based exactly on `d328b3e4220101eb642f09270bc340fe494af477`.
+
+## R1D-READER-PRODUCTION-EXPERIENCE-POLISH — implementation complete / independent QA pending
+
+Guy asked to continue in order while Claude Code works separately on the website: first connect the rendered QA book to the real Reader, preserve the physical page turn, remove the developer-viewer feel and prevent dense mobile story text from being clipped. The implementation is generic across stories, children and companions.
+
+- `ReaderV2` now accepts one closed discriminated book source: an authenticated real order or a server-resolved tracked QA fixture. The existing order URL, access-key fetch, retry/regeneration and exit behavior remain the production path. QA never synthesizes an order, database row or access key.
+- New QA-only `/dev/reader?dir=...` admits only repository-owned tracked fixtures behind the existing local/Preview guard and feeds their payload into the same Reader navigation, narration, storytime, end-state, mobile and physical-sheet controller used by a real book. `/dev/viewer` remains the library/debug surface and now offers `open in READER` only when a safe production-Reader target exists.
+- Mobile page layout now derives a typed `overlay | paper_panel | captionless` presentation from text treatment plus bounded character/word/sentence density. Short copy can remain over art; dense copy receives a separate scroll-safe paper panel, so complete prose remains available instead of extending beyond the `100dvh` scene and being clipped. Mobile edge controls are 44×44px.
+- Live browser verification on the tracked eight-page Bunny/Bar book exposed and corrected one real render-loop defect: the QA path had inherited a newly allocated default `devLayoutFlags` object on every render. A module-stable empty authority now prevents the effect from reloading the book indefinitely. After correction, the browser showed no maximum-depth error, the start control worked and a forward transition rendered the existing two-segment paper sheet while the outer book frame remained static.
+- Focused validation passes **6 files / 36 tests**, deterministic TypeScript, `git diff --check` and a complete `npm run build`. The first build command stopped before Next compilation because the live QA server held Prisma's Windows engine DLL; after stopping only that local server, the replacement completed Prisma generation, compilation and all 36 static pages. It covers page direction/restart, physical-sheet source wiring, narration selection, storytime dwell, open-book layout, source isolation, tracked-fixture/real-order Reader routing, dense mobile presentation and the stable default authority.
+- Literal `npm run check` ran once and was not retried. TypeScript passed. The ordinary phase reported the six established missing ignored-output fixtures plus one pre-existing stale measurement-runner string assertion; no Reader assertion failed. The resource phase later failed after four subprocess-oriented test failures/timeouts and three `onTaskUpdate` RPC timeouts, with a valid diagnostic protocol. These repository-wide baseline/infrastructure failures are recorded, not hidden or treated as Reader PASS. The milestone's focused Reader evidence remains green; the full repository/release gate remains HOLD.
+- No provider, credential, narration generation, image generation, storage/database, payment, Production promotion/deployment or push occurred. The website redesign remains isolated in Claude Code's separate worktree and branch.
+
+Durable records: `docs/ai-workflow/R1D_READER_PRODUCTION_EXPERIENCE_POLISH_DECISION_GATE.md` and `docs/ai-workflow/R1D_READER_PRODUCTION_EXPERIENCE_POLISH_IMPLEMENTATION_EVIDENCE.md`. Independent Claude Code technical QA and Guy's product acceptance are pending. Production remains blocked.
 
 ## R1D-WIZARD-STORY-COMPANION-FULL-BOOK-READINESS — all 18 QA-qualified / first full LOW book rendered
 

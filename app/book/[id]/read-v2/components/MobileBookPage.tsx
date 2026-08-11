@@ -14,12 +14,14 @@ type Props = {
 export function MobileBookPage({ page, isCurrent }: Props) {
   const template = getDirectionTemplate(page.direction);
   const cssVars = { ...tokensToCssVars(), ...templateCssVars(template) };
+  const paperPanel = page.textPresentation === 'paper_panel';
 
   return (
     <article
-      className={styles.mobileScene}
+      className={`${styles.mobileScene} ${paperPanel ? styles.mobileScenePaperPanel : ''}`}
       style={cssVars as React.CSSProperties}
       data-direction={page.direction}
+      data-text-presentation={page.textPresentation}
     >
       <SceneIllustration
         url={page.illustrationUrl}
@@ -27,7 +29,7 @@ export function MobileBookPage({ page, isCurrent }: Props) {
         isCurrent={isCurrent}
         className={styles.mobileIllustration}
       />
-      {page.showText ? (
+      {page.showText && page.textPresentation === 'overlay' ? (
         <div className={styles.mobileTextOverlay}>
           {splitIntoSentences(page.text).map((sentence, i) => (
             <p key={i} className={styles.sentence}>
@@ -37,7 +39,18 @@ export function MobileBookPage({ page, isCurrent }: Props) {
           <StickerSlots variant="mobile" />
         </div>
       ) : null}
-      {!page.showText ? <StickerSlots variant="mobile" /> : null}
+      {page.showText && paperPanel ? (
+        <div className={styles.mobilePaperPanel} dir="rtl">
+          <div className={styles.mobilePaperProse}>
+            {splitIntoSentences(page.text).map((sentence, i) => (
+              <p key={i} className={styles.sentence}>
+                {sentence}
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {page.textPresentation !== 'overlay' ? <StickerSlots variant="mobile" /> : null}
     </article>
   );
 }

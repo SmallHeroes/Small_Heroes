@@ -28,6 +28,16 @@ export function devViewerUrlForEntry(entry: DevLibraryEntry): string {
   return '/dev/viewer';
 }
 
+export function devReaderUrlForEntry(entry: DevLibraryEntry): string | null {
+  if (entry.kind === 'order' && entry.orderId && entry.accessKey) {
+    return `/book/${encodeURIComponent(entry.orderId)}/read-v2?accessKey=${encodeURIComponent(entry.accessKey)}&v2=1`;
+  }
+  if (entry.kind === 'audition' && entry.dir && entry.key.startsWith('audition:tracked:')) {
+    return `/dev/reader?dir=${encodeURIComponent(entry.dir)}`;
+  }
+  return null;
+}
+
 /** Cloud-persisted audition runs (Supabase storage in serverless; local FS in dev). */
 async function listAuditionEntries(): Promise<DevLibraryEntry[]> {
   const auditions = await listStyle01DiniAuditions();

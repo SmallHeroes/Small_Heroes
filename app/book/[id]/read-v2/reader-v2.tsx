@@ -15,6 +15,7 @@ import {
   type StoryScene,
 } from '@/lib/book-layout';
 import { useAdjacentImagePreload } from './useAdjacentImagePreload';
+import type { PowerCardRenderInput } from '@/lib/power-cards/types';
 import { DesktopBookSpread } from './components/DesktopBookSpread';
 import { DesktopPhysicalPageTurn } from './components/DesktopPhysicalPageTurn';
 import { MobileBookPage } from './components/MobileBookPage';
@@ -27,46 +28,13 @@ import {
   type ReaderNavContext,
 } from './reader-nav';
 import styles from './reader-v2.module.css';
-import type { PowerCardRenderInput } from '@/lib/power-cards/types';
-
-type BookPage = {
-  pageNumber: number;
-  title?: string | null;
-  text: string;
-  narrationText?: string | null;
-  audioUrl?: string | null;
-  imageUrl: string | null;
-  presentationImageUrl?: string | null;
-  isCover?: boolean;
-  pageTemplate?: string | null;
-  pageLayout?: string | null;
-  isLetter?: boolean;
-  isQuietPage?: boolean;
-  isDedication?: boolean;
-  textZone?: string | null;
-  lighting?: string | null;
-  textColorScheme?: string | null;
-  layout?: 'standard' | 'wide-spread';
-  illustrationAspect?: 'portrait' | 'wide';
-  textTreatment?: 'standard' | 'overlay' | 'captionless';
-};
-
-type OrderBookResponse = {
-  id: string;
-  status: string;
-  childName?: string;
-  storyDirection?: string | null;
-  storyLength?: string | null;
-  powerCard?: PowerCardRenderInput | null;
-  book: {
-    title?: string | null;
-    coverText?: string | null;
-    pages: BookPage[];
-    storyScenes?: StoryScene[];
-    /** Legacy: single MP3 for entire book (when no per-page audioUrl). */
-    audioUrl?: string | null;
-  } | null;
-};
+import {
+  readerSourceAccessKey,
+  readerSourceBookId,
+  readerSourceExitHref,
+  type ReaderBookPayload,
+  type ReaderBookSource,
+} from '@/lib/reader-book-source';
 
 /** Per-scene narration clip for hands-free / manual play (cover uses its own title clip only). */
 export function narrationAudioSrcForScene(
@@ -86,8 +54,7 @@ function sceneAllowsAudio(scene: StoryScene | null, fallbackBookAudio: string | 
 }
 
 type Props = {
-  bookId: string;
-  accessKey: string;
+  source: ReaderBookSource;
   /** Dev-only QA flags from query string (stripped in production). */
   devLayoutFlags?: DevLayoutQueryFlags;
 };
@@ -98,6 +65,7 @@ const AUTO_ADVANCE_AFTER_NARRATION_MS = 2000;
 export const COVER_NO_AUDIO_ADVANCE_MS = 2000;
 const MIN_NO_AUDIO_DWELL_MS = 4000;
 const NO_AUDIO_MS_PER_WORD = 400;
+const EMPTY_DEV_LAYOUT_FLAGS: DevLayoutQueryFlags = {};
 
 /** Dwell time on pages without narration before storytime auto-advance. */
 export function storytimeNoAudioDwellMs(text: string): number {
@@ -105,12 +73,18 @@ export function storytimeNoAudioDwellMs(text: string): number {
   return Math.max(MIN_NO_AUDIO_DWELL_MS, words * NO_AUDIO_MS_PER_WORD);
 }
 
-export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Props) {
+export default function ReaderV2({
+  source,
+  devLayoutFlags = EMPTY_DEV_LAYOUT_FLAGS,
+}: Props) {
+  const bookId = readerSourceBookId(source);
   const resolvedAccessKey = useMemo(() => {
-    if (accessKey) return accessKey;
-    if (typeof window === 'undefined') return '';
-    return new URLSearchParams(window.location.search).get('accessKey') || '';
-  }, [accessKey]);
+    const browserAccessKey =
+      typeof window === 'undefined'
+        ? null
+        : new URLSearchParams(window.location.search).get('accessKey');
+    return readerSourceAccessKey(source, browserAccessKey);
+  }, [source]);
 
   const [status, setStatus] = useState<'loading' | 'error' | 'ready'>('loading');
   const [errorMessage, setErrorMessage] = useState('לא הצלחנו לפתוח את הספר.');
@@ -149,8 +123,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   const userPausedSceneIdRef = useRef<string | null>(null);
   const advancePageAutoRef = useRef<() => void>(() => undefined);
   const touchStartXRef = useRef<number | null>(null);
-  const keyPart = resolvedAccessKey ? `&accessKey=${encodeURIComponent(resolvedAccessKey)}` : '';
-  const readyHref = `/ready?orderId=${encodeURIComponent(bookId)}${keyPart}`;
+  const readyHref = readerSourceExitHref(source, resolvedAccessKey);
   // GUY-28: never ship the generation secret to the public client. The in-reader regen control is a
   // dev/creator tool; read the secret ONLY outside production so Next dead-code-eliminates the
   // NEXT_PUBLIC reference from the prod bundle (regen is simply disabled on the public site).
@@ -267,7 +240,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   );
 
   useEffect(() => {
-    if (!resolvedAccessKey) {
+    if (source.kind === 'order' && !resolvedAccessKey) {
       setErrorMessage('נדרש קישור גישה מלא כדי לפתוח את הספר. חזרו לעמוד ההזמנה ונסו שוב.');
       setStatus('error');
       return;
@@ -277,16 +250,23 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
       setStatus('loading');
       setShowEndScreen(false);
       setShowPowerCardScreen(false);
-      const url = `/api/orders/${encodeURIComponent(bookId)}?accessKey=${encodeURIComponent(resolvedAccessKey)}`;
       try {
-        const res = await fetch(url, { cache: 'no-store' });
-        if (!res.ok) {
-          setErrorMessage(res.status === 404 ? 'לא מצאנו את הספר המבוקש.' : 'טעינת הספר נכשלה.');
-          setStatus('error');
-          return;
-        }
+        let data: ReaderBookPayload;
+        if (source.kind === 'qa_fixture') {
+          data = source.payload;
+        } else {
+          const url = `/api/orders/${encodeURIComponent(bookId)}?accessKey=${encodeURIComponent(resolvedAccessKey)}`;
+          const res = await fetch(url, { cache: 'no-store' });
+          if (!res.ok) {
+            setErrorMessage(
+              res.status === 404 ? 'לא מצאנו את הספר המבוקש.' : 'טעינת הספר נכשלה.',
+            );
+            setStatus('error');
+            return;
+          }
 
-        const data = (await res.json()) as OrderBookResponse;
+          data = (await res.json()) as ReaderBookPayload;
+        }
         const pages = data?.book?.pages ?? [];
         if (!pages.length) {
           setErrorMessage('הספר עדיין לא מוכן לקריאה.');
@@ -339,7 +319,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
       setErrorMessage('נכשלה טעינת הספר. נסו שוב בעוד רגע.');
       setStatus('error');
     });
-  }, [bookId, resolvedAccessKey, devLayoutFlags, cancelPhysicalPageTurn]);
+  }, [bookId, resolvedAccessKey, devLayoutFlags, cancelPhysicalPageTurn, source]);
 
   useEffect(() => () => {
     stopNarration();
@@ -650,7 +630,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
   );
 
   const retryGeneration = useCallback(async () => {
-    if (!generationSecret) {
+    if (source.kind !== 'order' || !generationSecret) {
       setErrorMessage('לא ניתן לנסות שוב כרגע. חסר מפתח יצירה.');
       return;
     }
@@ -672,10 +652,10 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     } finally {
       setIsRetrying(false);
     }
-  }, [bookId, generationSecret]);
+  }, [bookId, generationSecret, source.kind]);
 
   const regenCurrentPage = useCallback(async () => {
-    if (!generationSecret) {
+    if (source.kind !== 'order' || !generationSecret) {
       setRegenMessage('חסר מפתח יצירה (NEXT_PUBLIC_GENERATION_SECRET).');
       return;
     }
@@ -728,7 +708,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
     } finally {
       setIsRegeneratingPage(false);
     }
-  }, [bookId, currentSceneIndex, generationSecret, storyScenes]);
+  }, [bookId, currentSceneIndex, generationSecret, source.kind, storyScenes]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || status !== 'ready') return;
@@ -990,7 +970,7 @@ export default function ReaderV2({ bookId, accessKey, devLayoutFlags = {} }: Pro
               </a>
             </div>
           ) : null}
-          {generationSecret && currentScene && currentScene.kind === 'story' ? (
+          {source.kind === 'order' && generationSecret && currentScene && currentScene.kind === 'story' ? (
             <div className={styles.devRegenBar}>
               <button
                 type="button"
