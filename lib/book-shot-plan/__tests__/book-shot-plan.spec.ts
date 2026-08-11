@@ -87,6 +87,31 @@ describe('BookShotPlan', () => {
     expect(new Set(plan.pages.map((p) => p.shot)).size).toBeGreaterThanOrEqual(3);
   });
 
+  it('reserves the final page before quota selection so resolution cannot erase the only emotional allocation', () => {
+    const beats = Array.from({ length: 8 }, (_, index) => ({
+      page: index + 1,
+      imageDirection:
+        index === 0
+          ? 'wide room establishing view'
+          : index === 7
+            ? 'intimate close-up, soft whispered truth with trembling hands'
+            : index === 3
+              ? 'playful jump with dynamic motion'
+              : 'quiet medium room transition',
+      bookPageText: `beat ${index + 1}`,
+    }));
+    const plan = deriveBookShotPlan(beats);
+    expect(validateBookShotPlan(plan)).toEqual([]);
+    expect(plan.pages[plan.pages.length - 1]?.shot).toMatch(
+      /medium_wide|establishing_wide/,
+    );
+    expect(
+      plan.pages.some(
+        (page) => page.page !== 8 && ['close_up', 'intimate'].includes(page.shot),
+      ),
+    ).toBe(true);
+  });
+
   it('rejects default-all intimate plans', () => {
     const bad = {
       pageCount: 8,

@@ -16,7 +16,12 @@ import {
 } from '@/lib/generation-pipeline/blueprint-storyboard-diversity';
 import { buildFrozenStoryProductTruth } from '@/lib/generation-pipeline/frozen-product-truth';
 import { requireStyle01RenderQualification } from '@/lib/generation-pipeline/render-qualification-preflight';
-import type { BookShotPlan } from '@/lib/book-shot-plan';
+import {
+  beatsFromStoryPages,
+  BookShotPlanError,
+  resolveBookShotPlan,
+  type BookShotPlan,
+} from '@/lib/book-shot-plan';
 import { estimateGptImage2CostUsd } from '@/lib/pricing';
 import { STYLE_IDS } from '@/lib/styles';
 import {
@@ -43,6 +48,11 @@ import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySou
 import { bindApprovedPvbRuntimeAuthority } from '@/lib/visual-package/runtimeAuthority';
 import { buildVisualPackageV4Fixture } from '@/lib/visual-package/__tests__/visual-package-v4.fixtures';
 import {
+  loadWizardQaCatalog,
+  type WizardQaCatalogRecord,
+  type WizardQaVisualContractCandidate,
+} from '@/lib/wizard-render-readiness';
+import {
   applyDiniBarFivePageMeasurementOverlay,
   DINI_BAR_MEASUREMENT_PAGES,
   DINI_BAR_SHOT_PLAN,
@@ -59,14 +69,40 @@ const MEASUREMENT =
 const IS_DINI_BAR = MEASUREMENT === 'dini-bar-five-page';
 const IS_BUNNY_BAR = MEASUREMENT === 'bunny-bar-five-page';
 const IS_BAR_MEASUREMENT = IS_DINI_BAR || IS_BUNNY_BAR;
-if (!IS_BAR_MEASUREMENT && MEASUREMENT !== 'fox-full-book') {
+const IS_WIZARD_CATALOG = MEASUREMENT === 'wizard-catalog-full-book';
+if (!IS_BAR_MEASUREMENT && !IS_WIZARD_CATALOG && MEASUREMENT !== 'fox-full-book') {
   throw new Error(`Unsupported measurement: ${MEASUREMENT}`);
 }
+const STORY_KEY_ARG = process.argv
+  .find((value) => value.startsWith('--story-key='))
+  ?.slice(12);
+if (IS_WIZARD_CATALOG && !STORY_KEY_ARG) {
+  throw new Error('--story-key is required for wizard-catalog-full-book');
+}
+const QA_CATALOG = IS_WIZARD_CATALOG
+  ? loadWizardQaCatalog({ repoRoot: ROOT })
+  : null;
+if (IS_WIZARD_CATALOG && !QA_CATALOG) {
+  throw new Error('Wizard QA catalog is missing or invalid');
+}
+const QA_RECORD: WizardQaCatalogRecord | null =
+  QA_CATALOG?.records.find((record) => record.storyKey === STORY_KEY_ARG) ?? null;
+if (IS_WIZARD_CATALOG && !QA_RECORD) {
+  throw new Error(`Wizard QA story is not qualified: ${STORY_KEY_ARG}`);
+}
+const QA_CANDIDATE_PATH = QA_RECORD
+  ? path.resolve(ROOT, QA_RECORD.candidatePath)
+  : null;
+const QA_CANDIDATE: WizardQaVisualContractCandidate | null = QA_CANDIDATE_PATH
+  ? (JSON.parse(fs.readFileSync(QA_CANDIDATE_PATH, 'utf8')) as WizardQaVisualContractCandidate)
+  : null;
 const OUTPUT_ARG = process.argv.find((value) => value.startsWith('--output-root='))?.slice(14);
 const OUTPUT_ROOT = path.resolve(
   ROOT,
   OUTPUT_ARG ??
-    (IS_BAR_MEASUREMENT
+    (IS_WIZARD_CATALOG
+      ? `outputs/r1d-wizard-${STORY_KEY_ARG}-full-book-low-20260811`
+      : IS_BAR_MEASUREMENT
       ? IS_DINI_BAR
         ? 'outputs/r1d-dini-bar-five-page-low-20260811'
         : 'outputs/r1d-bunny-bar-five-page-low-20260811'
@@ -78,7 +114,9 @@ const PAGE_NUMBERS = IS_DINI_BAR
   ? [...DINI_BAR_MEASUREMENT_PAGES]
   : IS_BUNNY_BAR
     ? [...BUNNY_BAR_MEASUREMENT_PAGES]
-  : Array.from({ length: 12 }, (_, index) => index + 1);
+    : IS_WIZARD_CATALOG
+      ? QA_CANDIDATE!.template.pageContracts.map((page) => page.pageNumber)
+    : Array.from({ length: 12 }, (_, index) => index + 1);
 const RENDER_PAGE_ARG = process.argv
   .find((value) => value.startsWith('--render-pages='))
   ?.slice(15);
@@ -100,12 +138,14 @@ const ORDER_ID = IS_DINI_BAR
   ? 'local-wizard-low-dini-bar-five-page-measurement'
   : IS_BUNNY_BAR
     ? 'local-wizard-low-bunny-bar-five-page-measurement'
-  : 'local-wizard-low-full-book-storyboard-measurement';
+    : IS_WIZARD_CATALOG
+      ? `local-wizard-low-${STORY_KEY_ARG}-full-book-measurement`
+    : 'local-wizard-low-full-book-storyboard-measurement';
 const CHILD_ANCHOR_ARG = process.argv
   .find((value) => value.startsWith('--child-anchor='))
   ?.slice(15);
 const CHILD_ANCHOR = CHILD_ANCHOR_ARG ??
-  (IS_BAR_MEASUREMENT
+  (IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG
     ? ''
     : 'C:\\GNart\\Work\\Small_Heroes\\outputs\\qa-anchors\\fox_uri_bedtime__98abe88141e4ae16__de8a6c41\\anchor.png');
 if (!CHILD_ANCHOR) {
@@ -117,9 +157,9 @@ if (!fs.existsSync(CHILD_ANCHOR) || !fs.lstatSync(CHILD_ANCHOR).isFile()) {
   throw new Error(`Canonical child anchor is missing or not a regular file: ${CHILD_ANCHOR}`);
 }
 const FAMILY: ResolvedFamilyAppearanceProfile = {
-  skinTone: IS_BAR_MEASUREMENT ? 'warm medium-light olive' : 'warm light-brown',
-  hairColour: IS_BAR_MEASUREMENT ? 'deep dark brown' : 'warm brown',
-  hairTexture: IS_BAR_MEASUREMENT ? 'dense soft curls' : 'soft wavy',
+  skinTone: IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG ? 'warm medium-light olive' : 'warm light-brown',
+  hairColour: IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG ? 'deep dark brown' : 'warm brown',
+  hairTexture: IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG ? 'dense soft curls' : 'soft wavy',
 };
 
 function replaceObject(target: Record<string, unknown>, source: Record<string, unknown>): void {
@@ -251,6 +291,8 @@ function buildPackage(
   rawStorySource: string,
   migrated: BookVisualContractTemplate,
   shotPlan: BookShotPlan,
+  storyKey: string,
+  sourcePath: string,
 ) {
   const storyboardByPage = new Map(
     shotPlan.pages.map((shot) => [shot.page, projectPageShotToBlueprintStoryboard(shot)]),
@@ -261,23 +303,15 @@ function buildPackage(
   }
 
   return buildVisualPackageV4Fixture('wizard_runtime_qualification', undefined, {
-    storyKey: IS_DINI_BAR
-      ? 'dragon_dini_fantasy'
-      : IS_BUNNY_BAR
-        ? 'bunny_ometz_adventure'
-        : 'fox_uri_adventure',
+    storyKey,
     pageCount: shotPlan.pageCount,
     rawStorySource,
-    sourcePath: IS_DINI_BAR
-      ? 'story-bank/v3-approved/dragon_dini_fantasy.md'
-      : IS_BUNNY_BAR
-        ? 'story-bank/v3-approved/bunny_ometz_adventure.md'
-        : 'story-bank/v3-approved/fox_uri_adventure.md',
+    sourcePath,
     styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
     styleContent: {
       styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
       renderingContract:
-        IS_BAR_MEASUREMENT
+        IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG
           ? 'premium cinematic hand-painted storybook watercolor and gouache on textured paper; Bar must retain recognisable real facial structure from the supplied photo with anatomically natural five-year-old proportions; richly modeled light and dimensional environments; expressive but never flat cartoon, mascot, chibi, plastic 3D or photorealistic'
           : 'soft hand-drawn storybook watercolor; observational semi-naturalistic child anatomy; ordinary human eyes, nose, mouth, hands and feet; expressive but never mascot-like; non-photographic',
     },
@@ -302,7 +336,15 @@ function buildPackage(
         const page = pageNumber == null ? null : pageByNumber.get(pageNumber)!;
         const frameAuthority = page ?? template.coverContract;
         const locationId = page?.locationId ?? template.coverContract.locationId;
-        const zoneId = page?.zoneId ?? template.coverContract.zoneId!;
+        const coverZoneId = template.pageContracts.find(
+          (entry) => entry.locationId === template.coverContract.locationId,
+        )?.zoneId;
+        const zoneId = page?.zoneId ?? coverZoneId;
+        if (!zoneId) {
+          throw new Error(
+            `Cover location ${template.coverContract.locationId} has no page-backed canonical zone`,
+          );
+        }
         const requiredProps = requiredPropIdsForPage(contract, pageNumber ?? 0);
         const forbiddenProps = forbiddenPropIdsForPage(contract, pageNumber ?? 0);
         const actions = (page?.actionRequirements ?? []).filter((action) => action.polarity === 'must');
@@ -324,7 +366,9 @@ function buildPackage(
           pageNumber == null
             ? {
                 purpose: 'cover_promise',
-                summary: IS_DINI_BAR
+                summary: IS_WIZARD_CATALOG
+                  ? template.coverContract.mustShow.join(' | ')
+                  : IS_DINI_BAR
                   ? 'A bedroom portal opens onto Dini’s orange-hill world and a lesson about protective space.'
                   : IS_BUNNY_BAR
                     ? 'A tense clinic visit becomes a shared practice of trembling and staying.'
@@ -336,7 +380,7 @@ function buildPackage(
                     ? 'establish_world'
                     : pageNumber === 5
                       ? 'reveal'
-                      : pageNumber === 12
+                      : pageNumber === shotPlan.pageCount
                         ? 'resolution'
                         : page?.transition?.kind !== 'steady'
                           ? 'transition'
@@ -687,17 +731,19 @@ async function startLocalStorage(): Promise<http.Server> {
   return server;
 }
 
-async function createFivePageContactSheet(
+async function createContactSheet(
   renders: Array<{ pageNumber: number; localImage: string }>,
 ): Promise<{ path: string; sha256: string } | null> {
-  if (!IS_BAR_MEASUREMENT || renders.length !== 5) return null;
+  if (renders.length === 0) return null;
   const sharp = (await import('sharp')).default;
   const cellWidth = 320;
   const cellHeight = 500;
+  const columnCount = Math.min(4, renders.length);
+  const rowCount = Math.ceil(renders.length / columnCount);
   const composites: Array<{ input: Buffer; left: number; top: number }> = [];
   for (const [index, render] of renders.entries()) {
-    const column = index % 3;
-    const row = Math.floor(index / 3);
+    const column = index % columnCount;
+    const row = Math.floor(index / columnCount);
     const imagePath = path.resolve(ROOT, render.localImage);
     const resized = await sharp(imagePath)
       .resize({ width: 300, height: 450, fit: 'contain', background: '#f6f0e6' })
@@ -712,11 +758,11 @@ async function createFivePageContactSheet(
       top: row * cellHeight + 4,
     });
   }
-  const contactPath = path.join(OUTPUT_ROOT, 'contact-sheet-pages-01-05.png');
+  const contactPath = path.join(OUTPUT_ROOT, 'contact-sheet.png');
   await sharp({
     create: {
-      width: cellWidth * 3,
-      height: cellHeight * 2,
+      width: cellWidth * columnCount,
+      height: cellHeight * rowCount,
       channels: 4,
       background: '#f6f0e6',
     },
@@ -738,20 +784,19 @@ async function main(): Promise<void> {
   process.env.ENABLE_V3_APPROVED_BANK = 'true';
   process.env.VISUAL_CONTRACT_ENFORCEMENT = 'true';
 
-  const sourcePath = path.join(
-    ROOT,
-    'story-bank',
-    'v3-approved',
-    IS_DINI_BAR
-      ? 'dragon_dini_fantasy.md'
+  const storyKey = QA_RECORD?.storyKey ??
+    (IS_DINI_BAR
+      ? 'dragon_dini_fantasy'
       : IS_BUNNY_BAR
-        ? 'bunny_ometz_adventure.md'
-        : 'fox_uri_adventure.md',
-  );
+        ? 'bunny_ometz_adventure'
+        : 'fox_uri_adventure');
+  const sourcePath = QA_RECORD
+    ? path.resolve(ROOT, QA_RECORD.storySourcePath)
+    : path.join(ROOT, 'story-bank', 'v3-approved', `${storyKey}.md`);
   const explicitTemplatePath = process.argv
     .find((value) => value.startsWith('--template-path='))
     ?.slice(16);
-  const templatePath = IS_DINI_BAR
+  const templatePath = QA_CANDIDATE_PATH ?? (IS_DINI_BAR
     ? path.resolve(
         explicitTemplatePath ??
           'C:\\GNart\\Work\\Small_Heroes\\_review\\vc-live-cheap\\dragon_dini_fantasy.visual-contract-template.json',
@@ -763,8 +808,8 @@ async function main(): Promise<void> {
         IS_BUNNY_BAR
           ? 'bunny_ometz_adventure.visual-contract-template.json'
           : 'fox_uri_adventure.visual-contract-template.json',
-      );
-  const shotPlanPath = IS_BAR_MEASUREMENT
+      ));
+  const shotPlanPath = IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG
     ? null
     : path.join(ROOT, 'story-bank', 'v3-approved', 'fox_uri_adventure.shot-plan.json');
   const rawStorySource = fs.readFileSync(sourcePath, 'utf8');
@@ -778,48 +823,70 @@ async function main(): Promise<void> {
       page.imageDirection,
     ]),
   );
-  const legacyTemplate = JSON.parse(fs.readFileSync(templatePath, 'utf8')) as unknown;
+  const legacyTemplate = QA_CANDIDATE?.template ??
+    (JSON.parse(fs.readFileSync(templatePath, 'utf8')) as unknown);
+  const storyBeats = beatsFromStoryPages(
+    parsedStorySource.pages.map((page) => ({
+      pageNumber: page.pageNumber,
+      text: page.text,
+      imagePrompt: storyPageDirection.get(page.pageNumber) ?? '',
+      rawScenePrompt: storyPageDirection.get(page.pageNumber) ?? '',
+    })),
+  );
   const shotPlan = IS_DINI_BAR
     ? DINI_BAR_SHOT_PLAN
     : IS_BUNNY_BAR
       ? BUNNY_BAR_SHOT_PLAN
-      : (JSON.parse(fs.readFileSync(shotPlanPath!, 'utf8')) as BookShotPlan);
-  const migrated = migrateLegacyBookVisualContractTemplateV1(
-    legacyTemplate,
-    IS_BAR_MEASUREMENT
-      ? undefined
-      : {
-          areaZoneIds: {
-            set_room_balcony_night: {
-              board_room_openings: ['z_room_window', 'z_window_threshold'],
-              board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
+      : IS_WIZARD_CATALOG
+        ? (() => {
+            try {
+              return resolveBookShotPlan({ storyFilePath: sourcePath, pages: storyBeats });
+            } catch (error) {
+              if (error instanceof BookShotPlanError) {
+                throw new Error(`${error.message}: ${error.issues.join(' | ')}`);
+              }
+              throw error;
+            }
+          })()
+        : (JSON.parse(fs.readFileSync(shotPlanPath!, 'utf8')) as BookShotPlan);
+  const migrated = QA_CANDIDATE
+    ? structuredClone(QA_CANDIDATE.template)
+    : migrateLegacyBookVisualContractTemplateV1(
+        legacyTemplate,
+        IS_BAR_MEASUREMENT
+          ? undefined
+          : {
+              areaZoneIds: {
+                set_room_balcony_night: {
+                  board_room_openings: ['z_room_window', 'z_window_threshold'],
+                  board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
+                },
+              },
+              pageZoneNodeIds: {
+                z_balcony_railing: { railing: 'metal_railing' },
+              },
             },
-          },
-          pageZoneNodeIds: {
-            z_balcony_railing: { railing: 'metal_railing' },
-          },
-        },
-  );
+      );
   if (IS_DINI_BAR) applyDiniBarFivePageMeasurementOverlay(migrated);
   else if (IS_BUNNY_BAR) applyBunnyBarFivePageMeasurementOverlay(migrated);
-  else applyQaCausalOverlay(migrated);
+  else if (!IS_WIZARD_CATALOG) applyQaCausalOverlay(migrated);
   const migratedValidation = validateBookVisualContractTemplate(migrated);
   if (!migratedValidation.ok) {
     throw new Error(`Measurement Visual Contract invalid: ${migratedValidation.errors.join(' | ')}`);
   }
 
   const selectedSlot = enforceMvpOrderSlot({
-    challengeCategory: IS_DINI_BAR
+    challengeCategory: QA_RECORD?.category ?? (IS_DINI_BAR
       ? 'NEW_SIBLING'
       : IS_BUNNY_BAR
         ? 'MEDICAL_PROCEDURE'
-        : 'NIGHT_FEAR',
-    clientDirection: IS_DINI_BAR ? 'fantasy' : 'adventure',
-    clientCompanionId: IS_DINI_BAR
+        : 'NIGHT_FEAR'),
+    clientDirection: QA_RECORD?.direction ?? (IS_DINI_BAR ? 'fantasy' : 'adventure'),
+    clientCompanionId: QA_RECORD?.companionId ?? (IS_DINI_BAR
       ? 'dragon_dini'
       : IS_BUNNY_BAR
         ? 'bunny_ometz'
-        : 'fox_uri',
+        : 'fox_uri'),
   });
   const productTruth = resolveStoryProductTruth({
     challengeCategory: selectedSlot.category,
@@ -832,7 +899,13 @@ async function main(): Promise<void> {
     expectedPageCount: productTruth.pages,
     storyDirection: productTruth.storyDirection,
   });
-  const packageValue = buildPackage(rawStorySource, migrated, shotPlan);
+  const packageValue = buildPackage(
+    rawStorySource,
+    migrated,
+    shotPlan,
+    storyKey,
+    path.relative(ROOT, sourcePath).replace(/\\/g, '/'),
+  );
   const storyboardRows = packageValue.blueprint.content.frames
     .filter((frame) => frame.kind === 'page')
     .map((frame) => {
@@ -863,6 +936,8 @@ async function main(): Promise<void> {
         storySource: path.relative(ROOT, sourcePath).replace(/\\/g, '/'),
         shotPlan: shotPlanPath
           ? path.relative(ROOT, shotPlanPath).replace(/\\/g, '/')
+          : IS_WIZARD_CATALOG
+            ? `derived:${shotPlan.source}`
           : IS_DINI_BAR
             ? 'embedded:r1d-dini-bar-five-page-measurement-authority'
             : 'embedded:r1d-bunny-bar-five-page-measurement-authority',
@@ -914,7 +989,9 @@ async function main(): Promise<void> {
   });
   if (!authority) throw new Error('Wizard render qualification did not return runtime authority');
   const authorityEvidence = {
-    version: IS_DINI_BAR
+    version: IS_WIZARD_CATALOG
+      ? 'local-wizard-catalog-full-book-authority-evidence/v1'
+      : IS_DINI_BAR
       ? 'local-wizard-dini-bar-five-page-authority-evidence/v1'
       : IS_BUNNY_BAR
         ? 'local-wizard-bunny-bar-five-page-authority-evidence/v1'
@@ -924,6 +1001,8 @@ async function main(): Promise<void> {
     storySourceHash: frozenProduct.storySourceHash,
     shotPlanPath: shotPlanPath
       ? path.relative(ROOT, shotPlanPath).replace(/\\/g, '/')
+      : IS_WIZARD_CATALOG
+        ? `derived:${shotPlan.source}`
       : IS_DINI_BAR
         ? 'embedded:r1d-dini-bar-five-page-measurement-authority'
         : 'embedded:r1d-bunny-bar-five-page-measurement-authority',
@@ -942,11 +1021,24 @@ async function main(): Promise<void> {
     runtimeContractHash: authority.contractHash,
     wizardRenderQualified: authority.qualification.renderQualified,
     pageNumbers: PAGE_NUMBERS,
-    measurementOverlay: IS_DINI_BAR
+    measurementOverlay: IS_WIZARD_CATALOG
+      ? 'none:catalog-candidate-and-derived-shot-plan'
+      : IS_DINI_BAR
       ? 'dini-bar-five-page-prop-placement-overlay/v1'
       : IS_BUNNY_BAR
         ? 'bunny-bar-five-page-legacy-authority-overlay/v1'
       : 'local-qa-causal-overlay/v2',
+    ...(QA_RECORD && QA_CANDIDATE
+      ? {
+          wizardCatalogDigest: QA_CATALOG!.digest,
+          wizardCandidateDigest: QA_CANDIDATE.digest,
+          wizardCandidatePath: QA_RECORD.candidatePath,
+          wizardCategory: QA_RECORD.category,
+          wizardDirection: QA_RECORD.direction,
+          wizardCompanionId: QA_RECORD.companionId,
+          productionEligible: QA_CANDIDATE.productionEligible,
+        }
+      : {}),
     childAnchorSha256: createHash('sha256').update(fs.readFileSync(CHILD_ANCHOR)).digest('hex'),
     childReferenceKind: 'canonical_anchor',
     productionBlocked: true,
@@ -972,11 +1064,11 @@ async function main(): Promise<void> {
 
   const storageServer = await startLocalStorage();
   try {
-    const companionId = IS_DINI_BAR
+    const companionId = QA_RECORD?.companionId ?? (IS_DINI_BAR
       ? 'dragon_dini'
       : IS_BUNNY_BAR
         ? 'bunny_ometz'
-        : 'fox_uri';
+        : 'fox_uri');
     const companion = getCompanionById(companionId);
     if (!companion) throw new Error(`${companionId} companion is missing`);
     const renders = [];
@@ -991,22 +1083,22 @@ async function main(): Promise<void> {
         orderId: ORDER_ID,
         pageNumber,
         totalPages: shotPlan.pageCount,
-        childFirstName: IS_BAR_MEASUREMENT ? 'Bar' : 'Noam',
-        childAge: IS_BAR_MEASUREMENT ? 5 : 7,
+        childFirstName: IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG ? 'Bar' : 'Noam',
+        childAge: IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG ? 5 : 7,
         childGender: 'boy',
         childStructured: {
-          face: IS_BAR_MEASUREMENT
+          face: IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG
             ? 'recognisable real face from the supplied photo: warm brown almond eyes, round-oval cheeks, natural child nose and mouth proportions'
             : 'soft round-oval face, warm brown eyes, gentle expressive brows',
-          hair: IS_BAR_MEASUREMENT
+          hair: IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG
             ? 'dense short dark-brown curls with the same curl silhouette as the supplied photo'
             : 'warm brown, softly wavy, short child haircut',
-          body: IS_BAR_MEASUREMENT
+          body: IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG
             ? 'anatomically natural small five-year-old boy proportions, never chibi or mascot-like'
             : 'small seven-year-old child proportions',
           clothing: 'authority supplied',
-          signature: IS_BAR_MEASUREMENT
-            ? 'same real Bar identity across all five pages; consistent facial structure and curl silhouette without caricature'
+          signature: IS_BAR_MEASUREMENT || IS_WIZARD_CATALOG
+            ? 'same real Bar identity across every page; consistent facial structure and curl silhouette without caricature; expression follows the page contract rather than the neutral anchor'
             : 'gentle curious expression',
         },
         referenceImages: [CHILD_ANCHOR],
@@ -1051,10 +1143,12 @@ async function main(): Promise<void> {
         }),
       );
     }
-    const contactSheet = await createFivePageContactSheet(renders);
+    const contactSheet = await createContactSheet(renders);
     const evidence = {
       ...authorityEvidence,
-      status: IS_DINI_BAR
+      status: IS_WIZARD_CATALOG
+        ? 'rendered_local_low_wizard_catalog_full_book_measurement'
+        : IS_DINI_BAR
         ? 'rendered_local_low_dini_bar_five_page_measurement'
         : IS_BUNNY_BAR
           ? 'rendered_local_low_bunny_bar_five_page_measurement'

@@ -129,6 +129,61 @@ interface CompanionManifest {
   views?: Partial<Record<CompanionSheetViewKind, ManifestView>>;
 }
 
+/**
+ * Historical v1 candidates predate Blueprint's structured cover projection.
+ * The QA migration fills only authority already present elsewhere in the same
+ * template: a canonical zone in the cover location and the declared hero /
+ * companion identities. No cover prose is parsed and no new cast is invented.
+ */
+export function completeWizardQaCoverAuthority(
+  template: BookVisualContractTemplate,
+): BookVisualContractTemplate {
+  const completed = structuredClone(template);
+  const normalizeTimeOfDay = (
+    value: string | null | undefined,
+  ): 'day' | 'night' | 'dusk' | 'dawn' | 'mixed' | null => {
+    const normalized = value?.trim().toLowerCase() ?? '';
+    if (['day', 'night', 'dusk', 'dawn', 'mixed'].includes(normalized)) {
+      return normalized as 'day' | 'night' | 'dusk' | 'dawn' | 'mixed';
+    }
+    if (/morning|afternoon|daytime|next day/.test(normalized)) return 'day';
+    if (/night/.test(normalized)) return 'night';
+    if (/dusk|evening|twilight/.test(normalized)) return 'dusk';
+    if (/dawn|sunrise/.test(normalized)) return 'dawn';
+    return null;
+  };
+  const inheritedTimeOfDay =
+    normalizeTimeOfDay(completed.coverContract.timeOfDay) ??
+    completed.locations
+      .map((location) => normalizeTimeOfDay(location.timeOfDay))
+      .find((value) => value !== null) ??
+    null;
+  for (const location of completed.locations) {
+    const timeOfDay = normalizeTimeOfDay(location.timeOfDay) ?? inheritedTimeOfDay;
+    if (!timeOfDay) {
+      throw new Error(
+        'historical candidate has no structured time-of-day authority for QA migration',
+      );
+    }
+    location.timeOfDay = timeOfDay;
+  }
+  const coverZoneId = completed.pageContracts.find(
+    (page) => page.locationId === completed.coverContract.locationId,
+  )?.zoneId;
+  if (!completed.coverContract.zoneId && coverZoneId) {
+    completed.coverContract.zoneId = coverZoneId;
+  }
+  if (!completed.coverContract.castIds) {
+    completed.coverContract.castIds = [
+      completed.cast.child.id,
+      ...(completed.cast.companion
+        ? [completed.cast.companion.id]
+        : []),
+    ];
+  }
+  return completed;
+}
+
 function sha256(bytes: Buffer | string): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
@@ -318,8 +373,10 @@ export function buildWizardQaCandidate(args: {
   } else {
     try {
       historicalBytes = fs.readFileSync(historicalPath);
-      template = migrateLegacyBookVisualContractTemplateV1(
-        JSON.parse(historicalBytes.toString('utf8')) as unknown,
+      template = completeWizardQaCoverAuthority(
+        migrateLegacyBookVisualContractTemplateV1(
+          JSON.parse(historicalBytes.toString('utf8')) as unknown,
+        ),
       );
       const validation = validateBookVisualContractTemplate(template);
       if (!validation.ok) addIssue(issues, 'historical_candidate_invalid');

@@ -148,6 +148,8 @@ export function deriveBookShotPlan(pages: PageBeatInput[]): BookShotPlan {
   const quotas = quotasForBeatCount(pageCount);
   const assigned = new Map<number, PageShot>();
   const used = new Set<number>();
+  const finalPage = sorted[sorted.length - 1];
+  const penultPage = sorted[sorted.length - 2];
 
   const page1 = sorted[0];
   if (page1) {
@@ -167,6 +169,12 @@ export function deriveBookShotPlan(pages: PageBeatInput[]): BookShotPlan {
     );
     used.add(page1.page);
   }
+
+  // The final frame is reserved for the wider resolving composition. If it
+  // participates in an earlier quota selection, Rule 5 overwrites that shot
+  // and can silently erase the only emotional/action allocation in an
+  // eight-page story. Reserve it before all featured-beat selection.
+  if (finalPage) used.add(finalPage.page);
 
   const actionPages = pickTopPages(sorted, scoreAction, quotas.dynamicAction, used);
   for (const pn of actionPages) {
@@ -223,8 +231,6 @@ export function deriveBookShotPlan(pages: PageBeatInput[]): BookShotPlan {
     used.add(pn);
   }
 
-  const finalPage = sorted[sorted.length - 1];
-  const penultPage = sorted[sorted.length - 2];
   if (finalPage) {
     const penultShot = penultPage ? assigned.get(penultPage.page)?.shot : undefined;
     const penultRank = penultShot ? SHOT_WIDTH_RANK[penultShot] : 2;

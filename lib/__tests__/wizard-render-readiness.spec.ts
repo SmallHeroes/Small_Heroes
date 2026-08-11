@@ -50,7 +50,22 @@ describe('Wizard QA render catalog', () => {
             minimumResemblance: number;
             views: unknown[];
           };
-          template: { pageContracts: unknown[] };
+          template: {
+            cast: {
+              child: { id: string };
+              companion?: { id: string };
+            };
+            coverContract: {
+              locationId: string;
+              zoneId?: string;
+              castIds?: string[];
+            };
+            pageContracts: Array<{
+              locationId: string;
+              zoneId: string;
+            }>;
+            locations: Array<{ timeOfDay: string }>;
+          };
           source: { pageCount: number };
         };
         expect(artifact.productionEligible).toBe(false);
@@ -60,6 +75,22 @@ describe('Wizard QA render catalog', () => {
         );
         expect(artifact.companionAuthority.minimumResemblance).toBeGreaterThanOrEqual(0.7);
         expect(artifact.template.pageContracts).toHaveLength(artifact.source.pageCount);
+        const coverPage = artifact.template.pageContracts.find(
+          (page) => page.locationId === artifact.template.coverContract.locationId,
+        );
+        expect(coverPage).toBeDefined();
+        expect(artifact.template.coverContract.zoneId).toBe(coverPage?.zoneId);
+        expect(artifact.template.coverContract.castIds).toEqual([
+          artifact.template.cast.child.id,
+          ...(artifact.template.cast.companion
+            ? [artifact.template.cast.companion.id]
+            : []),
+        ]);
+        expect(
+          artifact.template.locations.every((location) =>
+            ['day', 'night', 'dusk', 'dawn', 'mixed'].includes(location.timeOfDay),
+          ),
+        ).toBe(true);
       }
     }
     expect(identities.size).toBe(18);
