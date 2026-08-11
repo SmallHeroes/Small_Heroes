@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import {
   buildStage0MethodBReferences,
@@ -90,10 +92,36 @@ describe('Stage0 Method B reference layouts (Brief F)', () => {
 
   it('sanitizeStage0AnchorIdentityText strips toddler phrasing but keeps cheeks', () => {
     const cleaned = sanitizeStage0AnchorIdentityText(
-      'Round face with prominent cheeks and young-child softness. Large eyes.'
+      'Round face with prominent cheeks and young-child softness. Large eyes and a broad open smile.'
     );
     expect(cleaned).not.toMatch(/young-child softness/i);
+    expect(cleaned).not.toMatch(/smile|open mouth/i);
     expect(cleaned).toMatch(/prominent cheeks/i);
     expect(cleaned).toMatch(/Round face/i);
+  });
+
+  it('buildStage0MethodBPrompt separates reusable identity/style from photographed expression', () => {
+    const prompt = buildStage0MethodBPrompt({
+      order: { childGender: 'boy', childAge: 5 },
+      lockedChildDescription:
+        'Round-oval face, warm olive skin, dense dark curls, recognisable broad open smile.',
+      childPhotoDescription: 'Brown eyes, open mouth, cheerful expression, thick brows.',
+    });
+    expect(prompt).toContain('ANCHOR EXPRESSION (mandatory)');
+    expect(prompt).toContain('lips naturally closed');
+    expect(prompt).toContain('ANCHOR STYLE FIDELITY (mandatory)');
+    expect(prompt).toContain('refined semi-naturalistic Style 01 watercolor');
+    expect(prompt).not.toMatch(/recognisable broad open smile/i);
+    expect(prompt).not.toMatch(/PHOTO IDENTITY CUES[^\n]*open mouth/i);
+    expect(prompt).toContain('Round-oval face');
+    expect(prompt).toContain('dense dark curls');
+  });
+
+  it('keeps shared anchor prefixes child-agnostic and semi-naturalistic', () => {
+    const source = fs.readFileSync(path.join(process.cwd(), 'lib', 'generate-image.ts'), 'utf8');
+    expect(source).not.toMatch(/Mia identity|bird-print pajamas|green left wrist bracelet/);
+    expect(source).not.toMatch(/Render as cute simplified Style 01 watercolor child/);
+    expect(source).toContain('refined semi-naturalistic Style 01 watercolor child');
+    expect(source).toContain('preserve the exact child identity');
   });
 });

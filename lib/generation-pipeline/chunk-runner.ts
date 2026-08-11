@@ -1720,6 +1720,7 @@ async function runPageImagesChunk(
     childGender: order.childGender,
     childDescription: lockedChildDescription,
     referenceImages: gptReferenceImages,
+    childReferenceKind: 'canonical_anchor',
     resolvePageChildExpressionRef: expressionSheetActive
       ? (ctx) => {
           const kind = resolveChildExpressionKindForPage({

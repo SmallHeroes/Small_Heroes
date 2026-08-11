@@ -369,20 +369,20 @@ export const STYLE02_BOOK_REFERENCE_PREFIX = (
 /** Stage 0 anchor — template is edit base; photo must NOT drive realism. */
 export const STYLE01_ANCHOR_TEMPLATE_BASE_PREFIX = (
   '[STYLE 01 ANCHOR — TEMPLATE BASE]\n' +
-  'Image 1 is the STYLE 01 CHILD CHARACTER TEMPLATE. Copy ONLY visual language from it: eye size, head/body proportions, softness, rounded simplified features, watercolor storybook rendering.\n' +
+  'Image 1 is the STYLE 01 CHILD CHARACTER TEMPLATE. Use it only for watercolor technique and storybook warmth; natural human anatomy and the CHILD VISUAL LOCK below outrank any simplified template proportions.\n' +
   'Do NOT copy the template child\'s specific face identity — personalize using CHILD VISUAL LOCK text below.\n' +
   'Later images (if any) are watercolor TECHNIQUE references only — linework, pigment, paper texture. Do NOT copy their scenes, creatures, or compositions.\n' +
-  'OUTPUT: cute simplified hand-drawn watercolor storybook child — NOT photorealistic, NOT a photographic portrait, NOT semi-realistic.\n\n' +
+  'OUTPUT: refined semi-naturalistic hand-drawn Style 01 watercolor child — NOT photorealistic, NOT a photographic cutout, NOT a mascot or flat cartoon.\n\n' +
   '[TARGET CHARACTER]\n'
 );
 
 export const STYLE01_ANCHOR_TEMPLATE_PHOTO_LAST_PREFIX = (
   '[STYLE 01 ANCHOR — TEMPLATE + PHOTO CUE]\n' +
-  'Image 1: STYLE 01 CHILD TEMPLATE — base proportions, eye size, softness, watercolor rendering (visual language).\n' +
+  'Image 1: STYLE 01 CHILD TEMPLATE — watercolor technique and storybook warmth only; never override natural human anatomy or photo identity.\n' +
   'Middle images: watercolor technique references only.\n' +
   'Last image: REAL CHILD PHOTO — identity cues ONLY (hair color/length/texture, skin tone, eye color/shape, face structure, age). ' +
   'Do NOT copy photo realism, studio lighting, portrait framing, or photographic skin texture.\n' +
-  'Personalize the template child to match identity cues + CHILD VISUAL LOCK. Stay cute simplified Style 01 watercolor.\n\n' +
+  'Personalize the template child to match identity cues + CHILD VISUAL LOCK. Keep refined semi-naturalistic Style 01 watercolor and believable human proportions.\n\n' +
   '[TARGET CHARACTER]\n'
 );
 
@@ -392,7 +392,7 @@ export const STYLE01_ANCHOR_PHOTO_TEMPLATE_MIDDLE_PREFIX = (
   'Do NOT copy photo realism, beach/outdoor setting, shirtless/day clothes, or photographic skin texture.\n' +
   'Image 2: STYLE 01 CHILD TEMPLATE — proportions, eye size, softness, watercolor rendering ONLY (NOT face identity).\n' +
   'Later images: watercolor technique references only.\n' +
-  'Render as cute simplified Style 01 watercolor child wearing BOOK WARDROBE LOCK pajamas — NOT photo clothing.\n\n' +
+  'Render as a refined semi-naturalistic Style 01 watercolor child with believable human anatomy and the BOOK WARDROBE LOCK — NOT photo clothing, NOT a mascot or simplified cartoon.\n\n' +
   '[TARGET CHARACTER]\n'
 );
 
@@ -401,14 +401,14 @@ export const STYLE01_ANCHOR_PHOTO_STYLE_ONLY_PREFIX = (
   'Image 1: REAL CHILD PHOTO — PRIMARY identity anchor (hair, skin tone, eye shape/color, face structure, age). ' +
   'Do NOT copy photo realism, beach/outdoor setting, shirtless/day clothes, or photographic skin texture.\n' +
   'Later images: watercolor technique/style references only — linework, pigment, paper texture, palette.\n' +
-  'Render as cute simplified Style 01 watercolor child wearing BOOK WARDROBE LOCK pajamas — NOT photo clothing.\n\n' +
+  'Render as a refined semi-naturalistic Style 01 watercolor child with believable human anatomy and the BOOK WARDROBE LOCK — NOT photo clothing, NOT a mascot or simplified cartoon.\n\n' +
   '[TARGET CHARACTER]\n'
 );
 
 /** Expression mini-sheet: same child as canonical anchor; expression/pose variant only. */
 export const STYLE01_ANCHOR_EXPRESSION_FROM_CANONICAL_PREFIX = (
   '[STYLE 01 EXPRESSION ANCHOR — CANONICAL BASE]\n' +
-  'Image 1 is the APPROVED canonical child anchor for this order. Preserve EXACT face shape, eye size and placement, nose, cheeks, skin tone, age (5), long curly brown hair volume, bird-print pajamas, green left wrist bracelet, cute Style 01 watercolor rendering.\n' +
+  'Image 1 is the APPROVED canonical child anchor for this order. Preserve the exact child identity, age, face geometry, eye scale and placement, nose, cheeks, skin tone, hair silhouette, wardrobe, accessories, natural human anatomy, and refined Style 01 watercolor treatment visible in that anchor.\n' +
   'Change ONLY the facial expression and simple body pose as specified below. Clean near-empty warm cream background. NO props. NO companion. NO family. NO text.\n' +
   'Do NOT invent a new child. Do NOT make younger/baby-faced. Do NOT hide eyes behind expression. Do NOT shrink eyes for open mouth.\n\n' +
   '[TARGET EXPRESSION]\n'
@@ -416,7 +416,7 @@ export const STYLE01_ANCHOR_EXPRESSION_FROM_CANONICAL_PREFIX = (
 
 export const STYLE01_ANCHOR_EXPRESSION_WITH_DIRECTION_PREFIX = (
   '[STYLE 01 EXPRESSION ANCHOR — CANONICAL + DIRECTION]\n' +
-  'Image 1: APPROVED canonical child anchor — preserve EXACT Mia identity (face, eyes, nose, cheeks, hair volume, pajamas, bracelet, Style 01 watercolor).\n' +
+  'Image 1: APPROVED canonical child anchor — preserve the exact child identity, age, face geometry, hair silhouette, wardrobe, accessories, natural human anatomy, and refined Style 01 watercolor treatment visible in that anchor.\n' +
   'Image 2 (if present): open-mouth DIRECTION ONLY — borrow mouth-open energy, NOT adult anger, NOT changed jaw/cheeks, NOT different child.\n' +
   'Output must match Image 1 identity with softer childlike expression per TARGET below. Clean cream background. NO props.\n\n' +
   '[TARGET EXPRESSION]\n'

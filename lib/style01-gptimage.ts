@@ -91,9 +91,29 @@ export const STYLE_01_CHILD_PHOTO_IDENTITY_RULE =
   'The child photo is the PRIMARY HUMAN identity anchor; companion and style references MUST NOT alter the child\'s human anatomy or facial proportions. ' +
   'Render as soft hand-drawn watercolor storybook child — NEVER photoreal cutout. Outfit from WARDROBE LOCK and scene, never from photo.';
 
+export type Style01ChildReferenceKind = 'raw_photo' | 'canonical_anchor';
+
+/**
+ * Explicit reference authority wins. The path check is retained only for
+ * callers created before childReferenceKind existed.
+ */
+export function style01UsesCanonicalChildAnchor(input: {
+  childReferenceKind?: Style01ChildReferenceKind;
+  referencePath?: string | null;
+}): boolean {
+  if (input.childReferenceKind) return input.childReferenceKind === 'canonical_anchor';
+  const normalized = input.referencePath?.replace(/\\/g, '/') ?? '';
+  return (
+    normalized.includes('/character-anchors/') ||
+    normalized.includes('character-anchors%2F') ||
+    normalized.includes('character-anchors%2f')
+  );
+}
+
 /** When reference[0] is the per-order canonical child anchor (not the raw upload). */
 export const STYLE_01_CANONICAL_CHILD_ANCHOR_RULE =
-  'CANONICAL CHILD ANCHOR (reference[0]): IDENTITY ONLY — face, hair, skin tone, age, gender. ' +
+  'CANONICAL CHILD ANCHOR (reference[0]): IDENTITY + STYLE FIDELITY ONLY — face, hair, skin tone, age, gender, natural human anatomy, and the anchor\'s refined semi-naturalistic Style 01 treatment. ' +
+  'Keep this exact level of human realism and watercolor detail at every character scale; never simplify the child into a mascot, chibi, flat cartoon, or generic picture-book child. ' +
   'Do NOT copy the anchor neutral standing pose, portrait framing, tight crop, or empty background. ' +
   'Each page MUST show this child performing the scene action with a natural, varied pose appropriate to the story beat. ' +
   'REJECT copying the anchor like a sticker into a new background.';

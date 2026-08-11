@@ -5,6 +5,10 @@ import {
   buildSmallFrameChildFidelityLock,
   resolveStyle01PageExpressionKind,
 } from '../style01-visual-polish';
+import {
+  style01UsesCanonicalChildAnchor,
+  STYLE_01_CANONICAL_CHILD_ANCHOR_RULE,
+} from '../style01-gptimage';
 import type { RuntimeBlueprintFrameProjection } from '../generation-pipeline/runtime-blueprint-projection';
 
 function frame(input?: {
@@ -140,6 +144,33 @@ function frame(input?: {
 }
 
 describe('Style 01 child expression and small-frame fidelity', () => {
+  it('uses explicit child reference authority with a Windows-safe legacy fallback', () => {
+    expect(
+      style01UsesCanonicalChildAnchor({
+        childReferenceKind: 'canonical_anchor',
+        referencePath: 'C:\\audition\\raw-upload.png',
+      }),
+    ).toBe(true);
+    expect(
+      style01UsesCanonicalChildAnchor({
+        childReferenceKind: 'raw_photo',
+        referencePath: 'C:\\audition\\character-anchors\\child.png',
+      }),
+    ).toBe(false);
+    expect(
+      style01UsesCanonicalChildAnchor({
+        referencePath: 'C:\\audition\\character-anchors\\child.png',
+      }),
+    ).toBe(true);
+  });
+
+  it('keeps canonical-anchor style fidelity while leaving pose and expression to the page', () => {
+    expect(STYLE_01_CANONICAL_CHILD_ANCHOR_RULE).toContain('IDENTITY + STYLE FIDELITY ONLY');
+    expect(STYLE_01_CANONICAL_CHILD_ANCHOR_RULE).toContain('exact level of human realism');
+    expect(STYLE_01_CANONICAL_CHILD_ANCHOR_RULE).toContain('natural, varied pose');
+    expect(STYLE_01_CANONICAL_CHILD_ANCHOR_RULE).not.toMatch(/Mia|Bar|Dini/i);
+  });
+
   it.each([
     ['child feels crowded out in a quiet hush', 'subdued'],
     ['the protective circle is a little too tight', 'wary'],

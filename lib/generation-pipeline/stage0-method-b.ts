@@ -27,7 +27,10 @@ import {
 } from '@/lib/style01-gptimage';
 import { describeChildFromPhoto } from '@/backend/providers/story-bank-loader';
 import { assertPipelineStyleBranchMatchesOrder } from '@/lib/image-engine-guard';
-import { assertIdentityLockFreeOfClothingWhenWardrobeApplies } from '@/lib/child-photo-dna-sanitize';
+import {
+  assertIdentityLockFreeOfClothingWhenWardrobeApplies,
+  sanitizeTransientExpressionFromIdentity,
+} from '@/lib/child-photo-dna-sanitize';
 import type { GPTImageReferenceMode } from '@/lib/generate-image';
 
 export type Stage0MethodBReferenceLayout =
@@ -106,7 +109,7 @@ export function buildStage0MethodBReferences(input: {
 
 /** Strip toddler-pushing wording from identity text — keep real traits (round face, prominent cheeks). */
 export function sanitizeStage0AnchorIdentityText(text: string): string {
-  return text
+  return sanitizeTransientExpressionFromIdentity(text)
     .replace(/\byoung-child softness\b/gi, '')
     .replace(/\bbaby-soft(ness)?\b/gi, '')
     .replace(/\btoddler(-like)?\b/gi, '')
@@ -116,6 +119,12 @@ export function sanitizeStage0AnchorIdentityText(text: string): string {
     .replace(/\.\s*\./g, '.')
     .trim();
 }
+
+export const STAGE0_ANCHOR_NEUTRAL_EXPRESSION =
+  'ANCHOR EXPRESSION (mandatory): relaxed neutral face, lips naturally closed, calm eyes, no smile, no grin, no open mouth. This is a reusable identity/style anchor, not a story moment; page-specific expression and gaze are authored later.';
+
+export const STAGE0_ANCHOR_STYLE_FIDELITY =
+  'ANCHOR STYLE FIDELITY (mandatory): refined semi-naturalistic Style 01 watercolor with believable human facial anatomy, natural eye scale, natural five-finger hands, subtle skin-value modeling, fine hair strands, and delicate watercolor edges. Keep the child recognisably human and portrait-faithful; never simplify into a mascot, chibi, flat cartoon, plastic doll, or generic picture-book child.';
 
 export const STAGE0_ANCHOR_ANTI_TODDLER =
   'ANTI-TODDLER (mandatory): NOT baby cheeks, NOT infant cheeks, NOT toddler chub, NOT baby face, NOT infant proportions, NOT toddler body. This is NOT a 2–3-year-old.';
@@ -169,6 +178,8 @@ export function buildStage0MethodBPrompt(input: {
       ? 'CANONICAL CHILD ANCHOR — PERSONALIZED STORYBOOK (Style 01 watercolor). Photo-first identity + watercolor style refs (no generic child template).'
       : 'CANONICAL CHILD ANCHOR — PERSONALIZED STORYBOOK (Style 01 watercolor). Method B: template visual language + photo identity cues.',
     'Generate ONE neutral child portrait for continuity across pages.',
+    STAGE0_ANCHOR_NEUTRAL_EXPRESSION,
+    STAGE0_ANCHOR_STYLE_FIDELITY,
     buildStage0AnchorAgeLockLine({
       childAge: input.order.childAge,
       childGender: input.order.childGender,

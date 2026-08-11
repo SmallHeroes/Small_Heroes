@@ -88,11 +88,21 @@ if (
 const ORDER_ID = IS_DINI_BAR
   ? 'local-wizard-low-dini-bar-five-page-measurement'
   : 'local-wizard-low-full-book-storyboard-measurement';
-const CHILD_ANCHOR =
-  process.argv.find((value) => value.startsWith('--child-anchor='))?.slice(15) ??
+const CHILD_ANCHOR_ARG = process.argv
+  .find((value) => value.startsWith('--child-anchor='))
+  ?.slice(15);
+const CHILD_ANCHOR = CHILD_ANCHOR_ARG ??
   (IS_DINI_BAR
-    ? 'C:\\GNart\\Work\\Small_Heroes\\public\\Images\\Bar.png'
+    ? ''
     : 'C:\\GNart\\Work\\Small_Heroes\\outputs\\qa-anchors\\fox_uri_bedtime__98abe88141e4ae16__de8a6c41\\anchor.png');
+if (!CHILD_ANCHOR) {
+  throw new Error(
+    'A canonical styled child anchor is required. Raw child photos are Stage-0 input only; pass --child-anchor=<canonical anchor path>.',
+  );
+}
+if (!fs.existsSync(CHILD_ANCHOR) || !fs.lstatSync(CHILD_ANCHOR).isFile()) {
+  throw new Error(`Canonical child anchor is missing or not a regular file: ${CHILD_ANCHOR}`);
+}
 const FAMILY: ResolvedFamilyAppearanceProfile = {
   skinTone: IS_DINI_BAR ? 'warm medium-light olive' : 'warm light-brown',
   hairColour: IS_DINI_BAR ? 'deep dark brown' : 'warm brown',
@@ -892,6 +902,7 @@ async function main(): Promise<void> {
       ? 'dini-bar-five-page-prop-placement-overlay/v1'
       : 'local-qa-causal-overlay/v2',
     childAnchorSha256: createHash('sha256').update(fs.readFileSync(CHILD_ANCHOR)).digest('hex'),
+    childReferenceKind: 'canonical_anchor',
     productionBlocked: true,
   };
   fs.writeFileSync(
@@ -949,6 +960,7 @@ async function main(): Promise<void> {
             : 'gentle curious expression',
         },
         referenceImages: [CHILD_ANCHOR],
+        childReferenceKind: 'canonical_anchor',
         requestTimeoutMs: 10 * 60 * 1000,
       });
       const urlPath = decodeURIComponent(new URL(result.url).pathname).replace(

@@ -107,7 +107,9 @@ import {
   resolveStyle01StyleReferencePaths,
   resolveStyle01RefPathsForEnvironmentLock,
   shouldUseStyle01Phase2Path,
+  style01UsesCanonicalChildAnchor,
   STYLE_01_AVOIDANCE_NEGATIVE,
+  type Style01ChildReferenceKind,
   type Style01SceneClass,
 } from '../../lib/style01-gptimage';
 import { assembleStyle01Phase2Prompt } from '../../lib/style01-prompt-assembly';
@@ -480,6 +482,8 @@ export interface ImageInput {
   compositionRules?: string;
   environmentContinuity?: string;
   referenceImages?: string[];
+  /** Explicit authority for referenceImages[0]. Omitted callers retain the legacy path-based compatibility check. */
+  childReferenceKind?: Style01ChildReferenceKind;
   anchorCharacters?: Array<{
     characterId: string;
     name: string;
@@ -3425,10 +3429,10 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
       : '';
 
   const childRefPath = input.referenceImages?.[0];
-  const useCanonicalChildAnchorRef =
-    !!childRefPath &&
-    (childRefPath.includes('/character-anchors/') ||
-      childRefPath.includes('character-anchors%2F'));
+  const useCanonicalChildAnchorRef = style01UsesCanonicalChildAnchor({
+    childReferenceKind: input.childReferenceKind,
+    referencePath: childRefPath,
+  });
 
   const assembled = assembleStyle01Phase2Prompt({
     pageNumber: input.pageNumber ?? 0,
@@ -4589,6 +4593,7 @@ export async function generateAllPageImages(
     childAge?: number | null;
     childGender?: string | null;
     referenceImages?: string[];
+    childReferenceKind?: Style01ChildReferenceKind;
     characterRegistry?: Record<string, CharacterRegistryEntry>;
     initialCharacterAnchors?: Record<string, string>;
     existingPageNumbers?: number[];
@@ -5455,6 +5460,7 @@ export async function generateAllPageImages(
               pageTemplate: effectivePageTemplate,
               childDescription: config.childDescription,
               referenceImages,
+              childReferenceKind: config.childReferenceKind,
               anchorCharacters,
               orderId: config.orderId,
               characterSheet: config.characterSheet,
@@ -5610,6 +5616,7 @@ export async function generateAllPageImages(
               pageTemplate: effectivePageTemplate,
                 childDescription: config.childDescription,
                 referenceImages,
+                childReferenceKind: config.childReferenceKind,
                 anchorCharacters: attemptAnchors,
                 orderId: config.orderId,
                 characterSheet: config.characterSheet,
@@ -5712,6 +5719,7 @@ export async function generateAllPageImages(
               pageTemplate: effectivePageTemplate,
               childDescription: config.childDescription,
               referenceImages,
+              childReferenceKind: config.childReferenceKind,
               anchorCharacters: attemptAnchors,
               orderId: config.orderId,
               characterSheet: config.characterSheet,
