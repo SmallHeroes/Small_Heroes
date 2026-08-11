@@ -17,7 +17,7 @@ The production Reader connection and Claude's premium-playful website layer now 
 
 Durable record: `docs/ai-workflow/R1D_READER_PREMIUM_SITE_QA_INTEGRATION_EVIDENCE.md`.
 
-## R1D-READER-PRODUCTION-EXPERIENCE-POLISH — implementation complete / independent QA pending
+## R1D-READER-PRODUCTION-EXPERIENCE-POLISH — independent technical PASS / product acceptance pending
 
 Guy asked to continue in order while Claude Code works separately on the website: first connect the rendered QA book to the real Reader, preserve the physical page turn, remove the developer-viewer feel and prevent dense mobile story text from being clipped. The implementation is generic across stories, children and companions.
 
@@ -29,7 +29,9 @@ Guy asked to continue in order while Claude Code works separately on the website
 - Literal `npm run check` ran once and was not retried. TypeScript passed. The ordinary phase reported the six established missing ignored-output fixtures plus one pre-existing stale measurement-runner string assertion; no Reader assertion failed. The resource phase later failed after four subprocess-oriented test failures/timeouts and three `onTaskUpdate` RPC timeouts, with a valid diagnostic protocol. These repository-wide baseline/infrastructure failures are recorded, not hidden or treated as Reader PASS. The milestone's focused Reader evidence remains green; the full repository/release gate remains HOLD.
 - No provider, credential, narration generation, image generation, storage/database, payment, Production promotion/deployment or push occurred. The website redesign remains isolated in Claude Code's separate worktree and branch.
 
-Durable records: `docs/ai-workflow/R1D_READER_PRODUCTION_EXPERIENCE_POLISH_DECISION_GATE.md` and `docs/ai-workflow/R1D_READER_PRODUCTION_EXPERIENCE_POLISH_IMPLEMENTATION_EVIDENCE.md`. Independent Claude Code technical QA and Guy's product acceptance are pending. Production remains blocked.
+Claude Code independently reviewed immutable range `d328b3e4220101eb642f09270bc340fe494af477..773f364fddada45eee236a8e4876bb93ae673eef` read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It reproduced the exact 6-file / 36-test focused set, TypeScript and `git diff --check`; confirmed the preserved order path, tracked-fixture isolation, Production exclusion, dense-text classifier, 44px mobile controls, unchanged page-turn/narration/dwell behavior, stable default authority and documentation fidelity. Six advisory notes retain the dead `'outputs'` argument, future inline-source identity risk, two untested classifier boundaries, non-reproducible browser evidence, the separate repository-gate HOLD and deliberate Preview reachability. These are advisory only and grant no product, visual, deployment or release acceptance.
+
+Durable records: `docs/ai-workflow/R1D_READER_PRODUCTION_EXPERIENCE_POLISH_DECISION_GATE.md` and `docs/ai-workflow/R1D_READER_PRODUCTION_EXPERIENCE_POLISH_IMPLEMENTATION_EVIDENCE.md`. Guy's product acceptance remains pending. Production remains blocked.
 
 ## R1D-WIZARD-STORY-COMPANION-FULL-BOOK-READINESS — all 18 QA-qualified / first full LOW book rendered
 

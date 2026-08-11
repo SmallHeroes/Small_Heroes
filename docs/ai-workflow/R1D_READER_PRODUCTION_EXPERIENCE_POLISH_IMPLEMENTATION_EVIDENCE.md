@@ -1,6 +1,6 @@
 # R1D — Reader Production Experience Polish — Implementation Evidence
 
-Status: implementation complete locally; independent Claude Code QA pending. This document does not self-award technical or product PASS.
+Status: implementation complete locally; independent Claude Code technical PASS recorded; Guy product acceptance pending. This document records Claude's verdict and does not self-award product PASS.
 
 ## Authority and topology
 
@@ -102,4 +102,19 @@ The full repository/release gate therefore remains HOLD. None of these failures 
 
 No narration/TTS generation, image/provider call, credential read, storage/database operation, payment, publication, Production deployment or push occurred. Rollback removes the QA route/source adapter and reverts the mobile presentation field/CSS; all fixture, book, order and rendered image bytes remain unchanged.
 
-Independent Claude Code QA must falsify the implementation before Guy treats it as technically closed. Guy retains product acceptance.
+## Independent Claude Code QA
+
+Claude Code independently reviewed immutable range `d328b3e4220101eb642f09270bc340fe494af477..773f364fddada45eee236a8e4876bb93ae673eef` read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero MINOR.
+
+It independently reproduced the exact focused set at **6 files / 36 tests PASS**, TypeScript and `git diff --check`. It confirmed all twelve handoff claims: unchanged order behavior, closed tracked-fixture authority, Production exclusion, arbitrary-audition rejection, dense/short/captionless mobile classification, 44px named controls, unchanged physical page turn and reduced motion, stable empty layout flags, unchanged narration/dwell behavior, story-agnostic implementation and faithful documentation.
+
+Its six advisory notes are retained without expanding scope:
+
+1. The `'outputs'` loader-root argument is dead on the tracked fixture route but obscures the boundary.
+2. A future client caller passing an inline `source` object could destabilize the load effect dependency.
+3. Character and sentence limits lack direct boundary tests although the word limit is tested.
+4. Browser page-turn evidence was not independently reproduced read-only.
+5. The separate non-green repository gate remains unwaived.
+6. `/dev/reader` is deliberately reachable in Vercel Preview only when the existing staging-QA policy is enabled.
+
+These are advisory only. Claude's PASS grants no product, visual, Production, deployment, provider, credential, narration, image, push or release acceptance. Guy retains product acceptance.

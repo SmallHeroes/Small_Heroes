@@ -1,6 +1,6 @@
 # R1D Reader + Premium Site QA Integration Evidence
 
-Status: locally integrated; focused engineering checks pass; independent QA and Guy product acceptance are pending.
+Status: locally integrated; the Reader component has independent Claude Code technical PASS; website/integration QA and Guy product acceptance are pending.
 
 ## Authority and topology
 
@@ -63,7 +63,7 @@ No provider/model call, credential read, image generation, narration generation,
 
 Recommended next sequence:
 
-1. Independent read-only QA of the combined immutable range.
+1. Independent read-only QA of the website and combined integration range; the Reader-only range is already independently PASSed.
 2. A bounded visual follow-up that targets the still-flat Home reveal, opaque companion plates, and remaining legacy Wizard cream surfaces without touching Reader behavior.
 3. Replace build-time Google font fetching with repository-owned font assets in a separate general build-reliability milestone.
 4. Only after QA deployment proof, continue to narration and payment integration.
