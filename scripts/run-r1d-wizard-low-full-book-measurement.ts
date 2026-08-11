@@ -47,26 +47,37 @@ import {
   DINI_BAR_MEASUREMENT_PAGES,
   DINI_BAR_SHOT_PLAN,
 } from './lib/r1d-dini-bar-five-page-measurement-authority';
+import {
+  applyBunnyBarFivePageMeasurementOverlay,
+  BUNNY_BAR_MEASUREMENT_PAGES,
+  BUNNY_BAR_SHOT_PLAN,
+} from './lib/r1d-bunny-bar-five-page-measurement-authority';
 
 const ROOT = process.cwd();
 const MEASUREMENT =
   process.argv.find((value) => value.startsWith('--measurement='))?.slice(14) ?? 'fox-full-book';
 const IS_DINI_BAR = MEASUREMENT === 'dini-bar-five-page';
-if (!IS_DINI_BAR && MEASUREMENT !== 'fox-full-book') {
+const IS_BUNNY_BAR = MEASUREMENT === 'bunny-bar-five-page';
+const IS_BAR_MEASUREMENT = IS_DINI_BAR || IS_BUNNY_BAR;
+if (!IS_BAR_MEASUREMENT && MEASUREMENT !== 'fox-full-book') {
   throw new Error(`Unsupported measurement: ${MEASUREMENT}`);
 }
 const OUTPUT_ARG = process.argv.find((value) => value.startsWith('--output-root='))?.slice(14);
 const OUTPUT_ROOT = path.resolve(
   ROOT,
   OUTPUT_ARG ??
-    (IS_DINI_BAR
-      ? 'outputs/r1d-dini-bar-five-page-low-20260811'
+    (IS_BAR_MEASUREMENT
+      ? IS_DINI_BAR
+        ? 'outputs/r1d-dini-bar-five-page-low-20260811'
+        : 'outputs/r1d-bunny-bar-five-page-low-20260811'
       : 'outputs/r1d-full-book-storyboard-low-20260811'),
 );
 const AUTHORITY_ROOT = path.join(OUTPUT_ROOT, 'local-authority');
 const STORAGE_ROOT = path.join(OUTPUT_ROOT, 'local-storage');
 const PAGE_NUMBERS = IS_DINI_BAR
   ? [...DINI_BAR_MEASUREMENT_PAGES]
+  : IS_BUNNY_BAR
+    ? [...BUNNY_BAR_MEASUREMENT_PAGES]
   : Array.from({ length: 12 }, (_, index) => index + 1);
 const RENDER_PAGE_ARG = process.argv
   .find((value) => value.startsWith('--render-pages='))
@@ -87,12 +98,14 @@ if (
 }
 const ORDER_ID = IS_DINI_BAR
   ? 'local-wizard-low-dini-bar-five-page-measurement'
+  : IS_BUNNY_BAR
+    ? 'local-wizard-low-bunny-bar-five-page-measurement'
   : 'local-wizard-low-full-book-storyboard-measurement';
 const CHILD_ANCHOR_ARG = process.argv
   .find((value) => value.startsWith('--child-anchor='))
   ?.slice(15);
 const CHILD_ANCHOR = CHILD_ANCHOR_ARG ??
-  (IS_DINI_BAR
+  (IS_BAR_MEASUREMENT
     ? ''
     : 'C:\\GNart\\Work\\Small_Heroes\\outputs\\qa-anchors\\fox_uri_bedtime__98abe88141e4ae16__de8a6c41\\anchor.png');
 if (!CHILD_ANCHOR) {
@@ -104,9 +117,9 @@ if (!fs.existsSync(CHILD_ANCHOR) || !fs.lstatSync(CHILD_ANCHOR).isFile()) {
   throw new Error(`Canonical child anchor is missing or not a regular file: ${CHILD_ANCHOR}`);
 }
 const FAMILY: ResolvedFamilyAppearanceProfile = {
-  skinTone: IS_DINI_BAR ? 'warm medium-light olive' : 'warm light-brown',
-  hairColour: IS_DINI_BAR ? 'deep dark brown' : 'warm brown',
-  hairTexture: IS_DINI_BAR ? 'dense soft curls' : 'soft wavy',
+  skinTone: IS_BAR_MEASUREMENT ? 'warm medium-light olive' : 'warm light-brown',
+  hairColour: IS_BAR_MEASUREMENT ? 'deep dark brown' : 'warm brown',
+  hairTexture: IS_BAR_MEASUREMENT ? 'dense soft curls' : 'soft wavy',
 };
 
 function replaceObject(target: Record<string, unknown>, source: Record<string, unknown>): void {
@@ -248,17 +261,23 @@ function buildPackage(
   }
 
   return buildVisualPackageV4Fixture('wizard_runtime_qualification', undefined, {
-    storyKey: IS_DINI_BAR ? 'dragon_dini_fantasy' : 'fox_uri_adventure',
+    storyKey: IS_DINI_BAR
+      ? 'dragon_dini_fantasy'
+      : IS_BUNNY_BAR
+        ? 'bunny_ometz_adventure'
+        : 'fox_uri_adventure',
     pageCount: shotPlan.pageCount,
     rawStorySource,
     sourcePath: IS_DINI_BAR
       ? 'story-bank/v3-approved/dragon_dini_fantasy.md'
-      : 'story-bank/v3-approved/fox_uri_adventure.md',
+      : IS_BUNNY_BAR
+        ? 'story-bank/v3-approved/bunny_ometz_adventure.md'
+        : 'story-bank/v3-approved/fox_uri_adventure.md',
     styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
     styleContent: {
       styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
       renderingContract:
-        IS_DINI_BAR
+        IS_BAR_MEASUREMENT
           ? 'premium cinematic hand-painted storybook watercolor and gouache on textured paper; Bar must retain recognisable real facial structure from the supplied photo with anatomically natural five-year-old proportions; richly modeled light and dimensional environments; expressive but never flat cartoon, mascot, chibi, plastic 3D or photorealistic'
           : 'soft hand-drawn storybook watercolor; observational semi-naturalistic child anatomy; ordinary human eyes, nose, mouth, hands and feet; expressive but never mascot-like; non-photographic',
     },
@@ -307,7 +326,9 @@ function buildPackage(
                 purpose: 'cover_promise',
                 summary: IS_DINI_BAR
                   ? 'A bedroom portal opens onto Dini’s orange-hill world and a lesson about protective space.'
-                  : 'A quiet nighttime mystery becomes a safe shared rhythm.',
+                  : IS_BUNNY_BAR
+                    ? 'A tense clinic visit becomes a shared practice of trembling and staying.'
+                    : 'A quiet nighttime mystery becomes a safe shared rhythm.',
               }
             : {
                 purpose:
@@ -669,7 +690,7 @@ async function startLocalStorage(): Promise<http.Server> {
 async function createFivePageContactSheet(
   renders: Array<{ pageNumber: number; localImage: string }>,
 ): Promise<{ path: string; sha256: string } | null> {
-  if (!IS_DINI_BAR || renders.length !== 5) return null;
+  if (!IS_BAR_MEASUREMENT || renders.length !== 5) return null;
   const sharp = (await import('sharp')).default;
   const cellWidth = 320;
   const cellHeight = 500;
@@ -721,7 +742,11 @@ async function main(): Promise<void> {
     ROOT,
     'story-bank',
     'v3-approved',
-    IS_DINI_BAR ? 'dragon_dini_fantasy.md' : 'fox_uri_adventure.md',
+    IS_DINI_BAR
+      ? 'dragon_dini_fantasy.md'
+      : IS_BUNNY_BAR
+        ? 'bunny_ometz_adventure.md'
+        : 'fox_uri_adventure.md',
   );
   const explicitTemplatePath = process.argv
     .find((value) => value.startsWith('--template-path='))
@@ -735,9 +760,11 @@ async function main(): Promise<void> {
         ROOT,
         'story-bank',
         'v3-approved',
-        'fox_uri_adventure.visual-contract-template.json',
+        IS_BUNNY_BAR
+          ? 'bunny_ometz_adventure.visual-contract-template.json'
+          : 'fox_uri_adventure.visual-contract-template.json',
       );
-  const shotPlanPath = IS_DINI_BAR
+  const shotPlanPath = IS_BAR_MEASUREMENT
     ? null
     : path.join(ROOT, 'story-bank', 'v3-approved', 'fox_uri_adventure.shot-plan.json');
   const rawStorySource = fs.readFileSync(sourcePath, 'utf8');
@@ -754,10 +781,12 @@ async function main(): Promise<void> {
   const legacyTemplate = JSON.parse(fs.readFileSync(templatePath, 'utf8')) as unknown;
   const shotPlan = IS_DINI_BAR
     ? DINI_BAR_SHOT_PLAN
-    : (JSON.parse(fs.readFileSync(shotPlanPath!, 'utf8')) as BookShotPlan);
+    : IS_BUNNY_BAR
+      ? BUNNY_BAR_SHOT_PLAN
+      : (JSON.parse(fs.readFileSync(shotPlanPath!, 'utf8')) as BookShotPlan);
   const migrated = migrateLegacyBookVisualContractTemplateV1(
     legacyTemplate,
-    IS_DINI_BAR
+    IS_BAR_MEASUREMENT
       ? undefined
       : {
           areaZoneIds: {
@@ -772,6 +801,7 @@ async function main(): Promise<void> {
         },
   );
   if (IS_DINI_BAR) applyDiniBarFivePageMeasurementOverlay(migrated);
+  else if (IS_BUNNY_BAR) applyBunnyBarFivePageMeasurementOverlay(migrated);
   else applyQaCausalOverlay(migrated);
   const migratedValidation = validateBookVisualContractTemplate(migrated);
   if (!migratedValidation.ok) {
@@ -779,9 +809,17 @@ async function main(): Promise<void> {
   }
 
   const selectedSlot = enforceMvpOrderSlot({
-    challengeCategory: IS_DINI_BAR ? 'NEW_SIBLING' : 'NIGHT_FEAR',
+    challengeCategory: IS_DINI_BAR
+      ? 'NEW_SIBLING'
+      : IS_BUNNY_BAR
+        ? 'MEDICAL_PROCEDURE'
+        : 'NIGHT_FEAR',
     clientDirection: IS_DINI_BAR ? 'fantasy' : 'adventure',
-    clientCompanionId: IS_DINI_BAR ? 'dragon_dini' : 'fox_uri',
+    clientCompanionId: IS_DINI_BAR
+      ? 'dragon_dini'
+      : IS_BUNNY_BAR
+        ? 'bunny_ometz'
+        : 'fox_uri',
   });
   const productTruth = resolveStoryProductTruth({
     challengeCategory: selectedSlot.category,
@@ -825,7 +863,9 @@ async function main(): Promise<void> {
         storySource: path.relative(ROOT, sourcePath).replace(/\\/g, '/'),
         shotPlan: shotPlanPath
           ? path.relative(ROOT, shotPlanPath).replace(/\\/g, '/')
-          : 'embedded:r1d-dini-bar-five-page-measurement-authority',
+          : IS_DINI_BAR
+            ? 'embedded:r1d-dini-bar-five-page-measurement-authority'
+            : 'embedded:r1d-bunny-bar-five-page-measurement-authority',
         pageCount: storyboardRows.length,
         measuredPageCount: measuredRows.length,
         distinctMeasuredFrameSignatures: new Set(
@@ -876,13 +916,17 @@ async function main(): Promise<void> {
   const authorityEvidence = {
     version: IS_DINI_BAR
       ? 'local-wizard-dini-bar-five-page-authority-evidence/v1'
+      : IS_BUNNY_BAR
+        ? 'local-wizard-bunny-bar-five-page-authority-evidence/v1'
       : 'local-wizard-full-book-authority-evidence/v1',
     measurement: MEASUREMENT,
     storySource: frozenProduct.selectionFilename,
     storySourceHash: frozenProduct.storySourceHash,
     shotPlanPath: shotPlanPath
       ? path.relative(ROOT, shotPlanPath).replace(/\\/g, '/')
-      : 'embedded:r1d-dini-bar-five-page-measurement-authority',
+      : IS_DINI_BAR
+        ? 'embedded:r1d-dini-bar-five-page-measurement-authority'
+        : 'embedded:r1d-bunny-bar-five-page-measurement-authority',
     shotPlanSha256: shotPlanPath
       ? createHash('sha256').update(fs.readFileSync(shotPlanPath)).digest('hex')
       : createHash('sha256').update(JSON.stringify(shotPlan)).digest('hex'),
@@ -900,6 +944,8 @@ async function main(): Promise<void> {
     pageNumbers: PAGE_NUMBERS,
     measurementOverlay: IS_DINI_BAR
       ? 'dini-bar-five-page-prop-placement-overlay/v1'
+      : IS_BUNNY_BAR
+        ? 'bunny-bar-five-page-legacy-authority-overlay/v1'
       : 'local-qa-causal-overlay/v2',
     childAnchorSha256: createHash('sha256').update(fs.readFileSync(CHILD_ANCHOR)).digest('hex'),
     childReferenceKind: 'canonical_anchor',
@@ -926,7 +972,11 @@ async function main(): Promise<void> {
 
   const storageServer = await startLocalStorage();
   try {
-    const companionId = IS_DINI_BAR ? 'dragon_dini' : 'fox_uri';
+    const companionId = IS_DINI_BAR
+      ? 'dragon_dini'
+      : IS_BUNNY_BAR
+        ? 'bunny_ometz'
+        : 'fox_uri';
     const companion = getCompanionById(companionId);
     if (!companion) throw new Error(`${companionId} companion is missing`);
     const renders = [];
@@ -941,21 +991,21 @@ async function main(): Promise<void> {
         orderId: ORDER_ID,
         pageNumber,
         totalPages: shotPlan.pageCount,
-        childFirstName: IS_DINI_BAR ? 'Bar' : 'Noam',
-        childAge: IS_DINI_BAR ? 5 : 7,
+        childFirstName: IS_BAR_MEASUREMENT ? 'Bar' : 'Noam',
+        childAge: IS_BAR_MEASUREMENT ? 5 : 7,
         childGender: 'boy',
         childStructured: {
-          face: IS_DINI_BAR
+          face: IS_BAR_MEASUREMENT
             ? 'recognisable real face from the supplied photo: warm brown almond eyes, round-oval cheeks, natural child nose and mouth proportions'
             : 'soft round-oval face, warm brown eyes, gentle expressive brows',
-          hair: IS_DINI_BAR
+          hair: IS_BAR_MEASUREMENT
             ? 'dense short dark-brown curls with the same curl silhouette as the supplied photo'
             : 'warm brown, softly wavy, short child haircut',
-          body: IS_DINI_BAR
+          body: IS_BAR_MEASUREMENT
             ? 'anatomically natural small five-year-old boy proportions, never chibi or mascot-like'
             : 'small seven-year-old child proportions',
           clothing: 'authority supplied',
-          signature: IS_DINI_BAR
+          signature: IS_BAR_MEASUREMENT
             ? 'same real Bar identity across all five pages; consistent facial structure and curl silhouette without caricature'
             : 'gentle curious expression',
         },
@@ -1006,6 +1056,8 @@ async function main(): Promise<void> {
       ...authorityEvidence,
       status: IS_DINI_BAR
         ? 'rendered_local_low_dini_bar_five_page_measurement'
+        : IS_BUNNY_BAR
+          ? 'rendered_local_low_bunny_bar_five_page_measurement'
         : 'rendered_local_low_full_book_measurement',
       quality: 'low',
       providerCalls: renders.length,
@@ -1020,7 +1072,7 @@ async function main(): Promise<void> {
     fs.writeFileSync(
       path.join(
         OUTPUT_ROOT,
-        IS_DINI_BAR ? 'render-evidence-five-pages.json' : 'render-evidence-full-book.json',
+        IS_BAR_MEASUREMENT ? 'render-evidence-five-pages.json' : 'render-evidence-full-book.json',
       ),
       `${JSON.stringify(evidence, null, 2)}\n`,
     );
