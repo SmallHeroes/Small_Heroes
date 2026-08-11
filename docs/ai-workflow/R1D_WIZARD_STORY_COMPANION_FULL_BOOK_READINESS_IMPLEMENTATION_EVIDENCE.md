@@ -103,7 +103,17 @@ The selected proof was `bunny_ometz_bedtime`, eight pages, Bar and the approved 
 
 Visual inspection confirms one recognizable Bar and Buni, one coherent watercolor treatment and a changing expression/story arc across eight distinct compositions. It also records two LOW defects rather than calling the book final: the shoes shift between brown and blue, and the pajama shirt briefly loses its star pattern. The complete book is therefore a meaningful Wizard-connected visual proof and a product-review candidate, not Production acceptance.
 
-The eight exact rendered pages were compressed to tracked WebP assets without regeneration and bound to `bunny_ometz_bedtime.md` through the existing `tracked-qa-reader-fixture/v1` loader. Reader/library and physical-page-turn validation passed `2 files / 12 tests`, deterministic TypeScript and `git diff --check`. A Preview deployment and remote animation check are the next steps; Production remains blocked.
+The eight exact rendered pages were compressed to tracked WebP assets without regeneration and bound to `bunny_ometz_bedtime.md` through the existing `tracked-qa-reader-fixture/v1` loader. Reader/library and physical-page-turn validation passed `2 files / 12 tests`, deterministic TypeScript and `git diff --check`.
+
+Vercel Preview `dpl_rwujqqBokG9ofi4DCsbA5MhoHF63` reached Ready after `ALLOW_STAGING_QA=true` was scoped only to `codex/r1d-wizard-story-companion-full-book-readiness`. The authenticated remote API returned the exact fixture id, title, pages `1..8`, eight distinct deployable image URLs, authority `tracked-qa-reader-fixture/v1` and source-render HEAD `9a58a967e0b6486af4a7897c67314d8f199cd17d`. Deployment Protection remains enabled; the anonymous in-app browser reached Vercel login rather than the app.
+
+The same committed fixture was exercised in the real Reader locally because the connected Chrome browser blocked the protected Vercel host before HTTP. Forward mid-flight exposed one `data-physical-page-turn="forward"` sheet and `data-page-turn-mode="physical-sheet"`; backward sampling at 45/125/225 ms exposed one `backward` sheet throughout. The outer Reader bounds stayed exactly `917.359375 × 561.59375` at `173.8203125,120.3984375`; the host animation name was `none`, confirming the former whole-book motion is absent. At rest the sheet unmounted and mode returned to `instant`.
+
+Preview URL:
+
+`https://small-heroes-qiy70umby-smallheroes-projects.vercel.app/dev/viewer?dir=r1d-bunny-bar-full-bedtime-book-reader-qa-9a58a967&root=outputs`
+
+This Preview is the QA handoff. It was not promoted, aliased to Production or made anonymous; Production remains blocked.
 
 ## Boundaries
 
