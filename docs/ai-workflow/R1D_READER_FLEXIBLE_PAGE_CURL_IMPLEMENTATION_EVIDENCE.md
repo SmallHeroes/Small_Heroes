@@ -46,7 +46,7 @@ The first mesh browser pass also exposed a secondary presentation defect: the ol
 npx --no-install vitest run lib/__tests__/reader-page-turn.spec.ts lib/__tests__/reader-nav.spec.ts lib/__tests__/reader-narration-src.spec.ts lib/__tests__/reader-storytime-dwell.spec.ts lib/__tests__/dev-viewer-library-resilient.spec.ts lib/book-layout/__tests__/open-book-layout.spec.ts
 ```
 
-Result: **6 files / 38 tests PASS**.
+Result: **6 files / 39 tests PASS** after the focused QA correction added the direct mirrored-shade regression.
 
 Direct geometry regressions prove:
 
@@ -71,7 +71,7 @@ Claude Code independently reviewed `640476ddfaf831ede8eca6e62f7529eb0c4f2107..0c
 - MINOR-2 found that this contract omitted the user-visible easing change and removal of the standalone crease element. Items 7 and 8 now disclose both changes explicitly.
 - Claude's N1-N5 remain advisory: its initial probe thresholds were stricter than the documented project bounds; the temporary strip bleed slightly scales turn-time texture; degenerate inputs fail safe; browser observations were not independently reproduced; and the separate repository/release HOLD remains untouched.
 
-Closure of MINOR-1 and MINOR-2 remains pending a focused read-only micro re-gate of the correction commit; this record does not self-award independent closure or Guy's product acceptance.
+Claude Code independently micro re-gated `0c267bb8e224f06a2f97e8dec994576fca075d3e..0d1490effb3fa2ca2b1f17298cccbcf715ba75af` and returned **PASS**, closing MINOR-1 and MINOR-2 with no BLOCKER or MAJOR. It independently reproduced TypeScript and the 6-file / 39-test focused suite. Its new non-blocking MINOR-3 identified that the two durable records still displayed the pre-correction `38`-test count; the count is corrected here. This document records Claude Code's verdict and does not self-award independent closure or Guy's product acceptance.
 
 ### Browser proof
 
