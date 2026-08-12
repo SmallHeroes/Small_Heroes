@@ -2,8 +2,8 @@
 
 > **Do not use this template for next-generation story prose.** It predates
 > `00_NEXT_GENERATION_STORY_CONTRACT.md` and remains only as historical pipeline
-> evidence. A later, separately approved milestone must replace it after Guy
-> selects a premise and approves the page-beat spine.
+> evidence. It has been replaced for next-generation staging drafts by
+> `03_story_briefs/STORY_WRITER_CONTRACT.md` plus one accepted structured brief.
 
 **Purpose:** write the full Hebrew story for one slot **from an already-chosen premise**. Fill the blanks from the companion sheet + the premise you picked in the Premise Lab, paste into ChatGPT, get a Hebrew draft in the exact bank format, then route to Claude for gender-QA + validators before approval.
 

@@ -1,5 +1,7 @@
 # Premise Lab — Next-Generation Tournament
 
+**Status:** optional ideation tool. It is no longer a mandatory production gate and does not replace the structured brief catalog.
+
 **Purpose:** find a story worth writing before spending effort on prose.
 
 **Output:** twelve diverse candidates, deterministic hard-fail results, and three complete finalists.
@@ -97,4 +99,4 @@ The finalists must be meaningfully different in premise family, world shape, com
 - continuity and illustration risks;
 - explicit old-story non-copy statement.
 
-Stop. Guy chooses one finalist before spine or prose work begins.
+Stop. If the tournament is used, Guy may choose a finalist and convert it into one complete `story-creative-brief/v1` record. Do not hand-author a page spine. Full drafting uses the accepted brief, matching companion bible, and `03_story_briefs/STORY_WRITER_CONTRACT.md`.

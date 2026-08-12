@@ -60,7 +60,7 @@ Immediate rejection:
 
 ## 4. Page-turn and structure contract
 
-Before prose, every beat must name:
+The structured brief locks causal movement, set pieces, attempts, discovery, climax, payoff, and energy shape. It does not require a human-authored page spine. During ChatGPT drafting and subsequent review, every page must still establish:
 
 - what physically happens;
 - what the child does;
@@ -172,17 +172,13 @@ Reread value requires at least two of:
 
 ## 10. Acceptance ladder
 
-### Premise gate
+### Brief gate
 
-Twelve diverse candidates → deterministic hard-fail review → human critique → three finalists → Guy selects one.
+One structured, slot-specific creative brief → uniqueness/anti-copy/companion-fit review → Guy accepts or revises the premise. Premise tournaments remain an optional ideation tool, not a mandatory production stage.
 
-### Spine gate
+### Draft gate
 
-Selected premise → complete beat map → page-turn review → location/continuity feasibility → Guy approves prose work.
-
-### Prose gate
-
-Full story → oral-Hebrew edit → humor/agency/swap review → deterministic bank-format validation → parent/child read-aloud evidence → Guy content acceptance.
+Accepted brief + matching companion bible + shared writer contract → one complete ChatGPT staging draft → page-turn/location/continuity review → oral-Hebrew edit → humor/agency/swap review → deterministic bank-format validation → parent/child read-aloud evidence → Guy content acceptance.
 
 ### Integration gate
 

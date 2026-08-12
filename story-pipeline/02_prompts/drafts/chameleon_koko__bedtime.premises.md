@@ -1,6 +1,6 @@
 # Next-Generation Premise Gate · קִים × Bedtime
 
-**Status:** three finalists awaiting Guy selection.
+**Status:** historical pilot tournament. Guy selected B on 2026-08-12; the later manual-spine workflow was replaced by the 18-brief catalog.
 
 **Companion:** `chameleon_koko` / קִים · **Direction:** bedtime · **Beats:** 8 · **Target:** ages 4–7 read-aloud.
 
@@ -162,12 +162,14 @@ The final door opens onto the correct stage, and the child's paper figure casts 
 
 ---
 
-## Decision requested from Guy
+## Selection record
 
-Choose one finalist for the next milestone:
+The original finalist set was:
 
 - **A — היום שנכנס לתיק של קים:** richest Koko identity and day-to-night flow.
 - **B — תחנת האוטובוס שקמה והלכה:** clearest, funniest, most playable for young children.
 - **C — תחנת הדלתות של בין הערביים:** strongest page turns and visual world; most complex.
 
-No finalist has been selected by Codex. The next authorized step after selection is an eight-beat spine and page-turn review—not full prose.
+No finalist has been selected by Codex. Guy selected **B — תחנת האוטובוס שקמה והלכה**.
+
+That choice is preserved as the Koko/bedtime creative brief in `story-pipeline/03_story_briefs/briefs/chameleon_koko.json`. The subsequently proposed hand-authored eight-page spine was rejected and removed. The current authorized workflow is brief review → ChatGPT staging draft → review, not manual spine authoring.
