@@ -123,14 +123,42 @@ Only item 3 was changed. Focused classifier validation then passed 7/7, the comp
 
 No credential access/check/load, environment mutation, provider/model/network generation call, image/audio/Vision action, order, checkout, payment, database/storage read-write, migration, render, deployment, promotion, merge, push, or cleanup occurred.
 
-## Independent QA required
+## Independent QA result
 
-Codex does not self-award technical PASS. Claude Code's first pass must be read-only against the exact immutable base-to-head range and should try to falsify:
+Codex does not self-award technical PASS. Claude Code independently reviewed exact immutable range `388dc4336c17487b9c0ef35da2f98ec8000c7db7..d5bfdd241eda7be1716f392bf559951fe7cb1708` read-only and returned **PASS** with:
+
+- zero BLOCKER;
+- zero MAJOR;
+- zero MINOR;
+- five advisory NOTE findings.
+
+Claude independently confirmed the exact topology: one commit, zero merges, clean, unpushed, no upstream, exactly seven changed files, unchanged package/lockfile blobs and deployed/pushed base identity. It independently reproduced:
+
+- the exact **6 files / 65 tests PASS** split;
+- fake-payment gating **37/37 PASS**;
+- deterministic TypeScript PASS;
+- `git diff --check` PASS.
+
+Claude did not rerun the literal `npm run check` or independently reproduce the recorded `113,100ms` resource-phase timing. It directly reproduced the unchanged Dini stale-string assertion and verified the eight-assertion accounting plus the one-spec `295/276` to `296/277` inventory delta.
+
+The original falsification targets were:
 
 - whether any customer availability path still consumes `selectable` or other render/QA metadata;
 - whether non-sellable or missing slots can remain selected or reach the server;
 - whether the executable regression runs the shipped function faithfully rather than a reimplementation;
 - whether `/api/orders`, fake-payment safety, pricing, QA metadata, and render qualification remain unchanged;
 - whether the full-gate, topology, exclusions, and limitations are recorded exactly.
+
+Claude refuted every target. It found `wizard.js` to be the only customer matrix consumer; verified both changed gates read `sellable`; proved missing/non-sellable cards are disabled, receive no click listener and restored state is cleared; confirmed `enforceMvpOrderSlot` uses the same server predicate; confirmed the regression extracts and executes the shipped `renderProductCards`; and verified order/payment/pricing/QA/render production paths are outside the range.
+
+The five advisory notes are retained without corrective code change:
+
+1. If the matrix never loads, the pre-existing client fallback displays all products as available, although server order enforcement still fails closed. This is a late-error UX resilience issue outside the reviewed defect.
+2. Card rendering uses `sellable === false` while restored-state invalidation uses truthiness. The typed response and both fallbacks always emit a boolean, so an absent `sellable` is currently unreachable.
+3. The shipped-function test slice is delimited by the neighbouring `renderStyleStepGrid` function name.
+4. Four new assertions also pin source strings; existing behavioural order-enforcement coverage supplies the decisive server proof.
+5. Pre-existing positive cases in `mvp-order-enforcement.spec.ts` can return early when a slot is not sellable; its negative non-sellable case is unconditional.
+
+None is BLOCKER, MAJOR or MINOR, none falsifies the correction, and none requires a corrective re-gate for this milestone. The PASS is technical and range-scoped only; it grants no product acceptance, launch readiness, push, deployment, order creation or checkout authority.
 
 A separately authorized push and QA Preview deployment are required before browser-confirming the fix on `qa.smallheroes.co.il`.
