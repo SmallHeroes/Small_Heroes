@@ -28,7 +28,7 @@ Do not output an outline, analysis, checklist, explanations, or alternative vers
 
 - Build comedy into causality. The companion's first wrong action should be funny; the second should make the task harder; the third should expose the clue the child uses.
 - Use absurd events with sincere character logic. Never wink at the reader or explain why something is funny.
-- Let the child try before succeeding. A discovery must come from visible evidence, not advice, praise, breathing, or “ואז הבין/ה”.
+- Let the child try before succeeding. A discovery must come from visible evidence, not advice, praise, breathing, or an explicit “then the child understood” sentence.
 - Dialogue reveals desire, wrong belief, timing, or relationship change. It never explains a coping lesson.
 - Keep supporting cast and hero props bounded. Do not introduce a new crowd, costume, vehicle, or magical object on every page.
 - A companion may provide access, pressure, materials, or a flawed model. The companion may not state or perform the answer.
@@ -65,10 +65,11 @@ Do not output an outline, analysis, checklist, explanations, or alternative vers
 - Use niqqud only where pronunciation or ambiguity needs it.
 - Use `{{childName}}` exactly for the child's name.
 - Every gendered form addressed to or describing the child must use the current pipe chip: `{boy-form|girl-form}`. Never use slash gender, parenthetical suffixes, raw `childName`, or invented placeholders.
+- The supplied brief must already obey that same placeholder rule. If a brief contains slash gender or uses the generic singular child alias in place of `{{childName}}`, do not silently normalize it; return `BRIEF_CONFLICT:` and identify the field.
 - Aim for two memorable lines: one a child may repeat in play and one an adult enjoys on reread. They must belong to the plot, not sound like a slogan.
 - Zero explicit resilience lines is preferred. One is the absolute maximum.
 
-Forbidden prose includes direct morals; “תירגע/י”; “אין מה לפחד”; “זה כלום”; “הרגש היה כמו”; “הגוף הגיע לפני הראש”; “ואז הבין/ה ש”; narrator praise such as “אמיץ/ה”; or a final explanation of what the child learned.
+Forbidden prose includes direct morals; “תירגע” or “תירגעי”; “אין מה לפחד”; “זה כלום”; “הרגש היה כמו”; “הגוף הגיע לפני הראש”; “ואז הילד הבין ש” or “ואז הילדה הבינה ש”; narrator praise such as “אמיץ” or “אמיצה”; or a final explanation of what the child learned.
 
 ## Page-turn contract
 

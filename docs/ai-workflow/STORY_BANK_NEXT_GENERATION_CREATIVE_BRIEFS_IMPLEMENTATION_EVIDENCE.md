@@ -8,7 +8,7 @@
 - Exact base: reviewed local foundation commit `5368bce73978e159fe1d64ab2662e8e734cfa29b`.
 - Writer topology: this branch/worktree is the sole writer for this milestone.
 - Runtime authority: none. All briefs and future model drafts are staging-only.
-- Independent QA: pending. Codex does not self-award technical PASS.
+- Independent QA: Claude Code issued PASS on the initial exact range with two minor findings. Both are remediated in a separate local correction milestone; independent re-gate of that correction remains pending. Codex does not self-award technical PASS.
 
 ## Implemented claims
 
@@ -20,6 +20,7 @@
 6. Every brief has a unique ID, working title, mechanic key, opening hook, climax action, and payoff. No approved old story is a positive prompt input.
 7. The selected Koko/bedtime B premise is retained as a compact brief. The rejected hand-authored spine was removed and never committed.
 8. Existing approved banks and every production/runtime surface remain unchanged.
+9. Every brief uses `{{childName}}` and distinct pipe chips for gendered child grammar; slash gender, generic singular child aliases, and identical pipe variants fail deterministic validation.
 
 ## Material file set
 
@@ -66,7 +67,28 @@ The new test proves:
 - no full page prose, image direction, or rejected spine artifact exists;
 - the ChatGPT contract requires current format, word bands, personalization chips, fail-closed conflict behavior, and untrusted staging status.
 
-A deliberately broken control proves the guard rejects wrong page count, too few set pieces, a page-sized causal sequence, only two comic escalations, generic companion help, and companion-owned discovery/climax.
+A deliberately broken control proves the guard rejects wrong page count, too few set pieces, more than six causal movements, only two comic escalations, generic companion help, companion-owned discovery/climax, slash gender, a generic child alias, and missing personalization chips.
+
+## Independent QA and correction milestone
+
+Claude Code reviewed exact immutable range `5368bce73978e159fe1d64ab2662e8e734cfa29b..2304510db8966efbeeaebaf0b284cdbd502c57f4` read-only and reported topology PASS plus **PASS — 0 blocker / 0 major / 2 minor**.
+
+- **MINOR-1 accepted:** the writer contract required `{boy-form|girl-form}`, but the 18 brief inputs still contained slash-gender forms and bare masculine child actions. Because the brief and contract enter the same future model context, those target-like strings could contaminate output.
+- **MINOR-2 accepted:** `CURRENT.md` abbreviated the current `package.json` digest with the wrong penultimate group even though this evidence held the correct full digest.
+
+The separate correction milestone:
+
+- normalizes all 18 brief records to `{{childName}}` and distinct pipe variants wherever Hebrew morphology differs;
+- uses explicit wording for supporting characters rather than slash placeholders;
+- converts the Hebrew Guy-review table to gender-neutral infinitive phrasing;
+- makes the writer contract fail closed when a supplied brief contains slash gender or a generic singular child alias;
+- adds deterministic rejection of Hebrew slash forms, generic child aliases, identical pipe variants, and missing discovery/climax chips;
+- bounds every compact brief to five or six high-level causal movements; and
+- replaces the vacuous empty `03_spines` directory assertion with direct forbidden structured-spine-key inspection of every catalog set.
+
+Post-correction focused validation passed **3 files / 18 tests** and `npx --no-install tsc --noEmit` passed. The completed literal `npm run check` rerun reported canonical **289 = 270 ordinary + 19 resource-intensive** files. Resource-intensive passed in `98668 ms`; ordinary produced exactly the six established missing ignored-output fixture assertions, `signal:null`, `launchErrorCode:null`, valid diagnostics, and no seventh assertion or infrastructure/protocol failure.
+
+Operational note: an earlier check invocation was accidentally given a five-second outer command timeout. The outer wrapper exited `124` while its already-started resource Vitest child continued; Codex waited for that child to exit and verified that no repo-scoped Node process remained. That partial invocation is not claimed as a repository check. The complete clean invocation above is the validation claim.
 
 ### TypeScript
 
@@ -138,5 +160,6 @@ Claude Code should review the exact immutable base-to-commit range and try to pr
 8. The tests merely count fields and fail to reject a representative broken brief.
 9. Approved banks, runtime, dependencies, package identity, or cost-bearing paths changed despite the stated exclusions.
 10. The reported Git, test, full-check, or cost evidence is inaccurate.
+11. A brief or review artifact still teaches slash gender, bare masculine child grammar, or an identical pipe variant despite the correction claim.
 
 Claude Code's first pass is read-only. Guy retains all story/product acceptance.
