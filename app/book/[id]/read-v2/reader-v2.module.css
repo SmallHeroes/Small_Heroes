@@ -1371,7 +1371,12 @@
 }
 
 .physicalTurnSheetBackward .physicalTurnSheetShade {
-  background: linear-gradient(to right, rgba(30, 20, 10, 0.24), rgba(30, 20, 10, 0) 58%);
+  background: linear-gradient(
+    to right,
+    rgba(30, 20, 10, 0.2),
+    rgba(255, 251, 242, 0.05) 48%,
+    rgba(30, 20, 10, 0.08)
+  );
 }
 
 .physicalTurnCastShadow {

@@ -167,6 +167,24 @@ describe('shared Reader page-turn contract', () => {
     }
   });
 
+  it('mirrors the same bounded three-stop curvature shade in both directions', () => {
+    const css = fs.readFileSync(
+      path.join(process.cwd(), 'app', 'book', '[id]', 'read-v2', 'reader-v2.module.css'),
+      'utf8',
+    ).replace(/\s+/g, ' ');
+    const shadeStops = [
+      'rgba(30, 20, 10, 0.2)',
+      'rgba(255, 251, 242, 0.05) 48%',
+      'rgba(30, 20, 10, 0.08)',
+    ].join(', ');
+
+    expect(css).toContain(`background: linear-gradient( to left, ${shadeStops} );`);
+    expect(css).toContain(
+      `.physicalTurnSheetBackward .physicalTurnSheetShade { background: linear-gradient( to right, ${shadeStops} ); }`,
+    );
+    expect(css).not.toContain('rgba(30, 20, 10, 0.24)');
+  });
+
   it('keeps short mobile prose over the illustration and moves dense prose to paper', () => {
     expect(mobileTextPresentationFor('A short line for the page.', 'overlay')).toBe('overlay');
 

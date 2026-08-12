@@ -24,7 +24,9 @@ The first mesh browser pass also exposed a secondary presentation defect: the ol
 4. A bounded cosine/sine profile varies local Y rotation across the sheet. Progress 0 and 1 force zero curl amplitude and exactly coplanar strips.
 5. Front texture windows retain source order. Back windows use the exact reversed source index so the incoming page is upright after the 180-degree face flip.
 6. A 0.75px overlap hides subpixel cracks without changing geometry. Curvature shading remains below 0.07 opacity and the face itself has no per-strip box shadow.
-7. The existing 560ms duration, navigation guard, fallback timer, static book frame, mobile skip and `prefers-reduced-motion` behavior are unchanged.
+7. The animation easing changes from `easeInOutCubic` to `easeInOutSine`, giving the connected mesh a gentler acceleration and deceleration while preserving the 560ms duration.
+8. The former standalone crease element and its directional gradients are removed. Curvature is now expressed by the connected strip geometry and bounded whole-strip shade profile rather than a second hinge highlight.
+9. The existing 560ms duration, navigation guard, fallback timer, static book frame, mobile skip and `prefers-reduced-motion` behavior are unchanged.
 
 ## Changed paths
 
@@ -60,6 +62,16 @@ Additional checks:
 - `npx --no-install tsc --noEmit`: PASS
 - `git diff --check`: PASS
 - Literal `npm run check`: not rerun; the branch's separately recorded repository/release HOLD remains unchanged.
+
+### Independent QA and focused correction
+
+Claude Code independently reviewed `640476ddfaf831ede8eca6e62f7529eb0c4f2107..0c267bb8e224f06a2f97e8dec994576fca075d3e` read-only and returned **technical PASS** with no BLOCKER or MAJOR and two non-blocking MINOR findings. It independently reproduced TypeScript, the direct 11-test curl regression and the declared 6-file / 38-test Reader suite, and analytically measured worst adjacent-edge separation at approximately `2.34e-13px` across 402 sampled forward/backward frames.
+
+- MINOR-1 found that the backward sheet still used the pre-mesh two-stop shade override. The focused correction mirrors the new three-stop shade profile while retaining the correct `to right` direction.
+- MINOR-2 found that this contract omitted the user-visible easing change and removal of the standalone crease element. Items 7 and 8 now disclose both changes explicitly.
+- Claude's N1-N5 remain advisory: its initial probe thresholds were stricter than the documented project bounds; the temporary strip bleed slightly scales turn-time texture; degenerate inputs fail safe; browser observations were not independently reproduced; and the separate repository/release HOLD remains untouched.
+
+Closure of MINOR-1 and MINOR-2 remains pending a focused read-only micro re-gate of the correction commit; this record does not self-award independent closure or Guy's product acceptance.
 
 ### Browser proof
 
