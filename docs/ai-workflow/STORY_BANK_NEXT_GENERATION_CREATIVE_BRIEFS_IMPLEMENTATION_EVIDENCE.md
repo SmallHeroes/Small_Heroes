@@ -8,7 +8,7 @@
 - Exact base: reviewed local foundation commit `5368bce73978e159fe1d64ab2662e8e734cfa29b`.
 - Writer topology: this branch/worktree is the sole writer for this milestone.
 - Runtime authority: none. All briefs and future model drafts are staging-only.
-- Independent QA: Claude Code issued PASS on the initial exact range with two minor findings, then PASS on the correction and combined ranges with both original findings closed and two new guard-design minors. Both new minors are remediated in a separate local milestone; independent re-gate of that remediation remains pending. Codex does not self-award technical PASS.
+- Independent QA: Claude Code issued PASS on the initial exact range with two minor findings, PASS on the correction and combined ranges with both original findings closed and two new guard-design minors, then final PASS on the remediation and combined ranges with both new minors closed and no findings. Codex records Claude's verdict and does not self-award technical PASS.
 
 ## Implemented claims
 
@@ -110,6 +110,25 @@ Post-remediation focused validation passed **3 files / 20 tests** and `npx --no-
 
 Current corpus facts: 18 briefs; chips occur in 15/18 discoveries and 18/18 climaxes; 221 total chip occurrences; 94 distinct pipe pairs. Absence of a chip is valid where Hebrew grammar is invariant. Claude manually verified all 95 distinct pairs in the correction range and all 21 then-chip-free `{{childName}}` fields; the three restored neutral discovery phrases are exactly the naturally invariant cases it called out. This evidence does not convert that manual review into an automated grammar proof.
 
+## Final independent re-gate
+
+Claude Code independently reviewed exact remediation range `ce66689c4ed50069454faba5c886c28f80356367..42e23414e1680141c43b4367a5dd1bf6aadd7cd4` and combined range `5368bce73978e159fe1d64ab2662e8e734cfa29b..42e23414e1680141c43b4367a5dd1bf6aadd7cd4` read-only. Verdict: topology **PASS** and technical **PASS — 0 blocker / 0 major / 0 minor**. Both prior guard-design minors are independently closed.
+
+Claude independently established:
+
+- the exact branch, required HEAD, ancestry, three-commit/zero-merge combined topology, one-commit remediation topology, clean state, no upstream, unpushed state, seven-file remediation set, and clean diffs;
+- all three restored discovery sentences are wholly invariant with respect to the child, not merely invariant at the first verb;
+- chip-free neutral discovery and climax both pass while child-ownership checks remain active;
+- slash, parenthetical suffix, generic child alias, raw `childName`, identical chip, page/prose markers, `imageDirection:` inside a value, unknown keys at all five object-bearing layers, and seven causal movements are rejected;
+- the 32 top-level allowlist entries exactly equal both the interface and actual corpus fields, and all four nested allowlists are exact;
+- all 18 real briefs pass; six causal movements remain accepted; foundations, workload classification, and writer-contract behavior remain intact;
+- focused validation reproduces exactly **3 files / 20 tests** with split **8 + 5 + 7**, TypeScript passes, both package hashes match, and corpus counts reproduce exactly as **18**, **15/18**, **18/18**, **221**, and **94**; and
+- excluded banks, loader, matrix, runtime, dependency, render, and cost-bearing surfaces remain unchanged.
+
+Claude did not rerun the literal `npm run check`; its timings and six established fixture assertions remain Codex execution evidence. It independently confirmed the canonical **289 = 270 + 19** census through the passing classifier spec.
+
+Two no-occurrence advisories remain, neither raised as a finding: raw `childName` matching is case-sensitive, and identical-chip comparison does not trim whitespace. They do not affect the reviewed corpus and are not changed in this documentation-only closeout. Swapped variant order remains an explicit human language-QA limitation. Any future guard hardening requires a new reviewed code milestone.
+
 ### TypeScript
 
 Command:
@@ -187,4 +206,4 @@ Claude Code should review the exact immutable base-to-commit range and try to pr
 13. The tests or documentation again imply that chip presence proves Hebrew morphology, correct male/female ordering, or complete semantic coverage.
 14. One of the three restored unchipped discovery phrases is not genuinely invariant Hebrew.
 
-Claude Code's first pass is read-only. Guy retains all story/product acceptance.
+Claude Code's final re-gate was read-only and is complete. Guy retains all story/product acceptance.
