@@ -107,10 +107,50 @@ const DIRECT_THERAPY_OR_MORAL =
   /תירגע|אין מה לפחד|זה כלום|תרגיל נשימה|נשימה עמוקה|כעס זה בסדר|להתגבר על הפחד|ואז (?:הוא|היא) הבי(?:ן|נה) ש|מוסר השכל/i;
 
 const HEBREW_SLASH_FORM = /[\u0590-\u05ff]+\/[\u0590-\u05ff]+/u;
+const HEBREW_PARENTHETICAL_SUFFIX = /[\u0590-\u05ff]+\([\u0590-\u05ff]+\)/u;
 const GENERIC_SINGULAR_CHILD_ALIAS = /(^|[^\u0590-\u05ff])הילד(?![\u0590-\u05ff])/u;
-const PERSONALIZATION_CHIP = /\{[^{}|\n]+\|[^{}|\n]+\}/u;
 const PERSONALIZATION_CHIPS = /\{([^{}|\n]+)\|([^{}|\n]+)\}/gu;
 const FORBIDDEN_SPINE_KEY = /"(?:pages|pageBeats|pageSummaries|pageSpine|imageDirection)"\s*:/i;
+const FORBIDDEN_PROSE_MARKER = /--- Page \d+ ---|imageDirection:/i;
+
+const STORY_BRIEF_KEYS = new Set<keyof StoryBrief>([
+  'briefVersion',
+  'id',
+  'status',
+  'category',
+  'direction',
+  'pageCount',
+  'workingTitle',
+  'mechanicKey',
+  'creativePromise',
+  'hiddenUnderlayer',
+  'openingHook',
+  'childWant',
+  'physicalProblem',
+  'playRule',
+  'setPieces',
+  'lockedCausalMovement',
+  'companionWrongHelp',
+  'comicEscalations',
+  'attempts',
+  'childDiscovery',
+  'childClimaxAction',
+  'visiblePayoff',
+  'endingEnergy',
+  'recurringObjects',
+  'transientCast',
+  'rereadHooks',
+  'lineTargets',
+  'companionIndispensability',
+  'worldAndSafetyLocks',
+  'mustAvoid',
+  'oldStoryAntiCopy',
+  'modelFreedom',
+]);
+const SET_PIECE_KEYS = new Set(['id', 'name', 'dramaticUse']);
+const COMIC_ESCALATION_KEYS = new Set(['level', 'setup', 'consequence']);
+const ATTEMPT_KEYS = new Set(['attempt', 'failure']);
+const LINE_TARGET_KEYS = new Set(['childRepeatable', 'parentReread']);
 
 function readJson<T>(relativeOrAbsolutePath: string): T {
   const absolutePath = path.isAbsolute(relativeOrAbsolutePath)
@@ -160,6 +200,29 @@ function hasIdenticalPersonalizationChip(text: string): boolean {
   );
 }
 
+// These guards validate placeholder syntax and declared structure. Hebrew
+// morphology, variant order, and semantic coverage remain language-QA duties.
+
+function hasUnexpectedKeys(record: object, allowedKeys: ReadonlySet<string>): boolean {
+  return Object.keys(record).some((key) => !allowedKeys.has(key));
+}
+
+function hasUnexpectedStructuredKey(brief: StoryBrief): boolean {
+  return (
+    hasUnexpectedKeys(brief, STORY_BRIEF_KEYS) ||
+    brief.setPieces.some((setPiece) => hasUnexpectedKeys(setPiece, SET_PIECE_KEYS)) ||
+    brief.comicEscalations.some((escalation) =>
+      hasUnexpectedKeys(escalation, COMIC_ESCALATION_KEYS)
+    ) ||
+    brief.attempts.some((attempt) => hasUnexpectedKeys(attempt, ATTEMPT_KEYS)) ||
+    hasUnexpectedKeys(brief.lineTargets, LINE_TARGET_KEYS)
+  );
+}
+
+function containsRawChildName(text: string): boolean {
+  return text.split('{{childName}}').join('').includes('childName');
+}
+
 function validateBriefShape(
   brief: StoryBrief,
   companionId: string,
@@ -199,17 +262,15 @@ function validateBriefShape(
   if (brief.modelFreedom.length < 3) issues.push('modelFreedom');
   if (!brief.childDiscovery.startsWith('{{childName}}')) issues.push('childDiscovery owner');
   if (!brief.childClimaxAction.startsWith('{{childName}}')) issues.push('childClimaxAction owner');
-  if (!PERSONALIZATION_CHIP.test(brief.childDiscovery)) {
-    issues.push('childDiscovery gender chip');
-  }
-  if (!PERSONALIZATION_CHIP.test(brief.childClimaxAction)) {
-    issues.push('childClimaxAction gender chip');
-  }
 
   const rawBrief = JSON.stringify(brief);
   if (HEBREW_SLASH_FORM.test(rawBrief)) issues.push('slash gender form');
+  if (HEBREW_PARENTHETICAL_SUFFIX.test(rawBrief)) issues.push('parenthetical gender suffix');
   if (GENERIC_SINGULAR_CHILD_ALIAS.test(rawBrief)) issues.push('generic child alias');
+  if (containsRawChildName(rawBrief)) issues.push('raw childName placeholder');
   if (hasIdenticalPersonalizationChip(rawBrief)) issues.push('identical gender chip');
+  if (FORBIDDEN_PROSE_MARKER.test(rawBrief)) issues.push('generated prose marker');
+  if (hasUnexpectedStructuredKey(brief)) issues.push('unknown structured key');
 
   const setIds = brief.setPieces.map(({ id }) => id);
   const setNames = brief.setPieces.map(({ name }) => name);
@@ -300,8 +361,10 @@ describe('next-generation story creative briefs', () => {
       childWant: '{{childName}} רוצה להיות נוסע/ת ראשון/ה.',
       childDiscovery: 'הילד מסביר את התשובה',
       childClimaxAction: 'החבר פותר הכול',
+      openingHook: 'raw childName מציע(ה) פתרון. imageDirection: forbidden',
       companionWrongHelp: 'חבר חמוד עוזר',
     };
+    Object.assign(broken, { pagePlan: ['עמוד 1'] });
 
     const issues = validateBriefShape(
       broken,
@@ -314,10 +377,65 @@ describe('next-generation story creative briefs', () => {
     expect(issues).toContain('comicEscalations');
     expect(issues).toContain('childDiscovery owner');
     expect(issues).toContain('childClimaxAction owner');
-    expect(issues).toContain('childDiscovery gender chip');
-    expect(issues).toContain('childClimaxAction gender chip');
     expect(issues).toContain('slash gender form');
+    expect(issues).toContain('parenthetical gender suffix');
     expect(issues).toContain('generic child alias');
+    expect(issues).toContain('raw childName placeholder');
+    expect(issues).toContain('generated prose marker');
+    expect(issues).toContain('unknown structured key');
+  });
+
+  it('accepts natural gender-invariant child phrasing without a redundant pipe chip', () => {
+    const { manifest, sets } = loadCatalog();
+    const original = sets[0]!.briefs[0]!;
+    const neutral: StoryBrief = {
+      ...structuredClone(original),
+      childDiscovery: '{{childName}} רואה שהצל חוזר על שלושה מקצבים.',
+    };
+
+    expect(
+      validateBriefShape(
+        neutral,
+        sets[0]!.companionId,
+        manifest.directions[neutral.direction].minimumMeaningfulSetPieces
+      )
+    ).toEqual([]);
+  });
+
+  it('rejects undeclared structure at every object-bearing brief layer', () => {
+    const { manifest, sets } = loadCatalog();
+    const original = sets[0]!.briefs[0]!;
+    const mutations: StoryBrief[] = [
+      Object.assign(structuredClone(original), { beats: ['hidden'] }),
+      {
+        ...structuredClone(original),
+        setPieces: [Object.assign(structuredClone(original.setPieces[0]!), { pageNumber: 1 })],
+      },
+      {
+        ...structuredClone(original),
+        comicEscalations: [
+          Object.assign(structuredClone(original.comicEscalations[0]!), { pagePlan: 'hidden' }),
+        ],
+      },
+      {
+        ...structuredClone(original),
+        attempts: [Object.assign(structuredClone(original.attempts[0]!), { page: 1 })],
+      },
+      {
+        ...structuredClone(original),
+        lineTargets: Object.assign(structuredClone(original.lineTargets), { pageBeat: 'hidden' }),
+      },
+    ];
+
+    for (const mutation of mutations) {
+      expect(
+        validateBriefShape(
+          mutation,
+          sets[0]!.companionId,
+          manifest.directions[mutation.direction].minimumMeaningfulSetPieces
+        )
+      ).toContain('unknown structured key');
+    }
   });
 
   it('keeps all 18 premise identities and climax/payoff mechanics distinct', () => {
@@ -348,8 +466,11 @@ describe('next-generation story creative briefs', () => {
       const rawSet = JSON.stringify(set);
       expect(rawSet).not.toContain('--- Page 1 ---');
       expect(rawSet).not.toMatch(FORBIDDEN_SPINE_KEY);
+      expect(rawSet).not.toMatch(FORBIDDEN_PROSE_MARKER);
       expect(rawSet).not.toMatch(HEBREW_SLASH_FORM);
+      expect(rawSet).not.toMatch(HEBREW_PARENTHETICAL_SUFFIX);
       expect(rawSet).not.toMatch(GENERIC_SINGULAR_CHILD_ALIAS);
+      expect(containsRawChildName(rawSet)).toBe(false);
       expect(hasIdenticalPersonalizationChip(rawSet)).toBe(false);
 
       for (const brief of set.briefs) {
@@ -357,8 +478,6 @@ describe('next-generation story creative briefs', () => {
         expect(brief.oldStoryAntiCopy.every((entry) => entry.startsWith('לא '))).toBe(true);
         expect(positiveCreativeText(brief)).not.toMatch(KNOWN_OLD_PLOT_FINGERPRINTS);
         expect(positiveCreativeText(brief)).not.toMatch(DIRECT_THERAPY_OR_MORAL);
-        expect(brief.childDiscovery).toMatch(PERSONALIZATION_CHIP);
-        expect(brief.childClimaxAction).toMatch(PERSONALIZATION_CHIP);
       }
     }
   });
