@@ -1,50 +1,77 @@
-# Companion Sheet · בּוּני הארנבון (`bunny_ometz`)
+# Companion Story Bible · בּוּנִי הארנבון (`bunny_ometz`)
 
-> **New profile — authored for the pipeline** (bunny had no deep profile in code). Grounded in the canon visual + tagline + the MEDICAL one-liner "להגיד אמת קטנה גם כשהגוף קצת רועד". Verify with Guy before banking.
+**Status:** next-generation staging canon; not runtime authority.
 
-**Category:** MEDICAL_PROCEDURE (בדיקה רפואית) — *home category GENERAL_FEARS; mapped to medical for MVP* · **Gender:** male (זכר — הוא/אותו/שלו) · **Best direction:** bedtime/adventure (both approved)
-**Canonical accessory:** סמל-לב קטן בצורת לב, מוצמד לחזה ("תג האומץ").
-**One-line essence:** ארנבון שנולד פחדן וגילה שאומץ הוא *שריר שאפשר לאמן*. **האוזניים שלו תמיד מספרות את האמת לפני שהוא מוכן** — והוא לומד לעבוד *איתן*, לא נגדן.
+**Challenge category:** `MEDICAL_PROCEDURE` in the MVP matrix, visually housed under `GENERAL_FEARS` · **Gender:** male · **Display name:** בּוּנִי.
 
-> **Signature engine (זה מה שמרים את בּוּני מ"מעודד גנרי" ל"בלתי-נשכח"):** האוזניים הן מד-האומץ. הוא מכריז על תוכנית *ענקית*, האוזניים נשמטות ומבגידות את הפחד מיד — אז הוא עושה "גרסת אוזן אחת" (צעד קטנטן), ומודד הצלחה לפי *כמה האוזניים התרוממו*. גאה בצעד הקטן באופן מצחיק-מדי. בלי המנוע הזה בּוּני יוצא גנרי — *השתמש בו בכל סיפור*.
+**Immutable visual identity:** small cream-white bunny, long floppy ears, wide vulnerable/brave eyes, blush cheeks, tiny heart badge; 25–35% of child height, never waist-high.
 
----
+## Child-facing promise
 
-## MISSING SLOTS
+בּוּנִי's mouth volunteers for enormous plans before his ears have been consulted. His ears tell the truth, often at the worst comic moment. He does not teach courage; he and the child negotiate what a real next move can be while the plan keeps becoming unexpectedly enormous.
 
-| Slot | Beats | Premise (paste into ‹‹SLOT_PREMISE››) | Suggested WORLD_RULE |
-|------|-------|----------------------------------------|----------------------|
-| `bunny_ometz` · **fantasy** | 16 | עולם קטן וקסום שבו צריך לעבור "בדיקה"/מעבר מפחיד אחד (שער שצריך לפתוח, יצור שצריך להראות לו את כף הרגל) — והגוף של {{childName}} רועד. בּוּני מראה שאומץ הוא צעד קטן אחד אמיתי, גם כשרועדים — ושאפשר לאמן אותו. | "אומץ הוא לא היעדר פחד — הוא צעד קטן אחד אמיתי, גם כשהגוף רועד." |
+## Story engine
 
-> bedtime + adventure already approved. **fantasy** is the only missing slot — closes MEDICAL_PROCEDURE to 3/3.
-> Note for medical-adjacent fantasy: keep the "check" gentle and metaphorical (a gate, a friendly creature that needs to *look*), echoing a real medical exam without being clinical or scary.
+- **Visible desire:** complete a concrete inspection, delivery, crossing, performance, repair, or encounter that he has already announced much too confidently.
+- **Lovable flaw:** he confuses a grand announcement with having started.
+- **Wrong help:** proposes a heroic all-at-once plan; when his ears collapse, he overcorrects to a step so tiny it cannot solve anything.
+- **Embodied tell:** the ears reveal scale and uncertainty before speech; the heart badge may be touched, but it is never magical.
+- **Child-only ability:** the child chooses the smallest step that is still real and relevant, then acts first or alongside him.
+- **Relationship change:** בּוּנִי supplies honesty about bodily hesitation; the child supplies proportion and forward motion. His pride shifts from sounding heroic to completing something concrete.
+- **Emotional underlayer, never headline:** the body may object while a person still chooses a truthful, bounded action.
 
----
+## Comic engine — “the ears renegotiate the mission”
 
-## CHARACTERIZATION (for the model) — paste this into ‹‹COMPANION_SHEET››
+1. בּוּנִי declares a plan far larger than the immediate problem.
+2. His ears fold, point elsewhere, snag, cover his eyes, or otherwise contradict the declaration.
+3. He proposes an absurdly tiny “one-ear version,” and the child turns it into a useful next move.
 
-```
-שם: בּוּני. מין: זכר (נעול — הוא/אותו/שלו). חיה: ארנבון רך וקטן (בערך 25–35% מגובה הילד/ה — לעולם לא בגובה מותן).
-מהות: נולד פחדן וגילה שאומץ הוא שריר שאפשר לאמן. להיות פחדן לא אומר שאתה לא אמיץ. הכלי: צעד אמיץ קטן אחד אמיתי בכל פעם — מודים שהגוף רועד, וצועדים בכל זאת.
-הכלי הפיזי (canonical): שני כלים — (1) תג-הלב על החזה, נוגע בו לפני צעד אמיץ. (2) **האוזניים כמד-אומץ**: כמה הן מורמות = כמה אומץ יש כרגע. "אוזן אחת מורמת" = צעד קטן אמיתי.
-מנוע קומי / signature behavior (חובה בכל סיפור): האוזניים מספרות את האמת לפני שבּוּני מוכן. הוא מכריז על תוכנית *ענקית* ("נכבוש את כל המדרגות!"), האוזניים נשמטות ומבגידות את הפחד מיד, אז הוא עושה "גרסת אוזן אחת" — צעד קטנטן אחד — ומודד את ההצלחה לפי כמה האוזניים התרוממו. גאה בצעד הקטן באופן מצחיק-מדי ("ראיתם?! אוזן שלמה!").
-קול ודיבור: קטן, כן, אמיץ-רועד מעט. שם את הפחד בלי דרמה. סופר אומץ בצעדים זעירים. לא גיבור נטול-פחד, לא מטיף.
-דוגמאות דיבור: "הגוף שלי רועד. זה בסדר. נצעד צעד קטן." · "אומץ זה שריר. מאמנים אותו לאט." · "אני פחדן. וגם אמיץ. שניהם נכון." · "צעד אחד. רק אחד. עכשיו עוד אחד."
-חולשה רגשית: לפעמים מקטין כל כך את הצעד שכמעט לא זז — צריך את הילד/ה כדי לבחור את הצעד האמיתי הבא.
-סוכנוּת הילד/ה: הילד/ה עושה את הדבר האמיץ הקטן (אומר/ת אמת קטנה / נותן/ת שיסתכלו / פותח/ת את היד) בזמן שבּוּני מעודד מהצד. הילד/ה צועד/ת — לא בּוּני.
-ריטואל הרגעה: נוגע בתג-הלב → נושם → שם את הפחד במילה → צעד קטן אחד.
-שפת גוף: רגוע = עומד זקוף למרות הכול, עיניים פגיעות-אך-אמיצות, לחיים סמוקות. לחוץ = אוזניים נשמטות, גוף קטן יותר, ואז מתרומם שוב.
-copingStrategy: TRAINED_COURAGE — פחד מוכר, צעד קטן אמיתי, אימון השריר; אומץ ≠ היעדר פחד.
-doNotWriteList: לא ארנב נטול-פחד/גיבור · לא "אל תפחד / זה כלום" · לא להכחיש שהגוף רועד · אומץ ≠ היעדר פחד · בּוּני לא עושה את הצעד האמיץ במקום הילד/ה · בלי מוסר בסוף.
-swapTest: אם בּוּני הופך ל"חיה מעודדת" גנרית — נכשלת. סיפור בּוּני חייב להרגיש כמו אימון-אומץ: גוף שרועד, צעד זעיר אמיתי, תג-לב, "פחדן וגם אמיץ".
-```
+Each return must alter the physical plan and consequence. Do not use ear position as a score, meter, or narrated therapy dashboard on every page.
 
----
+## Voice and oral Hebrew
 
-## VISUAL CHARACTER-SHEET SPEC (for the anchor render)
+- Earnest, specific, proud too soon, capable of honest self-correction.
+- Favors practical measurements invented by a child: one tile, half a handle, until the red stripe.
+- Sample voice, not mandatory catchphrases: “אני מוכן לגמרי. האוזניים ביקשו לציין שהן לא חלק מההודעה.” · “אולי נכבוש רק את הידית.” · “זו הייתה קפיצה שלמה. קטנה, אבל שלמה.”
+- No inspirational slogans, bravery lectures, or repeated explanation that fear and courage coexist.
 
-- **Body:** small soft bunny, **long floppy ears**, wide uncertain-but-brave eyes; **cream-white fur with a blush on the cheeks**; vulnerable but **standing tall**.
-- **Canonical accessory:** tiny **heart-shaped badge** pinned to the chest.
-- **Size lock:** roughly **25–35% of the child's standing height** (knee to mid-thigh beside the child). Never waist-high, never toddler-sized.
-- **Required expression states:** brave-standing-tall · scared (ears drooping) · proud-after-a-small-step · gentle-encouraging.
-- **Anti-merge clauses:** cream-white fur must separate from light/white backgrounds (clinic, bedsheets) — keep a soft rim; the heart-badge is a small clear chest point.
+## Play vocabulary
+
+- **Actions:** measure a next move, peek, hold still briefly, touch/turn/open, tell one true detail, cross a marked threshold.
+- **Objects:** heart badge, floppy ears, stickers, handles, wheels, patches, trays, tools, gates, friendly machines; clinical objects only when accurate and non-minimizing.
+- **World affordances:** clinics with multiple functional spaces, traveling repair shops, inspection stations, gardens of closing/opening mechanisms, gentle fantasy crossings.
+- **Reread hooks:** ears foreshadowing trouble, child-defined measurements, grand mission language shrinking into precise action.
+
+## Direction modulation
+
+- **Bedtime:** a pending tomorrow may be present, but the visible plot must happen now and may travel; landing comes from completing one bounded preparation, not rehearsing sleep.
+- **Adventure:** physical route or task with escalating equipment/threshold trouble; no medical tour disguised as adventure.
+- **Fantasy:** one playable world rule about opening, showing, measuring, or crossing; no symbolic “courage crystal” or creature that simply administers a test.
+
+## Do not write
+
+- fearless hero bunny or generic motivational mascot;
+- “אל תפחד,” “זה כלום,” “זה לא יכאב,” or unearned reassurance;
+- heart badge as magic courage dispenser;
+- ears treated as a numerical therapeutic meter on every beat;
+- doctor/medical process represented inaccurately to make the lesson easier;
+- child praised or labeled brave instead of changing the plot;
+- בּוּנִי completing the decisive act for the child.
+
+## Swap test and acceptance
+
+Replacing בּוּנִי with a generic encouraging animal must break the grand-plan/ear contradiction, physical scaling joke, truthful body cue, and child-sized action design.
+
+- [ ] The visible task matters without the category label.
+- [ ] בּוּנִי's first plan is entertainingly oversized.
+- [ ] His tiny correction is initially insufficient and creates a second problem.
+- [ ] The child defines and performs the useful next move.
+- [ ] No medical reassurance, bravery label, or symbolic courage object resolves the plot.
+
+## Visual continuity locks
+
+- Cream-white fur with blush cheeks; preserve separation from pale rooms and bedding.
+- Long floppy ears must remain expressive and anatomically consistent.
+- Tiny heart-shaped chest badge is present in clear views but never glows or acts magically.
+- Scale stays around knee to mid-thigh beside the child.
+- No waist-high/toddler scale, superhero styling, cape, or weapon.

@@ -1,8 +1,23 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-09
+**Updated:** 2026-08-12
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-represented-elsewhere-page-repair-routing` in `C:\Users\guyna\.codex\worktrees\1602\Small_Heroes`, based exactly on immutable pushed commit `1d2a5a8f6cfa72db3a4d2375c4728bb7305697b8`. The implementation range is independently PASSed; this documentation closeout remains local and unpushed.
+**Working branch:** `codex/story-bank-next-generation-foundations` in `C:\Users\guyna\.codex\worktrees\1602\Small_Heroes`, based exactly on immutable pushed commit `22857995df578d366809226a5d693cd783a10ed7`. This branch is the sole writer for the next-generation story foundations milestone and remains local and unpushed.
+
+## STORY BANK NEXT-GENERATION FOUNDATIONS — local implementation complete / Guy selection and independent QA pending
+
+Guy approved the 2026-08-12 Decision Gate to stop polishing the existing plots and instead create a new, versioned story generation from blank. This first milestone is intentionally non-runtime: it defines the creative contract, standardizes the six MVP companion story bibles, and stops with three Koko/bedtime premise finalists before page beats or prose.
+
+- `story-pipeline/00_NEXT_GENERATION_STORY_CONTRACT.md` now defines entertainment-first visible plot, resilience as underlayer, child-owned want/try-fail/discovery/climax, companion wrong help, causal humor, meaningful set pieces, oral Hebrew, reread value, and staged premise/spine/prose/integration gates. `bedtime` is explicitly an eight-beat energy curve, not a bed/bedroom/sleep requirement.
+- All six active MVP companion sheets now share one causal template: immutable identity, visible desire, lovable flaw, wrong help, embodied signature, child-only ability, relationship change, comic rule of three, oral voice, play vocabulary, direction modulation, prohibitions, swap test, and visual locks. Koko's satchel/home trace is no longer a mandatory token cure; Leo's bedroom thunder corner is no longer a fixed plot template.
+- The stale pipeline tracker and old prose template are fenced. V3/V5 prose and old premise files are historical anti-copy evidence only and cannot seed new plots. The legacy full-prose prompt is explicitly on HOLD until Guy selects a premise and approves its page-beat spine.
+- The Koko/bedtime pilot contains exactly 12 complete premise candidates across nine recorded premise families and exactly three materially different finalists: `היום שנכנס לתיק של קים`, `תחנת האוטובוס שקמה והלכה`, and `תחנת הדלתות של בין הערביים`. Each finalist has three set pieces, three comic escalations, two causal try/fails, an eight-event pre-prose chain, a child-owned climax, bedtime energy proof, continuity risks, and an explicit non-copy statement. Codex has not selected a winner.
+- A deterministic foundation spec passed **1 file / 5 tests**. It verifies typed 12/3 bounds, field completeness, premise-family diversity, all three finalists through the existing hard-fail validator, forbidden bedroom/home-token/therapy residue, complete finalist evidence, the six-bible shared template, and the prose HOLD. After the workload census correction, the combined foundation+census selection passed **2 files / 12 tests**.
+- `npx --no-install tsc --noEmit` passed before the full check and is rerun before commit. `git diff --check` passed. No active/approved story, loader, import gate, product registry, deep runtime profile, order, visual package, or render path changed.
+- Literal `npm run check` ran once. TypeScript passed. Canonical inventory was **288 files**: resource-intensive **19** at two workers passed in `101701 ms` with valid diagnostics and no timeout/RPC/IPC/reporter/launch/signal/teardown/protocol failure; ordinary **269** at four workers reported the exact six established ignored-output fixture assertions plus one implementation-caused workload census assertion (`287/268` expected versus the new correct `288/269`). The census was corrected and proved by the focused **2 files / 12 tests** pass; the literal full check was not rerun. Repository/release status therefore remains HOLD on the six established fixture assertions, not on a new story-foundation assertion.
+- No credential access, provider/model/network/pricing call, story generation API, approved-bank write, database/storage action, image/audio/render, Blueprint, Wizard, reader/layout, publication, promotion, activation, deployment, or push occurred. External cost is `$0`.
+- Durable records: `docs/ai-workflow/STORY_BANK_NEXT_GENERATION_FOUNDATIONS_DECISION_GATE.md` and `docs/ai-workflow/STORY_BANK_NEXT_GENERATION_FOUNDATIONS_IMPLEMENTATION_EVIDENCE.md`.
+- **Next action:** independent Claude Code review-only QA on exact base-to-commit range, while Guy chooses one of finalists A/B/C. Selection authorizes only an eight-beat spine and page-turn review; full prose, bank integration, visual-contract rebuild, and any render remain separately gated.
 
 ## R1D-PVB-D1A1B1-REPRESENTED-ELSEWHERE-PAGE-REPAIR-ROUTING - independent technical PASS / repository release HOLD
 

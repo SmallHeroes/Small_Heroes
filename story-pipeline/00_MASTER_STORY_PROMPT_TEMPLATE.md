@@ -1,4 +1,9 @@
-# 00 · Master Story Prompt Template — Mode B (full draft)
+# 00 · Master Story Prompt Template — LEGACY / HOLD
+
+> **Do not use this template for next-generation story prose.** It predates
+> `00_NEXT_GENERATION_STORY_CONTRACT.md` and remains only as historical pipeline
+> evidence. A later, separately approved milestone must replace it after Guy
+> selects a premise and approves the page-beat spine.
 
 **Purpose:** write the full Hebrew story for one slot **from an already-chosen premise**. Fill the blanks from the companion sheet + the premise you picked in the Premise Lab, paste into ChatGPT, get a Hebrew draft in the exact bank format, then route to Claude for gender-QA + validators before approval.
 

@@ -1,47 +1,79 @@
-# Companion Sheet · עֲנָת הפנדה (`panda_anat`)
+# Companion Story Bible · עֲנָת הפנדה (`panda_anat`)
 
-**Category:** SOCIAL (קושי חברתי) · **Gender:** female (נקבה — היא/אותה/שלה) · **Best direction:** bedtime
-**Canonical accessory:** אבן/עלה קטן של *הפסקה* שהיא מניחה לפני כניסה (חפץ-טקס). נדרש רק כשעֲנָת נראית בבירור.
-**One-line essence:** פנדה שחווה את העולם מהיר וצפוף מדי — ומגלה שהאיטיות שלה יוצרת מקום שכולם יכולים להיכנס אליו. המתנה שלה היא לא רגיעה; היא *הרשאה להיכנס לאט*.
+**Status:** next-generation staging canon; not runtime authority.
 
----
+**Challenge category:** `SOCIAL` · **Gender:** female · **Display name:** עֲנָת.
 
-## MISSING SLOTS
+**Immutable visual identity:** soft panda, muted palette, gentle eyes, quiet open posture, sweater with small music-note patch; pause-stone/leaf may appear when action requires it.
 
-| Slot | Beats | Premise (paste into ‹‹SLOT_PREMISE››) | Suggested WORLD_RULE |
-|------|-------|----------------------------------------|----------------------|
-| `panda_anat` · **bedtime** | 8 | אחרי יום חברתי רועש ומציף (גן/מסיבה/קבוצה חדשה), {{childName}} לא מצליח/ה להירגע לישון — הראש עוד "רץ". עֲנָת מגיעה לאט, יושבת, והחדר שוקט סביבה. הילד/ה לומד/ת שלא צריך/ה לרוץ אחרי כל מה שקרה — אפשר להיכנס לשינה *לאט, צעד אחד*. | "לא צריך לרוץ כדי להצטרף — גם לא לשינה. נכנסים לאט." |
-| `panda_anat` · **fantasy** | 16 | עולם רך ואיטי שבו הכול ממהר חוץ מ{{childName}} ועֲנָת — ובזכות ההאטה הם רואים את הפתח הקטן האחד שכולם פספסו, ופותחים דלת חברתית. | "האיטיות היא לא פיגור — היא מה שמאפשר לראות את הפתח ולהיכנס בו." |
+## Child-facing promise
 
-> adventure already approved. bedtime is עֲנָת's **best** direction (highest priority) + fantasy completes SOCIAL.
-> **Weak-direction risk:** a loud/fast fantasy forces her to run → her core ("gift-in-slowness") breaks. Keep fantasy grounded: her magic is a *quiet center*, not a noisy journey.
->
-> ⭐ **Slot requirement (esp. bedtime):** the SOCIAL must stay social — without it, עֲנָת bedtime collapses into a generic "let's calm down and sleep slowly" meditation. **Every עֲנָת story needs a concrete *social-residue object*** that carries the day's social moment into the scene: a sticker from the party, a small chair from the circle, a word still stuck in the throat, a group drawing, a game-piece they didn't get to place. Make the social moment *specific* (a game that started without them, a sentence not said, another kid who also waited). Put the chosen residue object into the Premise Lab seed.
+The world often starts before עֲנָת finishes arriving. She is funny because her timing is spectacularly late, and valuable because the detail everyone rushed past is usually waiting exactly where she finally stops.
 
----
+She is not “the calm friend.” She wants to join, sometimes hides inside waiting, and needs the child to help turn precise noticing into a real entrance.
 
-## CHARACTERIZATION (for the model) — paste this into ‹‹COMPANION_SHEET››
+## Story engine
 
-```
-שם: עֲנָת. מין: נקבה (נעול — היא/אותה/שלה). חיה: פנדה רכה.
-מהות: העולם רץ; עֲנָת נעה לאט — ובגלל שהיא מגיעה מאוחר היא שמה לב לדבר הקטן האחד שבאמת חשוב בזמן שכולם רצים לבלבול. המתנה: הרשאה להיכנס לאט; לא צריך להיות רועש כדי להשתייך.
-מנוע קומי: מתחילה משפט, חושבת, נוטה לאט הצידה, נופלת בעדינות על הגב, ומסיימת את המשפט מהרצפה כאילו תמיד תכננה כך. (הנפילה לאחור = ביט חתימה אחד בסיפור, לא בדיחה בכל עמוד.)
-קול ודיבור: איטי, חם, מילולי, הפסקות מתוכננות. כשמתרגשת — חמה יותר, לא מהירה יותר. לא ישנה/מנומנמת, לא מנטורית-חכמה, לא פואטית, לא שפת מטפלת.
-דוגמאות דיבור: "אני… כמעט… מוכנה." · "אפשר להיכנס לאט." · "רגע. הגוף שלי עוד מגיע." · "לא צריך לרוץ כדי להצטרף." · "נעמוד פה נשימה אחת. אחר כך עוד צעד." · "אני באה. כף הרגל השמאלית כבר השתכנעה."
-חולשה רגשית: לפעמים משתמשת באיטיות כהסתרה — מחכה כל כך הרבה שהמשחק מתחיל בלעדיה; אומרת "כמעט מוכנה" כשבאמת מפחדת להיראות. היא צריכה את הילד/ה גם.
-סוכנוּת הילד/ה: הילד/ה שם/ה לב למה שעֲנָת לא יכולה — הפתח הקטן בקבוצה, הילד/ה השני/ה שגם מחכה, הרגע לומר משפט אחד. הילד/ה עוזר/ת לעֲנָת לעבור מ"מחכה לנצח" ל"נכנסת לאט".
-ריטואל הרגעה: מניחה את אבן/עלה ההפסקה → מרגישה את הרצפה → נשימה אחת → צעד חברתי קטן אחד.
-שפת גוף: רגוע = יושבת רחבה מקורקעת, מצמוץ חושב, כפות רכות על הברכיים. לחוץ = מחכה יותר מדי, "כמעט מוכנה" כשמפחדת.
-doNotWriteList: לא "פשוט תירגעי" · לא ישנה/מנומנמת · לא מנטורית-חכמה או שפת מטפל · איטיות ≠ עצלנות/פסיביות · לא נפילה-לאחור בכל עמוד · עֲנָת לא פותרת את הבעיה החברתית במקום הילד/ה · בלי מוסר בסוף.
-swapTest: אם אפשר להחליף את עֲנָת ב"חיה רגועה" כלשהי — נכשלת. סיפור עֲנָת חייב להרגיש איטי יותר, חם יותר, מצחיק דרך תזמון, אמיץ חברתית יותר, פחות ריאקטיבי.
-```
+- **Visible desire:** take part in a game, performance, delivery, build, group mission, or shared secret without pretending to enjoy the fastest route in.
+- **Lovable flaw:** she waits for the perfect opening until the opening nearly closes.
+- **Wrong help:** asks everyone or everything to pause while she examines the least urgent-looking detail; meanwhile the main problem moves on without them.
+- **Embodied tell:** a long considered lean may become one gentle fall onto her back; she continues the sentence from the floor as if planned.
+- **Child-only ability:** the child recognizes the social opening—who is also waiting, what invitation is missing, or which one sentence must be said—and acts before perfection arrives.
+- **Relationship change:** עֲנָת's slow observation reveals the opportunity; the child gives it timing and a social gesture. עֲנָת follows the child's invitation.
+- **Emotional underlayer, never headline:** belonging does not require being the loudest, but waiting forever is not the same as choosing one's pace.
 
----
+## Comic engine — “late, lower, exactly right”
 
-## VISUAL CHARACTER-SHEET SPEC (for the anchor render)
+1. The world moves too quickly and עֲנָת begins an important sentence.
+2. By the time she reaches the useful noun, the group/problem has shifted and her body has leaned somewhere inconvenient.
+3. From the floor, cart, slowly moving platform, or wrong end of the line, she points out the one precise detail everyone missed.
 
-- **Body:** soft panda, muted colors, gentle eyes; quiet open posture; very huggable, calm presence; **a small music-note patch on a sweater**.
-- **Canonical accessory:** small **pause-stone / pause-leaf** she sets down before entering (ritual object). Needed only when clearly visible; in partial/silhouette it can be absent — never replace with a conflicting prop.
-- **Required expression states:** grounded-calm · thinking-blink · "almost ready" (gentle hesitation) · warm-open.
-- **Signature pose for the set:** the slow lean-back / fall-back-and-keep-talking pose.
-- **Anti-merge clauses:** muted palette must still separate from neutral bedroom/room tones; keep her rounded silhouette readable; do not brighten her into a loud cartoon panda.
+The gentle fall is a once-per-story signature beat. Other turns use timing, delayed arrival, or exact observation; never repeat the same fall.
+
+## Voice and oral Hebrew
+
+- Warm, deliberate, concrete, with pauses that create timing rather than meditation.
+- Excitement makes her more specific, not faster.
+- Sample voice, not mandatory catchphrases: “אני… באה. כף רגל אחת כבר הצביעה בעד.” · “רגע. חסר פה ילד אחד וקצה אחד של חבל.” · “לא איחרנו. הגענו בדיוק אחרי הבלבול.”
+- No poetic abstractions, sleepy delivery, therapy vocabulary, or old-wise mentor tone.
+
+## Play vocabulary
+
+- **Actions:** place a pause marker, observe from a low angle, count missing pieces, hold a place, invite one person, join on a chosen beat.
+- **Objects:** group game pieces, string, stickers, instruments, chalk, queue markers, shared builds; a pause-stone/leaf only when causally useful.
+- **World affordances:** playgrounds, workshops, parades, community gardens, rehearsal spaces, moving fairs, quiet fantasy systems where timing reveals hidden mechanics.
+- **Reread hooks:** the important detail visible early; her unfinished sentence completing after the situation changes; another quiet participant mirrored in the background.
+
+## Direction modulation
+
+- **Bedtime:** the plot may begin in a social place and travel away from its noise. The last quarter resolves one unfinished social action and lands in shared quiet, not generic sleep coaching.
+- **Adventure:** a group quest where rushing creates mistakes and עֲנָת's precision reveals a route, with the child making the timely invitation or move.
+- **Fantasy:** a world whose fast rule hides doors, patterns, or creatures visible only at a different tempo; not a static “quiet kingdom.”
+
+## Do not write
+
+- lazy, sleepy, passive, or magically calming עֲנָת;
+- “just slow down,” breathing lessons, or a room becoming calm around her;
+- perfect mentor who is never socially afraid;
+- fall-back joke on every page;
+- a story that contains no concrete social bid, group problem, or other participant;
+- עֲנָת solving the social climax instead of the child;
+- moral that quiet children are secretly better than loud children.
+
+## Swap test and acceptance
+
+Replacing עֲנָת with a generic calm animal must break the timing jokes, delayed observation, almost-missed entrance, precise clue, and child invitation. If the plot only needs “someone soothing,” it fails.
+
+- [ ] עֲנָת genuinely wants to join or contribute.
+- [ ] Her waiting creates a real cost, not only a virtue.
+- [ ] Her precise observation changes the external problem.
+- [ ] The child performs the timely social action.
+- [ ] The story contains a specific social situation, not generic overstimulation.
+
+## Visual continuity locks
+
+- Rounded, huggable panda silhouette in muted colors; remain separated from neutral backgrounds.
+- Small music-note patch remains on the sweater.
+- Pause-stone/leaf is optional and may not be replaced by a conflicting hero prop.
+- Signature pose may include one slow lean/fall while speaking.
+- No loud neon treatment, sleepy eyes as default, or authority costume.
