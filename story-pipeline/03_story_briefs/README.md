@@ -41,7 +41,8 @@ Brief acceptance does not approve prose. Draft acceptance does not approve bank 
 - page counts are locked to bedtime 8, adventure 12, fantasy 16;
 - every story uses at least two meaningful set pieces for bedtime and three for adventure/fantasy;
 - every brief contains five or six high-level causal movements, never a page-count-length spine;
-- child references use `{{childName}}` plus distinct `{boy-form|girl-form}` chips where Hebrew grammar differs; slash gender and the generic singular child alias are rejected;
+- child references use `{{childName}}` plus distinct `{boy-form|girl-form}` chips only where Hebrew grammar differs; naturally gender-invariant Hebrew remains unchipped;
+- deterministic guards reject malformed placeholder syntax and undeclared structure, while the linguistic correctness, order, and coverage of Hebrew chip variants remain an explicit human language-QA responsibility;
 - every companion is causally indispensable;
 - old-bank material appears only under `oldStoryAntiCopy`, never as a positive seed;
 - all records remain `draft_for_guy_review` until Guy explicitly accepts them.

@@ -64,8 +64,9 @@ Do not output an outline, analysis, checklist, explanations, or alternative vers
 - Vary sentence length. Reserve very short sentences for impact and comic timing.
 - Use niqqud only where pronunciation or ambiguity needs it.
 - Use `{{childName}}` exactly for the child's name.
-- Every gendered form addressed to or describing the child must use the current pipe chip: `{boy-form|girl-form}`. Never use slash gender, parenthetical suffixes, raw `childName`, or invented placeholders.
-- The supplied brief must already obey that same placeholder rule. If a brief contains slash gender or uses the generic singular child alias in place of `{{childName}}`, do not silently normalize it; return `BRIEF_CONFLICT:` and identify the field.
+- Every gendered form addressed to or describing the child must use the current pipe chip: `{boy-form|girl-form}`. A naturally gender-invariant Hebrew form stays unchipped. Never add a redundant chip solely to demonstrate personalization.
+- Never use slash gender, parenthetical suffixes, raw `childName`, or invented placeholders.
+- The supplied brief must already obey those same placeholder rules. If it contains a forbidden placeholder shape or uses the generic singular child alias in place of `{{childName}}`, do not silently normalize it; return `BRIEF_CONFLICT:` and identify the field.
 - Aim for two memorable lines: one a child may repeat in play and one an adult enjoys on reread. They must belong to the plot, not sound like a slogan.
 - Zero explicit resilience lines is preferred. One is the absolute maximum.
 

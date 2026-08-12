@@ -8,7 +8,7 @@
 - Exact base: reviewed local foundation commit `5368bce73978e159fe1d64ab2662e8e734cfa29b`.
 - Writer topology: this branch/worktree is the sole writer for this milestone.
 - Runtime authority: none. All briefs and future model drafts are staging-only.
-- Independent QA: Claude Code issued PASS on the initial exact range with two minor findings. Both are remediated in a separate local correction milestone; independent re-gate of that correction remains pending. Codex does not self-award technical PASS.
+- Independent QA: Claude Code issued PASS on the initial exact range with two minor findings, then PASS on the correction and combined ranges with both original findings closed and two new guard-design minors. Both new minors are remediated in a separate local milestone; independent re-gate of that remediation remains pending. Codex does not self-award technical PASS.
 
 ## Implemented claims
 
@@ -20,7 +20,7 @@
 6. Every brief has a unique ID, working title, mechanic key, opening hook, climax action, and payoff. No approved old story is a positive prompt input.
 7. The selected Koko/bedtime B premise is retained as a compact brief. The rejected hand-authored spine was removed and never committed.
 8. Existing approved banks and every production/runtime surface remain unchanged.
-9. Every brief uses `{{childName}}` and distinct pipe chips for gendered child grammar; slash gender, generic singular child aliases, and identical pipe variants fail deterministic validation.
+9. Every brief uses `{{childName}}` and distinct pipe chips where child grammar differs; naturally invariant Hebrew remains unchipped. Deterministic validation rejects malformed placeholder syntax and undeclared structure. Hebrew morphology, male/female variant order, and semantic coverage remain human language-QA responsibilities.
 
 ## Material file set
 
@@ -50,7 +50,7 @@ Command:
 npx vitest run lib/__tests__/story-pipeline-next-generation-creative-briefs.spec.ts lib/__tests__/story-pipeline-next-generation-foundations.spec.ts lib/__tests__/vitest-workload-classifier.spec.ts
 ```
 
-Result: **PASS — 3 files / 18 tests**.
+Result after guard-design remediation: **PASS — 3 files / 20 tests**.
 
 The new test proves:
 
@@ -65,9 +65,9 @@ The new test proves:
 - all 18 IDs, titles, mechanic keys, hooks, climaxes, and payoffs are unique;
 - all 18 titles appear in the Hebrew Guy-review artifact;
 - no full page prose, image direction, or rejected spine artifact exists;
-- the ChatGPT contract requires current format, word bands, personalization chips, fail-closed conflict behavior, and untrusted staging status.
+- the ChatGPT contract requires current format, word bands, personalization where grammar differs, fail-closed conflict behavior, and untrusted staging status.
 
-A deliberately broken control proves the guard rejects wrong page count, too few set pieces, more than six causal movements, only two comic escalations, generic companion help, companion-owned discovery/climax, slash gender, a generic child alias, and missing personalization chips.
+A deliberately broken control proves the guard rejects wrong page count, too few set pieces, more than six causal movements, only two comic escalations, generic companion help, companion-owned discovery/climax, slash gender, parenthetical suffix gender, a generic child alias, raw `childName`, generated-prose markers, and undeclared structured keys. A separate control proves naturally invariant child grammar does not require a redundant pipe chip.
 
 ## Independent QA and correction milestone
 
@@ -90,6 +90,26 @@ Post-correction focused validation passed **3 files / 18 tests** and `npx --no-i
 
 Operational note: an earlier check invocation was accidentally given a five-second outer command timeout. The outer wrapper exited `124` while its already-started resource Vitest child continued; Codex waited for that child to exit and verified that no repo-scoped Node process remained. That partial invocation is not claimed as a repository check. The complete clean invocation above is the validation claim.
 
+## Independent re-gate and guard-design remediation
+
+Claude Code reviewed exact correction range `2304510db8966efbeeaebaf0b284cdbd502c57f4..ce66689c4ed50069454faba5c886c28f80356367` and combined range `5368bce73978e159fe1d64ab2662e8e734cfa29b..ce66689c4ed50069454faba5c886c28f80356367` read-only. It reported topology PASS plus **PASS — 0 blocker / 0 major / 2 new minor**, and closed both original findings.
+
+- **New MINOR-1 accepted:** mandatory chip presence in `childDiscovery` and `childClimax` rejected naturally invariant Hebrew. It had forced three neutral discovery verbs into unnecessary gendered variants.
+- **New MINOR-2 accepted:** chip presence and nonidentity are useful syntax checks but cannot prove Hebrew morphology, male/female order, or complete semantic coverage. The prior automated-coverage claim was too broad.
+
+The separate guard-design remediation:
+
+- restores the three naturally invariant discovery phrasings identified by QA;
+- removes the unconditional chip requirement from discovery and climax while preserving child ownership and all other shape checks;
+- explicitly permits unchipped naturally invariant Hebrew in the writer contract and rejects redundant chips as a target requirement;
+- rejects parenthetical suffix forms such as `מציע(ה)`, raw `childName` outside `{{childName}}`, and generated-prose markers such as `--- Page N ---` or `imageDirection:`;
+- applies closed exact-key allowlists recursively to every object-bearing brief layer: top-level brief, set pieces, comic escalations, attempts, and line targets; and
+- narrows both documentation and test claims to what deterministic code can prove. Hebrew morphology, variant ordering, and semantic coverage are explicitly assigned to human language QA.
+
+Post-remediation focused validation passed **3 files / 20 tests** and `npx --no-install tsc --noEmit` passed. The completed literal `npm run check` rerun reported canonical **289 = 270 ordinary + 19 resource-intensive** files. Resource-intensive passed in `96148 ms`; ordinary completed in `32944 ms` with exactly the six established missing ignored-output fixture assertions, `signal:null`, `launchErrorCode:null`, valid diagnostics, and no seventh assertion or infrastructure/protocol failure.
+
+Current corpus facts: 18 briefs; chips occur in 15/18 discoveries and 18/18 climaxes; 221 total chip occurrences; 94 distinct pipe pairs. Absence of a chip is valid where Hebrew grammar is invariant. Claude manually verified all 95 distinct pairs in the correction range and all 21 then-chip-free `{{childName}}` fields; the three restored neutral discovery phrases are exactly the naturally invariant cases it called out. This evidence does not convert that manual review into an automated grammar proof.
+
 ### TypeScript
 
 Command:
@@ -98,11 +118,11 @@ Command:
 npx --no-install tsc --noEmit
 ```
 
-Result: **PASS** before the literal repository check; rerun before commit.
+Result: **PASS** after guard-design remediation and before the literal repository check; rerun before commit.
 
 ### Literal repository check
 
-Command executed exactly once:
+Command executed exactly once for this guard-design remediation:
 
 ```powershell
 npm run check
@@ -112,7 +132,8 @@ Observed result:
 
 - TypeScript PASS.
 - Canonical inventory: **289** files — **270 ordinary**, **19 resource-intensive**.
-- Resource-intensive phase: **PASS**, 19 files, two workers, `106344 ms`, exit `0`, `signal:null`, `launchErrorCode:null`, valid diagnostic protocol.
+- Resource-intensive phase: **PASS**, 19 files, two workers, `96148 ms`, exit `0`, `signal:null`, `launchErrorCode:null`, valid diagnostic protocol.
+- Ordinary phase elapsed time: `32944 ms`.
 - Ordinary phase: exactly the six established missing ignored-output fixture assertions:
   - `child-lexicon-ages-5-8` — missing Sprint 11 `story.md`;
   - `momentum-gate-koko` — missing STOP2 `page-beats.json`;
@@ -138,6 +159,7 @@ Observed result:
 - The writer contract has not been exercised against a real model in this milestone; no execution or quality claim is made about generated prose.
 - A later drafting execution should start with one Guy-accepted brief, not all 18, so its oral Hebrew, humor, page turns, format, and cost can be measured before batch authoring.
 - Generated output remains untrusted and must pass deterministic validation, read-aloud editing, Guy content acceptance, and a separately approved bank migration.
+- Deterministic guards do not infer Hebrew morphology and cannot prove that pipe variants are in male/female order or that every gender-sensitive phrase is chipped. Those are human language-QA checks; Claude manually verified the current corpus, but future brief edits require the same review.
 - No versioned-bank name, import, visual contract, or rendering migration is included.
 
 ## Explicit exclusions and cost
@@ -160,6 +182,9 @@ Claude Code should review the exact immutable base-to-commit range and try to pr
 8. The tests merely count fields and fail to reject a representative broken brief.
 9. Approved banks, runtime, dependencies, package identity, or cost-bearing paths changed despite the stated exclusions.
 10. The reported Git, test, full-check, or cost evidence is inaccurate.
-11. A brief or review artifact still teaches slash gender, bare masculine child grammar, or an identical pipe variant despite the correction claim.
+11. A brief or review artifact still teaches slash gender, parenthetical suffix gender, raw `childName`, bare masculine child grammar, or an identical pipe variant despite the remediation claim.
+12. A brief hides generated prose or undeclared structure in an unguarded object-bearing layer.
+13. The tests or documentation again imply that chip presence proves Hebrew morphology, correct male/female ordering, or complete semantic coverage.
+14. One of the three restored unchipped discovery phrases is not genuinely invariant Hebrew.
 
 Claude Code's first pass is read-only. Guy retains all story/product acceptance.
