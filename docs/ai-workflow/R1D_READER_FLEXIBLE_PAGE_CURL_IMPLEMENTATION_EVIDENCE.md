@@ -1,6 +1,6 @@
 # R1D Reader Flexible Page Curl — Implementation Evidence
 
-Status: implementation independently technical-PASSed; documentation attribution correction pending focused re-gate; Guy product acceptance pending.
+Status: implementation and record fidelity independently PASSed; Guy product acceptance pending.
 
 ## Authority and topology
 
@@ -89,6 +89,8 @@ Claude Code independently micro re-gated the spine-tangent correction range `ec0
 
 Documentation correction `04b53ad3b16565b088acf2c08ebb66bcf2470a31` recorded the push, `0/0` parity, Ready Preview and QA alias and removed the inaccurate unscoped exclusion. Claude Code subsequently micro re-gated `3c17ea5a0a7a58e2e27d571ee5c212b17e8e3d48..04b53ad3b16565b088acf2c08ebb66bcf2470a31`, returned **PASS**, and independently closed carried MAJOR-1. It reported zero BLOCKER, zero MAJOR and one new non-blocking documentation MINOR-1: the correction did not attribute the carried MAJOR and promoted the status before this closure review. This follow-up records the review sequence and attributes the finding and closure to Claude Code; Codex does not self-award either result.
 
+Claude Code independently micro re-gated the attribution correction range `04b53ad3b16565b088acf2c08ebb66bcf2470a31..3f5532bdf80bdf345f1cab066ad7143480bae86b` and returned **PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It independently closed the attribution MINOR, confirmed the exact five-step chronology and verified every Reader code/test blob remained byte-identical. Its N1-N4 remain advisory only. This is Claude Code's closure; no further technical or record-fidelity round is required absent a factual discrepancy.
+
 ### Browser proof
 
 The local `/dev/reader` loaded the repository-owned eight-page Bunny/Bar fixture through the real `ReaderV2` controller. No credential file was opened; the local verification server used build-phase validation mode and made no provider or remote data call.
@@ -107,4 +109,4 @@ No website/Wizard, book content, provider, credential, image/audio generation, s
 
 ## Independent QA request
 
-The spine-tangent range has independent technical PASS and the carried deployment-record MAJOR is independently closed. A focused documentation micro re-gate should verify only that the MAJOR is now attributed to Claude Code, the `04b53ad3` correction and subsequent closure are sequenced accurately, the non-blocking attribution MINOR is resolved, and no code/product/Production authority is implied.
+The spine-tangent implementation, deployment-record correction and attribution correction have independent PASS, and all associated BLOCKER/MAJOR/MINOR findings are closed. No further technical or record-fidelity review is required unless a factual discrepancy is identified. Guy product and visual acceptance, the separate repository/release HOLD and Production prohibition remain unchanged.
