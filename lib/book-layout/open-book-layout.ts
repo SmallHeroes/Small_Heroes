@@ -125,6 +125,20 @@ export function insetRect(page: NormalizedRect, inset: PageInsets): NormalizedRe
   };
 }
 
+/**
+ * Re-bases a full-spread decorative layer into one page-local coordinate space.
+ * Clipping the result to that page reproduces the exact portion of the shared
+ * frame artwork that belongs to the physical sheet.
+ */
+export function fullFrameProjectionIntoPage(page: NormalizedRect): NormalizedRect {
+  return {
+    x: -page.x / page.w,
+    y: -page.y / page.h,
+    w: 1 / page.w,
+    h: 1 / page.h,
+  };
+}
+
 /** Text safe zone inside the right (prose) page. */
 export function openBookTextSafeZone(): NormalizedRect {
   const { rightPage } = OPEN_BOOK_PAGE_BOXES;

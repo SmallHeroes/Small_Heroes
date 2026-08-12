@@ -1339,6 +1339,20 @@
   display: block;
 }
 
+/* The static spread's torn white paper rim lives in MaskOnBook.png. Project the
+   same full-spread artwork into each moving page, then let the strip windows
+   slice it together with the content. The page edge therefore bends with the
+   physical sheet instead of the sheet visually escaping a stationary frame. */
+.physicalPaperFrame {
+  position: absolute;
+  z-index: 3;
+  display: block;
+  max-width: none;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+}
+
 .physicalPaperProse {
   position: absolute;
   inset: 7% 10%;

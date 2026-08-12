@@ -3,7 +3,10 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import {
   DESKTOP_PAGE_CURL_SLICE_COUNT,
+  MASK_ON_BOOK_ASSET,
+  OPEN_BOOK_PAGE_BOXES,
   desktopPageCurlSlicePoses,
+  fullFrameProjectionIntoPage,
   splitIntoSentences,
   type DesktopSpread,
 } from '@/lib/book-layout';
@@ -20,10 +23,21 @@ function easeInOutSine(value: number): number {
 }
 
 function PaperPage({ spread, side }: { spread: DesktopSpread; side: PaperSide }) {
-  if (side === 'illustration') {
-    return (
-      <div className={styles.physicalPaperPage}>
-        {spread.illustrationUrl ? (
+  const pageBox = side === 'illustration'
+    ? OPEN_BOOK_PAGE_BOXES.leftPage
+    : OPEN_BOOK_PAGE_BOXES.rightPage;
+  const frameProjection = fullFrameProjectionIntoPage(pageBox);
+  const frameStyle = {
+    left: `${frameProjection.x * 100}%`,
+    top: `${frameProjection.y * 100}%`,
+    width: `${frameProjection.w * 100}%`,
+    height: `${frameProjection.h * 100}%`,
+  } as CSSProperties;
+
+  return (
+    <div className={styles.physicalPaperPage}>
+      {side === 'illustration' ? (
+        spread.illustrationUrl ? (
           <img
             className={styles.physicalPaperIllustration}
             src={spread.illustrationUrl}
@@ -32,24 +46,28 @@ function PaperPage({ spread, side }: { spread: DesktopSpread; side: PaperSide })
           />
         ) : (
           <div className={styles.physicalPaperBlank} />
-        )}
-      </div>
-    );
-  }
-
-  if (!spread.showText) {
-    return <div className={styles.physicalPaperBlank} />;
-  }
-
-  return (
-    <div className={styles.physicalPaperPage}>
-      <div className={styles.physicalPaperProse} dir="rtl">
-        {splitIntoSentences(spread.text).map((sentence, index) => (
-          <p key={index} className={styles.physicalPaperLine}>
-            {sentence}
-          </p>
-        ))}
-      </div>
+        )
+      ) : spread.showText ? (
+        <div className={styles.physicalPaperProse} dir="rtl">
+          {splitIntoSentences(spread.text).map((sentence, index) => (
+            <p key={index} className={styles.physicalPaperLine}>
+              {sentence}
+            </p>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.physicalPaperBlank} />
+      )}
+      <img
+        className={styles.physicalPaperFrame}
+        src={MASK_ON_BOOK_ASSET.src}
+        width={MASK_ON_BOOK_ASSET.width}
+        height={MASK_ON_BOOK_ASSET.height}
+        style={frameStyle}
+        alt=""
+        aria-hidden
+        draggable={false}
+      />
     </div>
   );
 }

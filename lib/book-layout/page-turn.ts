@@ -42,7 +42,7 @@ function normalizedSliceCount(value: number): number {
  *
  * Every strip has its own orientation, but its centre is integrated from the
  * preceding strip's outer edge. This preserves edge continuity while the
- * cosine/sine curl profile makes the sheet flex instead of rotating as a card.
+ * smooth S-profile makes the sheet flex instead of rotating as a card.
  * At progress 0 and 1 all strips are exactly coplanar.
  */
 export function desktopPageCurlSlicePoses(

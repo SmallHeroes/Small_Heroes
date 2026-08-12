@@ -1,6 +1,6 @@
 # R1D Reader Flexible Page Curl — Implementation Evidence
 
-Status: implementation and record fidelity independently PASSed; Guy product acceptance pending.
+Status: prior geometry and record fidelity independently PASSed; moving paper-frame follow-up locally PASS and pending independent re-gate; Guy product acceptance pending.
 
 ## Authority and topology
 
@@ -102,6 +102,19 @@ The local `/dev/reader` loaded the repository-owned eight-page Bunny/Bar fixture
 - Endpoint sampling against the measured DOM rectangles found the last painted forward and backward mesh within `0.8px` of the destination bounds, attributable only to the intentional `0.75px` strip overlap. The endpoint cast-shadow opacity was `0`, the overlay survived for that final paint, and the browser console contained no warning or error.
 - The first visual pass showed banding from the inherited per-face inset shadow. After correction, computed face shadow was `none`; live strip shade opacity ranged approximately `0.008–0.018` in the captured frame.
 - The static open-book frame did not translate or tilt.
+
+### Moving paper-frame follow-up
+
+Guy's subsequent product review correctly isolated the remaining perceptual break as a layer-composition defect rather than mesh geometry. `MaskOnBook.png` is the shared torn white page rim at `z-index: 10`, while the physical-turn overlay is above it at `z-index: 12`. The animated sheet reconstructed illustration/prose and paper but not that top rim, so it visually escaped the stationary frame during lift.
+
+The correction is general across books and page content:
+
+- `fullFrameProjectionIntoPage` deterministically re-bases any full-spread layer into a measured page-local coordinate system.
+- `PaperPage` selects the existing typed left/right page box from its illustration/prose side and projects the exact `MASK_ON_BOOK_ASSET` into that surface.
+- Because the projected asset lives inside the same texture window as content, every front/back face is sliced and transformed by the same connected 12-strip mesh. The page rim therefore bends with the sheet while the book binding, cover and static frame beneath it remain fixed.
+- The implementation does not approximate the rim with a new CSS border, name any story/page, change the 560ms duration, or alter navigation, endpoint landing, curvature, reduced motion or mobile behavior.
+
+Focused validation passes **6 files / 42 tests**, deterministic TypeScript and `git diff --check`. The new projection regression proves the full-frame origin and dimensions map back exactly to both measured page boxes. Local browser verification on the real eight-page tracked QA book observed 12 live slices and 24 carried frame images (front/back for every slice) in forward and backward turns. Temporary local environment material was removed before validation.
 
 ## Exclusions and rollback
 

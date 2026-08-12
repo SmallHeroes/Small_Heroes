@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LEFT_PAGE_MASK_WINDOW,
   OPEN_BOOK_PAGE_BOXES,
+  fullFrameProjectionIntoPage,
   openBookLayoutCssVars,
   openBookTextSafeZone,
 } from '../open-book-layout';
@@ -43,6 +44,16 @@ describe('open-book-layout', () => {
     expect(vars['--book-image-mask-window-w']).toBeDefined();
     expect(vars['--book-image-mask-window-h']).toBeDefined();
     expect(vars['--book-image-mask-src']).toContain('BookImageBottomMask.png');
+  });
+
+  it('projects the shared decorative frame exactly into either page box', () => {
+    for (const page of Object.values(OPEN_BOOK_PAGE_BOXES)) {
+      const projection = fullFrameProjectionIntoPage(page);
+      expect(projection.x + page.x * projection.w).toBeCloseTo(0, 10);
+      expect(projection.y + page.y * projection.h).toBeCloseTo(0, 10);
+      expect(page.w * projection.w).toBeCloseTo(1, 10);
+      expect(page.h * projection.h).toBeCloseTo(1, 10);
+    }
   });
 
   it('the mask window stays within the frame and is LARGER than the old cream-margin box', () => {

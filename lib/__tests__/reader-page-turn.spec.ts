@@ -101,12 +101,17 @@ describe('shared Reader page-turn contract', () => {
     expect(engine).not.toContain('styles.physicalTurnSegmentSpine');
     expect(engine).not.toContain('styles.physicalTurnSegmentOuter');
     expect(engine).toContain('styles.physicalTurnFaceBack');
+    expect(engine).toContain('fullFrameProjectionIntoPage(pageBox)');
+    expect(engine).toContain('src={MASK_ON_BOOK_ASSET.src}');
+    expect(engine).toContain('className={styles.physicalPaperFrame}');
     expect(spread).toContain('{pageTurnOverlay}');
     expect(css).toContain('backface-visibility: hidden');
     expect(css).toContain('rotateY(var(--physical-turn-rotate-y');
     expect(css).toContain('var(--physical-turn-scale-x, 1)');
     expect(css).toContain('opacity: calc(var(--physical-turn-progress, 0) * 0.38)');
     expect(css).toContain('var(--physical-turn-slice-count)');
+    expect(css).toContain('.physicalPaperFrame');
+    expect(css).toContain('max-width: none');
     expect(engine).toContain('targetRect.left - sourceRect.left');
     expect(engine).toContain('targetPageWidth: targetRect.width');
     expect(engine).toContain('settleFrame = window.requestAnimationFrame');
