@@ -81,7 +81,7 @@ describe('GET /api/wizard/mvp-matrix', () => {
     }
   });
 
-  it('keeps every slot unavailable in real Production despite QA flags', async () => {
+  it('keeps customer sellability separate from QA/render readiness in Production', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('VERCEL_ENV', 'production');
     vi.stubEnv('ALLOW_STAGING_QA', 'true');
@@ -91,10 +91,12 @@ describe('GET /api/wizard/mvp-matrix', () => {
     const body = await res.json();
     for (const category of body.categories) {
       for (const direction of Object.values(category.directions) as Array<{
+        sellable: boolean;
         qaAuthoringReady: boolean;
         productionRenderQualified: boolean;
         selectable: boolean;
       }>) {
+        expect(direction.sellable).toBe(true);
         expect(direction.qaAuthoringReady).toBe(false);
         expect(direction.productionRenderQualified).toBe(false);
         expect(direction.selectable).toBe(false);

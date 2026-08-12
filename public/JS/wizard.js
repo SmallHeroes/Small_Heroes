@@ -2256,7 +2256,7 @@ function renderProductCards() {
 
   pkgs.forEach((pkg) => {
     const dirMeta = getDirectionSellability(pkg.id);
-    const comingSoon = dirMeta.selectable === false;
+    const comingSoon = dirMeta.sellable === false;
     const card = document.createElement('button');
     card.type = 'button';
     const selected = !comingSoon && (pkg.id === state.productId || pkg.id === state.storyDirection);
@@ -2307,7 +2307,7 @@ function renderProductCards() {
     wrap.appendChild(card);
   });
 
-  if (state.productId && !getDirectionSellability(state.productId).selectable) {
+  if (state.productId && !getDirectionSellability(state.productId).sellable) {
     state.productId = null;
     state.storyDirection = null;
     state.priceILS = null;
