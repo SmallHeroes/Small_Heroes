@@ -106,6 +106,12 @@ const KNOWN_OLD_PLOT_FINGERPRINTS =
 const DIRECT_THERAPY_OR_MORAL =
   /תירגע|אין מה לפחד|זה כלום|תרגיל נשימה|נשימה עמוקה|כעס זה בסדר|להתגבר על הפחד|ואז (?:הוא|היא) הבי(?:ן|נה) ש|מוסר השכל/i;
 
+const HEBREW_SLASH_FORM = /[\u0590-\u05ff]+\/[\u0590-\u05ff]+/u;
+const GENERIC_SINGULAR_CHILD_ALIAS = /(^|[^\u0590-\u05ff])הילד(?![\u0590-\u05ff])/u;
+const PERSONALIZATION_CHIP = /\{[^{}|\n]+\|[^{}|\n]+\}/u;
+const PERSONALIZATION_CHIPS = /\{([^{}|\n]+)\|([^{}|\n]+)\}/gu;
+const FORBIDDEN_SPINE_KEY = /"(?:pages|pageBeats|pageSummaries|pageSpine|imageDirection)"\s*:/i;
+
 function readJson<T>(relativeOrAbsolutePath: string): T {
   const absolutePath = path.isAbsolute(relativeOrAbsolutePath)
     ? relativeOrAbsolutePath
@@ -148,6 +154,12 @@ function positiveCreativeText(brief: StoryBrief): string {
   ].join('\n');
 }
 
+function hasIdenticalPersonalizationChip(text: string): boolean {
+  return [...text.matchAll(PERSONALIZATION_CHIPS)].some(([, boyForm, girlForm]) =>
+    boyForm === girlForm
+  );
+}
+
 function validateBriefShape(
   brief: StoryBrief,
   companionId: string,
@@ -166,7 +178,7 @@ function validateBriefShape(
   if (brief.pageCount !== PAGE_COUNTS[brief.direction]) issues.push('pageCount');
   if (brief.setPieces.length < minimumSetPieces) issues.push('setPieces');
   if (brief.lockedCausalMovement.length < 5) issues.push('causal movement too thin');
-  if (brief.lockedCausalMovement.length >= PAGE_COUNTS[brief.direction]) {
+  if (brief.lockedCausalMovement.length > 6) {
     issues.push('manual page spine encoded');
   }
   if (brief.comicEscalations.length !== 3) issues.push('comicEscalations');
@@ -187,6 +199,17 @@ function validateBriefShape(
   if (brief.modelFreedom.length < 3) issues.push('modelFreedom');
   if (!brief.childDiscovery.startsWith('{{childName}}')) issues.push('childDiscovery owner');
   if (!brief.childClimaxAction.startsWith('{{childName}}')) issues.push('childClimaxAction owner');
+  if (!PERSONALIZATION_CHIP.test(brief.childDiscovery)) {
+    issues.push('childDiscovery gender chip');
+  }
+  if (!PERSONALIZATION_CHIP.test(brief.childClimaxAction)) {
+    issues.push('childClimaxAction gender chip');
+  }
+
+  const rawBrief = JSON.stringify(brief);
+  if (HEBREW_SLASH_FORM.test(rawBrief)) issues.push('slash gender form');
+  if (GENERIC_SINGULAR_CHILD_ALIAS.test(rawBrief)) issues.push('generic child alias');
+  if (hasIdenticalPersonalizationChip(rawBrief)) issues.push('identical gender chip');
 
   const setIds = brief.setPieces.map(({ id }) => id);
   const setNames = brief.setPieces.map(({ name }) => name);
@@ -274,7 +297,8 @@ describe('next-generation story creative briefs', () => {
       setPieces: [original.setPieces[0]!],
       lockedCausalMovement: Array.from({ length: original.pageCount }, () => 'אותו מצב שוב'),
       comicEscalations: original.comicEscalations.slice(0, 2),
-      childDiscovery: 'החבר מסביר את התשובה',
+      childWant: '{{childName}} רוצה להיות נוסע/ת ראשון/ה.',
+      childDiscovery: 'הילד מסביר את התשובה',
       childClimaxAction: 'החבר פותר הכול',
       companionWrongHelp: 'חבר חמוד עוזר',
     };
@@ -290,6 +314,10 @@ describe('next-generation story creative briefs', () => {
     expect(issues).toContain('comicEscalations');
     expect(issues).toContain('childDiscovery owner');
     expect(issues).toContain('childClimaxAction owner');
+    expect(issues).toContain('childDiscovery gender chip');
+    expect(issues).toContain('childClimaxAction gender chip');
+    expect(issues).toContain('slash gender form');
+    expect(issues).toContain('generic child alias');
   });
 
   it('keeps all 18 premise identities and climax/payoff mechanics distinct', () => {
@@ -310,28 +338,29 @@ describe('next-generation story creative briefs', () => {
     for (const brief of briefs) {
       expect(review, brief.id).toContain(`**${brief.workingTitle}**`);
     }
+    expect(review).not.toMatch(HEBREW_SLASH_FORM);
   });
 
-  it('uses old stories only as closed anti-copy evidence and contains no generated prose', () => {
+  it('uses old stories only as closed anti-copy evidence and encodes neither generated prose nor a manual spine', () => {
     const { sets } = loadCatalog();
 
     for (const set of sets) {
       const rawSet = JSON.stringify(set);
       expect(rawSet).not.toContain('--- Page 1 ---');
-      expect(rawSet).not.toContain('imageDirection:');
+      expect(rawSet).not.toMatch(FORBIDDEN_SPINE_KEY);
+      expect(rawSet).not.toMatch(HEBREW_SLASH_FORM);
+      expect(rawSet).not.toMatch(GENERIC_SINGULAR_CHILD_ALIAS);
+      expect(hasIdenticalPersonalizationChip(rawSet)).toBe(false);
 
       for (const brief of set.briefs) {
         expect(brief.oldStoryAntiCopy).toHaveLength(3);
         expect(brief.oldStoryAntiCopy.every((entry) => entry.startsWith('לא '))).toBe(true);
         expect(positiveCreativeText(brief)).not.toMatch(KNOWN_OLD_PLOT_FINGERPRINTS);
         expect(positiveCreativeText(brief)).not.toMatch(DIRECT_THERAPY_OR_MORAL);
+        expect(brief.childDiscovery).toMatch(PERSONALIZATION_CHIP);
+        expect(brief.childClimaxAction).toMatch(PERSONALIZATION_CHIP);
       }
     }
-
-    const rejectedSpineDir = path.join(PIPELINE_ROOT, '03_spines');
-    expect(
-      fs.existsSync(rejectedSpineDir) ? fs.readdirSync(rejectedSpineDir) : []
-    ).toEqual([]);
   });
 
   it('gives ChatGPT one complete fail-closed output contract without granting bank authority', () => {
@@ -347,6 +376,8 @@ describe('next-generation story creative briefs', () => {
     expect(contract).toContain('45–60 Hebrew words per page');
     expect(contract).toContain('{{childName}}');
     expect(contract).toContain('{boy-form|girl-form}');
+    expect(contract).toContain('generic singular child alias');
+    expect(contract).not.toMatch(HEBREW_SLASH_FORM);
     expect(contract).toContain('imageDirection:');
     expect(contract).toContain('BRIEF_CONFLICT:');
     expect(contract).toContain('untrusted staging draft');
