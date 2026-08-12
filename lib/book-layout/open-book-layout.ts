@@ -139,6 +139,24 @@ export function fullFrameProjectionIntoPage(page: NormalizedRect): NormalizedRec
   };
 }
 
+/**
+ * Narrow full-frame window that stays above the moving sheet at the binding.
+ * It is derived from the measured left/right page boxes, so the page appears
+ * to emerge from under the photographed gutter instead of floating over it.
+ */
+export function openBookSpineClampWindow(): NormalizedRect {
+  const { leftPage, rightPage } = OPEN_BOOK_PAGE_BOXES;
+  const leftPageEdge = leftPage.x + leftPage.w;
+  const rightPageEdge = rightPage.x;
+  const bleed = 0.004;
+  return {
+    x: leftPageEdge - bleed,
+    y: 0,
+    w: rightPageEdge - leftPageEdge + bleed * 2,
+    h: 1,
+  };
+}
+
 /** Text safe zone inside the right (prose) page. */
 export function openBookTextSafeZone(): NormalizedRect {
   const { rightPage } = OPEN_BOOK_PAGE_BOXES;
@@ -175,12 +193,14 @@ function rectToPercentVars(prefix: string, rect: NormalizedRect): Record<string,
 export function openBookLayoutCssVars(): Record<string, string> {
   const textSafe = openBookTextSafeZone();
   const spread = openBookSpreadOverlay();
+  const spineClamp = openBookSpineClampWindow();
   return {
     '--open-book-aspect': String(OPEN_BOOK_ASSET.width / OPEN_BOOK_ASSET.height),
     ...rectToPercentVars('open-left-page', OPEN_BOOK_PAGE_BOXES.leftPage),
     ...rectToPercentVars('open-right-page', OPEN_BOOK_PAGE_BOXES.rightPage),
     ...rectToPercentVars('open-text-safe', textSafe),
     ...rectToPercentVars('open-spread', spread),
+    ...rectToPercentVars('open-spine-clamp', spineClamp),
     '--open-left-illustration-object-position': leftPageShape.illustrationObjectPosition,
     // The left-page illustration mask: the source (as a url() token, single-sourced from the asset constant)
     // and its white window (the true page area the illustration fills + is clipped to).

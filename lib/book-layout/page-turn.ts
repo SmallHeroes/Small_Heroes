@@ -1,6 +1,7 @@
 export type PageTurnDirection = 'initial' | 'forward' | 'backward';
 
 export const DESKTOP_PAGE_CURL_SLICE_COUNT = 12;
+export const DESKTOP_PAGE_TURN_PERSPECTIVE_PX = 6400;
 
 const MIN_PAGE_CURL_SLICE_COUNT = 4;
 const MAX_PAGE_CURL_SLICE_COUNT = 24;
@@ -27,6 +28,20 @@ export type DesktopPageCurlLandingGeometry = Readonly<{
 function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(1, Math.max(0, value));
+}
+
+/**
+ * CSS perspective enlarges a sheet as its connected mesh lifts toward the
+ * viewer. Compensating only the vertical axis keeps the physical top/bottom
+ * paper edges registered with the photographed book while preserving the
+ * horizontal curl, depth and edge continuity.
+ */
+export function desktopPageTurnVerticalCompensation(translateZPx: number): number {
+  if (!Number.isFinite(translateZPx) || translateZPx <= 0) return 1;
+  return Math.max(
+    0.72,
+    Math.min(1, 1 - translateZPx / DESKTOP_PAGE_TURN_PERSPECTIVE_PX),
+  );
 }
 
 function normalizedSliceCount(value: number): number {

@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DESKTOP_PAGE_CURL_SLICE_COUNT,
+  DESKTOP_PAGE_TURN_PERSPECTIVE_PX,
   desktopPageCurlSlicePoses,
+  desktopPageTurnVerticalCompensation,
   pageTurnDirectionForIndexChange,
   readerRestartTransition,
 } from '../book-layout/page-turn';
@@ -104,6 +106,8 @@ describe('shared Reader page-turn contract', () => {
     expect(engine).toContain('fullFrameProjectionIntoPage(pageBox)');
     expect(engine).toContain('src={MASK_ON_BOOK_ASSET.src}');
     expect(engine).toContain('className={styles.physicalPaperFrame}');
+    expect(engine).toContain('className={styles.physicalPaperEdge}');
+    expect(spread).toContain('data-physical-turn-spine-clamp');
     expect(spread).toContain('{pageTurnOverlay}');
     expect(css).toContain('backface-visibility: hidden');
     expect(css).toContain('rotateY(var(--physical-turn-rotate-y');
@@ -111,10 +115,25 @@ describe('shared Reader page-turn contract', () => {
     expect(css).toContain('opacity: calc(var(--physical-turn-progress, 0) * 0.38)');
     expect(css).toContain('var(--physical-turn-slice-count)');
     expect(css).toContain('.physicalPaperFrame');
+    expect(css).toContain('.physicalPaperEdge');
+    expect(css).toContain('.physicalTurnSpineClamp');
+    expect(css).toContain('var(--physical-turn-perspective, 6400px)');
     expect(css).toContain('max-width: none');
     expect(engine).toContain('targetRect.left - sourceRect.left');
     expect(engine).toContain('targetPageWidth: targetRect.width');
     expect(engine).toContain('settleFrame = window.requestAnimationFrame');
+  });
+
+  it('neutralizes perspective growth on the vertical paper edges without flattening depth', () => {
+    for (const direction of ['forward', 'backward'] as const) {
+      for (const pose of desktopPageCurlSlicePoses(direction, 0.5, 900)) {
+        const projectedScale = DESKTOP_PAGE_TURN_PERSPECTIVE_PX /
+          (DESKTOP_PAGE_TURN_PERSPECTIVE_PX - pose.translateZPx);
+        expect(
+          projectedScale * desktopPageTurnVerticalCompensation(pose.translateZPx),
+        ).toBeCloseTo(1, 10);
+      }
+    }
   });
 
   it('keeps every paper-mesh edge connected throughout the curl', () => {

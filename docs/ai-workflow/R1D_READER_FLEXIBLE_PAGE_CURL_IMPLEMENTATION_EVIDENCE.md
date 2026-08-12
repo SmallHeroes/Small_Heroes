@@ -118,6 +118,24 @@ Focused validation passes **6 files / 42 tests**, deterministic TypeScript and `
 
 Exact implementation head `0a1819a3b6e68dc8912c5be41079678e734ea788` was pushed to the same-name branch at `2026-08-12 10:59:47 +0300`, after which live Git reported HEAD/upstream parity at `0/0`. Vercel Preview `dpl_H26aUYAeb5VNE9J5DotggH79B9Wn` (`https://small-heroes-4w0lp3e6k-smallheroes-projects.vercel.app`) reached **Ready**, and only the QA alias `qa.smallheroes.co.il` was assigned to it. No Production deployment, promotion or Production alias changed. These are operator-recorded deployment facts; the moving-frame implementation still requires independent read-only technical re-gate and Guy visual acceptance.
 
+### Top, bottom and binding-pivot follow-up
+
+Guy's QA screenshot of the deployed moving-frame correction established that carrying the shared frame image was necessary but not sufficient. Three causes were independently visible and traceable to the implementation:
+
+1. The full-frame `MaskOnBook.png` projection is intentionally clipped to `OPEN_BOOK_PAGE_BOXES`. Decorative pixels outside those measured cream-page rectangles cannot supply a dependable top/bottom edge on the animated sheet.
+2. The connected mesh can lift hundreds of pixels in Z at mid-turn. With the former `2600px` CSS perspective, a representative `933px` page produces approximately `845px` peak Z and a centre projection scale of about `1.48x`, making a connected sheet visibly escape above and below the photographed book.
+3. The physical overlay has to be above the static page frame, but that also placed its bound edge above the photographed central gutter. The mesh tangent could therefore be geometrically coherent while still appearing to float over the binding.
+
+The correction remains general and preserves the existing mesh authority:
+
+- `DESKTOP_PAGE_TURN_PERSPECTIVE_PX` is a single typed `6400px` lens authority shared by component style and compensation math.
+- `desktopPageTurnVerticalCompensation` applies the inverse centre projection factor to the vertical axis only. The horizontal strip positions, rotations, integrated Z, neighbouring-edge continuity and landing geometry are unchanged.
+- `.physicalPaperEdge` supplies the moving physical top/bottom boundary and only the outer edge appropriate to the left illustration or right prose side. Because it lives inside `PaperPage`, all front/back strip windows bend it with the sheet; it never creates a false spine-side border.
+- `openBookSpineClampWindow` derives a narrow full-height window from the measured inner edges of the left/right page boxes plus a bounded bleed. `DesktopBookSpread` renders that crop of the existing shared frame above the moving overlay only while a turn is active, so the sheet appears to emerge from under the photographed gutter.
+- The binding, cover, static under-page frame, story content, `560ms` timing, navigation, mobile and reduced-motion behavior remain unchanged.
+
+Focused validation passes **6 files / 44 tests**, deterministic TypeScript and `git diff --check`. New regressions prove the clamp covers the exact measured page gap and remains narrower than 3% of the spread; both forward and backward mid-turn poses multiply the CSS projection scale by their vertical compensation to exactly `1`; and the moving edge, shared lens and spine clamp are present in the Reader source contract. No full repository check was rerun; the separate recorded release HOLD remains unchanged. This follow-up requires independent read-only QA and Guy visual acceptance after QA Preview deployment.
+
 ## Exclusions and rollback
 
 No website/Wizard, book content, provider, credential, image/audio generation, storage/database, payment or Production action occurred. The implementation commit `3c17ea5a0a7a58e2e27d571ee5c212b17e8e3d48` was pushed to the same-name remote branch at `2026-08-12 10:20:47 +0300`; live Git then showed HEAD/upstream parity at `0/0`. Vercel Preview `dpl_75u7MBASNj7Q7NQRbwy81WAEwWqP` (`https://small-heroes-5nabqlk20-smallheroes-projects.vercel.app`) reached **Ready**, and only the QA alias `qa.smallheroes.co.il` was assigned to it. No Production deployment, promotion or Production alias changed. The former unscoped no-push statement was inaccurate and is superseded by these facts. Rollback is a focused commit revert plus QA-alias reassignment; no data or generated artifact requires migration.

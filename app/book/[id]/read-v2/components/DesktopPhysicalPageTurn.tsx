@@ -3,9 +3,11 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import {
   DESKTOP_PAGE_CURL_SLICE_COUNT,
+  DESKTOP_PAGE_TURN_PERSPECTIVE_PX,
   MASK_ON_BOOK_ASSET,
   OPEN_BOOK_PAGE_BOXES,
   desktopPageCurlSlicePoses,
+  desktopPageTurnVerticalCompensation,
   fullFrameProjectionIntoPage,
   splitIntoSentences,
   type DesktopSpread,
@@ -35,7 +37,13 @@ function PaperPage({ spread, side }: { spread: DesktopSpread; side: PaperSide })
   } as CSSProperties;
 
   return (
-    <div className={styles.physicalPaperPage}>
+    <div
+      className={`${styles.physicalPaperPage} ${
+        side === 'illustration'
+          ? styles.physicalPaperPageIllustration
+          : styles.physicalPaperPageProse
+      }`}
+    >
       {side === 'illustration' ? (
         spread.illustrationUrl ? (
           <img
@@ -68,6 +76,7 @@ function PaperPage({ spread, side }: { spread: DesktopSpread; side: PaperSide })
         aria-hidden
         draggable={false}
       />
+      <span className={styles.physicalPaperEdge} aria-hidden />
     </div>
   );
 }
@@ -157,7 +166,10 @@ function setSheetPose(
     slice.style.setProperty('--physical-turn-rotate-y', `${pose.rotationYDeg.toFixed(3)}deg`);
     slice.style.setProperty('--physical-turn-shade', pose.shadeOpacity.toFixed(3));
     slice.style.setProperty('--physical-turn-scale-x', pose.scaleX.toFixed(6));
-    slice.style.setProperty('--physical-turn-scale-y', scaleY.toFixed(6));
+    slice.style.setProperty(
+      '--physical-turn-scale-y',
+      (scaleY * desktopPageTurnVerticalCompensation(pose.translateZPx)).toFixed(6),
+    );
   }
 }
 
@@ -229,6 +241,9 @@ export function DesktopPhysicalPageTurn({
       ref={overlayRef}
       className={styles.physicalTurnOverlay}
       data-physical-page-turn={turn.direction}
+      style={{
+        '--physical-turn-perspective': `${DESKTOP_PAGE_TURN_PERSPECTIVE_PX}px`,
+      } as CSSProperties}
       aria-hidden
     >
       <div

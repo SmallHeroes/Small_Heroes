@@ -4,6 +4,7 @@ import {
   OPEN_BOOK_PAGE_BOXES,
   fullFrameProjectionIntoPage,
   openBookLayoutCssVars,
+  openBookSpineClampWindow,
   openBookTextSafeZone,
 } from '../open-book-layout';
 
@@ -54,6 +55,24 @@ describe('open-book-layout', () => {
       expect(page.w * projection.w).toBeCloseTo(1, 10);
       expect(page.h * projection.h).toBeCloseTo(1, 10);
     }
+  });
+
+  it('derives a narrow spine clamp that covers the measured page-box gap', () => {
+    const clamp = openBookSpineClampWindow();
+    const leftEdge = OPEN_BOOK_PAGE_BOXES.leftPage.x + OPEN_BOOK_PAGE_BOXES.leftPage.w;
+    const rightEdge = OPEN_BOOK_PAGE_BOXES.rightPage.x;
+
+    expect(clamp.x).toBeLessThan(leftEdge);
+    expect(clamp.x + clamp.w).toBeGreaterThan(rightEdge);
+    expect(clamp.x).toBeGreaterThanOrEqual(0);
+    expect(clamp.x + clamp.w).toBeLessThanOrEqual(1);
+    expect(clamp.w).toBeLessThan(0.03);
+    expect(clamp.y).toBe(0);
+    expect(clamp.h).toBe(1);
+
+    const vars = openBookLayoutCssVars();
+    expect(vars['--open-spine-clamp-x']).toBeDefined();
+    expect(vars['--open-spine-clamp-w']).toBeDefined();
   });
 
   it('the mask window stays within the frame and is LARGER than the old cream-margin box', () => {

@@ -33,6 +33,22 @@ export function DesktopBookSpread({ spread, isCurrent, pageTurnOverlay }: Props)
   const cssVars = { ...tokensToCssVars(), ...templateCssVars(template), ...openBookLayoutCssVars() };
   const lines = splitTextByRhythm(spread.text);
   const isWide = spread.isWide;
+  const physicalTurnSpineClamp = pageTurnOverlay ? (
+    <span
+      className={styles.physicalTurnSpineClamp}
+      data-physical-turn-spine-clamp
+      aria-hidden
+    >
+      <img
+        className={styles.physicalTurnSpineClampImage}
+        src={MASK_ON_BOOK_ASSET.src}
+        width={MASK_ON_BOOK_ASSET.width}
+        height={MASK_ON_BOOK_ASSET.height}
+        alt=""
+        draggable={false}
+      />
+    </span>
+  ) : null;
 
   if (isWide) {
     return (
@@ -80,6 +96,7 @@ export function DesktopBookSpread({ spread, isCurrent, pageTurnOverlay }: Props)
           draggable={false}
         />
         {pageTurnOverlay}
+        {physicalTurnSpineClamp}
       </article>
     );
   }
@@ -141,6 +158,7 @@ export function DesktopBookSpread({ spread, isCurrent, pageTurnOverlay }: Props)
         draggable={false}
       />
       {pageTurnOverlay}
+      {physicalTurnSpineClamp}
     </article>
   );
 }

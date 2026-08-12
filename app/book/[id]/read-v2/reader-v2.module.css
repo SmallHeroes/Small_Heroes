@@ -1227,7 +1227,7 @@
   position: absolute;
   inset: 0;
   z-index: 12;
-  perspective: 2600px;
+  perspective: var(--physical-turn-perspective, 6400px);
   transform-style: preserve-3d;
   direction: ltr;
   pointer-events: none;
@@ -1350,6 +1350,53 @@
   max-width: none;
   object-fit: fill;
   pointer-events: none;
+  user-select: none;
+}
+
+/* The frame artwork is projected from full-spread coordinates and is therefore
+   clipped at the measured cream-page box. Reassert the physical paper boundary
+   on the moving surface so the top/bottom and outer rim bend with every strip. */
+.physicalPaperEdge {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  box-sizing: border-box;
+  pointer-events: none;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 253, 248, 0.96),
+    inset 0 -3px 0 rgba(255, 253, 248, 0.96);
+}
+
+.physicalPaperPageIllustration .physicalPaperEdge {
+  border-left: 4px solid rgba(255, 253, 248, 0.96);
+}
+
+.physicalPaperPageProse .physicalPaperEdge {
+  border-right: 4px solid rgba(255, 253, 248, 0.96);
+}
+
+/* A narrow crop of the photographed binding stays above the moving mesh. It
+   hides only the pivot seam, leaving the page rim itself attached to the sheet. */
+.physicalTurnSpineClamp {
+  position: absolute;
+  inset: 0;
+  z-index: 16;
+  overflow: hidden;
+  pointer-events: none;
+  clip-path: inset(
+    var(--open-spine-clamp-y)
+    calc(100% - var(--open-spine-clamp-x) - var(--open-spine-clamp-w))
+    calc(100% - var(--open-spine-clamp-y) - var(--open-spine-clamp-h))
+    var(--open-spine-clamp-x)
+  );
+}
+
+.physicalTurnSpineClampImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
   user-select: none;
 }
 
