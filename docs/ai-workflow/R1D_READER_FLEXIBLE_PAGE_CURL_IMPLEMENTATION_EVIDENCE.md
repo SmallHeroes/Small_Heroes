@@ -1,6 +1,6 @@
 # R1D Reader Flexible Page Curl — Implementation Evidence
 
-Status: implementation complete and locally verified; independent Claude Code QA and Guy product acceptance pending.
+Status: implementation complete and independently technical-PASSed; Guy product acceptance pending.
 
 ## Authority and topology
 
@@ -85,6 +85,8 @@ Claude Code independently reviewed `640476ddfaf831ede8eca6e62f7529eb0c4f2107..0c
 
 Claude Code independently micro re-gated `0c267bb8e224f06a2f97e8dec994576fca075d3e..0d1490effb3fa2ca2b1f17298cccbcf715ba75af` and returned **PASS**, closing MINOR-1 and MINOR-2 with no BLOCKER or MAJOR. It independently reproduced TypeScript and the 6-file / 39-test focused suite. Its new non-blocking MINOR-3 identified that the two durable records still displayed the pre-correction `38`-test count; the count is corrected here. This document records Claude Code's verdict and does not self-award independent closure or Guy's product acceptance.
 
+Claude Code independently micro re-gated the spine-tangent correction range `ec098393dc0ea2d632e1c320c6a39248835473d7..3c17ea5a0a7a58e2e27d571ee5c212b17e8e3d48` and returned **PASS** with zero new BLOCKER, MAJOR or MINOR. It reproduced the 6-file / 41-test suite, TypeScript and `git diff --check`; measured `1.263deg` boundary deviation, `28.660deg` interior curl and `2.278e-13px` worst adjacent-edge separation; and confirmed exact landing, texture ordering, shadow bounds, settle completion and the unchanged `560ms` production duration. Its N1-N4 remain advisory. This is Claude Code's technical verdict and does not grant Guy product or visual acceptance.
+
 ### Browser proof
 
 The local `/dev/reader` loaded the repository-owned eight-page Bunny/Bar fixture through the real `ReaderV2` controller. No credential file was opened; the local verification server used build-phase validation mode and made no provider or remote data call.
@@ -99,8 +101,8 @@ The local `/dev/reader` loaded the repository-owned eight-page Bunny/Bar fixture
 
 ## Exclusions and rollback
 
-No website/Wizard, book content, provider, credential, image/audio generation, storage/database, payment, Production deployment or push action occurred. Rollback is a focused commit revert; no data or generated artifact requires migration.
+No website/Wizard, book content, provider, credential, image/audio generation, storage/database, payment or Production action occurred. The implementation commit `3c17ea5a0a7a58e2e27d571ee5c212b17e8e3d48` was pushed to the same-name remote branch at `2026-08-12 10:20:47 +0300`; live Git then showed HEAD/upstream parity at `0/0`. Vercel Preview `dpl_75u7MBASNj7Q7NQRbwy81WAEwWqP` (`https://small-heroes-5nabqlk20-smallheroes-projects.vercel.app`) reached **Ready**, and only the QA alias `qa.smallheroes.co.il` was assigned to it. No Production deployment, promotion or Production alias changed. The former unscoped no-push statement was inaccurate and is superseded by these facts. Rollback is a focused commit revert plus QA-alias reassignment; no data or generated artifact requires migration.
 
 ## Independent QA request
 
-Claude Code must review the exact committed endpoint-correction parent-to-head range read-only and return PASS or HOLD. It should specifically try to falsify unequal source/destination landing geometry, the one-painted-frame handoff, endpoint shadow removal, connected geometry, forward/backward mirroring, texture order, flat endpoints, unchanged reduced-motion/mobile behavior, and the claimed four-file production/test scope plus two durable record updates.
+The spine-tangent range has independent technical PASS. A focused documentation micro re-gate should verify only that the pushed branch, Ready QA Preview and QA alias are now recorded faithfully; that no Production action is implied; and that the earlier unscoped no-push claim is removed rather than repeated.
