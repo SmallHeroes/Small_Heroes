@@ -5,6 +5,7 @@ Status: implementation complete and locally verified; independent Claude Code QA
 ## Authority and topology
 
 - Parent: `640476ddfaf831ede8eca6e62f7529eb0c4f2107`
+- Endpoint-correction parent: `e933984bc651d2d8e3a63f9309f53958736bc0ee`
 - Branch: `codex/r1d-reader-premium-site-qa-integration`
 - Worktree: `C:\Users\guyna\.codex\worktrees\qaexperience1\Small_Heroes`
 - External cost: `$0`
@@ -15,6 +16,8 @@ Status: implementation complete and locally verified; independent Claude Code QA
 The prior renderer rotated one parent sheet through 180 degrees and added a single 14-degree bend to an outer 38.2% segment. Its comment claimed the two planes prevented a rigid-card appearance, but direct product review and source inspection falsified that claim. A global plane plus one hinge cannot express distributed paper curvature.
 
 The first mesh browser pass also exposed a secondary presentation defect: the old inset shadow was repeated independently on every strip, making the page look corrugated. The final implementation removes per-strip box shadows and keeps only low-opacity curvature shading plus the existing whole-sheet cast shadow.
+
+Guy's later screen recording exposed a distinct geometric break at the completion boundary. Repository geometry proves that the left and right page rectangles are not equal: they have different widths, offsets and a spine gap. The mesh used only the source width and an equal-size default destination, so its last animated rectangle could not coincide with the static destination. In addition, `onComplete` ran in the same animation frame that wrote the exact landing pose, allowing React to remove the overlay before that pose painted, and the cast shadow retained constant opacity until removal.
 
 ## Implemented contract
 
@@ -27,6 +30,9 @@ The first mesh browser pass also exposed a secondary presentation defect: the ol
 7. The animation easing changes from `easeInOutCubic` to `easeInOutSine`, giving the connected mesh a gentler acceleration and deceleration while preserving the 560ms duration.
 8. The former standalone crease element and its directional gradients are removed. Curvature is now expressed by the connected strip geometry and bounded whole-strip shade profile rather than a second hinge highlight.
 9. The existing 560ms duration, navigation guard, fallback timer, static book frame, mobile skip and `prefers-reduced-motion` behavior are unchanged.
+10. The component measures the source sheet and destination guard rectangles once per turn. The pure mesh receives a typed destination offset/width authority and interpolates its page width and spine anchor into that exact rectangle. Vertical offset and height are interpolated in the component from the same measured pair.
+11. The cast shadow is driven by the bounded turn arc, so it is zero at both static handoff endpoints and peaks only during the curl.
+12. Completion is deferred by one additional `requestAnimationFrame` after the exact final pose is written. The overlay therefore paints the destination geometry before the identical static spread replaces it.
 
 ## Changed paths
 
@@ -46,12 +52,13 @@ The first mesh browser pass also exposed a secondary presentation defect: the ol
 npx --no-install vitest run lib/__tests__/reader-page-turn.spec.ts lib/__tests__/reader-nav.spec.ts lib/__tests__/reader-narration-src.spec.ts lib/__tests__/reader-storytime-dwell.spec.ts lib/__tests__/dev-viewer-library-resilient.spec.ts lib/book-layout/__tests__/open-book-layout.spec.ts
 ```
 
-Result: **6 files / 39 tests PASS** after the focused QA correction added the direct mirrored-shade regression.
+Result: **6 files / 40 tests PASS** after the endpoint correction added direct unequal-destination landing coverage in both directions.
 
 Direct geometry regressions prove:
 
 - every neighboring edge remains connected at progress `0`, `0.2`, `0.5`, `0.8` and `1`, forward and backward;
 - all 12 strips are flat at rest and landing;
+- unequal source/destination page rectangles land on the exact typed destination edges in both directions;
 - more than six distinct local angles exist at mid-turn, preventing a rigid-plane regression;
 - every strip lifts in Z at mid-turn;
 - shading remains below the bounded subtle-opacity ceiling;
@@ -80,6 +87,7 @@ The local `/dev/reader` loaded the repository-owned eight-page Bunny/Bar fixture
 - Page loaded with meaningful content, no Next error overlay and zero console errors.
 - A forward turn exposed exactly 12 live strip nodes with 12 distinct 3D transforms and completed with the overlay removed.
 - A backward turn completed as the mirror and returned the correct page pair.
+- Endpoint sampling against the measured DOM rectangles found the last painted forward and backward mesh within `0.8px` of the destination bounds, attributable only to the intentional `0.75px` strip overlap. The endpoint cast-shadow opacity was `0`, the overlay survived for that final paint, and the browser console contained no warning or error.
 - The first visual pass showed banding from the inherited per-face inset shadow. After correction, computed face shadow was `none`; live strip shade opacity ranged approximately `0.008–0.018` in the captured frame.
 - The static open-book frame did not translate or tilt.
 
@@ -89,4 +97,4 @@ No website/Wizard, book content, provider, credential, image/audio generation, s
 
 ## Independent QA request
 
-Claude Code must review the exact committed parent-to-head range read-only and return PASS or HOLD. It should specifically try to falsify connected geometry, forward/backward mirroring, texture order, flat endpoints, absence of corrugated strip shading, unchanged reduced-motion/mobile behavior, and the claimed four-file production/test scope.
+Claude Code must review the exact committed endpoint-correction parent-to-head range read-only and return PASS or HOLD. It should specifically try to falsify unequal source/destination landing geometry, the one-painted-frame handoff, endpoint shadow removal, connected geometry, forward/backward mirroring, texture order, flat endpoints, unchanged reduced-motion/mobile behavior, and the claimed four-file production/test scope plus two durable record updates.

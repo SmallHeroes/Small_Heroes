@@ -104,12 +104,17 @@ describe('shared Reader page-turn contract', () => {
     expect(spread).toContain('{pageTurnOverlay}');
     expect(css).toContain('backface-visibility: hidden');
     expect(css).toContain('rotateY(var(--physical-turn-rotate-y');
+    expect(css).toContain('var(--physical-turn-scale-x, 1)');
+    expect(css).toContain('opacity: calc(var(--physical-turn-progress, 0) * 0.38)');
     expect(css).toContain('var(--physical-turn-slice-count)');
+    expect(engine).toContain('targetRect.left - sourceRect.left');
+    expect(engine).toContain('targetPageWidth: targetRect.width');
+    expect(engine).toContain('settleFrame = window.requestAnimationFrame');
   });
 
   it('keeps every paper-mesh edge connected throughout the curl', () => {
     const pageWidth = 480;
-    const sliceWidth = pageWidth / DESKTOP_PAGE_CURL_SLICE_COUNT;
+    const sourceSliceWidth = pageWidth / DESKTOP_PAGE_CURL_SLICE_COUNT;
 
     for (const direction of ['forward', 'backward'] as const) {
       for (const progress of [0, 0.2, 0.5, 0.8, 1]) {
@@ -120,12 +125,13 @@ describe('shared Reader page-turn contract', () => {
         for (const pose of poses) {
           const radians = Math.abs(pose.rotationYDeg) * Math.PI / 180;
           const outwardSign = direction === 'forward' ? -1 : 1;
+          const sliceWidth = sourceSliceWidth * pose.scaleX;
           const segment = {
             x: outwardSign * sliceWidth * Math.cos(radians),
             z: sliceWidth * Math.sin(radians),
           };
           const center = {
-            x: (pose.sourceIndex + 0.5) * sliceWidth + pose.translateXPx,
+            x: (pose.sourceIndex + 0.5) * sourceSliceWidth + pose.translateXPx,
             z: pose.translateZPx,
           };
           const innerEdge = {
@@ -143,6 +149,56 @@ describe('shared Reader page-turn contract', () => {
           }
           previousOuterEdge = outerEdge;
         }
+      }
+    }
+  });
+
+  it('lands exactly on unequal destination page rectangles in both directions', () => {
+    const leftPage = { x: 40.864, width: 453.354 };
+    const rightPage = { x: 501.928, width: 468.774 };
+
+    for (const scenario of [
+      { direction: 'forward' as const, source: leftPage, target: rightPage },
+      { direction: 'backward' as const, source: rightPage, target: leftPage },
+    ]) {
+      const targetOffset = scenario.target.x - scenario.source.x;
+      const poses = [...desktopPageCurlSlicePoses(
+        scenario.direction,
+        1,
+        scenario.source.width,
+        DESKTOP_PAGE_CURL_SLICE_COUNT,
+        {
+          targetOffsetXPx: targetOffset,
+          targetPageWidth: scenario.target.width,
+        },
+      )].sort((left, right) => left.outwardIndex - right.outwardIndex);
+      const sourceSliceWidth = scenario.source.width / DESKTOP_PAGE_CURL_SLICE_COUNT;
+      const landedSliceWidth = scenario.target.width / DESKTOP_PAGE_CURL_SLICE_COUNT;
+      const outwardSign = scenario.direction === 'forward' ? -1 : 1;
+      let firstInnerEdge: number | null = null;
+      let lastOuterEdge: number | null = null;
+
+      for (const pose of poses) {
+        const radians = Math.abs(pose.rotationYDeg) * Math.PI / 180;
+        const segmentX = outwardSign * landedSliceWidth * Math.cos(radians);
+        const centerX =
+          (pose.sourceIndex + 0.5) * sourceSliceWidth + pose.translateXPx;
+        const innerEdge = centerX - segmentX / 2;
+        const outerEdge = centerX + segmentX / 2;
+        firstInnerEdge ??= innerEdge;
+        lastOuterEdge = outerEdge;
+        expect(pose.scaleX).toBeCloseTo(
+          scenario.target.width / scenario.source.width,
+          10,
+        );
+      }
+
+      if (scenario.direction === 'forward') {
+        expect(firstInnerEdge).toBeCloseTo(targetOffset, 8);
+        expect(lastOuterEdge).toBeCloseTo(targetOffset + scenario.target.width, 8);
+      } else {
+        expect(firstInnerEdge).toBeCloseTo(targetOffset + scenario.target.width, 8);
+        expect(lastOuterEdge).toBeCloseTo(targetOffset, 8);
       }
     }
   });

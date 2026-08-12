@@ -14,6 +14,14 @@ export type DesktopPageCurlSlicePose = Readonly<{
   translateXPx: number;
   translateZPx: number;
   shadeOpacity: number;
+  scaleX: number;
+}>;
+
+export type DesktopPageCurlLandingGeometry = Readonly<{
+  /** Destination page left edge, relative to the source page left edge. */
+  targetOffsetXPx: number;
+  /** Destination page width. May differ from the source page width. */
+  targetPageWidth: number;
 }>;
 
 function clamp01(value: number): number {
@@ -42,18 +50,34 @@ export function desktopPageCurlSlicePoses(
   progress: number,
   pageWidth: number,
   requestedSliceCount = DESKTOP_PAGE_CURL_SLICE_COUNT,
+  landingGeometry?: DesktopPageCurlLandingGeometry,
 ): readonly DesktopPageCurlSlicePose[] {
   const sliceCount = normalizedSliceCount(requestedSliceCount);
   const safePageWidth = Number.isFinite(pageWidth) && pageWidth > 0 ? pageWidth : 1;
-  const sliceWidth = safePageWidth / sliceCount;
   const clampedProgress = clamp01(progress);
+  const defaultTargetOffset = direction === 'forward' ? safePageWidth : -safePageWidth;
+  const targetPageWidth = Number.isFinite(landingGeometry?.targetPageWidth) &&
+    (landingGeometry?.targetPageWidth ?? 0) > 0
+    ? landingGeometry!.targetPageWidth
+    : safePageWidth;
+  const targetOffsetX = Number.isFinite(landingGeometry?.targetOffsetXPx)
+    ? landingGeometry!.targetOffsetXPx
+    : defaultTargetOffset;
+  const currentPageWidth = safePageWidth +
+    (targetPageWidth - safePageWidth) * clampedProgress;
+  const sourceSliceWidth = safePageWidth / sliceCount;
+  const sliceWidth = currentPageWidth / sliceCount;
   const arc = clampedProgress === 0 || clampedProgress === 1
     ? 0
     : Math.sin(clampedProgress * Math.PI);
   const baseAngle = clampedProgress * Math.PI;
   const outwardSign = direction === 'forward' ? -1 : 1;
   const rotationSign = direction === 'forward' ? 1 : -1;
-  let edgeX = direction === 'forward' ? safePageWidth : 0;
+  const sourceAnchorX = direction === 'forward' ? safePageWidth : 0;
+  const targetAnchorX = direction === 'forward'
+    ? targetOffsetX
+    : targetOffsetX + targetPageWidth;
+  let edgeX = sourceAnchorX + (targetAnchorX - sourceAnchorX) * clampedProgress;
   let edgeZ = 0;
   const poses: DesktopPageCurlSlicePose[] = [];
 
@@ -73,7 +97,7 @@ export function desktopPageCurlSlicePoses(
     const segmentZ = sliceWidth * Math.sin(localAngle);
     const desiredCenterX = edgeX + segmentX / 2;
     const desiredCenterZ = edgeZ + segmentZ / 2;
-    const initialCenterX = (sourceIndex + 0.5) * sliceWidth;
+    const initialCenterX = (sourceIndex + 0.5) * sourceSliceWidth;
 
     poses.push({
       sourceIndex,
@@ -83,6 +107,7 @@ export function desktopPageCurlSlicePoses(
       translateXPx: desiredCenterX - initialCenterX,
       translateZPx: desiredCenterZ,
       shadeOpacity: arc * (0.018 + 0.05 * Math.abs(curlProfile)),
+      scaleX: currentPageWidth / safePageWidth,
     });
 
     edgeX += segmentX;

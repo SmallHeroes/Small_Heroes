@@ -1292,7 +1292,12 @@
       var(--physical-turn-y, 0px),
       var(--physical-turn-z, 0px)
     )
-    rotateY(var(--physical-turn-rotate-y, 0deg));
+    rotateY(var(--physical-turn-rotate-y, 0deg))
+    scale3d(
+      var(--physical-turn-scale-x, 1),
+      var(--physical-turn-scale-y, 1),
+      1
+    );
 }
 
 .physicalTurnFace {
@@ -1386,7 +1391,7 @@
   width: 48%;
   z-index: 11;
   pointer-events: none;
-  opacity: 0.38;
+  opacity: calc(var(--physical-turn-progress, 0) * 0.38);
 }
 
 .physicalTurnCastForward {

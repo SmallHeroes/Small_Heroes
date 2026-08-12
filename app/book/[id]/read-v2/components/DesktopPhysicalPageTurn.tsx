@@ -101,21 +101,34 @@ function SheetSlice({
 }
 
 function setSheetPose(
+  overlay: HTMLDivElement,
   sheet: HTMLDivElement,
   slices: readonly HTMLDivElement[],
   direction: DesktopPhysicalPageTurnState['direction'],
-  pageWidth: number,
+  sourceRect: DOMRect,
+  targetRect: DOMRect,
   progress: number,
 ) {
   const clamped = Math.min(1, Math.max(0, progress));
   const arc = Math.sin(clamped * Math.PI);
-  sheet.style.setProperty('--physical-turn-progress', arc.toFixed(3));
-  sheet.style.setProperty('--physical-turn-y', `${(-arc * 1.5).toFixed(3)}px`);
+  const targetOffsetY = targetRect.top - sourceRect.top;
+  const scaleY = sourceRect.height > 0
+    ? 1 + (targetRect.height / sourceRect.height - 1) * clamped
+    : 1;
+  overlay.style.setProperty('--physical-turn-progress', arc.toFixed(6));
+  sheet.style.setProperty(
+    '--physical-turn-y',
+    `${(targetOffsetY * clamped - arc * 1.5).toFixed(3)}px`,
+  );
   const poses = desktopPageCurlSlicePoses(
     direction,
     clamped,
-    pageWidth,
+    sourceRect.width,
     DESKTOP_PAGE_CURL_SLICE_COUNT,
+    {
+      targetOffsetXPx: targetRect.left - sourceRect.left,
+      targetPageWidth: targetRect.width,
+    },
   );
 
   for (const pose of poses) {
@@ -125,6 +138,8 @@ function setSheetPose(
     slice.style.setProperty('--physical-turn-z', `${pose.translateZPx.toFixed(3)}px`);
     slice.style.setProperty('--physical-turn-rotate-y', `${pose.rotationYDeg.toFixed(3)}deg`);
     slice.style.setProperty('--physical-turn-shade', pose.shadeOpacity.toFixed(3));
+    slice.style.setProperty('--physical-turn-scale-x', pose.scaleX.toFixed(6));
+    slice.style.setProperty('--physical-turn-scale-y', scaleY.toFixed(6));
   }
 }
 
@@ -139,31 +154,51 @@ export function DesktopPhysicalPageTurn({
   turn: DesktopPhysicalPageTurnState;
   onComplete: (id: number) => void;
 }) {
+  const overlayRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const landingRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
+    const overlay = overlayRef.current;
     const sheet = sheetRef.current;
-    if (!sheet) return;
+    const landing = landingRef.current;
+    if (!overlay || !sheet || !landing) return;
     const slices = Array.from(
       sheet.querySelectorAll<HTMLDivElement>('[data-physical-turn-slice]'),
     );
-    const pageWidth = sheet.getBoundingClientRect().width || sheet.clientWidth || 1;
+    const sourceRect = sheet.getBoundingClientRect();
+    const targetRect = landing.getBoundingClientRect();
     let frame = 0;
+    let settleFrame = 0;
     const startedAt = performance.now();
-    setSheetPose(sheet, slices, turn.direction, pageWidth, 0);
+    setSheetPose(overlay, sheet, slices, turn.direction, sourceRect, targetRect, 0);
 
     const animate = (now: number) => {
       const elapsed = Math.min(1, (now - startedAt) / DESKTOP_PHYSICAL_PAGE_TURN_MS);
-      setSheetPose(sheet, slices, turn.direction, pageWidth, easeInOutSine(elapsed));
+      setSheetPose(
+        overlay,
+        sheet,
+        slices,
+        turn.direction,
+        sourceRect,
+        targetRect,
+        easeInOutSine(elapsed),
+      );
       if (elapsed < 1) {
         frame = window.requestAnimationFrame(animate);
       } else {
-        onComplete(turn.id);
+        // Let the exact landing geometry paint once before replacing the overlay
+        // with the identical static destination spread. Completing in this same
+        // frame can drop the final pose and expose the penultimate curled frame.
+        settleFrame = window.requestAnimationFrame(() => onComplete(turn.id));
       }
     };
 
     frame = window.requestAnimationFrame(animate);
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(settleFrame);
+    };
   }, [onComplete, turn.direction, turn.id]);
 
   const isForward = turn.direction === 'forward';
@@ -173,11 +208,14 @@ export function DesktopPhysicalPageTurn({
 
   return (
     <div
+      ref={overlayRef}
       className={styles.physicalTurnOverlay}
       data-physical-page-turn={turn.direction}
       aria-hidden
     >
       <div
+        ref={landingRef}
+        data-physical-turn-landing
         className={`${styles.physicalTurnGuard} ${
           isForward ? styles.physicalTurnGuardRight : styles.physicalTurnGuardLeft
         }`}
@@ -185,12 +223,14 @@ export function DesktopPhysicalPageTurn({
         <PaperPage spread={turn.outgoing} side={guardSide} />
       </div>
       <div
+        data-physical-turn-shadow
         className={`${styles.physicalTurnCastShadow} ${
           isForward ? styles.physicalTurnCastForward : styles.physicalTurnCastBackward
         }`}
       />
       <div
         ref={sheetRef}
+        data-physical-turn-sheet
         className={`${styles.physicalTurnSheet} ${
           isForward ? styles.physicalTurnSheetForward : styles.physicalTurnSheetBackward
         }`}
