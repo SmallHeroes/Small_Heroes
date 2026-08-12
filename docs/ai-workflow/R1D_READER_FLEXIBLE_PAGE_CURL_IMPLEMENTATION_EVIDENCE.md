@@ -6,6 +6,7 @@ Status: implementation complete and locally verified; independent Claude Code QA
 
 - Parent: `640476ddfaf831ede8eca6e62f7529eb0c4f2107`
 - Endpoint-correction parent: `e933984bc651d2d8e3a63f9309f53958736bc0ee`
+- Spine-tangent-correction parent: `ec098393dc0ea2d632e1c320c6a39248835473d7`
 - Branch: `codex/r1d-reader-premium-site-qa-integration`
 - Worktree: `C:\Users\guyna\.codex\worktrees\qaexperience1\Small_Heroes`
 - External cost: `$0`
@@ -19,12 +20,14 @@ The first mesh browser pass also exposed a secondary presentation defect: the ol
 
 Guy's later screen recording exposed a distinct geometric break at the completion boundary. Repository geometry proves that the left and right page rectangles are not equal: they have different widths, offsets and a spine gap. The mesh used only the source width and an equal-size default destination, so its last animated rectangle could not coincide with the static destination. In addition, `onComplete` ran in the same animation frame that wrote the exact landing pose, allowing React to remove the overlay before that pose painted, and the cast shadow retained constant opacity until removal.
 
+Guy's follow-up recording then isolated a second, independent geometric break at the bound pivot. At half turn the former cosine-heavy curl profile was already near maximum at the first strip centre: the spine-nearest strip deviated approximately `28.2deg` from the physical hinge tangent. The mesh remained edge-connected, but the large immediate angle change formed a visible knee where paper met the book. Timing, content and endpoint geometry were not the cause.
+
 ## Implemented contract
 
 1. `DESKTOP_PAGE_CURL_SLICE_COUNT` is a closed internal value of 12.
 2. `desktopPageCurlSlicePoses` is pure and accepts only direction, progress, page width and an internal/test slice count.
 3. Strips are integrated from the spine outward. Each desired centre is derived from the preceding outer edge, so adjacent inner/outer edges coincide through the entire turn.
-4. A bounded cosine/sine profile varies local Y rotation across the sheet. Progress 0 and 1 force zero curl amplitude and exactly coplanar strips.
+4. A bounded smooth S-profile varies local Y rotation across the sheet, approaches zero curvature at the spine and outer sheet boundary, and concentrates the flexible bend in the paper body. Progress 0 and 1 force zero curl amplitude and exactly coplanar strips.
 5. Front texture windows retain source order. Back windows use the exact reversed source index so the incoming page is upright after the 180-degree face flip.
 6. A 0.75px overlap hides subpixel cracks without changing geometry. Curvature shading remains below 0.07 opacity and the face itself has no per-strip box shadow.
 7. The animation easing changes from `easeInOutCubic` to `easeInOutSine`, giving the connected mesh a gentler acceleration and deceleration while preserving the 560ms duration.
@@ -33,6 +36,7 @@ Guy's later screen recording exposed a distinct geometric break at the completio
 10. The component measures the source sheet and destination guard rectangles once per turn. The pure mesh receives a typed destination offset/width authority and interpolates its page width and spine anchor into that exact rectangle. Vertical offset and height are interpolated in the component from the same measured pair.
 11. The cast shadow is driven by the bounded turn arc, so it is zero at both static handoff endpoints and peaks only during the curl.
 12. Completion is deferred by one additional `requestAnimationFrame` after the exact final pose is written. The overlay therefore paints the destination geometry before the identical static spread replaces it.
+13. At half turn, the spine-nearest and outermost strip rotations remain within `2deg` of the hinge tangent in both directions while an interior strip exceeds `25deg` of local bend. This prevents a pivot knee without flattening the page back into a rigid plane.
 
 ## Changed paths
 
@@ -52,13 +56,14 @@ Guy's later screen recording exposed a distinct geometric break at the completio
 npx --no-install vitest run lib/__tests__/reader-page-turn.spec.ts lib/__tests__/reader-nav.spec.ts lib/__tests__/reader-narration-src.spec.ts lib/__tests__/reader-storytime-dwell.spec.ts lib/__tests__/dev-viewer-library-resilient.spec.ts lib/book-layout/__tests__/open-book-layout.spec.ts
 ```
 
-Result: **6 files / 40 tests PASS** after the endpoint correction added direct unequal-destination landing coverage in both directions.
+Result: **6 files / 41 tests PASS** after the spine-tangent correction added direct boundary-tangent and interior-curl coverage in both directions.
 
 Direct geometry regressions prove:
 
 - every neighboring edge remains connected at progress `0`, `0.2`, `0.5`, `0.8` and `1`, forward and backward;
 - all 12 strips are flat at rest and landing;
 - unequal source/destination page rectangles land on the exact typed destination edges in both directions;
+- the bound spine and outer sheet edge approach the hinge tangent while the paper body retains substantial interior curl;
 - more than six distinct local angles exist at mid-turn, preventing a rigid-plane regression;
 - every strip lifts in Z at mid-turn;
 - shading remains below the bounded subtle-opacity ceiling;
@@ -87,6 +92,7 @@ The local `/dev/reader` loaded the repository-owned eight-page Bunny/Bar fixture
 - Page loaded with meaningful content, no Next error overlay and zero console errors.
 - A forward turn exposed exactly 12 live strip nodes with 12 distinct 3D transforms and completed with the overlay removed.
 - A backward turn completed as the mirror and returned the correct page pair.
+- A temporary 5-second local diagnostic duration exposed the full turn in slow motion. At the pivot, the first strip left the gutter continuously while the interior strips carried the visible wave; the diagnostic duration was restored to the production `560ms` before validation and is absent from the committed diff.
 - Endpoint sampling against the measured DOM rectangles found the last painted forward and backward mesh within `0.8px` of the destination bounds, attributable only to the intentional `0.75px` strip overlap. The endpoint cast-shadow opacity was `0`, the overlay survived for that final paint, and the browser console contained no warning or error.
 - The first visual pass showed banding from the inherited per-face inset shadow. After correction, computed face shadow was `none`; live strip shade opacity ranged approximately `0.008–0.018` in the captured frame.
 - The static open-book frame did not translate or tilt.

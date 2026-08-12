@@ -223,6 +223,27 @@ describe('shared Reader page-turn contract', () => {
     }
   });
 
+  it('keeps the spine tangent coherent while concentrating curl in the paper body', () => {
+    for (const direction of ['forward', 'backward'] as const) {
+      const poses = desktopPageCurlSlicePoses(direction, 0.5, 480);
+      const rotationSign = direction === 'forward' ? 1 : -1;
+      const hingeRotation = rotationSign * 90;
+      const spinePose = poses.find((pose) => pose.outwardIndex === 0);
+      const outerPose = poses.find(
+        (pose) => pose.outwardIndex === DESKTOP_PAGE_CURL_SLICE_COUNT - 1,
+      );
+      const interiorOffsets = poses
+        .filter((pose) => pose.outwardIndex > 0 && pose.outwardIndex < DESKTOP_PAGE_CURL_SLICE_COUNT - 1)
+        .map((pose) => Math.abs(pose.rotationYDeg - hingeRotation));
+
+      expect(spinePose).toBeDefined();
+      expect(outerPose).toBeDefined();
+      expect(Math.abs(spinePose!.rotationYDeg - hingeRotation)).toBeLessThan(2);
+      expect(Math.abs(outerPose!.rotationYDeg - hingeRotation)).toBeLessThan(2);
+      expect(Math.max(...interiorOffsets)).toBeGreaterThan(25);
+    }
+  });
+
   it('mirrors the same bounded three-stop curvature shade in both directions', () => {
     const css = fs.readFileSync(
       path.join(process.cwd(), 'app', 'book', '[id]', 'read-v2', 'reader-v2.module.css'),

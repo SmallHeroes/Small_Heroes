@@ -86,9 +86,14 @@ export function desktopPageCurlSlicePoses(
       ? sliceCount - 1 - outwardIndex
       : outwardIndex;
     const distanceFromSpine = (outwardIndex + 0.5) / sliceCount;
+    const curlPhase = Math.PI * distanceFromSpine;
+    // The bound edge must leave the spine with the hinge tangent. The former
+    // cosine-heavy profile was already near its maximum at the first strip,
+    // introducing a visible geometric knee exactly where paper meets the book.
+    // This smooth S-profile approaches zero at both sheet edges and concentrates
+    // curvature in the paper body instead of at the physical pivot.
     const curlProfile =
-      0.78 * Math.cos(Math.PI * distanceFromSpine) +
-      0.22 * Math.sin(2 * Math.PI * distanceFromSpine);
+      2.2 * Math.sin(curlPhase) ** 2 * Math.cos(curlPhase);
     const localAngle = Math.min(
       Math.PI,
       Math.max(0, baseAngle + arc * MAX_PAGE_CURL_RADIANS * curlProfile),
