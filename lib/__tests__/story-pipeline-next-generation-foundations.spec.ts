@@ -215,7 +215,7 @@ describe('next-generation story foundations', () => {
     }
   });
 
-  it('keeps the pilot at premise selection and makes legacy prose authority explicit', () => {
+  it('keeps the pilot selection historical and makes legacy prose authority explicit', () => {
     const finalistBrief = fs.readFileSync(
       path.join(
         PIPELINE_ROOT,
@@ -231,6 +231,8 @@ describe('next-generation story foundations', () => {
     );
 
     expect(finalistBrief).toContain('No finalist has been selected by Codex.');
+    expect(finalistBrief).toContain('Guy selected **B — תחנת האוטובוס שקמה והלכה**.');
+    expect(finalistBrief).toContain('The subsequently proposed hand-authored eight-page spine was rejected and removed.');
     expect(finalistBrief).not.toMatch(/--- Page 1 ---/);
     expect(masterPrompt).toContain('LEGACY / HOLD');
     expect(masterPrompt).toContain('Do not use this template for next-generation story prose.');

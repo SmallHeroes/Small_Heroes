@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "next-generation-story-brief-catalog/v1",
+  "status": "staging_only",
+  "writerContractPath": "story-pipeline/03_story_briefs/STORY_WRITER_CONTRACT.md",
+  "briefSetPaths": [
+    "story-pipeline/03_story_briefs/briefs/fox_uri.json",
+    "story-pipeline/03_story_briefs/briefs/panda_anat.json",
+    "story-pipeline/03_story_briefs/briefs/bunny_ometz.json",
+    "story-pipeline/03_story_briefs/briefs/dragon_dini.json",
+    "story-pipeline/03_story_briefs/briefs/chameleon_koko.json",
+    "story-pipeline/03_story_briefs/briefs/lion_shaket.json"
+  ],
+  "expectedSlotCount": 18,
+  "directions": {
+    "bedtime": { "pageCount": 8, "minimumMeaningfulSetPieces": 2 },
+    "adventure": { "pageCount": 12, "minimumMeaningfulSetPieces": 3 },
+    "fantasy": { "pageCount": 16, "minimumMeaningfulSetPieces": 3 }
+  },
+  "authority": {
+    "briefs": "creative staging data awaiting Guy review",
+    "generatedDrafts": "untrusted staging output",
+    "approvedBanks": "unchanged and authoritative only for the existing generation",
+    "oldStories": "anti-copy evidence only; never positive prompt input"
+  }
+}
