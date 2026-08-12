@@ -1,6 +1,6 @@
 # R1D Reader Flexible Page Curl — Implementation Evidence
 
-Status: implementation complete and independently technical-PASSed; Guy product acceptance pending.
+Status: implementation independently technical-PASSed; documentation attribution correction pending focused re-gate; Guy product acceptance pending.
 
 ## Authority and topology
 
@@ -85,7 +85,9 @@ Claude Code independently reviewed `640476ddfaf831ede8eca6e62f7529eb0c4f2107..0c
 
 Claude Code independently micro re-gated `0c267bb8e224f06a2f97e8dec994576fca075d3e..0d1490effb3fa2ca2b1f17298cccbcf715ba75af` and returned **PASS**, closing MINOR-1 and MINOR-2 with no BLOCKER or MAJOR. It independently reproduced TypeScript and the 6-file / 39-test focused suite. Its new non-blocking MINOR-3 identified that the two durable records still displayed the pre-correction `38`-test count; the count is corrected here. This document records Claude Code's verdict and does not self-award independent closure or Guy's product acceptance.
 
-Claude Code independently micro re-gated the spine-tangent correction range `ec098393dc0ea2d632e1c320c6a39248835473d7..3c17ea5a0a7a58e2e27d571ee5c212b17e8e3d48` and returned **PASS** with zero new BLOCKER, MAJOR or MINOR. It reproduced the 6-file / 41-test suite, TypeScript and `git diff --check`; measured `1.263deg` boundary deviation, `28.660deg` interior curl and `2.278e-13px` worst adjacent-edge separation; and confirmed exact landing, texture ordering, shadow bounds, settle completion and the unchanged `560ms` production duration. Its N1-N4 remain advisory. This is Claude Code's technical verdict and does not grant Guy product or visual acceptance.
+Claude Code independently micro re-gated the spine-tangent correction range `ec098393dc0ea2d632e1c320c6a39248835473d7..3c17ea5a0a7a58e2e27d571ee5c212b17e8e3d48` and returned **PASS** with zero new BLOCKER, MAJOR or MINOR. It reproduced the 6-file / 41-test suite, TypeScript and `git diff --check`; measured `1.263deg` boundary deviation, `28.660deg` interior curl and `2.278e-13px` worst adjacent-edge separation; and confirmed exact landing, texture ordering, shadow bounds, settle completion and the unchanged `560ms` production duration. That same review carried forward **MAJOR-1** from the preceding deployment-record review because these records still negated the observed push and omitted the QA Preview/alias. Its N1-N4 remain advisory. This is Claude Code's technical verdict and does not grant Guy product or visual acceptance.
+
+Documentation correction `04b53ad3b16565b088acf2c08ebb66bcf2470a31` recorded the push, `0/0` parity, Ready Preview and QA alias and removed the inaccurate unscoped exclusion. Claude Code subsequently micro re-gated `3c17ea5a0a7a58e2e27d571ee5c212b17e8e3d48..04b53ad3b16565b088acf2c08ebb66bcf2470a31`, returned **PASS**, and independently closed carried MAJOR-1. It reported zero BLOCKER, zero MAJOR and one new non-blocking documentation MINOR-1: the correction did not attribute the carried MAJOR and promoted the status before this closure review. This follow-up records the review sequence and attributes the finding and closure to Claude Code; Codex does not self-award either result.
 
 ### Browser proof
 
@@ -105,4 +107,4 @@ No website/Wizard, book content, provider, credential, image/audio generation, s
 
 ## Independent QA request
 
-The spine-tangent range has independent technical PASS. A focused documentation micro re-gate should verify only that the pushed branch, Ready QA Preview and QA alias are now recorded faithfully; that no Production action is implied; and that the earlier unscoped no-push claim is removed rather than repeated.
+The spine-tangent range has independent technical PASS and the carried deployment-record MAJOR is independently closed. A focused documentation micro re-gate should verify only that the MAJOR is now attributed to Claude Code, the `04b53ad3` correction and subsequent closure are sequenced accurately, the non-blocking attribution MINOR is resolved, and no code/product/Production authority is implied.
