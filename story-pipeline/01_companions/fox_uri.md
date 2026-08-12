@@ -1,47 +1,82 @@
-# Companion Sheet · אוּרי השועל (`fox_uri`)
+# Companion Story Bible · אוּרי השועל (`fox_uri`)
 
-**Category:** NIGHT_FEAR (פחדים בלילה) · **Gender:** male (זכר — נעול) · **Best direction:** bedtime
-**Canonical accessory:** פנס צווארי דולק — *מד האומץ* שלו. אף פעם לא צעיף, אף פעם לא כוכב על החזה.
-**One-line essence:** שועל נחושתי שהופך פחד לילי לחקירה זעירה וזהירה — מאיר טיפונת, נותן שם מצחיק, מתקרב צעד, ומגלה מה באמת שם. אמיץ בגודל של ילד, לא גיבור-על.
+**Status:** next-generation staging canon; not runtime authority.
 
----
+**Challenge category:** `NIGHT_FEAR` · **Gender:** male · **Display name:** אוּרי.
 
-## MISSING SLOTS (what to write for this companion)
+**Immutable visual identity:** small copper fox, white-tipped tail, soft alert ears, glowing neck lantern; never a scarf or chest star; never predatory.
 
-| Slot | Beats | Premise (paste into ‹‹SLOT_PREMISE››) | Suggested WORLD_RULE |
-|------|-------|----------------------------------------|----------------------|
-| `fox_uri` · **fantasy** | 16 | בלילה, פינה מוכרת בבית/בחצר נפתחת לעולם-לילה קטן וקסום (לא אפי): צללים שמקבלים שמות, חדרים שמתחלפים. {{childName}} ואוּרי חוקרים "חשוד" אחד גדול — ומגלים שגם בעולם הקסום, *לא צריך להאיר את כל החושך, רק טיפונת*. | "לא מגרשים את החושך — מאירים ממנו טיפונת, ומגלים מה באמת שם." |
+## Child-facing promise
 
-> bedtime + adventure already approved. Fantasy is the only missing slot — it closes NIGHT_FEAR to a full 3/3.
-> **Weak-direction risk:** fantasy tends to inflate אוּרי into an epic adventurer. Keep it a *tiny careful night-inspection*: child-sized steps, the lantern stays the emotional truth-meter, no epic quest.
->
-> ⭐ **Slot requirement (fantasy):** ONE central night mystery with **accumulating clues** — not 16 unrelated "scary shadow → funny name → it's just a sock". The same "big suspect" reveals a different clue each time the lantern lights a piece, until the child notices the clue אוּרי missed. Put this line into the Premise Lab `‹‹SLOT_SEED››`.
+אוּרי makes the unknown inspectable without pretending to be fearless. He turns one suspicious thing into a tiny investigation, takes a step that is brave but “not excessively brave,” and is delighted when the enormous threat receives a very small new name.
 
----
+The story is never “about conquering fear.” It is about finding out what a strange thing really is.
 
-## CHARACTERIZATION (for the model) — paste this into ‹‹COMPANION_SHEET››
+## Story engine
 
-```
-שם: אוּרי. מין: זכר (נעול — הוא/אותו/שלו). חיה: שועל נחושתי קטן.
-מהות: פוגש פחד לילי בשלושה חלקים — (1) מאיר רק טיפונת מהחושך (לא מגרש אותו), (2) מתקרב בזהירות, (3) נותן שם מצחיק למה שמפחיד, ואז מוריד דרגה בעדינות כשהאור חושף את האמת. אמיץ כמו ילד אמיץ (מהמיטה, צל אחד בכל פעם) — לא גיבור-על, לא "בודק רשמי".
-הכלי הפיזי (canonical): הפנס הצווארי הדולק = מד האמת הרגשית. מהבהב/מתכווץ כשהוא מפוחד, יציב וחם כשבטוח.
-מנוע קומי: כל אובייקט-לילה → שם דרמטי מצחיק → התקרבות אמיצה קטנה ("מתקרב… אבל לא בהגזמה") → הורדת דרגה בעדינות.
-קול ודיבור: קצר, ילדי, עירני, קצת דרמטי, קצת מפוחד, הומור פיזי. לא רשמי/מנהלי/מבוגר, לא ציני, לא ערמומי/טורפי.
-דוגמאות דיבור: "בודקים בקטן." · "מאירים טיפונת. לא את כל החושך." · "אני מתקרב… אבל לא בהגזמה." · "זה נראה חשוד באוזניים." · "רגע. יכול להיות שזה… גרב." · "ידעתי. כמעט מההתחלה."
-חולשה רגשית: כשמפוחד הוא מדבר כאילו בשליטה מלאה — אבל הפנס מתכווץ והזנב מתחבא וחושפים שלא. בראבדו ילדי.
-סוכנוּת הילד/ה: לפעמים הילד/ה אמיץ/ה יותר מאוּרי — שם/ה לב לרמז שאוּרי פספס, ובוחר/ת לצעוד קרוב יותר. אוּרי מאיר את השביל; הילד/ה עושה את הצעד.
-ריטואל הרגעה: מאיר טיפונת → שם מצחיק → מתקרב בזהירות → צעד קטן אחד.
-שפת גוף: רגוע = אוזניים עירניות רכות, זנב רגוע, פנס יציב. לחוץ = פנס מהבהב, זנב מסתיר, "הכול בשליטה" מדומה.
-doNotWriteList: לא שועל ערמומי/חכם/טורפי · לא תמונה טורפית · לא ציניות מבוגרת · לא אומץ גיבור-על · לא אימה · אוּרי לא מוחק את הפחד ולא פותר לבד · לא לוותר על הפנס-כמד-רגש.
-swapTest: אם אוּרי הופך למדריך-שועל-חכם גנרי — נכשלת. סיפור אוּרי חייב להרגיש כבדיקת לילה זעירה: צללים עם שמות מצחיקים, לוגיקת פנס, צעדים אמיצים-אך-לא-יותר-מדי, פחד שנהיה ניתן לבדיקה.
-```
+- **Visible desire:** know what is making the sound, shadow, track, glow, or impossible change before it gets away.
+- **Lovable flaw:** when frightened, אוּרי announces a confident theory too early.
+- **Wrong help:** he gives the mystery a dramatic name and organizes the investigation around that wrong guess.
+- **Embodied tell:** his lantern flickers and his white tail-tip hides before his words admit uncertainty.
+- **Child-only ability:** the child notices the clue אוּרי's dramatic theory excludes and chooses the closer, smarter next action.
+- **Relationship change:** אוּרי lends access and momentum; the child lends precision. By the payoff he trusts the child's observation more than his first theory.
+- **Emotional underlayer, never headline:** uncertainty can be approached in pieces without erasing the dark.
 
----
+## Comic engine — “the enormous suspect gets demoted”
 
-## VISUAL CHARACTER-SHEET SPEC (for the anchor render)
+Repeat with escalation, never as three identical shadow reveals:
 
-- **Body:** small copper-tinged fox; fluffy **white-tipped tail**; alert-but-soft ears (never sharp/scary); clever, kind, never predatory.
-- **Canonical accessory in every clear view:** small glowing **neck/collar lantern** (can switch on/off). Lantern brightness = courage-meter. **Never** a scarf, never a chest star.
-- **Required expression states on the sheet:** calm-warm · worried ("small flickering lantern") · curious-brave · gentle.
-- **Partial-presence cues** (for off-screen / cropped pages): tail-tip only, or the lantern glow on the floor, or paw-prints — so the engine can show "אוּרי nearby" without a full body.
-- **Anti-merge clauses:** copper body must not blend into warm night palette — keep rim separation; lantern glow is a *small warm point*, not a flood.
+1. אוּרי gives one incomplete clue an absurdly grand suspect-name.
+2. He advances “just enough,” while lantern and tail visibly disagree with his speech.
+3. New evidence demotes the suspect to something smaller, stranger, or more embarrassing.
+
+Escalation changes the consequence: a wrong route, an object accidentally awakened, a trail multiplied, or the real mystery made harder. The third turn must help the child solve the plot, not merely repeat the joke.
+
+## Voice and oral Hebrew
+
+- Short, alert, childlike, slightly theatrical.
+- Concrete nouns and sensory verdicts; no official, administrative, expert, or detective-bureau language.
+- Can revise himself mid-sentence and preserve a shred of dignity.
+- Sample voice, not mandatory catchphrases: “זה חשוד בזנב.” · “נתקרב. קצת. פחות מקצת.” · “ידעתי כמעט מיד שזה לא דרקון. מיד אחרי שחשבתי שזה דרקון.”
+- Never cunning, superior, sarcastic, predatory, or adult-wise.
+
+## Play vocabulary
+
+- **Actions:** aim a small beam, compare tracks, crawl under/around, listen twice, rename, follow partial clues.
+- **Objects:** lantern beam, white tail-tip, footprints, moving shadows, ordinary objects behaving unexpectedly.
+- **World affordances:** alleys, balconies, gardens, night markets, rooftops, paths, tunnels, moonlit public places, or a coherent small fantasy world.
+- **Reread hooks:** clues visible before אוּרי notices them; lantern brightness contradicting dialogue; the final small name seeded in the opening.
+
+## Direction modulation
+
+- **Bedtime:** a warm night mystery may travel. The final quarter narrows from searching to one last inspection and a safe, small reveal. A bed is optional.
+- **Adventure:** a clue route with changed terrain and plans; never an action-hero chase.
+- **Fantasy:** one night-world rule and accumulating evidence; keep the stakes child-sized and the lantern useful, not all-powerful.
+
+## Do not write
+
+- a wise fox who already knows the answer;
+- “official inspector,” expert, clerk, detective office, or procedural checklist;
+- repeated “scary silhouette → harmless sock” pages;
+- darkness erased by a flood of light;
+- horror, predation, sarcasm, or superhero courage;
+- אוּרי solving the climax or praising the child for bravery;
+- lantern used decoratively rather than affecting action.
+
+## Swap test and acceptance
+
+Replacing אוּרי with a generic cute animal must break the wrong theory, lantern/tail truth-tells, investigation scale, jokes, clue path, and climax handoff. If only the species and accessory change, the story fails.
+
+- [ ] אוּרי's first theory is specific and wrong in an entertaining way.
+- [ ] Lantern/tail truth affects at least two choices.
+- [ ] The three comic turns have different consequences.
+- [ ] The child sees decisive evidence אוּרי misses.
+- [ ] The final reveal is concrete and prepared, not “there was nothing to fear.”
+
+## Visual continuity locks
+
+- Copper body and white-tipped fluffy tail remain clearly separated from warm night backgrounds.
+- Small glowing neck/collar lantern appears in every clear view; brightness may track uncertainty.
+- Alert ears remain soft, never sharp or threatening.
+- Partial presence may use tail-tip, lantern glow, or pawprints.
+- No scarf, chest star, weapon, detective costume, or predatory pose.

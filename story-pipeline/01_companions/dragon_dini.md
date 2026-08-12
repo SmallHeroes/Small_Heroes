@@ -1,50 +1,79 @@
-# Companion Sheet · דיני הדרקונית (`dragon_dini`)
+# Companion Story Bible · דיני הדרקונית (`dragon_dini`)
 
-**Category:** NEW_SIBLING (אח/ות חדש/ה) · **Gender:** female (נקבה — היא/אותה/שלה) · **Best direction:** fantasy
-**Canonical accessory:** חגורת טרקוטה (קנונית). נדרשת כשדיני נראית בבירור.
-**One-line essence:** דרקונית שיש לה *צורה לאהבה* — זנב עושה מעגלים, כנפיים מגינות, קנים, קירות רכים. מצחיקה כי אכפת לה כל כך שהיא בטעות עוטפת את הבעיה, הילד/ה, הביצה וחצי החדר. השיעור: אהבה צריכה מקום לנשום.
+**Status:** next-generation staging canon; not runtime authority.
 
----
+**Challenge category:** `NEW_SIBLING` · **Gender:** female · **Display name:** דיני.
 
-## MISSING SLOTS
+**Immutable visual identity:** young large-dog-scale dragon, copper-orange scales, peach-coral wings/spikes, cream belly, warm amber eyes, terracotta guardian sash; never green. A moss-green egg/baby dragon is a separate entity.
 
-| Slot | Beats | Premise (paste into ‹‹SLOT_PREMISE››) | Suggested WORLD_RULE |
-|------|-------|----------------------------------------|----------------------|
-| `dragon_dini` · **bedtime** | 8 | בלילה לפני/אחרי שאח/ות חדש/ה הגיע/ה הביתה, {{childName}} מרגיש/ה שצריך/ה לשמור חזק על המקום שלו/ה בלב. דיני עוטפת-יתר את הביצה/הקן ליד המיטה — ו{{childName}} עוזר/ת לה למצוא "חיבוק עם פתח". | "קרובים וגם נותנים מקום — גבול טוב משאיר מקום לנשום." |
-| `dragon_dini` · **adventure** | 12 | מסע יום קטן (טיול/גן/חצר) שבו דיני מנסה להגן על {{childName}} מכל דבר — ולומדת, בעזרת {{childName}}, לתת לו/ה לצאת מהכנף ולנסות בעצמו/ה. הרגש על האח/שינוי נפתר דרך זה. | "להגן זה לא לעטוף הכול — זה להשאיר פתח שדרכו יוצאים לנסות." |
+## Child-facing promise
 
-> fantasy already approved (dini's best). bedtime + adventure are missing.
-> **Weak-direction risk:** a loud/fast adventure pulls her into "generic guardian dragon" → loses the soft core of *caring-that-learns-to-loosen*. Keep the guarding gentle and a little over-eager, never heroic-combat.
->
-> ⭐ **Slot requirement (all directions):** **show the boundary through funny ACTION, don't explain it.** The words "גבול / פתח / מקום לנשום" are correct but become therapy-speak if repeated. Cap them — show it instead: the tail accidentally closes the path; the wing makes "a wall with a gap"; the nest gets built somewhere absurd; the child moves one pillow and creates the opening. Don't narrate "a good boundary" — *show* "a hug with a gap".
+דיני cares in shapes. A wing becomes a roof, a tail becomes a fence, and a perfectly sensible nest may appear in the middle of the least sensible route. Her help is generous, practical, and usually one layer too much.
 
----
+She is not a protector who teaches boundaries. She is a builder whose care creates a funny physical problem the child must redesign.
 
-## CHARACTERIZATION (for the model) — paste this into ‹‹COMPANION_SHEET››
+## Story engine
 
-```
-שם: דיני. מין: נקבה (נעול — היא/אותה/שלה). חיה: דרקונית צעירה (קנה גודל של כלב גדול זהיר).
-מהות: לדרקון שיש לו צורה לאהבה. נפלאה כי אכפת לה; מצחיקה כי אכפת לה כל כך שהיא בטעות עוטפת יותר מדי. השיעור הוא לא "תהיו נחמדים לתינוק" — אהבה צריכה מקום לנשום.
-מנוע קומי: דיני מציבה כללים רציניים קטנים לרגשות — ואז שוברת אותם בעצמה, בדרך כלל דרך הזנב. (רגע אכפתה → כלל רגוע → הגוף מפר את הכלל מיד.)
-התנהגות חתימה: הזנב עושה גבול/מעגל לפני שהלב מספיק; כנף הופכת לקיר; קן מופיע במקומות לא מעשיים.
-קול ודיבור: חמה, כנה, טקסית-קלילה אך פשוטה. לא דרקון עתיק, לא פנטזיה אפית, לא מטפלת.
-דוגמאות דיבור: "אני שומרת. אבל לא חזק מדי." · "גבול טוב משאיר מקום לנשום." · "הזנב שלי החליט לפני הלב." · "זה לא קיר. זה חיבוק עם פתח." · "כלל ראשון: אף אחד לא נלחץ ליד הביצה." (וזנבה נלחץ מיד)
-חולשה רגשית: מבלבלת אכפתה עם שליטה — מאמינה שאם תחזיק מספיק קרוב, שום דבר רע לא יקרה. לומדת שהרפיה קטנה היא לא נטישה.
-סוכנוּת הילד/ה: הילד/ה עוזר/ת לדיני לעבור מעטיפת-יתר ל"חיבוק עם אוויר בפנים" — ובכך פותר/ת את הרגש שלו/ה על התינוק/השינוי.
-ריטואל הרגעה: זנב עושה מעגל רך → כנף משאירה פתח → "חיבוק עם אוויר בפנים".
-שפת גוף: רגוע = עיניים חמות, זנב מעגל רך, כנף פתוחה עם מרחב. לחוץ = עוטפת יותר מדי, קן, קיר כנף, זנב לפני הלב.
-doNotWriteList: לא דרקון מגן גנרי · לא קול דרקון עתיק/אפי · לא מוסר "תהיו נחמדים לתינוק" · לא שפת מטפל על גבולות · דיני לא מתקנת את רגש הילד/ה במקומו/ה · ביצה ותינוק-דרקון = ישויות נפרדות (לא דיני).
-מגבלת ויזואל (קריטי לקנון): דיני = קשקשים נחושת-כתום + כנפיים/קוצים אפרסק-אלמוג + בטן קרם. אסור לצבוע את דיני בירוק. תינוק-דרקון/ביצה = מוס-ירוק נפרד.
-swapTest: אם דיני הופכת לדרקון מגן גנרי — נכשלת. סיפור דיני חייב להרגיש כמו אכפתה שלומדת להרפות: קנים, מעגלי זנב, גבולות, הגנה-יתר, אהבה עם מקום לנשום.
-```
+- **Visible desire:** keep a person, object, creature, route, performance, or fragile construction completely safe while completing the visible quest.
+- **Lovable flaw:** she confuses protection with controlling every variable.
+- **Wrong help:** adds one more nest wall, wing roof, tail rail, rule, cushion, or detour until the protected thing cannot move or the quest cannot proceed.
+- **Embodied tell:** her tail draws a boundary before she decides; her wing closes a gap while she is still announcing it will remain open.
+- **Child-only ability:** the child knows what the protected person/thing needs to do, removes or repositions the decisive piece, and assigns דיני a useful role that preserves movement.
+- **Relationship change:** דיני contributes materials and ferocious care; the child contributes trust, use, and space. The final design works because it can move, open, or be shared.
+- **Emotional underlayer, never headline:** care can stay close without controlling every outcome or consuming all available space.
 
----
+## Comic engine — “one rule, one tail, one layer too many”
 
-## VISUAL CHARACTER-SHEET SPEC (for the anchor render)
+1. דיני announces a serious, tiny safety rule.
+2. Her tail or wing breaks the spirit of the rule while technically trying to enforce it.
+3. The repair adds an excessive layer that turns care into an obstacle.
 
-- **Body:** small chubby dragon, rounded snout, tiny wing-nubs; friendly protective eyes; **copper-orange scales + peach-coral wings/spikes + cream belly**.
-- **Canonical accessory:** **terracotta "guardian's sash"** in every clear view.
-- **Size lock:** large-careful-dog scale — do NOT inflate to a big beast.
-- **Required expression states:** warm-caring · over-wrapping (boundary poses: tail-circle, wing-wall) · gentle-release.
-- **Separate entities:** the **egg / baby-dragon = moss-green**, rendered as their own object — never colored copper, and dini is never green.
-- **⚠ Asset note:** the currently published `dragon_dini/style01-sheets/` are an old GREEN sheet (stale). Regenerate copper-orange per `lib/dragon-dini-style01-blocks.ts` **before** relying on dini sheets.
+Escalate through different physical systems: route blocked, object wrapped, group accidentally enclosed, or nest transported somewhere absurd. The third turn reveals the design insight the child uses at the climax.
+
+## Voice and oral Hebrew
+
+- Warm, practical, lightly ceremonial, sincere enough to make the physical contradiction funny.
+- Speaks in simple rules and construction verdicts, then notices her body has amended them.
+- Sample voice, not mandatory catchphrases: “הפתח נשאר פתוח. הזנב שלי הגיש הסתייגות.” · “הוספתי כרית אחת. ועוד אחת לכרית.” · “זה לא קיר. כרגע הוא פשוט עומד מאוד.”
+- No ancient-dragon voice, epic prophecy, therapist explanation, or repeated language of “boundaries” and “space to breathe.”
+
+## Play vocabulary
+
+- **Actions:** wrap, build, brace, carry, hatch a route, open a gap, redistribute materials, assign jobs.
+- **Objects:** nest materials, ribbons, cushions, baskets, rails, eggs, carts, gates, soft building pieces.
+- **World affordances:** markets, parks, bridges, delivery routes, workshops, nursery events, dragon landscapes, moving nests, egg festivals.
+- **Reread hooks:** tail silently closing gaps; serious rule contradicted in the background; a removed piece returning in the final useful design.
+
+## Direction modulation
+
+- **Bedtime:** a final evening task or delivery becomes over-nested; the last quarter simplifies motion and materials into a useful open form, not a bedroom cocoon.
+- **Adventure:** protection creates route obstacles and detours; child redesigns the convoy, crossing, or build.
+- **Fantasy:** dragon-world materials and laws support a large visual construction problem; no combat, rescue-princess, or generic guardian quest.
+
+## Do not write
+
+- generic brave/protective dragon or epic combat voice;
+- direct sibling lesson, “be nice to the baby,” jealousy diagnosis, or family moral;
+- therapy vocabulary about boundaries, control, regulation, or breathing room in story prose;
+- identical over-wrapping beat on every page;
+- child passively watching דיני learn;
+- green דיני or copper baby/egg;
+- דיני solving the final design or acting as the baby.
+
+## Swap test and acceptance
+
+Replacing דיני with a generic dragon must break the body-made architecture, serious-rule contradiction, excessive protective construction, and child redesign.
+
+- [ ] דיני's care creates a concrete obstacle with real cost.
+- [ ] Three comic turns use different body/build consequences.
+- [ ] The protected person/thing retains its own goal and agency.
+- [ ] The child removes, moves, or redesigns the decisive element.
+- [ ] No direct sibling or boundary lesson appears in hook, climax, or ending.
+
+## Visual continuity locks
+
+- Copper-orange scales, peach-coral wings/spikes, cream belly, terracotta sash.
+- Exactly two wings; young rounded, friendly anatomy at large-dog scale.
+- Tail circles, wing roofs/walls, and nest shapes may express action without aggression.
+- Moss-green baby/egg remains a separate entity with independent scale locks.
+- Existing stale green sheet must never override the current copper identity.
