@@ -36,6 +36,11 @@ Do not output an outline, analysis, checklist, explanations, or alternative vers
 
 ## Direction and page contract
 
+The counts below are **text pages**. The product pairs every text page with one
+illustration page, so the physical books contain 16, 24, or 32 pages
+respectively. Write only the declared 8, 12, or 16 text pages; never double the
+story draft.
+
 ### Bedtime — exactly 8 pages
 
 - Target 25–45 Hebrew words per page; never exceed 55.
@@ -98,6 +103,16 @@ Include only:
 - `companionPresence: present|partial|absent`.
 
 Do not include written text inside the image, dialogue, camera jargon beyond a simple view, style imitation, credentials, provider instructions, or new facts absent from the Hebrew prose.
+
+## Child visual-personalization boundary
+
+The story writer does not receive or interpret the child's photo and does not
+own the child's visual body model. Do not invent or lock height, body
+proportions, head-to-body ratio, clothing, face, hair, skin, or illustration
+style in prose, frontmatter, or `imageDirection`. A later visual pipeline binds
+the approved child identity and derives age-appropriate body proportions from
+the parent's age selection. The photo remains face-identity evidence, not body
+authority.
 
 ## Exact output shape
 

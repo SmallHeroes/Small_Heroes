@@ -35,6 +35,38 @@ Guy reviews one brief
 
 Brief acceptance does not approve prose. Draft acceptance does not approve bank integration or rendering.
 
+## Create a copy-ready ChatGPT commission
+
+The deterministic materializer combines only the shared next-generation
+contract, the shared writer contract, one matching companion bible, and one
+selected structured brief. It does not call a model or read credentials.
+
+List the 18 available commissions:
+
+```powershell
+node scripts/materialize-story-commission-briefs.cjs list
+```
+
+Materialize one accepted brief into a new empty directory:
+
+```powershell
+node scripts/materialize-story-commission-briefs.cjs materialize `
+  --brief-id dragon_dini_adventure_wobble_cake_convoy_brief_v1 `
+  --output-dir outputs/story-commissions/dini-adventure
+```
+
+Materialize all 18 for editorial review or later dispatch:
+
+```powershell
+node scripts/materialize-story-commission-briefs.cjs materialize-all `
+  --output-dir outputs/story-commissions/all-18
+```
+
+Every generated Markdown bundle is self-contained and content-addressed. Its
+manifest records both the text-page count and the physical-page count:
+bedtime 8/16, adventure 12/24, fantasy 16/32. Generated files remain staging
+artifacts, not approved-bank or render authority.
+
 ## Catalog guarantees
 
 - exactly 18 records: six MVP companions × three directions;
