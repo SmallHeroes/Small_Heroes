@@ -160,3 +160,9 @@ Claude Code should review `e6dbcdd369b1dabfe560344c20ac779954b11e0c..HEAD` read-
 12. The focused test, TypeScript, full-check or Git claims above are inaccurate.
 
 Independent QA completed these targets with PASS. Guy retains story selection, prose quality, product, visual and launch acceptance.
+
+## Superseding writer-dispatch follow-up
+
+Guy's first editorial use of the historical four-authority commission exposed a mechanical-prose failure that the original technical QA did not and could not product-accept. The full source documents exerted imitation pressure through sample dialogue, `lineTargets`, reread targets and internal “rule” wording. The reviewed source briefs and companion bibles remain intact, but their verbatim writer dispatch is now historical.
+
+The general follow-up at `docs/ai-workflow/STORY_WRITER_FREEDOM_PROJECTION_IMPLEMENTATION_EVIDENCE.md` introduces a compact v2 writer-facing projection and a new `outputs/story-bank-next-generation-chatgpt-commissions-20260813-v4-open-writer` staging set. The original Claude PASS above remains valid for its immutable range and source authorities; it does not independently PASS the later projection correction or make the historical v2 output suitable for dispatch.

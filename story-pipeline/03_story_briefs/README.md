@@ -4,14 +4,19 @@
 
 This directory contains the compact creative layer between the six companion bibles and full-story drafting.
 
-## Authoritative inputs for one drafting session
+## Editorial authorities and writer-facing dispatch
 
-Use only:
+The full story contract, full companion bibles, writer contract and structured
+briefs remain editorial source authorities. They are deliberately **not**
+concatenated into the ChatGPT prompt: doing so made examples and review-only
+fields behave like prescribed prose.
 
-1. `../00_NEXT_GENERATION_STORY_CONTRACT.md`;
-2. `STORY_WRITER_CONTRACT.md`;
-3. the selected `../01_companions/<companionId>.md`;
-4. exactly one structured story brief record from the set listed in `story-brief-catalog.json`.
+The deterministic dispatch projection uses only:
+
+1. `STORY_WRITER_FREEDOM_CHARTER.md`;
+2. one selected card from `companion-authoring-cards.json`;
+3. one closed writer-facing projection of the selected structured brief;
+4. commission identity and page/personalization metadata.
 
 Do not supply any V3/V5 story, old prompt, rejected spine, provider output, or another slot's brief.
 
@@ -19,13 +24,17 @@ Do not supply any V3/V5 story, old prompt, rejected spine, provider output, or a
 
 A brief locks the story's creative identity: premise, child want, physical play rule, set-piece chain, companion-caused trouble, five or six high-level causal movements, discovery, child-owned climax, payoff, energy shape, humor, reread hooks, and exclusions.
 
-It does **not** prewrite page prose or a page-by-page spine. ChatGPT decides exact dialogue, sentence rhythm, local blocking, and page allocation while obeying the locked causal movement and output contract.
+It does **not** prewrite page prose or a page-by-page spine. `lineTargets`,
+sample dialogue, reread targets and anti-copy evidence are human-review data,
+not writer input. ChatGPT decides exact dialogue, sentence rhythm, local
+blocking and page allocation while obeying the causal movement and output
+contract.
 
 ## Workflow
 
 ```text
 Guy reviews one brief
-  → approved brief + matching companion bible + shared writer contract
+  → approved source authority → compact freedom projection
   → ChatGPT produces one complete staging draft
   → deterministic format/personalization/story gates
   → Hebrew read-aloud edit and story critique
@@ -37,9 +46,10 @@ Brief acceptance does not approve prose. Draft acceptance does not approve bank 
 
 ## Create a copy-ready ChatGPT commission
 
-The deterministic materializer combines only the shared next-generation
-contract, the shared writer contract, one matching companion bible, and one
-selected structured brief. It does not call a model or read credentials.
+The deterministic materializer projects the full editorial authorities into
+the compact writer-facing dispatch described above. It records source paths
+and digests in the manifest for provenance without copying the full source
+documents into the prompt. It does not call a model or read credentials.
 
 List the 18 available commissions:
 

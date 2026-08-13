@@ -503,7 +503,7 @@ describe('next-generation story creative briefs', () => {
     expect(contract).toContain('Do not add `approvedBy`');
     expect(contract).not.toContain('story-bank/v3-approved/');
 
-    expect(readme).toContain('exactly one structured story brief');
+    expect(readme).toContain('one closed writer-facing projection of the selected structured brief');
     expect(readme).toContain('Do not supply any V3/V5 story');
     expect(readme).toContain('Brief acceptance does not approve prose.');
   });
