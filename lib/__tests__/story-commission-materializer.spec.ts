@@ -10,6 +10,7 @@ const {
   buildArchitectPilotBundle,
   buildCommissionBundle,
   buildEditorialReviewBundle,
+  buildTargetedRevisionBundle,
   commissionMetadata,
   findArchitectPilot,
   findCompanionCard,
@@ -19,12 +20,15 @@ const {
   loadCommissionAuthority,
   projectBriefForWriter,
   readEditorialDraftFile,
+  readEditorialReviewResultFile,
   validateArchitectPilotsDocument,
   validateCompanionCardsDocument,
   validateCompanionQaCanonsDocument,
+  validateEditorialReviewResult,
   writeArchitectPilotFiles,
   writeCommissionFiles,
   writeEditorialReviewFiles,
+  writeTargetedRevisionFiles,
 } = require('../../scripts/materialize-story-commission-briefs.cjs') as Materializer;
 
 interface StoryBrief {
@@ -110,6 +114,28 @@ interface EditorialDraft {
   sha256: string;
 }
 
+interface EditorialReview {
+  version: 'small-heroes-story-editorial-review/v1';
+  verdict: 'pass' | 'revise' | 'reject';
+  strengths: string[];
+  issues: Array<{
+    code: string;
+    severity: 'major' | 'minor';
+    evidencePages: number[];
+    functionalGap: string;
+  }>;
+  revisionPriorities: string[];
+  mustPreserve: string[];
+}
+
+interface EditorialReviewResult {
+  absolutePath: string;
+  relativePath: string;
+  bytes: number;
+  sha256: string;
+  review: EditorialReview;
+}
+
 interface CommissionMetadata {
   commissionVersion: 'small-heroes-story-commission/v2';
   authorityStatus: 'staging_only';
@@ -134,6 +160,12 @@ interface Materializer {
     record: CommissionRecord,
     draft: EditorialDraft,
   ) => string;
+  buildTargetedRevisionBundle: (
+    authority: ArchitectAuthority,
+    record: CommissionRecord,
+    draft: EditorialDraft,
+    reviewResult: EditorialReviewResult,
+  ) => string;
   commissionMetadata: (record: CommissionRecord) => CommissionMetadata;
   findArchitectPilot: (authority: ArchitectAuthority, briefId: string) => ArchitectPilot;
   findCompanionCard: (authority: CommissionAuthority, companionId: string) => CompanionCard;
@@ -143,9 +175,17 @@ interface Materializer {
   loadCommissionAuthority: () => CommissionAuthority;
   projectBriefForWriter: (brief: StoryBrief) => Record<string, unknown>;
   readEditorialDraftFile: (draftPath: string) => EditorialDraft;
+  readEditorialReviewResultFile: (
+    reviewPath: string,
+    expectedPageCount: number,
+  ) => EditorialReviewResult;
   validateArchitectPilotsDocument: (document: unknown) => unknown;
   validateCompanionCardsDocument: (document: unknown) => unknown;
   validateCompanionQaCanonsDocument: (document: unknown) => unknown;
+  validateEditorialReviewResult: (
+    review: unknown,
+    expectedPageCount: number,
+  ) => EditorialReview;
   writeArchitectPilotFiles: (
     authority: ArchitectAuthority,
     record: CommissionRecord,
@@ -160,6 +200,13 @@ interface Materializer {
     authority: ArchitectAuthority,
     record: CommissionRecord,
     draft: EditorialDraft,
+    outputDir: string,
+  ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
+  writeTargetedRevisionFiles: (
+    authority: ArchitectAuthority,
+    record: CommissionRecord,
+    draft: EditorialDraft,
+    reviewResult: EditorialReviewResult,
     outputDir: string,
   ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
 }
@@ -411,6 +458,145 @@ describe('story commission materializer', () => {
       expect(() => readEditorialDraftFile(draftPath)).toThrow(
         'story_editor_draft_size_rejected',
       );
+    } finally {
+      fs.rmSync(fixtureRoot, { recursive: true, force: true });
+      fs.rmSync(outsidePath, { force: true });
+    }
+  });
+
+  it('binds a closed editor result into a targeted revision without restoring plot rails', () => {
+    const commissionAuthority = loadCommissionAuthority();
+    const authority = loadArchitectPilotAuthority(commissionAuthority);
+    const record = findRecord(commissionAuthority, DINI_BRIEF_ID);
+    const fixtureRoot = fs.mkdtempSync(
+      path.join(process.cwd(), 'outputs', 'small-heroes-revision-test-'),
+    );
+    const draftPath = path.join(fixtureRoot, 'draft.md');
+    const reviewPath = path.join(fixtureRoot, 'review.json');
+    const outputDir = path.join(fixtureRoot, 'revision');
+    const outsidePath = path.join(os.tmpdir(), 'small-heroes-review-outside.json');
+    const draftText = '---\ntitle: test\n---\n\n--- Page 1 ---\n\nטיוטה לבדיקה.';
+    const review: EditorialReview = {
+      version: 'small-heroes-story-editorial-review/v1',
+      verdict: 'revise',
+      strengths: ['הסיפור שומר על משחק פיזי ברור.'],
+      issues: [
+        {
+          code: 'personalization_syntax_invalid',
+          severity: 'major',
+          evidencePages: [2, 4],
+          functionalGap: 'הטיות אחדות אינן כתובות בשתי צורות מלאות.',
+        },
+        {
+          code: 'output_structure_invalid',
+          severity: 'major',
+          evidencePages: [1],
+          functionalGap: 'מעטפת ה-frontmatter אינה נסגרת במפריד התקני.',
+        },
+        {
+          code: 'comic_peak_insufficient',
+          severity: 'minor',
+          evidencePages: [3, 5],
+          functionalGap: 'חסר רגע קומי גדול וזכיר בתוך ההרפתקה.',
+        },
+      ],
+      revisionPriorities: [
+        'לתקן את התחביר הטכני.',
+        'לחזק את השיא הקומי בלי להחליף עלילה.',
+      ],
+      mustPreserve: ['לשמור את עקרון התנועה ואת פעולת הילד.'],
+    };
+
+    try {
+      fs.writeFileSync(draftPath, draftText, 'utf8');
+      fs.writeFileSync(reviewPath, `${JSON.stringify(review, null, 2)}\n`, 'utf8');
+      fs.writeFileSync(outsidePath, JSON.stringify(review), 'utf8');
+      const draft = readEditorialDraftFile(draftPath);
+      const reviewResult = readEditorialReviewResultFile(reviewPath, record.brief.pageCount);
+      const bundle = buildTargetedRevisionBundle(authority, record, draft, reviewResult);
+
+      expect(bundle).toContain('Targeted Writer Revision Pilot');
+      expect(bundle).toContain('Every gender chip must contain two complete Hebrew forms');
+      expect(bundle).toContain('Open and close the minimal frontmatter');
+      expect(bundle).toContain('invent the implementation freely');
+      expect(bundle).toContain(JSON.stringify({ draft: draftText }, null, 2));
+      expect(bundle).toContain('comic_peak_insufficient');
+      expect(bundle).not.toContain(authority.architectCharter);
+      expect(bundle).not.toContain(authority.postDraftEditorialQa);
+      expect(bundle).not.toContain(JSON.stringify(findCompanionQaCanon(authority, 'dragon_dini')));
+      expect(bundle).not.toContain('WAITING_FOR_GUY_SELECTION');
+
+      const manifest = writeTargetedRevisionFiles(
+        authority,
+        record,
+        draft,
+        reviewResult,
+        outputDir,
+      );
+      expect(manifest.version).toBe('small-heroes-targeted-story-revision-pilot-manifest/v1');
+      expect(manifest.recordCount).toBe(1);
+      expect(manifest.record.filename).toMatch(
+        new RegExp(`^${DINI_BRIEF_ID}\\.revision\\.[a-f0-9]{64}\\.md$`),
+      );
+      expect(fs.readdirSync(outputDir).sort()).toEqual(
+        [manifest.record.filename, 'manifest.json'].sort(),
+      );
+      expect(() =>
+        writeTargetedRevisionFiles(authority, record, draft, reviewResult, outputDir),
+      ).toThrow('story_writer_revision_output_directory_not_empty');
+      expect(() => readEditorialReviewResultFile(outsidePath, record.brief.pageCount)).toThrow(
+        'story_editor_review_path_rejected',
+      );
+
+      expect(() =>
+        validateEditorialReviewResult(
+          {
+            mustPreserve: review.mustPreserve,
+            revisionPriorities: review.revisionPriorities,
+            issues: review.issues,
+            strengths: review.strengths,
+            verdict: review.verdict,
+            version: review.version,
+          },
+          record.brief.pageCount,
+        ),
+      ).not.toThrow();
+      expect(() =>
+        validateEditorialReviewResult({ ...review, extra: 'rejected' }, record.brief.pageCount),
+      ).toThrow('story_editor_review_result_invalid');
+      expect(() =>
+        validateEditorialReviewResult(
+          {
+            ...review,
+            issues: [{ ...review.issues[0]!, evidencePages: [13] }],
+          },
+          record.brief.pageCount,
+        ),
+      ).toThrow('story_editor_review_result_invalid');
+      expect(() =>
+        validateEditorialReviewResult(
+          {
+            ...review,
+            issues: [{ ...review.issues[0]!, code: 'invented_issue_code' }],
+          },
+          record.brief.pageCount,
+        ),
+      ).toThrow('story_editor_review_result_invalid');
+      expect(() =>
+        validateEditorialReviewResult(
+          {
+            ...review,
+            issues: [review.issues[0]!, { ...review.issues[0]! }],
+          },
+          record.brief.pageCount,
+        ),
+      ).toThrow('story_editor_review_result_invalid');
+      expect(() =>
+        buildTargetedRevisionBundle(authority, record, draft, {
+          ...reviewResult,
+          review: { ...review, verdict: 'pass', issues: [], revisionPriorities: [] },
+        }),
+      ).toThrow('story_writer_revision_not_authorized:pass');
     } finally {
       fs.rmSync(fixtureRoot, { recursive: true, force: true });
       fs.rmSync(outsidePath, { force: true });

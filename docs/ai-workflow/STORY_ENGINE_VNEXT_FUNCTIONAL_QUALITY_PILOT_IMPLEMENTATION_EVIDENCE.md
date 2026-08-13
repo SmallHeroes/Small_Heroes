@@ -89,6 +89,44 @@ Repository/release remains HOLD on the separate seven ordinary failures. This mi
 
 External cost was `$0`. Codex does not self-award independent technical or product PASS.
 
+## Editor result and targeted revision follow-up
+
+The external Editor returned `small-heroes-story-editorial-review/v1` with
+verdict `revise`. It preserved four specific strengths and reported exactly:
+
+- major `personalization_syntax_invalid` on pages 2, 4, 6 and 8;
+- major `output_structure_invalid` on page 1;
+- minor `comic_peak_insufficient` on pages 2, 3, 5 and 6.
+
+The result is stored as ignored evidence at
+`outputs/story-engine-vnext-dini-cake-editor-result-20260813-v1/review.json`:
+
+- bytes: `3,525`;
+- SHA-256: `08acf80d8b987d7f3b0c536c75286bb18d7000cb8bc52823dc3dbe55836c55c7`.
+
+The follow-up adds a closed result validator and a separate
+`materialize-targeted-revision-pilot` command. It rejects extra/missing keys,
+unknown issue codes, invalid verdict/issue combinations, duplicate issue
+identities, invalid or out-of-range page locators, unsafe paths, oversized JSON
+and output-root reuse. Only `revise` can enter the Writer path.
+
+Generated Writer commission:
+
+- root: `outputs/story-engine-vnext-dini-cake-targeted-revision-20260813-v1`;
+- prompt: `dragon_dini_adventure_wobble_cake_convoy_brief_v1.revision.a7fa8e88f63677b251e172c574aea10935636c61843d75ac0bb4d31f748794b9.md`;
+- bytes: `12,055`;
+- raw and filename SHA-256: `a7fa8e88f63677b251e172c574aea10935636c61843d75ac0bb4d31f748794b9`.
+
+The commission binds Draft A and Editor-result digests, preserves the accepted
+strengths and `mustPreserve` items, adds deterministic gender-chip/frontmatter
+instructions only because the corresponding codes were diagnosed, and leaves
+the implementation of the stronger comic peak open. It contains no Architect
+charter, full editorial QA contract, companion QA canon or rejected shape.
+
+Follow-up validation passes 2 files / 17 tests, script syntax, deterministic
+TypeScript and `git diff --check`. The literal repository gate was not rerun;
+the earlier seven-failure baseline remains the separate release HOLD.
+
 ## Rollback
 
 Revert only the follow-up commit built on `a985cc43`. The prior Architect v1 pilot commit and its preserved outputs remain independently addressable. Because no bank/runtime authority changed, rollback requires no story migration or data rewrite.

@@ -87,6 +87,24 @@ name functional gaps and revision priorities, but it must not rewrite the
 story. The Writer revision remains a separate step. Draft input is restricted
 to non-symlink Markdown files under `outputs`, between 1 byte and 64 KiB.
 
+For a validated `revise` result, store the returned JSON under `outputs` and
+materialize the separate targeted Writer commission:
+
+```powershell
+node scripts/materialize-story-commission-briefs.cjs materialize-targeted-revision-pilot `
+  --brief-id dragon_dini_adventure_wobble_cake_convoy_brief_v1 `
+  --draft-path outputs/story-engine-vnext-dini-cake-draft1/draft.md `
+  --review-path outputs/story-engine-vnext-dini-cake-editor-result-20260813-v1/review.json `
+  --output-dir outputs/story-engine-vnext-dini-cake-targeted-revision-v1
+```
+
+The review input has an exact closed schema, bounded issue catalog and bounded
+page locators. Only a `revise` verdict can authorize this materializer. The
+commission binds the original draft and review digests, preserves the Editor's
+strengths and `mustPreserve` list, exposes deterministic mechanical fixes only
+for diagnosed format issues and leaves the creative implementation of a
+functional story gap to the Writer.
+
 ## Existing v2 commands
 
 ```powershell
