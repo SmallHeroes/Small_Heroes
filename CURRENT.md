@@ -2,9 +2,25 @@
 
 **Updated:** 2026-08-13
 **Maintainer:** Codex
-**Working branch:** `codex/story-bank-next-generation-briefs-qa-integration` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`; the current writer-freedom correction is based exactly on `7dd84b49abd3d26247c3516d04328331097b5834`.
+**Working branch:** `codex/story-bank-next-generation-briefs-qa-integration` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`; the Story Architect pilot is based exactly on `99c1e9ede6507b153c4df37b388864fdf3afd4ed`.
 
-## STORY WRITER FREEDOM PROJECTION — independent technical PASS / editorial drafting next
+## DINI STORY ARCHITECT PILOT — locally implemented / independent QA pending
+
+Guy and the external ChatGPT review both confirmed that the prior “open writer” prompt still pre-authored nearly the whole Dini cake story. It removed dialogue samples but continued to supply the exact opening, physical rule, ordered movements, companion mistake, discovery, climax, payoff and ending. The writer therefore had sentence-level freedom but little plot-level freedom.
+
+- The correction is intentionally an **A/B pilot for one Dini premise**, not a migration of all 18 slots. The existing v2 18-slot materializer, full briefs, companion cards, approved banks and runtime remain unchanged.
+- A new `materialize-architect-pilot` command creates one staging-only, content-addressed Story Architect commission. Stage 1 requests exactly three genuinely different story shapes and stops with `WAITING_FOR_GUY_SELECTION`; Stage 2 may write only after Guy chooses A, B or C.
+- The pilot receives Dini's inner psychology and a compact premise nucleus. It does not receive the source working title, product category, exact child deadline, hidden thematic sentence, prior beat sequence, Dini choreography, discovery, solution, climax, payoff, ending, recurring objects or image directions.
+- Story quality was not weakened. `STORY_DRAFT_EDITORIAL_QA_CONTRACT.md` retains child agency, causality, escalation, delight, companion indispensability, read-aloud Hebrew, payoff, category fit and visual variety as **post-draft QA**, and the generated manifest proves that this contract is not dispatched to the Architect.
+- The final local artifact is `outputs/story-architect-pilot-dini-cake-20260813-final-v1`: one 4,693-byte prompt plus manifest. The prompt raw SHA-256 and filename digest are both `3c26d0c05119fe497cc216535a2a6c37e3ffce4e0455dfa7f385f2a4bc6d74bf`. A literal scan found zero prior choreography terms, screenplay-field names, `imageDirection`, `NEW_SIBLING` or editorial-QA body.
+- Focused validation passes **2 files / 15 tests**, deterministic TypeScript and `git diff --check`. Tests preserve the v2 18-slot versions/output contract, enforce the single closed pilot, reject extra keys, prove the stop-before-prose protocol, exclude every exact screenplay value, keep QA outside the prompt, verify content addressing and reject output-root reuse.
+- The one literal `npm run check` ran once. TypeScript passed; all **19 resource-intensive files passed** with valid diagnostics. Ordinary reported only the separate baseline: six missing ignored-output fixture failures plus the pre-existing stale Dini measurement source-string assertion. No pilot, story-materializer or creative-brief assertion failed. Repository/release therefore remains HOLD on those unrelated seven ordinary failures.
+- No story was generated, selected, imported or approved. No credential, provider/model/network call, image/audio/Vision render, database/storage action, Wizard/Reader change, QA/Production deployment or push occurred. External cost is `$0`.
+- Expansion to the other 17 slots is blocked on product evidence: Guy must first compare the three Architect options and the resulting selected draft against the over-scripted prior result.
+
+Durable records: `docs/ai-workflow/STORY_FIRST_CREATIVE_NUCLEUS_DECISION_GATE.md` and `docs/ai-workflow/STORY_ARCHITECT_DINI_PILOT_IMPLEMENTATION_EVIDENCE.md`.
+
+## STORY WRITER FREEDOM PROJECTION — independent technical PASS / superseded for new creative dispatch by the Dini Architect pilot
 
 Guy rejected the first ChatGPT draft because its prose behaved like a converted specification: invented status calls such as “הגנה מלאה”, mechanical “כלל ראשון” phrasing and repeated counted formulas. The historical Dini commission exposed 607 lines / 33,416 bytes containing the complete shared contracts, full companion bible, sample dialogue, `lineTargets`, reread targets and internal review fields. The failure was the writer-facing dispatch design, not one Dini phrase.
 
@@ -17,7 +33,7 @@ Guy rejected the first ChatGPT draft because its prose behaved like a converted 
 - No story was generated, imported or approved. Approved banks, runtime, Wizard, Reader, checkout, provider/model authority, render pipeline, storage and Production remain unchanged. Cost is `$0`.
 - Claude Code independently reviewed exact immutable range `7dd84b49abd3d26247c3516d04328331097b5834..dc5db49167a737e154ef83698e63d4017f49b5d1` read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It confirmed all nine handoff targets against both code and the shipped 18-prompt output, independently reproduced **4 files / 25 tests**, TypeScript and `git diff --check`, and verified content addressing, overwrite refusal, provenance and unchanged runtime/product surfaces. This is Claude Code's verdict, not a Codex self-award.
 - Claude retained six advisory notes only. The deliberate editorial boundary is that per-story safety/anti-copy checks occur after the staging draft rather than being reinserted as prompt-heavy prose; humor construction may vary more because scripted escalations are excluded; Claude did not rerun the literal repository check; historical output-directory labels and commission schema versions use separate version vocabularies; contamination sentinels cannot guarantee model output; and Claude corrected two of its own audit probes. None is an implementation finding or requires a corrective re-gate.
-- Next product step: dispatch one current `v4-open-writer` commission to ChatGPT, then perform human oral-Hebrew, child-safety, originality, humor and reread-value review before any bank import. The separate repository/release HOLD remains unwaived.
+- The later Dini product review showed that this projection still carried a mini-screenplay. Do not dispatch the v4 Dini commission as the current creative experiment; use the isolated Story Architect pilot above. The other 17 slots remain unchanged until that pilot produces product evidence.
 
 Durable records: `docs/ai-workflow/STORY_WRITER_FREEDOM_PROJECTION_DECISION_GATE.md` and `docs/ai-workflow/STORY_WRITER_FREEDOM_PROJECTION_IMPLEMENTATION_EVIDENCE.md`.
 

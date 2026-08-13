@@ -2,90 +2,95 @@
 
 **Status:** staging only; no runtime, bank, render, or approval authority.
 
-This directory contains the compact creative layer between the six companion bibles and full-story drafting.
+This directory contains the creative authorities between the six companion bibles and full-story drafting.
 
-## Editorial authorities and writer-facing dispatch
+## Existing 18-slot dispatch
 
-The full story contract, full companion bibles, writer contract and structured
-briefs remain editorial source authorities. They are deliberately **not**
-concatenated into the ChatGPT prompt: doing so made examples and review-only
-fields behave like prescribed prose.
+The v2 materializer remains byte-contract compatible. It can still list and
+materialize the 18 curated slots, but its writer-facing rails have now been
+shown to over-prescribe plot in the Dini cake example. Existing v2 outputs are
+historical staging evidence, not preferred creative proof and not bank or
+render authority.
 
-The deterministic dispatch projection uses only:
+The v2 dispatch continues to use:
 
 1. `STORY_WRITER_FREEDOM_CHARTER.md`;
 2. one selected card from `companion-authoring-cards.json`;
-3. one closed writer-facing projection of the selected structured brief;
+3. one closed writer-facing projection of the selected structured brief; and
 4. commission identity and page/personalization metadata.
 
-Do not supply any V3/V5 story, old prompt, rejected spine, provider output, or another slot's brief.
+Do not change or migrate all 18 records merely because a new prompt is shorter.
+Product evidence must establish that story quality actually improved.
 
-## What a brief owns
+## Story Architect pilot
 
-A brief locks the story's creative identity: premise, child want, physical play rule, set-piece chain, companion-caused trouble, five or six high-level causal movements, discovery, child-owned climax, payoff, energy shape, humor, reread hooks, and exclusions.
+The current experiment deliberately covers only
+`dragon_dini_adventure_wobble_cake_convoy_brief_v1`.
 
-It does **not** prewrite page prose or a page-by-page spine. `lineTargets`,
-sample dialogue, reread targets and anti-copy evidence are human-review data,
-not writer input. ChatGPT decides exact dialogue, sentence rhythm, local
-blocking and page allocation while obeying the causal movement and output
-contract.
-
-## Workflow
+Its creative workflow is:
 
 ```text
-Guy reviews one brief
-  → approved source authority → compact freedom projection
-  → ChatGPT produces one complete staging draft
-  → deterministic format/personalization/story gates
-  → Hebrew read-aloud edit and story critique
-  → Guy content acceptance
-  → separately approved versioned-bank migration
+small creative nucleus + Dini's inner psychology
+  → Story Architect proposes exactly three genuinely different shapes
+  → STOP: Guy selects A, B or C
+  → Writer receives only the selected direction and writes the story freely
+  → separate post-draft editorial QA
+  → only then derive structured metadata and image directions
 ```
 
-Brief acceptance does not approve prose. Draft acceptance does not approve bank integration or rendering.
+The Architect does not receive the previous opening, beat sequence, companion
+choreography, discovery, solution, climax, payoff or ending. The companion
+portrait describes why Dini acts, not which wing, tail, object or maneuver she
+must use. The three options must differ in their comic engine, journey,
+obstacles, discovery, climax principle, payoff and surprise.
 
-## Create a copy-ready ChatGPT commission
+`STORY_DRAFT_EDITORIAL_QA_CONTRACT.md` retains the strict Small Heroes quality
+standard after drafting. It is intentionally not dispatched to the Architect
+or first-draft Writer, so quality checks do not prewrite the plot.
 
-The deterministic materializer projects the full editorial authorities into
-the compact writer-facing dispatch described above. It records source paths
-and digests in the manifest for provenance without copying the full source
-documents into the prompt. It does not call a model or read credentials.
+## Materialize the pilot
 
-List the 18 available commissions:
+The command below writes a self-contained, content-addressed prompt and a
+manifest. It does not call a model, use credentials or modify the story bank.
+
+```powershell
+node scripts/materialize-story-commission-briefs.cjs materialize-architect-pilot `
+  --brief-id dragon_dini_adventure_wobble_cake_convoy_brief_v1 `
+  --output-dir outputs/story-architect-pilot-dini-cake-v1
+```
+
+Paste the complete Markdown prompt into a new ChatGPT conversation. The first
+response must contain three shapes and end with `WAITING_FOR_GUY_SELECTION`.
+Do not ask it to write the story yet. Guy chooses one option first.
+
+Only if this A/B pilot demonstrates materially better originality, story
+pleasure and visual variety without losing coherence should the pattern be
+generalized to the other 17 slots.
+
+## Existing v2 commands
 
 ```powershell
 node scripts/materialize-story-commission-briefs.cjs list
-```
 
-Materialize one accepted brief into a new empty directory:
-
-```powershell
 node scripts/materialize-story-commission-briefs.cjs materialize `
   --brief-id dragon_dini_adventure_wobble_cake_convoy_brief_v1 `
   --output-dir outputs/story-commissions/dini-adventure
-```
 
-Materialize all 18 for editorial review or later dispatch:
-
-```powershell
 node scripts/materialize-story-commission-briefs.cjs materialize-all `
   --output-dir outputs/story-commissions/all-18
 ```
 
-Every generated Markdown bundle is self-contained and content-addressed. The
-output directory also contains a Hebrew `INDEX.md` with a direct link to every
-copy-ready prompt. Its manifest records both the text-page count and the physical-page count:
-bedtime 8/16, adventure 12/24, fantasy 16/32. Generated files remain staging
-artifacts, not approved-bank or render authority.
+Every generated file remains staging-only. Brief acceptance does not approve prose.
+Draft acceptance does not approve bank integration or rendering.
+Do not supply any V3/V5 story, rejected spine or provider output as positive
+authoring context.
 
 ## Catalog guarantees
 
 - exactly 18 records: six MVP companions × three directions;
-- page counts are locked to bedtime 8, adventure 12, fantasy 16;
-- every story uses at least two meaningful set pieces for bedtime and three for adventure/fantasy;
-- every brief contains five or six high-level causal movements, never a page-count-length spine;
-- child references use `{{childName}}` plus distinct `{boy-form|girl-form}` chips only where Hebrew grammar differs; naturally gender-invariant Hebrew remains unchipped;
-- deterministic guards reject malformed placeholder syntax and undeclared structure, while the linguistic correctness, order, and coverage of Hebrew chip variants remain an explicit human language-QA responsibility;
-- every companion is causally indispensable;
-- old-bank material appears only under `oldStoryAntiCopy`, never as a positive seed;
+- page counts remain bedtime 8, adventure 12 and fantasy 16 text pages;
+- every full editorial brief remains available for post-draft review;
+- child references use `{{childName}}` plus distinct `{boy-form|girl-form}` chips only where Hebrew grammar differs;
+- every companion remains causally indispensable;
+- old-bank material remains anti-copy evidence, never positive authoring input;
 - all records remain `draft_for_guy_review` until Guy explicitly accepts them.

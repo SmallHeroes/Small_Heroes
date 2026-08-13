@@ -11,6 +11,12 @@ const FREEDOM_CHARTER_PATH =
   'story-pipeline/03_story_briefs/STORY_WRITER_FREEDOM_CHARTER.md';
 const COMPANION_CARDS_PATH =
   'story-pipeline/03_story_briefs/companion-authoring-cards.json';
+const ARCHITECT_PILOTS_PATH =
+  'story-pipeline/03_story_briefs/story-architect-pilots.json';
+const ARCHITECT_CHARTER_PATH =
+  'story-pipeline/03_story_briefs/STORY_ARCHITECT_PILOT_CHARTER.md';
+const EDITORIAL_QA_PATH =
+  'story-pipeline/03_story_briefs/STORY_DRAFT_EDITORIAL_QA_CONTRACT.md';
 const CATALOG_PATH = 'story-pipeline/03_story_briefs/story-brief-catalog.json';
 const COMPANION_CARD_KEYS = [
   'companionId',
@@ -20,6 +26,12 @@ const COMPANION_CARD_KEYS = [
   'embodiedComedy',
   'childPartnership',
   'voiceDirection',
+];
+const ARCHITECT_PILOT_KEYS = [
+  'briefId',
+  'companionId',
+  'companionPortrait',
+  'premiseSeed',
 ];
 
 function readUtf8(relativePath) {
@@ -52,6 +64,32 @@ function validateCompanionCardsDocument(document) {
       throw new Error('story_commission_companion_cards_invalid');
     }
     companionIds.add(card.companionId);
+  }
+  return document;
+}
+
+function validateArchitectPilotsDocument(document) {
+  if (
+    document?.version !== 'small-heroes-story-architect-pilots/v1' ||
+    document?.status !== 'staging_only' ||
+    !Array.isArray(document.pilots) ||
+    document.pilots.length !== 1 ||
+    Object.keys(document).join(',') !== 'version,status,pilots'
+  ) {
+    throw new Error('story_architect_pilots_invalid');
+  }
+  const briefIds = new Set();
+  for (const pilot of document.pilots) {
+    if (
+      Object.keys(pilot).join(',') !== ARCHITECT_PILOT_KEYS.join(',') ||
+      ARCHITECT_PILOT_KEYS.some(
+        (key) => typeof pilot[key] !== 'string' || pilot[key].trim().length < 3,
+      ) ||
+      briefIds.has(pilot.briefId)
+    ) {
+      throw new Error('story_architect_pilots_invalid');
+    }
+    briefIds.add(pilot.briefId);
   }
   return document;
 }
@@ -278,6 +316,133 @@ function writeCommissionFiles(authority, records, outputDir) {
   return manifest;
 }
 
+function loadArchitectPilotAuthority(commissionAuthority = loadCommissionAuthority()) {
+  const document = validateArchitectPilotsDocument(readJson(ARCHITECT_PILOTS_PATH));
+  for (const pilot of document.pilots) {
+    const record = findRecord(commissionAuthority, pilot.briefId);
+    if (record.companionId !== pilot.companionId) {
+      throw new Error('story_architect_pilot_companion_mismatch');
+    }
+  }
+  return {
+    commissionAuthority,
+    architectCharter: readUtf8(ARCHITECT_CHARTER_PATH).trim(),
+    postDraftEditorialQa: readUtf8(EDITORIAL_QA_PATH).trim(),
+    pilots: document.pilots,
+  };
+}
+
+function findArchitectPilot(authority, briefId) {
+  const matches = authority.pilots.filter((pilot) => pilot.briefId === briefId);
+  if (matches.length !== 1) {
+    throw new Error(`story_architect_pilot_not_unique:${briefId}`);
+  }
+  return matches[0];
+}
+
+function buildArchitectPilotBundle(authority, record) {
+  const pilot = findArchitectPilot(authority, record.brief.id);
+  const identity = {
+    commissionVersion: 'small-heroes-story-architect-commission/v1',
+    authorityStatus: 'staging_pilot_only',
+    briefId: record.brief.id,
+    companionId: record.companionId,
+    direction: record.brief.direction,
+    futureTextPageCount: record.brief.pageCount,
+    futurePhysicalPageCount: record.brief.pageCount * 2,
+  };
+  const creativeNucleus = {
+    version: 'small-heroes-story-creative-nucleus/v1',
+    premiseSeed: pilot.premiseSeed,
+    visualJourneyRequirement:
+      'A physical, funny journey through several materially different environments; exact locations and order are yours to invent.',
+  };
+
+  return [
+    '# Small Heroes — Story Architect Pilot',
+    '',
+    'This is an interactive two-stage commission. On the first response, invent three genuinely different story shapes and stop.',
+    'Do not write the story until Guy selects exactly one shape.',
+    '',
+    '## Pilot identity',
+    '',
+    '```json',
+    JSON.stringify(identity, null, 2),
+    '```',
+    '',
+    '## Story Architect charter',
+    '',
+    authority.architectCharter,
+    '',
+    '## Companion inner character',
+    '',
+    pilot.companionPortrait,
+    '',
+    '## Creative nucleus',
+    '',
+    '```json',
+    JSON.stringify(creativeNucleus, null, 2),
+    '```',
+    '',
+    'Begin with Stage 1 only. Return three story shapes and `WAITING_FOR_GUY_SELECTION`.',
+    '',
+  ].join('\n');
+}
+
+function writeArchitectPilotFiles(authority, record, outputDir) {
+  const absoluteOutputDir = path.resolve(outputDir);
+  fs.mkdirSync(absoluteOutputDir, { recursive: true });
+  if (fs.readdirSync(absoluteOutputDir).length > 0) {
+    throw new Error('story_architect_output_directory_not_empty');
+  }
+
+  const bundle = buildArchitectPilotBundle(authority, record);
+  const digest = sha256(bundle);
+  const filename = `${record.brief.id}.architect.${digest}.md`;
+  fs.writeFileSync(path.join(absoluteOutputDir, filename), bundle, {
+    encoding: 'utf8',
+    flag: 'wx',
+  });
+  const manifest = {
+    version: 'small-heroes-story-architect-pilot-manifest/v1',
+    status: 'staging_pilot_only',
+    recordCount: 1,
+    record: {
+      briefId: record.brief.id,
+      companionId: record.companionId,
+      direction: record.brief.direction,
+      futureTextPageCount: record.brief.pageCount,
+      filename,
+      sha256: digest,
+      sourceAuthority: {
+        architectCharter: {
+          path: ARCHITECT_CHARTER_PATH,
+          sha256: sha256(authority.architectCharter),
+        },
+        architectPilots: {
+          path: ARCHITECT_PILOTS_PATH,
+          sha256: sha256(readUtf8(ARCHITECT_PILOTS_PATH)),
+        },
+        postDraftEditorialQa: {
+          path: EDITORIAL_QA_PATH,
+          sha256: sha256(authority.postDraftEditorialQa),
+          dispatchedToArchitect: false,
+        },
+        briefSet: {
+          path: record.briefSetPath,
+          sha256: sha256(readUtf8(record.briefSetPath)),
+        },
+      },
+    },
+  };
+  fs.writeFileSync(
+    path.join(absoluteOutputDir, 'manifest.json'),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    { encoding: 'utf8', flag: 'wx' },
+  );
+  return manifest;
+}
+
 function parseArguments(argv) {
   const [command, ...rest] = argv;
   const values = {};
@@ -321,6 +486,24 @@ function main(argv) {
     return;
   }
 
+  if (
+    command === 'materialize-architect-pilot' &&
+    values['brief-id'] &&
+    values['output-dir'] &&
+    Object.keys(values).sort().join(',') === 'brief-id,output-dir'
+  ) {
+    const architectAuthority = loadArchitectPilotAuthority(authority);
+    const record = findRecord(authority, values['brief-id']);
+    findArchitectPilot(architectAuthority, record.brief.id);
+    const manifest = writeArchitectPilotFiles(
+      architectAuthority,
+      record,
+      values['output-dir'],
+    );
+    process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
+    return;
+  }
+
   throw new Error('story_commission_cli_arguments_invalid');
 }
 
@@ -335,12 +518,17 @@ if (require.main === module) {
 
 module.exports = {
   buildCommissionBundle,
+  buildArchitectPilotBundle,
   commissionMetadata,
   findCompanionCard,
+  findArchitectPilot,
   findRecord,
+  loadArchitectPilotAuthority,
   loadCommissionAuthority,
   projectBriefForWriter,
   sha256,
   validateCompanionCardsDocument,
+  validateArchitectPilotsDocument,
   writeCommissionFiles,
+  writeArchitectPilotFiles,
 };

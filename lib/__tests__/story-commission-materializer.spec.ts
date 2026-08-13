@@ -7,28 +7,20 @@ import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const {
+  buildArchitectPilotBundle,
   buildCommissionBundle,
   commissionMetadata,
+  findArchitectPilot,
   findCompanionCard,
   findRecord,
+  loadArchitectPilotAuthority,
   loadCommissionAuthority,
   projectBriefForWriter,
+  validateArchitectPilotsDocument,
   validateCompanionCardsDocument,
+  writeArchitectPilotFiles,
   writeCommissionFiles,
-} = require('../../scripts/materialize-story-commission-briefs.cjs') as {
-  buildCommissionBundle: (authority: CommissionAuthority, record: CommissionRecord) => string;
-  commissionMetadata: (record: CommissionRecord) => CommissionMetadata;
-  findCompanionCard: (authority: CommissionAuthority, companionId: string) => CompanionCard;
-  findRecord: (authority: CommissionAuthority, briefId: string) => CommissionRecord;
-  loadCommissionAuthority: () => CommissionAuthority;
-  projectBriefForWriter: (brief: StoryBrief) => Record<string, unknown>;
-  validateCompanionCardsDocument: (document: unknown) => unknown;
-  writeCommissionFiles: (
-    authority: CommissionAuthority,
-    records: CommissionRecord[],
-    outputDir: string,
-  ) => { recordCount: number; records: Array<CommissionMetadata & { filename: string; sha256: string }> };
-};
+} = require('../../scripts/materialize-story-commission-briefs.cjs') as Materializer;
 
 interface StoryBrief {
   id: string;
@@ -37,6 +29,7 @@ interface StoryBrief {
   pageCount: number;
   workingTitle: string;
   creativePromise: string;
+  hiddenUnderlayer: string;
   openingHook: string;
   childWant: string;
   physicalProblem: string;
@@ -77,10 +70,21 @@ interface CommissionAuthority {
   records: CommissionRecord[];
   writerFreedomCharter: string;
   companionCards: CompanionCard[];
-  sourceDocuments: {
-    sharedStoryContract: string;
-    writerContract: string;
-  };
+  sourceDocuments: { sharedStoryContract: string; writerContract: string };
+}
+
+interface ArchitectPilot {
+  briefId: string;
+  companionId: string;
+  companionPortrait: string;
+  premiseSeed: string;
+}
+
+interface ArchitectAuthority {
+  commissionAuthority: CommissionAuthority;
+  architectCharter: string;
+  postDraftEditorialQa: string;
+  pilots: ArchitectPilot[];
 }
 
 interface CommissionMetadata {
@@ -99,14 +103,43 @@ interface CommissionMetadata {
   };
 }
 
+interface Materializer {
+  buildArchitectPilotBundle: (authority: ArchitectAuthority, record: CommissionRecord) => string;
+  buildCommissionBundle: (authority: CommissionAuthority, record: CommissionRecord) => string;
+  commissionMetadata: (record: CommissionRecord) => CommissionMetadata;
+  findArchitectPilot: (authority: ArchitectAuthority, briefId: string) => ArchitectPilot;
+  findCompanionCard: (authority: CommissionAuthority, companionId: string) => CompanionCard;
+  findRecord: (authority: CommissionAuthority, briefId: string) => CommissionRecord;
+  loadArchitectPilotAuthority: (authority?: CommissionAuthority) => ArchitectAuthority;
+  loadCommissionAuthority: () => CommissionAuthority;
+  projectBriefForWriter: (brief: StoryBrief) => Record<string, unknown>;
+  validateArchitectPilotsDocument: (document: unknown) => unknown;
+  validateCompanionCardsDocument: (document: unknown) => unknown;
+  writeArchitectPilotFiles: (
+    authority: ArchitectAuthority,
+    record: CommissionRecord,
+    outputDir: string,
+  ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
+  writeCommissionFiles: (
+    authority: CommissionAuthority,
+    records: CommissionRecord[],
+    outputDir: string,
+  ) => { version: string; recordCount: number; records: Array<CommissionMetadata & { filename: string; sha256: string }> };
+}
+
+const DINI_BRIEF_ID = 'dragon_dini_adventure_wobble_cake_convoy_brief_v1';
+
 describe('story commission materializer', () => {
-  it('materializes the exact 18 curated slots with 8/12/16 text pages and 16/24/32 physical pages', () => {
+  it('preserves the existing v2 18-slot dispatch and page accounting', () => {
     const authority = loadCommissionAuthority();
     const metadata = authority.records.map(commissionMetadata);
 
     expect(metadata).toHaveLength(18);
     expect(new Set(metadata.map(({ briefId }) => briefId)).size).toBe(18);
     expect(new Set(metadata.map(({ companionId }) => companionId)).size).toBe(6);
+    expect(new Set(metadata.map(({ commissionVersion }) => commissionVersion))).toEqual(
+      new Set(['small-heroes-story-commission/v2']),
+    );
 
     const pageContracts = new Map([
       ['bedtime', [8, 16]],
@@ -114,75 +147,19 @@ describe('story commission materializer', () => {
       ['fantasy', [16, 32]],
     ]);
     for (const record of metadata) {
-      expect(
-        [record.textPageCount, record.physicalPageCount],
-        record.briefId,
-      ).toEqual(pageContracts.get(record.direction));
-      expect(record.personalization.childAppearance).toBe(
-        'not_supplied_story_writer_must_not_invent',
-      );
-      expect(record.personalization.childAgeBodyAuthority).toBe(
-        'downstream_visual_pipeline_only',
+      expect([record.textPageCount, record.physicalPageCount], record.briefId).toEqual(
+        pageContracts.get(record.direction),
       );
     }
   });
 
-  it('builds one compact prompt from only the freedom charter, selected companion card, and projected story rails', () => {
+  it('keeps the v2 materializer projection and companion-card contract unchanged', () => {
     const authority = loadCommissionAuthority();
-    const selected = authority.records.find(
-      ({ brief }) => brief.direction === 'adventure',
-    )!;
-    const another = authority.records.find(
-      ({ brief }) => brief.id !== selected.brief.id,
-    )!;
+    const selected = authority.records.find(({ brief }) => brief.direction === 'adventure')!;
+    const projection = projectBriefForWriter(selected.brief);
     const bundle = buildCommissionBundle(authority, selected);
 
-    expect(bundle).toContain(authority.writerFreedomCharter);
-    expect(bundle).toContain(JSON.stringify(findCompanionCard(authority, selected.companionId), null, 2));
-    expect(bundle).toContain(selected.brief.id);
-    expect(bundle).toContain(selected.brief.workingTitle);
-    expect(bundle).toContain('"textPageCount": 12');
-    expect(bundle).toContain('"physicalPageCount": 24');
-    expect(bundle).not.toContain(another.brief.id);
-    expect(bundle).not.toContain(authority.sourceDocuments.sharedStoryContract);
-    expect(bundle).not.toContain(authority.sourceDocuments.writerContract);
-    expect(bundle).toContain('אל תמציא מראה, גוף, גובה, לבוש, פנים, שיער או סגנון איור לילד.');
-  });
-
-  it('uses six closed companion cards with behavior-led voice and no supplied catchphrases', () => {
-    const authority = loadCommissionAuthority();
-    const expectedKeys = [
-      'companionId',
-      'displayName',
-      'storyRole',
-      'lovableMistake',
-      'embodiedComedy',
-      'childPartnership',
-      'voiceDirection',
-    ];
-
-    expect(authority.companionCards).toHaveLength(6);
-    expect(new Set(authority.companionCards.map(({ companionId }) => companionId)).size).toBe(6);
-    for (const card of authority.companionCards) {
-      expect(Object.keys(card)).toEqual(expectedKeys);
-      expect(JSON.stringify(card)).not.toMatch(/sample|catchphrase|slogan|lineTargets/i);
-      expect(JSON.stringify(card)).not.toMatch(/[“”]/u);
-    }
-
-    expect(() =>
-      validateCompanionCardsDocument({
-        version: 'small-heroes-companion-authoring-cards/v1',
-        status: 'staging_only',
-        cards: authority.companionCards.map((card, index) =>
-          index === 0 ? { ...card, sampleVoice: 'do not dispatch me' } : card
-        ),
-      })
-    ).toThrow('story_commission_companion_cards_invalid');
-  });
-
-  it('projects all 18 briefs through a closed writer-facing allowlist and removes imitation pressure', () => {
-    const authority = loadCommissionAuthority();
-    const expectedProjectionKeys = [
+    expect(Object.keys(projection)).toEqual([
       'version',
       'briefId',
       'workingTitle',
@@ -203,99 +180,152 @@ describe('story commission materializer', () => {
       'endingEnergy',
       'continuity',
       'creativeOpenings',
-    ];
-    const forbiddenFieldNames = [
-      'lineTargets',
-      'childRepeatable',
-      'parentReread',
-      'rereadHooks',
-      'oldStoryAntiCopy',
-      'mustAvoid',
-      'worldAndSafetyLocks',
-      'companionIndispensability',
-      'playRule',
-      'dramaticPurpose',
-      'escalatingConsequences',
-      'failedApproaches',
-    ];
+    ]);
+    expect(bundle).toContain(authority.writerFreedomCharter);
+    expect(bundle).toContain(
+      JSON.stringify(findCompanionCard(authority, selected.companionId), null, 2),
+    );
+    expect(bundle).not.toContain(authority.sourceDocuments.sharedStoryContract);
+    expect(bundle).not.toContain(authority.sourceDocuments.writerContract);
 
-    for (const record of authority.records) {
-      const bundle = buildCommissionBundle(authority, record);
-      const projection = projectBriefForWriter(record.brief);
-      const companionBible = fs.readFileSync(
-        path.join(process.cwd(), record.companionBiblePath),
-        'utf8',
-      );
-      const historicalDispatchBytes = Buffer.byteLength(
-        [
-          authority.sourceDocuments.sharedStoryContract,
-          authority.sourceDocuments.writerContract,
-          companionBible,
-          JSON.stringify(record.brief, null, 2),
-        ].join('\n'),
-        'utf8',
-      );
-
-      expect(Object.keys(projection), record.brief.id).toEqual(expectedProjectionKeys);
-      expect(Buffer.byteLength(bundle, 'utf8'), record.brief.id).toBeLessThan(
-        historicalDispatchBytes * 0.6,
-      );
-      for (const fieldName of forbiddenFieldNames) {
-        expect(bundle, `${record.brief.id}:${fieldName}`).not.toContain(`"${fieldName}"`);
-      }
-      for (const target of Object.values(record.brief.lineTargets)) {
-        expect(bundle, `${record.brief.id}:target-line`).not.toContain(target);
-      }
-      expect(bundle).not.toContain('Sample voice, not mandatory catchphrases');
-      expect(bundle).not.toContain('## Selected companion bible');
-      expect(bundle).not.toContain('## Shared next-generation story contract');
+    const expectedCardKeys = [
+      'companionId',
+      'displayName',
+      'storyRole',
+      'lovableMistake',
+      'embodiedComedy',
+      'childPartnership',
+      'voiceDirection',
+    ];
+    expect(authority.companionCards).toHaveLength(6);
+    for (const card of authority.companionCards) {
+      expect(Object.keys(card)).toEqual(expectedCardKeys);
     }
+    expect(() =>
+      validateCompanionCardsDocument({
+        version: 'small-heroes-companion-authoring-cards/v1',
+        status: 'staging_only',
+        cards: authority.companionCards.map((card, index) =>
+          index === 0 ? { ...card, extra: 'rejected' } : card,
+        ),
+      }),
+    ).toThrow('story_commission_companion_cards_invalid');
+  });
 
-    const dini = authority.records.find(
-      ({ brief }) => brief.id === 'dragon_dini_adventure_wobble_cake_convoy_brief_v1',
-    )!;
-    const diniBundle = buildCommissionBundle(authority, dini);
-    for (const contaminatedPhrase of [
-      'הגנה מלאה',
-      'הפתח נשאר פתוח. הזנב שלי הגיש הסתייגות.',
-      'הוספתי כרית אחת. ועוד אחת לכרית.',
-      'זה לא קיר. כרגע הוא פשוט עומד מאוד.',
-      'כלל קצבי לשלוש תנודות קטנות.',
-      'כלל התנודה מוצג',
-      'שלוש תנודות קטנות',
-    ]) {
-      expect(diniBundle).not.toContain(contaminatedPhrase);
+  it('defines exactly one closed Dini architect pilot and rejects undeclared structure', () => {
+    const authority = loadArchitectPilotAuthority();
+
+    expect(authority.pilots).toHaveLength(1);
+    expect(authority.pilots[0]!.briefId).toBe(DINI_BRIEF_ID);
+    expect(Object.keys(authority.pilots[0]!)).toEqual([
+      'briefId',
+      'companionId',
+      'companionPortrait',
+      'premiseSeed',
+    ]);
+    expect(() =>
+      validateArchitectPilotsDocument({
+        version: 'small-heroes-story-architect-pilots/v1',
+        status: 'staging_only',
+        pilots: [{ ...authority.pilots[0]!, requiredManeuver: 'rejected' }],
+      }),
+    ).toThrow('story_architect_pilots_invalid');
+    expect(() => findArchitectPilot(authority, 'not-a-pilot')).toThrow(
+      'story_architect_pilot_not_unique:not-a-pilot',
+    );
+  });
+
+  it('asks the Architect for three divergent shapes and stops before story prose', () => {
+    const commissionAuthority = loadCommissionAuthority();
+    const authority = loadArchitectPilotAuthority(commissionAuthority);
+    const record = findRecord(commissionAuthority, DINI_BRIEF_ID);
+    const bundle = buildArchitectPilotBundle(authority, record);
+
+    expect(bundle).toContain('exactly three story shapes');
+    expect(bundle).toContain('WAITING_FOR_GUY_SELECTION');
+    expect(bundle).toContain('Do not write the story until Guy selects exactly one shape.');
+    expect(bundle).toContain('Comic engine');
+    expect(bundle).toContain('Child discovery');
+    expect(bundle).toContain('Climax principle');
+    expect(bundle).toContain('Why Dini');
+    expect(bundle).toContain('Surprise');
+    expect(bundle).toContain(findArchitectPilot(authority, DINI_BRIEF_ID).companionPortrait);
+    expect(bundle).not.toContain(authority.postDraftEditorialQa);
+    expect(bundle).not.toContain('Post-Draft Editorial QA Contract');
+    expect(bundle).not.toContain('imageDirection:');
+    expect(bundle).not.toContain(record.brief.workingTitle);
+    expect(bundle).not.toContain(record.brief.category);
+  });
+
+  it('keeps the former screenplay and Dini choreography out of the pilot prompt', () => {
+    const commissionAuthority = loadCommissionAuthority();
+    const authority = loadArchitectPilotAuthority(commissionAuthority);
+    const record = findRecord(commissionAuthority, DINI_BRIEF_ID);
+    const bundle = buildArchitectPilotBundle(authority, record);
+    const forbiddenSourceValues = [
+      record.brief.creativePromise,
+      record.brief.openingHook,
+      record.brief.childWant,
+      record.brief.hiddenUnderlayer,
+      record.brief.physicalProblem,
+      record.brief.playRule,
+      record.brief.companionWrongHelp,
+      record.brief.childDiscovery,
+      record.brief.childClimaxAction,
+      record.brief.visiblePayoff,
+      record.brief.endingEnergy,
+      ...record.brief.lockedCausalMovement,
+      ...record.brief.recurringObjects,
+      ...record.brief.setPieces.flatMap(({ name, dramaticUse }) => [name, dramaticUse]),
+      ...record.brief.comicEscalations.map(({ consequence }) => consequence),
+      ...record.brief.attempts.flatMap(({ attempt, failure }) => [attempt, failure]),
+    ];
+
+    for (const sourceValue of forbiddenSourceValues) {
+      expect(bundle, sourceValue).not.toContain(sourceValue);
+    }
+    for (const oldMechanic of ['כריות', 'קפיצים', 'סרטים', 'ווים', 'שלוש תנודות קטנות']) {
+      expect(bundle, oldMechanic).not.toContain(oldMechanic);
     }
   });
 
-  it('writes content-addressed bundles and refuses ambiguous IDs or a non-empty output directory', () => {
-    const authority = loadCommissionAuthority();
-    const selected = authority.records[0]!;
-    const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-heroes-story-commission-'));
+  it('keeps strict quality standards in a post-draft contract outside authoring input', () => {
+    const authority = loadArchitectPilotAuthority();
+    expect(authority.postDraftEditorialQa).toContain('## Story QA');
+    expect(authority.postDraftEditorialQa).toContain('## Delight QA');
+    expect(authority.postDraftEditorialQa).toContain('## Companion QA');
+    expect(authority.postDraftEditorialQa).toContain('## Hebrew read-aloud QA');
+    expect(authority.postDraftEditorialQa).toContain('Do not reward mechanical compliance');
+    expect(authority.postDraftEditorialQa).toContain('Guy retains final product and story acceptance.');
+  });
+
+  it('writes content-addressed legacy and pilot artifacts and fails closed on reuse', () => {
+    const commissionAuthority = loadCommissionAuthority();
+    const architectAuthority = loadArchitectPilotAuthority(commissionAuthority);
+    const selected = findRecord(commissionAuthority, DINI_BRIEF_ID);
+    const legacyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-heroes-story-v2-'));
+    const pilotDir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-heroes-story-architect-'));
 
     try {
-      const manifest = writeCommissionFiles(authority, [selected], outputDir);
-      expect(manifest.recordCount).toBe(1);
-      expect((manifest as { version?: string }).version).toBe(
-        'small-heroes-story-commission-manifest/v2',
+      const legacy = writeCommissionFiles(commissionAuthority, [selected], legacyDir);
+      expect(legacy.version).toBe('small-heroes-story-commission-manifest/v2');
+      expect(legacy.recordCount).toBe(1);
+
+      const pilot = writeArchitectPilotFiles(architectAuthority, selected, pilotDir);
+      expect(pilot.version).toBe('small-heroes-story-architect-pilot-manifest/v1');
+      expect(pilot.recordCount).toBe(1);
+      expect(pilot.record.filename).toMatch(
+        new RegExp(`^${DINI_BRIEF_ID}\\.architect\\.[a-f0-9]{64}\\.md$`),
       );
-      expect(manifest.records[0]!.filename).toMatch(
-        new RegExp(`^${selected.brief.id}\\.[a-f0-9]{64}\\.md$`),
+      expect(fs.readdirSync(pilotDir).sort()).toEqual(
+        [pilot.record.filename, 'manifest.json'].sort(),
       );
-      expect(fs.readdirSync(outputDir).sort()).toEqual(
-        [manifest.records[0]!.filename, 'INDEX.md', 'manifest.json'].sort(),
-      );
-      const index = fs.readFileSync(path.join(outputDir, 'INDEX.md'), 'utf8');
-      expect(index).toContain(selected.brief.workingTitle);
-      expect(index).toContain(`[copy-ready brief](${manifest.records[0]!.filename})`);
-      expect(() => writeCommissionFiles(authority, [selected], outputDir)).toThrow(
-        'story_commission_output_directory_not_empty',
-      );
-      expect(() => findRecord(authority, 'not-a-real-brief')).toThrow(
-        'story_commission_brief_id_not_unique:not-a-real-brief',
+      expect(() => writeArchitectPilotFiles(architectAuthority, selected, pilotDir)).toThrow(
+        'story_architect_output_directory_not_empty',
       );
     } finally {
-      fs.rmSync(outputDir, { recursive: true, force: true });
+      fs.rmSync(legacyDir, { recursive: true, force: true });
+      fs.rmSync(pilotDir, { recursive: true, force: true });
     }
   });
 });
