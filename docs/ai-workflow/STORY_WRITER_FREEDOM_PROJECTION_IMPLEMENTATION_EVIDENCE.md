@@ -7,7 +7,7 @@
 - Worktree: `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`.
 - Exact implementation base: `7dd84b49abd3d26247c3516d04328331097b5834`.
 - Product decision: Guy rejected mechanical prose caused by an over-specified writer brief and explicitly required a freer “rails, not script” dispatch contract.
-- Independent technical QA: pending for this correction range.
+- Independent technical QA: PASS for the exact correction range, as recorded below.
 - External cost: `$0`.
 
 ## Observed failure and root cause
@@ -35,7 +35,7 @@ The six companion cards describe role, lovable mistake, embodied comedy, child p
 - Commission version: `small-heroes-story-commission/v2`.
 - Manifest version: `small-heroes-story-commission-manifest/v2`.
 - Companion-card authority: `small-heroes-companion-authoring-cards/v1`.
-- Historical v1/v2 staging outputs remain immutable and must not be dispatched as the corrected writer brief.
+- Historical v1/v2 staging outputs remain immutable and must not be dispatched as the corrected writer brief. The `...20260813-v2` directory suffix is a historical staging-run label, not the `small-heroes-story-commission/v2` schema identity.
 - The intermediate v3 output was preserved as `outputs/_superseded-story-commissions-intermediate-v3-do-not-dispatch` and is explicitly not a dispatch artifact.
 - Current writer-facing root: `outputs/story-bank-next-generation-chatgpt-commissions-20260813-v4-open-writer`.
 - Current ZIP: `outputs/story-bank-next-generation-chatgpt-commissions-20260813-v4-open-writer.zip`.
@@ -44,7 +44,7 @@ The six companion cards describe role, lovable mistake, embodied comedy, child p
 
 The current root contains exactly 18 content-addressed Markdown commissions plus `INDEX.md` and `manifest.json`. The manifest records 216 text pages / 432 physical pages across the full catalog. Every record's raw file SHA-256 equals both its filename digest and manifest identity.
 
-The corrected Dini adventure commission is 154 lines / 9,888 bytes, a 70.4% byte reduction from the historical prompt. Its digest is `b88c5c64664f8d7d691c5835ae74f99daf650273e1d706073e548c823e0229ae`.
+The corrected Dini adventure commission has 154 newline-terminated content lines / 9,888 bytes (or 155 split segments when counting the terminal empty segment after its trailing newline), a 70.4% byte reduction from the historical prompt. Its digest is `b88c5c64664f8d7d691c5835ae74f99daf650273e1d706073e548c823e0229ae`.
 
 ## Contamination inspection
 
@@ -88,6 +88,19 @@ The 18 full source briefs, six full companion bibles, approved story banks, runt
 
 Revert the focused correction commit and continue treating the historical v1 materializer/output as staging history. No approved bank, runtime artifact or Production surface requires migration.
 
-## Independent QA required
+## Independent QA result
 
-Claude Code should review the exact committed range from `7dd84b49abd3d26247c3516d04328331097b5834` to the correction head read-only. Its review should falsify the closed projection, source-value exclusion, selected-only isolation, exact six-card contract, versioning, content addressing, full 18-record regeneration, size/contamination claims, unchanged source authorities and unchanged runtime/product surfaces. Codex does not self-award independent technical PASS.
+Claude Code independently reviewed exact immutable range `7dd84b49abd3d26247c3516d04328331097b5834..dc5db49167a737e154ef83698e63d4017f49b5d1` read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero MINOR. Codex records Claude Code's verdict and does not self-award independent technical PASS.
+
+Claude confirmed all nine handoff targets. It inspected both implementation and shipped output, proved the exact closed 20-key projection across all 18 briefs, tested deep-copy isolation and malformed companion-card rejection, verified selected-only identity and page accounting, recomputed every content address and source-provenance digest, reproduced **4 files / 25 tests**, TypeScript and `git diff --check`, and confirmed the source authorities and runtime/product surfaces remained unchanged.
+
+Six advisory notes remain non-blocking:
+
+1. Per-story `worldAndSafetyLocks`, `mustAvoid` and legacy anti-copy exclusions are no longer writer prompt material. This is a deliberate boundary: the output is staging-only, and child-safety/originality review is required before bank import rather than reintroducing a dense specification into the prose prompt.
+2. Scripted `comicEscalations` and `attempts` are excluded, so comic construction can vary more. That variance is desired but remains subject to editorial humor and reread-value review.
+3. Claude did not rerun the literal `npm run check`; the recorded full-check result remains Codex execution evidence. The separate ordinary baseline is unwaived.
+4. Historical staging-directory run labels and commission schema versions are independent vocabularies; this record now states that distinction explicitly.
+5. A clean prompt cannot guarantee that a model will never independently invent mechanical phrasing. Oral-Hebrew editorial review remains mandatory.
+6. Claude corrected two of its own audit probes (`physicalLogic` was an intentional rename, and a JSON quotation probe produced a false positive). Neither was an implementation defect.
+
+No further technical re-gate is required unless a factual discrepancy is identified. Story selection, prose quality, product, visual and launch acceptance remain Guy's authority.
