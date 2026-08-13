@@ -168,6 +168,93 @@ Focused validation now passes 2 files / 18 tests. TypeScript, script syntax and
 suffix-chip scanner confirms the same frontmatter/page/chip facts. The full
 repository gate was not rerun and its existing seven-failure HOLD remains.
 
+## Round 2 correction and editorial PASS terminal
+
+Editor round 2 returned `revise` with one major
+`dramatic_function_repeated` issue on pages 2–6. It accepted the child's
+discovery/climax authority, Dini's character causality, the cake mechanism and
+the visual journey, but found that the street and market obstacles still
+performed the same dramatic function.
+
+Round-2 result:
+
+- path: `outputs/story-engine-vnext-dini-cake-editor-result-round2-20260814-v1/review.json`;
+- bytes: `2,572`;
+- SHA-256: `2c0210429fea79fd9af3fd34ff821fad8969323396949f0d4df0f3b23aae001f`.
+
+The bound second targeted-revision prompt is
+`outputs/story-engine-vnext-dini-cake-targeted-revision-round2-20260814-v1/dragon_dini_adventure_wobble_cake_convoy_brief_v1.revision.5e20d3561bba508e4002ce4a8f87bc7c78a97ce374ca936ee3c8a6bf43ce52b6.md`
+(11,104 bytes; raw SHA-256 equals its filename digest). It authorized only the
+diagnosed functional correction and preserved the orange-market peak and the
+page 7–12 discovery, climax, payoff and ending.
+
+The Writer made the street obstacle an early observation: Dini physically
+stabilizes the cart, the stopped cake begins to lose a strawberry, and the
+child asks her to release it. The market remains a distinct environmental
+intervention and visual-comedy escalation, after which the child obtains a
+second observation before performing the deliberate bridge experiment.
+
+The raw Writer response is preserved at
+`outputs/story-engine-vnext-dini-cake-revision2-raw/draft.md` (SHA-256
+`94d2adc1709c0f5cde82889a898f61f67283bd8a7905deb10575bfec4e3a1b63`).
+Canonical intake rejected it with `story_writer_revision_frontmatter_invalid`:
+it repeated the 22-character closing delimiter and contained one suffix chip,
+`הסתכל{ה}`. Codex then applied exactly two disclosed input-only mechanical
+corrections in a separate preserved copy: delimiter `----------------------` to
+`---`, and `והסתכל{ה}` to `{והסתכל|והסתכלה}`. No event or other prose was
+changed.
+
+Canonical second revision:
+
+- path: `outputs/story-engine-vnext-dini-cake-revision2-normalized-20260814-v1/dragon_dini_adventure_wobble_cake_convoy_brief_v1.normalized.1e40185446b4a9cba0a321d939774d6452fade5a628f2322df616fe4b083a465.md`;
+- bytes: `6,462`;
+- SHA-256: `1e40185446b4a9cba0a321d939774d6452fade5a628f2322df616fe4b083a465`;
+- page/chip contract: exactly 12 sequential nonempty pages, canonical
+  frontmatter and zero malformed suffix chips.
+
+Editor round 3 commission has SHA-256
+`405c90325e1f2362ace462709a74d7a74c3d9f4c1da9eca5d164dfd839ed7a67`.
+The external Editor returned closed verdict **`pass`** with four strengths,
+zero issues and zero revision priorities. It confirmed differentiated
+street/market functions, child-owned discovery and climax, Dini's specific but
+adaptive role, the orange comic peak and the cake mechanism's complete
+setup/discovery/experiment/payoff arc.
+
+Pass result:
+
+- path: `outputs/story-engine-vnext-dini-cake-editor-result-round3-20260814-v1/review.json`;
+- bytes: `1,927`;
+- SHA-256: `bed8053efb2bfa61faf15060a29fea4de7051242c0bfa7db585d07307c48e80b`.
+
+The new `materialize-editorial-pass-pilot` terminal requires a valid `pass`
+with zero issues and zero revision priorities, independently validates an
+already-canonical draft without permitting normalization, and writes the exact
+story bytes plus `small-heroes-editorial-pass-candidate-manifest/v1`. It rejects
+`revise`, malformed frontmatter/chips, byte-identity drift and output-root
+reuse. A `pass` remains ineligible for the repair route, proven by the exact
+`story_writer_revision_not_authorized:pass` rejection with zero artifacts.
+
+Editorial candidate:
+
+- root: `outputs/story-engine-vnext-dini-cake-editorial-pass-candidate-20260814-v1`;
+- filename: `dragon_dini_adventure_wobble_cake_convoy_brief_v1.editorial-pass.1e40185446b4a9cba0a321d939774d6452fade5a628f2322df616fe4b083a465.md`;
+- bytes and SHA-256: identical to the canonical source draft;
+- status: `editorially_passed_staging_candidate`.
+
+Validation:
+
+- `node --check scripts/materialize-story-commission-briefs.cjs`: PASS;
+- focused Vitest: 1 file / 11 tests PASS;
+- `npx --no-install tsc --noEmit`: PASS;
+- `git diff --check`: PASS.
+
+The literal repository gate was not rerun. Its separate seven ordinary
+failures remain the repository/release HOLD. No provider/model/network call,
+credential access, story-bank import/approval, Visual Contract, Wizard, image,
+audio, Vision, storage/database, QA/Production deployment or push occurred.
+The external editorial PASS is not Codex self-awarded product acceptance and
+does not itself grant downstream authority.
+
 ## Rollback
 
 Revert only the follow-up commit built on `a985cc43`. The prior Architect v1 pilot commit and its preserved outputs remain independently addressable. Because no bank/runtime authority changed, rollback requires no story migration or data rewrite.

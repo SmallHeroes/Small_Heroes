@@ -876,10 +876,7 @@ function validateFullGenderChips(markdown) {
   }
 }
 
-function normalizeTargetedRevisionDraft(record, draft, reviewResult) {
-  if (reviewResult.review.verdict !== 'revise') {
-    throw new Error(`story_writer_revision_not_authorized:${reviewResult.review.verdict}`);
-  }
+function normalizeAndValidateStoryDraft(record, draft, allowDelimiterNormalization) {
   const normalized = draft.text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
   const lines = normalized.split('\n');
   if (lines[0] !== '---') {
@@ -898,10 +895,7 @@ function normalizeTargetedRevisionDraft(record, draft, reviewResult) {
   }
   const closingIndex = delimiterIndexes[0];
   const originalDelimiter = lines[closingIndex];
-  const structureIssueAuthorized = reviewResult.review.issues.some(
-    (issue) => issue.code === 'output_structure_invalid',
-  );
-  if (originalDelimiter !== '---' && !structureIssueAuthorized) {
+  if (originalDelimiter !== '---' && !allowDelimiterNormalization) {
     throw new Error('story_writer_revision_frontmatter_invalid');
   }
   const frontmatter = parseMinimalFrontmatterLines(
@@ -948,6 +942,29 @@ function normalizeTargetedRevisionDraft(record, draft, reviewResult) {
   };
 }
 
+function normalizeTargetedRevisionDraft(record, draft, reviewResult) {
+  if (reviewResult.review.verdict !== 'revise') {
+    throw new Error(`story_writer_revision_not_authorized:${reviewResult.review.verdict}`);
+  }
+  return normalizeAndValidateStoryDraft(
+    record,
+    draft,
+    reviewResult.review.issues.some((issue) => issue.code === 'output_structure_invalid'),
+  );
+}
+
+function validateEditorialPassDraft(record, draft) {
+  const validated = normalizeAndValidateStoryDraft(record, draft, false);
+  if (
+    validated.actions.length !== 0 ||
+    validated.text !== draft.text ||
+    validated.sha256 !== draft.sha256
+  ) {
+    throw new Error('story_editorial_pass_draft_not_canonical');
+  }
+  return validated;
+}
+
 function writeNormalizedRevisionFiles(record, draft, reviewResult, outputDir) {
   const absoluteOutputDir = path.resolve(outputDir);
   fs.mkdirSync(absoluteOutputDir, { recursive: true });
@@ -980,6 +997,58 @@ function writeNormalizedRevisionFiles(record, draft, reviewResult, outputDir) {
       normalizationActions: normalized.actions,
       pageCount: record.brief.pageCount,
       fullGenderChipsValid: true,
+    },
+  };
+  fs.writeFileSync(
+    path.join(absoluteOutputDir, 'manifest.json'),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    { encoding: 'utf8', flag: 'wx' },
+  );
+  return manifest;
+}
+
+function writeEditorialPassFiles(record, draft, reviewResult, outputDir) {
+  if (
+    reviewResult.review.verdict !== 'pass' ||
+    reviewResult.review.issues.length !== 0 ||
+    reviewResult.review.revisionPriorities.length !== 0
+  ) {
+    throw new Error(`story_editorial_pass_not_authorized:${reviewResult.review.verdict}`);
+  }
+  const validated = validateEditorialPassDraft(record, draft);
+  const absoluteOutputDir = path.resolve(outputDir);
+  fs.mkdirSync(absoluteOutputDir, { recursive: true });
+  if (fs.readdirSync(absoluteOutputDir).length > 0) {
+    throw new Error('story_editorial_pass_output_directory_not_empty');
+  }
+  const filename = `${record.brief.id}.editorial-pass.${validated.sha256}.md`;
+  fs.writeFileSync(path.join(absoluteOutputDir, filename), validated.text, {
+    encoding: 'utf8',
+    flag: 'wx',
+  });
+  const manifest = {
+    version: 'small-heroes-editorial-pass-candidate-manifest/v1',
+    status: 'editorially_passed_staging_candidate',
+    recordCount: 1,
+    record: {
+      briefId: record.brief.id,
+      companionId: record.companionId,
+      direction: record.brief.direction,
+      textPageCount: record.brief.pageCount,
+      filename,
+      sha256: validated.sha256,
+      sourceDraft: {
+        path: draft.relativePath,
+        bytes: draft.bytes,
+        sha256: draft.sha256,
+      },
+      editorialReview: {
+        path: reviewResult.relativePath,
+        bytes: reviewResult.bytes,
+        sha256: reviewResult.sha256,
+        version: reviewResult.review.version,
+        verdict: reviewResult.review.verdict,
+      },
     },
   };
   fs.writeFileSync(
@@ -1194,6 +1263,31 @@ function main(argv) {
   }
 
   if (
+    command === 'materialize-editorial-pass-pilot' &&
+    values['brief-id'] &&
+    values['draft-path'] &&
+    values['review-path'] &&
+    values['output-dir'] &&
+    Object.keys(values).sort().join(',') ===
+      'brief-id,draft-path,output-dir,review-path'
+  ) {
+    const record = findRecord(authority, values['brief-id']);
+    const draft = readEditorialDraftFile(values['draft-path']);
+    const reviewResult = readEditorialReviewResultFile(
+      values['review-path'],
+      record.brief.pageCount,
+    );
+    const manifest = writeEditorialPassFiles(
+      record,
+      draft,
+      reviewResult,
+      values['output-dir'],
+    );
+    process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
+    return;
+  }
+
+  if (
     command === 'materialize-targeted-revision-pilot' &&
     values['brief-id'] &&
     values['draft-path'] &&
@@ -1279,9 +1373,11 @@ module.exports = {
   validateArchitectPilotsDocument,
   validateCompanionQaCanonsDocument,
   validateEditorialReviewResult,
+  validateEditorialPassDraft,
   writeCommissionFiles,
   writeArchitectPilotFiles,
   writeEditorialReviewFiles,
+  writeEditorialPassFiles,
   writeNormalizedRevisionFiles,
   writeTargetedRevisionFiles,
 };

@@ -25,10 +25,12 @@ const {
   validateArchitectPilotsDocument,
   validateCompanionCardsDocument,
   validateCompanionQaCanonsDocument,
+  validateEditorialPassDraft,
   validateEditorialReviewResult,
   writeArchitectPilotFiles,
   writeCommissionFiles,
   writeEditorialReviewFiles,
+  writeEditorialPassFiles,
   writeNormalizedRevisionFiles,
   writeTargetedRevisionFiles,
 } = require('../../scripts/materialize-story-commission-briefs.cjs') as Materializer;
@@ -193,6 +195,10 @@ interface Materializer {
     review: unknown,
     expectedPageCount: number,
   ) => EditorialReview;
+  validateEditorialPassDraft: (
+    record: CommissionRecord,
+    draft: EditorialDraft,
+  ) => { text: string; sha256: string; actions: Array<{ code: string }> };
   writeArchitectPilotFiles: (
     authority: ArchitectAuthority,
     record: CommissionRecord,
@@ -207,6 +213,12 @@ interface Materializer {
     authority: ArchitectAuthority,
     record: CommissionRecord,
     draft: EditorialDraft,
+    outputDir: string,
+  ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
+  writeEditorialPassFiles: (
+    record: CommissionRecord,
+    draft: EditorialDraft,
+    reviewResult: EditorialReviewResult,
     outputDir: string,
   ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
   writeNormalizedRevisionFiles: (
@@ -715,6 +727,108 @@ describe('story commission materializer', () => {
           },
         }),
       ).toThrow('story_writer_revision_frontmatter_invalid');
+    } finally {
+      fs.rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('freezes only a canonical draft with a closed editorial pass', () => {
+    const commissionAuthority = loadCommissionAuthority();
+    const record = findRecord(commissionAuthority, DINI_BRIEF_ID);
+    const fixtureRoot = fs.mkdtempSync(
+      path.join(process.cwd(), 'outputs', 'small-heroes-editorial-pass-test-'),
+    );
+    const draftPath = path.join(fixtureRoot, 'draft.md');
+    const reviewPath = path.join(fixtureRoot, 'review.json');
+    const outputDir = path.join(fixtureRoot, 'candidate');
+    const pages = Array.from(
+      { length: record.brief.pageCount },
+      (_, index) => `--- Page ${index + 1} ---\n\n{{childName}} {חייך|חייכה}.`,
+    ).join('\n\n');
+    const draftText = [
+      '---',
+      'title: "{{childName}} ו־דיני: בדיקה"',
+      `companionId: ${record.companionId}`,
+      `direction: ${record.brief.direction}`,
+      `category: ${record.brief.category}`,
+      `pages: ${record.brief.pageCount}`,
+      'gender: female',
+      'endingType: resolution',
+      '---',
+      '',
+      pages,
+      '',
+    ].join('\n');
+    const review: EditorialReview = {
+      version: 'small-heroes-story-editorial-review/v1',
+      verdict: 'pass',
+      strengths: ['The child owns the discovery and climax.'],
+      issues: [],
+      revisionPriorities: [],
+      mustPreserve: ['Preserve the causal discovery arc.'],
+    };
+
+    try {
+      fs.writeFileSync(draftPath, draftText, 'utf8');
+      fs.writeFileSync(reviewPath, `${JSON.stringify(review)}\n`, 'utf8');
+      const draft = readEditorialDraftFile(draftPath);
+      const reviewResult = readEditorialReviewResultFile(reviewPath, record.brief.pageCount);
+
+      expect(validateEditorialPassDraft(record, draft)).toEqual({
+        text: draftText,
+        sha256: draft.sha256,
+        actions: [],
+      });
+
+      const manifest = writeEditorialPassFiles(record, draft, reviewResult, outputDir);
+      expect(manifest.version).toBe('small-heroes-editorial-pass-candidate-manifest/v1');
+      expect(manifest.record.filename).toBe(
+        `${DINI_BRIEF_ID}.editorial-pass.${draft.sha256}.md`,
+      );
+      expect(fs.readFileSync(path.join(outputDir, manifest.record.filename), 'utf8')).toBe(
+        draftText,
+      );
+      expect(fs.readdirSync(outputDir).sort()).toEqual(
+        [manifest.record.filename, 'manifest.json'].sort(),
+      );
+      expect(() => writeEditorialPassFiles(record, draft, reviewResult, outputDir)).toThrow(
+        'story_editorial_pass_output_directory_not_empty',
+      );
+      expect(() =>
+        writeEditorialPassFiles(
+          record,
+          draft,
+          {
+            ...reviewResult,
+            review: {
+              ...review,
+              verdict: 'revise',
+              issues: [
+                {
+                  code: 'payoff_weak',
+                  severity: 'major',
+                  evidencePages: [12],
+                  functionalGap: 'The payoff requires revision.',
+                },
+              ],
+              revisionPriorities: ['Strengthen the payoff.'],
+            },
+          },
+          path.join(fixtureRoot, 'rejected'),
+        ),
+      ).toThrow('story_editorial_pass_not_authorized:revise');
+      expect(() =>
+        validateEditorialPassDraft(record, {
+          ...draft,
+          text: draftText.replace('\n---\n\n--- Page 1 ---', '\n----------------------\n\n--- Page 1 ---'),
+        }),
+      ).toThrow('story_writer_revision_frontmatter_invalid');
+      expect(() =>
+        validateEditorialPassDraft(record, {
+          ...draft,
+          text: draftText.replace('{חייך|חייכה}', 'חייכ{ה}'),
+        }),
+      ).toThrow('story_writer_revision_gender_chips_invalid');
     } finally {
       fs.rmSync(fixtureRoot, { recursive: true, force: true });
     }
