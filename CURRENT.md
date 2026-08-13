@@ -1,8 +1,25 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-12
+**Updated:** 2026-08-13
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-reader-premium-site-qa-integration` in `C:\Users\guyna\.codex\worktrees\qaexperience1\Small_Heroes`, combining the Reader milestone at `773f364fddada45eee236a8e4876bb93ae673eef` with Claude's two website commits `4ebf319c` and `b3582646`.
+**Working branch:** `codex/story-bank-next-generation-briefs-qa-integration` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`, based exactly on the current QA checkout head `e6dbcdd369b1dabfe560344c20ac779954b11e0c`.
+
+## STORY BANK NEXT-GENERATION BRIEFS — integrated on current QA base / independent re-gate pending
+
+Guy chose a curated prepared-story catalog for the current product and deferred fully custom story-from-scratch authoring to a separate future feature. The current catalog is entertainment-first and staging-only: six MVP companion/category pairs × bedtime/adventure/fantasy, exactly 18 distinct creative briefs. Text-page counts are 8/12/16; the corresponding physical books pair each text page with one illustration page and therefore contain 16/24/32 pages.
+
+- The independently PASSed next-generation foundation and creative-brief content was transplanted onto the active QA checkout base without merging its older branch history. The imported sequence is `f6c90a8e`, `a378360d`, `da68b6c6`, and `c78d32e3`; the QA-base integration/materializer commit is `85bf081f`.
+- Every brief locks a unique visible premise, concrete child want, physical play rule, meaningful set-piece chain, companion-caused wrong help, three comic escalations, child discovery and child-owned external climax, while leaving exact dialogue, read-aloud rhythm, local blocking and page allocation to ChatGPT.
+- Bedtime remains an eight-text-page energy curve rather than a bedroom/sleep template. Adventure uses 12 text pages and at least three meaningful set pieces. Fantasy uses 16 text pages and one coherent magical rule across at least three set pieces.
+- `scripts/materialize-story-commission-briefs.cjs` now creates one self-contained, content-addressed ChatGPT commission from only four authorities: the shared story contract, shared writer contract, selected companion bible and selected structured brief. It accepts no raw story payload and performs no model, credential or network action.
+- Commission metadata records both text and physical page counts and keeps child appearance outside story authority. The writer must not invent height, proportions, clothing, face, hair or visual style. The later visual pipeline remains responsible for binding the face identity and deriving age-appropriate body proportions from the parent's age selection.
+- A local untracked staging set now contains 18 copy-ready Markdown commissions plus one manifest under `outputs/story-bank-next-generation-chatgpt-commissions-20260813`. These are ready for Guy/editorial dispatch but are not approved stories, bank authority or render authority.
+- Focused validation passed **4 files / 23 tests**; local Prisma generation, deterministic TypeScript and `git diff --check` passed. The exact census is **299 = 280 ordinary + 19 resource-intensive**.
+- The one literal `npm run check` was not retried. TypeScript passed. Ordinary reported the six established missing ignored-output fixtures plus the unrelated pre-existing stale `r1d-dini-bar-five-page-measurement-authority` string assertion. Resource-intensive reported an `onTaskUpdate` RPC timeout. No story-foundation, creative-brief, materializer or workload-classifier assertion failed. Repository/release status remains HOLD on that separate baseline/infrastructure state.
+- Existing approved story banks, runtime loader, Wizard matrix, checkout, Reader, pricing, provider, database/storage and Production were unchanged. No story draft, provider call, credential access, render, deployment or push occurred. External cost is `$0`.
+- Next technical gate: independent Claude Code review of `e6dbcdd3..HEAD`. Next product step after technical PASS is Guy/editorial selection and ChatGPT drafting of one commission at a time, followed by oral-Hebrew review and bank import; bulk generation is deliberately not assumed to be quality proof.
+
+Durable record: `docs/ai-workflow/STORY_BANK_NEXT_GENERATION_BRIEFS_QA_INTEGRATION_EVIDENCE.md`.
 
 ## R1D-WIZARD-SELLABILITY-CHECKOUT-UNBLOCK — independent technical PASS / push and QA deployment pending
 
