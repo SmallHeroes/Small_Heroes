@@ -60,11 +60,11 @@ node scripts/materialize-story-commission-briefs.cjs materialize-all `
   --output-dir <new-empty-directory>
 ```
 
-It resolves records only from the repository catalog, refuses missing/non-unique IDs and non-empty output directories, produces content-addressed Markdown, and writes a manifest with exact text/physical page counts. It performs no network, provider, credential or bank write.
+It resolves records only from the repository catalog, refuses missing/non-unique IDs and non-empty output directories, produces content-addressed Markdown, and writes a manifest with exact text/physical page counts plus a Hebrew `INDEX.md` linking each working title to its copy-ready file. It performs no network, provider, credential or bank write.
 
-The local staging run created exactly 18 Markdown bundles plus `manifest.json` in:
+The local staging run creates exactly 18 content-addressed Markdown bundles plus `INDEX.md` and `manifest.json` in:
 
-`outputs/story-bank-next-generation-chatgpt-commissions-20260813`
+`outputs/story-bank-next-generation-chatgpt-commissions-20260813-v2`
 
 The output is intentionally ignored/untracked. It is a dispatch artifact, not source authority.
 

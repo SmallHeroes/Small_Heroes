@@ -46,6 +46,7 @@ function commissionMetadata(record) {
     commissionVersion: 'small-heroes-story-commission/v1',
     authorityStatus: 'staging_only',
     briefId: record.brief.id,
+    workingTitle: record.brief.workingTitle,
     companionId: record.companionId,
     category: record.brief.category,
     direction: record.brief.direction,
@@ -153,6 +154,24 @@ function writeCommissionFiles(authority, records, outputDir) {
     `${JSON.stringify(manifest, null, 2)}\n`,
     { encoding: 'utf8', flag: 'wx' },
   );
+  const indexRows = manifestRecords.map((record) =>
+    `| ${record.workingTitle} | ${record.companionId} | ${record.direction} | ${record.textPageCount} | ${record.physicalPageCount} | [copy-ready brief](${record.filename}) |`,
+  );
+  const index = [
+    '# Small Heroes — ChatGPT Story Commissions',
+    '',
+    'כל קובץ בטבלה הוא פרומפט עצמאי ומלא. מעתיקים את כל תוכן הקובץ לשיחה חדשה ב־ChatGPT.',
+    'הפלט המבוקש הוא טיוטת staging בלבד; אין להעביר לבנק או לרינדור לפני עריכה ואישור.',
+    '',
+    '| שם עבודה | קומפניון | כיוון | עמודי טקסט | עמודים פיזיים | קובץ לשליחה |',
+    '|---|---|---|---:|---:|---|',
+    ...indexRows,
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(absoluteOutputDir, 'INDEX.md'), index, {
+    encoding: 'utf8',
+    flag: 'wx',
+  });
   return manifest;
 }
 

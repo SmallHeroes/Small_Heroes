@@ -62,8 +62,9 @@ node scripts/materialize-story-commission-briefs.cjs materialize-all `
   --output-dir outputs/story-commissions/all-18
 ```
 
-Every generated Markdown bundle is self-contained and content-addressed. Its
-manifest records both the text-page count and the physical-page count:
+Every generated Markdown bundle is self-contained and content-addressed. The
+output directory also contains a Hebrew `INDEX.md` with a direct link to every
+copy-ready prompt. Its manifest records both the text-page count and the physical-page count:
 bedtime 8/16, adventure 12/24, fantasy 16/32. Generated files remain staging
 artifacts, not approved-bank or render authority.
 

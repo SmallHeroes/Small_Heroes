@@ -46,6 +46,7 @@ interface CommissionMetadata {
   commissionVersion: 'small-heroes-story-commission/v1';
   authorityStatus: 'staging_only';
   briefId: string;
+  workingTitle: string;
   companionId: string;
   category: string;
   direction: 'bedtime' | 'adventure' | 'fantasy';
@@ -117,8 +118,11 @@ describe('story commission materializer', () => {
         new RegExp(`^${selected.brief.id}\\.[a-f0-9]{64}\\.md$`),
       );
       expect(fs.readdirSync(outputDir).sort()).toEqual(
-        [manifest.records[0]!.filename, 'manifest.json'].sort(),
+        [manifest.records[0]!.filename, 'INDEX.md', 'manifest.json'].sort(),
       );
+      const index = fs.readFileSync(path.join(outputDir, 'INDEX.md'), 'utf8');
+      expect(index).toContain(selected.brief.workingTitle);
+      expect(index).toContain(`[copy-ready brief](${manifest.records[0]!.filename})`);
       expect(() => writeCommissionFiles(authority, [selected], outputDir)).toThrow(
         'story_commission_output_directory_not_empty',
       );
