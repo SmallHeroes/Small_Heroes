@@ -9,17 +9,22 @@ const require = createRequire(import.meta.url);
 const {
   buildArchitectPilotBundle,
   buildCommissionBundle,
+  buildEditorialReviewBundle,
   commissionMetadata,
   findArchitectPilot,
   findCompanionCard,
+  findCompanionQaCanon,
   findRecord,
   loadArchitectPilotAuthority,
   loadCommissionAuthority,
   projectBriefForWriter,
+  readEditorialDraftFile,
   validateArchitectPilotsDocument,
   validateCompanionCardsDocument,
+  validateCompanionQaCanonsDocument,
   writeArchitectPilotFiles,
   writeCommissionFiles,
+  writeEditorialReviewFiles,
 } = require('../../scripts/materialize-story-commission-briefs.cjs') as Materializer;
 
 interface StoryBrief {
@@ -84,7 +89,25 @@ interface ArchitectAuthority {
   commissionAuthority: CommissionAuthority;
   architectCharter: string;
   postDraftEditorialQa: string;
+  companionQaCanons: CompanionQaCanon[];
   pilots: ArchitectPilot[];
+}
+
+interface CompanionQaCanon {
+  companionId: string;
+  innerCharacter: string;
+  relationshipDynamic: string;
+  changeCapacity: string;
+  editorChecks: string[];
+  forbiddenRequirements: string[];
+}
+
+interface EditorialDraft {
+  absolutePath: string;
+  relativePath: string;
+  bytes: number;
+  text: string;
+  sha256: string;
 }
 
 interface CommissionMetadata {
@@ -106,15 +129,23 @@ interface CommissionMetadata {
 interface Materializer {
   buildArchitectPilotBundle: (authority: ArchitectAuthority, record: CommissionRecord) => string;
   buildCommissionBundle: (authority: CommissionAuthority, record: CommissionRecord) => string;
+  buildEditorialReviewBundle: (
+    authority: ArchitectAuthority,
+    record: CommissionRecord,
+    draft: EditorialDraft,
+  ) => string;
   commissionMetadata: (record: CommissionRecord) => CommissionMetadata;
   findArchitectPilot: (authority: ArchitectAuthority, briefId: string) => ArchitectPilot;
   findCompanionCard: (authority: CommissionAuthority, companionId: string) => CompanionCard;
+  findCompanionQaCanon: (authority: ArchitectAuthority, companionId: string) => CompanionQaCanon;
   findRecord: (authority: CommissionAuthority, briefId: string) => CommissionRecord;
   loadArchitectPilotAuthority: (authority?: CommissionAuthority) => ArchitectAuthority;
   loadCommissionAuthority: () => CommissionAuthority;
   projectBriefForWriter: (brief: StoryBrief) => Record<string, unknown>;
+  readEditorialDraftFile: (draftPath: string) => EditorialDraft;
   validateArchitectPilotsDocument: (document: unknown) => unknown;
   validateCompanionCardsDocument: (document: unknown) => unknown;
+  validateCompanionQaCanonsDocument: (document: unknown) => unknown;
   writeArchitectPilotFiles: (
     authority: ArchitectAuthority,
     record: CommissionRecord,
@@ -125,6 +156,12 @@ interface Materializer {
     records: CommissionRecord[],
     outputDir: string,
   ) => { version: string; recordCount: number; records: Array<CommissionMetadata & { filename: string; sha256: string }> };
+  writeEditorialReviewFiles: (
+    authority: ArchitectAuthority,
+    record: CommissionRecord,
+    draft: EditorialDraft,
+    outputDir: string,
+  ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
 }
 
 const DINI_BRIEF_ID = 'dragon_dini_adventure_wobble_cake_convoy_brief_v1';
@@ -225,7 +262,7 @@ describe('story commission materializer', () => {
     ]);
     expect(() =>
       validateArchitectPilotsDocument({
-        version: 'small-heroes-story-architect-pilots/v1',
+        version: 'small-heroes-story-architect-pilots/v2',
         status: 'staging_only',
         pilots: [{ ...authority.pilots[0]!, requiredManeuver: 'rejected' }],
       }),
@@ -245,16 +282,23 @@ describe('story commission materializer', () => {
     expect(bundle).toContain('WAITING_FOR_GUY_SELECTION');
     expect(bundle).toContain('Do not write the story until Guy selects exactly one shape.');
     expect(bundle).toContain('Comic engine');
-    expect(bundle).toContain('Child discovery');
+    expect(bundle).toContain('Child agency arc');
     expect(bundle).toContain('Climax principle');
     expect(bundle).toContain('Why Dini');
     expect(bundle).toContain('Surprise');
     expect(bundle).toContain(findArchitectPilot(authority, DINI_BRIEF_ID).companionPortrait);
     expect(bundle).not.toContain(authority.postDraftEditorialQa);
+    expect(bundle).not.toContain(
+      JSON.stringify(findCompanionQaCanon(authority, record.companionId), null, 2),
+    );
     expect(bundle).not.toContain('Post-Draft Editorial QA Contract');
     expect(bundle).not.toContain('imageDirection:');
     expect(bundle).not.toContain(record.brief.workingTitle);
     expect(bundle).not.toContain(record.brief.category);
+    expect(bundle).toContain('immediately visible, child-interesting disruption');
+    expect(bundle).toContain('memorable large visual-comedy escalation');
+    expect(bundle).toContain('experiment, attempt, comparison');
+    expect(bundle).toContain('Four drafting priorities only');
   });
 
   it('keeps the former screenplay and Dini choreography out of the pilot prompt', () => {
@@ -294,9 +338,83 @@ describe('story commission materializer', () => {
     expect(authority.postDraftEditorialQa).toContain('## Story QA');
     expect(authority.postDraftEditorialQa).toContain('## Delight QA');
     expect(authority.postDraftEditorialQa).toContain('## Companion QA');
+    expect(authority.postDraftEditorialQa).toContain('## Child agency QA');
     expect(authority.postDraftEditorialQa).toContain('## Hebrew read-aloud QA');
     expect(authority.postDraftEditorialQa).toContain('Do not reward mechanical compliance');
     expect(authority.postDraftEditorialQa).toContain('Guy retains final product and story acceptance.');
+
+    const canon = findCompanionQaCanon(authority, 'dragon_dini');
+    expect(Object.keys(canon)).toEqual([
+      'companionId',
+      'innerCharacter',
+      'relationshipDynamic',
+      'changeCapacity',
+      'editorChecks',
+      'forbiddenRequirements',
+    ]);
+    expect(canon.forbiddenRequirements.join(' ')).toContain('No fixed Dini maneuver');
+    expect(() =>
+      validateCompanionQaCanonsDocument({
+        version: 'small-heroes-companion-qa-canons/v1',
+        status: 'staging_pilot_only',
+        canons: [{ ...canon, requiredTailMove: 'rejected' }],
+      }),
+    ).toThrow('story_editor_companion_qa_canons_invalid');
+  });
+
+  it('materializes a diagnostic-only editor review and rejects unsafe draft inputs', () => {
+    const commissionAuthority = loadCommissionAuthority();
+    const authority = loadArchitectPilotAuthority(commissionAuthority);
+    const record = findRecord(commissionAuthority, DINI_BRIEF_ID);
+    const fixtureRoot = fs.mkdtempSync(
+      path.join(process.cwd(), 'outputs', 'small-heroes-editor-test-'),
+    );
+    const draftPath = path.join(fixtureRoot, 'draft.md');
+    const outputDir = path.join(fixtureRoot, 'review');
+    const outsidePath = path.join(os.tmpdir(), 'small-heroes-editor-outside.md');
+    const draftText = '---\ntitle: test\n---\n\n--- Page 1 ---\n\nטיוטה לבדיקה.';
+
+    try {
+      fs.writeFileSync(draftPath, draftText, 'utf8');
+      fs.writeFileSync(outsidePath, draftText, 'utf8');
+      const draft = readEditorialDraftFile(draftPath);
+      const bundle = buildEditorialReviewBundle(authority, record, draft);
+
+      expect(bundle).toContain(authority.postDraftEditorialQa);
+      expect(bundle).toContain(
+        JSON.stringify(findCompanionQaCanon(authority, record.companionId), null, 2),
+      );
+      expect(bundle).toContain('Diagnose only; do not rewrite');
+      expect(bundle).toContain('child_pre_climax_agency_weak');
+      expect(bundle).toContain('personalization_syntax_invalid');
+      expect(bundle).toContain(JSON.stringify({ draft: draftText }, null, 2));
+      expect(bundle).not.toContain(authority.architectCharter);
+      expect(bundle).not.toContain('WAITING_FOR_GUY_SELECTION');
+
+      const manifest = writeEditorialReviewFiles(authority, record, draft, outputDir);
+      expect(manifest.version).toBe('small-heroes-story-editorial-review-pilot-manifest/v1');
+      expect(manifest.recordCount).toBe(1);
+      expect(manifest.record.filename).toMatch(
+        new RegExp(`^${DINI_BRIEF_ID}\\.editor\\.[a-f0-9]{64}\\.md$`),
+      );
+      expect(fs.readdirSync(outputDir).sort()).toEqual(
+        [manifest.record.filename, 'manifest.json'].sort(),
+      );
+      expect(() => writeEditorialReviewFiles(authority, record, draft, outputDir)).toThrow(
+        'story_editor_output_directory_not_empty',
+      );
+      expect(() => readEditorialDraftFile(outsidePath)).toThrow(
+        'story_editor_draft_path_rejected',
+      );
+
+      fs.writeFileSync(draftPath, 'x'.repeat(64 * 1024 + 1), 'utf8');
+      expect(() => readEditorialDraftFile(draftPath)).toThrow(
+        'story_editor_draft_size_rejected',
+      );
+    } finally {
+      fs.rmSync(fixtureRoot, { recursive: true, force: true });
+      fs.rmSync(outsidePath, { force: true });
+    }
   });
 
   it('writes content-addressed legacy and pilot artifacts and fails closed on reuse', () => {

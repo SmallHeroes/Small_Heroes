@@ -2,7 +2,25 @@
 
 **Updated:** 2026-08-13
 **Maintainer:** Codex
-**Working branch:** `codex/story-bank-next-generation-briefs-qa-integration` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`; the Story Architect pilot is based exactly on `99c1e9ede6507b153c4df37b388864fdf3afd4ed`.
+**Working branch:** `codex/story-bank-next-generation-briefs-qa-integration` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`; the functional-quality follow-up is based exactly on `a985cc43ad4e8ccf37ee033ba55365bf98d59821`.
+
+## STORY ENGINE VNEXT FUNCTIONAL-QUALITY PILOT — locally implemented / independent QA pending
+
+Guy selected Architect option A and judged its resulting Dini cake draft a material improvement, while identifying that the middle still repeats one dramatic function, the adventure lacks one memorable comic peak and the child mostly observes until late. The correction strengthens story functions without restoring the prior mini-screenplay.
+
+- The scope remains the single Dini cake pilot. The other 17 prepared slots, approved story banks, v2 18-slot materializer, Wizard/runtime and Production are unchanged.
+- Story Architect v2 now requires an immediate visible disruption, causal room for one large visual-comedy escalation, meaningful child-initiated action before the climax, differentiated dramatic problems and one significant idea not predictable from the nucleus. These are functional acceptance boundaries, not prescribed events.
+- `Child discovery` is replaced by the broader `Child agency arc`. The Writer receives exactly four compact drafting priorities and retains freedom over dialogue, transitions, local action, humor, rhythm, page allocation and the concrete solution.
+- Post-draft QA is a separate diagnostic-only Editor stage. It judges story function, composite delight, child agency, companion indispensability, Hebrew read-aloud quality, category fit and visual variety; it cannot rewrite the draft or impose joke quotas, discoveries, catchphrases, body-part maneuvers, props or locations.
+- The new closed `small-heroes-companion-qa-canons/v1` authority contains Dini's inner character, relationship dynamic and change capacity. It is supplied only to the Editor and is explicitly absent from the Architect/first-draft prompt.
+- The existing Draft A is preserved byte-for-byte as ignored input at `outputs/story-engine-vnext-dini-cake-draft1/draft.md` (6,322 bytes; SHA-256 `0f002541b317f952a7ca8ca61da54524d04378717c753372048a65e688301e77`). It was not edited or reclassified as approved.
+- The content-addressed diagnostic commission is `outputs/story-engine-vnext-dini-cake-editor-review-20260813-v1/dragon_dini_adventure_wobble_cake_convoy_brief_v1.editor.5e1cbf6189f589a01377a1c00a68f7eec46c9b92407fd9ab2d358ed2288a157d.md` (13,164 bytes). Its raw SHA-256 equals the filename digest. Draft inputs are restricted to regular non-symlink Markdown files beneath repository `outputs`, 1 byte through 64 KiB; output-root reuse fails closed.
+- Focused validation passes **2 files / 16 tests**, deterministic TypeScript, script syntax and `git diff --check`. It proves the Architect/Editor separation, exact closed canon, diagnostic-only output, content addressing, output-root reuse rejection, path confinement and size ceiling.
+- The one literal `npm run check` ran once. TypeScript passed; all **19 resource-intensive files passed** with valid diagnostics. Ordinary reported exactly the separate known baseline: six missing ignored-output fixture failures plus the pre-existing stale Bunny measurement source-string assertion. No Story Engine or materializer assertion failed; repository/release remains HOLD on those unrelated seven ordinary failures.
+- No provider/model/network call, credential access, story rewrite, story import/approval, image/audio/Vision render, database/storage action, Wizard/Reader change, QA/Production deployment or push occurred. External cost is `$0`.
+- Next evidence step is to run the generated diagnostic prompt through the external Editor. Only its closed JSON diagnosis may be used to build a separate targeted Writer-revision commission; no Editor result or story-quality PASS is claimed here.
+
+Durable records: `docs/ai-workflow/STORY_ENGINE_VNEXT_FUNCTIONAL_QUALITY_PILOT_DECISION_GATE.md` and `docs/ai-workflow/STORY_ENGINE_VNEXT_FUNCTIONAL_QUALITY_PILOT_IMPLEMENTATION_EVIDENCE.md`.
 
 ## DINI STORY ARCHITECT PILOT — locally implemented / independent QA pending
 

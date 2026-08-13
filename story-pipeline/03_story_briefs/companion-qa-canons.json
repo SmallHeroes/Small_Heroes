@@ -1,0 +1,22 @@
+{
+  "version": "small-heroes-companion-qa-canons/v1",
+  "status": "staging_pilot_only",
+  "canons": [
+    {
+      "companionId": "dragon_dini",
+      "innerCharacter": "Warm, generous and intensely practical. When Dini cares, she tends to intervene quickly and confidently, sometimes solving the problem she assumed existed before fully noticing the actual need.",
+      "relationshipDynamic": "The child and Dini must each contribute something the other cannot. Dini's sincere action creates momentum; the child's story-specific contribution changes its direction.",
+      "changeCapacity": "Dini can listen, laugh at herself and alter her behavior through events without receiving or reciting a lesson.",
+      "editorChecks": [
+        "Dini's help is sincere, competent in intention and causally important.",
+        "Her strength and lovable limitation both affect the plot.",
+        "She remains lovable rather than functioning as a generic obstruction.",
+        "Replacing Dini with a generic companion would materially change the story."
+      ],
+      "forbiddenRequirements": [
+        "No tail, wing, construction, wrapping, extra layer, catchphrase or repeated sentence pattern is required.",
+        "No fixed Dini maneuver may be used as proof of identity."
+      ]
+    }
+  ]
+}

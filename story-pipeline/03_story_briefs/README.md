@@ -34,7 +34,8 @@ small creative nucleus + Dini's inner psychology
   → Story Architect proposes exactly three genuinely different shapes
   → STOP: Guy selects A, B or C
   → Writer receives only the selected direction and writes the story freely
-  → separate post-draft editorial QA
+  → separate diagnostic-only Editor QA
+  → targeted Writer revision that preserves proven strengths
   → only then derive structured metadata and image directions
 ```
 
@@ -47,6 +48,8 @@ obstacles, discovery, climax principle, payoff and surprise.
 `STORY_DRAFT_EDITORIAL_QA_CONTRACT.md` retains the strict Small Heroes quality
 standard after drafting. It is intentionally not dispatched to the Architect
 or first-draft Writer, so quality checks do not prewrite the plot.
+`companion-qa-canons.json` is also editor-only: it can reject a generic or
+formulaic Dini without prescribing wings, tails, construction or catchphrases.
 
 ## Materialize the pilot
 
@@ -66,6 +69,23 @@ Do not ask it to write the story yet. Guy chooses one option first.
 Only if this A/B pilot demonstrates materially better originality, story
 pleasure and visual variety without losing coherence should the pattern be
 generalized to the other 17 slots.
+
+## Materialize an Editor review
+
+Store the completed staging draft as a regular Markdown file under `outputs`,
+then materialize a diagnostic-only review prompt:
+
+```powershell
+node scripts/materialize-story-commission-briefs.cjs materialize-editorial-review-pilot `
+  --brief-id dragon_dini_adventure_wobble_cake_convoy_brief_v1 `
+  --draft-path outputs/story-engine-vnext-dini-cake-draft1/draft.md `
+  --output-dir outputs/story-engine-vnext-dini-cake-editor-review-v1
+```
+
+The Editor returns a closed `pass`, `revise` or `reject` JSON result. It may
+name functional gaps and revision priorities, but it must not rewrite the
+story. The Writer revision remains a separate step. Draft input is restricted
+to non-symlink Markdown files under `outputs`, between 1 byte and 64 KiB.
 
 ## Existing v2 commands
 
