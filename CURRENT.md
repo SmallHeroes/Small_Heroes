@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/story-bank-next-generation-briefs-qa-integration` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`, based exactly on the current QA checkout head `e6dbcdd369b1dabfe560344c20ac779954b11e0c`.
 
-## STORY BANK NEXT-GENERATION BRIEFS — integrated on current QA base / independent re-gate pending
+## STORY BANK NEXT-GENERATION BRIEFS — independent technical PASS / story selection and drafting next
 
 Guy chose a curated prepared-story catalog for the current product and deferred fully custom story-from-scratch authoring to a separate future feature. The current catalog is entertainment-first and staging-only: six MVP companion/category pairs × bedtime/adventure/fantasy, exactly 18 distinct creative briefs. Text-page counts are 8/12/16; the corresponding physical books pair each text page with one illustration page and therefore contain 16/24/32 pages.
 
@@ -17,7 +17,9 @@ Guy chose a curated prepared-story catalog for the current product and deferred 
 - Focused validation passed **4 files / 23 tests**; local Prisma generation, deterministic TypeScript and `git diff --check` passed. The exact census is **299 = 280 ordinary + 19 resource-intensive**.
 - The one literal `npm run check` was not retried. TypeScript passed. Ordinary reported the six established missing ignored-output fixtures plus the unrelated pre-existing stale `r1d-dini-bar-five-page-measurement-authority` string assertion. Resource-intensive reported an `onTaskUpdate` RPC timeout. No story-foundation, creative-brief, materializer or workload-classifier assertion failed. Repository/release status remains HOLD on that separate baseline/infrastructure state.
 - Existing approved story banks, runtime loader, Wizard matrix, checkout, Reader, pricing, provider, database/storage and Production were unchanged. No story draft, provider call, credential access, render, deployment or push occurred. External cost is `$0`.
-- Next technical gate: independent Claude Code review of `e6dbcdd3..HEAD`. Next product step after technical PASS is Guy/editorial selection and ChatGPT drafting of one commission at a time, followed by oral-Hebrew review and bank import; bulk generation is deliberately not assumed to be quality proof.
+- Claude Code independently reviewed exact immutable range `e6dbcdd369b1dabfe560344c20ac779954b11e0c..967e575715992ea580dd62ee8d42cc2135dae7b8` read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It confirmed all twelve falsification targets, independently reproduced **4 files / 23 tests**, TypeScript and `git diff --check`, recomputed the complete 18-slot/73-set-piece catalog and content-addressed output behavior, and confirmed approved banks, runtime, Wizard, checkout, Reader and Production remain untouched. This is Claude Code's verdict, not a Codex self-award.
+- Claude retained eight advisory notes only: zero-match/duplicate share one CLI reason string; unknown materializer flags are ignored; an absolute empty output directory is allowed; three indispensability fields describe traits without repeating the companion name; two causal arrays settle after a penultimate climax; two corrected audit probes were false positives; the full repository check was not rerun; and typed age-to-body visual authority remains future work. None blocks story selection or drafting, and no corrective re-gate is required.
+- Next product step: Guy/editorial selection and ChatGPT drafting of one commission at a time, followed by oral-Hebrew review and bank import; bulk generation is deliberately not assumed to be quality proof.
 
 Durable record: `docs/ai-workflow/STORY_BANK_NEXT_GENERATION_BRIEFS_QA_INTEGRATION_EVIDENCE.md`.
 

@@ -110,7 +110,39 @@ No approved-bank import, runtime story replacement, personalized story-from-scra
 
 External cost: `$0`.
 
-## Independent QA falsification targets
+## Independent QA result
+
+Claude Code independently reviewed exact immutable range
+`e6dbcdd369b1dabfe560344c20ac779954b11e0c..967e575715992ea580dd62ee8d42cc2135dae7b8`
+read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and
+zero MINOR. Codex records Claude Code's verdict and does not self-award
+independent technical PASS.
+
+Claude independently confirmed all twelve targets below, including exact
+linear topology, package/lockfile identity, the complete 18-slot catalog,
+8/12/16 text-page and 16/24/32 physical-page accounting, distinct premises and
+mechanics, model freedom, companion-specific causality, child-owned climaxes,
+catalog-only materialization, four-authority prompt composition,
+content-addressed/indexed output, overwrite refusal, child visual-authority
+separation and unchanged Production/runtime surfaces. It reproduced the exact
+focused **4 files / 23 tests**, TypeScript and `git diff --check` results.
+
+Eight advisory notes remain non-blocking and require no correction or re-gate:
+
+1. zero-match and duplicate brief IDs share the same `not_unique` reason;
+2. unknown flags are ignored for materialize modes;
+3. an absolute output path is allowed when the directory is empty;
+4. three `companionIndispensability` values use traits without repeating the companion name;
+5. two causal arrays put the settling consequence after a penultimate child climax;
+6. Claude documented and corrected two over-broad audit probes that produced false positives;
+7. Claude did not rerun the already-recorded literal repository check; and
+8. typed age-to-body visual authority remains separate future work.
+
+This PASS grants technical acceptance for the reviewed range only. Guy retains
+story selection, prose quality, product, visual and launch acceptance. The
+separate repository fixture/measurement/RPC HOLD remains unwaived.
+
+## Independent QA falsification targets (completed)
 
 Claude Code should review `e6dbcdd369b1dabfe560344c20ac779954b11e0c..HEAD` read-only and try to prove:
 
@@ -127,4 +159,4 @@ Claude Code should review `e6dbcdd369b1dabfe560344c20ac779954b11e0c..HEAD` read-
 11. Approved banks, runtime, Wizard, checkout, Reader, dependencies, pricing, provider or Production changed.
 12. The focused test, TypeScript, full-check or Git claims above are inaccurate.
 
-Independent QA may award only technical PASS/HOLD for this range. Guy retains story selection, prose quality, product, visual and launch acceptance.
+Independent QA completed these targets with PASS. Guy retains story selection, prose quality, product, visual and launch acceptance.
