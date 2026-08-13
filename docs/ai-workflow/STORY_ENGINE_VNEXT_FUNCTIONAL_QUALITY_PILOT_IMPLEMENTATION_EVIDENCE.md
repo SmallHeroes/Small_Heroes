@@ -127,6 +127,47 @@ Follow-up validation passes 2 files / 17 tests, script syntax, deterministic
 TypeScript and `git diff --check`. The literal repository gate was not rerun;
 the earlier seven-failure baseline remains the separate release HOLD.
 
+## Independent QA and Writer revision intake
+
+Claude Code independently reviewed exact range `a985cc43..7c55bf93` and returned
+technical PASS with zero BLOCKER, MAJOR or MINOR. It exhaustively exercised 36
+invalid Editor result shapes and reproduced the 17 focused tests, TypeScript,
+script syntax, diff check and byte-identical targeted revision prompt. ADV-1
+through ADV-7 are advisory only.
+
+The Writer's first targeted revision is preserved unchanged at
+`outputs/story-engine-vnext-dini-cake-revision1-raw/draft.md`:
+
+- bytes: `6,603`;
+- SHA-256: `0c33aa0a668d475ea44909af3b911f18478ffb1eef1dda94cccf6de6cd9c6907`.
+
+It fixed all known suffix-style gender chips and strengthened the comic peak on
+pages 5–6, but repeated the malformed 22-character frontmatter delimiter. The
+new `normalize-targeted-revision-pilot` intake is deliberately narrower than an
+editor: it permits that delimiter normalization only because the bound Editor
+result contains `output_structure_invalid`, and otherwise fails on identity,
+frontmatter shape, page order/count/emptiness or malformed chips.
+
+Normalized story:
+
+- path: `outputs/story-engine-vnext-dini-cake-revision1-normalized-20260814-v1/dragon_dini_adventure_wobble_cake_convoy_brief_v1.normalized.7e496c0365d86b4cf2db0be1cece81a71365451883ce7a2203a598b63af83fa4.md`;
+- bytes: `6,584`;
+- SHA-256: `7e496c0365d86b4cf2db0be1cece81a71365451883ce7a2203a598b63af83fa4`;
+- normalization actions: exactly one `frontmatter_closing_delimiter_normalized`, from length 22 to `---`;
+- page contract: 1–12, sequential and nonempty;
+- repository suffix-chip scanner: PASS, zero hits.
+
+Editor round-2 commission:
+
+- root: `outputs/story-engine-vnext-dini-cake-editor-review-round2-20260814-v1`;
+- filename: `dragon_dini_adventure_wobble_cake_convoy_brief_v1.editor.fff73716b9b8cf5f5830090ffd61f7329b1153c07296824fc42733e84901d01b.md`;
+- prompt SHA-256: `fff73716b9b8cf5f5830090ffd61f7329b1153c07296824fc42733e84901d01b`.
+
+Focused validation now passes 2 files / 18 tests. TypeScript, script syntax and
+`git diff --check` pass. A direct run through the real repository parser and
+suffix-chip scanner confirms the same frontmatter/page/chip facts. The full
+repository gate was not rerun and its existing seven-failure HOLD remains.
+
 ## Rollback
 
 Revert only the follow-up commit built on `a985cc43`. The prior Architect v1 pilot commit and its preserved outputs remain independently addressable. Because no bank/runtime authority changed, rollback requires no story migration or data rewrite.

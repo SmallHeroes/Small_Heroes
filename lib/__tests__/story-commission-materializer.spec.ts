@@ -18,6 +18,7 @@ const {
   findRecord,
   loadArchitectPilotAuthority,
   loadCommissionAuthority,
+  normalizeTargetedRevisionDraft,
   projectBriefForWriter,
   readEditorialDraftFile,
   readEditorialReviewResultFile,
@@ -28,6 +29,7 @@ const {
   writeArchitectPilotFiles,
   writeCommissionFiles,
   writeEditorialReviewFiles,
+  writeNormalizedRevisionFiles,
   writeTargetedRevisionFiles,
 } = require('../../scripts/materialize-story-commission-briefs.cjs') as Materializer;
 
@@ -173,6 +175,11 @@ interface Materializer {
   findRecord: (authority: CommissionAuthority, briefId: string) => CommissionRecord;
   loadArchitectPilotAuthority: (authority?: CommissionAuthority) => ArchitectAuthority;
   loadCommissionAuthority: () => CommissionAuthority;
+  normalizeTargetedRevisionDraft: (
+    record: CommissionRecord,
+    draft: EditorialDraft,
+    reviewResult: EditorialReviewResult,
+  ) => { text: string; sha256: string; actions: Array<{ code: string }> };
   projectBriefForWriter: (brief: StoryBrief) => Record<string, unknown>;
   readEditorialDraftFile: (draftPath: string) => EditorialDraft;
   readEditorialReviewResultFile: (
@@ -200,6 +207,12 @@ interface Materializer {
     authority: ArchitectAuthority,
     record: CommissionRecord,
     draft: EditorialDraft,
+    outputDir: string,
+  ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
+  writeNormalizedRevisionFiles: (
+    record: CommissionRecord,
+    draft: EditorialDraft,
+    reviewResult: EditorialReviewResult,
     outputDir: string,
   ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
   writeTargetedRevisionFiles: (
@@ -600,6 +613,110 @@ describe('story commission materializer', () => {
     } finally {
       fs.rmSync(fixtureRoot, { recursive: true, force: true });
       fs.rmSync(outsidePath, { force: true });
+    }
+  });
+
+  it('normalizes only an authorized frontmatter delimiter and validates revision intake', () => {
+    const commissionAuthority = loadCommissionAuthority();
+    const record = findRecord(commissionAuthority, DINI_BRIEF_ID);
+    const fixtureRoot = fs.mkdtempSync(
+      path.join(process.cwd(), 'outputs', 'small-heroes-revision-intake-test-'),
+    );
+    const draftPath = path.join(fixtureRoot, 'draft.md');
+    const reviewPath = path.join(fixtureRoot, 'review.json');
+    const outputDir = path.join(fixtureRoot, 'normalized');
+    const pages = Array.from(
+      { length: record.brief.pageCount },
+      (_, index) => `--- Page ${index + 1} ---\n\n{{childName}} {חייך|חייכה}.`,
+    ).join('\n\n');
+    const rawDraft = [
+      '---',
+      'title: "{{childName}} ו־דיני: בדיקה"',
+      `companionId: ${record.companionId}`,
+      `direction: ${record.brief.direction}`,
+      `category: ${record.brief.category}`,
+      `pages: ${record.brief.pageCount}`,
+      'gender: female',
+      'endingType: resolution',
+      '----------------------',
+      '',
+      pages,
+      '',
+    ].join('\n');
+    const review: EditorialReview = {
+      version: 'small-heroes-story-editorial-review/v1',
+      verdict: 'revise',
+      strengths: ['הטיוטה שומרת על המשחק המרכזי.'],
+      issues: [
+        {
+          code: 'output_structure_invalid',
+          severity: 'major',
+          evidencePages: [1],
+          functionalGap: 'מפריד הסיום אינו תקני.',
+        },
+      ],
+      revisionPriorities: ['לתקן את מעטפת ה-frontmatter בלבד.'],
+      mustPreserve: ['לשמור את כל עמודי הפרוזה.'],
+    };
+
+    try {
+      fs.writeFileSync(draftPath, rawDraft, 'utf8');
+      fs.writeFileSync(reviewPath, `${JSON.stringify(review)}\n`, 'utf8');
+      const draft = readEditorialDraftFile(draftPath);
+      const reviewResult = readEditorialReviewResultFile(reviewPath, record.brief.pageCount);
+      const normalized = normalizeTargetedRevisionDraft(record, draft, reviewResult);
+
+      expect(normalized.actions).toEqual([
+        { code: 'frontmatter_closing_delimiter_normalized', fromLength: 22, to: '---' },
+      ]);
+      expect(normalized.text).not.toContain('----------------------');
+      expect(normalized.text.match(/^---$/gm)).toHaveLength(2);
+      expect(normalized.text.match(/^--- Page \d+ ---$/gm)).toHaveLength(12);
+      expect(normalized.text.split(/^--- Page \d+ ---$/gm).slice(1)).toEqual(
+        rawDraft.split(/^--- Page \d+ ---$/gm).slice(1),
+      );
+
+      const manifest = writeNormalizedRevisionFiles(
+        record,
+        draft,
+        reviewResult,
+        outputDir,
+      );
+      expect(manifest.version).toBe(
+        'small-heroes-targeted-story-revision-normalization-manifest/v1',
+      );
+      expect(manifest.record.filename).toMatch(
+        new RegExp(`^${DINI_BRIEF_ID}\\.normalized\\.[a-f0-9]{64}\\.md$`),
+      );
+      expect(() =>
+        writeNormalizedRevisionFiles(record, draft, reviewResult, outputDir),
+      ).toThrow('story_writer_normalized_output_directory_not_empty');
+
+      const badChipDraft = {
+        ...draft,
+        text: rawDraft.replace('{חייך|חייכה}', 'חייכ{ה|ה}'),
+      };
+      expect(() =>
+        normalizeTargetedRevisionDraft(record, badChipDraft, reviewResult),
+      ).toThrow('story_writer_revision_gender_chips_invalid');
+      const wrongIdentityDraft = {
+        ...draft,
+        text: rawDraft.replace(`companionId: ${record.companionId}`, 'companionId: fox_uri'),
+      };
+      expect(() =>
+        normalizeTargetedRevisionDraft(record, wrongIdentityDraft, reviewResult),
+      ).toThrow('story_writer_revision_identity_mismatch');
+      expect(() =>
+        normalizeTargetedRevisionDraft(record, draft, {
+          ...reviewResult,
+          review: {
+            ...review,
+            issues: [{ ...review.issues[0]!, code: 'comic_peak_insufficient' }],
+          },
+        }),
+      ).toThrow('story_writer_revision_frontmatter_invalid');
+    } finally {
+      fs.rmSync(fixtureRoot, { recursive: true, force: true });
     }
   });
 

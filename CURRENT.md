@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-13
+**Updated:** 2026-08-14
 **Maintainer:** Codex
 **Working branch:** `codex/story-bank-next-generation-briefs-qa-integration` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`; the functional-quality follow-up is based exactly on `a985cc43ad4e8ccf37ee033ba55365bf98d59821`.
 
@@ -23,7 +23,13 @@ Guy selected Architect option A and judged its resulting Dini cake draft a mater
 - The separate targeted Writer commission is `outputs/story-engine-vnext-dini-cake-targeted-revision-20260813-v1/dragon_dini_adventure_wobble_cake_convoy_brief_v1.revision.a7fa8e88f63677b251e172c574aea10935636c61843d75ac0bb4d31f748794b9.md` (12,055 bytes). Its raw SHA-256 equals the filename digest and it binds both the unchanged Draft A digest and the Editor-result digest.
 - The Writer is asked for one complete revision, not a patch. It may address only diagnosed gaps, must preserve the four accepted strengths, receives deterministic syntax/frontmatter correction rules only because those codes were diagnosed, and retains creative freedom over how to produce a larger comic peak. `pass` and `reject` results cannot enter this path.
 - Follow-up focused validation passes **2 files / 17 tests**, script syntax, deterministic TypeScript and `git diff --check`. No second repository-wide check was run; the recorded separate seven-failure repository/release HOLD remains unchanged.
-- Next product evidence is the Writer's revised 12-page story, followed by the same diagnostic Editor contract and Guy's story acceptance. No revision result or story-quality PASS is claimed yet.
+- Claude Code independently reviewed exact immutable range `a985cc43ad4e8ccf37ee033ba55365bf98d59821..7c55bf931b4488d5ea0340a6b503a1cdcc36e67f` read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It confirmed all eleven handoff claims, exhaustively falsified 36 malformed Editor-result shapes, reproduced 2 files / 17 tests, TypeScript, script syntax and `git diff --check`, and rebuilt the shipped revision prompt byte-identically. This is Claude Code's verdict, not a Codex self-award. ADV-1 through ADV-7 are future-hardening notes only and do not alter the PASS or the separate seven-failure release HOLD.
+- The Writer returned a materially improved 12-page revision. Pages 5–6 now create a large visual-comedy peak through cascading oranges, while page 8 sharpens the child's intentional repeat experiment. All previously malformed gender chips were replaced with complete forms. The raw response is preserved at `outputs/story-engine-vnext-dini-cake-revision1-raw/draft.md` (6,603 bytes; SHA-256 `0c33aa0a668d475ea44909af3b911f18478ffb1eef1dda94cccf6de6cd9c6907`).
+- The Writer nevertheless repeated the known malformed frontmatter closing delimiter. A new bounded intake therefore normalizes only that exact mechanical issue when the bound Editor result authorizes `output_structure_invalid`; it otherwise fails closed on identity drift, page-count/order/emptiness or malformed/suffix gender chips. It is not a prose-repair path.
+- The normalized story is `outputs/story-engine-vnext-dini-cake-revision1-normalized-20260814-v1/dragon_dini_adventure_wobble_cake_convoy_brief_v1.normalized.7e496c0365d86b4cf2db0be1cece81a71365451883ce7a2203a598b63af83fa4.md` (6,584 bytes). Its only normalization action is `frontmatter_closing_delimiter_normalized` from 22 characters to `---`; it retains exactly 12 sequential nonempty pages and passes the repository's real suffix-chip scanner with zero hits.
+- Editor round 2 is materialized at `outputs/story-engine-vnext-dini-cake-editor-review-round2-20260814-v1/dragon_dini_adventure_wobble_cake_convoy_brief_v1.editor.fff73716b9b8cf5f5830090ffd61f7329b1153c07296824fc42733e84901d01b.md`. The normalized draft digest is `7e496c03…`; the prompt raw SHA-256 equals its `fff73716…` filename digest.
+- Intake follow-up validation passes **2 files / 18 tests**, deterministic TypeScript, script syntax and `git diff --check`. Direct execution of the repository parser proves exact frontmatter, pages 1–12, zero empty pages and zero suffix-chip hits. No second repository-wide check was run.
+- Next product evidence is the closed Editor round-2 verdict and Guy's story acceptance. No final story-quality PASS or bank/import/render authority is claimed yet.
 
 Durable records: `docs/ai-workflow/STORY_ENGINE_VNEXT_FUNCTIONAL_QUALITY_PILOT_DECISION_GATE.md` and `docs/ai-workflow/STORY_ENGINE_VNEXT_FUNCTIONAL_QUALITY_PILOT_IMPLEMENTATION_EVIDENCE.md`.
 

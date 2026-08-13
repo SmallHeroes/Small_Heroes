@@ -105,6 +105,21 @@ strengths and `mustPreserve` list, exposes deterministic mechanical fixes only
 for diagnosed format issues and leaves the creative implementation of a
 functional story gap to the Writer.
 
+Before a revised story returns to the Editor, pass it through the bounded intake:
+
+```powershell
+node scripts/materialize-story-commission-briefs.cjs normalize-targeted-revision-pilot `
+  --brief-id dragon_dini_adventure_wobble_cake_convoy_brief_v1 `
+  --draft-path outputs/story-engine-vnext-dini-cake-revision1-raw/draft.md `
+  --review-path outputs/story-engine-vnext-dini-cake-editor-result-20260813-v1/review.json `
+  --output-dir outputs/story-engine-vnext-dini-cake-revision1-normalized-v1
+```
+
+This intake is not a prose editor. It verifies exact identity, 12 sequential
+nonempty pages and full-form gender chips. It may normalize only a malformed
+frontmatter closing delimiter when the bound Editor result explicitly contains
+`output_structure_invalid`; all other malformed structure fails closed.
+
 ## Existing v2 commands
 
 ```powershell
