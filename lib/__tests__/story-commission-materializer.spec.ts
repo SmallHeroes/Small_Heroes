@@ -1655,7 +1655,7 @@ describe('autonomous story batch', () => {
       '---',
       ...Array.from(
         { length: record.brief.pageCount },
-        (_, index) => `--- Page ${index + 1} ---\n\n{{childName}} {\u05E6\u05E2\u05D3|\u05E6\u05E2\u05D3\u05D4} \u05E7\u05D3\u05D9\u05DE\u05D4.`,
+        (_, index) => `--- Page ${index + 1} ---\n\n{{childName}} {\u05E6\u05E2\u05D3.|\u05E6\u05E2\u05D3\u05D4.} \u05E7\u05D3\u05D9\u05DE\u05D4.`,
       ),
       '',
     ].join('\n');
@@ -1721,6 +1721,14 @@ describe('autonomous story batch', () => {
         'editor', 'revision', 'editor', 'revision', 'editor', 'revision', 'editor',
       ]);
       expect(revisionCeilings).toEqual(Array(3).fill(autonomous.revisionMaxOutputTokens(record.brief.pageCount)));
+      const finalStoryPath = path.join(
+        outputRoot,
+        record.brief.id,
+        manifest.stories[record.brief.id].finalStory.filename,
+      );
+      const finalStory = fs.readFileSync(finalStoryPath, 'utf8');
+      expect(finalStory).not.toMatch(/\{[^{}|]+\.\|[^{}|]+\.\}/u);
+      expect(finalStory).toMatch(/\{[^{}|]+\|[^{}|]+\}\./u);
     } finally {
       fs.rmSync(outputRoot, { recursive: true, force: true });
     }
