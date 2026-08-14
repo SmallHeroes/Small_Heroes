@@ -1,0 +1,30 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "lion_shaket_adventure_bridge_lock_rumble_brief_v1",
+    "slot": "lion_shaket_adventure",
+    "companionId": "lion_shaket",
+    "direction": "adventure",
+    "category": "ANGER_FRUSTRATION",
+    "textPageCount": 12,
+    "physicalPageCount": 24,
+    "storySha256": "b16dba08984b2ca96797e7f357066b63c914055bb361da332520dcd289b2975f",
+    "reviewSha256": "adb37b3f3a9b89520aabda0930a70e2b00c4bfbfdf041efe7650e29c97b1366e",
+    "normalizationActions": [],
+    "source": {
+      "root": "outputs/story-autonomous-revision-headroom-wave-20260815-06",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v1",
+      "repoHead": "c1eaf6c2464aa0023a3ccd1d999c576e948a0f9e",
+      "manifestSha256": "231cd35758acdf763755d1e6f97841a352fa32e8c22815d7006e4e796f86d7fe",
+      "waveStatus": "machine_qualified",
+      "storySha256": "b16dba08984b2ca96797e7f357066b63c914055bb361da332520dcd289b2975f",
+      "logicalProviderCalls": 6,
+      "actualCostUsd": 0.477416,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "B",
+      "revisionCount": 1
+    }
+  }
+}

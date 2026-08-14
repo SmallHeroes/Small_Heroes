@@ -1,0 +1,30 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "bunny_ometz_bedtime_toy_inspection_depot_brief_v1",
+    "slot": "bunny_ometz_bedtime",
+    "companionId": "bunny_ometz",
+    "direction": "bedtime",
+    "category": "MEDICAL_PROCEDURE",
+    "textPageCount": 8,
+    "physicalPageCount": 16,
+    "storySha256": "c0a1933c2e475ec37c96efae28b7c5cd805844c934dda4498145850df4569941",
+    "reviewSha256": "15ce569d0781a829796aa50b652f128d7a997a7c98086af137213bebfd98fd60",
+    "normalizationActions": [],
+    "source": {
+      "root": "outputs/story-autonomous-editorial-closeout-wave-20260815-02",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v2",
+      "repoHead": "816f0df75017bd7c061fbf2076925e9c2e255146",
+      "manifestSha256": "9a1c4e37a33a24a4e0b5beba09d14c26756369036a4020001de92addea103875",
+      "waveStatus": "machine_qualified",
+      "storySha256": "c0a1933c2e475ec37c96efae28b7c5cd805844c934dda4498145850df4569941",
+      "logicalProviderCalls": 8,
+      "actualCostUsd": 0.5732215,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "C",
+      "revisionCount": 2
+    }
+  }
+}

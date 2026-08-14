@@ -1,0 +1,30 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "fox_uri_bedtime_moon_laundry_brief_v1",
+    "slot": "fox_uri_bedtime",
+    "companionId": "fox_uri",
+    "direction": "bedtime",
+    "category": "NIGHT_FEAR",
+    "textPageCount": 8,
+    "physicalPageCount": 16,
+    "storySha256": "02de53756aebb01af6233e3aa3f7be2f301991e4e1fd44ad7d51dd5c54c55fbe",
+    "reviewSha256": "3287cfec1d59586087032170ee4bca58fe0e1fa9deedd2a7b82dee313e5bc0f4",
+    "normalizationActions": [],
+    "source": {
+      "root": "outputs/story-autonomous-editorial-closeout-wave-20260815-01",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v2",
+      "repoHead": "816f0df75017bd7c061fbf2076925e9c2e255146",
+      "manifestSha256": "ac0b1e3f48324786c7bcf4ef8bfd01a454f4e628b6d7629c2596a978b7b31d52",
+      "waveStatus": "machine_qualified",
+      "storySha256": "02de53756aebb01af6233e3aa3f7be2f301991e4e1fd44ad7d51dd5c54c55fbe",
+      "logicalProviderCalls": 6,
+      "actualCostUsd": 0.49596475,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "C",
+      "revisionCount": 1
+    }
+  }
+}

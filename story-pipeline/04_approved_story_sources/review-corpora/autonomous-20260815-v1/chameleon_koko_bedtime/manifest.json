@@ -1,0 +1,30 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "chameleon_koko_bedtime_walking_bus_stop_brief_v1",
+    "slot": "chameleon_koko_bedtime",
+    "companionId": "chameleon_koko",
+    "direction": "bedtime",
+    "category": "TRANSITION",
+    "textPageCount": 8,
+    "physicalPageCount": 16,
+    "storySha256": "49d2866ee4cdef5ea5155c87f7769f6c653ba224ff4b5ec490a039dfd632a76d",
+    "reviewSha256": "2b71f2c57e5345e2515936b129f2fdff99fb7c27acdb4bea2ad56e27cda458f7",
+    "normalizationActions": [],
+    "source": {
+      "root": "outputs/story-autonomous-revision-headroom-wave-20260815-02",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v1",
+      "repoHead": "c1eaf6c2464aa0023a3ccd1d999c576e948a0f9e",
+      "manifestSha256": "ee3e6da237eef7e3bb38dc64804ea7cddc1512bd03e651a9739e5994fcfc6998",
+      "waveStatus": "machine_qualified",
+      "storySha256": "49d2866ee4cdef5ea5155c87f7769f6c653ba224ff4b5ec490a039dfd632a76d",
+      "logicalProviderCalls": 8,
+      "actualCostUsd": 0.54211525,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "C",
+      "revisionCount": 2
+    }
+  }
+}

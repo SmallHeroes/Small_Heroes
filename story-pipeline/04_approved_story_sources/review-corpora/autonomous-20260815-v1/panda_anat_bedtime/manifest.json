@@ -1,0 +1,30 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "panda_anat_bedtime_last_puppet_bow_brief_v1",
+    "slot": "panda_anat_bedtime",
+    "companionId": "panda_anat",
+    "direction": "bedtime",
+    "category": "SOCIAL",
+    "textPageCount": 8,
+    "physicalPageCount": 16,
+    "storySha256": "ca9a162a43ecf0d6b111de4a4e29940205b2f91b0d61d0eba0f219c2f22ff91c",
+    "reviewSha256": "419b2ec3ccc5544f2693e427d5554aa838a8d786b7d83a1eb47285143a23808c",
+    "normalizationActions": [],
+    "source": {
+      "root": "outputs/story-autonomous-full-wave-20260814-v2",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v1",
+      "repoHead": "a940aaf2383985a54347a91a01ecd41267507858",
+      "manifestSha256": "d66785af391bec148c5d58e4ef1467187c863d30009022a85f0ed6879f214932",
+      "waveStatus": "in_progress",
+      "storySha256": "ca9a162a43ecf0d6b111de4a4e29940205b2f91b0d61d0eba0f219c2f22ff91c",
+      "logicalProviderCalls": 44,
+      "actualCostUsd": 3.91268375,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "B",
+      "revisionCount": 1
+    }
+  }
+}

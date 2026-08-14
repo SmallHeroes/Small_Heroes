@@ -1,0 +1,30 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "dragon_dini_bedtime_last_train_seed_lantern_brief_v1",
+    "slot": "dragon_dini_bedtime",
+    "companionId": "dragon_dini",
+    "direction": "bedtime",
+    "category": "NEW_SIBLING",
+    "textPageCount": 8,
+    "physicalPageCount": 16,
+    "storySha256": "3a82fde86f891138b0b8abbaea59ddb16c8a95320cee2d2d65ae34575f3c7044",
+    "reviewSha256": "bcd2e91c25b7a4278a0fa8889f95019a41469f11fa71d1ce301b0de0a39ddcd2",
+    "normalizationActions": [],
+    "source": {
+      "root": "outputs/story-autonomous-editorial-closeout-wave-20260815-04",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v2",
+      "repoHead": "816f0df75017bd7c061fbf2076925e9c2e255146",
+      "manifestSha256": "ae907284acfd491a988d537f08760be5d0faf8baf234276c261a38e501b5e6ff",
+      "waveStatus": "machine_qualified",
+      "storySha256": "3a82fde86f891138b0b8abbaea59ddb16c8a95320cee2d2d65ae34575f3c7044",
+      "logicalProviderCalls": 4,
+      "actualCostUsd": 0.32766925,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "B",
+      "revisionCount": 0
+    }
+  }
+}

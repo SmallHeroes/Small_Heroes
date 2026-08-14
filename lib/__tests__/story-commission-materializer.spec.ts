@@ -70,6 +70,11 @@ const autonomous = require('../../scripts/story-autonomous-batch-core.cjs') as {
 const { createOpenAiStoryProvider } = require('../../scripts/story-autonomous-openai-provider.cjs') as {
   createOpenAiStoryProvider: (input: any) => { complete: (request: any) => Promise<any> };
 };
+const reviewCorpus = require('../../scripts/materialize-autonomous-story-review-corpus.cjs') as {
+  ACCEPTED_DINI_BRIEF_ID: string;
+  SELECTION_VERSION: string;
+  validateSelection: (value: any, authority: any) => any;
+};
 
 interface StoryBrief {
   id: string;
@@ -1306,6 +1311,36 @@ describe('story commission materializer', () => {
 });
 
 describe('autonomous story batch', () => {
+  it('binds one immutable reviewed candidate selection for every non-accepted slot', () => {
+    const authority = loadStoryArchitectAuthority();
+    const selection = JSON.parse(fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'story-pipeline',
+        '04_approved_story_sources',
+        'autonomous-corpus-selection.json',
+      ),
+      'utf8',
+    ));
+    const validated = reviewCorpus.validateSelection(selection, authority);
+    expect(validated.version).toBe(reviewCorpus.SELECTION_VERSION);
+    expect(validated.records).toHaveLength(17);
+    expect(validated.records).not.toContainEqual(
+      expect.objectContaining({ briefId: reviewCorpus.ACCEPTED_DINI_BRIEF_ID }),
+    );
+    expect(Object.keys(validated.manifestDigests).sort()).toEqual(
+      [...new Set(validated.records.map(({ root }: { root: string }) => root))].sort(),
+    );
+    expect(() => reviewCorpus.validateSelection({
+      ...selection,
+      manifestDigests: { ...selection.manifestDigests, [selection.records[0].root]: '0'.repeat(63) },
+    }, authority)).toThrow('story_review_corpus_manifest_digests_invalid');
+    expect(() => reviewCorpus.validateSelection({
+      ...selection,
+      records: selection.records.slice(1),
+    }, authority)).toThrow('story_review_corpus_coverage_invalid');
+  });
+
   const option = (optionId: 'A' | 'B' | 'C', suffix: string) => ({
     optionId,
     title: `כותרת ${suffix}`,

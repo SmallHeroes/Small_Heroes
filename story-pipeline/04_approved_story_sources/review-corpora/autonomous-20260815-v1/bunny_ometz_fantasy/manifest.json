@@ -1,0 +1,30 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "bunny_ometz_fantasy_plan_sized_doors_brief_v1",
+    "slot": "bunny_ometz_fantasy",
+    "companionId": "bunny_ometz",
+    "direction": "fantasy",
+    "category": "MEDICAL_PROCEDURE",
+    "textPageCount": 16,
+    "physicalPageCount": 32,
+    "storySha256": "ff68603d3a491486ac53b11a5ba237cbb8697f5199d62a23a2a3358bbd4bffa7",
+    "reviewSha256": "7eb49f1ff3e861f3a9b022d91fd537d3b30a0ef78b76b1a579b0514c9992d0a6",
+    "normalizationActions": [],
+    "source": {
+      "root": "outputs/story-autonomous-prefix-closeout-20260815-01",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v3",
+      "repoHead": "014b896d4619df46c949ead50527f0eac89a5ca5",
+      "manifestSha256": "21dfe037c18d952e77748f7749af85b18ca934ebf46237d7b6551a2d24c66720",
+      "waveStatus": "machine_qualified",
+      "storySha256": "ff68603d3a491486ac53b11a5ba237cbb8697f5199d62a23a2a3358bbd4bffa7",
+      "logicalProviderCalls": 8,
+      "actualCostUsd": 0.94515025,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "A",
+      "revisionCount": 2
+    }
+  }
+}

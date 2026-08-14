@@ -1,0 +1,35 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "dragon_dini_fantasy_bouncing_sky_seed_brief_v1",
+    "slot": "dragon_dini_fantasy",
+    "companionId": "dragon_dini",
+    "direction": "fantasy",
+    "category": "NEW_SIBLING",
+    "textPageCount": 16,
+    "physicalPageCount": 32,
+    "storySha256": "ba59843988731539de236ec21ee2240c2c02b5962fcdf59f187775d0b0869fe7",
+    "reviewSha256": "6cfe422b0df9b472b80d2598287f53eb332bed67011548ba8c0dd1594da0a465",
+    "normalizationActions": [
+      {
+        "code": "trailing_horizontal_whitespace_removed",
+        "lineCount": 16
+      }
+    ],
+    "source": {
+      "root": "outputs/story-autonomous-isolated-wave-20260814-04",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v1",
+      "repoHead": "a940aaf2383985a54347a91a01ecd41267507858",
+      "manifestSha256": "11de10be36a4dcc609ee98f9ffb04bb73895a920621157a3bd24666d8d537a2b",
+      "waveStatus": "machine_qualified",
+      "storySha256": "8ce79f5154bca2c6c384227c7893c65095d46b34ba9668ad285c192fd4af63ba",
+      "logicalProviderCalls": 6,
+      "actualCostUsd": 0.4961485,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "B",
+      "revisionCount": 1
+    }
+  }
+}

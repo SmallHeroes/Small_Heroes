@@ -1,0 +1,30 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "fox_uri_adventure_backward_tracks_brief_v1",
+    "slot": "fox_uri_adventure",
+    "companionId": "fox_uri",
+    "direction": "adventure",
+    "category": "NIGHT_FEAR",
+    "textPageCount": 12,
+    "physicalPageCount": 24,
+    "storySha256": "cdc1192bc365605bfd5c72a0bb56adabfcef0f3984b2312bae41d980d796f550",
+    "reviewSha256": "8838f1e8e47a72b98e45c2e2b932e80ff1365f0c9a0bd8b51f9589c147e733f2",
+    "normalizationActions": [],
+    "source": {
+      "root": "outputs/story-autonomous-full-wave-20260814-v2",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v1",
+      "repoHead": "a940aaf2383985a54347a91a01ecd41267507858",
+      "manifestSha256": "d66785af391bec148c5d58e4ef1467187c863d30009022a85f0ed6879f214932",
+      "waveStatus": "in_progress",
+      "storySha256": "cdc1192bc365605bfd5c72a0bb56adabfcef0f3984b2312bae41d980d796f550",
+      "logicalProviderCalls": 44,
+      "actualCostUsd": 3.91268375,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "C",
+      "revisionCount": 1
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "lion_shaket_fantasy_cloud_pear_orchard_brief_v1",
+    "slot": "lion_shaket_fantasy",
+    "companionId": "lion_shaket",
+    "direction": "fantasy",
+    "category": "ANGER_FRUSTRATION",
+    "textPageCount": 16,
+    "physicalPageCount": 32,
+    "storySha256": "933e7c3ccbc8c905b4594959e117b0d2bbad9a3fdd0b73808ca989f074de55c6",
+    "reviewSha256": "56d3f7f421cb40d272f5a22a212aa0d5e9fc26dcd563dad02834438049ed0db5",
+    "normalizationActions": [],
+    "source": {
+      "root": "outputs/story-autonomous-editorial-closeout-wave-20260815-05",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v2",
+      "repoHead": "816f0df75017bd7c061fbf2076925e9c2e255146",
+      "manifestSha256": "1d3d98782cabfffca1e329a27f9a9a261737b71911686dc625fc9177bcd9a628",
+      "waveStatus": "machine_qualified",
+      "storySha256": "933e7c3ccbc8c905b4594959e117b0d2bbad9a3fdd0b73808ca989f074de55c6",
+      "logicalProviderCalls": 8,
+      "actualCostUsd": 0.69153025,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "C",
+      "revisionCount": 2
+    }
+  }
+}

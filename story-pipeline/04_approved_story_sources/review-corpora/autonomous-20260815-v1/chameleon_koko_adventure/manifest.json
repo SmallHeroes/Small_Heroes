@@ -1,0 +1,30 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "chameleon_koko_adventure_shifting_harbor_market_brief_v1",
+    "slot": "chameleon_koko_adventure",
+    "companionId": "chameleon_koko",
+    "direction": "adventure",
+    "category": "TRANSITION",
+    "textPageCount": 12,
+    "physicalPageCount": 24,
+    "storySha256": "b20b74e622f601501dfabc65cd7b3af401df04cbef7441457d74208b34ace782",
+    "reviewSha256": "06250b5ad5b072c769e040b4cef6595a1630fdb0bff1b80879d2a889de4d7ffc",
+    "normalizationActions": [],
+    "source": {
+      "root": "outputs/story-autonomous-revision-headroom-wave-20260815-03",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v1",
+      "repoHead": "c1eaf6c2464aa0023a3ccd1d999c576e948a0f9e",
+      "manifestSha256": "2fe25d293508912b11e3d5c1cb33aeffe13e18440bc4747652573982410feabd",
+      "waveStatus": "machine_qualified",
+      "storySha256": "b20b74e622f601501dfabc65cd7b3af401df04cbef7441457d74208b34ace782",
+      "logicalProviderCalls": 8,
+      "actualCostUsd": 0.85815275,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "C",
+      "revisionCount": 2
+    }
+  }
+}

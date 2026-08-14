@@ -1,0 +1,30 @@
+{
+  "version": "small-heroes-autonomous-story-review-corpus/v1",
+  "status": "pending_independent_artifact_audit",
+  "record": {
+    "briefId": "lion_shaket_bedtime_last_carousel_rumble_brief_v1",
+    "slot": "lion_shaket_bedtime",
+    "companionId": "lion_shaket",
+    "direction": "bedtime",
+    "category": "ANGER_FRUSTRATION",
+    "textPageCount": 8,
+    "physicalPageCount": 16,
+    "storySha256": "b6a30f1174c684cfb0f1c8a0041bcbae1dd4df10c58274829e78ea7956180cf0",
+    "reviewSha256": "e0c5e22b7f33a721a51b074084c451685c239c6f3665fcfe173f12168cff22fe",
+    "normalizationActions": [],
+    "source": {
+      "root": "outputs/story-autonomous-revision-headroom-wave-20260815-05",
+      "pipelineVersion": "small-heroes-autonomous-story-batch/v1",
+      "repoHead": "c1eaf6c2464aa0023a3ccd1d999c576e948a0f9e",
+      "manifestSha256": "0355e5cf59e829a6cc811d903f4946dec5360f447e3bda5b3372d49b211784e5",
+      "waveStatus": "machine_qualified",
+      "storySha256": "b6a30f1174c684cfb0f1c8a0041bcbae1dd4df10c58274829e78ea7956180cf0",
+      "logicalProviderCalls": 8,
+      "actualCostUsd": 0.69027275,
+      "transportRetries": 0,
+      "fallbackUsed": false,
+      "selectedOptionId": "B",
+      "revisionCount": 2
+    }
+  }
+}
