@@ -1,0 +1,49 @@
+{
+  "version": "small-heroes-product-accepted-story-source-manifest/v1",
+  "status": "product_accepted_story_source",
+  "authorityScope": "story_text_only",
+  "record": {
+    "briefId": "bunny_ometz_fantasy_plan_sized_doors_brief_v1",
+    "companionId": "bunny_ometz",
+    "direction": "fantasy",
+    "category": "MEDICAL_PROCEDURE",
+    "textPageCount": 16,
+    "physicalPageCount": 32,
+    "story": {
+      "filename": "story.md",
+      "bytes": 12374,
+      "sha256": "ff68603d3a491486ac53b11a5ba237cbb8697f5199d62a23a2a3358bbd4bffa7",
+      "byteIdenticalToSource": true
+    },
+    "editorialReview": {
+      "filename": "editorial-review.json",
+      "sourcePath": "story-pipeline/04_approved_story_sources/review-corpora/autonomous-20260815-v1/bunny_ometz_fantasy/editorial-review.json",
+      "bytes": 1660,
+      "sha256": "7eb49f1ff3e861f3a9b022d91fd537d3b30a0ef78b76b1a579b0514c9992d0a6",
+      "verdict": "pass",
+      "byteIdenticalToSource": true
+    },
+    "productAcceptance": {
+      "path": "story-pipeline/04_approved_story_sources/approvals/autonomous-20260815-v1.product-acceptance.json",
+      "bytes": 938,
+      "sha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc",
+      "acceptedBy": "Guy",
+      "acceptedOn": "2026-08-15"
+    },
+    "independentArtifactAudit": {
+      "status": "pass",
+      "reviewedHead": "dc7f15423616db80fa6a09ddd15ca9dc8702049c",
+      "blocker": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "excludedAuthorities": [
+      "visual_direction_authority",
+      "visual_contract",
+      "blueprint",
+      "render",
+      "production",
+      "deployment"
+    ]
+  }
+}

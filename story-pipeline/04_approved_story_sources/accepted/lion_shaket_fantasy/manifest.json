@@ -1,0 +1,49 @@
+{
+  "version": "small-heroes-product-accepted-story-source-manifest/v1",
+  "status": "product_accepted_story_source",
+  "authorityScope": "story_text_only",
+  "record": {
+    "briefId": "lion_shaket_fantasy_cloud_pear_orchard_brief_v1",
+    "companionId": "lion_shaket",
+    "direction": "fantasy",
+    "category": "ANGER_FRUSTRATION",
+    "textPageCount": 16,
+    "physicalPageCount": 32,
+    "story": {
+      "filename": "story.md",
+      "bytes": 8741,
+      "sha256": "933e7c3ccbc8c905b4594959e117b0d2bbad9a3fdd0b73808ca989f074de55c6",
+      "byteIdenticalToSource": true
+    },
+    "editorialReview": {
+      "filename": "editorial-review.json",
+      "sourcePath": "story-pipeline/04_approved_story_sources/review-corpora/autonomous-20260815-v1/lion_shaket_fantasy/editorial-review.json",
+      "bytes": 1361,
+      "sha256": "56d3f7f421cb40d272f5a22a212aa0d5e9fc26dcd563dad02834438049ed0db5",
+      "verdict": "pass",
+      "byteIdenticalToSource": true
+    },
+    "productAcceptance": {
+      "path": "story-pipeline/04_approved_story_sources/approvals/autonomous-20260815-v1.product-acceptance.json",
+      "bytes": 938,
+      "sha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc",
+      "acceptedBy": "Guy",
+      "acceptedOn": "2026-08-15"
+    },
+    "independentArtifactAudit": {
+      "status": "pass",
+      "reviewedHead": "dc7f15423616db80fa6a09ddd15ca9dc8702049c",
+      "blocker": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "excludedAuthorities": [
+      "visual_direction_authority",
+      "visual_contract",
+      "blueprint",
+      "render",
+      "production",
+      "deployment"
+    ]
+  }
+}

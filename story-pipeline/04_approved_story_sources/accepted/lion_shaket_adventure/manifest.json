@@ -1,0 +1,49 @@
+{
+  "version": "small-heroes-product-accepted-story-source-manifest/v1",
+  "status": "product_accepted_story_source",
+  "authorityScope": "story_text_only",
+  "record": {
+    "briefId": "lion_shaket_adventure_bridge_lock_rumble_brief_v1",
+    "companionId": "lion_shaket",
+    "direction": "adventure",
+    "category": "ANGER_FRUSTRATION",
+    "textPageCount": 12,
+    "physicalPageCount": 24,
+    "story": {
+      "filename": "story.md",
+      "bytes": 9851,
+      "sha256": "b16dba08984b2ca96797e7f357066b63c914055bb361da332520dcd289b2975f",
+      "byteIdenticalToSource": true
+    },
+    "editorialReview": {
+      "filename": "editorial-review.json",
+      "sourcePath": "story-pipeline/04_approved_story_sources/review-corpora/autonomous-20260815-v1/lion_shaket_adventure/editorial-review.json",
+      "bytes": 1547,
+      "sha256": "adb37b3f3a9b89520aabda0930a70e2b00c4bfbfdf041efe7650e29c97b1366e",
+      "verdict": "pass",
+      "byteIdenticalToSource": true
+    },
+    "productAcceptance": {
+      "path": "story-pipeline/04_approved_story_sources/approvals/autonomous-20260815-v1.product-acceptance.json",
+      "bytes": 938,
+      "sha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc",
+      "acceptedBy": "Guy",
+      "acceptedOn": "2026-08-15"
+    },
+    "independentArtifactAudit": {
+      "status": "pass",
+      "reviewedHead": "dc7f15423616db80fa6a09ddd15ca9dc8702049c",
+      "blocker": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "excludedAuthorities": [
+      "visual_direction_authority",
+      "visual_contract",
+      "blueprint",
+      "render",
+      "production",
+      "deployment"
+    ]
+  }
+}

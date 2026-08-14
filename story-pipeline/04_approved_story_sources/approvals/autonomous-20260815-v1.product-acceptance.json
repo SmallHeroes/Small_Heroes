@@ -1,0 +1,27 @@
+{
+  "version": "small-heroes-story-corpus-product-acceptance/v1",
+  "status": "accepted",
+  "acceptedBy": "Guy",
+  "acceptedOn": "2026-08-15",
+  "acceptanceScope": "story_text_only",
+  "corpusManifestPath": "story-pipeline/04_approved_story_sources/review-corpora/autonomous-20260815-v1/manifest.json",
+  "corpusManifestSha256": "caac6d2619b49272a6f4cb87d58a43d7bc838b3416682b8a1b2db651f378493d",
+  "recordCount": 17,
+  "independentArtifactAudit": {
+    "status": "pass",
+    "reviewedBase": "816f0df75017bd7c061fbf2076925e9c2e255146",
+    "reviewedHead": "dc7f15423616db80fa6a09ddd15ca9dc8702049c",
+    "blocker": 0,
+    "major": 0,
+    "minor": 0
+  },
+  "decision": "Guy accepts all seventeen independently audited story texts for durable product-source storage and QA bank integration.",
+  "exclusions": [
+    "visual_direction_authority",
+    "visual_contract",
+    "blueprint",
+    "render",
+    "production",
+    "deployment"
+  ]
+}

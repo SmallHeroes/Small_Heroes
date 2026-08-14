@@ -1,0 +1,49 @@
+{
+  "version": "small-heroes-product-accepted-story-source-manifest/v1",
+  "status": "product_accepted_story_source",
+  "authorityScope": "story_text_only",
+  "record": {
+    "briefId": "panda_anat_bedtime_last_puppet_bow_brief_v1",
+    "companionId": "panda_anat",
+    "direction": "bedtime",
+    "category": "SOCIAL",
+    "textPageCount": 8,
+    "physicalPageCount": 16,
+    "story": {
+      "filename": "story.md",
+      "bytes": 6443,
+      "sha256": "ca9a162a43ecf0d6b111de4a4e29940205b2f91b0d61d0eba0f219c2f22ff91c",
+      "byteIdenticalToSource": true
+    },
+    "editorialReview": {
+      "filename": "editorial-review.json",
+      "sourcePath": "story-pipeline/04_approved_story_sources/review-corpora/autonomous-20260815-v1/panda_anat_bedtime/editorial-review.json",
+      "bytes": 1278,
+      "sha256": "419b2ec3ccc5544f2693e427d5554aa838a8d786b7d83a1eb47285143a23808c",
+      "verdict": "pass",
+      "byteIdenticalToSource": true
+    },
+    "productAcceptance": {
+      "path": "story-pipeline/04_approved_story_sources/approvals/autonomous-20260815-v1.product-acceptance.json",
+      "bytes": 938,
+      "sha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc",
+      "acceptedBy": "Guy",
+      "acceptedOn": "2026-08-15"
+    },
+    "independentArtifactAudit": {
+      "status": "pass",
+      "reviewedHead": "dc7f15423616db80fa6a09ddd15ca9dc8702049c",
+      "blocker": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "excludedAuthorities": [
+      "visual_direction_authority",
+      "visual_contract",
+      "blueprint",
+      "render",
+      "production",
+      "deployment"
+    ]
+  }
+}

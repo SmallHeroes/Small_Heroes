@@ -1,0 +1,49 @@
+{
+  "version": "small-heroes-product-accepted-story-source-manifest/v1",
+  "status": "product_accepted_story_source",
+  "authorityScope": "story_text_only",
+  "record": {
+    "briefId": "bunny_ometz_adventure_shrinking_bridge_inspection_brief_v1",
+    "companionId": "bunny_ometz",
+    "direction": "adventure",
+    "category": "MEDICAL_PROCEDURE",
+    "textPageCount": 12,
+    "physicalPageCount": 24,
+    "story": {
+      "filename": "story.md",
+      "bytes": 8650,
+      "sha256": "e8f3315cefb19cc206d77654fd9349ef471837293fa68b198b356448c27f22ff",
+      "byteIdenticalToSource": true
+    },
+    "editorialReview": {
+      "filename": "editorial-review.json",
+      "sourcePath": "story-pipeline/04_approved_story_sources/review-corpora/autonomous-20260815-v1/bunny_ometz_adventure/editorial-review.json",
+      "bytes": 1495,
+      "sha256": "7ecf822a2dc6a015c1d6399cd198104a1b9e55edceb767c13078f1efa717df5c",
+      "verdict": "pass",
+      "byteIdenticalToSource": true
+    },
+    "productAcceptance": {
+      "path": "story-pipeline/04_approved_story_sources/approvals/autonomous-20260815-v1.product-acceptance.json",
+      "bytes": 938,
+      "sha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc",
+      "acceptedBy": "Guy",
+      "acceptedOn": "2026-08-15"
+    },
+    "independentArtifactAudit": {
+      "status": "pass",
+      "reviewedHead": "dc7f15423616db80fa6a09ddd15ca9dc8702049c",
+      "blocker": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "excludedAuthorities": [
+      "visual_direction_authority",
+      "visual_contract",
+      "blueprint",
+      "render",
+      "production",
+      "deployment"
+    ]
+  }
+}

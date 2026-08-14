@@ -1,0 +1,49 @@
+{
+  "version": "small-heroes-product-accepted-story-source-manifest/v1",
+  "status": "product_accepted_story_source",
+  "authorityScope": "story_text_only",
+  "record": {
+    "briefId": "fox_uri_fantasy_sound_footprints_brief_v1",
+    "companionId": "fox_uri",
+    "direction": "fantasy",
+    "category": "NIGHT_FEAR",
+    "textPageCount": 16,
+    "physicalPageCount": 32,
+    "story": {
+      "filename": "story.md",
+      "bytes": 13428,
+      "sha256": "60c0dc057e484fca75cb41beae10cc396d5e32a78b3db84b2b8c559f84cf79ee",
+      "byteIdenticalToSource": true
+    },
+    "editorialReview": {
+      "filename": "editorial-review.json",
+      "sourcePath": "story-pipeline/04_approved_story_sources/review-corpora/autonomous-20260815-v1/fox_uri_fantasy/editorial-review.json",
+      "bytes": 1684,
+      "sha256": "452c756f71dff54237d0038b6d75c498b98c4da1220bd7e5dbfd6fcaa2931f4c",
+      "verdict": "pass",
+      "byteIdenticalToSource": true
+    },
+    "productAcceptance": {
+      "path": "story-pipeline/04_approved_story_sources/approvals/autonomous-20260815-v1.product-acceptance.json",
+      "bytes": 938,
+      "sha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc",
+      "acceptedBy": "Guy",
+      "acceptedOn": "2026-08-15"
+    },
+    "independentArtifactAudit": {
+      "status": "pass",
+      "reviewedHead": "dc7f15423616db80fa6a09ddd15ca9dc8702049c",
+      "blocker": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "excludedAuthorities": [
+      "visual_direction_authority",
+      "visual_contract",
+      "blueprint",
+      "render",
+      "production",
+      "deployment"
+    ]
+  }
+}

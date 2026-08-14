@@ -1,0 +1,49 @@
+{
+  "version": "small-heroes-product-accepted-story-source-manifest/v1",
+  "status": "product_accepted_story_source",
+  "authorityScope": "story_text_only",
+  "record": {
+    "briefId": "dragon_dini_fantasy_bouncing_sky_seed_brief_v1",
+    "companionId": "dragon_dini",
+    "direction": "fantasy",
+    "category": "NEW_SIBLING",
+    "textPageCount": 16,
+    "physicalPageCount": 32,
+    "story": {
+      "filename": "story.md",
+      "bytes": 8996,
+      "sha256": "ba59843988731539de236ec21ee2240c2c02b5962fcdf59f187775d0b0869fe7",
+      "byteIdenticalToSource": true
+    },
+    "editorialReview": {
+      "filename": "editorial-review.json",
+      "sourcePath": "story-pipeline/04_approved_story_sources/review-corpora/autonomous-20260815-v1/dragon_dini_fantasy/editorial-review.json",
+      "bytes": 1551,
+      "sha256": "6cfe422b0df9b472b80d2598287f53eb332bed67011548ba8c0dd1594da0a465",
+      "verdict": "pass",
+      "byteIdenticalToSource": true
+    },
+    "productAcceptance": {
+      "path": "story-pipeline/04_approved_story_sources/approvals/autonomous-20260815-v1.product-acceptance.json",
+      "bytes": 938,
+      "sha256": "e027fa32ed6cfc667bf75862e0c637ff38f173e5396615810bc11597c7efb7dc",
+      "acceptedBy": "Guy",
+      "acceptedOn": "2026-08-15"
+    },
+    "independentArtifactAudit": {
+      "status": "pass",
+      "reviewedHead": "dc7f15423616db80fa6a09ddd15ca9dc8702049c",
+      "blocker": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "excludedAuthorities": [
+      "visual_direction_authority",
+      "visual_contract",
+      "blueprint",
+      "render",
+      "production",
+      "deployment"
+    ]
+  }
+}
