@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/story-engine-autonomous-batch-orchestrator` in `C:\Users\guyna\.codex\worktrees\storybatch1\Small_Heroes`; based exactly on independently passed and pushed head `ea4404a5b2492099c35c90c6da2a14ee6478144f`.
 
-## STORY ENGINE AUTONOMOUS BATCH ORCHESTRATOR — bounded live pilot PASS / pre-wave typing QA pending
+## STORY ENGINE AUTONOMOUS BATCH ORCHESTRATOR — first full wave stopped / Editor headroom QA pending
 
 Guy approved replacing manual A/B/C selection for future commissions with an
 autonomous pipeline using `gpt-5.6-sol` through the Responses API. The accepted
@@ -90,26 +90,55 @@ wave.
   `c5becdf90d210db68aacb6f34608275d0c1df687597ad37b1685bfb57f90fe90`
   and passes canonical validation with zero normalization actions. Combined
   conservative exposure across v1-v3 is `$0.77742125`.
-- Before the 17-story wave, the CJS runtime now imports an explicit TypeScript
-  discriminated union for completed versus terminal calls. Terminal calls
-  cannot expose `output`; completed calls must. Story state and manifest calls
-  are bound to that union, and `npm run story:autonomous-typecheck` checks the
-  actual CJS reader against it. This implements Claude's remaining advisory
-  without changing runtime behavior, prompts, budgets or authority versions.
-  The dedicated typecheck, the focused **2 files / 30 tests**, deterministic
-  repository TypeScript, four CJS syntax checks and `git diff --check` pass.
-  The literal repository gate was not rerun; its separate known HOLD remains.
+- Before the 17-story wave, the CJS runtime imported an explicit TypeScript
+  discriminated union for completed versus terminal calls. Claude Code's
+  read-only review of exact range `6711b466..e987a9a9` returned **PASS** with
+  zero BLOCKER and zero MAJOR plus three non-blocking MINORs: imprecise wording
+  about the transitively included but unchecked legacy materializer, the
+  dedicated typecheck not being wired into `npm run check`, and static
+  assertions that did not prove both union variants and their receipts exist.
+- The first full-wave root,
+  `outputs/story-autonomous-full-wave-20260814-v1`, then ran at exact HEAD
+  `e987a9a9` under a hard `$20` cap. It completed 28 logical provider calls at
+  exact recorded cost `$2.10405525`, with zero transport retries and no
+  fallback. Three stories became `machine_qualified_staging_only`: Fox bedtime
+  moon laundry (one revision), Fox fantasy sound footprints (one revision) and
+  Panda bedtime last puppet bow (two revisions).
+- The wave stopped under Guy's repeated-failure rule after two unrelated
+  adventure stories reached the same terminal Editor code,
+  `story_provider_max_output_tokens`. Both Editor receipts bind
+  `reasoningEffort:high`, `maxOutputTokens:3000`, exactly 3,000 output tokens
+  and exactly 3,000 reasoning tokens, leaving no structured Editor JSON. Their
+  receipt digests are `ab5e9fdd…` and `84a9aa15…` and exact call costs are
+  `$0.10915175` and `$0.10692675`.
+- The stopped root is immutable evidence and cannot be resumed: the next Panda
+  fantasy Architect call has only in-flight prompt digest `9e1f81b6…`, no
+  completed receipt, and a reconstructed conservative reservation bound of
+  `$0.258825`. Completed cost plus that unknown-charge ceiling is
+  `$2.36288025`. No process from that wave remains active.
+- The general correction increases only the Editor output allowance from 3,000
+  to 6,000 while preserving high reasoning, every other role ceiling, prompts,
+  schemas, selection, two-revision limit, retry/fallback policy and the `$20`
+  wave cap. It also closes Claude's three MINORs: accurate materializer scope,
+  normal-gate wiring and non-vacuous completed/terminal/receipt assertions.
+  Validation passes the dedicated typecheck, focused **2 files / 30 tests**,
+  deterministic repository TypeScript, five CJS syntax checks and
+  `git diff --check`. `npm run check` was not rerun; its separate known HOLD
+  remains. The correction awaits independent read-only QA before a fresh-root
+  replacement wave.
 - The successful story remains `machine_qualified_staging_only`; it has not been
   promoted to accepted source, the live bank, Wizard, Visual Contract or render.
-  The 17-story wave has not run. The pre-wave typing hardening awaits read-only
-  Claude Code QA. No accepted source, live bank, Wizard, Visual Contract,
-  image/audio, render, database/storage, QA/Production deployment or push
-  changed.
+  The three additional qualified stories also remain staging-only. No accepted
+  source, live bank, Wizard, Visual Contract, image/audio, render,
+  database/storage, QA/Production deployment or push changed.
 
 Durable records:
 `docs/ai-workflow/STORY_ENGINE_AUTONOMOUS_BATCH_ORCHESTRATOR_DECISION_GATE.md`
 and
-`docs/ai-workflow/STORY_ENGINE_AUTONOMOUS_BATCH_ORCHESTRATOR_IMPLEMENTATION_EVIDENCE.md`.
+`docs/ai-workflow/STORY_ENGINE_AUTONOMOUS_BATCH_ORCHESTRATOR_IMPLEMENTATION_EVIDENCE.md`,
+plus the Editor correction gate/evidence in
+`docs/ai-workflow/STORY_ENGINE_EDITOR_REASONING_HEADROOM_DECISION_GATE.md` and
+`docs/ai-workflow/STORY_ENGINE_EDITOR_REASONING_HEADROOM_IMPLEMENTATION_EVIDENCE.md`.
 
 ## STORY ENGINE VNEXT APPROVED SOURCE + NEXT COMMISSION WAVE — independent TECHNICAL PASS / product source accepted
 

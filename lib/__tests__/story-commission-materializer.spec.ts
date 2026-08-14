@@ -49,6 +49,7 @@ const {
 const autonomous = require('../../scripts/story-autonomous-batch-core.cjs') as {
   MODEL: string;
   SERVICE_TIER: string;
+  EDITOR_MAX_OUTPUT_TOKENS: number;
   buildPrompts: (...args: any[]) => any;
   buildSelectorPrompt: (...args: any[]) => any;
   calculateCostUsd: (usage: Record<string, number>, serviceTier?: string) => number;
@@ -1377,6 +1378,28 @@ describe('autonomous story batch', () => {
     expect(architectPrompt.systemPrompt).toContain('natural Hebrew');
 
     const editorPrompt = autonomous.buildPrompts(process.cwd(), authority, record, selected, 'draft');
+    expect(editorPrompt.reasoningEffort).toBe('high');
+    expect(editorPrompt.maxOutputTokens).toBe(autonomous.EDITOR_MAX_OUTPUT_TOKENS);
+    expect(autonomous.EDITOR_MAX_OUTPUT_TOKENS).toBe(6000);
+
+    for (const direction of ['bedtime', 'adventure', 'fantasy']) {
+      const directionRecord = authority.commissionAuthority.records.find(
+        ({ brief }: any) => brief.direction === direction,
+      )!;
+      const directionSelected = architect(directionRecord.brief.id).options[0];
+      const directionEditorPrompt = autonomous.buildPrompts(
+        process.cwd(),
+        authority,
+        directionRecord,
+        directionSelected,
+        'draft',
+      );
+      expect(directionEditorPrompt).toMatchObject({
+        stage: 'editor',
+        reasoningEffort: 'high',
+        maxOutputTokens: 6000,
+      });
+    }
     expect(editorPrompt.systemPrompt).toContain('strengths contains 1–4 items');
     expect(editorPrompt.systemPrompt).toContain('mustPreserve contains 1–8 items');
   });
@@ -1413,6 +1436,7 @@ describe('autonomous story batch', () => {
       store: false,
       truncation: 'disabled',
       reasoning: { effort: 'high' },
+      max_output_tokens: 100,
       text: { format: { type: 'json_schema', strict: true } },
     });
     const serializedSchema = JSON.stringify(captured.text.format.schema);

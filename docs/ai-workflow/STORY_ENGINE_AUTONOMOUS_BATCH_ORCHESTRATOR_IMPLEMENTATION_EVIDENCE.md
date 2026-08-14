@@ -189,8 +189,9 @@ call state now has an explicit TypeScript discriminated union:
 - `readRecordedOutput` is checked against the union, so removing its terminal
   discrimination makes the CJS core fail compilation;
 - a dedicated `story:autonomous-typecheck` command checks the runtime CJS core
-  plus the typed state contract without pulling the legacy CJS materializer
-  lineage into scope.
+  plus the typed state contract. The legacy CJS materializer is transitively in
+  the TypeScript program through `require()`, but remains deliberately unchecked
+  because `checkJs:false` and no file-level `@ts-check` apply to it.
 
 This is compile-time hardening only. It does not change model, prompts, schemas,
 selection, budgets, call counts, repair behavior, timeout, retry, fallback,

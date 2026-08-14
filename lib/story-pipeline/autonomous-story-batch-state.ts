@@ -59,15 +59,28 @@ export type AutonomousStoryBatchManifest = {
 };
 
 type Assert<T extends true> = T;
+type IsNever<T> = [T] extends [never] ? true : false;
+type CompletedVariant = Extract<StoryCall, { terminal?: false }>;
+type TerminalVariant = Extract<StoryCall, { terminal: true }>;
+type CompletedVariantMustExist = Assert<IsNever<CompletedVariant> extends false ? true : false>;
+type TerminalVariantMustExist = Assert<IsNever<TerminalVariant> extends false ? true : false>;
 type TerminalVariantCannotExposeOutput = Assert<
-  Extract<StoryCall, { terminal: true }> extends { output: unknown } ? false : true
+  TerminalVariant extends { output: unknown } ? false : true
 >;
 type CompletedVariantMustExposeOutput = Assert<
-  Extract<StoryCall, { terminal?: false }> extends { output: ContentAddressedArtifact }
-    ? true
-    : false
+  CompletedVariant extends { output: ContentAddressedArtifact } ? true : false
+>;
+type CompletedVariantMustExposeReceipt = Assert<
+  CompletedVariant extends { receipt: ContentAddressedArtifact } ? true : false
+>;
+type TerminalVariantMustExposeReceipt = Assert<
+  TerminalVariant extends { receipt: ContentAddressedArtifact } ? true : false
 >;
 
 export type StoryCallStaticContract =
+  | CompletedVariantMustExist
+  | TerminalVariantMustExist
   | TerminalVariantCannotExposeOutput
-  | CompletedVariantMustExposeOutput;
+  | CompletedVariantMustExposeOutput
+  | CompletedVariantMustExposeReceipt
+  | TerminalVariantMustExposeReceipt;

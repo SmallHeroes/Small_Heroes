@@ -22,6 +22,7 @@ const {
 const MODEL = 'gpt-5.6-sol';
 const SERVICE_TIER = 'default';
 const PIPELINE_VERSION = 'small-heroes-autonomous-story-batch/v1';
+const EDITOR_MAX_OUTPUT_TOKENS = 6000;
 const ACCEPTED_DINI_BRIEF_ID = 'dragon_dini_adventure_wobble_cake_convoy_brief_v1';
 const SELECTOR_VERSION = 'small-heroes-autonomous-premise-selection/v1';
 const ARCHITECT_VERSION = 'small-heroes-autonomous-architect-options/v1';
@@ -334,7 +335,7 @@ function buildPrompts(repoRoot, authority, record, selectedOption, draft, review
     return {
       stage: 'editor',
       reasoningEffort: 'high',
-      maxOutputTokens: 3000,
+      maxOutputTokens: EDITOR_MAX_OUTPUT_TOKENS,
       schemaName: 'small_heroes_editorial_review',
       schema: EDITORIAL_SCHEMA,
       systemPrompt: `${readContract(repoRoot, CONTRACTS.editor)}\n\nClosed response rules: strengths contains 1–4 items; pass has zero issues and zero revisionPriorities; revise/reject has 1–16 issues and 1–4 revisionPriorities; mustPreserve contains 1–8 items. Return only the exact JSON object.`,
@@ -739,6 +740,7 @@ module.exports = {
   CONTRACTS,
   DISQUALIFIERS,
   EDITORIAL_SCHEMA,
+  EDITOR_MAX_OUTPUT_TOKENS,
   MODEL,
   PIPELINE_VERSION,
   SELECTOR_SCHEMA,
