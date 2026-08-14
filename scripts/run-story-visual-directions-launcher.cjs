@@ -20,7 +20,9 @@ function parseArgs(argv) {
 
 function main() {
   const values = parseArgs(process.argv.slice(2));
-  const allowed = new Set(['credential-source', 'output-root', 'max-cost-usd']);
+  const allowed = new Set([
+    'credential-source', 'output-root', 'max-cost-usd', 'seed-root', 'unaccounted-seed-calls',
+  ]);
   if (
     !values['credential-source'] || !values['output-root'] || !values['max-cost-usd'] ||
     Object.keys(values).some((key) => !allowed.has(key))
@@ -36,11 +38,16 @@ function main() {
     if (process.env[key]) environment[key] = process.env[key];
   }
   environment.OPENAI_API_KEY = apiKey;
-  const result = spawnSync(process.execPath, [
+  const childArgs = [
     path.join(__dirname, 'run-story-visual-directions-private.cjs'),
     '--output-root', values['output-root'],
     '--max-cost-usd', values['max-cost-usd'],
-  ], {
+  ];
+  if (values['seed-root']) childArgs.push('--seed-root', values['seed-root']);
+  if (values['unaccounted-seed-calls']) {
+    childArgs.push('--unaccounted-seed-calls', values['unaccounted-seed-calls']);
+  }
+  const result = spawnSync(process.execPath, childArgs, {
     cwd: path.resolve(__dirname, '..'),
     env: environment,
     stdio: 'inherit',

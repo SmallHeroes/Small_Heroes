@@ -21,7 +21,9 @@ async function main() {
   const values = parseArgs(process.argv.slice(2));
   if (
     !values['output-root'] || !values['max-cost-usd'] || !process.env.OPENAI_API_KEY ||
-    Object.keys(values).some((key) => !['output-root', 'max-cost-usd'].includes(key))
+    Object.keys(values).some((key) => ![
+      'output-root', 'max-cost-usd', 'seed-root', 'unaccounted-seed-calls',
+    ].includes(key))
   ) {
     throw new Error('story_visual_direction_arguments_invalid');
   }
@@ -31,6 +33,8 @@ async function main() {
     outputRoot: path.resolve(values['output-root']),
     provider: createOpenAiStoryProvider({ apiKey: process.env.OPENAI_API_KEY }),
     maxCostUsd: Number(values['max-cost-usd']),
+    seedRoot: values['seed-root'] ? path.resolve(values['seed-root']) : null,
+    unaccountedSeedCalls: Number(values['unaccounted-seed-calls'] || 0),
   });
   process.stdout.write(`${JSON.stringify({
     version: manifest.version,
@@ -38,6 +42,8 @@ async function main() {
     storyCount: Object.keys(manifest.records).length,
     logicalProviderCalls: manifest.logicalProviderCalls,
     actualCostUsd: manifest.actualCostUsd,
+    conservativeCostUsd: manifest.conservativeCostUsd,
+    applicationRetries: manifest.applicationRetries,
     transportRetries: manifest.transportRetries,
     fallbackUsed: manifest.fallbackUsed,
   }, null, 2)}\n`);

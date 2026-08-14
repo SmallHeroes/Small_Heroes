@@ -81,6 +81,7 @@ const visualDirections = require('../../scripts/story-visual-direction-batch-cor
   RECORD_VERSION: string;
   SHOTS: string[];
   loadAcceptedStories: (repoRoot: string) => Array<{ storyKey: string; storyPath: string }>;
+  normalizeVisualDirectionRecord: (value: any) => any;
   parseStory: (storyText: string) => {
     companionId: string;
     direction: string;
@@ -1959,6 +1960,20 @@ describe('accepted story visual directions', () => {
         'story_visual_direction_output_invalid',
       );
     }
+
+    const normalizable = structuredClone(valid);
+    normalizable.storyKey = ` ${storyKey} `;
+    normalizable.pages[0].settingKey = ' Bakery-Street ';
+    normalizable.pages[0].setting = ` ${normalizable.pages[0].setting} `;
+    normalizable.pages[0].supportingCharacters = [' baker ', 'baker'];
+    normalizable.pages[0].continuityAnchors = [' same delivery cart ', 'same delivery cart'];
+    const normalized = visualDirections.normalizeVisualDirectionRecord(normalizable);
+    expect(normalized.pages[0]).toMatchObject({
+      settingKey: 'bakery_street',
+      supportingCharacters: ['baker'],
+      continuityAnchors: ['same delivery cart'],
+    });
+    expect(visualDirections.validateVisualDirectionRecord(normalized, storyKey, 12)).toBe(normalized);
   });
 
   it('materializes one zero-retry storyboard record per accepted story under the hard cost cap', async () => {
@@ -2006,6 +2021,79 @@ describe('accepted story visual directions', () => {
       expect(manifest.actualCostUsd).toBeLessThan(5);
     } finally {
       fs.rmSync(outputRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('imports verified completed records and accounts one ambiguous completed call before continuing', async () => {
+    const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const seedRoot = path.join(process.cwd(), 'outputs', `story-visual-direction-seed-${suffix}`);
+    const resumedRoot = path.join(process.cwd(), 'outputs', `story-visual-direction-resumed-${suffix}`);
+    const providerFor = (counter: { value: number }) => ({
+      complete: async (request: any) => {
+        counter.value += 1;
+        const payload = JSON.parse(request.userPrompt);
+        return {
+          completed: true,
+          text: JSON.stringify(recordFor(payload.storyKey, payload.pageCount)),
+          model: autonomous.MODEL,
+          serviceTier: autonomous.SERVICE_TIER,
+          usage: {
+            inputTokens: 100,
+            cachedInputTokens: 0,
+            cacheWriteTokens: 0,
+            outputTokens: 100,
+            reasoningTokens: 10,
+            totalTokens: 200,
+          },
+        };
+      },
+    });
+    try {
+      const seedCalls = { value: 0 };
+      await visualDirections.runVisualDirectionWave({
+        repoRoot: process.cwd(), outputRoot: seedRoot, maxCostUsd: 5, provider: providerFor(seedCalls),
+      });
+      const seedManifestPath = path.join(seedRoot, 'manifest.json');
+      const seedManifest = JSON.parse(fs.readFileSync(seedManifestPath, 'utf8'));
+      const retainedKeys = Object.keys(seedManifest.records).slice(0, 3);
+      seedManifest.records = Object.fromEntries(retainedKeys.map((key) => [key, seedManifest.records[key]]));
+      seedManifest.logicalProviderCalls = 3;
+      seedManifest.newProviderCalls = 3;
+      seedManifest.actualCostUsd = retainedKeys.reduce(
+        (total, key) => total + seedManifest.records[key].costUsd,
+        0,
+      );
+      seedManifest.conservativeCostUsd = seedManifest.actualCostUsd;
+      seedManifest.status = 'in_progress';
+      fs.writeFileSync(seedManifestPath, `${JSON.stringify(seedManifest, null, 2)}\n`, 'utf8');
+
+      const resumedCalls = { value: 0 };
+      const resumed = await visualDirections.runVisualDirectionWave({
+        repoRoot: process.cwd(),
+        outputRoot: resumedRoot,
+        maxCostUsd: 5,
+        provider: providerFor(resumedCalls),
+        seedRoot,
+        unaccountedSeedCalls: 1,
+      });
+      expect(resumedCalls.value).toBe(15);
+      expect(resumed).toMatchObject({
+        status: 'machine_qualified',
+        logicalProviderCalls: 19,
+        newProviderCalls: 15,
+        applicationRetries: 1,
+        seed: {
+          importedRecords: 3,
+          accountedProviderCalls: 3,
+          unaccountedCompletedCalls: 1,
+        },
+      });
+      expect(Object.keys(resumed.records)).toHaveLength(18);
+      expect(resumed.conservativeCostUsd).toBeGreaterThan(resumed.actualCostUsd);
+      expect(resumed.conservativeCostUsd).toBeLessThan(5);
+    } finally {
+      fs.rmSync(seedRoot, { recursive: true, force: true });
+      fs.rmSync(resumedRoot, { recursive: true, force: true });
     }
   });
 });

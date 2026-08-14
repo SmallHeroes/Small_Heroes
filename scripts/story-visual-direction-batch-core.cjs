@@ -6,7 +6,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { MODEL, SERVICE_TIER, calculateCostUsd } = require('./story-autonomous-batch-core.cjs');
 
-const VERSION = 'small-heroes-story-visual-direction-batch/v1';
+const VERSION = 'small-heroes-story-visual-direction-batch/v2';
 const RECORD_VERSION = 'small-heroes-story-visual-direction-record/v1';
 const CONTRACT_REL = 'story-pipeline/03_story_briefs/STORY_PAGE_VISUAL_DIRECTION_CONTRACT.md';
 const ACCEPTED_ROOT_REL = 'story-pipeline/04_approved_story_sources/accepted';
@@ -99,6 +99,34 @@ function cleanStringArray(value, maximumItems, maximumLength = 120) {
   return Array.isArray(value) && value.length <= maximumItems &&
     new Set(value).size === value.length &&
     value.every((entry) => cleanText(entry, 2, maximumLength));
+}
+
+function normalizeVisualDirectionRecord(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !Array.isArray(value.pages)) {
+    return value;
+  }
+  const normalizeArray = (entries) => Array.isArray(entries)
+    ? [...new Set(entries.map((entry) => typeof entry === 'string' ? entry.trim() : entry))]
+    : entries;
+  return {
+    ...value,
+    storyKey: typeof value.storyKey === 'string' ? value.storyKey.trim() : value.storyKey,
+    pages: value.pages.map((page) => {
+      if (!page || typeof page !== 'object' || Array.isArray(page)) return page;
+      return {
+        ...page,
+        settingKey: typeof page.settingKey === 'string'
+          ? page.settingKey.trim().toLowerCase().replace(/[\s-]+/g, '_')
+          : page.settingKey,
+        setting: typeof page.setting === 'string' ? page.setting.trim() : page.setting,
+        supportingCharacters: normalizeArray(page.supportingCharacters),
+        mainAction: typeof page.mainAction === 'string' ? page.mainAction.trim() : page.mainAction,
+        heroObject: typeof page.heroObject === 'string' ? page.heroObject.trim() : page.heroObject,
+        lighting: typeof page.lighting === 'string' ? page.lighting.trim() : page.lighting,
+        continuityAnchors: normalizeArray(page.continuityAnchors),
+      };
+    }),
+  };
 }
 
 function validateVisualDirectionRecord(value, storyKey, expectedPageCount) {
@@ -205,7 +233,94 @@ function atomicJsonWrite(absolutePath, value) {
   fs.renameSync(temporary, absolutePath);
 }
 
-async function runVisualDirectionWave({ repoRoot, outputRoot, provider, maxCostUsd }) {
+function readCanonicalBytes(directory, reference) {
+  if (
+    !exactKeys(reference, ['filename', 'bytes', 'sha256']) ||
+    typeof reference.filename !== 'string' || !Number.isInteger(reference.bytes) ||
+    !/^[a-f0-9]{64}$/.test(reference.sha256) || path.basename(reference.filename) !== reference.filename
+  ) {
+    throw new Error('story_visual_direction_seed_reference_invalid');
+  }
+  const bytes = fs.readFileSync(path.join(directory, reference.filename));
+  if (bytes.length !== reference.bytes || sha256(bytes) !== reference.sha256) {
+    throw new Error('story_visual_direction_seed_reference_drift');
+  }
+  return bytes;
+}
+
+function importSeedRecords({ repoRoot, seedRoot, records, contractSha256, outputRoot, manifest, unaccountedSeedCalls }) {
+  if (!seedRoot) {
+    if (unaccountedSeedCalls !== 0) throw new Error('story_visual_direction_seed_accounting_invalid');
+    return;
+  }
+  const absoluteSeedRoot = path.resolve(seedRoot);
+  if (absoluteSeedRoot === outputRoot) throw new Error('story_visual_direction_seed_root_rejected');
+  const seedManifestBytes = fs.readFileSync(path.join(absoluteSeedRoot, 'manifest.json'));
+  const seed = JSON.parse(seedManifestBytes.toString('utf8'));
+  if (
+    !['small-heroes-story-visual-direction-batch/v1', VERSION].includes(seed.version) ||
+    seed.model !== MODEL || seed.serviceTier !== SERVICE_TIER || seed.store !== false ||
+    seed.contract?.sha256 !== contractSha256 || !seed.records ||
+    !Number.isInteger(unaccountedSeedCalls) || ![0, 1].includes(unaccountedSeedCalls) ||
+    !Number.isInteger(seed.logicalProviderCalls) || seed.logicalProviderCalls < Object.keys(seed.records).length ||
+    !Number.isFinite(seed.actualCostUsd) || seed.actualCostUsd < 0
+  ) {
+    throw new Error('story_visual_direction_seed_manifest_invalid');
+  }
+  const acceptedByKey = new Map(records.map((record) => [record.storyKey, record]));
+  for (const [storyKey, seeded] of Object.entries(seed.records)) {
+    const accepted = acceptedByKey.get(storyKey);
+    if (!accepted || seeded?.status !== 'machine_qualified') {
+      throw new Error('story_visual_direction_seed_record_invalid');
+    }
+    const sourceStorySha256 = sha256(fs.readFileSync(accepted.storyPath));
+    const story = parseStory(fs.readFileSync(accepted.storyPath, 'utf8'));
+    const seedRecordDir = path.join(absoluteSeedRoot, storyKey);
+    const outputBytes = readCanonicalBytes(seedRecordDir, seeded.output);
+    const receiptBytes = readCanonicalBytes(seedRecordDir, seeded.receipt);
+    const outputValue = validateVisualDirectionRecord(
+      normalizeVisualDirectionRecord(JSON.parse(outputBytes.toString('utf8'))),
+      storyKey,
+      story.declaredPages,
+    );
+    const receiptValue = JSON.parse(receiptBytes.toString('utf8'));
+    if (
+      receiptValue.version !== 'small-heroes-story-visual-direction-call-receipt/v1' ||
+      receiptValue.storyKey !== storyKey || receiptValue.sourceStorySha256 !== sourceStorySha256 ||
+      receiptValue.output?.sha256 !== seeded.output.sha256 || seeded.sourceStorySha256 !== sourceStorySha256
+    ) {
+      throw new Error('story_visual_direction_seed_receipt_invalid');
+    }
+    const targetDir = path.join(outputRoot, storyKey);
+    const output = canonicalWrite(targetDir, 'visual-directions', 'json', `${JSON.stringify(outputValue, null, 2)}\n`);
+    const receipt = canonicalWrite(targetDir, 'receipt', 'json', receiptBytes);
+    manifest.records[storyKey] = { ...seeded, output, receipt, seeded: true };
+  }
+  const missing = records.filter(({ storyKey }) => !manifest.records[storyKey]);
+  const unaccountedReservationUsd = unaccountedSeedCalls === 1 && missing.length > 0
+    ? reservationUsd(buildRequest(repoRoot, missing[0]).request)
+    : 0;
+  manifest.actualCostUsd = Number(seed.actualCostUsd.toFixed(9));
+  manifest.conservativeCostUsd = Number((manifest.actualCostUsd + unaccountedReservationUsd).toFixed(9));
+  manifest.logicalProviderCalls = seed.logicalProviderCalls + unaccountedSeedCalls;
+  manifest.applicationRetries = unaccountedSeedCalls;
+  manifest.seed = {
+    manifestSha256: sha256(seedManifestBytes),
+    importedRecords: Object.keys(seed.records).length,
+    accountedProviderCalls: seed.logicalProviderCalls,
+    unaccountedCompletedCalls: unaccountedSeedCalls,
+    unaccountedCostReservationUsd: Number(unaccountedReservationUsd.toFixed(9)),
+  };
+}
+
+async function runVisualDirectionWave({
+  repoRoot,
+  outputRoot,
+  provider,
+  maxCostUsd,
+  seedRoot = null,
+  unaccountedSeedCalls = 0,
+}) {
   if (!provider || typeof provider.complete !== 'function') throw new Error('story_visual_direction_provider_missing');
   if (!Number.isFinite(maxCostUsd) || maxCostUsd <= 0 || maxCostUsd > 5) {
     throw new Error('story_visual_direction_cost_cap_invalid');
@@ -231,17 +346,34 @@ async function runVisualDirectionWave({ repoRoot, outputRoot, provider, maxCostU
     contract: { path: CONTRACT_REL, sha256: sha256(contractBytes) },
     maxCostUsd,
     actualCostUsd: 0,
+    conservativeCostUsd: 0,
     logicalProviderCalls: 0,
+    newProviderCalls: 0,
+    applicationRetries: 0,
     transportRetries: 0,
     fallbackUsed: false,
     credentialAccess: 'supervisor_child_only',
+    failures: [],
     records: {},
   };
+  importSeedRecords({
+    repoRoot,
+    seedRoot,
+    records,
+    contractSha256: manifest.contract.sha256,
+    outputRoot: absoluteOutputRoot,
+    manifest,
+    unaccountedSeedCalls,
+  });
+  if (manifest.conservativeCostUsd > maxCostUsd) {
+    throw new Error('story_visual_direction_seed_cost_exceeded');
+  }
   atomicJsonWrite(manifestPath, manifest);
 
   for (const accepted of records) {
+    if (manifest.records[accepted.storyKey]) continue;
     const { story, request } = buildRequest(repoRoot, accepted);
-    if (manifest.actualCostUsd + reservationUsd(request) > maxCostUsd) {
+    if (manifest.conservativeCostUsd + reservationUsd(request) > maxCostUsd) {
       throw new Error('story_visual_direction_cost_reservation_exceeded');
     }
     const result = await provider.complete(request);
@@ -252,15 +384,36 @@ async function runVisualDirectionWave({ repoRoot, outputRoot, provider, maxCostU
     ) {
       throw new Error('story_visual_direction_provider_result_invalid');
     }
-    let parsed;
-    try { parsed = JSON.parse(result.text); } catch { throw new Error('story_visual_direction_provider_json_invalid'); }
-    const record = validateVisualDirectionRecord(parsed, accepted.storyKey, story.declaredPages);
-    const recordDir = path.join(absoluteOutputRoot, accepted.storyKey);
-    const output = canonicalWrite(recordDir, 'visual-directions', 'json', `${JSON.stringify(record, null, 2)}\n`);
     const costUsd = calculateCostUsd(result.usage, result.serviceTier);
     manifest.actualCostUsd = Number((manifest.actualCostUsd + costUsd).toFixed(9));
-    if (manifest.actualCostUsd > maxCostUsd) throw new Error('story_visual_direction_actual_cost_exceeded');
+    manifest.conservativeCostUsd = Number((manifest.conservativeCostUsd + costUsd).toFixed(9));
     manifest.logicalProviderCalls += 1;
+    manifest.newProviderCalls += 1;
+    if (manifest.conservativeCostUsd > maxCostUsd) throw new Error('story_visual_direction_actual_cost_exceeded');
+    let record;
+    try {
+      record = validateVisualDirectionRecord(
+        normalizeVisualDirectionRecord(JSON.parse(result.text)),
+        accepted.storyKey,
+        story.declaredPages,
+      );
+    } catch (error) {
+      const reasonCode = error instanceof SyntaxError
+        ? 'story_visual_direction_provider_json_invalid'
+        : 'story_visual_direction_output_invalid';
+      manifest.status = 'completed_with_holds';
+      manifest.failures.push({
+        storyKey: accepted.storyKey,
+        reasonCode,
+        usage: result.usage,
+        costUsd,
+        rawOutputPersisted: false,
+      });
+      atomicJsonWrite(manifestPath, manifest);
+      throw new Error(reasonCode);
+    }
+    const recordDir = path.join(absoluteOutputRoot, accepted.storyKey);
+    const output = canonicalWrite(recordDir, 'visual-directions', 'json', `${JSON.stringify(record, null, 2)}\n`);
     const receiptPayload = {
       version: 'small-heroes-story-visual-direction-call-receipt/v1',
       storyKey: accepted.storyKey,
@@ -308,7 +461,9 @@ module.exports = {
   VERSION,
   buildRequest,
   loadAcceptedStories,
+  normalizeVisualDirectionRecord,
   parseStory,
+  reservationUsd,
   runVisualDirectionWave,
   validateVisualDirectionRecord,
 };
