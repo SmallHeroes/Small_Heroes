@@ -10,6 +10,7 @@ const {
   buildArchitectPilotBundle,
   buildCommissionBundle,
   buildEditorialReviewBundle,
+  buildMusicalPolishBundle,
   buildTargetedRevisionBundle,
   commissionMetadata,
   findArchitectPilot,
@@ -31,6 +32,7 @@ const {
   writeCommissionFiles,
   writeEditorialReviewFiles,
   writeEditorialPassFiles,
+  writeMusicalPolishFiles,
   writeNormalizedRevisionFiles,
   writeTargetedRevisionFiles,
 } = require('../../scripts/materialize-story-commission-briefs.cjs') as Materializer;
@@ -164,6 +166,12 @@ interface Materializer {
     record: CommissionRecord,
     draft: EditorialDraft,
   ) => string;
+  buildMusicalPolishBundle: (
+    record: CommissionRecord,
+    draft: EditorialDraft,
+    reviewResult: EditorialReviewResult,
+    polishCharter: string,
+  ) => string;
   buildTargetedRevisionBundle: (
     authority: ArchitectAuthority,
     record: CommissionRecord,
@@ -216,6 +224,12 @@ interface Materializer {
     outputDir: string,
   ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
   writeEditorialPassFiles: (
+    record: CommissionRecord,
+    draft: EditorialDraft,
+    reviewResult: EditorialReviewResult,
+    outputDir: string,
+  ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
+  writeMusicalPolishFiles: (
     record: CommissionRecord,
     draft: EditorialDraft,
     reviewResult: EditorialReviewResult,
@@ -411,7 +425,9 @@ describe('story commission materializer', () => {
     expect(authority.postDraftEditorialQa).toContain('## Delight QA');
     expect(authority.postDraftEditorialQa).toContain('## Companion QA');
     expect(authority.postDraftEditorialQa).toContain('## Child agency QA');
-    expect(authority.postDraftEditorialQa).toContain('## Hebrew read-aloud QA');
+    expect(authority.postDraftEditorialQa).toContain('## Hebrew read-aloud and musicality QA');
+    expect(authority.postDraftEditorialQa).toContain('The absence of rhyme is never a defect');
+    expect(authority.postDraftEditorialQa).toContain('Rhyme becomes a defect when it forces');
     expect(authority.postDraftEditorialQa).toContain('Do not reward mechanical compliance');
     expect(authority.postDraftEditorialQa).toContain('Guy retains final product and story acceptance.');
 
@@ -828,6 +844,120 @@ describe('story commission materializer', () => {
           ...draft,
           text: draftText.replace('{חייך|חייכה}', 'חייכ{ה}'),
         }),
+      ).toThrow('story_writer_revision_gender_chips_invalid');
+    } finally {
+      fs.rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('materializes a pass-bound musical polish without authorizing a story rewrite', () => {
+    const commissionAuthority = loadCommissionAuthority();
+    const architectAuthority = loadArchitectPilotAuthority(commissionAuthority);
+    const record = findRecord(commissionAuthority, DINI_BRIEF_ID);
+    const fixtureRoot = fs.mkdtempSync(
+      path.join(process.cwd(), 'outputs', 'small-heroes-musical-polish-test-'),
+    );
+    const draftPath = path.join(fixtureRoot, 'draft.md');
+    const reviewPath = path.join(fixtureRoot, 'review.json');
+    const outputDir = path.join(fixtureRoot, 'polish');
+    const rejectedDir = path.join(fixtureRoot, 'rejected');
+    const pages = Array.from(
+      { length: record.brief.pageCount },
+      (_, index) => `--- Page ${index + 1} ---\n\n{{childName}} {חייך|חייכה}.`,
+    ).join('\n\n');
+    const draftText = [
+      '---',
+      'title: "{{childName}} ו־דיני: בדיקה מוזיקלית"',
+      `companionId: ${record.companionId}`,
+      `direction: ${record.brief.direction}`,
+      `category: ${record.brief.category}`,
+      `pages: ${record.brief.pageCount}`,
+      'gender: female',
+      'endingType: resolution',
+      '---',
+      '',
+      pages,
+      '',
+    ].join('\n');
+    const review: EditorialReview = {
+      version: 'small-heroes-story-editorial-review/v1',
+      verdict: 'pass',
+      strengths: ['The complete story is editorially sound.'],
+      issues: [],
+      revisionPriorities: [],
+      mustPreserve: ['Preserve every story event and causal relationship.'],
+    };
+    const polishCharter = fs
+      .readFileSync(
+        path.join(
+          process.cwd(),
+          'story-pipeline/03_story_briefs/STORY_MUSICAL_READ_ALOUD_POLISH_CHARTER.md',
+        ),
+        'utf8',
+      )
+      .trim();
+
+    try {
+      fs.writeFileSync(draftPath, draftText, 'utf8');
+      fs.writeFileSync(reviewPath, `${JSON.stringify(review)}\n`, 'utf8');
+      const draft = readEditorialDraftFile(draftPath);
+      const reviewResult = readEditorialReviewResultFile(reviewPath, record.brief.pageCount);
+      const bundle = buildMusicalPolishBundle(record, draft, reviewResult, polishCharter);
+
+      expect(bundle).toContain('small-heroes-musical-read-aloud-polish/v1');
+      expect(bundle).toContain(JSON.stringify({ draft: draftText }, null, 2));
+      expect(bundle).toContain('Do not turn the whole story into a poem');
+      expect(bundle).toContain('There is no rhyme quota');
+      expect(bundle).toContain('story events, causal mechanism, discovery sequence');
+      expect(bundle).toContain('Do not make a rhyme depend on only one side of a gender chip');
+      expect(bundle.toLowerCase()).not.toContain('must rhyme');
+      expect(bundle).not.toContain(architectAuthority.architectCharter);
+      expect(bundle).not.toContain(architectAuthority.postDraftEditorialQa);
+      expect(bundle).not.toContain('imageDirection:');
+
+      const manifest = writeMusicalPolishFiles(record, draft, reviewResult, outputDir);
+      expect(manifest.version).toBe('small-heroes-musical-read-aloud-polish-manifest/v1');
+      expect(manifest.record.filename).toMatch(
+        new RegExp(`^${DINI_BRIEF_ID}\\.musical-polish\\.[a-f0-9]{64}\\.md$`),
+      );
+      expect(fs.readdirSync(outputDir).sort()).toEqual(
+        [manifest.record.filename, 'manifest.json'].sort(),
+      );
+      expect(() => writeMusicalPolishFiles(record, draft, reviewResult, outputDir)).toThrow(
+        'story_musical_polish_output_directory_not_empty',
+      );
+
+      const reviseReviewResult: EditorialReviewResult = {
+        ...reviewResult,
+        review: {
+          ...review,
+          verdict: 'revise',
+          issues: [
+            {
+              code: 'hebrew_readaloud_issue',
+              severity: 'minor',
+              evidencePages: [2],
+              functionalGap: 'The spoken cadence needs revision.',
+            },
+          ],
+          revisionPriorities: ['Improve the spoken cadence.'],
+        },
+      };
+      expect(() =>
+        writeMusicalPolishFiles(record, draft, reviseReviewResult, rejectedDir),
+      ).toThrow('story_musical_polish_not_authorized:revise');
+      expect(fs.existsSync(rejectedDir)).toBe(false);
+
+      expect(() =>
+        buildMusicalPolishBundle(
+          record,
+          {
+            ...draft,
+            text: draftText.replace('{חייך|חייכה}', 'חייכ{ה}'),
+          },
+          reviewResult,
+          polishCharter,
+        ),
       ).toThrow('story_writer_revision_gender_chips_invalid');
     } finally {
       fs.rmSync(fixtureRoot, { recursive: true, force: true });

@@ -4,6 +4,21 @@
 **Maintainer:** Codex
 **Working branch:** `codex/story-bank-next-generation-briefs-qa-integration` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`; the functional-quality follow-up is based exactly on `a985cc43ad4e8ccf37ee033ba55365bf98d59821`.
 
+## STORY ENGINE VNEXT MUSICAL READ-ALOUD POLISH — locally implemented / independent QA pending
+
+Guy accepted the externally editorially passed Dini cake story as a substantial narrative improvement and asked for one further oral-reading pass: selective rhyme, sound-play and cadence where they strengthen comedy and motion, without converting the story into a rhyming poem. The accepted story remains immutable; this milestone adds a general, staging-only polish route rather than editing that candidate in place.
+
+- `STORY_MUSICAL_READ_ALOUD_POLISH_CHARTER.md` permits natural internal/end rhyme, onomatopoeia, sound-play, rhythmic repetition and page-ending cadence, but explicitly rejects rhyme quotas, filler, inverted syntax, forced synonyms, slogans, sing-song repetition and any weakening of Hebrew clarity or causality.
+- Polish locks title/metadata, 12-page order, events, causal mechanism, child agency, Dini's behavior, locations, important objects, climax, payoff and ending. Complete gender chips remain mandatory, and a rhyme may not depend on only one gender branch.
+- A new `materialize-musical-polish-pilot` command accepts only a canonical draft bound to a closed editorial `pass` with zero issues and zero revision priorities. It creates a new content-addressed staging prompt and manifest; `revise`/`reject`, malformed drafts, unsafe paths and output-root reuse fail closed.
+- Editor authority v3 makes musicality an optional amplifier, never a quota. It diagnoses rhyme only when it forces language, introduces filler/slogans, breaks personalization, becomes sing-song or weakens causality. The prior Editor authority remains historical; a returned polish cannot replace the accepted candidate without a fresh Editor v3 `pass` and Guy's product acceptance.
+- The zero-cost Dini commission is `outputs/story-engine-vnext-dini-cake-musical-polish-20260814-v1/dragon_dini_adventure_wobble_cake_convoy_brief_v1.musical-polish.01932bcf5087d27c004cd63d53c56196afdb3b5b9e5a28724239d5be2cfd3b16.md` (9,498 bytes; raw SHA-256 equals the filename digest). It binds exact accepted draft `1e401854…`, exact Editor PASS `bed8053e…` and charter digest `28335f94…`.
+- Focused validation passes **1 file / 12 tests**, script syntax, deterministic TypeScript and `git diff --check`. Tests prove pass-only routing, exact-draft embedding, content addressing, output-root reuse refusal, canonical intake, gender-chip rejection, and the absence of Architect, full Editor and image-direction authority from the Writer prompt.
+- The one literal `npm run check` was invoked once and not retried. TypeScript and the full **19-file resource-intensive phase passed** with clean diagnostics; the changed 12-test materializer suite also passed under ordinary full-suite load. The ordinary phase nevertheless failed independently of this change: Vitest reported 72 failing tests across 31 files, including the established six missing ignored-output fixtures, the stale Dini measurement assertion and a wider set of environment/fixture-dependent repository failures. No Story Engine or musical-polish test failed. This run therefore grants no repository/release PASS; the exact affected file inventory is preserved in the implementation evidence.
+- No provider/model/network call, credential access, story-bank import, Visual Contract, Wizard, Reader, image/audio/Vision render, database/storage action, QA/Production deployment or push occurred. External cost is `$0`.
+
+Durable records: `docs/ai-workflow/STORY_ENGINE_VNEXT_MUSICAL_READ_ALOUD_POLISH_DECISION_GATE.md` and `docs/ai-workflow/STORY_ENGINE_VNEXT_MUSICAL_READ_ALOUD_POLISH_IMPLEMENTATION_EVIDENCE.md`.
+
 ## STORY ENGINE VNEXT FUNCTIONAL-QUALITY PILOT — independent technical PASS / product acceptance pending
 
 Guy selected Architect option A and judged its resulting Dini cake draft a material improvement, while identifying that the middle still repeats one dramatic function, the adventure lacks one memorable comic peak and the child mostly observes until late. The correction strengthens story functions without restoring the prior mini-screenplay.
