@@ -107,12 +107,23 @@ The regressions prove exact Editor allowance `6000` for all three directions,
 preserved high reasoning and exact provider forwarding. They do not perform a
 live provider call.
 
-## Authority and next gate
+## Independent QA and next gate
 
-The correction is not a self-awarded technical PASS. It requires independent
-Claude Code read-only review of the committed correction range. Only after that
-PASS may a replacement wave start in a fresh root at the corrected immutable
-HEAD under the existing hard `$20` cap.
+Claude Code independently reviewed exact correction range
+`e987a9a9..f199b448` and returned PASS with zero BLOCKER, zero MAJOR and one
+non-blocking documentation MINOR. It confirmed all twelve technical, boundary,
+type-contract, forwarding, historical-evidence and authority targets. The
+MINOR asked that the 28 settled calls be decomposed explicitly as 26
+output-bearing plus two terminal calls, rather than described collectively as
+completed calls.
+
+The docs-only correction at `f199b448..6eb80faf` made that distinction without
+changing any number or implementation claim. Claude Code's focused read-only
+micro re-gate returned PASS and closed the MINOR with no new finding. Codex
+records these independent verdicts; it does not self-award them.
+
+The correction is therefore eligible for a replacement wave in a fresh root at
+the corrected immutable HEAD under the existing hard `$20` cap.
 
 All outputs remain staging-only. This milestone grants no accepted-source,
 story-bank, Wizard, Visual Contract, render, image/audio, database/storage,

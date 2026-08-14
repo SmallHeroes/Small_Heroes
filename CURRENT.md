@@ -134,8 +134,10 @@ wave.
   28 settled logical calls "completed", which could imply 28 successes plus
   two terminal calls. The docs correction now states the exact composition:
   26 output-bearing plus two terminal calls, with `$2.10405525` including both
-  terminal costs. This is Claude's verdict, not a Codex self-award; closure of
-  the wording MINOR awaits the focused docs micro re-gate.
+  terminal costs. Claude Code then performed the focused read-only micro
+  re-gate of exact range `f199b448..6eb80faf` and returned **PASS**, closing the
+  wording MINOR with no new finding. These are Claude's verdicts, not Codex
+  self-awarded results.
 - The successful story remains `machine_qualified_staging_only`; it has not been
   promoted to accepted source, the live bank, Wizard, Visual Contract or render.
   The three additional qualified stories also remain staging-only. No accepted
