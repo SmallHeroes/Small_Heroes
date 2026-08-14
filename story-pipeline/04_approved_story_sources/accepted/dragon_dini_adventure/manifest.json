@@ -1,0 +1,48 @@
+{
+  "version": "small-heroes-product-accepted-story-source-manifest/v1",
+  "status": "product_accepted_story_source",
+  "authorityScope": "story_text_only",
+  "record": {
+    "briefId": "dragon_dini_adventure_wobble_cake_convoy_brief_v1",
+    "companionId": "dragon_dini",
+    "direction": "adventure",
+    "category": "NEW_SIBLING",
+    "textPageCount": 12,
+    "physicalPageCount": 24,
+    "story": {
+      "filename": "story.md",
+      "bytes": 6677,
+      "sha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce",
+      "byteIdenticalToSource": true
+    },
+    "editorialReview": {
+      "filename": "editorial-review.json",
+      "sourcePath": "outputs/story-engine-vnext-dini-cake-musical-polish-editor-result-round3-20260814-v1/review.json",
+      "bytes": 1672,
+      "sha256": "292613f4f183e66d9a513111c64d214f7338fc23224eaef023305fbc7d2c94bf",
+      "verdict": "pass",
+      "byteIdenticalToSource": true
+    },
+    "productAcceptance": {
+      "path": "story-pipeline/04_approved_story_sources/approvals/dragon_dini_adventure_wobble_cake_convoy_brief_v1.product-acceptance.json",
+      "bytes": 851,
+      "sha256": "8ed395879be2c589d4aac40835414d4ee5e4a08cff115a54b1ba7a136d490a84",
+      "acceptedBy": "Guy",
+      "acceptedOn": "2026-08-14"
+    },
+    "independentArtifactAudit": {
+      "status": "pass",
+      "reviewedHead": "95ffa41943237532cb51b6b96f9b69aad56595a7",
+      "blocker": 0,
+      "major": 0,
+      "minor": 0
+    },
+    "excludedAuthorities": [
+      "story_bank_import",
+      "wizard_runtime",
+      "visual_contract",
+      "render",
+      "deployment"
+    ]
+  }
+}

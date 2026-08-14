@@ -22,9 +22,9 @@ The v2 dispatch continues to use:
 Do not change or migrate all 18 records merely because a new prompt is shorter.
 Product evidence must establish that story quality actually improved.
 
-## Story Architect pilot
+## Story Architect pilot — historical proof
 
-The current experiment deliberately covers only
+The first product-quality experiment deliberately covered only
 `dragon_dini_adventure_wobble_cake_convoy_brief_v1`.
 
 Its creative workflow is:
@@ -66,9 +66,51 @@ Paste the complete Markdown prompt into a new ChatGPT conversation. The first
 response must contain three shapes and end with `WAITING_FOR_GUY_SELECTION`.
 Do not ask it to write the story yet. Guy chooses one option first.
 
-Only if this A/B pilot demonstrates materially better originality, story
-pleasure and visual variety without losing coherence should the pattern be
-generalized to the other 17 slots.
+That pilot now has Editor PASS, independent artifact PASS and Guy product
+acceptance. It is preserved as historical evidence. The general v3 route below
+applies the proven creative separation to all 18 slots without changing the
+old pilot or v2 dispatch.
+
+## General Story Architect commissions
+
+`STORY_ARCHITECT_CHARTER_V3.md`, `companion-creative-psychology.json` and
+`story-architect-commissions.json` form the current staging authority. They
+contain exactly 18 compact nuclei and six companion psychologies. They do not
+dispatch the legacy screenplay rails, prescribed locations, body-part
+choreography, exact discovery, exact climax or exact payoff.
+
+Materialize one commission:
+
+```powershell
+node scripts/materialize-story-commission-briefs.cjs materialize-architect `
+  --brief-id bunny_ometz_bedtime_toy_inspection_depot_brief_v1 `
+  --output-dir outputs/story-engine-vnext-bunny-bedtime-architect-v1
+```
+
+Materialize the complete next wave while excluding the already accepted Dini
+adventure:
+
+```powershell
+node scripts/materialize-story-commission-briefs.cjs materialize-architect-wave `
+  --exclude-brief-id dragon_dini_adventure_wobble_cake_convoy_brief_v1 `
+  --output-dir outputs/story-engine-vnext-next-architect-wave-20260814-v1
+```
+
+The wave contains 17 prompts. Start with one bedtime and one fantasy prompt to
+prove both remaining page contracts, then continue through the same queue. Each
+story independently requires Architect selection, Writer draft, Editor PASS,
+optional musical polish plus fresh PASS, and Guy product acceptance.
+
+## Product-accepted story sources
+
+`story-pipeline/04_approved_story_sources/` is durable text-source authority,
+not the served story bank. Promotion requires an exact Editor PASS, exact story
+digest, independent artifact PASS and a tracked Guy acceptance record. The
+accepted story is written byte-for-byte as `story.md` with a bound manifest.
+
+This source still needs page-grounded visual directions and the normal bank,
+Wizard and visual-pipeline gates before it can replace a served slot. Never copy
+an accepted prose-only source directly over `story-bank/v3-approved`.
 
 ## Materialize an Editor review
 

@@ -15,6 +15,16 @@ const ARCHITECT_PILOTS_PATH =
   'story-pipeline/03_story_briefs/story-architect-pilots.json';
 const ARCHITECT_CHARTER_PATH =
   'story-pipeline/03_story_briefs/STORY_ARCHITECT_PILOT_CHARTER.md';
+const STORY_ARCHITECT_COMMISSIONS_PATH =
+  'story-pipeline/03_story_briefs/story-architect-commissions.json';
+const STORY_ARCHITECT_CHARTER_V3_PATH =
+  'story-pipeline/03_story_briefs/STORY_ARCHITECT_CHARTER_V3.md';
+const COMPANION_CREATIVE_PSYCHOLOGY_PATH =
+  'story-pipeline/03_story_briefs/companion-creative-psychology.json';
+const PRODUCT_ACCEPTANCE_ROOT =
+  'story-pipeline/04_approved_story_sources/approvals';
+const PRODUCT_ACCEPTED_STORY_ROOT =
+  'story-pipeline/04_approved_story_sources/accepted';
 const EDITORIAL_QA_PATH =
   'story-pipeline/03_story_briefs/STORY_DRAFT_EDITORIAL_QA_CONTRACT_V3.md';
 const MUSICAL_POLISH_CHARTER_PATH =
@@ -36,6 +46,38 @@ const ARCHITECT_PILOT_KEYS = [
   'companionId',
   'companionPortrait',
   'premiseSeed',
+];
+const STORY_ARCHITECT_COMMISSION_KEYS = [
+  'briefId',
+  'companionId',
+  'premiseSeed',
+];
+const COMPANION_CREATIVE_PSYCHOLOGY_KEYS = [
+  'companionId',
+  'innerCharacter',
+  'relationshipDynamic',
+  'changeCapacity',
+  'forbiddenShortcuts',
+];
+const PRODUCT_ACCEPTANCE_KEYS = [
+  'version',
+  'status',
+  'briefId',
+  'acceptedBy',
+  'acceptedOn',
+  'acceptanceScope',
+  'storySha256',
+  'editorialReviewSha256',
+  'independentArtifactAudit',
+  'decision',
+  'exclusions',
+];
+const INDEPENDENT_ARTIFACT_AUDIT_KEYS = [
+  'status',
+  'reviewedHead',
+  'blocker',
+  'major',
+  'minor',
 ];
 const COMPANION_QA_CANON_KEYS = [
   'companionId',
@@ -149,6 +191,59 @@ function validateArchitectPilotsDocument(document) {
       throw new Error('story_architect_pilots_invalid');
     }
     briefIds.add(pilot.briefId);
+  }
+  return document;
+}
+
+function validateStoryArchitectCommissionsDocument(document) {
+  if (
+    document?.version !== 'small-heroes-story-architect-commissions/v1' ||
+    document?.status !== 'staging_only' ||
+    !Array.isArray(document.commissions) ||
+    document.commissions.length !== 18 ||
+    Object.keys(document).join(',') !== 'version,status,commissions'
+  ) {
+    throw new Error('story_architect_commissions_invalid');
+  }
+  const briefIds = new Set();
+  for (const commission of document.commissions) {
+    if (
+      Object.keys(commission).join(',') !== STORY_ARCHITECT_COMMISSION_KEYS.join(',') ||
+      STORY_ARCHITECT_COMMISSION_KEYS.some(
+        (key) => typeof commission[key] !== 'string' || commission[key].trim().length < 3,
+      ) ||
+      commission.premiseSeed.length > 900 ||
+      briefIds.has(commission.briefId)
+    ) {
+      throw new Error('story_architect_commissions_invalid');
+    }
+    briefIds.add(commission.briefId);
+  }
+  return document;
+}
+
+function validateCompanionCreativePsychologyDocument(document) {
+  if (
+    document?.version !== 'small-heroes-companion-creative-psychology/v1' ||
+    document?.status !== 'staging_only' ||
+    !Array.isArray(document.companions) ||
+    document.companions.length !== 6 ||
+    Object.keys(document).join(',') !== 'version,status,companions'
+  ) {
+    throw new Error('story_architect_companion_psychology_invalid');
+  }
+  const companionIds = new Set();
+  for (const companion of document.companions) {
+    if (
+      Object.keys(companion).join(',') !== COMPANION_CREATIVE_PSYCHOLOGY_KEYS.join(',') ||
+      COMPANION_CREATIVE_PSYCHOLOGY_KEYS.some(
+        (key) => typeof companion[key] !== 'string' || companion[key].trim().length < 3,
+      ) ||
+      companionIds.has(companion.companionId)
+    ) {
+      throw new Error('story_architect_companion_psychology_invalid');
+    }
+    companionIds.add(companion.companionId);
   }
   return document;
 }
@@ -433,6 +528,209 @@ function loadArchitectPilotAuthority(commissionAuthority = loadCommissionAuthori
     companionQaCanons: companionQaCanonsDocument.canons,
     pilots: document.pilots,
   };
+}
+
+function loadStoryArchitectAuthority(commissionAuthority = loadCommissionAuthority()) {
+  const commissionsDocument = validateStoryArchitectCommissionsDocument(
+    readJson(STORY_ARCHITECT_COMMISSIONS_PATH),
+  );
+  const psychologyDocument = validateCompanionCreativePsychologyDocument(
+    readJson(COMPANION_CREATIVE_PSYCHOLOGY_PATH),
+  );
+  const knownBriefIds = new Set(
+    commissionAuthority.records.map(({ brief }) => brief.id),
+  );
+  const knownCompanionIds = new Set(
+    commissionAuthority.records.map(({ companionId }) => companionId),
+  );
+  for (const commission of commissionsDocument.commissions) {
+    const record = findRecord(commissionAuthority, commission.briefId);
+    if (
+      !knownBriefIds.has(commission.briefId) ||
+      record.companionId !== commission.companionId
+    ) {
+      throw new Error('story_architect_commission_identity_mismatch');
+    }
+  }
+  for (const companion of psychologyDocument.companions) {
+    if (!knownCompanionIds.has(companion.companionId)) {
+      throw new Error('story_architect_companion_psychology_identity_mismatch');
+    }
+  }
+  if (
+    new Set(commissionsDocument.commissions.map(({ companionId }) => companionId)).size !== 6 ||
+    new Set(psychologyDocument.companions.map(({ companionId }) => companionId)).size !== 6
+  ) {
+    throw new Error('story_architect_authority_coverage_invalid');
+  }
+  return {
+    commissionAuthority,
+    architectCharter: readUtf8(STORY_ARCHITECT_CHARTER_V3_PATH).trim(),
+    commissions: commissionsDocument.commissions,
+    companionPsychologies: psychologyDocument.companions,
+  };
+}
+
+function findStoryArchitectCommission(authority, briefId) {
+  const matches = authority.commissions.filter(
+    (commission) => commission.briefId === briefId,
+  );
+  if (matches.length !== 1) {
+    throw new Error(`story_architect_commission_not_unique:${briefId}`);
+  }
+  return matches[0];
+}
+
+function findCompanionCreativePsychology(authority, companionId) {
+  const matches = authority.companionPsychologies.filter(
+    (companion) => companion.companionId === companionId,
+  );
+  if (matches.length !== 1) {
+    throw new Error(`story_architect_companion_psychology_not_unique:${companionId}`);
+  }
+  return matches[0];
+}
+
+function visualJourneyRequirementFor(direction) {
+  if (direction === 'bedtime') {
+    return 'Use at least two materially different situations or places, with a clear visual journey that settles rather than stalls.';
+  }
+  if (direction === 'adventure') {
+    return 'Use at least three materially different environments or situation changes, including one large visual-comedy escalation.';
+  }
+  if (direction === 'fantasy') {
+    return 'Use at least four materially different environments, transformations or visual states that justify a 16-page wonder journey.';
+  }
+  throw new Error(`story_architect_direction_invalid:${direction}`);
+}
+
+function buildStoryArchitectBundle(authority, record) {
+  const commission = findStoryArchitectCommission(authority, record.brief.id);
+  const companionPsychology = findCompanionCreativePsychology(
+    authority,
+    record.companionId,
+  );
+  const identity = {
+    commissionVersion: 'small-heroes-story-architect-commission/v2',
+    authorityStatus: 'staging_only',
+    briefId: record.brief.id,
+    companionId: record.companionId,
+    direction: record.brief.direction,
+    textPageCount: record.brief.pageCount,
+    physicalPageCount: record.brief.pageCount * 2,
+    requiredFrontmatter: {
+      category: record.brief.category,
+      gender: 'female',
+      endingType: 'resolution',
+    },
+  };
+  const creativeNucleus = {
+    version: 'small-heroes-story-creative-nucleus/v2',
+    premiseSeed: commission.premiseSeed,
+    visualJourneyRequirement: visualJourneyRequirementFor(record.brief.direction),
+  };
+
+  return [
+    '# Small Heroes — Story Architect Commission',
+    '',
+    'This is an interactive two-stage commission. First invent three genuinely different story shapes and stop.',
+    'Do not write the story until Guy selects exactly one shape.',
+    '',
+    '## Commission identity',
+    '',
+    '```json',
+    JSON.stringify(identity, null, 2),
+    '```',
+    '',
+    '## Story Architect charter',
+    '',
+    authority.architectCharter,
+    '',
+    '## Companion inner psychology',
+    '',
+    '```json',
+    JSON.stringify(companionPsychology, null, 2),
+    '```',
+    '',
+    '## Creative Nucleus',
+    '',
+    '```json',
+    JSON.stringify(creativeNucleus, null, 2),
+    '```',
+    '',
+    'Begin with Stage 1 only. Return three story shapes and `WAITING_FOR_GUY_SELECTION`.',
+    '',
+  ].join('\n');
+}
+
+function writeStoryArchitectFiles(authority, records, outputDir) {
+  const absoluteOutputDir = path.resolve(outputDir);
+  fs.mkdirSync(absoluteOutputDir, { recursive: true });
+  if (fs.readdirSync(absoluteOutputDir).length > 0) {
+    throw new Error('story_architect_output_directory_not_empty');
+  }
+  const manifestRecords = [];
+  for (const record of records) {
+    const bundle = buildStoryArchitectBundle(authority, record);
+    const digest = sha256(bundle);
+    const filename = `${record.brief.id}.architect.${digest}.md`;
+    fs.writeFileSync(path.join(absoluteOutputDir, filename), bundle, {
+      encoding: 'utf8',
+      flag: 'wx',
+    });
+    manifestRecords.push({
+      briefId: record.brief.id,
+      companionId: record.companionId,
+      direction: record.brief.direction,
+      textPageCount: record.brief.pageCount,
+      physicalPageCount: record.brief.pageCount * 2,
+      filename,
+      sha256: digest,
+    });
+  }
+  const manifest = {
+    version: 'small-heroes-story-architect-commission-manifest/v2',
+    status: 'staging_only',
+    recordCount: manifestRecords.length,
+    records: manifestRecords,
+    sourceAuthority: {
+      architectCharter: {
+        path: STORY_ARCHITECT_CHARTER_V3_PATH,
+        sha256: sha256(authority.architectCharter),
+      },
+      commissions: {
+        path: STORY_ARCHITECT_COMMISSIONS_PATH,
+        sha256: sha256(readUtf8(STORY_ARCHITECT_COMMISSIONS_PATH)),
+      },
+      companionPsychology: {
+        path: COMPANION_CREATIVE_PSYCHOLOGY_PATH,
+        sha256: sha256(readUtf8(COMPANION_CREATIVE_PSYCHOLOGY_PATH)),
+      },
+    },
+  };
+  fs.writeFileSync(
+    path.join(absoluteOutputDir, 'manifest.json'),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    { encoding: 'utf8', flag: 'wx' },
+  );
+  const index = [
+    '# Small Heroes — Story Architect Commission Wave',
+    '',
+    'כל קובץ הוא בריף חופשי לשיחה חדשה. שולחים אותו במלואו, מקבלים שלושה כיוונים, בוחרים A/B/C ורק אז מבקשים את הסיפור.',
+    '',
+    '| briefId | companion | direction | text pages | physical pages | prompt |',
+    '|---|---|---|---:|---:|---|',
+    ...manifestRecords.map(
+      (entry) =>
+        `| ${entry.briefId} | ${entry.companionId} | ${entry.direction} | ${entry.textPageCount} | ${entry.physicalPageCount} | [open](${entry.filename}) |`,
+    ),
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(absoluteOutputDir, 'INDEX.md'), index, {
+    encoding: 'utf8',
+    flag: 'wx',
+  });
+  return manifest;
 }
 
 function findArchitectPilot(authority, briefId) {
@@ -967,6 +1265,169 @@ function validateEditorialPassDraft(record, draft) {
   return validated;
 }
 
+function validateProductAcceptance(approval) {
+  if (
+    !hasExactKeys(approval, PRODUCT_ACCEPTANCE_KEYS) ||
+    approval.version !== 'small-heroes-story-product-acceptance/v1' ||
+    approval.status !== 'accepted' ||
+    typeof approval.briefId !== 'string' ||
+    approval.briefId.trim().length < 3 ||
+    approval.acceptedBy !== 'Guy' ||
+    typeof approval.acceptedOn !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(approval.acceptedOn) ||
+    Number.isNaN(Date.parse(`${approval.acceptedOn}T00:00:00Z`)) ||
+    approval.acceptanceScope !== 'story_text_only' ||
+    !/^[a-f0-9]{64}$/.test(approval.storySha256) ||
+    !/^[a-f0-9]{64}$/.test(approval.editorialReviewSha256) ||
+    !hasExactKeys(approval.independentArtifactAudit, INDEPENDENT_ARTIFACT_AUDIT_KEYS) ||
+    approval.independentArtifactAudit.status !== 'pass' ||
+    !/^[a-f0-9]{40}$/.test(approval.independentArtifactAudit.reviewedHead) ||
+    ['blocker', 'major', 'minor'].some(
+      (key) => approval.independentArtifactAudit[key] !== 0,
+    ) ||
+    typeof approval.decision !== 'string' ||
+    approval.decision.trim().length < 10 ||
+    approval.decision.includes('\0') ||
+    !Array.isArray(approval.exclusions) ||
+    approval.exclusions.length < 5 ||
+    new Set(approval.exclusions).size !== approval.exclusions.length ||
+    approval.exclusions.some(
+      (entry) => typeof entry !== 'string' || entry.trim().length < 3,
+    )
+  ) {
+    throw new Error('story_product_acceptance_invalid');
+  }
+  return approval;
+}
+
+function readProductAcceptanceFile(approvalPath) {
+  const absoluteApprovalPath = path.resolve(approvalPath);
+  const absoluteApprovalRoot = path.join(REPO_ROOT, PRODUCT_ACCEPTANCE_ROOT);
+  let linkStat;
+  let realApprovalPath;
+  let realApprovalRoot;
+  try {
+    linkStat = fs.lstatSync(absoluteApprovalPath);
+    realApprovalPath = fs.realpathSync(absoluteApprovalPath);
+    realApprovalRoot = fs.realpathSync(absoluteApprovalRoot);
+  } catch {
+    throw new Error('story_product_acceptance_path_rejected');
+  }
+  if (
+    path.extname(realApprovalPath).toLowerCase() !== '.json' ||
+    linkStat.isSymbolicLink() ||
+    !linkStat.isFile() ||
+    linkStat.size < 1 ||
+    linkStat.size > 32 * 1024 ||
+    !pathIsInside(realApprovalRoot, realApprovalPath)
+  ) {
+    throw new Error('story_product_acceptance_path_rejected');
+  }
+  const bytes = fs.readFileSync(realApprovalPath);
+  let approval;
+  try {
+    approval = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw new Error('story_product_acceptance_json_invalid');
+  }
+  return {
+    absolutePath: realApprovalPath,
+    relativePath: path.relative(REPO_ROOT, realApprovalPath).replace(/\\/g, '/'),
+    bytes: bytes.length,
+    sha256: sha256(bytes),
+    approval: validateProductAcceptance(approval),
+  };
+}
+
+function writeProductAcceptedStorySource(
+  record,
+  draft,
+  reviewResult,
+  acceptanceResult,
+  outputDir,
+) {
+  if (
+    reviewResult.review.verdict !== 'pass' ||
+    reviewResult.review.issues.length !== 0 ||
+    reviewResult.review.revisionPriorities.length !== 0
+  ) {
+    throw new Error(`story_product_acceptance_editorial_pass_required:${reviewResult.review.verdict}`);
+  }
+  const validated = validateEditorialPassDraft(record, draft);
+  const approval = acceptanceResult.approval;
+  if (
+    approval.briefId !== record.brief.id ||
+    approval.storySha256 !== validated.sha256 ||
+    approval.editorialReviewSha256 !== reviewResult.sha256
+  ) {
+    throw new Error('story_product_acceptance_binding_mismatch');
+  }
+  const absoluteAcceptedRoot = path.join(REPO_ROOT, PRODUCT_ACCEPTED_STORY_ROOT);
+  const absoluteOutputDir = path.resolve(outputDir);
+  if (!pathIsInside(absoluteAcceptedRoot, absoluteOutputDir)) {
+    throw new Error('story_product_accepted_output_path_rejected');
+  }
+  fs.mkdirSync(absoluteOutputDir, { recursive: true });
+  if (fs.readdirSync(absoluteOutputDir).length > 0) {
+    throw new Error('story_product_accepted_output_directory_not_empty');
+  }
+  fs.writeFileSync(path.join(absoluteOutputDir, 'story.md'), validated.text, {
+    encoding: 'utf8',
+    flag: 'wx',
+  });
+  const editorialReviewBytes = fs.readFileSync(reviewResult.absolutePath);
+  if (sha256(editorialReviewBytes) !== reviewResult.sha256) {
+    throw new Error('story_product_acceptance_editorial_review_drift');
+  }
+  fs.writeFileSync(
+    path.join(absoluteOutputDir, 'editorial-review.json'),
+    editorialReviewBytes,
+    { flag: 'wx' },
+  );
+  const manifest = {
+    version: 'small-heroes-product-accepted-story-source-manifest/v1',
+    status: 'product_accepted_story_source',
+    authorityScope: 'story_text_only',
+    record: {
+      briefId: record.brief.id,
+      companionId: record.companionId,
+      direction: record.brief.direction,
+      category: record.brief.category,
+      textPageCount: record.brief.pageCount,
+      physicalPageCount: record.brief.pageCount * 2,
+      story: {
+        filename: 'story.md',
+        bytes: Buffer.byteLength(validated.text, 'utf8'),
+        sha256: validated.sha256,
+        byteIdenticalToSource: true,
+      },
+      editorialReview: {
+        filename: 'editorial-review.json',
+        sourcePath: reviewResult.relativePath,
+        bytes: reviewResult.bytes,
+        sha256: reviewResult.sha256,
+        verdict: 'pass',
+        byteIdenticalToSource: true,
+      },
+      productAcceptance: {
+        path: acceptanceResult.relativePath,
+        bytes: acceptanceResult.bytes,
+        sha256: acceptanceResult.sha256,
+        acceptedBy: approval.acceptedBy,
+        acceptedOn: approval.acceptedOn,
+      },
+      independentArtifactAudit: approval.independentArtifactAudit,
+      excludedAuthorities: [...approval.exclusions],
+    },
+  };
+  fs.writeFileSync(
+    path.join(absoluteOutputDir, 'manifest.json'),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    { encoding: 'utf8', flag: 'wx' },
+  );
+  return manifest;
+}
+
 function writeNormalizedRevisionFiles(record, draft, reviewResult, outputDir) {
   const absoluteOutputDir = path.resolve(outputDir);
   fs.mkdirSync(absoluteOutputDir, { recursive: true });
@@ -1341,6 +1802,47 @@ function main(argv) {
   }
 
   if (
+    command === 'materialize-architect' &&
+    values['brief-id'] &&
+    values['output-dir'] &&
+    Object.keys(values).sort().join(',') === 'brief-id,output-dir'
+  ) {
+    const storyArchitectAuthority = loadStoryArchitectAuthority(authority);
+    const record = findRecord(authority, values['brief-id']);
+    findStoryArchitectCommission(storyArchitectAuthority, record.brief.id);
+    const manifest = writeStoryArchitectFiles(
+      storyArchitectAuthority,
+      [record],
+      values['output-dir'],
+    );
+    process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
+    return;
+  }
+
+  if (
+    command === 'materialize-architect-wave' &&
+    values['exclude-brief-id'] &&
+    values['output-dir'] &&
+    Object.keys(values).sort().join(',') === 'exclude-brief-id,output-dir'
+  ) {
+    const storyArchitectAuthority = loadStoryArchitectAuthority(authority);
+    findStoryArchitectCommission(storyArchitectAuthority, values['exclude-brief-id']);
+    const records = authority.records.filter(
+      ({ brief }) => brief.id !== values['exclude-brief-id'],
+    );
+    if (records.length !== 17) {
+      throw new Error('story_architect_wave_coverage_invalid');
+    }
+    const manifest = writeStoryArchitectFiles(
+      storyArchitectAuthority,
+      records,
+      values['output-dir'],
+    );
+    process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
+    return;
+  }
+
+  if (
     command === 'materialize-editorial-review-pilot' &&
     values['brief-id'] &&
     values['draft-path'] &&
@@ -1380,6 +1882,34 @@ function main(argv) {
       record,
       draft,
       reviewResult,
+      values['output-dir'],
+    );
+    process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
+    return;
+  }
+
+  if (
+    command === 'promote-product-accepted-story' &&
+    values['brief-id'] &&
+    values['draft-path'] &&
+    values['review-path'] &&
+    values['approval-path'] &&
+    values['output-dir'] &&
+    Object.keys(values).sort().join(',') ===
+      'approval-path,brief-id,draft-path,output-dir,review-path'
+  ) {
+    const record = findRecord(authority, values['brief-id']);
+    const draft = readEditorialDraftFile(values['draft-path']);
+    const reviewResult = readEditorialReviewResultFile(
+      values['review-path'],
+      record.brief.pageCount,
+    );
+    const acceptanceResult = readProductAcceptanceFile(values['approval-path']);
+    const manifest = writeProductAcceptedStorySource(
+      record,
+      draft,
+      reviewResult,
+      acceptanceResult,
       values['output-dir'],
     );
     process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
@@ -1479,30 +2009,40 @@ if (require.main === module) {
 module.exports = {
   buildCommissionBundle,
   buildArchitectPilotBundle,
+  buildStoryArchitectBundle,
   buildEditorialReviewBundle,
   buildMusicalPolishBundle,
   buildTargetedRevisionBundle,
   commissionMetadata,
   findCompanionCard,
   findArchitectPilot,
+  findStoryArchitectCommission,
+  findCompanionCreativePsychology,
   findCompanionQaCanon,
   findRecord,
   loadArchitectPilotAuthority,
+  loadStoryArchitectAuthority,
   loadCommissionAuthority,
   normalizeTargetedRevisionDraft,
   projectBriefForWriter,
   readEditorialDraftFile,
   readEditorialReviewResultFile,
+  readProductAcceptanceFile,
   sha256,
   validateCompanionCardsDocument,
   validateArchitectPilotsDocument,
+  validateStoryArchitectCommissionsDocument,
+  validateCompanionCreativePsychologyDocument,
   validateCompanionQaCanonsDocument,
   validateEditorialReviewResult,
   validateEditorialPassDraft,
+  validateProductAcceptance,
   writeCommissionFiles,
   writeArchitectPilotFiles,
+  writeStoryArchitectFiles,
   writeEditorialReviewFiles,
   writeEditorialPassFiles,
+  writeProductAcceptedStorySource,
   writeMusicalPolishFiles,
   writeNormalizedRevisionFiles,
   writeTargetedRevisionFiles,

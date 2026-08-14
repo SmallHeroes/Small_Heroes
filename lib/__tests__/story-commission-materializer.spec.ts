@@ -2,36 +2,46 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const {
   buildArchitectPilotBundle,
+  buildStoryArchitectBundle,
   buildCommissionBundle,
   buildEditorialReviewBundle,
   buildMusicalPolishBundle,
   buildTargetedRevisionBundle,
   commissionMetadata,
   findArchitectPilot,
+  findStoryArchitectCommission,
+  findCompanionCreativePsychology,
   findCompanionCard,
   findCompanionQaCanon,
   findRecord,
   loadArchitectPilotAuthority,
+  loadStoryArchitectAuthority,
   loadCommissionAuthority,
   normalizeTargetedRevisionDraft,
   projectBriefForWriter,
   readEditorialDraftFile,
   readEditorialReviewResultFile,
   validateArchitectPilotsDocument,
+  validateStoryArchitectCommissionsDocument,
+  validateCompanionCreativePsychologyDocument,
   validateCompanionCardsDocument,
   validateCompanionQaCanonsDocument,
   validateEditorialPassDraft,
+  validateProductAcceptance,
   validateEditorialReviewResult,
   writeArchitectPilotFiles,
+  writeStoryArchitectFiles,
   writeCommissionFiles,
   writeEditorialReviewFiles,
   writeEditorialPassFiles,
+  writeProductAcceptedStorySource,
   writeMusicalPolishFiles,
   writeNormalizedRevisionFiles,
   writeTargetedRevisionFiles,
@@ -103,6 +113,27 @@ interface ArchitectAuthority {
   pilots: ArchitectPilot[];
 }
 
+interface StoryArchitectCommission {
+  briefId: string;
+  companionId: string;
+  premiseSeed: string;
+}
+
+interface CompanionCreativePsychology {
+  companionId: string;
+  innerCharacter: string;
+  relationshipDynamic: string;
+  changeCapacity: string;
+  forbiddenShortcuts: string;
+}
+
+interface StoryArchitectAuthority {
+  commissionAuthority: CommissionAuthority;
+  architectCharter: string;
+  commissions: StoryArchitectCommission[];
+  companionPsychologies: CompanionCreativePsychology[];
+}
+
 interface CompanionQaCanon {
   companionId: string;
   innerCharacter: string;
@@ -160,6 +191,10 @@ interface CommissionMetadata {
 
 interface Materializer {
   buildArchitectPilotBundle: (authority: ArchitectAuthority, record: CommissionRecord) => string;
+  buildStoryArchitectBundle: (
+    authority: StoryArchitectAuthority,
+    record: CommissionRecord,
+  ) => string;
   buildCommissionBundle: (authority: CommissionAuthority, record: CommissionRecord) => string;
   buildEditorialReviewBundle: (
     authority: ArchitectAuthority,
@@ -180,10 +215,19 @@ interface Materializer {
   ) => string;
   commissionMetadata: (record: CommissionRecord) => CommissionMetadata;
   findArchitectPilot: (authority: ArchitectAuthority, briefId: string) => ArchitectPilot;
+  findStoryArchitectCommission: (
+    authority: StoryArchitectAuthority,
+    briefId: string,
+  ) => StoryArchitectCommission;
+  findCompanionCreativePsychology: (
+    authority: StoryArchitectAuthority,
+    companionId: string,
+  ) => CompanionCreativePsychology;
   findCompanionCard: (authority: CommissionAuthority, companionId: string) => CompanionCard;
   findCompanionQaCanon: (authority: ArchitectAuthority, companionId: string) => CompanionQaCanon;
   findRecord: (authority: CommissionAuthority, briefId: string) => CommissionRecord;
   loadArchitectPilotAuthority: (authority?: CommissionAuthority) => ArchitectAuthority;
+  loadStoryArchitectAuthority: (authority?: CommissionAuthority) => StoryArchitectAuthority;
   loadCommissionAuthority: () => CommissionAuthority;
   normalizeTargetedRevisionDraft: (
     record: CommissionRecord,
@@ -197,6 +241,8 @@ interface Materializer {
     expectedPageCount: number,
   ) => EditorialReviewResult;
   validateArchitectPilotsDocument: (document: unknown) => unknown;
+  validateStoryArchitectCommissionsDocument: (document: unknown) => unknown;
+  validateCompanionCreativePsychologyDocument: (document: unknown) => unknown;
   validateCompanionCardsDocument: (document: unknown) => unknown;
   validateCompanionQaCanonsDocument: (document: unknown) => unknown;
   validateEditorialReviewResult: (
@@ -207,11 +253,17 @@ interface Materializer {
     record: CommissionRecord,
     draft: EditorialDraft,
   ) => { text: string; sha256: string; actions: Array<{ code: string }> };
+  validateProductAcceptance: (approval: unknown) => Record<string, unknown>;
   writeArchitectPilotFiles: (
     authority: ArchitectAuthority,
     record: CommissionRecord,
     outputDir: string,
   ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
+  writeStoryArchitectFiles: (
+    authority: StoryArchitectAuthority,
+    records: CommissionRecord[],
+    outputDir: string,
+  ) => { version: string; recordCount: number; records: Array<{ briefId: string; filename: string; sha256: string }> };
   writeCommissionFiles: (
     authority: CommissionAuthority,
     records: CommissionRecord[],
@@ -229,6 +281,18 @@ interface Materializer {
     reviewResult: EditorialReviewResult,
     outputDir: string,
   ) => { version: string; recordCount: number; record: { filename: string; sha256: string } };
+  writeProductAcceptedStorySource: (
+    record: CommissionRecord,
+    draft: EditorialDraft,
+    reviewResult: EditorialReviewResult,
+    acceptanceResult: {
+      relativePath: string;
+      bytes: number;
+      sha256: string;
+      approval: Record<string, any>;
+    },
+    outputDir: string,
+  ) => { version: string; status: string; record: Record<string, any> };
   writeMusicalPolishFiles: (
     record: CommissionRecord,
     draft: EditorialDraft,
@@ -991,6 +1055,217 @@ describe('story commission materializer', () => {
     } finally {
       fs.rmSync(legacyDir, { recursive: true, force: true });
       fs.rmSync(pilotDir, { recursive: true, force: true });
+    }
+  });
+
+  it('generalizes the Story Architect to all 18 slots without restoring screenplay rails', () => {
+    const commissionAuthority = loadCommissionAuthority();
+    const authority = loadStoryArchitectAuthority(commissionAuthority);
+
+    expect(authority.commissions).toHaveLength(18);
+    expect(authority.companionPsychologies).toHaveLength(6);
+    expect(new Set(authority.commissions.map(({ briefId }) => briefId)).size).toBe(18);
+    expect(new Set(authority.commissions.map(({ companionId }) => companionId)).size).toBe(6);
+    expect(new Set(authority.companionPsychologies.map(({ companionId }) => companionId))).toEqual(
+      new Set(commissionAuthority.records.map(({ companionId }) => companionId)),
+    );
+
+    for (const record of commissionAuthority.records) {
+      const commission = findStoryArchitectCommission(authority, record.brief.id);
+      const psychology = findCompanionCreativePsychology(authority, record.companionId);
+      const bundle = buildStoryArchitectBundle(authority, record);
+
+      expect(commission.companionId).toBe(record.companionId);
+      expect(bundle).toContain('exactly three genuinely different story shapes');
+      expect(bundle).toContain('WAITING_FOR_GUY_SELECTION');
+      expect(bundle).toContain(`"textPageCount": ${record.brief.pageCount}`);
+      expect(bundle).toContain(`"physicalPageCount": ${record.brief.pageCount * 2}`);
+      expect(bundle).toContain(JSON.stringify(psychology, null, 2));
+      expect(bundle).toContain(commission.premiseSeed);
+      expect(bundle).not.toContain('storyMovement');
+      expect(bundle).not.toContain('childDiscovery');
+      expect(bundle).not.toContain('childClimaxAction');
+      expect(bundle).not.toContain('visiblePayoff');
+      expect(bundle).not.toContain('companionWrongHelp');
+      expect(bundle).not.toContain('imageDirection:');
+    }
+
+    expect(() =>
+      validateStoryArchitectCommissionsDocument({
+        version: 'small-heroes-story-architect-commissions/v1',
+        status: 'staging_only',
+        commissions: authority.commissions.map((entry, index) =>
+          index === 0 ? { ...entry, exactClimax: 'rejected' } : entry,
+        ),
+      }),
+    ).toThrow('story_architect_commissions_invalid');
+    expect(() =>
+      validateCompanionCreativePsychologyDocument({
+        version: 'small-heroes-companion-creative-psychology/v1',
+        status: 'staging_only',
+        companions: authority.companionPsychologies.map((entry, index) =>
+          index === 0 ? { ...entry, requiredManeuver: 'rejected' } : entry,
+        ),
+      }),
+    ).toThrow('story_architect_companion_psychology_invalid');
+  });
+
+  it('materializes a 17-story next wave while excluding the accepted Dini adventure', () => {
+    const commissionAuthority = loadCommissionAuthority();
+    const authority = loadStoryArchitectAuthority(commissionAuthority);
+    const records = commissionAuthority.records.filter(
+      ({ brief }) => brief.id !== DINI_BRIEF_ID,
+    );
+    const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-heroes-architect-wave-'));
+
+    try {
+      const manifest = writeStoryArchitectFiles(authority, records, outputDir);
+      expect(manifest.version).toBe('small-heroes-story-architect-commission-manifest/v2');
+      expect(manifest.recordCount).toBe(17);
+      expect(manifest.records).toHaveLength(17);
+      expect(manifest.records.some(({ briefId }) => briefId === DINI_BRIEF_ID)).toBe(false);
+      expect(new Set(manifest.records.map(({ briefId }) => briefId)).size).toBe(17);
+      expect(fs.readdirSync(outputDir)).toHaveLength(19);
+      expect(fs.existsSync(path.join(outputDir, 'INDEX.md'))).toBe(true);
+      expect(fs.existsSync(path.join(outputDir, 'manifest.json'))).toBe(true);
+      expect(() => writeStoryArchitectFiles(authority, records, outputDir)).toThrow(
+        'story_architect_output_directory_not_empty',
+      );
+    } finally {
+      fs.rmSync(outputDir, { recursive: true, force: true });
+    }
+  });
+
+  it('promotes only a digest-bound Editor PASS plus Guy product acceptance', () => {
+    const commissionAuthority = loadCommissionAuthority();
+    const record = findRecord(commissionAuthority, DINI_BRIEF_ID);
+    const fixtureRoot = fs.mkdtempSync(
+      path.join(process.cwd(), 'outputs', 'small-heroes-product-acceptance-test-'),
+    );
+    const draftPath = path.join(fixtureRoot, 'draft.md');
+    const reviewPath = path.join(fixtureRoot, 'review.json');
+    const acceptedRoot = path.join(
+      process.cwd(),
+      'story-pipeline',
+      '04_approved_story_sources',
+      'accepted',
+    );
+    fs.mkdirSync(acceptedRoot, { recursive: true });
+    const outputDir = fs.mkdtempSync(path.join(acceptedRoot, 'test-'));
+    fs.rmSync(outputDir, { recursive: true, force: true });
+    const pages = Array.from(
+      { length: record.brief.pageCount },
+      (_, index) => `--- Page ${index + 1} ---\n\n{{childName}} {חייך|חייכה}.`,
+    ).join('\n\n');
+    const draftText = [
+      '---',
+      'title: "{{childName}} ו־דיני: בדיקה"',
+      `companionId: ${record.companionId}`,
+      `direction: ${record.brief.direction}`,
+      `category: ${record.brief.category}`,
+      `pages: ${record.brief.pageCount}`,
+      'gender: female',
+      'endingType: resolution',
+      '---',
+      '',
+      pages,
+      '',
+    ].join('\n');
+    const review: EditorialReview = {
+      version: 'small-heroes-story-editorial-review/v1',
+      verdict: 'pass',
+      strengths: ['The story has a complete child-owned causal arc.'],
+      issues: [],
+      revisionPriorities: [],
+      mustPreserve: ['Preserve the complete accepted text.'],
+    };
+
+    try {
+      fs.writeFileSync(draftPath, draftText, 'utf8');
+      fs.writeFileSync(reviewPath, `${JSON.stringify(review)}\n`, 'utf8');
+      const draft = readEditorialDraftFile(draftPath);
+      const reviewResult = readEditorialReviewResultFile(reviewPath, record.brief.pageCount);
+      const approval = {
+        version: 'small-heroes-story-product-acceptance/v1',
+        status: 'accepted',
+        briefId: DINI_BRIEF_ID,
+        acceptedBy: 'Guy',
+        acceptedOn: '2026-08-14',
+        acceptanceScope: 'story_text_only',
+        storySha256: draft.sha256,
+        editorialReviewSha256: reviewResult.sha256,
+        independentArtifactAudit: {
+          status: 'pass',
+          reviewedHead: '95ffa41943237532cb51b6b96f9b69aad56595a7',
+          blocker: 0,
+          major: 0,
+          minor: 0,
+        },
+        decision: 'Guy accepted the complete story text for durable source promotion.',
+        exclusions: [
+          'story_bank_import',
+          'wizard_runtime',
+          'visual_contract',
+          'render',
+          'deployment',
+        ],
+      };
+      expect(() => validateProductAcceptance(approval)).not.toThrow();
+      const approvalBytes = Buffer.from(`${JSON.stringify(approval)}\n`, 'utf8');
+      const acceptanceResult = {
+        relativePath: 'story-pipeline/04_approved_story_sources/approvals/test.json',
+        bytes: approvalBytes.length,
+        sha256: createHash('sha256').update(approvalBytes).digest('hex'),
+        approval,
+      };
+
+      const manifest = writeProductAcceptedStorySource(
+        record,
+        draft,
+        reviewResult,
+        acceptanceResult,
+        outputDir,
+      );
+      expect(manifest.version).toBe('small-heroes-product-accepted-story-source-manifest/v1');
+      expect(manifest.status).toBe('product_accepted_story_source');
+      expect(manifest.record.story.sha256).toBe(draft.sha256);
+      expect(manifest.record.story.byteIdenticalToSource).toBe(true);
+      expect(fs.readFileSync(path.join(outputDir, 'story.md'), 'utf8')).toBe(draftText);
+      expect(fs.readFileSync(path.join(outputDir, 'editorial-review.json'), 'utf8')).toBe(
+        `${JSON.stringify(review)}\n`,
+      );
+      expect(manifest.record.editorialReview.byteIdenticalToSource).toBe(true);
+      expect(() =>
+        writeProductAcceptedStorySource(
+          record,
+          draft,
+          reviewResult,
+          acceptanceResult,
+          outputDir,
+        ),
+      ).toThrow('story_product_accepted_output_directory_not_empty');
+      expect(() =>
+        writeProductAcceptedStorySource(
+          record,
+          draft,
+          reviewResult,
+          {
+            ...acceptanceResult,
+            approval: { ...approval, storySha256: '0'.repeat(64) },
+          },
+          path.join(acceptedRoot, 'binding-mismatch-test'),
+        ),
+      ).toThrow('story_product_acceptance_binding_mismatch');
+      expect(() => validateProductAcceptance({ ...approval, acceptedBy: 'Codex' })).toThrow(
+        'story_product_acceptance_invalid',
+      );
+    } finally {
+      fs.rmSync(fixtureRoot, { recursive: true, force: true });
+      fs.rmSync(outputDir, { recursive: true, force: true });
+      fs.rmSync(path.join(acceptedRoot, 'binding-mismatch-test'), {
+        recursive: true,
+        force: true,
+      });
     }
   });
 });

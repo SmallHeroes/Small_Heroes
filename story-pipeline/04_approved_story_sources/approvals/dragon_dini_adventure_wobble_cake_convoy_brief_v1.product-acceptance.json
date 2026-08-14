@@ -1,0 +1,25 @@
+{
+  "version": "small-heroes-story-product-acceptance/v1",
+  "status": "accepted",
+  "briefId": "dragon_dini_adventure_wobble_cake_convoy_brief_v1",
+  "acceptedBy": "Guy",
+  "acceptedOn": "2026-08-14",
+  "acceptanceScope": "story_text_only",
+  "storySha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce",
+  "editorialReviewSha256": "292613f4f183e66d9a513111c64d214f7338fc23224eaef023305fbc7d2c94bf",
+  "independentArtifactAudit": {
+    "status": "pass",
+    "reviewedHead": "95ffa41943237532cb51b6b96f9b69aad56595a7",
+    "blocker": 0,
+    "major": 0,
+    "minor": 0
+  },
+  "decision": "Guy accepted the musically polished Dini cake story and authorized preserving it and continuing with more stories.",
+  "exclusions": [
+    "story_bank_import",
+    "wizard_runtime",
+    "visual_contract",
+    "render",
+    "deployment"
+  ]
+}
