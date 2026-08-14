@@ -4,7 +4,7 @@
 **Base:** `9ebc648f6cbbfaf32e8b16a1148e8237f60eaa4f`
 **Branch:** `codex/story-bank-next-generation-briefs-qa-integration`
 **Worktree:** `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`
-**Status:** independent Claude Code technical PASS; polished prose and product acceptance pending
+**Status:** independent Claude Code technical PASS; external Editor PASS; Guy product acceptance pending
 
 ## Product intent
 
@@ -160,6 +160,76 @@ failures and stale Dini measurement assertion, plus a wider set of unrelated
 fixture/environment repository failures. No changed or new Story Engine test
 failed. The result remains a repository/release HOLD and is not represented as
 a green full check.
+
+## Musical-polish intake and editorial closure
+
+Guy supplied the external Writer's complete 12-page musical polish. The response
+preserved the accepted story but repeated the known long frontmatter-closing
+delimiter. Intake changed only that delimiter to canonical `---`; no prose or
+event was changed during canonicalization.
+
+First canonical musical draft:
+
+- path: `outputs/story-engine-vnext-dini-cake-musical-polish-result-20260814-v1/draft.md`
+- bytes: `6549`
+- SHA-256: `c06620624b5aa93411993dbcb011685c4763c06b4812789a0d525bed25198811`
+- page headers: exactly `1..12`
+- canonical intake: PASS
+
+Editor v3 round 1 returned `revise` with `personalization_syntax_invalid` and
+`hebrew_readaloud_issue`. It accepted the story mechanism, orange-market comic
+peak, child-owned discovery/climax and selective musicality. Codex applied only
+the diagnosed group-gender corrections and changed `מוכנה לתפוס משהו אם יצטרך`
+to `מוכנה לתפוס אם משהו ייפול`. The diagnostic listed six group forms; a full
+same-class scan also found `הם התקדמו` on page 6, which was corrected under the
+review's explicit requirement to fix all child/Dini group references.
+
+- round-1 review SHA-256:
+  `49451b66ddd76b45055c7731de60212182a0814c96ec819f388ea30b80d44298`
+- correction-1 draft SHA-256:
+  `3a8ebb99d742080e415755e9e209a6c83259952247ca13e027aa5c12e44a9b1b`
+- correction-1 evidence SHA-256:
+  `1496d427eaf9d7b989f5916d93b5a4b502719cde667ff9b5139c34342404dac8`
+
+Editor v3 round 2 returned `revise` for one remaining same-class page-11 form,
+`שמאחוריהם`. Correction 2 changed only that token to the complete chip
+`{שמאחוריהם|שמאחוריהן}`. A full plural-form scan confirmed that the only
+unchipped `ביניהם` refers to the masculine-plural oranges, not the child/Dini
+group.
+
+- round-2 review SHA-256:
+  `20dacce60709341965c0ab1aaa91728682bfed5b7e653e7434404ccd72bbf118`
+- final corrected draft: `6677` bytes
+- final corrected draft SHA-256:
+  `39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce`
+
+Editor v3 round 3 returned closed verdict **`pass`** with four strengths, zero
+issues and zero revision priorities. It confirms natural selective musicality,
+correct personalization in both gender routes, differentiated escalation,
+child-owned discovery/climax and Dini's behavior-led adaptation.
+
+- round-3 review path:
+  `outputs/story-engine-vnext-dini-cake-musical-polish-editor-result-round3-20260814-v1/review.json`
+- bytes: `1672`
+- SHA-256:
+  `292613f4f183e66d9a513111c64d214f7338fc23224eaef023305fbc7d2c94bf`
+
+The pass-only terminal froze a new staging candidate:
+
+- root: `outputs/story-engine-vnext-dini-cake-musical-editorial-pass-candidate-20260814-v1`
+- story file:
+  `dragon_dini_adventure_wobble_cake_convoy_brief_v1.editorial-pass.39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce.md`
+- story bytes / SHA-256: `6677` /
+  `39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce`
+- manifest bytes / SHA-256: `1118` /
+  `f1b67a27e476e8fac8339c6d568b608b5c5c45e859c9bea21ec6dda0d34c1f39`
+- candidate bytes equal the corrected draft exactly: true
+
+The prior candidate remains byte-intact at 6,462 bytes and digest
+`1e40185446b4a9cba0a321d939774d6452fade5a628f2322df616fe4b083a465`.
+The new candidate is external-editorially passed staging evidence only. It does
+not replace a bank/runtime story without Guy's product acceptance and an
+independent artifact-fidelity audit.
 
 ## Boundaries and rollback
 
