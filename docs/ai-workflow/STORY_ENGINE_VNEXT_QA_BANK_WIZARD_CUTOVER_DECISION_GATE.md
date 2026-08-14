@@ -35,6 +35,8 @@ Smallest proof: materialize and load all eighteen stories without provider/image
 
 The first live direction wave completed three qualified records and one additional structured response that failed the initial local validator. No transport retry occurred and the invalid response was not persisted. The resumed v2 path imports the three content-addressed records, counts the fourth response as an unaccounted completed call with its full request reservation, normalizes only whitespace, setting-key separators, and duplicate array entries, and permits one replacement call for the still-missing story. This preserves the USD 5.00 hard cap and makes the deviation explicit rather than hiding it.
 
+That replacement also failed local validation after a completed response. Its usage and USD 0.085869 cost were persisted without the raw output. Before the final permitted application retry, the validator was aligned with the schema's bounded-output authority: exact keys, page identity/order, enums, English-only/no-placeholder guards, and overall provider token ceiling remain fail-closed, while arbitrary sub-field character ceilings were raised and the exact `{{childName}}` token is normalized to `the child`. A closed field locator is persisted if validation still fails. No third application retry is authorized.
+
 ## Explicit exclusions
 
 No Production deployment or alias, payment capture, storage/database write, Board approval, publication, promotion, artist imitation, model/budget/retry/fallback change, or reuse of stale Visual Contract authority.

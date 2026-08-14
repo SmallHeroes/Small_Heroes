@@ -105,8 +105,11 @@ function normalizeVisualDirectionRecord(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || !Array.isArray(value.pages)) {
     return value;
   }
+  const normalizeText = (entry) => typeof entry === 'string'
+    ? entry.trim().replaceAll('{{childName}}', 'the child')
+    : entry;
   const normalizeArray = (entries) => Array.isArray(entries)
-    ? [...new Set(entries.map((entry) => typeof entry === 'string' ? entry.trim() : entry))]
+    ? [...new Set(entries.map(normalizeText))]
     : entries;
   return {
     ...value,
@@ -118,11 +121,11 @@ function normalizeVisualDirectionRecord(value) {
         settingKey: typeof page.settingKey === 'string'
           ? page.settingKey.trim().toLowerCase().replace(/[\s-]+/g, '_')
           : page.settingKey,
-        setting: typeof page.setting === 'string' ? page.setting.trim() : page.setting,
+        setting: normalizeText(page.setting),
         supportingCharacters: normalizeArray(page.supportingCharacters),
-        mainAction: typeof page.mainAction === 'string' ? page.mainAction.trim() : page.mainAction,
-        heroObject: typeof page.heroObject === 'string' ? page.heroObject.trim() : page.heroObject,
-        lighting: typeof page.lighting === 'string' ? page.lighting.trim() : page.lighting,
+        mainAction: normalizeText(page.mainAction),
+        heroObject: normalizeText(page.heroObject),
+        lighting: normalizeText(page.lighting),
         continuityAnchors: normalizeArray(page.continuityAnchors),
       };
     }),
@@ -136,26 +139,26 @@ function validateVisualDirectionRecord(value, storyKey, expectedPageCount) {
     'supportingCharacters', 'mainAction', 'heroObject', 'shotType', 'cameraAngle',
     'lighting', 'continuityAnchors',
   ];
-  if (
-    !exactKeys(value, topKeys) || value.version !== RECORD_VERSION ||
-    value.storyKey !== storyKey || !Array.isArray(value.pages) ||
-    value.pages.length !== expectedPageCount
-  ) {
-    throw new Error('story_visual_direction_output_invalid');
-  }
+  const reject = (code) => { throw new Error(`story_visual_direction_output_invalid:${code}`); };
+  if (!exactKeys(value, topKeys)) reject('root_shape');
+  if (value.version !== RECORD_VERSION) reject('record_version');
+  if (value.storyKey !== storyKey) reject('story_key');
+  if (!Array.isArray(value.pages) || value.pages.length !== expectedPageCount) reject('page_coverage');
   for (const [index, page] of value.pages.entries()) {
-    if (
-      !exactKeys(page, pageKeys) || page.pageNumber !== index + 1 ||
-      !/^[a-z][a-z0-9_]{2,63}$/.test(page.settingKey) ||
-      !cleanText(page.setting, 3, 240) || !PRESENCE.includes(page.childPresence) ||
-      !PRESENCE.includes(page.companionPresence) ||
-      !cleanStringArray(page.supportingCharacters, 8) || !cleanText(page.mainAction, 3, 320) ||
-      !(page.heroObject === null || cleanText(page.heroObject, 2, 160)) ||
-      !SHOTS.includes(page.shotType) || !ANGLES.includes(page.cameraAngle) ||
-      !cleanText(page.lighting, 3, 160) || !cleanStringArray(page.continuityAnchors, 8)
-    ) {
-      throw new Error('story_visual_direction_output_invalid');
-    }
+    const locator = `page_${index + 1}`;
+    if (!exactKeys(page, pageKeys)) reject(`${locator}_shape`);
+    if (page.pageNumber !== index + 1) reject(`${locator}_number`);
+    if (!/^[a-z][a-z0-9_]{2,95}$/.test(page.settingKey)) reject(`${locator}_setting_key`);
+    if (!cleanText(page.setting, 3, 800)) reject(`${locator}_setting`);
+    if (!PRESENCE.includes(page.childPresence)) reject(`${locator}_child_presence`);
+    if (!PRESENCE.includes(page.companionPresence)) reject(`${locator}_companion_presence`);
+    if (!cleanStringArray(page.supportingCharacters, 12, 240)) reject(`${locator}_supporting_characters`);
+    if (!cleanText(page.mainAction, 3, 1200)) reject(`${locator}_main_action`);
+    if (!(page.heroObject === null || cleanText(page.heroObject, 2, 600))) reject(`${locator}_hero_object`);
+    if (!SHOTS.includes(page.shotType)) reject(`${locator}_shot_type`);
+    if (!ANGLES.includes(page.cameraAngle)) reject(`${locator}_camera_angle`);
+    if (!cleanText(page.lighting, 3, 600)) reject(`${locator}_lighting`);
+    if (!cleanStringArray(page.continuityAnchors, 12, 320)) reject(`${locator}_continuity_anchors`);
   }
   return value;
 }
@@ -297,19 +300,29 @@ function importSeedRecords({ repoRoot, seedRoot, records, contractSha256, output
     manifest.records[storyKey] = { ...seeded, output, receipt, seeded: true };
   }
   const missing = records.filter(({ storyKey }) => !manifest.records[storyKey]);
+  const continuingHeldSeed = seed.status === 'completed_with_holds' &&
+    Array.isArray(seed.failures) && seed.failures.length === 1 &&
+    seed.failures[0]?.storyKey === missing[0]?.storyKey ? 1 : 0;
   const unaccountedReservationUsd = unaccountedSeedCalls === 1 && missing.length > 0
     ? reservationUsd(buildRequest(repoRoot, missing[0]).request)
     : 0;
   manifest.actualCostUsd = Number(seed.actualCostUsd.toFixed(9));
-  manifest.conservativeCostUsd = Number((manifest.actualCostUsd + unaccountedReservationUsd).toFixed(9));
+  const inheritedConservativeCostUsd = Number.isFinite(seed.conservativeCostUsd) &&
+    seed.conservativeCostUsd >= seed.actualCostUsd
+    ? seed.conservativeCostUsd
+    : seed.actualCostUsd;
+  manifest.conservativeCostUsd = Number((inheritedConservativeCostUsd + unaccountedReservationUsd).toFixed(9));
   manifest.logicalProviderCalls = seed.logicalProviderCalls + unaccountedSeedCalls;
-  manifest.applicationRetries = unaccountedSeedCalls;
+  manifest.applicationRetries = Number(seed.applicationRetries || 0) +
+    unaccountedSeedCalls + continuingHeldSeed;
+  if (manifest.applicationRetries > 2) throw new Error('story_visual_direction_retry_budget_exceeded');
   manifest.seed = {
     manifestSha256: sha256(seedManifestBytes),
     importedRecords: Object.keys(seed.records).length,
     accountedProviderCalls: seed.logicalProviderCalls,
     unaccountedCompletedCalls: unaccountedSeedCalls,
     unaccountedCostReservationUsd: Number(unaccountedReservationUsd.toFixed(9)),
+    continuedHeldStory: continuingHeldSeed === 1,
   };
 }
 
@@ -401,10 +414,14 @@ async function runVisualDirectionWave({
       const reasonCode = error instanceof SyntaxError
         ? 'story_visual_direction_provider_json_invalid'
         : 'story_visual_direction_output_invalid';
+      const diagnosticCode = error instanceof Error && error.message.startsWith(`${reasonCode}:`)
+        ? error.message.slice(reasonCode.length + 1)
+        : null;
       manifest.status = 'completed_with_holds';
       manifest.failures.push({
         storyKey: accepted.storyKey,
         reasonCode,
+        diagnosticCode,
         usage: result.usage,
         costUsd,
         rawOutputPersisted: false,

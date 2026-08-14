@@ -1965,6 +1965,7 @@ describe('accepted story visual directions', () => {
     normalizable.storyKey = ` ${storyKey} `;
     normalizable.pages[0].settingKey = ' Bakery-Street ';
     normalizable.pages[0].setting = ` ${normalizable.pages[0].setting} `;
+    normalizable.pages[0].mainAction = '{{childName}} walks beside the companion';
     normalizable.pages[0].supportingCharacters = [' baker ', 'baker'];
     normalizable.pages[0].continuityAnchors = [' same delivery cart ', 'same delivery cart'];
     const normalized = visualDirections.normalizeVisualDirectionRecord(normalizable);
@@ -1972,6 +1973,7 @@ describe('accepted story visual directions', () => {
       settingKey: 'bakery_street',
       supportingCharacters: ['baker'],
       continuityAnchors: ['same delivery cart'],
+      mainAction: 'the child walks beside the companion',
     });
     expect(visualDirections.validateVisualDirectionRecord(normalized, storyKey, 12)).toBe(normalized);
   });
