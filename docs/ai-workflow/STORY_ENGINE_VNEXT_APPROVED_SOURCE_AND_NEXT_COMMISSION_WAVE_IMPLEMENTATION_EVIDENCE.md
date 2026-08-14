@@ -121,5 +121,40 @@ musical polish re-enters Editor, and Guy accepts the final text. Only after text
 acceptance should the visual-source/image-direction and bank/Wizard milestone
 begin.
 
-This document records Codex implementation evidence. Independent Claude Code QA
-is pending and no technical PASS is self-awarded.
+## Independent Claude Code QA
+
+Claude Code performed a read-only adversarial review of exact immutable range
+`9cc03186b3fb530e8f228f7896dc12981db2b9ff..e2c7abcf96b045f9a8a824358747997b449a2041`
+and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero MINOR.
+It confirmed all eleven handoff claims and independently reproduced:
+
+- `npx vitest run lib/__tests__/story-commission-materializer.spec.ts`:
+  **1 file / 15 tests PASS**;
+- `node --check scripts/materialize-story-commission-briefs.cjs`: PASS;
+- `npx --no-install tsc --noEmit`: PASS;
+- `git diff --check`: PASS.
+
+It also verified the exact accepted-source bytes and bindings, the Guy approval
+record, complete 18-slot/six-companion authority, the 17-prompt exclusion wave,
+prompt-freedom boundaries, fail-closed promotion/materialization behavior and
+the absence of changes to the live story bank, Wizard matrix and runtime loader.
+This is Claude Code's independent verdict, not a Codex self-awarded result.
+
+The review retained five advisory notes only:
+
+1. Some charter vocabulary superficially resembles prior rails, but no
+   value-level screenplay leakage was found.
+2. In the local single-process workflow, an out-of-band editorial-result change
+   between the writer's checks could leave a partial accepted child directory;
+   exclusive writes prevent it from becoming a completed replacement.
+3. The Guy approval record is a faithful tracked audit claim, not a cryptographic
+   signature or externally verifiable authorization token.
+4. Claude's temporary read-only probe files were removed and the worktree was
+   clean at handoff.
+5. `npm run check` was intentionally not rerun; the separate Prisma/fixture
+   repository release HOLD remains unchanged.
+
+No additional correction or re-gate is required for this range. This PASS grants
+durable accepted-story-source and next-commission authority only. It grants no
+visual-source, story-bank import, Wizard/runtime, Visual Contract, render,
+deployment or release authority.

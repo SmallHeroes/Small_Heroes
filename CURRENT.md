@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/story-engine-approved-source-next-commissions` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`; this follow-up is based exactly on `9cc03186b3fb530e8f228f7896dc12981db2b9ff`.
 
-## STORY ENGINE VNEXT APPROVED SOURCE + NEXT COMMISSION WAVE — implementation complete / independent QA pending
+## STORY ENGINE VNEXT APPROVED SOURCE + NEXT COMMISSION WAVE — independent TECHNICAL PASS / product source accepted
 
 Guy gave product acceptance to the musically polished Dini cake story and asked
 to preserve it and continue creating stories. The system now separates durable
@@ -30,10 +30,25 @@ story-text acceptance from the later visual/bank/Wizard cutover.
 - Focused validation passes **1 file / 15 tests**, script syntax, deterministic
   TypeScript and `git diff --check`. The live `story-bank/v3-approved`, Wizard
   matrix and runtime loader remain unchanged.
-- This is Codex implementation evidence, not independent technical PASS. Claude
-  Code review is pending. No provider/model/network call, credential access,
-  image/audio/Vision render, bank import, Wizard/runtime change, storage/database,
-  QA/Production deployment or push occurred. External cost is `$0`.
+- Claude Code independently reviewed exact immutable range
+  `9cc03186b3fb530e8f228f7896dc12981db2b9ff..e2c7abcf96b045f9a8a824358747997b449a2041`
+  and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero MINOR.
+  It confirmed all eleven handoff claims, reproduced **1 file / 15 tests**, script
+  syntax, TypeScript and `git diff --check`, rebuilt the accepted-source and
+  17-prompt wave contracts, and verified that live bank/Wizard/runtime surfaces
+  remain unchanged. This is Claude Code's verdict, not a Codex self-award.
+- ADV-1 through ADV-5 remain advisory only: superficial charter vocabulary did
+  not leak value-level screenplay rails; the single-process accepted-source
+  writer could leave a partial directory only under an out-of-band mid-run input
+  change; the tracked Guy-approval record is audit evidence rather than a signed
+  authorization token; Claude removed its temporary read-only probes; and the
+  intentionally omitted repository-wide check leaves the unrelated Prisma and
+  fixture release HOLD unchanged.
+- No provider/model/network call, credential access, image/audio/Vision render,
+  bank import, Wizard/runtime change, storage/database, QA/Production deployment
+  or push occurred. External cost is `$0`. The PASS grants durable story-source
+  and next-commission authority only, not visual-source, bank, Wizard, render or
+  deployment authority.
 
 Durable records:
 `docs/ai-workflow/STORY_ENGINE_VNEXT_APPROVED_SOURCE_AND_NEXT_COMMISSION_WAVE_DECISION_GATE.md`
