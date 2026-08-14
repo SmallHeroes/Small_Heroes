@@ -231,6 +231,50 @@ The new candidate is external-editorially passed staging evidence only. It does
 not replace a bank/runtime story without Guy's product acceptance and an
 independent artifact-fidelity audit.
 
+## Independent artifact-fidelity PASS
+
+Claude Code independently audited the complete seven-root chain at exact HEAD
+`95ffa41943237532cb51b6b96f9b69aad56595a7` and returned **PASS** with zero
+BLOCKER, zero MAJOR and zero MINOR. This is Claude Code's verdict, recorded by
+Codex; it is not Codex product acceptance.
+
+Claude independently established:
+
+- the final candidate is byte-canonical with exactly 12 sequential nonempty
+  pages and one trailing newline;
+- all 23 personalization chips contain two complete Hebrew forms;
+- correction 1 contains exactly seven group-gender conversions and the one
+  diagnosed page-10 clause clarification, with no other change;
+- correction 2 changes only `שמאחוריהם` to
+  `{שמאחוריהם|שמאחוריהן}`;
+- Editor rounds validate as `revise`, `revise`, `pass`, with zero final issues
+  and priorities;
+- the final candidate and correction-2 draft are byte-identical at 6,677 bytes
+  and digest `39ad403d…`;
+- the manifest binds the exact round-3 review digest `292613f4…` and PASS;
+- the prior `1e401854…` candidate remains byte-intact; and
+- no bank, Wizard, Reader, Visual Contract, render, provider, runtime or
+  deployment authority exists.
+
+Advisory notes retained without findings:
+
+1. The hand-authored bounded-correction declarations are audit-enforced rather
+   than replay-enforced; a future general `verify-bounded-correction` command
+   would strengthen this without changing story behavior.
+2. `storyEventsChanged:false` is self-declared; Claude substantively verified
+   it for both corrections.
+3. The page-10 clarification is the only non-chip prose change in the chain and
+   is exactly within `hebrew_readaloud_issue@10`.
+4. Future plural-form lint must not misclassify the oranges' correct masculine
+   `ביניהם`.
+5. The unrelated missing generated Prisma client and repository HOLD remain
+   unremediated.
+6. Claude's probes were read-only and left every artifact byte-intact.
+
+These advisories do not reopen the PASS. Replay verification is deferred as
+future general hardening so the accepted story flow does not expand into
+another architecture milestone.
+
 ## Boundaries and rollback
 
 - credential access: none
