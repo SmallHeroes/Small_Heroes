@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/story-engine-autonomous-batch-orchestrator` in `C:\Users\guyna\.codex\worktrees\storybatch1\Small_Heroes`; based exactly on independently passed and pushed head `ea4404a5b2492099c35c90c6da2a14ee6478144f`.
 
-## STORY ENGINE AUTONOMOUS BATCH ORCHESTRATOR — QA correction implemented / live pilot HOLD / micro re-gate pending
+## STORY ENGINE AUTONOMOUS BATCH ORCHESTRATOR — bounded live pilot PASS / pre-wave typing QA pending
 
 Guy approved replacing manual A/B/C selection for future commissions with an
 autonomous pipeline using `gpt-5.6-sol` through the Responses API. The accepted
@@ -69,8 +69,7 @@ wave.
   strengths while the canonical result validator permits at most four. Its
   useful `revise` diagnosis identified one major personalization defect on page
   4 and one minor read-aloud defect spanning pages 3/8. No story was machine-qualified.
-  `ce243a0d` now binds the exact Writer envelope and Editor cardinalities, but
-  that correction has not received a third live attempt.
+  `ce243a0d` now binds the exact Writer envelope and Editor cardinalities.
 - Claude Code's first read-only review of exact range `ea4404a5..8f378944`
   returned **HOLD** with one MAJOR and six MINOR findings. The QA correction
   closes the MAJOR by requiring a `pass` review to have exactly zero revision
@@ -78,14 +77,34 @@ wave.
   is written otherwise. It also replaces terminal-resume TypeError persistence
   with the closed `story_batch_terminal_call_not_resumable` code, corrects the
   cost/count record, names the active v4/Selector/Writer authorities in the
-  README and describes equal-weight scoring consistently. MINOR-6 is retained
-  as an advisory limitation: the orchestrator follows the repository's CJS
-  materializer lineage and is covered by direct tests and `node --check`, but
-  its implementation is outside the TypeScript program. Independent closure
-  remains pending the micro re-gate.
-- Per Guy's two-failure stop rule, no third provider attempt and no 17-story wave
-  was run. No accepted source, live bank, Wizard, Visual Contract, image/audio,
-  render, database/storage, QA/Production deployment or push changed.
+  README and describes equal-weight scoring consistently. Claude Code's
+  read-only micro re-gate of exact range `8f378944..6711b466` returned **PASS**
+  and independently closed every correction target without regression.
+- The bounded Bunny Ometz v3 pilot then completed successfully at exact HEAD
+  `6711b466`: option C won by code-recomputed totals `68/65/75`; Architect,
+  Selector, Writer and Editor completed in four calls; Editor returned `pass`
+  with zero issues and zero revision priorities; no revision, transport retry or
+  fallback occurred. Exact usage was 7,786 input, 6,914 cache-write, 10,987
+  output, 6,457 reasoning and 18,773 total tokens. Exact cost was `$0.3771825`.
+  The final 8-text-page / 16-physical-page story is 7,670 bytes at SHA-256
+  `c5becdf90d210db68aacb6f34608275d0c1df687597ad37b1685bfb57f90fe90`
+  and passes canonical validation with zero normalization actions. Combined
+  conservative exposure across v1-v3 is `$0.77742125`.
+- Before the 17-story wave, the CJS runtime now imports an explicit TypeScript
+  discriminated union for completed versus terminal calls. Terminal calls
+  cannot expose `output`; completed calls must. Story state and manifest calls
+  are bound to that union, and `npm run story:autonomous-typecheck` checks the
+  actual CJS reader against it. This implements Claude's remaining advisory
+  without changing runtime behavior, prompts, budgets or authority versions.
+  The dedicated typecheck, the focused **2 files / 30 tests**, deterministic
+  repository TypeScript, four CJS syntax checks and `git diff --check` pass.
+  The literal repository gate was not rerun; its separate known HOLD remains.
+- The successful story remains `machine_qualified_staging_only`; it has not been
+  promoted to accepted source, the live bank, Wizard, Visual Contract or render.
+  The 17-story wave has not run. The pre-wave typing hardening awaits read-only
+  Claude Code QA. No accepted source, live bank, Wizard, Visual Contract,
+  image/audio, render, database/storage, QA/Production deployment or push
+  changed.
 
 Durable records:
 `docs/ai-workflow/STORY_ENGINE_AUTONOMOUS_BATCH_ORCHESTRATOR_DECISION_GATE.md`

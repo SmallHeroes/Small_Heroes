@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "checkJs": false,
+    "incremental": false,
+    "isolatedModules": false,
+    "noImplicitAny": false,
+    "noEmit": true
+  },
+  "include": [
+    "lib/story-pipeline/autonomous-story-batch-state.ts",
+    "scripts/story-autonomous-batch-core.cjs"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

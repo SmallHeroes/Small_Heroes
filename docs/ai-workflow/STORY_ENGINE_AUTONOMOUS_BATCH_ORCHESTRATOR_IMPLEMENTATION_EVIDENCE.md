@@ -52,6 +52,11 @@ provider request.
 - QA correction focused validation using the same two files: **2 files / 30
   tests PASS**; deterministic TypeScript, all four CJS `node --check` commands
   and `git diff --check`: **PASS**. `npm run check` was not rerun.
+- Pre-wave type hardening validation: `npm run story:autonomous-typecheck`:
+  **PASS**; the same focused suites: **2 files / 30 tests PASS**;
+  `npx --no-install tsc --noEmit`: **PASS**; all four autonomous CJS
+  `node --check` commands: **PASS**; `git diff --check`: **PASS**. The literal
+  repository gate was not rerun because its separate known HOLD is unchanged.
 - The literal `npm run check` ran exactly once and was not retried. TypeScript,
   the changed 21-test suite under ordinary load and the complete 19-file
   resource-intensive phase passed. Ordinary failed eight assertions: the
@@ -137,15 +142,68 @@ the two behavioral findings before editing.
   core itself. Migrating that lineage is broader than this fail-closed QA fix.
 
 No pilot artifact was rewritten or re-priced in place. No credential or
-provider call occurred during the correction. Independent closure remains
-pending a read-only micro re-gate.
+provider call occurred during the correction. Claude Code then performed a
+read-only micro re-gate of immutable range `8f378944..6711b466` and returned
+**PASS**: all six correction targets were closed, with no regression. The
+remaining CJS/TypeScript coverage limitation was explicitly non-blocking for a
+bounded staging pilot and recommended for correction before the 17-story wave.
+
+## Successful bounded live pilot v3
+
+Root:
+`outputs/story-autonomous-bunny-pilot-20260814-v3`
+
+The third, bounded single-story pilot ran only after Claude Code's correction
+PASS. It used the Bunny Ometz bedtime commission and a hard `$0.59` root cap.
+The run completed with `machine_qualified_staging_only` authority:
+
+- exact HEAD: `6711b46678ded57c485b60df599642db9f0b6b1d`;
+- exact model/tier/store: `gpt-5.6-sol` / `default` / `false`;
+- selected premise: option `C`, with code-recomputed equal-weight totals
+  `A=68`, `B=65`, `C=75` and zero disqualifiers;
+- logical calls: `4` in exact order Architect, Selector, Writer, Editor;
+- revisions / transport retries / fallback: `0 / 0 / false`;
+- usage: `7,786` input, `6,914` cache-write, `0` cached input, `10,987`
+  output, `6,457` reasoning and `18,773` total tokens;
+- exact Standard-tier cost: `$0.3771825`;
+- Editor result: `pass`, four strengths, zero issues, zero revision
+  priorities and five must-preserve items;
+- final story: `7,670` bytes, SHA-256
+  `c5becdf90d210db68aacb6f34608275d0c1df687597ad37b1685bfb57f90fe90`.
+
+The final story was re-read from its content-addressed artifact and passed the
+canonical editorial draft validator with zero normalization actions. The
+combined conservative exposure across pilots v1-v3 is `$0.77742125`. The root
+is immutable execution evidence and was not promoted into accepted story
+sources, the bank, Wizard or any render path.
+
+## Pre-wave compile-time state boundary
+
+Before expanding from one story to the default 17-story wave, the persisted
+call state now has an explicit TypeScript discriminated union:
+
+- a completed call must contain a content-addressed `output` and receipt;
+- a terminal call has `terminal:true`, contains a receipt and cannot expose an
+  `output` property;
+- the mutable per-story state and manifest bind `calls` to that union;
+- `readRecordedOutput` is checked against the union, so removing its terminal
+  discrimination makes the CJS core fail compilation;
+- a dedicated `story:autonomous-typecheck` command checks the runtime CJS core
+  plus the typed state contract without pulling the legacy CJS materializer
+  lineage into scope.
+
+This is compile-time hardening only. It does not change model, prompts, schemas,
+selection, budgets, call counts, repair behavior, timeout, retry, fallback,
+credential isolation, persisted artifact versions or staging authority.
 
 ## Authority result and next gate
 
-The implementation and evidence do not grant technical PASS; Claude's first
-review returned HOLD and the QA correction awaits micro re-gate. Both pilot
-attempts are terminal, no story is
-machine-qualified, and the default 17-story wave has not run. Per Guy's explicit
-two-failure rule, a third live attempt requires a new decision after this report.
-No artifact in either output root may be promoted to the accepted story source,
-story bank, Wizard or render pipeline.
+Claude Code independently granted technical PASS to the original implementation
+correction through `6711b466`; Codex does not self-award that result. The Bunny
+v3 pilot subsequently proved the bounded live path and produced one
+machine-qualified staging story. The new pre-wave compile-time hardening still
+requires independent read-only QA before the 17-story wave is allowed to start.
+
+No pilot artifact is accepted story-source, story-bank, Wizard, Visual Contract,
+render or release authority. The default 17-story wave has not run, and this
+milestone remains unpushed.

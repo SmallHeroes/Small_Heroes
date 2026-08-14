@@ -1,3 +1,5 @@
+// @ts-check
+
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -12,6 +14,10 @@ const {
   validateEditorialPassDraft,
   validateEditorialReviewResult,
 } = require('./materialize-story-commission-briefs.cjs');
+
+/** @typedef {import('../lib/story-pipeline/autonomous-story-batch-state').StoryCall} StoryCall */
+/** @typedef {import('../lib/story-pipeline/autonomous-story-batch-state').StoryState} StoryState */
+/** @typedef {import('../lib/story-pipeline/autonomous-story-batch-state').AutonomousStoryBatchManifest} AutonomousStoryBatchManifest */
 
 const MODEL = 'gpt-5.6-sol';
 const SERVICE_TIER = 'default';
@@ -436,6 +442,7 @@ function ensureOutputRoot(repoRoot, outputRoot) {
   return absolute;
 }
 
+/** @returns {AutonomousStoryBatchManifest} */
 function newManifest(repoRoot, briefIds, maxCostUsd) {
   return {
     version: PIPELINE_VERSION,
@@ -458,7 +465,9 @@ function newManifest(repoRoot, briefIds, maxCostUsd) {
   };
 }
 
+/** @returns {AutonomousStoryBatchManifest} */
 function loadManifestForResume(repoRoot, manifestPath, briefIds, maxCostUsd) {
+  /** @type {AutonomousStoryBatchManifest} */
   let manifest;
   try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); }
   catch { throw new Error('story_batch_manifest_invalid'); }
@@ -481,6 +490,10 @@ function parseProviderJson(result, invalidCode) {
   try { return JSON.parse(result.text); } catch { throw new Error(invalidCode); }
 }
 
+/**
+ * @param {AutonomousStoryBatchManifest} manifest
+ * @param {StoryState} storyState
+ */
 function recordCall(storyDir, manifest, storyState, request, result) {
   const artifact = contentAddressedWrite(
     storyDir,
@@ -513,6 +526,10 @@ function recordCall(storyDir, manifest, storyState, request, result) {
   return artifact;
 }
 
+/**
+ * @param {AutonomousStoryBatchManifest} manifest
+ * @param {StoryState} storyState
+ */
 function recordTerminalCall(storyDir, manifest, storyState, request, result) {
   const costUsd = calculateCostUsd(result.usage, result.serviceTier);
   const receiptBody = {
@@ -545,6 +562,10 @@ function recordTerminalCall(storyDir, manifest, storyState, request, result) {
   storyState.calls.push({ stage: request.stage, terminal: true, receipt, costUsd });
 }
 
+/**
+ * @param {AutonomousStoryBatchManifest} manifest
+ * @param {StoryState} storyState
+ */
 async function invoke(provider, storyDir, manifest, storyState, request, persist) {
   const reservation = conservativeReservationUsd(request);
   if (manifest.actualCostUsd + reservation > manifest.maxCostUsd) {
@@ -578,6 +599,10 @@ async function invoke(provider, storyDir, manifest, storyState, request, persist
   return result;
 }
 
+/**
+ * @param {string} storyDir
+ * @param {StoryCall} call
+ */
 function readRecordedOutput(storyDir, call) {
   if (call?.terminal === true) throw new Error('story_batch_terminal_call_not_resumable');
   if (!call?.output || !exactKeys(call.output, ['filename', 'bytes', 'sha256'])) {
@@ -591,17 +616,25 @@ function readRecordedOutput(storyDir, call) {
   return bytes.toString('utf8');
 }
 
+/**
+ * @param {AutonomousStoryBatchManifest} manifest
+ * @param {StoryState} storyState
+ */
 async function getOrInvoke(provider, storyDir, manifest, storyState, request, ordinal, persist) {
   const existing = storyState.calls.filter(({ stage }) => stage === request.stage)[ordinal];
   if (existing) return { text: readRecordedOutput(storyDir, existing), resumed: true };
   return { ...(await invoke(provider, storyDir, manifest, storyState, request, persist)), resumed: false };
 }
 
+/**
+ * @param {{repoRoot: string, outputRoot: string, authority: any, provider: any, manifest: AutonomousStoryBatchManifest, persist: () => void}} context
+ */
 async function runOneStory(context, record) {
   const { repoRoot, outputRoot, authority, provider, manifest, persist } = context;
   const briefId = record.brief.id;
   const storyDir = path.join(outputRoot, briefId);
   fs.mkdirSync(storyDir, { recursive: true });
+  /** @type {StoryState} */
   const storyState = manifest.stories[briefId] || {
     status: 'in_progress',
     identity: storyIdentity(record),

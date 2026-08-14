@@ -17,6 +17,7 @@
     "verify-v3-bank-safeguards": "tsx --require ./scripts/shims/register-server-only.cjs scripts/verify-v3-bank-import-safeguards.ts",
     "mint-set-identity-board": "node scripts/mint-set-identity-board.cjs",
     "story:autonomous-batch": "node scripts/run-story-autonomous-batch-launcher.cjs",
+    "story:autonomous-typecheck": "tsc -p tsconfig.story-autonomous.json",
     "check": "tsc --noEmit && node scripts/run-vitest-check.mjs --diagnostics",
     "test": "vitest run",
     "test:watch": "vitest"
