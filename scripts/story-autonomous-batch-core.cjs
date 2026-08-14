@@ -21,8 +21,9 @@ const {
 
 const MODEL = 'gpt-5.6-sol';
 const SERVICE_TIER = 'default';
-const PIPELINE_VERSION = 'small-heroes-autonomous-story-batch/v1';
+const PIPELINE_VERSION = 'small-heroes-autonomous-story-batch/v2';
 const EDITOR_MAX_OUTPUT_TOKENS = 6000;
+const MAX_REVISION_ROUNDS = 3;
 const REVISION_REASONING_RESERVE_TOKENS = 2000;
 const ACCEPTED_DINI_BRIEF_ID = 'dragon_dini_adventure_wobble_cake_convoy_brief_v1';
 const SELECTOR_VERSION = 'small-heroes-autonomous-premise-selection/v1';
@@ -76,6 +77,13 @@ function writerMaxOutputTokens(pageCount) {
 
 function revisionMaxOutputTokens(pageCount) {
   return writerMaxOutputTokens(pageCount) + REVISION_REASONING_RESERVE_TOKENS;
+}
+
+function normalizeGenderChipTerminalPunctuation(draft) {
+  return draft.replace(
+    /(?<!\{)\{(?!\{)([^{}|\r\n]*?)([.!?\u2026,:;]+)\|([^{}|\r\n]*?)\2\}(?!\})/gu,
+    (_match, masculine, punctuation, feminine) => `{${masculine}|${feminine}}${punctuation}`,
+  );
 }
 
 const ARCHITECT_SCHEMA = {
@@ -691,10 +699,12 @@ async function runOneStory(context, record) {
     const writerRequest = buildPrompts(repoRoot, authority, record, decision.selectedOption);
     validateWriterIsolation(writerRequest, rejected, selection);
     let draftResult = await getOrInvoke(provider, storyDir, manifest, storyState, writerRequest, 0, persist);
-    let draft = `${draftResult.text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trimEnd()}\n`;
+    let draft = normalizeGenderChipTerminalPunctuation(
+      `${draftResult.text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trimEnd()}\n`,
+    );
     persist();
 
-    for (let editorialRound = 0; editorialRound < 3; editorialRound += 1) {
+    for (let editorialRound = 0; editorialRound <= MAX_REVISION_ROUNDS; editorialRound += 1) {
       const editorRequest = buildPrompts(repoRoot, authority, record, decision.selectedOption, draft);
       const editorResult = await getOrInvoke(provider, storyDir, manifest, storyState, editorRequest, editorialRound, persist);
       const review = validateEditorialReviewResult(
@@ -712,10 +722,12 @@ async function runOneStory(context, record) {
         return;
       }
       if (review.verdict === 'reject') throw new Error('story_batch_editor_rejected');
-      if (editorialRound >= 2) throw new Error('story_batch_revision_budget_exhausted');
+      if (editorialRound >= MAX_REVISION_ROUNDS) throw new Error('story_batch_revision_budget_exhausted');
       const revisionRequest = buildPrompts(repoRoot, authority, record, decision.selectedOption, draft, review);
       const revisionResult = await getOrInvoke(provider, storyDir, manifest, storyState, revisionRequest, editorialRound, persist);
-      draft = `${revisionResult.text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trimEnd()}\n`;
+      draft = normalizeGenderChipTerminalPunctuation(
+        `${revisionResult.text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trimEnd()}\n`,
+      );
       storyState.revisionCount += 1;
       persist();
     }
@@ -753,6 +765,7 @@ module.exports = {
   DISQUALIFIERS,
   EDITORIAL_SCHEMA,
   EDITOR_MAX_OUTPUT_TOKENS,
+  MAX_REVISION_ROUNDS,
   MODEL,
   PIPELINE_VERSION,
   REVISION_REASONING_RESERVE_TOKENS,
@@ -763,6 +776,7 @@ module.exports = {
   calculateCostUsd,
   chooseQualifiedOption,
   conservativeReservationUsd,
+  normalizeGenderChipTerminalPunctuation,
   runAutonomousStoryWave,
   requiredStoryEnvelope,
   revisionMaxOutputTokens,

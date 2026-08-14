@@ -48,13 +48,16 @@ const {
 } = require('../../scripts/materialize-story-commission-briefs.cjs') as Materializer;
 const autonomous = require('../../scripts/story-autonomous-batch-core.cjs') as {
   MODEL: string;
+  PIPELINE_VERSION: string;
   SERVICE_TIER: string;
   EDITOR_MAX_OUTPUT_TOKENS: number;
+  MAX_REVISION_ROUNDS: number;
   REVISION_REASONING_RESERVE_TOKENS: number;
   buildPrompts: (...args: any[]) => any;
   buildSelectorPrompt: (...args: any[]) => any;
   calculateCostUsd: (usage: Record<string, number>, serviceTier?: string) => number;
   chooseQualifiedOption: (architect: any, selection: any) => any;
+  normalizeGenderChipTerminalPunctuation: (draft: string) => string;
   runAutonomousStoryWave: (input: any) => Promise<any>;
   requiredStoryEnvelope: (record: any) => string;
   revisionMaxOutputTokens: (pageCount: number) => number;
@@ -1456,6 +1459,18 @@ describe('autonomous story batch', () => {
     expect(() => autonomous.revisionMaxOutputTokens(10)).toThrow('story_batch_page_count_unsupported');
   });
 
+  it('normalizes only identical terminal punctuation outside complete gender chips', () => {
+    expect(autonomous.normalizeGenderChipTerminalPunctuation(
+      '{\u05D4\u05DC\u05DA.|\u05D4\u05DC\u05DB\u05D4.} {\u05E2\u05E6\u05E8!|\u05E2\u05E6\u05E8\u05D4!}',
+    )).toBe(
+      '{\u05D4\u05DC\u05DA|\u05D4\u05DC\u05DB\u05D4}. {\u05E2\u05E6\u05E8|\u05E2\u05E6\u05E8\u05D4}!'
+    );
+    expect(autonomous.normalizeGenderChipTerminalPunctuation(
+      '{\u05D4\u05DC\u05DA!|\u05D4\u05DC\u05DB\u05D4?}',
+    )).toBe('{\u05D4\u05DC\u05DA!|\u05D4\u05DC\u05DB\u05D4?}');
+    expect(autonomous.normalizeGenderChipTerminalPunctuation('{{childName}}')).toBe('{{childName}}');
+  });
+
   it('uses the Responses API sentinel settings and sanitizes provider failures', async () => {
     let captured: any;
     const provider = createOpenAiStoryProvider({
@@ -1547,7 +1562,8 @@ describe('autonomous story batch', () => {
       revisionPriorities: [],
       mustPreserve: ['את הפעולה של הילד ואת הקצב.'],
     };
-    const outputs = [JSON.stringify(options), JSON.stringify(selected), story, JSON.stringify(pass)];
+    const punctuatedStory = story.replace(/\{([^{}|]+)\|([^{}|]+)\}/u, '{$1.|$2.}');
+    const outputs = [JSON.stringify(options), JSON.stringify(selected), punctuatedStory, JSON.stringify(pass)];
     const seen: any[] = [];
     const provider = {
       complete: async (request: any) => {
@@ -1577,6 +1593,14 @@ describe('autonomous story batch', () => {
       expect(seen.map(({ stage }) => stage)).toEqual(['architect', 'selector', 'writer', 'editor']);
       expect(seen[2].userPrompt).not.toContain(options.options[0].title);
       expect(fs.readdirSync(path.join(outputRoot, record.brief.id)).some((name) => name.startsWith('final-story.'))).toBe(true);
+      const finalStoryPath = path.join(
+        outputRoot,
+        record.brief.id,
+        manifest.stories[record.brief.id].finalStory.filename,
+      );
+      const finalStory = fs.readFileSync(finalStoryPath, 'utf8');
+      expect(finalStory).not.toMatch(/\{[^{}|]+\.\|[^{}|]+\.\}/u);
+      expect(finalStory).toMatch(/\{[^{}|]+\|[^{}|]+\}\./u);
 
       const invalidOutputs = [
         JSON.stringify(options),
@@ -1610,6 +1634,95 @@ describe('autonomous story batch', () => {
     } finally {
       fs.rmSync(outputRoot, { recursive: true, force: true });
       fs.rmSync(invalidOutputRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('allows exactly three diagnosed revisions before the final editorial decision', async () => {
+    const authority = loadStoryArchitectAuthority();
+    const commission = authority.commissions.find(({ companionId }) => companionId === 'bunny_ometz')!;
+    const record = findRecord(authority.commissionAuthority, commission.briefId);
+    const options = architect(record.brief.id);
+    const selected = selection(record.brief.id);
+    const story = [
+      '---',
+      'title: "{{childName}} test"',
+      `companionId: ${record.companionId}`,
+      `direction: ${record.brief.direction}`,
+      `category: ${record.brief.category}`,
+      `pages: ${record.brief.pageCount}`,
+      'gender: female',
+      'endingType: resolution',
+      '---',
+      ...Array.from(
+        { length: record.brief.pageCount },
+        (_, index) => `--- Page ${index + 1} ---\n\n{{childName}} {\u05E6\u05E2\u05D3|\u05E6\u05E2\u05D3\u05D4} \u05E7\u05D3\u05D9\u05DE\u05D4.`,
+      ),
+      '',
+    ].join('\n');
+    const revise = {
+      version: 'small-heroes-story-editorial-review/v1',
+      verdict: 'revise',
+      strengths: ['The child remains active.'],
+      issues: [{
+        code: 'hebrew_readaloud_issue',
+        severity: 'minor',
+        evidencePages: [1],
+        functionalGap: 'A spoken line still needs a bounded cadence correction.',
+      }],
+      revisionPriorities: ['Correct only the diagnosed spoken cadence.'],
+      mustPreserve: ['Preserve the child action and causal sequence.'],
+    };
+    const pass = {
+      ...revise,
+      verdict: 'pass',
+      issues: [],
+      revisionPriorities: [],
+    };
+    let editorRound = 0;
+    const stages: string[] = [];
+    const revisionCeilings: number[] = [];
+    const provider = {
+      complete: async (request: any) => {
+        stages.push(request.stage);
+        if (request.stage === 'revision') revisionCeilings.push(request.maxOutputTokens);
+        const text = request.stage === 'architect'
+          ? JSON.stringify(options)
+          : request.stage === 'selector'
+            ? JSON.stringify(selected)
+            : request.stage === 'editor'
+              ? JSON.stringify(editorRound++ < autonomous.MAX_REVISION_ROUNDS ? revise : pass)
+              : story;
+        return {
+          text,
+          model: autonomous.MODEL,
+          serviceTier: autonomous.SERVICE_TIER,
+          usage: { inputTokens: 100, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 100, reasoningTokens: 10, totalTokens: 200 },
+        };
+      },
+    };
+    const outputRoot = path.join(
+      process.cwd(),
+      'outputs',
+      `autonomous-three-revision-test-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
+    try {
+      const manifest = await autonomous.runAutonomousStoryWave({
+        repoRoot: process.cwd(), outputRoot, briefIds: [record.brief.id], provider, maxCostUsd: 2,
+      });
+      expect(autonomous.MAX_REVISION_ROUNDS).toBe(3);
+      expect(manifest.status).toBe('machine_qualified');
+      expect(manifest.logicalProviderCalls).toBe(10);
+      expect(manifest.stories[record.brief.id]).toMatchObject({
+        status: 'machine_qualified',
+        revisionCount: 3,
+      });
+      expect(stages).toEqual([
+        'architect', 'selector', 'writer',
+        'editor', 'revision', 'editor', 'revision', 'editor', 'revision', 'editor',
+      ]);
+      expect(revisionCeilings).toEqual(Array(3).fill(autonomous.revisionMaxOutputTokens(record.brief.pageCount)));
+    } finally {
+      fs.rmSync(outputRoot, { recursive: true, force: true });
     }
   });
 
@@ -1647,7 +1760,7 @@ describe('autonomous story batch', () => {
       );
       const promptSha = createHash('sha256').update(`${contracts.systemPrompt}\n${contracts.userPrompt}`).digest('hex');
       const manifest = {
-        version: 'small-heroes-autonomous-story-batch/v1', status: 'in_progress', authorityStatus: 'machine_qualified_staging_only',
+        version: autonomous.PIPELINE_VERSION, status: 'in_progress', authorityStatus: 'machine_qualified_staging_only',
         model: autonomous.MODEL, serviceTier: autonomous.SERVICE_TIER, store: false, repoHead: head,
         briefIds: [record.brief.id], maxCostUsd: 1, actualCostUsd: 0, logicalProviderCalls: 0,
         transportRetries: 0, fallbackUsed: false, resumeCount: 0, credentialAccess: 'supervisor_child_only',
