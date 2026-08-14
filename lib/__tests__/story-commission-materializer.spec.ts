@@ -54,6 +54,7 @@ const autonomous = require('../../scripts/story-autonomous-batch-core.cjs') as {
   calculateCostUsd: (usage: Record<string, number>, serviceTier?: string) => number;
   chooseQualifiedOption: (architect: any, selection: any) => any;
   runAutonomousStoryWave: (input: any) => Promise<any>;
+  requiredStoryEnvelope: (record: any) => string;
   validateArchitectOptions: (value: any, briefId: string) => any;
   validateSelection: (value: any, briefId: string) => any;
   validateWriterIsolation: (prompt: any, rejected: any[], selection: any) => boolean;
@@ -1355,7 +1356,15 @@ describe('autonomous story batch', () => {
     expect(prompt.userPrompt).toContain(selected.title);
     expect(prompt.userPrompt).not.toContain(options.options[0].title);
     expect(prompt.userPrompt).not.toContain('recommendedOptionId');
+    expect(prompt.userPrompt).toContain('requiredOutputEnvelope');
+    expect(prompt.userPrompt).toContain('--- Page 1 ---');
+    expect(prompt.userPrompt).toContain(`--- Page ${record.brief.pageCount} ---`);
+    expect(prompt.userPrompt).toContain('two complete Hebrew forms');
     expect(autonomous.validateWriterIsolation(prompt, [options.options[0], options.options[2]], selection(record.brief.id))).toBe(true);
+
+    const editorPrompt = autonomous.buildPrompts(process.cwd(), authority, record, selected, 'draft');
+    expect(editorPrompt.systemPrompt).toContain('strengths contains 1–4 items');
+    expect(editorPrompt.systemPrompt).toContain('mustPreserve contains 1–8 items');
   });
 
   it('uses the Responses API sentinel settings and sanitizes provider failures', async () => {

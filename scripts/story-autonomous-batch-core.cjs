@@ -266,6 +266,26 @@ function storyIdentity(record) {
   };
 }
 
+function requiredStoryEnvelope(record) {
+  return [
+    '---',
+    'title: "{{childName}} ו־<כותרת עברית טבעית>"',
+    `companionId: ${record.companionId}`,
+    `direction: ${record.brief.direction}`,
+    `category: ${record.brief.category}`,
+    `pages: ${record.brief.pageCount}`,
+    'gender: female',
+    'endingType: resolution',
+    '---',
+    '',
+    '--- Page 1 ---',
+    '',
+    '<prose>',
+    '',
+    `...continue sequentially through exactly --- Page ${record.brief.pageCount} ---`,
+  ].join('\n');
+}
+
 function buildPrompts(repoRoot, authority, record, selectedOption, draft, review) {
   const commission = findStoryArchitectCommission(authority, record.brief.id);
   const psychology = findCompanionCreativePsychology(authority, record.companionId);
@@ -295,7 +315,13 @@ function buildPrompts(repoRoot, authority, record, selectedOption, draft, review
       reasoningEffort: 'low',
       maxOutputTokens: record.brief.pageCount === 8 ? 4500 : record.brief.pageCount === 12 ? 6500 : 9000,
       systemPrompt: readContract(repoRoot, CONTRACTS.writer),
-      userPrompt: JSON.stringify({ identity, selectedPremise: selectedOption, companionPsychology: psychology }),
+      userPrompt: JSON.stringify({
+        identity,
+        selectedPremise: selectedOption,
+        companionPsychology: psychology,
+        requiredOutputEnvelope: requiredStoryEnvelope(record),
+        personalizationRule: 'Every gender chip contains two complete Hebrew forms inside the braces. Never attach a shared Hebrew prefix or suffix outside a chip.',
+      }),
     };
   }
   if (!review) {
@@ -305,7 +331,7 @@ function buildPrompts(repoRoot, authority, record, selectedOption, draft, review
       maxOutputTokens: 3000,
       schemaName: 'small_heroes_editorial_review',
       schema: EDITORIAL_SCHEMA,
-      systemPrompt: readContract(repoRoot, CONTRACTS.editor),
+      systemPrompt: `${readContract(repoRoot, CONTRACTS.editor)}\n\nClosed response rules: strengths contains 1–4 items; pass has zero issues and zero revisionPriorities; revise/reject has 1–16 issues and 1–4 revisionPriorities; mustPreserve contains 1–8 items. Return only the exact JSON object.`,
       userPrompt: JSON.stringify({ identity, companionPsychology: psychology, draft }),
     };
   }
@@ -325,6 +351,8 @@ function buildPrompts(repoRoot, authority, record, selectedOption, draft, review
         mustPreserve: review.mustPreserve,
       },
       originalDraft: draft,
+      requiredOutputEnvelope: requiredStoryEnvelope(record),
+      personalizationRule: 'Every gender chip contains two complete Hebrew forms inside the braces. Never attach a shared Hebrew prefix or suffix outside a chip.',
       instruction: 'Return the complete revised story only. Address only diagnosed gaps and preserve the listed strengths.',
     }),
   };
@@ -684,6 +712,7 @@ module.exports = {
   chooseQualifiedOption,
   conservativeReservationUsd,
   runAutonomousStoryWave,
+  requiredStoryEnvelope,
   storyIdentity,
   validateArchitectOptions,
   validateSelection,
