@@ -124,8 +124,18 @@ wave.
   Validation passes the dedicated typecheck, focused **2 files / 30 tests**,
   deterministic repository TypeScript, five CJS syntax checks and
   `git diff --check`. `npm run check` was not rerun; its separate known HOLD
-  remains. The correction awaits independent read-only QA before a fresh-root
-  replacement wave.
+  remains. The technical correction passed independent read-only QA; only the
+  documentation wording correction below awaits its micro re-gate.
+- Claude Code's independent read-only review of exact range
+  `e987a9a9..f199b448` returned **PASS** with zero BLOCKER, zero MAJOR and one
+  non-blocking documentation MINOR. It confirmed all twelve technical,
+  boundary, type-contract, provider-forwarding, historical-evidence and
+  authority targets. The MINOR only noted that two Editor documents called all
+  28 settled logical calls "completed", which could imply 28 successes plus
+  two terminal calls. The docs correction now states the exact composition:
+  26 output-bearing plus two terminal calls, with `$2.10405525` including both
+  terminal costs. This is Claude's verdict, not a Codex self-award; closure of
+  the wording MINOR awaits the focused docs micro re-gate.
 - The successful story remains `machine_qualified_staging_only`; it has not been
   promoted to accepted source, the live bank, Wizard, Visual Contract or render.
   The three additional qualified stories also remain staging-only. No accepted

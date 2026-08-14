@@ -20,11 +20,12 @@ This is a shared output-envelope defect. It is not story prose, companion,
 category, schema or personalization failure: the reasoning budget consumed the
 entire combined output allowance before the model could emit the closed JSON.
 
-The stopped root is immutable evidence. It contains 28 completed provider calls
-at `$2.10405525`, three qualified stories, two terminal Editor holds and one
-interrupted Architect request. That in-flight request has a matched prompt
-digest and a conservative reservation bound of `$0.258825`; it has no completed
-receipt and its root must never be resumed.
+The stopped root is immutable evidence. It contains 28 settled logical provider
+calls (26 output-bearing and two terminal) at `$2.10405525`, three qualified
+stories, two terminal Editor holds and one interrupted Architect request. That
+in-flight request has a matched prompt digest and a conservative reservation
+bound of `$0.258825`; it has no completed receipt and its root must never be
+resumed.
 
 ## Nine decisions
 

@@ -26,8 +26,9 @@ model `gpt-5.6-sol`, Standard/default service tier, `store:false` and hard cap
 
 - Manifest status: `in_progress`; authority:
   `machine_qualified_staging_only`.
-- Completed logical calls: `28`; transport retries: `0`; fallback: `false`.
-- Exact completed-call cost: `$2.10405525`.
+- Settled logical calls: `28` (`26` output-bearing and `2` terminal);
+  transport retries: `0`; fallback: `false`.
+- Exact settled-call cost: `$2.10405525`, including both terminal calls.
 - Root inventory at evidence capture: `58` files / `205,588` bytes.
 - Manifest: `25,806` bytes; SHA-256
   `c7a6fe37809c2ee01f8a7dac57ff2c48fd5216c3d7d2d8efd96e5155acf25467`.
