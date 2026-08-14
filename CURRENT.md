@@ -2,9 +2,45 @@
 
 **Updated:** 2026-08-14
 **Maintainer:** Codex
-**Working branch:** `codex/story-bank-next-generation-briefs-qa-integration` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`; the functional-quality follow-up is based exactly on `a985cc43ad4e8ccf37ee033ba55365bf98d59821`.
+**Working branch:** `codex/story-engine-approved-source-next-commissions` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`; this follow-up is based exactly on `9cc03186b3fb530e8f228f7896dc12981db2b9ff`.
 
-## STORY ENGINE VNEXT MUSICAL READ-ALOUD POLISH — technical and artifact PASS / external editorial PASS / Guy product acceptance pending
+## STORY ENGINE VNEXT APPROVED SOURCE + NEXT COMMISSION WAVE — implementation complete / independent QA pending
+
+Guy gave product acceptance to the musically polished Dini cake story and asked
+to preserve it and continue creating stories. The system now separates durable
+story-text acceptance from the later visual/bank/Wizard cutover.
+
+- The accepted Dini adventure is stored byte-identically at
+  `story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/story.md`
+  (6,677 bytes; SHA-256 `39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce`).
+- Its manifest binds Editor PASS `292613f4…`, Guy's tracked product acceptance,
+  independent artifact PASS at `95ffa419…`, 12 text pages / 24 physical pages
+  and explicit exclusion of bank, Wizard, Visual Contract, render and deployment
+  authority.
+- `STORY_ARCHITECT_CHARTER_V3.md`, `companion-creative-psychology.json` and
+  `story-architect-commissions.json` generalize the proven Architect separation
+  to exactly 18 known slots and six companions. The authority contains compact
+  nuclei and inner psychology, not old mini-screenplay rails or fixed companion
+  choreography.
+- The zero-cost next wave at
+  `outputs/story-engine-vnext-next-architect-wave-20260814-v1` contains exactly
+  17 content-addressed prompts, excluding only the accepted Dini adventure.
+  Counts remain bedtime 8/16, adventure 12/24 and fantasy 16/32 text/physical
+  pages.
+- Focused validation passes **1 file / 15 tests**, script syntax, deterministic
+  TypeScript and `git diff --check`. The live `story-bank/v3-approved`, Wizard
+  matrix and runtime loader remain unchanged.
+- This is Codex implementation evidence, not independent technical PASS. Claude
+  Code review is pending. No provider/model/network call, credential access,
+  image/audio/Vision render, bank import, Wizard/runtime change, storage/database,
+  QA/Production deployment or push occurred. External cost is `$0`.
+
+Durable records:
+`docs/ai-workflow/STORY_ENGINE_VNEXT_APPROVED_SOURCE_AND_NEXT_COMMISSION_WAVE_DECISION_GATE.md`
+and
+`docs/ai-workflow/STORY_ENGINE_VNEXT_APPROVED_SOURCE_AND_NEXT_COMMISSION_WAVE_IMPLEMENTATION_EVIDENCE.md`.
+
+## STORY ENGINE VNEXT MUSICAL READ-ALOUD POLISH — technical and artifact PASS / external editorial PASS / Guy product acceptance recorded above
 
 Guy accepted the externally editorially passed Dini cake story as a substantial narrative improvement and asked for one further oral-reading pass: selective rhyme, sound-play and cadence where they strengthen comedy and motion, without converting the story into a rhyming poem. The accepted story remains immutable; this milestone adds a general, staging-only polish route rather than editing that candidate in place.
 
