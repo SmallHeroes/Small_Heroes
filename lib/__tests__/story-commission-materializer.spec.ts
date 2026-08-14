@@ -50,15 +50,18 @@ const autonomous = require('../../scripts/story-autonomous-batch-core.cjs') as {
   MODEL: string;
   SERVICE_TIER: string;
   EDITOR_MAX_OUTPUT_TOKENS: number;
+  REVISION_REASONING_RESERVE_TOKENS: number;
   buildPrompts: (...args: any[]) => any;
   buildSelectorPrompt: (...args: any[]) => any;
   calculateCostUsd: (usage: Record<string, number>, serviceTier?: string) => number;
   chooseQualifiedOption: (architect: any, selection: any) => any;
   runAutonomousStoryWave: (input: any) => Promise<any>;
   requiredStoryEnvelope: (record: any) => string;
+  revisionMaxOutputTokens: (pageCount: number) => number;
   validateArchitectOptions: (value: any, briefId: string) => any;
   validateSelection: (value: any, briefId: string) => any;
   validateWriterIsolation: (prompt: any, rejected: any[], selection: any) => boolean;
+  writerMaxOutputTokens: (pageCount: number) => number;
 };
 const { createOpenAiStoryProvider } = require('../../scripts/story-autonomous-openai-provider.cjs') as {
   createOpenAiStoryProvider: (input: any) => { complete: (request: any) => Promise<any> };
@@ -1402,6 +1405,55 @@ describe('autonomous story batch', () => {
     }
     expect(editorPrompt.systemPrompt).toContain('strengths contains 1–4 items');
     expect(editorPrompt.systemPrompt).toContain('mustPreserve contains 1–8 items');
+  });
+
+  it('reserves revision reasoning headroom without changing Writer ceilings', () => {
+    const authority = loadStoryArchitectAuthority();
+    const expected = {
+      bedtime: { pages: 8, writer: 4500, revision: 6500 },
+      adventure: { pages: 12, writer: 6500, revision: 8500 },
+      fantasy: { pages: 16, writer: 9000, revision: 11000 },
+    } as const;
+    const review = {
+      version: 'small-heroes-story-editorial-review/v1',
+      verdict: 'revise',
+      strengths: ['preserve'],
+      issues: [{ code: 'hebrew_readaloud_issue', severity: 'minor', evidencePages: [1], functionalGap: 'repair' }],
+      revisionPriorities: ['repair'],
+      mustPreserve: ['preserve'],
+    };
+
+    expect(autonomous.REVISION_REASONING_RESERVE_TOKENS).toBe(2000);
+    for (const [direction, ceiling] of Object.entries(expected)) {
+      const record = authority.commissionAuthority.records.find(
+        ({ brief }: any) => brief.direction === direction,
+      )!;
+      expect(record.brief.pageCount).toBe(ceiling.pages);
+      const selected = architect(record.brief.id).options[0];
+      const writerPrompt = autonomous.buildPrompts(process.cwd(), authority, record, selected);
+      const revisionPrompt = autonomous.buildPrompts(
+        process.cwd(),
+        authority,
+        record,
+        selected,
+        'draft',
+        review,
+      );
+      expect(writerPrompt).toMatchObject({
+        stage: 'writer',
+        reasoningEffort: 'low',
+        maxOutputTokens: ceiling.writer,
+      });
+      expect(revisionPrompt).toMatchObject({
+        stage: 'revision',
+        reasoningEffort: 'medium',
+        maxOutputTokens: ceiling.revision,
+      });
+      expect(autonomous.writerMaxOutputTokens(ceiling.pages)).toBe(ceiling.writer);
+      expect(autonomous.revisionMaxOutputTokens(ceiling.pages)).toBe(ceiling.revision);
+    }
+    expect(() => autonomous.writerMaxOutputTokens(10)).toThrow('story_batch_page_count_unsupported');
+    expect(() => autonomous.revisionMaxOutputTokens(10)).toThrow('story_batch_page_count_unsupported');
   });
 
   it('uses the Responses API sentinel settings and sanitizes provider failures', async () => {

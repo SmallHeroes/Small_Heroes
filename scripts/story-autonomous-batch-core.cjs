@@ -23,6 +23,7 @@ const MODEL = 'gpt-5.6-sol';
 const SERVICE_TIER = 'default';
 const PIPELINE_VERSION = 'small-heroes-autonomous-story-batch/v1';
 const EDITOR_MAX_OUTPUT_TOKENS = 6000;
+const REVISION_REASONING_RESERVE_TOKENS = 2000;
 const ACCEPTED_DINI_BRIEF_ID = 'dragon_dini_adventure_wobble_cake_convoy_brief_v1';
 const SELECTOR_VERSION = 'small-heroes-autonomous-premise-selection/v1';
 const ARCHITECT_VERSION = 'small-heroes-autonomous-architect-options/v1';
@@ -65,6 +66,17 @@ const CONTRACTS = {
   writer: 'story-pipeline/03_story_briefs/STORY_AUTONOMOUS_WRITER_CONTRACT.md',
   editor: 'story-pipeline/03_story_briefs/STORY_DRAFT_EDITORIAL_QA_CONTRACT_V3.md',
 };
+
+function writerMaxOutputTokens(pageCount) {
+  if (pageCount === 8) return 4500;
+  if (pageCount === 12) return 6500;
+  if (pageCount === 16) return 9000;
+  throw new Error('story_batch_page_count_unsupported');
+}
+
+function revisionMaxOutputTokens(pageCount) {
+  return writerMaxOutputTokens(pageCount) + REVISION_REASONING_RESERVE_TOKENS;
+}
 
 const ARCHITECT_SCHEMA = {
   type: 'object',
@@ -320,7 +332,7 @@ function buildPrompts(repoRoot, authority, record, selectedOption, draft, review
     return {
       stage: 'writer',
       reasoningEffort: 'low',
-      maxOutputTokens: record.brief.pageCount === 8 ? 4500 : record.brief.pageCount === 12 ? 6500 : 9000,
+      maxOutputTokens: writerMaxOutputTokens(record.brief.pageCount),
       systemPrompt: readContract(repoRoot, CONTRACTS.writer),
       userPrompt: JSON.stringify({
         identity,
@@ -345,7 +357,7 @@ function buildPrompts(repoRoot, authority, record, selectedOption, draft, review
   return {
     stage: 'revision',
     reasoningEffort: 'medium',
-    maxOutputTokens: record.brief.pageCount === 8 ? 4500 : record.brief.pageCount === 12 ? 6500 : 9000,
+    maxOutputTokens: revisionMaxOutputTokens(record.brief.pageCount),
     systemPrompt: readContract(repoRoot, CONTRACTS.writer),
     userPrompt: JSON.stringify({
       identity,
@@ -743,6 +755,7 @@ module.exports = {
   EDITOR_MAX_OUTPUT_TOKENS,
   MODEL,
   PIPELINE_VERSION,
+  REVISION_REASONING_RESERVE_TOKENS,
   SELECTOR_SCHEMA,
   SERVICE_TIER,
   buildPrompts,
@@ -752,8 +765,10 @@ module.exports = {
   conservativeReservationUsd,
   runAutonomousStoryWave,
   requiredStoryEnvelope,
+  revisionMaxOutputTokens,
   storyIdentity,
   validateArchitectOptions,
   validateSelection,
   validateWriterIsolation,
+  writerMaxOutputTokens,
 };
