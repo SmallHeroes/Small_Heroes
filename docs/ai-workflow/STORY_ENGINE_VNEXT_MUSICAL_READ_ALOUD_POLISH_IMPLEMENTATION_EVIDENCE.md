@@ -4,7 +4,7 @@
 **Base:** `9ebc648f6cbbfaf32e8b16a1148e8237f60eaa4f`
 **Branch:** `codex/story-bank-next-generation-briefs-qa-integration`
 **Worktree:** `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`
-**Status:** locally implemented; independent Claude Code QA pending
+**Status:** independent Claude Code technical PASS; polished prose and product acceptance pending
 
 ## Product intent
 
@@ -175,9 +175,43 @@ Rollback is one focused code/documentation revert plus deletion of the ignored
 new output root. The previously accepted draft and Editor PASS remain intact,
 so rollback does not lose the accepted story.
 
-## Independent-QA status
+## Independent-QA result
 
-Codex has not self-awarded technical PASS. Claude Code should review the exact
-base-to-head range read-only, reproduce the focused validation, validate the
-fail-closed routing and confirm that the full-check HOLD is faithfully separated
-from the changed Story Engine path.
+Claude Code independently reviewed exact immutable range
+`9ebc648f6cbbfaf32e8b16a1148e8237f60eaa4f..21ef9652b084dce5a3ea28eb979b36faec1981f5`
+read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero
+MINOR. This is Claude Code's verdict, recorded by Codex; it is not a Codex
+self-awarded PASS.
+
+Claude independently confirmed all nine handoff claims, exercised 14 malformed
+or unauthorized probes, reproduced **1 file / 12 tests**, script syntax,
+TypeScript and `git diff --check`, and rebuilt the shipped polish prompt
+byte-identically at 9,498 bytes with digest
+`01932bcf5087d27c004cd63d53c56196afdb3b5b9e5a28724239d5be2cfd3b16`.
+It verified the exact draft, review and charter bindings and confirmed that no
+product/runtime surface changed.
+
+Claude also isolated the wider 72-failure ordinary result to an execution
+environment difference: `node_modules/@prisma/client` is installed while
+`node_modules/.prisma/client` is absent, and sampled failing suites report
+`Cannot find module '.prisma/client/default'`. No changed Story Engine spec
+references that client. This diagnosis makes the repository HOLD actionable,
+but no Prisma generation or repository-check rerun was performed in this
+documentation closeout.
+
+Advisory notes retained without implementation findings:
+
+1. Generate the local Prisma client before the next literal repository check.
+2. Editor v3 intentionally changes the digest of any future re-materialized
+   Editor prompt; historical prompts remain content-bound and immutable.
+3. A returned polish deliberately cannot replace the accepted candidate without
+   canonical intake, a fresh Editor v3 PASS and Guy product acceptance.
+4. Shared draft intake remains pilot-scoped to `gender: female` and
+   `endingType: resolution`.
+5. Claude's initial multiline charter regex was its own probe error and was
+   corrected before the verdict.
+6. Claude's temporary probes remained outside the repository and left the
+   worktree clean.
+
+The PASS grants no story-quality/product acceptance, bank import, Visual
+Contract, Wizard, Reader, render, deployment or release authority.
