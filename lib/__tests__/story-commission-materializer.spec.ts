@@ -75,6 +75,22 @@ const reviewCorpus = require('../../scripts/materialize-autonomous-story-review-
   SELECTION_VERSION: string;
   validateSelection: (value: any, authority: any) => any;
 };
+const visualDirections = require('../../scripts/story-visual-direction-batch-core.cjs') as {
+  ANGLES: string[];
+  PRESENCE: string[];
+  RECORD_VERSION: string;
+  SHOTS: string[];
+  loadAcceptedStories: (repoRoot: string) => Array<{ storyKey: string; storyPath: string }>;
+  parseStory: (storyText: string) => {
+    companionId: string;
+    direction: string;
+    category: string;
+    declaredPages: number;
+    pages: Array<{ pageNumber: number; prose: string }>;
+  };
+  runVisualDirectionWave: (input: any) => Promise<any>;
+  validateVisualDirectionRecord: (value: any, storyKey: string, expectedPageCount: number) => any;
+};
 
 interface StoryBrief {
   id: string;
@@ -1881,6 +1897,113 @@ describe('autonomous story batch', () => {
         status: 'hold',
         reasonCode: 'story_batch_terminal_call_not_resumable',
       });
+    } finally {
+      fs.rmSync(outputRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('accepted story visual directions', () => {
+  const recordFor = (storyKey: string, pageCount: number) => ({
+    version: visualDirections.RECORD_VERSION,
+    storyKey,
+    pages: Array.from({ length: pageCount }, (_, index) => ({
+      pageNumber: index + 1,
+      settingKey: index < 2 ? 'bakery_street' : `location_${index + 1}`,
+      setting: index < 2 ? 'Cobblestone street outside a bakery' : `Distinct visible location ${index + 1}`,
+      childPresence: 'present',
+      companionPresence: 'present',
+      supportingCharacters: index === 0 ? ['baker'] : [],
+      mainAction: `The child and companion carry out the visible action on page ${index + 1}`,
+      heroObject: index < 4 ? 'three-tier fruit cake on a delivery cart' : null,
+      shotType: visualDirections.SHOTS[index % visualDirections.SHOTS.length],
+      cameraAngle: visualDirections.ANGLES[index % visualDirections.ANGLES.length],
+      lighting: 'Warm morning daylight with soft readable shadows',
+      continuityAnchors: ['same delivery cart', 'same decorated cake'],
+    })),
+  });
+
+  it('parses every accepted source through the final page and binds the complete 18-slot matrix', () => {
+    const accepted = visualDirections.loadAcceptedStories(process.cwd());
+    expect(accepted).toHaveLength(18);
+    expect(new Set(accepted.map(({ storyKey }) => storyKey)).size).toBe(18);
+    const counts = accepted.map(({ storyPath }) => {
+      const parsed = visualDirections.parseStory(fs.readFileSync(storyPath, 'utf8'));
+      expect(parsed.pages[parsed.pages.length - 1]?.pageNumber).toBe(parsed.declaredPages);
+      expect(parsed.pages.every(({ prose }) => prose.length > 0)).toBe(true);
+      return parsed.declaredPages;
+    });
+    expect(counts.filter((count) => count === 8)).toHaveLength(6);
+    expect(counts.filter((count) => count === 12)).toHaveLength(6);
+    expect(counts.filter((count) => count === 16)).toHaveLength(6);
+  });
+
+  it('accepts the closed page contract and rejects structural or authored-content drift', () => {
+    const storyKey = 'dragon_dini_adventure';
+    const valid = recordFor(storyKey, 12);
+    expect(visualDirections.validateVisualDirectionRecord(valid, storyKey, 12)).toBe(valid);
+
+    const tampered = [
+      { ...structuredClone(valid), extra: true },
+      { ...structuredClone(valid), storyKey: 'wrong_story' },
+      { ...structuredClone(valid), pages: [...valid.pages].reverse() },
+      { ...structuredClone(valid), pages: [...valid.pages, valid.pages[0]] },
+      { ...structuredClone(valid), pages: valid.pages.map((page, index) => index === 0 ? { ...page, extra: true } : page) },
+      { ...structuredClone(valid), pages: valid.pages.map((page, index) => index === 0 ? { ...page, setting: '\u05e8\u05d7\u05d5\u05d1' } : page) },
+      { ...structuredClone(valid), pages: valid.pages.map((page, index) => index === 0 ? { ...page, mainAction: '{{childName}} walks' } : page) },
+      { ...structuredClone(valid), pages: valid.pages.map((page, index) => index === 0 ? { ...page, supportingCharacters: ['baker', 'baker'] } : page) },
+      { ...structuredClone(valid), pages: valid.pages.map((page, index) => index === 0 ? { ...page, shotType: 'impossible_shot' } : page) },
+    ];
+    for (const value of tampered) {
+      expect(() => visualDirections.validateVisualDirectionRecord(value, storyKey, 12)).toThrow(
+        'story_visual_direction_output_invalid',
+      );
+    }
+  });
+
+  it('materializes one zero-retry storyboard record per accepted story under the hard cost cap', async () => {
+    const outputRoot = path.join(
+      process.cwd(),
+      'outputs',
+      `story-visual-direction-test-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
+    let calls = 0;
+    try {
+      const manifest = await visualDirections.runVisualDirectionWave({
+        repoRoot: process.cwd(),
+        outputRoot,
+        maxCostUsd: 5,
+        provider: {
+          complete: async (request: any) => {
+            calls += 1;
+            const payload = JSON.parse(request.userPrompt);
+            return {
+              completed: true,
+              text: JSON.stringify(recordFor(payload.storyKey, payload.pageCount)),
+              model: autonomous.MODEL,
+              serviceTier: autonomous.SERVICE_TIER,
+              usage: {
+                inputTokens: 100,
+                cachedInputTokens: 0,
+                cacheWriteTokens: 0,
+                outputTokens: 100,
+                reasoningTokens: 10,
+                totalTokens: 200,
+              },
+            };
+          },
+        },
+      });
+      expect(calls).toBe(18);
+      expect(manifest).toMatchObject({
+        status: 'machine_qualified',
+        authorityStatus: 'qa_storyboard_inputs_only',
+        logicalProviderCalls: 18,
+        transportRetries: 0,
+        fallbackUsed: false,
+      });
+      expect(Object.keys(manifest.records)).toHaveLength(18);
+      expect(manifest.actualCostUsd).toBeLessThan(5);
     } finally {
       fs.rmSync(outputRoot, { recursive: true, force: true });
     }
