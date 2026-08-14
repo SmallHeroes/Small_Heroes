@@ -49,6 +49,9 @@ provider request.
   `npx vitest run lib/__tests__/story-pipeline-next-generation-creative-briefs.spec.ts lib/__tests__/story-commission-materializer.spec.ts`:
   **2 files / 29 tests PASS**; deterministic TypeScript and `git diff --check`:
   **PASS**.
+- QA correction focused validation using the same two files: **2 files / 30
+  tests PASS**; deterministic TypeScript, all four CJS `node --check` commands
+  and `git diff --check`: **PASS**. `npm run check` was not rerun.
 - The literal `npm run check` ran exactly once and was not retried. TypeScript,
   the changed 21-test suite under ordinary load and the complete 19-file
   resource-intensive phase passed. Ordinary failed eight assertions: the
@@ -71,7 +74,10 @@ seconds. The initial adapter correctly suppressed raw provider material but
 incorrectly threw away usage at that boundary. Its manifest therefore shows
 zero attested calls/cost and an Architect in-flight marker. This is not proof of
 zero billing. The pre-call reservation bounds the unobserved charge at no more
-than `$0.1232125` (`$0.123213` rounded upward). No options, draft or authority
+than `$0.12333125` (`$0.123332` rounded upward). Claude independently
+reconstructed the exact round-stamped 2,933-byte request at `9df78d62`, matched
+its recorded prompt digest and corrected the earlier pre-stamp underestimate.
+No options, draft or authority
 were persisted. Commit `7e41de2e` adds a sanitized terminal receipt that records
 reason, usage and cost for future incomplete Responses.
 
@@ -86,7 +92,7 @@ Root:
 - Usage: 6,189 input; 4,482 cache-write; 8,012 output; 4,343 reasoning;
   14,201 total
 - Exact cost: `$0.2769075`
-- Combined known-plus-conservative pilot ceiling: at most `$0.4001200`
+- Combined known-plus-conservative pilot ceiling: at most `$0.40023875`
 - Architect artifact: `01f2e6ac6854837d936c7caa59c312a961edbf5e1bc6c6c5d20ed3afc230af55`
 - Selector artifact: `0524015d1ceed51ffb101f200dee8c30d943723bab320b807f856a1ebb42913a`
 - Writer artifact: `6ec6293f3320a72e9e523b0da7c6ee4ff9d24680e4757a90c0a564737c977ea5`
@@ -104,10 +110,41 @@ complete-form chip instruction, exact Editor collection cardinalities and a
 Hebrew-only Architect output instruction. It passes offline validation but has
 not been exercised live.
 
+## Independent QA first pass and correction
+
+Claude Code reviewed immutable range `ea4404a5..8f378944` read-only and returned
+**HOLD** with one MAJOR and six MINOR findings. Codex independently reproduced
+the two behavioral findings before editing.
+
+- **MAJOR-1 corrected:** the shared editorial-result validator now requires
+  exactly zero `revisionPriorities` when `verdict` is `pass`. A direct validator
+  assertion and a complete Architect/Selector/Writer/Editor regression prove a
+  priority-bearing pass ends in `story_editor_review_result_invalid`, writes no
+  final story and grants no `machine_qualified` state.
+- **MINOR-1/2 corrected:** pilot-v1 and combined conservative figures are
+  `$0.12333125`/`$0.40023875`, and pilot-v2 contained one minor issue spanning
+  pages 3 and 8 rather than two minor issues.
+- **MINOR-3/4 corrected:** README identifies the manual-v3 versus autonomous-v4
+  authority relationship and names the Selector/Writer contracts; the Selector
+  contract now states the actual equal-weight score sum.
+- **MINOR-5 corrected:** a terminal call entry can never be read as a completed
+  output. Even after a hand-edited resume manifest, it persists only the closed
+  `story_batch_terminal_call_not_resumable` code and sends no provider request.
+- **MINOR-6 retained as advisory:** the orchestrator follows the existing CJS
+  materializer lineage and sits outside `tsconfig.json`. Its
+  implementation is covered by focused behavioral tests and `node --check`,
+  while `tsc --noEmit` covers the TypeScript callers/tests rather than the CJS
+  core itself. Migrating that lineage is broader than this fail-closed QA fix.
+
+No pilot artifact was rewritten or re-priced in place. No credential or
+provider call occurred during the correction. Independent closure remains
+pending a read-only micro re-gate.
+
 ## Authority result and next gate
 
-The implementation and evidence do not grant technical PASS; independent Claude
-Code review is pending. Both pilot attempts are terminal, no story is
+The implementation and evidence do not grant technical PASS; Claude's first
+review returned HOLD and the QA correction awaits micro re-gate. Both pilot
+attempts are terminal, no story is
 machine-qualified, and the default 17-story wave has not run. Per Guy's explicit
 two-failure rule, a third live attempt requires a new decision after this report.
 No artifact in either output root may be promoted to the accepted story source,

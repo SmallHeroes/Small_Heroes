@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/story-engine-autonomous-batch-orchestrator` in `C:\Users\guyna\.codex\worktrees\storybatch1\Small_Heroes`; based exactly on independently passed and pushed head `ea4404a5b2492099c35c90c6da2a14ee6478144f`.
 
-## STORY ENGINE AUTONOMOUS BATCH ORCHESTRATOR — locally implemented / live pilot HOLD / independent QA pending
+## STORY ENGINE AUTONOMOUS BATCH ORCHESTRATOR — QA correction implemented / live pilot HOLD / micro re-gate pending
 
 Guy approved replacing manual A/B/C selection for future commissions with an
 autonomous pipeline using `gpt-5.6-sol` through the Responses API. The accepted
@@ -38,6 +38,9 @@ wave.
   documentation activation correction passed **2 files / 29 tests**,
   deterministic TypeScript and `git diff --check` without rerunning the
   repository gate.
+- The QA correction passes **2 files / 30 tests** (including both new
+  end-to-end fail-closed regressions), deterministic TypeScript, all four CJS
+  syntax checks and `git diff --check`. `npm run check` was not rerun.
 - The one literal `npm run check` was invoked once and not retried. TypeScript
   passed, the changed materializer suite passed **21/21** inside ordinary load,
   and all **19 resource-intensive files passed** with a valid diagnostic
@@ -52,7 +55,9 @@ wave.
   implementation and repository/release remains HOLD.
 - Pilot v1 stopped on an Architect Response returned as `incomplete`. The first
   adapter discarded its usage, so exact cost is unavailable; the pre-call
-  conservative bound proves at most `$0.123213`. That run has no accepted call
+  conservative bound proves at most `$0.123332`. Claude independently rebuilt
+  the exact round-stamped 2,933-byte request and corrected the prior understated
+  `$0.123213` figure. That run has no accepted call
   receipt or story authority and exposed the observability defect fixed in
   `7e41de2e`.
 - Replacement pilot v2 completed exactly four calls (Architect, Selector,
@@ -63,9 +68,21 @@ wave.
 - Pilot v2 nevertheless stopped before revision because the Editor returned six
   strengths while the canonical result validator permits at most four. Its
   useful `revise` diagnosis identified one major personalization defect on page
-  4 and two minor read-aloud defects on pages 3/8. No story was machine-qualified.
+  4 and one minor read-aloud defect spanning pages 3/8. No story was machine-qualified.
   `ce243a0d` now binds the exact Writer envelope and Editor cardinalities, but
   that correction has not received a third live attempt.
+- Claude Code's first read-only review of exact range `ea4404a5..8f378944`
+  returned **HOLD** with one MAJOR and six MINOR findings. The QA correction
+  closes the MAJOR by requiring a `pass` review to have exactly zero revision
+  priorities in the shared validator and proves end-to-end that no final story
+  is written otherwise. It also replaces terminal-resume TypeError persistence
+  with the closed `story_batch_terminal_call_not_resumable` code, corrects the
+  cost/count record, names the active v4/Selector/Writer authorities in the
+  README and describes equal-weight scoring consistently. MINOR-6 is retained
+  as an advisory limitation: the orchestrator follows the repository's CJS
+  materializer lineage and is covered by direct tests and `node --check`, but
+  its implementation is outside the TypeScript program. Independent closure
+  remains pending the micro re-gate.
 - Per Guy's two-failure stop rule, no third provider attempt and no 17-story wave
   was run. No accepted source, live bank, Wizard, Visual Contract, image/audio,
   render, database/storage, QA/Production deployment or push changed.

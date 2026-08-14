@@ -579,6 +579,10 @@ async function invoke(provider, storyDir, manifest, storyState, request, persist
 }
 
 function readRecordedOutput(storyDir, call) {
+  if (call?.terminal === true) throw new Error('story_batch_terminal_call_not_resumable');
+  if (!call?.output || !exactKeys(call.output, ['filename', 'bytes', 'sha256'])) {
+    throw new Error('story_batch_recorded_output_invalid');
+  }
   const absolute = path.join(storyDir, call.output.filename);
   const bytes = fs.readFileSync(absolute);
   if (bytes.length !== call.output.bytes || sha256(bytes) !== call.output.sha256) {

@@ -71,13 +71,14 @@ acceptance. It is preserved as historical evidence. The general v3 route below
 applies the proven creative separation to all 18 slots without changing the
 old pilot or v2 dispatch.
 
-## General Story Architect commissions
+## Manual v3 Story Architect commissions
 
 `STORY_ARCHITECT_CHARTER_V3.md`, `companion-creative-psychology.json` and
-`story-architect-commissions.json` form the current staging authority. They
-contain exactly 18 compact nuclei and six companion psychologies. They do not
-dispatch the legacy screenplay rails, prescribed locations, body-part
-choreography, exact discovery, exact climax or exact payoff.
+`story-architect-commissions.json` remain the current manual-materialization
+authority. They contain exactly 18 compact nuclei and six companion
+psychologies. They do not dispatch the legacy screenplay rails, prescribed
+locations, body-part choreography, exact discovery, exact climax or exact
+payoff.
 
 Materialize one commission:
 
@@ -103,11 +104,15 @@ optional musical polish plus fresh PASS, and Guy product acceptance.
 
 ## Autonomous batch execution
 
-The current automated staging route is Architect → Selector → Writer →
-Editor → at most two targeted revisions. It does not wait for Guy to choose
-A, B or C: the Selector returns closed scores, and repository code recomputes
-all eight editorial axes, rejects disqualified or sub-threshold options and
-requires one unique winner before the Writer can run.
+The automated route reuses `story-architect-commissions.json` and
+`companion-creative-psychology.json`, but replaces the manual v3 authoring
+projection with `STORY_ARCHITECT_CHARTER_V4.md`,
+`STORY_AUTONOMOUS_SELECTOR_CONTRACT.md` and
+`STORY_AUTONOMOUS_WRITER_CONTRACT.md`. Its route is Architect → Selector →
+Writer → Editor → at most two targeted revisions. It does not wait for Guy
+to choose A, B or C: the Selector returns closed scores, and repository code
+recomputes all eight equal-weight editorial axes, rejects disqualified or
+sub-threshold options and requires one unique winner before the Writer can run.
 
 Run one bounded pilot by supplying a single `--brief-id`, or omit that flag for
 the default wave. The default wave excludes the already accepted Dini adventure

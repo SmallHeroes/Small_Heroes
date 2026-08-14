@@ -21,6 +21,6 @@ Record zero or more disqualifiers from the closed set:
 `seed_paraphrase`, `mini_screenplay`.
 
 Recommend exactly one existing option. Runtime code independently recomputes
-the weighted totals and accepts the recommendation only when it is the unique
+the equal-weight totals and accepts the recommendation only when it is the unique
 highest qualifying option. The Selector cannot grant story, product, Wizard or
 render acceptance.

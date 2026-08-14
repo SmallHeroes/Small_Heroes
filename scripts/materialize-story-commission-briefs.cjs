@@ -925,7 +925,11 @@ function validateEditorialReviewResult(review, expectedPageCount) {
     review.version !== 'small-heroes-story-editorial-review/v1' ||
     !['pass', 'revise', 'reject'].includes(review.verdict) ||
     !stringsAreValid(review.strengths, 1, 4) ||
-    !stringsAreValid(review.revisionPriorities, review.verdict === 'pass' ? 0 : 1, 4) ||
+    !stringsAreValid(
+      review.revisionPriorities,
+      review.verdict === 'pass' ? 0 : 1,
+      review.verdict === 'pass' ? 0 : 4,
+    ) ||
     !stringsAreValid(review.mustPreserve, 1, 8) ||
     !Array.isArray(review.issues) ||
     review.issues.length > 16 ||

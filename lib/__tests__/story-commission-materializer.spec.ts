@@ -713,6 +713,17 @@ describe('story commission materializer', () => {
         ),
       ).toThrow('story_editor_review_result_invalid');
       expect(() =>
+        validateEditorialReviewResult(
+          {
+            ...review,
+            verdict: 'pass',
+            issues: [],
+            revisionPriorities: ['A passing review cannot retain an open revision priority.'],
+          },
+          record.brief.pageCount,
+        ),
+      ).toThrow('story_editor_review_result_invalid');
+      expect(() =>
         buildTargetedRevisionBundle(authority, record, draft, {
           ...reviewResult,
           review: { ...review, verdict: 'pass', issues: [], revisionPriorities: [] },
@@ -1433,7 +1444,7 @@ describe('autonomous story batch', () => {
     await expect(failed.complete({ systemPrompt: 'secret prompt', userPrompt: 'secret story', reasoningEffort: 'low', maxOutputTokens: 10 })).rejects.toThrow('story_provider_http_429');
   });
 
-  it('runs a bounded story through Architect, Selector, Writer and Editor into staging only', async () => {
+  it('runs a bounded story into staging only and rejects a pass with revision priorities', async () => {
     const authority = loadStoryArchitectAuthority();
     const commission = authority.commissions.find(({ companionId }) => companionId === 'bunny_ometz')!;
     const record = findRecord(authority.commissionAuthority, commission.briefId);
@@ -1476,6 +1487,7 @@ describe('autonomous story batch', () => {
       },
     };
     const outputRoot = path.join(process.cwd(), 'outputs', `autonomous-story-test-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const invalidOutputRoot = path.join(process.cwd(), 'outputs', `autonomous-story-priority-test-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     try {
       const manifest = await autonomous.runAutonomousStoryWave({
         repoRoot: process.cwd(), outputRoot, briefIds: [record.brief.id], provider, maxCostUsd: 1,
@@ -1489,8 +1501,39 @@ describe('autonomous story batch', () => {
       expect(seen.map(({ stage }) => stage)).toEqual(['architect', 'selector', 'writer', 'editor']);
       expect(seen[2].userPrompt).not.toContain(options.options[0].title);
       expect(fs.readdirSync(path.join(outputRoot, record.brief.id)).some((name) => name.startsWith('final-story.'))).toBe(true);
+
+      const invalidOutputs = [
+        JSON.stringify(options),
+        JSON.stringify(selected),
+        story,
+        JSON.stringify({
+          ...pass,
+          revisionPriorities: ['Page 8 still needs a stronger closing beat.'],
+        }),
+      ];
+      const invalidManifest = await autonomous.runAutonomousStoryWave({
+        repoRoot: process.cwd(),
+        outputRoot: invalidOutputRoot,
+        briefIds: [record.brief.id],
+        provider: {
+          complete: async () => ({
+            text: invalidOutputs.shift(),
+            model: autonomous.MODEL,
+            serviceTier: autonomous.SERVICE_TIER,
+            usage: { inputTokens: 100, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 100, reasoningTokens: 10, totalTokens: 200 },
+          }),
+        },
+        maxCostUsd: 1,
+      });
+      expect(invalidManifest.status).toBe('completed_with_holds');
+      expect(invalidManifest.stories[record.brief.id]).toMatchObject({
+        status: 'hold',
+        reasonCode: 'story_editor_review_result_invalid',
+      });
+      expect(fs.readdirSync(path.join(invalidOutputRoot, record.brief.id)).some((name) => name.startsWith('final-story.'))).toBe(false);
     } finally {
       fs.rmSync(outputRoot, { recursive: true, force: true });
+      fs.rmSync(invalidOutputRoot, { recursive: true, force: true });
     }
   });
 
@@ -1545,6 +1588,55 @@ describe('autonomous story batch', () => {
       expect(providerCalls).toBe(0);
       expect(resumed.resumeCount).toBe(1);
       expect(resumed.stories[record.brief.id]).toMatchObject({ status: 'hold', reasonCode: 'story_batch_ambiguous_inflight_call' });
+    } finally {
+      fs.rmSync(outputRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses to resume a terminal provider call with a closed sanitized reason', async () => {
+    const authority = loadStoryArchitectAuthority();
+    const commission = authority.commissions.find(({ companionId }) => companionId === 'bunny_ometz')!;
+    const record = findRecord(authority.commissionAuthority, commission.briefId);
+    const outputRoot = path.join(process.cwd(), 'outputs', `autonomous-terminal-resume-test-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const manifestPath = path.join(outputRoot, 'manifest.json');
+    let providerCalls = 0;
+    const provider = {
+      complete: async () => {
+        providerCalls += 1;
+        if (providerCalls > 1) throw new Error('unexpected_duplicate_provider_call');
+        return {
+          completed: false,
+          terminalReason: 'story_provider_max_output_tokens',
+          model: autonomous.MODEL,
+          serviceTier: autonomous.SERVICE_TIER,
+          usage: { inputTokens: 20, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 100, reasoningTokens: 10, totalTokens: 120 },
+        };
+      },
+    };
+    try {
+      const first = await autonomous.runAutonomousStoryWave({
+        repoRoot: process.cwd(), outputRoot, briefIds: [record.brief.id], provider, maxCostUsd: 1,
+      });
+      expect(first.stories[record.brief.id]).toMatchObject({
+        status: 'hold',
+        reasonCode: 'story_provider_max_output_tokens',
+      });
+      expect(providerCalls).toBe(1);
+
+      const edited = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      edited.status = 'in_progress';
+      edited.stories[record.brief.id].status = 'in_progress';
+      delete edited.stories[record.brief.id].reasonCode;
+      fs.writeFileSync(manifestPath, `${JSON.stringify(edited, null, 2)}\n`, 'utf8');
+
+      const resumed = await autonomous.runAutonomousStoryWave({
+        repoRoot: process.cwd(), outputRoot, briefIds: [record.brief.id], provider, maxCostUsd: 1,
+      });
+      expect(providerCalls).toBe(1);
+      expect(resumed.stories[record.brief.id]).toMatchObject({
+        status: 'hold',
+        reasonCode: 'story_batch_terminal_call_not_resumable',
+      });
     } finally {
       fs.rmSync(outputRoot, { recursive: true, force: true });
     }

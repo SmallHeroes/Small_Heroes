@@ -486,6 +486,7 @@ describe('next-generation story creative briefs', () => {
     const { manifest } = loadCatalog();
     const contract = fs.readFileSync(path.join(ROOT, manifest.writerContractPath), 'utf8');
     const readme = fs.readFileSync(path.join(BRIEFS_ROOT, 'README.md'), 'utf8');
+    const normalizedReadme = readme.replace(/\s+/g, ' ');
 
     expect(contract).toContain('exactly 8 pages');
     expect(contract).toContain('exactly 12 pages');
@@ -503,14 +504,14 @@ describe('next-generation story creative briefs', () => {
     expect(contract).toContain('Do not add `approvedBy`');
     expect(contract).not.toContain('story-bank/v3-approved/');
 
-    expect(readme).toContain('one closed writer-facing projection of the selected structured brief');
-    expect(readme).toContain('first product-quality experiment deliberately covered only');
-    expect(readme).toContain('Guy selects A, B or C');
-    expect(readme).toContain('Autonomous batch execution');
-    expect(readme).toContain('does not wait for Guy to choose');
-    expect(readme).toContain('contains the other 17 slots');
-    expect(readme).toContain('machine_qualified` staging only');
-    expect(readme).toContain('Do not supply any V3/V5 story');
-    expect(readme).toContain('Brief acceptance does not approve prose.');
+    expect(normalizedReadme).toContain('one closed writer-facing projection of the selected structured brief');
+    expect(normalizedReadme).toContain('first product-quality experiment deliberately covered only');
+    expect(normalizedReadme).toContain('Guy selects A, B or C');
+    expect(normalizedReadme).toContain('Autonomous batch execution');
+    expect(normalizedReadme).toContain('does not wait for Guy to choose');
+    expect(normalizedReadme).toContain('contains the other 17 slots');
+    expect(normalizedReadme).toContain('machine_qualified` staging only');
+    expect(normalizedReadme).toContain('Do not supply any V3/V5 story');
+    expect(normalizedReadme).toContain('Brief acceptance does not approve prose.');
   });
 });
