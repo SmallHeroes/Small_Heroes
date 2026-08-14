@@ -1362,6 +1362,9 @@ describe('autonomous story batch', () => {
     expect(prompt.userPrompt).toContain('two complete Hebrew forms');
     expect(autonomous.validateWriterIsolation(prompt, [options.options[0], options.options[2]], selection(record.brief.id))).toBe(true);
 
+    const architectPrompt = autonomous.buildPrompts(process.cwd(), authority, record);
+    expect(architectPrompt.systemPrompt).toContain('natural Hebrew');
+
     const editorPrompt = autonomous.buildPrompts(process.cwd(), authority, record, selected, 'draft');
     expect(editorPrompt.systemPrompt).toContain('strengths contains 1–4 items');
     expect(editorPrompt.systemPrompt).toContain('mustPreserve contains 1–8 items');

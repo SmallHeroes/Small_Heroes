@@ -2,7 +2,70 @@
 
 **Updated:** 2026-08-14
 **Maintainer:** Codex
-**Working branch:** `codex/story-engine-approved-source-next-commissions` in `C:\Users\guyna\.codex\worktrees\storyqa1\Small_Heroes`; this follow-up is based exactly on `9cc03186b3fb530e8f228f7896dc12981db2b9ff`.
+**Working branch:** `codex/story-engine-autonomous-batch-orchestrator` in `C:\Users\guyna\.codex\worktrees\storybatch1\Small_Heroes`; based exactly on independently passed and pushed head `ea4404a5b2492099c35c90c6da2a14ee6478144f`.
+
+## STORY ENGINE AUTONOMOUS BATCH ORCHESTRATOR — locally implemented / live pilot HOLD / independent QA pending
+
+Guy approved replacing manual A/B/C selection for future commissions with an
+autonomous pipeline using `gpt-5.6-sol` through the Responses API. The accepted
+Dini cake source remains immutable and is excluded from the default 17-story
+wave.
+
+- The new staging-only flow is Architect → Selector → Writer → Editor → at most
+  two targeted revisions. Runtime code recomputes all eight Selector score
+  totals, requires a unique qualifying winner, permits one Architect reroll only
+  when no unique option qualifies, and grants only `machine_qualified` staging
+  status.
+- Architect v4, Selector v1 and Writer v1 are separate authorities. The Writer
+  receives only the selected premise, open companion psychology and identity;
+  rejected options, Selector scores and the Editor rubric are absent. Every
+  Writer/revision request now includes an exact frontmatter/page envelope and a
+  complete-form gender-chip rule. Architect human-readable output is explicitly
+  Hebrew.
+- Calls use exact model `gpt-5.6-sol`, Responses API Structured Outputs where
+  applicable, Standard service tier, `store:false`, disabled truncation, no
+  transport retry and no fallback. The launcher reads only `OPENAI_API_KEY` from
+  the approved local source and exposes it only to the private live child.
+- Content-addressed outputs and receipts bind model, tier, prompt digest, usage
+  and cost. Resume reuses completed stages, rejects authority/HEAD drift, and
+  converts any ambiguous in-flight call into HOLD instead of sending it again.
+- Focused validation passes **1 file / 21 tests**, deterministic TypeScript,
+  four script syntax checks and `git diff --check`. Tests cover closed outputs,
+  code-owned selection, Writer isolation, API sentinels, sanitized failures,
+  pricing including cache writes, complete staging flow and ambiguous-resume
+  refusal.
+- The one literal `npm run check` was invoked once and not retried. TypeScript
+  passed, the changed materializer suite passed **21/21** inside ordinary load,
+  and all **19 resource-intensive files passed** with a valid diagnostic
+  protocol. Ordinary remained HOLD on eight unrelated/stale expectations: the
+  established six ignored-output fixture failures, the pre-existing stale Dini
+  measurement assertion and one stale Story Pipeline README assertion that
+  still describes manual Guy A/B/C selection. No autonomous-batch assertion
+  failed; repository/release therefore remains separately HOLD.
+- Pilot v1 stopped on an Architect Response returned as `incomplete`. The first
+  adapter discarded its usage, so exact cost is unavailable; the pre-call
+  conservative bound proves at most `$0.123213`. That run has no accepted call
+  receipt or story authority and exposed the observability defect fixed in
+  `7e41de2e`.
+- Replacement pilot v2 completed exactly four calls (Architect, Selector,
+  Writer, Editor), with 6,189 input, 4,482 cache-write, 8,012 output, 4,343
+  reasoning and 14,201 total tokens. Exact Standard-tier accounting is
+  `$0.2769075`; retries/fallback are 0/false. Selector chose B uniquely at 74/80
+  versus 68 and 67, and a complete Writer draft was persisted.
+- Pilot v2 nevertheless stopped before revision because the Editor returned six
+  strengths while the canonical result validator permits at most four. Its
+  useful `revise` diagnosis identified one major personalization defect on page
+  4 and two minor read-aloud defects on pages 3/8. No story was machine-qualified.
+  `ce243a0d` now binds the exact Writer envelope and Editor cardinalities, but
+  that correction has not received a third live attempt.
+- Per Guy's two-failure stop rule, no third provider attempt and no 17-story wave
+  was run. No accepted source, live bank, Wizard, Visual Contract, image/audio,
+  render, database/storage, QA/Production deployment or push changed.
+
+Durable records:
+`docs/ai-workflow/STORY_ENGINE_AUTONOMOUS_BATCH_ORCHESTRATOR_DECISION_GATE.md`
+and
+`docs/ai-workflow/STORY_ENGINE_AUTONOMOUS_BATCH_ORCHESTRATOR_IMPLEMENTATION_EVIDENCE.md`.
 
 ## STORY ENGINE VNEXT APPROVED SOURCE + NEXT COMMISSION WAVE — independent TECHNICAL PASS / product source accepted
 

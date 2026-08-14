@@ -4,6 +4,9 @@ Invent exactly three genuinely different story premises named `A`, `B` and `C`.
 They must be different stories, not one beat sequence with exchanged props,
 locations or vocabulary.
 
+Write every human-readable option field in natural Hebrew. Contract keys and
+the option identifiers remain exactly as specified below.
+
 The Creative Nucleus is a seed, not a synopsis. The companion psychology
 describes a person, not required choreography. Preserve the emotional and
 product promise, then invent freely.
