@@ -34,6 +34,12 @@ function normalizeUsage(usage) {
   };
 }
 
+function incompleteReason(payload) {
+  if (payload?.incomplete_details?.reason === 'max_output_tokens') return 'story_provider_max_output_tokens';
+  if (payload?.incomplete_details?.reason === 'content_filter') return 'story_provider_content_filtered';
+  return 'story_provider_response_incomplete';
+}
+
 function createOpenAiStoryProvider({ apiKey, timeoutMs = 600_000, fetchImpl = fetch } = {}) {
   if (typeof apiKey !== 'string' || !apiKey.trim()) throw new Error('story_provider_api_key_missing');
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1_000) throw new Error('story_provider_timeout_invalid');
@@ -76,10 +82,21 @@ function createOpenAiStoryProvider({ apiKey, timeoutMs = 600_000, fetchImpl = fe
         if (!response.ok) throw new Error(`story_provider_http_${response.status}`);
         let payload;
         try { payload = await response.json(); } catch { throw new Error('story_provider_response_json_invalid'); }
-        if (payload?.status !== 'completed' || payload?.error || payload?.incomplete_details) {
+        if (payload?.error || !['completed', 'incomplete'].includes(payload?.status)) {
           throw new Error('story_provider_response_incomplete');
         }
+        if (payload.status === 'incomplete') {
+          return {
+            completed: false,
+            terminalReason: incompleteReason(payload),
+            model: payload.model,
+            serviceTier: payload.service_tier,
+            usage: normalizeUsage(payload.usage),
+          };
+        }
         return {
+          completed: true,
+          terminalReason: null,
           text: extractText(payload),
           model: payload.model,
           serviceTier: payload.service_tier,
@@ -95,4 +112,4 @@ function createOpenAiStoryProvider({ apiKey, timeoutMs = 600_000, fetchImpl = fe
   };
 }
 
-module.exports = { createOpenAiStoryProvider, extractText, normalizeUsage, sanitizeProviderFailure };
+module.exports = { createOpenAiStoryProvider, extractText, incompleteReason, normalizeUsage, sanitizeProviderFailure };

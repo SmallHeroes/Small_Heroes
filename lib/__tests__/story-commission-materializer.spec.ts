@@ -1398,6 +1398,25 @@ describe('autonomous story batch', () => {
     }
     expect(result.usage).toEqual({ inputTokens: 10, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 5, reasoningTokens: 2, totalTokens: 15 });
 
+    const incomplete = createOpenAiStoryProvider({
+      apiKey: 'test-only-key',
+      fetchImpl: async () => ({
+        ok: true,
+        json: async () => ({
+          status: 'incomplete',
+          incomplete_details: { reason: 'max_output_tokens' },
+          model: autonomous.MODEL,
+          service_tier: autonomous.SERVICE_TIER,
+          usage: { input_tokens: 20, output_tokens: 100, total_tokens: 120 },
+        }),
+      }),
+    });
+    await expect(incomplete.complete({ systemPrompt: 'system', userPrompt: 'user', reasoningEffort: 'high', maxOutputTokens: 100 })).resolves.toMatchObject({
+      completed: false,
+      terminalReason: 'story_provider_max_output_tokens',
+      usage: { inputTokens: 20, outputTokens: 100, totalTokens: 120 },
+    });
+
     const failed = createOpenAiStoryProvider({ apiKey: 'test-only-key', fetchImpl: async () => ({ ok: false, status: 429 }) });
     await expect(failed.complete({ systemPrompt: 'secret prompt', userPrompt: 'secret story', reasoningEffort: 'low', maxOutputTokens: 10 })).rejects.toThrow('story_provider_http_429');
   });

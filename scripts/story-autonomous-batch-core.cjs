@@ -282,7 +282,7 @@ function buildPrompts(repoRoot, authority, record, selectedOption, draft, review
     return {
       stage: 'architect',
       reasoningEffort: 'high',
-      maxOutputTokens: 3500,
+      maxOutputTokens: 8000,
       schemaName: 'small_heroes_architect_options',
       schema: ARCHITECT_SCHEMA,
       systemPrompt: readContract(repoRoot, CONTRACTS.architect),
@@ -485,6 +485,38 @@ function recordCall(storyDir, manifest, storyState, request, result) {
   return artifact;
 }
 
+function recordTerminalCall(storyDir, manifest, storyState, request, result) {
+  const costUsd = calculateCostUsd(result.usage, result.serviceTier);
+  const receiptBody = {
+    version: 'small-heroes-story-provider-terminal-call-receipt/v1',
+    stage: request.stage,
+    status: 'terminal',
+    reasonCode: result.terminalReason,
+    modelRequested: MODEL,
+    modelReturned: result.model,
+    serviceTierRequested: SERVICE_TIER,
+    serviceTierReturned: result.serviceTier,
+    store: false,
+    reasoningEffort: request.reasoningEffort,
+    maxOutputTokens: request.maxOutputTokens,
+    promptSha256: sha256(`${request.systemPrompt}\n${request.userPrompt}`),
+    usage: result.usage,
+    costUsd,
+    rawProviderMaterialPersisted: false,
+    transportRetries: 0,
+    fallbackUsed: false,
+  };
+  const receipt = contentAddressedWrite(
+    storyDir,
+    `${String(manifest.logicalProviderCalls + 1).padStart(2, '0')}-${request.stage}-terminal`,
+    'json',
+    `${JSON.stringify(receiptBody, null, 2)}\n`,
+  );
+  manifest.logicalProviderCalls += 1;
+  manifest.actualCostUsd = Number((manifest.actualCostUsd + costUsd).toFixed(9));
+  storyState.calls.push({ stage: request.stage, terminal: true, receipt, costUsd });
+}
+
 async function invoke(provider, storyDir, manifest, storyState, request, persist) {
   const reservation = conservativeReservationUsd(request);
   if (manifest.actualCostUsd + reservation > manifest.maxCostUsd) {
@@ -496,12 +528,21 @@ async function invoke(provider, storyDir, manifest, storyState, request, persist
   };
   persist();
   const result = await provider.complete(request);
+  const completed = result?.completed !== false;
   if (!result || result.model !== MODEL || result.serviceTier !== SERVICE_TIER ||
-      !nonEmpty(result.text) || !exactKeys(result.usage, ['inputTokens', 'cachedInputTokens', 'cacheWriteTokens', 'outputTokens', 'reasoningTokens', 'totalTokens'])) {
+      completed && !nonEmpty(result.text) ||
+      !completed && !nonEmpty(result.terminalReason) ||
+      !exactKeys(result.usage, ['inputTokens', 'cachedInputTokens', 'cacheWriteTokens', 'outputTokens', 'reasoningTokens', 'totalTokens'])) {
     throw new Error('story_batch_provider_result_invalid');
   }
   if (manifest.actualCostUsd + calculateCostUsd(result.usage, result.serviceTier) > manifest.maxCostUsd) {
     throw new Error('story_batch_actual_cost_exceeded');
+  }
+  if (!completed) {
+    recordTerminalCall(storyDir, manifest, storyState, request, result);
+    storyState.inflight = null;
+    persist();
+    throw new Error(result.terminalReason);
   }
   recordCall(storyDir, manifest, storyState, request, result);
   storyState.inflight = null;
