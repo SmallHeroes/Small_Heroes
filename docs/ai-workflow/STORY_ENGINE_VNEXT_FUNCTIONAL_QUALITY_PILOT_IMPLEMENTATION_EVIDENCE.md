@@ -255,6 +255,44 @@ audio, Vision, storage/database, QA/Production deployment or push occurred.
 The external editorial PASS is not Codex self-awarded product acceptance and
 does not itself grant downstream authority.
 
+## Independent QA closeout
+
+Claude Code independently reviewed exact immutable range
+`7c55bf931b4488d5ea0340a6b503a1cdcc36e67f..acd445141fda29fddaf6a81eccc870b9d1a62bb3`
+read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero
+MINOR. This document records Claude Code's verdict; Codex does not self-award
+independent technical PASS.
+
+Claude confirmed all ten handoff claims. It independently verified the exact
+two-commit topology, unchanged package and lockfile, preserved revise behavior,
+strict pass-only terminal, no normalization at acceptance, refusal behavior,
+candidate/review byte identities, the exact two-line raw-to-corrected diff,
+absence of downstream authority and separation of the seven-failure release
+HOLD. It also reproduced 1 file / 11 tests, script syntax, deterministic
+TypeScript and `git diff --check`.
+
+ADV-1 through ADV-7 remain advisory only:
+
+1. The refusal code for a `pass` carrying priorities names the verdict rather
+   than the specific priorities violation.
+2. The two disclosed mechanical corrections were manual input edits backed by
+   preserved raw bytes and an exact diff, not a repeatable transform.
+3. `CURRENT.md` originally omitted the attached `ו` in its quotation of the
+   malformed chip; this documentation closeout corrects the quotation to
+   `והסתכל{ה}` without changing any artifact.
+4. The pass terminal is byte-strict while the revise path still normalizes
+   BOM/CRLF/trailing whitespace without recording those changes in `actions`.
+5. `gender: female` and `endingType: resolution` remain intentionally limited
+   to this one-slot pilot.
+6. Claude did not rerun the literal repository gate; the separate seven-failure
+   release HOLD remains unwaived.
+7. Claude's probes wrote only to temporary directories outside the repository.
+
+No advisory is an implementation finding and no further re-gate is required
+for this range absent a factual discrepancy. Product/story acceptance and all
+bank, Visual Contract, Wizard, render, deployment and release decisions remain
+Guy's authority.
+
 ## Rollback
 
 Revert only the follow-up commit built on `a985cc43`. The prior Architect v1 pilot commit and its preserved outputs remain independently addressable. Because no bank/runtime authority changed, rollback requires no story migration or data rewrite.
