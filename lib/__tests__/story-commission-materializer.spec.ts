@@ -46,6 +46,21 @@ const {
   writeNormalizedRevisionFiles,
   writeTargetedRevisionFiles,
 } = require('../../scripts/materialize-story-commission-briefs.cjs') as Materializer;
+const autonomous = require('../../scripts/story-autonomous-batch-core.cjs') as {
+  MODEL: string;
+  SERVICE_TIER: string;
+  buildPrompts: (...args: any[]) => any;
+  buildSelectorPrompt: (...args: any[]) => any;
+  calculateCostUsd: (usage: Record<string, number>, serviceTier?: string) => number;
+  chooseQualifiedOption: (architect: any, selection: any) => any;
+  runAutonomousStoryWave: (input: any) => Promise<any>;
+  validateArchitectOptions: (value: any, briefId: string) => any;
+  validateSelection: (value: any, briefId: string) => any;
+  validateWriterIsolation: (prompt: any, rejected: any[], selection: any) => boolean;
+};
+const { createOpenAiStoryProvider } = require('../../scripts/story-autonomous-openai-provider.cjs') as {
+  createOpenAiStoryProvider: (input: any) => { complete: (request: any) => Promise<any> };
+};
 
 interface StoryBrief {
   id: string;
@@ -1266,6 +1281,241 @@ describe('story commission materializer', () => {
         recursive: true,
         force: true,
       });
+    }
+  });
+});
+
+describe('autonomous story batch', () => {
+  const option = (optionId: 'A' | 'B' | 'C', suffix: string) => ({
+    optionId,
+    title: `כותרת ${suffix}`,
+    hook: `אירוע מיידי ומפתיע מספיק ${suffix}`,
+    comicOrWonderEngine: `מנוע קומי או פלאי שונה וברור ${suffix}`,
+    journeyShape: `מסע רחב בין מצבים שונים ללא ביטים ${suffix}`,
+    childAgencyArc: `הילד בודק בוחר ומשנה את המהלך ${suffix}`,
+    climaxPrinciple: `הילד מוביל פתרון שנבנה מן הגילוי ${suffix}`,
+    payoffFlavor: `תשלום חזותי ורגשי מפתיע בסיום ${suffix}`,
+    whyThisCompanion: `האופי של הקומפניון מניע את הסיפור ${suffix}`,
+    surprise: `היפוך שאינו צפוי ישירות מן הגרעין ${suffix}`,
+  });
+  const architect = (briefId: string) => ({
+    version: 'small-heroes-autonomous-architect-options/v1',
+    briefId,
+    options: [option('A', 'אלף'), option('B', 'בית'), option('C', 'גימל')],
+  });
+  const evaluation = (optionId: 'A' | 'B' | 'C', score: number) => ({
+    optionId,
+    childDelight: score,
+    rereadDesire: score,
+    humorOrWonder: score,
+    childAgency: score,
+    companionSpecificity: score,
+    visualJourney: score,
+    causalityPayoff: score,
+    hebrewPotential: score,
+    disqualifiers: [] as string[],
+    notes: `נימוק עריכתי עבור אפשרות ${optionId}`,
+  });
+  const selection = (briefId: string) => ({
+    version: 'small-heroes-autonomous-premise-selection/v1',
+    briefId,
+    evaluations: [evaluation('A', 8), evaluation('B', 9), evaluation('C', 7)],
+    recommendedOptionId: 'B',
+    selectionReason: 'אפשרות בית היא החזקה ביותר בכל המדדים המרכזיים.',
+  });
+
+  it('validates closed A/B/C contracts and independently selects the unique winner', () => {
+    const briefId = 'test_brief_v1';
+    expect(autonomous.validateArchitectOptions(architect(briefId), briefId).options).toHaveLength(3);
+    expect(autonomous.validateSelection(selection(briefId), briefId).evaluations).toHaveLength(3);
+    expect(autonomous.chooseQualifiedOption(architect(briefId), selection(briefId))).toMatchObject({
+      status: 'selected',
+      selectedOption: { optionId: 'B' },
+    });
+
+    const mismatched = { ...selection(briefId), recommendedOptionId: 'A' };
+    expect(() => autonomous.chooseQualifiedOption(architect(briefId), mismatched)).toThrow(
+      'story_batch_selector_recommendation_mismatch',
+    );
+    const tied = selection(briefId);
+    tied.evaluations[0] = evaluation('A', 9);
+    expect(autonomous.chooseQualifiedOption(architect(briefId), tied).status).toBe('reroll_required');
+    expect(() => autonomous.validateArchitectOptions({ ...architect(briefId), extra: true }, briefId)).toThrow(
+      'story_batch_architect_output_invalid',
+    );
+  });
+
+  it('keeps selector scores and rejected options out of the Writer context', () => {
+    const authority = loadStoryArchitectAuthority();
+    const record = findRecord(authority.commissionAuthority, authority.commissions[0].briefId);
+    const options = architect(record.brief.id);
+    const selected = options.options[1];
+    const prompt = autonomous.buildPrompts(process.cwd(), authority, record, selected);
+    expect(prompt.stage).toBe('writer');
+    expect(prompt.userPrompt).toContain(selected.title);
+    expect(prompt.userPrompt).not.toContain(options.options[0].title);
+    expect(prompt.userPrompt).not.toContain('recommendedOptionId');
+    expect(autonomous.validateWriterIsolation(prompt, [options.options[0], options.options[2]], selection(record.brief.id))).toBe(true);
+  });
+
+  it('uses the Responses API sentinel settings and sanitizes provider failures', async () => {
+    let captured: any;
+    const provider = createOpenAiStoryProvider({
+      apiKey: 'test-only-key',
+      fetchImpl: async (_url: string, init: any) => {
+        captured = JSON.parse(init.body);
+        return {
+          ok: true,
+          json: async () => ({
+            status: 'completed',
+            model: autonomous.MODEL,
+            service_tier: autonomous.SERVICE_TIER,
+            output: [{ type: 'message', content: [{ type: 'output_text', text: '{"ok":true}' }] }],
+            usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15, input_tokens_details: {}, output_tokens_details: { reasoning_tokens: 2 } },
+          }),
+        };
+      },
+    });
+    const result = await provider.complete({
+      systemPrompt: 'system',
+      userPrompt: 'user',
+      reasoningEffort: 'high',
+      maxOutputTokens: 100,
+      schemaName: 'test_schema',
+      schema: { type: 'object', additionalProperties: false, required: ['ok'], properties: { ok: { type: 'boolean' } } },
+    });
+    expect(captured).toMatchObject({
+      model: 'gpt-5.6-sol',
+      service_tier: 'default',
+      store: false,
+      truncation: 'disabled',
+      reasoning: { effort: 'high' },
+      text: { format: { type: 'json_schema', strict: true } },
+    });
+    const serializedSchema = JSON.stringify(captured.text.format.schema);
+    for (const unsupportedKeyword of ['minLength', 'maxLength', 'minItems', 'maxItems', 'minimum', 'maximum', 'uniqueItems']) {
+      expect(serializedSchema).not.toContain(`"${unsupportedKeyword}"`);
+    }
+    expect(result.usage).toEqual({ inputTokens: 10, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 5, reasoningTokens: 2, totalTokens: 15 });
+
+    const failed = createOpenAiStoryProvider({ apiKey: 'test-only-key', fetchImpl: async () => ({ ok: false, status: 429 }) });
+    await expect(failed.complete({ systemPrompt: 'secret prompt', userPrompt: 'secret story', reasoningEffort: 'low', maxOutputTokens: 10 })).rejects.toThrow('story_provider_http_429');
+  });
+
+  it('runs a bounded story through Architect, Selector, Writer and Editor into staging only', async () => {
+    const authority = loadStoryArchitectAuthority();
+    const commission = authority.commissions.find(({ companionId }) => companionId === 'bunny_ometz')!;
+    const record = findRecord(authority.commissionAuthority, commission.briefId);
+    const options = architect(record.brief.id);
+    const selected = selection(record.brief.id);
+    const story = [
+      '---',
+      'title: "{{childName}} ובוני: לילה קטן"',
+      `companionId: ${record.companionId}`,
+      `direction: ${record.brief.direction}`,
+      `category: ${record.brief.category}`,
+      `pages: ${record.brief.pageCount}`,
+      'gender: female',
+      'endingType: resolution',
+      '---',
+      ...Array.from({ length: record.brief.pageCount }, (_, index) => `--- Page ${index + 1} ---\n\n{{childName}} {צעד|צעדה} קדימה, ובוני הקשיב.`),
+      '',
+    ].join('\n');
+    const pass = {
+      version: 'small-heroes-story-editorial-review/v1',
+      verdict: 'pass',
+      strengths: ['הילד מוביל את הפעולה באופן ברור.'],
+      issues: [],
+      revisionPriorities: [],
+      mustPreserve: ['את הפעולה של הילד ואת הקצב.'],
+    };
+    const outputs = [JSON.stringify(options), JSON.stringify(selected), story, JSON.stringify(pass)];
+    const seen: any[] = [];
+    const provider = {
+      complete: async (request: any) => {
+        seen.push(request);
+        const text = outputs.shift();
+        if (!text) throw new Error('unexpected_provider_call');
+        return {
+          text,
+          model: autonomous.MODEL,
+          serviceTier: autonomous.SERVICE_TIER,
+          usage: { inputTokens: 100, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 100, reasoningTokens: 10, totalTokens: 200 },
+        };
+      },
+    };
+    const outputRoot = path.join(process.cwd(), 'outputs', `autonomous-story-test-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    try {
+      const manifest = await autonomous.runAutonomousStoryWave({
+        repoRoot: process.cwd(), outputRoot, briefIds: [record.brief.id], provider, maxCostUsd: 1,
+      });
+      expect(manifest.status).toBe('machine_qualified');
+      expect(manifest.authorityStatus).toBe('machine_qualified_staging_only');
+      expect(manifest.logicalProviderCalls).toBe(4);
+      expect(manifest.transportRetries).toBe(0);
+      expect(manifest.fallbackUsed).toBe(false);
+      expect(manifest.stories[record.brief.id]).toMatchObject({ status: 'machine_qualified', selectedOptionId: 'B', revisionCount: 0 });
+      expect(seen.map(({ stage }) => stage)).toEqual(['architect', 'selector', 'writer', 'editor']);
+      expect(seen[2].userPrompt).not.toContain(options.options[0].title);
+      expect(fs.readdirSync(path.join(outputRoot, record.brief.id)).some((name) => name.startsWith('final-story.'))).toBe(true);
+    } finally {
+      fs.rmSync(outputRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('accounts standard and fast-tier usage without hiding cache-write cost', () => {
+    const usage = { inputTokens: 1000, cachedInputTokens: 200, cacheWriteTokens: 100, outputTokens: 500, reasoningTokens: 50, totalTokens: 1500 };
+    expect(autonomous.calculateCostUsd(usage, 'default')).toBeCloseTo(0.019225, 9);
+    expect(autonomous.calculateCostUsd(usage, 'fast')).toBeCloseTo(0.03845, 9);
+  });
+
+  it('resumes completed stages without a duplicate call and holds an ambiguous in-flight call', async () => {
+    const authority = loadStoryArchitectAuthority();
+    const commission = authority.commissions.find(({ companionId }) => companionId === 'bunny_ometz')!;
+    const record = findRecord(authority.commissionAuthority, commission.briefId);
+    const outputRoot = path.join(process.cwd(), 'outputs', `autonomous-resume-test-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const manifestPath = path.join(outputRoot, 'manifest.json');
+    const options = architect(record.brief.id);
+    let providerCalls = 0;
+    const provider = {
+      complete: async () => {
+        providerCalls += 1;
+        throw new Error('simulated_interruption');
+      },
+    };
+    try {
+      fs.mkdirSync(path.join(outputRoot, record.brief.id), { recursive: true });
+      const head = createRequire(import.meta.url)('node:child_process').execFileSync(
+        'git', ['rev-parse', 'HEAD'], { cwd: process.cwd(), encoding: 'utf8' },
+      ).trim();
+      const contracts = autonomous.buildPrompts(process.cwd(), authority, record);
+      const authorityDigests = Object.fromEntries(
+        Object.entries(require('../../scripts/story-autonomous-batch-core.cjs').CONTRACTS).map(([key, relative]) => [
+          key,
+          { path: relative, sha256: createHash('sha256').update(fs.readFileSync(path.join(process.cwd(), relative as string), 'utf8').trim()).digest('hex') },
+        ]),
+      );
+      const promptSha = createHash('sha256').update(`${contracts.systemPrompt}\n${contracts.userPrompt}`).digest('hex');
+      const manifest = {
+        version: 'small-heroes-autonomous-story-batch/v1', status: 'in_progress', authorityStatus: 'machine_qualified_staging_only',
+        model: autonomous.MODEL, serviceTier: autonomous.SERVICE_TIER, store: false, repoHead: head,
+        briefIds: [record.brief.id], maxCostUsd: 1, actualCostUsd: 0, logicalProviderCalls: 0,
+        transportRetries: 0, fallbackUsed: false, resumeCount: 0, credentialAccess: 'supervisor_child_only',
+        stories: {
+          [record.brief.id]: {
+            status: 'in_progress', identity: {}, calls: [], selectedOptionId: null, revisionCount: 0,
+            inflight: { stage: 'architect', promptSha256: promptSha },
+          },
+        },
+        authorityDigests,
+      };
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+      const resumed = await autonomous.runAutonomousStoryWave({ repoRoot: process.cwd(), outputRoot, briefIds: [record.brief.id], provider, maxCostUsd: 1 });
+      expect(providerCalls).toBe(0);
+      expect(resumed.resumeCount).toBe(1);
+      expect(resumed.stories[record.brief.id]).toMatchObject({ status: 'hold', reasonCode: 'story_batch_ambiguous_inflight_call' });
+    } finally {
+      fs.rmSync(outputRoot, { recursive: true, force: true });
     }
   });
 });
