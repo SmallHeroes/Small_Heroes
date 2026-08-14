@@ -21,7 +21,7 @@ const {
 
 const MODEL = 'gpt-5.6-sol';
 const SERVICE_TIER = 'default';
-const PIPELINE_VERSION = 'small-heroes-autonomous-story-batch/v2';
+const PIPELINE_VERSION = 'small-heroes-autonomous-story-batch/v3';
 const EDITOR_MAX_OUTPUT_TOKENS = 6000;
 const MAX_REVISION_ROUNDS = 3;
 const REVISION_REASONING_RESERVE_TOKENS = 2000;
@@ -84,6 +84,28 @@ function normalizeGenderChipTerminalPunctuation(draft) {
     /(?<!\{)\{(?!\{)([^{}|\r\n]*?)([.!?\u2026,:;]+)\|([^{}|\r\n]*?)\2\}(?!\})/gu,
     (_match, masculine, punctuation, feminine) => `{${masculine}|${feminine}}${punctuation}`,
   );
+}
+
+const HEBREW_BOUND_PREFIXES = [
+  'וכש', 'ושה', 'ובש', 'ולש', 'ומש',
+  'וש', 'וה', 'וב', 'וכ', 'ול', 'ומ', 'כש', 'שה', 'בש', 'לש', 'מש',
+  'ו', 'ב', 'כ', 'ל', 'מ', 'ש', 'ה',
+].join('|');
+const SHARED_GENDER_CHIP_PREFIX_PATTERN = new RegExp(
+  `(^|[^\\u0590-\\u05FF])(${HEBREW_BOUND_PREFIXES})\\{([\\u0590-\\u05FF\\u05F3\\u05F4'"\u05be\\- ]{2,})\\|([\\u0590-\\u05FF\\u05F3\\u05F4'"\u05be\\- ]{2,})\\}`,
+  'gmu',
+);
+
+function normalizeGenderChipSharedPrefix(draft) {
+  return draft.replace(
+    SHARED_GENDER_CHIP_PREFIX_PATTERN,
+    (_match, boundary, prefix, masculine, feminine) =>
+      `${boundary}{${prefix}${masculine}|${prefix}${feminine}}`,
+  );
+}
+
+function normalizeGenderChips(draft) {
+  return normalizeGenderChipSharedPrefix(normalizeGenderChipTerminalPunctuation(draft));
 }
 
 const ARCHITECT_SCHEMA = {
@@ -699,7 +721,7 @@ async function runOneStory(context, record) {
     const writerRequest = buildPrompts(repoRoot, authority, record, decision.selectedOption);
     validateWriterIsolation(writerRequest, rejected, selection);
     let draftResult = await getOrInvoke(provider, storyDir, manifest, storyState, writerRequest, 0, persist);
-    let draft = normalizeGenderChipTerminalPunctuation(
+    let draft = normalizeGenderChips(
       `${draftResult.text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trimEnd()}\n`,
     );
     persist();
@@ -725,7 +747,7 @@ async function runOneStory(context, record) {
       if (editorialRound >= MAX_REVISION_ROUNDS) throw new Error('story_batch_revision_budget_exhausted');
       const revisionRequest = buildPrompts(repoRoot, authority, record, decision.selectedOption, draft, review);
       const revisionResult = await getOrInvoke(provider, storyDir, manifest, storyState, revisionRequest, editorialRound, persist);
-      draft = normalizeGenderChipTerminalPunctuation(
+      draft = normalizeGenderChips(
         `${revisionResult.text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trimEnd()}\n`,
       );
       storyState.revisionCount += 1;
@@ -777,6 +799,7 @@ module.exports = {
   chooseQualifiedOption,
   conservativeReservationUsd,
   normalizeGenderChipTerminalPunctuation,
+  normalizeGenderChipSharedPrefix,
   runAutonomousStoryWave,
   requiredStoryEnvelope,
   revisionMaxOutputTokens,

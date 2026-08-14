@@ -57,6 +57,7 @@ const autonomous = require('../../scripts/story-autonomous-batch-core.cjs') as {
   buildSelectorPrompt: (...args: any[]) => any;
   calculateCostUsd: (usage: Record<string, number>, serviceTier?: string) => number;
   chooseQualifiedOption: (architect: any, selection: any) => any;
+  normalizeGenderChipSharedPrefix: (draft: string) => string;
   normalizeGenderChipTerminalPunctuation: (draft: string) => string;
   runAutonomousStoryWave: (input: any) => Promise<any>;
   requiredStoryEnvelope: (record: any) => string;
@@ -1471,6 +1472,16 @@ describe('autonomous story batch', () => {
     expect(autonomous.normalizeGenderChipTerminalPunctuation('{{childName}}')).toBe('{{childName}}');
   });
 
+  it('moves only standalone Hebrew bound prefixes into both complete gender forms', () => {
+    expect(autonomous.normalizeGenderChipSharedPrefix(
+      'ש{ארז|ארזה} וכש{הגיע|הגיעה}',
+    )).toBe('{שארז|שארזה} {וכשהגיע|וכשהגיעה}');
+    expect(autonomous.normalizeGenderChipSharedPrefix(
+      'ממש{הלך|הלכה}',
+    )).toBe('ממש{הלך|הלכה}');
+    expect(autonomous.normalizeGenderChipSharedPrefix('{{childName}}')).toBe('{{childName}}');
+  });
+
   it('uses the Responses API sentinel settings and sanitizes provider failures', async () => {
     let captured: any;
     const provider = createOpenAiStoryProvider({
@@ -1655,7 +1666,7 @@ describe('autonomous story batch', () => {
       '---',
       ...Array.from(
         { length: record.brief.pageCount },
-        (_, index) => `--- Page ${index + 1} ---\n\n{{childName}} {\u05E6\u05E2\u05D3.|\u05E6\u05E2\u05D3\u05D4.} \u05E7\u05D3\u05D9\u05DE\u05D4.`,
+        (_, index) => `--- Page ${index + 1} ---\n\n{{childName}} \u05E9{\u05E6\u05E2\u05D3.|\u05E6\u05E2\u05D3\u05D4.} \u05E7\u05D3\u05D9\u05DE\u05D4.`,
       ),
       '',
     ].join('\n');
@@ -1728,7 +1739,8 @@ describe('autonomous story batch', () => {
       );
       const finalStory = fs.readFileSync(finalStoryPath, 'utf8');
       expect(finalStory).not.toMatch(/\{[^{}|]+\.\|[^{}|]+\.\}/u);
-      expect(finalStory).toMatch(/\{[^{}|]+\|[^{}|]+\}\./u);
+      expect(finalStory).not.toContain('\u05e9{');
+      expect(finalStory).toMatch(/\{ש[^{}|]+\|ש[^{}|]+\}\./u);
     } finally {
       fs.rmSync(outputRoot, { recursive: true, force: true });
     }
