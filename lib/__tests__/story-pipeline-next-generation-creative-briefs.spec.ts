@@ -504,9 +504,12 @@ describe('next-generation story creative briefs', () => {
     expect(contract).not.toContain('story-bank/v3-approved/');
 
     expect(readme).toContain('one closed writer-facing projection of the selected structured brief');
-    expect(readme).toContain('deliberately covers only');
+    expect(readme).toContain('first product-quality experiment deliberately covered only');
     expect(readme).toContain('Guy selects A, B or C');
-    expect(readme).toContain('generalized to the other 17 slots');
+    expect(readme).toContain('Autonomous batch execution');
+    expect(readme).toContain('does not wait for Guy to choose');
+    expect(readme).toContain('contains the other 17 slots');
+    expect(readme).toContain('machine_qualified` staging only');
     expect(readme).toContain('Do not supply any V3/V5 story');
     expect(readme).toContain('Brief acceptance does not approve prose.');
   });

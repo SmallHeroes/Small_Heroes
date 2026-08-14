@@ -101,6 +101,32 @@ prove both remaining page contracts, then continue through the same queue. Each
 story independently requires Architect selection, Writer draft, Editor PASS,
 optional musical polish plus fresh PASS, and Guy product acceptance.
 
+## Autonomous batch execution
+
+The current automated staging route is Architect → Selector → Writer →
+Editor → at most two targeted revisions. It does not wait for Guy to choose
+A, B or C: the Selector returns closed scores, and repository code recomputes
+all eight editorial axes, rejects disqualified or sub-threshold options and
+requires one unique winner before the Writer can run.
+
+Run one bounded pilot by supplying a single `--brief-id`, or omit that flag for
+the default wave. The default wave excludes the already accepted Dini adventure
+and therefore contains the other 17 slots:
+
+```powershell
+npm run story:autonomous-batch -- `
+  --credential-source <LOCAL_ENV_FILE> `
+  --output-root outputs/<NEW_CONTENT_ADDRESSED_RUN> `
+  --brief-id bunny_ometz_bedtime_toy_inspection_depot_brief_v1 `
+  --max-cost-usd <APPROVED_HARD_CAP>
+```
+
+The launcher exposes only `OPENAI_API_KEY` to the private child. Every result
+remains `machine_qualified` staging only. It grants no accepted-source, bank,
+Wizard, Visual Contract, render, storage, deployment or release authority.
+Resume accepts only an identical HEAD and authority set, reuses completed
+content-addressed stages and refuses to resend an ambiguous in-flight call.
+
 ## Product-accepted story sources
 
 `story-pipeline/04_approved_story_sources/` is durable text-source authority,

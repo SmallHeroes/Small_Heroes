@@ -45,14 +45,21 @@ provider request.
 - `node --check` for the four new CJS entrypoints: **PASS**.
 - `git diff --check`: **PASS**.
 - No dependency or lockfile changed.
+- Post-gate README activation correction:
+  `npx vitest run lib/__tests__/story-pipeline-next-generation-creative-briefs.spec.ts lib/__tests__/story-commission-materializer.spec.ts`:
+  **2 files / 29 tests PASS**; deterministic TypeScript and `git diff --check`:
+  **PASS**.
 - The literal `npm run check` ran exactly once and was not retried. TypeScript,
   the changed 21-test suite under ordinary load and the complete 19-file
-  resource-intensive phase passed. Ordinary failed eight unrelated/stale
-  expectations: the established six missing ignored-output fixtures, the
-  pre-existing stale Dini measurement assertion and a stale Story Pipeline
-  README assertion that still requires manual Guy A/B/C selection. The phase
-  diagnostic protocol was valid and no autonomous-batch test failed. This is a
-  separate repository/release HOLD, not a PASS for the whole repository.
+  resource-intensive phase passed. Ordinary failed eight assertions: the
+  established six missing ignored-output fixtures, the pre-existing stale Dini
+  measurement assertion and a directly related stale Story Pipeline README
+  contract assertion. The README already scoped manual Guy A/B/C selection to
+  the historical pilot; its test still required obsolete wording and did not
+  bind the new autonomous route. The README and contract test were corrected
+  afterward and passed focused validation; the repository gate was
+  intentionally not rerun. The remaining seven failures stay a separate
+  repository/release HOLD, not a PASS for the whole repository.
 
 ## Live pilot v1 — terminal and not reusable
 

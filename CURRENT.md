@@ -34,14 +34,22 @@ wave.
   code-owned selection, Writer isolation, API sentinels, sanitized failures,
   pricing including cache writes, complete staging flow and ambiguous-resume
   refusal.
+- After the repository gate exposed the stale README contract assertion, the
+  documentation activation correction passed **2 files / 29 tests**,
+  deterministic TypeScript and `git diff --check` without rerunning the
+  repository gate.
 - The one literal `npm run check` was invoked once and not retried. TypeScript
   passed, the changed materializer suite passed **21/21** inside ordinary load,
   and all **19 resource-intensive files passed** with a valid diagnostic
-  protocol. Ordinary remained HOLD on eight unrelated/stale expectations: the
-  established six ignored-output fixture failures, the pre-existing stale Dini
-  measurement assertion and one stale Story Pipeline README assertion that
-  still describes manual Guy A/B/C selection. No autonomous-batch assertion
-  failed; repository/release therefore remains separately HOLD.
+  protocol. Ordinary remained HOLD on eight assertions: the established six
+  ignored-output fixture failures, the pre-existing stale Dini measurement
+  assertion and one directly related stale Story Pipeline README contract
+  assertion. The README already scoped manual Guy A/B/C selection to the
+  historical pilot, but the test still required obsolete wording and did not
+  assert the autonomous route. The README/test activation mismatch was
+  corrected after the one repository gate and passed focused validation; the
+  gate was not rerun. The remaining seven failures stay separate from this
+  implementation and repository/release remains HOLD.
 - Pilot v1 stopped on an Architect Response returned as `incomplete`. The first
   adapter discarded its usage, so exact cost is unavailable; the pre-call
   conservative bound proves at most `$0.123213`. That run has no accepted call
