@@ -1002,13 +1002,29 @@ describe('captured reference-domain matrix', () => {
       kind: 'spatial',
       id: 'outside_current_page_zone',
     };
-    const firstNode = nodes(invalid)[0]!;
-    firstNode.stablePropId = 17;
+    actions(invalid)[1]!.checkId = 'provider-authored-check-id';
     const callLLM = vi.fn(async () => JSON.stringify(invalid));
 
-    await expect(
-      compileBookVisualContractTemplate(input, { callLLM }),
-    ).rejects.toBeInstanceOf(DraftAuthorityReferenceDomainError);
+    let failure: unknown;
+    try {
+      await compileBookVisualContractTemplate(input, { callLLM });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(
+      DraftAuthorityReferenceDomainError,
+    );
+    expect(
+      (failure as DraftAuthorityReferenceDomainError).issues.map(
+        (issue) => issue.code,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'action_check_id_forbidden',
+        'action_coverage_cardinality_invalid',
+        'page_spatial_reference_outside_zone',
+      ]),
+    );
     expect(callLLM).toHaveBeenCalledTimes(1);
   });
 

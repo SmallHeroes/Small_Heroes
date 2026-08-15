@@ -75,3 +75,9 @@ Claude Code should falsify:
 7. that the six-fixture repository HOLD remains separate and accurately reported.
 
 Codex does not self-award independent technical PASS. Fresh Readiness and any later live/render authority require a clean pushed HEAD plus independent review.
+
+## Independent review and focused QA correction
+
+Claude Code's read-only review of exact range `6f3f44846d6a282f1019175d7f8902d3371209aa..c034284b0e3a293a7d5d58c5b5e34ace70b50e2e` returned technical **PASS** with zero BLOCKER, zero MAJOR and one MINOR. It independently confirmed the implementation and traced the terminal behavior for unapproved mixed authority sets. Its MINOR correctly observed that the original third-family regression used a malformed Set Board consumer that failed before the compound catch boundary.
+
+The focused correction changes only that negative control. It now adds `action_check_id_forbidden` inside the same page grounding pass as `action_coverage_cardinality_invalid`, while the independent spatial collector contributes `page_spatial_reference_outside_zone`. The test asserts all three exact typed identities on the returned terminal `DraftAuthorityReferenceDomainError`, exactly one initial provider call, and no repair. The corrected direct suite passes **1 file / 42 tests**; TypeScript and `git diff --check` pass. Independent closure of the MINOR remains pending the micro re-gate.
