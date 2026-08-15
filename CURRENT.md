@@ -2,7 +2,63 @@
 
 **Updated:** 2026-08-16
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-repair-output-diagnostic-identity-and-compact-first-routing` in `C:\Users\guyna\.codex\worktrees\repairdiag2\Small_Heroes`; based exactly on pushed targeted-application closeout `7a37759c265ad8466c3eee23e008d6be0accff07`.
+**Working branch:** `codex/r1d-book-surface-recurring-prop-aggregation` in `C:\Users\guyna\.codex\worktrees\booksurface2\Small_Heroes`; based exactly on pushed compact-first closeout `95fe597587ad81da43d1aeee8699824fb02da909`.
+
+## BOOK-SURFACE RECURRING-PROP AGGREGATION — implementation complete, independent QA pending
+
+The exhausted attempt on immutable `95fe5975` proved that the compact spatial
+lane could resolve all eleven reference issues, but the next mixed failure
+surface could not be represented by book-surface v1. It contained cover and
+page structural/presentation failures plus the exact closed recurring-prop
+lifecycle identity. The compiler therefore fell through to a large
+`full_draft` repair whose provider response could not be parsed. No candidate
+or downstream/render authority was produced.
+
+- Code commit `61e7a8fa` advances book-surface repair to v2 and adds the complete
+  recurring-prop collection to the bounded response. The collection is writable
+  only when the issue is exactly `draft_contract/lifecycle_invariant_invalid`
+  at `collectionRole:recurring_props`, `fieldRole:lifecycle`; every other
+  collection issue remains ineligible.
+- Recurring-prop IDs are compiler-owned: the patch must contain exactly the
+  existing unique ID set, results are restored in original order, and missing,
+  duplicate, unexpected or stale identities fail closed. When lifecycle repair
+  is not authorized the collection must be canonically byte-equivalent.
+  Cover/page reference authority, exact-key response validation, targeted page
+  application, non-target drift containment and non-mutation remain enforced.
+- The end-to-end regression proves that the observed mixed surface now routes
+  to `book_surface_patch` and produces a candidate in two logical calls without
+  resending Story Source/global draft authority or falling back to
+  `full_draft`. Legacy fixtures were updated only to provide the already-current
+  nullable `firstRevealPage` field.
+- Authority cutover is authoring policy v7, request/receipt/readiness
+  v24/v27/v25, live materialization input/manifest/verification v13/v22/v22,
+  execution materialization input/result v12/v16, Supervisor
+  request/readiness/result v21/v21/v13, and Fresh Readiness evidence v21.
+  Immediate predecessors remain historical immutable only.
+- Model, Responses endpoint/tier/reasoning, prompt budget and 64K ceiling,
+  normal/terminal call and repair budgets, timeout, zero transport retry, no
+  fallback, cost ceilings, final Visual Contract validators, candidate
+  semantics and downstream behavior are unchanged.
+- Isolated offline dependency preparation and local Prisma generation passed.
+  Focused validation passed 7 files / 338 tests. Deterministic TypeScript and
+  `git diff --check` passed. The single literal `npm run check` passed 3,180
+  ordinary assertions and its complete resource phase (19 files / 577 tests)
+  with valid diagnostics. Its five observed ordinary failures were ENOENTs in
+  four members of the established ignored-output fixture baseline; they remain
+  the separate repository/release HOLD, not a finding in this implementation.
+
+Independent Claude Code QA is pending for exact range
+`95fe597587ad81da43d1aeee8699824fb02da909..HEAD`. Codex does not self-award
+technical PASS. This implementation grants no Fresh Readiness, live authoring,
+candidate, Reconciliation, Blueprint, Wizard, image/Vision, render, QA
+deployment, Production or release authority. Cost was `$0`; no credential,
+pricing/network/provider, storage/database, deployment or Production action
+occurred.
+
+Durable records:
+`docs/ai-workflow/R1D_PVB_D1A1B1_BOOK_SURFACE_RECURRING_PROP_AGGREGATION_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_PVB_D1A1B1_BOOK_SURFACE_RECURRING_PROP_AGGREGATION_IMPLEMENTATION_EVIDENCE.md`.
 
 ## REPAIR-OUTPUT DIAGNOSTIC IDENTITY AND COMPACT-FIRST ROUTING — independent technical PASS
 
