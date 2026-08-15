@@ -458,10 +458,14 @@
   background: var(--bg-lighter);
 }
 
+/* Two substantial value panels, centered as a group (was 4 thin columns for
+   2 text cards — they hugged the inline-start edge and read as an empty
+   section). Restored from the approved design-refresh work. */
 .why-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 460px));
+  justify-content: center;
+  gap: 24px;
   align-items: stretch;
 }
 
@@ -482,20 +486,122 @@
   margin: 0;
 }
 
-.why-card {
-  background: var(--white);
-  border-radius: 20px;
-  padding: 18px 16px;
-  min-width: 0;
-  height: 100%;
+/* ── Value panel: visual on top, copy below ── */
+.why-panel {
   display: flex;
   flex-direction: column;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  overflow: hidden;
   box-shadow: var(--shadow-card);
+  transition: transform 240ms cubic-bezier(0.34, 1.4, 0.5, 1), box-shadow 240ms ease;
+}
+
+.why-panel:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 44px rgba(40, 33, 74, 0.1);
+}
+
+.why-panel-visual {
+  position: relative;
+  display: grid;
+  place-items: center;
+  /* fixed height so both panels' chips/titles share one baseline */
+  height: 268px;
+  padding: 24px 16px;
+  background:
+    radial-gradient(72% 78% at 50% 42%, rgba(255, 238, 108, 0.28) 0%, transparent 68%),
+    linear-gradient(180deg, #fffdf4 0%, #fff8e1 100%);
+  border-bottom: 1px solid #f4ecd4;
+}
+
+.why-panel-book {
+  width: auto;
+  max-width: 100%;
+  max-height: 208px;
+  object-fit: contain;
+  filter: drop-shadow(0 16px 24px rgba(45, 30, 90, 0.22));
+  transform: rotate(-1.5deg);
+}
+
+/* narration: the medium made visible — play control + waveform */
+.why-audio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.why-audio-play {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--purple-d);
+  color: var(--white);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  padding-inline-start: 3px; /* optical centering of the ▶ glyph */
+  box-shadow: 0 10px 22px rgba(132, 103, 255, 0.3);
+}
+
+.why-audio-wave {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+}
+
+.why-audio-wave i {
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--purple), #b4a3ff);
+  animation: why-wave 1.9s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+@keyframes why-wave {
+  from { transform: scaleY(0.55); opacity: 0.75; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+.why-audio-caption {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mid);
+}
+
+.why-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 22px 24px 24px;
   text-align: right;
 }
 
-.why-card .landing-card-body {
-  flex: 1;
+.why-panel-chip {
+  align-self: flex-start;
+  background: #e9f9f0;
+  color: #157a4c;
+  border: 1px solid #c4ecd7;
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.why-panel-title {
+  font-family: var(--fd);
+  font-size: 23px;
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--dark);
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .why-audio-wave i { animation: none; }
 }
 
 .how-it-works-section {
@@ -1314,10 +1420,7 @@
 }
 
 @media (max-width: 960px) {
-  .why-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-  }
+  /* .why-grid reflows on its own (auto-fit) — no override needed */
 
   .trust-points {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1530,10 +1633,6 @@
     font-size: 17px;
   }
 
-  .why-grid {
-    grid-template-columns: 1fr;
-  }
-
   .trust-points {
     grid-template-columns: 1fr;
     max-width: 420px;
@@ -1544,18 +1643,15 @@
     max-width: none;
   }
 
-  .why-card,
   .fit-card {
     padding: 20px 16px;
   }
 
-  .why-card h3,
   .fit-card h3,
   .landing-card-title {
     font-size: 20px;
   }
 
-  .why-card p,
   .fit-card p,
   .sample-p,
   .landing-card-body {

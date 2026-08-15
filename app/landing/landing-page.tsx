@@ -217,11 +217,42 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <h2 className="section-h2" data-reveal="up">{L.why.h2}</h2>
               <p className="section-sub" data-reveal="up" data-reveal-delay="60">{L.why.sub}</p>
 
+              {/* Two curated value panels (restored from the design-refresh work
+                  Guy approved — they were lost when this branch was cut from main).
+                  Index 0 = the illustrated book (real rendered spread asset),
+                  index 1 = narration (built from tokens — no fake audio claim,
+                  just the medium made visible). */}
               <div className="why-grid">
                 {L.why.cards.map((card, index) => (
-                  <article key={card.title} className="why-card" data-reveal="up" data-reveal-delay={String(80 + index * 70)}>
-                    <h3 className="landing-card-title">{card.title}</h3>
-                    <p className="landing-card-body">{card.body}</p>
+                  <article key={card.title} className="why-panel" data-reveal="up" data-reveal-delay={String(80 + index * 70)}>
+                    <div className="why-panel-visual" aria-hidden>
+                      {index === 0 ? (
+                        <img
+                          className="why-panel-book"
+                          src="/Images/hero-rnd/hero-spread-baked.webp"
+                          alt=""
+                          width={1500}
+                          height={1000}
+                          loading="lazy"
+                          draggable={false}
+                        />
+                      ) : (
+                        <div className="why-audio">
+                          <span className="why-audio-play">▶</span>
+                          <span className="why-audio-wave">
+                            {[13, 22, 34, 26, 40, 30, 18, 27, 36, 21, 14, 25].map((h, i) => (
+                              <i key={i} style={{ height: `${h}px`, animationDelay: `${i * 90}ms` }} />
+                            ))}
+                          </span>
+                          <span className="why-audio-caption">בקול שבחרתם</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="why-panel-body">
+                      <span className="why-panel-chip">כלול בכל ספר</span>
+                      <h3 className="why-panel-title">{card.title}</h3>
+                      <p className="landing-card-body">{card.body}</p>
+                    </div>
                   </article>
                 ))}
               </div>

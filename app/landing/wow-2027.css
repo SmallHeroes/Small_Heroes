@@ -22,14 +22,15 @@
   --wow-yellow: #ffee6c;
   --wow-yellow-ink: #3d2f10;
   --wow-glow: #ffd9a8;
-  --font-wow-display: var(--font-rubik), 'Rubik', 'Heebo', sans-serif;
+  /* Heading voice: Suez One (the face Guy approved; Rubik run reverted) */
+  --font-wow-display: var(--font-suez), 'Suez One', 'Heebo', serif;
   --font-wow-body: var(--font-heebo), 'Heebo', sans-serif;
 }
 
 /* ── Day sections pick up the decided voice ────────────────────────── */
 .section-h2, .sample-h2 {
   font-family: var(--font-wow-display);
-  font-weight: 800;
+  font-weight: 400;
 }
 
 /* strong yellow is the tag accent (per Guy: "the strong yellow in the tags") */
@@ -94,8 +95,8 @@
 
 
 /* Guy's original hero composition is back; only the TYPE voice carries over
-   (standing ruling: no Abraham-led identity, no pale-yellow surfaces). */
+   (standing ruling: no Abraham-led identity). */
 .hero-h1 {
   font-family: var(--font-wow-display);
-  font-weight: 800;
+  font-weight: 400;
 }

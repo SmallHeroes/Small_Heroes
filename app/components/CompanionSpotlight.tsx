@@ -147,9 +147,6 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
           >
             מתחילים סיפור עם {companion.name} ←
           </a>
-          <button type="button" className={styles.maybe} onClick={requestClose}>
-            אולי חבר אחר
-          </button>
         </div>
       </div>
     </div>
