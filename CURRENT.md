@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-page-contract-targeted-application-hardening` in `C:\Users\guyna\.codex\worktrees\targetedrepair1\Small_Heroes`; based exactly on pushed predecessor-routing closeout `8cc7ddca293b36c594ea3dce32690f9d334872c0`.
 
-## PAGE-CONTRACT TARGETED APPLICATION HARDENING — implementation complete, independent QA pending
+## PAGE-CONTRACT TARGETED APPLICATION HARDENING — independent technical PASS
 
 The consumed live attempt on immutable `8cc7ddca` proved that the typed repair
 plan was precise but the local application boundary was not: call 3 corrected
@@ -45,11 +45,24 @@ unrelated provider changes. No candidate or downstream authority was produced.
   gate was not rerun; its six known fixture failures remain a separate release
   HOLD.
 
+Claude Code independently reviewed exact range
+`8cc7ddca293b36c594ea3dce32690f9d334872c0..d1c54958d0f888369f52092c80f4a469a2285ee1`
+and returned **PASS** with zero BLOCKER and zero MAJOR. All ten falsification
+claims held across target-scoped application, drift containment, coverage
+cardinality guards, multi-target identity, structural topology preservation,
+version cutover and faithful validation evidence. Its one cosmetic MINOR is
+that a missing affected-page case reuses the misleading fail-closed code
+`page_contract_repair_page_not_unique`; behavior remains closed and no
+correction is required for this milestone. Its two advisories note equivalent
+by-construction array-drift containment for represented/presentation targets
+and the accurately disclosed absence of a second full repository gate.
+
 Implementation cost was `$0`. No credential, pricing/network/provider, Fresh
 Readiness, canonical preflight, live authoring, candidate, render,
 storage/database, QA deployment or Production action occurred. Independent
-Claude Code review of `8cc7ddca..HEAD` is still required before a new pushed
-HEAD, Fresh Readiness or live attempt can be used.
+QA grants authority to push this range and prepare a new Fresh Readiness only;
+it grants no live, render or product acceptance. The separate six-fixture
+release HOLD remains open.
 
 Durable records:
 `docs/ai-workflow/R1D_PVB_D1A1B1_PAGE_CONTRACT_TARGETED_APPLICATION_HARDENING_DECISION_GATE.md`
