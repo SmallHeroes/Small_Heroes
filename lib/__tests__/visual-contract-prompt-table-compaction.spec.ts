@@ -675,26 +675,26 @@ describe('Visual Contract prompt authority-table compaction', () => {
     ).toBeGreaterThan(1_024);
     expect(fox).toEqual({
       storyKey: 'fox_uri_adventure',
-      upperBound: 49_883,
-      headroom: 14_117,
+      upperBound: 50_217,
+      headroom: 13_783,
     });
     expect(worst).toEqual({
       storyKey: 'lion_shaket_fantasy',
-      upperBound: 53_307,
-      headroom: 10_693,
+      upperBound: 53_641,
+      headroom: 10_359,
     });
     expect(provider.call).not.toHaveBeenCalled();
   });
 
   it('binds only the changed prompt authorities and fails closed on a genuinely over-budget synthetic input before provider reachability', async () => {
     expect(TEMPLATE_PROMPT_VERSION).toBe(
-      'vc-template-prompt/v12',
+      'vc-template-prompt/v13',
     );
     expect(TEMPLATE_USER_PROMPT_VERSION).toBe(
       'vc-template-user-prompt/v13',
     );
     expect(REPAIR_PROMPT_VERSION).toBe(
-      'vc-repair-prompt/v12',
+      'vc-repair-prompt/v13',
     );
     expect(REPAIR_USER_PROMPT_VERSION).toBe(
       'vc-repair-user-prompt/v13',
@@ -768,5 +768,21 @@ describe('Visual Contract prompt authority-table compaction', () => {
     expect(buildTemplateCompileSystemPrompt()).toContain(
       JSON.stringify(ACTION_SEMANTIC_CATALOG_PROMPT_COLUMNS),
     );
+  });
+
+  it('binds page-spatial selections to the exact same-page zone in initial and full-draft authoring', () => {
+    const compilePrompt = buildTemplateCompileSystemPrompt();
+    const repairPrompt = buildTemplateRepairSystemPrompt();
+    const invariant =
+      'Every {kind:"spatial",id} in a page action or safety constraint MUST use an exact spatialNodes[].id from that';
+
+    for (const prompt of [compilePrompt, repairPrompt]) {
+      expect(prompt).toContain(invariant);
+      expect(prompt).toContain("page's exact zoneId");
+      expect(prompt).toContain('location id, zone id, Set Board area id');
+      expect(prompt).toContain("another zone's node");
+      expect(prompt).toContain('invented spatial id');
+      expect(prompt).toContain('schema-valid entity/none form');
+    }
   });
 });

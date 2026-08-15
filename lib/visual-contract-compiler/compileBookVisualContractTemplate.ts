@@ -190,13 +190,13 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v12' as const;
+  'vc-template-prompt/v13' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
   'vc-template-user-prompt/v13' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v12' as const;
+  'vc-repair-prompt/v13' as const;
 export const REPAIR_USER_PROMPT_VERSION =
   'vc-repair-user-prompt/v13' as const;
 
@@ -752,6 +752,9 @@ export function buildTemplateCompileSystemPrompt(): string {
     '- actionRequirements: typed subject/predicate/object/required closed spatialEffect; cast_group=2+ unique same-page',
     '  castIds; spatialConstraint=static. No movement/relation prose. source_phenomenon=exact same-page sourceEvidenceId;',
     '  compiler resolves it; no invented/fuzzy identity.',
+    '- Every {kind:"spatial",id} in a page action or safety constraint MUST use an exact spatialNodes[].id from that',
+    '  page\'s exact zoneId. Never use a location id, zone id, Set Board area id, prose label, another zone\'s node, or',
+    '  an invented spatial id. Use the schema-valid entity/none form when the reference is not page-zone spatial.',
     '- Cover each same-page Story Source visual beat once in actionSemanticCoverage with exact catalog sourceEvidenceId;',
     '  no source prose/imageDirection. action_requirement shares one action beatId; represented_elsewhere uses exact',
     '  same-page pointer/value; non_visual closed rationale; unsupported only closed_action_catalog_gap; no self-approval.',
