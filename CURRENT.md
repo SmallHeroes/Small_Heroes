@@ -2,7 +2,52 @@
 
 **Updated:** 2026-08-15
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-broad-initial-spatial-repair-escalation` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed compound compact-routing head `6156bf70c4943a9ee367e69a25329dd1d46ff6b3`.
+**Working branch:** `codex/r1d-book-surface-presentation-structural-repair` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based exactly on pushed broad-spatial-repair closeout `e28ab0becb6eb883de3ce08dad9527196a09a748`.
+
+## BOOK-SURFACE PRESENTATION/STRUCTURAL REPAIR — implementation green / independent QA pending
+
+The consumed Leo v14 attempt proved the broad initial-routing correction: one
+`page_contract_patch` resolved both page-3 action-binding-cardinality issues.
+Complete validation then exposed 42 current issues already present in that
+draft: 29 closed presentation gaps, one cover projection failure, and one
+final-structure failure on each page 1–12. The old page-only combined lane
+could not replace the cover, so the final call used `full_draft`, reached the
+exact 36,000 output-token ceiling and ended `completion_status_invalid`.
+Receipt v21 digest is
+`89d8b8585ad737003952f5dc6db6dee5b5deefd160ddfc96d723f2236fb8a001`;
+usage is input/cache-write/output/reasoning/total
+`38,261/38,252/67,727/6,189/105,988`, with `$2.270930/$2.498037`
+nominal/conservative accounting. No candidate or downstream authority exists.
+
+- New `book_surface_patch` eligibility is closed to presentation targets plus
+  cover projection/final-structure and page final-structure identities. It
+  returns exactly one strict cover contract and the exact complete affected
+  page set; every unrelated family remains fail-closed.
+- Compiler-derived world/location/zone/cast/spatial authority, the existing
+  exact page application boundary and canonical masked comparison prevent
+  invented references, page topology drift, non-target mutation and input
+  mutation. The compact input roundtrips losslessly before provider dispatch.
+- Authority cutover is Visual Contract request/receipt/readiness
+  `v19/v22/v20`; live materialization/verification `v17/v17`; execution
+  materialization input/result `v7/v11`; Supervisor request/readiness/result
+  `v16/v16/v8`; Fresh Readiness evidence `v16`. Immediate predecessors are
+  immutable legacy-only.
+- Focused validation passed **9 files / 406 tests**; the inventory correction
+  passed **1 file / 7 tests**; TypeScript and `git diff --check` passed. The
+  replacement repository gate reported exactly the six established missing
+  ignored-output fixture failures in its 281-file ordinary phase and passed all
+  **19 resource-intensive files / 568 tests** with clean diagnostics. No
+  seventh assertion or infrastructure failure remains.
+- Model, tier, 64K/36K ceilings, call/repair budget, timeout, retries, fallback,
+  candidate semantics, Blueprint v4, Wizard, Reader, render, payment, storage,
+  database and Production behavior are unchanged. Production remains blocked.
+  Implementation cost is `$0`; independent Claude Code QA is pending and Codex
+  does not self-award technical PASS.
+
+Durable records:
+`docs/ai-workflow/R1D_PVB_D1A1B1_BOOK_SURFACE_PRESENTATION_STRUCTURAL_REPAIR_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_PVB_D1A1B1_BOOK_SURFACE_PRESENTATION_STRUCTURAL_REPAIR_IMPLEMENTATION_EVIDENCE.md`.
 
 ## BROAD INITIAL SPATIAL REPAIR ESCALATION — independent technical PASS
 
