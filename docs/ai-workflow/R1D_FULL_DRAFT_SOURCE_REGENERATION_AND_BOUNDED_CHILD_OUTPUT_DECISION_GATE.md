@@ -1,8 +1,8 @@
 # R1D Full-Draft Source Regeneration and Bounded Child Output — Decision Gate
 
-**Date:** 2026-08-15  
-**Owner:** Guy (product intent), Codex (technical execution)  
-**Base:** `21ff6c15e37037b769aefef96e5e400f810d0baa`  
+**Date:** 2026-08-15
+**Owner:** Guy (product intent), Codex (technical execution)
+**Base:** `21ff6c15e37037b769aefef96e5e400f810d0baa`
 **Scope:** general Visual Contract repair admission and canonical live child-output transport only
 
 ## Observed behavior
@@ -39,9 +39,11 @@ already durable.
    the same complete compiler-owned Story Source input that passed initial
    admission plus closed typed failure identities. It does not transport the
    previous provider draft or prose validation messages.
-2. Typed issues are canonicalized, deduplicated and encoded through the
-   existing closed dictionary codec. Invalid issues fail locally; no prose
-   parsing or story-specific routing is permitted.
+2. Typed issues are canonicalized, deduplicated and encoded through a closed
+   versioned tuple with canonical code, field-role and collection-role
+   dictionaries. Invalid, duplicate, non-canonical or unused dictionary
+   material fails locally; no prose parsing or story-specific routing is
+   permitted.
 3. The repair system prompt is the complete initial authoring authority plus a
    short repair contract. The response remains the same complete strict
    `BookVisualContractTemplateDraft` schema.

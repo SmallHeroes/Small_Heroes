@@ -4,6 +4,55 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-full-draft-repair-input-compaction` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed mixed-routing head `d973cacf2fdc6ecfc0120944d5e32638d53ab7b3`.
 
+## FULL-DRAFT SOURCE REGENERATION + BOUNDED CHILD OUTPUT — QA pending
+
+The consumed Leo v9 attempt passed Fresh Readiness, pricing, canonical
+preflight and Supervisor verification. Two provider responses completed: the
+initial draft and one page-spatial repair. The final `full_draft` call was
+blocked before provider reachability by the unchanged 64K admission ceiling.
+The durable receipt records `2` logical calls, `1` repair, `0` transport
+retries, no fallback, input `18,333`, cache-write `18,327`, output `25,302`,
+reasoning `2,194`, total `43,635`, nominal `$0.873634` and conservative
+`$0.961006`. No candidate, Reconciliation, Blueprint, Wizard or render
+authority exists. The live child also exceeded the Supervisor's unchanged
+64KB stdout ceiling after the canonical receipt/readiness had already been
+persisted.
+
+The general correction changes only the final full-draft repair input and the
+sanitized child transport. A full-draft repair now regenerates from the exact
+complete compiler-owned Story Source plus a closed canonical tuple of typed
+failure identities; the rejected provider draft and prose errors are absent.
+The same strict output schema and every validator remain authoritative. The
+live CLI now emits a bounded digest/count/path summary while the full
+receipt/readiness remain content-addressed artifacts. The Supervisor output
+guard is unchanged.
+
+Prompt authorities advance to `vc-repair-prompt/v12` and
+`vc-repair-user-prompt/v13`. Model, service tier, schema, 64K ceiling,
+one-initial/two-repair budget, output/cost ceilings, timeout, retries,
+no-fallback policy, candidate semantics and downstream behavior are unchanged.
+Reconstruction from the exact consumed Leo source and all `46` current typed
+issues measured `59,854` conservative units, leaving `4,146` headroom.
+
+Focused validation passed **6 files / 208 tests** across the compiler,
+lifecycle, materialization, launcher and reference-domain surfaces. TypeScript
+and `git diff --check` passed. The single repository gate passed both
+TypeScript contracts and all **19 resource-intensive files**. Ordinary found
+the six established missing ignored-output fixtures plus one stale prose-based
+assertion; that assertion was replaced with a typed-locator round-trip check
+and its complete file then passed **40/40**. The repository release HOLD for
+the six fixtures remains separate. No second repository gate was run.
+
+Implementation commit: `33e0bc3dce30fd8319bf268a60412d934fdf2254`.
+Independent Claude Code review is pending; Codex does not self-award technical
+PASS. No new Fresh Readiness, live-authoring or render authority follows from
+this implementation.
+
+Durable evidence:
+`docs/ai-workflow/R1D_FULL_DRAFT_SOURCE_REGENERATION_AND_BOUNDED_CHILD_OUTPUT_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_FULL_DRAFT_SOURCE_REGENERATION_AND_BOUNDED_CHILD_OUTPUT_IMPLEMENTATION_EVIDENCE.md`.
+
 ## FULL-DRAFT REPAIR INPUT COMPACTION — independent technical PASS
 
 The latest consumed Leo QA attempt proved that the prior mixed-validation
