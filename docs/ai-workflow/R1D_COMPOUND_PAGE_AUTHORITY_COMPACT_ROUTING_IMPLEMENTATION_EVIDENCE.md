@@ -90,8 +90,17 @@ Combined focused result: **7 files / 378 tests PASS**.
 
 The six failures remain a separate release HOLD. They are not accepted as product/release PASS and are not findings in this implementation range.
 
+## Independent QA and finding disposition
+
+Claude Code independently reviewed exact range `9d4b8c2203d6739862ac03e901f51e7366f2dd9b..8a82e9250d5d9edc2c2e7a8927bcd3002109ca27` read-only and returned **PASS** with zero BLOCKER and zero MAJOR. The review reported two non-blocking MINOR observations; Codex validated both against the immutable range and rejected them as unsupported rather than changing already-correct code:
+
+1. The claimed within-v11 system-prompt mutation did not occur. The range diff at `lib/visual-contract-compiler/pageContractRepair.ts` changes `PAGE_CONTRACT_REPAIR_PROMPT_VERSION` from v10 to v11 in the same implementation commit that adds the spatial instruction. The documented v10-to-v11 authority cutover is exact.
+2. The requested compound repair-loop integration proof already exists at `lib/__tests__/draft-reference-domain-hardening.spec.ts:925`. It invokes `compileBookVisualContractTemplate`, returns the mixed invalid draft on call one and a repaired complete page on call two, asserts `page_contract_patch`, both diagnostic families, the typed/masked compact payload and a successful attempt-2 candidate. Unit-level tamper and topology coverage remains in `page-contract-repair.spec.ts`.
+
+The review's remaining notes are advisory safe redundancies only. This is Claude Code's independent PASS, not a Codex self-award.
+
 ## Acceptance and rollback
 
-The code milestone is locally green against its approved scope but independent Claude Code QA is still required. Codex does not self-award technical PASS. Revert `40357d6b` to restore the former fail-closed whole-draft route; no persisted artifact migration or deletion is required.
+The code milestone is locally green and independently PASSed for its approved scope. Revert `40357d6b` to restore the former fail-closed whole-draft route; no persisted artifact migration or deletion is required.
 
 This implementation grants no Fresh Readiness, live-authoring, candidate, Reconciliation, Blueprint, Wizard, render, product, release, deployment or push authority.

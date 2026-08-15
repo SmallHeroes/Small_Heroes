@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-compound-page-authority-compact-routing` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed compound co-observation head `9d4b8c2203d6739862ac03e901f51e7366f2dd9b`.
 
-## COMPOUND PAGE-AUTHORITY COMPACT ROUTING — local implementation complete, independent QA pending
+## COMPOUND PAGE-AUTHORITY COMPACT ROUTING — independent technical PASS
 
 The consumed Leo v12 authoring attempt passed canonical Fresh Readiness,
 preflight and Supervisor verify, then exhausted the bounded three-call live
@@ -38,9 +38,18 @@ contracts and all **19 resource-intensive files** with clean diagnostics; its
 **280-file ordinary phase** failed only the exact six established missing
 ignored-output fixtures, with no seventh assertion or infrastructure failure.
 Those fixtures remain a separate release HOLD. Implementation commit is
-`40357d6b`; independent Claude Code QA is pending, so Codex does not claim the
-technical PASS. No new Fresh Readiness, live-authoring or render authority
-follows from this local implementation.
+`40357d6b`. Claude Code independently reviewed exact range
+`9d4b8c2203d6739862ac03e901f51e7366f2dd9b..8a82e9250d5d9edc2c2e7a8927bcd3002109ca27`
+and returned **PASS** with zero BLOCKER and zero MAJOR. Codex checked its two
+non-blocking MINOR observations against the range and found neither supported:
+the same implementation commit advances the system prompt authority from v10
+to v11, and `draft-reference-domain-hardening.spec.ts` already contains the
+requested compiler-level compound repair-loop scenario, including two calls,
+`page_contract_patch`, typed diagnostics, masked rejected authority and a
+successful attempt-2 candidate. The independent PASS stands; no code
+correction or re-gate is required. This is Claude Code's verdict, not a Codex
+self-awarded PASS. No new Fresh Readiness, live-authoring or render authority
+follows from this implementation record.
 
 Durable evidence:
 `docs/ai-workflow/R1D_LEO_V12_COMPOUND_PAGE_AUTHORITY_ROUTING_EXECUTION_EVIDENCE.md`,
