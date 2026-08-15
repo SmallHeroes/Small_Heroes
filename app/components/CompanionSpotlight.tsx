@@ -36,8 +36,12 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
   const companion = slot.companion;
   /* Prefer the deterministic transparent cutout (same approved art, background
      flood-filled away offline — never an AI re-render); fall back to the
-     original if a cutout is missing. */
-  const cutoutSrc = companion.image.replace(/\.(jpg|jpeg|png)$/i, '-nobg.png');
+     original if a cutout is missing. Cutouts live under /Images/spotlight —
+     a marketing asset path. They must NOT sit inside public/companions:
+     next.config bundles every style01-sheet PNG onto the render functions'
+     disk, and these pushed api/debug/replicate-image past Vercel's 250MB cap. */
+  const companionSlug = companion.image.split('/')[2] ?? '';
+  const cutoutSrc = `/Images/spotlight/${companionSlug}.png`;
 
   const requestClose = useCallback(() => {
     if (startedClosingRef.current) return;
