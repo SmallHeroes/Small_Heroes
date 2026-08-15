@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "ANGER_FRUSTRATION",
+  "companionId": "lion_shaket",
+  "direction": "fantasy",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/lion_shaket_fantasy.md",
+    "sha256": "deca506e0da7e544641f66c552dbfbdf189f7446b9a67881bbd3c5901f1d4c60",
+    "sourceProjectionSha256": "933e7c3ccbc8c905b4594959e117b0d2bbad9a3fdd0b73808ca989f074de55c6"
+  },
+  "pageCount": 16,
+  "physicalPageCount": 32,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_fantasy/manifest.json",
+    "storySha256": "933e7c3ccbc8c905b4594959e117b0d2bbad9a3fdd0b73808ca989f074de55c6"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "lion_shaket_fantasy",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/lion_shaket_fantasy.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/lion_shaket_fantasy.receipt.json",
+    "receiptSha256": "6d82ac74ebf581da949de73e379721b519044ea336276b2635d26e4db981d323",
+    "sha256": "9921e5c21ed8a7b0699e6d659a1e42b4f881245b4888c2254181d284bfc0d806",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

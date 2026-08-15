@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "bunny_ometz_bedtime",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 3800,
+  "promptSha256": "86486b6da3811e2650705d26575da2fbf45ab290f6ddeabe95f6f10ce68d0a10",
+  "sourceStorySha256": "c0a1933c2e475ec37c96efae28b7c5cd805844c934dda4498145850df4569941",
+  "output": {
+    "filename": "visual-directions.abc669e315fc568ece57677c429b09eef7ef2c15cac8c151fee2bd2b017f180d.json",
+    "bytes": 6950,
+    "sha256": "abc669e315fc568ece57677c429b09eef7ef2c15cac8c151fee2bd2b017f180d"
+  },
+  "usage": {
+    "inputTokens": 2688,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 2685,
+    "outputTokens": 2306,
+    "reasoningTokens": 1034,
+    "totalTokens": 4994
+  },
+  "costUsd": 0.08597625,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

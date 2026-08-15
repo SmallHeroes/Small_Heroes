@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "dragon_dini_adventure",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 5000,
+  "promptSha256": "b11fafe9c37122e9e135d83c4caf6b04f38dc4a0a44a7577250713866f3f207d",
+  "sourceStorySha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce",
+  "output": {
+    "filename": "visual-directions.0ee59e8d2c0be0f937ff286a25b8e4dd8c5e6d52d8c4cd263d092fd88514c5db.json",
+    "bytes": 8660,
+    "sha256": "0ee59e8d2c0be0f937ff286a25b8e4dd8c5e6d52d8c4cd263d092fd88514c5db"
+  },
+  "usage": {
+    "inputTokens": 2675,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 2672,
+    "outputTokens": 2007,
+    "reasoningTokens": 516,
+    "totalTokens": 4682
+  },
+  "costUsd": 0.076925,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

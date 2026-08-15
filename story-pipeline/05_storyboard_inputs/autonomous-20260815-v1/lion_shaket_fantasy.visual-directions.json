@@ -1,0 +1,294 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "lion_shaket_fantasy",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "original_cloud_orchard",
+      "setting": "Pear orchard rooted along the edge of a broad cloud",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "A thundercrack scatters dozens of pears from the trees as the child and Leo stand beside their filled basket.",
+      "heroObject": "harvest basket",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Bright sunlit cloudscape split by a sudden lightning flash",
+      "continuityAnchors": [
+        "pear trees rooted in mist",
+        "filled harvest basket",
+        "scattered airborne pears"
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "original_cloud_orchard",
+      "setting": "Pear orchard rooted along the edge of a broad cloud",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Leo sprawls to catch several escaping pears while one balances on his head before springing away, watched by the surprised child.",
+      "heroObject": "pear balanced on Leo's head",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Bright daylight with lingering storm glow",
+      "continuityAnchors": [
+        "filled harvest basket",
+        "scattered airborne pears"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "blue_sky_wasteland",
+      "setting": "Empty blue sky with no clouds nearby",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "A small pear sprouts as mist forms soil beneath it, rain stretches into roots, and folded light becomes a golden branch.",
+      "heroObject": "self-planted pear",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Cool blue openness with concentrated golden light around the sprout",
+      "continuityAnchors": [
+        "escaped pear from the original orchard"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "blue_sky_wasteland",
+      "setting": "New patch of mist-soil in the empty blue sky",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child helps Leo out of a mist heap after the springing golden branch flings him backward; three silver leaves now crown the sprout.",
+      "heroObject": "golden springing branch",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Soft blue daylight with a warm glow on the branch",
+      "continuityAnchors": [
+        "self-planted pear sprout",
+        "mist-soil patch",
+        "golden branch",
+        "three silver leaves"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "lace_clouds",
+      "setting": "Region of thin, perforated clouds",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child catches a plump drifting pear with both hands while tiny rootlets rustle beneath its skin.",
+      "heroObject": "rooting pear",
+      "shotType": "medium",
+      "cameraAngle": "three_quarter",
+      "lighting": "Airy daylight filtering through lace-like clouds",
+      "continuityAnchors": [
+        "more pears drifting away from the original orchard"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "lace_clouds",
+      "setting": "Region of thin, perforated clouds",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child and Leo compare a soft yellow silent pear with a hard green pear whose seeds rattle inside.",
+      "heroObject": "contrasting pair of pears",
+      "shotType": "close",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft clear daylight",
+      "continuityAnchors": [
+        "harvest basket",
+        "remaining pears in basket"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "rain_sea",
+      "setting": "Dark sea formed from towering waves of rain",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Among rain waves and submerged drifting pears, the child ties the harvest basket to Leo's back before they begin sorting.",
+      "heroObject": "harvest basket tied to Leo",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Dark storm light punctuated by lightning flashes",
+      "continuityAnchors": [
+        "same harvest basket",
+        "basket tied to Leo's back",
+        "escaped pears"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "rain_sea",
+      "setting": "Dark sea formed from towering waves of rain",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child tests pears by touch and sound while Leo sniffs one and accidentally catches a lightning-bright sensation with his nose.",
+      "heroObject": "pear being tested",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Cool rain-dark light with a close lightning flash",
+      "continuityAnchors": [
+        "basket tied to Leo's back",
+        "soft silent pears go into basket",
+        "hard rattling pears remain in the sky"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "star_field",
+      "setting": "Cool open field of stars beyond the rain sea",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child cups each of five nearly frozen pears while Leo warms them with small precise breaths.",
+      "heroObject": "five frozen pears",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Cold starlight softened by small warm puffs",
+      "continuityAnchors": [
+        "basket tied to Leo's back",
+        "five nearly frozen pears"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "star_field",
+      "setting": "Cool open field of stars beyond the rain sea",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Three opened pears grow into tiny flowering trees rooted in stardust as the child places the two softened pears into the basket.",
+      "heroObject": "three pear-grown trees",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Cool starlight with luminous white blossoms",
+      "continuityAnchors": [
+        "basket tied to Leo's back",
+        "two soft pears in basket",
+        "three rattling pears opened",
+        "distant sky orchards"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "original_cloud_orchard",
+      "setting": "Pear orchard rooted along the edge of a broad cloud",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "An enormous storm cloud bears down as Leo hugs three bending trunks and the wind tangles his tail.",
+      "heroObject": "enormous storm cloud",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Abruptly dark storm light filled with internal lightning",
+      "continuityAnchors": [
+        "original pear trees rooted in mist",
+        "remaining pears on branches",
+        "harvest basket"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "original_cloud_orchard",
+      "setting": "Storm-lashed canopy of the original cloud orchard",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "High in the canopy, the child checks one soft yellow pear for the basket and sends a green seed-rattling pear onward.",
+      "heroObject": "two differently ready pears",
+      "shotType": "medium_close",
+      "cameraAngle": "high_angle",
+      "lighting": "Flickering lightning through wind-tossed branches",
+      "continuityAnchors": [
+        "storm over original orchard",
+        "harvest basket",
+        "remaining pears on branches"
+      ]
+    },
+    {
+      "pageNumber": 13,
+      "settingKey": "original_cloud_orchard",
+      "setting": "Storm-lashed canopy of the original cloud orchard",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child directs a ripe pear toward Leo's basket and a sprouting pear toward the open sky while branches swing around them.",
+      "heroObject": "sorted falling pears",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Storm-dark sky with sharp lightning highlights",
+      "continuityAnchors": [
+        "storm over original orchard",
+        "harvest basket",
+        "ripe pears sorted to basket",
+        "sprouting pears sent outward"
+      ]
+    },
+    {
+      "pageNumber": 14,
+      "settingKey": "original_cloud_orchard",
+      "setting": "Storm-lashed canopy of the original cloud orchard",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "After rapid sorting, the child carefully opens the final pear, revealing one sweet golden half and one green half holding a living seed.",
+      "heroObject": "half-ripe final pear",
+      "shotType": "close",
+      "cameraAngle": "eye_level",
+      "lighting": "Rapid storm flashes focused on the opened pear",
+      "continuityAnchors": [
+        "storm over original orchard",
+        "harvest basket",
+        "final pear golden on one side and green on the other"
+      ]
+    },
+    {
+      "pageNumber": 15,
+      "settingKey": "sky_orchard_gap",
+      "setting": "Open blue space between two distant sky orchards",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Guided by the child, Leo blows the living seed into the empty blue space where mist, rain roots, light branches, and flowering vines connect the orchards.",
+      "heroObject": "living pear seed",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Clear blue radiance growing into a warm network glow",
+      "continuityAnchors": [
+        "seed from the final pear",
+        "distant sky orchards",
+        "harvested half retained",
+        "new orchard forming between existing orchards"
+      ]
+    },
+    {
+      "pageNumber": 16,
+      "settingKey": "original_cloud_orchard",
+      "setting": "Restored original orchard surrounded by connected sky gardens",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "With the storm gone, the child and Leo share a ripe pear beneath renewed branches while sky gardens bloom across the rain sea, star field, and former empty spaces.",
+      "heroObject": "shared ripe pear",
+      "shotType": "extreme_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Calm golden daylight across softly glowing connected gardens",
+      "continuityAnchors": [
+        "original orchard still standing",
+        "harvest pears in basket",
+        "new growth on original branches",
+        "connected sky orchards",
+        "rain-sea garden",
+        "star-field garden"
+      ]
+    }
+  ]
+}

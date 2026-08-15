@@ -1,0 +1,223 @@
+{
+  "authorityScope": "qa_only",
+  "companionCount": 6,
+  "digest": "a793038efca754ea028aa9fc528f896261ade25b671865657282fb6220cfb6fa",
+  "directionBatch": {
+    "actualCostUsd": 1.94002925,
+    "applicationRetries": 2,
+    "conservativeCostUsd": 2.1881605,
+    "fallbackUsed": false,
+    "logicalProviderCalls": 20,
+    "manifestSha256": "123f95115fd517835d0abb829e474f58a7f322de6610ec6e5ec2963de6c8d274",
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "transportRetries": 0,
+    "version": "small-heroes-story-visual-direction-batch/v2"
+  },
+  "directionCount": 3,
+  "productionEligible": false,
+  "productionStoryBankTouched": false,
+  "records": [
+    {
+      "category": "MEDICAL_PROCEDURE",
+      "companionId": "bunny_ometz",
+      "direction": "adventure",
+      "importSidecarSha256": "eb017434bae93afde5b2f0861377b01bab3559397f71914fcc91ff6960b2710f",
+      "integratedStorySha256": "a1474f9851db1e0ef4bb49fa3a9836064ceccb99ee27ca50abd04e57c8238f7f",
+      "pageCount": 12,
+      "sourceStorySha256": "e8f3315cefb19cc206d77654fd9349ef471837293fa68b198b356448c27f22ff",
+      "storyKey": "bunny_ometz_adventure",
+      "visualDirectionSha256": "ad7174a601e090efa53881593d80ba4f0a658ba44302d62c87d304e0bab9be15"
+    },
+    {
+      "category": "MEDICAL_PROCEDURE",
+      "companionId": "bunny_ometz",
+      "direction": "bedtime",
+      "importSidecarSha256": "036047ea417d84644ddc14dfefb36728e66a847c4e969fbd675f53577c81a15b",
+      "integratedStorySha256": "25f2b4b8052a0921fc1f4251d100d30baff4f495bd3855c474e0ace214212136",
+      "pageCount": 8,
+      "sourceStorySha256": "c0a1933c2e475ec37c96efae28b7c5cd805844c934dda4498145850df4569941",
+      "storyKey": "bunny_ometz_bedtime",
+      "visualDirectionSha256": "abc669e315fc568ece57677c429b09eef7ef2c15cac8c151fee2bd2b017f180d"
+    },
+    {
+      "category": "MEDICAL_PROCEDURE",
+      "companionId": "bunny_ometz",
+      "direction": "fantasy",
+      "importSidecarSha256": "e788e4bbc96ad6f2075790133e2d06feb442e49694c6333d59db0cb99d88969e",
+      "integratedStorySha256": "02c2801fa5dba6d6999dd31051c4c16f8a78f806d29375ae566f50a2f6d7d7ce",
+      "pageCount": 16,
+      "sourceStorySha256": "ff68603d3a491486ac53b11a5ba237cbb8697f5199d62a23a2a3358bbd4bffa7",
+      "storyKey": "bunny_ometz_fantasy",
+      "visualDirectionSha256": "cca7647dbc7913d21c8f0f050a79be1a89c1577f9ff766f7769e113d84082fcc"
+    },
+    {
+      "category": "TRANSITION",
+      "companionId": "chameleon_koko",
+      "direction": "adventure",
+      "importSidecarSha256": "b62fc1550fdebb6f056b5e40087ddf2ade84ab47334a8d8e1c17330b2e805d7a",
+      "integratedStorySha256": "e24b57b62b28747c08eb5e18f6f5613cdc18c5d767a710016abd10e6c9213105",
+      "pageCount": 12,
+      "sourceStorySha256": "b20b74e622f601501dfabc65cd7b3af401df04cbef7441457d74208b34ace782",
+      "storyKey": "chameleon_koko_adventure",
+      "visualDirectionSha256": "2b449f8ed96b35e52c00d0ca7abeffe81a98d77dcae9da767e9bbe4d1890bb24"
+    },
+    {
+      "category": "TRANSITION",
+      "companionId": "chameleon_koko",
+      "direction": "bedtime",
+      "importSidecarSha256": "1266c24405ae8bd3261ebba27c8ae2eecf75721733ee4868a61ab8fd6ef176af",
+      "integratedStorySha256": "2d00d37e8aa290e5353bfe1b94fa2dc498d7200c46f6204bfe7903a033e685d4",
+      "pageCount": 8,
+      "sourceStorySha256": "49d2866ee4cdef5ea5155c87f7769f6c653ba224ff4b5ec490a039dfd632a76d",
+      "storyKey": "chameleon_koko_bedtime",
+      "visualDirectionSha256": "9656e61abb35cdcf9dbffa9e0ace5bc5996714f9f36d581d881173977c523070"
+    },
+    {
+      "category": "TRANSITION",
+      "companionId": "chameleon_koko",
+      "direction": "fantasy",
+      "importSidecarSha256": "b610e96bfa12545d5e9073eaf043a61e44904f4af3716631ce82e16ec2836d5b",
+      "integratedStorySha256": "2c1a18731e6960b6a3da106770e5adccdf284d9218f536bc9fad5b5fc054dc33",
+      "pageCount": 16,
+      "sourceStorySha256": "5cbaed07bc640877e91c2d4c5a0dd86928e839a09ddf076ece8c582f826b9a61",
+      "storyKey": "chameleon_koko_fantasy",
+      "visualDirectionSha256": "13b65ad979cce04d2bf290fc2e3bb4a3c4cb6ab667a6f14407ce88324836c9bf"
+    },
+    {
+      "category": "NEW_SIBLING",
+      "companionId": "dragon_dini",
+      "direction": "adventure",
+      "importSidecarSha256": "fc56fbe71e791ba1576a98c4d5cb905d7ff5c44a28cf3520c3d99de904c9b46b",
+      "integratedStorySha256": "6d7fa76b1424f6d7a5b18d1bc5163a8e4986f2d8c90aa0e2f4eff7335d771877",
+      "pageCount": 12,
+      "sourceStorySha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce",
+      "storyKey": "dragon_dini_adventure",
+      "visualDirectionSha256": "0ee59e8d2c0be0f937ff286a25b8e4dd8c5e6d52d8c4cd263d092fd88514c5db"
+    },
+    {
+      "category": "NEW_SIBLING",
+      "companionId": "dragon_dini",
+      "direction": "bedtime",
+      "importSidecarSha256": "d1de7eeba2e1ad2e1c2854dc4056539a9f84797d355fc063baae175cfcf2a473",
+      "integratedStorySha256": "c95c8f574f6878cfe3c6b2825c37420b980be1b62637c2a61a805ead21e30633",
+      "pageCount": 8,
+      "sourceStorySha256": "3a82fde86f891138b0b8abbaea59ddb16c8a95320cee2d2d65ae34575f3c7044",
+      "storyKey": "dragon_dini_bedtime",
+      "visualDirectionSha256": "1269665c53d2776f3a5553361f0df64d024d3ff2ec78514cbe382027a3e19d2a"
+    },
+    {
+      "category": "NEW_SIBLING",
+      "companionId": "dragon_dini",
+      "direction": "fantasy",
+      "importSidecarSha256": "947f6a26a822a0c1523e3bbe5df068c9354bc26c04283dcfd3dfa2f8a5e3b816",
+      "integratedStorySha256": "11918068c11bcb553ef83bbb3df41b5803d51499affd9c82fa7712139e580c28",
+      "pageCount": 16,
+      "sourceStorySha256": "ba59843988731539de236ec21ee2240c2c02b5962fcdf59f187775d0b0869fe7",
+      "storyKey": "dragon_dini_fantasy",
+      "visualDirectionSha256": "3683f16b17e11edf05adbd14b8a224695235eb66a797b432ea78601dddf15fcd"
+    },
+    {
+      "category": "NIGHT_FEAR",
+      "companionId": "fox_uri",
+      "direction": "adventure",
+      "importSidecarSha256": "0a6bde4e13bcb8d1a6d5ff381e2f987031a1065680aa372485cf3e8726774299",
+      "integratedStorySha256": "259f7245f777bacfb33b8530d7c36ae78375f4f08e567c2a3fc9a609b0b204f0",
+      "pageCount": 12,
+      "sourceStorySha256": "cdc1192bc365605bfd5c72a0bb56adabfcef0f3984b2312bae41d980d796f550",
+      "storyKey": "fox_uri_adventure",
+      "visualDirectionSha256": "3497754af01c7010ac8310450c7aa4372faef318a1ee37f58d3e7b5de6812eb3"
+    },
+    {
+      "category": "NIGHT_FEAR",
+      "companionId": "fox_uri",
+      "direction": "bedtime",
+      "importSidecarSha256": "eb8d61535699861e5330b2890794b0a7eca4480cc1cf43ec9f7a176c900dafea",
+      "integratedStorySha256": "8beb8b250988d60916dade255cdc25c614533e406b53a7fad1fd6887773d8924",
+      "pageCount": 8,
+      "sourceStorySha256": "02de53756aebb01af6233e3aa3f7be2f301991e4e1fd44ad7d51dd5c54c55fbe",
+      "storyKey": "fox_uri_bedtime",
+      "visualDirectionSha256": "37e0f5b0e35b5875fe44f0418d2b75890c75481bcb3587d92739e5810a9f1937"
+    },
+    {
+      "category": "NIGHT_FEAR",
+      "companionId": "fox_uri",
+      "direction": "fantasy",
+      "importSidecarSha256": "5ec940dd7cc69c636a23b7ccf329e01fb0c05d856bdfcb64199508865e2216ad",
+      "integratedStorySha256": "63e18e9352fa5c0edaad757fa1f48c911ac05490c49607afbeba3d1a891e5303",
+      "pageCount": 16,
+      "sourceStorySha256": "60c0dc057e484fca75cb41beae10cc396d5e32a78b3db84b2b8c559f84cf79ee",
+      "storyKey": "fox_uri_fantasy",
+      "visualDirectionSha256": "33ba2e76a076557635c88a70ba06fcc1bbca4a7d792756d553661c60b250e5fd"
+    },
+    {
+      "category": "ANGER_FRUSTRATION",
+      "companionId": "lion_shaket",
+      "direction": "adventure",
+      "importSidecarSha256": "d1363e072b182ff99daf48f37ad048bff37432715c95ce7305ee7752d0c964d0",
+      "integratedStorySha256": "a3cc4716718818636f598c550b2441a1f60f17fb753d55c8a2b8ca53678158ca",
+      "pageCount": 12,
+      "sourceStorySha256": "b16dba08984b2ca96797e7f357066b63c914055bb361da332520dcd289b2975f",
+      "storyKey": "lion_shaket_adventure",
+      "visualDirectionSha256": "9d5277badb616b951561ca0dd734b6f793149fc0548abf4dc66a5061ca8b0442"
+    },
+    {
+      "category": "ANGER_FRUSTRATION",
+      "companionId": "lion_shaket",
+      "direction": "bedtime",
+      "importSidecarSha256": "e525bf478a7b2a81d542eb0aca5b2eb1f5491dc26938605f9431a8efb0b6a055",
+      "integratedStorySha256": "62d080369d031aced00aca74c2f62a09d2279beb5690bf945e463946cfec0822",
+      "pageCount": 8,
+      "sourceStorySha256": "b6a30f1174c684cfb0f1c8a0041bcbae1dd4df10c58274829e78ea7956180cf0",
+      "storyKey": "lion_shaket_bedtime",
+      "visualDirectionSha256": "c5722f9b8b7fbadf8321132abba2f999b5aabdbc5f446e1f069a6d22a82d723f"
+    },
+    {
+      "category": "ANGER_FRUSTRATION",
+      "companionId": "lion_shaket",
+      "direction": "fantasy",
+      "importSidecarSha256": "af5edea354f2caa18381f274a11e3d53180ab1b5229342c468ac1aaee488fd61",
+      "integratedStorySha256": "deca506e0da7e544641f66c552dbfbdf189f7446b9a67881bbd3c5901f1d4c60",
+      "pageCount": 16,
+      "sourceStorySha256": "933e7c3ccbc8c905b4594959e117b0d2bbad9a3fdd0b73808ca989f074de55c6",
+      "storyKey": "lion_shaket_fantasy",
+      "visualDirectionSha256": "9921e5c21ed8a7b0699e6d659a1e42b4f881245b4888c2254181d284bfc0d806"
+    },
+    {
+      "category": "SOCIAL",
+      "companionId": "panda_anat",
+      "direction": "adventure",
+      "importSidecarSha256": "075058aed3a852e84d1f019003ed7f2c1b862ba102f994850d5b5ae5436bc8bf",
+      "integratedStorySha256": "e6c82d66cc60a5afab88e27fc5e87a579762efc62a852bf6e97800595b9887fd",
+      "pageCount": 12,
+      "sourceStorySha256": "97f1fffc2809ede2ad29ea3ed7cbfc0806d6a759f0b998e52bcfbe1f6f943249",
+      "storyKey": "panda_anat_adventure",
+      "visualDirectionSha256": "0c1925e6996f2f02782035062c93524c35a571351b5be525efc5db0bdf603425"
+    },
+    {
+      "category": "SOCIAL",
+      "companionId": "panda_anat",
+      "direction": "bedtime",
+      "importSidecarSha256": "9de152ceb7af693e67e6f13223fd6d86ee1b86e67d7b8186ff6c7aa74a4151ee",
+      "integratedStorySha256": "ac517575f651ea249c9ae23824daebb329492400a5c37f7b381eaa845114d6e5",
+      "pageCount": 8,
+      "sourceStorySha256": "ca9a162a43ecf0d6b111de4a4e29940205b2f91b0d61d0eba0f219c2f22ff91c",
+      "storyKey": "panda_anat_bedtime",
+      "visualDirectionSha256": "e77d897a7386817463695bd98a2cf1dd5cdd6e80a031003d48b22368b45234a7"
+    },
+    {
+      "category": "SOCIAL",
+      "companionId": "panda_anat",
+      "direction": "fantasy",
+      "importSidecarSha256": "67c1fc1a042abe392a304343ab7804fb95dcd26e15215e04e028f8f5f5568d30",
+      "integratedStorySha256": "ae08f8766e41d125a46e39947f52e98521c39289d65976e43a2f0d2d09bfe89c",
+      "pageCount": 16,
+      "sourceStorySha256": "67b40182094b46c3cddcb999a554d066e6ea60cfe3794fed1395e51d49c1231e",
+      "storyKey": "panda_anat_fantasy",
+      "visualDirectionSha256": "d1c39668fa9024f37d7b30492fe5abf10e54d5b2481afb631facea795007622e"
+    }
+  ],
+  "status": "qa_ready_for_low_story_generation",
+  "storyCount": 18,
+  "version": "small-heroes-storyboard-input-corpus/v1"
+}

@@ -1,0 +1,173 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "lion_shaket_bedtime",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "night_fair_carousel",
+      "setting": "Magical carousel at a night fair surrounded by rides and glowing stalls",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "carousel horse",
+        "carousel duck",
+        "carousel rabbit"
+      ],
+      "mainAction": "The horse stamps as the duck and rabbit demand different motions, awakening bumper cars and every light on the Ferris wheel while Leo leaps to intervene.",
+      "heroObject": "magical carousel",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Bright carnival lights against the night sky",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "night_fair_carousel",
+      "setting": "Magical carousel and nearby pirate ship at the night fair",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "carousel horse",
+        "carousel duck",
+        "carousel rabbit"
+      ],
+      "mainAction": "The carousel whirls rapidly while the pirate ship swings overhead, flinging stall hats as a cardboard moon lands on Leo and the rabbit bounds toward the trampolines.",
+      "heroObject": "cardboard moon",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Swirling carnival lights with moonlit night shadows",
+      "continuityAnchors": [
+        "same spinning carousel",
+        "awakened fair rides"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "night_fair_trampoline_area",
+      "setting": "Trampoline area among the awakened fairground attractions",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "carousel horse",
+        "carousel duck",
+        "carousel rabbit"
+      ],
+      "mainAction": "The rabbit jumps over Leo, the horse races beneath him, and the duck rolls between his legs as nearby rides erupt and popcorn engulfs him.",
+      "heroObject": "popcorn machine",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Lively multicolored fairground glow",
+      "continuityAnchors": [
+        "rabbit has left the carousel",
+        "awakened fair rides"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "night_fair_trampoline_area",
+      "setting": "Trampoline area amid the unsettled night fair",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "carousel horse",
+        "carousel duck",
+        "carousel rabbit"
+      ],
+      "mainAction": "The child listens closely to each animal while Leo shakes popcorn from his ears and the group considers their different needs for wind, bouncing, and a gentle wave.",
+      "heroObject": null,
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft carnival light with the surrounding rides glowing",
+      "continuityAnchors": [
+        "Leo remains dusted with popcorn",
+        "animals gathered near the trampolines"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "carousel_plaza",
+      "setting": "Open plaza directly in front of the carousel with straight, winding, and circular painted tracks",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "carousel horse",
+        "carousel duck",
+        "carousel rabbit"
+      ],
+      "mainAction": "The child directs changing hand rhythms as the horse races the straight track, the rabbit bounds along the winding track, and the duck waddles around the circle while Leo escorts each safely.",
+      "heroObject": "three painted tracks",
+      "shotType": "wide",
+      "cameraAngle": "overhead",
+      "lighting": "Warm stall lights with scattered firefly glimmers",
+      "continuityAnchors": [
+        "same three animals following their preferred motions"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "night_fair_carousel",
+      "setting": "Carousel platform beside its control levers and exposed music-box mechanism",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "carousel horse",
+        "carousel duck",
+        "carousel rabbit"
+      ],
+      "mainAction": "A large brass wheel spins wildly as Leo poises a paw above it, the child places a hand across three levers, and the animals board their carousel mounts.",
+      "heroObject": "spinning brass wheel",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Focused golden mechanism light within the glowing night fair",
+      "continuityAnchors": [
+        "same magical carousel",
+        "horse, rabbit, and duck have returned"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "night_fair_carousel",
+      "setting": "Moving carousel overlooking the gradually quieting night fair",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "carousel horse",
+        "carousel duck",
+        "carousel rabbit"
+      ],
+      "mainAction": "The child shifts the levers while Leo increases his gentle pressure on the brass wheel, easing the carousel from a gallop into soft bouncing and a nearly still wave as the fair shuts down.",
+      "heroObject": "carousel control levers",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Carnival lights dimming progressively into calm night light",
+      "continuityAnchors": [
+        "same exposed brass wheel",
+        "same three control levers",
+        "animals aboard their carousel mounts"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "night_fair_carousel",
+      "setting": "Motionless carousel in the now-quiet night fair",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "carousel horse",
+        "carousel duck",
+        "carousel rabbit"
+      ],
+      "mainAction": "The resting animals settle on the stopped carousel as the child pats Leo’s relaxed paw, with the cardboard moon quiet on his lap and the final Ferris wheel light fading.",
+      "heroObject": "cardboard moon",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft final carnival glow fading into peaceful moonlight",
+      "continuityAnchors": [
+        "carousel fully stopped",
+        "Leo beside the brass wheel",
+        "same cardboard moon",
+        "fair rides settling into darkness"
+      ]
+    }
+  ]
+}

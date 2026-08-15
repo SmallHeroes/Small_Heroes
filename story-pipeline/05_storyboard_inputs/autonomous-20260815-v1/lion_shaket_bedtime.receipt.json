@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "lion_shaket_bedtime",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 3800,
+  "promptSha256": "e18fe86523b87952f41d01bc6881017c27bb923c059dbf7f5d40385c616d9a71",
+  "sourceStorySha256": "b6a30f1174c684cfb0f1c8a0041bcbae1dd4df10c58274829e78ea7956180cf0",
+  "output": {
+    "filename": "visual-directions.c5722f9b8b7fbadf8321132abba2f999b5aabdbc5f446e1f069a6d22a82d723f.json",
+    "bytes": 6811,
+    "sha256": "c5722f9b8b7fbadf8321132abba2f999b5aabdbc5f446e1f069a6d22a82d723f"
+  },
+  "usage": {
+    "inputTokens": 2970,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 2967,
+    "outputTokens": 1986,
+    "reasoningTokens": 840,
+    "totalTokens": 4956
+  },
+  "costUsd": 0.07813875,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

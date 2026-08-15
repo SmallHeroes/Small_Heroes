@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "MEDICAL_PROCEDURE",
+  "companionId": "bunny_ometz",
+  "direction": "fantasy",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/bunny_ometz_fantasy.md",
+    "sha256": "02c2801fa5dba6d6999dd31051c4c16f8a78f806d29375ae566f50a2f6d7d7ce",
+    "sourceProjectionSha256": "ff68603d3a491486ac53b11a5ba237cbb8697f5199d62a23a2a3358bbd4bffa7"
+  },
+  "pageCount": 16,
+  "physicalPageCount": 32,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/bunny_ometz_fantasy/manifest.json",
+    "storySha256": "ff68603d3a491486ac53b11a5ba237cbb8697f5199d62a23a2a3358bbd4bffa7"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "bunny_ometz_fantasy",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/bunny_ometz_fantasy.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/bunny_ometz_fantasy.receipt.json",
+    "receiptSha256": "3c77e899e9f767888ff884144ab1d4fabb3590081ed8007f6a36f939be890600",
+    "sha256": "cca7647dbc7913d21c8f0f050a79be1a89c1577f9ff766f7769e113d84082fcc",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

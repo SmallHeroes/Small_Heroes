@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "chameleon_koko_bedtime",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 3800,
+  "promptSha256": "f86012c94a976152acbe82f89097c3a49f7245123a552dd9f052df11588fe467",
+  "sourceStorySha256": "49d2866ee4cdef5ea5155c87f7769f6c653ba224ff4b5ec490a039dfd632a76d",
+  "output": {
+    "filename": "visual-directions.9656e61abb35cdcf9dbffa9e0ace5bc5996714f9f36d581d881173977c523070.json",
+    "bytes": 5670,
+    "sha256": "9656e61abb35cdcf9dbffa9e0ace5bc5996714f9f36d581d881173977c523070"
+  },
+  "usage": {
+    "inputTokens": 2351,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 2348,
+    "outputTokens": 2660,
+    "reasoningTokens": 1658,
+    "totalTokens": 5011
+  },
+  "costUsd": 0.09449,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

@@ -102,7 +102,7 @@ describe('Vitest workload classifier', () => {
       'include: vitestWorkloadPolicy.canonicalIncludes',
     );
     expect(packageManifest.scripts.check).toBe(
-      'tsc --noEmit && node scripts/run-vitest-check.mjs --diagnostics',
+      'tsc --noEmit && npm run story:autonomous-typecheck && node scripts/run-vitest-check.mjs --diagnostics',
     );
     expect(packageManifest.scripts.test).toBe('vitest run');
     expect(packageManifest.scripts['test:watch']).toBe('vitest');

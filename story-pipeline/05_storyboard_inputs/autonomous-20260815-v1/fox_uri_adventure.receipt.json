@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "fox_uri_adventure",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 5000,
+  "promptSha256": "9c37229c66f385c22ab6ff30901954bd154d16b91046fe16611fa7f7570b2fee",
+  "sourceStorySha256": "cdc1192bc365605bfd5c72a0bb56adabfcef0f3984b2312bae41d980d796f550",
+  "output": {
+    "filename": "visual-directions.3497754af01c7010ac8310450c7aa4372faef318a1ee37f58d3e7b5de6812eb3.json",
+    "bytes": 9609,
+    "sha256": "3497754af01c7010ac8310450c7aa4372faef318a1ee37f58d3e7b5de6812eb3"
+  },
+  "usage": {
+    "inputTokens": 3459,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 3456,
+    "outputTokens": 2653,
+    "reasoningTokens": 1034,
+    "totalTokens": 6112
+  },
+  "costUsd": 0.101205,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

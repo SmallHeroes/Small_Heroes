@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "NEW_SIBLING",
+  "companionId": "dragon_dini",
+  "direction": "fantasy",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/dragon_dini_fantasy.md",
+    "sha256": "11918068c11bcb553ef83bbb3df41b5803d51499affd9c82fa7712139e580c28",
+    "sourceProjectionSha256": "ba59843988731539de236ec21ee2240c2c02b5962fcdf59f187775d0b0869fe7"
+  },
+  "pageCount": 16,
+  "physicalPageCount": 32,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_fantasy/manifest.json",
+    "storySha256": "ba59843988731539de236ec21ee2240c2c02b5962fcdf59f187775d0b0869fe7"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "dragon_dini_fantasy",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/dragon_dini_fantasy.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/dragon_dini_fantasy.receipt.json",
+    "receiptSha256": "b157265867cd1b71e642a0204ad2985e763c4ed40264bb5fe32b030e78e4e06b",
+    "sha256": "3683f16b17e11edf05adbd14b8a224695235eb66a797b432ea78601dddf15fcd",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

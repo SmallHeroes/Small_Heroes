@@ -16,6 +16,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import type { ChallengeCategory } from '../../lib/companions';
 import { isFuturePoolCompanion, listActiveCompanionIds } from '../../lib/companions';
+import { isDevEnvironment } from '../../lib/dev-only-guard';
 
 const STORY_BANK_DIR = join(process.cwd(), 'story-bank', 'raw');
 // Companion-direction stories. Defaults to v5-fixed-v2 (97% PASS QA, 108 stories).
@@ -28,6 +29,8 @@ export const STORY_BANK_V3_DIR_NAME = V3_STORY_DIR_NAME;
 // Served ONLY when ENABLE_V3_APPROVED_BANK=true; flag off = path untouched.
 export const V3_APPROVED_DIR_NAME = 'v3-approved';
 const V3_APPROVED_DIR = join(process.cwd(), 'story-bank', V3_APPROVED_DIR_NAME);
+export const WIZARD_QA_STORY_DIR_NAME = 'qa-autonomous-20260815-v1';
+const WIZARD_QA_STORY_DIR = join(process.cwd(), 'story-bank', WIZARD_QA_STORY_DIR_NAME);
 
 /** v5 stories superseded by v3-approved — never served from v5 path (old canon). */
 export const V5_SUPERSEDED_STORY_FILENAMES = new Set([
@@ -43,6 +46,11 @@ export function isSupersededV5StoryFilename(filename: string): boolean {
 /** Read at call time (not module load) so tests and runtime toggles both work. */
 export function isV3ApprovedBankEnabled(): boolean {
   return process.env.ENABLE_V3_APPROVED_BANK === 'true';
+}
+
+/** QA-only autonomous corpus; impossible to select in a real Production runtime. */
+export function isWizardQaStoryBankEnabled(): boolean {
+  return isDevEnvironment() && process.env.ENABLE_WIZARD_QA_RENDER_CATALOG === 'true';
 }
 
 /** Active wizard roster — companion-specific v5 markdown stories when files exist. */
@@ -330,6 +338,16 @@ export function selectCompanionStory(
   if (dir !== 'bedtime' && dir !== 'adventure' && dir !== 'fantasy') return null;
 
   const filename = `${companionId}_${dir}.md`;
+
+  if (isWizardQaStoryBankEnabled() && existsSync(join(WIZARD_QA_STORY_DIR, filename))) {
+    return {
+      filename,
+      base: `${companionId}_${dir}`,
+      title: 'QA autonomous companion story',
+      bankCategory: V3_COMPANION_BANK_CATEGORY[companionId] ?? 'GENERAL_FEARS',
+      dirName: WIZARD_QA_STORY_DIR_NAME,
+    };
+  }
 
   // Owner-approved Generator-v3 entry takes precedence ONLY behind the flag.
   if (isV3ApprovedBankEnabled() && existsSync(join(V3_APPROVED_DIR, filename))) {

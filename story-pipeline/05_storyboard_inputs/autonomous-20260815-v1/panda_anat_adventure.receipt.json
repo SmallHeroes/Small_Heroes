@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "panda_anat_adventure",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 5000,
+  "promptSha256": "57c824e9ba8ef690810a871b6ead25b8dfff37d1c883ea4aa7f8f88160a67ea8",
+  "sourceStorySha256": "97f1fffc2809ede2ad29ea3ed7cbfc0806d6a759f0b998e52bcfbe1f6f943249",
+  "output": {
+    "filename": "visual-directions.0c1925e6996f2f02782035062c93524c35a571351b5be525efc5db0bdf603425.json",
+    "bytes": 8708,
+    "sha256": "0c1925e6996f2f02782035062c93524c35a571351b5be525efc5db0bdf603425"
+  },
+  "usage": {
+    "inputTokens": 2943,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 2940,
+    "outputTokens": 3421,
+    "reasoningTokens": 1935,
+    "totalTokens": 6364
+  },
+  "costUsd": 0.12102,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "TRANSITION",
+  "companionId": "chameleon_koko",
+  "direction": "bedtime",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/chameleon_koko_bedtime.md",
+    "sha256": "2d00d37e8aa290e5353bfe1b94fa2dc498d7200c46f6204bfe7903a033e685d4",
+    "sourceProjectionSha256": "49d2866ee4cdef5ea5155c87f7769f6c653ba224ff4b5ec490a039dfd632a76d"
+  },
+  "pageCount": 8,
+  "physicalPageCount": 16,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/manifest.json",
+    "storySha256": "49d2866ee4cdef5ea5155c87f7769f6c653ba224ff4b5ec490a039dfd632a76d"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "chameleon_koko_bedtime",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/chameleon_koko_bedtime.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/chameleon_koko_bedtime.receipt.json",
+    "receiptSha256": "bccf943ffed1fd0d67ea7eb3ebf40634e8d84840a5aeda7f786ecac77fba3370",
+    "sha256": "9656e61abb35cdcf9dbffa9e0ace5bc5996714f9f36d581d881173977c523070",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

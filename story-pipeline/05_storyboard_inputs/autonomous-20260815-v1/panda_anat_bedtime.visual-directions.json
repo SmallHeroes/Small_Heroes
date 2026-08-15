@@ -1,0 +1,167 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "panda_anat_bedtime",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "courtyard_shadow_stage",
+      "setting": "Courtyard with a small shadow-puppet stage at evening",
+      "childPresence": "present",
+      "companionPresence": "absent",
+      "supportingCharacters": [
+        "audience members"
+      ],
+      "mainAction": "Three stage lights flicker as elongated puppet shadows spill from the screen across the courtyard.",
+      "heroObject": "three stage lights",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Fading evening light with three weak, flickering stage beams",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "courtyard_shadow_stage",
+      "setting": "Courtyard floor between the stage, gate, and flowerpot",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child chases shape-shifting shadows while Anat studies their paths between the gate, floor, and flowerpot.",
+      "heroObject": "shape-shifting shadows",
+      "shotType": "medium_wide",
+      "cameraAngle": "ground_level",
+      "lighting": "Dim stage beams casting long, unstable shadows",
+      "continuityAnchors": [
+        "same three dim stage lights",
+        "paper puppets waiting on stage",
+        "escaped shadows across the courtyard"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "courtyard_shadow_stage",
+      "setting": "Courtyard stage area beside a large wall",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "uncle",
+        "audience members"
+      ],
+      "mainAction": "A large flashlight throws the uncle's enormous three-armed, cabbage-haired shadow onto the wall as the child reaches to switch it off.",
+      "heroObject": "large flashlight",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "One harsh flashlight beam overpowering the dim stage lights",
+      "continuityAnchors": [
+        "paper puppets waiting on stage",
+        "same three dim stage lights"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "courtyard_shadow_stage",
+      "setting": "Darkened courtyard between the stage lights and scattered shadow fragments",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "audience members"
+      ],
+      "mainAction": "The child's raised hand casts a shadow that briefly bridges the gap between a wing fragment and a cloak fragment while Anat crouches to inspect the lines.",
+      "heroObject": "hand shadow",
+      "shotType": "medium",
+      "cameraAngle": "three_quarter",
+      "lighting": "Soft low beams from the three stage lights",
+      "continuityAnchors": [
+        "large flashlight switched off",
+        "same three dim stage lights",
+        "shadow fragments on bench, floor, and vine leaves"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "courtyard_shadow_stage",
+      "setting": "Stone strip in the courtyard facing the stage lights",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "children",
+        "adults",
+        "man with giant hat"
+      ],
+      "mainAction": "The crowd shifts along the stones, creating mismatched creature shadows as the giant hat dips in a comic bow.",
+      "heroObject": "giant hat",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Three low stage beams crossing the assembled crowd",
+      "continuityAnchors": [
+        "same three dim stage lights",
+        "scattered shadow fragments",
+        "stone strip in front of the lights"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "courtyard_shadow_stage",
+      "setting": "Courtyard path between the lemon tree, gate, and middle stage light",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "audience members"
+      ],
+      "mainAction": "The child walks the row of flat stones, each step filling a different gap among the broken shadows as Anat watches the alignment.",
+      "heroObject": "row of flat stones",
+      "shotType": "medium_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Three stage beams touching the child's feet and projecting forward",
+      "continuityAnchors": [
+        "same three stage lights",
+        "crowd waiting nearby",
+        "scattered shadow fragments",
+        "stone strip in front of the lights"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "courtyard_shadow_stage",
+      "setting": "Exact stone line between the stage lights and the courtyard walls",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "children",
+        "adults",
+        "man with giant hat"
+      ],
+      "mainAction": "The aligned crowd raises their arms as their shadows complete the hedgehog, princess, and dragon across the floor, gate, and walls.",
+      "heroObject": "completed shadow tableau",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Three stage beams projecting one broad interlocking shadow scene",
+      "continuityAnchors": [
+        "crowd aligned along the flat stones",
+        "stage lights behind the crowd",
+        "giant hat at the end of the line",
+        "shadow fragments joined by the crowd"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "courtyard_shadow_stage",
+      "setting": "Quiet courtyard beneath the rising moon",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "audience members"
+      ],
+      "mainAction": "The child, Anat, and the crowd bow together inside one enormous soft shadow while a lemon-tree branch bends above them.",
+      "heroObject": "unified bowing shadow",
+      "shotType": "extreme_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Soft stage light giving way to rising moonlight as shadows shorten",
+      "continuityAnchors": [
+        "crowd remains aligned on the stone line",
+        "giant hat remains at the line's end",
+        "joined shadow tableau spans floor, gate, and walls",
+        "lemon tree beside the path"
+      ]
+    }
+  ]
+}

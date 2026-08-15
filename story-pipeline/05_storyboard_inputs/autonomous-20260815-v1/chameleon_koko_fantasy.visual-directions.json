@@ -1,0 +1,324 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "chameleon_koko_fantasy",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "straight_avenue",
+      "setting": "An ordinary straight city avenue beginning to fold upward",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child and companion watch a rotating street sign as the avenue bends upward like a giant page.",
+      "heroObject": "rotating street sign",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Clear daytime light shifting across the rising street",
+      "continuityAnchors": [
+        "avenue folded upward",
+        "street sign on rotating pole"
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "straight_avenue",
+      "setting": "The same avenue now standing vertically",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "sleeping cat",
+        "cyclist"
+      ],
+      "mainAction": "The companion leaps onto a door handle while the child climbs behind across doors, balconies, and ledges.",
+      "heroObject": "door handle step",
+      "shotType": "medium_wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Bright daylight cast sideways across the vertical avenue",
+      "continuityAnchors": [
+        "avenue folded upward",
+        "benches and lamps fixed sideways",
+        "cat asleep on vertical pavement"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "avenue_summit_gate",
+      "setting": "The summit of the vertical avenue",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Viewed from the side, the child pulls open the thin slot in a round marker, splitting it into an arched gate.",
+      "heroObject": "opening circular gate",
+      "shotType": "medium_close",
+      "cameraAngle": "three_quarter",
+      "lighting": "Crisp daylight outlining the narrow slot and opened arch",
+      "continuityAnchors": [
+        "vertical avenue below",
+        "round marker split into two halves"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "inverted_plaza",
+      "setting": "A floating upside-down plaza beyond the arched gate",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "lemonade seller",
+        "pigeons"
+      ],
+      "mainAction": "The child holds a cup from the opposite side so a looping stream of lemonade lands inside while the companion tastes it.",
+      "heroObject": "lemonade cup",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Airy daylight reflected from the floating stone plaza",
+      "continuityAnchors": [
+        "arched gate open behind them",
+        "plaza inverted overhead",
+        "fountain flowing upward"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "inverted_plaza",
+      "setting": "Open air beneath the inverted plaza and hanging fountain",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "pigeons"
+      ],
+      "mainAction": "The child and companion leap across solid pigeon shadows that expand and shrink with the birds' wings.",
+      "heroObject": "pigeon shadow stepping stones",
+      "shotType": "medium_wide",
+      "cameraAngle": "ground_level",
+      "lighting": "Strong directional daylight creating dark, crisp shadows in the air",
+      "continuityAnchors": [
+        "plaza inverted overhead",
+        "fountain flowing upward",
+        "pigeons above the shadow path"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "three_rooftop_junction",
+      "setting": "Three adjoining roofs beneath morning, night, and upward-raining skies",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child kneels beside three gutters and sets a leaf in their shared silver puddle as it divides into three reflections.",
+      "heroObject": "silver puddle with leaf",
+      "shotType": "medium",
+      "cameraAngle": "overhead",
+      "lighting": "Mixed pink morning glow, starlight, and silvery rain light",
+      "continuityAnchors": [
+        "three gutters meeting one silver puddle",
+        "three roofs facing different skies"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "three_rooftop_junction",
+      "setting": "The same three roofs and their shared silver puddle",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child and companion return to different edges of the same puddle after crossing the sunbeam, snoring chimneys, and upward rain.",
+      "heroObject": "silver puddle",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Three-way contrast of warm sunrise, deep starlight, and cool rain",
+      "continuityAnchors": [
+        "three roofs facing different skies",
+        "three gutters meeting one silver puddle",
+        "umbrella held beneath their feet on the rain route"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "folded_city_nexus",
+      "setting": "The city folding around a large central void",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "baker"
+      ],
+      "mainAction": "The child and companion witness roofs tilt, the plaza rotate, and neighborhoods collide as a house spire plunges into a bakery.",
+      "heroObject": "spire lodged in bakery",
+      "shotType": "extreme_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Dramatic daylight broken across overlapping neighborhood planes",
+      "continuityAnchors": [
+        "vertical avenue folded over another neighborhood",
+        "inverted plaza rotating",
+        "spire lodged among bakery cakes"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "folded_city_nexus",
+      "setting": "Neighborhood edges gathered around the central void",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "city residents",
+        "clockmaker"
+      ],
+      "mainAction": "Residents crowd the mismatched edges while the child studies how individually straight streets meet from different directions.",
+      "heroObject": null,
+      "shotType": "medium_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Even daylight revealing every conflicting plane",
+      "continuityAnchors": [
+        "neighborhood edges surrounding central void",
+        "spire lodged among bakery cakes",
+        "city remains folded"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "connected_city_route",
+      "setting": "A route threading through the wall avenue, circular gate, plaza, and rooftops",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "city resident"
+      ],
+      "mainAction": "The child threads a long ribbon through the city while the companion follows it across differently oriented passages and a resident hangs a sock on it.",
+      "heroObject": "long ribbon",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Bright daylight carrying consistently across the connected locations",
+      "continuityAnchors": [
+        "city remains folded",
+        "ribbon tied to avenue railing",
+        "ribbon passes through circular gate and across rooftops",
+        "sock hanging from ribbon"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "folded_city_nexus",
+      "setting": "The gathered neighborhood edges around the void",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "city residents"
+      ],
+      "mainAction": "The companion circles a blue window and discovers its opposite side resembles a round well while its cloud reflection resembles a cauliflower.",
+      "heroObject": "blue window",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Clear daylight with a bright reflection visible in the cloud",
+      "continuityAnchors": [
+        "city remains folded",
+        "neighborhood edges surrounding central void",
+        "long ribbon connecting the neighborhoods"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "folded_city_nexus",
+      "setting": "A widening sky gap between separated neighborhood edges",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "square girl",
+        "baker"
+      ],
+      "mainAction": "The child surveys the circular gate, pigeon shadow, silver gutter, and avenue door scattered around the gap as the stretched ribbon flings its sock away.",
+      "heroObject": "scattered connection pieces",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Cool open-sky light filling the widening gap",
+      "continuityAnchors": [
+        "long ribbon stretched taut",
+        "sock airborne",
+        "spire still with baker",
+        "circular gate, pigeon shadow, silver gutter, and avenue door around the gap"
+      ]
+    },
+    {
+      "pageNumber": 13,
+      "settingKey": "folded_city_nexus",
+      "setting": "The central gap as matching city edges are connected",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "baker",
+        "pigeons"
+      ],
+      "mainAction": "The child directs the connections while the companion crosses from a shadow step to a tunnel and arrives upside down at the bakery.",
+      "heroObject": "matched city connections",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Layered daylight and night-sky glow across the joined edges",
+      "continuityAnchors": [
+        "circular gate aligned with avenue door",
+        "silver gutter flowing into inverted fountain",
+        "pigeon shadows reaching night roofs",
+        "spire still at bakery"
+      ]
+    },
+    {
+      "pageNumber": 14,
+      "settingKey": "folded_city_nexus",
+      "setting": "The final wide gap at the heart of the city",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "city residents"
+      ],
+      "mainAction": "The child unfolds the silver puddle into a mirror sheet across the gap as the neighborhoods tilt until window, well, and cloud reflections meet.",
+      "heroObject": "mirror-like silver puddle",
+      "shotType": "wide",
+      "cameraAngle": "overhead",
+      "lighting": "Soft silver reflected light spreading across the central gap",
+      "continuityAnchors": [
+        "earlier matched connections remain in place",
+        "silver puddle unfolded into a mirror sheet",
+        "residents standing at their neighborhood edges"
+      ]
+    },
+    {
+      "pageNumber": 15,
+      "settingKey": "many_sided_city",
+      "setting": "The completed stable many-sided city",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "city residents",
+        "clockmaker",
+        "baker"
+      ],
+      "mainAction": "Residents test the new passages while the child and companion observe roofs serving as bridges and gates opening into new places.",
+      "heroObject": "interlocking city passages",
+      "shotType": "extreme_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Warm balanced daylight reaching every side of the completed city",
+      "continuityAnchors": [
+        "matched connections locked together",
+        "mirror crossing spanning the final gap",
+        "spire removed from cakes",
+        "cinnamon remaining on spire"
+      ]
+    },
+    {
+      "pageNumber": 16,
+      "settingKey": "straight_avenue",
+      "setting": "The original street sign within the stable many-sided city",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "After circling the sign, the child and companion enter a street that appears as stairs, a boat, and a star-tail reflection from different sides.",
+      "heroObject": "many-direction street sign",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Inviting daylight with a bright star-like reflection",
+      "continuityAnchors": [
+        "original rotating street sign",
+        "city stable in many-sided form",
+        "street changes appearance by viewpoint"
+      ]
+    }
+  ]
+}

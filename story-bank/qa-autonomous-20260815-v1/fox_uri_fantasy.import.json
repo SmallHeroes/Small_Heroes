@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "NIGHT_FEAR",
+  "companionId": "fox_uri",
+  "direction": "fantasy",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/fox_uri_fantasy.md",
+    "sha256": "63e18e9352fa5c0edaad757fa1f48c911ac05490c49607afbeba3d1a891e5303",
+    "sourceProjectionSha256": "60c0dc057e484fca75cb41beae10cc396d5e32a78b3db84b2b8c559f84cf79ee"
+  },
+  "pageCount": 16,
+  "physicalPageCount": 32,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/fox_uri_fantasy/manifest.json",
+    "storySha256": "60c0dc057e484fca75cb41beae10cc396d5e32a78b3db84b2b8c559f84cf79ee"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "fox_uri_fantasy",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/fox_uri_fantasy.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/fox_uri_fantasy.receipt.json",
+    "receiptSha256": "f69e7c950d68f63b097ac0c54e3ab24c715584b1454027fd619609e775198f9a",
+    "sha256": "33ba2e76a076557635c88a70ba06fcc1bbca4a7d792756d553661c60b250e5fd",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

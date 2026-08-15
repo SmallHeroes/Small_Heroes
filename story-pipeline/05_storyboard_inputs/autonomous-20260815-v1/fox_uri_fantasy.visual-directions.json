@@ -1,0 +1,285 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "fox_uri_fantasy",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "city_square",
+      "setting": "A city square and surrounding streets at night",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The last glowing path line goes dark as the child and Uri face a huge sparkling blue footprint in the square.",
+      "heroObject": "giant blue footprint",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Dark windows, fading path light, and a cool blue glow from the footprint",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "city_street",
+      "setting": "A nighttime street beside the square",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The footprint bursts into flying whispering pillows; Uri chases them while the child listens and the street begins to arch beneath them.",
+      "heroObject": "cloud of whispering pillows",
+      "shotType": "medium_wide",
+      "cameraAngle": "ground_level",
+      "lighting": "Soft moonlight with pale blue pillow glow",
+      "continuityAnchors": [
+        "blue footprint transforming into pillows",
+        "city path lights remain extinguished"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "curving_alley",
+      "setting": "A narrow alley rising and sinking in rolling curves",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child follows the alley's rising rhythm and guides Uri safely across as a yawning trail of tiny letters waits ahead.",
+      "heroObject": "footprint made of yawning letters",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Dim night light tracing the rolling cobblestones",
+      "continuityAnchors": [
+        "street arched by the snoring rhythm"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "old_library",
+      "setting": "An old sleeping library with leaning shelves and low tables",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Books fold into humming paper birds and scatter while one settles on the child's shoulder and Uri runs after the flock.",
+      "heroObject": "paper birds",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Dusty moonbeams through tall library windows",
+      "continuityAnchors": [
+        "yawning letter trail entering beneath the library door"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "old_library",
+      "setting": "A low table among crowded library shelves",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child folds the paper birds into a large open book and discovers a glowing silver thread while Uri emerges with a sea map wrapped around his head.",
+      "heroObject": "silver thread",
+      "shotType": "medium",
+      "cameraAngle": "three_quarter",
+      "lighting": "Warm muted interior shadow with a fine silver gleam",
+      "continuityAnchors": [
+        "same paper birds",
+        "large open book on the low table"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "rooftop_star_orchard",
+      "setting": "City rooftops covered by an upside-down orchard rooted in the sky",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "party-hat dream fish"
+      ],
+      "mainAction": "Uri accidentally plucks a hanging star, releasing dancing fish in party hats, while the child watches the silver thread recoil from quick movement.",
+      "heroObject": "plucked star",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Deep blue night filled with hanging starlight and silver thread glow",
+      "continuityAnchors": [
+        "silver thread leading from the library window"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "rooftop_star_orchard",
+      "setting": "Sloping tiled roofs beneath the upside-down star orchard",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Uri chases the silver butterfly through rolling beads of light while the child stops beside the soft hollow left where the thread had rested.",
+      "heroObject": "silver butterfly",
+      "shotType": "medium_wide",
+      "cameraAngle": "overhead",
+      "lighting": "Scattered glowing star beads across dark roof tiles",
+      "continuityAnchors": [
+        "silver thread folded into a butterfly",
+        "fallen stars transformed into glowing beads"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "clock_tower_sound_room",
+      "setting": "A hidden chamber inside the clock tower filled with sleepy sounds",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child and Uri slide down a curling velvet yawn into a room of drooping sound shapes, landing before a handleless door.",
+      "heroObject": "velvet yawn slide",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Dusky violet chamber light with soft glows from the resting sounds",
+      "continuityAnchors": [
+        "silver butterfly leading to the clock tower"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "clock_tower_sound_room",
+      "setting": "The hidden sound chamber outside the handleless door",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Uri reaches among giant colorful footprints changing into carpets, ladders, and boats while the child crouches beside a trembling silver note under the door.",
+      "heroObject": "tired silver note",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Muted tower shadows with colorful footprint glow and a thin silver glimmer",
+      "continuityAnchors": [
+        "same handleless door",
+        "sleepy sounds filling the chamber"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "clock_tower_sound_room",
+      "setting": "The floor beside the handleless rest-room door",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child sits quietly beside the door and places two silent bells together as Uri lowers his ears and the door opens to a narrow line of soft light.",
+      "heroObject": "two silent bells",
+      "shotType": "medium_close",
+      "cameraAngle": "three_quarter",
+      "lighting": "Low restful darkness edged by warm light through the door crack",
+      "continuityAnchors": [
+        "tired silver note beneath the door",
+        "same handleless door"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "clock_tower_rest_room",
+      "setting": "A quiet rest room inside the clock tower",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The path song rests in a musical-staff hammock as the child starts climbing the velvet slide upward and Uri guards the doorway with one sock hung beside it.",
+      "heroObject": "musical-staff hammock",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft amber resting light surrounded by deep blue shadow",
+      "continuityAnchors": [
+        "door opened to the rest room",
+        "two silent bells near the doorway",
+        "tiny paper bird sleeping on a frayed note"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "city_streets",
+      "setting": "Connected nighttime streets lined with homes and shops",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "baker",
+        "bus driver",
+        "third-floor neighbor",
+        "librarian",
+        "fish seller",
+        "party-hat fish"
+      ],
+      "mainAction": "The child arranges the city's small offerings along the route and Uri rolls pillows into place, but wind tangles the pillows, paper birds, lights, whispers, and party-hat fish.",
+      "heroObject": "mixed city offerings",
+      "shotType": "wide",
+      "cameraAngle": "overhead",
+      "lighting": "Warm window glows, small signal flashes, and cool moonlight",
+      "continuityAnchors": [
+        "same paper birds",
+        "same whispering pillows",
+        "Uri missing one sock"
+      ]
+    },
+    {
+      "pageNumber": 13,
+      "settingKey": "city_streets",
+      "setting": "The same connected streets and balconies",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "residents on balconies"
+      ],
+      "mainAction": "The child claps once and Uri taps twice as windows, whispers, and paper birds answer in a repeating sequence that forms a gentle route.",
+      "heroObject": "rhythmic chain of signals",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Alternating window flashes and soft pools of guiding light",
+      "continuityAnchors": [
+        "wind-scattered city offerings",
+        "Uri missing one sock"
+      ]
+    },
+    {
+      "pageNumber": 14,
+      "settingKey": "city_route_home",
+      "setting": "A dark route from the square through intersections to the child's home",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child leads Uri through the darkness by pausing at each window flash, pillow whisper, paper bird, and low star until they reach home.",
+      "heroObject": "new city guidance route",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Predominantly dark with isolated warm flashes and low starlight",
+      "continuityAnchors": [
+        "signals arranged in a repeating rhythm",
+        "original path song remains silent"
+      ]
+    },
+    {
+      "pageNumber": 15,
+      "settingKey": "clock_tower_rest_room",
+      "setting": "The quiet doorway of the clock tower rest room",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Beside the sleeping path song, the child hangs a small placard on the door, Uri adds a sleepy-ear doodle, and they leave water for the silent bells.",
+      "heroObject": "door placard",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Warm dim light from the resting room with cool tower shadows",
+      "continuityAnchors": [
+        "path song asleep in the musical-staff hammock",
+        "Uri's sock still marking the quiet doorway",
+        "two silent bells beside the door"
+      ]
+    },
+    {
+      "pageNumber": 16,
+      "settingKey": "home_bedroom",
+      "setting": "A quiet bedroom overlooking the city square",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Uri curls up beside the child while, beyond the window, a soft blue footprint rests in the square among the city's gentle guiding signals.",
+      "heroObject": "resting blue footprint",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Cozy bedside darkness with one safe window flash and soft blue light outside",
+      "continuityAnchors": [
+        "new city guidance signals active",
+        "blue footprint resting quietly in the square"
+      ]
+    }
+  ]
+}

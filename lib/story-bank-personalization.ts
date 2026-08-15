@@ -19,7 +19,9 @@ export const BANK_PROTAGONIST_DENYLIST: readonly string[] = [
   'Yossi',
   'יעל',
   'Yael',
-  'איתי',
+  // Hebrew "איתי" is also the ordinary preposition "with me"; treating every
+  // standalone occurrence as a proper name false-blocks valid story prose.
+  // Keep the unambiguous English transliteration below in the denylist.
   'Itai',
   'דני',
   'Dani',

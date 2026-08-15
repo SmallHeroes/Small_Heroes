@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "fox_uri_bedtime",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 3800,
+  "promptSha256": "b656545af19717fbe1a16c823a94d7379a5839b44dfb1411f9093c3f1341dc63",
+  "sourceStorySha256": "02de53756aebb01af6233e3aa3f7be2f301991e4e1fd44ad7d51dd5c54c55fbe",
+  "output": {
+    "filename": "visual-directions.37e0f5b0e35b5875fe44f0418d2b75890c75481bcb3587d92739e5810a9f1937.json",
+    "bytes": 6244,
+    "sha256": "37e0f5b0e35b5875fe44f0418d2b75890c75481bcb3587d92739e5810a9f1937"
+  },
+  "usage": {
+    "inputTokens": 2820,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 2817,
+    "outputTokens": 1905,
+    "reasoningTokens": 813,
+    "totalTokens": 4725
+  },
+  "costUsd": 0.07477125,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

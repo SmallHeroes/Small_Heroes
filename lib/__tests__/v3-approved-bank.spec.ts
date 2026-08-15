@@ -5,7 +5,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { selectCompanionStory } from '../../backend/providers/story-bank-index';
 
@@ -37,6 +37,7 @@ describe('v3-approved bank selection (flag-gated, additive)', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     if (fixturePreexisted) {
       fs.writeFileSync(TEMP_FILE, savedContent ?? '', 'utf8');
     } else if (fs.existsSync(TEMP_FILE)) {
@@ -73,6 +74,19 @@ describe('v3-approved bank selection (flag-gated, additive)', () => {
     expect(selection).not.toBeNull();
     expect(selection?.dirName).toBe('v3-approved');
     expect(selection?.filename).toBe('bunny_ometz_fantasy.md');
+  });
+
+  it('QA catalog selects the isolated autonomous bank without changing Production selection', () => {
+    process.env.ENABLE_V3_APPROVED_BANK = 'true';
+    vi.stubEnv('ENABLE_WIZARD_QA_RENDER_CATALOG', 'true');
+    expect(selectCompanionStory('bunny_ometz', 'fantasy')?.dirName).toBe(
+      'qa-autonomous-20260815-v1',
+    );
+
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('ALLOW_STAGING_QA', 'true');
+    expect(selectCompanionStory('bunny_ometz', 'fantasy')?.dirName).toBe('v3-approved');
   });
 
   it('flag ON without an imported file: default path unchanged', () => {

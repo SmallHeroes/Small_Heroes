@@ -1,0 +1,289 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "chameleon_koko_adventure",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "harbor_market_entrance",
+      "setting": "Entrance to a harbor market reshaping across docks and canals",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "harbor manager"
+      ],
+      "mainAction": "The child and companion spot a blue package sliding from a rotating warehouse into a bread-filled wheelbarrow as the market shifts around them.",
+      "heroObject": "blue package with silver ribbon",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "bright harbor daylight sparkling on the water",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "sloping_market_dock",
+      "setting": "Sloping market dock beside vegetable stalls and cranes",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "baker",
+        "porters",
+        "vegetable vendors"
+      ],
+      "mainAction": "The runaway wheelbarrow jolts downhill and launches the package toward a moving soup cart while the child tracks its route and the companion gives chase.",
+      "heroObject": "blue package with silver ribbon",
+      "shotType": "medium_wide",
+      "cameraAngle": "ground_level",
+      "lighting": "clear daylight with lively reflections from the canal",
+      "continuityAnchors": [
+        "same blue package with silver ribbon",
+        "same bread-filled wheelbarrow"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "market_stall_lane",
+      "setting": "Crowded lane between moving harbor-market stalls",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "soup cook",
+        "baker",
+        "porter"
+      ],
+      "mainAction": "Clinging to the speeding soup cart, the child wedges two loaves beneath the sliding package while the companion watches the open canal ahead.",
+      "heroObject": "blue package braced by two loaves",
+      "shotType": "medium",
+      "cameraAngle": "three_quarter",
+      "lighting": "warm daylight broken by colorful stall shadows",
+      "continuityAnchors": [
+        "same blue package with silver ribbon",
+        "same moving soup cart",
+        "loaves from the baker's wheelbarrow"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "blue_market_canal",
+      "setting": "Open blue canal bordered by floating market stalls",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "soup cook",
+        "flower seller",
+        "fisher",
+        "porters"
+      ],
+      "mainAction": "The soup cart rides atop a watermelon raft as the fisher opens broad hats like sails, the flower seller tests the wind, and the porters secure a vegetable boat behind.",
+      "heroObject": "hat sails",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "sunlit canal with bright reflections beneath the raft",
+      "continuityAnchors": [
+        "same soup cart",
+        "same package braced by two loaves",
+        "watermelon raft beneath the cart"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "low_canal_bridge",
+      "setting": "Narrow canal beneath a low stone bridge",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "soup cook",
+        "flower seller",
+        "fisher",
+        "porters",
+        "parrot"
+      ],
+      "mainAction": "Everyone crouches as the porters flatten the hat sails and the raft slips under the bridge with the package's ribbon caught on the soup-pot handle.",
+      "heroObject": "blue package with snagged silver ribbon",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "cool bridge shade framed by bright daylight",
+      "continuityAnchors": [
+        "same watermelon raft and soup cart",
+        "same broad hats used as sails",
+        "same package braced by two loaves"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "bakery_island_fork",
+      "setting": "Forked canal surrounding a long island bakery",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "baker",
+        "soup cook",
+        "flower seller",
+        "fisher",
+        "porters"
+      ],
+      "mainAction": "Standing atop the soup pot, the child surveys windblown petals curving behind the bakery chimney while the companion and raft crew compare the two canal routes.",
+      "heroObject": "bakery chimney",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "open midday light with a soft haze beyond the bakery roof",
+      "continuityAnchors": [
+        "same watermelon raft and soup cart",
+        "same blue package aboard the raft",
+        "flattened hat sails ready to reopen"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "floating_stall_convoy",
+      "setting": "Congested canal behind the bakery filled with floating stalls",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "spice seller",
+        "sock seller",
+        "tuba player"
+      ],
+      "mainAction": "Across the stalled convoy, the package is handed from the spice stall to the sock seller and toward the tuba player's drum as the child notices its forward progress.",
+      "heroObject": "blue package moving between stalls",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "bright daylight patterned by stall awnings",
+      "continuityAnchors": [
+        "same blue package with silver ribbon",
+        "bakery island behind the convoy"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "floating_stall_convoy",
+      "setting": "Floating-stall relay route through the congested canal",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "sock seller",
+        "soup cook",
+        "musicians",
+        "newspaper children"
+      ],
+      "mainAction": "The child directs a coordinated relay as the package slides along the sock seller's rope toward the low soup cart and waiting newspaper boat, with the companion keeping rhythm beside the stalls.",
+      "heroObject": "blue package on the relay rope",
+      "shotType": "wide",
+      "cameraAngle": "overhead",
+      "lighting": "lively sunlit water between colorful floating stalls",
+      "continuityAnchors": [
+        "same floating stall convoy",
+        "same blue package with silver ribbon",
+        "same soup cart"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "far_dock_gap",
+      "setting": "Wide water gap between a floating carpet pile and the distant ferry dock",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "baker",
+        "porters",
+        "flower seller",
+        "tuba player",
+        "newspaper children"
+      ],
+      "mainAction": "The child stops the companion from attempting the wide jump and directs the crew to build a rope-braced bread-plank crossing beside the stranded boat and package.",
+      "heroObject": "long bread plank",
+      "shotType": "extreme_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "bright exposed daylight over choppy water",
+      "continuityAnchors": [
+        "same blue package with silver ribbon",
+        "same newspaper delivery boat",
+        "far ferry dock visible across the gap"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "far_dock_gap",
+      "setting": "Choppy gap beside the ferry dock and floating carpet pile",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "baker",
+        "soup cook",
+        "sock seller",
+        "porters",
+        "flower seller",
+        "fisher",
+        "newspaper children"
+      ],
+      "mainAction": "After the long plank slips away, the crew positions the package in a basket on a short secured board and assembles the ladle-and-hat wind pusher for the final transfer.",
+      "heroObject": "package basket and wind-pusher rig",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "crisp daylight flashing across the moving water",
+      "continuityAnchors": [
+        "same newspaper delivery boat",
+        "same blue package with silver ribbon",
+        "dislodged long plank floating askew",
+        "sunflower chain securing the short board"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "far_ferry_dock",
+      "setting": "Ceremonial dock beside the decorated veteran ferry",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "ferry captain",
+        "baker",
+        "soup cook",
+        "flower seller",
+        "fisher",
+        "porters",
+        "newspaper children"
+      ],
+      "mainAction": "At the child's signal, the opened hat catches the wind, the ladle drives the basket along the secured board, and the ferry captain catches the package as the harbor crew cheers.",
+      "heroObject": "blue package in sliding basket",
+      "shotType": "medium",
+      "cameraAngle": "low_angle",
+      "lighting": "sunlit climax with the ferry bell gleaming",
+      "continuityAnchors": [
+        "same short board secured by sunflower chain",
+        "same ladle-and-hat wind rig",
+        "same blue package with silver ribbon",
+        "veteran ferry waiting at the dock"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "far_ferry_dock",
+      "setting": "Veteran ferry's ceremonial dock after the delivery",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "ferry captain",
+        "baker",
+        "soup cook",
+        "flower seller",
+        "fisher",
+        "porters",
+        "sock seller",
+        "musicians",
+        "newspaper children",
+        "parrot"
+      ],
+      "mainAction": "With the full relay crew wearing silver flowers, the child pulls the silver ribbon to ring the new bell hanging beside the old one while the companion joins the dockside celebration.",
+      "heroObject": "new ferry bell",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "warm celebratory daylight across the settled harbor",
+      "continuityAnchors": [
+        "same veteran ferry",
+        "old polished ferry bell",
+        "same silver ribbon",
+        "blue package opened nearby",
+        "hat stall still aboard a boat"
+      ]
+    }
+  ]
+}

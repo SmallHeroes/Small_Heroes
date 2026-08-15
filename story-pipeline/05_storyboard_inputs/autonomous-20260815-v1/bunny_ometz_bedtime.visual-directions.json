@@ -1,0 +1,179 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "bunny_ometz_bedtime",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "night_station_platform",
+      "setting": "Toy railway platform at night beside the waiting work carriage",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "plush hedgehog"
+      ],
+      "mainAction": "The child bends toward the hedgehog's raised paw as Bunny bounds forward and the train waits nearby.",
+      "heroObject": "tiny thorn lodged in the hedgehog's paw",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft moonlight with warm light from the waiting train",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "station_treatment_storeroom",
+      "setting": "Station treatment storeroom with shelves and a work area",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "plush hedgehog",
+        "timid tweezers",
+        "timid lamp",
+        "trembling water bowl"
+      ],
+      "mainAction": "The hedgehog watches the fearful tools: tweezers hide in a sock, the lamp shines upward, and water ripples in the bowl.",
+      "heroObject": "frightened treatment tools",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Cool night ambience with the lamp casting a bright circle on the ceiling",
+      "continuityAnchors": [
+        "thorn remains lodged in the hedgehog's paw"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "station_treatment_storeroom",
+      "setting": "Station treatment storeroom work area",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "plush hedgehog",
+        "toy repair doctor",
+        "timid tweezers",
+        "lamp",
+        "water bowl"
+      ],
+      "mainAction": "The doctor calmly presents each tool while the tweezers cautiously emerge from the sock and the group listens.",
+      "heroObject": "tweezers emerging from the sock",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Warm, even workroom light",
+      "continuityAnchors": [
+        "thorn remains lodged in the hedgehog's paw",
+        "same lamp and water bowl",
+        "same sock hiding the tweezers"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "station_treatment_storeroom",
+      "setting": "Station treatment storeroom floor beside the work area",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "plush hedgehog",
+        "toy repair doctor"
+      ],
+      "mainAction": "Three illustrated railway cards lie in a row with a small blue locomotive, while Bunny sits beside the hedgehog holding the red stop card ready.",
+      "heroObject": "three railway procedure cards",
+      "shotType": "medium_wide",
+      "cameraAngle": "overhead",
+      "lighting": "Warm workroom light with soft nighttime shadows",
+      "continuityAnchors": [
+        "thorn remains lodged in the hedgehog's paw",
+        "tweezers are out of the sock",
+        "spoon rests in the water bowl"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "station_treatment_storeroom",
+      "setting": "Station treatment storeroom treatment area",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "plush hedgehog",
+        "toy repair doctor",
+        "lamp"
+      ],
+      "mainAction": "The doctor gently cleans around the lit paw as the blue locomotive reaches the water-drop card and Bunny keeps the red card lowered.",
+      "heroObject": "small blue locomotive at the water-drop card",
+      "shotType": "medium_close",
+      "cameraAngle": "three_quarter",
+      "lighting": "A focused golden lamp circle surrounded by soft warm light",
+      "continuityAnchors": [
+        "three procedure cards remain in a row",
+        "same small blue locomotive",
+        "Bunny holds the same red stop card",
+        "spoon remains in the water bowl",
+        "thorn remains lodged in the hedgehog's paw"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "station_treatment_storeroom",
+      "setting": "Station treatment storeroom treatment area",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "plush hedgehog",
+        "toy repair doctor"
+      ],
+      "mainAction": "With the lamp shifted aside, the hedgehog grips the child and Bunny as the doctor lifts the tiny thorn free with the tweezers.",
+      "heroObject": "freshly removed thorn in the tweezers",
+      "shotType": "close",
+      "cameraAngle": "eye_level",
+      "lighting": "Gentle side lighting from the repositioned lamp",
+      "continuityAnchors": [
+        "small blue locomotive has reached the tweezers card",
+        "lamp is shifted away from the hedgehog's eyes",
+        "Bunny keeps the red stop card ready"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "station_treatment_storeroom",
+      "setting": "Station treatment storeroom beside the toy railway",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "plush hedgehog",
+        "toy repair doctor",
+        "relieved tweezers"
+      ],
+      "mainAction": "The bandaged hedgehog tests the paw while Bunny sends the boxed thorn away in a tiny freight car with button wheels.",
+      "heroObject": "matchbox thorn car with four button wheels",
+      "shotType": "medium_wide",
+      "cameraAngle": "ground_level",
+      "lighting": "Warm, relieved workroom glow",
+      "continuityAnchors": [
+        "thorn is removed",
+        "small soft bandage covers the hedgehog's paw",
+        "same thorn rests inside the matchbox"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "night_train_rest_car",
+      "setting": "Cozy rest carriage on the moving night train",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "plush hedgehog",
+        "toy repair doctor"
+      ],
+      "mainAction": "The child, Bunny, and the hedgehog nestle beneath one blanket as the doctor tucks them in and the tiny thorn car rolls behind the train.",
+      "heroObject": "tiny thorn freight car",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Dim amber carriage light with soft moonlight outside",
+      "continuityAnchors": [
+        "bandage remains on the hedgehog's paw",
+        "Bunny carries the same red stop card in a pocket",
+        "thorn remains boxed in the button-wheeled freight car",
+        "tweezers rest in a box",
+        "water bowl rests on a shelf",
+        "lamp is dimmed"
+      ]
+    }
+  ]
+}

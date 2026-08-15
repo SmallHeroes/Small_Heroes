@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "NIGHT_FEAR",
+  "companionId": "fox_uri",
+  "direction": "adventure",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/fox_uri_adventure.md",
+    "sha256": "259f7245f777bacfb33b8530d7c36ae78375f4f08e567c2a3fc9a609b0b204f0",
+    "sourceProjectionSha256": "cdc1192bc365605bfd5c72a0bb56adabfcef0f3984b2312bae41d980d796f550"
+  },
+  "pageCount": 12,
+  "physicalPageCount": 24,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/fox_uri_adventure/manifest.json",
+    "storySha256": "cdc1192bc365605bfd5c72a0bb56adabfcef0f3984b2312bae41d980d796f550"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "fox_uri_adventure",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/fox_uri_adventure.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/fox_uri_adventure.receipt.json",
+    "receiptSha256": "d496801808e27e3228794725bb930f7c98efffc6c59ba83be0bf41c16da0024e",
+    "sha256": "3497754af01c7010ac8310450c7aa4372faef318a1ee37f58d3e7b5de6812eb3",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

@@ -16,9 +16,15 @@ import {
 import { allMvpCategories, companionForCategory, isSlotSellable } from '../../backend/config/mvp-story-matrix';
 
 const V3_APPROVED_DIR = path.join(process.cwd(), 'story-bank', 'v3-approved');
+const QA_AUTONOMOUS_DIR = path.join(
+  process.cwd(),
+  'story-bank',
+  'qa-autonomous-20260815-v1',
+);
 const BUNNY_BEDTIME = path.join(V3_APPROVED_DIR, 'bunny_ometz_bedtime.md');
 
 const originalFlag = process.env.ENABLE_V3_APPROVED_BANK;
+const originalQaFlag = process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
 // Only delete the fixture if WE created it (a real import may land here later).
 let createdFixture = false;
 
@@ -40,6 +46,8 @@ describe('resolveStoryProductTruth', () => {
     if (createdFixture && fs.existsSync(BUNNY_BEDTIME)) fs.unlinkSync(BUNNY_BEDTIME);
     if (originalFlag === undefined) delete process.env.ENABLE_V3_APPROVED_BANK;
     else process.env.ENABLE_V3_APPROVED_BANK = originalFlag;
+    if (originalQaFlag === undefined) delete process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
+    else process.env.ENABLE_WIZARD_QA_RENDER_CATALOG = originalQaFlag;
   });
 
   it('client adventure + bunny (v3 adventure binding) → v3 adventure, NOT bedtime override', () => {
@@ -92,6 +100,29 @@ describe('resolveStoryProductTruth', () => {
         expect(resolved.storyFile).toBe(
           path.join(V3_APPROVED_DIR, `${companionId}_${direction}.md`),
         );
+      }
+    }
+  });
+
+  it('QA flag binds all sellable slots to the autonomous QA bank with canonical page counts', () => {
+    process.env.ENABLE_WIZARD_QA_RENDER_CATALOG = 'true';
+    const expectedPages = { bedtime: 8, adventure: 12, fantasy: 16 } as const;
+
+    for (const category of allMvpCategories()) {
+      for (const direction of Object.keys(expectedPages) as Array<keyof typeof expectedPages>) {
+        if (!isSlotSellable(category, direction)) continue;
+        const companionId = companionForCategory(category);
+        if (!companionId) continue;
+        const resolved = resolveStoryProductTruth({
+          companionId,
+          clientDirection: direction,
+          challengeCategory: category,
+        });
+        expect(resolved.storyFile).toBe(
+          path.join(QA_AUTONOMOUS_DIR, `${companionId}_${direction}.md`),
+        );
+        expect(resolved.pages).toBe(expectedPages[direction]);
+        expect(resolved.displayPages).toBe(expectedPages[direction] * 2);
       }
     }
   });

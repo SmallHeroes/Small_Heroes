@@ -1,0 +1,168 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "dragon_dini_bedtime",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "home_kitchen",
+      "setting": "Family kitchen beside the newly prepared baby area at night",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child gently swirls a water-filled jar as the tiny transparent fish inside brightens blue, while Dini steadies the wrapped jar.",
+      "heroObject": "water-filled lidded jar with glow-fish",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Warm household light contrasted with the fish's soft blue glow",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "home_kitchen",
+      "setting": "Kitchen doorway and window overlooking the gutter",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "snail"
+      ],
+      "mainAction": "The child blows bubbles through a straw into the jar as Dini removes the towel; the bright fish casts a blue beam toward the waking gutter while a snail overtakes Dini.",
+      "heroObject": "water-filled jar with bubbling glow-fish",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Warm interior night light with a vivid blue beam toward the window",
+      "continuityAnchors": [
+        "same lidded jar with the glow-fish",
+        "same thick towel being removed from the jar"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "sleepy_street",
+      "setting": "Quiet gray street with nearly dry rain channels and a bench",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "frog",
+        "three snails",
+        "night moth"
+      ],
+      "mainAction": "The child tilts the jar above the first channel while Dini pours in water; a frog splashes, snails clear leaves, and a moth guides the newly glowing flow.",
+      "heroObject": "newly flowing rain channel",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Dim moonlit street awakened by blue light in the moving water",
+      "continuityAnchors": [
+        "same unwrapped jar with the glow-fish",
+        "removed towel now carried by Dini"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "grove_waterwheel",
+      "setting": "Street-end blockage beside a wooded grove and old waterwheel",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "frog",
+        "three snails"
+      ],
+      "mainAction": "The child opens one narrow gap with a twig as the frog and snails clear two others; three streams strike the wheel while Dini wears a comic mud cap.",
+      "heroObject": "blocked channels and old waterwheel",
+      "shotType": "medium_wide",
+      "cameraAngle": "ground_level",
+      "lighting": "Cool night light with faint blue streams brightening the dusty wheel",
+      "continuityAnchors": [
+        "same glow-fish jar nearby",
+        "frog and three snails continue along the channel",
+        "Dini's towel remains soaked"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "grove_waterwheel",
+      "setting": "Reawakened waterways throughout the wooded grove",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "frog",
+        "three snails",
+        "night moths",
+        "water beetles"
+      ],
+      "mainAction": "The child organizes a visible relay along the stream as Dini and the small helpers guide the glowing jar past roots, stones, and bends through the revived grove.",
+      "heroObject": "glowing jar relay",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Blue water-light spreads through the dark grove beneath soft night light",
+      "continuityAnchors": [
+        "old waterwheel now turning",
+        "same jar carrying the glow-fish",
+        "Dini remains wet and muddy",
+        "frog, snails, and moths continue helping"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "nursery_garden_channels",
+      "setting": "High nursery garden crossed by seven cracked channels before the spring",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "frog",
+        "three snails",
+        "night moths"
+      ],
+      "mainAction": "From a stone, the child opens the small gate as the helpers connect all seven streams; the glow-fish leaps from the jar onto the joined rush of water.",
+      "heroObject": "seven-channel waterway and small gate",
+      "shotType": "extreme_wide",
+      "cameraAngle": "overhead",
+      "lighting": "Thin predawn light with bright blue water tracing every connected channel",
+      "continuityAnchors": [
+        "same jar with the glow-fish",
+        "Dini remains wet and muddy",
+        "frog, snails, and moths maintain their relay"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "nursery_spring",
+      "setting": "Quiet spring beneath water-lily leaves",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "frog",
+        "school of glow-fish"
+      ],
+      "mainAction": "A school of glowing fish surrounds the reunited fish as the child waves from shore; muddy Dini sits nearby with the frog perched on her head.",
+      "heroObject": "school of glow-fish",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft predawn sky over luminous blue circles beneath the water",
+      "continuityAnchors": [
+        "released glow-fish now in the spring",
+        "Dini remains soaked and mud-covered",
+        "same frog accompanies the group"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "home_bedroom",
+      "setting": "Quiet sleeping area with the child's bed, baby crib, and nearby rug",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "new baby"
+      ],
+      "mainAction": "A blue ripple from the gutter crosses the ceiling above the baby crib and reaches the child's pillow while Dini opens one eye from the rug.",
+      "heroObject": "blue ceiling ripple",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Dim warm bedtime light with gentle blue reflections across the ceiling",
+      "continuityAnchors": [
+        "same tiny baby hat from the prepared sleeping area",
+        "Dini remains muddy",
+        "small spring shell rests beside the baby hat"
+      ]
+    }
+  ]
+}

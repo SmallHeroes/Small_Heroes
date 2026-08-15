@@ -95,6 +95,20 @@ describe('story-bank personalization gate', () => {
     }
   });
 
+  it('does not mistake the common Hebrew preposition "איתי" for a bank protagonist', () => {
+    const failures = runStoryPersonalizationGate({
+      wizard: { childName: 'נועה', childGender: 'girl', companionName: 'בוני' },
+      pages: [{ pageNumber: 1, text: 'נועה שאלה: "מי יהיה איתי?"', imagePrompt: '' }],
+    });
+    expect(failures.filter((failure) => failure.includes('leftover bank protagonist'))).toEqual([]);
+
+    const englishName = runStoryPersonalizationGate({
+      wizard: { childName: 'נועה', childGender: 'girl', companionName: 'בוני' },
+      pages: [{ pageNumber: 1, text: 'Itai waited by the door. נועה נכנסה.', imagePrompt: '' }],
+    });
+    expect(englishName.some((failure) => failure.includes('Itai'))).toBe(true);
+  });
+
   // (Codex) The Hebrew gender-marker gate: V8 `\b` never matched Hebrew, so wrong-gender Hebrew passed the pre-spend
   // gate. These prove the fix DIRECTLY (not via a stale bank name), and that it does not false-block real books.
   const gate = (childGender: 'boy' | 'girl' | 'other', text: string, childName = 'איתן') =>

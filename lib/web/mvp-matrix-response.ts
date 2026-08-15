@@ -20,7 +20,11 @@ import {
 import { DIRECTION_PAGE_MAP, displayPagesForBeats } from '@/backend/config/wizard';
 import { STYLE_IDS } from '@/lib/styles';
 import { evaluateRenderQualification } from '@/lib/visual-package/qualification';
-import { wizardQaSlotReadiness } from '@/lib/wizard-render-readiness';
+import {
+  isWizardQaCatalogEnabled,
+  loadWizardQaCatalog,
+  type WizardQaRenderCatalog,
+} from '@/lib/wizard-render-readiness';
 import path from 'node:path';
 
 const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
@@ -60,7 +64,11 @@ const PARKED_CATEGORY_COPY: Partial<
 
 export type MvpMatrixCategoryPayload = ReturnType<typeof buildCategoryPayload>;
 
-function buildCategoryPayload(category: MvpCategory, publicVisible: boolean) {
+function buildCategoryPayload(
+  category: MvpCategory,
+  publicVisible: boolean,
+  qaCatalog: WizardQaRenderCatalog | null,
+) {
   const copy = MVP_WIZARD_CARD_COPY[category];
   const companionId = MVP_STORY_MATRIX[category].companionId;
   const companion = getCompanionById(companionId);
@@ -69,11 +77,9 @@ function buildCategoryPayload(category: MvpCategory, publicVisible: boolean) {
       const summary = matrixSlotSummary(category, direction);
       const pageMap = DIRECTION_PAGE_MAP[direction];
       const storyKey = `${companionId}_${direction}`;
-      const qaAuthority = wizardQaSlotReadiness({
-        repoRoot: process.cwd(),
-        category,
-        direction,
-      });
+      const qaAuthority = qaCatalog?.records.find(
+        (record) => record.category === category && record.direction === direction,
+      ) ?? null;
       const productionQualification = evaluateRenderQualification({
         repoRoot: process.cwd(),
         storyKey,
@@ -92,7 +98,7 @@ function buildCategoryPayload(category: MvpCategory, publicVisible: boolean) {
           availabilityStage: productionQualification.renderQualified
             ? 'production_render_qualified'
             : qaAuthority
-              ? 'qa_ready_for_blueprint_authoring'
+              ? 'qa_ready_for_low_story_generation'
               : summary.sellable
                 ? 'story_ready_only'
                 : 'unavailable',
@@ -141,7 +147,12 @@ function buildCategoryPayload(category: MvpCategory, publicVisible: boolean) {
 
 export function buildMvpMatrixResponse() {
   const dev = isDevEnvironment();
-  const categories = allMvpCategories().map((category) => buildCategoryPayload(category, true));
+  const qaCatalog = isWizardQaCatalogEnabled()
+    ? loadWizardQaCatalog({ repoRoot: process.cwd() })
+    : null;
+  const categories = allMvpCategories().map((category) =>
+    buildCategoryPayload(category, true, qaCatalog)
+  );
 
   const mvpSet = new Set(allMvpCategories());
   const parkedCategories = dev

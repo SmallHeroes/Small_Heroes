@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "ANGER_FRUSTRATION",
+  "companionId": "lion_shaket",
+  "direction": "adventure",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/lion_shaket_adventure.md",
+    "sha256": "a3cc4716718818636f598c550b2441a1f60f17fb753d55c8a2b8ca53678158ca",
+    "sourceProjectionSha256": "b16dba08984b2ca96797e7f357066b63c914055bb361da332520dcd289b2975f"
+  },
+  "pageCount": 12,
+  "physicalPageCount": 24,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_adventure/manifest.json",
+    "storySha256": "b16dba08984b2ca96797e7f357066b63c914055bb361da332520dcd289b2975f"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "lion_shaket_adventure",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/lion_shaket_adventure.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/lion_shaket_adventure.receipt.json",
+    "receiptSha256": "5d59a5609bf94021aafc6c42a32e2d0e1a54e7631f009dd0f6220a12d7473771",
+    "sha256": "9d5277badb616b951561ca0dd734b6f793149fc0548abf4dc66a5061ca8b0442",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

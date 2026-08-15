@@ -1,0 +1,242 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "bunny_ometz_adventure",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "clinic_waiting_room",
+      "setting": "Clinic waiting room beside an open corridor",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "nurse"
+      ],
+      "mainAction": "A tiny glowing musical note springs from the nurse's metal vial into the red toy cart as Bunny jumps aboard.",
+      "heroObject": "tiny glowing musical note",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft clinic light with a warm glint around the note",
+      "continuityAnchors": [
+        "red toy cart beside the child",
+        "tiny glowing note inside the cart"
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "clinic_corridor",
+      "setting": "Clinic corridor imagined as a long silver flute",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child guides the transformed red railcar into the corridor while Bunny conducts with a cotton swab and three cotton balls tumble onto him.",
+      "heroObject": "transformed red railcar",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Bright corridor light with silvery reflections",
+      "continuityAnchors": [
+        "red toy cart transformed into a railcar",
+        "tiny glowing note riding inside"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "clinic_exam_room",
+      "setting": "Entrance to the clinic examination room",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "nurse"
+      ],
+      "mainAction": "The child pauses at the doorway while the nurse presents round stickers and thin wires; Bunny lowers his cotton-swab baton beside the stopped railcar.",
+      "heroObject": "round examination stickers",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Calm, even examination-room light",
+      "continuityAnchors": [
+        "red railcar stopped beside the child",
+        "tiny glowing note inside the railcar",
+        "cotton-swab baton in Bunny's paw"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "clinic_exam_room",
+      "setting": "Examination room imagined as a blue-wave crossing with the bed as a raft",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "nurse"
+      ],
+      "mainAction": "The child raises a hand after the third sticker tickles, and the nurse immediately freezes while the wave, raft, and glowing note become perfectly still.",
+      "heroObject": "round examination stickers",
+      "shotType": "medium_close",
+      "cameraAngle": "three_quarter",
+      "lighting": "Gentle clinical light blended with cool blue wave-glow",
+      "continuityAnchors": [
+        "red railcar beside the examination bed",
+        "tiny glowing note frozen inside the railcar",
+        "cotton-swab baton lowered"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "clinic_exam_room",
+      "setting": "Examination room imagined as a raft above a river of light",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "nurse"
+      ],
+      "mainAction": "Bunny halts mid-clang beside the railcar as colored wire-strings stretch over a churning light river and the raft turns beneath the green monitor line.",
+      "heroObject": "colored examination wires",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Green monitor glow over rippling colored light",
+      "continuityAnchors": [
+        "stickers attached to the child",
+        "red railcar on the imagined crossing",
+        "tiny glowing note inside the railcar"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "clinic_exam_room",
+      "setting": "Examination room with a transparent bridge above the imagined light river",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "nurse"
+      ],
+      "mainAction": "The child rests a hand on her belly while the transparent bridge changes width with each breath and Bunny retreats into the railcar.",
+      "heroObject": "breath-responsive transparent bridge",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Steady clinical light with a soft pulse from the bridge",
+      "continuityAnchors": [
+        "stickers and colored wires attached",
+        "red railcar beside the bridge",
+        "tiny glowing note inside the railcar"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "clinic_exam_room",
+      "setting": "Examination room imagined as a stable bridge crossing",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "nurse"
+      ],
+      "mainAction": "The child signals the pace from the examination raft as the bridge widens and the red railcar rolls forward with Bunny seated beside the glowing note.",
+      "heroObject": "red railcar",
+      "shotType": "wide",
+      "cameraAngle": "ground_level",
+      "lighting": "Calm rhythmic bands of light along the bridge",
+      "continuityAnchors": [
+        "stickers and colored wires attached",
+        "tiny glowing note riding beside Bunny",
+        "transparent bridge controlled by the child's breathing"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "clinic_exam_room",
+      "setting": "Examination room and imagined bridge with the corridor door visible",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "nurse"
+      ],
+      "mainAction": "A closing corridor door jolts the railcar; the child raises a hand to pause while Bunny catches the airborne glowing note in both paws.",
+      "heroObject": "tiny glowing musical note",
+      "shotType": "medium_close",
+      "cameraAngle": "three_quarter",
+      "lighting": "Clinical light with a sharp flash of motion around the note",
+      "continuityAnchors": [
+        "stickers and colored wires attached",
+        "red railcar midway across the bridge",
+        "tiny glowing note caught above the cart"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "clinic_exam_room",
+      "setting": "Narrow final span of the imagined transparent bridge",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "nurse"
+      ],
+      "mainAction": "The nurse watches the monitor, the child sets the breathing pace, and Bunny grips the railcar while guarding the note, leaving his fallen cotton-swab baton behind.",
+      "heroObject": "red railcar",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Focused monitor glow leading toward the far bank",
+      "continuityAnchors": [
+        "stickers and colored wires attached",
+        "tiny glowing note secured in the railcar",
+        "cotton-swab baton fallen on the bridge"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "clinic_exam_room",
+      "setting": "Examination room transformed into a luminous sound fair",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "nurse"
+      ],
+      "mainAction": "The glowing note leaps from the railcar into the fair as curtains become flags, wires shine like harp strings, and Bunny sits with his paws resting on his knees.",
+      "heroObject": "tiny glowing musical note",
+      "shotType": "extreme_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Festive multicolored light over the underlying clinic glow",
+      "continuityAnchors": [
+        "last railcar wheel across the bridge",
+        "stickers and colored wires still attached",
+        "cotton-swab baton left behind"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "clinic_exam_room",
+      "setting": "Examination room as the imagined sound fair folds back into ordinary objects",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "nurse"
+      ],
+      "mainAction": "The nurse slowly removes the final sticker while the child exhales and the light avenue, river, and red railcar shrink back into the lamp, paper sheet, and toy cart.",
+      "heroObject": "final examination sticker",
+      "shotType": "medium",
+      "cameraAngle": "high_angle",
+      "lighting": "Warm clinical light as the fair's colored glow fades",
+      "continuityAnchors": [
+        "same examination bed and monitor",
+        "red railcar returning to the red toy cart",
+        "colored wires being removed with the stickers"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "clinic_exam_room",
+      "setting": "Examination-room doorway leading into the clinic corridor",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "nurse"
+      ],
+      "mainAction": "The child leads through the doorway while Bunny follows pulling the red toy cart, where the tiny note gives one last glow.",
+      "heroObject": "red toy cart",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Clear corridor light with a final warm sparkle in the cart",
+      "continuityAnchors": [
+        "red cart restored to toy size",
+        "tiny glowing note inside the cart",
+        "stickers and wires removed"
+      ]
+    }
+  ]
+}

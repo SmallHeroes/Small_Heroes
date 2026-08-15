@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "chameleon_koko_fantasy",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 6500,
+  "promptSha256": "83fb6c770e5c2e9220cd68a01ae25666f7f60887ef2bf99d9451c3c90749b235",
+  "sourceStorySha256": "5cbaed07bc640877e91c2d4c5a0dd86928e839a09ddf076ece8c582f826b9a61",
+  "output": {
+    "filename": "visual-directions.13b65ad979cce04d2bf290fc2e3bb4a3c4cb6ab667a6f14407ce88324836c9bf.json",
+    "bytes": 12849,
+    "sha256": "13b65ad979cce04d2bf290fc2e3bb4a3c4cb6ab667a6f14407ce88324836c9bf"
+  },
+  "usage": {
+    "inputTokens": 3602,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 3599,
+    "outputTokens": 2659,
+    "reasoningTokens": 516,
+    "totalTokens": 6261
+  },
+  "costUsd": 0.10227875,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

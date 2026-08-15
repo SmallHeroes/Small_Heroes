@@ -50,7 +50,7 @@ import { buildVisualPackageV4Fixture } from '@/lib/visual-package/__tests__/visu
 import {
   loadWizardQaCatalog,
   type WizardQaCatalogRecord,
-  type WizardQaVisualContractCandidate,
+  type WizardQaStoryboardCandidate,
 } from '@/lib/wizard-render-readiness';
 import {
   applyDiniBarFivePageMeasurementOverlay,
@@ -93,9 +93,17 @@ if (IS_WIZARD_CATALOG && !QA_RECORD) {
 const QA_CANDIDATE_PATH = QA_RECORD
   ? path.resolve(ROOT, QA_RECORD.candidatePath)
   : null;
-const QA_CANDIDATE: WizardQaVisualContractCandidate | null = QA_CANDIDATE_PATH
-  ? (JSON.parse(fs.readFileSync(QA_CANDIDATE_PATH, 'utf8')) as WizardQaVisualContractCandidate)
+const QA_CANDIDATE: WizardQaStoryboardCandidate | null = QA_CANDIDATE_PATH
+  ? (JSON.parse(fs.readFileSync(QA_CANDIDATE_PATH, 'utf8')) as WizardQaStoryboardCandidate)
   : null;
+const QA_LEGACY_CANDIDATE = QA_CANDIDATE && 'template' in QA_CANDIDATE
+  ? (QA_CANDIDATE as WizardQaStoryboardCandidate & { template: BookVisualContractTemplate })
+  : null;
+if (IS_WIZARD_CATALOG && !QA_LEGACY_CANDIDATE) {
+  throw new Error(
+    'wizard-catalog-full-book legacy measurement requires a Visual Contract candidate; v2 QA storyboard candidates run through the normal Wizard LOW path',
+  );
+}
 const OUTPUT_ARG = process.argv.find((value) => value.startsWith('--output-root='))?.slice(14);
 const OUTPUT_ROOT = path.resolve(
   ROOT,
@@ -115,7 +123,7 @@ const PAGE_NUMBERS = IS_DINI_BAR
   : IS_BUNNY_BAR
     ? [...BUNNY_BAR_MEASUREMENT_PAGES]
     : IS_WIZARD_CATALOG
-      ? QA_CANDIDATE!.template.pageContracts.map((page) => page.pageNumber)
+      ? QA_LEGACY_CANDIDATE!.template.pageContracts.map((page) => page.pageNumber)
     : Array.from({ length: 12 }, (_, index) => index + 1);
 const RENDER_PAGE_ARG = process.argv
   .find((value) => value.startsWith('--render-pages='))
@@ -823,7 +831,7 @@ async function main(): Promise<void> {
       page.imageDirection,
     ]),
   );
-  const legacyTemplate = QA_CANDIDATE?.template ??
+  const legacyTemplate = QA_LEGACY_CANDIDATE?.template ??
     (JSON.parse(fs.readFileSync(templatePath, 'utf8')) as unknown);
   const storyBeats = beatsFromStoryPages(
     parsedStorySource.pages.map((page) => ({
@@ -849,8 +857,8 @@ async function main(): Promise<void> {
             }
           })()
         : (JSON.parse(fs.readFileSync(shotPlanPath!, 'utf8')) as BookShotPlan);
-  const migrated = QA_CANDIDATE
-    ? structuredClone(QA_CANDIDATE.template)
+  const migrated = QA_LEGACY_CANDIDATE
+    ? structuredClone(QA_LEGACY_CANDIDATE.template)
     : migrateLegacyBookVisualContractTemplateV1(
         legacyTemplate,
         IS_BAR_MEASUREMENT

@@ -8,7 +8,7 @@ import {
   type MvpCategory,
   type StoryDirection,
 } from '@/backend/config/mvp-story-matrix';
-import { V3_APPROVED_DIR_NAME } from '@/backend/providers/story-bank-index';
+import { WIZARD_QA_STORY_DIR_NAME } from '@/backend/providers/story-bank-index';
 import { canonicalHash, canonicalize } from '@/lib/canonical-json';
 import {
   COMPANION_SHEET_VIEW_FILENAME,
@@ -16,20 +16,21 @@ import {
   type CompanionSheetViewKind,
 } from '@/lib/generation-pipeline/companion-character-sheet';
 import { parseStoryMarkdown } from '@/lib/story-validators/parser';
-import { migrateLegacyBookVisualContractTemplateV1 } from '@/lib/visual-contract-compiler/contractTemplateMigration';
-import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler/contractTemplateTypes';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
-import { validateBookVisualContractTemplate } from '@/lib/visual-contract-compiler/validateTemplateContract';
 import { buildStorySourceIdentity, repoRelativePath } from '@/lib/visual-package/integrity';
 import type { StorySourceIdentity } from '@/lib/visual-package/types';
 import { isDevEnvironment } from '@/lib/dev-only-guard';
 
-export const WIZARD_QA_CATALOG_VERSION = 'wizard-qa-render-catalog/v1' as const;
-export const WIZARD_QA_CANDIDATE_VERSION = 'wizard-qa-visual-contract-candidate/v1' as const;
+export const WIZARD_QA_CATALOG_VERSION = 'wizard-qa-render-catalog/v2' as const;
+export const WIZARD_QA_CANDIDATE_VERSION = 'wizard-qa-storyboard-candidate/v2' as const;
 export const WIZARD_QA_AUTHORITY_ROOT = 'qa-authorities/wizard' as const;
 export const WIZARD_QA_RESEMBLANCE_THRESHOLD = 0.7;
-
+const STORYBOARD_RECORD_VERSION = 'small-heroes-story-visual-direction-record/v1' as const;
+const IMPORT_VERSION = 'story-bank-import/v4' as const;
 const DIRECTIONS: readonly StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
+const PRESENCE = new Set(['present', 'partial', 'absent']);
+const SHOTS = new Set(['extreme_wide', 'wide', 'medium_wide', 'medium', 'medium_close', 'close', 'detail']);
+const ANGLES = new Set(['eye_level', 'high_angle', 'low_angle', 'overhead', 'ground_level', 'three_quarter']);
 
 export type WizardQaReadinessReasonCode =
   | 'story_source_missing'
@@ -37,15 +38,14 @@ export type WizardQaReadinessReasonCode =
   | 'story_page_count_mismatch'
   | 'import_sidecar_missing'
   | 'import_sidecar_mismatch'
+  | 'storyboard_missing'
+  | 'storyboard_invalid'
+  | 'storyboard_digest_mismatch'
   | 'companion_manifest_missing'
   | 'companion_manifest_invalid'
   | 'companion_view_missing'
   | 'companion_view_qa_rejected'
   | 'companion_view_resemblance_below_threshold'
-  | 'historical_candidate_missing'
-  | 'historical_candidate_invalid'
-  | 'candidate_story_mismatch'
-  | 'candidate_page_coverage_mismatch'
   | 'qa_candidate_missing'
   | 'qa_candidate_digest_mismatch'
   | 'catalog_invalid';
@@ -71,11 +71,11 @@ export interface WizardQaCompanionAuthority {
   views: WizardQaCompanionViewAuthority[];
 }
 
-export interface WizardQaVisualContractCandidate {
+export interface WizardQaStoryboardCandidate {
   version: typeof WIZARD_QA_CANDIDATE_VERSION;
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
-  state: 'ready_for_blueprint_authoring';
+  state: 'qa_ready_for_low_story_generation';
   productionEligible: false;
   category: MvpCategory;
   direction: StoryDirection;
@@ -84,13 +84,12 @@ export interface WizardQaVisualContractCandidate {
   source: StorySourceIdentity;
   importSidecarDigest: string;
   companionAuthority: WizardQaCompanionAuthority;
-  historicalInput: {
-    fileName: string;
-    rawSha256: string;
-    schemaVersion: 'vc-schema/v1';
+  visualDirections: {
+    version: typeof STORYBOARD_RECORD_VERSION;
+    path: string;
+    digest: string;
+    pageCount: number;
   };
-  templateDigest: string;
-  template: BookVisualContractTemplate;
 }
 
 export interface WizardQaCatalogRecord {
@@ -100,12 +99,14 @@ export interface WizardQaCatalogRecord {
   companionId: string;
   storySourcePath: string;
   storySourceDigest: string;
+  visualDirectionDigest: string;
   companionManifestDigest: string;
   candidatePath: string;
   candidateDigest: string;
-  state: 'ready_for_blueprint_authoring';
+  state: 'qa_ready_for_low_story_generation';
   storyReady: true;
   qaAuthoringReady: true;
+  qaLowStoryGenerationReady: true;
   productionRenderQualified: false;
 }
 
@@ -129,63 +130,21 @@ interface CompanionManifest {
   views?: Partial<Record<CompanionSheetViewKind, ManifestView>>;
 }
 
-/**
- * Historical v1 candidates predate Blueprint's structured cover projection.
- * The QA migration fills only authority already present elsewhere in the same
- * template: a canonical zone in the cover location and the declared hero /
- * companion identities. No cover prose is parsed and no new cast is invented.
- */
-export function completeWizardQaCoverAuthority(
-  template: BookVisualContractTemplate,
-): BookVisualContractTemplate {
-  const completed = structuredClone(template);
-  const normalizeTimeOfDay = (
-    value: string | null | undefined,
-  ): 'day' | 'night' | 'dusk' | 'dawn' | 'mixed' | null => {
-    const normalized = value?.trim().toLowerCase() ?? '';
-    if (['day', 'night', 'dusk', 'dawn', 'mixed'].includes(normalized)) {
-      return normalized as 'day' | 'night' | 'dusk' | 'dawn' | 'mixed';
-    }
-    if (/morning|afternoon|daytime|next day/.test(normalized)) return 'day';
-    if (/night/.test(normalized)) return 'night';
-    if (/dusk|evening|twilight/.test(normalized)) return 'dusk';
-    if (/dawn|sunrise/.test(normalized)) return 'dawn';
-    return null;
-  };
-  const inheritedTimeOfDay =
-    normalizeTimeOfDay(completed.coverContract.timeOfDay) ??
-    completed.locations
-      .map((location) => normalizeTimeOfDay(location.timeOfDay))
-      .find((value) => value !== null) ??
-    null;
-  for (const location of completed.locations) {
-    const timeOfDay = normalizeTimeOfDay(location.timeOfDay) ?? inheritedTimeOfDay;
-    if (!timeOfDay) {
-      throw new Error(
-        'historical candidate has no structured time-of-day authority for QA migration',
-      );
-    }
-    location.timeOfDay = timeOfDay;
-  }
-  const coverZoneId = completed.pageContracts.find(
-    (page) => page.locationId === completed.coverContract.locationId,
-  )?.zoneId;
-  if (!completed.coverContract.zoneId && coverZoneId) {
-    completed.coverContract.zoneId = coverZoneId;
-  }
-  if (!completed.coverContract.castIds) {
-    completed.coverContract.castIds = [
-      completed.cast.child.id,
-      ...(completed.cast.companion
-        ? [completed.cast.companion.id]
-        : []),
-    ];
-  }
-  return completed;
-}
-
 function sha256(bytes: Buffer | string): string {
   return createHash('sha256').update(bytes).digest('hex');
+}
+
+const fileDigestCache = new Map<string, { identity: string; digest: string }>();
+
+function sha256File(filePath: string): string {
+  const resolved = path.resolve(filePath);
+  const stat = fs.statSync(resolved);
+  const identity = `${stat.size}:${stat.mtimeMs}`;
+  const cached = fileDigestCache.get(resolved);
+  if (cached?.identity === identity) return cached.digest;
+  const digest = sha256(fs.readFileSync(resolved));
+  fileDigestCache.set(resolved, { identity, digest });
+  return digest;
 }
 
 function canonicalBytes(value: unknown): string {
@@ -195,6 +154,11 @@ function canonicalBytes(value: unknown): string {
 function payloadDigest<T extends { digest: string }>(value: T): string {
   const { digest: _digest, ...payload } = value;
   return canonicalHash(payload);
+}
+
+function exactKeys(value: unknown, keys: readonly string[]): boolean {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value) &&
+    Object.keys(value as Record<string, unknown>).sort().join('\0') === [...keys].sort().join('\0');
 }
 
 function addIssue(
@@ -228,13 +192,7 @@ function validateCompanionAuthority(args: {
   companionId: string;
   issues: WizardQaReadinessIssue[];
 }): WizardQaCompanionAuthority | null {
-  const sheetRoot = path.join(
-    args.repoRoot,
-    'public',
-    'companions',
-    args.companionId,
-    'style01-sheets',
-  );
+  const sheetRoot = path.join(args.repoRoot, 'public', 'companions', args.companionId, 'style01-sheets');
   const manifestPath = path.join(sheetRoot, 'manifest.json');
   if (!fs.existsSync(manifestPath)) {
     addIssue(args.issues, 'companion_manifest_missing');
@@ -274,7 +232,7 @@ function validateCompanionAuthority(args: {
     views.push({
       kind,
       path: repoRelativePath(args.repoRoot, viewPath),
-      sha256: sha256(fs.readFileSync(viewPath)),
+      sha256: sha256File(viewPath),
       qaStatus: 'passed',
       resemblanceToIdentity: resemblance,
     });
@@ -289,37 +247,78 @@ function validateCompanionAuthority(args: {
   };
 }
 
+function storyboardIsValid(value: unknown, storyKey: string, pageCount: number): boolean {
+  const pageKeys = [
+    'pageNumber', 'settingKey', 'setting', 'childPresence', 'companionPresence',
+    'supportingCharacters', 'mainAction', 'heroObject', 'shotType', 'cameraAngle',
+    'lighting', 'continuityAnchors',
+  ];
+  if (
+    !exactKeys(value, ['version', 'storyKey', 'pages']) ||
+    (value as { version?: unknown }).version !== STORYBOARD_RECORD_VERSION ||
+    (value as { storyKey?: unknown }).storyKey !== storyKey ||
+    !Array.isArray((value as { pages?: unknown }).pages) ||
+    (value as { pages: unknown[] }).pages.length !== pageCount
+  ) return false;
+  return (value as { pages: Array<Record<string, unknown>> }).pages.every((page, index) =>
+    exactKeys(page, pageKeys) && page.pageNumber === index + 1 &&
+    typeof page.settingKey === 'string' && /^[a-z][a-z0-9_]{2,95}$/.test(page.settingKey) &&
+    typeof page.setting === 'string' && !/[\u0590-\u05ff{}]/u.test(page.setting) &&
+    PRESENCE.has(String(page.childPresence)) && PRESENCE.has(String(page.companionPresence)) &&
+    Array.isArray(page.supportingCharacters) && typeof page.mainAction === 'string' &&
+    (page.heroObject === null || typeof page.heroObject === 'string') &&
+    SHOTS.has(String(page.shotType)) && ANGLES.has(String(page.cameraAngle)) &&
+    typeof page.lighting === 'string' && Array.isArray(page.continuityAnchors),
+  );
+}
+
+interface QaImportSidecar {
+  version?: unknown;
+  status?: unknown;
+  authorityScope?: unknown;
+  productionEligible?: unknown;
+  storyKey?: unknown;
+  companionId?: unknown;
+  direction?: unknown;
+  category?: unknown;
+  pageCount?: unknown;
+  physicalPageCount?: unknown;
+  approvedBy?: unknown;
+  approvedAt?: unknown;
+  source?: { storySha256?: unknown };
+  integratedStory?: { path?: unknown; sha256?: unknown; sourceProjectionSha256?: unknown };
+  visualDirections?: {
+    version?: unknown;
+    path?: unknown;
+    sha256?: unknown;
+    receiptPath?: unknown;
+    receiptSha256?: unknown;
+  };
+  providerAccounting?: {
+    model?: unknown;
+    serviceTier?: unknown;
+    store?: unknown;
+    transportRetries?: unknown;
+    fallbackUsed?: unknown;
+  };
+  servedOnlyWhen?: unknown;
+}
+
 export interface WizardQaCandidateBuildResult {
-  candidate: WizardQaVisualContractCandidate | null;
+  candidate: WizardQaStoryboardCandidate | null;
   issues: WizardQaReadinessIssue[];
 }
 
-/**
- * Explicit, zero-cost migration boundary. Historical bytes are read-only inputs;
- * the result is a new QA-only source/companion-bound authority and can never be
- * interpreted as a Production approval.
- */
 export function buildWizardQaCandidate(args: {
   repoRoot: string;
-  historicalCandidateDir: string;
   category: MvpCategory;
   direction: StoryDirection;
 }): WizardQaCandidateBuildResult {
   const issues: WizardQaReadinessIssue[] = [];
   const companionId = MVP_STORY_MATRIX[args.category].companionId;
   const storyKey = `${companionId}_${args.direction}`;
-  const storyPath = path.join(
-    args.repoRoot,
-    'story-bank',
-    V3_APPROVED_DIR_NAME,
-    `${storyKey}.md`,
-  );
-  const sidecarPath = path.join(
-    args.repoRoot,
-    'story-bank',
-    V3_APPROVED_DIR_NAME,
-    `${storyKey}.import.json`,
-  );
+  const storyPath = path.join(args.repoRoot, 'story-bank', WIZARD_QA_STORY_DIR_NAME, `${storyKey}.md`);
+  const sidecarPath = path.join(args.repoRoot, 'story-bank', WIZARD_QA_STORY_DIR_NAME, `${storyKey}.import.json`);
   if (!fs.existsSync(storyPath)) addIssue(issues, 'story_source_missing');
   if (!fs.existsSync(sidecarPath)) addIssue(issues, 'import_sidecar_missing');
   if (issues.length > 0) return { candidate: null, issues };
@@ -327,104 +326,102 @@ export function buildWizardQaCandidate(args: {
   const rawStory = fs.readFileSync(storyPath, 'utf8');
   const story = parseStoryAuthority(rawStory);
   if (
-    story.companionId !== companionId ||
-    story.direction !== args.direction ||
+    story.companionId !== companionId || story.direction !== args.direction ||
     story.category !== args.category
-  ) {
-    addIssue(issues, 'story_frontmatter_mismatch');
-  }
+  ) addIssue(issues, 'story_frontmatter_mismatch');
   if (
     story.declaredPages !== story.pageNumbers.length ||
     story.pageNumbers.some((pageNumber, index) => pageNumber !== index + 1)
-  ) {
-    addIssue(issues, 'story_page_count_mismatch');
-  }
+  ) addIssue(issues, 'story_page_count_mismatch');
 
-  let sidecar: Record<string, unknown> = {};
+  let sidecar: QaImportSidecar = {};
+  let sidecarDigest = '';
   try {
-    sidecar = JSON.parse(fs.readFileSync(sidecarPath, 'utf8')) as Record<string, unknown>;
+    sidecar = JSON.parse(fs.readFileSync(sidecarPath, 'utf8')) as QaImportSidecar;
+    sidecarDigest = canonicalHash(sidecar);
   } catch {
     addIssue(issues, 'import_sidecar_mismatch');
   }
   if (
-    sidecar.companionId !== companionId ||
-    sidecar.direction !== args.direction ||
-    Number(sidecar.pageCount) !== story.declaredPages ||
+    sidecar.version !== IMPORT_VERSION || sidecar.status !== 'qa_ready_for_low_story_generation' ||
+    sidecar.authorityScope !== 'qa_only' || sidecar.productionEligible !== false ||
+    sidecar.storyKey !== storyKey || sidecar.companionId !== companionId ||
+    sidecar.direction !== args.direction || sidecar.category !== args.category ||
+    sidecar.pageCount !== story.declaredPages ||
+    sidecar.physicalPageCount !== story.declaredPages * 2 ||
     typeof sidecar.approvedBy !== 'string' ||
-    typeof sidecar.approvedAt !== 'string'
-  ) {
-    addIssue(issues, 'import_sidecar_mismatch');
-  }
+    typeof sidecar.approvedAt !== 'string' ||
+    sidecar.source?.storySha256 !== sidecar.integratedStory?.sourceProjectionSha256 ||
+    sidecar.integratedStory?.path !== repoRelativePath(args.repoRoot, storyPath) ||
+    typeof sidecar.integratedStory.sha256 !== 'string' ||
+    sidecar.visualDirections?.version !== STORYBOARD_RECORD_VERSION ||
+    typeof sidecar.visualDirections.path !== 'string' ||
+    typeof sidecar.visualDirections.sha256 !== 'string' ||
+    typeof sidecar.visualDirections.receiptPath !== 'string' ||
+    typeof sidecar.visualDirections.receiptSha256 !== 'string' ||
+    sidecar.providerAccounting?.model !== 'gpt-5.6-sol' ||
+    sidecar.providerAccounting.serviceTier !== 'default' ||
+    sidecar.providerAccounting.store !== false ||
+    sidecar.providerAccounting.transportRetries !== 0 ||
+    sidecar.providerAccounting.fallbackUsed !== false ||
+    sidecar.servedOnlyWhen !== 'non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true'
+  ) addIssue(issues, 'import_sidecar_mismatch');
 
-  const companionAuthority = validateCompanionAuthority({
-    repoRoot: args.repoRoot,
-    companionId,
-    issues,
-  });
-
-  const historicalPath = path.join(
-    args.historicalCandidateDir,
-    `${storyKey}.visual-contract-template.json`,
-  );
-  let historicalBytes: Buffer | null = null;
-  let template: BookVisualContractTemplate | null = null;
-  if (!fs.existsSync(historicalPath)) {
-    addIssue(issues, 'historical_candidate_missing');
-  } else {
-    try {
-      historicalBytes = fs.readFileSync(historicalPath);
-      template = completeWizardQaCoverAuthority(
-        migrateLegacyBookVisualContractTemplateV1(
-          JSON.parse(historicalBytes.toString('utf8')) as unknown,
-        ),
-      );
-      const validation = validateBookVisualContractTemplate(template);
-      if (!validation.ok) addIssue(issues, 'historical_candidate_invalid');
-    } catch {
-      addIssue(issues, 'historical_candidate_invalid');
-    }
-  }
-  if (template && template.storyKey !== storyKey) {
-    addIssue(issues, 'candidate_story_mismatch');
-  }
+  const storyBytes = fs.readFileSync(storyPath);
+  const sourceProjection = storyBytes.toString('utf8').replace(/^imageDirection:.*\r?\n/gm, '');
   if (
-    template &&
-    (template.pageContracts.length !== story.pageNumbers.length ||
-      template.pageContracts.some(
-        (page, index) => page.pageNumber !== story.pageNumbers[index],
-      ))
-  ) {
-    addIssue(issues, 'candidate_page_coverage_mismatch');
+    sha256(storyBytes) !== sidecar.integratedStory?.sha256 ||
+    sha256(sourceProjection) !== sidecar.integratedStory?.sourceProjectionSha256
+  ) addIssue(issues, 'import_sidecar_mismatch');
+
+  let directionPath = '';
+  let directionDigest = '';
+  try {
+    directionPath = path.resolve(args.repoRoot, String(sidecar.visualDirections?.path ?? ''));
+    repoRelativePath(args.repoRoot, directionPath);
+    if (!fs.existsSync(directionPath)) addIssue(issues, 'storyboard_missing');
+    else {
+      const bytes = fs.readFileSync(directionPath);
+      directionDigest = sha256(bytes);
+      if (directionDigest !== sidecar.visualDirections?.sha256) {
+        addIssue(issues, 'storyboard_digest_mismatch');
+      } else if (!storyboardIsValid(JSON.parse(bytes.toString('utf8')), storyKey, story.declaredPages)) {
+        addIssue(issues, 'storyboard_invalid');
+      }
+    }
+    const receiptPath = path.resolve(args.repoRoot, String(sidecar.visualDirections?.receiptPath ?? ''));
+    repoRelativePath(args.repoRoot, receiptPath);
+    if (
+      !fs.existsSync(receiptPath) ||
+      sha256File(receiptPath) !== sidecar.visualDirections?.receiptSha256
+    ) addIssue(issues, 'storyboard_digest_mismatch');
+  } catch {
+    addIssue(issues, 'storyboard_invalid');
   }
 
-  if (issues.length > 0 || !companionAuthority || !historicalBytes || !template) {
-    return { candidate: null, issues };
-  }
+  const companionAuthority = validateCompanionAuthority({ repoRoot: args.repoRoot, companionId, issues });
+  if (issues.length > 0 || !companionAuthority) return { candidate: null, issues };
   const source = buildStorySourceIdentity({ repoRoot: args.repoRoot, storyPath });
   const payload = {
     version: WIZARD_QA_CANDIDATE_VERSION,
     digestAlgorithm: 'canonical-json-sha256' as const,
-    state: 'ready_for_blueprint_authoring' as const,
+    state: 'qa_ready_for_low_story_generation' as const,
     productionEligible: false as const,
     category: args.category,
     direction: args.direction,
     storyKey,
     companionId,
     source,
-    importSidecarDigest: canonicalHash(sidecar),
+    importSidecarDigest: sidecarDigest,
     companionAuthority,
-    historicalInput: {
-      fileName: path.basename(historicalPath),
-      rawSha256: sha256(historicalBytes),
-      schemaVersion: 'vc-schema/v1' as const,
+    visualDirections: {
+      version: STORYBOARD_RECORD_VERSION,
+      path: repoRelativePath(args.repoRoot, directionPath),
+      digest: directionDigest,
+      pageCount: story.declaredPages,
     },
-    templateDigest: canonicalHash(template),
-    template,
   };
-  return {
-    candidate: { ...payload, digest: canonicalHash(payload) },
-    issues: [],
-  };
+  return { candidate: { ...payload, digest: canonicalHash(payload) }, issues: [] };
 }
 
 function writeCanonicalFile(filePath: string, value: unknown): void {
@@ -434,33 +431,23 @@ function writeCanonicalFile(filePath: string, value: unknown): void {
 
 export function materializeWizardQaCatalog(args: {
   repoRoot: string;
-  historicalCandidateDir: string;
   outputRoot?: string;
 }): WizardQaRenderCatalog {
-  const outputRoot = path.resolve(
-    args.repoRoot,
-    args.outputRoot ?? WIZARD_QA_AUTHORITY_ROOT,
-  );
+  const outputRoot = path.resolve(args.repoRoot, args.outputRoot ?? WIZARD_QA_AUTHORITY_ROOT);
   const records: WizardQaCatalogRecord[] = [];
   const failures: Array<{ storyKey: string; issues: WizardQaReadinessIssue[] }> = [];
+  const candidateRoot = path.join(outputRoot, 'storyboard-candidates');
+  fs.rmSync(path.join(outputRoot, 'visual-contract-candidates'), { recursive: true, force: true });
+  fs.rmSync(candidateRoot, { recursive: true, force: true });
   for (const category of allMvpCategories()) {
     for (const direction of DIRECTIONS) {
-      const result = buildWizardQaCandidate({
-        repoRoot: args.repoRoot,
-        historicalCandidateDir: args.historicalCandidateDir,
-        category,
-        direction,
-      });
+      const result = buildWizardQaCandidate({ repoRoot: args.repoRoot, category, direction });
       const storyKey = `${MVP_STORY_MATRIX[category].companionId}_${direction}`;
       if (!result.candidate) {
         failures.push({ storyKey, issues: result.issues });
         continue;
       }
-      const candidatePath = path.join(
-        outputRoot,
-        'visual-contract-candidates',
-        `${storyKey}.json`,
-      );
+      const candidatePath = path.join(candidateRoot, `${storyKey}.json`);
       writeCanonicalFile(candidatePath, result.candidate);
       records.push({
         category,
@@ -469,12 +456,14 @@ export function materializeWizardQaCatalog(args: {
         companionId: result.candidate.companionId,
         storySourcePath: result.candidate.source.path,
         storySourceDigest: result.candidate.source.digest,
+        visualDirectionDigest: result.candidate.visualDirections.digest,
         companionManifestDigest: result.candidate.companionAuthority.manifestDigest,
         candidatePath: repoRelativePath(args.repoRoot, candidatePath),
         candidateDigest: result.candidate.digest,
-        state: 'ready_for_blueprint_authoring',
+        state: 'qa_ready_for_low_story_generation',
         storyReady: true,
         qaAuthoringReady: true,
+        qaLowStoryGenerationReady: true,
         productionRenderQualified: false,
       });
     }
@@ -489,36 +478,31 @@ export function materializeWizardQaCatalog(args: {
     companionCount: 6 as const,
     records,
   };
-  const catalog: WizardQaRenderCatalog = {
-    ...payload,
-    digest: canonicalHash(payload),
-  };
+  const catalog: WizardQaRenderCatalog = { ...payload, digest: canonicalHash(payload) };
   writeCanonicalFile(path.join(outputRoot, 'catalog.json'), catalog);
   return catalog;
 }
 
-function candidateIsValid(args: {
-  repoRoot: string;
-  record: WizardQaCatalogRecord;
-}): boolean {
+function candidateIsValid(args: { repoRoot: string; record: WizardQaCatalogRecord }): boolean {
   try {
     const candidatePath = path.resolve(args.repoRoot, args.record.candidatePath);
     repoRelativePath(args.repoRoot, candidatePath);
-    const candidate = JSON.parse(
-      fs.readFileSync(candidatePath, 'utf8'),
-    ) as WizardQaVisualContractCandidate;
-    return (
-      candidate.version === WIZARD_QA_CANDIDATE_VERSION &&
-      candidate.productionEligible === false &&
-      candidate.storyKey === args.record.storyKey &&
-      candidate.companionId === args.record.companionId &&
+    const candidate = JSON.parse(fs.readFileSync(candidatePath, 'utf8')) as WizardQaStoryboardCandidate;
+    const rebuilt = buildWizardQaCandidate({
+      repoRoot: args.repoRoot,
+      category: args.record.category,
+      direction: args.record.direction,
+    }).candidate;
+    return Boolean(
+      rebuilt && candidate.version === WIZARD_QA_CANDIDATE_VERSION &&
+      candidate.productionEligible === false && candidate.state === 'qa_ready_for_low_story_generation' &&
+      candidate.storyKey === args.record.storyKey && candidate.companionId === args.record.companionId &&
       candidate.source.path === args.record.storySourcePath &&
       candidate.source.digest === args.record.storySourceDigest &&
-      candidate.companionAuthority.manifestDigest ===
-        args.record.companionManifestDigest &&
-      candidate.digest === args.record.candidateDigest &&
-      payloadDigest(candidate) === candidate.digest &&
-      validateBookVisualContractTemplate(candidate.template).ok
+      candidate.visualDirections.digest === args.record.visualDirectionDigest &&
+      candidate.companionAuthority.manifestDigest === args.record.companionManifestDigest &&
+      candidate.digest === args.record.candidateDigest && payloadDigest(candidate) === candidate.digest &&
+      canonicalHash(candidate) === canonicalHash(rebuilt)
     );
   } catch {
     return false;
@@ -536,20 +520,17 @@ export function loadWizardQaCatalog(args: {
   try {
     repoRelativePath(args.repoRoot, catalogPath);
     const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8')) as WizardQaRenderCatalog;
-    const identities = new Set(
-      catalog.records.map((record) => `${record.category}:${record.direction}`),
-    );
+    const identities = new Set(catalog.records.map((record) => `${record.category}:${record.direction}`));
     if (
-      catalog.version !== WIZARD_QA_CATALOG_VERSION ||
-      catalog.slotCount !== 18 ||
-      catalog.companionCount !== 6 ||
-      catalog.records.length !== 18 ||
-      identities.size !== 18 ||
+      catalog.version !== WIZARD_QA_CATALOG_VERSION || catalog.slotCount !== 18 ||
+      catalog.companionCount !== 6 || catalog.records.length !== 18 || identities.size !== 18 ||
       payloadDigest(catalog) !== catalog.digest ||
-      !catalog.records.every((record) => candidateIsValid({ repoRoot: args.repoRoot, record }))
-    ) {
-      return null;
-    }
+      !catalog.records.every((record) =>
+        record.state === 'qa_ready_for_low_story_generation' &&
+        record.qaLowStoryGenerationReady === true && record.productionRenderQualified === false &&
+        candidateIsValid({ repoRoot: args.repoRoot, record }),
+      )
+    ) return null;
     return catalog;
   } catch {
     return null;
@@ -567,10 +548,7 @@ export function wizardQaSlotReadiness(args: {
 }): WizardQaCatalogRecord | null {
   if (!isWizardQaCatalogEnabled()) return null;
   const catalog = loadWizardQaCatalog({ repoRoot: args.repoRoot });
-  return (
-    catalog?.records.find(
-      (record) =>
-        record.category === args.category && record.direction === args.direction,
-    ) ?? null
-  );
+  return catalog?.records.find(
+    (record) => record.category === args.category && record.direction === args.direction,
+  ) ?? null;
 }

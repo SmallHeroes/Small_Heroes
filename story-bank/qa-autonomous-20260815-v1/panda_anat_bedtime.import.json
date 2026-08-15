@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "SOCIAL",
+  "companionId": "panda_anat",
+  "direction": "bedtime",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/panda_anat_bedtime.md",
+    "sha256": "ac517575f651ea249c9ae23824daebb329492400a5c37f7b381eaa845114d6e5",
+    "sourceProjectionSha256": "ca9a162a43ecf0d6b111de4a4e29940205b2f91b0d61d0eba0f219c2f22ff91c"
+  },
+  "pageCount": 8,
+  "physicalPageCount": 16,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_bedtime/manifest.json",
+    "storySha256": "ca9a162a43ecf0d6b111de4a4e29940205b2f91b0d61d0eba0f219c2f22ff91c"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "panda_anat_bedtime",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/panda_anat_bedtime.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/panda_anat_bedtime.receipt.json",
+    "receiptSha256": "99b75e2a0108bcbcd7c6f8d7343ad9333237802848155590b2b891c8564fab6f",
+    "sha256": "e77d897a7386817463695bd98a2cf1dd5cdd6e80a031003d48b22368b45234a7",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

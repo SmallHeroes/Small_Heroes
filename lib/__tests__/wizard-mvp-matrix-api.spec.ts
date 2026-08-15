@@ -6,6 +6,7 @@ import { GET } from '../../app/api/wizard/mvp-matrix/route';
 const require = createRequire(import.meta.url);
 const nextConfig = require('../../next.config.js') as {
   outputFileTracingIncludes?: Record<string, string[]>;
+  outputFileTracingExcludes?: Record<string, string[]>;
 };
 
 describe('GET /api/wizard/mvp-matrix', () => {
@@ -28,7 +29,15 @@ describe('GET /api/wizard/mvp-matrix', () => {
   it('bundles the committed QA catalog into the Vercel matrix function', () => {
     expect(nextConfig.outputFileTracingIncludes?.['/api/wizard/mvp-matrix']).toEqual([
       './qa-authorities/wizard/**/*',
+      './story-bank/qa-autonomous-20260815-v1/**/*',
+      './story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/**/*',
+      './public/companions/*/style01-sheets/**/*',
     ]);
+    expect(nextConfig.outputFileTracingIncludes?.['/api/orders']).toEqual([
+      './story-bank/qa-autonomous-20260815-v1/**/*',
+      './story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/**/*',
+    ]);
+    expect(nextConfig.outputFileTracingExcludes?.['/api/orders']).not.toContain('story-bank/**');
   });
 
   it('returns exactly 6 public MVP categories with companions', async () => {
@@ -48,7 +57,7 @@ describe('GET /api/wizard/mvp-matrix', () => {
     expect(night?.directions?.fantasy?.productionRenderQualified).toBe(false);
     expect(night?.directions?.fantasy?.selectable).toBe(true);
     expect(night?.directions?.fantasy?.availabilityStage).toBe(
-      'qa_ready_for_blueprint_authoring',
+      'qa_ready_for_low_story_generation',
     );
   });
 

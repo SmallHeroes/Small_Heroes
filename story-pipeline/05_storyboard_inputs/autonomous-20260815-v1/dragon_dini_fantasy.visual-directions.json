@@ -1,0 +1,281 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "dragon_dini_fantasy",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "home_window",
+      "setting": "A home window opening toward the roof",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The blue star-speckled seed springs from the child's open palm to the windowsill and toward the roof as Dini watches.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "medium",
+      "cameraAngle": "three_quarter",
+      "lighting": "Clear morning light through the window",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "home_rooftops",
+      "setting": "Connected rooftops with chimneys",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "rooftop cat",
+        "pigeon"
+      ],
+      "mainAction": "Dini races after the seed on a chimney while detached shadows scatter across the roofs and the child's shadow waits behind.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Bright morning sun casting crisp shadows",
+      "continuityAnchors": [
+        "same blue star-speckled seed"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "home_rooftops",
+      "setting": "Red-tiled rooftops with a gutter and laundry line",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Beside the seed on a red tile, the child pulls Dini free from a straw hat that has dropped over her.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Bright rooftop daylight",
+      "continuityAnchors": [
+        "same blue star-speckled seed"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "cloud_sea",
+      "setting": "A white cloud sea surrounding rooftop islands",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "wind-fish"
+      ],
+      "mainAction": "The child and Dini sail a cloud boat with a sheet sail while the seed bounces over misty waves and a surprised wind-fish.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Soft luminous daylight across white mist",
+      "continuityAnchors": [
+        "same blue star-speckled seed"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "cloud_sea",
+      "setting": "Open cloud sea beyond the rooftop islands",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The seed rebounds from Dini's smoke net as the child untangles the net wrapped around Dini's snout.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "medium_close",
+      "cameraAngle": "eye_level",
+      "lighting": "Diffuse light through drifting mist",
+      "continuityAnchors": [
+        "same blue star-speckled seed",
+        "same cloud boat with sheet sail"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "bell_forest_island",
+      "setting": "A cloud island covered in bell-shaped trees",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The seed rests on a ringing silver bell while the child pauses to listen among layers of trembling bells and Dini calls ahead.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Silvery daylight glinting from the bells",
+      "continuityAnchors": [
+        "same blue star-speckled seed"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "bell_forest_island",
+      "setting": "The tallest bells on the cloud island",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "From the tallest bell, the child tracks the seed's repeating bounce as it briefly wobbles in place before a giant wind lifts it skyward.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "medium_wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Bright island light with wind-tossed clouds overhead",
+      "continuityAnchors": [
+        "same blue star-speckled seed"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "sleepy_storm",
+      "setting": "Inside a drowsy gray thunderstorm",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "After the seed lands on a gray cloud, Dini flies downward into the upper sky, the child turns left and appears behind, and a raindrop falls sideways back into the cloud.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Dim storm light with faint sleepy lightning",
+      "continuityAnchors": [
+        "same blue star-speckled seed"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "sleepy_storm",
+      "setting": "Swirling clouds within the drowsy storm",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The seed rebounds from Dini's nose, transferring the storm's purple, orange, and green colors onto her as she and the child laugh.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "medium_close",
+      "cameraAngle": "eye_level",
+      "lighting": "Muted gray storm light with vivid colored glow on Dini",
+      "continuityAnchors": [
+        "same blue star-speckled seed"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "sleepy_storm",
+      "setting": "A quiet cloud ledge at the storm's edge",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Seated together without chasing, the child and striped Dini watch the seed reveal a route of silver bell-sound, crossed moonbeam, and sliding raindrop.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "medium_wide",
+      "cameraAngle": "overhead",
+      "lighting": "Moonlight crossing dim storm clouds",
+      "continuityAnchors": [
+        "same blue star-speckled seed",
+        "Dini striped purple, orange, and green",
+        "smoke net folded away"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "dew_basin",
+      "setting": "A deep stone basin on a narrow mountain summit",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child and Dini arrive as the guided raindrop touches the basin rim and the seed circles above a bowl packed with flowers, feathers, and star stones.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "extreme_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Silver moonlight filling the stone basin",
+      "continuityAnchors": [
+        "same blue star-speckled seed",
+        "Dini striped purple, orange, and green"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "dew_basin",
+      "setting": "Inside the flower-filled stone basin",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child carefully moves a star stone, nests the feathers, and clears a round patch of dew while Dini gently blows aside the cloud blocking the moon.",
+      "heroObject": "cleared dew circle",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "A newly uncovered silver moonbeam illuminates the dew",
+      "continuityAnchors": [
+        "Dini striped purple, orange, and green",
+        "basin filled with flowers, feathers, and star stones"
+      ]
+    },
+    {
+      "pageNumber": 13,
+      "settingKey": "dew_basin",
+      "setting": "The cleared center of the stone basin",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child stamps and jumps in the seed's one-two-one rhythm while Dini waits and the fast-circling seed begins to slow.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Focused moonlight on the cleared dew circle",
+      "continuityAnchors": [
+        "cleared dew circle",
+        "star stone moved into sunlight",
+        "feathers arranged as a nest",
+        "Dini striped purple, orange, and green"
+      ]
+    },
+    {
+      "pageNumber": 14,
+      "settingKey": "dew_basin",
+      "setting": "The moonlit dew circle in the stone basin",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "After matching the child's jump pattern, the seed descends as the child steps aside and leaves the illuminated dew circle open for its landing.",
+      "heroObject": "blue star-speckled sky seed",
+      "shotType": "medium_close",
+      "cameraAngle": "ground_level",
+      "lighting": "Soft silver moonlight concentrated on the dew circle",
+      "continuityAnchors": [
+        "cleared dew circle",
+        "Dini striped purple, orange, and green"
+      ]
+    },
+    {
+      "pageNumber": 15,
+      "settingKey": "dew_basin",
+      "setting": "The moonlit center of the stone basin",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "newly hatched sky creature"
+      ],
+      "mainAction": "The opened seed reveals a tiny sky creature that copies the child's jump rhythm, then adds three jumps, a spin, and a sparkling sneeze while Dini applauds.",
+      "heroObject": "opened sky seed",
+      "shotType": "medium_close",
+      "cameraAngle": "eye_level",
+      "lighting": "Gentle moonlight with a small sparkling glow",
+      "continuityAnchors": [
+        "seed landed in the cleared dew circle",
+        "Dini striped purple, orange, and green"
+      ]
+    },
+    {
+      "pageNumber": 16,
+      "settingKey": "home_rooftops",
+      "setting": "The familiar rooftops beside a shallow puddle",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "sky creature"
+      ],
+      "mainAction": "The child taps beside the rooftop puddle, and the sky creature answers with a distant jump before returning to land close by as striped Dini follows.",
+      "heroObject": "sky creature",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Soft returning daylight reflected in the puddle",
+      "continuityAnchors": [
+        "same home rooftops",
+        "Dini striped purple, orange, and green",
+        "same sky creature with its own jump pattern"
+      ]
+    }
+  ]
+}

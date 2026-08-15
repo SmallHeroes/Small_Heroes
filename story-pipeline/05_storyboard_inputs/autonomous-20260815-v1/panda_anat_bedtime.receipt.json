@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "panda_anat_bedtime",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 3800,
+  "promptSha256": "f883770fb1bfc3f684ae3fabcdf346d2a5aa73bd64399a369617cd80ae0f6e43",
+  "sourceStorySha256": "ca9a162a43ecf0d6b111de4a4e29940205b2f91b0d61d0eba0f219c2f22ff91c",
+  "output": {
+    "filename": "visual-directions.e77d897a7386817463695bd98a2cf1dd5cdd6e80a031003d48b22368b45234a7.json",
+    "bytes": 6502,
+    "sha256": "e77d897a7386817463695bd98a2cf1dd5cdd6e80a031003d48b22368b45234a7"
+  },
+  "usage": {
+    "inputTokens": 2437,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 2434,
+    "outputTokens": 1703,
+    "reasoningTokens": 590,
+    "totalTokens": 4140
+  },
+  "costUsd": 0.0663175,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

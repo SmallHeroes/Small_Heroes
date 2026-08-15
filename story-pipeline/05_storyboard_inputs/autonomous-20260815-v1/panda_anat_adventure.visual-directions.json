@@ -1,0 +1,252 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "panda_anat_adventure",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "meadow_road",
+      "setting": "Winding country road beside a meadow",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "orchestra musicians",
+        "tuba player"
+      ],
+      "mainAction": "A noodle-like bend splits the procession, sending the drum cart right, the musicians left, and the tuba player into a bush.",
+      "heroObject": "responsive path",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "soft morning daylight",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "meadow_road",
+      "setting": "Meadow road beyond a low fence",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "conductor",
+        "orchestra musicians"
+      ],
+      "mainAction": "Beyond the fence, the folded path rests under the cart while the child and panda crouch to examine it and grass brushes the child's nose.",
+      "heroObject": "folded path",
+      "shotType": "medium",
+      "cameraAngle": "ground_level",
+      "lighting": "soft morning daylight",
+      "continuityAnchors": [
+        "same drum cart",
+        "same instrument basket",
+        "same umbrella-topped tuba"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "echo_cave",
+      "setting": "Echo cave reached by the straightened path",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "conductor",
+        "orchestra musicians"
+      ],
+      "mainAction": "The startled path coils inside the cave, sliding the musicians in a circle past their own cart.",
+      "heroObject": "coiling path",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "dim cave light from the entrance",
+      "continuityAnchors": [
+        "same drum cart",
+        "same instrument basket",
+        "same umbrella-topped tuba"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "echo_cave",
+      "setting": "Deep inside the echo cave",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "conductor",
+        "orchestra musicians",
+        "cymbal player"
+      ],
+      "mainAction": "The path knots into a huge soft loop, bringing opposite sections of the procession together as the child and panda study its trembling edges.",
+      "heroObject": "giant path knot",
+      "shotType": "wide",
+      "cameraAngle": "overhead",
+      "lighting": "muted cave light",
+      "continuityAnchors": [
+        "same circular procession",
+        "same drum cart caught in the loop"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "inverted_garden",
+      "setting": "Garden with skyward roots, hanging flowers, and overhead pumpkins",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "orchestra musicians"
+      ],
+      "mainAction": "With the instruments set aside, the child and panda free a branch from the path's fold as the loosened knot opens into the strange garden.",
+      "heroObject": "branch caught in the path",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "filtered late-morning daylight",
+      "continuityAnchors": [
+        "same knotted path",
+        "same orchestra equipment"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "inverted_garden",
+      "setting": "Earthen path among the inverted garden plants",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "orchestra musicians"
+      ],
+      "mainAction": "The panda examines a fine track while the child faces a raised mound, where a blue flower sprouts after the invitation.",
+      "heroObject": "blue-flowered mound",
+      "shotType": "medium_close",
+      "cameraAngle": "ground_level",
+      "lighting": "gentle late-morning daylight",
+      "continuityAnchors": [
+        "instruments resting behind the group",
+        "path loosened from its knot"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "inverted_garden",
+      "setting": "Outer edge of the inverted garden",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "conductor",
+        "orchestra musicians",
+        "tuba player"
+      ],
+      "mainAction": "The cart rolls on grass beside the path and a butterfly lands on the softly played tuba, but the path begins twisting when a musician points it straight.",
+      "heroObject": "twisting path",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "late-morning daylight",
+      "continuityAnchors": [
+        "same drum cart",
+        "same orchestra instruments"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "old_parade_field",
+      "setting": "Old parade field overlooking the crowded square",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "conductor",
+        "orchestra musicians",
+        "messenger",
+        "distant crowd"
+      ],
+      "mainAction": "At the field's edge, the path lies flat and motionless while everyone waits and the panda folds the map.",
+      "heroObject": "motionless path",
+      "shotType": "extreme_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "approaching-noon daylight",
+      "continuityAnchors": [
+        "drum wrapped in the same scarf",
+        "cart kept on the grass"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "old_parade_field",
+      "setting": "Edge of the old parade field",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "conductor",
+        "orchestra musicians"
+      ],
+      "mainAction": "The orchestra forms a semicircle facing the path as its lifted tip arches through the air and lands gently among them.",
+      "heroObject": "arching path tip",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "approaching-noon daylight",
+      "continuityAnchors": [
+        "same scarf-wrapped drum",
+        "same folded map"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "parade_approach",
+      "setting": "Parade approach beside a deep puddle",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "conductor",
+        "orchestra musicians",
+        "cymbal player"
+      ],
+      "mainAction": "As the child signals the conductor to wait, a sudden fold in the path rises into a high bridge over the puddle.",
+      "heroObject": "path bridge",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "bright midday daylight",
+      "continuityAnchors": [
+        "same scarf-wrapped drum",
+        "same tuba cart",
+        "same folded map"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "square_gateway",
+      "setting": "Narrow gateway into the square",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "conductor",
+        "orchestra musicians"
+      ],
+      "mainAction": "With gaps opened between the musicians, the panda steps into the largest space as the path threads between drum and flute and unfurls overhead.",
+      "heroObject": "ribbon-like path",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "bright midday daylight",
+      "continuityAnchors": [
+        "same spaced orchestra formation",
+        "same scarf-wrapped drum",
+        "same tuba cart"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "town_square",
+      "setting": "Flag-filled town square around a fountain",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "conductor",
+        "orchestra musicians",
+        "crowd"
+      ],
+      "mainAction": "The festive path spirals around the fountain, then bows broadly as the orchestra and laughing crowd bow with it.",
+      "heroObject": "festive airborne path",
+      "shotType": "extreme_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "bright midday daylight",
+      "continuityAnchors": [
+        "same ribbon-like path",
+        "same scarf-wrapped drum",
+        "same orchestra and cart"
+      ]
+    }
+  ]
+}

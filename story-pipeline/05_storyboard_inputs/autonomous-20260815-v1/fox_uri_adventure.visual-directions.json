@@ -1,0 +1,234 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "fox_uri_adventure",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "parade_square",
+      "setting": "parade square beside the first float at night",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child and Uri inspect the empty round opening in the first float as giant glowing footprints appear on the road, float side, and ceiling in conflicting directions.",
+      "heroObject": "missing moon mirror opening",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Night parade lights with sudden luminous footprints.",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "lantern_boat",
+      "setting": "lantern boat leaving the parade dock",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child steadies the boat beside its large lantern while a glowing footprint slides opposite each turn and a silver ribbon flutters from the dock railing.",
+      "heroObject": "silver ribbon",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Warm boat lantern surrounded by deep dark water.",
+      "continuityAnchors": [
+        "same glowing footprint pattern from the parade square"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "low_bridge_waterway",
+      "setting": "waterway beneath a low tram bridge",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "A night tram passes overhead with something glittering near its rear wheel as the child blocks half the sail footprint with a hand beside the turning bow lantern.",
+      "heroObject": "bow lantern",
+      "shotType": "medium",
+      "cameraAngle": "low_angle",
+      "lighting": "Boat lantern below with warm tram light crossing overhead.",
+      "continuityAnchors": [
+        "same lantern boat",
+        "same silver ribbon leading from the dock",
+        "same footprint on the sail"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "night_tram",
+      "setting": "night tram inside the mirror tunnel",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "tram driver"
+      ],
+      "mainAction": "Glowing footprints scatter across windows, floor, ceiling, Uri's nose, and the driver's hat while the child watches the silver ribbon trail through an open roof window.",
+      "heroObject": "silver ribbon",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Warm tram lamps multiplied by mirror reflections.",
+      "continuityAnchors": [
+        "same silver ribbon from the dock and bridge"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "night_tram",
+      "setting": "night tram nearing the end of the mirror tunnel",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "tram driver"
+      ],
+      "mainAction": "The slowed tram approaches another lamp as the child studies a shiny parade-emblem bolt caught on the roof and a balloon rope swaying beyond the tunnel.",
+      "heroObject": "engraved bolt",
+      "shotType": "medium_close",
+      "cameraAngle": "low_angle",
+      "lighting": "Alternating tunnel lamps create forward-cast footprint flashes.",
+      "continuityAnchors": [
+        "same tram",
+        "same silver ribbon trailing backward",
+        "same open roof window"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "balloon_rooftop",
+      "setting": "high rooftop balloon station",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "balloon operator",
+        "roof guard"
+      ],
+      "mainAction": "The child holds the lit railing as Uri, the balloon operator, and the roof guard aim multiple lights toward a rising moon balloon whose rope is wrapped in the silver ribbon.",
+      "heroObject": "moon balloon rope",
+      "shotType": "extreme_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Lanterns and a powerful searchlight cut across a dark windy rooftop.",
+      "continuityAnchors": [
+        "same silver ribbon wrapped around the balloon rope",
+        "same balloon rope seen beyond the tunnel"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "balloon_rooftop",
+      "setting": "high rooftop balloon station overlooking the parade square",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "balloon operator",
+        "roof guard"
+      ],
+      "mainAction": "Uri slides into the kettle balloon while stronger searchlight beams multiply crossing footprints over balloons, chimneys, clouds, and the parade floats below; the child observes from the railing.",
+      "heroObject": "searchlight",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Intensified crossing beams fill the rooftop and square with confusing luminous footprints.",
+      "continuityAnchors": [
+        "same moon balloon aloft",
+        "same silver ribbon around its rope",
+        "same lit rooftop railing",
+        "same kettle balloon"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "balloon_rooftop",
+      "setting": "high rooftop balloon station",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "balloon operator",
+        "roof guard"
+      ],
+      "mainAction": "With Uri close beside her and everyone standing still, the child switches off the searchlight, lanterns, and string lights until every glowing footprint disappears.",
+      "heroObject": "searchlight control",
+      "shotType": "medium_close",
+      "cameraAngle": "eye_level",
+      "lighting": "Lights extinguish in sequence, leaving only soft moonlight.",
+      "continuityAnchors": [
+        "same searchlight",
+        "same rooftop balloons",
+        "same kettle balloon nearby"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "balloon_rooftop",
+      "setting": "dim high rooftop balloon station",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "In soft moonlight, the child kneels beside a real floor scratch and silver dust while the winch lowers the moon balloon, revealing the moon mirror hanging beneath its basket by the torn ribbon.",
+      "heroObject": "moon mirror",
+      "shotType": "medium",
+      "cameraAngle": "ground_level",
+      "lighting": "Soft natural moonlight reveals subtle scratches, dust, and a faint metallic glint.",
+      "continuityAnchors": [
+        "same moon balloon",
+        "same silver ribbon now torn",
+        "rooftop lights remain off"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "balloon_rooftop",
+      "setting": "high rooftop balloon station beside the lowered moon balloon",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child frees the tangled silver ribbon, threads it through the pulley, and guides Uri as he pulls the heavy moon mirror onto the roof, exposing its giant foot-shaped perforated frame.",
+      "heroObject": "moon mirror",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Gentle moonlight with faint ambient city glow.",
+      "continuityAnchors": [
+        "same mirror hanging beneath the moon balloon",
+        "same torn silver ribbon",
+        "same balloon winch",
+        "rooftop lights remain off"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "parade_square",
+      "setting": "parade square beside the first float",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "balloon operator"
+      ],
+      "mainAction": "The child tightens the recovered screws on the restored moon mirror while the balloon operator double-knots its silver ribbon; relit lamps scatter small star footprints across Uri, a fish balloon, and the road.",
+      "heroObject": "restored moon mirror",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Bright parade lamps create playful star-shaped reflections.",
+      "continuityAnchors": [
+        "same first float",
+        "same recovered moon mirror",
+        "same silver ribbon",
+        "same recovered screws"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "parade_street",
+      "setting": "night parade route",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "parade drummers"
+      ],
+      "mainAction": "The child walks hand in hand with Uri beside the moving first float as he steps after bouncing star footprints through alternating pools of lantern light and soft darkness.",
+      "heroObject": "restored moon mirror",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Glittering parade lanterns alternate with calm, softly moonlit darkness.",
+      "continuityAnchors": [
+        "same restored moon mirror on the first float",
+        "same secured silver ribbon",
+        "same star footprints",
+        "same parade balloons"
+      ]
+    }
+  ]
+}

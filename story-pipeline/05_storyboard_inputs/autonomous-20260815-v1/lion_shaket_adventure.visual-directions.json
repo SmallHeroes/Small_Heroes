@@ -1,0 +1,248 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "lion_shaket_adventure",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "river_square",
+      "setting": "festival square beside the river and vine bridge",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "blue-hatted procession musicians",
+        "yellow-hatted procession musicians"
+      ],
+      "mainAction": "The child and companion watch colored sound ribbons collide above the vine bridge as it folds shut between the banks.",
+      "heroObject": "folding vine bridge",
+      "shotType": "extreme_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "bright festive morning light",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "river_square",
+      "setting": "festival square beside the folded vine bridge",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "blue conductor",
+        "yellow musician",
+        "blue-hatted procession musicians",
+        "yellow-hatted procession musicians"
+      ],
+      "mainAction": "The companion waves both paws between the jostling processions while a wind-organ pipe blasts into a musician's hat and the child watches the mounting disorder.",
+      "heroObject": "divided wind organ",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "clear morning light",
+      "continuityAnchors": [
+        "vine bridge folded shut",
+        "wind organ divided between the processions"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "river_square",
+      "setting": "riverbank edge of the festival square",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "blue-hatted procession musicians",
+        "yellow-hatted procession musicians"
+      ],
+      "mainAction": "The child kneels beside the tightened bridge vines to listen while the startled companion jumps back from their deep vibration.",
+      "heroObject": "vibrating bridge vines",
+      "shotType": "medium_close",
+      "cameraAngle": "ground_level",
+      "lighting": "soft morning light reflected from the river",
+      "continuityAnchors": [
+        "vine bridge folded shut",
+        "wind organ divided between the processions"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "echo_orchard",
+      "setting": "echo-flower orchard upstream beside the river",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "river birds",
+        "fish"
+      ],
+      "mainAction": "Colored sound wisps ricochet through giant echo flowers and seedpods as the companion covers three blooms and river birds snatch the escaping beats.",
+      "heroObject": "giant echo flowers",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "sunlit orchard light",
+      "continuityAnchors": [
+        "blue and gold sound wisps escaped upstream"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "shallow_rootbank",
+      "setting": "shallow river edge beneath the echo orchard",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child steps toward humming hollow roots under the shallows while the companion follows cautiously on tiptoe.",
+      "heroObject": "humming hollow roots",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "dappled daylight over shallow green water",
+      "continuityAnchors": [
+        "blue and gold sound wisps among the orchard",
+        "companion's paws removed from the flowers"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "root_hollow",
+      "setting": "cool hollow beneath the river roots",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child presses a palm to a thick vibrating root while bubbles rise around the listening companion.",
+      "heroObject": "thick vibrating root",
+      "shotType": "close",
+      "cameraAngle": "three_quarter",
+      "lighting": "cool green river light rippling overhead",
+      "continuityAnchors": [
+        "hollow roots humming beneath the shallows"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "river_square",
+      "setting": "crowded festival square beside the folded bridge",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "blue conductor",
+        "yellow conductor",
+        "blue-hatted procession musicians",
+        "yellow-hatted procession musicians"
+      ],
+      "mainAction": "Amid musicians arguing from crates and statues, the companion raises one paw in a clear conducting signal as the child stands ready to listen.",
+      "heroObject": "raised conducting paw",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "bright late-morning light",
+      "continuityAnchors": [
+        "vine bridge folded shut",
+        "wind organ divided between the processions"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "vine_bridge",
+      "setting": "narrow path atop the folded vine bridge",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "blue-hatted procession musicians",
+        "yellow-hatted procession musicians"
+      ],
+      "mainAction": "The child listens against a vine above the two processions while another vine loops around the companion's ankle and suspends the companion upside down.",
+      "heroObject": "curling bridge vine",
+      "shotType": "medium_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "sparkling daylight on river droplets",
+      "continuityAnchors": [
+        "vine bridge folded shut",
+        "processions positioned opposite each other",
+        "companion directing with raised paws"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "vine_bridge",
+      "setting": "top of the folded vine bridge above the processions",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "blue conductor",
+        "yellow conductor",
+        "young musician",
+        "blue-hatted procession musicians",
+        "yellow-hatted procession musicians"
+      ],
+      "mainAction": "The child claps and stamps a clear beat as blue, gold, and green sound ribbons begin braiding together, then recoil when a young musician plays early.",
+      "heroObject": "braided sound ribbons",
+      "shotType": "medium",
+      "cameraAngle": "low_angle",
+      "lighting": "bright daylight with luminous colored sounds",
+      "continuityAnchors": [
+        "vine bridge still folded",
+        "companion released from the vine",
+        "processions positioned opposite each other"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "vine_bridge",
+      "setting": "center of the contracted vine bridge above the river",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "young musician",
+        "blue-hatted procession musicians",
+        "yellow-hatted procession musicians"
+      ],
+      "mainAction": "The child leads the rhythm by stamping at the bridge center while the companion guides mistimed musicians back into the shared beat with a broad circular paw signal.",
+      "heroObject": "contracted vine bridge",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "strong daylight over rushing water",
+      "continuityAnchors": [
+        "bridge contracted after the early note",
+        "wind organ still divided",
+        "processions playing from opposite sides"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "vine_bridge",
+      "setting": "vine bridge opening across the river",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "blue-hatted procession musicians",
+        "yellow-hatted procession musicians",
+        "river birds"
+      ],
+      "mainAction": "The bridge unfurls into a flowering span as the processions meet at its center and join the final pipe to the wind organ.",
+      "heroObject": "completed wind organ",
+      "shotType": "extreme_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "radiant afternoon light",
+      "continuityAnchors": [
+        "shared rhythm restored",
+        "bridge vines beginning to respond"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "vine_bridge",
+      "setting": "flowering vine bridge during the evening festival",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "blue-hatted procession musicians",
+        "yellow-hatted procession musicians"
+      ],
+      "mainAction": "The two processions dance around the complete wind organ while the child stamps a measured beat and the companion gently blows fallen petals from its nose in rhythm.",
+      "heroObject": "complete wind organ",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "warm evening glow over the open bridge",
+      "continuityAnchors": [
+        "vine bridge fully open and flowering",
+        "wind organ fully assembled",
+        "blue and yellow processions united"
+      ]
+    }
+  ]
+}

@@ -3,11 +3,14 @@
  * Wizard UI + order API + dev admin MUST use these helpers — no parallel hardcoding.
  */
 import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { createHash } from 'crypto';
+import { join, resolve, sep } from 'path';
 import {
   isV3ApprovedBankEnabled,
+  isWizardQaStoryBankEnabled,
   STORY_BANK_V3_DIR_NAME,
   V3_APPROVED_DIR_NAME,
+  WIZARD_QA_STORY_DIR_NAME,
 } from '../providers/story-bank-index';
 
 export type SlotStatus = 'approved' | 'approved_v3' | 'in_gate' | 'missing';
@@ -154,8 +157,77 @@ function v3ImportSidecarValid(
   }
 }
 
+function wizardQaImportSidecarValid(
+  companionId: string,
+  direction: StoryDirection,
+): boolean {
+  const storyKey = `${companionId}_${direction}`;
+  const bankRoot = join(process.cwd(), 'story-bank', WIZARD_QA_STORY_DIR_NAME);
+  const sidecarPath = join(bankRoot, `${storyKey}.import.json`);
+  if (!existsSync(sidecarPath)) return false;
+  try {
+    const meta = JSON.parse(readFileSync(sidecarPath, 'utf8')) as {
+      version?: string;
+      status?: string;
+      authorityScope?: string;
+      productionEligible?: boolean;
+      storyKey?: string;
+      approvedBy?: string;
+      approvedAt?: string;
+      companionId?: string;
+      direction?: string;
+      pageCount?: number;
+      source?: { storySha256?: string };
+      visualDirections?: { path?: string; sha256?: string };
+      integratedStory?: { path?: string; sha256?: string; sourceProjectionSha256?: string };
+    };
+    const expectedPageCount: Record<StoryDirection, number> = {
+      bedtime: 8,
+      adventure: 12,
+      fantasy: 16,
+    };
+    const expectedStoryRel = `story-bank/${WIZARD_QA_STORY_DIR_NAME}/${storyKey}.md`;
+    if (
+      meta.version !== 'story-bank-import/v4' ||
+      meta.status !== 'qa_ready_for_low_story_generation' ||
+      meta.authorityScope !== 'qa_only' ||
+      meta.productionEligible !== false ||
+      meta.storyKey !== storyKey ||
+      !meta.approvedBy?.trim() ||
+      !meta.approvedAt || Number.isNaN(Date.parse(meta.approvedAt)) ||
+      meta.companionId !== companionId || meta.direction !== direction ||
+      meta.pageCount !== expectedPageCount[direction] ||
+      typeof meta.visualDirections?.path !== 'string' ||
+      typeof meta.visualDirections.sha256 !== 'string' ||
+      meta.integratedStory?.path !== expectedStoryRel ||
+      typeof meta.integratedStory.sha256 !== 'string' ||
+      typeof meta.integratedStory.sourceProjectionSha256 !== 'string' ||
+      meta.source?.storySha256 !== meta.integratedStory.sourceProjectionSha256
+    ) return false;
+    const visualDirections = meta.visualDirections!;
+    const integratedStory = meta.integratedStory!;
+    const root = process.cwd();
+    const storyPath = join(bankRoot, `${storyKey}.md`);
+    const directionPath = resolve(root, visualDirections.path!);
+    if (!directionPath.startsWith(`${resolve(root)}${sep}`) || !existsSync(directionPath)) return false;
+    const digest = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
+    const storyBytes = readFileSync(storyPath);
+    if (digest(storyBytes) !== integratedStory.sha256) return false;
+    const sourceProjection = storyBytes.toString('utf8').replace(/^imageDirection:.*\r?\n/gm, '');
+    if (digest(sourceProjection) !== integratedStory.sourceProjectionSha256) return false;
+    if (digest(readFileSync(directionPath)) !== visualDirections.sha256) return false;
+    const directionCount = (storyBytes.toString('utf8').match(/^imageDirection:\s*\S.*$/gm) ?? []).length;
+    return directionCount === meta.pageCount;
+  } catch {
+    return false;
+  }
+}
+
 /** approved_v3 = flag ON + bank file + valid import sidecar. */
 export function isV3SlotRuntimeReady(companionId: string, direction: StoryDirection): boolean {
+  if (isWizardQaStoryBankEnabled()) {
+    return wizardQaImportSidecarValid(companionId, direction);
+  }
   if (!isV3ApprovedBankEnabled()) return false;
   const md = join(
     process.cwd(),

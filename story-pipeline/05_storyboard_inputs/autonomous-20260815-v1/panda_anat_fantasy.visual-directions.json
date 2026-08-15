@@ -1,0 +1,314 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "panda_anat_fantasy",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "windmill_harbor",
+      "setting": "Windmill harbor beside the royal greenhouse and a warehouse",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "elderly royal greenhouse guardian"
+      ],
+      "mainAction": "The guardian presents a tiny seed box as the child reaches for it, while a huge puff erupts behind the warehouse.",
+      "heroObject": "tiny seed box",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Bright harbor daylight with a warm glow from the golden seed",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "windmill_harbor",
+      "setting": "Harbor airspace around a windmill and warehouse",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "elderly royal greenhouse guardian",
+        "chicken"
+      ],
+      "mainAction": "The kite-boat launches and circles a windmill as the child grips both colored handles and a chicken waves below.",
+      "heroObject": "kite-boat",
+      "shotType": "medium_wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Clear breezy daylight",
+      "continuityAnchors": [
+        "tiny seed box carried from the greenhouse",
+        "companion scarf secured",
+        "blue wing handle and red tail handle"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "windmill_harbor_airspace",
+      "setting": "Air above the harbor among flying laundry",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Tangled in a flying laundry basket, the child passes the red handle to the companion, whose head emerges through an upside-down shirt.",
+      "heroObject": "red tail handle",
+      "shotType": "medium",
+      "cameraAngle": "three_quarter",
+      "lighting": "Bright daylight with fluttering fabric shadows",
+      "continuityAnchors": [
+        "same kite-boat",
+        "seed box secured in padded pocket",
+        "child holding both colored handles before the handoff"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "cloud_orchard",
+      "setting": "Orchard of round clouds hanging from silver branches",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Working separate handles, the pair steer smoothly between puffing clouds as gray weather gathers ahead.",
+      "heroObject": "kite-boat controls",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft pearly daylight fading toward storm gray",
+      "continuityAnchors": [
+        "child controls blue wing handle",
+        "companion controls red tail handle",
+        "same kite-boat"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "cloud_orchard",
+      "setting": "Soft cloud canopy inside the cloud orchard",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The kite-boat lies buried in a sagging cloud while the companion spots a small cloud rolling its pink underside upward.",
+      "heroObject": "pink-bellied cloud",
+      "shotType": "medium_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Muted storm light with a soft pink cloud glow",
+      "continuityAnchors": [
+        "child on blue wing handle",
+        "companion on red tail handle",
+        "kite-boat mast protruding from the cloud"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "reverse_rain_valley",
+      "setting": "Deep valley of floating pools and upward-flowing rain",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The kite-boat springs free of the orchard and is lifted above the valley by a rising stream of silver raindrops.",
+      "heroObject": "upward rain stream",
+      "shotType": "extreme_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Cool silver daylight beneath layered clouds",
+      "continuityAnchors": [
+        "same kite-boat emerging from the cloud orchard",
+        "separate blue and red controls"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "reverse_rain_valley",
+      "setting": "Among thick and curling upward rain currents",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "A tiny green leaf breaks from the glowing seed box as the child closes its shutters and the companion indicates a thin curling current.",
+      "heroObject": "glowing seed box",
+      "shotType": "close",
+      "cameraAngle": "three_quarter",
+      "lighting": "Silver rain light pulsing with warm gold from the box",
+      "continuityAnchors": [
+        "seed box in padded pocket",
+        "kite-boat carried upward by reverse rain",
+        "child on wing control and companion on tail control"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "mist_sea_sky",
+      "setting": "Edge of the reverse-rain valley above a sea of mist",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "After spiraling out of the rain, the kite-boat settles onto the mist as the tiny leaf retracts and deep blue night descends.",
+      "heroObject": "seed box with retracting leaf",
+      "shotType": "wide",
+      "cameraAngle": "overhead",
+      "lighting": "Silver dusk shifting abruptly into deep sparkling blue",
+      "continuityAnchors": [
+        "box shutters reopened",
+        "same kite-boat",
+        "thin curling rain currents receding behind"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "mist_sea_sky",
+      "setting": "Deep blue night above the sea of mist",
+      "childPresence": "partial",
+      "companionPresence": "partial",
+      "supportingCharacters": [
+        "migrating light creatures",
+        "round three-tailed light creature"
+      ],
+      "mainAction": "The kite-boat joins luminous migrating creatures as their lights extinguish in sequence, leaving the pair as dark silhouettes.",
+      "heroObject": "extinguishing light creatures",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Blue darkness fading from many colored glows toward black",
+      "continuityAnchors": [
+        "same kite-boat resting above mist",
+        "round creature perched on the mast",
+        "seed box closed"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "mist_sea_sky",
+      "setting": "Lightless sky above the sea of mist",
+      "childPresence": "partial",
+      "companionPresence": "partial",
+      "supportingCharacters": [
+        "round three-tailed light creature"
+      ],
+      "mainAction": "In near-total darkness, the silhouetted pair tap their separate handles and brace together as the mast creature extinguishes its last light.",
+      "heroObject": "blue and red handles",
+      "shotType": "close",
+      "cameraAngle": "eye_level",
+      "lighting": "Near-black with one final pinprick of fading creature light",
+      "continuityAnchors": [
+        "round creature remains on the mast",
+        "child holds blue handle",
+        "companion holds red handle",
+        "surrounding creatures are dark"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "frozen_island_approach",
+      "setting": "Sky above the mist facing a completely frozen island",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "migrating light creatures"
+      ],
+      "mainAction": "An upward gust lifts the kite-boat into relit creatures, revealing the white island and two opposing winds circling its shore.",
+      "heroObject": "frozen island wind barrier",
+      "shotType": "extreme_wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Cold dawn glow with returning creature lights and a golden box shimmer",
+      "continuityAnchors": [
+        "same kite-boat above the mist",
+        "light creature on the mast",
+        "seed box glowing",
+        "island trees, houses, and waves frozen solid"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "frozen_island_approach",
+      "setting": "Inside the opposing winds around the frozen island",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The rolling kite-boat is pulled between opposing winds as the companion studies rising square flakes and diving round flakes.",
+      "heroObject": "changing snowflakes",
+      "shotType": "medium",
+      "cameraAngle": "high_angle",
+      "lighting": "Cold white storm light punctuated by rapid golden pulses",
+      "continuityAnchors": [
+        "same kite-boat at the island barrier",
+        "seed box flashing",
+        "child on blue wing handle",
+        "companion on red tail handle"
+      ]
+    },
+    {
+      "pageNumber": 13,
+      "settingKey": "frozen_island_approach",
+      "setting": "Tightening snow vortex just offshore",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The pair rapidly alternate wing and tail adjustments while a double gust strains the handles in opposite directions near the shore.",
+      "heroObject": "opposing control handles",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Harsh white snow glare with warm flashes from the seed box",
+      "continuityAnchors": [
+        "square and round snowflake cues",
+        "wrinkled fabric wings",
+        "whistling taut ropes",
+        "frozen shore close ahead"
+      ]
+    },
+    {
+      "pageNumber": 14,
+      "settingKey": "frozen_island_approach",
+      "setting": "Snow wall at the center of the island wind barrier",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Taking quick turns with the two winds, the pair synchronize on a half-square, half-round flake and dive through the snow wall onto the island.",
+      "heroObject": "half-square half-round snowflake",
+      "shotType": "medium_wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Blinding storm white opening onto calm pale island light",
+      "continuityAnchors": [
+        "same strained kite-boat",
+        "child controls fabric wings",
+        "companion controls tail",
+        "glowing seed box remains secured"
+      ]
+    },
+    {
+      "pageNumber": 15,
+      "settingKey": "frozen_island_square",
+      "setting": "Frozen island square around a small crack in the ground",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "scarf-wrapped island residents",
+        "snowman"
+      ],
+      "mainAction": "The planted golden seed erupts into a giant warm-breathing flower, thawing the square as playful winds toss hats and a snowman into tulips.",
+      "heroObject": "giant spring flower",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Warm golden bloom light spreading through icy blue surroundings",
+      "continuityAnchors": [
+        "kite-boat landed on the island",
+        "seed box opened and emptied",
+        "frozen trees and rooftops beginning to thaw"
+      ]
+    },
+    {
+      "pageNumber": 16,
+      "settingKey": "frozen_island_beach",
+      "setting": "Thawing island beach beneath a pink, gold, and blue sky",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "island residents",
+        "island child"
+      ],
+      "mainAction": "With ribbons tied to its wings, the kite-boat lifts gently from the beach celebration and flies toward the changing sky.",
+      "heroObject": "ribbon-decorated kite-boat",
+      "shotType": "extreme_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Warm celebratory sunset blending pink, gold, and blue",
+      "continuityAnchors": [
+        "island ice melted",
+        "new spring flower visible inland",
+        "blue handle with child",
+        "red handle with companion",
+        "ribbons tied to the kite-boat wings"
+      ]
+    }
+  ]
+}

@@ -33,6 +33,10 @@ const nextConfig = {
     // catalog and its candidate records. The runtime flag and dev-only guard still fail closed;
     // this include only makes the already-authorized files reachable when those gates are open.
     const WIZARD_QA_AUTHORITIES = ['./qa-authorities/wizard/**/*'];
+    const WIZARD_QA_STORIES = [
+      './story-bank/qa-autonomous-20260815-v1/**/*',
+      './story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/**/*',
+    ];
     // (#35) The Style01 multi-view companion sheets (public/companions/<id>/style01-sheets/**) have NO URL fallback:
     // resolveStyle01CompanionReferencePaths() does existsSync()->readFileSync() on the FUNCTION disk. Bundle them
     // into the render functions so the strong multi-view anchor is reachable in serverless (~49 files: 42 png + 7
@@ -45,7 +49,12 @@ const nextConfig = {
       '/api/generate/cron/sweep': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/generation/resume': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/debug/regen-page': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
-      '/api/wizard/mvp-matrix': WIZARD_QA_AUTHORITIES,
+      '/api/wizard/mvp-matrix': [
+        ...WIZARD_QA_AUTHORITIES,
+        ...WIZARD_QA_STORIES,
+        ...STYLE01_COMPANION_SHEETS,
+      ],
+      '/api/orders': WIZARD_QA_STORIES,
       '/api/orders/[orderId]/power-card': ['./story-bank/**/*', './node_modules/@sparticuz/chromium/**/*'],
     };
     return includes;
@@ -94,7 +103,15 @@ const nextConfig = {
     // Generation/render routes: keep the bundled Style01 companion sheets (.png/.json) but still drop the raw .jpg
     // companion source refs (CDN-served) + media/headless + Style02.
     for (const r of GENERATION_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...COMPANIONS_SOURCE_JPGS, ...STYLE02];
-    for (const r of LEAN_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE, 'story-bank/**'];
+    for (const r of LEAN_ROUTES) {
+      excludes[r] = [
+        ...MEDIA,
+        ...HEADLESS,
+        ...COMPANIONS,
+        ...ALL_STYLE,
+        ...(r === '/api/orders' ? [] : ['story-bank/**']),
+      ];
+    }
     // dev story-bank browser lists the bank → keep story-bank, drop media/headless/companions/all-style.
     excludes['/api/dev/story-bank'] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE];
     return excludes;

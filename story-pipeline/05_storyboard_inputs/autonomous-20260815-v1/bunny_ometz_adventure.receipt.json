@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "bunny_ometz_adventure",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 5000,
+  "promptSha256": "e5c2c911258d85302598bd0d8bfe9e686e1e9b61c252d82cbd4bfd0985b26b94",
+  "sourceStorySha256": "e8f3315cefb19cc206d77654fd9349ef471837293fa68b198b356448c27f22ff",
+  "output": {
+    "filename": "visual-directions.ad7174a601e090efa53881593d80ba4f0a658ba44302d62c87d304e0bab9be15.json",
+    "bytes": 9785,
+    "sha256": "ad7174a601e090efa53881593d80ba4f0a658ba44302d62c87d304e0bab9be15"
+  },
+  "usage": {
+    "inputTokens": 3222,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 3219,
+    "outputTokens": 2712,
+    "reasoningTokens": 1034,
+    "totalTokens": 5934
+  },
+  "costUsd": 0.10149375,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

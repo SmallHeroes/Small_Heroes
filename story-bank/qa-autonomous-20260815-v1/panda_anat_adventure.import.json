@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "SOCIAL",
+  "companionId": "panda_anat",
+  "direction": "adventure",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/panda_anat_adventure.md",
+    "sha256": "e6c82d66cc60a5afab88e27fc5e87a579762efc62a852bf6e97800595b9887fd",
+    "sourceProjectionSha256": "97f1fffc2809ede2ad29ea3ed7cbfc0806d6a759f0b998e52bcfbe1f6f943249"
+  },
+  "pageCount": 12,
+  "physicalPageCount": 24,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_adventure/manifest.json",
+    "storySha256": "97f1fffc2809ede2ad29ea3ed7cbfc0806d6a759f0b998e52bcfbe1f6f943249"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "panda_anat_adventure",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/panda_anat_adventure.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/panda_anat_adventure.receipt.json",
+    "receiptSha256": "d299d3409106987d9c983c29d210f23ae470ff9fd2da7beef42e2309ab915443",
+    "sha256": "0c1925e6996f2f02782035062c93524c35a571351b5be525efc5db0bdf603425",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

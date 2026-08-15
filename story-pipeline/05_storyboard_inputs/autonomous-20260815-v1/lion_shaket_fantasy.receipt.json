@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "lion_shaket_fantasy",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 6500,
+  "promptSha256": "f73b3a3cbc8b2f262ef7e0e0a4d285634c46b21c44fd11be3bb20e35e92d93fa",
+  "sourceStorySha256": "933e7c3ccbc8c905b4594959e117b0d2bbad9a3fdd0b73808ca989f074de55c6",
+  "output": {
+    "filename": "visual-directions.9921e5c21ed8a7b0699e6d659a1e42b4f881245b4888c2254181d284bfc0d806.json",
+    "bytes": 11658,
+    "sha256": "9921e5c21ed8a7b0699e6d659a1e42b4f881245b4888c2254181d284bfc0d806"
+  },
+  "usage": {
+    "inputTokens": 3237,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 3234,
+    "outputTokens": 2480,
+    "reasoningTokens": 459,
+    "totalTokens": 5717
+  },
+  "costUsd": 0.0946275,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

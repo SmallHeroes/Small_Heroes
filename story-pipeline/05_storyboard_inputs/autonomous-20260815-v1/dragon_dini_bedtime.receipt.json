@@ -1,0 +1,31 @@
+{
+  "version": "small-heroes-story-visual-direction-call-receipt/v1",
+  "storyKey": "dragon_dini_bedtime",
+  "modelRequested": "gpt-5.6-sol",
+  "modelReturned": "gpt-5.6-sol",
+  "serviceTierRequested": "default",
+  "serviceTierReturned": "default",
+  "store": false,
+  "reasoningEffort": "medium",
+  "maxOutputTokens": 3800,
+  "promptSha256": "b287c8cc882da116e817e2afbe5a84aa7ca72613acbad8b5137b5c24ef2270f7",
+  "sourceStorySha256": "3a82fde86f891138b0b8abbaea59ddb16c8a95320cee2d2d65ae34575f3c7044",
+  "output": {
+    "filename": "visual-directions.1269665c53d2776f3a5553361f0df64d024d3ff2ec78514cbe382027a3e19d2a.json",
+    "bytes": 6804,
+    "sha256": "1269665c53d2776f3a5553361f0df64d024d3ff2ec78514cbe382027a3e19d2a"
+  },
+  "usage": {
+    "inputTokens": 3236,
+    "cachedInputTokens": 0,
+    "cacheWriteTokens": 3233,
+    "outputTokens": 3163,
+    "reasoningTokens": 1941,
+    "totalTokens": 6399
+  },
+  "costUsd": 0.11511125,
+  "transportRetries": 0,
+  "fallbackUsed": false,
+  "rawPromptPersisted": false,
+  "rawProviderEnvelopePersisted": false
+}

@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "SOCIAL",
+  "companionId": "panda_anat",
+  "direction": "fantasy",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/panda_anat_fantasy.md",
+    "sha256": "ae08f8766e41d125a46e39947f52e98521c39289d65976e43a2f0d2d09bfe89c",
+    "sourceProjectionSha256": "67b40182094b46c3cddcb999a554d066e6ea60cfe3794fed1395e51d49c1231e"
+  },
+  "pageCount": 16,
+  "physicalPageCount": 32,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/panda_anat_fantasy/manifest.json",
+    "storySha256": "67b40182094b46c3cddcb999a554d066e6ea60cfe3794fed1395e51d49c1231e"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "panda_anat_fantasy",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/panda_anat_fantasy.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/panda_anat_fantasy.receipt.json",
+    "receiptSha256": "638720ac2a4dbc0943997b0499834c1ea9480067e4238e5b6e8fa805824a68f4",
+    "sha256": "d1c39668fa9024f37d7b30492fe5abf10e54d5b2481afb631facea795007622e",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

@@ -120,8 +120,10 @@ describe('Bunny + Bar five-page expression generalization authority', () => {
     );
     expect(runner).toContain("MEASUREMENT === 'bunny-bar-five-page'");
     expect(runner).toContain("childReferenceKind: 'canonical_anchor'");
-    expect(runner).toContain("clientCompanionId: IS_DINI_BAR");
+    expect(runner).toContain("clientCompanionId: QA_RECORD?.companionId ?? (IS_DINI_BAR");
     expect(runner).toContain("? 'bunny_ometz'");
+    expect(runner).toContain("MEASUREMENT === 'wizard-catalog-full-book'");
+    expect(runner).toContain('v2 QA storyboard candidates run through the normal Wizard LOW path');
     expect(runner).toContain('remoteDatabaseAccess: false');
     expect(runner).toContain('remoteStorageAccess: false');
   });

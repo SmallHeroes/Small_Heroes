@@ -41,12 +41,19 @@ describe('story-bank-v3-import', () => {
     expect(result.pageCount).toBe(8);
   });
 
-  it('chameleon calibration: strict gate fails; warn mode records warnings only', () => {
+  it('chameleon calibration accepts Hebrew "with me" while warn mode still records a real leftover name', () => {
     const md = stripGoldenSourceHeader(fs.readFileSync(KOKO_CALIBRATION, 'utf8'));
-    const strict = validateStoryForV3Import(md);
-    expect(strict.errors.some((e) => e.includes('איתי'))).toBe(true);
+    expect(validateStoryForV3Import(md).errors.some((e) => e.includes('איתי'))).toBe(false);
 
-    const warn = validateStoryForV3Import(md, { personalizationGate: 'warn' });
+    const withLeftoverName = md.replace(
+      /--- Page 1 ---\n/,
+      '--- Page 1 ---\nItai ',
+    );
+    expect(withLeftoverName).not.toBe(md);
+    const strict = validateStoryForV3Import(withLeftoverName);
+    expect(strict.errors.some((e) => e.includes('Itai'))).toBe(true);
+
+    const warn = validateStoryForV3Import(withLeftoverName, { personalizationGate: 'warn' });
     expect(warn.errors).toEqual([]);
     expect(warn.personalizationWarnings.length).toBeGreaterThan(0);
   });

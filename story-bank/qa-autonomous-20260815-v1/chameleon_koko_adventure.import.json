@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "TRANSITION",
+  "companionId": "chameleon_koko",
+  "direction": "adventure",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/chameleon_koko_adventure.md",
+    "sha256": "e24b57b62b28747c08eb5e18f6f5613cdc18c5d767a710016abd10e6c9213105",
+    "sourceProjectionSha256": "b20b74e622f601501dfabc65cd7b3af401df04cbef7441457d74208b34ace782"
+  },
+  "pageCount": 12,
+  "physicalPageCount": 24,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_adventure/manifest.json",
+    "storySha256": "b20b74e622f601501dfabc65cd7b3af401df04cbef7441457d74208b34ace782"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "chameleon_koko_adventure",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/chameleon_koko_adventure.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/chameleon_koko_adventure.receipt.json",
+    "receiptSha256": "98469b8a537fe88f40484a5d5b69f4163758bcfd1ef9c3831d93e6b550baf9ed",
+    "sha256": "2b449f8ed96b35e52c00d0ca7abeffe81a98d77dcae9da767e9bbe4d1890bb24",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

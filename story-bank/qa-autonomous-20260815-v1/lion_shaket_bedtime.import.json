@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "ANGER_FRUSTRATION",
+  "companionId": "lion_shaket",
+  "direction": "bedtime",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/lion_shaket_bedtime.md",
+    "sha256": "62d080369d031aced00aca74c2f62a09d2279beb5690bf945e463946cfec0822",
+    "sourceProjectionSha256": "b6a30f1174c684cfb0f1c8a0041bcbae1dd4df10c58274829e78ea7956180cf0"
+  },
+  "pageCount": 8,
+  "physicalPageCount": 16,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/lion_shaket_bedtime/manifest.json",
+    "storySha256": "b6a30f1174c684cfb0f1c8a0041bcbae1dd4df10c58274829e78ea7956180cf0"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "lion_shaket_bedtime",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/lion_shaket_bedtime.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/lion_shaket_bedtime.receipt.json",
+    "receiptSha256": "ec5729eb5d3324197c471b55133d122894ce62dbdbfe8b77c90ca58170ccf07c",
+    "sha256": "c5722f9b8b7fbadf8321132abba2f999b5aabdbc5f446e1f069a6d22a82d723f",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

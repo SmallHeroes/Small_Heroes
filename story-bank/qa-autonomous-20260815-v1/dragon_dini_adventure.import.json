@@ -1,0 +1,38 @@
+{
+  "approvedAt": "2026-08-15T00:00:00+03:00",
+  "approvedBy": "Guy",
+  "authorityScope": "qa_only",
+  "category": "NEW_SIBLING",
+  "companionId": "dragon_dini",
+  "direction": "adventure",
+  "integratedStory": {
+    "path": "story-bank/qa-autonomous-20260815-v1/dragon_dini_adventure.md",
+    "sha256": "6d7fa76b1424f6d7a5b18d1bc5163a8e4986f2d8c90aa0e2f4eff7335d771877",
+    "sourceProjectionSha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce"
+  },
+  "pageCount": 12,
+  "physicalPageCount": 24,
+  "productionEligible": false,
+  "providerAccounting": {
+    "fallbackUsed": false,
+    "model": "gpt-5.6-sol",
+    "serviceTier": "default",
+    "store": false,
+    "transportRetries": 0
+  },
+  "servedOnlyWhen": "non-production and ENABLE_WIZARD_QA_RENDER_CATALOG=true",
+  "source": {
+    "acceptedManifestPath": "story-pipeline/04_approved_story_sources/accepted/dragon_dini_adventure/manifest.json",
+    "storySha256": "39ad403d98ff528c1313879ec4f4fe020a17271b452040c179938ecf2cc7dfce"
+  },
+  "status": "qa_ready_for_low_story_generation",
+  "storyKey": "dragon_dini_adventure",
+  "version": "story-bank-import/v4",
+  "visualDirections": {
+    "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/dragon_dini_adventure.visual-directions.json",
+    "receiptPath": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/dragon_dini_adventure.receipt.json",
+    "receiptSha256": "63faf0b3c39041e792936d1c6a7b2c88371d6abc5aa0e67206531faec3b85d7b",
+    "sha256": "0ee59e8d2c0be0f937ff286a25b8e4dd8c5e6d52d8c4cd263d092fd88514c5db",
+    "version": "small-heroes-story-visual-direction-record/v1"
+  }
+}

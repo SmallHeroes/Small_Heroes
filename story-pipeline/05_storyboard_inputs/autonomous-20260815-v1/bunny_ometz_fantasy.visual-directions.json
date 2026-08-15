@@ -1,0 +1,334 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "bunny_ometz_fantasy",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "child_bedroom",
+      "setting": "Bedroom window at dawn",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child lifts the open glowing box as Bunny stands ready with his oversized crown slipped over his eyes.",
+      "heroObject": "glowing dawn box with blue ribbon",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft dawn light mixed with the box's warm glow",
+      "continuityAnchors": [
+        "glowing dawn box tied with blue ribbon",
+        "oversized crown",
+        "Bunny's cloak and boots"
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "palace_square",
+      "setting": "Vast palace square before a tower-high door",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Bunny rests breathless on the seventh stair while the child faces the enormous staircase and door.",
+      "heroObject": "tower-high palace door",
+      "shotType": "extreme_wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Bright magical morning light",
+      "continuityAnchors": [
+        "child carries the glowing dawn box",
+        "oversized crown",
+        "Bunny's cloak and boots"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "inverted_ballroom",
+      "setting": "Upside-down palace ballroom",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child catches the box by its blue ribbon while Bunny grips her ankles amid inverted chandeliers and waltzing empty chairs.",
+      "heroObject": "slipping dawn box",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Sparkling ballroom light from inverted chandeliers",
+      "continuityAnchors": [
+        "same glowing dawn box",
+        "blue ribbon attached to box",
+        "oversized crown",
+        "Bunny's cloak and boots"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "inverted_ballroom",
+      "setting": "Ballroom settling back upright",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child balances across rocking chairs with the box while Bunny braces his boots and holds the blue ribbon tied around her waist.",
+      "heroObject": "blue ribbon safety line",
+      "shotType": "medium_wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Warm ballroom light shifting as the room rights itself",
+      "continuityAnchors": [
+        "same dawn box",
+        "blue ribbon temporarily used as a safety line",
+        "Bunny's cloak and boots",
+        "oversized crown"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "palace_hedge_maze",
+      "setting": "Miniature hedge maze beyond the ballroom",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child gently pulls Bunny backward after his nose and whiskers become stuck in the tiny maze entrance.",
+      "heroObject": "spoon-sized maze entrance",
+      "shotType": "medium",
+      "cameraAngle": "ground_level",
+      "lighting": "Clear whimsical daylight with tiny leaf shadows",
+      "continuityAnchors": [
+        "same dawn box nearby",
+        "blue ribbon on dawn box",
+        "Bunny's cloak and boots",
+        "oversized crown"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "palace_hedge_maze",
+      "setting": "Hedge maze expanding to walkable size",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "tiny gardener statues"
+      ],
+      "mainAction": "The child raises the dawn box above the hedges, casting shadows that reveal a straight path as the maze grows around them.",
+      "heroObject": "glowing dawn box",
+      "shotType": "wide",
+      "cameraAngle": "overhead",
+      "lighting": "Warm box light cutting through cool green hedges",
+      "continuityAnchors": [
+        "same dawn box",
+        "blue ribbon on dawn box",
+        "Bunny's cloak and boots",
+        "oversized crown"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "cloud_stairway",
+      "setting": "Cloud stairs above the maze",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "A broad cloud step forms beneath the child while Bunny tumbles into a soft cloud below the remaining half-step.",
+      "heroObject": "forming cloud step",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Bright airy light with luminous cloud edges",
+      "continuityAnchors": [
+        "Bunny carries the dawn box in both paws",
+        "blue ribbon on dawn box",
+        "Bunny's cloak and boots",
+        "oversized crown"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "cloud_stairway",
+      "setting": "Upper cloud stairs at the palace passage",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "royal nurse"
+      ],
+      "mainAction": "The child and Bunny climb newly appearing steps toward the waiting nurse as one step widens to hold them together.",
+      "heroObject": "widening cloud step",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Soft sky glow with sparkling steps",
+      "continuityAnchors": [
+        "same dawn box carried by Bunny",
+        "blue ribbon on dawn box",
+        "clouds caught on Bunny",
+        "Bunny's cloak and boots",
+        "oversized crown"
+      ]
+    },
+    {
+      "pageNumber": 9,
+      "settingKey": "palace_corridor",
+      "setting": "Quiet illuminated corridor with glass fish in the walls",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "royal nurse"
+      ],
+      "mainAction": "The child tests the blue chair with Bunny's paw beside her while Bunny sits upside down on the backrest and every fish and bubble pauses.",
+      "heroObject": "blue chair",
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Calm diffuse corridor light with glass reflections",
+      "continuityAnchors": [
+        "dawn box remains with the pair",
+        "blue ribbon on dawn box",
+        "clouds caught on Bunny",
+        "Bunny's cloak and boots",
+        "oversized crown"
+      ]
+    },
+    {
+      "pageNumber": 10,
+      "settingKey": "palace_corridor",
+      "setting": "End of the quiet palace corridor",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child steadies one hand on the glowing box while the final door holds still and Bunny lowers his head beside her.",
+      "heroObject": "final palace door",
+      "shotType": "medium_close",
+      "cameraAngle": "eye_level",
+      "lighting": "Gentle corridor light with a trembling warm box glow",
+      "continuityAnchors": [
+        "blue chair beside the wall",
+        "glass fish within the walls",
+        "same dawn box",
+        "blue ribbon on dawn box",
+        "Bunny's cloak and boots",
+        "oversized crown"
+      ]
+    },
+    {
+      "pageNumber": 11,
+      "settingKey": "palace_corridor",
+      "setting": "Blue chair before the final door",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Seated in the blue chair, the child holds Bunny's paw and the box ribbon as the closed door beside them turns transparent.",
+      "heroObject": "transparent final door",
+      "shotType": "medium_close",
+      "cameraAngle": "three_quarter",
+      "lighting": "Quiet cool light warmed by the dawn box",
+      "continuityAnchors": [
+        "same blue chair",
+        "same dawn box",
+        "blue ribbon held in child's hand",
+        "glass fish within the walls",
+        "Bunny's cloak and boots",
+        "oversized crown"
+      ]
+    },
+    {
+      "pageNumber": 12,
+      "settingKey": "palace_inner_room",
+      "setting": "Threshold of the royal medical room",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "royal doctor"
+      ],
+      "mainAction": "Holding Bunny's paw, the child steps toward the doctor as the transparent door opens exactly wide enough for her stride.",
+      "heroObject": "step-width transparent door",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Reassuring warm room light with a soft moon-lamp glow",
+      "continuityAnchors": [
+        "blue chair remains in the corridor",
+        "same dawn box",
+        "blue ribbon on dawn box",
+        "Bunny's cloak and boots",
+        "oversized crown"
+      ]
+    },
+    {
+      "pageNumber": 13,
+      "settingKey": "palace_inner_room",
+      "setting": "Royal medical room beside the prepared chair",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "royal doctor"
+      ],
+      "mainAction": "The child laughs at Bunny's exaggerated attempt at a normal face while the doctor waits beside the arranged pillow and tray.",
+      "heroObject": null,
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Warm even light with a gentle moon-lamp accent",
+      "continuityAnchors": [
+        "dawn box rests on the table",
+        "blue ribbon on dawn box",
+        "blue chair ready",
+        "Bunny's cloak and boots",
+        "oversized crown"
+      ]
+    },
+    {
+      "pageNumber": 14,
+      "settingKey": "palace_inner_room",
+      "setting": "Prepared treatment area in the royal medical room",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "royal doctor",
+        "royal nurse"
+      ],
+      "mainAction": "The doctor works carefully as the nurse assists, while the seated child grips Bunny's paw and watches two glass-fish bubbles.",
+      "heroObject": "two glass-fish bubbles",
+      "shotType": "medium_close",
+      "cameraAngle": "three_quarter",
+      "lighting": "Calm focused light softened by the moon-shaped lamp",
+      "continuityAnchors": [
+        "child seated in the chosen position",
+        "dawn box on the table",
+        "blue ribbon on dawn box",
+        "pillow arranged",
+        "Bunny's cloak and boots",
+        "oversized crown"
+      ]
+    },
+    {
+      "pageNumber": 15,
+      "settingKey": "palace_inner_room",
+      "setting": "Royal medical room transformed by dawn light",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "royal doctor",
+        "royal nurse"
+      ],
+      "mainAction": "The dawn box opens by itself, filling the room with pink-gold light and ceiling stars as the child shows Bunny her steady open hand.",
+      "heroObject": "open dawn box",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Radiant pink-gold dawn light with hundreds of small stars",
+      "continuityAnchors": [
+        "same dawn box on the table",
+        "blue ribbon on dawn box",
+        "blue chair",
+        "oversized crown placed on the table",
+        "Bunny's cloak and boots"
+      ]
+    },
+    {
+      "pageNumber": 16,
+      "settingKey": "palace_exit_path",
+      "setting": "Final palace doorway opening toward a breakfast table",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Bunny leaps toward the warm rolls as the crown rolls ahead into the jam basket, with the child following and the calm palace glowing behind them.",
+      "heroObject": "crown rolling into the jam basket",
+      "shotType": "wide",
+      "cameraAngle": "ground_level",
+      "lighting": "Peaceful dawn glow with warm breakfast light",
+      "continuityAnchors": [
+        "oversized crown carried from the medical room",
+        "Bunny's cloak and boots",
+        "palace doors now fit each next step"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "fox_uri_bedtime",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "town_square",
+      "setting": "An emptying town square at closing time, with a slide, swing, fountain, rooftop pigeons, and perimeter fence.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child points beneath the shadowless slide while Uri notices a long dark ribbon fluttering beyond the fence.",
+      "heroObject": "missing slide shadow",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft dusk light with lengthening evening shadows.",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "bakery_sidewalk",
+      "setting": "A sidewalk beside shrubs, a bench, parked cars, sun-warmed stones, and a bakery entrance.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "Uri bounds after the windblown shadow as the child lifts an old wicker basket with clean cardboard from beside the bakery.",
+      "heroObject": "wicker basket",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Fading dusk mixed with warm light from the bakery.",
+      "continuityAnchors": [
+        "same runaway slide shadow"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "lit_bus_stop",
+      "setting": "A lit bus stop where overlapping shadows from a post, bin, and planter gather on the pavement.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child kneels beside the shadow pile and studies pale hairs on the soft ribbon while Uri releases the round bin shadow.",
+      "heroObject": "shadow tip with pale hairs",
+      "shotType": "medium",
+      "cameraAngle": "high_angle",
+      "lighting": "Cool evening under a bright bus-stop lamp.",
+      "continuityAnchors": [
+        "same wicker basket",
+        "same runaway slide shadow"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "pocket_garden",
+      "setting": "A small sheltered garden between two buildings, with a low wall, jasmine bush, fence, and moon above.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "kitten"
+      ],
+      "mainAction": "The child carefully lifts one corner of the shadow, revealing a tiny kitten curled beneath its layered folds as Uri approaches softly.",
+      "heroObject": "slide shadow wrapped around kitten",
+      "shotType": "medium_close",
+      "cameraAngle": "ground_level",
+      "lighting": "Gentle moonlight filtered through jasmine leaves.",
+      "continuityAnchors": [
+        "same wicker basket",
+        "same slide shadow with pale hairs"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "pocket_garden",
+      "setting": "The pocket garden beside its low wall and a small building air vent.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "kitten"
+      ],
+      "mainAction": "Uri discovers warm air flowing from the low vent while the child tests it with an outstretched hand; the kitten remains under the shadow nearby.",
+      "heroObject": "warm air vent",
+      "shotType": "medium",
+      "cameraAngle": "low_angle",
+      "lighting": "Cool moonlight contrasted with a soft warm glow near the vent.",
+      "continuityAnchors": [
+        "same wicker basket",
+        "kitten wrapped in the slide shadow"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "pocket_garden",
+      "setting": "The sheltered corner of the pocket garden beside the warm air vent.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "kitten"
+      ],
+      "mainAction": "The kitten crawls into the sideways basket lined with cardboard and dry leaves as the shadow loosens onto the path, leaving one small corner over it.",
+      "heroObject": "basket shelter",
+      "shotType": "medium_close",
+      "cameraAngle": "ground_level",
+      "lighting": "Warm vent light against the cool night garden.",
+      "continuityAnchors": [
+        "same wicker basket turned on its side",
+        "same clean cardboard used as flooring",
+        "same slide shadow",
+        "warm air vent"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "town_square",
+      "setting": "The town square reached along the sidewalk past the bakery and bus stop.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The long shadow sweeps over the fence and settles precisely beneath the slide while the child and Uri watch it become whole again.",
+      "heroObject": "returning slide shadow",
+      "shotType": "wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Clear moonlit night with a final warm trace from the bakery.",
+      "continuityAnchors": [
+        "same slide",
+        "most of the shadow returned from the kitten shelter"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "pocket_garden",
+      "setting": "The pocket garden under a broad night sky, with rooftops, trees, and the distant square beyond.",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "sleeping kitten"
+      ],
+      "mainAction": "The child and yawning Uri look back while heading home as the kitten sleeps in the warm basket beneath the small breathing corner of shadow.",
+      "heroObject": "basket shelter",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Quiet moonlight spread across the garden, rooftops, and square, with gentle warmth at the vent.",
+      "continuityAnchors": [
+        "same basket shelter with cardboard and dry leaves",
+        "same warm air vent",
+        "small corner of the slide shadow remains over the kitten",
+        "slide shadow restored beneath the distant slide"
+      ]
+    }
+  ]
+}
