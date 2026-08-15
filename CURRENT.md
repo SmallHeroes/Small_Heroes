@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/story-engine-autonomous-batch-orchestrator` in `C:\Users\guyna\.codex\worktrees\storybatch1\Small_Heroes`; based exactly on independently passed and pushed head `ea4404a5b2492099c35c90c6da2a14ee6478144f`.
 
-## AUTONOMOUS STORY CORPUS -> QA WIZARD CUTOVER — independent technical PASS / QA deployment pending
+## AUTONOMOUS STORY CORPUS -> QA WIZARD CUTOVER — independent technical PASS / deployed to QA
 
 Guy approved completing the bounded autonomous story wave, generating visual
 directions, connecting the resulting corpus to the Wizard in QA, pushing the
@@ -67,9 +67,20 @@ branch, and leaving Production untouched.
   remain runtime-inaccessible behind the environment gate; and a pre-existing
   render-qualification trace dependency remains outside the matrix include.
   None changes the QA-only PASS or the separate six-fixture release HOLD.
-- QA deployment and browser verification are the next authorized actions. This
-  PASS grants no Production, visual-quality, billing, product or release
-  acceptance.
+- The branch was pushed through `616ccdc551a281434f4a9fc67c9a63adc1188482`
+  at exact `0/0` upstream parity. Branch-scoped Preview variables enable the QA
+  bank and staging route without changing Production. Vercel deployment
+  `dpl_HbeDxqZi3bnqJszFQ1r73VpErfbC` completed `Ready`; its machine-checked
+  Matrix response contains six categories, 18 selectable QA-ready directions,
+  18 unique candidate digests and exact `59/16`, `79/24`, `99/32`
+  price/page pairs. `qa.smallheroes.co.il` was moved to that deployment.
+- A real Chrome walkthrough of the public QA domain completed Wizard steps
+  1–7 for `NEW_SIBLING` adventure and reached the `₪79` secure-payment handoff
+  with no browser warning/error. It stopped before payment, order creation,
+  provider generation or render. The tab was returned to `/start` for Guy.
+  Production remains on unchanged deployment
+  `dpl_2X7E6d1acZ5vKJVhLSuKFGP5Q4HN`. This PASS grants no Production,
+  visual-quality, billing, product or release acceptance.
 
 Durable evidence: `docs/ai-workflow/STORY_ENGINE_AUTONOMOUS_BATCH_QA_BANK_WIZARD_CUTOVER_IMPLEMENTATION_EVIDENCE.md`.
 

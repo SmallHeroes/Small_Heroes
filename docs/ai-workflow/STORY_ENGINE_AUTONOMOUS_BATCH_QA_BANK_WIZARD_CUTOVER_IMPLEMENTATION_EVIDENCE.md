@@ -156,6 +156,33 @@ Advisory notes retained without implementation action:
 4. Claude did not execute tests in its read-only session; Codex's focused and
    repository-gate evidence above remains the execution evidence.
 
+## QA deployment and browser proof
+
+The reviewed branch was pushed through
+`616ccdc551a281434f4a9fc67c9a63adc1188482` with exact `0/0` upstream parity.
+Only the branch-scoped Preview environment was changed: `ALLOW_STAGING_QA=true`
+and `ENABLE_WIZARD_QA_RENDER_CATALOG=true`. No Production variable, alias or
+deployment was changed.
+
+Vercel Preview deployment `dpl_HbeDxqZi3bnqJszFQ1r73VpErfbC` completed with
+status `Ready`. Before alias movement, an authenticated deployment request
+machine-verified exactly six public categories, 18 selectable
+`qa_ready_for_low_story_generation` directions, 18 unique candidate digests,
+and exact price/physical-page pairs `59/16`, `79/24` and `99/32`. The QA alias
+`qa.smallheroes.co.il` was then assigned to that deployment.
+
+A real Chrome walkthrough against the public QA alias selected `NEW_SIBLING`,
+entered non-personal test values, completed Wizard steps 1 through 7, selected
+the adventure package, and reached the secure-payment handoff showing 24 pages
+and `₪79`. Browser diagnostics contained zero warnings and zero errors. The
+walkthrough stopped before payment submission, order creation, provider use,
+story generation or render, and returned the deliverable tab to `/start`.
+
+Production remains on unchanged deployment
+`dpl_2X7E6d1acZ5vKJVhLSuKFGP5Q4HN`. The QA deployment proves availability and
+connectivity only; it does not grant Production, billing, visual-quality,
+product or release acceptance.
+
 This independent PASS grants technical acceptance for the QA-only cutover. It
 grants no Production, visual quality, billing, product or release acceptance.
 
