@@ -628,10 +628,12 @@ class PresentationStructuralValidationError extends Error {
   readonly structuralError: InvalidTemplateContractError;
   readonly structuralErrors: readonly string[];
   readonly structuralDiagnosticIssues: readonly DraftValidationIssue[];
+  readonly bookSurfaceAuthorityDraft: Record<string, unknown>;
 
   constructor(args: {
     gaps: readonly ActionSemanticCapabilityGap[];
     structuralError: InvalidTemplateContractError;
+    bookSurfaceAuthorityDraft: Record<string, unknown>;
   }) {
     super(
       'closed presentation gaps and final page-structure failures require one bounded complete-page repair',
@@ -644,6 +646,9 @@ class PresentationStructuralValidationError extends Error {
       args.structuralError.diagnosticIssues.map((issue) =>
         structuredClone(issue),
       );
+    this.bookSurfaceAuthorityDraft = structuredClone(
+      args.bookSurfaceAuthorityDraft,
+    );
   }
 }
 
@@ -3260,6 +3265,8 @@ function assembleTemplateFromDraft(
       throw new PresentationStructuralValidationError({
         gaps: capabilityGaps,
         structuralError: error,
+        bookSurfaceAuthorityDraft:
+          template as unknown as Record<string, unknown>,
       });
     }
     throw error;
@@ -3480,6 +3487,7 @@ export async function compileBookVisualContractTemplate(
         bookSurfaceAuthority =
           bookSurfaceRepairAuthority({
             draft,
+            authorityDraft: err.bookSurfaceAuthorityDraft,
             presentationTargets:
               presentationRequirementAffectedTargets,
             structuralDiagnosticIssues:

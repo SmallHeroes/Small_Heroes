@@ -195,6 +195,30 @@ describe('bounded book-surface repair', () => {
     });
   });
 
+  it('uses compiler-normalized cover and reference authority while targeting the original draft', () => {
+    const providerDraft = draft();
+    providerDraft.humanCast = [{ id: 'child:hero' }];
+    expect(authority(providerDraft)).toBeNull();
+
+    const issues = [coverProjectionIssue, pageStructureIssue(1)];
+    const selected = bookSurfaceRepairAuthority({
+      draft: providerDraft,
+      authorityDraft: draft(),
+      presentationTargets: [presentationTarget(2)],
+      structuralDiagnosticIssues: issues,
+      structuralValidationMessages: issues.map(
+        (issue, index) => `${issue.code}: normalized authority ${index}`,
+      ),
+    });
+
+    expect(selected).not.toBeNull();
+    expect(selected?.coverContract).toEqual(cover());
+    expect(selected?.affectedPages.map((value) => value.pageNumber)).toEqual([
+      1,
+      2,
+    ]);
+  });
+
   it('accepts every closed cover identity and multiple cover issues without widening the page surface', () => {
     for (const coverIssues of [
       [coverWorldTypeIssue],

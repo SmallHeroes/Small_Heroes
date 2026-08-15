@@ -4,6 +4,46 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-presentation-structural-repair` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based exactly on pushed broad-spatial-repair closeout `e28ab0becb6eb883de3ce08dad9527196a09a748`.
 
+## BOOK-SURFACE NORMALIZED AUTHORITY PROJECTION — implementation green / independent QA pending
+
+Leo v15 used Fresh Readiness v16 digest
+`878727cf126a11d0a0d4b5171b947773d1f936e4e0609086ae800b9170108d6c`
+and Execution Request
+`9375b3718bf15fbdd0d9fd1d1aac32f3136441f55a8540128b3118d6d5afb6f1`.
+One preflight and one Supervisor verify passed. The sole live invocation then
+completed three provider calls and two repairs with zero transport retry and
+no fallback. Receipt v22 digest is
+`a7bde3cdc1d92f6ce5744fd19031acc04fc73c8ec9aa505e62924698270d18e2`;
+usage is input/cache-write/output/reasoning/total
+`36,795/36,786/46,322/5,720/83,117`, with
+`$1.619618/$1.781593` nominal/conservative accounting.
+
+- Call 2 resolved all twelve initial page `out_of_scope_reference` issues.
+  The next pass exposed seven presentation capability gaps plus one cover and
+  twelve page final-structure issues.
+- `book_surface_patch` was not selected because its cover/reference authority
+  came from the raw provider draft while the reporting validator operated on
+  the compiler-normalized template. The final `full_draft` call resolved all
+  seven presentation gaps but left exactly the thirteen book-surface issues,
+  ending `draft_validation_repair_exhausted` with no candidate.
+- The general correction carries the compiler-normalized projection only for
+  closed cover/reference authority. Targets and pages still come from, and
+  the patch is still applied to, the original draft. Strict output schema,
+  reference guards, complete page-set application, masked non-target equality
+  and input nonmutation remain unchanged.
+- Focused validation passed **9 files / 408 tests** with no timeout or RPC/IPC
+  failure; TypeScript and `git diff --check` passed. Model, prompt/schema,
+  budgets, retries/fallback, Blueprint, Wizard, Reader, render, storage,
+  payment and Production behavior are unchanged.
+
+The consumed attempt has no candidate, Reconciliation, Blueprint, Wizard or
+render authority. Its credential authority was cleared by the Supervisor and
+raw stdout/stderr remained suppressed. The correction requires independent QA
+and a new pushed HEAD/Fresh Readiness before any second live attempt.
+
+Decision record:
+`docs/ai-workflow/R1D_PVB_D1A1B1_BOOK_SURFACE_NORMALIZED_AUTHORITY_PROJECTION_DECISION_GATE.md`.
+
 ## BOOK-SURFACE PRESENTATION/STRUCTURAL REPAIR — independent technical PASS / focused QA correction pending micro re-gate
 
 The consumed Leo v14 attempt proved the broad initial-routing correction: one

@@ -135,3 +135,51 @@ retry/fallback policy, or `$5.00` hard cap.
 Implementation and correction cost was `$0`; no credential, provider,
 Fresh Readiness, preflight, live-authoring, render, storage/database,
 deployment, or Production action occurred.
+
+## Leo v15 operational evidence and normalized-authority correction
+
+Fresh Readiness v16 passed at digest
+`878727cf126a11d0a0d4b5171b947773d1f936e4e0609086ae800b9170108d6c`;
+Execution Request v16 digest was
+`9375b3718bf15fbdd0d9fd1d1aac32f3136441f55a8540128b3118d6d5afb6f1`.
+Official Standard/default `gpt-5.6-sol` pricing matched the frozen request.
+Exactly one preflight and one Supervisor verify passed, followed by one live
+Supervisor invocation. The credential source was read only inside that live
+child, ambient inheritance was false, authority was cleared, and raw
+stdout/stderr were suppressed.
+
+Receipt v22 digest
+`a7bde3cdc1d92f6ce5744fd19031acc04fc73c8ec9aa505e62924698270d18e2`
+records three completed logical provider calls, two repairs, zero transport
+retry and no fallback. Aggregate provider-reported usage is input/cache-write/
+cached/output/reasoning/total `36,795/36,786/0/46,322/5,720/83,117`;
+nominal/conservative accounting is `$1.619618/$1.781593`.
+
+The first validation pass exposed twelve `out_of_scope_reference` page action
+references. Call 2 used `page_spatial_reference_patch` and resolved all twelve.
+The second pass exposed seven `closed_catalog_capability_gap` presentation
+targets plus one cover `cover_projection_invalid/final_structure` and twelve
+page `final_structural_invariant_invalid/final_structure` issues. The intended
+book-surface lane was not selected; call 3 used `full_draft`, resolved all seven
+presentation targets, and left exactly the thirteen cover/page structural
+issues persistent. The terminal classification was
+`draft_validation_repair_exhausted` / `draft_validation_budget_exhausted` with
+`repairEligibility:budget_exhausted`. Candidate, Reconciliation, Blueprint,
+Wizard and render authority are all absent.
+
+The root cause is an authority-domain mismatch: the validator emitted the
+mixed failure from the compiler-normalized template, while
+`bookSurfaceRepairAuthority` derived cover/reference authority from the raw
+provider draft. A provider-authored cast or topology value that normalization
+correctly drops can make the raw authority ambiguous and return null. The
+focused correction carries the exact normalized projection on the typed
+mixed-failure object and uses it only for cover/reference authority. Affected
+pages and targets still derive from the raw draft; the patch still applies to
+that raw draft with every existing guard.
+
+Validation after correction: **9 files / 408 tests PASS**, deterministic one
+worker, including a fake-provider regression that would previously choose
+`full_draft`; TypeScript and `git diff --check` PASS. No public schema, prompt,
+model, budget, timeout, retry/fallback, candidate or downstream behavior
+changed. The new Decision Gate is
+`R1D_PVB_D1A1B1_BOOK_SURFACE_NORMALIZED_AUTHORITY_PROJECTION_DECISION_GATE.md`.

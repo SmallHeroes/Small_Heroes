@@ -840,6 +840,16 @@ describe('page-contract compact repair routing', () => {
     };
     initial.coverContract.mustShow = [''];
     initial.pageContracts[1].camera = '';
+    // The provider can include a cast identity that the compiler correctly
+    // drops. Raw-draft reference extraction is therefore ambiguous while the
+    // compiler-normalized authority used by the final validator is exact.
+    initial.humanCast = [
+      {
+        id: 'child:hero',
+        garments: [],
+        forbiddenAppearance: [],
+      },
+    ];
     initial.pageContracts[1].actionSemanticCoverage[0].disposition = {
       kind: 'unsupported',
       reason: 'closed_action_catalog_gap',
