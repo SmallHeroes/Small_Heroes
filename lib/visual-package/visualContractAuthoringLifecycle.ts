@@ -17,12 +17,14 @@ import {
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS,
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS,
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_ELIGIBLE_PRECEDING_REPAIR_MODES,
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_REPAIRS,
   VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
+  terminalReferenceCleanupPredecessorIsEligible,
 } from '@/lib/visual-contract-compiler/authoringPolicy';
 import {
   authoringMaxOutputTokens,
@@ -183,11 +185,11 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v20' as const;
+  'visual-contract-authoring-request/v21' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v23' as const;
+  'visual-contract-authoring-receipt/v24' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v21' as const;
+  'visual-contract-authoring-readiness/v22' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v9' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -226,6 +228,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V18 =
   'visual-contract-authoring-request/v18' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V19 =
   'visual-contract-authoring-request/v19' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V20 =
+  'visual-contract-authoring-request/v20' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -266,6 +270,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V21 =
   'visual-contract-authoring-receipt/v21' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V22 =
   'visual-contract-authoring-receipt/v22' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V23 =
+  'visual-contract-authoring-receipt/v23' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -306,6 +312,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V19 =
   'visual-contract-authoring-readiness/v19' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V20 =
   'visual-contract-authoring-readiness/v20' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V21 =
+  'visual-contract-authoring-readiness/v21' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -503,7 +511,8 @@ export interface VisualContractAuthoringRequest {
       maxRepairCount: number;
       maxInputTokens: number;
       maxOutputTokens: number;
-      requiredPrecedingRepairMode: 'full_draft';
+      eligiblePrecedingRepairModes:
+        typeof VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_ELIGIBLE_PRECEDING_REPAIR_MODES;
       repairMode: 'page_spatial_reference_patch';
       residualFamily: 'draft_contract';
       residualCode: 'out_of_scope_reference';
@@ -869,7 +878,8 @@ export function visualContractAuthoringArtifactVersionStatus(
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V16 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V17 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V18 ||
-        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V19
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V19 ||
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V20
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -895,6 +905,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V20,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V21,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V22,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V23,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -917,6 +928,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V18,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V19,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V20,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V21,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -1388,7 +1400,8 @@ export function buildVisualContractAuthoringRequest(args: {
           VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
         maxOutputTokens:
           VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
-        requiredPrecedingRepairMode: 'full_draft' as const,
+        eligiblePrecedingRepairModes:
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_ELIGIBLE_PRECEDING_REPAIR_MODES,
         repairMode: 'page_spatial_reference_patch' as const,
         residualFamily: 'draft_contract' as const,
         residualCode: 'out_of_scope_reference' as const,
@@ -2203,7 +2216,9 @@ export function visualContractAuthoringAttemptBudgetSequenceIsValid(
     ];
   const cleanup = cleanupAttempts[0];
   return (
-    preceding?.repairMode === 'full_draft' &&
+    terminalReferenceCleanupPredecessorIsEligible(
+      preceding?.repairMode,
+    ) &&
     terminalReferenceCleanupResidualIsProven(preceding) &&
     cleanup?.kind === 'repair' &&
     cleanup.budgetClass === 'terminal_reference_cleanup' &&
@@ -2710,8 +2725,9 @@ function authoringBudgetClassSequenceIssues(args: {
         attempt.status === 'response_received' &&
         attempt.providerReached,
     ) &&
-    lastStandardAttempt?.repairMode ===
-      'full_draft' &&
+    terminalReferenceCleanupPredecessorIsEligible(
+      lastStandardAttempt?.repairMode,
+    ) &&
     args.promptAuthority.repairMode ===
       'page_spatial_reference_patch'
     ? []

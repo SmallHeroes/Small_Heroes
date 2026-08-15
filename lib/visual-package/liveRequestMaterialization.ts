@@ -37,13 +37,13 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-request-materialization-input/v9' as const;
+  'canonical-live-request-materialization-input/v10' as const;
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v18' as const;
+  'canonical-live-request-materialization/v19' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v18' as const;
+  'canonical-live-request-verification/v19' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -213,7 +213,10 @@ export interface CanonicalLiveRequestVerifiedResult {
       maxRepairCount: 1;
       maxInputTokens: 6000;
       maxOutputTokens: 2000;
-      requiredPrecedingRepairMode: 'full_draft';
+      eligiblePrecedingRepairModes: [
+        'book_surface_patch',
+        'full_draft',
+      ];
       repairMode: 'page_spatial_reference_patch';
       residualFamily: 'draft_contract';
       residualCode: 'out_of_scope_reference';
@@ -1897,7 +1900,14 @@ function liveRequestPolicyReasonCodes(
     terminalReferenceCleanup.maxRepairCount !== 1 ||
     terminalReferenceCleanup.maxInputTokens !== 6000 ||
     terminalReferenceCleanup.maxOutputTokens !== 2000 ||
-    terminalReferenceCleanup.requiredPrecedingRepairMode !==
+    !Array.isArray(
+      terminalReferenceCleanup.eligiblePrecedingRepairModes,
+    ) ||
+    terminalReferenceCleanup.eligiblePrecedingRepairModes.length !==
+      2 ||
+    terminalReferenceCleanup.eligiblePrecedingRepairModes[0] !==
+      'book_surface_patch' ||
+    terminalReferenceCleanup.eligiblePrecedingRepairModes[1] !==
       'full_draft' ||
     terminalReferenceCleanup.repairMode !==
       'page_spatial_reference_patch' ||
@@ -2592,7 +2602,10 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
         maxRepairCount: 1,
         maxInputTokens: 6000,
         maxOutputTokens: 2000,
-        requiredPrecedingRepairMode: 'full_draft',
+        eligiblePrecedingRepairModes: [
+          'book_surface_patch',
+          'full_draft',
+        ],
         repairMode: 'page_spatial_reference_patch',
         residualFamily: 'draft_contract',
         residualCode: 'out_of_scope_reference',

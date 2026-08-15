@@ -73,6 +73,7 @@ import {
   VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
+  terminalReferenceCleanupPredecessorIsEligible,
 } from './authoringPolicy';
 import {
   ACTION_SEMANTIC_CATALOG,
@@ -3797,16 +3798,18 @@ export async function compileBookVisualContractTemplate(
       repairAttempts[repairAttempts.length - 2]?.nextRepairMode;
     const terminalReferenceCleanupEligible =
       attempt === VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS &&
-      precedingRepairMode === 'full_draft' &&
+      terminalReferenceCleanupPredecessorIsEligible(
+        precedingRepairMode,
+      ) &&
       pageSpatialReferenceAffectedTargets !== null;
-
     if (
       attempt > STANDARD_MAX_REPAIR_ATTEMPTS &&
       !terminalReferenceCleanupEligible
     ) {
       // The standard three-call budget is exhausted. A fourth call is never a
       // general retry: it exists only for the closed reference-only residual
-      // exposed immediately by a full-draft repair.
+      // exposed immediately by an eligible complete-draft/page-surface
+      // replacement repair.
       throw new TemplateRepairExhaustedError(repairAttempts);
     }
     if (attempt > MAX_REPAIR_ATTEMPTS) {

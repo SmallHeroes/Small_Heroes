@@ -1,5 +1,5 @@
 export const VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
-  'visual-contract-authoring-policy/v3' as const;
+  'visual-contract-authoring-policy/v4' as const;
 
 export const VISUAL_CONTRACT_AUTHORING_PROVIDER = 'openai' as const;
 export const VISUAL_CONTRACT_AUTHORING_ENDPOINT = 'responses' as const;
@@ -25,6 +25,17 @@ export const VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKE
   6_000;
 export const VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS =
   2_000;
+export const VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_ELIGIBLE_PRECEDING_REPAIR_MODES =
+  ['book_surface_patch', 'full_draft'] as const;
+
+export function terminalReferenceCleanupPredecessorIsEligible(
+  repairMode: unknown,
+): repairMode is
+  (typeof VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_ELIGIBLE_PRECEDING_REPAIR_MODES)[number] {
+  return VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_ELIGIBLE_PRECEDING_REPAIR_MODES.some(
+    (eligibleMode) => repairMode === eligibleMode,
+  );
+}
 export const VISUAL_CONTRACT_AUTHORING_MAX_CALLS =
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS +
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS;

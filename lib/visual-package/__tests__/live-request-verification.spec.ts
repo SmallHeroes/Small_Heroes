@@ -517,7 +517,10 @@ describe('canonical live request verification library', () => {
           maxRepairCount: 1,
           maxInputTokens: 6_000,
           maxOutputTokens: 2_000,
-          requiredPrecedingRepairMode: 'full_draft',
+          eligiblePrecedingRepairModes: [
+            'book_surface_patch',
+            'full_draft',
+          ],
           repairMode: 'page_spatial_reference_patch',
           residualFamily: 'draft_contract',
           residualCode: 'out_of_scope_reference',
@@ -894,6 +897,46 @@ describe('canonical live request verification library', () => {
           unknown
         >;
         callBudget.maxRepairCount = 4;
+      },
+      reason: 'live_authoring_request_policy_invalid',
+    },
+    {
+      label: 'terminal-cleanup predecessor order',
+      mutate(value: Record<string, unknown>) {
+        const callBudget = value.callBudget as {
+          terminalReferenceCleanup: Record<string, unknown>;
+        };
+        callBudget.terminalReferenceCleanup.eligiblePrecedingRepairModes = [
+          'full_draft',
+          'book_surface_patch',
+        ];
+      },
+      reason: 'live_authoring_request_policy_invalid',
+    },
+    {
+      label: 'terminal-cleanup duplicate predecessor',
+      mutate(value: Record<string, unknown>) {
+        const callBudget = value.callBudget as {
+          terminalReferenceCleanup: Record<string, unknown>;
+        };
+        callBudget.terminalReferenceCleanup.eligiblePrecedingRepairModes = [
+          'book_surface_patch',
+          'book_surface_patch',
+        ];
+      },
+      reason: 'live_authoring_request_policy_invalid',
+    },
+    {
+      label: 'terminal-cleanup extra predecessor',
+      mutate(value: Record<string, unknown>) {
+        const callBudget = value.callBudget as {
+          terminalReferenceCleanup: Record<string, unknown>;
+        };
+        callBudget.terminalReferenceCleanup.eligiblePrecedingRepairModes = [
+          'book_surface_patch',
+          'full_draft',
+          'page_contract_patch',
+        ];
       },
       reason: 'live_authoring_request_policy_invalid',
     },

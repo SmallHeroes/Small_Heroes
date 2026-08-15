@@ -34,6 +34,7 @@ import {
 import {
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+  PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION,
   decodePageContractRepairUserPrompt,
   parsePageContractRepairs,
 } from '../visual-contract-compiler/pageContractRepair';
@@ -51,7 +52,10 @@ import {
   PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
   PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
 } from '../visual-contract-compiler/presentationRequirementRepair';
-import { VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS } from '../visual-contract-compiler/authoringPolicy';
+import {
+  VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+  terminalReferenceCleanupPredecessorIsEligible,
+} from '../visual-contract-compiler/authoringPolicy';
 import { InvalidTemplateContractError } from '../visual-contract-compiler/validateTemplateContract';
 import { extractDeterministicFacts } from '../visual-contract-compiler/extractDeterministicFacts';
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
@@ -795,8 +799,45 @@ describe('Source Evidence ID compact repair', () => {
 });
 
 describe('page-contract compact repair routing', () => {
+  it('keeps the terminal cleanup predecessor catalog closed', () => {
+    expect(
+      ['book_surface_patch', 'full_draft'].filter(
+        terminalReferenceCleanupPredecessorIsEligible,
+      ),
+    ).toEqual(['book_surface_patch', 'full_draft']);
+    for (const mode of [
+      undefined,
+      null,
+      'source_evidence_id_patch',
+      'page_contract_patch',
+      'page_spatial_reference_patch',
+      'stable_prop_scope_patch',
+      'presentation_requirement_patch',
+      'structural_bundle_patch',
+      'unknown_repair_mode',
+    ]) {
+      expect(
+        terminalReferenceCleanupPredecessorIsEligible(mode),
+      ).toBe(false);
+    }
+  });
+
   it('routes a latent mixed cover/page/presentation failure through one bounded book-surface repair', async () => {
     const valid = bunnyDraft();
+    const page2Zone = valid.zones.find(
+      (zone: { id: string }) =>
+        zone.id === valid.pageContracts[1].zoneId,
+    );
+    if (!page2Zone) throw new Error('missing page-2 zone fixture');
+    page2Zone.spatialNodes = [
+      {
+        id: 'waiting_chair',
+        kind: 'furniture',
+        description: 'the stable waiting-room chair',
+        bindsTo: null,
+      },
+    ];
+    page2Zone.spatialRelations = [];
     const validPage1 = structuredClone(valid.pageContracts[0]);
     const page1BeatId = validPage1.actionSemanticCoverage[0].beatId;
     validPage1.actionRequirements = [
@@ -867,6 +908,39 @@ describe('page-contract compact repair routing', () => {
       contractPointer: '/pageContracts/1/mustShow/0',
       contractValue: repairedPage2.mustShow[0],
     };
+    const cleanupBeatId = 'beat:p2:cleanup_reference';
+    repairedPage2.actionRequirements = [
+      {
+        beatId: cleanupBeatId,
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: {
+          kind: 'spatial',
+          id: 'waiting_chair',
+        },
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    repairedPage2.actionSemanticCoverage.push({
+      beatId: cleanupBeatId,
+      sourceEvidenceId:
+        repairedPage2.actionSemanticCoverage[0].sourceEvidenceId,
+      disposition: { kind: 'action_requirement' },
+    });
+    repairedPage2.mustShow = [
+      ...new Set([
+        ...repairedPage2.mustShow,
+        ...projectPageMustShow(repairedPage2, valid),
+      ]),
+    ];
+    repairedPage2.actionRequirements[0].object.id =
+      'outside_current_page_zone';
 
     const calls: Array<{
       user: string;
@@ -884,9 +958,28 @@ describe('page-contract compact repair routing', () => {
       if (calls.length === 2) {
         return JSON.stringify({ pageContracts: [validPage1] });
       }
+      if (calls.length === 3) {
+        return JSON.stringify({
+          coverContract: repairedCover,
+          pageContracts: [repairedPage2],
+        });
+      }
+      const payload = JSON.parse(user) as {
+        targets: Array<{
+          pageNumber: number;
+          actionIndex: number;
+          fieldRole: string;
+          permittedSpatialReferences: Array<{ id: string }>;
+        }>;
+      };
       return JSON.stringify({
-        coverContract: repairedCover,
-        pageContracts: [repairedPage2],
+        patches: payload.targets.map((target) => ({
+          pageNumber: target.pageNumber,
+          actionIndex: target.actionIndex,
+          fieldRole: target.fieldRole,
+          spatialReferenceId:
+            target.permittedSpatialReferences[0]!.id,
+        })),
       });
     };
 
@@ -895,7 +988,7 @@ describe('page-contract compact repair routing', () => {
       { callLLM: caller },
     );
 
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(4);
     expect(calls[1]!.authority).toMatchObject({
       kind: 'repair',
       repairMode: 'page_contract_patch',
@@ -906,6 +999,11 @@ describe('page-contract compact repair routing', () => {
       repairMode: 'book_surface_patch',
       systemPromptVersion: BOOK_SURFACE_REPAIR_PROMPT_VERSION,
       userPromptVersion: 'book-surface-repair-user-prompt/v1',
+    });
+    expect(calls[3]!.authority).toMatchObject({
+      kind: 'repair',
+      budgetClass: 'terminal_reference_cleanup',
+      repairMode: 'page_spatial_reference_patch',
     });
     expect(calls[2]!.options?.jsonSchema?.name).toBe(
       BOOK_SURFACE_REPAIR_SCHEMA_NAME,
@@ -919,13 +1017,17 @@ describe('page-contract compact repair routing', () => {
     ).toEqual([2]);
     expect(payload).not.toHaveProperty('previousDraft');
     expect(payload).not.toHaveProperty('storySource');
-    expect(result.provenance.attempt).toBe(3);
+    expect(result.provenance.attempt).toBe(4);
     expect(result.provenance.repairPromptVersion).toBe(
-      BOOK_SURFACE_REPAIR_PROMPT_VERSION,
+      PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION,
     );
     expect(
       result.repairAttempts.map((attempt) => attempt.nextRepairMode),
-    ).toEqual(['page_contract_patch', 'book_surface_patch']);
+    ).toEqual([
+      'page_contract_patch',
+      'book_surface_patch',
+      'page_spatial_reference_patch',
+    ]);
   });
 
   it('repairs an all-page final structural failure without resending the full draft', async () => {

@@ -481,8 +481,10 @@ function authoringRequestValue(
           terminalReferenceCleanup.maxInputTokens,
         maxOutputTokens:
           terminalReferenceCleanup.maxOutputTokens,
-        requiredPrecedingRepairMode:
-          terminalReferenceCleanup.requiredPrecedingRepairMode,
+        eligiblePrecedingRepairModes: [
+          'book_surface_patch',
+          'full_draft',
+        ],
         repairMode: terminalReferenceCleanup.repairMode,
         residualFamily:
           terminalReferenceCleanup.residualFamily,
@@ -758,7 +760,7 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'maxRepairCount',
     'maxInputTokens',
     'maxOutputTokens',
-    'requiredPrecedingRepairMode',
+    'eligiblePrecedingRepairModes',
     'repairMode',
     'residualFamily',
     'residualCode',
@@ -1156,7 +1158,6 @@ function decodeAuthoringRequest(
         maxRepairCount: 'number',
         maxInputTokens: 'number',
         maxOutputTokens: 'number',
-        requiredPrecedingRepairMode: 'string',
         repairMode: 'string',
         residualFamily: 'string',
         residualCode: 'string',
@@ -1164,6 +1165,23 @@ function decodeAuthoringRequest(
       issues,
       structuralIssues,
     });
+    const terminalReferenceCleanup = recordValue(
+      callBudget.terminalReferenceCleanup,
+    );
+    const eligiblePrecedingRepairModes =
+      terminalReferenceCleanup?.eligiblePrecedingRepairModes;
+    if (
+      !Array.isArray(eligiblePrecedingRepairModes) ||
+      eligiblePrecedingRepairModes.length !== 2 ||
+      eligiblePrecedingRepairModes[0] !==
+        'book_surface_patch' ||
+      eligiblePrecedingRepairModes[1] !== 'full_draft'
+    ) {
+      const code =
+        'request_field_invalid:terminalReferenceCleanup:eligiblePrecedingRepairModes';
+      issues.push(code);
+      structuralIssues.push(code);
+    }
   }
 
   const promptAuthority = recordValue(

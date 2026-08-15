@@ -740,7 +740,10 @@ describe('exact zero-cost authoring preflight', () => {
           maxRepairCount: 1,
           maxInputTokens: 6_000,
           maxOutputTokens: 2_000,
-          requiredPrecedingRepairMode: 'full_draft',
+          eligiblePrecedingRepairModes: [
+            'book_surface_patch',
+            'full_draft',
+          ],
           repairMode: 'page_spatial_reference_patch',
           residualFamily: 'draft_contract',
           residualCode: 'out_of_scope_reference',
@@ -1752,7 +1755,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v21',
+      version: 'visual-contract-authoring-readiness/v22',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -1816,7 +1819,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v21',
+      version: 'visual-contract-authoring-readiness/v22',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -2058,6 +2061,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v20',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v21',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -2166,6 +2175,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v23',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v24',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -2213,6 +2228,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v21',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v22',
       ),
     ).toBe('current');
     expect(
@@ -2449,7 +2470,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v23',
+      'visual-contract-authoring-receipt/v24',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -3667,6 +3688,16 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringAttemptBudgetSequenceIsValid(
         result.receipt.attempts,
+      ),
+    ).toBe(true);
+    const bookSurfacePredecessor = structuredClone(
+      result.receipt.attempts,
+    );
+    bookSurfacePredecessor[2]!.repairMode =
+      'book_surface_patch';
+    expect(
+      visualContractAuthoringAttemptBudgetSequenceIsValid(
+        bookSurfacePredecessor,
       ),
     ).toBe(true);
     expect(() =>

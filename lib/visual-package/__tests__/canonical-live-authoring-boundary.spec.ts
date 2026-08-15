@@ -889,7 +889,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v23',
+      'visual-contract-authoring-receipt/v24',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -1953,6 +1953,34 @@ describe('canonical live authoring executable boundary', () => {
         terminalReferenceCleanup: Record<string, unknown>;
       };
       callBudget.terminalReferenceCleanup.maxOutputTokens = 2_001;
+    }],
+    ['terminal cleanup predecessor order', (request: Record<string, unknown>) => {
+      const callBudget = request.callBudget as {
+        terminalReferenceCleanup: Record<string, unknown>;
+      };
+      callBudget.terminalReferenceCleanup.eligiblePrecedingRepairModes = [
+        'full_draft',
+        'book_surface_patch',
+      ];
+    }],
+    ['terminal cleanup duplicate predecessor', (request: Record<string, unknown>) => {
+      const callBudget = request.callBudget as {
+        terminalReferenceCleanup: Record<string, unknown>;
+      };
+      callBudget.terminalReferenceCleanup.eligiblePrecedingRepairModes = [
+        'book_surface_patch',
+        'book_surface_patch',
+      ];
+    }],
+    ['terminal cleanup extra predecessor', (request: Record<string, unknown>) => {
+      const callBudget = request.callBudget as {
+        terminalReferenceCleanup: Record<string, unknown>;
+      };
+      callBudget.terminalReferenceCleanup.eligiblePrecedingRepairModes = [
+        'book_surface_patch',
+        'full_draft',
+        'page_contract_patch',
+      ];
     }],
     ['terminal cleanup unknown field', (request: Record<string, unknown>) => {
       const callBudget = request.callBudget as {
