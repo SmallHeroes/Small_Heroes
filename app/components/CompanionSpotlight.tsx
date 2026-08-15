@@ -28,12 +28,28 @@ type CompanionSpotlightProps = {
   onClose: () => void;
 };
 
+export function companionSpotlightCutoutSrc(companionImage: string): string {
+  const match = /^\/companions\/([^/]+)\//.exec(companionImage);
+  return match ? `/Images/spotlight/${match[1]}.png` : companionImage;
+}
+
+export function companionSpotlightWizardHref(category: string): string {
+  return `/wizard?category=${encodeURIComponent(category)}`;
+}
+
 export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotlightProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const startedClosingRef = useRef(false);
 
   const companion = slot.companion;
+  /* Prefer the deterministic transparent cutout (same approved art, background
+     flood-filled away offline — never an AI re-render); fall back to the
+     original if a cutout is missing. Cutouts live under /Images/spotlight —
+     a marketing asset path. They must NOT sit inside public/companions:
+     next.config bundles every style01-sheet PNG onto the render functions'
+     disk, and these pushed api/debug/replicate-image past Vercel's 250MB cap. */
+  const cutoutSrc = companionSpotlightCutoutSrc(companion.image);
 
   const requestClose = useCallback(() => {
     if (startedClosingRef.current) return;
@@ -66,7 +82,7 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
 
   /* Spring-from-origin: hand the clicked card's center to CSS. */
   const originStyle: Record<string, string> = {};
-  if (originRect) {
+  if (originRect && typeof window !== 'undefined') {
     const cx = originRect.x + originRect.width / 2;
     const cy = originRect.y + originRect.height / 2;
     originStyle['--from-x'] = `${cx - window.innerWidth / 2}px`;
@@ -103,11 +119,17 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
           <span className={styles.glow} />
           <img
             className={styles.art}
-            src={companion.image}
+            src={cutoutSrc}
             alt=""
             draggable={false}
             onError={(e) => {
-              e.currentTarget.style.visibility = 'hidden';
+              const img = e.currentTarget;
+              if (img.dataset.fallback !== '1') {
+                img.dataset.fallback = '1';
+                img.src = companion.image;
+              } else {
+                img.style.visibility = 'hidden';
+              }
             }}
           />
           <span className={`${styles.spark} ${styles.spark1}`} />
@@ -127,7 +149,7 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
 
           <a
             className={styles.cta}
-            href={`/wizard?category=${encodeURIComponent(slot.category)}`}
+            href={companionSpotlightWizardHref(slot.category)}
             data-event="landing_companion_spotlight_start"
             data-category={slot.category}
           >
