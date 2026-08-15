@@ -78,7 +78,7 @@
 }
 .close:hover { background: #f3f1f9; }
 .close:active { transform: scale(0.94); }
-.close:focus-visible { outline: 3px solid #8fe6de; outline-offset: 2px; }
+.close:focus-visible { outline: 3px solid #ffee6c; outline-offset: 2px; }
 
 /* ── The stage: glow + companion + sparkles ── */
 .stage {
@@ -118,11 +118,9 @@
   width: auto;
   max-width: 86%;
   object-fit: contain;
-  /* the source carries a baked cream plate; melt it into the night + glow */
-  -webkit-mask-image: radial-gradient(84% 92% at 50% 84%, #000 48%, rgba(0, 0, 0, 0.7) 70%, transparent 94%);
-  mask-image: radial-gradient(80% 90% at 50% 84%, #000 38%, rgba(0, 0, 0, 0.55) 62%, transparent 88%);
+  /* served as a true cutout (-nobg.png), so no mask - premium clean edge */
   z-index: 1;
-  filter: drop-shadow(0 18px 30px rgba(10, 6, 30, 0.55));
+  filter: drop-shadow(0 14px 22px rgba(36, 27, 77, 0.28));
   transform-origin: 50% 92%;
   /* pop in, then live: breath+sway (one combined keyframe track) + hop */
   animation:
@@ -178,15 +176,15 @@
 .body { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 14px; }
 
 .name {
-  font-family: var(--font-suez, 'Suez One'), serif;
-  font-weight: 400;
+  font-family: var(--font-rubik, 'Rubik'), 'Heebo', sans-serif;
+  font-weight: 800;
   font-size: clamp(26px, 3.4vw, 34px);
   color: #241b4d;
   margin: 0;
 }
 
 .tagline {
-  font-family: var(--font-assistant, 'Assistant'), sans-serif;
+  font-family: var(--font-heebo, 'Heebo'), sans-serif;
   font-size: 16.5px;
   line-height: 1.55;
   color: #5f5a70;
@@ -195,7 +193,7 @@
 }
 
 .context {
-  font-family: var(--font-assistant, 'Assistant'), sans-serif;
+  font-family: var(--font-heebo, 'Heebo'), sans-serif;
   font-size: 13.5px;
   color: #8b86a0;
   margin: 0 0 6px;
@@ -212,7 +210,7 @@
   border-radius: 999px;
   background: linear-gradient(135deg, #8a6bff, #6d4df0);
   color: #fff;
-  font-family: var(--font-assistant, 'Assistant'), sans-serif;
+  font-family: var(--font-heebo, 'Heebo'), sans-serif;
   font-weight: 700;
   font-size: 18px;
   text-decoration: none;
@@ -221,13 +219,13 @@
 }
 .cta:hover { transform: translate3d(0, -3px, 0); box-shadow: 0 20px 48px rgba(109, 77, 240, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
 .cta:active { transform: translate3d(0, -1px, 0) scale(0.99); transition-duration: 110ms; }
-.cta:focus-visible { outline: 3px solid #8fe6de; outline-offset: 3px; }
+.cta:focus-visible { outline: 3px solid #ffee6c; outline-offset: 3px; }
 
 .maybe {
   background: none;
   border: none;
   color: #8b86a0;
-  font-family: var(--font-assistant, 'Assistant'), sans-serif;
+  font-family: var(--font-heebo, 'Heebo'), sans-serif;
   font-size: 14.5px;
   font-weight: 600;
   cursor: pointer;
@@ -236,7 +234,7 @@
   padding: 6px 10px;
 }
 .maybe:hover { color: #241b4d; }
-.maybe:focus-visible { outline: 3px solid #8fe6de; outline-offset: 2px; border-radius: 4px; }
+.maybe:focus-visible { outline: 3px solid #ffee6c; outline-offset: 2px; border-radius: 4px; }
 
 /* ── Mobile: bottom sheet ── */
 @media (max-width: 640px) {

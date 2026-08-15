@@ -34,6 +34,10 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
   const startedClosingRef = useRef(false);
 
   const companion = slot.companion;
+  /* Prefer the deterministic transparent cutout (same approved art, background
+     flood-filled away offline — never an AI re-render); fall back to the
+     original if a cutout is missing. */
+  const cutoutSrc = companion.image.replace(/\.(jpg|jpeg|png)$/i, '-nobg.png');
 
   const requestClose = useCallback(() => {
     if (startedClosingRef.current) return;
@@ -103,11 +107,17 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
           <span className={styles.glow} />
           <img
             className={styles.art}
-            src={companion.image}
+            src={cutoutSrc}
             alt=""
             draggable={false}
             onError={(e) => {
-              e.currentTarget.style.visibility = 'hidden';
+              const img = e.currentTarget;
+              if (img.dataset.fallback !== '1') {
+                img.dataset.fallback = '1';
+                img.src = companion.image;
+              } else {
+                img.style.visibility = 'hidden';
+              }
             }}
           />
           <span className={`${styles.spark} ${styles.spark1}`} />
