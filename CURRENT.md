@@ -2,7 +2,65 @@
 
 **Updated:** 2026-08-15
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-presentation-structural-repair` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based exactly on pushed broad-spatial-repair closeout `e28ab0becb6eb883de3ce08dad9527196a09a748`.
+**Working branch:** `codex/r1d-pvb-d1a1b1-terminal-reference-cleanup-budget` in `C:\Users\guyna\.codex\worktrees\cleanupbudget1\Small_Heroes`; based exactly on pushed normalized-authority closeout `a620ed5485d6f08047759773870d9fcc90d6449b`.
+
+## TERMINAL REFERENCE CLEANUP BUDGET — implemented locally / independent QA pending
+
+The repeated Leo failure was a budget-routing gap, not another missing story
+literal or prompt instruction. The bounded three-call sequence could use call 2
+for an existing compact reference repair, call 3 for a required `full_draft`
+repair, and then discover a reference-only residual after the budget was already
+exhausted. The previous attempt therefore stopped correctly but could not use
+the already-proven compact page-spatial repair a second time.
+
+- Code commit `5923a853` keeps the normal authoring budget at one initial call
+  plus two standard repairs. It adds one separate
+  `terminal_reference_cleanup` call only after attempt 3, only when call 3 was
+  `full_draft`, and only when the remaining non-empty issue set is exclusively
+  the closed page-action reference/out-of-scope class. Every other residual
+  remains terminal; a failed cleanup is terminal; there is no fifth call.
+- The cleanup uses the existing strict `page_spatial_reference_patch` schema,
+  exact compiler-owned targets, duplicate rejection, masked equality and input
+  nonmutation. Its ceiling is 6,000 input and 2,000 output tokens. The three
+  standard calls retain their 64K/normal-output policy.
+- The projected conservative reservation is `$4.99125`, below the unchanged
+  `$5.00` hard ceiling. Runtime reservation and usage checks distinguish the
+  standard and cleanup budget classes. Model, Responses API/default tier,
+  reasoning, timeout, zero transport retries, no fallback, candidate semantics,
+  Blueprint, Wizard, Reader, renderer, payment, storage and Production behavior
+  are unchanged.
+- Authority cutover is authoring policy `v3`, request/receipt/readiness
+  `v20/v23/v21`, materialization input/manifest/verification `v9/v18/v18`,
+  Supervisor request/readiness/result `v17/v17/v9`, execution materialization
+  input/result `v8/v12`, and Fresh Readiness evidence `v17`. Immediate
+  predecessors are historical immutable only.
+- The exact success regression proves initial failure → standard compact
+  page-spatial repair → standard `full_draft` repair → reference-only residual
+  → terminal compact cleanup → candidate. Negative and tamper coverage rejects
+  mixed/non-reference residuals, wrong predecessor/mode/class/order, malformed
+  cleanup output, token/cost drift and any fifth call.
+- Policy-correct focused validation completed with the 8-file resource phase
+  passing **324/324** tests. The ordinary phase passed **143/144** and exposed
+  one stale error-message expectation (`receipt v19`); that expectation was
+  updated to current `v23` and its direct regression then passed **1/1**.
+  TypeScript and `git diff --check` passed.
+- The one repository gate passed both TypeScript contracts. Its 281-file
+  ordinary phase passed **3,165** tests and failed only the exact six established
+  missing ignored-output fixtures; its 19-file resource phase passed
+  **571/571** with clean diagnostic protocol and no timeout/RPC/IPC/launch/
+  signal/reporter/teardown failure. The six fixtures remain a separate release
+  HOLD, not a finding in this implementation.
+
+Implementation cost was `$0`. No credential, provider, Fresh Readiness,
+canonical preflight, live authoring, candidate, render, storage/database,
+deployment, QA promotion or Production action occurred. This local result does
+not self-award independent technical PASS and creates no authority for a new
+live attempt; Claude Code review of the exact base-to-head range is pending.
+
+Durable records:
+`docs/ai-workflow/R1D_PVB_D1A1B1_TERMINAL_REFERENCE_CLEANUP_BUDGET_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_PVB_D1A1B1_TERMINAL_REFERENCE_CLEANUP_BUDGET_IMPLEMENTATION_EVIDENCE.md`.
 
 ## BOOK-SURFACE NORMALIZED AUTHORITY PROJECTION — independent technical PASS
 
