@@ -2,7 +2,49 @@
 
 **Updated:** 2026-08-15
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-post-repair-mixed-validation-routing` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed Leo QA attempt head `9d0504a78048c7daff2ec5c7b12de17aecb2b532`.
+**Working branch:** `codex/r1d-full-draft-repair-input-compaction` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed mixed-routing head `d973cacf2fdc6ecfc0120944d5e32638d53ab7b3`.
+
+## FULL-DRAFT REPAIR INPUT COMPACTION — implementation green / independent QA pending
+
+The latest consumed Leo QA attempt proved that the prior mixed-validation
+routing correction works: initial authoring and one compact page repair both
+completed, and the final bounded attempt selected `full_draft`. That attempt
+then stopped before a third provider call because the raw complete-draft repair
+input exceeded the unchanged conservative 64K ceiling. It used two logical
+provider calls, one repair, zero transport retries and no fallback; conservative
+authoring accounting was `$1.002057`. No candidate, Blueprint, Wizard render
+authority or image was produced.
+
+The general correction reuses the existing canonical dictionary codec for the
+full-draft repair input. The decoded closed payload retains every validation
+error, deterministic fact, cover authority, relevant Source Evidence entry and
+the complete previous draft. The compiler proves canonical round-trip equality
+locally before provider reachability. The provider output remains the same
+complete strict-schema draft. No story, child, companion, page or provider
+literal is present.
+
+Full-draft repair prompt authorities are now `vc-repair-prompt/v11` and
+`vc-repair-user-prompt/v12`. The model, service tier, 64K ceiling, schema,
+call/repair/cost budgets, timeout, retries, no-fallback policy, candidate
+semantics and downstream behavior are unchanged. Historical readiness and live
+artifacts are immutable and grant no new authority.
+
+Focused validation passed **4 files / 137 tests**, including lossless decode,
+tamper rejection, key-order invariance, a compressible large-input positive
+control and an incompressible oversized-input fail-closed control. TypeScript
+and `git diff --check` passed. The one repository gate ran both TypeScript
+contracts and passed all **19 resource-intensive files** with clean diagnostics;
+ordinary failed only the exact six established missing ignored-output fixtures
+across its **280 files**, with no seventh failure. That separate release HOLD
+remains.
+
+Implementation commit: `7239e26e`. Durable evidence:
+`docs/ai-workflow/R1D_FULL_DRAFT_REPAIR_INPUT_COMPACTION_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_FULL_DRAFT_REPAIR_INPUT_COMPACTION_IMPLEMENTATION_EVIDENCE.md`.
+Codex does not self-award technical PASS. Independent Claude Code QA is pending;
+until PASS and new Fresh Readiness, there is no live-authoring or render
+authority.
 
 ## POST-REPAIR MIXED VALIDATION ROUTING — independent technical PASS
 
