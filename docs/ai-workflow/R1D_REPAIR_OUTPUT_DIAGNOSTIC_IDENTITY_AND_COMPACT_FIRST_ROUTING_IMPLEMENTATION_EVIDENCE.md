@@ -6,7 +6,7 @@
 - Branch: `codex/r1d-repair-output-diagnostic-identity-and-compact-first-routing`
 - Worktree: `C:\Users\guyna\.codex\worktrees\repairdiag2\Small_Heroes`
 - Implementation commit: `c6789026`
-- Independent technical QA: pending
+- Independent technical QA: PASS on `7a37759c..958d7ff6`
 - External cost: `$0`
 
 This milestone is a general compiler/lifecycle hardening. It does not contain a
@@ -119,9 +119,25 @@ Revert implementation commit `c6789026` before producing new authority. This
 restores the prior broad escalation and coarse diagnostic. Historical evidence
 remains immutable either way; no prior attempt becomes authoritative.
 
-## QA status
+## Independent QA
 
-Codex records local implementation evidence only and does not self-award
-independent technical PASS. Claude Code must falsify exact range
-`7a37759c265ad8466c3eee23e008d6be0accff07..c6789026` before push, Fresh
-Readiness or another live attempt.
+Claude Code independently reviewed exact range
+`7a37759c265ad8466c3eee23e008d6be0accff07..958d7ff6` read-only and returned
+**PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It verified exact
+topology, compact-first routing, all 68 repair-helper machine identities, the
+six-code closed diagnostic contract, receipt/readiness persistence, complete
+version cutover and unchanged budgets/provider/downstream surfaces.
+
+Advisories only:
+
+- a few safe machine identities intentionally use the closed
+  `application_rejected` fallback instead of a narrower label;
+- `InvalidVisualContractError` maps to JSON failure because its only reachable
+  source in the repair block is currently `parseContractJson`;
+- the earlier code-only review notation ended at `c6789026`; the actual
+  independently reviewed range includes docs-only head `958d7ff6` and is now
+  recorded above.
+
+No further re-gate is required absent a factual discrepancy. This technical
+PASS grants no Fresh Readiness, preflight, live, candidate, render, downstream,
+release, deployment or Production authority by itself.
