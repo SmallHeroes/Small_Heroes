@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-post-repair-mixed-validation-routing` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed Leo QA attempt head `9d0504a78048c7daff2ec5c7b12de17aecb2b532`.
 
-## POST-REPAIR MIXED VALIDATION ROUTING — local implementation green / independent QA pending
+## POST-REPAIR MIXED VALIDATION ROUTING — independent technical PASS
 
 The two consumed Leo QA authoring attempts each completed an initial provider
 response and one compact page repair, then stopped as
@@ -48,9 +48,16 @@ provider behavior did not change.
 No credential, provider, Fresh Readiness, preflight, image, render, storage,
 database, deployment or Production action occurred during this correction.
 Historical output artifacts remain immutable. Codex does not self-award
-technical PASS: independent Claude Code review of the committed range is the
-next gate. A later Leo three-page LOW attempt requires fresh canonical
-authority and must not reuse either exhausted attempt.
+technical PASS. Claude Code independently reviewed exact range
+`9d0504a78048c7daff2ec5c7b12de17aecb2b532..de6d0e26fe5fa71628eeb4010c00176bba3959af`
+and returned **PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It confirmed
+all ten falsification targets. This is Claude's verdict, not a Codex
+self-awarded result. Its three notes are advisory only: the nested
+`structuralError` field is now unread while its typed contents remain used;
+other mixed drafts may select another existing bounded lane before
+`full_draft`; and Claude accepted the recorded validation without rerunning it.
+A later Leo three-page LOW attempt requires fresh canonical authority and must
+not reuse either exhausted attempt.
 
 Durable Decision Gate and implementation evidence:
 `docs/ai-workflow/R1D_POST_REPAIR_MIXED_VALIDATION_ROUTING_DECISION_GATE.md`

@@ -1,6 +1,6 @@
 # R1D Post-Repair Mixed Validation Routing — Implementation Evidence
 
-**Status:** local implementation green; independent Claude Code QA pending
+**Status:** independent Claude Code technical PASS
 **Base:** `9d0504a78048c7daff2ec5c7b12de17aecb2b532`
 **Branch:** `codex/r1d-post-repair-mixed-validation-routing`
 **Worktree:** `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`
@@ -122,4 +122,25 @@ Claude Code should attempt to falsify:
 9. exact repository-gate accounting and separation of the six-fixture release HOLD;
 10. absence of credential, provider, image, deployment and Production activity.
 
-Codex records its implementation evidence but does not self-award independent technical PASS.
+## Independent QA verdict
+
+Claude Code independently reviewed exact range
+`9d0504a78048c7daff2ec5c7b12de17aecb2b532..de6d0e26fe5fa71628eeb4010c00176bba3959af`
+read-only and returned **PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It
+confirmed all ten falsification targets, exact topology, the one-commit/six-file
+scope, the retained fail-closed boundaries, the bounded three-call path and the
+separate six-fixture release HOLD.
+
+Claude retained three advisory notes only:
+
+1. The nested `structuralError` object is now unread in this catch, while its
+   typed `structuralErrors` and `structuralDiagnosticIssues` contents continue
+   through the repair trail.
+2. A different mixed draft may select another already-existing bounded repair
+   lane before `full_draft`; this does not reopen the escaped-error defect.
+3. Claude accepted the recorded validation by code inspection and did not
+   re-execute the suite.
+
+This is Claude's independent verdict, not a Codex self-awarded PASS. It grants
+no product, visual, render or release authority and does not waive the six
+fixture failures.
