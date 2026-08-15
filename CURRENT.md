@@ -2,7 +2,51 @@
 
 **Updated:** 2026-08-15
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-compound-page-authority-repair-routing` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed page-spatial prompt-closure head `6f3f44846d6a282f1019175d7f8902d3371209aa`.
+**Working branch:** `codex/r1d-compound-page-authority-compact-routing` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed compound co-observation head `9d4b8c2203d6739862ac03e901f51e7366f2dd9b`.
+
+## COMPOUND PAGE-AUTHORITY COMPACT ROUTING — local implementation complete, independent QA pending
+
+The consumed Leo v12 authoring attempt passed canonical Fresh Readiness,
+preflight and Supervisor verify, then exhausted the bounded three-call live
+flow without a candidate. The first completed full-draft repair resolved all
+`38` original issues. The next completed draft contained only `20` page-local
+issues across nine pages: three action-binding-cardinality identities and
+seventeen page-spatial-reference identities. The old common representation
+sent another whole draft; its response reached the exact `36,000` output-token
+ceiling and ended `completion_status_invalid`. Aggregate usage was input
+`52,423`, cache-write `47,806`, cached `4,608`, output `91,332`, reasoning
+`8,534`, total `143,755`; nominal cost was `$3.041097` and conservative
+accounting was `$3.374366`. Receipt digest is
+`02b5d2f8b1922c9d2747604b0ec34f9689ef064a9d70c16055ad6fd8ad704b2e`;
+readiness digest is
+`f11f48dcd2db5c54c5b2bf3a87b6294693c5c60f9c6dca4d7171d0fad16f4b11`.
+Candidate and Reconciliation are absent and no Blueprint, Wizard or render
+authority exists.
+
+The general correction derives one sorted complete-page repair plan only for
+the exact closed union of action-binding cardinality and page-action spatial
+reference failures. It masks each rejected spatial value, carries typed target
+coordinates plus the exact spatial IDs permitted by that page's current zone,
+and rejects duplicate targets or returned IDs outside that authority. The
+existing strict `PageContractRepairPatches` output schema and two-repair budget
+are unchanged; only page-repair prompt authorities advance to v11. Homogeneous
+routes are unchanged and every third family remains terminal.
+
+Focused validation passed **7 files / 378 tests**. TypeScript and
+`git diff --check` passed. The single repository gate passed both TypeScript
+contracts and all **19 resource-intensive files** with clean diagnostics; its
+**280-file ordinary phase** failed only the exact six established missing
+ignored-output fixtures, with no seventh assertion or infrastructure failure.
+Those fixtures remain a separate release HOLD. Implementation commit is
+`40357d6b`; independent Claude Code QA is pending, so Codex does not claim the
+technical PASS. No new Fresh Readiness, live-authoring or render authority
+follows from this local implementation.
+
+Durable evidence:
+`docs/ai-workflow/R1D_LEO_V12_COMPOUND_PAGE_AUTHORITY_ROUTING_EXECUTION_EVIDENCE.md`,
+`docs/ai-workflow/R1D_COMPOUND_PAGE_AUTHORITY_COMPACT_ROUTING_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_COMPOUND_PAGE_AUTHORITY_COMPACT_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
 
 ## COMPOUND PAGE-AUTHORITY REPAIR ROUTING — implementation complete, independent QA pending
 
