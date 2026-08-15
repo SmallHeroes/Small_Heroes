@@ -922,6 +922,96 @@ describe('captured reference-domain matrix', () => {
     expect(result.provenance.attempt).toBe(2);
   });
 
+  it('co-observes action-binding and page-spatial failures and spends one full-draft repair on both', async () => {
+    const invalid = matrixDraft();
+    coverage(invalid).shift();
+    actions(invalid)[0]!.object = {
+      kind: 'spatial',
+      id: 'outside_current_page_zone',
+    };
+    const repaired = matrixDraft();
+    const repairUserPrompts: string[] = [];
+    const callLLM = vi.fn(async (
+      _system: string,
+      user: string,
+      _options?: unknown,
+      _authority?: unknown,
+    ) => {
+      if (callLLM.mock.calls.length === 1) {
+        return JSON.stringify(invalid);
+      }
+      repairUserPrompts.push(user);
+      return JSON.stringify(repaired);
+    });
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+
+    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(callLLM.mock.calls[1]![3]).toMatchObject({
+      kind: 'repair',
+      repairMode: 'full_draft',
+    });
+    expect(result.repairAttempts).toMatchObject([
+      {
+        attempt: 1,
+        nextRepairMode: 'full_draft',
+        diagnosticIssues: expect.arrayContaining([
+          {
+            family: 'action_semantic',
+            code: 'action_binding_cardinality_invalid',
+            locator: {
+              kind: 'page_item',
+              collectionRole: 'page_actions',
+              fieldRole: 'cardinality',
+              pageNumber: 1,
+              itemIndex: 0,
+            },
+          },
+          {
+            family: 'draft_contract',
+            code: 'out_of_scope_reference',
+            locator: {
+              kind: 'page_item',
+              collectionRole: 'page_actions',
+              fieldRole: 'reference',
+              pageNumber: 1,
+              itemIndex: 0,
+            },
+          },
+        ]),
+      },
+    ]);
+    expect(
+      decodeTemplateRepairUserPrompt(
+        repairUserPrompts[0]!,
+      ).validationIssues,
+    ).toEqual(
+      expect.arrayContaining(
+        [...result.repairAttempts[0]!.diagnosticIssues],
+      ),
+    );
+    expect(result.provenance.attempt).toBe(2);
+  });
+
+  it('keeps a compound authority set terminal when it contains any third family', async () => {
+    const invalid = matrixDraft();
+    coverage(invalid).shift();
+    actions(invalid)[0]!.object = {
+      kind: 'spatial',
+      id: 'outside_current_page_zone',
+    };
+    const firstNode = nodes(invalid)[0]!;
+    firstNode.stablePropId = 17;
+    const callLLM = vi.fn(async () => JSON.stringify(invalid));
+
+    await expect(
+      compileBookVisualContractTemplate(input, { callLLM }),
+    ).rejects.toBeInstanceOf(DraftAuthorityReferenceDomainError);
+    expect(callLLM).toHaveBeenCalledTimes(1);
+  });
+
   it('aggregates action binding authority across every affected page before one complete-page repair', async () => {
     const multiPages = [
       {

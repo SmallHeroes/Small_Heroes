@@ -2741,10 +2741,15 @@ function normalizeDraftSpatialAuthorities(args: {
   };
 }
 
-function assertPageSpatialReferenceDomains(args: {
+interface PageSpatialReferenceDomainFailure {
+  issues: DraftAuthorityReferenceIssue[];
+  authority: PageSpatialRepairAuthority[] | undefined;
+}
+
+function collectPageSpatialReferenceDomainFailure(args: {
   pages: readonly Record<string, unknown>[];
   zones: BookVisualContractTemplate['zones'];
-}): void {
+}): PageSpatialReferenceDomainFailure | null {
   const zoneNodeIds = new Map(
     args.zones.map((zone) => [
       zone.id,
@@ -2869,48 +2874,44 @@ function assertPageSpatialReferenceDomains(args: {
       );
     }
   }
-  if (issues.length > 0) {
-    const affectedPageNumbers = [
-      ...new Set(
-        issues.flatMap((issue) =>
-          'pageNumber' in issue.locator
-            ? [issue.locator.pageNumber]
-            : [],
-        ),
+  if (issues.length === 0) return null;
+  const affectedPageNumbers = [
+    ...new Set(
+      issues.flatMap((issue) =>
+        'pageNumber' in issue.locator
+          ? [issue.locator.pageNumber]
+          : [],
       ),
-    ].sort((left, right) => left - right);
-    const authority: Array<PageSpatialRepairAuthority | null> =
-      affectedPageNumbers.map((pageNumber) => {
-        const pages = args.pages.filter(
-          (page) => Number(page.pageNumber) === pageNumber,
-        );
-        const zoneId =
-          pages.length === 1 && typeof pages[0]!.zoneId === 'string'
-            ? pages[0]!.zoneId
-            : null;
-        const permittedSpatialReferences = zoneId
-          ? zoneSpatialAuthority.get(zoneId)
-          : undefined;
-        return zoneId && permittedSpatialReferences
-          ? {
-              pageNumber,
-              zoneId,
-              permittedSpatialReferences,
-            }
+    ),
+  ].sort((left, right) => left - right);
+  const authority: Array<PageSpatialRepairAuthority | null> =
+    affectedPageNumbers.map((pageNumber) => {
+      const pages = args.pages.filter(
+        (page) => Number(page.pageNumber) === pageNumber,
+      );
+      const zoneId =
+        pages.length === 1 && typeof pages[0]!.zoneId === 'string'
+          ? pages[0]!.zoneId
           : null;
-      });
-    const completeAuthority = authority.every(
-      (value) =>
-        value !== null &&
-        value.permittedSpatialReferences.length > 0,
-    )
-      ? (authority as PageSpatialRepairAuthority[])
-      : undefined;
-    throw new DraftAuthorityReferenceDomainError(
-      issues,
-      completeAuthority,
-    );
-  }
+      const permittedSpatialReferences = zoneId
+        ? zoneSpatialAuthority.get(zoneId)
+        : undefined;
+      return zoneId && permittedSpatialReferences
+        ? {
+            pageNumber,
+            zoneId,
+            permittedSpatialReferences,
+          }
+        : null;
+    });
+  const completeAuthority = authority.every(
+    (value) =>
+      value !== null &&
+      value.permittedSpatialReferences.length > 0,
+  )
+    ? (authority as PageSpatialRepairAuthority[])
+    : undefined;
+  return { issues, authority: completeAuthority };
 }
 
 function sourceEvidenceValidationMessages(
@@ -3012,6 +3013,14 @@ function assembleTemplateFromDraft(
   const coverageIssues: string[] = [];
   const coverageDiagnosticIssues: DraftValidationIssue[] = [];
   const pageAuthorityIssues: DraftAuthorityReferenceIssue[] = [];
+  // Collect this independent page-local authority before semantic grounding.
+  // A cardinality rejection on one page must not hide invalid spatial
+  // references on other pages until after the bounded repair budget is spent.
+  const pageSpatialReferenceFailure =
+    collectPageSpatialReferenceDomainFailure({
+      pages: canonicalPages,
+      zones: spatialAuthority.zones,
+    });
   const pageContracts: ReturnType<typeof overlayPage>[] = [];
   for (const pc of canonicalPages) {
     try {
@@ -3040,15 +3049,18 @@ function assembleTemplateFromDraft(
       throw error;
     }
   }
-  if (pageAuthorityIssues.length > 0) {
+  if (
+    pageAuthorityIssues.length > 0 ||
+    pageSpatialReferenceFailure
+  ) {
     throw new DraftAuthorityReferenceDomainError(
-      pageAuthorityIssues,
+      [
+        ...pageAuthorityIssues,
+        ...(pageSpatialReferenceFailure?.issues ?? []),
+      ],
+      pageSpatialReferenceFailure?.authority,
     );
   }
-  assertPageSpatialReferenceDomains({
-    pages: pageContracts,
-    zones: spatialAuthority.zones,
-  });
   const seenBeatIds = new Set<string>();
   for (const [beatIndex, beat] of [
     ...actionSemanticCoverage,
@@ -3384,6 +3396,7 @@ export async function compileBookVisualContractTemplate(
     let structuralBundleAuthority:
       | StructuralBundleRepairAuthority
       | undefined;
+    let fullDraftRepairRequired = false;
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
@@ -3449,28 +3462,67 @@ export async function compileBookVisualContractTemplate(
         attemptDiagnosticIssues = err.issues.map(
           stablePropScopeRepairDiagnostic,
         );
-      } else if (
-        err instanceof DraftAuthorityReferenceDomainError &&
-        pageSpatialReferenceIssuesAreRepairable(err.issues)
-      ) {
-        pageSpatialRepairIssues = err.issues;
-        pageSpatialRepairAuthority =
-          err.pageSpatialRepairAuthority;
-        attemptErrors = err.issues.map(
-          pageSpatialReferenceRepairInstruction,
-        );
-        attemptDiagnosticIssues = err.issues.map(
-          pageSpatialReferenceRepairDiagnostic,
-        );
       } else if (err instanceof DraftAuthorityReferenceDomainError) {
-        const repairPlan = pageContractAuthorityRepairPlan({
-          draft,
-          issues: err.issues,
-        });
-        if (!repairPlan) throw err;
-        pageContractAffectedPages = repairPlan.affectedPages;
-        attemptErrors = repairPlan.validationMessages;
-        attemptDiagnosticIssues = repairPlan.diagnosticIssues;
+        const pageSpatialIssues = err.issues.filter(
+          pageSpatialReferenceIssueIsRepairable,
+        );
+        const actionBindingIssues = err.issues.filter(
+          (issue) => !pageSpatialReferenceIssueIsRepairable(issue),
+        );
+        const actionBindingPlan =
+          pageContractAuthorityRepairPlan({
+            draft,
+            issues: actionBindingIssues,
+          });
+        if (
+          pageSpatialIssues.length > 0 &&
+          actionBindingIssues.length > 0 &&
+          pageSpatialIssues.length + actionBindingIssues.length ===
+            err.issues.length &&
+          pageSpatialReferenceIssuesAreRepairable(
+            pageSpatialIssues,
+          ) &&
+          err.pageSpatialRepairAuthority &&
+          actionBindingPlan
+        ) {
+          // Both closed families must be visible to the same final bounded
+          // repair. Serial compact repairs would require a third repair and
+          // hide one family until after the call budget is exhausted.
+          attemptErrors = [
+            ...actionBindingPlan.validationMessages,
+            ...pageSpatialIssues.map(
+              pageSpatialReferenceRepairInstruction,
+            ),
+          ];
+          attemptDiagnosticIssues = [
+            ...actionBindingPlan.diagnosticIssues,
+            ...pageSpatialIssues.map(
+              pageSpatialReferenceRepairDiagnostic,
+            ),
+          ];
+          fullDraftRepairRequired = true;
+        } else if (
+          pageSpatialReferenceIssuesAreRepairable(err.issues)
+        ) {
+          pageSpatialRepairIssues = err.issues;
+          pageSpatialRepairAuthority =
+            err.pageSpatialRepairAuthority;
+          attemptErrors = err.issues.map(
+            pageSpatialReferenceRepairInstruction,
+          );
+          attemptDiagnosticIssues = err.issues.map(
+            pageSpatialReferenceRepairDiagnostic,
+          );
+        } else {
+          const repairPlan = pageContractAuthorityRepairPlan({
+            draft,
+            issues: err.issues,
+          });
+          if (!repairPlan) throw err;
+          pageContractAffectedPages = repairPlan.affectedPages;
+          attemptErrors = repairPlan.validationMessages;
+          attemptDiagnosticIssues = repairPlan.diagnosticIssues;
+        }
       } else if (err instanceof ActionSemanticCapabilityGapError) {
         presentationRequirementAffectedTargets =
           presentationRequirementRepairTargets({
@@ -3515,7 +3567,8 @@ export async function compileBookVisualContractTemplate(
       !sourceEvidenceAffectedRecords &&
       !stablePropScopeAffectedTargets &&
       !presentationRequirementAffectedTargets &&
-      !pageContractAffectedPages
+      !pageContractAffectedPages &&
+      !fullDraftRepairRequired
     ) {
       if (pageSpatialRepairIssues && pageSpatialRepairAuthority) {
         pageSpatialReferenceAffectedTargets =

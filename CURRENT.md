@@ -2,7 +2,42 @@
 
 **Updated:** 2026-08-15
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-page-spatial-reference-prompt-closure` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed source-regeneration head `93d9ac7c0975901b3dfea2445da34a0b1958bbd2`.
+**Working branch:** `codex/r1d-compound-page-authority-repair-routing` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed page-spatial prompt-closure head `6f3f44846d6a282f1019175d7f8902d3371209aa`.
+
+## COMPOUND PAGE-AUTHORITY REPAIR ROUTING — implementation complete, independent QA pending
+
+The consumed Leo v11 attempt proved that its third `page_contract_patch`
+could not have introduced reference failures on pages it never received.
+The full-draft response from attempt two already contained one page-7
+action-binding cardinality issue and page-spatial reference failures on other
+pages. The compiler's validation order surfaced the cardinality authority
+first, spent the final repair on that page alone, and exposed the spatial
+failures only after the unchanged three-call budget was exhausted.
+
+The general correction collects page-spatial authority independently of
+action-semantic grounding and combines both closed issue sets before repair
+selection. Spatial-only drafts retain the exact field-scoped
+`page_spatial_reference_patch`; action-binding-only drafts retain the existing
+`page_contract_patch`. Only a mixed set made exclusively of those two
+repairable families uses one `full_draft` repair carrying both sanitized typed
+diagnostic sets. Any third authority family remains terminal. Model, prompts,
+schemas, 64K ceiling, call/repair/cost budgets, timeout, retry/fallback policy,
+candidate semantics and downstream behavior are unchanged.
+
+Focused validation passed **5 files / 199 tests**. TypeScript and
+`git diff --check` passed. The single repository gate passed both TypeScript
+contracts and all **19 resource-intensive files** with clean diagnostics; its
+**280-file ordinary phase** failed only the exact six established missing
+ignored-output fixtures, with no seventh assertion or infrastructure failure.
+Those fixtures remain a separate release HOLD and are not a finding in this
+implementation. Independent Claude Code technical review is pending. No
+Fresh Readiness, live-authoring, candidate, Wizard or render authority follows
+from this implementation record.
+
+Durable evidence:
+`docs/ai-workflow/R1D_COMPOUND_PAGE_AUTHORITY_REPAIR_ROUTING_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_COMPOUND_PAGE_AUTHORITY_REPAIR_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
 
 ## PAGE-SPATIAL REFERENCE PROMPT CLOSURE — independent technical PASS
 
