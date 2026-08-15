@@ -1755,7 +1755,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v24',
+      version: 'visual-contract-authoring-readiness/v25',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -1819,7 +1819,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v24',
+      version: 'visual-contract-authoring-readiness/v25',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -2071,7 +2071,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'request',
-        'visual-contract-authoring-request/v23',
+        'visual-contract-authoring-request/v24',
       ),
     ).toBe('current');
     expect(
@@ -2191,7 +2191,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'receipt',
-        'visual-contract-authoring-receipt/v26',
+        'visual-contract-authoring-receipt/v27',
       ),
     ).toBe('current');
     expect(
@@ -2251,7 +2251,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
-        'visual-contract-authoring-readiness/v24',
+        'visual-contract-authoring-readiness/v25',
       ),
     ).toBe('current');
     expect(
@@ -2439,7 +2439,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).toThrow(
-      /receipt v23 requires exact typed draft-validation evidence/,
+      /receipt v27 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -2488,7 +2488,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v26',
+      'visual-contract-authoring-receipt/v27',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -3959,6 +3959,17 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const valid = fullyActionedBunnyDraft(snapshot);
+    for (const prop of valid.recurringProps) {
+      const draftProp = prop as unknown as Record<string, unknown>;
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          draftProp,
+          'firstRevealPage',
+        )
+      ) {
+        draftProp.firstRevealPage = null;
+      }
+    }
     const invalid = structuredClone(valid);
     for (const page of invalid.pageContracts) {
       page.camera = '';
@@ -4661,6 +4672,17 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
   it('records a bounded book-surface repair without resending unrelated global draft authority', async () => {
     const snapshot = bunnySnapshot();
     const valid = fullyActionedBunnyDraft(snapshot);
+    for (const prop of valid.recurringProps) {
+      const draftProp = prop as unknown as Record<string, unknown>;
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          draftProp,
+          'firstRevealPage',
+        )
+      ) {
+        draftProp.firstRevealPage = null;
+      }
+    }
     const coverZone = valid.zones.find(
       (zone) => zone.locationId === valid.coverContract.locationId,
     );
@@ -4718,18 +4740,40 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       contractPointer: '/pageContracts/0/mustShow/0',
       contractValue: repairedPage.mustShow[0],
     };
-    const sequence = sequencedSuccessfulProvider([
-      invalid,
-      {
-        coverContract: valid.coverContract,
-        pageContracts: [repairedPage],
-      },
-    ]);
     const calls: Parameters<VisualContractAuthoringProvider['call']>[0][] = [];
+    let providerCall = 0;
     const provider: VisualContractAuthoringProvider = {
       call: vi.fn(async (args) => {
         calls.push(args);
-        return sequence.call(args);
+        providerCall += 1;
+        const output =
+          providerCall === 1
+            ? invalid
+            : {
+                coverContract: valid.coverContract,
+                recurringProps: (
+                  decodeBookSurfaceRepairUserPrompt(
+                    args.userPrompt,
+                  ).recurringProps as Record<string, unknown>[]
+                ),
+                pageContracts: [repairedPage],
+              };
+        return {
+          output: JSON.stringify(output),
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `response-${providerCall}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+              output_tokens_details: {
+                reasoning_tokens: 500,
+              },
+            },
+          },
+        };
       }),
     };
 

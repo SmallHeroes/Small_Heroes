@@ -14,16 +14,17 @@ import type { PresentationRequirementRepairTarget } from './presentationRequirem
 import {
   TEMPLATE_DRAFT_COVER_CONTRACT_JSON_SCHEMA,
   TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
+  TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA,
 } from './templateDraftSchema';
 
 export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
-  'book-surface-repair-schema/v1' as const;
+  'book-surface-repair-schema/v2' as const;
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =
-  'book-surface-repair-prompt/v1' as const;
+  'book-surface-repair-prompt/v2' as const;
 export const BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION =
-  'book-surface-repair-user-prompt/v1' as const;
+  'book-surface-repair-user-prompt/v2' as const;
 
 const MAX_VALIDATION_MESSAGES = 128;
 const MAX_VALIDATION_MESSAGE_LENGTH = 1_024;
@@ -42,6 +43,10 @@ function strictObject(
 export const BOOK_SURFACE_REPAIR_JSON_SCHEMA: Record<string, unknown> =
   strictObject({
     coverContract: TEMPLATE_DRAFT_COVER_CONTRACT_JSON_SCHEMA,
+    recurringProps: {
+      type: 'array',
+      items: TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA,
+    },
     pageContracts: {
       type: 'array',
       minItems: 1,
@@ -65,6 +70,14 @@ const PAGE_CONTRACT_KEYS = Object.freeze(
     >,
   ),
 );
+const RECURRING_PROP_KEYS = Object.freeze(
+  Object.keys(
+    TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA.properties as Record<
+      string,
+      unknown
+    >,
+  ),
+);
 
 interface BookSurfaceReferenceAuthority {
   worldType: string;
@@ -80,6 +93,8 @@ interface BookSurfaceReferenceAuthority {
 
 export interface BookSurfaceRepairAuthority {
   coverContract: Record<string, unknown>;
+  recurringProps: Record<string, unknown>[];
+  repairRecurringProps: boolean;
   affectedPages: PageContractRepairAffectedPage[];
   validationMessages: string[];
   referenceAuthority: BookSurfaceReferenceAuthority;
@@ -87,6 +102,7 @@ export interface BookSurfaceRepairAuthority {
 
 export interface BookSurfaceRepairPatch {
   coverContract: Record<string, unknown>;
+  recurringProps: Record<string, unknown>[];
   pageContracts: Record<string, unknown>[];
 }
 
@@ -124,6 +140,22 @@ function uniqueStrings(values: unknown): string[] | null {
     return null;
   }
   const strings = values as string[];
+  return new Set(strings).size === strings.length ? strings : null;
+}
+
+function uniqueRecordIds(
+  values: readonly Record<string, unknown>[],
+): string[] | null {
+  const ids = values.map((value) => value.id);
+  if (
+    ids.some(
+      (value) =>
+        typeof value !== 'string' || value.trim().length === 0,
+    )
+  ) {
+    return null;
+  }
+  const strings = ids as string[];
   return new Set(strings).size === strings.length ? strings : null;
 }
 
@@ -281,6 +313,14 @@ function permittedStructuralIssue(issue: DraftValidationIssue): boolean {
     return true;
   }
   if (
+    issue.code === 'lifecycle_invariant_invalid' &&
+    issue.locator.kind === 'collection' &&
+    issue.locator.collectionRole === 'recurring_props' &&
+    issue.locator.fieldRole === 'lifecycle'
+  ) {
+    return true;
+  }
+  if (
     issue.code !== 'final_structural_invariant_invalid' ||
     issue.locator.fieldRole !== 'final_structure'
   ) {
@@ -295,7 +335,8 @@ function permittedStructuralIssue(issue: DraftValidationIssue): boolean {
 
 /**
  * Selects only the closed mixed family seen after a bounded page repair:
- * presentation gaps plus cover/page final-structure failures. The authority
+ * presentation gaps plus cover/page final-structure failures and, when
+ * present, the exact recurring-props lifecycle identity. The authority
  * excludes every unrelated draft collection and returns null on any mixture.
  */
 export function bookSurfaceRepairAuthority(args: {
@@ -325,6 +366,13 @@ export function bookSurfaceRepairAuthority(args: {
   const coverIssueSeen = args.structuralDiagnosticIssues.some(
     (issue) => issue.locator.kind === 'cover',
   );
+  const repairRecurringProps = args.structuralDiagnosticIssues.some(
+    (issue) =>
+      issue.code === 'lifecycle_invariant_invalid' &&
+      issue.locator.kind === 'collection' &&
+      issue.locator.collectionRole === 'recurring_props' &&
+      issue.locator.fieldRole === 'lifecycle',
+  );
   const pageIssueEntries = args.structuralDiagnosticIssues
     .map((issue, index) => ({
       issue,
@@ -345,6 +393,9 @@ export function bookSurfaceRepairAuthority(args: {
       ),
     });
   const coverContract = recordValue(args.authorityDraft.coverContract);
+  const recurringProps = Array.isArray(args.draft.recurringProps)
+    ? args.draft.recurringProps.map(recordValue)
+    : [];
   const validationMessages = cleanValidationMessages([
     ...args.structuralValidationMessages,
     ...args.presentationTargets.map(
@@ -353,17 +404,26 @@ export function bookSurfaceRepairAuthority(args: {
     ),
   ]);
   const refs = referenceAuthority(args.authorityDraft);
+  const typedRecurringProps = recurringProps as Record<string, unknown>[];
+  const recurringPropIds = recurringProps.some((value) => value === null)
+    ? null
+    : uniqueRecordIds(typedRecurringProps);
   if (
     !affectedPages ||
     !coverContract ||
     !exactKeys(coverContract, COVER_CONTRACT_KEYS) ||
     !validationMessages ||
-    !refs
+    !refs ||
+    !recurringPropIds ||
+    JSON.stringify([...recurringPropIds].sort()) !==
+      JSON.stringify(refs.recurringPropIds)
   ) {
     return null;
   }
   return {
     coverContract: structuredClone(coverContract),
+    recurringProps: structuredClone(typedRecurringProps),
+    repairRecurringProps,
     affectedPages: affectedPages.map((value) => structuredClone(value)),
     validationMessages,
     referenceAuthority: refs,
@@ -372,10 +432,11 @@ export function bookSurfaceRepairAuthority(args: {
 
 export function buildBookSurfaceRepairSystemPrompt(): string {
   return [
-    'Repair ONLY the coverContract and complete page contracts identified by the input.',
+    'Repair ONLY the coverContract, the recurringProps collection when repairRecurringProps is true, and complete page contracts identified by the input.',
     'Decode the compact input exactly: ["s",i] references stringDictionary[i], ["a",...items] is an array, and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
-    'The decoded root contains coverContract, affectedPages with exact repairTargets and validationHints, validationMessages, and referenceAuthority.',
-    'Return exactly one coverContract and exactly the affected pageNumbers; never add, remove, or rename an identity.',
+    'The decoded root contains coverContract, recurringProps, repairRecurringProps, affectedPages with exact repairTargets and validationHints, validationMessages, and referenceAuthority.',
+    'Return exactly one coverContract, the same recurring prop IDs, and exactly the affected pageNumbers; never add, remove, or rename an identity.',
+    'When repairRecurringProps is false, return recurringProps unchanged. When true, resolve only its listed lifecycle invariant.',
     'Use only IDs and worldType present in referenceAuthority. Preserve page locationId and zoneId. Resolve every listed target and validation message.',
     'Preserve all valid semantics and do not infer or return any unrelated global field.',
     'Output only the JSON object required by the strict repair schema.',
@@ -387,6 +448,8 @@ export function buildBookSurfaceRepairUserPrompt(args: {
 }): string {
   const payload = {
     coverContract: structuredClone(args.authority.coverContract),
+    recurringProps: structuredClone(args.authority.recurringProps),
+    repairRecurringProps: args.authority.repairRecurringProps,
     affectedPages: args.authority.affectedPages.map((value) => ({
       pageNumber: value.pageNumber,
       pageContract: structuredClone(value.pageContract),
@@ -441,7 +504,12 @@ export function parseBookSurfaceRepairPatch(
   const root = recordValue(parsed);
   if (
     !root ||
-    !exactKeys(root, ['coverContract', 'pageContracts']) ||
+    !exactKeys(root, [
+      'coverContract',
+      'recurringProps',
+      'pageContracts',
+    ]) ||
+    !Array.isArray(root.recurringProps) ||
     !Array.isArray(root.pageContracts) ||
     root.pageContracts.length === 0
   ) {
@@ -450,6 +518,18 @@ export function parseBookSurfaceRepairPatch(
   const coverContract = recordValue(root.coverContract);
   if (!coverContract || !exactKeys(coverContract, COVER_CONTRACT_KEYS)) {
     throw new Error('book_surface_repair_cover_invalid');
+  }
+  const recurringProps = root.recurringProps.map(recordValue);
+  if (
+    recurringProps.some(
+      (value) =>
+        !value ||
+        !exactKeys(value, RECURRING_PROP_KEYS) ||
+        typeof value.id !== 'string' ||
+        value.id.trim().length === 0,
+    )
+  ) {
+    throw new Error('book_surface_repair_prop_invalid');
   }
   const pageContracts = root.pageContracts.map(recordValue);
   if (
@@ -464,6 +544,7 @@ export function parseBookSurfaceRepairPatch(
   }
   return {
     coverContract,
+    recurringProps: recurringProps as Record<string, unknown>[],
     pageContracts: pageContracts as Record<string, unknown>[],
   };
 }
@@ -474,6 +555,7 @@ function maskedSurface(args: {
 }): unknown {
   const masked = structuredClone(args.draft);
   masked.coverContract = '__book_surface_target__';
+  masked.recurringProps = '__book_surface_recurring_props_target__';
   masked.pageContracts = Array.isArray(masked.pageContracts)
     ? masked.pageContracts.map((value) => {
         const page = recordValue(value);
@@ -498,12 +580,25 @@ export function applyBookSurfaceRepairPatch(args: {
   const pageNumbers = new Set(
     args.authority.affectedPages.map((value) => value.pageNumber),
   );
+  const authorityPropIds = uniqueRecordIds(args.authority.recurringProps);
+  const patchPropIds = uniqueRecordIds(args.patch.recurringProps);
   if (
     pageNumbers.size !== args.authority.affectedPages.length ||
+    !authorityPropIds ||
+    !patchPropIds ||
+    patchPropIds.length !== authorityPropIds.length ||
+    authorityPropIds.some((id) => !patchPropIds.includes(id)) ||
     args.patch.coverContract.worldType !==
       args.authority.referenceAuthority.worldType
   ) {
     throw new Error('book_surface_repair_authority_mismatch');
+  }
+  if (
+    !args.authority.repairRecurringProps &&
+    JSON.stringify(canonicalize(args.patch.recurringProps)) !==
+      JSON.stringify(canonicalize(args.authority.recurringProps))
+  ) {
+    throw new Error('book_surface_repair_prop_change_not_authorized');
   }
   const coverLocationId = args.patch.coverContract.locationId;
   const coverZoneId = args.patch.coverContract.zoneId;
@@ -534,6 +629,25 @@ export function applyBookSurfaceRepairPatch(args: {
   });
   const result = structuredClone(pagesApplied);
   result.coverContract = structuredClone(args.patch.coverContract);
+  const currentProps = Array.isArray(result.recurringProps)
+    ? result.recurringProps.map(recordValue)
+    : [];
+  const currentPropIds = currentProps.some((value) => value === null)
+    ? null
+    : uniqueRecordIds(currentProps as Record<string, unknown>[]);
+  if (
+    !currentPropIds ||
+    currentPropIds.length !== authorityPropIds.length ||
+    authorityPropIds.some((id) => !currentPropIds.includes(id))
+  ) {
+    throw new Error('book_surface_repair_prop_target_stale');
+  }
+  const patchPropsById = new Map(
+    args.patch.recurringProps.map((value) => [value.id as string, value]),
+  );
+  result.recurringProps = currentPropIds.map((id) =>
+    structuredClone(patchPropsById.get(id)!),
+  );
   const afterMasked = maskedSurface({ draft: result, pageNumbers });
   if (JSON.stringify(beforeMasked) !== JSON.stringify(afterMasked)) {
     throw new Error('book_surface_repair_non_target_drift');

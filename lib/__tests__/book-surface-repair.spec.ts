@@ -26,6 +26,18 @@ function cover() {
   };
 }
 
+function recurringProp() {
+  return {
+    id: 'prop:cake',
+    name: 'delivery cake',
+    description: 'three-tier cake kept stable by gentle motion',
+    material: 'cake',
+    scale: 'child-height',
+    persistence: 'persists after reveal',
+    firstRevealPage: 1,
+  };
+}
+
 function page(pageNumber: number) {
   return {
     pageNumber,
@@ -83,7 +95,7 @@ function draft(): Record<string, unknown> {
       companion: { id: 'companion:fox' },
     },
     humanCast: [{ id: 'human:parent' }],
-    recurringProps: [{ id: 'prop:cake' }],
+    recurringProps: [recurringProp()],
     coverContract: cover(),
     pageContracts: [page(1), page(2), page(3)],
     unrelatedStorySource: 'RAW_STORY_SOURCE_SENTINEL',
@@ -127,6 +139,16 @@ const coverStructureIssue: DraftValidationIssue = {
   family: 'draft_contract',
   code: 'final_structural_invariant_invalid',
   locator: { kind: 'cover', fieldRole: 'final_structure' },
+};
+
+const recurringPropLifecycleIssue: DraftValidationIssue = {
+  family: 'draft_contract',
+  code: 'lifecycle_invariant_invalid',
+  locator: {
+    kind: 'collection',
+    collectionRole: 'recurring_props',
+    fieldRole: 'lifecycle',
+  },
 };
 
 function pageStructureIssue(pageNumber: number): DraftValidationIssue {
@@ -174,6 +196,8 @@ describe('bounded book-surface repair', () => {
   it('selects only the cover and exact union of structural and presentation pages', () => {
     const selected = authority();
     expect(selected?.coverContract).toEqual(cover());
+    expect(selected?.recurringProps).toEqual([recurringProp()]);
+    expect(selected?.repairRecurringProps).toBe(false);
     expect(selected?.affectedPages.map((value) => value.pageNumber)).toEqual([
       1,
       2,
@@ -194,6 +218,64 @@ describe('bounded book-surface repair', () => {
         { zoneId: 'zone:3', spatialReferenceIds: ['node:three'] },
       ],
     });
+  });
+
+  it('admits only the exact recurring-prop lifecycle identity into the compact surface', () => {
+    const value = draft();
+    const issues = [
+      coverProjectionIssue,
+      recurringPropLifecycleIssue,
+      pageStructureIssue(1),
+    ];
+    const selected = bookSurfaceRepairAuthority({
+      draft: value,
+      authorityDraft: value,
+      presentationTargets: [presentationTarget(1)],
+      structuralDiagnosticIssues: issues,
+      structuralValidationMessages: issues.map(
+        (issue, index) => `${issue.code}: live shape ${index}`,
+      ),
+    });
+
+    expect(selected?.repairRecurringProps).toBe(true);
+    expect(selected?.recurringProps).toEqual([recurringProp()]);
+
+    for (const locator of [
+      {
+        kind: 'collection',
+        collectionRole: 'locations',
+        fieldRole: 'lifecycle',
+      },
+      {
+        kind: 'collection',
+        collectionRole: 'recurring_props',
+        fieldRole: 'final_structure',
+      },
+      {
+        kind: 'collection_item',
+        collectionRole: 'recurring_props',
+        fieldRole: 'lifecycle',
+        itemIndex: 0,
+      },
+    ] as const) {
+      expect(
+        bookSurfaceRepairAuthority({
+          draft: value,
+          authorityDraft: value,
+          presentationTargets: [presentationTarget(1)],
+          structuralDiagnosticIssues: [
+            coverProjectionIssue,
+            pageStructureIssue(1),
+            {
+              family: 'draft_contract',
+              code: 'lifecycle_invariant_invalid',
+              locator,
+            } as DraftValidationIssue,
+          ],
+          structuralValidationMessages: ['cover', 'page', 'lifecycle'],
+        }),
+      ).toBeNull();
+    }
   });
 
   it('uses compiler-normalized cover and reference authority while targeting the original draft', () => {
@@ -334,15 +416,17 @@ describe('bounded book-surface repair', () => {
     const selected = authority()!;
     const schema = BOOK_SURFACE_REPAIR_JSON_SCHEMA.properties as {
       coverContract: unknown;
+      recurringProps: { items: unknown };
       pageContracts: { items: unknown };
     };
     expect(schema.coverContract).toBeTruthy();
+    expect(schema.recurringProps.items).toBeTruthy();
     expect(schema.pageContracts.items).toBeTruthy();
     expect(BOOK_SURFACE_REPAIR_PROMPT_VERSION).toBe(
-      'book-surface-repair-prompt/v1',
+      'book-surface-repair-prompt/v2',
     );
     expect(BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION).toBe(
-      'book-surface-repair-user-prompt/v1',
+      'book-surface-repair-user-prompt/v2',
     );
     expect(buildBookSurfaceRepairSystemPrompt()).toContain('ONLY');
     const rawPrompt = buildBookSurfaceRepairUserPrompt({
@@ -350,6 +434,8 @@ describe('bounded book-surface repair', () => {
     });
     const payload = decodeBookSurfaceRepairUserPrompt(rawPrompt);
     expect(payload.coverContract).toEqual(cover());
+    expect(payload.recurringProps).toEqual([recurringProp()]);
+    expect(payload.repairRecurringProps).toBe(false);
     expect(
       (payload.affectedPages as Array<{ pageNumber: number }>).map(
         (value) => value.pageNumber,
@@ -369,6 +455,7 @@ describe('bounded book-surface repair', () => {
   it('parses exact output and rejects root, cover, and page drift', () => {
     const valid = JSON.stringify({
       coverContract: cover(),
+      recurringProps: [recurringProp()],
       pageContracts: [repairedPage(1), repairedPage(2)],
     });
     expect(parseBookSurfaceRepairPatch(valid).pageContracts).toHaveLength(2);
@@ -384,6 +471,7 @@ describe('bounded book-surface repair', () => {
       parseBookSurfaceRepairPatch(
         JSON.stringify({
           coverContract: { ...cover(), extra: true },
+          recurringProps: [recurringProp()],
           pageContracts: [repairedPage(1)],
         }),
       ),
@@ -394,10 +482,20 @@ describe('bounded book-surface repair', () => {
       parseBookSurfaceRepairPatch(
         JSON.stringify({
           coverContract: cover(),
+          recurringProps: [recurringProp()],
           pageContracts: [invalidPage],
         }),
       ),
     ).toThrow('book_surface_repair_page_invalid');
+    expect(() =>
+      parseBookSurfaceRepairPatch(
+        JSON.stringify({
+          coverContract: cover(),
+          recurringProps: [{ ...recurringProp(), extra: true }],
+          pageContracts: [repairedPage(1)],
+        }),
+      ),
+    ).toThrow('book_surface_repair_prop_invalid');
   });
 
   it('applies the exact surface non-mutatingly and preserves every unrelated field', () => {
@@ -415,6 +513,7 @@ describe('bounded book-surface repair', () => {
       authority: selected,
       patch: {
         coverContract: repairedCover,
+        recurringProps: [recurringProp()],
         pageContracts: [repairedPage(2), repairedPage(1)],
       },
     });
@@ -424,14 +523,20 @@ describe('bounded book-surface repair', () => {
       (result.pageContracts as Array<Record<string, unknown>>).map(
         (value) => value.camera,
       ),
-    ).toEqual(['repaired page 1', 'repaired page 2', 'portrait medium shot']);
+    ).toEqual([
+      'repaired page 1',
+      'portrait medium shot',
+      'portrait medium shot',
+    ]);
     expect({
       ...result,
       coverContract: undefined,
+      recurringProps: undefined,
       pageContracts: undefined,
     }).toEqual({
       ...snapshot,
       coverContract: undefined,
+      recurringProps: undefined,
       pageContracts: undefined,
     });
   });
@@ -442,11 +547,16 @@ describe('bounded book-surface repair', () => {
     const apply = (
       patchedCover: Record<string, unknown>,
       pages: Record<string, unknown>[],
+      props: Record<string, unknown>[] = [recurringProp()],
     ) =>
       applyBookSurfaceRepairPatch({
         draft: original,
         authority: selected,
-        patch: { coverContract: patchedCover, pageContracts: pages },
+        patch: {
+          coverContract: patchedCover,
+          recurringProps: props,
+          pageContracts: pages,
+        },
       });
 
     expect(() => apply(cover(), [repairedPage(1)])).toThrow(
@@ -476,5 +586,86 @@ describe('bounded book-surface repair', () => {
         [repairedPage(1), repairedPage(2)],
       ),
     ).toThrow('book_surface_repair_cover_reference_invalid');
+    expect(() =>
+      apply(cover(), [repairedPage(1), repairedPage(2)], []),
+    ).toThrow('book_surface_repair_authority_mismatch');
+    expect(() =>
+      apply(cover(), [repairedPage(1), repairedPage(2)], [
+        recurringProp(),
+        recurringProp(),
+      ]),
+    ).toThrow('book_surface_repair_authority_mismatch');
+    expect(() =>
+      apply(cover(), [repairedPage(1), repairedPage(2)], [
+        { ...recurringProp(), id: 'prop:other' },
+      ]),
+    ).toThrow('book_surface_repair_authority_mismatch');
+    expect(() =>
+      apply(cover(), [repairedPage(1), repairedPage(2)], [
+        { ...recurringProp(), persistence: 'changed without authority' },
+      ]),
+    ).toThrow('book_surface_repair_prop_change_not_authorized');
+  });
+
+  it('repairs recurring-prop lifecycle in input order without mutating the draft', () => {
+    const original = draft();
+    original.recurringProps = [
+      recurringProp(),
+      {
+        ...recurringProp(),
+        id: 'prop:cart',
+        name: 'delivery cart',
+        description: 'cart carrying the cake',
+      },
+    ];
+    const snapshot = structuredClone(original);
+    const issues = [
+      coverProjectionIssue,
+      recurringPropLifecycleIssue,
+      pageStructureIssue(1),
+    ];
+    const selected = bookSurfaceRepairAuthority({
+      draft: original,
+      authorityDraft: original,
+      presentationTargets: [presentationTarget(1)],
+      structuralDiagnosticIssues: issues,
+      structuralValidationMessages: issues.map(
+        (issue) => `${issue.code}: repair required`,
+      ),
+    })!;
+    const repairedProps = [
+      {
+        ...(original.recurringProps as Record<string, unknown>[])[1]!,
+        persistence: 'persists after page 1 reveal',
+      },
+      {
+        ...(original.recurringProps as Record<string, unknown>[])[0]!,
+        persistence: 'persists after page 1 reveal',
+      },
+    ];
+    const result = applyBookSurfaceRepairPatch({
+      draft: original,
+      authority: selected,
+      patch: {
+        coverContract: cover(),
+        recurringProps: repairedProps,
+        pageContracts: [repairedPage(1)],
+      },
+    });
+
+    expect(original).toEqual(snapshot);
+    expect(
+      (result.recurringProps as Record<string, unknown>[]).map(
+        (value) => value.id,
+      ),
+    ).toEqual(['prop:cake', 'prop:cart']);
+    expect(
+      (result.recurringProps as Record<string, unknown>[]).map(
+        (value) => value.persistence,
+      ),
+    ).toEqual([
+      'persists after page 1 reveal',
+      'persists after page 1 reveal',
+    ]);
   });
 });

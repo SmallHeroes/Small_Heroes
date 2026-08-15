@@ -307,11 +307,11 @@ describe('canonical live request materialization validators', () => {
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v12',
+      'canonical-live-request-materialization-input/v13',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v21');
+    ).toBe('canonical-live-request-materialization/v22');
   });
 
   it.each([
@@ -464,7 +464,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v23',
+      version: 'visual-contract-authoring-request/v24',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -510,8 +510,8 @@ describe('canonical live request materialization artifacts', () => {
           userPromptVersion: 'vc-repair-user-prompt/v13',
         },
         bookSurfaceRepair: {
-          systemPromptVersion: 'book-surface-repair-prompt/v1',
-          userPromptVersion: 'book-surface-repair-user-prompt/v1',
+          systemPromptVersion: 'book-surface-repair-prompt/v2',
+          userPromptVersion: 'book-surface-repair-user-prompt/v2',
         },
       },
       costBudget: {
@@ -531,7 +531,7 @@ describe('canonical live request materialization artifacts', () => {
       },
       bookSurfaceRepairStructuredOutput: {
         schemaName: 'BookSurfaceRepairPatch',
-        schemaVersion: 'book-surface-repair-schema/v1',
+        schemaVersion: 'book-surface-repair-schema/v2',
         compatibilityStatus: 'compatible',
       },
     });
