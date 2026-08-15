@@ -185,15 +185,34 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v22' as const;
+  'visual-contract-authoring-request/v23' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v25' as const;
+  'visual-contract-authoring-receipt/v26' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v23' as const;
+  'visual-contract-authoring-readiness/v24' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v9' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
   'canonical-import-preflight-attestation/v1' as const;
+
+function repairOutputDiagnosticCodeFor(
+  error: TemplateRepairOutputInvalidError,
+): AuthoringDiagnosticCode {
+  switch (error.failureCode) {
+    case 'json_invalid':
+      return 'repair_output_json_invalid';
+    case 'shape_invalid':
+      return 'repair_output_shape_invalid';
+    case 'target_identity_invalid':
+      return 'repair_output_target_identity_invalid';
+    case 'reference_authority_invalid':
+      return 'repair_output_reference_authority_invalid';
+    case 'non_target_drift':
+      return 'repair_output_non_target_drift';
+    case 'application_rejected':
+      return 'repair_output_application_rejected';
+  }
+}
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
   'visual-contract-authoring-request/v3' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V4 =
@@ -232,6 +251,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V20 =
   'visual-contract-authoring-request/v20' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V21 =
   'visual-contract-authoring-request/v21' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V22 =
+  'visual-contract-authoring-request/v22' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -276,6 +297,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V23 =
   'visual-contract-authoring-receipt/v23' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V24 =
   'visual-contract-authoring-receipt/v24' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V25 =
+  'visual-contract-authoring-receipt/v25' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -320,6 +343,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V21 =
   'visual-contract-authoring-readiness/v21' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V22 =
   'visual-contract-authoring-readiness/v22' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V23 =
+  'visual-contract-authoring-readiness/v23' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -886,7 +911,8 @@ export function visualContractAuthoringArtifactVersionStatus(
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V18 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V19 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V20 ||
-        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V21
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V21 ||
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V22
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -914,6 +940,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V22,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V23,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V24,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V25,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -938,6 +965,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V20,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V21,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V22,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V23,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -3465,6 +3493,8 @@ export async function runVisualContractAuthoring(args: {
       error instanceof TemplateRepairOutputInvalidError
     ) {
       code = 'repair_output_invalid';
+      diagnosticCodeOverride =
+        repairOutputDiagnosticCodeFor(error);
       diagnosticCountOverride =
         error.attempts.reduce(
           (count, attempt) =>
@@ -3502,6 +3532,7 @@ export async function runVisualContractAuthoring(args: {
         code,
         diagnosticInputs,
         diagnosticCountOverride,
+        diagnosticCodeOverride,
         issueCodes: [code],
         authorityReferenceIssues,
       });
@@ -3716,7 +3747,7 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'readiness v21 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
+      'readiness v24 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
     );
   }
   const canonicalImportPreflight =
@@ -3883,7 +3914,7 @@ export function persistVisualContractAuthoringReceipt(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'receipt v23 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
+      'receipt v26 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
     );
   }
   return persistJsonArtifact({
@@ -4039,7 +4070,7 @@ export function persistVisualContractAuthoringReadiness(args: {
       canonicalJsonDigest(readinessPayload)
   ) {
     throw new Error(
-      'readiness v21 requires exact typed draft-validation evidence and a valid current digest',
+      'readiness v24 requires exact typed draft-validation evidence and a valid current digest',
     );
   }
   return persistJsonArtifact({

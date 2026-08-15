@@ -29,6 +29,7 @@ import type {
 import { assertValidBookVisualContractTemplate, InvalidTemplateContractError } from './validateTemplateContract';
 import { sourceEvidenceValidation } from './validateSourceEvidence';
 import { parseContractJson } from './compileBookVisualContract';
+import { InvalidVisualContractError } from './validateBookVisualContract';
 import type {
   ContractLlmCaller,
   ContractLlmCallOptions,
@@ -217,44 +218,6 @@ const STANDARD_MAX_REPAIR_ATTEMPTS =
 /** One extra compact call exists only for the closed terminal cleanup gate. */
 const MAX_REPAIR_ATTEMPTS = STANDARD_MAX_REPAIR_ATTEMPTS + 1;
 
-/**
- * A first-pass spatial-reference failure that spans most of a real book is a
- * whole-draft quality signal, not a small field-local defect. Spending the
- * first repair on dozens of isolated ID substitutions can expose the rest of
- * the invalid draft only after one of the two repairs has already been used.
- *
- * Escalate only on attempt one, only when at least five distinct pages are
- * affected, and only when those pages are a strict majority of the book.
- * Later attempts retain the compact field repair so the final bounded call can
- * close a small residual. Duplicate targets never inflate the decision.
- */
-export function broadInitialPageSpatialFailureRequiresFullDraft(args: {
-  attempt: number;
-  pageCount: number;
-  targets: readonly Pick<PageSpatialReferenceRepairTarget, 'pageNumber'>[];
-}): boolean {
-  if (
-    args.attempt !== 1 ||
-    !Number.isSafeInteger(args.pageCount) ||
-    args.pageCount < 1
-  ) {
-    return false;
-  }
-  const affectedPages = new Set(
-    args.targets
-      .map((target) => target.pageNumber)
-      .filter(
-        (pageNumber) =>
-          Number.isSafeInteger(pageNumber) &&
-          pageNumber >= 1 &&
-          pageNumber <= args.pageCount,
-      ),
-  );
-  return (
-    affectedPages.size >= 5 &&
-    affectedPages.size * 2 > args.pageCount
-  );
-}
 export const REPAIR_PROMPT_VERSION =
   'vc-repair-prompt/v13' as const;
 export const REPAIR_USER_PROMPT_VERSION =
@@ -613,6 +576,7 @@ export class TemplateRepairOutputInvalidError extends Error {
       | 'structural_bundle_patch'
       | 'book_surface_patch'
       | 'full_draft',
+    readonly failureCode: TemplateRepairOutputFailureCode,
   ) {
     super('completed template repair output was unusable');
     this.name = 'TemplateRepairOutputInvalidError';
@@ -633,6 +597,62 @@ export class TemplateRepairOutputInvalidError extends Error {
       attempts.map((attempt) => attempt.diagnosticIssues),
     );
   }
+}
+
+/**
+ * Closed, content-free identity for a completed repair response that cannot be
+ * applied. The raw response and the underlying exception never cross this
+ * boundary.
+ */
+export type TemplateRepairOutputFailureCode =
+  | 'json_invalid'
+  | 'shape_invalid'
+  | 'target_identity_invalid'
+  | 'reference_authority_invalid'
+  | 'non_target_drift'
+  | 'application_rejected';
+
+const SAFE_REPAIR_FAILURE_IDENTITY = /^[a-z][a-z0-9_]{0,127}$/;
+
+export function templateRepairOutputFailureCode(
+  error: unknown,
+): TemplateRepairOutputFailureCode {
+  if (error instanceof InvalidVisualContractError) {
+    return 'json_invalid';
+  }
+  const identity =
+    error instanceof Error &&
+    SAFE_REPAIR_FAILURE_IDENTITY.test(error.message)
+      ? error.message
+      : '';
+  if (identity.endsWith('_response_invalid_json')) {
+    return 'json_invalid';
+  }
+  if (
+    /_(?:response_invalid_shape|patch_invalid|page_invalid|cover_invalid|page_collection_invalid)$/.test(
+      identity,
+    )
+  ) {
+    return 'shape_invalid';
+  }
+  if (identity.endsWith('_non_target_drift')) {
+    return 'non_target_drift';
+  }
+  if (
+    /_(?:reference_not_permitted|cover_reference_invalid|authority_mismatch|spatial_target_invalid)$/.test(
+      identity,
+    )
+  ) {
+    return 'reference_authority_invalid';
+  }
+  if (
+    /_(?:target_stale|target_set_empty|target_duplicate|target_invalid_or_duplicate|affected_record_duplicate|affected_page_duplicate|patch_set_incomplete|patch_unexpected_or_duplicate|page_unexpected_or_duplicate|page_not_unique|beat_not_unique|prop_set_mismatch|page_set_mismatch|action_beat_id_invalid|coverage_beat_id_invalid)$/.test(
+      identity,
+    )
+  ) {
+    return 'target_identity_invalid';
+  }
+  return 'application_rejected';
 }
 
 class ActionSemanticCoverageValidationError extends InvalidTemplateContractError {
@@ -3505,7 +3525,6 @@ export async function compileBookVisualContractTemplate(
     let bookSurfaceAuthority:
       | BookSurfaceRepairAuthority
       | undefined;
-    let fullDraftRepairRequired = false;
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
@@ -3685,8 +3704,7 @@ export async function compileBookVisualContractTemplate(
       !stablePropScopeAffectedTargets &&
       !presentationRequirementAffectedTargets &&
       !bookSurfaceAuthority &&
-      !pageContractAffectedPages &&
-      !fullDraftRepairRequired
+      !pageContractAffectedPages
     ) {
       if (pageSpatialRepairIssues && pageSpatialRepairAuthority) {
         pageSpatialReferenceAffectedTargets =
@@ -3695,17 +3713,6 @@ export async function compileBookVisualContractTemplate(
             issues: pageSpatialRepairIssues,
             authority: pageSpatialRepairAuthority,
           });
-        if (
-          pageSpatialReferenceAffectedTargets &&
-          broadInitialPageSpatialFailureRequiresFullDraft({
-            attempt,
-            pageCount: input.pageCount,
-            targets: pageSpatialReferenceAffectedTargets,
-          })
-        ) {
-          pageSpatialReferenceAffectedTargets = null;
-          fullDraftRepairRequired = true;
-        }
       } else {
         structuralBundleAuthority =
           structuralBundleRepairAuthority({
@@ -4027,11 +4034,12 @@ export async function compileBookVisualContractTemplate(
           ),
         );
       }
-    } catch {
+    } catch (error) {
       throw new TemplateRepairOutputInvalidError(
         repairAttempts,
         attempt + 1,
         repairMode,
+        templateRepairOutputFailureCode(error),
       );
     }
   }

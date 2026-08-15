@@ -96,6 +96,11 @@ export type AuthoringDiagnosticCode =
   | 'action_semantic_validation_failed'
   | 'authority_reference_validation_failed'
   | 'repair_output_json_invalid'
+  | 'repair_output_shape_invalid'
+  | 'repair_output_target_identity_invalid'
+  | 'repair_output_reference_authority_invalid'
+  | 'repair_output_non_target_drift'
+  | 'repair_output_application_rejected'
   | 'draft_authority_reference_domain_invalid'
   | 'action_semantic_capability_gap'
   | 'post_compile_authority_incomplete'
@@ -356,11 +361,25 @@ export function buildAuthoringTerminalFailure(args: {
   issueCodes?: readonly unknown[];
 }): AuthoringTerminalFailure {
   const definition = TERMINAL_DEFINITIONS[args.code];
+  const repairOutputDiagnosticCodes: readonly AuthoringDiagnosticCode[] = [
+    'repair_output_json_invalid',
+    'repair_output_shape_invalid',
+    'repair_output_target_identity_invalid',
+    'repair_output_reference_authority_invalid',
+    'repair_output_non_target_drift',
+    'repair_output_application_rejected',
+  ];
   const primaryDiagnosticCode =
     args.code === 'local_processing_failed' &&
     args.diagnosticCodeOverride ===
       'call_budget_invariant_failed'
       ? args.diagnosticCodeOverride
+      : args.code === 'repair_output_invalid' &&
+          args.diagnosticCodeOverride !== undefined &&
+          repairOutputDiagnosticCodes.includes(
+            args.diagnosticCodeOverride,
+          )
+        ? args.diagnosticCodeOverride
       : definition.diagnosticCode;
   const diagnostics = sanitizedAuthoringDiagnostics({
     inputs: args.diagnosticInputs,
@@ -402,6 +421,11 @@ const AUTHORING_DIAGNOSTIC_CODES = new Set<AuthoringDiagnosticCode>([
   'action_semantic_validation_failed',
   'authority_reference_validation_failed',
   'repair_output_json_invalid',
+  'repair_output_shape_invalid',
+  'repair_output_target_identity_invalid',
+  'repair_output_reference_authority_invalid',
+  'repair_output_non_target_drift',
+  'repair_output_application_rejected',
   'draft_authority_reference_domain_invalid',
   'action_semantic_capability_gap',
   'post_compile_authority_incomplete',
@@ -449,7 +473,16 @@ export function authoringTerminalFailureIsValid(
           definition.diagnosticCode,
           'call_budget_invariant_failed',
         ]
-      : [definition.diagnosticCode];
+      : failure.code === 'repair_output_invalid'
+        ? [
+            definition.diagnosticCode,
+            'repair_output_shape_invalid',
+            'repair_output_target_identity_invalid',
+            'repair_output_reference_authority_invalid',
+            'repair_output_non_target_drift',
+            'repair_output_application_rejected',
+          ]
+        : [definition.diagnosticCode];
   const diagnosticCodes = failure.diagnosticCodes;
   const issues = failure.issues;
   return (

@@ -4,12 +4,12 @@ import {
   DraftAuthorityReferenceDomainError,
   TemplateRepairExhaustedError,
   TemplateRepairOutputInvalidError,
-  broadInitialPageSpatialFailureRequiresFullDraft,
   compileBookVisualContractTemplate,
   compilerOwnedActionCheckId,
   decodeTemplateRepairUserPrompt,
   isDraftDiagnosticNormalizationRejection,
   pageSpatialReferenceIssuesAreRepairable,
+  templateRepairOutputFailureCode,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import { projectPageMustShow } from '../visual-contract-compiler/projectContractProse';
@@ -258,41 +258,7 @@ function nodes(draft: Record<string, unknown>) {
 }
 
 describe('captured reference-domain matrix', () => {
-  it('classifies only a strict majority of at least five first-pass spatial pages as broad', () => {
-    const targets = (pageNumbers: number[]) =>
-      pageNumbers.map((pageNumber) => ({ pageNumber }));
-
-    expect(
-      broadInitialPageSpatialFailureRequiresFullDraft({
-        attempt: 1,
-        pageCount: 12,
-        targets: targets([1, 2, 3, 4, 5, 6]),
-      }),
-    ).toBe(false);
-    expect(
-      broadInitialPageSpatialFailureRequiresFullDraft({
-        attempt: 1,
-        pageCount: 12,
-        targets: targets([1, 2, 3, 4, 5, 6, 7, 7]),
-      }),
-    ).toBe(true);
-    expect(
-      broadInitialPageSpatialFailureRequiresFullDraft({
-        attempt: 2,
-        pageCount: 12,
-        targets: targets([1, 2, 3, 4, 5, 6, 7]),
-      }),
-    ).toBe(false);
-    expect(
-      broadInitialPageSpatialFailureRequiresFullDraft({
-        attempt: 1,
-        pageCount: 8,
-        targets: targets([1, 2, 3, 4]),
-      }),
-    ).toBe(false);
-  });
-
-  it('uses full-draft first for a broad initial spatial failure and rejects a final page repair that removes coverage', async () => {
+  it('keeps exact spatial targets compact even when they span a majority of the book', async () => {
     const broadPages = Array.from({ length: 8 }, (_, index) => ({
       pageNumber: index + 1,
       text: `The hero studies the changing route on page ${index + 1}.`,
@@ -361,23 +327,6 @@ describe('captured reference-domain matrix', () => {
         id: 'outside_current_page_zone',
       };
     }
-    const residual = structuredClone(valid);
-    const residualPage = (
-      residual.pageContracts as Array<Record<string, unknown>>
-    )[2]!;
-    const residualCoverage = residualPage.actionSemanticCoverage as Array<
-      Record<string, unknown>
-    >;
-    residualCoverage.push({
-      beatId: 'beat:p3:unbound_visual_beat',
-      sourceEvidenceId: broadCatalog.entries.find(
-        (entry) => entry.pageNumber === 3,
-      )!.sourceEvidenceId,
-      disposition: { kind: 'action_requirement' },
-    });
-    const repairedPage = structuredClone(
-      (valid.pageContracts as Array<Record<string, unknown>>)[2]!,
-    );
     const authorities: unknown[] = [];
     const callLLM = vi.fn(async (
       _system: string,
@@ -389,22 +338,54 @@ describe('captured reference-domain matrix', () => {
       if (callLLM.mock.calls.length === 1) {
         return JSON.stringify(broadInvalid);
       }
-      if (callLLM.mock.calls.length === 2) {
-        return JSON.stringify(residual);
-      }
-      return JSON.stringify({ pageContracts: [repairedPage] });
+      return '{"patches":[]}';
     });
 
     await expect(
       compileBookVisualContractTemplate(broadInput, { callLLM }),
     ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
-    expect(callLLM).toHaveBeenCalledTimes(3);
+    expect(callLLM).toHaveBeenCalledTimes(2);
     expect(authorities).toMatchObject([
       { kind: 'initial' },
-      { kind: 'repair', repairMode: 'full_draft' },
-      { kind: 'repair', repairMode: 'page_contract_patch' },
+      {
+        kind: 'repair',
+        repairMode: 'page_spatial_reference_patch',
+      },
     ]);
+  });
+
+  it('classifies repair output failures into closed sanitized identities', () => {
+    expect(
+      templateRepairOutputFailureCode(
+        new Error('book_surface_repair_response_invalid_json'),
+      ),
+    ).toBe('json_invalid');
+    expect(
+      templateRepairOutputFailureCode(
+        new Error('book_surface_repair_response_invalid_shape'),
+      ),
+    ).toBe('shape_invalid');
+    expect(
+      templateRepairOutputFailureCode(
+        new Error('page_spatial_repair_target_stale'),
+      ),
+    ).toBe('target_identity_invalid');
+    expect(
+      templateRepairOutputFailureCode(
+        new Error('page_spatial_repair_reference_not_permitted'),
+      ),
+    ).toBe('reference_authority_invalid');
+    expect(
+      templateRepairOutputFailureCode(
+        new Error('book_surface_repair_non_target_drift'),
+      ),
+    ).toBe('non_target_drift');
+    expect(
+      templateRepairOutputFailureCode(
+        new Error('raw provider-authored explanation'),
+      ),
+    ).toBe('application_rejected');
   });
 
   it('keeps the repairable diagnostic-normalization boundary closed to two internal identities', () => {

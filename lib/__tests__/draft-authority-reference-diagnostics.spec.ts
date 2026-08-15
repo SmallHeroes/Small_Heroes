@@ -498,6 +498,28 @@ describe('closed draft authority/reference diagnostic contract', () => {
 describe('Visual Contract-specific terminal extension', () => {
   const typedIssue = representativeIssues[0]!;
 
+  it.each([
+    'repair_output_json_invalid',
+    'repair_output_shape_invalid',
+    'repair_output_target_identity_invalid',
+    'repair_output_reference_authority_invalid',
+    'repair_output_non_target_drift',
+    'repair_output_application_rejected',
+  ] as const)(
+    'accepts the closed sanitized repair-output identity %s',
+    (diagnosticCodeOverride) => {
+      const failure = buildAuthoringTerminalFailure({
+        code: 'repair_output_invalid',
+        diagnosticCodeOverride,
+        issueCodes: ['repair_output_invalid'],
+      });
+      expect(failure.diagnosticCodes).toContain(
+        diagnosticCodeOverride,
+      );
+      expect(authoringTerminalFailureIsValid(failure)).toBe(true);
+    },
+  );
+
   it('preserves the shared shape while requiring exact Visual Contract detail semantics', () => {
     const shared = buildAuthoringTerminalFailure({
       code: 'draft_authority_reference_domain_invalid',
