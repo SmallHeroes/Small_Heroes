@@ -117,6 +117,12 @@ const coverProjectionIssue: DraftValidationIssue = {
   locator: { kind: 'cover', fieldRole: 'final_structure' },
 };
 
+const coverWorldTypeIssue: DraftValidationIssue = {
+  family: 'draft_contract',
+  code: 'cover_projection_invalid',
+  locator: { kind: 'cover', fieldRole: 'world_type' },
+};
+
 const coverStructureIssue: DraftValidationIssue = {
   family: 'draft_contract',
   code: 'final_structural_invariant_invalid',
@@ -187,6 +193,29 @@ describe('bounded book-surface repair', () => {
         { zoneId: 'zone:3', spatialReferenceIds: ['node:three'] },
       ],
     });
+  });
+
+  it('accepts every closed cover identity and multiple cover issues without widening the page surface', () => {
+    for (const coverIssues of [
+      [coverWorldTypeIssue],
+      [coverProjectionIssue, coverStructureIssue],
+    ]) {
+      const issues = [...coverIssues, pageStructureIssue(1)];
+      const selected = bookSurfaceRepairAuthority({
+        draft: draft(),
+        presentationTargets: [presentationTarget(2)],
+        structuralDiagnosticIssues: issues,
+        structuralValidationMessages: issues.map(
+          (issue, index) => `${issue.code}: sanitized validation ${index}`,
+        ),
+      });
+
+      expect(selected).not.toBeNull();
+      expect(selected?.affectedPages.map((value) => value.pageNumber)).toEqual([
+        1,
+        2,
+      ]);
+    }
   });
 
   it.each([

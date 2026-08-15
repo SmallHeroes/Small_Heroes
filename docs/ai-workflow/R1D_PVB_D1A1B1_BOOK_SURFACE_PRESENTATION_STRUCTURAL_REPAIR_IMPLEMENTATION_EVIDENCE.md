@@ -94,8 +94,10 @@ draft exposes page-cardinality issues, call 2 uses `page_contract_patch`, the
 repaired draft exposes the mixed book-surface family, call 3 uses
 `book_surface_patch`, and complete validation emits a candidate. Direct tests
 also reject malformed schemas, unsafe references, duplicates, incomplete or
-unexpected page sets, invalid cover authority, input mutation, and non-target
-drift.
+unexpected page sets, invalid cover authority, and input mutation. The apply
+boundary additionally proves masked canonical equality for every non-target
+field; the resulting defensive drift code is an invariant, not a directly
+fault-injected rejection test.
 
 Implementation cost was `$0`; no credential, pricing/network/provider call,
 real B0/Fresh Readiness, preflight, live authoring, render, storage/database,
@@ -103,6 +105,33 @@ deployment, or Production action occurred. Revert the focused implementation
 commit to restore the previous full-draft fallback; new-version artifacts then
 fail closed and all historical evidence stays immutable.
 
-Independent Claude Code QA remains required before push and a new operational
-attempt. This document is Codex implementation evidence, not a self-awarded
-technical PASS.
+## Independent QA and focused correction
+
+Claude Code independently reviewed exact range
+`e28ab0becb6eb883de3ce08dad9527196a09a748..f1b0fedff301cca9b54cdfa8902e1d6c5c1a4bba`
+and returned technical **PASS** with zero BLOCKER and zero MAJOR against the
+approved contract. This record attributes that verdict to Claude Code; Codex
+does not self-award it.
+
+The review identified two non-blocking coverage/documentation MINORs. The
+focused correction adds direct coverage for the remaining closed cover issue
+identity (`cover_projection_invalid/world_type`) and for a valid multi-cover
+issue set, while preserving the exact affected-page set. It also corrects the
+evidence and Decision Gate wording: the apply boundary proves masked canonical
+equality for every non-target field, while
+`book_surface_repair_non_target_drift` remains a defensive invariant rather
+than a directly fault-injected rejection test. The direct specification now
+passes **1 file / 12 tests**; deterministic TypeScript and `git diff --check`
+also pass. Closure of those two MINORs awaits a read-only micro re-gate of the
+focused correction range.
+
+Claude also recorded a non-blocking operational risk: although the new repair
+lane is narrower than `full_draft`, the exact output size of a complete
+12-page live `book_surface_patch` is not provider-proven in advance. The next
+bounded attempt is the real measurement. This risk does not authorize any
+change to the model, 36K output ceiling, three-call/two-repair budget, timeout,
+retry/fallback policy, or `$5.00` hard cap.
+
+Implementation and correction cost was `$0`; no credential, provider,
+Fresh Readiness, preflight, live-authoring, render, storage/database,
+deployment, or Production action occurred.

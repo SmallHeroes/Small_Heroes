@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-presentation-structural-repair` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based exactly on pushed broad-spatial-repair closeout `e28ab0becb6eb883de3ce08dad9527196a09a748`.
 
-## BOOK-SURFACE PRESENTATION/STRUCTURAL REPAIR — implementation green / independent QA pending
+## BOOK-SURFACE PRESENTATION/STRUCTURAL REPAIR — independent technical PASS / focused QA correction pending micro re-gate
 
 The consumed Leo v14 attempt proved the broad initial-routing correction: one
 `page_contract_patch` resolved both page-3 action-binding-cardinality issues.
@@ -41,8 +41,19 @@ nominal/conservative accounting. No candidate or downstream authority exists.
 - Model, tier, 64K/36K ceilings, call/repair budget, timeout, retries, fallback,
   candidate semantics, Blueprint v4, Wizard, Reader, render, payment, storage,
   database and Production behavior are unchanged. Production remains blocked.
-  Implementation cost is `$0`; independent Claude Code QA is pending and Codex
-  does not self-award technical PASS.
+  Implementation cost is `$0`.
+- Claude Code independently reviewed exact range
+  `e28ab0becb6eb883de3ce08dad9527196a09a748..f1b0fedff301cca9b54cdfa8902e1d6c5c1a4bba`
+  and returned technical **PASS** with zero BLOCKER and zero MAJOR against the
+  approved contract. It identified two non-blocking coverage/documentation
+  MINORs: missing explicit `cover_projection_invalid/world_type` plus
+  multi-cover coverage, and wording that overstated direct fault-injection
+  coverage of the defensive non-target-drift invariant. Both are corrected in
+  the focused QA-fix range now awaiting a read-only micro re-gate. Its
+  output-ceiling observation is retained as an operational risk: the exact
+  size of a complete 12-page live `book_surface_patch` is not provider-proven
+  before the next bounded attempt. No model, 36K ceiling, call/repair budget,
+  timeout, retry/fallback policy or `$5.00` cap changes follow from that risk.
 
 Durable records:
 `docs/ai-workflow/R1D_PVB_D1A1B1_BOOK_SURFACE_PRESENTATION_STRUCTURAL_REPAIR_DECISION_GATE.md`

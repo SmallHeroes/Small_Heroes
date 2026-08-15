@@ -61,7 +61,7 @@ draft collection.
    attempt.
 8. **Regression proof.** Direct tests cover closed eligibility, unsafe and
    duplicate authority, exact schema/prompt roundtrip, exact page-set parsing,
-   invalid references, non-target drift, nonmutation, adapter selection,
+   invalid references, masked non-target equality, nonmutation, adapter selection,
    receipt/readiness tampering, and the decisive bounded sequence:
    page-cardinality repair → book-surface repair → valid candidate in three
    calls.
