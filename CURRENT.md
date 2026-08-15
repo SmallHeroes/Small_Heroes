@@ -2,7 +2,63 @@
 
 **Updated:** 2026-08-16
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-page-contract-targeted-application-hardening` in `C:\Users\guyna\.codex\worktrees\targetedrepair1\Small_Heroes`; based exactly on pushed predecessor-routing closeout `8cc7ddca293b36c594ea3dce32690f9d334872c0`.
+**Working branch:** `codex/r1d-repair-output-diagnostic-identity-and-compact-first-routing` in `C:\Users\guyna\.codex\worktrees\repairdiag2\Small_Heroes`; based exactly on pushed targeted-application closeout `7a37759c265ad8466c3eee23e008d6be0accff07`.
+
+## REPAIR-OUTPUT DIAGNOSTIC IDENTITY AND COMPACT-FIRST ROUTING — implementation complete; independent QA pending
+
+The consumed attempt-2 authority on immutable `7a37759c` completed three
+provider calls and two repairs without producing a candidate. The initial
+response exposed 23 exact page-action spatial-reference targets. The obsolete
+broadness predicate escalated those exact targets to `full_draft`; that call
+resolved all 23, exposed 20 later structural/presentation issues, and the final
+`book_surface_patch` response was unusable. Receipt v25 reduced every local
+parse/application rejection to `repair_output_json_invalid`, so it could not
+prove which safe local boundary rejected the completed response.
+
+- Code commit `c6789026` removes the broad first-attempt escalation. Whenever
+  the compiler can derive the complete closed target set, every page-spatial
+  repair—including a majority of the book—uses the existing exact-field
+  `page_spatial_reference_patch`. Missing, mixed, malformed or ambiguous
+  authority remains fail-closed; later structural/book-surface lanes and the
+  separately bounded terminal reference cleanup are unchanged.
+- `TemplateRepairOutputInvalidError` now retains one compiler-owned,
+  content-free reason identity: JSON, strict shape, target identity,
+  reference authority, non-target drift or other local application rejection.
+  Receipt/readiness persist only the matching closed diagnostic code. Raw
+  prompt/response, provider message, exception prose, stack, source phrase,
+  authored value and secret remain excluded.
+- Lifecycle cutover is policy v6, request/receipt/readiness v23/v26/v24, live
+  materialization input/manifest/verification v12/v21/v21, execution
+  materialization input/result v11/v15, Supervisor request/readiness/result
+  v20/v20/v12 and Fresh Readiness evidence v20. Immediate predecessors are
+  legacy immutable and cannot authorize a new attempt.
+- Model, Responses API, service tier, reasoning, 64K ceiling, prompt/schema
+  prose, normal and terminal call/repair budgets, timeout, zero transport
+  retry, no fallback, `$4.99125/$5.00` ceilings, candidate semantics and every
+  downstream surface are unchanged.
+- Offline isolated dependency preparation and local Prisma generation passed.
+  Policy-correct focused validation passed: ordinary 4 files / 159 tests at
+  four workers and resource-intensive 7 files / 321 tests at two workers,
+  both with valid diagnostics. Deterministic TypeScript and `git diff --check`
+  passed.
+- The single literal `npm run check` ran once. Its ordinary phase passed 3,176
+  assertions and returned only the exact six established fixture failures;
+  the resource phase passed 19 files / 577 tests with clean diagnostic
+  protocol. No new assertion, timeout, RPC/IPC, reporter, launch, signal or
+  teardown failure occurred. The six-fixture repository/release HOLD remains
+  separate from this implementation.
+
+Independent Claude Code review of exact range `7a37759c..c6789026` is pending.
+Codex does not self-award technical PASS. No Fresh Readiness, preflight, live,
+candidate, Reconciliation, Blueprint, Wizard, render or downstream authority
+exists from this implementation. Cost was `$0`; no credential, pricing,
+network/provider, image/Vision, storage/database, deployment or Production
+action occurred.
+
+Durable records:
+`docs/ai-workflow/R1D_REPAIR_OUTPUT_DIAGNOSTIC_IDENTITY_AND_COMPACT_FIRST_ROUTING_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_REPAIR_OUTPUT_DIAGNOSTIC_IDENTITY_AND_COMPACT_FIRST_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
 
 ## PAGE-CONTRACT TARGETED APPLICATION HARDENING — independent technical PASS
 
