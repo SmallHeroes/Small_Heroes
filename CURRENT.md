@@ -1,8 +1,60 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-15
+**Updated:** 2026-08-16
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-terminal-reference-cleanup-predecessor-routing` in `C:\Users\guyna\.codex\worktrees\cleanupbudget1\Small_Heroes`; based exactly on pushed terminal-cleanup QA closeout `f76b161f030738ce6b19e5734864be55667fe144`.
+**Working branch:** `codex/r1d-page-contract-targeted-application-hardening` in `C:\Users\guyna\.codex\worktrees\targetedrepair1\Small_Heroes`; based exactly on pushed predecessor-routing closeout `8cc7ddca293b36c594ea3dce32690f9d334872c0`.
+
+## PAGE-CONTRACT TARGETED APPLICATION HARDENING — implementation complete, independent QA pending
+
+The consumed live attempt on immutable `8cc7ddca` proved that the typed repair
+plan was precise but the local application boundary was not: call 3 corrected
+all thirteen requested targets, then whole-page assignment admitted fifteen
+unrelated provider changes. No candidate or downstream authority was produced.
+
+- Code commit `7763ae2e` makes each typed target the sole local write authority.
+  Non-target provider drift is ignored. Only
+  `final_structural_invariant_invalid` retains complete-page replacement.
+- Action and coverage targets can change only the exact beat binding; an
+  `action_coverage_cardinality_invalid` target may additionally convert at
+  most one existing same-page coverage record to `action_requirement` without
+  adding/removing records or changing evidence identity. Spatial, represented-
+  elsewhere and presentation targets are similarly restricted to their exact
+  index/field and closed permitted value catalogs.
+- Stale, malformed, duplicate, ambiguous, out-of-catalog or structurally broad
+  responses remain fail-closed. Multiple same-code coverage targets retain
+  distinct `coverageIndex` identity, and the input draft is never mutated.
+- Page-repair user authority advances to v12. Lifecycle cutover is policy v5,
+  request/receipt/readiness v22/v25/v23, live materialization
+  input/manifest/verification v11/v20/v20, execution materialization
+  input/result v10/v14, Supervisor request/readiness/result v19/v19/v11, and
+  Fresh Readiness evidence v19. Immediate predecessors remain legacy immutable.
+  Prompt prose/schema, model/tier/reasoning, token/call/repair/cost budgets,
+  timeout, retries/fallback, candidate semantics and downstream behavior are
+  unchanged.
+- Pre-gate focused validation passed 3 files / 160 tests and the selected
+  canonical/resource surface passed 7 files / 321 tests. The single literal
+  repository gate was invoked once: its resource phase passed 19 files / 577
+  tests with clean diagnostics; ordinary failed on the exact six established
+  ignored-output fixtures plus five newly stale broad-repair fixtures and one
+  pre-existing filesystem-dependent Set Appearance fixture.
+- The five repair fixtures now prove that insert/remove structural rewrites are
+  rejected rather than authorized. The Set Appearance fixture now creates its
+  own temporary board bytes. Post-gate correction validation passed 2 files /
+  48 tests, followed by the full affected surface at 5 files / 208 tests.
+  Deterministic TypeScript and `git diff --check` passed. The literal repository
+  gate was not rerun; its six known fixture failures remain a separate release
+  HOLD.
+
+Implementation cost was `$0`. No credential, pricing/network/provider, Fresh
+Readiness, canonical preflight, live authoring, candidate, render,
+storage/database, QA deployment or Production action occurred. Independent
+Claude Code review of `8cc7ddca..HEAD` is still required before a new pushed
+HEAD, Fresh Readiness or live attempt can be used.
+
+Durable records:
+`docs/ai-workflow/R1D_PVB_D1A1B1_PAGE_CONTRACT_TARGETED_APPLICATION_HARDENING_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_PVB_D1A1B1_PAGE_CONTRACT_TARGETED_APPLICATION_HARDENING_IMPLEMENTATION_EVIDENCE.md`.
 
 ## TERMINAL REFERENCE CLEANUP PREDECESSOR ROUTING — independent technical PASS
 
