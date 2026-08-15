@@ -262,6 +262,7 @@ const representedElsewhereIssueCodes = [
 function representedElsewhereIssue(
   code: (typeof representedElsewhereIssueCodes)[number],
   pageNumber: number,
+  coverageIndex = 0,
 ): DraftValidationIssue {
   return {
     family: 'action_semantic',
@@ -274,7 +275,7 @@ function representedElsewhereIssue(
           ? 'payload'
           : 'reference',
       pageNumber,
-      itemIndex: 999,
+      itemIndex: coverageIndex,
     },
   };
 }
@@ -1052,8 +1053,21 @@ describe('page-contract compact repair', () => {
   it.each(representedElsewhereIssueCodes)(
     'directly admits the closed %s identity from its typed pageNumber',
     (code) => {
+      const input = draft();
+      const pageTwo = (
+        input.pageContracts as Array<Record<string, unknown>>
+      )[1]!;
+      (
+        pageTwo.actionSemanticCoverage as Array<
+          Record<string, unknown>
+        >
+      )[0]!.disposition = {
+        kind: 'represented_elsewhere',
+        contractPointer: '/invalid',
+        contractValue: 'invalid',
+      };
       const affected = pageContractRepairAffectedPages({
-        draft: draft(),
+        draft: input,
         diagnosticIssues: [representedElsewhereIssue(code, 2)],
         validationMessages: [`page 2 ${code}`],
         pointerTemplate: pointerTemplate(),
@@ -1062,7 +1076,12 @@ describe('page-contract compact repair', () => {
         {
           pageNumber: 2,
           repairTargets: [
-            { family: 'action_semantic', code, pageNumber: 2 },
+            {
+              family: 'action_semantic',
+              code,
+              pageNumber: 2,
+              coverageIndex: 0,
+            },
           ],
         },
       ]);
@@ -1070,9 +1089,7 @@ describe('page-contract compact repair', () => {
         contractPointer: '/pageContracts/1/locationId',
         contractValue: 'loc:home',
       });
-      expect(
-        JSON.stringify(affected?.[0]?.repairTargets),
-      ).not.toContain('999');
+      expect(affected?.[0]?.repairTargets).toHaveLength(1);
     },
   );
 
@@ -1546,7 +1563,7 @@ describe('page-contract compact repair', () => {
       'page-contract-repair-prompt/v11',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'page-contract-repair-user-prompt/v11',
+      'page-contract-repair-user-prompt/v12',
     );
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([
@@ -1675,6 +1692,10 @@ describe('page-contract compact repair', () => {
       kind: 'spatial',
       id: 'node:door',
     };
+    replacementActions[1]!.beatId = 'beat:p1:corrected_binding';
+    replacementActions[0]!.predicate = 'sneezes';
+    replacement.camera = 'hostile non-target camera rewrite';
+    replacement.mustShow = ['hostile non-target mustShow rewrite'];
     replacement.locationId = 'invented:location';
     replacement.zoneId = 'invented:zone';
 
@@ -1692,6 +1713,21 @@ describe('page-contract compact repair', () => {
     expect(original).toEqual(snapshot);
     expect(repaired.locationId).toBe('loc:home');
     expect(repaired.zoneId).toBe('zone:1');
+    expect(repaired.camera).toBe(
+      (snapshot.pageContracts as Array<Record<string, unknown>>)[0]!
+        .camera,
+    );
+    expect(repaired.mustShow).toEqual(
+      (snapshot.pageContracts as Array<Record<string, unknown>>)[0]!
+        .mustShow,
+    );
+    expect(repairedActions[0]).toEqual(
+      ((snapshot.pageContracts as Array<Record<string, unknown>>)[0]!
+        .actionRequirements as Array<Record<string, unknown>>)[0],
+    );
+    expect(repairedActions[1]!.beatId).toBe(
+      'beat:p1:corrected_binding',
+    );
     expect(repairedActions[1]!.object).toEqual({
       kind: 'spatial',
       id: 'node:door',
@@ -1732,7 +1768,421 @@ describe('page-contract compact repair', () => {
         affectedPages: duplicateTargetPages,
         pageContracts: [replacement],
       }),
-    ).toThrow('page_contract_repair_spatial_target_invalid');
+    ).toThrow('page_contract_repair_target_invalid_or_duplicate');
+  });
+
+  it('applies only the targeted coverage beatId and discards complete-page response drift', () => {
+    const original = draft();
+    const originalPages = original.pageContracts as Array<
+      Record<string, unknown>
+    >;
+    originalPages[1]!.actionRequirements = [
+      {
+        beatId: 'beat:p2:bound_action',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: null,
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    const snapshot = structuredClone(original);
+    const plan = pageContractAuthorityRepairPlan({
+      draft: original,
+      issues: [
+        {
+          code: 'coverage_action_binding_cardinality_invalid',
+          locator: {
+            kind: 'page_coverage',
+            referenceClass: 'action_coverage',
+            fieldRole:
+              'actionSemanticCoverage.actionRequirementBinding',
+            pageNumber: 2,
+            coverageIndex: 0,
+          },
+        },
+      ],
+    })!;
+    const replacement = structuredClone(
+      plan.affectedPages[0]!.pageContract,
+    );
+    const replacementCoverage =
+      replacement.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+    replacementCoverage[0]!.beatId = 'beat:p2:bound_action';
+    replacement.camera = 'hostile response camera';
+    replacement.mustShow = ['hostile response prose'];
+
+    const result = applyPageContractRepairs({
+      draft: original,
+      affectedPages: plan.affectedPages,
+      pageContracts: [replacement],
+    });
+    const repaired = (
+      result.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    const expected = structuredClone(
+      (snapshot.pageContracts as Array<Record<string, unknown>>)[1]!,
+    );
+    (
+      expected.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.beatId = 'beat:p2:bound_action';
+
+    expect(original).toEqual(snapshot);
+    expect(repaired).toEqual(expected);
+  });
+
+  it('limits an action-coverage repair to one existing binding record and rejects broader coverage drift', () => {
+    const original = draft();
+    const originalPage = (
+      original.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    originalPage.actionRequirements = [
+      {
+        beatId: 'beat:p2:target',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: null,
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    const originalCoverage =
+      originalPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+    originalCoverage[0]!.beatId = 'beat:p2:target';
+    originalCoverage[0]!.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
+    originalCoverage.push({
+      beatId: 'beat:p2:untouched',
+      sourceEvidenceId: `se1_${'c'.repeat(64)}`,
+      disposition: {
+        kind: 'non_visual',
+        rationale: 'narrative_context',
+      },
+    });
+    const snapshot = structuredClone(original);
+    const plan = pageContractAuthorityRepairPlan({
+      draft: original,
+      issues: [
+        {
+          code: 'action_coverage_cardinality_invalid',
+          locator: {
+            kind: 'page_action',
+            referenceClass: 'action_coverage',
+            fieldRole:
+              'actionRequirements.actionSemanticCoverage',
+            pageNumber: 2,
+            actionIndex: 0,
+          },
+        },
+      ],
+    })!;
+    const replacement = structuredClone(originalPage);
+    const replacementCoverage =
+      replacement.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+    replacementCoverage[0]!.disposition = {
+      kind: 'action_requirement',
+    };
+    replacement.camera = 'hostile response camera';
+
+    const result = applyPageContractRepairs({
+      draft: original,
+      affectedPages: plan.affectedPages,
+      pageContracts: [replacement],
+    });
+    const repaired = (
+      result.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    const expected = structuredClone(
+      (snapshot.pageContracts as Array<Record<string, unknown>>)[1]!,
+    );
+    (
+      expected.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.disposition = { kind: 'action_requirement' };
+    expect(original).toEqual(snapshot);
+    expect(repaired).toEqual(expected);
+
+    const hostile = structuredClone(replacement);
+    (
+      hostile.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[1]!.disposition = { kind: 'action_requirement' };
+    const driftIgnored = applyPageContractRepairs({
+      draft: original,
+      affectedPages: plan.affectedPages,
+      pageContracts: [hostile],
+    });
+    expect(
+      (driftIgnored.pageContracts as Array<Record<string, unknown>>)[1],
+    ).toEqual(expected);
+
+    (
+      hostile.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[1]!.beatId = 'beat:p2:target';
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: plan.affectedPages,
+        pageContracts: [hostile],
+      }),
+    ).toThrow('page_contract_repair_action_binding_scope_invalid');
+
+    const inserted = structuredClone(replacement);
+    (
+      inserted.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    ).push({
+      beatId: 'beat:p2:target',
+      sourceEvidenceId: `se1_${'d'.repeat(64)}`,
+      disposition: { kind: 'action_requirement' },
+    });
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: plan.affectedPages,
+        pageContracts: [inserted],
+      }),
+    ).toThrow('page_contract_repair_action_binding_scope_invalid');
+
+    const removed = structuredClone(replacement);
+    (
+      removed.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    ).pop();
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: plan.affectedPages,
+        pageContracts: [removed],
+      }),
+    ).toThrow('page_contract_repair_action_binding_scope_invalid');
+  });
+
+  it('keeps represented-elsewhere targets distinct by coverage index and applies only their permitted pointer pair', () => {
+    const original = draft();
+    const originalPage = (
+      original.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    const coverage = originalPage.actionSemanticCoverage as Array<
+      Record<string, unknown>
+    >;
+    coverage[0]!.disposition = {
+      kind: 'represented_elsewhere',
+      contractPointer: '/invalid',
+      contractValue: 'invalid',
+    };
+    coverage.push({
+      beatId: 'beat:p1:second',
+      sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+      disposition: {
+        kind: 'represented_elsewhere',
+        contractPointer: '/invalid-second',
+        contractValue: 'invalid-second',
+      },
+    });
+    const snapshot = structuredClone(original);
+    const affected = pageContractRepairAffectedPages({
+      draft: original,
+      diagnosticIssues: [
+        representedElsewhereIssue(
+          'represented_elsewhere_pointer_out_of_scope',
+          1,
+          0,
+        ),
+        representedElsewhereIssue(
+          'represented_elsewhere_pointer_out_of_scope',
+          1,
+          1,
+        ),
+      ],
+      validationMessages: [
+        'coverage 0 pointer out of scope',
+        'coverage 1 pointer out of scope',
+      ],
+      pointerTemplate: pointerTemplate(),
+    })!;
+    expect(affected[0]!.repairTargets).toMatchObject([
+      { coverageIndex: 0 },
+      { coverageIndex: 1 },
+    ]);
+    const replacement = structuredClone(originalPage);
+    const replacementCoverage =
+      replacement.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+    for (const record of replacementCoverage) {
+      record.disposition = {
+        kind: 'represented_elsewhere',
+        contractPointer: '/pageContracts/0/locationId',
+        contractValue: 'loc:home',
+      };
+    }
+    replacement.camera = 'hostile response camera';
+    replacement.mustShow = ['hostile response mustShow'];
+
+    const result = applyPageContractRepairs({
+      draft: original,
+      affectedPages: affected,
+      pageContracts: [replacement],
+    });
+    const repaired = (
+      result.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    const expected = structuredClone(
+      (snapshot.pageContracts as Array<Record<string, unknown>>)[0]!,
+    );
+    for (const record of expected.actionSemanticCoverage as Array<
+      Record<string, unknown>
+    >) {
+      record.disposition = {
+        kind: 'represented_elsewhere',
+        contractPointer: '/pageContracts/0/locationId',
+        contractValue: 'loc:home',
+      };
+    }
+    expect(original).toEqual(snapshot);
+    expect(repaired).toEqual(expected);
+
+    const hostile = structuredClone(replacement);
+    (
+      hostile.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[1]!.disposition = {
+      kind: 'represented_elsewhere',
+      contractPointer: '/pageContracts/0/locationId',
+      contractValue: 'invented',
+    };
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: affected,
+        pageContracts: [hostile],
+      }),
+    ).toThrow(
+      'page_contract_repair_represented_elsewhere_target_invalid',
+    );
+  });
+
+  it('applies only an exact permitted presentation disposition for a closed-catalog target', () => {
+    const original = draft();
+    const originalPage = (
+      original.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    const originalCoverage = (
+      originalPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!;
+    originalCoverage.disposition = {
+      kind: 'unsupported',
+      reason: 'closed_action_catalog_gap',
+    };
+    const snapshot = structuredClone(original);
+    const permitted = {
+      contractPointer: '/pageContracts/0/mustShow/0',
+      contractValue: 'page 1',
+    };
+    const affectedPages = [
+      {
+        pageNumber: 1,
+        pageContract: structuredClone(originalPage),
+        repairTargets: [
+          {
+            family: 'action_semantic' as const,
+            code: 'closed_catalog_capability_gap' as const,
+            pageNumber: 1,
+            coverageIndex: 0,
+            beatId: originalCoverage.beatId as string,
+            sourceEvidenceId:
+              originalCoverage.sourceEvidenceId as string,
+            sourcePhrase: 'sanitized source phrase',
+            permittedPointerValues: [permitted],
+          },
+        ],
+        validationHints: ['closed catalog gap'],
+        permittedPointerValues: [],
+      },
+    ];
+    const replacement = structuredClone(originalPage);
+    (
+      replacement.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.disposition = {
+      kind: 'presentation_requirement',
+      presentationClass: 'composition_focus',
+      ...permitted,
+    };
+    replacement.camera = 'hostile response camera';
+
+    const result = applyPageContractRepairs({
+      draft: original,
+      affectedPages,
+      pageContracts: [replacement],
+    });
+    const repaired = (
+      result.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    const expected = structuredClone(
+      (snapshot.pageContracts as Array<Record<string, unknown>>)[0]!,
+    );
+    (
+      expected.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.disposition = {
+      kind: 'presentation_requirement',
+      presentationClass: 'composition_focus',
+      ...permitted,
+    };
+    expect(original).toEqual(snapshot);
+    expect(repaired).toEqual(expected);
+
+    const hostile = structuredClone(replacement);
+    (
+      hostile.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.disposition = {
+      kind: 'presentation_requirement',
+      presentationClass: 'composition_focus',
+      contractPointer: permitted.contractPointer,
+      contractValue: 'invented',
+    };
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages,
+        pageContracts: [hostile],
+      }),
+    ).toThrow('page_contract_repair_presentation_target_invalid');
   });
 
   it.each([

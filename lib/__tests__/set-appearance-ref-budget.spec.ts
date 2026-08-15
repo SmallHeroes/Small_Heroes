@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
 import path from 'path';
 
 import { resolveGPTImageEditMaxReferences } from '../generate-image';
@@ -18,6 +20,14 @@ const LION_STORY = path.join(
   'v5-fixed-v2',
   'lion_shaket_bedtime.md'
 );
+
+const boardFixtureRoot = mkdtempSync(
+  path.join(tmpdir(), 'set-appearance-ref-budget-'),
+);
+
+afterAll(() => {
+  rmSync(boardFixtureRoot, { recursive: true, force: true });
+});
 
 function lionP6Plan() {
   const raw = loadStoryLocationPlanOverride(LION_STORY)!;
@@ -82,13 +92,8 @@ describe('Style01 set ref budget (J2.5-R2 invariant)', () => {
   it('drops style before state-critical refs under budget pressure; board yields to state', () => {
     const { bundle, p6, p2 } = lionP6Plan();
     const isolated = p6.referenceSheets?.isolatedObjectPaths ?? [];
-    const boardPath = path.join(
-      process.cwd(),
-      'outputs',
-      'set-appearance-boards',
-      'fixed_interior_night_bedroom_night',
-      'set-appearance-board.png'
-    );
+    const boardPath = path.join(boardFixtureRoot, 'set-appearance-board.png');
+    writeFileSync(boardPath, 'isolated test board');
 
     const tightState = resolveStyle01SetRefBudget({
       pageNumber: 6,

@@ -292,7 +292,7 @@ describe('captured reference-domain matrix', () => {
     ).toBe(false);
   });
 
-  it('uses full-draft first for a broad initial spatial failure and preserves the final page repair', async () => {
+  it('uses full-draft first for a broad initial spatial failure and rejects a final page repair that removes coverage', async () => {
     const broadPages = Array.from({ length: 8 }, (_, index) => ({
       pageNumber: index + 1,
       text: `The hero studies the changing route on page ${index + 1}.`,
@@ -395,10 +395,9 @@ describe('captured reference-domain matrix', () => {
       return JSON.stringify({ pageContracts: [repairedPage] });
     });
 
-    const result = await compileBookVisualContractTemplate(
-      broadInput,
-      { callLLM },
-    );
+    await expect(
+      compileBookVisualContractTemplate(broadInput, { callLLM }),
+    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
     expect(callLLM).toHaveBeenCalledTimes(3);
     expect(authorities).toMatchObject([
@@ -406,12 +405,6 @@ describe('captured reference-domain matrix', () => {
       { kind: 'repair', repairMode: 'full_draft' },
       { kind: 'repair', repairMode: 'page_contract_patch' },
     ]);
-    expect(
-      result.repairAttempts.map((attempt) =>
-        attempt.nextRepairMode),
-    ).toEqual(['full_draft', 'page_contract_patch']);
-    expect(result.provenance.attempt).toBe(3);
-    expect(result.template.pageContracts).toHaveLength(8);
   });
 
   it('keeps the repairable diagnostic-normalization boundary closed to two internal identities', () => {
@@ -1007,7 +1000,7 @@ describe('captured reference-domain matrix', () => {
     },
   );
 
-  it('emits and routes action_coverage_cardinality_invalid through complete-page repair', async () => {
+  it('emits and routes action_coverage_cardinality_invalid but rejects coverage insertion', async () => {
     const invalid = matrixDraft();
     coverage(invalid).shift();
     const validPage = structuredClone(pageRecord(matrixDraft()));
@@ -1019,34 +1012,14 @@ describe('captured reference-domain matrix', () => {
         : JSON.stringify({ pageContracts: [validPage] }),
     );
 
-    const result = await compileBookVisualContractTemplate(input, {
-      callLLM,
-    });
+    await expect(
+      compileBookVisualContractTemplate(input, { callLLM }),
+    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
     expect(callLLM).toHaveBeenCalledTimes(2);
-    expect(result.repairAttempts).toMatchObject([
-      {
-        attempt: 1,
-        nextRepairMode: 'page_contract_patch',
-        diagnosticIssues: [
-          {
-            family: 'action_semantic',
-            code: 'action_binding_cardinality_invalid',
-            locator: {
-              kind: 'page_item',
-              collectionRole: 'page_actions',
-              fieldRole: 'cardinality',
-              pageNumber: 1,
-              itemIndex: 0,
-            },
-          },
-        ],
-      },
-    ]);
-    expect(result.provenance.attempt).toBe(2);
   });
 
-  it('routes the mixed action beat-binding cardinality family through one complete-page repair', async () => {
+  it('routes the mixed action beat-binding cardinality family but rejects action removal', async () => {
     const invalid = matrixDraft();
     const firstAction = structuredClone(actions(invalid)[0]!);
     actions(invalid).push(firstAction);
@@ -1059,32 +1032,14 @@ describe('captured reference-domain matrix', () => {
         : JSON.stringify({ pageContracts: [validPage] }),
     );
 
-    const result = await compileBookVisualContractTemplate(input, {
-      callLLM,
-    });
+    await expect(
+      compileBookVisualContractTemplate(input, { callLLM }),
+    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
     expect(callLLM).toHaveBeenCalledTimes(2);
-    expect(result.repairAttempts).toHaveLength(1);
-    expect(result.repairAttempts[0]?.nextRepairMode).toBe(
-      'page_contract_patch',
-    );
-    expect(result.repairAttempts[0]?.diagnosticIssues).toHaveLength(3);
-    expect(
-      result.repairAttempts[0]?.diagnosticIssues.map(
-        (issue) =>
-          issue.locator.kind === 'page_item'
-            ? issue.locator.collectionRole
-            : null,
-      ),
-    ).toEqual([
-      'page_actions',
-      'page_actions',
-      'page_action_semantic_coverage',
-    ]);
-    expect(result.provenance.attempt).toBe(2);
   });
 
-  it('co-observes action-binding and page-spatial failures and repairs their exact page union once', async () => {
+  it('co-observes action-binding and page-spatial failures but rejects structural coverage drift', async () => {
     const invalid = matrixDraft();
     coverage(invalid).shift();
     actions(invalid)[0]!.object = {
@@ -1108,45 +1063,15 @@ describe('captured reference-domain matrix', () => {
       return JSON.stringify({ pageContracts: [repairedPage] });
     });
 
-    const result = await compileBookVisualContractTemplate(input, {
-      callLLM,
-    });
+    await expect(
+      compileBookVisualContractTemplate(input, { callLLM }),
+    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
     expect(callLLM).toHaveBeenCalledTimes(2);
     expect(callLLM.mock.calls[1]![3]).toMatchObject({
       kind: 'repair',
       repairMode: 'page_contract_patch',
     });
-    expect(result.repairAttempts).toMatchObject([
-      {
-        attempt: 1,
-        nextRepairMode: 'page_contract_patch',
-        diagnosticIssues: expect.arrayContaining([
-          {
-            family: 'action_semantic',
-            code: 'action_binding_cardinality_invalid',
-            locator: {
-              kind: 'page_item',
-              collectionRole: 'page_actions',
-              fieldRole: 'cardinality',
-              pageNumber: 1,
-              itemIndex: 0,
-            },
-          },
-          {
-            family: 'draft_contract',
-            code: 'out_of_scope_reference',
-            locator: {
-              kind: 'page_item',
-              collectionRole: 'page_actions',
-              fieldRole: 'reference',
-              pageNumber: 1,
-              itemIndex: 0,
-            },
-          },
-        ]),
-      },
-    ]);
     expect(
       decodePageContractRepairUserPrompt(
         repairUserPrompts[0]!,
@@ -1178,7 +1103,6 @@ describe('captured reference-domain matrix', () => {
     expect(repairUserPrompts[0]).not.toContain(
       'outside_current_page_zone',
     );
-    expect(result.provenance.attempt).toBe(2);
   });
 
   it('keeps a compound authority set terminal when it contains any third family', async () => {
@@ -1214,7 +1138,7 @@ describe('captured reference-domain matrix', () => {
     expect(callLLM).toHaveBeenCalledTimes(1);
   });
 
-  it('aggregates action binding authority across every affected page before one complete-page repair', async () => {
+  it('aggregates action binding authority across every affected page but rejects action removal', async () => {
     const multiPages = [
       {
         pageNumber: 1,
@@ -1289,28 +1213,11 @@ describe('captured reference-domain matrix', () => {
         : JSON.stringify({ pageContracts: repairedPages }),
     );
 
-    const result = await compileBookVisualContractTemplate(
-      multiInput,
-      { callLLM },
-    );
+    await expect(
+      compileBookVisualContractTemplate(multiInput, { callLLM }),
+    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
     expect(callLLM).toHaveBeenCalledTimes(2);
-    expect(result.repairAttempts).toHaveLength(1);
-    expect(result.repairAttempts[0]?.nextRepairMode).toBe(
-      'page_contract_patch',
-    );
-    expect(result.repairAttempts[0]?.diagnosticIssues).toHaveLength(6);
-    expect([
-      ...new Set(
-        result.repairAttempts[0]?.diagnosticIssues.flatMap((issue) =>
-          'pageNumber' in issue.locator
-            ? [issue.locator.pageNumber]
-            : [],
-        ),
-      ),
-    ]).toEqual([1, 2]);
-    expect(result.template.pageContracts).toHaveLength(2);
-    expect(result.provenance.attempt).toBe(2);
   });
 
   it('uses one complete-page repair for presentation gaps and final structure after a spatial repair', async () => {

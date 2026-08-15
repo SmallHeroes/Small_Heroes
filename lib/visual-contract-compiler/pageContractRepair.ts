@@ -3,6 +3,7 @@ import {
   type DraftValidationIssue,
 } from './draftValidationDiagnostics';
 import {
+  PRESENTATION_REQUIREMENT_CLASS_VALUES,
   permittedRepresentedElsewherePointerValuesForPage,
   type ActionSemanticCoverageTemplate,
   type RepresentedElsewherePointerValue,
@@ -24,7 +25,7 @@ export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
   'page-contract-repair-prompt/v11' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
-  'page-contract-repair-user-prompt/v11' as const;
+  'page-contract-repair-user-prompt/v12' as const;
 export const PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION =
   'page-contract-repair-input-encoding/v2' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION =
@@ -198,6 +199,7 @@ export type PageContractRepairTarget =
         | 'represented_elsewhere_pointer_unresolved'
         | 'represented_elsewhere_value_mismatch';
       pageNumber: number;
+      coverageIndex: number;
     }
   | {
       family: 'action_semantic';
@@ -300,7 +302,23 @@ function representedElsewhereRepairTarget(
     family: issue.family,
     code,
     pageNumber: issue.locator.pageNumber,
+    coverageIndex: issue.locator.itemIndex,
   };
+}
+
+function pageContractRepairTargetKey(
+  target: PageContractRepairTarget,
+): string {
+  return JSON.stringify([
+    target.pageNumber,
+    target.family,
+    target.code,
+    'actionIndex' in target ? target.actionIndex : null,
+    'coverageIndex' in target ? target.coverageIndex : null,
+    'collectionRole' in target ? target.collectionRole : null,
+    'itemIndex' in target ? target.itemIndex : null,
+    'fieldRole' in target ? target.fieldRole : null,
+  ]);
 }
 
 function pageSpatialRepairTarget(
@@ -354,16 +372,18 @@ function repairTargets(
   if (targets.some((target) => target === null)) return null;
   const unique = new Map<string, PageContractRepairTarget>();
   for (const target of targets as PageContractRepairTarget[]) {
-    unique.set(
-      JSON.stringify([target.pageNumber, target.family, target.code]),
-      target,
-    );
+    const key = pageContractRepairTargetKey(target);
+    if (unique.has(key)) continue;
+    unique.set(key, target);
   }
   return [...unique.values()].sort(
     (left, right) =>
       left.pageNumber - right.pageNumber ||
       left.family.localeCompare(right.family) ||
-      left.code.localeCompare(right.code),
+      left.code.localeCompare(right.code) ||
+      pageContractRepairTargetKey(left).localeCompare(
+        pageContractRepairTargetKey(right),
+      ),
   );
 }
 
@@ -876,12 +896,30 @@ export function pageContractRepairAffectedPages(args: {
         .filter((page) => page?.pageNumber === pageNumber);
       return matches.length === 1
         ? (() => {
+            const pageTargets = targets.filter(
+              (target) => target.pageNumber === pageNumber,
+            );
+            if (
+              actionSemanticRepair &&
+              pageTargets.some((target) => {
+                if (!('coverageIndex' in target)) return true;
+                const coverage = pageCoverageForTarget({
+                  draft: args.draft,
+                  pageNumber,
+                  coverageIndex: target.coverageIndex,
+                });
+                return (
+                  recordValue(coverage?.disposition)?.kind !==
+                  'represented_elsewhere'
+                );
+              })
+            ) {
+              return null;
+            }
             return {
               pageNumber,
               pageContract: structuredClone(matches[0]!),
-              repairTargets: targets.filter(
-                (target) => target.pageNumber === pageNumber,
-              ),
+              repairTargets: pageTargets,
               validationHints: [
                 ...(validationHintsByPage.get(pageNumber) ?? []),
               ].sort(lexicalCompare),
@@ -2129,115 +2167,435 @@ export function parsePageContractRepairs(
   });
 }
 
+function pageActionAt(
+  page: Record<string, unknown>,
+  actionIndex: number,
+): Record<string, unknown> | null {
+  const actions = Array.isArray(page.actionRequirements)
+    ? page.actionRequirements
+    : [];
+  return actionIndex >= 0 && actionIndex < actions.length
+    ? recordValue(actions[actionIndex])
+    : null;
+}
+
+function pageCoverageAt(
+  page: Record<string, unknown>,
+  coverageIndex: number,
+): Record<string, unknown> | null {
+  const coverage = Array.isArray(page.actionSemanticCoverage)
+    ? page.actionSemanticCoverage
+    : [];
+  return coverageIndex >= 0 && coverageIndex < coverage.length
+    ? recordValue(coverage[coverageIndex])
+    : null;
+}
+
+function repairBeatIdIsValid(
+  value: unknown,
+  pageNumber: number,
+): value is string {
+  return (
+    typeof value === 'string' &&
+    new RegExp(`^beat:p${pageNumber}:[a-z0-9_]+$`).test(value)
+  );
+}
+
+function pointerValueIsPermitted(
+  permitted: readonly RepresentedElsewherePointerValue[],
+  pointer: unknown,
+  value: unknown,
+): pointer is string {
+  return (
+    typeof pointer === 'string' &&
+    typeof value === 'string' &&
+    permitted.some(
+      (candidate) =>
+        candidate.contractPointer === pointer &&
+        candidate.contractValue === value,
+    )
+  );
+}
+
+function assertPageSpatialRepairTarget(
+  target: PageContractSpatialRepairTarget,
+): Set<string> {
+  if (
+    target.collectionRole !== 'page_actions' ||
+    target.permittedSpatialReferences.length === 0
+  ) {
+    throw new Error('page_contract_repair_spatial_target_invalid');
+  }
+  const permittedIds = new Set<string>();
+  for (const permitted of target.permittedSpatialReferences) {
+    if (
+      typeof permitted.id !== 'string' ||
+      permitted.id.length === 0 ||
+      typeof permitted.kind !== 'string' ||
+      permitted.kind.length === 0 ||
+      typeof permitted.description !== 'string' ||
+      permitted.description.length === 0 ||
+      permittedIds.has(permitted.id)
+    ) {
+      throw new Error('page_contract_repair_spatial_target_invalid');
+    }
+    permittedIds.add(permitted.id);
+  }
+  return permittedIds;
+}
+
+function applyPageContractFieldTarget(args: {
+  affectedPage: PageContractRepairAffectedPage;
+  target: Exclude<
+    PageContractRepairTarget,
+    { code: 'final_structural_invariant_invalid' }
+  >;
+  originalPage: Record<string, unknown>;
+  replacementPage: Record<string, unknown>;
+  resultPage: Record<string, unknown>;
+}): void {
+  const { target } = args;
+  if (target.code === 'action_coverage_cardinality_invalid') {
+    const original = pageActionAt(args.originalPage, target.actionIndex);
+    const replacement = pageActionAt(
+      args.replacementPage,
+      target.actionIndex,
+    );
+    const result = pageActionAt(args.resultPage, target.actionIndex);
+    if (!original || !replacement || !result) {
+      throw new Error('page_contract_repair_action_target_stale');
+    }
+    if (!repairBeatIdIsValid(replacement.beatId, target.pageNumber)) {
+      throw new Error('page_contract_repair_action_beat_id_invalid');
+    }
+    result.beatId = replacement.beatId;
+    const originalCoverage = Array.isArray(
+      args.originalPage.actionSemanticCoverage,
+    )
+      ? args.originalPage.actionSemanticCoverage
+      : [];
+    const replacementCoverage = Array.isArray(
+      args.replacementPage.actionSemanticCoverage,
+    )
+      ? args.replacementPage.actionSemanticCoverage
+      : [];
+    const resultCoverage = Array.isArray(
+      args.resultPage.actionSemanticCoverage,
+    )
+      ? args.resultPage.actionSemanticCoverage
+      : [];
+    if (
+      originalCoverage.length !== replacementCoverage.length ||
+      originalCoverage.length !== resultCoverage.length
+    ) {
+      throw new Error(
+        'page_contract_repair_action_binding_scope_invalid',
+      );
+    }
+    const matchingCoverageChanges: number[] = [];
+    for (let index = 0; index < originalCoverage.length; index += 1) {
+      const originalRecord = recordValue(originalCoverage[index]);
+      const replacementRecord = recordValue(replacementCoverage[index]);
+      if (!originalRecord || !replacementRecord) {
+        throw new Error(
+          'page_contract_repair_action_binding_scope_invalid',
+        );
+      }
+      const originalBinding = canonicalize({
+        beatId: originalRecord.beatId,
+        disposition: originalRecord.disposition,
+      });
+      const replacementBinding = canonicalize({
+        beatId: replacementRecord.beatId,
+        disposition: replacementRecord.disposition,
+      });
+      if (
+        JSON.stringify(originalBinding) !==
+        JSON.stringify(replacementBinding)
+      ) {
+        if (replacementRecord.beatId !== replacement.beatId) continue;
+        const replacementDisposition = recordValue(
+          replacementRecord.disposition,
+        );
+        if (
+          replacementDisposition?.kind !== 'action_requirement' ||
+          !exactKeys(replacementDisposition, ['kind'])
+        ) {
+          throw new Error(
+            'page_contract_repair_action_binding_scope_invalid',
+          );
+        }
+        matchingCoverageChanges.push(index);
+      }
+    }
+    if (matchingCoverageChanges.length > 1) {
+      throw new Error(
+        'page_contract_repair_action_binding_scope_invalid',
+      );
+    }
+    if (matchingCoverageChanges.length === 1) {
+      const coverageIndex = matchingCoverageChanges[0]!;
+      const originalRecord = recordValue(
+        originalCoverage[coverageIndex],
+      )!;
+      const replacementRecord = recordValue(
+        replacementCoverage[coverageIndex],
+      )!;
+      const resultRecord = recordValue(resultCoverage[coverageIndex]);
+      if (
+        !resultRecord ||
+        originalRecord.sourceEvidenceId !==
+          replacementRecord.sourceEvidenceId ||
+        replacementRecord.beatId !== replacement.beatId
+      ) {
+        throw new Error(
+          'page_contract_repair_action_binding_scope_invalid',
+        );
+      }
+      resultRecord.beatId = replacementRecord.beatId;
+      resultRecord.disposition = { kind: 'action_requirement' };
+    }
+    return;
+  }
+
+  if (target.code === 'action_beat_binding_cardinality_invalid') {
+    const original = pageActionAt(args.originalPage, target.actionIndex);
+    const replacement = pageActionAt(
+      args.replacementPage,
+      target.actionIndex,
+    );
+    const result = pageActionAt(args.resultPage, target.actionIndex);
+    if (!original || !replacement || !result) {
+      throw new Error('page_contract_repair_action_target_stale');
+    }
+    if (!repairBeatIdIsValid(replacement.beatId, target.pageNumber)) {
+      throw new Error('page_contract_repair_action_beat_id_invalid');
+    }
+    result.beatId = replacement.beatId;
+    return;
+  }
+
+  if (target.code === 'coverage_action_binding_cardinality_invalid') {
+    const original = pageCoverageAt(
+      args.originalPage,
+      target.coverageIndex,
+    );
+    const replacement = pageCoverageAt(
+      args.replacementPage,
+      target.coverageIndex,
+    );
+    const result = pageCoverageAt(args.resultPage, target.coverageIndex);
+    if (!original || !replacement || !result) {
+      throw new Error('page_contract_repair_coverage_target_stale');
+    }
+    if (!repairBeatIdIsValid(replacement.beatId, target.pageNumber)) {
+      throw new Error('page_contract_repair_coverage_beat_id_invalid');
+    }
+    result.beatId = replacement.beatId;
+    return;
+  }
+
+  if (target.code === 'page_spatial_reference_outside_zone') {
+    const permittedIds = assertPageSpatialRepairTarget(target);
+    const original = pageActionAt(args.originalPage, target.itemIndex);
+    const replacement = pageActionAt(
+      args.replacementPage,
+      target.itemIndex,
+    );
+    const result = pageActionAt(args.resultPage, target.itemIndex);
+    const originalReference = original
+      ? currentSpatialReferenceForRole(original, target.fieldRole)
+      : null;
+    const replacementReference = replacement
+      ? currentSpatialReferenceForRole(replacement, target.fieldRole)
+      : null;
+    if (
+      !result ||
+      !spatialReferenceShapeIsRepairable(originalReference) ||
+      !spatialReferenceShapeIsRepairable(replacementReference)
+    ) {
+      throw new Error('page_contract_repair_spatial_target_stale');
+    }
+    if (!permittedIds.has(replacementReference.id)) {
+      throw new Error(
+        'page_contract_repair_spatial_reference_not_permitted',
+      );
+    }
+    if (
+      !replaceSpatialReferenceForRole({
+        action: result,
+        fieldRole: target.fieldRole,
+        value: {
+          kind: 'spatial',
+          id: replacementReference.id,
+        },
+      })
+    ) {
+      throw new Error('page_contract_repair_spatial_target_stale');
+    }
+    return;
+  }
+
+  const original = pageCoverageAt(
+    args.originalPage,
+    target.coverageIndex,
+  );
+  const replacement = pageCoverageAt(
+    args.replacementPage,
+    target.coverageIndex,
+  );
+  const result = pageCoverageAt(args.resultPage, target.coverageIndex);
+  const originalDisposition = recordValue(original?.disposition);
+  const replacementDisposition = recordValue(replacement?.disposition);
+  if (!original || !replacement || !result || !replacementDisposition) {
+    throw new Error('page_contract_repair_coverage_target_stale');
+  }
+
+  if (target.code === 'closed_catalog_capability_gap') {
+    if (
+      original.beatId !== target.beatId ||
+      original.sourceEvidenceId !== target.sourceEvidenceId ||
+      replacement.beatId !== target.beatId ||
+      replacement.sourceEvidenceId !== target.sourceEvidenceId ||
+      originalDisposition?.kind !== 'unsupported' ||
+      originalDisposition.reason !== 'closed_action_catalog_gap' ||
+      replacementDisposition.kind !== 'presentation_requirement' ||
+      !PRESENTATION_REQUIREMENT_CLASS_VALUES.includes(
+        replacementDisposition.presentationClass as never,
+      ) ||
+      !pointerValueIsPermitted(
+        target.permittedPointerValues,
+        replacementDisposition.contractPointer,
+        replacementDisposition.contractValue,
+      )
+    ) {
+      throw new Error(
+        'page_contract_repair_presentation_target_invalid',
+      );
+    }
+    result.disposition = {
+      kind: 'presentation_requirement',
+      presentationClass: replacementDisposition.presentationClass,
+      contractPointer: replacementDisposition.contractPointer,
+      contractValue: replacementDisposition.contractValue,
+    };
+    return;
+  }
+
+  if (
+    originalDisposition?.kind !== 'represented_elsewhere' ||
+    replacementDisposition.kind !== 'represented_elsewhere' ||
+    original.beatId !== replacement.beatId ||
+    original.sourceEvidenceId !== replacement.sourceEvidenceId ||
+    !pointerValueIsPermitted(
+      args.affectedPage.permittedPointerValues,
+      replacementDisposition.contractPointer,
+      replacementDisposition.contractValue,
+    )
+  ) {
+    throw new Error(
+      'page_contract_repair_represented_elsewhere_target_invalid',
+    );
+  }
+  result.disposition = {
+    kind: 'represented_elsewhere',
+    contractPointer: replacementDisposition.contractPointer,
+    contractValue: replacementDisposition.contractValue,
+  };
+}
+
 export function applyPageContractRepairs(args: {
   draft: Record<string, unknown>;
   affectedPages: readonly PageContractRepairAffectedPage[];
   pageContracts: readonly Record<string, unknown>[];
 }): Record<string, unknown> {
-  const expected = new Set(
-    args.affectedPages.map((value) => value.pageNumber),
-  );
-  if (expected.size !== args.affectedPages.length) {
-    throw new Error('page_contract_repair_affected_page_duplicate');
+  const affectedByPage = new Map<
+    number,
+    PageContractRepairAffectedPage
+  >();
+  for (const affectedPage of args.affectedPages) {
+    if (affectedByPage.has(affectedPage.pageNumber)) {
+      throw new Error('page_contract_repair_affected_page_duplicate');
+    }
+    affectedByPage.set(affectedPage.pageNumber, affectedPage);
   }
-  if (args.pageContracts.length !== expected.size) {
+  if (affectedByPage.size === 0) {
+    throw new Error('page_contract_repair_patch_set_incomplete');
+  }
+  if (args.pageContracts.length !== affectedByPage.size) {
     throw new Error('page_contract_repair_patch_set_incomplete');
   }
   const replacements = new Map<number, Record<string, unknown>>();
   for (const page of args.pageContracts) {
     const pageNumber = page.pageNumber as number;
-    if (!expected.has(pageNumber) || replacements.has(pageNumber)) {
+    if (!affectedByPage.has(pageNumber) || replacements.has(pageNumber)) {
       throw new Error('page_contract_repair_page_unexpected_or_duplicate');
     }
     replacements.set(pageNumber, structuredClone(page));
   }
-  const spatialTargetKeys = new Set<string>();
   for (const affectedPage of args.affectedPages) {
-    const replacement = replacements.get(affectedPage.pageNumber);
-    if (!replacement) {
-      throw new Error('page_contract_repair_patch_set_incomplete');
+    if (affectedPage.repairTargets.length === 0) {
+      throw new Error('page_contract_repair_target_set_empty');
     }
+    const targetKeys = new Set<string>();
     for (const target of affectedPage.repairTargets) {
-      if (target.code !== 'page_spatial_reference_outside_zone') {
-        continue;
-      }
-      const targetKey = JSON.stringify([
-        target.pageNumber,
-        target.collectionRole,
-        target.itemIndex,
-        target.fieldRole,
-      ]);
+      const key = pageContractRepairTargetKey(target);
       if (
         target.pageNumber !== affectedPage.pageNumber ||
-        target.collectionRole !== 'page_actions' ||
-        spatialTargetKeys.has(targetKey) ||
-        target.permittedSpatialReferences.length === 0
+        targetKeys.has(key)
       ) {
-        throw new Error('page_contract_repair_spatial_target_invalid');
+        throw new Error('page_contract_repair_target_invalid_or_duplicate');
       }
-      spatialTargetKeys.add(targetKey);
-      const permittedIds = new Set<string>();
-      for (const permitted of target.permittedSpatialReferences) {
-        if (
-          typeof permitted.id !== 'string' ||
-          permitted.id.length === 0 ||
-          typeof permitted.kind !== 'string' ||
-          permitted.kind.length === 0 ||
-          typeof permitted.description !== 'string' ||
-          permitted.description.length === 0 ||
-          permittedIds.has(permitted.id)
-        ) {
-          throw new Error('page_contract_repair_spatial_target_invalid');
-        }
-        permittedIds.add(permitted.id);
-      }
-      const actions = Array.isArray(replacement.actionRequirements)
-        ? replacement.actionRequirements
-        : [];
-      const action = recordValue(actions[target.itemIndex]);
-      const spatialReference = action
-        ? currentSpatialReferenceForRole(action, target.fieldRole)
-        : null;
-      if (
-        !spatialReferenceShapeIsRepairable(spatialReference) ||
-        !permittedIds.has(spatialReference.id)
-      ) {
-        throw new Error(
-          'page_contract_repair_spatial_reference_not_permitted',
-        );
-      }
+      targetKeys.add(key);
     }
   }
+
   const draft = structuredClone(args.draft);
   if (!Array.isArray(draft.pageContracts)) {
     throw new Error('page_contract_repair_page_collection_invalid');
   }
+  const expected = new Set(affectedByPage.keys());
   const seen = new Set<number>();
   draft.pageContracts = draft.pageContracts.map((value) => {
-    const page = recordValue(value);
-    const pageNumber = page?.pageNumber;
+    const originalPage = recordValue(value);
+    const pageNumber = originalPage?.pageNumber;
     if (
-      page &&
-      typeof pageNumber === 'number' &&
-      replacements.has(pageNumber)
+      !originalPage ||
+      typeof pageNumber !== 'number' ||
+      !affectedByPage.has(pageNumber)
     ) {
-      if (seen.has(pageNumber)) {
-        throw new Error('page_contract_repair_page_not_unique');
-      }
-      seen.add(pageNumber);
-      const replacement = replacements.get(pageNumber)!;
-      // Complete-page repair may change only the typed targets and validation
-      // hints carried by the repair authority. The page's zone membership is
-      // already-valid compiler authority and is never a repair target in this
-      // lane. Preserve both topology identifiers locally so a provider cannot
-      // introduce a new or unresolved zone while fixing unrelated page fields.
-      return {
-        ...replacement,
-        locationId: page.locationId,
-        zoneId: page.zoneId,
-      };
+      return value;
     }
-    return value;
+    if (seen.has(pageNumber)) {
+      throw new Error('page_contract_repair_page_not_unique');
+    }
+    seen.add(pageNumber);
+    const affectedPage = affectedByPage.get(pageNumber)!;
+    const replacementPage = replacements.get(pageNumber);
+    if (!replacementPage) {
+      throw new Error('page_contract_repair_patch_set_incomplete');
+    }
+    const targetedResult = structuredClone(originalPage);
+    for (const target of affectedPage.repairTargets) {
+      if (target.code === 'final_structural_invariant_invalid') continue;
+      applyPageContractFieldTarget({
+        affectedPage,
+        target,
+        originalPage,
+        replacementPage,
+        resultPage: targetedResult,
+      });
+    }
+    const hasStructuralAuthority = affectedPage.repairTargets.some(
+      (target) => target.code === 'final_structural_invariant_invalid',
+    );
+    return hasStructuralAuthority
+      ? {
+          ...replacementPage,
+          locationId: originalPage.locationId,
+          zoneId: originalPage.zoneId,
+        }
+      : targetedResult;
   });
   if (seen.size !== expected.size) {
     throw new Error('page_contract_repair_page_not_unique');

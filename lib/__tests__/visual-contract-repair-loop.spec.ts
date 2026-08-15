@@ -340,7 +340,7 @@ describe('Stage 3 — bounded repair loop', () => {
       kind: 'repair',
       repairMode: 'page_contract_patch',
       systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'page-contract-repair-user-prompt/v11',
+      userPromptVersion: 'page-contract-repair-user-prompt/v12',
     });
     const payload = decodePageContractRepairUserPrompt(
       calls[1]!.user,
@@ -1065,7 +1065,7 @@ describe('page-contract compact repair routing', () => {
       budgetClass: 'standard',
       repairMode: 'page_contract_patch',
       systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'page-contract-repair-user-prompt/v11',
+      userPromptVersion: 'page-contract-repair-user-prompt/v12',
     });
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
       PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
@@ -1160,6 +1160,7 @@ describe('page-contract compact repair routing', () => {
           family: 'action_semantic',
           code: 'represented_elsewhere_value_mismatch',
           pageNumber: 1,
+          coverageIndex: 0,
         },
       ],
     });
