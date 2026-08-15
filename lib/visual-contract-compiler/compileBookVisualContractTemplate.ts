@@ -3122,9 +3122,6 @@ export async function compileBookVisualContractTemplate(
               err.structuralDiagnosticIssues,
             structuralValidationMessages: err.structuralErrors,
           });
-        if (!pageContractAffectedPages) {
-          throw err.structuralError;
-        }
         const capabilityDiagnostics =
           new ActionSemanticCapabilityGapError(
             err.gaps,
@@ -3140,6 +3137,10 @@ export async function compileBookVisualContractTemplate(
           ...err.structuralDiagnosticIssues,
           ...capabilityDiagnostics,
         ];
+        // A compact repair can expose a capability gap together with a
+        // non-page-local structural failure. Keep both typed diagnostic sets
+        // inside the bounded loop so the existing full-draft lane can repair
+        // the mixed draft when no safe page-only authority can be derived.
         presentationRequirementAffectedTargets = null;
       } else if (err instanceof InvalidTemplateContractError) {
         attemptErrors = err.errors;

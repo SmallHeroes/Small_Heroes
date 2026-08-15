@@ -2,7 +2,60 @@
 
 **Updated:** 2026-08-15
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-companion-spotlight-qa-lion-three-page-proof` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed QA integration head `115fdef6dc923db91acd0a47e600e6f326c85d5f`.
+**Working branch:** `codex/r1d-post-repair-mixed-validation-routing` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed Leo QA attempt head `9d0504a78048c7daff2ec5c7b12de17aecb2b532`.
+
+## POST-REPAIR MIXED VALIDATION ROUTING — local implementation green / independent QA pending
+
+The two consumed Leo QA authoring attempts each completed an initial provider
+response and one compact page repair, then stopped as
+`local_processing_failed / unexpected_local_failure`. Together they used four
+logical provider calls, zero transport retries and zero fallback; their
+conservative authoring accounting is approximately `$2.101603`. Neither
+attempt produced a candidate, Blueprint, Wizard render authority or image.
+
+Deterministic reconstruction proved a general compiler routing defect. A
+compact page repair can expose both a closed Action Semantic capability gap
+and a non-page-local structural failure. The compiler caught the pair as
+`PresentationStructuralValidationError`, but an inner rethrow escaped the
+bounded repair loop when no safe page-only repair authority existed. The
+lifecycle then correctly sanitized that unclassified local throw as the
+generic terminal observed in both live receipts.
+
+The correction retains both typed diagnostic sets inside the existing loop.
+Page-local compact repair behavior is unchanged; a mixed, non-page-local draft
+now selects the already-authorized `full_draft` lane for the final repair. The
+model, prompt/schema authority, one-initial-plus-two-repair budget, 64K input
+ceiling, timeout, transport retries, fallback policy and `$5` cap are unchanged.
+Unknown local failures and capability gaps without a valid presentation target
+remain terminal. No Leo, story, child, companion or page literal was added.
+
+A direct regression first reproduced the exact failed signature — two calls,
+one repair and generic local failure — then passed with exactly three calls,
+repair modes `[initial, page_spatial_reference_patch, full_draft]`, mixed typed
+diagnostics and a fully revalidated candidate. Focused validation passed **6
+files / 174 tests**. TypeScript and `git diff --check` passed. The repository
+gate ran once: both TypeScript contracts passed; the resource phase passed all
+**19 files** with valid diagnostics and no timeout/RPC/IPC failure; ordinary
+failed only the exact six established missing-output fixture assertions. That
+separate release HOLD remains unchanged.
+
+The focused run also exposed one stale test expectation left by initial-prompt
+v13 compaction: it expected the full Source Evidence Catalog columns although
+the initial prompt intentionally uses the complete-story projection without
+byte offsets. Only that assertion was aligned with the existing v13 contract;
+provider behavior did not change.
+
+No credential, provider, Fresh Readiness, preflight, image, render, storage,
+database, deployment or Production action occurred during this correction.
+Historical output artifacts remain immutable. Codex does not self-award
+technical PASS: independent Claude Code review of the committed range is the
+next gate. A later Leo three-page LOW attempt requires fresh canonical
+authority and must not reuse either exhausted attempt.
+
+Durable Decision Gate and implementation evidence:
+`docs/ai-workflow/R1D_POST_REPAIR_MIXED_VALIDATION_ROUTING_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_POST_REPAIR_MIXED_VALIDATION_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
 
 ## LEO THREE-PAGE PROOF — prompt compaction green / fresh authority pending
 

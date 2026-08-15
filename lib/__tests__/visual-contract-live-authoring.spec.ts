@@ -10,8 +10,8 @@ import { extractSourceFromMarkdown } from '../../scripts/extract-visual-contract
 import {
   compileBookVisualContractTemplate,
   authoringMaxOutputTokens,
+  COMPLETE_STORY_SOURCE_PROMPT_COLUMNS,
   resolveAuthoringModel,
-  SOURCE_EVIDENCE_CATALOG_PROMPT_COLUMNS,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import {
@@ -211,14 +211,11 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     const firstEvidence =
       bunnySource().sourceEvidenceCatalog.entries[0]!;
     expect(capturedUser).toContain(
-      JSON.stringify(SOURCE_EVIDENCE_CATALOG_PROMPT_COLUMNS),
+      JSON.stringify(COMPLETE_STORY_SOURCE_PROMPT_COLUMNS),
     );
     expect(capturedUser).toContain(
       JSON.stringify([
         firstEvidence.pageNumber,
-        firstEvidence.excerptOrdinal,
-        firstEvidence.startOffsetUtf8,
-        firstEvidence.endOffsetUtf8,
         firstEvidence.sourceEvidenceId,
         firstEvidence.excerpt,
       ]),

@@ -4302,4 +4302,120 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       }),
     ).toThrow(/current Action Semantic Coverage authority/);
   });
+
+  it('keeps mixed capability and structural validation inside the bounded loop after a compact page repair', async () => {
+    const snapshot = bunnySnapshot();
+    const valid = fullyActionedBunnyDraft(snapshot);
+    const invalid = structuredClone(valid);
+    const spatialPage = invalid.pageContracts[0]!;
+    const spatialZone = invalid.zones.find(
+      (candidate) => candidate.id === spatialPage.zoneId,
+    );
+    if (!spatialZone) throw new Error('missing mixed-routing fixture zone');
+    spatialZone.spatialNodes = [
+      {
+        id: 'fixture_mixed_routing_chair',
+        kind: 'furniture',
+        description: 'A stable chair used by the mixed-routing fixture.',
+      },
+    ];
+    spatialZone.stableGeometry = projectZoneStableGeometry(spatialZone)!;
+    const rejectedId = 'raw-provider-mixed-routing-outside-zone';
+    (
+      spatialPage.actionRequirements![0] as unknown as Record<string, unknown>
+    ).object = { kind: 'spatial', id: rejectedId };
+    const repairedProjectionPage = structuredClone(
+      spatialPage,
+    ) as PageVisualContract;
+    (
+      repairedProjectionPage.actionRequirements![0] as unknown as Record<
+        string,
+        unknown
+      >
+    ).object = {
+      kind: 'spatial',
+      id: 'fixture_mixed_routing_chair',
+    };
+    spatialPage.mustShow = [
+      ...new Set([
+        ...spatialPage.mustShow,
+        ...projectPageMustShow(
+          repairedProjectionPage,
+          invalid as unknown as BookVisualContract,
+        ),
+      ]),
+    ];
+
+    const capabilityPage = invalid.pageContracts[1]! as PageVisualContract & {
+      actionSemanticCoverage: Array<{
+        beatId: string;
+        sourceEvidenceId: string;
+        disposition: Record<string, unknown>;
+      }>;
+    };
+    capabilityPage.actionRequirements = [];
+    capabilityPage.actionSemanticCoverage[0]!.disposition = {
+      kind: 'unsupported',
+      reason: 'closed_action_catalog_gap',
+    };
+    invalid.recurringProps[0]!.material = '';
+
+    const provider = sequencedSuccessfulProvider([
+      invalid,
+      {
+        patches: [
+          {
+            pageNumber: spatialPage.pageNumber,
+            actionIndex: 0,
+            fieldRole: 'object',
+            spatialReferenceId: 'fixture_mixed_routing_chair',
+          },
+        ],
+      },
+      valid,
+    ]);
+
+    const result = await runVisualContractAuthoring({
+      request: requestFor(snapshot, 'live'),
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'completed',
+      callCount: 3,
+      repairCount: 2,
+      failure: null,
+      draftValidationStatus: 'completed',
+    });
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([null, 'page_spatial_reference_patch', 'full_draft']);
+    expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(result.receipt.attempts[1].draftValidationDiagnostics)
+      .toMatchObject({
+        currentUniqueCount: expect.any(Number),
+        finalAttempt: false,
+      });
+    expect(
+      result.receipt.attempts[1].draftValidationDiagnostics
+        ?.currentUniqueCount,
+    ).toBeGreaterThan(1);
+    expect(
+      result.receipt.attempts[1].draftValidationDiagnostics
+        ?.items.map((item) => item.issue.family),
+    ).toEqual(
+      expect.arrayContaining(['draft_contract', 'action_semantic']),
+    );
+    expect(
+      result.receipt.attempts[1].draftValidationDiagnostics
+        ?.items.map((item) => item.issue.code),
+    ).toContain('closed_catalog_capability_gap');
+    expect(result.receipt.attempts[2].draftValidationDiagnostics)
+      .toMatchObject({
+        currentUniqueCount: 0,
+        finalAttempt: true,
+      });
+    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(result.receipt)).not.toContain(rejectedId);
+  });
 });
