@@ -21,6 +21,7 @@ import {
   buildPageSpatialReferenceRepairUserPrompt,
   pageContractRepairAffectedPages,
   pageContractAuthorityRepairPlan,
+  pageContractCompoundAuthorityRepairPlan,
   pageSpatialReferenceRepairTargets,
   parsePageContractRepairs,
   parsePageSpatialReferenceRepairPatches,
@@ -877,6 +878,177 @@ describe('page-contract compact repair', () => {
     }
   });
 
+  it('combines action-cardinality and page-spatial identities into one complete-page authority', () => {
+    const input = spatialDraft();
+    const inputActions = (
+      (input.pageContracts as Array<Record<string, unknown>>)[0]!
+        .actionRequirements as Array<Record<string, unknown>>
+    );
+    inputActions[0]!.subject = {
+      kind: 'entity',
+      entity: { kind: 'spatial', id: 'node:door' },
+    };
+    inputActions[3]!.spatialConstraint = {
+      relation: 'beside',
+      target: { kind: 'spatial', id: 'node:window' },
+    };
+    const actionIssue: DraftAuthorityReferenceIssue = {
+      code: 'action_coverage_cardinality_invalid',
+      locator: {
+        kind: 'page_action',
+        referenceClass: 'action_coverage',
+        fieldRole:
+          'actionRequirements.actionSemanticCoverage',
+        pageNumber: 1,
+        actionIndex: 1,
+      },
+    };
+    const plan = pageContractCompoundAuthorityRepairPlan({
+      draft: input,
+      issues: [
+        actionIssue,
+        pageSpatialIssue('object', 1),
+        pageSpatialIssue('spatialEffect.target', 2),
+      ],
+      pageSpatialRepairAuthority: pageSpatialAuthority(),
+    });
+
+    expect(plan?.affectedPages).toHaveLength(1);
+    expect(plan?.affectedPages[0]).toMatchObject({
+      pageNumber: 1,
+      permittedPointerValues: [],
+      repairTargets: [
+        {
+          family: 'action_semantic',
+          code: 'action_coverage_cardinality_invalid',
+          pageNumber: 1,
+          actionIndex: 1,
+        },
+        {
+          family: 'draft_contract',
+          code: 'page_spatial_reference_outside_zone',
+          pageNumber: 1,
+          collectionRole: 'page_actions',
+          itemIndex: 1,
+          fieldRole: 'object',
+          permittedSpatialReferences: expect.arrayContaining([
+            expect.objectContaining({ id: 'node:door' }),
+            expect.objectContaining({ id: 'node:window' }),
+          ]),
+        },
+        {
+          family: 'draft_contract',
+          code: 'page_spatial_reference_outside_zone',
+          pageNumber: 1,
+          collectionRole: 'page_actions',
+          itemIndex: 2,
+          fieldRole: 'spatialEffect.target',
+          permittedSpatialReferences: expect.arrayContaining([
+            expect.objectContaining({ id: 'node:door' }),
+          ]),
+        },
+      ],
+    });
+    expect(plan?.validationMessages).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          'action_coverage_cardinality_invalid',
+        ),
+        expect.stringContaining(
+          'actionRequirements[1].object',
+        ),
+        expect.stringContaining(
+          'actionRequirements[2].spatialEffect.target',
+        ),
+      ]),
+    );
+    expect(plan?.diagnosticIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          family: 'action_semantic',
+          code: 'action_binding_cardinality_invalid',
+        }),
+        expect.objectContaining({
+          family: 'draft_contract',
+          code: 'out_of_scope_reference',
+        }),
+      ]),
+    );
+    expect(JSON.stringify(plan)).not.toContain('node:outside');
+  });
+
+  it('keeps incomplete compound unions and invalid spatial authority fail-closed', () => {
+    const input = spatialDraft();
+    const actionIssue: DraftAuthorityReferenceIssue = {
+      code: 'action_coverage_cardinality_invalid',
+      locator: {
+        kind: 'page_action',
+        referenceClass: 'action_coverage',
+        fieldRole:
+          'actionRequirements.actionSemanticCoverage',
+        pageNumber: 1,
+        actionIndex: 1,
+      },
+    };
+    const thirdFamily: DraftAuthorityReferenceIssue = {
+      code: 'action_check_id_forbidden',
+      locator: {
+        kind: 'page_action',
+        referenceClass: 'action_identity',
+        fieldRole: 'actionRequirements.checkId',
+        pageNumber: 1,
+        actionIndex: 0,
+      },
+    };
+    const variants = [
+      {
+        issues: [actionIssue],
+        authority: pageSpatialAuthority(),
+      },
+      {
+        issues: [pageSpatialIssue('object', 1)],
+        authority: pageSpatialAuthority(),
+      },
+      {
+        issues: [
+          actionIssue,
+          pageSpatialIssue('object', 1),
+          thirdFamily,
+        ],
+        authority: pageSpatialAuthority(),
+      },
+      {
+        issues: [actionIssue, pageSpatialIssue('object', 1)],
+        authority: [],
+      },
+      {
+        issues: [actionIssue, pageSpatialIssue('object', 1)],
+        authority: [
+          ...pageSpatialAuthority(),
+          ...pageSpatialAuthority(),
+        ],
+      },
+      {
+        issues: [actionIssue, pageSpatialIssue('object', 1)],
+        authority: [
+          {
+            ...pageSpatialAuthority()[0]!,
+            zoneId: 'zone:other',
+          },
+        ],
+      },
+    ];
+    for (const variant of variants) {
+      expect(
+        pageContractCompoundAuthorityRepairPlan({
+          draft: input,
+          issues: variant.issues,
+          pageSpatialRepairAuthority: variant.authority,
+        }),
+      ).toBeNull();
+    }
+  });
+
   it.each(representedElsewhereIssueCodes)(
     'directly admits the closed %s identity from its typed pageNumber',
     (code) => {
@@ -1346,7 +1518,7 @@ describe('page-contract compact repair', () => {
     ).toBeNull();
   });
 
-  it('builds the v10 closed payload without story, provider, secret, stack, or executable leakage', () => {
+  it('builds the v11 closed payload without story, provider, secret, stack, or executable leakage', () => {
     const original = draft();
     Object.assign(original, {
       unrelatedStorySource: 'RAW_STORY_SOURCE_PROSE_SENTINEL',
@@ -1371,10 +1543,10 @@ describe('page-contract compact repair', () => {
       PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
     );
     expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
-      'page-contract-repair-prompt/v10',
+      'page-contract-repair-prompt/v11',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'page-contract-repair-user-prompt/v10',
+      'page-contract-repair-user-prompt/v11',
     );
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([
@@ -1389,6 +1561,9 @@ describe('page-contract compact repair', () => {
       'pageContracts[0].camera is invalid',
     ]);
     expect(system).toContain('validationHints');
+    expect(system).toContain(
+      'page_spatial_reference_outside_zone',
+    );
     expect(parsed.affectedPages[0]).not.toHaveProperty(
       'permittedSpatialReferences',
     );
@@ -1468,6 +1643,96 @@ describe('page-contract compact repair', () => {
       locationId: replacement.locationId,
       zoneId: replacement.zoneId,
     }).toEqual(replacement);
+  });
+
+  it('applies a compound page repair only when every spatial target selects current-zone authority', () => {
+    const original = spatialDraft();
+    const snapshot = structuredClone(original);
+    const actionIssue: DraftAuthorityReferenceIssue = {
+      code: 'action_coverage_cardinality_invalid',
+      locator: {
+        kind: 'page_action',
+        referenceClass: 'action_coverage',
+        fieldRole:
+          'actionRequirements.actionSemanticCoverage',
+        pageNumber: 1,
+        actionIndex: 1,
+      },
+    };
+    const plan = pageContractCompoundAuthorityRepairPlan({
+      draft: original,
+      issues: [actionIssue, pageSpatialIssue('object', 1)],
+      pageSpatialRepairAuthority: pageSpatialAuthority(),
+    })!;
+    const replacement = structuredClone(
+      plan.affectedPages[0]!.pageContract,
+    );
+    const replacementActions =
+      replacement.actionRequirements as Array<
+        Record<string, unknown>
+      >;
+    replacementActions[1]!.object = {
+      kind: 'spatial',
+      id: 'node:door',
+    };
+    replacement.locationId = 'invented:location';
+    replacement.zoneId = 'invented:zone';
+
+    const result = applyPageContractRepairs({
+      draft: original,
+      affectedPages: plan.affectedPages,
+      pageContracts: [replacement],
+    });
+    const repaired = (
+      result.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    const repairedActions = repaired.actionRequirements as Array<
+      Record<string, unknown>
+    >;
+    expect(original).toEqual(snapshot);
+    expect(repaired.locationId).toBe('loc:home');
+    expect(repaired.zoneId).toBe('zone:1');
+    expect(repairedActions[1]!.object).toEqual({
+      kind: 'spatial',
+      id: 'node:door',
+    });
+
+    const hostile = structuredClone(replacement);
+    (
+      hostile.actionRequirements as Array<Record<string, unknown>>
+    )[1]!.object = {
+      kind: 'spatial',
+      id: 'node:outside',
+    };
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: plan.affectedPages,
+        pageContracts: [hostile],
+      }),
+    ).toThrow(
+      'page_contract_repair_spatial_reference_not_permitted',
+    );
+
+    const duplicateTargetPages = structuredClone(
+      plan.affectedPages,
+    );
+    duplicateTargetPages[0]!.repairTargets.push(
+      structuredClone(
+        duplicateTargetPages[0]!.repairTargets.find(
+          (target) =>
+            target.code ===
+            'page_spatial_reference_outside_zone',
+        )!,
+      ),
+    );
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: duplicateTargetPages,
+        pageContracts: [replacement],
+      }),
+    ).toThrow('page_contract_repair_spatial_target_invalid');
   });
 
   it.each([

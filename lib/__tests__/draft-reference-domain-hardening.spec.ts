@@ -922,14 +922,16 @@ describe('captured reference-domain matrix', () => {
     expect(result.provenance.attempt).toBe(2);
   });
 
-  it('co-observes action-binding and page-spatial failures and spends one full-draft repair on both', async () => {
+  it('co-observes action-binding and page-spatial failures and repairs their exact page union once', async () => {
     const invalid = matrixDraft();
     coverage(invalid).shift();
     actions(invalid)[0]!.object = {
       kind: 'spatial',
       id: 'outside_current_page_zone',
     };
-    const repaired = matrixDraft();
+    const repairedPage = structuredClone(pageRecord(matrixDraft()));
+    delete repairedPage.castIds;
+    delete repairedPage.characterPresence;
     const repairUserPrompts: string[] = [];
     const callLLM = vi.fn(async (
       _system: string,
@@ -941,7 +943,7 @@ describe('captured reference-domain matrix', () => {
         return JSON.stringify(invalid);
       }
       repairUserPrompts.push(user);
-      return JSON.stringify(repaired);
+      return JSON.stringify({ pageContracts: [repairedPage] });
     });
 
     const result = await compileBookVisualContractTemplate(input, {
@@ -951,12 +953,12 @@ describe('captured reference-domain matrix', () => {
     expect(callLLM).toHaveBeenCalledTimes(2);
     expect(callLLM.mock.calls[1]![3]).toMatchObject({
       kind: 'repair',
-      repairMode: 'full_draft',
+      repairMode: 'page_contract_patch',
     });
     expect(result.repairAttempts).toMatchObject([
       {
         attempt: 1,
-        nextRepairMode: 'full_draft',
+        nextRepairMode: 'page_contract_patch',
         diagnosticIssues: expect.arrayContaining([
           {
             family: 'action_semantic',
@@ -984,13 +986,35 @@ describe('captured reference-domain matrix', () => {
       },
     ]);
     expect(
-      decodeTemplateRepairUserPrompt(
+      decodePageContractRepairUserPrompt(
         repairUserPrompts[0]!,
-      ).validationIssues,
-    ).toEqual(
-      expect.arrayContaining(
-        [...result.repairAttempts[0]!.diagnosticIssues],
-      ),
+      ).affectedPages,
+    ).toMatchObject([
+      {
+        pageNumber: 1,
+        repairTargets: expect.arrayContaining([
+          {
+            family: 'action_semantic',
+            code: 'action_coverage_cardinality_invalid',
+            pageNumber: 1,
+            actionIndex: 0,
+          },
+          {
+            family: 'draft_contract',
+            code: 'page_spatial_reference_outside_zone',
+            pageNumber: 1,
+            collectionRole: 'page_actions',
+            itemIndex: 0,
+            fieldRole: 'object',
+            permittedSpatialReferences: expect.arrayContaining([
+              expect.objectContaining({ id: 'structure_1' }),
+            ]),
+          },
+        ]),
+      },
+    ]);
+    expect(repairUserPrompts[0]).not.toContain(
+      'outside_current_page_zone',
     );
     expect(result.provenance.attempt).toBe(2);
   });

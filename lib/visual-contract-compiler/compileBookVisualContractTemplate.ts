@@ -133,6 +133,7 @@ import {
   buildPageSpatialReferenceRepairSystemPrompt,
   buildPageSpatialReferenceRepairUserPrompt,
   pageContractAuthorityRepairPlan,
+  pageContractCompoundAuthorityRepairPlan,
   pageContractPresentationStructuralRepairAffectedPages,
   pageContractRepairAffectedPages,
   pageSpatialReferenceRepairTargets,
@@ -3469,11 +3470,14 @@ export async function compileBookVisualContractTemplate(
         const actionBindingIssues = err.issues.filter(
           (issue) => !pageSpatialReferenceIssueIsRepairable(issue),
         );
-        const actionBindingPlan =
-          pageContractAuthorityRepairPlan({
-            draft,
-            issues: actionBindingIssues,
-          });
+        const compoundRepairPlan = err.pageSpatialRepairAuthority
+          ? pageContractCompoundAuthorityRepairPlan({
+              draft,
+              issues: err.issues,
+              pageSpatialRepairAuthority:
+                err.pageSpatialRepairAuthority,
+            })
+          : null;
         if (
           pageSpatialIssues.length > 0 &&
           actionBindingIssues.length > 0 &&
@@ -3482,25 +3486,18 @@ export async function compileBookVisualContractTemplate(
           pageSpatialReferenceIssuesAreRepairable(
             pageSpatialIssues,
           ) &&
-          err.pageSpatialRepairAuthority &&
-          actionBindingPlan
+          compoundRepairPlan
         ) {
           // Both closed families must be visible to the same final bounded
           // repair. Serial compact repairs would require a third repair and
-          // hide one family until after the call budget is exhausted.
-          attemptErrors = [
-            ...actionBindingPlan.validationMessages,
-            ...pageSpatialIssues.map(
-              pageSpatialReferenceRepairInstruction,
-            ),
-          ];
-          attemptDiagnosticIssues = [
-            ...actionBindingPlan.diagnosticIssues,
-            ...pageSpatialIssues.map(
-              pageSpatialReferenceRepairDiagnostic,
-            ),
-          ];
-          fullDraftRepairRequired = true;
+          // hide one family until after the call budget is exhausted. The
+          // compact authority carries complete affected pages plus exact
+          // spatial IDs for the current page zones.
+          pageContractAffectedPages =
+            compoundRepairPlan.affectedPages;
+          attemptErrors = compoundRepairPlan.validationMessages;
+          attemptDiagnosticIssues =
+            compoundRepairPlan.diagnosticIssues;
         } else if (
           pageSpatialReferenceIssuesAreRepairable(err.issues)
         ) {

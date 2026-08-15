@@ -22,9 +22,9 @@ export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
-  'page-contract-repair-prompt/v10' as const;
+  'page-contract-repair-prompt/v11' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
-  'page-contract-repair-user-prompt/v10' as const;
+  'page-contract-repair-user-prompt/v11' as const;
 export const PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION =
   'page-contract-repair-input-encoding/v2' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION =
@@ -166,6 +166,25 @@ export interface PageSpatialReferenceRepairPatch {
   spatialReferenceId: string;
 }
 
+type PageContractSpatialRepairTarget = {
+  family: 'draft_contract';
+  code: 'page_spatial_reference_outside_zone';
+  pageNumber: number;
+  collectionRole: 'page_actions';
+  itemIndex: number;
+  fieldRole:
+    | 'subject'
+    | 'object'
+    | 'spatialEffect.target'
+    | 'spatialConstraint.target';
+  permittedSpatialReferences: PageSpatialReferenceValue[];
+};
+
+type PageSpatialLocatorRepairTarget = Omit<
+  PageContractSpatialRepairTarget,
+  'permittedSpatialReferences'
+>;
+
 export type PageContractRepairTarget =
   | {
       family: 'draft_contract';
@@ -208,18 +227,7 @@ export type PageContractRepairTarget =
       sourcePhrase: string;
       permittedPointerValues: PresentationRequirementRepairTarget['permittedPointerValues'];
     }
-  | {
-      family: 'draft_contract';
-      code: 'page_spatial_reference_outside_zone';
-      pageNumber: number;
-      collectionRole: 'page_actions';
-      itemIndex: number;
-      fieldRole:
-        | 'subject'
-        | 'object'
-        | 'spatialEffect.target'
-        | 'spatialConstraint.target';
-    };
+  | PageContractSpatialRepairTarget;
 
 function recordValue(value: unknown): Record<string, unknown> | null {
   return value !== null &&
@@ -297,7 +305,7 @@ function representedElsewhereRepairTarget(
 
 function pageSpatialRepairTarget(
   issue: DraftAuthorityReferenceIssue,
-): PageContractRepairTarget | null {
+): PageSpatialLocatorRepairTarget | null {
   if (
     !draftAuthorityReferenceIssueIsValid(issue) ||
     issue.code !== 'page_spatial_reference_outside_zone' ||
@@ -361,12 +369,12 @@ function repairTargets(
 
 function pageSpatialRepairTargets(
   issues: readonly DraftAuthorityReferenceIssue[],
-): PageContractRepairTarget[] | null {
+): PageSpatialLocatorRepairTarget[] | null {
   if (issues.length === 0) return null;
   const targets = issues.map(pageSpatialRepairTarget);
   if (targets.some((target) => target === null)) return null;
-  const unique = new Map<string, PageContractRepairTarget>();
-  for (const target of targets as PageContractRepairTarget[]) {
+  const unique = new Map<string, PageSpatialLocatorRepairTarget>();
+  for (const target of targets as PageSpatialLocatorRepairTarget[]) {
     unique.set(
       JSON.stringify([
         target.pageNumber,
@@ -1201,6 +1209,170 @@ export function pageContractAuthorityRepairPlan(args: {
   };
 }
 
+function pageContractSpatialRepairDiagnostic(
+  target: PageSpatialReferenceRepairTarget,
+): DraftValidationIssue {
+  return {
+    family: 'draft_contract',
+    code: 'out_of_scope_reference',
+    locator: {
+      kind: 'page_item',
+      collectionRole: 'page_actions',
+      fieldRole: 'reference',
+      pageNumber: target.pageNumber,
+      itemIndex: target.actionIndex,
+    },
+  };
+}
+
+function pageContractSpatialRepairHint(
+  target: PageSpatialReferenceRepairTarget,
+): string {
+  return (
+    `page_spatial_reference_outside_zone: page ${target.pageNumber} ` +
+    `actionRequirements[${target.actionIndex}].${target.fieldRole} must copy one exact spatial id ` +
+    "from that target's permittedSpatialReferences without changing page zone authority"
+  );
+}
+
+/**
+ * Builds one compact complete-page repair authority only for the exact closed
+ * union observed after a prior repair: action/coverage cardinality plus
+ * page-action spatial references outside their current zone. Keeping both
+ * families in one page set prevents a second whole-draft rewrite while every
+ * third family, malformed locator, duplicate target, stale target, or missing
+ * zone authority remains fail-closed.
+ */
+export function pageContractCompoundAuthorityRepairPlan(args: {
+  draft: Record<string, unknown>;
+  issues: readonly DraftAuthorityReferenceIssue[];
+  pageSpatialRepairAuthority: readonly PageSpatialRepairAuthority[];
+}): PageContractAuthorityRepairPlan | null {
+  if (args.issues.length === 0) return null;
+  const actionIssues: DraftAuthorityReferenceIssue[] = [];
+  const spatialIssues: DraftAuthorityReferenceIssue[] = [];
+  for (const issue of args.issues) {
+    const actionTarget = actionBindingCardinalityRepairTarget(issue);
+    const spatialTarget = pageSpatialRepairTarget(issue);
+    if ((actionTarget === null) === (spatialTarget === null)) {
+      return null;
+    }
+    if (actionTarget) actionIssues.push(issue);
+    else spatialIssues.push(issue);
+  }
+  if (actionIssues.length === 0 || spatialIssues.length === 0) {
+    return null;
+  }
+
+  const actionPlan = pageContractAuthorityRepairPlan({
+    draft: args.draft,
+    issues: actionIssues,
+  });
+  const spatialTargets = pageSpatialReferenceRepairTargets({
+    draft: args.draft,
+    issues: spatialIssues,
+    authority: args.pageSpatialRepairAuthority,
+  });
+  if (!actionPlan || !spatialTargets) return null;
+
+  const actionPages = new Map(
+    actionPlan.affectedPages.map((page) => [page.pageNumber, page]),
+  );
+  const pageContracts = Array.isArray(args.draft.pageContracts)
+    ? args.draft.pageContracts.map(recordValue)
+    : [];
+  if (pageContracts.some((page) => page === null)) return null;
+  const pageNumbers = [
+    ...new Set([
+      ...actionPlan.affectedPages.map((page) => page.pageNumber),
+      ...spatialTargets.map((target) => target.pageNumber),
+    ]),
+  ].sort((left, right) => left - right);
+
+  const affectedPages = pageNumbers.map(
+    (pageNumber): PageContractRepairAffectedPage | null => {
+      const matches = pageContracts.filter(
+        (page) => page?.pageNumber === pageNumber,
+      );
+      if (matches.length !== 1 || !matches[0]) return null;
+      const spatialPageTargets = spatialTargets
+        .filter((target) => target.pageNumber === pageNumber)
+        .map(
+          (target): PageContractSpatialRepairTarget => ({
+            family: 'draft_contract',
+            code: 'page_spatial_reference_outside_zone',
+            pageNumber: target.pageNumber,
+            collectionRole: 'page_actions',
+            itemIndex: target.actionIndex,
+            fieldRole: target.fieldRole,
+            permittedSpatialReferences: structuredClone(
+              target.permittedSpatialReferences,
+            ),
+          }),
+        );
+      const pageContract = structuredClone(matches[0]);
+      const pageActions = Array.isArray(pageContract.actionRequirements)
+        ? pageContract.actionRequirements
+        : [];
+      for (const target of spatialPageTargets) {
+        const action = recordValue(pageActions[target.itemIndex]);
+        if (
+          !action ||
+          !replaceSpatialReferenceForRole({
+            action,
+            fieldRole: target.fieldRole,
+            value: {
+              kind: 'spatial',
+              id: '__repair_target__',
+            },
+          })
+        ) {
+          return null;
+        }
+      }
+      const actionPage = actionPages.get(pageNumber);
+      const repairTargets = [
+        ...(actionPage?.repairTargets ?? []),
+        ...spatialPageTargets,
+      ];
+      const validationHints = [
+        ...(actionPage?.validationHints ?? []),
+        ...spatialTargets
+          .filter((target) => target.pageNumber === pageNumber)
+          .map(pageContractSpatialRepairHint),
+      ].sort(lexicalCompare);
+      return repairTargets.length > 0 && validationHints.length > 0
+        ? {
+            pageNumber,
+            pageContract,
+            repairTargets,
+            validationHints,
+            permittedPointerValues: [],
+          }
+        : null;
+    },
+  );
+  if (
+    affectedPages.some(
+      (page): page is null => page === null,
+    )
+  ) {
+    return null;
+  }
+
+  return {
+    affectedPages:
+      affectedPages as PageContractRepairAffectedPage[],
+    diagnosticIssues: [
+      ...actionPlan.diagnosticIssues,
+      ...spatialTargets.map(pageContractSpatialRepairDiagnostic),
+    ],
+    validationMessages: (
+      affectedPages as PageContractRepairAffectedPage[]
+    ).flatMap((page) => page.validationHints),
+  };
+}
+
 function assertPageContractRepairJsonValue(
   value: unknown,
   location: string,
@@ -1885,12 +2057,13 @@ export function buildPageContractRepairSystemPrompt(): string {
     'Decode the compact input exactly: ["s",i] references stringDictionary[i]; ["t",...parts] concatenates raw string parts and numeric fragmentDictionary indexes; ["v",i] deep-copies valueDictionary[i]; ["a",...items] is an array; and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
     'The decoded root has affectedPages; the compact representation omits no authority value.',
     'Return exactly one complete page contract for every affected pageNumber and no other page.',
-    'Keep pageNumber and all authority IDs unchanged; never invent a new ID.',
+    'Keep pageNumber, locationId, and zoneId unchanged; never invent a new authority ID.',
     'Do not rewrite locations, zones, set boards, cast, recurring props, cover, or global fields.',
     'Resolve only the closed typed repairTargets and the exact repository-validator validationHints on that page while preserving unaffected page semantics.',
     'For action_coverage_cardinality_invalid, align the targeted action beatId with exactly one same-page actionSemanticCoverage record whose disposition.kind is action_requirement.',
     'For action_beat_binding_cardinality_invalid, make the targeted action beatId unique on its page and bind it to exactly one same-page actionSemanticCoverage action_requirement record.',
     'For coverage_action_binding_cardinality_invalid, bind the targeted actionSemanticCoverage record to exactly one same-page actionRequirement through one unique beatId.',
+    'For page_spatial_reference_outside_zone, change only the exact targeted spatial field and copy one exact id from that target permittedSpatialReferences; keep every page and zone identity unchanged.',
     'For closed_catalog_capability_gap, replace only the exact targeted unsupported disposition with one presentation_requirement: choose a closed presentationClass and copy one exact contractPointer/contractValue pair from that target permittedPointerValues.',
     'Never use closed_catalog_capability_gap repair to disguise a physical action, spatial action, or unsupported predicate.',
     'For represented_elsewhere, contractPointer and contractValue must be copied as one exact pair from permittedPointerValues on that page.',
@@ -1977,6 +2150,63 @@ export function applyPageContractRepairs(args: {
       throw new Error('page_contract_repair_page_unexpected_or_duplicate');
     }
     replacements.set(pageNumber, structuredClone(page));
+  }
+  const spatialTargetKeys = new Set<string>();
+  for (const affectedPage of args.affectedPages) {
+    const replacement = replacements.get(affectedPage.pageNumber);
+    if (!replacement) {
+      throw new Error('page_contract_repair_patch_set_incomplete');
+    }
+    for (const target of affectedPage.repairTargets) {
+      if (target.code !== 'page_spatial_reference_outside_zone') {
+        continue;
+      }
+      const targetKey = JSON.stringify([
+        target.pageNumber,
+        target.collectionRole,
+        target.itemIndex,
+        target.fieldRole,
+      ]);
+      if (
+        target.pageNumber !== affectedPage.pageNumber ||
+        target.collectionRole !== 'page_actions' ||
+        spatialTargetKeys.has(targetKey) ||
+        target.permittedSpatialReferences.length === 0
+      ) {
+        throw new Error('page_contract_repair_spatial_target_invalid');
+      }
+      spatialTargetKeys.add(targetKey);
+      const permittedIds = new Set<string>();
+      for (const permitted of target.permittedSpatialReferences) {
+        if (
+          typeof permitted.id !== 'string' ||
+          permitted.id.length === 0 ||
+          typeof permitted.kind !== 'string' ||
+          permitted.kind.length === 0 ||
+          typeof permitted.description !== 'string' ||
+          permitted.description.length === 0 ||
+          permittedIds.has(permitted.id)
+        ) {
+          throw new Error('page_contract_repair_spatial_target_invalid');
+        }
+        permittedIds.add(permitted.id);
+      }
+      const actions = Array.isArray(replacement.actionRequirements)
+        ? replacement.actionRequirements
+        : [];
+      const action = recordValue(actions[target.itemIndex]);
+      const spatialReference = action
+        ? currentSpatialReferenceForRole(action, target.fieldRole)
+        : null;
+      if (
+        !spatialReferenceShapeIsRepairable(spatialReference) ||
+        !permittedIds.has(spatialReference.id)
+      ) {
+        throw new Error(
+          'page_contract_repair_spatial_reference_not_permitted',
+        );
+      }
+    }
   }
   const draft = structuredClone(args.draft);
   if (!Array.isArray(draft.pageContracts)) {
