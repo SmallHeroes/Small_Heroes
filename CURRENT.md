@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-broad-initial-spatial-repair-escalation` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed compound compact-routing head `6156bf70c4943a9ee367e69a25329dd1d46ff6b3`.
 
-## BROAD INITIAL SPATIAL REPAIR ESCALATION — implementation complete, independent QA pending
+## BROAD INITIAL SPATIAL REPAIR ESCALATION — independent technical PASS
 
 The consumed Leo v13 attempt passed Fresh Readiness, pricing preparation, one
 canonical preflight and one Supervisor verify, then completed all three bounded
@@ -37,9 +37,20 @@ The single repository gate passed both TypeScript contracts and all **19
 resource-intensive files / 566 tests** with clean diagnostics; its **280-file
 ordinary phase / 3,217 tests** failed only the exact six established missing
 ignored-output fixtures, with no seventh assertion or infrastructure failure.
-Those fixtures remain a separate release HOLD. The implementation is not yet
-an independently awarded technical PASS and creates no Fresh Readiness, live,
-candidate, Wizard or render authority.
+Those fixtures remain a separate release HOLD. Claude Code independently
+reviewed exact range
+`6156bf70c4943a9ee367e69a25329dd1d46ff6b3..f40267426f42edcad563497f766f9ee4f8e6b4b5`
+and returned **PASS** with zero BLOCKER and zero MAJOR. Its routing, threshold,
+deduplication, later-attempt, budget and unchanged-surface checks all passed.
+The reported documentation MINOR did not survive factual reconciliation:
+`draft-reference-domain-hardening.spec.ts` contains 25 non-parameterized tests
+plus parameterized matrices of 2 and 17 cases, which is the recorded 44; the
+repository-gate figures distinguish 3,217 total ordinary tests from 3,146
+passed tests and therefore do not conflict. Claude's dead-flag observation is
+retained as a non-blocking readability advisory; routing depends on the
+explicit null compact target, and the behavior was independently traced.
+This PASS creates no Fresh Readiness, live, candidate, Wizard or render
+authority.
 
 Durable evidence:
 `docs/ai-workflow/R1D_LEO_V13_BROAD_INITIAL_SPATIAL_EXECUTION_EVIDENCE.md`,

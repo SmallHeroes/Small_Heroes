@@ -57,8 +57,22 @@ this range and do not weaken the focused technical proof.
 
 ## Authority, risk, and rollback
 
-This local implementation has no independent technical PASS until Claude Code
-reviews the exact committed range. It creates no Fresh Readiness, provider,
-candidate, Reconciliation, Blueprint, Wizard or render authority. Revert the
-focused implementation commit to restore the prior field-first route; all
-historical artifacts remain immutable.
+Claude Code independently reviewed exact range
+`6156bf70c4943a9ee367e69a25329dd1d46ff6b3..f40267426f42edcad563497f766f9ee4f8e6b4b5`
+and returned **PASS** with zero BLOCKER and zero MAJOR. It directly traced the
+initial/full-draft/residual-page route, threshold boundaries, deduplication,
+later-attempt compact behavior and unchanged budget/surface claims.
+
+One documentation MINOR was rejected after factual reconciliation. The direct
+file has 25 non-parameterized tests plus parameterized matrices of 2 and 17
+cases, totaling the recorded 44. The repository-gate record reports 3,217
+ordinary tests in total and 3,146 passed tests; those figures describe
+different counters rather than a discrepancy. Claude's observation that the
+`fullDraftRepairRequired` assignment is not the active selector is retained as
+a non-blocking readability advisory: the explicit null compact target drives
+the existing full-draft fallthrough, which Claude independently verified.
+
+This PASS creates no Fresh Readiness, provider, candidate, Reconciliation,
+Blueprint, Wizard or render authority. Revert the focused implementation
+commit to restore the prior field-first route; all historical artifacts remain
+immutable.
