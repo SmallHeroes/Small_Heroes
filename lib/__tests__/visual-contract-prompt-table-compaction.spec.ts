@@ -780,6 +780,7 @@ describe('Visual Contract prompt authority-table compaction', () => {
       expect(prompt).toContain(invariant);
       expect(prompt).toContain("page's exact zoneId");
       expect(prompt).toContain('location id, zone id, Set Board area id');
+      expect(prompt).toContain('prose label');
       expect(prompt).toContain("another zone's node");
       expect(prompt).toContain('invented spatial id');
       expect(prompt).toContain('schema-valid entity/none form');

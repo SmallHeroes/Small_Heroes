@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-page-spatial-reference-prompt-closure` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed source-regeneration head `93d9ac7c0975901b3dfea2445da34a0b1958bbd2`.
 
-## PAGE-SPATIAL REFERENCE PROMPT CLOSURE — implementation complete, independent QA pending
+## PAGE-SPATIAL REFERENCE PROMPT CLOSURE — QA correction pending micro re-gate
 
 The consumed Leo v10 attempt passed canonical Git probe, Fresh Readiness,
 official pricing preparation, one canonical preflight and one Supervisor
@@ -44,8 +44,13 @@ its **280 files**, with no seventh failure. All 18 approved Story Sources stay
 under the unchanged ceiling; the worst case is `53,641` with `10,359`
 headroom. Implementation commit is
 `eb2fa7051b99fc15edfda3d134fd2c9ce986be39`. Independent Claude Code review is
-pending. No new Fresh Readiness, live-authoring or render authority follows
-from this implementation record.
+complete as a source audit but returned HOLD: no implementation defect was
+found, while one MINOR noted that the shipped `prose label` prohibition was
+not frozen by a direct regression assertion. The review environment also
+lacked Git execution, so topology, diff-negative and artifact-immutability
+claims remained unverified. The focused QA correction adds only the missing
+assertion; a Git-enabled read-only micro re-gate remains pending. No new Fresh
+Readiness, live-authoring or render authority follows from this record.
 
 Durable evidence:
 `docs/ai-workflow/R1D_PAGE_SPATIAL_REFERENCE_PROMPT_CLOSURE_DECISION_GATE.md`

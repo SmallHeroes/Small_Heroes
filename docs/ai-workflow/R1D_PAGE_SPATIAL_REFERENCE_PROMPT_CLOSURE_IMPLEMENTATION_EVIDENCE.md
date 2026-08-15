@@ -6,7 +6,7 @@
 - Branch: `codex/r1d-page-spatial-reference-prompt-closure`
 - Base: `93d9ac7c0975901b3dfea2445da34a0b1958bbd2`
 - Code commit: `eb2fa7051b99fc15edfda3d134fd2c9ce986be39`
-- Independent QA: pending
+- Independent QA: first pass HOLD; focused correction pending micro re-gate
 
 The change is general to every Story Source. It contains no Leo, child,
 companion, page, authored-id or provider-output literal. Existing artifacts
@@ -104,6 +104,17 @@ preparation, not a test assertion result.
 The prompt-ceiling corpus remains green for all 18 approved Story Sources.
 Exact measured upper bounds include Fox `50,217` (`13,783` headroom) and the
 worst case Lion fantasy `53,641` (`10,359` headroom).
+
+## Independent QA correction
+
+Claude Code's first read-only pass found no implementation defect in the
+auditable source. It returned HOLD because its session did not expose Git
+execution and because one MINOR remained: the prompt's explicit `prose label`
+prohibition was not independently frozen by the direct regression. The
+correction adds that single assertion inside the existing initial/full-draft
+prompt loop. It does not change production code, prompt bytes, authorities,
+routing, budgets or artifacts. A Git-enabled read-only micro re-gate is
+pending.
 
 ## Unchanged behavior and rollback
 
