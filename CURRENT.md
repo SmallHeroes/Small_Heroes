@@ -2,7 +2,55 @@
 
 **Updated:** 2026-08-15
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-full-draft-repair-input-compaction` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed mixed-routing head `d973cacf2fdc6ecfc0120944d5e32638d53ab7b3`.
+**Working branch:** `codex/r1d-page-spatial-reference-prompt-closure` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed source-regeneration head `93d9ac7c0975901b3dfea2445da34a0b1958bbd2`.
+
+## PAGE-SPATIAL REFERENCE PROMPT CLOSURE — implementation complete, independent QA pending
+
+The consumed Leo v10 attempt passed canonical Git probe, Fresh Readiness,
+official pricing preparation, one canonical preflight and one Supervisor
+verify. Its one Supervisor live invocation completed exactly three provider
+responses: initial, `page_spatial_reference_patch`, and `full_draft`; transport
+retries and fallback were zero. Aggregate usage was input `35,470`, cache-write
+`34,497`, cached `0`, output `46,949`, reasoning `4,786`, total `82,419`.
+Nominal cost was `$1.628942` and conservative accounting was `$1.793175`.
+
+The source-only full-draft correction worked: the third call completed inside
+the unchanged ceiling and resolved all `25` issues from attempt two, including
+`12` Action Semantic capability gaps and all final-structure failures. It then
+introduced nine `page_spatial_reference_outside_zone` issues in page action
+references across pages 4, 5, 6, 8, 10 and 12. The unchanged three-call budget
+therefore ended as `draft_validation_repair_exhausted`. No candidate,
+Reconciliation, Blueprint, Wizard or render authority exists from that
+attempt. Receipt digest is
+`a984456247512fd10629e238bf156c92b6cf79ce3d2a677e2d1709736fe36267`;
+readiness digest is
+`348668682e681da003e3ebd94ccdd0e4ac48ca88da144e25e82db476694c838d`.
+
+The general correction makes the existing validator invariant explicit in
+both initial and full-draft authoring: every typed spatial reference used by a
+page action or safety constraint must name an exact node in that page's exact
+zone. Location ids, zone ids, Set Board area ids, prose labels, cross-zone
+nodes and invented ids are explicitly forbidden; schema-valid non-spatial
+forms remain available. Validators, schema, model, service tier, 64K ceiling,
+call/repair/cost budgets, timeout, retries, fallback and downstream behavior
+are unchanged. Prompt authorities advance to `vc-template-prompt/v13` and
+`vc-repair-prompt/v13`; user prompt authorities remain v13.
+
+Focused validation passed **4 files / 138 tests**. TypeScript and
+`git diff --check` passed. The one repository check passed both TypeScript
+contracts and all **19 resource-intensive files** with clean diagnostics;
+ordinary failed only the exact six established ignored-output fixtures across
+its **280 files**, with no seventh failure. All 18 approved Story Sources stay
+under the unchanged ceiling; the worst case is `53,641` with `10,359`
+headroom. Implementation commit is
+`eb2fa7051b99fc15edfda3d134fd2c9ce986be39`. Independent Claude Code review is
+pending. No new Fresh Readiness, live-authoring or render authority follows
+from this implementation record.
+
+Durable evidence:
+`docs/ai-workflow/R1D_PAGE_SPATIAL_REFERENCE_PROMPT_CLOSURE_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_PAGE_SPATIAL_REFERENCE_PROMPT_CLOSURE_IMPLEMENTATION_EVIDENCE.md`.
 
 ## FULL-DRAFT SOURCE REGENERATION + BOUNDED CHILD OUTPUT — independent technical PASS
 
