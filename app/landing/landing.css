@@ -458,15 +458,14 @@
   background: var(--bg-lighter);
 }
 
-/* Two substantial value panels, centered as a group (was 4 thin columns for
-   2 text cards — they hugged the inline-start edge and read as an empty
-   section). Restored from the approved design-refresh work. */
+/* Two OPEN compositions, centered as a group (per Guy: no card containers —
+   a looping animation, then the title, then the text). */
 .why-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 460px));
   justify-content: center;
-  gap: 24px;
-  align-items: stretch;
+  gap: clamp(32px, 6vw, 72px);
+  align-items: start;
 }
 
 /* Shared card typography — why + how sections */
@@ -486,75 +485,90 @@
   margin: 0;
 }
 
-/* ── Value panel: visual on top, copy below ── */
-.why-panel {
-  display: flex;
-  flex-direction: column;
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  overflow: hidden;
-  box-shadow: var(--shadow-card);
-  transition: transform 240ms cubic-bezier(0.34, 1.4, 0.5, 1), box-shadow 240ms ease;
+.why-item {
+  text-align: center;
 }
 
-.why-panel:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 18px 44px rgba(40, 33, 74, 0.1);
+.why-item-visual {
+  height: 260px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
 }
 
-.why-panel-visual {
+.why-item-title {
+  font-family: var(--fd);
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--dark);
+  margin: 0 0 8px;
+}
+
+.why-item-body {
+  font-size: 16.5px;
+  color: var(--mid);
+  line-height: 1.65;
+  margin: 0 auto;
+  max-width: 40ch;
+}
+
+/* ── The book: the real spread, gently afloat, leafing in a loop ── */
+.why-book-scene {
   position: relative;
-  display: grid;
-  place-items: center;
-  /* fixed height so both panels' chips/titles share one baseline */
-  height: 268px;
-  padding: 24px 16px;
-  background:
-    radial-gradient(72% 78% at 50% 42%, rgba(255, 238, 108, 0.28) 0%, transparent 68%),
-    linear-gradient(180deg, #fffdf4 0%, #fff8e1 100%);
-  border-bottom: 1px solid #f4ecd4;
+  width: min(400px, 100%);
+  rotate: -1.5deg;
+  perspective: 1000px;
+  animation: why-book-float 6.2s ease-in-out infinite;
 }
 
-.why-panel-book {
-  width: auto;
-  max-width: 100%;
-  max-height: 208px;
-  object-fit: contain;
-  filter: drop-shadow(0 16px 24px rgba(45, 30, 90, 0.22));
-  transform: rotate(-1.5deg);
+@keyframes why-book-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -8px; }
 }
 
-/* narration: the medium made visible — play control + waveform */
-.why-audio {
+.why-book-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 18px 26px rgba(45, 30, 90, 0.18));
+}
+
+/* The page in flight. It fades IN as it lifts off the left (unread, RTL)
+   stack and fades OUT as it lands on the right — so it never has to align
+   pixel-perfectly with the photo's resting pages. Origin = the spine. */
+.why-book-leaf {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  width: 41%;
+  height: 74%;
+  transform-origin: left center;
+  border-radius: 4px 14px 14px 6px;
+  background: linear-gradient(105deg, #fffaf0 0%, #f9efdb 55%, #f1e5c9 100%);
+  box-shadow: -10px 12px 20px rgba(45, 30, 90, 0.16);
+  opacity: 0;
+  transform: rotateY(-168deg);
+  animation: why-leaf 5.6s ease-in-out infinite;
+}
+
+@keyframes why-leaf {
+  0%, 52% { transform: rotateY(-168deg); opacity: 0; }
+  57% { transform: rotateY(-156deg); opacity: 1; }
+  74% { transform: rotateY(-12deg); opacity: 1; }
+  80%, 100% { transform: rotateY(0deg); opacity: 0; }
+}
+
+/* ── The sound wave: the medium made visible, looping ── */
+.why-wave {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 5px;
+  height: 96px;
 }
 
-.why-audio-play {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--purple-d);
-  color: var(--white);
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  padding-inline-start: 3px; /* optical centering of the ▶ glyph */
-  box-shadow: 0 10px 22px rgba(132, 103, 255, 0.3);
-}
-
-.why-audio-wave {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 44px;
-}
-
-.why-audio-wave i {
-  width: 4px;
+.why-wave i {
+  width: 5px;
   border-radius: 999px;
   background: linear-gradient(180deg, var(--purple), #b4a3ff);
   animation: why-wave 1.9s ease-in-out infinite alternate;
@@ -562,46 +576,14 @@
 }
 
 @keyframes why-wave {
-  from { transform: scaleY(0.55); opacity: 0.75; }
+  from { transform: scaleY(0.5); opacity: 0.7; }
   to { transform: scaleY(1); opacity: 1; }
 }
 
-.why-audio-caption {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--mid);
-}
-
-.why-panel-body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 22px 24px 24px;
-  text-align: right;
-}
-
-.why-panel-chip {
-  align-self: flex-start;
-  background: #e9f9f0;
-  color: #157a4c;
-  border: 1px solid #c4ecd7;
-  border-radius: 999px;
-  padding: 3px 12px;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.why-panel-title {
-  font-family: var(--fd);
-  font-size: 23px;
-  font-weight: 400;
-  line-height: 1.25;
-  color: var(--dark);
-  margin: 0;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .why-audio-wave i { animation: none; }
+  .why-wave i { animation: none; }
+  .why-book-scene { animation: none; }
+  .why-book-leaf { animation: none; opacity: 0; }
 }
 
 .how-it-works-section {
