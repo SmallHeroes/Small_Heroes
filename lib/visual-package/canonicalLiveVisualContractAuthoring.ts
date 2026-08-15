@@ -187,6 +187,10 @@ function authoringRequestValue(
     object.structuralBundleRepairStructuredOutput,
     'visual contract authoring request structuralBundleRepairStructuredOutput',
   );
+  const bookSurfaceRepairStructuredOutput = objectValue(
+    object.bookSurfaceRepairStructuredOutput,
+    'visual contract authoring request bookSurfaceRepairStructuredOutput',
+  );
   const presentationRequirementRepairStructuredOutput = objectValue(
     object.presentationRequirementRepairStructuredOutput,
     'visual contract authoring request presentationRequirementRepairStructuredOutput',
@@ -242,6 +246,10 @@ function authoringRequestValue(
   const structuralBundleRepairPromptAuthority = objectValue(
     promptAuthority.structuralBundleRepair,
     'visual contract authoring request structuralBundleRepair promptAuthority',
+  );
+  const bookSurfaceRepairPromptAuthority = objectValue(
+    promptAuthority.bookSurfaceRepair,
+    'visual contract authoring request bookSurfaceRepair promptAuthority',
   );
   const presentationRequirementRepairPromptAuthority = objectValue(
     promptAuthority.presentationRequirementRepair,
@@ -384,6 +392,24 @@ function authoringRequestValue(
       serializedSchemaDigest:
         structuralBundleRepairStructuredOutput.serializedSchemaDigest,
     },
+    bookSurfaceRepairStructuredOutput: {
+      strict: bookSurfaceRepairStructuredOutput.strict,
+      schemaName: bookSurfaceRepairStructuredOutput.schemaName,
+      schemaVersion: bookSurfaceRepairStructuredOutput.schemaVersion,
+      schemaDigest: bookSurfaceRepairStructuredOutput.schemaDigest,
+      compatibilityProfileVersion:
+        bookSurfaceRepairStructuredOutput.compatibilityProfileVersion,
+      compatibilityProfileDigest:
+        bookSurfaceRepairStructuredOutput.compatibilityProfileDigest,
+      compatibilityEvidenceVersion:
+        bookSurfaceRepairStructuredOutput.compatibilityEvidenceVersion,
+      compatibilityEvidenceDigest:
+        bookSurfaceRepairStructuredOutput.compatibilityEvidenceDigest,
+      compatibilityStatus:
+        bookSurfaceRepairStructuredOutput.compatibilityStatus,
+      serializedSchemaDigest:
+        bookSurfaceRepairStructuredOutput.serializedSchemaDigest,
+    },
     presentationRequirementRepairStructuredOutput: {
       strict: presentationRequirementRepairStructuredOutput.strict,
       schemaName:
@@ -514,6 +540,14 @@ function authoringRequestValue(
         systemPromptDigest:
           structuralBundleRepairPromptAuthority.systemPromptDigest,
       },
+      bookSurfaceRepair: {
+        systemPromptVersion:
+          bookSurfaceRepairPromptAuthority.systemPromptVersion,
+        userPromptVersion:
+          bookSurfaceRepairPromptAuthority.userPromptVersion,
+        systemPromptDigest:
+          bookSurfaceRepairPromptAuthority.systemPromptDigest,
+      },
       presentationRequirementRepair: {
         systemPromptVersion:
           presentationRequirementRepairPromptAuthority.systemPromptVersion,
@@ -565,6 +599,7 @@ const REQUEST_KEYS = new Set([
   'pageContractRepairStructuredOutput',
   'pageSpatialReferenceRepairStructuredOutput',
   'structuralBundleRepairStructuredOutput',
+  'bookSurfaceRepairStructuredOutput',
   'presentationRequirementRepairStructuredOutput',
   'stablePropScopeRepairStructuredOutput',
   'toolsDisabled',
@@ -644,6 +679,18 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'compatibilityStatus',
     'serializedSchemaDigest',
   ]),
+  bookSurfaceRepairStructuredOutput: new Set([
+    'strict',
+    'schemaName',
+    'schemaVersion',
+    'schemaDigest',
+    'compatibilityProfileVersion',
+    'compatibilityProfileDigest',
+    'compatibilityEvidenceVersion',
+    'compatibilityEvidenceDigest',
+    'compatibilityStatus',
+    'serializedSchemaDigest',
+  ]),
   presentationRequirementRepairStructuredOutput: new Set([
     'strict',
     'schemaName',
@@ -698,6 +745,7 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'pageContractRepair',
     'pageSpatialReferenceRepair',
     'structuralBundleRepair',
+    'bookSurfaceRepair',
     'presentationRequirementRepair',
     'stablePropScopeRepair',
   ]),
@@ -781,6 +829,18 @@ const REQUEST_OBJECT_FIELDS = {
     serializedSchemaDigest: 'string',
   },
   structuralBundleRepairStructuredOutput: {
+    strict: 'boolean',
+    schemaName: 'string',
+    schemaVersion: 'string',
+    schemaDigest: 'string',
+    compatibilityProfileVersion: 'string',
+    compatibilityProfileDigest: 'string',
+    compatibilityEvidenceVersion: 'string',
+    compatibilityEvidenceDigest: 'string',
+    compatibilityStatus: 'string',
+    serializedSchemaDigest: 'string',
+  },
+  bookSurfaceRepairStructuredOutput: {
     strict: 'boolean',
     schemaName: 'string',
     schemaVersion: 'string',
@@ -882,6 +942,11 @@ const PROMPT_AUTHORITY_FIELDS = {
     systemPromptDigest: 'string',
   },
   structuralBundleRepair: {
+    systemPromptVersion: 'string',
+    userPromptVersion: 'string',
+    systemPromptDigest: 'string',
+  },
+  bookSurfaceRepair: {
     systemPromptVersion: 'string',
     userPromptVersion: 'string',
     systemPromptDigest: 'string',

@@ -43,6 +43,11 @@ import {
   STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
 } from '../visual-contract-compiler/structuralBundleRepair';
 import {
+  BOOK_SURFACE_REPAIR_PROMPT_VERSION,
+  BOOK_SURFACE_REPAIR_SCHEMA_NAME,
+  decodeBookSurfaceRepairUserPrompt,
+} from '../visual-contract-compiler/bookSurfaceRepair';
+import {
   PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
   PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
 } from '../visual-contract-compiler/presentationRequirementRepair';
@@ -789,6 +794,128 @@ describe('Source Evidence ID compact repair', () => {
 });
 
 describe('page-contract compact repair routing', () => {
+  it('routes a latent mixed cover/page/presentation failure through one bounded book-surface repair', async () => {
+    const valid = bunnyDraft();
+    const validPage1 = structuredClone(valid.pageContracts[0]);
+    const page1BeatId = validPage1.actionSemanticCoverage[0].beatId;
+    validPage1.actionRequirements = [
+      {
+        beatId: page1BeatId,
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: null,
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    validPage1.actionSemanticCoverage[0].disposition = {
+      kind: 'action_requirement',
+    };
+    validPage1.mustShow = [
+      ...new Set([
+        ...validPage1.mustShow,
+        ...projectPageMustShow(validPage1, valid),
+      ]),
+    ];
+    delete validPage1.castIds;
+    delete validPage1.characterPresence;
+    validPage1.propConstraints ??= [];
+
+    const initial = structuredClone(valid);
+    const repairedCover = {
+      ...structuredClone(valid.coverContract),
+      zoneId: valid.pageContracts[0].zoneId,
+      castIds: ['child:hero', 'companion:bunny_ometz'],
+    };
+    initial.coverContract = structuredClone(repairedCover);
+    initial.pageContracts[0] = structuredClone(validPage1);
+    initial.pageContracts[0].actionSemanticCoverage[0].disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
+    initial.coverContract.mustShow = [''];
+    initial.pageContracts[1].camera = '';
+    initial.pageContracts[1].actionSemanticCoverage[0].disposition = {
+      kind: 'unsupported',
+      reason: 'closed_action_catalog_gap',
+    };
+
+    const repairedPage2 = structuredClone(valid.pageContracts[1]);
+    delete repairedPage2.castIds;
+    delete repairedPage2.characterPresence;
+    repairedPage2.propConstraints ??= [];
+    repairedPage2.actionRequirements ??= [];
+    repairedPage2.actionSemanticCoverage[0].disposition = {
+      kind: 'presentation_requirement',
+      presentationClass: 'composition_focus',
+      contractPointer: '/pageContracts/1/mustShow/0',
+      contractValue: repairedPage2.mustShow[0],
+    };
+
+    const calls: Array<{
+      user: string;
+      options: Parameters<ContractLlmCaller>[2];
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      user,
+      options,
+      authority,
+    ) => {
+      calls.push({ user, options, authority });
+      if (calls.length === 1) return JSON.stringify(initial);
+      if (calls.length === 2) {
+        return JSON.stringify({ pageContracts: [validPage1] });
+      }
+      return JSON.stringify({
+        coverContract: repairedCover,
+        pageContracts: [repairedPage2],
+      });
+    };
+
+    const result = await compileBookVisualContractTemplate(
+      bunnySource(),
+      { callLLM: caller },
+    );
+
+    expect(calls).toHaveLength(3);
+    expect(calls[1]!.authority).toMatchObject({
+      kind: 'repair',
+      repairMode: 'page_contract_patch',
+    });
+    expect(calls[2]!.authority).toEqual({
+      kind: 'repair',
+      repairMode: 'book_surface_patch',
+      systemPromptVersion: BOOK_SURFACE_REPAIR_PROMPT_VERSION,
+      userPromptVersion: 'book-surface-repair-user-prompt/v1',
+    });
+    expect(calls[2]!.options?.jsonSchema?.name).toBe(
+      BOOK_SURFACE_REPAIR_SCHEMA_NAME,
+    );
+    const payload = decodeBookSurfaceRepairUserPrompt(calls[2]!.user);
+    expect(payload.coverContract).toEqual(initial.coverContract);
+    expect(
+      (payload.affectedPages as Array<{ pageNumber: number }>).map(
+        (value) => value.pageNumber,
+      ),
+    ).toEqual([2]);
+    expect(payload).not.toHaveProperty('previousDraft');
+    expect(payload).not.toHaveProperty('storySource');
+    expect(result.provenance.attempt).toBe(3);
+    expect(result.provenance.repairPromptVersion).toBe(
+      BOOK_SURFACE_REPAIR_PROMPT_VERSION,
+    );
+    expect(
+      result.repairAttempts.map((attempt) => attempt.nextRepairMode),
+    ).toEqual(['page_contract_patch', 'book_surface_patch']);
+  });
+
   it('repairs an all-page final structural failure without resending the full draft', async () => {
     const invalid = bunnyDraft();
     invalid.pageContracts[0].camera = '';

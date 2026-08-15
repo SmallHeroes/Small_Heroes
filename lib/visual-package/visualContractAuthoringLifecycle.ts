@@ -88,6 +88,14 @@ import {
   buildStructuralBundleRepairSystemPrompt,
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
 import {
+  BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+  BOOK_SURFACE_REPAIR_PROMPT_VERSION,
+  BOOK_SURFACE_REPAIR_SCHEMA_NAME,
+  BOOK_SURFACE_REPAIR_SCHEMA_VERSION,
+  BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION,
+  buildBookSurfaceRepairSystemPrompt,
+} from '@/lib/visual-contract-compiler/bookSurfaceRepair';
+import {
   PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
   PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
   PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
@@ -169,11 +177,11 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v18' as const;
+  'visual-contract-authoring-request/v19' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v21' as const;
+  'visual-contract-authoring-receipt/v22' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v19' as const;
+  'visual-contract-authoring-readiness/v20' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v9' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -208,6 +216,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V16 =
   'visual-contract-authoring-request/v16' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V17 =
   'visual-contract-authoring-request/v17' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V18 =
+  'visual-contract-authoring-request/v18' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -244,6 +254,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V19 =
   'visual-contract-authoring-receipt/v19' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V20 =
   'visual-contract-authoring-receipt/v20' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V21 =
+  'visual-contract-authoring-receipt/v21' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -280,6 +292,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V17 =
   'visual-contract-authoring-readiness/v17' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V18 =
   'visual-contract-authoring-readiness/v18' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V19 =
+  'visual-contract-authoring-readiness/v19' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -412,6 +426,20 @@ export interface VisualContractAuthoringRequest {
     compatibilityStatus: 'compatible';
     serializedSchemaDigest: string;
   };
+  bookSurfaceRepairStructuredOutput: {
+    strict: true;
+    schemaName: typeof BOOK_SURFACE_REPAIR_SCHEMA_NAME;
+    schemaVersion: typeof BOOK_SURFACE_REPAIR_SCHEMA_VERSION;
+    schemaDigest: string;
+    compatibilityProfileVersion:
+      typeof OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION;
+    compatibilityProfileDigest: string;
+    compatibilityEvidenceVersion:
+      typeof OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION;
+    compatibilityEvidenceDigest: string;
+    compatibilityStatus: 'compatible';
+    serializedSchemaDigest: string;
+  };
   presentationRequirementRepairStructuredOutput: {
     strict: true;
     schemaName: typeof PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME;
@@ -506,6 +534,13 @@ export interface VisualContractAuthoringRequest {
         typeof STRUCTURAL_BUNDLE_REPAIR_USER_PROMPT_VERSION;
       systemPromptDigest: string;
     };
+    bookSurfaceRepair: {
+      systemPromptVersion:
+        typeof BOOK_SURFACE_REPAIR_PROMPT_VERSION;
+      userPromptVersion:
+        typeof BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION;
+      systemPromptDigest: string;
+    };
     presentationRequirementRepair: {
       systemPromptVersion:
         typeof PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION;
@@ -582,6 +617,7 @@ export interface VisualContractAuthoringAttemptReceipt {
     | 'stable_prop_scope_patch'
     | 'presentation_requirement_patch'
     | 'structural_bundle_patch'
+    | 'book_surface_patch'
     | null;
   providerReached: boolean;
   status:
@@ -805,7 +841,8 @@ export function visualContractAuthoringArtifactVersionStatus(
         LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V14 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V15 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V16 ||
-        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V17
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V17 ||
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V18
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -829,6 +866,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V18,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V19,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V20,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V21,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -849,6 +887,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V16,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V17,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V18,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V19,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -1069,6 +1108,14 @@ export function buildVisualContractAuthoringRequest(args: {
     compatibilityAuthorityFromEvidence(
       structuralBundleRepairCompatibilityEvidence,
     );
+  const bookSurfaceRepairCompatibilityEvidence =
+    assertOpenAIResponsesStructuredOutputSchemaCompatible(
+      BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+    );
+  const bookSurfaceRepairCompatibilityAuthority =
+    compatibilityAuthorityFromEvidence(
+      bookSurfaceRepairCompatibilityEvidence,
+    );
   const presentationRequirementRepairCompatibilityEvidence =
     assertOpenAIResponsesStructuredOutputSchemaCompatible(
       PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
@@ -1200,6 +1247,26 @@ export function buildVisualContractAuthoringRequest(args: {
       serializedSchemaDigest:
         structuralBundleRepairCompatibilityAuthority.serializedSchemaDigest,
     },
+    bookSurfaceRepairStructuredOutput: {
+      strict: true as const,
+      schemaName: BOOK_SURFACE_REPAIR_SCHEMA_NAME,
+      schemaVersion: BOOK_SURFACE_REPAIR_SCHEMA_VERSION,
+      schemaDigest: canonicalJsonDigest(
+        BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+      ),
+      compatibilityProfileVersion:
+        bookSurfaceRepairCompatibilityAuthority.profileVersion,
+      compatibilityProfileDigest:
+        bookSurfaceRepairCompatibilityAuthority.profileDigest,
+      compatibilityEvidenceVersion:
+        bookSurfaceRepairCompatibilityAuthority.evidenceVersion,
+      compatibilityEvidenceDigest:
+        bookSurfaceRepairCompatibilityAuthority.evidenceDigest,
+      compatibilityStatus:
+        bookSurfaceRepairCompatibilityAuthority.status,
+      serializedSchemaDigest:
+        bookSurfaceRepairCompatibilityAuthority.serializedSchemaDigest,
+    },
     presentationRequirementRepairStructuredOutput: {
       strict: true as const,
       schemaName: PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
@@ -1328,6 +1395,14 @@ export function buildVisualContractAuthoringRequest(args: {
           STRUCTURAL_BUNDLE_REPAIR_USER_PROMPT_VERSION,
         systemPromptDigest: canonicalJsonDigest(
           buildStructuralBundleRepairSystemPrompt(),
+        ),
+      },
+      bookSurfaceRepair: {
+        systemPromptVersion: BOOK_SURFACE_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION,
+        systemPromptDigest: canonicalJsonDigest(
+          buildBookSurfaceRepairSystemPrompt(),
         ),
       },
       presentationRequirementRepair: {
@@ -1460,6 +1535,11 @@ export function visualContractAuthoringRequestIssues(args: {
       'structural_bundle_repair_structured_output_mismatch',
       request.structuralBundleRepairStructuredOutput,
       exact.structuralBundleRepairStructuredOutput,
+    ],
+    [
+      'book_surface_repair_structured_output_mismatch',
+      request.bookSurfaceRepairStructuredOutput,
+      exact.bookSurfaceRepairStructuredOutput,
     ],
     [
       'presentation_requirement_repair_structured_output_mismatch',
@@ -2230,6 +2310,9 @@ function expectedCallOptions(
     promptAuthority?.kind === 'repair' &&
     promptAuthority.repairMode ===
       'structural_bundle_patch';
+  const bookSurfaceRepair =
+    promptAuthority?.kind === 'repair' &&
+    promptAuthority.repairMode === 'book_surface_patch';
   const presentationRequirementRepair =
     promptAuthority?.kind === 'repair' &&
     promptAuthority.repairMode ===
@@ -2253,6 +2336,9 @@ function expectedCallOptions(
             : structuralBundleRepair
               ? request.structuralBundleRepairStructuredOutput
                   .schemaName
+              : bookSurfaceRepair
+                ? request.bookSurfaceRepairStructuredOutput
+                    .schemaName
               : presentationRequirementRepair
                 ? request.presentationRequirementRepairStructuredOutput
                     .schemaName
@@ -2268,6 +2354,8 @@ function expectedCallOptions(
             ? PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA
             : structuralBundleRepair
               ? STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA
+              : bookSurfaceRepair
+                ? BOOK_SURFACE_REPAIR_JSON_SCHEMA
               : presentationRequirementRepair
                 ? PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA
                 : stablePropScopeRepair
@@ -2350,6 +2438,10 @@ export function visualContractAuthoringCallPromptAuthorityIssues(
                 'structural_bundle_patch'
               ? args.request.promptAuthority
                   ?.structuralBundleRepair
+              : repairPromptAuthority?.repairMode ===
+                  'book_surface_patch'
+                ? args.request.promptAuthority
+                    ?.bookSurfaceRepair
               : repairPromptAuthority?.repairMode ===
                   'presentation_requirement_patch'
                 ? args.request.promptAuthority

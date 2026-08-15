@@ -39,6 +39,10 @@ import {
   STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
 import {
+  BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+  BOOK_SURFACE_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/bookSurfaceRepair';
+import {
   PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
   PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
@@ -787,6 +791,33 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     });
   });
 
+  it('maps the book-surface repair schema without changing the locked provider policy', () => {
+    const fixture = createLiveFixture('book-surface-schema-body');
+    const options = exactOptions(fixture.request);
+    options.jsonSchema = {
+      name: BOOK_SURFACE_REPAIR_SCHEMA_NAME,
+      schema: BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+    };
+    const body = buildOpenAIResponsesVisualContractAuthoringBody({
+      systemPrompt: 'book-surface-system',
+      userPrompt: 'book-surface-user',
+      options,
+    });
+    expect(body.text?.format).toMatchObject({
+      type: 'json_schema',
+      name: BOOK_SURFACE_REPAIR_SCHEMA_NAME,
+      schema: BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+      strict: true,
+    });
+    expect(body).toMatchObject({
+      model: 'gpt-5.6-sol',
+      service_tier: 'default',
+      tools: [],
+      tool_choice: 'none',
+      store: false,
+    });
+  });
+
   it('maps the presentation-requirement repair schema without changing the locked provider policy', () => {
     const fixture = createLiveFixture('presentation-requirement-schema-body');
     const options = exactOptions(fixture.request);
@@ -858,7 +889,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v21',
+      'visual-contract-authoring-receipt/v22',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',

@@ -51,6 +51,10 @@ import {
   STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
 import {
+  BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+  BOOK_SURFACE_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/bookSurfaceRepair';
+import {
   PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
   PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
@@ -246,6 +250,9 @@ function exactCallOptionsIssues(
     (schemaName === STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME &&
       schemaDigest ===
         canonicalJsonDigest(STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA)) ||
+    (schemaName === BOOK_SURFACE_REPAIR_SCHEMA_NAME &&
+      schemaDigest ===
+        canonicalJsonDigest(BOOK_SURFACE_REPAIR_JSON_SCHEMA)) ||
     (schemaName === PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME &&
       schemaDigest ===
         canonicalJsonDigest(PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA)) ||

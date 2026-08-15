@@ -248,6 +248,9 @@ function executionRequestPayload(
       structuralBundleRepairStructuredOutputCompatibility:
         fixture.materialized.manifest
           .structuralBundleRepairStructuredOutputCompatibility,
+      bookSurfaceRepairStructuredOutputCompatibility:
+        fixture.materialized.manifest
+          .bookSurfaceRepairStructuredOutputCompatibility,
       presentationRequirementRepairStructuredOutputCompatibility:
         fixture.materialized.manifest
           .presentationRequirementRepairStructuredOutputCompatibility,

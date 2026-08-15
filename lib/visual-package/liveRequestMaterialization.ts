@@ -41,9 +41,9 @@ export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v16' as const;
+  'canonical-live-request-materialization/v17' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v16' as const;
+  'canonical-live-request-verification/v17' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -132,6 +132,8 @@ export interface LiveRequestMaterializationManifest {
     LiveRequestStructuredOutputCompatibilityAuthority;
   structuralBundleRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
+  bookSurfaceRepairStructuredOutputCompatibility:
+    LiveRequestStructuredOutputCompatibilityAuthority;
   presentationRequirementRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
   stablePropScopeRepairStructuredOutputCompatibility:
@@ -188,6 +190,8 @@ export interface CanonicalLiveRequestVerifiedResult {
   pageSpatialReferenceRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
   structuralBundleRepairStructuredOutputCompatibility:
+    LiveRequestStructuredOutputCompatibilityAuthority;
+  bookSurfaceRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
   presentationRequirementRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
@@ -759,6 +763,7 @@ export function liveRequestMaterializationManifestIssues(
       'pageContractRepairStructuredOutputCompatibility',
       'pageSpatialReferenceRepairStructuredOutputCompatibility',
       'structuralBundleRepairStructuredOutputCompatibility',
+      'bookSurfaceRepairStructuredOutputCompatibility',
       'presentationRequirementRepairStructuredOutputCompatibility',
       'stablePropScopeRepairStructuredOutputCompatibility',
       'futureLiveCommand',
@@ -1004,6 +1009,10 @@ export function liveRequestMaterializationManifestIssues(
     ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
       object.structuralBundleRepairStructuredOutputCompatibility,
       'materialization_manifest_structural_bundle_repair_structured_output_compatibility',
+    ),
+    ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
+      object.bookSurfaceRepairStructuredOutputCompatibility,
+      'materialization_manifest_book_surface_repair_structured_output_compatibility',
     ),
     ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
       object.presentationRequirementRepairStructuredOutputCompatibility,
@@ -1474,6 +1483,34 @@ export function materializeCanonicalLiveRequestBundle(args: {
             .compatibilityStatus,
         serializedSchemaDigest:
           liveAuthoringRequest.structuralBundleRepairStructuredOutput
+            .serializedSchemaDigest,
+      },
+    },
+    bookSurfaceRepairStructuredOutputCompatibility: {
+      schemaName:
+        liveAuthoringRequest.bookSurfaceRepairStructuredOutput.schemaName,
+      schemaVersion:
+        liveAuthoringRequest.bookSurfaceRepairStructuredOutput.schemaVersion,
+      schemaDigest:
+        liveAuthoringRequest.bookSurfaceRepairStructuredOutput.schemaDigest,
+      compatibility: {
+        profileVersion:
+          liveAuthoringRequest.bookSurfaceRepairStructuredOutput
+            .compatibilityProfileVersion,
+        profileDigest:
+          liveAuthoringRequest.bookSurfaceRepairStructuredOutput
+            .compatibilityProfileDigest,
+        evidenceVersion:
+          liveAuthoringRequest.bookSurfaceRepairStructuredOutput
+            .compatibilityEvidenceVersion,
+        evidenceDigest:
+          liveAuthoringRequest.bookSurfaceRepairStructuredOutput
+            .compatibilityEvidenceDigest,
+        status:
+          liveAuthoringRequest.bookSurfaceRepairStructuredOutput
+            .compatibilityStatus,
+        serializedSchemaDigest:
+          liveAuthoringRequest.bookSurfaceRepairStructuredOutput
             .serializedSchemaDigest,
       },
     },
@@ -2312,6 +2349,39 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
     expectedStructuralBundleRepairStructuredOutputCompatibility,
     'manifest_structural_bundle_repair_structured_output_compatibility_invalid',
   );
+  const expectedBookSurfaceRepairStructuredOutputCompatibility = {
+    schemaName:
+      rebuiltLiveRequest.bookSurfaceRepairStructuredOutput.schemaName,
+    schemaVersion:
+      rebuiltLiveRequest.bookSurfaceRepairStructuredOutput.schemaVersion,
+    schemaDigest:
+      rebuiltLiveRequest.bookSurfaceRepairStructuredOutput.schemaDigest,
+    compatibility: {
+      profileVersion:
+        rebuiltLiveRequest.bookSurfaceRepairStructuredOutput
+          .compatibilityProfileVersion,
+      profileDigest:
+        rebuiltLiveRequest.bookSurfaceRepairStructuredOutput
+          .compatibilityProfileDigest,
+      evidenceVersion:
+        rebuiltLiveRequest.bookSurfaceRepairStructuredOutput
+          .compatibilityEvidenceVersion,
+      evidenceDigest:
+        rebuiltLiveRequest.bookSurfaceRepairStructuredOutput
+          .compatibilityEvidenceDigest,
+      status:
+        rebuiltLiveRequest.bookSurfaceRepairStructuredOutput
+          .compatibilityStatus,
+      serializedSchemaDigest:
+        rebuiltLiveRequest.bookSurfaceRepairStructuredOutput
+          .serializedSchemaDigest,
+    },
+  } satisfies LiveRequestStructuredOutputCompatibilityAuthority;
+  exactCanonicalValue(
+    manifest.bookSurfaceRepairStructuredOutputCompatibility,
+    expectedBookSurfaceRepairStructuredOutputCompatibility,
+    'manifest_book_surface_repair_structured_output_compatibility_invalid',
+  );
   const expectedPresentationRequirementRepairStructuredOutputCompatibility = {
     schemaName:
       rebuiltLiveRequest.presentationRequirementRepairStructuredOutput.schemaName,
@@ -2467,6 +2537,8 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
       expectedPageSpatialReferenceRepairStructuredOutputCompatibility,
     structuralBundleRepairStructuredOutputCompatibility:
       expectedStructuralBundleRepairStructuredOutputCompatibility,
+    bookSurfaceRepairStructuredOutputCompatibility:
+      expectedBookSurfaceRepairStructuredOutputCompatibility,
     presentationRequirementRepairStructuredOutputCompatibility:
       expectedPresentationRequirementRepairStructuredOutputCompatibility,
     stablePropScopeRepairStructuredOutputCompatibility:

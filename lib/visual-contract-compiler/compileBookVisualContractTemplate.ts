@@ -157,6 +157,18 @@ import {
   type StructuralBundleRepairAuthority,
 } from './structuralBundleRepair';
 import {
+  BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+  BOOK_SURFACE_REPAIR_PROMPT_VERSION,
+  BOOK_SURFACE_REPAIR_SCHEMA_NAME,
+  BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION,
+  applyBookSurfaceRepairPatch,
+  bookSurfaceRepairAuthority,
+  buildBookSurfaceRepairSystemPrompt,
+  buildBookSurfaceRepairUserPrompt,
+  parseBookSurfaceRepairPatch,
+  type BookSurfaceRepairAuthority,
+} from './bookSurfaceRepair';
+import {
   PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
   PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
   PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
@@ -291,6 +303,7 @@ interface TemplateRepairAttempt {
     | 'stable_prop_scope_patch'
     | 'presentation_requirement_patch'
     | 'structural_bundle_patch'
+    | 'book_surface_patch'
     | 'full_draft';
 }
 
@@ -304,6 +317,7 @@ export interface TemplateRepairSummary {
     | 'stable_prop_scope_patch'
     | 'presentation_requirement_patch'
     | 'structural_bundle_patch'
+    | 'book_surface_patch'
     | 'full_draft';
 }
 
@@ -577,6 +591,7 @@ export class TemplateRepairOutputInvalidError extends Error {
       | 'stable_prop_scope_patch'
       | 'presentation_requirement_patch'
       | 'structural_bundle_patch'
+      | 'book_surface_patch'
       | 'full_draft',
   ) {
     super('completed template repair output was unusable');
@@ -3316,6 +3331,9 @@ export async function compileBookVisualContractTemplate(
     STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
   );
   assertOpenAIResponsesStructuredOutputSchemaCompatible(
+    BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+  );
+  assertOpenAIResponsesStructuredOutputSchemaCompatible(
     PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
   );
   assertOpenAIResponsesStructuredOutputSchemaCompatible(
@@ -3370,6 +3388,13 @@ export async function compileBookVisualContractTemplate(
     jsonSchema: {
       name: STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
       schema: STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+    },
+  } satisfies ContractLlmCallOptions;
+  const bookSurfaceRepairLlmOpts = {
+    ...llmOpts,
+    jsonSchema: {
+      name: BOOK_SURFACE_REPAIR_SCHEMA_NAME,
+      schema: BOOK_SURFACE_REPAIR_JSON_SCHEMA,
     },
   } satisfies ContractLlmCallOptions;
   const presentationRequirementRepairLlmOpts = {
@@ -3436,6 +3461,9 @@ export async function compileBookVisualContractTemplate(
     let structuralBundleAuthority:
       | StructuralBundleRepairAuthority
       | undefined;
+    let bookSurfaceAuthority:
+      | BookSurfaceRepairAuthority
+      | undefined;
     let fullDraftRepairRequired = false;
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
@@ -3449,15 +3477,26 @@ export async function compileBookVisualContractTemplate(
         if (!presentationRequirementAffectedTargets) {
           throw new ActionSemanticCapabilityGapError(err.gaps);
         }
-        pageContractAffectedPages =
-          pageContractPresentationStructuralRepairAffectedPages({
+        bookSurfaceAuthority =
+          bookSurfaceRepairAuthority({
             draft,
             presentationTargets:
               presentationRequirementAffectedTargets,
             structuralDiagnosticIssues:
               err.structuralDiagnosticIssues,
             structuralValidationMessages: err.structuralErrors,
-          });
+          }) ?? undefined;
+        if (!bookSurfaceAuthority) {
+          pageContractAffectedPages =
+            pageContractPresentationStructuralRepairAffectedPages({
+              draft,
+              presentationTargets:
+                presentationRequirementAffectedTargets,
+              structuralDiagnosticIssues:
+                err.structuralDiagnosticIssues,
+              structuralValidationMessages: err.structuralErrors,
+            });
+        }
         const capabilityDiagnostics =
           new ActionSemanticCapabilityGapError(
             err.gaps,
@@ -3603,6 +3642,7 @@ export async function compileBookVisualContractTemplate(
       !sourceEvidenceAffectedRecords &&
       !stablePropScopeAffectedTargets &&
       !presentationRequirementAffectedTargets &&
+      !bookSurfaceAuthority &&
       !pageContractAffectedPages &&
       !fullDraftRepairRequired
     ) {
@@ -3671,6 +3711,8 @@ export async function compileBookVisualContractTemplate(
                       : lastRepairMode ===
                           'structural_bundle_patch'
                         ? STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION
+                      : lastRepairMode === 'book_surface_patch'
+                        ? BOOK_SURFACE_REPAIR_PROMPT_VERSION
                         : REPAIR_PROMPT_VERSION,
             }
           : {}),
@@ -3719,6 +3761,8 @@ export async function compileBookVisualContractTemplate(
           ? 'presentation_requirement_patch'
         : structuralBundleAuthority
           ? 'structural_bundle_patch'
+        : bookSurfaceAuthority
+          ? 'book_surface_patch'
         : pageContractAffectedPages
           ? 'page_contract_patch'
           : 'full_draft';
@@ -3838,6 +3882,26 @@ export async function compileBookVisualContractTemplate(
           draft,
           authority: structuralBundleAuthority,
           patch: parseStructuralBundleRepairPatch(rawPatch),
+        });
+      } else if (bookSurfaceAuthority) {
+        const rawPatch = await deps.callLLM(
+          buildBookSurfaceRepairSystemPrompt(),
+          buildBookSurfaceRepairUserPrompt({
+            authority: bookSurfaceAuthority,
+          }),
+          bookSurfaceRepairLlmOpts,
+          {
+            kind: 'repair',
+            repairMode: 'book_surface_patch',
+            systemPromptVersion: BOOK_SURFACE_REPAIR_PROMPT_VERSION,
+            userPromptVersion:
+              BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION,
+          },
+        );
+        draft = applyBookSurfaceRepairPatch({
+          draft,
+          authority: bookSurfaceAuthority,
+          patch: parseBookSurfaceRepairPatch(rawPatch),
         });
       } else if (pageContractAffectedPages) {
         const rawPatch = await deps.callLLM(

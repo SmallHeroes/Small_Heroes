@@ -528,6 +528,9 @@ describe('canonical live request verification library', () => {
       structuralBundleRepairStructuredOutputCompatibility:
         materialized.manifest
           .structuralBundleRepairStructuredOutputCompatibility,
+      bookSurfaceRepairStructuredOutputCompatibility:
+        materialized.manifest
+          .bookSurfaceRepairStructuredOutputCompatibility,
       presentationRequirementRepairStructuredOutputCompatibility:
         materialized.manifest
           .presentationRequirementRepairStructuredOutputCompatibility,
@@ -986,6 +989,7 @@ describe('canonical live request verification library', () => {
   it.each([
     'pageContractRepairStructuredOutputCompatibility',
     'structuralBundleRepairStructuredOutputCompatibility',
+    'bookSurfaceRepairStructuredOutputCompatibility',
     'stablePropScopeRepairStructuredOutputCompatibility',
   ] as const)('rejects recomputed %s drift', (authorityKey) => {
     const fixture = writeFixture();

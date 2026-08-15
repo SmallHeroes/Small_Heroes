@@ -239,4 +239,5 @@ export * from './sourceEvidenceCatalog';
 export * from './sourceEvidenceIdRepair';
 export * from './pageContractRepair';
 export * from './structuralBundleRepair';
+export * from './bookSurfaceRepair';
 export * from './stablePropScopeRepair';

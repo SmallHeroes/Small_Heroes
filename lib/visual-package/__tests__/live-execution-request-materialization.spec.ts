@@ -392,6 +392,8 @@ describe('canonical live execution request materialization', () => {
         typeof request.canonicalBundle.pageSpatialReferenceRepairStructuredOutputCompatibility;
       structuralBundleRepairStructuredOutputCompatibility:
         typeof request.canonicalBundle.structuralBundleRepairStructuredOutputCompatibility;
+      bookSurfaceRepairStructuredOutputCompatibility:
+        typeof request.canonicalBundle.bookSurfaceRepairStructuredOutputCompatibility;
       presentationRequirementRepairStructuredOutputCompatibility:
         typeof request.canonicalBundle.presentationRequirementRepairStructuredOutputCompatibility;
       stablePropScopeRepairStructuredOutputCompatibility:
@@ -426,7 +428,7 @@ describe('canonical live execution request materialization', () => {
       manifestPath: fixture.manifestPath,
       manifestDigest: fixture.manifestDigest,
       verificationVersion:
-        'canonical-live-request-verification/v16',
+        'canonical-live-request-verification/v17',
       structuredOutputCompatibility:
         manifest.structuredOutputCompatibility,
       compactRepairStructuredOutputCompatibility:
@@ -437,6 +439,8 @@ describe('canonical live execution request materialization', () => {
         manifest.pageSpatialReferenceRepairStructuredOutputCompatibility,
       structuralBundleRepairStructuredOutputCompatibility:
         manifest.structuralBundleRepairStructuredOutputCompatibility,
+      bookSurfaceRepairStructuredOutputCompatibility:
+        manifest.bookSurfaceRepairStructuredOutputCompatibility,
       presentationRequirementRepairStructuredOutputCompatibility:
         manifest.presentationRequirementRepairStructuredOutputCompatibility,
       stablePropScopeRepairStructuredOutputCompatibility:

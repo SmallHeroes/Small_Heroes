@@ -311,7 +311,7 @@ describe('canonical live request materialization validators', () => {
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v16');
+    ).toBe('canonical-live-request-materialization/v17');
   });
 
   it.each([
@@ -464,7 +464,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v18',
+      version: 'visual-contract-authoring-request/v19',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -493,6 +493,10 @@ describe('canonical live request materialization artifacts', () => {
           systemPromptVersion: 'vc-repair-prompt/v13',
           userPromptVersion: 'vc-repair-user-prompt/v13',
         },
+        bookSurfaceRepair: {
+          systemPromptVersion: 'book-surface-repair-prompt/v1',
+          userPromptVersion: 'book-surface-repair-user-prompt/v1',
+        },
       },
       costBudget: {
         projectedMaxUsd: 4.884,
@@ -507,6 +511,11 @@ describe('canonical live request materialization artifacts', () => {
           OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_DIGEST,
         compatibilityEvidenceVersion:
           OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION,
+        compatibilityStatus: 'compatible',
+      },
+      bookSurfaceRepairStructuredOutput: {
+        schemaName: 'BookSurfaceRepairPatch',
+        schemaVersion: 'book-surface-repair-schema/v1',
         compatibilityStatus: 'compatible',
       },
     });
@@ -601,6 +610,32 @@ describe('canonical live request materialization artifacts', () => {
               .serializedSchemaDigest,
         },
       },
+      bookSurfaceRepairStructuredOutputCompatibility: {
+        schemaName:
+          request.bookSurfaceRepairStructuredOutput.schemaName,
+        schemaVersion:
+          request.bookSurfaceRepairStructuredOutput.schemaVersion,
+        schemaDigest:
+          request.bookSurfaceRepairStructuredOutput.schemaDigest,
+        compatibility: {
+          profileVersion:
+            request.bookSurfaceRepairStructuredOutput
+              .compatibilityProfileVersion,
+          profileDigest:
+            request.bookSurfaceRepairStructuredOutput
+              .compatibilityProfileDigest,
+          evidenceVersion:
+            request.bookSurfaceRepairStructuredOutput
+              .compatibilityEvidenceVersion,
+          evidenceDigest:
+            request.bookSurfaceRepairStructuredOutput
+              .compatibilityEvidenceDigest,
+          status: 'compatible',
+          serializedSchemaDigest:
+            request.bookSurfaceRepairStructuredOutput
+              .serializedSchemaDigest,
+        },
+      },
     });
     expect(
       request.structuredOutput.serializedSchemaDigest,
@@ -613,6 +648,10 @@ describe('canonical live request materialization artifacts', () => {
       request.pageContractRepairStructuredOutput
         .serializedSchemaDigest,
     ).toBe(request.pageContractRepairStructuredOutput.schemaDigest);
+    expect(
+      request.bookSurfaceRepairStructuredOutput
+        .serializedSchemaDigest,
+    ).toBe(request.bookSurfaceRepairStructuredOutput.schemaDigest);
     expect(
       result.manifest.futureLiveCommand.arguments,
     ).toEqual([

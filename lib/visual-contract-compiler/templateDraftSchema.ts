@@ -178,7 +178,11 @@ export const TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA = obj({
   firstRevealPage: nullableNumber,
 });
 
-const coverContract = obj({
+/**
+ * Strict cover-contract member schema. Exported for the bounded book-surface
+ * repair lane so it shares the exact authoring authority with the draft.
+ */
+export const TEMPLATE_DRAFT_COVER_CONTRACT_JSON_SCHEMA = obj({
   worldType: { type: 'string' },
   locationId: { type: 'string' },
   zoneId: { type: 'string' },
@@ -366,7 +370,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
     items: TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA,
   },
   forbiddenGlobalElements: stringArray,
-  coverContract,
+  coverContract: TEMPLATE_DRAFT_COVER_CONTRACT_JSON_SCHEMA,
   pageContracts: {
     type: 'array',
     items: TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,

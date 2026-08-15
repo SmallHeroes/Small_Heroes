@@ -26,13 +26,13 @@ import {
 } from './liveRequestMaterialization';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_VERSION =
-  'canonical-live-execution-request/v15' as const;
+  'canonical-live-execution-request/v16' as const;
 export const CANONICAL_LIVE_EXECUTION_READINESS_VERSION =
-  'canonical-live-execution-readiness/v15' as const;
+  'canonical-live-execution-readiness/v16' as const;
 export const CANONICAL_LIVE_EXECUTION_PROBE_VERSION =
   'canonical-live-execution-probe/v1' as const;
 export const CANONICAL_LIVE_EXECUTION_RESULT_VERSION =
-  'canonical-live-execution-result/v7' as const;
+  'canonical-live-execution-result/v8' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const COMMIT_PATTERN = /^[a-f0-9]{40}$/;
@@ -101,6 +101,8 @@ export interface CanonicalLiveExecutionRequest {
       LiveRequestStructuredOutputCompatibilityAuthority;
     structuralBundleRepairStructuredOutputCompatibility:
       LiveRequestStructuredOutputCompatibilityAuthority;
+    bookSurfaceRepairStructuredOutputCompatibility:
+      LiveRequestStructuredOutputCompatibilityAuthority;
     presentationRequirementRepairStructuredOutputCompatibility:
       LiveRequestStructuredOutputCompatibilityAuthority;
     stablePropScopeRepairStructuredOutputCompatibility:
@@ -152,6 +154,9 @@ export interface CanonicalLiveExecutionReadiness {
       | LiveRequestStructuredOutputCompatibilityAuthority
       | null;
     structuralBundleRepairStructuredOutputCompatibility:
+      | LiveRequestStructuredOutputCompatibilityAuthority
+      | null;
+    bookSurfaceRepairStructuredOutputCompatibility:
       | LiveRequestStructuredOutputCompatibilityAuthority
       | null;
     presentationRequirementRepairStructuredOutputCompatibility:
@@ -651,6 +656,7 @@ export function canonicalLiveExecutionRequestIssues(
         'pageContractRepairStructuredOutputCompatibility',
         'pageSpatialReferenceRepairStructuredOutputCompatibility',
         'structuralBundleRepairStructuredOutputCompatibility',
+        'bookSurfaceRepairStructuredOutputCompatibility',
         'presentationRequirementRepairStructuredOutputCompatibility',
         'stablePropScopeRepairStructuredOutputCompatibility',
       ],
@@ -685,6 +691,10 @@ export function canonicalLiveExecutionRequestIssues(
     liveRequestStructuredOutputCompatibilityAuthorityIssues(
       canonicalBundle.structuralBundleRepairStructuredOutputCompatibility,
       'execution_canonical_bundle_structural_bundle_repair_structured_output_compatibility',
+    ).length > 0 ||
+    liveRequestStructuredOutputCompatibilityAuthorityIssues(
+      canonicalBundle.bookSurfaceRepairStructuredOutputCompatibility,
+      'execution_canonical_bundle_book_surface_repair_structured_output_compatibility',
     ).length > 0 ||
     liveRequestStructuredOutputCompatibilityAuthorityIssues(
       canonicalBundle.presentationRequirementRepairStructuredOutputCompatibility,
@@ -1531,6 +1541,7 @@ function initialReadinessState(args: {
       pageContractRepairStructuredOutputCompatibility: null,
       pageSpatialReferenceRepairStructuredOutputCompatibility: null,
       structuralBundleRepairStructuredOutputCompatibility: null,
+      bookSurfaceRepairStructuredOutputCompatibility: null,
       presentationRequirementRepairStructuredOutputCompatibility: null,
       stablePropScopeRepairStructuredOutputCompatibility: null,
       reasonCodes: [],
@@ -1751,6 +1762,8 @@ function evaluateReadinessCore(args: {
     b0.pageSpatialReferenceRepairStructuredOutputCompatibility;
   state.b0.structuralBundleRepairStructuredOutputCompatibility =
     b0.structuralBundleRepairStructuredOutputCompatibility;
+  state.b0.bookSurfaceRepairStructuredOutputCompatibility =
+    b0.bookSurfaceRepairStructuredOutputCompatibility;
   state.b0.presentationRequirementRepairStructuredOutputCompatibility =
     b0.presentationRequirementRepairStructuredOutputCompatibility;
   state.b0.stablePropScopeRepairStructuredOutputCompatibility =
@@ -1792,6 +1805,13 @@ function evaluateReadinessCore(args: {
           .structuralBundleRepairStructuredOutputCompatibility,
       ) ||
     canonicalJsonDigest(
+      b0.bookSurfaceRepairStructuredOutputCompatibility,
+    ) !==
+      canonicalJsonDigest(
+        request.canonicalBundle
+          .bookSurfaceRepairStructuredOutputCompatibility,
+      ) ||
+    canonicalJsonDigest(
       b0.presentationRequirementRepairStructuredOutputCompatibility,
     ) !==
       canonicalJsonDigest(
@@ -1812,6 +1832,7 @@ function evaluateReadinessCore(args: {
     state.b0.pageContractRepairStructuredOutputCompatibility = null;
     state.b0.pageSpatialReferenceRepairStructuredOutputCompatibility = null;
     state.b0.structuralBundleRepairStructuredOutputCompatibility = null;
+    state.b0.bookSurfaceRepairStructuredOutputCompatibility = null;
     state.b0.presentationRequirementRepairStructuredOutputCompatibility = null;
     state.b0.stablePropScopeRepairStructuredOutputCompatibility = null;
     state.reasonCodes = [
@@ -1997,6 +2018,7 @@ export function canonicalLiveExecutionReadinessIssues(
         'pageContractRepairStructuredOutputCompatibility',
         'pageSpatialReferenceRepairStructuredOutputCompatibility',
         'structuralBundleRepairStructuredOutputCompatibility',
+        'bookSurfaceRepairStructuredOutputCompatibility',
         'presentationRequirementRepairStructuredOutputCompatibility',
         'stablePropScopeRepairStructuredOutputCompatibility',
         'reasonCodes',
@@ -2036,6 +2058,11 @@ export function canonicalLiveExecutionReadinessIssues(
         b0.structuralBundleRepairStructuredOutputCompatibility,
         'execution_readiness_b0_structural_bundle_repair_structured_output_compatibility',
       ).length > 0) ||
+    (b0.bookSurfaceRepairStructuredOutputCompatibility !== null &&
+      liveRequestStructuredOutputCompatibilityAuthorityIssues(
+        b0.bookSurfaceRepairStructuredOutputCompatibility,
+        'execution_readiness_b0_book_surface_repair_structured_output_compatibility',
+      ).length > 0) ||
     (b0.presentationRequirementRepairStructuredOutputCompatibility !== null &&
       liveRequestStructuredOutputCompatibilityAuthorityIssues(
         b0.presentationRequirementRepairStructuredOutputCompatibility,
@@ -2052,6 +2079,7 @@ export function canonicalLiveExecutionReadinessIssues(
         b0.pageContractRepairStructuredOutputCompatibility === null ||
         b0.pageSpatialReferenceRepairStructuredOutputCompatibility === null ||
         b0.structuralBundleRepairStructuredOutputCompatibility === null ||
+        b0.bookSurfaceRepairStructuredOutputCompatibility === null ||
         b0.presentationRequirementRepairStructuredOutputCompatibility === null ||
         b0.stablePropScopeRepairStructuredOutputCompatibility === null)) ||
     (b0.status !== 'verified' &&
@@ -2060,6 +2088,7 @@ export function canonicalLiveExecutionReadinessIssues(
         b0.pageContractRepairStructuredOutputCompatibility !== null ||
         b0.pageSpatialReferenceRepairStructuredOutputCompatibility !== null ||
         b0.structuralBundleRepairStructuredOutputCompatibility !== null ||
+        b0.bookSurfaceRepairStructuredOutputCompatibility !== null ||
         b0.presentationRequirementRepairStructuredOutputCompatibility !== null ||
         b0.stablePropScopeRepairStructuredOutputCompatibility !== null)) ||
     !Array.isArray(b0.reasonCodes) ||

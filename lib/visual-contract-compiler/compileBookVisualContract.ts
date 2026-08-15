@@ -58,7 +58,8 @@ export type ContractLlmPromptAuthority =
         | 'page_spatial_reference_patch'
         | 'stable_prop_scope_patch'
         | 'presentation_requirement_patch'
-        | 'structural_bundle_patch';
+        | 'structural_bundle_patch'
+        | 'book_surface_patch';
       systemPromptVersion: string;
       userPromptVersion: string;
     };
