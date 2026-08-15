@@ -192,4 +192,8 @@ public contracts. Its first advisory correctly reserves live proof for the
 next bounded attempt. Its second advisory noted that an optional
 `authorityDraft` could be omitted by a future caller; the follow-up makes that
 argument mandatory and passes it explicitly at every call site, without a
-runtime-policy change.
+runtime-policy change. Claude Code micro-re-gated exact range
+`120d5c1f..7a4f47ce` and returned **PASS** with no technical finding. It
+source-verified the required signature, absence of a fallback, every call site
+and unchanged public surfaces; it did not independently rerun the recorded
+43-test, TypeScript or diff-check commands.

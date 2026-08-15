@@ -41,7 +41,10 @@ Claude Code independently reviewed exact correction range
 with zero BLOCKER and zero MAJOR. All eight falsification claims passed. Its
 live-effect note is satisfied only by a future bounded operational attempt;
 its optional-parameter advisory was closed immediately by making
-`authorityDraft` mandatory at compile time for every caller.
+`authorityDraft` mandatory at compile time for every caller. Claude Code then
+micro-re-gated exact range `120d5c1f..7a4f47ce` and returned **PASS** with no
+technical finding; the recorded 43-test/TypeScript/diff-check execution
+results remain Codex evidence rather than independently re-executed results.
 
 The consumed attempt has no candidate, Reconciliation, Blueprint, Wizard or
 render authority. Its credential authority was cleared by the Supervisor and
