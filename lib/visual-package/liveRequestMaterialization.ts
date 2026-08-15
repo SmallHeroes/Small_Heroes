@@ -37,13 +37,13 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-request-materialization-input/v8' as const;
+  'canonical-live-request-materialization-input/v9' as const;
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v17' as const;
+  'canonical-live-request-materialization/v18' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v17' as const;
+  'canonical-live-request-verification/v18' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -203,8 +203,21 @@ export interface CanonicalLiveRequestVerifiedResult {
     model: 'gpt-5.6-sol';
     serviceTier: 'default';
     reasoningEffort: 'medium';
-    maxCalls: 3;
-    maxRepairCount: 2;
+    maxCalls: 4;
+    maxRepairCount: 3;
+    standardMaxCalls: 3;
+    standardMaxRepairCount: 2;
+    terminalReferenceCleanup: {
+      budgetClass: 'terminal_reference_cleanup';
+      maxCalls: 1;
+      maxRepairCount: 1;
+      maxInputTokens: 6000;
+      maxOutputTokens: 2000;
+      requiredPrecedingRepairMode: 'full_draft';
+      repairMode: 'page_spatial_reference_patch';
+      residualFamily: 'draft_contract';
+      residualCode: 'out_of_scope_reference';
+    };
     transportRetries: 0;
     noFallback: true;
     projectedMaxUsd: number;
@@ -1860,6 +1873,9 @@ function liveRequestPolicyReasonCodes(
 ): string[] {
   const reasons: string[] = [];
   const callBudget = recordValue(value.callBudget);
+  const terminalReferenceCleanup = recordValue(
+    callBudget?.terminalReferenceCleanup,
+  );
   const costBudget = recordValue(value.costBudget);
   if (
     value.provider !== 'openai' ||
@@ -1870,8 +1886,25 @@ function liveRequestPolicyReasonCodes(
     value.noFallback !== true ||
     value.transportRetries !== 0 ||
     !callBudget ||
-    callBudget.maxCalls !== 3 ||
-    callBudget.maxRepairCount !== 2
+    callBudget.maxCalls !== 4 ||
+    callBudget.maxRepairCount !== 3 ||
+    callBudget.standardMaxCalls !== 3 ||
+    callBudget.standardMaxRepairCount !== 2 ||
+    !terminalReferenceCleanup ||
+    terminalReferenceCleanup.budgetClass !==
+      'terminal_reference_cleanup' ||
+    terminalReferenceCleanup.maxCalls !== 1 ||
+    terminalReferenceCleanup.maxRepairCount !== 1 ||
+    terminalReferenceCleanup.maxInputTokens !== 6000 ||
+    terminalReferenceCleanup.maxOutputTokens !== 2000 ||
+    terminalReferenceCleanup.requiredPrecedingRepairMode !==
+      'full_draft' ||
+    terminalReferenceCleanup.repairMode !==
+      'page_spatial_reference_patch' ||
+    terminalReferenceCleanup.residualFamily !==
+      'draft_contract' ||
+    terminalReferenceCleanup.residualCode !==
+      'out_of_scope_reference'
   ) {
     reasons.push('live_authoring_request_policy_invalid');
   }
@@ -1880,7 +1913,7 @@ function liveRequestPolicyReasonCodes(
     typeof costBudget.projectedMaxUsd !== 'number' ||
     !Number.isFinite(costBudget.projectedMaxUsd) ||
     costBudget.projectedMaxUsd < 0 ||
-    costBudget.projectedMaxUsd > 4.884 ||
+    costBudget.projectedMaxUsd > 4.99125 ||
     costBudget.hardCeilingUsd !== 5
   ) {
     reasons.push('live_authoring_request_cost_invalid');
@@ -2549,8 +2582,21 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
       model: 'gpt-5.6-sol',
       serviceTier: 'default',
       reasoningEffort: 'medium',
-      maxCalls: 3,
-      maxRepairCount: 2,
+      maxCalls: 4,
+      maxRepairCount: 3,
+      standardMaxCalls: 3,
+      standardMaxRepairCount: 2,
+      terminalReferenceCleanup: {
+        budgetClass: 'terminal_reference_cleanup',
+        maxCalls: 1,
+        maxRepairCount: 1,
+        maxInputTokens: 6000,
+        maxOutputTokens: 2000,
+        requiredPrecedingRepairMode: 'full_draft',
+        repairMode: 'page_spatial_reference_patch',
+        residualFamily: 'draft_contract',
+        residualCode: 'out_of_scope_reference',
+      },
       transportRetries: 0,
       noFallback: true,
       projectedMaxUsd:

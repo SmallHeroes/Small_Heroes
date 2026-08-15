@@ -207,6 +207,10 @@ function authoringRequestValue(
     object.callBudget,
     'visual contract authoring request callBudget',
   );
+  const terminalReferenceCleanup = objectValue(
+    callBudget.terminalReferenceCleanup,
+    'visual contract authoring request terminalReferenceCleanup callBudget',
+  );
   const pricing = objectValue(
     object.pricing,
     'visual contract authoring request pricing',
@@ -464,6 +468,26 @@ function authoringRequestValue(
     callBudget: {
       maxCalls: callBudget.maxCalls,
       maxRepairCount: callBudget.maxRepairCount,
+      standardMaxCalls: callBudget.standardMaxCalls,
+      standardMaxRepairCount:
+        callBudget.standardMaxRepairCount,
+      terminalReferenceCleanup: {
+        budgetClass:
+          terminalReferenceCleanup.budgetClass,
+        maxCalls: terminalReferenceCleanup.maxCalls,
+        maxRepairCount:
+          terminalReferenceCleanup.maxRepairCount,
+        maxInputTokens:
+          terminalReferenceCleanup.maxInputTokens,
+        maxOutputTokens:
+          terminalReferenceCleanup.maxOutputTokens,
+        requiredPrecedingRepairMode:
+          terminalReferenceCleanup.requiredPrecedingRepairMode,
+        repairMode: terminalReferenceCleanup.repairMode,
+        residualFamily:
+          terminalReferenceCleanup.residualFamily,
+        residualCode: terminalReferenceCleanup.residualCode,
+      },
     },
     pricing: {
       version: pricing.version,
@@ -721,7 +745,24 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'maxOutputTokens',
     'outputIncludesReasoning',
   ]),
-  callBudget: new Set(['maxCalls', 'maxRepairCount']),
+  callBudget: new Set([
+    'maxCalls',
+    'maxRepairCount',
+    'standardMaxCalls',
+    'standardMaxRepairCount',
+    'terminalReferenceCleanup',
+  ]),
+  terminalReferenceCleanup: new Set([
+    'budgetClass',
+    'maxCalls',
+    'maxRepairCount',
+    'maxInputTokens',
+    'maxOutputTokens',
+    'requiredPrecedingRepairMode',
+    'repairMode',
+    'residualFamily',
+    'residualCode',
+  ]),
   pricing: new Set([
     'version',
     'currency',
@@ -885,6 +926,8 @@ const REQUEST_OBJECT_FIELDS = {
   callBudget: {
     maxCalls: 'number',
     maxRepairCount: 'number',
+    standardMaxCalls: 'number',
+    standardMaxRepairCount: 'number',
   },
   pricing: {
     version: 'string',
@@ -1098,6 +1141,26 @@ function decodeAuthoringRequest(
       parent: object,
       field,
       schema,
+      issues,
+      structuralIssues,
+    });
+  }
+  const callBudget = recordValue(object.callBudget);
+  if (callBudget) {
+    validateRequestObject({
+      parent: callBudget,
+      field: 'terminalReferenceCleanup',
+      schema: {
+        budgetClass: 'string',
+        maxCalls: 'number',
+        maxRepairCount: 'number',
+        maxInputTokens: 'number',
+        maxOutputTokens: 'number',
+        requiredPrecedingRepairMode: 'string',
+        repairMode: 'string',
+        residualFamily: 'string',
+        residualCode: 'string',
+      },
       issues,
       structuralIssues,
     });

@@ -14,6 +14,12 @@ import {
   VISUAL_CONTRACT_AUTHORING_PROVIDER,
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT,
   VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
+  VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
+  VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS,
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS,
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_REPAIRS,
   VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
@@ -177,11 +183,11 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v19' as const;
+  'visual-contract-authoring-request/v20' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v22' as const;
+  'visual-contract-authoring-receipt/v23' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v20' as const;
+  'visual-contract-authoring-readiness/v21' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v9' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -218,6 +224,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V17 =
   'visual-contract-authoring-request/v17' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V18 =
   'visual-contract-authoring-request/v18' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V19 =
+  'visual-contract-authoring-request/v19' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -256,6 +264,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V20 =
   'visual-contract-authoring-receipt/v20' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V21 =
   'visual-contract-authoring-receipt/v21' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V22 =
+  'visual-contract-authoring-receipt/v22' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -294,6 +304,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V18 =
   'visual-contract-authoring-readiness/v18' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V19 =
   'visual-contract-authoring-readiness/v19' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V20 =
+  'visual-contract-authoring-readiness/v20' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -483,6 +495,19 @@ export interface VisualContractAuthoringRequest {
   callBudget: {
     maxCalls: number;
     maxRepairCount: number;
+    standardMaxCalls: number;
+    standardMaxRepairCount: number;
+    terminalReferenceCleanup: {
+      budgetClass: 'terminal_reference_cleanup';
+      maxCalls: number;
+      maxRepairCount: number;
+      maxInputTokens: number;
+      maxOutputTokens: number;
+      requiredPrecedingRepairMode: 'full_draft';
+      repairMode: 'page_spatial_reference_patch';
+      residualFamily: 'draft_contract';
+      residualCode: 'out_of_scope_reference';
+    };
   };
   pricing: typeof VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS;
   pricingDigest: string;
@@ -609,6 +634,7 @@ export interface VisualContractAuthoringProvider {
 export interface VisualContractAuthoringAttemptReceipt {
   attempt: number;
   kind: 'initial' | 'repair';
+  budgetClass: 'standard' | 'terminal_reference_cleanup';
   repairMode:
     | 'full_draft'
     | 'source_evidence_id_patch'
@@ -842,7 +868,8 @@ export function visualContractAuthoringArtifactVersionStatus(
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V15 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V16 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V17 ||
-        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V18
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V18 ||
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V19
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -867,6 +894,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V19,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V20,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V21,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V22,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -888,6 +916,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V17,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V18,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V19,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V20,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -1041,6 +1070,26 @@ export function projectedMaximumAuthoringCostUsd(args: {
       inputTokens: args.maxInputTokens,
       outputTokens: args.maxOutputTokens,
     }) * args.maxCalls,
+  );
+}
+
+export function projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd(args: {
+  standardMaxInputTokens: number;
+  standardMaxOutputTokens: number;
+  standardMaxCalls: number;
+  cleanupMaxInputTokens: number;
+  cleanupMaxOutputTokens: number;
+  cleanupMaxCalls: number;
+}): number {
+  return ceilUsd(
+    conservativeAuthoringCostUsd({
+      inputTokens: args.standardMaxInputTokens,
+      outputTokens: args.standardMaxOutputTokens,
+    }) * args.standardMaxCalls +
+      conservativeAuthoringCostUsd({
+        inputTokens: args.cleanupMaxInputTokens,
+        outputTokens: args.cleanupMaxOutputTokens,
+      }) * args.cleanupMaxCalls,
   );
 }
 
@@ -1325,6 +1374,25 @@ export function buildVisualContractAuthoringRequest(args: {
       maxCalls: VISUAL_CONTRACT_AUTHORING_MAX_CALLS,
       maxRepairCount:
         VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS,
+      standardMaxCalls:
+        VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
+      standardMaxRepairCount:
+        VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS,
+      terminalReferenceCleanup: {
+        budgetClass: 'terminal_reference_cleanup' as const,
+        maxCalls:
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS,
+        maxRepairCount:
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_REPAIRS,
+        maxInputTokens:
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
+        maxOutputTokens:
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
+        requiredPrecedingRepairMode: 'full_draft' as const,
+        repairMode: 'page_spatial_reference_patch' as const,
+        residualFamily: 'draft_contract' as const,
+        residualCode: 'out_of_scope_reference' as const,
+      },
     },
     pricing: VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
     pricingDigest: canonicalJsonDigest(
@@ -1332,11 +1400,18 @@ export function buildVisualContractAuthoringRequest(args: {
     ),
     costBudget: {
       projectedMaxUsd:
-        projectedMaximumAuthoringCostUsd({
-          maxInputTokens:
+        projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
+          standardMaxInputTokens:
             VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
-          maxOutputTokens,
-          maxCalls: VISUAL_CONTRACT_AUTHORING_MAX_CALLS,
+          standardMaxOutputTokens: maxOutputTokens,
+          standardMaxCalls:
+            VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
+          cleanupMaxInputTokens:
+            VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
+          cleanupMaxOutputTokens:
+            VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
+          cleanupMaxCalls:
+            VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS,
         }),
       hardCeilingUsd:
         VISUAL_CONTRACT_AUTHORING_HARD_COST_CEILING_USD,
@@ -1982,19 +2057,48 @@ export function authoringReservedExposureUsd(args: {
   request: VisualContractAuthoringRequest;
   conservativeAccountedCostUsd: number;
   providerCallsCompleted: number;
+  terminalReferenceCleanupCallsCompleted?: number;
 }): number {
-  const remainingCalls = Math.max(
+  const inferredCleanupCallsCompleted = Math.max(
     0,
-    args.request.callBudget.maxCalls -
-      args.providerCallsCompleted,
+    args.providerCallsCompleted -
+      args.request.callBudget.standardMaxCalls,
   );
-  const perCallReserve = conservativeAuthoringCostUsd({
+  const cleanupCallsCompleted = Math.max(
+    0,
+    args.terminalReferenceCleanupCallsCompleted ??
+      inferredCleanupCallsCompleted,
+  );
+  const standardCallsCompleted = Math.max(
+    0,
+    args.providerCallsCompleted - cleanupCallsCompleted,
+  );
+  const remainingStandardCalls = Math.max(
+    0,
+    args.request.callBudget.standardMaxCalls -
+      standardCallsCompleted,
+  );
+  const remainingCleanupCalls = Math.max(
+    0,
+    args.request.callBudget.terminalReferenceCleanup.maxCalls -
+      cleanupCallsCompleted,
+  );
+  const standardPerCallReserve = conservativeAuthoringCostUsd({
     inputTokens: args.request.tokenBudget.maxInputTokens,
     outputTokens: args.request.tokenBudget.maxOutputTokens,
   });
+  const cleanupPerCallReserve = conservativeAuthoringCostUsd({
+    inputTokens:
+      args.request.callBudget.terminalReferenceCleanup
+        .maxInputTokens,
+    outputTokens:
+      args.request.callBudget.terminalReferenceCleanup
+        .maxOutputTokens,
+  });
   return ceilUsd(
     args.conservativeAccountedCostUsd +
-      remainingCalls * perCallReserve,
+      remainingStandardCalls * standardPerCallReserve +
+      remainingCleanupCalls * cleanupPerCallReserve,
   );
 }
 
@@ -2007,6 +2111,11 @@ function reservedExposureBeforeNextCall(
     conservativeAccountedCostUsd:
       aggregateConservativeAccountedCost(attempts),
     providerCallsCompleted: providerCallCount(attempts),
+    terminalReferenceCleanupCallsCompleted: attempts.filter(
+      (attempt) =>
+        attempt.providerReached &&
+        attempt.budgetClass === 'terminal_reference_cleanup',
+    ).length,
   });
 }
 
@@ -2024,6 +2133,82 @@ function providerRepairCallCount(
     (attempt) =>
       attempt.providerReached && attempt.kind === 'repair',
   ).length;
+}
+
+function terminalReferenceCleanupResidualIsProven(
+  attempt: VisualContractAuthoringAttemptReceipt | undefined,
+): boolean {
+  const diagnostics = attempt?.draftValidationDiagnostics;
+  if (!diagnostics || diagnostics.currentUniqueCount < 1) {
+    return false;
+  }
+  const currentItems = diagnostics.items.filter(
+    (item) => item.state !== 'resolved',
+  );
+  return (
+    currentItems.length === diagnostics.currentUniqueCount &&
+    currentItems.every(
+      ({ issue }) =>
+        issue.family === 'draft_contract' &&
+        issue.code === 'out_of_scope_reference' &&
+        issue.locator.kind === 'page_item' &&
+        issue.locator.collectionRole === 'page_actions' &&
+        issue.locator.fieldRole === 'reference',
+    )
+  );
+}
+
+export function visualContractAuthoringAttemptBudgetSequenceIsValid(
+  attempts: readonly VisualContractAuthoringAttemptReceipt[],
+): boolean {
+  if (
+    attempts.length > VISUAL_CONTRACT_AUTHORING_MAX_CALLS ||
+    attempts.some(
+      (attempt, index) =>
+        attempt.attempt !== index + 1 ||
+        (index === 0
+          ? attempt.kind !== 'initial' ||
+            attempt.repairMode !== null ||
+            attempt.budgetClass !== 'standard'
+          : attempt.kind !== 'repair'),
+    )
+  ) {
+    return false;
+  }
+  const standardAttempts = attempts.slice(
+    0,
+    VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
+  );
+  if (
+    standardAttempts.some(
+      (attempt) => attempt.budgetClass !== 'standard',
+    )
+  ) {
+    return false;
+  }
+  const cleanupAttempts = attempts.slice(
+    VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
+  );
+  if (cleanupAttempts.length === 0) return true;
+  if (
+    cleanupAttempts.length !==
+      VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS ||
+    attempts.length !== VISUAL_CONTRACT_AUTHORING_MAX_CALLS
+  ) {
+    return false;
+  }
+  const preceding =
+    attempts[
+      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS - 1
+    ];
+  const cleanup = cleanupAttempts[0];
+  return (
+    preceding?.repairMode === 'full_draft' &&
+    terminalReferenceCleanupResidualIsProven(preceding) &&
+    cleanup?.kind === 'repair' &&
+    cleanup.budgetClass === 'terminal_reference_cleanup' &&
+    cleanup.repairMode === 'page_spatial_reference_patch'
+  );
 }
 
 function cloneDraftValidationAttemptDiagnostics(
@@ -2242,13 +2427,21 @@ function templateRepairExhaustionIsProven(args: {
   request: VisualContractAuthoringRequest;
   attempts: readonly VisualContractAuthoringAttemptReceipt[];
 }): boolean {
-  const expectedCalls = args.request.callBudget.maxCalls;
-  const expectedRepairs =
-    args.request.callBudget.maxRepairCount;
+  const terminalCleanupWasUsed = args.attempts.some(
+    (attempt) =>
+      attempt.budgetClass === 'terminal_reference_cleanup',
+  );
+  const expectedCalls = terminalCleanupWasUsed
+    ? args.request.callBudget.maxCalls
+    : args.request.callBudget.standardMaxCalls;
+  const expectedRepairs = terminalCleanupWasUsed
+    ? args.request.callBudget.maxRepairCount
+    : args.request.callBudget.standardMaxRepairCount;
   return (
     expectedCalls === expectedRepairs + 1 &&
-    expectedCalls === VISUAL_CONTRACT_AUTHORING_MAX_CALLS &&
-    expectedRepairs === VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS &&
+    visualContractAuthoringAttemptBudgetSequenceIsValid(
+      args.attempts,
+    ) &&
     args.error.attempts.length === expectedCalls &&
     args.attempts.length === expectedCalls &&
     providerCallCount(args.attempts) === expectedCalls &&
@@ -2295,6 +2488,10 @@ function expectedCallOptions(
   request: VisualContractAuthoringRequest,
   promptAuthority: ContractLlmPromptAuthority | undefined,
 ): ContractLlmCallOptions {
+  const terminalReferenceCleanup =
+    promptAuthority?.kind === 'repair' &&
+    promptAuthority.budgetClass ===
+      'terminal_reference_cleanup';
   const compactRepair =
     promptAuthority?.kind === 'repair' &&
     promptAuthority.repairMode ===
@@ -2322,7 +2519,10 @@ function expectedCallOptions(
     promptAuthority.repairMode ===
       'stable_prop_scope_patch';
   return {
-    maxOutputTokens: request.tokenBudget.maxOutputTokens,
+    maxOutputTokens: terminalReferenceCleanup
+      ? request.callBudget.terminalReferenceCleanup
+          .maxOutputTokens
+      : request.tokenBudget.maxOutputTokens,
     model: request.model,
     reasoningEffort: request.reasoningEffort,
     jsonSchema: {
@@ -2369,7 +2569,10 @@ function expectedCallOptions(
     toolsDisabled: true,
     transportRetries: 0,
     timeoutMs: request.timeoutMs,
-    maxInputTokens: request.tokenBudget.maxInputTokens,
+    maxInputTokens: terminalReferenceCleanup
+      ? request.callBudget.terminalReferenceCleanup
+          .maxInputTokens
+      : request.tokenBudget.maxInputTokens,
   };
 }
 
@@ -2407,6 +2610,7 @@ export function visualContractAuthoringCallPromptAuthorityIssues(
   if (args.kind === 'initial') {
     const expected = args.request.promptAuthority?.initial;
     if (
+      args.promptAuthority?.budgetClass !== 'standard' ||
       args.promptAuthority?.systemPromptVersion !==
         expected?.systemPromptVersion ||
       args.promptAuthority?.userPromptVersion !==
@@ -2451,8 +2655,15 @@ export function visualContractAuthoringCallPromptAuthorityIssues(
                   ? args.request.promptAuthority
                       ?.stablePropScopeRepair
                   : args.request.promptAuthority?.repair;
+    const budgetClassValid =
+      repairPromptAuthority?.budgetClass === 'standard' ||
+      (repairPromptAuthority?.budgetClass ===
+        'terminal_reference_cleanup' &&
+        repairPromptAuthority.repairMode ===
+          args.request.callBudget.terminalReferenceCleanup.repairMode);
     if (
       !repairPromptAuthority?.repairMode ||
+      !budgetClassValid ||
       args.promptAuthority?.systemPromptVersion !==
         expected?.systemPromptVersion ||
       args.promptAuthority?.userPromptVersion !==
@@ -2463,6 +2674,48 @@ export function visualContractAuthoringCallPromptAuthorityIssues(
     }
   }
   return [...new Set(issues)];
+}
+
+function authoringBudgetClassSequenceIssues(args: {
+  attempts: readonly VisualContractAuthoringAttemptReceipt[];
+  promptAuthority: ContractLlmPromptAuthority | undefined;
+}): string[] {
+  if (args.promptAuthority?.kind === 'initial') {
+    return args.attempts.length === 0 &&
+      args.promptAuthority.budgetClass === 'standard'
+      ? []
+      : ['initial_budget_class_sequence_invalid'];
+  }
+  if (args.promptAuthority?.kind !== 'repair') {
+    return ['repair_budget_class_missing'];
+  }
+  if (args.promptAuthority.budgetClass === 'standard') {
+    return args.attempts.length <
+        VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS &&
+      args.attempts.every(
+        (attempt) => attempt.budgetClass === 'standard',
+      )
+      ? []
+      : ['standard_budget_class_sequence_invalid'];
+  }
+  const lastStandardAttempt =
+    args.attempts[
+      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS - 1
+    ];
+  return args.attempts.length ===
+      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS &&
+    args.attempts.every(
+      (attempt) =>
+        attempt.budgetClass === 'standard' &&
+        attempt.status === 'response_received' &&
+        attempt.providerReached,
+    ) &&
+    lastStandardAttempt?.repairMode ===
+      'full_draft' &&
+    args.promptAuthority.repairMode ===
+      'page_spatial_reference_patch'
+    ? []
+    : ['terminal_reference_cleanup_sequence_invalid'];
 }
 
 export async function runVisualContractAuthoring(args: {
@@ -2609,6 +2862,8 @@ export async function runVisualContractAuthoring(args: {
               promptAuthority?.kind === 'repair'
                 ? promptAuthority.repairMode
                 : null;
+            const budgetClass =
+              promptAuthority?.budgetClass ?? 'standard';
             const reservedExposureBeforeCallUsd =
               reservedExposureBeforeNextCall(
                 args.request,
@@ -2617,6 +2872,7 @@ export async function runVisualContractAuthoring(args: {
             const base = {
               attempt,
               kind,
+              budgetClass,
               repairMode,
               providerReached: false,
               provider: args.request.provider,
@@ -2654,14 +2910,19 @@ export async function runVisualContractAuthoring(args: {
                 'application call budget exhausted',
               );
             }
-            const promptAuthorityIssues =
-              visualContractAuthoringCallPromptAuthorityIssues({
+            const promptAuthorityIssues = [
+              ...authoringBudgetClassSequenceIssues({
+                attempts,
+                promptAuthority,
+              }),
+              ...visualContractAuthoringCallPromptAuthorityIssues({
                 request: args.request,
                 kind,
                 systemPrompt,
                 userPrompt,
                 promptAuthority,
-              });
+              }),
+            ];
             if (promptAuthorityIssues.length > 0) {
               terminal.code = 'provider_policy_mismatch';
               attempts.push({
@@ -2693,6 +2954,10 @@ export async function runVisualContractAuthoring(args: {
                 'maximum reserved authoring exposure exceeds the approved hard cost ceiling',
               );
             }
+            const expected = expectedCallOptions(
+              args.request,
+              promptAuthority,
+            );
             if (
               callInputTokenUpperBound(
                 systemPrompt,
@@ -2700,7 +2965,7 @@ export async function runVisualContractAuthoring(args: {
                 options?.jsonSchema?.schema ??
                   TEMPLATE_DRAFT_JSON_SCHEMA,
               ) >
-              args.request.tokenBudget.maxInputTokens
+              expected.maxInputTokens!
             ) {
               terminal.code =
                 'input_token_ceiling_exceeded';
@@ -2712,10 +2977,6 @@ export async function runVisualContractAuthoring(args: {
                 'application input token ceiling exceeded',
               );
             }
-            const expected = expectedCallOptions(
-              args.request,
-              promptAuthority,
-            );
             if (!exactJson(options, expected)) {
               terminal.code = 'provider_policy_mismatch';
               attempts.push({
@@ -2960,10 +3221,8 @@ export async function runVisualContractAuthoring(args: {
             }
             if (
               !usage ||
-              usage.inputTokens >
-                args.request.tokenBudget.maxInputTokens ||
-              usage.outputTokens >
-                args.request.tokenBudget.maxOutputTokens
+              usage.inputTokens > expected.maxInputTokens! ||
+              usage.outputTokens > expected.maxOutputTokens!
             ) {
               terminal.code = 'usage_invalid';
               attempts.push({
@@ -3338,15 +3597,23 @@ function canonicalImportPreflightState(args: {
 function visualContractAuthoringReceiptExhaustionBindingIsValid(
   receipt: VisualContractAuthoringReceipt,
 ): boolean {
+  const terminalCleanupWasUsed = receipt.attempts.some(
+    (attempt) =>
+      attempt.budgetClass === 'terminal_reference_cleanup',
+  );
   return authoringBudgetExhaustionBindingIsValid({
     failure: receipt.failure,
     logicalProviderCalls:
       receipt.executionAttestation.logicalProviderCalls,
     repairCount: receipt.repairCount,
     expectedLogicalProviderCalls:
-      VISUAL_CONTRACT_AUTHORING_MAX_CALLS,
+      terminalCleanupWasUsed
+        ? VISUAL_CONTRACT_AUTHORING_MAX_CALLS
+        : VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
     expectedRepairCount:
-      VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS,
+      terminalCleanupWasUsed
+        ? VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS
+        : VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS,
   });
 }
 
@@ -3411,6 +3678,9 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       providerRepairCallCount(args.receipt.attempts) ||
     args.receipt.executionAttestation.logicalProviderCalls !==
       args.receipt.callCount ||
+    !visualContractAuthoringAttemptBudgetSequenceIsValid(
+      args.receipt.attempts,
+    ) ||
     !visualContractAuthoringReceiptExhaustionBindingIsValid(
       args.receipt,
     ) ||
@@ -3421,7 +3691,7 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'readiness v17 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
+      'readiness v21 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
     );
   }
   const canonicalImportPreflight =
@@ -3573,6 +3843,9 @@ export function persistVisualContractAuthoringReceipt(args: {
           args.receipt.failure,
         )
       : args.receipt.failure !== null) ||
+    !visualContractAuthoringAttemptBudgetSequenceIsValid(
+      args.receipt.attempts,
+    ) ||
     !visualContractAuthoringReceiptExhaustionBindingIsValid(
       args.receipt,
     ) ||
@@ -3585,7 +3858,7 @@ export function persistVisualContractAuthoringReceipt(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'receipt v19 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
+      'receipt v23 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
     );
   }
   return persistJsonArtifact({
@@ -3615,6 +3888,9 @@ export function buildVisualContractCandidateArtifact(args: {
     args.receipt.version !==
       VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION ||
     args.receipt.status !== 'completed' ||
+    !visualContractAuthoringAttemptBudgetSequenceIsValid(
+      args.receipt.attempts,
+    ) ||
     args.receipt.candidateDigest !== templateDigest ||
     args.receipt.digestAlgorithm !==
       'canonical-json-sha256' ||
@@ -3738,7 +4014,7 @@ export function persistVisualContractAuthoringReadiness(args: {
       canonicalJsonDigest(readinessPayload)
   ) {
     throw new Error(
-      'readiness v17 requires exact typed draft-validation evidence and a valid current digest',
+      'readiness v21 requires exact typed draft-validation evidence and a valid current digest',
     );
   }
   return persistJsonArtifact({

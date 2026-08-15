@@ -507,11 +507,24 @@ describe('canonical live request verification library', () => {
         model: 'gpt-5.6-sol',
         serviceTier: 'default',
         reasoningEffort: 'medium',
-        maxCalls: 3,
-        maxRepairCount: 2,
+        maxCalls: 4,
+        maxRepairCount: 3,
+        standardMaxCalls: 3,
+        standardMaxRepairCount: 2,
+        terminalReferenceCleanup: {
+          budgetClass: 'terminal_reference_cleanup',
+          maxCalls: 1,
+          maxRepairCount: 1,
+          maxInputTokens: 6_000,
+          maxOutputTokens: 2_000,
+          requiredPrecedingRepairMode: 'full_draft',
+          repairMode: 'page_spatial_reference_patch',
+          residualFamily: 'draft_contract',
+          residualCode: 'out_of_scope_reference',
+        },
         transportRetries: 0,
         noFallback: true,
-        projectedMaxUsd: 4.884,
+        projectedMaxUsd: 4.99125,
         hardCeilingUsd: 5,
       },
       structuredOutputCompatibility:
@@ -880,7 +893,7 @@ describe('canonical live request verification library', () => {
           string,
           unknown
         >;
-        callBudget.maxRepairCount = 3;
+        callBudget.maxRepairCount = 4;
       },
       reason: 'live_authoring_request_policy_invalid',
     },
@@ -908,7 +921,7 @@ describe('canonical live request verification library', () => {
           string,
           unknown
         >;
-        costBudget.projectedMaxUsd = 4.885;
+        costBudget.projectedMaxUsd = 4.992;
       },
       reason: 'live_authoring_request_cost_invalid',
     },

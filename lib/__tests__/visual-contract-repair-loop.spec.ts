@@ -677,6 +677,7 @@ describe('Source Evidence ID compact repair', () => {
     expect(calls).toHaveLength(2);
     expect(calls[1]!.authority).toEqual({
       kind: 'repair',
+      budgetClass: 'standard',
       repairMode: 'source_evidence_id_patch',
       systemPromptVersion: SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION,
       userPromptVersion: 'source-evidence-id-repair-user-prompt/v2',
@@ -901,6 +902,7 @@ describe('page-contract compact repair routing', () => {
     });
     expect(calls[2]!.authority).toEqual({
       kind: 'repair',
+      budgetClass: 'standard',
       repairMode: 'book_surface_patch',
       systemPromptVersion: BOOK_SURFACE_REPAIR_PROMPT_VERSION,
       userPromptVersion: 'book-surface-repair-user-prompt/v1',
@@ -958,6 +960,7 @@ describe('page-contract compact repair routing', () => {
     expect(calls).toHaveLength(2);
     expect(calls[1]!.authority).toEqual({
       kind: 'repair',
+      budgetClass: 'standard',
       repairMode: 'page_contract_patch',
       systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
       userPromptVersion: 'page-contract-repair-user-prompt/v11',
@@ -1123,6 +1126,7 @@ describe('page-contract compact repair routing', () => {
     });
     expect(calls[1]?.authority).toEqual({
       kind: 'repair',
+      budgetClass: 'standard',
       repairMode: 'structural_bundle_patch',
       systemPromptVersion: STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
       userPromptVersion: 'structural-bundle-repair-user-prompt/v2',

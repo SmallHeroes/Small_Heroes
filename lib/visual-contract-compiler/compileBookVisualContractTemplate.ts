@@ -66,6 +66,10 @@ import {
   VISUAL_CONTRACT_AUTHORING_PROVIDER,
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT,
   VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
+  VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
+  VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS,
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
   VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
@@ -206,8 +210,11 @@ export const TEMPLATE_PROMPT_VERSION =
   'vc-template-prompt/v13' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
   'vc-template-user-prompt/v13' as const;
-/** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
-const MAX_REPAIR_ATTEMPTS = 2;
+/** Normal bounded safety net after the initial authoring call. */
+const STANDARD_MAX_REPAIR_ATTEMPTS =
+  VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS;
+/** One extra compact call exists only for the closed terminal cleanup gate. */
+const MAX_REPAIR_ATTEMPTS = STANDARD_MAX_REPAIR_ATTEMPTS + 1;
 
 /**
  * A first-pass spatial-reference failure that spans most of a real book is a
@@ -279,7 +286,7 @@ export interface TemplateAuthoringProvenance {
   promptVersion: string;
   /** The compiler-owned appearance role-policy version (S2a). */
   policyVersion: string;
-  /** The attempt the candidate passed on: 1 = initial authoring call, 2 = after repair #1, 3 = after repair #2. */
+  /** The attempt the candidate passed on; attempt 4 is the closed terminal reference cleanup only. */
   attempt: number;
   /** The repair-prompt version — set only when the candidate needed ≥1 repair (attempt > 1). */
   repairPromptVersion?: string;
@@ -287,7 +294,7 @@ export interface TemplateAuthoringProvenance {
 
 /** In-memory repair state. Exact prose and rejected drafts never cross the compiler boundary. */
 interface TemplateRepairAttempt {
-  /** 1 = the initial authoring call; 2 = repair #1; 3 = repair #2. */
+  /** 1 = initial; 2–3 = standard repairs; 4 = terminal reference cleanup. */
   attempt: number;
   /** The exact validator/assembly errors this attempt failed with. */
   errors: string[];
@@ -305,6 +312,9 @@ interface TemplateRepairAttempt {
     | 'structural_bundle_patch'
     | 'book_surface_patch'
     | 'full_draft';
+  nextRepairBudgetClass?:
+    | 'standard'
+    | 'terminal_reference_cleanup';
 }
 
 export interface TemplateRepairSummary {
@@ -319,6 +329,9 @@ export interface TemplateRepairSummary {
     | 'structural_bundle_patch'
     | 'book_surface_patch'
     | 'full_draft';
+  nextRepairBudgetClass?:
+    | 'standard'
+    | 'terminal_reference_cleanup';
 }
 
 function sourceEvidenceIdDiagnosticIssues(
@@ -563,6 +576,12 @@ export class TemplateRepairExhaustedError extends InvalidTemplateContractError {
       ...(attempt.nextRepairMode
         ? { nextRepairMode: attempt.nextRepairMode }
         : {}),
+      ...(attempt.nextRepairBudgetClass
+        ? {
+            nextRepairBudgetClass:
+              attempt.nextRepairBudgetClass,
+          }
+        : {}),
     }));
     this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
       attempts.map((attempt) => attempt.diagnosticIssues),
@@ -601,6 +620,12 @@ export class TemplateRepairOutputInvalidError extends Error {
       diagnosticIssues: attempt.diagnosticIssues,
       ...(attempt.nextRepairMode
         ? { nextRepairMode: attempt.nextRepairMode }
+        : {}),
+      ...(attempt.nextRepairBudgetClass
+        ? {
+            nextRepairBudgetClass:
+              attempt.nextRepairBudgetClass,
+          }
         : {}),
     }));
     this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
@@ -3390,6 +3415,13 @@ export async function compileBookVisualContractTemplate(
       schema: PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
     },
   } satisfies ContractLlmCallOptions;
+  const terminalReferenceCleanupLlmOpts = {
+    ...pageSpatialReferenceRepairLlmOpts,
+    maxInputTokens:
+      VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
+    maxOutputTokens:
+      VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
+  } satisfies ContractLlmCallOptions;
   const structuralBundleRepairLlmOpts = {
     ...llmOpts,
     jsonSchema: {
@@ -3427,6 +3459,7 @@ export async function compileBookVisualContractTemplate(
         llmOpts,
         {
           kind: 'initial',
+          budgetClass: 'standard',
           systemPromptVersion: TEMPLATE_PROMPT_VERSION,
           userPromptVersion: TEMPLATE_USER_PROMPT_VERSION,
         },
@@ -3738,6 +3771,12 @@ export async function compileBookVisualContractTemplate(
           ...(repair.nextRepairMode
             ? { nextRepairMode: repair.nextRepairMode }
             : {}),
+          ...(repair.nextRepairBudgetClass
+            ? {
+                nextRepairBudgetClass:
+                  repair.nextRepairBudgetClass,
+              }
+            : {}),
         })),
         draftValidationDiagnostics: buildDraftValidationDiagnosticTrail([
           ...repairAttempts.map((repair) => repair.diagnosticIssues),
@@ -3754,8 +3793,24 @@ export async function compileBookVisualContractTemplate(
       draft,
     });
 
+    const precedingRepairMode =
+      repairAttempts[repairAttempts.length - 2]?.nextRepairMode;
+    const terminalReferenceCleanupEligible =
+      attempt === VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS &&
+      precedingRepairMode === 'full_draft' &&
+      pageSpatialReferenceAffectedTargets !== null;
+
+    if (
+      attempt > STANDARD_MAX_REPAIR_ATTEMPTS &&
+      !terminalReferenceCleanupEligible
+    ) {
+      // The standard three-call budget is exhausted. A fourth call is never a
+      // general retry: it exists only for the closed reference-only residual
+      // exposed immediately by a full-draft repair.
+      throw new TemplateRepairExhaustedError(repairAttempts);
+    }
     if (attempt > MAX_REPAIR_ATTEMPTS) {
-      // Initial + MAX_REPAIR_ATTEMPTS repairs all failed — fail closed, write nothing, carry the trail.
+      // The closed terminal cleanup also failed — no fifth call exists.
       throw new TemplateRepairExhaustedError(repairAttempts);
     }
 
@@ -3776,6 +3831,12 @@ export async function compileBookVisualContractTemplate(
           : 'full_draft';
     repairAttempts[repairAttempts.length - 1]!.nextRepairMode =
       repairMode;
+    const repairBudgetClass = terminalReferenceCleanupEligible
+      ? 'terminal_reference_cleanup'
+      : 'standard';
+    repairAttempts[
+      repairAttempts.length - 1
+    ]!.nextRepairBudgetClass = repairBudgetClass;
 
     // Request a bounded SEMANTIC repair: fix ONLY the descriptive draft against the exact errors (same model, no
     // fallback). Compiler-owned + fact fields are re-derived on the next assemble, so LLM edits to them are ignored.
@@ -3793,6 +3854,7 @@ export async function compileBookVisualContractTemplate(
           compactRepairLlmOpts,
           {
             kind: 'repair',
+            budgetClass: 'standard',
             repairMode: 'source_evidence_id_patch',
             systemPromptVersion:
               SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION,
@@ -3815,6 +3877,7 @@ export async function compileBookVisualContractTemplate(
           stablePropScopeRepairLlmOpts,
           {
             kind: 'repair',
+            budgetClass: 'standard',
             repairMode: 'stable_prop_scope_patch',
             systemPromptVersion:
               STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION,
@@ -3833,9 +3896,12 @@ export async function compileBookVisualContractTemplate(
           buildPageSpatialReferenceRepairUserPrompt({
             targets: pageSpatialReferenceAffectedTargets,
           }),
-          pageSpatialReferenceRepairLlmOpts,
+          repairBudgetClass === 'terminal_reference_cleanup'
+            ? terminalReferenceCleanupLlmOpts
+            : pageSpatialReferenceRepairLlmOpts,
           {
             kind: 'repair',
+            budgetClass: repairBudgetClass,
             repairMode: 'page_spatial_reference_patch',
             systemPromptVersion:
               PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION,
@@ -3857,6 +3923,7 @@ export async function compileBookVisualContractTemplate(
           presentationRequirementRepairLlmOpts,
           {
             kind: 'repair',
+            budgetClass: 'standard',
             repairMode: 'presentation_requirement_patch',
             systemPromptVersion:
               PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
@@ -3879,6 +3946,7 @@ export async function compileBookVisualContractTemplate(
           structuralBundleRepairLlmOpts,
           {
             kind: 'repair',
+            budgetClass: 'standard',
             repairMode: 'structural_bundle_patch',
             systemPromptVersion:
               STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
@@ -3900,6 +3968,7 @@ export async function compileBookVisualContractTemplate(
           bookSurfaceRepairLlmOpts,
           {
             kind: 'repair',
+            budgetClass: 'standard',
             repairMode: 'book_surface_patch',
             systemPromptVersion: BOOK_SURFACE_REPAIR_PROMPT_VERSION,
             userPromptVersion:
@@ -3920,6 +3989,7 @@ export async function compileBookVisualContractTemplate(
           pageContractRepairLlmOpts,
           {
             kind: 'repair',
+            budgetClass: 'standard',
             repairMode: 'page_contract_patch',
             systemPromptVersion:
               PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
@@ -3945,6 +4015,7 @@ export async function compileBookVisualContractTemplate(
               llmOpts,
               {
                 kind: 'repair',
+                budgetClass: 'standard',
                 repairMode: 'full_draft',
                 systemPromptVersion: REPAIR_PROMPT_VERSION,
                 userPromptVersion: REPAIR_USER_PROMPT_VERSION,

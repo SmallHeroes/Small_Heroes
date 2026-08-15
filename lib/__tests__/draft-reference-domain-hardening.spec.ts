@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   DraftAuthorityReferenceDomainError,
   TemplateRepairExhaustedError,
+  TemplateRepairOutputInvalidError,
   broadInitialPageSpatialFailureRequiresFullDraft,
   compileBookVisualContractTemplate,
   compilerOwnedActionCheckId,
@@ -20,6 +21,10 @@ import type {
 } from '../visual-contract-compiler/types';
 import { RECURRING_PROP_SPATIAL_CONSUMER_SCOPES } from '../visual-contract-compiler/types';
 import { decodePageContractRepairUserPrompt } from '../visual-contract-compiler/pageContractRepair';
+import {
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
+} from '../visual-contract-compiler/authoringPolicy';
 
 const sourceIdentity = {
   version: 'story-source-identity/v2',
@@ -1605,5 +1610,135 @@ describe('captured reference-domain matrix', () => {
         itemIndex: 0,
       },
     });
+  });
+
+  it('admits exactly one compact terminal reference cleanup after a full-draft third response', async () => {
+    const initialSpatialAndLatentFailure = matrixDraft();
+    initialSpatialAndLatentFailure.worldType = '';
+    actions(initialSpatialAndLatentFailure)[0]!.object = {
+      kind: 'spatial',
+      id: 'outside_initial_page_zone',
+    };
+    const referenceOnlyResidual = matrixDraft();
+    actions(referenceOnlyResidual)[0]!.object = {
+      kind: 'spatial',
+      id: 'outside_current_page_zone',
+    };
+    const authorities: unknown[] = [];
+    const options: unknown[] = [];
+    const patchFor = (user: string) => {
+      const payload = JSON.parse(user) as {
+        targets: Array<{
+          pageNumber: number;
+          actionIndex: number;
+          fieldRole: string;
+          permittedSpatialReferences: Array<{ id: string }>;
+        }>;
+      };
+      return {
+        patches: payload.targets.map((target) => ({
+          pageNumber: target.pageNumber,
+          actionIndex: target.actionIndex,
+          fieldRole: target.fieldRole,
+          spatialReferenceId:
+            target.permittedSpatialReferences[0]!.id,
+        })),
+      };
+    };
+    let callIndex = 0;
+    const callLLM = vi.fn(async (
+      _system: string,
+      user: string,
+      callOptions?: unknown,
+      authority?: unknown,
+    ) => {
+      authorities.push(authority);
+      options.push(callOptions);
+      callIndex += 1;
+      if (callIndex === 1) {
+        return JSON.stringify(initialSpatialAndLatentFailure);
+      }
+      if (callIndex === 2) {
+        return JSON.stringify(patchFor(user));
+      }
+      if (callIndex === 3) {
+        return JSON.stringify(referenceOnlyResidual);
+      }
+      return JSON.stringify(patchFor(user));
+    });
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+
+    expect(callLLM).toHaveBeenCalledTimes(4);
+    expect(authorities).toEqual([
+      expect.objectContaining({
+        kind: 'initial',
+        budgetClass: 'standard',
+      }),
+      expect.objectContaining({
+        kind: 'repair',
+        budgetClass: 'standard',
+        repairMode: 'page_spatial_reference_patch',
+      }),
+      expect.objectContaining({
+        kind: 'repair',
+        budgetClass: 'standard',
+        repairMode: 'full_draft',
+      }),
+      expect.objectContaining({
+        kind: 'repair',
+        budgetClass: 'terminal_reference_cleanup',
+        repairMode: 'page_spatial_reference_patch',
+      }),
+    ]);
+    expect(options[3]).toMatchObject({
+      maxInputTokens:
+        VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
+      maxOutputTokens:
+        VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
+    });
+    expect(result.provenance.attempt).toBe(4);
+    expect(
+      result.repairAttempts.map((attempt) => ({
+        mode: attempt.nextRepairMode,
+        budgetClass: attempt.nextRepairBudgetClass,
+      })),
+    ).toEqual([
+      {
+        mode: 'page_spatial_reference_patch',
+        budgetClass: 'standard',
+      },
+      { mode: 'full_draft', budgetClass: 'standard' },
+      {
+        mode: 'page_spatial_reference_patch',
+        budgetClass: 'terminal_reference_cleanup',
+      },
+    ]);
+
+    let failingCallIndex = 0;
+    const failingCleanup = vi.fn(async (
+      _system: string,
+      user: string,
+    ) => {
+      failingCallIndex += 1;
+      if (failingCallIndex === 1) {
+        return JSON.stringify(initialSpatialAndLatentFailure);
+      }
+      if (failingCallIndex === 2) {
+        return JSON.stringify(patchFor(user));
+      }
+      if (failingCallIndex === 3) {
+        return JSON.stringify(referenceOnlyResidual);
+      }
+      return JSON.stringify({ patches: [] });
+    });
+    await expect(
+      compileBookVisualContractTemplate(input, {
+        callLLM: failingCleanup,
+      }),
+    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
+    expect(failingCleanup).toHaveBeenCalledTimes(4);
   });
 });

@@ -889,7 +889,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v22',
+      'visual-contract-authoring-receipt/v23',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -1771,6 +1771,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
         userPrompt: 'approved-user',
         promptAuthority: {
           kind: 'initial',
+          budgetClass: 'standard',
           systemPromptVersion:
             request.promptAuthority.initial
               .systemPromptVersion,
@@ -1934,12 +1935,30 @@ describe('canonical live authoring executable boundary', () => {
     ['call budget', (request: Record<string, unknown>) => {
       (
         request.callBudget as Record<string, unknown>
-      ).maxCalls = 4;
+      ).maxCalls = 5;
     }],
     ['repair budget', (request: Record<string, unknown>) => {
       (
         request.callBudget as Record<string, unknown>
-      ).maxRepairCount = 3;
+      ).maxRepairCount = 4;
+    }],
+    ['terminal cleanup input budget', (request: Record<string, unknown>) => {
+      const callBudget = request.callBudget as {
+        terminalReferenceCleanup: Record<string, unknown>;
+      };
+      callBudget.terminalReferenceCleanup.maxInputTokens = 6_001;
+    }],
+    ['terminal cleanup output budget', (request: Record<string, unknown>) => {
+      const callBudget = request.callBudget as {
+        terminalReferenceCleanup: Record<string, unknown>;
+      };
+      callBudget.terminalReferenceCleanup.maxOutputTokens = 2_001;
+    }],
+    ['terminal cleanup unknown field', (request: Record<string, unknown>) => {
+      const callBudget = request.callBudget as {
+        terminalReferenceCleanup: Record<string, unknown>;
+      };
+      callBudget.terminalReferenceCleanup.untrustedExtra = true;
     }],
     ['unknown field', (request: Record<string, unknown>) => {
       request.credential = FAKE_CREDENTIAL;
@@ -3002,7 +3021,7 @@ describe('canonical live authoring executable boundary', () => {
         repairCount + 1,
       );
       expect(result.receipt.attempts[0]
-        ?.reservedExposureBeforeCallUsd).toBe(4.884);
+        ?.reservedExposureBeforeCallUsd).toBe(4.99125);
       expect(result.persistence.candidate).not.toBeNull();
       expect(result.readiness).toMatchObject({
         visualContractCandidate: {
@@ -3121,7 +3140,7 @@ describe('canonical live authoring executable boundary', () => {
         (attempt) =>
           attempt.reservedExposureBeforeCallUsd,
       ),
-    ).toEqual([4.884, 3.328875, 1.77375]);
+    ).toEqual([4.99125, 3.436125, 1.881]);
   });
 
   it('writes sanitized content-addressed evidence, is byte-idempotent, and fails closed on each evidence collision', async () => {

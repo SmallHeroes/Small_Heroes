@@ -1,5 +1,5 @@
 export const VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
-  'visual-contract-authoring-policy/v2' as const;
+  'visual-contract-authoring-policy/v3' as const;
 
 export const VISUAL_CONTRACT_AUTHORING_PROVIDER = 'openai' as const;
 export const VISUAL_CONTRACT_AUTHORING_ENDPOINT = 'responses' as const;
@@ -17,12 +17,25 @@ export const VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS =
   20 * 60 * 1_000;
 export const VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS =
   64_000;
-export const VISUAL_CONTRACT_AUTHORING_MAX_CALLS = 3;
-export const VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS = 2;
+export const VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS = 3;
+export const VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS = 2;
+export const VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS = 1;
+export const VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_REPAIRS = 1;
+export const VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS =
+  6_000;
+export const VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS =
+  2_000;
+export const VISUAL_CONTRACT_AUTHORING_MAX_CALLS =
+  VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS +
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS;
+export const VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS =
+  VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS +
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_REPAIRS;
 /**
- * Temporary D1A live-authoring ceiling under the current three-call / $5
- * fence. Larger books require a separately approved budget or partition
- * Decision Gate before any provider can be reached.
+ * Temporary D1A live-authoring ceiling under the current standard three-call
+ * budget plus one closed compact terminal-reference cleanup / $5 fence.
+ * Larger books require a separately approved budget or partition Decision
+ * Gate before any provider can be reached.
  */
 export const VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY =
   12;

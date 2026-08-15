@@ -307,11 +307,11 @@ describe('canonical live request materialization validators', () => {
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v8',
+      'canonical-live-request-materialization-input/v9',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v17');
+    ).toBe('canonical-live-request-materialization/v18');
   });
 
   it.each([
@@ -464,7 +464,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v19',
+      version: 'visual-contract-authoring-request/v20',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -481,8 +481,21 @@ describe('canonical live request materialization artifacts', () => {
         outputIncludesReasoning: true,
       },
       callBudget: {
-        maxCalls: 3,
-        maxRepairCount: 2,
+        maxCalls: 4,
+        maxRepairCount: 3,
+        standardMaxCalls: 3,
+        standardMaxRepairCount: 2,
+        terminalReferenceCleanup: {
+          budgetClass: 'terminal_reference_cleanup',
+          maxCalls: 1,
+          maxRepairCount: 1,
+          maxInputTokens: 6_000,
+          maxOutputTokens: 2_000,
+          requiredPrecedingRepairMode: 'full_draft',
+          repairMode: 'page_spatial_reference_patch',
+          residualFamily: 'draft_contract',
+          residualCode: 'out_of_scope_reference',
+        },
       },
       promptAuthority: {
         initial: {
@@ -499,7 +512,7 @@ describe('canonical live request materialization artifacts', () => {
         },
       },
       costBudget: {
-        projectedMaxUsd: 4.884,
+        projectedMaxUsd: 4.99125,
         hardCeilingUsd: 5,
       },
       structuredOutput: {

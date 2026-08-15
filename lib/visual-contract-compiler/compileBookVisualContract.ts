@@ -46,11 +46,15 @@ export interface ContractLlmCallOptions {
 export type ContractLlmPromptAuthority =
   | {
       kind: 'initial';
+      budgetClass: 'standard';
       systemPromptVersion: string;
       userPromptVersion: string;
     }
   | {
       kind: 'repair';
+      budgetClass:
+        | 'standard'
+        | 'terminal_reference_cleanup';
       repairMode:
         | 'full_draft'
         | 'source_evidence_id_patch'
