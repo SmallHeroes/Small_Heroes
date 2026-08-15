@@ -23,6 +23,7 @@ import {
   buildTemplateCompileUserPrompt,
   buildTemplateRepairSystemPrompt,
   buildTemplateRepairUserPrompt,
+  decodeTemplateRepairUserPrompt,
   completeStorySourcePromptTable,
   sourceEvidenceCatalogPromptTable,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
@@ -290,10 +291,6 @@ describe('Visual Contract prompt authority-table compaction', () => {
       input.sourceEvidenceCatalog.entries.filter(
         (entry) => entry.pageNumber === 6,
       );
-    const repairTable = sourceEvidenceCatalogPromptTable(
-      pageSixEntries,
-    ).join('\n');
-
     const initial = buildTemplateCompileUserPrompt(
       input,
       facts,
@@ -306,11 +303,14 @@ describe('Visual Contract prompt authority-table compaction', () => {
       facts,
       input,
     );
+    const decodedRepair =
+      decodeTemplateRepairUserPrompt(repair);
 
     expect(initial).toContain(initialTable);
-    expect(repair).toContain(repairTable);
+    expect(
+      decodedRepair.relevantSourceEvidenceCatalogEntries,
+    ).toEqual(pageSixEntries);
     expect(initial).not.toContain('startOffsetUtf8');
-    expect(repair).not.toContain(' | occurrence ');
     expect(pageSixEntries.length).toBeGreaterThan(0);
   });
 
@@ -686,10 +686,10 @@ describe('Visual Contract prompt authority-table compaction', () => {
       'vc-template-user-prompt/v13',
     );
     expect(REPAIR_PROMPT_VERSION).toBe(
-      'vc-repair-prompt/v10',
+      'vc-repair-prompt/v11',
     );
     expect(REPAIR_USER_PROMPT_VERSION).toBe(
-      'vc-repair-user-prompt/v11',
+      'vc-repair-user-prompt/v12',
     );
 
     const repoRoot = fs.mkdtempSync(

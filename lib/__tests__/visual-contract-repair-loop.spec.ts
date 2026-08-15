@@ -14,6 +14,7 @@ import {
   compileBookVisualContractTemplate,
   buildTemplateRepairSystemPrompt,
   buildTemplateRepairUserPrompt,
+  decodeTemplateRepairUserPrompt,
   SourceEvidenceIdValidationError,
   TemplateRepairExhaustedError,
   TemplateRepairOutputInvalidError,
@@ -24,7 +25,10 @@ import {
   SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION,
   SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
 } from '../visual-contract-compiler/sourceEvidenceIdRepair';
-import { TEMPLATE_DRAFT_SCHEMA_NAME } from '../visual-contract-compiler/templateDraftSchema';
+import {
+  TEMPLATE_DRAFT_JSON_SCHEMA,
+  TEMPLATE_DRAFT_SCHEMA_NAME,
+} from '../visual-contract-compiler/templateDraftSchema';
 import {
   PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
   PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
@@ -207,16 +211,19 @@ describe('Stage 3 — bounded repair loop', () => {
     const { caller, prompts, calls } = recordingCaller([withEmptyMaterial(), bunnyDraft()]);
     const res = await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
     expect(res.provenance.attempt).toBe(2);
-    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v10');
+    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v11');
     expect(res.repairAttempts).toHaveLength(1);
     expect(res.repairAttempts[0].attempt).toBe(1);
     expect(res.repairAttempts[0].diagnosticIssues.length).toBeGreaterThan(0);
     expect(JSON.stringify(res.repairAttempts)).not.toMatch(/material/i);
     expect(calls()).toBe(2);
-    // the SECOND call is the repair call: repair system prompt + the exact errors + the previous draft
+    // The second call is the losslessly compacted full-draft repair.
     expect(prompts[1].system).toMatch(/REPAIRING/);
-    expect(prompts[1].user).toMatch(/FAILED validation/);
-    expect(prompts[1].user).toMatch(/material/i);
+    const repairInput = decodeTemplateRepairUserPrompt(
+      prompts[1].user,
+    );
+    expect(repairInput.previousDraft).toEqual(withEmptyMaterial());
+    expect(repairInput.validationErrors.join('\n')).toMatch(/material/i);
   });
 
   it('routes action coverage cardinality through one complete-page repair', async () => {
@@ -430,16 +437,113 @@ describe('Stage 3 — repair prompt content (allowlist + inputs)', () => {
     expect(sys).toMatch(/castIds|characterPresence|laterality/);
   });
 
-  it('the user prompt carries the exact errors, the facts, and the previous invalid draft', () => {
+  it('losslessly carries the exact errors, facts, authorities, and previous invalid draft', () => {
     const input = bunnySource();
     const facts = extractDeterministicFacts(input);
     const prev = withEmptyMaterial();
     const errors = ['recurringProps[0] (wall_stickers) material must be a non-empty string when present'];
     const user = buildTemplateRepairUserPrompt(prev, errors, facts, input);
-    expect(user).toContain(errors[0]);
-    expect(user).toMatch(/PREVIOUS \(INVALID\) DRAFT/);
-    expect(user).toContain('wall_stickers'); // the previous draft is embedded
-    if (facts.humans[0]) expect(user).toContain(facts.humans[0].id); // facts are embedded
+    const decoded = decodeTemplateRepairUserPrompt(user);
+    expect(decoded.validationErrors).toEqual(errors);
+    expect(decoded.previousDraft).toEqual(prev);
+    expect(decoded.storyKey).toBe(input.storyKey);
+    expect(decoded.pageCount).toBe(input.pageCount);
+    expect(decoded.authoredCoverAuthority).toEqual(
+      input.authoredCoverAuthority ?? null,
+    );
+    expect(decoded.authoritativeFacts).toEqual(
+      facts.humans.map((human) => ({
+        id: human.id,
+        role: human.role,
+        gender: human.gender,
+        pagesPresent: human.pagesPresent,
+      })),
+    );
+  });
+
+  it('accepts envelope key reordering and rejects malformed or extra-key encodings', () => {
+    const input = bunnySource();
+    const user = buildTemplateRepairUserPrompt(
+      withEmptyMaterial(),
+      ['required descriptive field is empty'],
+      extractDeterministicFacts(input),
+      input,
+    );
+    const envelope = JSON.parse(user) as Record<string, unknown>;
+    const reordered = JSON.stringify(
+      Object.fromEntries(Object.entries(envelope).reverse()),
+    );
+    expect(decodeTemplateRepairUserPrompt(reordered)).toEqual(
+      decodeTemplateRepairUserPrompt(user),
+    );
+    expect(() =>
+      decodeTemplateRepairUserPrompt('{'),
+    ).toThrow('template_repair_input_encoding_invalid');
+    expect(() =>
+      decodeTemplateRepairUserPrompt(
+        JSON.stringify({ ...envelope, extra: true }),
+      ),
+    ).toThrow('template_repair_input_encoding_invalid');
+    expect(() =>
+      decodeTemplateRepairUserPrompt(
+        JSON.stringify({
+          ...envelope,
+          stringDictionary: [
+            ...(envelope.stringDictionary as string[]),
+            'unused dictionary entry',
+          ],
+        }),
+      ),
+    ).toThrow('template_repair_input_encoding_invalid');
+  });
+
+  it('keeps a repeated large full-draft repair below the unchanged conservative 64K ceiling', () => {
+    const input = bunnySource();
+    const previousDraft = withEmptyMaterial();
+    previousDraft.syntheticRepeatedAuthority = Array.from(
+      { length: 180 },
+      () => ({
+        description:
+          'A repeated descriptive authority value retained without omission. '.repeat(
+            12,
+          ),
+        placement: ['left', 'center', 'right'],
+      }),
+    );
+    const errors = [
+      'final structural invariant invalid after compact repair',
+      'closed catalog capability gap requires a complete draft repair',
+    ];
+    const user = buildTemplateRepairUserPrompt(
+      previousDraft,
+      errors,
+      extractDeterministicFacts(input),
+      input,
+    );
+    const rawPreviousDraftBytes = Buffer.byteLength(
+      JSON.stringify(previousDraft),
+      'utf8',
+    );
+    const upperBound =
+      Buffer.byteLength(
+        [
+          buildTemplateRepairSystemPrompt(),
+          user,
+          JSON.stringify(TEMPLATE_DRAFT_JSON_SCHEMA),
+        ].join('\n'),
+        'utf8',
+      ) + 4_096;
+
+    expect(rawPreviousDraftBytes).toBeGreaterThan(64_000);
+    expect(upperBound).toBeLessThanOrEqual(
+      VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+    );
+    expect(
+      VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS - upperBound,
+    ).toBeGreaterThan(4_096);
+    expect(
+      decodeTemplateRepairUserPrompt(user).previousDraft,
+    ).toEqual(previousDraft);
   });
 });
 
@@ -640,7 +744,13 @@ describe('Source Evidence ID compact repair', () => {
       TEMPLATE_DRAFT_SCHEMA_NAME,
     );
     expect(calls[1]!.system).toMatch(/REPAIRING/);
-    expect(calls[1]!.user).toContain('PREVIOUS (INVALID) DRAFT');
+    const repairInput = decodeTemplateRepairUserPrompt(
+      calls[1]!.user,
+    );
+    expect(repairInput.previousDraft).toEqual(invalid);
+    expect(repairInput.validationErrors.join('\n')).toMatch(
+      /recurringProps\[0\].*material/,
+    );
     expect(result.repairAttempts[0]!.nextRepairMode).toBe('full_draft');
   });
 });

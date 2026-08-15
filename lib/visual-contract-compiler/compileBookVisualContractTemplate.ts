@@ -129,6 +129,8 @@ import {
   buildPageContractRepairUserPrompt,
   buildPageSpatialReferenceRepairSystemPrompt,
   buildPageSpatialReferenceRepairUserPrompt,
+  decodePageContractRepairInput,
+  encodePageContractRepairInput,
   pageContractAuthorityRepairPlan,
   pageContractPresentationStructuralRepairAffectedPages,
   pageContractRepairAffectedPages,
@@ -139,6 +141,7 @@ import {
   type PageSpatialReferenceRepairTarget,
   type PageSpatialRepairAuthority,
 } from './pageContractRepair';
+import { canonicalize } from '@/lib/canonical-json';
 import {
   STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
   STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
@@ -192,9 +195,9 @@ export const TEMPLATE_USER_PROMPT_VERSION =
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v10' as const;
+  'vc-repair-prompt/v11' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v11' as const;
+  'vc-repair-user-prompt/v12' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -840,7 +843,8 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
 export function buildTemplateRepairSystemPrompt(): string {
   return [
     "You are REPAIRING an INVALID descriptive draft for a children's-book visual-continuity contract.",
-    'You will be given the previous draft, the EXACT validator errors it failed, and the authoritative facts.',
+    'Decode the compact input exactly: ["s",i] references stringDictionary[i]; ["t",...parts] concatenates raw string parts and numeric fragmentDictionary indexes; ["v",i] deep-copies valueDictionary[i]; ["a",...items] is an array; and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
+    'The decoded root contains the complete previous draft, the EXACT validator errors it failed, and all repair authorities; the compact representation omits no value.',
     'Return the COMPLETE corrected JSON draft (SAME schema as before) — fix ONLY what the errors require; keep',
     'everything else identical.',
     '',
@@ -875,6 +879,112 @@ export function buildTemplateRepairSystemPrompt(): string {
   ].join('\n');
 }
 
+export interface TemplateRepairInputPayload {
+  storyKey: string;
+  pageCount: number;
+  validationErrors: string[];
+  authoritativeFacts: Array<{
+    id: string;
+    role: string;
+    gender: string;
+    pagesPresent: number[];
+  }>;
+  authoredCoverAuthority: AuthoredCoverAuthority | null;
+  relevantSourceEvidenceCatalogEntries: SourceEvidenceCatalogEntry[];
+  previousDraft: Record<string, unknown>;
+}
+
+function exactObjectKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+): boolean {
+  return (
+    JSON.stringify(Object.keys(value).sort()) ===
+    JSON.stringify([...expected].sort())
+  );
+}
+
+/** Strict local decoder used to prove the provider-facing full-draft input is lossless. */
+export function decodeTemplateRepairUserPrompt(
+  raw: string,
+): TemplateRepairInputPayload {
+  let encoded: unknown;
+  try {
+    encoded = JSON.parse(raw);
+  } catch {
+    throw new Error('template_repair_input_encoding_invalid');
+  }
+  let decoded: unknown;
+  try {
+    decoded = decodePageContractRepairInput(encoded);
+  } catch {
+    throw new Error('template_repair_input_encoding_invalid');
+  }
+  if (
+    typeof decoded !== 'object' ||
+    decoded === null ||
+    Array.isArray(decoded)
+  ) {
+    throw new Error('template_repair_input_encoding_invalid');
+  }
+  const root = decoded as Record<string, unknown>;
+  if (
+    !exactObjectKeys(root, [
+      'storyKey',
+      'pageCount',
+      'validationErrors',
+      'authoritativeFacts',
+      'authoredCoverAuthority',
+      'relevantSourceEvidenceCatalogEntries',
+      'previousDraft',
+    ]) ||
+    typeof root.storyKey !== 'string' ||
+    root.storyKey.length === 0 ||
+    !Number.isSafeInteger(root.pageCount) ||
+    (root.pageCount as number) < 1 ||
+    !Array.isArray(root.validationErrors) ||
+    !root.validationErrors.every(
+      (entry) => typeof entry === 'string' && entry.length > 0,
+    ) ||
+    !Array.isArray(root.authoritativeFacts) ||
+    !root.authoritativeFacts.every((entry) => {
+      if (
+        typeof entry !== 'object' ||
+        entry === null ||
+        Array.isArray(entry)
+      ) {
+        return false;
+      }
+      const fact = entry as Record<string, unknown>;
+      return (
+        exactObjectKeys(fact, [
+          'id',
+          'role',
+          'gender',
+          'pagesPresent',
+        ]) &&
+        typeof fact.id === 'string' &&
+        typeof fact.role === 'string' &&
+        typeof fact.gender === 'string' &&
+        Array.isArray(fact.pagesPresent) &&
+        fact.pagesPresent.every(
+          (page) => Number.isSafeInteger(page) && (page as number) > 0,
+        )
+      );
+    }) ||
+    !Array.isArray(root.relevantSourceEvidenceCatalogEntries) ||
+    typeof root.previousDraft !== 'object' ||
+    root.previousDraft === null ||
+    Array.isArray(root.previousDraft) ||
+    (root.authoredCoverAuthority !== null &&
+      (typeof root.authoredCoverAuthority !== 'object' ||
+        Array.isArray(root.authoredCoverAuthority)))
+  ) {
+    throw new Error('template_repair_input_encoding_invalid');
+  }
+  return root as unknown as TemplateRepairInputPayload;
+}
+
 export function buildTemplateRepairUserPrompt(
   previousDraft: Record<string, unknown>,
   errors: string[],
@@ -896,41 +1006,31 @@ export function buildTemplateRepairUserPrompt(
     input.sourceEvidenceCatalog.entries.filter((entry) =>
       affectedPages.has(entry.pageNumber),
     );
-  return [
-    `storyKey: ${input.storyKey}  pageCount: ${input.pageCount}`,
-    '',
-    'The previous draft FAILED validation with these EXACT errors — fix EACH one (and change nothing else):',
-    ...errors.map((e, i) => `${i + 1}. ${e}`),
-    '',
-    'AUTHORITATIVE FACTS (do NOT restate gender/presence/laterality — they are overlaid after you):',
-    ...facts.humans.map((h) => `- ${h.id} (role=${h.role}, gender=${h.gender}); present on pages [${h.pagesPresent.join(', ')}]`),
-    ...(input.authoredCoverAuthority
-      ? [
-          '',
-          'AUTHORED PAGE-0 COVER AUTHORITY (compiler-owned; keep the zone vocabulary mappable):',
-          JSON.stringify(input.authoredCoverAuthority),
-        ]
-      : []),
-    ...(relevantCatalogEntries.length > 0
-      ? [
-          '',
-          'RELEVANT SOURCE EVIDENCE CATALOG ENTRIES (exact same-page IDs only):',
-          ...sourceEvidenceCatalogPromptTable(
-            relevantCatalogEntries,
-          ),
-        ]
-      : []),
-    '',
-    'PROP SCOPES: stable_set=one ungated/never-forbidden stablePropId; page_frame=required at/after-reveal+',
-    'Blueprint placement_support; every other state stays unbound and never inferred.',
-    '',
-    'PREVIOUS (INVALID) DRAFT — return a corrected COMPLETE version of this exact JSON object:',
-    'Historical imageDirection remains ADVISORY only for action, interaction, expression, camera, composition, and',
-    'staging. It cannot alter world/location/zone/cast/wardrobe/props/reveal timing/forbidden content; story prose and',
-    'authored page-0 authority win conflicts. It is not action authority and cannot supply sourceEvidenceId.',
-    '',
-    JSON.stringify(previousDraft),
-  ].join('\n');
+  const payload: TemplateRepairInputPayload = {
+    storyKey: input.storyKey,
+    pageCount: input.pageCount,
+    validationErrors: [...errors],
+    authoritativeFacts: facts.humans.map((human) => ({
+      id: human.id,
+      role: human.role,
+      gender: human.gender,
+      pagesPresent: [...human.pagesPresent],
+    })),
+    authoredCoverAuthority: input.authoredCoverAuthority ?? null,
+    relevantSourceEvidenceCatalogEntries: relevantCatalogEntries.map(
+      (entry) => structuredClone(entry),
+    ),
+    previousDraft: structuredClone(previousDraft),
+  };
+  const encoded = encodePageContractRepairInput(payload);
+  const decoded = decodePageContractRepairInput(encoded);
+  if (
+    JSON.stringify(canonicalize(payload)) !==
+    JSON.stringify(canonicalize(decoded))
+  ) {
+    throw new Error('template_repair_input_roundtrip_mismatch');
+  }
+  return JSON.stringify(canonicalize(encoded));
 }
 
 // ── Assembly ─────────────────────────────────────────────────────────────────

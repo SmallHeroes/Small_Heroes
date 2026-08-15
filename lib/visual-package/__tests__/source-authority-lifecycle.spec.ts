@@ -737,8 +737,8 @@ describe('exact zero-cost authoring preflight', () => {
           userPromptVersion: 'vc-template-user-prompt/v13',
         },
         repair: {
-          systemPromptVersion: 'vc-repair-prompt/v10',
-          userPromptVersion: 'vc-repair-user-prompt/v11',
+          systemPromptVersion: 'vc-repair-prompt/v11',
+          userPromptVersion: 'vc-repair-user-prompt/v12',
         },
         pageContractRepair: {
           systemPromptVersion: 'page-contract-repair-prompt/v10',
@@ -3888,7 +3888,13 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const invalid = fullyActionedBunnyDraft(snapshot);
     invalid.worldType = '';
     invalid.recurringProps[0].description =
-      'x'.repeat(80_000);
+      Array.from(
+        { length: 20_000 },
+        (_entry, index) =>
+          ((index * 2_654_435_761) >>> 0)
+            .toString(36)
+            .padStart(7, '0'),
+      ).join('');
     const provider = successfulProvider(invalid);
     const result = await runVisualContractAuthoring({
       request,
@@ -3913,7 +3919,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toBe(false);
     expect(
       JSON.stringify(result.receipt),
-    ).not.toContain('x'.repeat(100));
+    ).not.toContain('0000000');
   });
 
   it('bridges a current candidate presentation requirement into pending Semantic Reconciliation without self-approval', async () => {
