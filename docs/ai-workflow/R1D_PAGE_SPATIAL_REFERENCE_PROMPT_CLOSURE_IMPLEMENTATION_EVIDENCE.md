@@ -6,7 +6,7 @@
 - Branch: `codex/r1d-page-spatial-reference-prompt-closure`
 - Base: `93d9ac7c0975901b3dfea2445da34a0b1958bbd2`
 - Code commit: `eb2fa7051b99fc15edfda3d134fd2c9ce986be39`
-- Independent QA: first pass HOLD; focused correction pending micro re-gate
+- Independent QA: PASS on combined range; zero BLOCKER/MAJOR/MINOR
 
 The change is general to every Story Source. It contains no Leo, child,
 companion, page, authored-id or provider-output literal. Existing artifacts
@@ -113,8 +113,13 @@ execution and because one MINOR remained: the prompt's explicit `prose label`
 prohibition was not independently frozen by the direct regression. The
 correction adds that single assertion inside the existing initial/full-draft
 prompt loop. It does not change production code, prompt bytes, authorities,
-routing, budgets or artifacts. A Git-enabled read-only micro re-gate is
-pending.
+routing, budgets or artifacts. Claude Code's Git-enabled read-only micro
+re-gate of
+`93d9ac7c0975901b3dfea2445da34a0b1958bbd2..098d52acc3c6b618b3b7ee69a46819ffd69faae1`
+returned **PASS** with zero BLOCKER, zero MAJOR and zero MINOR and independently
+closed the prior MINOR. Runtime results remain attributed to Codex; Claude
+verified the tracked source, diff, topology and documentation. This PASS
+grants no Fresh Readiness, live-authoring, render or product authority.
 
 ## Unchanged behavior and rollback
 
