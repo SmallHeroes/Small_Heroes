@@ -183,3 +183,13 @@ worker, including a fake-provider regression that would previously choose
 model, budget, timeout, retry/fallback, candidate or downstream behavior
 changed. The new Decision Gate is
 `R1D_PVB_D1A1B1_BOOK_SURFACE_NORMALIZED_AUTHORITY_PROJECTION_DECISION_GATE.md`.
+
+Claude Code independently reviewed exact correction range
+`f1b0fedff301cca9b54cdfa8902e1d6c5c1a4bba..120d5c1f` and returned **PASS**
+with zero BLOCKER and zero MAJOR. It upheld all eight falsification claims,
+including the original-draft target/application boundary and the unchanged
+public contracts. Its first advisory correctly reserves live proof for the
+next bounded attempt. Its second advisory noted that an optional
+`authorityDraft` could be omitted by a future caller; the follow-up makes that
+argument mandatory and passes it explicitly at every call site, without a
+runtime-policy change.

@@ -23,7 +23,8 @@ by the validator is available.
 1. Keep `book_surface_patch` closed to the existing presentation plus
    cover/page final-structure family; do not admit a new issue family.
 2. Carry the compiler-normalized template projection only inside the typed
-   `PresentationStructuralValidationError` that produced the mixed failure.
+   `PresentationStructuralValidationError` that produced the mixed failure;
+   require it explicitly at every authority-selector call site.
 3. Derive only cover input and closed reference authority from that normalized
    projection.
 4. Continue deriving affected page numbers, repair targets, validation hints

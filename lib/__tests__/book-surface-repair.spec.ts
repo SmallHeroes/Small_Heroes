@@ -149,6 +149,7 @@ function authority(value = draft()) {
   ];
   return bookSurfaceRepairAuthority({
     draft: value,
+    authorityDraft: value,
     presentationTargets: [presentationTarget(1), presentationTarget(2)],
     structuralDiagnosticIssues: issues,
     structuralValidationMessages: issues.map(
@@ -227,6 +228,7 @@ describe('bounded book-surface repair', () => {
       const issues = [...coverIssues, pageStructureIssue(1)];
       const selected = bookSurfaceRepairAuthority({
         draft: draft(),
+        authorityDraft: draft(),
         presentationTargets: [presentationTarget(2)],
         structuralDiagnosticIssues: issues,
         structuralValidationMessages: issues.map(
@@ -279,6 +281,7 @@ describe('bounded book-surface repair', () => {
     expect(
       bookSurfaceRepairAuthority({
         draft: draft(),
+        authorityDraft: draft(),
         presentationTargets: targets,
         structuralDiagnosticIssues: issues,
         structuralValidationMessages: issues.map((_, index) => `message ${index}`),
@@ -301,6 +304,7 @@ describe('bounded book-surface repair', () => {
     expect(
       bookSurfaceRepairAuthority({
         draft: draft(),
+        authorityDraft: draft(),
         presentationTargets: [presentationTarget(1)],
         structuralDiagnosticIssues: [
           coverProjectionIssue,
@@ -312,6 +316,7 @@ describe('bounded book-surface repair', () => {
     expect(
       bookSurfaceRepairAuthority({
         draft: draft(),
+        authorityDraft: draft(),
         presentationTargets: [presentationTarget(1)],
         structuralDiagnosticIssues: [
           coverProjectionIssue,

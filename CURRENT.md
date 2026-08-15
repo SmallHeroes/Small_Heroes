@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-presentation-structural-repair` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based exactly on pushed broad-spatial-repair closeout `e28ab0becb6eb883de3ce08dad9527196a09a748`.
 
-## BOOK-SURFACE NORMALIZED AUTHORITY PROJECTION — implementation green / independent QA pending
+## BOOK-SURFACE NORMALIZED AUTHORITY PROJECTION — independent technical PASS
 
 Leo v15 used Fresh Readiness v16 digest
 `878727cf126a11d0a0d4b5171b947773d1f936e4e0609086ae800b9170108d6c`
@@ -36,15 +36,22 @@ usage is input/cache-write/output/reasoning/total
   budgets, retries/fallback, Blueprint, Wizard, Reader, render, storage,
   payment and Production behavior are unchanged.
 
+Claude Code independently reviewed exact correction range
+`f1b0fedff301cca9b54cdfa8902e1d6c5c1a4bba..120d5c1f` and returned **PASS**
+with zero BLOCKER and zero MAJOR. All eight falsification claims passed. Its
+live-effect note is satisfied only by a future bounded operational attempt;
+its optional-parameter advisory was closed immediately by making
+`authorityDraft` mandatory at compile time for every caller.
+
 The consumed attempt has no candidate, Reconciliation, Blueprint, Wizard or
 render authority. Its credential authority was cleared by the Supervisor and
-raw stdout/stderr remained suppressed. The correction requires independent QA
-and a new pushed HEAD/Fresh Readiness before any second live attempt.
+raw stdout/stderr remained suppressed. A new pushed HEAD/Fresh Readiness is
+required before any second live attempt.
 
 Decision record:
 `docs/ai-workflow/R1D_PVB_D1A1B1_BOOK_SURFACE_NORMALIZED_AUTHORITY_PROJECTION_DECISION_GATE.md`.
 
-## BOOK-SURFACE PRESENTATION/STRUCTURAL REPAIR — independent technical PASS / focused QA correction pending micro re-gate
+## BOOK-SURFACE PRESENTATION/STRUCTURAL REPAIR — independent technical PASS / QA MINORs closed
 
 The consumed Leo v14 attempt proved the broad initial-routing correction: one
 `page_contract_patch` resolved both page-3 action-binding-cardinality issues.

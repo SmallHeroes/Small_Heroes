@@ -305,7 +305,7 @@ export function bookSurfaceRepairAuthority(args: {
    * authority. The patch is still applied to `draft`, so no normalized or
    * compiler-owned field can leak into an unrelated provider-authored field.
    */
-  authorityDraft?: Record<string, unknown>;
+  authorityDraft: Record<string, unknown>;
   presentationTargets: readonly PresentationRequirementRepairTarget[];
   structuralDiagnosticIssues: readonly DraftValidationIssue[];
   structuralValidationMessages: readonly string[];
@@ -344,8 +344,7 @@ export function bookSurfaceRepairAuthority(args: {
         ({ message }) => message,
       ),
     });
-  const authorityDraft = args.authorityDraft ?? args.draft;
-  const coverContract = recordValue(authorityDraft.coverContract);
+  const coverContract = recordValue(args.authorityDraft.coverContract);
   const validationMessages = cleanValidationMessages([
     ...args.structuralValidationMessages,
     ...args.presentationTargets.map(
@@ -353,7 +352,7 @@ export function bookSurfaceRepairAuthority(args: {
         `closed_catalog_capability_gap: page ${target.pageNumber} coverage ${target.coverageIndex} must become one same-page presentation_requirement using one exact permitted pointer/value`,
     ),
   ]);
-  const refs = referenceAuthority(authorityDraft);
+  const refs = referenceAuthority(args.authorityDraft);
   if (
     !affectedPages ||
     !coverContract ||
