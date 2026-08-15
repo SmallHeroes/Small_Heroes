@@ -12,6 +12,7 @@ import {
 
 import {
   ACTION_SEMANTIC_CATALOG_PROMPT_COLUMNS,
+  COMPLETE_STORY_SOURCE_PROMPT_COLUMNS,
   REPAIR_PROMPT_VERSION,
   REPAIR_USER_PROMPT_VERSION,
   SOURCE_EVIDENCE_CATALOG_PROMPT_COLUMNS,
@@ -22,6 +23,7 @@ import {
   buildTemplateCompileUserPrompt,
   buildTemplateRepairSystemPrompt,
   buildTemplateRepairUserPrompt,
+  completeStorySourcePromptTable,
   sourceEvidenceCatalogPromptTable,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import {
@@ -59,6 +61,11 @@ const BANK = path.join(
   'story-bank',
   'v3-approved',
 );
+const QA_AUTONOMOUS_BANK = path.join(
+  REPO_ROOT,
+  'story-bank',
+  'qa-autonomous-20260815-v1',
+);
 const REQUESTED_AT = '2026-08-04T00:00:00.000Z';
 const tempRoots: string[] = [];
 
@@ -76,6 +83,13 @@ function approvedSourceFiles(): string[] {
       (name) =>
         name.endsWith('.md') && !name.startsWith('_'),
     )
+    .sort();
+}
+
+function qaAutonomousSourceFiles(): string[] {
+  return fs
+    .readdirSync(QA_AUTONOMOUS_BANK)
+    .filter((name) => name.endsWith('.md'))
     .sort();
 }
 
@@ -263,13 +277,13 @@ describe('Visual Contract prompt authority-table compaction', () => {
     );
   });
 
-  it('reuses the exact Source Evidence serializer for initial and relevant full-draft repair catalogs', () => {
+  it('uses the compact complete-source projection initially and preserves the full relevant repair serializer', () => {
     const snapshot = approvedSnapshot(
       'fox_uri_adventure.md',
     );
     const input = storySourceSnapshotToTemplateInput(snapshot);
     const facts = extractDeterministicFacts(input);
-    const initialTable = sourceEvidenceCatalogPromptTable(
+    const initialTable = completeStorySourcePromptTable(
       input.sourceEvidenceCatalog.entries,
     ).join('\n');
     const pageSixEntries =
@@ -295,9 +309,116 @@ describe('Visual Contract prompt authority-table compaction', () => {
 
     expect(initial).toContain(initialTable);
     expect(repair).toContain(repairTable);
-    expect(initial).not.toContain(' | occurrence ');
+    expect(initial).not.toContain('startOffsetUtf8');
     expect(repair).not.toContain(' | occurrence ');
     expect(pageSixEntries.length).toBeGreaterThan(0);
+  });
+
+  it('uses the ordered evidence table as the sole complete Story Source representation', () => {
+    const snapshot = buildStorySourceAuthoritySnapshot({
+      repoRoot: REPO_ROOT,
+      storyKey: 'lion_shaket_adventure',
+      storyPath:
+        'story-bank/qa-autonomous-20260815-v1/lion_shaket_adventure.md',
+    });
+    const input = storySourceSnapshotToTemplateInput(snapshot);
+    const facts = extractDeterministicFacts(input);
+    const prompt = buildTemplateCompileUserPrompt(input, facts);
+    const table = completeStorySourcePromptTable(
+      input.sourceEvidenceCatalog.entries,
+    );
+    const reconstructedByPage = new Map<number, string[]>();
+
+    for (const line of table.slice(1)) {
+      const [pageNumber, sourceEvidenceId, excerpt] = JSON.parse(line) as [
+        number,
+        string,
+        string,
+      ];
+      const page = reconstructedByPage.get(pageNumber) ?? [];
+      expect(sourceEvidenceId).toMatch(/^se1_[a-f0-9]{64}$/u);
+      page.push(excerpt);
+      reconstructedByPage.set(pageNumber, page);
+    }
+
+    for (const page of input.pages) {
+      const sourceWithoutWhitespace = page.text.replace(/\s/gu, '');
+      const reconstructedWithoutWhitespace = (
+        reconstructedByPage.get(page.pageNumber) ?? []
+      )
+        .join('')
+        .replace(/\s/gu, '');
+      expect(reconstructedWithoutWhitespace).toBe(
+        sourceWithoutWhitespace,
+      );
+    }
+    expect(prompt).toContain(
+      'COMPLETE STORY SOURCE + SOURCE EVIDENCE CATALOG',
+    );
+    expect(prompt).toContain(table.join('\n'));
+    expect(JSON.parse(table[0]!)).toEqual(
+      COMPLETE_STORY_SOURCE_PROMPT_COLUMNS,
+    );
+    expect(prompt).not.toContain('FULL STORY TEXT:');
+    expect(prompt.match(/בבוקר חגיגת הנהר/gu)).toHaveLength(1);
+  });
+
+  it('keeps every new 8/12-page QA source within 64K without provider reachability', async () => {
+    const sourceFiles = qaAutonomousSourceFiles();
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('provider must remain unreachable');
+      }),
+    };
+    const measurements: Array<{
+      storyKey: string;
+      pages: number;
+      upperBound: number;
+      headroom: number;
+    }> = [];
+
+    for (const name of sourceFiles) {
+      const storyKey = name.slice(0, -3);
+      const snapshot = buildStorySourceAuthoritySnapshot({
+        repoRoot: REPO_ROOT,
+        storyKey,
+        storyPath: `story-bank/qa-autonomous-20260815-v1/${name}`,
+      });
+      if (snapshot.content.pages.length > 12) continue;
+      const request = buildVisualContractAuthoringRequest({
+        snapshot,
+        mode: 'preflight',
+        requestId: `qa-source-compaction-${storyKey}`,
+        requestedAt: REQUESTED_AT,
+      });
+      const result = await runVisualContractAuthoring({
+        request,
+        snapshot,
+        provider,
+      });
+      const upperBound =
+        request.tokenBudget.promptAndSchemaTokenUpperBound;
+      measurements.push({
+        storyKey,
+        pages: snapshot.content.pages.length,
+        upperBound,
+        headroom: 64_000 - upperBound,
+      });
+      expect(result.receipt.failure?.issues ?? []).not.toContain(
+        'input_token_ceiling_exceeded',
+      );
+      expect(result.receipt.callCount).toBe(0);
+    }
+
+    const lion = measurements.find(
+      ({ storyKey }) => storyKey === 'lion_shaket_adventure',
+    );
+    expect(measurements).toHaveLength(12);
+    expect(
+      Math.min(...measurements.map(({ headroom }) => headroom)),
+    ).toBeGreaterThan(1_024);
+    expect(lion?.headroom).toBeGreaterThan(3_000);
+    expect(provider.call).not.toHaveBeenCalled();
   });
 
   it('keeps the exact five-issue Fox page-spatial compact repair below 64K with safety headroom', () => {
@@ -546,13 +667,13 @@ describe('Visual Contract prompt authority-table compaction', () => {
     ).toBeGreaterThan(1_024);
     expect(fox).toEqual({
       storyKey: 'fox_uri_adventure',
-      upperBound: 57_817,
-      headroom: 6_183,
+      upperBound: 49_883,
+      headroom: 14_117,
     });
     expect(worst).toEqual({
       storyKey: 'lion_shaket_fantasy',
-      upperBound: 62_823,
-      headroom: 1_177,
+      upperBound: 53_307,
+      headroom: 10_693,
     });
     expect(provider.call).not.toHaveBeenCalled();
   });
@@ -562,7 +683,7 @@ describe('Visual Contract prompt authority-table compaction', () => {
       'vc-template-prompt/v12',
     );
     expect(TEMPLATE_USER_PROMPT_VERSION).toBe(
-      'vc-template-user-prompt/v12',
+      'vc-template-user-prompt/v13',
     );
     expect(REPAIR_PROMPT_VERSION).toBe(
       'vc-repair-prompt/v10',

@@ -2,7 +2,46 @@
 
 **Updated:** 2026-08-15
 **Maintainer:** Codex
-**Working branch:** `codex/story-engine-autonomous-batch-orchestrator` in `C:\Users\guyna\.codex\worktrees\storybatch1\Small_Heroes`; based exactly on independently passed and pushed head `ea4404a5b2492099c35c90c6da2a14ee6478144f`.
+**Working branch:** `codex/r1d-companion-spotlight-qa-lion-three-page-proof` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed QA integration head `115fdef6dc923db91acd0a47e600e6f326c85d5f`.
+
+## LEO THREE-PAGE PROOF — prompt compaction green / fresh authority pending
+
+The Companion Spotlight is integrated for all six companions and deployed to
+`qa.smallheroes.co.il`. The current QA Matrix exposes all 18 autonomous stories;
+the Leo adventure candidate digest is
+`955ee29d60cb896a01f4fdd33c04f054b50de2c908484067273d7f4643f56b90`.
+Browser verification proved the transparent Leo modal, focus restoration,
+category-preserving CTA and Wizard entry. Production was not changed.
+
+The first Leo Fresh Readiness attempt remained zero-cost and stopped during B0
+materialization with `input_token_ceiling_exceeded`: the conservative prompt
+upper bound was 69,670 against the unchanged 64,000 ceiling. The Story Source
+snapshot itself was valid at 12 pages, 12 image directions and companion
+`lion_shaket`; credential access and provider calls were both zero. Failure
+digest `f370d2f389242165148da538f688d69071075dce35a6cb2ba434c697aaa49c13`
+is historical evidence only and grants no authority.
+
+The general correction removes duplicate Story Source prose from the initial
+authoring prompt. The ordered `pageNumber/sourceEvidenceId/excerpt` table is
+now the sole complete prose presentation. Exact byte offsets and ordinals stay
+in the canonical Source Evidence Catalog, and the existing full repair
+serializer is unchanged. Initial user-prompt authority advances from v12 to
+v13; schema, system/repair prompts, model, 64K ceiling, budgets, retries,
+fallback and timeout do not change.
+
+Focused validation passed **3 files / 107 tests**. It proves lossless prose
+reconstruction, exact ID/order preservation, prior-authority rejection, a
+genuinely oversized fail-closed control, all 18 approved sources, and all 12
+new 8/12-page QA sources without provider reachability. Leo now measures below
+64K with more than 3K headroom; the hardest new 12-page source retains 1,561
+units, above the existing 1,024 safety fence. TypeScript and `git diff --check`
+pass. No credential, provider, image, audio, payment or Production action was
+performed by this correction.
+
+Durable Decision Gate and evidence:
+`docs/ai-workflow/R1D_VISUAL_CONTRACT_COMPLETE_SOURCE_TABLE_INPUT_COMPACTION_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_VISUAL_CONTRACT_COMPLETE_SOURCE_TABLE_INPUT_COMPACTION_IMPLEMENTATION_EVIDENCE.md`.
 
 ## AUTONOMOUS STORY CORPUS -> QA WIZARD CUTOVER — independent technical PASS / deployed to QA
 

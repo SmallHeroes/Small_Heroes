@@ -188,7 +188,7 @@ const AUTHORING_REASONING_EFFORT =
 export const TEMPLATE_PROMPT_VERSION =
   'vc-template-prompt/v12' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v12' as const;
+  'vc-template-user-prompt/v13' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
@@ -652,6 +652,12 @@ export const SOURCE_EVIDENCE_CATALOG_PROMPT_COLUMNS = [
   'excerpt',
 ] as const;
 
+export const COMPLETE_STORY_SOURCE_PROMPT_COLUMNS = [
+  'pageNumber',
+  'sourceEvidenceId',
+  'excerpt',
+] as const;
+
 /**
  * Deterministic, lossless prompt projection of the closed Action Semantic
  * Catalog. The first JSON tuple is the sole column declaration; every
@@ -691,6 +697,26 @@ export function sourceEvidenceCatalogPromptTable(
         entry.excerptOrdinal,
         entry.startOffsetUtf8,
         entry.endOffsetUtf8,
+        entry.sourceEvidenceId,
+        entry.excerpt,
+      ]),
+    ),
+  ];
+}
+
+/**
+ * Lossless Story Source prose projection for initial authoring. Tuple order is
+ * canonical catalog order, so ordinal and byte offsets stay compiler-owned
+ * authority instead of consuming provider input for fields it never emits.
+ */
+export function completeStorySourcePromptTable(
+  entries: readonly SourceEvidenceCatalogEntry[],
+): string[] {
+  return [
+    JSON.stringify(COMPLETE_STORY_SOURCE_PROMPT_COLUMNS),
+    ...entries.map((entry) =>
+      JSON.stringify([
+        entry.pageNumber,
         entry.sourceEvidenceId,
         entry.excerpt,
       ]),
@@ -795,20 +821,11 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     'sourceEvidenceId must be selected exactly from the same-page catalog below. represented_elsewhere uses a root',
     'JSON pointer under the exact current pageContracts[] item.',
     '',
-    `SOURCE EVIDENCE CATALOG (${input.sourceEvidenceCatalog.version}; compiler-owned exact excerpts)`,
-    ...sourceEvidenceCatalogPromptTable(
+    `COMPLETE STORY SOURCE + SOURCE EVIDENCE CATALOG (${input.sourceEvidenceCatalog.version}; compiler-owned exact excerpts)`,
+    'Read tuples in listed order, grouped by pageNumber. Together they are the complete Story Source; do not invent omitted prose.',
+    ...completeStorySourcePromptTable(
       input.sourceEvidenceCatalog.entries,
     ),
-    '',
-    'FULL STORY TEXT:',
-    // Build the page-marked story text from input.pages — the SAME field assertSourceHasRealProse validated — so
-    // the LLM reads exactly the guarded prose. A source whose independent fullStoryText was empty/markers-only can
-    // therefore never smuggle emptiness past the pages guard into the authoring call.
-    input.pages
-      .slice()
-      .sort((a, b) => a.pageNumber - b.pageNumber)
-      .map((p) => `--- Page ${p.pageNumber} ---\n${p.text}`)
-      .join('\n\n'),
     '',
     'HISTORICAL IMAGE DIRECTIONS (OPTIONAL, ADVISORY PRESENTATION EVIDENCE ONLY):',
     ...(input.pageImageDirections ?? [])
