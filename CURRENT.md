@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/story-engine-autonomous-batch-orchestrator` in `C:\Users\guyna\.codex\worktrees\storybatch1\Small_Heroes`; based exactly on independently passed and pushed head `ea4404a5b2492099c35c90c6da2a14ee6478144f`.
 
-## AUTONOMOUS STORY CORPUS -> QA WIZARD CUTOVER — implementation complete / independent QA pending
+## AUTONOMOUS STORY CORPUS -> QA WIZARD CUTOVER — independent technical PASS / QA deployment pending
 
 Guy approved completing the bounded autonomous story wave, generating visual
 directions, connecting the resulting corpus to the Wizard in QA, pushing the
@@ -55,9 +55,21 @@ branch, and leaving Production untouched.
   repository/release gate therefore remains a separate known HOLD; it is not a
   finding in this QA-only story/Wizard cutover.
 - Technical commit `389d80dc0c1ae61988cb2bf939bf440fe9579d0c`
-  connects the generated bank. Independent Claude Code review of the complete
-  implementation range is pending; Codex does not self-award that PASS. QA
-  deployment and browser verification follow only after the independent gate.
+  connects the generated bank. Claude Code independently reviewed exact range
+  `dc7f15423616db80fa6a09ddd15ca9dc8702049c..8c30131c1c8ca311a271835df61dea16ae880802`
+  and returned **PASS** with zero BLOCKER and zero MAJOR. It independently
+  confirmed all 12 falsification targets. This is Claude's verdict, not a Codex
+  self-awarded result.
+- Claude retained four advisory notes only: the handoff's mistyped full SHA was
+  resolved to the unique actual `8c30131c` commit; the deliberate Hebrew
+  `איתי` correction touches the shared personalization gate but is directly
+  regression-tested; inert QA files are bundled in Production functions but
+  remain runtime-inaccessible behind the environment gate; and a pre-existing
+  render-qualification trace dependency remains outside the matrix include.
+  None changes the QA-only PASS or the separate six-fixture release HOLD.
+- QA deployment and browser verification are the next authorized actions. This
+  PASS grants no Production, visual-quality, billing, product or release
+  acceptance.
 
 Durable evidence: `docs/ai-workflow/STORY_ENGINE_AUTONOMOUS_BATCH_QA_BANK_WIZARD_CUTOVER_IMPLEMENTATION_EVIDENCE.md`.
 
