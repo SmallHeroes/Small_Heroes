@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-terminal-reference-cleanup-predecessor-routing` in `C:\Users\guyna\.codex\worktrees\cleanupbudget1\Small_Heroes`; based exactly on pushed terminal-cleanup QA closeout `f76b161f030738ce6b19e5734864be55667fe144`.
 
-## TERMINAL REFERENCE CLEANUP PREDECESSOR ROUTING — implemented / independent QA pending
+## TERMINAL REFERENCE CLEANUP PREDECESSOR ROUTING — independent technical PASS
 
 The second bounded live attempt proved that the terminal cleanup budget itself
 is sufficient, but its predecessor gate was too narrow. Call 3 used the
@@ -55,10 +55,22 @@ usage `31,785/30,991/0/29,418/3,991/61,203`
 `$1.080204/$1.189317` nominal/conservative accounting. It produced no candidate,
 Reconciliation, Blueprint, Wizard or render authority.
 
+Claude Code independently reviewed exact range
+`f76b161f030738ce6b19e5734864be55667fe144..41aa152c1052c261702c737f93e99d59fb8bff24`
+and returned **PASS** with zero BLOCKER and zero MAJOR. All ten falsification
+claims held across compiler routing, the shared persisted-sequence predicate,
+strict compact repair reuse, no-fifth-call behavior, exact canonical bindings,
+complete version cutover, unchanged budgets/provider policy and faithful
+evidence. Its only implementation note is advisory: canonical verifiers repeat
+the exact ordered pair inline as a defensive cross-package boundary rather than
+importing the policy constant; tamper tests enforce lockstep. Claude did not
+re-execute the recorded tests during its read-only review.
+
 Implementation cost was `$0`. No credential, provider/network, Fresh
 Readiness, canonical preflight, live authoring, render, storage/database,
-deployment, QA promotion or Production action occurred. Independent Claude
-Code review is still required; Codex does not self-award technical PASS.
+deployment, QA promotion or Production action occurred. This is Claude's
+technical PASS, not a Codex self-awarded result, and it grants no new Fresh
+Readiness, live, render, deployment or Production authority by itself.
 
 Durable records:
 `docs/ai-workflow/R1D_PVB_D1A1B1_TERMINAL_REFERENCE_CLEANUP_PREDECESSOR_ROUTING_DECISION_GATE.md`

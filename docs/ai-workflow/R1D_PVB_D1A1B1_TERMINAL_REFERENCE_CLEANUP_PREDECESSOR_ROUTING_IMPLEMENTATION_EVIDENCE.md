@@ -2,8 +2,9 @@
 
 ## Status
 
-Implemented locally. Independent Claude Code QA is pending; Codex does not
-self-award technical PASS.
+Implemented locally. Claude Code independently returned technical PASS for the
+exact implementation-and-documentation range. Codex does not self-award that
+result.
 
 - Branch: `codex/r1d-terminal-reference-cleanup-predecessor-routing`
 - Worktree: `C:\Users\guyna\.codex\worktrees\cleanupbudget1\Small_Heroes`
@@ -225,3 +226,30 @@ Claude Code should return PASS or HOLD after trying to falsify:
 9. No story-specific literal, raw prompt/response/provider message/stack/secret
    or new external capability was introduced.
 10. The validation record and separate six-fixture release HOLD are faithful.
+
+## Independent QA result
+
+Claude Code independently reviewed exact immutable range
+`f76b161f030738ce6b19e5734864be55667fe144..41aa152c1052c261702c737f93e99d59fb8bff24`
+read-only and returned **PASS**:
+
+- BLOCKER: `0`;
+- MAJOR: `0`;
+- all ten falsification claims survived review;
+- no new repository file was modified, staged or committed by the reviewer.
+
+Claude traced the shared closed predecessor predicate through compiler dispatch
+and both lifecycle validators, confirmed strict residual/no-fifth-call guards,
+verified exact canonical catalog tamper rejection and the complete version
+cutover, and found no budget, pricing, model, prompt, timeout, retry/fallback,
+story-specific or downstream drift.
+
+One advisory note is retained without correction: the canonical verifiers
+repeat the exact ordered catalog inline rather than importing the compiler
+constant. This is the existing defensive cross-package pattern, byte-equivalent
+to the policy and protected by reorder/duplicate/extra/missing tamper tests.
+Claude did not re-execute the recorded tests in its read-only pass.
+
+This PASS grants technical acceptance only. It grants no Fresh Readiness, live,
+candidate, render, deployment, Production or push authority by itself. The six
+ignored-output fixtures remain a separate release HOLD.
