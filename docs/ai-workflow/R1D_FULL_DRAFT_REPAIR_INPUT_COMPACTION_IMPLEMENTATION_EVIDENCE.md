@@ -115,3 +115,21 @@ Rollback is a focused revert of `7239e26e`; any later live attempt would still
 require newly materialized Fresh Readiness. Before push or operational reuse,
 Claude Code must independently falsify the implementation claims and return a
 technical PASS/HOLD for the exact base-to-head range.
+
+## Independent QA closeout
+
+Claude Code independently reviewed exact range
+`d973cacf2fdc6ecfc0120944d5e32638d53ab7b3..9764c93b` and returned **PASS**
+with zero BLOCKER, zero MAJOR and zero MINOR. It confirmed all ten falsification
+targets: topology and scope, lossless closed payload, local round-trip and
+tamper rejection, key-order invariance, positive and negative 64K controls,
+unchanged strict output and repair lanes, exact v11/v12 cutover, unchanged
+policy/budgets/candidate semantics, no story-specific or forbidden production
+behavior, and faithful documentation.
+
+Two notes are advisory only: removing the historical-image-direction prose from
+the repair user prompt removed no authority because that evidence exists only
+in the initial authoring input; and Claude source-audited the recorded tests
+rather than rerunning them. This is Claude's technical verdict, not a Codex
+self-awarded result, and grants no Fresh Readiness, live, render, QA deployment
+or Production authority.

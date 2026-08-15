@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-full-draft-repair-input-compaction` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed mixed-routing head `d973cacf2fdc6ecfc0120944d5e32638d53ab7b3`.
 
-## FULL-DRAFT REPAIR INPUT COMPACTION — implementation green / independent QA pending
+## FULL-DRAFT REPAIR INPUT COMPACTION — independent technical PASS
 
 The latest consumed Leo QA attempt proved that the prior mixed-validation
 routing correction works: initial authoring and one compact page repair both
@@ -38,13 +38,22 @@ ordinary failed only the exact six established missing ignored-output fixtures
 across its **280 files**, with no seventh failure. That separate release HOLD
 remains.
 
-Implementation commit: `7239e26e`. Durable evidence:
+Implementation commit: `7239e26e`. Claude Code independently reviewed exact
+range `d973cacf2fdc6ecfc0120944d5e32638d53ab7b3..9764c93b` and returned
+**PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It confirmed lossless
+authority transport, closed/tamper-failing decode, unchanged 64K admission and
+negative control, correct v11/v12 bindings, unchanged policy/candidate
+semantics and no forbidden/story-specific production behavior. This is
+Claude's verdict, not a Codex self-awarded result. Its two notes are advisory:
+the removed historical-image-direction prose carried no repair authority and
+the recorded validations were source-audited rather than independently rerun.
+
+Durable evidence:
 `docs/ai-workflow/R1D_FULL_DRAFT_REPAIR_INPUT_COMPACTION_DECISION_GATE.md`
 and
 `docs/ai-workflow/R1D_FULL_DRAFT_REPAIR_INPUT_COMPACTION_IMPLEMENTATION_EVIDENCE.md`.
-Codex does not self-award technical PASS. Independent Claude Code QA is pending;
-until PASS and new Fresh Readiness, there is no live-authoring or render
-authority.
+The technical PASS grants no product acceptance. Until new Fresh Readiness,
+there is no live-authoring or render authority.
 
 ## POST-REPAIR MIXED VALIDATION ROUTING — independent technical PASS
 
