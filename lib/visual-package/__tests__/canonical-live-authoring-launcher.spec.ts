@@ -13,12 +13,14 @@ import {
 
 import {
   CANONICAL_VISUAL_CONTRACT_AUTHORING_COMMAND,
+  CANONICAL_VISUAL_CONTRACT_AUTHORING_CLI_SUMMARY_VERSION,
   DIRECT_VISUAL_CONTRACT_AUTHORING_CORE_ERROR,
   VISUAL_CONTRACT_AUTHORING_USAGE,
   isDirectVisualContractAuthoringCoreEntrypoint,
   parseVisualContractAuthoringArgs,
   runVisualContractAuthoringCli,
   runVisualContractAuthoringImportPreflight,
+  visualContractAuthoringCliSummary,
   type VisualContractAuthoringImportPreflightDeps,
 } from '@/scripts/visual-contract-authoring';
 
@@ -282,6 +284,76 @@ describe('canonical Visual Contract authoring launcher', () => {
     expect(VISUAL_CONTRACT_AUTHORING_USAGE).not.toMatch(
       /npx|tsx\s+scripts|visual-contract-authoring\.ts\s+(?:preflight|live)/,
     );
+  });
+
+  it('projects an arbitrarily large sanitized result to a bounded authoritative CLI summary', () => {
+    const summary = visualContractAuthoringCliSummary({
+      mode: 'canonical_visual_contract_live_authoring',
+      status: 'failed',
+      receipt: {
+        version: 'visual-contract-authoring-receipt/v21',
+        status: 'failed',
+        digest: 'a'.repeat(64),
+        callCount: 3,
+        repairCount: 2,
+        candidateDigest: null,
+        failure: {
+          code: 'draft_validation_repair_exhausted',
+          issues: Array.from(
+            { length: 128 },
+            (_, index) => `sensitive-diagnostic-${index}-${'x'.repeat(1_000)}`,
+          ),
+        },
+      },
+      readiness: {
+        version: 'visual-contract-authoring-readiness/v18',
+        digest: 'b'.repeat(64),
+        authoringOutcome: { status: 'failed' },
+        blueprintAuthoringReady: false,
+        d1a1Authorized: false,
+      },
+      persistence: {
+        sourceSnapshot: null,
+        authoringRequest: {
+          path: 'outputs/request.json',
+          digest: 'c'.repeat(64),
+          created: true,
+        },
+        authoringRequestKind: 'approved_live_request',
+        authoringReceipt: {
+          path: 'outputs/receipt.json',
+          digest: 'a'.repeat(64),
+          created: true,
+        },
+        providerFailureEvidence: null,
+        readiness: {
+          path: 'outputs/readiness.json',
+          digest: 'b'.repeat(64),
+          created: true,
+        },
+        candidate: null,
+      },
+      processInterruptionLimitation: 'not emitted',
+    } as never);
+    const bytes = Buffer.byteLength(JSON.stringify(summary), 'utf8');
+
+    expect(summary.version).toBe(
+      CANONICAL_VISUAL_CONTRACT_AUTHORING_CLI_SUMMARY_VERSION,
+    );
+    expect(bytes).toBeLessThan(8 * 1_024);
+    expect(JSON.stringify(summary)).not.toContain(
+      'sensitive-diagnostic',
+    );
+    expect(summary).toMatchObject({
+      receipt: {
+        callCount: 3,
+        repairCount: 2,
+        failureCode: 'draft_validation_repair_exhausted',
+      },
+      persistence: {
+        authoringRequestKind: 'approved_live_request',
+      },
+    });
   });
 
   it('detects direct core invocation across Windows and POSIX path separators', () => {

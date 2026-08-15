@@ -86,8 +86,11 @@ import {
 } from './actionSemanticCoverage';
 import {
   buildDraftValidationDiagnosticTrail,
+  draftValidationIssueIsValid,
   draftValidationLocatorForUntrustedPage,
   type DraftValidationAttemptDiagnostics,
+  type DraftValidationCollectionRole,
+  type DraftValidationFieldRole,
   type DraftValidationIssue,
   type DraftValidationLocator,
 } from './draftValidationDiagnostics';
@@ -129,8 +132,6 @@ import {
   buildPageContractRepairUserPrompt,
   buildPageSpatialReferenceRepairSystemPrompt,
   buildPageSpatialReferenceRepairUserPrompt,
-  decodePageContractRepairInput,
-  encodePageContractRepairInput,
   pageContractAuthorityRepairPlan,
   pageContractPresentationStructuralRepairAffectedPages,
   pageContractRepairAffectedPages,
@@ -195,9 +196,9 @@ export const TEMPLATE_USER_PROMPT_VERSION =
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v11' as const;
+  'vc-repair-prompt/v12' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v12' as const;
+  'vc-repair-user-prompt/v13' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -842,195 +843,374 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
 
 export function buildTemplateRepairSystemPrompt(): string {
   return [
-    "You are REPAIRING an INVALID descriptive draft for a children's-book visual-continuity contract.",
-    'Decode the compact input exactly: ["s",i] references stringDictionary[i]; ["t",...parts] concatenates raw string parts and numeric fragmentDictionary indexes; ["v",i] deep-copies valueDictionary[i]; ["a",...items] is an array; and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
-    'The decoded root contains the complete previous draft, the EXACT validator errors it failed, and all repair authorities; the compact representation omits no value.',
-    'Return the COMPLETE corrected JSON draft (SAME schema as before) — fix ONLY what the errors require; keep',
-    'everything else identical.',
+    buildTemplateCompileSystemPrompt(),
     '',
-    'You MAY edit ONLY these DESCRIPTIVE fields:',
-    '- worldType (the semantic world type)',
-    '- locations[] (name/description/lighting/timeOfDay/environmentClass/anchors/topology/setIdentityId/setReference)',
-    '- setBoardAuthorities[] stable location light and fixed physical nodes/relations with exact zoneProjection;',
-    '  architecture uses null stablePropId; only one uniquely declared, ungated, never-forbidden prop with one stable',
-    '  placement may use exact stablePropId; never author fixedObjects; never',
-    '  include cast, page action/staging, portable light, reveal language, or unsafe props',
-    '- prop scopes are only stable_set via stablePropId or page_frame via required at/after-reveal propConstraint plus',
-    '  Blueprint placement_support; every other state stays unbound, and scopes are never inferred',
-    '- zones[] (name/description/stableGeometry/spatialNodes/spatialRelations exact page selection authority)',
-    '- cast.child/cast.companion wardrobe; each human\'s garments (each colour an explicit value) + forbiddenAppearance',
-    '- recurringProps[] (name/description, material/scale/persistence, and firstRevealPage — NO empty string in a field you include)',
-    '- forbiddenGlobalElements[]; coverContract mustShow/mustNotShow/locationId/zoneId/castIds/timeOfDay',
-    '- pageContracts[] mustShow/mustNotShow/propState/propConstraints/actionRequirements/',
-    '  actionSemanticCoverage/camera and the transition kind/cue; action subject/object/spatialEffect/spatialConstraint remain typed',
-    '- actionSemanticCoverage sourceEvidenceId values may change only to exact same-page catalog IDs supplied in',
-    '  the repair input; actionRequirements never carries a copied source-evidence field',
-    `- actionRequirements predicates must remain in ${ACTION_SEMANTIC_CATALOG_VERSION}; unsupported coverage is a`,
-    '  terminal capability gap under this catalog, not a repairable shape/relationship error',
-    '',
-    'You MUST NOT change these (they are COMPILER-owned or FACT-derived; your edits to them are IGNORED and',
-    'overwritten, so changing them only wastes the repair):',
-    '- any human appearance (skinTone/hairColour/hairTexture/hairStyle) — injected from a role policy',
-    '- any human gender/pagesPresent/textEvidence/aliases; page castIds/characterPresence; any laterality',
-    '- cast identity/ids; location + zone IDs and their references (the compiler canonicalizes them)',
-    '- coverContract.worldType (the compiler copies it from the top-level worldType)',
-    '',
-    'Output ONLY the corrected JSON object, no prose, no markdown fences.',
+    'FULL-DRAFT REPAIR MODE: author a new complete draft solely from the complete Story Source below; the rejected draft is absent.',
+    `${TEMPLATE_REPAIR_ISSUES_MARKER} is [1,storyKey,pageCount,codes,fields,collections,issues]; issue=[family#,code#,kind#,field#,...indexes], with collection# first when applicable.`,
+    'families 0..3: draft_schema,draft_contract,action_semantic,source_evidence_id; locator kinds 0..13: root,cover,collection,collection_item,human_garment,zone_node,zone_relation,set_authority,set_area,set_area_node,set_area_relation,page,page_item,source_evidence.',
+    'Avoid every listed failure while preserving source authority; return the same complete strict-schema JSON object.',
   ].join('\n');
 }
+
+export const TEMPLATE_REPAIR_ISSUES_MARKER =
+  '--- TYPED PRIOR-DRAFT FAILURES (COMPACT) ---' as const;
 
 export interface TemplateRepairInputPayload {
   storyKey: string;
   pageCount: number;
-  validationErrors: string[];
-  authoritativeFacts: Array<{
-    id: string;
-    role: string;
-    gender: string;
-    pagesPresent: number[];
-  }>;
-  authoredCoverAuthority: AuthoredCoverAuthority | null;
-  relevantSourceEvidenceCatalogEntries: SourceEvidenceCatalogEntry[];
-  previousDraft: Record<string, unknown>;
+  repairMode: 'regenerate_from_source';
+  validationIssues: DraftValidationIssue[];
 }
 
-function exactObjectKeys(
-  value: Record<string, unknown>,
-  expected: readonly string[],
-): boolean {
-  return (
-    JSON.stringify(Object.keys(value).sort()) ===
-    JSON.stringify([...expected].sort())
+export interface DecodedTemplateRepairUserPrompt
+  extends TemplateRepairInputPayload {
+  sourceAuthoringInput: string;
+}
+
+const TEMPLATE_REPAIR_FAMILIES = [
+  'draft_schema',
+  'draft_contract',
+  'action_semantic',
+  'source_evidence_id',
+] as const;
+
+const TEMPLATE_REPAIR_LOCATOR_KINDS = [
+  'root',
+  'cover',
+  'collection',
+  'collection_item',
+  'human_garment',
+  'zone_node',
+  'zone_relation',
+  'set_authority',
+  'set_area',
+  'set_area_node',
+  'set_area_relation',
+  'page',
+  'page_item',
+  'source_evidence',
+] as const;
+
+type TemplateRepairEnvelope = readonly [
+  1,
+  string,
+  number,
+  readonly string[],
+  readonly DraftValidationFieldRole[],
+  readonly DraftValidationCollectionRole[],
+  readonly (readonly number[])[],
+];
+
+function sortedUnique(values: readonly string[]): string[] {
+  return [...new Set(values)].sort((left, right) =>
+    left.localeCompare(right),
   );
 }
 
-/** Strict local decoder used to prove the provider-facing full-draft input is lossless. */
+function dictionaryIndex(
+  dictionary: readonly string[],
+  value: string,
+): number {
+  const index = dictionary.indexOf(value);
+  if (index < 0) {
+    throw new Error('template_repair_input_encoding_invalid');
+  }
+  return index;
+}
+
+function encodeTemplateRepairLocator(
+  locator: DraftValidationLocator,
+  fieldRoles: readonly string[],
+  collectionRoles: readonly string[],
+): number[] {
+  const head = [
+    dictionaryIndex(TEMPLATE_REPAIR_LOCATOR_KINDS, locator.kind),
+    dictionaryIndex(fieldRoles, locator.fieldRole),
+  ];
+  switch (locator.kind) {
+    case 'root':
+    case 'cover':
+      return head;
+    case 'collection':
+      return [...head, dictionaryIndex(collectionRoles, locator.collectionRole)];
+    case 'collection_item':
+      return [...head, dictionaryIndex(collectionRoles, locator.collectionRole), locator.itemIndex];
+    case 'human_garment':
+      return [...head, locator.humanIndex, locator.garmentIndex];
+    case 'zone_node':
+      return [...head, locator.zoneIndex, locator.nodeIndex];
+    case 'zone_relation':
+      return [...head, locator.zoneIndex, locator.relationIndex];
+    case 'set_authority':
+      return [...head, locator.authorityIndex];
+    case 'set_area':
+      return [...head, locator.authorityIndex, locator.areaIndex];
+    case 'set_area_node':
+      return [...head, locator.authorityIndex, locator.areaIndex, locator.nodeIndex];
+    case 'set_area_relation':
+      return [...head, locator.authorityIndex, locator.areaIndex, locator.relationIndex];
+    case 'page':
+      return [...head, locator.pageNumber];
+    case 'page_item':
+      return [
+        ...head,
+        dictionaryIndex(collectionRoles, locator.collectionRole),
+        locator.pageNumber,
+        locator.itemIndex,
+      ];
+    case 'source_evidence':
+      return [...head, locator.pageNumber, locator.coverageIndex];
+  }
+}
+
+function encodeTemplateRepairEnvelope(
+  payload: TemplateRepairInputPayload,
+): TemplateRepairEnvelope {
+  const codes = sortedUnique(payload.validationIssues.map((issue) => issue.code));
+  const fieldRoles = sortedUnique(
+    payload.validationIssues.map((issue) => issue.locator.fieldRole),
+  ) as DraftValidationFieldRole[];
+  const collectionRoles = sortedUnique(
+    payload.validationIssues.flatMap((issue) =>
+      'collectionRole' in issue.locator ? [issue.locator.collectionRole] : [],
+    ),
+  ) as DraftValidationCollectionRole[];
+  const issues = payload.validationIssues.map((issue) => [
+    dictionaryIndex(TEMPLATE_REPAIR_FAMILIES, issue.family),
+    dictionaryIndex(codes, issue.code),
+    ...encodeTemplateRepairLocator(issue.locator, fieldRoles, collectionRoles),
+  ]);
+  return [1, payload.storyKey, payload.pageCount, codes, fieldRoles, collectionRoles, issues];
+}
+
+function indexedString(
+  dictionary: readonly unknown[],
+  index: unknown,
+): string {
+  if (
+    !Number.isSafeInteger(index) ||
+    (index as number) < 0 ||
+    (index as number) >= dictionary.length ||
+    typeof dictionary[index as number] !== 'string'
+  ) {
+    throw new Error('template_repair_input_encoding_invalid');
+  }
+  return dictionary[index as number] as string;
+}
+
+function safeIndex(value: unknown): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    throw new Error('template_repair_input_encoding_invalid');
+  }
+  return value as number;
+}
+
+function decodeTemplateRepairLocator(
+  tuple: readonly unknown[],
+  fieldRoles: readonly unknown[],
+  collectionRoles: readonly unknown[],
+): DraftValidationLocator {
+  const kind = indexedString(
+    TEMPLATE_REPAIR_LOCATOR_KINDS,
+    tuple[0],
+  ) as (typeof TEMPLATE_REPAIR_LOCATOR_KINDS)[number];
+  const fieldRole = indexedString(fieldRoles, tuple[1]) as DraftValidationFieldRole;
+  const collectionRole = (): DraftValidationCollectionRole =>
+    indexedString(collectionRoles, tuple[2]) as DraftValidationCollectionRole;
+  switch (kind) {
+    case 'root':
+      if (tuple.length !== 2) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole };
+    case 'cover':
+      if (tuple.length !== 2) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole };
+    case 'collection':
+      if (tuple.length !== 3) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole, collectionRole: collectionRole() };
+    case 'collection_item':
+      if (tuple.length !== 4) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole, collectionRole: collectionRole(), itemIndex: safeIndex(tuple[3]) };
+    case 'human_garment':
+      if (tuple.length !== 4) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole, humanIndex: safeIndex(tuple[2]), garmentIndex: safeIndex(tuple[3]) };
+    case 'zone_node':
+      if (tuple.length !== 4) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole, zoneIndex: safeIndex(tuple[2]), nodeIndex: safeIndex(tuple[3]) };
+    case 'zone_relation':
+      if (tuple.length !== 4) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole, zoneIndex: safeIndex(tuple[2]), relationIndex: safeIndex(tuple[3]) };
+    case 'set_authority':
+      if (tuple.length !== 3) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole, authorityIndex: safeIndex(tuple[2]) };
+    case 'set_area':
+      if (tuple.length !== 4) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole, authorityIndex: safeIndex(tuple[2]), areaIndex: safeIndex(tuple[3]) };
+    case 'set_area_node':
+      if (tuple.length !== 5) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole, authorityIndex: safeIndex(tuple[2]), areaIndex: safeIndex(tuple[3]), nodeIndex: safeIndex(tuple[4]) };
+    case 'set_area_relation':
+      if (tuple.length !== 5) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole, authorityIndex: safeIndex(tuple[2]), areaIndex: safeIndex(tuple[3]), relationIndex: safeIndex(tuple[4]) };
+    case 'page':
+      if (tuple.length !== 3) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole, pageNumber: safeIndex(tuple[2]) };
+    case 'page_item':
+      if (tuple.length !== 5) throw new Error('template_repair_input_encoding_invalid');
+      return {
+        kind,
+        fieldRole,
+        collectionRole: collectionRole() as Extract<
+          DraftValidationCollectionRole,
+          | 'page_cast_ids'
+          | 'page_cast_states'
+          | 'page_actions'
+          | 'page_action_semantic_coverage'
+          | 'page_prop_constraints'
+          | 'page_safety_constraints'
+        >,
+        pageNumber: safeIndex(tuple[3]),
+        itemIndex: safeIndex(tuple[4]),
+      };
+    case 'source_evidence':
+      if (tuple.length !== 4) throw new Error('template_repair_input_encoding_invalid');
+      return { kind, fieldRole: 'source_evidence', pageNumber: safeIndex(tuple[2]), coverageIndex: safeIndex(tuple[3]) };
+    default:
+      throw new Error('template_repair_input_encoding_invalid');
+  }
+}
+
+/** Strict local decoder used to prove the provider-facing source regeneration input is closed. */
 export function decodeTemplateRepairUserPrompt(
   raw: string,
-): TemplateRepairInputPayload {
+): DecodedTemplateRepairUserPrompt {
+  const marker = `\n${TEMPLATE_REPAIR_ISSUES_MARKER}\n`;
+  const markerIndex = raw.indexOf(marker);
+  if (
+    markerIndex <= 0 ||
+    markerIndex !== raw.lastIndexOf(marker)
+  ) {
+    throw new Error('template_repair_input_encoding_invalid');
+  }
+  const sourceAuthoringInput = raw.slice(0, markerIndex);
+  const compactPayload = raw.slice(markerIndex + marker.length);
   let encoded: unknown;
   try {
-    encoded = JSON.parse(raw);
+    encoded = JSON.parse(compactPayload);
   } catch {
     throw new Error('template_repair_input_encoding_invalid');
   }
-  let decoded: unknown;
+  if (
+    !Array.isArray(encoded) ||
+    encoded.length !== 7 ||
+    encoded[0] !== 1 ||
+    typeof encoded[1] !== 'string' ||
+    encoded[1].length === 0 ||
+    !Number.isSafeInteger(encoded[2]) ||
+    (encoded[2] as number) < 1 ||
+    !Array.isArray(encoded[3]) ||
+    !Array.isArray(encoded[4]) ||
+    !Array.isArray(encoded[5]) ||
+    !Array.isArray(encoded[6]) ||
+    encoded[6].length === 0 ||
+    encoded[6].length > 128
+  ) {
+    throw new Error('template_repair_input_encoding_invalid');
+  }
+  const [, storyKey, pageCount, codes, fieldRoles, collectionRoles, issueTuples] =
+    encoded;
+  let validationIssues: DraftValidationIssue[];
   try {
-    decoded = decodePageContractRepairInput(encoded);
+    validationIssues = issueTuples.map((rawTuple) => {
+      if (!Array.isArray(rawTuple) || rawTuple.length < 4) {
+        throw new Error('template_repair_input_encoding_invalid');
+      }
+      const family = indexedString(TEMPLATE_REPAIR_FAMILIES, rawTuple[0]);
+      const code = indexedString(codes, rawTuple[1]);
+      const locator = decodeTemplateRepairLocator(
+        rawTuple.slice(2),
+        fieldRoles,
+        collectionRoles,
+      );
+      const issue = { family, code, locator } as DraftValidationIssue;
+      if (!draftValidationIssueIsValid(issue)) {
+        throw new Error('template_repair_input_encoding_invalid');
+      }
+      return issue;
+    });
   } catch {
     throw new Error('template_repair_input_encoding_invalid');
   }
+  const canonicalIssues = canonicalTemplateRepairIssues(
+    validationIssues,
+  );
   if (
-    typeof decoded !== 'object' ||
-    decoded === null ||
-    Array.isArray(decoded)
+    JSON.stringify(canonicalize(validationIssues)) !==
+    JSON.stringify(canonicalize(canonicalIssues))
   ) {
     throw new Error('template_repair_input_encoding_invalid');
   }
-  const root = decoded as Record<string, unknown>;
+  const payload: TemplateRepairInputPayload = {
+    storyKey,
+    pageCount,
+    repairMode: 'regenerate_from_source',
+    validationIssues,
+  };
   if (
-    !exactObjectKeys(root, [
-      'storyKey',
-      'pageCount',
-      'validationErrors',
-      'authoritativeFacts',
-      'authoredCoverAuthority',
-      'relevantSourceEvidenceCatalogEntries',
-      'previousDraft',
-    ]) ||
-    typeof root.storyKey !== 'string' ||
-    root.storyKey.length === 0 ||
-    !Number.isSafeInteger(root.pageCount) ||
-    (root.pageCount as number) < 1 ||
-    !Array.isArray(root.validationErrors) ||
-    !root.validationErrors.every(
-      (entry) => typeof entry === 'string' && entry.length > 0,
-    ) ||
-    !Array.isArray(root.authoritativeFacts) ||
-    !root.authoritativeFacts.every((entry) => {
-      if (
-        typeof entry !== 'object' ||
-        entry === null ||
-        Array.isArray(entry)
-      ) {
-        return false;
-      }
-      const fact = entry as Record<string, unknown>;
-      return (
-        exactObjectKeys(fact, [
-          'id',
-          'role',
-          'gender',
-          'pagesPresent',
-        ]) &&
-        typeof fact.id === 'string' &&
-        typeof fact.role === 'string' &&
-        typeof fact.gender === 'string' &&
-        Array.isArray(fact.pagesPresent) &&
-        fact.pagesPresent.every(
-          (page) => Number.isSafeInteger(page) && (page as number) > 0,
-        )
-      );
-    }) ||
-    !Array.isArray(root.relevantSourceEvidenceCatalogEntries) ||
-    typeof root.previousDraft !== 'object' ||
-    root.previousDraft === null ||
-    Array.isArray(root.previousDraft) ||
-    (root.authoredCoverAuthority !== null &&
-      (typeof root.authoredCoverAuthority !== 'object' ||
-        Array.isArray(root.authoredCoverAuthority)))
+    JSON.stringify(encoded) !==
+    JSON.stringify(encodeTemplateRepairEnvelope(payload))
   ) {
     throw new Error('template_repair_input_encoding_invalid');
   }
-  return root as unknown as TemplateRepairInputPayload;
+  return {
+    ...payload,
+    sourceAuthoringInput,
+  };
+}
+
+function canonicalTemplateRepairIssues(
+  issues: readonly DraftValidationIssue[],
+): DraftValidationIssue[] {
+  if (
+    issues.length === 0 ||
+    issues.some((issue) => !draftValidationIssueIsValid(issue))
+  ) {
+    throw new Error('template_repair_input_encoding_invalid');
+  }
+  const byIdentity = new Map<string, DraftValidationIssue>();
+  for (const issue of issues) {
+    const cloned = structuredClone(issue);
+    const identity = JSON.stringify(canonicalize(cloned));
+    byIdentity.set(identity, cloned);
+  }
+  const result = [...byIdentity.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, issue]) => issue);
+  if (result.length > 128) {
+    throw new Error('template_repair_input_encoding_invalid');
+  }
+  return result;
 }
 
 export function buildTemplateRepairUserPrompt(
-  previousDraft: Record<string, unknown>,
-  errors: string[],
-  facts: DeterministicFacts,
   input: TemplateCompileInput,
+  facts: DeterministicFacts,
+  diagnosticIssues: readonly DraftValidationIssue[],
 ): string {
-  const affectedPages = new Set<number>();
-  if (
-    errors.some((error) =>
-      error.startsWith('source_evidence_id_invalid:'),
-    )
-  ) {
-    for (const error of errors) {
-      const match = /\bpage (\d+)\b/.exec(error);
-      if (match) affectedPages.add(Number(match[1]));
-    }
-  }
-  const relevantCatalogEntries =
-    input.sourceEvidenceCatalog.entries.filter((entry) =>
-      affectedPages.has(entry.pageNumber),
-    );
+  const validationIssues = canonicalTemplateRepairIssues(
+    diagnosticIssues,
+  );
   const payload: TemplateRepairInputPayload = {
     storyKey: input.storyKey,
     pageCount: input.pageCount,
-    validationErrors: [...errors],
-    authoritativeFacts: facts.humans.map((human) => ({
-      id: human.id,
-      role: human.role,
-      gender: human.gender,
-      pagesPresent: [...human.pagesPresent],
-    })),
-    authoredCoverAuthority: input.authoredCoverAuthority ?? null,
-    relevantSourceEvidenceCatalogEntries: relevantCatalogEntries.map(
-      (entry) => structuredClone(entry),
-    ),
-    previousDraft: structuredClone(previousDraft),
+    repairMode: 'regenerate_from_source',
+    validationIssues,
   };
-  const encoded = encodePageContractRepairInput(payload);
-  const decoded = decodePageContractRepairInput(encoded);
-  if (
-    JSON.stringify(canonicalize(payload)) !==
-    JSON.stringify(canonicalize(decoded))
-  ) {
-    throw new Error('template_repair_input_roundtrip_mismatch');
-  }
-  return JSON.stringify(canonicalize(encoded));
+  const encoded = encodeTemplateRepairEnvelope(payload);
+  return [
+    buildTemplateCompileUserPrompt(input, facts),
+    TEMPLATE_REPAIR_ISSUES_MARKER,
+    JSON.stringify(encoded),
+  ].join('\n');
 }
 
 // ── Assembly ─────────────────────────────────────────────────────────────────
@@ -3583,10 +3763,9 @@ export async function compileBookVisualContractTemplate(
             await deps.callLLM(
               buildTemplateRepairSystemPrompt(),
               buildTemplateRepairUserPrompt(
-                draft,
-                attemptErrors,
-                facts,
                 input,
+                facts,
+                attemptDiagnosticIssues,
               ),
               llmOpts,
               {

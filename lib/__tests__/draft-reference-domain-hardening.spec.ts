@@ -5,6 +5,7 @@ import {
   TemplateRepairExhaustedError,
   compileBookVisualContractTemplate,
   compilerOwnedActionCheckId,
+  decodeTemplateRepairUserPrompt,
   isDraftDiagnosticNormalizationRejection,
   pageSpatialReferenceIssuesAreRepairable,
   type TemplateCompileInput,
@@ -1302,8 +1303,20 @@ describe('captured reference-domain matrix', () => {
       compileBookVisualContractTemplate(input, { callLLM }),
     ).rejects.toBeInstanceOf(TemplateRepairExhaustedError);
     expect(callLLM).toHaveBeenCalledTimes(3);
-    expect(String(callLLM.mock.calls[1]![1])).toContain(
-      'safetyConstraints[0].target',
-    );
+    expect(
+      decodeTemplateRepairUserPrompt(
+        String(callLLM.mock.calls[1]![1]),
+      ).validationIssues,
+    ).toContainEqual({
+      family: 'draft_contract',
+      code: 'out_of_scope_reference',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_safety_constraints',
+        fieldRole: 'reference',
+        pageNumber: 1,
+        itemIndex: 0,
+      },
+    });
   });
 });

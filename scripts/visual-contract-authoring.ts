@@ -6,6 +6,10 @@
  * The exact live graph remains dynamically imported after strict mode parsing.
  */
 
+import type {
+  CanonicalLiveVisualContractAuthoringResult,
+} from '@/lib/visual-package/canonicalLiveVisualContractAuthoring';
+
 export const CANONICAL_VISUAL_CONTRACT_AUTHORING_COMMAND =
   'node scripts/visual-contract-authoring.cjs';
 
@@ -24,6 +28,9 @@ const TEST_BOUNDARY_SENTINEL_ARMED_ENV =
   'SMALL_HEROES_TEST_LIVE_AUTHORING_BOUNDARY_SENTINEL_ARMED';
 const TEST_BOUNDARY_SENTINEL_ARMED_VALUE =
   'credential-write-sentinel/v1';
+
+export const CANONICAL_VISUAL_CONTRACT_AUTHORING_CLI_SUMMARY_VERSION =
+  'canonical-visual-contract-authoring-cli-summary/v1' as const;
 
 export interface VisualContractAuthoringPreflightArgs {
   mode: 'preflight';
@@ -210,6 +217,58 @@ function outputJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
+/**
+ * Full sanitized receipt/readiness records remain durable content-addressed
+ * artifacts. stdout crosses the Supervisor's bounded child channel and must
+ * stay small regardless of diagnostic cardinality.
+ */
+export function visualContractAuthoringCliSummary(
+  result: CanonicalLiveVisualContractAuthoringResult,
+): Record<string, unknown> {
+  return {
+    version:
+      CANONICAL_VISUAL_CONTRACT_AUTHORING_CLI_SUMMARY_VERSION,
+    mode: result.mode,
+    status: result.status,
+    receipt: {
+      version: result.receipt.version,
+      status: result.receipt.status,
+      digest: result.receipt.digest,
+      callCount: result.receipt.callCount,
+      repairCount: result.receipt.repairCount,
+      candidateDigest: result.receipt.candidateDigest,
+      failureCode: result.receipt.failure?.code ?? null,
+    },
+    readiness: {
+      version: result.readiness.version,
+      digest: result.readiness.digest,
+      authoringStatus:
+        result.readiness.authoringOutcome.status,
+      blueprintAuthoringReady:
+        result.readiness.blueprintAuthoringReady,
+      d1a1Authorized: result.readiness.d1a1Authorized,
+    },
+    persistence: {
+      authoringRequestKind:
+        result.persistence.authoringRequestKind,
+      ...Object.fromEntries(
+        Object.entries(result.persistence)
+          .filter(([key]) => key !== 'authoringRequestKind')
+          .map(([key, value]) => [
+        key,
+        value === null
+          ? null
+          : {
+              path: (value as { path: string }).path,
+              digest: (value as { digest: string }).digest,
+              created: (value as { created: boolean }).created,
+            },
+          ]),
+      ),
+    },
+  };
+}
+
 export async function runVisualContractAuthoringCli(
   argv: string[],
 ): Promise<void> {
@@ -273,7 +332,7 @@ export async function runVisualContractAuthoringCli(
       requestPath: parsed.requestPath,
       outputDir: parsed.outputDir,
     });
-  outputJson(result);
+  outputJson(visualContractAuthoringCliSummary(result));
   if (result.status === 'failed') {
     process.exitCode = 1;
   }

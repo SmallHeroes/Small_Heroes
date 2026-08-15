@@ -296,20 +296,28 @@ describe('Visual Contract prompt authority-table compaction', () => {
       facts,
     );
     const repair = buildTemplateRepairUserPrompt(
-      {},
-      [
-        'source_evidence_id_invalid:source_evidence_id_unknown: page 6.actionSemanticCoverage[0].sourceEvidenceId must resolve',
-      ],
-      facts,
       input,
+      facts,
+      [
+        {
+          family: 'draft_contract',
+          code: 'out_of_scope_reference',
+          locator: {
+            kind: 'page_item',
+            pageNumber: 6,
+            collectionRole: 'page_actions',
+            itemIndex: 0,
+            fieldRole: 'reference',
+          },
+        },
+      ],
     );
     const decodedRepair =
       decodeTemplateRepairUserPrompt(repair);
 
     expect(initial).toContain(initialTable);
-    expect(
-      decodedRepair.relevantSourceEvidenceCatalogEntries,
-    ).toEqual(pageSixEntries);
+    expect(decodedRepair.sourceAuthoringInput).toBe(initial);
+    expect(decodedRepair.validationIssues).toHaveLength(1);
     expect(initial).not.toContain('startOffsetUtf8');
     expect(pageSixEntries.length).toBeGreaterThan(0);
   });
@@ -686,10 +694,10 @@ describe('Visual Contract prompt authority-table compaction', () => {
       'vc-template-user-prompt/v13',
     );
     expect(REPAIR_PROMPT_VERSION).toBe(
-      'vc-repair-prompt/v11',
+      'vc-repair-prompt/v12',
     );
     expect(REPAIR_USER_PROMPT_VERSION).toBe(
-      'vc-repair-user-prompt/v12',
+      'vc-repair-user-prompt/v13',
     );
 
     const repoRoot = fs.mkdtempSync(

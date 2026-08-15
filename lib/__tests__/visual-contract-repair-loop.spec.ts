@@ -12,9 +12,11 @@ import path from 'path';
 import { extractSourceFromMarkdown } from '../../scripts/extract-visual-contract-sources';
 import {
   compileBookVisualContractTemplate,
+  buildTemplateCompileUserPrompt,
   buildTemplateRepairSystemPrompt,
   buildTemplateRepairUserPrompt,
   decodeTemplateRepairUserPrompt,
+  TEMPLATE_REPAIR_ISSUES_MARKER,
   SourceEvidenceIdValidationError,
   TemplateRepairExhaustedError,
   TemplateRepairOutputInvalidError,
@@ -51,6 +53,27 @@ import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookV
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 import { draftValidationIssueIsValid } from '../visual-contract-compiler/draftValidationDiagnostics';
 import { projectPageMustShow } from '../visual-contract-compiler/projectContractProse';
+
+const FULL_DRAFT_ISSUE = {
+  family: 'draft_contract',
+  code: 'final_structural_invariant_invalid',
+  locator: { kind: 'root', fieldRole: 'authority' },
+} as const;
+
+function repairEnvelopeParts(user: string): {
+  source: string;
+  envelope: unknown[];
+} {
+  const marker = `\n${TEMPLATE_REPAIR_ISSUES_MARKER}\n`;
+  const index = user.indexOf(marker);
+  if (index <= 0) throw new Error('missing repair marker');
+  return {
+    source: user.slice(0, index),
+    envelope: JSON.parse(
+      user.slice(index + marker.length),
+    ) as unknown[],
+  };
+}
 
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
 const bunnySource = (): TemplateCompileInput =>
@@ -211,19 +234,30 @@ describe('Stage 3 — bounded repair loop', () => {
     const { caller, prompts, calls } = recordingCaller([withEmptyMaterial(), bunnyDraft()]);
     const res = await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
     expect(res.provenance.attempt).toBe(2);
-    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v11');
+    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v12');
     expect(res.repairAttempts).toHaveLength(1);
     expect(res.repairAttempts[0].attempt).toBe(1);
     expect(res.repairAttempts[0].diagnosticIssues.length).toBeGreaterThan(0);
     expect(JSON.stringify(res.repairAttempts)).not.toMatch(/material/i);
     expect(calls()).toBe(2);
-    // The second call is the losslessly compacted full-draft repair.
-    expect(prompts[1].system).toMatch(/REPAIRING/);
+    // The second call regenerates from the same complete source authority.
+    expect(prompts[1].system).toMatch(/FULL-DRAFT REPAIR MODE/);
     const repairInput = decodeTemplateRepairUserPrompt(
       prompts[1].user,
     );
-    expect(repairInput.previousDraft).toEqual(withEmptyMaterial());
-    expect(repairInput.validationErrors.join('\n')).toMatch(/material/i);
+    const source = bunnySource();
+    expect(repairInput.sourceAuthoringInput).toBe(
+      buildTemplateCompileUserPrompt(
+        source,
+        extractDeterministicFacts(source),
+      ),
+    );
+    expect(repairInput.validationIssues.length).toBeGreaterThan(0);
+    expect(
+      repairInput.validationIssues.every(
+        draftValidationIssueIsValid,
+      ),
+    ).toBe(true);
   });
 
   it('routes action coverage cardinality through one complete-page repair', async () => {
@@ -431,49 +465,43 @@ describe('Stage 3 — repair prompt content (allowlist + inputs)', () => {
   it('the system prompt allowlists descriptive fields and forbids compiler-owned/fact fields', () => {
     const sys = buildTemplateRepairSystemPrompt();
     expect(sys).toMatch(/recurringProps/);
-    expect(sys).toMatch(/MUST NOT change/);
+    expect(sys).toMatch(/MUST NOT output/);
     expect(sys).toMatch(/appearance/);
-    expect(sys).toMatch(/coverContract\.worldType/);
+    expect(sys).toMatch(/DETERMINISTIC FACTS|AUTHORITATIVE/);
     expect(sys).toMatch(/castIds|characterPresence|laterality/);
   });
 
-  it('losslessly carries the exact errors, facts, authorities, and previous invalid draft', () => {
+  it('carries the exact complete source input and canonical typed failures without the rejected draft', () => {
     const input = bunnySource();
     const facts = extractDeterministicFacts(input);
-    const prev = withEmptyMaterial();
-    const errors = ['recurringProps[0] (wall_stickers) material must be a non-empty string when present'];
-    const user = buildTemplateRepairUserPrompt(prev, errors, facts, input);
+    const user = buildTemplateRepairUserPrompt(input, facts, [
+      FULL_DRAFT_ISSUE,
+      FULL_DRAFT_ISSUE,
+    ]);
     const decoded = decodeTemplateRepairUserPrompt(user);
-    expect(decoded.validationErrors).toEqual(errors);
-    expect(decoded.previousDraft).toEqual(prev);
+    expect(decoded.sourceAuthoringInput).toBe(
+      buildTemplateCompileUserPrompt(input, facts),
+    );
+    expect(decoded.repairMode).toBe('regenerate_from_source');
+    expect(decoded.validationIssues).toEqual([
+      FULL_DRAFT_ISSUE,
+    ]);
     expect(decoded.storyKey).toBe(input.storyKey);
     expect(decoded.pageCount).toBe(input.pageCount);
-    expect(decoded.authoredCoverAuthority).toEqual(
-      input.authoredCoverAuthority ?? null,
-    );
-    expect(decoded.authoritativeFacts).toEqual(
-      facts.humans.map((human) => ({
-        id: human.id,
-        role: human.role,
-        gender: human.gender,
-        pagesPresent: human.pagesPresent,
-      })),
+    expect(user).not.toContain(
+      JSON.stringify(withEmptyMaterial()),
     );
   });
 
-  it('accepts envelope key reordering and rejects malformed or extra-key encodings', () => {
+  it('roundtrips the canonical tuple and rejects malformed or non-canonical encodings', () => {
     const input = bunnySource();
     const user = buildTemplateRepairUserPrompt(
-      withEmptyMaterial(),
-      ['required descriptive field is empty'],
-      extractDeterministicFacts(input),
       input,
+      extractDeterministicFacts(input),
+      [FULL_DRAFT_ISSUE],
     );
-    const envelope = JSON.parse(user) as Record<string, unknown>;
-    const reordered = JSON.stringify(
-      Object.fromEntries(Object.entries(envelope).reverse()),
-    );
-    expect(decodeTemplateRepairUserPrompt(reordered)).toEqual(
+    const { source, envelope } = repairEnvelopeParts(user);
+    expect(decodeTemplateRepairUserPrompt(user)).toEqual(
       decodeTemplateRepairUserPrompt(user),
     );
     expect(() =>
@@ -481,48 +509,46 @@ describe('Stage 3 — repair prompt content (allowlist + inputs)', () => {
     ).toThrow('template_repair_input_encoding_invalid');
     expect(() =>
       decodeTemplateRepairUserPrompt(
-        JSON.stringify({ ...envelope, extra: true }),
+        [
+          source,
+          TEMPLATE_REPAIR_ISSUES_MARKER,
+          JSON.stringify([...envelope, true]),
+        ].join('\n'),
       ),
     ).toThrow('template_repair_input_encoding_invalid');
     expect(() =>
       decodeTemplateRepairUserPrompt(
-        JSON.stringify({
-          ...envelope,
-          stringDictionary: [
-            ...(envelope.stringDictionary as string[]),
-            'unused dictionary entry',
-          ],
-        }),
+        [
+          source,
+          TEMPLATE_REPAIR_ISSUES_MARKER,
+          JSON.stringify([
+            ...envelope.slice(0, 3),
+            [...(envelope[3] as string[]), 'unused_dictionary_entry'],
+            ...envelope.slice(4),
+          ]),
+        ].join('\n'),
       ),
     ).toThrow('template_repair_input_encoding_invalid');
   });
 
-  it('keeps a repeated large full-draft repair below the unchanged conservative 64K ceiling', () => {
+  it('keeps a maximal typed source-regeneration repair below the unchanged conservative 64K ceiling', () => {
     const input = bunnySource();
-    const previousDraft = withEmptyMaterial();
-    previousDraft.syntheticRepeatedAuthority = Array.from(
-      { length: 180 },
-      () => ({
-        description:
-          'A repeated descriptive authority value retained without omission. '.repeat(
-            12,
-          ),
-        placement: ['left', 'center', 'right'],
-      }),
-    );
-    const errors = [
-      'final structural invariant invalid after compact repair',
-      'closed catalog capability gap requires a complete draft repair',
-    ];
+    const issues = Array.from({ length: 128 }, (_, index) => ({
+      family: 'action_semantic' as const,
+      code: 'closed_catalog_capability_gap' as const,
+      locator: {
+        kind: 'page_item' as const,
+        pageNumber: (index % 12) + 1,
+        collectionRole:
+          'page_action_semantic_coverage' as const,
+        itemIndex: index,
+        fieldRole: 'disposition' as const,
+      },
+    }));
     const user = buildTemplateRepairUserPrompt(
-      previousDraft,
-      errors,
-      extractDeterministicFacts(input),
       input,
-    );
-    const rawPreviousDraftBytes = Buffer.byteLength(
-      JSON.stringify(previousDraft),
-      'utf8',
+      extractDeterministicFacts(input),
+      issues,
     );
     const upperBound =
       Buffer.byteLength(
@@ -534,7 +560,6 @@ describe('Stage 3 — repair prompt content (allowlist + inputs)', () => {
         'utf8',
       ) + 4_096;
 
-    expect(rawPreviousDraftBytes).toBeGreaterThan(64_000);
     expect(upperBound).toBeLessThanOrEqual(
       VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
     );
@@ -542,8 +567,8 @@ describe('Stage 3 — repair prompt content (allowlist + inputs)', () => {
       VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS - upperBound,
     ).toBeGreaterThan(4_096);
     expect(
-      decodeTemplateRepairUserPrompt(user).previousDraft,
-    ).toEqual(previousDraft);
+      decodeTemplateRepairUserPrompt(user).validationIssues,
+    ).toHaveLength(128);
   });
 });
 
@@ -743,13 +768,21 @@ describe('Source Evidence ID compact repair', () => {
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
       TEMPLATE_DRAFT_SCHEMA_NAME,
     );
-    expect(calls[1]!.system).toMatch(/REPAIRING/);
+    expect(calls[1]!.system).toMatch(/FULL-DRAFT REPAIR MODE/);
     const repairInput = decodeTemplateRepairUserPrompt(
       calls[1]!.user,
     );
-    expect(repairInput.previousDraft).toEqual(invalid);
-    expect(repairInput.validationErrors.join('\n')).toMatch(
-      /recurringProps\[0\].*material/,
+    expect(repairInput.sourceAuthoringInput).toBe(
+      buildTemplateCompileUserPrompt(
+        bunnySource(),
+        extractDeterministicFacts(bunnySource()),
+      ),
+    );
+    expect(repairInput.validationIssues).toEqual(
+      result.repairAttempts[0]!.diagnosticIssues,
+    );
+    expect(JSON.stringify(repairInput)).not.toContain(
+      JSON.stringify(invalid),
     );
     expect(result.repairAttempts[0]!.nextRepairMode).toBe('full_draft');
   });

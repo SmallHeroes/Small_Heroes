@@ -490,8 +490,8 @@ describe('canonical live request materialization artifacts', () => {
           userPromptVersion: 'vc-template-user-prompt/v13',
         },
         repair: {
-          systemPromptVersion: 'vc-repair-prompt/v11',
-          userPromptVersion: 'vc-repair-user-prompt/v12',
+          systemPromptVersion: 'vc-repair-prompt/v12',
+          userPromptVersion: 'vc-repair-user-prompt/v13',
         },
       },
       costBudget: {

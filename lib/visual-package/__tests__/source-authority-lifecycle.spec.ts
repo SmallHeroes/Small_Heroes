@@ -737,8 +737,8 @@ describe('exact zero-cost authoring preflight', () => {
           userPromptVersion: 'vc-template-user-prompt/v13',
         },
         repair: {
-          systemPromptVersion: 'vc-repair-prompt/v11',
-          userPromptVersion: 'vc-repair-user-prompt/v12',
+          systemPromptVersion: 'vc-repair-prompt/v12',
+          userPromptVersion: 'vc-repair-user-prompt/v13',
         },
         pageContractRepair: {
           systemPromptVersion: 'page-contract-repair-prompt/v10',
@@ -3882,7 +3882,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('rechecks the 64k input ceiling before a repair and never reaches the provider for an oversized repair prompt', async () => {
+  it('keeps source-regeneration repairs below 64k without transporting a high-entropy rejected draft', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const invalid = fullyActionedBunnyDraft(snapshot);
@@ -3902,21 +3902,25 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       provider,
     });
     expect(result.receipt.failure?.code).toBe(
-      'input_token_ceiling_exceeded',
+      'draft_validation_repair_exhausted',
     );
-    expect(provider.call).toHaveBeenCalledTimes(1);
-    expect(result.receipt.callCount).toBe(1);
-    expect(result.receipt.repairCount).toBe(0);
-    expect(
-      result.receipt.attempts[
-        result.receipt.attempts.length - 1
-      ]?.status,
-    ).toBe('input_ceiling_exceeded');
-    expect(
-      result.receipt.attempts[
-        result.receipt.attempts.length - 1
-      ]?.providerReached,
-    ).toBe(false);
+    expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(result.receipt.callCount).toBe(3);
+    expect(result.receipt.repairCount).toBe(2);
+    for (const call of vi.mocked(provider.call).mock.calls.slice(1)) {
+      const request = call[0];
+      const upperBound =
+        Buffer.byteLength(
+          [
+            request.systemPrompt,
+            request.userPrompt,
+            JSON.stringify(request.options.jsonSchema?.schema),
+          ].join('\n'),
+          'utf8',
+        ) + 4_096;
+      expect(upperBound).toBeLessThanOrEqual(64_000);
+      expect(request.userPrompt).not.toContain('0000000');
+    }
     expect(
       JSON.stringify(result.receipt),
     ).not.toContain('0000000');
