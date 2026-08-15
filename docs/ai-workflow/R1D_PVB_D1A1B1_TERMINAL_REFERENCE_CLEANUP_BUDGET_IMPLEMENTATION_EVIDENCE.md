@@ -2,8 +2,9 @@
 
 ## Status
 
-Implemented locally and ready for independent Claude Code QA. Codex does not
-self-award technical PASS.
+Implemented locally. Claude Code independently returned technical PASS for the
+exact implementation-and-documentation range. Codex does not self-award that
+result.
 
 - Branch: `codex/r1d-pvb-d1a1b1-terminal-reference-cleanup-budget`
 - Worktree: `C:\Users\guyna\.codex\worktrees\cleanupbudget1\Small_Heroes`
@@ -207,3 +208,33 @@ Claude Code should try to falsify:
 8. No story-specific literal, raw prompt/response/provider body/stack/secret or
    new external capability was introduced.
 9. The code range is focused and the recorded validation is faithful.
+
+## Independent QA result
+
+Claude Code independently reviewed exact range
+`a620ed5485d6f08047759773870d9fcc90d6449b..58e646ad46a3a3f138f09dec7b7764cb8f4cb014`
+read-only and returned **PASS**:
+
+- BLOCKER: `0`;
+- MAJOR: `0`;
+- MINOR: `0`;
+- all ten falsification targets held.
+
+It traced the actual compiler and lifecycle call paths, the strict compact
+patch reuse, no-fifth-call behavior, per-call token envelopes, static and
+runtime cost reservation, exact-key canonical parsing, receipt/readiness/
+candidate tamper rejection, complete version cutover, and absence of
+story-specific routing or new raw-material persistence.
+
+Two advisory notes are retained without action:
+
+1. A second defensive attempt guard is unreachable because the preceding
+   closed eligibility guard already stops attempt 4 failure before a fifth
+   dispatch. It has no behavioral effect.
+2. The local `MAX_REPAIR_ATTEMPTS` name can be read ambiguously even though the
+   attempt math is internally consistent. This is cosmetic only.
+
+The PASS is technical for the reviewed range only. It grants no Fresh
+Readiness, live-authoring, candidate, image/render, storage, deployment or
+release authority. The six ignored-output fixtures remain a separate release
+HOLD.

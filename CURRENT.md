@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-pvb-d1a1b1-terminal-reference-cleanup-budget` in `C:\Users\guyna\.codex\worktrees\cleanupbudget1\Small_Heroes`; based exactly on pushed normalized-authority closeout `a620ed5485d6f08047759773870d9fcc90d6449b`.
 
-## TERMINAL REFERENCE CLEANUP BUDGET — implemented locally / independent QA pending
+## TERMINAL REFERENCE CLEANUP BUDGET — independent technical PASS
 
 The repeated Leo failure was a budget-routing gap, not another missing story
 literal or prompt instruction. The bounded three-call sequence could use call 2
@@ -51,11 +51,20 @@ the already-proven compact page-spatial repair a second time.
   signal/reporter/teardown failure. The six fixtures remain a separate release
   HOLD, not a finding in this implementation.
 
+Claude Code independently reviewed exact range
+`a620ed5485d6f08047759773870d9fcc90d6449b..58e646ad46a3a3f138f09dec7b7764cb8f4cb014`
+and returned **PASS** with zero BLOCKER, zero MAJOR and zero MINOR. All ten
+falsification targets held across compiler routing, lifecycle persistence,
+cost/token reservation, canonical parsing, tamper rejection and version
+cutover. Its two non-gating advisories concern an unreachable defensive second
+attempt guard and cosmetic naming of the local maximum-repair constant; neither
+changes behavior or requires correction for this milestone.
+
 Implementation cost was `$0`. No credential, provider, Fresh Readiness,
 canonical preflight, live authoring, candidate, render, storage/database,
 deployment, QA promotion or Production action occurred. This local result does
-not self-award independent technical PASS and creates no authority for a new
-live attempt; Claude Code review of the exact base-to-head range is pending.
+not create authority for a new live attempt; a pushed immutable HEAD and new
+Fresh Readiness are still required.
 
 Durable records:
 `docs/ai-workflow/R1D_PVB_D1A1B1_TERMINAL_REFERENCE_CLEANUP_BUDGET_DECISION_GATE.md`
