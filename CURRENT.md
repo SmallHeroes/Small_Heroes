@@ -1,8 +1,65 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-14
+**Updated:** 2026-08-15
 **Maintainer:** Codex
 **Working branch:** `codex/story-engine-autonomous-batch-orchestrator` in `C:\Users\guyna\.codex\worktrees\storybatch1\Small_Heroes`; based exactly on independently passed and pushed head `ea4404a5b2492099c35c90c6da2a14ee6478144f`.
+
+## AUTONOMOUS STORY CORPUS -> QA WIZARD CUTOVER — implementation complete / independent QA pending
+
+Guy approved completing the bounded autonomous story wave, generating visual
+directions, connecting the resulting corpus to the Wizard in QA, pushing the
+branch, and leaving Production untouched.
+
+- The corpus contains exactly **18 machine-qualified stories**: six companions
+  times bedtime/adventure/fantasy, with exact text-page counts **8/12/16** and
+  customer-facing physical counts **16/24/32**. The previously accepted Dini
+  cake adventure remains the approved eighteenth source; the other 17 came
+  through the autonomous Architect -> Selector -> Writer -> Editor flow.
+- All 18 sources live under `story-bank/qa-autonomous-20260815-v1`. They are
+  selected only when the process is non-Production and
+  `ENABLE_WIZARD_QA_RENDER_CATALOG=true`. The historical
+  `story-bank/v3-approved` tree is byte-unchanged and remains the Production
+  path even if the QA flag is accidentally present in Production.
+- Each story has a typed visual-direction record and sanitized receipt under
+  `story-pipeline/05_storyboard_inputs/autonomous-20260815-v1`. The corpus
+  manifest has digest `a793038efca754ea028aa9fc528f896261ade25b671865657282fb6220cfb6fa`.
+  The successful bounded run used 20 logical provider calls, two application
+  retries, zero transport retries and no fallback. Recorded cost is
+  `$1.94002925`; the conservative amount including two earlier validation-rejected
+  completed responses is `$2.1881605`.
+- The Wizard QA catalog is `wizard-qa-render-catalog/v2`, contains 18
+  `wizard-qa-storyboard-candidate/v2` records, and has digest
+  `5aea9d7710bfce59bdcbf78184ae37246f5c1ac6bd186373727b62e87cbbdbdb`.
+  It grants QA LOW generation readiness only: no stale Visual Contract,
+  Blueprint, Production render or publication authority is claimed.
+- Deterministic integration proves every story loads for both child-gender
+  routes (**36 loads**), no unresolved chip/placeholder remains, all sellable
+  order resolutions bind the QA story file and exact page count, and the Vercel
+  function bundle includes the new bank, storyboard evidence, catalog and
+  companion sheets. Hebrew `איתי` ("with me") is no longer mistaken for the
+  English legacy protagonist `Itai`; the English name remains rejected.
+- Runtime catalog validation now reads and validates the immutable catalog once
+  per response and caches file hashes by size/mtime. The focused Matrix API
+  suite fell from approximately five seconds per GET to **309 ms** without
+  changing the test timeout or weakening digest/candidate validation.
+- Focused integration validation passed **7 files / 61 tests**; the two stale
+  repository-contract assertions passed **2 files / 12 tests**; deterministic
+  TypeScript and `git diff --check` passed. Sanitization scans found no API key,
+  bearer token or raw provider material in the durable QA corpus.
+- The first full repository gate exposed the two stale assertions above in
+  addition to the six established missing-output fixture failures. After the
+  narrow assertion corrections, one replacement `npm run check` completed:
+  both TypeScript contracts passed, the resource-intensive phase passed all
+  **19 files** with a valid diagnostic protocol and no timeout/RPC/IPC failure,
+  and ordinary failed only the exact six historical fixture assertions. The
+  repository/release gate therefore remains a separate known HOLD; it is not a
+  finding in this QA-only story/Wizard cutover.
+- Technical commit `389d80dc0c1ae61988cb2bf939bf440fe9579d0c`
+  connects the generated bank. Independent Claude Code review of the complete
+  implementation range is pending; Codex does not self-award that PASS. QA
+  deployment and browser verification follow only after the independent gate.
+
+Durable evidence: `docs/ai-workflow/STORY_ENGINE_AUTONOMOUS_BATCH_QA_BANK_WIZARD_CUTOVER_IMPLEMENTATION_EVIDENCE.md`.
 
 ## STORY ENGINE AUTONOMOUS BATCH ORCHESTRATOR — first full wave stopped / Editor headroom QA pending
 
