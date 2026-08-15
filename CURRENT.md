@@ -2,7 +2,68 @@
 
 **Updated:** 2026-08-15
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pvb-d1a1b1-terminal-reference-cleanup-budget` in `C:\Users\guyna\.codex\worktrees\cleanupbudget1\Small_Heroes`; based exactly on pushed normalized-authority closeout `a620ed5485d6f08047759773870d9fcc90d6449b`.
+**Working branch:** `codex/r1d-terminal-reference-cleanup-predecessor-routing` in `C:\Users\guyna\.codex\worktrees\cleanupbudget1\Small_Heroes`; based exactly on pushed terminal-cleanup QA closeout `f76b161f030738ce6b19e5734864be55667fe144`.
+
+## TERMINAL REFERENCE CLEANUP PREDECESSOR ROUTING — implemented / independent QA pending
+
+The second bounded live attempt proved that the terminal cleanup budget itself
+is sufficient, but its predecessor gate was too narrow. Call 3 used the
+complete-surface `book_surface_patch`, resolved the prior nineteen current
+issues and introduced exactly two page-action
+`draft_contract/out_of_scope_reference` residuals (page 7 item 0 and page 1
+item 1). The existing fourth compact cleanup did not run because policy v3
+recognized only `full_draft` as an eligible predecessor.
+
+- Code commit `ecf7034a` replaces the scalar predecessor with the exact closed
+  catalog `['book_surface_patch', 'full_draft']`. Compiler dispatch and durable
+  lifecycle validation share the same membership predicate. Every other repair
+  mode, an empty/mixed/non-reference residual, invalid compact output and any
+  fifth call remain fail-closed.
+- The normal one-initial/two-repair budget and the optional single fourth
+  cleanup are unchanged. Model, Responses endpoint/tier, reasoning, 64K normal
+  input ceiling, 6K/2K cleanup ceilings, timeout, zero transport retry, no
+  fallback and the `$4.99125/$5.00` conservative/hard caps are unchanged.
+- Authority cutover is policy `v4`, request/receipt/readiness `v21/v24/v22`,
+  materialization input/manifest/verification `v10/v19/v19`, execution
+  materialization input/result `v9/v13`, Supervisor request/readiness/result
+  `v18/v18/v10`, and Fresh Readiness evidence `v18`. Immediate predecessors
+  remain historical immutable only; candidate v9 and draft schema v14 are
+  unchanged.
+- The end-to-end regression proves `page_contract_patch ->
+  book_surface_patch -> terminal_reference_cleanup -> candidate`. The existing
+  `full_draft` path remains valid. Direct catalog coverage rejects every other
+  predecessor; canonical request and verification tamper tests reject reordered,
+  duplicated, extra or otherwise drifted catalog values.
+- Policy-correct focused validation passed **3 ordinary files / 144 tests** and
+  **6 resource-intensive files / 306 tests** with clean diagnostic protocols.
+  The final direct catalog/routing file passed **31/31** after the closed-catalog
+  assertion was added. Deterministic TypeScript and `git diff --check` passed.
+- The single repository gate passed both TypeScript contracts. Ordinary passed
+  **3,165** tests and failed only the exact six established ignored-output
+  fixtures; resource-intensive passed **19/19 files / 577/577 tests** with no
+  timeout/RPC/IPC/reporter/launch/signal/teardown or diagnostic-protocol
+  failure. The six fixtures remain a separate release HOLD, not a finding in
+  this implementation.
+
+The consumed attempt remains exhausted and immutable: receipt v23 digest
+`41389f20a0b9672dc5108489d4b43bf6689c34195b9dc4aa7ac38b4e2f740e36`,
+readiness v21 digest
+`86b2eeb50d3aa287394b2878e0b4cfbeb0d9b263f6b5b28aa4de6fd067e5c53d`,
+three logical provider calls, two repairs, zero transport retries, no fallback,
+usage `31,785/30,991/0/29,418/3,991/61,203`
+(input/cache-write/cached/output/reasoning/total), and
+`$1.080204/$1.189317` nominal/conservative accounting. It produced no candidate,
+Reconciliation, Blueprint, Wizard or render authority.
+
+Implementation cost was `$0`. No credential, provider/network, Fresh
+Readiness, canonical preflight, live authoring, render, storage/database,
+deployment, QA promotion or Production action occurred. Independent Claude
+Code review is still required; Codex does not self-award technical PASS.
+
+Durable records:
+`docs/ai-workflow/R1D_PVB_D1A1B1_TERMINAL_REFERENCE_CLEANUP_PREDECESSOR_ROUTING_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_PVB_D1A1B1_TERMINAL_REFERENCE_CLEANUP_PREDECESSOR_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
 
 ## TERMINAL REFERENCE CLEANUP BUDGET — independent technical PASS
 
