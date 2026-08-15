@@ -9,6 +9,13 @@ import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { initLandingMotion } from './motion';
 import { SiteHeader } from '@/app/components/SiteHeader';
 import { AboutSection } from './about-section';
+import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
+
+type SpotlightState = {
+  slot: MvpMatrixCategoryPayload;
+  originRect: { x: number; y: number; width: number; height: number };
+  originEl: HTMLElement | null;
+};
 
 /* Trust-band line icons (order matches L.trust.pillars: privacy · human review · Hebrew/age) */
 const TRUST_ICONS = [
@@ -62,6 +69,15 @@ type LandingPageProps = {
 export default function LandingPage({ content: L, startHref, matrixCategories }: LandingPageProps) {
   const [galleryStyle, setGalleryStyle] = useState<GalleryStyle>('style01');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  /* Companion Spotlight - home cards open the companion dialog instead of navigating. */
+  const [spotlight, setSpotlight] = useState<SpotlightState | null>(null);
+
+  const closeSpotlight = useCallback(() => {
+    setSpotlight((current) => {
+      current?.originEl?.focus?.();
+      return null;
+    });
+  }, []);
 
   const btnStyle01Ref = useRef<HTMLButtonElement>(null);
   const btnStyle02Ref = useRef<HTMLButtonElement>(null);
@@ -152,7 +168,17 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   <CategoryChallengeCard
                     key={slot.category}
                     slot={slot}
-                    data-event="landing_challenge_view"
+                    as="button"
+                    onClick={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      setSpotlight({
+                        slot,
+                        originRect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+                        originEl: event.currentTarget,
+                      });
+                    }}
+                    data-event="landing_companion_spotlight_open"
+                    data-category={slot.category}
                     data-reveal="up"
                     data-reveal-delay={String(80 + index * 55)}
                   />
@@ -431,6 +457,13 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </footer>
         </main>
+        {spotlight ? (
+          <CompanionSpotlight
+            slot={spotlight.slot}
+            originRect={spotlight.originRect}
+            onClose={closeSpotlight}
+          />
+        ) : null}
       </div>
     </>
   );

@@ -15,9 +15,13 @@ const arimo = Arimo({
   display: 'swap',
 });
 
+/*
+ * Marketing display face (the decided one — replaces the unlicensed Abraham).
+ * Variable axis 300–900 in one file; headings use 800.
+ */
 const rubik = Rubik({
   subsets: ['hebrew', 'latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: 'variable',
   variable: '--font-rubik',
   display: 'swap',
 });

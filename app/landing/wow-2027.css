@@ -1,0 +1,101 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   WOW-2027.CSS — R1D-2027-WOW-SITE-REDESIGN-V2
+   Per Guy: the original hero composition stays; this layer now carries
+   the decided TYPE voice (Rubik display), the strong-yellow tag accent,
+   and the /start story-world cards. No pale-yellow surfaces, no aqua tags.
+
+   Palette (the only colors this layer may use):
+   night    #241b4d / #2c2158 / #38296b     purple DNA, deepened
+   purple   #886cff / #7b5cff               brand continuity
+   coral    #ff8a65 → #ff6b57               warm energy (/start accents)
+   yellow   #ffee6c on #3d2f10              strong accent (tags/marks, per Guy)
+   paper    #ffffff / #fbfaff               day sections (existing)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --wow-night-1: #241b4d;
+  --wow-night-2: #2c2158;
+  --wow-night-3: #38296b;
+  --wow-coral: #ff6b57;
+  --wow-coral-soft: #ff8a65;
+  --wow-coral-ink: #341a10;
+  --wow-yellow: #ffee6c;
+  --wow-yellow-ink: #3d2f10;
+  --wow-glow: #ffd9a8;
+  --font-wow-display: var(--font-rubik), 'Rubik', 'Heebo', sans-serif;
+  --font-wow-body: var(--font-heebo), 'Heebo', sans-serif;
+}
+
+/* ── Day sections pick up the decided voice ────────────────────────── */
+.section-h2, .sample-h2 {
+  font-family: var(--font-wow-display);
+  font-weight: 800;
+}
+
+/* strong yellow is the tag accent (per Guy: "the strong yellow in the tags") */
+.hero-badge, .sample-kicker {
+  background: var(--wow-yellow);
+  color: var(--wow-yellow-ink);
+  border: none;
+  box-shadow: 0 1px 3px rgba(36, 27, 77, 0.14);
+}
+
+
+/* ── /start: choices as story worlds ────────────────────────────────
+   Scoped to the start grid only. Same DOM, same handlers — the card
+   becomes a lit doorway: deep-night frame, art as the world, coral
+   threshold on hover/selection. */
+.mvp-challenge-grid--start .mvp-challenge-card {
+  background: linear-gradient(180deg, #2c2158 0%, #241b4d 100%);
+  border: 1px solid rgba(255, 238, 108, 0.22);
+  border-radius: 22px;
+  box-shadow: 0 22px 48px rgba(16, 10, 42, 0.45);
+  overflow: hidden;
+  transition: transform 260ms cubic-bezier(0.34, 1.4, 0.5, 1), box-shadow 260ms ease, border-color 200ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mvp-challenge-grid--start .mvp-challenge-card:hover:not(:disabled) {
+    transform: translate3d(0, -8px, 0);
+    border-color: rgba(255, 138, 101, 0.65);
+    box-shadow: 0 30px 64px rgba(16, 10, 42, 0.6), 0 0 0 1px rgba(255, 138, 101, 0.35);
+  }
+}
+
+.mvp-challenge-grid--start .mvp-challenge-card:focus-visible {
+  outline: 3px solid var(--wow-yellow);
+  outline-offset: 3px;
+}
+
+.mvp-challenge-grid--start .mvp-challenge-card.selected {
+  border-color: var(--wow-coral);
+  box-shadow: 0 0 0 3px rgba(255, 107, 87, 0.4), 0 30px 64px rgba(16, 10, 42, 0.6);
+}
+
+/* the art window glows like a lit page inside the night frame */
+.mvp-challenge-grid--start .mvp-challenge-card-img-wrap {
+  background:
+    radial-gradient(80% 66% at 50% 96%, rgba(255, 199, 130, 0.28) 0%, transparent 70%),
+    linear-gradient(180deg, #38296b 0%, #2c2158 100%);
+  border-bottom: 1px solid rgba(255, 238, 108, 0.16);
+}
+
+/* text block flips to night ink */
+.mvp-challenge-grid--start .mvp-challenge-card-text { background: transparent; }
+.mvp-challenge-grid--start .mvp-challenge-card-label { color: #ffffff; }
+.mvp-challenge-grid--start .mvp-challenge-card-companion { color: var(--wow-yellow); }
+.mvp-challenge-grid--start .mvp-challenge-card-desc,
+.mvp-challenge-grid--start .mvp-challenge-card-text p { color: #cfc6f2; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mvp-challenge-grid--start .mvp-challenge-card { transition-duration: 0.01ms; }
+  .mvp-challenge-grid--start .mvp-challenge-card:hover:not(:disabled) { transform: none; }
+}
+
+
+/* Guy's original hero composition is back; only the TYPE voice carries over
+   (standing ruling: no Abraham-led identity, no pale-yellow surfaces). */
+.hero-h1 {
+  font-family: var(--font-wow-display);
+  font-weight: 800;
+}
