@@ -108,7 +108,6 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
         </button>
 
         <div className={styles.stage} aria-hidden="true">
-          <span className={styles.glow} />
           <img
             className={styles.art}
             src={cutoutSrc}
