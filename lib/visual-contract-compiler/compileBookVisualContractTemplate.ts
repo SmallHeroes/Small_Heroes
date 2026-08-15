@@ -196,6 +196,45 @@ export const TEMPLATE_USER_PROMPT_VERSION =
   'vc-template-user-prompt/v13' as const;
 /** Stage 3 — at most this many SEMANTIC repair attempts AFTER the initial authoring call (bounded safety net). */
 const MAX_REPAIR_ATTEMPTS = 2;
+
+/**
+ * A first-pass spatial-reference failure that spans most of a real book is a
+ * whole-draft quality signal, not a small field-local defect. Spending the
+ * first repair on dozens of isolated ID substitutions can expose the rest of
+ * the invalid draft only after one of the two repairs has already been used.
+ *
+ * Escalate only on attempt one, only when at least five distinct pages are
+ * affected, and only when those pages are a strict majority of the book.
+ * Later attempts retain the compact field repair so the final bounded call can
+ * close a small residual. Duplicate targets never inflate the decision.
+ */
+export function broadInitialPageSpatialFailureRequiresFullDraft(args: {
+  attempt: number;
+  pageCount: number;
+  targets: readonly Pick<PageSpatialReferenceRepairTarget, 'pageNumber'>[];
+}): boolean {
+  if (
+    args.attempt !== 1 ||
+    !Number.isSafeInteger(args.pageCount) ||
+    args.pageCount < 1
+  ) {
+    return false;
+  }
+  const affectedPages = new Set(
+    args.targets
+      .map((target) => target.pageNumber)
+      .filter(
+        (pageNumber) =>
+          Number.isSafeInteger(pageNumber) &&
+          pageNumber >= 1 &&
+          pageNumber <= args.pageCount,
+      ),
+  );
+  return (
+    affectedPages.size >= 5 &&
+    affectedPages.size * 2 > args.pageCount
+  );
+}
 export const REPAIR_PROMPT_VERSION =
   'vc-repair-prompt/v13' as const;
 export const REPAIR_USER_PROMPT_VERSION =
@@ -3574,6 +3613,17 @@ export async function compileBookVisualContractTemplate(
             issues: pageSpatialRepairIssues,
             authority: pageSpatialRepairAuthority,
           });
+        if (
+          pageSpatialReferenceAffectedTargets &&
+          broadInitialPageSpatialFailureRequiresFullDraft({
+            attempt,
+            pageCount: input.pageCount,
+            targets: pageSpatialReferenceAffectedTargets,
+          })
+        ) {
+          pageSpatialReferenceAffectedTargets = null;
+          fullDraftRepairRequired = true;
+        }
       } else {
         structuralBundleAuthority =
           structuralBundleRepairAuthority({

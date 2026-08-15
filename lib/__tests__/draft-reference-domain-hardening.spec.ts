@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   DraftAuthorityReferenceDomainError,
   TemplateRepairExhaustedError,
+  broadInitialPageSpatialFailureRequiresFullDraft,
   compileBookVisualContractTemplate,
   compilerOwnedActionCheckId,
   decodeTemplateRepairUserPrompt,
@@ -252,6 +253,162 @@ function nodes(draft: Record<string, unknown>) {
 }
 
 describe('captured reference-domain matrix', () => {
+  it('classifies only a strict majority of at least five first-pass spatial pages as broad', () => {
+    const targets = (pageNumbers: number[]) =>
+      pageNumbers.map((pageNumber) => ({ pageNumber }));
+
+    expect(
+      broadInitialPageSpatialFailureRequiresFullDraft({
+        attempt: 1,
+        pageCount: 12,
+        targets: targets([1, 2, 3, 4, 5, 6]),
+      }),
+    ).toBe(false);
+    expect(
+      broadInitialPageSpatialFailureRequiresFullDraft({
+        attempt: 1,
+        pageCount: 12,
+        targets: targets([1, 2, 3, 4, 5, 6, 7, 7]),
+      }),
+    ).toBe(true);
+    expect(
+      broadInitialPageSpatialFailureRequiresFullDraft({
+        attempt: 2,
+        pageCount: 12,
+        targets: targets([1, 2, 3, 4, 5, 6, 7]),
+      }),
+    ).toBe(false);
+    expect(
+      broadInitialPageSpatialFailureRequiresFullDraft({
+        attempt: 1,
+        pageCount: 8,
+        targets: targets([1, 2, 3, 4]),
+      }),
+    ).toBe(false);
+  });
+
+  it('uses full-draft first for a broad initial spatial failure and preserves the final page repair', async () => {
+    const broadPages = Array.from({ length: 8 }, (_, index) => ({
+      pageNumber: index + 1,
+      text: `The hero studies the changing route on page ${index + 1}.`,
+    }));
+    const broadSourceIdentity = {
+      ...sourceIdentity,
+      digest: 'd'.repeat(64),
+      pageCount: broadPages.length,
+      pageNumbers: broadPages.map((page) => page.pageNumber),
+    };
+    const broadCatalog = buildSourceEvidenceCatalog({
+      storyKey: 'broad_spatial_route_matrix',
+      sourceIdentity: broadSourceIdentity,
+      pages: broadPages,
+    });
+    const broadInput: TemplateCompileInput = {
+      ...input,
+      storyKey: 'broad_spatial_route_matrix',
+      pageCount: broadPages.length,
+      fullStoryText: broadPages.map((page) => page.text).join('\n'),
+      pages: broadPages,
+      sourceIdentity: broadSourceIdentity,
+      sourceEvidenceCatalog: broadCatalog,
+    };
+    const pageFor = (pageNumber: number): Record<string, unknown> => {
+      const page = structuredClone(pageRecord(matrixDraft()));
+      page.pageNumber = pageNumber;
+      const pageActions = page.actionRequirements as Array<
+        Record<string, unknown>
+      >;
+      const pageCoverage = page.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+      const evidence = broadCatalog.entries.find(
+        (entry) => entry.pageNumber === pageNumber,
+      )!;
+      for (const action of pageActions) {
+        action.beatId = String(action.beatId).replace(
+          'beat:p1:',
+          `beat:p${pageNumber}:`,
+        );
+      }
+      for (const record of pageCoverage) {
+        record.beatId = String(record.beatId).replace(
+          'beat:p1:',
+          `beat:p${pageNumber}:`,
+        );
+        record.sourceEvidenceId = evidence.sourceEvidenceId;
+      }
+      delete page.castIds;
+      delete page.characterPresence;
+      return page;
+    };
+    const valid = matrixDraft();
+    valid.pageContracts = broadPages.map((page) =>
+      pageFor(page.pageNumber));
+    const broadInvalid = structuredClone(valid);
+    for (const page of (
+      broadInvalid.pageContracts as Array<Record<string, unknown>>
+    ).slice(0, 5)) {
+      const pageActions = page.actionRequirements as Array<
+        Record<string, unknown>
+      >;
+      pageActions[0]!.object = {
+        kind: 'spatial',
+        id: 'outside_current_page_zone',
+      };
+    }
+    const residual = structuredClone(valid);
+    const residualPage = (
+      residual.pageContracts as Array<Record<string, unknown>>
+    )[2]!;
+    const residualCoverage = residualPage.actionSemanticCoverage as Array<
+      Record<string, unknown>
+    >;
+    residualCoverage.push({
+      beatId: 'beat:p3:unbound_visual_beat',
+      sourceEvidenceId: broadCatalog.entries.find(
+        (entry) => entry.pageNumber === 3,
+      )!.sourceEvidenceId,
+      disposition: { kind: 'action_requirement' },
+    });
+    const repairedPage = structuredClone(
+      (valid.pageContracts as Array<Record<string, unknown>>)[2]!,
+    );
+    const authorities: unknown[] = [];
+    const callLLM = vi.fn(async (
+      _system: string,
+      _user: string,
+      _options?: unknown,
+      authority?: unknown,
+    ) => {
+      authorities.push(authority);
+      if (callLLM.mock.calls.length === 1) {
+        return JSON.stringify(broadInvalid);
+      }
+      if (callLLM.mock.calls.length === 2) {
+        return JSON.stringify(residual);
+      }
+      return JSON.stringify({ pageContracts: [repairedPage] });
+    });
+
+    const result = await compileBookVisualContractTemplate(
+      broadInput,
+      { callLLM },
+    );
+
+    expect(callLLM).toHaveBeenCalledTimes(3);
+    expect(authorities).toMatchObject([
+      { kind: 'initial' },
+      { kind: 'repair', repairMode: 'full_draft' },
+      { kind: 'repair', repairMode: 'page_contract_patch' },
+    ]);
+    expect(
+      result.repairAttempts.map((attempt) =>
+        attempt.nextRepairMode),
+    ).toEqual(['full_draft', 'page_contract_patch']);
+    expect(result.provenance.attempt).toBe(3);
+    expect(result.template.pageContracts).toHaveLength(8);
+  });
+
   it('keeps the repairable diagnostic-normalization boundary closed to two internal identities', () => {
     expect(
       isDraftDiagnosticNormalizationRejection(

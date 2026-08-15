@@ -2,7 +2,50 @@
 
 **Updated:** 2026-08-15
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-compound-page-authority-compact-routing` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed compound co-observation head `9d4b8c2203d6739862ac03e901f51e7366f2dd9b`.
+**Working branch:** `codex/r1d-broad-initial-spatial-repair-escalation` in `C:\Users\guyna\.codex\worktrees\spotlightlion1\Small_Heroes`; based on pushed compound compact-routing head `6156bf70c4943a9ee367e69a25329dd1d46ff6b3`.
+
+## BROAD INITIAL SPATIAL REPAIR ESCALATION — implementation complete, independent QA pending
+
+The consumed Leo v13 attempt passed Fresh Readiness, pricing preparation, one
+canonical preflight and one Supervisor verify, then completed all three bounded
+provider calls without a candidate. Attempt 1 emitted 24 page-spatial
+reference issues across 10 of 12 pages. The field-scoped repair resolved all
+24, but complete validation then exposed 21 action-semantic and structural
+issues. The final `full_draft` repair resolved all 21 and left one page-3
+`action_binding_cardinality_invalid` issue with no repair remaining. Receipt
+v21 digest is `6aedf6f513bb3ff1ca8d2baf58ec8faf7017dae63bc6bed13d7232e8d5068344`;
+readiness v19 digest is
+`ac182c7e0e1856c90b0ac4ee38e9a44fe03f7363acde004966b36114127a9424`.
+Calls/repairs/retries/fallback are `3/2/0/false`; usage is input `37,883`,
+cache-write `37,874`, cached `0`, output `49,117`, reasoning `5,858`, total
+`87,000`; nominal/conservative accounting is `$1.710267/$1.881307`. Candidate,
+Reconciliation, Blueprint, Wizard and render authority are absent.
+
+The general correction changes repair order only. On attempt 1, a homogeneous
+page-spatial failure escalates to the existing `full_draft` lane only when at
+least five distinct pages and a strict majority of the declared book are
+affected. Duplicate targets cannot inflate the decision. Small initial sets,
+an exact half, and every later attempt retain the current compact spatial
+route; later action-binding residuals retain `page_contract_patch`. Model,
+prompts, schemas, 64K ceiling, three-call/two-repair budget, timeout,
+retry/fallback policy, `$4.884/$5.00` ceilings and candidate semantics are
+unchanged.
+
+Focused validation passed **4 files / 194 tests** plus canonical lifecycle
+validation **3 files / 229 tests**. TypeScript and `git diff --check` passed.
+The single repository gate passed both TypeScript contracts and all **19
+resource-intensive files / 566 tests** with clean diagnostics; its **280-file
+ordinary phase / 3,217 tests** failed only the exact six established missing
+ignored-output fixtures, with no seventh assertion or infrastructure failure.
+Those fixtures remain a separate release HOLD. The implementation is not yet
+an independently awarded technical PASS and creates no Fresh Readiness, live,
+candidate, Wizard or render authority.
+
+Durable evidence:
+`docs/ai-workflow/R1D_LEO_V13_BROAD_INITIAL_SPATIAL_EXECUTION_EVIDENCE.md`,
+`docs/ai-workflow/R1D_BROAD_INITIAL_SPATIAL_REPAIR_ESCALATION_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_BROAD_INITIAL_SPATIAL_REPAIR_ESCALATION_IMPLEMENTATION_EVIDENCE.md`.
 
 ## COMPOUND PAGE-AUTHORITY COMPACT ROUTING — independent technical PASS
 
