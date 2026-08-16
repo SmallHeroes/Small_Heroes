@@ -20,8 +20,8 @@
   --bg-light: #f7f6fb;
   --bg-lighter: #fafafa;
 
-  --fd: var(--font-suez, 'Suez One'), 'Heebo', sans-serif;
-  --fb: 'Heebo', sans-serif;
+  --fd: var(--font-suez, 'Suez One'), 'Rubik', sans-serif;
+  --fb: var(--font-rubik, 'Rubik'), 'Rubik', sans-serif;
 
   --max-w: 1440px;
   --site-max: 1440px;
