@@ -5,7 +5,8 @@
 **Worktree:** `C:\Users\guyna\.codex\worktrees\booksurfaceinput1\Small_Heroes`
 **Base:** `bd528a609b4c6d664ba7807a3a47ca201c2cf775`
 **Code commit:** `a0f0e1185f1e224e4faac22d3df6f896166597b2`
-**Independent QA:** pending
+**Independent QA:** technical PASS on
+`bd528a609b4c6d664ba7807a3a47ca201c2cf775..2a41275d95c7f8a66c266938a879707417a5dca6`
 
 ## Boundary and diagnosis
 
@@ -129,12 +130,42 @@ hatch.
 Rollback is the exact code commit revert plus the documentation closeout. No
 data migration or artifact rewrite is required.
 
-Independent Claude Code QA must falsify the route admission calculation,
-same-call fallback, issue partition, aggregate cap, deterministic ordering,
-numeric-only evidence, tamper rejection, all authority bindings, unchanged
-budgets/schema/candidate semantics and repository-gate disclosure. Until that
-review passes, there is no Fresh Readiness or paid-attempt authority. Even a
-technical PASS grants no candidate, Blueprint, Wizard, render, QA deployment,
+Claude Code completed that falsification pass and returned technical PASS for
+the exact immutable range, with the eight findings from its preceding
+root-cause audit closed. It independently reproduced 3 files / 123 tests, 4
+files / 222 tests and 3 files / 122 tests; deterministic TypeScript and all
+review-range diff checks passed. Claude did not rerun the literal repository
+gate, as instructed, and did not audit closure of the separate historical
+six-fixture release HOLD.
+
+Claude also recorded a pre-existing, out-of-range MAJOR recommendation: only
+`book_surface_patch` has an explicit compiler-level admission fallback. The
+other seven repair routes are still measured by the lifecycle before provider
+reachability and fail closed with zero provider call and zero cost when their
+exact request exceeds the ceiling, but they do not have a compiler-level
+alternate route. This is a future hardening scope rather than a regression in
+the reviewed range. The present PASS does not authorize a blanket
+oversized-route fallback: several compact routes intentionally have closed
+repair contracts, so any general admission planner must preserve route-specific
+eligibility and receive its own Decision Gate.
+
+Non-blocking review notes are retained without changing this milestone:
+
+- the issue-partition exhaustiveness guard is not reached by a direct test;
+- the 12-page route-size test uses synthetic 5KB page fillers rather than
+  production-representative content;
+- Book Surface prompt construction occurs before the dispatch `try` boundary
+  and can throw before the repair attempt is appended;
+- input-accounting tamper coverage proves one mutation vector rather than
+  every numeric field;
+- residual `localeCompare` ordering remains in digest-bound zone/location
+  material;
+- pre-exhaustion admission work, an attempt-accounting edge, one stale
+  readiness-version string and one over-broad evidence heading are advisory.
+
+The next authorized engineering action is a brand-new Git probe and Fresh
+Readiness sequence on a pushed immutable closeout head. Technical PASS alone
+grants no live authoring, candidate, Blueprint, Wizard, render, QA deployment,
 Production or release acceptance.
 
 ## Exclusions and cost

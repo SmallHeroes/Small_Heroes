@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-input-ceiling-compaction` in `C:\Users\guyna\.codex\worktrees\booksurfaceinput1\Small_Heroes`; based exactly on `bd528a609b4c6d664ba7807a3a47ca201c2cf775`.
 
-## BOOK-SURFACE INPUT-CEILING ROUTING AND OBSERVABILITY — implementation complete; independent QA pending
+## BOOK-SURFACE INPUT-CEILING ROUTING AND OBSERVABILITY — independent technical PASS
 
 Claude Code's read-only root-cause audit rejected the earlier compaction-only
 hypothesis. The real defect was route admission: the compiler selected a
@@ -43,11 +43,35 @@ remaining logical call.
   reporter, launch, signal, termination or teardown failure. No new assertion
   failed, but repository/release remains HOLD on the unaudited historical
   fixture baseline.
+- Claude Code independently reviewed exact range
+  `bd528a609b4c6d664ba7807a3a47ca201c2cf775..2a41275d95c7f8a66c266938a879707417a5dca6`
+  and returned technical PASS. It independently reproduced 3 files / 123
+  tests, 4 files / 222 tests and 3 files / 122 tests, plus deterministic
+  TypeScript and clean diff checks. All eight findings from the preceding
+  root-cause audit are closed in the reviewed scope.
+- Claude recorded one pre-existing, out-of-range MAJOR recommendation: the
+  compiler has an exact pre-dispatch admission fallback only for
+  `book_surface_patch`; the other seven repair routes rely on the lifecycle's
+  universal input-ceiling enforcement. That enforcement remains fail-closed
+  before provider reachability, so an oversized request records no provider
+  call or cost, but it can terminate the attempt. This does not invalidate the
+  reviewed correction. A future closed admission-planner milestone must
+  preserve each route's explicit repair eligibility; no blanket escalation to
+  `full_draft` is authorized by this PASS.
+- Claude's non-blocking review notes remain recorded: the exhaustiveness guard
+  lacks a direct proof; the synthetic 12-page size fixture is not
+  production-representative; Book Surface prompt construction can still throw
+  before repair-trail persistence; tamper coverage exercises one mutation
+  vector; and residual `localeCompare` remains in digest-bound zone/location
+  ordering. Additional advisories cover pre-exhaustion admission work, attempt
+  accounting, one stale readiness-version string and an over-broad evidence
+  heading. None is a regression in the reviewed range.
 - No credential access, pricing/network/provider call, Fresh Readiness,
   preflight, live authoring, candidate, Reconciliation, Blueprint, Wizard,
   render/image/Vision, storage/database, deployment or push occurred. External
-  cost is `$0`. Independent Claude Code review is required before any new
-  readiness or paid attempt.
+  cost is `$0`. The PASS authorizes only the next fresh zero-cost readiness
+  cycle on a pushed immutable head; it grants no live, candidate, Blueprint,
+  Wizard, render, deployment, Production or release acceptance.
 
 ## PAGE-CONTRACT REPAIR SCOPE CORRECTION BUDGET — independent technical PASS
 
