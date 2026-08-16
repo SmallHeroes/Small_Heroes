@@ -97,6 +97,15 @@ const nextConfig = {
     for (const r of LEAN_ROUTES) excludes[r] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE, 'story-bank/**'];
     // dev story-bank browser lists the bank → keep story-bank, drop media/headless/companions/all-style.
     excludes['/api/dev/story-bank'] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE];
+    // replicate-image debug: hard-403s whenever NODE_ENV=production, which is
+    // every Vercel deployment (preview included) — the function can never run
+    // there, yet with no entry here it traced the ENTIRE render-stack asset
+    // graph (~250MB) and each marketing-asset addition tipped it over the
+    // 250MB cap (cutouts at 263MB, idle videos at 254MB). Strip it bare.
+    excludes['/api/debug/replicate-image'] = [
+      ...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE,
+      'story-bank/**', 'public/Videos/**', 'public/Images/**',
+    ];
     return excludes;
   })(),
   /**
