@@ -2,7 +2,52 @@
 
 **Updated:** 2026-08-16
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-page-contract-repair-scope-correction-budget` in `C:\Users\guyna\.codex\worktrees\repairout2\Small_Heroes`; based exactly on pushed compound-page closeout `faba79dbce5099bfb0ef110dc2cf2d24f64196b9`.
+**Working branch:** `codex/r1d-book-surface-input-ceiling-compaction` in `C:\Users\guyna\.codex\worktrees\booksurfaceinput1\Small_Heroes`; based exactly on `bd528a609b4c6d664ba7807a3a47ca201c2cf775`.
+
+## BOOK-SURFACE INPUT-CEILING ROUTING AND OBSERVABILITY — implementation complete; independent QA pending
+
+Claude Code's read-only root-cause audit rejected the earlier compaction-only
+hypothesis. The real defect was route admission: the compiler selected a
+semantically eligible `book_surface_patch` before measuring its exact production
+request, while the compact encoder already deduplicated most repeated prose.
+The v3 scoped-hint projection remains useful, but the general correction is an
+exact pre-dispatch admission gate with 4,096 units of safety margin and a
+deterministic fallback to the existing `full_draft` authority on the same
+remaining logical call.
+
+- Code commit `a0f0e1185f1e224e4faac22d3df6f896166597b2` partitions cover,
+  recurring-prop and page hints exhaustively; uses codepoint ordering; applies
+  one aggregate 128-hint cap; and keeps the Book Surface output schema v2,
+  model, service tier, 64K ceiling, three-call/two-repair budget, timeout, zero
+  transport retry, no-fallback policy and candidate semantics unchanged.
+- Every authoring attempt now persists sanitized numeric input accounting for
+  system/user/schema/separator/protocol allowance, total and ceiling. Receipt
+  and readiness validation reject arithmetic, ceiling, status and digest
+  tampering without persisting prompt or provider material.
+- Current authority cutover is policy v10; authoring request/receipt/readiness
+  v27/v30/v28; Book Surface prompt/user prompt v3/v3; live materialization
+  input/result/verification v16/v25/v25; execution materialization input/result
+  v15/v19; Supervisor request/readiness/result v24/v24/v16; and canonical
+  pre-live readiness v24. Immediate predecessors are legacy immutable.
+- Focused validation passed 3 files / 123 tests for routing, scoped authority and
+  input-accounting tamper rejection; the adjacent canonical boundary passed
+  4 files / 222 tests; and request/Supervisor/provider-diagnostic boundaries
+  passed 3 files / 122 tests. Deterministic TypeScript and every diff check
+  passed.
+- Literal `npm run check` ran exactly once. TypeScript and autonomous-story
+  typecheck passed. Ordinary ran 281 files and reported 5 missing-artifact
+  assertions in 4 unchanged files, all members of the established six-fixture
+  baseline; the sixth historical fixture did not fail in this worktree and is
+  not treated as durably repaired. Resource-intensive passed 19/19 files and
+  577/577 tests with a valid diagnostic protocol and no timeout, RPC/IPC,
+  reporter, launch, signal, termination or teardown failure. No new assertion
+  failed, but repository/release remains HOLD on the unaudited historical
+  fixture baseline.
+- No credential access, pricing/network/provider call, Fresh Readiness,
+  preflight, live authoring, candidate, Reconciliation, Blueprint, Wizard,
+  render/image/Vision, storage/database, deployment or push occurred. External
+  cost is `$0`. Independent Claude Code review is required before any new
+  readiness or paid attempt.
 
 ## PAGE-CONTRACT REPAIR SCOPE CORRECTION BUDGET — independent technical PASS
 
