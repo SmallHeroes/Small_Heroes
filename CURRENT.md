@@ -2,7 +2,64 @@
 
 **Updated:** 2026-08-16
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-compound-page-repair-canonical-context` in `C:\Users\guyna\.codex\worktrees\compoundctx1\Small_Heroes`; based exactly on pushed book-surface closeout `a43f2d5dafe2edb6f771721d17bdf1c426ceb4ce`.
+**Working branch:** `codex/r1d-page-contract-repair-scope-correction-budget` in `C:\Users\guyna\.codex\worktrees\repairout2\Small_Heroes`; based exactly on pushed compound-page closeout `faba79dbce5099bfb0ef110dc2cf2d24f64196b9`.
+
+## PAGE-CONTRACT REPAIR SCOPE CORRECTION BUDGET — independent QA pending
+
+The consumed attempt-3 authority on immutable `faba79db` completed one initial
+response and one page-contract repair without producing a candidate. The
+initial response had one exact `action_coverage_cardinality_invalid` issue on
+page 12. The completed compact repair changed more action/coverage bindings
+than its compiler-owned target permitted and was rejected as
+`page_contract_repair_action_binding_scope_invalid`. The canonical receipt
+therefore stopped as `repair_output_invalid` after 2 logical calls / 1 repair,
+even though the unchanged standard policy still allowed one repair call.
+
+- Code commit `1c438de5` keeps the strict page-repair applier unchanged: it
+  still rejects additions, removals, multiple binding changes and all
+  non-target drift. Only the exact sanitized action-binding-scope rejection may
+  consume the already-authorized remaining standard repair.
+- The second compact prompt carries one closed value,
+  `target_scope_invalid`, and instructs the provider to change only the
+  targeted action beat binding plus, when required, at most one existing
+  same-page coverage binding. It carries no raw response, authored ID/value,
+  source phrase, provider message, stack or secret.
+- A successful correction is recompiled and validated normally. A second
+  unusable scope response remains terminal after exactly 3 logical calls / 2
+  repairs. JSON, shape, identity, reference, application and every other
+  repair-output family remain terminal without another call. Transport retry
+  remains zero and fallback remains disabled.
+- Authority cutover is authoring policy v9, request/receipt/readiness
+  v26/v29/v27, page-repair prompt/user prompt v12/v13, live materialization
+  input/manifest/verification v15/v24/v24, execution materialization
+  input/result v14/v18, Supervisor request/readiness/result v23/v23/v15, and
+  Fresh Readiness evidence v23. Immediate predecessors remain historical
+  immutable only.
+- Model, Responses endpoint/tier/reasoning, schema and 64K ceiling, call/repair
+  budgets, timeout, pricing and hard cost ceiling, candidate semantics and all
+  downstream behavior are unchanged.
+- Focused validation passed 2 compiler files / 110 tests, the lifecycle file /
+  70 tests, and 7 authority/boundary files / 338 tests. Deterministic
+  TypeScript and `git diff --check` passed.
+- The single literal `npm run check` completed both phases. The ordinary phase
+  passed 3,186 assertions and reported only 5 ENOENT assertions across 4
+  members of the established ignored-output fixture baseline; no new
+  assertion or infrastructure failure occurred. The resource-intensive phase
+  passed 19 files / 577 tests with valid diagnostics and no timeout, RPC/IPC,
+  reporter, launch, signal or teardown failure. The historical fixture
+  baseline remains a separate release HOLD.
+
+Independent Claude Code review of
+`faba79dbce5099bfb0ef110dc2cf2d24f64196b9..HEAD` is pending. This local work
+does not self-award technical PASS and grants no Fresh Readiness, live,
+candidate, Reconciliation, Blueprint, Wizard, render, QA deployment,
+Production or release authority. No credential, network/provider, render,
+storage/database, deployment or Production action occurred; cost was `$0`.
+
+Durable records:
+`docs/ai-workflow/R1D_PAGE_CONTRACT_REPAIR_SCOPE_CORRECTION_BUDGET_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_PAGE_CONTRACT_REPAIR_SCOPE_CORRECTION_BUDGET_IMPLEMENTATION_EVIDENCE.md`.
 
 ## COMPOUND PAGE REPAIR CANONICAL CONTEXT — independent technical PASS
 
