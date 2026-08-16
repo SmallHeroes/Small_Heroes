@@ -98,5 +98,20 @@ terminates immediately. No artifact rewrite or data migration is required.
 
 ## Independent QA status
 
-Claude Code read-only adversarial review of the immutable base-to-head range is
-pending. Codex does not self-award independent technical PASS.
+Claude Code independently reviewed immutable range
+`faba79dbce5099bfb0ef110dc2cf2d24f64196b9..e263e044` read-only and returned
+**PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It verified the exact
+eligibility conjunction, unchanged 3-call/2-repair budget, unchanged-draft
+continuation, closed prompt context, terminal repeated failure, full version
+cutover and absence of unrelated behavior.
+
+Claude's plan-mode sandbox did not permit an independent test rerun, so all
+numeric validation results above remain Codex execution evidence. Its sole
+informational observation is pre-existing and fail-safe: when a replacement
+coverage binding changes but does not match the target beat ID, the strict
+applier retains the original binding and full revalidation follows instead of
+adopting the drift. This is not a finding in the reviewed range.
+
+This record attributes the independent PASS to Claude Code; Codex does not
+self-award it. The PASS grants no product, live, render, QA deployment,
+Production or release acceptance.
