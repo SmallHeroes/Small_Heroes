@@ -140,6 +140,16 @@ button.mvp-challenge-card {
   background: var(--surface-alt, #faf9fc);
 }
 
+/* short emotional lead line (landing marketing copy) above the description */
+.mvp-challenge-card-lead {
+  display: block;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--dark, #241b4d);
+  margin-bottom: 4px;
+}
+
 .mvp-challenge-card-text {
   padding: 16px;
   display: flex;

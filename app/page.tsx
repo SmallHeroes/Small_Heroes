@@ -17,26 +17,26 @@ import './landing/wow-2027.css';
 import './premium-2027.css';
 
 export const metadata: Metadata = {
-  title: 'גיבורים קטנים — ספרי ילדים מותאמים אישית לחיזוק רגשי',
+  title: 'גיבורים קטנים | ספר ילדים אישי שנבנה סביב הילד שלכם',
   description:
-    'צרו ספר ילדים מותאם אישית — סיפור ואיורים סביב מה שהילד עובר עכשיו: פחד לפני שינה, ביקור רפואי, אח חדש, מעבר בבית או בגן. שאלון קצר, ספר דיגיטלי בעברית.',
+    'יוצרים ספר ילדים אישי בעברית עם עלילה, איורים וקריינות שנבנים סביב הילד שלכם ומה שמעסיק אותו עכשיו. בוחרים כיוון סיפור ויוצרים ספר שהוא באמת שלו.',
   alternates: { canonical: 'https://smallheroes.co.il/' },
   openGraph: {
     type: 'website',
-    title: 'גיבורים קטנים — ספר ילדים מותאם אישית',
+    title: 'לא מכניסים את הילד שלכם לסיפור מוכן. בונים את הסיפור סביבו.',
     description:
-      'סיפור אישי עם איורים מקוריים, שם הילד/ה, ודמות מלווה — ספר שנבנה במיוחד בשבילכם.',
+      'ספר ילדים אישי, מאויר ומוקרא בעברית, שנבנה סביב הילד שלכם — לא רק עם השם שלו.',
     url: 'https://smallheroes.co.il/',
     locale: 'he_IL',
     siteName: 'גיבורים קטנים',
-    images: [{ url: 'https://smallheroes.co.il/Images/HeroIllustrated.png' }],
+    images: [{ url: 'https://smallheroes.co.il/Images/DesktopHero.webp' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'גיבורים קטנים — ספר ילדים מותאם אישית',
+    title: 'לא מכניסים את הילד שלכם לסיפור מוכן. בונים את הסיפור סביבו.',
     description:
-      'סיפור אישי עם איורים מקוריים, שם הילד/ה, ודמות מלווה — ספר שנבנה במיוחד בשבילכם.',
-    images: ['https://smallheroes.co.il/Images/HeroIllustrated.png'],
+      'ספר ילדים אישי, מאויר ומוקרא בעברית, שנבנה סביב הילד שלכם — לא רק עם השם שלו.',
+    images: ['https://smallheroes.co.il/Images/DesktopHero.webp'],
   },
 };
 

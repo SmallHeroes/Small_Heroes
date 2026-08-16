@@ -12,6 +12,8 @@ const CATEGORY_CARD_IMAGE: Record<string, string> = {
 
 type CategoryChallengeCardProps = {
   slot: MvpMatrixCategoryPayload;
+  /** Optional short emotional lead line above the description (landing marketing copy). */
+  lead?: string;
   as?: 'button' | 'article';
   selected?: boolean;
   disabled?: boolean;
@@ -25,6 +27,7 @@ type CategoryChallengeCardProps = {
 
 export function CategoryChallengeCard({
   slot,
+  lead,
   as = 'article',
   selected = false,
   disabled = false,
@@ -59,6 +62,7 @@ export function CategoryChallengeCard({
         {companionLine ? (
           <span className="mvp-challenge-card-companion">{companionLine}</span>
         ) : null}
+        {lead ? <span className="mvp-challenge-card-lead">{lead}</span> : null}
         <span className="mvp-challenge-card-oneliner">{slot.oneLiner}</span>
       </div>
       {slot.publicVisible === false ? (
