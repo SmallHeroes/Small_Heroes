@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-recurring-prop-aggregation` in `C:\Users\guyna\.codex\worktrees\booksurface2\Small_Heroes`; based exactly on pushed compact-first closeout `95fe597587ad81da43d1aeee8699824fb02da909`.
 
-## BOOK-SURFACE RECURRING-PROP AGGREGATION — implementation complete, independent QA pending
+## BOOK-SURFACE RECURRING-PROP AGGREGATION — independent technical PASS
 
 The exhausted attempt on immutable `95fe5975` proved that the compact spatial
 lane could resolve all eleven reference issues, but the next mixed failure
@@ -47,9 +47,19 @@ or downstream/render authority was produced.
   four members of the established ignored-output fixture baseline; they remain
   the separate repository/release HOLD, not a finding in this implementation.
 
-Independent Claude Code QA is pending for exact range
-`95fe597587ad81da43d1aeee8699824fb02da909..HEAD`. Codex does not self-award
-technical PASS. This implementation grants no Fresh Readiness, live authoring,
+Claude Code independently reviewed the immutable implementation diff for range
+`95fe597587ad81da43d1aeee8699824fb02da909..bf400e23` and returned **PASS**
+with no blocking finding. It verified the exact v2 surface, typed lifecycle
+eligibility, compiler-owned prop identities/order, canonical no-change guard,
+non-target containment, compact two-call routing, version cutover and unchanged
+model/budget/downstream boundaries. Its two advisory notes concern the now-
+intentional assertion that an unauthorized page-2 camera drift is ignored and
+the explicit nullable-field normalization in one legacy fixture; neither
+changes product behavior or requires re-gate.
+
+This is Claude Code's technical PASS, not a Codex self-awarded result. This
+implementation grants authority to push and prepare new Fresh Readiness only.
+It grants no live authoring,
 candidate, Reconciliation, Blueprint, Wizard, image/Vision, render, QA
 deployment, Production or release authority. Cost was `$0`; no credential,
 pricing/network/provider, storage/database, deployment or Production action

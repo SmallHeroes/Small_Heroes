@@ -3,7 +3,8 @@
 ## Status
 
 - Implementation: complete locally.
-- Independent technical QA: pending.
+- Independent technical QA: PASS on immutable implementation range
+  `95fe597587ad81da43d1aeee8699824fb02da909..bf400e23`.
 - Base: `95fe597587ad81da43d1aeee8699824fb02da909`.
 - Code commit: `61e7a8fa` (`fix(visual-contract): aggregate recurring prop surface repair`).
 - Branch: `codex/r1d-book-surface-recurring-prop-aggregation`.
@@ -116,5 +117,22 @@ occurred.
 7. Reconcile the recorded focused and repository-gate results without treating
    the known ignored-output fixture HOLD as a new implementation failure.
 
-Claude Code should return PASS or HOLD. Codex does not self-award independent
-technical PASS.
+## Independent QA closeout
+
+Claude Code reviewed the supplied immutable implementation diff and returned
+**PASS** with no blocking finding. It independently verified the strict v2
+response surface, exact typed lifecycle gate, identity/order and canonical
+equality guards, non-mutation/non-target containment, compact routing, complete
+version cutover and unchanged policy boundaries.
+
+Two notes are advisory only:
+
+- The page-camera expectation now proves an unauthorized page-2 camera value is
+  ignored; this is the intended target-scoped behavior, not a scope regression.
+- One legacy Bunny fixture explicitly supplies `firstRevealPage:null` when the
+  old bank shape omits the already-current nullable field. Production schema and
+  bank bytes are unchanged.
+
+This is Claude Code's technical PASS, not a Codex self-awarded result. It grants
+authority to push and prepare new Fresh Readiness only; it does not grant live,
+candidate, render, QA deployment, release or Production acceptance.
