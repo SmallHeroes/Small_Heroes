@@ -212,50 +212,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
-          <section className="section why-section">
-            <div className="wrap">
-              <h2 className="section-h2" data-reveal="up">{L.why.h2}</h2>
-              <p className="section-sub" data-reveal="up" data-reveal-delay="60">{L.why.sub}</p>
-
-              {/* Two open compositions (per Guy: no containers) — a looping
-                  animation, then title, then text. Index 0 = the real book
-                  spread with a page leafing across it in a loop; index 1 =
-                  a looping sound wave (no fake audio claim, just the medium
-                  made visible). */}
-              <div className="why-grid">
-                {L.why.cards.map((card, index) => (
-                  <article key={card.title} className="why-item" data-reveal="up" data-reveal-delay={String(80 + index * 70)}>
-                    <div className="why-item-visual" aria-hidden>
-                      {index === 0 ? (
-                        <div className="why-book-scene">
-                          <img
-                            className="why-book-img"
-                            src="/Images/hero-rnd/hero-spread-baked.webp"
-                            alt=""
-                            width={1500}
-                            height={1000}
-                            loading="lazy"
-                            draggable={false}
-                          />
-                          {/* the page in flight: lifts off the left (unread,
-                              RTL) side, sweeps over the spine, lands right */}
-                          <span className="why-book-leaf" />
-                        </div>
-                      ) : (
-                        <div className="why-wave">
-                          {[10, 18, 14, 26, 38, 30, 46, 58, 44, 62, 50, 66, 48, 60, 42, 54, 34, 40, 24, 16, 11].map((h, i) => (
-                            <i key={i} style={{ height: `${h}px`, animationDelay: `${(i % 7) * 160}ms` }} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <h3 className="why-item-title">{card.title}</h3>
-                    <p className="why-item-body">{card.body}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </section>
+          {/* the "מה מקבלים" section was removed per Guy (2026-08-16) —
+              its promise lives in the FAQ and the pricing section */}
 
           <section className="how-it-works-section how-section" id="how">
             <div className="wrap">
