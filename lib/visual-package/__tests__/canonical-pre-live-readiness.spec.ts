@@ -527,7 +527,7 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v26',
+            'canonical-live-request-verification/v27',
           structuredOutputCompatibility: {
             schemaName: 'BookVisualContractTemplateDraft',
             schemaVersion: 'vc-draft-schema/v15',
@@ -559,10 +559,18 @@ describe('canonical pre-live readiness orchestrator', () => {
               status: 'compatible',
             },
           },
+          requestPolicy: {
+            standardAttemptOutputBudget: {
+              limits: [48_000, 36_000, 24_000],
+              totalPool: 108_000,
+            },
+            projectedMaxUsd: 4.99125,
+            hardCeilingUsd: 5,
+          },
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v25',
+            'canonical-live-execution-readiness/v26',
         },
       },
     });
@@ -768,7 +776,7 @@ describe('canonical pre-live readiness orchestrator', () => {
     const current = prepare(fixture);
     expect(current.status).toBe('ready_for_spend_gate');
     const prior = structuredClone(current) as unknown as Record<string, unknown>;
-    prior.version = 'canonical-pre-live-readiness-evidence/v6';
+    prior.version = 'canonical-pre-live-readiness-evidence/v25';
     const {
       digestAlgorithm: _algorithm,
       digest: _digest,
@@ -782,6 +790,30 @@ describe('canonical pre-live readiness orchestrator', () => {
 
     expect(() =>
       assertValidCanonicalPreLiveReadinessEvidence(redigested),
+    ).toThrow(/pre_live_evidence_rejected/);
+  });
+
+  it('rejects redigested Fresh Readiness evidence with a tampered per-attempt output schedule', () => {
+    const fixture = createFixture();
+    const current = prepare(fixture);
+    if (current.status !== 'ready_for_spend_gate') {
+      throw new Error('expected current readiness evidence');
+    }
+    const tampered = structuredClone(current);
+    const limits = tampered.canonicalAuthorities.b0.requestPolicy
+      .standardAttemptOutputBudget.limits as unknown as number[];
+    limits[0] = limits[0]! + 1;
+    const {
+      digestAlgorithm: _algorithm,
+      digest: _digest,
+      ...payload
+    } = tampered;
+    expect(() =>
+      assertValidCanonicalPreLiveReadinessEvidence({
+        ...payload,
+        digestAlgorithm: 'canonical-json-sha256',
+        digest: canonicalJsonDigest(payload),
+      }),
     ).toThrow(/pre_live_evidence_rejected/);
   });
 

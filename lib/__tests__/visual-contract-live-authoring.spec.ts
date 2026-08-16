@@ -10,6 +10,7 @@ import { extractSourceFromMarkdown } from '../../scripts/extract-visual-contract
 import {
   compileBookVisualContractTemplate,
   authoringMaxOutputTokens,
+  authoringStandardAttemptOutputLimits,
   COMPLETE_STORY_SOURCE_PROMPT_COLUMNS,
   resolveAuthoringModel,
   type TemplateCompileInput,
@@ -182,6 +183,28 @@ describe('Stage 1 — authoring token budget scales by page count (Responses bud
     expect(authoringMaxOutputTokens(8)).toBe(32000); // floor (24000)
     expect(authoringMaxOutputTokens(0)).toBe(36000); // invalid → default 12 pages
   });
+
+  it('derives the canonical three-attempt allocation with an exact 3B pool', () => {
+    expect(authoringStandardAttemptOutputLimits(12)).toEqual([
+      48_000,
+      36_000,
+      24_000,
+    ]);
+    expect(authoringStandardAttemptOutputLimits(8)).toEqual([
+      42_666,
+      32_000,
+      21_334,
+    ]);
+    for (const pageCount of [8, 12]) {
+      const base = authoringMaxOutputTokens(pageCount);
+      const limits = authoringStandardAttemptOutputLimits(pageCount);
+      expect(limits.reduce((sum, limit) => sum + limit, 0)).toBe(
+        3 * base,
+      );
+      expect(limits[0]).toBe(Math.floor((4 * base) / 3));
+      expect(limits[2]).toBe(3 * base - limits[0] - limits[1]);
+    }
+  });
 });
 
 describe('Stage 1 — compiler requests the dedicated authoring call + records provenance', () => {
@@ -207,7 +230,7 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(captured?.timeoutMs).toBe(1_200_000);
     expect(captured?.maxInputTokens).toBe(64_000);
     expect(captured?.jsonSchema?.name).toBe(TEMPLATE_DRAFT_SCHEMA_NAME);
-    expect(captured?.maxOutputTokens).toBe(36000);
+    expect(captured?.maxOutputTokens).toBe(48000);
     const firstEvidence =
       bunnySource().sourceEvidenceCatalog.entries[0]!;
     expect(capturedUser).toContain(
@@ -223,7 +246,7 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     // Provenance records the resolved model.
     expect(provenance.authoringModel).toBe('gpt-5.6-sol');
     expect(provenance.reasoningEffort).toBe('medium');
-    expect(provenance.maxOutputTokens).toBe(36000);
+    expect(provenance.maxOutputTokens).toBe(48000);
     expect(provenance.schemaVersion).toBe('vc-draft-schema/v15');
     expect(provenance.attempt).toBe(1);
   });

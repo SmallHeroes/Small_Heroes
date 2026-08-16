@@ -511,6 +511,16 @@ describe('canonical live request verification library', () => {
         maxRepairCount: 3,
         standardMaxCalls: 3,
         standardMaxRepairCount: 2,
+        standardAttemptOutputBudget: {
+          version:
+            'visual-contract-authoring-standard-attempt-output-budget/v1',
+          limits: [48_000, 36_000, 24_000],
+          totalPool: 108_000,
+          digestAlgorithm: 'canonical-json-sha256',
+          digest:
+            materialized.manifest.requestPolicy
+              .standardAttemptOutputBudget.digest,
+        },
         terminalReferenceCleanup: {
           budgetClass: 'terminal_reference_cleanup',
           maxCalls: 1,
@@ -668,7 +678,7 @@ describe('canonical live request verification library', () => {
       materialized.manifest,
       (value) => {
         value.version =
-          'canonical-live-request-materialization/v7';
+          'canonical-live-request-materialization/v26';
       },
     );
     expect(
@@ -736,6 +746,25 @@ describe('canonical live request verification library', () => {
     ).toMatchObject({
       status: 'rejected',
       reasonCodes: ['manifest_source_revision_mismatch'],
+    });
+
+    const staleOutputBudgetPath = rewriteManifest(
+      fixture,
+      materialized.manifest,
+      (value) => {
+        const requestPolicy = value.requestPolicy as {
+          standardAttemptOutputBudget: {
+            limits: number[];
+          };
+        };
+        requestPolicy.standardAttemptOutputBudget.limits[0] += 1;
+      },
+    );
+    expect(
+      verificationResult(fixture, staleOutputBudgetPath),
+    ).toMatchObject({
+      status: 'rejected',
+      reasonCodes: ['manifest_schema_invalid'],
     });
   });
 

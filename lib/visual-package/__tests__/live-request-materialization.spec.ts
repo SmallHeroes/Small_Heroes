@@ -303,15 +303,15 @@ describe('canonical live request materialization validators', () => {
       liveRequestMaterializationInputIssues({
         ...inputFor(fixture),
         version:
-          'canonical-live-request-materialization-input/v6',
+          'canonical-live-request-materialization-input/v17',
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v17',
+      'canonical-live-request-materialization-input/v18',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v26');
+    ).toBe('canonical-live-request-materialization/v27');
   });
 
   it.each([
@@ -464,7 +464,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v28',
+      version: 'visual-contract-authoring-request/v29',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -477,7 +477,12 @@ describe('canonical live request materialization artifacts', () => {
       timeoutMs: 1_200_000,
       tokenBudget: {
         maxInputTokens: 64_000,
-        maxOutputTokens: 36_000,
+        standardAttempts: {
+          version:
+            'visual-contract-authoring-standard-attempt-output-budget/v1',
+          limits: [48_000, 36_000, 24_000],
+          totalPool: 108_000,
+        },
         outputIncludesReasoning: true,
       },
       callBudget: {

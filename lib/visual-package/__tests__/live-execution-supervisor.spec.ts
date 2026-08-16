@@ -20,12 +20,14 @@ import {
   CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
   assertValidCanonicalLiveExecutionReadiness,
   buildCanonicalLiveExecutionRequest,
+  buildVisualContractAuthoringStandardAttemptOutputBudget,
   canonicalJsonDigest,
   canonicalLiveExecutionExitDisposition,
   canonicalLiveExecutionReadinessIssues,
   canonicalLiveExecutionRequestIssues,
   materializeCanonicalLiveRequestBundle,
   minimalPlatformInheritedEnvironmentNames,
+  projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd,
   runCanonicalLiveExecution,
   runCanonicalLiveExecutionProbe,
   verifyCanonicalLiveExecution,
@@ -257,6 +259,8 @@ function executionRequestPayload(
       stablePropScopeRepairStructuredOutputCompatibility:
         fixture.materialized.manifest
           .stablePropScopeRepairStructuredOutputCompatibility,
+      requestPolicy:
+        fixture.materialized.manifest.requestPolicy,
     },
     preservationFences:
       overrides.preservationFences ?? [
@@ -646,7 +650,7 @@ describe('canonical live execution request and readiness', () => {
     const legacyRequest = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    legacyRequest.version = 'canonical-live-execution-request/v6';
+    legacyRequest.version = 'canonical-live-execution-request/v25';
     const {
       digestAlgorithm: _requestAlgorithm,
       digest: _requestDigest,
@@ -666,7 +670,7 @@ describe('canonical live execution request and readiness', () => {
       readiness,
     ) as unknown as Record<string, unknown>;
     legacyReadiness.version =
-      'canonical-live-execution-readiness/v6';
+      'canonical-live-execution-readiness/v25';
     const {
       digestAlgorithm: _readinessAlgorithm,
       digest: _readinessDigest,
@@ -944,6 +948,38 @@ describe('B0 composition and explicit filesystem fences', () => {
       status: 'rejected',
       reasonCodes: ['future_live_command_mismatch'],
       futureLiveCommand: { status: 'rejected' },
+    });
+  });
+
+  it('rejects a valid but non-B0 per-attempt output schedule at the Supervisor binding', () => {
+    const fixture = createExecutionFixture();
+    const payload = executionRequestPayload(fixture);
+    const alternate =
+      buildVisualContractAuthoringStandardAttemptOutputBudget(8);
+    payload.canonicalBundle.requestPolicy = {
+      ...payload.canonicalBundle.requestPolicy,
+      standardAttemptOutputBudget: alternate,
+      projectedMaxUsd:
+        projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
+          standardMaxInputTokens: 64_000,
+          standardAttemptOutputLimits: alternate.limits,
+          cleanupMaxInputTokens: 6_000,
+          cleanupMaxOutputTokens: 2_000,
+          cleanupMaxCalls: 1,
+        }),
+    };
+    persistRequest(
+      fixture,
+      buildCanonicalLiveExecutionRequest(payload),
+    );
+
+    expect(verifyFixture(fixture)).toMatchObject({
+      status: 'rejected',
+      reasonCodes: ['b0_request_policy_mismatch'],
+      b0: {
+        status: 'rejected',
+        requestPolicy: null,
+      },
     });
   });
 

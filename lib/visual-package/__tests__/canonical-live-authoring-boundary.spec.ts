@@ -78,6 +78,7 @@ import {
   createOpenAIResponsesVisualContractAuthoringAdapter,
   collectOpenAIResponsesAuthoringStream,
   mapOpenAIResponsesAuthoringResponse,
+  normalizeOpenAIResponsesAuthoringIncompleteReason,
   openAIResponsesAuthoringTransport,
   buildOpenAIResponsesVisualContractAuthoringBody,
   type OpenAIResponsesAuthoringTransport,
@@ -421,9 +422,11 @@ function fixtureInput(fixture: LiveFixture) {
 
 function exactOptions(
   request: VisualContractAuthoringRequest,
+  attempt = 1,
 ): ContractLlmCallOptions {
   return {
-    maxOutputTokens: request.tokenBudget.maxOutputTokens,
+    maxOutputTokens:
+      request.tokenBudget.standardAttempts.limits[attempt - 1],
     model: request.model,
     reasoningEffort: request.reasoningEffort,
     jsonSchema: {
@@ -577,6 +580,29 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     },
   );
 
+  it('normalizes provider incomplete reasons to a closed sanitized enum', () => {
+    expect(
+      normalizeOpenAIResponsesAuthoringIncompleteReason({
+        incomplete_details: { reason: 'max_output_tokens' },
+      }),
+    ).toBe('max_output_tokens');
+    expect(
+      normalizeOpenAIResponsesAuthoringIncompleteReason({
+        incomplete_details: { reason: 'content_filter' },
+      }),
+    ).toBe('content_filter');
+    expect(
+      normalizeOpenAIResponsesAuthoringIncompleteReason({
+        incomplete_details: {
+          reason: 'RAW_PROVIDER_REASON_MUST_NOT_PERSIST',
+        },
+      }),
+    ).toBe('other_or_absent');
+    expect(
+      normalizeOpenAIResponsesAuthoringIncompleteReason({}),
+    ).toBe('other_or_absent');
+  });
+
   it('maps streamed terminal output items when the SDK convenience output_text field is absent', () => {
     const raw = streamedTerminalResponseFor({
       pages: [{ pageNumber: 1 }],
@@ -679,7 +705,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
   it('maps the compact repair schema without changing the locked provider policy', () => {
     const fixture = createLiveFixture('compact-schema-body');
-    const options = exactOptions(fixture.request);
+    const options = exactOptions(fixture.request, 2);
     options.jsonSchema = {
       name: SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
       schema: SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
@@ -712,7 +738,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
   it('maps the page-contract repair schema without changing the locked provider policy', () => {
     const fixture = createLiveFixture('page-contract-schema-body');
-    const options = exactOptions(fixture.request);
+    const options = exactOptions(fixture.request, 2);
     options.jsonSchema = {
       name: PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
       schema: PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
@@ -731,6 +757,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
+      max_output_tokens: 36_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -739,7 +766,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
   it('maps the field-scoped page-spatial repair schema without changing the locked provider policy', () => {
     const fixture = createLiveFixture('page-spatial-schema-body');
-    const options = exactOptions(fixture.request);
+    const options = exactOptions(fixture.request, 2);
     options.jsonSchema = {
       name: PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
       schema: PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
@@ -758,6 +785,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
+      max_output_tokens: 36_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -766,7 +794,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
   it('maps the structural-bundle repair schema without changing the locked provider policy', () => {
     const fixture = createLiveFixture('structural-bundle-schema-body');
-    const options = exactOptions(fixture.request);
+    const options = exactOptions(fixture.request, 2);
     options.jsonSchema = {
       name: STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
       schema: STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
@@ -785,6 +813,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
+      max_output_tokens: 36_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -793,7 +822,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
   it('maps the book-surface repair schema without changing the locked provider policy', () => {
     const fixture = createLiveFixture('book-surface-schema-body');
-    const options = exactOptions(fixture.request);
+    const options = exactOptions(fixture.request, 2);
     options.jsonSchema = {
       name: BOOK_SURFACE_REPAIR_SCHEMA_NAME,
       schema: BOOK_SURFACE_REPAIR_JSON_SCHEMA,
@@ -812,6 +841,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
+      max_output_tokens: 36_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -820,7 +850,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
   it('maps the presentation-requirement repair schema without changing the locked provider policy', () => {
     const fixture = createLiveFixture('presentation-requirement-schema-body');
-    const options = exactOptions(fixture.request);
+    const options = exactOptions(fixture.request, 2);
     options.jsonSchema = {
       name: PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
       schema: PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
@@ -839,6 +869,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
+      max_output_tokens: 36_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -847,7 +878,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
   it('maps the stable-prop scope repair schema without changing the locked provider policy', () => {
     const fixture = createLiveFixture('stable-prop-scope-schema-body');
-    const options = exactOptions(fixture.request);
+    const options = exactOptions(fixture.request, 2);
     options.jsonSchema = {
       name: STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
       schema: STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
@@ -866,6 +897,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
+      max_output_tokens: 36_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -889,7 +921,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v31',
+      'visual-contract-authoring-receipt/v32',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -913,7 +945,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       body: {
         model: 'gpt-5.6-sol',
         service_tier: 'default',
-        max_output_tokens: 36_000,
+        max_output_tokens: 48_000,
         reasoning: { effort: 'medium' },
         text: {
           format: {
@@ -944,11 +976,50 @@ describe('canonical OpenAI Responses authoring adapter', () => {
         OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
       usageEvidenceKind: 'canonical_provider_reported',
       completionStatus: 'completed',
+      providerIncompleteReason: 'other_or_absent',
       usageEvidenceComplete: true,
       executionAttestation:
         result.receipt.executionAttestation,
       status: 'response_received',
     });
+  });
+
+  it('persists cap-hit incomplete observability without making the terminal repair-eligible or leaking raw material', async () => {
+    const fixture = createLiveFixture('incomplete-cap-hit');
+    const rawSecret = 'RAW_INCOMPLETE_BODY_MUST_NOT_PERSIST';
+    const adapter = fakeAdapter({
+      responses: [
+        responseFor(rawSecret, {
+          status: 'incomplete',
+          incomplete_details: {
+            reason: 'max_output_tokens',
+            raw: rawSecret,
+          },
+        }),
+      ],
+    });
+    const result = await runVisualContractAuthoring({
+      request: fixture.request,
+      snapshot: fixture.snapshot,
+      provider: adapter.provider,
+      requiredMode: 'live',
+      requiredProviderEvidenceVersion:
+        OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+    });
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.code).toBe(
+      'completion_status_invalid',
+    );
+    expect(result.receipt.callCount).toBe(1);
+    expect(result.receipt.repairCount).toBe(0);
+    expect(result.receipt.attempts[0]).toMatchObject({
+      appliedMaxOutputTokens: 48_000,
+      completionStatus: 'incomplete',
+      providerIncompleteReason: 'max_output_tokens',
+      status: 'completion_status_invalid',
+    });
+    expect(adapter.transportCreate).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(result.receipt)).not.toContain(rawSecret);
   });
 
   it.each([
@@ -1523,11 +1594,11 @@ describe('canonical OpenAI Responses authoring adapter', () => {
             cached_tokens: 0,
             cache_write_tokens: 0,
           },
-          output_tokens: 36_001,
+          output_tokens: 48_001,
           output_tokens_details: {
             reasoning_tokens: 500,
           },
-          total_tokens: 37_001,
+          total_tokens: 49_001,
         },
       },
       'usage_invalid',
@@ -1927,10 +1998,19 @@ describe('canonical live authoring executable boundary', () => {
         request.tokenBudget as Record<string, unknown>
       ).maxInputTokens = 63_999;
     }],
-    ['output budget', (request: Record<string, unknown>) => {
-      (
-        request.tokenBudget as Record<string, unknown>
-      ).maxOutputTokens = 35_999;
+    ['output budget schedule', (request: Record<string, unknown>) => {
+      const standardAttempts = (
+        request.tokenBudget as {
+          standardAttempts: Record<string, unknown>;
+        }
+      ).standardAttempts;
+      const limits = standardAttempts.limits as number[];
+      limits[0] = limits[0]! + 1;
+      standardAttempts.digest = canonicalJsonDigest({
+        version: standardAttempts.version,
+        limits,
+        totalPool: standardAttempts.totalPool,
+      });
     }],
     ['call budget', (request: Record<string, unknown>) => {
       (
@@ -3168,7 +3248,7 @@ describe('canonical live authoring executable boundary', () => {
         (attempt) =>
           attempt.reservedExposureBeforeCallUsd,
       ),
-    ).toEqual([4.99125, 3.436125, 1.881]);
+    ).toEqual([4.99125, 3.040125, 1.485]);
   });
 
   it('writes sanitized content-addressed evidence, is byte-idempotent, and fails closed on each evidence collision', async () => {
