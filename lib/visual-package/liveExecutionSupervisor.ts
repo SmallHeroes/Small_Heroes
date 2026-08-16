@@ -26,13 +26,13 @@ import {
 } from './liveRequestMaterialization';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_VERSION =
-  'canonical-live-execution-request/v23' as const;
+  'canonical-live-execution-request/v24' as const;
 export const CANONICAL_LIVE_EXECUTION_READINESS_VERSION =
-  'canonical-live-execution-readiness/v23' as const;
+  'canonical-live-execution-readiness/v24' as const;
 export const CANONICAL_LIVE_EXECUTION_PROBE_VERSION =
   'canonical-live-execution-probe/v1' as const;
 export const CANONICAL_LIVE_EXECUTION_RESULT_VERSION =
-  'canonical-live-execution-result/v15' as const;
+  'canonical-live-execution-result/v16' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const COMMIT_PATTERN = /^[a-f0-9]{40}$/;

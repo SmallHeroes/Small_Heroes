@@ -16,6 +16,8 @@ import {
   buildTemplateRepairSystemPrompt,
   buildTemplateRepairUserPrompt,
   decodeTemplateRepairUserPrompt,
+  REPAIR_PROMPT_VERSION,
+  REPAIR_USER_PROMPT_VERSION,
   TEMPLATE_REPAIR_ISSUES_MARKER,
   SourceEvidenceIdValidationError,
   TemplateRepairExhaustedError,
@@ -1021,7 +1023,7 @@ describe('page-contract compact repair routing', () => {
       budgetClass: 'standard',
       repairMode: 'book_surface_patch',
       systemPromptVersion: BOOK_SURFACE_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'book-surface-repair-user-prompt/v2',
+      userPromptVersion: 'book-surface-repair-user-prompt/v3',
     });
     expect(calls[3]!.authority).toMatchObject({
       kind: 'repair',
@@ -1118,7 +1120,7 @@ describe('page-contract compact repair routing', () => {
       kind: 'repair',
       repairMode: 'book_surface_patch',
       systemPromptVersion: BOOK_SURFACE_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'book-surface-repair-user-prompt/v2',
+      userPromptVersion: 'book-surface-repair-user-prompt/v3',
     });
     const payload = decodeBookSurfaceRepairUserPrompt(calls[1]!.user);
     expect(payload.repairRecurringProps).toBe(true);
@@ -1132,6 +1134,75 @@ describe('page-contract compact repair routing', () => {
     expect(result.repairAttempts.map((attempt) => attempt.nextRepairMode)).toEqual([
       'book_surface_patch',
     ]);
+  });
+
+  it('routes an oversized whole-book surface through the admissible full-draft lane before dispatch', async () => {
+    const valid = bunnyDraft();
+    const initial = structuredClone(valid);
+    initial.coverContract.mustShow = [''];
+    initial.recurringProps[0].firstRevealPage =
+      initial.pageContracts.length + 1;
+    let remainingPresentationTargets = 20;
+    for (const [pageIndex, pageContract] of initial.pageContracts.entries()) {
+      pageContract.camera = '';
+      pageContract.mustShow = [
+        `page ${pageIndex + 1} ${String.fromCharCode(97 + pageIndex).repeat(5_000)}`,
+      ];
+      const targetCount = Math.min(2, remainingPresentationTargets);
+      remainingPresentationTargets -= targetCount;
+      const sourceEvidenceId =
+        pageContract.actionSemanticCoverage[0].sourceEvidenceId;
+      pageContract.actionSemanticCoverage = Array.from(
+        { length: targetCount },
+        (_, coverageIndex) => ({
+          beatId: `beat:p${pageIndex + 1}:oversized_${coverageIndex}`,
+          sourceEvidenceId,
+          disposition: {
+            kind: 'unsupported',
+            reason: 'closed_action_catalog_gap',
+          },
+        }),
+      );
+    }
+    expect(remainingPresentationTargets).toBe(0);
+
+    const calls: Array<{
+      user: string;
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      user,
+      _options,
+      authority,
+    ) => {
+      calls.push({ user, authority });
+      return JSON.stringify(calls.length === 1 ? initial : valid);
+    };
+
+    const result = await compileBookVisualContractTemplate(
+      bunnySource(),
+      { callLLM: caller },
+    );
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.authority).toMatchObject({
+      kind: 'repair',
+      budgetClass: 'standard',
+      repairMode: 'full_draft',
+      systemPromptVersion: REPAIR_PROMPT_VERSION,
+      userPromptVersion: REPAIR_USER_PROMPT_VERSION,
+    });
+    expect(calls[1]!.user).toContain(
+      TEMPLATE_REPAIR_ISSUES_MARKER,
+    );
+    expect(calls[1]!.user).not.toContain(
+      'book-surface-repair-user-prompt/v3',
+    );
+    expect(result.provenance.attempt).toBe(2);
+    expect(result.repairAttempts[0]?.nextRepairMode).toBe(
+      'full_draft',
+    );
   });
 
   it('repairs an all-page final structural failure without resending the full draft', async () => {

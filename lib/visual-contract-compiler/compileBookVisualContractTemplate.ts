@@ -75,6 +75,7 @@ import {
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
   terminalReferenceCleanupPredecessorIsEligible,
+  visualContractAuthoringRouteIsAdmissible,
 } from './authoringPolicy';
 import {
   ACTION_SEMANTIC_CATALOG,
@@ -3545,6 +3546,9 @@ export async function compileBookVisualContractTemplate(
     let bookSurfaceAuthority:
       | BookSurfaceRepairAuthority
       | undefined;
+    let bookSurfaceRepairPrompts:
+      | { systemPrompt: string; userPrompt: string }
+      | undefined;
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
@@ -3821,6 +3825,34 @@ export async function compileBookVisualContractTemplate(
       };
     }
 
+    if (bookSurfaceAuthority) {
+      const systemPrompt = buildBookSurfaceRepairSystemPrompt();
+      const userPrompt = buildBookSurfaceRepairUserPrompt({
+        authority: bookSurfaceAuthority,
+      });
+      if (
+        visualContractAuthoringRouteIsAdmissible({
+          systemPrompt,
+          userPrompt,
+          schema: BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+          maxInputTokens:
+            bookSurfaceRepairLlmOpts.maxInputTokens,
+        })
+      ) {
+        bookSurfaceRepairPrompts = {
+          systemPrompt,
+          userPrompt,
+        };
+      } else {
+        // A whole-book surface can be semantically eligible while being too
+        // large for the immutable provider-admission ceiling. Do not consume
+        // the remaining bounded call on a request that cannot be admitted;
+        // the existing full-draft route carries the same mixed repair scope
+        // without echoing the rejected draft back into its input.
+        bookSurfaceAuthority = undefined;
+      }
+    }
+
     // This attempt's draft was invalid — record it (raw draft + exact errors) for reviewability.
     repairAttempts.push({
       attempt,
@@ -3999,10 +4031,8 @@ export async function compileBookVisualContractTemplate(
         });
       } else if (bookSurfaceAuthority) {
         const rawPatch = await deps.callLLM(
-          buildBookSurfaceRepairSystemPrompt(),
-          buildBookSurfaceRepairUserPrompt({
-            authority: bookSurfaceAuthority,
-          }),
+          bookSurfaceRepairPrompts!.systemPrompt,
+          bookSurfaceRepairPrompts!.userPrompt,
           bookSurfaceRepairLlmOpts,
           {
             kind: 'repair',

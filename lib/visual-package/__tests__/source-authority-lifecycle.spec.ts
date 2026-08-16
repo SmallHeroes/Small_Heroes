@@ -1755,7 +1755,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v27',
+      version: 'visual-contract-authoring-readiness/v28',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -1819,7 +1819,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v27',
+      version: 'visual-contract-authoring-readiness/v28',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -2097,6 +2097,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v26',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v27',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -2241,6 +2247,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v29',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v30',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -2324,6 +2336,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v27',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v28',
       ),
     ).toBe('current');
     expect(
@@ -2560,7 +2578,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v29',
+      'visual-contract-authoring-receipt/v30',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -4196,7 +4214,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v29',
+      version: 'visual-contract-authoring-receipt/v30',
       status: 'completed',
       callCount: 3,
       repairCount: 2,
@@ -4458,6 +4476,84 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       JSON.stringify(result.receipt),
     ).not.toContain('0000000');
+  });
+
+  it('records sanitized exact byte accounting when a repair is rejected at input admission', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    invalid.pageContracts[0].camera = '';
+    invalid.pageContracts[0].mustShow = [
+      Array.from(
+        { length: 20_000 },
+        (_entry, index) =>
+          ((index * 2_654_435_761) >>> 0)
+            .toString(36)
+            .padStart(7, '0'),
+      ).join(''),
+    ];
+    const provider = successfulProvider(invalid);
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.code).toBe(
+      'input_token_ceiling_exceeded',
+    );
+    expect(result.receipt.attempts).toHaveLength(2);
+    const rejected = result.receipt.attempts[1]!;
+    expect(rejected).toMatchObject({
+      repairMode: 'page_contract_patch',
+      providerReached: false,
+      status: 'input_ceiling_exceeded',
+      inputAccounting: {
+        ceiling: request.tokenBudget.maxInputTokens,
+        separatorBytes: 2,
+        protocolAllowance: 4_096,
+      },
+    });
+    expect(rejected.inputAccounting.estimatedBytes).toBe(
+      rejected.inputAccounting.systemBytes +
+        rejected.inputAccounting.userBytes +
+        rejected.inputAccounting.schemaBytes +
+        rejected.inputAccounting.separatorBytes +
+        rejected.inputAccounting.protocolAllowance,
+    );
+    expect(rejected.inputAccounting.estimatedBytes).toBeGreaterThan(
+      rejected.inputAccounting.ceiling,
+    );
+    expect(JSON.stringify(rejected.inputAccounting)).not.toMatch(
+      /OPENAI_API_KEY|Bearer\s+|0000000/,
+    );
+
+    expect(() =>
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: result.receipt,
+      }),
+    ).not.toThrow();
+
+    const tampered = structuredClone(result.receipt);
+    tampered.attempts[1]!.inputAccounting.estimatedBytes -= 1;
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...tamperedPayload
+    } = tampered;
+    tampered.digest = canonicalJsonDigest(tamperedPayload);
+    expect(() =>
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: tampered,
+      }),
+    ).toThrow(/readiness v24 requires current/);
   });
 
   it('bridges a current candidate presentation requirement into pending Semantic Reconciliation without self-approval', async () => {

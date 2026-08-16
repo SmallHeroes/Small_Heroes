@@ -13,6 +13,12 @@ import {
   parseBookSurfaceRepairPatch,
 } from '@/lib/visual-contract-compiler/bookSurfaceRepair';
 import type { PresentationRequirementRepairTarget } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
+import {
+  VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
+  visualContractAuthoringInputAccounting,
+  visualContractAuthoringRouteIsAdmissible,
+} from '@/lib/visual-contract-compiler/authoringPolicy';
 
 function cover() {
   return {
@@ -198,6 +204,11 @@ describe('bounded book-surface repair', () => {
     expect(selected?.coverContract).toEqual(cover());
     expect(selected?.recurringProps).toEqual([recurringProp()]);
     expect(selected?.repairRecurringProps).toBe(false);
+    expect(selected?.coverValidationHints).toEqual([
+      'cover_projection_invalid: sanitized validation 0',
+      'final_structural_invariant_invalid: sanitized validation 1',
+    ]);
+    expect(selected?.recurringPropValidationHints).toEqual([]);
     expect(selected?.affectedPages.map((value) => value.pageNumber)).toEqual([
       1,
       2,
@@ -423,10 +434,10 @@ describe('bounded book-surface repair', () => {
     expect(schema.recurringProps.items).toBeTruthy();
     expect(schema.pageContracts.items).toBeTruthy();
     expect(BOOK_SURFACE_REPAIR_PROMPT_VERSION).toBe(
-      'book-surface-repair-prompt/v2',
+      'book-surface-repair-prompt/v3',
     );
     expect(BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION).toBe(
-      'book-surface-repair-user-prompt/v2',
+      'book-surface-repair-user-prompt/v3',
     );
     expect(buildBookSurfaceRepairSystemPrompt()).toContain('ONLY');
     const rawPrompt = buildBookSurfaceRepairUserPrompt({
@@ -436,6 +447,11 @@ describe('bounded book-surface repair', () => {
     expect(payload.coverContract).toEqual(cover());
     expect(payload.recurringProps).toEqual([recurringProp()]);
     expect(payload.repairRecurringProps).toBe(false);
+    expect(payload.coverValidationHints).toEqual(
+      selected.coverValidationHints,
+    );
+    expect(payload.recurringPropValidationHints).toEqual([]);
+    expect(payload).not.toHaveProperty('validationMessages');
     expect(
       (payload.affectedPages as Array<{ pageNumber: number }>).map(
         (value) => value.pageNumber,
@@ -450,6 +466,218 @@ describe('bounded book-surface repair', () => {
     ]) {
       expect(serialized).not.toContain(sentinel);
     }
+  });
+
+  it('partitions and deduplicates validation hints without repeating page hints globally', () => {
+    const value = draft();
+    const issues = [
+      coverProjectionIssue,
+      coverProjectionIssue,
+      recurringPropLifecycleIssue,
+      recurringPropLifecycleIssue,
+      pageStructureIssue(1),
+    ];
+    const selected = bookSurfaceRepairAuthority({
+      draft: value,
+      authorityDraft: value,
+      presentationTargets: [presentationTarget(1)],
+      structuralDiagnosticIssues: issues,
+      structuralValidationMessages: [
+        'cover needs repair',
+        '  cover   needs repair  ',
+        'recurring props need lifecycle repair',
+        'recurring props need lifecycle repair',
+        'page 1 final structure needs repair',
+      ],
+    });
+
+    expect(selected).not.toBeNull();
+    expect(selected?.coverValidationHints).toEqual([
+      'cover needs repair',
+    ]);
+    expect(selected?.recurringPropValidationHints).toEqual([
+      'recurring props need lifecycle repair',
+    ]);
+    expect(selected?.affectedPages[0]?.validationHints).toEqual([
+      'closed_catalog_capability_gap: actionSemanticCoverage[0] must become one same-page presentation_requirement using one exact permitted pointer/value',
+      'page 1 final structure needs repair',
+    ]);
+    const payload = decodeBookSurfaceRepairUserPrompt(
+      buildBookSurfaceRepairUserPrompt({ authority: selected! }),
+    );
+    const serialized = JSON.stringify(payload);
+    expect(serialized.match(/page 1 final structure needs repair/g)).toHaveLength(
+      1,
+    );
+    expect(serialized.match(/closed_catalog_capability_gap/g)).toHaveLength(2);
+  });
+
+  it('uses codepoint ordering for digest-stable validation hints', () => {
+    const issues = [
+      coverProjectionIssue,
+      coverStructureIssue,
+      coverProjectionIssue,
+      pageStructureIssue(1),
+    ];
+    const selected = bookSurfaceRepairAuthority({
+      draft: draft(),
+      authorityDraft: draft(),
+      presentationTargets: [presentationTarget(1)],
+      structuralDiagnosticIssues: issues,
+      structuralValidationMessages: [
+        'page 2 hint',
+        '_leading underscore',
+        'Page 10 hint',
+        'page structure',
+      ],
+    });
+
+    expect(selected?.coverValidationHints).toEqual([
+      'Page 10 hint',
+      '_leading underscore',
+      'page 2 hint',
+    ]);
+  });
+
+  it('enforces one aggregate 128-item bound across cover, recurring-prop, and page hints', () => {
+    const value = draft();
+    const pageOne = (value.pageContracts as ReturnType<typeof page>[])[0]!;
+    pageOne.actionSemanticCoverage = Array.from(
+      { length: 127 },
+      (_, coverageIndex) => ({
+        beatId: `beat:p1:coverage_${coverageIndex}`,
+        sourceEvidenceId: `se1_${String(coverageIndex).padStart(64, 'b')}`,
+        disposition: {
+          kind: 'unsupported',
+          reason: 'closed_action_catalog_gap',
+        },
+      }),
+    );
+    const targets = pageOne.actionSemanticCoverage.map(
+      (coverage, coverageIndex) => ({
+        pageNumber: 1,
+        coverageIndex,
+        beatId: coverage.beatId,
+        sourceEvidenceId: coverage.sourceEvidenceId,
+        sourcePhrase: `sanitized phrase ${coverageIndex}`,
+        permittedPointerValues: [
+          {
+            contractPointer: '/pageContracts/0/mustShow/0',
+            contractValue: pageOne.mustShow[0]!,
+          },
+        ],
+      }),
+    );
+
+    expect(
+      bookSurfaceRepairAuthority({
+        draft: value,
+        authorityDraft: value,
+        presentationTargets: targets,
+        structuralDiagnosticIssues: [
+          coverProjectionIssue,
+          pageStructureIssue(1),
+        ],
+        structuralValidationMessages: [
+          'cover validation',
+          'page validation',
+        ],
+      }),
+    ).toBeNull();
+  });
+
+  it('measures a production-built twelve-page surface and rejects the compact route when it lacks safety margin', () => {
+    const value = draft();
+    value.zones = Array.from({ length: 12 }, (_, index) => ({
+      id: `zone:${index + 1}`,
+      locationId: 'loc:home',
+      spatialNodes: [{ id: `node:${index + 1}` }],
+    }));
+    value.pageContracts = Array.from({ length: 12 }, (_, index) => {
+      const pageContract = page(index + 1);
+      pageContract.mustShow = [
+        `page ${index + 1} ${String.fromCharCode(97 + index).repeat(5_000)}`,
+      ];
+      const targetCount = index < 8 ? 2 : 1;
+      pageContract.actionSemanticCoverage = Array.from(
+        { length: targetCount },
+        (_, coverageIndex) => ({
+          beatId: `beat:p${index + 1}:coverage_${coverageIndex}`,
+          sourceEvidenceId: `se1_${String(index * 10 + coverageIndex).padStart(64, 'a')}`,
+          disposition: {
+            kind: 'unsupported',
+            reason: 'closed_action_catalog_gap',
+          },
+        }),
+      );
+      return pageContract;
+    });
+    const presentationTargets = (
+      value.pageContracts as ReturnType<typeof page>[]
+    ).flatMap((pageContract) =>
+      pageContract.actionSemanticCoverage.map(
+        (coverage, coverageIndex) => ({
+          pageNumber: pageContract.pageNumber,
+          coverageIndex,
+          beatId: coverage.beatId,
+          sourceEvidenceId: coverage.sourceEvidenceId,
+          sourcePhrase: `sanitized source phrase ${pageContract.pageNumber} ${coverageIndex}`,
+          permittedPointerValues: [
+            {
+              contractPointer: `/pageContracts/${pageContract.pageNumber - 1}/mustShow/0`,
+              contractValue: pageContract.mustShow[0]!,
+            },
+          ],
+        }),
+      ),
+    );
+    const issues = [
+      coverProjectionIssue,
+      recurringPropLifecycleIssue,
+      ...Array.from({ length: 12 }, (_, index) =>
+        pageStructureIssue(index + 1),
+      ),
+    ];
+    const selected = bookSurfaceRepairAuthority({
+      draft: value,
+      authorityDraft: value,
+      presentationTargets,
+      structuralDiagnosticIssues: issues,
+      structuralValidationMessages: issues.map(
+        (issue, index) =>
+          `${issue.code}: sanitized production-shaped validation ${index}`,
+      ),
+    });
+    expect(selected).not.toBeNull();
+
+    const systemPrompt = buildBookSurfaceRepairSystemPrompt();
+    const userPrompt = buildBookSurfaceRepairUserPrompt({
+      authority: selected!,
+    });
+    const accounting = visualContractAuthoringInputAccounting(
+      systemPrompt,
+      userPrompt,
+      BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+    );
+
+    expect(
+      decodeBookSurfaceRepairUserPrompt(userPrompt).affectedPages,
+    ).toHaveLength(12);
+    expect(presentationTargets).toHaveLength(20);
+    expect(accounting.estimatedBytes).toBeGreaterThan(
+      VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS -
+        VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
+    );
+    expect(
+      visualContractAuthoringRouteIsAdmissible({
+        systemPrompt,
+        userPrompt,
+        schema: BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+      }),
+    ).toBe(false);
+    expect(userPrompt).not.toMatch(
+      /RAW_STORY_SOURCE_SENTINEL|PROVIDER_RESPONSE_SENTINEL|SECRET_CREDENTIAL_SENTINEL|OPENAI_API_KEY|Bearer\s+/,
+    );
   });
 
   it('parses exact output and rejects root, cover, and page drift', () => {

@@ -22,12 +22,16 @@ export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =
-  'book-surface-repair-prompt/v2' as const;
+  'book-surface-repair-prompt/v3' as const;
 export const BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION =
-  'book-surface-repair-user-prompt/v2' as const;
+  'book-surface-repair-user-prompt/v3' as const;
 
 const MAX_VALIDATION_MESSAGES = 128;
 const MAX_VALIDATION_MESSAGE_LENGTH = 1_024;
+
+function lexicalCompare(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
 
 function strictObject(
   properties: Record<string, unknown>,
@@ -96,7 +100,8 @@ export interface BookSurfaceRepairAuthority {
   recurringProps: Record<string, unknown>[];
   repairRecurringProps: boolean;
   affectedPages: PageContractRepairAffectedPage[];
-  validationMessages: string[];
+  coverValidationHints: string[];
+  recurringPropValidationHints: string[];
   referenceAuthority: BookSurfaceReferenceAuthority;
 }
 
@@ -161,8 +166,12 @@ function uniqueRecordIds(
 
 function cleanValidationMessages(
   values: readonly string[],
+  options: { allowEmpty?: boolean } = {},
 ): string[] | null {
-  if (values.length === 0 || values.length > MAX_VALIDATION_MESSAGES) {
+  if (
+    (!options.allowEmpty && values.length === 0) ||
+    values.length > MAX_VALIDATION_MESSAGES
+  ) {
     return null;
   }
   const secretPattern =
@@ -181,9 +190,7 @@ function cleanValidationMessages(
   ) {
     return null;
   }
-  return [...new Set(messages)].sort((left, right) =>
-    left.localeCompare(right),
-  );
+  return [...new Set(messages)].sort(lexicalCompare);
 }
 
 function referenceAuthority(
@@ -373,12 +380,32 @@ export function bookSurfaceRepairAuthority(args: {
       issue.locator.collectionRole === 'recurring_props' &&
       issue.locator.fieldRole === 'lifecycle',
   );
-  const pageIssueEntries = args.structuralDiagnosticIssues
+  const structuralIssueEntries = args.structuralDiagnosticIssues
     .map((issue, index) => ({
       issue,
       message: args.structuralValidationMessages[index]!,
-    }))
-    .filter(({ issue }) => issue.locator.kind === 'page');
+    }));
+  const coverIssueEntries = structuralIssueEntries.filter(
+    ({ issue }) => issue.locator.kind === 'cover',
+  );
+  const recurringPropIssueEntries = structuralIssueEntries.filter(
+    ({ issue }) =>
+      issue.code === 'lifecycle_invariant_invalid' &&
+      issue.locator.kind === 'collection' &&
+      issue.locator.collectionRole === 'recurring_props' &&
+      issue.locator.fieldRole === 'lifecycle',
+  );
+  const pageIssueEntries = structuralIssueEntries.filter(
+    ({ issue }) => issue.locator.kind === 'page',
+  );
+  if (
+    coverIssueEntries.length +
+      recurringPropIssueEntries.length +
+      pageIssueEntries.length !==
+    structuralIssueEntries.length
+  ) {
+    return null;
+  }
   if (!coverIssueSeen || pageIssueEntries.length === 0) return null;
 
   const affectedPages =
@@ -392,17 +419,34 @@ export function bookSurfaceRepairAuthority(args: {
         ({ message }) => message,
       ),
     });
+  const cleanedAffectedPages = affectedPages?.map((page) => {
+    const validationHints = cleanValidationMessages(
+      page.validationHints,
+    );
+    return validationHints
+      ? {
+          ...page,
+          validationHints,
+        }
+      : null;
+  });
+  const affectedPageValidationHintCount =
+    cleanedAffectedPages?.reduce(
+      (total, page) =>
+        total + (page?.validationHints.length ?? 0),
+      0,
+    );
   const coverContract = recordValue(args.authorityDraft.coverContract);
   const recurringProps = Array.isArray(args.draft.recurringProps)
     ? args.draft.recurringProps.map(recordValue)
     : [];
-  const validationMessages = cleanValidationMessages([
-    ...args.structuralValidationMessages,
-    ...args.presentationTargets.map(
-      (target) =>
-        `closed_catalog_capability_gap: page ${target.pageNumber} coverage ${target.coverageIndex} must become one same-page presentation_requirement using one exact permitted pointer/value`,
-    ),
-  ]);
+  const coverValidationHints = cleanValidationMessages(
+    coverIssueEntries.map(({ message }) => message),
+  );
+  const recurringPropValidationHints = cleanValidationMessages(
+    recurringPropIssueEntries.map(({ message }) => message),
+    { allowEmpty: !repairRecurringProps },
+  );
   const refs = referenceAuthority(args.authorityDraft);
   const typedRecurringProps = recurringProps as Record<string, unknown>[];
   const recurringPropIds = recurringProps.some((value) => value === null)
@@ -410,9 +454,19 @@ export function bookSurfaceRepairAuthority(args: {
     : uniqueRecordIds(typedRecurringProps);
   if (
     !affectedPages ||
+    affectedPageValidationHintCount === undefined ||
+    !cleanedAffectedPages ||
+    cleanedAffectedPages.some((page) => page === null) ||
     !coverContract ||
     !exactKeys(coverContract, COVER_CONTRACT_KEYS) ||
-    !validationMessages ||
+    !coverValidationHints ||
+    !recurringPropValidationHints ||
+    (repairRecurringProps && recurringPropValidationHints.length === 0) ||
+    (!repairRecurringProps && recurringPropValidationHints.length > 0) ||
+    coverValidationHints.length +
+      recurringPropValidationHints.length +
+      affectedPageValidationHintCount >
+      MAX_VALIDATION_MESSAGES ||
     !refs ||
     !recurringPropIds ||
     JSON.stringify([...recurringPropIds].sort()) !==
@@ -424,8 +478,11 @@ export function bookSurfaceRepairAuthority(args: {
     coverContract: structuredClone(coverContract),
     recurringProps: structuredClone(typedRecurringProps),
     repairRecurringProps,
-    affectedPages: affectedPages.map((value) => structuredClone(value)),
-    validationMessages,
+    affectedPages: (
+      cleanedAffectedPages as PageContractRepairAffectedPage[]
+    ).map((value) => structuredClone(value)),
+    coverValidationHints,
+    recurringPropValidationHints,
     referenceAuthority: refs,
   };
 }
@@ -434,10 +491,10 @@ export function buildBookSurfaceRepairSystemPrompt(): string {
   return [
     'Repair ONLY the coverContract, the recurringProps collection when repairRecurringProps is true, and complete page contracts identified by the input.',
     'Decode the compact input exactly: ["s",i] references stringDictionary[i], ["a",...items] is an array, and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
-    'The decoded root contains coverContract, recurringProps, repairRecurringProps, affectedPages with exact repairTargets and validationHints, validationMessages, and referenceAuthority.',
+    'The decoded root contains coverContract with coverValidationHints, recurringProps with recurringPropValidationHints, repairRecurringProps, affectedPages with exact repairTargets and page-specific validationHints, and referenceAuthority.',
     'Return exactly one coverContract, the same recurring prop IDs, and exactly the affected pageNumbers; never add, remove, or rename an identity.',
-    'When repairRecurringProps is false, return recurringProps unchanged. When true, resolve only its listed lifecycle invariant.',
-    'Use only IDs and worldType present in referenceAuthority. Preserve page locationId and zoneId. Resolve every listed target and validation message.',
+    'When repairRecurringProps is false, recurringPropValidationHints is empty and recurringProps must be returned unchanged. When true, resolve only its listed lifecycle invariant.',
+    'Use only IDs and worldType present in referenceAuthority. Preserve page locationId and zoneId. Resolve every listed target and scoped validation hint.',
     'Preserve all valid semantics and do not infer or return any unrelated global field.',
     'Output only the JSON object required by the strict repair schema.',
   ].join('\n');
@@ -450,6 +507,10 @@ export function buildBookSurfaceRepairUserPrompt(args: {
     coverContract: structuredClone(args.authority.coverContract),
     recurringProps: structuredClone(args.authority.recurringProps),
     repairRecurringProps: args.authority.repairRecurringProps,
+    coverValidationHints: [...args.authority.coverValidationHints],
+    recurringPropValidationHints: [
+      ...args.authority.recurringPropValidationHints,
+    ],
     affectedPages: args.authority.affectedPages.map((value) => ({
       pageNumber: value.pageNumber,
       pageContract: structuredClone(value.pageContract),
@@ -459,7 +520,6 @@ export function buildBookSurfaceRepairUserPrompt(args: {
         value.permittedPointerValues,
       ),
     })),
-    validationMessages: [...args.authority.validationMessages],
     referenceAuthority: structuredClone(
       args.authority.referenceAuthority,
     ),

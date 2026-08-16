@@ -11,6 +11,7 @@ import {
   VISUAL_CONTRACT_AUTHORING_NO_FALLBACK,
   VISUAL_CONTRACT_AUTHORING_POLICY_VERSION,
   VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
+  VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE,
   VISUAL_CONTRACT_AUTHORING_PROVIDER,
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT,
   VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
@@ -25,6 +26,8 @@ import {
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
   terminalReferenceCleanupPredecessorIsEligible,
+  visualContractAuthoringInputAccounting,
+  type VisualContractAuthoringInputAccounting,
 } from '@/lib/visual-contract-compiler/authoringPolicy';
 import {
   authoringMaxOutputTokens,
@@ -185,11 +188,11 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v26' as const;
+  'visual-contract-authoring-request/v27' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v29' as const;
+  'visual-contract-authoring-receipt/v30' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v27' as const;
+  'visual-contract-authoring-readiness/v28' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v9' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -259,6 +262,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V24 =
   'visual-contract-authoring-request/v24' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V25 =
   'visual-contract-authoring-request/v25' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V26 =
+  'visual-contract-authoring-request/v26' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -311,6 +316,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V27 =
   'visual-contract-authoring-receipt/v27' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V28 =
   'visual-contract-authoring-receipt/v28' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V29 =
+  'visual-contract-authoring-receipt/v29' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -363,6 +370,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V25 =
   'visual-contract-authoring-readiness/v25' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V26 =
   'visual-contract-authoring-readiness/v26' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V27 =
+  'visual-contract-authoring-readiness/v27' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -406,7 +415,6 @@ export function openAIResponsesAuthoringEvidenceVersionStatus(
     : 'unsupported';
 }
 
-const PROMPT_PROTOCOL_TOKEN_ALLOWANCE = 4_096;
 const MAX_RECEIPT_ERRORS = 128;
 const MAX_RECEIPT_ERROR_LENGTH = 2_000;
 
@@ -729,6 +737,9 @@ export interface VisualContractAuthoringAttemptReceipt {
   completionStatus?: string;
   usageEvidenceComplete?: boolean;
   executionAttestation: AuthoringExecutionAttestation;
+  inputAccounting: VisualContractAuthoringInputAccounting & {
+    ceiling: number;
+  };
   reservedExposureBeforeCallUsd: number;
   nominalEstimatedCostUsd: number | null;
   conservativeAccountedCostUsd: number | null;
@@ -933,7 +944,8 @@ export function visualContractAuthoringArtifactVersionStatus(
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V22 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V23 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V24 ||
-        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V25
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V25 ||
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V26
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -965,6 +977,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V26,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V27,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V28,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V29,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -993,6 +1006,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V24,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V25,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V26,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V27,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -1087,16 +1101,11 @@ function callInputTokenUpperBound(
   userPrompt: string,
   schema: Record<string, unknown>,
 ): number {
-  return (
-    Buffer.byteLength(
-      [
-        systemPrompt,
-        userPrompt,
-        JSON.stringify(schema),
-      ].join('\n'),
-      'utf8',
-    ) + PROMPT_PROTOCOL_TOKEN_ALLOWANCE
-  );
+  return visualContractAuthoringInputAccounting(
+    systemPrompt,
+    userPrompt,
+    schema,
+  ).estimatedBytes;
 }
 
 export function nominalAuthoringUsageCostUsd(
@@ -2944,6 +2953,19 @@ export async function runVisualContractAuthoring(args: {
                 : null;
             const budgetClass =
               promptAuthority?.budgetClass ?? 'standard';
+            const expected = expectedCallOptions(
+              args.request,
+              promptAuthority,
+            );
+            const inputAccounting = {
+              ...visualContractAuthoringInputAccounting(
+                systemPrompt,
+                userPrompt,
+                options?.jsonSchema?.schema ??
+                  TEMPLATE_DRAFT_JSON_SCHEMA,
+              ),
+              ceiling: expected.maxInputTokens ?? 0,
+            };
             const reservedExposureBeforeCallUsd =
               reservedExposureBeforeNextCall(
                 args.request,
@@ -2967,6 +2989,7 @@ export async function runVisualContractAuthoring(args: {
               usageEvidenceKind: null,
               executionAttestation:
                 notRunAuthoringExecutionAttestation(),
+              inputAccounting,
               reservedExposureBeforeCallUsd,
               nominalEstimatedCostUsd: null,
               conservativeAccountedCostUsd: null,
@@ -3034,17 +3057,8 @@ export async function runVisualContractAuthoring(args: {
                 'maximum reserved authoring exposure exceeds the approved hard cost ceiling',
               );
             }
-            const expected = expectedCallOptions(
-              args.request,
-              promptAuthority,
-            );
             if (
-              callInputTokenUpperBound(
-                systemPrompt,
-                userPrompt,
-                options?.jsonSchema?.schema ??
-                  TEMPLATE_DRAFT_JSON_SCHEMA,
-              ) >
+              inputAccounting.estimatedBytes >
               expected.maxInputTokens!
             ) {
               terminal.code =
@@ -3700,6 +3714,51 @@ function visualContractAuthoringReceiptExhaustionBindingIsValid(
   });
 }
 
+function visualContractAuthoringAttemptInputAccountingIsValid(args: {
+  attempt: VisualContractAuthoringAttemptReceipt;
+  request: VisualContractAuthoringRequest;
+}): boolean {
+  const accounting = args.attempt.inputAccounting;
+  const expectedCeiling =
+    args.attempt.budgetClass === 'terminal_reference_cleanup'
+      ? args.request.callBudget.terminalReferenceCleanup
+          .maxInputTokens
+      : args.request.tokenBudget.maxInputTokens;
+  const numericValues = [
+    accounting.systemBytes,
+    accounting.userBytes,
+    accounting.schemaBytes,
+    accounting.separatorBytes,
+    accounting.protocolAllowance,
+    accounting.estimatedBytes,
+    accounting.ceiling,
+  ];
+  if (
+    numericValues.some(
+      (value) => !Number.isInteger(value) || value < 0,
+    ) ||
+    accounting.ceiling !== expectedCeiling ||
+    accounting.separatorBytes !== 2 ||
+    accounting.protocolAllowance !==
+      VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE ||
+    accounting.estimatedBytes !==
+      accounting.systemBytes +
+        accounting.userBytes +
+        accounting.schemaBytes +
+        accounting.separatorBytes +
+        accounting.protocolAllowance
+  ) {
+    return false;
+  }
+  if (args.attempt.status === 'input_ceiling_exceeded') {
+    return (
+      !args.attempt.providerReached &&
+      accounting.estimatedBytes > accounting.ceiling
+    );
+  }
+  return accounting.estimatedBytes <= accounting.ceiling;
+}
+
 export function buildVisualContractAuthoringReadinessEvidence(args: {
   snapshot: StorySourceAuthoritySnapshot;
   request: VisualContractAuthoringRequest;
@@ -3723,6 +3782,13 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       authoringExecutionAttestationIsValid(
         attempt.executionAttestation,
       ),
+    );
+  const attemptsHaveValidInputAccounting =
+    args.receipt.attempts.every((attempt) =>
+      visualContractAuthoringAttemptInputAccountingIsValid({
+        attempt,
+        request: args.request,
+      }),
     );
   const aggregateExecution =
     attemptsHaveValidExecution
@@ -3750,6 +3816,7 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       args.receipt.executionAttestation,
     ) ||
     !attemptsHaveValidExecution ||
+    !attemptsHaveValidInputAccounting ||
     aggregateExecution === null ||
     !exactJson(
       args.receipt.executionAttestation,
