@@ -8,7 +8,7 @@
   /* Light entry, matching the rest of the site (the night band was cut per Guy) */
   background: linear-gradient(165deg, var(--surface-page, #fff) 0%, #f7f2ff 38%, #eef6fa 100%);
   color: var(--dark);
-  font-family: var(--font-heebo, var(--fb));
+  font-family: var(--font-rubik, var(--fb));
 }
 
 .navbar {
@@ -375,7 +375,7 @@
 }
 
 .directionPrice span {
-  font-family: 'Heebo', var(--fb), sans-serif;
+  font-family: var(--font-rubik, var(--fb)), sans-serif;
   font-size: clamp(48px, 6vw, 62px);
   font-weight: 900;
   line-height: 0.95;

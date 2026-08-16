@@ -214,7 +214,7 @@
 
 .name {
   /* Suez One — the approved heading face (Rubik run reverted; Abraham banned) */
-  font-family: var(--font-suez, 'Suez One'), var(--fd, 'Heebo'), serif;
+  font-family: var(--font-suez, 'Suez One'), var(--fd, 'Rubik'), serif;
   font-weight: 400;
   font-size: clamp(28px, 3.6vw, 36px);
   color: #241b4d;
@@ -222,7 +222,7 @@
 }
 
 .tagline {
-  font-family: var(--font-heebo, 'Heebo'), sans-serif;
+  font-family: var(--font-rubik, 'Rubik'), sans-serif;
   font-size: 16.5px;
   line-height: 1.55;
   color: #5f5a70;
@@ -231,7 +231,7 @@
 }
 
 .context {
-  font-family: var(--font-heebo, 'Heebo'), sans-serif;
+  font-family: var(--font-rubik, 'Rubik'), sans-serif;
   font-size: 13.5px;
   color: #8b86a0;
   margin: 0 0 6px;
@@ -248,7 +248,7 @@
   border-radius: 999px;
   background: linear-gradient(135deg, #8a6bff, #6d4df0);
   color: #fff;
-  font-family: var(--font-heebo, 'Heebo'), sans-serif;
+  font-family: var(--font-rubik, 'Rubik'), sans-serif;
   font-weight: 700;
   font-size: 18px;
   text-decoration: none;

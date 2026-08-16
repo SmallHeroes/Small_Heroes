@@ -883,7 +883,7 @@
 
 /* Launch discount: struck-through "original" price shown above the current price. */
 .price-was {
-  font-family: 'Heebo', sans-serif; /* override --fd — Abraham digits render incorrectly, so the struck price was illegible */
+  font-family: var(--fb); /* override --fd — display-face digits misrender, so the struck price was illegible */
   font-size: 21px;
   font-weight: 700;
   color: #8b83a6; /* muted (secondary) but legible on white */
@@ -900,7 +900,7 @@
 }
 
 .price-now-digits {
-  font-family: 'Heebo', sans-serif; /* override --fd — Abraham digits render incorrectly */
+  font-family: var(--fb); /* override --fd — display-face digits misrender */
   font-size: 62px;
   font-weight: 900;
   line-height: 0.95;
@@ -909,7 +909,7 @@
 
 .price-launch-flag {
   align-self: center;
-  font-family: 'Heebo', sans-serif; /* running font — legible at small pill size, unlike --fd */
+  font-family: var(--fb); /* running font — legible at small pill size, unlike --fd */
   font-size: 12.5px;
   font-weight: 800;
   color: var(--purple, #7c5cfc);
