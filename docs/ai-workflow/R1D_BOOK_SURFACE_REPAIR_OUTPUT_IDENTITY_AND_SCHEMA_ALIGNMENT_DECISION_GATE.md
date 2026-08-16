@@ -50,8 +50,10 @@ number constraints before provider dispatch.
    `book_surface_repair_prop_change_not_authorized` to it. The exact identity
    remains available to distinguish them.
 4. Add a Visual Contract-specific exact-key `repairOutputDiagnostics/v1`
-   structure. Do not widen or weaken shared `authoringTerminalFailureIsValid`,
-   and do not change Blueprint receipt v4.
+   structure. Do not widen or weaken the shared
+   `authoringTerminalFailureIsValid` structural predicate or count semantics;
+   the required closed diagnostic-code enum extension remains closed. Do not
+   change Blueprint receipt v4.
 5. The diagnostic records `carriedDraftDiagnosticCount` and
    `repairOutputDiagnosticCount: 1`; the existing aggregate
    `failure.diagnosticCount` must equal their capped sum. This preserves

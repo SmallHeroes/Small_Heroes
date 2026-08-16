@@ -10,7 +10,9 @@
 
 **Code commit:** `3fc0dbb4`
 
-**Independent QA:** pending
+**Independent QA:** technical PASS for
+`425ffccefad1421c0a45a68cf9dbd60fba585d49..bd9e1d2623eff0e7c6617439fcf56835593abd2c`;
+zero BLOCKER, zero MAJOR, three non-blocking MINOR findings
 
 ## Problem and evidence boundary
 
@@ -44,7 +46,9 @@ evidence. It does not rewrite, migrate or recalculate either artifact.
    `carriedDraftDiagnosticCount` and `repairOutputDiagnosticCount: 1`.
 5. The Visual Contract-specific validator binds those fields to terminal code,
    diagnostic code and capped aggregate count. The shared
-   `authoringTerminalFailureIsValid` surface is not widened, and Blueprint
+   `authoringTerminalFailureIsValid` exact shape and count semantics are
+   unchanged; its closed diagnostic-code enum gains the required
+   `repair_output_recurring_prop_invalid` member and remains closed. Blueprint
    receipt v4 is unchanged.
 6. The shared structured-output schema requires a non-whitespace recurring-prop
    ID and a positive integer page number. These constraints apply before
@@ -146,11 +150,38 @@ closeout. It requires no artifact or database migration. Any readiness created
 under the new authority versions becomes inapplicable after rollback; historical
 evidence remains byte-immutable.
 
-The next step is an independent read-only Claude Code review of the exact
-base-to-head range. Only a technical PASS may authorize pushing the branch and
-preparing a brand-new zero-cost Fresh Readiness. This implementation does not
-self-award PASS and grants no live, candidate, Reconciliation, Blueprint,
-Wizard, render, QA deployment, Production or release authority.
+Claude Code independently reviewed the exact base-to-head range and returned
+technical PASS. That review independently reran the 4-file/118-test,
+2-file/81-test and 2-file/84-test sets, TypeScript and `git diff --check`. The
+second Supervisor pair passed on a clean rerun after one pre-existing flaky
+filesystem-fence observation. Claude did not rerun the single-use repository
+gate and verified the five-fixture baseline explanation from Git history.
+
+The review recorded three non-blocking MINOR findings:
+
+1. Repair-input construction failures inside dispatch are currently attributed
+   to repair-output validation. Correcting this generally requires a distinct
+   `repair_input_invalid` terminal/phase, evidence binding, authority-version
+   cutover and new Fresh Readiness; it is deferred to a separate Decision Gate.
+2. Known exact identities are not yet validator-bound to their one canonical
+   broad failure code. Future hardening should expose and enforce the pure
+   identity-to-code mapping while retaining broad-code freedom for
+   `unclassified`.
+3. The original documentation overstated that the shared validator was wholly
+   unchanged. This closeout corrects the claim: its structural/count semantics
+   are unchanged, while its closed diagnostic-code enum intentionally gains one
+   member.
+
+The first two findings are retained under future milestone
+`R1D-REPAIR-INPUT-ATTRIBUTION-AND-IDENTITY-CODE-BINDING-HARDENING`; they do not
+reopen or block the technical PASS for this range. Advisory notes remain: the
+Supervisor-pair filesystem fence can be flaky; `diagnosticCountOverride` is
+redundant but correct; and the pre-existing Book Surface input-roundtrip throw
+outside the dispatch `try` remains out of scope.
+
+The reviewed head may now be pushed and used only to prepare a brand-new
+zero-cost Fresh Readiness. This PASS grants no live, candidate, Reconciliation,
+Blueprint, Wizard, render, QA deployment, Production or release authority.
 
 ## Exclusions and cost
 

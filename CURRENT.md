@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-repair-output-identity-schema-alignment` in `C:\Users\guyna\.codex\worktrees\repairidentity3\Small_Heroes`; based exactly on `425ffccefad1421c0a45a68cf9dbd60fba585d49`.
 
-## BOOK-SURFACE REPAIR-OUTPUT IDENTITY AND SCHEMA ALIGNMENT — implementation complete, independent QA pending
+## BOOK-SURFACE REPAIR-OUTPUT IDENTITY AND SCHEMA ALIGNMENT — independent technical PASS
 
 The consumed Book Surface live attempt exposed a durable-observability defect:
 the compiler retained only a broad repair failure class and discarded the exact
@@ -26,10 +26,13 @@ and an invalid page number that deterministic application would reject later.
   failure. The aggregate diagnostic count remains compatibility-preserving and
   equals the capped sum; the prior live attempt's count is therefore explicitly
   represented as 39 carried diagnostics plus 1 repair-output diagnostic.
-- The shared terminal validator and Blueprint receipt v4 are unchanged. The
-  extended fields are enforced only by the Visual Contract exact-key validator;
-  canonical key sorting passes, while identity, count, mode, attempt, ordering,
-  duplicate, extra/missing-key and locator tampering remain rejected.
+- The shared terminal validator's exact shape and count semantics remain
+  unchanged; its closed diagnostic-code enum gained the required
+  `repair_output_recurring_prop_invalid` member and remains closed. Blueprint
+  receipt v4 is unchanged. The extended fields are enforced only by the Visual
+  Contract exact-key validator; canonical key sorting passes, while identity,
+  count, mode, attempt, ordering, duplicate, extra/missing-key and locator
+  tampering remain rejected.
 - Structured Outputs now reject whitespace-only recurring-prop IDs and
   non-positive or fractional page numbers. Current schema versions are draft
   v15, page-contract repair v2, structural-bundle repair v2 and Book Surface
@@ -69,10 +72,41 @@ and an invalid page number that deterministic application would reject later.
   candidate, render, storage/database, deployment or push occurred. Cost is
   `$0`.
 
-This is Codex implementation evidence, not an independent technical PASS.
-Claude Code must falsify the exact base-to-head range before any new Fresh
-Readiness or paid attempt. This milestone grants no candidate, Blueprint,
-Wizard, render, QA-deployment, Production or release authority.
+Claude Code independently reviewed exact range
+`425ffccefad1421c0a45a68cf9dbd60fba585d49..bd9e1d2623eff0e7c6617439fcf56835593abd2c`
+and returned technical PASS with zero BLOCKER, zero MAJOR and three non-blocking
+MINOR findings. It independently reproduced the focused 4-file/118-test,
+2-file/81-test and 2-file/84-test sets, TypeScript and `git diff --check`; the
+second Supervisor pair passed on its clean rerun after one pre-existing flaky
+filesystem-fence observation. Claude did not rerun the single-use repository
+gate and verified the five-fixture baseline explanation from Git history.
+
+The findings are retained without reopening this passed runtime range:
+
+- MINOR-1: failures while constructing repair input are currently attributed to
+  repair-output validation. A correct general fix requires a distinct
+  `repair_input_invalid` terminal/phase, evidence binding, lifecycle cutover and
+  new Fresh Readiness; it belongs to a separate Decision Gate rather than this
+  closeout.
+- MINOR-2: the Visual Contract validator binds identity and diagnostic codes but
+  does not yet prove the unique identity-to-failure-code mapping for known
+  identities. A future hardening should expose and enforce the canonical pure
+  mapping while retaining broad-code freedom for `unclassified`.
+- MINOR-3 is closed by this documentation correction: shared structural and
+  count semantics were unchanged, but the closed diagnostic-code enum was
+  intentionally extended by one member.
+
+Advisory notes remain non-blocking: the Supervisor-pair filesystem fence can be
+flaky; `diagnosticCountOverride` is redundant but correct; and the pre-existing
+Book Surface input-roundtrip throw outside the dispatch `try` remains out of
+scope. MINOR-1 and MINOR-2 are grouped under the future Decision Gate
+`R1D-REPAIR-INPUT-ATTRIBUTION-AND-IDENTITY-CODE-BINDING-HARDENING` and do not
+authorize work inside this completed milestone.
+
+This independent PASS grants no candidate, Blueprint, Wizard, render,
+QA-deployment, Production or release authority. A future paid attempt still
+requires the reviewed head to be pushed and a brand-new zero-cost Fresh
+Readiness authority.
 
 Durable records:
 `docs/ai-workflow/R1D_BOOK_SURFACE_REPAIR_OUTPUT_IDENTITY_AND_SCHEMA_ALIGNMENT_DECISION_GATE.md`
