@@ -230,9 +230,12 @@
 .hero-img-wrap {
   flex: 0 0 auto;
   position: relative;
-  width: min(520px, 44vw);
-  aspect-ratio: 2325 / 3270;
+  /* the WIDE desktop story-strip (per Guy: let it feel big) + the 3D
+     tilt's stage: perspective lives on the wrap, rotation on .hero-float */
+  width: min(720px, 54vw);
+  aspect-ratio: 1206 / 912;
   align-self: center;
+  perspective: 1100px;
 }
 
 /* (The purple glow pool is gone with the old cutout: the story collage
@@ -1307,9 +1310,13 @@
 
   .hero-img-wrap {
     width: 100%;
-    max-width: 340px;
+    /* the stacked-collage mobile export is 362px wide - stay at or under
+       its native size so it renders crisp */
+    max-width: 300px;
+    aspect-ratio: 362 / 512;
     order: 1;
     margin: 10px auto 0;
+    perspective: none;
   }
 
   .helps-grid,
@@ -1712,18 +1719,8 @@
   filter: drop-shadow(0 18px 28px rgba(38, 26, 74, 0.18));
 }
 
-.hero-img-wrap::after {
-  content: '';
-  position: absolute;
-  inset-inline: 12%;
-  bottom: 2%;
-  height: 26px;
-  border-radius: 50%;
-  background: radial-gradient(50% 100% at 50% 50%, rgba(38, 26, 74, 0.22), transparent 72%);
-  filter: blur(9px);
-  z-index: 0;
-  pointer-events: none;
-}
+/* (No oval contact shadow: the story panels carry their own shadows, and a
+   static floor blob under the tilting collage broke the illusion.) */
 
 /* Primary CTA reads as the one lit object on the page. */
 .hero-btns .btn-primary {

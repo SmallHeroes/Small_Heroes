@@ -134,22 +134,26 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <p className="hero-cta-note" data-reveal="hero" data-reveal-delay="240">{L.hero.ctaNote}</p>
               </div>
 
-              <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120">
-                {/* Guy's three-beat story collage (fear -> meeting the friend ->
-                    walking out proud). The panels ride on transparency, so no
-                    glow pool behind them - a soft shadow grounds them instead.
-                    .hero-float carries the ambient float; parallax stays on the
-                    img itself so the two never fight over one transform. */}
+              <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120" data-tilt="hero">
+                {/* Guy's three-beat story strips (fear -> meeting the friend ->
+                    walking out proud): the WIDE panorama on desktop, the stacked
+                    collage on phones. Desktop gets the 3D cursor tilt (motion.ts,
+                    hover+fine-pointer only) - rotation on .hero-float, scroll
+                    parallax stays on the img so they never fight over one
+                    transform. */}
                 <div className="hero-float">
-                  <img
-                    src="/Images/SmallHeroesHero.webp"
-                    alt="שלושה רגעים מסיפור: ילדה חוששת בהמתנה, פוגשת את החבר המלווה, ויוצאת גאה"
-                    className="hero-img"
-                    data-parallax="hero-img"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
+                  <picture>
+                    <source media="(min-width: 961px)" srcSet="/Images/DesktopHero.webp" />
+                    <img
+                      src="/Images/SmallHeroesHero.webp"
+                      alt="שלושה רגעים מסיפור: ילדה חוששת בהמתנה, פוגשת את החבר המלווה, ויוצאת גאה"
+                      className="hero-img"
+                      data-parallax="hero-img"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </picture>
                 </div>
               </div>
             </div>
