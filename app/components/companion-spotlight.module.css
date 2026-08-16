@@ -125,6 +125,51 @@
     art-hop 7.3s ease-in-out 2.2s infinite;
 }
 
+/* the cutout bows out once the footage is actually rolling */
+.art[data-hidden='1'] {
+  opacity: 0;
+  transition: opacity 380ms ease;
+}
+
+/* ── The idle VIDEO (per Guy): the companion truly moves ──
+   Same box as .art so the stage never changes size. The footage carries a
+   baked white margin around a cream plate; scaling the video 113% inside a
+   rounded overflow-clip crops the margin away, and the remaining cream
+   reads as part of the stage's own warm field — a deliberate live vignette,
+   not a pasted square. The crossfade starts only on 'playing' (the cutout
+   below covers loading); no entrance animation of its own — an animation
+   fill would override opacity:0 and flash a frozen frame. */
+.videoBox {
+  position: absolute;
+  bottom: 0;
+  inset-inline: 0;
+  margin-inline: auto;
+  height: calc(100% - 16px);
+  aspect-ratio: 1;
+  max-width: 94%;
+  overflow: hidden;
+  border-radius: 26px;
+  /* narrow edge feather: melts the plate boundary into the warm stage
+     without reaching the character (only the outer ~10% fades) */
+  -webkit-mask-image: radial-gradient(100% 100% at 50% 50%, #000 86%, transparent 99.5%);
+  mask-image: radial-gradient(100% 100% at 50% 50%, #000 86%, transparent 99.5%);
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 380ms ease;
+  pointer-events: none;
+}
+.videoBox[data-live='1'] { opacity: 1; }
+
+/* 113% + centered offsets = the baked white margin is cropped away;
+   only the cream plate remains, blending into the warm stage field */
+.videoBox video {
+  display: block;
+  width: 113%;
+  height: 113%;
+  margin: -6.5% 0 0 -6.5%;
+  object-fit: cover;
+}
+
 @keyframes art-pop {
   from { transform: scale(0.68) translateY(14px); opacity: 0; }
   70% { transform: scale(1.05) translateY(-3px); opacity: 1; }
@@ -265,4 +310,6 @@
   }
   .art { animation: art-pop 0.01ms both; }
   .spark { animation: none; opacity: 0; }
+  /* JS already skips rendering the video under reduced motion; belt + braces */
+  .videoBox { display: none; }
 }

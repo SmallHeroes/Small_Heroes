@@ -17,8 +17,9 @@
  * prefers-reduced-motion: fades only, no idle loop.
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
+import { companionIdleVideoSrc } from '@/lib/web/companion-idle-video';
 import styles from './companion-spotlight.module.css';
 
 type CompanionSpotlightProps = {
@@ -42,6 +43,19 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
      disk, and these pushed api/debug/replicate-image past Vercel's 250MB cap. */
   const companionSlug = companion.image.split('/')[2] ?? '';
   const cutoutSrc = `/Images/spotlight/${companionSlug}.png`;
+
+  /* Idle VIDEO (per Guy): once it actually plays, it crossfades in over the
+     cutout — the cutout stays underneath as the instant placeholder and the
+     no-video fallback, so the stage never jumps size. Reduced motion keeps
+     the still art (no autoplaying footage). */
+  const idleVideoSrc = companionIdleVideoSrc(companion.image);
+  const [videoLive, setVideoLive] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }, []);
+  const showVideo = Boolean(idleVideoSrc) && !videoFailed && !reducedMotion;
 
   const requestClose = useCallback(() => {
     if (startedClosingRef.current) return;
@@ -110,6 +124,7 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
         <div className={styles.stage} aria-hidden="true">
           <img
             className={styles.art}
+            data-hidden={videoLive ? '1' : '0'}
             src={cutoutSrc}
             alt=""
             draggable={false}
@@ -123,6 +138,24 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
               }
             }}
           />
+          {showVideo ? (
+            <div className={styles.videoBox} data-live={videoLive ? '1' : '0'}>
+              <video
+                src={idleVideoSrc ?? undefined}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                disablePictureInPicture
+                onPlaying={() => setVideoLive(true)}
+                onError={() => {
+                  setVideoFailed(true);
+                  setVideoLive(false);
+                }}
+              />
+            </div>
+          ) : null}
           <span className={`${styles.spark} ${styles.spark1}`} />
           <span className={`${styles.spark} ${styles.spark2}`} />
           <span className={`${styles.spark} ${styles.spark3}`} />
