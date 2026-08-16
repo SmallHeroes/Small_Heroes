@@ -87,11 +87,21 @@ Rollback is the single code commit before any new authority is materialized.
 After Fresh Readiness or live use, rollback also requires discarding those new
 authorities; historical artifacts must never be rewritten.
 
-## Acceptance state
+## Independent QA and acceptance state
 
-Codex records local implementation evidence only and does not self-award
-independent technical PASS. Claude Code must falsify the exact range before a
-new Fresh Readiness and live attempt are treated as technically accepted. No
+Claude Code independently reviewed exact range
+`a43f2d5dafe2edb6f771721d17bdf1c426ceb4ce..4787db8a5091e2e9e9ed7edd31ca30bef0c3e64c`
+and returned technical **PASS** with zero BLOCKER and zero MAJOR. Its one
+non-blocking documentation precision note concerned the umbrella phrase
+"action-coverage cardinality" in `CURRENT.md`; the closeout names the exact
+`coverage_action_binding_cardinality_invalid` code. Claude independently
+proved topology, scope and `git diff --check` but could not re-execute
+TypeScript or tests under its plan-mode approval boundary, so all numeric run
+results remain attributed to Codex execution evidence. The five observed
+ENOENT assertions remain part of the separate ignored-output fixture release
+HOLD.
+
+This is Claude Code's technical PASS, not a Codex self-awarded result. No
 credential, provider, B0/Fresh Readiness, preflight, live authoring, render,
 storage/database, deployment, Production or push action occurred in this
 implementation; cost was `$0`.

@@ -4,13 +4,14 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-compound-page-repair-canonical-context` in `C:\Users\guyna\.codex\worktrees\compoundctx1\Small_Heroes`; based exactly on pushed book-surface closeout `a43f2d5dafe2edb6f771721d17bdf1c426ceb4ce`.
 
-## COMPOUND PAGE REPAIR CANONICAL CONTEXT — implementation complete; independent QA pending
+## COMPOUND PAGE REPAIR CANONICAL CONTEXT — independent technical PASS
 
 The consumed attempt-2 authority on immutable `a43f2d5d` completed one
 provider response and stopped without a candidate. Its receipt
 `483cbc2a66ffe2b09dec2612d4f738fac581fda0f72f4a1bfd1b994bff9f1345`
-contains the exact closed union of three action-coverage cardinality issues on
-pages 7/8 and one page-spatial object issue on page 10. No repair, candidate,
+contains the exact closed union of three
+`coverage_action_binding_cardinality_invalid` issues on pages 7/8 and one
+page-spatial object issue on page 10. No repair, candidate,
 Reconciliation, Blueprint, Wizard or render authority was produced.
 
 - The general root cause was a planning-view mismatch. Validation emitted the
@@ -43,12 +44,22 @@ Reconciliation, Blueprint, Wizard or render authority was produced.
   four members of the established ignored-output fixture baseline; the
   separate repository/release HOLD remains unchanged.
 
-Independent Claude Code review of
-`a43f2d5dafe2edb6f771721d17bdf1c426ceb4ce..48c10306` is pending. Codex does
-not self-award technical PASS. No credential, pricing/network/provider, Fresh
-Readiness, preflight, live authoring, image/Vision, render, storage/database,
-deployment, Production or push action occurred in this implementation. Cost
-was `$0`.
+Claude Code independently reviewed the immutable full range
+`a43f2d5dafe2edb6f771721d17bdf1c426ceb4ce..4787db8a5091e2e9e9ed7edd31ca30bef0c3e64c`
+and returned **PASS** with zero BLOCKER and zero MAJOR. Its only non-blocking
+documentation precision note was that this section's former umbrella wording
+"action-coverage cardinality" should name the exact code
+`coverage_action_binding_cardinality_invalid`; this closeout makes that
+correction without changing code, tests, behavior or authority. Claude's
+plan-mode environment independently proved topology and `git diff --check`
+but did not re-execute TypeScript or tests; the recorded numeric runs remain
+Codex execution evidence. The ignored-output fixture baseline remains a
+separate release HOLD.
+
+This is Claude Code's technical PASS, not a Codex self-awarded result. No
+credential, pricing/network/provider, Fresh Readiness, preflight, live
+authoring, image/Vision, render, storage/database, deployment, Production or
+push action occurred in this implementation. Cost was `$0`.
 
 Durable records:
 `docs/ai-workflow/R1D_COMPOUND_PAGE_REPAIR_CANONICAL_CONTEXT_DECISION_GATE.md`,
