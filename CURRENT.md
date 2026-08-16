@@ -1,10 +1,10 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-16
+**Updated:** 2026-08-17
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-visual-contract-per-attempt-output-budget-reallocation` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on `982e554b8506f802712139faff8ef7d9e137987a`.
 
-## PER-ATTEMPT OUTPUT BUDGET REALLOCATION — QA corrections complete, repository gate HOLD
+## PER-ATTEMPT OUTPUT BUDGET REALLOCATION — over-fence correction complete, micro re-gate pending
 
 Guy approved the nine architectural decisions in
 `R1D_VISUAL_CONTRACT_PER_ATTEMPT_OUTPUT_BUDGET_REALLOCATION_DECISION_GATE.md`.
@@ -45,6 +45,34 @@ otherwise exact, directly exercise invalid budget pairs, and remove the unused
 `npx --no-install tsc --noEmit` and `git diff --check` pass. Per instruction,
 the exhausted single-use `npm run check` was not invoked again.
 
+Claude Code's focused micro re-gate independently confirmed closure of the two
+original MAJOR findings and all seven correction claims. It then found one new,
+narrow fail-closed defect: snapshots above the unchanged 12-page admission fence
+could reach the intended `request_invalid` path, but the rejected receipt reused
+the over-fence diagnostic schedule. Because that schedule is intentionally not a
+current admitted authority, readiness v30 threw instead of preserving durable
+rejected evidence.
+
+The follow-up correction introduces one evidence-only page-count normalization.
+Request construction and admission still use the actual page count and still
+reject every 13+ page snapshot. Only the non-authorizing rejected receipt and
+readiness fallback use the maximum admitted 12-page schedule
+`[48,000, 36,000, 24,000]`. Direct 13-, 17- and 23-page regressions prove zero
+provider reachability, `request_invalid`, persisted receipt/readiness roundtrip,
+absent candidate, false Blueprint/D1A1 authority and rejection of forged
+over-fence schedule evidence. Admitted 1–12-page scheduling and the exact `3B`
+pool remain unchanged.
+
+Validation exposed two test-harness/serialization corrections without widening
+production policy. The first focused run passed 2 and failed 3 only because the
+test expected a nonexistent readiness `candidate` key; it now asserts the real
+`visualContractCandidate`, Blueprint and D1A1 fields. The next run passed 1 and
+failed 3 because the canonical zero-cost calculation retained JavaScript `-0`,
+while JSON roundtrip produced `0`. The shared `ceilUsd` helper now normalizes
+only signed zero to ordinary zero. The final focused slice passed **4/4** with
+77 skipped; deterministic TypeScript and `git diff --check` pass. No provider,
+credential or network boundary was reached and external cost remained `$0`.
+
 The lifecycle still models the pre-existing terminal cleanup allowance, while
 the real adapter rejects its `6,000`/`2,000` pair before credential or transport
 reachability. This latent cleanup reachability mismatch is explicit and requires
@@ -75,7 +103,7 @@ application Git probe, B0, Fresh Readiness, canonical preflight, live authoring,
 candidate, Reconciliation, Blueprint/Wizard authority, render/image/Vision,
 storage/database, Board, deployment, PR, push or external spend occurred.
 Next action is a read-only Claude Code micro re-gate of exact
-`c5c1ca0a4c5d5544d356dc320ed2b501985dc74f..HEAD`. The five-fixture release HOLD
+`5f0fc4aa96d339562945ac10cf607c7228551045..HEAD`. The five-fixture release HOLD
 and the one `onTaskUpdate` RPC repository-gate HOLD remain immutable and are not
 reclassified by the QA-fix. Codex does not self-award technical PASS.
 

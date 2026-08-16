@@ -39,6 +39,7 @@ import {
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
 import { decodeBookSurfaceRepairUserPrompt } from '@/lib/visual-contract-compiler/bookSurfaceRepair';
 import { PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
+import { authoringRejectedEvidencePageCount } from '@/lib/visual-contract-compiler/authoringPolicy';
 import { migrateLegacySetBoardFixture } from '@/lib/set-identity-board/__tests__/current-authority-fixtures';
 import {
   buildStorySourceAuthoritySnapshot,
@@ -712,6 +713,19 @@ describe('Story Source authority snapshot', () => {
 });
 
 describe('exact zero-cost authoring preflight', () => {
+  it('normalizes only rejected evidence to the current admitted page fence', () => {
+    expect(
+      [1, 12, 13, 17, 23].map(
+        authoringRejectedEvidencePageCount,
+      ),
+    ).toEqual([1, 12, 12, 12, 12]);
+    expect(
+      buildVisualContractAuthoringStandardAttemptOutputBudget(
+        authoringRejectedEvidencePageCount(12),
+      ).limits,
+    ).toEqual([48_000, 36_000, 24_000]);
+  });
+
   it.each([
     ['8-page floor base', 32_000, true],
     ['12-page base', 36_000, true],
@@ -1275,15 +1289,16 @@ describe('exact zero-cost authoring preflight', () => {
     expect(provider.call).not.toHaveBeenCalled();
   });
 
-  it('blocks a generally-derived longer-story live budget above the approved ceiling before provider reachability', async () => {
-    const snapshot = snapshotFor(
-      writeStoryFixture({
-        pageCount: 13,
-        multiLocation: true,
-      }),
-    );
+  it.each([13, 17, 23])(
+    'persists sanitized request_invalid readiness for a %i-page over-fence snapshot without provider reachability',
+    async (pageCount) => {
+    const fixture = writeStoryFixture({
+      pageCount,
+      multiLocation: true,
+    });
+    const snapshot = snapshotFor(fixture);
     const request = requestFor(snapshot, 'live');
-    const provider = {
+    const providerOrTransportBoundary = {
       call: vi.fn(async () => {
         throw new Error('must remain unreachable');
       }),
@@ -1291,17 +1306,170 @@ describe('exact zero-cost authoring preflight', () => {
     const result = await runVisualContractAuthoring({
       request,
       snapshot,
-      provider,
+      provider: providerOrTransportBoundary,
+    });
+    const normalizedEvidencePageCount =
+      authoringRejectedEvidencePageCount(
+        snapshot.content.pages.length,
+      );
+    const authoritativeFallback =
+      buildVisualContractAuthoringStandardAttemptOutputBudget(
+        normalizedEvidencePageCount,
+      );
+    expect(normalizedEvidencePageCount).toBe(12);
+    expect(
+      request.tokenBudget.standardAttempts,
+    ).toEqual(
+      buildVisualContractAuthoringStandardAttemptOutputBudget(
+        pageCount,
+      ),
+    );
+    expect(request.tokenBudget.standardAttempts).not.toEqual(
+      authoritativeFallback,
+    );
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 0,
+      repairCount: 0,
+      attempts: [],
+      standardAttemptOutputBudget: authoritativeFallback,
+      projectedMaxCostUsd: 4.99125,
+      failure: {
+        code: 'request_invalid',
+        issues: expect.arrayContaining([
+          'page_budget_partition_decision_required',
+          'projected_cost_ceiling_exceeded',
+        ]),
+      },
     });
     expect(
-      request.tokenBudget.standardAttempts.limits,
-    ).toEqual([52_000, 39_000, 26_000]);
-    expect(request.costBudget.projectedMaxUsd).toBe(5.28825);
-    expect(result.receipt.status).toBe('failed');
-    expect(result.receipt.failure?.issues).toContain(
-      'projected_cost_ceiling_exceeded',
+      visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+        result.receipt.standardAttemptOutputBudget,
+      ),
+    ).toBe(true);
+    expect(
+      authoringSpendIsWithinCeiling(
+        result.receipt.projectedMaxCostUsd,
+        request.costBudget.hardCeilingUsd,
+      ),
+    ).toBe(true);
+    expect(
+      Object.is(
+        result.receipt.conservativeAccountedCostUsd,
+        -0,
+      ),
+    ).toBe(false);
+    expect(
+      providerOrTransportBoundary.call,
+    ).not.toHaveBeenCalled();
+
+    const readiness =
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: result.receipt,
+      });
+    expect(readiness).toMatchObject({
+      standardAttemptOutputBudget: authoritativeFallback,
+      authoringOutcome: {
+        status: 'failed',
+        failureCode: 'request_invalid',
+      },
+      visualContractCandidate: {
+        status: 'absent',
+        digest: null,
+      },
+      blueprintAuthoringReady: false,
+      d1a1Authorized: false,
+      blockers: expect.arrayContaining([
+        'authoring_outcome_failed',
+        'visual_contract_candidate_absent',
+      ]),
+    });
+
+    const outputDir = `outputs/over-fence-${pageCount}`;
+    const receiptWrite = persistVisualContractAuthoringReceipt({
+      repoRoot: fixture.repoRoot,
+      outputDir,
+      receipt: result.receipt,
+      write: true,
+    });
+    const readinessWrite = persistVisualContractAuthoringReadiness({
+      repoRoot: fixture.repoRoot,
+      outputDir,
+      evidence: readiness,
+      receipt: result.receipt,
+      write: true,
+    });
+    expect(
+      JSON.parse(
+        fs.readFileSync(
+          path.join(fixture.repoRoot, receiptWrite.path),
+          'utf8',
+        ),
+      ),
+    ).toEqual(result.receipt);
+    expect(
+      JSON.parse(
+        fs.readFileSync(
+          path.join(fixture.repoRoot, readinessWrite.path),
+          'utf8',
+        ),
+      ),
+    ).toEqual(readiness);
+
+    const forgedReceipt = structuredClone(result.receipt);
+    forgedReceipt.standardAttemptOutputBudget =
+      request.tokenBudget.standardAttempts;
+    forgedReceipt.projectedMaxCostUsd =
+      projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
+        standardMaxInputTokens: 64_000,
+        standardAttemptOutputLimits:
+          request.tokenBudget.standardAttempts.limits,
+        cleanupMaxInputTokens: 6_000,
+        cleanupMaxOutputTokens: 2_000,
+        cleanupMaxCalls: 1,
+      });
+    const {
+      digestAlgorithm: _forgedReceiptDigestAlgorithm,
+      digest: _forgedReceiptDigest,
+      ...forgedReceiptPayload
+    } = forgedReceipt;
+    forgedReceipt.digest = canonicalJsonDigest(
+      forgedReceiptPayload,
     );
-    expect(provider.call).not.toHaveBeenCalled();
+    expect(() =>
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: forgedReceipt,
+      }),
+    ).toThrow(
+      /requires current, digest-bound request and receipt evidence/,
+    );
+
+    const forgedReadiness = structuredClone(readiness);
+    forgedReadiness.standardAttemptOutputBudget =
+      request.tokenBudget.standardAttempts;
+    const {
+      digestAlgorithm: _forgedReadinessDigestAlgorithm,
+      digest: _forgedReadinessDigest,
+      ...forgedReadinessPayload
+    } = forgedReadiness;
+    forgedReadiness.digest = canonicalJsonDigest(
+      forgedReadinessPayload,
+    );
+    expect(() =>
+      persistVisualContractAuthoringReadiness({
+        repoRoot: fixture.repoRoot,
+        outputDir,
+        evidence: forgedReadiness,
+        receipt: result.receipt,
+        write: false,
+      }),
+    ).toThrow(
+      /readiness v30 requires exact typed draft-validation evidence/,
+    );
   });
 
   it('uses cache-write worst case plus regional uplift and treats the $5 boundary inclusively', () => {

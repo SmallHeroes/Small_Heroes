@@ -1,9 +1,10 @@
 # R1D Visual Contract Per-Attempt Output Budget Reallocation — Implementation Evidence
 
-**Date:** 2026-08-16
+**Date:** 2026-08-17
 
-**Status:** focused QA corrections complete; Claude Code micro re-gate pending;
-repository gate remains HOLD on one resource-phase `onTaskUpdate` RPC timeout
+**Status:** over-fence rejected-evidence correction complete; focused Claude Code
+micro re-gate pending; repository gate remains HOLD on one resource-phase
+`onTaskUpdate` RPC timeout
 
 **Branch:** `codex/r1d-visual-contract-per-attempt-output-budget-reallocation`
 
@@ -18,7 +19,9 @@ repository gate remains HOLD on one resource-phase `onTaskUpdate` RPC timeout
 **Original closeout / QA-fix base:**
 `c5c1ca0a4c5d5544d356dc320ed2b501985dc74f`
 
-**QA-fix commit:** this focused local commit
+**QA-fix commit:** `5f0fc4aa96d339562945ac10cf607c7228551045`
+
+**Over-fence correction:** this focused local commit
 
 **External cost:** `$0`
 
@@ -78,6 +81,40 @@ readiness rebinds receipt, request and snapshot. MINOR-7 remains a pre-existing
 low-risk `stable_prop_scope_patch` end-to-end coverage limitation. Neither was
 expanded into this fix. Durable canonical-preflight attestation also remains a
 separately gated blocker.
+
+## Claude micro re-gate and over-fence correction
+
+Claude Code's read-only micro re-gate of
+`c5c1ca0a4c5d5544d356dc320ed2b501985dc74f..5f0fc4aa96d339562945ac10cf607c7228551045`
+confirmed all seven correction claims and independently closed the two original
+MAJOR findings. It found one new, narrower MAJOR: a snapshot above the unchanged
+12-page admission fence reached the intended zero-call `request_invalid` path,
+but the rejected receipt carried the over-fence diagnostic schedule. Readiness
+v30 correctly rejected that non-admitted schedule and threw instead of producing
+durable rejected evidence.
+
+The correction is evidence-only:
+
+1. `authoringRejectedEvidencePageCount` maps a positive page count to at most the
+   current admitted maximum of 12. Request creation and admission continue to use
+   the actual snapshot page count.
+2. Only rejected receipt/readiness fallback construction uses that normalized
+   page count. A 13-, 17- or 23-page request remains invalid and retains its
+   actual diagnostic schedule in the request; it cannot reach a provider.
+3. The corresponding failed receipt/readiness instead carries the valid maximum
+   admitted schedule `[48,000, 36,000, 24,000]`, projected maximum `$4.99125`,
+   zero calls, zero repairs, no candidate and no Blueprint/D1A1 authority.
+4. Persisted receipt v32 and readiness v30 JSON reload exactly. Forged evidence
+   that substitutes the request's over-fence schedule is rejected even after
+   canonical re-digesting.
+5. The canonical `ceilUsd` helper normalizes JavaScript signed zero (`-0`) to
+   ordinary zero. This closes JSON roundtrip identity at zero cost without
+   changing any positive cost calculation.
+
+No individual schedule entry is clamped. All admitted 1–12-page schedules, the
+exact `3B` standard pool, hard-cost ceiling, model, prompt/schema authority,
+provider behavior, call/repair budget, timeout, retry and fallback policy remain
+unchanged.
 
 ## Implemented behavior
 
@@ -171,6 +208,29 @@ Only directly affected slices were invoked, as required:
 No assertion or infrastructure failure occurred. Literal `npm run check` was not
 rerun because its one authorized invocation was already exhausted.
 
+### Over-fence correction validation
+
+The validation sequence is preserved rather than collapsed into the final PASS:
+
+- The first focused runtime slice completed 2 passing and 3 failing cases. All
+  three failures were the same unsupported test expectation for a readiness
+  `candidate` property; readiness v30 exposes `visualContractCandidate` instead.
+  No runtime or infrastructure failure occurred.
+- After correcting only that expectation and asserting the real candidate,
+  Blueprint and D1A1 fields, the second slice completed 1 passing and 3 failing
+  cases. Each failure was exact persisted-receipt equality: the in-memory
+  zero-cost field was `-0`, while JSON reload was `0`.
+- The shared cost-ceiling helper now returns ordinary `0` when its mathematically
+  zero result is signed negative zero. A direct assertion prevents recurrence.
+- Final focused slice: **1 file / 4 tests PASS**, 77 skipped, in `1.69 s`.
+- `npx --no-install tsc --noEmit`: PASS.
+- `git diff --check`: PASS.
+
+The tests cover 13, 17 and 23 pages; valid rejected receipt/readiness persistence;
+zero provider/transport reachability; candidate/Blueprint/D1A1 denial; and
+tamper rejection for a re-digested over-fence schedule. Literal `npm run check`
+was not rerun; its consumed repository-gate HOLD remains unchanged.
+
 ### Original implementation validation
 
 Focused validation covered all ten modified test files and 463 unique tests:
@@ -250,24 +310,31 @@ Focused-test commit `21911148` changes only ten corresponding test files under
 `lib/__tests__` and `lib/visual-package/__tests__`. This evidence file,
 `CURRENT.md`, and the consumed Decision Gate status are the closeout commit.
 
-The focused QA-fix changes only the central schedule policy and lifecycle
+The first focused QA-fix changes only the central schedule policy and lifecycle
 validator, live request policy validator, OpenAI adapter boundary, three directly
 corresponding test files, `CURRENT.md`, and this evidence file. It preserves the
 three earlier commits and adds one local QA-fix commit.
 
+The over-fence correction changes only the central schedule policy, lifecycle
+fallback/cost normalization, formatting in the live request validator, the
+direct lifecycle regression file, `CURRENT.md`, and this evidence file. It adds
+one focused local correction commit after `5f0fc4aa`.
+
 ## Rollback, limitations and next gate
 
-Rollback of the QA correction is a focused revert of the QA-fix commit. Rollback
-of the whole milestone then reverts the closeout, test and production commits in
-that order. There is no data or artifact migration. Any newly created authority
-under the cutover versions would become inapplicable after rollback; historical
-evidence remains immutable.
+Rollback of the over-fence correction is a focused revert of its single commit.
+Rollback of the first QA correction is then a focused revert of `5f0fc4aa`.
+Rollback of the whole milestone then reverts the closeout, test and production
+commits in that order. There is no data or artifact migration. Any newly created
+authority under the cutover versions would become inapplicable after rollback;
+historical evidence remains immutable.
 
 This implementation has no live proof and produces no candidate. The new
 allocation is deterministically tested but has not been exercised against a
-provider. No Fresh Readiness can follow until independent QA reviews the exact
-QA-fix range and the RPC HOLD is explicitly resolved through the authority
-workflow. The real adapter's retained predecessor boundary rejects the logical
+provider. No Fresh Readiness can follow until independent QA reviews exact
+correction range `5f0fc4aa96d339562945ac10cf607c7228551045..HEAD` and the
+RPC HOLD is explicitly resolved through the authority workflow. The real
+adapter's retained predecessor boundary rejects the logical
 cleanup 6K/2K pair; resolving this latent cleanup reachability limitation needs
 a separate Decision Gate. Codex does not self-award independent technical PASS.
 

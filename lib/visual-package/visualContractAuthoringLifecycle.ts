@@ -29,6 +29,7 @@ import {
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
   authoringStandardAttemptOutputLimits,
+  authoringRejectedEvidencePageCount,
   terminalReferenceCleanupPredecessorIsEligible,
   visualContractAuthoringInputAccounting,
   type VisualContractAuthoringStandardAttemptOutputLimits,
@@ -1072,10 +1073,10 @@ function roundUsd(value: number): number {
 }
 
 function ceilUsd(value: number): number {
-  return (
+  const ceiled =
     Math.ceil((value - Number.EPSILON) * 1_000_000) /
-    1_000_000
-  );
+    1_000_000;
+  return Object.is(ceiled, -0) ? 0 : ceiled;
 }
 
 function standardAttemptOutputBudgetWithoutDigest(
@@ -3131,7 +3132,9 @@ export async function runVisualContractAuthoring(args: {
 }): Promise<VisualContractAuthoringRunResult> {
   const authoritativeStandardAttemptOutputBudget =
     buildVisualContractAuthoringStandardAttemptOutputBudget(
-      args.snapshot.content.pages.length,
+      authoringRejectedEvidencePageCount(
+        args.snapshot.content.pages.length,
+      ),
     );
   let requestIssues: string[];
   try {
@@ -4188,7 +4191,9 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       request: args.request,
       invalidRequestFallbackBudget:
         buildVisualContractAuthoringStandardAttemptOutputBudget(
-          args.snapshot.content.pages.length,
+          authoringRejectedEvidencePageCount(
+            args.snapshot.content.pages.length,
+          ),
         ),
     }) ||
     !visualContractAuthoringReceiptExhaustionBindingIsValid(

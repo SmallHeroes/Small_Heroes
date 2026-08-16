@@ -64,6 +64,24 @@ export const VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY =
 export const VISUAL_CONTRACT_AUTHORING_HARD_COST_CEILING_USD =
   5;
 
+/**
+ * Rejected-request evidence must always carry a schedule that is valid under
+ * the current admission policy. This normalization is evidence-only: request
+ * construction and admission continue to use the actual snapshot page count.
+ */
+export function authoringRejectedEvidencePageCount(
+  pageCount: number,
+): number {
+  const positivePageCount =
+    Number.isSafeInteger(pageCount) && pageCount > 0
+      ? pageCount
+      : VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY;
+  return Math.min(
+    positivePageCount,
+    VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY,
+  );
+}
+
 export type VisualContractAuthoringStandardAttemptOutputLimits = readonly [
   number,
   number,
