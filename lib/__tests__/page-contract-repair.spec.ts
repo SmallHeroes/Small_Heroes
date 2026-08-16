@@ -978,6 +978,47 @@ describe('page-contract compact repair', () => {
     expect(JSON.stringify(plan)).not.toContain('node:outside');
   });
 
+  it('does not require field-patch action context for a complete-page compound authority', () => {
+    const input = spatialDraft();
+    const inputActions = (
+      (input.pageContracts as Array<Record<string, unknown>>)[0]!
+        .actionRequirements as Array<Record<string, unknown>>
+    );
+    inputActions[1]!.predicate = null;
+    const actionIssue: DraftAuthorityReferenceIssue = {
+      code: 'action_coverage_cardinality_invalid',
+      locator: {
+        kind: 'page_action',
+        referenceClass: 'action_coverage',
+        fieldRole:
+          'actionRequirements.actionSemanticCoverage',
+        pageNumber: 1,
+        actionIndex: 1,
+      },
+    };
+
+    const plan = pageContractCompoundAuthorityRepairPlan({
+      draft: input,
+      issues: [actionIssue, pageSpatialIssue('object', 1)],
+      pageSpatialRepairAuthority: pageSpatialAuthority(),
+    });
+
+    expect(plan?.affectedPages[0]).toMatchObject({
+      pageNumber: 1,
+      repairTargets: expect.arrayContaining([
+        expect.objectContaining({
+          code: 'action_coverage_cardinality_invalid',
+          actionIndex: 1,
+        }),
+        expect.objectContaining({
+          code: 'page_spatial_reference_outside_zone',
+          itemIndex: 1,
+          fieldRole: 'object',
+        }),
+      ]),
+    });
+  });
+
   it('keeps incomplete compound unions and invalid spatial authority fail-closed', () => {
     const input = spatialDraft();
     const actionIssue: DraftAuthorityReferenceIssue = {

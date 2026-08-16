@@ -160,6 +160,11 @@ export interface PageSpatialReferenceRepairTarget {
   permittedSpatialReferences: PageSpatialReferenceValue[];
 }
 
+type PageSpatialReferenceRepairTargetBase = Omit<
+  PageSpatialReferenceRepairTarget,
+  'actionContext'
+>;
+
 export interface PageSpatialReferenceRepairPatch {
   pageNumber: number;
   actionIndex: number;
@@ -609,11 +614,11 @@ function actionContextForSpatialRepair(
  * authority family. Rejected authored IDs are validated as spatial refs but
  * never copied into repair authority or prompt context.
  */
-export function pageSpatialReferenceRepairTargets(args: {
+function pageSpatialReferenceRepairTargetBases(args: {
   draft: Record<string, unknown>;
   issues: readonly DraftAuthorityReferenceIssue[];
   authority: readonly PageSpatialRepairAuthority[];
-}): PageSpatialReferenceRepairTarget[] | null {
+}): PageSpatialReferenceRepairTargetBase[] | null {
   const targets = pageSpatialRepairTargets(args.issues);
   if (!targets) return null;
   const result = targets.map((target) => {
@@ -644,25 +649,23 @@ export function pageSpatialReferenceRepairTargets(args: {
     ) {
       return null;
     }
-    const actionContext = actionContextForSpatialRepair(action);
     const permittedSpatialReferences = pageSpatialAuthorityForPage({
       authority: args.authority,
       pageContract: pageMatches[0]!,
       pageNumber: target.pageNumber,
     });
-    return actionContext && permittedSpatialReferences
+    return permittedSpatialReferences
       ? {
           pageNumber: target.pageNumber,
           actionIndex: target.itemIndex,
           fieldRole: target.fieldRole,
-          actionContext,
           permittedSpatialReferences,
         }
       : null;
   });
   if (result.some((value) => value === null)) return null;
-  const unique = new Map<string, PageSpatialReferenceRepairTarget>();
-  for (const target of result as PageSpatialReferenceRepairTarget[]) {
+  const unique = new Map<string, PageSpatialReferenceRepairTargetBase>();
+  for (const target of result as PageSpatialReferenceRepairTargetBase[]) {
     const key = spatialRepairTargetKey(target);
     if (unique.has(key)) return null;
     unique.set(key, target);
@@ -673,6 +676,34 @@ export function pageSpatialReferenceRepairTargets(args: {
       left.actionIndex - right.actionIndex ||
       left.fieldRole.localeCompare(right.fieldRole),
   );
+}
+
+export function pageSpatialReferenceRepairTargets(args: {
+  draft: Record<string, unknown>;
+  issues: readonly DraftAuthorityReferenceIssue[];
+  authority: readonly PageSpatialRepairAuthority[];
+}): PageSpatialReferenceRepairTarget[] | null {
+  const bases = pageSpatialReferenceRepairTargetBases(args);
+  if (!bases) return null;
+  const targets = bases.map((base) => {
+    const action = pageActionForTarget({
+      draft: args.draft,
+      pageNumber: base.pageNumber,
+      actionIndex: base.actionIndex,
+    });
+    const actionContext = action
+      ? actionContextForSpatialRepair(action)
+      : null;
+    return actionContext
+      ? { ...base, actionContext }
+      : null;
+  });
+  return targets.every(
+    (target): target is PageSpatialReferenceRepairTarget =>
+      target !== null,
+  )
+    ? targets
+    : null;
 }
 
 export function buildPageSpatialReferenceRepairSystemPrompt(): string {
@@ -1248,7 +1279,7 @@ export function pageContractAuthorityRepairPlan(args: {
 }
 
 function pageContractSpatialRepairDiagnostic(
-  target: PageSpatialReferenceRepairTarget,
+  target: PageSpatialReferenceRepairTargetBase,
 ): DraftValidationIssue {
   return {
     family: 'draft_contract',
@@ -1264,7 +1295,7 @@ function pageContractSpatialRepairDiagnostic(
 }
 
 function pageContractSpatialRepairHint(
-  target: PageSpatialReferenceRepairTarget,
+  target: PageSpatialReferenceRepairTargetBase,
 ): string {
   return (
     `page_spatial_reference_outside_zone: page ${target.pageNumber} ` +
@@ -1306,7 +1337,7 @@ export function pageContractCompoundAuthorityRepairPlan(args: {
     draft: args.draft,
     issues: actionIssues,
   });
-  const spatialTargets = pageSpatialReferenceRepairTargets({
+  const spatialTargets = pageSpatialReferenceRepairTargetBases({
     draft: args.draft,
     issues: spatialIssues,
     authority: args.pageSpatialRepairAuthority,

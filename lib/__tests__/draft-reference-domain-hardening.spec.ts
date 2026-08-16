@@ -1086,6 +1086,52 @@ describe('captured reference-domain matrix', () => {
     );
   });
 
+  it('plans the closed compound repair from compiler-canonical page topology', async () => {
+    const invalid = matrixDraft();
+    coverage(invalid).shift();
+    actions(invalid)[0]!.object = {
+      kind: 'spatial',
+      id: 'outside_current_page_zone',
+    };
+    pageRecord(invalid).zoneId = 'ZONE_ROOM';
+    const repairedPage = structuredClone(pageRecord(matrixDraft()));
+    delete repairedPage.castIds;
+    delete repairedPage.characterPresence;
+    const repairUserPrompts: string[] = [];
+    const callLLM = vi.fn(async (
+      _system: string,
+      user: string,
+      _options?: unknown,
+      _authority?: unknown,
+    ) => {
+      if (callLLM.mock.calls.length === 1) {
+        return JSON.stringify(invalid);
+      }
+      repairUserPrompts.push(user);
+      return JSON.stringify({ pageContracts: [repairedPage] });
+    });
+
+    await expect(
+      compileBookVisualContractTemplate(input, { callLLM }),
+    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
+
+    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(callLLM.mock.calls[1]![3]).toMatchObject({
+      kind: 'repair',
+      repairMode: 'page_contract_patch',
+    });
+    expect(
+      decodePageContractRepairUserPrompt(
+        repairUserPrompts[0]!,
+      ).affectedPages[0],
+    ).toMatchObject({
+      pageNumber: 1,
+      pageContract: {
+        zoneId: 'zone:room',
+      },
+    });
+  });
+
   it('keeps a compound authority set terminal when it contains any third family', async () => {
     const invalid = matrixDraft();
     coverage(invalid).shift();

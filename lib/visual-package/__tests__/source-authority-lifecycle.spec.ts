@@ -1755,7 +1755,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v25',
+      version: 'visual-contract-authoring-readiness/v26',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -1819,7 +1819,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v25',
+      version: 'visual-contract-authoring-readiness/v26',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -2071,7 +2071,25 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'request',
+        'visual-contract-authoring-request/v22',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v23',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
         'visual-contract-authoring-request/v24',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v25',
       ),
     ).toBe('current');
     expect(
@@ -2191,7 +2209,25 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'receipt',
+        'visual-contract-authoring-receipt/v25',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v26',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
         'visual-contract-authoring-receipt/v27',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v28',
       ),
     ).toBe('current');
     expect(
@@ -2251,7 +2287,25 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
+        'visual-contract-authoring-readiness/v23',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v24',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
         'visual-contract-authoring-readiness/v25',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v26',
       ),
     ).toBe('current');
     expect(
@@ -2439,7 +2493,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).toThrow(
-      /receipt v27 requires exact typed draft-validation evidence/,
+      /receipt v28 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -2488,7 +2542,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v27',
+      'visual-contract-authoring-receipt/v28',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(

@@ -333,10 +333,14 @@ export class DraftAuthorityReferenceDomainError extends Error {
   readonly pageSpatialRepairAuthority:
     | readonly PageSpatialRepairAuthority[]
     | undefined;
+  readonly canonicalPageContracts:
+    | readonly Record<string, unknown>[]
+    | undefined;
 
   constructor(
     issues: readonly DraftAuthorityReferenceIssue[],
     pageSpatialRepairAuthority?: readonly PageSpatialRepairAuthority[],
+    canonicalPageContracts?: readonly Record<string, unknown>[],
   ) {
     super('draft authority/reference domain invalid');
     this.name = 'DraftAuthorityReferenceDomainError';
@@ -361,6 +365,9 @@ export class DraftAuthorityReferenceDomainError extends Error {
     }
     this.pageSpatialRepairAuthority = pageSpatialRepairAuthority
       ? structuredClone(pageSpatialRepairAuthority)
+      : undefined;
+    this.canonicalPageContracts = canonicalPageContracts
+      ? structuredClone(canonicalPageContracts)
       : undefined;
   }
 }
@@ -3165,6 +3172,9 @@ function assembleTemplateFromDraft(
         ...(pageSpatialReferenceFailure?.issues ?? []),
       ],
       pageSpatialReferenceFailure?.authority,
+      pageSpatialReferenceFailure?.authority
+        ? canonicalPages
+        : undefined,
     );
   }
   const seenBeatIds = new Set<string>();
@@ -3603,6 +3613,14 @@ export async function compileBookVisualContractTemplate(
           stablePropScopeRepairDiagnostic,
         );
       } else if (err instanceof DraftAuthorityReferenceDomainError) {
+        const pageContractRepairDraft = err.canonicalPageContracts
+          ? {
+              ...draft,
+              pageContracts: structuredClone(
+                err.canonicalPageContracts,
+              ),
+            }
+          : draft;
         const pageSpatialIssues = err.issues.filter(
           pageSpatialReferenceIssueIsRepairable,
         );
@@ -3611,7 +3629,7 @@ export async function compileBookVisualContractTemplate(
         );
         const compoundRepairPlan = err.pageSpatialRepairAuthority
           ? pageContractCompoundAuthorityRepairPlan({
-              draft,
+              draft: pageContractRepairDraft,
               issues: err.issues,
               pageSpatialRepairAuthority:
                 err.pageSpatialRepairAuthority,
