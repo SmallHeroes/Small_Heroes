@@ -202,10 +202,23 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             <div className="wrap sample-wrap">
               <div className="sample-text">
                 <div className="sample-kicker" data-reveal="up">{L.sample.kicker}</div>
-                <h2 className="sample-h2" data-reveal="up" data-reveal-delay="60">{L.sample.h2}</h2>
+                <h2 className="sample-h2" data-reveal="up" data-reveal-delay="60">
+                  {L.sample.h2Line1}
+                  <br />
+                  {L.sample.h2Line2}
+                </h2>
                 <p className="sample-p" data-reveal="up" data-reveal-delay="120">{L.sample.p1}</p>
-                <p className="sample-caption" data-reveal="up" data-reveal-delay="180">{L.sample.caption}</p>
-                <a href={startHref} className="btn-primary" data-event="landing_start_click" data-reveal="up" data-reveal-delay="240">
+                <p className="sample-stanza" data-reveal="up" data-reveal-delay="160">
+                  {L.sample.stanza.map((line) => (
+                    <span key={line} className="sample-stanza-line">{line}</span>
+                  ))}
+                </p>
+                <p className="sample-p sample-p--close" data-reveal="up" data-reveal-delay="200">{L.sample.p2}</p>
+                <p className="sample-caption" data-reveal="up" data-reveal-delay="240">{L.sample.caption}</p>
+                {/* No real sample-book route exists yet, so the "open a sample"
+                    action lands on the gallery — the closest real look inside
+                    the books (reported to Guy). */}
+                <a href="#gallery" className="btn-primary" data-event="landing_sample_gallery_click" data-reveal="up" data-reveal-delay="280">
                   {L.sample.cta}
                 </a>
               </div>
@@ -229,27 +242,27 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
           <section className="how-it-works-section how-section" id="how">
             <div className="wrap">
               <h2 className="section-h2" data-reveal="up">{L.how.h2}</h2>
+              <p className="section-lede" data-reveal="up" data-reveal-delay="60">
+                {L.how.ledeLine1}
+                <br />
+                {L.how.ledeLine2}
+              </p>
 
               <div className="steps-row">
                 {L.how.steps.map((step, index) => (
-                  <article key={step.title} className="how-card" data-reveal="up" data-reveal-delay={String(80 + index * 90)}>
+                  <article key={step.title} className="how-card" data-reveal="up" data-reveal-delay={String(100 + index * 90)}>
                     <div className="how-step">
                       <div className="landing-card-title">{step.title}</div>
                       <p className="landing-card-body">{step.body}</p>
+                      {'emphasis' in step && step.emphasis ? (
+                        <p className="how-step-emphasis">{step.emphasis}</p>
+                      ) : null}
                     </div>
                   </article>
                 ))}
               </div>
 
-              {/* the promise under the steps: the parent's job is knowing the
-                  child - everything technical disappears */}
-              <div className="how-foot" data-reveal="up" data-reveal-delay="280">
-                <p className="how-foot-lines">
-                  {L.how.footLines.map((line) => (
-                    <span key={line} className="how-foot-line">{line}</span>
-                  ))}
-                </p>
-                <p className="how-foot-close">{L.how.footClose}</p>
+              <div className="how-foot" data-reveal="up" data-reveal-delay="300">
                 <a href={startHref} className="btn-primary" data-event="landing_start_click">
                   {L.how.cta}
                 </a>
@@ -257,14 +270,15 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
-          <section className="gallery-section">
+          <section className="gallery-section" id="gallery">
             <div className="wrap">
-              <h2 className="gallery-h2" data-reveal="up">
-                {L.gallery.h2Line1}
+              <h2 className="gallery-h2" data-reveal="up">{L.gallery.h2}</h2>
+              <p className="section-lede" data-reveal="up" data-reveal-delay="40">
+                {L.gallery.ledeLine1}
                 <br />
-                {L.gallery.h2Line2}
-              </h2>
-              <p className="gallery-sub" data-reveal="up" data-reveal-delay="60">{L.gallery.sub}</p>
+                {L.gallery.ledeLine2}
+              </p>
+              <p className="gallery-sub" data-reveal="up" data-reveal-delay="80">{L.gallery.sub}</p>
 
               <div
                 className="gallery-toggle"
@@ -372,8 +386,9 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
           <section className="section pricing-section" id="pricing">
             <div className="wrap">
-              <h2 className="section-h2" data-reveal="up">{L.pricing.h2}</h2>
-              <p className="section-sub pricing-sub" data-reveal="up" data-reveal-delay="60">{L.pricing.sub}</p>
+              <div className="pricing-eyebrow" data-reveal="up">{L.pricing.kicker}</div>
+              <h2 className="section-h2" data-reveal="up" data-reveal-delay="40">{L.pricing.h2}</h2>
+              <p className="section-sub pricing-sub" data-reveal="up" data-reveal-delay="80">{L.pricing.sub}</p>
 
               <div className="pricing-grid">
                 {L.pricing.cards.map((card, index) => (
