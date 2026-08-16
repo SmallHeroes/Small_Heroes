@@ -197,7 +197,7 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(res.repairAttempts).toHaveLength(0);
     expect(res.provenance.repairPromptVersion).toBeUndefined();
     expect(calls()).toBe(1);
-    expect(res.provenance.maxOutputTokens).toBe(48_000);
+    expect(res.provenance.maxOutputTokens).toBe(40_000);
   });
 
   it('routes a homogeneous closed-catalog gap through the compact presentation repair', async () => {
@@ -258,7 +258,7 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(second.options.jsonSchema?.name).toBe(
       PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
     );
-    expect(second.options.maxOutputTokens).toBe(36_000);
+    expect(second.options.maxOutputTokens).toBe(32_000);
     expect(second.authority.repairMode).toBe(
       'presentation_requirement_patch',
     );
@@ -275,8 +275,8 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(JSON.stringify(res.repairAttempts)).not.toMatch(/material/i);
     expect(calls()).toBe(2);
     expect(prompts.map((call) => call.options?.maxOutputTokens)).toEqual([
-      48_000,
-      36_000,
+      40_000,
+      32_000,
     ]);
     // The second call regenerates from the same complete source authority.
     expect(prompts[1].system).toMatch(/FULL-DRAFT REPAIR MODE/);
@@ -401,9 +401,9 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(res.repairAttempts).toHaveLength(2);
     expect(calls()).toBe(3);
     expect(prompts.map((call) => call.options?.maxOutputTokens)).toEqual([
-      48_000,
+      40_000,
+      32_000,
       36_000,
-      24_000,
     ]);
   });
 
@@ -728,7 +728,7 @@ describe('Source Evidence ID compact repair', () => {
     expect(calls[1]!.options?.maxInputTokens).toBe(
       VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
     );
-    expect(calls[1]!.options?.maxOutputTokens).toBe(36_000);
+    expect(calls[1]!.options?.maxOutputTokens).toBe(32_000);
     const compactPayload = JSON.parse(calls[1]!.user) as {
       affectedRecords: unknown[];
       catalogEntries: Array<{ pageNumber: number }>;
@@ -815,7 +815,7 @@ describe('Source Evidence ID compact repair', () => {
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
       TEMPLATE_DRAFT_SCHEMA_NAME,
     );
-    expect(calls[1]!.options?.maxOutputTokens).toBe(36_000);
+    expect(calls[1]!.options?.maxOutputTokens).toBe(32_000);
     expect(calls[1]!.system).toMatch(/FULL-DRAFT REPAIR MODE/);
     const repairInput = decodeTemplateRepairUserPrompt(
       calls[1]!.user,
@@ -1048,9 +1048,9 @@ describe('page-contract compact repair routing', () => {
       BOOK_SURFACE_REPAIR_SCHEMA_NAME,
     );
     expect(calls.map((call) => call.options?.maxOutputTokens)).toEqual([
-      48_000,
+      40_000,
+      32_000,
       36_000,
-      24_000,
       2_000,
     ]);
     const payload = decodeBookSurfaceRepairUserPrompt(calls[2]!.user);
@@ -1265,7 +1265,7 @@ describe('page-contract compact repair routing', () => {
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
       PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
     );
-    expect(calls[1]!.options?.maxOutputTokens).toBe(36_000);
+    expect(calls[1]!.options?.maxOutputTokens).toBe(32_000);
     const payload = decodePageContractRepairUserPrompt(calls[1]!.user);
     expect(payload.affectedPages).toHaveLength(1);
     expect(payload.affectedPages[0].pageNumber).toBe(1);
@@ -1433,7 +1433,7 @@ describe('page-contract compact repair routing', () => {
     expect(calls[1]?.options?.jsonSchema?.name).toBe(
       STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
     );
-    expect(calls[1]?.options?.maxOutputTokens).toBe(36_000);
+    expect(calls[1]?.options?.maxOutputTokens).toBe(32_000);
     const payload = decodeStructuralBundleRepairUserPrompt(
       calls[1]!.user,
     );

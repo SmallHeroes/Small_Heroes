@@ -29,6 +29,7 @@ import {
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
   authoringStandardAttemptOutputLimits,
+  authoringStandardAttemptOutputLimitsForBase,
   authoringRejectedEvidencePageCount,
   terminalReferenceCleanupPredecessorIsEligible,
   visualContractAuthoringInputAccounting,
@@ -1150,22 +1151,26 @@ export function visualContractAuthoringStandardAttemptOutputBudgetIsValid(
   ) {
     return false;
   }
-  const [initial, firstRepair, secondRepair] =
-    budget.limits as number[];
   const totalPool = budget.totalPool as number;
+  if (totalPool % VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS !== 0) {
+    return false;
+  }
+  const base = totalPool / VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS;
+  const expectedLimits =
+    authoringStandardAttemptOutputLimitsForBase(base);
   if (
-    firstRepair! <
+    base <
       VISUAL_CONTRACT_AUTHORING_STANDARD_OUTPUT_BASE_MIN_TOKENS ||
-    firstRepair! >
+    base >
       VISUAL_CONTRACT_AUTHORING_PROVIDER_MAX_OUTPUT_TOKENS ||
     (budget.limits as number[]).some(
       (limit) =>
         limit >
         VISUAL_CONTRACT_AUTHORING_PROVIDER_MAX_OUTPUT_TOKENS,
     ) ||
-    initial !== Math.floor((4 * firstRepair!) / 3) ||
-    totalPool !== 3 * firstRepair! ||
-    secondRepair !== totalPool - initial! - firstRepair!
+    (budget.limits as number[]).some(
+      (limit, index) => limit !== expectedLimits[index],
+    )
   ) {
     return false;
   }

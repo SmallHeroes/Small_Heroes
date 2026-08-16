@@ -513,8 +513,8 @@ describe('canonical live request verification library', () => {
         standardMaxRepairCount: 2,
         standardAttemptOutputBudget: {
           version:
-            'visual-contract-authoring-standard-attempt-output-budget/v1',
-          limits: [48_000, 36_000, 24_000],
+            'visual-contract-authoring-standard-attempt-output-budget/v2',
+          limits: [40_000, 32_000, 36_000],
           totalPool: 108_000,
           digestAlgorithm: 'canonical-json-sha256',
           digest:

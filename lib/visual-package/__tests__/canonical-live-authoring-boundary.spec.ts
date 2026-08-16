@@ -720,7 +720,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
-      max_output_tokens: 36_000,
+      max_output_tokens: 32_000,
       text: {
         format: {
           type: 'json_schema',
@@ -757,7 +757,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
-      max_output_tokens: 36_000,
+      max_output_tokens: 32_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -785,7 +785,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
-      max_output_tokens: 36_000,
+      max_output_tokens: 32_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -813,7 +813,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
-      max_output_tokens: 36_000,
+      max_output_tokens: 32_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -841,7 +841,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
-      max_output_tokens: 36_000,
+      max_output_tokens: 32_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -869,7 +869,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
-      max_output_tokens: 36_000,
+      max_output_tokens: 32_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -897,7 +897,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(body).toMatchObject({
       model: 'gpt-5.6-sol',
       service_tier: 'default',
-      max_output_tokens: 36_000,
+      max_output_tokens: 32_000,
       tools: [],
       tool_choice: 'none',
       store: false,
@@ -945,7 +945,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       body: {
         model: 'gpt-5.6-sol',
         service_tier: 'default',
-        max_output_tokens: 48_000,
+        max_output_tokens: 40_000,
         reasoning: { effort: 'medium' },
         text: {
           format: {
@@ -1013,7 +1013,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.repairCount).toBe(0);
     expect(result.receipt.attempts[0]).toMatchObject({
-      appliedMaxOutputTokens: 48_000,
+      appliedMaxOutputTokens: 40_000,
       completionStatus: 'incomplete',
       providerIncompleteReason: 'max_output_tokens',
       status: 'completion_status_invalid',
@@ -1383,7 +1383,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
   it.each([
     ['standard input with cleanup output', 64_000, 2_000, false],
-    ['cleanup input with standard output', 6_000, 48_000, false],
+    ['cleanup input with standard output', 6_000, 40_000, false],
     ['cleanup pair with draft schema', 6_000, 2_000, false],
     ['cleanup pair with page-spatial schema', 6_000, 2_000, true],
   ])('rejects the invalid %s budget pair at the real adapter boundary', async (
@@ -3295,7 +3295,7 @@ describe('canonical live authoring executable boundary', () => {
         (attempt) =>
           attempt.reservedExposureBeforeCallUsd,
       ),
-    ).toEqual([4.99125, 3.040125, 1.485]);
+    ).toEqual([4.99125, 3.304125, 1.881]);
   });
 
   it('writes sanitized content-addressed evidence, is byte-idempotent, and fails closed on each evidence collision', async () => {

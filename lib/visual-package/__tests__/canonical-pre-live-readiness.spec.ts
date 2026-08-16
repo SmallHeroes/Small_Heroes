@@ -561,7 +561,7 @@ describe('canonical pre-live readiness orchestrator', () => {
           },
           requestPolicy: {
             standardAttemptOutputBudget: {
-              limits: [48_000, 36_000, 24_000],
+              limits: [40_000, 32_000, 36_000],
               totalPool: 108_000,
             },
             projectedMaxUsd: 4.99125,

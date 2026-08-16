@@ -39,7 +39,10 @@ import {
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
 import { decodeBookSurfaceRepairUserPrompt } from '@/lib/visual-contract-compiler/bookSurfaceRepair';
 import { PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
-import { authoringRejectedEvidencePageCount } from '@/lib/visual-contract-compiler/authoringPolicy';
+import {
+  authoringRejectedEvidencePageCount,
+  authoringStandardAttemptOutputLimitsForBase,
+} from '@/lib/visual-contract-compiler/authoringPolicy';
 import { migrateLegacySetBoardFixture } from '@/lib/set-identity-board/__tests__/current-authority-fixtures';
 import {
   buildStorySourceAuthoritySnapshot,
@@ -213,11 +216,10 @@ function requestFor(
 }
 
 function standardAttemptOutputBudgetForBase(base: number) {
-  const initial = Math.floor((4 * base) / 3);
-  const limits = [initial, base, 3 * base - initial - base];
+  const limits = authoringStandardAttemptOutputLimitsForBase(base);
   const payload = {
     version:
-      'visual-contract-authoring-standard-attempt-output-budget/v1' as const,
+      'visual-contract-authoring-standard-attempt-output-budget/v2' as const,
     limits,
     totalPool: 3 * base,
   };
@@ -723,15 +725,15 @@ describe('exact zero-cost authoring preflight', () => {
       buildVisualContractAuthoringStandardAttemptOutputBudget(
         authoringRejectedEvidencePageCount(12),
       ).limits,
-    ).toEqual([48_000, 36_000, 24_000]);
+    ).toEqual([40_000, 32_000, 36_000]);
   });
 
   it.each([
     ['8-page floor base', 32_000, true],
     ['12-page base', 36_000, true],
-    ['64K initial boundary', 48_000, true],
+    ['64K initial boundary', 57_600, true],
     ['base below provider band', 31_999, false],
-    ['initial above provider ceiling', 48_001, false],
+    ['initial above provider ceiling', 57_601, false],
     ['over-ceiling base', 64_001, false],
   ])('validates the bounded standard-attempt schedule for %s', (
     _label,
@@ -743,6 +745,26 @@ describe('exact zero-cost authoring preflight', () => {
         standardAttemptOutputBudgetForBase(base),
       ),
     ).toBe(expected);
+  });
+
+  it('rejects the prior schedule authority even when its payload is re-digested', () => {
+    const legacy = structuredClone(
+      standardAttemptOutputBudgetForBase(36_000),
+    ) as Record<string, unknown>;
+    legacy.version =
+      'visual-contract-authoring-standard-attempt-output-budget/v1';
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = legacy;
+    legacy.digest = canonicalJsonDigest(payload);
+
+    expect(
+      visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+        legacy,
+      ),
+    ).toBe(false);
   });
 
   it('locks every approved request surface and keeps the injected provider unreachable', async () => {
@@ -780,8 +802,8 @@ describe('exact zero-cost authoring preflight', () => {
         maxInputTokens: 64_000,
         standardAttempts: {
           version:
-            'visual-contract-authoring-standard-attempt-output-budget/v1',
-          limits: [48_000, 36_000, 24_000],
+            'visual-contract-authoring-standard-attempt-output-budget/v2',
+          limits: [40_000, 32_000, 36_000],
           totalPool: 108_000,
         },
         outputIncludesReasoning: true,
@@ -911,9 +933,9 @@ describe('exact zero-cost authoring preflight', () => {
         cleanupMaxCalls: 1,
       });
     expect(invalidSchedule.limits).toEqual([
-      52_000,
+      43_334,
+      34_666,
       39_000,
-      26_000,
     ]);
     expect(invalidProjectedMaxUsd).toBeGreaterThan(5);
     request.tokenBudget.standardAttempts = invalidSchedule;
@@ -944,7 +966,7 @@ describe('exact zero-cost authoring preflight', () => {
     expect(provider.call).not.toHaveBeenCalled();
     expect(
       rejected.receipt.standardAttemptOutputBudget.limits,
-    ).toEqual([48_000, 36_000, 24_000]);
+    ).toEqual([40_000, 32_000, 36_000]);
 
     const forgedReceipt = structuredClone(rejected.receipt);
     forgedReceipt.standardAttemptOutputBudget = invalidSchedule;
@@ -1506,7 +1528,7 @@ describe('exact zero-cost authoring preflight', () => {
         conservativeAccountedCostUsd: 1.628,
         providerCallsCompleted: 1,
       }),
-    ).toBe(4.59525);
+    ).toBe(4.85925);
     expect(
       authoringSpendIsWithinCeiling(
         authoringReservedExposureUsd({
@@ -1967,7 +1989,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       vi.mocked(provider.call).mock.calls.map(
         ([call]) => call.options.maxOutputTokens,
       ),
-    ).toEqual([48_000, 36_000]);
+    ).toEqual([40_000, 32_000]);
     expect(result).toMatchObject({
       compileResult: null,
       receipt: {
@@ -3563,7 +3585,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       vi.mocked(provider.call).mock.calls.map(
         ([call]) => call.options.maxOutputTokens,
       ),
-    ).toEqual([48_000, 36_000, 24_000]);
+    ).toEqual([40_000, 32_000, 36_000]);
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
       .toEqual([
         null,
@@ -3678,7 +3700,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       vi.mocked(provider.call).mock.calls.map(
         ([call]) => call.options.maxOutputTokens,
       ),
-    ).toEqual([48_000, 36_000, 24_000]);
+    ).toEqual([40_000, 32_000, 36_000]);
     expect(result.receipt.attempts[0]).toMatchObject({
       kind: 'initial',
       draftValidationDiagnostics: {
@@ -3949,7 +3971,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       result.receipt.attempts.map(
         (attempt) => attempt.appliedMaxOutputTokens,
       ),
-    ).toEqual([48_000, 36_000, 24_000]);
+    ).toEqual([40_000, 32_000, 36_000]);
     expect(result.receipt.draftValidationStatus).toBe(
       'repair_exhausted',
     );
@@ -3991,7 +4013,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         (attempt) =>
           attempt.reservedExposureBeforeCallUsd,
       ),
-    ).toEqual([4.99125, 3.040125, 1.485]);
+    ).toEqual([4.99125, 3.304125, 1.881]);
     expect(
       result.receipt.attempts.reduce(
         (sum, attempt) =>
@@ -4332,9 +4354,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       vi.mocked(provider.call).mock.calls.map(
         ([call]) => call.options.maxOutputTokens,
       ),
-    ).toEqual([48_000, 36_000]);
+    ).toEqual([40_000, 32_000]);
     const secondCall = vi.mocked(provider.call).mock.calls[1]![0];
-    expect(secondCall.options.maxOutputTokens).toBe(36_000);
+    expect(secondCall.options.maxOutputTokens).toBe(32_000);
     expect(secondCall.options.jsonSchema?.name).toBe(
       'SourceEvidenceIdRepairPatches',
     );
@@ -4414,7 +4436,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
       .toEqual([null, 'presentation_requirement_patch']);
     const secondCall = vi.mocked(provider.call).mock.calls[1]![0];
-    expect(secondCall.options.maxOutputTokens).toBe(36_000);
+    expect(secondCall.options.maxOutputTokens).toBe(32_000);
     expect(secondCall.options.jsonSchema?.name).toBe(
       PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
     );
@@ -5454,8 +5476,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toEqual([null, 'book_surface_patch']);
     expect(calls).toHaveLength(2);
     expect(calls.map((call) => call.options.maxOutputTokens)).toEqual([
-      48_000,
-      36_000,
+      40_000,
+      32_000,
     ]);
     const secondCall = calls[1]!;
     const repairPayload = decodeBookSurfaceRepairUserPrompt(
@@ -5686,7 +5708,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       vi.mocked(provider.call).mock.calls.map(
         ([call]) => call.options.maxOutputTokens,
       ),
-    ).toEqual([48_000, 36_000, 24_000]);
+    ).toEqual([40_000, 32_000, 36_000]);
     expect(result.receipt.attempts[1].draftValidationDiagnostics)
       .toMatchObject({
         currentUniqueCount: expect.any(Number),

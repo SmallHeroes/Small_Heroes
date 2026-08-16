@@ -1,8 +1,8 @@
 export const VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
-  'visual-contract-authoring-policy/v11' as const;
+  'visual-contract-authoring-policy/v12' as const;
 
 export const VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION =
-  'visual-contract-authoring-standard-attempt-output-budget/v1' as const;
+  'visual-contract-authoring-standard-attempt-output-budget/v2' as const;
 
 export const VISUAL_CONTRACT_AUTHORING_PROVIDER = 'openai' as const;
 export const VISUAL_CONTRACT_AUTHORING_ENDPOINT = 'responses' as const;
@@ -108,16 +108,29 @@ export function authoringMaxOutputTokens(pageCount: number): number {
 }
 
 /**
- * Canonical ordered limits for initial, repair 1, and repair 2. The exact
- * integer remainder keeps the standard output pool equal to three legacy
- * per-call bases for every admitted page count.
+ * Canonical ordered limits for initial, repair 1, and repair 2. The initial
+ * call retains headroom above the legacy base, repair 1 funds the compact
+ * correction path, and repair 2 recovers the full legacy base. Complementary
+ * rounding keeps the standard output pool equal to three legacy per-call
+ * bases for every admitted page count.
  */
 export function authoringStandardAttemptOutputLimits(
   pageCount: number,
 ): VisualContractAuthoringStandardAttemptOutputLimits {
-  const base = authoringMaxOutputTokens(pageCount);
-  const initial = Math.floor((4 * base) / 3);
-  const firstRepair = base;
+  return authoringStandardAttemptOutputLimitsForBase(
+    authoringMaxOutputTokens(pageCount),
+  );
+}
+
+/**
+ * Canonical schedule calculation for validators that receive a persisted
+ * output pool rather than the originating page count.
+ */
+export function authoringStandardAttemptOutputLimitsForBase(
+  base: number,
+): VisualContractAuthoringStandardAttemptOutputLimits {
+  const initial = Math.ceil((10 * base) / 9);
+  const firstRepair = Math.floor((8 * base) / 9);
   const secondRepair = 3 * base - initial - firstRepair;
   return [initial, firstRepair, secondRepair];
 }
