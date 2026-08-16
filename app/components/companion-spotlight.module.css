@@ -282,7 +282,29 @@
     border-radius: 999px;
     background: rgba(36, 27, 77, 0.18);
   }
-  .stage { height: clamp(280px, 42vh, 355px); }
+  /* Per Guy: the sheet was huge on phones. The character drops ~20%
+     (char size tracks the video element width: 0.8 box x 1.14 overscan
+     = 91% of the sheet vs the old 114%) and the whole container
+     tightens to match, with comfortable air - not full-bleed here. */
+  .stage { height: clamp(240px, 34vh, 300px); }
+
+  .videoBox {
+    inset: 14px 10% 0;
+    border-radius: 18px;
+  }
+
+  /* the cutout placeholder shrinks with the video so the crossfade
+     never jumps size */
+  .art {
+    height: calc(100% - 44px);
+    max-width: 78%;
+  }
+
+  .body { margin-top: 10px; gap: 6px; }
+  .name { font-size: 26px; }
+  .tagline { font-size: 15.5px; }
+  .context { margin-bottom: 2px; }
+  .cta { min-height: 50px; font-size: 17px; }
 
   @keyframes sheet-up {
     from { transform: translateY(100%); }
