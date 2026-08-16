@@ -1,5 +1,5 @@
 export const VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
-  'visual-contract-authoring-policy/v8' as const;
+  'visual-contract-authoring-policy/v9' as const;
 
 export const VISUAL_CONTRACT_AUTHORING_PROVIDER = 'openai' as const;
 export const VISUAL_CONTRACT_AUTHORING_ENDPOINT = 'responses' as const;

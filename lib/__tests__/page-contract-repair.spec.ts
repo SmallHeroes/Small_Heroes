@@ -481,10 +481,14 @@ describe('page-contract compact repair', () => {
       ],
       permittedPointerValues: [],
     }));
-    const raw = JSON.stringify({ affectedPages });
+    const raw = JSON.stringify({
+      affectedPages,
+      previousRepairFailure: null,
+    });
     const compact = buildPageContractRepairUserPrompt({ affectedPages });
     expect(decodePageContractRepairUserPrompt(compact)).toEqual({
       affectedPages,
+      previousRepairFailure: null,
     });
     expect(Buffer.byteLength(compact, 'utf8')).toBeLessThan(
       Buffer.byteLength(raw, 'utf8'),
@@ -592,11 +596,15 @@ describe('page-contract compact repair', () => {
         permittedPointerValues: [],
       };
     });
-    const raw = JSON.stringify({ affectedPages });
+    const raw = JSON.stringify({
+      affectedPages,
+      previousRepairFailure: null,
+    });
     const compact = buildPageContractRepairUserPrompt({ affectedPages });
     expect(Buffer.byteLength(raw, 'utf8')).toBeGreaterThan(100_000);
     expect(decodePageContractRepairUserPrompt(compact)).toEqual({
       affectedPages,
+      previousRepairFailure: null,
     });
     const admittedUpperBound =
       Buffer.byteLength(
@@ -609,6 +617,26 @@ describe('page-contract compact repair', () => {
       ) + 4_096;
     expect(admittedUpperBound).toBeLessThanOrEqual(64_000);
     expect(64_000 - admittedUpperBound).toBeGreaterThanOrEqual(4_096);
+  });
+
+  it('roundtrips only the closed target-scope correction context', () => {
+    const affectedPages = pageContractRepairAffectedPages({
+      draft: draft(),
+      diagnosticIssues: [issue(1)],
+      validationMessages: ['pageContracts[0].camera is invalid'],
+    })!;
+    const encoded = buildPageContractRepairUserPrompt({
+      affectedPages,
+      previousRepairFailure: 'target_scope_invalid',
+    });
+
+    expect(decodePageContractRepairUserPrompt(encoded)).toEqual({
+      affectedPages,
+      previousRepairFailure: 'target_scope_invalid',
+    });
+    expect(buildPageContractRepairSystemPrompt()).toContain(
+      'never add or remove a record',
+    );
   });
 
   it('selects only an all-page final-structure diagnostic set', () => {
@@ -1601,10 +1629,10 @@ describe('page-contract compact repair', () => {
       PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION,
     );
     expect(PAGE_CONTRACT_REPAIR_PROMPT_VERSION).toBe(
-      'page-contract-repair-prompt/v11',
+      'page-contract-repair-prompt/v12',
     );
     expect(PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'page-contract-repair-user-prompt/v12',
+      'page-contract-repair-user-prompt/v13',
     );
     expect(parsed.affectedPages).toHaveLength(1);
     expect(parsed.affectedPages[0].repairTargets).toEqual([

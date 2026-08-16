@@ -146,6 +146,7 @@ import {
   parsePageContractRepairs,
   parsePageSpatialReferenceRepairPatches,
   type PageContractRepairAffectedPage,
+  type PageContractRepairPreviousFailure,
   type PageSpatialReferenceRepairTarget,
   type PageSpatialRepairAuthority,
 } from './pageContractRepair';
@@ -643,6 +644,12 @@ export function templateRepairOutputFailureCode(
     return 'shape_invalid';
   }
   if (identity.endsWith('_non_target_drift')) {
+    return 'non_target_drift';
+  }
+  if (
+    identity ===
+    'page_contract_repair_action_binding_scope_invalid'
+  ) {
     return 'non_target_drift';
   }
   if (
@@ -3499,6 +3506,9 @@ export async function compileBookVisualContractTemplate(
   );
 
   const repairAttempts: TemplateRepairAttempt[] = [];
+  let pageContractPreviousFailure:
+    | PageContractRepairPreviousFailure
+    | null = null;
   for (let attempt = 1; ; attempt++) {
     let assembled:
       | ReturnType<typeof assembleTemplateFromDraft>
@@ -4013,6 +4023,8 @@ export async function compileBookVisualContractTemplate(
           buildPageContractRepairSystemPrompt(),
           buildPageContractRepairUserPrompt({
             affectedPages: pageContractAffectedPages,
+            previousRepairFailure:
+              pageContractPreviousFailure,
           }),
           pageContractRepairLlmOpts,
           {
@@ -4030,6 +4042,7 @@ export async function compileBookVisualContractTemplate(
           affectedPages: pageContractAffectedPages,
           pageContracts: parsePageContractRepairs(rawPatch),
         });
+        pageContractPreviousFailure = null;
       } else {
         draft = asObj(
           parseContractJson(
@@ -4053,11 +4066,30 @@ export async function compileBookVisualContractTemplate(
         );
       }
     } catch (error) {
+      const failureCode = templateRepairOutputFailureCode(error);
+      if (
+        repairMode === 'page_contract_patch' &&
+        failureCode === 'non_target_drift' &&
+        error instanceof Error &&
+        error.message ===
+          'page_contract_repair_action_binding_scope_invalid' &&
+        attempt < STANDARD_MAX_REPAIR_ATTEMPTS
+      ) {
+        // The completed response attempted to change a wider action/coverage
+        // binding scope than the compiler-owned target permits. Keep the
+        // original draft unchanged and use the already-authorized remaining
+        // logical repair call with one closed correction hint. This is not a
+        // transport retry and cannot exceed the existing 3-call/2-repair
+        // policy.
+        pageContractPreviousFailure =
+          'target_scope_invalid';
+        continue;
+      }
       throw new TemplateRepairOutputInvalidError(
         repairAttempts,
         attempt + 1,
         repairMode,
-        templateRepairOutputFailureCode(error),
+        failureCode,
       );
     }
   }

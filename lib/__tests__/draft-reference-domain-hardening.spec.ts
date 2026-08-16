@@ -993,11 +993,109 @@ describe('captured reference-domain matrix', () => {
         : JSON.stringify({ pageContracts: [validPage] }),
     );
 
-    await expect(
-      compileBookVisualContractTemplate(input, { callLLM }),
-    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
+    const failure = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    }).catch((error: unknown) => error);
 
-    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(failure).toBeInstanceOf(TemplateRepairOutputInvalidError);
+    expect(failure).toMatchObject({
+      repairAttempt: 3,
+      repairMode: 'page_contract_patch',
+      failureCode: 'non_target_drift',
+    });
+    expect(
+      (failure as TemplateRepairOutputInvalidError).attempts.map(
+        (attempt) => attempt.nextRepairMode,
+      ),
+    ).toEqual(['page_contract_patch', 'page_contract_patch']);
+    expect(callLLM).toHaveBeenCalledTimes(3);
+  });
+
+  it('uses the remaining repair budget only after page action-binding scope drift', async () => {
+    const invalid = matrixDraft();
+    coverage(invalid)[1]!.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
+    const targetBeatId = actions(invalid)[1]!.beatId as string;
+
+    const scopeInvalidPage = structuredClone(pageRecord(invalid));
+    delete scopeInvalidPage.castIds;
+    delete scopeInvalidPage.characterPresence;
+    const scopeInvalidCoverage =
+      scopeInvalidPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+    scopeInvalidCoverage[1]!.disposition = {
+      kind: 'action_requirement',
+    };
+    scopeInvalidCoverage[2]!.beatId = targetBeatId;
+    scopeInvalidCoverage[2]!.disposition = {
+      kind: 'action_requirement',
+    };
+
+    const validPage = structuredClone(pageRecord(invalid));
+    delete validPage.castIds;
+    delete validPage.characterPresence;
+    (
+      validPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[1]!.disposition = { kind: 'action_requirement' };
+
+    const repairPrompts: string[] = [];
+    const callLLM = vi.fn(async (
+      _system: string,
+      user: string,
+    ) => {
+      if (callLLM.mock.calls.length === 1) {
+        return JSON.stringify(invalid);
+      }
+      repairPrompts.push(user);
+      return JSON.stringify({
+        pageContracts: [
+          callLLM.mock.calls.length === 2
+            ? scopeInvalidPage
+            : validPage,
+        ],
+      });
+    });
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+
+    expect(callLLM).toHaveBeenCalledTimes(3);
+    expect(
+      decodePageContractRepairUserPrompt(repairPrompts[0]!)
+        .previousRepairFailure,
+    ).toBeNull();
+    expect(
+      decodePageContractRepairUserPrompt(repairPrompts[1]!)
+        .previousRepairFailure,
+    ).toBe('target_scope_invalid');
+    expect(
+      result.repairAttempts.map((attempt) => attempt.nextRepairMode),
+    ).toEqual(['page_contract_patch', 'page_contract_patch']);
+    expect(
+      result.draftValidationDiagnostics[1]!.persistentCount,
+    ).toBeGreaterThan(0);
+    expect(result.provenance.attempt).toBe(3);
+  });
+
+  it('classifies only the closed action-binding scope rejection as non-target drift', () => {
+    expect(
+      templateRepairOutputFailureCode(
+        new Error(
+          'page_contract_repair_action_binding_scope_invalid',
+        ),
+      ),
+    ).toBe('non_target_drift');
+    expect(
+      templateRepairOutputFailureCode(
+        new Error('page_contract_repair_unknown_application_failure'),
+      ),
+    ).toBe('application_rejected');
   });
 
   it('routes the mixed action beat-binding cardinality family but rejects action removal', async () => {
@@ -1048,7 +1146,7 @@ describe('captured reference-domain matrix', () => {
       compileBookVisualContractTemplate(input, { callLLM }),
     ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
-    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(callLLM).toHaveBeenCalledTimes(3);
     expect(callLLM.mock.calls[1]![3]).toMatchObject({
       kind: 'repair',
       repairMode: 'page_contract_patch',
@@ -1084,6 +1182,11 @@ describe('captured reference-domain matrix', () => {
     expect(repairUserPrompts[0]).not.toContain(
       'outside_current_page_zone',
     );
+    expect(
+      decodePageContractRepairUserPrompt(
+        repairUserPrompts[1]!,
+      ).previousRepairFailure,
+    ).toBe('target_scope_invalid');
   });
 
   it('plans the closed compound repair from compiler-canonical page topology', async () => {
@@ -1115,7 +1218,7 @@ describe('captured reference-domain matrix', () => {
       compileBookVisualContractTemplate(input, { callLLM }),
     ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
-    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(callLLM).toHaveBeenCalledTimes(3);
     expect(callLLM.mock.calls[1]![3]).toMatchObject({
       kind: 'repair',
       repairMode: 'page_contract_patch',
@@ -1130,6 +1233,11 @@ describe('captured reference-domain matrix', () => {
         zoneId: 'zone:room',
       },
     });
+    expect(
+      decodePageContractRepairUserPrompt(
+        repairUserPrompts[1]!,
+      ).previousRepairFailure,
+    ).toBe('target_scope_invalid');
   });
 
   it('keeps a compound authority set terminal when it contains any third family', async () => {

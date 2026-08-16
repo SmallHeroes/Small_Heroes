@@ -23,11 +23,16 @@ export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
-  'page-contract-repair-prompt/v11' as const;
+  'page-contract-repair-prompt/v12' as const;
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
-  'page-contract-repair-user-prompt/v12' as const;
+  'page-contract-repair-user-prompt/v13' as const;
 export const PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION =
   'page-contract-repair-input-encoding/v2' as const;
+export const PAGE_CONTRACT_REPAIR_PREVIOUS_FAILURE_VALUES = [
+  'target_scope_invalid',
+] as const;
+export type PageContractRepairPreviousFailure =
+  (typeof PAGE_CONTRACT_REPAIR_PREVIOUS_FAILURE_VALUES)[number];
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION =
   'page-spatial-reference-repair-schema/v1' as const;
 export const PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME =
@@ -2099,7 +2104,10 @@ export function decodePageContractRepairInput(
 
 export function decodePageContractRepairUserPrompt(
   raw: string,
-): { affectedPages: PageContractRepairAffectedPage[] } {
+): {
+  affectedPages: PageContractRepairAffectedPage[];
+  previousRepairFailure: PageContractRepairPreviousFailure | null;
+} {
   let encoded: unknown;
   try {
     encoded = JSON.parse(raw);
@@ -2110,13 +2118,18 @@ export function decodePageContractRepairUserPrompt(
   const root = recordValue(decoded);
   if (
     !root ||
-    !exactKeys(root, ['affectedPages']) ||
-    !Array.isArray(root.affectedPages)
+    !exactKeys(root, ['affectedPages', 'previousRepairFailure']) ||
+    !Array.isArray(root.affectedPages) ||
+    (root.previousRepairFailure !== null &&
+      !PAGE_CONTRACT_REPAIR_PREVIOUS_FAILURE_VALUES.includes(
+        root.previousRepairFailure as PageContractRepairPreviousFailure,
+      ))
   ) {
     throw new Error('page_contract_repair_input_encoding_invalid');
   }
   return root as unknown as {
     affectedPages: PageContractRepairAffectedPage[];
+    previousRepairFailure: PageContractRepairPreviousFailure | null;
   };
 }
 
@@ -2137,12 +2150,14 @@ export function buildPageContractRepairSystemPrompt(): string {
     'Never use closed_catalog_capability_gap repair to disguise a physical action, spatial action, or unsupported predicate.',
     'For represented_elsewhere, contractPointer and contractValue must be copied as one exact pair from permittedPointerValues on that page.',
     'Never rewrite a pointer silently or infer an authoring record from an item/list position.',
+    'When previousRepairFailure is target_scope_invalid, the preceding page repair changed more action/coverage bindings than its target allowed. Change only the targeted action beatId and, when required by action_coverage_cardinality_invalid, at most one existing same-page coverage beatId/disposition binding. Preserve every other action and coverage binding exactly; never add or remove a record.',
     'Output only the JSON object required by the strict repair schema.',
   ].join('\n');
 }
 
 export function buildPageContractRepairUserPrompt(args: {
   affectedPages: readonly PageContractRepairAffectedPage[];
+  previousRepairFailure?: PageContractRepairPreviousFailure | null;
 }): string {
   const payload = {
     affectedPages: [...args.affectedPages]
@@ -2154,6 +2169,7 @@ export function buildPageContractRepairUserPrompt(args: {
         validationHints: value.validationHints,
         permittedPointerValues: value.permittedPointerValues,
       })),
+    previousRepairFailure: args.previousRepairFailure ?? null,
   };
   const encoded = encodePageContractRepairInput(payload);
   const decoded = decodePageContractRepairInput(encoded);
