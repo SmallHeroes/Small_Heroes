@@ -87,7 +87,7 @@
    white body — no more small "pasted-on" halo behind the friend. */
 .stage {
   position: relative;
-  height: clamp(270px, 40vh, 340px);
+  height: clamp(300px, 46vh, 405px);
   display: grid;
   place-items: end center;
   margin: 0 -22px 0;
@@ -140,19 +140,12 @@
    below covers loading); no entrance animation of its own — an animation
    fill would override opacity:0 and flash a frozen frame. */
 .videoBox {
+  /* Per Guy: no rounded framing — the footage IS the stage. The box fills
+     the whole top band edge-to-edge; the card's own overflow clip rounds
+     the top corners. */
   position: absolute;
-  bottom: 0;
-  inset-inline: 0;
-  margin-inline: auto;
-  height: calc(100% - 16px);
-  aspect-ratio: 1;
-  max-width: 94%;
+  inset: 0;
   overflow: hidden;
-  border-radius: 26px;
-  /* narrow edge feather: melts the plate boundary into the warm stage
-     without reaching the character (only the outer ~10% fades) */
-  -webkit-mask-image: radial-gradient(100% 100% at 50% 50%, #000 86%, transparent 99.5%);
-  mask-image: radial-gradient(100% 100% at 50% 50%, #000 86%, transparent 99.5%);
   z-index: 1;
   opacity: 0;
   transition: opacity 380ms ease;
@@ -160,14 +153,17 @@
 }
 .videoBox[data-live='1'] { opacity: 1; }
 
-/* 113% + centered offsets = the baked white margin is cropped away;
-   only the cream plate remains, blending into the warm stage field */
+/* The square footage carries a ~6% baked white margin. Rendering it at
+   114% of the stage WIDTH and shifting -7% crops that margin on the top
+   and both sides; the stage height (46vh cap 405px) is sized so the
+   character clears the bottom edge and only floor/shadow is cropped. */
 .videoBox video {
-  display: block;
-  width: 113%;
-  height: 113%;
-  margin: -6.5% 0 0 -6.5%;
-  object-fit: cover;
+  position: absolute;
+  top: -7%;
+  left: -7%;
+  width: 114%;
+  aspect-ratio: 1;
+  height: auto;
 }
 
 @keyframes art-pop {
@@ -286,7 +282,7 @@
     border-radius: 999px;
     background: rgba(36, 27, 77, 0.18);
   }
-  .stage { height: clamp(230px, 34vh, 290px); }
+  .stage { height: clamp(280px, 42vh, 355px); }
 
   @keyframes sheet-up {
     from { transform: translateY(100%); }
