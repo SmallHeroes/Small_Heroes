@@ -31,7 +31,12 @@ export function AboutSection({ about }: { about: LandingContent['about'] }) {
     <section className="section about-section" id="about">
       <div className="wrap">
         <h2 className="section-h2" data-reveal="up">{about.h2}</h2>
-        <p className="about-intro" data-reveal="up" data-reveal-delay="60">{about.intro}</p>
+        <p className="section-lede" data-reveal="up" data-reveal-delay="40">
+          {about.ledeLine1}
+          <br />
+          {about.ledeLine2}
+        </p>
+        <p className="about-intro" data-reveal="up" data-reveal-delay="80">{about.intro}</p>
         <p className="about-belief" data-reveal="up" data-reveal-delay="120">{about.belief}</p>
 
         <div className="about-people">
