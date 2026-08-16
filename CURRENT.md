@@ -2,7 +2,58 @@
 
 **Updated:** 2026-08-16
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-recurring-prop-aggregation` in `C:\Users\guyna\.codex\worktrees\booksurface2\Small_Heroes`; based exactly on pushed compact-first closeout `95fe597587ad81da43d1aeee8699824fb02da909`.
+**Working branch:** `codex/r1d-compound-page-repair-canonical-context` in `C:\Users\guyna\.codex\worktrees\compoundctx1\Small_Heroes`; based exactly on pushed book-surface closeout `a43f2d5dafe2edb6f771721d17bdf1c426ceb4ce`.
+
+## COMPOUND PAGE REPAIR CANONICAL CONTEXT — implementation complete; independent QA pending
+
+The consumed attempt-2 authority on immutable `a43f2d5d` completed one
+provider response and stopped without a candidate. Its receipt
+`483cbc2a66ffe2b09dec2612d4f738fac581fda0f72f4a1bfd1b994bff9f1345`
+contains the exact closed union of three action-coverage cardinality issues on
+pages 7/8 and one page-spatial object issue on page 10. No repair, candidate,
+Reconciliation, Blueprint, Wizard or render authority was produced.
+
+- The general root cause was a planning-view mismatch. Validation emitted the
+  spatial issue against compiler-canonical page topology, while the compound
+  repair planner re-checked the raw provider page and rejected a valid zone
+  alias. The same complete-page planner also required field-patch-only action
+  context that its response and application path never consume.
+- Code commit `48c10306` retains a deep-cloned canonical page view only on the
+  in-memory typed error and uses it only to prove the existing closed compound
+  plan. The repair still applies to the raw draft by exact page identity and is
+  followed by full recompilation. Field-only spatial repair remains strict and
+  still requires complete action context.
+- No raw prompt, provider response, authored rejected ID/value, stack or secret
+  is persisted or added to authority. Exact keys, issue catalog, target
+  identity, permitted reference authority, duplicate rejection, non-mutation
+  and all existing fail-closed boundaries remain intact.
+- Authority cutover is authoring policy v8, request/receipt/readiness
+  v25/v28/v26, live materialization input/manifest/verification v14/v23/v23,
+  execution materialization input/result v13/v17, Supervisor
+  request/readiness/result v22/v22/v14, and Fresh Readiness evidence v22.
+  Immediate predecessors are historical immutable only.
+- Model, prompt/schema authority, 64K input ceiling, call/repair budgets,
+  timeout, zero transport retries, no fallback, cost ceilings, candidate
+  semantics and downstream behavior are unchanged.
+- Focused validation passed 9 files / 447 tests with clean phased diagnostics;
+  the added migration assertion passed in 1 file / 69 tests. TypeScript and
+  `git diff --check` passed. The one literal `npm run check` passed 3,182
+  ordinary assertions and all 19 resource-intensive files / 577 tests without
+  infrastructure failure. Its five observed ordinary failures were ENOENTs in
+  four members of the established ignored-output fixture baseline; the
+  separate repository/release HOLD remains unchanged.
+
+Independent Claude Code review of
+`a43f2d5dafe2edb6f771721d17bdf1c426ceb4ce..48c10306` is pending. Codex does
+not self-award technical PASS. No credential, pricing/network/provider, Fresh
+Readiness, preflight, live authoring, image/Vision, render, storage/database,
+deployment, Production or push action occurred in this implementation. Cost
+was `$0`.
+
+Durable records:
+`docs/ai-workflow/R1D_COMPOUND_PAGE_REPAIR_CANONICAL_CONTEXT_DECISION_GATE.md`,
+`docs/ai-workflow/R1D_BOOK_SURFACE_ATTEMPT_2_EXECUTION_EVIDENCE.md`, and
+`docs/ai-workflow/R1D_COMPOUND_PAGE_REPAIR_CANONICAL_CONTEXT_IMPLEMENTATION_EVIDENCE.md`.
 
 ## BOOK-SURFACE RECURRING-PROP AGGREGATION — independent technical PASS
 
