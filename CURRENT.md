@@ -4,6 +4,49 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-repair-output-identity-schema-alignment` in `C:\Users\guyna\.codex\worktrees\repairidentity3\Small_Heroes`; based exactly on `425ffccefad1421c0a45a68cf9dbd60fba585d49`.
 
+## POST-REPAIR-OUTPUT-IDENTITY LIVE ATTEMPT — record PASS, no candidate
+
+The bounded live attempt at immutable HEAD `f2a0624a` is exhausted. Claude Code
+independently audited the ten-file, `102,646`-byte canonical inventory and
+returned PASS for execution-record and artifact fidelity with zero BLOCKER and
+zero MAJOR. Receipt v31 `9f0f4b05…` and readiness v29 `5aa9b199…` replay
+exactly; the eight pre-live artifacts are unchanged.
+
+One provider response completed transport with no repair, retry or fallback,
+but its completion status was `incomplete`. It consumed exactly the configured
+`36,000` output tokens. The terminal result is correctly classified as
+`provider_completion_failure / completion_status_invalid`, repair-ineligible,
+with no candidate or downstream authority. Usage was 9,133 input, 9,130
+cache-write input, 36,000 output, 3,969 reasoning and 45,133 total tokens;
+nominal cost was `$1.137078` and conservative accounting `$1.250790`.
+
+The output root and all consumed authorities are recorded in
+`R1D_POST_REPAIR_OUTPUT_IDENTITY_ARMED_LIVE_ATTEMPT_EXECUTION_EVIDENCE.md`.
+The provider's incomplete reason was not persisted, so output-ceiling
+exhaustion remains a strong inference from exact cap equality rather than a
+provider-attested reason. The prior byte-identical request completed at 15,657
+output tokens, establishing provider-side length variance rather than a code
+regression. Canonical preflight also remains `not_attested` in durable evidence.
+
+## PER-ATTEMPT OUTPUT BUDGET REALLOCATION — Decision Gate awaiting Guy
+
+Repository investigation found that the same page-derived output limit is
+currently reused by the initial call and both standard repairs. Raising all
+three would exceed the unchanged `$5.00` policy, but the existing total output
+pool can be reallocated without changing cost or call count. The recommended
+general 4:3:2 schedule gives a 12-page run `[48,000, 36,000, 24,000]` instead
+of `[36,000, 36,000, 36,000]`, preserving the exact 108,000-token pool and
+`$4.99125` projected maximum.
+
+`R1D_VISUAL_CONTRACT_PER_ATTEMPT_OUTPUT_BUDGET_REALLOCATION_DECISION_GATE.md`
+defines nine decisions covering the canonical schedule, version migration,
+attempt-level accounting, sanitized incomplete-reason evidence, tamper tests,
+rollback and Fresh Readiness. It changes no model, prompt, 64K input ceiling,
+call/repair count, timeout, retry/fallback policy or hard cost ceiling. Durable
+preflight attestation is deliberately separated into a later gate required
+before Blueprint/Wizard/render authority. No implementation is authorized
+until Guy approves the nine decisions.
+
 ## BOOK-SURFACE REPAIR-OUTPUT IDENTITY AND SCHEMA ALIGNMENT — independent technical PASS
 
 The consumed Book Surface live attempt exposed a durable-observability defect:
