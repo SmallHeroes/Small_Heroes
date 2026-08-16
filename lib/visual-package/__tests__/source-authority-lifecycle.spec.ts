@@ -49,6 +49,7 @@ import {
   buildCanonicalImportPreflightAttestation,
   buildVisualContractAuthoringReadinessEvidence,
   buildVisualContractAuthoringRequest,
+  buildVisualContractAuthoringStandardAttemptOutputBudget,
   buildVisualContractCandidateArtifact,
   authoringReservedExposureUsd,
   authoringSpendIsWithinCeiling,
@@ -62,10 +63,12 @@ import {
   persistVisualContractAuthoringReceipt,
   persistVisualContractAuthoringRequest,
   persistVisualContractCandidate,
+  projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd,
   runVisualContractAuthoring,
   sourcePromptReconciliationIssues,
   visualContractAuthoringArtifactVersionStatus,
   visualContractAuthoringAttemptBudgetSequenceIsValid,
+  visualContractAuthoringStandardAttemptOutputBudgetIsValid,
   visualContractAuthoringTerminalFailureIsValid,
   type StorySourceAuthoritySnapshot,
   type VisualContractAuthoringProvider,
@@ -206,6 +209,22 @@ function requestFor(
     requestId: `request-${mode}`,
     requestedAt: REQUESTED_AT,
   });
+}
+
+function standardAttemptOutputBudgetForBase(base: number) {
+  const initial = Math.floor((4 * base) / 3);
+  const limits = [initial, base, 3 * base - initial - base];
+  const payload = {
+    version:
+      'visual-contract-authoring-standard-attempt-output-budget/v1' as const,
+    limits,
+    totalPool: 3 * base,
+  };
+  return {
+    ...payload,
+    digestAlgorithm: 'canonical-json-sha256' as const,
+    digest: canonicalJsonDigest(payload),
+  };
 }
 
 function bunnySnapshot(): StorySourceAuthoritySnapshot {
@@ -693,6 +712,25 @@ describe('Story Source authority snapshot', () => {
 });
 
 describe('exact zero-cost authoring preflight', () => {
+  it.each([
+    ['8-page floor base', 32_000, true],
+    ['12-page base', 36_000, true],
+    ['64K initial boundary', 48_000, true],
+    ['base below provider band', 31_999, false],
+    ['initial above provider ceiling', 48_001, false],
+    ['over-ceiling base', 64_001, false],
+  ])('validates the bounded standard-attempt schedule for %s', (
+    _label,
+    base,
+    expected,
+  ) => {
+    expect(
+      visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+        standardAttemptOutputBudgetForBase(base),
+      ),
+    ).toBe(expected);
+  });
+
   it('locks every approved request surface and keeps the injected provider unreachable', async () => {
     const fixture = writeStoryFixture({
       pageCount: 12,
@@ -841,6 +879,78 @@ describe('exact zero-cost authoring preflight', () => {
       'prompt_authority_mismatch',
     );
     expect(provider.call).not.toHaveBeenCalled();
+  });
+
+  it('rejects a forged request_invalid zero-attempt receipt that launders the invalid request schedule', async () => {
+    const snapshot = snapshotFor(
+      writeStoryFixture({ pageCount: 12 }),
+    );
+    const request = structuredClone(requestFor(snapshot, 'live'));
+    const invalidSchedule =
+      buildVisualContractAuthoringStandardAttemptOutputBudget(13);
+    const invalidProjectedMaxUsd =
+      projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
+        standardMaxInputTokens: 64_000,
+        standardAttemptOutputLimits: invalidSchedule.limits,
+        cleanupMaxInputTokens: 6_000,
+        cleanupMaxOutputTokens: 2_000,
+        cleanupMaxCalls: 1,
+      });
+    expect(invalidSchedule.limits).toEqual([
+      52_000,
+      39_000,
+      26_000,
+    ]);
+    expect(invalidProjectedMaxUsd).toBeGreaterThan(5);
+    request.tokenBudget.standardAttempts = invalidSchedule;
+    request.costBudget.projectedMaxUsd = invalidProjectedMaxUsd;
+    const {
+      digestAlgorithm: _requestDigestAlgorithm,
+      digest: _requestDigest,
+      ...requestPayload
+    } = request;
+    request.digest = canonicalJsonDigest(requestPayload);
+
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+    const rejected = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+    expect(rejected.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 0,
+      attempts: [],
+      failure: { code: 'request_invalid' },
+    });
+    expect(provider.call).not.toHaveBeenCalled();
+    expect(
+      rejected.receipt.standardAttemptOutputBudget.limits,
+    ).toEqual([48_000, 36_000, 24_000]);
+
+    const forgedReceipt = structuredClone(rejected.receipt);
+    forgedReceipt.standardAttemptOutputBudget = invalidSchedule;
+    forgedReceipt.projectedMaxCostUsd = invalidProjectedMaxUsd;
+    const {
+      digestAlgorithm: _receiptDigestAlgorithm,
+      digest: _receiptDigest,
+      ...receiptPayload
+    } = forgedReceipt;
+    forgedReceipt.digest = canonicalJsonDigest(receiptPayload);
+
+    expect(() =>
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: forgedReceipt,
+      }),
+    ).toThrow(
+      /requires current, digest-bound request and receipt evidence/,
+    );
   });
 
   it.each([

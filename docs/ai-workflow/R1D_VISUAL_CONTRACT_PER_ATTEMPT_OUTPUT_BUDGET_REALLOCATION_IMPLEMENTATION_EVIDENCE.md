@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-16
 
-**Status:** implementation complete; repository gate HOLD on one resource-phase
-`onTaskUpdate` RPC timeout; independent Claude Code QA pending
+**Status:** focused QA corrections complete; Claude Code micro re-gate pending;
+repository gate remains HOLD on one resource-phase `onTaskUpdate` RPC timeout
 
 **Branch:** `codex/r1d-visual-contract-per-attempt-output-budget-reallocation`
 
@@ -14,6 +14,11 @@
 **Production commit:** `19467741`
 
 **Focused-test commit:** `21911148`
+
+**Original closeout / QA-fix base:**
+`c5c1ca0a4c5d5544d356dc320ed2b501985dc74f`
+
+**QA-fix commit:** this focused local commit
 
 **External cost:** `$0`
 
@@ -32,6 +37,48 @@ The correction reallocates the already-authorized standard output pool. It does
 not add output capacity, calls, repairs, retries, fallback, or actual-spend
 opportunism.
 
+## Independent QA HOLD and focused corrections
+
+Claude Code reviewed exact range
+`982e554b8506f802712139faff8ef7d9e137987a..c5c1ca0a4c5d5544d356dc320ed2b501985dc74f`
+and returned HOLD with two MAJOR findings plus advisory MINORs. Repository
+inspection validated the findings without contradicting the nine approved
+decisions.
+
+1. **MAJOR-1 — request-invalid schedule laundering:** readiness previously
+   accepted a failed `request_invalid` zero-attempt receipt when its schedule
+   matched the malformed request, bypassing the separately derived snapshot
+   fallback. That branch now requires exact equality with the snapshot fallback
+   unconditionally. A direct regression constructs the shape-valid 13-page
+   diagnostic schedule `[52,000, 39,000, 26,000]`, re-digests the invalid
+   12-page request, forges its receipt to echo the same schedule and cost, and
+   proves readiness rejects it.
+2. **MAJOR-2 — undeclared provider reachability widening:** the milestone adapter
+   had newly admitted the terminal cleanup `6,000` input / `2,000` output pair
+   when paired with the page-spatial schema. That admission is removed. The real
+   adapter again preserves the predecessor cleanup non-reachability: only 64K
+   input with a canonical standard-attempt cap is admitted.
+3. **MINOR-1/MINOR-4 — schedule bounds:** current schedule validation now requires
+   its middle/base entry to remain in the existing 32K–64K band and every
+   standard cap to remain at or below the 64K provider output ceiling. The 8-
+   and 12-page schedules remain valid; direct lower, exact-upper and over-upper
+   cases fail closed as intended.
+4. **MINOR-2 — hard-ceiling defense:** live request policy validation now rejects
+   `projectedMaxUsd > hardCeilingUsd` independently of exact projection rebuilds.
+5. **MINOR-5 — invalid pair coverage:** direct request-body and real-adapter tests
+   reject 64K/2K, 6K/48K, 6K/2K with the draft schema, and 6K/2K with the
+   page-spatial schema as `output_budget_pair`; credential and transport remain
+   unreachable.
+6. **MINOR-6 — dead helper:** repository-wide inspection found no call site or
+   external binding for `projectedMaximumAuthoringCostUsd`; the export is
+   deleted. The attempt-specific projection helper remains authoritative.
+
+MINOR-3 remains advisory because a standalone receipt authorizes nothing and
+readiness rebinds receipt, request and snapshot. MINOR-7 remains a pre-existing
+low-risk `stable_prop_scope_patch` end-to-end coverage limitation. Neither was
+expanded into this fix. Durable canonical-preflight attestation also remains a
+separately gated blocker.
+
 ## Implemented behavior
 
 1. `authoringPolicy.ts` owns the only canonical pure schedule function. For the
@@ -41,8 +88,9 @@ opportunism.
    - 12 pages: `[48,000, 36,000, 24,000]`, pool `108,000`;
    - 8 pages: `[42,666, 32,000, 21,334]`, pool `96,000`.
 3. The initial draft and every standard repair route select the schedule entry
-   for the logical attempt. The existing compact terminal-reference cleanup
-   remains a separate fourth-call allowance at `2,000` output / `6,000` input.
+   for the logical attempt. The lifecycle retains the existing compact
+   terminal-reference cleanup allowance at `2,000` output / `6,000` input; the
+   real adapter retains its predecessor boundary and does not admit that pair.
 4. Request, receipt and readiness persist the exact versioned schedule, total
    pool and canonical digest. Every attempt persists
    `appliedMaxOutputTokens`. Validation binds schedule shape, arithmetic,
@@ -94,19 +142,36 @@ recalculated.
   semantics;
 - 64K standard input ceiling and existing route-admission behavior;
 - three standard calls, two standard repairs and one narrowly eligible terminal
-  cleanup;
+  cleanup in lifecycle policy;
 - 20-minute timeout, transport retries `0`, tools disabled and no fallback;
 - hard `$5.00` ceiling and exact total standard output pool;
 - 12-page maximum admission. A 13-page request still fails closed as
   `page_budget_partition_decision_required` and also exceeds the unchanged hard
   ceiling under its derived `[52,000, 39,000, 26,000]` diagnostic schedule;
-- repair routing, terminal cleanup eligibility and candidate acceptance.
+- repair routing, logical terminal cleanup eligibility and candidate acceptance.
 
 Durable canonical-preflight attestation was not implemented or synthesized.
 `canonicalPreflight` remains `not_run`; this is a separate required gate before
 Blueprint, Wizard or render authority.
 
 ## Validation
+
+### Focused QA-fix validation
+
+Only directly affected slices were invoked, as required:
+
+- schedule bounds plus forged `request_invalid` readiness laundering: 1 file /
+  7 tests PASS;
+- invalid adapter output-budget pairs, including real-boundary 6K/2K rejection:
+  1 file / 4 tests PASS;
+- exact projected arithmetic above the hard ceiling: 1 file / 1 test PASS;
+- `npx --no-install tsc --noEmit`: PASS;
+- `git diff --check`: PASS.
+
+No assertion or infrastructure failure occurred. Literal `npm run check` was not
+rerun because its one authorized invocation was already exhausted.
+
+### Original implementation validation
 
 Focused validation covered all ten modified test files and 463 unique tests:
 
@@ -185,9 +250,15 @@ Focused-test commit `21911148` changes only ten corresponding test files under
 `lib/__tests__` and `lib/visual-package/__tests__`. This evidence file,
 `CURRENT.md`, and the consumed Decision Gate status are the closeout commit.
 
+The focused QA-fix changes only the central schedule policy and lifecycle
+validator, live request policy validator, OpenAI adapter boundary, three directly
+corresponding test files, `CURRENT.md`, and this evidence file. It preserves the
+three earlier commits and adds one local QA-fix commit.
+
 ## Rollback, limitations and next gate
 
-Rollback is a focused revert of the closeout, test and production commits in
+Rollback of the QA correction is a focused revert of the QA-fix commit. Rollback
+of the whole milestone then reverts the closeout, test and production commits in
 that order. There is no data or artifact migration. Any newly created authority
 under the cutover versions would become inapplicable after rollback; historical
 evidence remains immutable.
@@ -195,8 +266,10 @@ evidence remains immutable.
 This implementation has no live proof and produces no candidate. The new
 allocation is deterministically tested but has not been exercised against a
 provider. No Fresh Readiness can follow until independent QA reviews the exact
-base-to-head range and the new RPC HOLD is explicitly resolved through the
-authority workflow. Codex does not self-award independent technical PASS.
+QA-fix range and the RPC HOLD is explicitly resolved through the authority
+workflow. The real adapter's retained predecessor boundary rejects the logical
+cleanup 6K/2K pair; resolving this latent cleanup reachability limitation needs
+a separate Decision Gate. Codex does not self-award independent technical PASS.
 
 ## Exclusions
 

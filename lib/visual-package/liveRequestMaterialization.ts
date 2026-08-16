@@ -404,14 +404,17 @@ export function liveRequestPolicyAuthorityIssues(
     visualContractAuthoringStandardAttemptOutputBudgetIsValid(
       outputBudget,
     ) &&
-    policy.projectedMaxUsd !==
-      projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
+    (typeof policy.projectedMaxUsd !== 'number' ||
+      typeof policy.hardCeilingUsd !== 'number' ||
+      policy.projectedMaxUsd > policy.hardCeilingUsd ||
+      policy.projectedMaxUsd !==
+        projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
         standardMaxInputTokens: 64_000,
         standardAttemptOutputLimits: outputBudget.limits,
         cleanupMaxInputTokens: 6_000,
         cleanupMaxOutputTokens: 2_000,
         cleanupMaxCalls: 1,
-      })
+        }))
   ) {
     issues.push(`${prefix}_cost_invalid`);
   }

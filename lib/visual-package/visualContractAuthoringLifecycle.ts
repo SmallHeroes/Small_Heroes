@@ -11,12 +11,14 @@ import {
   VISUAL_CONTRACT_AUTHORING_NO_FALLBACK,
   VISUAL_CONTRACT_AUTHORING_POLICY_VERSION,
   VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
+  VISUAL_CONTRACT_AUTHORING_PROVIDER_MAX_OUTPUT_TOKENS,
   VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE,
   VISUAL_CONTRACT_AUTHORING_PROVIDER,
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT,
   VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS,
+  VISUAL_CONTRACT_AUTHORING_STANDARD_OUTPUT_BASE_MIN_TOKENS,
   VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION,
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS,
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_ELIGIBLE_PRECEDING_REPAIR_MODES,
@@ -1151,6 +1153,15 @@ export function visualContractAuthoringStandardAttemptOutputBudgetIsValid(
     budget.limits as number[];
   const totalPool = budget.totalPool as number;
   if (
+    firstRepair! <
+      VISUAL_CONTRACT_AUTHORING_STANDARD_OUTPUT_BASE_MIN_TOKENS ||
+    firstRepair! >
+      VISUAL_CONTRACT_AUTHORING_PROVIDER_MAX_OUTPUT_TOKENS ||
+    (budget.limits as number[]).some(
+      (limit) =>
+        limit >
+        VISUAL_CONTRACT_AUTHORING_PROVIDER_MAX_OUTPUT_TOKENS,
+    ) ||
     initial !== Math.floor((4 * firstRepair!) / 3) ||
     totalPool !== 3 * firstRepair! ||
     secondRepair !== totalPool - initial! - firstRepair!
@@ -1273,19 +1284,6 @@ export function conservativeAuthoringCostUsd(args: {
       args.outputTokens * prices.outputUsdPerUnit) /
       prices.unitTokens) *
       prices.regionalUpliftMultiplier,
-  );
-}
-
-export function projectedMaximumAuthoringCostUsd(args: {
-  maxInputTokens: number;
-  maxOutputTokens: number;
-  maxCalls: number;
-}): number {
-  return ceilUsd(
-    conservativeAuthoringCostUsd({
-      inputTokens: args.maxInputTokens,
-      outputTokens: args.maxOutputTokens,
-    }) * args.maxCalls,
   );
 }
 
@@ -2516,25 +2514,27 @@ function visualContractAuthoringReceiptOutputBudgetBindingsAreValid(args: {
     VisualContractAuthoringStandardAttemptOutputBudget;
 }): boolean {
   const budget = args.receipt.standardAttemptOutputBudget;
-  if (
-    !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
-      budget,
-    ) ||
-    (args.request !== undefined &&
-      !exactJson(
-        budget,
-        args.request.tokenBudget.standardAttempts,
-      ) &&
-      !(
-        args.receipt.status === 'failed' &&
-        args.receipt.failure?.code === 'request_invalid' &&
-        args.receipt.attempts.length === 0 &&
-        args.invalidRequestFallbackBudget !== undefined &&
+  const requestInvalidZeroAttempt =
+    args.receipt.status === 'failed' &&
+    args.receipt.failure?.code === 'request_invalid' &&
+    args.receipt.attempts.length === 0;
+  const requestBudgetBindingIsValid =
+    args.request === undefined ||
+    (requestInvalidZeroAttempt
+      ? args.invalidRequestFallbackBudget !== undefined &&
         exactJson(
           budget,
           args.invalidRequestFallbackBudget,
         )
-      )) ||
+      : exactJson(
+          budget,
+          args.request.tokenBudget.standardAttempts,
+        ));
+  if (
+    !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+      budget,
+    ) ||
+    !requestBudgetBindingIsValid ||
     args.receipt.projectedMaxCostUsd !==
       projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
         standardMaxInputTokens:

@@ -272,17 +272,7 @@ function exactCallOptionsIssues(
     STANDARD_ATTEMPT_OUTPUT_LIMITS.has(
       options.maxOutputTokens!,
     );
-  const terminalReferenceCleanupBudget =
-    options.maxInputTokens ===
-      VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS &&
-    options.maxOutputTokens ===
-      VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS &&
-    schemaName ===
-      PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME;
-  if (
-    !standardAttemptBudget &&
-    !terminalReferenceCleanupBudget
-  ) {
+  if (!standardAttemptBudget) {
     if (
       options.maxInputTokens !==
         VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS &&

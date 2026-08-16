@@ -20,10 +20,13 @@ import {
   STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION,
   assertValidLiveRequestMaterializationManifest,
   assertValidStorySourceAuthorityRequestArtifact,
+  buildVisualContractAuthoringStandardAttemptOutputBudget,
   buildCanonicalMaterializationInputEnvelope,
+  liveRequestPolicyAuthorityIssues,
   liveRequestMaterializationInputIssues,
   liveRequestMaterializationManifestIssues,
   materializeCanonicalLiveRequestBundle,
+  projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd,
   storySourceAuthorityRequestArtifactIssues,
   writeCanonicalMaterializationInput,
   type LiveRequestMaterializationInput,
@@ -451,6 +454,30 @@ describe('canonical live request materialization validators', () => {
 });
 
 describe('canonical live request materialization artifacts', () => {
+  it('rejects exact projected arithmetic above the hard ceiling', () => {
+    const result = materialize(
+      writeFixture({ pageCount: 12 }),
+    );
+    const policy = structuredClone(result.manifest.requestPolicy);
+    const overCeilingSchedule =
+      buildVisualContractAuthoringStandardAttemptOutputBudget(13);
+    policy.standardAttemptOutputBudget = overCeilingSchedule;
+    policy.projectedMaxUsd =
+      projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
+        standardMaxInputTokens: 64_000,
+        standardAttemptOutputLimits: overCeilingSchedule.limits,
+        cleanupMaxInputTokens: 6_000,
+        cleanupMaxOutputTokens: 2_000,
+        cleanupMaxCalls: 1,
+      });
+    expect(policy.projectedMaxUsd).toBeGreaterThan(
+      policy.hardCeilingUsd,
+    );
+    expect(
+      liveRequestPolicyAuthorityIssues(policy, 'qa_policy'),
+    ).toContain('qa_policy_cost_invalid');
+  });
+
   it('materializes the exact 12-page live policy and a non-authorizing future command', () => {
     const fixture = writeFixture({
       pageCount: 12,

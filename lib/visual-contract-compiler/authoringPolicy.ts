@@ -20,6 +20,10 @@ export const VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS =
   20 * 60 * 1_000;
 export const VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS =
   64_000;
+export const VISUAL_CONTRACT_AUTHORING_STANDARD_OUTPUT_BASE_MIN_TOKENS =
+  32_000;
+export const VISUAL_CONTRACT_AUTHORING_PROVIDER_MAX_OUTPUT_TOKENS =
+  64_000;
 export const VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE =
   4_096;
 export const VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN =
@@ -77,8 +81,11 @@ export function authoringMaxOutputTokens(pageCount: number): number {
       ? pageCount
       : 12;
   return Math.min(
-    64_000,
-    Math.max(32_000, Math.round(pages * 3_000)),
+    VISUAL_CONTRACT_AUTHORING_PROVIDER_MAX_OUTPUT_TOKENS,
+    Math.max(
+      VISUAL_CONTRACT_AUTHORING_STANDARD_OUTPUT_BASE_MIN_TOKENS,
+      Math.round(pages * 3_000),
+    ),
   );
 }
 

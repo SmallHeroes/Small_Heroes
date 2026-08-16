@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-visual-contract-per-attempt-output-budget-reallocation` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on `982e554b8506f802712139faff8ef7d9e137987a`.
 
-## PER-ATTEMPT OUTPUT BUDGET REALLOCATION — implementation complete, repository gate HOLD
+## PER-ATTEMPT OUTPUT BUDGET REALLOCATION — QA corrections complete, repository gate HOLD
 
 Guy approved the nine architectural decisions in
 `R1D_VISUAL_CONTRACT_PER_ATTEMPT_OUTPUT_BUDGET_REALLOCATION_DECISION_GATE.md`.
@@ -15,22 +15,49 @@ schedule is `[48,000, 36,000, 24,000]`; the 8-page schedule is
 page admission fence remains closed, and the unchanged 12-page projected
 maximum remains `$4.99125` under the hard `$5.00` ceiling.
 
-Every initial and standard-repair compiler route now selects the schedule entry
-for its logical attempt. Request, receipt, readiness, live materialization,
-verification, execution materialization, Supervisor and Fresh Readiness
-authorities advance together and bind the same schedule/digest. Attempts persist
-their exact applied cap and validate order, pool, association, usage and
-remaining-cap reservation arithmetic. The OpenAI Responses adapter persists
-only the closed incomplete-reason enum `max_output_tokens`, `content_filter` or
-`other_or_absent`; provider-incomplete routing remains terminal and
-repair/retry/fallback-ineligible. Historical predecessors remain
-`legacy_immutable`.
+Every initial and standard-repair compiler route selects the schedule entry for
+its logical attempt. Request, receipt, readiness, live materialization,
+verification, execution materialization, Supervisor and Fresh Readiness bind the
+same schedule/digest. Attempts persist their exact applied cap and validate
+order, pool, association, usage and remaining-cap reservation arithmetic. The
+OpenAI Responses adapter persists only the closed incomplete-reason enum
+`max_output_tokens`, `content_filter` or `other_or_absent`; provider-incomplete
+routing remains terminal and repair/retry/fallback-ineligible. Historical
+predecessors remain `legacy_immutable`.
 
-Focused validation passed all 10 modified test files / 463 unique tests.
-TypeScript and `git diff --check` pass. One earlier monolithic Fresh Readiness
-focused run passed all 13 assertions but emitted an `onTaskUpdate` RPC timeout;
-the same 13 cases then passed in three bounded segments without an RPC event.
-This did not waive or erase the first diagnostic.
+Claude Code reviewed exact range
+`982e554b8506f802712139faff8ef7d9e137987a..c5c1ca0a4c5d5544d356dc320ed2b501985dc74f`
+and returned HOLD with two MAJOR findings. This focused QA-fix closes both:
+
+- `request_invalid` zero-attempt readiness now requires the snapshot-derived
+  fallback schedule unconditionally. A forged receipt cannot launder a malformed
+  request schedule merely by echoing it.
+- The OpenAI adapter no longer admits the newly widened `6,000` input / `2,000`
+  output cleanup pair. Its provider-reachable surface is restored to the exact
+  predecessor policy while retaining current attempt-specific standard caps.
+
+Defense-in-depth corrections also bind the middle/base schedule entry to the
+existing 32K–64K band, reject any standard entry above the 64K provider output
+ceiling, reject projected cost above the hard ceiling even when arithmetic is
+otherwise exact, directly exercise invalid budget pairs, and remove the unused
+`projectedMaximumAuthoringCostUsd` export. Twelve directly targeted tests pass:
+7 schedule/readiness cases, 4 adapter-pair cases and 1 cost-policy case.
+`npx --no-install tsc --noEmit` and `git diff --check` pass. Per instruction,
+the exhausted single-use `npm run check` was not invoked again.
+
+The lifecycle still models the pre-existing terminal cleanup allowance, while
+the real adapter rejects its `6,000`/`2,000` pair before credential or transport
+reachability. This latent cleanup reachability mismatch is explicit and requires
+a separate future Decision Gate; it was not opened as a paid-provider behavior
+change here. Claude MINOR-3 (receipt-standalone page-count binding) and MINOR-7
+(`stable_prop_scope_patch` end-to-end coverage) remain carried advisories.
+Durable canonical-preflight attestation remains separately gated.
+
+Focused validation for the original implementation passed all 10 modified test
+files / 463 unique tests. TypeScript and `git diff --check` passed. One earlier
+monolithic Fresh Readiness run passed all 13 assertions but emitted an
+`onTaskUpdate` RPC timeout; the same 13 cases then passed in three bounded
+segments without an RPC event. This did not waive or erase the first diagnostic.
 
 Literal `npm run check` ran exactly once and was not retried. TypeScript and
 autonomous-story typecheck passed. Ordinary Vitest reported only the known five
@@ -39,18 +66,18 @@ absent ignored-output fixture assertions in four unchanged files: 261 files and
 Resource-intensive Vitest passed all 19 files / 581 assertions, but then emitted
 one unhandled `[vitest-worker]: Timeout calling "onTaskUpdate"`. Its diagnostic
 protocol was valid and classified `on_task_update_rpc_timeout` plus the
-resulting nonzero exit. Under the milestone's explicit stop rule, this is a new
-blocking repository-gate result. The branch must not be described as locally
-green or independently PASSed, and the full gate must not be retried.
+resulting nonzero exit. Under the milestone's explicit stop rule, this remains a
+blocking repository-gate result. The branch is not locally green or
+independently PASSed, and the full gate must not be retried.
 
 No credential or `.env` access, pricing/network/provider/model call, canonical
-application Git probe, B0, Fresh Readiness, canonical preflight, live authoring, candidate,
-Reconciliation, Blueprint/Wizard authority, render/image/Vision,
+application Git probe, B0, Fresh Readiness, canonical preflight, live authoring,
+candidate, Reconciliation, Blueprint/Wizard authority, render/image/Vision,
 storage/database, Board, deployment, PR, push or external spend occurred.
-Durable canonical-preflight attestation remains a separately gated blocker.
-Next action is read-only Claude Code adversarial review of the exact
-`982e554b8506f802712139faff8ef7d9e137987a..HEAD` range, including the new RPC
-HOLD; Codex does not self-award technical PASS.
+Next action is a read-only Claude Code micro re-gate of exact
+`c5c1ca0a4c5d5544d356dc320ed2b501985dc74f..HEAD`. The five-fixture release HOLD
+and the one `onTaskUpdate` RPC repository-gate HOLD remain immutable and are not
+reclassified by the QA-fix. Codex does not self-award technical PASS.
 
 ## POST-REPAIR-OUTPUT-IDENTITY LIVE ATTEMPT — record PASS, no candidate
 

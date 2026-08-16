@@ -1382,6 +1382,53 @@ describe('canonical OpenAI Responses authoring adapter', () => {
   );
 
   it.each([
+    ['standard input with cleanup output', 64_000, 2_000, false],
+    ['cleanup input with standard output', 6_000, 48_000, false],
+    ['cleanup pair with draft schema', 6_000, 2_000, false],
+    ['cleanup pair with page-spatial schema', 6_000, 2_000, true],
+  ])('rejects the invalid %s budget pair at the real adapter boundary', async (
+    _label,
+    maxInputTokens,
+    maxOutputTokens,
+    usePageSpatialSchema,
+  ) => {
+    const fixture = createLiveFixture(`adapter-budget-pair-${_label}`);
+    const options = exactOptions(fixture.request);
+    options.maxInputTokens = maxInputTokens;
+    options.maxOutputTokens = maxOutputTokens;
+    if (usePageSpatialSchema) {
+      options.jsonSchema = {
+        name: PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
+        schema: PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+      };
+    }
+    expect(() =>
+      buildOpenAIResponsesVisualContractAuthoringBody({
+        systemPrompt: 'system',
+        userPrompt: 'user',
+        options,
+      }),
+    ).toThrow(/output_budget_pair/);
+
+    const adapter = fakeAdapter({
+      responses: [responseFor(fullyActionedDraft(fixture.snapshot))],
+    });
+    await expect(
+      adapter.provider.call({
+        attempt: 1,
+        kind: 'initial',
+        systemPrompt: 'system',
+        userPrompt: 'user',
+        options,
+      }),
+    ).rejects.toThrow(
+      /visual_contract_authoring_adapter_policy_mismatch/,
+    );
+    expect(adapter.readCredential).not.toHaveBeenCalled();
+    expect(adapter.transportCreate).not.toHaveBeenCalled();
+  });
+
+  it.each([
     [
       'missing usage',
       { usage: undefined },
