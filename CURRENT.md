@@ -2,7 +2,55 @@
 
 **Updated:** 2026-08-16
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-repair-output-identity-schema-alignment` in `C:\Users\guyna\.codex\worktrees\repairidentity3\Small_Heroes`; based exactly on `425ffccefad1421c0a45a68cf9dbd60fba585d49`.
+**Working branch:** `codex/r1d-visual-contract-per-attempt-output-budget-reallocation` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on `982e554b8506f802712139faff8ef7d9e137987a`.
+
+## PER-ATTEMPT OUTPUT BUDGET REALLOCATION — implementation complete, repository gate HOLD
+
+Guy approved the nine architectural decisions in
+`R1D_VISUAL_CONTRACT_PER_ATTEMPT_OUTPUT_BUDGET_REALLOCATION_DECISION_GATE.md`.
+Production commit `19467741` and focused-test commit `21911148` implement one
+versioned, digest-bound standard-attempt schedule. The canonical 12-page
+schedule is `[48,000, 36,000, 24,000]`; the 8-page schedule is
+`[42,666, 32,000, 21,334]`. Both retain the exact legacy `3B` pool. The 13+
+page admission fence remains closed, and the unchanged 12-page projected
+maximum remains `$4.99125` under the hard `$5.00` ceiling.
+
+Every initial and standard-repair compiler route now selects the schedule entry
+for its logical attempt. Request, receipt, readiness, live materialization,
+verification, execution materialization, Supervisor and Fresh Readiness
+authorities advance together and bind the same schedule/digest. Attempts persist
+their exact applied cap and validate order, pool, association, usage and
+remaining-cap reservation arithmetic. The OpenAI Responses adapter persists
+only the closed incomplete-reason enum `max_output_tokens`, `content_filter` or
+`other_or_absent`; provider-incomplete routing remains terminal and
+repair/retry/fallback-ineligible. Historical predecessors remain
+`legacy_immutable`.
+
+Focused validation passed all 10 modified test files / 463 unique tests.
+TypeScript and `git diff --check` pass. One earlier monolithic Fresh Readiness
+focused run passed all 13 assertions but emitted an `onTaskUpdate` RPC timeout;
+the same 13 cases then passed in three bounded segments without an RPC event.
+This did not waive or erase the first diagnostic.
+
+Literal `npm run check` ran exactly once and was not retried. TypeScript and
+autonomous-story typecheck passed. Ordinary Vitest reported only the known five
+absent ignored-output fixture assertions in four unchanged files: 261 files and
+3,197 tests passed, 16 files and 65 tests skipped, 4 files and 5 tests failed.
+Resource-intensive Vitest passed all 19 files / 581 assertions, but then emitted
+one unhandled `[vitest-worker]: Timeout calling "onTaskUpdate"`. Its diagnostic
+protocol was valid and classified `on_task_update_rpc_timeout` plus the
+resulting nonzero exit. Under the milestone's explicit stop rule, this is a new
+blocking repository-gate result. The branch must not be described as locally
+green or independently PASSed, and the full gate must not be retried.
+
+No credential or `.env` access, pricing/network/provider/model call, canonical
+application Git probe, B0, Fresh Readiness, canonical preflight, live authoring, candidate,
+Reconciliation, Blueprint/Wizard authority, render/image/Vision,
+storage/database, Board, deployment, PR, push or external spend occurred.
+Durable canonical-preflight attestation remains a separately gated blocker.
+Next action is read-only Claude Code adversarial review of the exact
+`982e554b8506f802712139faff8ef7d9e137987a..HEAD` range, including the new RPC
+HOLD; Codex does not self-award technical PASS.
 
 ## POST-REPAIR-OUTPUT-IDENTITY LIVE ATTEMPT — record PASS, no candidate
 
@@ -28,24 +76,13 @@ provider-attested reason. The prior byte-identical request completed at 15,657
 output tokens, establishing provider-side length variance rather than a code
 regression. Canonical preflight also remains `not_attested` in durable evidence.
 
-## PER-ATTEMPT OUTPUT BUDGET REALLOCATION — Decision Gate awaiting Guy
+## PER-ATTEMPT OUTPUT BUDGET REALLOCATION — Decision Gate consumed
 
-Repository investigation found that the same page-derived output limit is
-currently reused by the initial call and both standard repairs. Raising all
-three would exceed the unchanged `$5.00` policy, but the existing total output
-pool can be reallocated without changing cost or call count. The recommended
-general 4:3:2 schedule gives a 12-page run `[48,000, 36,000, 24,000]` instead
-of `[36,000, 36,000, 36,000]`, preserving the exact 108,000-token pool and
-`$4.99125` projected maximum.
-
-`R1D_VISUAL_CONTRACT_PER_ATTEMPT_OUTPUT_BUDGET_REALLOCATION_DECISION_GATE.md`
-defines nine decisions covering the canonical schedule, version migration,
-attempt-level accounting, sanitized incomplete-reason evidence, tamper tests,
-rollback and Fresh Readiness. It changes no model, prompt, 64K input ceiling,
-call/repair count, timeout, retry/fallback policy or hard cost ceiling. Durable
-preflight attestation is deliberately separated into a later gate required
-before Blueprint/Wizard/render authority. No implementation is authorized
-until Guy approves the nine decisions.
+Guy approved all nine decisions. The implementation and its fail-closed
+repository-gate result are recorded at the top of this file and in
+`R1D_VISUAL_CONTRACT_PER_ATTEMPT_OUTPUT_BUDGET_REALLOCATION_IMPLEMENTATION_EVIDENCE.md`.
+The approval did not authorize a paid attempt or durable canonical-preflight
+attestation work.
 
 ## BOOK-SURFACE REPAIR-OUTPUT IDENTITY AND SCHEMA ALIGNMENT — independent technical PASS
 

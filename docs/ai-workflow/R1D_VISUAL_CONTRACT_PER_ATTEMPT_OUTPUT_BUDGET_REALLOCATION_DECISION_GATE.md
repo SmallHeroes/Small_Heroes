@@ -6,7 +6,9 @@
 
 **Base:** `f2a0624ab38aae5f312e70ca28a5843b6efe8a32`
 
-**Status:** awaiting Guy's approval of the nine decisions below
+**Status:** approved by Guy for implementation on 2026-08-16; implementation
+evidence is recorded separately and remains repository-gate HOLD pending
+independent QA
 
 ## 1. Proposed change
 
