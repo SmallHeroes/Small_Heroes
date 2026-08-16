@@ -458,11 +458,14 @@
   background: var(--bg-lighter);
 }
 
+/* Two OPEN compositions, centered as a group (per Guy: no card containers —
+   a looping animation, then the title, then the text). */
 .why-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  align-items: stretch;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 460px));
+  justify-content: center;
+  gap: clamp(32px, 6vw, 72px);
+  align-items: start;
 }
 
 /* Shared card typography — why + how sections */
@@ -482,20 +485,105 @@
   margin: 0;
 }
 
-.why-card {
-  background: var(--white);
-  border-radius: 20px;
-  padding: 18px 16px;
-  min-width: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--shadow-card);
-  text-align: right;
+.why-item {
+  text-align: center;
 }
 
-.why-card .landing-card-body {
-  flex: 1;
+.why-item-visual {
+  height: 260px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+}
+
+.why-item-title {
+  font-family: var(--fd);
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--dark);
+  margin: 0 0 8px;
+}
+
+.why-item-body {
+  font-size: 16.5px;
+  color: var(--mid);
+  line-height: 1.65;
+  margin: 0 auto;
+  max-width: 40ch;
+}
+
+/* ── The book: the real spread, gently afloat, leafing in a loop ── */
+.why-book-scene {
+  position: relative;
+  width: min(400px, 100%);
+  rotate: -1.5deg;
+  perspective: 1000px;
+  animation: why-book-float 6.2s ease-in-out infinite;
+}
+
+@keyframes why-book-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -8px; }
+}
+
+.why-book-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 18px 26px rgba(45, 30, 90, 0.18));
+}
+
+/* The page in flight. It fades IN as it lifts off the left (unread, RTL)
+   stack and fades OUT as it lands on the right — so it never has to align
+   pixel-perfectly with the photo's resting pages. Origin = the spine. */
+.why-book-leaf {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  width: 41%;
+  height: 74%;
+  transform-origin: left center;
+  border-radius: 4px 14px 14px 6px;
+  background: linear-gradient(105deg, #fffaf0 0%, #f9efdb 55%, #f1e5c9 100%);
+  box-shadow: -10px 12px 20px rgba(45, 30, 90, 0.16);
+  opacity: 0;
+  transform: rotateY(-168deg);
+  animation: why-leaf 5.6s ease-in-out infinite;
+}
+
+@keyframes why-leaf {
+  0%, 52% { transform: rotateY(-168deg); opacity: 0; }
+  57% { transform: rotateY(-156deg); opacity: 1; }
+  74% { transform: rotateY(-12deg); opacity: 1; }
+  80%, 100% { transform: rotateY(0deg); opacity: 0; }
+}
+
+/* ── The sound wave: the medium made visible, looping ── */
+.why-wave {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 96px;
+}
+
+.why-wave i {
+  width: 5px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--purple), #b4a3ff);
+  animation: why-wave 1.9s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+@keyframes why-wave {
+  from { transform: scaleY(0.5); opacity: 0.7; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .why-wave i { animation: none; }
+  .why-book-scene { animation: none; }
+  .why-book-leaf { animation: none; opacity: 0; }
 }
 
 .how-it-works-section {
@@ -1314,10 +1402,7 @@
 }
 
 @media (max-width: 960px) {
-  .why-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-  }
+  /* .why-grid reflows on its own (auto-fit) — no override needed */
 
   .trust-points {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1530,10 +1615,6 @@
     font-size: 17px;
   }
 
-  .why-grid {
-    grid-template-columns: 1fr;
-  }
-
   .trust-points {
     grid-template-columns: 1fr;
     max-width: 420px;
@@ -1544,18 +1625,15 @@
     max-width: none;
   }
 
-  .why-card,
   .fit-card {
     padding: 20px 16px;
   }
 
-  .why-card h3,
   .fit-card h3,
   .landing-card-title {
     font-size: 20px;
   }
 
-  .why-card p,
   .fit-card p,
   .sample-p,
   .landing-card-body {

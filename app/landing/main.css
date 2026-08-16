@@ -3,13 +3,8 @@
    Shared foundation
    ═══════════════════════════════════════════════════════════ */
 
-@font-face {
-  font-family: 'Abraham';
-  src: url('/Fonts/Abraham-Regular.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
+/* Headings: Suez One (loaded via next/font/local in app/layout.tsx as
+   --font-suez). Abraham is unlicensed and must not be @font-face'd here. */
 
 :root {
   --purple: #886cff;
@@ -25,7 +20,7 @@
   --bg-light: #f7f6fb;
   --bg-lighter: #fafafa;
 
-  --fd: 'Abraham', 'Heebo', sans-serif;
+  --fd: var(--font-suez, 'Suez One'), 'Heebo', sans-serif;
   --fb: 'Heebo', sans-serif;
 
   --max-w: 1440px;
@@ -50,6 +45,9 @@ html {
   scroll-behavior: smooth;
   max-width: 100%;
   overflow-x: clip;
+  /* Suez One ships a single 400 weight — render real faces only, never a
+     smeared synthetic bold (Heebo falls to its nearest loaded weight). */
+  font-synthesis: none;
 }
 
 body {

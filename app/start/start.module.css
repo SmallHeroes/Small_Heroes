@@ -126,9 +126,9 @@
 }
 
 .title {
-  font-family: var(--font-rubik, var(--fd));
+  font-family: var(--font-suez, var(--fd));
   font-size: clamp(32px, 4.2vw, 52px);
-  font-weight: 800;
+  font-weight: 400;
   line-height: 1.14;
   color: #ffffff;
   margin: 0;
