@@ -1315,7 +1315,8 @@
     max-width: 300px;
     aspect-ratio: 362 / 512;
     order: 1;
-    margin: 10px auto 0;
+    /* a touch of air above the collage (per Guy: some, not too much) */
+    margin: 26px auto 0;
     perspective: none;
   }
 
@@ -1605,7 +1606,14 @@
 /* ── ריתמוס: נשימה בין סקשנים, בלי למרוח ── */
 .section { padding: 72px 0; }
 .section-sub { margin-bottom: 38px; }
-.hero { padding: 48px 0 0; }
+/* Per Guy: the fold was crammed against the next section — the hero sits a
+   touch lower and breathes on both sides. */
+.hero { padding: 76px 0 84px; }
+
+@media (max-width: 960px) {
+  /* stacked hero: moderate frame; the image gets its own top gap below */
+  .hero { padding: 44px 0 40px; }
+}
 
 @media (max-width: 860px) {
   .section { padding: 56px 0; }
