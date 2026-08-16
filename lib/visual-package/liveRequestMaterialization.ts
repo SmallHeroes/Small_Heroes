@@ -21,10 +21,13 @@ import {
 } from './storySourceAuthority';
 import {
   buildVisualContractAuthoringRequest,
+  projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd,
   VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+  visualContractAuthoringStandardAttemptOutputBudgetIsValid,
   visualContractAuthoringRequestIssues,
   type VisualContractAuthoringArtifactWrite,
   type VisualContractAuthoringRequest,
+  type VisualContractAuthoringStandardAttemptOutputBudget,
 } from './visualContractAuthoringLifecycle';
 import {
   STORY_SOURCE_IDENTITY_VERSION,
@@ -37,13 +40,13 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-request-materialization-input/v17' as const;
+  'canonical-live-request-materialization-input/v18' as const;
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v26' as const;
+  'canonical-live-request-materialization/v27' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v26' as const;
+  'canonical-live-request-verification/v27' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -94,6 +97,38 @@ export interface LiveRequestStructuredOutputCompatibilityAuthority {
     OpenAIResponsesStructuredOutputCompatibilityAuthority;
 }
 
+export interface CanonicalLiveRequestPolicyAuthority {
+  provider: 'openai';
+  endpoint: 'responses';
+  model: 'gpt-5.6-sol';
+  serviceTier: 'default';
+  reasoningEffort: 'medium';
+  maxCalls: 4;
+  maxRepairCount: 3;
+  standardMaxCalls: 3;
+  standardMaxRepairCount: 2;
+  standardAttemptOutputBudget:
+    VisualContractAuthoringStandardAttemptOutputBudget;
+  terminalReferenceCleanup: {
+    budgetClass: 'terminal_reference_cleanup';
+    maxCalls: 1;
+    maxRepairCount: 1;
+    maxInputTokens: 6000;
+    maxOutputTokens: 2000;
+    eligiblePrecedingRepairModes: [
+      'book_surface_patch',
+      'full_draft',
+    ];
+    repairMode: 'page_spatial_reference_patch';
+    residualFamily: 'draft_contract';
+    residualCode: 'out_of_scope_reference';
+  };
+  transportRetries: 0;
+  noFallback: true;
+  projectedMaxUsd: number;
+  hardCeilingUsd: 5;
+}
+
 export interface LiveRequestMaterializationManifest {
   version:
     typeof LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION;
@@ -138,6 +173,7 @@ export interface LiveRequestMaterializationManifest {
     LiveRequestStructuredOutputCompatibilityAuthority;
   stablePropScopeRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
+  requestPolicy: CanonicalLiveRequestPolicyAuthority;
   futureLiveCommand: {
     executable: 'node';
     arguments: string[];
@@ -197,35 +233,7 @@ export interface CanonicalLiveRequestVerifiedResult {
     LiveRequestStructuredOutputCompatibilityAuthority;
   stablePropScopeRepairStructuredOutputCompatibility:
     LiveRequestStructuredOutputCompatibilityAuthority;
-  requestPolicy: {
-    provider: 'openai';
-    endpoint: 'responses';
-    model: 'gpt-5.6-sol';
-    serviceTier: 'default';
-    reasoningEffort: 'medium';
-    maxCalls: 4;
-    maxRepairCount: 3;
-    standardMaxCalls: 3;
-    standardMaxRepairCount: 2;
-    terminalReferenceCleanup: {
-      budgetClass: 'terminal_reference_cleanup';
-      maxCalls: 1;
-      maxRepairCount: 1;
-      maxInputTokens: 6000;
-      maxOutputTokens: 2000;
-      eligiblePrecedingRepairModes: [
-        'book_surface_patch',
-        'full_draft',
-      ];
-      repairMode: 'page_spatial_reference_patch';
-      residualFamily: 'draft_contract';
-      residualCode: 'out_of_scope_reference';
-    };
-    transportRetries: 0;
-    noFallback: true;
-    projectedMaxUsd: number;
-    hardCeilingUsd: 5;
-  };
+  requestPolicy: CanonicalLiveRequestPolicyAuthority;
   externalBoundaryEvidence: {
     credentialReadOrCheck: false;
     providerReachabilityCheck: false;
@@ -275,6 +283,139 @@ function exactKeyIssues(
     issues.push(`${prefix}_unknown_field`);
   }
   return issues;
+}
+
+function canonicalLiveRequestPolicyAuthority(
+  request: VisualContractAuthoringRequest,
+): CanonicalLiveRequestPolicyAuthority {
+  return {
+    provider: 'openai',
+    endpoint: 'responses',
+    model: 'gpt-5.6-sol',
+    serviceTier: 'default',
+    reasoningEffort: 'medium',
+    maxCalls: 4,
+    maxRepairCount: 3,
+    standardMaxCalls: 3,
+    standardMaxRepairCount: 2,
+    standardAttemptOutputBudget:
+      request.tokenBudget.standardAttempts,
+    terminalReferenceCleanup: {
+      budgetClass: 'terminal_reference_cleanup',
+      maxCalls: 1,
+      maxRepairCount: 1,
+      maxInputTokens: 6000,
+      maxOutputTokens: 2000,
+      eligiblePrecedingRepairModes: [
+        'book_surface_patch',
+        'full_draft',
+      ],
+      repairMode: 'page_spatial_reference_patch',
+      residualFamily: 'draft_contract',
+      residualCode: 'out_of_scope_reference',
+    },
+    transportRetries: 0,
+    noFallback: true,
+    projectedMaxUsd: request.costBudget.projectedMaxUsd,
+    hardCeilingUsd: 5,
+  };
+}
+
+export function liveRequestPolicyAuthorityIssues(
+  value: unknown,
+  prefix = 'live_request_policy',
+): string[] {
+  const policy = recordValue(value);
+  if (!policy) return [`${prefix}_not_object`];
+  const issues = exactKeyIssues(
+    policy,
+    [
+      'provider',
+      'endpoint',
+      'model',
+      'serviceTier',
+      'reasoningEffort',
+      'maxCalls',
+      'maxRepairCount',
+      'standardMaxCalls',
+      'standardMaxRepairCount',
+      'standardAttemptOutputBudget',
+      'terminalReferenceCleanup',
+      'transportRetries',
+      'noFallback',
+      'projectedMaxUsd',
+      'hardCeilingUsd',
+    ],
+    prefix,
+  );
+  const cleanup = recordValue(
+    policy.terminalReferenceCleanup,
+  );
+  const outputBudget = policy.standardAttemptOutputBudget;
+  if (
+    policy.provider !== 'openai' ||
+    policy.endpoint !== 'responses' ||
+    policy.model !== 'gpt-5.6-sol' ||
+    policy.serviceTier !== 'default' ||
+    policy.reasoningEffort !== 'medium' ||
+    policy.maxCalls !== 4 ||
+    policy.maxRepairCount !== 3 ||
+    policy.standardMaxCalls !== 3 ||
+    policy.standardMaxRepairCount !== 2 ||
+    !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+      outputBudget,
+    ) ||
+    !cleanup ||
+    exactKeyIssues(
+      cleanup,
+      [
+        'budgetClass',
+        'maxCalls',
+        'maxRepairCount',
+        'maxInputTokens',
+        'maxOutputTokens',
+        'eligiblePrecedingRepairModes',
+        'repairMode',
+        'residualFamily',
+        'residualCode',
+      ],
+      `${prefix}_cleanup`,
+    ).length > 0 ||
+    cleanup.budgetClass !== 'terminal_reference_cleanup' ||
+    cleanup.maxCalls !== 1 ||
+    cleanup.maxRepairCount !== 1 ||
+    cleanup.maxInputTokens !== 6000 ||
+    cleanup.maxOutputTokens !== 2000 ||
+    !Array.isArray(cleanup.eligiblePrecedingRepairModes) ||
+    cleanup.eligiblePrecedingRepairModes.length !== 2 ||
+    cleanup.eligiblePrecedingRepairModes[0] !==
+      'book_surface_patch' ||
+    cleanup.eligiblePrecedingRepairModes[1] !== 'full_draft' ||
+    cleanup.repairMode !== 'page_spatial_reference_patch' ||
+    cleanup.residualFamily !== 'draft_contract' ||
+    cleanup.residualCode !== 'out_of_scope_reference' ||
+    policy.transportRetries !== 0 ||
+    policy.noFallback !== true ||
+    policy.hardCeilingUsd !== 5
+  ) {
+    issues.push(`${prefix}_invalid`);
+  }
+  if (
+    visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+      outputBudget,
+    ) &&
+    policy.projectedMaxUsd !==
+      projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
+        standardMaxInputTokens: 64_000,
+        standardAttemptOutputLimits: outputBudget.limits,
+        cleanupMaxInputTokens: 6_000,
+        cleanupMaxOutputTokens: 2_000,
+        cleanupMaxCalls: 1,
+      })
+  ) {
+    issues.push(`${prefix}_cost_invalid`);
+  }
+  return [...new Set(issues)];
 }
 
 function isCanonicalTimestamp(value: unknown): value is string {
@@ -782,6 +923,7 @@ export function liveRequestMaterializationManifestIssues(
       'bookSurfaceRepairStructuredOutputCompatibility',
       'presentationRequirementRepairStructuredOutputCompatibility',
       'stablePropScopeRepairStructuredOutputCompatibility',
+      'requestPolicy',
       'futureLiveCommand',
       'externalBoundaryEvidence',
       'doesNotAuthorize',
@@ -1037,6 +1179,10 @@ export function liveRequestMaterializationManifestIssues(
     ...liveRequestStructuredOutputCompatibilityAuthorityIssues(
       object.stablePropScopeRepairStructuredOutputCompatibility,
       'materialization_manifest_stable_prop_scope_repair_structured_output_compatibility',
+    ),
+    ...liveRequestPolicyAuthorityIssues(
+      object.requestPolicy,
+      'materialization_manifest_request_policy',
     ),
   );
   const command = recordValue(object.futureLiveCommand);
@@ -1586,6 +1732,10 @@ export function materializeCanonicalLiveRequestBundle(args: {
             .serializedSchemaDigest,
       },
     },
+    requestPolicy:
+      canonicalLiveRequestPolicyAuthority(
+        liveAuthoringRequest,
+      ),
     futureLiveCommand: {
       executable: 'node' as const,
       arguments: [
@@ -1875,6 +2025,7 @@ function liveRequestPolicyReasonCodes(
   value: Record<string, unknown>,
 ): string[] {
   const reasons: string[] = [];
+  const tokenBudget = recordValue(value.tokenBudget);
   const callBudget = recordValue(value.callBudget);
   const terminalReferenceCleanup = recordValue(
     callBudget?.terminalReferenceCleanup,
@@ -1888,6 +2039,10 @@ function liveRequestPolicyReasonCodes(
     value.reasoningEffort !== 'medium' ||
     value.noFallback !== true ||
     value.transportRetries !== 0 ||
+    !tokenBudget ||
+    !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+      tokenBudget.standardAttempts,
+    ) ||
     !callBudget ||
     callBudget.maxCalls !== 4 ||
     callBudget.maxRepairCount !== 3 ||
@@ -2491,6 +2646,23 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
     expectedStablePropScopeRepairStructuredOutputCompatibility,
     'manifest_stable_prop_scope_repair_structured_output_compatibility_invalid',
   );
+  const expectedRequestPolicy =
+    canonicalLiveRequestPolicyAuthority(
+      rebuiltLiveRequest,
+    );
+  exactCanonicalValue(
+    manifest.requestPolicy,
+    expectedRequestPolicy,
+    'manifest_request_policy_invalid',
+  );
+  if (
+    liveRequestPolicyAuthorityIssues(
+      manifest.requestPolicy,
+      'manifest_request_policy',
+    ).length > 0
+  ) {
+    rejectVerification('manifest_request_policy_invalid');
+  }
 
   const expectedSourceRevision = {
     storyKey: rebuiltSnapshot.content.storyKey,
@@ -2586,36 +2758,7 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
       expectedPresentationRequirementRepairStructuredOutputCompatibility,
     stablePropScopeRepairStructuredOutputCompatibility:
       expectedStablePropScopeRepairStructuredOutputCompatibility,
-    requestPolicy: {
-      provider: 'openai',
-      endpoint: 'responses',
-      model: 'gpt-5.6-sol',
-      serviceTier: 'default',
-      reasoningEffort: 'medium',
-      maxCalls: 4,
-      maxRepairCount: 3,
-      standardMaxCalls: 3,
-      standardMaxRepairCount: 2,
-      terminalReferenceCleanup: {
-        budgetClass: 'terminal_reference_cleanup',
-        maxCalls: 1,
-        maxRepairCount: 1,
-        maxInputTokens: 6000,
-        maxOutputTokens: 2000,
-        eligiblePrecedingRepairModes: [
-          'book_surface_patch',
-          'full_draft',
-        ],
-        repairMode: 'page_spatial_reference_patch',
-        residualFamily: 'draft_contract',
-        residualCode: 'out_of_scope_reference',
-      },
-      transportRetries: 0,
-      noFallback: true,
-      projectedMaxUsd:
-        rebuiltLiveRequest.costBudget.projectedMaxUsd,
-      hardCeilingUsd: 5,
-    },
+    requestPolicy: expectedRequestPolicy,
     externalBoundaryEvidence: {
       credentialReadOrCheck: false,
       providerReachabilityCheck: false,

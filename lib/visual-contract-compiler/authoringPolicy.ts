@@ -1,5 +1,8 @@
 export const VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
-  'visual-contract-authoring-policy/v10' as const;
+  'visual-contract-authoring-policy/v11' as const;
+
+export const VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION =
+  'visual-contract-authoring-standard-attempt-output-budget/v1' as const;
 
 export const VISUAL_CONTRACT_AUTHORING_PROVIDER = 'openai' as const;
 export const VISUAL_CONTRACT_AUTHORING_ENDPOINT = 'responses' as const;
@@ -56,6 +59,43 @@ export const VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY =
   12;
 export const VISUAL_CONTRACT_AUTHORING_HARD_COST_CEILING_USD =
   5;
+
+export type VisualContractAuthoringStandardAttemptOutputLimits = readonly [
+  number,
+  number,
+  number,
+];
+
+/**
+ * Existing page-derived per-call base. The current admission gate remains the
+ * authority that prevents 13+ page live authoring; this pure calculation is
+ * intentionally backward-compatible for offline callers and diagnostics.
+ */
+export function authoringMaxOutputTokens(pageCount: number): number {
+  const pages =
+    Number.isFinite(pageCount) && pageCount > 0
+      ? pageCount
+      : 12;
+  return Math.min(
+    64_000,
+    Math.max(32_000, Math.round(pages * 3_000)),
+  );
+}
+
+/**
+ * Canonical ordered limits for initial, repair 1, and repair 2. The exact
+ * integer remainder keeps the standard output pool equal to three legacy
+ * per-call bases for every admitted page count.
+ */
+export function authoringStandardAttemptOutputLimits(
+  pageCount: number,
+): VisualContractAuthoringStandardAttemptOutputLimits {
+  const base = authoringMaxOutputTokens(pageCount);
+  const initial = Math.floor((4 * base) / 3);
+  const firstRepair = base;
+  const secondRepair = 3 * base - initial - firstRepair;
+  return [initial, firstRepair, secondRepair];
+}
 
 export interface VisualContractAuthoringInputAccounting {
   systemBytes: number;

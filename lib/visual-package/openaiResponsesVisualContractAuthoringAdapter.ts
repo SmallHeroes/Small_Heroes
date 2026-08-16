@@ -20,6 +20,7 @@ import type {
 import {
   VISUAL_CONTRACT_AUTHORING_ENDPOINT,
   VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY,
   VISUAL_CONTRACT_AUTHORING_MODEL,
   VISUAL_CONTRACT_AUTHORING_NO_FALLBACK,
   VISUAL_CONTRACT_AUTHORING_PROVIDER,
@@ -28,6 +29,9 @@ import {
   VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
+  authoringStandardAttemptOutputLimits,
 } from '@/lib/visual-contract-compiler/authoringPolicy';
 import type {
   ContractLlmCallOptions,
@@ -84,6 +88,7 @@ import {
 import {
   OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
   type VisualContractAuthoringProvider,
+  type VisualContractAuthoringProviderIncompleteReason,
   type VisualContractAuthoringProviderResponse,
 } from './visualContractAuthoringLifecycle';
 
@@ -165,6 +170,17 @@ function nonNegativeSafeInteger(value: unknown): boolean {
   );
 }
 
+const STANDARD_ATTEMPT_OUTPUT_LIMITS = new Set(
+  Array.from(
+    {
+      length:
+        VISUAL_CONTRACT_AUTHORING_MAX_PAGES_CURRENT_POLICY,
+    },
+    (_, index) =>
+      authoringStandardAttemptOutputLimits(index + 1),
+  ).flat(),
+);
+
 function exactCallOptionsIssues(
   options: ContractLlmCallOptions,
 ): string[] {
@@ -218,19 +234,6 @@ function exactCallOptionsIssues(
   ) {
     issues.push('timeout');
   }
-  if (
-    options.maxInputTokens !==
-    VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS
-  ) {
-    issues.push('max_input_tokens');
-  }
-  if (
-    !Number.isSafeInteger(options.maxOutputTokens) ||
-    (options.maxOutputTokens ?? 0) < 32_000 ||
-    (options.maxOutputTokens ?? 0) > 64_000
-  ) {
-    issues.push('max_output_tokens');
-  }
   const schemaName = options.jsonSchema?.name;
   const schemaDigest = canonicalJsonDigest(
     options.jsonSchema?.schema,
@@ -261,6 +264,49 @@ function exactCallOptionsIssues(
         canonicalJsonDigest(STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA));
   if (!structuredOutputMatches) {
     issues.push('structured_output');
+  }
+  const standardAttemptBudget =
+    options.maxInputTokens ===
+      VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS &&
+    Number.isSafeInteger(options.maxOutputTokens) &&
+    STANDARD_ATTEMPT_OUTPUT_LIMITS.has(
+      options.maxOutputTokens!,
+    );
+  const terminalReferenceCleanupBudget =
+    options.maxInputTokens ===
+      VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS &&
+    options.maxOutputTokens ===
+      VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS &&
+    schemaName ===
+      PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME;
+  if (
+    !standardAttemptBudget &&
+    !terminalReferenceCleanupBudget
+  ) {
+    if (
+      options.maxInputTokens !==
+        VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS &&
+      options.maxInputTokens !==
+        VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS
+    ) {
+      issues.push('max_input_tokens');
+    }
+    if (
+      !Number.isSafeInteger(options.maxOutputTokens) ||
+      (!STANDARD_ATTEMPT_OUTPUT_LIMITS.has(
+        options.maxOutputTokens!,
+      ) &&
+        options.maxOutputTokens !==
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS)
+    ) {
+      issues.push('max_output_tokens');
+    }
+    if (
+      !issues.includes('max_input_tokens') &&
+      !issues.includes('max_output_tokens')
+    ) {
+      issues.push('output_budget_pair');
+    }
   }
   return issues;
 }
@@ -590,6 +636,26 @@ function mappedResponseOutputText(
   return texts.join('');
 }
 
+/**
+ * Closed normalization of the Responses `incomplete_details.reason` field.
+ * The installed SDK documents only these two provider spellings; every
+ * absent, malformed, or future value collapses without retaining provider
+ * material.
+ */
+export function normalizeOpenAIResponsesAuthoringIncompleteReason(
+  rawResponse: unknown,
+): VisualContractAuthoringProviderIncompleteReason {
+  const response = record(rawResponse);
+  const reason = record(response?.incomplete_details)?.reason;
+  if (reason === 'max_output_tokens') {
+    return 'max_output_tokens';
+  }
+  if (reason === 'content_filter') {
+    return 'content_filter';
+  }
+  return 'other_or_absent';
+}
+
 export function mapOpenAIResponsesAuthoringResponse(
   rawResponse: unknown,
   executionAttestation: AuthoringExecutionAttestation =
@@ -620,6 +686,10 @@ export function mapOpenAIResponsesAuthoringResponse(
         typeof response?.status === 'string'
           ? response.status
           : '',
+      providerIncompleteReason:
+        normalizeOpenAIResponsesAuthoringIncompleteReason(
+          rawResponse,
+        ),
       usageEvidenceComplete: mappedUsage.complete,
       executionAttestation,
     },

@@ -35,10 +35,12 @@ import {
   LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION,
   assertValidLiveRequestMaterializationInput,
   assertValidLiveRequestMaterializationManifest,
+  liveRequestPolicyAuthorityIssues,
   liveRequestStructuredOutputCompatibilityAuthorityIssues,
   materializeCanonicalLiveRequestBundle,
   verifyCanonicalLiveRequestBundle,
   type CanonicalLiveRequestVerifiedResult,
+  type CanonicalLiveRequestPolicyAuthority,
   type LiveRequestMaterializationInput,
   type LiveRequestMaterializationManifest,
   type LiveRequestMaterializationResult,
@@ -53,7 +55,7 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION =
-  'canonical-pre-live-readiness-evidence/v25' as const;
+  'canonical-pre-live-readiness-evidence/v26' as const;
 export const CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION =
   'canonical-pre-live-readiness-failure/v3' as const;
 export const CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION =
@@ -217,6 +219,7 @@ export interface CanonicalPreLiveReadinessEvidence {
         LiveRequestStructuredOutputCompatibilityAuthority;
       stablePropScopeRepairStructuredOutputCompatibility:
         LiveRequestStructuredOutputCompatibilityAuthority;
+      requestPolicy: CanonicalLiveRequestPolicyAuthority;
     };
     executionRequest: {
       path: string;
@@ -1562,6 +1565,7 @@ function evidenceIssues(value: unknown): string[] {
         'bookSurfaceRepairStructuredOutputCompatibility',
         'presentationRequirementRepairStructuredOutputCompatibility',
         'stablePropScopeRepairStructuredOutputCompatibility',
+        'requestPolicy',
       ]) ||
       typeof b0.manifestPath !== 'string' ||
       canonicalMaterializationRelativePathIssues(
@@ -1611,6 +1615,10 @@ function evidenceIssues(value: unknown): string[] {
       liveRequestStructuredOutputCompatibilityAuthorityIssues(
         b0.stablePropScopeRepairStructuredOutputCompatibility,
         'pre_live_evidence_b0_stable_prop_scope_repair_structured_output_compatibility',
+      ).length > 0 ||
+      liveRequestPolicyAuthorityIssues(
+        b0.requestPolicy,
+        'pre_live_evidence_b0_request_policy',
       ).length > 0 ||
       !validDescriptor(executionRequest) ||
       !supervisor ||
@@ -2091,6 +2099,7 @@ function evidenceValue(args: {
           args.b0.presentationRequirementRepairStructuredOutputCompatibility,
         stablePropScopeRepairStructuredOutputCompatibility:
           args.b0.stablePropScopeRepairStructuredOutputCompatibility,
+        requestPolicy: args.b0.requestPolicy,
       },
       executionRequest: args.executionRequest,
       supervisorVerification: {

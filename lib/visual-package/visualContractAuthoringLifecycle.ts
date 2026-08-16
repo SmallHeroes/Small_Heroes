@@ -17,6 +17,7 @@ import {
   VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS,
+  VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION,
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS,
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_ELIGIBLE_PRECEDING_REPAIR_MODES,
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
@@ -25,12 +26,13 @@ import {
   VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
+  authoringStandardAttemptOutputLimits,
   terminalReferenceCleanupPredecessorIsEligible,
   visualContractAuthoringInputAccounting,
+  type VisualContractAuthoringStandardAttemptOutputLimits,
   type VisualContractAuthoringInputAccounting,
 } from '@/lib/visual-contract-compiler/authoringPolicy';
 import {
-  authoringMaxOutputTokens,
   buildTemplateRepairSystemPrompt,
   buildTemplateCompileSystemPrompt,
   buildTemplateCompileUserPrompt,
@@ -190,11 +192,11 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v28' as const;
+  'visual-contract-authoring-request/v29' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v31' as const;
+  'visual-contract-authoring-receipt/v32' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v29' as const;
+  'visual-contract-authoring-readiness/v30' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v9' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -250,6 +252,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V26 =
   'visual-contract-authoring-request/v26' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V27 =
   'visual-contract-authoring-request/v27' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V28 =
+  'visual-contract-authoring-request/v28' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -306,6 +310,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V29 =
   'visual-contract-authoring-receipt/v29' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V30 =
   'visual-contract-authoring-receipt/v30' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V31 =
+  'visual-contract-authoring-receipt/v31' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -362,6 +368,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V27 =
   'visual-contract-authoring-readiness/v27' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V28 =
   'visual-contract-authoring-readiness/v28' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V29 =
+  'visual-contract-authoring-readiness/v29' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -379,13 +387,15 @@ export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V7 =
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V8 =
   'visual-contract-candidate-artifact/v8' as const;
 export const OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
-  'openai-responses-authoring-evidence/v5' as const;
+  'openai-responses-authoring-evidence/v6' as const;
 export const LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION =
   'openai-responses-authoring-evidence/v2' as const;
 export const LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V3 =
   'openai-responses-authoring-evidence/v3' as const;
 export const LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V4 =
   'openai-responses-authoring-evidence/v4' as const;
+export const LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V5 =
+  'openai-responses-authoring-evidence/v5' as const;
 export const ACTION_SEMANTIC_CATALOG_DIGEST =
   canonicalJsonDigest(ACTION_SEMANTIC_CATALOG);
 
@@ -400,13 +410,29 @@ export function openAIResponsesAuthoringEvidenceVersionStatus(
     version ===
       LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V3 ||
     version ===
-      LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V4
+      LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V4 ||
+    version ===
+      LEGACY_OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION_V5
     ? 'legacy_immutable'
     : 'unsupported';
 }
 
 const MAX_RECEIPT_ERRORS = 128;
 const MAX_RECEIPT_ERROR_LENGTH = 2_000;
+
+export interface VisualContractAuthoringStandardAttemptOutputBudget {
+  version:
+    typeof VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION;
+  limits: VisualContractAuthoringStandardAttemptOutputLimits;
+  totalPool: number;
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
+
+export type VisualContractAuthoringProviderIncompleteReason =
+  | 'max_output_tokens'
+  | 'content_filter'
+  | 'other_or_absent';
 
 export interface VisualContractAuthoringRequest {
   version: typeof VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION;
@@ -544,7 +570,8 @@ export interface VisualContractAuthoringRequest {
   tokenBudget: {
     maxInputTokens: number;
     promptAndSchemaTokenUpperBound: number;
-    maxOutputTokens: number;
+    standardAttempts:
+      VisualContractAuthoringStandardAttemptOutputBudget;
     outputIncludesReasoning: true;
   };
   callBudget: {
@@ -672,6 +699,8 @@ export interface VisualContractAuthoringProviderResponse {
      */
     evidenceVersion?: string;
     completionStatus?: string;
+    providerIncompleteReason?:
+      VisualContractAuthoringProviderIncompleteReason;
     usageEvidenceComplete?: boolean;
     executionAttestation?: AuthoringExecutionAttestation;
   };
@@ -718,6 +747,7 @@ export interface VisualContractAuthoringAttemptReceipt {
   systemPromptDigest: string;
   userPromptDigest: string;
   responseDigest: string | null;
+  appliedMaxOutputTokens: number;
   usage: VisualContractAuthoringUsage | null;
   providerEvidenceVersion?: string;
   usageEvidenceKind:
@@ -725,6 +755,8 @@ export interface VisualContractAuthoringAttemptReceipt {
     | 'legacy_injected_compatibility'
     | null;
   completionStatus?: string;
+  providerIncompleteReason?:
+    VisualContractAuthoringProviderIncompleteReason;
   usageEvidenceComplete?: boolean;
   executionAttestation: AuthoringExecutionAttestation;
   inputAccounting: VisualContractAuthoringInputAccounting & {
@@ -766,6 +798,8 @@ export interface VisualContractAuthoringReceipt {
   executionAttestation: AuthoringExecutionAttestation;
   pricing: typeof VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS;
   pricingDigest: string;
+  standardAttemptOutputBudget:
+    VisualContractAuthoringStandardAttemptOutputBudget;
   projectedMaxCostUsd: number;
   nominalEstimatedCostUsd: number;
   conservativeAccountedCostUsd: number;
@@ -807,6 +841,8 @@ export interface VisualContractAuthoringReadinessEvidence {
   sourceSnapshotDigest: string;
   authoringRequestDigest: string;
   authoringReceiptDigest: string;
+  standardAttemptOutputBudget:
+    VisualContractAuthoringStandardAttemptOutputBudget;
   canonicalImportPreflight: {
     status: 'passed' | 'failed' | 'not_attested' | 'unknown';
     attestationVersion: string | null;
@@ -936,7 +972,8 @@ export function visualContractAuthoringArtifactVersionStatus(
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V24 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V25 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V26 ||
-        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V27
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V27 ||
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V28
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -970,6 +1007,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V28,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V29,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V30,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V31,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -1000,6 +1038,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V26,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V27,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V28,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V29,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -1034,6 +1073,105 @@ function ceilUsd(value: number): number {
   return (
     Math.ceil((value - Number.EPSILON) * 1_000_000) /
     1_000_000
+  );
+}
+
+function standardAttemptOutputBudgetWithoutDigest(
+  value: Omit<
+    VisualContractAuthoringStandardAttemptOutputBudget,
+    'digestAlgorithm' | 'digest'
+  >,
+): unknown {
+  return value;
+}
+
+export function buildVisualContractAuthoringStandardAttemptOutputBudget(
+  pageCount: number,
+): VisualContractAuthoringStandardAttemptOutputBudget {
+  const limits = authoringStandardAttemptOutputLimits(pageCount);
+  const withoutDigest = {
+    version:
+      VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION,
+    limits,
+    totalPool: limits.reduce(
+      (total, limit) => total + limit,
+      0,
+    ),
+  };
+  return {
+    ...withoutDigest,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(
+      standardAttemptOutputBudgetWithoutDigest(withoutDigest),
+    ),
+  };
+}
+
+export function visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+  value: unknown,
+): value is VisualContractAuthoringStandardAttemptOutputBudget {
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value)
+  ) {
+    return false;
+  }
+  const budget = value as Record<string, unknown>;
+  if (
+    JSON.stringify(Object.keys(budget).sort()) !==
+      JSON.stringify(
+        [
+          'version',
+          'limits',
+          'totalPool',
+          'digestAlgorithm',
+          'digest',
+        ].sort(),
+      ) ||
+    budget.version !==
+      VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION ||
+    !Array.isArray(budget.limits) ||
+    budget.limits.length !==
+      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS ||
+    budget.limits.some(
+      (limit) =>
+        !Number.isSafeInteger(limit) ||
+        (limit as number) < 1,
+    ) ||
+    !Number.isSafeInteger(budget.totalPool) ||
+    (budget.totalPool as number) < 1 ||
+    budget.digestAlgorithm !== 'canonical-json-sha256' ||
+    typeof budget.digest !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(budget.digest)
+  ) {
+    return false;
+  }
+  const [initial, firstRepair, secondRepair] =
+    budget.limits as number[];
+  const totalPool = budget.totalPool as number;
+  if (
+    initial !== Math.floor((4 * firstRepair!) / 3) ||
+    totalPool !== 3 * firstRepair! ||
+    secondRepair !== totalPool - initial! - firstRepair!
+  ) {
+    return false;
+  }
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...withoutDigest
+  } = budget;
+  return (
+    budget.digest ===
+    canonicalJsonDigest(
+      standardAttemptOutputBudgetWithoutDigest(
+        withoutDigest as Omit<
+          VisualContractAuthoringStandardAttemptOutputBudget,
+          'digestAlgorithm' | 'digest'
+        >,
+      ),
+    )
   );
 }
 
@@ -1153,17 +1291,21 @@ export function projectedMaximumAuthoringCostUsd(args: {
 
 export function projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd(args: {
   standardMaxInputTokens: number;
-  standardMaxOutputTokens: number;
-  standardMaxCalls: number;
+  standardAttemptOutputLimits: readonly number[];
   cleanupMaxInputTokens: number;
   cleanupMaxOutputTokens: number;
   cleanupMaxCalls: number;
 }): number {
   return ceilUsd(
-    conservativeAuthoringCostUsd({
-      inputTokens: args.standardMaxInputTokens,
-      outputTokens: args.standardMaxOutputTokens,
-    }) * args.standardMaxCalls +
+    args.standardAttemptOutputLimits.reduce(
+      (total, outputTokens) =>
+        total +
+        conservativeAuthoringCostUsd({
+          inputTokens: args.standardMaxInputTokens,
+          outputTokens,
+        }),
+      0,
+    ) +
       conservativeAuthoringCostUsd({
         inputTokens: args.cleanupMaxInputTokens,
         outputTokens: args.cleanupMaxOutputTokens,
@@ -1192,9 +1334,10 @@ export function buildVisualContractAuthoringRequest(args: {
 }): VisualContractAuthoringRequest {
   assertValidStorySourceAuthoritySnapshot(args.snapshot);
   const prompts = promptInputs(args.snapshot);
-  const maxOutputTokens = authoringMaxOutputTokens(
-    args.snapshot.content.pages.length,
-  );
+  const standardAttemptOutputBudget =
+    buildVisualContractAuthoringStandardAttemptOutputBudget(
+      args.snapshot.content.pages.length,
+    );
   const schemaCompatibilityEvidence =
     assertOpenAIResponsesStructuredOutputSchemaCompatible(
       TEMPLATE_DRAFT_JSON_SCHEMA,
@@ -1445,7 +1588,7 @@ export function buildVisualContractAuthoringRequest(args: {
         VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
       promptAndSchemaTokenUpperBound:
         prompts.promptAndSchemaTokenUpperBound,
-      maxOutputTokens,
+      standardAttempts: standardAttemptOutputBudget,
       outputIncludesReasoning: true as const,
     },
     callBudget: {
@@ -1482,9 +1625,8 @@ export function buildVisualContractAuthoringRequest(args: {
         projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
           standardMaxInputTokens:
             VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
-          standardMaxOutputTokens: maxOutputTokens,
-          standardMaxCalls:
-            VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
+          standardAttemptOutputLimits:
+            standardAttemptOutputBudget.limits,
           cleanupMaxInputTokens:
             VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
           cleanupMaxOutputTokens:
@@ -1770,6 +1912,19 @@ export function visualContractAuthoringRequestIssues(args: {
     if (!exactJson(actual, expected)) issues.push(code);
   }
   if (
+    !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+      request.tokenBudget?.standardAttempts,
+    ) ||
+    !exactJson(
+      request.tokenBudget?.standardAttempts,
+      buildVisualContractAuthoringStandardAttemptOutputBudget(
+        snapshot.content.pages.length,
+      ),
+    )
+  ) {
+    issues.push('standard_attempt_output_budget_invalid');
+  }
+  if (
     request.tokenBudget?.promptAndSchemaTokenUpperBound >
     request.tokenBudget?.maxInputTokens
   ) {
@@ -1856,6 +2011,8 @@ function receiptActionSemanticCoverage(
 function failureReceipt(args: {
   request: VisualContractAuthoringRequest;
   attempts: VisualContractAuthoringAttemptReceipt[];
+  authoritativeStandardAttemptOutputBudget?:
+    VisualContractAuthoringStandardAttemptOutputBudget;
   code: AuthoringTerminalFailureCode;
   draftValidationStatus?: VisualContractDraftValidationStatus;
   diagnosticInputs?: readonly unknown[];
@@ -1868,6 +2025,9 @@ function failureReceipt(args: {
     VisualContractAuthoringReceipt['actionSemanticCoverage'];
 }): VisualContractAuthoringReceipt {
   const usage = aggregateUsage(args.attempts);
+  const standardAttemptOutputBudget =
+    args.authoritativeStandardAttemptOutputBudget ??
+    args.request.tokenBudget.standardAttempts;
   return finalizeReceipt({
     version: VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION,
     requestDigest: args.request.digest,
@@ -1891,8 +2051,21 @@ function failureReceipt(args: {
     pricingDigest: canonicalJsonDigest(
       VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
     ),
+    standardAttemptOutputBudget:
+      standardAttemptOutputBudget,
     projectedMaxCostUsd:
-      args.request.costBudget.projectedMaxUsd,
+      projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
+        standardMaxInputTokens:
+          VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+        standardAttemptOutputLimits:
+          standardAttemptOutputBudget.limits,
+        cleanupMaxInputTokens:
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
+        cleanupMaxOutputTokens:
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
+        cleanupMaxCalls:
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS,
+      }),
     nominalEstimatedCostUsd:
       aggregateNominalEstimatedCost(args.attempts),
     conservativeAccountedCostUsd:
@@ -2141,10 +2314,37 @@ export function authoringReservedExposureUsd(args: {
   providerCallsCompleted: number;
   terminalReferenceCleanupCallsCompleted?: number;
 }): number {
+  return authoringReservedExposureForBudgetUsd({
+    standardAttemptOutputBudget:
+      args.request.tokenBudget.standardAttempts,
+    conservativeAccountedCostUsd:
+      args.conservativeAccountedCostUsd,
+    providerCallsCompleted: args.providerCallsCompleted,
+    terminalReferenceCleanupCallsCompleted:
+      args.terminalReferenceCleanupCallsCompleted,
+  });
+}
+
+function authoringReservedExposureForBudgetUsd(args: {
+  standardAttemptOutputBudget:
+    VisualContractAuthoringStandardAttemptOutputBudget;
+  conservativeAccountedCostUsd: number;
+  providerCallsCompleted: number;
+  terminalReferenceCleanupCallsCompleted?: number;
+}): number {
+  const standardAttemptOutputBudget =
+    args.standardAttemptOutputBudget;
+  if (
+    !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+      standardAttemptOutputBudget,
+    )
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
   const inferredCleanupCallsCompleted = Math.max(
     0,
     args.providerCallsCompleted -
-      args.request.callBudget.standardMaxCalls,
+      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
   );
   const cleanupCallsCompleted = Math.max(
     0,
@@ -2155,31 +2355,32 @@ export function authoringReservedExposureUsd(args: {
     0,
     args.providerCallsCompleted - cleanupCallsCompleted,
   );
-  const remainingStandardCalls = Math.max(
-    0,
-    args.request.callBudget.standardMaxCalls -
-      standardCallsCompleted,
-  );
   const remainingCleanupCalls = Math.max(
     0,
-    args.request.callBudget.terminalReferenceCleanup.maxCalls -
+    VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS -
       cleanupCallsCompleted,
   );
-  const standardPerCallReserve = conservativeAuthoringCostUsd({
-    inputTokens: args.request.tokenBudget.maxInputTokens,
-    outputTokens: args.request.tokenBudget.maxOutputTokens,
-  });
+  const remainingStandardReserve =
+    standardAttemptOutputBudget.limits
+      .slice(standardCallsCompleted)
+      .reduce(
+        (total, outputTokens) =>
+          total +
+          conservativeAuthoringCostUsd({
+            inputTokens: VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+            outputTokens,
+          }),
+        0,
+      );
   const cleanupPerCallReserve = conservativeAuthoringCostUsd({
     inputTokens:
-      args.request.callBudget.terminalReferenceCleanup
-        .maxInputTokens,
+      VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
     outputTokens:
-      args.request.callBudget.terminalReferenceCleanup
-        .maxOutputTokens,
+      VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
   });
   return ceilUsd(
     args.conservativeAccountedCostUsd +
-      remainingStandardCalls * standardPerCallReserve +
+      remainingStandardReserve +
       remainingCleanupCalls * cleanupPerCallReserve,
   );
 }
@@ -2242,12 +2443,25 @@ function terminalReferenceCleanupResidualIsProven(
 
 export function visualContractAuthoringAttemptBudgetSequenceIsValid(
   attempts: readonly VisualContractAuthoringAttemptReceipt[],
+  standardAttemptOutputBudget:
+    VisualContractAuthoringStandardAttemptOutputBudget,
 ): boolean {
   if (
+    !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+      standardAttemptOutputBudget,
+    ) ||
     attempts.length > VISUAL_CONTRACT_AUTHORING_MAX_CALLS ||
     attempts.some(
       (attempt, index) =>
         attempt.attempt !== index + 1 ||
+        !Number.isSafeInteger(
+          attempt.appliedMaxOutputTokens,
+        ) ||
+        attempt.appliedMaxOutputTokens !==
+          (index <
+          VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS
+            ? standardAttemptOutputBudget.limits[index]
+            : VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS) ||
         (index === 0
           ? attempt.kind !== 'initial' ||
             attempt.repairMode !== null ||
@@ -2293,6 +2507,89 @@ export function visualContractAuthoringAttemptBudgetSequenceIsValid(
     cleanup.budgetClass === 'terminal_reference_cleanup' &&
     cleanup.repairMode === 'page_spatial_reference_patch'
   );
+}
+
+function visualContractAuthoringReceiptOutputBudgetBindingsAreValid(args: {
+  receipt: VisualContractAuthoringReceipt;
+  request?: VisualContractAuthoringRequest;
+  invalidRequestFallbackBudget?:
+    VisualContractAuthoringStandardAttemptOutputBudget;
+}): boolean {
+  const budget = args.receipt.standardAttemptOutputBudget;
+  if (
+    !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
+      budget,
+    ) ||
+    (args.request !== undefined &&
+      !exactJson(
+        budget,
+        args.request.tokenBudget.standardAttempts,
+      ) &&
+      !(
+        args.receipt.status === 'failed' &&
+        args.receipt.failure?.code === 'request_invalid' &&
+        args.receipt.attempts.length === 0 &&
+        args.invalidRequestFallbackBudget !== undefined &&
+        exactJson(
+          budget,
+          args.invalidRequestFallbackBudget,
+        )
+      )) ||
+    args.receipt.projectedMaxCostUsd !==
+      projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
+        standardMaxInputTokens:
+          VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+        standardAttemptOutputLimits: budget.limits,
+        cleanupMaxInputTokens:
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
+        cleanupMaxOutputTokens:
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
+        cleanupMaxCalls:
+          VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS,
+      }) ||
+    !visualContractAuthoringAttemptBudgetSequenceIsValid(
+      args.receipt.attempts,
+      budget,
+    )
+  ) {
+    return false;
+  }
+  return args.receipt.attempts.every((attempt, index) => {
+    const canonicalProviderEvidence =
+      attempt.providerEvidenceVersion ===
+      OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION;
+    if (
+      (canonicalProviderEvidence
+        ? !providerIncompleteReasonIsValid(
+            attempt.providerIncompleteReason,
+          ) ||
+          (attempt.completionStatus === 'completed' &&
+            attempt.providerIncompleteReason !==
+              'other_or_absent')
+        : attempt.providerIncompleteReason !== undefined) ||
+      (attempt.usage !== null &&
+        attempt.usage.outputTokens >
+          attempt.appliedMaxOutputTokens)
+    ) {
+      return false;
+    }
+    const priorAttempts = args.receipt.attempts.slice(0, index);
+    const expected = authoringReservedExposureForBudgetUsd({
+      standardAttemptOutputBudget: budget,
+      conservativeAccountedCostUsd:
+        aggregateConservativeAccountedCost(priorAttempts),
+      providerCallsCompleted:
+        providerCallCount(priorAttempts),
+      terminalReferenceCleanupCallsCompleted:
+        priorAttempts.filter(
+          (priorAttempt) =>
+            priorAttempt.providerReached &&
+            priorAttempt.budgetClass ===
+              'terminal_reference_cleanup',
+        ).length,
+    });
+    return attempt.reservedExposureBeforeCallUsd === expected;
+  });
 }
 
 function cloneDraftValidationAttemptDiagnostics(
@@ -2525,6 +2822,7 @@ function templateRepairExhaustionIsProven(args: {
     expectedCalls === expectedRepairs + 1 &&
     visualContractAuthoringAttemptBudgetSequenceIsValid(
       args.attempts,
+      args.request.tokenBudget.standardAttempts,
     ) &&
     args.error.attempts.length === expectedCalls &&
     args.attempts.length === expectedCalls &&
@@ -2551,6 +2849,16 @@ function safeLabel(value: unknown, fallback: string): string {
     : fallback;
 }
 
+function providerIncompleteReasonIsValid(
+  value: unknown,
+): value is VisualContractAuthoringProviderIncompleteReason {
+  return (
+    value === 'max_output_tokens' ||
+    value === 'content_filter' ||
+    value === 'other_or_absent'
+  );
+}
+
 function boundedErrors(errors: readonly unknown[]): string[] {
   return errors
     .filter(
@@ -2571,6 +2879,7 @@ function boundedErrors(errors: readonly unknown[]): string[] {
 function expectedCallOptions(
   request: VisualContractAuthoringRequest,
   promptAuthority: ContractLlmPromptAuthority | undefined,
+  attempt: number,
 ): ContractLlmCallOptions {
   const terminalReferenceCleanup =
     promptAuthority?.kind === 'repair' &&
@@ -2606,7 +2915,9 @@ function expectedCallOptions(
     maxOutputTokens: terminalReferenceCleanup
       ? request.callBudget.terminalReferenceCleanup
           .maxOutputTokens
-      : request.tokenBudget.maxOutputTokens,
+      : request.tokenBudget.standardAttempts.limits[
+          attempt - 1
+        ],
     model: request.model,
     reasoningEffort: request.reasoningEffort,
     jsonSchema: {
@@ -2818,6 +3129,10 @@ export async function runVisualContractAuthoring(args: {
   requiredProviderEvidenceVersion?:
     typeof OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION;
 }): Promise<VisualContractAuthoringRunResult> {
+  const authoritativeStandardAttemptOutputBudget =
+    buildVisualContractAuthoringStandardAttemptOutputBudget(
+      args.snapshot.content.pages.length,
+    );
   let requestIssues: string[];
   try {
     requestIssues = [
@@ -2838,6 +3153,7 @@ export async function runVisualContractAuthoring(args: {
       receipt: failureReceipt({
         request: args.request,
         attempts: [],
+        authoritativeStandardAttemptOutputBudget,
         code: 'local_processing_failed',
         diagnosticCountOverride: 1,
         issueCodes: ['local_processing_failed'],
@@ -2851,6 +3167,7 @@ export async function runVisualContractAuthoring(args: {
       receipt: failureReceipt({
         request: args.request,
         attempts: [],
+        authoritativeStandardAttemptOutputBudget,
         code: 'request_invalid',
         diagnosticInputs: requestIssues,
         issueCodes: requestIssues,
@@ -2880,6 +3197,8 @@ export async function runVisualContractAuthoring(args: {
         pricingDigest: canonicalJsonDigest(
           VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
         ),
+        standardAttemptOutputBudget:
+          args.request.tokenBudget.standardAttempts,
         projectedMaxCostUsd:
           args.request.costBudget.projectedMaxUsd,
         nominalEstimatedCostUsd: 0,
@@ -2952,6 +3271,7 @@ export async function runVisualContractAuthoring(args: {
             const expected = expectedCallOptions(
               args.request,
               promptAuthority,
+              attempt,
             );
             const inputAccounting = {
               ...visualContractAuthoringInputAccounting(
@@ -2981,6 +3301,8 @@ export async function runVisualContractAuthoring(args: {
               userPromptDigest:
                 canonicalJsonDigest(userPrompt),
               responseDigest: null,
+              appliedMaxOutputTokens:
+                expected.maxOutputTokens ?? 0,
               usage: null,
               usageEvidenceKind: null,
               executionAttestation:
@@ -3153,6 +3475,17 @@ export async function runVisualContractAuthoring(args: {
                     'unknown-status',
                   )
                 : undefined;
+            const providerIncompleteReasonValid =
+              canonicalProviderEvidence &&
+              providerIncompleteReasonIsValid(
+                response.receipt.providerIncompleteReason,
+              );
+            const providerIncompleteReason =
+              canonicalProviderEvidence
+                ? providerIncompleteReasonValid
+                  ? response.receipt.providerIncompleteReason!
+                  : ('other_or_absent' as const)
+                : undefined;
             const responseOutput =
               typeof response.output === 'string'
                 ? response.output
@@ -3203,6 +3536,7 @@ export async function runVisualContractAuthoring(args: {
               ...(canonicalProviderEvidence
                 ? {
                     completionStatus,
+                    providerIncompleteReason,
                     usageEvidenceComplete:
                       response.receipt
                         .usageEvidenceComplete === true,
@@ -3237,9 +3571,12 @@ export async function runVisualContractAuthoring(args: {
             if (
               (observedProviderEvidenceVersion !== undefined &&
                 !canonicalProviderEvidence) ||
+              (canonicalProviderEvidence &&
+                !providerIncompleteReasonValid) ||
               (args.requiredProviderEvidenceVersion &&
                 (!canonicalProviderEvidence ||
-                  !canonicalExecutionEvidence))
+                  !canonicalExecutionEvidence ||
+                  !providerIncompleteReasonValid))
             ) {
               terminal.code = 'provider_evidence_invalid';
               attempts.push({
@@ -3413,6 +3750,8 @@ export async function runVisualContractAuthoring(args: {
         pricingDigest: canonicalJsonDigest(
           VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS,
         ),
+        standardAttemptOutputBudget:
+          args.request.tokenBudget.standardAttempts,
         projectedMaxCostUsd:
           args.request.costBudget.projectedMaxUsd,
         nominalEstimatedCostUsd:
@@ -3842,7 +4181,16 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       args.receipt.callCount ||
     !visualContractAuthoringAttemptBudgetSequenceIsValid(
       args.receipt.attempts,
+      args.receipt.standardAttemptOutputBudget,
     ) ||
+    !visualContractAuthoringReceiptOutputBudgetBindingsAreValid({
+      receipt: args.receipt,
+      request: args.request,
+      invalidRequestFallbackBudget:
+        buildVisualContractAuthoringStandardAttemptOutputBudget(
+          args.snapshot.content.pages.length,
+        ),
+    }) ||
     !visualContractAuthoringReceiptExhaustionBindingIsValid(
       args.receipt,
     ) ||
@@ -3853,7 +4201,7 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'readiness v24 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
+      'readiness v30 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
     );
   }
   const canonicalImportPreflight =
@@ -3909,6 +4257,8 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
     sourceSnapshotDigest: args.snapshot.digest,
     authoringRequestDigest: args.request.digest,
     authoringReceiptDigest: args.receipt.digest,
+    standardAttemptOutputBudget:
+      args.receipt.standardAttemptOutputBudget,
     canonicalImportPreflight,
     authoringOutcome: {
       status: args.receipt.status,
@@ -4007,7 +4357,11 @@ export function persistVisualContractAuthoringReceipt(args: {
       : args.receipt.failure !== null) ||
     !visualContractAuthoringAttemptBudgetSequenceIsValid(
       args.receipt.attempts,
+      args.receipt.standardAttemptOutputBudget,
     ) ||
+    !visualContractAuthoringReceiptOutputBudgetBindingsAreValid({
+      receipt: args.receipt,
+    }) ||
     !visualContractAuthoringReceiptExhaustionBindingIsValid(
       args.receipt,
     ) ||
@@ -4020,7 +4374,7 @@ export function persistVisualContractAuthoringReceipt(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'receipt v29 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
+      'receipt v32 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
     );
   }
   return persistJsonArtifact({
@@ -4052,7 +4406,11 @@ export function buildVisualContractCandidateArtifact(args: {
     args.receipt.status !== 'completed' ||
     !visualContractAuthoringAttemptBudgetSequenceIsValid(
       args.receipt.attempts,
+      args.receipt.standardAttemptOutputBudget,
     ) ||
+    !visualContractAuthoringReceiptOutputBudgetBindingsAreValid({
+      receipt: args.receipt,
+    }) ||
     args.receipt.candidateDigest !== templateDigest ||
     args.receipt.digestAlgorithm !==
       'canonical-json-sha256' ||
@@ -4162,7 +4520,14 @@ export function persistVisualContractAuthoringReadiness(args: {
     !visualContractAuthoringReceiptDraftValidationIsValid(
       args.receipt,
     ) ||
+    !visualContractAuthoringReceiptOutputBudgetBindingsAreValid({
+      receipt: args.receipt,
+    }) ||
     args.evidence.authoringReceiptDigest !== args.receipt.digest ||
+    !exactJson(
+      args.evidence.standardAttemptOutputBudget,
+      args.receipt.standardAttemptOutputBudget,
+    ) ||
     !visualContractDraftValidationEvidenceIsValid(
       args.evidence.draftValidation,
     ) ||
@@ -4176,7 +4541,7 @@ export function persistVisualContractAuthoringReadiness(args: {
       canonicalJsonDigest(readinessPayload)
   ) {
     throw new Error(
-      'readiness v24 requires exact typed draft-validation evidence and a valid current digest',
+      'readiness v30 requires exact typed draft-validation evidence and a valid current digest',
     );
   }
   return persistJsonArtifact({

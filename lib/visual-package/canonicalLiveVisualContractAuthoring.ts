@@ -203,6 +203,10 @@ function authoringRequestValue(
     object.tokenBudget,
     'visual contract authoring request tokenBudget',
   );
+  const standardAttemptOutputBudget = objectValue(
+    tokenBudget.standardAttempts,
+    'visual contract authoring request standardAttempts tokenBudget',
+  );
   const callBudget = objectValue(
     object.callBudget,
     'visual contract authoring request callBudget',
@@ -461,7 +465,22 @@ function authoringRequestValue(
       maxInputTokens: tokenBudget.maxInputTokens,
       promptAndSchemaTokenUpperBound:
         tokenBudget.promptAndSchemaTokenUpperBound,
-      maxOutputTokens: tokenBudget.maxOutputTokens,
+      standardAttempts: {
+        version: standardAttemptOutputBudget.version,
+        limits: Array.isArray(
+          standardAttemptOutputBudget.limits,
+        )
+          ? [
+              standardAttemptOutputBudget.limits[0],
+              standardAttemptOutputBudget.limits[1],
+              standardAttemptOutputBudget.limits[2],
+            ] as [number, number, number]
+          : [],
+        totalPool: standardAttemptOutputBudget.totalPool,
+        digestAlgorithm:
+          standardAttemptOutputBudget.digestAlgorithm,
+        digest: standardAttemptOutputBudget.digest,
+      },
       outputIncludesReasoning:
         tokenBudget.outputIncludesReasoning,
     },
@@ -744,8 +763,15 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
   tokenBudget: new Set([
     'maxInputTokens',
     'promptAndSchemaTokenUpperBound',
-    'maxOutputTokens',
+    'standardAttempts',
     'outputIncludesReasoning',
+  ]),
+  standardAttempts: new Set([
+    'version',
+    'limits',
+    'totalPool',
+    'digestAlgorithm',
+    'digest',
   ]),
   callBudget: new Set([
     'maxCalls',
@@ -922,7 +948,6 @@ const REQUEST_OBJECT_FIELDS = {
   tokenBudget: {
     maxInputTokens: 'number',
     promptAndSchemaTokenUpperBound: 'number',
-    maxOutputTokens: 'number',
     outputIncludesReasoning: 'boolean',
   },
   callBudget: {
@@ -1148,6 +1173,37 @@ function decodeAuthoringRequest(
     });
   }
   const callBudget = recordValue(object.callBudget);
+  const tokenBudget = recordValue(object.tokenBudget);
+  if (tokenBudget) {
+    validateRequestObject({
+      parent: tokenBudget,
+      field: 'standardAttempts',
+      schema: {
+        version: 'string',
+        totalPool: 'number',
+        digestAlgorithm: 'string',
+        digest: 'string',
+      },
+      issues,
+      structuralIssues,
+    });
+    const standardAttempts = recordValue(
+      tokenBudget.standardAttempts,
+    );
+    if (
+      !standardAttempts ||
+      !Array.isArray(standardAttempts.limits) ||
+      standardAttempts.limits.length !== 3 ||
+      standardAttempts.limits.some(
+        (limit) => typeof limit !== 'number',
+      )
+    ) {
+      const code =
+        'request_field_invalid:tokenBudget:standardAttempts:limits';
+      issues.push(code);
+      structuralIssues.push(code);
+    }
+  }
   if (callBudget) {
     validateRequestObject({
       parent: callBudget,

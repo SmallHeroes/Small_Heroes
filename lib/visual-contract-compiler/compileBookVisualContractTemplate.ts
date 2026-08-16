@@ -80,6 +80,8 @@ import {
   VISUAL_CONTRACT_AUTHORING_TIMEOUT_MS,
   VISUAL_CONTRACT_AUTHORING_TOOLS_DISABLED,
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
+  authoringMaxOutputTokens,
+  authoringStandardAttemptOutputLimits,
   terminalReferenceCleanupPredecessorIsEligible,
   visualContractAuthoringRouteIsAdmissible,
 } from './authoringPolicy';
@@ -244,10 +246,10 @@ export function resolveAuthoringModel(): string {
  * request preflight combines it with exact call and dollar ceilings before
  * any future provider adapter can be reached.
  */
-export function authoringMaxOutputTokens(pageCount: number): number {
-  const pages = Number.isFinite(pageCount) && pageCount > 0 ? pageCount : 12;
-  return Math.min(64000, Math.max(32000, Math.round(pages * 3000)));
-}
+export {
+  authoringMaxOutputTokens,
+  authoringStandardAttemptOutputLimits,
+} from './authoringPolicy';
 
 /** Provenance for the authoring call (recorded beside the candidate; NOT part of the frozen hash). */
 export interface TemplateAuthoringProvenance {
@@ -3412,11 +3414,13 @@ export async function compileBookVisualContractTemplate(
   const facts = extractDeterministicFacts(input);
 
   // Dedicated authoring call: real reasoning model + strict structured output + a budget scaled to the page count,
-  // with NO silent model fallback. The SAME options are reused for every repair call.
+  // with NO silent model fallback. Every standard call receives its canonical
+  // attempt-specific output limit; all other policy fields remain identical.
   const authoringModel = resolveAuthoringModel();
-  const maxOutputTokens = authoringMaxOutputTokens(input.pageCount);
+  const standardAttemptOutputLimits =
+    authoringStandardAttemptOutputLimits(input.pageCount);
   const llmOpts = {
-    maxOutputTokens,
+    maxOutputTokens: standardAttemptOutputLimits[0],
     model: authoringModel,
     reasoningEffort: AUTHORING_REASONING_EFFORT,
     jsonSchema: { name: TEMPLATE_DRAFT_SCHEMA_NAME, schema: TEMPLATE_DRAFT_JSON_SCHEMA },
@@ -3431,6 +3435,21 @@ export async function compileBookVisualContractTemplate(
     maxInputTokens:
       VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
   } satisfies ContractLlmCallOptions;
+  const standardOptionsForAttempt = <
+    T extends ContractLlmCallOptions,
+  >(
+    options: T,
+    attempt: number,
+  ): T => {
+    const maxOutputTokens =
+      standardAttemptOutputLimits[attempt - 1];
+    if (maxOutputTokens === undefined) {
+      throw new Error(
+        'standard authoring attempt output schedule exhausted',
+      );
+    }
+    return { ...options, maxOutputTokens };
+  };
   const compactRepairLlmOpts = {
     ...llmOpts,
     jsonSchema: {
@@ -3762,12 +3781,19 @@ export async function compileBookVisualContractTemplate(
     }
 
     if (assembled) {
-      const lastRepairMode =
-        repairAttempts[repairAttempts.length - 1]?.nextRepairMode;
+      const lastRepair =
+        repairAttempts[repairAttempts.length - 1];
+      const lastRepairMode = lastRepair?.nextRepairMode;
+      const appliedMaxOutputTokens =
+        lastRepair?.nextRepairBudgetClass ===
+        'terminal_reference_cleanup'
+          ? VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS
+          : standardOptionsForAttempt(llmOpts, attempt)
+              .maxOutputTokens!;
       const provenance: TemplateAuthoringProvenance = {
         authoringModel,
         reasoningEffort: AUTHORING_REASONING_EFFORT,
-        maxOutputTokens,
+        maxOutputTokens: appliedMaxOutputTokens,
         schemaVersion: TEMPLATE_DRAFT_SCHEMA_VERSION,
         promptVersion: TEMPLATE_PROMPT_VERSION,
         policyVersion: APPEARANCE_POLICY_VERSION,
@@ -3919,7 +3945,10 @@ export async function compileBookVisualContractTemplate(
             catalog: input.sourceEvidenceCatalog,
             affectedRecords: sourceEvidenceAffectedRecords,
           }),
-          compactRepairLlmOpts,
+          standardOptionsForAttempt(
+            compactRepairLlmOpts,
+            attempt + 1,
+          ),
           {
             kind: 'repair',
             budgetClass: 'standard',
@@ -3942,7 +3971,10 @@ export async function compileBookVisualContractTemplate(
           buildStablePropScopeRepairUserPrompt({
             targets: stablePropScopeAffectedTargets,
           }),
-          stablePropScopeRepairLlmOpts,
+          standardOptionsForAttempt(
+            stablePropScopeRepairLlmOpts,
+            attempt + 1,
+          ),
           {
             kind: 'repair',
             budgetClass: 'standard',
@@ -3966,7 +3998,10 @@ export async function compileBookVisualContractTemplate(
           }),
           repairBudgetClass === 'terminal_reference_cleanup'
             ? terminalReferenceCleanupLlmOpts
-            : pageSpatialReferenceRepairLlmOpts,
+            : standardOptionsForAttempt(
+                pageSpatialReferenceRepairLlmOpts,
+                attempt + 1,
+              ),
           {
             kind: 'repair',
             budgetClass: repairBudgetClass,
@@ -3988,7 +4023,10 @@ export async function compileBookVisualContractTemplate(
           buildPresentationRequirementRepairUserPrompt({
             targets: presentationRequirementAffectedTargets,
           }),
-          presentationRequirementRepairLlmOpts,
+          standardOptionsForAttempt(
+            presentationRequirementRepairLlmOpts,
+            attempt + 1,
+          ),
           {
             kind: 'repair',
             budgetClass: 'standard',
@@ -4011,7 +4049,10 @@ export async function compileBookVisualContractTemplate(
           buildStructuralBundleRepairUserPrompt({
             authority: structuralBundleAuthority,
           }),
-          structuralBundleRepairLlmOpts,
+          standardOptionsForAttempt(
+            structuralBundleRepairLlmOpts,
+            attempt + 1,
+          ),
           {
             kind: 'repair',
             budgetClass: 'standard',
@@ -4031,7 +4072,10 @@ export async function compileBookVisualContractTemplate(
         const rawPatch = await deps.callLLM(
           bookSurfaceRepairPrompts!.systemPrompt,
           bookSurfaceRepairPrompts!.userPrompt,
-          bookSurfaceRepairLlmOpts,
+          standardOptionsForAttempt(
+            bookSurfaceRepairLlmOpts,
+            attempt + 1,
+          ),
           {
             kind: 'repair',
             budgetClass: 'standard',
@@ -4054,7 +4098,10 @@ export async function compileBookVisualContractTemplate(
             previousRepairFailure:
               pageContractPreviousFailure,
           }),
-          pageContractRepairLlmOpts,
+          standardOptionsForAttempt(
+            pageContractRepairLlmOpts,
+            attempt + 1,
+          ),
           {
             kind: 'repair',
             budgetClass: 'standard',
@@ -4081,7 +4128,10 @@ export async function compileBookVisualContractTemplate(
                 facts,
                 attemptDiagnosticIssues,
               ),
-              llmOpts,
+              standardOptionsForAttempt(
+                llmOpts,
+                attempt + 1,
+              ),
               {
                 kind: 'repair',
                 budgetClass: 'standard',
