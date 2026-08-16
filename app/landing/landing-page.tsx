@@ -118,13 +118,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">{L.hero.h1}</h1>
                 <p className="hero-sub2" data-reveal="hero" data-reveal-delay="120">{L.hero.sub}</p>
 
-                <ul className="hero-bullets" data-reveal="hero" data-reveal-delay="180">
-                  {L.hero.bullets.map((bullet) => (
-                    <li key={bullet}>{bullet}</li>
-                  ))}
-                </ul>
-
-                <div className="hero-btns" data-reveal="hero" data-reveal-delay="240">
+                <div className="hero-btns" data-reveal="hero" data-reveal-delay="180">
                   <a
                     href={startHref}
                     className="btn-primary"
@@ -137,17 +131,19 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   </a>
                 </div>
 
-                <p className="hero-cta-note" data-reveal="hero" data-reveal-delay="300">{L.hero.ctaNote}</p>
+                <p className="hero-cta-note" data-reveal="hero" data-reveal-delay="240">{L.hero.ctaNote}</p>
               </div>
 
               <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120">
-                <div className="hero-glow" aria-hidden="true" />
-                {/* .hero-float carries the ambient float animation; parallax stays on the img itself
-                    (inline transform) so the two never fight over the same transform. */}
+                {/* Guy's three-beat story collage (fear -> meeting the friend ->
+                    walking out proud). The panels ride on transparency, so no
+                    glow pool behind them - a soft shadow grounds them instead.
+                    .hero-float carries the ambient float; parallax stays on the
+                    img itself so the two never fight over one transform. */}
                 <div className="hero-float">
                   <img
-                    src="/Images/hero-child-fox.png"
-                    alt="ילד וחבר הסיפור"
+                    src="/Images/SmallHeroesHero.webp"
+                    alt="שלושה רגעים מסיפור: ילדה חוששת בהמתנה, פוגשת את החבר המלווה, ויוצאת גאה"
                     className="hero-img"
                     data-parallax="hero-img"
                     onError={(e) => {
