@@ -2,7 +2,36 @@
 
 **Updated:** 2026-08-17
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-visual-contract-per-attempt-output-budget-reallocation` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on `982e554b8506f802712139faff8ef7d9e137987a`.
+**Working branch:** `codex/r1d-visual-contract-output-budget-rebalance-v2` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on `a1dd2e263b90ac90258ed77d45e472e5ccd70094`.
+
+## OUTPUT BUDGET REBALANCE V2 — implementation complete, independent QA pending
+
+The latest full-story attempt consumed exactly three standard calls under the
+v1 `[48,000, 36,000, 24,000]` schedule. Calls one and two completed at 27,646
+and 27,287 output tokens; the first repair resolved all action-semantic and
+lifecycle findings, leaving 13 structural issues. The third response hit its
+exact 24,000-token cap and terminated as `completion_status_invalid` /
+`provider_completion_failure`. Receipt digest is
+`baededeb9e75193c528e66ca2a85d6d279c73f4a49ca92e4bd160a67812ef566`;
+conservative accounting is `$2.877529`. No candidate or downstream authority
+was created, and the attempt/readiness remain consumed historical evidence.
+
+Implementation commit `a0c73841` replaces only the distribution of the same
+`3B` standard output pool. Policy v12 / schedule v2 derives
+`[ceil(10B/9), floor(8B/9), remainder]`, producing
+`[40,000, 32,000, 36,000]` for 12 pages and
+`[35,556, 28,444, 32,000]` for 8 pages. One shared pure helper now owns both
+production and validation calculations; a re-digested v1 authority is rejected.
+Model, 64K input ceiling, total output pool, call/repair counts, timeout,
+retries, fallback, `$5.00` fence, prompts/schemas and downstream gates are
+unchanged.
+
+Final focused validation is green: 428 unique tests across eight files,
+TypeScript and `git diff --check`. No provider, credential, network, Fresh
+Readiness, preflight, live or render operation occurred in the v2 implementation.
+Independent Claude Code QA is still required; Codex does not self-award PASS.
+The separate six-fixture release HOLD and prior resource-worker advisory remain
+unchanged.
 
 ## PER-ATTEMPT OUTPUT BUDGET REALLOCATION — over-fence correction complete, micro re-gate pending
 
