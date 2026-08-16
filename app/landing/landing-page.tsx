@@ -115,7 +115,10 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             <div className="wrap hero-wrap">
               <div className="hero-text">
                 <div className="hero-badge" data-reveal="hero" data-reveal-delay="0">{L.hero.badge}</div>
-                <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">{L.hero.h1}</h1>
+                <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">
+                  <span className="hero-h1-line">{L.hero.h1Line1}</span>{' '}
+                  <span className="hero-h1-line hero-h1-line--accent">{L.hero.h1Line2}</span>
+                </h1>
                 <p className="hero-sub2" data-reveal="hero" data-reveal-delay="120">{L.hero.sub}</p>
 
                 <div className="hero-btns" data-reveal="hero" data-reveal-delay="180">
@@ -164,26 +167,34 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <h2 className="section-h2" data-reveal="up">{L.helps.h2}</h2>
               <p className="section-sub" data-reveal="up" data-reveal-delay="60">{L.helps.sub}</p>
               <div className="mvp-challenge-grid mvp-challenge-grid--landing">
-                {matrixCategories.map((slot, index) => (
-                  <CategoryChallengeCard
-                    key={slot.category}
-                    slot={slot}
-                    as="button"
-                    onClick={(event) => {
-                      const rect = event.currentTarget.getBoundingClientRect();
-                      setSpotlight({
-                        slot,
-                        originRect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-                        originEl: event.currentTarget,
-                      });
-                    }}
-                    data-event="landing_companion_spotlight_open"
-                    data-category={slot.category}
-                    data-reveal="up"
-                    data-reveal-delay={String(80 + index * 55)}
-                  />
-                ))}
+                {matrixCategories.map((slot, index) => {
+                  {/* Landing-side marketing copy per category; the wizard keeps
+                      the matrix source untouched. */}
+                  const marketing = L.helps.cards[slot.category];
+                  const displaySlot = marketing ? { ...slot, oneLiner: marketing.body } : slot;
+                  return (
+                    <CategoryChallengeCard
+                      key={slot.category}
+                      slot={displaySlot}
+                      lead={marketing?.lead}
+                      as="button"
+                      onClick={(event) => {
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        setSpotlight({
+                          slot: displaySlot,
+                          originRect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+                          originEl: event.currentTarget,
+                        });
+                      }}
+                      data-event="landing_companion_spotlight_open"
+                      data-category={slot.category}
+                      data-reveal="up"
+                      data-reveal-delay={String(80 + index * 55)}
+                    />
+                  );
+                })}
               </div>
+              <p className="helps-closing" data-reveal="fade" data-reveal-delay="380">{L.helps.closing}</p>
             </div>
           </section>
 
@@ -229,12 +240,30 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   </article>
                 ))}
               </div>
+
+              {/* the promise under the steps: the parent's job is knowing the
+                  child - everything technical disappears */}
+              <div className="how-foot" data-reveal="up" data-reveal-delay="280">
+                <p className="how-foot-lines">
+                  {L.how.footLines.map((line) => (
+                    <span key={line} className="how-foot-line">{line}</span>
+                  ))}
+                </p>
+                <p className="how-foot-close">{L.how.footClose}</p>
+                <a href={startHref} className="btn-primary" data-event="landing_start_click">
+                  {L.how.cta}
+                </a>
+              </div>
             </div>
           </section>
 
           <section className="gallery-section">
             <div className="wrap">
-              <h2 className="gallery-h2" data-reveal="up">{L.gallery.h2}</h2>
+              <h2 className="gallery-h2" data-reveal="up">
+                {L.gallery.h2Line1}
+                <br />
+                {L.gallery.h2Line2}
+              </h2>
               <p className="gallery-sub" data-reveal="up" data-reveal-delay="60">{L.gallery.sub}</p>
 
               <div
@@ -441,6 +470,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <a href={startHref} className="btn-primary footer-cta" data-event="landing_start_click" data-reveal="up" data-reveal-delay="160">
                 {L.footer.cta}
               </a>
+              <p className="footer-micro" data-reveal="fade" data-reveal-delay="240">{L.footer.micro}</p>
             </div>
           </footer>
         </main>

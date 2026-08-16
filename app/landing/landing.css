@@ -198,11 +198,30 @@
 
 .hero-h1 {
   font-family: var(--fd);
-  font-size: clamp(52px, 7vw, 82px);
-  font-weight: 900;
+  /* longer positioning headline: sized for ~3 strong balanced lines in the
+     text column, not 5 weak ones */
+  font-size: clamp(40px, 4.3vw, 62px);
+  font-weight: 400;
   color: var(--dark);
-  line-height: 1.02;
-  margin-bottom: 8px;
+  line-height: 1.12;
+  margin-bottom: 14px;
+  text-wrap: balance;
+}
+
+.hero-h1-line {
+  display: inline;
+}
+
+/* the promise line carries the brand color — the eye lands on the answer */
+.hero-h1-line--accent {
+  color: var(--purple);
+}
+
+@media (max-width: 960px) {
+  /* stacked hero: the promise starts on its own line */
+  .hero-h1-line {
+    display: block;
+  }
 }
    
 .hero-sub2 {
@@ -1603,16 +1622,32 @@
    קצב צפוף יותר, אמביינס עדין בהירו, מיקרו-אינטראקציות בוגרות.
    ═══════════════════════════════════════════════════════════ */
 
-/* ── ריתמוס: נשימה בין סקשנים, בלי למרוח ── */
+/* ── ריתמוס: נשימה מדורגת — לא כל סקשן באותו משקל ── */
 .section { padding: 72px 0; }
 .section-sub { margin-bottom: 38px; }
-/* Per Guy: the fold was crammed against the next section — the hero sits a
-   touch lower and breathes on both sides. */
-.hero { padding: 76px 0 84px; }
+
+/* HERO — the entrance to the world: most of the first viewport, with a hint
+   that the page continues (conversion brief §4). svh keeps phones honest. */
+.hero {
+  padding: 56px 0 72px;
+  min-height: clamp(660px, 82svh, 900px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* discovery is lighter; the decision moments are heavier */
+.helps-section { padding: 64px 0 72px; }
+.sample-section { padding: 96px 0; }
+.how-it-works-section { padding: 84px 0; }
+.pricing-section { padding: 96px 0 104px; }
+.faq-section { padding: 72px 0 84px; }
 
 @media (max-width: 960px) {
-  /* stacked hero: moderate frame; the image gets its own top gap below */
-  .hero { padding: 44px 0 40px; }
+  /* stacked hero: content decides the height; comfortable frame */
+  .hero { padding: 40px 0 48px; min-height: 0; }
+  .sample-section, .pricing-section { padding: 72px 0; }
 }
 
 @media (max-width: 860px) {
@@ -1729,6 +1764,56 @@
 
 /* (No oval contact shadow: the story panels carry their own shadows, and a
    static floor blob under the tilting collage broke the illusion.) */
+
+/* ── Conversion-pass additions (brief 2026-08) ─────────────────── */
+
+/* closing reassurance under the use-case grid */
+.helps-closing {
+  margin: 30px auto 0;
+  text-align: center;
+  font-size: 15.5px;
+  color: var(--mid);
+  max-width: 46ch;
+}
+
+/* the promise block under the how-steps */
+.how-foot {
+  margin-top: 44px;
+  text-align: center;
+}
+
+.how-foot-lines {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 22px;
+  margin: 0 0 10px;
+}
+
+.how-foot-line {
+  font-family: var(--fd);
+  font-size: clamp(19px, 2vw, 24px);
+  color: var(--dark);
+}
+
+.how-foot-close {
+  margin: 0 0 26px;
+  font-size: 16.5px;
+  color: var(--mid);
+}
+
+/* final CTA closes the page like a scene, not a banner */
+.footer--warm { padding: 104px 0 96px; }
+
+.footer-micro {
+  margin-top: 14px;
+  font-size: 14.5px;
+  opacity: 0.82;
+}
+
+@media (max-width: 860px) {
+  .footer--warm { padding: 72px 0 64px; }
+}
 
 /* Primary CTA reads as the one lit object on the page. */
 .hero-btns .btn-primary {

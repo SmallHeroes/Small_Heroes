@@ -151,3 +151,38 @@
 .compact .navLinks {
   display: none !important;
 }
+
+/* Compact create CTA (conversion pass): one purple action in the header */
+.navCta {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 18px;
+  margin-inline-end: 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #8a6bff, #6d4df0);
+  color: #fff;
+  font-family: var(--fb, 'Rubik', sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 8px 20px rgba(109, 77, 240, 0.28);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.navCta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(109, 77, 240, 0.36);
+}
+
+.navCta:focus-visible {
+  outline: 3px solid #ffee6c;
+  outline-offset: 2px;
+}
+
+@media (min-width: 721px) {
+  .navCta {
+    display: inline-flex;
+  }
+}
