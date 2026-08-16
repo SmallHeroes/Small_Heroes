@@ -2,7 +2,82 @@
 
 **Updated:** 2026-08-16
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-input-ceiling-compaction` in `C:\Users\guyna\.codex\worktrees\booksurfaceinput1\Small_Heroes`; based exactly on `bd528a609b4c6d664ba7807a3a47ca201c2cf775`.
+**Working branch:** `codex/r1d-book-surface-repair-output-identity-schema-alignment` in `C:\Users\guyna\.codex\worktrees\repairidentity3\Small_Heroes`; based exactly on `425ffccefad1421c0a45a68cf9dbd60fba585d49`.
+
+## BOOK-SURFACE REPAIR-OUTPUT IDENTITY AND SCHEMA ALIGNMENT — implementation complete, independent QA pending
+
+The consumed Book Surface live attempt exposed a durable-observability defect:
+the compiler retained only a broad repair failure class and discarded the exact
+safe compiler identity. As a result, the persisted receipt could not distinguish
+`book_surface_repair_prop_invalid` from another application rejection. The same
+attempt also proved that the provider schema admitted a blank recurring-prop ID
+and an invalid page number that deterministic application would reject later.
+
+- Commit `3fc0dbb4` adds a closed, compiler-owned repair-output identity catalog.
+  Known identities cross the boundary exactly; arbitrary messages become
+  `unclassified`. No provider prose, prompt, response, authored value, stack,
+  path or secret is persisted.
+- `book_surface_repair_prop_invalid` and
+  `book_surface_repair_prop_change_not_authorized` now share the closed broad
+  class `recurring_prop_invalid`, while the exact identity remains available in
+  Visual Contract-specific `repairOutputDiagnostics/v1`.
+- Receipt/readiness validation binds repair attempt, repair mode, broad failure
+  code, exact identity, carried draft-diagnostic count and the single repair
+  failure. The aggregate diagnostic count remains compatibility-preserving and
+  equals the capped sum; the prior live attempt's count is therefore explicitly
+  represented as 39 carried diagnostics plus 1 repair-output diagnostic.
+- The shared terminal validator and Blueprint receipt v4 are unchanged. The
+  extended fields are enforced only by the Visual Contract exact-key validator;
+  canonical key sorting passes, while identity, count, mode, attempt, ordering,
+  duplicate, extra/missing-key and locator tampering remain rejected.
+- Structured Outputs now reject whitespace-only recurring-prop IDs and
+  non-positive or fractional page numbers. Current schema versions are draft
+  v15, page-contract repair v2, structural-bundle repair v2 and Book Surface
+  repair v3.
+- Current lifecycle authority is authoring request/receipt/readiness
+  v28/v31/v29; live materialization input/manifest/verification v17/v26/v26;
+  execution materialization input/result v16/v20; Supervisor
+  request/readiness/result v25/v25/v17; and Fresh Readiness evidence v25.
+  Immediate predecessors remain legacy immutable; no historical artifact was
+  rewritten or recalculated.
+- Focused compiler/diagnostic validation passed 4 files / 118 tests. The exact
+  persisted lifecycle regression passed, then the final compaction plus complete
+  lifecycle set passed 2 files / 81 tests and the Supervisor plus verification
+  set passed 2 files / 84 tests. The first broad version run exposed only two
+  stale exact-byte expectations caused by the intentional 43-byte schema delta;
+  the corrected production measurements are Fox 50,260 with 13,740 headroom and
+  worst-case Lion 53,684 with 10,316 headroom. All 18 sources remain below the
+  unchanged 64K ceiling. Deterministic TypeScript and `git diff --check` pass.
+- Literal `npm run check` ran exactly once and was not retried. TypeScript and
+  autonomous-story typecheck passed. Ordinary ran 281 files and passed 3,196
+  assertions; its only failures were 5 absent ignored-output fixture assertions
+  across four unchanged files. Resource-intensive passed 19/19 files and
+  577/577 tests with a valid diagnostic protocol and no timeout, RPC/IPC,
+  reporter, launch, signal, termination or teardown failure.
+- The historical baseline was formerly recorded as six assertions in five
+  files. Commit `7763ae2e` (already in the immutable base) replaced the
+  `set-appearance-ref-budget.spec.ts` ignored PNG dependency with an isolated
+  temporary fixture. Therefore the current, directly observed release HOLD is
+  five assertions in `child-lexicon-ages-5-8.spec.ts`,
+  `momentum-gate-koko.spec.ts`, `page-entity-qa.spec.ts` and two
+  `story-read-back-validation.spec.ts` cases. No fixture was copied, fabricated
+  or waived.
+- Model, Responses endpoint, service tier, prompt text, reasoning, 64K ceiling,
+  call/repair/cost budgets, timeout, retry/fallback policy, candidate semantics,
+  Blueprint, Wizard and downstream behavior are unchanged. No credential,
+  pricing/network/provider call, Fresh Readiness, preflight, live authoring,
+  candidate, render, storage/database, deployment or push occurred. Cost is
+  `$0`.
+
+This is Codex implementation evidence, not an independent technical PASS.
+Claude Code must falsify the exact base-to-head range before any new Fresh
+Readiness or paid attempt. This milestone grants no candidate, Blueprint,
+Wizard, render, QA-deployment, Production or release authority.
+
+Durable records:
+`docs/ai-workflow/R1D_BOOK_SURFACE_REPAIR_OUTPUT_IDENTITY_AND_SCHEMA_ALIGNMENT_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_BOOK_SURFACE_REPAIR_OUTPUT_IDENTITY_AND_SCHEMA_ALIGNMENT_IMPLEMENTATION_EVIDENCE.md`.
 
 ## BOOK-SURFACE INPUT-CEILING ROUTING AND OBSERVABILITY — independent technical PASS
 
