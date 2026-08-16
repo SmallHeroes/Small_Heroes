@@ -22,6 +22,7 @@ import {
 import {
   buildVisualContractAuthoringTerminalFailure,
   visualContractAuthoringTerminalFailureIsValid,
+  visualContractRepairOutputDiagnosticsIsValid,
 } from '../visual-package/visualContractAuthoringTerminalDiagnostics';
 
 const representativeIssues: DraftAuthorityReferenceIssue[] = [
@@ -503,6 +504,7 @@ describe('Visual Contract-specific terminal extension', () => {
     'repair_output_shape_invalid',
     'repair_output_target_identity_invalid',
     'repair_output_reference_authority_invalid',
+    'repair_output_recurring_prop_invalid',
     'repair_output_non_target_drift',
     'repair_output_application_rejected',
   ] as const)(
@@ -556,7 +558,113 @@ describe('Visual Contract-specific terminal extension', () => {
       issueCodes: ['provider_call_failed'],
     });
     expect(unrelated.authorityReferenceDiagnostics).toBeNull();
+    expect(unrelated.repairOutputDiagnostics).toBeNull();
     expect(visualContractAuthoringTerminalFailureIsValid(unrelated)).toBe(true);
+  });
+
+  it('persists exact sanitized repair-output identity with explicit diagnostic provenance', () => {
+    const visual = buildVisualContractAuthoringTerminalFailure({
+      code: 'repair_output_invalid',
+      issueCodes: ['repair_output_invalid'],
+      repairOutputDiagnostics: {
+        repairAttempt: 2,
+        repairMode: 'book_surface_patch',
+        failureCode: 'recurring_prop_invalid',
+        identity: 'book_surface_repair_prop_invalid',
+        carriedDraftDiagnosticCount: 39,
+      },
+    });
+    expect(visual.diagnosticCount).toBe(40);
+    expect(visual.diagnosticCodes).toContain(
+      'repair_output_recurring_prop_invalid',
+    );
+    expect(visual.repairOutputDiagnostics).toEqual({
+      version: 'visual-contract-repair-output-diagnostics/v1',
+      repairAttempt: 2,
+      repairMode: 'book_surface_patch',
+      failureCode: 'recurring_prop_invalid',
+      identity: 'book_surface_repair_prop_invalid',
+      carriedDraftDiagnosticCount: 39,
+      repairOutputDiagnosticCount: 1,
+    });
+    expect(
+      visualContractRepairOutputDiagnosticsIsValid(
+        visual.repairOutputDiagnostics,
+      ),
+    ).toBe(true);
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        JSON.parse(JSON.stringify(canonicalize(visual))),
+      ),
+    ).toBe(true);
+    expect(authoringTerminalFailureIsValid(visual)).toBe(false);
+  });
+
+  it('rejects repair-output identity, count, ordering, key, and locator-domain tampering', () => {
+    const valid = buildVisualContractAuthoringTerminalFailure({
+      code: 'repair_output_invalid',
+      issueCodes: ['repair_output_invalid'],
+      repairOutputDiagnostics: {
+        repairAttempt: 2,
+        repairMode: 'book_surface_patch',
+        failureCode: 'recurring_prop_invalid',
+        identity: 'book_surface_repair_prop_change_not_authorized',
+        carriedDraftDiagnosticCount: 2,
+      },
+    });
+    const diagnostics = valid.repairOutputDiagnostics!;
+    const invalidDetails = [
+      { ...diagnostics, identity: 'provider-authored prose' },
+      { ...diagnostics, carriedDraftDiagnosticCount: -1 },
+      { ...diagnostics, repairOutputDiagnosticCount: 2 },
+      { ...diagnostics, repairAttempt: 0 },
+      { ...diagnostics, repairMode: 'unknown_mode' },
+      { ...diagnostics, failureCode: 'shape_invalid' },
+      { ...diagnostics, extra: true },
+    ];
+    for (const repairOutputDiagnostics of invalidDetails) {
+      expect(
+        visualContractAuthoringTerminalFailureIsValid({
+          ...valid,
+          repairOutputDiagnostics,
+        }),
+      ).toBe(false);
+    }
+    const { identity: _identity, ...missingIdentity } = diagnostics;
+    expect(
+      visualContractAuthoringTerminalFailureIsValid({
+        ...valid,
+        repairOutputDiagnostics: missingIdentity,
+      }),
+    ).toBe(false);
+    expect(
+      visualContractAuthoringTerminalFailureIsValid({
+        ...valid,
+        diagnosticCount: 2,
+      }),
+    ).toBe(false);
+    expect(
+      visualContractAuthoringTerminalFailureIsValid({
+        ...valid,
+        diagnosticCodes: ['repair_output_shape_invalid'],
+      }),
+    ).toBe(false);
+    const reordered = {
+      repairOutputDiagnosticCount: 1,
+      identity: diagnostics.identity,
+      version: diagnostics.version,
+      repairMode: diagnostics.repairMode,
+      carriedDraftDiagnosticCount:
+        diagnostics.carriedDraftDiagnosticCount,
+      failureCode: diagnostics.failureCode,
+      repairAttempt: diagnostics.repairAttempt,
+    };
+    expect(
+      visualContractAuthoringTerminalFailureIsValid({
+        ...valid,
+        repairOutputDiagnostics: reordered,
+      }),
+    ).toBe(true);
   });
 
   it('rejects extra keys, missing detail, detail on other terminals, and malformed locators', () => {
@@ -573,6 +681,12 @@ describe('Visual Contract-specific terminal extension', () => {
         authorityReferenceIssues: [typedIssue],
       }),
     ).toThrow(/matching terminal code/);
+    expect(() =>
+      buildVisualContractAuthoringTerminalFailure({
+        code: 'repair_output_invalid',
+        issueCodes: ['repair_output_invalid'],
+      }),
+    ).toThrow(/requires typed diagnostics/);
     const valid = buildVisualContractAuthoringTerminalFailure({
       code: 'draft_authority_reference_domain_invalid',
       issueCodes: ['draft_authority_reference_domain_invalid'],

@@ -18,7 +18,7 @@ import {
 } from './templateDraftSchema';
 
 export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
-  'book-surface-repair-schema/v2' as const;
+  'book-surface-repair-schema/v3' as const;
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =

@@ -1755,7 +1755,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v28',
+      version: 'visual-contract-authoring-readiness/v29',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -1819,7 +1819,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v28',
+      version: 'visual-contract-authoring-readiness/v29',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -2103,6 +2103,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v27',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v28',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -2253,6 +2259,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v30',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v31',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -2342,6 +2354,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v28',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v29',
       ),
     ).toBe('current');
     expect(
@@ -2578,7 +2596,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v30',
+      'visual-contract-authoring-receipt/v31',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -4214,7 +4232,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v30',
+      version: 'visual-contract-authoring-receipt/v31',
       status: 'completed',
       callCount: 3,
       repairCount: 2,
@@ -5080,6 +5098,129 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       ),
     ).toEqual([1]);
     expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+
+    const invalidRepairProvider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => {
+        const output =
+          args.attempt === 1
+            ? invalid
+            : {
+                coverContract: valid.coverContract,
+                recurringProps: (
+                  decodeBookSurfaceRepairUserPrompt(
+                    args.userPrompt,
+                  ).recurringProps as Record<string, unknown>[]
+                ).map((prop, index) =>
+                  index === 0 ? { ...prop, id: '   ' } : prop,
+                ),
+                pageContracts: [repairedPage],
+              };
+        return {
+          output: JSON.stringify(output),
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `invalid-response-${args.attempt}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+            },
+          },
+        };
+      }),
+    };
+    const rejected = await runVisualContractAuthoring({
+      request: requestFor(snapshot, 'live'),
+      snapshot,
+      provider: invalidRepairProvider,
+    });
+    expect(invalidRepairProvider.call).toHaveBeenCalledTimes(2);
+    expect(rejected.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 2,
+      repairCount: 1,
+      candidateDigest: null,
+      failure: {
+        code: 'repair_output_invalid',
+        diagnosticCodes: expect.arrayContaining([
+          'repair_output_recurring_prop_invalid',
+        ]),
+        repairOutputDiagnostics: {
+          version: 'visual-contract-repair-output-diagnostics/v1',
+          repairAttempt: 2,
+          repairMode: 'book_surface_patch',
+          failureCode: 'recurring_prop_invalid',
+          identity: 'book_surface_repair_prop_invalid',
+          carriedDraftDiagnosticCount: expect.any(Number),
+          repairOutputDiagnosticCount: 1,
+        },
+      },
+    });
+    const failure = rejected.receipt.failure!;
+    expect(failure.diagnosticCount).toBe(
+      failure.repairOutputDiagnostics!.carriedDraftDiagnosticCount +
+        failure.repairOutputDiagnostics!.repairOutputDiagnosticCount,
+    );
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(failure),
+    ).toBe(true);
+    const rejectedRequest = requestFor(snapshot, 'live');
+    const rejectedReadiness =
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request: rejectedRequest,
+        receipt: rejected.receipt,
+      });
+    const rejectedRoot = tempRoot();
+    const rejectedReceiptWrite = persistVisualContractAuthoringReceipt({
+      repoRoot: rejectedRoot,
+      outputDir: 'outputs/book-surface-repair-identity',
+      receipt: rejected.receipt,
+      write: true,
+    });
+    const rejectedReadinessWrite =
+      persistVisualContractAuthoringReadiness({
+        repoRoot: rejectedRoot,
+        outputDir: 'outputs/book-surface-repair-identity',
+        evidence: rejectedReadiness,
+        receipt: rejected.receipt,
+        write: true,
+      });
+    const loadedRejectedReceipt = JSON.parse(
+      fs.readFileSync(
+        path.join(rejectedRoot, rejectedReceiptWrite.path),
+        'utf8',
+      ),
+    ) as typeof rejected.receipt;
+    const loadedRejectedReadiness = JSON.parse(
+      fs.readFileSync(
+        path.join(rejectedRoot, rejectedReadinessWrite.path),
+        'utf8',
+      ),
+    ) as typeof rejectedReadiness;
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        loadedRejectedReceipt.failure,
+      ),
+    ).toBe(true);
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        loadedRejectedReadiness.authoringOutcome
+          .terminalClassification,
+      ),
+    ).toBe(true);
+    expect(
+      loadedRejectedReadiness.authoringOutcome
+        .terminalClassification,
+    ).toEqual(loadedRejectedReceipt.failure);
+    expect(
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request: rejectedRequest,
+        receipt: loadedRejectedReceipt,
+      }),
+    ).toEqual(loadedRejectedReadiness);
   });
 
   it('keeps mixed capability and structural validation inside the bounded loop after a compact page repair', async () => {

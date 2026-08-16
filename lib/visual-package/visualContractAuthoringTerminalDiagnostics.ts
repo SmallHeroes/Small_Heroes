@@ -4,6 +4,14 @@ import {
   type DraftAuthorityReferenceDiagnostics,
   type DraftAuthorityReferenceIssue,
 } from '@/lib/visual-contract-compiler/draftAuthorityReferenceDiagnostics';
+import {
+  TEMPLATE_REPAIR_MODE_VALUES,
+  TEMPLATE_REPAIR_OUTPUT_FAILURE_CODE_VALUES,
+  templateRepairOutputIdentityIsValid,
+  type TemplateRepairMode,
+  type TemplateRepairOutputFailureCode,
+  type TemplateRepairOutputIdentity,
+} from '@/lib/visual-contract-compiler/templateRepairOutputDiagnostics';
 
 import {
   MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT,
@@ -19,6 +27,124 @@ export interface VisualContractAuthoringTerminalFailure
   authorityReferenceDiagnostics:
     | DraftAuthorityReferenceDiagnostics
     | null;
+  repairOutputDiagnostics:
+    | VisualContractRepairOutputDiagnostics
+    | null;
+}
+
+export const VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION =
+  'visual-contract-repair-output-diagnostics/v1' as const;
+
+export interface VisualContractRepairOutputDiagnostics {
+  version: typeof VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION;
+  repairAttempt: number;
+  repairMode: TemplateRepairMode;
+  failureCode: TemplateRepairOutputFailureCode;
+  identity: TemplateRepairOutputIdentity;
+  carriedDraftDiagnosticCount: number;
+  repairOutputDiagnosticCount: 1;
+}
+
+export interface VisualContractRepairOutputDiagnosticsInput {
+  repairAttempt: number;
+  repairMode: TemplateRepairMode;
+  failureCode: TemplateRepairOutputFailureCode;
+  identity: TemplateRepairOutputIdentity;
+  carriedDraftDiagnosticCount: number;
+}
+
+const REPAIR_MODES = new Set<TemplateRepairMode>(
+  TEMPLATE_REPAIR_MODE_VALUES,
+);
+const REPAIR_FAILURE_CODES =
+  new Set<TemplateRepairOutputFailureCode>(
+    TEMPLATE_REPAIR_OUTPUT_FAILURE_CODE_VALUES,
+  );
+
+const REPAIR_OUTPUT_DIAGNOSTIC_KEYS = [
+  'carriedDraftDiagnosticCount',
+  'failureCode',
+  'identity',
+  'repairAttempt',
+  'repairMode',
+  'repairOutputDiagnosticCount',
+  'version',
+].sort();
+
+export function visualContractRepairOutputDiagnosticCodeFor(
+  failureCode: TemplateRepairOutputFailureCode,
+): AuthoringDiagnosticCode {
+  switch (failureCode) {
+    case 'json_invalid':
+      return 'repair_output_json_invalid';
+    case 'shape_invalid':
+      return 'repair_output_shape_invalid';
+    case 'target_identity_invalid':
+      return 'repair_output_target_identity_invalid';
+    case 'reference_authority_invalid':
+      return 'repair_output_reference_authority_invalid';
+    case 'recurring_prop_invalid':
+      return 'repair_output_recurring_prop_invalid';
+    case 'non_target_drift':
+      return 'repair_output_non_target_drift';
+    case 'application_rejected':
+      return 'repair_output_application_rejected';
+  }
+}
+
+function buildVisualContractRepairOutputDiagnostics(
+  input: VisualContractRepairOutputDiagnosticsInput,
+): VisualContractRepairOutputDiagnostics {
+  if (
+    !Number.isSafeInteger(input.repairAttempt) ||
+    input.repairAttempt < 1 ||
+    !Number.isSafeInteger(input.carriedDraftDiagnosticCount) ||
+    input.carriedDraftDiagnosticCount < 0 ||
+    !REPAIR_MODES.has(input.repairMode) ||
+    !REPAIR_FAILURE_CODES.has(input.failureCode) ||
+    !templateRepairOutputIdentityIsValid(input.identity)
+  ) {
+    throw new Error(
+      'Visual Contract repair-output diagnostics input is invalid',
+    );
+  }
+  return {
+    version: VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION,
+    repairAttempt: input.repairAttempt,
+    repairMode: input.repairMode,
+    failureCode: input.failureCode,
+    identity: input.identity,
+    carriedDraftDiagnosticCount:
+      input.carriedDraftDiagnosticCount,
+    repairOutputDiagnosticCount: 1,
+  };
+}
+
+export function visualContractRepairOutputDiagnosticsIsValid(
+  value: unknown,
+): value is VisualContractRepairOutputDiagnostics {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const diagnostics = value as Record<string, unknown>;
+  return (
+    JSON.stringify(Object.keys(diagnostics).sort()) ===
+      JSON.stringify(REPAIR_OUTPUT_DIAGNOSTIC_KEYS) &&
+    diagnostics.version ===
+      VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION &&
+    Number.isSafeInteger(diagnostics.repairAttempt) &&
+    (diagnostics.repairAttempt as number) >= 1 &&
+    typeof diagnostics.repairMode === 'string' &&
+    REPAIR_MODES.has(diagnostics.repairMode as TemplateRepairMode) &&
+    typeof diagnostics.failureCode === 'string' &&
+    REPAIR_FAILURE_CODES.has(
+      diagnostics.failureCode as TemplateRepairOutputFailureCode,
+    ) &&
+    templateRepairOutputIdentityIsValid(diagnostics.identity) &&
+    Number.isSafeInteger(diagnostics.carriedDraftDiagnosticCount) &&
+    (diagnostics.carriedDraftDiagnosticCount as number) >= 0 &&
+    diagnostics.repairOutputDiagnosticCount === 1
+  );
 }
 
 const VISUAL_CONTRACT_TERMINAL_FAILURE_KEYS = [
@@ -31,6 +157,7 @@ const VISUAL_CONTRACT_TERMINAL_FAILURE_KEYS = [
   'message',
   'phase',
   'repairEligibility',
+  'repairOutputDiagnostics',
   'repairReasonCode',
 ].sort();
 
@@ -41,6 +168,7 @@ export function buildVisualContractAuthoringTerminalFailure(args: {
   diagnosticCodeOverride?: AuthoringDiagnosticCode;
   issueCodes?: readonly unknown[];
   authorityReferenceIssues?: readonly DraftAuthorityReferenceIssue[];
+  repairOutputDiagnostics?: VisualContractRepairOutputDiagnosticsInput;
 }): VisualContractAuthoringTerminalFailure {
   if (
     args.code !== 'draft_authority_reference_domain_invalid' &&
@@ -48,6 +176,22 @@ export function buildVisualContractAuthoringTerminalFailure(args: {
   ) {
     throw new Error(
       'Visual Contract authority/reference diagnostics require the matching terminal code',
+    );
+  }
+  if (
+    args.code !== 'repair_output_invalid' &&
+    args.repairOutputDiagnostics !== undefined
+  ) {
+    throw new Error(
+      'Visual Contract repair-output diagnostics require the matching terminal code',
+    );
+  }
+  if (
+    args.code === 'repair_output_invalid' &&
+    args.repairOutputDiagnostics === undefined
+  ) {
+    throw new Error(
+      'Visual Contract repair-output terminal requires typed diagnostics',
     );
   }
   const authorityReferenceDiagnostics =
@@ -64,6 +208,12 @@ export function buildVisualContractAuthoringTerminalFailure(args: {
       'Visual Contract authority/reference terminal requires typed diagnostics',
     );
   }
+  const repairOutputDiagnostics =
+    args.repairOutputDiagnostics === undefined
+      ? null
+      : buildVisualContractRepairOutputDiagnostics(
+          args.repairOutputDiagnostics,
+        );
   const shared = buildAuthoringTerminalFailure({
     code: args.code,
     diagnosticInputs:
@@ -71,14 +221,23 @@ export function buildVisualContractAuthoringTerminalFailure(args: {
         ? ['authority_reference_validation_failed']
         : args.diagnosticInputs,
     diagnosticCountOverride:
-      authorityReferenceDiagnostics?.totalCount ??
-      args.diagnosticCountOverride,
-    diagnosticCodeOverride: args.diagnosticCodeOverride,
+      repairOutputDiagnostics === null
+        ? authorityReferenceDiagnostics?.totalCount ??
+          args.diagnosticCountOverride
+        : repairOutputDiagnostics.carriedDraftDiagnosticCount +
+          repairOutputDiagnostics.repairOutputDiagnosticCount,
+    diagnosticCodeOverride:
+      repairOutputDiagnostics === null
+        ? args.diagnosticCodeOverride
+        : visualContractRepairOutputDiagnosticCodeFor(
+            repairOutputDiagnostics.failureCode,
+          ),
     issueCodes: args.issueCodes,
   });
   return {
     ...shared,
     authorityReferenceDiagnostics,
+    repairOutputDiagnostics,
   };
 }
 
@@ -97,24 +256,43 @@ export function visualContractAuthoringTerminalFailureIsValid(
   }
   const {
     authorityReferenceDiagnostics,
+    repairOutputDiagnostics,
     ...shared
   } = extended;
   if (!authoringTerminalFailureIsValid(shared)) return false;
-  if (shared.code !== 'draft_authority_reference_domain_invalid') {
-    return authorityReferenceDiagnostics === null;
+  const authorityDiagnosticsAreValid =
+    shared.code === 'draft_authority_reference_domain_invalid'
+      ? draftAuthorityReferenceDiagnosticsIsValid(
+          authorityReferenceDiagnostics,
+        ) &&
+        authorityReferenceDiagnostics.totalCount > 0 &&
+        shared.diagnosticCount ===
+          Math.min(
+            authorityReferenceDiagnostics.totalCount,
+            MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT,
+          ) &&
+        shared.diagnosticCodes.includes(
+          'authority_reference_validation_failed',
+        )
+      : authorityReferenceDiagnostics === null;
+  if (!authorityDiagnosticsAreValid) return false;
+  if (shared.code !== 'repair_output_invalid') {
+    return repairOutputDiagnostics === null;
   }
   return (
-    draftAuthorityReferenceDiagnosticsIsValid(
-      authorityReferenceDiagnostics,
+    visualContractRepairOutputDiagnosticsIsValid(
+      repairOutputDiagnostics,
     ) &&
-    authorityReferenceDiagnostics.totalCount > 0 &&
     shared.diagnosticCount ===
       Math.min(
-        authorityReferenceDiagnostics.totalCount,
+        repairOutputDiagnostics.carriedDraftDiagnosticCount +
+          repairOutputDiagnostics.repairOutputDiagnosticCount,
         MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT,
       ) &&
     shared.diagnosticCodes.includes(
-      'authority_reference_validation_failed',
+      visualContractRepairOutputDiagnosticCodeFor(
+        repairOutputDiagnostics.failureCode,
+      ),
     )
   );
 }

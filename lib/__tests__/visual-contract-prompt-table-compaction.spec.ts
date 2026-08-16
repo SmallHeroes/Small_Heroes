@@ -547,7 +547,7 @@ describe('Visual Contract prompt authority-table compaction', () => {
     expect(userPrompt).not.toContain('AUTHORITATIVE FACTS');
   });
 
-  it('saves the approved exact Fox upper-bound units while preserving the immutable draft schema', () => {
+  it('saves the approved exact Fox upper-bound units while binding the current draft schema', () => {
     const snapshot = approvedSnapshot(
       'fox_uri_adventure.md',
     );
@@ -595,18 +595,18 @@ describe('Visual Contract prompt authority-table compaction', () => {
         utf8Lines(compactActionTable),
     ).toBe(2_060);
     expect(TEMPLATE_DRAFT_SCHEMA_VERSION).toBe(
-      'vc-draft-schema/v14',
+      'vc-draft-schema/v15',
     );
     expect(
       Buffer.byteLength(
         JSON.stringify(TEMPLATE_DRAFT_JSON_SCHEMA),
         'utf8',
       ),
-    ).toBe(13_473);
+    ).toBe(13_516);
     expect(
       canonicalJsonDigest(TEMPLATE_DRAFT_JSON_SCHEMA),
     ).toBe(
-      '7ecd5bd00181b540657d87ca4d5d937a714c551ec1a4d739297215e76daaf074',
+      '9732f88a64e0ab9e65dd80d041e3797afec105bdab74ceab168a9a9aaf02fe92',
     );
   });
 
@@ -675,13 +675,13 @@ describe('Visual Contract prompt authority-table compaction', () => {
     ).toBeGreaterThan(1_024);
     expect(fox).toEqual({
       storyKey: 'fox_uri_adventure',
-      upperBound: 50_217,
-      headroom: 13_783,
+      upperBound: 50_260,
+      headroom: 13_740,
     });
     expect(worst).toEqual({
       storyKey: 'lion_shaket_fantasy',
-      upperBound: 53_641,
-      headroom: 10_359,
+      upperBound: 53_684,
+      headroom: 10_316,
     });
     expect(provider.call).not.toHaveBeenCalled();
   });

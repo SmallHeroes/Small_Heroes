@@ -12,6 +12,9 @@ import {
   templateRepairOutputFailureCode,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
+import {
+  sanitizedTemplateRepairOutputIdentity,
+} from '../visual-contract-compiler/templateRepairOutputDiagnostics';
 import { projectPageMustShow } from '../visual-contract-compiler/projectContractProse';
 import { buildSourceEvidenceCatalog } from '../visual-contract-compiler/sourceEvidenceCatalog';
 import type {
@@ -383,9 +386,31 @@ describe('captured reference-domain matrix', () => {
     ).toBe('non_target_drift');
     expect(
       templateRepairOutputFailureCode(
+        new Error('book_surface_repair_prop_invalid'),
+      ),
+    ).toBe('recurring_prop_invalid');
+    expect(
+      templateRepairOutputFailureCode(
+        new Error(
+          'book_surface_repair_prop_change_not_authorized',
+        ),
+      ),
+    ).toBe('recurring_prop_invalid');
+    expect(
+      templateRepairOutputFailureCode(
         new Error('raw provider-authored explanation'),
       ),
     ).toBe('application_rejected');
+    expect(
+      sanitizedTemplateRepairOutputIdentity(
+        new Error('book_surface_repair_prop_invalid'),
+      ),
+    ).toBe('book_surface_repair_prop_invalid');
+    expect(
+      sanitizedTemplateRepairOutputIdentity(
+        new Error('raw provider-authored explanation'),
+      ),
+    ).toBe('unclassified');
   });
 
   it('keeps the repairable diagnostic-normalization boundary closed to two internal identities', () => {

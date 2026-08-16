@@ -46,6 +46,12 @@ import {
   TEMPLATE_DRAFT_SCHEMA_VERSION,
 } from './templateDraftSchema';
 import {
+  sanitizedTemplateRepairOutputIdentity,
+  type TemplateRepairMode,
+  type TemplateRepairOutputFailureCode,
+  type TemplateRepairOutputIdentity,
+} from './templateRepairOutputDiagnostics';
+import {
   assertOpenAIResponsesStructuredOutputSchemaCompatible,
 } from '@/lib/visual-package/openaiResponsesStructuredOutputSchemaCompatibility';
 import { assertSourceHasRealProse } from './assertSourceProse';
@@ -576,16 +582,9 @@ export class TemplateRepairOutputInvalidError extends Error {
   constructor(
     attempts: readonly TemplateRepairAttempt[],
     readonly repairAttempt: number,
-    readonly repairMode:
-      | 'source_evidence_id_patch'
-      | 'page_contract_patch'
-      | 'page_spatial_reference_patch'
-      | 'stable_prop_scope_patch'
-      | 'presentation_requirement_patch'
-      | 'structural_bundle_patch'
-      | 'book_surface_patch'
-      | 'full_draft',
+    readonly repairMode: TemplateRepairMode,
     readonly failureCode: TemplateRepairOutputFailureCode,
+    readonly identity: TemplateRepairOutputIdentity,
   ) {
     super('completed template repair output was unusable');
     this.name = 'TemplateRepairOutputInvalidError';
@@ -613,15 +612,11 @@ export class TemplateRepairOutputInvalidError extends Error {
  * applied. The raw response and the underlying exception never cross this
  * boundary.
  */
-export type TemplateRepairOutputFailureCode =
-  | 'json_invalid'
-  | 'shape_invalid'
-  | 'target_identity_invalid'
-  | 'reference_authority_invalid'
-  | 'non_target_drift'
-  | 'application_rejected';
-
-const SAFE_REPAIR_FAILURE_IDENTITY = /^[a-z][a-z0-9_]{0,127}$/;
+export type {
+  TemplateRepairMode,
+  TemplateRepairOutputFailureCode,
+  TemplateRepairOutputIdentity,
+} from './templateRepairOutputDiagnostics';
 
 export function templateRepairOutputFailureCode(
   error: unknown,
@@ -629,11 +624,7 @@ export function templateRepairOutputFailureCode(
   if (error instanceof InvalidVisualContractError) {
     return 'json_invalid';
   }
-  const identity =
-    error instanceof Error &&
-    SAFE_REPAIR_FAILURE_IDENTITY.test(error.message)
-      ? error.message
-      : '';
+  const identity = sanitizedTemplateRepairOutputIdentity(error);
   if (identity.endsWith('_response_invalid_json')) {
     return 'json_invalid';
   }
@@ -659,6 +650,13 @@ export function templateRepairOutputFailureCode(
     )
   ) {
     return 'reference_authority_invalid';
+  }
+  if (
+    /_(?:prop_invalid|prop_change_not_authorized)$/.test(
+      identity,
+    )
+  ) {
+    return 'recurring_prop_invalid';
   }
   if (
     /_(?:target_stale|target_set_empty|target_duplicate|target_invalid_or_duplicate|affected_record_duplicate|affected_page_duplicate|patch_set_incomplete|patch_unexpected_or_duplicate|page_unexpected_or_duplicate|page_not_unique|beat_not_unique|prop_set_mismatch|page_set_mismatch|action_beat_id_invalid|coverage_beat_id_invalid)$/.test(
@@ -4096,6 +4094,8 @@ export async function compileBookVisualContractTemplate(
         );
       }
     } catch (error) {
+      const failureIdentity =
+        sanitizedTemplateRepairOutputIdentity(error);
       const failureCode = templateRepairOutputFailureCode(error);
       if (
         repairMode === 'page_contract_patch' &&
@@ -4120,6 +4120,7 @@ export async function compileBookVisualContractTemplate(
         attempt + 1,
         repairMode,
         failureCode,
+        failureIdentity,
       );
     }
   }

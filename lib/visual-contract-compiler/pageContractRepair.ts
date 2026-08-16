@@ -19,7 +19,7 @@ import type { PresentationRequirementRepairTarget } from './presentationRequirem
 import { canonicalize } from '@/lib/canonical-json';
 
 export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
-  'page-contract-repair-schema/v1' as const;
+  'page-contract-repair-schema/v2' as const;
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =

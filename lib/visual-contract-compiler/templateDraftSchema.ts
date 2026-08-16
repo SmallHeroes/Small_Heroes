@@ -169,7 +169,7 @@ const humanDraft = obj({
 });
 
 export const TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA = obj({
-  id: { type: 'string' },
+  id: { type: 'string', pattern: '\\S' },
   name: { type: 'string' },
   description: { type: 'string' },
   material: nullableString,
@@ -336,7 +336,7 @@ export const TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA: Record<
   string,
   unknown
 > = obj({
-  pageNumber: { type: 'number' },
+  pageNumber: { type: 'number', minimum: 1, multipleOf: 1 },
   locationId: { type: 'string' },
   zoneId: { type: 'string' },
   sameLocationAs: nullableNumber,
@@ -378,7 +378,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
 });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v14' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v15' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

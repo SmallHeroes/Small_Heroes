@@ -199,6 +199,40 @@ function repairedPage(pageNumber: number) {
 }
 
 describe('bounded book-surface repair', () => {
+  it('binds non-blank recurring-prop identities and positive integer pages in the provider schema', () => {
+    const rootProperties = BOOK_SURFACE_REPAIR_JSON_SCHEMA.properties as Record<
+      string,
+      unknown
+    >;
+    const recurringProps = rootProperties.recurringProps as Record<
+      string,
+      unknown
+    >;
+    const recurringProp = recurringProps.items as Record<string, unknown>;
+    const recurringPropProperties = recurringProp.properties as Record<
+      string,
+      unknown
+    >;
+    expect(recurringPropProperties.id).toEqual({
+      type: 'string',
+      pattern: '\\S',
+    });
+    const pageContracts = rootProperties.pageContracts as Record<
+      string,
+      unknown
+    >;
+    const pageContract = pageContracts.items as Record<string, unknown>;
+    const pageProperties = pageContract.properties as Record<
+      string,
+      unknown
+    >;
+    expect(pageProperties.pageNumber).toEqual({
+      type: 'number',
+      minimum: 1,
+      multipleOf: 1,
+    });
+  });
+
   it('selects only the cover and exact union of structural and presentation pages', () => {
     const selected = authority();
     expect(selected?.coverContract).toEqual(cover());
@@ -724,6 +758,28 @@ describe('bounded book-surface repair', () => {
         }),
       ),
     ).toThrow('book_surface_repair_prop_invalid');
+    expect(() =>
+      parseBookSurfaceRepairPatch(
+        JSON.stringify({
+          coverContract: cover(),
+          recurringProps: [{ ...recurringProp(), id: '   ' }],
+          pageContracts: [repairedPage(1)],
+        }),
+      ),
+    ).toThrow('book_surface_repair_prop_invalid');
+    for (const pageNumber of [0, -1, 1.5]) {
+      expect(() =>
+        parseBookSurfaceRepairPatch(
+          JSON.stringify({
+            coverContract: cover(),
+            recurringProps: [recurringProp()],
+            pageContracts: [
+              { ...repairedPage(1), pageNumber },
+            ],
+          }),
+        ),
+      ).toThrow('book_surface_repair_page_invalid');
+    }
   });
 
   it('applies the exact surface non-mutatingly and preserves every unrelated field', () => {

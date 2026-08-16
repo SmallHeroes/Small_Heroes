@@ -419,6 +419,7 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(err.repairAttempt).toBe(2);
     expect(err.repairMode).toBe('full_draft');
     expect(err.failureCode).toBe('json_invalid');
+    expect(err.identity).toBe('unclassified');
     expect(err.message).toBe(
       'completed template repair output was unusable',
     );

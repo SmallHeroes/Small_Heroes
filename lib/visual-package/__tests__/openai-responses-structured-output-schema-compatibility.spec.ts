@@ -17,6 +17,14 @@ import {
   PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
 import {
+  BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+  BOOK_SURFACE_REPAIR_SCHEMA_VERSION,
+} from '@/lib/visual-contract-compiler/bookSurfaceRepair';
+import {
+  STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+  STRUCTURAL_BUNDLE_REPAIR_SCHEMA_VERSION,
+} from '@/lib/visual-contract-compiler/structuralBundleRepair';
+import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
 } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
@@ -91,7 +99,7 @@ function allConstNodes(schema: unknown): Array<Record<string, unknown>> {
 describe('OpenAI Responses structured-output compatibility profile', () => {
   it('positive-controls the fully serialized current Visual Contract and Blueprint schemas', () => {
     expect(TEMPLATE_DRAFT_SCHEMA_VERSION).toBe(
-      'vc-draft-schema/v14',
+      'vc-draft-schema/v15',
     );
     expect(PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION).toBe(
       'pre-render-blueprint-draft-schema/v5',
@@ -100,10 +108,16 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       'source-evidence-id-repair-schema/v1',
     );
     expect(PAGE_CONTRACT_REPAIR_SCHEMA_VERSION).toBe(
-      'page-contract-repair-schema/v1',
+      'page-contract-repair-schema/v2',
     );
     expect(PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION).toBe(
       'page-spatial-reference-repair-schema/v1',
+    );
+    expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
+      'book-surface-repair-schema/v3',
+    );
+    expect(STRUCTURAL_BUNDLE_REPAIR_SCHEMA_VERSION).toBe(
+      'structural-bundle-repair-schema/v2',
     );
 
     for (const schema of [
@@ -111,6 +125,8 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
       PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
       PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+      BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+      STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     ]) {
       const serialized = JSON.parse(

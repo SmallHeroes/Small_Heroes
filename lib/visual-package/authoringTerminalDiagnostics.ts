@@ -99,6 +99,7 @@ export type AuthoringDiagnosticCode =
   | 'repair_output_shape_invalid'
   | 'repair_output_target_identity_invalid'
   | 'repair_output_reference_authority_invalid'
+  | 'repair_output_recurring_prop_invalid'
   | 'repair_output_non_target_drift'
   | 'repair_output_application_rejected'
   | 'draft_authority_reference_domain_invalid'
@@ -366,6 +367,7 @@ export function buildAuthoringTerminalFailure(args: {
     'repair_output_shape_invalid',
     'repair_output_target_identity_invalid',
     'repair_output_reference_authority_invalid',
+    'repair_output_recurring_prop_invalid',
     'repair_output_non_target_drift',
     'repair_output_application_rejected',
   ];
@@ -424,6 +426,7 @@ const AUTHORING_DIAGNOSTIC_CODES = new Set<AuthoringDiagnosticCode>([
   'repair_output_shape_invalid',
   'repair_output_target_identity_invalid',
   'repair_output_reference_authority_invalid',
+  'repair_output_recurring_prop_invalid',
   'repair_output_non_target_drift',
   'repair_output_application_rejected',
   'draft_authority_reference_domain_invalid',
@@ -479,6 +482,7 @@ export function authoringTerminalFailureIsValid(
             'repair_output_shape_invalid',
             'repair_output_target_identity_invalid',
             'repair_output_reference_authority_invalid',
+            'repair_output_recurring_prop_invalid',
             'repair_output_non_target_drift',
             'repair_output_application_rejected',
           ]
