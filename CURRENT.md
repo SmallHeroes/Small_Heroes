@@ -2,7 +2,56 @@
 
 **Updated:** 2026-08-17
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-causal-source-structural-compact-routing` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `a8e2f59c6e02fda5e7e60fee6b8e18e8ae0991be`.
+**Working branch:** `codex/r1d-book-surface-admission-compact-fallback` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `e983eaaaf92dbc2fc8b8ec88aea6428b803879ab`.
+
+## BOOK-SURFACE ADMISSION COMPACT FALLBACK — local green; independent QA pending
+
+Decision Gate commit:
+`9cc59d60b841f9b84293723658ff8e2e1d4d1b28`.
+Implementation commit:
+`a7ee6422029f605140e3efa64f9510b8e14a6df0`.
+
+The immutable predecessor attempt under
+`outputs/r1d-post-causal-compact-readiness-e983eaaa-20260817T125438642Z`
+completed three calls/two repairs, zero retries and no fallback, cost
+`$1.744545 / $1.919380`, and ended fail-closed without a candidate. Receipt v32
+is `a64f7144e8caa38b085653b827cd22a04ec65632818904e006e4c3fd88bf1f0b`;
+Supervisor v19 recorded `child_failed / child_nonzero_exit`, exit `1`, and null
+output authority.
+
+The root cause was deterministic: the compiler derived exact presentation
+targets plus valid combined Book Surface authority, cleared the standalone
+targets, then discarded the combined authority when its prompt failed input
+admission. With both compact authorities gone, it selected `full_draft`.
+
+The fix preserves those exact targets only as a bounded fallback after valid
+combined authority fails admission and only when the existing compact
+presentation prompt independently fits. Full validation then exposes the
+existing pure structural `book_surface_patch`. The successful path is
+`initial -> presentation_requirement_patch -> book_surface_patch -> candidate`;
+combined-admissible and compact-oversized behavior remain unchanged.
+
+Focused validation passes **4 files / 151 tests**; deterministic TypeScript and
+`git diff --check` pass. One literal `npm run check` ran exactly once without
+retry. Its timestamped Vitest cache records all **302 canonical files** and only
+the four established missing-output fixture files as failed. The preceding
+baseline was 3,230 passed / 65 skipped / 5 failed, and this range adds exactly
+two passing ordinary tests; a focused follow-up confirmed the unchanged **5
+failed / 7 passed** assertions across those four fixtures. All twenty unchanged
+resource-intensive files are green in the cache. The literal console stream
+was not retained across automatic thread compaction, so no new claim is made
+about that run's diagnostic-protocol payload beyond the completed cache
+inventory.
+
+The five established missing ignored-output fixture assertions remain a
+separate release HOLD and are not waived. No prompt, schema, persisted
+envelope, authority shape, model, policy version, input/output budget,
+retry/fallback, candidate or optional terminal-cleanup contract changed.
+Implementation cost `$0`; no credential, provider, Fresh Readiness, live,
+image, render, deployment, production or push action occurred. Independent
+Claude Code review of
+`e983eaaaf92dbc2fc8b8ec88aea6428b803879ab..<QA_HEAD>` is pending; no downstream
+authority exists before PASS.
 
 ## CAUSAL SOURCE-EVIDENCE + PURE STRUCTURAL COMPACT ROUTING — independent technical PASS; push pending
 
