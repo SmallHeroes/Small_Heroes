@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-admission-compact-fallback` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `e983eaaaf92dbc2fc8b8ec88aea6428b803879ab`.
 
-## BOOK-SURFACE ADMISSION COMPACT FALLBACK — independent technical PASS; push pending
+## BOOK-SURFACE ADMISSION COMPACT FALLBACK — independent technical PASS; pushed
 
 Decision Gate commit:
 `9cc59d60b841f9b84293723658ff8e2e1d4d1b28`.
@@ -48,14 +48,17 @@ separate release HOLD and are not waived. No prompt, schema, persisted
 envelope, authority shape, model, policy version, input/output budget,
 retry/fallback, candidate or optional terminal-cleanup contract changed.
 Implementation cost `$0`; no credential, provider, Fresh Readiness, live,
-image, render, deployment, production or push action occurred. Claude Code
+image, render, deployment or production action occurred during implementation
+and review. Claude Code
 independently reviewed exact immutable range
 `e983eaaaf92dbc2fc8b8ec88aea6428b803879ab..daec9cc9f6c51478461d10c25e49ea002fe4a447`
 read-only and returned **PASS** with **0 BLOCKER / 0 MAJOR / 0 MINOR**. Its three
 advisories were non-blocking: indirect confirmation of the absent upstream,
 minor naming paraphrase, and the charter-permitted choice not to re-execute the
 151-test count. Technical PASS does not itself authorize Fresh Readiness,
-provider, render, deployment, production or product acceptance.
+provider, render, deployment, production or product acceptance. After PASS,
+the reviewed branch was pushed to its same-name origin branch under Guy's
+standing instruction.
 
 ## CAUSAL SOURCE-EVIDENCE + PURE STRUCTURAL COMPACT ROUTING — independent technical PASS; push pending
 
