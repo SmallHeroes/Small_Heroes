@@ -1,10 +1,76 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-17
+**Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-v4-presentation-mustshow-freeze` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `c82ffff4218b188ad910c7b95c44cf34a4dc752e`.
+**Working branch:** `codex/r1d-book-surface-hint-admission-observability` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `37983ab41e039fa36b694344f2a399504a6806e0`.
 
-## BOOK SURFACE v4 PRESENTATION `mustShow` FREEZE — independent technical PASS; push pending
+## BOOK SURFACE HINT ADMISSION + STRUCTURAL CAUSES — implementation green; independent QA pending
+
+The consumed pushed-head attempt under
+`outputs/r1d-mustshow-freeze-readiness-37983ab4-20260817T195312869Z`
+ended fail-closed without a candidate. Receipt v33
+`799af897555237565283b35237f549bc267237899a5366e2cfe9d8508b0fb6d4`
+records exactly three completed provider calls, two repairs, zero transport
+retries and no fallback, with `$2.147054 / $2.361773`
+nominal/conservative cost. Its route was `initial -> full_draft ->
+book_surface_patch`. The final Book Surface response applied and reached full
+revalidation, proving the preceding presentation-`mustShow` freeze worked.
+Nevertheless twelve page final-structure identities persisted and the standard
+budget exhausted. No candidate, reconciliation, Blueprint, Wizard or render
+authority exists.
+
+The root cause was a redundant count-only gate. Attempt one carried 126
+sanitized structural messages plus eight exact presentation targets. The Book
+Surface builder rejected the aggregate 134 items before the canonical
+59,904-byte route-admission check, so it exposed neither the mixed Book Surface
+route nor its safe presentation-first fallback and fell through to
+`full_draft`.
+
+The correction removes only that aggregate sum. All per-scope 128 limits,
+message-length and secret/NUL guards, exact targets/references and canonical
+59,904-byte admission remain. The live-shaped offline regression now completes
+as `initial -> book_surface_patch -> book_surface_patch -> candidate` in the
+unchanged three calls/two repairs and `[40000, 32000, 36000]`, without a fourth
+call.
+
+Page-scoped final-structure diagnostics now persist only closed structural
+causes. Causes are required, sorted and unique on that exact shape and forbidden
+elsewhere. Identity remains family + code + locator, so cause changes do not
+change routing, unique counts or transitions; duplicate identities union
+causes deterministically. No raw validation prose, prompt, provider response,
+draft, authored identifier, path, stack, credential or secret is persisted.
+
+The minimal authority cutover is attempt diagnostics v3, receipt v34 and
+readiness v32. Receipt v33/readiness v31 become immutable legacy authority.
+Request v30, policy v12, Book Surface v4 prompt/schema, model, tier, reasoning,
+candidate v9, downstream envelopes, calls/repairs, output caps, retry/fallback
+and `$5` fence are unchanged.
+
+Validation is green on the implementation surfaces: **11 files / 554 tests**,
+TypeScript and `git diff --check` pass. Internal read-only adversarial review
+found one unreachable cause value; after removing it and adding an exhaustive
+producer census, both behavior and version reviews returned **0 BLOCKER / 0
+MAJOR / 0 MINOR**.
+
+One literal `npm run check` ran exactly once and was not retried. TypeScript and
+autonomous-story typecheck passed. Ordinary execution passed **3,242**, skipped
+**65**, and failed only the established **5 assertions** across four unchanged
+missing-output fixture specs. Resource-intensive execution passed **20 files /
+599 tests**, then Vitest reported one internal `onTaskUpdate` RPC timeout and
+returned exit `1`; diagnostic protocols remained valid. The fixture failures
+and runner timeout are recorded, not waived or presented as a green repository
+gate.
+
+Decision Gate commit is
+`dfe328ad9bb11403cb8198a5d7ac979c63b760f1`; implementation commit is
+`37e8e783b4cba132d280b575fd7708f59aadb4be`. Implementation/test provider and
+image cost is `$0`. Since the consumed attempt, no credential, provider, Fresh
+Readiness, preflight, live, image, Vision, render, storage/database, deployment,
+production or push action occurred. Independent Claude Code QA is pending;
+Codex does not self-award technical PASS. No new paid boundary may run before
+that gate passes.
+
+## BOOK SURFACE v4 PRESENTATION `mustShow` FREEZE — independent technical PASS; pushed
 
 The canonical attempt under
 `outputs/r1d-pure-structural-fresh-c82ffff4-20260817T185437313Z`
