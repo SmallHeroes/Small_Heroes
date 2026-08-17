@@ -5,23 +5,16 @@ import {
   Heebo,
   Noto_Serif_Hebrew,
   Rubik,
-  Secular_One,
 } from 'next/font/google';
 import localFont from 'next/font/local';
 import { COMMON } from '@/content';
 
 /*
- * Marketing heading face. Secular One (Google Fonts, OFL — free for
- * commercial use): a geometric, generously-round Hebrew display face built
- * for headlines. Warmer and more "children's book" than the slab Suez One,
- * and it pairs cleanly with Rubik in the body.
+ * Marketing type is Rubik end to end (per Guy — the Secular One display run
+ * was reverted; Rubik simply works better until a new display face is
+ * chosen). Its variable axis covers the heading scale: H1 800, H2 600.
+ * Secular One is no longer loaded, so nothing ships an unused webfont.
  */
-const secularOne = Secular_One({
-  subsets: ['hebrew', 'latin'],
-  weight: '400',
-  variable: '--font-secular',
-  display: 'swap',
-});
 
 /* Suez One stays loaded for the reader/book surfaces that reference it. */
 const suezOne = localFont({
@@ -89,7 +82,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="he"
       dir="rtl"
-      className={`${secularOne.variable} ${suezOne.variable} ${heebo.variable} ${rubik.variable} ${arimo.variable} ${frankRuhl.variable} ${davidLibre.variable} ${notoSerifHebrew.variable}`}
+      className={`${suezOne.variable} ${heebo.variable} ${rubik.variable} ${arimo.variable} ${frankRuhl.variable} ${davidLibre.variable} ${notoSerifHebrew.variable}`}
     >
       <body>{children}</body>
     </html>
