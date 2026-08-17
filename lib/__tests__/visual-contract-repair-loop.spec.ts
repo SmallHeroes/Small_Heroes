@@ -1148,6 +1148,17 @@ describe('page-contract compact repair routing', () => {
     );
     expect(result.provenance.attempt).toBe(3);
     expect(
+      result.repairAttempts[1]?.diagnosticIssues.some(
+        (issue) =>
+          issue.family === 'draft_contract' &&
+          issue.code === 'final_structural_invariant_invalid' &&
+          issue.locator.kind === 'page' &&
+          issue.locator.pageNumber === 2 &&
+          'causes' in issue &&
+          issue.causes.includes('page_steering_invalid'),
+      ),
+    ).toBe(true);
+    expect(
       result.repairAttempts.map((attempt) => attempt.nextRepairMode),
     ).toEqual([
       'page_spatial_reference_patch',

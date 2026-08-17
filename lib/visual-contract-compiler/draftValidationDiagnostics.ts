@@ -1,8 +1,10 @@
 import { canonicalize } from '@/lib/canonical-json';
 
 export const DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION =
-  'draft-validation-attempt-diagnostics/v2' as const;
+  'draft-validation-attempt-diagnostics/v3' as const;
 export const LEGACY_DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION =
+  'draft-validation-attempt-diagnostics/v2' as const;
+export const LEGACY_DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION_V1 =
   'draft-validation-attempt-diagnostics/v1' as const;
 export const MAX_PERSISTED_DRAFT_VALIDATION_TRANSITION_ITEMS = 128;
 export const MAX_DRAFT_VALIDATION_STRUCTURAL_INDEX = 1_000_000;
@@ -87,6 +89,24 @@ export type ActionSemanticValidationIssueCode =
   keyof typeof DRAFT_VALIDATION_ISSUE_CATALOG.action_semantic;
 export type SourceEvidenceIdValidationIssueCode =
   keyof typeof DRAFT_VALIDATION_ISSUE_CATALOG.source_evidence_id;
+
+export const PAGE_FINAL_STRUCTURAL_CAUSES = [
+  'page_spatial_binding_invalid',
+  'page_steering_invalid',
+  'page_character_presence_invalid',
+  'page_prop_state_invalid',
+  'page_cast_state_invalid',
+  'page_prop_constraints_invalid',
+  'page_action_requirements_invalid',
+  'page_safety_constraints_invalid',
+  'page_cross_field_invariant_invalid',
+  'page_cast_binding_invalid',
+  'page_human_presence_binding_invalid',
+  'page_transition_invalid',
+] as const;
+
+export type PageFinalStructuralCause =
+  (typeof PAGE_FINAL_STRUCTURAL_CAUSES)[number];
 
 export type DraftValidationCollectionRole =
   | 'locations'
@@ -259,8 +279,22 @@ export type DraftValidationIssue =
     }
   | {
       family: 'draft_contract';
-      code: DraftContractValidationIssueCode;
+      code: Exclude<
+        DraftContractValidationIssueCode,
+        'final_structural_invariant_invalid'
+      >;
       locator: DraftValidationLocator;
+    }
+  | {
+      family: 'draft_contract';
+      code: 'final_structural_invariant_invalid';
+      locator: Extract<DraftValidationLocator, { kind: 'page' }>;
+      causes: readonly PageFinalStructuralCause[];
+    }
+  | {
+      family: 'draft_contract';
+      code: 'final_structural_invariant_invalid';
+      locator: Exclude<DraftValidationLocator, { kind: 'page' }>;
     }
   | {
       family: 'action_semantic';
@@ -366,8 +400,17 @@ const TRANSITION_STATE_SET = new Set<string>([
   'persistent',
   'resolved',
 ]);
+const PAGE_FINAL_STRUCTURAL_CAUSE_SET = new Set<string>(
+  PAGE_FINAL_STRUCTURAL_CAUSES,
+);
 
 const ISSUE_KEYS = ['code', 'family', 'locator'].sort();
+const PAGE_FINAL_STRUCTURAL_ISSUE_KEYS = [
+  'causes',
+  'code',
+  'family',
+  'locator',
+].sort();
 const TRANSITION_ITEM_KEYS = ['issue', 'state'].sort();
 const ATTEMPT_DIAGNOSTICS_KEYS = [
   'currentUniqueCount',
@@ -635,9 +678,20 @@ export function draftValidationLocatorIsValid(
 export function draftValidationIssueIsValid(
   value: unknown,
 ): value is DraftValidationIssue {
+  const pageFinalStructural =
+    isObject(value) &&
+    value.family === 'draft_contract' &&
+    value.code === 'final_structural_invariant_invalid' &&
+    isObject(value.locator) &&
+    value.locator.kind === 'page';
   if (
     !isObject(value) ||
-    !exactKeys(value, ISSUE_KEYS) ||
+    !exactKeys(
+      value,
+      pageFinalStructural
+        ? PAGE_FINAL_STRUCTURAL_ISSUE_KEYS
+        : ISSUE_KEYS,
+    ) ||
     typeof value.family !== 'string' ||
     !FAMILY_SET.has(value.family) ||
     typeof value.code !== 'string' ||
@@ -655,6 +709,28 @@ export function draftValidationIssueIsValid(
     !ALLOWED_LOCATOR_KINDS[family].includes(value.locator.kind)
   ) {
     return false;
+  }
+  if (pageFinalStructural) {
+    if (
+      !Array.isArray(value.causes) ||
+      value.causes.length === 0 ||
+      value.causes.length > PAGE_FINAL_STRUCTURAL_CAUSES.length ||
+      value.causes.some(
+        (cause) =>
+          typeof cause !== 'string' ||
+          !PAGE_FINAL_STRUCTURAL_CAUSE_SET.has(cause),
+      )
+    ) {
+      return false;
+    }
+    const causes = value.causes as string[];
+    const canonicalCauses = [...new Set(causes)].sort();
+    if (
+      causes.length !== canonicalCauses.length ||
+      JSON.stringify(causes) !== JSON.stringify(canonicalCauses)
+    ) {
+      return false;
+    }
   }
   if (family === 'source_evidence_id') {
     if (value.locator.kind === 'source_evidence') return true;
@@ -700,12 +776,42 @@ export function normalizeDraftValidationIssues(
     if (!draftValidationIssueIsValid(value)) {
       throw new Error('draft validation diagnostic contract invalid');
     }
-    const issue = {
-      family: value.family,
-      code: value.code,
-      locator: canonicalLocator(value.locator),
-    } as DraftValidationIssue;
-    normalized.set(draftValidationIssueKey(issue), issue);
+    const issue = (
+      value.family === 'draft_contract' &&
+      value.code === 'final_structural_invariant_invalid' &&
+      value.locator.kind === 'page' &&
+      'causes' in value
+        ? {
+            family: value.family,
+            code: value.code,
+            locator: canonicalLocator(value.locator),
+            causes: [...value.causes],
+          }
+        : {
+            family: value.family,
+            code: value.code,
+            locator: canonicalLocator(value.locator),
+          }
+    ) as DraftValidationIssue;
+    const key = draftValidationIssueKey(issue);
+    const prior = normalized.get(key);
+    if (
+      prior?.family === 'draft_contract' &&
+      prior.code === 'final_structural_invariant_invalid' &&
+      prior.locator.kind === 'page' &&
+      'causes' in prior &&
+      issue.family === 'draft_contract' &&
+      issue.code === 'final_structural_invariant_invalid' &&
+      issue.locator.kind === 'page' &&
+      'causes' in issue
+    ) {
+      normalized.set(key, {
+        ...issue,
+        causes: [...new Set([...prior.causes, ...issue.causes])].sort(),
+      });
+    } else {
+      normalized.set(key, issue);
+    }
   }
   return [...normalized.entries()]
     .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))

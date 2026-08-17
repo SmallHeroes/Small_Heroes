@@ -9,6 +9,7 @@ import {
   DRAFT_VALIDATION_ISSUE_CATALOG,
   MAX_DRAFT_VALIDATION_STRUCTURAL_INDEX,
   MAX_PERSISTED_DRAFT_VALIDATION_TRANSITION_ITEMS,
+  PAGE_FINAL_STRUCTURAL_CAUSES,
   buildDraftValidationDiagnosticTrail,
   draftValidationAttemptDiagnosticsIsValid,
   draftValidationDiagnosticCodesForIssues,
@@ -18,6 +19,7 @@ import {
   draftValidationLocatorIsValid,
   normalizeDraftValidationIssues,
   type DraftValidationIssue,
+  type PageFinalStructuralCause,
 } from '@/lib/visual-contract-compiler/draftValidationDiagnostics';
 import {
   InvalidTemplateContractError,
@@ -72,6 +74,21 @@ const sourceEvidenceIssue: DraftValidationIssue = {
     coverageIndex: 0,
   },
 };
+
+function pageFinalStructuralIssue(
+  causes: readonly PageFinalStructuralCause[],
+): DraftValidationIssue {
+  return {
+    family: 'draft_contract',
+    code: 'final_structural_invariant_invalid',
+    locator: {
+      kind: 'page',
+      fieldRole: 'final_structure',
+      pageNumber: 7,
+    },
+    causes,
+  };
+}
 
 function source(relativePath: string): string {
   return fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
@@ -428,6 +445,154 @@ describe('closed draft-validation issue contract', () => {
       'draft_schema_validation_failed',
     ]);
   });
+
+  it('unions closed page structural causes without changing issue identity or transition counts', () => {
+    expect(PAGE_FINAL_STRUCTURAL_CAUSES).toEqual([
+      'page_spatial_binding_invalid',
+      'page_steering_invalid',
+      'page_character_presence_invalid',
+      'page_prop_state_invalid',
+      'page_cast_state_invalid',
+      'page_prop_constraints_invalid',
+      'page_action_requirements_invalid',
+      'page_safety_constraints_invalid',
+      'page_cross_field_invariant_invalid',
+      'page_cast_binding_invalid',
+      'page_human_presence_binding_invalid',
+      'page_transition_invalid',
+    ]);
+    const steering = pageFinalStructuralIssue(['page_steering_invalid']);
+    const spatial = pageFinalStructuralIssue([
+      'page_spatial_binding_invalid',
+    ]);
+    const normalized = normalizeDraftValidationIssues([
+      steering,
+      spatial,
+      steering,
+    ]);
+    expect(normalized).toEqual([
+      pageFinalStructuralIssue([
+        'page_spatial_binding_invalid',
+        'page_steering_invalid',
+      ]),
+    ]);
+
+    const trail = buildDraftValidationDiagnosticTrail([
+      [steering, spatial],
+      [pageFinalStructuralIssue(['page_transition_invalid'])],
+    ]);
+    expect(trail[0]).toMatchObject({
+      version: 'draft-validation-attempt-diagnostics/v3',
+      emittedCount: 2,
+      currentUniqueCount: 1,
+      newlyIntroducedCount: 1,
+    });
+    expect(trail[1]).toMatchObject({
+      emittedCount: 1,
+      currentUniqueCount: 1,
+      newlyIntroducedCount: 0,
+      persistentCount: 1,
+      resolvedCount: 0,
+      items: [
+        {
+          state: 'persistent',
+          issue: pageFinalStructuralIssue(['page_transition_invalid']),
+        },
+      ],
+    });
+  });
+
+  it('keeps every closed page structural cause backed by a validator producer', () => {
+    const producedCauses = new Set<string>();
+    for (const relativePath of [
+      'lib/visual-contract-compiler/validateBookVisualContract.ts',
+      'lib/visual-contract-compiler/validateVNextVisualContract.ts',
+    ]) {
+      const sourceFile = ts.createSourceFile(
+        relativePath,
+        source(relativePath),
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS,
+      );
+      const visit = (node: ts.Node): void => {
+        if (
+          ts.isCallExpression(node) &&
+          ts.isIdentifier(node.expression) &&
+          node.expression.text === 'pageFinalStructuralIssue' &&
+          node.arguments.length === 3 &&
+          ts.isStringLiteral(node.arguments[2])
+        ) {
+          producedCauses.add(node.arguments[2].text);
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(sourceFile);
+    }
+
+    expect([...producedCauses].sort()).toEqual(
+      [...PAGE_FINAL_STRUCTURAL_CAUSES].sort(),
+    );
+  });
+
+  it('requires canonical closed causes only on page-scoped final structural issues', () => {
+    const valid = pageFinalStructuralIssue([
+      'page_spatial_binding_invalid',
+      'page_steering_invalid',
+    ]);
+    expect(draftValidationIssueIsValid(valid)).toBe(true);
+
+    const mutations: Array<(value: Record<string, unknown>) => void> = [
+      (value) => {
+        delete value.causes;
+      },
+      (value) => {
+        value.causes = [];
+      },
+      (value) => {
+        value.causes = [
+          'page_steering_invalid',
+          'page_spatial_binding_invalid',
+        ];
+      },
+      (value) => {
+        value.causes = [
+          'page_spatial_binding_invalid',
+          'page_spatial_binding_invalid',
+        ];
+      },
+      (value) => {
+        value.causes = ['raw_provider_error'];
+      },
+    ];
+    for (const mutate of mutations) {
+      const candidate = structuredClone(valid) as unknown as Record<
+        string,
+        unknown
+      >;
+      mutate(candidate);
+      expect(draftValidationIssueIsValid(candidate)).toBe(false);
+    }
+
+    expect(
+      draftValidationIssueIsValid({
+        ...contractIssue,
+        causes: ['page_steering_invalid'],
+      }),
+    ).toBe(false);
+    expect(
+      draftValidationIssueIsValid({
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        locator: {
+          kind: 'collection_item',
+          collectionRole: 'page_contracts',
+          fieldRole: 'final_structure',
+          itemIndex: 0,
+        },
+      }),
+    ).toBe(true);
+  });
 });
 
 describe('canonical per-attempt transitions', () => {
@@ -560,6 +725,9 @@ describe('canonical per-attempt transitions', () => {
       },
       (value) => {
         value.truncated = true;
+      },
+      (value) => {
+        value.version = 'draft-validation-attempt-diagnostics/v2';
       },
       (value) => {
         value.version = 'draft-validation-attempt-diagnostics/v1';

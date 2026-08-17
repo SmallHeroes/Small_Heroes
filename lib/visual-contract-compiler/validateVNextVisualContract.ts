@@ -31,6 +31,7 @@ import {
   draftValidationLocatorForUntrustedPage,
   draftValidationIssueIsValid,
   type DraftValidationIssue,
+  type PageFinalStructuralCause,
 } from './draftValidationDiagnostics';
 import type {
   BookVisualContract,
@@ -104,6 +105,36 @@ function repeatIssueForNewErrors(
   for (let index = priorErrorCount; index < errors.length; index += 1) {
     diagnosticIssues.push(issue);
   }
+}
+
+function pageFinalStructuralIssue(
+  page: PageVisualContract,
+  pageIndex: number,
+  cause: PageFinalStructuralCause,
+): DraftValidationIssue {
+  return typeof page.pageNumber === 'number' &&
+    Number.isSafeInteger(page.pageNumber) &&
+    page.pageNumber > 0
+    ? {
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        locator: {
+          kind: 'page',
+          fieldRole: 'final_structure',
+          pageNumber: page.pageNumber,
+        },
+        causes: [cause],
+      }
+    : {
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        locator: {
+          kind: 'collection_item',
+          collectionRole: 'page_contracts',
+          fieldRole: 'final_structure',
+          itemIndex: pageIndex,
+        },
+      };
 }
 
 /** Collect every id a per-page `castIds[]` entry is allowed to resolve to. */
@@ -319,17 +350,28 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
   }
 
   for (const [pageIndex, page] of (contract.pageContracts ?? []).entries()) {
-    const errorCountBeforePage = errors.length;
     const label = typeof page.pageNumber === 'number' ? `page ${page.pageNumber}` : 'page (?)';
 
     // (1) exact per-page coverage — a zone is REQUIRED in vNext (base already verified the location and that a
     // present zoneId belongs to the page's location).
+    const errorCountBeforeSpatialBinding = errors.length;
     if (!isStr(page.zoneId)) {
       errors.push(`${label} has no zoneId (vNext requires every page to resolve to a location + zone)`);
     }
+    repeatIssueForNewErrors(
+      errors,
+      errorCountBeforeSpatialBinding,
+      diagnosticIssues,
+      pageFinalStructuralIssue(
+        page,
+        pageIndex,
+        'page_spatial_binding_invalid',
+      ),
+    );
 
     // (2) cast resolution — castIds is REQUIRED (fail-closed): every page must declare its cast, and every
     // entry must resolve to a defined member. A missing/omitted castIds is a hole, not a pass.
+    const errorCountBeforeCastBinding = errors.length;
     const pageCastIds = new Set<string>();
     if (!Array.isArray(page.castIds)) {
       errors.push(`${label}.castIds must be an array (vNext requires every page to declare its cast)`);
@@ -343,9 +385,16 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
       }
     }
     if (typeof page.pageNumber === 'number') castIdsByPage.set(page.pageNumber, pageCastIds);
+    repeatIssueForNewErrors(
+      errors,
+      errorCountBeforeCastBinding,
+      diagnosticIssues,
+      pageFinalStructuralIssue(page, pageIndex, 'page_cast_binding_invalid'),
+    );
 
     // (2b) characterPresence MUST be backed by castIds, both directions (fail-closed): a page cannot claim a
     // character is present without declaring it, nor list one it claims is absent.
+    const errorCountBeforeCharacterPresence = errors.length;
     const presence = page.characterPresence;
     if (presence?.child === true) {
       if (!childId) errors.push(`${label} marks the child present but cast.child.id is missing`);
@@ -361,8 +410,19 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
     if (companionId && pageCastIds.has(companionId) && presence?.companion !== true) {
       errors.push(`${label} lists the companion "${companionId}" in castIds but characterPresence.companion is not true`);
     }
+    repeatIssueForNewErrors(
+      errors,
+      errorCountBeforeCharacterPresence,
+      diagnosticIssues,
+      pageFinalStructuralIssue(
+        page,
+        pageIndex,
+        'page_character_presence_invalid',
+      ),
+    );
 
     // (2c) a recurring human listed on a page MUST record that page in its pagesPresent (reverse binding).
+    const errorCountBeforeHumanPresence = errors.length;
     if (typeof page.pageNumber === 'number') {
       for (const id of pageCastIds) {
         if (humanIds.has(id) && !humanPagesById.get(id)?.has(page.pageNumber)) {
@@ -370,35 +430,25 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
         }
       }
     }
+    repeatIssueForNewErrors(
+      errors,
+      errorCountBeforeHumanPresence,
+      diagnosticIssues,
+      pageFinalStructuralIssue(
+        page,
+        pageIndex,
+        'page_human_presence_binding_invalid',
+      ),
+    );
 
     // (3) transitions well-formed.
+    const errorCountBeforeTransition = errors.length;
     validateTransition(label, page, zoneIds, errors);
     repeatIssueForNewErrors(
       errors,
-      errorCountBeforePage,
+      errorCountBeforeTransition,
       diagnosticIssues,
-      typeof page.pageNumber === 'number' &&
-      Number.isSafeInteger(page.pageNumber) &&
-      page.pageNumber > 0
-        ? {
-            family: 'draft_contract',
-            code: 'final_structural_invariant_invalid',
-            locator: {
-              kind: 'page',
-              fieldRole: 'final_structure',
-              pageNumber: page.pageNumber,
-            },
-          }
-        : {
-            family: 'draft_contract',
-            code: 'final_structural_invariant_invalid',
-            locator: {
-              kind: 'collection_item',
-              collectionRole: 'page_contracts',
-              fieldRole: 'final_structure',
-              itemIndex: pageIndex,
-            },
-          },
+      pageFinalStructuralIssue(page, pageIndex, 'page_transition_invalid'),
     );
   }
 

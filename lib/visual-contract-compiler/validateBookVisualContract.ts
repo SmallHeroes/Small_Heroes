@@ -34,6 +34,7 @@ import { setBoardStableAuthorityErrors } from './setBoardStableAuthority';
 import {
   draftValidationIssueIsValid,
   type DraftValidationIssue,
+  type PageFinalStructuralCause,
 } from './draftValidationDiagnostics';
 
 export type ContractValidationResult =
@@ -106,6 +107,37 @@ function isStr(v: unknown): v is string {
 }
 function isStrArr(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((x) => typeof x === 'string');
+}
+
+function pageFinalStructuralIssue(
+  page: unknown,
+  pageIndex: number,
+  cause: PageFinalStructuralCause,
+): DraftValidationIssue {
+  return isObj(page) &&
+    typeof page.pageNumber === 'number' &&
+    Number.isSafeInteger(page.pageNumber) &&
+    page.pageNumber > 0
+    ? {
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        locator: {
+          kind: 'page',
+          fieldRole: 'final_structure',
+          pageNumber: page.pageNumber,
+        },
+        causes: [cause],
+      }
+    : {
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        locator: {
+          kind: 'collection_item',
+          collectionRole: 'page_contracts',
+          fieldRole: 'final_structure',
+          itemIndex: pageIndex,
+        },
+      };
 }
 
 /* ── Contract v2 (Stage 3) — CLOSED enums, checked at RUNTIME ─────────────────────────────────────
@@ -665,29 +697,7 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
   if (pages.length === 0) errors.push('pageContracts[] must be non-empty');
   pages.forEach((p, i) => {
     errors.useIssue(
-      isObj(p) &&
-      typeof p.pageNumber === 'number' &&
-      Number.isSafeInteger(p.pageNumber) &&
-      p.pageNumber > 0
-        ? {
-            family: 'draft_contract',
-            code: 'final_structural_invariant_invalid',
-            locator: {
-              kind: 'page',
-              fieldRole: 'final_structure',
-              pageNumber: p.pageNumber,
-            },
-          }
-        : {
-            family: 'draft_contract',
-            code: 'final_structural_invariant_invalid',
-            locator: {
-              kind: 'collection_item',
-              collectionRole: 'page_contracts',
-              fieldRole: 'final_structure',
-              itemIndex: i,
-            },
-          },
+      pageFinalStructuralIssue(p, i, 'page_spatial_binding_invalid'),
     );
     if (!isObj(p)) {
       errors.push(`pageContracts[${i}] is not an object`);
@@ -696,6 +706,9 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     const pc = p as Partial<PageVisualContract> & Record<string, unknown>;
     const label = typeof pc.pageNumber === 'number' ? `page ${pc.pageNumber}` : `pageContracts[${i}]`;
     if (typeof pc.pageNumber !== 'number') errors.push(`${label}.pageNumber must be a number`);
+    errors.useIssue(
+      pageFinalStructuralIssue(p, i, 'page_spatial_binding_invalid'),
+    );
     if (!isStr(pc.locationId) || !locationIds.has(pc.locationId)) {
       errors.push(`${label}.locationId "${String(pc.locationId)}" not a declared location`);
     } else if (isStr(pc.zoneId)) {
@@ -705,6 +718,7 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         errors.push(`${label}.zoneId "${pc.zoneId}" is not a zone of location "${pc.locationId}"`);
       }
     }
+    errors.useIssue(pageFinalStructuralIssue(p, i, 'page_steering_invalid'));
     if (!isStr(pc.camera)) errors.push(`${label}.camera missing`);
     // (Stage 4) `[]` stays legal here too (shipped artifacts author `mustNotShow: []`) — but a BLANK entry is
     // always an authoring bug: it steers nothing and `isStrArr` used to wave `['']` straight through.
@@ -716,9 +730,13 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     else if (pc.mustNotShow.some((s) => !isStr(s))) {
       errors.push(`${label}.mustNotShow contains a blank entry — omit it instead of authoring ""`);
     }
+    errors.useIssue(
+      pageFinalStructuralIssue(p, i, 'page_character_presence_invalid'),
+    );
     if (!isObj(pc.characterPresence) || typeof (pc.characterPresence as Record<string, unknown>).child !== 'boolean') {
       errors.push(`${label}.characterPresence.child must be boolean`);
     }
+    errors.useIssue(pageFinalStructuralIssue(p, i, 'page_prop_state_invalid'));
     if (Array.isArray(pc.propState)) {
       pc.propState.forEach((ps) => {
         if (isObj(ps) && isStr(ps.propId) && !propIds.has(ps.propId)) {
@@ -731,6 +749,7 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     // `[]` changes the frozen hash while emitting no steering → rejected), and every entry MUST carry ≥1 meaningful
     // authored field (bodyState OR a laterality field). A castId-only no-op entry likewise changes the hash while
     // emitting nothing → rejected. Malformed values fail closed at load AND at freeze.
+    errors.useIssue(pageFinalStructuralIssue(p, i, 'page_cast_state_invalid'));
     if (pc.castStates !== undefined) {
       if (!Array.isArray(pc.castStates)) {
         errors.push(`${label}.castStates must be an array when present`);
@@ -792,6 +811,9 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
       anchorIds: anchorsByLocation.get(String(pc.locationId)) ?? new Set<string>(),
     };
 
+    errors.useIssue(
+      pageFinalStructuralIssue(p, i, 'page_prop_constraints_invalid'),
+    );
     const propConstraints = nonEmptyArrayOrNull(pc.propConstraints, `${label}.propConstraints`, errors);
     if (propConstraints) {
       propConstraints.forEach((raw, j) => {
@@ -830,6 +852,9 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
       });
     }
 
+    errors.useIssue(
+      pageFinalStructuralIssue(p, i, 'page_action_requirements_invalid'),
+    );
     const actions = nonEmptyArrayOrNull(pc.actionRequirements, `${label}.actionRequirements`, errors);
     if (actions) {
       const checkIds = new Set<string>();
@@ -1195,6 +1220,9 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
       });
     }
 
+    errors.useIssue(
+      pageFinalStructuralIssue(p, i, 'page_safety_constraints_invalid'),
+    );
     const safetyConstraints = nonEmptyArrayOrNull(pc.safetyConstraints, `${label}.safetyConstraints`, errors);
     if (safetyConstraints) {
       safetyConstraints.forEach((raw, j) => {
@@ -1240,6 +1268,13 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     // being sound — deriving from entries we already rejected would pile confusing errors onto the real ones and
     // hand malformed input to the projections.
     if (errors.length === errorsBeforePageV2) {
+      errors.useIssue(
+        pageFinalStructuralIssue(
+          p,
+          i,
+          'page_cross_field_invariant_invalid',
+        ),
+      );
       const pcTyped = pc as unknown as PageVisualContract;
       const contractView = c as unknown as BookVisualContract;
 

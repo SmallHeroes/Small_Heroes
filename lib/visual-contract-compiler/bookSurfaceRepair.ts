@@ -696,11 +696,6 @@ export function bookSurfaceRepairAuthority(args: {
     !recurringPropValidationHints ||
     (repairRecurringProps && recurringPropValidationHints.length === 0) ||
     (!repairRecurringProps && recurringPropValidationHints.length > 0) ||
-    coverValidationHints.length +
-      recurringPropValidationHints.length +
-      affectedPageValidationHintCount +
-      args.presentationTargets.length >
-      MAX_VALIDATION_MESSAGES ||
     !refs ||
     !recurringPropIds ||
     JSON.stringify([...recurringPropIds].sort()) !==

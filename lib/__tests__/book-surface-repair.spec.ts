@@ -194,6 +194,7 @@ function pageStructureIssue(pageNumber: number): DraftValidationIssue {
       fieldRole: 'final_structure',
       pageNumber,
     },
+    causes: ['page_cross_field_invariant_invalid'],
   };
 }
 
@@ -533,6 +534,66 @@ describe('atomic compact book-surface repair v4', () => {
     expect(selected?.affectedPages[0]?.validationHints).toEqual([
       'page needs repair',
     ]);
+  });
+
+  it('defers aggregate hint admission to canonical bytes while retaining each bounded scope', () => {
+    const value = draft(12);
+    const pageIssues = Array.from({ length: 124 }, () =>
+      pageStructureIssue(1),
+    );
+    const structuralIssues = [
+      coverProjectionIssue,
+      recurringPropLifecycleIssue,
+      ...pageIssues,
+    ];
+    const structuralMessages = [
+      'cover needs exact repair',
+      'props need exact repair',
+      ...pageIssues.map(
+        (_issue, index) => `page one exact structural clause ${index + 1}`,
+      ),
+    ];
+    const selected = bookSurfaceRepairAuthority({
+      draft: value,
+      authorityDraft: value,
+      presentationTargets: Array.from({ length: 8 }, (_, index) =>
+        presentationTarget(index + 1),
+      ),
+      structuralDiagnosticIssues: structuralIssues,
+      structuralValidationMessages: structuralMessages,
+    });
+
+    expect(structuralMessages).toHaveLength(126);
+    expect(selected).not.toBeNull();
+    expect(selected?.presentationTargets).toHaveLength(8);
+    expect(selected?.coverValidationHints).toEqual([
+      'cover needs exact repair',
+    ]);
+    expect(selected?.recurringPropValidationHints).toEqual([
+      'props need exact repair',
+    ]);
+    expect(selected?.affectedPages[0]?.validationHints).toHaveLength(124);
+
+    const overScopeIssues = Array.from({ length: 129 }, () =>
+      pageStructureIssue(1),
+    );
+    expect(
+      bookSurfaceRepairAuthority({
+        draft: value,
+        authorityDraft: value,
+        presentationTargets: [presentationTarget(1)],
+        structuralDiagnosticIssues: [
+          coverProjectionIssue,
+          ...overScopeIssues,
+        ],
+        structuralValidationMessages: [
+          'cover remains bounded',
+          ...overScopeIssues.map(
+            (_issue, index) => `over-bound page clause ${index + 1}`,
+          ),
+        ],
+      }),
+    ).toBeNull();
   });
 
   it('admits a twelve-page live-shaped v4 request while retaining every exact hint', () => {

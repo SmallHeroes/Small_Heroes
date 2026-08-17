@@ -200,9 +200,9 @@ import {
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
   'visual-contract-authoring-request/v30' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v33' as const;
+  'visual-contract-authoring-receipt/v34' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v31' as const;
+  'visual-contract-authoring-readiness/v32' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v9' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -322,6 +322,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V31 =
   'visual-contract-authoring-receipt/v31' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V32 =
   'visual-contract-authoring-receipt/v32' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V33 =
+  'visual-contract-authoring-receipt/v33' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -382,6 +384,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V29 =
   'visual-contract-authoring-readiness/v29' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V30 =
   'visual-contract-authoring-readiness/v30' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V31 =
+  'visual-contract-authoring-readiness/v31' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -1022,6 +1026,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V30,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V31,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V32,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V33,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -1054,6 +1059,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V28,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V29,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V30,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V31,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -2624,6 +2630,9 @@ function cloneDraftValidationAttemptDiagnostics(
         family: item.issue.family,
         code: item.issue.code,
         locator: { ...item.issue.locator },
+        ...('causes' in item.issue
+          ? { causes: [...item.issue.causes] }
+          : {}),
       } as DraftValidationIssue,
     })),
   };
@@ -4303,7 +4312,7 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'readiness v31 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
+      'readiness v32 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
     );
   }
   const canonicalImportPreflight =
@@ -4479,7 +4488,7 @@ export function persistVisualContractAuthoringReceipt(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'receipt v33 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
+      'receipt v34 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
     );
   }
   return persistJsonArtifact({
@@ -4661,7 +4670,7 @@ export function persistVisualContractAuthoringReadiness(args: {
       canonicalJsonDigest(readinessPayload)
   ) {
     throw new Error(
-      'readiness v31 requires exact typed draft-validation evidence, a valid current receipt, and a valid current digest',
+      'readiness v32 requires exact typed draft-validation evidence, a valid current receipt, and a valid current digest',
     );
   }
   return persistJsonArtifact({

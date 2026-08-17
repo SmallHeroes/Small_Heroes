@@ -62,6 +62,20 @@ async function expectTypedRepairExhaustion(
       attempt.diagnosticIssues.some((issue) => issue.code === code),
     ),
   ).toBe(true);
+  if (code === 'final_structural_invariant_invalid') {
+    expect(
+      exhaustion.attempts.every((attempt) =>
+        attempt.diagnosticIssues.some(
+          (issue) =>
+            issue.family === 'draft_contract' &&
+            issue.code === 'final_structural_invariant_invalid' &&
+            issue.locator.kind === 'page' &&
+            'causes' in issue &&
+            issue.causes.includes('page_transition_invalid'),
+        ),
+      ),
+    ).toBe(true);
+  }
   expect(JSON.stringify(exhaustion.attempts)).not.toContain(
     'clinic.nonexistent_room',
   );
