@@ -10,6 +10,7 @@ import { initLandingMotion } from './motion';
 import { SiteHeader } from '@/app/components/SiteHeader';
 import { AboutSection } from './about-section';
 import { HeroDoodles } from './hero-doodles';
+import { HeroCollage } from './hero-collage';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
 
@@ -156,25 +157,14 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               </div>
 
               <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120" data-tilt="hero">
-                {/* Guy's three-beat story strips (fear -> meeting the friend ->
-                    walking out proud): the WIDE panorama on desktop, the stacked
-                    collage on phones. Desktop gets the 3D cursor tilt (motion.ts,
-                    hover+fine-pointer only) - rotation on .hero-float, scroll
-                    parallax stays on the img so they never fight over one
-                    transform. */}
+                {/* Guy's three story beats, now separate files, so the collage
+                    is composed in CSS and the beats can arrive IN ORDER —
+                    fear, then the friend, then walking out. Desktop keeps the
+                    3D cursor tilt (motion.ts, hover+fine-pointer only):
+                    rotation lives on .hero-float, so it never fights the
+                    per-panel reveal transforms. */}
                 <div className="hero-float">
-                  <picture>
-                    <source media="(min-width: 961px)" srcSet="/Images/DesktopHero.webp" />
-                    <img
-                      src="/Images/SmallHeroesHero.webp"
-                      alt="שלושה רגעים מסיפור: ילדה חוששת בהמתנה, פוגשת את החבר המלווה, ויוצאת גאה"
-                      className="hero-img"
-                      data-parallax="hero-img"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  </picture>
+                  <HeroCollage />
                 </div>
               </div>
             </div>
