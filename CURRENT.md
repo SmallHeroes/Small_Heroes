@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-hint-admission-observability` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `37983ab41e039fa36b694344f2a399504a6806e0`.
 
-## BOOK SURFACE HINT ADMISSION + STRUCTURAL CAUSES — implementation green; independent QA pending
+## BOOK SURFACE HINT ADMISSION + STRUCTURAL CAUSES — independent technical PASS; push pending
 
 The consumed pushed-head attempt under
 `outputs/r1d-mustshow-freeze-readiness-37983ab4-20260817T195312869Z`
@@ -66,9 +66,20 @@ Decision Gate commit is
 `37e8e783b4cba132d280b575fd7708f59aadb4be`. Implementation/test provider and
 image cost is `$0`. Since the consumed attempt, no credential, provider, Fresh
 Readiness, preflight, live, image, Vision, render, storage/database, deployment,
-production or push action occurred. Independent Claude Code QA is pending;
-Codex does not self-award technical PASS. No new paid boundary may run before
-that gate passes.
+production or push action occurred.
+
+Claude Code independently reviewed exact immutable range
+`37983ab41e039fa36b694344f2a399504a6806e0..adcb7012ca2827de112e345926eb872f97a5cf30`
+in plan/read-only mode and returned **PASS** with **0 BLOCKER / 0 MAJOR / 0
+MINOR**. It confirmed the exact topology, count-vs-byte admission boundary,
+three-call candidate, all twelve real cause producers, stable
+identity/count/transition behavior, privacy, minimal versions and unchanged
+policy/budgets. It did not rerun tests because plan-mode blocked Vitest; its
+code verdict used static source/test/Git verification plus the recorded test
+evidence. Its two advisories were nonblocking. This technical PASS does not
+itself authorize product acceptance, render, deployment or production. Under
+Guy's standing execution authority the next boundary is push, then brand-new
+Fresh Readiness and one bounded live authoring attempt.
 
 ## BOOK SURFACE v4 PRESENTATION `mustShow` FREEZE — independent technical PASS; pushed
 
