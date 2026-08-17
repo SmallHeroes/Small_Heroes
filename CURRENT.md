@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-mixed-source-evidence-action-repair-routing` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed `0285df438bd5a8bbcbd9db7563ab0778f50e4599`.
 
-## MIXED SOURCE-EVIDENCE / ACTION REPAIR ROUTING — implementation green, independent QA pending
+## MIXED SOURCE-EVIDENCE / ACTION REPAIR ROUTING — independent technical PASS
 
 The post-canonical-spatial live attempt exhausted three calls without a
 candidate. Fresh Readiness was
@@ -48,10 +48,21 @@ five assertions across four established missing-output fixture tests. That
 baseline remains a separate release HOLD and does not make the literal
 repository gate green.
 
+Claude Code independently reviewed exact range
+`0285df438bd5a8bbcbd9db7563ab0778f50e4599..96ffe6793327b3a46b0b262bb8fb14919a47cda3`
+read-only and returned **PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It
+verified the causal eligibility predicate, empty-authority guard, positive and
+negative routing regressions, unchanged policy surfaces, evidence fidelity and
+exact two-commit topology. Four notes remain advisory only: structurally guard
+against a future impossible empty diagnostics array, make the negative test's
+internal diagnostic stage more explicit, remember that one compact call repairs
+all proven malformed IDs across the book, and retain the constructor census.
+Codex records Claude's verdict; it does not self-award it.
+
 No credential, provider, Fresh Readiness, preflight, live, render,
-storage/database, deployment, production or push action occurred in this
-implementation. Independent Claude Code QA is pending; Codex does not
-self-award technical PASS.
+storage/database, deployment, production or push action occurred in the
+implementation and QA review. This PASS grants no candidate, downstream,
+render, deployment, release or Fresh Readiness acceptance.
 
 ## PURE PAGE-SPATIAL REPAIR CANONICAL CONTEXT — independent technical PASS
 
