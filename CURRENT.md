@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-atomic-compact-book-surface-v4` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on Decision Gate commit `f669a192835ea1a36ec15dbd2310ce861901d39a`, whose parent is pushed and independently QA-passed `48ef78ff77f325b111219654b463608792fd2b39`.
 
-## ATOMIC COMPACT BOOK SURFACE v4 — implementation green; independent QA pending
+## ATOMIC COMPACT BOOK SURFACE v4 — independent technical PASS; implementation pushed
 
 The consumed canonical attempt under
 `outputs/r1d-post-admission-fallback-readiness-48ef78ff-20260817T135224951Z`
@@ -62,10 +62,17 @@ or other infrastructure failure. Those five missing-fixture assertions remain
 a separate release HOLD and are not waived.
 
 Implementation and tests cost `$0`. No credential, provider, Fresh Readiness,
-live, image, Vision, render, storage/database, deployment, production or push
-action occurred. Independent Claude Code review of the immutable implementation
-range is pending; Codex does not self-award technical PASS. No new paid attempt
-may run until that gate passes and the reviewed branch is pushed.
+live, image, Vision, render, storage/database, deployment or production action
+occurred during implementation. Claude Code independently reviewed exact range
+`f669a192835ea1a36ec15dbd2310ce861901d39a..c73c22d6a2425bade902103566efba6a1468debc`
+read-only and returned **PASS** with **0 BLOCKER / 0 MAJOR / 0 MINOR**. It
+confirmed the atomic v4 authority/apply contract, selected-`mustShow`
+invariant, bounded route, no-final-slot dispatch, receipt/readiness bindings,
+minimal version cascade and material tests. The reviewed implementation commit
+was pushed to `origin/codex/r1d-atomic-compact-book-surface-v4`. Technical PASS
+does not itself authorize Fresh Readiness, provider, render, deployment,
+production or product acceptance; the next paid boundary requires a new Fresh
+Readiness authority on the exact pushed head.
 
 ## BOOK-SURFACE ADMISSION COMPACT FALLBACK — independent technical PASS; pushed
 

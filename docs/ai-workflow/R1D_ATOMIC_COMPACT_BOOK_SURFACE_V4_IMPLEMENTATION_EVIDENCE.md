@@ -2,13 +2,14 @@
 
 **Date:** 2026-08-17
 
-**Status:** implementation and repository validation complete; independent Claude Code technical QA pending; unpushed; no Fresh Readiness, provider, candidate, Wizard or render authority
+**Status:** implementation and repository validation complete; independent Claude Code technical PASS; reviewed implementation commit pushed; no Fresh Readiness, provider, candidate, Wizard or render authority
 
 ## Topology
 
 - Worktree: `C:\GNart\Work\sh-wt-r1d-output-budget`
 - Branch: `codex/r1d-atomic-compact-book-surface-v4`
 - Exact Decision Gate/base commit: `f669a192835ea1a36ec15dbd2310ce861901d39a`
+- Reviewed implementation commit: `c73c22d6a2425bade902103566efba6a1468debc`
 - Pushed, independently passed parent: `48ef78ff77f325b111219654b463608792fd2b39`
 - Production: untouched
 - Implementation/test provider cost: `$0`
@@ -152,6 +153,22 @@ The five failures are the established missing ignored-output fixture HOLD only:
 
 They are unchanged and not waived.
 
+## Independent Claude Code QA
+
+Claude Code independently reviewed exact immutable range
+`f669a192835ea1a36ec15dbd2310ce861901d39a..c73c22d6a2425bade902103566efba6a1468debc`
+read-only and returned **PASS** with **0 BLOCKER / 0 MAJOR / 0 MINOR**.
+It confirmed the atomic v4 authority and applier, exact selected-`mustShow`
+pointer/value invariant, three-call route, final-slot no-dispatch behavior,
+receipt/readiness cross-bindings, minimal version cascade, unchanged policy and
+cost boundaries, and material regression coverage. The five ignored-output
+fixture failures remain the separate release HOLD and were not waived.
+
+The reviewed implementation commit was pushed to
+`origin/codex/r1d-atomic-compact-book-surface-v4`. This technical PASS and push
+do not authorize Fresh Readiness, provider spend, render, deployment,
+production or product acceptance by themselves.
+
 ## Boundaries and rollback
 
 No model, tier, reasoning, standard call/repair budget, output caps, timeout,
@@ -161,5 +178,5 @@ No credential, network, provider, Fresh Readiness, live authoring, image, Vision
 render, storage/database, deployment, production or push action occurred.
 
 Rollback is the focused revert of the implementation commit. Historical
-artifacts require no migration or rewrite. Independent Claude Code QA must
-review the exact immutable base-to-head range before push or any paid boundary.
+artifacts require no migration or rewrite. Any paid boundary still requires a
+new Fresh Readiness authority bound to the exact pushed head.
