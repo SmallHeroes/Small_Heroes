@@ -86,6 +86,10 @@
       "evidence": ["direct_child_process_load"]
     },
     {
+      "path": "lib/visual-package/__tests__/qa-wizard-candidate-bridge.spec.ts",
+      "evidence": ["direct_child_process_load"]
+    },
+    {
       "path": "lib/visual-package/__tests__/release-check-cli.spec.ts",
       "evidence": ["direct_child_process_load"]
     }

@@ -12,35 +12,60 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from 'vitest';
 
 import {
+  STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
   CANONICAL_LIVE_EXECUTION_READINESS_VERSION,
   CANONICAL_LIVE_EXECUTION_REQUEST_VERSION,
+  CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION,
   CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
+  VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
   assertValidCanonicalLiveExecutionReadiness,
   buildCanonicalLiveExecutionRequest,
   buildVisualContractAuthoringStandardAttemptOutputBudget,
+  buildVisualContractAuthoringReadinessEvidence,
+  canonicalLiveExecutionExpectedAbsentPaths,
   canonicalJsonDigest,
   canonicalLiveExecutionExitDisposition,
+  canonicalLiveExecutionChildOutputAuthorityIssues,
   canonicalLiveExecutionReadinessIssues,
   canonicalLiveExecutionRequestIssues,
   materializeCanonicalLiveRequestBundle,
   minimalPlatformInheritedEnvironmentNames,
   projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd,
+  persistVisualContractAuthoringReadiness,
+  persistVisualContractAuthoringReceipt,
+  persistVisualContractCandidate,
   runCanonicalLiveExecution,
   runCanonicalLiveExecutionProbe,
+  runVisualContractAuthoring,
   verifyCanonicalLiveExecution,
   verifyCanonicalLiveRequestBundle,
   writeCanonicalMaterializationInput,
   type CanonicalLiveExecutionDependencies,
   type CanonicalLiveExecutionRequest,
+  type StorySourceAuthoritySnapshot,
+  type VisualContractAuthoringRequest,
 } from '@/lib/visual-package';
 import {
   canonicalLiveAuthoringJsonBytes,
 } from '@/lib/visual-package/canonicalLiveAuthoringArtifacts';
+import {
+  createOpenAIResponsesVisualContractAuthoringAdapter,
+  OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+  type OpenAIResponsesAuthoringTransport,
+} from '@/lib/visual-package/openaiResponsesVisualContractAuthoringAdapter';
+import {
+  projectPageMustShow,
+  type BookVisualContract,
+  type BookVisualContractTemplate,
+} from '@/lib/visual-contract-compiler';
 
 const REPO = process.cwd();
+const BANK = path.join(REPO, 'story-bank', 'v3-approved');
+const CANONICAL_STORY_KEY = 'bunny_ometz_adventure';
 const SUPERVISOR = path.join(
   REPO,
   'scripts',
@@ -104,6 +129,7 @@ interface ExecutionFixture {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const root of tempRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -175,6 +201,192 @@ function writeCanonical(
     canonicalLiveAuthoringJsonBytes(value),
     'utf8',
   );
+}
+
+function fullyActionedDraft(
+  snapshot: StorySourceAuthoritySnapshot,
+): BookVisualContractTemplate & Record<string, unknown> {
+  const draft = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        BANK,
+        `${CANONICAL_STORY_KEY}.visual-contract-template.json`,
+      ),
+      'utf8',
+    ),
+  ) as BookVisualContractTemplate & Record<string, unknown>;
+  for (const page of draft.pageContracts) {
+    const evidence =
+      snapshot.content.sourceEvidenceCatalog.entries.find(
+        (entry) => entry.pageNumber === page.pageNumber,
+      );
+    if (!evidence) {
+      throw new Error(
+        `missing page ${page.pageNumber} source evidence`,
+      );
+    }
+    (page as unknown as Record<string, unknown>).actionRequirements = [
+      {
+        beatId: `beat:p${page.pageNumber}:look`,
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    (page as unknown as Record<string, unknown>)
+      .actionSemanticCoverage = [
+      {
+        beatId: `beat:p${page.pageNumber}:look`,
+        sourceEvidenceId: evidence.sourceEvidenceId,
+        disposition: { kind: 'action_requirement' },
+      },
+    ];
+  }
+  for (const page of draft.pageContracts) {
+    page.mustShow = [
+      ...new Set([
+        ...page.mustShow,
+        ...projectPageMustShow(
+          page,
+          draft as unknown as BookVisualContract,
+        ),
+      ]),
+    ];
+  }
+  return draft;
+}
+
+function streamedResponse(output: unknown): Record<string, unknown> {
+  return {
+    id: 'resp_supervisor_output_fixture_1',
+    model: 'gpt-5.6-sol',
+    status: 'completed',
+    output: [
+      { id: 'reasoning_1', type: 'reasoning', summary: [] },
+      {
+        id: 'message_1',
+        type: 'message',
+        role: 'assistant',
+        status: 'completed',
+        content: [
+          {
+            annotations: [],
+            text: JSON.stringify(output),
+            type: 'output_text',
+          },
+        ],
+      },
+    ],
+    usage: {
+      input_tokens: 1_000,
+      input_tokens_details: {
+        cached_tokens: 200,
+        cache_write_tokens: 0,
+      },
+      output_tokens: 2_000,
+      output_tokens_details: { reasoning_tokens: 500 },
+      total_tokens: 3_000,
+    },
+  };
+}
+
+function canonicalProvider(draft: unknown) {
+  const transport: OpenAIResponsesAuthoringTransport = {
+    create: vi.fn(async (request) => {
+      request.observations.transportDispatchStarted = true;
+      request.observations.transportDispatchCount += 1;
+      request.observations.canonicalRouteConfirmed = true;
+      request.observations.canonicalModelConfirmed =
+        request.body.model === 'gpt-5.6-sol';
+      return streamedResponse(draft);
+    }),
+  };
+  return createOpenAIResponsesVisualContractAuthoringAdapter({
+    readCredential: vi.fn(
+      () => 'fixture-key-never-persisted',
+    ),
+    transport,
+  });
+}
+
+async function writeSuccessfulChildOutputs(
+  fixture: ExecutionFixture,
+): Promise<void> {
+  const manifest = fixture.materialized.manifest;
+  const outputRoot = path.posix.dirname(
+    path.posix.dirname(
+      manifest.artifacts.liveAuthoringRequest.path,
+    ),
+  );
+  const request = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        fixture.repoRoot,
+        manifest.artifacts.liveAuthoringRequest.path,
+      ),
+      'utf8',
+    ),
+  ) as VisualContractAuthoringRequest;
+  const snapshot = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        fixture.repoRoot,
+        manifest.artifacts.sourceSnapshot.path,
+      ),
+      'utf8',
+    ),
+  ) as StorySourceAuthoritySnapshot;
+  const run = await runVisualContractAuthoring({
+    request,
+    snapshot,
+    provider: canonicalProvider(fullyActionedDraft(snapshot)),
+    requiredMode: 'live',
+    requiredProviderEvidenceVersion:
+      OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+  });
+  if (run.receipt.status !== 'completed' || !run.compileResult) {
+    throw new Error('fixture authoring did not complete');
+  }
+  const readiness =
+    buildVisualContractAuthoringReadinessEvidence({
+      snapshot,
+      request,
+      receipt: run.receipt,
+    });
+  persistVisualContractAuthoringReceipt({
+    repoRoot: fixture.repoRoot,
+    outputDir: outputRoot,
+    receipt: run.receipt,
+    write: true,
+  });
+  persistVisualContractAuthoringReadiness({
+    repoRoot: fixture.repoRoot,
+    outputDir: outputRoot,
+    evidence: readiness,
+    receipt: run.receipt,
+    write: true,
+  });
+  persistVisualContractCandidate({
+    repoRoot: fixture.repoRoot,
+    outputDir: outputRoot,
+    receipt: run.receipt,
+    compileResult: run.compileResult,
+    write: true,
+  });
+  for (const category of [
+    'provider-call-failure-evidence',
+    'rejected-authoring-requests',
+  ]) {
+    fs.mkdirSync(
+      path.join(fixture.repoRoot, outputRoot, category),
+      { recursive: true },
+    );
+  }
 }
 
 function executionRequestPayload(
@@ -271,9 +483,15 @@ function executionRequestPayload(
         },
       ],
     expectedAbsentPaths:
-      overrides.expectedAbsentPaths ?? [
-        fixture.expectedAbsentPath,
-      ],
+      overrides.expectedAbsentPaths ??
+      canonicalLiveExecutionExpectedAbsentPaths(
+        path.posix.dirname(
+          path.posix.dirname(
+            fixture.materialized.manifest.artifacts
+              .liveAuthoringRequest.path,
+          ),
+        ),
+      ),
     credentialIsolation: {
       sourcePath:
         overrides.credentialPath ?? fixture.credentialPath,
@@ -320,6 +538,7 @@ function rebuildRequest(
 
 function createExecutionFixture(
   unicodePath = false,
+  canonicalAuthoring = false,
 ): ExecutionFixture {
   const parent = tempRoot();
   const repoRoot = path.join(
@@ -339,16 +558,49 @@ function createExecutionFixture(
     'outputs/\n',
     'utf8',
   );
-  const storyPath = 'stories/execution_fixture.md';
-  fs.mkdirSync(path.join(repoRoot, 'stories'), {
+  const storyKey = canonicalAuthoring
+    ? CANONICAL_STORY_KEY
+    : 'execution_fixture';
+  const storyPath = canonicalAuthoring
+    ? `story-bank/v3-approved/${CANONICAL_STORY_KEY}.md`
+    : 'stories/execution_fixture.md';
+  fs.mkdirSync(path.dirname(path.join(repoRoot, storyPath)), {
     recursive: true,
   });
-  fs.writeFileSync(
-    path.join(repoRoot, storyPath),
-    fixtureStory(),
-    'utf8',
-  );
-  git(repoRoot, ['add', '.gitignore', storyPath]);
+  if (canonicalAuthoring) {
+    fs.copyFileSync(
+      path.join(BANK, `${CANONICAL_STORY_KEY}.md`),
+      path.join(repoRoot, storyPath),
+    );
+    const styleAbsolute = path.join(
+      repoRoot,
+      STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+    );
+    fs.mkdirSync(path.dirname(styleAbsolute), {
+      recursive: true,
+    });
+    fs.copyFileSync(
+      path.join(
+        REPO,
+        STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+      ),
+      styleAbsolute,
+    );
+  } else {
+    fs.writeFileSync(
+      path.join(repoRoot, storyPath),
+      fixtureStory(),
+      'utf8',
+    );
+  }
+  git(repoRoot, [
+    'add',
+    '.gitignore',
+    storyPath,
+    ...(canonicalAuthoring
+      ? [STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH]
+      : []),
+  ]);
   git(repoRoot, ['commit', '-m', 'fixture']);
   git(parent, ['init', '--bare', remoteRoot]);
   git(repoRoot, ['remote', 'add', 'origin', remoteRoot]);
@@ -359,7 +611,7 @@ function createExecutionFixture(
     mode: 'source-authoring-live-request',
     repoRoot,
     outputDir: 'outputs/b0/input-artifacts',
-    storyKey: 'execution_fixture',
+    storyKey,
     storyPath,
     requestId: 'execution-b0-request-001',
     requestedAt: REQUESTED_AT,
@@ -449,6 +701,7 @@ function fakeChild(args: {
   exitCode?: number;
   stdout?: string;
   stderr?: string;
+  beforeClose?: () => void | Promise<void>;
 }) {
   const child = new EventEmitter() as EventEmitter & {
     stdout: PassThrough;
@@ -458,11 +711,22 @@ function fakeChild(args: {
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
   child.kill = () => true;
-  process.nextTick(() => {
+  process.nextTick(async () => {
     if (args.stdout) child.stdout.write(args.stdout);
     if (args.stderr) child.stderr.write(args.stderr);
     child.stdout.end();
     child.stderr.end();
+    try {
+      await args.beforeClose?.();
+    } catch (error) {
+      child.emit(
+        'error',
+        error instanceof Error
+          ? error
+          : new Error('fake child setup failed'),
+      );
+      return;
+    }
     if (args.kind === 'error') {
       child.emit('error', new Error('raw spawn failure'));
     } else if (args.kind === 'signal') {
@@ -531,7 +795,7 @@ describe('canonical live execution request and readiness', () => {
     });
     expect(readiness.expectedAbsence).toEqual({
       status: 'verified',
-      checkedPathCount: 1,
+      checkedPathCount: 5,
     });
     expect(readiness.credentialIsolation).toEqual({
       policy: 'minimal-platform-allowlist/v1',
@@ -1052,6 +1316,13 @@ describe('B0 composition and explicit filesystem fences', () => {
         }),
       ),
     ).toThrow('canonical_live_execution_request_invalid');
+    expect(() =>
+      buildCanonicalLiveExecutionRequest(
+        executionRequestPayload(fixture, {
+          expectedAbsentPaths: [fixture.expectedAbsentPath],
+        }),
+      ),
+    ).toThrow('canonical_live_execution_request_invalid');
 
     const present = path.join(
       fixture.repoRoot,
@@ -1488,7 +1759,7 @@ describe('verify boundary and public Node contract', () => {
 
 describe('future live test boundary', () => {
   it('re-verifies immediately, reads only the declared fake key, and spawns exact manifest argv with a minimal environment', async () => {
-    const fixture = createExecutionFixture(true);
+    const fixture = createExecutionFixture(true, true);
     const fakeKey = 'sk-fake-live-key-123456789';
     const state = { cleared: false };
     const captured: {
@@ -1544,6 +1815,8 @@ describe('future live test boundary', () => {
             exitCode: 0,
             stdout: fakeKey,
             stderr: fakeKey,
+            beforeClose: () =>
+              writeSuccessfulChildOutputs(fixture),
           }) as never;
         },
       },
@@ -1588,7 +1861,172 @@ describe('future live test boundary', () => {
       stdout: 'suppressed',
       stderr: 'suppressed',
     });
+    expect(result.outputAuthority).toMatchObject({
+      version:
+        CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION,
+      outputRoot: 'outputs/b0/live-request',
+      authoringRequest: {
+        version: VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+        path:
+          fixture.materialized.manifest.artifacts
+            .liveAuthoringRequest.path,
+        digest:
+          fixture.materialized.manifest.artifacts
+            .liveAuthoringRequest.digest,
+      },
+      observation: {
+        phase: 'synchronous_after_child_close',
+        termination: { kind: 'exit', exitCode: 0 },
+      },
+    });
+    expect(
+      canonicalLiveExecutionChildOutputAuthorityIssues(
+        result.outputAuthority,
+      ),
+    ).toEqual([]);
   });
+
+  it('rejects exit zero without the exact child output tuple and cannot be upgraded by post-hoc artifacts', async () => {
+    const fixture = createExecutionFixture(false, true);
+    const state = { cleared: false };
+    const result = await runCanonicalLiveExecution({
+      repoRoot: fixture.repoRoot,
+      requestPath: REQUEST_PATH,
+      dependencies: {
+        env: { NODE_ENV: 'test' },
+        readCredential() {
+          return fakeCredential(
+            'sk-fake-missing-output-key',
+            state,
+          );
+        },
+        spawnTrusted() {
+          return fakeChild({
+            kind: 'exit',
+            exitCode: 0,
+          }) as never;
+        },
+      },
+    });
+    expect(result).toMatchObject({
+      status: 'child_failed',
+      reasonCodes: ['child_output_authority_rejected'],
+      child: {
+        termination: { kind: 'exit', exitCode: 0 },
+      },
+      outputAuthority: null,
+    });
+    expect(canonicalLiveExecutionExitDisposition(result)).toEqual({
+      kind: 'exit',
+      exitCode: 1,
+    });
+    expect(state.cleared).toBe(true);
+
+    await writeSuccessfulChildOutputs(fixture);
+    expect(result.status).toBe('child_failed');
+    expect(result.outputAuthority).toBeNull();
+  });
+
+  it.each([
+    'tampered_artifact',
+    'multiple_artifacts',
+    'multiple_request_artifacts',
+    'provider_failure_artifact',
+    'rejected_request_artifact',
+  ] as const)(
+    'rejects exit zero with %s in the child output surface',
+    async (scenario) => {
+      const fixture = createExecutionFixture(false, true);
+      const outputRoot = path.posix.dirname(
+        path.posix.dirname(
+          fixture.materialized.manifest.artifacts
+            .liveAuthoringRequest.path,
+        ),
+      );
+      const result = await runCanonicalLiveExecution({
+        repoRoot: fixture.repoRoot,
+        requestPath: REQUEST_PATH,
+        dependencies: {
+          env: { NODE_ENV: 'test' },
+          readCredential() {
+            return fakeCredential(
+              'sk-fake-invalid-output-key',
+              { cleared: false },
+            );
+          },
+          spawnTrusted() {
+            return fakeChild({
+              kind: 'exit',
+              exitCode: 0,
+              beforeClose: async () => {
+                await writeSuccessfulChildOutputs(fixture);
+                if (scenario === 'tampered_artifact') {
+                  const directory = path.join(
+                    fixture.repoRoot,
+                    outputRoot,
+                    'authoring-receipts',
+                  );
+                  const receiptPath = path.join(
+                    directory,
+                    fs.readdirSync(directory)[0]!,
+                  );
+                  fs.appendFileSync(receiptPath, ' ', 'utf8');
+                } else if (
+                  scenario === 'multiple_artifacts' ||
+                  scenario === 'multiple_request_artifacts'
+                ) {
+                  const category =
+                    scenario === 'multiple_request_artifacts'
+                      ? 'authoring-requests'
+                      : 'contract-candidates';
+                  const directory = path.join(
+                    fixture.repoRoot,
+                    outputRoot,
+                    category,
+                  );
+                  const source = path.join(
+                    directory,
+                    fs.readdirSync(directory)[0]!,
+                  );
+                  fs.copyFileSync(
+                    source,
+                    path.join(directory, `${'c'.repeat(64)}.json`),
+                  );
+                } else {
+                  const category =
+                    scenario === 'provider_failure_artifact'
+                      ? 'provider-call-failure-evidence'
+                      : 'rejected-authoring-requests';
+                  fs.writeFileSync(
+                    path.join(
+                      fixture.repoRoot,
+                      outputRoot,
+                      category,
+                      `${'d'.repeat(64)}.json`,
+                    ),
+                    '{}\n',
+                    'utf8',
+                  );
+                }
+              },
+            }) as never;
+          },
+        },
+      });
+      expect(result).toMatchObject({
+        status: 'child_failed',
+        reasonCodes: ['child_output_authority_rejected'],
+        child: {
+          termination: { kind: 'exit', exitCode: 0 },
+        },
+        outputAuthority: null,
+      });
+      expect(canonicalLiveExecutionExitDisposition(result)).toEqual({
+        kind: 'exit',
+        exitCode: 1,
+      });
+    },
+  );
 
   it('rejects ambient credential authority before source access', async () => {
     const fixture = createExecutionFixture();
@@ -1627,7 +2065,7 @@ describe('future live test boundary', () => {
   });
 
   it('reads only one fake OPENAI_API_KEY assignment from the declared source and copies no neighboring assignment', async () => {
-    const fixture = createExecutionFixture();
+    const fixture = createExecutionFixture(false, true);
     const fakeKey = 'sk-fake-source-file-key-123456';
     const credentialPath = path.join(
       fixture.parent,
@@ -1660,6 +2098,8 @@ describe('future live test boundary', () => {
           return fakeChild({
             kind: 'exit',
             exitCode: 0,
+            beforeClose: () =>
+              writeSuccessfulChildOutputs(fixture),
           }) as never;
         },
       },

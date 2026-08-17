@@ -19,6 +19,7 @@ import {
   assertValidCanonicalLiveExecutionRequestMaterializationInput,
   canonicalLiveExecutionRequestMaterializationInputIssues,
   canonicalLiveExecutionRequestMaterializationRejection,
+  canonicalLiveExecutionExpectedAbsentPaths,
   canonicalJsonDigest,
   materializeCanonicalLiveExecutionRequest,
   materializeCanonicalLiveRequestBundle,
@@ -86,6 +87,7 @@ interface MaterializationFixture {
   manifestDigest: string;
   preservationPath: string;
   expectedAbsentPath: string;
+  expectedAbsentPaths: string[];
   credentialPath: string;
   input: CanonicalLiveExecutionRequestMaterializationInput;
   inputPath: string;
@@ -266,6 +268,10 @@ function createFixture(
   );
   const expectedAbsentPath =
     'outputs/b0/live-request/contract-candidates';
+  const expectedAbsentPaths =
+    canonicalLiveExecutionExpectedAbsentPaths(
+      'outputs/b0/live-request',
+    );
   const credentialPath = path.join(
     parent,
     unicodePath
@@ -282,7 +288,7 @@ function createFixture(
         materialized.persistence.manifest.path,
       outputDir: MATERIALIZATION_OUTPUT_DIR,
       preservationPaths: [preservationPath],
-      expectedAbsentPaths: [expectedAbsentPath],
+      expectedAbsentPaths,
       credentialSourcePath: credentialPath,
     };
   const fixture: MaterializationFixture = {
@@ -294,6 +300,7 @@ function createFixture(
     manifestDigest: materialized.persistence.manifest.digest,
     preservationPath,
     expectedAbsentPath,
+    expectedAbsentPaths,
     credentialPath,
     input,
     inputPath: '',
@@ -459,9 +466,9 @@ describe('canonical live execution request materialization', () => {
         sha256: sha256(preserved),
       },
     ]);
-    expect(request.expectedAbsentPaths).toEqual([
-      fixture.expectedAbsentPath,
-    ]);
+    expect(request.expectedAbsentPaths).toEqual(
+      fixture.expectedAbsentPaths,
+    );
     expect(request.credentialIsolation).toMatchObject({
       sourcePath: fixture.credentialPath,
       variableName: 'OPENAI_API_KEY',

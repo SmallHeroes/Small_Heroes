@@ -26,6 +26,7 @@ import {
   type CanonicalLiveExecutionRequestMaterializationSuccess,
 } from './liveExecutionRequestMaterialization';
 import {
+  CANONICAL_LIVE_EXECUTION_EXPECTED_ABSENCE_CATEGORIES,
   CANONICAL_LIVE_EXECUTION_READINESS_VERSION,
   verifyCanonicalLiveExecution,
   type CanonicalLiveExecutionReadiness,
@@ -79,13 +80,8 @@ const REASON_CODE_PATTERN = /^[a-z0-9_:-]{1,128}$/;
 const MAX_EVIDENCE_BYTES = 1024 * 1024;
 const MAX_EVIDENCE_FILES = 64;
 
-const EXPECTED_ABSENCE_CATEGORIES = [
-  'authoring-receipts',
-  'contract-candidates',
-  'provider-call-failure-evidence',
-  'readiness-evidence',
-  'rejected-authoring-requests',
-] as const;
+const EXPECTED_ABSENCE_CATEGORIES =
+  CANONICAL_LIVE_EXECUTION_EXPECTED_ABSENCE_CATEGORIES;
 
 const DEPENDENCY_FILES = {
   tsx: {

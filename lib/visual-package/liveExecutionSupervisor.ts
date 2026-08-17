@@ -26,6 +26,18 @@ import {
   type LiveRequestMaterializationManifest,
   type LiveRequestStructuredOutputCompatibilityAuthority,
 } from './liveRequestMaterialization';
+import {
+  VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
+  VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION,
+  VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+  VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
+  buildVisualContractCandidateArtifact,
+  persistVisualContractAuthoringReadiness,
+  persistVisualContractAuthoringReceipt,
+  type VisualContractAuthoringReadinessEvidence,
+  type VisualContractAuthoringReceipt,
+  type VisualContractCandidateArtifact,
+} from './visualContractAuthoringLifecycle';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_VERSION =
   'canonical-live-execution-request/v26' as const;
@@ -34,7 +46,17 @@ export const CANONICAL_LIVE_EXECUTION_READINESS_VERSION =
 export const CANONICAL_LIVE_EXECUTION_PROBE_VERSION =
   'canonical-live-execution-probe/v1' as const;
 export const CANONICAL_LIVE_EXECUTION_RESULT_VERSION =
-  'canonical-live-execution-result/v18' as const;
+  'canonical-live-execution-result/v19' as const;
+export const CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION =
+  'canonical-live-execution-child-output-authority/v1' as const;
+
+export const CANONICAL_LIVE_EXECUTION_EXPECTED_ABSENCE_CATEGORIES = [
+  'authoring-receipts',
+  'contract-candidates',
+  'provider-call-failure-evidence',
+  'readiness-evidence',
+  'rejected-authoring-requests',
+] as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const COMMIT_PATTERN = /^[a-f0-9]{40}$/;
@@ -213,6 +235,32 @@ export interface CanonicalLiveExecutionReadiness {
   digest: string;
 }
 
+export interface CanonicalLiveExecutionChildOutputArtifactAuthority {
+  version: string;
+  path: string;
+  digest: string;
+}
+
+export interface CanonicalLiveExecutionChildOutputAuthority {
+  version:
+    typeof CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION;
+  outputRoot: string;
+  authoringRequest:
+    CanonicalLiveExecutionChildOutputArtifactAuthority;
+  authoringReceipt:
+    CanonicalLiveExecutionChildOutputArtifactAuthority;
+  authoringReadiness:
+    CanonicalLiveExecutionChildOutputArtifactAuthority;
+  visualContractCandidate:
+    CanonicalLiveExecutionChildOutputArtifactAuthority;
+  observation: {
+    phase: 'synchronous_after_child_close';
+    termination: { kind: 'exit'; exitCode: 0 };
+  };
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
+
 export interface CanonicalLiveExecutionLiveResult {
   version: typeof CANONICAL_LIVE_EXECUTION_RESULT_VERSION;
   mode: 'live';
@@ -239,6 +287,9 @@ export interface CanonicalLiveExecutionLiveResult {
         stdout: 'suppressed';
         stderr: 'suppressed';
       };
+  outputAuthority:
+    | CanonicalLiveExecutionChildOutputAuthority
+    | null;
 }
 
 export interface CanonicalLiveExecutionProbeResult {
@@ -434,6 +485,165 @@ function sortedUnique(
   );
 }
 
+function childOutputAuthorityPayload(
+  authority: Omit<
+    CanonicalLiveExecutionChildOutputAuthority,
+    'digest' | 'digestAlgorithm'
+  >,
+): Omit<
+  CanonicalLiveExecutionChildOutputAuthority,
+  'digest' | 'digestAlgorithm'
+> {
+  return authority;
+}
+
+export function canonicalLiveExecutionChildOutputAuthorityIssues(
+  value: unknown,
+): string[] {
+  const authority = recordValue(value);
+  if (!authority) {
+    return ['child_output_authority_not_object'];
+  }
+  const issues = exactKeys(
+    authority,
+    [
+      'version',
+      'outputRoot',
+      'authoringRequest',
+      'authoringReceipt',
+      'authoringReadiness',
+      'visualContractCandidate',
+      'observation',
+      'digestAlgorithm',
+      'digest',
+    ],
+    'child_output_authority',
+  );
+  if (
+    authority.version !==
+    CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION
+  ) {
+    issues.push('child_output_authority_version_invalid');
+  }
+  if (
+    canonicalRelativePathIssues(
+      authority.outputRoot,
+      'child_output_authority_output_root',
+    ).length > 0
+  ) {
+    issues.push('child_output_authority_output_root_invalid');
+  }
+
+  const artifactDefinitions = [
+    {
+      field: 'authoringRequest',
+      category: 'authoring-requests',
+      version: VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+    },
+    {
+      field: 'authoringReceipt',
+      category: 'authoring-receipts',
+      version: VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION,
+    },
+    {
+      field: 'authoringReadiness',
+      category: 'readiness-evidence',
+      version: VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
+    },
+    {
+      field: 'visualContractCandidate',
+      category: 'contract-candidates',
+      version: VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
+    },
+  ] as const;
+  for (const definition of artifactDefinitions) {
+    const artifact = recordValue(authority[definition.field]);
+    if (
+      !artifact ||
+      exactKeys(
+        artifact,
+        ['version', 'path', 'digest'],
+        `child_output_authority_${definition.field}`,
+      ).length > 0 ||
+      artifact.version !== definition.version ||
+      typeof artifact.digest !== 'string' ||
+      !DIGEST_PATTERN.test(artifact.digest) ||
+      canonicalRelativePathIssues(
+        artifact.path,
+        `child_output_authority_${definition.field}_path`,
+      ).length > 0 ||
+      typeof authority.outputRoot !== 'string' ||
+      artifact.path !==
+        path.posix.join(
+          authority.outputRoot,
+          definition.category,
+          `${artifact.digest}.json`,
+        )
+    ) {
+      issues.push(
+        `child_output_authority_${definition.field}_invalid`,
+      );
+    }
+  }
+
+  const observation = recordValue(authority.observation);
+  const termination = recordValue(observation?.termination);
+  if (
+    !observation ||
+    exactKeys(
+      observation,
+      ['phase', 'termination'],
+      'child_output_authority_observation',
+    ).length > 0 ||
+    observation.phase !== 'synchronous_after_child_close' ||
+    !termination ||
+    exactKeys(
+      termination,
+      ['kind', 'exitCode'],
+      'child_output_authority_termination',
+    ).length > 0 ||
+    termination.kind !== 'exit' ||
+    termination.exitCode !== 0
+  ) {
+    issues.push('child_output_authority_observation_invalid');
+  }
+  if (
+    authority.digestAlgorithm !== 'canonical-json-sha256' ||
+    typeof authority.digest !== 'string' ||
+    !DIGEST_PATTERN.test(authority.digest)
+  ) {
+    issues.push('child_output_authority_digest_invalid');
+  } else {
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = authority;
+    if (
+      authority.digest !==
+      canonicalJsonDigest(
+        payload as Omit<
+          CanonicalLiveExecutionChildOutputAuthority,
+          'digest' | 'digestAlgorithm'
+        >,
+      )
+    ) {
+      issues.push('child_output_authority_digest_invalid');
+    }
+  }
+  return [...new Set(issues)].sort();
+}
+
+export function assertValidCanonicalLiveExecutionChildOutputAuthority(
+  value: unknown,
+): asserts value is CanonicalLiveExecutionChildOutputAuthority {
+  const issues =
+    canonicalLiveExecutionChildOutputAuthorityIssues(value);
+  if (issues.length > 0) {
+    throw new Error(issues.join(','));
+  }
+}
+
 export function minimalPlatformInheritedEnvironmentNames(
   platform: NodeJS.Platform = process.platform,
 ): string[] {
@@ -452,6 +662,38 @@ function futureCommandIdentity(
     executable: command.executable,
     arguments: command.arguments,
   });
+}
+
+function uniqueCommandArgumentValue(
+  argv: readonly string[],
+  flag: '--out' | '--request',
+): string | null {
+  const indexes = argv
+    .map((argument, index) =>
+      argument === flag ? index : -1,
+    )
+    .filter((index) => index >= 0);
+  if (indexes.length !== 1) return null;
+  const value = argv[indexes[0]! + 1];
+  return typeof value === 'string' && value.length > 0
+    ? value
+    : null;
+}
+
+export function canonicalLiveExecutionExpectedAbsentPaths(
+  outputRoot: string,
+): string[] {
+  if (
+    canonicalRelativePathIssues(
+      outputRoot,
+      'execution_output_root',
+    ).length > 0
+  ) {
+    throw new Error('execution_output_root_invalid');
+  }
+  return CANONICAL_LIVE_EXECUTION_EXPECTED_ABSENCE_CATEGORIES.map(
+    (category) => path.posix.join(outputRoot, category),
+  ).sort();
 }
 
 function requestPayload(
@@ -837,6 +1079,29 @@ export function canonicalLiveExecutionRequestIssues(
   ) {
     issues.push('execution_future_command_identity_invalid');
   }
+  if (
+    command &&
+    Array.isArray(command.arguments) &&
+    Array.isArray(request.expectedAbsentPaths)
+  ) {
+    const outputRoot = uniqueCommandArgumentValue(
+      command.arguments as string[],
+      '--out',
+    );
+    try {
+      if (
+        outputRoot === null ||
+        JSON.stringify(request.expectedAbsentPaths) !==
+          JSON.stringify(
+            canonicalLiveExecutionExpectedAbsentPaths(outputRoot),
+          )
+      ) {
+        issues.push('execution_expected_absence_invalid');
+      }
+    } catch {
+      issues.push('execution_expected_absence_invalid');
+    }
+  }
 
   if (request.digestAlgorithm !== 'canonical-json-sha256') {
     issues.push('execution_request_digest_algorithm_invalid');
@@ -1006,6 +1271,168 @@ function resolveContainedRegularFile(args: {
     throw new Error('contained_path_not_canonical');
   }
   return real;
+}
+
+function resolveContainedDirectory(args: {
+  repositoryRealPath: string;
+  relativePath: string;
+}): string {
+  if (
+    canonicalRelativePathIssues(
+      args.relativePath,
+      'contained_directory',
+    ).length > 0
+  ) {
+    throw new Error('contained_directory_invalid');
+  }
+  const lexical = path.resolve(
+    args.repositoryRealPath,
+    args.relativePath,
+  );
+  repoRelativePath(args.repositoryRealPath, lexical);
+  let real: string;
+  let lstat: fs.Stats;
+  let stat: fs.Stats;
+  try {
+    real = fs.realpathSync(lexical);
+    lstat = fs.lstatSync(lexical);
+    stat = fs.statSync(real);
+  } catch {
+    throw new Error('contained_directory_missing_or_unreadable');
+  }
+  assertContained(args.repositoryRealPath, real);
+  if (
+    !pathsEqual(lexical, real) ||
+    lstat.isSymbolicLink() ||
+    !stat.isDirectory() ||
+    repoRelativePath(args.repositoryRealPath, real) !==
+      args.relativePath
+  ) {
+    throw new Error('contained_directory_alias_or_type_rejected');
+  }
+  return real;
+}
+
+interface LoadedCanonicalChildOutputArtifact {
+  descriptor: CanonicalLiveExecutionChildOutputArtifactAuthority;
+  value: Record<string, unknown>;
+}
+
+function readCanonicalChildOutputArtifact(args: {
+  repositoryRealPath: string;
+  relativePath: string;
+  expectedVersion: string;
+}): LoadedCanonicalChildOutputArtifact {
+  const absolute = resolveContainedRegularFile({
+    repositoryRealPath: args.repositoryRealPath,
+    relativePath: args.relativePath,
+    rejectHardLinks: true,
+  });
+  const stat = fs.statSync(absolute);
+  if (stat.size <= 0 || stat.size > MAX_PRESERVATION_FILE_BYTES) {
+    throw new Error('child_output_artifact_size_invalid');
+  }
+  const raw = fs.readFileSync(absolute);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw.toString('utf8')) as unknown;
+  } catch {
+    throw new Error('child_output_artifact_json_invalid');
+  }
+  const artifact = recordValue(parsed);
+  if (!artifact) {
+    throw new Error('child_output_artifact_not_object');
+  }
+  let canonicalBytes: string;
+  try {
+    canonicalBytes = canonicalLiveAuthoringJsonBytes(artifact);
+  } catch {
+    throw new Error('child_output_artifact_domain_invalid');
+  }
+  if (!raw.equals(Buffer.from(canonicalBytes, 'utf8'))) {
+    throw new Error('child_output_artifact_bytes_noncanonical');
+  }
+  if (
+    artifact.version !== args.expectedVersion ||
+    artifact.digestAlgorithm !== 'canonical-json-sha256' ||
+    typeof artifact.digest !== 'string' ||
+    !DIGEST_PATTERN.test(artifact.digest)
+  ) {
+    throw new Error('child_output_artifact_identity_invalid');
+  }
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = artifact;
+  if (canonicalJsonDigest(payload) !== artifact.digest) {
+    throw new Error('child_output_artifact_digest_invalid');
+  }
+  if (
+    path.posix.basename(args.relativePath) !==
+    `${artifact.digest}.json`
+  ) {
+    throw new Error('child_output_artifact_filename_invalid');
+  }
+  return {
+    descriptor: {
+      version: args.expectedVersion,
+      path: args.relativePath,
+      digest: artifact.digest,
+    },
+    value: artifact,
+  };
+}
+
+function soleCanonicalChildOutputArtifact(args: {
+  repositoryRealPath: string;
+  outputRoot: string;
+  category: string;
+  expectedVersion: string;
+}): LoadedCanonicalChildOutputArtifact {
+  const relativeDirectory = path.posix.join(
+    args.outputRoot,
+    args.category,
+  );
+  const absoluteDirectory = resolveContainedDirectory({
+    repositoryRealPath: args.repositoryRealPath,
+    relativePath: relativeDirectory,
+  });
+  const entries = fs
+    .readdirSync(absoluteDirectory, { withFileTypes: true })
+    .sort((left, right) => left.name.localeCompare(right.name));
+  if (
+    entries.length !== 1 ||
+    !entries[0]!.isFile() ||
+    !/^[a-f0-9]{64}\.json$/.test(entries[0]!.name)
+  ) {
+    throw new Error('child_output_artifact_count_invalid');
+  }
+  return readCanonicalChildOutputArtifact({
+    repositoryRealPath: args.repositoryRealPath,
+    relativePath: path.posix.join(
+      relativeDirectory,
+      entries[0]!.name,
+    ),
+    expectedVersion: args.expectedVersion,
+  });
+}
+
+function assertCanonicalChildOutputCategoryEmpty(args: {
+  repositoryRealPath: string;
+  outputRoot: string;
+  category: string;
+}): void {
+  const absolute = resolveContainedDirectory({
+    repositoryRealPath: args.repositoryRealPath,
+    relativePath: path.posix.join(
+      args.outputRoot,
+      args.category,
+    ),
+  });
+  if (fs.readdirSync(absolute).length !== 0) {
+    throw new Error('child_output_failure_category_not_empty');
+  }
 }
 
 function assertExpectedPathAbsent(args: {
@@ -1675,6 +2102,194 @@ function readVerifiedManifest(args: {
     throw new Error('manifest_identity_mismatch');
   }
   return value;
+}
+
+function buildCanonicalLiveExecutionChildOutputAuthority(args: {
+  repositoryRealPath: string;
+  request: CanonicalLiveExecutionRequest;
+  command: LiveRequestMaterializationManifest['futureLiveCommand'];
+}): CanonicalLiveExecutionChildOutputAuthority {
+  const outputRoot = uniqueCommandArgumentValue(
+    args.command.arguments,
+    '--out',
+  );
+  const authoringRequestPath = uniqueCommandArgumentValue(
+    args.command.arguments,
+    '--request',
+  );
+  if (
+    outputRoot === null ||
+    authoringRequestPath === null ||
+    canonicalRelativePathIssues(
+      outputRoot,
+      'child_output_root',
+    ).length > 0 ||
+    canonicalRelativePathIssues(
+      authoringRequestPath,
+      'child_output_authoring_request_path',
+    ).length > 0 ||
+    JSON.stringify(args.request.expectedAbsentPaths) !==
+      JSON.stringify(
+        canonicalLiveExecutionExpectedAbsentPaths(outputRoot),
+      )
+  ) {
+    throw new Error('child_output_command_binding_invalid');
+  }
+  const manifest = readVerifiedManifest({
+    repositoryRealPath: args.repositoryRealPath,
+    request: args.request,
+  });
+  if (
+    authoringRequestPath !==
+      manifest.artifacts.liveAuthoringRequest.path ||
+    path.posix.dirname(path.posix.dirname(authoringRequestPath)) !==
+      outputRoot
+  ) {
+    throw new Error('child_output_request_binding_invalid');
+  }
+  const authoringRequest = soleCanonicalChildOutputArtifact({
+    repositoryRealPath: args.repositoryRealPath,
+    outputRoot,
+    category: 'authoring-requests',
+    expectedVersion: VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+  });
+  if (
+    authoringRequest.descriptor.path !== authoringRequestPath ||
+    authoringRequest.descriptor.digest !==
+      manifest.artifacts.liveAuthoringRequest.digest
+  ) {
+    throw new Error('child_output_request_identity_invalid');
+  }
+  const authoringReceipt = soleCanonicalChildOutputArtifact({
+    repositoryRealPath: args.repositoryRealPath,
+    outputRoot,
+    category: 'authoring-receipts',
+    expectedVersion: VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION,
+  });
+  const authoringReadiness = soleCanonicalChildOutputArtifact({
+    repositoryRealPath: args.repositoryRealPath,
+    outputRoot,
+    category: 'readiness-evidence',
+    expectedVersion: VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
+  });
+  const visualContractCandidate =
+    soleCanonicalChildOutputArtifact({
+      repositoryRealPath: args.repositoryRealPath,
+      outputRoot,
+      category: 'contract-candidates',
+      expectedVersion:
+        VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
+    });
+  assertCanonicalChildOutputCategoryEmpty({
+    repositoryRealPath: args.repositoryRealPath,
+    outputRoot,
+    category: 'provider-call-failure-evidence',
+  });
+  assertCanonicalChildOutputCategoryEmpty({
+    repositoryRealPath: args.repositoryRealPath,
+    outputRoot,
+    category: 'rejected-authoring-requests',
+  });
+
+  const receipt = authoringReceipt.value;
+  const readiness = authoringReadiness.value;
+  const candidate = visualContractCandidate.value;
+  const readinessOutcome = recordValue(
+    readiness.authoringOutcome,
+  );
+  const readinessCandidate = recordValue(
+    readiness.visualContractCandidate,
+  );
+  if (
+    receipt.requestDigest !== authoringRequest.descriptor.digest ||
+    receipt.status !== 'completed' ||
+    receipt.failure !== null ||
+    typeof receipt.candidateDigest !== 'string' ||
+    !DIGEST_PATTERN.test(receipt.candidateDigest) ||
+    readiness.authoringRequestDigest !==
+      authoringRequest.descriptor.digest ||
+    readiness.authoringReceiptDigest !==
+      authoringReceipt.descriptor.digest ||
+    !readinessOutcome ||
+    readinessOutcome.status !== 'completed' ||
+    readinessOutcome.failureCode !== null ||
+    readinessOutcome.terminalClassification !== null ||
+    !readinessCandidate ||
+    readinessCandidate.status !== 'candidate' ||
+    readinessCandidate.digest !== receipt.candidateDigest ||
+    candidate.status !== 'candidate' ||
+    candidate.authoringRequestDigest !==
+      authoringRequest.descriptor.digest ||
+    candidate.authoringReceiptDigest !==
+      authoringReceipt.descriptor.digest ||
+    candidate.templateDigest !== receipt.candidateDigest ||
+    receipt.sourceSnapshotDigest !==
+      readiness.sourceSnapshotDigest ||
+    receipt.sourceSnapshotDigest !==
+      candidate.sourceSnapshotDigest
+  ) {
+    throw new Error('child_output_cross_binding_invalid');
+  }
+  const typedReceipt =
+    receipt as unknown as VisualContractAuthoringReceipt;
+  const typedReadiness =
+    readiness as unknown as VisualContractAuthoringReadinessEvidence;
+  const typedCandidate =
+    candidate as unknown as VisualContractCandidateArtifact;
+  try {
+    persistVisualContractAuthoringReceipt({
+      repoRoot: args.repositoryRealPath,
+      outputDir: outputRoot,
+      receipt: typedReceipt,
+      write: false,
+    });
+    persistVisualContractAuthoringReadiness({
+      repoRoot: args.repositoryRealPath,
+      outputDir: outputRoot,
+      evidence: typedReadiness,
+      receipt: typedReceipt,
+      write: false,
+    });
+    const rebuiltCandidate =
+      buildVisualContractCandidateArtifact({
+        receipt: typedReceipt,
+        compileResult: {
+          template: typedCandidate.template,
+          actionSemanticCoverage:
+            typedCandidate.actionSemanticCoverage,
+        },
+      });
+    if (
+      canonicalLiveAuthoringJsonBytes(rebuiltCandidate) !==
+      canonicalLiveAuthoringJsonBytes(typedCandidate)
+    ) {
+      throw new Error('candidate_rebuild_mismatch');
+    }
+  } catch {
+    throw new Error('child_output_current_schema_invalid');
+  }
+
+  const payload = childOutputAuthorityPayload({
+    version:
+      CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION,
+    outputRoot,
+    authoringRequest: authoringRequest.descriptor,
+    authoringReceipt: authoringReceipt.descriptor,
+    authoringReadiness: authoringReadiness.descriptor,
+    visualContractCandidate:
+      visualContractCandidate.descriptor,
+    observation: {
+      phase: 'synchronous_after_child_close',
+      termination: { kind: 'exit', exitCode: 0 },
+    },
+  });
+  const authority: CanonicalLiveExecutionChildOutputAuthority = {
+    ...payload,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(payload),
+  };
+  assertValidCanonicalLiveExecutionChildOutputAuthority(authority);
+  return authority;
 }
 
 function evaluateReadinessCore(args: {
@@ -2423,6 +3038,7 @@ function liveFailure(args: {
       authorityCleared: args.authorityCleared,
     },
     child: args.child ?? null,
+    outputAuthority: null,
   };
 }
 
@@ -2518,6 +3134,25 @@ export async function runCanonicalLiveExecution(args: {
     processResult.termination.kind === 'exit' &&
     processResult.termination.exitCode === 0
   ) {
+    let outputAuthority: CanonicalLiveExecutionChildOutputAuthority;
+    try {
+      outputAuthority =
+        buildCanonicalLiveExecutionChildOutputAuthority({
+          repositoryRealPath: evaluation.repositoryRealPath,
+          request: evaluation.request,
+          command: evaluation.command,
+        });
+    } catch {
+      return liveFailure({
+        readiness: evaluation.readiness,
+        status: 'child_failed',
+        reasonCodes: ['child_output_authority_rejected'],
+        sourceAccessAttempted: true,
+        sourceReadSucceeded: true,
+        authorityCleared: true,
+        child,
+      });
+    }
     return {
       version: CANONICAL_LIVE_EXECUTION_RESULT_VERSION,
       mode: 'live',
@@ -2530,6 +3165,7 @@ export async function runCanonicalLiveExecution(args: {
         authorityCleared: true,
       },
       child,
+      outputAuthority,
     };
   }
   const reasonCode =
@@ -2567,7 +3203,11 @@ export function canonicalLiveExecutionExitDisposition(
   if (result.child?.termination.kind === 'exit') {
     return {
       kind: 'exit',
-      exitCode: result.child.termination.exitCode,
+      exitCode:
+        result.status !== 'child_completed' &&
+        result.child.termination.exitCode === 0
+          ? 1
+          : result.child.termination.exitCode,
     };
   }
   return {

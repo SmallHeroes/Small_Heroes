@@ -4,33 +4,54 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-real-candidate-qa-wizard-low-bridge` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `b2f6a7418f0f112a1ab911153be2718f1a339d45`.
 
-## REAL CANDIDATE -> QA WIZARD -> LOW BRIDGE — implementation started
+## REAL CANDIDATE -> QA WIZARD -> LOW BRIDGE — reconciliation milestone green, independent QA pending
 
-The mixed Source Evidence / action repair correction is pushed at exact `0/0`
-parity and independently passed Claude Code review. A new zero-cost canonical
-sequence on that immutable head passed one Git probe, one `prepare`, and one
-`verify`. Probe digest
-`7eb1de88ef200a5818187fea898e75eafa678f8adb80eeffb796331d44d5c7d5`
-reported `ready_for_canonical_prepare`; Fresh Readiness v26 digest
-`ee7c3cb28b54db01c4b510f6a06ed6323f80473a60154ab5ddaa339378d067b6`
-and Execution Request
-`ce02385a6e4d3be76f6f61fa18bdb370cfedf8558021ec821e86b916259844d2`
-reported `ready_for_spend_gate`. Both readiness passes recorded
-`credentialAccess:none`, `providerCalls:0`, `canonicalPreflight:not_run`,
-`pricingAuthority:not_checked`, and `liveAuthority:none`.
+The first implementation milestone now connects only the zero-cost boundary
+from an exact canonical Supervisor result to a pending Source Prompt
+Reconciliation packet. It does not yet author a Blueprint, publish a Visual
+Package, qualify the Wizard, or render an image. The bridge accepts Fresh
+Readiness v26, Execution Request v26, and Supervisor result v19 only when they
+bind the same clean `0/0` repository authority, verified B0 request, live child,
+output root, and canonical request/receipt/readiness/candidate tuple.
 
-Repository investigation then confirmed that the existing full-book
-measurement runner is not proof of the normal Wizard path: it synthesizes a
-Visual Package fixture and manually injects frozen authority. A real candidate
-currently has no operator-connected route through exact Reconciliation,
-Blueprint authoring/approval, Visual Package v5 QA publication, current-locator
-selection, `ensureFrozenVisualContract`, and Style01 runtime-v6 qualification.
-The accepted Decision Gate therefore adds the smallest QA-only bridge while
-reusing the existing authority versions and preserving every approval boundary.
-No provider or render spend is permitted during implementation. Because bridge
-commits will change HEAD, the readiness above is operational proof only and
-will not be consumed; a brand-new canonical sequence is required after the
-bridge passes independent QA and is pushed.
+Supervisor result v19 closes a provenance gap in v18: `child_completed` now
+requires a sanitized `child-output-authority/v1` built synchronously after the
+child closes. It requires exactly one canonical authoring request, receipt,
+readiness artifact, and candidate; empty provider-failure and rejected-request
+categories; current schemas; exact cross-digests; receipt/readiness replay; and
+candidate rebuild equality. Exit zero without that tuple is `child_failed`,
+returns a nonzero CLI disposition, and cannot be upgraded by artifacts written
+afterward. Fresh Readiness and Supervisor share the exact five expected-absence
+categories; the pre-existing authoring request is intentionally not one of
+them.
+
+The QA bridge persists content-addressed pending/approved manifests, exact
+reconciliation/review artifacts, and a narrow reconciliation approval
+attestation. It rejects stale, duplicate, noncanonical, path-alias, hard-link,
+cross-run, and replayed authority. Approval remains a procedural Guy checkpoint:
+the CLI records an exact decision only after Guy reviews the bound digests; it
+cannot authenticate Guy and automation must stop before that command. The
+approved stage produces production authoring context v3 but grants no Blueprint,
+package, Wizard, provider, render, publication, deployment, or production
+authority.
+
+Focused validation is green: bridge 5/5, final Supervisor 41/41 within the
+repository resource phase, the policy-correct Supervisor/readiness replacement
+53/53 before the final focused additions, the corrected materializer 20/20 with
+clean diagnostics, TypeScript, and `git diff --check`. The one literal
+`npm run check` was not rerun. Its ordinary phase failed only five assertions
+across the four established missing-output fixture specs. Its resource phase
+exposed nine assertions in one stale materializer fixture that still supplied a
+singleton absence path; after changing only that fixture to the canonical five,
+the full 20-test file passed. This exact repository-gate history is retained in
+the implementation evidence; the separate fixture release HOLD remains open.
+
+No credential, provider, network, Fresh Readiness, preflight, live authoring,
+image, render, storage/database, deployment, production, or push action
+has occurred in this milestone. Independent Claude Code QA is pending; Codex
+does not self-award technical PASS. The earlier readiness on head `b2f6a741` is
+historical operational proof only and cannot authorize a future attempt after
+this branch moves.
 
 ## MIXED SOURCE-EVIDENCE / ACTION REPAIR ROUTING — independent technical PASS
 
