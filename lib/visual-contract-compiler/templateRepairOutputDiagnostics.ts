@@ -25,6 +25,13 @@ export const TEMPLATE_REPAIR_OUTPUT_FAILURE_CODE_VALUES = [
 export type TemplateRepairOutputFailureCode =
   (typeof TEMPLATE_REPAIR_OUTPUT_FAILURE_CODE_VALUES)[number];
 
+export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_V2_ADDITION_VALUES = [
+  'page_contract_repair_action_binding_component_beat_id_invalid',
+  'page_contract_repair_action_binding_component_scope_invalid',
+  'page_contract_repair_action_binding_component_stale',
+  'page_contract_repair_action_binding_component_target_invalid',
+] as const;
+
 /**
  * Closed, compiler-owned identities that may cross the repair-output boundary.
  * They contain no authored/provider content. Unknown exceptions deliberately
@@ -42,6 +49,7 @@ export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_VALUES = [
   'book_surface_repair_response_invalid_json',
   'book_surface_repair_response_invalid_shape',
   'page_contract_repair_action_beat_id_invalid',
+  ...TEMPLATE_REPAIR_OUTPUT_IDENTITY_V2_ADDITION_VALUES,
   'page_contract_repair_action_binding_scope_invalid',
   'page_contract_repair_action_target_stale',
   'page_contract_repair_affected_page_duplicate',

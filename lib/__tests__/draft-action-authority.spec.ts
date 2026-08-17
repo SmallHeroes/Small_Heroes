@@ -222,17 +222,30 @@ describe('compiler-owned draft action identity', () => {
     expect(callLLM).toHaveBeenCalledTimes(2);
   });
 
-  it('routes duplicate stable-key ambiguity through one bounded page repair', async () => {
+  it('normalizes an exact duplicate stable-key component without consuming a repair', async () => {
     const draft = draftFor(['look']);
     const page = (draft.pageContracts as Array<Record<string, unknown>>)[0]!;
     const actions = page.actionRequirements as Array<Record<string, unknown>>;
     actions.push(structuredClone(actions[0]!));
     const callLLM = vi.fn(async () => JSON.stringify(draft));
 
-    await expect(
-      compileBookVisualContractTemplate(input, { callLLM }),
-    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
-    expect(callLLM).toHaveBeenCalledTimes(2);
+    const result = await compileBookVisualContractTemplate(input, { callLLM });
+    const compiledActions =
+      result.template.pageContracts[0]!.actionRequirements!;
+
+    expect(callLLM).toHaveBeenCalledTimes(1);
+    expect(result.repairAttempts).toEqual([]);
+    expect(compiledActions).toHaveLength(2);
+    expect(compiledActions[0]!.checkId).toBe('action:p1_look');
+    expect(compiledActions[1]!.checkId).toMatch(
+      /^action:p1_compiler_action_[a-f0-9]{64}$/,
+    );
+    expect(
+      new Set(compiledActions.map((candidate) => candidate.checkId)).size,
+    ).toBe(2);
+    expect(result.notes).toContain(
+      'compiler normalized exact action-binding component on page 1 (2 actions; 1 generated binding)',
+    );
   });
 
   it('normalizes a typed same-page presentation requirement without inventing an action', async () => {

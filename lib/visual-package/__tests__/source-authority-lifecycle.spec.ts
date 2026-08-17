@@ -39,6 +39,7 @@ import {
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
 import { decodeBookSurfaceRepairUserPrompt } from '@/lib/visual-contract-compiler/bookSurfaceRepair';
 import { PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
+import { normalizeExactActionBindingComponents } from '@/lib/visual-contract-compiler/actionBindingComponentNormalization';
 import {
   authoringRejectedEvidencePageCount,
   authoringStandardAttemptOutputLimitsForBase,
@@ -604,7 +605,6 @@ function liveShapedAtomicBindingFixture(
   snapshot: StorySourceAuthoritySnapshot,
 ): {
   initial: BookVisualContractTemplate & Record<string, unknown>;
-  pageRepairPages: Record<string, unknown>[];
   validBookSurfaceRepair: {
     coverContract: unknown;
     recurringProps: unknown;
@@ -615,6 +615,7 @@ function liveShapedAtomicBindingFixture(
     recurringProps: unknown;
     pageContracts: Record<string, unknown>[];
   };
+  invalidFullDraft: BookVisualContractTemplate & Record<string, unknown>;
 } {
   const valid = fullyActionedBunnyDraft(snapshot);
   for (const page of valid.pageContracts) {
@@ -678,30 +679,21 @@ function liveShapedAtomicBindingFixture(
     }));
   };
   seedDuplicateComponents(3, ['beat:p3:live_component_a']);
-  seedDuplicateComponents(7, [
-    'beat:p7:live_component_a',
-    'beat:p7:live_component_b',
+  seedDuplicateComponents(6, ['beat:p6:live_component_a']);
+  seedDuplicateComponents(7, ['beat:p7:live_component_a']);
+  seedDuplicateComponents(11, [
+    'beat:p11:live_component_a',
+    'beat:p11:live_component_b',
   ]);
+  seedDuplicateComponents(12, ['beat:p12:live_component_a']);
 
   const page11 = pageFor(initial, 11);
-  const page11Action = page11.actionRequirements[0];
   const page11Coverage = page11.actionSemanticCoverage[0];
-  if (!page11Action || !page11Coverage) {
+  if (!page11Coverage) {
     throw new Error('missing live-shaped action authority on page 11');
   }
   const page11SourceEvidenceId = page11Coverage.sourceEvidenceId;
-  page11.actionRequirements = [
-    {
-      ...structuredClone(page11Action),
-      beatId: 'beat:p11:live_orphan_action',
-    },
-  ];
-  page11.actionSemanticCoverage = [
-    {
-      ...structuredClone(page11Coverage),
-      beatId: 'beat:p11:live_orphan_coverage',
-      disposition: { kind: 'action_requirement' },
-    },
+  page11.actionSemanticCoverage.push(
     {
       beatId: 'beat:p11:live_gap_a',
       sourceEvidenceId: page11SourceEvidenceId,
@@ -718,7 +710,7 @@ function liveShapedAtomicBindingFixture(
         reason: 'closed_action_catalog_gap',
       },
     },
-  ];
+  );
 
   for (const pageNumber of [4, 9, 10]) {
     const page = pageFor(initial, pageNumber);
@@ -748,54 +740,17 @@ function liveShapedAtomicBindingFixture(
     page.actionRequirements ??= [];
     return page;
   };
-  const pageRepairPages = [3, 7, 11].map((pageNumber) =>
-    asRepairPage(pageFor(initial, pageNumber)),
-  );
-  const repairedPage3 = pageRepairPages[0]!;
-  const repairedPage3Actions =
-    repairedPage3.actionRequirements as Array<Record<string, unknown>>;
-  const repairedPage3Coverage =
-    repairedPage3.actionSemanticCoverage as Array<Record<string, unknown>>;
-  repairedPage3Actions[1]!.beatId = 'beat:p3:live_component_b';
-  repairedPage3Coverage.push({
-    ...structuredClone(repairedPage3Coverage[0]!),
-    beatId: 'beat:p3:live_component_b',
+  const normalized = normalizeExactActionBindingComponents({
+    pages: initial.pageContracts as unknown as Record<string, unknown>[],
+    sourceEvidenceCatalog: snapshot.content.sourceEvidenceCatalog,
   });
-
-  const repairedPage7 = pageRepairPages[1]!;
-  const repairedPage7Actions =
-    repairedPage7.actionRequirements as Array<Record<string, unknown>>;
-  const repairedPage7Coverage =
-    repairedPage7.actionSemanticCoverage as Array<Record<string, unknown>>;
-  repairedPage7Actions[1]!.beatId = 'beat:p7:live_component_a_2';
-  repairedPage7Actions[3]!.beatId = 'beat:p7:live_component_b_2';
-  repairedPage7Coverage.push(
-    {
-      ...structuredClone(repairedPage7Coverage[0]!),
-      beatId: 'beat:p7:live_component_a_2',
-    },
-    {
-      ...structuredClone(repairedPage7Coverage[1]!),
-      beatId: 'beat:p7:live_component_b_2',
-    },
-  );
-
-  const repairedPage11 = pageRepairPages[2]!;
-  const repairedPage11Action = (
-    repairedPage11.actionRequirements as Array<Record<string, unknown>>
-  )[0]!;
-  repairedPage11Action.beatId = 'beat:p11:live_orphan_coverage';
-
-  const afterAtomicPageRepair = structuredClone(initial);
-  for (const repairPage of pageRepairPages) {
-    const pageNumber = repairPage.pageNumber as number;
-    const pageIndex = afterAtomicPageRepair.pageContracts.findIndex(
-      (page) => page.pageNumber === pageNumber,
-    );
-    if (pageIndex < 0) throw new Error(`missing repaired page ${pageNumber}`);
-    afterAtomicPageRepair.pageContracts[pageIndex] =
-      repairPage as unknown as (typeof afterAtomicPageRepair.pageContracts)[number];
+  if (normalized.normalizations.length !== 6) {
+    throw new Error('expected six live-shaped compiler normalizations');
   }
+  const afterAtomicPageRepair = {
+    ...structuredClone(initial),
+    pageContracts: normalized.pages as unknown as typeof initial.pageContracts,
+  };
 
   const validBookSurfacePages = afterAtomicPageRepair.pageContracts.map(
     (page) => {
@@ -832,10 +787,43 @@ function liveShapedAtomicBindingFixture(
   const invalidBookSurfacePages = structuredClone(validBookSurfacePages);
   const mixedResidualPage = invalidBookSurfacePages[1]!;
   mixedResidualPage.camera = '';
+  const invalidFullDraft = structuredClone(afterAtomicPageRepair);
+  invalidFullDraft.recurringProps = structuredClone(valid.recurringProps);
+  for (const page of invalidFullDraft.pageContracts) {
+    const mutablePage = page as unknown as Record<string, unknown> & {
+      pageNumber: number;
+      camera: string;
+      mustShow: string[];
+      actionSemanticCoverage: Array<Record<string, unknown>>;
+    };
+    const validPage = valid.pageContracts.find(
+      (candidate) => candidate.pageNumber === mutablePage.pageNumber,
+    );
+    if (!validPage) {
+      throw new Error(
+        `missing valid full-draft page ${mutablePage.pageNumber}`,
+      );
+    }
+    mutablePage.camera = validPage.camera;
+    for (const record of mutablePage.actionSemanticCoverage) {
+      const disposition = record.disposition as Record<string, unknown>;
+      if (
+        disposition.kind === 'unsupported' &&
+        disposition.reason === 'closed_action_catalog_gap'
+      ) {
+        record.disposition = {
+          kind: 'presentation_requirement',
+          presentationClass: 'composition_focus',
+          contractPointer: `/pageContracts/${mutablePage.pageNumber - 1}/mustShow/0`,
+          contractValue: mutablePage.mustShow[0]!,
+        };
+      }
+    }
+  }
+  invalidFullDraft.pageContracts[1]!.camera = '';
 
   return {
     initial,
-    pageRepairPages,
     validBookSurfaceRepair: {
       coverContract: structuredClone(valid.coverContract),
       recurringProps: structuredClone(valid.recurringProps),
@@ -846,6 +834,7 @@ function liveShapedAtomicBindingFixture(
       recurringProps: structuredClone(valid.recurringProps),
       pageContracts: invalidBookSurfacePages,
     },
+    invalidFullDraft,
   };
 }
 
@@ -2103,7 +2092,7 @@ describe('source-grounded closed action authority', () => {
     ).toBe('page_contract_patch');
   });
 
-  it('rejects minted, malformed, and duplicate action authority through the repair path', async () => {
+  it('rejects minted and malformed action authority but normalizes an exact duplicate binding without removing action authority', async () => {
     const snapshot = bunnySnapshot();
     const minted = fullyActionedBunnyDraft(snapshot);
     const mintedCoverage = (
@@ -2178,28 +2167,28 @@ describe('source-grounded closed action authority', () => {
       (first.actionRequirements as unknown[])[0],
     );
     first.actionRequirements = [existing, existing];
-    let duplicateFailure: unknown;
-    try {
-      await compileBookVisualContractTemplate(
-        {
-          ...snapshot.content,
-          storyKey: snapshot.content.storyKey,
-          pageCount: snapshot.content.pages.length,
-          authoredCoverAuthority: undefined,
-        },
-        {
-          callLLM: async () => JSON.stringify(duplicate),
-        },
-      );
-    } catch (error) {
-      duplicateFailure = error;
-    }
-    expect(duplicateFailure).toBeInstanceOf(
-      TemplateRepairOutputInvalidError,
+    const duplicateProvider = vi.fn(async () => JSON.stringify(duplicate));
+    const duplicateResult = await compileBookVisualContractTemplate(
+      {
+        ...snapshot.content,
+        storyKey: snapshot.content.storyKey,
+        pageCount: snapshot.content.pages.length,
+        authoredCoverAuthority: undefined,
+      },
+      { callLLM: duplicateProvider },
     );
+    expect(duplicateProvider).toHaveBeenCalledTimes(1);
+    expect(duplicateResult.repairAttempts).toEqual([]);
     expect(
-      (duplicateFailure as TemplateRepairOutputInvalidError).repairMode,
-    ).toBe('page_contract_patch');
+      duplicateResult.template.pageContracts[0]!.actionRequirements,
+    ).toHaveLength(2);
+    expect(
+      new Set(
+        duplicateResult.template.pageContracts[0]!.actionRequirements!.map(
+          (action) => action.checkId,
+        ),
+      ).size,
+    ).toBe(2);
   });
 });
 
@@ -5098,7 +5087,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toBeGreaterThanOrEqual(4_096);
   });
 
-  it('closes the live-shaped action-binding components atomically, repairs the latent book surface, and persists a candidate in three calls', async () => {
+  it('normalizes six live-shaped action-binding components locally, repairs the latent book surface, and persists a candidate in two calls', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const fixture = liveShapedAtomicBindingFixture(snapshot);
@@ -5109,9 +5098,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         const output =
           args.attempt === 1
             ? fixture.initial
-            : args.attempt === 2
-              ? { pageContracts: fixture.pageRepairPages }
-              : fixture.validBookSurfaceRepair;
+            : fixture.validBookSurfaceRepair;
         return {
           output: JSON.stringify(output),
           receipt: {
@@ -5138,115 +5125,34 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(result.receipt, JSON.stringify(result.receipt, null, 2))
       .toMatchObject({
         status: 'completed',
-        callCount: 3,
-        repairCount: 2,
+        callCount: 2,
+        repairCount: 1,
         failure: null,
         draftValidationStatus: 'completed',
       });
     expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
-      .toEqual([null, 'page_contract_patch', 'book_surface_patch']);
+      .toEqual([null, 'book_surface_patch']);
     expect(
       result.receipt.attempts.map(
         (attempt) => attempt.appliedMaxOutputTokens,
       ),
-    ).toEqual([40_000, 32_000, 36_000]);
-    expect(provider.call).toHaveBeenCalledTimes(3);
-    expect(calls).toHaveLength(3);
+    ).toEqual([40_000, 32_000]);
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(calls).toHaveLength(2);
 
     expect(result.receipt.attempts[0]!.draftValidationDiagnostics)
-      .toMatchObject({
-        emittedCount: 11,
-        currentUniqueCount: 11,
-        newlyIntroducedCount: 11,
-        finalAttempt: false,
-      });
-    expect(
-      result.receipt.attempts[0]!.draftValidationDiagnostics?.items
-        .every(
-          (item) =>
-            item.issue.family === 'action_semantic' &&
-            item.issue.code === 'action_binding_cardinality_invalid',
-        ),
-    ).toBe(true);
-
-    const pageRepairPayload = decodePageContractRepairUserPrompt(
-      calls[1]!.userPrompt,
-    );
-    expect(
-      pageRepairPayload.affectedPages.map((page) => page.pageNumber),
-    ).toEqual([3, 7, 11]);
-    const encodedRepairTargets =
-      pageRepairPayload.affectedPages.flatMap(
-        (page) => page.repairTargets,
-      );
-    expect(encodedRepairTargets).toHaveLength(5);
-    const componentTargets = encodedRepairTargets.filter(
-      (target) =>
-        target.code === 'action_beat_binding_component_invalid',
-    );
-    expect(componentTargets).toEqual([
-      expect.objectContaining({
-        pageNumber: 3,
-        actionIndexes: [0, 1],
-        coverageIndex: 0,
-        coverageDeficit: 1,
-      }),
-      expect.objectContaining({
-        pageNumber: 7,
-        actionIndexes: [0, 1],
-        coverageIndex: 0,
-        coverageDeficit: 1,
-      }),
-      expect.objectContaining({
-        pageNumber: 7,
-        actionIndexes: [2, 3],
-        coverageIndex: 1,
-        coverageDeficit: 1,
-      }),
-    ]);
-    expect(
-      componentTargets.reduce(
-        (count, target) =>
-          count +
-          ('actionIndexes' in target
-            ? target.actionIndexes.length + 1
-            : 0),
-        0,
-      ),
-    ).toBe(9);
-    expect(
-      encodedRepairTargets.filter(
-        (target) =>
-          target.code !== 'action_beat_binding_component_invalid',
-      ),
-    ).toEqual([
-      expect.objectContaining({
-        code: 'action_coverage_cardinality_invalid',
-        pageNumber: 11,
-        actionIndex: 0,
-      }),
-      expect.objectContaining({
-        code: 'coverage_action_binding_cardinality_invalid',
-        pageNumber: 11,
-        coverageIndex: 0,
-      }),
-    ]);
-
-    expect(result.receipt.attempts[1]!.draftValidationDiagnostics)
       .toMatchObject({
         emittedCount: expect.any(Number),
         currentUniqueCount: 19,
         newlyIntroducedCount: 19,
-        persistentCount: 0,
-        resolvedCount: 11,
         finalAttempt: false,
       });
-    const currentSecondAttemptIssues =
-      result.receipt.attempts[1]!.draftValidationDiagnostics!.items
+    expect(
+      result.receipt.attempts[0]!.draftValidationDiagnostics!.items
         .filter((item) => item.state !== 'resolved')
-        .map((item) => `${item.issue.family}:${item.issue.code}`);
-    expect(currentSecondAttemptIssues).toEqual(
+        .map((item) => `${item.issue.family}:${item.issue.code}`),
+    ).toEqual(
       expect.arrayContaining([
         'action_semantic:closed_catalog_capability_gap',
         'draft_contract:cover_projection_invalid',
@@ -5254,11 +5160,14 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'draft_contract:lifecycle_invariant_invalid',
       ]),
     );
-    expect(currentSecondAttemptIssues).not.toContain(
-      'action_semantic:action_binding_cardinality_invalid',
+    expect(
+      result.receipt.attempts[0]!.draftValidationDiagnostics!.items
+        .map((item) => item.issue.code),
+    ).not.toContain(
+      'action_binding_cardinality_invalid',
     );
 
-    const bookSurfaceCall = calls[2]!;
+    const bookSurfaceCall = calls[1]!;
     expect(bookSurfaceCall.options.jsonSchema?.name).toBe(
       'BookSurfaceRepairPatch',
     );
@@ -5271,7 +5180,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         (page) => page.pageNumber,
       ),
     ).toEqual(Array.from({ length: 12 }, (_, index) => index + 1));
-    expect(result.receipt.attempts[2]!.draftValidationDiagnostics)
+    expect(result.receipt.attempts[1]!.draftValidationDiagnostics)
       .toMatchObject({
         emittedCount: 0,
         currentUniqueCount: 0,
@@ -5279,13 +5188,13 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       });
   });
 
-  it('does not admit a fourth cleanup call when mixed residuals persist after the atomic-page to book-surface sequence', async () => {
+  it('does not admit a fourth cleanup call when mixed residuals persist after local normalization and the bounded book-surface sequence', async () => {
     const snapshot = bunnySnapshot();
     const fixture = liveShapedAtomicBindingFixture(snapshot);
     const provider = sequencedSuccessfulProvider([
       fixture.initial,
-      { pageContracts: fixture.pageRepairPages },
       fixture.invalidBookSurfaceRepair,
+      fixture.invalidFullDraft,
     ]);
 
     const result = await runVisualContractAuthoring({
@@ -5306,7 +5215,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       },
     });
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
-      .toEqual([null, 'page_contract_patch', 'book_surface_patch']);
+      .toEqual([null, 'book_surface_patch', 'full_draft']);
     expect(provider.call).toHaveBeenCalledTimes(3);
     const finalDiagnostics =
       result.receipt.attempts[2]!.draftValidationDiagnostics;
@@ -6325,7 +6234,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           'repair_output_recurring_prop_invalid',
         ]),
         repairOutputDiagnostics: {
-          version: 'visual-contract-repair-output-diagnostics/v1',
+          version: 'visual-contract-repair-output-diagnostics/v2',
           repairAttempt: 2,
           repairMode: 'book_surface_patch',
           failureCode: 'recurring_prop_invalid',
@@ -6399,6 +6308,70 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: loadedRejectedReceipt,
       }),
     ).toEqual(loadedRejectedReadiness);
+
+    const legacyReceipt = structuredClone(rejected.receipt);
+    const legacyRepairDiagnostics = legacyReceipt.failure
+      ?.repairOutputDiagnostics as unknown as Record<string, unknown> | null;
+    if (!legacyRepairDiagnostics) {
+      throw new Error('missing legacy repair diagnostics fixture');
+    }
+    legacyRepairDiagnostics.version =
+      'visual-contract-repair-output-diagnostics/v1';
+    const {
+      digestAlgorithm: _legacyDigestAlgorithm,
+      digest: _legacyDigest,
+      ...legacyReceiptPayload
+    } = legacyReceipt;
+    legacyReceipt.digest = canonicalJsonDigest(legacyReceiptPayload);
+    const legacyReadiness =
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request: rejectedRequest,
+        receipt: legacyReceipt,
+      });
+    const legacyReceiptWrite = persistVisualContractAuthoringReceipt({
+      repoRoot: rejectedRoot,
+      outputDir: 'outputs/book-surface-repair-identity-legacy',
+      receipt: legacyReceipt,
+      write: true,
+    });
+    const legacyReadinessWrite = persistVisualContractAuthoringReadiness({
+      repoRoot: rejectedRoot,
+      outputDir: 'outputs/book-surface-repair-identity-legacy',
+      evidence: legacyReadiness,
+      receipt: legacyReceipt,
+      write: true,
+    });
+    const loadedLegacyReceipt = JSON.parse(
+      fs.readFileSync(
+        path.join(rejectedRoot, legacyReceiptWrite.path),
+        'utf8',
+      ),
+    ) as typeof legacyReceipt;
+    const loadedLegacyReadiness = JSON.parse(
+      fs.readFileSync(
+        path.join(rejectedRoot, legacyReadinessWrite.path),
+        'utf8',
+      ),
+    ) as typeof legacyReadiness;
+    expect(
+      loadedLegacyReceipt.failure?.repairOutputDiagnostics?.version,
+    ).toBe('visual-contract-repair-output-diagnostics/v1');
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        loadedLegacyReceipt.failure,
+      ),
+    ).toBe(true);
+    expect(
+      loadedLegacyReadiness.authoringOutcome.terminalClassification,
+    ).toEqual(loadedLegacyReceipt.failure);
+    expect(
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request: rejectedRequest,
+        receipt: loadedLegacyReceipt,
+      }),
+    ).toEqual(loadedLegacyReadiness);
   });
 
   it('keeps mixed capability and structural validation inside the bounded loop after a compact page repair', async () => {

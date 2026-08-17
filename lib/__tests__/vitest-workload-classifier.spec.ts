@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(301);
+    expect(partition.inventory).toHaveLength(302);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(281);
+    expect(partition.ordinary).toHaveLength(282);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -86,6 +86,9 @@ describe('Vitest workload classifier', () => {
     );
     expect(partition.ordinary).toContain(
       'lib/__tests__/story-commission-materializer.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/action-binding-component-normalization.spec.ts',
     );
   });
 

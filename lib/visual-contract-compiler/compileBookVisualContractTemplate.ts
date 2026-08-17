@@ -121,6 +121,7 @@ import {
   type SourceEvidenceCatalogEntry,
   type SourceEvidenceStoryIdentity,
 } from './sourceEvidenceCatalog';
+import { normalizeExactActionBindingComponents } from './actionBindingComponentNormalization';
 import {
   SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
   SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION,
@@ -642,7 +643,9 @@ export function templateRepairOutputFailureCode(
   }
   if (
     identity ===
-    'page_contract_repair_action_binding_scope_invalid'
+      'page_contract_repair_action_binding_scope_invalid' ||
+    identity ===
+      'page_contract_repair_action_binding_component_scope_invalid'
   ) {
     return 'non_target_drift';
   }
@@ -661,6 +664,12 @@ export function templateRepairOutputFailureCode(
     return 'recurring_prop_invalid';
   }
   if (
+    identity ===
+      'page_contract_repair_action_binding_component_stale' ||
+    identity ===
+      'page_contract_repair_action_binding_component_beat_id_invalid' ||
+    identity ===
+      'page_contract_repair_action_binding_component_target_invalid' ||
     /_(?:target_stale|target_set_empty|target_duplicate|target_invalid_or_duplicate|affected_record_duplicate|affected_page_duplicate|patch_set_incomplete|patch_unexpected_or_duplicate|page_unexpected_or_duplicate|page_not_unique|beat_not_unique|prop_set_mismatch|page_set_mismatch|action_beat_id_invalid|coverage_beat_id_invalid)$/.test(
       identity,
     )
@@ -3545,10 +3554,39 @@ export async function compileBookVisualContractTemplate(
   );
 
   const repairAttempts: TemplateRepairAttempt[] = [];
+  const deterministicNormalizationNotes: string[] = [];
   let pageContractPreviousFailure:
     | PageContractRepairPreviousFailure
     | null = null;
   for (let attempt = 1; ; attempt++) {
+    const rawDraftPages = asArr(draft.pageContracts);
+    const draftPagesAreRecords = rawDraftPages.every(
+      (page) =>
+        page !== null &&
+        typeof page === 'object' &&
+        !Array.isArray(page),
+    );
+    const actionBindingNormalization = draftPagesAreRecords
+      ? normalizeExactActionBindingComponents({
+          pages: rawDraftPages as Record<string, unknown>[],
+          sourceEvidenceCatalog: input.sourceEvidenceCatalog,
+        })
+      : null;
+    if (
+      actionBindingNormalization &&
+      actionBindingNormalization.normalizations.length > 0
+    ) {
+      draft = {
+        ...draft,
+        pageContracts: actionBindingNormalization.pages,
+      };
+      deterministicNormalizationNotes.push(
+        ...actionBindingNormalization.normalizations.map(
+          (normalization) =>
+            `compiler normalized exact action-binding component on page ${normalization.pageNumber} (${normalization.memberActionIndexes.length} actions; ${normalization.generatedBindings.length} generated binding${normalization.generatedBindings.length === 1 ? '' : 's'})`,
+        ),
+      );
+    }
     let assembled:
       | ReturnType<typeof assembleTemplateFromDraft>
       | null = null;
@@ -3857,7 +3895,10 @@ export async function compileBookVisualContractTemplate(
         facts,
         actionSemanticCoverage:
           assembled.actionSemanticCoverage,
-        notes: assembled.notes,
+        notes: [
+          ...deterministicNormalizationNotes,
+          ...assembled.notes,
+        ],
         provenance,
         repairAttempts: repairAttempts.map((repair) => ({
           attempt: repair.attempt,

@@ -7,6 +7,7 @@ import {
 import {
   TEMPLATE_REPAIR_MODE_VALUES,
   TEMPLATE_REPAIR_OUTPUT_FAILURE_CODE_VALUES,
+  TEMPLATE_REPAIR_OUTPUT_IDENTITY_V2_ADDITION_VALUES,
   templateRepairOutputIdentityIsValid,
   type TemplateRepairMode,
   type TemplateRepairOutputFailureCode,
@@ -29,14 +30,27 @@ export interface VisualContractAuthoringTerminalFailure
     | null;
   repairOutputDiagnostics:
     | VisualContractRepairOutputDiagnostics
+    | LegacyVisualContractRepairOutputDiagnostics
     | null;
 }
 
 export const VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION =
+  'visual-contract-repair-output-diagnostics/v2' as const;
+export const LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION =
   'visual-contract-repair-output-diagnostics/v1' as const;
 
 export interface VisualContractRepairOutputDiagnostics {
   version: typeof VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION;
+  repairAttempt: number;
+  repairMode: TemplateRepairMode;
+  failureCode: TemplateRepairOutputFailureCode;
+  identity: TemplateRepairOutputIdentity;
+  carriedDraftDiagnosticCount: number;
+  repairOutputDiagnosticCount: 1;
+}
+
+export interface LegacyVisualContractRepairOutputDiagnostics {
+  version: typeof LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION;
   repairAttempt: number;
   repairMode: TemplateRepairMode;
   failureCode: TemplateRepairOutputFailureCode;
@@ -60,6 +74,9 @@ const REPAIR_FAILURE_CODES =
   new Set<TemplateRepairOutputFailureCode>(
     TEMPLATE_REPAIR_OUTPUT_FAILURE_CODE_VALUES,
   );
+const V2_IDENTITY_ADDITIONS = new Set<string>(
+  TEMPLATE_REPAIR_OUTPUT_IDENTITY_V2_ADDITION_VALUES,
+);
 
 const REPAIR_OUTPUT_DIAGNOSTIC_KEYS = [
   'carriedDraftDiagnosticCount',
@@ -120,9 +137,13 @@ function buildVisualContractRepairOutputDiagnostics(
   };
 }
 
-export function visualContractRepairOutputDiagnosticsIsValid(
+function visualContractRepairOutputDiagnosticsShapeIsValid(
   value: unknown,
-): value is VisualContractRepairOutputDiagnostics {
+  args: {
+    version: string;
+    identityIsValid: (identity: unknown) => boolean;
+  },
+): boolean {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return false;
   }
@@ -130,8 +151,7 @@ export function visualContractRepairOutputDiagnosticsIsValid(
   return (
     JSON.stringify(Object.keys(diagnostics).sort()) ===
       JSON.stringify(REPAIR_OUTPUT_DIAGNOSTIC_KEYS) &&
-    diagnostics.version ===
-      VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION &&
+    diagnostics.version === args.version &&
     Number.isSafeInteger(diagnostics.repairAttempt) &&
     (diagnostics.repairAttempt as number) >= 1 &&
     typeof diagnostics.repairMode === 'string' &&
@@ -140,11 +160,52 @@ export function visualContractRepairOutputDiagnosticsIsValid(
     REPAIR_FAILURE_CODES.has(
       diagnostics.failureCode as TemplateRepairOutputFailureCode,
     ) &&
-    templateRepairOutputIdentityIsValid(diagnostics.identity) &&
+    args.identityIsValid(diagnostics.identity) &&
     Number.isSafeInteger(diagnostics.carriedDraftDiagnosticCount) &&
     (diagnostics.carriedDraftDiagnosticCount as number) >= 0 &&
     diagnostics.repairOutputDiagnosticCount === 1
   );
+}
+
+export function visualContractRepairOutputDiagnosticsIsValid(
+  value: unknown,
+): value is VisualContractRepairOutputDiagnostics {
+  return visualContractRepairOutputDiagnosticsShapeIsValid(value, {
+    version: VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION,
+    identityIsValid: templateRepairOutputIdentityIsValid,
+  });
+}
+
+export function legacyVisualContractRepairOutputDiagnosticsIsValid(
+  value: unknown,
+): value is LegacyVisualContractRepairOutputDiagnostics {
+  return visualContractRepairOutputDiagnosticsShapeIsValid(value, {
+    version: LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION,
+    identityIsValid: (identity) =>
+      templateRepairOutputIdentityIsValid(identity) &&
+      !V2_IDENTITY_ADDITIONS.has(identity),
+  });
+}
+
+export function visualContractRepairOutputDiagnosticsIsReadable(
+  value: unknown,
+): value is
+  | VisualContractRepairOutputDiagnostics
+  | LegacyVisualContractRepairOutputDiagnostics {
+  return (
+    visualContractRepairOutputDiagnosticsIsValid(value) ||
+    legacyVisualContractRepairOutputDiagnosticsIsValid(value)
+  );
+}
+
+export function visualContractRepairOutputDiagnosticsVersionStatus(
+  value: unknown,
+): 'current' | 'legacy_immutable' | 'unsupported' {
+  if (visualContractRepairOutputDiagnosticsIsValid(value)) return 'current';
+  if (legacyVisualContractRepairOutputDiagnosticsIsValid(value)) {
+    return 'legacy_immutable';
+  }
+  return 'unsupported';
 }
 
 const VISUAL_CONTRACT_TERMINAL_FAILURE_KEYS = [
@@ -280,7 +341,7 @@ export function visualContractAuthoringTerminalFailureIsValid(
     return repairOutputDiagnostics === null;
   }
   return (
-    visualContractRepairOutputDiagnosticsIsValid(
+    visualContractRepairOutputDiagnosticsIsReadable(
       repairOutputDiagnostics,
     ) &&
     shared.diagnosticCount ===

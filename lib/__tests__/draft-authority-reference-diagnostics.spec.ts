@@ -21,8 +21,11 @@ import {
 } from '../visual-package/authoringTerminalDiagnostics';
 import {
   buildVisualContractAuthoringTerminalFailure,
+  legacyVisualContractRepairOutputDiagnosticsIsValid,
   visualContractAuthoringTerminalFailureIsValid,
   visualContractRepairOutputDiagnosticsIsValid,
+  visualContractRepairOutputDiagnosticsIsReadable,
+  visualContractRepairOutputDiagnosticsVersionStatus,
 } from '../visual-package/visualContractAuthoringTerminalDiagnostics';
 
 const representativeIssues: DraftAuthorityReferenceIssue[] = [
@@ -579,7 +582,7 @@ describe('Visual Contract-specific terminal extension', () => {
       'repair_output_recurring_prop_invalid',
     );
     expect(visual.repairOutputDiagnostics).toEqual({
-      version: 'visual-contract-repair-output-diagnostics/v1',
+      version: 'visual-contract-repair-output-diagnostics/v2',
       repairAttempt: 2,
       repairMode: 'book_surface_patch',
       failureCode: 'recurring_prop_invalid',
@@ -598,6 +601,122 @@ describe('Visual Contract-specific terminal extension', () => {
       ),
     ).toBe(true);
     expect(authoringTerminalFailureIsValid(visual)).toBe(false);
+  });
+
+  it.each([
+    [
+      'page_contract_repair_action_binding_component_scope_invalid',
+      'non_target_drift',
+    ],
+    [
+      'page_contract_repair_action_binding_component_stale',
+      'target_identity_invalid',
+    ],
+    [
+      'page_contract_repair_action_binding_component_beat_id_invalid',
+      'target_identity_invalid',
+    ],
+    [
+      'page_contract_repair_action_binding_component_target_invalid',
+      'target_identity_invalid',
+    ],
+  ] as const)(
+    'round-trips closed component repair-output identity %s',
+    (identity, failureCode) => {
+      const failure = buildVisualContractAuthoringTerminalFailure({
+        code: 'repair_output_invalid',
+        issueCodes: ['repair_output_invalid'],
+        repairOutputDiagnostics: {
+          repairAttempt: 2,
+          repairMode: 'page_contract_patch',
+          failureCode,
+          identity,
+          carriedDraftDiagnosticCount: 18,
+        },
+      });
+      const roundTrip = JSON.parse(
+        JSON.stringify(canonicalize(failure)),
+      );
+
+      expect(
+        visualContractAuthoringTerminalFailureIsValid(roundTrip),
+      ).toBe(true);
+      expect(roundTrip.repairOutputDiagnostics).toMatchObject({
+        version: 'visual-contract-repair-output-diagnostics/v2',
+        failureCode,
+        identity,
+        repairOutputDiagnosticCount: 1,
+      });
+    },
+  );
+
+  it('keeps v1 diagnostics explicitly legacy-only and rejects v2 identities or unknown versions under v1', () => {
+    const currentFailure = buildVisualContractAuthoringTerminalFailure({
+      code: 'repair_output_invalid',
+      issueCodes: ['repair_output_invalid'],
+      repairOutputDiagnostics: {
+        repairAttempt: 2,
+        repairMode: 'book_surface_patch',
+        failureCode: 'recurring_prop_invalid',
+        identity: 'book_surface_repair_prop_invalid',
+        carriedDraftDiagnosticCount: 3,
+      },
+    });
+    const current = currentFailure.repairOutputDiagnostics!;
+    const legacy = {
+      ...current,
+      version: 'visual-contract-repair-output-diagnostics/v1',
+    };
+    const forgedLegacyAddition = {
+      ...legacy,
+      identity:
+        'page_contract_repair_action_binding_component_target_invalid',
+    };
+    const unknown = {
+      ...current,
+      version: 'visual-contract-repair-output-diagnostics/v3',
+    };
+    const legacyFailure = {
+      ...currentFailure,
+      repairOutputDiagnostics: legacy,
+    };
+    const forgedLegacyFailure = {
+      ...currentFailure,
+      repairOutputDiagnostics: forgedLegacyAddition,
+    };
+
+    expect(legacyVisualContractRepairOutputDiagnosticsIsValid(legacy))
+      .toBe(true);
+    expect(visualContractRepairOutputDiagnosticsIsReadable(legacy))
+      .toBe(true);
+    expect(visualContractRepairOutputDiagnosticsIsValid(legacy))
+      .toBe(false);
+    expect(visualContractRepairOutputDiagnosticsVersionStatus(legacy))
+      .toBe('legacy_immutable');
+    expect(visualContractAuthoringTerminalFailureIsValid(legacyFailure))
+      .toBe(true);
+    expect(
+      legacyVisualContractRepairOutputDiagnosticsIsValid(
+        forgedLegacyAddition,
+      ),
+    ).toBe(false);
+    expect(
+      visualContractRepairOutputDiagnosticsVersionStatus(
+        forgedLegacyAddition,
+      ),
+    ).toBe('unsupported');
+    expect(
+      visualContractRepairOutputDiagnosticsIsReadable(
+        forgedLegacyAddition,
+      ),
+    ).toBe(false);
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        forgedLegacyFailure,
+      ),
+    ).toBe(false);
+    expect(visualContractRepairOutputDiagnosticsVersionStatus(unknown))
+      .toBe('unsupported');
   });
 
   it('rejects repair-output identity, count, ordering, key, and locator-domain tampering', () => {
