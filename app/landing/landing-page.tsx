@@ -445,10 +445,11 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <p className="section-sub pricing-sub" data-reveal="up" data-reveal-delay="80">{L.pricing.sub}</p>
 
               <div className="pricing-grid">
-                {/* Informational cards — no purchase button: a package cannot
-                    actually be selected from here (the wizard picks the
-                    direction actively in step 8), and BUY_MODE is waitlist, so
-                    the section closes with the launch notice instead. */}
+                {/* Each card opens the flow (per Guy, laying the ground for
+                    production). The direction rides along in the URL so the
+                    handoff is already correct the day the wizard honours it —
+                    today wizard.js deliberately clears it and the reader picks
+                    the direction actively in step 8. */}
                 {L.pricing.cards.map((card, index) => (
                   <article
                     key={card.direction}
@@ -470,16 +471,19 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                         ₪<span className="price-now-digits">{card.price}</span>
                       </span>
                     </div>
+
+                    <a
+                      className="btn-primary price-cta"
+                      href={`${startHref}${startHref.includes('?') ? '&' : '?'}direction=${card.direction}`}
+                      data-event="landing_pricing_cta"
+                      data-direction={card.direction}
+                    >
+                      {card.cta}
+                    </a>
                   </article>
                 ))}
               </div>
 
-              <div className="pricing-launch" data-reveal="up" data-reveal-delay="300">
-                <p className="pricing-launch-line">{L.pricing.launch.line1} {L.pricing.launch.line2}</p>
-                <a href={startHref} className="btn-primary" data-event="landing_waitlist_click">
-                  {L.pricing.launch.cta}
-                </a>
-              </div>
 
               <div className="pricing-note" data-reveal="fade" data-reveal-delay="360">{L.pricing.note}</div>
             </div>

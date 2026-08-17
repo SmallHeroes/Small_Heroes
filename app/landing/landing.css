@@ -1073,8 +1073,10 @@
   justify-content: flex-start;
   gap: 4px;
   font-family: var(--fd);
-  font-size: 28px;
-  font-weight: 800;
+  /* the ₪ sign — calm, so the number reads as a price and not a poster
+     (per Guy: the old 28/800 next to a 62/900 figure shouted) */
+  font-size: 20px;
+  font-weight: 600;
   line-height: 1;
   color: var(--dark);
   margin: auto 0 18px;
@@ -1098,12 +1100,24 @@
   gap: 8px;
 }
 
+/* Calmed per Guy: 62px/900 was heavier than every heading on the page and
+   turned the card into a price tag. It stays the card's largest element,
+   just no longer its loudest. */
 .price-now-digits {
   font-family: var(--fb); /* override --fd — display-face digits misrender */
-  font-size: 62px;
-  font-weight: 900;
-  line-height: 0.95;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
   font-feature-settings: "tnum"; /* tabular numerals for clean alignment */
+}
+
+/* ── The card's own call to action ────────────────────────────────────
+   Full width, so the three cards close on one aligned row of buttons. */
+.price-cta {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
 }
 
 .price-launch-flag {
@@ -1781,7 +1795,7 @@
   }
 
   .price-now-digits {
-    font-size: 52px;
+    font-size: 38px;
   }
 
   .price-features li {
@@ -2210,32 +2224,8 @@
 }
 
 /* ── מחירים: the launch notice replaces the per-card buy buttons ───── */
-.pricing-launch {
-  margin: 34px auto 0;
-  max-width: 620px;
-  padding: 26px 28px;
-  border-radius: 22px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.26);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-
-.pricing-launch-line {
-  margin: 0 auto 18px;
-  max-width: 42ch;
-  font-family: var(--fd);
-  font-size: clamp(19px, 2.1vw, 24px);
-  line-height: 1.35;
-  color: #fff;
-}
-
-.pricing-launch .btn-primary {
-  background: #fff;
-  color: #4a2fd0;
-  box-shadow: 0 14px 34px rgba(20, 10, 60, 0.28);
-}
+/* (The waitlist bubble under the pricing grid is gone: each card carries its
+   own CTA now — per Guy, laying the ground for production.) */
 
 /* ── מאחורי גיבורים קטנים: the shared-language close ───────────────── */
 .about-shared {
@@ -2279,7 +2269,6 @@
   .why-grid { grid-template-columns: 1fr; gap: 14px; max-width: 520px; }
   .why-card { padding: 22px 20px 20px; }
   .about-shared { margin-top: 44px; }
-  .pricing-launch { padding: 22px 20px; margin-top: 28px; }
 }
 
 /* pricing eyebrow above the decision question */

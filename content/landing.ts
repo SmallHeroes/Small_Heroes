@@ -223,13 +223,8 @@ export const LANDING_COPY = {
     h2: 'בחרו את הספר שמתאים לכם',
     sub: 'כל ספר כולל חוויה דיגיטלית אישית, איורים וקריינות מלאה בעברית.',
     note: 'לא כל סוג סיפור מתאים לכל נושא. אחרי שתבחרו מה מעסיק את הילד, נציג את האפשרויות שמתאימות לו.',
-    /* No per-card purchase button while a package cannot actually be selected
-       from here (see the file header). The section closes with this instead. */
-    launch: {
-      line1: 'הספרים הראשונים כמעט מוכנים.',
-      line2: 'הצטרפו לקבלת הודעה כשנפתח את ההשקה.',
-      cta: 'לעדכן אותי כשהספרים נפתחים',
-    },
+    /* Each card carries its own CTA into the flow (per Guy, laying the ground
+       for production). The waitlist notice that stood in for them is gone. */
     cards: [
       {
         kicker: 'סיפור לפני שינה',
@@ -238,6 +233,7 @@ export const LANDING_COPY = {
         price: '59',
         desc: 'סיפור קצר וממוקד בקצב רגוע — להרפתקה קטנה שסוגרת את היום.',
         features: ['ספר דיגיטלי מאויר', 'קריינות מלאה בעברית'],
+        cta: 'לבחור בספר לילה טוב',
         direction: 'bedtime' as const,
         featured: false,
       },
@@ -248,6 +244,7 @@ export const LANDING_COPY = {
         price: '79',
         desc: 'יותר מקום לעלילה, להומור ולרגעים שבהם הילד צריך לפעול כדי להתקדם.',
         features: ['ספר דיגיטלי מאויר', 'קריינות מלאה בעברית'],
+        cta: 'לבחור בהרפתקה',
         direction: 'adventure' as const,
         featured: true,
       },
@@ -258,6 +255,7 @@ export const LANDING_COPY = {
         price: '99',
         desc: 'מסע ארוך ועשיר יותר, לילדים שאוהבים להיכנס לעולם אחר ולהישאר בו.',
         features: ['ספר דיגיטלי מאויר', 'קריינות מלאה בעברית'],
+        cta: 'לבחור בפנטזיה',
         direction: 'fantasy' as const,
         featured: false,
       },
