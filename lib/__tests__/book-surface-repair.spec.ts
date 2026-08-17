@@ -323,6 +323,48 @@ describe('bounded book-surface repair', () => {
     }
   });
 
+  it('admits the exact pure structural book surface without presentation targets', () => {
+    const value = draft();
+    const issues = [
+      coverProjectionIssue,
+      recurringPropLifecycleIssue,
+      pageStructureIssue(1),
+      pageStructureIssue(2),
+    ];
+    const selected = bookSurfaceRepairAuthority({
+      draft: value,
+      authorityDraft: value,
+      presentationTargets: [],
+      structuralDiagnosticIssues: issues,
+      structuralValidationMessages: issues.map(
+        (issue, index) => `${issue.code}: pure structural ${index}`,
+      ),
+    });
+
+    expect(selected).not.toBeNull();
+    expect(selected?.repairRecurringProps).toBe(true);
+    expect(selected?.affectedPages.map((page) => page.pageNumber)).toEqual([
+      1,
+      2,
+    ]);
+    expect(
+      selected?.affectedPages.flatMap((page) => page.repairTargets),
+    ).toEqual([
+      {
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        pageNumber: 1,
+      },
+      {
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        pageNumber: 2,
+      },
+    ]);
+    expect(selected?.coverValidationHints).toHaveLength(1);
+    expect(selected?.recurringPropValidationHints).toHaveLength(1);
+  });
+
   it('uses compiler-normalized cover and reference authority while targeting the original draft', () => {
     const providerDraft = draft();
     providerDraft.humanCast = [{ id: 'child:hero' }];
@@ -372,7 +414,6 @@ describe('bounded book-surface repair', () => {
   });
 
   it.each([
-    ['no presentation target', [], [coverProjectionIssue, pageStructureIssue(1)]],
     ['cover only', [presentationTarget(1)], [coverProjectionIssue]],
     ['page only', [presentationTarget(1)], [pageStructureIssue(1)]],
     [

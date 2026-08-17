@@ -615,7 +615,6 @@ function liveShapedAtomicBindingFixture(
     recurringProps: unknown;
     pageContracts: Record<string, unknown>[];
   };
-  invalidFullDraft: BookVisualContractTemplate & Record<string, unknown>;
 } {
   const valid = fullyActionedBunnyDraft(snapshot);
   for (const page of valid.pageContracts) {
@@ -787,40 +786,6 @@ function liveShapedAtomicBindingFixture(
   const invalidBookSurfacePages = structuredClone(validBookSurfacePages);
   const mixedResidualPage = invalidBookSurfacePages[1]!;
   mixedResidualPage.camera = '';
-  const invalidFullDraft = structuredClone(afterAtomicPageRepair);
-  invalidFullDraft.recurringProps = structuredClone(valid.recurringProps);
-  for (const page of invalidFullDraft.pageContracts) {
-    const mutablePage = page as unknown as Record<string, unknown> & {
-      pageNumber: number;
-      camera: string;
-      mustShow: string[];
-      actionSemanticCoverage: Array<Record<string, unknown>>;
-    };
-    const validPage = valid.pageContracts.find(
-      (candidate) => candidate.pageNumber === mutablePage.pageNumber,
-    );
-    if (!validPage) {
-      throw new Error(
-        `missing valid full-draft page ${mutablePage.pageNumber}`,
-      );
-    }
-    mutablePage.camera = validPage.camera;
-    for (const record of mutablePage.actionSemanticCoverage) {
-      const disposition = record.disposition as Record<string, unknown>;
-      if (
-        disposition.kind === 'unsupported' &&
-        disposition.reason === 'closed_action_catalog_gap'
-      ) {
-        record.disposition = {
-          kind: 'presentation_requirement',
-          presentationClass: 'composition_focus',
-          contractPointer: `/pageContracts/${mutablePage.pageNumber - 1}/mustShow/0`,
-          contractValue: mutablePage.mustShow[0]!,
-        };
-      }
-    }
-  }
-  invalidFullDraft.pageContracts[1]!.camera = '';
 
   return {
     initial,
@@ -834,7 +799,6 @@ function liveShapedAtomicBindingFixture(
       recurringProps: structuredClone(valid.recurringProps),
       pageContracts: invalidBookSurfacePages,
     },
-    invalidFullDraft,
   };
 }
 
@@ -4621,6 +4585,345 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
   });
 
+  it('repairs an exact malformed phenomenon binding before the pure structural book surface and persists a candidate in three calls', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const valid = fullyActionedBunnyDraft(snapshot);
+    for (const page of valid.pageContracts) {
+      const pageRecord = page as unknown as Record<string, unknown>;
+      pageRecord.propConstraints ??= [];
+    }
+    const coverZone = valid.zones.find(
+      (zone) => zone.locationId === valid.coverContract.locationId,
+    );
+    if (!coverZone) throw new Error('missing causal-route cover zone');
+    valid.coverContract.zoneId = coverZone.id;
+    valid.coverContract.castIds = [
+      valid.cast.child.id,
+      ...(valid.cast.companion ? [valid.cast.companion.id] : []),
+    ];
+    for (const prop of valid.recurringProps) {
+      const propRecord = prop as unknown as Record<string, unknown>;
+      if (!Object.prototype.hasOwnProperty.call(propRecord, 'firstRevealPage')) {
+        propRecord.firstRevealPage = null;
+      }
+    }
+
+    const validPhenomenonPage = valid.pageContracts[0]! as unknown as {
+      pageNumber: number;
+      mustShow: string[];
+      actionRequirements: Array<Record<string, unknown>>;
+      actionSemanticCoverage: Array<{
+        beatId: string;
+        sourceEvidenceId: string;
+        disposition: Record<string, unknown>;
+      }>;
+    };
+    const validPhenomenonAction =
+      validPhenomenonPage.actionRequirements[0]!;
+    const validPhenomenonCoverage =
+      validPhenomenonPage.actionSemanticCoverage[0]!;
+    const previousProjectionAction = structuredClone(validPhenomenonAction);
+    delete previousProjectionAction.beatId;
+    previousProjectionAction.checkId = compilerOwnedActionCheckId(
+      validPhenomenonPage.pageNumber,
+      validPhenomenonCoverage.beatId,
+    );
+    const previousProjection = projectPageMustShow(
+      {
+        ...validPhenomenonPage,
+        actionRequirements: [previousProjectionAction],
+      } as unknown as PageVisualContract,
+      valid as unknown as BookVisualContract,
+    );
+    validPhenomenonPage.mustShow = validPhenomenonPage.mustShow.filter(
+      (requirement) => !previousProjection.includes(requirement),
+    );
+    validPhenomenonAction.subject = {
+      kind: 'source_phenomenon',
+      sourceEvidenceId: validPhenomenonCoverage.sourceEvidenceId,
+    };
+    validPhenomenonAction.predicate = 'touches';
+    validPhenomenonAction.object = { kind: 'cast', id: 'child:hero' };
+    validPhenomenonAction.spatialEffect = null;
+    const projectionAction = structuredClone(validPhenomenonAction);
+    delete projectionAction.beatId;
+    projectionAction.checkId = compilerOwnedActionCheckId(
+      validPhenomenonPage.pageNumber,
+      validPhenomenonCoverage.beatId,
+    );
+    const phenomenonSourceEvidence =
+      snapshot.content.sourceEvidenceCatalog.entries.find(
+        (entry) =>
+          entry.sourceEvidenceId ===
+          validPhenomenonCoverage.sourceEvidenceId,
+      );
+    if (!phenomenonSourceEvidence) {
+      throw new Error('missing causal-route phenomenon source evidence');
+    }
+    (
+      projectionAction.subject as Record<string, unknown>
+    ).sourcePhrase = phenomenonSourceEvidence.excerpt;
+    validPhenomenonPage.mustShow = [
+      ...new Set([
+        ...validPhenomenonPage.mustShow,
+        ...projectPageMustShow(
+          {
+            ...validPhenomenonPage,
+            actionRequirements: [projectionAction],
+          } as unknown as PageVisualContract,
+          valid as unknown as BookVisualContract,
+        ),
+      ]),
+    ];
+
+    const invalid = structuredClone(valid);
+    invalid.coverContract.mustShow = [''];
+    invalid.recurringProps[0]!.firstRevealPage =
+      invalid.pageContracts.length + 10;
+    for (const page of invalid.pageContracts) page.camera = '';
+    const phenomenonPage = invalid.pageContracts.find(
+      (page) => page.pageNumber === validPhenomenonPage.pageNumber,
+    )! as unknown as {
+      pageNumber: number;
+      actionRequirements: Array<{
+        beatId: string;
+        subject: { kind: string; sourceEvidenceId: string };
+      }>;
+      actionSemanticCoverage: Array<{
+        beatId: string;
+        sourceEvidenceId: string;
+        disposition: Record<string, unknown>;
+      }>;
+    };
+    const phenomenonAction = phenomenonPage.actionRequirements[0]!;
+    const phenomenonCoverage = phenomenonPage.actionSemanticCoverage[0]!;
+    expect(phenomenonAction.subject.kind).toBe('source_phenomenon');
+    expect(phenomenonCoverage.beatId).toBe(phenomenonAction.beatId);
+    const validSourceEvidenceId = phenomenonAction.subject.sourceEvidenceId;
+    phenomenonCoverage.sourceEvidenceId = 'malformed-source-evidence-id';
+    const inputBeforeAuthoring = structuredClone(invalid);
+
+    const calls: Parameters<VisualContractAuthoringProvider['call']>[0][] = [];
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => {
+        calls.push(args);
+        let output: unknown;
+        if (args.attempt === 1) {
+          output = invalid;
+        } else if (args.attempt === 2) {
+          output = {
+            patches: [
+              {
+                pageNumber: phenomenonPage.pageNumber,
+                beatId: phenomenonCoverage.beatId,
+                sourceEvidenceId: validSourceEvidenceId,
+              },
+            ],
+          };
+        } else {
+          const payload = decodeBookSurfaceRepairUserPrompt(
+            args.userPrompt,
+          );
+          const affectedPages = payload.affectedPages as Array<{
+            pageNumber: number;
+            pageContract: Record<string, unknown>;
+          }>;
+          output = {
+            coverContract: structuredClone(valid.coverContract),
+            recurringProps: structuredClone(valid.recurringProps),
+            pageContracts: affectedPages.map((affectedPage) => {
+              const matchingValidPage = valid.pageContracts.find(
+                (page) => page.pageNumber === affectedPage.pageNumber,
+              );
+              if (!matchingValidPage) {
+                throw new Error(
+                  `missing pure structural repair page ${affectedPage.pageNumber}`,
+                );
+              }
+              const replacement = structuredClone(
+                affectedPage.pageContract,
+              );
+              delete replacement.castIds;
+              delete replacement.castStates;
+              delete replacement.characterPresence;
+              replacement.camera = matchingValidPage.camera;
+              return replacement;
+            }),
+          };
+        }
+        return {
+          output: JSON.stringify(output),
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `causal-source-structural-${args.attempt}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+              output_tokens_details: { reasoning_tokens: 500 },
+            },
+          },
+        };
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt, JSON.stringify(result.receipt, null, 2))
+      .toMatchObject({
+        status: 'completed',
+        callCount: 3,
+        repairCount: 2,
+        failure: null,
+        draftValidationStatus: 'completed',
+      });
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([
+        null,
+        'source_evidence_id_patch',
+        'book_surface_patch',
+      ]);
+    expect(calls.map((call) => call.options.maxOutputTokens)).toEqual([
+      40_000,
+      32_000,
+      36_000,
+    ]);
+    expect(calls[1]!.options.jsonSchema?.name).toBe(
+      'SourceEvidenceIdRepairPatches',
+    );
+    expect(calls[2]!.options.jsonSchema?.name).toBe(
+      'BookSurfaceRepairPatch',
+    );
+    expect(
+      result.receipt.attempts[0]!.draftValidationDiagnostics?.items.map(
+        (item) => `${item.issue.family}:${item.issue.code}`,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'source_evidence_id:source_evidence_id_malformed',
+        'action_semantic:source_phenomenon_binding_mismatch',
+      ]),
+    );
+    expect(
+      result.receipt.attempts[0]!.draftValidationDiagnostics
+        ?.currentUniqueCount,
+    ).toBe(2);
+    expect(
+      result.receipt.attempts[1]!.draftValidationDiagnostics,
+    ).toMatchObject({
+      currentUniqueCount: 14,
+      newlyIntroducedCount: 14,
+      resolvedCount: 2,
+      finalAttempt: false,
+    });
+    expect(
+      result.receipt.attempts[1]!.draftValidationDiagnostics?.items
+        .filter((item) => item.state !== 'resolved')
+        .map((item) => item.issue.code),
+    ).toEqual(
+      expect.arrayContaining([
+        'cover_projection_invalid',
+        'final_structural_invariant_invalid',
+        'lifecycle_invariant_invalid',
+      ]),
+    );
+    expect(
+      result.receipt.attempts[2]!.draftValidationDiagnostics,
+    ).toMatchObject({
+      currentUniqueCount: 0,
+      resolvedCount: 14,
+      finalAttempt: true,
+    });
+    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.compileResult?.actionSemanticCoverage.find(
+      (record) =>
+        record.pageNumber === phenomenonPage.pageNumber &&
+        record.beatId === phenomenonCoverage.beatId,
+    )?.sourceEvidenceId).toBe(validSourceEvidenceId);
+    expect(invalid).toEqual(inputBeforeAuthoring);
+  });
+
+  it('keeps mixed causal and independent source-evidence failures on the fail-closed full-draft route', async () => {
+    const snapshot = storySnapshot('fox_uri_adventure');
+    const request = requestFor(snapshot, 'live');
+    const valid = actionCapabilityCalibrationDraft(snapshot);
+    const invalid = structuredClone(valid);
+    const phenomenonPage = invalid.pageContracts.find(
+      (page) => page.pageNumber === 7,
+    )! as unknown as {
+      actionSemanticCoverage: Array<Record<string, unknown>>;
+    };
+    phenomenonPage.actionSemanticCoverage[0]!.sourceEvidenceId =
+      'malformed-phenomenon-source-evidence';
+    const independentPage = invalid.pageContracts.find(
+      (page) => page.pageNumber === 6,
+    )! as unknown as {
+      actionSemanticCoverage: Array<Record<string, unknown>>;
+    };
+    independentPage.actionSemanticCoverage.push({
+      beatId: 'beat:p6:independent_non_visual',
+      sourceEvidenceId: 'malformed-independent-source-evidence',
+      disposition: {
+        kind: 'non_visual',
+        rationale: 'narrative_context',
+      },
+    });
+    const inputBeforeAuthoring = structuredClone(invalid);
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => ({
+        output: JSON.stringify(args.attempt === 1 ? invalid : valid),
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: `mixed-source-route-${args.attempt}`,
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 2_000,
+            total_tokens: 3_000,
+            output_tokens_details: { reasoning_tokens: 500 },
+          },
+        },
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'completed',
+      callCount: 2,
+      repairCount: 1,
+      failure: null,
+    });
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([null, 'full_draft']);
+    expect(
+      result.receipt.attempts[0]!.draftValidationDiagnostics?.items.map(
+        (item) => `${item.issue.family}:${item.issue.code}`,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'action_semantic:source_phenomenon_binding_mismatch',
+        'source_evidence_id:source_evidence_id_malformed',
+      ]),
+    );
+    expect(
+      result.receipt.attempts[0]!.draftValidationDiagnostics
+        ?.currentUniqueCount,
+    ).toBe(3);
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(invalid).toEqual(inputBeforeAuthoring);
+  });
+
   it('repairs a malformed source-evidence identity before classifying its dependent closed-catalog gap', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
@@ -5191,11 +5494,51 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
   it('does not admit a fourth cleanup call when mixed residuals persist after local normalization and the bounded book-surface sequence', async () => {
     const snapshot = bunnySnapshot();
     const fixture = liveShapedAtomicBindingFixture(snapshot);
-    const provider = sequencedSuccessfulProvider([
-      fixture.initial,
-      fixture.invalidBookSurfaceRepair,
-      fixture.invalidFullDraft,
-    ]);
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => {
+        let output: unknown;
+        if (args.attempt === 1) {
+          output = fixture.initial;
+        } else if (args.attempt === 2) {
+          output = fixture.invalidBookSurfaceRepair;
+        } else {
+          const payload = decodeBookSurfaceRepairUserPrompt(
+            args.userPrompt,
+          );
+          output = {
+            coverContract: structuredClone(payload.coverContract),
+            recurringProps: structuredClone(payload.recurringProps),
+            pageContracts: (
+              payload.affectedPages as Array<{
+                pageContract: Record<string, unknown>;
+              }>
+            ).map((affectedPage) => {
+              const replacement = structuredClone(
+                affectedPage.pageContract,
+              );
+              delete replacement.castIds;
+              delete replacement.castStates;
+              delete replacement.characterPresence;
+              return replacement;
+            }),
+          };
+        }
+        return {
+          output: JSON.stringify(output),
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `persistent-book-surface-${args.attempt}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+              output_tokens_details: { reasoning_tokens: 500 },
+            },
+          },
+        };
+      }),
+    };
 
     const result = await runVisualContractAuthoring({
       request: requestFor(snapshot, 'live'),
@@ -5215,7 +5558,11 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       },
     });
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
-      .toEqual([null, 'book_surface_patch', 'full_draft']);
+      .toEqual([
+        null,
+        'book_surface_patch',
+        'book_surface_patch',
+      ]);
     expect(provider.call).toHaveBeenCalledTimes(3);
     const finalDiagnostics =
       result.receipt.attempts[2]!.draftValidationDiagnostics;

@@ -8,6 +8,7 @@ import {
   decodePageContractRepairInput,
   encodePageContractRepairInput,
   pageContractPresentationStructuralRepairAffectedPages,
+  pageContractRepairAffectedPages,
   type PageContractRepairAffectedPage,
 } from './pageContractRepair';
 import type { PresentationRequirementRepairTarget } from './presentationRequirementRepair';
@@ -341,10 +342,11 @@ function permittedStructuralIssue(issue: DraftValidationIssue): boolean {
 }
 
 /**
- * Selects only the closed mixed family seen after a bounded page repair:
- * presentation gaps plus cover/page final-structure failures and, when
- * present, the exact recurring-props lifecycle identity. The authority
- * excludes every unrelated draft collection and returns null on any mixture.
+ * Selects only the closed book-surface family seen after a bounded repair:
+ * cover/page final-structure failures and, when present, the exact
+ * recurring-props lifecycle identity, optionally combined with closed
+ * presentation gaps. The authority excludes every unrelated draft collection
+ * and returns null on any mixture.
  */
 export function bookSurfaceRepairAuthority(args: {
   draft: Record<string, unknown>;
@@ -359,7 +361,6 @@ export function bookSurfaceRepairAuthority(args: {
   structuralValidationMessages: readonly string[];
 }): BookSurfaceRepairAuthority | null {
   if (
-    args.presentationTargets.length === 0 ||
     args.structuralDiagnosticIssues.length === 0 ||
     args.structuralDiagnosticIssues.length !==
       args.structuralValidationMessages.length ||
@@ -409,16 +410,24 @@ export function bookSurfaceRepairAuthority(args: {
   if (!coverIssueSeen || pageIssueEntries.length === 0) return null;
 
   const affectedPages =
-    pageContractPresentationStructuralRepairAffectedPages({
-      draft: args.draft,
-      presentationTargets: args.presentationTargets,
-      structuralDiagnosticIssues: pageIssueEntries.map(
-        ({ issue }) => issue,
-      ),
-      structuralValidationMessages: pageIssueEntries.map(
-        ({ message }) => message,
-      ),
-    });
+    args.presentationTargets.length > 0
+      ? pageContractPresentationStructuralRepairAffectedPages({
+          draft: args.draft,
+          presentationTargets: args.presentationTargets,
+          structuralDiagnosticIssues: pageIssueEntries.map(
+            ({ issue }) => issue,
+          ),
+          structuralValidationMessages: pageIssueEntries.map(
+            ({ message }) => message,
+          ),
+        })
+      : pageContractRepairAffectedPages({
+          draft: args.draft,
+          diagnosticIssues: pageIssueEntries.map(({ issue }) => issue),
+          validationMessages: pageIssueEntries.map(
+            ({ message }) => message,
+          ),
+        });
   const cleanedAffectedPages = affectedPages?.map((page) => {
     const validationHints = cleanValidationMessages(
       page.validationHints,

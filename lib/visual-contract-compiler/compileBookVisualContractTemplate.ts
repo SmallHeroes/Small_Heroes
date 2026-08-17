@@ -328,14 +328,131 @@ function sourceEvidenceIdDiagnosticIssues(
 export class SourceEvidenceIdValidationError extends InvalidTemplateContractError {
   constructor(
     readonly affectedRecords: SourceEvidenceIdRepairAffectedRecord[],
-    errors: string[],
+    errors: readonly string[],
+    dependentDiagnosticIssues: readonly DraftValidationIssue[] = [],
   ) {
     super(
-      errors,
-      sourceEvidenceIdDiagnosticIssues(affectedRecords),
+      [...errors],
+      [
+        ...sourceEvidenceIdDiagnosticIssues(affectedRecords),
+        ...dependentDiagnosticIssues.map((issue) => structuredClone(issue)),
+      ],
     );
     this.name = 'SourceEvidenceIdValidationError';
   }
+}
+
+function sourceEvidenceRepairIsExactPrerequisiteForPhenomenonMismatches(args: {
+  canonicalPages: readonly Record<string, unknown>[];
+  catalog: SourceEvidenceCatalog;
+  affectedRecords: readonly SourceEvidenceIdRepairAffectedRecord[];
+  diagnosticIssues: readonly DraftValidationIssue[];
+}): boolean {
+  if (
+    args.affectedRecords.length === 0 ||
+    args.diagnosticIssues.length !== args.affectedRecords.length
+  ) {
+    return false;
+  }
+
+  const expectedDiagnosticKeys = new Set<string>();
+  const affectedRecordKeys = new Set<string>();
+  for (const record of args.affectedRecords) {
+    if (
+      !Number.isSafeInteger(record.pageNumber) ||
+      record.pageNumber < 1 ||
+      !Number.isSafeInteger(record.coverageIndex) ||
+      record.coverageIndex < 0 ||
+      record.beatId.length === 0 ||
+      record.actionRequirement === null ||
+      record.actionRequirement.beatId !== record.beatId
+    ) {
+      return false;
+    }
+    const recordKey = JSON.stringify([
+      record.pageNumber,
+      record.coverageIndex,
+      record.beatId,
+    ]);
+    if (affectedRecordKeys.has(recordKey)) return false;
+    affectedRecordKeys.add(recordKey);
+
+    const pageMatches = args.canonicalPages.filter(
+      (page) => page.pageNumber === record.pageNumber,
+    );
+    if (pageMatches.length !== 1) return false;
+    const page = pageMatches[0]!;
+    const coverage = asArr(page.actionSemanticCoverage);
+    const currentCoverage = asObj(coverage[record.coverageIndex]);
+    const disposition = asObj(currentCoverage.disposition);
+    if (
+      currentCoverage.beatId !== record.beatId ||
+      currentCoverage.sourceEvidenceId !==
+        record.coverageRecord.sourceEvidenceId ||
+      disposition.kind !== 'action_requirement' ||
+      resolveSourceEvidenceId({
+        catalog: args.catalog,
+        sourceEvidenceId: currentCoverage.sourceEvidenceId,
+        pageNumber: record.pageNumber,
+      }).ok
+    ) {
+      return false;
+    }
+
+    const matchingActions = asArr(page.actionRequirements)
+      .map((action, actionIndex) => ({
+        action: asObj(action),
+        actionIndex,
+      }))
+      .filter(({ action }) => action.beatId === record.beatId);
+    if (matchingActions.length !== 1) return false;
+    const matchingAction = matchingActions[0]!;
+    const subject = asObj(matchingAction.action.subject);
+    const subjectResolution = resolveSourceEvidenceId({
+      catalog: args.catalog,
+      sourceEvidenceId: subject.sourceEvidenceId,
+      pageNumber: record.pageNumber,
+    });
+    if (
+      subject.kind !== 'source_phenomenon' ||
+      !subjectResolution.ok ||
+      JSON.stringify(canonicalize(record.actionRequirement.subject)) !==
+        JSON.stringify(canonicalize(matchingAction.action.subject))
+    ) {
+      return false;
+    }
+    const diagnosticKey = JSON.stringify([
+      record.pageNumber,
+      matchingAction.actionIndex,
+    ]);
+    if (expectedDiagnosticKeys.has(diagnosticKey)) return false;
+    expectedDiagnosticKeys.add(diagnosticKey);
+  }
+
+  const seenDiagnosticKeys = new Set<string>();
+  for (const issue of args.diagnosticIssues) {
+    if (
+      issue.family !== 'action_semantic' ||
+      issue.code !== 'source_phenomenon_binding_mismatch' ||
+      issue.locator.kind !== 'page_item' ||
+      issue.locator.collectionRole !== 'page_actions' ||
+      issue.locator.fieldRole !== 'source_evidence'
+    ) {
+      return false;
+    }
+    const key = JSON.stringify([
+      issue.locator.pageNumber,
+      issue.locator.itemIndex,
+    ]);
+    if (
+      !expectedDiagnosticKeys.has(key) ||
+      seenDiagnosticKeys.has(key)
+    ) {
+      return false;
+    }
+    seenDiagnosticKeys.add(key);
+  }
+  return seenDiagnosticKeys.size === expectedDiagnosticKeys.size;
 }
 
 /** Deterministic closed-domain failures are never eligible for provider repair. */
@@ -715,6 +832,32 @@ class PresentationStructuralValidationError extends Error {
     );
     this.name = 'PresentationStructuralValidationError';
     this.gaps = args.gaps.map((gap) => structuredClone(gap));
+    this.structuralError = args.structuralError;
+    this.structuralErrors = [...args.structuralError.errors];
+    this.structuralDiagnosticIssues =
+      args.structuralError.diagnosticIssues.map((issue) =>
+        structuredClone(issue),
+      );
+    this.bookSurfaceAuthorityDraft = structuredClone(
+      args.bookSurfaceAuthorityDraft,
+    );
+  }
+}
+
+class BookSurfaceStructuralValidationError extends Error {
+  readonly structuralError: InvalidTemplateContractError;
+  readonly structuralErrors: readonly string[];
+  readonly structuralDiagnosticIssues: readonly DraftValidationIssue[];
+  readonly bookSurfaceAuthorityDraft: Record<string, unknown>;
+
+  constructor(args: {
+    structuralError: InvalidTemplateContractError;
+    bookSurfaceAuthorityDraft: Record<string, unknown>;
+  }) {
+    super(
+      'closed cover/page final-structure failures require one bounded book-surface repair',
+    );
+    this.name = 'BookSurfaceStructuralValidationError';
     this.structuralError = args.structuralError;
     this.structuralErrors = [...args.structuralError.errors];
     this.structuralDiagnosticIssues =
@@ -3214,6 +3357,23 @@ function assembleTemplateFromDraft(
     seenBeatIds.add(beat.beatId);
   }
   if (coverageIssues.length > 0) {
+    if (
+      sourceEvidenceRepairIsExactPrerequisiteForPhenomenonMismatches({
+        canonicalPages,
+        catalog: input.sourceEvidenceCatalog,
+        affectedRecords: sourceEvidenceIssues,
+        diagnosticIssues: coverageDiagnosticIssues,
+      })
+    ) {
+      throw new SourceEvidenceIdValidationError(
+        sourceEvidenceIssues,
+        [
+          ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
+          ...coverageIssues,
+        ],
+        coverageDiagnosticIssues,
+      );
+    }
     throw new InvalidTemplateContractError(
       [
         ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
@@ -3333,6 +3493,23 @@ function assembleTemplateFromDraft(
     ) {
       throw new PresentationStructuralValidationError({
         gaps: capabilityGaps,
+        structuralError: error,
+        bookSurfaceAuthorityDraft:
+          template as unknown as Record<string, unknown>,
+      });
+    }
+    if (
+      error instanceof InvalidTemplateContractError &&
+      bookSurfaceRepairAuthority({
+        draft,
+        authorityDraft:
+          template as unknown as Record<string, unknown>,
+        presentationTargets: [],
+        structuralDiagnosticIssues: error.diagnosticIssues,
+        structuralValidationMessages: error.errors,
+      })
+    ) {
+      throw new BookSurfaceStructuralValidationError({
         structuralError: error,
         bookSurfaceAuthorityDraft:
           template as unknown as Record<string, unknown>,
@@ -3631,7 +3808,22 @@ export async function compileBookVisualContractTemplate(
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
-      if (err instanceof PresentationStructuralValidationError) {
+      if (err instanceof BookSurfaceStructuralValidationError) {
+        bookSurfaceAuthority =
+          bookSurfaceRepairAuthority({
+            draft,
+            authorityDraft: err.bookSurfaceAuthorityDraft,
+            presentationTargets: [],
+            structuralDiagnosticIssues:
+              err.structuralDiagnosticIssues,
+            structuralValidationMessages: err.structuralErrors,
+          }) ?? undefined;
+        if (!bookSurfaceAuthority) throw err.structuralError;
+        attemptErrors = [...err.structuralErrors];
+        attemptDiagnosticIssues = [
+          ...err.structuralDiagnosticIssues,
+        ];
+      } else if (err instanceof PresentationStructuralValidationError) {
         presentationRequirementAffectedTargets =
           presentationRequirementRepairTargets({
             draft,
