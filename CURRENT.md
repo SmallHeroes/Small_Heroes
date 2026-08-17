@@ -2,7 +2,56 @@
 
 **Updated:** 2026-08-17
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-pure-page-spatial-repair-canonical-context` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed `f1397b9c798868700d15e982994894b1fd21bc83`.
+**Working branch:** `codex/r1d-mixed-source-evidence-action-repair-routing` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed `0285df438bd5a8bbcbd9db7563ab0778f50e4599`.
+
+## MIXED SOURCE-EVIDENCE / ACTION REPAIR ROUTING — implementation green, independent QA pending
+
+The post-canonical-spatial live attempt exhausted three calls without a
+candidate. Fresh Readiness was
+`c706f3402272a45ac8f17ca5572d17fc70fd5207e45c01065a8d2440d4983b5e`,
+Execution Request was
+`40c2bb727526b96d60d3a0869139f0404a9eb043f75c7c19667c0f2d92b7763c`,
+source snapshot was
+`f8ac1292d5e225a8ff90c462416a44fe61f89b2c47f1529a1e43dd8025f1a079`,
+and receipt
+`0e61e0472744874fcba434529c8c160638ed406d9dfe672361004a783c6cc2fa`
+recorded exactly `3 / 2 / 0` provider calls / repairs / transport retries, no
+fallback, `$1.930896` nominal and `$2.123999` conservative accounting. The
+initial response carried two malformed Source Evidence IDs plus a dependent
+action-semantic diagnostic. Destructive `full_draft` then introduced an
+action-binding failure, and the final page-contract patch ended at 158 emitted
+/ 26 unique diagnostics. No candidate or downstream authority was created.
+
+Repository tracing found two linked general defects. An unresolved but
+otherwise valid `unsupported / closed_action_catalog_gap` disposition emitted
+a misleading dependent `disposition_payload_invalid`; after that was removed,
+`ActionSemanticCoverageValidationError` still discarded the compiler-owned
+typed Source Evidence affected-record authority. The router therefore could
+not prove compact identity repair was the exact prerequisite.
+
+Commit `2a51e5df` preserves typed affected records only when every co-reported
+semantic issue is the causal `coverage_missing` consequence on the same
+unresolved closed-gap pages. It routes exact Source Evidence identity repair
+first, runs full validation again, then allows the existing
+presentation-requirement repair only if a genuine closed-catalog gap is
+revealed. Independent semantic or structural failures retain their existing
+fail-closed route. Input drafts and non-target semantics remain unchanged;
+model, prompts/schemas, 64K ceiling, `[40,000, 32,000, 36,000]`, budgets,
+timeout, retries, fallback, `$5` fence, persisted versions and downstream gates
+are unchanged.
+
+Validation is green: the final causal guard slice passes 4/4; the affected
+aggregate passes 9 files / 254 tests; TypeScript and `git diff --check` pass.
+The one literal `npm run check` had no infrastructure failure:
+resource-intensive passed 19 files / 586 tests, and ordinary failed only the
+five assertions across four established missing-output fixture tests. That
+baseline remains a separate release HOLD and does not make the literal
+repository gate green.
+
+No credential, provider, Fresh Readiness, preflight, live, render,
+storage/database, deployment, production or push action occurred in this
+implementation. Independent Claude Code QA is pending; Codex does not
+self-award technical PASS.
 
 ## PURE PAGE-SPATIAL REPAIR CANONICAL CONTEXT — independent technical PASS
 
