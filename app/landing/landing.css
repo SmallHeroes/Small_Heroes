@@ -162,6 +162,8 @@
 
 .hero {
   padding: 52px 0 0px;
+  position: relative;
+  isolation: isolate;
 }
 
 .hero-wrap {
@@ -170,6 +172,86 @@
   justify-content: space-between;
   gap: 24px;
   min-height: 0;
+  /* above the doodle sky */
+  position: relative;
+  z-index: 1;
+}
+
+/* ── The storybook sky ────────────────────────────────────────────────
+   A lavender wash plus line doodles from the book's own vocabulary,
+   drifting in the hero's quiet zones. Decorative only: it sits under the
+   content, takes no pointer events, and never animates for users who
+   asked for stillness. */
+.hero-doodles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(240, 236, 255, 0.62) 0%,
+    rgba(243, 240, 255, 0.3) 46%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+.hero-doodle {
+  position: absolute;
+  /* PHYSICAL sides on purpose: the marks are anchored to the composition
+     (art left, copy right), and logical properties would mirror them onto
+     the very elements they exist to avoid in this RTL document. */
+  left: var(--x-left, auto);
+  right: var(--x-right, auto);
+  top: var(--y-top, auto);
+  bottom: var(--y-bottom, auto);
+  width: var(--size, 24px);
+  height: var(--size, 24px);
+  color: #b3a1f6;
+  opacity: 0.75;
+  rotate: var(--tilt, 0deg);
+  /* rotate is a separate property, so the float owns translate outright */
+  animation: hero-doodle-float var(--dur, 12s) ease-in-out var(--delay, 0s) infinite alternate;
+}
+
+.hero-doodle[data-tone='gold'] {
+  color: #f5c944;
+  opacity: 0.85;
+}
+
+.hero-doodle svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes hero-doodle-float {
+  from { translate: 0 0; }
+  to { translate: 0 var(--drift, -13px); }
+}
+
+/* Each viewport shows only the set placed for its layout. */
+.hero-doodle[data-scope='mobile'] {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .hero-doodle[data-scope='desktop'] {
+    display: none;
+  }
+
+  .hero-doodle[data-scope='mobile'] {
+    display: block;
+    opacity: 0.62;
+  }
+}
+
+/* Stillness stays still: the sky remains, the drift does not. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-doodle {
+    animation: none;
+    translate: 0 0;
+  }
 }
 
 .hero-text {
