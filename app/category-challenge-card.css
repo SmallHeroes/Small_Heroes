@@ -140,20 +140,25 @@ button.mvp-challenge-card {
   background: var(--surface-alt, #faf9fc);
 }
 
-/* the landing card's single emotional line (the grey description under it
-   was dropped per Guy — one line reads, a paragraph doesn't) */
+/* the landing card's emotional line — deliberately LIGHTER than the topic
+   title above it, so the topic reads first (per Guy) */
 .mvp-challenge-card-lead {
   display: block;
-  font-weight: 600;
-  font-size: 15px;
-  line-height: 1.5;
-  color: #4a4560;
+  font-weight: 400;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: #6b6680;
 }
 
-/* empty one-liner (landing) must not leave a gap */
+/* empty one-liner (wizard / start) must not leave a gap */
 .mvp-challenge-card-oneliner:empty {
   display: none;
 }
+
+/* (The landing grid keeps the shared layout — one row on desktop, 2-up on
+   phones. The 3 × 2 experiment went with the per-card description, which
+   Guy dropped: one short hook per card reads, a paragraph doesn't.) */
+
 
 .mvp-challenge-card-text {
   padding: 16px;
@@ -165,11 +170,13 @@ button.mvp-challenge-card {
   background: var(--surface-raised, #fff);
 }
 
+/* the topic is the card's headline — it carries the weight, and on phones
+   it steps up a size so it stays dominant over the line beneath (per Guy) */
 .mvp-challenge-card-label {
-  font-weight: 700;
-  font-size: clamp(15px, 1.6vw, 17px);
+  font-weight: 800;
+  font-size: clamp(17px, 1.7vw, 18px);
   line-height: 1.25;
-  color: #2b2440;
+  color: #241b4d;
   margin: 0;
 }
 
@@ -186,6 +193,7 @@ button.mvp-challenge-card {
   line-height: 1.4;
   margin: 0;
 }
+
 
 .mvp-challenge-card-badge {
   position: absolute;
@@ -251,4 +259,17 @@ button.mvp-challenge-card {
 .mvp-challenge-card-img {
   -webkit-mask-image: radial-gradient(118% 92% at 50% 88%, #000 52%, rgba(0, 0, 0, 0.55) 74%, transparent 97%);
   mask-image: radial-gradient(118% 92% at 50% 88%, #000 52%, rgba(0, 0, 0, 0.55) 74%, transparent 97%);
+}
+
+/* ── Phone typography (last block on purpose: it has to win over the base
+   rules above). The topic is the headline; the line under it stays light. */
+@media (max-width: 640px) {
+  .mvp-challenge-card-label {
+    font-size: 18.5px;
+    line-height: 1.2;
+  }
+
+  .mvp-challenge-card-lead {
+    font-size: 14px;
+  }
 }

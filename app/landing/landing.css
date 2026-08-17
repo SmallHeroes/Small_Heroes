@@ -187,7 +187,7 @@
   padding: 8px 16px;
   border-radius: 999px;
   background: var(--yellow);
-  color: #3d2f10;
+  color: #2b2440;
   font-family: var(--fb);
   font-size: 13px;
   font-weight: 600;
@@ -452,9 +452,10 @@
 
 .how-card {
   width: 33%;
+  display: flex;
   background: var(--white);
   border-radius: 20px;
-  padding: 18px 16px;
+  padding: 24px 22px 22px;
   box-shadow: var(--shadow-card);
   text-align: right;
   border: 1px solid var(--border);
@@ -465,13 +466,36 @@
   align-items: stretch;
   justify-content: center;
   gap: 16px;
-  margin-top: 52px;
+  margin-top: 28px;
 }
 
 .how-step {
   flex: 1 1 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   text-align: start;
+}
+
+/* the step's order lives in a chip, not glued into the title text */
+.how-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #efeafe;
+  color: var(--purple);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.how-step .landing-card-title,
+.how-step .landing-card-body {
+  margin: 0;
 }
 
 .step-divider {
@@ -495,7 +519,7 @@
 
 .sample-text {
   width: 100%;
-  max-width: 760px;
+  max-width: 900px;
   min-width: 0;
 }
 
@@ -520,12 +544,14 @@
   margin-bottom: 18px;
 }
 
+/* wider measure per Guy — 640px made the lines feel cramped and broke the
+   paragraph into too many short rows */
 .sample-p {
   font-size: 20px;
   color: #474257;
-  line-height: 1.8;
-  margin: 0 auto 10px;
-  max-width: 640px;
+  line-height: 1.75;
+  margin: 0 auto 12px;
+  max-width: 860px;
 }
 
 .sample-caption {
@@ -1076,7 +1102,7 @@
   max-width: 42rem;
   font-size: 16px;
   line-height: 1.65;
-  color: #3d2f10;
+  color: #3d3850;
 }
 
 .trust-band__inner {
@@ -1315,6 +1341,14 @@
   .hero-cta-note {
     margin-left: auto;
     margin-right: auto;
+  }
+
+  /* centred under the stacked CTAs, and short enough to stay on one line */
+  .hero-cta-notes {
+    justify-content: center;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
   }
 
   .hero-btns {
@@ -1742,11 +1776,11 @@
   .scroll-progress { display: none !important; }
 }
 
-/* ── פס ההשקה: מהצהוב־לימון אל משפחת הקרם (מתחבר לסקשן עלינו) ── */
+/* ── פס ההשקה: לבנדר שקט במשפחת הסגול (מתחבר לסקשן עלינו) ── */
 .early-stage-band {
   background: var(--surface-sunken, #f1eff9);
-  border-top: 1px solid #f4e8c8;
-  border-bottom: 1px solid #f4e8c8;
+  border-top: 1px solid #e6e0f6;
+  border-bottom: 1px solid #e6e0f6;
 }
 
 
@@ -1772,14 +1806,17 @@
   max-width: 54ch;
 }
 
-/* display two-liner under a section h2 (how / gallery / about) */
+/* the line under a section h2 (how / gallery / about) — REGULAR body text,
+   never heading weight (per Guy: one heading per section, the line after it
+   must not compete with it) */
 .section-lede {
-  font-family: var(--fd);
-  font-size: clamp(22px, 2.4vw, 30px);
-  line-height: 1.3;
-  color: var(--dark);
+  font-size: clamp(17.5px, 2vw, 20px);
+  font-weight: 500;
+  line-height: 1.6;
+  color: #4a4560;
   text-align: center;
-  margin: 4px 0 28px;
+  max-width: 56ch;
+  margin: 10px auto 14px;
   text-wrap: balance;
 }
 
@@ -1789,15 +1826,270 @@
   text-align: center;
 }
 
-/* step 3 lands on the point */
+/* step 3 lands on the point — pinned to the card floor so the three cards
+   close on one shared baseline instead of a ragged bottom edge */
 .how-step-emphasis {
-  margin: 10px 0 0;
+  margin: auto 0 0;
+  padding-top: 8px;
   font-family: var(--fd);
   font-size: 21px;
   color: var(--purple);
 }
 
-/* (the multi-line sample stanza was dropped per Guy — one tight paragraph) */
+/* ═══ Guy's copy spec (2026-08) — new section blocks ═══════════════ */
+
+/* ── HERO: the three reassurances under the CTAs ───────────────────
+   One line on desktop with dot separators; wraps to two on a phone. */
+.hero-cta-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #7a7589;
+  max-width: 520px;
+}
+.hero-cta-notes li { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.hero-cta-notes li + li::before {
+  content: '';
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #c9c3dd;
+}
+
+/* ── מה מקבלים: five short promises, evenly weighted ───────────────
+   3-up on desktop (the last row centres), 1-up on phones. Each card is
+   a flat surface with a purple check — no heavy borders, so the section
+   reads as a list, not as a second pricing table. */
+.value-section {
+  background: linear-gradient(180deg, #fff 0%, #fbfaff 100%);
+}
+
+/* flex (not grid) so the 5th/6th items centre on the last row instead of
+   hugging the start edge */
+.value-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px;
+  max-width: 1000px;
+  margin: 34px auto 0;
+}
+
+.value-card {
+  flex: 0 1 calc((100% - 36px) / 3);
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px 22px;
+  border-radius: 20px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  text-align: start;
+}
+
+.value-card-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #efeafe;
+  color: #6d4df0;
+}
+.value-card-mark svg { width: 18px; height: 18px; }
+
+.value-card-title {
+  font-family: var(--fd);
+  font-weight: 400;
+  font-size: 19px;
+  line-height: 1.3;
+  color: var(--dark);
+  margin: 0;
+}
+
+.value-card-body {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--mid);
+}
+
+.value-spreads {
+  margin: 24px auto 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: #5f5a70;
+}
+
+/* ── ספר לדוגמה: the second, softer paragraph (about the companion) ── */
+.sample-p--soft {
+  font-size: 17.5px;
+  color: #6b6680;
+  max-width: 800px;
+}
+
+/* ── איך זה עובד: the closing line above the CTA ───────────────────── */
+.how-closing {
+  margin: 0 auto 22px;
+  max-width: 40ch;
+  font-family: var(--fd);
+  font-size: clamp(20px, 2.2vw, 26px);
+  line-height: 1.35;
+  color: var(--dark);
+}
+
+/* ── למה הסיפורים שלנו עובדים אחרת: four numbered story-craft cards ── */
+.why-section {
+  background: var(--white);
+}
+
+.why-sub {
+  margin: 0 auto 6px;
+  max-width: 56ch;
+  text-align: center;
+  font-size: 16.5px;
+  line-height: 1.7;
+  color: var(--mid);
+}
+
+.why-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  max-width: 900px;
+  margin: 32px auto 0;
+}
+
+.why-card {
+  position: relative;
+  padding: 26px 24px 24px;
+  border-radius: 20px;
+  background: var(--bg-lighter);
+  border: 1px solid var(--border);
+  text-align: start;
+}
+
+.why-card-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: #efeafe;
+  color: var(--purple);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.why-card-title {
+  font-family: var(--fd);
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 1.3;
+  color: var(--dark);
+  margin: 0 0 8px;
+}
+
+.why-card-body {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: var(--mid);
+}
+
+/* ── איך אנחנו שומרים על איכות: the sub under the lede ─────────────── */
+.trust-band__sub {
+  margin: 0 auto;
+  max-width: 48ch;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--mid);
+}
+
+/* ── מחירים: the launch notice replaces the per-card buy buttons ───── */
+.pricing-launch {
+  margin: 34px auto 0;
+  max-width: 620px;
+  padding: 26px 28px;
+  border-radius: 22px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.pricing-launch-line {
+  margin: 0 auto 18px;
+  max-width: 42ch;
+  font-family: var(--fd);
+  font-size: clamp(19px, 2.1vw, 24px);
+  line-height: 1.35;
+  color: #fff;
+}
+
+.pricing-launch .btn-primary {
+  background: #fff;
+  color: #4a2fd0;
+  box-shadow: 0 14px 34px rgba(20, 10, 60, 0.28);
+}
+
+/* ── מאחורי גיבורים קטנים: the shared-language close ───────────────── */
+.about-shared {
+  margin-top: 56px;
+  text-align: center;
+}
+
+.about-shared-h3 {
+  font-family: var(--fd);
+  font-weight: 400;
+  font-size: clamp(23px, 2.8vw, 31px);
+  line-height: 1.2;
+  color: var(--dark);
+  margin: 0 0 16px;
+}
+
+.about-shared-lines {
+  margin: 0 auto 22px;
+  max-width: 58ch;
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--mid);
+}
+
+.about-shared-note {
+  margin: 0 auto;
+  max-width: 58ch;
+  padding: 18px 22px;
+  border-radius: 18px;
+  background: var(--surface-sunken, #f1eff9);
+  border: 1px solid #e6e0f6;
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: #3d3850;
+}
+
+/* ── the new blocks on phones ──────────────────────────────────────── */
+@media (max-width: 860px) {
+  .value-grid { gap: 14px; max-width: 520px; }
+  .value-card { flex: 1 1 100%; min-width: 0; padding: 20px 18px; }
+  .why-grid { grid-template-columns: 1fr; gap: 14px; max-width: 520px; }
+  .why-card { padding: 22px 20px 20px; }
+  .about-shared { margin-top: 44px; }
+  .pricing-launch { padding: 22px 20px; margin-top: 28px; }
+}
 
 /* pricing eyebrow above the decision question */
 .pricing-eyebrow {

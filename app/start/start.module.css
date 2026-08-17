@@ -185,8 +185,11 @@
   margin-bottom: 14px;
   padding: 8px 16px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #fff4d6 0%, var(--yellow) 100%);
-  color: #3d2f10;
+  /* the pale-yellow gradient is banned — this is a label chip, so it joins
+     the light-purple chip family (same as the About role chips) */
+  background: #efeafe;
+  border: 1px solid #ded4f6;
+  color: #6d4df0;
   font-size: 14px;
   font-weight: 700;
 }

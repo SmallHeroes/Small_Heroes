@@ -10,6 +10,7 @@ import { initLandingMotion } from './motion';
 import { SiteHeader } from '@/app/components/SiteHeader';
 import { AboutSection } from './about-section';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
+import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
 
 type SpotlightState = {
   slot: MvpMatrixCategoryPayload;
@@ -103,6 +104,12 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
   useEffect(() => initLandingMotion(), []);
 
+  /* Warm the six idle clips at idle priority so a spotlight's video paints
+     instantly (per Guy: only the video, no image-then-video flash). */
+  useEffect(() => {
+    warmCompanionIdleVideos(matrixCategories.map((slot) => slot.companion.image));
+  }, [matrixCategories]);
+
   return (
     <>
       <div className="landing-body" data-motion="on">
@@ -129,12 +136,18 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   >
                     {L.hero.ctaPrimary}
                   </a>
-                  <a href="#sample" className="btn-light">
+                  <a href="#gallery" className="btn-light">
                     {L.hero.ctaSecondary}
                   </a>
                 </div>
 
-                <p className="hero-cta-note" data-reveal="hero" data-reveal-delay="240">{L.hero.ctaNote}</p>
+                {/* three short reassurances, dot-separated on one line (they
+                    wrap to two on a phone rather than shrinking) */}
+                <ul className="hero-cta-notes" data-reveal="hero" data-reveal-delay="240">
+                  {L.hero.ctaNotes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
               </div>
 
               <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120" data-tilt="hero">
@@ -162,10 +175,38 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
+          {/* מה מקבלים — the concrete promise, straight after the hero */}
+          <section className="section value-section" id="value">
+            <div className="wrap">
+              <h2 className="section-h2" data-reveal="up">{L.value.h2}</h2>
+              <p className="section-lede" data-reveal="up" data-reveal-delay="60">{L.value.lede}</p>
+
+              <div className="value-grid">
+                {L.value.items.map((item, index) => (
+                  <article
+                    key={item.title}
+                    className="value-card"
+                    data-reveal="up"
+                    data-reveal-delay={String(100 + index * 70)}
+                  >
+                    <span className="value-card-mark" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4.5 12.5l4.5 4.5 10.5-11" />
+                      </svg>
+                    </span>
+                    <h3 className="value-card-title">{item.title}</h3>
+                    <p className="value-card-body">{item.body}</p>
+                  </article>
+                ))}
+              </div>
+
+            </div>
+          </section>
+
           <section className="section helps-section" id="helps">
             <div className="wrap">
               <h2 className="section-h2" data-reveal="up">{L.helps.h2}</h2>
-              <p className="section-sub" data-reveal="up" data-reveal-delay="60">{L.helps.sub}</p>
+              <p className="section-lede" data-reveal="up" data-reveal-delay="50">{L.helps.lede}</p>
               <div className="mvp-challenge-grid mvp-challenge-grid--landing">
                 {matrixCategories.map((slot, index) => {
                   {/* Landing-side marketing copy per category; the wizard keeps
@@ -210,11 +251,13 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   {L.sample.h2Line2}
                 </h2>
                 <p className="sample-p" data-reveal="up" data-reveal-delay="120">{L.sample.p1}</p>
-                <p className="sample-caption" data-reveal="up" data-reveal-delay="160">{L.sample.caption}</p>
-                {/* No real sample-book route exists yet, so the "open a sample"
-                    action lands on the gallery — the closest real look inside
-                    the books (reported to Guy). */}
-                <a href="#gallery" className="btn-primary" data-event="landing_sample_gallery_click" data-reveal="up" data-reveal-delay="200">
+                <p className="sample-p sample-p--soft" data-reveal="up" data-reveal-delay="160">{L.sample.p2}</p>
+
+                <p className="sample-caption" data-reveal="up" data-reveal-delay="200">{L.sample.caption}</p>
+                {/* No real reader-demo route exists yet, so "see sample pages"
+                    lands on the gallery — the closest real look inside the
+                    books (reported to Guy). */}
+                <a href="#gallery" className="btn-primary" data-event="landing_sample_gallery_click" data-reveal="up" data-reveal-delay="240">
                   {L.sample.cta}
                 </a>
               </div>
@@ -232,49 +275,10 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
-          {/* the "מה מקבלים" section was removed per Guy (2026-08-16) —
-              its promise lives in the FAQ and the pricing section */}
-
-          <section className="how-it-works-section how-section" id="how">
-            <div className="wrap">
-              <h2 className="section-h2" data-reveal="up">{L.how.h2}</h2>
-              <p className="section-lede" data-reveal="up" data-reveal-delay="60">
-                {L.how.ledeLine1}
-                <br />
-                {L.how.ledeLine2}
-              </p>
-
-              <div className="steps-row">
-                {L.how.steps.map((step, index) => (
-                  <article key={step.title} className="how-card" data-reveal="up" data-reveal-delay={String(100 + index * 90)}>
-                    <div className="how-step">
-                      <div className="landing-card-title">{step.title}</div>
-                      <p className="landing-card-body">{step.body}</p>
-                      {'emphasis' in step && step.emphasis ? (
-                        <p className="how-step-emphasis">{step.emphasis}</p>
-                      ) : null}
-                    </div>
-                  </article>
-                ))}
-              </div>
-
-              <div className="how-foot" data-reveal="up" data-reveal-delay="300">
-                <a href={startHref} className="btn-primary" data-event="landing_start_click">
-                  {L.how.cta}
-                </a>
-              </div>
-            </div>
-          </section>
-
           <section className="gallery-section" id="gallery">
             <div className="wrap">
               <h2 className="gallery-h2" data-reveal="up">{L.gallery.h2}</h2>
-              <p className="section-lede" data-reveal="up" data-reveal-delay="40">
-                {L.gallery.ledeLine1}
-                <br />
-                {L.gallery.ledeLine2}
-              </p>
-              <p className="gallery-sub" data-reveal="up" data-reveal-delay="80">{L.gallery.sub}</p>
+              <p className="gallery-sub" data-reveal="up" data-reveal-delay="60">{L.gallery.sub}</p>
 
               <div
                 className="gallery-toggle"
@@ -352,10 +356,71 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
+
+          <section className="how-it-works-section how-section" id="how">
+            <div className="wrap">
+              <h2 className="section-h2" data-reveal="up">{L.how.h2}</h2>
+              <p className="section-lede" data-reveal="up" data-reveal-delay="60">{L.how.lede}</p>
+
+              <div className="steps-row">
+                {L.how.steps.map((step, index) => {
+                  /* presentation only: the "N. " prefix in the copy becomes a
+                     number chip; the content file stays untouched */
+                  const numbered = step.title.match(/^(\d+)\.\s*(.*)$/);
+                  return (
+                    <article key={step.title} className="how-card" data-reveal="up" data-reveal-delay={String(100 + index * 90)}>
+                      <div className="how-step">
+                        <span className="how-step-num" aria-hidden="true">{numbered ? numbered[1] : index + 1}</span>
+                        <div className="landing-card-title">{numbered ? numbered[2] : step.title}</div>
+                        <p className="landing-card-body">{step.body}</p>
+                        {'emphasis' in step && step.emphasis ? (
+                          <p className="how-step-emphasis">{step.emphasis}</p>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="how-foot" data-reveal="up" data-reveal-delay="300">
+                <p className="how-closing">{L.how.closing}</p>
+                <a href={startHref} className="btn-primary" data-event="landing_start_click">
+                  {L.how.cta}
+                </a>
+              </div>
+            </div>
+          </section>
+
+          {/* למה הסיפורים שלנו עובדים אחרת — the story-craft argument */}
+          <section className="section why-section" id="why">
+            <div className="wrap">
+              <h2 className="section-h2" data-reveal="up">{L.why.h2}</h2>
+              <p className="section-lede" data-reveal="up" data-reveal-delay="50">{L.why.lede}</p>
+              <p className="why-sub" data-reveal="up" data-reveal-delay="80">{L.why.sub}</p>
+
+              <div className="why-grid">
+                {L.why.cards.map((card, index) => (
+                  <article
+                    key={card.title}
+                    className="why-card"
+                    data-reveal="up"
+                    data-reveal-delay={String(120 + index * 80)}
+                  >
+                    <span className="why-card-index" aria-hidden="true">{index + 1}</span>
+                    <h3 className="why-card-title">{card.title}</h3>
+                    <p className="why-card-body">{card.body}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+
           <section className="trust-band" id="trust">
             <div className="wrap trust-band__inner">
               <header className="trust-band__header">
                 <h2 className="trust-band__h2" data-reveal="up">{L.trust.h2}</h2>
+                <p className="section-lede" data-reveal="up" data-reveal-delay="50">{L.trust.lede}</p>
+                <p className="trust-band__sub" data-reveal="up" data-reveal-delay="80">{L.trust.sub}</p>
               </header>
               <div className="trust-points">
                 {L.trust.pillars.map((pillar, i) => (
@@ -387,6 +452,10 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <p className="section-sub pricing-sub" data-reveal="up" data-reveal-delay="80">{L.pricing.sub}</p>
 
               <div className="pricing-grid">
+                {/* Informational cards — no purchase button: a package cannot
+                    actually be selected from here (the wizard picks the
+                    direction actively in step 8), and BUY_MODE is waitlist, so
+                    the section closes with the launch notice instead. */}
                 {L.pricing.cards.map((card, index) => (
                   <article
                     key={card.direction}
@@ -394,9 +463,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                     data-reveal="scale"
                     data-reveal-delay={String(100 + index * 90)}
                   >
-                    {'badge' in card && card.badge ? (
-                      <div className="price-badge-floating">{card.badge}</div>
-                    ) : null}
                     <div className="price-kicker">{card.kicker}</div>
                     <div className="price-name">{card.name}</div>
                     <div className="price-pages">{card.pages}</div>
@@ -407,28 +473,22 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                       ))}
                     </ul>
                     <div className="price-num">
-                      {card.originalPrice ? (
-                        <span className="price-was" aria-hidden="true">₪{card.originalPrice}</span>
-                      ) : null}
                       <span className="price-now">
                         ₪<span className="price-now-digits">{card.price}</span>
-                        {card.originalPrice ? <span className="price-launch-flag">מחיר השקה</span> : null}
                       </span>
                     </div>
-                    <a
-                      href={startHref}
-                      className={
-                        (index === 1 ? 'btn-primary' : 'btn-outline') + ' price-btn'
-                      }
-                      data-event="landing_start_click"
-                    >
-                      {card.cta}
-                    </a>
                   </article>
                 ))}
               </div>
 
-              <div className="pricing-note" data-reveal="fade" data-reveal-delay="320">{L.pricing.note}</div>
+              <div className="pricing-launch" data-reveal="up" data-reveal-delay="300">
+                <p className="pricing-launch-line">{L.pricing.launch.line1} {L.pricing.launch.line2}</p>
+                <a href={startHref} className="btn-primary" data-event="landing_waitlist_click">
+                  {L.pricing.launch.cta}
+                </a>
+              </div>
+
+              <div className="pricing-note" data-reveal="fade" data-reveal-delay="360">{L.pricing.note}</div>
             </div>
           </section>
 
@@ -481,7 +541,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               <a href={startHref} className="btn-primary footer-cta" data-event="landing_start_click" data-reveal="up" data-reveal-delay="160">
                 {L.footer.cta}
               </a>
-              <p className="footer-micro" data-reveal="fade" data-reveal-delay="240">{L.footer.micro}</p>
             </div>
           </footer>
         </main>

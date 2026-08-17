@@ -19,12 +19,12 @@ import './premium-2027.css';
 export const metadata: Metadata = {
   title: 'גיבורים קטנים | ספר ילדים אישי שבו הילד שלכם הוא הגיבור',
   description:
-    'ספר ילדים אישי בעברית שבו הילד שלכם הופך לגיבור. בוחרים נושא וחבר מלווה ומקבלים ספר מאויר ומוקרא סביב רגעים שילדים באמת עוברים.',
+    'ספר ילדים דיגיטלי אישי בעברית שבו הילד שלכם נכנס לתפקיד הראשי. סיפורים מקוריים על רגעים שילדים מכירים, עם דמות מאוירת וקריינות מלאה.',
   alternates: { canonical: 'https://smallheroes.co.il/' },
   openGraph: {
     type: 'website',
     title: 'הפעם, הילד שלכם הוא הגיבור של הסיפור.',
-    description: 'ספר ילדים אישי, מאויר ומוקרא בעברית, סביב רגעים שילדים באמת מכירים.',
+    description: 'סיפור ילדים אישי, מאויר ומוקרא בעברית — עם הילד שלכם בתפקיד הראשי.',
     url: 'https://smallheroes.co.il/',
     locale: 'he_IL',
     siteName: 'גיבורים קטנים',
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'הפעם, הילד שלכם הוא הגיבור של הסיפור.',
-    description: 'ספר ילדים אישי, מאויר ומוקרא בעברית, סביב רגעים שילדים באמת מכירים.',
+    description: 'סיפור ילדים אישי, מאויר ומוקרא בעברית — עם הילד שלכם בתפקיד הראשי.',
     images: ['https://smallheroes.co.il/Images/DesktopHero.webp'],
   },
 };

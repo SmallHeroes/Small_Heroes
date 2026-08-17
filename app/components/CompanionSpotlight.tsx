@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
-import { companionIdleVideoSrc } from '@/lib/web/companion-idle-video';
+import { companionIdleVideoSrc, warmedIdleVideoSrc } from '@/lib/web/companion-idle-video';
 import styles from './companion-spotlight.module.css';
 
 type CompanionSpotlightProps = {
@@ -44,18 +44,31 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
   const companionSlug = companion.image.split('/')[2] ?? '';
   const cutoutSrc = `/Images/spotlight/${companionSlug}.png`;
 
-  /* Idle VIDEO (per Guy): once it actually plays, it crossfades in over the
-     cutout — the cutout stays underneath as the instant placeholder and the
-     no-video fallback, so the stage never jumps size. Reduced motion keeps
-     the still art (no autoplaying footage). */
+  /* Idle VIDEO (per Guy): the popup shows ONLY the video — no image-then-
+     video flash. The landing page warms every clip into a blob URL at idle,
+     so the first frame paints in milliseconds. The still cutout is now purely
+     a FALLBACK: reduced motion, a failed clip, or a cold cache that stays
+     slow past a short grace window (then it fades away if the video lands). */
   const idleVideoSrc = companionIdleVideoSrc(companion.image);
   const [videoLive, setVideoLive] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
+  const [artShown, setArtShown] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   useEffect(() => {
     setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }, []);
   const showVideo = Boolean(idleVideoSrc) && !videoFailed && !reducedMotion;
+
+  /* Grace window: only if the clip is still not painting after 700ms does the
+     cutout step in (a slow empty stage is worse than the still art). Cleared
+     the moment the video goes live so the warm path never shows the image. */
+  useEffect(() => {
+    if (!showVideo || videoLive || artShown) return;
+    const timer = window.setTimeout(() => setArtShown(true), 700);
+    return () => window.clearTimeout(timer);
+  }, [showVideo, videoLive, artShown]);
+
+  const renderArt = !showVideo || artShown;
 
   const requestClose = useCallback(() => {
     if (startedClosingRef.current) return;
@@ -122,32 +135,35 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
         </button>
 
         <div className={styles.stage} aria-hidden="true">
-          <img
-            className={styles.art}
-            data-hidden={videoLive ? '1' : '0'}
-            src={cutoutSrc}
-            alt=""
-            draggable={false}
-            onError={(e) => {
-              const img = e.currentTarget;
-              if (img.dataset.fallback !== '1') {
-                img.dataset.fallback = '1';
-                img.src = companion.image;
-              } else {
-                img.style.visibility = 'hidden';
-              }
-            }}
-          />
+          {renderArt ? (
+            <img
+              className={styles.art}
+              data-hidden={showVideo && videoLive ? '1' : '0'}
+              src={cutoutSrc}
+              alt=""
+              draggable={false}
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (img.dataset.fallback !== '1') {
+                  img.dataset.fallback = '1';
+                  img.src = companion.image;
+                } else {
+                  img.style.visibility = 'hidden';
+                }
+              }}
+            />
+          ) : null}
           {showVideo ? (
             <div className={styles.videoBox} data-live={videoLive ? '1' : '0'}>
               <video
-                src={idleVideoSrc ?? undefined}
+                src={idleVideoSrc ? warmedIdleVideoSrc(idleVideoSrc) : undefined}
                 autoPlay
                 muted
                 loop
                 playsInline
                 preload="auto"
                 disablePictureInPicture
+                onLoadedData={() => setVideoLive(true)}
                 onPlaying={() => setVideoLive(true)}
                 onError={() => {
                   setVideoFailed(true);
@@ -167,9 +183,8 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
             {companion.name}
           </h2>
           {companion.tagline ? <p className={styles.tagline}>{companion.tagline}</p> : null}
-          <p className={styles.context}>
-            {slot.companionLine} · {slot.oneLiner}
-          </p>
+          {/* the small "עם <החבר> · <one-liner>" line was dropped per Guy —
+              it repeated what the tagline and the CTA already say */}
 
           <a
             className={styles.cta}
