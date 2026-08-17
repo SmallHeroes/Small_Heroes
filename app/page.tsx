@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     title: 'הפעם, הילד שלכם הוא הגיבור של הסיפור.',
-    description: 'סיפור ילדים אישי, מאויר ומוקרא בעברית — עם הילד שלכם בתפקיד הראשי.',
+    description: 'סיפור ילדים אישי, מאויר ומוקרא בעברית - עם הילד שלכם בתפקיד הראשי.',
     url: 'https://smallheroes.co.il/',
     locale: 'he_IL',
     siteName: 'גיבורים קטנים',
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'הפעם, הילד שלכם הוא הגיבור של הסיפור.',
-    description: 'סיפור ילדים אישי, מאויר ומוקרא בעברית — עם הילד שלכם בתפקיד הראשי.',
+    description: 'סיפור ילדים אישי, מאויר ומוקרא בעברית - עם הילד שלכם בתפקיד הראשי.',
     images: ['https://smallheroes.co.il/Images/DesktopHero.webp'],
   },
 };

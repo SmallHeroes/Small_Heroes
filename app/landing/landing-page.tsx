@@ -9,7 +9,7 @@ import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { initLandingMotion } from './motion';
 import { SiteHeader } from '@/app/components/SiteHeader';
 import { AboutSection } from './about-section';
-import { HeroDoodles, ValueDoodles } from './hero-doodles';
+import { HeroDoodles, ValueDoodles, HelpsDoodles } from './hero-doodles';
 import { HeroCollage } from './hero-collage';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
@@ -201,7 +201,10 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
+          {/* the last section under the sky: the field runs on to here, and
+              the dark room below takes over from it (per Guy) */}
           <section className="section helps-section" id="helps">
+            <HelpsDoodles />
             <div className="wrap">
               <h2 className="section-h2" data-reveal="up">{L.helps.h2}</h2>
               <p className="section-lede" data-reveal="up" data-reveal-delay="50">{L.helps.lede}</p>
@@ -263,7 +266,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <figure className="sample-book-illustration">
                   <img
                     src="/Images/Book.webp"
-                    alt="המחשה — דוגמה לספר מותאם אישית"
+                    alt="המחשה - דוגמה לספר מותאם אישית"
                     loading="lazy"
                   />
                 </figure>
@@ -321,7 +324,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               >
                 {GALLERY_STYLE01.map((src) => (
                   <div key={src} className="gallery-card">
-                    <img src={src} alt="עמוד מתוך ספר — מאוייר" loading="lazy" />
+                    <img src={src} alt="עמוד מתוך ספר - מאוייר" loading="lazy" />
                   </div>
                 ))}
               </div>
@@ -335,7 +338,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               >
                 {GALLERY_STYLE02.map((src) => (
                   <div key={src} className="gallery-card">
-                    <img src={src} alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" />
+                    <img src={src} alt="עמוד מתוך ספר - ריאליסטי" loading="lazy" />
                   </div>
                 ))}
               </div>

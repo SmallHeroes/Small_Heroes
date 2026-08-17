@@ -195,6 +195,42 @@ export function ValueDoodles() {
   );
 }
 
+/* ── "מה מעסיק אותו" is the last section under the sky ──────────────────
+   Per Guy the field runs all the way to the dark section and hands over to
+   it there. The companion row is SIX cards wide on desktop and fills the
+   viewport from 3.3% to 96.7%, so there is no usable flank: the marks live
+   in the band above the heading (whose ink is centred, leaving both sides
+   free) and in the strip under the last row. Measured, not guessed. */
+const HELPS_DESKTOP: Doodle[] = [
+  { key: 'h-moon', left: 4, top: 5, size: 24, rotate: -12, duration: 12, delay: -3, art: MOON },
+  { key: 'h-cloud', left: 20, top: 3, size: 26, rotate: 0, duration: 15, delay: -1, art: CLOUD },
+  { key: 'h-spark-l', left: 12, top: 15, size: 14, rotate: 12, duration: 9, delay: -8, tone: 'gold', art: SPARKLE },
+  { key: 'h-lantern', left: 8, bottom: 3, size: 22, rotate: 5, duration: 14, delay: -5, drift: 7, art: LANTERN },
+
+  { key: 'h-star', right: 5, top: 4, size: 22, rotate: -8, duration: 11, delay: -9, art: STAR },
+  { key: 'h-heart', right: 19, top: 3.5, size: 20, rotate: 8, duration: 13, delay: -6, art: HEART },
+  { key: 'h-spark-r', right: 12, top: 14.5, size: 13, rotate: -14, duration: 8, delay: -4, tone: 'gold', art: SPARKLE },
+  { key: 'h-spark-b', right: 10, bottom: 4, size: 14, rotate: 10, duration: 10, delay: -2, tone: 'gold', drift: 7, art: SPARKLE },
+];
+
+/* Phones: the 2-up grid fills the width, so the marks live in the band
+   above the heading and the strip below the closing line. */
+const HELPS_MOBILE: Doodle[] = [
+  { key: 'hm-moon', left: 4, top: 3, size: 20, rotate: -12, duration: 12, delay: -3, art: MOON },
+  { key: 'hm-spark', right: 5, top: 3.5, size: 13, rotate: 8, duration: 9, delay: -6, tone: 'gold', art: SPARKLE },
+  { key: 'hm-star', left: 5, bottom: 1, size: 18, rotate: -8, duration: 11, delay: -1, drift: 6, art: STAR },
+  { key: 'hm-heart', right: 6, bottom: 1.2, size: 18, rotate: 8, duration: 13, delay: -8, drift: 6, art: HEART },
+];
+
+export function HelpsDoodles() {
+  return (
+    <div className="helps-doodles" aria-hidden="true">
+      {render(HELPS_DESKTOP, 'desktop')}
+      {render(HELPS_MOBILE, 'mobile')}
+    </div>
+  );
+}
+
 export function HeroDoodles() {
   return (
     <div className="hero-doodles" aria-hidden="true">

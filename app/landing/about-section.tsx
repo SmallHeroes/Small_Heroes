@@ -22,7 +22,7 @@ export function AboutSection({ about }: { about: LandingContent['about'] }) {
               <div className="about-portrait-ring">
                 <img
                   src={person.img}
-                  alt={`${person.name} — ${person.role}`}
+                  alt={`${person.name} - ${person.role}`}
                   className="about-portrait"
                   loading="lazy"
                 />

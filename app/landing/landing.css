@@ -199,22 +199,34 @@
   );
 }
 
-/* ── The sky carried into "מה מקבלים" ─────────────────────────────────
-   Same layer, same marks, picking up exactly where the hero's left off and
-   only then fading to nothing — so the field ends inside a section instead
-   of at the boundary between two. The section after this one is white and
-   gets none of it. */
-.value-doodles {
+/* ── The sky runs hero -> value -> helps, and stops at the dark room ───
+   Per Guy the field carries all the way down to the charcoal sample
+   section. Each layer picks up at exactly the value the one above handed
+   over, so there is no seam anywhere in the run; the last one keeps its
+   tint to the very end and lets the dark section take over, which is a
+   deliberate cut rather than a fade into nothing. */
+.value-doodles,
+.helps-doodles {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
+}
+
+.value-doodles {
   background: linear-gradient(
     180deg,
     rgba(244, 241, 255, 0.26) 0%,
-    rgba(246, 244, 255, 0.16) 46%,
-    rgba(255, 255, 255, 0) 100%
+    rgba(245, 242, 255, 0.2) 100%
+  );
+}
+
+.helps-doodles {
+  background: linear-gradient(
+    180deg,
+    rgba(245, 242, 255, 0.2) 0%,
+    rgba(246, 243, 255, 0.14) 100%
   );
 }
 
@@ -994,17 +1006,24 @@
   content: "💡";
 }
 
+/* ── Pricing goes LIGHT (per Guy) ─────────────────────────────────────
+   The purple field made the three white cards read as tiles floating on a
+   poster. On a near-white ground they read as what they are: three things
+   to compare. Everything that was reversed out of the purple - the eyebrow,
+   the heading, the sub, the launch note - comes back to ink, and the cards
+   pick up a defined edge and a lighter shadow so they still lift off the
+   page. */
 .pricing-section {
-  background: var(--purple);
+  background: linear-gradient(180deg, #ffffff 0%, #faf9ff 100%);
   padding: 80px 0 72px;
 }
 
 .pricing-section .section-h2 {
-  color: #fff;
+  color: var(--dark);
 }
 
 .pricing-section .section-sub {
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--mid);
 }
 
 .pricing-sub {
@@ -1023,15 +1042,24 @@
 .price-card {
   position: relative;
   background: var(--white);
-  border: 1px solid #eceaf3;
+  /* a real edge: on the old purple ground the white card cut itself out,
+     on near-white it needs the line to hold its shape */
+  border: 1px solid #e6e0f6;
   border-radius: 28px;
   padding: 26px 24px 24px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   text-align: right;
-  box-shadow: 0 12px 34px rgba(17, 22, 34, 0.10);
+  box-shadow: 0 10px 30px rgba(40, 33, 74, 0.07);
   min-height: 100%;
+}
+
+/* the middle package is the one being recommended by layout, so it gets
+   the brand edge rather than a badge */
+.price-card--mid {
+  border-color: #cdbdfb;
+  box-shadow: 0 14px 38px rgba(109, 77, 240, 0.14);
 }
 
 .price-card--mid {
@@ -1202,7 +1230,7 @@
   margin-top: 22px;
   font-size: 16px;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--mid);
 }
 
 .pricing-section+.faq-section {
@@ -1298,8 +1326,17 @@
   max-width: 480px;
 }
 
+/* Plain white under the sky layer: the old white->cream gradient would
+   compound with it into exactly the band we are removing. */
 .helps-section {
-  background: linear-gradient(180deg, #fff 0%, var(--cream) 100%);
+  background: #fff;
+  position: relative;
+  isolation: isolate;
+}
+
+.helps-section > .wrap {
+  position: relative;
+  z-index: 1;
 }
 
 .helps-grid {
@@ -2038,11 +2075,11 @@
   .scroll-progress { display: none !important; }
 }
 
-/* ── פס ההשקה: לבנדר שקט במשפחת הסגול (מתחבר לסקשן עלינו) ── */
+/* ── פס ההשקה: הסגול הבהיר של המותג (per Guy) ── */
 .early-stage-band {
-  background: var(--surface-sunken, #f1eff9);
-  border-top: 1px solid #e6e0f6;
-  border-bottom: 1px solid #e6e0f6;
+  background: #efeafe;
+  border-top: 1px solid #ded4f6;
+  border-bottom: 1px solid #ded4f6;
 }
 
 
@@ -2351,7 +2388,9 @@
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.82);
+  /* the deep brand purple, not --purple: at 14px this is body-size text, so
+     it needs 4.5:1 and the lighter one only reaches 3.7 on the new white */
+  color: #6d4df0;
   margin-bottom: 8px;
 }
 
