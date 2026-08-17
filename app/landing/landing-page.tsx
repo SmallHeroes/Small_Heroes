@@ -253,7 +253,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <p className="sample-p" data-reveal="up" data-reveal-delay="120">{L.sample.p1}</p>
                 <p className="sample-p sample-p--soft" data-reveal="up" data-reveal-delay="160">{L.sample.p2}</p>
 
-                <p className="sample-caption" data-reveal="up" data-reveal-delay="200">{L.sample.caption}</p>
                 {/* No real reader-demo route exists yet, so "see sample pages"
                     lands on the gallery — the closest real look inside the
                     books (reported to Guy). */}

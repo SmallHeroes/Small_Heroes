@@ -213,9 +213,9 @@
 .body { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 14px; }
 
 .name {
-  /* Suez One — the approved heading face (Rubik run reverted; Abraham banned) */
-  font-family: var(--font-suez, 'Suez One'), var(--fd, 'Rubik'), serif;
-  font-weight: 400;
+  /* Rubik across the site per Guy (Suez One stays on the reader only) */
+  font-family: var(--font-rubik, 'Rubik'), sans-serif;
+  font-weight: 700;
   font-size: clamp(28px, 3.6vw, 36px);
   color: #241b4d;
   margin: 0;
