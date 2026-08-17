@@ -102,6 +102,14 @@ export function initLandingMotion(root?: HTMLElement | null): void {
   addEventListener('scroll', rescueOnScreen, { passive: true });
 
   if (!window.matchMedia('(pointer: fine)').matches) return;
+
+  /* The tilt is set up BEFORE the parallax, and deliberately so: it used to
+     sit after the `if (!img) return` below, which meant the whole hero lean
+     silently died the day the single hero image was replaced by the CSS
+     collage and the parallax hook went with it. The two effects are
+     independent, so neither may gate the other. */
+  initHeroTilt(el);
+
   const img = el.querySelector<HTMLElement>(P);
   if (!img) return;
   let t = 0;
@@ -114,8 +122,6 @@ export function initLandingMotion(root?: HTMLElement | null): void {
   };
   onScroll();
   addEventListener('scroll', onScroll, { passive: true });
-
-  initHeroTilt(el);
 }
 
 /**

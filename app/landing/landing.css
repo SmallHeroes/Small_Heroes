@@ -325,10 +325,16 @@
 .hero-img-wrap {
   flex: 0 0 auto;
   position: relative;
-  /* the WIDE desktop story-strip (per Guy: let it feel big) + the 3D
-     tilt's stage: perspective lives on the wrap, rotation on .hero-float */
-  width: min(720px, 54vw);
-  aspect-ratio: 1206 / 912;
+  /* The frame is WIDER and shorter than the old composite (per Guy: open
+     the pages up so the friend is visible in the middle one). Three panels
+     at ~44% each only fit with big overlaps in a 1.32 frame; at 1.52 they
+     stand apart and none of them had to shrink. Also the 3D tilt's stage:
+     perspective lives on the wrap, rotation on .hero-float. */
+  /* How MUCH of each page shows is set by the percentages below, not by
+     this width — so the width is free to be tuned for the copy's breathing
+     room instead. */
+  width: min(762px, 55vw);
+  aspect-ratio: 1216 / 800;
   align-self: center;
   perspective: 1100px;
 }
@@ -346,41 +352,65 @@
 
 .hero-beat {
   position: absolute;
-  height: auto;
   display: block;
+  /* the shine rides inside the page's edge; the radius is a touch tighter
+     than the art's own corners so it never cuts outside them */
+  border-radius: 8px;
+  overflow: hidden;
   /* the panels ride on transparency and carry their own light; a soft
      shadow grounds them on the white page */
   filter: drop-shadow(0 22px 36px rgba(45, 30, 90, 0.18));
-  /* revealed in STORY order — see the delays below */
-  animation: hero-beat-in 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* revealed in STORY order — see the delays below. `backwards` (not
+     `both`): the end state already equals the resting style, and a
+     forwards fill would outrank the hover transform. */
+  animation: hero-beat-in 620ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
-/* 1 — the waiting room: smallest, furthest back, lowest */
+.hero-beat-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Sizes, settled with Guy over three rounds: 35.2 / 39.6 / 44 of the frame
+   width — the smallest is 80% of the largest. Levelling them to 90% made
+   the block read as heavy, so the ladder came back, just gentler than the
+   67% it started at. Each page is vertically centred, the widths follow the
+   panels' native 0.67, and the frame's ratio is set so the largest fills
+   its height exactly. The left offsets keep the composition open: the
+   middle page still shows about two thirds of itself, which is where the
+   friend stands, so she clears the page in front of her. */
+
+/* 1 — the waiting room: smallest, furthest back */
 .hero-beat[data-beat='1'] {
-  left: 0.7%;
-  top: 16.7%;
-  width: 33.9%;
+  left: 4%;
+  top: 10%;
+  width: 35.2%;
   z-index: 1;
   animation-delay: 260ms;
 }
 
 /* 2 — meeting the friend */
 .hero-beat[data-beat='2'] {
-  left: 19.5%;
-  top: 7.5%;
-  width: 43.1%;
+  left: 25%;
+  top: 5%;
+  width: 39.6%;
   z-index: 2;
   animation-delay: 480ms;
 }
 
 /* 3 — walking out: largest, in front, full height of the frame */
 .hero-beat[data-beat='3'] {
-  left: 48.5%;
+  left: 52%;
   top: 0;
-  width: 50.6%;
+  width: 44%;
   z-index: 3;
   animation-delay: 700ms;
 }
+
+/* (Per-panel hover cut per Guy: the whole collage already tilts with the
+   cursor as one object — see initHeroTilt — and a second hover behaviour on
+   the same thing fought it.) */
 
 /* each beat lifts into place from slightly below and behind */
 @keyframes hero-beat-in {
@@ -393,6 +423,13 @@
     transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
   }
 }
+
+/* (The diagonal light sweep was cut per Guy — it read as luxury-product
+   packaging, and these are pictures.) */
+
+/* (The star trail and the per-panel sparks were cut per Guy — the pictures
+   carry the hero, and the flourishes were competing with them.) */
+
 
 /* ── Book Gallery ──────────────────────────────────────────── */
 .gallery-section {
@@ -1539,28 +1576,31 @@
   }
 
   /* Phones re-stack the beats: the friend sits above, and the fear and the
-     outcome sit below it — the same three cards, a taller frame. */
+     outcome sit below it — the same three cards, a taller frame. Same
+     ladder as the desktop: 46.4 / 52 / 58 of the frame width. */
   .hero-beat[data-beat='1'] {
-    left: 2.2%;
-    top: 37%;
-    width: 36.5%;
+    left: 1%;
+    top: 40%;
+    width: 46.4%;
   }
 
   .hero-beat[data-beat='2'] {
-    left: 21.5%;
-    top: 1%;
-    width: 56.6%;
+    left: 18%;
+    top: 0;
+    width: 52%;
   }
 
   .hero-beat[data-beat='3'] {
-    left: 38.7%;
-    top: 38%;
-    width: 59.4%;
+    left: 41%;
+    top: 36%;
+    width: 58%;
   }
 
   .hero-beat {
     filter: drop-shadow(0 14px 24px rgba(45, 30, 90, 0.18));
+    border-radius: 6px;
   }
+
 
   .helps-grid,
   .fit-grid {
@@ -1987,13 +2027,15 @@
 /* ── 2027 hero staging ──────────────────────────────────────────────
    The illustration is a held object on a lit surface: key light above,
    contact shadow below. Depth comes from the shadow pair, not from scale. */
-/* Stillness: every beat is simply present, in place, at once. */
+/* Stillness: every beat is simply present, in place, at once — and the
+   magic holds its breath rather than blinking. */
 @media (prefers-reduced-motion: reduce) {
   .hero-beat {
     animation: none;
     opacity: 1;
     transform: none;
   }
+
 }
 
 /* (No oval contact shadow: the story panels carry their own shadows, and a

@@ -14,10 +14,15 @@
  * sequence legible at all, and at rest the composition still leads with the
  * outcome as its largest, frontmost card.
  *
+ * Motion is deliberately ONE thing: the whole collage tilts with the cursor
+ * as a single object (initHeroTilt in motion.ts, on .hero-float). A round of
+ * per-panel sparks, a light sweep, a star trail and a per-panel hover lift
+ * were all tried and cut per Guy — each pulled attention off the pictures,
+ * and two hover behaviours on one object fought each other.
+ *
  * Layout is CSS, not a baked image: each beat is positioned as a percentage
- * of the frame, matching the proportions of Guy's original composite, with a
- * separate arrangement for phones. Under prefers-reduced-motion every panel
- * is simply present (landing.css).
+ * of the frame, with a separate arrangement for phones. Under
+ * prefers-reduced-motion the beats are simply present (landing.css).
  */
 
 const BEATS = [
@@ -40,23 +45,25 @@ const BEATS = [
 
 export function HeroCollage() {
   return (
-    <div className="hero-collage">
+    /* data-parallax is the scroll-drift hook motion.ts looks for; it moved
+       here from the old single <img> when the collage replaced it */
+    <div className="hero-collage" data-parallax="hero-img">
       {BEATS.map((beat, i) => (
-        <img
-          key={beat.key}
-          className="hero-beat"
-          data-beat={i + 1}
-          src={beat.src}
-          alt={beat.alt}
-          /* the hero is the LCP element: the first beat must not wait */
-          loading="eager"
-          decoding="async"
-          fetchPriority={i === 2 ? 'high' : 'auto'}
-          draggable={false}
-          onError={(e) => {
-            e.currentTarget.style.visibility = 'hidden';
-          }}
-        />
+        <span key={beat.key} className="hero-beat" data-beat={i + 1}>
+          <img
+            className="hero-beat-img"
+            src={beat.src}
+            alt={beat.alt}
+            /* the hero is the LCP element: the beats must not wait */
+            loading="eager"
+            decoding="async"
+            fetchPriority={i === 2 ? 'high' : 'auto'}
+            draggable={false}
+            onError={(e) => {
+              e.currentTarget.style.visibility = 'hidden';
+            }}
+          />
+        </span>
       ))}
     </div>
   );
