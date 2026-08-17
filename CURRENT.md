@@ -2,9 +2,88 @@
 
 **Updated:** 2026-08-17
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-deterministic-action-binding-normalization` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `097282d547cbbeb7aeb1db66988ef9729c7caddf`.
+**Working branch:** `codex/r1d-causal-source-structural-compact-routing` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `a8e2f59c6e02fda5e7e60fee6b8e18e8ae0991be`.
 
-## DETERMINISTIC ACTION-BINDING NORMALIZATION + REPAIR-OUTPUT OBSERVABILITY — independent technical PASS; push pending
+## CAUSAL SOURCE-EVIDENCE + PURE STRUCTURAL COMPACT ROUTING — implementation green; independent QA pending
+
+Focused implementation commit:
+`d6fe25f1e0a2ccbe461637aafb60ec158bd1b246`.
+
+The one post-normalization live attempt on `a8e2f59c` was consumed and ended
+fail-closed without a candidate. Fresh Readiness v26 was
+`322124500400b492901381cce02eaeb050d025332af801ee57223bfd83e35ac1`,
+Execution Request v26 was
+`b59f5caf8bd660cbcd8778c8d55b92c526f67316b94e48b83e6b5cada1494d7e`,
+authoring request v29 was
+`c793063dcac010c0e961bf72c44fd8d896bf7cffdcccb7287ffc5b6b6270c5f0`,
+receipt v32 was
+`8fb94c557c1d63c6e7169e65cd0433722f42c104ea4540dc35eaa672e0901a0e`,
+and readiness v30 was
+`85f315140ed8b3d624849568210f4e8634c6efb5eb3aae269b6060a5b9490fec`.
+All three logical provider calls completed; two repairs were consumed, transport
+retries were zero and fallback was false. Nominal/conservative accounting was
+`$2.700506 / $2.999715`, below the frozen `$5` ceiling. Supervisor v19 recorded
+`child_failed / child_nonzero_exit`, exit `1`, and null output authority. No
+candidate, reconciliation, Blueprint, Wizard, image or render authority exists.
+
+The first response contained only two current typed issues on page 12: one
+malformed Source Evidence identity and the exact same-beat
+`source_phenomenon_binding_mismatch` caused by that unresolved identity. The
+existing compact Source Evidence applier already repairs both the coverage ID
+and its bound phenomenon subject atomically, but the early compiler throw
+discarded the typed affected-record authority and selected `full_draft`. That
+destructive repair resolved both issues and exposed the closed structural
+surface: cover projection, all twelve page final structures and recurring-prop
+lifecycle. `book_surface_patch` was unnecessarily coupled to presentation
+targets, so the router selected a second `full_draft`; the final call resolved
+only lifecycle and exhausted the standard budget with cover plus twelve pages
+still invalid.
+
+The implementation makes both routes causal and narrow. The early source path
+preserves compact repair authority only when every co-reported semantic issue
+maps one-to-one to one unique same-page/same-beat `source_phenomenon` action,
+the action subject resolves to current canonical Source Evidence, and the bound
+coverage identity is the unresolved item. Duplicate, partial, ambiguous,
+independent or mixed issue sets retain the existing fail-closed route. The
+existing Source Evidence prompt/schema/applier are unchanged and full
+validation still runs after repair.
+
+The existing book-surface v3 path now also admits the exact pure structural
+family with zero presentation targets: at least one permitted cover failure,
+at least one exact page final-structure failure and only the optional exact
+recurring-props lifecycle identity. Any unrelated code, locator, collection or
+unsafe hint rejects the authority. Presentation-plus-structural behavior is
+preserved, and a second bounded book-surface repair still consumes the ordinary
+three-call/two-repair budget without opening a fourth cleanup call.
+
+Validation is green. The complete changed focused set passes **2 files / 108
+tests**; adjacent Source Evidence, diagnostics and repair-loop coverage passes
+**3 / 82**; deterministic TypeScript and `git diff --check` pass. One literal
+`npm run check` ran exactly once without retry. TypeScript and autonomous-story
+typecheck passed. Ordinary executed **282 files** with **3,230 passed**, **65
+skipped** and exactly **5 failed assertions**, all in the established missing
+ignored-output fixture HOLD. Resource-intensive passed **20 files / 599 tests**.
+Both diagnostic protocols were valid; no timeout, RPC/IPC, reporter, launch,
+signal, teardown or other infrastructure failure occurred.
+
+The positive lifecycle proof is exactly `initial -> source_evidence_id_patch ->
+book_surface_patch -> candidate`, three calls/two repairs with unchanged caps
+`[40000, 32000, 36000]`. A direct mixed-source negative proves an additional
+independent malformed identity prevents compact authority and retains
+`full_draft`. Input remains immutable. Model, tier, reasoning, prompt/schema and
+persisted versions, 64K ceiling, timeout, retry/fallback, candidate semantics,
+optional reference-only cleanup and `$5` fence are unchanged.
+
+The five fixture assertions remain a separate repository/release HOLD in
+`child-lexicon-ages-5-8`, `momentum-gate-koko`, `page-entity-qa` and two
+`story-read-back-validation` cases; they are not waived. Implementation and
+tests cost `$0`. After the consumed attempt, no credential, provider, Fresh
+Readiness, preflight, live, image, render, storage/database, deployment,
+production or push action occurred. Independent Claude Code QA is pending;
+Codex does not self-award technical PASS. A later pushed-head Fresh Readiness
+and one bounded live attempt remain prohibited until that gate closes.
+
+## DETERMINISTIC ACTION-BINDING NORMALIZATION + REPAIR-OUTPUT OBSERVABILITY — independent technical PASS; pushed; consumed attempt terminal
 
 The first post-atomic-repair live attempt on `097282d5` was consumed and ended
 fail-closed without a candidate. Fresh Readiness v26 was
