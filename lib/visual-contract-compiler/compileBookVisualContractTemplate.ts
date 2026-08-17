@@ -672,15 +672,20 @@ export function templateRepairOutputFailureCode(
 
 class ActionSemanticCoverageValidationError extends InvalidTemplateContractError {
   readonly pointerTemplate: ActionSemanticCoverageTemplate;
+  readonly sourceEvidenceAffectedRecords: readonly SourceEvidenceIdRepairAffectedRecord[];
 
   constructor(
     errors: readonly string[],
     diagnosticIssues: readonly DraftValidationIssue[],
     pointerTemplate: ActionSemanticCoverageTemplate,
+    sourceEvidenceAffectedRecords: readonly SourceEvidenceIdRepairAffectedRecord[],
   ) {
     super([...errors], [...diagnosticIssues]);
     this.name = 'ActionSemanticCoverageValidationError';
     this.pointerTemplate = structuredClone(pointerTemplate);
+    this.sourceEvidenceAffectedRecords = sourceEvidenceAffectedRecords.map(
+      (record) => structuredClone(record),
+    );
   }
 }
 
@@ -1706,15 +1711,6 @@ function sourceGroundPageActionSemantics(
           sourceEvidenceId,
           sourcePhrase,
           reason: 'closed_action_catalog_gap',
-        });
-      } else if (beatId) {
-        issues.push(
-          `${label}.disposition unsupported is a terminal action_semantic_capability_gap and is not eligible for compact ID repair`,
-        );
-        diagnosticIssues.push({
-          family: 'action_semantic',
-          code: 'disposition_payload_invalid',
-          locator: pageCollectionLocator('page_action_semantic_coverage', index, 'payload'),
         });
       }
       continue;
@@ -3343,6 +3339,28 @@ function assembleTemplateFromDraft(
     coverage: actionSemanticCoverage,
   });
   if (semanticCoverageValidation.errors.length > 0) {
+    const unresolvedClosedGapPages = new Set(
+      sourceEvidenceIssues
+        .filter((record) => {
+          const disposition = asObj(
+            record.coverageRecord.disposition,
+          );
+          return (
+            disposition.kind === 'unsupported' &&
+            disposition.reason === 'closed_action_catalog_gap'
+          );
+        })
+        .map((record) => record.pageNumber),
+    );
+    const sourceEvidenceRepairIsExactPrerequisite =
+      unresolvedClosedGapPages.size > 0 &&
+      semanticCoverageValidation.diagnosticIssues.every(
+        (issue) =>
+          issue.family === 'action_semantic' &&
+          issue.code === 'coverage_missing' &&
+          issue.locator.kind === 'page' &&
+          unresolvedClosedGapPages.has(issue.locator.pageNumber),
+      );
     throw new ActionSemanticCoverageValidationError(
       [
         ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
@@ -3353,6 +3371,9 @@ function assembleTemplateFromDraft(
         ...semanticCoverageValidation.diagnosticIssues,
       ],
       template as unknown as ActionSemanticCoverageTemplate,
+      sourceEvidenceRepairIsExactPrerequisite
+        ? sourceEvidenceIssues
+        : [],
     );
   }
   if (sourceEvidenceIssues.length > 0) {
@@ -3627,6 +3648,11 @@ export async function compileBookVisualContractTemplate(
         attemptDiagnosticIssues = err.diagnosticIssues;
         if (err instanceof ActionSemanticCoverageValidationError) {
           pageContractPointerTemplate = err.pointerTemplate;
+          if (err.sourceEvidenceAffectedRecords.length > 0) {
+            sourceEvidenceAffectedRecords = [
+              ...err.sourceEvidenceAffectedRecords,
+            ];
+          }
         }
         if (err instanceof SourceEvidenceIdValidationError) {
           sourceEvidenceAffectedRecords = err.affectedRecords;

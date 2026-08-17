@@ -643,6 +643,10 @@ describe('repairable producer census and typed-only boundary', () => {
         { name: 'errors', hasInitializer: false },
         { name: 'diagnosticIssues', hasInitializer: false },
         { name: 'pointerTemplate', hasInitializer: false },
+        {
+          name: 'sourceEvidenceAffectedRecords',
+          hasInitializer: false,
+        },
       ],
       InvalidTemplateContractError: [
         { name: 'errors', hasInitializer: false },

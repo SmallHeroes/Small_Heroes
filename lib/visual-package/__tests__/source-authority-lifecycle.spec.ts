@@ -4383,6 +4383,299 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
   });
 
+  it('repairs a malformed source-evidence identity before classifying its dependent closed-catalog gap', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    const targetPage = invalid.pageContracts[0]!;
+    const ordinaryPage = invalid.pageContracts[1]!;
+    const targetPageRecord = targetPage as unknown as {
+      actionRequirements: unknown[];
+      actionSemanticCoverage: Array<{
+        beatId: string;
+        sourceEvidenceId: string;
+        disposition: Record<string, unknown>;
+      }>;
+    };
+    const ordinaryPageRecord = ordinaryPage as unknown as {
+      actionRequirements: Array<Record<string, unknown>>;
+      actionSemanticCoverage: Array<{
+        beatId: string;
+        sourceEvidenceId: string;
+        disposition: Record<string, unknown>;
+      }>;
+    };
+    const targetCoverage = targetPageRecord.actionSemanticCoverage[0]!;
+    const ordinaryCoverage =
+      ordinaryPageRecord.actionSemanticCoverage[0]!;
+    const validSourceEvidenceId =
+      snapshot.content.sourceEvidenceCatalog.entries.find(
+        (entry) => entry.pageNumber === targetPage.pageNumber,
+      )!.sourceEvidenceId;
+    const ordinarySourceEvidenceId =
+      snapshot.content.sourceEvidenceCatalog.entries.find(
+        (entry) => entry.pageNumber === ordinaryPage.pageNumber,
+      )!.sourceEvidenceId;
+    targetPageRecord.actionRequirements = [];
+    targetCoverage.sourceEvidenceId = 'malformed-source-evidence-id';
+    ordinaryCoverage.sourceEvidenceId =
+      'second-malformed-source-evidence-id';
+    targetCoverage.disposition = {
+      kind: 'unsupported',
+      reason: 'closed_action_catalog_gap',
+    };
+    const inputBeforeAuthoring = structuredClone(invalid);
+
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => {
+        const output =
+          args.attempt === 1
+            ? JSON.stringify(invalid)
+            : args.attempt === 2
+              ? JSON.stringify({
+                  patches: [
+                    {
+                      pageNumber: targetPage.pageNumber,
+                      beatId: targetCoverage.beatId,
+                      sourceEvidenceId: validSourceEvidenceId,
+                    },
+                    {
+                      pageNumber: ordinaryPage.pageNumber,
+                      beatId: ordinaryCoverage.beatId,
+                      sourceEvidenceId: ordinarySourceEvidenceId,
+                    },
+                  ],
+                })
+              : JSON.stringify({
+                  patches: [
+                    {
+                      pageNumber: targetPage.pageNumber,
+                      coverageIndex: 0,
+                      beatId: targetCoverage.beatId,
+                      sourceEvidenceId: validSourceEvidenceId,
+                      presentationClass: 'composition_focus',
+                      contractPointer: '/pageContracts/0/mustShow/0',
+                    },
+                  ],
+                });
+        return {
+          output,
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `mixed-source-action-response-${args.attempt}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+              output_tokens_details: { reasoning_tokens: 500 },
+            },
+          },
+        };
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'completed',
+      callCount: 3,
+      repairCount: 2,
+      draftValidationStatus: 'completed',
+      failure: null,
+    });
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([
+        null,
+        'source_evidence_id_patch',
+        'presentation_requirement_patch',
+      ]);
+    expect(
+      result.receipt.attempts[0]!.draftValidationDiagnostics?.items.map(
+        (item) => item.issue.code,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'source_evidence_id_malformed',
+        'coverage_missing',
+      ]),
+    );
+    expect(
+      result.receipt.attempts[0]!.draftValidationDiagnostics?.items.filter(
+        (item) => item.issue.family === 'source_evidence_id',
+      ),
+    ).toHaveLength(2);
+    expect(
+      result.receipt.attempts[1]!.draftValidationDiagnostics?.items,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          state: 'newly_introduced',
+          issue: expect.objectContaining({
+            family: 'action_semantic',
+            code: 'closed_catalog_capability_gap',
+          }),
+        }),
+        expect.objectContaining({
+          state: 'resolved',
+          issue: expect.objectContaining({
+            family: 'source_evidence_id',
+            code: 'source_evidence_id_malformed',
+          }),
+        }),
+      ]),
+    );
+    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(provider.call).toHaveBeenCalledTimes(3);
+    const calls = vi.mocked(provider.call).mock.calls.map(([call]) => call);
+    expect(calls.map((call) => call.options.maxOutputTokens)).toEqual([
+      40_000,
+      32_000,
+      36_000,
+    ]);
+    expect(calls[1]!.options.jsonSchema?.name).toBe(
+      'SourceEvidenceIdRepairPatches',
+    );
+    expect(calls[2]!.options.jsonSchema?.name).toBe(
+      PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+    );
+    expect(calls[1]!.userPrompt).not.toContain('worldType');
+    expect(calls[2]!.userPrompt).not.toContain('worldType');
+    expect(invalid).toEqual(inputBeforeAuthoring);
+    expect(ordinaryPageRecord.actionRequirements[0]).toMatchObject({
+      predicate: 'looks_at',
+      object: null,
+    });
+    expect(
+      result.compileResult?.actionSemanticCoverage.find(
+        (record) =>
+          record.pageNumber === targetPage.pageNumber &&
+          record.beatId === targetCoverage.beatId,
+      ),
+    ).toMatchObject({
+      sourceEvidenceId: validSourceEvidenceId,
+      disposition: {
+        kind: 'presentation_requirement',
+        presentationClass: 'composition_focus',
+        contractPointer: '/pageContracts/0/mustShow/0',
+      },
+    });
+    expect(
+      result.compileResult?.actionSemanticCoverage.find(
+        (record) =>
+          record.pageNumber === ordinaryPage.pageNumber &&
+          record.beatId === ordinaryCoverage.beatId,
+      ),
+    ).toMatchObject({
+      sourceEvidenceId: ordinarySourceEvidenceId,
+      disposition: { kind: 'action_requirement' },
+    });
+  });
+
+  it('does not spend a compact source-evidence repair on an independent action-semantic failure', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    const repaired = fullyActionedBunnyDraft(snapshot);
+    const sourcePage = invalid.pageContracts[0]! as unknown as {
+      actionRequirements: unknown[];
+      actionSemanticCoverage: Array<{
+        sourceEvidenceId: string;
+        disposition: Record<string, unknown>;
+      }>;
+    };
+    const independentPage = invalid.pageContracts[1]! as unknown as {
+      pageNumber: number;
+      actionSemanticCoverage: Array<Record<string, unknown>>;
+    };
+    sourcePage.actionRequirements = [];
+    sourcePage.actionSemanticCoverage[0]!.sourceEvidenceId =
+      'malformed-source-evidence-id';
+    sourcePage.actionSemanticCoverage[0]!.disposition = {
+      kind: 'unsupported',
+      reason: 'closed_action_catalog_gap',
+    };
+    const independentSourceEvidenceId =
+      snapshot.content.sourceEvidenceCatalog.entries.find(
+        (entry) => entry.pageNumber === independentPage.pageNumber,
+      )!.sourceEvidenceId;
+    independentPage.actionSemanticCoverage.push({
+      beatId: `beat:p${independentPage.pageNumber}:independent_reference`,
+      sourceEvidenceId: independentSourceEvidenceId,
+      disposition: {
+        kind: 'represented_elsewhere',
+        contractPointer: '/pageContracts/999/mustShow/0',
+        contractValue: 'unreachable',
+      },
+    });
+
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => ({
+        output: JSON.stringify(
+          args.attempt === 1 ? invalid : repaired,
+        ),
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: `independent-action-response-${args.attempt}`,
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 2_000,
+            total_tokens: 3_000,
+            output_tokens_details: { reasoning_tokens: 500 },
+          },
+        },
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'completed',
+      callCount: 2,
+      repairCount: 1,
+      failure: null,
+    });
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([null, 'full_draft']);
+    expect(
+      result.receipt.attempts[0]!.draftValidationDiagnostics?.items,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          issue: expect.objectContaining({
+            family: 'source_evidence_id',
+            code: 'source_evidence_id_malformed',
+          }),
+        }),
+        expect.objectContaining({
+          issue: expect.objectContaining({
+            family: 'action_semantic',
+            code: 'coverage_missing',
+          }),
+        }),
+        expect.objectContaining({
+          issue: expect.objectContaining({
+            family: 'action_semantic',
+            code: 'represented_elsewhere_pointer_out_of_scope',
+          }),
+        }),
+      ]),
+    );
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(
+      vi.mocked(provider.call).mock.calls[1]![0].options.jsonSchema?.name,
+    ).toBe('BookVisualContractTemplateDraft');
+  });
+
   it('records a compact presentation-requirement repair and persists a candidate after full revalidation', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
