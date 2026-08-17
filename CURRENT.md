@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-deterministic-action-binding-normalization` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `097282d547cbbeb7aeb1db66988ef9729c7caddf`.
 
-## DETERMINISTIC ACTION-BINDING NORMALIZATION + REPAIR-OUTPUT OBSERVABILITY — local implementation green; independent Claude Code QA pending
+## DETERMINISTIC ACTION-BINDING NORMALIZATION + REPAIR-OUTPUT OBSERVABILITY — independent technical PASS; push pending
 
 The first post-atomic-repair live attempt on `097282d5` was consumed and ended
 fail-closed without a candidate. Fresh Readiness v26 was
@@ -69,9 +69,19 @@ in `child-lexicon-ages-5-8`, `momentum-gate-koko`, `page-entity-qa` and two
 `story-read-back-validation` cases. They are not waived. Implementation cost is
 `$0`; no credential, network/provider, Fresh Readiness, preflight, live, image,
 render, storage/database, deployment, production or push action occurred in
-this milestone. Internal adversarial review found zero remaining findings, but
-independent Claude Code QA of the immutable committed range is still required;
-Codex does not self-award technical PASS.
+this milestone. Claude Code independently reviewed immutable range
+`097282d547cbbeb7aeb1db66988ef9729c7caddf..237e5be4bfc98e5da11e29a2ec6a42314727a37e`
+read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero
+MINOR. It confirmed exact eligibility/minimum mutation, prose-independent IDs,
+all-disposition collision handling, the two-call/one-repair lifecycle, v1/v2
+compatibility, unchanged policy/version boundaries, repository-gate
+truthfulness and the separate five-fixture HOLD. One advisory notes that an
+unexpected internal normalization postcondition would fail closed without a
+dedicated persisted identity; no correction is required. The single Sonnet
+High QA session cost `$1.78865670`, made no web request, had no permission
+denial and changed no file. Codex records the external verdict and does not
+self-award it. The PASS authorizes neither Fresh Readiness/provider/render nor
+deployment, production or product acceptance.
 
 ## ATOMIC ACTION-BINDING REPAIR + CANDIDATE TEMPLATE PROJECTION — independent technical PASS; push pending
 
