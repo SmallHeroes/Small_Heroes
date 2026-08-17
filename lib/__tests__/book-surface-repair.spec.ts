@@ -640,6 +640,21 @@ describe('atomic compact book-surface repair v4', () => {
         }),
       ),
     ).toThrow('book_surface_repair_page_invalid');
+    for (const invalidMustShowEntry of [null, { text: 'not a string' }]) {
+      expect(() =>
+        parseBookSurfaceRepairPatch(
+          JSON.stringify({
+            ...valid,
+            pageStructuralPatches: [
+              {
+                ...structuralPatch(1),
+                mustShow: [invalidMustShowEntry],
+              },
+            ],
+          }),
+        ),
+      ).toThrow('book_surface_repair_page_invalid');
+    }
   });
 
   it('applies cover, structural fields, and exact presentation pairs atomically without input mutation', () => {
@@ -742,30 +757,42 @@ describe('atomic compact book-surface repair v4', () => {
     expect(stale).toEqual(snapshot);
   });
 
-  it('rejects a presentation pair whose selected mustShow value changed in the same atomic patch', () => {
-    const original = draft();
-    const snapshot = structuredClone(original);
-    const selected = authority(original);
-    const pagePatch = structuralPatch(1);
-    pagePatch.mustShow = [
-      'provider changed the selected value',
-      'page 1 alternate visible beat',
-    ];
+  it('freezes the complete compiler-owned mustShow array on presentation-target pages', () => {
+    for (const providerMustShow of [
+      ['provider changed the selected value', 'provider changed the other value'],
+      ['provider shortened the array'],
+      ['page 1 alternate visible beat', 'page 1 visible beat'],
+      [],
+    ]) {
+      const original = draft();
+      const snapshot = structuredClone(original);
+      const selected = authority(original);
+      const pagePatch = structuralPatch(1);
+      pagePatch.mustShow = providerMustShow;
 
-    expect(() =>
-      applyBookSurfaceRepairPatch({
+      const result = applyBookSurfaceRepairPatch({
         draft: original,
         authority: selected,
         patch: {
           ...patch(),
           pageStructuralPatches: [pagePatch],
         },
-      }),
-    ).toThrow('presentation_requirement_repair_target_stale');
-    expect(original).toEqual(snapshot);
+      });
+      const pages = result.pageContracts as ReturnType<typeof page>[];
+      expect(pages[0]?.mustShow).toEqual(
+        (snapshot.pageContracts as ReturnType<typeof page>[])[0]?.mustShow,
+      );
+      expect(pages[0]?.actionSemanticCoverage[0]?.disposition).toEqual({
+        kind: 'presentation_requirement',
+        presentationClass: 'static_state',
+        contractPointer: '/pageContracts/0/mustShow/0',
+        contractValue: 'page 1 visible beat',
+      });
+      expect(original).toEqual(snapshot);
+    }
   });
 
-  it('allows same-page structural repair while preserving the selected presentation pair exactly', () => {
+  it('keeps other structural repairs while discarding every target-page mustShow edit', () => {
     const original = draft();
     const snapshot = structuredClone(original);
     const selected = authority(original);
@@ -783,7 +810,10 @@ describe('atomic compact book-surface repair v4', () => {
       },
     });
     const pages = result.pageContracts as ReturnType<typeof page>[];
-    expect(pages[0]?.mustShow).toEqual(pagePatch.mustShow);
+    expect(pages[0]?.camera).toBe('repaired page 1');
+    expect(pages[0]?.mustShow).toEqual(
+      (snapshot.pageContracts as ReturnType<typeof page>[])[0]?.mustShow,
+    );
     expect(pages[0]?.actionSemanticCoverage[0]?.disposition).toEqual({
       kind: 'presentation_requirement',
       presentationClass: 'static_state',
@@ -791,6 +821,109 @@ describe('atomic compact book-surface repair v4', () => {
       contractValue: 'page 1 visible beat',
     });
     expect(original).toEqual(snapshot);
+  });
+
+  it('preserves mustShow repair authority on structural pages with no presentation target', () => {
+    const original = draft();
+    const snapshot = structuredClone(original);
+    const selected = authority(original, { pageNumbers: [3] });
+    const pagePatch = structuralPatch(3);
+    pagePatch.mustShow = ['provider repaired the non-target page'];
+
+    const result = applyBookSurfaceRepairPatch({
+      draft: original,
+      authority: selected,
+      patch: {
+        ...patch({ pageNumbers: [3] }),
+        pageStructuralPatches: [pagePatch],
+      },
+    });
+    const pages = result.pageContracts as ReturnType<typeof page>[];
+    expect(pages[2]?.mustShow).toEqual(pagePatch.mustShow);
+    expect(pages[0]?.mustShow).toEqual(
+      (snapshot.pageContracts as ReturnType<typeof page>[])[0]?.mustShow,
+    );
+    expect(pages[1]?.mustShow).toEqual(
+      (snapshot.pageContracts as ReturnType<typeof page>[])[1]?.mustShow,
+    );
+    expect(original).toEqual(snapshot);
+  });
+
+  it('resolves multiple same-page presentation targets against one frozen compiler array', () => {
+    const original = draft();
+    const snapshot = structuredClone(original);
+    const secondaryBeatId = 'beat:p1:test-secondary';
+    const secondarySourceEvidenceId = `se1_${'b'.repeat(64)}`;
+    const originalPages = original.pageContracts as ReturnType<typeof page>[];
+    originalPages[0]!.actionSemanticCoverage.push({
+      beatId: secondaryBeatId,
+      sourceEvidenceId: secondarySourceEvidenceId,
+      disposition: {
+        kind: 'unsupported',
+        reason: 'closed_action_catalog_gap',
+      },
+    });
+    const originalWithSecondaryTarget = structuredClone(original);
+    const secondaryTarget: PresentationRequirementRepairTarget = {
+      ...presentationTarget(1),
+      coverageIndex: 1,
+      beatId: secondaryBeatId,
+      sourceEvidenceId: secondarySourceEvidenceId,
+      sourcePhrase: 'secondary source phrase page 1',
+    };
+    const selected = bookSurfaceRepairAuthority({
+      draft: original,
+      authorityDraft: original,
+      presentationTargets: [presentationTarget(1), secondaryTarget],
+      structuralDiagnosticIssues: [coverProjectionIssue, pageStructureIssue(1)],
+      structuralValidationMessages: ['cover needs repair', 'page needs repair'],
+    });
+    expect(selected).not.toBeNull();
+    const pagePatch = structuralPatch(1);
+    pagePatch.mustShow = [];
+
+    const result = applyBookSurfaceRepairPatch({
+      draft: original,
+      authority: selected!,
+      patch: {
+        ...patch({ presentationPageNumbers: [] }),
+        presentationPatches: [
+          presentationPatch(1, 'static_state', 0),
+          {
+            ...presentationPatch(1, 'composition_focus', 1),
+            coverageIndex: 1,
+            beatId: secondaryBeatId,
+            sourceEvidenceId: secondarySourceEvidenceId,
+          },
+        ],
+        pageStructuralPatches: [pagePatch],
+      },
+    });
+    const resultPage = (result.pageContracts as ReturnType<typeof page>[])[0]!;
+    expect(resultPage.mustShow).toEqual(
+      (originalWithSecondaryTarget.pageContracts as ReturnType<typeof page>[])[0]!
+        .mustShow,
+    );
+    expect(resultPage.actionSemanticCoverage.map((entry) => entry.disposition))
+      .toEqual([
+        {
+          kind: 'presentation_requirement',
+          presentationClass: 'static_state',
+          contractPointer: '/pageContracts/0/mustShow/0',
+          contractValue: 'page 1 visible beat',
+        },
+        {
+          kind: 'presentation_requirement',
+          presentationClass: 'composition_focus',
+          contractPointer: '/pageContracts/0/mustShow/1',
+          contractValue: 'page 1 alternate visible beat',
+        },
+      ]);
+    expect(original).toEqual(originalWithSecondaryTarget);
+    expect(
+      (snapshot.pageContracts as ReturnType<typeof page>[])[0]!
+        .actionSemanticCoverage,
+    ).toHaveLength(1);
   });
 
   it('rejects missing, extra, duplicate, and reordered page targets before mutation', () => {

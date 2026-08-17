@@ -5935,22 +5935,38 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const fixture = liveShapedAtomicBindingFixture(snapshot);
     const firstRepair = structuredClone(fixture.validBookSurfaceRepair);
     for (const page of firstRepair.pageContracts) page.camera = '';
+    const providerMustShowSentinel =
+      'provider replaced the compiler-owned presentation array';
     const calls: Parameters<VisualContractAuthoringProvider['call']>[0][] = [];
     const provider: VisualContractAuthoringProvider = {
       call: vi.fn(async (args) => {
         calls.push(args);
-        const output =
-          args.attempt === 1
-            ? fixture.initial
-            : bookSurfaceV4Response({
-                payload: decodeBookSurfaceRepairUserPrompt(
-                  args.userPrompt,
-                ),
-                repaired:
-                  args.attempt === 2
-                    ? firstRepair
-                    : fixture.validBookSurfaceRepair,
-              });
+        let output: unknown = fixture.initial;
+        if (args.attempt > 1) {
+          const payload = decodeBookSurfaceRepairUserPrompt(
+            args.userPrompt,
+          );
+          const response = bookSurfaceV4Response({
+            payload,
+            repaired:
+              args.attempt === 2
+                ? firstRepair
+                : fixture.validBookSurfaceRepair,
+          });
+          if (args.attempt === 2) {
+            const targetPageNumber = (
+              payload.presentationTargets as Array<{ pageNumber: number }>
+            )[0]!.pageNumber;
+            const targetPagePatch = (
+              response.pageStructuralPatches as Record<string, unknown>[]
+            ).find((page) => page.pageNumber === targetPageNumber);
+            if (!targetPagePatch) {
+              throw new Error('missing presentation-target page patch fixture');
+            }
+            targetPagePatch.mustShow = [providerMustShowSentinel];
+          }
+          output = response;
+        }
         return {
           output: JSON.stringify(output),
           receipt: {
@@ -5983,6 +5999,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(JSON.stringify(result.receipt)).not.toContain(
+      providerMustShowSentinel,
+    );
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
       .toEqual([null, 'book_surface_patch', 'book_surface_patch']);
     expect(

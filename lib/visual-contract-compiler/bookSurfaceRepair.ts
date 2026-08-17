@@ -885,6 +885,7 @@ export function parseBookSurfaceRepairPatch(
         (value.sameLocationAs !== null &&
           typeof value.sameLocationAs !== 'number') ||
         !Array.isArray(value.mustShow) ||
+        value.mustShow.some((entry) => typeof entry !== 'string') ||
         !Array.isArray(value.mustNotShow) ||
         !Array.isArray(value.propState) ||
         !Array.isArray(value.propConstraints) ||
@@ -954,6 +955,9 @@ function maskedSurface(args: {
         const maskedPage: Record<string, unknown> = { ...page };
         if (structuralPageNumbers.has(page.pageNumber)) {
           for (const key of PAGE_STRUCTURAL_FIELD_KEYS) {
+            if (key === 'mustShow' && presentationTargets.length > 0) {
+              continue;
+            }
             maskedPage[key] = '__book_surface_page_structural_target__';
           }
         }
@@ -1241,12 +1245,21 @@ export function applyBookSurfaceRepairPatch(args: {
   const resultPages = Array.isArray(result.pageContracts)
     ? result.pageContracts.map(recordValue)
     : [];
-
+  const presentationPageNumbers = new Set(
+    args.authority.presentationTargets.map((target) => target.pageNumber),
+  );
   for (const pagePatch of patch.pageStructuralPatches) {
     const page = resultPages.find(
       (candidate) => candidate?.pageNumber === pagePatch.pageNumber,
     )!;
     for (const key of PAGE_STRUCTURAL_FIELD_KEYS) {
+      if (
+        key === 'mustShow' &&
+        positiveInteger(pagePatch.pageNumber) &&
+        presentationPageNumbers.has(pagePatch.pageNumber)
+      ) {
+        continue;
+      }
       page[key] = pagePatch[key];
     }
   }

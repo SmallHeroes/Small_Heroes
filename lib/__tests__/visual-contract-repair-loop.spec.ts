@@ -992,6 +992,9 @@ describe('page-contract compact repair routing', () => {
       reason: 'closed_action_catalog_gap',
     };
     ensureBookSurfacePageShape(initial);
+    const frozenPresentationMustShow = structuredClone(
+      initial.pageContracts[1].mustShow,
+    );
 
     const repairedCover = {
       ...structuredClone(valid.coverContract),
@@ -1004,6 +1007,9 @@ describe('page-contract compact repair routing', () => {
     delete repairedPage2.castStates;
     repairedPage2.propConstraints ??= [];
     repairedPage2.actionRequirements ??= [];
+    repairedPage2.mustShow = [
+      'provider replaced and shortened the selected presentation array',
+    ];
     const repairedPages = initial.pageContracts.map(
       (page: Record<string, unknown>) => structuredClone(page),
     );
@@ -1136,6 +1142,7 @@ describe('page-contract compact repair routing', () => {
       (page) => page.pageNumber === presentationTarget.pageNumber,
     );
     expect(finalPage).toBeDefined();
+    expect(finalPage!.mustShow).toEqual(frozenPresentationMustShow);
     expect(finalDisposition.contractValue).toBe(
       finalPage!.mustShow[selectedMustShowIndex],
     );
