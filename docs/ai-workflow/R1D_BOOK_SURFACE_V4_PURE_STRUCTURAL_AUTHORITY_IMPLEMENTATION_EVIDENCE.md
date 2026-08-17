@@ -2,14 +2,14 @@
 
 **Date:** 2026-08-17
 
-**Status:** local implementation and repository validation complete; independent Claude Code QA pending; unpushed; no Fresh Readiness, provider, candidate, Wizard or render authority
+**Status:** implementation and repository validation complete; independent Claude Code technical PASS; unpushed; no Fresh Readiness, provider, candidate, Wizard or render authority
 
 ## Topology
 
 - Worktree: `C:\GNart\Work\sh-wt-r1d-output-budget`
 - Branch: `codex/r1d-book-surface-v4-pure-structural-authority`
 - Exact pushed and independently passed base: `c8e2770c2f26044643a57cfb313cf061b9c433ca`
-- Implementation commit: this focused local commit; exact hash is supplied in the immutable QA handoff
+- Reviewed implementation commit: `457e65f233053fd96a64a8051c8d1e8c5e2592cd`
 - Production: untouched
 - Implementation and test provider cost: `$0`
 
@@ -131,18 +131,40 @@ Those files are unchanged and the release HOLD is not waived.
 
 ## Independent QA
 
-Pending. Claude Code must review the exact immutable base-to-head range and try
-to falsify nullable-cover eligibility, cover-present strictness, null-cover
-immutability, action-coverage exclusion, non-target preservation, route
-selection, three-call/two-repair lifecycle, exact residual diagnostics,
-input-admission behavior and the unchanged authority/version/budget surface.
-Codex does not self-award technical PASS.
+The first broad Claude Code invocation produced no verdict because its context
+autocompaction thrashed; it reported an infrastructure/context failure rather
+than a code finding. It was not treated as PASS and no implementation claim was
+waived.
+
+A fresh focused Claude Code review then inspected exact immutable range
+`c8e2770c2f26044643a57cfb313cf061b9c433ca..457e65f233053fd96a64a8051c8d1e8c5e2592cd`
+read-only and returned **PASS** with **0 BLOCKER / 0 MAJOR / 0 MINOR**. It
+confirmed:
+
+- page-only eligibility and the surviving no-page rejection;
+- exact null-cover/empty-hints authority and unchanged cover-present guards;
+- null-cover immutability through the parser, applier and non-target mask;
+- action-semantic coverage exclusion from structural input, output and apply;
+- the exact twelve-page three-call/two-repair route and output caps;
+- twelve explicit residual structural identities, no action-binding regression
+  and final zero-issue candidate;
+- unchanged schemas, prompts, policies, versions, models, budgets, retry,
+  fallback, candidate and cost surfaces; and
+- sufficient dedicated Page Contract coverage for the represented-elsewhere
+  route replaced by the now-impossible structural overreach scenario.
+
+Its two advisories were nonblocking: defensive null-cover consistency checks
+are redundant by construction, and the twelve-page regression intentionally
+couples to the current twelve-page fixture. Neither requires correction.
+
+This technical PASS does not authorize push, Fresh Readiness, provider calls,
+render, deployment, production or product acceptance.
 
 ## Boundaries and rollback
 
 No credential, network, provider, Fresh Readiness, preflight, live authoring,
 image, Vision, render, storage/database, deployment, production or push action
-occurred during implementation and validation.
+occurred during implementation, validation or independent review.
 
 Rollback is a focused revert of the implementation commit and its documentation
 closeout. Historical artifacts need no migration or rewrite. Any later paid

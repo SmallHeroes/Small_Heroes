@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-v4-pure-structural-authority` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `c8e2770c2f26044643a57cfb313cf061b9c433ca`.
 
-## BOOK SURFACE v4 PURE-STRUCTURAL AUTHORITY — local implementation green; independent QA pending
+## BOOK SURFACE v4 PURE-STRUCTURAL AUTHORITY — independent technical PASS; push pending
 
 The consumed canonical attempt under
 `outputs/r1d-post-book-surface-v4-readiness-c8e2770c-20260817T173858109Z`
@@ -56,10 +56,16 @@ Implementation and tests cost `$0`. After the consumed attempt, no credential,
 provider, Fresh Readiness, preflight, live, image, Vision, render,
 storage/database, deployment, production or push action occurred. Internal
 read-only adversarial review found no BLOCKER or MAJOR and confirmed the narrow
-nullable-cover authority boundary. Independent Claude Code review of the
-immutable base-to-head implementation range is still pending; Codex does not
-self-award technical PASS. No new paid attempt is permitted before that gate,
-push and a new Fresh Readiness authority on the reviewed head.
+nullable-cover authority boundary. Claude Code then independently reviewed
+exact immutable range
+`c8e2770c2f26044643a57cfb313cf061b9c433ca..457e65f233053fd96a64a8051c8d1e8c5e2592cd`
+read-only and returned **PASS** with **0 BLOCKER / 0 MAJOR / 0 MINOR**. It
+explicitly confirmed page-only eligibility, cover-present strictness,
+null-cover immutability, action-coverage exclusion, the exact three-call route,
+unchanged versions/budgets and adequate dedicated Page Contract coverage. Its
+two advisories were nonblocking defensive redundancy and fixture page-count
+coupling. Technical PASS does not itself authorize provider or render work;
+the next boundary is push followed by new Fresh Readiness on the reviewed head.
 
 ## ATOMIC COMPACT BOOK SURFACE v4 — independent technical PASS; implementation pushed
 
