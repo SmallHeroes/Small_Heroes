@@ -23,7 +23,7 @@
   --wow-yellow-ink: #3d2f10;
   --wow-glow: #ffd9a8;
   /* Heading voice: Suez One (the face Guy approved; Rubik run reverted) */
-  --font-wow-display: var(--font-suez), 'Suez One', 'Rubik', serif;
+  --font-wow-display: var(--font-secular), 'Secular One', 'Rubik', sans-serif;
   --font-wow-body: var(--font-rubik), 'Rubik', sans-serif;
 }
 
