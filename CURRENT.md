@@ -2,7 +2,35 @@
 
 **Updated:** 2026-08-17
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-mixed-source-evidence-action-repair-routing` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed `0285df438bd5a8bbcbd9db7563ab0778f50e4599`.
+**Working branch:** `codex/r1d-real-candidate-qa-wizard-low-bridge` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `b2f6a7418f0f112a1ab911153be2718f1a339d45`.
+
+## REAL CANDIDATE -> QA WIZARD -> LOW BRIDGE — implementation started
+
+The mixed Source Evidence / action repair correction is pushed at exact `0/0`
+parity and independently passed Claude Code review. A new zero-cost canonical
+sequence on that immutable head passed one Git probe, one `prepare`, and one
+`verify`. Probe digest
+`7eb1de88ef200a5818187fea898e75eafa678f8adb80eeffb796331d44d5c7d5`
+reported `ready_for_canonical_prepare`; Fresh Readiness v26 digest
+`ee7c3cb28b54db01c4b510f6a06ed6323f80473a60154ab5ddaa339378d067b6`
+and Execution Request
+`ce02385a6e4d3be76f6f61fa18bdb370cfedf8558021ec821e86b916259844d2`
+reported `ready_for_spend_gate`. Both readiness passes recorded
+`credentialAccess:none`, `providerCalls:0`, `canonicalPreflight:not_run`,
+`pricingAuthority:not_checked`, and `liveAuthority:none`.
+
+Repository investigation then confirmed that the existing full-book
+measurement runner is not proof of the normal Wizard path: it synthesizes a
+Visual Package fixture and manually injects frozen authority. A real candidate
+currently has no operator-connected route through exact Reconciliation,
+Blueprint authoring/approval, Visual Package v5 QA publication, current-locator
+selection, `ensureFrozenVisualContract`, and Style01 runtime-v6 qualification.
+The accepted Decision Gate therefore adds the smallest QA-only bridge while
+reusing the existing authority versions and preserving every approval boundary.
+No provider or render spend is permitted during implementation. Because bridge
+commits will change HEAD, the readiness above is operational proof only and
+will not be consumed; a brand-new canonical sequence is required after the
+bridge passes independent QA and is pushed.
 
 ## MIXED SOURCE-EVIDENCE / ACTION REPAIR ROUTING — independent technical PASS
 
