@@ -9,6 +9,7 @@ import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { initLandingMotion } from './motion';
 import { SiteHeader } from '@/app/components/SiteHeader';
 import { AboutSection } from './about-section';
+import { HeroDoodles } from './hero-doodles';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
 
@@ -119,6 +120,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
         <main>
           <section className="hero">
+            <HeroDoodles />
             <div className="wrap hero-wrap">
               <div className="hero-text">
                 <div className="hero-badge" data-reveal="hero" data-reveal-delay="0">{L.hero.badge}</div>
