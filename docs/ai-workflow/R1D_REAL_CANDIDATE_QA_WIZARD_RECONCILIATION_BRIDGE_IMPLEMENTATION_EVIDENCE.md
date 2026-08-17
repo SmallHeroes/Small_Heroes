@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-17
 
-**Status:** first zero-cost bridge milestone implemented locally; independent Claude Code QA pending; unpushed; no Fresh Readiness, live, Blueprint, Wizard, or render authority
+**Status:** first bridge milestone independently QA-passed locally; unpushed; no Fresh Readiness, live, Blueprint, Wizard, or render authority
 
 ## Topology and scope
 
@@ -76,6 +76,12 @@ An earlier raw mixed focused aggregate was not policy-conformant and is not acce
 - No credential was read or checked. No pricing lookup, network/provider call, Fresh Readiness, preflight, live authoring, image/Vision, render, database/storage, QA deployment, production deployment, or push occurred during implementation.
 - Rollback is a focused revert of this implementation commit. No persisted production or database state exists to migrate or repair.
 
-## Independent QA gate
+## Independent Claude Code QA
 
-Independent Claude Code review is pending for the exact immutable base-to-head range. It must try to falsify causal Supervisor provenance, exact child-output inventory, Fresh/B0/request/output cross-binding, containment and tamper rejection, approval non-inference, pending/approved replay, sanitized CLI claims, unchanged downstream authorities, and this validation record. Codex does not self-award independent technical PASS.
+Claude Code independently reviewed exact immutable range `b2f6a7418f0f112a1ab911153be2718f1a339d45..80a929d1f54f9e899efa00c19b53142e370f4192` in read-only plan mode and returned **PASS** at the independent technical-QA level with zero BLOCKER, zero MAJOR, and zero MINOR.
+
+The review verified exact two-commit/zero-merge topology and all ten requested falsification targets: causal Supervisor v19 output binding, sole canonical tuple enforcement, the exact five expected-absence categories, rejection of synthetic or post-hoc authoring, content-addressed reconstruction and tamper/replay/link defenses, separate non-inferred reconciliation approval, strict sanitized CLI behavior, unchanged policy/dependency/literal surfaces, validation-evidence fidelity, and the exact test-only materializer correction. It independently confirmed closure of all three prior internal findings: rejected exit-zero now returns nonzero, duplicate authoring requests fail count-exactly-one, and the stale singleton fixture now consumes the shared canonical five-path authority.
+
+Claude retained four non-blocking advisory notes. The material limitation preserved in its returned summary is that it did not rerun the consumed `npm run check`, TypeScript, or independently reproduce the recorded `41/41`, `53/53`, and `20/20` runtime figures; its verdict rests on source-contract review plus this document's explicit non-green repository-gate disclosure. No advisory changes the PASS or authorizes downstream work.
+
+The single external Claude Opus High review cost `$10.8810505`; it used 39 turns and performed no web search/fetch. No follow-up review was run because there was no finding to correct. This PASS grants no Blueprint, package, Wizard, provider, render, deployment, release, or product acceptance. Codex records Claude's verdict; it does not self-award it.

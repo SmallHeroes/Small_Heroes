@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-real-candidate-qa-wizard-low-bridge` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `b2f6a7418f0f112a1ab911153be2718f1a339d45`.
 
-## REAL CANDIDATE -> QA WIZARD -> LOW BRIDGE — reconciliation milestone green, independent QA pending
+## REAL CANDIDATE -> QA WIZARD -> LOW BRIDGE — reconciliation milestone independent technical PASS; push pending
 
 The first implementation milestone now connects only the zero-cost boundary
 from an exact canonical Supervisor result to a pending Source Prompt
@@ -46,12 +46,24 @@ singleton absence path; after changing only that fixture to the canonical five,
 the full 20-test file passed. This exact repository-gate history is retained in
 the implementation evidence; the separate fixture release HOLD remains open.
 
-No credential, provider, network, Fresh Readiness, preflight, live authoring,
-image, render, storage/database, deployment, production, or push action
-has occurred in this milestone. Independent Claude Code QA is pending; Codex
-does not self-award technical PASS. The earlier readiness on head `b2f6a741` is
-historical operational proof only and cannot authorize a future attempt after
-this branch moves.
+No product credential, OpenAI/image provider, Fresh Readiness, preflight, live
+authoring, image, render, storage/database, deployment, production, or push
+action has occurred in this milestone. Claude Code independently reviewed exact
+range
+`b2f6a7418f0f112a1ab911153be2718f1a339d45..80a929d1f54f9e899efa00c19b53142e370f4192`
+read-only and returned **PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It
+verified all ten falsification targets and independently confirmed closure of
+the exit-disposition, duplicate-request, and stale-five-path fixture findings.
+Four notes are advisory only; the preserved material limitation is that Claude
+did not rerun the consumed repository gate or independently reproduce every
+recorded runtime count. The review used one Claude Opus High call costing
+`$10.8810505`; no second review was run. Codex records this external verdict and
+does not self-award it.
+
+The earlier readiness on head `b2f6a741` is historical operational proof only
+and cannot authorize a future attempt after this branch moves. This PASS grants
+no Blueprint, package, Wizard, provider, render, deployment, release, or product
+acceptance.
 
 ## MIXED SOURCE-EVIDENCE / ACTION REPAIR ROUTING — independent technical PASS
 
