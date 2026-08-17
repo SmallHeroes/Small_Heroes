@@ -422,23 +422,33 @@ describe('atomic compact book-surface repair v4', () => {
     ).toBeNull();
   });
 
-  it('preserves the existing pure structural route with an empty presentation patch set', () => {
+  it('builds a pure page-structural authority without cover or presentation repair', () => {
     const original = draft();
-    const issues = [coverProjectionIssue, pageStructureIssue(1)];
+    const snapshot = structuredClone(original);
+    const issues = [pageStructureIssue(1)];
     const selected = bookSurfaceRepairAuthority({
       draft: original,
       authorityDraft: original,
       presentationTargets: [],
       structuralDiagnosticIssues: issues,
-      structuralValidationMessages: ['cover', 'page'],
+      structuralValidationMessages: ['page'],
     });
+    expect(selected).not.toBeNull();
     expect(selected?.presentationTargets).toEqual([]);
+    expect(selected?.coverContract).toBeNull();
+    expect(selected?.coverValidationHints).toEqual([]);
+    expect(
+      decodeBookSurfaceRepairUserPrompt(
+        buildBookSurfaceRepairUserPrompt({ authority: selected! }),
+      ).coverAuthority,
+    ).toBeNull();
     const result = applyBookSurfaceRepairPatch({
       draft: original,
       authority: selected!,
       patch: {
         ...patch({ presentationPageNumbers: [] }),
         presentationPatches: [],
+        coverContract: null,
       },
     });
     expect(
@@ -448,6 +458,8 @@ describe('atomic compact book-surface repair v4', () => {
       (result.pageContracts as ReturnType<typeof page>[])[0]
         ?.actionSemanticCoverage,
     ).toEqual(page(1).actionSemanticCoverage);
+    expect(result.coverContract).toEqual(snapshot.coverContract);
+    expect(original).toEqual(snapshot);
   });
 
   it('encodes only compact structural projections and exact presentation authority', () => {

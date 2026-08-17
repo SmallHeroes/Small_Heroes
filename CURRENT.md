@@ -2,7 +2,64 @@
 
 **Updated:** 2026-08-17
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-atomic-compact-book-surface-v4` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on Decision Gate commit `f669a192835ea1a36ec15dbd2310ce861901d39a`, whose parent is pushed and independently QA-passed `48ef78ff77f325b111219654b463608792fd2b39`.
+**Working branch:** `codex/r1d-book-surface-v4-pure-structural-authority` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `c8e2770c2f26044643a57cfb313cf061b9c433ca`.
+
+## BOOK SURFACE v4 PURE-STRUCTURAL AUTHORITY — local implementation green; independent QA pending
+
+The consumed canonical attempt under
+`outputs/r1d-post-book-surface-v4-readiness-c8e2770c-20260817T173858109Z`
+ended fail-closed without a candidate. Receipt v33
+`d5accaa23b9bd4fcf0d3958dabdc7e79e950d83e9ea79f11441436c1a87e2892`
+records exactly three completed calls, two repairs, zero transport retries and
+no fallback, with `$1.921346 / $2.113494` nominal/conservative cost. Its route
+was `initial -> book_surface_patch -> page_contract_patch`; current unique
+issues progressed `15 -> 12 -> 48`. The first Book Surface patch resolved the
+cover, recurring-prop lifecycle and exact presentation gap but left the twelve
+page final-structure issues. The broad Page Contract patch resolved those
+twelve and introduced forty-eight action-binding cardinality failures. No
+candidate, reconciliation, Blueprint, Wizard or render authority exists.
+
+The cause was one stale selector guard. Book Surface v4 already defines a
+nullable cover authority and its prompt, schema and atomic applier already
+support `coverContract: null`. The canonical authority builder nevertheless
+still required a cover issue. Once the first repair fixed the cover, a pure
+page-structural residual could not select Book Surface and fell through to the
+wide Page Contract route.
+
+The focused correction keeps page structural issues mandatory and makes cover
+authority conditional. A cover issue retains the existing exact cover and
+nonempty-hint checks; without one, authority carries exactly a null cover and
+empty cover hints. Every existing reference, page, recurring-prop,
+presentation, stale-draft and non-target guard remains active. No schema,
+prompt, policy, model, version, call/repair cap, output budget, timeout, retry,
+fallback, candidate or cost authority changed.
+
+The live-shaped twelve-page lifecycle proof is now `initial ->
+book_surface_patch -> book_surface_patch -> candidate` within the unchanged
+three calls/two repairs and `[40000, 32000, 36000]`. The second repair carries
+null cover, null recurring props, no presentation targets and all twelve exact
+structural pages. `actionSemanticCoverage` is neither transported nor mutated;
+the residual is exactly twelve `final_structural_invariant_invalid` identities,
+and no action-binding cardinality issue appears.
+
+Validation is green: the complete focused set passes **3 files / 145 tests**;
+deterministic TypeScript and `git diff --check` pass. One literal
+`npm run check` ran exactly once. Ordinary execution passed **3,236**, skipped
+**65**, and failed only the established **5 assertions** across four unchanged
+missing-output fixture specs. Resource-intensive execution passed **20 files /
+599 tests**. Both diagnostic protocols were valid; no timeout, RPC/IPC,
+reporter, launch, signal, teardown or other infrastructure failure occurred.
+Those five fixture assertions remain a separate release HOLD and are not
+waived.
+
+Implementation and tests cost `$0`. After the consumed attempt, no credential,
+provider, Fresh Readiness, preflight, live, image, Vision, render,
+storage/database, deployment, production or push action occurred. Internal
+read-only adversarial review found no BLOCKER or MAJOR and confirmed the narrow
+nullable-cover authority boundary. Independent Claude Code review of the
+immutable base-to-head implementation range is still pending; Codex does not
+self-award technical PASS. No new paid attempt is permitted before that gate,
+push and a new Fresh Readiness authority on the reviewed head.
 
 ## ATOMIC COMPACT BOOK SURFACE v4 — independent technical PASS; implementation pushed
 

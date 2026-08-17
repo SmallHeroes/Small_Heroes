@@ -1333,7 +1333,7 @@ describe('page-contract compact repair routing', () => {
     ]);
   });
 
-  it('aggregates the recurring-prop lifecycle identity with cover, page, and presentation repair', async () => {
+  it('repeats BookSurface v4 with null cover after the mixed repair leaves only page structure', async () => {
     const valid = bunnyDraft();
     const initial = structuredClone(valid);
     initial.coverContract.mustShow = [''];
@@ -1356,6 +1356,12 @@ describe('page-contract compact repair routing', () => {
     delete repairedPage1.characterPresence;
     repairedPage1.propConstraints ??= [];
     repairedPage1.actionRequirements ??= [];
+    const stillInvalidPage1 = structuredClone(initial.pageContracts[0]);
+    delete stillInvalidPage1.castIds;
+    delete stillInvalidPage1.characterPresence;
+    delete stillInvalidPage1.castStates;
+    stillInvalidPage1.propConstraints ??= [];
+    stillInvalidPage1.actionRequirements ??= [];
     const repairedPage2 = structuredClone(valid.pageContracts[1]);
     delete repairedPage2.castIds;
     delete repairedPage2.characterPresence;
@@ -1370,23 +1376,34 @@ describe('page-contract compact repair routing', () => {
 
     const calls: Array<{
       user: string;
+      options: Parameters<ContractLlmCaller>[2];
       authority: Parameters<ContractLlmCaller>[3];
     }> = [];
     const caller: ContractLlmCaller = async (
       _system,
       user,
-      _options,
+      options,
       authority,
     ) => {
-      calls.push({ user, authority });
+      calls.push({ user, options, authority });
       if (calls.length === 1) return JSON.stringify(initial);
       const payload = decodeBookSurfaceRepairUserPrompt(user);
+      if (calls.length === 2) {
+        return JSON.stringify(
+          bookSurfaceV4Response({
+            payload,
+            coverContract: repairedCover,
+            recurringProps: valid.recurringProps,
+            repairedPages: [stillInvalidPage1, repairedPage2],
+          }),
+        );
+      }
       return JSON.stringify(
         bookSurfaceV4Response({
           payload,
-          coverContract: repairedCover,
-          recurringProps: valid.recurringProps,
-          repairedPages: [repairedPage1, repairedPage2],
+          coverContract: null,
+          recurringProps: null,
+          repairedPages: [repairedPage1],
         }),
       );
     };
@@ -1396,7 +1413,7 @@ describe('page-contract compact repair routing', () => {
       { callLLM: caller },
     );
 
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(3);
     expect(calls[1]!.authority).toMatchObject({
       kind: 'repair',
       repairMode: 'book_surface_patch',
@@ -1417,10 +1434,43 @@ describe('page-contract compact repair routing', () => {
         (value) => value.pageNumber,
       ),
     ).toEqual([2]);
-    expect(result.provenance.attempt).toBe(2);
-    expect(result.repairAttempts.map((attempt) => attempt.nextRepairMode)).toEqual([
-      'book_surface_patch',
+    const pureStructuralPayload = decodeBookSurfaceRepairUserPrompt(
+      calls[2]!.user,
+    );
+    expect(pureStructuralPayload.coverAuthority).toBeNull();
+    expect(pureStructuralPayload.recurringPropAuthority).toBeNull();
+    expect(pureStructuralPayload.presentationTargets).toEqual([]);
+    expect(
+      (pureStructuralPayload.affectedPages as Array<{
+        pageNumber: number;
+      }>).map((value) => value.pageNumber),
+    ).toEqual([1]);
+    expect(
+      calls.map((call) =>
+        call.authority?.kind === 'repair'
+          ? call.authority.repairMode
+          : null,
+      ),
+    ).toEqual([null, 'book_surface_patch', 'book_surface_patch']);
+    expect(calls.map((call) => call.options?.maxOutputTokens)).toEqual([
+      40_000,
+      32_000,
+      36_000,
     ]);
+    expect(result.actionSemanticCoverage).toContainEqual(
+      expect.objectContaining({
+        pageNumber: 1,
+        beatId: initial.pageContracts[0].actionSemanticCoverage[0].beatId,
+        sourceEvidenceId:
+          initial.pageContracts[0].actionSemanticCoverage[0].sourceEvidenceId,
+        disposition:
+          initial.pageContracts[0].actionSemanticCoverage[0].disposition,
+      }),
+    );
+    expect(result.provenance.attempt).toBe(3);
+    expect(
+      result.repairAttempts.map((attempt) => attempt.nextRepairMode),
+    ).toEqual(['book_surface_patch', 'book_surface_patch']);
   });
 
   it('splits an input-inadmissible mixed book surface into compact presentation then pure structural repair', async () => {
@@ -1741,12 +1791,14 @@ describe('page-contract compact repair routing', () => {
     );
   });
 
-  it('repairs an all-page final structural failure without resending the full draft', async () => {
+  it('routes a pure page-structural failure through null-cover BookSurface v4', async () => {
     const invalid = bunnyDraft();
     invalid.pageContracts[0].camera = '';
+    ensureBookSurfacePageShape(invalid);
     const validPage = structuredClone(bunnyDraft().pageContracts[0]);
     delete validPage.castIds;
     delete validPage.characterPresence;
+    delete validPage.castStates;
     validPage.propConstraints ??= [];
     validPage.actionRequirements ??= [];
     const calls: Array<{
@@ -1761,9 +1813,15 @@ describe('page-contract compact repair routing', () => {
       authority,
     ) => {
       calls.push({ user, options, authority });
-      return calls.length === 1
-        ? JSON.stringify(invalid)
-        : JSON.stringify({ pageContracts: [validPage] });
+      if (calls.length === 1) return JSON.stringify(invalid);
+      return JSON.stringify(
+        bookSurfaceV4Response({
+          payload: decodeBookSurfaceRepairUserPrompt(user),
+          coverContract: null,
+          recurringProps: null,
+          repairedPages: [validPage],
+        }),
+      );
     };
 
     const result = await compileBookVisualContractTemplate(bunnySource(), {
@@ -1774,60 +1832,84 @@ describe('page-contract compact repair routing', () => {
     expect(calls[1]!.authority).toEqual({
       kind: 'repair',
       budgetClass: 'standard',
-      repairMode: 'page_contract_patch',
-      systemPromptVersion: PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
-      userPromptVersion: 'page-contract-repair-user-prompt/v13',
+      repairMode: 'book_surface_patch',
+      systemPromptVersion: BOOK_SURFACE_REPAIR_PROMPT_VERSION,
+      userPromptVersion: BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION,
     });
     expect(calls[1]!.options?.jsonSchema?.name).toBe(
-      PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+      BOOK_SURFACE_REPAIR_SCHEMA_NAME,
     );
     expect(calls[1]!.options?.maxOutputTokens).toBe(32_000);
-    const payload = decodePageContractRepairUserPrompt(calls[1]!.user);
+    const payload = decodeBookSurfaceRepairUserPrompt(calls[1]!.user);
+    expect(payload.coverAuthority).toBeNull();
+    expect(payload.recurringPropAuthority).toBeNull();
+    expect(payload.presentationTargets).toEqual([]);
     expect(payload.affectedPages).toHaveLength(1);
-    expect(payload.affectedPages[0].pageNumber).toBe(1);
-    expect(payload.affectedPages[0].repairTargets).toEqual([
+    const affectedPage = (
+      payload.affectedPages as Array<{
+        pageNumber: number;
+        repairTargets: unknown[];
+        validationHints: string[];
+        pageStructuralProjection: Record<string, unknown>;
+      }>
+    )[0]!;
+    expect(affectedPage.pageNumber).toBe(1);
+    expect(affectedPage.repairTargets).toEqual([
       {
         family: 'draft_contract',
         code: 'final_structural_invariant_invalid',
         pageNumber: 1,
       },
     ]);
-    expect(payload.affectedPages[0].validationHints).toEqual(
+    expect(affectedPage.validationHints).toEqual(
       expect.arrayContaining([expect.stringContaining('camera')]),
     );
-    expect(payload.affectedPages[0].permittedPointerValues).toEqual([]);
-    expect(payload.affectedPages[0]).not.toHaveProperty(
-      'permittedSpatialReferences',
+    expect(affectedPage.pageStructuralProjection).not.toHaveProperty(
+      'actionSemanticCoverage',
     );
-    expect(payload).not.toHaveProperty('validatorErrors');
-    expect(payload).not.toHaveProperty('referenceAuthority');
-    expect(payload).not.toHaveProperty('worldType');
+    expect(result.template.coverContract).toMatchObject({
+      worldType: invalid.coverContract.worldType,
+      locationId: invalid.coverContract.locationId,
+      timeOfDay: invalid.coverContract.timeOfDay,
+      mustShow: invalid.coverContract.mustShow,
+      mustNotShow: invalid.coverContract.mustNotShow,
+    });
+    expect(result.actionSemanticCoverage).toContainEqual(
+      expect.objectContaining({
+        pageNumber: 1,
+        beatId: invalid.pageContracts[0].actionSemanticCoverage[0].beatId,
+        sourceEvidenceId:
+          invalid.pageContracts[0].actionSemanticCoverage[0]
+            .sourceEvidenceId,
+        disposition:
+          invalid.pageContracts[0].actionSemanticCoverage[0].disposition,
+      }),
+    );
     expect(result.provenance.attempt).toBe(2);
     expect(result.provenance.repairPromptVersion).toBe(
-      PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+      BOOK_SURFACE_REPAIR_PROMPT_VERSION,
     );
     expect(result.repairAttempts[0]!.nextRepairMode).toBe(
-      'page_contract_patch',
+      'book_surface_patch',
     );
   });
 
-  it('routes structural page repair then one represented-elsewhere issue through a second page repair and returns a candidate', async () => {
+  it('keeps provider action-semantic overreach outside a pure structural BookSurface patch', async () => {
     const initial = bunnyDraft();
     initial.pageContracts[0].camera = '';
-    const representedElsewhereInvalid = structuredClone(
+    ensureBookSurfacePageShape(initial);
+    const structurallyRepairedPage = structuredClone(
       bunnyDraft().pageContracts[0],
     );
-    delete representedElsewhereInvalid.castIds;
-    delete representedElsewhereInvalid.characterPresence;
-    representedElsewhereInvalid.propConstraints ??= [];
-    representedElsewhereInvalid.actionRequirements ??= [];
-    representedElsewhereInvalid.actionSemanticCoverage[0].disposition.contractValue =
-      'stale-structured-value';
-    const finalPage = structuredClone(bunnyDraft().pageContracts[0]);
-    delete finalPage.castIds;
-    delete finalPage.characterPresence;
-    finalPage.propConstraints ??= [];
-    finalPage.actionRequirements ??= [];
+    delete structurallyRepairedPage.castIds;
+    delete structurallyRepairedPage.characterPresence;
+    delete structurallyRepairedPage.castStates;
+    structurallyRepairedPage.propConstraints ??= [];
+    structurallyRepairedPage.actionRequirements ??= [];
+    structurallyRepairedPage.actionSemanticCoverage[0].disposition = {
+      kind: 'non_visual',
+      rationale: 'provider_attempted_overreach',
+    };
     const calls: Array<{
       user: string;
       authority: Parameters<ContractLlmCaller>[3];
@@ -1840,61 +1922,49 @@ describe('page-contract compact repair routing', () => {
     ) => {
       calls.push({ user, authority });
       if (calls.length === 1) return JSON.stringify(initial);
-      return JSON.stringify({
-        pageContracts: [
-          calls.length === 2 ? representedElsewhereInvalid : finalPage,
-        ],
-      });
+      return JSON.stringify(
+        bookSurfaceV4Response({
+          payload: decodeBookSurfaceRepairUserPrompt(user),
+          coverContract: null,
+          recurringProps: null,
+          repairedPages: [structurallyRepairedPage],
+        }),
+      );
     };
 
     const result = await compileBookVisualContractTemplate(bunnySource(), {
       callLLM: caller,
     });
 
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(2);
     expect(calls.map((call) => call.authority)).toEqual([
       expect.objectContaining({ kind: 'initial' }),
       expect.objectContaining({
         kind: 'repair',
-        repairMode: 'page_contract_patch',
-      }),
-      expect.objectContaining({
-        kind: 'repair',
-        repairMode: 'page_contract_patch',
+        repairMode: 'book_surface_patch',
       }),
     ]);
-    const thirdPayload = decodePageContractRepairUserPrompt(calls[2]!.user);
-    expect(thirdPayload.affectedPages).toHaveLength(1);
-    expect(thirdPayload.affectedPages[0]).toMatchObject({
-      pageNumber: 1,
-      repairTargets: [
-        {
-          family: 'action_semantic',
-          code: 'represented_elsewhere_value_mismatch',
-          pageNumber: 1,
-          coverageIndex: 0,
-        },
-      ],
-    });
-    expect(thirdPayload.affectedPages[0].validationHints.length).toBeGreaterThan(
-      0,
+    const bookSurfacePayload = decodeBookSurfaceRepairUserPrompt(
+      calls[1]!.user,
     );
     expect(
-      thirdPayload.affectedPages[0].permittedPointerValues,
-    ).toContainEqual({
-      contractPointer: '/pageContracts/0/locationId',
-      contractValue: finalPage.locationId,
-    });
-    expect(thirdPayload).not.toHaveProperty('validatorErrors');
-    expect(result.provenance.attempt).toBe(3);
-    expect(result.repairAttempts.map((attempt) => attempt.nextRepairMode)).toEqual(
-      ['page_contract_patch', 'page_contract_patch'],
+      JSON.stringify(bookSurfacePayload.affectedPages),
+    ).not.toContain('actionSemanticCoverage');
+    expect(result.provenance.attempt).toBe(2);
+    expect(result.repairAttempts.map((attempt) => attempt.nextRepairMode)).toEqual([
+      'book_surface_patch',
+    ]);
+    expect(result.actionSemanticCoverage).toContainEqual(
+      expect.objectContaining({
+        pageNumber: 1,
+        beatId: initial.pageContracts[0].actionSemanticCoverage[0].beatId,
+        sourceEvidenceId:
+          initial.pageContracts[0].actionSemanticCoverage[0]
+            .sourceEvidenceId,
+        disposition:
+          initial.pageContracts[0].actionSemanticCoverage[0].disposition,
+      }),
     );
-    expect(result.actionSemanticCoverage[0]?.disposition).toMatchObject({
-      kind: 'represented_elsewhere',
-      contractPointer: '/pageContracts/0/locationId',
-      contractValue: finalPage.locationId,
-    });
   });
 
   it('routes one recurring-prop collection failure plus page failures through a bounded structural-bundle repair', async () => {

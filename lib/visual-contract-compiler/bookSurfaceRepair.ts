@@ -630,7 +630,7 @@ export function bookSurfaceRepairAuthority(args: {
   ) {
     return null;
   }
-  if (!coverIssueSeen || pageIssueEntries.length === 0) return null;
+  if (pageIssueEntries.length === 0) return null;
 
   const affectedPages = pageContractRepairAffectedPages({
     draft: args.draft,
@@ -658,12 +658,15 @@ export function bookSurfaceRepairAuthority(args: {
         total + (page?.validationHints.length ?? 0),
       0,
     );
-  const coverContract = recordValue(args.authorityDraft.coverContract);
+  const coverContract = coverIssueSeen
+    ? recordValue(args.authorityDraft.coverContract)
+    : null;
   const recurringProps = Array.isArray(args.draft.recurringProps)
     ? args.draft.recurringProps.map(recordValue)
     : [];
   const coverValidationHints = cleanValidationMessages(
     coverIssueEntries.map(({ message }) => message),
+    { allowEmpty: !coverIssueSeen },
   );
   const recurringPropValidationHints = cleanValidationMessages(
     recurringPropIssueEntries.map(({ message }) => message),
@@ -683,9 +686,13 @@ export function bookSurfaceRepairAuthority(args: {
     affectedPageValidationHintCount === undefined ||
     !cleanedAffectedPages ||
     cleanedAffectedPages.some((page) => page === null) ||
-    !coverContract ||
-    !exactKeys(coverContract, COVER_CONTRACT_KEYS) ||
     !coverValidationHints ||
+    (coverIssueSeen &&
+      (!coverContract ||
+        !exactKeys(coverContract, COVER_CONTRACT_KEYS) ||
+        coverValidationHints.length === 0)) ||
+    (!coverIssueSeen &&
+      (coverContract !== null || coverValidationHints.length > 0)) ||
     !recurringPropValidationHints ||
     (repairRecurringProps && recurringPropValidationHints.length === 0) ||
     (!repairRecurringProps && recurringPropValidationHints.length > 0) ||
@@ -703,7 +710,8 @@ export function bookSurfaceRepairAuthority(args: {
   }
   return {
     sourceDraftDigest: canonicalHash(args.draft),
-    coverContract: structuredClone(coverContract),
+    coverContract:
+      coverContract === null ? null : structuredClone(coverContract),
     recurringProps: repairRecurringProps
       ? structuredClone(typedRecurringProps)
       : null,
