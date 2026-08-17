@@ -188,10 +188,32 @@
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
+  /* The wash does NOT reach transparent at the hero's floor: it hands over
+     to the next section at the same value, so the field reads as one room
+     rather than stopping at a seam (per Guy). */
   background: linear-gradient(
     180deg,
     rgba(240, 236, 255, 0.62) 0%,
-    rgba(243, 240, 255, 0.3) 46%,
+    rgba(243, 240, 255, 0.36) 52%,
+    rgba(244, 241, 255, 0.26) 100%
+  );
+}
+
+/* ── The sky carried into "מה מקבלים" ─────────────────────────────────
+   Same layer, same marks, picking up exactly where the hero's left off and
+   only then fading to nothing — so the field ends inside a section instead
+   of at the boundary between two. The section after this one is white and
+   gets none of it. */
+.value-doodles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(244, 241, 255, 0.26) 0%,
+    rgba(246, 244, 255, 0.16) 46%,
     rgba(255, 255, 255, 0) 100%
   );
 }
@@ -2112,8 +2134,18 @@
    3-up on desktop (the last row centres), 1-up on phones. Each card is
    a flat surface with a purple check — no heavy borders, so the section
    reads as a list, not as a second pricing table. */
+/* Plain white: the tint now comes from the sky layer above it, and two
+   gradients stacked would compound into a band at the seam. */
 .value-section {
-  background: linear-gradient(180deg, #fff 0%, #fbfaff 100%);
+  background: #fff;
+  position: relative;
+  isolation: isolate;
+}
+
+/* the content rides above the sky */
+.value-section > .wrap {
+  position: relative;
+  z-index: 1;
 }
 
 /* flex (not grid) so the 5th/6th items centre on the last row instead of

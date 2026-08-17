@@ -9,7 +9,7 @@ import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { initLandingMotion } from './motion';
 import { SiteHeader } from '@/app/components/SiteHeader';
 import { AboutSection } from './about-section';
-import { HeroDoodles } from './hero-doodles';
+import { HeroDoodles, ValueDoodles } from './hero-doodles';
 import { HeroCollage } from './hero-collage';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
 import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
@@ -171,7 +171,10 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
           </section>
 
           {/* מה מקבלים — the concrete promise, straight after the hero */}
+          {/* the storybook sky continues here and fades out inside this
+              section, so the field never stops at a seam (per Guy) */}
           <section className="section value-section" id="value">
+            <ValueDoodles />
             <div className="wrap">
               <h2 className="section-h2" data-reveal="up">{L.value.h2}</h2>
               <p className="section-lede" data-reveal="up" data-reveal-delay="60">{L.value.lede}</p>

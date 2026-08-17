@@ -156,6 +156,45 @@ function render(list: Doodle[], scope: 'desktop' | 'mobile') {
   ));
 }
 
+/* ── "מה מקבלים" carries the sky on ─────────────────────────────────────
+   Per Guy: ending the field at the hero's edge read as a cut. The same
+   vocabulary continues through the next section and only then fades out,
+   so the two sections feel like one lit room. Quiet zones here are the
+   outer margins beside the card grid (which is capped at 1000px) plus the
+   thin bands above the heading and below the last row. */
+const VALUE_DESKTOP: Doodle[] = [
+  { key: 'v-star', left: 3, top: 13, size: 22, rotate: -8, duration: 12, delay: -2, art: STAR },
+  { key: 'v-heart', left: 6.5, top: 44, size: 20, rotate: 8, duration: 13, delay: -7, art: HEART },
+  { key: 'v-book', left: 2.5, bottom: 10, size: 24, rotate: 6, duration: 14, delay: -4, art: BOOK },
+  { key: 'v-spark-l', left: 9, top: 74, size: 13, rotate: 12, duration: 9, delay: -9, tone: 'gold', art: SPARKLE },
+
+  { key: 'v-cloud', right: 4, top: 9, size: 26, rotate: 0, duration: 15, delay: -5, art: CLOUD },
+  { key: 'v-note', right: 8, top: 46, size: 20, rotate: -10, duration: 10, delay: -1, art: NOTE },
+  { key: 'v-moon', right: 3, bottom: 12, size: 24, rotate: -12, duration: 11, delay: -6, art: MOON },
+  { key: 'v-spark-r', right: 10, top: 24, size: 15, rotate: 8, duration: 8, delay: -3, tone: 'gold', art: SPARKLE },
+];
+
+/* Phones: the cards run x 4→96% from y 19% down to y 95%, so their flanks
+   are far too narrow for a mark. The quiet ground is the band ABOVE the
+   heading — where the centred copy leaves both margins free — and the strip
+   below the last card. Measured, not guessed. */
+const VALUE_MOBILE: Doodle[] = [
+  { key: 'vm-star', left: 4, top: 5, size: 18, rotate: -8, duration: 12, delay: -2, art: STAR },
+  { key: 'vm-moon', right: 5, top: 5.5, size: 20, rotate: -12, duration: 11, delay: 0, art: MOON },
+  { key: 'vm-spark', right: 7, top: 13, size: 13, rotate: 8, duration: 9, delay: -5, tone: 'gold', art: SPARKLE },
+  { key: 'vm-book', left: 4, bottom: 1, size: 20, rotate: 6, duration: 13, delay: -8, drift: 6, art: BOOK },
+  { key: 'vm-spark2', right: 12, bottom: 1.4, size: 12, rotate: -12, duration: 8, delay: -3, tone: 'gold', drift: 6, art: SPARKLE },
+];
+
+export function ValueDoodles() {
+  return (
+    <div className="value-doodles" aria-hidden="true">
+      {render(VALUE_DESKTOP, 'desktop')}
+      {render(VALUE_MOBILE, 'mobile')}
+    </div>
+  );
+}
+
 export function HeroDoodles() {
   return (
     <div className="hero-doodles" aria-hidden="true">
