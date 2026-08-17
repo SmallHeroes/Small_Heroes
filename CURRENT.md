@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-causal-source-structural-compact-routing` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `a8e2f59c6e02fda5e7e60fee6b8e18e8ae0991be`.
 
-## CAUSAL SOURCE-EVIDENCE + PURE STRUCTURAL COMPACT ROUTING — implementation green; independent QA pending
+## CAUSAL SOURCE-EVIDENCE + PURE STRUCTURAL COMPACT ROUTING — independent technical PASS; push pending
 
 Focused implementation commit:
 `d6fe25f1e0a2ccbe461637aafb60ec158bd1b246`.
@@ -79,9 +79,16 @@ The five fixture assertions remain a separate repository/release HOLD in
 `story-read-back-validation` cases; they are not waived. Implementation and
 tests cost `$0`. After the consumed attempt, no credential, provider, Fresh
 Readiness, preflight, live, image, render, storage/database, deployment,
-production or push action occurred. Independent Claude Code QA is pending;
-Codex does not self-award technical PASS. A later pushed-head Fresh Readiness
-and one bounded live attempt remain prohibited until that gate closes.
+production or push action occurred. Claude Code independently reviewed exact
+range `a8e2f59c6e02fda5e7e60fee6b8e18e8ae0991be..2e1b153bc2911337e283d740ae793a6104dadce8`
+read-only and returned **PASS** with **0 BLOCKER / 0 MAJOR / 0 MINOR**. Its sole
+advisory corrected the QA brief's parenthetical file count from eight to seven;
+the enumerated paths and repository range were exact, so no implementation or
+evidence correction was required. This technical PASS grants no product,
+Fresh Readiness, provider, render, deployment or production authority by
+itself. The branch remains local and unpushed at this documentation closeout;
+a later pushed-head Fresh Readiness and one bounded live attempt must still
+pass their own canonical gates.
 
 ## DETERMINISTIC ACTION-BINDING NORMALIZATION + REPAIR-OUTPUT OBSERVABILITY — independent technical PASS; pushed; consumed attempt terminal
 

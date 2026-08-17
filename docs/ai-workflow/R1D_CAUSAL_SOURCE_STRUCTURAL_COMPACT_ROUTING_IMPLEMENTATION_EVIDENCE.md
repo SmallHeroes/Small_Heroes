@@ -1,7 +1,7 @@
 # R1D Causal Source-Evidence + Pure Structural Compact Routing — Implementation Evidence
 
 **Date:** 2026-08-17
-**Status:** local implementation green; independent Claude Code QA pending; unpushed; no new Fresh Readiness, live, candidate, Wizard or render authority
+**Status:** independent Claude Code technical PASS; unpushed; no new Fresh Readiness, live, candidate, Wizard or render authority
 
 ## Topology
 
@@ -153,10 +153,17 @@ is not waived.
 
 ## Independent QA
 
-Pending. Claude Code must review the exact immutable base-to-head range and try
-to falsify causal one-to-one eligibility, same-page/same-beat binding,
-independent/mixed failure rejection, compact-applier completeness, pure
-structural Book Surface eligibility, presentation-path compatibility, repeated
-repair budget enforcement, input immutability, policy/version invariants and
-the recorded repository gate. Codex does not self-award independent technical
-PASS.
+Claude Code independently reviewed exact immutable range
+`a8e2f59c6e02fda5e7e60fee6b8e18e8ae0991be..2e1b153bc2911337e283d740ae793a6104dadce8`
+read-only and returned **PASS** with **0 BLOCKER / 0 MAJOR / 0 MINOR**. It
+verified topology, exact causal one-to-one eligibility, mixed failure rejection,
+atomic repair plus full revalidation, the closed pure-structural family, the
+three-call/two-repair lifecycle, unchanged policy/version surfaces and the
+separate five-fixture release HOLD.
+
+The only advisory was a parenthetical count typo in the QA prompt: it said
+"eight" changed files while enumerating the exact seven paths present in the
+range. No repository artifact made that incorrect claim and no implementation
+or evidence correction was required. The technical PASS does not authorize
+push, Fresh Readiness, provider calls, render, deployment, production or product
+acceptance by itself.
