@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-pure-page-spatial-repair-canonical-context` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed `f1397b9c798868700d15e982994894b1fd21bc83`.
 
-## PURE PAGE-SPATIAL REPAIR CANONICAL CONTEXT — implementation green, independent QA pending
+## PURE PAGE-SPATIAL REPAIR CANONICAL CONTEXT — independent technical PASS
 
 The first post-output-rebalance live attempt proved that all three provider
 responses can complete under `[40,000, 32,000, 36,000]`. It ended without a
@@ -44,10 +44,18 @@ only 5 assertions across 4 pre-existing missing-output fixture tests. That
 fixture baseline remains a separate release HOLD and is not a finding in this
 implementation.
 
-Independent Claude Code QA is pending for
-`f1397b9c798868700d15e982994894b1fd21bc83..HEAD`. No credential, provider,
-Fresh Readiness, live, render, storage/database, deployment or production action
-occurred in this implementation milestone.
+Claude Code independently reviewed exact range
+`f1397b9c798868700d15e982994894b1fd21bc83..456b780f` and returned **PASS**
+with zero BLOCKER, zero MAJOR and zero MINOR. It verified the two canonical
+context call sites, the authority-present invariant, prompt sanitization,
+fail-closed behavior, preserved budgets/policies, exact two-commit topology and
+predecessor receipt arithmetic. Codex records Claude's verdict; it does not
+self-award it. Three notes remain advisory: canonicalization intentionally
+replaces the complete page-contract collection while preserving non-page
+surfaces, the regression was not executed on a checkout of the base, and Claude
+did not repeat the full recorded validation to conserve budget. No credential,
+provider, Fresh Readiness, live, render, storage/database, deployment or
+production action occurred in this implementation milestone.
 
 ## OUTPUT BUDGET REBALANCE V2 — independent technical PASS, operational proof pending
 
