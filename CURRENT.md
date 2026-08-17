@@ -2,9 +2,77 @@
 
 **Updated:** 2026-08-17
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-v4-pure-structural-authority` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `c8e2770c2f26044643a57cfb313cf061b9c433ca`.
+**Working branch:** `codex/r1d-book-surface-v4-presentation-mustshow-freeze` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `c82ffff4218b188ad910c7b95c44cf34a4dc752e`.
 
-## BOOK SURFACE v4 PURE-STRUCTURAL AUTHORITY — independent technical PASS; push pending
+## BOOK SURFACE v4 PRESENTATION `mustShow` FREEZE — local implementation green; independent re-gate pending
+
+The canonical attempt under
+`outputs/r1d-pure-structural-fresh-c82ffff4-20260817T185437313Z`
+ended fail-closed without a candidate. Receipt v33
+`c300381151c48277022990f2d5dc5fa159efe76e83274abcbd9d9ee4e6fb20c4`
+records exactly three completed provider calls, two repairs, zero transport
+retries and no fallback, with `$1.460026 / $1.606041`
+nominal/conservative cost. Its route was `initial ->
+page_spatial_reference_patch -> book_surface_patch`. The spatial patch resolved
+all nine initial reference issues. The final Book Surface response completed,
+but local application rejected it as
+`presentation_requirement_repair_target_stale`; no candidate, reconciliation,
+Blueprint, Wizard or render authority exists. Readiness v31 is
+`8d1b3fdb2f308f6e382956edec1363bf7c09d4179e834c8ebabbc21d7b5821a6`.
+
+The cause was a prompt-dependent cross-field invariant. Book Surface v4 lets a
+structural patch return `mustShow`, while its presentation patch selects an
+exact compiler-owned pointer/value inside the same array. If the provider
+shortened, reordered or rewrote that array, the exact presentation authority
+became stale after the paid response. The artifacts do not retain the raw
+response, so no unsupported claim is made about the exact page or returned
+text.
+
+The correction freezes the complete compiler-owned `mustShow` array only on
+pages that are both structural targets and presentation targets. The applier
+still accepts every other authorized structural field on those pages, and
+structural pages without presentation targets retain normal `mustShow` repair
+authority. The non-target mask now leaves the frozen array visible, so any
+accidental mutation fails canonical equality. Exact pointer/value,
+presentation-class, target identity, stale-draft, non-target and full compiler
+validation guards remain active. A parser hardening requires every returned
+`mustShow` item to be a string before any target-page field can be discarded.
+
+No prompt, schema, policy, model, service tier, reasoning setting, persisted
+version, call/repair cap, output schedule, timeout, retry, fallback, candidate
+contract or `$5` fence changed. This is a narrow enforcement correction inside
+the already-approved Book Surface v4 authority, not a new creative authority
+or migration.
+
+Focused validation passes **3 files / 147 tests**. It covers changed,
+shortened, reordered and empty provider arrays; other structural-field repair;
+non-presentation page repair; multiple presentation targets on one page;
+malformed null/object items; the exact `initial -> spatial -> BookSurface ->
+candidate` compiler route; and a persisted three-call lifecycle candidate with
+no provider sentinel leakage. Deterministic TypeScript and `git diff --check`
+pass. Internal read-only adversarial review first found the malformed-item
+parser gap; after the fail-closed correction it returned PASS with **0 BLOCKER
+/ 0 MAJOR / 0 MINOR**.
+
+One literal `npm run check` ran exactly once and was not retried. TypeScript and
+autonomous-story typecheck passed. Ordinary execution passed **3,238**, skipped
+**65**, and failed only the established **5 assertions** across four unchanged
+missing-output fixture specs. Resource-intensive execution completed **20
+files / 599 assertions PASS**, then Vitest reported two internal
+`onTaskUpdate` RPC timeouts and returned exit `1`; the diagnostic protocol
+remained valid. This infrastructure result is recorded, not waived or
+misrepresented as a green repository gate. The five fixture assertions remain
+a separate release HOLD.
+
+Implementation commit is
+`10b10d40443ecfef26ee6163ff2b2a33f40a9c29`. Since the consumed attempt, no
+credential, provider, Fresh Readiness, preflight, live, image, Vision, render,
+storage/database, deployment, production or push action occurred. The earlier
+Claude diagnosis informed the corrected authority boundary but was not an
+immutable-range implementation PASS. A fresh read-only Claude Code re-gate of
+the final base-to-head range is required before push or another paid attempt.
+
+## BOOK SURFACE v4 PURE-STRUCTURAL AUTHORITY — independent technical PASS; pushed
 
 The consumed canonical attempt under
 `outputs/r1d-post-book-surface-v4-readiness-c8e2770c-20260817T173858109Z`
