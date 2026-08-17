@@ -3784,6 +3784,9 @@ export async function compileBookVisualContractTemplate(
     let presentationRequirementAffectedTargets:
       | PresentationRequirementRepairTarget[]
       | null = null;
+    let bookSurfaceAdmissionFallbackTargets:
+      | PresentationRequirementRepairTarget[]
+      | undefined;
     let pageContractPointerTemplate:
       | ActionSemanticCoverageTemplate
       | undefined;
@@ -3842,6 +3845,11 @@ export async function compileBookVisualContractTemplate(
               err.structuralDiagnosticIssues,
             structuralValidationMessages: err.structuralErrors,
           }) ?? undefined;
+        if (bookSurfaceAuthority) {
+          bookSurfaceAdmissionFallbackTargets = [
+            ...presentationRequirementAffectedTargets,
+          ];
+        }
         if (!bookSurfaceAuthority) {
           pageContractAffectedPages =
             pageContractPresentationStructuralRepairAffectedPages({
@@ -4131,11 +4139,35 @@ export async function compileBookVisualContractTemplate(
           userPrompt,
         };
       } else {
-        // A whole-book surface can be semantically eligible while being too
-        // large for the immutable provider-admission ceiling. Do not consume
-        // the remaining bounded call on a request that cannot be admitted;
-        // the existing full-draft route carries the same mixed repair scope
-        // without echoing the rejected draft back into its input.
+        // A semantically closed mixed surface can exceed the immutable input
+        // ceiling because its authority includes the whole affected surface.
+        // In that exact case, retain only the already-proven presentation
+        // targets when their compact request independently fits. Full
+        // validation after that patch can then expose the existing pure
+        // structural Book Surface route without widening either authority.
+        const fallbackTargets =
+          bookSurfaceAdmissionFallbackTargets;
+        if (fallbackTargets) {
+          const fallbackSystemPrompt =
+            buildPresentationRequirementRepairSystemPrompt();
+          const fallbackUserPrompt =
+            buildPresentationRequirementRepairUserPrompt({
+              targets: fallbackTargets,
+            });
+          if (
+            visualContractAuthoringRouteIsAdmissible({
+              systemPrompt: fallbackSystemPrompt,
+              userPrompt: fallbackUserPrompt,
+              schema: PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+              maxInputTokens:
+                presentationRequirementRepairLlmOpts.maxInputTokens,
+            })
+          ) {
+            presentationRequirementAffectedTargets = [
+              ...fallbackTargets,
+            ];
+          }
+        }
         bookSurfaceAuthority = undefined;
       }
     }

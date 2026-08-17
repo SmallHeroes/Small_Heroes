@@ -38,7 +38,10 @@ import {
   parseStructuralBundleRepairPatch,
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
 import { decodeBookSurfaceRepairUserPrompt } from '@/lib/visual-contract-compiler/bookSurfaceRepair';
-import { PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME } from '@/lib/visual-contract-compiler/presentationRequirementRepair';
+import {
+  PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+  type PresentationRequirementRepairTarget,
+} from '@/lib/visual-contract-compiler/presentationRequirementRepair';
 import { normalizeExactActionBindingComponents } from '@/lib/visual-contract-compiler/actionBindingComponentNormalization';
 import {
   authoringRejectedEvidencePageCount,
@@ -5489,6 +5492,129 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         currentUniqueCount: 0,
         finalAttempt: true,
       });
+  });
+
+  it('persists the live-shaped oversized mixed surface through presentation then pure book-surface repair within the standard budget', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const fixture = liveShapedAtomicBindingFixture(snapshot);
+    for (const pageNumber of [4, 9, 10]) {
+      const page = fixture.initial.pageContracts.find(
+        (candidate) => candidate.pageNumber === pageNumber,
+      );
+      if (!page) throw new Error(`missing oversized page ${pageNumber}`);
+      page.mustShow.push(
+        `oversized mixed surface page ${pageNumber} ${String.fromCharCode(
+          96 + pageNumber,
+        ).repeat(14_000)}`,
+      );
+    }
+    const initialBefore = structuredClone(fixture.initial);
+    const calls: Parameters<VisualContractAuthoringProvider['call']>[0][] = [];
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => {
+        calls.push(args);
+        let output: unknown;
+        if (args.attempt === 1) {
+          output = fixture.initial;
+        } else if (
+          args.options.jsonSchema?.name ===
+          PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME
+        ) {
+          const payload = JSON.parse(args.userPrompt) as {
+            targets: PresentationRequirementRepairTarget[];
+          };
+          output = {
+            patches: payload.targets.map((target) => ({
+              pageNumber: target.pageNumber,
+              coverageIndex: target.coverageIndex,
+              beatId: target.beatId,
+              sourceEvidenceId: target.sourceEvidenceId,
+              presentationClass: 'composition_focus',
+              contractPointer:
+                target.permittedPointerValues[0]!.contractPointer,
+            })),
+          };
+        } else {
+          output = fixture.validBookSurfaceRepair;
+        }
+        return {
+          output: JSON.stringify(output),
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `oversized-split-${args.attempt}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+              output_tokens_details: { reasoning_tokens: 500 },
+            },
+          },
+        };
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt, JSON.stringify(result.receipt, null, 2))
+      .toMatchObject({
+        status: 'completed',
+        callCount: 3,
+        repairCount: 2,
+        failure: null,
+        draftValidationStatus: 'completed',
+      });
+    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([
+        null,
+        'presentation_requirement_patch',
+        'book_surface_patch',
+      ]);
+    expect(
+      result.receipt.attempts.map(
+        (attempt) => attempt.appliedMaxOutputTokens,
+      ),
+    ).toEqual([40_000, 32_000, 36_000]);
+    expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(fixture.initial).toEqual(initialBefore);
+    expect(calls[1]!.options.jsonSchema?.name).toBe(
+      PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+    );
+    expect(calls[2]!.options.jsonSchema?.name).toBe(
+      'BookSurfaceRepairPatch',
+    );
+    const bookSurfacePayload = decodeBookSurfaceRepairUserPrompt(
+      calls[2]!.userPrompt,
+    );
+    expect(bookSurfacePayload.repairRecurringProps).toBe(true);
+    expect(
+      (bookSurfacePayload.affectedPages as Array<{ pageNumber: number }>).map(
+        (page) => page.pageNumber,
+      ),
+    ).toEqual(Array.from({ length: 12 }, (_, index) => index + 1));
+    for (const call of calls.slice(1)) {
+      const admittedUpperBound =
+        Buffer.byteLength(
+          [
+            call.systemPrompt,
+            call.userPrompt,
+            JSON.stringify(call.options.jsonSchema?.schema),
+          ].join('\n'),
+          'utf8',
+        ) + 4_096;
+      expect(admittedUpperBound).toBeLessThanOrEqual(
+        request.tokenBudget.maxInputTokens,
+      );
+      expect(
+        request.tokenBudget.maxInputTokens - admittedUpperBound,
+      ).toBeGreaterThanOrEqual(4_096);
+    }
   });
 
   it('does not admit a fourth cleanup call when mixed residuals persist after local normalization and the bounded book-surface sequence', async () => {
