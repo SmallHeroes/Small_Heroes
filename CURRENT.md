@@ -2,7 +2,52 @@
 
 **Updated:** 2026-08-17
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-visual-contract-output-budget-rebalance-v2` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on `a1dd2e263b90ac90258ed77d45e472e5ccd70094`.
+**Working branch:** `codex/r1d-pure-page-spatial-repair-canonical-context` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed `f1397b9c798868700d15e982994894b1fd21bc83`.
+
+## PURE PAGE-SPATIAL REPAIR CANONICAL CONTEXT — implementation green, independent QA pending
+
+The first post-output-rebalance live attempt proved that all three provider
+responses can complete under `[40,000, 32,000, 36,000]`. It ended without a
+candidate after repair 1 reduced the draft to exactly six
+`out_of_scope_reference` issues and repair 2 used `full_draft`, resolving those
+six while reintroducing 27 unique action-semantic and structural failures. The
+consumed receipt is
+`b6b96f7bb740a8f7412866f37d079b5ccdbf99ec1c40543e78a4dddc3681eaa4`;
+three logical provider calls completed, with zero transport retries and no
+fallback. Nominal cost was `$2.609937`; conservative accounting was `$2.90009`.
+No candidate, Reconciliation, Blueprint, Wizard, image or render authority was
+created.
+
+Repository tracing found a general context split. Typed page-spatial issues and
+their authority are produced after compiler topology canonicalization. Compound
+repair already derives its targets from the resulting canonical page contracts,
+but pure `page_spatial_reference_patch` derived and applied targets against the
+raw provider page contracts. Exact zone alias drift could therefore make safe
+compact authority appear absent and send the next call through destructive
+`full_draft` repair.
+
+Commit `2782ea07` binds pure spatial target derivation and patch application to
+the same compiler-owned canonical page-contract draft. Exact typed locators and
+permitted spatial IDs remain the only repair authority; missing or ambiguous
+authority remains fail-closed. Model, prompts/schemas, 64K input ceiling,
+per-attempt output schedule, call/repair counts, timeout, retries, fallback,
+cost fence, candidate semantics and downstream behavior are unchanged. No
+persisted schema/version migration is required.
+
+Focused validation is green: the raw-zone-alias regression passes and proves a
+two-call compact repair and candidate; the compound, mixed-family and terminal
+cleanup routes pass 4/4; repair/reference suites pass 110/110; the complete
+source-authority lifecycle passes 82/82; TypeScript and `git diff --check` pass.
+The single repository gate had no infrastructure failure: resource-intensive
+phase passed 19 files / 586 tests, while ordinary passed 3,208 tests and failed
+only 5 assertions across 4 pre-existing missing-output fixture tests. That
+fixture baseline remains a separate release HOLD and is not a finding in this
+implementation.
+
+Independent Claude Code QA is pending for
+`f1397b9c798868700d15e982994894b1fd21bc83..HEAD`. No credential, provider,
+Fresh Readiness, live, render, storage/database, deployment or production action
+occurred in this implementation milestone.
 
 ## OUTPUT BUDGET REBALANCE V2 — independent technical PASS, operational proof pending
 

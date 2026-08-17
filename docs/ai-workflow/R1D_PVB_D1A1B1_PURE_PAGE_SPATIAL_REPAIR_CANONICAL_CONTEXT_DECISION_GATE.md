@@ -68,4 +68,3 @@ Claude Code must falsify canonical-context binding, exact authority, prompt sani
 - Production behavior affected: authoring repair routing only; production deployment is excluded.
 - Smallest proof: deterministic fixture with raw/canonical topology drift.
 - No credentials, pricing lookup, network/provider call, Fresh Readiness, preflight, live authoring, image/Vision, render, storage/database, deployment, or push during implementation.
-
