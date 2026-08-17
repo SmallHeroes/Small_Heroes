@@ -3312,7 +3312,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     }
   });
 
-  it('persists a sanitized typed trail when page-spatial authority is repaired on the second call', async () => {
+  it('repairs page-spatial authority from canonical page context after raw topology aliasing', async () => {
     const snapshot = bunnySnapshot();
     const invalid = fullyActionedBunnyDraft(snapshot);
     const page = invalid.pageContracts[0]!;
@@ -3320,6 +3320,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       (candidate) => candidate.id === page.zoneId,
     );
     if (!zone) throw new Error('missing spatial repair fixture zone');
+    const canonicalZoneId = zone.id;
+    const rawZoneAlias = canonicalZoneId
+      .replace(/[^a-z0-9]+/gi, '.')
+      .toUpperCase();
+    expect(rawZoneAlias).not.toBe(canonicalZoneId);
+    page.zoneId = rawZoneAlias;
     zone.spatialNodes = [
       {
         id: 'fixture_waiting_chair',
@@ -3335,6 +3341,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const repairedProjectionPage = structuredClone(
       page,
     ) as PageVisualContract;
+    repairedProjectionPage.zoneId = canonicalZoneId;
     (
       repairedProjectionPage.actionRequirements![0] as unknown as Record<
         string,
@@ -3421,11 +3428,18 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       },
     });
     expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(
+      result.compileResult?.template.pageContracts[0]?.zoneId,
+    ).toBe(canonicalZoneId);
     const repairCall = vi.mocked(provider.call).mock.calls[1]![0];
     expect(repairCall.options.jsonSchema?.name).toBe(
       'PageSpatialReferenceRepairPatches',
     );
     expect(repairCall.userPrompt).not.toContain(rejectedId);
+    expect(repairCall.userPrompt).not.toContain(rawZoneAlias);
+    expect(repairCall.userPrompt).toContain(
+      'fixture_waiting_chair',
+    );
     expect(repairCall.userPrompt).not.toContain('pageContracts');
     expect(JSON.stringify(result.receipt)).not.toContain(rejectedId);
     const repoRoot = tempRoot();

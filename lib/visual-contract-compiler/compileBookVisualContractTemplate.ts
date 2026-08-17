@@ -3557,6 +3557,9 @@ export async function compileBookVisualContractTemplate(
     let pageSpatialRepairAuthority:
       | readonly PageSpatialRepairAuthority[]
       | undefined;
+    let pageSpatialRepairDraft:
+      | Record<string, unknown>
+      | undefined;
     let structuralBundleAuthority:
       | StructuralBundleRepairAuthority
       | undefined;
@@ -3692,6 +3695,7 @@ export async function compileBookVisualContractTemplate(
           pageSpatialRepairIssues = err.issues;
           pageSpatialRepairAuthority =
             err.pageSpatialRepairAuthority;
+          pageSpatialRepairDraft = pageContractRepairDraft;
           attemptErrors = err.issues.map(
             pageSpatialReferenceRepairInstruction,
           );
@@ -3758,7 +3762,7 @@ export async function compileBookVisualContractTemplate(
       if (pageSpatialRepairIssues && pageSpatialRepairAuthority) {
         pageSpatialReferenceAffectedTargets =
           pageSpatialReferenceRepairTargets({
-            draft,
+            draft: pageSpatialRepairDraft ?? draft,
             issues: pageSpatialRepairIssues,
             authority: pageSpatialRepairAuthority,
           });
@@ -4013,7 +4017,7 @@ export async function compileBookVisualContractTemplate(
           },
         );
         draft = applyPageSpatialReferenceRepairPatches({
-          draft,
+          draft: pageSpatialRepairDraft ?? draft,
           targets: pageSpatialReferenceAffectedTargets,
           patches: parsePageSpatialReferenceRepairPatches(rawPatch),
         });
