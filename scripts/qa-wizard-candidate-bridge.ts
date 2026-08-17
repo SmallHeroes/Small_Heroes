@@ -154,7 +154,6 @@ function execute(command: string, tokens: string[]): void {
         'repoRoot',
         'storyKey',
         'storyPath',
-        'templatePath',
         'candidatePath',
         'authoringRequestPath',
         'authoringReceiptPath',

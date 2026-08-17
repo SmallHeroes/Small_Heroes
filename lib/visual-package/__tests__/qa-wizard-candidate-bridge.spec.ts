@@ -9,14 +9,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+  QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION,
   advanceQaWizardApprovedReconciliation,
+  buildProductionAuthoringContext,
   buildReconciliationReviewBundle,
   buildStorySourceAuthoritySnapshot,
   buildVisualContractAuthoringRequest,
   buildVisualContractAuthoringReadinessEvidence,
   canonicalJsonDigest,
   captureQaWizardCanonicalSupervisorResultEvidence,
+  loadQaWizardCandidateBridgeManifest,
   persistReconciliationDraftBundle,
+  persistQaWizardCandidateBridgeManifest,
   persistVisualContractAuthoringReadiness,
   persistVisualContractAuthoringReceipt,
   persistVisualContractCandidate,
@@ -29,11 +33,13 @@ import {
   runVisualContractAuthoring,
   type CanonicalPreLiveReadinessEvidence,
   type LiveRequestMaterializationManifest,
+  type QaWizardCandidateBridgeManifest,
   type SourcePromptReconciliation,
   type StorySourceAuthoritySnapshot,
   type VisualContractAuthoringRequest,
 } from '@/lib/visual-package';
 import { canonicalLiveAuthoringJsonBytes } from '@/lib/visual-package/canonicalLiveAuthoringArtifacts';
+import { canonicalContentAddressedJsonBytes } from '@/lib/visual-package/canonicalContentAddressedJson';
 import {
   createOpenAIResponsesVisualContractAuthoringAdapter,
   OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
@@ -49,7 +55,6 @@ const roots: string[] = [];
 const BANK = path.join(process.cwd(), 'story-bank', 'v3-approved');
 const STORY_KEY = 'bunny_ometz_adventure';
 const STORY_PATH = `story-bank/v3-approved/${STORY_KEY}.md`;
-const TEMPLATE_PATH = 'authorities/template.json';
 const STYLE_ID = 'soft_hand_drawn_storybook';
 const OUTPUT_ROOT = 'outputs/qa-wizard-canonical-fixture';
 const BRANCH = 'codex/qa-wizard-canonical-fixture';
@@ -59,7 +64,6 @@ const APPROVED_AT = '2026-08-17T08:00:00.000Z';
 interface CanonicalCandidateFixture {
   repoRoot: string;
   storyPath: string;
-  templatePath: string;
   requestPath: string;
   receiptPath: string;
   readinessPath: string;
@@ -341,6 +345,37 @@ function writeRedigestedCanonicalArtifact(args: {
   return relativePath;
 }
 
+function persistLegacyBridgeManifest(args: {
+  repoRoot: string;
+  source: QaWizardCandidateBridgeManifest;
+  mutate?: (value: QaWizardCandidateBridgeManifest) => void;
+}): {
+  manifest: QaWizardCandidateBridgeManifest;
+  path: string;
+} {
+  const manifest = structuredClone(args.source);
+  manifest.version =
+    QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION;
+  args.mutate?.(manifest);
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = manifest;
+  manifest.digest = canonicalJsonDigest(payload);
+  const manifestPath = path.posix.join(
+    path.posix.dirname(path.posix.dirname(args.source.visualContract.templatePath)),
+    'bridge-manifests',
+    `${manifest.digest}.json`,
+  );
+  writeText(
+    args.repoRoot,
+    manifestPath,
+    canonicalContentAddressedJsonBytes(manifest),
+  );
+  return { manifest, path: manifestPath };
+}
+
 async function materializeCanonicalCandidate(
   options: { supervisedAuthoring?: boolean } = {},
 ): Promise<CanonicalCandidateFixture> {
@@ -380,7 +415,6 @@ async function materializeCanonicalCandidate(
   });
   expect(provisionalRun.receipt.status).toBe('completed');
   expect(provisionalRun.compileResult).not.toBeNull();
-  writeJson(repoRoot, TEMPLATE_PATH, provisionalRun.compileResult!.template);
   git(repoRoot, [
     'add',
     '.gitignore',
@@ -388,7 +422,6 @@ async function materializeCanonicalCandidate(
     'package-lock.json',
     STORY_PATH,
     STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
-    TEMPLATE_PATH,
   ]);
   git(repoRoot, ['commit', '-m', 'canonical bridge fixture']);
   git(parent, ['init', '--bare', remoteRoot]);
@@ -555,7 +588,6 @@ async function materializeCanonicalCandidate(
   return {
     repoRoot: canonicalRepoRoot,
     storyPath: STORY_PATH,
-    templatePath: TEMPLATE_PATH,
     requestPath,
     receiptPath,
     readinessPath,
@@ -579,7 +611,6 @@ function prepareArgs(
     outputDir,
     storyKey: STORY_KEY,
     storyPath: fixture.storyPath,
-    templatePath: fixture.templatePath,
     candidatePath: fixture.candidatePath,
     authoringRequestPath: fixture.requestPath,
     authoringReceiptPath: fixture.receiptPath,
@@ -652,7 +683,10 @@ function buildApprovedArtifacts(args: {
   ) as SourcePromptReconciliation;
   const template = JSON.parse(
     fs.readFileSync(
-      path.join(args.fixture.repoRoot, args.fixture.templatePath),
+      path.join(
+        args.fixture.repoRoot,
+        args.prepared.manifest.visualContract.templatePath,
+      ),
       'utf8',
     ),
   ) as BookVisualContractTemplate;
@@ -849,6 +883,56 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       ...prepareArgs(fixture),
       write: true,
     });
+    expect(
+      git(fixture.repoRoot, [
+        'ls-files',
+        '*.visual-contract-template.json',
+      ]),
+    ).toBe('');
+    const candidate = JSON.parse(
+      fs.readFileSync(
+        path.join(fixture.repoRoot, fixture.candidatePath),
+        'utf8',
+      ),
+    ) as {
+      digest: string;
+      templateDigest: string;
+      template: BookVisualContractTemplate;
+    };
+    expect(prepared.templateProjectionArtifact).toEqual({
+      path:
+        `outputs/bridge/candidate-template-projections/${candidate.templateDigest}.json`,
+      digest: candidate.templateDigest,
+      created: true,
+    });
+    expect(
+      fs.readFileSync(
+        path.join(
+          fixture.repoRoot,
+          prepared.templateProjectionArtifact.path,
+        ),
+        'utf8',
+      ),
+    ).toBe(canonicalContentAddressedJsonBytes(candidate.template));
+    expect(prepared.manifest.visualContract).toMatchObject({
+      candidateDigest: candidate.digest,
+      candidatePath: fixture.candidatePath,
+      templateSchemaVersion: candidate.template.schemaVersion,
+      templateDigest: candidate.templateDigest,
+      templatePath: prepared.templateProjectionArtifact.path,
+    });
+    const replayed = prepareQaWizardCandidateReconciliation({
+      ...prepareArgs(fixture),
+      write: true,
+    });
+    expect(replayed.templateProjectionArtifact.created).toBe(false);
+    expect(replayed.manifest.digest).toBe(prepared.manifest.digest);
+    expect(
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: prepared.manifestArtifact.path,
+      }).digest,
+    ).toBe(prepared.manifest.digest);
     expect(qaWizardCandidateBridgeManifestIsValid(prepared.manifest)).toBe(true);
     expect(prepared.manifest).toMatchObject({
       stage: 'reconciliation_pending',
@@ -878,7 +962,65 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     expect(JSON.stringify(prepared.manifest)).not.toMatch(
       /systemPrompt|userPrompt|rawResponse|responseBody|providerMessage|apiKey|secret_debug_payload/i,
     );
-  });
+
+    const {
+      outputDir: _directOutputDir,
+      ...cliRequest
+    } = prepareArgs(fixture, 'outputs/bridge-cli');
+    const cliRequestPath = 'outputs/bridge-cli-request.json';
+    writeJson(fixture.repoRoot, cliRequestPath, cliRequest);
+    const runCli = (requestPath: string) =>
+      spawnSync(
+        process.execPath,
+        [
+          path.join(process.cwd(), 'node_modules', 'tsx', 'dist', 'cli.mjs'),
+          '--require',
+          path.join(
+            process.cwd(),
+            'scripts',
+            'shims',
+            'register-server-only.cjs',
+          ),
+          path.join(process.cwd(), 'scripts', 'qa-wizard-candidate-bridge.ts'),
+          'prepare-reconciliation',
+          '--request',
+          path.join(fixture.repoRoot, requestPath),
+          '--out',
+          'outputs/bridge-cli',
+          '--write',
+          'true',
+        ],
+        {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          shell: false,
+          windowsHide: true,
+        },
+      );
+    const cliResult = runCli(cliRequestPath);
+    expect(cliResult.status).toBe(0);
+    expect(JSON.parse(cliResult.stdout)).toMatchObject({
+      status: 'awaiting_exact_reconciliation_content',
+      manifest: {
+        version: 'qa-wizard-candidate-bridge-manifest/v2',
+        visualContract: {
+          templatePath:
+            `outputs/bridge-cli/candidate-template-projections/${candidate.templateDigest}.json`,
+        },
+      },
+    });
+    const legacyRequestPath = 'outputs/bridge-cli-legacy-request.json';
+    writeJson(fixture.repoRoot, legacyRequestPath, {
+      ...cliRequest,
+      templatePath: 'authorities/operator-supplied-template.json',
+    });
+    const legacyResult = runCli(legacyRequestPath);
+    expect(legacyResult.status).toBe(1);
+    expect(JSON.parse(legacyResult.stdout)).toMatchObject({
+      status: 'rejected',
+      reasonCodes: ['bridge_request_invalid'],
+    });
+  }, 15_000);
 
   it('rejects an exit-zero child with no outputs even after post-hoc authoring artifacts are spliced in', async () => {
     const fixture = await materializeCanonicalCandidate({
@@ -909,7 +1051,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     fs.mkdirSync(outputAbsolute, { recursive: true });
     fs.symlinkSync(
       external,
-      path.join(outputAbsolute, 'reconciliations'),
+      path.join(outputAbsolute, 'candidate-template-projections'),
       process.platform === 'win32' ? 'junction' : 'dir',
     );
     expect(() =>
@@ -924,6 +1066,332 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       ),
     ).toEqual([]);
   });
+
+  it('rejects projected-template tamper, wrapper substitution, arbitrary paths, cross-candidate replay, hardlinks, and collisions', async () => {
+    const fixture = await materializeCanonicalCandidate();
+    const prepared = prepareQaWizardCandidateReconciliation({
+      ...prepareArgs(fixture),
+      write: true,
+    });
+    const manifestPath = prepared.manifestArtifact.path;
+    const projectionPath = prepared.templateProjectionArtifact.path;
+    const projectionAbsolute = path.join(fixture.repoRoot, projectionPath);
+    const projectionBytes = fs.readFileSync(projectionAbsolute, 'utf8');
+    const candidateAbsolute = path.join(
+      fixture.repoRoot,
+      fixture.candidatePath,
+    );
+    const candidateBytes = fs.readFileSync(candidateAbsolute, 'utf8');
+
+    fs.writeFileSync(projectionAbsolute, candidateBytes, 'utf8');
+    expect(() =>
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath,
+      }),
+    ).toThrow(/template projection|canonical/i);
+    fs.writeFileSync(projectionAbsolute, projectionBytes, 'utf8');
+
+    const candidateTamper = JSON.parse(candidateBytes) as Record<
+      string,
+      unknown
+    >;
+    candidateTamper.status = 'not-a-candidate';
+    fs.writeFileSync(
+      candidateAbsolute,
+      canonicalContentAddressedJsonBytes(candidateTamper),
+      'utf8',
+    );
+    expect(() =>
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath,
+      }),
+    ).toThrow(/candidate|canonical|cross-bound/i);
+    fs.writeFileSync(candidateAbsolute, candidateBytes, 'utf8');
+
+    const arbitraryProjectionPath =
+      `outputs/bridge/arbitrary/${prepared.manifest.visualContract.templateDigest}.json`;
+    fs.mkdirSync(
+      path.dirname(path.join(fixture.repoRoot, arbitraryProjectionPath)),
+      { recursive: true },
+    );
+    fs.copyFileSync(
+      projectionAbsolute,
+      path.join(fixture.repoRoot, arbitraryProjectionPath),
+    );
+    const arbitraryManifestPath = writeRedigestedCanonicalArtifact({
+      repoRoot: fixture.repoRoot,
+      sourcePath: manifestPath,
+      mutate(value) {
+        const visualContract = value.visualContract as {
+          templatePath: string;
+        };
+        visualContract.templatePath = arbitraryProjectionPath;
+      },
+    });
+    expect(() =>
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: arbitraryManifestPath,
+      }),
+    ).toThrow(/projection identity|canonical|cross-bound/i);
+
+    const crossCandidatePath = writeRedigestedCanonicalArtifact({
+      repoRoot: fixture.repoRoot,
+      sourcePath: fixture.candidatePath,
+      mutate(value) {
+        value.authoringRequestDigest = 'f'.repeat(64);
+      },
+    });
+    const crossCandidateManifestPath = writeRedigestedCanonicalArtifact({
+      repoRoot: fixture.repoRoot,
+      sourcePath: manifestPath,
+      mutate(value) {
+        const visualContract = value.visualContract as {
+          candidateDigest: string;
+          candidatePath: string;
+        };
+        visualContract.candidatePath = crossCandidatePath;
+        visualContract.candidateDigest = path.posix.basename(
+          crossCandidatePath,
+          '.json',
+        );
+      },
+    });
+    expect(() =>
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: crossCandidateManifestPath,
+      }),
+    ).toThrow(/Supervisor|cross-bound|candidate/i);
+
+    const hardlinkPath = path.join(
+      fixture.repoRoot,
+      'outputs/bridge/candidate-template-projections/hardlink.json',
+    );
+    fs.linkSync(projectionAbsolute, hardlinkPath);
+    expect(() =>
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath,
+      }),
+    ).toThrow(/unique regular file|filesystem identity/i);
+    fs.unlinkSync(hardlinkPath);
+
+    const collisionCandidate = JSON.parse(
+      candidateBytes,
+    ) as { templateDigest: string };
+    const collisionPath = path.join(
+      fixture.repoRoot,
+      'outputs/collision-bridge/candidate-template-projections',
+      `${collisionCandidate.templateDigest}.json`,
+    );
+    fs.mkdirSync(path.dirname(collisionPath), { recursive: true });
+    fs.writeFileSync(
+      collisionPath,
+      canonicalContentAddressedJsonBytes({ collision: true }),
+      'utf8',
+    );
+    expect(() =>
+      prepareQaWizardCandidateReconciliation({
+        ...prepareArgs(fixture, 'outputs/collision-bridge'),
+        write: true,
+      }),
+    ).toThrow(/immutable|already exists|collision/i);
+  }, 30_000);
+
+  it('replays exact legacy v1 pending and approved manifests read-only without upgrading them', async () => {
+    const fixture = await materializeCanonicalCandidate();
+    const prepared = prepareQaWizardCandidateReconciliation({
+      ...prepareArgs(fixture),
+      write: true,
+    });
+    const legacyTemplatePath = 'outputs/legacy-v1/template.json';
+    const projectedTemplateBytes = fs.readFileSync(
+      path.join(
+        fixture.repoRoot,
+        prepared.templateProjectionArtifact.path,
+      ),
+      'utf8',
+    );
+    writeText(
+      fixture.repoRoot,
+      legacyTemplatePath,
+      projectedTemplateBytes,
+    );
+    const legacyPending = persistLegacyBridgeManifest({
+      repoRoot: fixture.repoRoot,
+      source: prepared.manifest,
+      mutate(manifest) {
+        manifest.visualContract.templatePath = legacyTemplatePath;
+      },
+    });
+    expect(
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: legacyPending.path,
+      }),
+    ).toEqual(legacyPending.manifest);
+
+    const legacyTemplateAbsolute = path.join(
+      fixture.repoRoot,
+      legacyTemplatePath,
+    );
+    fs.writeFileSync(
+      legacyTemplateAbsolute,
+      canonicalContentAddressedJsonBytes({ tampered: true }),
+      'utf8',
+    );
+    expect(() =>
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: legacyPending.path,
+      }),
+    ).toThrow(/template|candidate|ready/i);
+    fs.writeFileSync(
+      legacyTemplateAbsolute,
+      projectedTemplateBytes,
+      'utf8',
+    );
+
+    expect(() =>
+      persistQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        outputDir: 'outputs/bridge',
+        manifest: legacyPending.manifest,
+        write: false,
+      }),
+    ).toThrow(/manifest is invalid/i);
+    expect(() =>
+      recordQaWizardReconciliationApproval({
+        repoRoot: fixture.repoRoot,
+        outputDir: 'outputs/bridge',
+        pendingManifestPath: legacyPending.path,
+        approvedReconciliationPath: 'outputs/missing/reconciliation.json',
+        approvedReviewBundlePath: 'outputs/missing/review.json',
+        approvedReviewMarkdownPath: 'outputs/missing/review.md',
+        approvedBy: 'Guy',
+        approvedAt: APPROVED_AT,
+      }),
+    ).toThrow(/read-only/i);
+    expect(() =>
+      advanceQaWizardApprovedReconciliation({
+        repoRoot: fixture.repoRoot,
+        outputDir: 'outputs/bridge',
+        bridgeManifestPath: legacyPending.path,
+        approvedReconciliationPath: 'outputs/missing/reconciliation.json',
+        approvedReviewBundlePath: 'outputs/missing/review.json',
+        approvedReviewMarkdownPath: 'outputs/missing/review.md',
+        approvalAttestationPath: 'outputs/missing/approval.json',
+        styleId: STYLE_ID,
+        styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+      }),
+    ).toThrow(/read-only/i);
+
+    const approved = buildApprovedArtifacts({ fixture, prepared });
+    const approval = recordQaWizardReconciliationApproval({
+      repoRoot: fixture.repoRoot,
+      outputDir: 'outputs/bridge',
+      pendingManifestPath: prepared.manifestArtifact.path,
+      approvedReconciliationPath: approved.artifacts.reconciliationPath,
+      approvedReviewBundlePath: approved.artifacts.reviewBundlePath,
+      approvedReviewMarkdownPath: approved.artifacts.markdownPath,
+      approvedBy: 'Guy',
+      approvedAt: APPROVED_AT,
+      write: true,
+    });
+    const advanced = advanceQaWizardApprovedReconciliation({
+      repoRoot: fixture.repoRoot,
+      outputDir: 'outputs/bridge',
+      bridgeManifestPath: prepared.manifestArtifact.path,
+      approvedReconciliationPath:
+        approval.approvedReconciliationArtifacts.reconciliationPath,
+      approvedReviewBundlePath:
+        approval.approvedReconciliationArtifacts.reviewBundlePath,
+      approvedReviewMarkdownPath:
+        approval.approvedReconciliationArtifacts.markdownPath,
+      approvalAttestationPath: approval.artifact.path,
+      styleId: STYLE_ID,
+      styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+      write: true,
+    });
+    const legacyApproval = structuredClone(approval.attestation);
+    legacyApproval.pendingManifestDigest = legacyPending.manifest.digest;
+    const {
+      digestAlgorithm: _approvalDigestAlgorithm,
+      digest: _approvalDigest,
+      ...legacyApprovalPayload
+    } = legacyApproval;
+    legacyApproval.digest = canonicalJsonDigest(legacyApprovalPayload);
+    const legacyApprovalPath =
+      `outputs/bridge/reconciliation-approvals/${legacyApproval.digest}.json`;
+    writeText(
+      fixture.repoRoot,
+      legacyApprovalPath,
+      canonicalContentAddressedJsonBytes(legacyApproval),
+    );
+    const legacyContext = buildProductionAuthoringContext({
+      repoRoot: fixture.repoRoot,
+      storyKey: STORY_KEY,
+      storyPath: fixture.storyPath,
+      templatePath: legacyTemplatePath,
+      reconciliationPath: advanced.manifest.reconciliation.path,
+      candidatePath: fixture.candidatePath,
+      styleId: STYLE_ID,
+      styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+    });
+    const legacyApproved = persistLegacyBridgeManifest({
+      repoRoot: fixture.repoRoot,
+      source: advanced.manifest,
+      mutate(manifest) {
+        manifest.visualContract.templatePath = legacyTemplatePath;
+        manifest.reconciliation.pendingManifestDigest =
+          legacyPending.manifest.digest;
+        manifest.reconciliation.approvalAttestationDigest =
+          legacyApproval.digest;
+        manifest.reconciliation.approvalAttestationPath =
+          legacyApprovalPath;
+        manifest.productionContext!.digest = legacyContext.digest;
+      },
+    });
+    expect(
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: legacyApproved.path,
+      }),
+    ).toEqual(legacyApproved.manifest);
+
+    const legacyApprovalAbsolute = path.join(
+      fixture.repoRoot,
+      legacyApprovalPath,
+    );
+    const legacyApprovalBytes = fs.readFileSync(
+      legacyApprovalAbsolute,
+      'utf8',
+    );
+    const tamperedLegacyApproval = JSON.parse(
+      legacyApprovalBytes,
+    ) as Record<string, unknown>;
+    tamperedLegacyApproval.approvedAt =
+      '2026-08-17T08:00:01.000Z';
+    fs.writeFileSync(
+      legacyApprovalAbsolute,
+      canonicalContentAddressedJsonBytes(tamperedLegacyApproval),
+      'utf8',
+    );
+    expect(() =>
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: legacyApproved.path,
+      }),
+    ).toThrow(/approval attestation|tampered/i);
+    fs.writeFileSync(
+      legacyApprovalAbsolute,
+      legacyApprovalBytes,
+      'utf8',
+    );
+  }, 25_000);
 
   it('requires a separate exact Guy approval attestation and rejects tamper and replay', async () => {
     const fixture = await materializeCanonicalCandidate();
@@ -1076,5 +1544,11 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       },
     });
     expect(qaWizardCandidateBridgeManifestIsValid(advanced.manifest)).toBe(true);
+    expect(
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: advanced.manifestArtifact.path,
+      }),
+    ).toEqual(advanced.manifest);
   }, 15_000);
 });

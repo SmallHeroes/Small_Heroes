@@ -9,7 +9,9 @@ import {
   type ProductionAuthoringContext,
 } from './productionAuthoringContext';
 import {
+  assertVisualContractCandidateForReconciliation,
   buildProductionReconciliationDraftFromFiles,
+  buildProductionReconciliationDraftFromVisualContractCandidate,
   buildReconciliationReviewBundle,
   loadVisualContractCandidateForReconciliation,
   persistReconciliationDraftBundle,
@@ -74,9 +76,13 @@ import {
   type VisualContractAuthoringReadinessEvidence,
   type VisualContractAuthoringRequest,
   type VisualContractAuthoringReceipt,
+  type VisualContractCandidateArtifact,
 } from './visualContractAuthoringLifecycle';
+import { loadTemplateForPackage } from './artifacts';
 
 export const QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION =
+  'qa-wizard-candidate-bridge-manifest/v2' as const;
+export const QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION =
   'qa-wizard-candidate-bridge-manifest/v1' as const;
 
 export const QA_WIZARD_RECONCILIATION_APPROVAL_ATTESTATION_VERSION =
@@ -114,7 +120,9 @@ export type QaWizardCandidateBridgeStage =
   | 'reconciliation_approved';
 
 export interface QaWizardCandidateBridgeManifest {
-  version: typeof QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION;
+  version:
+    | typeof QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
+    | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION;
   stage: QaWizardCandidateBridgeStage;
   source: {
     storyKey: string;
@@ -212,7 +220,6 @@ export interface PrepareQaWizardCandidateReconciliationRequest {
   outputDir: string;
   storyKey: string;
   storyPath: string;
-  templatePath: string;
   candidatePath: string;
   authoringRequestPath: string;
   authoringReceiptPath: string;
@@ -466,6 +473,7 @@ function prepareBridgeOutputRoot(args: {
     outputDir: args.outputDir,
     categories: [
       'bridge-manifests',
+      'candidate-template-projections',
       'source-snapshots',
       'reconciliations',
       'reviews',
@@ -475,6 +483,123 @@ function prepareBridgeOutputRoot(args: {
     errorPrefix: 'QA Wizard candidate bridge',
   });
   store.prepare();
+}
+
+function persistCandidateTemplateProjection(args: {
+  repoRoot: string;
+  outputDir: string;
+  candidate: VisualContractCandidateArtifact;
+  write?: boolean;
+}): QaWizardCandidateBridgeArtifactWrite {
+  const outputRoot = path.resolve(args.repoRoot, args.outputDir);
+  repoRelativePath(args.repoRoot, outputRoot);
+  const destinationPath = path.join(
+    outputRoot,
+    'candidate-template-projections',
+    `${args.candidate.templateDigest}.json`,
+  );
+  let persistence = { created: false };
+  if (args.write === true) {
+    const store = createContainedContentAddressedJsonArtifactStore({
+      repoRoot: args.repoRoot,
+      repositoryRealPath: fs.realpathSync(args.repoRoot),
+      outputDir: args.outputDir,
+      categories: ['candidate-template-projections'] as const,
+      rejectSymlinkAliases: true,
+      errorPrefix: 'QA Wizard candidate template projection',
+    });
+    store.prepare();
+    persistence = store.persist({
+      category: 'candidate-template-projections',
+      digest: args.candidate.templateDigest,
+      value: args.candidate.template,
+    });
+  }
+  return {
+    path: repoRelativePath(args.repoRoot, destinationPath),
+    digest: args.candidate.templateDigest,
+    created: persistence.created,
+  };
+}
+
+function loadAndValidateCandidateTemplateProjection(args: {
+  repoRoot: string;
+  bridgeOutputDir: string;
+  storyKey: string;
+  storyPath: string;
+  candidatePath: string;
+  templatePath: string;
+  expectedCandidateDigest: string;
+  expectedTemplateDigest: string;
+  expectedTemplateSchemaVersion: string;
+}): VisualContractCandidateArtifact {
+  const snapshot = buildStorySourceAuthoritySnapshot({
+    repoRoot: args.repoRoot,
+    storyKey: args.storyKey,
+    storyPath: args.storyPath,
+  });
+  assertValidStorySourceAuthoritySnapshot(snapshot);
+  const candidateAbsolute = resolveExistingContainedArtifact({
+    repoRoot: args.repoRoot,
+    relativePath: args.candidatePath,
+    label: 'Visual Contract candidate',
+  });
+  const candidate = readJsonObject(
+    candidateAbsolute,
+    'Visual Contract candidate',
+  ) as unknown as VisualContractCandidateArtifact;
+  assertVisualContractCandidateForReconciliation({ snapshot, candidate });
+  assertCanonicalJsonArtifact({
+    absolutePath: candidateAbsolute,
+    value: candidate,
+    digest: candidate.digest,
+    category: 'contract-candidates',
+    label: 'Visual Contract candidate',
+  });
+  const expectedProjectionPath =
+    `${args.bridgeOutputDir}/candidate-template-projections/${candidate.templateDigest}.json`;
+  if (
+    candidate.digest !== args.expectedCandidateDigest ||
+    candidate.templateDigest !== args.expectedTemplateDigest ||
+    candidate.template.schemaVersion !== args.expectedTemplateSchemaVersion ||
+    args.templatePath !== expectedProjectionPath
+  ) {
+    throw new Error(
+      'QA Wizard candidate template projection identity is stale or cross-bound',
+    );
+  }
+  const templateAbsolute = resolveExistingContainedArtifact({
+    repoRoot: args.repoRoot,
+    relativePath: args.templatePath,
+    label: 'Visual Contract candidate template projection',
+  });
+  assertCanonicalJsonArtifact({
+    absolutePath: templateAbsolute,
+    value: candidate.template,
+    digest: candidate.templateDigest,
+    category: 'candidate-template-projections',
+    label: 'Visual Contract candidate template projection',
+  });
+  const loadedTemplate = loadTemplateForPackage({
+    repoRoot: args.repoRoot,
+    templatePath: args.templatePath,
+    storyKey: args.storyKey,
+    source: snapshot.content.sourceIdentity,
+    expectedDigest: candidate.templateDigest,
+  });
+  if (
+    loadedTemplate.issues.length > 0 ||
+    !loadedTemplate.template ||
+    !loadedTemplate.identity ||
+    loadedTemplate.identity.artifactPath !== args.templatePath ||
+    canonicalContentAddressedJsonBytes(loadedTemplate.template) !==
+      canonicalContentAddressedJsonBytes(candidate.template)
+  ) {
+    throw new Error(
+      'Visual Contract candidate template projection is invalid or tampered',
+    );
+  }
+  return candidate;
 }
 
 function loadCanonicalSupervisorAuthority(args: {
@@ -998,7 +1123,9 @@ export function qaWizardCandidateBridgeManifestIsValid(
       'digestAlgorithm',
       'digest',
     ]) ||
-    raw.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION ||
+    (raw.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION &&
+      raw.version !==
+        QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION) ||
     (raw.stage !== 'reconciliation_pending' &&
       raw.stage !== 'reconciliation_approved') ||
     !isObject(raw.source) ||
@@ -1185,7 +1312,11 @@ export function persistQaWizardCandidateBridgeManifest(args: {
   manifest: QaWizardCandidateBridgeManifest;
   write?: boolean;
 }): QaWizardCandidateBridgeArtifactWrite {
-  if (!qaWizardCandidateBridgeManifestIsValid(args.manifest)) {
+  if (
+    args.manifest.version !==
+      QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION ||
+    !qaWizardCandidateBridgeManifestIsValid(args.manifest)
+  ) {
     throw new Error('QA Wizard candidate bridge manifest is invalid');
   }
   const outputRoot = path.resolve(args.repoRoot, args.outputDir);
@@ -1368,6 +1499,13 @@ export function recordQaWizardReconciliationApproval(
     repoRoot: args.repoRoot,
     manifestPath: args.pendingManifestPath,
   });
+  if (
+    pending.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
+  ) {
+    throw new Error(
+      'legacy QA Wizard bridge manifests are read-only and cannot be mutated',
+    );
+  }
   if (pending.stage !== 'reconciliation_pending') {
     throw new Error('reconciliation approval requires a pending bridge manifest');
   }
@@ -1545,6 +1683,7 @@ export function loadQaWizardCandidateBridgeManifest(args: {
   if (!qaWizardCandidateBridgeManifestIsValid(raw)) {
     throw new Error('QA Wizard candidate bridge manifest is invalid or tampered');
   }
+  const bridgeOutputDir = bridgeOutputDirFromManifestPath(args.manifestPath);
   if (
     path.basename(absolutePath) !== `${raw.digest}.json` ||
     path.basename(path.dirname(absolutePath)) !== 'bridge-manifests' ||
@@ -1598,16 +1737,28 @@ export function loadQaWizardCandidateBridgeManifest(args: {
   ) {
     throw new Error('QA Wizard bridge Supervisor authority is stale or tampered');
   }
-  if (raw.stage === 'reconciliation_pending') {
-    const outputDir = path.posix.dirname(
-      path.posix.dirname(args.manifestPath),
-    );
-    const reconstructed = prepareQaWizardCandidateReconciliation({
+  if (
+    raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
+  ) {
+    loadAndValidateCandidateTemplateProjection({
       repoRoot: args.repoRoot,
-      outputDir,
+      bridgeOutputDir,
       storyKey: raw.source.storyKey,
       storyPath: raw.source.storyPath,
+      candidatePath: raw.visualContract.candidatePath,
       templatePath: raw.visualContract.templatePath,
+      expectedCandidateDigest: raw.visualContract.candidateDigest,
+      expectedTemplateDigest: raw.visualContract.templateDigest,
+      expectedTemplateSchemaVersion:
+        raw.visualContract.templateSchemaVersion,
+    });
+  }
+  if (raw.stage === 'reconciliation_pending') {
+    const reconstructedCurrent = prepareQaWizardCandidateReconciliation({
+      repoRoot: args.repoRoot,
+      outputDir: bridgeOutputDir,
+      storyKey: raw.source.storyKey,
+      storyPath: raw.source.storyPath,
       candidatePath: raw.visualContract.candidatePath,
       authoringRequestPath: raw.visualContract.requestPath,
       authoringReceiptPath: raw.visualContract.receiptPath,
@@ -1619,26 +1770,59 @@ export function loadQaWizardCandidateBridgeManifest(args: {
         raw.supervisor.executionResultPath,
       write: false,
     });
+    let reconstructedManifest = reconstructedCurrent.manifest;
     if (
-      canonicalContentAddressedJsonBytes(reconstructed.manifest) !==
+      raw.version ===
+      QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION
+    ) {
+      const {
+        digestAlgorithm: _digestAlgorithm,
+        digest: _digest,
+        ...currentPayload
+      } = reconstructedCurrent.manifest;
+      reconstructedManifest = buildManifest({
+        ...currentPayload,
+        version:
+          QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION,
+        visualContract: {
+          ...currentPayload.visualContract,
+          templatePath: raw.visualContract.templatePath,
+        },
+      });
+    }
+    if (
+      canonicalContentAddressedJsonBytes(reconstructedManifest) !==
       canonicalContentAddressedJsonBytes(raw)
     ) {
       throw new Error(
         'QA Wizard candidate bridge manifest no longer matches its upstream authority',
       );
     }
-    const rebuiltBundle = buildProductionReconciliationDraftFromFiles({
-      repoRoot: args.repoRoot,
-      storyKey: raw.source.storyKey,
-      storyPath: raw.source.storyPath,
-      templatePath: raw.visualContract.templatePath,
-      candidatePath: raw.visualContract.candidatePath,
-    });
     const snapshot = buildStorySourceAuthoritySnapshot({
       repoRoot: args.repoRoot,
       storyKey: raw.source.storyKey,
       storyPath: raw.source.storyPath,
     });
+    const rebuiltBundle =
+      raw.version ===
+      QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION
+        ? buildProductionReconciliationDraftFromFiles({
+            repoRoot: args.repoRoot,
+            storyKey: raw.source.storyKey,
+            storyPath: raw.source.storyPath,
+            templatePath: raw.visualContract.templatePath,
+            candidatePath: raw.visualContract.candidatePath,
+          })
+        : buildProductionReconciliationDraftFromVisualContractCandidate({
+            snapshot,
+            candidate: loadVisualContractCandidateForReconciliation({
+              repoRoot: args.repoRoot,
+              candidatePath: raw.visualContract.candidatePath,
+              snapshot,
+              expectedTemplateDigest:
+                raw.visualContract.templateDigest,
+            }),
+          });
     const persistedSnapshot = readJsonObject(
       resolveExistingContainedArtifact({
         repoRoot: args.repoRoot,
@@ -1682,7 +1866,6 @@ export function loadQaWizardCandidateBridgeManifest(args: {
       );
     }
   } else {
-    const bridgeOutputDir = bridgeOutputDirFromManifestPath(args.manifestPath);
     const pendingManifest = loadQaWizardCandidateBridgeManifest({
       repoRoot: args.repoRoot,
       manifestPath: `${bridgeOutputDir}/bridge-manifests/${raw.reconciliation.pendingManifestDigest}.json`,
@@ -1705,6 +1888,7 @@ export function loadQaWizardCandidateBridgeManifest(args: {
         raw.reconciliation.approvalAttestationPath!,
       ) ||
       pendingManifest.stage !== 'reconciliation_pending' ||
+      pendingManifest.version !== raw.version ||
       pendingManifest.digest !== approval.pendingManifestDigest ||
       canonicalJsonDigest(pendingManifest.source) !==
         canonicalJsonDigest(raw.source) ||
@@ -1819,13 +2003,13 @@ export function prepareQaWizardCandidateReconciliation(
   sourceSnapshotArtifact: ReturnType<
     typeof persistStorySourceAuthoritySnapshot
   >;
+  templateProjectionArtifact: QaWizardCandidateBridgeArtifactWrite;
   reconciliationArtifacts: ReturnType<
     typeof persistReconciliationDraftBundle
   >;
 } {
   for (const [label, artifactPath] of [
     ['Story Source', args.storyPath],
-    ['Visual Contract template', args.templatePath],
     ['Visual Contract candidate', args.candidatePath],
     ['Visual Contract request', args.authoringRequestPath],
     ['Visual Contract receipt', args.authoringReceiptPath],
@@ -1856,19 +2040,21 @@ export function prepareQaWizardCandidateReconciliation(
     storyPath: args.storyPath,
   });
   assertValidStorySourceAuthoritySnapshot(snapshot);
-  const bundle = buildProductionReconciliationDraftFromFiles({
+  const candidateAbsolute = resolveExistingContainedArtifact({
     repoRoot: args.repoRoot,
-    storyKey: args.storyKey,
-    storyPath: args.storyPath,
-    templatePath: args.templatePath,
-    candidatePath: args.candidatePath,
+    relativePath: args.candidatePath,
+    label: 'Visual Contract candidate',
   });
-  const candidate = loadVisualContractCandidateForReconciliation({
-    repoRoot: args.repoRoot,
-    candidatePath: args.candidatePath,
-    snapshot,
-    expectedTemplateDigest: bundle.templateIdentity.digest,
-  });
+  const candidate = readJsonObject(
+    candidateAbsolute,
+    'Visual Contract candidate',
+  ) as unknown as VisualContractCandidateArtifact;
+  assertVisualContractCandidateForReconciliation({ snapshot, candidate });
+  const bundle =
+    buildProductionReconciliationDraftFromVisualContractCandidate({
+      snapshot,
+      candidate,
+    });
   const request = loadCanonicalRequest({
     repoRoot: args.repoRoot,
     requestPath: args.authoringRequestPath,
@@ -1933,7 +2119,7 @@ export function prepareQaWizardCandidateReconciliation(
     label: 'Visual Contract authoring readiness',
   });
   assertCanonicalJsonArtifact({
-    absolutePath: resolveRepoPath(args.repoRoot, args.candidatePath),
+    absolutePath: candidateAbsolute,
     value: candidate,
     digest: candidate.digest,
     category: 'contract-candidates',
@@ -2000,6 +2186,29 @@ export function prepareQaWizardCandidateReconciliation(
     prepareBridgeOutputRoot({
       repoRoot: args.repoRoot,
       outputDir: args.outputDir,
+    });
+  }
+
+  const templateProjectionArtifact = persistCandidateTemplateProjection({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    candidate,
+    write: args.write === true,
+  });
+  if (args.write === true) {
+    loadAndValidateCandidateTemplateProjection({
+      repoRoot: args.repoRoot,
+      bridgeOutputDir: repoRelativePath(
+        args.repoRoot,
+        path.resolve(args.repoRoot, args.outputDir),
+      ),
+      storyKey: args.storyKey,
+      storyPath: args.storyPath,
+      candidatePath: args.candidatePath,
+      templatePath: templateProjectionArtifact.path,
+      expectedCandidateDigest: candidate.digest,
+      expectedTemplateDigest: candidate.templateDigest,
+      expectedTemplateSchemaVersion: candidate.template.schemaVersion,
     });
   }
 
@@ -2074,10 +2283,7 @@ export function prepareQaWizardCandidateReconciliation(
       ),
       templateSchemaVersion: candidate.template.schemaVersion,
       templateDigest: candidate.templateDigest,
-      templatePath: repoRelativePath(
-        args.repoRoot,
-        resolveRepoPath(args.repoRoot, args.templatePath),
-      ),
+      templatePath: templateProjectionArtifact.path,
       receiptVersion: receipt.version,
       receiptDigest: receipt.digest,
       receiptPath: repoRelativePath(
@@ -2129,6 +2335,7 @@ export function prepareQaWizardCandidateReconciliation(
     manifest,
     manifestArtifact,
     sourceSnapshotArtifact,
+    templateProjectionArtifact,
     reconciliationArtifacts,
   };
 }
@@ -2144,6 +2351,13 @@ export function advanceQaWizardApprovedReconciliation(
     repoRoot: args.repoRoot,
     manifestPath: args.bridgeManifestPath,
   });
+  if (
+    previous.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
+  ) {
+    throw new Error(
+      'legacy QA Wizard bridge manifests are read-only and cannot be mutated',
+    );
+  }
   if (previous.stage !== 'reconciliation_pending') {
     throw new Error(
       'QA Wizard bridge can advance reconciliation only from reconciliation_pending',
