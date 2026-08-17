@@ -31,8 +31,9 @@ export const LANDING_COPY = {
     sub:
       'בחרו את הרגע שמעסיק אותו עכשיו, והילד שלכם ייכנס בתפקיד הראשי — בשם שלו, בדמות מאוירת בהשראתו ועם חבר מלווה לצדו.',
     ctaPrimary: 'להתחיל את הספר שלו',
-    /* becomes "לפתוח ספר לדוגמה" once a real reader-demo route exists */
-    ctaSecondary: 'לראות עמודים לדוגמה',
+    /* scrolls to the sample section (the book, and a video of it once Guy's
+       clip lands); becomes "לפתוח ספר לדוגמה" once a reader-demo route exists */
+    ctaSecondary: 'לראות ספר לדוגמה',
     ctaNotes: ['תמונה לא חובה', 'קריינות מלאה בעברית'],
   },
 
@@ -92,7 +93,8 @@ export const LANDING_COPY = {
       'החושך לא נעלם מיד, והכעס לא מסתדר במשפט אחד. אבל בתוך הסיפור הילד מבחין, מנסה, לפעמים טועה — ואז בוחר לעשות משהו. והעלילה מתקדמת בזכותו.',
     p2:
       'גם החבר שמלווה אותו לא מגיע עם כל התשובות. הוא לא צריך להציל את הילד, אלא להיות שם בזמן שהילד מגלה מה הוא יכול לעשות בעצמו.',
-    cta: 'לראות עמודים לדוגמה',
+    /* no CTA here: this section IS the sample. The button used to point at the
+       gallery, which is show rather than a sample (per Guy). */
   },
 
   gallery: {
