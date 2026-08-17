@@ -333,17 +333,65 @@
   perspective: 1100px;
 }
 
-/* (The purple glow pool is gone with the old cutout: the story collage
-   rides on transparency and carries its own light - a soft shadow under
-   the panels grounds it on the white page instead.) */
-.hero-img {
+/* ── The story collage ────────────────────────────────────────────────
+   Three separate panels composed here rather than baked into one export,
+   so each beat can arrive on its own. Percentages mirror the proportions
+   of Guy's original composite: the outcome is the largest card and sits in
+   front, the fear is the smallest and furthest back. */
+.hero-collage {
   position: relative;
-  display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  object-position: center;
-  filter: drop-shadow(0 26px 44px rgba(45, 30, 90, 0.16));
+}
+
+.hero-beat {
+  position: absolute;
+  height: auto;
+  display: block;
+  /* the panels ride on transparency and carry their own light; a soft
+     shadow grounds them on the white page */
+  filter: drop-shadow(0 22px 36px rgba(45, 30, 90, 0.18));
+  /* revealed in STORY order — see the delays below */
+  animation: hero-beat-in 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 1 — the waiting room: smallest, furthest back, lowest */
+.hero-beat[data-beat='1'] {
+  left: 0.7%;
+  top: 16.7%;
+  width: 33.9%;
+  z-index: 1;
+  animation-delay: 260ms;
+}
+
+/* 2 — meeting the friend */
+.hero-beat[data-beat='2'] {
+  left: 19.5%;
+  top: 7.5%;
+  width: 43.1%;
+  z-index: 2;
+  animation-delay: 480ms;
+}
+
+/* 3 — walking out: largest, in front, full height of the frame */
+.hero-beat[data-beat='3'] {
+  left: 48.5%;
+  top: 0;
+  width: 50.6%;
+  z-index: 3;
+  animation-delay: 700ms;
+}
+
+/* each beat lifts into place from slightly below and behind */
+@keyframes hero-beat-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0) scale(0.94) rotate(-1.4deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
 }
 
 /* ── Book Gallery ──────────────────────────────────────────── */
@@ -1466,14 +1514,38 @@
 
   .hero-img-wrap {
     width: 100%;
-    /* the stacked-collage mobile export is 362px wide - stay at or under
-       its native size so it renders crisp */
+    /* matches the phone arrangement below (the old stacked export was
+       362 x 512, and the CSS collage keeps that frame) */
     max-width: 300px;
     aspect-ratio: 362 / 512;
     order: 1;
     /* a touch of air above the collage (per Guy: some, not too much) */
     margin: 26px auto 0;
     perspective: none;
+  }
+
+  /* Phones re-stack the beats: the friend sits above, and the fear and the
+     outcome sit below it — the same three cards, a taller frame. */
+  .hero-beat[data-beat='1'] {
+    left: 2.2%;
+    top: 37%;
+    width: 36.5%;
+  }
+
+  .hero-beat[data-beat='2'] {
+    left: 21.5%;
+    top: 1%;
+    width: 56.6%;
+  }
+
+  .hero-beat[data-beat='3'] {
+    left: 38.7%;
+    top: 38%;
+    width: 59.4%;
+  }
+
+  .hero-beat {
+    filter: drop-shadow(0 14px 24px rgba(45, 30, 90, 0.18));
   }
 
   .helps-grid,
@@ -1829,6 +1901,11 @@
 .hero-float {
   animation: hero-float 7s ease-in-out infinite alternate;
   will-change: transform;
+  /* MUST be sized: the collage inside is height:100% and its beats are
+     positioned with percentage tops. Without a definite height here the
+     chain collapses to zero and every beat stacks at the frame's top edge. */
+  width: 100%;
+  height: 100%;
 }
 
 @keyframes hero-float {
@@ -1896,8 +1973,13 @@
 /* ── 2027 hero staging ──────────────────────────────────────────────
    The illustration is a held object on a lit surface: key light above,
    contact shadow below. Depth comes from the shadow pair, not from scale. */
-.hero-img {
-  filter: drop-shadow(0 18px 28px rgba(38, 26, 74, 0.18));
+/* Stillness: every beat is simply present, in place, at once. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-beat {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* (No oval contact shadow: the story panels carry their own shadows, and a
