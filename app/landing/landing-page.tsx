@@ -136,7 +136,10 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   >
                     {L.hero.ctaPrimary}
                   </a>
-                  <a href="#gallery" className="btn-light">
+                  {/* lands on the sample section — the book itself (a video of
+                      it, once Guy's clip exists). The gallery is a look, not a
+                      sample, so it is no longer the destination. */}
+                  <a href="#sample" className="btn-light">
                     {L.hero.ctaSecondary}
                   </a>
                 </div>
@@ -241,7 +244,9 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
-          <section className="section sample-section" id="sample">
+          {/* TRIAL per Guy: the charcoal "reading room" break in the page's
+              brightness — drop the --dark modifier to go back to white */}
+          <section className="section sample-section sample-section--dark" id="sample">
             <div className="wrap sample-wrap">
               <div className="sample-text">
                 <div className="sample-kicker" data-reveal="up">{L.sample.kicker}</div>
@@ -253,12 +258,9 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <p className="sample-p" data-reveal="up" data-reveal-delay="120">{L.sample.p1}</p>
                 <p className="sample-p sample-p--soft" data-reveal="up" data-reveal-delay="160">{L.sample.p2}</p>
 
-                {/* No real reader-demo route exists yet, so "see sample pages"
-                    lands on the gallery — the closest real look inside the
-                    books (reported to Guy). */}
-                <a href="#gallery" className="btn-primary" data-event="landing_sample_gallery_click" data-reveal="up" data-reveal-delay="240">
-                  {L.sample.cta}
-                </a>
+                {/* The CTA that pointed at the gallery is gone (per Guy: the
+                    gallery is show, not a sample). The sample IS this section —
+                    the book below, and a video of it once Guy's clip lands. */}
               </div>
 
               <div className="sample-img-wrap sample-preview-wrap" data-reveal="scale" data-reveal-delay="120">

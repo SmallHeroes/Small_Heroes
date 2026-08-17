@@ -557,6 +557,38 @@
 /* (.sample-caption retired — the "טקסט, איורים וקריינות" line above the
    book was dropped per Guy) */
 
+/* ── The dark reading room ────────────────────────────────────────────
+   TRIAL (per Guy): the sample section takes the footer's charcoal, so the
+   page has one deliberate break in its brightness and the open book reads
+   like a lit object in a dim room. Everything inside inverts to the same
+   scale the footer already uses: white heading, light-grey prose. */
+.sample-section--dark {
+  background: #2b2b31;
+}
+
+.sample-section--dark .sample-h2 {
+  color: #fff;
+}
+
+.sample-section--dark .sample-p {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.sample-section--dark .sample-p--soft {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+/* the book stops being a flat cut-out and casts into the dark */
+.sample-section--dark .sample-book-illustration img {
+  box-shadow: 0 34px 70px rgba(0, 0, 0, 0.45);
+  border-radius: 10px;
+}
+
+/* the yellow kicker keeps its plum ink — it is the one warm mark left */
+.sample-section--dark .sample-kicker {
+  color: var(--wow-yellow-ink, #2b2440);
+}
+
 .sample-quote {
   margin-top: 12px;
   margin-bottom: 18px;
