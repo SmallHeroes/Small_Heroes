@@ -1,7 +1,7 @@
 # R1D Atomic Action-Binding Repair and Candidate Template Projection — Implementation Evidence
 
 **Date:** 2026-08-17
-**Status:** local implementation and repository validation complete; independent Claude Code QA pending
+**Status:** independent Claude Code technical PASS; local and unpushed
 **Decision Gate:** `d9c084372d9770a5f0aca8b2f0d4a817c43b1376`
 **Base:** `b2ebdf8aa57dc588cdab4a56cbce96132b511999`
 **Branch:** `codex/r1d-atomic-action-binding-repair-template-projection`
@@ -221,8 +221,42 @@ digest and idempotency; containment/tamper/collision/cross-candidate rejection;
 exact read-only v1 replay; and downstream reconciliation rebuilt from candidate
 authority.
 
-Independent Claude Code review of the immutable implementation range remains
-pending. Codex does not self-award that technical PASS.
+## Independent Claude Code QA
+
+Claude Code independently reviewed the exact immutable range:
+
+`b2ebdf8aa57dc588cdab4a56cbce96132b511999..bfcbfcec148bbd784d627d5da671948a197a340a`
+
+The verdict was **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero MINOR.
+The review independently confirmed:
+
+- four linear commits, zero merges, nine files, a clean worktree and unchanged
+  package/lockfile;
+- exact complete-graph admission and fail-closed rejection of partial, stale,
+  ambiguous and malformed component authority;
+- preservation of all eleven diagnostic identities while planning five repair
+  targets;
+- Source Evidence ID enforcement at planning, target validation and apply;
+- exactly one occurrence of every resulting member beat across all coverage
+  dispositions, including non-visual and unsupported collision rejection;
+- deterministic minimum-deficit application without multi-component index
+  drift, followed by full lifecycle revalidation and the exact three-call,
+  two-repair candidate path;
+- unchanged schema/prompt/user-prompt, model, budget, timeout, retry, fallback,
+  candidate and cost-fence policy;
+- canonical candidate-template projection, containment and tamper rejection,
+  v2 current-only persistence, exact immutable v1 replay and approved-v2 replay;
+- accurate separation of the five-fixture release HOLD from this implementation.
+
+The sole advisory note observes that the non-target action-drift rejection is
+implemented in the broader page validation layer rather than only inside the
+per-target apply loop. The direct regression proves the invariant, so this is
+not a finding and requires no correction or re-gate.
+
+The independent review used one Claude Sonnet High session, cost
+`$1.73291045`, and was not retried. Codex records this external verdict and does
+not self-award it. Technical PASS grants no push, Fresh Readiness, provider,
+render, QA deployment, production or product-acceptance authority.
 
 ## Separate repository fixture HOLD
 
@@ -244,7 +278,8 @@ are not waived for release.
 
 The historical consumed attempt cost `$1.339074` nominal and `$1.482818`
 conservative. This implementation and validation milestone incurred `$0` new
-provider or image spend:
+Small Heroes provider or image spend. The separate independent Claude Code QA
+cost `$1.73291045`:
 
 - credential access: `none`;
 - new provider/network calls: `0`;
@@ -268,15 +303,10 @@ paired with a different candidate.
 
 ## Next gate
 
-The next step is one read-only independent Claude Code adversarial review of
-exact range:
-
-`b2ebdf8aa57dc588cdab4a56cbce96132b511999..9a3c691772c79d6cdf4686fc5971a4e13b460dc2`
-
-Only after an independent PASS and closure of any valid findings may the branch
-be pushed. Push does not authorize reuse of the consumed readiness. The next
-operational sequence requires a new canonical Git probe, Fresh Readiness,
-Execution Request, official pricing verification, one preflight, one Supervisor
-verify and one bounded live invocation. Only a persisted candidate may proceed
-to the exact reconciliation checkpoint. Reconciliation, Blueprint, package and
-visual acceptance remain Guy checkpoints. Production remains untouched.
+Independent technical QA is closed. The next step is to push this branch. Push
+does not authorize reuse of the consumed readiness. The next operational
+sequence requires a new canonical Git probe, Fresh Readiness, Execution
+Request, official pricing verification, one preflight, one Supervisor verify
+and one bounded live invocation. Only a persisted candidate may proceed to the
+exact reconciliation checkpoint. Reconciliation, Blueprint, package and visual
+acceptance remain Guy checkpoints. Production remains untouched.

@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-atomic-action-binding-repair-template-projection` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `b2ebdf8aa57dc588cdab4a56cbce96132b511999`.
 
-## ATOMIC ACTION-BINDING REPAIR + CANDIDATE TEMPLATE PROJECTION — local implementation and repository validation complete; independent QA pending
+## ATOMIC ACTION-BINDING REPAIR + CANDIDATE TEMPLATE PROJECTION — independent technical PASS; push pending
 
 The consumed live attempt on `b2ebdf8a` completed exactly three provider calls
 and two repairs with zero transport retries and no fallback. Receipt v32
@@ -51,10 +51,19 @@ are not waived. No new credential, provider, Fresh Readiness, preflight, live,
 image, render, storage/database, deployment or production action occurred;
 implementation spend is `$0`.
 
-Independent Claude Code review is still required for exact range
-`b2ebdf8aa57dc588cdab4a56cbce96132b511999..9a3c691772c79d6cdf4686fc5971a4e13b460dc2`.
-Codex does not self-award that PASS. Until it closes, the branch remains local
-and unpushed and no new operational authority exists.
+Claude Code independently reviewed exact immutable range
+`b2ebdf8aa57dc588cdab4a56cbce96132b511999..bfcbfcec148bbd784d627d5da671948a197a340a`
+read-only and returned **TECHNICAL PASS** with zero BLOCKER, zero MAJOR and zero
+MINOR. It confirmed topology, complete-graph admission, all-coverage collision
+rejection, Source Evidence identity enforcement, deterministic multi-component
+application, the exact three-call/two-repair lifecycle, projection integrity,
+read-only v1 compatibility and all unchanged policy/version claims. One note
+about the location of the broader non-target action-drift guard is advisory
+only; the direct regression covers it. The independent review used one Claude
+Sonnet High session, cost `$1.73291045`, and was not retried. Codex records the
+external verdict and does not self-award it. The branch remains local and
+unpushed; the PASS grants no readiness, provider, render, deployment,
+production or product-acceptance authority.
 
 ## REAL CANDIDATE -> QA WIZARD -> LOW BRIDGE — reconciliation milestone independent technical PASS; pushed
 
