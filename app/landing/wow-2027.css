@@ -8,7 +8,7 @@
    night    #241b4d / #2c2158 / #38296b     purple DNA, deepened
    purple   #886cff / #7b5cff               brand continuity
    coral    #ff8a65 → #ff6b57               warm energy (/start accents)
-   yellow   #ffee6c on #3d2f10              strong accent (tags/marks, per Guy)
+   yellow   #ffee6c on #2b2440              strong accent (tags/marks, per Guy)
    paper    #ffffff / #fbfaff               day sections (existing)
    ═══════════════════════════════════════════════════════════════════════ */
 
@@ -20,7 +20,8 @@
   --wow-coral-soft: #ff8a65;
   --wow-coral-ink: #341a10;
   --wow-yellow: #ffee6c;
-  --wow-yellow-ink: #3d2f10;
+  /* deep plum ink on the strong yellow — the brown ink is banned (per Guy) */
+  --wow-yellow-ink: #2b2440;
   --wow-glow: #ffd9a8;
   /* Heading voice: Suez One (the face Guy approved; Rubik run reverted) */
   --font-wow-display: var(--font-secular), 'Secular One', 'Rubik', sans-serif;

@@ -285,20 +285,22 @@
   /* Per Guy: on phones the companion lives in a NEAT FRAME - no warm
      field behind it (clean white sheet), a smaller rounded frame, and
      the FULL video square shown inside it so no companion ever gets
-     cut, whatever its source framing. */
+     cut, whatever its source framing. The sheet breathes above the
+     frame (26px, clear of the grab-handle) and casts NO shadow/glow
+     under the companion — flat, clean, premium. */
   .stage {
-    height: clamp(230px, 32vh, 272px);
+    height: clamp(246px, 34vh, 290px);
     background: none;
   }
 
   .videoBox {
-    inset: 16px auto 12px 50%;
+    inset: 28px auto 12px 50%;
     translate: -50% 0;
     aspect-ratio: 1;
     width: auto;
     border-radius: 20px;
     border: 1px solid #efecf8;
-    box-shadow: 0 12px 30px rgba(36, 27, 77, 0.14);
+    box-shadow: none;
   }
 
   /* whole square inside the frame - the baked margin reads as the mat */
@@ -309,11 +311,13 @@
     height: 100%;
   }
 
-  /* the cutout placeholder sits inside the same frame footprint */
+  /* the cutout fallback sits inside the same frame footprint — and drops
+     the desktop drop-shadow (no glow under the friend on the clean sheet) */
   .art {
-    height: calc(100% - 64px);
+    height: calc(100% - 76px);
     max-width: 56%;
     bottom: 20px;
+    filter: none;
   }
 
   .body { margin-top: 10px; gap: 6px; }
