@@ -16,6 +16,7 @@ import {
   type DraftAuthorityReferenceIssue,
 } from './draftAuthorityReferenceDiagnostics';
 import type { PresentationRequirementRepairTarget } from './presentationRequirementRepair';
+import { SOURCE_EVIDENCE_ID_PATTERN } from './sourceEvidenceCatalog';
 import { canonicalize } from '@/lib/canonical-json';
 
 export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
@@ -27,7 +28,7 @@ export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =
 export const PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION =
   'page-contract-repair-user-prompt/v13' as const;
 export const PAGE_CONTRACT_REPAIR_INPUT_ENCODING_VERSION =
-  'page-contract-repair-input-encoding/v2' as const;
+  'page-contract-repair-input-encoding/v3' as const;
 export const PAGE_CONTRACT_REPAIR_PREVIOUS_FAILURE_VALUES = [
   'target_scope_invalid',
 ] as const;
@@ -225,6 +226,16 @@ export type PageContractRepairTarget =
     }
   | {
       family: 'action_semantic';
+      code: 'action_beat_binding_component_invalid';
+      pageNumber: number;
+      originalBeatId: string;
+      actionIndexes: number[];
+      coverageIndex: number;
+      sourceEvidenceId: string;
+      coverageDeficit: number;
+    }
+  | {
+      family: 'action_semantic';
       code: 'coverage_action_binding_cardinality_invalid';
       pageNumber: number;
       coverageIndex: number;
@@ -328,6 +339,10 @@ function pageContractRepairTargetKey(
     'collectionRole' in target ? target.collectionRole : null,
     'itemIndex' in target ? target.itemIndex : null,
     'fieldRole' in target ? target.fieldRole : null,
+    'originalBeatId' in target ? target.originalBeatId : null,
+    'actionIndexes' in target ? target.actionIndexes : null,
+    'sourceEvidenceId' in target ? target.sourceEvidenceId : null,
+    'coverageDeficit' in target ? target.coverageDeficit : null,
   ]);
 }
 
@@ -1109,6 +1124,15 @@ type ActionBindingCardinalityRepairTarget = Extract<
   }
 >;
 
+type ActionBindingComponentRepairTarget = Extract<
+  PageContractRepairTarget,
+  { code: 'action_beat_binding_component_invalid' }
+>;
+
+type ActionBindingRepairPlanTarget =
+  | ActionBindingCardinalityRepairTarget
+  | ActionBindingComponentRepairTarget;
+
 function actionBindingCardinalityRepairTarget(
   issue: DraftAuthorityReferenceIssue,
 ): ActionBindingCardinalityRepairTarget | null {
@@ -1157,6 +1181,171 @@ function actionBindingCardinalityRepairTarget(
   return null;
 }
 
+function actionRequirementDispositionIsExact(value: unknown): boolean {
+  const disposition = recordValue(value);
+  return (
+    disposition?.kind === 'action_requirement' &&
+    exactKeys(disposition, ['kind'])
+  );
+}
+
+function pageContractForRepairPlan(args: {
+  draft: Record<string, unknown>;
+  pageNumber: number;
+}): Record<string, unknown> | null {
+  const pages = Array.isArray(args.draft.pageContracts)
+    ? args.draft.pageContracts.map(recordValue)
+    : [];
+  const matches = pages.filter(
+    (page) => page?.pageNumber === args.pageNumber,
+  );
+  return matches.length === 1 ? matches[0] : null;
+}
+
+/**
+ * Collapses one fully diagnosed duplicate-beat graph into one atomic target.
+ * Partial graphs remain ineligible: every duplicate action and the one
+ * over-bound action-requirement coverage record must be present in the issue
+ * set before this authority can append the exact coverage deficit.
+ */
+function actionBindingRepairPlanTargets(args: {
+  draft: Record<string, unknown>;
+  targets: readonly ActionBindingCardinalityRepairTarget[];
+}): ActionBindingRepairPlanTarget[] | null {
+  const actionBeatTargets = args.targets.filter(
+    (target): target is Extract<
+      ActionBindingCardinalityRepairTarget,
+      { code: 'action_beat_binding_cardinality_invalid' }
+    > => target.code === 'action_beat_binding_cardinality_invalid',
+  );
+  const grouped = new Map<
+    string,
+    {
+      pageNumber: number;
+      originalBeatId: string;
+      targets: typeof actionBeatTargets;
+    }
+  >();
+  for (const target of actionBeatTargets) {
+    const action = pageActionForTarget({
+      draft: args.draft,
+      pageNumber: target.pageNumber,
+      actionIndex: target.actionIndex,
+    });
+    if (typeof action?.beatId !== 'string') continue;
+    const key = JSON.stringify([target.pageNumber, action.beatId]);
+    const group = grouped.get(key) ?? {
+      pageNumber: target.pageNumber,
+      originalBeatId: action.beatId,
+      targets: [],
+    };
+    group.targets.push(target);
+    grouped.set(key, group);
+  }
+
+  const consumed = new Set<string>();
+  const components: ActionBindingComponentRepairTarget[] = [];
+  for (const group of [...grouped.values()].sort(
+    (left, right) =>
+      left.pageNumber - right.pageNumber ||
+      left.originalBeatId.localeCompare(right.originalBeatId),
+  )) {
+    const page = pageContractForRepairPlan({
+      draft: args.draft,
+      pageNumber: group.pageNumber,
+    });
+    if (!page) return null;
+    const actions = Array.isArray(page.actionRequirements)
+      ? page.actionRequirements.map(recordValue)
+      : [];
+    if (actions.some((action) => action === null)) return null;
+    const memberIndexes = actions
+      .map((action, index) =>
+        action?.beatId === group.originalBeatId ? index : -1,
+      )
+      .filter((index) => index >= 0);
+    if (memberIndexes.length < 2) continue;
+    const targetIndexes = group.targets
+      .map((target) => target.actionIndex)
+      .sort((left, right) => left - right);
+    if (
+      JSON.stringify(memberIndexes) !== JSON.stringify(targetIndexes) ||
+      !repairBeatIdIsValid(group.originalBeatId, group.pageNumber)
+    ) {
+      return null;
+    }
+
+    const coverage = Array.isArray(page.actionSemanticCoverage)
+      ? page.actionSemanticCoverage.map(recordValue)
+      : [];
+    if (coverage.some((record) => record === null)) return null;
+    const matchingCoverageIndexes = coverage
+      .map((record, index) =>
+        record?.beatId === group.originalBeatId &&
+        actionRequirementDispositionIsExact(record.disposition)
+          ? index
+          : -1,
+      )
+      .filter((index) => index >= 0);
+    if (matchingCoverageIndexes.length !== 1) return null;
+    const coverageIndex = matchingCoverageIndexes[0]!;
+    const coverageTargets = args.targets.filter(
+      (target) =>
+        target.code ===
+          'coverage_action_binding_cardinality_invalid' &&
+        target.pageNumber === group.pageNumber &&
+        target.coverageIndex === coverageIndex,
+    );
+    if (coverageTargets.length !== 1) return null;
+    if (
+      args.targets.some(
+        (target) =>
+          target.code === 'action_coverage_cardinality_invalid' &&
+          target.pageNumber === group.pageNumber &&
+          memberIndexes.includes(target.actionIndex),
+      )
+    ) {
+      return null;
+    }
+    const sourceEvidenceId = coverage[coverageIndex]?.sourceEvidenceId;
+    if (
+      typeof sourceEvidenceId !== 'string' ||
+      !SOURCE_EVIDENCE_ID_PATTERN.test(sourceEvidenceId)
+    ) {
+      return null;
+    }
+    const component: ActionBindingComponentRepairTarget = {
+      family: 'action_semantic',
+      code: 'action_beat_binding_component_invalid',
+      pageNumber: group.pageNumber,
+      originalBeatId: group.originalBeatId,
+      actionIndexes: memberIndexes,
+      coverageIndex,
+      sourceEvidenceId,
+      coverageDeficit: memberIndexes.length - 1,
+    };
+    components.push(component);
+    for (const target of group.targets) {
+      consumed.add(pageContractRepairTargetKey(target));
+    }
+    consumed.add(pageContractRepairTargetKey(coverageTargets[0]!));
+  }
+
+  return [
+    ...args.targets.filter(
+      (target) => !consumed.has(pageContractRepairTargetKey(target)),
+    ),
+    ...components,
+  ].sort(
+    (left, right) =>
+      left.pageNumber - right.pageNumber ||
+      left.code.localeCompare(right.code) ||
+      pageContractRepairTargetKey(left).localeCompare(
+        pageContractRepairTargetKey(right),
+      ),
+  );
+}
+
 /**
  * Builds the one closed DraftAuthorityReferenceDomainError plan that may use
  * the existing complete-page repair lane. All other authority families remain
@@ -1185,20 +1374,17 @@ export function pageContractAuthorityRepairPlan(args: {
     if (unique.has(key)) return null;
     unique.set(key, target);
   }
-  const normalizedTargets = [...unique.values()].sort(
-    (left, right) =>
-      left.pageNumber - right.pageNumber ||
-      left.code.localeCompare(right.code) ||
-      ('actionIndex' in left
-        ? left.actionIndex
-        : left.coverageIndex) -
-        ('actionIndex' in right
-          ? right.actionIndex
-          : right.coverageIndex),
-  );
+  const normalizedTargets = actionBindingRepairPlanTargets({
+    draft: args.draft,
+    targets: [...unique.values()],
+  });
+  if (!normalizedTargets) return null;
   if (
     normalizedTargets.some(
       (target) => {
+        if (target.code === 'action_beat_binding_component_invalid') {
+          return false;
+        }
         if ('actionIndex' in target) {
           return !pageActionForTarget({
             draft: args.draft,
@@ -1241,6 +1427,9 @@ export function pageContractAuthorityRepairPlan(args: {
         if (target.code === 'action_beat_binding_cardinality_invalid') {
           return `action_beat_binding_cardinality_invalid: actionRequirements[${target.actionIndex}].beatId must be unique on the page and bind exactly one same-page actionSemanticCoverage record with disposition.kind action_requirement`;
         }
+        if (target.code === 'action_beat_binding_component_invalid') {
+          return `action_beat_binding_component_invalid: atomically assign unique same-page beatIds to actionRequirements[${target.actionIndexes.join(',')}], bind actionSemanticCoverage[${target.coverageIndex}] to the first action, and append exactly ${target.coverageDeficit} action_requirement coverage records in remaining action order using sourceEvidenceId ${target.sourceEvidenceId}`;
+        }
         return `coverage_action_binding_cardinality_invalid: actionSemanticCoverage[${target.coverageIndex}] must bind exactly one same-page actionRequirement through one unique beatId`;
       }),
       permittedPointerValues: [],
@@ -1256,7 +1445,14 @@ export function pageContractAuthorityRepairPlan(args: {
   const validationMessages = (
     affectedPages as PageContractRepairAffectedPage[]
   ).flatMap((page) => page.validationHints);
-  const diagnosticIssues = normalizedTargets.map(
+  const diagnosticIssues = [...unique.values()].sort(
+    (left, right) =>
+      left.pageNumber - right.pageNumber ||
+      left.code.localeCompare(right.code) ||
+      pageContractRepairTargetKey(left).localeCompare(
+        pageContractRepairTargetKey(right),
+      ),
+  ).map(
     (target): DraftValidationIssue => ({
       family: 'action_semantic',
       code: 'action_binding_cardinality_invalid',
@@ -2248,6 +2444,222 @@ function repairBeatIdIsValid(
   );
 }
 
+function canonicalValuesEqual(left: unknown, right: unknown): boolean {
+  return (
+    JSON.stringify(canonicalize(left)) ===
+    JSON.stringify(canonicalize(right))
+  );
+}
+
+function pageContractSchemaProjection(
+  page: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    PAGE_CONTRACT_KEYS.map((key) => [key, page[key]]),
+  );
+}
+
+function actionWithoutBeatId(
+  action: Record<string, unknown>,
+): Record<string, unknown> {
+  const { beatId: _beatId, ...body } = action;
+  return body;
+}
+
+function applyActionBindingComponentTarget(args: {
+  affectedPage: PageContractRepairAffectedPage;
+  target: ActionBindingComponentRepairTarget;
+  originalPage: Record<string, unknown>;
+  replacementPage: Record<string, unknown>;
+  resultPage: Record<string, unknown>;
+}): void {
+  const { target } = args;
+  const componentTargets = args.affectedPage.repairTargets.filter(
+    (candidate): candidate is ActionBindingComponentRepairTarget =>
+      candidate.code === 'action_beat_binding_component_invalid',
+  );
+  const componentIndex = componentTargets.findIndex(
+    (candidate) =>
+      pageContractRepairTargetKey(candidate) ===
+      pageContractRepairTargetKey(target),
+  );
+  const originalActions = Array.isArray(
+    args.originalPage.actionRequirements,
+  )
+    ? args.originalPage.actionRequirements.map(recordValue)
+    : [];
+  const replacementActions = Array.isArray(
+    args.replacementPage.actionRequirements,
+  )
+    ? args.replacementPage.actionRequirements.map(recordValue)
+    : [];
+  const resultActions = Array.isArray(args.resultPage.actionRequirements)
+    ? args.resultPage.actionRequirements.map(recordValue)
+    : [];
+  const originalCoverage = Array.isArray(
+    args.originalPage.actionSemanticCoverage,
+  )
+    ? args.originalPage.actionSemanticCoverage.map(recordValue)
+    : [];
+  const replacementCoverage = Array.isArray(
+    args.replacementPage.actionSemanticCoverage,
+  )
+    ? args.replacementPage.actionSemanticCoverage.map(recordValue)
+    : [];
+  const resultCoverage = Array.isArray(
+    args.resultPage.actionSemanticCoverage,
+  )
+    ? args.resultPage.actionSemanticCoverage
+    : [];
+  const totalDeficit = componentTargets.reduce(
+    (sum, candidate) => sum + candidate.coverageDeficit,
+    0,
+  );
+  const precedingDeficit = componentTargets
+    .slice(0, componentIndex)
+    .reduce(
+      (sum, candidate) => sum + candidate.coverageDeficit,
+      0,
+    );
+  if (
+    componentIndex < 0 ||
+    originalActions.length !== replacementActions.length ||
+    originalActions.length !== resultActions.length ||
+    originalActions.some((action) => action === null) ||
+    replacementActions.some((action) => action === null) ||
+    resultActions.some((action) => action === null) ||
+    originalCoverage.some((record) => record === null) ||
+    replacementCoverage.some((record) => record === null) ||
+    replacementCoverage.length !==
+      originalCoverage.length + totalDeficit ||
+    resultCoverage.length !==
+      originalCoverage.length + precedingDeficit
+  ) {
+    throw new Error(
+      'page_contract_repair_action_binding_component_scope_invalid',
+    );
+  }
+
+  const originalMemberIndexes = originalActions
+    .map((action, index) =>
+      action?.beatId === target.originalBeatId ? index : -1,
+    )
+    .filter((index) => index >= 0);
+  if (
+    JSON.stringify(originalMemberIndexes) !==
+      JSON.stringify(target.actionIndexes) ||
+    originalCoverage.filter(
+      (record) =>
+        record?.beatId === target.originalBeatId &&
+        actionRequirementDispositionIsExact(record.disposition),
+    ).length !== 1
+  ) {
+    throw new Error(
+      'page_contract_repair_action_binding_component_stale',
+    );
+  }
+  const originalComponentCoverage =
+    originalCoverage[target.coverageIndex];
+  const replacementComponentCoverage =
+    replacementCoverage[target.coverageIndex];
+  const resultComponentCoverage = recordValue(
+    resultCoverage[target.coverageIndex],
+  );
+  if (
+    !originalComponentCoverage ||
+    !replacementComponentCoverage ||
+    !resultComponentCoverage ||
+    originalComponentCoverage.beatId !== target.originalBeatId ||
+    originalComponentCoverage.sourceEvidenceId !==
+      target.sourceEvidenceId ||
+    !SOURCE_EVIDENCE_ID_PATTERN.test(target.sourceEvidenceId) ||
+    !actionRequirementDispositionIsExact(
+      originalComponentCoverage.disposition,
+    ) ||
+    replacementComponentCoverage.sourceEvidenceId !==
+      target.sourceEvidenceId ||
+    !actionRequirementDispositionIsExact(
+      replacementComponentCoverage.disposition,
+    )
+  ) {
+    throw new Error(
+      'page_contract_repair_action_binding_component_stale',
+    );
+  }
+
+  const replacementBeatIds = replacementActions.map(
+    (action) => action!.beatId,
+  );
+  if (
+    replacementBeatIds.some(
+      (beatId) => !repairBeatIdIsValid(beatId, target.pageNumber),
+    ) ||
+    new Set(replacementBeatIds).size !== replacementBeatIds.length
+  ) {
+    throw new Error(
+      'page_contract_repair_action_binding_component_beat_id_invalid',
+    );
+  }
+  for (const actionIndex of target.actionIndexes) {
+    const originalAction = originalActions[actionIndex];
+    const replacementAction = replacementActions[actionIndex];
+    const resultAction = resultActions[actionIndex];
+    if (
+      !originalAction ||
+      !replacementAction ||
+      !resultAction ||
+      !canonicalValuesEqual(
+        actionWithoutBeatId(originalAction),
+        actionWithoutBeatId(replacementAction),
+      )
+    ) {
+      throw new Error(
+        'page_contract_repair_action_binding_component_scope_invalid',
+      );
+    }
+    resultAction.beatId = replacementAction.beatId;
+  }
+  const memberBeatIds = target.actionIndexes.map(
+    (actionIndex) => replacementActions[actionIndex]!.beatId as string,
+  );
+  if (replacementComponentCoverage.beatId !== memberBeatIds[0]) {
+    throw new Error(
+      'page_contract_repair_action_binding_component_scope_invalid',
+    );
+  }
+  resultComponentCoverage.beatId = memberBeatIds[0];
+  const appendedStart = originalCoverage.length + precedingDeficit;
+  const appendedRecords = memberBeatIds.slice(1).map((beatId) => ({
+    beatId,
+    sourceEvidenceId: target.sourceEvidenceId,
+    disposition: { kind: 'action_requirement' },
+  }));
+  for (let index = 0; index < appendedRecords.length; index += 1) {
+    if (
+      !canonicalValuesEqual(
+        replacementCoverage[appendedStart + index],
+        appendedRecords[index],
+      )
+    ) {
+      throw new Error(
+        'page_contract_repair_action_binding_component_scope_invalid',
+      );
+    }
+  }
+  resultCoverage.push(...structuredClone(appendedRecords));
+
+  for (const beatId of memberBeatIds) {
+    const bindingCount = replacementCoverage.filter(
+      (record) => record?.beatId === beatId,
+    ).length;
+    if (bindingCount !== 1) {
+      throw new Error(
+        'page_contract_repair_action_binding_component_scope_invalid',
+      );
+    }
+  }
+}
+
 function pointerValueIsPermitted(
   permitted: readonly RepresentedElsewherePointerValue[],
   pointer: unknown,
@@ -2302,6 +2714,16 @@ function applyPageContractFieldTarget(args: {
   resultPage: Record<string, unknown>;
 }): void {
   const { target } = args;
+  if (target.code === 'action_beat_binding_component_invalid') {
+    applyActionBindingComponentTarget({
+      affectedPage: args.affectedPage,
+      target,
+      originalPage: args.originalPage,
+      replacementPage: args.replacementPage,
+      resultPage: args.resultPage,
+    });
+    return;
+  }
   if (target.code === 'action_coverage_cardinality_invalid') {
     const original = pageActionAt(args.originalPage, target.actionIndex);
     const replacement = pageActionAt(
@@ -2585,6 +3007,8 @@ export function applyPageContractRepairs(args: {
       throw new Error('page_contract_repair_target_set_empty');
     }
     const targetKeys = new Set<string>();
+    const componentActionIndexes = new Set<number>();
+    const componentCoverageIndexes = new Set<number>();
     for (const target of affectedPage.repairTargets) {
       const key = pageContractRepairTargetKey(target);
       if (
@@ -2594,6 +3018,39 @@ export function applyPageContractRepairs(args: {
         throw new Error('page_contract_repair_target_invalid_or_duplicate');
       }
       targetKeys.add(key);
+      if (target.code === 'action_beat_binding_component_invalid') {
+        if (
+          target.actionIndexes.length < 2 ||
+          target.coverageDeficit !== target.actionIndexes.length - 1 ||
+          target.coverageIndex < 0 ||
+          !Number.isSafeInteger(target.coverageIndex) ||
+          !repairBeatIdIsValid(
+            target.originalBeatId,
+            target.pageNumber,
+          ) ||
+          typeof target.sourceEvidenceId !== 'string' ||
+          !SOURCE_EVIDENCE_ID_PATTERN.test(
+            target.sourceEvidenceId,
+          ) ||
+          target.actionIndexes.some(
+            (actionIndex, index) =>
+              !Number.isSafeInteger(actionIndex) ||
+              actionIndex < 0 ||
+              (index > 0 &&
+                target.actionIndexes[index - 1]! >= actionIndex) ||
+              componentActionIndexes.has(actionIndex),
+          ) ||
+          componentCoverageIndexes.has(target.coverageIndex)
+        ) {
+          throw new Error(
+            'page_contract_repair_action_binding_component_target_invalid',
+          );
+        }
+        target.actionIndexes.forEach((actionIndex) =>
+          componentActionIndexes.add(actionIndex),
+        );
+        componentCoverageIndexes.add(target.coverageIndex);
+      }
     }
   }
 
@@ -2636,6 +3093,24 @@ export function applyPageContractRepairs(args: {
     const hasStructuralAuthority = affectedPage.repairTargets.some(
       (target) => target.code === 'final_structural_invariant_invalid',
     );
+    const hasActionBindingComponentAuthority =
+      affectedPage.repairTargets.some(
+        (target) =>
+          target.code ===
+          'action_beat_binding_component_invalid',
+      );
+    if (
+      hasActionBindingComponentAuthority &&
+      !hasStructuralAuthority &&
+      !canonicalValuesEqual(
+        pageContractSchemaProjection(targetedResult),
+        pageContractSchemaProjection(replacementPage),
+      )
+    ) {
+      throw new Error(
+        'page_contract_repair_action_binding_component_scope_invalid',
+      );
+    }
     return hasStructuralAuthority
       ? {
           ...replacementPage,

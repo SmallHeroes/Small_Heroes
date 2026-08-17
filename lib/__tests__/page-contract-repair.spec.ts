@@ -774,7 +774,7 @@ describe('page-contract compact repair', () => {
     ]);
   });
 
-  it('builds one closed complete-page plan for the mixed action beat-binding cardinality set', () => {
+  it('collapses one complete duplicate action-binding graph into one atomic component target', () => {
     const input = draft();
     const pageTwo = (
       input.pageContracts as Array<Record<string, unknown>>
@@ -799,7 +799,7 @@ describe('page-contract compact repair', () => {
     pageTwo.actionSemanticCoverage = [
       {
         beatId: 'beat:p2:shared',
-        sourceEvidenceId: 'se1_test',
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
         disposition: { kind: 'action_requirement' },
       },
     ];
@@ -844,11 +844,22 @@ describe('page-contract compact repair', () => {
       pageNumber: 2,
       permittedPointerValues: [],
     });
-    expect(plan?.affectedPages[0]?.repairTargets).toHaveLength(3);
+    expect(plan?.affectedPages[0]?.repairTargets).toEqual([
+      {
+        family: 'action_semantic',
+        code: 'action_beat_binding_component_invalid',
+        pageNumber: 2,
+        originalBeatId: 'beat:p2:shared',
+        actionIndexes: [0, 1],
+        coverageIndex: 0,
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+        coverageDeficit: 1,
+      },
+    ]);
     expect(plan?.validationMessages).toEqual([
-      expect.stringContaining('actionRequirements[0].beatId'),
-      expect.stringContaining('actionRequirements[1].beatId'),
-      expect.stringContaining('actionSemanticCoverage[0]'),
+      expect.stringContaining(
+        'atomically assign unique same-page beatIds',
+      ),
     ]);
     expect(plan?.diagnosticIssues).toEqual([
       expect.objectContaining({
@@ -870,6 +881,314 @@ describe('page-contract compact repair', () => {
         }),
       }),
     ]);
+  });
+
+  it('atomically closes three independent 2-to-1 action-binding components and rejects every wider response shape', () => {
+    const original = draft();
+    const pageTwo = (
+      original.pageContracts as Array<Record<string, unknown>>
+    )[1]!;
+    const action = (beatId: string) => ({
+      beatId,
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: 'looks_at',
+      object: null,
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'must',
+      laterality: null,
+    });
+    const componentBeatIds = [
+      'beat:p2:component_a',
+      'beat:p2:component_b',
+      'beat:p2:component_c',
+    ];
+    pageTwo.actionRequirements = componentBeatIds.flatMap((beatId) => [
+      action(beatId),
+      action(beatId),
+    ]);
+    const sourceEvidenceIds = ['a', 'b', 'c'].map(
+      (value) => `se1_${value.repeat(64)}`,
+    );
+    pageTwo.actionSemanticCoverage = [
+      ...componentBeatIds.map((beatId, index) => ({
+        beatId,
+        sourceEvidenceId: sourceEvidenceIds[index],
+        disposition: { kind: 'action_requirement' },
+      })),
+      {
+        beatId: 'beat:p2:untouched_non_visual',
+        sourceEvidenceId: `se1_${'d'.repeat(64)}`,
+        disposition: {
+          kind: 'non_visual',
+          rationale: 'narrative_context',
+        },
+      },
+      {
+        beatId: 'beat:p2:untouched_unsupported',
+        sourceEvidenceId: `se1_${'e'.repeat(64)}`,
+        disposition: {
+          kind: 'unsupported',
+          reason: 'closed_action_catalog_gap',
+        },
+      },
+    ];
+    pageTwo.castIds = ['child:hero'];
+    pageTwo.castStates = [];
+    pageTwo.characterPresence = [];
+    const snapshot = structuredClone(original);
+    const issues: DraftAuthorityReferenceIssue[] = [];
+    componentBeatIds.forEach((_beatId, componentIndex) => {
+      for (const actionIndex of [
+        componentIndex * 2,
+        componentIndex * 2 + 1,
+      ]) {
+        issues.push({
+          code: 'action_beat_binding_cardinality_invalid',
+          locator: {
+            kind: 'page_action',
+            referenceClass: 'action_identity',
+            fieldRole: 'actionRequirements.beatId',
+            pageNumber: 2,
+            actionIndex,
+          },
+        });
+      }
+      issues.push({
+        code: 'coverage_action_binding_cardinality_invalid',
+        locator: {
+          kind: 'page_coverage',
+          referenceClass: 'action_coverage',
+          fieldRole:
+            'actionSemanticCoverage.actionRequirementBinding',
+          pageNumber: 2,
+          coverageIndex: componentIndex,
+        },
+      });
+    });
+    const plan = pageContractAuthorityRepairPlan({
+      draft: original,
+      issues: [...issues].reverse(),
+    })!;
+    expect(plan.affectedPages[0]!.repairTargets).toMatchObject([
+      {
+        code: 'action_beat_binding_component_invalid',
+        actionIndexes: [0, 1],
+        coverageIndex: 0,
+        coverageDeficit: 1,
+      },
+      {
+        code: 'action_beat_binding_component_invalid',
+        actionIndexes: [2, 3],
+        coverageIndex: 1,
+        coverageDeficit: 1,
+      },
+      {
+        code: 'action_beat_binding_component_invalid',
+        actionIndexes: [4, 5],
+        coverageIndex: 2,
+        coverageDeficit: 1,
+      },
+    ]);
+
+    const replacement = structuredClone(pageTwo);
+    delete replacement.castIds;
+    delete replacement.castStates;
+    delete replacement.characterPresence;
+    const replacementActions =
+      replacement.actionRequirements as Array<
+        Record<string, unknown>
+      >;
+    const replacementCoverage =
+      replacement.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+    const newBeatIds = [
+      ['beat:p2:a_first', 'beat:p2:a_second'],
+      ['beat:p2:b_first', 'beat:p2:b_second'],
+      ['beat:p2:c_first', 'beat:p2:c_second'],
+    ];
+    newBeatIds.forEach((beats, componentIndex) => {
+      replacementActions[componentIndex * 2]!.beatId = beats[0];
+      replacementActions[componentIndex * 2 + 1]!.beatId = beats[1];
+      replacementCoverage[componentIndex]!.beatId = beats[0];
+    });
+    replacementCoverage.push(
+      ...newBeatIds.map((beats, componentIndex) => ({
+        beatId: beats[1],
+        sourceEvidenceId: sourceEvidenceIds[componentIndex],
+        disposition: { kind: 'action_requirement' },
+      })),
+    );
+
+    const result = applyPageContractRepairs({
+      draft: original,
+      affectedPages: plan.affectedPages,
+      pageContracts: [replacement],
+    });
+    expect(original).toEqual(snapshot);
+    expect(
+      (result.pageContracts as Array<Record<string, unknown>>)[1],
+    ).toEqual({
+      ...replacement,
+      castIds: ['child:hero'],
+      castStates: [],
+      characterPresence: [],
+    });
+
+    const reject = (
+      mutate: (page: Record<string, unknown>) => void,
+      expected =
+        'page_contract_repair_action_binding_component_scope_invalid',
+    ) => {
+      const hostile = structuredClone(replacement);
+      mutate(hostile);
+      expect(() =>
+        applyPageContractRepairs({
+          draft: original,
+          affectedPages: plan.affectedPages,
+          pageContracts: [hostile],
+        }),
+      ).toThrow(expected);
+    };
+    reject((page) => {
+      (page.actionSemanticCoverage as unknown[]).pop();
+    });
+    reject((page) => {
+      (page.actionSemanticCoverage as unknown[]).push({
+        beatId: 'beat:p2:extra',
+        sourceEvidenceId: sourceEvidenceIds[0],
+        disposition: { kind: 'action_requirement' },
+      });
+    });
+    reject((page) => {
+      const coverage = page.actionSemanticCoverage as unknown[];
+      [coverage[5], coverage[6]] = [coverage[6], coverage[5]];
+    });
+    reject(
+      (page) => {
+        const coverage = page.actionSemanticCoverage as unknown[];
+        [coverage[1], coverage[3]] = [coverage[3], coverage[1]];
+      },
+      'page_contract_repair_action_binding_component_stale',
+    );
+    reject((page) => {
+      (
+        page.actionRequirements as Array<Record<string, unknown>>
+      )[0]!.predicate = 'moves';
+    });
+    reject((page) => {
+      (
+        page.actionSemanticCoverage as Array<
+          Record<string, unknown>
+        >
+      )[5]!.sourceEvidenceId = `se1_${'f'.repeat(64)}`;
+    });
+    for (const [, collidingBeatId] of [
+      ['non_visual', 'beat:p2:untouched_non_visual'],
+      ['unsupported', 'beat:p2:untouched_unsupported'],
+    ] as const) {
+      reject((page) => {
+        const actions = page.actionRequirements as Array<
+          Record<string, unknown>
+        >;
+        const coverage = page.actionSemanticCoverage as Array<
+          Record<string, unknown>
+        >;
+        actions[1]!.beatId = collidingBeatId;
+        coverage[5]!.beatId = collidingBeatId;
+      });
+    }
+    reject(
+      (page) => {
+        (
+          page.actionRequirements as Array<
+            Record<string, unknown>
+          >
+        )[1]!.beatId = 'beat:p2:a_first';
+      },
+      'page_contract_repair_action_binding_component_beat_id_invalid',
+    );
+    reject((page) => {
+      page.camera = 'unauthorized response drift';
+    });
+
+    const stale = structuredClone(original);
+    (
+      (
+        stale.pageContracts as Array<Record<string, unknown>>
+      )[1]!.actionRequirements as Array<Record<string, unknown>>
+    )[0]!.beatId = 'beat:p2:stale';
+    expect(() =>
+      applyPageContractRepairs({
+        draft: stale,
+        affectedPages: plan.affectedPages,
+        pageContracts: [replacement],
+      }),
+    ).toThrow(
+      'page_contract_repair_action_binding_component_stale',
+    );
+
+    const malformedSourceDraft = structuredClone(original);
+    (
+      (
+        malformedSourceDraft.pageContracts as Array<
+          Record<string, unknown>
+        >
+      )[1]!.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.sourceEvidenceId = 'se1_bad';
+    expect(
+      pageContractAuthorityRepairPlan({
+        draft: malformedSourceDraft,
+        issues,
+      }),
+    ).toBeNull();
+
+    const malformedSourceTargets = structuredClone(
+      plan.affectedPages,
+    );
+    const malformedComponent = malformedSourceTargets[0]!.repairTargets
+      .find(
+        (target) =>
+          target.code ===
+          'action_beat_binding_component_invalid',
+      )!;
+    if (
+      malformedComponent.code ===
+      'action_beat_binding_component_invalid'
+    ) {
+      malformedComponent.sourceEvidenceId = 'se1_bad';
+    }
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages: malformedSourceTargets,
+        pageContracts: [replacement],
+      }),
+    ).toThrow(
+      'page_contract_repair_action_binding_component_target_invalid',
+    );
+
+    const partialIssues = issues.filter(
+      (issue) =>
+        !(
+          issue.code ===
+            'action_beat_binding_cardinality_invalid' &&
+          issue.locator.kind === 'page_action' &&
+          issue.locator.actionIndex === 1
+        ),
+    );
+    expect(
+      pageContractAuthorityRepairPlan({
+        draft: original,
+        issues: partialIssues,
+      }),
+    ).toBeNull();
   });
 
   it('rejects mixed, duplicate, malformed, stale, and unlocatable authority plans', () => {
