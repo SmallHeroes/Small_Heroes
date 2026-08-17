@@ -2,9 +2,9 @@
 
 **Date:** 2026-08-17
 
-**Status:** implemented under Guy's standing instruction to continue toward a
-full-book Wizard proof without further approval prompts; independent technical
-QA remains required before any new Fresh Readiness or paid attempt
+**Status:** implemented and independently PASSed by Claude Code for exact range
+`a1dd2e263b90ac90258ed77d45e472e5ccd70094..73b85ea6b681d094eacdc3be5a084876f3732e4b`;
+operational Fresh Readiness and paid proof remain separate gates
 
 **Base:** `a1dd2e263b90ac90258ed77d45e472e5ccd70094`
 

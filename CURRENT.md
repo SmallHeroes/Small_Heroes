@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-visual-contract-output-budget-rebalance-v2` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on `a1dd2e263b90ac90258ed77d45e472e5ccd70094`.
 
-## OUTPUT BUDGET REBALANCE V2 — implementation complete, independent QA pending
+## OUTPUT BUDGET REBALANCE V2 — independent technical PASS, operational proof pending
 
 The latest full-story attempt consumed exactly three standard calls under the
 v1 `[48,000, 36,000, 24,000]` schedule. Calls one and two completed at 27,646
@@ -27,11 +27,20 @@ retries, fallback, `$5.00` fence, prompts/schemas and downstream gates are
 unchanged.
 
 Final focused validation is green: 428 unique tests across eight files,
-TypeScript and `git diff --check`. No provider, credential, network, Fresh
-Readiness, preflight, live or render operation occurred in the v2 implementation.
-Independent Claude Code QA is still required; Codex does not self-award PASS.
-The separate six-fixture release HOLD and prior resource-worker advisory remain
-unchanged.
+TypeScript and `git diff --check`. Claude Code independently reviewed exact
+range `a1dd2e263b90ac90258ed77d45e472e5ccd70094..73b85ea6b681d094eacdc3be5a084876f3732e4b`,
+reproduced all 428 tests plus TypeScript, and returned **PASS** with zero
+BLOCKER, zero MAJOR and zero MINOR. Codex records Claude's verdict; it does not
+self-award it. Three notes remain advisory only: the page-count admission fence
+must stay aligned if ever raised, one non-material slice-count bookkeeping
+difference, and the disclosed absence of `npm run check`.
+
+No provider, credential, network, Fresh Readiness, preflight, live or render
+operation occurred in the v2 implementation or QA. The separate six-fixture
+release HOLD and prior resource-worker advisory remain unchanged. The next
+authorized step is push, new Fresh Readiness and one bounded live attempt; only
+a persisted candidate may continue to Reconciliation, Blueprint, Wizard and
+LOW render proof. Production remains blocked.
 
 ## PER-ATTEMPT OUTPUT BUDGET REALLOCATION — over-fence correction complete, micro re-gate pending
 
