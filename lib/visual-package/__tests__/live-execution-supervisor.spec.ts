@@ -914,7 +914,7 @@ describe('canonical live execution request and readiness', () => {
     const legacyRequest = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    legacyRequest.version = 'canonical-live-execution-request/v25';
+    legacyRequest.version = 'canonical-live-execution-request/v26';
     const {
       digestAlgorithm: _requestAlgorithm,
       digest: _requestDigest,
@@ -934,7 +934,7 @@ describe('canonical live execution request and readiness', () => {
       readiness,
     ) as unknown as Record<string, unknown>;
     legacyReadiness.version =
-      'canonical-live-execution-readiness/v25';
+      'canonical-live-execution-readiness/v26';
     const {
       digestAlgorithm: _readinessAlgorithm,
       digest: _readinessDigest,
@@ -1861,6 +1861,9 @@ describe('future live test boundary', () => {
       stdout: 'suppressed',
       stderr: 'suppressed',
     });
+    expect(
+      CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION,
+    ).toBe('canonical-live-execution-child-output-authority/v1');
     expect(result.outputAuthority).toMatchObject({
       version:
         CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION,

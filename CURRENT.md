@@ -2,7 +2,70 @@
 
 **Updated:** 2026-08-17
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-admission-compact-fallback` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `e983eaaaf92dbc2fc8b8ec88aea6428b803879ab`.
+**Working branch:** `codex/r1d-atomic-compact-book-surface-v4` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on Decision Gate commit `f669a192835ea1a36ec15dbd2310ce861901d39a`, whose parent is pushed and independently QA-passed `48ef78ff77f325b111219654b463608792fd2b39`.
+
+## ATOMIC COMPACT BOOK SURFACE v4 — implementation green; independent QA pending
+
+The consumed canonical attempt under
+`outputs/r1d-post-admission-fallback-readiness-48ef78ff-20260817T135224951Z`
+ended fail-closed without a candidate. Receipt v32
+`1a69883d3b55b053f85a8d3361a241dd8cb1949067a7ffbbf28f28007c25d2db`
+records exactly three completed calls, two repairs, zero transport retries and
+no fallback, with `$0.954122 / $1.050246` nominal/conservative cost. Its route
+was `initial -> page_spatial_reference_patch ->
+presentation_requirement_patch`; the presentation patch resolved its exact
+gap, but cover, all twelve page final structures and recurring-prop lifecycle
+remained after the standard repair budget was consumed. Supervisor v19
+correctly recorded child failure and null output authority. No candidate,
+reconciliation, Blueprint, Wizard or render authority exists.
+
+Book Surface v4 now carries one compact atomic delta: exact presentation
+patches, nullable authorized cover and recurring props, and only the structural
+fields of exact affected pages. Page action-semantic coverage and every
+non-target field stay local and immutable. The applier validates all target
+sets and the exact pre-authorized presentation pointer/value pairs before one
+clone, permits only `firstRevealPage` for lifecycle repair, rejects stale source
+drafts and non-target drift, and runs full compilation after application. The
+live-shaped regression closes the proven path as `initial ->
+page_spatial_reference_patch -> book_surface_patch -> candidate` in the
+unchanged three calls/two repairs and caps `[40000, 32000, 36000]`.
+
+If mixed v4 is inadmissible while two repairs remain, the already-authorized
+presentation-first split remains available. If only one repair remains, the
+compiler stops before provider dispatch and emits sanitized exact admission
+accounting. Receipt v33/readiness v31 persist that state as
+`repair_route_input_not_admissible` with two actual calls and no invented third
+attempt. The terminal is cross-bound to final standard attempt 3, the
+`book_surface_patch` route, the exact two-call/one-repair trail and its carried
+diagnostic count. Readiness persistence independently revalidates the current
+receipt and binds its source/request/receipt digests and terminal
+classification.
+
+The authority cutover is minimal and explicit: authoring request/receipt/
+readiness are v30/v33/v31; B0 input/manifest/verification are v19/v28/v28;
+execution materialization input/result are v18/v22; Supervisor request/
+readiness/result are v27/v27/v20; Fresh Readiness is v27. Policy v12,
+candidate v9, standard budget v2, OpenAI evidence v6, child output authority v1
+and QA Wizard bridge v2 are unchanged. Request v29, receipt v32 and readiness
+v30 are classified immutable legacy authority; the old two-detail terminal
+shape remains readable but cannot be current authority. Historical artifacts
+are neither rewritten nor re-digested.
+
+Validation is green: the unique touched/adjacent set passes **13 files / 539
+tests**; deterministic TypeScript, autonomous-story typecheck and
+`git diff --check` pass. One literal `npm run check` ran exactly once. Ordinary
+execution passed **3,236**, skipped **65** and failed exactly **5 assertions**
+across the four established missing ignored-output fixture specs. The
+resource-intensive phase passed **20 files / 599 tests**. Diagnostic protocols
+were valid; there was no timeout, RPC/IPC, reporter, launch, signal, teardown
+or other infrastructure failure. Those five missing-fixture assertions remain
+a separate release HOLD and are not waived.
+
+Implementation and tests cost `$0`. No credential, provider, Fresh Readiness,
+live, image, Vision, render, storage/database, deployment, production or push
+action occurred. Independent Claude Code review of the immutable implementation
+range is pending; Codex does not self-award technical PASS. No new paid attempt
+may run until that gate passes and the reviewed branch is pushed.
 
 ## BOOK-SURFACE ADMISSION COMPACT FALLBACK — independent technical PASS; pushed
 

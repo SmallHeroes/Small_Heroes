@@ -678,7 +678,7 @@ describe('canonical live request verification library', () => {
       materialized.manifest,
       (value) => {
         value.version =
-          'canonical-live-request-materialization/v26';
+          'canonical-live-request-materialization/v27';
       },
     );
     expect(

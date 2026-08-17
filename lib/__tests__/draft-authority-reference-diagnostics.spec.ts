@@ -21,8 +21,10 @@ import {
 } from '../visual-package/authoringTerminalDiagnostics';
 import {
   buildVisualContractAuthoringTerminalFailure,
+  legacyVisualContractAuthoringTerminalFailureIsValid,
   legacyVisualContractRepairOutputDiagnosticsIsValid,
   visualContractAuthoringTerminalFailureIsValid,
+  visualContractRepairRouteAdmissionDiagnosticsIsValid,
   visualContractRepairOutputDiagnosticsIsValid,
   visualContractRepairOutputDiagnosticsIsReadable,
   visualContractRepairOutputDiagnosticsVersionStatus,
@@ -562,7 +564,173 @@ describe('Visual Contract-specific terminal extension', () => {
     });
     expect(unrelated.authorityReferenceDiagnostics).toBeNull();
     expect(unrelated.repairOutputDiagnostics).toBeNull();
+    expect(unrelated.repairRouteAdmissionDiagnostics).toBeNull();
     expect(visualContractAuthoringTerminalFailureIsValid(unrelated)).toBe(true);
+    const legacyUnrelated = structuredClone(unrelated) as unknown as Record<
+      string,
+      unknown
+    >;
+    delete legacyUnrelated.repairRouteAdmissionDiagnostics;
+    expect(
+      legacyVisualContractAuthoringTerminalFailureIsValid(
+        legacyUnrelated,
+      ),
+    ).toBe(true);
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(legacyUnrelated),
+    ).toBe(false);
+  });
+
+  it('persists one exact repair-route admission detail slot on the existing terminal shape', () => {
+    const inputAccounting = {
+      systemBytes: 1_000,
+      userBytes: 55_000,
+      schemaBytes: 1_000,
+      separatorBytes: 2,
+      protocolAllowance: 4_096,
+      estimatedBytes: 61_098,
+    };
+    const failure = buildVisualContractAuthoringTerminalFailure({
+      code: 'repair_route_input_not_admissible',
+      issueCodes: ['repair_route_input_not_admissible'],
+      repairRouteAdmissionDiagnostics: {
+        repairAttempt: 3,
+        repairMode: 'book_surface_patch',
+        inputAccounting,
+        maxAdmissibleInputBytes: 59_904,
+        carriedDraftDiagnosticCount: 17,
+      },
+    });
+
+    expect(failure).toMatchObject({
+      code: 'repair_route_input_not_admissible',
+      phase: 'provider_admission',
+      errorClass: 'input_limit_violation',
+      repairEligibility: 'ineligible',
+      repairReasonCode: 'input_limit_not_repairable',
+      diagnosticCount: 18,
+      diagnosticCodes: ['repair_route_input_not_admissible'],
+      issues: ['repair_route_input_not_admissible'],
+      authorityReferenceDiagnostics: null,
+      repairOutputDiagnostics: null,
+    });
+    expect(failure.repairRouteAdmissionDiagnostics).toEqual({
+      version: 'visual-contract-repair-route-admission-diagnostics/v1',
+      repairAttempt: 3,
+      repairMode: 'book_surface_patch',
+      inputAccounting,
+      maxAdmissibleInputBytes: 59_904,
+      carriedDraftDiagnosticCount: 17,
+      routeAdmissionDiagnosticCount: 1,
+    });
+    expect(
+      visualContractRepairRouteAdmissionDiagnosticsIsValid(
+        failure.repairRouteAdmissionDiagnostics,
+      ),
+    ).toBe(true);
+    expect(visualContractAuthoringTerminalFailureIsValid(failure)).toBe(true);
+    expect(authoringTerminalFailureIsValid(failure)).toBe(false);
+
+    const currentWithoutRouteSlot = structuredClone(failure) as unknown as Record<
+      string,
+      unknown
+    >;
+    delete currentWithoutRouteSlot.repairRouteAdmissionDiagnostics;
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(currentWithoutRouteSlot),
+    ).toBe(false);
+    expect(
+      legacyVisualContractAuthoringTerminalFailureIsValid(
+        currentWithoutRouteSlot,
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects route-admission threshold, accounting, identity, count, and mutual-exclusion tampering', () => {
+    const valid = buildVisualContractAuthoringTerminalFailure({
+      code: 'repair_route_input_not_admissible',
+      issueCodes: ['repair_route_input_not_admissible'],
+      repairRouteAdmissionDiagnostics: {
+        repairAttempt: 3,
+        repairMode: 'book_surface_patch',
+        inputAccounting: {
+          systemBytes: 1_000,
+          userBytes: 55_000,
+          schemaBytes: 1_000,
+          separatorBytes: 2,
+          protocolAllowance: 4_096,
+          estimatedBytes: 61_098,
+        },
+        maxAdmissibleInputBytes: 59_904,
+        carriedDraftDiagnosticCount: 17,
+      },
+    });
+    const details = valid.repairRouteAdmissionDiagnostics!;
+    const invalidDetails = [
+      { ...details, version: 'visual-contract-repair-route-admission-diagnostics/v2' },
+      { ...details, repairAttempt: 1 },
+      { ...details, repairAttempt: 2 },
+      { ...details, repairMode: 'unknown_mode' },
+      { ...details, repairMode: 'full_draft' },
+      { ...details, maxAdmissibleInputBytes: 59_903 },
+      { ...details, carriedDraftDiagnosticCount: 0 },
+      { ...details, routeAdmissionDiagnosticCount: 2 },
+      { ...details, extra: true },
+      {
+        ...details,
+        inputAccounting: {
+          ...details.inputAccounting,
+          estimatedBytes: 59_904,
+        },
+      },
+      {
+        ...details,
+        inputAccounting: {
+          ...details.inputAccounting,
+          separatorBytes: 3,
+        },
+      },
+      {
+        ...details,
+        inputAccounting: {
+          ...details.inputAccounting,
+          protocolAllowance: 4_095,
+        },
+      },
+    ];
+    for (const repairRouteAdmissionDiagnostics of invalidDetails) {
+      expect(
+        visualContractAuthoringTerminalFailureIsValid({
+          ...valid,
+          repairRouteAdmissionDiagnostics,
+        }),
+      ).toBe(false);
+    }
+    expect(
+      visualContractAuthoringTerminalFailureIsValid({
+        ...valid,
+        diagnosticCount: 17,
+      }),
+    ).toBe(false);
+    expect(() =>
+      buildVisualContractAuthoringTerminalFailure({
+        code: 'provider_call_failed',
+        issueCodes: ['provider_call_failed'],
+        repairRouteAdmissionDiagnostics: {
+          repairAttempt: 3,
+          repairMode: 'book_surface_patch',
+          inputAccounting: details.inputAccounting,
+          maxAdmissibleInputBytes: 59_904,
+          carriedDraftDiagnosticCount: 17,
+        },
+      }),
+    ).toThrow(/matching terminal code/);
+    expect(() =>
+      buildVisualContractAuthoringTerminalFailure({
+        code: 'repair_route_input_not_admissible',
+        issueCodes: ['repair_route_input_not_admissible'],
+      }),
+    ).toThrow(/requires typed diagnostics/);
   });
 
   it('persists exact sanitized repair-output identity with explicit diagnostic provenance', () => {

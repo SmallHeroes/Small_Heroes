@@ -13,6 +13,13 @@ import {
   type TemplateRepairOutputFailureCode,
   type TemplateRepairOutputIdentity,
 } from '@/lib/visual-contract-compiler/templateRepairOutputDiagnostics';
+import {
+  VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
+  VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE,
+  VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
+  VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
+  type VisualContractAuthoringInputAccounting,
+} from '@/lib/visual-contract-compiler/authoringPolicy';
 
 import {
   MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT,
@@ -32,6 +39,41 @@ export interface VisualContractAuthoringTerminalFailure
     | VisualContractRepairOutputDiagnostics
     | LegacyVisualContractRepairOutputDiagnostics
     | null;
+  repairRouteAdmissionDiagnostics:
+    | VisualContractRepairRouteAdmissionDiagnostics
+    | null;
+}
+
+export interface LegacyVisualContractAuthoringTerminalFailure
+  extends AuthoringTerminalFailure {
+  authorityReferenceDiagnostics:
+    | DraftAuthorityReferenceDiagnostics
+    | null;
+  repairOutputDiagnostics:
+    | VisualContractRepairOutputDiagnostics
+    | LegacyVisualContractRepairOutputDiagnostics
+    | null;
+}
+
+export const VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION =
+  'visual-contract-repair-route-admission-diagnostics/v1' as const;
+
+export interface VisualContractRepairRouteAdmissionDiagnostics {
+  version: typeof VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION;
+  repairAttempt: number;
+  repairMode: TemplateRepairMode;
+  inputAccounting: VisualContractAuthoringInputAccounting;
+  maxAdmissibleInputBytes: number;
+  carriedDraftDiagnosticCount: number;
+  routeAdmissionDiagnosticCount: 1;
+}
+
+export interface VisualContractRepairRouteAdmissionDiagnosticsInput {
+  repairAttempt: number;
+  repairMode: TemplateRepairMode;
+  inputAccounting: VisualContractAuthoringInputAccounting;
+  maxAdmissibleInputBytes: number;
+  carriedDraftDiagnosticCount: number;
 }
 
 export const VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION =
@@ -87,6 +129,117 @@ const REPAIR_OUTPUT_DIAGNOSTIC_KEYS = [
   'repairOutputDiagnosticCount',
   'version',
 ].sort();
+
+const REPAIR_ROUTE_ADMISSION_INPUT_ACCOUNTING_KEYS = [
+  'estimatedBytes',
+  'protocolAllowance',
+  'schemaBytes',
+  'separatorBytes',
+  'systemBytes',
+  'userBytes',
+].sort();
+
+const REPAIR_ROUTE_ADMISSION_DIAGNOSTIC_KEYS = [
+  'carriedDraftDiagnosticCount',
+  'inputAccounting',
+  'maxAdmissibleInputBytes',
+  'repairAttempt',
+  'repairMode',
+  'routeAdmissionDiagnosticCount',
+  'version',
+].sort();
+
+function exactObjectKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+): boolean {
+  return (
+    JSON.stringify(Object.keys(value).sort()) ===
+    JSON.stringify(expected)
+  );
+}
+
+export function visualContractRepairRouteAdmissionDiagnosticsIsValid(
+  value: unknown,
+): value is VisualContractRepairRouteAdmissionDiagnostics {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const diagnostics = value as Record<string, unknown>;
+  const accounting = diagnostics.inputAccounting;
+  if (
+    !exactObjectKeys(
+      diagnostics,
+      REPAIR_ROUTE_ADMISSION_DIAGNOSTIC_KEYS,
+    ) ||
+    accounting === null ||
+    typeof accounting !== 'object' ||
+    Array.isArray(accounting)
+  ) {
+    return false;
+  }
+  const inputAccounting = accounting as Record<string, unknown>;
+  const numericAccounting = [
+    inputAccounting.systemBytes,
+    inputAccounting.userBytes,
+    inputAccounting.schemaBytes,
+    inputAccounting.separatorBytes,
+    inputAccounting.protocolAllowance,
+    inputAccounting.estimatedBytes,
+  ];
+  return (
+    exactObjectKeys(
+      inputAccounting,
+      REPAIR_ROUTE_ADMISSION_INPUT_ACCOUNTING_KEYS,
+    ) &&
+    diagnostics.version ===
+      VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION &&
+    diagnostics.repairAttempt ===
+      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS &&
+    diagnostics.repairMode === 'book_surface_patch' &&
+    diagnostics.maxAdmissibleInputBytes ===
+      VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS -
+        VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN &&
+    Number.isSafeInteger(diagnostics.carriedDraftDiagnosticCount) &&
+    (diagnostics.carriedDraftDiagnosticCount as number) >= 1 &&
+    diagnostics.routeAdmissionDiagnosticCount === 1 &&
+    numericAccounting.every(
+      (entry) => Number.isSafeInteger(entry) && Number(entry) >= 0,
+    ) &&
+    inputAccounting.separatorBytes === 2 &&
+    inputAccounting.protocolAllowance ===
+      VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE &&
+    inputAccounting.estimatedBytes ===
+      (inputAccounting.systemBytes as number) +
+        (inputAccounting.userBytes as number) +
+        (inputAccounting.schemaBytes as number) +
+        (inputAccounting.separatorBytes as number) +
+        (inputAccounting.protocolAllowance as number) &&
+    (inputAccounting.estimatedBytes as number) >
+      (diagnostics.maxAdmissibleInputBytes as number)
+  );
+}
+
+function buildVisualContractRepairRouteAdmissionDiagnostics(
+  input: VisualContractRepairRouteAdmissionDiagnosticsInput,
+): VisualContractRepairRouteAdmissionDiagnostics {
+  const diagnostics: VisualContractRepairRouteAdmissionDiagnostics = {
+    version:
+      VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION,
+    repairAttempt: input.repairAttempt,
+    repairMode: input.repairMode,
+    inputAccounting: { ...input.inputAccounting },
+    maxAdmissibleInputBytes: input.maxAdmissibleInputBytes,
+    carriedDraftDiagnosticCount: input.carriedDraftDiagnosticCount,
+    routeAdmissionDiagnosticCount: 1,
+  };
+  if (!visualContractRepairRouteAdmissionDiagnosticsIsValid(diagnostics)) {
+    throw new Error(
+      'Visual Contract repair-route admission diagnostics input is invalid',
+    );
+  }
+  return diagnostics;
+}
 
 export function visualContractRepairOutputDiagnosticCodeFor(
   failureCode: TemplateRepairOutputFailureCode,
@@ -219,8 +372,14 @@ const VISUAL_CONTRACT_TERMINAL_FAILURE_KEYS = [
   'phase',
   'repairEligibility',
   'repairOutputDiagnostics',
+  'repairRouteAdmissionDiagnostics',
   'repairReasonCode',
 ].sort();
+
+const LEGACY_VISUAL_CONTRACT_TERMINAL_FAILURE_KEYS =
+  VISUAL_CONTRACT_TERMINAL_FAILURE_KEYS.filter(
+    (key) => key !== 'repairRouteAdmissionDiagnostics',
+  );
 
 export function buildVisualContractAuthoringTerminalFailure(args: {
   code: AuthoringTerminalFailureCode;
@@ -230,6 +389,8 @@ export function buildVisualContractAuthoringTerminalFailure(args: {
   issueCodes?: readonly unknown[];
   authorityReferenceIssues?: readonly DraftAuthorityReferenceIssue[];
   repairOutputDiagnostics?: VisualContractRepairOutputDiagnosticsInput;
+  repairRouteAdmissionDiagnostics?:
+    VisualContractRepairRouteAdmissionDiagnosticsInput;
 }): VisualContractAuthoringTerminalFailure {
   if (
     args.code !== 'draft_authority_reference_domain_invalid' &&
@@ -237,6 +398,22 @@ export function buildVisualContractAuthoringTerminalFailure(args: {
   ) {
     throw new Error(
       'Visual Contract authority/reference diagnostics require the matching terminal code',
+    );
+  }
+  if (
+    args.code !== 'repair_route_input_not_admissible' &&
+    args.repairRouteAdmissionDiagnostics !== undefined
+  ) {
+    throw new Error(
+      'Visual Contract repair-route admission diagnostics require the matching terminal code',
+    );
+  }
+  if (
+    args.code === 'repair_route_input_not_admissible' &&
+    args.repairRouteAdmissionDiagnostics === undefined
+  ) {
+    throw new Error(
+      'Visual Contract repair-route admission terminal requires typed diagnostics',
     );
   }
   if (
@@ -275,6 +452,12 @@ export function buildVisualContractAuthoringTerminalFailure(args: {
       : buildVisualContractRepairOutputDiagnostics(
           args.repairOutputDiagnostics,
         );
+  const repairRouteAdmissionDiagnostics =
+    args.repairRouteAdmissionDiagnostics === undefined
+      ? null
+      : buildVisualContractRepairRouteAdmissionDiagnostics(
+          args.repairRouteAdmissionDiagnostics,
+        );
   const shared = buildAuthoringTerminalFailure({
     code: args.code,
     diagnosticInputs:
@@ -282,11 +465,14 @@ export function buildVisualContractAuthoringTerminalFailure(args: {
         ? ['authority_reference_validation_failed']
         : args.diagnosticInputs,
     diagnosticCountOverride:
-      repairOutputDiagnostics === null
-        ? authorityReferenceDiagnostics?.totalCount ??
-          args.diagnosticCountOverride
-        : repairOutputDiagnostics.carriedDraftDiagnosticCount +
-          repairOutputDiagnostics.repairOutputDiagnosticCount,
+      repairRouteAdmissionDiagnostics !== null
+        ? repairRouteAdmissionDiagnostics.carriedDraftDiagnosticCount +
+          repairRouteAdmissionDiagnostics.routeAdmissionDiagnosticCount
+        : repairOutputDiagnostics === null
+          ? authorityReferenceDiagnostics?.totalCount ??
+            args.diagnosticCountOverride
+          : repairOutputDiagnostics.carriedDraftDiagnosticCount +
+            repairOutputDiagnostics.repairOutputDiagnosticCount,
     diagnosticCodeOverride:
       repairOutputDiagnostics === null
         ? args.diagnosticCodeOverride
@@ -299,6 +485,7 @@ export function buildVisualContractAuthoringTerminalFailure(args: {
     ...shared,
     authorityReferenceDiagnostics,
     repairOutputDiagnostics,
+    repairRouteAdmissionDiagnostics,
   };
 }
 
@@ -318,9 +505,89 @@ export function visualContractAuthoringTerminalFailureIsValid(
   const {
     authorityReferenceDiagnostics,
     repairOutputDiagnostics,
+    repairRouteAdmissionDiagnostics,
     ...shared
   } = extended;
   if (!authoringTerminalFailureIsValid(shared)) return false;
+  const authorityDiagnosticsAreValid =
+    shared.code === 'draft_authority_reference_domain_invalid'
+      ? draftAuthorityReferenceDiagnosticsIsValid(
+          authorityReferenceDiagnostics,
+        ) &&
+        authorityReferenceDiagnostics.totalCount > 0 &&
+        shared.diagnosticCount ===
+          Math.min(
+            authorityReferenceDiagnostics.totalCount,
+            MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT,
+          ) &&
+        shared.diagnosticCodes.includes(
+          'authority_reference_validation_failed',
+        )
+      : authorityReferenceDiagnostics === null;
+  if (!authorityDiagnosticsAreValid) return false;
+  if (shared.code === 'repair_route_input_not_admissible') {
+    return (
+      repairOutputDiagnostics === null &&
+      visualContractRepairRouteAdmissionDiagnosticsIsValid(
+        repairRouteAdmissionDiagnostics,
+      ) &&
+      shared.diagnosticCount ===
+        Math.min(
+          repairRouteAdmissionDiagnostics.carriedDraftDiagnosticCount +
+            repairRouteAdmissionDiagnostics.routeAdmissionDiagnosticCount,
+          MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT,
+        ) &&
+      shared.diagnosticCodes.includes(
+        'repair_route_input_not_admissible',
+      )
+    );
+  }
+  if (repairRouteAdmissionDiagnostics !== null) return false;
+  if (shared.code !== 'repair_output_invalid') {
+    return repairOutputDiagnostics === null;
+  }
+  return (
+    visualContractRepairOutputDiagnosticsIsReadable(
+      repairOutputDiagnostics,
+    ) &&
+    shared.diagnosticCount ===
+      Math.min(
+        repairOutputDiagnostics.carriedDraftDiagnosticCount +
+          repairOutputDiagnostics.repairOutputDiagnosticCount,
+        MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT,
+      ) &&
+    shared.diagnosticCodes.includes(
+      visualContractRepairOutputDiagnosticCodeFor(
+        repairOutputDiagnostics.failureCode,
+      ),
+    )
+  );
+}
+
+export function legacyVisualContractAuthoringTerminalFailureIsValid(
+  value: unknown,
+): value is LegacyVisualContractAuthoringTerminalFailure {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const extended = value as Record<string, unknown>;
+  if (
+    JSON.stringify(Object.keys(extended).sort()) !==
+    JSON.stringify(LEGACY_VISUAL_CONTRACT_TERMINAL_FAILURE_KEYS)
+  ) {
+    return false;
+  }
+  const {
+    authorityReferenceDiagnostics,
+    repairOutputDiagnostics,
+    ...shared
+  } = extended;
+  if (
+    !authoringTerminalFailureIsValid(shared) ||
+    shared.code === 'repair_route_input_not_admissible'
+  ) {
+    return false;
+  }
   const authorityDiagnosticsAreValid =
     shared.code === 'draft_authority_reference_domain_invalid'
       ? draftAuthorityReferenceDiagnosticsIsValid(

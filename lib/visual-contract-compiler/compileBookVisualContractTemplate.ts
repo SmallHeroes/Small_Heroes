@@ -72,6 +72,7 @@ import {
   VISUAL_CONTRACT_AUTHORING_NO_FALLBACK,
   VISUAL_CONTRACT_AUTHORING_PROVIDER,
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT,
+  VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
   VISUAL_CONTRACT_AUTHORING_SERVICE_TIER,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS,
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS,
@@ -83,7 +84,9 @@ import {
   authoringMaxOutputTokens,
   authoringStandardAttemptOutputLimits,
   terminalReferenceCleanupPredecessorIsEligible,
+  visualContractAuthoringInputAccounting,
   visualContractAuthoringRouteIsAdmissible,
+  type VisualContractAuthoringInputAccounting,
 } from './authoringPolicy';
 import {
   ACTION_SEMANTIC_CATALOG,
@@ -708,6 +711,49 @@ export class TemplateRepairOutputInvalidError extends Error {
   ) {
     super('completed template repair output was unusable');
     this.name = 'TemplateRepairOutputInvalidError';
+    this.attempts = attempts.map((attempt) => ({
+      attempt: attempt.attempt,
+      diagnosticIssues: attempt.diagnosticIssues,
+      ...(attempt.nextRepairMode
+        ? { nextRepairMode: attempt.nextRepairMode }
+        : {}),
+      ...(attempt.nextRepairBudgetClass
+        ? {
+            nextRepairBudgetClass:
+              attempt.nextRepairBudgetClass,
+          }
+        : {}),
+    }));
+    this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
+      attempts.map((attempt) => attempt.diagnosticIssues),
+    );
+  }
+}
+
+/**
+ * A compiler-selected repair route whose complete structured request cannot
+ * fit inside the immutable provider input ceiling. This is raised before the
+ * provider is called and carries only deterministic byte accounting plus the
+ * sanitized validation trail; prompts and rejected draft bytes never cross
+ * the boundary.
+ */
+export class TemplateRepairRouteAdmissionError extends Error {
+  readonly draftValidationDiagnostics: readonly DraftValidationAttemptDiagnostics[];
+  readonly attempts: readonly TemplateRepairSummary[];
+  readonly repairMode: TemplateRepairMode;
+  readonly inputAccounting: VisualContractAuthoringInputAccounting;
+
+  constructor(
+    attempts: readonly TemplateRepairAttempt[],
+    readonly repairAttempt: number,
+    repairMode: TemplateRepairMode,
+    inputAccounting: VisualContractAuthoringInputAccounting,
+    readonly maxAdmissibleInputBytes: number,
+  ) {
+    super('template repair route input was not admissible');
+    this.name = 'TemplateRepairRouteAdmissionError';
+    this.repairMode = repairMode;
+    this.inputAccounting = { ...inputAccounting };
     this.attempts = attempts.map((attempt) => ({
       attempt: attempt.attempt,
       diagnosticIssues: attempt.diagnosticIssues,
@@ -3808,6 +3854,9 @@ export async function compileBookVisualContractTemplate(
     let bookSurfaceRepairPrompts:
       | { systemPrompt: string; userPrompt: string }
       | undefined;
+    let bookSurfaceRouteAdmissionAccounting:
+      | VisualContractAuthoringInputAccounting
+      | undefined;
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
@@ -4125,6 +4174,12 @@ export async function compileBookVisualContractTemplate(
       const userPrompt = buildBookSurfaceRepairUserPrompt({
         authority: bookSurfaceAuthority,
       });
+      const inputAccounting =
+        visualContractAuthoringInputAccounting(
+          systemPrompt,
+          userPrompt,
+          BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+        );
       if (
         visualContractAuthoringRouteIsAdmissible({
           systemPrompt,
@@ -4145,9 +4200,13 @@ export async function compileBookVisualContractTemplate(
         // targets when their compact request independently fits. Full
         // validation after that patch can then expose the existing pure
         // structural Book Surface route without widening either authority.
-        const fallbackTargets =
-          bookSurfaceAdmissionFallbackTargets;
-        if (fallbackTargets) {
+        const fallbackTargets = bookSurfaceAdmissionFallbackTargets;
+        const presentationSplitHasStructuralFollowupSlot =
+          attempt < STANDARD_MAX_REPAIR_ATTEMPTS;
+        if (
+          fallbackTargets &&
+          presentationSplitHasStructuralFollowupSlot
+        ) {
           const fallbackSystemPrompt =
             buildPresentationRequirementRepairSystemPrompt();
           const fallbackUserPrompt =
@@ -4168,6 +4227,9 @@ export async function compileBookVisualContractTemplate(
             ];
           }
         }
+        if (attempt === STANDARD_MAX_REPAIR_ATTEMPTS) {
+          bookSurfaceRouteAdmissionAccounting = inputAccounting;
+        }
         bookSurfaceAuthority = undefined;
       }
     }
@@ -4179,6 +4241,22 @@ export async function compileBookVisualContractTemplate(
       diagnosticIssues: attemptDiagnosticIssues,
       draft,
     });
+
+    if (bookSurfaceRouteAdmissionAccounting) {
+      repairAttempts[repairAttempts.length - 1]!.nextRepairMode =
+        'book_surface_patch';
+      repairAttempts[
+        repairAttempts.length - 1
+      ]!.nextRepairBudgetClass = 'standard';
+      throw new TemplateRepairRouteAdmissionError(
+        repairAttempts,
+        attempt + 1,
+        'book_surface_patch',
+        bookSurfaceRouteAdmissionAccounting,
+        bookSurfaceRepairLlmOpts.maxInputTokens -
+          VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
+      );
+    }
 
     const precedingRepairMode =
       repairAttempts[repairAttempts.length - 2]?.nextRepairMode;

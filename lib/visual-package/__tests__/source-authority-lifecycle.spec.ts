@@ -609,13 +609,13 @@ function liveShapedAtomicBindingFixture(
 ): {
   initial: BookVisualContractTemplate & Record<string, unknown>;
   validBookSurfaceRepair: {
-    coverContract: unknown;
-    recurringProps: unknown;
+    coverContract: Record<string, unknown>;
+    recurringProps: Record<string, unknown>[];
     pageContracts: Record<string, unknown>[];
   };
   invalidBookSurfaceRepair: {
-    coverContract: unknown;
-    recurringProps: unknown;
+    coverContract: Record<string, unknown>;
+    recurringProps: Record<string, unknown>[];
     pageContracts: Record<string, unknown>[];
   };
 } {
@@ -793,15 +793,89 @@ function liveShapedAtomicBindingFixture(
   return {
     initial,
     validBookSurfaceRepair: {
-      coverContract: structuredClone(valid.coverContract),
-      recurringProps: structuredClone(valid.recurringProps),
+      coverContract: structuredClone(
+        valid.coverContract,
+      ) as unknown as Record<string, unknown>,
+      recurringProps: structuredClone(
+        valid.recurringProps,
+      ) as unknown as Record<string, unknown>[],
       pageContracts: validBookSurfacePages,
     },
     invalidBookSurfaceRepair: {
-      coverContract: structuredClone(afterAtomicPageRepair.coverContract),
-      recurringProps: structuredClone(valid.recurringProps),
+      coverContract: structuredClone(
+        afterAtomicPageRepair.coverContract,
+      ) as unknown as Record<string, unknown>,
+      recurringProps: structuredClone(
+        valid.recurringProps,
+      ) as unknown as Record<string, unknown>[],
       pageContracts: invalidBookSurfacePages,
     },
+  };
+}
+
+function bookSurfaceStructuralPatch(
+  page: Record<string, unknown>,
+): Record<string, unknown> {
+  return structuredClone({
+    pageNumber: page.pageNumber,
+    locationId: page.locationId,
+    zoneId: page.zoneId,
+    sameLocationAs: page.sameLocationAs,
+    mustShow: page.mustShow,
+    mustNotShow: page.mustNotShow,
+    propState: page.propState,
+    propConstraints: page.propConstraints,
+    actionRequirements: page.actionRequirements,
+    camera: page.camera,
+    transition: page.transition,
+  });
+}
+
+function bookSurfaceV4Response(args: {
+  payload: Record<string, unknown>;
+  repaired: {
+    coverContract: Record<string, unknown>;
+    recurringProps: Record<string, unknown>[];
+    pageContracts: Record<string, unknown>[];
+  };
+}): Record<string, unknown> {
+  const presentationTargets = args.payload.presentationTargets as
+    | PresentationRequirementRepairTarget[]
+    | undefined;
+  const affectedPages = args.payload.affectedPages as
+    | Array<{ pageNumber: number }>
+    | undefined;
+  if (!presentationTargets || !affectedPages) {
+    throw new Error('missing book-surface v4 fixture authority');
+  }
+  const repairedPages = new Map(
+    args.repaired.pageContracts.map((page) => [page.pageNumber, page]),
+  );
+  return {
+    presentationPatches: presentationTargets.map((target) => ({
+      pageNumber: target.pageNumber,
+      coverageIndex: target.coverageIndex,
+      beatId: target.beatId,
+      sourceEvidenceId: target.sourceEvidenceId,
+      presentationClass: 'composition_focus',
+      contractPointer:
+        target.permittedPointerValues[0]!.contractPointer,
+    })),
+    coverContract:
+      args.payload.coverAuthority === null
+        ? null
+        : structuredClone(args.repaired.coverContract),
+    recurringProps:
+      args.payload.recurringPropAuthority === null
+        ? null
+        : structuredClone(args.repaired.recurringProps),
+    pageStructuralPatches: affectedPages.map((affectedPage) => {
+      const repairedPage = repairedPages.get(affectedPage.pageNumber);
+      if (!repairedPage) {
+        throw new Error('missing repaired book-surface page fixture');
+      }
+      return bookSurfaceStructuralPatch(repairedPage);
+    }),
   };
 }
 
@@ -1695,7 +1769,7 @@ describe('exact zero-cost authoring preflight', () => {
         write: false,
       }),
     ).toThrow(
-      /readiness v30 requires exact typed draft-validation evidence/,
+      /readiness v31 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -2272,7 +2346,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v30',
+      version: 'visual-contract-authoring-readiness/v31',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -2336,7 +2410,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v30',
+      version: 'visual-contract-authoring-readiness/v31',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -2632,6 +2706,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v29',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v30',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -2794,6 +2874,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v32',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v33',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -2895,6 +2981,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v30',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v31',
       ),
     ).toBe('current');
     expect(
@@ -3087,7 +3179,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).toThrow(
-      /receipt v32 requires exact typed draft-validation evidence/,
+      /receipt v33 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -3136,7 +3228,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v32',
+      'visual-contract-authoring-receipt/v33',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -4482,7 +4574,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v30 requires exact typed draft-validation evidence/);
+    ).toThrow(/readiness v31 requires exact typed draft-validation evidence/);
   });
 
   it('records the compact source-evidence repair as a bounded second provider call', async () => {
@@ -4728,32 +4820,20 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           const payload = decodeBookSurfaceRepairUserPrompt(
             args.userPrompt,
           );
-          const affectedPages = payload.affectedPages as Array<{
-            pageNumber: number;
-            pageContract: Record<string, unknown>;
-          }>;
-          output = {
-            coverContract: structuredClone(valid.coverContract),
-            recurringProps: structuredClone(valid.recurringProps),
-            pageContracts: affectedPages.map((affectedPage) => {
-              const matchingValidPage = valid.pageContracts.find(
-                (page) => page.pageNumber === affectedPage.pageNumber,
-              );
-              if (!matchingValidPage) {
-                throw new Error(
-                  `missing pure structural repair page ${affectedPage.pageNumber}`,
-                );
-              }
-              const replacement = structuredClone(
-                affectedPage.pageContract,
-              );
-              delete replacement.castIds;
-              delete replacement.castStates;
-              delete replacement.characterPresence;
-              replacement.camera = matchingValidPage.camera;
-              return replacement;
-            }),
-          };
+          output = bookSurfaceV4Response({
+            payload,
+            repaired: {
+              coverContract: structuredClone(
+                valid.coverContract,
+              ) as unknown as Record<string, unknown>,
+              recurringProps: structuredClone(
+                valid.recurringProps,
+              ) as unknown as Record<string, unknown>[],
+              pageContracts: structuredClone(
+                valid.pageContracts,
+              ) as unknown as Record<string, unknown>[],
+            },
+          });
         }
         return {
           output: JSON.stringify(output),
@@ -5404,7 +5484,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         const output =
           args.attempt === 1
             ? fixture.initial
-            : fixture.validBookSurfaceRepair;
+            : bookSurfaceV4Response({
+                payload: decodeBookSurfaceRepairUserPrompt(
+                  args.userPrompt,
+                ),
+                repaired: fixture.validBookSurfaceRepair,
+              });
         return {
           output: JSON.stringify(output),
           receipt: {
@@ -5480,7 +5565,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const bookSurfacePayload = decodeBookSurfaceRepairUserPrompt(
       bookSurfaceCall.userPrompt,
     );
-    expect(bookSurfacePayload.repairRecurringProps).toBe(true);
+    expect(bookSurfacePayload.recurringPropAuthority).not.toBeNull();
     expect(
       (bookSurfacePayload.affectedPages as Array<{ pageNumber: number }>).map(
         (page) => page.pageNumber,
@@ -5536,7 +5621,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
             })),
           };
         } else {
-          output = fixture.validBookSurfaceRepair;
+          output = bookSurfaceV4Response({
+            payload: decodeBookSurfaceRepairUserPrompt(
+              args.userPrompt,
+            ),
+            repaired: fixture.validBookSurfaceRepair,
+          });
         }
         return {
           output: JSON.stringify(output),
@@ -5592,7 +5682,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const bookSurfacePayload = decodeBookSurfaceRepairUserPrompt(
       calls[2]!.userPrompt,
     );
-    expect(bookSurfacePayload.repairRecurringProps).toBe(true);
+    expect(bookSurfacePayload.recurringPropAuthority).not.toBeNull();
     expect(
       (bookSurfacePayload.affectedPages as Array<{ pageNumber: number }>).map(
         (page) => page.pageNumber,
@@ -5626,28 +5716,20 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         if (args.attempt === 1) {
           output = fixture.initial;
         } else if (args.attempt === 2) {
-          output = fixture.invalidBookSurfaceRepair;
+          output = bookSurfaceV4Response({
+            payload: decodeBookSurfaceRepairUserPrompt(
+              args.userPrompt,
+            ),
+            repaired: fixture.invalidBookSurfaceRepair,
+          });
         } else {
           const payload = decodeBookSurfaceRepairUserPrompt(
             args.userPrompt,
           );
-          output = {
-            coverContract: structuredClone(payload.coverContract),
-            recurringProps: structuredClone(payload.recurringProps),
-            pageContracts: (
-              payload.affectedPages as Array<{
-                pageContract: Record<string, unknown>;
-              }>
-            ).map((affectedPage) => {
-              const replacement = structuredClone(
-                affectedPage.pageContract,
-              );
-              delete replacement.castIds;
-              delete replacement.castStates;
-              delete replacement.characterPresence;
-              return replacement;
-            }),
-          };
+          output = bookSurfaceV4Response({
+            payload,
+            repaired: fixture.invalidBookSurfaceRepair,
+          });
         }
         return {
           output: JSON.stringify(output),
@@ -5788,7 +5870,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v32',
+      version: 'visual-contract-authoring-receipt/v33',
       status: 'completed',
       callCount: 3,
       repairCount: 2,
@@ -6127,7 +6209,289 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         request,
         receipt: tampered,
       }),
-    ).toThrow(/readiness v30 requires current/);
+    ).toThrow(/readiness v31 requires current/);
+  });
+
+  it('records a final-slot BookSurface route-admission refusal without inventing a third provider attempt', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const providerDraft = () => {
+      const draft = fullyActionedBunnyDraft(snapshot);
+      for (const page of draft.pageContracts) {
+        const pageRecord = page as unknown as Record<string, unknown>;
+        delete pageRecord.castIds;
+        delete pageRecord.castStates;
+        delete pageRecord.characterPresence;
+        page.propConstraints ??= [];
+      }
+      return draft;
+    };
+    const firstAttempt = providerDraft();
+    firstAttempt.worldType = '';
+
+    const finalSlotMixed = providerDraft();
+    finalSlotMixed.coverContract.mustShow = [''];
+    finalSlotMixed.pageContracts[0]!.camera = '';
+    const sentinel = 'route-admission-sentinel-';
+    const structurallyAuthorizedUniqueBytes = Array.from(
+      { length: 18_000 },
+      (_value, index) => String.fromCodePoint(0x10000 + index),
+    ).join('');
+    finalSlotMixed.pageContracts[0]!.mustNotShow = [
+      ...finalSlotMixed.pageContracts[0]!.mustNotShow,
+      `${sentinel}${structurallyAuthorizedUniqueBytes}`,
+    ];
+    const presentationPage = finalSlotMixed.pageContracts[1]! as
+      PageVisualContract & {
+        actionSemanticCoverage: Array<{
+          beatId: string;
+          sourceEvidenceId: string;
+          disposition: Record<string, unknown>;
+        }>;
+      };
+    const presentationCoverage =
+      presentationPage.actionSemanticCoverage[0]!;
+    presentationPage.actionRequirements = (
+      presentationPage.actionRequirements ?? []
+    ).filter(
+      (action) =>
+        (action as unknown as { beatId?: string }).beatId !==
+        presentationCoverage.beatId,
+    );
+    presentationCoverage.disposition = {
+      kind: 'unsupported',
+      reason: 'closed_action_catalog_gap',
+    };
+
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => ({
+        output: JSON.stringify(
+          args.attempt === 1 ? firstAttempt : finalSlotMixed,
+        ),
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: `route-admission-${args.attempt}`,
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 2_000,
+            total_tokens: 3_000,
+            output_tokens_details: { reasoning_tokens: 500 },
+          },
+        },
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(result.compileResult).toBeNull();
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 2,
+      repairCount: 1,
+      candidateDigest: null,
+      reconciliationDigest: null,
+      draftValidationStatus: 'interrupted',
+      failure: {
+        code: 'repair_route_input_not_admissible',
+        diagnosticCodes: ['repair_route_input_not_admissible'],
+        repairEligibility: 'ineligible',
+        repairRouteAdmissionDiagnostics: {
+          version:
+            'visual-contract-repair-route-admission-diagnostics/v1',
+          repairAttempt: 3,
+          repairMode: 'book_surface_patch',
+          maxAdmissibleInputBytes: 59_904,
+          routeAdmissionDiagnosticCount: 1,
+        },
+      },
+    });
+    expect(result.receipt.attempts).toHaveLength(2);
+    expect(
+      result.receipt.attempts.map((attempt) => attempt.repairMode),
+    ).toEqual([null, 'full_draft']);
+    expect(
+      result.receipt.attempts[1]!.draftValidationDiagnostics,
+    ).toMatchObject({ finalAttempt: true });
+    const failure = result.receipt.failure!;
+    const routeDiagnostics =
+      failure.repairRouteAdmissionDiagnostics!;
+    expect(routeDiagnostics.inputAccounting.estimatedBytes).toBe(
+      routeDiagnostics.inputAccounting.systemBytes +
+        routeDiagnostics.inputAccounting.userBytes +
+        routeDiagnostics.inputAccounting.schemaBytes +
+        routeDiagnostics.inputAccounting.separatorBytes +
+        routeDiagnostics.inputAccounting.protocolAllowance,
+    );
+    expect(routeDiagnostics.inputAccounting.estimatedBytes)
+      .toBeGreaterThan(routeDiagnostics.maxAdmissibleInputBytes);
+    const carriedDraftDiagnosticCount = result.receipt.attempts.reduce(
+      (count, attempt) =>
+        count +
+        (attempt.draftValidationDiagnostics?.emittedCount ?? 0),
+      0,
+    );
+    expect(routeDiagnostics.carriedDraftDiagnosticCount).toBe(
+      carriedDraftDiagnosticCount,
+    );
+    expect(failure.diagnosticCount).toBe(
+      Math.min(carriedDraftDiagnosticCount + 1, 128),
+    );
+    expect(visualContractAuthoringTerminalFailureIsValid(failure))
+      .toBe(true);
+    expect(JSON.stringify(result.receipt)).not.toContain(sentinel);
+
+    const readiness = buildVisualContractAuthoringReadinessEvidence({
+      snapshot,
+      request,
+      receipt: result.receipt,
+    });
+    expect(readiness.authoringOutcome).toEqual({
+      status: result.receipt.status,
+      failureCode: failure.code,
+      terminalClassification: failure,
+    });
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/route-admission',
+        receipt: result.receipt,
+        write: false,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      persistVisualContractAuthoringReadiness({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/route-admission',
+        evidence: readiness,
+        receipt: result.receipt,
+        write: false,
+      }),
+    ).not.toThrow();
+
+    const tamperedReceipt = structuredClone(result.receipt);
+    tamperedReceipt.failure!.repairRouteAdmissionDiagnostics!
+      .maxAdmissibleInputBytes = 59_903;
+    const {
+      digestAlgorithm: _tamperedReceiptDigestAlgorithm,
+      digest: _tamperedReceiptDigest,
+      ...tamperedReceiptPayload
+    } = tamperedReceipt;
+    tamperedReceipt.digest = canonicalJsonDigest(
+      tamperedReceiptPayload,
+    );
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/route-admission-tamper',
+        receipt: tamperedReceipt,
+        write: false,
+      }),
+    ).toThrow(/receipt v33 requires/);
+
+    for (const mutate of [
+      (receipt: typeof result.receipt) => {
+        receipt.failure!.repairRouteAdmissionDiagnostics!
+          .repairAttempt = 2;
+      },
+      (receipt: typeof result.receipt) => {
+        receipt.failure!.repairRouteAdmissionDiagnostics!
+          .repairMode = 'full_draft';
+      },
+    ]) {
+      const routeIdentityTamper = structuredClone(result.receipt);
+      mutate(routeIdentityTamper);
+      const {
+        digestAlgorithm: _routeIdentityDigestAlgorithm,
+        digest: _routeIdentityDigest,
+        ...routeIdentityPayload
+      } = routeIdentityTamper;
+      routeIdentityTamper.digest = canonicalJsonDigest(
+        routeIdentityPayload,
+      );
+      expect(() =>
+        persistVisualContractAuthoringReceipt({
+          repoRoot: tempRoot(),
+          outputDir: 'outputs/route-admission-identity-tamper',
+          receipt: routeIdentityTamper,
+          write: false,
+        }),
+      ).toThrow(/receipt v33 requires/);
+    }
+
+    const tamperedReadiness = structuredClone(readiness);
+    tamperedReadiness.authoringOutcome.terminalClassification = null;
+    const {
+      digestAlgorithm: _tamperedReadinessDigestAlgorithm,
+      digest: _tamperedReadinessDigest,
+      ...tamperedReadinessPayload
+    } = tamperedReadiness;
+    tamperedReadiness.digest = canonicalJsonDigest(
+      tamperedReadinessPayload,
+    );
+    expect(() =>
+      persistVisualContractAuthoringReadiness({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/route-admission-readiness-tamper',
+        evidence: tamperedReadiness,
+        receipt: result.receipt,
+        write: false,
+      }),
+    ).toThrow(/readiness v31 requires/);
+
+    const legacyReceipt = structuredClone(result.receipt);
+    (legacyReceipt as unknown as { version: string }).version =
+      'visual-contract-authoring-receipt/v32';
+    const {
+      digestAlgorithm: _legacyReceiptDigestAlgorithm,
+      digest: _legacyReceiptDigest,
+      ...legacyReceiptPayload
+    } = legacyReceipt;
+    legacyReceipt.digest = canonicalJsonDigest(legacyReceiptPayload);
+    const legacyBoundReadiness = structuredClone(readiness);
+    legacyBoundReadiness.authoringReceiptDigest = legacyReceipt.digest;
+    const {
+      digestAlgorithm: _legacyReadinessDigestAlgorithm,
+      digest: _legacyReadinessDigest,
+      ...legacyReadinessPayload
+    } = legacyBoundReadiness;
+    legacyBoundReadiness.digest = canonicalJsonDigest(
+      legacyReadinessPayload,
+    );
+    expect(() =>
+      persistVisualContractAuthoringReadiness({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/route-admission-legacy-receipt',
+        evidence: legacyBoundReadiness,
+        receipt: legacyReceipt as unknown as typeof result.receipt,
+        write: false,
+      }),
+    ).toThrow(/receipt v33 requires/);
+
+    const crossBoundReadiness = structuredClone(readiness);
+    crossBoundReadiness.sourceSnapshotDigest = '0'.repeat(64);
+    const {
+      digestAlgorithm: _crossBoundReadinessDigestAlgorithm,
+      digest: _crossBoundReadinessDigest,
+      ...crossBoundReadinessPayload
+    } = crossBoundReadiness;
+    crossBoundReadiness.digest = canonicalJsonDigest(
+      crossBoundReadinessPayload,
+    );
+    expect(() =>
+      persistVisualContractAuthoringReadiness({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/route-admission-cross-binding',
+        evidence: crossBoundReadiness,
+        receipt: result.receipt,
+        write: false,
+      }),
+    ).toThrow(/readiness v31 requires/);
   });
 
   it('bridges a current candidate presentation requirement into pending Semantic Reconciliation without self-approval', async () => {
@@ -6520,6 +6884,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
   it('records a bounded book-surface repair without resending unrelated global draft authority', async () => {
     const snapshot = bunnySnapshot();
     const valid = fullyActionedBunnyDraft(snapshot);
+    for (const page of valid.pageContracts) {
+      page.propConstraints ??= [];
+    }
     for (const prop of valid.recurringProps) {
       const draftProp = prop as unknown as Record<string, unknown>;
       if (
@@ -6597,15 +6964,22 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         const output =
           providerCall === 1
             ? invalid
-            : {
-                coverContract: valid.coverContract,
-                recurringProps: (
-                  decodeBookSurfaceRepairUserPrompt(
-                    args.userPrompt,
-                  ).recurringProps as Record<string, unknown>[]
+            : bookSurfaceV4Response({
+                payload: decodeBookSurfaceRepairUserPrompt(
+                  args.userPrompt,
                 ),
-                pageContracts: [repairedPage],
-              };
+                repaired: {
+                  coverContract: structuredClone(
+                    valid.coverContract,
+                  ) as unknown as Record<string, unknown>,
+                  recurringProps: structuredClone(
+                    valid.recurringProps,
+                  ) as unknown as Record<string, unknown>[],
+                  pageContracts: [
+                    repairedPage as unknown as Record<string, unknown>,
+                  ],
+                },
+              });
         return {
           output: JSON.stringify(output),
           receipt: {
@@ -6661,20 +7035,31 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
     const invalidRepairProvider: VisualContractAuthoringProvider = {
       call: vi.fn(async (args) => {
-        const output =
-          args.attempt === 1
-            ? invalid
-            : {
-                coverContract: valid.coverContract,
-                recurringProps: (
-                  decodeBookSurfaceRepairUserPrompt(
-                    args.userPrompt,
-                  ).recurringProps as Record<string, unknown>[]
-                ).map((prop, index) =>
-                  index === 0 ? { ...prop, id: '   ' } : prop,
-                ),
-                pageContracts: [repairedPage],
-              };
+        let output: unknown = invalid;
+        if (args.attempt !== 1) {
+          const repair = bookSurfaceV4Response({
+            payload: decodeBookSurfaceRepairUserPrompt(
+              args.userPrompt,
+            ),
+            repaired: {
+              coverContract: structuredClone(
+                valid.coverContract,
+              ) as unknown as Record<string, unknown>,
+              recurringProps: structuredClone(
+                valid.recurringProps,
+              ) as unknown as Record<string, unknown>[],
+              pageContracts: [
+                repairedPage as unknown as Record<string, unknown>,
+              ],
+            },
+          });
+          repair.recurringProps = (
+            structuredClone(
+              valid.recurringProps,
+            ) as unknown as Record<string, unknown>[]
+          );
+          output = repair;
+        }
         return {
           output: JSON.stringify(output),
           receipt: {
@@ -6711,7 +7096,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           repairAttempt: 2,
           repairMode: 'book_surface_patch',
           failureCode: 'recurring_prop_invalid',
-          identity: 'book_surface_repair_prop_invalid',
+          identity: 'book_surface_repair_prop_change_not_authorized',
           carriedDraftDiagnosticCount: expect.any(Number),
           repairOutputDiagnosticCount: 1,
         },

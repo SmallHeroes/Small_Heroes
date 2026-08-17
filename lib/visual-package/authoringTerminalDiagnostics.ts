@@ -5,6 +5,7 @@ export type AuthoringTerminalFailureCode =
   | 'provider_call_failed'
   | 'provider_policy_mismatch'
   | 'input_token_ceiling_exceeded'
+  | 'repair_route_input_not_admissible'
   | 'usage_invalid'
   | 'provider_evidence_invalid'
   | 'completion_status_invalid'
@@ -84,6 +85,7 @@ export type AuthoringDiagnosticCode =
   | 'provider_call_failed'
   | 'provider_policy_mismatch'
   | 'input_token_ceiling_exceeded'
+  | 'repair_route_input_not_admissible'
   | 'usage_evidence_invalid'
   | 'provider_execution_evidence_invalid'
   | 'provider_completion_invalid'
@@ -185,6 +187,15 @@ const TERMINAL_DEFINITIONS: Record<
     repairReasonCode: 'input_limit_not_repairable',
     diagnosticCode: 'input_token_ceiling_exceeded',
     message: 'authoring stopped before provider reachability at the approved input-token ceiling',
+  },
+  repair_route_input_not_admissible: {
+    phase: 'provider_admission',
+    errorClass: 'input_limit_violation',
+    repairEligibility: 'ineligible',
+    repairReasonCode: 'input_limit_not_repairable',
+    diagnosticCode: 'repair_route_input_not_admissible',
+    message:
+      'selected repair route exceeded its canonical pre-dispatch input envelope',
   },
   usage_invalid: {
     phase: 'provider_response_validation',
@@ -411,6 +422,7 @@ const AUTHORING_DIAGNOSTIC_CODES = new Set<AuthoringDiagnosticCode>([
   'provider_call_failed',
   'provider_policy_mismatch',
   'input_token_ceiling_exceeded',
+  'repair_route_input_not_admissible',
   'usage_evidence_invalid',
   'provider_execution_evidence_invalid',
   'provider_completion_invalid',

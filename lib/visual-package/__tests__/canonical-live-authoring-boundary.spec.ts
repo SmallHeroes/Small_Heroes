@@ -921,7 +921,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v32',
+      'visual-contract-authoring-receipt/v33',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',

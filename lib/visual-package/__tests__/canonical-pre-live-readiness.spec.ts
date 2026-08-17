@@ -527,7 +527,7 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v27',
+            'canonical-live-request-verification/v28',
           structuredOutputCompatibility: {
             schemaName: 'BookVisualContractTemplateDraft',
             schemaVersion: 'vc-draft-schema/v15',
@@ -570,7 +570,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v26',
+            'canonical-live-execution-readiness/v27',
         },
       },
     });
@@ -776,7 +776,7 @@ describe('canonical pre-live readiness orchestrator', () => {
     const current = prepare(fixture);
     expect(current.status).toBe('ready_for_spend_gate');
     const prior = structuredClone(current) as unknown as Record<string, unknown>;
-    prior.version = 'canonical-pre-live-readiness-evidence/v25';
+    prior.version = 'canonical-pre-live-readiness-evidence/v26';
     const {
       digestAlgorithm: _algorithm,
       digest: _digest,
