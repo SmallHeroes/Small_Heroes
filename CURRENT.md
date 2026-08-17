@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-v4-presentation-mustshow-freeze` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `c82ffff4218b188ad910c7b95c44cf34a4dc752e`.
 
-## BOOK SURFACE v4 PRESENTATION `mustShow` FREEZE — local implementation green; independent re-gate pending
+## BOOK SURFACE v4 PRESENTATION `mustShow` FREEZE — independent technical PASS; push pending
 
 The canonical attempt under
 `outputs/r1d-pure-structural-fresh-c82ffff4-20260817T185437313Z`
@@ -67,10 +67,20 @@ a separate release HOLD.
 Implementation commit is
 `10b10d40443ecfef26ee6163ff2b2a33f40a9c29`. Since the consumed attempt, no
 credential, provider, Fresh Readiness, preflight, live, image, Vision, render,
-storage/database, deployment, production or push action occurred. The earlier
-Claude diagnosis informed the corrected authority boundary but was not an
-immutable-range implementation PASS. A fresh read-only Claude Code re-gate of
-the final base-to-head range is required before push or another paid attempt.
+storage/database, deployment, production or push action occurred.
+
+Claude Code independently reviewed exact immutable range
+`c82ffff4218b188ad910c7b95c44cf34a4dc752e..eca0dc9ad73d733e0073fa03d55d8b075a8b8680`
+in plan/read-only mode and returned **PASS** with **0 BLOCKER / 0 MAJOR / 0
+MINOR**. It confirmed the exact two-commit/six-file topology, overlap-only
+freeze, mask/apply dual guard, non-overlap repair authority, multiple same-page
+targets, parser hardening, lifecycle candidate path, unchanged versions and
+budgets, and honest non-green repository-gate accounting. Its two advisories
+were nonblocking redundant-defense/future-shape notes. Claude did not rerun the
+tests and did not edit any file. This technical PASS satisfies the independent
+engineering gate but does not itself grant product acceptance, render,
+deployment or production authority. Under Guy's standing execution authority,
+the next boundary is push, then brand-new Fresh Readiness on the pushed head.
 
 ## BOOK SURFACE v4 PURE-STRUCTURAL AUTHORITY — independent technical PASS; pushed
 

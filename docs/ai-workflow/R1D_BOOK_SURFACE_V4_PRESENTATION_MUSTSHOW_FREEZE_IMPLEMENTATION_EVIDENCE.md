@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-17
 
-**Status:** local implementation and focused validation complete; independent Claude Code immutable-range re-gate pending; unpushed; no new Fresh Readiness, provider, candidate, Wizard or render authority
+**Status:** local implementation and focused validation complete; independent Claude Code technical PASS; unpushed; no new Fresh Readiness, provider, candidate, Wizard or render authority
 
 ## Topology
 
@@ -149,20 +149,35 @@ timeouts are waived or presented as a green repository gate.
 ## Independent QA
 
 The earlier Claude diagnosis and focused reconciliation established the safe
-authority boundary, but they preceded the final immutable implementation range
-and therefore do not constitute the required independent implementation PASS.
+authority boundary but preceded the immutable implementation range and were not
+treated as PASS.
 
-Claude Code must review from exact base
-`c82ffff4218b188ad910c7b95c44cf34a4dc752e` through the final documentation
-closeout HEAD reported in the QA handoff, read-only, and try to falsify
-overlap-only freezing, non-target visibility, malformed-field rejection,
-multiple same-page target semantics, non-presentation repair authority, full
-revalidation, route/call/cap invariants, and the recorded validation. Codex does
-not self-award independent technical PASS.
+Claude Code then independently reviewed exact immutable range
+`c82ffff4218b188ad910c7b95c44cf34a4dc752e..eca0dc9ad73d733e0073fa03d55d8b075a8b8680`
+in plan/read-only mode. It verified the exact two-commit, six-file, clean,
+unpushed topology and returned **PASS** with **0 BLOCKER / 0 MAJOR / 0 MINOR**.
+It explicitly confirmed:
 
-Technical PASS will not itself authorize product acceptance, production or a
-render. Under Guy's standing execution authority, it is the prerequisite for a
-push, new Fresh Readiness and one new bounded authoring attempt.
+- the overlap-only complete-array freeze;
+- the non-target-mask and apply dual guard;
+- continued non-overlap `mustShow` and same-page other-field authority;
+- multiple same-page exact pointer/value/class semantics;
+- fail-closed non-string parser rejection;
+- input immutability and surviving stale/non-target/full-validation guards;
+- the three-call lifecycle candidate and output caps;
+- unchanged prompts, schemas, policies, versions, models, budgets, retries,
+  fallback and cost fence; and
+- honest treatment of the five fixture failures and two Vitest RPC timeouts as
+  a non-green repository gate.
+
+Claude did not rerun tests, edit, stage, commit, push or access any external
+boundary. Its two advisories were nonblocking: one redundant integer guard and
+one safe future-shape observation about a presentation-only page.
+
+This technical PASS does not itself authorize product acceptance, production
+or a render. Under Guy's standing execution authority, it satisfies the
+prerequisite for push, new Fresh Readiness and one new bounded authoring
+attempt.
 
 ## Boundaries and rollback
 
