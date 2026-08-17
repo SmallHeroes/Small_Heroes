@@ -2,7 +2,76 @@
 
 **Updated:** 2026-08-17
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-atomic-action-binding-repair-template-projection` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `b2ebdf8aa57dc588cdab4a56cbce96132b511999`.
+**Working branch:** `codex/r1d-deterministic-action-binding-normalization` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `097282d547cbbeb7aeb1db66988ef9729c7caddf`.
+
+## DETERMINISTIC ACTION-BINDING NORMALIZATION + REPAIR-OUTPUT OBSERVABILITY — local implementation green; independent Claude Code QA pending
+
+The first post-atomic-repair live attempt on `097282d5` was consumed and ended
+fail-closed without a candidate. Fresh Readiness v26 was
+`09ce1ba46d0dbe6ad328a253afea96dd1cf3583b36534a642acdd2e34094a8af`,
+Execution Request v26 was
+`b6ef03a28ac9b6e37219975d58caa67aece2db287afa3159cdff1425f30b8bbc`,
+receipt v32 was
+`ecc8b9ec5b6e49162731e8e81a9e9684a5e457b074e36e578f862cbd690f0de3`,
+and readiness v30 was
+`7ab6531f7544bb16bce998174dd08c60692548b3586fa97eb98e229d1d4a2b9e`.
+Two provider calls completed, one page-contract repair was attempted, transport
+retries were zero and fallback was false. Nominal/conservative cost was
+`$1.426457 / $1.569111`. The initial response contained eighteen exact
+action-binding-cardinality diagnostics arranged as six complete duplicate
+components. The structured repair response completed, but local component
+application rejected it; the receipt correctly recorded
+`repair_output_invalid`, candidate absent and Supervisor output authority null.
+
+That attempt exposed two general defects. First, temporary beat IDs and their
+missing 1:1 coverage bindings are wholly compiler-owned mechanical state, yet
+the system paid a reasoning model to echo them through a strict whole-page
+repair. Second, four component-application exceptions were absent from the
+closed repair-output identity catalog, so the precise local rejection collapsed
+to `unclassified` and could not be reconstructed from immutable evidence.
+
+Implementation commit
+`6c3a4c1966b04f29d4656367dc339e2edfb56be3` now performs a narrow deterministic
+normalization before every provider-response assembly. Eligibility requires two
+or more same-page actions sharing one valid page beat, exactly one total coverage
+record for that beat, exact `action_requirement` disposition, and canonical same-page Source
+Evidence. It keeps the first action and original coverage record byte-exact,
+assigns collision-checked IDs to later actions from compiler coordinates only,
+appends exactly the missing coverage records, does not mutate input, consumes no
+call/repair budget and remains idempotent. Authored prose and Source Evidence ID
+content do not influence generated beat IDs. Ambiguous, partial, malformed or
+mixed components remain unchanged for the existing fail-closed validators.
+
+All four component errors now have closed sanitized identities and broad-code
+mappings while remaining terminal outside the legacy scalar retry. Current
+repair-output diagnostics advance from v1 to v2. Exact historical v1 receipts
+remain read-only under their frozen pre-v2 identity domain, including the real
+consumed receipt/readiness pair; new artifacts are v2 only. Request v29,
+receipt v32, readiness v30, policy v12, prompts, schemas, model/tier, timeout,
+`3 / 2 / 0`, `[40000, 32000, 36000]`, fallback, `$5` fence, candidate and all
+downstream authority versions are unchanged.
+
+Validation is green for the changed behavior: focused compiler/lifecycle and
+legacy-persistence coverage passes **4 files / 166 tests**; adjacent repair and
+authoring coverage passes **3 / 114**; the two stale repository-gate contracts
+were corrected and pass **2 / 12**; deterministic TypeScript and
+`git diff --check` pass. One literal `npm run check` ran exactly once without
+retry. TypeScript and autonomous-story typecheck passed. The resource phase
+passed **20 files / 599 tests**. Ordinary executed **282 files** with **3,226
+passed**, **65 skipped** and **7 failed assertions**: five were the established
+missing ignored-output fixture HOLD, while two were the now-corrected duplicate
+normalization and canonical inventory expectations. Both diagnostic protocols
+were valid; no timeout, RPC/IPC, reporter, launch, signal, teardown or other
+infrastructure failure occurred. The literal gate was not rerun.
+
+The five unchanged fixture failures remain a separate repository/release HOLD
+in `child-lexicon-ages-5-8`, `momentum-gate-koko`, `page-entity-qa` and two
+`story-read-back-validation` cases. They are not waived. Implementation cost is
+`$0`; no credential, network/provider, Fresh Readiness, preflight, live, image,
+render, storage/database, deployment, production or push action occurred in
+this milestone. Internal adversarial review found zero remaining findings, but
+independent Claude Code QA of the immutable committed range is still required;
+Codex does not self-award technical PASS.
 
 ## ATOMIC ACTION-BINDING REPAIR + CANDIDATE TEMPLATE PROJECTION — independent technical PASS; push pending
 
