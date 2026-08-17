@@ -20,7 +20,9 @@
   --bg-light: #f7f6fb;
   --bg-lighter: #fafafa;
 
-  --fd: var(--font-suez, 'Suez One'), 'Rubik', sans-serif;
+  /* Heading voice: Secular One (Google Fonts, OFL — commercial-safe),
+     a geometric Hebrew display face built for headlines. */
+  --fd: var(--font-secular, 'Secular One'), 'Rubik', sans-serif;
   --fb: var(--font-rubik, 'Rubik'), 'Rubik', sans-serif;
 
   --max-w: 1440px;

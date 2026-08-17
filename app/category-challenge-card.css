@@ -140,14 +140,19 @@ button.mvp-challenge-card {
   background: var(--surface-alt, #faf9fc);
 }
 
-/* short emotional lead line (landing marketing copy) above the description */
+/* the landing card's single emotional line (the grey description under it
+   was dropped per Guy — one line reads, a paragraph doesn't) */
 .mvp-challenge-card-lead {
   display: block;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 15px;
-  line-height: 1.45;
-  color: var(--dark, #241b4d);
-  margin-bottom: 4px;
+  line-height: 1.5;
+  color: #4a4560;
+}
+
+/* empty one-liner (landing) must not leave a gap */
+.mvp-challenge-card-oneliner:empty {
+  display: none;
 }
 
 .mvp-challenge-card-text {

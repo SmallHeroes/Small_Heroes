@@ -170,8 +170,10 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 {matrixCategories.map((slot, index) => {
                   {/* Landing-side marketing copy per category; the wizard keeps
                       the matrix source untouched. */}
+                  {/* one short emotional line per card; the grey description
+                      paragraph was dropped per Guy (people don't read it) */}
                   const marketing = L.helps.cards[slot.category];
-                  const displaySlot = marketing ? { ...slot, oneLiner: marketing.body } : slot;
+                  const displaySlot = { ...slot, oneLiner: '' };
                   return (
                     <CategoryChallengeCard
                       key={slot.category}
@@ -208,17 +210,11 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   {L.sample.h2Line2}
                 </h2>
                 <p className="sample-p" data-reveal="up" data-reveal-delay="120">{L.sample.p1}</p>
-                <p className="sample-stanza" data-reveal="up" data-reveal-delay="160">
-                  {L.sample.stanza.map((line) => (
-                    <span key={line} className="sample-stanza-line">{line}</span>
-                  ))}
-                </p>
-                <p className="sample-p sample-p--close" data-reveal="up" data-reveal-delay="200">{L.sample.p2}</p>
-                <p className="sample-caption" data-reveal="up" data-reveal-delay="240">{L.sample.caption}</p>
+                <p className="sample-caption" data-reveal="up" data-reveal-delay="160">{L.sample.caption}</p>
                 {/* No real sample-book route exists yet, so the "open a sample"
                     action lands on the gallery — the closest real look inside
                     the books (reported to Guy). */}
-                <a href="#gallery" className="btn-primary" data-event="landing_sample_gallery_click" data-reveal="up" data-reveal-delay="280">
+                <a href="#gallery" className="btn-primary" data-event="landing_sample_gallery_click" data-reveal="up" data-reveal-delay="200">
                   {L.sample.cta}
                 </a>
               </div>

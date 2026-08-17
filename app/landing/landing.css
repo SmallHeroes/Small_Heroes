@@ -207,8 +207,9 @@
   text-wrap: balance;
 }
 
+/* each sentence owns its line — the promise never merges into line 1 */
 .hero-h1-line {
-  display: inline;
+  display: block;
 }
 
 /* the promise line carries the brand color — the eye lands on the answer */
@@ -216,12 +217,6 @@
   color: var(--purple);
 }
 
-@media (max-width: 960px) {
-  /* stacked hero: the promise starts on its own line */
-  .hero-h1-line {
-    display: block;
-  }
-}
    
 .hero-sub2 {
   font-family: var(--fb);
@@ -1628,8 +1623,9 @@
 /* HERO — the entrance to the world: most of the first viewport, with a hint
    that the page continues (conversion brief §4). svh keeps phones honest. */
 .hero {
-  padding: 56px 0 72px;
-  min-height: clamp(660px, 82svh, 900px);
+  /* per Guy: -10% top / -20% bottom off the conversion-pass values */
+  padding: 50px 0 58px;
+  min-height: clamp(620px, 76svh, 840px);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1801,22 +1797,7 @@
   color: var(--purple);
 }
 
-/* the sample stanza: short beats, one per line */
-.sample-stanza {
-  margin: 0 0 14px;
-  line-height: 1.8;
-  color: #4a4560;
-  font-size: 16.5px;
-}
-
-.sample-stanza-line {
-  display: block;
-}
-
-.sample-p--close {
-  font-weight: 600;
-  color: var(--dark);
-}
+/* (the multi-line sample stanza was dropped per Guy — one tight paragraph) */
 
 /* pricing eyebrow above the decision question */
 .pricing-eyebrow {
