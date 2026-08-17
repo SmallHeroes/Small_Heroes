@@ -2,9 +2,61 @@
 
 **Updated:** 2026-08-17
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-real-candidate-qa-wizard-low-bridge` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `b2f6a7418f0f112a1ab911153be2718f1a339d45`.
+**Working branch:** `codex/r1d-atomic-action-binding-repair-template-projection` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `b2ebdf8aa57dc588cdab4a56cbce96132b511999`.
 
-## REAL CANDIDATE -> QA WIZARD -> LOW BRIDGE — reconciliation milestone independent technical PASS; push pending
+## ATOMIC ACTION-BINDING REPAIR + CANDIDATE TEMPLATE PROJECTION — local implementation and repository validation complete; independent QA pending
+
+The consumed live attempt on `b2ebdf8a` completed exactly three provider calls
+and two repairs with zero transport retries and no fallback. Receipt v32
+`68b03d0b...` records `$1.339074 / $1.482818` nominal/conservative cost and
+terminal `draft_validation_repair_exhausted`; readiness v30 `71e48aa6...`
+truthfully records candidate absent. Input ceilings, output caps and the `$5`
+fence were not causal.
+
+The initial eleven diagnostics contained three complete
+2-actions-to-1-coverage components plus one legacy scalar action/coverage pair.
+Scalar page repair resolved eight issues but could not append the exact missing
+coverage record, leaving one orphan in each duplicate component. The final
+scalar repair closed those three and exposed nineteen latent book-surface issues
+only after the standard budget was consumed: five closed-catalog gaps, cover
+projection, twelve final page structures and recurring-prop lifecycle.
+
+Decision Gate `d9c08437` and implementation commits `0d71afeb` and `9a3c6917`
+now provide a general typed atomic component repair and a bridge-owned canonical
+projection of `candidate.template`. The repair may perform only the minimum
+exact 1:1 action/coverage closure. Legacy routes and the unchanged `3 / 2 / 0`,
+`[40,000, 32,000, 36,000]`, no-fallback and `$5` policies remain intact. Bridge
+manifest v2 projects canonical template bytes under the candidate template
+digest and preserves exact v1 manifests as read-only legacy authority.
+
+Page-repair schema/prompt/user-prompt remain v2/v12/v13; only input encoding
+moves v2 -> v3. No historical artifact is rewritten, no database migration
+exists, and a future attempt requires a new pushed HEAD, Fresh Readiness and
+Execution Request.
+
+Validation is green: focused ordinary implementation **2 files / 149 tests**,
+focused resource bridge **1 / 7**, adjacent actual ordinary **3 / 66**, adjacent
+actual resource **1 / 162**, deterministic TypeScript and `git diff --check`
+all pass. Literal `npm run check` ran exactly once: ordinary executed **281
+files**, with **3,213 passed**, **65 skipped** and exactly **5 failed assertions**
+in the four established missing-output fixture specs; resource-intensive passed
+**20 files / 599 tests**. Both diagnostic protocols were valid and no timeout,
+RPC/IPC, reporter, launch, signal, termination, teardown or other infrastructure
+failure occurred.
+
+The five fixture assertions remain a separate repository/release HOLD in
+`child-lexicon-ages-5-8`, `momentum-gate-koko`, `page-entity-qa` and two
+`story-read-back-validation` cases. They are not an implementation finding and
+are not waived. No new credential, provider, Fresh Readiness, preflight, live,
+image, render, storage/database, deployment or production action occurred;
+implementation spend is `$0`.
+
+Independent Claude Code review is still required for exact range
+`b2ebdf8aa57dc588cdab4a56cbce96132b511999..9a3c691772c79d6cdf4686fc5971a4e13b460dc2`.
+Codex does not self-award that PASS. Until it closes, the branch remains local
+and unpushed and no new operational authority exists.
+
+## REAL CANDIDATE -> QA WIZARD -> LOW BRIDGE — reconciliation milestone independent technical PASS; pushed
 
 The first implementation milestone now connects only the zero-cost boundary
 from an exact canonical Supervisor result to a pending Source Prompt
