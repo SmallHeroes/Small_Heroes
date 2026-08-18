@@ -2158,6 +2158,51 @@ function restoreCompilerOwnedActionBindingIdentity(args: {
   return restored;
 }
 
+function restoreCompilerOwnedPresentationTargetIdentity(args: {
+  authority: BookSurfaceRepairAuthority;
+  patch: BookSurfaceRepairPatch;
+}): BookSurfaceRepairPatch {
+  const restored = structuredClone(args.patch);
+  if (
+    restored.presentationPatches.length !==
+    args.authority.presentationTargets.length
+  ) {
+    return restored;
+  }
+  for (
+    let targetIndex = 0;
+    targetIndex < args.authority.presentationTargets.length;
+    targetIndex += 1
+  ) {
+    const target = args.authority.presentationTargets[targetIndex]!;
+    const patch = restored.presentationPatches[targetIndex]!;
+    patch.pageNumber = target.pageNumber;
+    patch.coverageIndex = target.coverageIndex;
+    patch.beatId = target.beatId;
+    patch.sourceEvidenceId = target.sourceEvidenceId;
+  }
+  return restored;
+}
+
+function restoreCompilerOwnedRecurringPropIdentity(args: {
+  authority: BookSurfaceRepairAuthority;
+  patch: BookSurfaceRepairPatch;
+}): BookSurfaceRepairPatch {
+  const restored = structuredClone(args.patch);
+  if (
+    restored.recurringProps === null ||
+    args.authority.recurringProps === null ||
+    restored.recurringProps.length !== args.authority.recurringProps.length
+  ) {
+    return restored;
+  }
+  restored.recurringProps = restored.recurringProps.map((patchProp, index) => ({
+    ...structuredClone(args.authority.recurringProps![index]!),
+    firstRevealPage: patchProp.firstRevealPage,
+  }));
+  return restored;
+}
+
 function restoreCompilerOwnedCoverReferenceIdentity(args: {
   authority: BookSurfaceRepairAuthority;
   patch: BookSurfaceRepairPatch;
@@ -2203,9 +2248,15 @@ export function applyBookSurfaceRepairPatch(args: {
   try {
     validatedPatch = restoreCompilerOwnedCoverReferenceIdentity({
       authority: args.authority,
-      patch: restoreCompilerOwnedActionBindingIdentity({
+      patch: restoreCompilerOwnedRecurringPropIdentity({
         authority: args.authority,
-        patch: parseBookSurfaceRepairPatch(JSON.stringify(args.patch)),
+        patch: restoreCompilerOwnedPresentationTargetIdentity({
+          authority: args.authority,
+          patch: restoreCompilerOwnedActionBindingIdentity({
+            authority: args.authority,
+            patch: parseBookSurfaceRepairPatch(JSON.stringify(args.patch)),
+          }),
+        }),
       }),
     });
   } catch (error) {

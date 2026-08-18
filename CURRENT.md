@@ -2,7 +2,39 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `cf0c9534ed7fe4f56c94c0f784bb5fc984bb25f5`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `260c48aaf7c0bb773fab985c2c48687de6038064`.
+
+## BOOK SURFACE COMPILER-OWNED ECHO IDENTITY — implementation green; commit/QA next
+
+The sole v9 attempt under
+`outputs/r1d-cover-identity-v9-fresh-260c48aa-20260818T110925212Z`
+ended fail-closed and will not be retried. Receipt v40
+`e89d17cd85da4524eb02e08fd704b639e1d98eb9193f8347c3a42413804d861e`
+records three completed provider calls and route
+`initial -> full_draft -> book_surface_patch`. The v9 cover-specific identity
+failure did not recur. Local application instead stopped at the remaining
+generic `book_surface_repair_authority_mismatch`; Candidate, Wizard and render
+authority are absent.
+
+The correction restores the remaining provider-echoed compiler identities
+before atomic validation: presentation page/coverage/beat/Source-Evidence
+identity by exact target order, and every recurring prop's immutable fields by
+exact prop order. The provider still owns only presentation class/pointer and
+`firstRevealPage`. Missing/extra records, authorization parity, stale authority,
+unpermitted pointers, non-target drift and full validation remain fail closed.
+
+This is internal compiler normalization. Book Surface schema/system/user remain
+v6/v9/v9; authoring request/receipt/readiness remain v36/v40/v38; B0 remains
+v25/v34/v34; execution materialization remains v24/v28; Supervisor remains
+v33/v33/v26; Fresh remains v33. Policy v13, Candidate v9, model, budgets,
+retry/fallback and the hard `$5` fence are unchanged.
+
+Focused validation is green: **158/158** across BookSurface, compiler loop and
+source-authority lifecycle; TypeScript PASS and diff-check PASS. A live-shaped
+compiler regression deliberately returns wrong-but-well-shaped presentation
+identities and still reaches a three-call Candidate only after compiler
+restoration. No credential, provider, Fresh, live, image or render call was
+made during implementation.
 
 ## BOOK SURFACE V9 COMPILER-OWNED COVER IDENTITY — implementation green; focused QA next
 

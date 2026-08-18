@@ -1537,10 +1537,6 @@ describe('atomic causal book-surface repair v9 input authority', () => {
       [presentationPatch(2), presentationPatch(1)],
       [
         presentationPatch(1),
-        { ...presentationPatch(2), beatId: 'beat:p2:stale' },
-      ],
-      [
-        presentationPatch(1),
         {
           ...presentationPatch(2),
           contractPointer: '/pageContracts/1/mustShow/999',
@@ -1556,6 +1552,45 @@ describe('atomic causal book-surface repair v9 input authority', () => {
       ).toThrow();
       expect(original).toEqual(snapshot);
     }
+  });
+
+  it('reattaches compiler-owned presentation target identity by exact ordered target', () => {
+    const original = draft();
+    const snapshot = structuredClone(original);
+    const selected = authority(original);
+    const hostilePatches = patch().presentationPatches.map(
+      (presentationPatch, index) => ({
+        ...presentationPatch,
+        pageNumber: 90 + index,
+        coverageIndex: 90 + index,
+        beatId: `beat:p${90 + index}:provider_forged`,
+        sourceEvidenceId: `se1_${String(index + 1).repeat(64)}`,
+      }),
+    );
+
+    const result = applyBookSurfaceRepairPatch({
+      draft: original,
+      authority: selected,
+      patch: {
+        ...patch(),
+        presentationPatches: hostilePatches,
+      },
+    });
+
+    const pages = result.pageContracts as ReturnType<typeof page>[];
+    expect(pages[0]!.actionSemanticCoverage[0]!.disposition).toEqual({
+      kind: 'presentation_requirement',
+      presentationClass: hostilePatches[0]!.presentationClass,
+      contractPointer: hostilePatches[0]!.contractPointer,
+      contractValue: pages[0]!.mustShow[0],
+    });
+    expect(pages[1]!.actionSemanticCoverage[0]!.disposition).toEqual({
+      kind: 'presentation_requirement',
+      presentationClass: hostilePatches[1]!.presentationClass,
+      contractPointer: hostilePatches[1]!.contractPointer,
+      contractValue: pages[1]!.mustShow[0],
+    });
+    expect(original).toEqual(snapshot);
   });
 
   it('preserves unauthorized cover and recurring props through explicit null output', () => {
@@ -1586,7 +1621,7 @@ describe('atomic causal book-surface repair v9 input authority', () => {
     ).toThrow('book_surface_repair_authority_mismatch');
   });
 
-  it('repairs lifecycle only with exact prop completeness and ordering', () => {
+  it('repairs lifecycle by exact ordered slots while restoring recurring-prop identity', () => {
     const original = draft();
     original.recurringProps = [
       recurringProp(),
@@ -1629,12 +1664,7 @@ describe('atomic causal book-surface repair v9 input authority', () => {
     ).toEqual([2, 2]);
     expect(original).toEqual(snapshot);
 
-    for (const recurringProps of [
-      null,
-      [repairedProps[0]!],
-      [...repairedProps].reverse(),
-      [{ ...repairedProps[0]!, id: 'prop:other' }, repairedProps[1]!],
-    ]) {
+    for (const recurringProps of [null, [repairedProps[0]!]]) {
       expect(() =>
         applyBookSurfaceRepairPatch({
           draft: original,
@@ -1645,24 +1675,30 @@ describe('atomic causal book-surface repair v9 input authority', () => {
       expect(original).toEqual(snapshot);
     }
 
-    for (const [field, replacement] of [
-      ['name', 'changed name'],
-      ['description', 'changed description'],
-      ['material', 'changed material'],
-      ['scale', 'changed scale'],
-      ['persistence', 'changed persistence'],
-    ] as const) {
-      const overreachingProps = structuredClone(repairedProps);
-      overreachingProps[0]![field] = replacement;
-      expect(() =>
-        applyBookSurfaceRepairPatch({
-          draft: original,
-          authority: selected,
-          patch: { ...validPatch, recurringProps: overreachingProps },
-        }),
-      ).toThrow('book_surface_repair_non_target_drift');
-      expect(original).toEqual(snapshot);
-    }
+    const hostileImmutableProps = structuredClone(repairedProps);
+    hostileImmutableProps[0]!.id = 'prop:provider_forged';
+    hostileImmutableProps[0]!.name = 'provider changed name';
+    hostileImmutableProps[0]!.description = 'provider changed description';
+    hostileImmutableProps[0]!.material = 'provider changed material';
+    hostileImmutableProps[0]!.scale = 'provider changed scale';
+    hostileImmutableProps[0]!.persistence = 'provider changed persistence';
+    hostileImmutableProps[0]!.firstRevealPage = 2;
+    hostileImmutableProps[1]!.id = 'prop:provider_forged_second';
+    hostileImmutableProps[1]!.firstRevealPage = 2;
+    const compilerOwnedResult = applyBookSurfaceRepairPatch({
+      draft: original,
+      authority: selected,
+      patch: { ...validPatch, recurringProps: hostileImmutableProps },
+    });
+    const snapshotRecurringProps = snapshot.recurringProps as Record<
+      string,
+      unknown
+    >[];
+    expect(compilerOwnedResult.recurringProps).toEqual([
+      { ...snapshotRecurringProps[0], firstRevealPage: 2 },
+      { ...snapshotRecurringProps[1], firstRevealPage: 2 },
+    ]);
+    expect(original).toEqual(snapshot);
 
     const tamperedAuthority = structuredClone(selected);
     tamperedAuthority.recurringProps![0]!.name = 'tampered authority';

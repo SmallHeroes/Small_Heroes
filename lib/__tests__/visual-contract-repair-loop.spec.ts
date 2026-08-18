@@ -101,6 +101,7 @@ function bookSurfaceV6Response(args: {
   coverContract: Record<string, unknown> | null;
   recurringProps: Record<string, unknown>[] | null;
   repairedPages: readonly Record<string, unknown>[];
+  hostileEchoIdentity?: boolean;
 }): Record<string, unknown> {
   const presentationTargets = args.payload.presentationTargets as
     | PresentationRequirementRepairTarget[]
@@ -119,11 +120,17 @@ function bookSurfaceV6Response(args: {
     args.repairedPages.map((page) => [page.pageNumber, page]),
   );
   return {
-    presentationPatches: presentationTargets.map((target) => ({
-      pageNumber: target.pageNumber,
-      coverageIndex: target.coverageIndex,
-      beatId: target.beatId,
-      sourceEvidenceId: target.sourceEvidenceId,
+    presentationPatches: presentationTargets.map((target, index) => ({
+      pageNumber: args.hostileEchoIdentity ? 90 + index : target.pageNumber,
+      coverageIndex: args.hostileEchoIdentity
+        ? 90 + index
+        : target.coverageIndex,
+      beatId: args.hostileEchoIdentity
+        ? `beat:p${90 + index}:provider_forged`
+        : target.beatId,
+      sourceEvidenceId: args.hostileEchoIdentity
+        ? `se1_${String(index + 1).repeat(64)}`
+        : target.sourceEvidenceId,
       presentationClass: 'composition_focus',
       contractPointer:
         target.permittedPointerValues[0]!.contractPointer,
@@ -1091,6 +1098,7 @@ describe('page-contract compact repair routing', () => {
           coverContract: repairedCover,
           recurringProps: null,
           repairedPages,
+          hostileEchoIdentity: true,
         }),
       );
     };
