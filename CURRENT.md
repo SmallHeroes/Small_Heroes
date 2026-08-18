@@ -2,9 +2,9 @@
 
 **Updated:** 2026-08-19
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; local implementation commit `5a9ea30b` is based on pushed `5d7a818e4ae7bf715bd2c83046a1249569404392` and awaits independent Claude Code QA before push.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; local implementation is based on pushed `5d7a818e4ae7bf715bd2c83046a1249569404392` and awaits Claude Code micro re-gate before push.
 
-## COMPILER-OWNED MISSING ACTION BINDING + BOUNDED CORRECTION — local green; Claude QA next
+## COMPILER-OWNED MISSING ACTION BINDING + BOUNDED CORRECTION — QA fix green; Claude micro re-gate next
 
 The single canonical eight-page live attempt under
 `outputs/r1d-collect-all-eight-page-readiness-5d7a818e-20260818T201855197Z`
@@ -26,14 +26,21 @@ Commit `5a9ea30b` extends the existing compiler-owned normalizer only for the
 exact zero-coverage/single-action/canonical-source case. It clones first,
 preserves every action and existing coverage byte, appends one exact
 `action_requirement` record, and is deterministic and idempotent. Ambiguous or
-malformed cases remain unchanged for full fail-closed validation. Repeated
-PageContract scope-invalid and incomplete-set corrections now stop on their
-second rejection after call 3; one rejected response followed by a valid
-response remains supported.
+malformed cases remain unchanged for full fail-closed validation. PageContract
+scope-invalid and incomplete-set failures share one correction allowance, so
+same-type and alternating rejections stop after call 3; one rejected response
+followed by a valid response remains supported.
+
+Claude's first normalizer audit returned PASS with three hardening MINORs. Its
+bounded-correction audit found a valid BLOCKER: the first implementation kept
+separate flags and allowed an alternating failure sequence to reach call 4.
+The QA fix adds one shared allowance, resets it only after successful atomic
+apply, covers both alternating orders, adds the missing page-beat postcondition
+and broadens idempotence assertions.
 
 No prompt, provider schema, policy v17, output budget v6, model, tier,
 reasoning, price, timeout, call cap, retry, fallback, Candidate, Wizard, Story
-Source, Reader or render version changed. Six focused suites pass **220/220**;
+Source, Reader or render version changed. Six focused suites pass **222/222**;
 TypeScript and diff-check pass. The literal repository gate recorded 3,303
 ordinary PASS with only the five established missing ignored-output fixture
 failures, and 609/609 resource-intensive assertions before the established
@@ -43,8 +50,8 @@ Durable records:
 `docs/ai-workflow/R1D_COMPILER_OWNED_MISSING_ACTION_BINDING_AND_BOUNDED_CORRECTION_DECISION_GATE.md`
 and
 `docs/ai-workflow/R1D_COMPILER_OWNED_MISSING_ACTION_BINDING_AND_BOUNDED_CORRECTION_IMPLEMENTATION_EVIDENCE.md`.
-Next: commit the closeout, run Claude Code read-only QA on the immutable range,
-fix/re-gate any valid finding, then push. Only a new current-head Fresh and one
+Next: commit the QA fix, run Claude Code read-only micro re-gate, then push only
+after PASS. Only a new current-head Fresh and one
 canonical live attempt may follow PASS; Wizard/LOW render remain gated on a
 real Candidate.
 

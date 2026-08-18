@@ -175,6 +175,13 @@ describe('compiler-owned action-binding component normalization', () => {
     for (const normalizedPage of result.pages) {
       expect(normalizedPage.actionSemanticCoverage).toHaveLength(1);
     }
+    const rerun = normalizeExactActionBindingComponents({
+      pages: result.pages,
+      sourceEvidenceCatalog: sourceCatalog,
+    });
+    expect(rerun.normalizations).toEqual([]);
+    expect(rerun.missingBindingNormalizations).toEqual([]);
+    expect(rerun.pages).toEqual(result.pages);
   });
 
   it('composes missing-binding closure with duplicate-component closure without changing their authorities', () => {
@@ -204,6 +211,13 @@ describe('compiler-owned action-binding component normalization', () => {
       coverageIndex: 2,
     });
     expect(result.pages[0]!.actionSemanticCoverage).toHaveLength(3);
+    const rerun = normalizeExactActionBindingComponents({
+      pages: result.pages,
+      sourceEvidenceCatalog: sourceCatalog,
+    });
+    expect(rerun.normalizations).toEqual([]);
+    expect(rerun.missingBindingNormalizations).toEqual([]);
+    expect(rerun.pages).toEqual(result.pages);
   });
 
   it.each([
@@ -389,6 +403,7 @@ describe('compiler-owned action-binding component normalization', () => {
       sourceEvidenceCatalog: sourceCatalog,
     });
     expect(rerun.normalizations).toEqual([]);
+    expect(rerun.missingBindingNormalizations).toEqual([]);
     expect(rerun.pages).toEqual(result.pages);
   });
 

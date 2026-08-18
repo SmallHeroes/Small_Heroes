@@ -20,10 +20,11 @@ valid page-scoped beat and a canonical same-page Source Evidence ID, but no
 coverage record of any disposition uses that beat. The compiler appends the
 single fully determined `action_requirement` coverage record before assembly.
 
-Also bound both existing PageContract correction cases. A first atomic scope
-rejection may retain the existing closed correction hint, and a first
-incomplete patch set may reuse the same closed authority. A second rejection
-of either kind is terminal through the existing sanitized
+Also bound both existing PageContract correction cases behind one shared
+correction allowance. A first atomic scope rejection may retain the existing
+closed correction hint, or a first incomplete patch set may reuse the same
+closed authority. After either allowance is used, the next rejection of either
+kind is terminal through the existing sanitized
 `repair_output_invalid` evidence and cannot consume another logical call.
 
 ## 2. Why now?
@@ -92,10 +93,11 @@ BookSurface route where eligible. Full source grounding, action-semantic,
 structural, reference, presentation, lifecycle and final Candidate validation
 remain mandatory.
 
-The existing one closed PageContract correction hint remains available for an
-otherwise repairable first response. A repeated scope violation or incomplete
-patch set becomes the existing terminal repair-output failure; no raw response,
-prompt, authored ID, exception or secret enters evidence.
+The existing one closed PageContract correction allowance remains available
+for an otherwise repairable first response. Scope and incomplete-set failures
+share that allowance, so alternating identities cannot stack corrections. The
+next rejected response becomes the existing terminal repair-output failure; no
+raw response, prompt, authored ID, exception or secret enters evidence.
 
 ## 6. Rejected alternatives
 
@@ -123,8 +125,9 @@ Zero-cost validation must prove:
   preserve exact action/coverage authority and expose the remaining complete
   census to the existing route;
 - offline harness reports no positive complete delta for the replay;
-- one PageContract scope/incomplete-set correction remains possible, while a
-  second rejection of the same class terminates before an additional dispatch;
+- one shared PageContract scope/incomplete-set correction remains possible,
+  while a second rejection of either class terminates before an additional
+  dispatch, including both alternating orders;
 - relevant tests, `npx tsc --noEmit`, one literal `npm run check`, and
   `git diff --check` pass proportionately before independent Claude Code QA.
 

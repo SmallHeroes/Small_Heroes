@@ -243,6 +243,9 @@ function assertNormalizationPostconditions(args: {
     normalizationInvariant(
       action?.beatId === normalization.beatId,
     );
+    normalizationInvariant(
+      pageBeatIdPattern.test(normalization.beatId),
+    );
     const subject = recordValue(action?.subject);
     normalizationInvariant(
       Boolean(subject) &&

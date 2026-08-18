@@ -22,12 +22,20 @@ normalizer preserves every action and existing coverage byte and appends one
 exact `action_requirement` record. It is deterministic, idempotent, clone-first
 and independently versioned from the existing duplicate-component identity.
 
-PageContract correction is now genuinely bounded. One scope-invalid response
-may use the existing closed correction hint and one incomplete set may reuse
-the same authority. A second rejection of either class becomes the existing
-sanitized `repair_output_invalid` terminal after call 3 rather than repeating
-through call 7. A rejected first response followed by a valid second response
-still completes.
+PageContract correction is now genuinely bounded by one shared allowance. One
+scope-invalid response may use the existing closed correction hint, or one
+incomplete set may reuse the same authority. After either path consumes the
+allowance, the next rejection of either class becomes the existing sanitized
+`repair_output_invalid` terminal after call 3 rather than repeating through
+call 7. A rejected first response followed by a valid second response still
+completes.
+
+Independent QA found that the initial implementation bounded the two failure
+classes separately, permitting an alternating sequence to reach call 4. The
+QA-fix adds one shared session flag, resets it only after a successful atomic
+PageContract apply, and proves both `incomplete -> scope-invalid` and
+`scope-invalid -> incomplete` terminate at call 3. Claude also requested a
+page-beat postcondition and broader idempotence assertions; both were added.
 
 ## Consumed live evidence
 
@@ -59,7 +67,7 @@ Candidate v9, Wizard bridge v2, Reader, Story Source and render behavior.
 
 ## Validation
 
-- six focused files: **220/220 PASS**;
+- six focused files after the QA fix: **222/222 PASS**;
 - source lifecycle included current receipt/Candidate persistence and both
   successful and terminal bounded-correction paths;
 - `npx --no-install tsc --noEmit`: **PASS**;
@@ -83,13 +91,14 @@ was `$0`. One attempted local `npx prettier --write` was cancelled by npm
 because Prettier was not installed; no package was installed and package/lock
 files were unchanged.
 
-## Independent QA targets
+## Independent QA status and re-gate targets
 
-Claude Code must falsify exact eligibility, append-only containment, canonical
-same-page resolution, input non-mutation, deterministic order/idempotence,
-composition with duplicate components, repeated scope/incomplete-set call
-counts, truthful existing terminal evidence, lack of version cascade and
-absence of policy/prompt/schema drift.
+The first split read-only audit returned PASS for the local normalizer with no
+BLOCKER/MAJOR and three defense-in-depth MINORs. The second audit found one
+valid BLOCKER in alternating correction classes. The implementation now needs
+a read-only micro re-gate that falsifies the shared allowance, both alternating
+orders, success/reset semantics, exact eligibility and absence of policy,
+prompt, schema or version drift.
 
 This local green evidence does not self-award independent PASS and does not
 authorize push, Fresh, provider, Candidate approval, Wizard advance or render.

@@ -4586,6 +4586,7 @@ export async function compileBookVisualContractTemplate(
     | PageContractRepairPreviousFailure
     | null = null;
   let pageContractIncompleteFailureSeen = false;
+  let pageContractCorrectionGranted = false;
   for (let attempt = 1; ; attempt++) {
     const recurringPropLifecycleNormalization =
       normalizeDraftRecurringPropLifecycle(draft);
@@ -5416,6 +5417,7 @@ export async function compileBookVisualContractTemplate(
         });
         pageContractPreviousFailure = null;
         pageContractIncompleteFailureSeen = false;
+        pageContractCorrectionGranted = false;
       } else {
         draft = asObj(
           parseContractJson(
@@ -5450,6 +5452,7 @@ export async function compileBookVisualContractTemplate(
         failureIdentity ===
           'page_contract_repair_patch_set_incomplete' &&
         !pageContractIncompleteFailureSeen &&
+        !pageContractCorrectionGranted &&
         attempt < STANDARD_MAX_REPAIR_ATTEMPTS
       ) {
         // The provider returned a strict-schema-valid but incomplete page set.
@@ -5459,6 +5462,7 @@ export async function compileBookVisualContractTemplate(
         // authority. A second incomplete response remains terminal and cannot
         // consume another logical call or transport retry.
         pageContractIncompleteFailureSeen = true;
+        pageContractCorrectionGranted = true;
         continue;
       }
       if (
@@ -5468,6 +5472,7 @@ export async function compileBookVisualContractTemplate(
         error.message ===
           'page_contract_repair_action_binding_scope_invalid' &&
         pageContractPreviousFailure === null &&
+        !pageContractCorrectionGranted &&
         attempt < STANDARD_MAX_REPAIR_ATTEMPTS
       ) {
         // The completed response attempted to change a wider action/coverage
@@ -5478,6 +5483,7 @@ export async function compileBookVisualContractTemplate(
         // evidence and cannot consume another provider call.
         pageContractPreviousFailure =
           'target_scope_invalid';
+        pageContractCorrectionGranted = true;
         continue;
       }
       throw new TemplateRepairOutputInvalidError(

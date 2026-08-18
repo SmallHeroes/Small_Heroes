@@ -7159,6 +7159,120 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(provider.call).toHaveBeenCalledTimes(3);
   });
 
+  it.each([
+    [
+      'incomplete then scope-invalid',
+      'incomplete',
+      'scope_invalid',
+      'page_contract_repair_action_binding_scope_invalid',
+    ],
+    [
+      'scope-invalid then incomplete',
+      'scope_invalid',
+      'incomplete',
+      'page_contract_repair_patch_set_incomplete',
+    ],
+  ] as const)(
+    'shares one bounded PageContract correction across %s outputs',
+    async (_label, firstFailure, secondFailure, terminalIdentity) => {
+      const snapshot = bunnySnapshot();
+      const invalid = fullyActionedBunnyDraft(snapshot);
+      const invalidPages = invalid.pageContracts
+        .slice(0, 2) as unknown as Array<Record<string, unknown>>;
+      expect(invalidPages).toHaveLength(2);
+      const validPages = invalidPages.map((invalidPage) => {
+        const invalidCoverage =
+          invalidPage.actionSemanticCoverage as Array<Record<string, unknown>>;
+        invalidCoverage[0]!.disposition = {
+          kind: 'non_visual',
+          rationale: 'narrative_context',
+        };
+        const validPage = structuredClone(invalidPage);
+        delete validPage.castIds;
+        delete validPage.castStates;
+        delete validPage.characterPresence;
+        validPage.propState ??= [];
+        validPage.propConstraints ??= [];
+        validPage.actionRequirements ??= [];
+        for (const action of validPage.actionRequirements as Array<
+          Record<string, unknown>
+        >) {
+          action.spatialEffect ??= null;
+          action.spatialConstraint ??= null;
+        }
+        (
+          validPage.actionSemanticCoverage as Array<Record<string, unknown>>
+        )[0]!.disposition = { kind: 'action_requirement' };
+        return validPage;
+      });
+      const incompleteOutput = {
+        pageContracts: [validPages[0]],
+      };
+      const scopeInvalidPages = structuredClone(validPages);
+      const scopeInvalidCoverage =
+        scopeInvalidPages[0]!.actionSemanticCoverage as Array<
+          Record<string, unknown>
+        >;
+      scopeInvalidCoverage.push(structuredClone(scopeInvalidCoverage[0]!));
+      const scopeInvalidOutput = {
+        pageContracts: scopeInvalidPages,
+      };
+      const outputFor = (failure: typeof firstFailure) =>
+        failure === 'incomplete'
+          ? incompleteOutput
+          : scopeInvalidOutput;
+      const provider: VisualContractAuthoringProvider = {
+        call: vi.fn(async (args) => ({
+          output:
+            args.attempt === 1
+              ? JSON.stringify(invalid)
+              : JSON.stringify(
+                  outputFor(
+                    args.attempt === 2 ? firstFailure : secondFailure,
+                  ),
+                ),
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `alternating-page-contract-${args.attempt}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+              output_tokens_details: { reasoning_tokens: 500 },
+            },
+          },
+        })),
+      };
+
+      const result = await runVisualContractAuthoring({
+        request: requestFor(snapshot, 'live'),
+        snapshot,
+        provider,
+      });
+
+      expect(result.receipt).toMatchObject({
+        status: 'failed',
+        callCount: 3,
+        repairCount: 2,
+        candidateDigest: null,
+        draftValidationStatus: 'interrupted',
+        failure: {
+          code: 'repair_output_invalid',
+          repairOutputDiagnostics: {
+            identity: terminalIdentity,
+            repairAttempt: 3,
+            repairMode: 'page_contract_patch',
+          },
+        },
+      });
+      expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+        .toEqual([null, 'page_contract_patch', 'page_contract_patch']);
+      expect(provider.call).toHaveBeenCalledTimes(3);
+      expect(result.compileResult).toBeNull();
+    },
+  );
+
   it('repeats BookSurface with null cover for the 12-page pure structural residual and persists a candidate', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
