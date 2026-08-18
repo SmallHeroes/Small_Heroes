@@ -168,17 +168,17 @@ const PHOTO_QUALITY_STATUS = {
   BLOCKED: 'blocked',
 };
 const PHOTO_MSG_GUIDANCE =
-  'התמונה לא מספיק ברורה — מומלץ לבחור תמונה איכותית יותר.';
+  'התמונה לא מספיק ברורה - מומלץ לבחור תמונה איכותית יותר.';
 const PHOTO_MSG_WARNING = PHOTO_MSG_GUIDANCE;
 const PHOTO_MSG_BLOCKED = PHOTO_MSG_GUIDANCE;
 const PHOTO_MSG_NO_PHOTO_HELPER =
   'כדי שהילד/ה יהיו גיבורי הספר, העלו תמונה אחת ברורה של הפנים.';
 // Honest expectation-setting for the no-photo path — no overpromising.
 const PHOTO_MSG_NO_PHOTO_DISCLAIMER =
-  'בלי תמונה ניצור גיבור/ה מאוירים לפי הגיל והמין שבחרתם — אבל בלי תמונה אין לנו ממה לדמות, והדמות בספר לא תיראה כמו הילד/ה שלכם. אפשר להוסיף תמונה בכל שלב עד התשלום.';
+  'בלי תמונה ניצור גיבור/ה מאוירים לפי הגיל והמין שבחרתם - אבל בלי תמונה אין לנו ממה לדמות, והדמות בספר לא תיראה כמו הילד/ה שלכם. אפשר להוסיף תמונה בכל שלב עד התשלום.';
 
 const PHOTO_QUALITY_COPY = {
-  good: { title: 'תמונה טובה — נוכל לבנות ממנה דמות' },
+  good: { title: 'תמונה טובה - נוכל לבנות ממנה דמות' },
   warning: { title: PHOTO_MSG_WARNING },
   blocked: { title: PHOTO_MSG_BLOCKED },
 };
@@ -198,20 +198,20 @@ const PHOTO_REASON_MESSAGES_HE = [
   {
     // face_count_not_exactly_one is a legacy alias (old stored wizard states).
     codes: ['multiple_faces_no_dominant', 'face_count_not_exactly_one'],
-    message: 'יש בתמונה כמה פנים בולטות ולא ברור מי הגיבור/ה — צריך תמונה שבה הילד/ה במרכז וברור.',
+    message: 'יש בתמונה כמה פנים בולטות ולא ברור מי הגיבור/ה - צריך תמונה שבה הילד/ה במרכז וברור.',
   },
-  { codes: ['no_face_detected'], message: 'ייתכן שהתמונה פחות אידיאלית — אפשר להמשיך, להחליף תמונה, או להמשיך בלי תמונה.' },
+  { codes: ['no_face_detected'], message: 'ייתכן שהתמונה פחות אידיאלית - אפשר להמשיך, להחליף תמונה, או להמשיך בלי תמונה.' },
   {
     codes: ['face_too_small_critical', 'face_area_too_small'],
-    message: 'הפנים קטנות יחסית — תמונה מקרוב יכולה לעזור, אבל אפשר להמשיך גם ככה.',
+    message: 'הפנים קטנות יחסית - תמונה מקרוב יכולה לעזור, אבל אפשר להמשיך גם ככה.',
   },
   {
     codes: ['face_too_small', 'face_borderline_size'],
-    message: 'התמונה תעבוד! תמונה קצת יותר קרובה יכולה לעזור לדיוק — או פשוט להמשיך.',
+    message: 'התמונה תעבוד! תמונה קצת יותר קרובה יכולה לעזור לדיוק - או פשוט להמשיך.',
   },
-  { codes: ['low_sharpness', 'sharpness_too_low'], message: 'התמונה תעבוד! תמונה חדה יותר יכולה לעזור — או פשוט להמשיך.' },
-  { codes: ['low_brightness'], message: 'התאורה כהה יחסית — אפשר להמשיך עם התמונה הזו או לנסות תמונה עם יותר אור.' },
-  { codes: ['brightness_out_of_range'], message: 'התאורה לא אידיאלית — אפשר להמשיך גם ככה.' },
+  { codes: ['low_sharpness', 'sharpness_too_low'], message: 'התמונה תעבוד! תמונה חדה יותר יכולה לעזור - או פשוט להמשיך.' },
+  { codes: ['low_brightness'], message: 'התאורה כהה יחסית - אפשר להמשיך עם התמונה הזו או לנסות תמונה עם יותר אור.' },
+  { codes: ['brightness_out_of_range'], message: 'התאורה לא אידיאלית - אפשר להמשיך גם ככה.' },
 ];
 
 function hebrewPhotoMessageFromCodes(reasonCodes) {
@@ -783,7 +783,7 @@ function restoreWizardState() {
       const expected = catalog.getCategoryForTopic(state.topic);
       if (resolved && resolved !== expected) {
         console.warn(
-          `[wizard] companion "${state.companionCharacterId}" category ${resolved} differs from topic ${expected} — keeping topic category`,
+          `[wizard] companion "${state.companionCharacterId}" category ${resolved} differs from topic ${expected} - keeping topic category`,
         );
       }
     }
@@ -973,7 +973,7 @@ const TopicCatalog = globalThis.CanonicalTopics || null;
 
 function getTopicCatalog() {
   if (!TopicCatalog) {
-    console.error('[wizard] CanonicalTopics not loaded — check canonical-topics.js script order');
+    console.error('[wizard] CanonicalTopics not loaded - check canonical-topics.js script order');
   }
   return TopicCatalog;
 }
@@ -1107,7 +1107,7 @@ function renderCompanionCards() {
         const expected = catalog.getCategoryForTopic(topicId);
         if (resolved && resolved !== expected) {
           console.warn(
-            `[wizard] companion "${c.id}" maps to ${resolved}, topic expects ${expected} — keeping topic category`,
+            `[wizard] companion "${c.id}" maps to ${resolved}, topic expects ${expected} - keeping topic category`,
           );
         }
       }
@@ -2229,7 +2229,7 @@ async function handlePhoto(e) {
     const message =
       childPhotoClient && typeof childPhotoClient.childPhotoUploadErrorHe === 'function'
         ? childPhotoClient.childPhotoUploadErrorHe(err)
-        : 'התמונה גדולה מדי — נסה תמונה קטנה יותר';
+        : 'התמונה גדולה מדי - נסה תמונה קטנה יותר';
     showPhotoError(message);
     if (input) input.value = '';
     reportClientIssue('photo_compression_failed', {
@@ -2417,12 +2417,11 @@ function renderVoiceBtns() {
       playBtn.type = 'button';
       playBtn.className = 'voice-play-btn';
       playBtn.title = previewLabel;
-      playBtn.setAttribute('aria-label', `${previewLabel} — ${v.label}`);
+      playBtn.setAttribute('aria-label', `${previewLabel} - ${v.label}`);
       playBtn.textContent = '▶';
     }
 
     card.innerHTML = `
-      <span class="voice-btn-emoji">${v.emoji}</span>
       <span class="voice-btn-label">${v.label}</span>
     `;
     if (playBtn) card.appendChild(playBtn);
@@ -2936,7 +2935,7 @@ async function applyCoupon() {
         discountedAgorot: data.discountedAgorot,
       };
       input.value = data.code;
-      setStatus(`הקוד הופעל — ${data.discountPercent}% הנחה 🎉`, 'coupon-status--ok');
+      setStatus(`הקוד הופעל - ${data.discountPercent}% הנחה 🎉`, 'coupon-status--ok');
     } else {
       state.coupon = null;
       const reason = data && data.reason;
@@ -3035,7 +3034,7 @@ async function handleSubmit() {
         const parseMessage =
           parseErr && parseErr.message
             ? parseErr.message
-            : 'התמונה גדולה מדי — נסה תמונה קטנה יותר';
+            : 'התמונה גדולה מדי - נסה תמונה קטנה יותר';
         orderResponse = {
           ok: false,
           data: {},
@@ -3108,7 +3107,7 @@ async function handleSubmit() {
       if (couponRejected) {
         state.coupon = null;
         buildSummary();
-        throw new Error('הקוד כבר נוצל במלואו. אפשר להמשיך במחיר מלא — לחצו שוב על "תשלום".');
+        throw new Error('הקוד כבר נוצל במלואו. אפשר להמשיך במחיר מלא - לחצו שוב על "תשלום".');
       }
       reportClientIssue('checkout_failed', {
         reason: checkoutResponse.reason || 'request_failed',
