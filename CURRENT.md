@@ -2,7 +2,33 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `a957d18e34a5c8554720cfa273746150a51d4551`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `08f1faa70e54aeacf0bb3a587bc6cbe411a5a891`.
+
+## BOOKSURFACE ACTION CARDINALITY REATTACHMENT — local green; commit/push next
+
+Two canonical requests on pushed `08f1faa7` are consumed and will not be
+reused. The first ended after one HTTP-200 dispatch at the sanitized stream
+boundary as `provider_response_parse_failure`. The second completed three calls
+with route `initial -> page_spatial_reference_patch -> book_surface_patch` and
+was atomically rejected as `book_surface_repair_action_binding_changed`.
+Receipt `1102503224d4ea21b3922ae3af870d40fe8b8b71455c5fbed9d444885c88e477`
+contains no Candidate; therefore neither attempt authorizes Wizard or render.
+
+BookSurface now reconstructs every action patch to the exact compiler-owned
+cardinality. Under a mismatched response count, only a unique action carrying
+an existing exact beat ID may patch that index; missing/unmatched actions are
+restored from authority, extras are discarded, beat IDs and existing Source
+Evidence subjects are reattached, and an unbound newly introduced
+`source_phenomenon` subject is replaced by the original subject. Coverage is
+unchanged and full validation remains mandatory.
+
+No prompt/schema/model/policy/budget/retry/fallback/Candidate/Wizard/render
+version changed. Focused integration is **334/334 PASS**; post-hardening
+BookSurface + repair loop is **73/73 PASS**; TypeScript and diff-check PASS. The
+literal full gate ran once: ordinary 3,281 PASS / 65 skipped / only the five
+known missing-fixture failures; resource 607/607 PASS plus the two known
+post-assertion `onTaskUpdate` timeouts. A new Fresh is required after the
+focused commit/push.
 
 ## COMPILER-OWNED TRANSITION ENDPOINT NORMALIZATION — local green; commit/push next
 

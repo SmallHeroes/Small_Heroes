@@ -2119,6 +2119,7 @@ function restoreCompilerOwnedActionBindingIdentity(args: {
   for (const affectedPage of args.authority.affectedPages) {
     if (!affectedPage.writableFields.includes('actionRequirements')) continue;
     const pagePatch = patchByPage.get(affectedPage.pageNumber);
+    if (!pagePatch) continue;
     const patchActions = Array.isArray(pagePatch?.actionRequirements)
       ? pagePatch.actionRequirements.map(recordValue)
       : [];
@@ -2129,19 +2130,33 @@ function restoreCompilerOwnedActionBindingIdentity(args: {
       ? affectedPage.pageContract.actionRequirements.map(recordValue)
       : [];
     if (
-      patchActions.length !== bindings.length ||
       authorityActions.length !== bindings.length ||
       patchActions.some((action) => action === null) ||
       authorityActions.some((action) => action === null)
     ) {
       continue;
     }
+    const restoredActions =
+      patchActions.length === bindings.length
+        ? (patchActions as Record<string, unknown>[])
+        : bindings.map((binding, actionIndex) => {
+            const matches = patchActions.filter(
+              (action) => action?.beatId === binding.beatId,
+            );
+            return structuredClone(
+              matches.length === 1
+                ? matches[0]!
+                : authorityActions[actionIndex]!,
+            );
+          });
+    pagePatch.actionRequirements = restoredActions;
     for (let actionIndex = 0; actionIndex < bindings.length; actionIndex += 1) {
       const binding = bindings[actionIndex]!;
-      const patchAction = patchActions[actionIndex]!;
+      const patchAction = restoredActions[actionIndex]!;
       const authoritySubject = recordValue(
         authorityActions[actionIndex]!.subject,
       );
+      const patchSubject = recordValue(patchAction.subject);
       patchAction.beatId = binding.beatId;
       if (
         authoritySubject?.kind === 'source_phenomenon' &&
@@ -2152,6 +2167,10 @@ function restoreCompilerOwnedActionBindingIdentity(args: {
           kind: 'source_phenomenon',
           sourceEvidenceId: authoritySubject.sourceEvidenceId,
         };
+      } else if (patchSubject?.kind === 'source_phenomenon') {
+        patchAction.subject = structuredClone(
+          authorityActions[actionIndex]!.subject,
+        );
       }
     }
   }

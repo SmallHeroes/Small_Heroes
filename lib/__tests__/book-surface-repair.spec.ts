@@ -1242,7 +1242,7 @@ describe('atomic causal book-surface repair v10 input authority', () => {
     expect(stale).toEqual(snapshot);
   });
 
-  it('reattaches compiler-owned beat and Source Evidence identity while rejecting action cardinality drift', () => {
+  it('reattaches compiler-owned beat, Source Evidence and exact action cardinality', () => {
     const original = draft();
     const evidenceId = `se1_${'a'.repeat(64)}`;
     const pageOne = (
@@ -1324,14 +1324,176 @@ describe('atomic causal book-surface repair v10 input authority', () => {
 
     const cardinalityDrift = structuredClone(validPatch);
     cardinalityDrift.pageStructuralPatches[0]!.actionRequirements = [];
-    expect(() =>
-      applyBookSurfaceRepairPatch({
-        draft: original,
-        authority: selected!,
-        patch: cardinalityDrift,
-      }),
-    ).toThrow('book_surface_repair_action_binding_changed');
+    const restored = applyBookSurfaceRepairPatch({
+      draft: original,
+      authority: selected!,
+      patch: cardinalityDrift,
+    });
+    const restoredAction = (
+      (restored.pageContracts as Array<Record<string, unknown>>)[0]!
+        .actionRequirements as Array<Record<string, unknown>>
+    )[0]!;
+    expect(restoredAction).toEqual(
+      (pageOne.actionRequirements as Array<Record<string, unknown>>)[0],
+    );
+    expect(cardinalityDrift.pageStructuralPatches[0]!.actionRequirements).toEqual(
+      [],
+    );
     expect(original).toEqual(snapshot);
+  });
+
+  it('keeps recognized semantic action patches while filling missing bindings and discarding extras', () => {
+    const original = draft();
+    const pageOne = (
+      original.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    const first: Record<string, unknown> = {
+      beatId: 'beat:p1:first',
+      subject: {
+        kind: 'entity',
+        entityKind: 'cast',
+        entityId: 'child:hero',
+      },
+      predicate: 'looks_at',
+      object: { kind: 'cast', id: 'companion:fox' },
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'affirmative',
+      laterality: null,
+    };
+    const second = structuredClone(first);
+    second.beatId = 'beat:p1:second';
+    pageOne.actionRequirements = [first, second];
+    pageOne.actionSemanticCoverage = [
+      {
+        beatId: 'beat:p1:first',
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+        disposition: { kind: 'action_requirement' },
+      },
+      {
+        beatId: 'beat:p1:second',
+        sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+        disposition: { kind: 'action_requirement' },
+      },
+    ];
+    const issue: DraftValidationIssue = {
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: { kind: 'page', fieldRole: 'final_structure', pageNumber: 1 },
+      causes: ['page_action_requirements_invalid'],
+    };
+    const selected = bookSurfaceRepairAuthority({
+      draft: original,
+      authorityDraft: original,
+      presentationTargets: [],
+      structuralDiagnosticIssues: [issue],
+      structuralValidationMessages: ['sanitized action validation'],
+    });
+    expect(selected).not.toBeNull();
+    const pagePatch = structuralPatchFromAuthority(selected!);
+    const semanticSecond = structuredClone(second);
+    semanticSecond.polarity = 'negated';
+    const extra = structuredClone(first);
+    extra.beatId = 'beat:p1:provider_extra';
+    const anotherExtra = structuredClone(first);
+    anotherExtra.beatId = 'beat:p1:provider_extra_2';
+    pagePatch.actionRequirements = [semanticSecond, extra, anotherExtra];
+    const patchValue = {
+      presentationPatches: [],
+      coverContract: null,
+      recurringProps: null,
+      pageStructuralPatches: [pagePatch],
+    } satisfies BookSurfaceRepairPatch;
+    const patchSnapshot = structuredClone(patchValue);
+    const draftSnapshot = structuredClone(original);
+
+    const result = applyBookSurfaceRepairPatch({
+      draft: original,
+      authority: selected!,
+      patch: patchValue,
+    });
+    const actions = (
+      (result.pageContracts as Array<Record<string, unknown>>)[0]!
+        .actionRequirements as Array<Record<string, unknown>>
+    );
+    expect(actions).toHaveLength(2);
+    expect(actions[0]).toEqual(first);
+    expect(actions[1]).toEqual({ ...semanticSecond, beatId: 'beat:p1:second' });
+    expect(patchValue).toEqual(patchSnapshot);
+    expect(original).toEqual(draftSnapshot);
+  });
+
+  it('does not admit an unbound provider-created source phenomenon subject', () => {
+    const original = draft();
+    const pageOne = (
+      original.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    pageOne.actionRequirements = [
+      {
+        beatId: 'beat:p1:look',
+        subject: {
+          kind: 'entity',
+          entityKind: 'cast',
+          entityId: 'child:hero',
+        },
+        predicate: 'looks_at',
+        object: { kind: 'cast', id: 'companion:fox' },
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'affirmative',
+        laterality: null,
+      },
+    ];
+    pageOne.actionSemanticCoverage = [
+      {
+        beatId: 'beat:p1:look',
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+        disposition: { kind: 'action_requirement' },
+      },
+    ];
+    const issue: DraftValidationIssue = {
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: { kind: 'page', fieldRole: 'final_structure', pageNumber: 1 },
+      causes: ['page_action_requirements_invalid'],
+    };
+    const selected = bookSurfaceRepairAuthority({
+      draft: original,
+      authorityDraft: original,
+      presentationTargets: [],
+      structuralDiagnosticIssues: [issue],
+      structuralValidationMessages: ['sanitized action validation'],
+    });
+    expect(selected).not.toBeNull();
+    const pagePatch = structuralPatchFromAuthority(selected!);
+    const authorityAction = (
+      (selected!.affectedPages[0]!.pageContract.actionRequirements as Array<
+        Record<string, unknown>
+      >)[0]!
+    );
+    const patchAction = (
+      pagePatch.actionRequirements as Array<Record<string, unknown>>
+    )[0]!;
+    patchAction.subject = {
+      kind: 'source_phenomenon',
+      sourceEvidenceId: `se1_${'f'.repeat(64)}`,
+    };
+
+    const result = applyBookSurfaceRepairPatch({
+      draft: original,
+      authority: selected!,
+      patch: {
+        presentationPatches: [],
+        coverContract: null,
+        recurringProps: null,
+        pageStructuralPatches: [pagePatch],
+      },
+    });
+    const resultAction = (
+      (result.pageContracts as Array<Record<string, unknown>>)[0]!
+        .actionRequirements as Array<Record<string, unknown>>
+    )[0]!;
+    expect(resultAction.subject).toEqual(authorityAction.subject);
   });
 
   it('rejects every provider mustShow edit on presentation-target pages', () => {

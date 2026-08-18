@@ -1407,6 +1407,10 @@ describe('page-contract compact repair routing', () => {
             polarity: 'must',
             laterality: null,
           };
+          actions.push({
+            ...structuredClone(actions[0]),
+            beatId: 'beat:p2:provider_extra_unbound',
+          });
           repaired.camera = '';
         } else if (affectedPage.pageNumber === 2) {
           repaired.camera = valid.pageContracts[1]!.camera;
@@ -1471,6 +1475,7 @@ describe('page-contract compact repair routing', () => {
       (page) => page.pageNumber === 2,
     )!;
     expect(finalPage2.camera).toBe(valid.pageContracts[1]!.camera);
+    expect(finalPage2.actionRequirements).toHaveLength(1);
     const finalPage2Coverage = result.actionSemanticCoverage.filter(
       (coverage) => coverage.pageNumber === 2,
     );
