@@ -19,6 +19,7 @@ import {
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
   CANONICAL_LIVE_EXECUTION_READINESS_VERSION,
   CANONICAL_LIVE_EXECUTION_REQUEST_VERSION,
+  CANONICAL_LIVE_EXECUTION_RESULT_VERSION,
   CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION,
   CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
   VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
@@ -361,12 +362,14 @@ async function writeSuccessfulChildOutputs(
   persistVisualContractAuthoringReceipt({
     repoRoot: fixture.repoRoot,
     outputDir: outputRoot,
+    request,
     receipt: run.receipt,
     write: true,
   });
   persistVisualContractAuthoringReadiness({
     repoRoot: fixture.repoRoot,
     outputDir: outputRoot,
+    request,
     evidence: readiness,
     receipt: run.receipt,
     write: true,
@@ -374,6 +377,7 @@ async function writeSuccessfulChildOutputs(
   persistVisualContractCandidate({
     repoRoot: fixture.repoRoot,
     outputDir: outputRoot,
+    request,
     receipt: run.receipt,
     compileResult: run.compileResult,
     write: true,
@@ -759,6 +763,12 @@ describe('canonical live execution request and readiness', () => {
     expect(
       canonicalLiveExecutionRequestIssues(fixture.request),
     ).toEqual([]);
+    expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
+      'canonical-live-request-verification/v29',
+    );
+    expect(CANONICAL_LIVE_EXECUTION_RESULT_VERSION).toBe(
+      'canonical-live-execution-result/v21',
+    );
     expect(readiness.version).toBe(
       CANONICAL_LIVE_EXECUTION_READINESS_VERSION,
     );
@@ -914,7 +924,7 @@ describe('canonical live execution request and readiness', () => {
     const legacyRequest = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    legacyRequest.version = 'canonical-live-execution-request/v26';
+    legacyRequest.version = 'canonical-live-execution-request/v27';
     const {
       digestAlgorithm: _requestAlgorithm,
       digest: _requestDigest,
@@ -934,7 +944,7 @@ describe('canonical live execution request and readiness', () => {
       readiness,
     ) as unknown as Record<string, unknown>;
     legacyReadiness.version =
-      'canonical-live-execution-readiness/v26';
+      'canonical-live-execution-readiness/v27';
     const {
       digestAlgorithm: _readinessAlgorithm,
       digest: _readinessDigest,
@@ -1932,6 +1942,7 @@ describe('future live test boundary', () => {
 
   it.each([
     'tampered_artifact',
+    'redigested_prompt_artifact',
     'multiple_artifacts',
     'multiple_request_artifacts',
     'provider_failure_artifact',
@@ -1974,6 +1985,76 @@ describe('future live test boundary', () => {
                     fs.readdirSync(directory)[0]!,
                   );
                   fs.appendFileSync(receiptPath, ' ', 'utf8');
+                } else if (
+                  scenario === 'redigested_prompt_artifact'
+                ) {
+                  const loadSole = (category: string) => {
+                    const directory = path.join(
+                      fixture.repoRoot,
+                      outputRoot,
+                      category,
+                    );
+                    const sourcePath = path.join(
+                      directory,
+                      fs.readdirSync(directory)[0]!,
+                    );
+                    return {
+                      directory,
+                      sourcePath,
+                      value: JSON.parse(
+                        fs.readFileSync(sourcePath, 'utf8'),
+                      ) as Record<string, unknown>,
+                    };
+                  };
+                  const redigest = (
+                    value: Record<string, unknown>,
+                  ): string => {
+                    const {
+                      digestAlgorithm: _digestAlgorithm,
+                      digest: _digest,
+                      ...payload
+                    } = value;
+                    const digest = canonicalJsonDigest(payload);
+                    value.digestAlgorithm =
+                      'canonical-json-sha256';
+                    value.digest = digest;
+                    return digest;
+                  };
+                  const replace = (artifact: {
+                    directory: string;
+                    sourcePath: string;
+                    value: Record<string, unknown>;
+                  }): string => {
+                    const digest = redigest(artifact.value);
+                    const destination = path.join(
+                      artifact.directory,
+                      `${digest}.json`,
+                    );
+                    fs.rmSync(artifact.sourcePath);
+                    writeCanonical(destination, artifact.value);
+                    return digest;
+                  };
+                  const receiptArtifact = loadSole(
+                    'authoring-receipts',
+                  );
+                  const attempts = receiptArtifact.value
+                    .attempts as Array<Record<string, unknown>>;
+                  attempts[0]!.systemPromptDigest = '4'.repeat(64);
+                  const receiptDigest = replace(receiptArtifact);
+
+                  const readinessArtifact = loadSole(
+                    'readiness-evidence',
+                  );
+                  readinessArtifact.value.authoringReceiptDigest =
+                    receiptDigest;
+                  replace(readinessArtifact);
+
+                  const candidateArtifact = loadSole(
+                    'contract-candidates',
+                  );
+                  candidateArtifact.value.authoringReceiptDigest =
+                    receiptDigest;
+                  replace(candidateArtifact);
                 } else if (
                   scenario === 'multiple_artifacts' ||
                   scenario === 'multiple_request_artifacts'

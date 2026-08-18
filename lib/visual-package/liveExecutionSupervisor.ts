@@ -34,19 +34,20 @@ import {
   buildVisualContractCandidateArtifact,
   persistVisualContractAuthoringReadiness,
   persistVisualContractAuthoringReceipt,
+  type VisualContractAuthoringRequest,
   type VisualContractAuthoringReadinessEvidence,
   type VisualContractAuthoringReceipt,
   type VisualContractCandidateArtifact,
 } from './visualContractAuthoringLifecycle';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_VERSION =
-  'canonical-live-execution-request/v27' as const;
+  'canonical-live-execution-request/v28' as const;
 export const CANONICAL_LIVE_EXECUTION_READINESS_VERSION =
-  'canonical-live-execution-readiness/v27' as const;
+  'canonical-live-execution-readiness/v28' as const;
 export const CANONICAL_LIVE_EXECUTION_PROBE_VERSION =
   'canonical-live-execution-probe/v1' as const;
 export const CANONICAL_LIVE_EXECUTION_RESULT_VERSION =
-  'canonical-live-execution-result/v20' as const;
+  'canonical-live-execution-result/v21' as const;
 export const CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION =
   'canonical-live-execution-child-output-authority/v1' as const;
 
@@ -2232,6 +2233,8 @@ function buildCanonicalLiveExecutionChildOutputAuthority(args: {
   }
   const typedReceipt =
     receipt as unknown as VisualContractAuthoringReceipt;
+  const typedAuthoringRequest =
+    authoringRequest.value as unknown as VisualContractAuthoringRequest;
   const typedReadiness =
     readiness as unknown as VisualContractAuthoringReadinessEvidence;
   const typedCandidate =
@@ -2240,18 +2243,21 @@ function buildCanonicalLiveExecutionChildOutputAuthority(args: {
     persistVisualContractAuthoringReceipt({
       repoRoot: args.repositoryRealPath,
       outputDir: outputRoot,
+      request: typedAuthoringRequest,
       receipt: typedReceipt,
       write: false,
     });
     persistVisualContractAuthoringReadiness({
       repoRoot: args.repositoryRealPath,
       outputDir: outputRoot,
+      request: typedAuthoringRequest,
       evidence: typedReadiness,
       receipt: typedReceipt,
       write: false,
     });
     const rebuiltCandidate =
       buildVisualContractCandidateArtifact({
+        request: typedAuthoringRequest,
         receipt: typedReceipt,
         compileResult: {
           template: typedCandidate.template,

@@ -486,12 +486,14 @@ async function materializeCanonicalCandidate(
     const receiptWrite = persistVisualContractAuthoringReceipt({
       repoRoot: canonicalRepoRoot,
       outputDir,
+      request,
       receipt: run.receipt,
       write: true,
     });
     const readinessWrite = persistVisualContractAuthoringReadiness({
       repoRoot: canonicalRepoRoot,
       outputDir,
+      request,
       evidence: readiness,
       receipt: run.receipt,
       write: true,
@@ -499,6 +501,7 @@ async function materializeCanonicalCandidate(
     const candidateWrite = persistVisualContractCandidate({
       repoRoot: canonicalRepoRoot,
       outputDir,
+      request,
       receipt: run.receipt,
       compileResult: run.compileResult!,
       write: true,
@@ -784,6 +787,40 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
           `${OUTPUT_ROOT}/execution/canonical-live-execution-results/missing.json`,
       }),
     ).toThrow(/Supervisor execution result is missing/i);
+
+    const supervisorSourcePath =
+      `${OUTPUT_ROOT}/execution/supervisor-live-result.json`;
+    const supervisorSourceAbsolute = path.join(
+      fixture.repoRoot,
+      supervisorSourcePath,
+    );
+    const supervisorSourceBytes = fs.readFileSync(
+      supervisorSourceAbsolute,
+      'utf8',
+    );
+    const priorSupervisorResult = JSON.parse(
+      supervisorSourceBytes,
+    ) as Record<string, unknown>;
+    priorSupervisorResult.version =
+      'canonical-live-execution-result/v20';
+    writeText(
+      fixture.repoRoot,
+      supervisorSourcePath,
+      canonicalLiveAuthoringJsonBytes(priorSupervisorResult),
+    );
+    expect(() =>
+      captureQaWizardCanonicalSupervisorResultEvidence({
+        repoRoot: fixture.repoRoot,
+        outputDir: `${OUTPUT_ROOT}/execution-prior-result`,
+        supervisorResultSourcePath: supervisorSourcePath,
+        write: false,
+      }),
+    ).toThrow(/Supervisor execution result/i);
+    fs.writeFileSync(
+      supervisorSourceAbsolute,
+      supervisorSourceBytes,
+      'utf8',
+    );
 
     const resultAbsolute = path.join(
       fixture.repoRoot,

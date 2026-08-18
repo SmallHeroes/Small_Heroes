@@ -2,7 +2,136 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-hint-admission-observability` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `37983ab41e039fa36b694344f2a399504a6806e0`.
+**Working branch:** `codex/r1d-book-surface-causal-repair-contract` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `f9797c20169309944d0cfdd2ef37edf871a6f610`.
+
+## BOOK SURFACE CAUSAL REPAIR CONTRACT — implementation locally validated; independent QA pending
+
+The canonical attempt under
+`outputs/r1d-hint-admission-observability-fresh-f9797c20-20260817T211128482Z`
+ended fail-closed without a candidate. Receipt v34
+`c2d01c1ede28e2abce726c8a904c1356a61700b7930f2176ef8b629d263a276e`
+records three completed provider calls, two repairs, zero transport retries and
+no fallback at `$1.652015 / $1.826229` nominal/conservative cost. Its route was
+`initial -> book_surface_patch -> book_surface_patch`. The first repair cleared
+the cover, presentation and recurring-prop lifecycle issues. The second repair
+reintroduced action failures on four pages and recurring-prop lifecycle while
+trying to close the remaining page structure. No candidate, reconciliation,
+Blueprint, Wizard or render authority exists.
+
+The cause was an over-broad repair contract. A page-level structural identity
+discarded its closed subcauses, then Book Surface masked and reapplied every
+structural page field. The second repair could therefore rewrite already-valid
+action requirements and page prop constraints without the immutable coverage,
+presence or prop-lifecycle facts needed to preserve them. The shared action
+schema also allowed static catalog-invalid combinations that only the later
+validator could reject.
+
+The correction is causal and general:
+
+- Book Surface v5 retains exact closed page causes and derives an exact writable
+  field set. Every other returned field must equal the current authority and is
+  neither masked nor applied.
+- Its compact read-only context binds current cast/presence, spatial/anchor,
+  scrubbed safety, ordered action-to-coverage identity, prop lifecycle
+  obligations and transition topology only where needed. A canonical internal
+  authority digest rejects context tamper before prompt construction or apply.
+- Action count, ordered beat IDs and compiler-owned Source Evidence bindings are
+  immutable in this lane. Action Semantic Coverage is never provider output.
+- Catalog-derived grouped `$defs` make the bounded Structural Bundle v3 and Book
+  Surface v5 response schemas statically exact. The initial/full-draft v15 and
+  Page Contract v2 schemas remain byte-identical because applying the larger
+  schema there would make three canonical QA sources exceed 64K.
+- The compiler appends only missing exact page projection strings, preserving
+  existing strings, order and pointer indexes. The projector is total on
+  malformed provider action shapes and skips any action it cannot safely
+  project; the unchanged validator still rejects and classifies that action.
+- Duplicate action check IDs now receive the reachable closed action-collision
+  cause at their original validation point; error prose, count and order remain
+  unchanged.
+- Every persisted attempt is now post-hoc rebound to the exact current request
+  route: static prompt version/digest, the complete Structured Output authority
+  and recorded system/schema byte accounting. The initial user prompt is bound
+  exactly to the Request. A dynamic repair user-prompt digest remains observed
+  runtime provenance because its intermediate invalid draft is intentionally
+  not persisted; it is not treated as independently reconstructable authority
+  or as a cryptographic attestation against a total artifact rewriter.
+- Receipt and Readiness persistence, Candidate minting, Supervisor child-output
+  capture and the QA bridge require the exact current live Request, source,
+  mode, provider, endpoint, model, tier, pricing, static route authority and
+  request-bound output budget. A zero-call
+  `request_invalid` receipt may use only an independently derived page-count
+  fallback budget. Current consumers also reject successful predecessor B0 and
+  Supervisor-readiness envelopes before using them.
+- At the canonical input boundary, rejected raw Request digests and bounded
+  reason codes remain only in rejected-request evidence. The schema-filtered
+  lifecycle copy is re-digested canonically, so an unknown field neither enters
+  Receipt/Readiness nor requires a legacy/self-digest validation exemption.
+- Failed `provider_policy_mismatch` evidence carries a closed mismatch scope.
+  Unknown routes are never waived; call-options and provider-identity failures
+  still require full prompt binding. A compiler budget-sequence inconsistency
+  is a local fail-closed invariant and creates no synthetic rejected attempt.
+  Only the single final pre-provider prompt-authority mismatch may retain its
+  well-formed observed rejected prompt digests/accounting, without authorizing
+  a Candidate.
+
+No prompt text contains a presentation target's source phrase. Recurring-prop
+repair validates effective post-patch pre-reveal obligations. A presentation
+page cannot change its frozen `mustShow`; a non-presentation structural page
+retains its authorized repair. Static and lifecycle hostile tests reject stale
+context, source-evidence rebinding, beat changes, unrelated field drift,
+transition tamper and lifecycle regression.
+
+The current authority cutover is Structural Bundle schema v3, Book Surface
+schema/system/user v5, attempt diagnostics v4, authoring
+request/receipt/readiness v31/v35/v33, B0 input/manifest/verifier v20/v29/v29,
+execution materialization input/result v19/v23, Supervisor
+request/readiness/result v28/v28/v21 and Fresh Readiness v28. Draft v15, Page
+Contract v2, policy v12, standard budget v2, candidate v9, OpenAI evidence v6,
+child-output authority v1 and QA bridge v2 remain unchanged. Immediate
+authoring predecessors are immutable legacy authority; no historical artifact
+is rewritten.
+
+Focused validation is green across **21 unique files / 787 tests**, including
+the compiler/repair schemas, 91 lifecycle tests, B0/execution materialization,
+Fresh Readiness, Supervisor causal output and the QA-to-Wizard bridge.
+Deterministic TypeScript, autonomous-story TypeScript and `git diff --check`
+pass.
+
+Internal read-only adversarial review found no remaining core causal-repair or
+artifact-binding defect. It first exposed downstream Request/Receipt gaps in
+static prompt/schema, output-budget and root execution identity binding; each
+was corrected and re-gated. All **5 files / 211 tests** in the focused current
+chain pass their assertions, including process-level and direct hostile cases
+that re-digest Receipt, Readiness and Candidate artifacts after changing prompt
+or root provider authority. The combined Vitest process then reported one
+existing `onTaskUpdate` RPC timeout and returned exit `1`; the individual
+corrected lifecycle suite is 91/91 green. A final individual Supervisor run
+likewise passed all 42 assertions before the same runner RPC timeout; the QA
+bridge exited cleanly at 7/7. Final review of the completed immutable commit
+range is still pending and remains the authority for technical PASS.
+
+One literal `npm run check` ran exactly once and stopped immediately on a
+test-only TypeScript narrowing assertion added in this milestone. The assertion
+was corrected; the TypeScript and autonomous-story phases then passed
+individually. The diagnostic Vitest phase ran once: ordinary execution passed
+**3,251**, skipped **65**, and reported seven assertions. Five are the
+established missing ignored-output fixture HOLD. The other two were stale
+reference-domain expectations caused by the new typed cause and compiler-owned
+projection; after exact correction their focused file passes **48/48** and the
+paired structural suite passes **37/37**. Resource-intensive execution passed
+**20 files / 599 tests**, after which Vitest reported two existing
+`onTaskUpdate` RPC timeouts and returned exit `1`. These results are recorded,
+not retried, waived or represented as a green repository gate.
+
+Decision Gate commit is
+`09ba5597288eb7fce66a09590cea2d6b2ec5d590`. The local branch contains the
+focused implementation/evidence milestone; independent Claude Code review and
+push are still pending. Since the consumed
+attempt, no credential, provider, Fresh Readiness, preflight, live, image,
+Vision, render, storage/database, deployment, production or push action
+occurred. A new paid attempt is forbidden until the local commit receives an
+independent read-only PASS on its immutable range and a new pushed-head Fresh
+package passes every spend gate.
 
 ## BOOK SURFACE HINT ADMISSION + STRUCTURAL CAUSES — independent technical PASS; push pending
 

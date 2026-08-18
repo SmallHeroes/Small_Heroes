@@ -921,7 +921,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v34',
+      'visual-contract-authoring-receipt/v35',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -2910,6 +2910,106 @@ describe('canonical live authoring executable boundary', () => {
     expect(evidence).not.toHaveProperty('request');
     expect(providerFactory).not.toHaveBeenCalled();
   });
+
+  it('routes a shape-valid immediate-predecessor request only through rejected evidence and current failed lifecycle envelopes', async () => {
+    const fixture = createLiveFixture(
+      'shape-valid-immediate-predecessor-request',
+    );
+    const request = structuredClone(
+      fixture.request,
+    ) as unknown as Record<string, unknown>;
+    request.version = 'visual-contract-authoring-request/v30';
+    redigestRequest(request);
+    writeJson(
+      fixture.repoRoot,
+      fixture.requestPath,
+      request,
+    );
+
+    const providerFactory = vi.fn();
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { providerFactory },
+      );
+    const evidence = readRejectedEvidence(fixture, result);
+    expect(result.status).toBe('failed');
+    expect(result.receipt).toMatchObject({
+      version: 'visual-contract-authoring-receipt/v35',
+      status: 'failed',
+      callCount: 0,
+      failure: { code: 'request_invalid' },
+    });
+    expect(result.readiness).toMatchObject({
+      version: 'visual-contract-authoring-readiness/v33',
+      authoringOutcome: {
+        status: 'failed',
+        failureCode: 'request_invalid',
+      },
+    });
+    expect(result.persistence.authoringReceipt.created).toBe(true);
+    expect(result.persistence.readiness.created).toBe(true);
+    expect(evidence.issues).toEqual(
+      expect.arrayContaining([
+        'request_version_mismatch',
+        'supplied_live_request_content_mismatch',
+      ]),
+    );
+    expect(evidence.claimedRequestDigest).toBe(request.digest);
+    expect(providerFactory).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['stale self digest', (request: Record<string, unknown>) => {
+      request.digest = 'f'.repeat(64);
+    }],
+    ['wrong digest algorithm', (request: Record<string, unknown>) => {
+      request.digestAlgorithm = 'sha256';
+      redigestRequest(request);
+    }],
+  ])(
+    'routes a current shape-valid request with %s through rejected evidence without throwing after receipt persistence',
+    async (_label, mutate) => {
+      const fixture = createLiveFixture(
+        `shape-valid-envelope-${_label}`,
+      );
+      const request = structuredClone(
+        fixture.request,
+      ) as unknown as Record<string, unknown>;
+      mutate(request);
+      writeJson(
+        fixture.repoRoot,
+        fixture.requestPath,
+        request,
+      );
+
+      const providerFactory = vi.fn();
+      const result =
+        await runCanonicalLiveVisualContractAuthoring(
+          fixtureInput(fixture),
+          { providerFactory },
+        );
+      const evidence = readRejectedEvidence(fixture, result);
+      expect(result.status).toBe('failed');
+      expect(result.receipt).toMatchObject({
+        version: 'visual-contract-authoring-receipt/v35',
+        status: 'failed',
+        callCount: 0,
+        failure: { code: 'request_invalid' },
+      });
+      expect(result.readiness).toMatchObject({
+        version: 'visual-contract-authoring-readiness/v33',
+        authoringOutcome: {
+          status: 'failed',
+          failureCode: 'request_invalid',
+        },
+      });
+      expect(result.persistence.authoringReceipt.created).toBe(true);
+      expect(result.persistence.readiness.created).toBe(true);
+      expect(evidence.issues.length).toBeGreaterThan(0);
+      expect(providerFactory).not.toHaveBeenCalled();
+    },
+  );
 
   it('defines the complete non-vacuous top-level request scalar rejection matrix', () => {
     expect(

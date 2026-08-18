@@ -19,6 +19,7 @@ import {
   buildProductionReconciliationDraftFromFiles,
   buildStorySourceAuthoritySnapshot,
   buildVisualContractAuthoringReadinessEvidence,
+  buildVisualContractAuthoringRejectedRequestFallbackBudget,
   buildVisualContractAuthoringRequest,
   finalizeApprovedVisualPackageV4,
   materializeCanonicalLiveRequestBundle,
@@ -294,6 +295,14 @@ async function sourceAuthoringPreflight(
       request: authoringRequest,
       receipt: result.receipt,
     });
+  const invalidRequestFallbackBudget =
+    result.receipt.status === 'failed' &&
+    result.receipt.failure?.code === 'request_invalid' &&
+    result.receipt.attempts.length === 0
+      ? buildVisualContractAuthoringRejectedRequestFallbackBudget(
+          snapshot.content.pages.length,
+        )
+      : undefined;
   const shouldWrite = writeFlag(flags);
   if (shouldWrite && !flags.has('--out')) {
     throw new Error(
@@ -321,15 +330,19 @@ async function sourceAuthoringPreflight(
           persistVisualContractAuthoringReceipt({
             repoRoot: request.repoRoot,
             outputDir,
+            request: authoringRequest,
             receipt: result.receipt,
+            invalidRequestFallbackBudget,
             write: shouldWrite,
           }),
         readiness:
           persistVisualContractAuthoringReadiness({
             repoRoot: request.repoRoot,
             outputDir,
+            request: authoringRequest,
             evidence: readiness,
             receipt: result.receipt,
+            invalidRequestFallbackBudget,
             write: shouldWrite,
           }),
       }

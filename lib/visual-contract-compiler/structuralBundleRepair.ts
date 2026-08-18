@@ -4,8 +4,9 @@ import {
   type DraftValidationIssue,
 } from './draftValidationDiagnostics';
 import {
-  TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
+  CATALOG_STRICT_PAGE_CONTRACT_JSON_SCHEMA,
   TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA,
+  withTemplateDraftActionRequirementDefinitions,
 } from './templateDraftSchema';
 import {
   decodePageContractRepairInput,
@@ -13,7 +14,7 @@ import {
 } from './pageContractRepair';
 
 export const STRUCTURAL_BUNDLE_REPAIR_SCHEMA_VERSION =
-  'structural-bundle-repair-schema/v2' as const;
+  'structural-bundle-repair-schema/v3' as const;
 export const STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME =
   'StructuralBundleRepairPatch' as const;
 export const STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION =
@@ -38,18 +39,20 @@ function strictObject(
 export const STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA: Record<
   string,
   unknown
-> = strictObject({
-  recurringProps: {
-    type: 'array',
-    minItems: 1,
-    items: TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA,
-  },
-  pageContracts: {
-    type: 'array',
-    minItems: 1,
-    items: TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
-  },
-});
+> = withTemplateDraftActionRequirementDefinitions(
+  strictObject({
+    recurringProps: {
+      type: 'array',
+      minItems: 1,
+      items: TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA,
+    },
+    pageContracts: {
+      type: 'array',
+      minItems: 1,
+      items: CATALOG_STRICT_PAGE_CONTRACT_JSON_SCHEMA,
+    },
+  }),
+);
 
 const RECURRING_PROP_KEYS = Object.freeze(
   Object.keys(
@@ -61,7 +64,7 @@ const RECURRING_PROP_KEYS = Object.freeze(
 );
 const PAGE_CONTRACT_KEYS = Object.freeze(
   Object.keys(
-    TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA.properties as Record<
+    CATALOG_STRICT_PAGE_CONTRACT_JSON_SCHEMA.properties as Record<
       string,
       unknown
     >,

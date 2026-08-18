@@ -56,7 +56,7 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION =
-  'canonical-pre-live-readiness-evidence/v27' as const;
+  'canonical-pre-live-readiness-evidence/v28' as const;
 export const CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION =
   'canonical-pre-live-readiness-failure/v3' as const;
 export const CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION =
@@ -1993,11 +1993,15 @@ function verifyB0Authority(args: {
     repoRoot: args.repositoryRealPath,
     manifestPath: args.manifestPath,
   });
-  if (result.status !== 'verified') {
+  if (
+    result.version !==
+      CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION ||
+    result.status !== 'verified'
+  ) {
     throw new CanonicalPreLiveReadinessError(
       'b0_verification',
       'pre_live_b0_verification_rejected',
-      result.reasonCodes,
+      result.status === 'verified' ? [] : result.reasonCodes,
     );
   }
   return result;
@@ -2012,11 +2016,15 @@ function verifySupervisorAuthority(args: {
     repoRoot: args.repositoryRealPath,
     requestPath: args.requestPath,
   });
-  if (readiness.status !== 'ready') {
+  if (
+    readiness.version !==
+      CANONICAL_LIVE_EXECUTION_READINESS_VERSION ||
+    readiness.status !== 'ready'
+  ) {
     throw new CanonicalPreLiveReadinessError(
       'supervisor_verification',
       'pre_live_supervisor_verification_rejected',
-      readiness.reasonCodes,
+      readiness.status === 'ready' ? [] : readiness.reasonCodes,
     );
   }
   return readiness;

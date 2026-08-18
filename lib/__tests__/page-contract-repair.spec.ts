@@ -241,7 +241,7 @@ function issue(pageNumber: number): DraftValidationIssue {
       fieldRole: 'final_structure',
       pageNumber,
     },
-    causes: ['page_cross_field_invariant_invalid'],
+    causes: ['page_steering_invalid'],
   };
 }
 
@@ -475,6 +475,7 @@ describe('page-contract compact repair', () => {
           family: 'draft_contract' as const,
           code: 'final_structural_invariant_invalid' as const,
           pageNumber: pageContract.pageNumber as number,
+          causes: ['page_steering_invalid'] as const,
         },
       ],
       validationHints: [
@@ -571,6 +572,7 @@ describe('page-contract compact repair', () => {
             family: 'draft_contract' as const,
             code: 'final_structural_invariant_invalid' as const,
             pageNumber,
+            causes: ['page_steering_invalid'] as const,
           },
           ...(hasPresentationTarget
             ? [{
@@ -1960,6 +1962,7 @@ describe('page-contract compact repair', () => {
         family: 'draft_contract',
         code: 'final_structural_invariant_invalid',
         pageNumber: 1,
+        causes: ['page_steering_invalid'],
       },
     ]);
     expect(parsed.affectedPages[0].permittedPointerValues).toEqual([]);

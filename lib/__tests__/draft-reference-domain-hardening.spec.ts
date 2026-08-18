@@ -1517,6 +1517,7 @@ describe('captured reference-domain matrix', () => {
         family: 'draft_contract',
         code: 'final_structural_invariant_invalid',
         pageNumber: 1,
+        causes: ['page_steering_invalid'],
       },
       expect.objectContaining({
         family: 'action_semantic',
@@ -1584,7 +1585,7 @@ describe('captured reference-domain matrix', () => {
     });
   });
 
-  it('routes all currently reachable draft-page spatial field roles with typed compact targets and closed authority', async () => {
+  it('routes all currently reachable draft-page spatial field roles with typed compact targets and completes after compiler projection', async () => {
     const draft = matrixDraft();
     const pageActions = actions(draft);
     pageActions[1]!.object = {
@@ -1603,9 +1604,6 @@ describe('captured reference-domain matrix', () => {
       relation: 'beside',
       target: { kind: 'spatial', id: 'hostile_constraint' },
     };
-    const repairPage = structuredClone(pageRecord(draft));
-    delete repairPage.castIds;
-    delete repairPage.characterPresence;
     let callIndex = 0;
     const callLLM = vi.fn(async (
       _system: string,
@@ -1624,27 +1622,28 @@ describe('captured reference-domain matrix', () => {
                 permittedSpatialReferences: Array<{ id: string }>;
               }>;
             });
+      if (callIndex > 1) {
+        throw new Error('unexpected provider call after compact spatial repair');
+      }
       const output =
         callIndex === 0
           ? draft
-          : callIndex === 1
-            ? {
-              patches: repairInput!.targets.map((target) => ({
-                pageNumber: target.pageNumber,
-                actionIndex: target.actionIndex,
-                fieldRole: target.fieldRole,
-                spatialReferenceId:
-                  target.permittedSpatialReferences[0]!.id,
-              })),
-              }
-            : { pageContracts: [repairPage] };
+          : {
+            patches: repairInput!.targets.map((target) => ({
+              pageNumber: target.pageNumber,
+              actionIndex: target.actionIndex,
+              fieldRole: target.fieldRole,
+              spatialReferenceId:
+                target.permittedSpatialReferences[0]!.id,
+            })),
+            };
       callIndex += 1;
       return JSON.stringify(output);
     });
-    await expect(
-      compileBookVisualContractTemplate(input, { callLLM }),
-    ).rejects.toBeInstanceOf(TemplateRepairExhaustedError);
-    expect(callLLM).toHaveBeenCalledTimes(3);
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+    expect(callLLM).toHaveBeenCalledTimes(2);
     const repairPrompt = String(callLLM.mock.calls[1]![1]);
     expect(repairPrompt).not.toContain('"fieldRole":"subject"');
     expect(repairPrompt).toContain(
@@ -1682,9 +1681,22 @@ describe('captured reference-domain matrix', () => {
       kind: 'repair',
       repairMode: 'page_spatial_reference_patch',
     });
-    expect(callLLM.mock.calls[2]![3]).toMatchObject({
-      kind: 'repair',
-      repairMode: 'page_contract_patch',
+    expect(result.provenance.attempt).toBe(2);
+    expect(result.repairAttempts.map((attempt) => attempt.nextRepairMode))
+      .toEqual(['page_spatial_reference_patch']);
+    const repairedActions = result.template.pageContracts[0]!
+      .actionRequirements!;
+    expect(repairedActions[1]!.object).toEqual({
+      kind: 'spatial',
+      id: 'structure_1',
+    });
+    expect(repairedActions[2]!.spatialEffect).toMatchObject({
+      kind: 'relation',
+      target: { kind: 'spatial', id: 'structure_1' },
+    });
+    expect(repairedActions[3]!.spatialConstraint).toEqual({
+      relation: 'beside',
+      target: { kind: 'spatial', id: 'structure_1' },
     });
   });
 

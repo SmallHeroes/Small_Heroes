@@ -28,6 +28,8 @@ import {
   canonicalPreLiveReadinessArtifactPath,
   inspectCanonicalPreLiveReadinessFailure,
   prepareCanonicalPreLiveReadiness,
+  verifyCanonicalLiveExecution,
+  verifyCanonicalLiveRequestBundle,
   verifyCanonicalPreLiveReadiness,
   type CanonicalPreLiveReadinessInput,
   type CanonicalPreLiveReadinessLaunchAuthority,
@@ -527,7 +529,7 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v28',
+            'canonical-live-request-verification/v29',
           structuredOutputCompatibility: {
             schemaName: 'BookVisualContractTemplateDraft',
             schemaVersion: 'vc-draft-schema/v15',
@@ -570,7 +572,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v27',
+            'canonical-live-execution-readiness/v28',
         },
       },
     });
@@ -716,6 +718,50 @@ describe('canonical pre-live readiness orchestrator', () => {
     }
   });
 
+  it('rejects immediate-predecessor B0 and Supervisor verification envelopes despite successful statuses', () => {
+    const priorB0 = createFixture();
+    const b0Result = prepareCanonicalPreLiveReadiness({
+      input: priorB0.input,
+      launchAuthority: priorB0.launchAuthority,
+      dependencies: {
+        verifyB0: (args) =>
+          ({
+            ...verifyCanonicalLiveRequestBundle(args),
+            version: 'canonical-live-request-verification/v28',
+          }) as unknown as ReturnType<
+            typeof verifyCanonicalLiveRequestBundle
+          >,
+      },
+    });
+    expect(b0Result).toMatchObject({
+      status: 'rejected',
+      phase: 'b0_verification',
+      reasonCodes: ['pre_live_b0_verification_rejected'],
+    });
+
+    const priorSupervisor = createFixture();
+    const supervisorResult = prepareCanonicalPreLiveReadiness({
+      input: priorSupervisor.input,
+      launchAuthority: priorSupervisor.launchAuthority,
+      dependencies: {
+        verifyExecution: (args) =>
+          ({
+            ...verifyCanonicalLiveExecution(args),
+            version: 'canonical-live-execution-readiness/v27',
+          }) as unknown as ReturnType<
+            typeof verifyCanonicalLiveExecution
+          >,
+      },
+    });
+    expect(supervisorResult).toMatchObject({
+      status: 'rejected',
+      phase: 'supervisor_verification',
+      reasonCodes: [
+        'pre_live_supervisor_verification_rejected',
+      ],
+    });
+  });
+
   it('reads immutable v2 failure bytes only as historical evidence', () => {
     const bytes = fs.readFileSync(HISTORICAL_FAILURE_V2);
     expect(sha256(bytes)).toBe(
@@ -776,7 +822,7 @@ describe('canonical pre-live readiness orchestrator', () => {
     const current = prepare(fixture);
     expect(current.status).toBe('ready_for_spend_gate');
     const prior = structuredClone(current) as unknown as Record<string, unknown>;
-    prior.version = 'canonical-pre-live-readiness-evidence/v26';
+    prior.version = 'canonical-pre-live-readiness-evidence/v27';
     const {
       digestAlgorithm: _algorithm,
       digest: _digest,

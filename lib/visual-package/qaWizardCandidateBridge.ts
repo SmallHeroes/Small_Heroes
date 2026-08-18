@@ -2092,6 +2092,7 @@ export function prepareQaWizardCandidateReconciliation(
     label: 'Visual Contract authoring receipt',
   });
   const receiptBoundCandidate = buildVisualContractCandidateArtifact({
+    request,
     receipt,
     compileResult: {
       template: candidate.template,
@@ -2128,6 +2129,7 @@ export function prepareQaWizardCandidateReconciliation(
   persistVisualContractAuthoringReadiness({
     repoRoot: args.repoRoot,
     outputDir: args.outputDir,
+    request,
     evidence: readiness,
     receipt,
     write: false,

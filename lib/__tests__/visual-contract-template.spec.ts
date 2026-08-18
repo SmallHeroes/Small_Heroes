@@ -20,6 +20,7 @@ import {
   MATERIALIZER_VERSION,
   PALETTE_VERSION,
   projectCoverMustNotShow,
+  projectPageActionProse,
   projectPageMustShow,
   type BookVisualContract,
 } from '@/lib/visual-contract-compiler';
@@ -444,6 +445,28 @@ describe('P0 — Template validator', () => {
     expect(projectPageMustShow(malformed.pageContracts[0], malformed)).toEqual(
       expectedPage,
     );
+
+    const invalidPredicate = clone(contract);
+    invalidPredicate.pageContracts[0]!.actionRequirements![0]!.predicate =
+      'flies_over' as never;
+    expect(() =>
+      projectPageMustShow(
+        invalidPredicate.pageContracts[0]!,
+        invalidPredicate,
+      ),
+    ).not.toThrow();
+    expect(
+      projectPageMustShow(
+        invalidPredicate.pageContracts[0]!,
+        invalidPredicate,
+      ),
+    ).toEqual([prop.name]);
+    expect(
+      projectPageActionProse(
+        invalidPredicate.pageContracts[0]!,
+        invalidPredicate,
+      ),
+    ).toBe('');
   });
 
   it('REJECTS family_profile on a non-relative (the clinic doctor)', () => {

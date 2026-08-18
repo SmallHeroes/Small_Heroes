@@ -22,6 +22,7 @@ import type {
 import { PALETTE_VERSION, VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTemplateTypes';
 import type {
   BookVisualContract,
+  PageVisualContract,
   SetBoardStableAuthority,
   SpatialRelation,
   VisualZone,
@@ -63,6 +64,8 @@ import {
 } from './coverSourceAuthority';
 import {
   projectCoverMustNotShow,
+  projectPageMustNotShow,
+  projectPageMustShow,
   projectZoneStableGeometry,
 } from './projectContractProse';
 import {
@@ -2243,6 +2246,55 @@ function overlayPage(
   return out;
 }
 
+function appendMissingExactProjectionStrings(
+  stored: unknown,
+  projected: readonly string[],
+): string[] | null {
+  if (
+    !Array.isArray(stored) ||
+    stored.some(
+      (value) =>
+        typeof value !== 'string' || value.trim().length === 0,
+    )
+  ) {
+    return null;
+  }
+  const result = [...stored] as string[];
+  const seen = new Set(result);
+  for (const value of projected) {
+    if (!seen.has(value)) {
+      result.push(value);
+      seen.add(value);
+    }
+  }
+  return result;
+}
+
+/**
+ * Page steering prose is an append-only projection of compiler-grounded
+ * structure. Existing authored strings and pointer indexes never move.
+ * Malformed arrays remain untouched so final validation still fails closed.
+ */
+export function appendCompilerOwnedPageProjections(
+  template: BookVisualContractTemplate,
+): void {
+  const contractView = template as unknown as BookVisualContract;
+  for (const page of template.pageContracts) {
+    const pageView = page as unknown as PageVisualContract;
+    const pageRecord = page as unknown as Record<string, unknown>;
+    const mustShow = appendMissingExactProjectionStrings(
+      pageRecord.mustShow,
+      projectPageMustShow(pageView, contractView),
+    );
+    if (mustShow) pageRecord.mustShow = mustShow;
+    const mustNotShow = appendMissingExactProjectionStrings(
+      pageRecord.mustNotShow,
+      projectPageMustNotShow(pageView, contractView),
+    );
+    if (mustNotShow) pageRecord.mustNotShow = mustNotShow;
+  }
+}
+
 // ── Topology canonicalization (S2b) ───────────────────────────────────────────
 // The compiler OWNS location/zone IDs + all page/transition references. The LLM describes ONE semantic
 // location/zone graph (zones[] each with a parent locationId); the compiler then rewrites every page's
@@ -3483,6 +3535,7 @@ function assembleTemplateFromDraft(
       ...projectCoverMustNotShow(template as unknown as BookVisualContract),
     ]),
   ];
+  appendCompilerOwnedPageProjections(template);
 
   // coverContract.worldType is a COMPILER-owned copy of the top-level worldType — enforce the equality invariant.
   if ((template.coverContract as { worldType?: unknown }).worldType !== template.worldType) {

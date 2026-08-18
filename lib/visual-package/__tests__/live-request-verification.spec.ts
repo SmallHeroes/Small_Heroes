@@ -480,6 +480,9 @@ describe('canonical live request verification library', () => {
       materialized.persistence.manifest.path,
     );
 
+    expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
+      'canonical-live-request-verification/v29',
+    );
     expect(result).toEqual({
       version: CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
       status: 'verified',
@@ -678,7 +681,7 @@ describe('canonical live request verification library', () => {
       materialized.manifest,
       (value) => {
         value.version =
-          'canonical-live-request-materialization/v27';
+          'canonical-live-request-materialization/v28';
       },
     );
     expect(

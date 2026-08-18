@@ -15,6 +15,9 @@ import {
   type BookVisualContract,
   type VisualZone,
 } from '@/lib/visual-contract-compiler';
+import {
+  appendCompilerOwnedPageProjections,
+} from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 
 /**
  * Stage 4 — DETERMINISTIC COMPILER REJECTIONS + TIER-B projection containment.
@@ -85,16 +88,15 @@ const NODES = [
 
 /** Attach the prose each page's structure projects, so TIER-B containment is satisfied by construction. */
 function withProjectedProse(contract: BookVisualContract): BookVisualContract {
-  const pageContracts = contract.pageContracts.map((p) => ({
-    ...p,
-    mustShow: [...(p.mustShow ?? []), ...projectPageMustShow(p, contract)],
-    mustNotShow: [...(p.mustNotShow ?? []), ...projectPageMustNotShow(p, contract)],
-  }));
-  const coverContract = {
-    ...contract.coverContract,
-    mustNotShow: [...(contract.coverContract?.mustNotShow ?? []), ...projectCoverMustNotShow(contract)],
-  };
-  return { ...contract, pageContracts, coverContract } as unknown as BookVisualContract;
+  const projected = structuredClone(contract);
+  projected.coverContract.mustNotShow = [
+    ...new Set([
+      ...(projected.coverContract?.mustNotShow ?? []),
+      ...projectCoverMustNotShow(projected),
+    ]),
+  ];
+  appendCompilerOwnedPageProjections(projected as never);
+  return projected;
 }
 
 /** Build a contract with a structured zone + a patched page 1, prose-completed. `ok()` → did it validate? */
@@ -167,6 +169,67 @@ describe('Stage 4 — the baseline still holds (additive proof)', () => {
   it('a structure-free contract is untouched, and a well-formed structured one passes', () => {
     expect(validateBookVisualContract(baseContract()).ok).toBe(true);
     expect(ok({ page1: { propConstraints: [{ propId: 'exam_chair', visibility: 'required' }] } })).toBe(true);
+  });
+});
+
+describe('Stage 4 — compiler-owned page prose projection', () => {
+  it('appends only missing exact projections without moving authored pointer indexes and is idempotent', () => {
+    const contract = baseContract();
+    const page = contract.pageContracts[0]!;
+    page.propConstraints = [
+      { propId: 'exam_chair', visibility: 'required' },
+      { propId: 'syringe', visibility: 'forbidden' },
+    ];
+    page.actionRequirements = [ACTION] as never;
+    const projectedShow = projectPageMustShow(page, contract);
+    const projectedNotShow = projectPageMustNotShow(page, contract);
+    expect(projectedShow.length).toBeGreaterThan(1);
+    expect(projectedNotShow.length).toBeGreaterThan(0);
+    page.mustShow = ['authored extra', projectedShow[0]!];
+    page.mustNotShow = ['authored exclusion'];
+    const originalShow = [...page.mustShow];
+    const originalNotShow = [...page.mustNotShow];
+    const expectedShow = [
+      ...originalShow,
+      ...projectedShow.filter((value) => !originalShow.includes(value)),
+    ];
+    const expectedNotShow = [
+      ...originalNotShow,
+      ...projectedNotShow.filter(
+        (value) => !originalNotShow.includes(value),
+      ),
+    ];
+
+    appendCompilerOwnedPageProjections(contract as never);
+    expect(page.mustShow).toEqual(expectedShow);
+    expect(page.mustNotShow).toEqual(expectedNotShow);
+    expect(page.mustShow.slice(0, originalShow.length)).toEqual(
+      originalShow,
+    );
+    expect(page.mustNotShow.slice(0, originalNotShow.length)).toEqual(
+      originalNotShow,
+    );
+    const once = structuredClone(contract);
+    appendCompilerOwnedPageProjections(contract as never);
+    expect(contract).toEqual(once);
+  });
+
+  it('leaves every malformed prose array untouched so validation still fails closed', () => {
+    for (const malformed of [42, [null], [''], ['   ']]) {
+      const contract = baseContract();
+      const page = contract.pageContracts[0]!;
+      page.propConstraints = [
+        { propId: 'exam_chair', visibility: 'required' },
+      ];
+      const stored = structuredClone(malformed);
+      (page as unknown as Record<string, unknown>).mustShow = stored;
+
+      appendCompilerOwnedPageProjections(contract as never);
+      expect(
+        (page as unknown as Record<string, unknown>).mustShow,
+      ).toBe(stored);
+      expect(validateBookVisualContract(contract).ok).toBe(false);
+    }
   });
 });
 
@@ -384,12 +447,123 @@ describe('Stage 4 — reject rule: a required action conflicting with a visibili
 });
 
 describe('Stage 4 — reject rule: every enforcement-relevant claim resolves to a UNIQUE checkId', () => {
+  it('attributes a duplicate authored action checkId to the closed action-collision cause', () => {
+    const result = validateBookVisualContract(build({
+      page1: {
+        actionRequirements: [
+          ACTION,
+          {
+            ...ACTION,
+            predicate: 'looks_at',
+            object: undefined,
+          },
+        ],
+      },
+    }));
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected duplicate action rejection');
+    expect(result.errors).toEqual([
+      expect.stringContaining('actionRequirements duplicate checkId'),
+    ]);
+    expect(result.diagnosticIssues).toEqual([{
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: 1,
+      },
+      causes: ['page_action_check_id_collision_invalid'],
+    }]);
+  });
+
+  it('restores action-requirements attribution after a duplicate action checkId', () => {
+    const result = validateBookVisualContract(build({
+      page1: {
+        actionRequirements: [
+          ACTION,
+          {
+            ...ACTION,
+            polarity: 'invalid',
+          },
+        ],
+      },
+    }));
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected duplicate invalid action rejection');
+    expect(result.errors).toEqual([
+      expect.stringContaining('actionRequirements duplicate checkId'),
+      expect.stringContaining("polarity \"invalid\" must be 'must' or 'must_not'"),
+    ]);
+    expect(
+      result.diagnosticIssues.map((issue) =>
+        'causes' in issue ? issue.causes : null,
+      ),
+    ).toEqual([
+      ['page_action_check_id_collision_invalid'],
+      ['page_action_requirements_invalid'],
+    ]);
+  });
+
   it('two claims colliding on one resolved checkId → rejected (Stage 5 binds exactly one result per id)', () => {
     // The same prop + visibility twice mints one id twice.
     expect(errorsOf({ page1: { propConstraints: [
       { propId: 'exam_chair', visibility: 'required' },
       { propId: 'exam_chair', visibility: 'required' },
     ] } }).join(' ')).toContain('the same checkId');
+  });
+
+  it('keeps prop and safety resolved-check collisions separately attributed', () => {
+    const propResult = validateBookVisualContract(build({
+      page1: {
+        propConstraints: [
+          { propId: 'exam_chair', visibility: 'required' },
+          { propId: 'exam_chair', visibility: 'required' },
+        ],
+      },
+    }));
+    expect(propResult.ok).toBe(false);
+    if (propResult.ok) throw new Error('expected prop collision rejection');
+    expect(propResult.errors).toEqual([
+      expect.stringContaining('the same checkId'),
+    ]);
+    expect(propResult.diagnosticIssues).toEqual([{
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: 1,
+      },
+      causes: ['page_prop_check_id_collision_invalid'],
+    }]);
+
+    const safety = {
+      subjectId: 'child:hero',
+      relation: 'must_not_sit_on',
+      target: { kind: 'prop', id: 'exam_chair' },
+      origin: { kind: 'authored', authorNote: 'keep the child safe' },
+    };
+    const safetyResult = validateBookVisualContract(build({
+      page1: {
+        safetyConstraints: [safety, structuredClone(safety)],
+      },
+    }));
+    expect(safetyResult.ok).toBe(false);
+    if (safetyResult.ok) throw new Error('expected safety collision rejection');
+    expect(safetyResult.errors).toEqual([
+      expect.stringContaining('the same checkId'),
+    ]);
+    expect(safetyResult.diagnosticIssues).toEqual([{
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: 1,
+      },
+      causes: ['page_safety_check_id_collision_invalid'],
+    }]);
   });
 
   it('resolvePageCheckIds mints stable, namespaced, disjoint ids for prop / action / safety claims', () => {

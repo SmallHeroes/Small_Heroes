@@ -456,7 +456,11 @@ describe('closed draft-validation issue contract', () => {
       'page_prop_constraints_invalid',
       'page_action_requirements_invalid',
       'page_safety_constraints_invalid',
-      'page_cross_field_invariant_invalid',
+      'page_action_constraint_conflict_invalid',
+      'page_action_check_id_collision_invalid',
+      'page_prop_check_id_collision_invalid',
+      'page_safety_check_id_collision_invalid',
+      'page_projection_containment_invalid',
       'page_cast_binding_invalid',
       'page_human_presence_binding_invalid',
       'page_transition_invalid',
@@ -482,7 +486,7 @@ describe('closed draft-validation issue contract', () => {
       [pageFinalStructuralIssue(['page_transition_invalid'])],
     ]);
     expect(trail[0]).toMatchObject({
-      version: 'draft-validation-attempt-diagnostics/v3',
+      version: 'draft-validation-attempt-diagnostics/v4',
       emittedCount: 2,
       currentUniqueCount: 1,
       newlyIntroducedCount: 1,
@@ -725,6 +729,9 @@ describe('canonical per-attempt transitions', () => {
       },
       (value) => {
         value.truncated = true;
+      },
+      (value) => {
+        value.version = 'draft-validation-attempt-diagnostics/v3';
       },
       (value) => {
         value.version = 'draft-validation-attempt-diagnostics/v2';

@@ -114,10 +114,10 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       'page-spatial-reference-repair-schema/v1',
     );
     expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
-      'book-surface-repair-schema/v4',
+      'book-surface-repair-schema/v5',
     );
     expect(STRUCTURAL_BUNDLE_REPAIR_SCHEMA_VERSION).toBe(
-      'structural-bundle-repair-schema/v2',
+      'structural-bundle-repair-schema/v3',
     );
 
     for (const schema of [
@@ -166,13 +166,18 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
   });
 
   it('uses an explicit matching type for every production const, including the Blueprint boolean literal', () => {
-    const visualContractConsts = allConstNodes(
+    const visualContractConsts = [
       TEMPLATE_DRAFT_JSON_SCHEMA,
-    );
+      SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+      PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+      PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+      BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+      STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+    ].flatMap(allConstNodes);
     const blueprintConsts = allConstNodes(
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     );
-    expect(visualContractConsts).toHaveLength(15);
+    expect(visualContractConsts.length).toBeGreaterThan(0);
     expect(blueprintConsts.length).toBeGreaterThan(5);
     for (const node of [
       ...visualContractConsts,

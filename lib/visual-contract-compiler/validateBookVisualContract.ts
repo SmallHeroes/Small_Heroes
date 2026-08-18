@@ -889,7 +889,21 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         if (!isStr(raw.checkId) || !CHECK_ID_RE.test(raw.checkId)) {
           errors.push(`${aLabel} checkId "${String(raw.checkId)}" must match ${String(CHECK_ID_RE)} (a namespaced, stable id)`);
         } else if (checkIds.has(raw.checkId)) {
+          errors.useIssue(
+            pageFinalStructuralIssue(
+              p,
+              i,
+              'page_action_check_id_collision_invalid',
+            ),
+          );
           errors.push(`${label}.actionRequirements duplicate checkId "${raw.checkId}" on the same page`);
+          errors.useIssue(
+            pageFinalStructuralIssue(
+              p,
+              i,
+              'page_action_requirements_invalid',
+            ),
+          );
         } else {
           checkIds.add(raw.checkId);
         }
@@ -1272,7 +1286,7 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         pageFinalStructuralIssue(
           p,
           i,
-          'page_cross_field_invariant_invalid',
+          'page_action_constraint_conflict_invalid',
         ),
       );
       const pcTyped = pc as unknown as PageVisualContract;
@@ -1388,14 +1402,42 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
 
       // (b) Every enforcement-relevant claim must resolve to a UNIQUE check id. Stage 5 binds exactly one QA result
       // per required id, so two claims sharing an id is an ambiguity it could not resolve.
-      const idCounts = new Map<string, number>();
+      const idCounts = new Map<
+        string,
+        { count: number; kind: 'action' | 'prop' | 'safety' }
+      >();
       for (const chk of resolvePageCheckIds(pcTyped)) {
-        idCounts.set(chk.checkId, (idCounts.get(chk.checkId) ?? 0) + 1);
+        const prior = idCounts.get(chk.checkId);
+        idCounts.set(chk.checkId, {
+          count: (prior?.count ?? 0) + 1,
+          kind: chk.kind,
+        });
       }
-      for (const [checkId, n] of idCounts) {
-        if (n > 1) {
+      for (const [checkId, value] of idCounts) {
+        if (value.count > 1) {
+          const collisionIssue =
+            value.kind === 'action'
+              ? pageFinalStructuralIssue(
+                  p,
+                  i,
+                  'page_action_check_id_collision_invalid',
+                )
+              : value.kind === 'prop'
+                ? pageFinalStructuralIssue(
+                    p,
+                    i,
+                    'page_prop_check_id_collision_invalid',
+                  )
+                : pageFinalStructuralIssue(
+                    p,
+                    i,
+                    'page_safety_check_id_collision_invalid',
+                  );
+          errors.useIssue(
+            collisionIssue,
+          );
           errors.push(
-            `${label} resolves ${n} enforcement checks to the same checkId "${checkId}" — every enforcement-relevant claim needs a UNIQUE resolved id (Stage 5 binds exactly one QA result per id)`
+            `${label} resolves ${value.count} enforcement checks to the same checkId "${checkId}" — every enforcement-relevant claim needs a UNIQUE resolved id (Stage 5 binds exactly one QA result per id)`
           );
         }
       }
@@ -1407,6 +1449,13 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         const have = isStrArr(stored) ? stored : [];
         return projected.filter((p) => !have.includes(p));
       };
+      errors.useIssue(
+        pageFinalStructuralIssue(
+          p,
+          i,
+          'page_projection_containment_invalid',
+        ),
+      );
       const missShow = missingFrom(projectPageMustShow(pcTyped, contractView), pc.mustShow);
       if (missShow.length > 0) {
         errors.push(

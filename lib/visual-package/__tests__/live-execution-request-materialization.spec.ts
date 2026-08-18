@@ -357,6 +357,16 @@ describe('canonical live execution request materialization', () => {
       inputPath: fixture.inputPath,
     });
 
+    expect(
+      CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_INPUT_VERSION,
+    ).toBe(
+      'canonical-live-execution-request-materialization-input/v19',
+    );
+    expect(
+      CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_RESULT_VERSION,
+    ).toBe(
+      'canonical-live-execution-request-materialization-result/v23',
+    );
     expect(result).toMatchObject({
       version:
         CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_RESULT_VERSION,
@@ -437,7 +447,7 @@ describe('canonical live execution request materialization', () => {
       manifestPath: fixture.manifestPath,
       manifestDigest: fixture.manifestDigest,
       verificationVersion:
-        'canonical-live-request-verification/v28',
+        'canonical-live-request-verification/v29',
       structuredOutputCompatibility:
         manifest.structuredOutputCompatibility,
       compactRepairStructuredOutputCompatibility:
@@ -829,6 +839,11 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
   it('rejects noncanonical bytes, unknown fields, traversal, globs, duplicates, and relative credential paths', () => {
     const fixture = createFixture();
     const variants: unknown[] = [
+      {
+        ...fixture.input,
+        version:
+          'canonical-live-execution-request-materialization-input/v18',
+      },
       { ...fixture.input, unknown: true },
       { ...fixture.input, manifestPath: '../manifest.json' },
       { ...fixture.input, outputDir: 'outputs/**/escape' },
@@ -1276,6 +1291,50 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
     expect(evidence).not.toHaveProperty('message');
     expect(evidence).not.toHaveProperty('path');
     expect(evidence).not.toHaveProperty('stack');
+  });
+
+  it('rejects immediate-predecessor B0 and Supervisor verification envelopes even when their statuses are successful', () => {
+    const priorB0 = createFixture();
+    const verifyBundle: CanonicalLiveExecutionRequestMaterializationDependencies['verifyBundle'] =
+      (args) =>
+        ({
+          ...verifyCanonicalLiveRequestBundle(args),
+          version: 'canonical-live-request-verification/v28',
+        }) as unknown as ReturnType<
+          typeof verifyCanonicalLiveRequestBundle
+        >;
+    expect(
+      rejectionFor(() =>
+        materializeCanonicalLiveExecutionRequest({
+          repoRoot: priorB0.repoRoot,
+          inputPath: priorB0.inputPath,
+          dependencies: { verifyBundle },
+        }),
+      ).reasonCodes,
+    ).toEqual([
+      'execution_request_materialization_b0_rejected',
+    ]);
+
+    const priorSupervisor = createFixture();
+    const verifyExecution: CanonicalLiveExecutionRequestMaterializationDependencies['verifyExecution'] =
+      (args) =>
+        ({
+          ...verifyCanonicalLiveExecution(args),
+          version: 'canonical-live-execution-readiness/v27',
+        }) as unknown as ReturnType<
+          typeof verifyCanonicalLiveExecution
+        >;
+    expect(
+      rejectionFor(() =>
+        materializeCanonicalLiveExecutionRequest({
+          repoRoot: priorSupervisor.repoRoot,
+          inputPath: priorSupervisor.inputPath,
+          dependencies: { verifyExecution },
+        }),
+      ).reasonCodes,
+    ).toEqual([
+      'execution_request_materialization_verification_rejected',
+    ]);
   });
 
   it('contains no selected Story Source, story, child, companion, page, prop, or reveal special-case literal in shared production code', () => {

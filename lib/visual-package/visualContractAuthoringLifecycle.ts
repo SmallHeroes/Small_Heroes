@@ -198,11 +198,11 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v30' as const;
+  'visual-contract-authoring-request/v31' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v34' as const;
+  'visual-contract-authoring-receipt/v35' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v32' as const;
+  'visual-contract-authoring-readiness/v33' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v9' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -262,6 +262,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V28 =
   'visual-contract-authoring-request/v28' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V29 =
   'visual-contract-authoring-request/v29' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V30 =
+  'visual-contract-authoring-request/v30' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -324,6 +326,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V32 =
   'visual-contract-authoring-receipt/v32' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V33 =
   'visual-contract-authoring-receipt/v33' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V34 =
+  'visual-contract-authoring-receipt/v34' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -386,6 +390,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V30 =
   'visual-contract-authoring-readiness/v30' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V31 =
   'visual-contract-authoring-readiness/v31' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V32 =
+  'visual-contract-authoring-readiness/v32' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -757,6 +763,11 @@ export interface VisualContractAuthoringAttemptReceipt {
     | 'provider_evidence_invalid'
     | 'completion_status_invalid'
     | 'cost_ceiling_exceeded';
+  policyMismatchScope:
+    | 'prompt_authority'
+    | 'call_options'
+    | 'provider_identity'
+    | null;
   provider: string;
   model: string;
   responseId: string | null;
@@ -990,7 +1001,8 @@ export function visualContractAuthoringArtifactVersionStatus(
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V26 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V27 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V28 ||
-        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V29
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V29 ||
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V30
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -1027,6 +1039,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V31,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V32,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V33,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V34,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -1060,6 +1073,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V29,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V30,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V31,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V32,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -1126,6 +1140,18 @@ export function buildVisualContractAuthoringStandardAttemptOutputBudget(
       standardAttemptOutputBudgetWithoutDigest(withoutDigest),
     ),
   };
+}
+
+/**
+ * Independently reconstructs the bounded evidence-only schedule used when a
+ * malformed authoring request is rejected before any provider attempt exists.
+ */
+export function buildVisualContractAuthoringRejectedRequestFallbackBudget(
+  sourcePageCount: number,
+): VisualContractAuthoringStandardAttemptOutputBudget {
+  return buildVisualContractAuthoringStandardAttemptOutputBudget(
+    authoringRejectedEvidencePageCount(sourcePageCount),
+  );
 }
 
 export function visualContractAuthoringStandardAttemptOutputBudgetIsValid(
@@ -2536,7 +2562,7 @@ export function visualContractAuthoringAttemptBudgetSequenceIsValid(
 
 function visualContractAuthoringReceiptOutputBudgetBindingsAreValid(args: {
   receipt: VisualContractAuthoringReceipt;
-  request?: VisualContractAuthoringRequest;
+  request: VisualContractAuthoringRequest;
   invalidRequestFallbackBudget?:
     VisualContractAuthoringStandardAttemptOutputBudget;
 }): boolean {
@@ -2546,17 +2572,17 @@ function visualContractAuthoringReceiptOutputBudgetBindingsAreValid(args: {
     args.receipt.failure?.code === 'request_invalid' &&
     args.receipt.attempts.length === 0;
   const requestBudgetBindingIsValid =
-    args.request === undefined ||
-    (requestInvalidZeroAttempt
+    requestInvalidZeroAttempt
       ? args.invalidRequestFallbackBudget !== undefined &&
         exactJson(
           budget,
           args.invalidRequestFallbackBudget,
         )
-      : exactJson(
+      : args.invalidRequestFallbackBudget === undefined &&
+        exactJson(
           budget,
           args.request.tokenBudget.standardAttempts,
-        ));
+        );
   if (
     !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
       budget,
@@ -3001,6 +3027,448 @@ function expectedCallOptions(
   };
 }
 
+interface VisualContractAuthoringAttemptPromptBinding {
+  systemPrompt: string;
+  systemPromptVersion: string;
+  userPromptVersion: string;
+  requestSystemPromptVersion: string;
+  requestUserPromptVersion: string;
+  requestSystemPromptDigest: string;
+  requestUserPromptDigest: string | null;
+  schema: Record<string, unknown>;
+  schemaName: string;
+  schemaVersion: string;
+  requestStructuredOutput: {
+    strict: boolean;
+    schemaName: string;
+    schemaVersion: string;
+    schemaDigest: string;
+    compatibilityProfileVersion: string;
+    compatibilityProfileDigest: string;
+    compatibilityEvidenceVersion: string;
+    compatibilityEvidenceDigest: string;
+    compatibilityStatus: string;
+    serializedSchemaDigest: string;
+  };
+}
+
+function visualContractAuthoringAttemptPromptBinding(args: {
+  request: VisualContractAuthoringRequest;
+  attempt: VisualContractAuthoringAttemptReceipt;
+}): VisualContractAuthoringAttemptPromptBinding | null {
+  const { request, attempt } = args;
+  if (
+    attempt.kind === 'initial' &&
+    attempt.repairMode === null &&
+    attempt.budgetClass === 'standard'
+  ) {
+    return {
+      systemPrompt: buildTemplateCompileSystemPrompt(),
+      systemPromptVersion: TEMPLATE_PROMPT_VERSION,
+      userPromptVersion: TEMPLATE_USER_PROMPT_VERSION,
+      requestSystemPromptVersion:
+        request.promptAuthority.initial.systemPromptVersion,
+      requestUserPromptVersion:
+        request.promptAuthority.initial.userPromptVersion,
+      requestSystemPromptDigest:
+        request.promptAuthority.initial.systemPromptDigest,
+      requestUserPromptDigest:
+        request.promptAuthority.initial.userPromptDigest,
+      schema: TEMPLATE_DRAFT_JSON_SCHEMA,
+      schemaName: TEMPLATE_DRAFT_SCHEMA_NAME,
+      schemaVersion: TEMPLATE_DRAFT_SCHEMA_VERSION,
+      requestStructuredOutput: request.structuredOutput,
+    };
+  }
+  if (
+    attempt.kind !== 'repair' ||
+    attempt.repairMode === null
+  ) {
+    return null;
+  }
+  switch (attempt.repairMode) {
+    case 'full_draft':
+      return {
+        systemPrompt: buildTemplateRepairSystemPrompt(),
+        systemPromptVersion: REPAIR_PROMPT_VERSION,
+        userPromptVersion: REPAIR_USER_PROMPT_VERSION,
+        requestSystemPromptVersion:
+          request.promptAuthority.repair.systemPromptVersion,
+        requestUserPromptVersion:
+          request.promptAuthority.repair.userPromptVersion,
+        requestSystemPromptDigest:
+          request.promptAuthority.repair.systemPromptDigest,
+        requestUserPromptDigest: null,
+        schema: TEMPLATE_DRAFT_JSON_SCHEMA,
+        schemaName: TEMPLATE_DRAFT_SCHEMA_NAME,
+        schemaVersion: TEMPLATE_DRAFT_SCHEMA_VERSION,
+        requestStructuredOutput: request.structuredOutput,
+      };
+    case 'source_evidence_id_patch':
+      return {
+        systemPrompt: buildSourceEvidenceIdRepairSystemPrompt(),
+        systemPromptVersion:
+          SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          SOURCE_EVIDENCE_ID_REPAIR_USER_PROMPT_VERSION,
+        requestSystemPromptVersion:
+          request.promptAuthority.sourceEvidenceIdRepair
+            .systemPromptVersion,
+        requestUserPromptVersion:
+          request.promptAuthority.sourceEvidenceIdRepair
+            .userPromptVersion,
+        requestSystemPromptDigest:
+          request.promptAuthority.sourceEvidenceIdRepair
+            .systemPromptDigest,
+        requestUserPromptDigest: null,
+        schema: SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+        schemaName: SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
+        schemaVersion: SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_VERSION,
+        requestStructuredOutput:
+          request.compactRepairStructuredOutput,
+      };
+    case 'page_contract_patch':
+      return {
+        systemPrompt: buildPageContractRepairSystemPrompt(),
+        systemPromptVersion:
+          PAGE_CONTRACT_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION,
+        requestSystemPromptVersion:
+          request.promptAuthority.pageContractRepair
+            .systemPromptVersion,
+        requestUserPromptVersion:
+          request.promptAuthority.pageContractRepair
+            .userPromptVersion,
+        requestSystemPromptDigest:
+          request.promptAuthority.pageContractRepair
+            .systemPromptDigest,
+        requestUserPromptDigest: null,
+        schema: PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+        schemaName: PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
+        schemaVersion: PAGE_CONTRACT_REPAIR_SCHEMA_VERSION,
+        requestStructuredOutput:
+          request.pageContractRepairStructuredOutput,
+      };
+    case 'page_spatial_reference_patch':
+      return {
+        systemPrompt:
+          buildPageSpatialReferenceRepairSystemPrompt(),
+        systemPromptVersion:
+          PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          PAGE_SPATIAL_REFERENCE_REPAIR_USER_PROMPT_VERSION,
+        requestSystemPromptVersion:
+          request.promptAuthority.pageSpatialReferenceRepair
+            .systemPromptVersion,
+        requestUserPromptVersion:
+          request.promptAuthority.pageSpatialReferenceRepair
+            .userPromptVersion,
+        requestSystemPromptDigest:
+          request.promptAuthority.pageSpatialReferenceRepair
+            .systemPromptDigest,
+        requestUserPromptDigest: null,
+        schema: PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+        schemaName: PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
+        schemaVersion:
+          PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION,
+        requestStructuredOutput:
+          request.pageSpatialReferenceRepairStructuredOutput,
+      };
+    case 'stable_prop_scope_patch':
+      return {
+        systemPrompt: buildStablePropScopeRepairSystemPrompt(),
+        systemPromptVersion:
+          STABLE_PROP_SCOPE_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          STABLE_PROP_SCOPE_REPAIR_USER_PROMPT_VERSION,
+        requestSystemPromptVersion:
+          request.promptAuthority.stablePropScopeRepair
+            .systemPromptVersion,
+        requestUserPromptVersion:
+          request.promptAuthority.stablePropScopeRepair
+            .userPromptVersion,
+        requestSystemPromptDigest:
+          request.promptAuthority.stablePropScopeRepair
+            .systemPromptDigest,
+        requestUserPromptDigest: null,
+        schema: STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
+        schemaName: STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
+        schemaVersion: STABLE_PROP_SCOPE_REPAIR_SCHEMA_VERSION,
+        requestStructuredOutput:
+          request.stablePropScopeRepairStructuredOutput,
+      };
+    case 'presentation_requirement_patch':
+      return {
+        systemPrompt:
+          buildPresentationRequirementRepairSystemPrompt(),
+        systemPromptVersion:
+          PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION,
+        requestSystemPromptVersion:
+          request.promptAuthority.presentationRequirementRepair
+            .systemPromptVersion,
+        requestUserPromptVersion:
+          request.promptAuthority.presentationRequirementRepair
+            .userPromptVersion,
+        requestSystemPromptDigest:
+          request.promptAuthority.presentationRequirementRepair
+            .systemPromptDigest,
+        requestUserPromptDigest: null,
+        schema: PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+        schemaName: PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+        schemaVersion:
+          PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION,
+        requestStructuredOutput:
+          request.presentationRequirementRepairStructuredOutput,
+      };
+    case 'structural_bundle_patch':
+      return {
+        systemPrompt: buildStructuralBundleRepairSystemPrompt(),
+        systemPromptVersion:
+          STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          STRUCTURAL_BUNDLE_REPAIR_USER_PROMPT_VERSION,
+        requestSystemPromptVersion:
+          request.promptAuthority.structuralBundleRepair
+            .systemPromptVersion,
+        requestUserPromptVersion:
+          request.promptAuthority.structuralBundleRepair
+            .userPromptVersion,
+        requestSystemPromptDigest:
+          request.promptAuthority.structuralBundleRepair
+            .systemPromptDigest,
+        requestUserPromptDigest: null,
+        schema: STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+        schemaName: STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
+        schemaVersion: STRUCTURAL_BUNDLE_REPAIR_SCHEMA_VERSION,
+        requestStructuredOutput:
+          request.structuralBundleRepairStructuredOutput,
+      };
+    case 'book_surface_patch':
+      return {
+        systemPrompt: buildBookSurfaceRepairSystemPrompt(),
+        systemPromptVersion: BOOK_SURFACE_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION,
+        requestSystemPromptVersion:
+          request.promptAuthority.bookSurfaceRepair
+            .systemPromptVersion,
+        requestUserPromptVersion:
+          request.promptAuthority.bookSurfaceRepair
+            .userPromptVersion,
+        requestSystemPromptDigest:
+          request.promptAuthority.bookSurfaceRepair
+            .systemPromptDigest,
+        requestUserPromptDigest: null,
+        schema: BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+        schemaName: BOOK_SURFACE_REPAIR_SCHEMA_NAME,
+        schemaVersion: BOOK_SURFACE_REPAIR_SCHEMA_VERSION,
+        requestStructuredOutput:
+          request.bookSurfaceRepairStructuredOutput,
+      };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Rebinds every persisted attempt to the exact request-approved static route
+ * prompt and Structured Output authority. The initial user prompt is also
+ * independently request-bound. Repair user prompts are dynamic compiler
+ * outputs, so their receipt digests are runtime-observed provenance; without
+ * persisting raw drafts/prompts they cannot be independently reconstructed by
+ * this post-hoc validator and are never used as standalone authorization.
+ */
+export function visualContractAuthoringReceiptPromptAuthorityIssues(args: {
+  request: VisualContractAuthoringRequest;
+  receipt: VisualContractAuthoringReceipt;
+}): string[] {
+  const issues: string[] = [];
+  const {
+    digestAlgorithm: _requestDigestAlgorithm,
+    digest: _requestDigest,
+    ...requestPayload
+  } = args.request;
+  if (
+    args.receipt.requestDigest !== args.request.digest ||
+    args.receipt.sourceSnapshotDigest !==
+      args.request.sourceSnapshotDigest ||
+    args.receipt.mode !== args.request.mode ||
+    args.receipt.provider !== args.request.provider ||
+    args.receipt.endpoint !== args.request.endpoint ||
+    args.receipt.model !== args.request.model ||
+    args.receipt.serviceTier !== args.request.serviceTier ||
+    !exactJson(args.receipt.pricing, args.request.pricing) ||
+    args.receipt.pricingDigest !== args.request.pricingDigest ||
+    args.request.version !==
+      VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION ||
+    args.request.digestAlgorithm !== 'canonical-json-sha256' ||
+    args.request.digest !== canonicalJsonDigest(requestPayload)
+  ) {
+    issues.push('receipt_request_prompt_authority_unbound');
+  }
+  for (const attempt of args.receipt.attempts) {
+    const recordedPolicyMismatch =
+      args.receipt.status === 'failed' &&
+      args.receipt.failure?.code ===
+        'provider_policy_mismatch' &&
+      attempt ===
+        args.receipt.attempts[
+          args.receipt.attempts.length - 1
+        ] &&
+      attempt.attempt === args.receipt.attempts.length &&
+      attempt.status === 'policy_mismatch';
+    const recordedPromptPolicyMismatch =
+      recordedPolicyMismatch &&
+      attempt.policyMismatchScope === 'prompt_authority' &&
+      !attempt.providerReached &&
+      attempt.provider === args.request.provider &&
+      attempt.model === args.request.model &&
+      attempt.validationDiagnostics.count > 0 &&
+      attempt.validationDiagnostics.codes.includes(
+        'provider_policy_mismatch',
+      );
+    const recordedCallOptionsPolicyMismatch =
+      recordedPolicyMismatch &&
+      attempt.policyMismatchScope === 'call_options' &&
+      !attempt.providerReached &&
+      attempt.provider === args.request.provider &&
+      attempt.model === args.request.model &&
+      attempt.validationDiagnostics.count > 0 &&
+      attempt.validationDiagnostics.codes.includes(
+        'provider_policy_mismatch',
+      );
+    const recordedProviderIdentityPolicyMismatch =
+      recordedPolicyMismatch &&
+      attempt.policyMismatchScope === 'provider_identity' &&
+      attempt.providerReached &&
+      (attempt.provider !== args.request.provider ||
+        attempt.model !== args.request.model) &&
+      attempt.validationDiagnostics.count === 0 &&
+      attempt.validationDiagnostics.codes.length === 0;
+    if (
+      (attempt.status === 'policy_mismatch' &&
+        !recordedPromptPolicyMismatch &&
+        !recordedCallOptionsPolicyMismatch &&
+        !recordedProviderIdentityPolicyMismatch) ||
+      (attempt.status !== 'policy_mismatch' &&
+        attempt.policyMismatchScope !== null)
+    ) {
+      issues.push('receipt_attempt_policy_mismatch_scope_invalid');
+    }
+    let binding: VisualContractAuthoringAttemptPromptBinding | null =
+      null;
+    try {
+      binding = visualContractAuthoringAttemptPromptBinding({
+        request: args.request,
+        attempt,
+      });
+    } catch {
+      issues.push('receipt_attempt_prompt_route_invalid');
+      continue;
+    }
+    if (binding == null) {
+      issues.push('receipt_attempt_prompt_route_invalid');
+      continue;
+    }
+    const schemaDigest = canonicalJsonDigest(binding.schema);
+    const compatibilityAuthority = compatibilityAuthorityFromEvidence(
+      assertOpenAIResponsesStructuredOutputSchemaCompatible(
+        binding.schema,
+      ),
+    );
+    const expectedStructuredOutput = {
+      strict: true as const,
+      schemaName: binding.schemaName,
+      schemaVersion: binding.schemaVersion,
+      schemaDigest,
+      compatibilityProfileVersion:
+        compatibilityAuthority.profileVersion,
+      compatibilityProfileDigest:
+        compatibilityAuthority.profileDigest,
+      compatibilityEvidenceVersion:
+        compatibilityAuthority.evidenceVersion,
+      compatibilityEvidenceDigest:
+        compatibilityAuthority.evidenceDigest,
+      compatibilityStatus: compatibilityAuthority.status,
+      serializedSchemaDigest:
+        compatibilityAuthority.serializedSchemaDigest,
+    };
+    const systemPromptDigest = canonicalJsonDigest(
+      binding.systemPrompt,
+    );
+    const requestStaticAuthorityMismatch =
+      !exactJson(
+        binding.requestStructuredOutput,
+        expectedStructuredOutput,
+      ) ||
+      binding.requestSystemPromptVersion !==
+        binding.systemPromptVersion ||
+      binding.requestUserPromptVersion !==
+        binding.userPromptVersion ||
+      binding.requestSystemPromptDigest !==
+        systemPromptDigest ||
+      attempt.inputAccounting.schemaBytes !==
+        Buffer.byteLength(JSON.stringify(binding.schema), 'utf8');
+    if (requestStaticAuthorityMismatch) {
+      issues.push(
+        'receipt_attempt_static_prompt_authority_mismatch',
+      );
+    }
+    const observedStaticPromptMismatch =
+      attempt.systemPromptDigest !==
+        binding.requestSystemPromptDigest ||
+      attempt.inputAccounting.systemBytes !==
+        Buffer.byteLength(binding.systemPrompt, 'utf8') ||
+      (attempt.kind === 'initial' &&
+        attempt.inputAccounting.estimatedBytes !==
+          args.request.tokenBudget
+            .promptAndSchemaTokenUpperBound);
+    if (
+      observedStaticPromptMismatch &&
+      !recordedPromptPolicyMismatch
+    ) {
+      issues.push(
+        'receipt_attempt_static_prompt_authority_mismatch',
+      );
+    }
+    const userPromptDigestWellFormed =
+      /^[a-f0-9]{64}$/.test(attempt.userPromptDigest);
+    const requestInitialPromptAuthorityMismatch =
+      attempt.kind === 'initial' &&
+      (binding.requestUserPromptDigest === null ||
+        binding.requestUserPromptDigest !==
+          args.request.promptDigests.user ||
+        binding.requestSystemPromptDigest !==
+          args.request.promptDigests.system);
+    if (
+      !userPromptDigestWellFormed ||
+      requestInitialPromptAuthorityMismatch ||
+      (attempt.kind === 'initial' &&
+        attempt.userPromptDigest !==
+          binding.requestUserPromptDigest &&
+        !recordedPromptPolicyMismatch)
+    ) {
+      issues.push(
+        'receipt_attempt_user_prompt_authority_mismatch',
+      );
+    }
+  }
+  return [...new Set(issues)];
+}
+
+export function visualContractAuthoringReceiptPromptAuthorityIsValid(args: {
+  request: VisualContractAuthoringRequest;
+  receipt: VisualContractAuthoringReceipt;
+}): boolean {
+  return (
+    visualContractAuthoringReceiptPromptAuthorityIssues(args)
+      .length === 0
+  );
+}
+
 function actionAuthorityIssues(
   template: BookVisualContractTemplate,
   coverage: readonly ActionSemanticCoverageRecord[],
@@ -3324,6 +3792,7 @@ export async function runVisualContractAuthoring(args: {
               kind,
               budgetClass,
               repairMode,
+              policyMismatchScope: null,
               providerReached: false,
               provider: args.request.provider,
               model: args.request.model,
@@ -3363,24 +3832,37 @@ export async function runVisualContractAuthoring(args: {
                 'application call budget exhausted',
               );
             }
-            const promptAuthorityIssues = [
-              ...authoringBudgetClassSequenceIssues({
+            const budgetClassSequenceIssues =
+              authoringBudgetClassSequenceIssues({
                 attempts,
                 promptAuthority,
-              }),
-              ...visualContractAuthoringCallPromptAuthorityIssues({
+              });
+            const callPromptAuthorityIssues =
+              visualContractAuthoringCallPromptAuthorityIssues({
                 request: args.request,
                 kind,
                 systemPrompt,
                 userPrompt,
                 promptAuthority,
-              }),
+              });
+            const promptAuthorityIssues = [
+              ...budgetClassSequenceIssues,
+              ...callPromptAuthorityIssues,
             ];
             if (promptAuthorityIssues.length > 0) {
+              if (budgetClassSequenceIssues.length > 0) {
+                terminal.code = 'local_processing_failed';
+                terminal.diagnosticCodeOverride =
+                  'call_budget_invariant_failed';
+                throw new Error(
+                  'compiler prompt sequence differs from the bounded call policy',
+                );
+              }
               terminal.code = 'provider_policy_mismatch';
               attempts.push({
                 ...base,
                 status: 'policy_mismatch',
+                policyMismatchScope: 'prompt_authority',
                 validationDiagnostics:
                   sanitizedAuthoringDiagnostics({
                     inputs: promptAuthorityIssues,
@@ -3426,6 +3908,12 @@ export async function runVisualContractAuthoring(args: {
               attempts.push({
                 ...base,
                 status: 'policy_mismatch',
+                policyMismatchScope: 'call_options',
+                validationDiagnostics:
+                  sanitizedAuthoringDiagnostics({
+                    inputs: ['call_options_mismatch'],
+                    fallbackCode: 'provider_policy_mismatch',
+                  }),
               });
               throw new Error(
                 'compiler call options differ from approved request',
@@ -3633,6 +4121,7 @@ export async function runVisualContractAuthoring(args: {
               attempts.push({
                 ...providerMismatchEvidenceBase,
                 status: 'policy_mismatch',
+                policyMismatchScope: 'provider_identity',
               });
               throw new Error(
                 'provider response labels differ from approved request',
@@ -4274,6 +4763,10 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
     ) ||
     !attemptsHaveValidExecution ||
     !attemptsHaveValidInputAccounting ||
+    !visualContractAuthoringReceiptPromptAuthorityIsValid({
+      request: args.request,
+      receipt: args.receipt,
+    }) ||
     aggregateExecution === null ||
     !exactJson(
       args.receipt.executionAttestation,
@@ -4293,11 +4786,13 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       receipt: args.receipt,
       request: args.request,
       invalidRequestFallbackBudget:
-        buildVisualContractAuthoringStandardAttemptOutputBudget(
-          authoringRejectedEvidencePageCount(
-            args.snapshot.content.pages.length,
-          ),
-        ),
+        args.receipt.status === 'failed' &&
+        args.receipt.failure?.code === 'request_invalid' &&
+        args.receipt.attempts.length === 0
+          ? buildVisualContractAuthoringRejectedRequestFallbackBudget(
+              args.snapshot.content.pages.length,
+            )
+          : undefined,
     }) ||
     !visualContractAuthoringReceiptExhaustionBindingIsValid(
       args.receipt,
@@ -4312,7 +4807,7 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'readiness v32 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
+      'readiness v33 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
     );
   }
   const canonicalImportPreflight =
@@ -4450,7 +4945,10 @@ export function persistVisualContractAuthoringRequest(args: {
 export function persistVisualContractAuthoringReceipt(args: {
   repoRoot: string;
   outputDir: string;
+  request: VisualContractAuthoringRequest;
   receipt: VisualContractAuthoringReceipt;
+  invalidRequestFallbackBudget?:
+    VisualContractAuthoringStandardAttemptOutputBudget;
   write?: boolean;
 }): VisualContractAuthoringArtifactWrite {
   const {
@@ -4466,12 +4964,25 @@ export function persistVisualContractAuthoringReceipt(args: {
           args.receipt.failure,
         )
       : args.receipt.failure !== null) ||
+    !visualContractAuthoringReceiptPromptAuthorityIsValid({
+      request: args.request,
+      receipt: args.receipt,
+    }) ||
+    !args.receipt.attempts.every((attempt) =>
+      visualContractAuthoringAttemptInputAccountingIsValid({
+        attempt,
+        request: args.request,
+      }),
+    ) ||
     !visualContractAuthoringAttemptBudgetSequenceIsValid(
       args.receipt.attempts,
       args.receipt.standardAttemptOutputBudget,
     ) ||
     !visualContractAuthoringReceiptOutputBudgetBindingsAreValid({
       receipt: args.receipt,
+      request: args.request,
+      invalidRequestFallbackBudget:
+        args.invalidRequestFallbackBudget,
     }) ||
     !visualContractAuthoringReceiptExhaustionBindingIsValid(
       args.receipt,
@@ -4488,7 +4999,7 @@ export function persistVisualContractAuthoringReceipt(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'receipt v34 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
+      'receipt v35 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
     );
   }
   return persistJsonArtifact({
@@ -4500,6 +5011,7 @@ export function persistVisualContractAuthoringReceipt(args: {
 }
 
 export function buildVisualContractCandidateArtifact(args: {
+  request: VisualContractAuthoringRequest;
   receipt: VisualContractAuthoringReceipt;
   compileResult: Pick<
     TemplateCompileResult,
@@ -4517,13 +5029,28 @@ export function buildVisualContractCandidateArtifact(args: {
   if (
     args.receipt.version !==
       VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION ||
+    args.request.mode !== 'live' ||
+    args.receipt.mode !== 'live' ||
     args.receipt.status !== 'completed' ||
+    args.receipt.sourceSnapshotDigest !==
+      args.request.sourceSnapshotDigest ||
+    !visualContractAuthoringReceiptPromptAuthorityIsValid({
+      request: args.request,
+      receipt: args.receipt,
+    }) ||
+    !args.receipt.attempts.every((attempt) =>
+      visualContractAuthoringAttemptInputAccountingIsValid({
+        attempt,
+        request: args.request,
+      }),
+    ) ||
     !visualContractAuthoringAttemptBudgetSequenceIsValid(
       args.receipt.attempts,
       args.receipt.standardAttemptOutputBudget,
     ) ||
     !visualContractAuthoringReceiptOutputBudgetBindingsAreValid({
       receipt: args.receipt,
+      request: args.request,
     }) ||
     args.receipt.candidateDigest !== templateDigest ||
     args.receipt.digestAlgorithm !==
@@ -4598,6 +5125,7 @@ export function buildVisualContractCandidateArtifact(args: {
 export function persistVisualContractCandidate(args: {
   repoRoot: string;
   outputDir: string;
+  request: VisualContractAuthoringRequest;
   receipt: VisualContractAuthoringReceipt;
   compileResult: Pick<
     TemplateCompileResult,
@@ -4619,14 +5147,20 @@ export function persistVisualContractCandidate(args: {
 export function persistVisualContractAuthoringReadiness(args: {
   repoRoot: string;
   outputDir: string;
+  request: VisualContractAuthoringRequest;
   evidence: VisualContractAuthoringReadinessEvidence;
   receipt: VisualContractAuthoringReceipt;
+  invalidRequestFallbackBudget?:
+    VisualContractAuthoringStandardAttemptOutputBudget;
   write?: boolean;
 }): VisualContractAuthoringArtifactWrite {
   persistVisualContractAuthoringReceipt({
     repoRoot: args.repoRoot,
     outputDir: args.outputDir,
+    request: args.request,
     receipt: args.receipt,
+    invalidRequestFallbackBudget:
+      args.invalidRequestFallbackBudget,
     write: false,
   });
   const {
@@ -4637,6 +5171,10 @@ export function persistVisualContractAuthoringReadiness(args: {
   if (
     args.evidence.version !==
       VISUAL_CONTRACT_AUTHORING_READINESS_VERSION ||
+    !visualContractAuthoringReceiptPromptAuthorityIsValid({
+      request: args.request,
+      receipt: args.receipt,
+    }) ||
     args.evidence.sourceSnapshotDigest !==
       args.receipt.sourceSnapshotDigest ||
     args.evidence.authoringRequestDigest !==
@@ -4646,6 +5184,9 @@ export function persistVisualContractAuthoringReadiness(args: {
     ) ||
     !visualContractAuthoringReceiptOutputBudgetBindingsAreValid({
       receipt: args.receipt,
+      request: args.request,
+      invalidRequestFallbackBudget:
+        args.invalidRequestFallbackBudget,
     }) ||
     args.evidence.authoringReceiptDigest !== args.receipt.digest ||
     !exactJson(
@@ -4670,7 +5211,7 @@ export function persistVisualContractAuthoringReadiness(args: {
       canonicalJsonDigest(readinessPayload)
   ) {
     throw new Error(
-      'readiness v32 requires exact typed draft-validation evidence, a valid current receipt, and a valid current digest',
+      'readiness v33 requires exact typed draft-validation evidence, a valid current receipt, and a valid current digest',
     );
   }
   return persistJsonArtifact({

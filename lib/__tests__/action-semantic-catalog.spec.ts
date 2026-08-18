@@ -27,6 +27,8 @@ import {
   projectActionPredicateProse,
 } from '../visual-contract-compiler/projectContractProse';
 import {
+  CATALOG_STRICT_ACTION_REQUIREMENT_JSON_SCHEMA,
+  TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA_DEFINITIONS,
   TEMPLATE_DRAFT_JSON_SCHEMA,
 } from '../visual-contract-compiler/templateDraftSchema';
 import {
@@ -39,13 +41,28 @@ function obj(value: unknown): Obj {
   return value as Obj;
 }
 
-function visualContractPredicateEnum(): unknown {
-  const root = obj(TEMPLATE_DRAFT_JSON_SCHEMA);
-  const pageContracts = obj(obj(root.properties).pageContracts);
-  const page = obj(pageContracts.items);
-  const actions = obj(obj(page.properties).actionRequirements);
-  const action = obj(actions.items);
-  return obj(obj(action.properties).predicate).enum;
+function resolveVisualContractSchema(value: unknown): Obj {
+  const schema = obj(value);
+  if (typeof schema.$ref !== 'string') return schema;
+  const prefix = '#/$defs/';
+  expect(schema.$ref.startsWith(prefix)).toBe(true);
+  return obj(
+    obj(TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA_DEFINITIONS)[
+      schema.$ref.slice(prefix.length)
+    ],
+  );
+}
+
+function visualContractPredicateBranches(): Obj[] {
+  return obj(CATALOG_STRICT_ACTION_REQUIREMENT_JSON_SCHEMA)
+    .anyOf as Obj[];
+}
+
+function visualContractPredicates(): unknown[] {
+  return visualContractPredicateBranches().flatMap(
+    (branch) =>
+      obj(obj(branch.properties).predicate).enum as unknown[],
+  );
 }
 
 function blueprintPredicateEnum(): unknown {
@@ -112,8 +129,12 @@ const template = {
 
 describe('central Action Semantic Catalog', () => {
   it('is the one predicate list used by both strict schemas and prose projection', () => {
-    expect(visualContractPredicateEnum()).toBe(
-      ACTION_PREDICATE_VALUES,
+    const encodedPredicates = visualContractPredicates();
+    expect(encodedPredicates).toHaveLength(
+      ACTION_PREDICATE_VALUES.length,
+    );
+    expect(new Set(encodedPredicates)).toEqual(
+      new Set(ACTION_PREDICATE_VALUES),
     );
     expect(blueprintPredicateEnum()).toBe(
       ACTION_PREDICATE_VALUES,
@@ -156,6 +177,108 @@ describe('central Action Semantic Catalog', () => {
       objectRule: 'required',
       spatialEffectRule: 'required',
     });
+  });
+
+  it('groups only identical catalog signatures and encodes every predicate static rule exactly once', () => {
+    const branches = visualContractPredicateBranches();
+    expect(branches).toHaveLength(16);
+    for (const definition of ACTION_SEMANTIC_CATALOG) {
+      const branch = branches.find(
+        (candidate) =>
+          (
+            obj(obj(candidate.properties).predicate)
+              .enum as string[]
+          ).includes(definition.predicate),
+      );
+      expect(branch).toBeDefined();
+      expect(branch?.additionalProperties).toBe(false);
+      expect(branch?.required).toEqual(
+        Object.keys(obj(branch?.properties)),
+      );
+
+      const properties = obj(branch?.properties);
+      const subjectVariants = resolveVisualContractSchema(
+        properties.subject,
+      ).anyOf as Obj[];
+      const encodedSubjectKinds = subjectVariants.flatMap((variant) => {
+        const subjectProperties = obj(variant.properties);
+        const kind = obj(subjectProperties.kind).const;
+        if (kind === 'entity') {
+          return obj(
+            obj(subjectProperties.entity).properties,
+          ).kind
+            ? (obj(obj(obj(subjectProperties.entity).properties).kind)
+                .enum as string[])
+            : [];
+        }
+        return [kind];
+      });
+      expect(encodedSubjectKinds).toEqual(definition.subjectKinds);
+
+      const objectAuthority = resolveVisualContractSchema(
+        properties.object,
+      );
+      if (definition.objectRule === 'forbidden') {
+        expect(objectAuthority).toEqual({ type: 'null' });
+      } else {
+        const objectSchema = definition.objectRule === 'optional'
+          ? obj((objectAuthority.anyOf as Obj[])[0])
+          : objectAuthority;
+        expect(
+          obj(obj(objectSchema.properties).kind).enum,
+        ).toEqual(definition.objectKinds);
+        if (definition.objectRule === 'optional') {
+          expect((objectAuthority.anyOf as Obj[])[1]).toEqual({
+            type: 'null',
+          });
+        }
+      }
+
+      const effectAuthority = resolveVisualContractSchema(
+        properties.spatialEffect,
+      );
+      if (definition.spatialEffectRule === 'forbidden') {
+        expect(effectAuthority).toEqual({ type: 'null' });
+      } else if (definition.spatialEffectRule === 'optional') {
+        expect((effectAuthority.anyOf as Obj[])[1]).toEqual({
+          type: 'null',
+        });
+      } else {
+        expect(effectAuthority.anyOf).toBeDefined();
+      }
+
+      const constraintAuthority = resolveVisualContractSchema(
+        properties.spatialConstraint,
+      );
+      if (definition.spatialConstraintRule === 'forbidden') {
+        expect(constraintAuthority).toEqual({ type: 'null' });
+      } else {
+        const constraintSchema =
+          definition.spatialConstraintRule === 'optional'
+            ? obj((constraintAuthority.anyOf as Obj[])[0])
+            : constraintAuthority;
+        expect(
+          obj(obj(constraintSchema.properties).relation).enum,
+        ).toEqual(definition.spatialConstraintRelations);
+      }
+
+      expect(resolveVisualContractSchema(properties.laterality)).toEqual(
+        definition.lateralityAllowed
+          ? {
+              anyOf: [
+                { type: 'string', enum: ['left', 'right'] },
+                { type: 'null' },
+              ],
+            }
+          : { type: 'null' },
+      );
+    }
+
+    const root = obj(TEMPLATE_DRAFT_JSON_SCHEMA);
+    const pageContracts = obj(obj(root.properties).pageContracts);
+    const page = obj(pageContracts.items);
+    const actions = obj(obj(page.properties).actionRequirements);
+    expect(actions).not.toHaveProperty('minItems');
   });
 
   it('audits all production Story Sources through one generic parser path without embedding source identities in catalog data', () => {

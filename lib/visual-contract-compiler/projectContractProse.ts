@@ -29,7 +29,10 @@ import type {
   SpatialRelationKind,
   VisualZone,
 } from './types';
-import { actionSemanticDefinition } from './actionSemanticCatalog';
+import {
+  actionSemanticDefinition,
+  isActionPredicate,
+} from './actionSemanticCatalog';
 
 /* ── Closed-enum prose tables ────────────────────────────────────────────────────────────────────
  * Explicit `Record<Kind, string>` maps rather than string munging: TS then fails the build if an enum member is
@@ -59,6 +62,17 @@ const SAFETY_RELATION_PROSE: Record<SafetyConstraint['relation'], string> = {
 
 function isObj(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function projectableEntityRef(value: unknown): value is EntityRef {
+  return (
+    isObj(value) &&
+    (value.kind === 'cast' ||
+      value.kind === 'prop' ||
+      value.kind === 'spatial' ||
+      value.kind === 'anchor') &&
+    typeof value.id === 'string'
+  );
 }
 
 function safeObjectElements<T>(value: unknown): T[] {
@@ -191,8 +205,61 @@ function actionProseLine(
   action: PageActionRequirement,
   page: PageVisualContract,
   contract: BookVisualContract
-): string {
+): string | null {
+  // This projector is called before the total contract validator on the compiler-owned
+  // projection pass. Unknown provider-authored predicates belong to validation/repair;
+  // they must not escape that boundary as a raw catalog lookup exception or synthesize
+  // prose outside the closed Action Semantic Catalog.
+  if (!isActionPredicate(action.predicate)) return null;
   const legacyActorId = (action as unknown as { actorId?: string }).actorId;
+  if (action.polarity !== 'must' && action.polarity !== 'must_not') return null;
+  if (
+    action.object !== undefined &&
+    !projectableEntityRef(action.object)
+  ) {
+    return null;
+  }
+  if (
+    action.laterality !== undefined &&
+    typeof action.laterality !== 'string'
+  ) {
+    return null;
+  }
+  if (
+    action.spatialEffect !== undefined &&
+    (!isObj(action.spatialEffect) ||
+      (action.spatialEffect.kind === 'directional'
+        ? typeof action.spatialEffect.direction !== 'string'
+        : action.spatialEffect.kind === 'relation'
+          ? typeof action.spatialEffect.relation !== 'string' ||
+            !projectableEntityRef(action.spatialEffect.target)
+          : true))
+  ) {
+    return null;
+  }
+  if (
+    action.spatialConstraint !== undefined &&
+    (!isObj(action.spatialConstraint) ||
+      typeof action.spatialConstraint.relation !== 'string' ||
+      !projectableEntityRef(action.spatialConstraint.target))
+  ) {
+    return null;
+  }
+  if (
+    isObj(action.subject) &&
+    (action.subject.kind === 'entity'
+      ? !projectableEntityRef(action.subject.entity)
+      : action.subject.kind === 'cast_group'
+        ? !Array.isArray(action.subject.castIds) ||
+          action.subject.castIds.length === 0 ||
+          action.subject.castIds.some((castId) => typeof castId !== 'string')
+        : action.subject.kind === 'source_phenomenon'
+          ? typeof action.subject.sourcePhrase !== 'string'
+          : true)
+  ) {
+    return null;
+  }
+  if (!isObj(action.subject) && typeof legacyActorId !== 'string') return null;
   const actor =
     action.subject?.kind === 'entity'
       ? refLabel(action.subject.entity, page, contract)
@@ -233,7 +300,10 @@ function safetyProseLine(
 export function projectPageActionProse(page: PageVisualContract, contract: BookVisualContract): string {
   const actions = safeObjectElements<PageActionRequirement>(page.actionRequirements);
   if (actions.length === 0) return '';
-  return actions.map((a) => actionProseLine(a, page, contract)).join('; ');
+  return actions
+    .map((action) => actionProseLine(action, page, contract))
+    .filter((line): line is string => line !== null)
+    .join('; ');
 }
 
 /**
@@ -276,7 +346,10 @@ export function projectPageMustShow(page: PageVisualContract, contract: BookVisu
     if (pc.visibility === 'required') out.push(propName(pc.propId, contract));
   }
   for (const action of safeObjectElements<PageActionRequirement>(page.actionRequirements)) {
-    if (action.polarity === 'must') out.push(actionProseLine(action, page, contract));
+    if (action.polarity === 'must') {
+      const line = actionProseLine(action, page, contract);
+      if (line !== null) out.push(line);
+    }
   }
   return out;
 }
@@ -294,7 +367,10 @@ export function projectPageMustNotShow(page: PageVisualContract, contract: BookV
     if (pc.visibility === 'forbidden') out.push(propName(pc.propId, contract));
   }
   for (const action of safeObjectElements<PageActionRequirement>(page.actionRequirements)) {
-    if (action.polarity === 'must_not') out.push(actionProseLine(action, page, contract));
+    if (action.polarity === 'must_not') {
+      const line = actionProseLine(action, page, contract);
+      if (line !== null) out.push(line);
+    }
   }
   for (const safety of safeObjectElements<SafetyConstraint>(page.safetyConstraints)) {
     out.push(safetyProseLine(safety, page, contract));

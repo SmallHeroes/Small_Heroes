@@ -1,6 +1,7 @@
 import {
   draftValidationIssueIsValid,
   type DraftValidationIssue,
+  type PageFinalStructuralCause,
 } from './draftValidationDiagnostics';
 import {
   PRESENTATION_REQUIREMENT_CLASS_VALUES,
@@ -62,12 +63,12 @@ export const PAGE_CONTRACT_REPAIR_JSON_SCHEMA: Record<
   string,
   unknown
 > = strictObject({
-  pageContracts: {
-    type: 'array',
-    minItems: 1,
-    items: TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
-  },
-});
+    pageContracts: {
+      type: 'array',
+      minItems: 1,
+      items: TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
+    },
+  });
 
 const PAGE_SPATIAL_REPAIR_FIELD_ROLES = [
   'subject',
@@ -202,6 +203,7 @@ export type PageContractRepairTarget =
       family: 'draft_contract';
       code: 'final_structural_invariant_invalid';
       pageNumber: number;
+      causes: readonly PageFinalStructuralCause[];
     }
   | {
       family: 'action_semantic';
@@ -278,8 +280,8 @@ function structuralRepairTarget(
     issue.family !== 'draft_contract' ||
     issue.code !== 'final_structural_invariant_invalid' ||
     issue.locator.fieldRole !== 'final_structure' ||
-    (issue.locator.kind !== 'page' &&
-      issue.locator.kind !== 'page_item')
+    issue.locator.kind !== 'page' ||
+    !('causes' in issue)
   ) {
     return null;
   }
@@ -287,6 +289,7 @@ function structuralRepairTarget(
     family: issue.family,
     code: issue.code,
     pageNumber: issue.locator.pageNumber,
+    causes: [...issue.causes],
   };
 }
 
@@ -343,6 +346,7 @@ function pageContractRepairTargetKey(
     'actionIndexes' in target ? target.actionIndexes : null,
     'sourceEvidenceId' in target ? target.sourceEvidenceId : null,
     'coverageDeficit' in target ? target.coverageDeficit : null,
+    'causes' in target ? target.causes : null,
   ]);
 }
 
@@ -397,9 +401,26 @@ function repairTargets(
   if (targets.some((target) => target === null)) return null;
   const unique = new Map<string, PageContractRepairTarget>();
   for (const target of targets as PageContractRepairTarget[]) {
-    const key = pageContractRepairTargetKey(target);
-    if (unique.has(key)) continue;
-    unique.set(key, target);
+    const key =
+      target.code === 'final_structural_invariant_invalid'
+        ? JSON.stringify([
+            target.pageNumber,
+            target.family,
+            target.code,
+          ])
+        : pageContractRepairTargetKey(target);
+    const prior = unique.get(key);
+    if (
+      prior?.code === 'final_structural_invariant_invalid' &&
+      target.code === 'final_structural_invariant_invalid'
+    ) {
+      unique.set(key, {
+        ...prior,
+        causes: [...new Set([...prior.causes, ...target.causes])].sort(),
+      });
+    } else if (!prior) {
+      unique.set(key, target);
+    }
   }
   return [...unique.values()].sort(
     (left, right) =>

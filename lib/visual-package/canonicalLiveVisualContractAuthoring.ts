@@ -1302,11 +1302,24 @@ function decodeAuthoringRequest(
     issues.push('request_version_mismatch');
   }
 
+  let request: VisualContractAuthoringRequest | null =
+    structuralIssues.length === 0
+      ? authoringRequestValue(object)
+      : null;
+  if (request !== null && issues.length > 0) {
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...requestPayload
+    } = request;
+    request = {
+      ...request,
+      digestAlgorithm: 'canonical-json-sha256',
+      digest: canonicalJsonDigest(requestPayload),
+    };
+  }
   return {
-    request:
-      structuralIssues.length === 0
-        ? authoringRequestValue(object)
-        : null,
+    request,
     issues: [...new Set(issues)].sort(),
     observedRequestDigest,
     claimedRequestDigest:
@@ -1482,13 +1495,16 @@ export async function runCanonicalLiveVisualContractAuthoring(
       requestId: safeRequestId,
       requestedAt: safeRequestedAt,
     });
-  const requestForLifecycle =
-    decodedRequest.request ?? rebuiltRequest;
+  const decodedRequestCandidate = decodedRequest.request;
   const requestExact =
-    decodedRequest.request !== null &&
+    decodedRequestCandidate !== null &&
     decodedRequest.issues.length === 0 &&
-    canonicalJsonDigest(decodedRequest.request) ===
+    canonicalJsonDigest(decodedRequestCandidate) ===
       canonicalJsonDigest(rebuiltRequest);
+  const requestForLifecycle: VisualContractAuthoringRequest =
+    requestExact && decodedRequestCandidate !== null
+      ? decodedRequestCandidate
+      : rebuiltRequest;
   if (!requestExact) {
     boundaryIssues.push(
       'supplied_live_request_content_mismatch',
@@ -1606,6 +1622,7 @@ export async function runCanonicalLiveVisualContractAuthoring(
     | null = null;
   if (authored.compileResult) {
     const candidate = buildVisualContractCandidateArtifact({
+      request: requestForLifecycle,
       receipt: authored.receipt,
       compileResult: authored.compileResult,
     });

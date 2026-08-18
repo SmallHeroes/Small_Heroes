@@ -7,7 +7,11 @@ import {
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import { buildSourceEvidenceCatalog } from '../visual-contract-compiler/sourceEvidenceCatalog';
-import { TEMPLATE_DRAFT_JSON_SCHEMA } from '../visual-contract-compiler/templateDraftSchema';
+import {
+  CATALOG_STRICT_PAGE_CONTRACT_JSON_SCHEMA,
+  TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA_DEFINITIONS,
+  TEMPLATE_DRAFT_JSON_SCHEMA,
+} from '../visual-contract-compiler/templateDraftSchema';
 import { projectPageMustShow } from '../visual-contract-compiler/projectContractProse';
 import type {
   BookVisualContract,
@@ -282,18 +286,31 @@ describe('compiler-owned draft action identity', () => {
   });
 });
 
-describe('strict draft authority shapes', () => {
+describe('strict bounded-repair authority shapes', () => {
   it('authors beatId rather than checkId and encodes relation arity in distinct variants', () => {
-    const root = TEMPLATE_DRAFT_JSON_SCHEMA as any;
-    const page = root.properties.pageContracts.items.properties;
-    expect(page.actionRequirements.items.properties).toHaveProperty(
-      'beatId',
+    const page = (CATALOG_STRICT_PAGE_CONTRACT_JSON_SCHEMA as any)
+      .properties;
+    const actionBranches = page.actionRequirements.items.anyOf;
+    expect(actionBranches).not.toHaveLength(0);
+    for (const branch of actionBranches) {
+      expect(branch.properties).toHaveProperty('beatId');
+      expect(branch.properties).not.toHaveProperty('checkId');
+    }
+    const sitsBranch = actionBranches.find(
+      (branch: any) => branch.properties.predicate.const === 'sits',
     );
-    expect(page.actionRequirements.items.properties).not.toHaveProperty(
-      'checkId',
+    const definitions =
+      TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA_DEFINITIONS;
+    const resolve = (schema: any) =>
+      typeof schema.$ref === 'string'
+        ? definitions[schema.$ref.slice('#/$defs/'.length)]
+        : schema;
+    const actualSitsBranch = sitsBranch ?? actionBranches.find(
+      (branch: any) =>
+        branch.properties.predicate.enum.includes('sits'),
     );
     const subjectBranches =
-      page.actionRequirements.items.properties.subject.anyOf;
+      resolve(actualSitsBranch.properties.subject).anyOf;
     const castGroupBranch = subjectBranches.find(
       (branch: any) =>
         branch.properties.kind.const === 'cast_group',
@@ -304,7 +321,7 @@ describe('strict draft authority shapes', () => {
       items: { type: 'string' },
     });
     const constraint =
-      page.actionRequirements.items.properties.spatialConstraint;
+      resolve(actualSitsBranch.properties.spatialConstraint);
     expect(constraint.anyOf[0].properties.relation.enum).toEqual([
       'beside',
     ]);
@@ -333,6 +350,7 @@ describe('strict draft authority shapes', () => {
       'ambient_event',
     ]);
 
+    const root = TEMPLATE_DRAFT_JSON_SCHEMA as any;
     const relationBranches =
       root.properties.setBoardAuthorities.items.properties.areas.items
         .properties.spatialRelations.items.anyOf;

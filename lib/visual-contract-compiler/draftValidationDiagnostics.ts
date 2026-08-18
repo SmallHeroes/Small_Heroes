@@ -1,8 +1,10 @@
 import { canonicalize } from '@/lib/canonical-json';
 
 export const DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION =
-  'draft-validation-attempt-diagnostics/v3' as const;
+  'draft-validation-attempt-diagnostics/v4' as const;
 export const LEGACY_DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION =
+  'draft-validation-attempt-diagnostics/v3' as const;
+export const LEGACY_DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION_V2 =
   'draft-validation-attempt-diagnostics/v2' as const;
 export const LEGACY_DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION_V1 =
   'draft-validation-attempt-diagnostics/v1' as const;
@@ -99,7 +101,11 @@ export const PAGE_FINAL_STRUCTURAL_CAUSES = [
   'page_prop_constraints_invalid',
   'page_action_requirements_invalid',
   'page_safety_constraints_invalid',
-  'page_cross_field_invariant_invalid',
+  'page_action_constraint_conflict_invalid',
+  'page_action_check_id_collision_invalid',
+  'page_prop_check_id_collision_invalid',
+  'page_safety_check_id_collision_invalid',
+  'page_projection_containment_invalid',
   'page_cast_binding_invalid',
   'page_human_presence_binding_invalid',
   'page_transition_invalid',

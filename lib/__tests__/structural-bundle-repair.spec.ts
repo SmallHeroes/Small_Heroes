@@ -112,7 +112,7 @@ function pageIssue(pageNumber: number): DraftValidationIssue {
       fieldRole: 'final_structure',
       pageNumber,
     },
-    causes: ['page_cross_field_invariant_invalid'],
+    causes: ['page_steering_invalid'],
   };
 }
 

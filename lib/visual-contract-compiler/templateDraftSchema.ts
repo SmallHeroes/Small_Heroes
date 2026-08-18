@@ -9,11 +9,18 @@
  */
 import {
   ACTION_POLARITY_VALUES,
-  ACTION_PREDICATE_VALUES,
+  ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES,
   ACTION_SPATIAL_DIRECTION_VALUES,
   ACTION_SPATIAL_RELATION_VALUES,
-  ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES,
 } from './types';
+import {
+  ACTION_SEMANTIC_CATALOG,
+  ACTION_SEMANTIC_ENTITY_KIND_VALUES,
+  ACTION_SEMANTIC_SUBJECT_KIND_VALUES,
+  ACTION_PREDICATE_VALUES,
+  type ActionSemanticEntityKind,
+  type ActionSemanticSubjectKind,
+} from './actionSemanticCatalog';
 import {
   NON_VISUAL_RATIONALE_VALUES,
   PRESENTATION_REQUIREMENT_CLASS_VALUES,
@@ -205,34 +212,68 @@ const propConstraint = obj({
   stateId: nullableString,
   anchorId: nullableString,
 });
-const actionObject = obj({
-  kind: {
-    type: 'string',
-    enum: ['cast', 'prop', 'spatial', 'anchor'],
-  },
-  id: { type: 'string' },
-});
-const actionSubject = {
-  anyOf: [
-    obj({
-      kind: { type: 'string', const: 'entity' },
-      entity: actionObject,
-    }),
-    obj({
-      kind: { type: 'string', const: 'source_phenomenon' },
-      sourceEvidenceId: { type: 'string' },
-    }),
-    obj({
-      kind: { type: 'string', const: 'cast_group' },
-      castIds: {
-        type: 'array',
-        items: { type: 'string' },
-        minItems: 2,
-      },
-    }),
-  ],
-};
-const actionSpatialEffect = {
+function actionObjectForKinds(
+  kinds: readonly ActionSemanticEntityKind[],
+): Record<string, unknown> {
+  if (kinds.length === 0) {
+    throw new Error('action requirement object schema requires at least one kind');
+  }
+  return obj({
+    kind: {
+      type: 'string',
+      enum: [...kinds],
+    },
+    id: { type: 'string' },
+  });
+}
+
+function actionSubjectForKinds(
+  kinds: readonly ActionSemanticSubjectKind[],
+  entityReference: Record<string, unknown> | null,
+): Record<string, unknown> {
+  const variants: Record<string, unknown>[] = [];
+  if (entityReference) {
+    variants.push(
+      obj({
+        kind: { type: 'string', const: 'entity' },
+        entity: entityReference,
+      }),
+    );
+  }
+  if (kinds.some((kind) => kind === 'source_phenomenon')) {
+    variants.push(
+      obj({
+        kind: { type: 'string', const: 'source_phenomenon' },
+        sourceEvidenceId: { type: 'string' },
+      }),
+    );
+  }
+  if (kinds.some((kind) => kind === 'cast_group')) {
+    variants.push(
+      obj({
+        kind: { type: 'string', const: 'cast_group' },
+        castIds: {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: 2,
+        },
+      }),
+    );
+  }
+  if (variants.length === 0) {
+    throw new Error('action requirement subject schema requires at least one kind');
+  }
+  return { anyOf: variants };
+}
+
+const GENERIC_ACTION_OBJECT_JSON_SCHEMA = actionObjectForKinds(
+  ACTION_SEMANTIC_ENTITY_KIND_VALUES,
+);
+const GENERIC_ACTION_SUBJECT_JSON_SCHEMA = actionSubjectForKinds(
+  ACTION_SEMANTIC_SUBJECT_KIND_VALUES,
+  GENERIC_ACTION_OBJECT_JSON_SCHEMA,
+);
+const GENERIC_ACTION_SPATIAL_EFFECT_JSON_SCHEMA = {
   anyOf: [
     obj({
       kind: { type: 'string', const: 'directional' },
@@ -247,33 +288,45 @@ const actionSpatialEffect = {
         type: 'string',
         enum: ACTION_SPATIAL_RELATION_VALUES,
       },
-      target: actionObject,
+      target: GENERIC_ACTION_OBJECT_JSON_SCHEMA,
     }),
   ],
 };
-const actionSpatialConstraint = obj({
+const GENERIC_ACTION_SPATIAL_CONSTRAINT_JSON_SCHEMA = obj({
   relation: {
     type: 'string',
     enum: ACTION_SPATIAL_CONSTRAINT_RELATION_VALUES,
   },
-  target: actionObject,
+  target: GENERIC_ACTION_OBJECT_JSON_SCHEMA,
 });
-const actionRequirement = obj({
+
+/**
+ * The unchanged whole-draft action shape. The full Story Source already sits
+ * close to the immutable 64K provider ceiling, so static catalog coupling is
+ * enforced by the validator on this initial/full-draft lane and by the
+ * catalog-strict schemas on every bounded page-rewrite lane below.
+ */
+export const TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA = obj({
   beatId: {
     type: 'string',
     pattern: '^beat:p[1-9][0-9]*:[a-z0-9_]+$',
   },
-  subject: actionSubject,
+  subject: GENERIC_ACTION_SUBJECT_JSON_SCHEMA,
   predicate: {
     type: 'string',
     enum: ACTION_PREDICATE_VALUES,
   },
-  object: { anyOf: [actionObject, { type: 'null' }] },
+  object: {
+    anyOf: [GENERIC_ACTION_OBJECT_JSON_SCHEMA, { type: 'null' }],
+  },
   spatialEffect: {
-    anyOf: [actionSpatialEffect, { type: 'null' }],
+    anyOf: [GENERIC_ACTION_SPATIAL_EFFECT_JSON_SCHEMA, { type: 'null' }],
   },
   spatialConstraint: {
-    anyOf: [actionSpatialConstraint, { type: 'null' }],
+    anyOf: [
+      GENERIC_ACTION_SPATIAL_CONSTRAINT_JSON_SCHEMA,
+      { type: 'null' },
+    ],
   },
   polarity: {
     type: 'string',
@@ -286,6 +339,211 @@ const actionRequirement = obj({
     ],
   },
 });
+
+function nullableOrRequiredSchema(args: {
+  rule: 'required' | 'optional' | 'forbidden';
+  schema: Record<string, unknown>;
+}): Record<string, unknown> {
+  if (args.rule === 'required') return args.schema;
+  if (args.rule === 'optional') {
+    return { anyOf: [args.schema, { type: 'null' }] };
+  }
+  return { type: 'null' };
+}
+
+function actionRuleSignature(
+  definition: (typeof ACTION_SEMANTIC_CATALOG)[number],
+): string {
+  return JSON.stringify({
+    subjectKinds: definition.subjectKinds,
+    objectRule: definition.objectRule,
+    objectKinds: definition.objectKinds,
+    spatialEffectRule: definition.spatialEffectRule,
+    spatialConstraintRule: definition.spatialConstraintRule,
+    spatialConstraintRelations: definition.spatialConstraintRelations,
+    lateralityAllowed: definition.lateralityAllowed,
+  });
+}
+
+interface ActionRequirementSchemaGroup {
+  definition: (typeof ACTION_SEMANTIC_CATALOG)[number];
+  predicates: string[];
+}
+
+function actionRequirementSchemaGroups(): ActionRequirementSchemaGroup[] {
+  const groups = new Map<string, ActionRequirementSchemaGroup>();
+  for (const definition of ACTION_SEMANTIC_CATALOG) {
+    const signature = actionRuleSignature(definition);
+    const current = groups.get(signature);
+    if (current) {
+      current.predicates.push(definition.predicate);
+    } else {
+      groups.set(signature, {
+        definition,
+        predicates: [definition.predicate],
+      });
+    }
+  }
+  return [...groups.values()];
+}
+
+function buildActionRequirementSchemaAuthority(): {
+  itemSchema: Record<string, unknown>;
+  definitions: Record<string, unknown>;
+} {
+  const definitions: Record<string, unknown> = {};
+  const definitionNames = new Map<string, string>();
+  const schemaRef = (
+    schema: Record<string, unknown>,
+  ): Record<string, unknown> => {
+    const signature = JSON.stringify(schema);
+    let name = definitionNames.get(signature);
+    if (!name) {
+      name = `ar${definitionNames.size}`;
+      definitionNames.set(signature, name);
+      definitions[name] = schema;
+    }
+    return { $ref: `#/$defs/${name}` };
+  };
+
+  const branches = actionRequirementSchemaGroups().map((group) => {
+    const { definition } = group;
+    if (
+      definition.subjectKinds.length === 0 ||
+      (definition.objectRule !== 'forbidden' &&
+        definition.objectKinds.length === 0) ||
+      (definition.objectRule === 'forbidden' &&
+        definition.objectKinds.length > 0) ||
+      (definition.spatialConstraintRule !== 'forbidden' &&
+        definition.spatialConstraintRelations.length === 0) ||
+      (definition.spatialConstraintRule === 'forbidden' &&
+        definition.spatialConstraintRelations.length > 0)
+    ) {
+      throw new Error(
+        `action semantic catalog rule is not schema-constructible: ${definition.predicate}`,
+      );
+    }
+    const entityKinds = ACTION_SEMANTIC_ENTITY_KIND_VALUES.filter((kind) =>
+      definition.subjectKinds.some((candidate) => candidate === kind),
+    );
+    const subjectSchema = actionSubjectForKinds(
+      definition.subjectKinds,
+      entityKinds.length > 0
+        ? actionObjectForKinds(entityKinds)
+        : null,
+    );
+    const objectSchema =
+      definition.objectKinds.length > 0
+        ? actionObjectForKinds(definition.objectKinds)
+        : null;
+    const spatialConstraintSchema =
+      definition.spatialConstraintRelations.length > 0
+        ? obj({
+            relation: {
+              type: 'string',
+              enum: [...definition.spatialConstraintRelations],
+            },
+            target: GENERIC_ACTION_OBJECT_JSON_SCHEMA,
+          })
+        : null;
+    return obj({
+      beatId: schemaRef({
+        type: 'string',
+        pattern: '^beat:p[1-9][0-9]*:[a-z0-9_]+$',
+      }),
+      subject: schemaRef(subjectSchema),
+      predicate: {
+        type: 'string',
+        enum: group.predicates,
+      },
+      object: schemaRef(
+        definition.objectRule === 'forbidden'
+          ? { type: 'null' }
+          : nullableOrRequiredSchema({
+              rule: definition.objectRule,
+              schema: objectSchema!,
+            }),
+      ),
+      spatialEffect: schemaRef(
+        nullableOrRequiredSchema({
+          rule: definition.spatialEffectRule,
+          schema: GENERIC_ACTION_SPATIAL_EFFECT_JSON_SCHEMA,
+        }),
+      ),
+      spatialConstraint: schemaRef(
+        definition.spatialConstraintRule === 'forbidden'
+          ? { type: 'null' }
+          : nullableOrRequiredSchema({
+              rule: definition.spatialConstraintRule,
+              schema: spatialConstraintSchema!,
+            }),
+      ),
+      polarity: schemaRef({
+        type: 'string',
+        enum: ACTION_POLARITY_VALUES,
+      }),
+      laterality: schemaRef(
+        definition.lateralityAllowed
+          ? {
+              anyOf: [
+                { type: 'string', enum: ['left', 'right'] },
+                { type: 'null' },
+              ],
+            }
+          : { type: 'null' },
+      ),
+    });
+  });
+
+  return {
+    itemSchema: { anyOf: branches },
+    definitions,
+  };
+}
+
+const ACTION_REQUIREMENT_SCHEMA_AUTHORITY =
+  buildActionRequirementSchemaAuthority();
+
+/**
+ * One strict structured-output branch per unique Action Semantic Catalog rule
+ * signature. Every predicate appears exactly once. Dynamic identity,
+ * presence, source grounding and coverage checks remain validator-owned.
+ */
+export const CATALOG_STRICT_ACTION_REQUIREMENT_JSON_SCHEMA: Record<
+  string,
+  unknown
+> = ACTION_REQUIREMENT_SCHEMA_AUTHORITY.itemSchema;
+
+export const TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA_DEFINITIONS:
+  Record<string, unknown> = ACTION_REQUIREMENT_SCHEMA_AUTHORITY.definitions;
+
+export function withTemplateDraftActionRequirementDefinitions(
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
+  const existing = schema.$defs;
+  if (
+    existing !== undefined &&
+    (existing === null ||
+      typeof existing !== 'object' ||
+      Array.isArray(existing))
+  ) {
+    throw new Error('template draft schema definitions must be an object');
+  }
+  const existingDefinitions =
+    (existing as Record<string, unknown> | undefined) ?? {};
+  for (const key of Object.keys(TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA_DEFINITIONS)) {
+    if (Object.prototype.hasOwnProperty.call(existingDefinitions, key)) {
+      throw new Error(`template draft schema definition collision: ${key}`);
+    }
+  }
+  return {
+    ...schema,
+    $defs: {
+      ...existingDefinitions,
+      ...TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA_DEFINITIONS,
+    },
+  };
+}
 const actionSemanticCoverageDisposition = {
   anyOf: [
     obj({
@@ -332,50 +590,69 @@ const actionSemanticCoverage = obj({
  * route can reuse the exact authoring authority instead of maintaining a
  * second, drift-prone copy.
  */
+function pageContractJsonSchema(
+  actionRequirementSchema: Record<string, unknown>,
+): Record<string, unknown> {
+  return obj({
+    pageNumber: { type: 'number', minimum: 1, multipleOf: 1 },
+    locationId: { type: 'string' },
+    zoneId: { type: 'string' },
+    sameLocationAs: nullableNumber,
+    mustShow: stringArray,
+    mustNotShow: stringArray,
+    propState: { type: 'array', items: propState },
+    propConstraints: { type: 'array', items: propConstraint },
+    actionRequirements: {
+      type: 'array',
+      items: actionRequirementSchema,
+    },
+    actionSemanticCoverage: {
+      type: 'array',
+      minItems: 1,
+      items: actionSemanticCoverage,
+    },
+    camera: { type: 'string' },
+    transition,
+  });
+}
+
 export const TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA: Record<
   string,
   unknown
-> = obj({
-  pageNumber: { type: 'number', minimum: 1, multipleOf: 1 },
-  locationId: { type: 'string' },
-  zoneId: { type: 'string' },
-  sameLocationAs: nullableNumber,
-  mustShow: stringArray,
-  mustNotShow: stringArray,
-  propState: { type: 'array', items: propState },
-  propConstraints: { type: 'array', items: propConstraint },
-  actionRequirements: {
-    type: 'array',
-    items: actionRequirement,
-  },
-  actionSemanticCoverage: {
-    type: 'array',
-    minItems: 1,
-    items: actionSemanticCoverage,
-  },
-  camera: { type: 'string' },
-  transition,
-});
+> = pageContractJsonSchema(
+  TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA,
+);
+
+/** Exact page shape for bounded repair roots that may rewrite actions. */
+export const CATALOG_STRICT_PAGE_CONTRACT_JSON_SCHEMA: Record<
+  string,
+  unknown
+> = pageContractJsonSchema(
+  CATALOG_STRICT_ACTION_REQUIREMENT_JSON_SCHEMA,
+);
 
 /** The strict draft schema (root). */
 export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
-  worldType: { type: 'string' },
-  locations: { type: 'array', items: location },
-  zones: { type: 'array', items: zone },
-  setBoardAuthorities: { type: 'array', items: setBoardStableAuthority },
-  cast,
-  humanCast: { type: 'array', items: humanDraft },
-  recurringProps: {
-    type: 'array',
-    items: TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA,
-  },
-  forbiddenGlobalElements: stringArray,
-  coverContract: TEMPLATE_DRAFT_COVER_CONTRACT_JSON_SCHEMA,
-  pageContracts: {
-    type: 'array',
-    items: TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
-  },
-});
+      worldType: { type: 'string' },
+      locations: { type: 'array', items: location },
+      zones: { type: 'array', items: zone },
+      setBoardAuthorities: {
+        type: 'array',
+        items: setBoardStableAuthority,
+      },
+      cast,
+      humanCast: { type: 'array', items: humanDraft },
+      recurringProps: {
+        type: 'array',
+        items: TEMPLATE_DRAFT_RECURRING_PROP_JSON_SCHEMA,
+      },
+      forbiddenGlobalElements: stringArray,
+      coverContract: TEMPLATE_DRAFT_COVER_CONTRACT_JSON_SCHEMA,
+      pageContracts: {
+        type: 'array',
+        items: TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
+      },
+  });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
 export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v15' as const;

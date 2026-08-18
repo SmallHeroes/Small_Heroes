@@ -15,6 +15,7 @@ import {
   repoRelativePath,
 } from './integrity';
 import {
+  CANONICAL_LIVE_EXECUTION_READINESS_VERSION,
   CANONICAL_LIVE_EXECUTION_REQUEST_VERSION,
   buildCanonicalLiveExecutionRequest,
   minimalPlatformInheritedEnvironmentNames,
@@ -35,9 +36,9 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-execution-request-materialization-input/v18' as const;
+  'canonical-live-execution-request-materialization-input/v19' as const;
 export const CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_RESULT_VERSION =
-  'canonical-live-execution-request-materialization-result/v22' as const;
+  'canonical-live-execution-request-materialization-result/v23' as const;
 
 const REQUEST_CATEGORY =
   'canonical-live-execution-requests' as const;
@@ -1018,7 +1019,11 @@ export function materializeCanonicalLiveExecutionRequest(args: {
     repoRoot: repositoryRealPath,
     manifestPath: input.manifestPath,
   });
-  if (verifiedBundle.status !== 'verified') {
+  if (
+    verifiedBundle.version !==
+      CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION ||
+    verifiedBundle.status !== 'verified'
+  ) {
     throw new CanonicalLiveExecutionRequestMaterializationFailure(
       'execution_request_materialization_b0_rejected',
     );
@@ -1133,7 +1138,11 @@ export function materializeCanonicalLiveExecutionRequest(args: {
         'execution_request_materialization_verification_rejected',
       );
     }
-    if (stagedReadiness.status !== 'ready') {
+    if (
+      stagedReadiness.version !==
+        CANONICAL_LIVE_EXECUTION_READINESS_VERSION ||
+      stagedReadiness.status !== 'ready'
+    ) {
       throw new CanonicalLiveExecutionRequestMaterializationFailure(
         'execution_request_materialization_verification_rejected',
       );
@@ -1180,7 +1189,11 @@ export function materializeCanonicalLiveExecutionRequest(args: {
       'execution_request_materialization_verification_rejected',
     );
   }
-  if (readiness.status !== 'ready') {
+  if (
+    readiness.version !==
+      CANONICAL_LIVE_EXECUTION_READINESS_VERSION ||
+    readiness.status !== 'ready'
+  ) {
     if (persistence.created) {
       removeCreatedAuthorityIfUnchanged({
         absolutePath: destinationPath,
