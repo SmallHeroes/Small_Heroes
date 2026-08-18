@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `89ecd3389f220844241a61167e9d4140ccd72192`.
 
-## OFFLINE REPAIR HARNESS + COLLECT-ALL VALIDATION — pushed; independent QA next
+## OFFLINE REPAIR HARNESS + COLLECT-ALL VALIDATION — QA fix green; re-gate next
 
 Guy cancelled the proposed best-of-N strategy after route-level evidence showed
 that most apparent issue growth was fail-fast unmasking rather than repair
@@ -46,14 +46,22 @@ Policy v17, output budget v6, model, tier, seven-call schedule, USD 10 fence,
 retry/fallback rules, Candidate v9, child authority v1 and Wizard bridge v2 are
 unchanged.
 
-Implementation commit `f0ee02d3` is pushed. Focused gates are green:
-compiler/harness/diagnostic/legacy inventory 135/135,
+Implementation commit `f0ee02d3` is pushed. Independent QA correctly found
+that the first stop guard compared raw diagnostic-array length and could stop
+when emissions rose even though normalized unique identities fell. Fix commit
+`54bfd774` uses normalized unique counts at both the decision and error-
+construction boundaries. An internal `complete | route_subset` population tag
+also prevents unlike diagnostic populations from being compared. The exact
+historical-shaped `8 -> 18 emissions` / `8 -> 7 unique` regression cannot
+construct the terminal, while a genuine complete-census increase still stops.
+
+Focused gates are green: compiler/harness/diagnostic/legacy inventory 136/136,
 authoring lifecycle 96/96, downstream materialization/Fresh/Supervisor 331/331,
 TypeScript and diff-check. The required literal `npm run check` was executed
 once: it initially exposed four stale milestone expectations, all now corrected
 and rerun green, plus only the five established missing ignored-output fixture
-failures. No live or render action follows this milestone; independent QA is
-the next boundary.
+failures. The exact QA-fix re-gate set is 115/115 PASS. No live or render
+action follows this milestone; Claude Code re-gate is the next boundary.
 
 ## SEVEN-STANDARD-CALL / $10 CONVERGENCE — local green; commit/push next
 

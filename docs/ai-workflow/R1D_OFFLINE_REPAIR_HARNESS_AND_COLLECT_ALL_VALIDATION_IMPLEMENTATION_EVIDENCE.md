@@ -8,6 +8,8 @@
 
 **Implementation commit:** `f0ee02d3`
 
+**Independent-QA fix commit:** `54bfd774`
+
 **Decision Gate:** `R1D_OFFLINE_REPAIR_HARNESS_AND_COLLECT_ALL_VALIDATION_DECISION_GATE.md`
 
 ## Outcome
@@ -104,6 +106,28 @@ identity and prove no action-cardinality regression in the mixed path.
   execution materialization, Fresh and Supervisor.
 - Confirm no budget, model, retry/fallback, Candidate, Wizard or render
   authority changed.
+
+## Independent-QA HOLD correction
+
+Claude Code found one valid MAJOR in the first stop guard: it compared raw
+diagnostic-array length instead of normalized unique identity count. Historical
+evidence contained two cases where emissions rose while unique issues fell, so
+that comparison could have stopped a converging BookSurface repair.
+
+Fix `54bfd774` makes the guard and
+`TemplateRepairIssueRegressionError` constructor share normalized unique
+counts. Each in-memory validation attempt is also tagged `complete` or
+`route_subset`; the guard compares only two complete populations. The
+regression fixes the historical-shaped trajectory of 8 emissions/8 unique to
+18 emissions/7 unique and proves it cannot be classified as regression. It
+also proves a route subset cannot be compared with a complete census.
+
+Post-fix validation:
+
+- Exact four-file Claude re-gate set: **115/115 PASS**.
+- Lifecycle + harness + diagnostic suites: **120/120 PASS**.
+- `npx tsc --noEmit`: PASS.
+- `git diff --check`: PASS.
 
 ## Stop condition
 
