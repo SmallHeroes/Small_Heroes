@@ -205,6 +205,90 @@ describe('text-first compiler — C3 assembly (facts overlaid LAST) + fail-close
     );
   });
 
+  it('materializes every missing pre-reveal prop prohibition without mutating the provider draft', async () => {
+    const draft = bunnyTemplate() as unknown as Record<string, unknown>;
+    const props = draft.recurringProps as Array<Record<string, unknown>>;
+    const bandage = props.find((prop) => prop.id === 'colorful_bandage')!;
+    bandage.firstRevealPage = 3;
+    const pages = draft.pageContracts as Array<Record<string, unknown>>;
+    pages[0]!.propConstraints = [];
+    pages[1]!.propConstraints = [];
+    const snapshot = structuredClone(draft);
+
+    const { template, notes } = await compileBookVisualContractTemplate(
+      bunnySource(),
+      { callLLM: stubFrom(draft) },
+    );
+
+    for (const pageNumber of [1, 2]) {
+      expect(
+        template.pageContracts.find((page) => page.pageNumber === pageNumber)!
+          .propConstraints,
+      ).toContainEqual({
+        propId: 'colorful_bandage',
+        visibility: 'forbidden',
+      });
+      expect(notes).toContain(
+        `page ${pageNumber}.propConstraints received the compiler-owned pre-reveal prohibition for "colorful_bandage"`,
+      );
+    }
+    expect(template.recurringProps.find((prop) => prop.id === 'colorful_bandage')!
+      .firstRevealPage).toBe(3);
+    expect(draft).toEqual(snapshot);
+  });
+
+  it('moves reveal to an earlier exact required page and forbids only the pages before it', async () => {
+    const draft = bunnyTemplate() as unknown as Record<string, unknown>;
+    const props = draft.recurringProps as Array<Record<string, unknown>>;
+    props.find((prop) => prop.id === 'colorful_bandage')!.firstRevealPage = 3;
+    const pages = draft.pageContracts as Array<Record<string, unknown>>;
+    pages[0]!.propConstraints = [];
+    pages[1]!.propConstraints = [
+      { propId: 'colorful_bandage', visibility: 'required' },
+    ];
+
+    const { template, notes } = await compileBookVisualContractTemplate(
+      bunnySource(),
+      { callLLM: stubFrom(draft) },
+    );
+
+    expect(template.recurringProps.find((prop) => prop.id === 'colorful_bandage')!
+      .firstRevealPage).toBe(2);
+    expect(template.pageContracts[0]!.propConstraints).toContainEqual({
+      propId: 'colorful_bandage',
+      visibility: 'forbidden',
+    });
+    expect(template.pageContracts[1]!.propConstraints).toContainEqual({
+      propId: 'colorful_bandage',
+      visibility: 'required',
+    });
+    expect(template.pageContracts[1]!.propConstraints).not.toContainEqual({
+      propId: 'colorful_bandage',
+      visibility: 'forbidden',
+    });
+    expect(notes).toContain(
+      'recurringProp "colorful_bandage" firstRevealPage moved from 3 to 2 to match its earliest required page',
+    );
+  });
+
+  it('leaves malformed pre-reveal constraints for fail-closed validation and does not mutate the provider draft', async () => {
+    const draft = bunnyTemplate() as unknown as Record<string, unknown>;
+    const props = draft.recurringProps as Array<Record<string, unknown>>;
+    props.find((prop) => prop.id === 'colorful_bandage')!.firstRevealPage = 3;
+    const pages = draft.pageContracts as Array<Record<string, unknown>>;
+    pages[0]!.propConstraints = [null];
+    pages[1]!.propConstraints = [];
+    const snapshot = structuredClone(draft);
+
+    await expect(
+      compileBookVisualContractTemplate(
+        bunnySource(),
+        { callLLM: stubFrom(draft) },
+      ),
+    ).rejects.toThrow();
+    expect(draft).toEqual(snapshot);
+  });
+
   it('injects appearance from the role policy even when the draft omits humanCast (compiler owns appearance)', async () => {
     const draft = bunnyTemplate() as unknown as Record<string, unknown>;
     draft.humanCast = []; // draft provides NO appearance — the compiler injects it by role

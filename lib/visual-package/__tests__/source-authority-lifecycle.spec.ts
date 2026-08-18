@@ -6717,7 +6717,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           coverage.disposition.reason === 'closed_action_catalog_gap',
       ).length;
     let addedPresentationGaps = 0;
-    for (const page of expandedPages.slice(0, 9)) {
+    for (let index = 0; index < 13; index += 1) {
+      const page = expandedPages[index % expandedPages.length]!;
       const coverageSeed = page.actionSemanticCoverage[0];
       if (!coverageSeed) throw new Error('missing presentation-gap seed');
       page.actionSemanticCoverage.push({
@@ -6730,7 +6731,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       });
       addedPresentationGaps += 1;
     }
-    expect(addedPresentationGaps).toBe(9);
+    expect(addedPresentationGaps).toBe(13);
     const firstRepair = structuredClone(fixture.validBookSurfaceRepair);
     for (const page of firstRepair.pageContracts) page.camera = '';
     const calls: Parameters<VisualContractAuthoringProvider['call']>[0][] = [];
@@ -6817,14 +6818,14 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       coverHintCount +
       recurringPropHintCount +
       pageHintCounts.reduce((total, count) => total + count, 0);
-    expect(structuralHintCount).toBe(123);
+    expect(structuralHintCount).toBe(111);
     expect(
       result.receipt.attempts[1].inputAccounting.estimatedBytes,
-    ).toBe(36_762);
+    ).toBe(37_182);
     expect(
       59_904 -
         result.receipt.attempts[1].inputAccounting.estimatedBytes,
-    ).toBe(23_142);
+    ).toBe(22_722);
     expect(
       structuralHintCount +
         (mixedPayload.presentationTargets as unknown[]).length,

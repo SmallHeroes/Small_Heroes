@@ -2591,6 +2591,87 @@ function normalizeDraftProps(raw: unknown): BookVisualContractTemplate['recurrin
   }) as unknown as BookVisualContractTemplate['recurringProps'];
 }
 
+function closeRecurringPropLifecycle(args: {
+  recurringProps: BookVisualContractTemplate['recurringProps'];
+  pageContracts: BookVisualContractTemplate['pageContracts'];
+  notes: string[];
+}): void {
+  const pages = [...args.pageContracts].sort(
+    (left, right) => left.pageNumber - right.pageNumber,
+  );
+  if (
+    pages.some(
+      (page) =>
+        !Number.isInteger(page.pageNumber) ||
+        page.pageNumber < 1,
+    ) ||
+    new Set(pages.map((page) => page.pageNumber)).size !== pages.length
+  ) {
+    return;
+  }
+  for (const prop of args.recurringProps) {
+    if (
+      typeof prop.id !== 'string' ||
+      prop.id.trim().length === 0 ||
+      !Number.isInteger(prop.firstRevealPage) ||
+      (prop.firstRevealPage ?? 0) < 1
+    ) {
+      continue;
+    }
+    const requiredPages = pages.flatMap((page) =>
+      (page.propConstraints ?? []).some(
+        (constraint) =>
+          constraint.propId === prop.id &&
+          constraint.visibility === 'required',
+      )
+        ? [page.pageNumber]
+        : [],
+    );
+    const effectiveRevealPage = Math.min(
+      prop.firstRevealPage!,
+      ...(requiredPages.length > 0 ? requiredPages : [prop.firstRevealPage!]),
+    );
+    if (effectiveRevealPage !== prop.firstRevealPage) {
+      args.notes.push(
+        `recurringProp "${prop.id}" firstRevealPage moved from ${prop.firstRevealPage} to ${effectiveRevealPage} to match its earliest required page`,
+      );
+      prop.firstRevealPage = effectiveRevealPage;
+    }
+    for (const page of pages) {
+      if (page.pageNumber >= effectiveRevealPage) break;
+      const constraints = page.propConstraints ?? [];
+      if (
+        constraints.some(
+          (constraint) =>
+            !constraint ||
+            typeof constraint !== 'object' ||
+            typeof constraint.propId !== 'string' ||
+            (constraint.visibility !== 'required' &&
+              constraint.visibility !== 'forbidden'),
+        )
+      ) {
+        continue;
+      }
+      if (
+        constraints.some(
+          (constraint) =>
+            constraint.propId === prop.id &&
+            constraint.visibility === 'forbidden',
+        )
+      ) {
+        continue;
+      }
+      page.propConstraints = [
+        ...constraints,
+        { propId: prop.id, visibility: 'forbidden' },
+      ];
+      args.notes.push(
+        `page ${page.pageNumber}.propConstraints received the compiler-owned pre-reveal prohibition for "${prop.id}"`,
+      );
+    }
+  }
+}
+
 type SpatialRelationDiagnosticContext =
   | {
       kind: 'set_area_relation';
@@ -3530,6 +3611,13 @@ function assembleTemplateFromDraft(
   }
 
   const setBoardAuthorities = spatialAuthority.setBoardAuthorities;
+  const recurringProps = normalizeDraftProps(draft.recurringProps);
+  closeRecurringPropLifecycle({
+    recurringProps,
+    pageContracts:
+      pageContracts as unknown as BookVisualContractTemplate['pageContracts'],
+    notes,
+  });
   const template: BookVisualContractTemplate = {
     contractKind: 'template',
     schemaVersion: VISUAL_CONTRACT_SCHEMA_VERSION,
@@ -3541,7 +3629,7 @@ function assembleTemplateFromDraft(
     ...(setBoardAuthorities ? { setBoardAuthorities } : {}),
     cast: authoritativeCast as unknown as BookVisualContractTemplate['cast'],
     humanCast,
-    recurringProps: normalizeDraftProps(draft.recurringProps),
+    recurringProps,
     forbiddenGlobalElements: asArr(draft.forbiddenGlobalElements).filter((x): x is string => typeof x === 'string'),
     coverContract: { ...canonicalCover, worldType } as unknown as BookVisualContractTemplate['coverContract'],
     pageContracts: pageContracts as unknown as BookVisualContractTemplate['pageContracts'],

@@ -2,35 +2,39 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `d2249bd8ff4acbbfe16dcb64bc482d4862b45bda`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `293f25b55bdebc17911b7bbcb9e94036915ef843`.
 
-## COMPILER-OWNED INVALID COVER CAST NORMALIZATION — implementation green; commit/push next
+## COMPILER-OWNED RECURRING-PROP LIFECYCLE CLOSURE — implementation green; commit/push next
 
-The sole v10 run under
-`outputs/r1d-cover-v10-fresh-d2249bd8-20260818T130414687Z` ended fail-closed
-and will not be retried. Receipt v41
-`044e4da5f84848ae4b642eec9ed52702ee121bd979e7899e7a0328c601cd0cdb`
-records two completed calls and route `initial -> book_surface_patch`. The exact
-terminal identity remains `book_surface_repair_cover_reference_invalid`; no
-Candidate, Wizard or render authority exists.
+The sole post-cover-normalization run under
+`outputs/r1d-cover-cast-normalization-fresh-293f25b5-20260818T131744049Z`
+ended fail-closed and will not be retried. Receipt v41
+`0223c9360c4baed24e3aad25e5a41397b32ab591f8f551e7da5c802dacfa6618`
+records two completed calls and route `initial -> book_surface_patch`. The prior
+cover-reference identity is closed. The new exact terminal identity is
+`book_surface_repair_lifecycle_obligation_invalid`; no Candidate, Wizard or
+render authority exists.
 
-The deeper cause is in compiler assembly: missing/empty cover cast IDs were
-already proposed from the fact-authoritative first page, but a present list with
-duplicate, malformed or unknown IDs survived into BookSurface. The correction
-now preserves only a nonempty, unique, string-only list wholly inside the
-authoritative cast; every other list is deterministically replaced with the
-post-fact-overlay first-page cast, falling back only to the authoritative child.
-The model does not choose or invent cover identity.
+The compiler already treats `firstRevealPage` as one book-level fact and owns
+its exact cover prohibition, but it did not materialize the matching per-page
+pre-reveal prohibitions. The correction now preserves a valid reveal page,
+moves it only to an earlier page that already explicitly requires the prop, and
+appends the exact forbidden constraint to every earlier well-formed page. It
+does not overwrite malformed or unrelated constraints and does not mutate the
+provider draft. This closes an already-declared structured invariant before
+BookSurface routing instead of asking the model to coordinate one fact and
+every page atomically.
 
-This is internal normalization of an already fact-authoritative field. Current
 BookSurface remains v6/v10/v10 and the authority ladder remains authoring
 v37/v41/v39, B0 v26/v35/v35, execution v25/v29, Supervisor v34/v34/v27 and
-Fresh v34. Policy, model/tier/reasoning, calls/repairs, caps, retries/fallback,
-hard `$5`, Candidate v9, Wizard and renderer are unchanged.
+Fresh v34. Policy v13, model/tier/reasoning, calls/repairs, caps,
+retry/fallback, hard `$5`, Candidate v9, Wizard and renderer are unchanged.
 
-Focused validation is **192/192** across text-first compiler, BookSurface,
-repair loop and source-authority lifecycle; TypeScript and diff-check PASS. No
-credential, provider, Fresh, live, image or render call was made during this
+Focused validation is **195/195** across text-first compiler, BookSurface,
+repair loop and source-authority lifecycle; TypeScript and diff-check PASS. The
+aggregate BookSurface regression still proves 129 independently admitted
+authority items and exact 37,182-byte input under the 59,904-byte route bound.
+No credential, provider, Fresh, live, image or render call was made during this
 implementation.
 
 ## BOOK SURFACE V10 VALID COVER IDENTITY FALLBACK — pushed; consumed live attempt fail-closed
