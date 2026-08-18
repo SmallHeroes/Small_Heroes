@@ -332,22 +332,22 @@ function patch(
   };
 }
 
-describe('atomic causal book-surface repair v9 input authority', () => {
-  it('publishes the strict v6 causal-delta schema under v9 prompts with nullable cover/props and no action coverage', () => {
+describe('atomic causal book-surface repair v10 input authority', () => {
+  it('publishes the strict v6 causal-delta schema under v10 prompts with nullable cover/props and no action coverage', () => {
     expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
       'book-surface-repair-schema/v6',
     );
     expect(BOOK_SURFACE_REPAIR_PROMPT_VERSION).toBe(
-      'book-surface-repair-prompt/v9',
+      'book-surface-repair-prompt/v10',
     );
     expect(BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION).toBe(
-      'book-surface-repair-user-prompt/v9',
+      'book-surface-repair-user-prompt/v10',
     );
     expect(buildBookSurfaceRepairSystemPrompt()).toContain(
       'Return a repaired non-null value only for that page\'s exact writableFields',
     );
     expect(buildBookSurfaceRepairSystemPrompt()).toContain(
-      'compiler reattaches the exact worldType, locationId, zoneId and ordered castIds',
+      'compiler preserves an already-valid current location/zone/cast identity',
     );
     const properties = BOOK_SURFACE_REPAIR_JSON_SCHEMA.properties as Record<
       string,
@@ -1817,6 +1817,81 @@ describe('atomic causal book-surface repair v9 input authority', () => {
       castIds: cover().castIds,
     });
     expect(original).toEqual(snapshot);
+
+    const invalidCurrent = draft();
+    const invalidCurrentCover = invalidCurrent.coverContract as Record<
+      string,
+      unknown
+    >;
+    invalidCurrentCover.locationId = 'loc:stale';
+    invalidCurrentCover.zoneId = 'zone:stale';
+    invalidCurrentCover.castIds = [
+      'child:hero',
+      'cast:stale',
+    ];
+    const invalidSnapshot = structuredClone(invalidCurrent);
+    const fallbackAuthority = authority(invalidCurrent);
+    const fallbackResult = applyBookSurfaceRepairPatch({
+      draft: invalidCurrent,
+      authority: fallbackAuthority,
+      patch: patch(),
+    });
+    expect(fallbackResult.coverContract).toMatchObject({
+      worldType: 'grounded',
+      locationId: 'loc:home',
+      zoneId: 'zone:1',
+      castIds: cover().castIds,
+    });
+    expect(invalidCurrent).toEqual(invalidSnapshot);
+
+    const partiallyValidCurrent = draft();
+    const partiallyValidCurrentCover =
+      partiallyValidCurrent.coverContract as Record<string, unknown>;
+    partiallyValidCurrentCover.locationId = 'loc:stale';
+    partiallyValidCurrentCover.zoneId = 'zone:stale';
+    partiallyValidCurrentCover.castIds = ['child:hero', 'cast:stale'];
+    const partiallyValidSnapshot = structuredClone(partiallyValidCurrent);
+    const partiallyValidAuthority = authority(partiallyValidCurrent);
+    const partialFallbackResult = applyBookSurfaceRepairPatch({
+      draft: partiallyValidCurrent,
+      authority: partiallyValidAuthority,
+      patch: {
+        ...patch(),
+        coverContract: {
+          ...cover(),
+          castIds: ['child:hero', 'cast:stale'],
+        },
+      },
+    });
+    expect(partialFallbackResult.coverContract).toMatchObject({
+      worldType: 'grounded',
+      locationId: 'loc:home',
+      zoneId: 'zone:1',
+      castIds: ['child:hero'],
+    });
+    expect(partiallyValidCurrent).toEqual(partiallyValidSnapshot);
+
+    const fullyInvalidCurrent = draft();
+    const fullyInvalidCurrentCover =
+      fullyInvalidCurrent.coverContract as Record<string, unknown>;
+    fullyInvalidCurrentCover.locationId = 'loc:stale';
+    fullyInvalidCurrentCover.zoneId = 'zone:stale';
+    fullyInvalidCurrentCover.castIds = ['cast:stale'];
+    const fullyInvalidSnapshot = structuredClone(fullyInvalidCurrent);
+    expect(() =>
+      applyBookSurfaceRepairPatch({
+        draft: fullyInvalidCurrent,
+        authority: authority(fullyInvalidCurrent),
+        patch: {
+          ...patch(),
+          coverContract: {
+            ...cover(),
+            castIds: ['child:hero', 'cast:stale'],
+          },
+        },
+      }),
+    ).toThrow('book_surface_repair_cover_reference_invalid');
+    expect(fullyInvalidCurrent).toEqual(fullyInvalidSnapshot);
 
     for (const coverContract of [
       { ...cover(), worldType: '' },

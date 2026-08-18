@@ -2,9 +2,45 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `260c48aaf7c0bb773fab985c2c48687de6038064`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `633affac56b6d9fc38ce324e76fedb5a1b6f8db3`.
 
-## BOOK SURFACE COMPILER-OWNED ECHO IDENTITY — implementation green; commit/QA next
+## BOOK SURFACE V10 VALID COVER IDENTITY FALLBACK — implementation green; commit/push next
+
+The sole canonical run under
+`outputs/r1d-echo-identity-fresh-633affac-20260818T123615036Z`
+ended fail-closed and will not be retried. Receipt v40
+`0e36ec18ab1ad689e3b62c4601b38b908a4b1524a63fef56cabafa12f74c38b5`
+records three completed provider calls and route
+`initial -> page_contract_patch -> book_surface_patch`. The compiler-owned
+presentation/recurring-prop echo correction passed its live application
+boundary. The exact terminal identity is now
+`book_surface_repair_cover_reference_invalid`; Candidate, Wizard and render
+authority are absent.
+
+The root cause was a v9 normalizer that always restored the current cover
+location/zone/cast identity, even when that current identity was the defect
+being repaired. v10 preserves a valid current location/zone pair and ordered
+cast list, but when invalid accepts only a provider pair inside the closed
+reference authority and a wholly valid provider cast list. If both lists are
+mixed, only a nonempty valid subset already present in the current cover may
+survive. `worldType` remains compiler-owned. Malformed/empty/unknown authority,
+stale input, non-target drift and final validation remain terminal.
+
+Book Surface schema stays v6 while system/user prompt versions advance to v10.
+Authoring request/receipt/readiness advance to v37/v41/v39; B0 to v26/v35/v35;
+execution materialization to v25/v29; Supervisor to v34/v34/v27; Fresh to v34.
+Policy v13, Candidate v9, model/tier/reasoning, caps, retries/fallback, hard
+`$5`, Wizard and renderer are unchanged.
+
+Focused core validation is **158/158** and the canonical authority suites are
+**419/419**; TypeScript and diff-check PASS. One literal `npm run check` ran
+exactly once: ordinary passed 3,258, skipped 65 and failed only the five
+established missing ignored-output fixtures; resource passed 605/605 assertions
+and exited nonzero only for two post-assertion `onTaskUpdate` RPC timeouts. No
+credential, provider, Fresh, live, image or render call was made during this
+implementation.
+
+## BOOK SURFACE COMPILER-OWNED ECHO IDENTITY — pushed; consumed live attempt fail-closed
 
 The sole v9 attempt under
 `outputs/r1d-cover-identity-v9-fresh-260c48aa-20260818T110925212Z`

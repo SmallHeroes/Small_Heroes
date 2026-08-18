@@ -33,9 +33,9 @@ export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =
-  'book-surface-repair-prompt/v9' as const;
+  'book-surface-repair-prompt/v10' as const;
 export const BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION =
-  'book-surface-repair-user-prompt/v9' as const;
+  'book-surface-repair-user-prompt/v10' as const;
 
 const MAX_VALIDATION_MESSAGES = 128;
 const MAX_VALIDATION_MESSAGE_LENGTH = 1_024;
@@ -1386,7 +1386,7 @@ export function buildBookSurfaceRepairSystemPrompt(): string {
     'For each presentation target, copy its identities and one exact permitted contractPointer. The overlapping page mustShow array is not writable; preserve it exactly so the compiler can resolve the authorized pointer/value locally.',
     'No raw validation prose is included. Use only the typed targets, causes, exact projections, bounded diagnostic counts and read-only authority supplied in the decoded payload.',
     'When recurringPropAuthority is non-null, preserve the exact recurring-prop ID order and resolve only its typed lifecycle invariant. Use lifecycleContext as read-only page visibility authority: every page before a non-null firstRevealPage must be listed forbidden, and no listed required page may precede it. Otherwise return recurringProps:null.',
-    'When coverAuthority is non-null, repair only the semantic cover fields. The compiler reattaches the exact worldType, locationId, zoneId and ordered castIds from its normalized authority before apply; provider-returned values cannot replace those identities. Otherwise return coverContract:null.',
+    'When coverAuthority is non-null, repair its semantic fields and return a well-shaped cover identity. The compiler preserves an already-valid current location/zone/cast identity; when the current identity is invalid, it accepts only a replacement inside referenceAuthority and never invents a reference. Otherwise return coverContract:null.',
     'Preserve all valid semantics. Never infer or return unrelated page or global fields.',
     'Output only the JSON object required by the strict repair schema.',
   ].join('\n');
@@ -2225,10 +2225,53 @@ function restoreCompilerOwnedCoverReferenceIdentity(args: {
   ) {
     throw new Error('book_surface_repair_cover_invalid');
   }
-  restored.coverContract.worldType = authorityCover.worldType;
-  restored.coverContract.locationId = authorityCover.locationId;
-  restored.coverContract.zoneId = authorityCover.zoneId;
-  restored.coverContract.castIds = structuredClone(authorityCover.castIds);
+  const validPair = (
+    value: Record<string, unknown>,
+  ): { locationId: string; zoneId: string } | null => {
+    if (
+      typeof value.locationId !== 'string' ||
+      typeof value.zoneId !== 'string'
+    ) {
+      return null;
+    }
+    const zone = args.authority.referenceAuthority.zones.find(
+      (candidate) => candidate.id === value.zoneId,
+    );
+    return args.authority.referenceAuthority.locationIds.includes(
+      value.locationId,
+    ) && zone?.locationId === value.locationId
+      ? { locationId: value.locationId, zoneId: value.zoneId }
+      : null;
+  };
+  const authorityPair = validPair(authorityCover);
+  const patchPair = validPair(restored.coverContract);
+  const selectedPair = authorityPair ?? patchPair;
+  if (!selectedPair) {
+    throw new Error('book_surface_repair_cover_reference_invalid');
+  }
+  const permittedCastIds = new Set(args.authority.referenceAuthority.castIds);
+  const authorityCastIds = uniqueStrings(authorityCover.castIds) ?? [];
+  const authorityValidCastIds = authorityCastIds.filter((id) =>
+    permittedCastIds.has(id),
+  );
+  const patchValidCastIds = patchCastIds.filter((id) =>
+    permittedCastIds.has(id),
+  );
+  const selectedCastIds =
+    authorityCastIds.length > 0 &&
+    authorityValidCastIds.length === authorityCastIds.length
+      ? authorityCastIds
+      : patchValidCastIds.length === patchCastIds.length
+        ? patchCastIds
+        : authorityValidCastIds;
+  if (selectedCastIds.length === 0) {
+    throw new Error('book_surface_repair_cover_reference_invalid');
+  }
+  restored.coverContract.worldType =
+    args.authority.referenceAuthority.worldType;
+  restored.coverContract.locationId = selectedPair.locationId;
+  restored.coverContract.zoneId = selectedPair.zoneId;
+  restored.coverContract.castIds = structuredClone(selectedCastIds);
   return restored;
 }
 
