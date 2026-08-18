@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `76686edb6d204afb50c373c100a38386abe76a3a`.
 
-## BOOK SURFACE V6 CAUSAL DELTA — implementation green; independent QA and Fresh pending
+## BOOK SURFACE V6 CAUSAL DELTA — independent technical PASS; Fresh pending
 
 The bounded canonical attempt under
 `outputs/r1d-causal-booksurface-fresh-76686edb-20260818T070059265Z`
@@ -19,11 +19,13 @@ Blueprint, Wizard or render authority exists from that attempt.
 The approved general correction makes Book Surface v6 a strict causal delta.
 The provider receives exact typed causes, writable fields, diagnostic counts
 and scrubbed read-only preservation context, but not duplicated raw validation
-prose, source phrases, coverage indexes or Source Evidence IDs it cannot
-return. The response must return a non-null typed value for each writable field
-and `null` for every other fixed-schema page field. The compiler retains and
-validates the full internal action/coverage authority, applies only authorized
-fields atomically and runs unchanged full validation.
+prose, source phrases, or redundant action-binding coverage indexes/Source
+Evidence IDs it cannot return. Exact presentation targets still retain their
+coverage index and Source Evidence identity. The response must return a
+non-null typed value for each writable field and `null` for every other
+fixed-schema page field. The compiler retains and validates the full internal
+action/coverage authority, applies only authorized fields atomically and runs
+unchanged full validation.
 
 The current cutover is Book Surface schema/system/user v6; authoring
 request/receipt/readiness v32/v36/v34; B0 input/manifest/verification
@@ -42,10 +44,18 @@ parallel timeout although the suite passes individually 7/7, and the runner
 reported two existing RPC timeouts. The test-only timeout now matches the
 adjacent 25-second resource bound; the literal gate was not retried.
 
+Claude Code independently reviewed immutable range
+`76686edb6d204afb50c373c100a38386abe76a3a..d245a0de3de6c26ac22d9dea195fe2037f2bc288`
+and returned **PASS with no code defect**. It recorded only the two evidence
+wording corrections above: presentation targets retain their exact coverage
+and Source Evidence identities, and 36,044 describes the first mixed request,
+not the later pure residual. Its plan-mode sandbox prevented independent test
+execution, so the verdict is static review plus inspection of the committed
+tests and recorded runs.
+
 No credential, provider, Fresh, live, image or render action occurred during
-this implementation. Next: focused commit/push, independent Claude Code
-read-only re-gate, brand-new Fresh Readiness, then at most one bounded live
-authoring call. A valid Candidate is still required before the explicitly
+this implementation. Next: brand-new Fresh Readiness, then at most one bounded
+live authoring call. A valid Candidate is still required before the explicitly
 approved full-book LOW render.
 
 ## BOOK SURFACE CAUSAL REPAIR CONTRACT — independent technical PASS; push pending

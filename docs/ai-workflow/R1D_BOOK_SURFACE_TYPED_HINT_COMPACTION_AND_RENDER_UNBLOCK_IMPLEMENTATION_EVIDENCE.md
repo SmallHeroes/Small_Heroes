@@ -19,11 +19,12 @@ invariants, and then runs the unchanged complete compiler validation.
 
 The live-shaped 12-page lifecycle fixture that formerly needed a presentation
 split now completes through one Book Surface repair in two logical calls. The
-repeated pure-structural route is 36,044 estimated bytes, leaving 23,860 bytes
-below the canonical 59,904-byte repair-route ceiling. A separate boundary
-fixture still proves the safe presentation-first split when the mixed route is
-too large and proves pre-dispatch refusal when the final structural route also
-does not fit.
+first mixed Book Surface request in the repeated-repair lifecycle is 36,044
+estimated bytes, leaving 23,860 bytes below the canonical 59,904-byte
+repair-route ceiling; the later null-cover pure residual is independently
+admitted and completes. A separate boundary fixture still proves the safe
+presentation-first split when the mixed route is too large and proves
+pre-dispatch refusal when the final structural route also does not fit.
 
 ## Authority cutover
 
@@ -81,8 +82,14 @@ Supervisor and Fresh envelopes remain fail-closed.
     15s to 25s, matching the adjacent resource test and without changing
     production behavior. The literal repository gate was not retried.
 
-This evidence is implementation evidence, not independent Claude Code PASS,
-Fresh Readiness, provider authorization, Candidate authority, render approval,
-release readiness or product acceptance. No credential, provider, network,
-Fresh, live, image, render, storage/database, deployment or production action
-occurred during implementation.
+Claude Code independently reviewed immutable implementation range
+`76686edb6d204afb50c373c100a38386abe76a3a..d245a0de3de6c26ac22d9dea195fe2037f2bc288`
+and returned **PASS with no code defect**. It supplied two advisory evidence
+wording corrections, incorporated above. Its plan-mode sandbox did not permit
+independent test execution, so its verdict rests on static analysis and reading
+the committed assertions plus the recorded local validation.
+
+Technical PASS does not itself authorize Fresh Readiness, provider calls,
+Candidate authority, render, release readiness or product acceptance. No
+credential, provider, network, Fresh, live, image, render, storage/database,
+deployment or production action occurred during implementation.
