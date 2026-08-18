@@ -161,6 +161,50 @@ describe('text-first compiler — C3 assembly (facts overlaid LAST) + fail-close
     expect(notes.some((n) => n.includes('human:phantom'))).toBe(true);
   });
 
+  it.each([
+    ['unknown', ['child:unknown']],
+    ['duplicate', ['child:hero', 'child:hero']],
+    ['malformed', ['child:hero', null]],
+  ])(
+    'normalizes a present but %s cover cast list from the fact-authoritative first page',
+    async (_label, castIds) => {
+      const draft = bunnyTemplate() as unknown as Record<string, unknown>;
+      const cover = draft.coverContract as Record<string, unknown>;
+      cover.castIds = castIds;
+      const { template, notes } = await compileBookVisualContractTemplate(
+        bunnySource(),
+        { callLLM: stubFrom(draft) },
+      );
+      const factAuthoritativeFirstPage = template.pageContracts.find(
+        (page) => page.pageNumber === 1,
+      )!;
+
+      expect(template.coverContract.castIds).toEqual(
+        factAuthoritativeFirstPage.castIds,
+      );
+      expect(template.coverContract.castIds).toEqual(['child:hero']);
+      expect(notes).toContain(
+        'coverContract castIds proposed from the fact-authoritative first page for human review',
+      );
+    },
+  );
+
+  it('preserves a valid authored cover cast list', async () => {
+    const draft = bunnyTemplate() as unknown as Record<string, unknown>;
+    const cover = draft.coverContract as Record<string, unknown>;
+    cover.castIds = ['child:hero'];
+
+    const { template, notes } = await compileBookVisualContractTemplate(
+      bunnySource(),
+      { callLLM: stubFrom(draft) },
+    );
+
+    expect(template.coverContract.castIds).toEqual(['child:hero']);
+    expect(notes).not.toContain(
+      'coverContract castIds proposed from the fact-authoritative first page for human review',
+    );
+  });
+
   it('injects appearance from the role policy even when the draft omits humanCast (compiler owns appearance)', async () => {
     const draft = bunnyTemplate() as unknown as Record<string, unknown>;
     draft.humanCast = []; // draft provides NO appearance — the compiler injects it by role

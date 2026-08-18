@@ -3486,11 +3486,30 @@ function assembleTemplateFromDraft(
       ],
     );
   }
-  if (!Array.isArray(canonicalCover.castIds) || canonicalCover.castIds.length === 0) {
+  const authoritativeCastIds = new Set([
+    childId,
+    ...(companionId ? [companionId] : []),
+    ...humanCast.map((candidate) => candidate.id),
+  ]);
+  const currentCoverCastIds = Array.isArray(canonicalCover.castIds)
+    ? canonicalCover.castIds
+    : [];
+  const currentCoverCastIsValid =
+    currentCoverCastIds.length > 0 &&
+    currentCoverCastIds.every(isStr) &&
+    new Set(currentCoverCastIds).size === currentCoverCastIds.length &&
+    currentCoverCastIds.every((id) => authoritativeCastIds.has(id));
+  if (!currentCoverCastIsValid) {
     const firstPage = [...pageContracts].sort(
       (a, b) => Number(a.pageNumber ?? 0) - Number(b.pageNumber ?? 0),
     )[0];
-    const proposedCastIds = asArr(firstPage?.castIds).filter(isStr);
+    const proposedCastIds = [
+      ...new Set(
+        asArr(firstPage?.castIds)
+          .filter(isStr)
+          .filter((id) => authoritativeCastIds.has(id)),
+      ),
+    ];
     canonicalCover.castIds = proposedCastIds.length > 0 ? proposedCastIds : [childId];
     notes.push('coverContract castIds proposed from the fact-authoritative first page for human review');
   }

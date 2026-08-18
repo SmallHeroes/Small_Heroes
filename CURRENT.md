@@ -2,9 +2,38 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `633affac56b6d9fc38ce324e76fedb5a1b6f8db3`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `d2249bd8ff4acbbfe16dcb64bc482d4862b45bda`.
 
-## BOOK SURFACE V10 VALID COVER IDENTITY FALLBACK — implementation green; commit/push next
+## COMPILER-OWNED INVALID COVER CAST NORMALIZATION — implementation green; commit/push next
+
+The sole v10 run under
+`outputs/r1d-cover-v10-fresh-d2249bd8-20260818T130414687Z` ended fail-closed
+and will not be retried. Receipt v41
+`044e4da5f84848ae4b642eec9ed52702ee121bd979e7899e7a0328c601cd0cdb`
+records two completed calls and route `initial -> book_surface_patch`. The exact
+terminal identity remains `book_surface_repair_cover_reference_invalid`; no
+Candidate, Wizard or render authority exists.
+
+The deeper cause is in compiler assembly: missing/empty cover cast IDs were
+already proposed from the fact-authoritative first page, but a present list with
+duplicate, malformed or unknown IDs survived into BookSurface. The correction
+now preserves only a nonempty, unique, string-only list wholly inside the
+authoritative cast; every other list is deterministically replaced with the
+post-fact-overlay first-page cast, falling back only to the authoritative child.
+The model does not choose or invent cover identity.
+
+This is internal normalization of an already fact-authoritative field. Current
+BookSurface remains v6/v10/v10 and the authority ladder remains authoring
+v37/v41/v39, B0 v26/v35/v35, execution v25/v29, Supervisor v34/v34/v27 and
+Fresh v34. Policy, model/tier/reasoning, calls/repairs, caps, retries/fallback,
+hard `$5`, Candidate v9, Wizard and renderer are unchanged.
+
+Focused validation is **192/192** across text-first compiler, BookSurface,
+repair loop and source-authority lifecycle; TypeScript and diff-check PASS. No
+credential, provider, Fresh, live, image or render call was made during this
+implementation.
+
+## BOOK SURFACE V10 VALID COVER IDENTITY FALLBACK — pushed; consumed live attempt fail-closed
 
 The sole canonical run under
 `outputs/r1d-echo-identity-fresh-633affac-20260818T123615036Z`
