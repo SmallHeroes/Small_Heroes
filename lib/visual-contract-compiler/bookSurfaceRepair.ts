@@ -2158,6 +2158,57 @@ function restoreCompilerOwnedActionBindingIdentity(args: {
   return restored;
 }
 
+function restoreCompilerOwnedPreRevealConstraints(args: {
+  authority: BookSurfaceRepairAuthority;
+  patch: BookSurfaceRepairPatch;
+}): BookSurfaceRepairPatch {
+  const restored = structuredClone(args.patch);
+  if (args.authority.repairRecurringProps) return restored;
+  const patchByPage = new Map(
+    restored.pageStructuralPatches.map((pagePatch) => [
+      pagePatch.pageNumber,
+      pagePatch,
+    ]),
+  );
+  for (const affectedPage of args.authority.affectedPages) {
+    if (
+      !affectedPage.writableFields.includes('propConstraints') ||
+      affectedPage.readOnlyContext.preRevealPropObligations.length === 0
+    ) {
+      continue;
+    }
+    const pagePatch = patchByPage.get(affectedPage.pageNumber);
+    if (!pagePatch || !Array.isArray(pagePatch.propConstraints)) {
+      throw new Error('book_surface_repair_lifecycle_obligation_invalid');
+    }
+    const authorityConstraints = Array.isArray(
+      affectedPage.pageContract.propConstraints,
+    )
+      ? affectedPage.pageContract.propConstraints.map(recordValue)
+      : [];
+    let restoredConstraints = pagePatch.propConstraints.map((value) =>
+      structuredClone(value),
+    );
+    for (const obligation of
+      affectedPage.readOnlyContext.preRevealPropObligations) {
+      const compilerOwned = authorityConstraints.find(
+        (constraint) =>
+          constraint?.propId === obligation.propId &&
+          constraint.visibility === 'forbidden',
+      );
+      if (!compilerOwned) {
+        throw new Error('book_surface_repair_lifecycle_obligation_invalid');
+      }
+      restoredConstraints = restoredConstraints.filter(
+        (constraint) => recordValue(constraint)?.propId !== obligation.propId,
+      );
+      restoredConstraints.push(structuredClone(compilerOwned));
+    }
+    pagePatch.propConstraints = restoredConstraints;
+  }
+  return restored;
+}
+
 function restoreCompilerOwnedPresentationTargetIdentity(args: {
   authority: BookSurfaceRepairAuthority;
   patch: BookSurfaceRepairPatch;
@@ -2295,9 +2346,12 @@ export function applyBookSurfaceRepairPatch(args: {
         authority: args.authority,
         patch: restoreCompilerOwnedPresentationTargetIdentity({
           authority: args.authority,
-          patch: restoreCompilerOwnedActionBindingIdentity({
+          patch: restoreCompilerOwnedPreRevealConstraints({
             authority: args.authority,
-            patch: parseBookSurfaceRepairPatch(JSON.stringify(args.patch)),
+            patch: restoreCompilerOwnedActionBindingIdentity({
+              authority: args.authority,
+              patch: parseBookSurfaceRepairPatch(JSON.stringify(args.patch)),
+            }),
           }),
         }),
       }),

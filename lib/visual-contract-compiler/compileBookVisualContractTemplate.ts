@@ -2619,7 +2619,7 @@ function closeRecurringPropLifecycle(args: {
       continue;
     }
     const requiredPages = pages.flatMap((page) =>
-      (page.propConstraints ?? []).some(
+      (Array.isArray(page.propConstraints) ? page.propConstraints : []).some(
         (constraint) =>
           constraint.propId === prop.id &&
           constraint.visibility === 'required',
@@ -2639,6 +2639,12 @@ function closeRecurringPropLifecycle(args: {
     }
     for (const page of pages) {
       if (page.pageNumber >= effectiveRevealPage) break;
+      if (
+        page.propConstraints !== undefined &&
+        !Array.isArray(page.propConstraints)
+      ) {
+        continue;
+      }
       const constraints = page.propConstraints ?? [];
       if (
         constraints.some(
@@ -2670,6 +2676,39 @@ function closeRecurringPropLifecycle(args: {
       );
     }
   }
+}
+
+function normalizeDraftRecurringPropLifecycle(
+  draft: Record<string, unknown>,
+): { draft: Record<string, unknown>; notes: string[] } | null {
+  if (
+    !Array.isArray(draft.recurringProps) ||
+    !Array.isArray(draft.pageContracts) ||
+    draft.recurringProps.some(
+      (value) =>
+        value === null ||
+        typeof value !== 'object' ||
+        Array.isArray(value),
+    ) ||
+    draft.pageContracts.some(
+      (value) =>
+        value === null ||
+        typeof value !== 'object' ||
+        Array.isArray(value),
+    )
+  ) {
+    return null;
+  }
+  const normalized = structuredClone(draft);
+  const notes: string[] = [];
+  closeRecurringPropLifecycle({
+    recurringProps:
+      normalized.recurringProps as BookVisualContractTemplate['recurringProps'],
+    pageContracts:
+      normalized.pageContracts as BookVisualContractTemplate['pageContracts'],
+    notes,
+  });
+  return notes.length > 0 ? { draft: normalized, notes } : null;
 }
 
 type SpatialRelationDiagnosticContext =
@@ -3945,6 +3984,14 @@ export async function compileBookVisualContractTemplate(
     | PageContractRepairPreviousFailure
     | null = null;
   for (let attempt = 1; ; attempt++) {
+    const recurringPropLifecycleNormalization =
+      normalizeDraftRecurringPropLifecycle(draft);
+    if (recurringPropLifecycleNormalization) {
+      draft = recurringPropLifecycleNormalization.draft;
+      deterministicNormalizationNotes.push(
+        ...recurringPropLifecycleNormalization.notes,
+      );
+    }
     const rawDraftPages = asArr(draft.pageContracts);
     const draftPagesAreRecords = rawDraftPages.every(
       (page) =>

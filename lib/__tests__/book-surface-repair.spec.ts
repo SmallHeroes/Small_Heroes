@@ -1792,6 +1792,54 @@ describe('atomic causal book-surface repair v10 input authority', () => {
     expect(original).toEqual(snapshot);
   });
 
+  it('restores compiler-owned pre-reveal prohibitions when recurring props are not repairable', () => {
+    const original = draft();
+    original.recurringProps = [
+      { ...recurringProp(), firstRevealPage: 3 },
+    ];
+    const pages = original.pageContracts as Array<Record<string, unknown>>;
+    pages[0]!.propConstraints = [
+      { propId: 'prop:cake', visibility: 'forbidden' },
+    ];
+    pages[1]!.propConstraints = [
+      { propId: 'prop:cake', visibility: 'forbidden' },
+    ];
+    const selected = bookSurfaceRepairAuthority({
+      draft: original,
+      authorityDraft: original,
+      presentationTargets: [],
+      structuralDiagnosticIssues: [
+        pageStructureIssueWithCause(1, 'page_prop_constraints_invalid'),
+      ],
+      structuralValidationMessages: ['sanitized prop constraints'],
+    });
+    expect(selected).not.toBeNull();
+    const pagePatch = structuralPatchFromAuthority(selected!);
+    pagePatch.propConstraints = [
+      { propId: 'prop:cake', visibility: 'required' },
+    ];
+    const snapshot = structuredClone(original);
+
+    const result = applyBookSurfaceRepairPatch({
+      draft: original,
+      authority: selected!,
+      patch: {
+        presentationPatches: [],
+        coverContract: null,
+        recurringProps: null,
+        pageStructuralPatches: [pagePatch],
+      },
+    });
+
+    expect(
+      (result.pageContracts as Array<Record<string, unknown>>)[0]!
+        .propConstraints,
+    ).toEqual([
+      { propId: 'prop:cake', visibility: 'forbidden' },
+    ]);
+    expect(original).toEqual(snapshot);
+  });
+
   it('reattaches compiler-owned cover identity while rejecting malformed identity shape', () => {
     const original = draft();
     const snapshot = structuredClone(original);

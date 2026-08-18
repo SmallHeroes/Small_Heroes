@@ -2,9 +2,43 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `ee7cdbf1bff442ab5e41a11067e5bc81739239ab`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `53d790d8ed117e231e203a5ebc1200c753e99be3`.
 
-## BOUNDED INCOMPLETE PAGECONTRACT CORRECTION — implementation green; commit/push next
+## RECURRING-LIFECYCLE DRAFT-AUTHORITY ALIGNMENT — implementation green; commit/push next
+
+The sole root
+`outputs/r1d-incomplete-page-correction-fresh-53d790d8-20260818T135423357Z`
+ended fail-closed and will not be retried. Receipt v41
+`906a2a2cbe9648d41af68fe2800cfe3f6f21fc591b8f8a94e03e224340a8a77f`
+records three completed calls and route
+`initial -> page_contract_patch -> book_surface_patch`. The incomplete
+PageContract response did not recur. The final exact identity is
+`book_surface_repair_lifecycle_obligation_invalid`; no Candidate, Wizard or
+render authority exists.
+
+The prior deterministic lifecycle closure operated only on the assembled
+template clone. A later BookSurface authority and applier still used the raw
+draft, so they could recompute obligations from stale reveal/constraint state.
+The compiler now applies the same closure to a structured draft clone before
+every route selection. When recurring props are not themselves repairable,
+BookSurface also restores each exact compiler-owned pre-reveal prohibition and
+removes a provider `required` collision for that prop before atomic validation.
+When recurring props are repairable, the existing effective-lifecycle checks
+remain authoritative. Malformed input and unrelated constraints remain
+fail-closed.
+
+Prompts, schemas and versions remain unchanged: BookSurface v6/v10/v10,
+authoring v37/v41/v39, B0 v26/v35/v35, execution v25/v29, Supervisor
+v34/v34/v27 and Fresh v34. Policy/model/budgets/retries/fallback/hard `$5`,
+Candidate v9, Wizard and renderer are unchanged.
+
+Focused validation is **198/198** across BookSurface, text-first compiler,
+repair loop and source-authority lifecycle; TypeScript and diff-check PASS. The
+exact mixed authority remains 37,209 bytes with 22,695 bytes headroom. No
+credential, provider, Fresh, live, image or render call was made during this
+implementation.
+
+## BOUNDED INCOMPLETE PAGECONTRACT CORRECTION — pushed; consumed live attempt fail-closed
 
 The sole canonical run under
 `outputs/r1d-recurring-lifecycle-fresh-ee7cdbf1-20260818T133535132Z`

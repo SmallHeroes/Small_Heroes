@@ -6979,11 +6979,11 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(structuralHintCount).toBe(111);
     expect(
       result.receipt.attempts[1].inputAccounting.estimatedBytes,
-    ).toBe(37_182);
+    ).toBe(37_209);
     expect(
       59_904 -
         result.receipt.attempts[1].inputAccounting.estimatedBytes,
-    ).toBe(22_722);
+    ).toBe(22_695);
     expect(
       structuralHintCount +
         (mixedPayload.presentationTargets as unknown[]).length,
