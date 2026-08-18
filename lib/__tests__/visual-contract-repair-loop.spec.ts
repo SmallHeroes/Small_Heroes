@@ -1487,6 +1487,47 @@ describe('page-contract compact repair routing', () => {
     });
   });
 
+  it('closes a provider-completed page transition endpoint defect locally without consuming a repair call', async () => {
+    const draft = bunnyDraft();
+    const page3 = draft.pageContracts.find(
+      (page: { pageNumber: number }) => page.pageNumber === 3,
+    )!;
+    page3.transition = {
+      kind: 'before_transition',
+      fromZoneId: null,
+      toZoneId: 'clinic.exam_room',
+      cue: 'the doctor calls from the open exam-room door',
+    };
+    const before = structuredClone(draft);
+    let callCount = 0;
+
+    const result = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: async () => {
+        callCount += 1;
+        return JSON.stringify(draft);
+      },
+    });
+
+    expect(callCount).toBe(1);
+    expect(result.repairAttempts).toEqual([]);
+    expect(result.provenance.attempt).toBe(1);
+    expect(draft).toEqual(before);
+    expect(
+      result.template.pageContracts.find((page) => page.pageNumber === 3)
+        ?.transition,
+    ).toEqual({
+      kind: 'before_transition',
+      fromZoneId: 'clinic.waiting_room',
+      toZoneId: 'clinic.exam_room',
+      cue: 'the doctor calls from the open exam-room door',
+    });
+    expect(result.notes).toContainEqual(
+      expect.stringMatching(
+        /page 3 before_transition transition endpoints normalized/,
+      ),
+    );
+  });
+
   it('routes a latent mixed cover/page/presentation failure through one bounded book-surface repair', async () => {
     const valid = bunnyDraft();
     const page2Zone = valid.zones.find(

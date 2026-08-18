@@ -2,9 +2,44 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `84a3de815161d86392d726fb87877e1f9bc98d60`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `a957d18e34a5c8554720cfa273746150a51d4551`.
 
-## FIVE-STANDARD-CALL / $10 AUTHORING POLICY — local green; commit/push next
+## COMPILER-OWNED TRANSITION ENDPOINT NORMALIZATION — local green; commit/push next
+
+The sole five-standard-call canonical attempt under
+`outputs/r1d-five-standard-call-fresh-a957d18e-20260818T154552524Z`
+ended fail-closed and will not be retried. Receipt v43
+`21419ded44f1ef4e7960fe8bce55f42cce4086769ea26f39adb79c599ea4c3e9`
+records five completed provider calls, four repairs, zero transport retries and
+no fallback. The issue set converged from one page-6 action-binding issue, to
+26 presentation/action issues, to eight page action-requirement issues, and
+finally to one persistent page-3 `page_transition_invalid` issue across the
+last two BookSurface responses. No Candidate, Wizard or render authority exists
+from that consumed attempt.
+
+The compiler now normalizes only transition endpoint IDs that are uniquely
+implied by an existing provider-authored kind plus canonical current/adjacent
+page zones. It preserves `kind` and `cue`, never creates a transition, clears
+only meaningless steady endpoints, and leaves missing, duplicate or ambiguous
+topology fail-closed. In particular, an endpoint-free threshold between two
+different adjacent zones is not guessed. Full validation remains the Candidate
+boundary; provider drafts are not mutated.
+
+No prompt, schema, model, policy, call/output budget, hard USD 10 fence, retry,
+fallback, Candidate, Wizard, style or render version changed. Post-hardening
+focused tests are **55/55 PASS**; the broader affected suites passed; TypeScript
+and diff-check PASS. The literal `npm run check` ran exactly once: ordinary
+passed 3,278, skipped 65 and failed only the five established missing ignored-
+output fixture assertions; resource-intensive passed 607/607 and reported only
+the two established post-assertion `onTaskUpdate` RPC timeouts. No new
+implementation assertion failed.
+
+Guy authorized commit/push, a new exact Fresh, one bounded live authoring
+attempt, Wizard reconciliation after a valid Candidate, and one 12-page
+QA/non-production `gpt-image-2` LOW render after Wizard authority. HIGH,
+production, deployment and release remain excluded.
+
+## FIVE-STANDARD-CALL / $10 AUTHORING POLICY — pushed; consumed live attempt fail-closed
 
 The sole canonical attempt under
 `outputs/r1d-four-call-ten-usd-fresh-84a3de81-20260818T145745291Z`
@@ -39,11 +74,9 @@ The compiler regression proves the observed five-call sequence
 page_spatial_reference_patch -> book_surface_patch -> candidate`, exact
 `[40000, 32000, 36000, 36000, 36000]` output caps, preserved action coverage,
 and no sixth call. Exhaustion, route-admission and compact sixth-call/no-seventh
-boundaries are covered separately. One new Fresh/live attempt is authorized
-after local green commit/push; Wizard reconciliation and a 12-page
-QA/non-production `gpt-image-2` LOW render are authorized only after a valid
-Candidate. No credential, provider, Fresh, live, image or render call has been
-made during this implementation milestone yet.
+boundaries are covered separately. The policy implementation was committed and
+pushed at `a957d18e`. Its one authorized Fresh/live attempt is the consumed
+fail-closed attempt recorded in the section above.
 
 Focused authority validation is **567/567** across compiler routing, typed
 diagnostics, lifecycle, canonical boundary, B0, materialization, Fresh,

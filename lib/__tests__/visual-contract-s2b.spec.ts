@@ -143,6 +143,155 @@ describe('S2b — the compiler OWNS the zone-ref canonicalization', () => {
   });
 });
 
+describe('S2b — the compiler owns only deterministically implied transition endpoint IDs', () => {
+  it('clears meaningless steady endpoints without changing kind/cue or mutating the provider draft', async () => {
+    const draft = bunnyDraft();
+    page(draft, 3).transition = {
+      kind: 'steady',
+      fromZoneId: 'not-a-declared-zone',
+      toZoneId: 'also-not-a-declared-zone',
+      cue: 'the child takes one steady breath',
+    };
+    const before = structuredClone(draft);
+
+    const result = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: stubFrom(draft),
+    });
+
+    expect(draft).toEqual(before);
+    expect(page(result.template, 3).transition).toEqual({
+      kind: 'steady',
+      fromZoneId: null,
+      toZoneId: null,
+      cue: 'the child takes one steady breath',
+    });
+    expect(result.notes).toContainEqual(
+      expect.stringMatching(/page 3 steady transition endpoints normalized/),
+    );
+  });
+
+  it.each([
+    {
+      pageNumber: 1,
+      transition: {
+        kind: 'after_transition',
+        fromZoneId: null,
+        toZoneId: null,
+        cue: 'an impossible arrival before the story begins',
+      },
+    },
+    {
+      pageNumber: 12,
+      transition: {
+        kind: 'before_transition',
+        fromZoneId: 'clinic_exterior.entrance',
+        toZoneId: 'clinic_exterior.entrance',
+        cue: 'an ambiguous departure with no following page',
+      },
+    },
+  ])('leaves an underdetermined endpoint set on page $pageNumber fail-closed', async ({ pageNumber, transition }) => {
+    const draft = bunnyDraft();
+    page(draft, pageNumber).transition = transition;
+    await expectTypedRepairExhaustion(
+      draft,
+      'final_structural_invariant_invalid',
+    );
+  });
+
+  it('leaves an endpoint-free threshold between two different adjacent zones fail-closed', async () => {
+    const draft = bunnyDraft();
+    page(draft, 3).zoneId = 'clinic_exterior.entrance';
+    page(draft, 4).transition = {
+      kind: 'threshold',
+      fromZoneId: null,
+      toZoneId: null,
+      cue: 'an ambiguous threshold between two different adjacent zones',
+    };
+    page(draft, 5).zoneId = 'clinic.exam_room';
+
+    await expectTypedRepairExhaustion(
+      draft,
+      'final_structural_invariant_invalid',
+    );
+  });
+
+  it.each([
+    {
+      label: 'before_transition origin from the current page',
+      pageNumber: 3,
+      transition: {
+        kind: 'before_transition',
+        fromZoneId: null,
+        toZoneId: 'clinic.exam_room',
+        cue: 'the doctor calls from the open door',
+      },
+      expected: {
+        kind: 'before_transition',
+        fromZoneId: 'clinic.waiting_room',
+        toZoneId: 'clinic.exam_room',
+        cue: 'the doctor calls from the open door',
+      },
+    },
+    {
+      label: 'threshold departure from the unique next page zone',
+      pageNumber: 4,
+      transition: {
+        kind: 'threshold',
+        fromZoneId: null,
+        toZoneId: null,
+        cue: 'the exam-room door opens',
+      },
+      expected: {
+        kind: 'threshold',
+        fromZoneId: 'clinic.waiting_room',
+        toZoneId: 'clinic.exam_room',
+        cue: 'the exam-room door opens',
+      },
+    },
+    {
+      label: 'after_transition arrival from the unique previous page zone',
+      pageNumber: 5,
+      transition: {
+        kind: 'after_transition',
+        fromZoneId: null,
+        toZoneId: 'clinic.waiting_room',
+        cue: 'they step inside',
+      },
+      expected: {
+        kind: 'after_transition',
+        fromZoneId: 'clinic.waiting_room',
+        toZoneId: 'clinic.exam_room',
+        cue: 'they step inside',
+      },
+    },
+  ])('normalizes $label and is idempotent', async ({ pageNumber, transition, expected }) => {
+    const draft = bunnyDraft();
+    page(draft, pageNumber).transition = transition;
+
+    const first = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: stubFrom(draft),
+    });
+    expect(page(first.template, pageNumber).transition).toEqual(expected);
+    expect(first.notes).toContainEqual(
+      expect.stringMatching(
+        new RegExp(`page ${pageNumber} ${transition.kind} transition endpoints normalized`),
+      ),
+    );
+
+    const fixedDraft = bunnyDraft();
+    page(fixedDraft, pageNumber).transition = expected;
+    const second = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: stubFrom(fixedDraft),
+    });
+    expect(page(second.template, pageNumber).transition).toEqual(expected);
+    expect(
+      second.notes.some((note) =>
+        note.includes(`page ${pageNumber} ${transition.kind} transition endpoints normalized`),
+      ),
+    ).toBe(false);
+  });
+});
+
 describe('S2b — genuine transition-CONTINUITY violations are left for the validator (repair, not a guess)', () => {
   it('before_transition sitting in the DESTINATION zone → the compile fails closed', async () => {
     const draft = bunnyDraft();

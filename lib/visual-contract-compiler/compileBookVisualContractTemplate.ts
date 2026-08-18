@@ -2482,12 +2482,140 @@ function canonicalizeTopology(
         ...pageLocator,
         fieldRole: 'transition',
       };
-      if (isStr(t.fromZoneId)) t2.fromZoneId = resolveZoneRef(t.fromZoneId, graph, `${label}.transition.fromZoneId`, transitionLocator).id;
-      if (isStr(t.toZoneId)) t2.toZoneId = resolveZoneRef(t.toZoneId, graph, `${label}.transition.toZoneId`, transitionLocator).id;
+      if (t.kind !== 'steady' && isStr(t.fromZoneId)) t2.fromZoneId = resolveZoneRef(t.fromZoneId, graph, `${label}.transition.fromZoneId`, transitionLocator).id;
+      if (t.kind !== 'steady' && isStr(t.toZoneId)) t2.toZoneId = resolveZoneRef(t.toZoneId, graph, `${label}.transition.toZoneId`, transitionLocator).id;
       pc.transition = t2;
     }
     return pc;
   });
+
+  // Transition kind/cue remain provider-authored narrative authority. Endpoint
+  // IDs are compiler-owned topology references, just like page zoneId. Repair
+  // only an endpoint pair that is uniquely implied by the existing kind and
+  // the already-canonical current/adjacent page zones. Never create a
+  // transition, choose a kind, or guess across duplicate/missing pages.
+  const pagesByNumber = new Map<number, Record<string, unknown>[]>();
+  for (const page of pages) {
+    if (!Number.isSafeInteger(page.pageNumber) || Number(page.pageNumber) <= 0) {
+      continue;
+    }
+    const pageNumber = Number(page.pageNumber);
+    const bucket = pagesByNumber.get(pageNumber);
+    if (bucket) bucket.push(page);
+    else pagesByNumber.set(pageNumber, [page]);
+  }
+  const uniquePage = (pageNumber: number): Record<string, unknown> | null => {
+    const matches = pagesByNumber.get(pageNumber) ?? [];
+    return matches.length === 1 ? matches[0]! : null;
+  };
+  const uniqueZone = (pageNumber: number): string | null => {
+    const page = uniquePage(pageNumber);
+    return page && isStr(page.zoneId) ? page.zoneId : null;
+  };
+  for (const page of pages) {
+    if (!Number.isSafeInteger(page.pageNumber) || !isStr(page.zoneId)) continue;
+    const pageNumber = Number(page.pageNumber);
+    const transition = asObj(page.transition);
+    if (Object.keys(transition).length === 0 || !isStr(transition.kind)) {
+      continue;
+    }
+    const currentZone = page.zoneId;
+    const previousZone = uniqueZone(pageNumber - 1);
+    const nextZone = uniqueZone(pageNumber + 1);
+    const existingFrom = isStr(transition.fromZoneId)
+      ? transition.fromZoneId
+      : null;
+    const existingTo = isStr(transition.toZoneId)
+      ? transition.toZoneId
+      : null;
+    let normalizedEndpoints: {
+      fromZoneId: string | null;
+      toZoneId: string | null;
+    } | null = null;
+
+    if (
+      transition.kind === 'steady' &&
+      (existingFrom !== null || existingTo !== null)
+    ) {
+      normalizedEndpoints = { fromZoneId: null, toZoneId: null };
+    } else if (transition.kind === 'before_transition') {
+      const destination =
+        existingTo !== null && existingTo !== currentZone
+          ? existingTo
+          : nextZone !== null && nextZone !== currentZone
+            ? nextZone
+            : null;
+      if (destination !== null) {
+        normalizedEndpoints = {
+          fromZoneId: currentZone,
+          toZoneId: destination,
+        };
+      }
+    } else if (transition.kind === 'after_transition') {
+      let origin =
+        existingFrom !== null && existingFrom !== currentZone
+          ? existingFrom
+          : previousZone !== null && previousZone !== currentZone
+            ? previousZone
+            : null;
+      if (origin === null) {
+        const previousPage = uniquePage(pageNumber - 1);
+        const previousTransition = previousPage
+          ? asObj(previousPage.transition)
+          : {};
+        if (
+          previousTransition.kind === 'threshold' &&
+          isStr(previousTransition.fromZoneId) &&
+          isStr(previousTransition.toZoneId) &&
+          previousTransition.fromZoneId !== currentZone &&
+          previousTransition.toZoneId === currentZone
+        ) {
+          origin = previousTransition.fromZoneId;
+        }
+      }
+      if (origin !== null) {
+        normalizedEndpoints = {
+          fromZoneId: origin,
+          toZoneId: currentZone,
+        };
+      }
+    } else if (transition.kind === 'threshold') {
+      if (
+        existingFrom !== null &&
+        existingTo !== null &&
+        existingFrom !== existingTo &&
+        (currentZone === existingFrom || currentZone === existingTo)
+      ) {
+        normalizedEndpoints = {
+          fromZoneId: existingFrom,
+          toZoneId: existingTo,
+        };
+      } else {
+        const impliedEdges = [
+          ...(previousZone !== null && previousZone !== currentZone
+            ? [{ fromZoneId: previousZone, toZoneId: currentZone }]
+            : []),
+          ...(nextZone !== null && nextZone !== currentZone
+            ? [{ fromZoneId: currentZone, toZoneId: nextZone }]
+            : []),
+        ];
+        if (impliedEdges.length === 1) {
+          normalizedEndpoints = impliedEdges[0]!;
+        }
+      }
+    }
+
+    if (
+      normalizedEndpoints !== null &&
+      (transition.fromZoneId !== normalizedEndpoints.fromZoneId ||
+        transition.toZoneId !== normalizedEndpoints.toZoneId)
+    ) {
+      page.transition = { ...transition, ...normalizedEndpoints };
+      notes.push(
+        `page ${pageNumber} ${transition.kind} transition endpoints normalized to ${String(normalizedEndpoints.fromZoneId)} -> ${String(normalizedEndpoints.toZoneId)} (compiler-owned topology references)`,
+      );
+    }
+  }
   let cover: Record<string, unknown> = { ...asObj(draft.coverContract) };
   if (authoredCoverAuthority) {
     try {
