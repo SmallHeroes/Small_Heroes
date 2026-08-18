@@ -106,14 +106,17 @@ import {
   type ActionSemanticCoverageTemplate,
 } from './actionSemanticCoverage';
 import {
+  PAGE_FINAL_STRUCTURAL_CAUSES,
   buildDraftValidationDiagnosticTrail,
   draftValidationIssueIsValid,
   draftValidationLocatorForUntrustedPage,
+  normalizeDraftValidationIssues,
   type DraftValidationAttemptDiagnostics,
   type DraftValidationCollectionRole,
   type DraftValidationFieldRole,
   type DraftValidationIssue,
   type DraftValidationLocator,
+  type PageFinalStructuralCause,
 } from './draftValidationDiagnostics';
 import {
   normalizeDraftAuthorityReferenceIssues,
@@ -238,7 +241,7 @@ const MAX_REPAIR_ATTEMPTS = STANDARD_MAX_REPAIR_ATTEMPTS + 1;
 export const REPAIR_PROMPT_VERSION =
   'vc-repair-prompt/v13' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v13' as const;
+  'vc-repair-user-prompt/v14' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -506,6 +509,23 @@ export class DraftAuthorityReferenceDomainError extends Error {
   }
 }
 
+class CollectedDraftAuthorityReferenceDomainError extends DraftAuthorityReferenceDomainError {
+  readonly completeError: InvalidTemplateContractError;
+
+  constructor(
+    referenceError: DraftAuthorityReferenceDomainError,
+    completeError: InvalidTemplateContractError,
+  ) {
+    super(
+      referenceError.issues,
+      referenceError.pageSpatialRepairAuthority,
+      referenceError.canonicalPageContracts,
+    );
+    this.name = 'CollectedDraftAuthorityReferenceDomainError';
+    this.completeError = completeError;
+  }
+}
+
 /**
  * Diagnostic identities are derived from provider-authored structural
  * coordinates. Those coordinates are untrusted until draft validation has
@@ -622,6 +642,60 @@ function stablePropScopeRepairDiagnostic(
   };
 }
 
+function draftAuthorityReferenceFailureEvidence(args: {
+  draft: Record<string, unknown>;
+  error: DraftAuthorityReferenceDomainError;
+}): {
+  errors: string[];
+  diagnosticIssues: readonly DraftValidationIssue[];
+} {
+  const errors: string[] = [];
+  const diagnosticIssues: DraftValidationIssue[] = [];
+  const actionAuthorityIssues: DraftAuthorityReferenceIssue[] = [];
+  for (const issue of args.error.issues) {
+    if (pageSpatialReferenceIssueIsRepairable(issue)) {
+      errors.push(pageSpatialReferenceRepairInstruction(issue));
+      diagnosticIssues.push(
+        pageSpatialReferenceRepairDiagnostic(issue),
+      );
+    } else if (stablePropScopeIssuesAreRepairable([issue])) {
+      errors.push(
+        `${issue.code}: remove the invalid stable Set Board prop consumer at the exact structural locator`,
+      );
+      diagnosticIssues.push(stablePropScopeRepairDiagnostic(issue));
+    } else {
+      actionAuthorityIssues.push(issue);
+    }
+  }
+  if (actionAuthorityIssues.length > 0) {
+    const actionPlan = pageContractAuthorityRepairPlan({
+      draft: args.draft,
+      issues: actionAuthorityIssues,
+    });
+    if (actionPlan) {
+      errors.push(...actionPlan.validationMessages);
+      diagnosticIssues.push(...actionPlan.diagnosticIssues);
+    } else {
+      errors.push(
+        ...actionAuthorityIssues.map(
+          (issue) =>
+            `${issue.code}: draft authority/reference domain invalid at the exact structural locator`,
+        ),
+      );
+      diagnosticIssues.push({
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        locator: { kind: 'root', fieldRole: 'authority' },
+      });
+    }
+  }
+  return {
+    errors: [...new Set(errors)],
+    diagnosticIssues:
+      normalizeDraftValidationIssues(diagnosticIssues),
+  };
+}
+
 /** Stable compiler-owned action identity derived only from a page-scoped beat. */
 export function compilerOwnedActionCheckId(
   pageNumber: number,
@@ -686,6 +760,54 @@ export class TemplateRepairExhaustedError extends InvalidTemplateContractError {
             nextRepairBudgetClass:
               attempt.nextRepairBudgetClass,
           }
+        : {}),
+    }));
+    this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
+      attempts.map((attempt) => attempt.diagnosticIssues),
+    );
+  }
+}
+
+/**
+ * A completed repair made the complete, normalized issue census worse. The
+ * compiler retains the preceding draft in memory, performs no further model
+ * call, and emits only sanitized counts plus the typed attempt trail.
+ */
+export class TemplateRepairIssueRegressionError extends InvalidTemplateContractError {
+  readonly draftValidationDiagnostics: readonly DraftValidationAttemptDiagnostics[];
+  readonly attempts: readonly TemplateRepairSummary[];
+  readonly retainedAttempt: number;
+  readonly rejectedAttempt: number;
+  readonly previousIssueCount: number;
+  readonly currentIssueCount: number;
+  readonly repairMode: NonNullable<TemplateRepairSummary['nextRepairMode']>;
+
+  constructor(attempts: readonly TemplateRepairAttempt[]) {
+    const current = attempts[attempts.length - 1];
+    const previous = attempts[attempts.length - 2];
+    if (
+      !current ||
+      !previous ||
+      !previous.nextRepairMode ||
+      current.diagnosticIssues.length <= previous.diagnosticIssues.length
+    ) {
+      throw new Error('template_repair_issue_regression_evidence_invalid');
+    }
+    super([...current.errors], [...current.diagnosticIssues]);
+    this.name = 'TemplateRepairIssueRegressionError';
+    this.retainedAttempt = previous.attempt;
+    this.rejectedAttempt = current.attempt;
+    this.previousIssueCount = previous.diagnosticIssues.length;
+    this.currentIssueCount = current.diagnosticIssues.length;
+    this.repairMode = previous.nextRepairMode;
+    this.attempts = attempts.map((attempt) => ({
+      attempt: attempt.attempt,
+      diagnosticIssues: attempt.diagnosticIssues,
+      ...(attempt.nextRepairMode
+        ? { nextRepairMode: attempt.nextRepairMode }
+        : {}),
+      ...(attempt.nextRepairBudgetClass
+        ? { nextRepairBudgetClass: attempt.nextRepairBudgetClass }
         : {}),
     }));
     this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
@@ -873,11 +995,13 @@ class PresentationStructuralValidationError extends Error {
   readonly structuralErrors: readonly string[];
   readonly structuralDiagnosticIssues: readonly DraftValidationIssue[];
   readonly bookSurfaceAuthorityDraft: Record<string, unknown>;
+  readonly completeError: InvalidTemplateContractError;
 
   constructor(args: {
     gaps: readonly ActionSemanticCapabilityGap[];
     structuralError: InvalidTemplateContractError;
     bookSurfaceAuthorityDraft: Record<string, unknown>;
+    completeError?: InvalidTemplateContractError;
   }) {
     super(
       'closed presentation gaps and final page-structure failures require one bounded complete-page repair',
@@ -893,6 +1017,20 @@ class PresentationStructuralValidationError extends Error {
     this.bookSurfaceAuthorityDraft = structuredClone(
       args.bookSurfaceAuthorityDraft,
     );
+    this.completeError = args.completeError ?? args.structuralError;
+  }
+}
+
+class CollectedActionSemanticCapabilityGapError extends ActionSemanticCapabilityGapError {
+  readonly completeError: InvalidTemplateContractError;
+
+  constructor(
+    gaps: readonly ActionSemanticCapabilityGap[],
+    completeError: InvalidTemplateContractError,
+  ) {
+    super(gaps);
+    this.name = 'CollectedActionSemanticCapabilityGapError';
+    this.completeError = completeError;
   }
 }
 
@@ -901,10 +1039,12 @@ class BookSurfaceStructuralValidationError extends Error {
   readonly structuralErrors: readonly string[];
   readonly structuralDiagnosticIssues: readonly DraftValidationIssue[];
   readonly bookSurfaceAuthorityDraft: Record<string, unknown>;
+  readonly completeError: InvalidTemplateContractError;
 
   constructor(args: {
     structuralError: InvalidTemplateContractError;
     bookSurfaceAuthorityDraft: Record<string, unknown>;
+    completeError?: InvalidTemplateContractError;
   }) {
     super(
       'closed cover/page final-structure failures require one bounded book-surface repair',
@@ -919,7 +1059,131 @@ class BookSurfaceStructuralValidationError extends Error {
     this.bookSurfaceAuthorityDraft = structuredClone(
       args.bookSurfaceAuthorityDraft,
     );
+    this.completeError = args.completeError ?? args.structuralError;
   }
+}
+
+class CollectedTemplateValidationError extends InvalidTemplateContractError {
+  readonly referenceDomainError:
+    | DraftAuthorityReferenceDomainError
+    | null;
+  readonly pointerTemplate: ActionSemanticCoverageTemplate | null;
+  readonly sourceEvidenceAffectedRecords:
+    readonly SourceEvidenceIdRepairAffectedRecord[];
+
+  constructor(args: {
+    completeError: InvalidTemplateContractError;
+    referenceDomainError?: DraftAuthorityReferenceDomainError | null;
+    pointerTemplate?: ActionSemanticCoverageTemplate | null;
+    sourceEvidenceAffectedRecords?: readonly SourceEvidenceIdRepairAffectedRecord[];
+  }) {
+    super(
+      [...args.completeError.errors],
+      [...args.completeError.diagnosticIssues],
+    );
+    this.name = 'CollectedTemplateValidationError';
+    this.referenceDomainError =
+      args.referenceDomainError ?? null;
+    this.pointerTemplate = args.pointerTemplate
+      ? structuredClone(args.pointerTemplate)
+      : null;
+    this.sourceEvidenceAffectedRecords = (
+      args.sourceEvidenceAffectedRecords ?? []
+    ).map((record) => structuredClone(record));
+  }
+}
+
+function repairableBookSurfaceStructuralError(args: {
+  structuralError: InvalidTemplateContractError;
+  referenceDomainError: DraftAuthorityReferenceDomainError | null;
+}): InvalidTemplateContractError | null {
+  if (
+    args.structuralError.errors.length !==
+    args.structuralError.diagnosticIssues.length
+  ) return null;
+  const spatialPages = new Set(
+    (args.referenceDomainError?.issues ?? []).flatMap((issue) =>
+      pageSpatialReferenceIssueIsRepairable(issue) &&
+      'pageNumber' in issue.locator
+        ? [issue.locator.pageNumber]
+        : [],
+    ),
+  );
+  const spatialActionPages = new Set(
+    (args.referenceDomainError?.issues ?? []).flatMap((issue) =>
+      pageSpatialReferenceIssueIsRepairable(issue) &&
+      issue.locator.kind === 'page_spatial_action'
+        ? [issue.locator.pageNumber]
+        : [],
+    ),
+  );
+  const routablePairs = args.structuralError.diagnosticIssues.flatMap(
+    (issue, index) => {
+      if (
+        issue.family !== 'draft_contract' ||
+        issue.code !== 'final_structural_invariant_invalid' ||
+        issue.locator.kind !== 'page' ||
+        !('causes' in issue)
+      ) {
+        return [{ error: args.structuralError.errors[index]!, issue }];
+      }
+      const causes = issue.causes.filter(
+        (cause) =>
+          !(
+            cause === 'page_spatial_binding_invalid' &&
+            spatialPages.has(issue.locator.pageNumber)
+          ),
+      );
+      return causes.length > 0
+        ? [{
+            error: args.structuralError.errors[index]!,
+            issue: { ...issue, causes },
+          }]
+        : [];
+    },
+  );
+  const hasIndependentBookSurfaceCause = routablePairs.some(
+    ({ issue }) =>
+      issue.family !== 'draft_contract' ||
+      issue.code !== 'final_structural_invariant_invalid' ||
+      issue.locator.kind !== 'page' ||
+      !('causes' in issue) ||
+      issue.causes.some(
+        (cause) =>
+          cause !== 'page_action_requirements_invalid' ||
+          !spatialActionPages.has(issue.locator.pageNumber),
+      ),
+  );
+  return hasIndependentBookSurfaceCause
+    ? new InvalidTemplateContractError(
+        routablePairs.map((pair) => pair.error),
+        routablePairs.map((pair) => pair.issue),
+      )
+    : null;
+}
+
+function structuralErrorIsCapabilityOnly(args: {
+  structuralError: InvalidTemplateContractError;
+  capabilityGaps: readonly ActionSemanticCapabilityGap[];
+}): boolean {
+  if (
+    args.capabilityGaps.length === 0 ||
+    args.structuralError.diagnosticIssues.length === 0
+  ) return false;
+  const pages = new Set(args.capabilityGaps.map((gap) => gap.pageNumber));
+  return args.structuralError.diagnosticIssues.every(
+    (issue) =>
+      issue.family === 'draft_contract' &&
+      issue.code === 'final_structural_invariant_invalid' &&
+      issue.locator.kind === 'page' &&
+      pages.has(issue.locator.pageNumber) &&
+      'causes' in issue &&
+      issue.causes.every(
+        (cause) =>
+          cause === 'page_steering_invalid' ||
+          cause === 'page_projection_containment_invalid',
+      ),
+  );
 }
 
 /**
@@ -1225,13 +1489,14 @@ const TEMPLATE_REPAIR_LOCATOR_KINDS = [
 ] as const;
 
 type TemplateRepairEnvelope = readonly [
-  1,
+  2,
   string,
   number,
   readonly string[],
   readonly DraftValidationFieldRole[],
   readonly DraftValidationCollectionRole[],
-  readonly (readonly number[])[],
+  readonly PageFinalStructuralCause[],
+  readonly (readonly [number, number, readonly number[], readonly number[]])[],
 ];
 
 function sortedUnique(values: readonly string[]): string[] {
@@ -1308,12 +1573,29 @@ function encodeTemplateRepairEnvelope(
       'collectionRole' in issue.locator ? [issue.locator.collectionRole] : [],
     ),
   ) as DraftValidationCollectionRole[];
+  const causes = sortedUnique(
+    payload.validationIssues.flatMap((issue) =>
+      'causes' in issue ? [...issue.causes] : [],
+    ),
+  ) as PageFinalStructuralCause[];
   const issues = payload.validationIssues.map((issue) => [
     dictionaryIndex(TEMPLATE_REPAIR_FAMILIES, issue.family),
     dictionaryIndex(codes, issue.code),
-    ...encodeTemplateRepairLocator(issue.locator, fieldRoles, collectionRoles),
-  ]);
-  return [1, payload.storyKey, payload.pageCount, codes, fieldRoles, collectionRoles, issues];
+    encodeTemplateRepairLocator(issue.locator, fieldRoles, collectionRoles),
+    'causes' in issue
+      ? issue.causes.map((cause) => dictionaryIndex(causes, cause))
+      : [],
+  ] as const);
+  return [
+    2,
+    payload.storyKey,
+    payload.pageCount,
+    codes,
+    fieldRoles,
+    collectionRoles,
+    causes,
+    issues,
+  ];
 }
 
 function indexedString(
@@ -1434,8 +1716,8 @@ export function decodeTemplateRepairUserPrompt(
   }
   if (
     !Array.isArray(encoded) ||
-    encoded.length !== 7 ||
-    encoded[0] !== 1 ||
+    encoded.length !== 8 ||
+    encoded[0] !== 2 ||
     typeof encoded[1] !== 'string' ||
     encoded[1].length === 0 ||
     !Number.isSafeInteger(encoded[2]) ||
@@ -1444,27 +1726,61 @@ export function decodeTemplateRepairUserPrompt(
     !Array.isArray(encoded[4]) ||
     !Array.isArray(encoded[5]) ||
     !Array.isArray(encoded[6]) ||
-    encoded[6].length === 0 ||
-    encoded[6].length > 128
+    !Array.isArray(encoded[7]) ||
+    encoded[7].length === 0 ||
+    encoded[7].length > 128
   ) {
     throw new Error('template_repair_input_encoding_invalid');
   }
-  const [, storyKey, pageCount, codes, fieldRoles, collectionRoles, issueTuples] =
-    encoded;
+  const [
+    ,
+    storyKey,
+    pageCount,
+    codes,
+    fieldRoles,
+    collectionRoles,
+    causes,
+    issueTuples,
+  ] = encoded;
   let validationIssues: DraftValidationIssue[];
   try {
     validationIssues = issueTuples.map((rawTuple) => {
-      if (!Array.isArray(rawTuple) || rawTuple.length < 4) {
+      if (
+        !Array.isArray(rawTuple) ||
+        rawTuple.length !== 4 ||
+        !Array.isArray(rawTuple[2]) ||
+        !Array.isArray(rawTuple[3])
+      ) {
         throw new Error('template_repair_input_encoding_invalid');
       }
       const family = indexedString(TEMPLATE_REPAIR_FAMILIES, rawTuple[0]);
       const code = indexedString(codes, rawTuple[1]);
       const locator = decodeTemplateRepairLocator(
-        rawTuple.slice(2),
+        rawTuple[2],
         fieldRoles,
         collectionRoles,
       );
-      const issue = { family, code, locator } as DraftValidationIssue;
+      const decodedCauses = rawTuple[3].map((causeIndex) =>
+        indexedString(causes, causeIndex),
+      );
+      if (
+        decodedCauses.some(
+          (cause) =>
+            !PAGE_FINAL_STRUCTURAL_CAUSES.includes(
+              cause as PageFinalStructuralCause,
+            ),
+        )
+      ) {
+        throw new Error('template_repair_input_encoding_invalid');
+      }
+      const issue = {
+        family,
+        code,
+        locator,
+        ...(decodedCauses.length > 0
+          ? { causes: decodedCauses as PageFinalStructuralCause[] }
+          : {}),
+      } as DraftValidationIssue;
       if (!draftValidationIssueIsValid(issue)) {
         throw new Error('template_repair_input_encoding_invalid');
       }
@@ -1661,6 +1977,7 @@ function sourceGroundPageActionSemantics(
   issues: string[];
   diagnosticIssues: DraftValidationIssue[];
   sourceEvidenceIssues: SourceEvidenceIdRepairAffectedRecord[];
+  authorityIssues: DraftAuthorityReferenceIssue[];
 } {
   const pageNumber =
     typeof pageDraft.pageNumber === 'number'
@@ -2104,9 +2421,6 @@ function sourceGroundPageActionSemantics(
       );
     }
   }
-  if (authorityIssues.length > 0) {
-    throw new DraftAuthorityReferenceDomainError(authorityIssues);
-  }
   for (const [actionIndex, action] of groundedActions.entries()) {
     const subject = asObj(action.subject);
     if (subject.kind !== 'source_phenomenon') continue;
@@ -2191,6 +2505,7 @@ function sourceGroundPageActionSemantics(
     issues,
     diagnosticIssues,
     sourceEvidenceIssues,
+    authorityIssues,
   };
 }
 
@@ -2930,6 +3245,7 @@ function normalizeDraftSpatialAuthorities(args: {
       | 'recurring_prop_consumer_forbidden'
     >;
   }>;
+  authorityIssues: DraftAuthorityReferenceIssue[];
 } {
   const authorityIssues: DraftAuthorityReferenceIssue[] = [];
   const stablePropScopeNormalizations: Array<{
@@ -3346,9 +3662,6 @@ function normalizeDraftSpatialAuthorities(args: {
     }
   }
 
-  if (authorityIssues.length > 0) {
-    throw new DraftAuthorityReferenceDomainError(authorityIssues);
-  }
   return {
     zones: zones as unknown as BookVisualContractTemplate['zones'],
     setBoardAuthorities:
@@ -3356,6 +3669,7 @@ function normalizeDraftSpatialAuthorities(args: {
         ? (authorities as unknown as SetBoardStableAuthority[])
         : undefined,
     stablePropScopeNormalizations,
+    authorityIssues,
   };
 }
 
@@ -3562,6 +3876,10 @@ function assembleTemplateFromDraft(
     [];
   const sourceEvidenceIssues: SourceEvidenceIdRepairAffectedRecord[] =
     [];
+  const collectedErrors: string[] = [];
+  const collectedDiagnosticIssues: DraftValidationIssue[] = [];
+  let hasBlockingNonSurfaceFailure = false;
+  let sourceEvidenceRepairPrerequisite = false;
 
   // Cast IDENTITY + PRESENCE are AUTHORITATIVE from the input/facts — NEVER the draft. The child id is a fixed
   // constant; the companion id comes from input.companion (the order); humans come from the extractor. The draft
@@ -3631,6 +3949,7 @@ function assembleTemplateFromDraft(
   const coverageIssues: string[] = [];
   const coverageDiagnosticIssues: DraftValidationIssue[] = [];
   const pageAuthorityIssues: DraftAuthorityReferenceIssue[] = [];
+  pageAuthorityIssues.push(...spatialAuthority.authorityIssues);
   // Collect this independent page-local authority before semantic grounding.
   // A cardinality rejection on one page must not hide invalid spatial
   // references on other pages until after the bounded repair budget is spent.
@@ -3648,6 +3967,7 @@ function assembleTemplateFromDraft(
       );
       actionSemanticCoverage.push(...grounded.coverage);
       sourceEvidenceIssues.push(...grounded.sourceEvidenceIssues);
+      pageAuthorityIssues.push(...grounded.authorityIssues);
       capabilityGaps.push(...grounded.capabilityGaps);
       coverageIssues.push(...grounded.issues);
       coverageDiagnosticIssues.push(...grounded.diagnosticIssues);
@@ -3667,20 +3987,26 @@ function assembleTemplateFromDraft(
       throw error;
     }
   }
-  if (
-    pageAuthorityIssues.length > 0 ||
-    pageSpatialReferenceFailure
-  ) {
-    throw new DraftAuthorityReferenceDomainError(
-      [
-        ...pageAuthorityIssues,
-        ...(pageSpatialReferenceFailure?.issues ?? []),
-      ],
-      pageSpatialReferenceFailure?.authority,
-      pageSpatialReferenceFailure?.authority
-        ? canonicalPages
-        : undefined,
-    );
+  const referenceDomainError =
+    pageAuthorityIssues.length > 0 || pageSpatialReferenceFailure
+      ? new DraftAuthorityReferenceDomainError(
+          [
+            ...pageAuthorityIssues,
+            ...(pageSpatialReferenceFailure?.issues ?? []),
+          ],
+          pageSpatialReferenceFailure?.authority,
+          pageSpatialReferenceFailure?.authority
+            ? canonicalPages
+            : undefined,
+        )
+      : null;
+  if (referenceDomainError) {
+    const evidence = draftAuthorityReferenceFailureEvidence({
+      draft,
+      error: referenceDomainError,
+    });
+    collectedErrors.push(...evidence.errors);
+    collectedDiagnosticIssues.push(...evidence.diagnosticIssues);
   }
   const seenBeatIds = new Set<string>();
   for (const [beatIndex, beat] of [
@@ -3706,33 +4032,22 @@ function assembleTemplateFromDraft(
     seenBeatIds.add(beat.beatId);
   }
   if (coverageIssues.length > 0) {
-    if (
+    sourceEvidenceRepairPrerequisite =
       sourceEvidenceRepairIsExactPrerequisiteForPhenomenonMismatches({
         canonicalPages,
         catalog: input.sourceEvidenceCatalog,
         affectedRecords: sourceEvidenceIssues,
         diagnosticIssues: coverageDiagnosticIssues,
-      })
-    ) {
-      throw new SourceEvidenceIdValidationError(
-        sourceEvidenceIssues,
-        [
-          ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
-          ...coverageIssues,
-        ],
-        coverageDiagnosticIssues,
-      );
-    }
-    throw new InvalidTemplateContractError(
-      [
-        ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
-        ...coverageIssues,
-      ],
-      [
-        ...sourceEvidenceIdDiagnosticIssues(sourceEvidenceIssues),
-        ...coverageDiagnosticIssues,
-      ],
+      });
+    collectedErrors.push(
+      ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
+      ...coverageIssues,
     );
+    collectedDiagnosticIssues.push(
+      ...sourceEvidenceIdDiagnosticIssues(sourceEvidenceIssues),
+      ...coverageDiagnosticIssues,
+    );
+    hasBlockingNonSurfaceFailure = true;
   }
   const authoritativeCastIds = new Set([
     childId,
@@ -3767,14 +4082,15 @@ function assembleTemplateFromDraft(
   const worldType =
     (typeof draft.worldType === 'string' && draft.worldType.trim() ? draft.worldType.trim() : input.worldType?.trim()) ?? '';
   if (!worldType) {
-    throw new InvalidTemplateContractError(
-      ['worldType is missing — the semantic world type must be set (no silent default); author or repair it.'],
-      [{
-        family: 'draft_contract',
-        code: 'world_type_missing',
-        locator: { kind: 'root', fieldRole: 'world_type' },
-      }],
+    collectedErrors.push(
+      'worldType is missing — the semantic world type must be set (no silent default); author or repair it.',
     );
+    collectedDiagnosticIssues.push({
+      family: 'draft_contract',
+      code: 'world_type_missing',
+      locator: { kind: 'root', fieldRole: 'world_type' },
+    });
+    hasBlockingNonSurfaceFailure = true;
   }
 
   const setBoardAuthorities = spatialAuthority.setBoardAuthorities;
@@ -3816,32 +4132,44 @@ function assembleTemplateFromDraft(
 
   // coverContract.worldType is a COMPILER-owned copy of the top-level worldType — enforce the equality invariant.
   if ((template.coverContract as { worldType?: unknown }).worldType !== template.worldType) {
-    throw new InvalidTemplateContractError([
+    collectedErrors.push(
       `coverContract.worldType "${String((template.coverContract as { worldType?: unknown }).worldType)}" != top-level worldType "${template.worldType}"`,
-    ], [{
+    );
+    collectedDiagnosticIssues.push({
       family: 'draft_contract',
       code: 'cover_projection_invalid',
       locator: { kind: 'cover', fieldRole: 'world_type' },
-    }]);
+    });
+    hasBlockingNonSurfaceFailure = true;
   }
 
   if (input.authoredCoverAuthority) {
     const sourceIssues = coverSourceFidelityIssues(template, input.authoredCoverAuthority);
     if (sourceIssues.length > 0) {
-      throw new InvalidTemplateContractError(
-        sourceIssues.map((candidate) => `${candidate.code}: ${candidate.message}`),
-        sourceIssues.map(() => ({
+      collectedErrors.push(
+        ...sourceIssues.map((candidate) => `${candidate.code}: ${candidate.message}`),
+      );
+      collectedDiagnosticIssues.push(
+        ...sourceIssues.map(() => ({
           family: 'draft_contract' as const,
           code: 'cover_source_fidelity_invalid' as const,
           locator: { kind: 'cover' as const, fieldRole: 'authority' as const },
         })),
       );
+      hasBlockingNonSurfaceFailure = true;
     }
   }
 
   // STRUCTURAL INVARIANT (fail-closed): every cast identity + presence must match the input/facts EXACTLY, so a
   // future refactor that lets draft.cast leak into identity/presence throws here instead of shipping.
-  assertCastIsFactAuthoritative(template, facts, input);
+  try {
+    assertCastIsFactAuthoritative(template, facts, input);
+  } catch (error) {
+    if (!(error instanceof InvalidTemplateContractError)) throw error;
+    collectedErrors.push(...error.errors);
+    collectedDiagnosticIssues.push(...error.diagnosticIssues);
+    hasBlockingNonSurfaceFailure = true;
+  }
 
   // (Stage 4) FAIL-CLOSED source-evidence check: a hazard that CITES a story quote must actually be quoting that
   // page. Only the compiler holds the source pages, so this cannot live in the validators. An unchecked citation is
@@ -3853,48 +4181,36 @@ function assembleTemplateFromDraft(
     input.pages,
   );
   if (evidenceValidation.errors.length > 0) {
-    throw new InvalidTemplateContractError(
-      evidenceValidation.errors,
-      evidenceValidation.diagnosticIssues,
+    collectedErrors.push(...evidenceValidation.errors);
+    collectedDiagnosticIssues.push(
+      ...evidenceValidation.diagnosticIssues,
     );
+    hasBlockingNonSurfaceFailure = true;
   }
 
   // FAIL-CLOSED — never return an invalid candidate.
+  let structuralError: InvalidTemplateContractError | null = null;
   try {
     assertValidBookVisualContractTemplate(template);
   } catch (error) {
-    if (
-      capabilityGaps.length > 0 &&
-      error instanceof InvalidTemplateContractError
-    ) {
-      throw new PresentationStructuralValidationError({
-        gaps: capabilityGaps,
-        structuralError: error,
-        bookSurfaceAuthorityDraft:
-          template as unknown as Record<string, unknown>,
-      });
-    }
-    if (
-      error instanceof InvalidTemplateContractError &&
-      bookSurfaceRepairAuthority({
-        draft,
-        authorityDraft:
-          template as unknown as Record<string, unknown>,
-        presentationTargets: [],
-        structuralDiagnosticIssues: error.diagnosticIssues,
-        structuralValidationMessages: error.errors,
-      })
-    ) {
-      throw new BookSurfaceStructuralValidationError({
-        structuralError: error,
-        bookSurfaceAuthorityDraft:
-          template as unknown as Record<string, unknown>,
-      });
-    }
-    throw error;
+    if (!(error instanceof InvalidTemplateContractError)) throw error;
+    structuralError = error;
+    collectedErrors.push(...error.errors);
+    collectedDiagnosticIssues.push(...error.diagnosticIssues);
   }
   if (capabilityGaps.length > 0) {
-    throw new ActionSemanticCapabilityGapError(capabilityGaps);
+    const capabilityError = new ActionSemanticCapabilityGapError(
+      capabilityGaps,
+    );
+    collectedErrors.push(
+      ...capabilityGaps.map(
+        () =>
+          'closed action catalog gap requires a same-page presentation requirement classification',
+      ),
+    );
+    collectedDiagnosticIssues.push(
+      ...capabilityError.diagnosticIssues,
+    );
   }
   const semanticCoverageValidation = actionSemanticCoverageValidation({
     template: template as unknown as BookVisualContract,
@@ -3923,28 +4239,159 @@ function assembleTemplateFromDraft(
           issue.locator.kind === 'page' &&
           unresolvedClosedGapPages.has(issue.locator.pageNumber),
       );
-    throw new ActionSemanticCoverageValidationError(
-      [
-        ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
-        ...semanticCoverageValidation.errors,
-      ],
-      [
-        ...sourceEvidenceIdDiagnosticIssues(sourceEvidenceIssues),
-        ...semanticCoverageValidation.diagnosticIssues,
-      ],
-      template as unknown as ActionSemanticCoverageTemplate,
-      sourceEvidenceRepairIsExactPrerequisite
-        ? sourceEvidenceIssues
-        : [],
+    sourceEvidenceRepairPrerequisite ||=
+      sourceEvidenceRepairIsExactPrerequisite;
+    const capabilityGapPages = new Set(
+      capabilityGaps.map((gap) => gap.pageNumber),
     );
+    const semanticCoverageIsCapabilityDependent =
+      capabilityGapPages.size > 0 &&
+      semanticCoverageValidation.diagnosticIssues.every(
+        (issue) =>
+          issue.family === 'action_semantic' &&
+          issue.code === 'coverage_missing' &&
+          issue.locator.kind === 'page' &&
+          capabilityGapPages.has(issue.locator.pageNumber),
+      );
+    collectedErrors.push(
+      ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
+      ...semanticCoverageValidation.errors,
+    );
+    collectedDiagnosticIssues.push(
+      ...sourceEvidenceIdDiagnosticIssues(sourceEvidenceIssues),
+      ...semanticCoverageValidation.diagnosticIssues,
+    );
+    if (!semanticCoverageIsCapabilityDependent) {
+      hasBlockingNonSurfaceFailure = true;
+    }
   }
   if (sourceEvidenceIssues.length > 0) {
-    throw new SourceEvidenceIdValidationError(
-      sourceEvidenceIssues,
-      sourceEvidenceValidationMessages(sourceEvidenceIssues),
+    collectedErrors.push(
+      ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
+    );
+    collectedDiagnosticIssues.push(
+      ...sourceEvidenceIdDiagnosticIssues(sourceEvidenceIssues),
+    );
+    hasBlockingNonSurfaceFailure = true;
+  }
+
+  const completeDiagnosticIssues =
+    normalizeDraftValidationIssues(collectedDiagnosticIssues);
+  if (completeDiagnosticIssues.length === 0) {
+    return { template, notes, actionSemanticCoverage };
+  }
+  const completeError = new InvalidTemplateContractError(
+    [...new Set(collectedErrors)],
+    completeDiagnosticIssues,
+  );
+  const sourceEvidenceDependentIssues =
+    completeDiagnosticIssues.filter(
+      (issue) =>
+        issue.family === 'action_semantic' &&
+        issue.code === 'source_phenomenon_binding_mismatch',
+    );
+  const sourceEvidenceRouteIsClosed =
+    sourceEvidenceIssues.length > 0 &&
+    completeDiagnosticIssues.every(
+      (issue) =>
+        issue.family === 'source_evidence_id' ||
+        (issue.family === 'action_semantic' &&
+          issue.code === 'source_phenomenon_binding_mismatch'),
+    ) &&
+    (sourceEvidenceDependentIssues.length === 0 ||
+      sourceEvidenceRepairIsExactPrerequisiteForPhenomenonMismatches({
+        canonicalPages,
+        catalog: input.sourceEvidenceCatalog,
+        affectedRecords: sourceEvidenceIssues,
+        diagnosticIssues: sourceEvidenceDependentIssues,
+      }));
+  const bookSurfaceStructuralError = structuralError
+    ? repairableBookSurfaceStructuralError({
+        structuralError,
+        referenceDomainError,
+      })
+    : null;
+  const capabilityOnlyStructuralFailure =
+    structuralError &&
+    structuralErrorIsCapabilityOnly({ structuralError, capabilityGaps });
+  // The complete census may also contain reference failures. BookSurface
+  // receives only its writable structural subset; unresolved reference
+  // targets remain in the next complete census for their dedicated compact
+  // lane. Prefer the proven broad surface repair before spending a discovery
+  // call on a fail-fast reference frontier.
+  const referenceDomainAllowsBookSurface = true;
+  if (
+    bookSurfaceStructuralError &&
+    referenceDomainAllowsBookSurface &&
+    !hasBlockingNonSurfaceFailure
+  ) {
+    if (capabilityGaps.length > 0) {
+      if (capabilityOnlyStructuralFailure) {
+        throw new CollectedActionSemanticCapabilityGapError(
+          capabilityGaps,
+          completeError,
+        );
+      }
+      throw new PresentationStructuralValidationError({
+        gaps: capabilityGaps,
+        structuralError: bookSurfaceStructuralError,
+        completeError,
+        bookSurfaceAuthorityDraft:
+          template as unknown as Record<string, unknown>,
+      });
+    }
+    if (
+      bookSurfaceRepairAuthority({
+        draft,
+        authorityDraft:
+          template as unknown as Record<string, unknown>,
+        presentationTargets: [],
+        structuralDiagnosticIssues:
+          bookSurfaceStructuralError.diagnosticIssues,
+        structuralValidationMessages:
+          bookSurfaceStructuralError.errors,
+      })
+    ) {
+      throw new BookSurfaceStructuralValidationError({
+        structuralError: bookSurfaceStructuralError,
+        completeError,
+        bookSurfaceAuthorityDraft:
+          template as unknown as Record<string, unknown>,
+      });
+    }
+  }
+  if (
+    referenceDomainError &&
+    !bookSurfaceStructuralError &&
+    capabilityGaps.length === 0 &&
+    !hasBlockingNonSurfaceFailure
+  ) {
+    throw new CollectedDraftAuthorityReferenceDomainError(
+      referenceDomainError,
+      completeError,
     );
   }
-  return { template, notes, actionSemanticCoverage };
+  if (
+    !referenceDomainError &&
+    !bookSurfaceStructuralError &&
+    capabilityGaps.length > 0 &&
+    !hasBlockingNonSurfaceFailure
+  ) {
+    throw new CollectedActionSemanticCapabilityGapError(
+      capabilityGaps,
+      completeError,
+    );
+  }
+  throw new CollectedTemplateValidationError({
+    completeError,
+    referenceDomainError,
+    pointerTemplate:
+      template as unknown as ActionSemanticCoverageTemplate,
+    sourceEvidenceAffectedRecords:
+      sourceEvidenceRepairPrerequisite || sourceEvidenceRouteIsClosed
+        ? sourceEvidenceIssues
+        : [],
+  });
 }
 
 /**
@@ -4208,10 +4655,10 @@ export async function compileBookVisualContractTemplate(
               err.structuralDiagnosticIssues,
             structuralValidationMessages: err.structuralErrors,
           }) ?? undefined;
-        if (!bookSurfaceAuthority) throw err.structuralError;
-        attemptErrors = [...err.structuralErrors];
+        if (!bookSurfaceAuthority) throw err.completeError;
+        attemptErrors = [...err.completeError.errors];
         attemptDiagnosticIssues = [
-          ...err.structuralDiagnosticIssues,
+          ...err.completeError.diagnosticIssues,
         ];
       } else if (err instanceof PresentationStructuralValidationError) {
         presentationRequirementAffectedTargets =
@@ -4220,7 +4667,7 @@ export async function compileBookVisualContractTemplate(
             gaps: err.gaps,
           });
         if (!presentationRequirementAffectedTargets) {
-          throw new ActionSemanticCapabilityGapError(err.gaps);
+          throw err.completeError;
         }
         bookSurfaceAuthority =
           bookSurfaceRepairAuthority({
@@ -4248,26 +4695,83 @@ export async function compileBookVisualContractTemplate(
               structuralValidationMessages: err.structuralErrors,
             });
         }
-        const capabilityDiagnostics =
-          new ActionSemanticCapabilityGapError(
-            err.gaps,
-          ).diagnosticIssues;
-        attemptErrors = [
-          ...err.structuralErrors,
-          ...err.gaps.map(
-            () =>
-              'closed action catalog gap requires a same-page presentation requirement classification',
-          ),
-        ];
+        attemptErrors = [...err.completeError.errors];
         attemptDiagnosticIssues = [
-          ...err.structuralDiagnosticIssues,
-          ...capabilityDiagnostics,
+          ...err.completeError.diagnosticIssues,
         ];
         // A compact repair can expose a capability gap together with a
         // non-page-local structural failure. Keep both typed diagnostic sets
         // inside the bounded loop so the existing full-draft lane can repair
         // the mixed draft when no safe page-only authority can be derived.
         presentationRequirementAffectedTargets = null;
+      } else if (err instanceof CollectedTemplateValidationError) {
+        attemptErrors = err.errors;
+        attemptDiagnosticIssues = err.diagnosticIssues;
+        pageContractPointerTemplate =
+          err.pointerTemplate ?? undefined;
+        if (err.sourceEvidenceAffectedRecords.length > 0) {
+          sourceEvidenceAffectedRecords = [
+            ...err.sourceEvidenceAffectedRecords,
+          ];
+        } else if (err.referenceDomainError) {
+          const referenceError = err.referenceDomainError;
+          if (stablePropScopeIssuesAreRepairable(referenceError.issues)) {
+            stablePropScopeAffectedTargets = stablePropScopeRepairTargets({
+              draft,
+              issues: referenceError.issues,
+            });
+            if (!stablePropScopeAffectedTargets) throw referenceError;
+          } else {
+            const pageContractRepairDraft =
+              referenceError.canonicalPageContracts
+                ? {
+                    ...draft,
+                    pageContracts: structuredClone(
+                      referenceError.canonicalPageContracts,
+                    ),
+                  }
+                : draft;
+            const pageSpatialIssues = referenceError.issues.filter(
+              pageSpatialReferenceIssueIsRepairable,
+            );
+            const actionBindingIssues = referenceError.issues.filter(
+              (issue) => !pageSpatialReferenceIssueIsRepairable(issue),
+            );
+            const compoundRepairPlan =
+              referenceError.pageSpatialRepairAuthority
+                ? pageContractCompoundAuthorityRepairPlan({
+                    draft: pageContractRepairDraft,
+                    issues: referenceError.issues,
+                    pageSpatialRepairAuthority:
+                      referenceError.pageSpatialRepairAuthority,
+                  })
+                : null;
+            if (
+              pageSpatialIssues.length > 0 &&
+              actionBindingIssues.length > 0 &&
+              pageSpatialIssues.length + actionBindingIssues.length ===
+                referenceError.issues.length &&
+              pageSpatialReferenceIssuesAreRepairable(pageSpatialIssues) &&
+              compoundRepairPlan
+            ) {
+              pageContractAffectedPages = compoundRepairPlan.affectedPages;
+            } else if (
+              pageSpatialReferenceIssuesAreRepairable(referenceError.issues)
+            ) {
+              pageSpatialRepairIssues = referenceError.issues;
+              pageSpatialRepairAuthority =
+                referenceError.pageSpatialRepairAuthority;
+              pageSpatialRepairDraft = pageContractRepairDraft;
+            } else {
+              const repairPlan = pageContractAuthorityRepairPlan({
+                draft,
+                issues: referenceError.issues,
+              });
+              if (!repairPlan) throw referenceError;
+              pageContractAffectedPages = repairPlan.affectedPages;
+            }
+          }
+        }
       } else if (err instanceof InvalidTemplateContractError) {
         attemptErrors = err.errors;
         attemptDiagnosticIssues = err.diagnosticIssues;
@@ -4297,6 +4801,12 @@ export async function compileBookVisualContractTemplate(
         attemptDiagnosticIssues = err.issues.map(
           stablePropScopeRepairDiagnostic,
         );
+        if (err instanceof CollectedDraftAuthorityReferenceDomainError) {
+          attemptErrors = [...err.completeError.errors];
+          attemptDiagnosticIssues = [
+            ...err.completeError.diagnosticIssues,
+          ];
+        }
       } else if (err instanceof DraftAuthorityReferenceDomainError) {
         const pageContractRepairDraft = err.canonicalPageContracts
           ? {
@@ -4363,6 +4873,12 @@ export async function compileBookVisualContractTemplate(
           attemptErrors = repairPlan.validationMessages;
           attemptDiagnosticIssues = repairPlan.diagnosticIssues;
         }
+        if (err instanceof CollectedDraftAuthorityReferenceDomainError) {
+          attemptErrors = [...err.completeError.errors];
+          attemptDiagnosticIssues = [
+            ...err.completeError.diagnosticIssues,
+          ];
+        }
       } else if (err instanceof ActionSemanticCapabilityGapError) {
         presentationRequirementAffectedTargets =
           presentationRequirementRepairTargets({
@@ -4383,6 +4899,12 @@ export async function compileBookVisualContractTemplate(
           () => 'closed action catalog gap requires a same-page presentation requirement classification',
         );
         attemptDiagnosticIssues = err.diagnosticIssues;
+        if (err instanceof CollectedActionSemanticCapabilityGapError) {
+          attemptErrors = [...err.completeError.errors];
+          attemptDiagnosticIssues = [
+            ...err.completeError.diagnosticIssues,
+          ];
+        }
       } else if (isDraftDiagnosticNormalizationRejection(err)) {
         // A producer attempted to describe an invalid provider-authored
         // coordinate. Preserve fail-closed validation while allowing the
@@ -4579,6 +5101,19 @@ export async function compileBookVisualContractTemplate(
       diagnosticIssues: attemptDiagnosticIssues,
       draft,
     });
+
+    const previousAttempt = repairAttempts[repairAttempts.length - 2];
+    const currentAttempt = repairAttempts[repairAttempts.length - 1]!;
+    if (
+      previousAttempt &&
+      currentAttempt.diagnosticIssues.length >
+        previousAttempt.diagnosticIssues.length
+    ) {
+      // Retain the last less-invalid draft in memory and stop before selecting
+      // or dispatching another repair. Invalid drafts never become candidates.
+      draft = structuredClone(previousAttempt.draft) as Record<string, unknown>;
+      throw new TemplateRepairIssueRegressionError(repairAttempts);
+    }
 
     if (bookSurfaceRouteAdmissionAccounting) {
       repairAttempts[repairAttempts.length - 1]!.nextRepairMode =

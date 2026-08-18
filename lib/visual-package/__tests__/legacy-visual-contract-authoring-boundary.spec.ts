@@ -78,6 +78,7 @@ describe('legacy Visual Contract authoring boundary', () => {
       callersOf('compileBookVisualContractTemplate('),
     ).toEqual([
       'lib/visual-contract-compiler/compileBookVisualContractTemplate.ts',
+      'lib/visual-contract-compiler/offlineRepairHarness.ts',
       'lib/visual-package/visualContractAuthoringLifecycle.ts',
       'scripts/compile-visual-contract-templates.ts',
     ]);

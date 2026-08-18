@@ -12,6 +12,7 @@ export type AuthoringTerminalFailureCode =
   | 'cost_ceiling_exceeded'
   | 'call_budget_exhausted'
   | 'provider_output_decode_failed'
+  | 'draft_validation_repair_regressed'
   | 'draft_validation_repair_exhausted'
   | 'repair_output_invalid'
   | 'draft_authority_reference_domain_invalid'
@@ -47,6 +48,7 @@ export type AuthoringTerminalErrorClass =
   | 'cost_limit_violation'
   | 'call_budget_violation'
   | 'provider_output_decode_failure'
+  | 'draft_validation_regression'
   | 'draft_validation_budget_exhausted'
   | 'repair_output_failure'
   | 'authority_reference_domain_failure'
@@ -71,6 +73,7 @@ export type AuthoringRepairReasonCode =
   | 'cost_limit_not_repairable'
   | 'call_budget_not_repairable'
   | 'initial_output_not_decodable'
+  | 'repair_increased_complete_issue_count'
   | 'draft_validation_budget_consumed'
   | 'completed_repair_output_unusable'
   | 'authority_reference_domain_not_repairable'
@@ -92,6 +95,7 @@ export type AuthoringDiagnosticCode =
   | 'cost_ceiling_exceeded'
   | 'call_budget_exhausted'
   | 'provider_output_json_invalid'
+  | 'draft_validation_repair_regressed'
   | 'draft_schema_validation_failed'
   | 'draft_contract_validation_failed'
   | 'source_evidence_validation_failed'
@@ -244,6 +248,14 @@ const TERMINAL_DEFINITIONS: Record<
     repairReasonCode: 'initial_output_not_decodable',
     diagnosticCode: 'provider_output_json_invalid',
     message: 'completed initial provider output could not be decoded as the required draft',
+  },
+  draft_validation_repair_regressed: {
+    phase: 'draft_validation',
+    errorClass: 'draft_validation_regression',
+    repairEligibility: 'ineligible',
+    repairReasonCode: 'repair_increased_complete_issue_count',
+    diagnosticCode: 'draft_validation_repair_regressed',
+    message: 'completed repair increased the complete validation issue census',
   },
   draft_validation_repair_exhausted: {
     phase: 'draft_validation',
@@ -429,6 +441,7 @@ const AUTHORING_DIAGNOSTIC_CODES = new Set<AuthoringDiagnosticCode>([
   'cost_ceiling_exceeded',
   'call_budget_exhausted',
   'provider_output_json_invalid',
+  'draft_validation_repair_regressed',
   'draft_schema_validation_failed',
   'draft_contract_validation_failed',
   'source_evidence_validation_failed',

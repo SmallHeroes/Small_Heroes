@@ -795,11 +795,9 @@ describe('repairable producer census and typed-only boundary', () => {
   it('keeps the AST-based producer map exhaustive and every typed parameter required', () => {
     const census = repairableProducerCensus();
     expect(census.producers).toEqual({
-      ActionSemanticCoverageValidationError: {
-        'compileBookVisualContractTemplate.ts': 1,
-      },
+      ActionSemanticCoverageValidationError: {},
       InvalidTemplateContractError: {
-        'compileBookVisualContractTemplate.ts': 16,
+        'compileBookVisualContractTemplate.ts': 13,
         'contractArtifact.ts': 1,
         'contractTemplateMigration.ts': 9,
         'validateTemplateContract.ts': 1,

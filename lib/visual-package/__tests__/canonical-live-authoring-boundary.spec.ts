@@ -921,7 +921,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v45',
+      'visual-contract-authoring-receipt/v46',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -2935,13 +2935,13 @@ describe('canonical live authoring executable boundary', () => {
     const evidence = readRejectedEvidence(fixture, result);
     expect(result.status).toBe('failed');
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v45',
+      version: 'visual-contract-authoring-receipt/v46',
       status: 'failed',
       callCount: 0,
       failure: { code: 'request_invalid' },
     });
     expect(result.readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v43',
+      version: 'visual-contract-authoring-readiness/v44',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'request_invalid',
@@ -2992,13 +2992,13 @@ describe('canonical live authoring executable boundary', () => {
       const evidence = readRejectedEvidence(fixture, result);
       expect(result.status).toBe('failed');
       expect(result.receipt).toMatchObject({
-        version: 'visual-contract-authoring-receipt/v45',
+        version: 'visual-contract-authoring-receipt/v46',
         status: 'failed',
         callCount: 0,
         failure: { code: 'request_invalid' },
       });
       expect(result.readiness).toMatchObject({
-        version: 'visual-contract-authoring-readiness/v43',
+        version: 'visual-contract-authoring-readiness/v44',
         authoringOutcome: {
           status: 'failed',
           failureCode: 'request_invalid',

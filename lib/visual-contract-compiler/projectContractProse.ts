@@ -288,7 +288,13 @@ function safetyProseLine(
   safety: SafetyConstraint,
   page: PageVisualContract,
   contract: BookVisualContract
-): string {
+): string | null {
+  if (
+    typeof safety.subjectId !== 'string' ||
+    safety.subjectId.trim().length === 0 ||
+    typeof safety.relation !== 'string' ||
+    !(safety.relation in SAFETY_RELATION_PROSE)
+  ) return null;
   const subject = castLabel(safety.subjectId, contract);
   return `${subject} ${SAFETY_RELATION_PROSE[safety.relation]} ${refLabel(safety.target, page, contract)}`;
 }
@@ -373,7 +379,8 @@ export function projectPageMustNotShow(page: PageVisualContract, contract: BookV
     }
   }
   for (const safety of safeObjectElements<SafetyConstraint>(page.safetyConstraints)) {
-    out.push(safetyProseLine(safety, page, contract));
+    const line = safetyProseLine(safety, page, contract);
+    if (line !== null) out.push(line);
   }
   return out;
 }

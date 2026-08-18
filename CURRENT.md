@@ -2,7 +2,57 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `2f3a08acb94661a7a4c38b12f01d49daab4762d9`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `89ecd3389f220844241a61167e9d4140ccd72192`.
+
+## OFFLINE REPAIR HARNESS + COLLECT-ALL VALIDATION — local green; independent QA next
+
+Guy cancelled the proposed best-of-N strategy after route-level evidence showed
+that most apparent issue growth was fail-fast unmasking rather than repair
+damage. No new Fresh, live authoring, credential, provider, image or render call
+is allowed until this milestone passes independent Claude Code QA.
+
+The new `$0` offline harness invokes the production compiler with an in-memory
+response queue. It accepts a recorded or synthetic initial draft, injected
+repair responses and optional independent complete diagnostic censuses; it
+reports the exact route/cap sequence, surfaced and complete issue counts,
+per-stage deltas and whether the complete census is monotonic. It never reaches
+a provider, credential, network or artifact writer. Its focused regression
+replays the BookSurface, PageSpatial, PageContract and full-draft selectors and
+distinguishes genuine damage from unmasking.
+
+Draft assembly now collects every independently safe typed failure family
+before throwing one normalized complete frontier. Validation rules and final
+Candidate validation are unchanged. A complete admissible mixed
+presentation/structural/reference surface prefers the existing atomic
+BookSurface route; a reference-only failure still uses the compact spatial
+route. Causally dependent page-action structural diagnostics remain visible in
+the complete census without stealing reference-only routing.
+
+The compiler now stops before another dispatch when a completed repair raises
+the normalized complete unique-issue count. It restores the preceding draft in
+memory and emits the closed terminal `draft_validation_repair_regressed`; it
+does not mint a Candidate or invent another provider attempt. Historical
+PageContract cardinality damage was traced to whole-page replacement under the
+old masked frontier. Under collect-all, mixed structural surfaces select
+BookSurface and pure PageContract application ignores unrelated action-array
+mutation; no separate PageContract semantic widening is included here.
+
+The full-draft repair input advances to compact envelope v2 and user prompt
+v14. Current authoring request/receipt/readiness are v42/v46/v44; B0 input,
+manifest and verifier are v31/v40/v40; execution materialization input/result
+are v30/v34; Supervisor request/readiness/result are v39/v39/v32; Fresh is
+v39. Immediate authoring predecessors v41/v45/v43 are immutable legacy.
+Policy v17, output budget v6, model, tier, seven-call schedule, USD 10 fence,
+retry/fallback rules, Candidate v9, child authority v1 and Wizard bridge v2 are
+unchanged.
+
+Focused gates are green: compiler/harness/diagnostic/legacy inventory 135/135,
+authoring lifecycle 96/96, downstream materialization/Fresh/Supervisor 331/331,
+TypeScript and diff-check. The required literal `npm run check` was executed
+once: it initially exposed four stale milestone expectations, all now corrected
+and rerun green, plus only the five established missing ignored-output fixture
+failures. No live or render action follows this local milestone; commit/push and
+independent QA are the next boundary.
 
 ## SEVEN-STANDARD-CALL / $10 CONVERGENCE — local green; commit/push next
 

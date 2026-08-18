@@ -21,8 +21,8 @@ import {
   TEMPLATE_REPAIR_ISSUES_MARKER,
   SourceEvidenceIdValidationError,
   TemplateRepairExhaustedError,
+  TemplateRepairIssueRegressionError,
   TemplateRepairOutputInvalidError,
-  TemplateRepairRouteAdmissionError,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import {
@@ -1082,7 +1082,7 @@ describe('page-contract compact repair routing', () => {
     }
   });
 
-  it('routes the live-shaped spatial then mixed surface through atomic v5 and returns a three-call candidate', async () => {
+  it('collects the live-shaped mixed frontier and routes it directly through atomic BookSurface', async () => {
     const valid = bunnyDraft();
     const initial = structuredClone(valid);
     const page1 = initial.pageContracts[0];
@@ -1195,25 +1195,6 @@ describe('page-contract compact repair routing', () => {
     ) => {
       calls.push({ system, user, options, authority });
       if (calls.length === 1) return JSON.stringify(initial);
-      if (calls.length === 2) {
-        const payload = JSON.parse(user) as {
-          targets: Array<{
-            pageNumber: number;
-            actionIndex: number;
-            fieldRole: string;
-            permittedSpatialReferences: Array<{ id: string }>;
-          }>;
-        };
-        return JSON.stringify({
-          patches: payload.targets.map((target) => ({
-            pageNumber: target.pageNumber,
-            actionIndex: target.actionIndex,
-            fieldRole: target.fieldRole,
-            spatialReferenceId:
-              target.permittedSpatialReferences[0]!.id,
-          })),
-        });
-      }
       const payload = decodeBookSurfaceRepairUserPrompt(user);
       return JSON.stringify(
         bookSurfaceV6Response({
@@ -1231,7 +1212,7 @@ describe('page-contract compact repair routing', () => {
       { callLLM: caller },
     );
 
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(2);
     expect(
       calls.map((call) =>
         call.authority?.kind === 'repair'
@@ -1240,15 +1221,13 @@ describe('page-contract compact repair routing', () => {
       ),
     ).toEqual([
       null,
-      'page_spatial_reference_patch',
       'book_surface_patch',
     ]);
     expect(calls.map((call) => call.options?.maxOutputTokens)).toEqual([
       40_000,
       32_000,
-      36_000,
     ]);
-    const payload = decodeBookSurfaceRepairUserPrompt(calls[2]!.user);
+    const payload = decodeBookSurfaceRepairUserPrompt(calls[1]!.user);
     expect(
       (payload.presentationTargets as Array<{ pageNumber: number }>).map(
         (target) => target.pageNumber,
@@ -1258,11 +1237,11 @@ describe('page-contract compact repair routing', () => {
       (payload.affectedPages as Array<{ pageNumber: number }>).map(
         (page) => page.pageNumber,
       ),
-    ).toEqual([2]);
+    ).toEqual([1, 2]);
     expect(payload.coverAuthority).not.toBeNull();
     const accounting = visualContractAuthoringInputAccounting(
-      calls[2]!.system,
-      calls[2]!.user,
+      calls[1]!.system,
+      calls[1]!.user,
       BOOK_SURFACE_REPAIR_JSON_SCHEMA,
     );
     expect(
@@ -1335,9 +1314,9 @@ describe('page-contract compact repair routing', () => {
         finalPage1.mustShow.filter((value) => value === projection),
       ).toHaveLength(1);
     }
-    expect(result.provenance.attempt).toBe(3);
+    expect(result.provenance.attempt).toBe(2);
     expect(
-      result.repairAttempts[1]?.diagnosticIssues.some(
+      result.repairAttempts[0]?.diagnosticIssues.some(
         (issue) =>
           issue.family === 'draft_contract' &&
           issue.code === 'final_structural_invariant_invalid' &&
@@ -1350,12 +1329,11 @@ describe('page-contract compact repair routing', () => {
     expect(
       result.repairAttempts.map((attempt) => attempt.nextRepairMode),
     ).toEqual([
-      'page_spatial_reference_patch',
       'book_surface_patch',
     ]);
   });
 
-  it('closes the observed spatial, BookSurface, spatial, BookSurface frontier in five standard calls', async () => {
+  it('collapses the previously masked spatial and structural staircase into one BookSurface repair', async () => {
     const valid = bunnyDraft();
     const initial = structuredClone(valid);
     ensureBookSurfacePageShape(initial);
@@ -1392,24 +1370,6 @@ describe('page-contract compact repair routing', () => {
     page1.actionSemanticCoverage[0]!.disposition = {
       kind: 'action_requirement',
     };
-    page2.actionRequirements = [
-      {
-        beatId: page2.actionSemanticCoverage[0]!.beatId,
-        subject: {
-          kind: 'entity',
-          entity: { kind: 'cast', id: 'child:hero' },
-        },
-        predicate: 'opens',
-        object: null,
-        spatialEffect: null,
-        spatialConstraint: null,
-        polarity: 'must',
-        laterality: null,
-      },
-    ];
-    page2.actionSemanticCoverage[0]!.disposition = {
-      kind: 'action_requirement',
-    };
     page2.camera = '';
     initial.coverContract.mustShow = [''];
 
@@ -1426,25 +1386,6 @@ describe('page-contract compact repair routing', () => {
     ) => {
       calls.push({ user, options, authority });
       if (calls.length === 1) return JSON.stringify(initial);
-      if (calls.length === 2 || calls.length === 4) {
-        const payload = JSON.parse(user) as {
-          targets: Array<{
-            pageNumber: number;
-            actionIndex: number;
-            fieldRole: string;
-            permittedSpatialReferences: Array<{ id: string }>;
-          }>;
-        };
-        return JSON.stringify({
-          patches: payload.targets.map((target) => ({
-            pageNumber: target.pageNumber,
-            actionIndex: target.actionIndex,
-            fieldRole: target.fieldRole,
-            spatialReferenceId:
-              target.permittedSpatialReferences[0]!.id,
-          })),
-        });
-      }
       const payload = decodeBookSurfaceRepairUserPrompt(user);
       const affectedPages = payload.affectedPages as Array<{
         pageNumber: number;
@@ -1457,31 +1398,12 @@ describe('page-contract compact repair routing', () => {
         const repaired = structuredClone(
           affectedPage.pageStructuralProjection,
         );
-        if (calls.length === 3 && affectedPage.pageNumber === 2) {
+        if (affectedPage.pageNumber === 1) {
           const actions = repaired.actionRequirements as Array<
             Record<string, unknown>
           >;
-          actions[0] = {
-            beatId: page2.actionSemanticCoverage[0]!.beatId,
-            subject: {
-              kind: 'entity',
-              entity: { kind: 'cast', id: 'child:hero' },
-            },
-            predicate: 'looks_at',
-            object: {
-              kind: 'spatial',
-              id: 'outside_current_page_zone_after_surface',
-            },
-            spatialEffect: null,
-            spatialConstraint: null,
-            polarity: 'must',
-            laterality: null,
-          };
-          actions.push({
-            ...structuredClone(actions[0]),
-            beatId: 'beat:p2:provider_extra_unbound',
-          });
-          repaired.camera = '';
+          (actions[0]!.object as Record<string, unknown>).id =
+            'waiting_chair';
         } else if (affectedPage.pageNumber === 2) {
           repaired.camera = valid.pageContracts[1]!.camera;
         }
@@ -1490,17 +1412,14 @@ describe('page-contract compact repair routing', () => {
       return JSON.stringify(
         bookSurfaceV6Response({
           payload,
-          coverContract:
-            calls.length === 3
-              ? {
-                  ...structuredClone(
-                    coverAuthority?.coverContract ?? {},
-                  ),
-                  mustShow: structuredClone(
-                    valid.coverContract.mustShow,
-                  ),
-                }
-              : null,
+          coverContract: {
+            ...structuredClone(
+              coverAuthority?.coverContract ?? {},
+            ),
+            mustShow: structuredClone(
+              valid.coverContract.mustShow,
+            ),
+          },
           recurringProps: null,
           repairedPages,
         }),
@@ -1512,7 +1431,7 @@ describe('page-contract compact repair routing', () => {
       { callLLM: caller },
     );
 
-    expect(calls).toHaveLength(5);
+    expect(calls).toHaveLength(2);
     expect(
       calls.map((call) =>
         call.authority?.kind === 'repair'
@@ -1521,31 +1440,24 @@ describe('page-contract compact repair routing', () => {
       ),
     ).toEqual([
       null,
-      'page_spatial_reference_patch',
-      'book_surface_patch',
-      'page_spatial_reference_patch',
       'book_surface_patch',
     ]);
     expect(calls.map((call) => call.options?.maxOutputTokens)).toEqual([
       40_000,
       32_000,
-      36_000,
-      24_000,
-      24_000,
     ]);
-    expect(result.provenance.attempt).toBe(5);
+    expect(result.provenance.attempt).toBe(2);
     expect(result.repairAttempts.map((attempt) => attempt.nextRepairMode))
       .toEqual([
-        'page_spatial_reference_patch',
-        'book_surface_patch',
-        'page_spatial_reference_patch',
         'book_surface_patch',
       ]);
     const finalPage2 = result.template.pageContracts.find(
       (page) => page.pageNumber === 2,
     )!;
     expect(finalPage2.camera).toBe(valid.pageContracts[1]!.camera);
-    expect(finalPage2.actionRequirements).toHaveLength(1);
+    expect(finalPage2.actionRequirements).toEqual(
+      valid.pageContracts[1]!.actionRequirements,
+    );
     const finalPage2Coverage = result.actionSemanticCoverage.filter(
       (coverage) => coverage.pageNumber === 2,
     );
@@ -1557,9 +1469,11 @@ describe('page-contract compact repair routing', () => {
         (coverage: { beatId: string }) => coverage.beatId,
       ),
     );
-    expect(finalPage2Coverage[0]!.disposition).toMatchObject({
-      kind: 'action_requirement',
-    });
+    expect(
+      result.repairAttempts[0]!.diagnosticIssues.some(
+        (issue) => issue.code === 'action_binding_cardinality_invalid',
+      ),
+    ).toBe(false);
   });
 
   it('closes a provider-completed page transition endpoint defect locally without consuming a repair call', async () => {
@@ -2108,7 +2022,7 @@ describe('page-contract compact repair routing', () => {
     ]);
   });
 
-  it('stops before seventh standard-call dispatch when mixed v6 is input-inadmissible', async () => {
+  it('stops before another dispatch when a repair increases the complete issue census', async () => {
     const valid = bunnyDraft();
     const firstAttempt = structuredClone(valid);
     ensureBookSurfacePageShape(firstAttempt);
@@ -2148,19 +2062,19 @@ describe('page-contract compact repair routing', () => {
       );
     };
 
-    let admissionError: TemplateRepairRouteAdmissionError | undefined;
+    let regressionError: TemplateRepairIssueRegressionError | undefined;
     try {
       await compileBookVisualContractTemplate(bunnySource(), {
         callLLM: caller,
       });
     } catch (error) {
       expect(error).toBeInstanceOf(
-        TemplateRepairRouteAdmissionError,
+        TemplateRepairIssueRegressionError,
       );
-      admissionError = error as TemplateRepairRouteAdmissionError;
+      regressionError = error as TemplateRepairIssueRegressionError;
     }
 
-    expect(admissionError).toBeDefined();
+    expect(regressionError).toBeDefined();
     expect(calls).toHaveLength(6);
     expect(
       calls.map((call) =>
@@ -2176,16 +2090,16 @@ describe('page-contract compact repair routing', () => {
       'full_draft',
       'full_draft',
     ]);
-    expect(admissionError).toMatchObject({
-      repairAttempt: 7,
-      repairMode: 'book_surface_patch',
-      maxAdmissibleInputBytes: 59_904,
+    expect(regressionError).toMatchObject({
+      retainedAttempt: 5,
+      rejectedAttempt: 6,
+      repairMode: 'full_draft',
     });
+    expect(regressionError!.currentIssueCount).toBeGreaterThan(
+      regressionError!.previousIssueCount,
+    );
     expect(
-      admissionError!.inputAccounting.estimatedBytes,
-    ).toBeGreaterThan(59_904);
-    expect(
-      admissionError!.attempts.map(
+      regressionError!.attempts.map(
         (attempt) => attempt.nextRepairMode,
       ),
     ).toEqual([
@@ -2194,9 +2108,9 @@ describe('page-contract compact repair routing', () => {
       'full_draft',
       'full_draft',
       'full_draft',
-      'book_surface_patch',
+      undefined,
     ]);
-    expect(JSON.stringify(admissionError)).not.toContain(
+    expect(JSON.stringify(regressionError)).not.toContain(
       'structural-only-',
     );
   });

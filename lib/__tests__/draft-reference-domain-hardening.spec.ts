@@ -1439,7 +1439,7 @@ describe('captured reference-domain matrix', () => {
     );
   });
 
-  it('uses one complete-page repair for presentation gaps and final structure after a spatial repair', async () => {
+  it('collects spatial, presentation and structure into one complete-page repair frontier', async () => {
     const invalid = matrixDraft();
     actions(invalid)[0]!.object = {
       kind: 'spatial',
@@ -1490,18 +1490,7 @@ describe('captured reference-domain matrix', () => {
       const output =
         callIndex === 0
           ? invalid
-          : callIndex === 1
-            ? {
-                patches: [
-                  {
-                    pageNumber: 1,
-                    actionIndex: 0,
-                    fieldRole: 'object',
-                    spatialReferenceId: 'structure_1',
-                  },
-                ],
-              }
-            : { pageContracts: [repairedPage] };
+          : { pageContracts: [repairedPage] };
       callIndex += 1;
       return JSON.stringify(output);
     });
@@ -1510,25 +1499,21 @@ describe('captured reference-domain matrix', () => {
       callLLM,
     });
 
-    expect(callLLM).toHaveBeenCalledTimes(3);
+    expect(callLLM).toHaveBeenCalledTimes(2);
     expect(authorities).toEqual([
       expect.objectContaining({ kind: 'initial' }),
-      expect.objectContaining({
-        kind: 'repair',
-        repairMode: 'page_spatial_reference_patch',
-      }),
       expect.objectContaining({
         kind: 'repair',
         repairMode: 'page_contract_patch',
       }),
     ]);
-    const encoded = JSON.parse(userPrompts[2]!) as Record<
+    const encoded = JSON.parse(userPrompts[1]!) as Record<
       string,
       unknown
     >;
     expect(encoded).toHaveProperty('encodingVersion');
     const combined = decodePageContractRepairUserPrompt(
-      userPrompts[2]!,
+      userPrompts[1]!,
     );
     expect(combined.affectedPages).toHaveLength(1);
     expect(combined.affectedPages[0]!.repairTargets).toEqual([
@@ -1536,7 +1521,10 @@ describe('captured reference-domain matrix', () => {
         family: 'draft_contract',
         code: 'final_structural_invariant_invalid',
         pageNumber: 1,
-        causes: ['page_steering_invalid'],
+        causes: [
+          'page_action_requirements_invalid',
+          'page_steering_invalid',
+        ],
       },
       expect.objectContaining({
         family: 'action_semantic',
@@ -1557,16 +1545,13 @@ describe('captured reference-domain matrix', () => {
         expect.stringContaining('closed_catalog_capability_gap'),
       ]),
     );
-    expect(result.repairAttempts).toHaveLength(2);
+    expect(result.repairAttempts).toHaveLength(1);
     expect(
       result.repairAttempts.map((attempt) =>
         attempt.nextRepairMode,
       ),
-    ).toEqual([
-      'page_spatial_reference_patch',
-      'page_contract_patch',
-    ]);
-    expect(result.provenance.attempt).toBe(3);
+    ).toEqual(['page_contract_patch']);
+    expect(result.provenance.attempt).toBe(2);
     expect(
       result.actionSemanticCoverage.find(
         (record) => record.beatId === 'beat:p1:presentation_gap',
