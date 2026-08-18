@@ -1,8 +1,52 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-18
+**Updated:** 2026-08-19
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `89ecd3389f220844241a61167e9d4140ccd72192`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; local implementation commit `5a9ea30b` is based on pushed `5d7a818e4ae7bf715bd2c83046a1249569404392` and awaits independent Claude Code QA before push.
+
+## COMPILER-OWNED MISSING ACTION BINDING + BOUNDED CORRECTION — local green; Claude QA next
+
+The single canonical eight-page live attempt under
+`outputs/r1d-collect-all-eight-page-readiness-5d7a818e-20260818T201855197Z`
+is consumed and will not be rerun. Receipt v46
+`0247a55b738408e63e1a677cc46bdf20892def4f08c46b53a366ad9196054619`
+records route `initial -> page_contract_patch x6`, seven completed provider
+calls, zero transport retries/fallback and terminal
+`page_contract_repair_action_binding_scope_invalid`. Attempts 1 through 6
+carry the same complete normalized 27-issue census and fingerprint. Four pages
+pair `action_coverage_cardinality_invalid` with `action_binding_missing`; no
+Candidate, Wizard or render authority exists.
+
+Source inspection proved the mechanical closure: each missing binding is a
+single `source_phenomenon` action whose page-scoped beat and canonical
+same-page Source Evidence ID are already present. PageContract correctly
+forbids coverage insertion, so repeating it cannot repair that topology.
+
+Commit `5a9ea30b` extends the existing compiler-owned normalizer only for the
+exact zero-coverage/single-action/canonical-source case. It clones first,
+preserves every action and existing coverage byte, appends one exact
+`action_requirement` record, and is deterministic and idempotent. Ambiguous or
+malformed cases remain unchanged for full fail-closed validation. Repeated
+PageContract scope-invalid and incomplete-set corrections now stop on their
+second rejection after call 3; one rejected response followed by a valid
+response remains supported.
+
+No prompt, provider schema, policy v17, output budget v6, model, tier,
+reasoning, price, timeout, call cap, retry, fallback, Candidate, Wizard, Story
+Source, Reader or render version changed. Six focused suites pass **220/220**;
+TypeScript and diff-check pass. The literal repository gate recorded 3,303
+ordinary PASS with only the five established missing ignored-output fixture
+failures, and 609/609 resource-intensive assertions before the established
+Vitest `onTaskUpdate` RPC timeout. No gate retry occurred.
+
+Durable records:
+`docs/ai-workflow/R1D_COMPILER_OWNED_MISSING_ACTION_BINDING_AND_BOUNDED_CORRECTION_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_COMPILER_OWNED_MISSING_ACTION_BINDING_AND_BOUNDED_CORRECTION_IMPLEMENTATION_EVIDENCE.md`.
+Next: commit the closeout, run Claude Code read-only QA on the immutable range,
+fix/re-gate any valid finding, then push. Only a new current-head Fresh and one
+canonical live attempt may follow PASS; Wizard/LOW render remain gated on a
+real Candidate.
 
 ## OFFLINE REPAIR HARNESS + COLLECT-ALL VALIDATION — independent QA PASS
 
