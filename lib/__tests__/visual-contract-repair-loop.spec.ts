@@ -493,7 +493,7 @@ describe('Stage 3 — bounded repair loop', () => {
     );
   });
 
-  it('two invalid drafts are repaired and pass on attempt 3 (the 2-repair budget)', async () => {
+  it('two invalid drafts are repaired and pass on attempt 3 within the 3-repair budget', async () => {
     const { caller, prompts, calls } = recordingCaller([withEmptyMaterial(), withEmptyMaterial(), bunnyDraft()]);
     const res = await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
     expect(res.provenance.attempt).toBe(3);
@@ -504,6 +504,31 @@ describe('Stage 3 — bounded repair loop', () => {
       32_000,
       36_000,
     ]);
+  });
+
+  it('uses the approved fourth standard call and completes after three invalid validation frontiers', async () => {
+    const { caller, prompts, calls } = recordingCaller([
+      withEmptyMaterial(),
+      withEmptyMaterial(),
+      withEmptyMaterial(),
+      bunnyDraft(),
+    ]);
+    const result = await compileBookVisualContractTemplate(
+      bunnySource(),
+      { callLLM: caller },
+    );
+
+    expect(result.provenance.attempt).toBe(4);
+    expect(result.repairAttempts).toHaveLength(3);
+    expect(calls()).toBe(4);
+    expect(
+      prompts.map((call) => call.options?.maxOutputTokens),
+    ).toEqual([40_000, 32_000, 36_000, 36_000]);
+    expect(
+      result.repairAttempts.map((attempt) =>
+        attempt.nextRepairBudgetClass,
+      ),
+    ).toEqual(['standard', 'standard', 'standard']);
   });
 
   it('a completed repair response that is unparseable remains distinct from full validation exhaustion', async () => {
@@ -536,9 +561,9 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(calls).toBe(2); // initial + the one (failed) repair call
   });
 
-  it('exhausts after the initial + 2 repairs, writes NOTHING, and does not over-call the model', async () => {
-    // A 4th (valid) draft is provided but must NEVER be requested — the cap is 2 repairs.
-    const { caller, calls } = recordingCaller([withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), bunnyDraft()]);
+  it('exhausts after the initial + 3 repairs, writes NOTHING, and does not over-call the model', async () => {
+    // A 5th (valid) draft is provided but must NEVER be requested — the cap is 3 repairs.
+    const { caller, calls } = recordingCaller([withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), bunnyDraft()]);
     let thrown: unknown;
     try {
       await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
@@ -548,12 +573,12 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(thrown).toBeInstanceOf(TemplateRepairExhaustedError);
     expect(thrown).toBeInstanceOf(InvalidTemplateContractError); // still catchable as the fail-closed type
     const err = thrown as TemplateRepairExhaustedError;
-    expect(err.attempts).toHaveLength(3);
+    expect(err.attempts).toHaveLength(4);
     expect(
       err.attempts.every((a) => a.diagnosticIssues.length > 0),
     ).toBe(true);
     expect(JSON.stringify(err.attempts)).not.toMatch(/material/i);
-    expect(calls()).toBe(3); // initial + 2 repairs — the 4th valid draft was never requested
+    expect(calls()).toBe(4); // initial + 3 repairs — the 5th valid draft was never requested
   });
   it.each([
     ['zero', 0, 'collection_item'],
@@ -570,6 +595,7 @@ describe('Stage 3 — bounded repair loop', () => {
         invalid,
         invalid,
         invalid,
+        invalid,
       ]);
       let thrown: unknown;
       try {
@@ -581,8 +607,8 @@ describe('Stage 3 — bounded repair loop', () => {
       }
       expect(thrown).toBeInstanceOf(TemplateRepairExhaustedError);
       const exhausted = thrown as TemplateRepairExhaustedError;
-      expect(calls()).toBe(3);
-      expect(exhausted.attempts).toHaveLength(3);
+      expect(calls()).toBe(4);
+      expect(exhausted.attempts).toHaveLength(4);
       expect(
         exhausted.attempts.every(
           (attempt) =>
@@ -1737,7 +1763,7 @@ describe('page-contract compact repair routing', () => {
     ]);
   });
 
-  it('stops before final-slot provider dispatch when mixed v6 is input-inadmissible', async () => {
+  it('stops before fourth standard-call dispatch when mixed v6 is input-inadmissible', async () => {
     const valid = bunnyDraft();
     const firstAttempt = structuredClone(valid);
     ensureBookSurfacePageShape(firstAttempt);
@@ -1773,7 +1799,7 @@ describe('page-contract compact repair routing', () => {
     ) => {
       calls.push({ system, user, authority });
       return JSON.stringify(
-        calls.length === 1 ? firstAttempt : finalSlotMixed,
+        calls.length <= 2 ? firstAttempt : finalSlotMixed,
       );
     };
 
@@ -1790,16 +1816,16 @@ describe('page-contract compact repair routing', () => {
     }
 
     expect(admissionError).toBeDefined();
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(3);
     expect(
       calls.map((call) =>
         call.authority?.kind === 'repair'
           ? call.authority.repairMode
           : null,
       ),
-    ).toEqual([null, 'full_draft']);
+    ).toEqual([null, 'full_draft', 'full_draft']);
     expect(admissionError).toMatchObject({
-      repairAttempt: 3,
+      repairAttempt: 4,
       repairMode: 'book_surface_patch',
       maxAdmissibleInputBytes: 59_904,
     });
@@ -1810,7 +1836,11 @@ describe('page-contract compact repair routing', () => {
       admissionError!.attempts.map(
         (attempt) => attempt.nextRepairMode,
       ),
-    ).toEqual(['full_draft', 'book_surface_patch']);
+    ).toEqual([
+      'full_draft',
+      'full_draft',
+      'book_surface_patch',
+    ]);
     expect(JSON.stringify(admissionError)).not.toContain(
       'structural-only-',
     );

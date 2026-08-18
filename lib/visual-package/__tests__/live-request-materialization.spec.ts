@@ -310,11 +310,11 @@ describe('canonical live request materialization validators', () => {
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v26',
+      'canonical-live-request-materialization-input/v27',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v35');
+    ).toBe('canonical-live-request-materialization/v36');
   });
 
   it.each([
@@ -470,6 +470,7 @@ describe('canonical live request materialization artifacts', () => {
         cleanupMaxOutputTokens: 1_000,
         cleanupMaxCalls: 1,
       });
+    (policy as { hardCeilingUsd: number }).hardCeilingUsd = 7;
     expect(policy.projectedMaxUsd).toBeGreaterThan(
       policy.hardCeilingUsd,
     );
@@ -491,7 +492,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v37',
+      version: 'visual-contract-authoring-request/v38',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -506,17 +507,17 @@ describe('canonical live request materialization artifacts', () => {
         maxInputTokens: 64_000,
         standardAttempts: {
           version:
-            'visual-contract-authoring-standard-attempt-output-budget/v2',
-          limits: [40_000, 32_000, 36_000],
-          totalPool: 108_000,
+            'visual-contract-authoring-standard-attempt-output-budget/v3',
+          limits: [40_000, 32_000, 36_000, 36_000],
+          totalPool: 144_000,
         },
         outputIncludesReasoning: true,
       },
       callBudget: {
-        maxCalls: 4,
-        maxRepairCount: 3,
-        standardMaxCalls: 3,
-        standardMaxRepairCount: 2,
+        maxCalls: 5,
+        maxRepairCount: 4,
+        standardMaxCalls: 4,
+        standardMaxRepairCount: 3,
         terminalReferenceCleanup: {
           budgetClass: 'terminal_reference_cleanup',
           maxCalls: 1,
@@ -547,8 +548,8 @@ describe('canonical live request materialization artifacts', () => {
         },
       },
       costBudget: {
-        projectedMaxUsd: 4.9995,
-        hardCeilingUsd: 5,
+        projectedMaxUsd: 6.6275,
+        hardCeilingUsd: 10,
       },
       structuredOutput: {
         schemaName: 'BookVisualContractTemplateDraft',

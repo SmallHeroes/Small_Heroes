@@ -40,13 +40,13 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-request-materialization-input/v26' as const;
+  'canonical-live-request-materialization-input/v27' as const;
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v35' as const;
+  'canonical-live-request-materialization/v36' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v35' as const;
+  'canonical-live-request-verification/v36' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -103,10 +103,10 @@ export interface CanonicalLiveRequestPolicyAuthority {
   model: 'gpt-5.6-sol';
   serviceTier: 'default';
   reasoningEffort: 'medium';
-  maxCalls: 4;
-  maxRepairCount: 3;
-  standardMaxCalls: 3;
-  standardMaxRepairCount: 2;
+  maxCalls: 5;
+  maxRepairCount: 4;
+  standardMaxCalls: 4;
+  standardMaxRepairCount: 3;
   standardAttemptOutputBudget:
     VisualContractAuthoringStandardAttemptOutputBudget;
   terminalReferenceCleanup: {
@@ -126,7 +126,7 @@ export interface CanonicalLiveRequestPolicyAuthority {
   transportRetries: 0;
   noFallback: true;
   projectedMaxUsd: number;
-  hardCeilingUsd: 5;
+  hardCeilingUsd: 10;
 }
 
 export interface LiveRequestMaterializationManifest {
@@ -294,10 +294,10 @@ function canonicalLiveRequestPolicyAuthority(
     model: 'gpt-5.6-sol',
     serviceTier: 'default',
     reasoningEffort: 'medium',
-    maxCalls: 4,
-    maxRepairCount: 3,
-    standardMaxCalls: 3,
-    standardMaxRepairCount: 2,
+    maxCalls: 5,
+    maxRepairCount: 4,
+    standardMaxCalls: 4,
+    standardMaxRepairCount: 3,
     standardAttemptOutputBudget:
       request.tokenBudget.standardAttempts,
     terminalReferenceCleanup: {
@@ -317,7 +317,7 @@ function canonicalLiveRequestPolicyAuthority(
     transportRetries: 0,
     noFallback: true,
     projectedMaxUsd: request.costBudget.projectedMaxUsd,
-    hardCeilingUsd: 5,
+    hardCeilingUsd: 10,
   };
 }
 
@@ -358,10 +358,10 @@ export function liveRequestPolicyAuthorityIssues(
     policy.model !== 'gpt-5.6-sol' ||
     policy.serviceTier !== 'default' ||
     policy.reasoningEffort !== 'medium' ||
-    policy.maxCalls !== 4 ||
-    policy.maxRepairCount !== 3 ||
-    policy.standardMaxCalls !== 3 ||
-    policy.standardMaxRepairCount !== 2 ||
+    policy.maxCalls !== 5 ||
+    policy.maxRepairCount !== 4 ||
+    policy.standardMaxCalls !== 4 ||
+    policy.standardMaxRepairCount !== 3 ||
     !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
       outputBudget,
     ) ||
@@ -396,7 +396,7 @@ export function liveRequestPolicyAuthorityIssues(
     cleanup.residualCode !== 'out_of_scope_reference' ||
     policy.transportRetries !== 0 ||
     policy.noFallback !== true ||
-    policy.hardCeilingUsd !== 5
+    policy.hardCeilingUsd !== 10
   ) {
     issues.push(`${prefix}_invalid`);
   }
@@ -2047,10 +2047,10 @@ function liveRequestPolicyReasonCodes(
       tokenBudget.standardAttempts,
     ) ||
     !callBudget ||
-    callBudget.maxCalls !== 4 ||
-    callBudget.maxRepairCount !== 3 ||
-    callBudget.standardMaxCalls !== 3 ||
-    callBudget.standardMaxRepairCount !== 2 ||
+    callBudget.maxCalls !== 5 ||
+    callBudget.maxRepairCount !== 4 ||
+    callBudget.standardMaxCalls !== 4 ||
+    callBudget.standardMaxRepairCount !== 3 ||
     !terminalReferenceCleanup ||
     terminalReferenceCleanup.budgetClass !==
       'terminal_reference_cleanup' ||
@@ -2081,8 +2081,8 @@ function liveRequestPolicyReasonCodes(
     typeof costBudget.projectedMaxUsd !== 'number' ||
     !Number.isFinite(costBudget.projectedMaxUsd) ||
     costBudget.projectedMaxUsd < 0 ||
-    costBudget.projectedMaxUsd > 4.9995 ||
-    costBudget.hardCeilingUsd !== 5
+    costBudget.projectedMaxUsd > 10 ||
+    costBudget.hardCeilingUsd !== 10
   ) {
     reasons.push('live_authoring_request_cost_invalid');
   }

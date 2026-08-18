@@ -481,7 +481,7 @@ describe('canonical live request verification library', () => {
     );
 
     expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
-      'canonical-live-request-verification/v35',
+      'canonical-live-request-verification/v36',
     );
     expect(result).toEqual({
       version: CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
@@ -510,15 +510,15 @@ describe('canonical live request verification library', () => {
         model: 'gpt-5.6-sol',
         serviceTier: 'default',
         reasoningEffort: 'medium',
-        maxCalls: 4,
-        maxRepairCount: 3,
-        standardMaxCalls: 3,
-        standardMaxRepairCount: 2,
+        maxCalls: 5,
+        maxRepairCount: 4,
+        standardMaxCalls: 4,
+        standardMaxRepairCount: 3,
         standardAttemptOutputBudget: {
           version:
-            'visual-contract-authoring-standard-attempt-output-budget/v2',
-          limits: [40_000, 32_000, 36_000],
-          totalPool: 108_000,
+            'visual-contract-authoring-standard-attempt-output-budget/v3',
+          limits: [40_000, 32_000, 36_000, 36_000],
+          totalPool: 144_000,
           digestAlgorithm: 'canonical-json-sha256',
           digest:
             materialized.manifest.requestPolicy
@@ -540,8 +540,8 @@ describe('canonical live request verification library', () => {
         },
         transportRetries: 0,
         noFallback: true,
-        projectedMaxUsd: 4.9995,
-        hardCeilingUsd: 5,
+        projectedMaxUsd: 6.6275,
+        hardCeilingUsd: 10,
       },
       structuredOutputCompatibility:
         materialized.manifest.structuredOutputCompatibility,
@@ -928,7 +928,7 @@ describe('canonical live request verification library', () => {
           string,
           unknown
         >;
-        callBudget.maxRepairCount = 4;
+        callBudget.maxRepairCount = 5;
       },
       reason: 'live_authoring_request_policy_invalid',
     },
@@ -996,7 +996,7 @@ describe('canonical live request verification library', () => {
           string,
           unknown
         >;
-        costBudget.projectedMaxUsd = 5.001;
+        costBudget.projectedMaxUsd = 10.001;
       },
       reason: 'live_authoring_request_cost_invalid',
     },
@@ -1007,7 +1007,7 @@ describe('canonical live request verification library', () => {
           string,
           unknown
         >;
-        costBudget.hardCeilingUsd = 5.01;
+        costBudget.hardCeilingUsd = 10.01;
       },
       reason: 'live_authoring_request_cost_invalid',
     },

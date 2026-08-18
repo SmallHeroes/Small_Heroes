@@ -2,41 +2,44 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `53d790d8ed117e231e203a5ebc1200c753e99be3`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `a21073bd4f444465d4eb57994c192de813c6a142`.
 
-## RECURRING-LIFECYCLE DRAFT-AUTHORITY ALIGNMENT — implementation green; commit/push next
+## FOUR-STANDARD-CALL / $10 AUTHORING POLICY — local green; commit/push next
 
-The sole root
-`outputs/r1d-incomplete-page-correction-fresh-53d790d8-20260818T135423357Z`
+The sole canonical attempt under
+`outputs/r1d-lifecycle-authority-fresh-a21073bd-20260818T140948763Z`
 ended fail-closed and will not be retried. Receipt v41
-`906a2a2cbe9648d41af68fe2800cfe3f6f21fc591b8f8a94e03e224340a8a77f`
+`475d8208745534e0e35e26d7d5ddb60bf43dd8ae12aa6f884e98d278dfd423c0`
 records three completed calls and route
-`initial -> page_contract_patch -> book_surface_patch`. The incomplete
-PageContract response did not recur. The final exact identity is
-`book_surface_repair_lifecycle_obligation_invalid`; no Candidate, Wizard or
-render authority exists.
+`initial -> book_surface_patch -> page_spatial_reference_patch`. The major
+BookSurface repair and compact spatial repair both applied. Full validation
+then exposed two latent issues after the third and final standard call: page 8
+`represented_elsewhere_pointer_out_of_scope` and page 6
+`source_evidence_id_unknown`. No Candidate, Wizard or render authority exists.
 
-The prior deterministic lifecycle closure operated only on the assembled
-template clone. A later BookSurface authority and applier still used the raw
-draft, so they could recompute obligations from stale reveal/constraint state.
-The compiler now applies the same closure to a structured draft clone before
-every route selection. When recurring props are not themselves repairable,
-BookSurface also restores each exact compiler-owned pre-reveal prohibition and
-removes a provider `required` collision for that prop before atomic validation.
-When recurring props are repairable, the existing effective-lifecycle checks
-remain authoritative. Malformed input and unrelated constraints remain
-fail-closed.
+Guy approved a general scheduler correction: four standard calls / three
+standard repairs under a hard USD 10 fence. The exact 12-page output schedule
+is `[40000, 32000, 36000, 36000]`; the existing compact reference-only cleanup
+remains the sole possible fifth call. The conservative projected maximum is
+USD 6.6275. Provider, model, tier, reasoning, 64K input ceiling, timeout,
+transport retries, fallback, tools, prompts, schemas, Candidate semantics and
+all validation/promotion gates remain unchanged.
 
-Prompts, schemas and versions remain unchanged: BookSurface v6/v10/v10,
-authoring v37/v41/v39, B0 v26/v35/v35, execution v25/v29, Supervisor
-v34/v34/v27 and Fresh v34. Policy/model/budgets/retries/fallback/hard `$5`,
-Candidate v9, Wizard and renderer are unchanged.
+Policy advances to v14 and the standard output-budget authority to v3.
+Authoring request/receipt/readiness advance to v38/v42/v40; B0 to
+v27/v36/v36; execution materialization to v26/v30; Supervisor to v35/v35/v28;
+Fresh to v35. Candidate v9, child-output authority v1 and Wizard bridge v2 are
+unchanged. Immediate authoring predecessors v37/v41/v39 remain immutable
+legacy evidence.
 
-Focused validation is **198/198** across BookSurface, text-first compiler,
-repair loop and source-authority lifecycle; TypeScript and diff-check PASS. The
-exact mixed authority remains 37,209 bytes with 22,695 bytes headroom. No
-credential, provider, Fresh, live, image or render call was made during this
-implementation.
+Focused authority validation is **595/595** across compiler routing, typed
+diagnostics, lifecycle, canonical boundary, materialization, Fresh, Supervisor
+and Wizard bridge. TypeScript and diff-check PASS. One literal `npm run check`
+ran exactly once: resource-intensive passed 606/606; ordinary passed 3,258,
+skipped 65 and initially failed 11 now-corrected three-call expectations plus
+only the five established missing ignored-output fixtures. The 11 affected
+expectations then passed 80/80 focused. No credential, provider, Fresh, live,
+image or render call was made during this implementation.
 
 ## BOUNDED INCOMPLETE PAGECONTRACT CORRECTION — pushed; consumed live attempt fail-closed
 
