@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `bbb8afd7f9ebdd7f24c61bbd19a3c2f18afd7e9a`.
 
-## BOOK SURFACE V7 LIFECYCLE CONTEXT — implementation green; independent QA pending
+## BOOK SURFACE V7 LIFECYCLE CONTEXT — independent technical PASS; Fresh next
 
 The sole v6 canonical attempt under
 `outputs/r1d-booksurface-v6-fresh-bbb8afd7-20260818T081428231Z`
@@ -30,11 +30,13 @@ unchanged.
 
 Focused validation is green: core **192/192**, downstream **327/327** (with two
 known post-assertion Vitest RPC timeouts), isolated affected materialization
-**35/35** with exit 0, TypeScript PASS and diff-check PASS. Independent Claude
-Code review of the immutable implementation range is the remaining technical
-gate before a new Fresh package and at most one new bounded live attempt. A
-valid Candidate is still mandatory before the explicitly approved full-book
-LOW render.
+**35/35** with exit 0, TypeScript PASS and diff-check PASS. Claude Code
+independently reviewed immutable range
+`bbb8afd7f9ebdd7f24c61bbd19a3c2f18afd7e9a..5edd10fc426e2105ea69c7a2c1cdbd0804c76ed9`
+and returned **PASS with 0 BLOCKER / 0 MAJOR / 0 MINOR**. Its four advisories
+are defensive/documentary only and require no correction. The technical gate
+therefore clears a brand-new Fresh package and at most one bounded live attempt.
+A valid Candidate remains mandatory before the approved full-book LOW render.
 
 ## BOOK SURFACE V6 CAUSAL DELTA — historical technical PASS; live attempt consumed
 
