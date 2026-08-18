@@ -529,7 +529,7 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v38',
+            'canonical-live-request-verification/v39',
           structuredOutputCompatibility: {
             schemaName: 'BookVisualContractTemplateDraft',
             schemaVersion: 'vc-draft-schema/v15',
@@ -563,16 +563,16 @@ describe('canonical pre-live readiness orchestrator', () => {
           },
           requestPolicy: {
             standardAttemptOutputBudget: {
-              limits: [40_000, 32_000, 36_000, 36_000, 36_000, 36_000],
-              totalPool: 216_000,
+              limits: [40_000, 32_000, 36_000, 24_000, 24_000, 24_000, 24_000],
+              totalPool: 204_000,
             },
-            projectedMaxUsd: 9.883501,
+            projectedMaxUsd: 9.9275,
             hardCeilingUsd: 10,
           },
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v37',
+            'canonical-live-execution-readiness/v38',
         },
       },
     });

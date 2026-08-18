@@ -2,48 +2,51 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `19e463c58d67fa8f0ee6a7caac33bfee94a91225`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `2f3a08acb94661a7a4c38b12f01d49daab4762d9`.
 
-## SIX-STANDARD-CALL / $10 AUTHORING POLICY — local green; Fresh next
+## SEVEN-STANDARD-CALL / $10 CONVERGENCE — local green; commit/push next
 
 The consumed canonical run under
-`outputs/r1d-action-cardinality-fresh-19e463c5-20260818T164449917Z`
-ended fail-closed and will not be retried. Receipt v43
-`9d6bd72756c69a3f46c6ecb6324dab506a34c4ada01dee9fdd6573809c089566`
-records five completed provider calls, four repairs, zero transport retries and
-no fallback. Its route was `initial -> book_surface_patch ->
-page_spatial_reference_patch -> book_surface_patch ->
-page_spatial_reference_patch`. The final frontier contained only seven
-page-scoped `page_action_requirements_invalid` structural issues on pages 3,
-4, 6, 7, 9, 10 and 12. No Candidate, Wizard or render authority exists from
-that consumed attempt.
+`outputs/r1d-six-standard-call-fresh-2f3a08ac-20260818T172627095Z`
+ended fail-closed and will not be retried. Receipt v44
+`5adc2ac5797b28889b000a74f72e8a1072548d1d7216d3fe139e7a54055233ca`
+records six completed provider calls, five repairs, zero transport retries and
+no fallback. Its exact route was `initial -> book_surface_patch ->
+book_surface_patch -> page_spatial_reference_patch -> book_surface_patch ->
+page_spatial_reference_patch`. The final spatial patch resolved its three
+reference issues and exposed eleven page-scoped
+`page_action_requirements_invalid` structural issues. No Candidate, Wizard or
+render authority exists from that consumed attempt. Actual nominal cost was
+USD 1.692723 and conservative accounted cost was USD 1.911785.
 
-Guy approved the general six-standard-call Decision Gate under the existing
+Guy approved the general seven-standard-call Decision Gate under the existing
 hard USD 10 fence. The exact 12-page standard output schedule is
-`[40000, 32000, 36000, 36000, 36000, 36000]`; the existing strictly closed
-compact spatial-reference cleanup remains the sole possible seventh call.
-The canonical conservative projected maximum is USD 9.883501. Provider,
+`[40000, 32000, 36000, 24000, 24000, 24000, 24000]`; the existing strictly
+closed compact spatial-reference cleanup remains the sole possible eighth
+call, and no ninth call exists. The canonical conservative projected maximum
+including that cleanup is USD 9.9275. Provider,
 model, tier, medium reasoning, 64K input ceiling, timeout, zero transport
 retries, no fallback, prompts, schemas, Candidate semantics and all promotion
 gates are unchanged.
 
-Policy advances to v16 and the standard output-budget authority to v5.
-Authoring request/receipt/readiness advance to v40/v44/v42; B0 to
-v29/v38/v38; execution materialization to v28/v32; Supervisor to v37/v37/v30;
-Fresh to v37. Candidate v9, child-output authority v1 and Wizard bridge v2 are
-unchanged. Immediate authoring predecessors v39/v43/v41 remain immutable
+Policy advances to v17 and the standard output-budget authority to v6.
+Authoring request/receipt/readiness advance to v41/v45/v43; B0 to
+v30/v39/v39; execution materialization to v29/v33; Supervisor to v38/v38/v31;
+Fresh to v38. Candidate v9, child-output authority v1 and Wizard bridge v2 are
+unchanged. Immediate authoring predecessors v40/v44/v42 remain immutable
 legacy evidence.
 
-Focused validation proves success on the sixth standard call, exact
-six-call exhaustion, the mutually exclusive seventh compact cleanup, no eighth
-call, exact cost reservation, complete version/digest propagation, Fresh
-zero-write verification, Supervisor isolation and current Wizard bridge
-binding. Relevant suites are green; TypeScript and diff-check pass. The one
-literal `npm run check` recorded 3,282 ordinary PASS / 65 skipped and only the
-five established missing ignored-output fixture failures; resource-intensive
-recorded 608/608 assertions PASS and the established post-assertion
-`onTaskUpdate` RPC timeout. A new Fresh and one new canonical live attempt are
-required after commit/push.
+Focused validation proves success on the seventh standard call, exact
+seven-call exhaustion, the mutually exclusive eighth compact cleanup, no
+ninth call, exact cap-sum and cost reservation, complete version/digest
+propagation, Fresh zero-write verification, Supervisor isolation and current
+Wizard bridge binding. Relevant suites, TypeScript and diff-check are green.
+The one literal `npm run check` recorded 3,284 ordinary PASS / 65 skipped and
+only the five established missing ignored-output fixture failures; the
+resource-intensive phase passed 609/609 with a valid diagnostic protocol and
+no timeout. A new Fresh and one new canonical live attempt are required after
+commit/push; Wizard reconciliation and the authorized 12-page LOW render
+remain gated on a valid Candidate.
 
 ## BOOKSURFACE ACTION CARDINALITY REATTACHMENT — local green; commit/push next
 

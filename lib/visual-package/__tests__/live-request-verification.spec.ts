@@ -481,7 +481,7 @@ describe('canonical live request verification library', () => {
     );
 
     expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
-      'canonical-live-request-verification/v38',
+      'canonical-live-request-verification/v39',
     );
     expect(result).toEqual({
       version: CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
@@ -510,22 +510,23 @@ describe('canonical live request verification library', () => {
         model: 'gpt-5.6-sol',
         serviceTier: 'default',
         reasoningEffort: 'medium',
-        maxCalls: 7,
-        maxRepairCount: 6,
-        standardMaxCalls: 6,
-        standardMaxRepairCount: 5,
+        maxCalls: 8,
+        maxRepairCount: 7,
+        standardMaxCalls: 7,
+        standardMaxRepairCount: 6,
         standardAttemptOutputBudget: {
           version:
-            'visual-contract-authoring-standard-attempt-output-budget/v5',
+            'visual-contract-authoring-standard-attempt-output-budget/v6',
           limits: [
             40_000,
             32_000,
             36_000,
-            36_000,
-            36_000,
-            36_000,
+            24_000,
+            24_000,
+            24_000,
+            24_000,
           ],
-          totalPool: 216_000,
+          totalPool: 204_000,
           digestAlgorithm: 'canonical-json-sha256',
           digest:
             materialized.manifest.requestPolicy
@@ -547,7 +548,7 @@ describe('canonical live request verification library', () => {
         },
         transportRetries: 0,
         noFallback: true,
-        projectedMaxUsd: 9.883501,
+        projectedMaxUsd: 9.9275,
         hardCeilingUsd: 10,
       },
       structuredOutputCompatibility:
@@ -935,7 +936,7 @@ describe('canonical live request verification library', () => {
           string,
           unknown
         >;
-        callBudget.maxRepairCount = 7;
+        callBudget.maxRepairCount = 8;
       },
       reason: 'live_authoring_request_policy_invalid',
     },

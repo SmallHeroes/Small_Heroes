@@ -56,7 +56,7 @@ async function expectTypedRepairExhaustion(
   }
   expect(thrown).toBeInstanceOf(TemplateRepairExhaustedError);
   const exhaustion = thrown as TemplateRepairExhaustedError;
-  expect(exhaustion.attempts).toHaveLength(6);
+  expect(exhaustion.attempts).toHaveLength(7);
   expect(
     exhaustion.attempts.every((attempt) =>
       attempt.diagnosticIssues.some((issue) => issue.code === code),

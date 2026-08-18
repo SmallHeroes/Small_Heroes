@@ -921,7 +921,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v44',
+      'visual-contract-authoring-receipt/v45',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -2062,12 +2062,12 @@ describe('canonical live authoring executable boundary', () => {
     ['call budget', (request: Record<string, unknown>) => {
       (
         request.callBudget as Record<string, unknown>
-      ).maxCalls = 8;
+      ).maxCalls = 9;
     }],
     ['repair budget', (request: Record<string, unknown>) => {
       (
         request.callBudget as Record<string, unknown>
-      ).maxRepairCount = 7;
+      ).maxRepairCount = 8;
     }],
     ['terminal cleanup input budget', (request: Record<string, unknown>) => {
       const callBudget = request.callBudget as {
@@ -2918,7 +2918,7 @@ describe('canonical live authoring executable boundary', () => {
     const request = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    request.version = 'visual-contract-authoring-request/v37';
+    request.version = 'visual-contract-authoring-request/v40';
     redigestRequest(request);
     writeJson(
       fixture.repoRoot,
@@ -2935,13 +2935,13 @@ describe('canonical live authoring executable boundary', () => {
     const evidence = readRejectedEvidence(fixture, result);
     expect(result.status).toBe('failed');
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v44',
+      version: 'visual-contract-authoring-receipt/v45',
       status: 'failed',
       callCount: 0,
       failure: { code: 'request_invalid' },
     });
     expect(result.readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v42',
+      version: 'visual-contract-authoring-readiness/v43',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'request_invalid',
@@ -2992,13 +2992,13 @@ describe('canonical live authoring executable boundary', () => {
       const evidence = readRejectedEvidence(fixture, result);
       expect(result.status).toBe('failed');
       expect(result.receipt).toMatchObject({
-        version: 'visual-contract-authoring-receipt/v44',
+        version: 'visual-contract-authoring-receipt/v45',
         status: 'failed',
         callCount: 0,
         failure: { code: 'request_invalid' },
       });
       expect(result.readiness).toMatchObject({
-        version: 'visual-contract-authoring-readiness/v42',
+        version: 'visual-contract-authoring-readiness/v43',
         authoringOutcome: {
           status: 'failed',
           failureCode: 'request_invalid',
@@ -3241,8 +3241,8 @@ describe('canonical live authoring executable boundary', () => {
     expect(result.persistence.candidate).toBeNull();
   });
 
-  it.each([0, 1, 2, 3, 4, 5])(
-    'completes after %i semantic repair(s) within the six-call fence',
+  it.each([0, 1, 2, 3, 4, 5, 6])(
+    'completes after %i semantic repair(s) within the seven-call fence',
     async (repairCount) => {
       const fixture = createLiveFixture(
         `repairs-${repairCount}`,
@@ -3276,7 +3276,7 @@ describe('canonical live authoring executable boundary', () => {
         repairCount + 1,
       );
       expect(result.receipt.attempts[0]
-        ?.reservedExposureBeforeCallUsd).toBe(9.883501);
+        ?.reservedExposureBeforeCallUsd).toBe(9.9275);
       expect(result.persistence.candidate).not.toBeNull();
       expect(result.readiness).toMatchObject({
         visualContractCandidate: {
@@ -3367,12 +3367,13 @@ describe('canonical live authoring executable boundary', () => {
     expect(result.persistence.candidate).not.toBeNull();
   });
 
-  it('fails after exactly five semantic repairs and persists no candidate', async () => {
+  it('fails after exactly six semantic repairs and persists no candidate', async () => {
     const fixture = createLiveFixture('repair-exhaustion');
     const invalid = fullyActionedDraft(fixture.snapshot);
     invalid.recurringProps[0].material = '';
     const adapter = fakeAdapter({
       responses: [
+        responseFor(invalid),
         responseFor(invalid),
         responseFor(invalid),
         responseFor(invalid),
@@ -3390,8 +3391,8 @@ describe('canonical live authoring executable boundary', () => {
     expect(result.receipt.failure?.code).toBe(
       'draft_validation_repair_exhausted',
     );
-    expect(result.receipt.callCount).toBe(6);
-    expect(result.receipt.repairCount).toBe(5);
+    expect(result.receipt.callCount).toBe(7);
+    expect(result.receipt.repairCount).toBe(6);
     expect(result.persistence.candidate).toBeNull();
     expect(
       result.receipt.attempts.map(
@@ -3399,12 +3400,13 @@ describe('canonical live authoring executable boundary', () => {
           attempt.reservedExposureBeforeCallUsd,
       ),
     ).toEqual([
-      9.883501,
-      8.196375,
-      6.77325,
-      5.218125,
-      3.663,
-      2.107875,
+      9.9275,
+      8.240375,
+      6.81725,
+      5.262125,
+      4.103,
+      2.943875,
+      1.78475,
     ]);
   });
 

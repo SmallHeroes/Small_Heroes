@@ -764,10 +764,10 @@ describe('canonical live execution request and readiness', () => {
       canonicalLiveExecutionRequestIssues(fixture.request),
     ).toEqual([]);
     expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
-      'canonical-live-request-verification/v38',
+      'canonical-live-request-verification/v39',
     );
     expect(CANONICAL_LIVE_EXECUTION_RESULT_VERSION).toBe(
-      'canonical-live-execution-result/v30',
+      'canonical-live-execution-result/v31',
     );
     expect(readiness.version).toBe(
       CANONICAL_LIVE_EXECUTION_READINESS_VERSION,

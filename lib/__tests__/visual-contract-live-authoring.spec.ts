@@ -184,32 +184,35 @@ describe('Stage 1 — authoring token budget scales by page count (Responses bud
     expect(authoringMaxOutputTokens(0)).toBe(36000); // invalid → default 12 pages
   });
 
-  it('derives the canonical six-attempt allocation with an exact 6B pool', () => {
+  it('derives the canonical seven-attempt allocation under the USD 10 fence', () => {
     expect(authoringStandardAttemptOutputLimits(12)).toEqual([
       40_000,
       32_000,
       36_000,
-      36_000,
-      36_000,
-      36_000,
+      24_000,
+      24_000,
+      24_000,
+      24_000,
     ]);
     expect(authoringStandardAttemptOutputLimits(8)).toEqual([
       35_556,
       28_444,
       32_000,
-      32_000,
-      32_000,
-      32_000,
+      21_333,
+      21_333,
+      21_333,
+      21_333,
     ]);
     for (const pageCount of [8, 12]) {
       const base = authoringMaxOutputTokens(pageCount);
       const limits = authoringStandardAttemptOutputLimits(pageCount);
-      expect(limits.reduce((sum, limit) => sum + limit, 0)).toBe(
-        6 * base,
-      );
+      expect(limits).toHaveLength(7);
       expect(limits[0]).toBe(Math.ceil((10 * base) / 9));
       expect(limits[1]).toBe(Math.floor((8 * base) / 9));
       expect(limits[2]).toBe(3 * base - limits[0] - limits[1]);
+      expect(limits.slice(3)).toEqual(
+        Array.from({ length: 4 }, () => Math.floor((2 * base) / 3)),
+      );
     }
   });
 });

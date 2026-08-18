@@ -1062,7 +1062,7 @@ describe('captured reference-domain matrix', () => {
 
     expect(failure).toBeInstanceOf(TemplateRepairOutputInvalidError);
     expect(failure).toMatchObject({
-      repairAttempt: 6,
+      repairAttempt: 7,
       repairMode: 'page_contract_patch',
       failureCode: 'non_target_drift',
     });
@@ -1076,8 +1076,9 @@ describe('captured reference-domain matrix', () => {
       'page_contract_patch',
       'page_contract_patch',
       'page_contract_patch',
+      'page_contract_patch',
     ]);
-    expect(callLLM).toHaveBeenCalledTimes(6);
+    expect(callLLM).toHaveBeenCalledTimes(7);
   });
 
   it('uses the remaining repair budget only after page action-binding scope drift', async () => {
@@ -1217,7 +1218,7 @@ describe('captured reference-domain matrix', () => {
       compileBookVisualContractTemplate(input, { callLLM }),
     ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
-    expect(callLLM).toHaveBeenCalledTimes(6);
+    expect(callLLM).toHaveBeenCalledTimes(7);
     expect(callLLM.mock.calls[1]![3]).toMatchObject({
       kind: 'repair',
       repairMode: 'page_contract_patch',
@@ -1289,7 +1290,7 @@ describe('captured reference-domain matrix', () => {
       compileBookVisualContractTemplate(input, { callLLM }),
     ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
-    expect(callLLM).toHaveBeenCalledTimes(6);
+    expect(callLLM).toHaveBeenCalledTimes(7);
     expect(callLLM.mock.calls[1]![3]).toMatchObject({
       kind: 'repair',
       repairMode: 'page_contract_patch',
@@ -1731,7 +1732,7 @@ describe('captured reference-domain matrix', () => {
     await expect(
       compileBookVisualContractTemplate(input, { callLLM }),
     ).rejects.toBeInstanceOf(TemplateRepairExhaustedError);
-    expect(callLLM).toHaveBeenCalledTimes(6);
+    expect(callLLM).toHaveBeenCalledTimes(7);
     expect(
       decodeTemplateRepairUserPrompt(
         String(callLLM.mock.calls[1]![1]),
@@ -1749,7 +1750,7 @@ describe('captured reference-domain matrix', () => {
     });
   });
 
-  it('admits exactly one compact terminal reference cleanup after a full-draft sixth response', async () => {
+  it('admits exactly one compact terminal reference cleanup after a full-draft seventh response', async () => {
     const initialSpatialAndLatentFailure = matrixDraft();
     initialSpatialAndLatentFailure.worldType = '';
     actions(initialSpatialAndLatentFailure)[0]!.object = {
@@ -1803,11 +1804,12 @@ describe('captured reference-domain matrix', () => {
       if (
         callIndex === 3 ||
         callIndex === 4 ||
-        callIndex === 5
+        callIndex === 5 ||
+        callIndex === 6
       ) {
         return JSON.stringify(worldOnlyResidual);
       }
-      if (callIndex === 6) {
+      if (callIndex === 7) {
         return JSON.stringify(referenceOnlyResidual);
       }
       return JSON.stringify(patchFor(user));
@@ -1817,7 +1819,7 @@ describe('captured reference-domain matrix', () => {
       callLLM,
     });
 
-    expect(callLLM).toHaveBeenCalledTimes(7);
+    expect(callLLM).toHaveBeenCalledTimes(8);
     expect(authorities).toEqual([
       expect.objectContaining({
         kind: 'initial',
@@ -1850,17 +1852,22 @@ describe('captured reference-domain matrix', () => {
       }),
       expect.objectContaining({
         kind: 'repair',
+        budgetClass: 'standard',
+        repairMode: 'full_draft',
+      }),
+      expect.objectContaining({
+        kind: 'repair',
         budgetClass: 'terminal_reference_cleanup',
         repairMode: 'page_spatial_reference_patch',
       }),
     ]);
-    expect(options[6]).toMatchObject({
+    expect(options[7]).toMatchObject({
       maxInputTokens:
         VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS,
       maxOutputTokens:
         VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_OUTPUT_TOKENS,
     });
-    expect(result.provenance.attempt).toBe(7);
+    expect(result.provenance.attempt).toBe(8);
     expect(
       result.repairAttempts.map((attempt) => ({
         mode: attempt.nextRepairMode,
@@ -1871,6 +1878,7 @@ describe('captured reference-domain matrix', () => {
         mode: 'page_spatial_reference_patch',
         budgetClass: 'standard',
       },
+      { mode: 'full_draft', budgetClass: 'standard' },
       { mode: 'full_draft', budgetClass: 'standard' },
       { mode: 'full_draft', budgetClass: 'standard' },
       { mode: 'full_draft', budgetClass: 'standard' },
@@ -1896,11 +1904,12 @@ describe('captured reference-domain matrix', () => {
       if (
         failingCallIndex === 3 ||
         failingCallIndex === 4 ||
-        failingCallIndex === 5
+        failingCallIndex === 5 ||
+        failingCallIndex === 6
       ) {
         return JSON.stringify(worldOnlyResidual);
       }
-      if (failingCallIndex === 6) {
+      if (failingCallIndex === 7) {
         return JSON.stringify(referenceOnlyResidual);
       }
       return JSON.stringify({ patches: [] });
@@ -1910,6 +1919,6 @@ describe('captured reference-domain matrix', () => {
         callLLM: failingCleanup,
       }),
     ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
-    expect(failingCleanup).toHaveBeenCalledTimes(7);
+    expect(failingCleanup).toHaveBeenCalledTimes(8);
   });
 });
