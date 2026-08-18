@@ -129,8 +129,16 @@ Post-fix validation:
 - `npx tsc --noEmit`: PASS.
 - `git diff --check`: PASS.
 
+Claude Code independently re-gated the immutable fix range
+`1bccb16f8cb6827f1cf0f66021283766bc0a8664..da0700c4ed7f40161255553c3eef5a72e204df03`
+read-only and returned **PASS with no findings**. It confirmed both decision
+sites share normalized unique counts, only complete-to-complete populations are
+compared, the historical false-positive trajectory is closed, genuine
+regression still stops, and no policy or downstream authority drift occurred.
+
 ## Stop condition
 
-Do not create Fresh Readiness, perform live authoring, reconcile Wizard state or
-render until Claude Code independently returns PASS on the immutable commit
-range produced by this milestone.
+The independent PASS condition is satisfied. Any next live action still
+requires a new current-HEAD Fresh Readiness and canonical preflight. Exactly one
+bounded live authoring attempt may be consumed; failure requires stop/no retry.
+Wizard reconciliation and LOW render remain conditional on a valid Candidate.

@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `89ecd3389f220844241a61167e9d4140ccd72192`.
 
-## OFFLINE REPAIR HARNESS + COLLECT-ALL VALIDATION — QA fix green; re-gate next
+## OFFLINE REPAIR HARNESS + COLLECT-ALL VALIDATION — independent QA PASS
 
 Guy cancelled the proposed best-of-N strategy after route-level evidence showed
 that most apparent issue growth was fail-fast unmasking rather than repair
@@ -60,8 +60,11 @@ authoring lifecycle 96/96, downstream materialization/Fresh/Supervisor 331/331,
 TypeScript and diff-check. The required literal `npm run check` was executed
 once: it initially exposed four stale milestone expectations, all now corrected
 and rerun green, plus only the five established missing ignored-output fixture
-failures. The exact QA-fix re-gate set is 115/115 PASS. No live or render
-action follows this milestone; Claude Code re-gate is the next boundary.
+failures. The exact QA-fix re-gate set is 115/115 PASS. Claude Code independently
+re-gated `1bccb16f..da0700c4` read-only and returned PASS with no findings.
+The next boundary is a new current-HEAD Fresh Readiness and at most one bounded
+live authoring attempt; failure means stop/no retry, while a valid Candidate may
+advance to the already-authorized Wizard reconciliation and LOW render.
 
 ## SEVEN-STANDARD-CALL / $10 CONVERGENCE — local green; commit/push next
 
