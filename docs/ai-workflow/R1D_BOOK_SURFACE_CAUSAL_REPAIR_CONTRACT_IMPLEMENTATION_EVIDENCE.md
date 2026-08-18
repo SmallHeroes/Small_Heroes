@@ -6,8 +6,7 @@
 **Branch:** `codex/r1d-book-surface-causal-repair-contract`
 **Base:** `f9797c20169309944d0cfdd2ef37edf871a6f610`
 **Gate commit:** `09ba5597288eb7fce66a09590cea2d6b2ec5d590`
-**Status:** initial independent review treated as HOLD on two required
-findings; focused QA correction locally green; independent re-gate and push
+**Status:** independent technical PASS after focused QA correction; push
 pending
 
 ## 1. Consumed evidence and reproduced failure
@@ -291,15 +290,37 @@ autonomous-story TypeScript and `git diff --check` pass. The literal
 five-fixture repository HOLD are unchanged, and no file in that HOLD entered
 this correction.
 
+### Independent re-gate
+
+Claude Code independently reviewed immutable correction range
+`eeac8634a76c36becc3af73fcdd66557f91f040c..1b3387ceb546fab81f8625678c55b638babd740b`
+and returned **PASS with zero BLOCKER, MAJOR or MINOR findings**. It verified the
+single-commit topology, exact five-file scope, no package/lockfile change and
+both original finding closures. It independently reproduced **3 files / 155
+tests PASS**, `npx --no-install tsc --noEmit` and range `git diff --check`.
+
+The reviewer confirmed the precise malformed-`mustShow` refusal, admissible
+camera-only overlap, non-target drift enforcement, exact 115-hint
+encode/decode, the richer 123-hint live-shaped lifecycle, both hard accounting
+values and the unchanged cap schedule. No prompt, schema, version, policy,
+model, tier, reasoning, budget, retry, fallback, timeout or hard-$5 behavior
+changed.
+
+One advisory is intentionally non-gating: the closed
+`page_steering_invalid` cause still combines camera, `mustShow` and
+`mustNotShow`. A well-formed but semantically invalid frozen `mustShow` may
+therefore consume a repair before full validation fails closed. A future
+evidence-backed milestone may split those causes; this correction does not
+guess at finer identity without supporting diagnostics.
+
 ## 6. Exclusions and next gate
 
 Implementation/provider/image cost is `$0`. No credential, provider, Fresh
 Readiness, preflight, live authoring, candidate, image, Vision, render,
 storage/database, deployment, production or push action occurred.
 
-This evidence is Codex implementation evidence, not an independent technical
-PASS. It accompanies the focused implementation commit and its separate QA
-correction commit. The next step is Claude Code's read-only adversarial re-gate
-of the immutable correction range. A new Fresh package and one bounded live
-attempt remain forbidden until that re-gate passes and the reviewed head is
-pushed cleanly.
+This evidence now includes the independent technical PASS. It accompanies the
+focused implementation commit and its separate QA correction commit. Push
+remains Guy's decision. A new Fresh package and one bounded live attempt remain
+forbidden until the reviewed branch is pushed cleanly and the new pushed-head
+Fresh package passes every spend gate.

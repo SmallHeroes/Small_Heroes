@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-causal-repair-contract` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `f9797c20169309944d0cfdd2ef37edf871a6f610`.
 
-## BOOK SURFACE CAUSAL REPAIR CONTRACT — QA correction locally green; independent re-gate pending
+## BOOK SURFACE CAUSAL REPAIR CONTRACT — independent technical PASS; push pending
 
 The canonical attempt under
 `outputs/r1d-hint-admission-observability-fresh-f9797c20-20260817T211128482Z`
@@ -127,9 +127,18 @@ or root provider authority. The combined Vitest process then reported one
 existing `onTaskUpdate` RPC timeout and returned exit `1`; the individual
 corrected lifecycle suite is 91/91 green. A final individual Supervisor run
 likewise passed all 42 assertions before the same runner RPC timeout; the QA
-bridge exited cleanly at 7/7. The first immutable-range review is held on its
-own two MAJORs. An independent read-only re-gate of the separate focused
-correction remains the authority for technical PASS.
+bridge exited cleanly at 7/7. The first immutable-range review was held on its
+own two MAJORs. Claude Code then independently re-gated correction range
+`eeac8634a76c36becc3af73fcdd66557f91f040c..1b3387ceb546fab81f8625678c55b638babd740b`
+and returned an unambiguous **PASS with zero BLOCKER, MAJOR or MINOR findings**.
+It independently reproduced **3 files / 155 tests**, deterministic TypeScript
+and range `git diff --check`. Both original findings are closed.
+
+The reviewer recorded one non-gating future diagnostic-granularity advisory:
+a well-formed but semantically invalid frozen `mustShow` cannot be isolated
+from the current three-leaf `page_steering_invalid` cause. The current behavior
+remains fail-closed; a future milestone may split camera, `mustShow` and
+`mustNotShow` causes if live evidence justifies that additional contract.
 
 One literal `npm run check` ran exactly once and stopped immediately on a
 test-only TypeScript narrowing assertion added in this milestone. The assertion
@@ -147,12 +156,11 @@ not retried, waived or represented as a green repository gate.
 Decision Gate commit is
 `09ba5597288eb7fce66a09590cea2d6b2ec5d590`. The local branch contains the
 focused implementation/evidence milestone plus a separate QA correction;
-independent Claude Code re-gate and push are still pending. Since the consumed
-attempt, no credential, provider, Fresh Readiness, preflight, live, image,
-Vision, render, storage/database, deployment, production or push action
-occurred. A new paid attempt is forbidden until the local commit receives an
-independent read-only PASS on its immutable range and a new pushed-head Fresh
-package passes every spend gate.
+the independent Claude Code re-gate is PASS and push is still pending. Since
+the consumed attempt, no credential, provider, Fresh Readiness, preflight,
+live, image, Vision, render, storage/database, deployment, production or push
+action occurred. A new paid attempt remains forbidden until Guy authorizes
+push and a new pushed-head Fresh package passes every spend gate.
 
 ## BOOK SURFACE HINT ADMISSION + STRUCTURAL CAUSES — independent technical PASS; push pending
 
