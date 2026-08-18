@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `371a7bdcea15491d412e75a1b3323fe41b11294f`.
 
-## BOOK SURFACE V8 COMPILER-OWNED ACTION IDENTITY — implementation green; independent QA next
+## BOOK SURFACE V8 COMPILER-OWNED ACTION IDENTITY — independent technical PASS; Fresh next
 
 The sole v7 canonical attempt under
 `outputs/r1d-booksurface-v7-lifecycle-fresh-371a7bdc-20260818T090537741Z`
@@ -32,10 +32,16 @@ Candidate v9 and the hard `$5` fence are unchanged.
 
 Focused validation is green: core **157/157**, downstream authority **327/327**
 (with one known post-assertion Vitest RPC timeout), TypeScript PASS and
-diff-check PASS. Implementation made no credential, provider, Fresh, live,
-image or render call. Independent Claude Code review is next. Only after PASS
-may a brand-new Fresh package authorize one bounded live attempt; a valid
-Candidate remains mandatory before Guy's approved full-book LOW render.
+diff-check PASS. Claude Code independently reviewed immutable range
+`371a7bdcea15491d412e75a1b3323fe41b11294f..1957999b03f7a7e474e43eee136dfca2f9220fff`
+and returned **PASS with 0 BLOCKER / 0 MAJOR / 0 MINOR**. It ran no commands in
+its gated plan-mode environment, so the numeric runs remain Codex evidence;
+its verdict is independent static control-flow and authority review.
+
+Implementation and QA made no credential, provider, Fresh, live, image or
+render call. The technical gate now permits a brand-new Fresh package and one
+bounded live attempt. A valid Candidate remains mandatory before Guy's
+approved full-book LOW render.
 
 ## BOOK SURFACE V7 LIFECYCLE CONTEXT — historical technical PASS; live attempt consumed
 

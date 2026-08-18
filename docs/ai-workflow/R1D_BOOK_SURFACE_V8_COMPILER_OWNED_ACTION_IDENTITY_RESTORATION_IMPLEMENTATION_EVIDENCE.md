@@ -36,3 +36,21 @@ Book Surface schema remains `book-surface-repair-schema/v6`. System/user prompts
 During this implementation: credential access none; provider/network calls zero; Fresh/preflight/live calls zero; image/render calls zero; storage/database/deployment/payment changes none.
 
 This evidence is implementation evidence only. It does not self-award independent technical PASS, Candidate authority, render authority, product acceptance or release readiness.
+
+## Independent QA closeout
+
+Claude Code independently reviewed immutable range
+`371a7bdcea15491d412e75a1b3323fe41b11294f..1957999b03f7a7e474e43eee136dfca2f9220fff`
+in read-only plan mode and returned **PASS with 0 BLOCKER / 0 MAJOR / 0 MINOR**.
+It explicitly traced clone/reference semantics, ordered binding construction,
+hostile beat and Source Evidence injection, null/count/duplicate behavior,
+provider semantic writability, coverage immutability, atomic rejection, full
+revalidation and the complete version chain. It ran no commands because its
+plan-mode environment gated execution; the recorded test counts therefore
+remain Codex execution evidence, while Claude's verdict is independent static
+control-flow review. Its only advisory was the already-disclosed absence of a
+second literal `npm run check` run.
+
+The technical gate now permits a brand-new Fresh package and at most one
+bounded live authoring attempt. This PASS alone does not create Candidate,
+render, deployment, production, release or product-acceptance authority.
