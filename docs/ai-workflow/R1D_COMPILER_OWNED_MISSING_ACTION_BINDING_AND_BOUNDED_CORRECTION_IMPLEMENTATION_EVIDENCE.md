@@ -91,14 +91,18 @@ was `$0`. One attempted local `npx prettier --write` was cancelled by npm
 because Prettier was not installed; no package was installed and package/lock
 files were unchanged.
 
-## Independent QA status and re-gate targets
+## Independent QA result
 
 The first split read-only audit returned PASS for the local normalizer with no
 BLOCKER/MAJOR and three defense-in-depth MINORs. The second audit found one
-valid BLOCKER in alternating correction classes. The implementation now needs
-a read-only micro re-gate that falsifies the shared allowance, both alternating
-orders, success/reset semantics, exact eligibility and absence of policy,
-prompt, schema or version drift.
+valid BLOCKER in alternating correction classes. QA-fix commit `c7b26e47`
+closed the BLOCKER and all three MINORs. Claude Code then re-gated
+`ece3ff44865116e34d6bc2372000d9677550045f..c7b26e47` read-only and returned
+**PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It explicitly confirmed both
+alternating orders stop at call 3, the allowance resets only after successful
+atomic apply, terminal evidence remains truthful and no policy, prompt,
+schema, budget or version drift exists.
 
-This local green evidence does not self-award independent PASS and does not
-authorize push, Fresh, provider, Candidate approval, Wizard advance or render.
+Guy's explicit authorization permits push after this independent PASS. Fresh,
+provider, Candidate, Wizard and render remain subject to their canonical
+current-head gates.

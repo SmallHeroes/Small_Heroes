@@ -2,9 +2,9 @@
 
 **Updated:** 2026-08-19
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; local implementation is based on pushed `5d7a818e4ae7bf715bd2c83046a1249569404392` and awaits Claude Code micro re-gate before push.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; QA-fix commit `c7b26e47` is based on pushed `5d7a818e4ae7bf715bd2c83046a1249569404392` and has independent Claude Code PASS before push.
 
-## COMPILER-OWNED MISSING ACTION BINDING + BOUNDED CORRECTION — QA fix green; Claude micro re-gate next
+## COMPILER-OWNED MISSING ACTION BINDING + BOUNDED CORRECTION — independent QA PASS; push next
 
 The single canonical eight-page live attempt under
 `outputs/r1d-collect-all-eight-page-readiness-5d7a818e-20260818T201855197Z`
@@ -38,6 +38,13 @@ The QA fix adds one shared allowance, resets it only after successful atomic
 apply, covers both alternating orders, adds the missing page-beat postcondition
 and broadens idempotence assertions.
 
+Claude Code re-gated the immutable QA-fix range
+`ece3ff44865116e34d6bc2372000d9677550045f..c7b26e47` read-only and returned
+**PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. Its source-level audit confirmed both
+alternating identities stop at exactly call 3, rejected output cannot reset the
+allowance, successful apply can reset it for a later independent repair
+session, and no prompt/schema/policy/model/budget/version surface drifted.
+
 No prompt, provider schema, policy v17, output budget v6, model, tier,
 reasoning, price, timeout, call cap, retry, fallback, Candidate, Wizard, Story
 Source, Reader or render version changed. Six focused suites pass **222/222**;
@@ -50,8 +57,7 @@ Durable records:
 `docs/ai-workflow/R1D_COMPILER_OWNED_MISSING_ACTION_BINDING_AND_BOUNDED_CORRECTION_DECISION_GATE.md`
 and
 `docs/ai-workflow/R1D_COMPILER_OWNED_MISSING_ACTION_BINDING_AND_BOUNDED_CORRECTION_IMPLEMENTATION_EVIDENCE.md`.
-Next: commit the QA fix, run Claude Code read-only micro re-gate, then push only
-after PASS. Only a new current-head Fresh and one
+Next: commit this PASS closeout and push. Only a new current-head Fresh and one
 canonical live attempt may follow PASS; Wizard/LOW render remain gated on a
 real Candidate.
 
