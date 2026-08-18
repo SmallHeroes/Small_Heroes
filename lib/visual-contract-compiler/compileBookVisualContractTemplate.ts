@@ -1213,6 +1213,32 @@ function structuralErrorIsCapabilityOnly(args: {
   );
 }
 
+const DEFERRED_REPRESENTED_ELSEWHERE_CODES = new Set<
+  DraftValidationIssue['code']
+>([
+  'represented_elsewhere_pointer_out_of_scope',
+  'represented_elsewhere_pointer_unresolved',
+  'represented_elsewhere_value_mismatch',
+]);
+
+function semanticCoverageIssuesAllowIndependentBookSurfaceRepair(args: {
+  issues: readonly DraftValidationIssue[];
+  capabilityGapPages: ReadonlySet<number>;
+}): boolean {
+  return (
+    args.issues.length > 0 &&
+    args.capabilityGapPages.size > 0 &&
+    args.issues.every(
+      (issue) =>
+        issue.family === 'action_semantic' &&
+        ((issue.code === 'coverage_missing' &&
+          issue.locator.kind === 'page' &&
+          args.capabilityGapPages.has(issue.locator.pageNumber)) ||
+          DEFERRED_REPRESENTED_ELSEWHERE_CODES.has(issue.code)),
+    )
+  );
+}
+
 /**
  * The AUTHORITATIVE companion CAST id, derived from the order's companion (input.companion) — namespaced the same
  * way as child:hero / human:role. Never from the draft. Returns null when the order has no companion.
@@ -4271,15 +4297,16 @@ function assembleTemplateFromDraft(
     const capabilityGapPages = new Set(
       capabilityGaps.map((gap) => gap.pageNumber),
     );
-    const semanticCoverageIsCapabilityDependent =
-      capabilityGapPages.size > 0 &&
-      semanticCoverageValidation.diagnosticIssues.every(
-        (issue) =>
-          issue.family === 'action_semantic' &&
-          issue.code === 'coverage_missing' &&
-          issue.locator.kind === 'page' &&
-          capabilityGapPages.has(issue.locator.pageNumber),
-      );
+    // The three represented-elsewhere identities already have a separate
+    // exact PageContract target. They do not grant BookSurface any coverage
+    // authority and therefore must not suppress an independently closed
+    // presentation + structural repair. Full validation exposes them again
+    // after BookSurface, where the page-local target is rebound fail-closed.
+    const semanticCoverageAllowsIndependentBookSurfaceRepair =
+      semanticCoverageIssuesAllowIndependentBookSurfaceRepair({
+        issues: semanticCoverageValidation.diagnosticIssues,
+        capabilityGapPages,
+      });
     collectedErrors.push(
       ...sourceEvidenceValidationMessages(sourceEvidenceIssues),
       ...semanticCoverageValidation.errors,
@@ -4288,7 +4315,7 @@ function assembleTemplateFromDraft(
       ...sourceEvidenceIdDiagnosticIssues(sourceEvidenceIssues),
       ...semanticCoverageValidation.diagnosticIssues,
     );
-    if (!semanticCoverageIsCapabilityDependent) {
+    if (!semanticCoverageAllowsIndependentBookSurfaceRepair) {
       hasBlockingNonSurfaceFailure = true;
     }
   }

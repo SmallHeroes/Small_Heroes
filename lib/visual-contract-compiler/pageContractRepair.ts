@@ -6,6 +6,8 @@ import {
 import {
   PRESENTATION_REQUIREMENT_CLASS_VALUES,
   permittedRepresentedElsewherePointerValuesForPage,
+  representedElsewherePointerIsPermittedForPage,
+  resolveJsonPointer,
   type ActionSemanticCoverageTemplate,
   type RepresentedElsewherePointerValue,
 } from './actionSemanticCoverage';
@@ -563,6 +565,115 @@ function pageCoverageForTarget(args: {
     : null;
 }
 
+type RepresentedElsewhereRepairCode =
+  keyof typeof REPRESENTED_ELSEWHERE_REPAIR_FIELD_ROLES;
+
+type RepresentedElsewhereRepairTarget = {
+  family: 'action_semantic';
+  code: RepresentedElsewhereRepairCode;
+  pageNumber: number;
+  coverageIndex: number;
+};
+
+function representedElsewhereFailureCode(args: {
+  template: ActionSemanticCoverageTemplate;
+  pageNumber: number;
+  coverage: Record<string, unknown>;
+}): RepresentedElsewhereRepairCode | null {
+  const disposition = recordValue(args.coverage.disposition);
+  if (
+    disposition?.kind !== 'represented_elsewhere' ||
+    typeof disposition.contractPointer !== 'string'
+  ) {
+    return null;
+  }
+  if (
+    !representedElsewherePointerIsPermittedForPage({
+      template: args.template,
+      pageNumber: args.pageNumber,
+      pointer: disposition.contractPointer,
+    })
+  ) {
+    return 'represented_elsewhere_pointer_out_of_scope';
+  }
+  const resolved = resolveJsonPointer(
+    args.template,
+    disposition.contractPointer,
+  );
+  if (!resolved.found) {
+    return 'represented_elsewhere_pointer_unresolved';
+  }
+  return typeof resolved.value !== 'string' ||
+    resolved.value !== disposition.contractValue
+    ? 'represented_elsewhere_value_mismatch'
+    : null;
+}
+
+function representedElsewhereRepairTargetsForCurrentDraft(args: {
+  draft: Record<string, unknown>;
+  issues: readonly DraftValidationIssue[];
+  pointerTemplate: ActionSemanticCoverageTemplate;
+}): RepresentedElsewhereRepairTarget[] | null {
+  const pages = Array.isArray(args.draft.pageContracts)
+    ? args.draft.pageContracts.map(recordValue)
+    : [];
+  if (pages.some((page) => page === null)) return null;
+  const targets = args.issues.map(
+    (issue): RepresentedElsewhereRepairTarget | null => {
+      const diagnosticTarget = representedElsewhereRepairTarget(issue);
+      if (
+        !diagnosticTarget ||
+        !Object.prototype.hasOwnProperty.call(
+          REPRESENTED_ELSEWHERE_REPAIR_FIELD_ROLES,
+          diagnosticTarget.code,
+        )
+      ) return null;
+      const representedTarget =
+        diagnosticTarget as RepresentedElsewhereRepairTarget;
+      const pageMatches = pages.filter(
+        (page) => page?.pageNumber === representedTarget.pageNumber,
+      );
+      if (pageMatches.length !== 1 || !pageMatches[0]) return null;
+      const rawCoverage = pageMatches[0].actionSemanticCoverage;
+      if (!Array.isArray(rawCoverage)) return null;
+      const coverage = rawCoverage.map(recordValue);
+      if (coverage.some((record) => record === null)) return null;
+      const matchingIndexes = (
+        coverage as Record<string, unknown>[]
+      ).flatMap((record, coverageIndex) =>
+        representedElsewhereFailureCode({
+          template: args.pointerTemplate,
+          pageNumber: representedTarget.pageNumber,
+          coverage: record,
+        }) === representedTarget.code
+          ? [coverageIndex]
+          : [],
+      );
+      return matchingIndexes.length === 1
+        ? {
+            ...representedTarget,
+            coverageIndex: matchingIndexes[0]!,
+          }
+        : null;
+    },
+  );
+  if (targets.some((target) => target === null)) return null;
+  const uniqueTargets = new Map<string, RepresentedElsewhereRepairTarget>();
+  for (const target of targets as RepresentedElsewhereRepairTarget[]) {
+    const key = pageContractRepairTargetKey(target);
+    if (uniqueTargets.has(key)) return null;
+    uniqueTargets.set(key, target);
+  }
+  return [...uniqueTargets.values()].sort(
+    (left, right) =>
+      left.pageNumber - right.pageNumber ||
+      left.code.localeCompare(right.code) ||
+      pageContractRepairTargetKey(left).localeCompare(
+        pageContractRepairTargetKey(right),
+      ),
+  );
+}
+
 function currentSpatialReferenceForRole(
   action: Record<string, unknown>,
   fieldRole: PageSpatialReferenceRepairFieldRole,
@@ -939,11 +1050,17 @@ export function pageContractRepairAffectedPages(args: {
   ) {
     return null;
   }
-  const targets = repairTargets(args.diagnosticIssues);
-  if (!targets) return null;
   const actionSemanticRepair =
-    targets[0]?.family === 'action_semantic';
+    representedElsewhereRepairTarget(args.diagnosticIssues[0]!) !== null;
   if (actionSemanticRepair && !args.pointerTemplate) return null;
+  const targets = actionSemanticRepair
+    ? representedElsewhereRepairTargetsForCurrentDraft({
+        draft: args.draft,
+        issues: args.diagnosticIssues,
+        pointerTemplate: args.pointerTemplate!,
+      })
+    : repairTargets(args.diagnosticIssues);
+  if (!targets) return null;
   const pageNumbers = new Set(
     targets.map((target) => target.pageNumber),
   );
@@ -952,9 +1069,16 @@ export function pageContractRepairAffectedPages(args: {
     : [];
   const validationHintsByPage = new Map<number, Set<string>>();
   for (const [index, issue] of args.diagnosticIssues.entries()) {
-    const target = actionSemanticRepair
+    const diagnosticTarget = actionSemanticRepair
       ? representedElsewhereRepairTarget(issue)
       : structuralRepairTarget(issue);
+    if (!diagnosticTarget) return null;
+    const target = targets.find(
+      (candidate) =>
+        candidate.pageNumber === diagnosticTarget.pageNumber &&
+        candidate.family === diagnosticTarget.family &&
+        candidate.code === diagnosticTarget.code,
+    );
     if (!target) return null;
     const hints = validationHintsByPage.get(target.pageNumber) ?? new Set<string>();
     hints.add(args.validationMessages[index]!);

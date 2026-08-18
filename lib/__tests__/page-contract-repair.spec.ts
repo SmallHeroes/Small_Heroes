@@ -1454,8 +1454,16 @@ describe('page-contract compact repair', () => {
         >
       )[0]!.disposition = {
         kind: 'represented_elsewhere',
-        contractPointer: '/invalid',
-        contractValue: 'invalid',
+        contractPointer:
+          code === 'represented_elsewhere_pointer_out_of_scope'
+            ? '/invalid'
+            : code === 'represented_elsewhere_pointer_unresolved'
+              ? '/pageContracts/1/missingField'
+              : '/pageContracts/1/locationId',
+        contractValue:
+          code === 'represented_elsewhere_value_mismatch'
+            ? 'invalid'
+            : 'missing',
       };
       const affected = pageContractRepairAffectedPages({
         draft: input,
@@ -1853,6 +1861,146 @@ describe('page-contract compact repair', () => {
         draft: draft(),
         diagnosticIssues: [candidate as DraftValidationIssue],
         validationMessages: ['invalid locator'],
+        pointerTemplate: pointerTemplate(),
+      }),
+    ).toBeNull();
+  });
+
+  it('rebinds a flat book-level represented-elsewhere locator to its unique page-local record', () => {
+    const original = draft();
+    const page2 = original.pageContracts[1]! as unknown as {
+      actionSemanticCoverage: Array<Record<string, unknown>>;
+    };
+    page2.actionSemanticCoverage[0]!.disposition = {
+      kind: 'represented_elsewhere',
+      contractPointer: '/pageContracts/999/locationId',
+      contractValue: 'outside the current page',
+    };
+    const diagnostic = representedElsewhereIssue(
+      'represented_elsewhere_pointer_out_of_scope',
+      2,
+      1,
+    );
+
+    const affected = pageContractRepairAffectedPages({
+      draft: original,
+      diagnosticIssues: [diagnostic],
+      validationMessages: ['page 2 represented pointer is out of scope'],
+      pointerTemplate: pointerTemplate(),
+    });
+
+    expect(affected).toMatchObject([{
+      pageNumber: 2,
+      repairTargets: [{
+        family: 'action_semantic',
+        code: 'represented_elsewhere_pointer_out_of_scope',
+        pageNumber: 2,
+        coverageIndex: 0,
+      }],
+    }]);
+  });
+
+  it('maps distinct represented-elsewhere failure codes independently of flat locator indexes', () => {
+    const original = draft();
+    const page2 = original.pageContracts[1]! as unknown as {
+      actionSemanticCoverage: Array<Record<string, unknown>>;
+    };
+    page2.actionSemanticCoverage = [
+      {
+        beatId: 'beat:p2:outside',
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+        disposition: {
+          kind: 'represented_elsewhere',
+          contractPointer: '/pageContracts/999/locationId',
+          contractValue: 'outside',
+        },
+      },
+      {
+        beatId: 'beat:p2:unresolved',
+        sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+        disposition: {
+          kind: 'represented_elsewhere',
+          contractPointer: '/pageContracts/1/missingField',
+          contractValue: 'missing',
+        },
+      },
+    ];
+    const diagnostics = [
+      representedElsewhereIssue(
+        'represented_elsewhere_pointer_out_of_scope',
+        2,
+        1,
+      ),
+      representedElsewhereIssue(
+        'represented_elsewhere_pointer_unresolved',
+        2,
+        2,
+      ),
+    ];
+
+    const affected = pageContractRepairAffectedPages({
+      draft: original,
+      diagnosticIssues: diagnostics,
+      validationMessages: validationMessages(diagnostics),
+      pointerTemplate: pointerTemplate(),
+    });
+
+    expect(affected?.[0]?.repairTargets).toEqual([
+      expect.objectContaining({
+        code: 'represented_elsewhere_pointer_out_of_scope',
+        coverageIndex: 0,
+      }),
+      expect.objectContaining({
+        code: 'represented_elsewhere_pointer_unresolved',
+        coverageIndex: 1,
+      }),
+    ]);
+  });
+
+  it('rejects ambiguous or stale represented-elsewhere identity remapping', () => {
+    const ambiguous = draft();
+    const ambiguousPage = ambiguous.pageContracts[1]! as unknown as {
+      actionSemanticCoverage: Array<Record<string, unknown>>;
+    };
+    ambiguousPage.actionSemanticCoverage = [0, 1].map(
+      (index) => ({
+        beatId: `beat:p2:ambiguous_${index}`,
+        sourceEvidenceId: `se1_${String(index + 1).repeat(64)}`,
+        disposition: {
+          kind: 'represented_elsewhere',
+          contractPointer: `/pageContracts/${90 + index}/locationId`,
+          contractValue: 'outside',
+        },
+      }),
+    );
+    const diagnostic = representedElsewhereIssue(
+      'represented_elsewhere_pointer_out_of_scope',
+      2,
+      1,
+    );
+    expect(
+      pageContractRepairAffectedPages({
+        draft: ambiguous,
+        diagnosticIssues: [diagnostic],
+        validationMessages: ['ambiguous represented pointer'],
+        pointerTemplate: pointerTemplate(),
+      }),
+    ).toBeNull();
+
+    const stale = draft();
+    const stalePage = stale.pageContracts[1]! as unknown as {
+      actionSemanticCoverage: Array<Record<string, unknown>>;
+    };
+    stalePage.actionSemanticCoverage[0]!.disposition = {
+      kind: 'represented_elsewhere',
+      contractPointer: '/pageContracts/1/locationId',
+      contractValue: 'loc:home',
+    };
+    expect(
+      pageContractRepairAffectedPages({
+        draft: stale,
+        diagnosticIssues: [diagnostic],
+        validationMessages: ['stale represented pointer'],
         pointerTemplate: pointerTemplate(),
       }),
     ).toBeNull();
@@ -2394,7 +2542,7 @@ describe('page-contract compact repair', () => {
       sourceEvidenceId: `se1_${'b'.repeat(64)}`,
       disposition: {
         kind: 'represented_elsewhere',
-        contractPointer: '/invalid-second',
+        contractPointer: '/pageContracts/0/locationId',
         contractValue: 'invalid-second',
       },
     });
@@ -2408,7 +2556,7 @@ describe('page-contract compact repair', () => {
           0,
         ),
         representedElsewhereIssue(
-          'represented_elsewhere_pointer_out_of_scope',
+          'represented_elsewhere_value_mismatch',
           1,
           1,
         ),

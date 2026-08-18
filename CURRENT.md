@@ -2,7 +2,56 @@
 
 **Updated:** 2026-08-19
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; QA-fix commit `c7b26e47` is based on pushed `5d7a818e4ae7bf715bd2c83046a1249569404392` and has independent Claude Code PASS before push.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the current deferred represented-elsewhere milestone is based on pushed `9d9aa56f0a77e76bf126f8cb9657123db05e2b81`.
+
+## DEFERRED REPRESENTED-ELSEWHERE / BOOKSURFACE ROUTING — local green; commit and immutable QA next
+
+The single eight-page Koko live attempt under
+`outputs/r1d-missing-binding-fresh-9d9aa56f-20260818T220552372Z` is consumed
+and will not be reused. Receipt v46
+`7601985aa8027823bb1d0600961db58bf35e4cfc15cd6a7fd4887f37eedd59e8`
+records two completed provider calls with route `initial -> full_draft`, zero
+transport retries/fallback and terminal `draft_validation_repair_regressed`.
+The complete normalized census increased from 17 to 24, so the regression
+guard stopped before a third paid call. No Candidate, Wizard or render
+authority exists.
+
+The first census contained an otherwise closed BookSurface subset: eight
+catalog presentation gaps and eight page action-requirement structural issues.
+One `represented_elsewhere_pointer_out_of_scope` coverage diagnostic was
+incorrectly treated as a blocking non-surface failure, suppressing BookSurface
+and forcing the destructive whole-draft route. The production-backed offline
+harness then exposed a second bug: the persisted locator carries a flat
+book-level coverage index, while PageContract historically interpreted it as a
+page-local draft index.
+
+The compiler now permits only the exact three closed represented-elsewhere
+codes to remain deferred while the independent BookSurface subset is repaired.
+BookSurface receives no coverage authority. After full validation, PageContract
+rebinds each residual by scanning only the named current page and recomputing
+the exact canonical pointer/value failure. Exactly one match is required; the
+historical flat index is never trusted, and zero, stale or ambiguous matches
+remain fail-closed.
+
+The `$0` production-backed harness proves route `initial -> book_surface_patch
+-> page_contract_patch -> Candidate`, complete/surfaced unique counts `5 -> 1
+-> 0`, deltas `-4/-1`, no provider call and no positive regression. Six focused
+suites pass **245/245**, TypeScript and diff-check pass. Claude Code's dirty-diff
+adversarial review and micro re-gate both returned PASS with no remaining
+finding. The one literal `npm run check` completed with exit 1 after TypeScript
+and story typecheck passed; the app retained only the first 20,000 output
+characters and clipped the terminal Vitest summary, so no unsupported full-gate
+count is claimed and no retry was performed.
+
+No prompt, schema, persisted artifact version, policy v17, output budget v6,
+model, tier, reasoning, call cap, retry, fallback, hard USD fence, Candidate,
+Wizard or render surface changed. Durable records:
+`docs/ai-workflow/R1D_DEFERRED_REPRESENTED_ELSEWHERE_BOOK_SURFACE_ROUTING_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_DEFERRED_REPRESENTED_ELSEWHERE_BOOK_SURFACE_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
+Next: focused commit and Claude Code immutable-range QA. Only after PASS, push,
+new current-head Fresh and one canonical live attempt may follow. That live is
+the second consecutive bounded attempt; failure is a hard stop with no retry.
 
 ## COMPILER-OWNED MISSING ACTION BINDING + BOUNDED CORRECTION — independent QA PASS; push next
 

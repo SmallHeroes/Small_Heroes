@@ -1,0 +1,130 @@
+# R1D Deferred Represented-Elsewhere / BookSurface Routing — Implementation Evidence
+
+## Outcome
+
+The implementation is locally green and has no product/provider spend. It
+routes an independently closed mixed surface through the existing atomic
+BookSurface lane while deferring only three closed represented-elsewhere
+coverage failures. Full validation then exposes the residual to the existing
+PageContract lane. The production-backed offline harness reaches a Candidate
+with complete unique issue counts `5 -> 1 -> 0` and no provider call.
+
+## Consumed live evidence
+
+The canonical root
+`outputs/r1d-missing-binding-fresh-9d9aa56f-20260818T220552372Z` is consumed
+and must never be retried or reused. Receipt v46 digest
+`7601985aa8027823bb1d0600961db58bf35e4cfc15cd6a7fd4887f37eedd59e8`
+records:
+
+- story `chameleon_koko_bedtime`, eight pages;
+- route `initial -> full_draft`;
+- two completed provider calls, one repair, zero transport retries and no
+  fallback;
+- complete unique census `17 -> 24` and terminal
+  `draft_validation_repair_regressed` before a third dispatch;
+- no Candidate, reconciliation, Wizard or render authority.
+
+The first census contained eight closed-catalog presentation gaps, eight page
+action-requirement structural issues, and one page-5
+`represented_elsewhere_pointer_out_of_scope` diagnostic whose persisted
+coverage item index was 43.
+
+## Root cause
+
+Two independent defects formed the broad-route fallback:
+
+1. the semantic-coverage classifier treated every represented-elsewhere
+   pointer/value failure as a blocking non-surface issue, so the otherwise
+   closed BookSurface surface was discarded and `full_draft` was selected;
+2. the final coverage validator persists a flat book-level coverage index in a
+   page-item locator, while PageContract interpreted that index as local to the
+   named page. A synthetic two-page fixture reproduced the same mismatch with
+   persisted item index 1 and current page-local record index 0.
+
+## Implementation
+
+### Closed deferred classifier
+
+`compileBookVisualContractTemplate.ts` admits the independent BookSurface lane
+only when the semantic coverage population is nonempty and every issue is
+either:
+
+- a capability-dependent `coverage_missing` on a page already represented by
+  the closed catalog gap; or
+- exactly one of
+  `represented_elsewhere_pointer_out_of_scope`,
+  `represented_elsewhere_pointer_unresolved`, or
+  `represented_elsewhere_value_mismatch`.
+
+All other action-semantic, source, world, cast or mixed failures remain
+blocking. BookSurface receives no action-semantic coverage authority and the
+full compiler validation boundary remains unchanged.
+
+### Scan-based PageContract rebinding
+
+`pageContractRepair.ts` no longer trusts the historical locator index for a
+represented-elsewhere mutation. For each typed diagnostic it:
+
+1. scans only the named page's current coverage records;
+2. recomputes the exact same failure code with the canonical pointer permission
+   and JSON-pointer resolution functions;
+3. requires exactly one current record to reproduce that exact code;
+4. uses that record's page-local index for the existing exact target/applier.
+
+Zero matches, multiple same-code matches, stale current state, duplicate
+targets, malformed records or mixed unsupported diagnostics return no repair
+authority. No index fallback or nearest-match guess exists.
+
+## Offline proof
+
+The production-backed harness injects an initial draft with a closed catalog
+gap, structural failures and a represented-elsewhere failure whose persisted
+flat index differs from the page-local draft index. It injects two deterministic
+responses and proves:
+
+- exact route `[null, book_surface_patch, page_contract_patch]`;
+- BookSurface preserves the represented coverage record;
+- PageContract resolves the unique current local record;
+- a Candidate is produced;
+- surfaced and complete unique counts are `5 -> 1 -> 0`;
+- complete deltas are `null, -4, -1`;
+- monotonic complete census is true, maximum positive delta is zero;
+- provider calls are zero.
+
+Direct PageContract tests additionally prove all three failure codes, flat to
+local index rebinding, distinct-code coexistence, same-code ambiguity and stale
+state rejection.
+
+## Validation
+
+- focused compiler/PageContract/harness run: **72/72 PASS**;
+- broader six-suite run: **245/245 PASS**;
+- `npx tsc --noEmit`: PASS;
+- `git diff --check`: clean;
+- Claude Code dirty-diff adversarial review: PASS after one minor hardening;
+- Claude Code micro re-gate: PASS with no remaining finding.
+
+One literal `npm run check` was executed once. TypeScript and the autonomous
+story typecheck completed successfully. The command returned exit 1 after
+228,761 ms; the Codex app retained only the first 20,000 characters of the
+Vitest output and clipped the final summary. Relevant changed suites visible in
+the retained output were green, but no unsupported full-repository count is
+claimed and the command was not retried.
+
+## Unchanged authority
+
+No model, tier, reasoning, prompt, provider schema, persisted artifact version,
+policy v17, output budget v6, input/output cap, timeout, call count, retry,
+fallback, hard USD fence, Candidate, Wizard, Story Source, Reader or render
+contract changed. The fix consumes no provider, credential, image or render
+authority.
+
+## Independent QA and stop boundary
+
+The implementation still requires Claude Code review of the immutable commit
+range before push or Fresh. After immutable PASS, the already-authorized next
+step is one new current-head Fresh Readiness and one canonical live authoring
+attempt. It is the second consecutive bounded live attempt: any failure is a
+hard stop with no retry and no symptom-fix loop. Wizard reconciliation and LOW
+render require a real current Candidate.
