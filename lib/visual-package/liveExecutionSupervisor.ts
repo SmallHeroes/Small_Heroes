@@ -41,13 +41,13 @@ import {
 } from './visualContractAuthoringLifecycle';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_VERSION =
-  'canonical-live-execution-request/v32' as const;
+  'canonical-live-execution-request/v33' as const;
 export const CANONICAL_LIVE_EXECUTION_READINESS_VERSION =
-  'canonical-live-execution-readiness/v32' as const;
+  'canonical-live-execution-readiness/v33' as const;
 export const CANONICAL_LIVE_EXECUTION_PROBE_VERSION =
   'canonical-live-execution-probe/v1' as const;
 export const CANONICAL_LIVE_EXECUTION_RESULT_VERSION =
-  'canonical-live-execution-result/v25' as const;
+  'canonical-live-execution-result/v26' as const;
 export const CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION =
   'canonical-live-execution-child-output-authority/v1' as const;
 

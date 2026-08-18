@@ -33,9 +33,9 @@ export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =
-  'book-surface-repair-prompt/v8' as const;
+  'book-surface-repair-prompt/v9' as const;
 export const BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION =
-  'book-surface-repair-user-prompt/v8' as const;
+  'book-surface-repair-user-prompt/v9' as const;
 
 const MAX_VALIDATION_MESSAGES = 128;
 const MAX_VALIDATION_MESSAGE_LENGTH = 1_024;
@@ -1386,7 +1386,7 @@ export function buildBookSurfaceRepairSystemPrompt(): string {
     'For each presentation target, copy its identities and one exact permitted contractPointer. The overlapping page mustShow array is not writable; preserve it exactly so the compiler can resolve the authorized pointer/value locally.',
     'No raw validation prose is included. Use only the typed targets, causes, exact projections, bounded diagnostic counts and read-only authority supplied in the decoded payload.',
     'When recurringPropAuthority is non-null, preserve the exact recurring-prop ID order and resolve only its typed lifecycle invariant. Use lifecycleContext as read-only page visibility authority: every page before a non-null firstRevealPage must be listed forbidden, and no listed required page may precede it. Otherwise return recurringProps:null.',
-    'When coverAuthority is non-null, use only IDs and worldType present in referenceAuthority and resolve only the typed cover projection invariant. Otherwise return coverContract:null.',
+    'When coverAuthority is non-null, repair only the semantic cover fields. The compiler reattaches the exact worldType, locationId, zoneId and ordered castIds from its normalized authority before apply; provider-returned values cannot replace those identities. Otherwise return coverContract:null.',
     'Preserve all valid semantics. Never infer or return unrelated page or global fields.',
     'Output only the JSON object required by the strict repair schema.',
   ].join('\n');
@@ -2158,6 +2158,35 @@ function restoreCompilerOwnedActionBindingIdentity(args: {
   return restored;
 }
 
+function restoreCompilerOwnedCoverReferenceIdentity(args: {
+  authority: BookSurfaceRepairAuthority;
+  patch: BookSurfaceRepairPatch;
+}): BookSurfaceRepairPatch {
+  const restored = structuredClone(args.patch);
+  if (restored.coverContract === null) return restored;
+  const authorityCover = args.authority.coverContract;
+  if (authorityCover === null) return restored;
+  const patchCastIds = uniqueStrings(restored.coverContract.castIds);
+  if (
+    !exactKeys(authorityCover, COVER_CONTRACT_KEYS) ||
+    typeof restored.coverContract.worldType !== 'string' ||
+    restored.coverContract.worldType.trim().length === 0 ||
+    typeof restored.coverContract.locationId !== 'string' ||
+    restored.coverContract.locationId.trim().length === 0 ||
+    typeof restored.coverContract.zoneId !== 'string' ||
+    restored.coverContract.zoneId.trim().length === 0 ||
+    !patchCastIds ||
+    patchCastIds.length === 0
+  ) {
+    throw new Error('book_surface_repair_cover_invalid');
+  }
+  restored.coverContract.worldType = authorityCover.worldType;
+  restored.coverContract.locationId = authorityCover.locationId;
+  restored.coverContract.zoneId = authorityCover.zoneId;
+  restored.coverContract.castIds = structuredClone(authorityCover.castIds);
+  return restored;
+}
+
 export function applyBookSurfaceRepairPatch(args: {
   draft: Record<string, unknown>;
   authority: BookSurfaceRepairAuthority;
@@ -2172,9 +2201,12 @@ export function applyBookSurfaceRepairPatch(args: {
   }
   let validatedPatch: BookSurfaceRepairPatch;
   try {
-    validatedPatch = restoreCompilerOwnedActionBindingIdentity({
+    validatedPatch = restoreCompilerOwnedCoverReferenceIdentity({
       authority: args.authority,
-      patch: parseBookSurfaceRepairPatch(JSON.stringify(args.patch)),
+      patch: restoreCompilerOwnedActionBindingIdentity({
+        authority: args.authority,
+        patch: parseBookSurfaceRepairPatch(JSON.stringify(args.patch)),
+      }),
     });
   } catch (error) {
     if (error instanceof Error) throw error;

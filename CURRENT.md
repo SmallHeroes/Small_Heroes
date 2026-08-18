@@ -2,7 +2,38 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `371a7bdcea15491d412e75a1b3323fe41b11294f`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `cf0c9534ed7fe4f56c94c0f784bb5fc984bb25f5`.
+
+## BOOK SURFACE V9 COMPILER-OWNED COVER IDENTITY — implementation green; focused QA next
+
+The sole canonical attempt under
+`outputs/r1d-terminal-cleanup-rebalance-fresh-cf0c9534-20260818T103956579Z`
+ended fail-closed and will not be retried. Receipt v39
+`aad6ec681d14711db78a7e7801a35847ce4486f4fa8ddcb4128e944514fe0577`
+records two completed provider calls, one repair and route
+`initial -> book_surface_patch`. The exact terminal identity is
+`book_surface_repair_cover_reference_invalid`; no Candidate or render authority
+exists. This occurred before the optional fourth cleanup, so raising the `$5`
+fence would not have changed the outcome.
+
+The v9 correction restores compiler-normalized cover `worldType`, `locationId`,
+`zoneId` and ordered `castIds` before atomic application. Those identities were
+already resolved by topology/fact authority; semantic `timeOfDay`, `mustShow` and
+`mustNotShow` remain provider-writable. Malformed response shape, stale
+authority, non-target drift and full-template validation remain fail-closed.
+
+Book Surface schema stays v6; system/user prompts are v9. Current authoring
+request/receipt/readiness are v36/v40/v38; B0 is v25/v34/v34; execution
+materialization is v24/v28; Supervisor is v33/v33/v26; Fresh is v33. Policy v13,
+Candidate v9, model/tier/reasoning, retries/fallback, call counts, the `$5` fence
+and renderer behavior are unchanged.
+
+Focused validation is green: core **157/157**, canonical authority chain
+**327/327 assertions**, TypeScript PASS and diff-check PASS. The two reported
+Vitest errors were the established post-assertion `onTaskUpdate` RPC timeouts;
+no assertion failed. Implementation used no credential, provider, Fresh, live,
+image or render call. Focused independent review and a new Fresh package are the
+next gates; a valid Candidate remains mandatory before the approved LOW render.
 
 ## TERMINAL REFERENCE CLEANUP REBALANCE — implementation green; independent QA next
 

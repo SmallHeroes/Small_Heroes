@@ -332,19 +332,22 @@ function patch(
   };
 }
 
-describe('atomic causal book-surface repair v8 input authority', () => {
-  it('publishes the strict v6 causal-delta schema under v8 prompts with nullable cover/props and no action coverage', () => {
+describe('atomic causal book-surface repair v9 input authority', () => {
+  it('publishes the strict v6 causal-delta schema under v9 prompts with nullable cover/props and no action coverage', () => {
     expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
       'book-surface-repair-schema/v6',
     );
     expect(BOOK_SURFACE_REPAIR_PROMPT_VERSION).toBe(
-      'book-surface-repair-prompt/v8',
+      'book-surface-repair-prompt/v9',
     );
     expect(BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION).toBe(
-      'book-surface-repair-user-prompt/v8',
+      'book-surface-repair-user-prompt/v9',
     );
     expect(buildBookSurfaceRepairSystemPrompt()).toContain(
       'Return a repaired non-null value only for that page\'s exact writableFields',
+    );
+    expect(buildBookSurfaceRepairSystemPrompt()).toContain(
+      'compiler reattaches the exact worldType, locationId, zoneId and ordered castIds',
     );
     const properties = BOOK_SURFACE_REPAIR_JSON_SCHEMA.properties as Record<
       string,
@@ -1753,22 +1756,49 @@ describe('atomic causal book-surface repair v8 input authority', () => {
     expect(original).toEqual(snapshot);
   });
 
-  it('rejects cover reference drift and leaves the original equivalent', () => {
+  it('reattaches compiler-owned cover identity while rejecting malformed identity shape', () => {
     const original = draft();
     const snapshot = structuredClone(original);
     const selected = authority(original);
+    const hostileCover = {
+      ...cover(),
+      worldType: 'magical',
+      locationId: 'loc:other',
+      zoneId: 'zone:unknown',
+      castIds: ['child:unknown'],
+      mustShow: ['provider repaired semantic cover content'],
+    };
+    const result = applyBookSurfaceRepairPatch({
+      draft: original,
+      authority: selected,
+      patch: { ...patch(), coverContract: hostileCover },
+    });
+    expect(result.coverContract).toEqual({
+      ...hostileCover,
+      worldType: cover().worldType,
+      locationId: cover().locationId,
+      zoneId: cover().zoneId,
+      castIds: cover().castIds,
+    });
+    expect(original).toEqual(snapshot);
+
     for (const coverContract of [
-      { ...cover(), worldType: 'magical' },
-      { ...cover(), zoneId: 'zone:unknown' },
-      { ...cover(), castIds: ['child:unknown'] },
+      { ...cover(), worldType: '' },
+      { ...cover(), locationId: null },
+      { ...cover(), zoneId: '   ' },
+      { ...cover(), castIds: [] },
+      { ...cover(), castIds: [null] },
     ]) {
       expect(() =>
         applyBookSurfaceRepairPatch({
           draft: original,
           authority: selected,
-          patch: { ...patch(), coverContract },
+          patch: {
+            ...patch(),
+            coverContract: coverContract as unknown as Record<string, unknown>,
+          },
         }),
-      ).toThrow();
+      ).toThrow('book_surface_repair_cover_invalid');
       expect(original).toEqual(snapshot);
     }
   });

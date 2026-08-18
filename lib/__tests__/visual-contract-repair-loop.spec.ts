@@ -1014,8 +1014,10 @@ describe('page-contract compact repair routing', () => {
 
     const repairedCover = {
       ...structuredClone(valid.coverContract),
-      zoneId: valid.pageContracts[0].zoneId,
-      castIds: ['child:hero', 'companion:bunny_ometz'],
+      worldType: 'provider-forged-world',
+      locationId: 'loc:provider-forged',
+      zoneId: 'zone:provider-forged',
+      castIds: ['cast:provider-forged'],
     };
     const repairedPage2 = structuredClone(valid.pageContracts[1]);
     delete repairedPage2.castIds;
@@ -1137,6 +1139,22 @@ describe('page-contract compact repair routing', () => {
         VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
     ).toBe(59_904);
     expect(accounting.estimatedBytes).toBeLessThanOrEqual(59_904);
+    const compilerCoverAuthority = (
+      payload.coverAuthority as {
+        coverContract: {
+          worldType: string;
+          locationId: string;
+          zoneId: string;
+          castIds: string[];
+        };
+      }
+    ).coverContract;
+    expect(result.template.coverContract).toMatchObject({
+      worldType: compilerCoverAuthority.worldType,
+      locationId: compilerCoverAuthority.locationId,
+      zoneId: compilerCoverAuthority.zoneId,
+      castIds: compilerCoverAuthority.castIds,
+    });
     const presentationTarget = (
       payload.presentationTargets as PresentationRequirementRepairTarget[]
     )[0]!;
