@@ -8,7 +8,7 @@
 
 /* ── Recent books history strip ──────────────────────────── */
 .book-history-section {
-  background: linear-gradient(135deg, #f3efff 0%, #ede8ff 100%);
+  background: linear-gradient(135deg, #f3efff 0%, var(--purple-100) 100%);
   border-bottom: 1px solid rgba(124, 58, 237, 0.12);
   padding: 10px 20px;
   display: flex;
@@ -955,7 +955,7 @@
 }
 
 .price-num span {
-  font-family: 'Heebo', sans-serif; /* override --fd — Abraham digits render incorrectly */
+  font-family: 'Rubik', sans-serif; /* kept explicit: this rule predates --fd being Rubik */
   font-size: 62px;
   font-weight: 900;
   line-height: 0.95;
@@ -1576,7 +1576,7 @@
   }
 
   .price-num span {
-    font-family: 'Heebo', sans-serif;
+    font-family: 'Rubik', sans-serif;
     font-size: 52px;
     font-feature-settings: "tnum";
   }

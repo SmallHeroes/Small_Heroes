@@ -82,7 +82,7 @@
   right: 10px;
   width: 24px;
   height: 24px;
-  background: var(--yellow, #ffee6c);
+  background: var(--yellow, var(--yellow-400));
   border-radius: 8px;
 }
 
@@ -161,7 +161,7 @@
   padding: 0 18px;
   margin-inline-end: 10px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #8a6bff, #6d4df0);
+  background: linear-gradient(135deg, var(--purple-500), var(--purple-600));
   color: #fff;
   font-family: var(--fb, 'Rubik', sans-serif);
   font-size: 15px;
@@ -173,11 +173,11 @@
 
 .navCta:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 26px rgba(109, 77, 240, 0.36);
+  box-shadow: 0 12px 26px rgba(123, 47, 204, 0.34);
 }
 
 .navCta:focus-visible {
-  outline: 3px solid #ffee6c;
+  outline: 3px solid var(--yellow-400);
   outline-offset: 2px;
 }
 

@@ -3,30 +3,55 @@
    Shared foundation
    ═══════════════════════════════════════════════════════════ */
 
-@font-face {
-  font-family: 'Abraham';
-  src: url('../Fonts/Abraham-Regular.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
-  --purple: #886cff;
-  --purple-d: #7459f0;
-  --purple-lt: #ede8ff;
-  --purple-bg: #faf8ff;
-  --yellow: #ffee6c;
-  --dark: #18171a;
-  --mid: #5f5a70;
-  --soft: #9692aa;
-  --white: #ffffff;
-  --border: #ebe7f7;
-  --bg-light: #f7f6fb;
+  /* Kept in step with app/landing/main.css - these static pages (the wizard
+     among them) share the brand, so they share the palette. */
+  --purple-50:  #f7f2fe;
+  --purple-100: #efe4fd;
+  --purple-200: #dfc9fa;
+  --purple-300: #c9a5f6;
+  --purple-400: #ae7bf0;
+  --purple-500: #9349e5;
+  --purple-600: #7b2fcc;
+  --purple-700: #661faa;
+  --purple-800: #511889;
+  --purple-900: #37105e;
+
+  --n-0:   #ffffff;
+  --n-50:  #f7f5fa;
+  --n-100: #edeaf3;
+  --n-200: #d9d4e3;
+  --n-300: #b3acc1;
+  --n-400: #8b8499;
+  --n-500: #6b6479;
+  --n-600: #524c5f;
+  --n-700: #3b3746;
+  --n-800: #2a2733;
+  --n-900: #1c1b21;
+
+  --yellow-100: #fff8de;
+  --yellow-200: #fff0b4;
+  --yellow-300: #ffe482;
+  --yellow-400: #ffd745;
+  --yellow-500: #f5c21b;
+
+  --purple: var(--purple-500);
+  --purple-d: var(--purple-600);
+  --purple-lt: var(--purple-100);
+  --purple-bg: var(--purple-50);
+  --yellow: var(--yellow-400);
+  --dark: var(--n-900);
+  --mid: var(--n-500);
+  --soft: var(--n-400);
+  --white: var(--n-0);
+  --border: var(--n-200);
+  --bg-light: var(--n-50);
   --bg-lighter: #fafafa;
 
-  --fd: 'Abraham', 'Heebo', sans-serif;
-  --fb: 'Heebo', sans-serif;
+  /* Rubik on both roles, same as the app. Abraham is unlicensed and its
+     @font-face has been removed from this file. */
+  --fd: 'Rubik', sans-serif;
+  --fb: 'Rubik', sans-serif;
 
   --max-w: 1440px;
   --nav-h: 78px;
