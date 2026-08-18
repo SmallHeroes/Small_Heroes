@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-causal-repair-contract` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `f9797c20169309944d0cfdd2ef37edf871a6f610`.
 
-## BOOK SURFACE CAUSAL REPAIR CONTRACT — implementation locally validated; independent QA pending
+## BOOK SURFACE CAUSAL REPAIR CONTRACT — QA correction locally green; independent re-gate pending
 
 The canonical attempt under
 `outputs/r1d-hint-admission-observability-fresh-f9797c20-20260817T211128482Z`
@@ -81,6 +81,26 @@ retains its authorized repair. Static and lifecycle hostile tests reject stale
 context, source-evidence rebinding, beat changes, unrelated field drift,
 transition tamper and lifecycle regression.
 
+The first independent Claude Code report labelled the range `PASS` while also
+listing two `MAJOR` findings that it required before Fresh Readiness. Under the
+repository protocol that report is treated as `HOLD`, not PASS. The correction
+does not adopt the reviewer's over-broad proposed predicate: the closed
+`page_steering_invalid` cause can describe `camera`, `mustShow` or
+`mustNotShow`, so cause membership alone cannot prove that frozen `mustShow` is
+the defect. Book Surface now refuses a presentation-overlap page only when the
+current frozen `mustShow` is actually malformed (non-array, non-string, blank
+or whitespace-only) while still permitting camera or `mustNotShow` repair when
+the current `mustShow` is valid.
+
+The admission evidence now covers both dimensions that the review found
+missing. A direct 12-page authority carries exactly 115 normalized structural
+hints plus one presentation target through production encode/decode at 32,435
+estimated bytes, leaving 27,469 bytes below the canonical 59,904-byte route
+limit. The richer lifecycle fixture carries 123 structural hints plus its exact
+presentation targets at 42,865 bytes, leaving 17,039 bytes, and completes the
+three-call/two-repair candidate path. No input ceiling, safety margin, prompt,
+schema, policy, version, budget or provider behavior changed.
+
 The current authority cutover is Structural Bundle schema v3, Book Surface
 schema/system/user v5, attempt diagnostics v4, authoring
 request/receipt/readiness v31/v35/v33, B0 input/manifest/verifier v20/v29/v29,
@@ -107,8 +127,9 @@ or root provider authority. The combined Vitest process then reported one
 existing `onTaskUpdate` RPC timeout and returned exit `1`; the individual
 corrected lifecycle suite is 91/91 green. A final individual Supervisor run
 likewise passed all 42 assertions before the same runner RPC timeout; the QA
-bridge exited cleanly at 7/7. Final review of the completed immutable commit
-range is still pending and remains the authority for technical PASS.
+bridge exited cleanly at 7/7. The first immutable-range review is held on its
+own two MAJORs. An independent read-only re-gate of the separate focused
+correction remains the authority for technical PASS.
 
 One literal `npm run check` ran exactly once and stopped immediately on a
 test-only TypeScript narrowing assertion added in this milestone. The assertion
@@ -125,8 +146,8 @@ not retried, waived or represented as a green repository gate.
 
 Decision Gate commit is
 `09ba5597288eb7fce66a09590cea2d6b2ec5d590`. The local branch contains the
-focused implementation/evidence milestone; independent Claude Code review and
-push are still pending. Since the consumed
+focused implementation/evidence milestone plus a separate QA correction;
+independent Claude Code re-gate and push are still pending. Since the consumed
 attempt, no credential, provider, Fresh Readiness, preflight, live, image,
 Vision, render, storage/database, deployment, production or push action
 occurred. A new paid attempt is forbidden until the local commit receives an

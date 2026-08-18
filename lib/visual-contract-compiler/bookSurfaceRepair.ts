@@ -523,11 +523,21 @@ function writableFieldsForAffectedPage(args: {
     if (!fields) return null;
     fields.forEach((field) => allowed.add(field));
   }
-  if (
-    args.presentationTargets.some(
-      (target) => target.pageNumber === args.page.pageNumber,
-    )
-  ) {
+  const presentationTargeted = args.presentationTargets.some(
+    (target) => target.pageNumber === args.page.pageNumber,
+  );
+  if (presentationTargeted) {
+    const currentMustShow = args.page.pageContract.mustShow;
+    if (
+      allowed.has('mustShow') &&
+      (!Array.isArray(currentMustShow) ||
+        currentMustShow.some(
+          (value) =>
+            typeof value !== 'string' || value.trim().length === 0,
+        ))
+    ) {
+      return null;
+    }
     allowed.delete('mustShow');
   }
   const result = BOOK_SURFACE_WRITABLE_PAGE_FIELD_VALUES.filter(

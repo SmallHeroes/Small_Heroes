@@ -6,8 +6,9 @@
 **Branch:** `codex/r1d-book-surface-causal-repair-contract`
 **Base:** `f9797c20169309944d0cfdd2ef37edf871a6f610`
 **Gate commit:** `09ba5597288eb7fce66a09590cea2d6b2ec5d590`
-**Status:** local implementation evidence; independent Claude Code review and
-push pending
+**Status:** initial independent review treated as HOLD on two required
+findings; focused QA correction locally green; independent re-gate and push
+pending
 
 ## 1. Consumed evidence and reproduced failure
 
@@ -257,6 +258,39 @@ The three phases were subsequently run directly:
 No second repository-wide run was made. The known fixture HOLD and runner RPC
 timeouts remain recorded and unwaived.
 
+### Independent-QA correction
+
+Claude Code's first immutable-range report used a `PASS` headline but listed
+two `MAJOR` findings and explicitly required both before Fresh Readiness. This
+evidence treats that result as `HOLD`.
+
+The first finding identified a real non-convergence risk but proposed an
+over-broad correction. `page_steering_invalid` authorizes the union of
+`mustShow`, `mustNotShow` and `camera`; its presence does not establish which
+leaf is malformed. The corrected authority builder instead inspects the
+current frozen `mustShow` on a presentation-overlap page. It returns no Book
+Surface authority when that array is non-array, contains a non-string, or
+contains a blank/whitespace-only string. When current `mustShow` is valid, the
+builder continues to remove it from the writable set while preserving an
+authorized camera or `mustNotShow` repair. Direct tests prove both branches.
+No failed page is relabelled and full compiler validation remains mandatory.
+
+The second finding identified a genuine measurement gap. The direct
+production encode/decode regression now carries exactly 115 normalized
+structural validation hints across 12 pages, plus one presentation target. All
+115 hints survive exactly. Canonical input accounting is 32,435 bytes, leaving
+27,469 bytes under the 59,904-byte route-admission limit. Separately, the richer
+12-page lifecycle fixture carries 123 structural hints plus its exact
+presentation targets at 42,865 bytes, leaving 17,039 bytes, and still completes
+the bounded `initial -> book_surface_patch -> book_surface_patch` candidate
+path in three calls/two repairs.
+
+Correction validation is **3 files / 155 tests PASS**. Deterministic TypeScript,
+autonomous-story TypeScript and `git diff --check` pass. The literal
+`npm run check` was not rerun: its previously recorded execution and separate
+five-fixture repository HOLD are unchanged, and no file in that HOLD entered
+this correction.
+
 ## 6. Exclusions and next gate
 
 Implementation/provider/image cost is `$0`. No credential, provider, Fresh
@@ -264,7 +298,8 @@ Readiness, preflight, live authoring, candidate, image, Vision, render,
 storage/database, deployment, production or push action occurred.
 
 This evidence is Codex implementation evidence, not an independent technical
-PASS. It accompanies the focused local implementation commit. The next step is
-Claude Code's read-only adversarial review of the immutable base-to-head range. A new Fresh
-package and one bounded live attempt remain forbidden until that review passes
-and the reviewed head is pushed cleanly.
+PASS. It accompanies the focused implementation commit and its separate QA
+correction commit. The next step is Claude Code's read-only adversarial re-gate
+of the immutable correction range. A new Fresh package and one bounded live
+attempt remain forbidden until that re-gate passes and the reviewed head is
+pushed cleanly.

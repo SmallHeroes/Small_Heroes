@@ -6494,10 +6494,20 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const pageHintCounts = (
       mixedPayload.affectedPages as Array<{ validationHints: unknown[] }>
     ).map((page) => page.validationHints.length);
-    expect(
+    const structuralHintCount =
       coverHintCount +
-        recurringPropHintCount +
-        pageHintCounts.reduce((total, count) => total + count, 0) +
+      recurringPropHintCount +
+      pageHintCounts.reduce((total, count) => total + count, 0);
+    expect(structuralHintCount).toBe(123);
+    expect(
+      result.receipt.attempts[1].inputAccounting.estimatedBytes,
+    ).toBe(42_865);
+    expect(
+      59_904 -
+        result.receipt.attempts[1].inputAccounting.estimatedBytes,
+    ).toBe(17_039);
+    expect(
+      structuralHintCount +
         (mixedPayload.presentationTargets as unknown[]).length,
     ).toBeGreaterThan(128);
     expect(

@@ -803,16 +803,21 @@ describe('atomic causal book-surface repair v5', () => {
 
   it('admits a twelve-page live-shaped v5 request while retaining every exact hint', () => {
     const value = draft(12);
+    const pageIssues = Array.from(
+      { length: 113 },
+      (_, index) => pageStructureIssue((index % 12) + 1),
+    );
     const issues = [
       coverProjectionIssue,
       recurringPropLifecycleIssue,
-      ...Array.from({ length: 12 }, (_, index) =>
-        pageStructureIssue(index + 1),
-      ),
+      ...pageIssues,
     ];
     const messages = issues.map(
       (issue, index) =>
         `${issue.code}: exact live-shaped structural validation ${index} ${'detail '.repeat(12)}`,
+    );
+    const normalizedMessages = messages.map((message) =>
+      message.replace(/\s+/g, ' ').trim(),
     );
     const selected = bookSurfaceRepairAuthority({
       draft: value,
@@ -831,10 +836,29 @@ describe('atomic causal book-surface repair v5', () => {
       userPrompt,
       BOOK_SURFACE_REPAIR_JSON_SCHEMA,
     );
-    expect(
-      (decodeBookSurfaceRepairUserPrompt(userPrompt).affectedPages as unknown[])
-        .length,
-    ).toBe(12);
+    expect(accounting.estimatedBytes).toBe(32_435);
+    expect(59_904 - accounting.estimatedBytes).toBe(27_469);
+    const decoded = decodeBookSurfaceRepairUserPrompt(
+      userPrompt,
+    ) as unknown as {
+      presentationTargets: unknown[];
+      coverAuthority: { validationHints: string[] } | null;
+      recurringPropAuthority: { validationHints: string[] } | null;
+      affectedPages: Array<{ validationHints: string[] }>;
+    };
+    expect(decoded.presentationTargets).toHaveLength(1);
+    expect(decoded.affectedPages).toHaveLength(12);
+    const decodedHints = [
+      ...(decoded.coverAuthority?.validationHints ?? []),
+      ...(decoded.recurringPropAuthority?.validationHints ?? []),
+      ...decoded.affectedPages.flatMap(
+        (page) => page.validationHints,
+      ),
+    ];
+    expect(decodedHints).toHaveLength(115);
+    expect([...decodedHints].sort()).toEqual(
+      [...normalizedMessages].sort(),
+    );
     expect(accounting.estimatedBytes).toBeLessThanOrEqual(
       VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS -
         VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
@@ -846,12 +870,55 @@ describe('atomic causal book-surface repair v5', () => {
         schema: BOOK_SURFACE_REPAIR_JSON_SCHEMA,
       }),
     ).toBe(true);
-    const decoded = JSON.stringify(
-      decodeBookSurfaceRepairUserPrompt(userPrompt),
-    );
-    for (const message of messages) {
-      expect(decoded).toContain(message.replace(/\s+/g, ' ').trim());
+    const decodedJson = JSON.stringify(decoded);
+    for (const message of normalizedMessages) {
+      expect(decodedJson).toContain(message);
     }
+  });
+
+  it('refuses a presentation overlap only when its frozen mustShow is structurally invalid', () => {
+    const value = draft();
+    const valuePages = value.pageContracts as Array<ReturnType<typeof page>>;
+    valuePages[0]!.mustShow = [
+      ...valuePages[0]!.mustShow,
+      '   ',
+    ];
+    expect(
+      bookSurfaceRepairAuthority({
+        draft: value,
+        authorityDraft: value,
+        presentationTargets: [presentationTarget(1)],
+        structuralDiagnosticIssues: [
+          coverProjectionIssue,
+          pageStructureIssue(1),
+        ],
+        structuralValidationMessages: [
+          'cover remains bounded',
+          'page 1 steering remains invalid',
+        ],
+      }),
+    ).toBeNull();
+
+    const cameraOnly = draft();
+    const cameraOnlyPages = cameraOnly.pageContracts as Array<
+      ReturnType<typeof page>
+    >;
+    cameraOnlyPages[0]!.camera = '';
+    expect(
+      bookSurfaceRepairAuthority({
+        draft: cameraOnly,
+        authorityDraft: cameraOnly,
+        presentationTargets: [presentationTarget(1)],
+        structuralDiagnosticIssues: [
+          coverProjectionIssue,
+          pageStructureIssue(1),
+        ],
+        structuralValidationMessages: [
+          'cover remains bounded',
+          'page 1 camera remains invalid',
+        ],
+      }),
+    ).not.toBeNull();
   });
 
   it('parses exact delta output and rejects full-page, key, identity, and nullable drift', () => {
