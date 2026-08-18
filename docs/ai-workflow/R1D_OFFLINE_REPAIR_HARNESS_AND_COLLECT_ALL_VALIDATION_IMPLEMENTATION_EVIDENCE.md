@@ -6,6 +6,8 @@
 
 **Base:** `89ecd3389f220844241a61167e9d4140ccd72192`
 
+**Implementation commit:** `f0ee02d3`
+
 **Decision Gate:** `R1D_OFFLINE_REPAIR_HARNESS_AND_COLLECT_ALL_VALIDATION_DECISION_GATE.md`
 
 ## Outcome

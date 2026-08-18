@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `89ecd3389f220844241a61167e9d4140ccd72192`.
 
-## OFFLINE REPAIR HARNESS + COLLECT-ALL VALIDATION — local green; independent QA next
+## OFFLINE REPAIR HARNESS + COLLECT-ALL VALIDATION — pushed; independent QA next
 
 Guy cancelled the proposed best-of-N strategy after route-level evidence showed
 that most apparent issue growth was fail-fast unmasking rather than repair
@@ -46,13 +46,14 @@ Policy v17, output budget v6, model, tier, seven-call schedule, USD 10 fence,
 retry/fallback rules, Candidate v9, child authority v1 and Wizard bridge v2 are
 unchanged.
 
-Focused gates are green: compiler/harness/diagnostic/legacy inventory 135/135,
+Implementation commit `f0ee02d3` is pushed. Focused gates are green:
+compiler/harness/diagnostic/legacy inventory 135/135,
 authoring lifecycle 96/96, downstream materialization/Fresh/Supervisor 331/331,
 TypeScript and diff-check. The required literal `npm run check` was executed
 once: it initially exposed four stale milestone expectations, all now corrected
 and rerun green, plus only the five established missing ignored-output fixture
-failures. No live or render action follows this local milestone; commit/push and
-independent QA are the next boundary.
+failures. No live or render action follows this milestone; independent QA is
+the next boundary.
 
 ## SEVEN-STANDARD-CALL / $10 CONVERGENCE — local green; commit/push next
 
