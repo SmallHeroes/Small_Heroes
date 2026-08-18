@@ -2,9 +2,41 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `76686edb6d204afb50c373c100a38386abe76a3a`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `bbb8afd7f9ebdd7f24c61bbd19a3c2f18afd7e9a`.
 
-## BOOK SURFACE V6 CAUSAL DELTA — independent technical PASS; Fresh pending
+## BOOK SURFACE V7 LIFECYCLE CONTEXT — implementation green; independent QA pending
+
+The sole v6 canonical attempt under
+`outputs/r1d-booksurface-v6-fresh-bbb8afd7-20260818T081428231Z`
+ended fail-closed and was not retried. Receipt v36 records three completed
+provider calls, two repairs, zero transport retries/fallback and
+`$1.207983 / $1.328794` nominal/conservative cost. Its exact route was
+`initial -> page_spatial_reference_patch -> book_surface_patch`. The final
+Book Surface response completed but its local application was rejected before
+revalidation. No Candidate or downstream/render authority exists.
+
+The correction supplies the recurring-prop repair with exact compact lifecycle
+context: each prop's current reveal plus every page that requires or forbids
+it. The compiler recomputes that context before application, retains the full
+lifecycle validator, and explicitly freezes existing Source Evidence IDs in
+writable action requirements. Three formerly unclassified Book Surface guards
+now have closed identities and stable failure-code mappings.
+
+Book Surface schema/system/user are v6/v7/v7; diagnostics are v3; authoring
+request/receipt/readiness are v33/v37/v35; B0 is v22/v31/v31; execution
+materialization is v21/v25; Supervisor is v30/v30/v23; Fresh is v30. Model,
+policy, calls/repairs, output caps, retry/fallback and the hard `$5` fence are
+unchanged.
+
+Focused validation is green: core **192/192**, downstream **327/327** (with two
+known post-assertion Vitest RPC timeouts), isolated affected materialization
+**35/35** with exit 0, TypeScript PASS and diff-check PASS. Independent Claude
+Code review of the immutable implementation range is the remaining technical
+gate before a new Fresh package and at most one new bounded live attempt. A
+valid Candidate is still mandatory before the explicitly approved full-book
+LOW render.
+
+## BOOK SURFACE V6 CAUSAL DELTA — historical technical PASS; live attempt consumed
 
 The bounded canonical attempt under
 `outputs/r1d-causal-booksurface-fresh-76686edb-20260818T070059265Z`
@@ -54,9 +86,8 @@ execution, so the verdict is static review plus inspection of the committed
 tests and recorded runs.
 
 No credential, provider, Fresh, live, image or render action occurred during
-this implementation. Next: brand-new Fresh Readiness, then at most one bounded
-live authoring call. A valid Candidate is still required before the explicitly
-approved full-book LOW render.
+that implementation. Its later bounded live attempt is recorded in the v7
+section above and must not be retried.
 
 ## BOOK SURFACE CAUSAL REPAIR CONTRACT — independent technical PASS; push pending
 

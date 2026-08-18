@@ -29,6 +29,7 @@ import {
   visualContractAuthoringInputAccounting,
   visualContractAuthoringRouteIsAdmissible,
 } from '@/lib/visual-contract-compiler/authoringPolicy';
+import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 
 function cover() {
   return {
@@ -331,16 +332,16 @@ function patch(
   };
 }
 
-describe('atomic causal book-surface repair v6', () => {
-  it('publishes a strict v6 causal-delta schema with nullable cover/props and no action coverage', () => {
+describe('atomic causal book-surface repair v7 input authority', () => {
+  it('publishes the strict v6 causal-delta schema under v7 prompts with nullable cover/props and no action coverage', () => {
     expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
       'book-surface-repair-schema/v6',
     );
     expect(BOOK_SURFACE_REPAIR_PROMPT_VERSION).toBe(
-      'book-surface-repair-prompt/v6',
+      'book-surface-repair-prompt/v7',
     );
     expect(BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION).toBe(
-      'book-surface-repair-user-prompt/v6',
+      'book-surface-repair-user-prompt/v7',
     );
     expect(buildBookSurfaceRepairSystemPrompt()).toContain(
       'Return a repaired non-null value only for that page\'s exact writableFields',
@@ -404,9 +405,43 @@ describe('atomic causal book-surface repair v6', () => {
   });
 
   it('includes recurring props only for the exact lifecycle identity', () => {
-    const selected = authority(draft(), { lifecycle: true });
+    const lifecycleDraft = draft();
+    (
+      lifecycleDraft.recurringProps as Array<Record<string, unknown>>
+    )[0]!.firstRevealPage = 3;
+    (
+      lifecycleDraft.pageContracts as Array<Record<string, unknown>>
+    )[0]!.propConstraints = [
+      { propId: 'prop:cake', visibility: 'forbidden' },
+    ];
+    (
+      lifecycleDraft.pageContracts as Array<Record<string, unknown>>
+    )[1]!.propConstraints = [
+      { propId: 'prop:cake', visibility: 'required' },
+    ];
+    const selected = authority(lifecycleDraft, { lifecycle: true });
     expect(selected.repairRecurringProps).toBe(true);
-    expect(selected.recurringProps).toEqual([recurringProp()]);
+    expect(selected.recurringProps).toEqual([
+      { ...recurringProp(), firstRevealPage: 3 },
+    ]);
+    expect(selected.recurringPropLifecycleContext).toEqual([
+      {
+        propId: 'prop:cake',
+        currentFirstRevealPage: 3,
+        forbiddenPageNumbers: [1],
+        requiredPageNumbers: [2],
+      },
+    ]);
+    const decoded = decodeBookSurfaceRepairUserPrompt(
+      buildBookSurfaceRepairUserPrompt({ authority: selected }),
+    ) as {
+      recurringPropAuthority: {
+        lifecycleContext: unknown;
+      };
+    };
+    expect(decoded.recurringPropAuthority.lifecycleContext).toEqual(
+      selected.recurringPropLifecycleContext,
+    );
 
     expect(
       bookSurfaceRepairAuthority({
@@ -1611,6 +1646,25 @@ describe('atomic causal book-surface repair v6', () => {
       applyBookSurfaceRepairPatch({
         draft: original,
         authority: tamperedAuthority,
+        patch: validPatch,
+      }),
+    ).toThrow('book_surface_repair_authority_mismatch');
+    expect(original).toEqual(snapshot);
+
+    const contextTamperedAuthority = structuredClone(selected);
+    contextTamperedAuthority.recurringPropLifecycleContext[0]!
+      .requiredPageNumbers.push(1);
+    const {
+      authorityDigest: _contextAuthorityDigest,
+      ...contextTamperedContent
+    } = contextTamperedAuthority;
+    contextTamperedAuthority.authorityDigest = canonicalJsonDigest(
+      contextTamperedContent,
+    );
+    expect(() =>
+      applyBookSurfaceRepairPatch({
+        draft: original,
+        authority: contextTamperedAuthority,
         patch: validPatch,
       }),
     ).toThrow('book_surface_repair_authority_mismatch');

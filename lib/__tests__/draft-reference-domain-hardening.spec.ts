@@ -413,6 +413,18 @@ describe('captured reference-domain matrix', () => {
     ).toBe('unclassified');
     const componentIdentities = [
       [
+        'book_surface_repair_action_binding_changed',
+        'target_identity_invalid',
+      ],
+      [
+        'book_surface_repair_action_binding_stale',
+        'target_identity_invalid',
+      ],
+      [
+        'book_surface_repair_lifecycle_obligation_invalid',
+        'recurring_prop_invalid',
+      ],
+      [
         'page_contract_repair_action_binding_component_scope_invalid',
         'non_target_drift',
       ],

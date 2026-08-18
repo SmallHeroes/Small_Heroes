@@ -23,6 +23,7 @@ import {
   buildVisualContractAuthoringTerminalFailure,
   legacyVisualContractAuthoringTerminalFailureIsValid,
   legacyVisualContractRepairOutputDiagnosticsIsValid,
+  legacyVisualContractRepairOutputDiagnosticsV1IsValid,
   visualContractAuthoringTerminalFailureIsValid,
   visualContractRepairRouteAdmissionDiagnosticsIsValid,
   visualContractRepairOutputDiagnosticsIsValid,
@@ -750,7 +751,7 @@ describe('Visual Contract-specific terminal extension', () => {
       'repair_output_recurring_prop_invalid',
     );
     expect(visual.repairOutputDiagnostics).toEqual({
-      version: 'visual-contract-repair-output-diagnostics/v2',
+      version: 'visual-contract-repair-output-diagnostics/v3',
       repairAttempt: 2,
       repairMode: 'book_surface_patch',
       failureCode: 'recurring_prop_invalid',
@@ -810,7 +811,7 @@ describe('Visual Contract-specific terminal extension', () => {
         visualContractAuthoringTerminalFailureIsValid(roundTrip),
       ).toBe(true);
       expect(roundTrip.repairOutputDiagnostics).toMatchObject({
-        version: 'visual-contract-repair-output-diagnostics/v2',
+        version: 'visual-contract-repair-output-diagnostics/v3',
         failureCode,
         identity,
         repairOutputDiagnosticCount: 1,
@@ -835,14 +836,22 @@ describe('Visual Contract-specific terminal extension', () => {
       ...current,
       version: 'visual-contract-repair-output-diagnostics/v1',
     };
+    const legacyV2 = {
+      ...current,
+      version: 'visual-contract-repair-output-diagnostics/v2',
+    };
     const forgedLegacyAddition = {
       ...legacy,
       identity:
         'page_contract_repair_action_binding_component_target_invalid',
     };
+    const forgedLegacyV3Addition = {
+      ...legacyV2,
+      identity: 'book_surface_repair_action_binding_changed',
+    };
     const unknown = {
       ...current,
-      version: 'visual-contract-repair-output-diagnostics/v3',
+      version: 'visual-contract-repair-output-diagnostics/v4',
     };
     const legacyFailure = {
       ...currentFailure,
@@ -853,8 +862,15 @@ describe('Visual Contract-specific terminal extension', () => {
       repairOutputDiagnostics: forgedLegacyAddition,
     };
 
-    expect(legacyVisualContractRepairOutputDiagnosticsIsValid(legacy))
+    expect(legacyVisualContractRepairOutputDiagnosticsV1IsValid(legacy))
       .toBe(true);
+    expect(legacyVisualContractRepairOutputDiagnosticsIsValid(legacyV2))
+      .toBe(true);
+    expect(
+      legacyVisualContractRepairOutputDiagnosticsIsValid(
+        forgedLegacyV3Addition,
+      ),
+    ).toBe(false);
     expect(visualContractRepairOutputDiagnosticsIsReadable(legacy))
       .toBe(true);
     expect(visualContractRepairOutputDiagnosticsIsValid(legacy))
@@ -864,7 +880,7 @@ describe('Visual Contract-specific terminal extension', () => {
     expect(visualContractAuthoringTerminalFailureIsValid(legacyFailure))
       .toBe(true);
     expect(
-      legacyVisualContractRepairOutputDiagnosticsIsValid(
+      legacyVisualContractRepairOutputDiagnosticsV1IsValid(
         forgedLegacyAddition,
       ),
     ).toBe(false);

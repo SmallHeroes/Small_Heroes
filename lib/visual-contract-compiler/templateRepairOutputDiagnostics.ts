@@ -32,6 +32,12 @@ export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_V2_ADDITION_VALUES = [
   'page_contract_repair_action_binding_component_target_invalid',
 ] as const;
 
+export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_V3_ADDITION_VALUES = [
+  'book_surface_repair_action_binding_changed',
+  'book_surface_repair_action_binding_stale',
+  'book_surface_repair_lifecycle_obligation_invalid',
+] as const;
+
 /**
  * Closed, compiler-owned identities that may cross the repair-output boundary.
  * They contain no authored/provider content. Unknown exceptions deliberately
@@ -39,6 +45,7 @@ export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_V2_ADDITION_VALUES = [
  */
 export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_VALUES = [
   'book_surface_repair_authority_mismatch',
+  ...TEMPLATE_REPAIR_OUTPUT_IDENTITY_V3_ADDITION_VALUES,
   'book_surface_repair_cover_invalid',
   'book_surface_repair_cover_reference_invalid',
   'book_surface_repair_non_target_drift',

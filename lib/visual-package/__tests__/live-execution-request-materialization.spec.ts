@@ -360,12 +360,12 @@ describe('canonical live execution request materialization', () => {
     expect(
       CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_INPUT_VERSION,
     ).toBe(
-      'canonical-live-execution-request-materialization-input/v20',
+      'canonical-live-execution-request-materialization-input/v21',
     );
     expect(
       CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_RESULT_VERSION,
     ).toBe(
-      'canonical-live-execution-request-materialization-result/v24',
+      'canonical-live-execution-request-materialization-result/v25',
     );
     expect(result).toMatchObject({
       version:
@@ -447,7 +447,7 @@ describe('canonical live execution request materialization', () => {
       manifestPath: fixture.manifestPath,
       manifestDigest: fixture.manifestDigest,
       verificationVersion:
-        'canonical-live-request-verification/v30',
+        'canonical-live-request-verification/v31',
       structuredOutputCompatibility:
         manifest.structuredOutputCompatibility,
       compactRepairStructuredOutputCompatibility:
@@ -1299,7 +1299,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       (args) =>
         ({
           ...verifyCanonicalLiveRequestBundle(args),
-          version: 'canonical-live-request-verification/v29',
+          version: 'canonical-live-request-verification/v30',
         }) as unknown as ReturnType<
           typeof verifyCanonicalLiveRequestBundle
         >;
@@ -1320,7 +1320,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       (args) =>
         ({
           ...verifyCanonicalLiveExecution(args),
-          version: 'canonical-live-execution-readiness/v28',
+          version: 'canonical-live-execution-readiness/v29',
         }) as unknown as ReturnType<
           typeof verifyCanonicalLiveExecution
         >;

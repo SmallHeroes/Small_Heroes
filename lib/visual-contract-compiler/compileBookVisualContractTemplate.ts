@@ -823,6 +823,7 @@ export function templateRepairOutputFailureCode(
     return 'reference_authority_invalid';
   }
   if (
+    identity === 'book_surface_repair_lifecycle_obligation_invalid' ||
     /_(?:prop_invalid|prop_change_not_authorized)$/.test(
       identity,
     )
@@ -830,6 +831,8 @@ export function templateRepairOutputFailureCode(
     return 'recurring_prop_invalid';
   }
   if (
+    identity === 'book_surface_repair_action_binding_changed' ||
+    identity === 'book_surface_repair_action_binding_stale' ||
     identity ===
       'page_contract_repair_action_binding_component_stale' ||
     identity ===

@@ -8,6 +8,7 @@ import {
   TEMPLATE_REPAIR_MODE_VALUES,
   TEMPLATE_REPAIR_OUTPUT_FAILURE_CODE_VALUES,
   TEMPLATE_REPAIR_OUTPUT_IDENTITY_V2_ADDITION_VALUES,
+  TEMPLATE_REPAIR_OUTPUT_IDENTITY_V3_ADDITION_VALUES,
   templateRepairOutputIdentityIsValid,
   type TemplateRepairMode,
   type TemplateRepairOutputFailureCode,
@@ -77,8 +78,10 @@ export interface VisualContractRepairRouteAdmissionDiagnosticsInput {
 }
 
 export const VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION =
-  'visual-contract-repair-output-diagnostics/v2' as const;
+  'visual-contract-repair-output-diagnostics/v3' as const;
 export const LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION =
+  'visual-contract-repair-output-diagnostics/v2' as const;
+export const LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION_V1 =
   'visual-contract-repair-output-diagnostics/v1' as const;
 
 export interface VisualContractRepairOutputDiagnostics {
@@ -101,6 +104,11 @@ export interface LegacyVisualContractRepairOutputDiagnostics {
   repairOutputDiagnosticCount: 1;
 }
 
+export interface LegacyVisualContractRepairOutputDiagnosticsV1
+  extends Omit<LegacyVisualContractRepairOutputDiagnostics, 'version'> {
+  version: typeof LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION_V1;
+}
+
 export interface VisualContractRepairOutputDiagnosticsInput {
   repairAttempt: number;
   repairMode: TemplateRepairMode;
@@ -118,6 +126,9 @@ const REPAIR_FAILURE_CODES =
   );
 const V2_IDENTITY_ADDITIONS = new Set<string>(
   TEMPLATE_REPAIR_OUTPUT_IDENTITY_V2_ADDITION_VALUES,
+);
+const V3_IDENTITY_ADDITIONS = new Set<string>(
+  TEMPLATE_REPAIR_OUTPUT_IDENTITY_V3_ADDITION_VALUES,
 );
 
 const REPAIR_OUTPUT_DIAGNOSTIC_KEYS = [
@@ -336,7 +347,19 @@ export function legacyVisualContractRepairOutputDiagnosticsIsValid(
     version: LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION,
     identityIsValid: (identity) =>
       templateRepairOutputIdentityIsValid(identity) &&
-      !V2_IDENTITY_ADDITIONS.has(identity),
+      !V3_IDENTITY_ADDITIONS.has(identity),
+  });
+}
+
+export function legacyVisualContractRepairOutputDiagnosticsV1IsValid(
+  value: unknown,
+): value is LegacyVisualContractRepairOutputDiagnosticsV1 {
+  return visualContractRepairOutputDiagnosticsShapeIsValid(value, {
+    version: LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION_V1,
+    identityIsValid: (identity) =>
+      templateRepairOutputIdentityIsValid(identity) &&
+      !V2_IDENTITY_ADDITIONS.has(identity) &&
+      !V3_IDENTITY_ADDITIONS.has(identity),
   });
 }
 
@@ -344,10 +367,12 @@ export function visualContractRepairOutputDiagnosticsIsReadable(
   value: unknown,
 ): value is
   | VisualContractRepairOutputDiagnostics
-  | LegacyVisualContractRepairOutputDiagnostics {
+  | LegacyVisualContractRepairOutputDiagnostics
+  | LegacyVisualContractRepairOutputDiagnosticsV1 {
   return (
     visualContractRepairOutputDiagnosticsIsValid(value) ||
-    legacyVisualContractRepairOutputDiagnosticsIsValid(value)
+    legacyVisualContractRepairOutputDiagnosticsIsValid(value) ||
+    legacyVisualContractRepairOutputDiagnosticsV1IsValid(value)
   );
 }
 
@@ -355,7 +380,10 @@ export function visualContractRepairOutputDiagnosticsVersionStatus(
   value: unknown,
 ): 'current' | 'legacy_immutable' | 'unsupported' {
   if (visualContractRepairOutputDiagnosticsIsValid(value)) return 'current';
-  if (legacyVisualContractRepairOutputDiagnosticsIsValid(value)) {
+  if (
+    legacyVisualContractRepairOutputDiagnosticsIsValid(value) ||
+    legacyVisualContractRepairOutputDiagnosticsV1IsValid(value)
+  ) {
     return 'legacy_immutable';
   }
   return 'unsupported';

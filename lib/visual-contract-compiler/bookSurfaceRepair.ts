@@ -33,9 +33,9 @@ export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =
-  'book-surface-repair-prompt/v6' as const;
+  'book-surface-repair-prompt/v7' as const;
 export const BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION =
-  'book-surface-repair-user-prompt/v6' as const;
+  'book-surface-repair-user-prompt/v7' as const;
 
 const MAX_VALIDATION_MESSAGES = 128;
 const MAX_VALIDATION_MESSAGE_LENGTH = 1_024;
@@ -237,6 +237,13 @@ export interface BookSurfacePageReadOnlyContext {
   } | null;
 }
 
+export interface BookSurfaceRecurringPropLifecycleContext {
+  propId: string;
+  currentFirstRevealPage: number | null;
+  forbiddenPageNumbers: number[];
+  requiredPageNumbers: number[];
+}
+
 export interface BookSurfaceRepairAffectedPage
   extends PageContractRepairAffectedPage {
   writableFields: BookSurfaceWritablePageField[];
@@ -248,6 +255,7 @@ export interface BookSurfaceRepairAuthority {
   sourceDraftDigest: string;
   coverContract: Record<string, unknown> | null;
   recurringProps: Record<string, unknown>[] | null;
+  recurringPropLifecycleContext: BookSurfaceRecurringPropLifecycleContext[];
   repairRecurringProps: boolean;
   presentationTargets: PresentationRequirementRepairTarget[];
   affectedPages: BookSurfaceRepairAffectedPage[];
@@ -536,6 +544,79 @@ function providerReadOnlyContext(
     ),
     transitionTopology: structuredClone(value.transitionTopology),
   };
+}
+
+function buildRecurringPropLifecycleContext(args: {
+  recurringProps: readonly Record<string, unknown>[];
+  pages: readonly Record<string, unknown>[];
+}): BookSurfaceRecurringPropLifecycleContext[] | null {
+  const pageNumbers = args.pages.map((page) => page.pageNumber);
+  if (
+    pageNumbers.some((pageNumber) => !positiveInteger(pageNumber)) ||
+    new Set(pageNumbers).size !== pageNumbers.length
+  ) {
+    return null;
+  }
+  const constraintsByPage = new Map<
+    number,
+    Array<{ propId: string; visibility: 'forbidden' | 'required' }>
+  >();
+  for (const page of args.pages) {
+    if (!Array.isArray(page.propConstraints)) return null;
+    const constraints = page.propConstraints.flatMap((value) => {
+      const constraint = recordValue(value);
+      return constraint &&
+        typeof constraint.propId === 'string' &&
+        constraint.propId.length > 0 &&
+        (constraint.visibility === 'forbidden' ||
+          constraint.visibility === 'required')
+        ? [{
+            propId: constraint.propId,
+            visibility: constraint.visibility as 'forbidden' | 'required',
+          }]
+        : [];
+    });
+    if (constraints.length !== page.propConstraints.length) return null;
+    constraintsByPage.set(page.pageNumber as number, constraints);
+  }
+  const seenPropIds = new Set<string>();
+  const context: BookSurfaceRecurringPropLifecycleContext[] = [];
+  for (const prop of args.recurringProps) {
+    if (
+      typeof prop.id !== 'string' ||
+      prop.id.length === 0 ||
+      seenPropIds.has(prop.id) ||
+      (prop.firstRevealPage !== null &&
+        prop.firstRevealPage !== undefined &&
+        typeof prop.firstRevealPage !== 'number')
+    ) {
+      return null;
+    }
+    seenPropIds.add(prop.id);
+    const forbiddenPageNumbers: number[] = [];
+    const requiredPageNumbers: number[] = [];
+    for (const pageNumber of [...(pageNumbers as number[])].sort(
+      (left, right) => left - right,
+    )) {
+      for (const constraint of constraintsByPage.get(pageNumber) ?? []) {
+        if (constraint.propId !== prop.id) continue;
+        (constraint.visibility === 'forbidden'
+          ? forbiddenPageNumbers
+          : requiredPageNumbers
+        ).push(pageNumber);
+      }
+    }
+    context.push({
+      propId: prop.id,
+      currentFirstRevealPage:
+        typeof prop.firstRevealPage === 'number'
+          ? prop.firstRevealPage
+          : null,
+      forbiddenPageNumbers: [...new Set(forbiddenPageNumbers)],
+      requiredPageNumbers: [...new Set(requiredPageNumbers)],
+    });
+  }
+  return context;
 }
 
 function writableFieldsForAffectedPage(args: {
@@ -1229,6 +1310,16 @@ export function bookSurfaceRepairAuthority(args: {
   const recurringPropIds = recurringProps.some((value) => value === null)
     ? null
     : uniqueRecordIds(typedRecurringProps);
+  const draftPages = Array.isArray(args.draft.pageContracts)
+    ? args.draft.pageContracts.map(recordValue)
+    : [];
+  const recurringPropLifecycleContext =
+    repairRecurringProps && !draftPages.some((page) => page === null)
+      ? buildRecurringPropLifecycleContext({
+          recurringProps: typedRecurringProps,
+          pages: draftPages as Record<string, unknown>[],
+        })
+      : [];
   if (
     !affectedPages ||
     !presentationTargetsAreValidForDraft({
@@ -1250,6 +1341,7 @@ export function bookSurfaceRepairAuthority(args: {
     (!repairRecurringProps && recurringPropValidationHints.length > 0) ||
     !refs ||
     !recurringPropIds ||
+    recurringPropLifecycleContext === null ||
     JSON.stringify([...recurringPropIds].sort()) !==
       JSON.stringify(refs.recurringPropIds)
   ) {
@@ -1262,6 +1354,9 @@ export function bookSurfaceRepairAuthority(args: {
     recurringProps: repairRecurringProps
       ? structuredClone(typedRecurringProps)
       : null,
+    recurringPropLifecycleContext: structuredClone(
+      recurringPropLifecycleContext,
+    ),
     repairRecurringProps,
     presentationTargets: args.presentationTargets.map((target) =>
       structuredClone(target),
@@ -1287,10 +1382,10 @@ export function buildBookSurfaceRepairSystemPrompt(): string {
     'Return presentationPatches in the exact target order, coverContract or null exactly as authorized, recurringProps or null exactly as authorized, and pageStructuralPatches in the exact affected-page order.',
     'Every pageStructuralPatch must return the strict full patch shape. Copy pageNumber exactly. Return a repaired non-null value only for that page\'s exact writableFields and return null for every other structural field, including locationId, zoneId and sameLocationAs.',
     'readOnlyContext is preservation authority only and must never be returned. Use its cast/presence, anchors, spatial nodes, scrubbed safety, lifecycle, transition and action-binding facts to keep the repair valid.',
-    'When actionRequirements is writable, preserve the exact action count and ordered beatIds from actionBindingAuthority. Never return or alter actionSemanticCoverage.',
+    'When actionRequirements is writable, preserve the exact action count and ordered beatIds from actionBindingAuthority, and preserve every exact sourceEvidenceId already present in the actionRequirements projection. Never return or alter actionSemanticCoverage.',
     'For each presentation target, copy its identities and one exact permitted contractPointer. The overlapping page mustShow array is not writable; preserve it exactly so the compiler can resolve the authorized pointer/value locally.',
     'No raw validation prose is included. Use only the typed targets, causes, exact projections, bounded diagnostic counts and read-only authority supplied in the decoded payload.',
-    'When recurringPropAuthority is non-null, preserve the exact recurring-prop ID order and resolve only its typed lifecycle invariant. Otherwise return recurringProps:null.',
+    'When recurringPropAuthority is non-null, preserve the exact recurring-prop ID order and resolve only its typed lifecycle invariant. Use lifecycleContext as read-only page visibility authority: every page before a non-null firstRevealPage must be listed forbidden, and no listed required page may precede it. Otherwise return recurringProps:null.',
     'When coverAuthority is non-null, use only IDs and worldType present in referenceAuthority and resolve only the typed cover projection invariant. Otherwise return coverContract:null.',
     'Preserve all valid semantics. Never infer or return unrelated page or global fields.',
     'Output only the JSON object required by the strict repair schema.',
@@ -1325,6 +1420,9 @@ export function buildBookSurfaceRepairUserPrompt(args: {
         : {
             recurringProps: structuredClone(
               args.authority.recurringProps,
+            ),
+            lifecycleContext: structuredClone(
+              args.authority.recurringPropLifecycleContext,
             ),
             diagnosticCount:
               args.authority.recurringPropValidationHints.length,
@@ -1830,6 +1928,28 @@ function validateRecurringPropAuthorityAndPatch(args: {
   const currentProps = Array.isArray(args.draft.recurringProps)
     ? args.draft.recurringProps.map(recordValue)
     : [];
+  const currentPages = Array.isArray(args.draft.pageContracts)
+    ? args.draft.pageContracts.map(recordValue)
+    : [];
+  const expectedLifecycleContext =
+    currentProps.some((value) => value === null) ||
+    currentPages.some((value) => value === null)
+      ? null
+      : buildRecurringPropLifecycleContext({
+          recurringProps: currentProps as Record<string, unknown>[],
+          pages: currentPages as Record<string, unknown>[],
+        });
+  if (
+    !expectedLifecycleContext ||
+    canonicalJson(args.authority.recurringPropLifecycleContext) !==
+      canonicalJson(
+        args.authority.repairRecurringProps
+          ? expectedLifecycleContext
+          : [],
+      )
+  ) {
+    throw new Error('book_surface_repair_authority_mismatch');
+  }
   const currentPropIds = currentProps.some((value) => value === null)
     ? null
     : uniqueRecordIds(currentProps as Record<string, unknown>[]);
