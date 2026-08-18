@@ -59,8 +59,8 @@
   align-items: center;
   justify-content: center;
   background: #fff;
-  color: var(--purple, #7c5cfc);
-  border: 1.5px solid var(--purple, #7c5cfc);
+  color: var(--purple, var(--purple-500));
+  border: 1.5px solid var(--purple, var(--purple-500));
   border-radius: 999px;
   font-family: var(--fb);
   font-size: 14px;
@@ -183,7 +183,7 @@
   display: none;
   font-size: 13px;
   font-weight: 500;
-  color: #886cff;
+  color: var(--purple-500);
   text-align: center;
   letter-spacing: .01em;
   min-height: 18px;
@@ -1356,10 +1356,10 @@
   padding: 0 18px;
   min-height: 48px;
   border-radius: 12px;
-  border: 1.5px solid var(--purple, #7c5cfc);
+  border: 1.5px solid var(--purple, var(--purple-500));
   background: #fff;
-  color: var(--purple, #7c5cfc);
-  font-family: 'Heebo', sans-serif;
+  color: var(--purple, var(--purple-500));
+  font-family: 'Rubik', sans-serif;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -1368,7 +1368,7 @@
 .coupon-apply-btn:hover { background: #f1ecff; }
 .coupon-apply-btn:disabled { opacity: 0.5; cursor: default; }
 .coupon-status {
-  font-family: 'Heebo', sans-serif;
+  font-family: 'Rubik', sans-serif;
   font-size: 13px;
   min-height: 18px;
   line-height: 1.4;
@@ -1382,17 +1382,17 @@
   color: #8b83a6;
   text-decoration: line-through;
   text-decoration-color: #b7afcd;
-  font-family: 'Heebo', sans-serif;
+  font-family: 'Rubik', sans-serif;
   font-feature-settings: "tnum";
 }
 .price-row--discount .label {
-  color: var(--purple, #7c5cfc);
+  color: var(--purple, var(--purple-500));
   font-weight: 700;
 }
 .price-row--discount .val--discount {
-  color: var(--purple, #7c5cfc);
+  color: var(--purple, var(--purple-500));
   font-weight: 800;
-  font-family: 'Heebo', sans-serif;
+  font-family: 'Rubik', sans-serif;
   font-feature-settings: "tnum";
 }
 
@@ -1555,7 +1555,7 @@
 }
 
 .bottom-bar-total-price {
-  font-family: 'Heebo', sans-serif;
+  font-family: 'Rubik', sans-serif;
   font-size: 28px;
   font-weight: 800;
   color: #8467ff;
@@ -2539,7 +2539,7 @@
 }
 
 .direction-card-price-digits {
-  font-family: 'Heebo', sans-serif;
+  font-family: 'Rubik', sans-serif;
 }
 
 .direction-card-cta {
@@ -2954,7 +2954,7 @@
   cursor: pointer;
   font-weight: 600;
   font-size: 15px;
-  font-family: var(--fd, 'Heebo', sans-serif);
+  font-family: var(--fd, 'Rubik', sans-serif);
   transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 .btn-retry-cat:hover {
@@ -3377,7 +3377,7 @@
 
 /* Launch discount: struck-through "original" price above the current price. */
 .product-card-price-was {
-  font-family: 'Heebo', sans-serif; /* override --fd — Abraham digits render incorrectly, so the struck price was illegible */
+  font-family: 'Rubik', sans-serif; /* kept explicit: this rule predates --fd being Rubik */
   font-size: 16px;
   font-weight: 700;
   color: #8b83a6; /* muted (secondary) but legible */
@@ -3394,11 +3394,11 @@
 }
 
 .product-card-price-digits {
-  font-family: 'Heebo', sans-serif;
+  font-family: 'Rubik', sans-serif;
 }
 
 .product-card-launch-flag {
-  font-family: 'Heebo', sans-serif; /* running font — legible at small pill size, unlike --fd */
+  font-family: 'Rubik', sans-serif; /* running font — legible at small pill size, unlike --fd */
   font-size: 12px;
   font-weight: 800;
   color: #8467ff;
@@ -3565,7 +3565,7 @@
 }
 
 .mvp-challenge-card-companion {
-  color: #886cff;
+  color: var(--purple-500);
   font-weight: 600;
   font-size: clamp(12px, 1.3vw, 13.5px);
   margin: 0;
@@ -3586,7 +3586,7 @@
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #ede8ff;
+  background: var(--purple-100);
   color: #6b5b95;
   z-index: 1;
 }
