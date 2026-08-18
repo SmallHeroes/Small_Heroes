@@ -332,16 +332,16 @@ function patch(
   };
 }
 
-describe('atomic causal book-surface repair v7 input authority', () => {
-  it('publishes the strict v6 causal-delta schema under v7 prompts with nullable cover/props and no action coverage', () => {
+describe('atomic causal book-surface repair v8 input authority', () => {
+  it('publishes the strict v6 causal-delta schema under v8 prompts with nullable cover/props and no action coverage', () => {
     expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
       'book-surface-repair-schema/v6',
     );
     expect(BOOK_SURFACE_REPAIR_PROMPT_VERSION).toBe(
-      'book-surface-repair-prompt/v7',
+      'book-surface-repair-prompt/v8',
     );
     expect(BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION).toBe(
-      'book-surface-repair-user-prompt/v7',
+      'book-surface-repair-user-prompt/v8',
     );
     expect(buildBookSurfaceRepairSystemPrompt()).toContain(
       'Return a repaired non-null value only for that page\'s exact writableFields',
@@ -776,7 +776,7 @@ describe('atomic causal book-surface repair v7 input authority', () => {
     ).not.toHaveProperty('actionSemanticCoverage');
     expect(affectedPages[0]).not.toHaveProperty('pageContract');
     expect(buildBookSurfaceRepairSystemPrompt()).toContain(
-      'Never return or alter actionSemanticCoverage',
+      'never return or alter actionSemanticCoverage',
     );
     const serialized = JSON.stringify(payload);
     expect(serialized).not.toContain(selected.sourceDraftDigest);
@@ -1239,7 +1239,7 @@ describe('atomic causal book-surface repair v7 input authority', () => {
     expect(stale).toEqual(snapshot);
   });
 
-  it('rejects provider drift from the compiler-owned Source Evidence binding', () => {
+  it('reattaches compiler-owned beat and Source Evidence identity while rejecting action cardinality drift', () => {
     const original = draft();
     const evidenceId = `se1_${'a'.repeat(64)}`;
     const pageOne = (
@@ -1289,22 +1289,43 @@ describe('atomic causal book-surface repair v7 input authority', () => {
     const patchedAction = (
       pagePatch.actionRequirements as Array<Record<string, unknown>>
     )[0]!;
+    patchedAction.beatId = 'beat:p1:provider_rewrite';
     patchedAction.subject = {
-      kind: 'source_phenomenon',
-      sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+      kind: 'entity',
+      entityKind: 'cast',
+      entityId: 'child:hero',
     };
     const snapshot = structuredClone(original);
 
+    const validPatch = {
+      presentationPatches: [],
+      coverContract: null,
+      recurringProps: null,
+      pageStructuralPatches: [pagePatch],
+    } satisfies BookSurfaceRepairPatch;
+    const result = applyBookSurfaceRepairPatch({
+      draft: original,
+      authority: selected!,
+      patch: validPatch,
+    });
+    const resultAction = (
+      (result.pageContracts as Array<Record<string, unknown>>)[0]!
+        .actionRequirements as Array<Record<string, unknown>>
+    )[0]!;
+    expect(resultAction.beatId).toBe('beat:p1:phenomenon_contact');
+    expect(resultAction.subject).toEqual({
+      kind: 'source_phenomenon',
+      sourceEvidenceId: evidenceId,
+    });
+    expect(original).toEqual(snapshot);
+
+    const cardinalityDrift = structuredClone(validPatch);
+    cardinalityDrift.pageStructuralPatches[0]!.actionRequirements = [];
     expect(() =>
       applyBookSurfaceRepairPatch({
         draft: original,
         authority: selected!,
-        patch: {
-          presentationPatches: [],
-          coverContract: null,
-          recurringProps: null,
-          pageStructuralPatches: [pagePatch],
-        },
+        patch: cardinalityDrift,
       }),
     ).toThrow('book_surface_repair_action_binding_changed');
     expect(original).toEqual(snapshot);

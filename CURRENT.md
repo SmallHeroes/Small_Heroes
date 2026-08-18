@@ -2,9 +2,42 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `bbb8afd7f9ebdd7f24c61bbd19a3c2f18afd7e9a`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `371a7bdcea15491d412e75a1b3323fe41b11294f`.
 
-## BOOK SURFACE V7 LIFECYCLE CONTEXT — independent technical PASS; Fresh next
+## BOOK SURFACE V8 COMPILER-OWNED ACTION IDENTITY — implementation green; independent QA next
+
+The sole v7 canonical attempt under
+`outputs/r1d-booksurface-v7-lifecycle-fresh-371a7bdc-20260818T090537741Z`
+ended fail-closed and was not retried. Receipt v37
+`b1119ee62546de204086f2df561ec573b01c6b7a57e1078f62ba7bf76410a83f`
+records three completed provider calls, two repairs, zero transport
+retries/fallback and route
+`initial -> page_spatial_reference_patch -> book_surface_patch`. The exact
+terminal repair identity is `book_surface_repair_action_binding_changed`.
+No Candidate or render authority exists from that attempt.
+
+The v8 correction keeps semantic action fields provider-writable by exact
+existing action index, but makes compiler-owned binding identity non-provider
+authority. Before atomic validation/application, the compiler restores every
+exact ordered beat ID and any existing `source_phenomenon` Source Evidence
+subject from the validated current authority. Count, ordering, stale-authority,
+non-target drift, coverage immutability and full-template validation remain
+unchanged and fail closed.
+
+Book Surface schema remains v6; system/user prompts advance to v8. Authoring
+request/receipt/readiness are v34/v38/v36; B0 is v23/v32/v32; execution
+materialization is v22/v26; Supervisor is v31/v31/v24; Fresh is v31. Policy,
+model/tier/reasoning, calls/repairs, caps `[40000,32000,36000]`, retry/fallback,
+Candidate v9 and the hard `$5` fence are unchanged.
+
+Focused validation is green: core **157/157**, downstream authority **327/327**
+(with one known post-assertion Vitest RPC timeout), TypeScript PASS and
+diff-check PASS. Implementation made no credential, provider, Fresh, live,
+image or render call. Independent Claude Code review is next. Only after PASS
+may a brand-new Fresh package authorize one bounded live attempt; a valid
+Candidate remains mandatory before Guy's approved full-book LOW render.
+
+## BOOK SURFACE V7 LIFECYCLE CONTEXT — historical technical PASS; live attempt consumed
 
 The sole v6 canonical attempt under
 `outputs/r1d-booksurface-v6-fresh-bbb8afd7-20260818T081428231Z`

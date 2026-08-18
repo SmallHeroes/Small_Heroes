@@ -33,9 +33,9 @@ export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =
-  'book-surface-repair-prompt/v7' as const;
+  'book-surface-repair-prompt/v8' as const;
 export const BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION =
-  'book-surface-repair-user-prompt/v7' as const;
+  'book-surface-repair-user-prompt/v8' as const;
 
 const MAX_VALIDATION_MESSAGES = 128;
 const MAX_VALIDATION_MESSAGE_LENGTH = 1_024;
@@ -1382,7 +1382,7 @@ export function buildBookSurfaceRepairSystemPrompt(): string {
     'Return presentationPatches in the exact target order, coverContract or null exactly as authorized, recurringProps or null exactly as authorized, and pageStructuralPatches in the exact affected-page order.',
     'Every pageStructuralPatch must return the strict full patch shape. Copy pageNumber exactly. Return a repaired non-null value only for that page\'s exact writableFields and return null for every other structural field, including locationId, zoneId and sameLocationAs.',
     'readOnlyContext is preservation authority only and must never be returned. Use its cast/presence, anchors, spatial nodes, scrubbed safety, lifecycle, transition and action-binding facts to keep the repair valid.',
-    'When actionRequirements is writable, preserve the exact action count and ordered beatIds from actionBindingAuthority, and preserve every exact sourceEvidenceId already present in the actionRequirements projection. Never return or alter actionSemanticCoverage.',
+    'When actionRequirements is writable, return exactly one semantic action for every existing action index, in the same order. Never add, drop or reorder actions. The compiler reattaches the exact beatId and any source_phenomenon Source Evidence subject from its private authority before apply; never return or alter actionSemanticCoverage.',
     'For each presentation target, copy its identities and one exact permitted contractPointer. The overlapping page mustShow array is not writable; preserve it exactly so the compiler can resolve the authorized pointer/value locally.',
     'No raw validation prose is included. Use only the typed targets, causes, exact projections, bounded diagnostic counts and read-only authority supplied in the decoded payload.',
     'When recurringPropAuthority is non-null, preserve the exact recurring-prop ID order and resolve only its typed lifecycle invariant. Use lifecycleContext as read-only page visibility authority: every page before a non-null firstRevealPage must be listed forbidden, and no listed required page may precede it. Otherwise return recurringProps:null.',
@@ -2105,6 +2105,59 @@ function validateEffectiveRecurringPropLifecycle(args: {
   }
 }
 
+function restoreCompilerOwnedActionBindingIdentity(args: {
+  authority: BookSurfaceRepairAuthority;
+  patch: BookSurfaceRepairPatch;
+}): BookSurfaceRepairPatch {
+  const restored = structuredClone(args.patch);
+  const patchByPage = new Map(
+    restored.pageStructuralPatches.map((pagePatch) => [
+      pagePatch.pageNumber,
+      pagePatch,
+    ]),
+  );
+  for (const affectedPage of args.authority.affectedPages) {
+    if (!affectedPage.writableFields.includes('actionRequirements')) continue;
+    const pagePatch = patchByPage.get(affectedPage.pageNumber);
+    const patchActions = Array.isArray(pagePatch?.actionRequirements)
+      ? pagePatch.actionRequirements.map(recordValue)
+      : [];
+    const bindings = affectedPage.readOnlyContext.actionBindingAuthority;
+    const authorityActions = Array.isArray(
+      affectedPage.pageContract.actionRequirements,
+    )
+      ? affectedPage.pageContract.actionRequirements.map(recordValue)
+      : [];
+    if (
+      patchActions.length !== bindings.length ||
+      authorityActions.length !== bindings.length ||
+      patchActions.some((action) => action === null) ||
+      authorityActions.some((action) => action === null)
+    ) {
+      continue;
+    }
+    for (let actionIndex = 0; actionIndex < bindings.length; actionIndex += 1) {
+      const binding = bindings[actionIndex]!;
+      const patchAction = patchActions[actionIndex]!;
+      const authoritySubject = recordValue(
+        authorityActions[actionIndex]!.subject,
+      );
+      patchAction.beatId = binding.beatId;
+      if (
+        authoritySubject?.kind === 'source_phenomenon' &&
+        typeof authoritySubject.sourceEvidenceId === 'string' &&
+        SOURCE_EVIDENCE_ID_PATTERN.test(authoritySubject.sourceEvidenceId)
+      ) {
+        patchAction.subject = {
+          kind: 'source_phenomenon',
+          sourceEvidenceId: authoritySubject.sourceEvidenceId,
+        };
+      }
+    }
+  }
+  return restored;
+}
+
 export function applyBookSurfaceRepairPatch(args: {
   draft: Record<string, unknown>;
   authority: BookSurfaceRepairAuthority;
@@ -2119,9 +2172,10 @@ export function applyBookSurfaceRepairPatch(args: {
   }
   let validatedPatch: BookSurfaceRepairPatch;
   try {
-    validatedPatch = parseBookSurfaceRepairPatch(
-      JSON.stringify(args.patch),
-    );
+    validatedPatch = restoreCompilerOwnedActionBindingIdentity({
+      authority: args.authority,
+      patch: parseBookSurfaceRepairPatch(JSON.stringify(args.patch)),
+    });
   } catch (error) {
     if (error instanceof Error) throw error;
     throw new Error('book_surface_repair_response_invalid_shape');
