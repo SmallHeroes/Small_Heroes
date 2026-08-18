@@ -30,7 +30,7 @@
   width: min(440px, 100%);
   border-radius: 26px;
   background: linear-gradient(180deg, #ffffff 0%, #faf9ff 74%);
-  border: 1px solid #efecf8;
+  border: 1px solid var(--n-200);
   box-shadow:
     0 40px 90px rgba(36, 27, 77, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -70,17 +70,17 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1px solid #e5e0f3;
+  border: 1px solid var(--n-200);
   background: #ffffff;
-  color: #5f5a70;
+  color: var(--n-500);
   font-size: 15px;
   cursor: pointer;
   transition: background 180ms ease, transform 140ms ease;
   z-index: 3;
 }
-.close:hover { background: #f3f1f9; }
+.close:hover { background: var(--n-100); }
 .close:active { transform: scale(0.94); }
-.close:focus-visible { outline: 3px solid #ffee6c; outline-offset: 2px; }
+.close:focus-visible { outline: 3px solid var(--yellow-400); outline-offset: 2px; }
 
 /* ── The stage: a warm full-width field the companion lives in ──
    The yellowish light spans the whole top of the card and fades into the
@@ -217,7 +217,7 @@
   font-family: var(--font-rubik, 'Rubik'), sans-serif;
   font-weight: 700;
   font-size: clamp(28px, 3.6vw, 36px);
-  color: #241b4d;
+  color: var(--n-900);
   margin: 0;
 }
 
@@ -225,7 +225,7 @@
   font-family: var(--font-rubik, 'Rubik'), sans-serif;
   font-size: 16.5px;
   line-height: 1.55;
-  color: #5f5a70;
+  color: var(--n-500);
   margin: 0;
   max-width: 34ch;
 }
@@ -233,7 +233,7 @@
 .context {
   font-family: var(--font-rubik, 'Rubik'), sans-serif;
   font-size: 13.5px;
-  color: #8b86a0;
+  color: var(--n-400);
   margin: 0 0 6px;
 }
 
@@ -246,18 +246,18 @@
   width: 100%;
   padding: 0 26px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #8a6bff, #6d4df0);
+  background: linear-gradient(135deg, var(--purple-500), var(--purple-600));
   color: #fff;
   font-family: var(--font-rubik, 'Rubik'), sans-serif;
   font-weight: 700;
   font-size: 18px;
   text-decoration: none;
-  box-shadow: 0 14px 36px rgba(109, 77, 240, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  box-shadow: 0 14px 36px rgba(123, 47, 204, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.35);
   transition: transform 240ms cubic-bezier(0.34, 1.4, 0.5, 1), box-shadow 240ms ease;
 }
-.cta:hover { transform: translate3d(0, -3px, 0); box-shadow: 0 20px 48px rgba(109, 77, 240, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.cta:hover { transform: translate3d(0, -3px, 0); box-shadow: 0 20px 48px rgba(123, 47, 204, 0.52), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
 .cta:active { transform: translate3d(0, -1px, 0) scale(0.99); transition-duration: 110ms; }
-.cta:focus-visible { outline: 3px solid #ffee6c; outline-offset: 3px; }
+.cta:focus-visible { outline: 3px solid var(--yellow-400); outline-offset: 3px; }
 
 /* ── Mobile: bottom sheet ── */
 @media (max-width: 640px) {
@@ -299,7 +299,7 @@
     aspect-ratio: 1;
     width: auto;
     border-radius: 20px;
-    border: 1px solid #efecf8;
+    border: 1px solid var(--n-200);
     box-shadow: none;
   }
 

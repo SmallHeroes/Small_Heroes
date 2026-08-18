@@ -36,7 +36,7 @@
   --surface-page: var(--white, #ffffff);
   --surface-raised: var(--white, #ffffff);
   --surface-alt: var(--bg-light, #f7f6fb);
-  --surface-sunken: #f1eff9;
+  --surface-sunken: var(--purple-50, #f7f2fe);
 
   --border-soft: var(--border, #ebe7f7);
   --border-strong: #d8cdfd;

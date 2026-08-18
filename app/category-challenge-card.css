@@ -79,7 +79,7 @@
 }
 
 button.mvp-challenge-card:focus-visible {
-  outline: 3px solid var(--brand-purple, #886cff);
+  outline: 3px solid var(--brand-purple, var(--purple-500));
   outline-offset: 3px;
 }
 
@@ -88,7 +88,7 @@ button.mvp-challenge-card {
 }
 
 .mvp-challenge-card.selected {
-  border-color: var(--brand-purple, #886cff);
+  border-color: var(--brand-purple, var(--purple-500));
   background: #fdfcff;
   box-shadow:
     0 0 0 3px rgba(136, 108, 255, 0.22),
@@ -147,7 +147,7 @@ button.mvp-challenge-card {
   font-weight: 400;
   font-size: 14.5px;
   line-height: 1.55;
-  color: #6b6680;
+  color: var(--n-500);
 }
 
 /* empty one-liner (wizard / start) must not leave a gap */
@@ -176,19 +176,19 @@ button.mvp-challenge-card {
   font-weight: 800;
   font-size: clamp(17px, 1.7vw, 18px);
   line-height: 1.25;
-  color: #241b4d;
+  color: var(--n-900);
   margin: 0;
 }
 
 .mvp-challenge-card-companion {
-  color: #886cff;
+  color: var(--purple-500);
   font-weight: 600;
   font-size: clamp(12px, 1.3vw, 13.5px);
   margin: 0;
 }
 
 .mvp-challenge-card-oneliner {
-  color: #9a96a8;
+  color: var(--n-400);
   font-size: clamp(11.5px, 1.2vw, 13px);
   line-height: 1.4;
   margin: 0;
@@ -203,8 +203,8 @@ button.mvp-challenge-card {
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #ede8ff;
-  color: #6b5b95;
+  background: var(--purple-100);
+  color: var(--purple-700);
   z-index: 1;
 }
 

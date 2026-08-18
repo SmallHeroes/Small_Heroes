@@ -11,7 +11,7 @@
   height: 32px;
   border-radius: 50%;
   border: none;
-  background: #886cff;
+  background: var(--purple-500);
   color: #fff;
   font-family: var(--fb, 'Rubik', sans-serif);
   font-size: 14px;
@@ -23,7 +23,7 @@
 }
 
 .circleBtn:focus-visible {
-  outline: 2px solid #886cff;
+  outline: 2px solid var(--purple-500);
   outline-offset: 2px;
 }
 
