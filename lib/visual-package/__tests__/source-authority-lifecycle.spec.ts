@@ -6517,6 +6517,93 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       });
   });
 
+  it('persists a one-call candidate after compiler-owned missing source-phenomenon binding closure', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const initial = fullyActionedBunnyDraft(snapshot);
+    const page = initial.pageContracts[0] as unknown as Record<string, unknown>;
+    const pageNumber = Number(page.pageNumber);
+    const evidence = snapshot.content.sourceEvidenceCatalog.entries.find(
+      (entry) => entry.pageNumber === pageNumber,
+    );
+    if (!evidence) throw new Error('missing lifecycle source evidence');
+    const beatId = `beat:p${pageNumber}:lifecycle_source_event`;
+    page.actionRequirements ??= [];
+    (page.actionRequirements as Array<Record<string, unknown>>).push({
+      beatId,
+      subject: {
+        kind: 'source_phenomenon',
+        sourceEvidenceId: evidence.sourceEvidenceId,
+      },
+      predicate: 'touches',
+      object: null,
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'must',
+      laterality: null,
+    });
+    const projectionPage = structuredClone(page) as unknown as PageVisualContract;
+    projectionPage.actionRequirements = [{
+      checkId: `action:p${pageNumber}_lifecycle_source_event`,
+      subject: {
+        kind: 'source_phenomenon',
+        sourceEvidenceId: evidence.sourceEvidenceId,
+        sourcePhrase: evidence.excerpt,
+      },
+      predicate: 'touches',
+      polarity: 'must',
+    }];
+    const [projection] = projectPageMustShow(
+      projectionPage,
+      initial as unknown as BookVisualContract,
+    );
+    if (!projection) throw new Error('missing lifecycle source projection');
+    (page.mustShow as string[]).push(projection);
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => ({
+        output: JSON.stringify(initial),
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: `missing-binding-${args.attempt}`,
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 2_000,
+            total_tokens: 3_000,
+            output_tokens_details: { reasoning_tokens: 500 },
+          },
+        },
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'completed',
+      callCount: 1,
+      repairCount: 0,
+      failure: null,
+      draftValidationStatus: 'completed',
+    });
+    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(
+      result.compileResult!.actionSemanticCoverage.find(
+        (record) => record.beatId === beatId,
+      ),
+    ).toMatchObject({
+      sourceEvidenceId: evidence.sourceEvidenceId,
+      disposition: {
+        kind: 'action_requirement',
+        checkId: `action:p${pageNumber}_lifecycle_source_event`,
+      },
+    });
+  });
+
   it('persists the live-shaped oversized mixed surface through one compact BookSurface v6 repair within the standard budget', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
@@ -6832,6 +6919,88 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
+  it('terminates a second page action-binding scope rejection without spending a fourth call', async () => {
+    const snapshot = storySnapshot('fox_uri_adventure');
+    const request = requestFor(snapshot, 'live');
+    const invalid = actionCapabilityCalibrationDraft(snapshot);
+    const invalidPage = invalid.pageContracts.find(
+      (page) => page.pageNumber === 3,
+    )! as unknown as Record<string, unknown>;
+    const invalidCoverage = invalidPage.actionSemanticCoverage as Array<
+      Record<string, unknown>
+    >;
+    const invalidActions = invalidPage.actionRequirements as Array<
+      Record<string, unknown>
+    >;
+    invalidCoverage[1]!.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
+    const targetBeatId = invalidActions[1]!.beatId as string;
+    const scopeInvalidPage = structuredClone(invalidPage);
+    delete scopeInvalidPage.castIds;
+    delete scopeInvalidPage.castStates;
+    delete scopeInvalidPage.characterPresence;
+    const scopeInvalidCoverage =
+      scopeInvalidPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+    scopeInvalidCoverage[1]!.disposition = {
+      kind: 'action_requirement',
+    };
+    scopeInvalidCoverage[0]!.beatId = targetBeatId;
+    scopeInvalidCoverage[0]!.disposition = {
+      kind: 'action_requirement',
+    };
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => ({
+        output:
+          args.attempt === 1
+            ? JSON.stringify(invalid)
+            : JSON.stringify({
+                pageContracts: [scopeInvalidPage],
+              }),
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: `repeated-scope-correction-${args.attempt}`,
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 2_000,
+            total_tokens: 3_000,
+            output_tokens_details: { reasoning_tokens: 500 },
+          },
+        },
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 3,
+      repairCount: 2,
+      candidateDigest: null,
+      draftValidationStatus: 'interrupted',
+      failure: {
+        code: 'repair_output_invalid',
+        repairOutputDiagnostics: {
+          repairAttempt: 3,
+          repairMode: 'page_contract_patch',
+          identity: 'page_contract_repair_action_binding_scope_invalid',
+        },
+      },
+    });
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([null, 'page_contract_patch', 'page_contract_patch']);
+    expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(result.compileResult).toBeNull();
+  });
+
   it('uses the reserved final standard repair when the first PageContract response omits its exact patch set', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
@@ -6917,7 +7086,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('keeps a sixth incomplete PageContract response terminal without an eighth call', async () => {
+  it('keeps a second incomplete PageContract response terminal without another call', async () => {
     const snapshot = bunnySnapshot();
     const invalid = fullyActionedBunnyDraft(snapshot);
     const invalidPages = invalid.pageContracts
@@ -6975,19 +7144,19 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
     expect(result.receipt).toMatchObject({
       status: 'failed',
-      callCount: 7,
-      repairCount: 6,
+      callCount: 3,
+      repairCount: 2,
       candidateDigest: null,
       failure: {
         code: 'repair_output_invalid',
         repairOutputDiagnostics: {
           identity: 'page_contract_repair_patch_set_incomplete',
-          repairAttempt: 7,
+          repairAttempt: 3,
           repairMode: 'page_contract_patch',
         },
       },
     });
-    expect(provider.call).toHaveBeenCalledTimes(7);
+    expect(provider.call).toHaveBeenCalledTimes(3);
   });
 
   it('repeats BookSurface with null cover for the 12-page pure structural residual and persists a candidate', async () => {

@@ -4585,6 +4585,7 @@ export async function compileBookVisualContractTemplate(
   let pageContractPreviousFailure:
     | PageContractRepairPreviousFailure
     | null = null;
+  let pageContractIncompleteFailureSeen = false;
   for (let attempt = 1; ; attempt++) {
     const recurringPropLifecycleNormalization =
       normalizeDraftRecurringPropLifecycle(draft);
@@ -4609,7 +4610,8 @@ export async function compileBookVisualContractTemplate(
       : null;
     if (
       actionBindingNormalization &&
-      actionBindingNormalization.normalizations.length > 0
+      (actionBindingNormalization.normalizations.length > 0 ||
+        actionBindingNormalization.missingBindingNormalizations.length > 0)
     ) {
       draft = {
         ...draft,
@@ -4619,6 +4621,10 @@ export async function compileBookVisualContractTemplate(
         ...actionBindingNormalization.normalizations.map(
           (normalization) =>
             `compiler normalized exact action-binding component on page ${normalization.pageNumber} (${normalization.memberActionIndexes.length} actions; ${normalization.generatedBindings.length} generated binding${normalization.generatedBindings.length === 1 ? '' : 's'})`,
+        ),
+        ...actionBindingNormalization.missingBindingNormalizations.map(
+          (normalization) =>
+            `compiler restored exact missing source-phenomenon action binding on page ${normalization.pageNumber} at action ${normalization.actionIndex}`,
         ),
       );
     }
@@ -5409,6 +5415,7 @@ export async function compileBookVisualContractTemplate(
           pageContracts: parsePageContractRepairs(rawPatch),
         });
         pageContractPreviousFailure = null;
+        pageContractIncompleteFailureSeen = false;
       } else {
         draft = asObj(
           parseContractJson(
@@ -5442,14 +5449,16 @@ export async function compileBookVisualContractTemplate(
         repairMode === 'page_contract_patch' &&
         failureIdentity ===
           'page_contract_repair_patch_set_incomplete' &&
+        !pageContractIncompleteFailureSeen &&
         attempt < STANDARD_MAX_REPAIR_ATTEMPTS
       ) {
         // The provider returned a strict-schema-valid but incomplete page set.
         // The original draft is still byte-identical because the atomic
         // applier rejects before cloning/applying any page. Consume only the
-        // already-reserved final standard repair call with the exact same
-        // closed authority. A second incomplete response remains terminal;
-        // this never creates a fourth call or transport retry.
+        // already-reserved one correction call with the exact same closed
+        // authority. A second incomplete response remains terminal and cannot
+        // consume another logical call or transport retry.
+        pageContractIncompleteFailureSeen = true;
         continue;
       }
       if (
@@ -5458,14 +5467,15 @@ export async function compileBookVisualContractTemplate(
         error instanceof Error &&
         error.message ===
           'page_contract_repair_action_binding_scope_invalid' &&
+        pageContractPreviousFailure === null &&
         attempt < STANDARD_MAX_REPAIR_ATTEMPTS
       ) {
         // The completed response attempted to change a wider action/coverage
         // binding scope than the compiler-owned target permits. Keep the
         // original draft unchanged and use the already-authorized remaining
-        // logical repair call with one closed correction hint. This is not a
-        // transport retry and cannot exceed the existing 3-call/2-repair
-        // policy.
+        // logical repair call with one closed correction hint. A second scope
+        // rejection is terminal through the ordinary sanitized repair-output
+        // evidence and cannot consume another provider call.
         pageContractPreviousFailure =
           'target_scope_invalid';
         continue;

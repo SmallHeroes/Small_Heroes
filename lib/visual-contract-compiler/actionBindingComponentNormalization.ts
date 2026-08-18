@@ -7,6 +7,8 @@ import {
 
 export const ACTION_BINDING_COMPONENT_NORMALIZATION_VERSION =
   'action-binding-component-normalization/v1' as const;
+export const ACTION_MISSING_BINDING_NORMALIZATION_VERSION =
+  'action-missing-binding-normalization/v1' as const;
 
 export interface ActionBindingComponentNormalization {
   version: typeof ACTION_BINDING_COMPONENT_NORMALIZATION_VERSION;
@@ -22,9 +24,19 @@ export interface ActionBindingComponentNormalization {
   }>;
 }
 
+export interface ActionMissingBindingNormalization {
+  version: typeof ACTION_MISSING_BINDING_NORMALIZATION_VERSION;
+  pageNumber: number;
+  actionIndex: number;
+  beatId: string;
+  sourceEvidenceId: string;
+  coverageIndex: number;
+}
+
 export interface ExactActionBindingComponentNormalizationResult {
   pages: Record<string, unknown>[];
   normalizations: ActionBindingComponentNormalization[];
+  missingBindingNormalizations: ActionMissingBindingNormalization[];
 }
 
 function recordValue(value: unknown): Record<string, unknown> | null {
@@ -93,6 +105,7 @@ function assertNormalizationPostconditions(args: {
   normalizedActions: readonly unknown[];
   normalizedCoverage: readonly unknown[];
   normalizations: readonly ActionBindingComponentNormalization[];
+  missingBindingNormalizations: readonly ActionMissingBindingNormalization[];
 }): void {
   const generatedBindings = args.normalizations.flatMap(
     (normalization) => normalization.generatedBindings,
@@ -105,7 +118,9 @@ function assertNormalizationPostconditions(args: {
   );
   normalizationInvariant(
     args.normalizedCoverage.length ===
-      args.originalCoverage.length + generatedBindings.length,
+      args.originalCoverage.length +
+        generatedBindings.length +
+        args.missingBindingNormalizations.length,
   );
 
   for (const [actionIndex, originalAction] of args.originalActions.entries()) {
@@ -137,12 +152,21 @@ function assertNormalizationPostconditions(args: {
 
   const expectedGeneratedCoverageIndexes = new Set(
     Array.from(
-      { length: generatedBindings.length },
+      {
+        length:
+          generatedBindings.length +
+          args.missingBindingNormalizations.length,
+      },
       (_, offset) => args.originalCoverage.length + offset,
     ),
   );
   const observedGeneratedCoverageIndexes = new Set(
-    generatedBindings.map((binding) => binding.coverageIndex),
+    [
+      ...generatedBindings.map((binding) => binding.coverageIndex),
+      ...args.missingBindingNormalizations.map(
+        (normalization) => normalization.coverageIndex,
+      ),
+    ],
   );
   normalizationInvariant(
     expectedGeneratedCoverageIndexes.size ===
@@ -207,12 +231,66 @@ function assertNormalizationPostconditions(args: {
       new Set(memberBeatIds).size === memberBeatIds.length,
     );
   }
+
+  for (const normalization of args.missingBindingNormalizations) {
+    const action = recordValue(
+      args.normalizedActions[normalization.actionIndex],
+    );
+    normalizationInvariant(
+      canonicalHash(action) ===
+        canonicalHash(args.originalActions[normalization.actionIndex]),
+    );
+    normalizationInvariant(
+      action?.beatId === normalization.beatId,
+    );
+    const subject = recordValue(action?.subject);
+    normalizationInvariant(
+      Boolean(subject) &&
+        hasExactKeys(subject!, ['kind', 'sourceEvidenceId']) &&
+        subject!.kind === 'source_phenomenon' &&
+        subject!.sourceEvidenceId === normalization.sourceEvidenceId,
+    );
+    const matchingActions = args.normalizedActions.filter(
+      (candidate) =>
+        recordValue(candidate)?.beatId === normalization.beatId,
+    );
+    normalizationInvariant(matchingActions.length === 1);
+    const matchingCoverage = args.normalizedCoverage.flatMap(
+      (rawCoverage, coverageIndex) => {
+        const record = recordValue(rawCoverage);
+        return record?.beatId === normalization.beatId
+          ? [{ record, coverageIndex }]
+          : [];
+      },
+    );
+    normalizationInvariant(
+      matchingCoverage.length === 1 &&
+        matchingCoverage[0]!.coverageIndex ===
+          normalization.coverageIndex,
+    );
+    const record = matchingCoverage[0]!.record;
+    const disposition = recordValue(record.disposition);
+    normalizationInvariant(
+      hasExactKeys(record, [
+        'beatId',
+        'sourceEvidenceId',
+        'disposition',
+      ]) &&
+        record.sourceEvidenceId === normalization.sourceEvidenceId &&
+        Boolean(disposition) &&
+        hasExactKeys(disposition!, ['kind']) &&
+        disposition!.kind === 'action_requirement',
+    );
+  }
 }
 
 /**
- * Deterministically closes only an exact duplicate action-beat component whose
- * missing 1:1 coverage bindings are already fully determined by current page
- * structure and one canonical same-page Source Evidence record.
+ * Deterministically closes two exact mechanical binding defects:
+ *
+ * - a duplicate action-beat component whose missing 1:1 bindings are fully
+ *   determined by one existing canonical same-page coverage record; and
+ * - one source-phenomenon action whose beat has no coverage record and whose
+ *   exact same-page Source Evidence identity is already carried by its subject.
  *
  * Ambiguous or malformed components are deliberately left byte-for-byte
  * unchanged so the ordinary fail-closed validators retain authority.
@@ -223,6 +301,7 @@ export function normalizeExactActionBindingComponents(args: {
 }): ExactActionBindingComponentNormalizationResult {
   const pages = [...args.pages];
   const normalizations: ActionBindingComponentNormalization[] = [];
+  const missingBindingNormalizations: ActionMissingBindingNormalization[] = [];
   const pageNumberCounts = new Map<number, number>();
   for (const page of pages) {
     const pageNumber = page.pageNumber;
@@ -332,11 +411,63 @@ export function normalizeExactActionBindingComponents(args: {
         ];
       });
 
-    if (eligibleComponents.length === 0) continue;
+    const eligibleMissingBindings = [...actionsByBeatId.entries()]
+      .filter(([, members]) => members.length === 1)
+      .sort(([, left], [, right]) =>
+        left[0]!.actionIndex - right[0]!.actionIndex,
+      )
+      .flatMap(([beatId, members]) => {
+        const member = members[0]!;
+        const action = member.action;
+        if (
+          !hasExactKeys(action, [
+            'beatId',
+            'subject',
+            'predicate',
+            'object',
+            'spatialEffect',
+            'spatialConstraint',
+            'polarity',
+            'laterality',
+          ]) ||
+          coverage.some(
+            (rawCoverage) => recordValue(rawCoverage)?.beatId === beatId,
+          )
+        ) {
+          return [];
+        }
+        const subject = recordValue(action.subject);
+        if (
+          !subject ||
+          !hasExactKeys(subject, ['kind', 'sourceEvidenceId']) ||
+          subject.kind !== 'source_phenomenon'
+        ) {
+          return [];
+        }
+        const resolution = resolveSourceEvidenceId({
+          catalog: args.sourceEvidenceCatalog,
+          sourceEvidenceId: subject.sourceEvidenceId,
+          pageNumber,
+        });
+        if (!resolution.ok) return [];
+        return [{
+          actionIndex: member.actionIndex,
+          beatId,
+          sourceEvidenceId: resolution.entry.sourceEvidenceId,
+        }];
+      });
+
+    if (
+      eligibleComponents.length === 0 &&
+      eligibleMissingBindings.length === 0
+    ) {
+      continue;
+    }
 
     const normalizedActions = structuredClone(actions) as unknown[];
     const normalizedCoverage = structuredClone(coverage) as unknown[];
     const pageNormalizations: ActionBindingComponentNormalization[] = [];
+    const pageMissingBindingNormalizations: ActionMissingBindingNormalization[] = [];
     for (const component of eligibleComponents) {
       const memberActionIndexes = component.members.map(
         (member) => member.actionIndex,
@@ -376,6 +507,22 @@ export function normalizeExactActionBindingComponents(args: {
         generatedBindings,
       });
     }
+    for (const binding of eligibleMissingBindings) {
+      const coverageIndex = normalizedCoverage.length;
+      normalizedCoverage.push({
+        beatId: binding.beatId,
+        sourceEvidenceId: binding.sourceEvidenceId,
+        disposition: { kind: 'action_requirement' },
+      });
+      pageMissingBindingNormalizations.push({
+        version: ACTION_MISSING_BINDING_NORMALIZATION_VERSION,
+        pageNumber,
+        actionIndex: binding.actionIndex,
+        beatId: binding.beatId,
+        sourceEvidenceId: binding.sourceEvidenceId,
+        coverageIndex,
+      });
+    }
     assertNormalizationPostconditions({
       pageNumber,
       originalActions: actions,
@@ -383,8 +530,13 @@ export function normalizeExactActionBindingComponents(args: {
       normalizedActions,
       normalizedCoverage,
       normalizations: pageNormalizations,
+      missingBindingNormalizations:
+        pageMissingBindingNormalizations,
     });
     normalizations.push(...pageNormalizations);
+    missingBindingNormalizations.push(
+      ...pageMissingBindingNormalizations,
+    );
     pages[pageIndex] = {
       ...page,
       actionRequirements: normalizedActions,
@@ -392,5 +544,5 @@ export function normalizeExactActionBindingComponents(args: {
     };
   }
 
-  return { pages, normalizations };
+  return { pages, normalizations, missingBindingNormalizations };
 }

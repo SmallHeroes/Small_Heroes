@@ -252,6 +252,56 @@ describe('compiler-owned draft action identity', () => {
     );
   });
 
+  it('restores one exact missing source-phenomenon binding without consuming a repair', async () => {
+    const draft = draftFor(['look']);
+    const page = (draft.pageContracts as Array<Record<string, unknown>>)[0]!;
+    const evidence = sourceEvidenceCatalog.entries[0]!;
+    const action = (
+      page.actionRequirements as Array<Record<string, unknown>>
+    )[0]!;
+    action.subject = {
+      kind: 'source_phenomenon',
+      sourceEvidenceId: evidence.sourceEvidenceId,
+    };
+    action.predicate = 'touches';
+    action.spatialConstraint = null;
+    page.actionSemanticCoverage = [];
+    const projectionPage = structuredClone(page) as unknown as PageVisualContract;
+    projectionPage.actionRequirements = [{
+      checkId: 'action:p1_look',
+      subject: {
+        kind: 'source_phenomenon',
+        sourceEvidenceId: evidence.sourceEvidenceId,
+        sourcePhrase: evidence.excerpt,
+      },
+      predicate: 'touches',
+      polarity: 'must',
+    }];
+    page.mustShow = projectPageMustShow(
+      projectionPage,
+      draft as unknown as BookVisualContract,
+    );
+    const callLLM = vi.fn(async () => JSON.stringify(draft));
+
+    const result = await compileBookVisualContractTemplate(input, { callLLM });
+
+    expect(callLLM).toHaveBeenCalledTimes(1);
+    expect(result.repairAttempts).toEqual([]);
+    expect(result.actionSemanticCoverage).toContainEqual(
+      expect.objectContaining({
+        beatId: 'beat:p1:look',
+        sourceEvidenceId: evidence.sourceEvidenceId,
+        disposition: {
+          kind: 'action_requirement',
+          checkId: 'action:p1_look',
+        },
+      }),
+    );
+    expect(result.notes).toContain(
+      'compiler restored exact missing source-phenomenon action binding on page 1 at action 0',
+    );
+  });
+
   it('normalizes a typed same-page presentation requirement without inventing an action', async () => {
     const draft = draftFor(['look']);
     const page = (draft.pageContracts as Array<Record<string, unknown>>)[0]!;

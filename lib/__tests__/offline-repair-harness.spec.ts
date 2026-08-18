@@ -108,6 +108,66 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.maxPositiveCompleteIssueDelta).toBe(0);
   });
 
+  it('closes an exact missing source-phenomenon binding before routing and spends no repair slot', async () => {
+    const source = bunnySource();
+    const draft = bunnyDraft();
+    const page = draft.pageContracts[0]!;
+    const evidence = source.sourceEvidenceCatalog.entries.find(
+      (entry) => entry.pageNumber === page.pageNumber,
+    );
+    if (!evidence) throw new Error('offline_harness_source_evidence_missing');
+    const beatId = `beat:p${page.pageNumber}:offline_source_event`;
+    const rawAction = {
+      beatId,
+      subject: {
+        kind: 'source_phenomenon',
+        sourceEvidenceId: evidence.sourceEvidenceId,
+      },
+      predicate: 'touches',
+      object: null,
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'must',
+      laterality: null,
+    };
+    page.actionRequirements ??= [];
+    (page.actionRequirements as Array<Record<string, unknown>>).push(rawAction);
+    const projectionPage = structuredClone(page) as unknown as PageVisualContract;
+    projectionPage.actionRequirements = [{
+      checkId: `action:p${page.pageNumber}_offline_source_event`,
+      subject: {
+        kind: 'source_phenomenon',
+        sourceEvidenceId: evidence.sourceEvidenceId,
+        sourcePhrase: evidence.excerpt,
+      },
+      predicate: 'touches',
+      polarity: 'must',
+    }];
+    const [projection] = projectPageMustShow(
+      projectionPage,
+      draft as unknown as BookVisualContract,
+    );
+    if (!projection) throw new Error('offline_harness_projection_missing');
+    (page.mustShow as string[]).push(projection);
+
+    const result = await runOfflineRepairHarness({
+      input: source,
+      initialDraft: draft,
+      completeDiagnosticIssuesByAttempt: [[]],
+    });
+
+    expect(result.outcome).toBe('candidate');
+    expect(result.calls.map((call) => call.repairMode)).toEqual([null]);
+    expect(result.stages).toEqual([
+      expect.objectContaining({
+        attempt: 1,
+        surfacedIssueCount: 0,
+        completeIssueCount: 0,
+      }),
+    ]);
+    expect(result.monotonicCompleteIssueDelta).toBe(true);
+  });
+
   it('replays an injected full-draft repair and reports exact issue delta', async () => {
     const invalid = bunnyDraft();
     invalid.worldType = '';

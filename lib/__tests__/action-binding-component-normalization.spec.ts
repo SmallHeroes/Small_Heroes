@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { canonicalHash } from '@/lib/canonical-json';
 import {
   ACTION_BINDING_COMPONENT_NORMALIZATION_VERSION,
+  ACTION_MISSING_BINDING_NORMALIZATION_VERSION,
   normalizeExactActionBindingComponents,
 } from '@/lib/visual-contract-compiler/actionBindingComponentNormalization';
 import {
@@ -11,6 +12,7 @@ import {
 } from '@/lib/visual-contract-compiler/sourceEvidenceCatalog';
 
 function catalog(sourceVariant = 'normalization fixture'): SourceEvidenceCatalog {
+  const pageNumbers = Array.from({ length: 8 }, (_value, index) => index + 1);
   return buildSourceEvidenceCatalog({
     storyKey: 'normalization_fixture',
     sourceIdentity: {
@@ -18,14 +20,33 @@ function catalog(sourceVariant = 'normalization fixture'): SourceEvidenceCatalog
       path: 'story-bank/normalization-fixture.md',
       digestAlgorithm: 'sha256',
       digest: canonicalHash(sourceVariant),
-      pageCount: 3,
-      pageNumbers: [1, 2, 3],
+      pageCount: pageNumbers.length,
+      pageNumbers,
     },
-    pages: [1, 2, 3].map((pageNumber) => ({
+    pages: pageNumbers.map((pageNumber) => ({
       pageNumber,
       text: `${sourceVariant}: source sentence for page ${pageNumber}.`,
     })),
   });
+}
+
+function sourcePhenomenonAction(
+  beatId: string,
+  evidenceId: string,
+): Record<string, unknown> {
+  return {
+    beatId,
+    subject: {
+      kind: 'source_phenomenon',
+      sourceEvidenceId: evidenceId,
+    },
+    predicate: 'looks_at',
+    object: null,
+    spatialEffect: null,
+    spatialConstraint: null,
+    polarity: 'must',
+    laterality: null,
+  };
 }
 
 function sourceEvidenceId(
@@ -77,6 +98,232 @@ function page(args: {
 }
 
 describe('compiler-owned action-binding component normalization', () => {
+  it('appends one exact missing source-phenomenon binding without changing any authored byte', () => {
+    const sourceCatalog = catalog();
+    const evidenceId = sourceEvidenceId(sourceCatalog, 1);
+    const beatId = 'beat:p1:source_glow';
+    const input = [page({
+      pageNumber: 1,
+      actionBeatIds: [],
+      coverageRecords: [],
+    })];
+    input[0]!.actionRequirements = [
+      sourcePhenomenonAction(beatId, evidenceId),
+    ];
+    const before = structuredClone(input);
+
+    const result = normalizeExactActionBindingComponents({
+      pages: input,
+      sourceEvidenceCatalog: sourceCatalog,
+    });
+
+    expect(input).toEqual(before);
+    expect(result.normalizations).toEqual([]);
+    expect(result.missingBindingNormalizations).toEqual([{
+      version: ACTION_MISSING_BINDING_NORMALIZATION_VERSION,
+      pageNumber: 1,
+      actionIndex: 0,
+      beatId,
+      sourceEvidenceId: evidenceId,
+      coverageIndex: 0,
+    }]);
+    expect(result.pages[0]!.actionRequirements).toEqual(
+      before[0]!.actionRequirements,
+    );
+    expect(result.pages[0]!.actionSemanticCoverage).toEqual([{
+      beatId,
+      sourceEvidenceId: evidenceId,
+      disposition: { kind: 'action_requirement' },
+    }]);
+
+    const rerun = normalizeExactActionBindingComponents({
+      pages: result.pages,
+      sourceEvidenceCatalog: sourceCatalog,
+    });
+    expect(rerun.normalizations).toEqual([]);
+    expect(rerun.missingBindingNormalizations).toEqual([]);
+    expect(rerun.pages).toEqual(result.pages);
+  });
+
+  it('restores four live-shaped missing bindings in deterministic page order', () => {
+    const sourceCatalog = catalog();
+    const pageNumbers = [8, 1, 6, 3];
+    const pages = pageNumbers.map((pageNumber) => {
+      const evidenceId = sourceEvidenceId(sourceCatalog, pageNumber);
+      const result = page({
+        pageNumber,
+        actionBeatIds: [],
+        coverageRecords: [],
+      });
+      result.actionRequirements = [sourcePhenomenonAction(
+        `beat:p${pageNumber}:source_event`,
+        evidenceId,
+      )];
+      return result;
+    });
+
+    const result = normalizeExactActionBindingComponents({
+      pages,
+      sourceEvidenceCatalog: sourceCatalog,
+    });
+
+    expect(
+      result.missingBindingNormalizations.map(
+        (normalization) => normalization.pageNumber,
+      ),
+    ).toEqual([1, 3, 6, 8]);
+    for (const normalizedPage of result.pages) {
+      expect(normalizedPage.actionSemanticCoverage).toHaveLength(1);
+    }
+  });
+
+  it('composes missing-binding closure with duplicate-component closure without changing their authorities', () => {
+    const sourceCatalog = catalog();
+    const evidenceId = sourceEvidenceId(sourceCatalog, 1);
+    const duplicateBeatId = 'beat:p1:shared';
+    const missingBeatId = 'beat:p1:source_event';
+    const inputPage = page({
+      pageNumber: 1,
+      actionBeatIds: [duplicateBeatId, duplicateBeatId],
+      coverageRecords: [coverage(duplicateBeatId, evidenceId)],
+    });
+    (inputPage.actionRequirements as unknown[]).push(
+      sourcePhenomenonAction(missingBeatId, evidenceId),
+    );
+
+    const result = normalizeExactActionBindingComponents({
+      pages: [inputPage],
+      sourceEvidenceCatalog: sourceCatalog,
+    });
+
+    expect(result.normalizations).toHaveLength(1);
+    expect(result.missingBindingNormalizations).toHaveLength(1);
+    expect(result.missingBindingNormalizations[0]).toMatchObject({
+      actionIndex: 2,
+      beatId: missingBeatId,
+      coverageIndex: 2,
+    });
+    expect(result.pages[0]!.actionSemanticCoverage).toHaveLength(3);
+  });
+
+  it.each([
+    ['duplicate action ownership', (sourceCatalog: SourceEvidenceCatalog) => {
+      const evidenceId = sourceEvidenceId(sourceCatalog, 1);
+      const beatId = 'beat:p1:source_event';
+      const candidate = page({
+        pageNumber: 1,
+        actionBeatIds: [],
+        coverageRecords: [],
+      });
+      candidate.actionRequirements = [
+        sourcePhenomenonAction(beatId, evidenceId),
+        sourcePhenomenonAction(beatId, evidenceId),
+      ];
+      return [candidate];
+    }],
+    ['existing same-beat non-action coverage', (sourceCatalog: SourceEvidenceCatalog) => {
+      const evidenceId = sourceEvidenceId(sourceCatalog, 1);
+      const beatId = 'beat:p1:source_event';
+      const candidate = page({
+        pageNumber: 1,
+        actionBeatIds: [],
+        coverageRecords: [coverage(beatId, evidenceId, {
+          kind: 'non_visual',
+          rationale: 'narrative_context',
+        })],
+      });
+      candidate.actionRequirements = [
+        sourcePhenomenonAction(beatId, evidenceId),
+      ];
+      return [candidate];
+    }],
+    ['extra action key', (sourceCatalog: SourceEvidenceCatalog) => {
+      const evidenceId = sourceEvidenceId(sourceCatalog, 1);
+      const candidate = page({
+        pageNumber: 1,
+        actionBeatIds: [],
+        coverageRecords: [],
+      });
+      candidate.actionRequirements = [{
+        ...sourcePhenomenonAction('beat:p1:source_event', evidenceId),
+        unexpected: true,
+      }];
+      return [candidate];
+    }],
+    ['extra subject key', (sourceCatalog: SourceEvidenceCatalog) => {
+      const evidenceId = sourceEvidenceId(sourceCatalog, 1);
+      const candidate = page({
+        pageNumber: 1,
+        actionBeatIds: [],
+        coverageRecords: [],
+      });
+      const actionRecord = sourcePhenomenonAction(
+        'beat:p1:source_event',
+        evidenceId,
+      );
+      actionRecord.subject = {
+        kind: 'source_phenomenon',
+        sourceEvidenceId: evidenceId,
+        sourcePhrase: 'provider-authored prose is forbidden here',
+      };
+      candidate.actionRequirements = [actionRecord];
+      return [candidate];
+    }],
+    ['wrong-page source evidence', (sourceCatalog: SourceEvidenceCatalog) => {
+      const candidate = page({
+        pageNumber: 1,
+        actionBeatIds: [],
+        coverageRecords: [],
+      });
+      candidate.actionRequirements = [sourcePhenomenonAction(
+        'beat:p1:source_event',
+        sourceEvidenceId(sourceCatalog, 2),
+      )];
+      return [candidate];
+    }],
+    ['unknown source evidence', () => {
+      const candidate = page({
+        pageNumber: 1,
+        actionBeatIds: [],
+        coverageRecords: [],
+      });
+      candidate.actionRequirements = [sourcePhenomenonAction(
+        'beat:p1:source_event',
+        `se1_${'f'.repeat(64)}`,
+      )];
+      return [candidate];
+    }],
+    ['invalid page-scoped beat', (sourceCatalog: SourceEvidenceCatalog) => {
+      const candidate = page({
+        pageNumber: 1,
+        actionBeatIds: [],
+        coverageRecords: [],
+      });
+      candidate.actionRequirements = [sourcePhenomenonAction(
+        'beat:p2:source_event',
+        sourceEvidenceId(sourceCatalog, 1),
+      )];
+      return [candidate];
+    }],
+  ] as const)(
+    'leaves an ineligible missing binding with %s byte-identical',
+    (_name, buildPages) => {
+      const sourceCatalog = catalog();
+      const input = buildPages(sourceCatalog);
+      const before = structuredClone(input);
+
+      const result = normalizeExactActionBindingComponents({
+        pages: input,
+        sourceEvidenceCatalog: sourceCatalog,
+      });
+
+      expect(result.normalizations).toEqual([]);
+      expect(result.missingBindingNormalizations).toEqual([]);
+      expect(result.pages).toEqual(before);
+      expect(input).toEqual(before);
+    },
+  );
+
   it('closes one exact component with the minimum deterministic diff and does not mutate its input', () => {
     const sourceCatalog = catalog();
     const evidenceId = sourceEvidenceId(sourceCatalog, 1);

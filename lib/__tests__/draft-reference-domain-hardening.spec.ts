@@ -1044,7 +1044,7 @@ describe('captured reference-domain matrix', () => {
     },
   );
 
-  it('emits and routes action_coverage_cardinality_invalid but rejects coverage insertion', async () => {
+  it('rejects repeated provider-authored coverage insertion after one closed correction hint', async () => {
     const invalid = matrixDraft();
     coverage(invalid).shift();
     const validPage = structuredClone(pageRecord(matrixDraft()));
@@ -1062,7 +1062,7 @@ describe('captured reference-domain matrix', () => {
 
     expect(failure).toBeInstanceOf(TemplateRepairOutputInvalidError);
     expect(failure).toMatchObject({
-      repairAttempt: 7,
+      repairAttempt: 3,
       repairMode: 'page_contract_patch',
       failureCode: 'non_target_drift',
     });
@@ -1073,12 +1073,8 @@ describe('captured reference-domain matrix', () => {
     ).toEqual([
       'page_contract_patch',
       'page_contract_patch',
-      'page_contract_patch',
-      'page_contract_patch',
-      'page_contract_patch',
-      'page_contract_patch',
     ]);
-    expect(callLLM).toHaveBeenCalledTimes(7);
+    expect(callLLM).toHaveBeenCalledTimes(3);
   });
 
   it('uses the remaining repair budget only after page action-binding scope drift', async () => {
@@ -1218,7 +1214,7 @@ describe('captured reference-domain matrix', () => {
       compileBookVisualContractTemplate(input, { callLLM }),
     ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
-    expect(callLLM).toHaveBeenCalledTimes(7);
+    expect(callLLM).toHaveBeenCalledTimes(3);
     expect(callLLM.mock.calls[1]![3]).toMatchObject({
       kind: 'repair',
       repairMode: 'page_contract_patch',
@@ -1290,7 +1286,7 @@ describe('captured reference-domain matrix', () => {
       compileBookVisualContractTemplate(input, { callLLM }),
     ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
 
-    expect(callLLM).toHaveBeenCalledTimes(7);
+    expect(callLLM).toHaveBeenCalledTimes(3);
     expect(callLLM.mock.calls[1]![3]).toMatchObject({
       kind: 'repair',
       repairMode: 'page_contract_patch',
