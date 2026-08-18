@@ -595,7 +595,7 @@ describe('Visual Contract-specific terminal extension', () => {
       code: 'repair_route_input_not_admissible',
       issueCodes: ['repair_route_input_not_admissible'],
       repairRouteAdmissionDiagnostics: {
-        repairAttempt: 5,
+        repairAttempt: 6,
         repairMode: 'book_surface_patch',
         inputAccounting,
         maxAdmissibleInputBytes: 59_904,
@@ -617,7 +617,7 @@ describe('Visual Contract-specific terminal extension', () => {
     });
     expect(failure.repairRouteAdmissionDiagnostics).toEqual({
       version: 'visual-contract-repair-route-admission-diagnostics/v1',
-      repairAttempt: 5,
+      repairAttempt: 6,
       repairMode: 'book_surface_patch',
       inputAccounting,
       maxAdmissibleInputBytes: 59_904,
@@ -652,7 +652,7 @@ describe('Visual Contract-specific terminal extension', () => {
       code: 'repair_route_input_not_admissible',
       issueCodes: ['repair_route_input_not_admissible'],
       repairRouteAdmissionDiagnostics: {
-        repairAttempt: 5,
+        repairAttempt: 6,
         repairMode: 'book_surface_patch',
         inputAccounting: {
           systemBytes: 1_000,

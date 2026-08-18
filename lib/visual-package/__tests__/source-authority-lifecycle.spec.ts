@@ -226,9 +226,9 @@ function standardAttemptOutputBudgetForBase(base: number) {
   const limits = authoringStandardAttemptOutputLimitsForBase(base);
   const payload = {
     version:
-      'visual-contract-authoring-standard-attempt-output-budget/v4' as const,
+      'visual-contract-authoring-standard-attempt-output-budget/v5' as const,
     limits,
-    totalPool: 5 * base,
+    totalPool: 6 * base,
   };
   return {
     ...payload,
@@ -1015,7 +1015,7 @@ describe('exact zero-cost authoring preflight', () => {
       buildVisualContractAuthoringStandardAttemptOutputBudget(
         authoringRejectedEvidencePageCount(12),
       ).limits,
-    ).toEqual([40_000, 32_000, 36_000, 36_000, 36_000]);
+    ).toEqual([40_000, 32_000, 36_000, 36_000, 36_000, 36_000]);
   });
 
   it.each([
@@ -1092,17 +1092,17 @@ describe('exact zero-cost authoring preflight', () => {
         maxInputTokens: 64_000,
         standardAttempts: {
           version:
-            'visual-contract-authoring-standard-attempt-output-budget/v4',
-          limits: [40_000, 32_000, 36_000, 36_000, 36_000],
-          totalPool: 180_000,
+            'visual-contract-authoring-standard-attempt-output-budget/v5',
+          limits: [40_000, 32_000, 36_000, 36_000, 36_000, 36_000],
+          totalPool: 216_000,
         },
         outputIncludesReasoning: true,
       },
       callBudget: {
-        maxCalls: 6,
-        maxRepairCount: 5,
-        standardMaxCalls: 5,
-        standardMaxRepairCount: 4,
+        maxCalls: 7,
+        maxRepairCount: 6,
+        standardMaxCalls: 6,
+        standardMaxRepairCount: 5,
         terminalReferenceCleanup: {
           budgetClass: 'terminal_reference_cleanup',
           maxCalls: 1,
@@ -1144,7 +1144,7 @@ describe('exact zero-cost authoring preflight', () => {
           'https://developers.openai.com/api/docs/pricing',
       },
       costBudget: {
-        projectedMaxUsd: 8.255501,
+        projectedMaxUsd: 9.883501,
         hardCeilingUsd: 10,
       },
     });
@@ -1228,8 +1228,9 @@ describe('exact zero-cost authoring preflight', () => {
       39_000,
       39_000,
       39_000,
+      39_000,
     ]);
-    expect(invalidProjectedMaxUsd).toBeGreaterThan(8.255501);
+    expect(invalidProjectedMaxUsd).toBeGreaterThan(9.883501);
     request.tokenBudget.standardAttempts = invalidSchedule;
     request.costBudget.projectedMaxUsd = invalidProjectedMaxUsd;
     const {
@@ -1258,7 +1259,7 @@ describe('exact zero-cost authoring preflight', () => {
     expect(provider.call).not.toHaveBeenCalled();
     expect(
       rejected.receipt.standardAttemptOutputBudget.limits,
-    ).toEqual([40_000, 32_000, 36_000, 36_000, 36_000]);
+    ).toEqual([40_000, 32_000, 36_000, 36_000, 36_000, 36_000]);
 
     const forgedReceipt = structuredClone(rejected.receipt);
     forgedReceipt.standardAttemptOutputBudget = invalidSchedule;
@@ -1282,7 +1283,7 @@ describe('exact zero-cost authoring preflight', () => {
         receipt: rejected.receipt,
         write: false,
       }),
-    ).toThrow(/receipt v43 requires/);
+    ).toThrow(/receipt v44 requires/);
     expect(() =>
       persistVisualContractAuthoringReceipt({
         repoRoot: tempRoot(),
@@ -1302,7 +1303,7 @@ describe('exact zero-cost authoring preflight', () => {
         invalidRequestFallbackBudget: authoritativeFallback,
         write: false,
       }),
-    ).toThrow(/receipt v43 requires/);
+    ).toThrow(/receipt v44 requires/);
 
     const validReadiness =
       buildVisualContractAuthoringReadinessEvidence({
@@ -1354,7 +1355,7 @@ describe('exact zero-cost authoring preflight', () => {
         invalidRequestFallbackBudget: authoritativeFallback,
         write: false,
       }),
-    ).toThrow(/receipt v43 requires/);
+    ).toThrow(/receipt v44 requires/);
     const forgedReadiness = structuredClone(validReadiness);
     forgedReadiness.authoringReceiptDigest = forgedReceipt.digest;
     forgedReadiness.standardAttemptOutputBudget = invalidSchedule;
@@ -1374,7 +1375,7 @@ describe('exact zero-cost authoring preflight', () => {
         invalidRequestFallbackBudget: authoritativeFallback,
         write: false,
       }),
-    ).toThrow(/receipt v43 requires/);
+    ).toThrow(/receipt v44 requires/);
 
     expect(() =>
       buildVisualContractAuthoringReadinessEvidence({
@@ -1753,7 +1754,7 @@ describe('exact zero-cost authoring preflight', () => {
       repairCount: 0,
       attempts: [],
       standardAttemptOutputBudget: authoritativeFallback,
-      projectedMaxCostUsd: 8.255501,
+      projectedMaxCostUsd: 9.883501,
       failure: {
         code: 'request_invalid',
         issues: expect.arrayContaining([
@@ -1893,7 +1894,7 @@ describe('exact zero-cost authoring preflight', () => {
         write: false,
       }),
     ).toThrow(
-      /readiness v41 requires exact typed draft-validation evidence/,
+      /readiness v42 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -1924,19 +1925,19 @@ describe('exact zero-cost authoring preflight', () => {
         conservativeAccountedCostUsd: 0,
         providerCallsCompleted: 0,
       }),
-    ).toBe(8.255501);
+    ).toBe(9.883501);
     expect(
       authoringReservedExposureUsd({
         request,
         conservativeAccountedCostUsd: 1.628,
         providerCallsCompleted: 1,
       }),
-    ).toBe(8.1235);
+    ).toBe(9.7515);
     expect(
       authoringSpendIsWithinCeiling(
         authoringReservedExposureUsd({
           request,
-          conservativeAccountedCostUsd: 2.1,
+          conservativeAccountedCostUsd: 1.7,
           providerCallsCompleted: 1,
         }),
         request.costBudget.hardCeilingUsd,
@@ -2475,7 +2476,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v41',
+      version: 'visual-contract-authoring-readiness/v42',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -2541,7 +2542,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v41',
+      version: 'visual-contract-authoring-readiness/v42',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -2891,6 +2892,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v39',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v40',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3113,6 +3120,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v43',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v44',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3275,6 +3288,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'readiness',
         'visual-contract-authoring-readiness/v41',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v42',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3388,7 +3407,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v41 requires/);
+    ).toThrow(/readiness v42 requires/);
   });
 
   it('rejects a re-digested current receipt with an open-ended terminal code', async () => {
@@ -3506,7 +3525,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).toThrow(
-      /receipt v43 requires exact typed draft-validation evidence/,
+      /receipt v44 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -3555,7 +3574,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v43',
+      'visual-contract-authoring-receipt/v44',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -3596,7 +3615,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       model: 'gpt-5.6-sol',
       responseId: 'response-1',
       usageEvidenceKind: 'legacy_injected_compatibility',
-      reservedExposureBeforeCallUsd: 8.255501,
+      reservedExposureBeforeCallUsd: 9.883501,
       nominalEstimatedCostUsd: 0.065,
       conservativeAccountedCostUsd: 0.072875,
       status: 'response_received',
@@ -4577,7 +4596,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       value: {
         ...admittedCallBudget,
         get maxCalls() {
-          return completedProviderCalls === 0 ? 6 : 1;
+          return completedProviderCalls === 0 ? 7 : 1;
         },
       },
     });
@@ -4651,7 +4670,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('preserves all five bounded standard-attempt receipts and aggregate evidence on validation exhaustion', async () => {
+  it('preserves all six bounded standard-attempt receipts and aggregate evidence on validation exhaustion', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const invalid = fullyActionedBunnyDraft(snapshot);
@@ -4679,14 +4698,14 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       result.receipt.failure?.diagnosticCount,
     ).toBeGreaterThan(0);
-    expect(result.receipt.callCount).toBe(5);
-    expect(result.receipt.repairCount).toBe(4);
-    expect(result.receipt.attempts).toHaveLength(5);
+    expect(result.receipt.callCount).toBe(6);
+    expect(result.receipt.repairCount).toBe(5);
+    expect(result.receipt.attempts).toHaveLength(6);
     expect(
       result.receipt.attempts.map(
         (attempt) => attempt.appliedMaxOutputTokens,
       ),
-    ).toEqual([40_000, 32_000, 36_000, 36_000, 36_000]);
+    ).toEqual([40_000, 32_000, 36_000, 36_000, 36_000, 36_000]);
     expect(result.receipt.draftValidationStatus).toBe(
       'repair_exhausted',
     );
@@ -4695,19 +4714,19 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         (attempt) =>
           attempt.draftValidationDiagnostics?.finalAttempt,
       ),
-    ).toEqual([false, false, false, false, true]);
+    ).toEqual([false, false, false, false, false, true]);
     expect(
       result.receipt.attempts.map(
         (attempt) =>
           attempt.draftValidationDiagnostics?.currentUniqueCount,
       ),
-    ).toEqual([1, 1, 1, 1, 1]);
+    ).toEqual([1, 1, 1, 1, 1, 1]);
     expect(
       result.receipt.attempts.map(
         (attempt) =>
           attempt.draftValidationDiagnostics?.persistentCount,
       ),
-    ).toEqual([0, 1, 1, 1, 1]);
+    ).toEqual([0, 1, 1, 1, 1, 1]);
     expect(
       result.receipt.attempts.every(
         (attempt) =>
@@ -4715,25 +4734,26 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       ),
     ).toBe(true);
     expect(result.receipt.aggregateUsage.inputTokens).toBe(
-      5_000,
+      6_000,
     );
     expect(result.receipt.nominalEstimatedCostUsd).toBe(
-      0.325,
+      0.39,
     );
     expect(
       result.receipt.conservativeAccountedCostUsd,
-    ).toBe(0.364375);
+    ).toBe(0.43725);
     expect(
       result.receipt.attempts.map(
         (attempt) =>
           attempt.reservedExposureBeforeCallUsd,
       ),
     ).toEqual([
-      8.255501,
-      6.568375,
-      5.14525,
-      3.590125,
-      2.035,
+      9.883501,
+      8.196375,
+      6.77325,
+      5.218125,
+      3.663,
+      2.107875,
     ]);
     expect(
       result.receipt.attempts.reduce(
@@ -4758,7 +4778,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('persists a sixth-call terminal reference cleanup and rejects budget-sequence tampering', async () => {
+  it('persists a seventh-call terminal reference cleanup and rejects budget-sequence tampering', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const referenceOnlyResidual = fullyActionedBunnyDraft(snapshot);
@@ -4824,9 +4844,13 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         let output: unknown;
         if (call.attempt === 1) {
           output = initialSpatialAndLatentFailure;
-        } else if (call.attempt === 3 || call.attempt === 4) {
+        } else if (
+          call.attempt === 3 ||
+          call.attempt === 4 ||
+          call.attempt === 5
+        ) {
           output = worldOnlyResidual;
-        } else if (call.attempt === 5) {
+        } else if (call.attempt === 6) {
           output = referenceOnlyResidual;
         } else {
           const payload = JSON.parse(call.userPrompt) as {
@@ -4875,10 +4899,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
     expect(result.receipt).toMatchObject({
       status: 'completed',
-      callCount: 6,
-      repairCount: 5,
+      callCount: 7,
+      repairCount: 6,
     });
-    expect(result.receipt.attempts[5]).toMatchObject({
+    expect(result.receipt.attempts[6]).toMatchObject({
       appliedMaxOutputTokens: 1_000,
       inputAccounting: {
         ceiling: 12_000,
@@ -4886,12 +4910,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       },
     });
     expect(
-      result.receipt.attempts[5]!.inputAccounting.estimatedBytes,
+      result.receipt.attempts[6]!.inputAccounting.estimatedBytes,
     ).toBeGreaterThan(6_000);
     expect(
-      result.receipt.attempts[5]!.inputAccounting.estimatedBytes,
+      result.receipt.attempts[6]!.inputAccounting.estimatedBytes,
     ).toBeLessThanOrEqual(12_000);
-    const cleanupCall = vi.mocked(provider.call).mock.calls[5]![0];
+    const cleanupCall = vi.mocked(provider.call).mock.calls[6]![0];
     expect(cleanupCall.options).toMatchObject({
       maxInputTokens: 12_000,
       maxOutputTokens: 1_000,
@@ -4915,9 +4939,13 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         let output: unknown;
         if (call.attempt === 1) {
           output = initialSpatialAndLatentFailure;
-        } else if (call.attempt === 3 || call.attempt === 4) {
+        } else if (
+          call.attempt === 3 ||
+          call.attempt === 4 ||
+          call.attempt === 5
+        ) {
           output = worldOnlyResidual;
-        } else if (call.attempt === 5) {
+        } else if (call.attempt === 6) {
           output = oversizedReferenceOnlyResidual;
         } else {
           const payload = JSON.parse(call.userPrompt) as {
@@ -4962,14 +4990,14 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       snapshot,
       provider: oversizedProvider,
     });
-    expect(oversizedProvider.call).toHaveBeenCalledTimes(5);
+    expect(oversizedProvider.call).toHaveBeenCalledTimes(6);
     expect(oversizedResult.receipt).toMatchObject({
       status: 'failed',
-      callCount: 5,
-      repairCount: 4,
+      callCount: 6,
+      repairCount: 5,
       failure: { code: 'input_token_ceiling_exceeded' },
     });
-    expect(oversizedResult.receipt.attempts[5]).toMatchObject({
+    expect(oversizedResult.receipt.attempts[6]).toMatchObject({
       budgetClass: 'terminal_reference_cleanup',
       status: 'input_ceiling_exceeded',
       providerReached: false,
@@ -4979,7 +5007,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       },
     });
     expect(
-      oversizedResult.receipt.attempts[5]!.inputAccounting.estimatedBytes,
+      oversizedResult.receipt.attempts[6]!.inputAccounting.estimatedBytes,
     ).toBeGreaterThan(12_000);
     expect(result.receipt.attempts.map((attempt) => ({
       budgetClass: attempt.budgetClass,
@@ -4993,13 +5021,14 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       { budgetClass: 'standard', repairMode: 'full_draft' },
       { budgetClass: 'standard', repairMode: 'full_draft' },
       { budgetClass: 'standard', repairMode: 'full_draft' },
+      { budgetClass: 'standard', repairMode: 'full_draft' },
       {
         budgetClass: 'terminal_reference_cleanup',
         repairMode: 'page_spatial_reference_patch',
       },
     ]);
     expect(
-      result.receipt.attempts[5]!.reservedExposureBeforeCallUsd,
+      result.receipt.attempts[6]!.reservedExposureBeforeCallUsd,
     ).toBeLessThanOrEqual(10);
     expect(
       visualContractAuthoringAttemptBudgetSequenceIsValid(
@@ -5010,7 +5039,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const bookSurfacePredecessor = structuredClone(
       result.receipt.attempts,
     );
-    bookSurfacePredecessor[4]!.repairMode =
+    bookSurfacePredecessor[5]!.repairMode =
       'book_surface_patch';
     expect(
       visualContractAuthoringAttemptBudgetSequenceIsValid(
@@ -5028,16 +5057,16 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
     for (const tamper of [
       (receipt: typeof result.receipt) => {
-        receipt.attempts[5]!.budgetClass = 'standard';
+        receipt.attempts[6]!.budgetClass = 'standard';
       },
       (receipt: typeof result.receipt) => {
-        receipt.attempts[4]!.repairMode = 'page_contract_patch';
+        receipt.attempts[5]!.repairMode = 'page_contract_patch';
       },
       (receipt: typeof result.receipt) => {
         receipt.attempts[1]!.appliedMaxOutputTokens += 1;
       },
       (receipt: typeof result.receipt) => {
-        const current = receipt.attempts[4]!
+        const current = receipt.attempts[5]!
           .draftValidationDiagnostics!.items.find(
             (item) => item.state !== 'resolved',
           );
@@ -5105,7 +5134,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v41 requires exact typed draft-validation evidence/);
+    ).toThrow(/readiness v42 requires exact typed draft-validation evidence/);
   });
 
   it('records the compact source-evidence repair as a bounded second provider call', async () => {
@@ -6047,7 +6076,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           ),
         write: false,
       }),
-    ).toThrow(/receipt v43 requires/);
+    ).toThrow(/receipt v44 requires/);
 
     for (const mutate of [
       (receipt: typeof result.receipt) => {
@@ -6112,7 +6141,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           receipt: replayedReceipt,
           write: false,
         }),
-      ).toThrow(/receipt v43 requires/);
+      ).toThrow(/receipt v44 requires/);
       expect(() =>
         buildVisualContractCandidateArtifact({
           request,
@@ -6151,7 +6180,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: malformedAccountingReceipt,
         write: false,
       }),
-    ).toThrow(/receipt v43 requires/);
+    ).toThrow(/receipt v44 requires/);
     expect(() =>
       buildVisualContractCandidateArtifact({
         request,
@@ -6553,7 +6582,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     }
   });
 
-  it('uses all five standard calls but does not admit a sixth cleanup for mixed residuals', async () => {
+  it('uses all six standard calls but does not admit a seventh cleanup for mixed residuals', async () => {
     const snapshot = bunnySnapshot();
     const fixture = liveShapedAtomicBindingFixture(snapshot);
     const provider: VisualContractAuthoringProvider = {
@@ -6602,8 +6631,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
     expect(result.receipt).toMatchObject({
       status: 'failed',
-      callCount: 5,
-      repairCount: 4,
+      callCount: 6,
+      repairCount: 5,
       candidateDigest: null,
       draftValidationStatus: 'repair_exhausted',
       failure: {
@@ -6618,10 +6647,11 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'book_surface_patch',
         'book_surface_patch',
         'book_surface_patch',
+        'book_surface_patch',
       ]);
-    expect(provider.call).toHaveBeenCalledTimes(5);
+    expect(provider.call).toHaveBeenCalledTimes(6);
     const finalDiagnostics =
-      result.receipt.attempts[4]!.draftValidationDiagnostics;
+      result.receipt.attempts[5]!.draftValidationDiagnostics;
     expect(finalDiagnostics).toMatchObject({
       currentUniqueCount: 2,
       persistentCount: 2,
@@ -6718,7 +6748,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v43',
+      version: 'visual-contract-authoring-receipt/v44',
       status: 'completed',
       callCount: 3,
       repairCount: 2,
@@ -6830,7 +6860,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('keeps a fourth incomplete PageContract response terminal without a sixth call', async () => {
+  it('keeps a fifth incomplete PageContract response terminal without a seventh call', async () => {
     const snapshot = bunnySnapshot();
     const invalid = fullyActionedBunnyDraft(snapshot);
     const invalidPages = invalid.pageContracts
@@ -6888,19 +6918,19 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
     expect(result.receipt).toMatchObject({
       status: 'failed',
-      callCount: 5,
-      repairCount: 4,
+      callCount: 6,
+      repairCount: 5,
       candidateDigest: null,
       failure: {
         code: 'repair_output_invalid',
         repairOutputDiagnostics: {
           identity: 'page_contract_repair_patch_set_incomplete',
-          repairAttempt: 5,
+          repairAttempt: 6,
           repairMode: 'page_contract_patch',
         },
       },
     });
-    expect(provider.call).toHaveBeenCalledTimes(5);
+    expect(provider.call).toHaveBeenCalledTimes(6);
   });
 
   it('repeats BookSurface with null cover for the 12-page pure structural residual and persists a candidate', async () => {
@@ -7136,9 +7166,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(result.receipt.failure?.code).toBe(
       'draft_validation_repair_exhausted',
     );
-    expect(provider.call).toHaveBeenCalledTimes(5);
-    expect(result.receipt.callCount).toBe(5);
-    expect(result.receipt.repairCount).toBe(4);
+    expect(provider.call).toHaveBeenCalledTimes(6);
+    expect(result.receipt.callCount).toBe(6);
+    expect(result.receipt.repairCount).toBe(5);
     for (const call of vi.mocked(provider.call).mock.calls.slice(1)) {
       const request = call[0];
       const upperBound =
@@ -7238,10 +7268,10 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         request,
         receipt: tampered,
       }),
-    ).toThrow(/readiness v41 requires current/);
+    ).toThrow(/readiness v42 requires current/);
   });
 
-  it('records a final-standard-slot BookSurface route-admission refusal without inventing a fifth provider attempt', async () => {
+  it('records a final-standard-slot BookSurface route-admission refusal without inventing a sixth provider attempt', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const providerDraft = () => {
@@ -7295,7 +7325,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const provider: VisualContractAuthoringProvider = {
       call: vi.fn(async (args) => ({
         output: JSON.stringify(
-          args.attempt <= 3 ? firstAttempt : finalSlotMixed,
+          args.attempt <= 4 ? firstAttempt : finalSlotMixed,
         ),
         receipt: {
           provider: 'openai',
@@ -7317,12 +7347,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       provider,
     });
 
-    expect(provider.call).toHaveBeenCalledTimes(4);
+    expect(provider.call).toHaveBeenCalledTimes(5);
     expect(result.compileResult).toBeNull();
     expect(result.receipt).toMatchObject({
       status: 'failed',
-      callCount: 4,
-      repairCount: 3,
+      callCount: 5,
+      repairCount: 4,
       candidateDigest: null,
       reconciliationDigest: null,
       draftValidationStatus: 'interrupted',
@@ -7333,19 +7363,25 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         repairRouteAdmissionDiagnostics: {
           version:
             'visual-contract-repair-route-admission-diagnostics/v1',
-          repairAttempt: 5,
+          repairAttempt: 6,
           repairMode: 'book_surface_patch',
           maxAdmissibleInputBytes: 59_904,
           routeAdmissionDiagnosticCount: 1,
         },
       },
     });
-    expect(result.receipt.attempts).toHaveLength(4);
+    expect(result.receipt.attempts).toHaveLength(5);
     expect(
       result.receipt.attempts.map((attempt) => attempt.repairMode),
-    ).toEqual([null, 'full_draft', 'full_draft', 'full_draft']);
+    ).toEqual([
+      null,
+      'full_draft',
+      'full_draft',
+      'full_draft',
+      'full_draft',
+    ]);
     expect(
-      result.receipt.attempts[3]!.draftValidationDiagnostics,
+      result.receipt.attempts[4]!.draftValidationDiagnostics,
     ).toMatchObject({ finalAttempt: true });
     const failure = result.receipt.failure!;
     const routeDiagnostics =
@@ -7424,7 +7460,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: tamperedReceipt,
         write: false,
       }),
-    ).toThrow(/receipt v43 requires/);
+    ).toThrow(/receipt v44 requires/);
 
     for (const mutate of [
       (receipt: typeof result.receipt) => {
@@ -7454,7 +7490,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           receipt: routeIdentityTamper,
           write: false,
         }),
-      ).toThrow(/receipt v43 requires/);
+      ).toThrow(/receipt v44 requires/);
     }
 
     const tamperedReadiness = structuredClone(readiness);
@@ -7476,7 +7512,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v41 requires/);
+    ).toThrow(/readiness v42 requires/);
 
     const legacyReceipt = structuredClone(result.receipt);
     (legacyReceipt as unknown as { version: string }).version =
@@ -7506,7 +7542,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: legacyReceipt as unknown as typeof result.receipt,
         write: false,
       }),
-    ).toThrow(/receipt v43 requires/);
+    ).toThrow(/receipt v44 requires/);
 
     const crossBoundReadiness = structuredClone(readiness);
     crossBoundReadiness.sourceSnapshotDigest = '0'.repeat(64);
@@ -7527,7 +7563,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v41 requires/);
+    ).toThrow(/readiness v42 requires/);
   });
 
   it('bridges a current candidate presentation requirement into pending Semantic Reconciliation without self-approval', async () => {

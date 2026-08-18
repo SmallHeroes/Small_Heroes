@@ -476,7 +476,8 @@ function authoringRequestValue(
               standardAttemptOutputBudget.limits[2],
               standardAttemptOutputBudget.limits[3],
               standardAttemptOutputBudget.limits[4],
-            ] as [number, number, number, number, number]
+              standardAttemptOutputBudget.limits[5],
+            ] as [number, number, number, number, number, number]
           : [],
         totalPool: standardAttemptOutputBudget.totalPool,
         digestAlgorithm:
@@ -1195,7 +1196,7 @@ function decodeAuthoringRequest(
     if (
       !standardAttempts ||
       !Array.isArray(standardAttempts.limits) ||
-      standardAttempts.limits.length !== 5 ||
+      standardAttempts.limits.length !== 6 ||
       standardAttempts.limits.some(
         (limit) => typeof limit !== 'number',
       )

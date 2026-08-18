@@ -40,13 +40,13 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-request-materialization-input/v28' as const;
+  'canonical-live-request-materialization-input/v29' as const;
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v37' as const;
+  'canonical-live-request-materialization/v38' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v37' as const;
+  'canonical-live-request-verification/v38' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -103,10 +103,10 @@ export interface CanonicalLiveRequestPolicyAuthority {
   model: 'gpt-5.6-sol';
   serviceTier: 'default';
   reasoningEffort: 'medium';
-  maxCalls: 6;
-  maxRepairCount: 5;
-  standardMaxCalls: 5;
-  standardMaxRepairCount: 4;
+  maxCalls: 7;
+  maxRepairCount: 6;
+  standardMaxCalls: 6;
+  standardMaxRepairCount: 5;
   standardAttemptOutputBudget:
     VisualContractAuthoringStandardAttemptOutputBudget;
   terminalReferenceCleanup: {
@@ -294,10 +294,10 @@ function canonicalLiveRequestPolicyAuthority(
     model: 'gpt-5.6-sol',
     serviceTier: 'default',
     reasoningEffort: 'medium',
-    maxCalls: 6,
-    maxRepairCount: 5,
-    standardMaxCalls: 5,
-    standardMaxRepairCount: 4,
+    maxCalls: 7,
+    maxRepairCount: 6,
+    standardMaxCalls: 6,
+    standardMaxRepairCount: 5,
     standardAttemptOutputBudget:
       request.tokenBudget.standardAttempts,
     terminalReferenceCleanup: {
@@ -358,10 +358,10 @@ export function liveRequestPolicyAuthorityIssues(
     policy.model !== 'gpt-5.6-sol' ||
     policy.serviceTier !== 'default' ||
     policy.reasoningEffort !== 'medium' ||
-    policy.maxCalls !== 6 ||
-    policy.maxRepairCount !== 5 ||
-    policy.standardMaxCalls !== 5 ||
-    policy.standardMaxRepairCount !== 4 ||
+    policy.maxCalls !== 7 ||
+    policy.maxRepairCount !== 6 ||
+    policy.standardMaxCalls !== 6 ||
+    policy.standardMaxRepairCount !== 5 ||
     !visualContractAuthoringStandardAttemptOutputBudgetIsValid(
       outputBudget,
     ) ||
@@ -2047,10 +2047,10 @@ function liveRequestPolicyReasonCodes(
       tokenBudget.standardAttempts,
     ) ||
     !callBudget ||
-    callBudget.maxCalls !== 6 ||
-    callBudget.maxRepairCount !== 5 ||
-    callBudget.standardMaxCalls !== 5 ||
-    callBudget.standardMaxRepairCount !== 4 ||
+    callBudget.maxCalls !== 7 ||
+    callBudget.maxRepairCount !== 6 ||
+    callBudget.standardMaxCalls !== 6 ||
+    callBudget.standardMaxRepairCount !== 5 ||
     !terminalReferenceCleanup ||
     terminalReferenceCleanup.budgetClass !==
       'terminal_reference_cleanup' ||

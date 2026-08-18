@@ -921,7 +921,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v43',
+      'visual-contract-authoring-receipt/v44',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -2062,12 +2062,12 @@ describe('canonical live authoring executable boundary', () => {
     ['call budget', (request: Record<string, unknown>) => {
       (
         request.callBudget as Record<string, unknown>
-      ).maxCalls = 7;
+      ).maxCalls = 8;
     }],
     ['repair budget', (request: Record<string, unknown>) => {
       (
         request.callBudget as Record<string, unknown>
-      ).maxRepairCount = 6;
+      ).maxRepairCount = 7;
     }],
     ['terminal cleanup input budget', (request: Record<string, unknown>) => {
       const callBudget = request.callBudget as {
@@ -2935,13 +2935,13 @@ describe('canonical live authoring executable boundary', () => {
     const evidence = readRejectedEvidence(fixture, result);
     expect(result.status).toBe('failed');
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v43',
+      version: 'visual-contract-authoring-receipt/v44',
       status: 'failed',
       callCount: 0,
       failure: { code: 'request_invalid' },
     });
     expect(result.readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v41',
+      version: 'visual-contract-authoring-readiness/v42',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'request_invalid',
@@ -2992,13 +2992,13 @@ describe('canonical live authoring executable boundary', () => {
       const evidence = readRejectedEvidence(fixture, result);
       expect(result.status).toBe('failed');
       expect(result.receipt).toMatchObject({
-        version: 'visual-contract-authoring-receipt/v43',
+        version: 'visual-contract-authoring-receipt/v44',
         status: 'failed',
         callCount: 0,
         failure: { code: 'request_invalid' },
       });
       expect(result.readiness).toMatchObject({
-        version: 'visual-contract-authoring-readiness/v41',
+        version: 'visual-contract-authoring-readiness/v42',
         authoringOutcome: {
           status: 'failed',
           failureCode: 'request_invalid',
@@ -3241,8 +3241,8 @@ describe('canonical live authoring executable boundary', () => {
     expect(result.persistence.candidate).toBeNull();
   });
 
-  it.each([0, 1, 2, 3, 4])(
-    'completes after %i semantic repair(s) within the five-call fence',
+  it.each([0, 1, 2, 3, 4, 5])(
+    'completes after %i semantic repair(s) within the six-call fence',
     async (repairCount) => {
       const fixture = createLiveFixture(
         `repairs-${repairCount}`,
@@ -3276,7 +3276,7 @@ describe('canonical live authoring executable boundary', () => {
         repairCount + 1,
       );
       expect(result.receipt.attempts[0]
-        ?.reservedExposureBeforeCallUsd).toBe(8.255501);
+        ?.reservedExposureBeforeCallUsd).toBe(9.883501);
       expect(result.persistence.candidate).not.toBeNull();
       expect(result.readiness).toMatchObject({
         visualContractCandidate: {
@@ -3367,12 +3367,13 @@ describe('canonical live authoring executable boundary', () => {
     expect(result.persistence.candidate).not.toBeNull();
   });
 
-  it('fails after exactly four semantic repairs and persists no candidate', async () => {
+  it('fails after exactly five semantic repairs and persists no candidate', async () => {
     const fixture = createLiveFixture('repair-exhaustion');
     const invalid = fullyActionedDraft(fixture.snapshot);
     invalid.recurringProps[0].material = '';
     const adapter = fakeAdapter({
       responses: [
+        responseFor(invalid),
         responseFor(invalid),
         responseFor(invalid),
         responseFor(invalid),
@@ -3389,15 +3390,22 @@ describe('canonical live authoring executable boundary', () => {
     expect(result.receipt.failure?.code).toBe(
       'draft_validation_repair_exhausted',
     );
-    expect(result.receipt.callCount).toBe(5);
-    expect(result.receipt.repairCount).toBe(4);
+    expect(result.receipt.callCount).toBe(6);
+    expect(result.receipt.repairCount).toBe(5);
     expect(result.persistence.candidate).toBeNull();
     expect(
       result.receipt.attempts.map(
         (attempt) =>
           attempt.reservedExposureBeforeCallUsd,
       ),
-    ).toEqual([8.255501, 6.568375, 5.14525, 3.590125, 2.035]);
+    ).toEqual([
+      9.883501,
+      8.196375,
+      6.77325,
+      5.218125,
+      3.663,
+      2.107875,
+    ]);
   });
 
   it('writes sanitized content-addressed evidence, is byte-idempotent, and fails closed on each evidence collision', async () => {

@@ -4608,14 +4608,14 @@ export async function compileBookVisualContractTemplate(
       attempt > STANDARD_MAX_REPAIR_ATTEMPTS &&
       !terminalReferenceCleanupEligible
     ) {
-      // The standard five-call budget is exhausted. A sixth call is never a
+      // The standard six-call budget is exhausted. A seventh call is never a
       // general retry: it exists only for the closed reference-only residual
       // exposed immediately by an eligible complete-draft/page-surface
       // replacement repair.
       throw new TemplateRepairExhaustedError(repairAttempts);
     }
     if (attempt > MAX_REPAIR_ATTEMPTS) {
-      // The closed terminal cleanup also failed — no seventh call exists.
+      // The closed terminal cleanup also failed — no eighth call exists.
       throw new TemplateRepairExhaustedError(repairAttempts);
     }
 
