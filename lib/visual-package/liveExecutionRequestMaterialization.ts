@@ -36,9 +36,9 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-execution-request-materialization-input/v22' as const;
+  'canonical-live-execution-request-materialization-input/v23' as const;
 export const CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_RESULT_VERSION =
-  'canonical-live-execution-request-materialization-result/v26' as const;
+  'canonical-live-execution-request-materialization-result/v27' as const;
 
 const REQUEST_CATEGORY =
   'canonical-live-execution-requests' as const;

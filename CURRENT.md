@@ -4,6 +4,44 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `371a7bdcea15491d412e75a1b3323fe41b11294f`.
 
+## TERMINAL REFERENCE CLEANUP REBALANCE — implementation green; independent QA next
+
+The sole v8 canonical attempt under
+`outputs/r1d-booksurface-v8-action-identity-fresh-00678207-20260818T094340492Z`
+ended fail-closed and will not be retried. Receipt v38
+`06825c473b10e02ae0d1f0ba5d5783996295051f43b62128972185242481b65a`
+records three completed provider calls and route
+`initial -> page_spatial_reference_patch -> full_draft`. Only seven typed
+`out_of_scope_reference` identities remained. The authorized terminal cleanup
+was selected but stopped before provider reachability because its exact input
+was 9,719 against the old 6,000 ceiling. Failure was
+`input_token_ceiling_exceeded`; Candidate and render authority are absent.
+
+The implemented general correction rebalances only that closed optional call from
+6K input / 2K output to 12K input / 1K output. The already-completed 11-target
+spatial repair used only 618 output tokens, while the new conservative maximum
+is `$4.9995` under the unchanged hard `$5` fence. Calls, repairs, residual
+eligibility, predecessors, model/tier/reasoning, retries and fallback do not
+widen. The current authority ladder is policy v13, authoring
+request/receipt/readiness v35/v39/v37, B0 input/manifest/verification
+v24/v33/v33, execution materialization input/result v23/v27, Supervisor
+request/readiness/result v32/v32/v25 and Fresh v32. Candidate remains v9.
+
+Focused validation is green: compiler/lifecycle core **146/146**; the six
+authority suites prove **327/327** assertions across the combined run plus the
+isolated predecessor test; TypeScript and diff-check PASS. The live-shaped
+cleanup regression proves seven targets at more than 6K and at most 12K input
+complete with output cap 1K and produce a Candidate, while an over-12K request
+performs no fourth dispatch. One literal `npm run check` ran exactly once:
+ordinary passed 3,257, skipped 65 and failed only the five established missing
+ignored-output fixtures; resource passed 604/605 and only the known heavy
+QA-bridge junction test crossed its 5-second parallel timeout, with three
+post-assertion RPC timeouts. No new assertion failure entered the gate.
+
+Implementation used no credential, provider, Fresh, live, image or render
+call. A new Fresh/live authority still requires an independent Claude Code PASS
+over the immutable implementation range.
+
 ## BOOK SURFACE V8 COMPILER-OWNED ACTION IDENTITY — independent technical PASS; Fresh next
 
 The sole v7 canonical attempt under

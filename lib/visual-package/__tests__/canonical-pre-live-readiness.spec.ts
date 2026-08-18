@@ -529,7 +529,7 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v32',
+            'canonical-live-request-verification/v33',
           structuredOutputCompatibility: {
             schemaName: 'BookVisualContractTemplateDraft',
             schemaVersion: 'vc-draft-schema/v15',
@@ -566,13 +566,13 @@ describe('canonical pre-live readiness orchestrator', () => {
               limits: [40_000, 32_000, 36_000],
               totalPool: 108_000,
             },
-            projectedMaxUsd: 4.99125,
+            projectedMaxUsd: 4.9995,
             hardCeilingUsd: 5,
           },
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v31',
+            'canonical-live-execution-readiness/v32',
         },
       },
     });
@@ -727,7 +727,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         verifyB0: (args) =>
           ({
             ...verifyCanonicalLiveRequestBundle(args),
-            version: 'canonical-live-request-verification/v31',
+            version: 'canonical-live-request-verification/v32',
           }) as unknown as ReturnType<
             typeof verifyCanonicalLiveRequestBundle
           >,
@@ -747,7 +747,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         verifyExecution: (args) =>
           ({
             ...verifyCanonicalLiveExecution(args),
-            version: 'canonical-live-execution-readiness/v30',
+            version: 'canonical-live-execution-readiness/v31',
           }) as unknown as ReturnType<
             typeof verifyCanonicalLiveExecution
           >,
@@ -760,7 +760,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         'pre_live_supervisor_verification_rejected',
       ],
     });
-  });
+  }, 15_000);
 
   it('reads immutable v2 failure bytes only as historical evidence', () => {
     const bytes = fs.readFileSync(HISTORICAL_FAILURE_V2);
@@ -822,7 +822,7 @@ describe('canonical pre-live readiness orchestrator', () => {
     const current = prepare(fixture);
     expect(current.status).toBe('ready_for_spend_gate');
     const prior = structuredClone(current) as unknown as Record<string, unknown>;
-    prior.version = 'canonical-pre-live-readiness-evidence/v30';
+    prior.version = 'canonical-pre-live-readiness-evidence/v31';
     const {
       digestAlgorithm: _algorithm,
       digest: _digest,

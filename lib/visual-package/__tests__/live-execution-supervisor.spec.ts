@@ -764,10 +764,10 @@ describe('canonical live execution request and readiness', () => {
       canonicalLiveExecutionRequestIssues(fixture.request),
     ).toEqual([]);
     expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
-      'canonical-live-request-verification/v32',
+      'canonical-live-request-verification/v33',
     );
     expect(CANONICAL_LIVE_EXECUTION_RESULT_VERSION).toBe(
-      'canonical-live-execution-result/v24',
+      'canonical-live-execution-result/v25',
     );
     expect(readiness.version).toBe(
       CANONICAL_LIVE_EXECUTION_READINESS_VERSION,
@@ -924,7 +924,7 @@ describe('canonical live execution request and readiness', () => {
     const legacyRequest = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    legacyRequest.version = 'canonical-live-execution-request/v30';
+    legacyRequest.version = 'canonical-live-execution-request/v31';
     const {
       digestAlgorithm: _requestAlgorithm,
       digest: _requestDigest,
@@ -944,7 +944,7 @@ describe('canonical live execution request and readiness', () => {
       readiness,
     ) as unknown as Record<string, unknown>;
     legacyReadiness.version =
-      'canonical-live-execution-readiness/v30';
+      'canonical-live-execution-readiness/v31';
     const {
       digestAlgorithm: _readinessAlgorithm,
       digest: _readinessDigest,
@@ -1237,8 +1237,8 @@ describe('B0 composition and explicit filesystem fences', () => {
         projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
           standardMaxInputTokens: 64_000,
           standardAttemptOutputLimits: alternate.limits,
-          cleanupMaxInputTokens: 6_000,
-          cleanupMaxOutputTokens: 2_000,
+          cleanupMaxInputTokens: 12_000,
+          cleanupMaxOutputTokens: 1_000,
           cleanupMaxCalls: 1,
         }),
     };

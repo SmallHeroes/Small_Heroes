@@ -921,7 +921,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v38',
+      'visual-contract-authoring-receipt/v39',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -1382,10 +1382,10 @@ describe('canonical OpenAI Responses authoring adapter', () => {
   );
 
   it.each([
-    ['standard input with cleanup output', 64_000, 2_000, false],
-    ['cleanup input with standard output', 6_000, 40_000, false],
-    ['cleanup pair with draft schema', 6_000, 2_000, false],
-    ['cleanup pair with page-spatial schema', 6_000, 2_000, true],
+    ['standard input with cleanup output', 64_000, 1_000, false],
+    ['cleanup input with standard output', 12_000, 40_000, false],
+    ['cleanup pair with draft schema', 12_000, 1_000, false],
+    ['cleanup pair with page-spatial schema', 12_000, 1_000, true],
   ])('rejects the invalid %s budget pair at the real adapter boundary', async (
     _label,
     maxInputTokens,
@@ -2073,13 +2073,13 @@ describe('canonical live authoring executable boundary', () => {
       const callBudget = request.callBudget as {
         terminalReferenceCleanup: Record<string, unknown>;
       };
-      callBudget.terminalReferenceCleanup.maxInputTokens = 6_001;
+      callBudget.terminalReferenceCleanup.maxInputTokens = 12_001;
     }],
     ['terminal cleanup output budget', (request: Record<string, unknown>) => {
       const callBudget = request.callBudget as {
         terminalReferenceCleanup: Record<string, unknown>;
       };
-      callBudget.terminalReferenceCleanup.maxOutputTokens = 2_001;
+      callBudget.terminalReferenceCleanup.maxOutputTokens = 1_001;
     }],
     ['terminal cleanup predecessor order', (request: Record<string, unknown>) => {
       const callBudget = request.callBudget as {
@@ -2918,7 +2918,7 @@ describe('canonical live authoring executable boundary', () => {
     const request = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    request.version = 'visual-contract-authoring-request/v33';
+    request.version = 'visual-contract-authoring-request/v34';
     redigestRequest(request);
     writeJson(
       fixture.repoRoot,
@@ -2935,13 +2935,13 @@ describe('canonical live authoring executable boundary', () => {
     const evidence = readRejectedEvidence(fixture, result);
     expect(result.status).toBe('failed');
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v38',
+      version: 'visual-contract-authoring-receipt/v39',
       status: 'failed',
       callCount: 0,
       failure: { code: 'request_invalid' },
     });
     expect(result.readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v36',
+      version: 'visual-contract-authoring-readiness/v37',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'request_invalid',
@@ -2992,13 +2992,13 @@ describe('canonical live authoring executable boundary', () => {
       const evidence = readRejectedEvidence(fixture, result);
       expect(result.status).toBe('failed');
       expect(result.receipt).toMatchObject({
-        version: 'visual-contract-authoring-receipt/v38',
+        version: 'visual-contract-authoring-receipt/v39',
         status: 'failed',
         callCount: 0,
         failure: { code: 'request_invalid' },
       });
       expect(result.readiness).toMatchObject({
-        version: 'visual-contract-authoring-readiness/v36',
+        version: 'visual-contract-authoring-readiness/v37',
         authoringOutcome: {
           status: 'failed',
           failureCode: 'request_invalid',
@@ -3276,7 +3276,7 @@ describe('canonical live authoring executable boundary', () => {
         repairCount + 1,
       );
       expect(result.receipt.attempts[0]
-        ?.reservedExposureBeforeCallUsd).toBe(4.99125);
+        ?.reservedExposureBeforeCallUsd).toBe(4.9995);
       expect(result.persistence.candidate).not.toBeNull();
       expect(result.readiness).toMatchObject({
         visualContractCandidate: {
@@ -3395,7 +3395,7 @@ describe('canonical live authoring executable boundary', () => {
         (attempt) =>
           attempt.reservedExposureBeforeCallUsd,
       ),
-    ).toEqual([4.99125, 3.304125, 1.881]);
+    ).toEqual([4.9995, 3.312375, 1.88925]);
   });
 
   it('writes sanitized content-addressed evidence, is byte-idempotent, and fails closed on each evidence collision', async () => {

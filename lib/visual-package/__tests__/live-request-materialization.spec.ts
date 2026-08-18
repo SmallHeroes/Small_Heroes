@@ -310,11 +310,11 @@ describe('canonical live request materialization validators', () => {
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v23',
+      'canonical-live-request-materialization-input/v24',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v32');
+    ).toBe('canonical-live-request-materialization/v33');
   });
 
   it.each([
@@ -466,8 +466,8 @@ describe('canonical live request materialization artifacts', () => {
       projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
         standardMaxInputTokens: 64_000,
         standardAttemptOutputLimits: overCeilingSchedule.limits,
-        cleanupMaxInputTokens: 6_000,
-        cleanupMaxOutputTokens: 2_000,
+        cleanupMaxInputTokens: 12_000,
+        cleanupMaxOutputTokens: 1_000,
         cleanupMaxCalls: 1,
       });
     expect(policy.projectedMaxUsd).toBeGreaterThan(
@@ -491,7 +491,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v34',
+      version: 'visual-contract-authoring-request/v35',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -521,8 +521,8 @@ describe('canonical live request materialization artifacts', () => {
           budgetClass: 'terminal_reference_cleanup',
           maxCalls: 1,
           maxRepairCount: 1,
-          maxInputTokens: 6_000,
-          maxOutputTokens: 2_000,
+          maxInputTokens: 12_000,
+          maxOutputTokens: 1_000,
           eligiblePrecedingRepairModes: [
             'book_surface_patch',
             'full_draft',
@@ -547,7 +547,7 @@ describe('canonical live request materialization artifacts', () => {
         },
       },
       costBudget: {
-        projectedMaxUsd: 4.99125,
+        projectedMaxUsd: 4.9995,
         hardCeilingUsd: 5,
       },
       structuredOutput: {

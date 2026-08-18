@@ -481,7 +481,7 @@ describe('canonical live request verification library', () => {
     );
 
     expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
-      'canonical-live-request-verification/v32',
+      'canonical-live-request-verification/v33',
     );
     expect(result).toEqual({
       version: CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
@@ -528,8 +528,8 @@ describe('canonical live request verification library', () => {
           budgetClass: 'terminal_reference_cleanup',
           maxCalls: 1,
           maxRepairCount: 1,
-          maxInputTokens: 6_000,
-          maxOutputTokens: 2_000,
+          maxInputTokens: 12_000,
+          maxOutputTokens: 1_000,
           eligiblePrecedingRepairModes: [
             'book_surface_patch',
             'full_draft',
@@ -540,7 +540,7 @@ describe('canonical live request verification library', () => {
         },
         transportRetries: 0,
         noFallback: true,
-        projectedMaxUsd: 4.99125,
+        projectedMaxUsd: 4.9995,
         hardCeilingUsd: 5,
       },
       structuredOutputCompatibility:
@@ -681,7 +681,7 @@ describe('canonical live request verification library', () => {
       materialized.manifest,
       (value) => {
         value.version =
-          'canonical-live-request-materialization/v31';
+          'canonical-live-request-materialization/v32';
       },
     );
     expect(
@@ -996,7 +996,7 @@ describe('canonical live request verification library', () => {
           string,
           unknown
         >;
-        costBudget.projectedMaxUsd = 4.992;
+        costBudget.projectedMaxUsd = 5.001;
       },
       reason: 'live_authoring_request_cost_invalid',
     },

@@ -40,13 +40,13 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-request-materialization-input/v23' as const;
+  'canonical-live-request-materialization-input/v24' as const;
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v32' as const;
+  'canonical-live-request-materialization/v33' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v32' as const;
+  'canonical-live-request-verification/v33' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -113,8 +113,8 @@ export interface CanonicalLiveRequestPolicyAuthority {
     budgetClass: 'terminal_reference_cleanup';
     maxCalls: 1;
     maxRepairCount: 1;
-    maxInputTokens: 6000;
-    maxOutputTokens: 2000;
+    maxInputTokens: 12000;
+    maxOutputTokens: 1000;
     eligiblePrecedingRepairModes: [
       'book_surface_patch',
       'full_draft',
@@ -304,8 +304,8 @@ function canonicalLiveRequestPolicyAuthority(
       budgetClass: 'terminal_reference_cleanup',
       maxCalls: 1,
       maxRepairCount: 1,
-      maxInputTokens: 6000,
-      maxOutputTokens: 2000,
+      maxInputTokens: 12000,
+      maxOutputTokens: 1000,
       eligiblePrecedingRepairModes: [
         'book_surface_patch',
         'full_draft',
@@ -384,8 +384,8 @@ export function liveRequestPolicyAuthorityIssues(
     cleanup.budgetClass !== 'terminal_reference_cleanup' ||
     cleanup.maxCalls !== 1 ||
     cleanup.maxRepairCount !== 1 ||
-    cleanup.maxInputTokens !== 6000 ||
-    cleanup.maxOutputTokens !== 2000 ||
+    cleanup.maxInputTokens !== 12000 ||
+    cleanup.maxOutputTokens !== 1000 ||
     !Array.isArray(cleanup.eligiblePrecedingRepairModes) ||
     cleanup.eligiblePrecedingRepairModes.length !== 2 ||
     cleanup.eligiblePrecedingRepairModes[0] !==
@@ -411,8 +411,8 @@ export function liveRequestPolicyAuthorityIssues(
         projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
           standardMaxInputTokens: 64_000,
           standardAttemptOutputLimits: outputBudget.limits,
-          cleanupMaxInputTokens: 6_000,
-          cleanupMaxOutputTokens: 2_000,
+          cleanupMaxInputTokens: 12_000,
+          cleanupMaxOutputTokens: 1_000,
           cleanupMaxCalls: 1,
         }))
   ) {
@@ -2056,8 +2056,8 @@ function liveRequestPolicyReasonCodes(
       'terminal_reference_cleanup' ||
     terminalReferenceCleanup.maxCalls !== 1 ||
     terminalReferenceCleanup.maxRepairCount !== 1 ||
-    terminalReferenceCleanup.maxInputTokens !== 6000 ||
-    terminalReferenceCleanup.maxOutputTokens !== 2000 ||
+    terminalReferenceCleanup.maxInputTokens !== 12000 ||
+    terminalReferenceCleanup.maxOutputTokens !== 1000 ||
     !Array.isArray(
       terminalReferenceCleanup.eligiblePrecedingRepairModes,
     ) ||
@@ -2081,7 +2081,7 @@ function liveRequestPolicyReasonCodes(
     typeof costBudget.projectedMaxUsd !== 'number' ||
     !Number.isFinite(costBudget.projectedMaxUsd) ||
     costBudget.projectedMaxUsd < 0 ||
-    costBudget.projectedMaxUsd > 4.99125 ||
+    costBudget.projectedMaxUsd > 4.9995 ||
     costBudget.hardCeilingUsd !== 5
   ) {
     reasons.push('live_authoring_request_cost_invalid');
