@@ -187,9 +187,9 @@
   border-radius: 999px;
   /* the pale-yellow gradient is banned — this is a label chip, so it joins
      the light-purple chip family (same as the About role chips) */
-  background: #efeafe;
-  border: 1px solid #ded4f6;
-  color: #6d4df0;
+  background: var(--purple-100);
+  border: 1px solid var(--purple-200);
+  color: var(--purple-600);
   font-size: 14px;
   font-weight: 700;
 }
@@ -235,7 +235,7 @@
   width: 100%;
   min-height: 100%;
   padding: 24px 22px 22px;
-  border: 1px solid #eceaf3;
+  border: 1px solid var(--n-100);
   border-radius: 28px;
   background: var(--white);
   box-shadow: 0 12px 34px rgba(17, 22, 34, 0.08);

@@ -8,7 +8,7 @@
 
 /* ── Recent books history strip ──────────────────────────── */
 .book-history-section {
-  background: linear-gradient(135deg, #f3efff 0%, #ede8ff 100%);
+  background: linear-gradient(135deg, var(--purple-50) 0%, var(--purple-100) 100%);
   border-bottom: 1px solid rgba(124, 58, 237, 0.12);
   padding: 10px 20px;
   display: flex;
@@ -241,7 +241,7 @@
   bottom: var(--y-bottom, auto);
   width: var(--size, 24px);
   height: var(--size, 24px);
-  color: #b3a1f6;
+  color: var(--purple-300);
   opacity: 0.75;
   rotate: var(--tilt, 0deg);
   /* rotate is a separate property, so the float owns translate outright */
@@ -249,7 +249,7 @@
 }
 
 .hero-doodle[data-tone='gold'] {
-  color: #f5c944;
+  color: var(--yellow-500);
   opacity: 0.85;
 }
 
@@ -303,7 +303,7 @@
   padding: 8px 16px;
   border-radius: 999px;
   background: var(--yellow);
-  color: #2b2440;
+  color: var(--n-900);
   font-family: var(--fb);
   font-size: 13px;
   font-weight: 600;
@@ -687,8 +687,8 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: #efeafe;
-  color: var(--purple);
+  background: var(--purple-100);
+  color: var(--purple-600);
   font-weight: 700;
   font-size: 16px;
   line-height: 1;
@@ -1044,7 +1044,7 @@
   background: var(--white);
   /* a real edge: on the old purple ground the white card cut itself out,
      on near-white it needs the line to hold its shape */
-  border: 1px solid #e6e0f6;
+  border: 1px solid var(--n-200);
   border-radius: 28px;
   padding: 26px 24px 24px;
   display: flex;
@@ -1058,8 +1058,8 @@
 /* the middle package is the one being recommended by layout, so it gets
    the brand edge rather than a badge */
 .price-card--mid {
-  border-color: #cdbdfb;
-  box-shadow: 0 14px 38px rgba(109, 77, 240, 0.14);
+  border-color: var(--purple-300);
+  box-shadow: 0 14px 38px rgba(123, 47, 204, 0.16);
 }
 
 .price-card--mid {
@@ -1258,7 +1258,7 @@
   background: #f7f7f8;
   border-radius: 18px;
   overflow: hidden;
-  border: 1px solid #eceaf3;
+  border: 1px solid var(--n-100);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -1369,7 +1369,7 @@
   max-width: 42rem;
   font-size: 16px;
   line-height: 1.65;
-  color: #3d3850;
+  color: var(--n-700);
 }
 
 .trust-band__inner {
@@ -1988,7 +1988,7 @@
     right: 0;
     height: 3px;
     width: 100%;
-    background: linear-gradient(270deg, #7b5cff, #ffb46c, #ffee6c);
+    background: linear-gradient(270deg, var(--purple-500), #ffb46c, var(--yellow-400));
     transform-origin: right; /* RTL: ממלא מימין לשמאל */
     transform: scaleX(0);
     z-index: 300;
@@ -2077,9 +2077,9 @@
 
 /* ── פס ההשקה: הסגול הבהיר של המותג (per Guy) ── */
 .early-stage-band {
-  background: #efeafe;
-  border-top: 1px solid #ded4f6;
-  border-bottom: 1px solid #ded4f6;
+  background: var(--purple-100);
+  border-top: 1px solid var(--purple-200);
+  border-bottom: 1px solid var(--purple-200);
 }
 
 
@@ -2119,7 +2119,7 @@
   font-size: clamp(17.5px, 2vw, 20px);
   font-weight: 500;
   line-height: 1.6;
-  color: #4a4560;
+  color: var(--n-600);
   text-align: center;
   max-width: 56ch;
   margin: 10px auto 14px;
@@ -2217,8 +2217,8 @@
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: #efeafe;
-  color: #6d4df0;
+  background: var(--purple-100);
+  color: var(--purple-600);
 }
 .value-card-mark svg { width: 18px; height: 18px; }
 
@@ -2243,13 +2243,13 @@
   text-align: center;
   font-size: 15px;
   font-weight: 600;
-  color: #5f5a70;
+  color: var(--n-500);
 }
 
 /* ── ספר לדוגמה: the second, softer paragraph (about the companion) ── */
 .sample-p--soft {
   font-size: 17.5px;
-  color: #6b6680;
+  color: var(--n-500);
   max-width: 800px;
 }
 
@@ -2302,7 +2302,7 @@
   height: 30px;
   margin-bottom: 12px;
   border-radius: 50%;
-  background: #efeafe;
+  background: var(--purple-100);
   color: var(--purple);
   font-weight: 700;
   font-size: 15px;
@@ -2367,10 +2367,10 @@
   padding: 18px 22px;
   border-radius: 18px;
   background: var(--surface-sunken, #f1eff9);
-  border: 1px solid #e6e0f6;
+  border: 1px solid var(--purple-200);
   font-size: 15.5px;
   line-height: 1.7;
-  color: #3d3850;
+  color: var(--n-700);
 }
 
 /* ── the new blocks on phones ──────────────────────────────────────── */
@@ -2390,7 +2390,7 @@
   letter-spacing: 0.04em;
   /* the deep brand purple, not --purple: at 14px this is body-size text, so
      it needs 4.5:1 and the lighter one only reaches 3.7 on the new white */
-  color: #6d4df0;
+  color: var(--purple-600);
   margin-bottom: 8px;
 }
 
