@@ -20,7 +20,7 @@ export const VISUAL_CONTRACT_AUTHORING_USAGE = [
   '',
   'preflight is exclusive and zero-cost: it accepts no source, output, credential, model, price, or write arguments.',
   'live requires a separately created mode=live request and writes only immutable sanitized local evidence.',
-  'The current $10 policy admits up to 12 pages: four standard calls plus one strictly gated terminal-reference cleanup; 13+ pages stop before provider access and require a separate budget or partition Decision Gate.',
+  'The current $10 policy admits up to 12 pages: five standard calls plus one strictly gated terminal-reference cleanup; 13+ pages stop before provider access and require a separate budget or partition Decision Gate.',
   'This command never performs reconciliation, approval, Blueprint authoring, Board/package work, render, publication, or production activation.',
 ].join('\n');
 

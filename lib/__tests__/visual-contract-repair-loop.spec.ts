@@ -531,6 +531,32 @@ describe('Stage 3 — bounded repair loop', () => {
     ).toEqual(['standard', 'standard', 'standard']);
   });
 
+  it('uses the approved fifth standard call and completes after four invalid validation frontiers', async () => {
+    const { caller, prompts, calls } = recordingCaller([
+      withEmptyMaterial(),
+      withEmptyMaterial(),
+      withEmptyMaterial(),
+      withEmptyMaterial(),
+      bunnyDraft(),
+    ]);
+    const result = await compileBookVisualContractTemplate(
+      bunnySource(),
+      { callLLM: caller },
+    );
+
+    expect(result.provenance.attempt).toBe(5);
+    expect(result.repairAttempts).toHaveLength(4);
+    expect(calls()).toBe(5);
+    expect(
+      prompts.map((call) => call.options?.maxOutputTokens),
+    ).toEqual([40_000, 32_000, 36_000, 36_000, 36_000]);
+    expect(
+      result.repairAttempts.map((attempt) =>
+        attempt.nextRepairBudgetClass,
+      ),
+    ).toEqual(['standard', 'standard', 'standard', 'standard']);
+  });
+
   it('a completed repair response that is unparseable remains distinct from full validation exhaustion', async () => {
     let calls = 0;
     const caller: ContractLlmCaller = async () => {
@@ -561,9 +587,9 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(calls).toBe(2); // initial + the one (failed) repair call
   });
 
-  it('exhausts after the initial + 3 repairs, writes NOTHING, and does not over-call the model', async () => {
-    // A 5th (valid) draft is provided but must NEVER be requested — the cap is 3 repairs.
-    const { caller, calls } = recordingCaller([withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), bunnyDraft()]);
+  it('exhausts after the initial + 4 repairs, writes NOTHING, and does not over-call the model', async () => {
+    // A 6th (valid) draft is provided but must NEVER be requested — the cap is 4 repairs.
+    const { caller, calls } = recordingCaller([withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), bunnyDraft()]);
     let thrown: unknown;
     try {
       await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
@@ -573,12 +599,12 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(thrown).toBeInstanceOf(TemplateRepairExhaustedError);
     expect(thrown).toBeInstanceOf(InvalidTemplateContractError); // still catchable as the fail-closed type
     const err = thrown as TemplateRepairExhaustedError;
-    expect(err.attempts).toHaveLength(4);
+    expect(err.attempts).toHaveLength(5);
     expect(
       err.attempts.every((a) => a.diagnosticIssues.length > 0),
     ).toBe(true);
     expect(JSON.stringify(err.attempts)).not.toMatch(/material/i);
-    expect(calls()).toBe(4); // initial + 3 repairs — the 5th valid draft was never requested
+    expect(calls()).toBe(5); // initial + 4 repairs — the 6th valid draft was never requested
   });
   it.each([
     ['zero', 0, 'collection_item'],
@@ -596,6 +622,7 @@ describe('Stage 3 — bounded repair loop', () => {
         invalid,
         invalid,
         invalid,
+        invalid,
       ]);
       let thrown: unknown;
       try {
@@ -607,8 +634,8 @@ describe('Stage 3 — bounded repair loop', () => {
       }
       expect(thrown).toBeInstanceOf(TemplateRepairExhaustedError);
       const exhausted = thrown as TemplateRepairExhaustedError;
-      expect(calls()).toBe(4);
-      expect(exhausted.attempts).toHaveLength(4);
+      expect(calls()).toBe(5);
+      expect(exhausted.attempts).toHaveLength(5);
       expect(
         exhausted.attempts.every(
           (attempt) =>
@@ -1258,6 +1285,208 @@ describe('page-contract compact repair routing', () => {
     ]);
   });
 
+  it('closes the observed spatial, BookSurface, spatial, BookSurface frontier in five standard calls', async () => {
+    const valid = bunnyDraft();
+    const initial = structuredClone(valid);
+    ensureBookSurfacePageShape(initial);
+    const page1 = initial.pageContracts[0]!;
+    const page2 = initial.pageContracts[1]!;
+    const page1Zone = initial.zones.find(
+      (zone: { id: string }) => zone.id === page1.zoneId,
+    );
+    if (!page1Zone) throw new Error('missing page-1 zone fixture');
+    page1Zone.spatialNodes = [
+      {
+        id: 'waiting_chair',
+        kind: 'furniture',
+        description: 'the stable waiting-room chair',
+        bindsTo: null,
+      },
+    ];
+    page1Zone.spatialRelations = [];
+    page1.actionRequirements = [
+      {
+        beatId: page1.actionSemanticCoverage[0]!.beatId,
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: { kind: 'spatial', id: 'outside_current_page_zone' },
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    page1.actionSemanticCoverage[0]!.disposition = {
+      kind: 'action_requirement',
+    };
+    page2.actionRequirements = [
+      {
+        beatId: page2.actionSemanticCoverage[0]!.beatId,
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'opens',
+        object: null,
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    page2.actionSemanticCoverage[0]!.disposition = {
+      kind: 'action_requirement',
+    };
+    page2.camera = '';
+    initial.coverContract.mustShow = [''];
+
+    const calls: Array<{
+      user: string;
+      options: Parameters<ContractLlmCaller>[2];
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      user,
+      options,
+      authority,
+    ) => {
+      calls.push({ user, options, authority });
+      if (calls.length === 1) return JSON.stringify(initial);
+      if (calls.length === 2 || calls.length === 4) {
+        const payload = JSON.parse(user) as {
+          targets: Array<{
+            pageNumber: number;
+            actionIndex: number;
+            fieldRole: string;
+            permittedSpatialReferences: Array<{ id: string }>;
+          }>;
+        };
+        return JSON.stringify({
+          patches: payload.targets.map((target) => ({
+            pageNumber: target.pageNumber,
+            actionIndex: target.actionIndex,
+            fieldRole: target.fieldRole,
+            spatialReferenceId:
+              target.permittedSpatialReferences[0]!.id,
+          })),
+        });
+      }
+      const payload = decodeBookSurfaceRepairUserPrompt(user);
+      const affectedPages = payload.affectedPages as Array<{
+        pageNumber: number;
+        pageStructuralProjection: Record<string, unknown>;
+      }>;
+      const coverAuthority = payload.coverAuthority as
+        | { coverContract: Record<string, unknown> }
+        | null;
+      const repairedPages = affectedPages.map((affectedPage) => {
+        const repaired = structuredClone(
+          affectedPage.pageStructuralProjection,
+        );
+        if (calls.length === 3 && affectedPage.pageNumber === 2) {
+          const actions = repaired.actionRequirements as Array<
+            Record<string, unknown>
+          >;
+          actions[0] = {
+            beatId: page2.actionSemanticCoverage[0]!.beatId,
+            subject: {
+              kind: 'entity',
+              entity: { kind: 'cast', id: 'child:hero' },
+            },
+            predicate: 'looks_at',
+            object: {
+              kind: 'spatial',
+              id: 'outside_current_page_zone_after_surface',
+            },
+            spatialEffect: null,
+            spatialConstraint: null,
+            polarity: 'must',
+            laterality: null,
+          };
+          repaired.camera = '';
+        } else if (affectedPage.pageNumber === 2) {
+          repaired.camera = valid.pageContracts[1]!.camera;
+        }
+        return repaired;
+      });
+      return JSON.stringify(
+        bookSurfaceV6Response({
+          payload,
+          coverContract:
+            calls.length === 3
+              ? {
+                  ...structuredClone(
+                    coverAuthority?.coverContract ?? {},
+                  ),
+                  mustShow: structuredClone(
+                    valid.coverContract.mustShow,
+                  ),
+                }
+              : null,
+          recurringProps: null,
+          repairedPages,
+        }),
+      );
+    };
+
+    const result = await compileBookVisualContractTemplate(
+      bunnySource(),
+      { callLLM: caller },
+    );
+
+    expect(calls).toHaveLength(5);
+    expect(
+      calls.map((call) =>
+        call.authority?.kind === 'repair'
+          ? call.authority.repairMode
+          : null,
+      ),
+    ).toEqual([
+      null,
+      'page_spatial_reference_patch',
+      'book_surface_patch',
+      'page_spatial_reference_patch',
+      'book_surface_patch',
+    ]);
+    expect(calls.map((call) => call.options?.maxOutputTokens)).toEqual([
+      40_000,
+      32_000,
+      36_000,
+      36_000,
+      36_000,
+    ]);
+    expect(result.provenance.attempt).toBe(5);
+    expect(result.repairAttempts.map((attempt) => attempt.nextRepairMode))
+      .toEqual([
+        'page_spatial_reference_patch',
+        'book_surface_patch',
+        'page_spatial_reference_patch',
+        'book_surface_patch',
+      ]);
+    const finalPage2 = result.template.pageContracts.find(
+      (page) => page.pageNumber === 2,
+    )!;
+    expect(finalPage2.camera).toBe(valid.pageContracts[1]!.camera);
+    const finalPage2Coverage = result.actionSemanticCoverage.filter(
+      (coverage) => coverage.pageNumber === 2,
+    );
+    expect(finalPage2Coverage).toHaveLength(
+      page2.actionSemanticCoverage.length,
+    );
+    expect(finalPage2Coverage.map((coverage) => coverage.beatId)).toEqual(
+      page2.actionSemanticCoverage.map(
+        (coverage: { beatId: string }) => coverage.beatId,
+      ),
+    );
+    expect(finalPage2Coverage[0]!.disposition).toMatchObject({
+      kind: 'action_requirement',
+    });
+  });
+
   it('routes a latent mixed cover/page/presentation failure through one bounded book-surface repair', async () => {
     const valid = bunnyDraft();
     const page2Zone = valid.zones.find(
@@ -1763,7 +1992,7 @@ describe('page-contract compact repair routing', () => {
     ]);
   });
 
-  it('stops before fourth standard-call dispatch when mixed v6 is input-inadmissible', async () => {
+  it('stops before fifth standard-call dispatch when mixed v6 is input-inadmissible', async () => {
     const valid = bunnyDraft();
     const firstAttempt = structuredClone(valid);
     ensureBookSurfacePageShape(firstAttempt);
@@ -1799,7 +2028,7 @@ describe('page-contract compact repair routing', () => {
     ) => {
       calls.push({ system, user, authority });
       return JSON.stringify(
-        calls.length <= 2 ? firstAttempt : finalSlotMixed,
+        calls.length <= 3 ? firstAttempt : finalSlotMixed,
       );
     };
 
@@ -1816,16 +2045,16 @@ describe('page-contract compact repair routing', () => {
     }
 
     expect(admissionError).toBeDefined();
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(4);
     expect(
       calls.map((call) =>
         call.authority?.kind === 'repair'
           ? call.authority.repairMode
           : null,
       ),
-    ).toEqual([null, 'full_draft', 'full_draft']);
+    ).toEqual([null, 'full_draft', 'full_draft', 'full_draft']);
     expect(admissionError).toMatchObject({
-      repairAttempt: 4,
+      repairAttempt: 5,
       repairMode: 'book_surface_patch',
       maxAdmissibleInputBytes: 59_904,
     });
@@ -1837,6 +2066,7 @@ describe('page-contract compact repair routing', () => {
         (attempt) => attempt.nextRepairMode,
       ),
     ).toEqual([
+      'full_draft',
       'full_draft',
       'full_draft',
       'book_surface_patch',

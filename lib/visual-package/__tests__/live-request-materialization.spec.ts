@@ -310,11 +310,11 @@ describe('canonical live request materialization validators', () => {
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v27',
+      'canonical-live-request-materialization-input/v28',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v36');
+    ).toBe('canonical-live-request-materialization/v37');
   });
 
   it.each([
@@ -492,7 +492,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v38',
+      version: 'visual-contract-authoring-request/v39',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -507,17 +507,17 @@ describe('canonical live request materialization artifacts', () => {
         maxInputTokens: 64_000,
         standardAttempts: {
           version:
-            'visual-contract-authoring-standard-attempt-output-budget/v3',
-          limits: [40_000, 32_000, 36_000, 36_000],
-          totalPool: 144_000,
+            'visual-contract-authoring-standard-attempt-output-budget/v4',
+          limits: [40_000, 32_000, 36_000, 36_000, 36_000],
+          totalPool: 180_000,
         },
         outputIncludesReasoning: true,
       },
       callBudget: {
-        maxCalls: 5,
-        maxRepairCount: 4,
-        standardMaxCalls: 4,
-        standardMaxRepairCount: 3,
+        maxCalls: 6,
+        maxRepairCount: 5,
+        standardMaxCalls: 5,
+        standardMaxRepairCount: 4,
         terminalReferenceCleanup: {
           budgetClass: 'terminal_reference_cleanup',
           maxCalls: 1,
@@ -548,7 +548,7 @@ describe('canonical live request materialization artifacts', () => {
         },
       },
       costBudget: {
-        projectedMaxUsd: 6.6275,
+        projectedMaxUsd: 8.255501,
         hardCeilingUsd: 10,
       },
       structuredOutput: {

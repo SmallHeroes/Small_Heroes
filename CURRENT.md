@@ -2,44 +2,56 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `a21073bd4f444465d4eb57994c192de813c6a142`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `84a3de815161d86392d726fb87877e1f9bc98d60`.
 
-## FOUR-STANDARD-CALL / $10 AUTHORING POLICY — local green; commit/push next
+## FIVE-STANDARD-CALL / $10 AUTHORING POLICY — local green; commit/push next
 
 The sole canonical attempt under
-`outputs/r1d-lifecycle-authority-fresh-a21073bd-20260818T140948763Z`
-ended fail-closed and will not be retried. Receipt v41
-`475d8208745534e0e35e26d7d5ddb60bf43dd8ae12aa6f884e98d278dfd423c0`
-records three completed calls and route
-`initial -> book_surface_patch -> page_spatial_reference_patch`. The major
-BookSurface repair and compact spatial repair both applied. Full validation
-then exposed two latent issues after the third and final standard call: page 8
-`represented_elsewhere_pointer_out_of_scope` and page 6
-`source_evidence_id_unknown`. No Candidate, Wizard or render authority exists.
+`outputs/r1d-four-call-ten-usd-fresh-84a3de81-20260818T145745291Z`
+ended fail-closed and will not be retried. Receipt v42
+`ad70fef8200162dde7bbd5688bbdc61e4cf96b2f20219a06f66fb880a87d33ed`
+records four completed calls and route
+`initial -> page_spatial_reference_patch -> book_surface_patch ->
+page_spatial_reference_patch`. Every provider response completed, with zero
+transport retries and no fallback. The final spatial patch resolved its exact
+reference residual; full validation then exposed eleven page-scoped
+`page_action_requirements_invalid` structural issues. No Candidate, Wizard or
+render authority exists from that consumed attempt.
 
-Guy approved a general scheduler correction: four standard calls / three
-standard repairs under a hard USD 10 fence. The exact 12-page output schedule
-is `[40000, 32000, 36000, 36000]`; the existing compact reference-only cleanup
-remains the sole possible fifth call. The conservative projected maximum is
-USD 6.6275. Provider, model, tier, reasoning, 64K input ceiling, timeout,
+Guy approved a general scheduler correction: five standard calls / four
+standard repairs under the unchanged hard USD 10 fence. The exact 12-page
+output schedule is `[40000, 32000, 36000, 36000, 36000]`; the existing compact
+reference-only cleanup remains the sole possible sixth call. The canonical
+conservative projected maximum is USD 8.255501. Provider, model, tier,
+reasoning, 64K input ceiling, timeout,
 transport retries, fallback, tools, prompts, schemas, Candidate semantics and
 all validation/promotion gates remain unchanged.
 
-Policy advances to v14 and the standard output-budget authority to v3.
-Authoring request/receipt/readiness advance to v38/v42/v40; B0 to
-v27/v36/v36; execution materialization to v26/v30; Supervisor to v35/v35/v28;
-Fresh to v35. Candidate v9, child-output authority v1 and Wizard bridge v2 are
-unchanged. Immediate authoring predecessors v37/v41/v39 remain immutable
+Policy advances to v15 and the standard output-budget authority to v4.
+Authoring request/receipt/readiness advance to v39/v43/v41; B0 to
+v28/v37/v37; execution materialization to v27/v31; Supervisor to v36/v36/v29;
+Fresh to v36. Candidate v9, child-output authority v1 and Wizard bridge v2 are
+unchanged. Immediate authoring predecessors v38/v42/v40 remain immutable
 legacy evidence.
 
-Focused authority validation is **595/595** across compiler routing, typed
-diagnostics, lifecycle, canonical boundary, materialization, Fresh, Supervisor
-and Wizard bridge. TypeScript and diff-check PASS. One literal `npm run check`
-ran exactly once: resource-intensive passed 606/606; ordinary passed 3,258,
-skipped 65 and initially failed 11 now-corrected three-call expectations plus
-only the five established missing ignored-output fixtures. The 11 affected
-expectations then passed 80/80 focused. No credential, provider, Fresh, live,
-image or render call was made during this implementation.
+The compiler regression proves the observed five-call sequence
+`initial -> page_spatial_reference_patch -> book_surface_patch ->
+page_spatial_reference_patch -> book_surface_patch -> candidate`, exact
+`[40000, 32000, 36000, 36000, 36000]` output caps, preserved action coverage,
+and no sixth call. Exhaustion, route-admission and compact sixth-call/no-seventh
+boundaries are covered separately. One new Fresh/live attempt is authorized
+after local green commit/push; Wizard reconciliation and a 12-page
+QA/non-production `gpt-image-2` LOW render are authorized only after a valid
+Candidate. No credential, provider, Fresh, live, image or render call has been
+made during this implementation milestone yet.
+
+Focused authority validation is **567/567** across compiler routing, typed
+diagnostics, lifecycle, canonical boundary, B0, materialization, Fresh,
+Supervisor and Wizard bridge. TypeScript and diff-check PASS. One literal
+`npm run check` ran exactly once: ordinary passed 3,271, skipped 65 and failed
+only the five established missing ignored-output fixtures; resource-intensive
+passed 607/607 and exited nonzero only for two post-assertion `onTaskUpdate`
+RPC timeouts. No new implementation assertion failed.
 
 ## BOUNDED INCOMPLETE PAGECONTRACT CORRECTION — pushed; consumed live attempt fail-closed
 

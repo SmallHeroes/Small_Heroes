@@ -1,8 +1,8 @@
 export const VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
-  'visual-contract-authoring-policy/v14' as const;
+  'visual-contract-authoring-policy/v15' as const;
 
 export const VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION =
-  'visual-contract-authoring-standard-attempt-output-budget/v3' as const;
+  'visual-contract-authoring-standard-attempt-output-budget/v4' as const;
 
 export const VISUAL_CONTRACT_AUTHORING_PROVIDER = 'openai' as const;
 export const VISUAL_CONTRACT_AUTHORING_ENDPOINT = 'responses' as const;
@@ -28,8 +28,8 @@ export const VISUAL_CONTRACT_AUTHORING_PROMPT_PROTOCOL_ALLOWANCE =
   4_096;
 export const VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN =
   4_096;
-export const VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS = 4;
-export const VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS = 3;
+export const VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS = 5;
+export const VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS = 4;
 export const VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_CALLS = 1;
 export const VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_REPAIRS = 1;
 export const VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_INPUT_TOKENS =
@@ -54,7 +54,7 @@ export const VISUAL_CONTRACT_AUTHORING_MAX_REPAIRS =
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS +
   VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_MAX_REPAIRS;
 /**
- * Temporary D1A live-authoring ceiling under the current standard four-call
+ * Temporary D1A live-authoring ceiling under the current standard five-call
  * budget plus one closed compact terminal-reference cleanup / $10 fence.
  * Larger books require a separately approved budget or partition Decision
  * Gate before any provider can be reached.
@@ -87,6 +87,7 @@ export type VisualContractAuthoringStandardAttemptOutputLimits = readonly [
   number,
   number,
   number,
+  number,
 ];
 
 /**
@@ -109,10 +110,10 @@ export function authoringMaxOutputTokens(pageCount: number): number {
 }
 
 /**
- * Canonical ordered limits for initial and repairs 1 through 3. The initial
+ * Canonical ordered limits for initial and repairs 1 through 4. The initial
  * call retains headroom above the legacy base, repair 1 funds the compact
- * correction path, and repairs 2 and 3 each recover the full legacy base.
- * Complementary rounding keeps the standard output pool equal to four legacy
+ * correction path, and repairs 2 through 4 each recover the full legacy base.
+ * Complementary rounding keeps the standard output pool equal to five legacy
  * per-call bases for every admitted page count.
  */
 export function authoringStandardAttemptOutputLimits(
@@ -133,7 +134,7 @@ export function authoringStandardAttemptOutputLimitsForBase(
   const initial = Math.ceil((10 * base) / 9);
   const firstRepair = Math.floor((8 * base) / 9);
   const secondRepair = 3 * base - initial - firstRepair;
-  return [initial, firstRepair, secondRepair, base];
+  return [initial, firstRepair, secondRepair, base, base];
 }
 
 export interface VisualContractAuthoringInputAccounting {
