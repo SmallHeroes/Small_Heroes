@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the current deferred represented-elsewhere milestone is based on pushed `9d9aa56f0a77e76bf126f8cb9657123db05e2b81`.
 
-## DEFERRED REPRESENTED-ELSEWHERE / BOOKSURFACE ROUTING — local green; commit and immutable QA next
+## DEFERRED REPRESENTED-ELSEWHERE / BOOKSURFACE ROUTING — independent QA PASS; push next
 
 The single eight-page Koko live attempt under
 `outputs/r1d-missing-binding-fresh-9d9aa56f-20260818T220552372Z` is consumed
@@ -37,8 +37,8 @@ The `$0` production-backed harness proves route `initial -> book_surface_patch
 -> page_contract_patch -> Candidate`, complete/surfaced unique counts `5 -> 1
 -> 0`, deltas `-4/-1`, no provider call and no positive regression. Six focused
 suites pass **245/245**, TypeScript and diff-check pass. Claude Code's dirty-diff
-adversarial review and micro re-gate both returned PASS with no remaining
-finding. The one literal `npm run check` completed with exit 1 after TypeScript
+adversarial review, micro re-gate and immutable-range final QA all returned PASS
+with no BLOCKER, MAJOR or MINOR. The one literal `npm run check` completed with exit 1 after TypeScript
 and story typecheck passed; the app retained only the first 20,000 output
 characters and clipped the terminal Vitest summary, so no unsupported full-gate
 count is claimed and no retry was performed.
@@ -49,8 +49,12 @@ Wizard or render surface changed. Durable records:
 `docs/ai-workflow/R1D_DEFERRED_REPRESENTED_ELSEWHERE_BOOK_SURFACE_ROUTING_DECISION_GATE.md`
 and
 `docs/ai-workflow/R1D_DEFERRED_REPRESENTED_ELSEWHERE_BOOK_SURFACE_ROUTING_IMPLEMENTATION_EVIDENCE.md`.
-Next: focused commit and Claude Code immutable-range QA. Only after PASS, push,
-new current-head Fresh and one canonical live attempt may follow. That live is
+Claude Code reviewed immutable range
+`9d9aa56f0a77e76bf126f8cb9657123db05e2b81..9dbc9b8de2c23fa597a3a9b04d549eeee7684a48`
+read-only and confirmed the exact closed eligibility, BookSurface coverage
+non-mutation, scan-based flat-to-local rebinding, ambiguity/stale rejection,
+offline Candidate trajectory and lack of authority drift. Next: push, new
+current-head Fresh and one canonical live attempt. That live is
 the second consecutive bounded attempt; failure is a hard stop with no retry.
 
 ## COMPILER-OWNED MISSING ACTION BINDING + BOUNDED CORRECTION — independent QA PASS; push next

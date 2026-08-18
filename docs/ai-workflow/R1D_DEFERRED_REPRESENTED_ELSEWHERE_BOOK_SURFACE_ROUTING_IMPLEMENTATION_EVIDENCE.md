@@ -122,9 +122,16 @@ authority.
 
 ## Independent QA and stop boundary
 
-The implementation still requires Claude Code review of the immutable commit
-range before push or Fresh. After immutable PASS, the already-authorized next
-step is one new current-head Fresh Readiness and one canonical live authoring
-attempt. It is the second consecutive bounded live attempt: any failure is a
-hard stop with no retry and no symptom-fix loop. Wizard reconciliation and LOW
-render require a real current Candidate.
+Claude Code reviewed immutable range
+`9d9aa56f0a77e76bf126f8cb9657123db05e2b81..9dbc9b8de2c23fa597a3a9b04d549eeee7684a48`
+read-only and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It independently
+confirmed the exact three-code eligibility, BookSurface coverage non-mutation,
+canonical same-page failure reproduction, flat-to-local index replacement,
+stale/ambiguous rejection, harness Candidate trajectory and absence of
+authority/policy/version drift. Its three advisories were explicitly
+fail-safe and required no code change.
+
+The already-authorized next step is push, one new current-head Fresh Readiness
+and one canonical live authoring attempt. It is the second consecutive bounded
+live attempt: any failure is a hard stop with no retry and no symptom-fix loop.
+Wizard reconciliation and LOW render require a real current Candidate.
