@@ -6692,6 +6692,164 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
+  it('uses the reserved final standard repair when the first PageContract response omits its exact patch set', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    const invalidPages = invalid.pageContracts
+      .slice(0, 2) as unknown as Array<Record<string, unknown>>;
+    expect(invalidPages).toHaveLength(2);
+    const validPages = invalidPages.map((invalidPage) => {
+      const invalidCoverage =
+        invalidPage.actionSemanticCoverage as Array<Record<string, unknown>>;
+      invalidCoverage[0]!.disposition = {
+        kind: 'non_visual',
+        rationale: 'narrative_context',
+      };
+      const validPage = structuredClone(invalidPage);
+      delete validPage.castIds;
+      delete validPage.castStates;
+      delete validPage.characterPresence;
+      validPage.propState ??= [];
+      validPage.propConstraints ??= [];
+      validPage.actionRequirements ??= [];
+      for (const action of validPage.actionRequirements as Array<
+        Record<string, unknown>
+      >) {
+        action.spatialEffect ??= null;
+        action.spatialConstraint ??= null;
+      }
+      (
+        validPage.actionSemanticCoverage as Array<Record<string, unknown>>
+      )[0]!.disposition = { kind: 'action_requirement' };
+      return validPage;
+    });
+
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => ({
+        output:
+          args.attempt === 1
+            ? JSON.stringify(invalid)
+            : JSON.stringify({
+                pageContracts:
+                  args.attempt === 2 ? [validPages[0]] : validPages,
+              }),
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: `incomplete-set-correction-${args.attempt}`,
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 2_000,
+            total_tokens: 3_000,
+            output_tokens_details: { reasoning_tokens: 500 },
+          },
+        },
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'completed',
+      callCount: 3,
+      repairCount: 2,
+      draftValidationStatus: 'completed',
+      failure: null,
+    });
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([null, 'page_contract_patch', 'page_contract_patch']);
+    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(provider.call).toHaveBeenCalledTimes(3);
+    const repairCalls = vi.mocked(provider.call).mock.calls.slice(1);
+    expect(
+      decodePageContractRepairUserPrompt(
+        repairCalls[0]![0].userPrompt,
+      ),
+    ).toEqual(
+      decodePageContractRepairUserPrompt(
+        repairCalls[1]![0].userPrompt,
+      ),
+    );
+  });
+
+  it('keeps a second incomplete PageContract response terminal without a fourth call', async () => {
+    const snapshot = bunnySnapshot();
+    const invalid = fullyActionedBunnyDraft(snapshot);
+    const invalidPages = invalid.pageContracts
+      .slice(0, 2) as unknown as Array<Record<string, unknown>>;
+    expect(invalidPages).toHaveLength(2);
+    const partialPage = structuredClone(invalidPages[0]!);
+    for (const invalidPage of invalidPages) {
+      const invalidCoverage =
+        invalidPage.actionSemanticCoverage as Array<Record<string, unknown>>;
+      invalidCoverage[0]!.disposition = {
+        kind: 'non_visual',
+        rationale: 'narrative_context',
+      };
+    }
+    delete partialPage.castIds;
+    delete partialPage.castStates;
+    delete partialPage.characterPresence;
+    partialPage.propState ??= [];
+    partialPage.propConstraints ??= [];
+    partialPage.actionRequirements ??= [];
+    for (const action of partialPage.actionRequirements as Array<
+      Record<string, unknown>
+    >) {
+      action.spatialEffect ??= null;
+      action.spatialConstraint ??= null;
+    }
+    (
+      partialPage.actionSemanticCoverage as Array<Record<string, unknown>>
+    )[0]!.disposition = { kind: 'action_requirement' };
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => ({
+        output:
+          args.attempt === 1
+            ? JSON.stringify(invalid)
+            : JSON.stringify({ pageContracts: [partialPage] }),
+        receipt: {
+          provider: 'openai',
+          model: 'gpt-5.6-sol',
+          responseId: `persistent-incomplete-set-${args.attempt}`,
+          usage: {
+            input_tokens: 1_000,
+            output_tokens: 2_000,
+            total_tokens: 3_000,
+            output_tokens_details: { reasoning_tokens: 500 },
+          },
+        },
+      })),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request: requestFor(snapshot, 'live'),
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 3,
+      repairCount: 2,
+      candidateDigest: null,
+      failure: {
+        code: 'repair_output_invalid',
+        repairOutputDiagnostics: {
+          identity: 'page_contract_repair_patch_set_incomplete',
+          repairAttempt: 3,
+          repairMode: 'page_contract_patch',
+        },
+      },
+    });
+    expect(provider.call).toHaveBeenCalledTimes(3);
+  });
+
   it('repeats BookSurface with null cover for the 12-page pure structural residual and persists a candidate', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');

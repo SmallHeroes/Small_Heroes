@@ -2,9 +2,37 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `293f25b55bdebc17911b7bbcb9e94036915ef843`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `ee7cdbf1bff442ab5e41a11067e5bc81739239ab`.
 
-## COMPILER-OWNED RECURRING-PROP LIFECYCLE CLOSURE — implementation green; commit/push next
+## BOUNDED INCOMPLETE PAGECONTRACT CORRECTION — implementation green; commit/push next
+
+The sole canonical run under
+`outputs/r1d-recurring-lifecycle-fresh-ee7cdbf1-20260818T133535132Z`
+ended fail-closed and will not be retried. Receipt v41
+`f34d6267f4ee231edc1d04dfb9f5d1b41585a2514b4ed732a4d3cb41138b4a5b`
+records two completed calls and route `initial -> page_contract_patch`. The
+recurring-prop lifecycle error is closed. The new exact terminal identity is
+`page_contract_repair_patch_set_incomplete`: the strict response contained a
+nonempty subset of the exact affected-page set and was atomically rejected.
+Its 13,698 output tokens were below the 32,000 cap, so this was not truncation,
+transport, timeout, model, budget or infrastructure failure.
+
+The bounded compiler loop now consumes the already-reserved final standard
+repair call only for that exact first PageContract failure. It keeps the
+original draft unchanged and reuses the same exact PageContract authority. A
+second incomplete response remains terminal, and no fourth call is admitted.
+Every other malformed, extra, duplicate, reordered, overreaching or stale
+repair output remains terminal. No prompt/schema/version/model/budget/$5,
+Candidate, Wizard or renderer behavior changed.
+
+Focused validation is **193/193** across PageContract unit, compiler repair
+loop and source-authority lifecycle; TypeScript and diff-check PASS. Dedicated
+regressions prove incomplete→complete reaches Candidate in exactly 3 calls/2
+repairs, while incomplete→incomplete stops after exactly 3 calls with no fourth.
+No credential, provider, Fresh, live, image or render call was made during this
+implementation.
+
+## COMPILER-OWNED RECURRING-PROP LIFECYCLE CLOSURE — pushed; consumed live attempt fail-closed
 
 The sole post-cover-normalization run under
 `outputs/r1d-cover-cast-normalization-fresh-293f25b5-20260818T131744049Z`

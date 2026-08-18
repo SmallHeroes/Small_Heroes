@@ -4685,6 +4685,20 @@ export async function compileBookVisualContractTemplate(
       const failureCode = templateRepairOutputFailureCode(error);
       if (
         repairMode === 'page_contract_patch' &&
+        failureIdentity ===
+          'page_contract_repair_patch_set_incomplete' &&
+        attempt < STANDARD_MAX_REPAIR_ATTEMPTS
+      ) {
+        // The provider returned a strict-schema-valid but incomplete page set.
+        // The original draft is still byte-identical because the atomic
+        // applier rejects before cloning/applying any page. Consume only the
+        // already-reserved final standard repair call with the exact same
+        // closed authority. A second incomplete response remains terminal;
+        // this never creates a fourth call or transport retry.
+        continue;
+      }
+      if (
+        repairMode === 'page_contract_patch' &&
         failureCode === 'non_target_drift' &&
         error instanceof Error &&
         error.message ===
