@@ -69,7 +69,11 @@ import { InvalidTemplateContractError } from '../visual-contract-compiler/valida
 import { extractDeterministicFacts } from '../visual-contract-compiler/extractDeterministicFacts';
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
-import { draftValidationIssueIsValid } from '../visual-contract-compiler/draftValidationDiagnostics';
+import {
+  draftValidationIssueIsValid,
+  normalizeDraftValidationIssues,
+  type DraftValidationIssue,
+} from '../visual-contract-compiler/draftValidationDiagnostics';
 import { projectPageMustShow } from '../visual-contract-compiler/projectContractProse';
 
 const FULL_DRAFT_ISSUE = {
@@ -2113,6 +2117,79 @@ describe('page-contract compact repair routing', () => {
     expect(JSON.stringify(regressionError)).not.toContain(
       'structural-only-',
     );
+  });
+
+  it('does not classify rising raw emissions or unlike diagnostic populations as a complete-census regression', () => {
+    const pageIssue = (pageNumber: number): DraftValidationIssue => ({
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber,
+      },
+      causes: ['page_steering_invalid'],
+    });
+    const previousIssues = Array.from(
+      { length: 8 },
+      (_value, index) => pageIssue(index + 1),
+    );
+    const currentUniqueIssues = Array.from(
+      { length: 7 },
+      (_value, index) => pageIssue(index + 1),
+    );
+    const currentEmissions = [
+      ...currentUniqueIssues,
+      ...currentUniqueIssues,
+      ...currentUniqueIssues.slice(0, 4),
+    ];
+    expect(currentEmissions).toHaveLength(18);
+    expect(currentEmissions.length).toBeGreaterThan(
+      previousIssues.length,
+    );
+    expect(
+      normalizeDraftValidationIssues(currentEmissions),
+    ).toHaveLength(7);
+    expect(() =>
+      new TemplateRepairIssueRegressionError([
+        {
+          attempt: 1,
+          errors: previousIssues.map(() => 'previous'),
+          diagnosticIssues: previousIssues,
+          diagnosticPopulation: 'complete',
+          draft: {},
+          nextRepairMode: 'book_surface_patch',
+        },
+        {
+          attempt: 2,
+          errors: currentEmissions.map(() => 'current'),
+          diagnosticIssues: currentEmissions,
+          diagnosticPopulation: 'complete',
+          draft: {},
+        },
+      ] as never),
+    ).toThrow('template_repair_issue_regression_evidence_invalid');
+
+    const genuinelyWorse = [...previousIssues, pageIssue(9)];
+    expect(() =>
+      new TemplateRepairIssueRegressionError([
+        {
+          attempt: 1,
+          errors: previousIssues.map(() => 'previous'),
+          diagnosticIssues: previousIssues,
+          diagnosticPopulation: 'complete',
+          draft: {},
+          nextRepairMode: 'book_surface_patch',
+        },
+        {
+          attempt: 2,
+          errors: genuinelyWorse.map(() => 'current'),
+          diagnosticIssues: genuinelyWorse,
+          diagnosticPopulation: 'route_subset',
+          draft: {},
+        },
+      ] as never),
+    ).toThrow('template_repair_issue_regression_evidence_invalid');
   });
 
   it('keeps the fail-closed full-draft lane when the compact presentation fallback is also input-inadmissible', async () => {

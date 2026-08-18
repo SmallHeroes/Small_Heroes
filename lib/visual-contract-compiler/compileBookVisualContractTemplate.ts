@@ -284,6 +284,8 @@ interface TemplateRepairAttempt {
   errors: string[];
   /** Closed compiler-owned sibling identities; never used to select repair input or mode. */
   diagnosticIssues: readonly DraftValidationIssue[];
+  /** Only complete censuses may be compared by the repair regression guard. */
+  diagnosticPopulation: 'complete' | 'route_subset';
   /** The descriptive draft object this attempt failed with; retained only for the next repair prompt. */
   draft: unknown;
   /** Narrow patch or existing whole-draft repair selected after this failure. */
@@ -316,6 +318,26 @@ export interface TemplateRepairSummary {
   nextRepairBudgetClass?:
     | 'standard'
     | 'terminal_reference_cleanup';
+}
+
+function templateRepairIssueRegressionCounts(
+  previous: TemplateRepairAttempt,
+  current: TemplateRepairAttempt,
+): { previous: number; current: number } | null {
+  if (
+    previous.diagnosticPopulation !== 'complete' ||
+    current.diagnosticPopulation !== 'complete'
+  ) {
+    return null;
+  }
+  return {
+    previous: normalizeDraftValidationIssues(
+      previous.diagnosticIssues,
+    ).length,
+    current: normalizeDraftValidationIssues(
+      current.diagnosticIssues,
+    ).length,
+  };
 }
 
 function sourceEvidenceIdDiagnosticIssues(
@@ -785,11 +807,16 @@ export class TemplateRepairIssueRegressionError extends InvalidTemplateContractE
   constructor(attempts: readonly TemplateRepairAttempt[]) {
     const current = attempts[attempts.length - 1];
     const previous = attempts[attempts.length - 2];
+    const counts =
+      current && previous
+        ? templateRepairIssueRegressionCounts(previous, current)
+        : null;
     if (
       !current ||
       !previous ||
       !previous.nextRepairMode ||
-      current.diagnosticIssues.length <= previous.diagnosticIssues.length
+      !counts ||
+      counts.current <= counts.previous
     ) {
       throw new Error('template_repair_issue_regression_evidence_invalid');
     }
@@ -797,8 +824,8 @@ export class TemplateRepairIssueRegressionError extends InvalidTemplateContractE
     this.name = 'TemplateRepairIssueRegressionError';
     this.retainedAttempt = previous.attempt;
     this.rejectedAttempt = current.attempt;
-    this.previousIssueCount = previous.diagnosticIssues.length;
-    this.currentIssueCount = current.diagnosticIssues.length;
+    this.previousIssueCount = counts.previous;
+    this.currentIssueCount = counts.current;
     this.repairMode = previous.nextRepairMode;
     this.attempts = attempts.map((attempt) => ({
       attempt: attempt.attempt,
@@ -4600,6 +4627,9 @@ export async function compileBookVisualContractTemplate(
       | null = null;
     let attemptErrors: string[] = [];
     let attemptDiagnosticIssues: readonly DraftValidationIssue[] = [];
+    let attemptDiagnosticPopulation:
+      | TemplateRepairAttempt['diagnosticPopulation'] =
+      'route_subset';
     let sourceEvidenceAffectedRecords:
       | SourceEvidenceIdRepairAffectedRecord[]
       | null = null;
@@ -4645,6 +4675,15 @@ export async function compileBookVisualContractTemplate(
     try {
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
+      if (
+        err instanceof BookSurfaceStructuralValidationError ||
+        err instanceof PresentationStructuralValidationError ||
+        err instanceof CollectedTemplateValidationError ||
+        err instanceof CollectedDraftAuthorityReferenceDomainError ||
+        err instanceof CollectedActionSemanticCapabilityGapError
+      ) {
+        attemptDiagnosticPopulation = 'complete';
+      }
       if (err instanceof BookSurfaceStructuralValidationError) {
         bookSurfaceAuthority =
           bookSurfaceRepairAuthority({
@@ -5099,15 +5138,21 @@ export async function compileBookVisualContractTemplate(
       attempt,
       errors: attemptErrors,
       diagnosticIssues: attemptDiagnosticIssues,
+      diagnosticPopulation: attemptDiagnosticPopulation,
       draft,
     });
 
     const previousAttempt = repairAttempts[repairAttempts.length - 2];
     const currentAttempt = repairAttempts[repairAttempts.length - 1]!;
+    const issueRegressionCounts = previousAttempt
+      ? templateRepairIssueRegressionCounts(
+          previousAttempt,
+          currentAttempt,
+        )
+      : null;
     if (
-      previousAttempt &&
-      currentAttempt.diagnosticIssues.length >
-        previousAttempt.diagnosticIssues.length
+      issueRegressionCounts &&
+      issueRegressionCounts.current > issueRegressionCounts.previous
     ) {
       // Retain the last less-invalid draft in memory and stop before selecting
       // or dispatching another repair. Invalid drafts never become candidates.
