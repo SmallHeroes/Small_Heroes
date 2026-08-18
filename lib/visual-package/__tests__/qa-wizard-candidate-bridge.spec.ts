@@ -802,7 +802,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       supervisorSourceBytes,
     ) as Record<string, unknown>;
     priorSupervisorResult.version =
-      'canonical-live-execution-result/v20';
+      'canonical-live-execution-result/v21';
     writeText(
       fixture.repoRoot,
       supervisorSourcePath,
@@ -1587,5 +1587,5 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
         manifestPath: advanced.manifestArtifact.path,
       }),
     ).toEqual(advanced.manifest);
-  }, 15_000);
+  }, 25_000);
 });

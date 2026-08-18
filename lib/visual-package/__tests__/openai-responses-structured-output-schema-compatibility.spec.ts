@@ -114,7 +114,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       'page-spatial-reference-repair-schema/v1',
     );
     expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
-      'book-surface-repair-schema/v5',
+      'book-surface-repair-schema/v6',
     );
     expect(STRUCTURAL_BUNDLE_REPAIR_SCHEMA_VERSION).toBe(
       'structural-bundle-repair-schema/v3',

@@ -2,7 +2,51 @@
 
 **Updated:** 2026-08-18
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-causal-repair-contract` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based exactly on pushed and independently QA-passed `f9797c20169309944d0cfdd2ef37edf871a6f610`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; based on pushed `76686edb6d204afb50c373c100a38386abe76a3a`.
+
+## BOOK SURFACE V6 CAUSAL DELTA — implementation green; independent QA and Fresh pending
+
+The bounded canonical attempt under
+`outputs/r1d-causal-booksurface-fresh-76686edb-20260818T070059265Z`
+ended fail-closed and was not retried. Receipt v35 records two completed calls,
+one repair, zero transport retries/fallback and `$0.900464 / $0.990519`
+nominal/conservative cost. The initial Page Contract repair resolved the sole
+page-1 action-binding cardinality issue. Full validation then exposed 26 unique
+identities / 131 emissions, but the final Book Surface v5 route was 65,769
+bytes against the 59,904-byte admission ceiling. No Candidate, reconciliation,
+Blueprint, Wizard or render authority exists from that attempt.
+
+The approved general correction makes Book Surface v6 a strict causal delta.
+The provider receives exact typed causes, writable fields, diagnostic counts
+and scrubbed read-only preservation context, but not duplicated raw validation
+prose, source phrases, coverage indexes or Source Evidence IDs it cannot
+return. The response must return a non-null typed value for each writable field
+and `null` for every other fixed-schema page field. The compiler retains and
+validates the full internal action/coverage authority, applies only authorized
+fields atomically and runs unchanged full validation.
+
+The current cutover is Book Surface schema/system/user v6; authoring
+request/receipt/readiness v32/v36/v34; B0 input/manifest/verification
+v21/v30/v30; execution materialization input/result v20/v24; Supervisor
+request/readiness/result v29/v29/v22; and Fresh Readiness v29. Draft v15, Page
+Contract v2, Structural Bundle v3, diagnostics v4, policy v12, budget v2,
+Candidate v9, child output v1 and QA bridge v2 are unchanged. Immediate
+authoring predecessors v31/v35/v33 are immutable legacy authority.
+
+Focused validation is green: core 3 files / 156 tests; downstream authority 8
+files / 445 assertions; QA bridge 7/7; deterministic TypeScript and diff-check
+PASS. One literal `npm run check` ran exactly once. Ordinary passed 3,256,
+skipped 65 and failed only the five established missing ignored-output fixture
+assertions. Resource passed 604; one heavy bridge test exceeded its 15-second
+parallel timeout although the suite passes individually 7/7, and the runner
+reported two existing RPC timeouts. The test-only timeout now matches the
+adjacent 25-second resource bound; the literal gate was not retried.
+
+No credential, provider, Fresh, live, image or render action occurred during
+this implementation. Next: focused commit/push, independent Claude Code
+read-only re-gate, brand-new Fresh Readiness, then at most one bounded live
+authoring call. A valid Candidate is still required before the explicitly
+approved full-book LOW render.
 
 ## BOOK SURFACE CAUSAL REPAIR CONTRACT — independent technical PASS; push pending
 

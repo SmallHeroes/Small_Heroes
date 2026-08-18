@@ -29,13 +29,13 @@ import {
 import { SOURCE_EVIDENCE_ID_PATTERN } from './sourceEvidenceCatalog';
 
 export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
-  'book-surface-repair-schema/v5' as const;
+  'book-surface-repair-schema/v6' as const;
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =
-  'book-surface-repair-prompt/v5' as const;
+  'book-surface-repair-prompt/v6' as const;
 export const BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION =
-  'book-surface-repair-user-prompt/v5' as const;
+  'book-surface-repair-user-prompt/v6' as const;
 
 const MAX_VALIDATION_MESSAGES = 128;
 const MAX_VALIDATION_MESSAGE_LENGTH = 1_024;
@@ -125,7 +125,14 @@ const PAGE_STRUCTURAL_PATCH_JSON_SCHEMA = strictObject(
   Object.fromEntries(
     PAGE_STRUCTURAL_PATCH_KEYS.map((key) => [
       key,
-      PAGE_CONTRACT_PROPERTIES[key],
+      key === 'pageNumber' || key === 'sameLocationAs'
+        ? PAGE_CONTRACT_PROPERTIES[key]
+        : {
+            anyOf: [
+              PAGE_CONTRACT_PROPERTIES[key],
+              { type: 'null' },
+            ],
+          },
     ]),
   ),
 );
@@ -497,13 +504,38 @@ function presentationTargetsAreValidForDraft(args: {
 
 function pageStructuralProjection(
   pageContract: Record<string, unknown>,
+  writableFields: readonly BookSurfaceWritablePageField[],
 ): Record<string, unknown> {
+  const projectedKeys = new Set<string>([
+    'pageNumber',
+    'locationId',
+    'zoneId',
+    ...writableFields,
+  ]);
   return Object.fromEntries(
-    PAGE_STRUCTURAL_PATCH_KEYS.map((key) => [
-      key,
-      structuredClone(pageContract[key]),
-    ]),
+    PAGE_STRUCTURAL_PATCH_KEYS.filter((key) =>
+      projectedKeys.has(key),
+    ).map((key) => [key, structuredClone(pageContract[key])]),
   );
+}
+
+function providerReadOnlyContext(
+  value: BookSurfacePageReadOnlyContext,
+): Record<string, unknown> {
+  return {
+    castIds: [...value.castIds],
+    characterPresence: structuredClone(value.characterPresence),
+    anchorIds: [...value.anchorIds],
+    spatialReferenceIds: [...value.spatialReferenceIds],
+    safetyConstraints: structuredClone(value.safetyConstraints),
+    actionBindingAuthority: value.actionBindingAuthority.map(
+      ({ actionIndex, beatId }) => ({ actionIndex, beatId }),
+    ),
+    preRevealPropObligations: structuredClone(
+      value.preRevealPropObligations,
+    ),
+    transitionTopology: structuredClone(value.transitionTopology),
+  };
 }
 
 function writableFieldsForAffectedPage(args: {
@@ -1251,14 +1283,15 @@ export function buildBookSurfaceRepairSystemPrompt(): string {
   return [
     'Repair one closed book surface atomically: exact presentation dispositions, the cover only when coverAuthority is non-null, recurring props only when recurringPropAuthority is non-null, and only the structural page fields supplied by affectedPages.',
     'Decode the compact input exactly: ["s",i] references stringDictionary[i], ["a",...items] is an array, and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
-    'The decoded root contains presentationTargets, nullable coverAuthority and recurringPropAuthority, affectedPages with exact structural projections, causes, writableFields, validationHints and readOnlyContext, and referenceAuthority.',
+    'The decoded root contains presentationTargets, nullable coverAuthority and recurringPropAuthority, affectedPages with exact structural projections, causal repairTargets, writableFields, diagnosticCount and readOnlyContext, and referenceAuthority.',
     'Return presentationPatches in the exact target order, coverContract or null exactly as authorized, recurringProps or null exactly as authorized, and pageStructuralPatches in the exact affected-page order.',
-    'Every pageStructuralPatch must return the strict full patch shape, but may change only that page\'s exact writableFields. Copy every other field, including pageNumber, locationId, zoneId and sameLocationAs, exactly from pageStructuralProjection.',
+    'Every pageStructuralPatch must return the strict full patch shape. Copy pageNumber exactly. Return a repaired non-null value only for that page\'s exact writableFields and return null for every other structural field, including locationId, zoneId and sameLocationAs.',
     'readOnlyContext is preservation authority only and must never be returned. Use its cast/presence, anchors, spatial nodes, scrubbed safety, lifecycle, transition and action-binding facts to keep the repair valid.',
     'When actionRequirements is writable, preserve the exact action count and ordered beatIds from actionBindingAuthority. Never return or alter actionSemanticCoverage.',
     'For each presentation target, copy its identities and one exact permitted contractPointer. The overlapping page mustShow array is not writable; preserve it exactly so the compiler can resolve the authorized pointer/value locally.',
-    'When recurringPropAuthority is non-null, preserve the exact recurring-prop ID order and resolve only its listed lifecycle invariant. Otherwise return recurringProps:null.',
-    'When coverAuthority is non-null, use only IDs and worldType present in referenceAuthority and resolve its listed validation hints. Otherwise return coverContract:null.',
+    'No raw validation prose is included. Use only the typed targets, causes, exact projections, bounded diagnostic counts and read-only authority supplied in the decoded payload.',
+    'When recurringPropAuthority is non-null, preserve the exact recurring-prop ID order and resolve only its typed lifecycle invariant. Otherwise return recurringProps:null.',
+    'When coverAuthority is non-null, use only IDs and worldType present in referenceAuthority and resolve only the typed cover projection invariant. Otherwise return coverContract:null.',
     'Preserve all valid semantics. Never infer or return unrelated page or global fields.',
     'Output only the JSON object required by the strict repair schema.',
   ].join('\n');
@@ -1282,9 +1315,8 @@ export function buildBookSurfaceRepairUserPrompt(args: {
             coverContract: structuredClone(
               args.authority.coverContract,
             ),
-            validationHints: [
-              ...args.authority.coverValidationHints,
-            ],
+            diagnosticCount:
+              args.authority.coverValidationHints.length,
           },
     recurringPropAuthority:
       !args.authority.repairRecurringProps ||
@@ -1294,19 +1326,19 @@ export function buildBookSurfaceRepairUserPrompt(args: {
             recurringProps: structuredClone(
               args.authority.recurringProps,
             ),
-            validationHints: [
-              ...args.authority.recurringPropValidationHints,
-            ],
+            diagnosticCount:
+              args.authority.recurringPropValidationHints.length,
           },
     affectedPages: args.authority.affectedPages.map((value) => ({
       pageNumber: value.pageNumber,
       pageStructuralProjection: pageStructuralProjection(
         value.pageContract,
+        value.writableFields,
       ),
       repairTargets: structuredClone(value.repairTargets),
       writableFields: [...value.writableFields],
-      validationHints: [...value.validationHints],
-      readOnlyContext: structuredClone(value.readOnlyContext),
+      diagnosticCount: value.validationHints.length,
+      readOnlyContext: providerReadOnlyContext(value.readOnlyContext),
     })),
     referenceAuthority: structuredClone(
       args.authority.referenceAuthority,
@@ -1405,20 +1437,29 @@ export function parseBookSurfaceRepairPatch(
         !value ||
         !exactKeys(value, PAGE_STRUCTURAL_PATCH_KEYS) ||
         !positiveInteger(value.pageNumber) ||
-        typeof value.locationId !== 'string' ||
-        value.locationId.trim().length === 0 ||
-        typeof value.zoneId !== 'string' ||
-        value.zoneId.trim().length === 0 ||
+        (value.locationId !== null &&
+          (typeof value.locationId !== 'string' ||
+            value.locationId.trim().length === 0)) ||
+        (value.zoneId !== null &&
+          (typeof value.zoneId !== 'string' ||
+            value.zoneId.trim().length === 0)) ||
         (value.sameLocationAs !== null &&
           typeof value.sameLocationAs !== 'number') ||
-        !Array.isArray(value.mustShow) ||
-        value.mustShow.some((entry) => typeof entry !== 'string') ||
-        !Array.isArray(value.mustNotShow) ||
-        !Array.isArray(value.propState) ||
-        !Array.isArray(value.propConstraints) ||
-        !Array.isArray(value.actionRequirements) ||
-        typeof value.camera !== 'string' ||
-        recordValue(value.transition) === null,
+        (value.mustShow !== null &&
+          (!Array.isArray(value.mustShow) ||
+            value.mustShow.some(
+              (entry) => typeof entry !== 'string',
+            ))) ||
+        (value.mustNotShow !== null &&
+          !Array.isArray(value.mustNotShow)) ||
+        (value.propState !== null && !Array.isArray(value.propState)) ||
+        (value.propConstraints !== null &&
+          !Array.isArray(value.propConstraints)) ||
+        (value.actionRequirements !== null &&
+          !Array.isArray(value.actionRequirements)) ||
+        (value.camera !== null && typeof value.camera !== 'string') ||
+        (value.transition !== null &&
+          recordValue(value.transition) === null),
     )
   ) {
     throw new Error('book_surface_repair_page_invalid');
@@ -1624,9 +1665,13 @@ function validatePageAuthorityAndPatches(args: {
 
     const writableFields = new Set(affectedPage.writableFields);
     for (const key of PAGE_STRUCTURAL_PATCH_KEYS) {
+      if (key === 'pageNumber') continue;
+      const writable = writableFields.has(
+        key as BookSurfaceWritablePageField,
+      );
       if (
-        !writableFields.has(key as BookSurfaceWritablePageField) &&
-        canonicalJson(patch[key]) !== canonicalJson(authorityPage[key])
+        (!writable && patch[key] !== null) ||
+        (writable && patch[key] === null)
       ) {
         throw new Error('book_surface_repair_non_target_drift');
       }
@@ -1703,8 +1748,13 @@ function validatePageAuthorityAndPatches(args: {
         throw new Error('book_surface_repair_action_binding_changed');
       }
     }
-    const patchPropConstraints = Array.isArray(patch.propConstraints)
-      ? patch.propConstraints.map(recordValue)
+    const effectivePropConstraints = writableFields.has(
+      'propConstraints',
+    )
+      ? patch.propConstraints
+      : authorityPage.propConstraints;
+    const patchPropConstraints = Array.isArray(effectivePropConstraints)
+      ? effectivePropConstraints.map(recordValue)
       : [];
     for (const obligation of args.authority.repairRecurringProps
       ? []
@@ -1852,11 +1902,21 @@ function validateEffectiveRecurringPropLifecycle(args: {
   const patchByPage = new Map(
     args.pagePatches.map((patch) => [patch.pageNumber, patch]),
   );
+  const writableFieldsByPage = new Map(
+    args.authority.affectedPages.map((page) => [
+      page.pageNumber,
+      new Set(page.writableFields),
+    ]),
+  );
   const effectivePages = (
     currentPages as Record<string, unknown>[]
   ).map((page) => {
-    const patch = patchByPage.get(page.pageNumber);
-    return patch
+    const pageNumber = page.pageNumber;
+    const patch = typeof pageNumber === 'number'
+      ? patchByPage.get(pageNumber)
+      : undefined;
+    return patch &&
+      writableFieldsByPage.get(pageNumber as number)?.has('propConstraints')
       ? { ...page, propConstraints: patch.propConstraints }
       : page;
   });

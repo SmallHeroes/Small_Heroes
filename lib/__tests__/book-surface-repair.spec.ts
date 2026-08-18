@@ -158,13 +158,25 @@ function presentationPatch(
   };
 }
 
-function structuralPatch(pageNumber: number) {
+function structuralPatch(
+  pageNumber: number,
+  writableFields: readonly string[] = ['mustNotShow', 'camera'],
+) {
   const source = page(pageNumber);
-  return {
+  const result: Record<string, unknown> = {
     pageNumber: source.pageNumber,
-    locationId: source.locationId,
-    zoneId: source.zoneId,
-    sameLocationAs: source.sameLocationAs,
+    locationId: null,
+    zoneId: null,
+    sameLocationAs: null,
+    mustShow: null,
+    mustNotShow: null,
+    propState: null,
+    propConstraints: null,
+    actionRequirements: null,
+    camera: null,
+    transition: null,
+  };
+  const repairedValues: Record<string, unknown> = {
     mustShow: source.mustShow,
     mustNotShow: source.mustNotShow,
     propState: source.propState,
@@ -173,6 +185,10 @@ function structuralPatch(pageNumber: number) {
     camera: `repaired page ${pageNumber}`,
     transition: source.transition,
   };
+  for (const field of writableFields) {
+    result[field] = structuredClone(repairedValues[field]);
+  }
+  return result;
 }
 
 const STRUCTURAL_PATCH_KEYS = [
@@ -195,10 +211,17 @@ function structuralPatchFromAuthority(
 ): Record<string, unknown> {
   const authorityPage =
     selected.affectedPages[affectedPageIndex]!.pageContract;
+  const writableFields = new Set<string>(
+    selected.affectedPages[affectedPageIndex]!.writableFields,
+  );
   return Object.fromEntries(
     STRUCTURAL_PATCH_KEYS.map((key) => [
       key,
-      structuredClone(authorityPage[key]),
+      key === 'pageNumber'
+        ? structuredClone(authorityPage[key])
+        : writableFields.has(key)
+          ? structuredClone(authorityPage[key])
+          : null,
     ]),
   );
 }
@@ -278,10 +301,13 @@ function patch(
     presentationPageNumbers?: number[];
   } = {},
 ): BookSurfaceRepairPatch {
+  const presentationPageNumbers =
+    options.presentationPageNumbers ?? [1, 2];
+  const presentationPages = new Set(presentationPageNumbers);
   return {
-    presentationPatches: (
-      options.presentationPageNumbers ?? [1, 2]
-    ).map((pageNumber) => presentationPatch(pageNumber)),
+    presentationPatches: presentationPageNumbers.map((pageNumber) =>
+      presentationPatch(pageNumber),
+    ),
     coverContract: {
       ...cover(),
       mustShow: ['hero, fox, and complete cake are visible'],
@@ -294,25 +320,30 @@ function patch(
           },
         ]
       : null,
-    pageStructuralPatches: (options.pageNumbers ?? [1]).map(
-      structuralPatch,
+    pageStructuralPatches: (options.pageNumbers ?? [1]).map((pageNumber) =>
+      structuralPatch(
+        pageNumber,
+        presentationPages.has(pageNumber)
+          ? ['mustNotShow', 'camera']
+          : ['mustShow', 'mustNotShow', 'camera'],
+      ),
     ),
   };
 }
 
-describe('atomic causal book-surface repair v5', () => {
-  it('publishes a strict v5 delta schema with nullable cover/props and no action coverage', () => {
+describe('atomic causal book-surface repair v6', () => {
+  it('publishes a strict v6 causal-delta schema with nullable cover/props and no action coverage', () => {
     expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
-      'book-surface-repair-schema/v5',
+      'book-surface-repair-schema/v6',
     );
     expect(BOOK_SURFACE_REPAIR_PROMPT_VERSION).toBe(
-      'book-surface-repair-prompt/v5',
+      'book-surface-repair-prompt/v6',
     );
     expect(BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION).toBe(
-      'book-surface-repair-user-prompt/v5',
+      'book-surface-repair-user-prompt/v6',
     );
     expect(buildBookSurfaceRepairSystemPrompt()).toContain(
-      'may change only that page\'s exact writableFields',
+      'Return a repaired non-null value only for that page\'s exact writableFields',
     );
     const properties = BOOK_SURFACE_REPAIR_JSON_SCHEMA.properties as Record<
       string,
@@ -335,6 +366,9 @@ describe('atomic causal book-surface repair v5', () => {
       'actionSemanticCoverage',
     );
     expect(pageSchema.properties).toHaveProperty('actionRequirements');
+    expect(
+      (pageSchema.properties as Record<string, unknown>).camera,
+    ).toMatchObject({ anyOf: expect.arrayContaining([{ type: 'null' }]) });
   });
 
   it('keeps presentation targets separate from exact structural pages and omits unauthorized props', () => {
@@ -502,6 +536,21 @@ describe('atomic causal book-surface repair v5', () => {
         }),
       ).toThrow();
     }
+
+    const missingWritableValue = structuralPatchFromAuthority(selected!);
+    missingWritableValue.propState = null;
+    expect(() =>
+      applyBookSurfaceRepairPatch({
+        draft: value,
+        authority: selected!,
+        patch: {
+          presentationPatches: [],
+          coverContract: null,
+          recurringProps: null,
+          pageStructuralPatches: [missingWritableValue],
+        },
+      }),
+    ).toThrow('book_surface_repair_non_target_drift');
   });
 
   it('rejects tampered compiler-owned read-only context before prompt or apply', () => {
@@ -677,7 +726,7 @@ describe('atomic causal book-surface repair v5', () => {
     expect(payload).not.toHaveProperty('sourceDraftDigest');
     expect(payload.coverAuthority).toEqual({
       coverContract: cover(),
-      validationHints: selected.coverValidationHints,
+      diagnosticCount: selected.coverValidationHints.length,
     });
     expect(payload.recurringPropAuthority).toBeNull();
     const affectedPages = payload.affectedPages as Array<
@@ -707,6 +756,73 @@ describe('atomic causal book-surface repair v5', () => {
     ]) {
       expect(serialized).not.toContain(sentinel);
     }
+  });
+
+  it('sends only compact action-binding identities while retaining full compiler authority', () => {
+    const value = draft();
+    const sourceEvidenceId = `se1_${'b'.repeat(64)}`;
+    const valuePages = value.pageContracts as Array<
+      Record<string, unknown>
+    >;
+    valuePages[0]!.actionRequirements = [
+      {
+        beatId: 'beat:p1:walk',
+        subject: {
+          kind: 'entity',
+          entityKind: 'cast',
+          entityId: 'child:hero',
+        },
+        predicate: 'walks',
+        object: null,
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'affirmed',
+        laterality: null,
+      },
+    ];
+    valuePages[0]!.actionSemanticCoverage = [
+      {
+        beatId: 'beat:p1:walk',
+        sourceEvidenceId,
+        disposition: { kind: 'action_requirement' },
+      },
+    ];
+    const selected = bookSurfaceRepairAuthority({
+      draft: value,
+      authorityDraft: value,
+      presentationTargets: [],
+      structuralDiagnosticIssues: [
+        pageStructureIssueWithCause(
+          1,
+          'page_action_requirements_invalid',
+        ),
+      ],
+      structuralValidationMessages: ['sanitized action repair'],
+    });
+    expect(selected).not.toBeNull();
+    expect(
+      selected!.affectedPages[0]!.readOnlyContext.actionBindingAuthority,
+    ).toEqual([
+      {
+        actionIndex: 0,
+        beatId: 'beat:p1:walk',
+        coverageIndex: 0,
+        sourceEvidenceId,
+      },
+    ]);
+
+    const rawPrompt = buildBookSurfaceRepairUserPrompt({
+      authority: selected!,
+    });
+    const decoded = decodeBookSurfaceRepairUserPrompt(rawPrompt) as {
+      affectedPages: Array<{
+        readOnlyContext: { actionBindingAuthority: unknown[] };
+      }>;
+    };
+    expect(
+      decoded.affectedPages[0]!.readOnlyContext.actionBindingAuthority,
+    ).toEqual([{ actionIndex: 0, beatId: 'beat:p1:walk' }]);
+    expect(rawPrompt).not.toContain(sourceEvidenceId);
   });
 
   it('deduplicates structural hints under one aggregate bound', () => {
@@ -801,7 +917,7 @@ describe('atomic causal book-surface repair v5', () => {
     ).toBeNull();
   });
 
-  it('admits a twelve-page live-shaped v5 request while retaining every exact hint', () => {
+  it('admits a twelve-page live-shaped v6 request without sending redundant validation prose', () => {
     const value = draft(12);
     const pageIssues = Array.from(
       { length: 113 },
@@ -836,28 +952,26 @@ describe('atomic causal book-surface repair v5', () => {
       userPrompt,
       BOOK_SURFACE_REPAIR_JSON_SCHEMA,
     );
-    expect(accounting.estimatedBytes).toBe(32_435);
-    expect(59_904 - accounting.estimatedBytes).toBe(27_469);
     const decoded = decodeBookSurfaceRepairUserPrompt(
       userPrompt,
     ) as unknown as {
       presentationTargets: unknown[];
-      coverAuthority: { validationHints: string[] } | null;
-      recurringPropAuthority: { validationHints: string[] } | null;
-      affectedPages: Array<{ validationHints: string[] }>;
+      coverAuthority: { diagnosticCount: number } | null;
+      recurringPropAuthority: { diagnosticCount: number } | null;
+      affectedPages: Array<{ diagnosticCount: number }>;
     };
     expect(decoded.presentationTargets).toHaveLength(1);
     expect(decoded.affectedPages).toHaveLength(12);
-    const decodedHints = [
-      ...(decoded.coverAuthority?.validationHints ?? []),
-      ...(decoded.recurringPropAuthority?.validationHints ?? []),
-      ...decoded.affectedPages.flatMap(
-        (page) => page.validationHints,
-      ),
-    ];
-    expect(decodedHints).toHaveLength(115);
-    expect([...decodedHints].sort()).toEqual(
-      [...normalizedMessages].sort(),
+    const decodedDiagnosticCount =
+      (decoded.coverAuthority?.diagnosticCount ?? 0) +
+      (decoded.recurringPropAuthority?.diagnosticCount ?? 0) +
+      decoded.affectedPages.reduce(
+        (total, page) => total + page.diagnosticCount,
+        0,
+      );
+    expect(decodedDiagnosticCount).toBe(115);
+    expect(59_904 - accounting.estimatedBytes).toBeGreaterThanOrEqual(
+      4_096,
     );
     expect(accounting.estimatedBytes).toBeLessThanOrEqual(
       VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS -
@@ -872,7 +986,7 @@ describe('atomic causal book-surface repair v5', () => {
     ).toBe(true);
     const decodedJson = JSON.stringify(decoded);
     for (const message of normalizedMessages) {
-      expect(decodedJson).toContain(message);
+      expect(decodedJson).not.toContain(message);
     }
   });
 
@@ -1193,9 +1307,6 @@ describe('atomic causal book-surface repair v5', () => {
     const snapshot = structuredClone(original);
     const selected = authority(original);
     const pagePatch = structuralPatch(1);
-    pagePatch.mustShow = structuredClone(
-      (snapshot.pageContracts as ReturnType<typeof page>[])[0]!.mustShow,
-    );
     const result = applyBookSurfaceRepairPatch({
       draft: original,
       authority: selected,
@@ -1275,10 +1386,6 @@ describe('atomic causal book-surface repair v5', () => {
     });
     expect(selected).not.toBeNull();
     const pagePatch = structuralPatch(1);
-    pagePatch.mustShow = structuredClone(
-      (originalWithSecondaryTarget.pageContracts as ReturnType<typeof page>[])[0]!
-        .mustShow,
-    );
 
     const result = applyBookSurfaceRepairPatch({
       draft: original,
@@ -1442,9 +1549,6 @@ describe('atomic causal book-surface repair v5', () => {
       firstRevealPage: 2,
     }));
     const patchBase = patch({ lifecycle: true });
-    patchBase.pageStructuralPatches[0]!.propConstraints = structuredClone(
-      pageOne.propConstraints,
-    );
     const validPatch = {
       ...patchBase,
       recurringProps: repairedProps,
