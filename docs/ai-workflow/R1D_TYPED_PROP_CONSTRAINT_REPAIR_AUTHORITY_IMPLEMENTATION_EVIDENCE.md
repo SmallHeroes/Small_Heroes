@@ -96,3 +96,21 @@ live authoring, image generation or render is part of this milestone. The next
 step is an immutable-range, read-only Claude Code adversarial review. Any valid
 finding receives a separate focused QA-fix commit and re-gate before push or
 external execution.
+
+## Independent QA
+
+Claude Code reviewed commit `d0f974d03f527979102f8577df1e60219a745f74`
+read-only over immutable range
+`f191af386eb0f8fe31aa3a7ef20b7aacf3be2a45..d0f974d03f527979102f8577df1e60219a745f74`
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**.
+
+The review compared the classifier to the pre-range validator rather than
+trusting tests, verified all nine exact message/order/co-emission clauses and
+Stage 4 last-valid-write behavior, traced prompt/apply recomputation and
+content-addressed tamper rejection, confirmed the 84-record 12-page accounting
+and production-backed offline Candidate route, and audited the complete
+current/legacy version ladder plus unchanged policy/model/budget surfaces.
+Claude's own bounded validation passed **88/88** compiler assertions,
+`npx tsc --noEmit`, and range diff-check. Its first pass was strictly read-only
+and performed no credential, network/provider, Fresh, Candidate, Wizard, image
+or render action.

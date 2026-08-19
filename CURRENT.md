@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the typed prop-constraint authority milestone is based on pushed `f191af386eb0f8fe31aa3a7ef20b7aacf3be2a45`.
 
-## TYPED PROP-CONSTRAINT REPAIR AUTHORITY — local green; Claude immutable-range QA next
+## TYPED PROP-CONSTRAINT REPAIR AUTHORITY — independent Claude QA PASS; push next
 
 No Fresh, credential, provider, Candidate, Wizard, image or render action has
 occurred. The consumed live receipt remains a hard stop until this offline
@@ -48,6 +48,18 @@ retry: ordinary phase recorded 3,320 passes and only the five established
 missing ignored-`outputs/` fixture failures; resource-intensive phase passed
 609/609. Durable evidence:
 `docs/ai-workflow/R1D_TYPED_PROP_CONSTRAINT_REPAIR_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
+
+Claude Code reviewed commit `d0f974d03f527979102f8577df1e60219a745f74`
+read-only over immutable range
+`f191af386eb0f8fe31aa3a7ef20b7aacf3be2a45..d0f974d03f527979102f8577df1e60219a745f74`
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It independently
+falsified all nine classifier clauses against the pre-range validator,
+last-valid-write Stage 4 behavior, raw diagnostic count parity, closed typed
+record privacy, re-digested recomputation, 84-record/4K-headroom evidence,
+offline route/Candidate truth, full version cascade and policy non-drift. Its
+local validation passed 88/88 compiler assertions, TypeScript and diff-check.
+The review made no edit, commit, credential/network/provider call, Fresh,
+Candidate, Wizard, image or render action.
 
 ## EXACT REPAIR-STATE STAGNATION GUARD — independent Claude QA PASS; push next
 
