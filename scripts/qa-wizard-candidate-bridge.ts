@@ -2,10 +2,12 @@ import fs from 'node:fs';
 
 import {
   advanceQaWizardApprovedReconciliation,
+  attestQaWizardCandidateValidation,
   captureQaWizardCanonicalSupervisorResultEvidence,
   prepareQaWizardCandidateReconciliation,
   recordQaWizardReconciliationApproval,
   type AdvanceQaWizardApprovedReconciliationRequest,
+  type AttestQaWizardCandidateValidationRequest,
   type CaptureQaWizardCanonicalSupervisorResultRequest,
   type PrepareQaWizardCandidateReconciliationRequest,
   type RecordQaWizardReconciliationApprovalRequest,
@@ -27,6 +29,10 @@ type CaptureRequest = Omit<
   CaptureQaWizardCanonicalSupervisorResultRequest,
   'outputDir' | 'write'
 >;
+type AttestRequest = Omit<
+  AttestQaWizardCandidateValidationRequest,
+  'outputDir' | 'write'
+>;
 
 const ALLOWED_FLAGS = new Set(['--request', '--out', '--write']);
 
@@ -34,6 +40,7 @@ function usage(): string {
   return [
     'QA Wizard candidate bridge (deterministic QA authority tooling):',
     '  capture-supervisor-result --request <json> --out <repo-relative-dir> --write true|false',
+    '  attest-candidate-validation --request <json> --out <repo-relative-dir> --write true|false',
     '  prepare-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
     '  approve-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
     '  advance-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
@@ -148,6 +155,41 @@ function execute(command: string, tokens: string[]): void {
     });
     return;
   }
+  if (command === 'attest-candidate-validation') {
+    const result = attestQaWizardCandidateValidation({
+      ...readRequest<AttestRequest>(requestPath, [
+        'repoRoot',
+        'storyKey',
+        'storyPath',
+        'candidatePath',
+        'authoringRequestPath',
+        'authoringReceiptPath',
+        'authoringReadinessPath',
+        'freshReadinessPath',
+        'supervisorExecutionRequestPath',
+        'supervisorExecutionResultPath',
+      ]),
+      outputDir,
+      write,
+    });
+    output({
+      status: write
+        ? 'candidate_validation_attested'
+        : 'candidate_validation_attestation_preview_ready',
+      localImmutableWriteRequested: write,
+      candidateValidationAttestation: result.attestation,
+      candidateValidationArtifact: result.artifact,
+      bridgeBoundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        productionWrites: 0,
+      },
+    });
+    return;
+  }
   if (command === 'prepare-reconciliation') {
     const result = prepareQaWizardCandidateReconciliation({
       ...readRequest<PrepareRequest>(requestPath, [
@@ -161,6 +203,7 @@ function execute(command: string, tokens: string[]): void {
         'freshReadinessPath',
         'supervisorExecutionRequestPath',
         'supervisorExecutionResultPath',
+        'candidateValidationAttestationPath',
       ]),
       outputDir,
       write,

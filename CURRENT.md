@@ -2,7 +2,48 @@
 
 **Updated:** 2026-08-19
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-mixed-source-compact-scheduler` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the offline mixed-source scheduler milestone is based on `1df7fc41dc48066bef09a6db98d92edd9beb886a`.
+**Working branch:** `codex/r1d-mixed-source-compact-scheduler` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the Candidate-validation attestation milestone is based on `d461080bb86c4e32bfe8442891d583a699e46880`.
+
+## CANDIDATE VALIDATION ATTESTATION + QA WIZARD MANIFEST V3 — local green; Claude re-gate next
+
+The immutable eight-page Chameleon Candidate remains unchanged. The downstream
+QA bridge no longer requires the live consumer checkout to equal the historical
+authoring HEAD. Instead, a new content-addressed
+`qa-wizard-candidate-validation-attestation/v1` separates and cross-binds:
+
+- immutable Fresh, execution, request, receipt, readiness, Candidate, template,
+  coverage, source and catalog authoring provenance;
+- the clean current consumer branch, HEAD, upstream, parity and worktree state;
+- the current `validateBookVisualContractTemplate` result.
+
+Live Git verification remains mandatory on every current manifest load and is
+retargeted to the attestation's consumer authority. Historical Git facts remain
+artifact-to-artifact checks. A stale, ancestor-only, dirty, divergent,
+wrong-branch, cross-Candidate, noncanonical, failed-validation or scope-expanded
+attestation fails closed.
+
+The QA Wizard bridge manifest advances from v2 to v3 with a required
+`candidateValidation` descriptor. Exact v2 and v1 pending and approved
+manifests remain read-only legacy evidence. The new
+`attest-candidate-validation` CLI supports byte-identical preview and write
+construction; current `prepare-reconciliation` requires its path, and
+`prepare`, `approve` and `advance` revalidate the same pinned authority.
+
+Final focused validation passes **4 files / 89 tests**, TypeScript, and
+`git diff --check`. One literal `npm run check` ran once. TypeScript and the
+autonomous-story typecheck passed. The ordinary phase retained only the five
+established missing ignored-`outputs/` fixture failures. The resource-intensive
+phase completed **20 files / 610 tests passed**, but Vitest emitted one
+`onTaskUpdate` RPC timeout after the assertions and therefore returned exit 1.
+The repository gate remains HOLD on those baseline/infrastructure failures; no
+changed or adjacent functional test failed.
+
+Durable records:
+`docs/ai-workflow/R1D_CANDIDATE_VALIDATION_ATTESTATION_DECISION_GATE.md` and
+`docs/ai-workflow/R1D_CANDIDATE_VALIDATION_ATTESTATION_IMPLEMENTATION_EVIDENCE.md`.
+Next: focused local commit and independent Claude Code re-gate. No real
+Supervisor capture, attestation write, reconciliation, approval, Wizard,
+provider, image or render action is authorized by this local milestone.
 
 ## CHAMELEON LIVE CANDIDATE + CANONICAL SET BOARD VALIDATION — local green; Claude re-gate next
 

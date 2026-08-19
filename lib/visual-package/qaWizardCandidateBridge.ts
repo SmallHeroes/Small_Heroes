@@ -79,11 +79,31 @@ import {
   type VisualContractCandidateArtifact,
 } from './visualContractAuthoringLifecycle';
 import { loadTemplateForPackage } from './artifacts';
+import { validateBookVisualContractTemplate } from '../visual-contract-compiler';
 
 export const QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION =
-  'qa-wizard-candidate-bridge-manifest/v2' as const;
+  'qa-wizard-candidate-bridge-manifest/v3' as const;
 export const QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION =
+  'qa-wizard-candidate-bridge-manifest/v2' as const;
+export const QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1 =
   'qa-wizard-candidate-bridge-manifest/v1' as const;
+
+export const QA_WIZARD_CANDIDATE_VALIDATION_ATTESTATION_VERSION =
+  'qa-wizard-candidate-validation-attestation/v1' as const;
+
+export const QA_WIZARD_CANDIDATE_VALIDATION_DOES_NOT_AUTHORIZE = [
+  'reconciliation_approval',
+  'blueprint_authoring',
+  'blueprint_approval',
+  'visual_package_authoring',
+  'visual_package_approval',
+  'wizard_qualification',
+  'wizard_render',
+  'provider_call',
+  'image_render',
+  'production_publication',
+  'deployment',
+] as const;
 
 export const QA_WIZARD_RECONCILIATION_APPROVAL_ATTESTATION_VERSION =
   'qa-wizard-reconciliation-approval-attestation/v1' as const;
@@ -122,7 +142,8 @@ export type QaWizardCandidateBridgeStage =
 export interface QaWizardCandidateBridgeManifest {
   version:
     | typeof QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
-    | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION;
+    | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION
+    | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1;
   stage: QaWizardCandidateBridgeStage;
   source: {
     storyKey: string;
@@ -169,6 +190,11 @@ export interface QaWizardCandidateBridgeManifest {
     readinessPath: string;
     actionSemanticCoverageDigest: string;
     sourceEvidenceCatalogDigest: string;
+  };
+  candidateValidation?: {
+    version: typeof QA_WIZARD_CANDIDATE_VALIDATION_ATTESTATION_VERSION;
+    digest: string;
+    path: string;
   };
   reconciliation: {
     version: typeof SOURCE_PROMPT_RECONCILIATION_VERSION;
@@ -227,6 +253,22 @@ export interface PrepareQaWizardCandidateReconciliationRequest {
   freshReadinessPath: string;
   supervisorExecutionRequestPath: string;
   supervisorExecutionResultPath: string;
+  candidateValidationAttestationPath: string;
+  write?: boolean;
+}
+
+export interface AttestQaWizardCandidateValidationRequest {
+  repoRoot: string;
+  outputDir: string;
+  storyKey: string;
+  storyPath: string;
+  candidatePath: string;
+  authoringRequestPath: string;
+  authoringReceiptPath: string;
+  authoringReadinessPath: string;
+  freshReadinessPath: string;
+  supervisorExecutionRequestPath: string;
+  supervisorExecutionResultPath: string;
   write?: boolean;
 }
 
@@ -261,6 +303,70 @@ export interface CaptureQaWizardCanonicalSupervisorResultRequest {
   outputDir: string;
   supervisorResultSourcePath: string;
   write?: boolean;
+}
+
+export interface QaWizardCandidateValidationAttestation {
+  version: typeof QA_WIZARD_CANDIDATE_VALIDATION_ATTESTATION_VERSION;
+  authoring: {
+    freshReadinessVersion: typeof CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION;
+    freshReadinessDigest: string;
+    freshReadinessPath: string;
+    executionRequestVersion: typeof CANONICAL_LIVE_EXECUTION_REQUEST_VERSION;
+    executionRequestDigest: string;
+    executionRequestPath: string;
+    executionResultVersion: typeof CANONICAL_LIVE_EXECUTION_RESULT_VERSION;
+    executionResultDigest: string;
+    executionResultPath: string;
+    childOutputAuthorityVersion: typeof CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION;
+    childOutputAuthorityDigest: string;
+    repositoryBranchRef: string;
+    repositoryHead: string;
+    repositoryUpstreamRef: string;
+    repositoryUpstreamHead: string;
+    repositoryRealPath: string;
+  };
+  subject: {
+    storyKey: string;
+    storyPath: string;
+    sourceDigest: string;
+    sourceSnapshotVersion: typeof STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION;
+    sourceSnapshotDigest: string;
+    authoringRequestVersion: typeof VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION;
+    authoringRequestDigest: string;
+    authoringReceiptVersion: typeof VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION;
+    authoringReceiptDigest: string;
+    authoringReadinessVersion: typeof VISUAL_CONTRACT_AUTHORING_READINESS_VERSION;
+    authoringReadinessDigest: string;
+    candidateVersion: typeof VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION;
+    candidateDigest: string;
+    candidatePath: string;
+    templateDigest: string;
+    templateSchemaVersion: string;
+    actionSemanticCoverageDigest: string;
+    sourceEvidenceCatalogDigest: string;
+  };
+  consumer: {
+    repositoryRealPath: string;
+    branchRef: string;
+    head: string;
+    upstreamRef: string;
+    upstreamHead: string;
+    ahead: 0;
+    behind: 0;
+    trackedChanges: 0;
+    untrackedChanges: 0;
+  };
+  validation: {
+    validator: 'validateBookVisualContractTemplate';
+    templateSchemaVersion: string;
+    status: 'passed' | 'failed';
+    errorCount: number;
+    issues: string[];
+  };
+  authorityScope: 'candidate_validation_for_reconciliation_only';
+  doesNotAuthorize: string[];
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
 }
 
 export interface QaWizardReconciliationApprovalAttestation {
@@ -602,7 +708,105 @@ function loadAndValidateCandidateTemplateProjection(args: {
   return candidate;
 }
 
-function loadCanonicalSupervisorAuthority(args: {
+type LoadedCanonicalSupervisorAuthority = {
+  freshReadiness: CanonicalPreLiveReadinessEvidence;
+  executionRequest: CanonicalLiveExecutionRequest;
+  executionResult: CanonicalLiveExecutionLiveResult;
+  executionResultDigest: string;
+  materializationManifest: LiveRequestMaterializationManifest;
+};
+
+type QaWizardConsumerRepositoryAuthority =
+  QaWizardCandidateValidationAttestation['consumer'];
+
+function readConsumerRepositoryAuthority(
+  repoRoot: string,
+): QaWizardConsumerRepositoryAuthority {
+  const repositoryRealPath = fs.realpathSync(repoRoot);
+  const branchRef = runGit(repositoryRealPath, [
+    'symbolic-ref',
+    '--quiet',
+    'HEAD',
+  ]);
+  const head = runGit(repositoryRealPath, ['rev-parse', 'HEAD']);
+  const upstreamRef = runGit(repositoryRealPath, [
+    'rev-parse',
+    '--symbolic-full-name',
+    '@{upstream}',
+  ]);
+  const upstreamHead = runGit(repositoryRealPath, [
+    'rev-parse',
+    upstreamRef,
+  ]);
+  const divergence = runGit(repositoryRealPath, [
+    'rev-list',
+    '--left-right',
+    '--count',
+    'HEAD...@{upstream}',
+  ]).split(/\s+/).map(Number);
+  const status = runGit(repositoryRealPath, [
+    'status',
+    '--porcelain=v1',
+    '--untracked-files=all',
+  ]);
+  const statusLines = status === '' ? [] : status.split(/\r?\n/);
+  const trackedChanges = statusLines.filter((line) => !line.startsWith('??')).length;
+  const untrackedChanges = statusLines.filter((line) => line.startsWith('??')).length;
+  const ahead = divergence[0];
+  const behind = divergence[1];
+  if (
+    !/^[a-f0-9]{40}$/.test(head) ||
+    !/^[a-f0-9]{40}$/.test(upstreamHead) ||
+    !Number.isSafeInteger(ahead) ||
+    !Number.isSafeInteger(behind) ||
+    ahead === undefined ||
+    behind === undefined
+  ) {
+    throw new Error('candidate_validation_consumer_repository_stale_or_dirty');
+  }
+  return {
+    repositoryRealPath,
+    branchRef,
+    head,
+    upstreamRef,
+    upstreamHead,
+    ahead: ahead as 0,
+    behind: behind as 0,
+    trackedChanges: trackedChanges as 0,
+    untrackedChanges: untrackedChanges as 0,
+  };
+}
+
+function assertLiveConsumerRepositoryAuthority(args: {
+  repoRoot: string;
+  expected: QaWizardConsumerRepositoryAuthority;
+}): void {
+  const observed = readConsumerRepositoryAuthority(args.repoRoot);
+  if (observed.head !== args.expected.head) {
+    throw new Error('candidate_validation_consumer_head_stale');
+  }
+  if (
+    normalizedAbsolute(observed.repositoryRealPath) !==
+      normalizedAbsolute(args.expected.repositoryRealPath) ||
+    observed.branchRef !== args.expected.branchRef ||
+    observed.upstreamRef !== args.expected.upstreamRef ||
+    observed.upstreamHead !== args.expected.upstreamHead ||
+    observed.head !== observed.upstreamHead ||
+    observed.ahead !== 0 ||
+    observed.behind !== 0 ||
+    observed.trackedChanges !== 0 ||
+    observed.untrackedChanges !== 0 ||
+    args.expected.head !== args.expected.upstreamHead ||
+    args.expected.ahead !== 0 ||
+    args.expected.behind !== 0 ||
+    args.expected.trackedChanges !== 0 ||
+    args.expected.untrackedChanges !== 0
+  ) {
+    throw new Error('candidate_validation_consumer_repository_stale_or_dirty');
+  }
+}
+
+function loadCanonicalSupervisorArtifacts(args: {
   repoRoot: string;
   freshReadinessPath: string;
   executionRequestPath: string;
@@ -611,13 +815,7 @@ function loadCanonicalSupervisorAuthority(args: {
   authoringReceiptPath: string;
   authoringReadinessPath: string;
   candidatePath: string;
-}): {
-  freshReadiness: CanonicalPreLiveReadinessEvidence;
-  executionRequest: CanonicalLiveExecutionRequest;
-  executionResult: CanonicalLiveExecutionLiveResult;
-  executionResultDigest: string;
-  materializationManifest: LiveRequestMaterializationManifest;
-} {
+}): LoadedCanonicalSupervisorAuthority {
   const freshAbsolute = resolveExistingContainedArtifact({
     repoRoot: args.repoRoot,
     relativePath: args.freshReadinessPath,
@@ -973,64 +1171,29 @@ function loadCanonicalSupervisorAuthority(args: {
     );
   }
 
-  const repositoryRealPath = fs.realpathSync(args.repoRoot);
-  const branchRef = runGit(repositoryRealPath, [
-    'symbolic-ref',
-    '--quiet',
-    'HEAD',
-  ]);
-  const head = runGit(repositoryRealPath, ['rev-parse', 'HEAD']);
-  const upstreamRef = runGit(repositoryRealPath, [
-    'rev-parse',
-    '--symbolic-full-name',
-    '@{upstream}',
-  ]);
-  const upstreamHead = runGit(repositoryRealPath, [
-    'rev-parse',
-    upstreamRef,
-  ]);
-  const divergence = runGit(repositoryRealPath, [
-    'rev-list',
-    '--left-right',
-    '--count',
-    'HEAD...@{upstream}',
-  ]).split(/\s+/).map(Number);
-  const status = runGit(repositoryRealPath, [
-    'status',
-    '--porcelain=v1',
-    '--untracked-files=all',
-  ]);
   const repository = freshReadiness.repositoryAuthority;
   const expectedRefs = new Map(
     executionRequest.repository.refs.map((entry) => [entry.name, entry.expectedCommit]),
   );
   if (
-    normalizedAbsolute(repository.repositoryRealPath) !==
-      normalizedAbsolute(repositoryRealPath) ||
     normalizedAbsolute(executionRequest.repository.realPath) !==
-      normalizedAbsolute(repositoryRealPath) ||
-    repository.branchRef !== branchRef ||
-    repository.head !== head ||
-    repository.upstreamRef !== upstreamRef ||
-    repository.upstreamHead !== upstreamHead ||
+      normalizedAbsolute(repository.repositoryRealPath) ||
+    executionRequest.repository.expectedBranch !== repository.branchRef ||
+    executionRequest.repository.expectedHead !== repository.head ||
     repository.ahead !== 0 ||
     repository.behind !== 0 ||
-    divergence[0] !== 0 ||
-    divergence[1] !== 0 ||
-    status !== '' ||
-    executionRequest.repository.expectedBranch !== branchRef ||
-    executionRequest.repository.expectedHead !== head ||
     executionRequest.repository.expectedTrackedChanges !== 0 ||
     executionRequest.repository.expectedUntrackedChanges !== 0 ||
-    expectedRefs.get(branchRef) !== head ||
-    expectedRefs.get(upstreamRef) !== upstreamHead ||
+    expectedRefs.get(repository.branchRef) !== repository.head ||
+    expectedRefs.get(repository.upstreamRef) !== repository.upstreamHead ||
     executionRequest.repository.divergence.length !== 1 ||
-    executionRequest.repository.divergence[0]?.localRef !== branchRef ||
-    executionRequest.repository.divergence[0]?.upstreamRef !== upstreamRef ||
+    executionRequest.repository.divergence[0]?.localRef !== repository.branchRef ||
+    executionRequest.repository.divergence[0]?.upstreamRef !==
+      repository.upstreamRef ||
     executionRequest.repository.divergence[0]?.expectedAhead !== 0 ||
     executionRequest.repository.divergence[0]?.expectedBehind !== 0
   ) {
-    throw new Error('canonical Supervisor repository authority is stale or dirty');
+    throw new Error('canonical Supervisor historical repository authority is invalid');
   }
 
   return {
@@ -1040,6 +1203,37 @@ function loadCanonicalSupervisorAuthority(args: {
     executionResultDigest,
     materializationManifest,
   };
+}
+
+function loadCanonicalSupervisorAuthority(args: {
+  repoRoot: string;
+  freshReadinessPath: string;
+  executionRequestPath: string;
+  executionResultPath: string;
+  authoringRequestPath: string;
+  authoringReceiptPath: string;
+  authoringReadinessPath: string;
+  candidatePath: string;
+  consumerAuthority?: QaWizardConsumerRepositoryAuthority;
+}): LoadedCanonicalSupervisorAuthority {
+  const authority = loadCanonicalSupervisorArtifacts(args);
+  const historical = authority.freshReadiness.repositoryAuthority;
+  assertLiveConsumerRepositoryAuthority({
+    repoRoot: args.repoRoot,
+    expected:
+      args.consumerAuthority ?? {
+        repositoryRealPath: historical.repositoryRealPath,
+        branchRef: historical.branchRef,
+        head: historical.head,
+        upstreamRef: historical.upstreamRef,
+        upstreamHead: historical.upstreamHead,
+        ahead: 0,
+        behind: 0,
+        trackedChanges: 0,
+        untrackedChanges: 0,
+      },
+  });
+  return authority;
 }
 
 function bridgeOutputDirFromManifestPath(manifestPath: string): string {
@@ -1108,26 +1302,36 @@ export function qaWizardCandidateBridgeManifestIsValid(
 ): raw is QaWizardCandidateBridgeManifest {
   if (
     !isObject(raw) ||
-    !exactKeys(raw, [
-      'version',
-      'stage',
-      'source',
-      'supervisor',
-      'visualContract',
-      'reconciliation',
-      'productionContext',
-      'blueprint',
-      'visualPackage',
-      'wizard',
-      'doesNotAuthorize',
-      'digestAlgorithm',
-      'digest',
-    ]) ||
     (raw.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION &&
       raw.version !==
-        QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION) ||
+        QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION &&
+      raw.version !==
+        QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1) ||
     (raw.stage !== 'reconciliation_pending' &&
-      raw.stage !== 'reconciliation_approved') ||
+      raw.stage !== 'reconciliation_approved')
+  ) {
+    return false;
+  }
+  const currentManifest =
+    raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION;
+  const rootKeys = [
+    'version',
+    'stage',
+    'source',
+    'supervisor',
+    'visualContract',
+    ...(currentManifest ? ['candidateValidation'] : []),
+    'reconciliation',
+    'productionContext',
+    'blueprint',
+    'visualPackage',
+    'wizard',
+    'doesNotAuthorize',
+    'digestAlgorithm',
+    'digest',
+  ];
+  if (
+    !exactKeys(raw, rootKeys) ||
     !isObject(raw.source) ||
     !exactKeys(raw.source, [
       'storyKey',
@@ -1217,6 +1421,14 @@ export function qaWizardCandidateBridgeManifestIsValid(
     !nonEmpty(raw.visualContract.readinessPath) ||
     !isDigest(raw.visualContract.actionSemanticCoverageDigest) ||
     !isDigest(raw.visualContract.sourceEvidenceCatalogDigest) ||
+    (currentManifest
+      ? !isObject(raw.candidateValidation) ||
+        !exactKeys(raw.candidateValidation, ['version', 'digest', 'path']) ||
+        raw.candidateValidation.version !==
+          QA_WIZARD_CANDIDATE_VALIDATION_ATTESTATION_VERSION ||
+        !isDigest(raw.candidateValidation.digest) ||
+        !nonEmpty(raw.candidateValidation.path)
+      : raw.candidateValidation !== undefined) ||
     !isObject(raw.reconciliation) ||
     !exactKeys(raw.reconciliation, [
       'version',
@@ -1405,6 +1617,499 @@ export function captureQaWizardCanonicalSupervisorResultEvidence(
     result,
     write: args.write === true,
   });
+}
+
+function boundedCandidateValidationIssues(errors: readonly unknown[]): string[] {
+  return errors
+    .filter((value): value is string => typeof value === 'string')
+    .slice(0, 32)
+    .map((value) =>
+      value
+        .slice(0, 512)
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ''),
+    );
+}
+
+export function qaWizardCandidateValidationAttestationIsValid(
+  value: unknown,
+): value is QaWizardCandidateValidationAttestation {
+  if (
+    !isObject(value) ||
+    !exactKeys(value, [
+      'version',
+      'authoring',
+      'subject',
+      'consumer',
+      'validation',
+      'authorityScope',
+      'doesNotAuthorize',
+      'digestAlgorithm',
+      'digest',
+    ]) ||
+    value.version !== QA_WIZARD_CANDIDATE_VALIDATION_ATTESTATION_VERSION ||
+    !isObject(value.authoring) ||
+    !exactKeys(value.authoring, [
+      'freshReadinessVersion',
+      'freshReadinessDigest',
+      'freshReadinessPath',
+      'executionRequestVersion',
+      'executionRequestDigest',
+      'executionRequestPath',
+      'executionResultVersion',
+      'executionResultDigest',
+      'executionResultPath',
+      'childOutputAuthorityVersion',
+      'childOutputAuthorityDigest',
+      'repositoryBranchRef',
+      'repositoryHead',
+      'repositoryUpstreamRef',
+      'repositoryUpstreamHead',
+      'repositoryRealPath',
+    ]) ||
+    value.authoring.freshReadinessVersion !==
+      CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION ||
+    !isDigest(value.authoring.freshReadinessDigest) ||
+    !nonEmpty(value.authoring.freshReadinessPath) ||
+    value.authoring.executionRequestVersion !==
+      CANONICAL_LIVE_EXECUTION_REQUEST_VERSION ||
+    !isDigest(value.authoring.executionRequestDigest) ||
+    !nonEmpty(value.authoring.executionRequestPath) ||
+    value.authoring.executionResultVersion !==
+      CANONICAL_LIVE_EXECUTION_RESULT_VERSION ||
+    !isDigest(value.authoring.executionResultDigest) ||
+    !nonEmpty(value.authoring.executionResultPath) ||
+    value.authoring.childOutputAuthorityVersion !==
+      CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION ||
+    !isDigest(value.authoring.childOutputAuthorityDigest) ||
+    !nonEmpty(value.authoring.repositoryBranchRef) ||
+    !/^[a-f0-9]{40}$/.test(String(value.authoring.repositoryHead)) ||
+    !nonEmpty(value.authoring.repositoryUpstreamRef) ||
+    !/^[a-f0-9]{40}$/.test(String(value.authoring.repositoryUpstreamHead)) ||
+    !nonEmpty(value.authoring.repositoryRealPath) ||
+    !isObject(value.subject) ||
+    !exactKeys(value.subject, [
+      'storyKey',
+      'storyPath',
+      'sourceDigest',
+      'sourceSnapshotVersion',
+      'sourceSnapshotDigest',
+      'authoringRequestVersion',
+      'authoringRequestDigest',
+      'authoringReceiptVersion',
+      'authoringReceiptDigest',
+      'authoringReadinessVersion',
+      'authoringReadinessDigest',
+      'candidateVersion',
+      'candidateDigest',
+      'candidatePath',
+      'templateDigest',
+      'templateSchemaVersion',
+      'actionSemanticCoverageDigest',
+      'sourceEvidenceCatalogDigest',
+    ]) ||
+    !nonEmpty(value.subject.storyKey) ||
+    !nonEmpty(value.subject.storyPath) ||
+    !isDigest(value.subject.sourceDigest) ||
+    value.subject.sourceSnapshotVersion !==
+      STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION ||
+    !isDigest(value.subject.sourceSnapshotDigest) ||
+    value.subject.authoringRequestVersion !==
+      VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION ||
+    !isDigest(value.subject.authoringRequestDigest) ||
+    value.subject.authoringReceiptVersion !==
+      VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION ||
+    !isDigest(value.subject.authoringReceiptDigest) ||
+    value.subject.authoringReadinessVersion !==
+      VISUAL_CONTRACT_AUTHORING_READINESS_VERSION ||
+    !isDigest(value.subject.authoringReadinessDigest) ||
+    value.subject.candidateVersion !==
+      VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION ||
+    !isDigest(value.subject.candidateDigest) ||
+    !nonEmpty(value.subject.candidatePath) ||
+    !isDigest(value.subject.templateDigest) ||
+    !nonEmpty(value.subject.templateSchemaVersion) ||
+    !isDigest(value.subject.actionSemanticCoverageDigest) ||
+    !isDigest(value.subject.sourceEvidenceCatalogDigest) ||
+    !isObject(value.consumer) ||
+    !exactKeys(value.consumer, [
+      'repositoryRealPath',
+      'branchRef',
+      'head',
+      'upstreamRef',
+      'upstreamHead',
+      'ahead',
+      'behind',
+      'trackedChanges',
+      'untrackedChanges',
+    ]) ||
+    !nonEmpty(value.consumer.repositoryRealPath) ||
+    !nonEmpty(value.consumer.branchRef) ||
+    !/^[a-f0-9]{40}$/.test(String(value.consumer.head)) ||
+    !nonEmpty(value.consumer.upstreamRef) ||
+    !/^[a-f0-9]{40}$/.test(String(value.consumer.upstreamHead)) ||
+    value.consumer.head !== value.consumer.upstreamHead ||
+    value.consumer.ahead !== 0 ||
+    value.consumer.behind !== 0 ||
+    value.consumer.trackedChanges !== 0 ||
+    value.consumer.untrackedChanges !== 0 ||
+    !isObject(value.validation) ||
+    !exactKeys(value.validation, [
+      'validator',
+      'templateSchemaVersion',
+      'status',
+      'errorCount',
+      'issues',
+    ]) ||
+    value.validation.validator !== 'validateBookVisualContractTemplate' ||
+    value.validation.templateSchemaVersion !==
+      value.subject.templateSchemaVersion ||
+    (value.validation.status !== 'passed' &&
+      value.validation.status !== 'failed') ||
+    !Number.isSafeInteger(value.validation.errorCount) ||
+    Number(value.validation.errorCount) < 0 ||
+    !Array.isArray(value.validation.issues) ||
+    value.validation.issues.length > 32 ||
+    !value.validation.issues.every(
+      (issue) =>
+        typeof issue === 'string' &&
+        issue.length <= 512 &&
+        !/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(issue),
+    ) ||
+    (value.validation.status === 'passed'
+      ? value.validation.errorCount !== 0 || value.validation.issues.length !== 0
+      : Number(value.validation.errorCount) < 1 ||
+        value.validation.issues.length < 1) ||
+    value.authorityScope !==
+      'candidate_validation_for_reconciliation_only' ||
+    !Array.isArray(value.doesNotAuthorize) ||
+    canonicalJsonDigest(value.doesNotAuthorize) !==
+      canonicalJsonDigest(QA_WIZARD_CANDIDATE_VALIDATION_DOES_NOT_AUTHORIZE) ||
+    value.digestAlgorithm !== 'canonical-json-sha256' ||
+    !isDigest(value.digest) ||
+    forbiddenEvidenceKey(value) !== null
+  ) {
+    return false;
+  }
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = value;
+  return value.digest === canonicalJsonDigest(payload);
+}
+
+export function persistQaWizardCandidateValidationAttestation(args: {
+  repoRoot: string;
+  outputDir: string;
+  attestation: QaWizardCandidateValidationAttestation;
+  write?: boolean;
+}): QaWizardCandidateBridgeArtifactWrite {
+  if (!qaWizardCandidateValidationAttestationIsValid(args.attestation)) {
+    throw new Error('candidate_validation_attestation_shape_invalid');
+  }
+  const outputRoot = path.resolve(args.repoRoot, args.outputDir);
+  repoRelativePath(args.repoRoot, outputRoot);
+  const destinationPath = path.join(
+    outputRoot,
+    'candidate-validation-attestations',
+    `${args.attestation.digest}.json`,
+  );
+  let result = { created: false };
+  if (args.write === true) {
+    const store = createContainedContentAddressedJsonArtifactStore({
+      repoRoot: args.repoRoot,
+      repositoryRealPath: fs.realpathSync(args.repoRoot),
+      outputDir: args.outputDir,
+      categories: ['candidate-validation-attestations'] as const,
+      rejectSymlinkAliases: true,
+      errorPrefix: 'QA Wizard candidate validation attestation',
+    });
+    store.prepare();
+    result = store.persist({
+      category: 'candidate-validation-attestations',
+      digest: args.attestation.digest,
+      value: args.attestation,
+    });
+  }
+  return {
+    path: repoRelativePath(args.repoRoot, destinationPath),
+    digest: args.attestation.digest,
+    created: result.created,
+  };
+}
+
+export function loadQaWizardCandidateValidationAttestation(args: {
+  repoRoot: string;
+  attestationPath: string;
+}): QaWizardCandidateValidationAttestation {
+  const absolute = resolveExistingContainedArtifact({
+    repoRoot: args.repoRoot,
+    relativePath: args.attestationPath,
+    label: 'candidate validation attestation',
+  });
+  const value = readJsonObject(absolute, 'candidate validation attestation');
+  if (!qaWizardCandidateValidationAttestationIsValid(value)) {
+    throw new Error('candidate_validation_attestation_shape_invalid');
+  }
+  assertCanonicalJsonArtifact({
+    absolutePath: absolute,
+    value,
+    digest: value.digest,
+    category: 'candidate-validation-attestations',
+    label: 'candidate validation attestation',
+  });
+  return value;
+}
+
+export function attestQaWizardCandidateValidation(
+  args: AttestQaWizardCandidateValidationRequest,
+): {
+  attestation: QaWizardCandidateValidationAttestation;
+  artifact: QaWizardCandidateBridgeArtifactWrite;
+} {
+  for (const [label, artifactPath] of [
+    ['Story Source', args.storyPath],
+    ['Visual Contract candidate', args.candidatePath],
+    ['Visual Contract request', args.authoringRequestPath],
+    ['Visual Contract receipt', args.authoringReceiptPath],
+    ['Visual Contract readiness', args.authoringReadinessPath],
+    ['canonical Fresh Readiness evidence', args.freshReadinessPath],
+    ['canonical Supervisor execution request', args.supervisorExecutionRequestPath],
+    ['canonical Supervisor execution result', args.supervisorExecutionResultPath],
+  ] as const) {
+    resolveExistingContainedArtifact({
+      repoRoot: args.repoRoot,
+      relativePath: artifactPath,
+      label,
+    });
+  }
+  const supervisor = loadCanonicalSupervisorArtifacts({
+    repoRoot: args.repoRoot,
+    freshReadinessPath: args.freshReadinessPath,
+    executionRequestPath: args.supervisorExecutionRequestPath,
+    executionResultPath: args.supervisorExecutionResultPath,
+    authoringRequestPath: args.authoringRequestPath,
+    authoringReceiptPath: args.authoringReceiptPath,
+    authoringReadinessPath: args.authoringReadinessPath,
+    candidatePath: args.candidatePath,
+  });
+  const snapshot = buildStorySourceAuthoritySnapshot({
+    repoRoot: args.repoRoot,
+    storyKey: args.storyKey,
+    storyPath: args.storyPath,
+  });
+  assertValidStorySourceAuthoritySnapshot(snapshot);
+  const candidateAbsolute = resolveExistingContainedArtifact({
+    repoRoot: args.repoRoot,
+    relativePath: args.candidatePath,
+    label: 'Visual Contract candidate',
+  });
+  const candidate = readJsonObject(
+    candidateAbsolute,
+    'Visual Contract candidate',
+  ) as unknown as VisualContractCandidateArtifact;
+  assertVisualContractCandidateForReconciliation({ snapshot, candidate });
+  const validationResult = validateBookVisualContractTemplate(candidate.template);
+  assertCanonicalJsonArtifact({
+    absolutePath: candidateAbsolute,
+    value: candidate,
+    digest: candidate.digest,
+    category: 'contract-candidates',
+    label: 'Visual Contract candidate',
+  });
+  const request = loadCanonicalRequest({
+    repoRoot: args.repoRoot,
+    requestPath: args.authoringRequestPath,
+  });
+  const rebuiltRequest = buildVisualContractAuthoringRequest({
+    snapshot,
+    mode: request.mode,
+    requestId: request.requestId,
+    requestedAt: request.requestedAt,
+  });
+  if (
+    canonicalContentAddressedJsonBytes(rebuiltRequest) !==
+    canonicalContentAddressedJsonBytes(request)
+  ) {
+    throw new Error('candidate_validation_authoring_provenance_mismatch');
+  }
+  assertCanonicalJsonArtifact({
+    absolutePath: resolveRepoPath(args.repoRoot, args.authoringRequestPath),
+    value: request,
+    digest: request.digest,
+    category: 'authoring-requests',
+    label: 'Visual Contract authoring request',
+  });
+  const receipt = loadCanonicalReceipt({
+    repoRoot: args.repoRoot,
+    receiptPath: args.authoringReceiptPath,
+  });
+  assertCanonicalJsonArtifact({
+    absolutePath: resolveRepoPath(args.repoRoot, args.authoringReceiptPath),
+    value: receipt,
+    digest: receipt.digest,
+    category: 'authoring-receipts',
+    label: 'Visual Contract authoring receipt',
+  });
+  let receiptBoundCandidateMatches =
+    candidate.authoringRequestDigest === request.digest &&
+    candidate.authoringReceiptDigest === receipt.digest &&
+    receipt.requestDigest === request.digest &&
+    receipt.sourceSnapshotDigest === snapshot.digest;
+  if (validationResult.ok) {
+    const receiptBoundCandidate = buildVisualContractCandidateArtifact({
+      request,
+      receipt,
+      compileResult: {
+        template: candidate.template,
+        actionSemanticCoverage: candidate.actionSemanticCoverage,
+      },
+    });
+    receiptBoundCandidateMatches =
+      receiptBoundCandidate.digest === candidate.digest &&
+      canonicalContentAddressedJsonBytes(receiptBoundCandidate) ===
+        canonicalContentAddressedJsonBytes(candidate);
+  }
+  const readiness = loadCanonicalReadiness({
+    repoRoot: args.repoRoot,
+    readinessPath: args.authoringReadinessPath,
+  });
+  assertCanonicalJsonArtifact({
+    absolutePath: resolveRepoPath(args.repoRoot, args.authoringReadinessPath),
+    value: readiness,
+    digest: readiness.digest,
+    category: 'readiness-evidence',
+    label: 'Visual Contract authoring readiness',
+  });
+  persistVisualContractAuthoringReadiness({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    request,
+    evidence: readiness,
+    receipt,
+    write: false,
+  });
+  if (
+    !receiptBoundCandidateMatches ||
+    readiness.sourceSnapshotDigest !== snapshot.digest ||
+    readiness.authoringRequestDigest !== request.digest ||
+    readiness.authoringReceiptDigest !== receipt.digest ||
+    readiness.visualContractCandidate.status !== 'candidate' ||
+    readiness.visualContractCandidate.digest !== candidate.templateDigest ||
+    candidate.authoringRequestDigest !== request.digest ||
+    candidate.authoringReceiptDigest !== receipt.digest ||
+    receipt.requestDigest !== request.digest ||
+    receipt.sourceSnapshotDigest !== snapshot.digest ||
+    supervisor.freshReadiness.canonicalAuthorities.b0.sourceSnapshotDigest !==
+      snapshot.digest ||
+    supervisor.freshReadiness.canonicalAuthorities.b0.liveAuthoringRequestDigest !==
+      request.digest ||
+    supervisor.freshReadiness.request.storySourceKey !== args.storyKey ||
+    supervisor.freshReadiness.request.storySourcePath !==
+      snapshot.content.sourceIdentity.path ||
+    supervisor.executionResult.outputAuthority?.visualContractCandidate.digest !==
+      candidate.digest
+  ) {
+    throw new Error('candidate_validation_authoring_provenance_mismatch');
+  }
+  const consumer = readConsumerRepositoryAuthority(args.repoRoot);
+  if (
+    consumer.head !== consumer.upstreamHead ||
+    consumer.ahead !== 0 ||
+    consumer.behind !== 0 ||
+    consumer.trackedChanges !== 0 ||
+    consumer.untrackedChanges !== 0
+  ) {
+    throw new Error('candidate_validation_consumer_repository_stale_or_dirty');
+  }
+  const issues = validationResult.ok
+    ? []
+    : boundedCandidateValidationIssues(validationResult.errors);
+  const historical = supervisor.freshReadiness.repositoryAuthority;
+  const payload = {
+    version: QA_WIZARD_CANDIDATE_VALIDATION_ATTESTATION_VERSION,
+    authoring: {
+      freshReadinessVersion: supervisor.freshReadiness.version,
+      freshReadinessDigest: supervisor.freshReadiness.digest,
+      freshReadinessPath: repoRelativePath(
+        args.repoRoot,
+        resolveRepoPath(args.repoRoot, args.freshReadinessPath),
+      ),
+      executionRequestVersion: supervisor.executionRequest.version,
+      executionRequestDigest: supervisor.executionRequest.digest,
+      executionRequestPath: repoRelativePath(
+        args.repoRoot,
+        resolveRepoPath(args.repoRoot, args.supervisorExecutionRequestPath),
+      ),
+      executionResultVersion: supervisor.executionResult.version,
+      executionResultDigest: supervisor.executionResultDigest,
+      executionResultPath: repoRelativePath(
+        args.repoRoot,
+        resolveRepoPath(args.repoRoot, args.supervisorExecutionResultPath),
+      ),
+      childOutputAuthorityVersion:
+        supervisor.executionResult.outputAuthority!.version,
+      childOutputAuthorityDigest: supervisor.executionResult.outputAuthority!.digest,
+      repositoryBranchRef: historical.branchRef,
+      repositoryHead: historical.head,
+      repositoryUpstreamRef: historical.upstreamRef,
+      repositoryUpstreamHead: historical.upstreamHead,
+      repositoryRealPath: historical.repositoryRealPath,
+    },
+    subject: {
+      storyKey: args.storyKey,
+      storyPath: repoRelativePath(
+        args.repoRoot,
+        resolveRepoPath(args.repoRoot, args.storyPath),
+      ),
+      sourceDigest: snapshot.content.sourceIdentity.digest,
+      sourceSnapshotVersion: snapshot.version,
+      sourceSnapshotDigest: snapshot.digest,
+      authoringRequestVersion: request.version,
+      authoringRequestDigest: request.digest,
+      authoringReceiptVersion: receipt.version,
+      authoringReceiptDigest: receipt.digest,
+      authoringReadinessVersion: readiness.version,
+      authoringReadinessDigest: readiness.digest,
+      candidateVersion: candidate.version,
+      candidateDigest: candidate.digest,
+      candidatePath: repoRelativePath(
+        args.repoRoot,
+        resolveRepoPath(args.repoRoot, args.candidatePath),
+      ),
+      templateDigest: candidate.templateDigest,
+      templateSchemaVersion: candidate.template.schemaVersion,
+      actionSemanticCoverageDigest: candidate.actionSemanticCoverageDigest,
+      sourceEvidenceCatalogDigest: candidate.sourceEvidenceCatalogDigest,
+    },
+    consumer,
+    validation: {
+      validator: 'validateBookVisualContractTemplate' as const,
+      templateSchemaVersion: candidate.template.schemaVersion,
+      status: validationResult.ok ? ('passed' as const) : ('failed' as const),
+      errorCount: validationResult.ok ? 0 : validationResult.errors.length,
+      issues,
+    },
+    authorityScope: 'candidate_validation_for_reconciliation_only' as const,
+    doesNotAuthorize: [
+      ...QA_WIZARD_CANDIDATE_VALIDATION_DOES_NOT_AUTHORIZE,
+    ],
+  };
+  const attestation: QaWizardCandidateValidationAttestation = {
+    ...payload,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(payload),
+  };
+  if (!qaWizardCandidateValidationAttestationIsValid(attestation)) {
+    throw new Error('candidate_validation_attestation_shape_invalid');
+  }
+  const artifact = persistQaWizardCandidateValidationAttestation({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    attestation,
+    write: args.write === true,
+  });
+  return { attestation, artifact };
 }
 
 export function qaWizardReconciliationApprovalAttestationIsValid(
@@ -1715,6 +2420,47 @@ export function loadQaWizardCandidateBridgeManifest(args: {
       label,
     });
   }
+  const candidateValidation =
+    raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
+      ? loadQaWizardCandidateValidationAttestation({
+          repoRoot: args.repoRoot,
+          attestationPath: raw.candidateValidation!.path,
+        })
+      : null;
+  if (candidateValidation) {
+    if (
+      candidateValidation.digest !== raw.candidateValidation!.digest ||
+      candidateValidation.version !== raw.candidateValidation!.version ||
+      candidateValidation.validation.status !== 'passed'
+    ) {
+      throw new Error('candidate_validation_not_passed');
+    }
+    const rebuiltCandidateValidation = attestQaWizardCandidateValidation({
+      repoRoot: args.repoRoot,
+      outputDir: path.posix.dirname(
+        path.posix.dirname(raw.candidateValidation!.path),
+      ),
+      storyKey: raw.source.storyKey,
+      storyPath: raw.source.storyPath,
+      candidatePath: raw.visualContract.candidatePath,
+      authoringRequestPath: raw.visualContract.requestPath,
+      authoringReceiptPath: raw.visualContract.receiptPath,
+      authoringReadinessPath: raw.visualContract.readinessPath,
+      freshReadinessPath: raw.supervisor.freshReadinessPath,
+      supervisorExecutionRequestPath: raw.supervisor.executionRequestPath,
+      supervisorExecutionResultPath: raw.supervisor.executionResultPath,
+      write: false,
+    });
+    if (
+      rebuiltCandidateValidation.artifact.path !==
+        raw.candidateValidation!.path ||
+      canonicalContentAddressedJsonBytes(
+        rebuiltCandidateValidation.attestation,
+      ) !== canonicalContentAddressedJsonBytes(candidateValidation)
+    ) {
+      throw new Error('candidate_validation_subject_mismatch');
+    }
+  }
   const supervisor = loadCanonicalSupervisorAuthority({
     repoRoot: args.repoRoot,
     freshReadinessPath: raw.supervisor.freshReadinessPath,
@@ -1724,6 +2470,9 @@ export function loadQaWizardCandidateBridgeManifest(args: {
     authoringReceiptPath: raw.visualContract.receiptPath,
     authoringReadinessPath: raw.visualContract.readinessPath,
     candidatePath: raw.visualContract.candidatePath,
+    ...(candidateValidation
+      ? { consumerAuthority: candidateValidation.consumer }
+      : {}),
   });
   if (
     supervisor.freshReadiness.digest !==
@@ -1738,7 +2487,7 @@ export function loadQaWizardCandidateBridgeManifest(args: {
     throw new Error('QA Wizard bridge Supervisor authority is stale or tampered');
   }
   if (
-    raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
+    raw.version !== QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1
   ) {
     loadAndValidateCandidateTemplateProjection({
       repoRoot: args.repoRoot,
@@ -1754,49 +2503,33 @@ export function loadQaWizardCandidateBridgeManifest(args: {
     });
   }
   if (raw.stage === 'reconciliation_pending') {
-    const reconstructedCurrent = prepareQaWizardCandidateReconciliation({
-      repoRoot: args.repoRoot,
-      outputDir: bridgeOutputDir,
-      storyKey: raw.source.storyKey,
-      storyPath: raw.source.storyPath,
-      candidatePath: raw.visualContract.candidatePath,
-      authoringRequestPath: raw.visualContract.requestPath,
-      authoringReceiptPath: raw.visualContract.receiptPath,
-      authoringReadinessPath: raw.visualContract.readinessPath,
-      freshReadinessPath: raw.supervisor.freshReadinessPath,
-      supervisorExecutionRequestPath:
-        raw.supervisor.executionRequestPath,
-      supervisorExecutionResultPath:
-        raw.supervisor.executionResultPath,
-      write: false,
-    });
-    let reconstructedManifest = reconstructedCurrent.manifest;
-    if (
-      raw.version ===
-      QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION
-    ) {
-      const {
-        digestAlgorithm: _digestAlgorithm,
-        digest: _digest,
-        ...currentPayload
-      } = reconstructedCurrent.manifest;
-      reconstructedManifest = buildManifest({
-        ...currentPayload,
-        version:
-          QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION,
-        visualContract: {
-          ...currentPayload.visualContract,
-          templatePath: raw.visualContract.templatePath,
-        },
+    if (raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION) {
+      const reconstructedCurrent = prepareQaWizardCandidateReconciliation({
+        repoRoot: args.repoRoot,
+        outputDir: bridgeOutputDir,
+        storyKey: raw.source.storyKey,
+        storyPath: raw.source.storyPath,
+        candidatePath: raw.visualContract.candidatePath,
+        authoringRequestPath: raw.visualContract.requestPath,
+        authoringReceiptPath: raw.visualContract.receiptPath,
+        authoringReadinessPath: raw.visualContract.readinessPath,
+        freshReadinessPath: raw.supervisor.freshReadinessPath,
+        supervisorExecutionRequestPath:
+          raw.supervisor.executionRequestPath,
+        supervisorExecutionResultPath:
+          raw.supervisor.executionResultPath,
+        candidateValidationAttestationPath:
+          raw.candidateValidation!.path,
+        write: false,
       });
-    }
-    if (
-      canonicalContentAddressedJsonBytes(reconstructedManifest) !==
-      canonicalContentAddressedJsonBytes(raw)
-    ) {
-      throw new Error(
-        'QA Wizard candidate bridge manifest no longer matches its upstream authority',
-      );
+      if (
+        canonicalContentAddressedJsonBytes(reconstructedCurrent.manifest) !==
+        canonicalContentAddressedJsonBytes(raw)
+      ) {
+        throw new Error(
+          'QA Wizard candidate bridge manifest no longer matches its upstream authority',
+        );
+      }
     }
     const snapshot = buildStorySourceAuthoritySnapshot({
       repoRoot: args.repoRoot,
@@ -1805,7 +2538,7 @@ export function loadQaWizardCandidateBridgeManifest(args: {
     });
     const rebuiltBundle =
       raw.version ===
-      QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION
+      QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1
         ? buildProductionReconciliationDraftFromFiles({
             repoRoot: args.repoRoot,
             storyKey: raw.source.storyKey,
@@ -1995,6 +2728,133 @@ function loadCanonicalReadiness(args: {
   ) as unknown as VisualContractAuthoringReadinessEvidence;
 }
 
+function assertCandidateValidationAttestationBindings(args: {
+  repoRoot: string;
+  attestation: QaWizardCandidateValidationAttestation;
+  supervisor: LoadedCanonicalSupervisorAuthority;
+  snapshot: ReturnType<typeof buildStorySourceAuthoritySnapshot>;
+  request: VisualContractAuthoringRequest;
+  receipt: VisualContractAuthoringReceipt;
+  readiness: VisualContractAuthoringReadinessEvidence;
+  candidate: VisualContractCandidateArtifact;
+  storyKey: string;
+  storyPath: string;
+  candidatePath: string;
+  authoringRequestPath: string;
+  authoringReceiptPath: string;
+  authoringReadinessPath: string;
+  freshReadinessPath: string;
+  executionRequestPath: string;
+  executionResultPath: string;
+}): void {
+  const { attestation } = args;
+  if (
+    attestation.validation.status !== 'passed' ||
+    attestation.validation.errorCount !== 0 ||
+    attestation.validation.issues.length !== 0
+  ) {
+    throw new Error('candidate_validation_not_passed');
+  }
+  const historical = args.supervisor.freshReadiness.repositoryAuthority;
+  if (
+    attestation.authoring.repositoryBranchRef !== historical.branchRef ||
+    attestation.authoring.repositoryHead !== historical.head ||
+    attestation.authoring.repositoryUpstreamRef !== historical.upstreamRef ||
+    attestation.authoring.repositoryUpstreamHead !== historical.upstreamHead ||
+    normalizedAbsolute(attestation.authoring.repositoryRealPath) !==
+      normalizedAbsolute(historical.repositoryRealPath)
+  ) {
+    throw new Error('candidate_validation_authoring_head_mismatch');
+  }
+  if (
+    attestation.authoring.freshReadinessVersion !==
+      args.supervisor.freshReadiness.version ||
+    attestation.authoring.freshReadinessDigest !==
+      args.supervisor.freshReadiness.digest ||
+    attestation.authoring.freshReadinessPath !==
+      repoRelativePath(
+        args.repoRoot,
+        resolveRepoPath(args.repoRoot, args.freshReadinessPath),
+      ) ||
+    attestation.authoring.executionRequestVersion !==
+      args.supervisor.executionRequest.version ||
+    attestation.authoring.executionRequestDigest !==
+      args.supervisor.executionRequest.digest ||
+    attestation.authoring.executionRequestPath !==
+      repoRelativePath(
+        args.repoRoot,
+        resolveRepoPath(args.repoRoot, args.executionRequestPath),
+      ) ||
+    attestation.authoring.executionResultVersion !==
+      args.supervisor.executionResult.version ||
+    attestation.authoring.executionResultDigest !==
+      args.supervisor.executionResultDigest ||
+    attestation.authoring.executionResultPath !==
+      repoRelativePath(
+        args.repoRoot,
+        resolveRepoPath(args.repoRoot, args.executionResultPath),
+      ) ||
+    attestation.authoring.childOutputAuthorityVersion !==
+      args.supervisor.executionResult.outputAuthority?.version ||
+    attestation.authoring.childOutputAuthorityDigest !==
+      args.supervisor.executionResult.outputAuthority?.digest
+  ) {
+    throw new Error('candidate_validation_authoring_provenance_mismatch');
+  }
+  if (
+    attestation.subject.storyKey !== args.storyKey ||
+    attestation.subject.storyPath !==
+      repoRelativePath(
+        args.repoRoot,
+        resolveRepoPath(args.repoRoot, args.storyPath),
+      ) ||
+    attestation.subject.sourceDigest !==
+      args.snapshot.content.sourceIdentity.digest ||
+    attestation.subject.sourceSnapshotVersion !== args.snapshot.version ||
+    attestation.subject.sourceSnapshotDigest !== args.snapshot.digest ||
+    attestation.subject.authoringRequestVersion !== args.request.version ||
+    attestation.subject.authoringRequestDigest !== args.request.digest ||
+    attestation.subject.authoringReceiptVersion !== args.receipt.version ||
+    attestation.subject.authoringReceiptDigest !== args.receipt.digest ||
+    attestation.subject.authoringReadinessVersion !== args.readiness.version ||
+    attestation.subject.authoringReadinessDigest !== args.readiness.digest ||
+    attestation.subject.candidateVersion !== args.candidate.version ||
+    attestation.subject.candidateDigest !== args.candidate.digest ||
+    attestation.subject.candidatePath !==
+      repoRelativePath(
+        args.repoRoot,
+        resolveRepoPath(args.repoRoot, args.candidatePath),
+      ) ||
+    attestation.subject.templateDigest !== args.candidate.templateDigest ||
+    attestation.subject.templateSchemaVersion !==
+      args.candidate.template.schemaVersion ||
+    attestation.subject.actionSemanticCoverageDigest !==
+      args.candidate.actionSemanticCoverageDigest ||
+    attestation.subject.sourceEvidenceCatalogDigest !==
+      args.candidate.sourceEvidenceCatalogDigest ||
+    attestation.validation.templateSchemaVersion !==
+      args.candidate.template.schemaVersion
+  ) {
+    throw new Error('candidate_validation_cross_candidate_replay');
+  }
+  if (
+    repoRelativePath(
+      args.repoRoot,
+      resolveRepoPath(args.repoRoot, args.authoringRequestPath),
+    ) !== args.authoringRequestPath ||
+    repoRelativePath(
+      args.repoRoot,
+      resolveRepoPath(args.repoRoot, args.authoringReceiptPath),
+    ) !== args.authoringReceiptPath ||
+    repoRelativePath(
+      args.repoRoot,
+      resolveRepoPath(args.repoRoot, args.authoringReadinessPath),
+    ) !== args.authoringReadinessPath
+  ) {
+    throw new Error('candidate_validation_subject_mismatch');
+  }
+}
+
 export function prepareQaWizardCandidateReconciliation(
   args: PrepareQaWizardCandidateReconciliationRequest,
 ): {
@@ -2017,6 +2877,7 @@ export function prepareQaWizardCandidateReconciliation(
     ['canonical Fresh Readiness evidence', args.freshReadinessPath],
     ['canonical Supervisor execution request', args.supervisorExecutionRequestPath],
     ['canonical Supervisor execution result', args.supervisorExecutionResultPath],
+    ['candidate validation attestation', args.candidateValidationAttestationPath],
   ] as const) {
     resolveExistingContainedArtifact({
       repoRoot: args.repoRoot,
@@ -2024,6 +2885,10 @@ export function prepareQaWizardCandidateReconciliation(
       label,
     });
   }
+  const candidateValidation = loadQaWizardCandidateValidationAttestation({
+    repoRoot: args.repoRoot,
+    attestationPath: args.candidateValidationAttestationPath,
+  });
   const supervisor = loadCanonicalSupervisorAuthority({
     repoRoot: args.repoRoot,
     freshReadinessPath: args.freshReadinessPath,
@@ -2033,6 +2898,7 @@ export function prepareQaWizardCandidateReconciliation(
     authoringReceiptPath: args.authoringReceiptPath,
     authoringReadinessPath: args.authoringReadinessPath,
     candidatePath: args.candidatePath,
+    consumerAuthority: candidateValidation.consumer,
   });
   const snapshot = buildStorySourceAuthoritySnapshot({
     repoRoot: args.repoRoot,
@@ -2183,6 +3049,25 @@ export function prepareQaWizardCandidateReconciliation(
       'Visual Contract request, receipt, readiness, candidate, and source authority are not exactly cross-bound',
     );
   }
+  assertCandidateValidationAttestationBindings({
+    repoRoot: args.repoRoot,
+    attestation: candidateValidation,
+    supervisor,
+    snapshot,
+    request,
+    receipt,
+    readiness,
+    candidate,
+    storyKey: args.storyKey,
+    storyPath: args.storyPath,
+    candidatePath: args.candidatePath,
+    authoringRequestPath: args.authoringRequestPath,
+    authoringReceiptPath: args.authoringReceiptPath,
+    authoringReadinessPath: args.authoringReadinessPath,
+    freshReadinessPath: args.freshReadinessPath,
+    executionRequestPath: args.supervisorExecutionRequestPath,
+    executionResultPath: args.supervisorExecutionResultPath,
+  });
 
   if (args.write === true) {
     prepareBridgeOutputRoot({
@@ -2302,6 +3187,14 @@ export function prepareQaWizardCandidateReconciliation(
         candidate.actionSemanticCoverageDigest,
       sourceEvidenceCatalogDigest:
         candidate.sourceEvidenceCatalogDigest,
+    },
+    candidateValidation: {
+      version: candidateValidation.version,
+      digest: candidateValidation.digest,
+      path: repoRelativePath(
+        args.repoRoot,
+        resolveRepoPath(args.repoRoot, args.candidateValidationAttestationPath),
+      ),
     },
     reconciliation: {
       version: bundle.reconciliation.version,

@@ -10,7 +10,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
   QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION,
+  QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1,
   advanceQaWizardApprovedReconciliation,
+  attestQaWizardCandidateValidation,
   buildProductionAuthoringContext,
   buildReconciliationReviewBundle,
   buildStorySourceAuthoritySnapshot,
@@ -18,6 +20,7 @@ import {
   buildVisualContractAuthoringReadinessEvidence,
   canonicalJsonDigest,
   captureQaWizardCanonicalSupervisorResultEvidence,
+  loadQaWizardCandidateValidationAttestation,
   loadQaWizardCandidateBridgeManifest,
   persistReconciliationDraftBundle,
   persistQaWizardCandidateBridgeManifest,
@@ -27,6 +30,7 @@ import {
   prepareCanonicalPreLiveReadiness,
   prepareQaWizardCandidateReconciliation,
   qaWizardCandidateBridgeManifestIsValid,
+  qaWizardCandidateValidationAttestationIsValid,
   recordQaWizardReconciliationApproval,
   renderReconciliationReviewMarkdown,
   runCanonicalLiveExecution,
@@ -71,6 +75,7 @@ interface CanonicalCandidateFixture {
   freshReadinessPath: string;
   supervisorExecutionRequestPath: string;
   supervisorExecutionResultPath: string;
+  candidateValidationAttestationPath: string;
   supervisorStatus:
     | 'readiness_rejected'
     | 'credential_rejected'
@@ -348,6 +353,9 @@ function writeRedigestedCanonicalArtifact(args: {
 function persistLegacyBridgeManifest(args: {
   repoRoot: string;
   source: QaWizardCandidateBridgeManifest;
+  version?:
+    | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION
+    | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1;
   mutate?: (value: QaWizardCandidateBridgeManifest) => void;
 }): {
   manifest: QaWizardCandidateBridgeManifest;
@@ -355,7 +363,8 @@ function persistLegacyBridgeManifest(args: {
 } {
   const manifest = structuredClone(args.source);
   manifest.version =
-    QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION;
+    args.version ?? QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1;
+  delete manifest.candidateValidation;
   args.mutate?.(manifest);
   const {
     digestAlgorithm: _digestAlgorithm,
@@ -588,6 +597,23 @@ async function materializeCanonicalCandidate(
     );
   }
   expect(git(canonicalRepoRoot, ['status', '--porcelain=v1'])).toBe('');
+  const candidateValidationAttestationPath = supervisedAuthoring
+    ? attestQaWizardCandidateValidation({
+        repoRoot: canonicalRepoRoot,
+        outputDir: `${OUTPUT_ROOT}/execution`,
+        storyKey: STORY_KEY,
+        storyPath: STORY_PATH,
+        candidatePath,
+        authoringRequestPath: requestPath,
+        authoringReceiptPath: receiptPath,
+        authoringReadinessPath: readinessPath,
+        freshReadinessPath: freshPath(fresh),
+        supervisorExecutionRequestPath:
+          fresh.canonicalAuthorities.executionRequest.path,
+        supervisorExecutionResultPath,
+        write: true,
+      }).artifact.path
+    : `${OUTPUT_ROOT}/execution/candidate-validation-attestations/${'0'.repeat(64)}.json`;
   return {
     repoRoot: canonicalRepoRoot,
     storyPath: STORY_PATH,
@@ -599,6 +625,7 @@ async function materializeCanonicalCandidate(
     supervisorExecutionRequestPath:
       fresh.canonicalAuthorities.executionRequest.path,
     supervisorExecutionResultPath,
+    candidateValidationAttestationPath,
     supervisorStatus: liveResult.status,
     supervisorOutputAuthorityPresent: liveResult.outputAuthority !== null,
     supervisorCaptureRejected,
@@ -621,7 +648,127 @@ function prepareArgs(
     freshReadinessPath: fixture.freshReadinessPath,
     supervisorExecutionRequestPath: fixture.supervisorExecutionRequestPath,
     supervisorExecutionResultPath: fixture.supervisorExecutionResultPath,
+    candidateValidationAttestationPath:
+      fixture.candidateValidationAttestationPath,
   };
+}
+
+function candidateValidationArgs(
+  fixture: CanonicalCandidateFixture,
+  outputDir = `${OUTPUT_ROOT}/execution`,
+) {
+  return {
+    repoRoot: fixture.repoRoot,
+    outputDir,
+    storyKey: STORY_KEY,
+    storyPath: fixture.storyPath,
+    candidatePath: fixture.candidatePath,
+    authoringRequestPath: fixture.requestPath,
+    authoringReceiptPath: fixture.receiptPath,
+    authoringReadinessPath: fixture.readinessPath,
+    freshReadinessPath: fixture.freshReadinessPath,
+    supervisorExecutionRequestPath: fixture.supervisorExecutionRequestPath,
+    supervisorExecutionResultPath: fixture.supervisorExecutionResultPath,
+  };
+}
+
+function assertCandidateValidationTamperGuards(
+  fixture: CanonicalCandidateFixture,
+): void {
+  const tampered = (
+    mutate: (value: Record<string, unknown>) => void,
+  ): string =>
+    writeRedigestedCanonicalArtifact({
+      repoRoot: fixture.repoRoot,
+      sourcePath: fixture.candidateValidationAttestationPath,
+      mutate,
+    });
+  const expectRejected = (attestationPath: string, pattern: RegExp) =>
+    expect(() =>
+      prepareQaWizardCandidateReconciliation({
+        ...prepareArgs(fixture),
+        candidateValidationAttestationPath: attestationPath,
+      }),
+    ).toThrow(pattern);
+
+  expectRejected(
+    tampered((value) => {
+      (value.subject as Record<string, unknown>).candidateDigest = 'f'.repeat(64);
+    }),
+    /cross_candidate_replay|subject_mismatch/,
+  );
+  expectRejected(
+    tampered((value) => {
+      (value.authoring as Record<string, unknown>).freshReadinessDigest =
+        'f'.repeat(64);
+    }),
+    /authoring_provenance_mismatch/,
+  );
+  expectRejected(
+    tampered((value) => {
+      (value.authoring as Record<string, unknown>).repositoryHead =
+        'f'.repeat(40);
+    }),
+    /authoring_head_mismatch/,
+  );
+  expectRejected(
+    tampered((value) => {
+      const validation = value.validation as Record<string, unknown>;
+      validation.status = 'failed';
+      validation.errorCount = 1;
+      validation.issues = ['closed validation failure'];
+    }),
+    /candidate_validation_not_passed/,
+  );
+  for (const invalidPath of [
+    tampered((value) => {
+      value.authorityScope = 'wizard_render';
+    }),
+    tampered((value) => {
+      value.extra = 'not allowed';
+    }),
+  ]) {
+    expect(() =>
+      loadQaWizardCandidateValidationAttestation({
+        repoRoot: fixture.repoRoot,
+        attestationPath: invalidPath,
+      }),
+    ).toThrow(/attestation_shape_invalid/);
+  }
+  expectRejected(
+    tampered((value) => {
+      const consumer = value.consumer as Record<string, unknown>;
+      consumer.head = 'f'.repeat(40);
+      consumer.upstreamHead = 'f'.repeat(40);
+    }),
+    /consumer_head_stale/,
+  );
+
+  const arbitraryPath = 'outputs/arbitrary-attestation.json';
+  fs.copyFileSync(
+    path.join(fixture.repoRoot, fixture.candidateValidationAttestationPath),
+    path.join(fixture.repoRoot, arbitraryPath),
+  );
+  expectRejected(arbitraryPath, /canonical|category|path/i);
+
+  writeText(fixture.repoRoot, 'dirty-consumer-marker.txt', 'dirty\n');
+  expectRejected(
+    fixture.candidateValidationAttestationPath,
+    /consumer_repository_stale_or_dirty/,
+  );
+  fs.unlinkSync(path.join(fixture.repoRoot, 'dirty-consumer-marker.txt'));
+
+  git(fixture.repoRoot, ['switch', '-c', 'codex/wrong-consumer-branch']);
+  git(fixture.repoRoot, [
+    'branch',
+    '--set-upstream-to',
+    `origin/${BRANCH}`,
+  ]);
+  expectRejected(
+    fixture.candidateValidationAttestationPath,
+    /consumer_repository_stale_or_dirty/,
+  );
+  git(fixture.repoRoot, ['switch', BRANCH]);
 }
 
 function approveReconciliation(args: {
@@ -774,6 +921,175 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     expect(result.stdout).not.toMatch(/stack|exception|ENOENT/i);
     expect(fs.existsSync(outputAbsolute)).toBe(false);
   });
+
+  it('attests the unchanged Candidate at a later clean pushed consumer HEAD, rejects tamper and repository drift, and carries authority through manifest v3', async () => {
+    const fixture = await materializeCanonicalCandidate();
+    const original = loadQaWizardCandidateValidationAttestation({
+      repoRoot: fixture.repoRoot,
+      attestationPath: fixture.candidateValidationAttestationPath,
+    });
+    expect(qaWizardCandidateValidationAttestationIsValid(original)).toBe(true);
+    expect(original.validation).toEqual({
+      validator: 'validateBookVisualContractTemplate',
+      templateSchemaVersion: original.subject.templateSchemaVersion,
+      status: 'passed',
+      errorCount: 0,
+      issues: [],
+    });
+    expect(original.authoring.repositoryHead).toBe(original.consumer.head);
+
+    const preview = attestQaWizardCandidateValidation({
+      ...candidateValidationArgs(fixture, 'outputs/attestation-preview'),
+      write: false,
+    });
+    const written = attestQaWizardCandidateValidation({
+      ...candidateValidationArgs(fixture, 'outputs/attestation-preview'),
+      write: true,
+    });
+    expect(preview.attestation).toEqual(written.attestation);
+    expect(preview.artifact).toEqual({
+      path: written.artifact.path,
+      digest: written.artifact.digest,
+      created: false,
+    });
+    expect(written.artifact.created).toBe(true);
+    expect(
+      fs.readFileSync(path.join(fixture.repoRoot, written.artifact.path), 'utf8'),
+    ).toBe(canonicalContentAddressedJsonBytes(written.attestation));
+
+    const cliRequestPath = 'outputs/candidate-validation-cli-request.json';
+    const {
+      outputDir: _candidateValidationOutputDir,
+      ...cliRequest
+    } = candidateValidationArgs(fixture, 'outputs/candidate-validation-cli');
+    writeJson(fixture.repoRoot, cliRequestPath, cliRequest);
+    const cli = spawnSync(
+      process.execPath,
+      [
+        path.join(process.cwd(), 'node_modules', 'tsx', 'dist', 'cli.mjs'),
+        '--require',
+        path.join(
+          process.cwd(),
+          'scripts',
+          'shims',
+          'register-server-only.cjs',
+        ),
+        path.join(process.cwd(), 'scripts', 'qa-wizard-candidate-bridge.ts'),
+        'attest-candidate-validation',
+        '--request',
+        path.join(fixture.repoRoot, cliRequestPath),
+        '--out',
+        'outputs/candidate-validation-cli',
+        '--write',
+        'false',
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        shell: false,
+        windowsHide: true,
+      },
+    );
+    expect(cli.status).toBe(0);
+    expect(JSON.parse(cli.stdout)).toMatchObject({
+      status: 'candidate_validation_attestation_preview_ready',
+      localImmutableWriteRequested: false,
+      bridgeBoundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        productionWrites: 0,
+      },
+    });
+    assertCandidateValidationTamperGuards(fixture);
+
+    const authoringHead = original.authoring.repositoryHead;
+    writeText(
+      fixture.repoRoot,
+      'consumer-validator-head.txt',
+      'current validator consumer authority\n',
+    );
+    git(fixture.repoRoot, ['add', 'consumer-validator-head.txt']);
+    git(fixture.repoRoot, ['commit', '-m', 'advance consumer validator']);
+    git(fixture.repoRoot, ['push']);
+    const consumerHead = git(fixture.repoRoot, ['rev-parse', 'HEAD']);
+    expect(consumerHead).not.toBe(authoringHead);
+    expect(git(fixture.repoRoot, ['status', '--porcelain=v1'])).toBe('');
+
+    const current = attestQaWizardCandidateValidation({
+      ...candidateValidationArgs(fixture, 'outputs/current-consumer-attestation'),
+      write: true,
+    });
+    expect(current.attestation.authoring.repositoryHead).toBe(authoringHead);
+    expect(current.attestation.consumer.head).toBe(consumerHead);
+    expect(current.attestation.consumer.upstreamHead).toBe(consumerHead);
+    expect(() =>
+      prepareQaWizardCandidateReconciliation({
+        ...prepareArgs(fixture, 'outputs/stale-consumer-bridge'),
+        candidateValidationAttestationPath:
+          fixture.candidateValidationAttestationPath,
+      }),
+    ).toThrow(/candidate_validation_consumer_head_stale/);
+
+    const prepared = prepareQaWizardCandidateReconciliation({
+      ...prepareArgs(fixture, 'outputs/cross-head-bridge'),
+      candidateValidationAttestationPath: current.artifact.path,
+      write: true,
+    });
+    expect(prepared.manifest.version).toBe(
+      'qa-wizard-candidate-bridge-manifest/v3',
+    );
+    expect(prepared.manifest.candidateValidation).toEqual({
+      version: current.attestation.version,
+      digest: current.attestation.digest,
+      path: current.artifact.path,
+    });
+    expect(
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: prepared.manifestArtifact.path,
+      }),
+    ).toEqual(prepared.manifest);
+    const localHead = git(fixture.repoRoot, ['rev-parse', 'HEAD']);
+    const tree = git(fixture.repoRoot, ['write-tree']);
+    const remoteHead = git(fixture.repoRoot, [
+      'commit-tree',
+      tree,
+      '-p',
+      localHead,
+      '-m',
+      'advance remote consumer head',
+    ]);
+    git(fixture.repoRoot, [
+      'push',
+      'origin',
+      `${remoteHead}:refs/heads/${BRANCH}`,
+    ]);
+    git(fixture.repoRoot, ['fetch', 'origin']);
+    expect(() =>
+      prepareQaWizardCandidateReconciliation({
+        ...prepareArgs(fixture, 'outputs/behind-consumer-bridge'),
+        candidateValidationAttestationPath: current.artifact.path,
+      }),
+    ).toThrow(/consumer_repository_stale_or_dirty/);
+
+    git(fixture.repoRoot, ['merge', '--ff-only', '@{upstream}']);
+    const advancedAuthority = attestQaWizardCandidateValidation({
+      ...candidateValidationArgs(fixture, 'outputs/advanced-consumer-attestation'),
+      write: true,
+    });
+    writeText(fixture.repoRoot, 'local-ahead-head.txt', 'ahead\n');
+    git(fixture.repoRoot, ['add', 'local-ahead-head.txt']);
+    git(fixture.repoRoot, ['commit', '-m', 'local ahead consumer head']);
+    expect(() =>
+      prepareQaWizardCandidateReconciliation({
+        ...prepareArgs(fixture, 'outputs/ahead-consumer-bridge'),
+        candidateValidationAttestationPath: advancedAuthority.artifact.path,
+      }),
+    ).toThrow(/consumer_head_stale|consumer_repository_stale_or_dirty/);
+  }, 60_000);
 
   it('requires exact canonical Fresh Readiness and completed Supervisor-live provenance', async () => {
     const fixture = await materializeCanonicalCandidate();
@@ -1039,7 +1355,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     expect(JSON.parse(cliResult.stdout)).toMatchObject({
       status: 'awaiting_exact_reconciliation_content',
       manifest: {
-        version: 'qa-wizard-candidate-bridge-manifest/v2',
+        version: 'qa-wizard-candidate-bridge-manifest/v3',
         visualContract: {
           templatePath:
             `outputs/bridge-cli/candidate-template-projections/${candidate.templateDigest}.json`,
@@ -1077,7 +1393,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     ).toBe(true);
     expect(() =>
       prepareQaWizardCandidateReconciliation(prepareArgs(fixture)),
-    ).toThrow(/Supervisor execution result/i);
+    ).toThrow(/Supervisor execution result|candidate validation attestation/i);
   });
 
   it('rejects output-category junctions before persisting bridge artifacts', async () => {
@@ -1238,12 +1554,35 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     ).toThrow(/immutable|already exists|collision/i);
   }, 30_000);
 
-  it('replays exact legacy v1 pending and approved manifests read-only without upgrading them', async () => {
+  it('replays exact legacy v2 and v1 pending and approved manifests read-only without upgrading them', async () => {
     const fixture = await materializeCanonicalCandidate();
     const prepared = prepareQaWizardCandidateReconciliation({
       ...prepareArgs(fixture),
       write: true,
     });
+    const legacyV2Pending = persistLegacyBridgeManifest({
+      repoRoot: fixture.repoRoot,
+      source: prepared.manifest,
+      version: QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION,
+    });
+    expect(
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: legacyV2Pending.path,
+      }),
+    ).toEqual(legacyV2Pending.manifest);
+    expect(() =>
+      recordQaWizardReconciliationApproval({
+        repoRoot: fixture.repoRoot,
+        outputDir: 'outputs/bridge',
+        pendingManifestPath: legacyV2Pending.path,
+        approvedReconciliationPath: 'outputs/missing/reconciliation.json',
+        approvedReviewBundlePath: 'outputs/missing/review.json',
+        approvedReviewMarkdownPath: 'outputs/missing/review.md',
+        approvedBy: 'Guy',
+        approvedAt: APPROVED_AT,
+      }),
+    ).toThrow(/read-only/i);
     const legacyTemplatePath = 'outputs/legacy-v1/template.json';
     const projectedTemplateBytes = fs.readFileSync(
       path.join(
@@ -1353,6 +1692,40 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
       write: true,
     });
+    const legacyV2Approval = structuredClone(approval.attestation);
+    legacyV2Approval.pendingManifestDigest = legacyV2Pending.manifest.digest;
+    const {
+      digestAlgorithm: _v2ApprovalDigestAlgorithm,
+      digest: _v2ApprovalDigest,
+      ...legacyV2ApprovalPayload
+    } = legacyV2Approval;
+    legacyV2Approval.digest = canonicalJsonDigest(legacyV2ApprovalPayload);
+    const legacyV2ApprovalPath =
+      `outputs/bridge/reconciliation-approvals/${legacyV2Approval.digest}.json`;
+    writeText(
+      fixture.repoRoot,
+      legacyV2ApprovalPath,
+      canonicalContentAddressedJsonBytes(legacyV2Approval),
+    );
+    const legacyV2Approved = persistLegacyBridgeManifest({
+      repoRoot: fixture.repoRoot,
+      source: advanced.manifest,
+      version: QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION,
+      mutate(manifest) {
+        manifest.reconciliation.pendingManifestDigest =
+          legacyV2Pending.manifest.digest;
+        manifest.reconciliation.approvalAttestationDigest =
+          legacyV2Approval.digest;
+        manifest.reconciliation.approvalAttestationPath =
+          legacyV2ApprovalPath;
+      },
+    });
+    expect(
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: legacyV2Approved.path,
+      }),
+    ).toEqual(legacyV2Approved.manifest);
     const legacyApproval = structuredClone(approval.attestation);
     legacyApproval.pendingManifestDigest = legacyPending.manifest.digest;
     const {
@@ -1428,7 +1801,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       legacyApprovalBytes,
       'utf8',
     );
-  }, 25_000);
+  }, 60_000);
 
   it('requires a separate exact Guy approval attestation and rejects tamper and replay', async () => {
     const fixture = await materializeCanonicalCandidate();
