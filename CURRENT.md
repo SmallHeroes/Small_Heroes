@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-mixed-source-compact-scheduler` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the offline mixed-source scheduler milestone is based on `1df7fc41dc48066bef09a6db98d92edd9beb886a`.
 
-## MIXED SOURCE-EVIDENCE COMPACT SCHEDULER + ACTION COVERAGE CENSUS — local green; independent QA pending
+## MIXED SOURCE-EVIDENCE COMPACT SCHEDULER + ACTION COVERAGE CENSUS — independent Claude QA PASS; push next
 
 No Fresh, credential, provider, live, image or render action has occurred. The
 consumed eight-page Koko attempt remains immutable and is not being retried.
@@ -53,8 +53,21 @@ Vitest passed 609/609. Durable records:
 `docs/ai-workflow/R1D_MIXED_SOURCE_EVIDENCE_COMPACT_SCHEDULER_DECISION_GATE.md`,
 `docs/ai-workflow/R1D_CHAMELEON_ACTION_COVERAGE_AUDIT.md`, and
 `docs/ai-workflow/R1D_MIXED_SOURCE_EVIDENCE_COMPACT_SCHEDULER_IMPLEMENTATION_EVIDENCE.md`.
-A focused commit and independent read-only Claude Code QA remain before any
-pre-spend decision. There is no live authorization in this milestone.
+Claude Code reviewed commit
+`c0c3079892dca8bf84c22e73457b2bdc9d65a2e3` read-only over immutable range
+`1df7fc41dc48066bef09a6db98d92edd9beb886a..c0c3079892dca8bf84c22e73457b2bdc9d65a2e3`
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR; safe to push**. It
+independently reproduced 196/196 focused assertions, TypeScript and diff-check,
+and confirmed the eleven closed-set rejection gates, failure-code
+re-derivation, complete-set routing, census privacy, evidence-grain discipline,
+downstream claim boundary and lack of authority/policy drift. It made no edit,
+write, credential/provider/network/Fresh/live/image/render action.
+
+The remaining advisory is operational rather than a defect: historical
+receipts cannot supply the missing Chameleon provider draft. Before any paid
+attempt, construct a representative injected Chameleon draft-shaped response
+and use the now-reviewed harness to produce a per-beat action coverage map at
+`$0`. There is no Fresh, live or render authorization in this milestone.
 
 ## TYPED PROP-CONSTRAINT REPAIR AUTHORITY — independent Claude QA PASS; push next
 

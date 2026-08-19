@@ -1,6 +1,6 @@
 # R1D Mixed Source-Evidence Compact Scheduler — Implementation Evidence
 
-Status: local implementation green; independent Claude Code review pending.
+Status: independent Claude Code QA PASS; safe to push.
 
 ## Objective
 
@@ -117,10 +117,38 @@ authoring policy v17, output budget v6, model, service tier, reasoning effort,
 retry, fallback, call cap, USD ceiling, Action Semantic Catalog, Candidate,
 Wizard, Blueprint, image or render policy changed.
 
-## Next gate
+## Independent QA
 
-After a focused local commit, Claude Code reviews the immutable base-to-head
-range read-only and attempts to falsify closed-set eligibility, ambiguous/stale
-authority rejection, complete-census monotonicity, census privacy, route/call
-non-drift and the claim that the downstream Wizard/render handoff is already
-green. No Fresh or live action is authorized by a local green result.
+Claude Code reviewed commit
+`c0c3079892dca8bf84c22e73457b2bdc9d65a2e3` read-only over immutable range
+`1df7fc41dc48066bef09a6db98d92edd9beb886a..c0c3079892dca8bf84c22e73457b2bdc9d65a2e3`
+and returned **PASS — safe to push, 0 BLOCKER / 0 MAJOR / 0 MINOR, no new
+Decision Gate required for this range**.
+
+The review independently confirmed:
+
+- eleven distinct fail-closed gates plus current-state failure-code
+  re-derivation in the closed-set predicate;
+- the complete-set route and `5 -> 4 -> 1 -> 0` non-increasing census;
+- zero production routing references to the harness census;
+- no source phrase, contract value, system prompt or user prompt in the census;
+- no policy, prompt/schema, version, model, budget, retry/fallback, catalog,
+  Candidate, Wizard or render authority drift;
+- truthful historical-evidence limitations and candidate-predicate wording;
+- the distinction between green downstream seams and the absence of an actual
+  Chameleon Candidate/book.
+
+Claude reproduced 196/196 focused assertions, `npx tsc --noEmit` exit 0 and
+clean range diff-check. It did not rerun the literal repository gate and
+accepted the recorded five unrelated missing-output fixture failures. The
+review made no edit, stage, commit, push, credential/provider/network/Fresh,
+live, image or render action.
+
+## Next operational step
+
+Historical receipts cannot be enriched with the absent provider draft. Before
+any paid attempt, construct a representative injected Chameleon draft-shaped
+response and run the reviewed harness to obtain its per-beat coverage map at
+`$0`. That offline evidence can support a separate predicate/catalog Decision
+Gate if needed. This PASS does not authorize Fresh, live authoring, Candidate
+minting, Wizard mutation, images, render, deployment or production.
