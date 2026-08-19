@@ -4,6 +4,52 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-mixed-source-compact-scheduler` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the offline mixed-source scheduler milestone is based on `1df7fc41dc48066bef09a6db98d92edd9beb886a`.
 
+## CHAMELEON LIVE CANDIDATE + CANONICAL SET BOARD VALIDATION — local green; Claude re-gate next
+
+This section supersedes older pre-live language below. One canonical bounded
+live authoring invocation completed successfully from Fresh Readiness at exact
+pushed head `4bb219398d01bc8c86f72cf4f7c67dde786a5a53`. It produced the first new-story
+Chameleon Candidate: 8 pages, 98 Source Evidence coverage records, gap count 0,
+and issue progression `22 -> 6 -> 1 -> 0` over four completed provider calls.
+There were no retries or fallback. Actual nominal/conservative cost was
+`$1.110319 / $1.270324`. The persisted Candidate remains immutable at
+`outputs/r1d-chameleon-fresh-4bb21939-20260819T111441049Z/b0/contract-candidates/fada3965253054a5703b7c26aa727d26c54ed23b15fb6a1bcf63d90802a5968f.json`.
+
+Independent post-live audit PASSed all artifact digests, cross-links, usage,
+cost, call count and Candidate reconstruction, then found one downstream QA
+BLOCKER: canonical persistence sorts object keys, while three compiler-owned
+Set Board projection checks used key-order-sensitive `JSON.stringify` equality.
+The persisted Candidate therefore produced seven false `spatialNodes` drift
+errors even though every value and array position matched.
+
+The focused local correction uses the repository's canonical JSON identity for
+page-zone spatial nodes, page-zone spatial relations and stable fixed objects.
+It ignores only object-key order/NFC representation while preserving array
+order, exact values, missing/extra fields and the explicit `undefined` contract
+for absent relations. A canonical write/read regression proves valid authority
+survives; node and fixed-object tamper controls still fail. The unchanged live
+Candidate now returns `ok:true` and zero errors from
+`validateBookVisualContractTemplate` without rewriting any artifact.
+
+Focused validation passes **4 files / 85 tests**, deterministic TypeScript and
+`git diff --check`. One literal `npm run check` ran once: TypeScript and
+autonomous-story typecheck passed; the full resource-intensive phase passed
+**20 files / 609 tests** with valid diagnostics; ordinary passed **3,343** and
+skipped 65, failing only the same five documented ignored-`outputs/` fixture
+assertions in four unchanged specs. No changed or adjacent Set Board, Template,
+Candidate or QA bridge test failed. The repository/release gate remains HOLD on
+that separate fixture baseline; this milestone grants no Wizard, render,
+publication or deployment authority.
+
+Durable records:
+`docs/ai-workflow/R1D_CANONICAL_SET_BOARD_PROJECTION_VALIDATION_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_CANONICAL_SET_BOARD_PROJECTION_VALIDATION_IMPLEMENTATION_EVIDENCE.md`.
+Next: focused commit, independent Claude Code re-gate, then a read-only
+reconciliation preview. Automation must stop before the literal Guy approval
+step. The separate missing bridge-to-Wizard consumer requires its own Decision
+Gate after this validator correction is independently PASSed.
+
 ## HEBREW CONJUNCTION-PREFIXED COMPANION PRESENCE — independent Claude QA PASS; push before Fresh
 
 Claude Code independently PASSed the preceding Chameleon representability

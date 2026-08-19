@@ -2,6 +2,7 @@ import type {
   BookVisualContract,
   SetBoardStableAuthority,
 } from './types';
+import { canonicalHash } from '@/lib/canonical-json';
 
 const ENVIRONMENT_CLASSES = new Set(['indoor', 'outdoor', 'neutral']);
 const SPATIAL_NODE_KINDS = new Set([
@@ -37,6 +38,11 @@ function sorted(values: Iterable<string>): string[] {
 
 function sameStrings(left: Iterable<string>, right: Iterable<string>): boolean {
   return JSON.stringify(sorted(left)) === JSON.stringify(sorted(right));
+}
+
+function sameCanonicalJson(left: unknown, right: unknown): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return canonicalHash(left) === canonicalHash(right);
 }
 
 function boardRequired(status: unknown): boolean {
@@ -340,7 +346,7 @@ export function setBoardStableAuthorityErrors(input: unknown): string[] {
               : {}),
           };
         });
-        if (JSON.stringify(zone.spatialNodes) !== JSON.stringify(expectedNodes)) {
+        if (!sameCanonicalJson(zone.spatialNodes, expectedNodes)) {
           errors.push(
             `${areaLabel}.zoneProjection zoneId "${zoneId}" spatialNodes do not equal the compiler-owned area projection`,
           );
@@ -348,10 +354,7 @@ export function setBoardStableAuthorityErrors(input: unknown): string[] {
         const expectedRelations = Array.isArray(rawArea.spatialRelations)
           ? rawArea.spatialRelations
           : undefined;
-        if (
-          JSON.stringify(zone.spatialRelations) !==
-          JSON.stringify(expectedRelations)
-        ) {
+        if (!sameCanonicalJson(zone.spatialRelations, expectedRelations)) {
           errors.push(
             `${areaLabel}.zoneProjection zoneId "${zoneId}" spatialRelations do not equal the compiler-owned area projection`,
           );
@@ -372,7 +375,7 @@ export function setBoardStableAuthorityErrors(input: unknown): string[] {
         name: prop.name,
         quantity: 1,
       };
-      if (JSON.stringify(rawObject) !== JSON.stringify(expected)) {
+      if (!sameCanonicalJson(rawObject, expected)) {
         errors.push(
           `${label}.fixedObjects prop "${rawObject.propId}" must equal its compiler-owned recurring-prop projection`,
         );

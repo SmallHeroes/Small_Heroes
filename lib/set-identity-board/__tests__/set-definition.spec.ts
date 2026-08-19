@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { canonicalize } from '@/lib/canonical-json';
 import {
   setBoardStableAuthorityErrors,
   type BookVisualContract,
@@ -321,6 +322,39 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
 });
 
 describe('reviewed stable Set Board authority validation', () => {
+  it('accepts a canonical key-sorted persistence round trip while preserving exact projection checks', () => {
+    const source = makeContract();
+    const persisted = JSON.parse(
+      JSON.stringify(canonicalize(source)),
+    ) as BookVisualContract;
+
+    expect(Object.keys(persisted.zones[0]!.spatialNodes![0]!)).not.toEqual(
+      Object.keys(source.zones[0]!.spatialNodes![0]!),
+    );
+    expect(Object.keys(persisted.setBoardAuthorities![0]!.fixedObjects[0]!)).not.toEqual(
+      Object.keys(source.setBoardAuthorities![0]!.fixedObjects[0]!),
+    );
+    expect(setBoardStableAuthorityErrors(persisted)).toEqual([]);
+
+    const nodeTampered = clone(persisted);
+    nodeTampered.zones[0]!.spatialNodes![0]!.description = 'a different doorway';
+    expect(setBoardStableAuthorityErrors(nodeTampered).join(' ')).toMatch(
+      /spatialNodes do not equal the compiler-owned area projection/,
+    );
+
+    const arrayOrderTampered = clone(persisted);
+    arrayOrderTampered.zones[0]!.spatialNodes!.reverse();
+    expect(setBoardStableAuthorityErrors(arrayOrderTampered).join(' ')).toMatch(
+      /spatialNodes do not equal the compiler-owned area projection/,
+    );
+
+    const objectTampered = clone(persisted);
+    objectTampered.setBoardAuthorities![0]!.fixedObjects[0]!.name = 'Different Lamp';
+    expect(setBoardStableAuthorityErrors(objectTampered).join(' ')).toMatch(
+      /must equal its compiler-owned recurring-prop projection/,
+    );
+  });
+
   it('keeps final v4 compatible with multiple stable nodes describing one persistent fixed installation', () => {
     const contract = makeContract();
     contract.setBoardAuthorities![0]!.areas[1]!.spatialNodes.push({
