@@ -2,7 +2,59 @@
 
 **Updated:** 2026-08-19
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the typed prop-constraint authority milestone is based on pushed `f191af386eb0f8fe31aa3a7ef20b7aacf3be2a45`.
+**Working branch:** `codex/r1d-mixed-source-compact-scheduler` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the offline mixed-source scheduler milestone is based on `1df7fc41dc48066bef09a6db98d92edd9beb886a`.
+
+## MIXED SOURCE-EVIDENCE COMPACT SCHEDULER + ACTION COVERAGE CENSUS — local green; independent QA pending
+
+No Fresh, credential, provider, live, image or render action has occurred. The
+consumed eight-page Koko attempt remains immutable and is not being retried.
+
+The compiler now exposes the existing atomic `source_evidence_id_patch` when
+the complete Source Evidence failure set is closed even if unrelated repairable
+issues exist. Eligibility is derived only from the current draft and Source
+Evidence catalog: every affected page/index/beat must be current and unique,
+every failure must recompute to the same closed malformed/unknown/wrong-page
+code, every page must offer current same-page catalog authority, and an
+action-bound record must have one exact same-beat action. Ambiguous or stale
+sets preserve the previous fail-closed route. No prompt, schema, policy, model,
+budget, call cap, retry or fallback changed.
+
+The production-backed `$0` harness proves the real selector sequence
+`initial -> source_evidence_id_patch -> page_contract_patch ->
+book_surface_patch -> Candidate` with complete normalized census
+`5 -> 4 -> 1 -> 0`, all deltas non-positive and `providerCalls:0`. It now also
+emits a sanitized action-coverage census for each injected draft-shaped
+response: page, coverage index, beat, Source Evidence ID, disposition kind,
+matching action indexes and attempted predicates. It persists no prompt,
+source phrase, contract value or raw provider material.
+
+The Chameleon/Koko audit keeps evidence grains separate. The consumed first
+attempt proves 22 unique issues, including 12 capability gaps on six of eight
+pages and five page-final identities caused by action-requirement validation.
+Because the failed draft was intentionally not persisted, the exact historical
+coverage records cannot be joined to Story Source phrases. `runs`, `blinks`,
+`folds`, `sings`, `nods` and `sleeps` are high-confidence story-to-catalog
+candidates, not proven historical failure identities; no catalog edit is
+authorized by this milestone.
+
+Downstream zero-cost proof is green: Candidate/reconciliation lifecycle,
+canonical Fresh/Supervisor Candidate bridge, Wizard QA story catalog, frozen
+Visual Package/Blueprint render qualification and freeze wiring pass 49/49.
+All 18 new QA stories load deterministically for both child-gender paths, and
+the render-qualification proof keeps network/image providers unreachable. This
+isolates the current blocker to authoring before Candidate rather than a broken
+Wizard/render handoff.
+
+Focused compiler/harness/lifecycle validation passes 196/196 and TypeScript
+passes. One literal `npm run check` ran without retry: TypeScript and autonomous
+story typecheck passed; ordinary Vitest recorded 3,335 passes and only the five
+established missing ignored-`outputs/` fixture failures; resource-intensive
+Vitest passed 609/609. Durable records:
+`docs/ai-workflow/R1D_MIXED_SOURCE_EVIDENCE_COMPACT_SCHEDULER_DECISION_GATE.md`,
+`docs/ai-workflow/R1D_CHAMELEON_ACTION_COVERAGE_AUDIT.md`, and
+`docs/ai-workflow/R1D_MIXED_SOURCE_EVIDENCE_COMPACT_SCHEDULER_IMPLEMENTATION_EVIDENCE.md`.
+A focused commit and independent read-only Claude Code QA remain before any
+pre-spend decision. There is no live authorization in this milestone.
 
 ## TYPED PROP-CONSTRAINT REPAIR AUTHORITY — independent Claude QA PASS; push next
 

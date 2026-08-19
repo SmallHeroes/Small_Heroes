@@ -140,6 +140,7 @@ import {
   buildSourceEvidenceIdRepairSystemPrompt,
   buildSourceEvidenceIdRepairUserPrompt,
   parseSourceEvidenceIdPatches,
+  sourceEvidenceIdRepairAffectedRecordsAreClosed,
   type SourceEvidenceIdRepairAffectedRecord,
 } from './sourceEvidenceIdRepair';
 import {
@@ -4523,7 +4524,13 @@ function assembleTemplateFromDraft(
     pointerTemplate:
       template as unknown as ActionSemanticCoverageTemplate,
     sourceEvidenceAffectedRecords:
-      sourceEvidenceRepairPrerequisite || sourceEvidenceRouteIsClosed
+      sourceEvidenceRepairPrerequisite ||
+      sourceEvidenceRouteIsClosed ||
+      sourceEvidenceIdRepairAffectedRecordsAreClosed({
+        draft,
+        catalog: input.sourceEvidenceCatalog,
+        affectedRecords: sourceEvidenceIssues,
+      })
         ? sourceEvidenceIssues
         : [],
   });

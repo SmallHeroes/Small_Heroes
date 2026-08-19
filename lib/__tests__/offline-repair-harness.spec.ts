@@ -118,6 +118,25 @@ describe('offline Visual Contract repair harness', () => {
         repairMode: null,
       }),
     ]);
+    expect(result.actionCoverageCensuses).toHaveLength(1);
+    expect(result.actionCoverageCensuses[0]).toMatchObject({
+      call: 1,
+      repairMode: null,
+    });
+    expect(result.actionCoverageCensuses[0]!.records).toHaveLength(
+      bunnySource().pages.length,
+    );
+    expect(result.actionCoverageCensuses[0]!.records[0]).toMatchObject({
+      pageNumber: 1,
+      coverageIndex: 0,
+      dispositionKind: 'represented_elsewhere',
+      matchingActionIndexes: [],
+    });
+    expect(result.actionCoverageCensuses[0]!.records[0]!.attemptedPredicates)
+      .toEqual([]);
+    expect(JSON.stringify(result.actionCoverageCensuses)).not.toMatch(
+      /sourcePhrase|contractValue|systemPrompt|userPrompt|rawResponse/i,
+    );
     expect(result.stages).toEqual([
       expect.objectContaining({
         attempt: 1,
@@ -211,6 +230,9 @@ describe('offline Visual Contract repair harness', () => {
       null,
       'full_draft',
     ]);
+    expect(
+      result.actionCoverageCensuses.map((census) => census.repairMode),
+    ).toEqual([null, 'full_draft']);
     expect(result.stages.map((stage) => ({
       surfaced: stage.surfacedIssueCount,
       complete: stage.completeIssueCount,
@@ -592,6 +614,237 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.completeCensusCoverage).toBe('complete');
     expect(result.monotonicCompleteIssueDelta).toBe(true);
     expect(result.maxPositiveCompleteIssueDelta).toBe(0);
+  });
+
+  it('schedules a closed mixed source repair before BookSurface and PageContract with monotonic complete census', async () => {
+    const input = bunnySource();
+    const valid = bunnyDraft();
+    for (const page of valid.pageContracts) {
+      page.propConstraints ??= [];
+      page.actionRequirements ??= [];
+    }
+    const page1 = valid.pageContracts[0]!;
+    const page2 = valid.pageContracts[1]!;
+    const page3 = valid.pageContracts[2]!;
+    const validPage2Camera = page2.camera;
+    const validPage1SourceEvidenceId = (
+      page1.actionSemanticCoverage as Array<Record<string, unknown>>
+    )[0]!.sourceEvidenceId as string;
+
+    const validPage3 = structuredClone(page3);
+    const page3Coverage = (
+      validPage3.actionSemanticCoverage as Array<Record<string, unknown>>
+    )[0]!;
+    const page3BeatId = page3Coverage.beatId as string;
+    validPage3.actionRequirements = [{
+      beatId: page3BeatId,
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: 'looks_at',
+      object: null,
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'must',
+      laterality: null,
+    }];
+    page3Coverage.disposition = { kind: 'action_requirement' };
+    validPage3.mustShow = [
+      ...(validPage3.mustShow as string[]),
+      ...projectPageMustShow(
+        validPage3 as unknown as PageVisualContract,
+        {
+          ...valid,
+          pageContracts: [
+            ...valid.pageContracts.slice(0, 2),
+            validPage3,
+            ...valid.pageContracts.slice(3),
+          ],
+        } as unknown as BookVisualContract,
+      ),
+    ];
+
+    const initial = structuredClone(valid);
+    const initialPage1 = initial.pageContracts[0]!;
+    const initialPage2 = initial.pageContracts[1]!;
+    const initialPage3 = structuredClone(validPage3);
+    initial.pageContracts[2] = initialPage3;
+    (
+      initialPage1.actionSemanticCoverage as Array<Record<string, unknown>>
+    )[0]!.sourceEvidenceId = 'malformed-source-evidence-id';
+    initialPage2.camera = '';
+    (
+      initialPage3.actionSemanticCoverage as Array<Record<string, unknown>>
+    )[0]!.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
+
+    const repairedPage3 = structuredClone(validPage3);
+    delete repairedPage3.castIds;
+    delete repairedPage3.characterPresence;
+    repairedPage3.propConstraints ??= [];
+    const sourceIssue = {
+      family: 'source_evidence_id',
+      code: 'source_evidence_id_malformed',
+      locator: {
+        kind: 'source_evidence',
+        fieldRole: 'source_evidence',
+        pageNumber: 1,
+        coverageIndex: 0,
+      },
+    } satisfies DraftValidationIssue;
+    const page2Issue = {
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: 2,
+      },
+      causes: ['page_steering_invalid'],
+    } satisfies DraftValidationIssue;
+    const page3CardinalityIssue = {
+      family: 'action_semantic',
+      code: 'action_binding_cardinality_invalid',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_actions',
+        fieldRole: 'cardinality',
+        pageNumber: 3,
+        itemIndex: 0,
+      },
+    } satisfies DraftValidationIssue;
+    const page3MissingIssue = {
+      family: 'action_semantic',
+      code: 'action_binding_missing',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_actions',
+        fieldRole: 'action_binding',
+        pageNumber: 3,
+        itemIndex: 0,
+      },
+    } satisfies DraftValidationIssue;
+    const page3StructuralIssue = {
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: 3,
+      },
+      causes: ['page_action_requirements_invalid'],
+    } satisfies DraftValidationIssue;
+
+    const result = await runOfflineRepairHarness({
+      input,
+      initialDraft: initial,
+      repairResponses: [
+        {
+          patches: [{
+            pageNumber: 1,
+            beatId: (
+              initialPage1.actionSemanticCoverage as Array<Record<string, unknown>>
+            )[0]!.beatId,
+            sourceEvidenceId: validPage1SourceEvidenceId,
+          }],
+        },
+        { pageContracts: [repairedPage3] },
+        {
+          presentationPatches: [],
+          coverContract: null,
+          recurringProps: null,
+          pageStructuralPatches: [{
+            pageNumber: 2,
+            locationId: null,
+            zoneId: null,
+            sameLocationAs: null,
+            mustShow: structuredClone(page2.mustShow),
+            mustNotShow: structuredClone(page2.mustNotShow),
+            propState: null,
+            propConstraints: null,
+            actionRequirements: null,
+            camera: validPage2Camera,
+            transition: null,
+          }],
+        },
+      ],
+      completeDiagnosticIssuesByAttempt: [
+        [
+          sourceIssue,
+          page2Issue,
+          page3CardinalityIssue,
+          page3MissingIssue,
+          page3StructuralIssue,
+        ],
+        [
+          page2Issue,
+          page3CardinalityIssue,
+          page3MissingIssue,
+          page3StructuralIssue,
+        ],
+        [page2Issue],
+        [],
+      ],
+    });
+
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'candidate',
+      completeCensusCoverage: 'complete',
+      monotonicCompleteIssueDelta: true,
+      maxPositiveCompleteIssueDelta: 0,
+      finalCompleteIssueCount: 0,
+    });
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'source_evidence_id_patch',
+      'page_contract_patch',
+      'book_surface_patch',
+    ]);
+    expect(
+      result.actionCoverageCensuses[0]!.records.find(
+        (record) => record.pageNumber === 3,
+      ),
+    ).toMatchObject({
+      dispositionKind: 'non_visual',
+      matchingActionIndexes: [0],
+      attemptedPredicates: ['looks_at'],
+    });
+    expect(result.stages.map((stage) => ({
+      nextRepairMode: stage.nextRepairMode,
+      completeIssueCount: stage.completeIssueCount,
+      completeDelta: stage.completeDelta,
+      classification: stage.classification,
+    }))).toEqual([
+      {
+        nextRepairMode: 'source_evidence_id_patch',
+        completeIssueCount: 5,
+        completeDelta: null,
+        classification: 'baseline',
+      },
+      {
+        nextRepairMode: 'page_contract_patch',
+        completeIssueCount: 4,
+        completeDelta: -1,
+        classification: 'improved',
+      },
+      {
+        nextRepairMode: 'book_surface_patch',
+        completeIssueCount: 1,
+        completeDelta: -3,
+        classification: 'improved',
+      },
+      {
+        nextRepairMode: null,
+        completeIssueCount: 0,
+        completeDelta: -1,
+        classification: 'improved',
+      },
+    ]);
   });
 
   it('replays the production BookSurface, spatial and PageContract selectors without a provider', async () => {

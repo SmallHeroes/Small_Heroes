@@ -50,6 +50,22 @@ export interface OfflineRepairHarnessCall {
   schemaName: string | null;
 }
 
+export interface OfflineRepairHarnessActionCoverageRecord {
+  pageNumber: number | null;
+  coverageIndex: number;
+  beatId: string | null;
+  sourceEvidenceId: string | null;
+  dispositionKind: string | null;
+  matchingActionIndexes: readonly number[];
+  attemptedPredicates: readonly string[];
+}
+
+export interface OfflineRepairHarnessActionCoverageCensus {
+  call: number;
+  repairMode: OfflineRepairHarnessCall['repairMode'];
+  records: readonly OfflineRepairHarnessActionCoverageRecord[];
+}
+
 export type OfflineRepairDeltaClassification =
   | 'baseline'
   | 'improved'
@@ -84,6 +100,11 @@ export interface OfflineRepairHarnessResult {
     | 'invalid_draft'
     | 'unexpected_failure';
   calls: readonly OfflineRepairHarnessCall[];
+  /**
+   * Sanitized action/coverage evidence from injected draft-shaped responses.
+   * No prompt, source phrase, contract value or provider material is retained.
+   */
+  actionCoverageCensuses: readonly OfflineRepairHarnessActionCoverageCensus[];
   stages: readonly OfflineRepairHarnessStage[];
   completeCensusCoverage: 'complete' | 'partial' | 'absent';
   monotonicCompleteIssueDelta: boolean | null;
@@ -94,6 +115,81 @@ export interface OfflineRepairHarnessResult {
 
 function responseJson(value: unknown): string {
   return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+function objectValue(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function sanitizedActionCoverageCensus(args: {
+  call: number;
+  repairMode: OfflineRepairHarnessCall['repairMode'];
+  response: unknown;
+}): OfflineRepairHarnessActionCoverageCensus | null {
+  const response = objectValue(args.response);
+  const pages = response?.pageContracts;
+  if (!Array.isArray(pages)) return null;
+
+  const records: OfflineRepairHarnessActionCoverageRecord[] = [];
+  for (const pageValue of pages) {
+    const page = objectValue(pageValue);
+    if (!page) continue;
+    const pageNumber =
+      Number.isSafeInteger(page.pageNumber) &&
+      (page.pageNumber as number) > 0
+        ? page.pageNumber as number
+        : null;
+    const coverage = Array.isArray(page.actionSemanticCoverage)
+      ? page.actionSemanticCoverage
+      : [];
+    const actions = Array.isArray(page.actionRequirements)
+      ? page.actionRequirements
+      : [];
+
+    for (const [coverageIndex, coverageValue] of coverage.entries()) {
+      const coverageRecord = objectValue(coverageValue);
+      const beatId =
+        typeof coverageRecord?.beatId === 'string'
+          ? coverageRecord.beatId
+          : null;
+      const matchingActionIndexes: number[] = [];
+      const attemptedPredicates: string[] = [];
+      if (beatId !== null) {
+        for (const [actionIndex, actionValue] of actions.entries()) {
+          const action = objectValue(actionValue);
+          if (action?.beatId !== beatId) continue;
+          matchingActionIndexes.push(actionIndex);
+          if (typeof action.predicate === 'string') {
+            attemptedPredicates.push(action.predicate);
+          }
+        }
+      }
+      const disposition = objectValue(coverageRecord?.disposition);
+      records.push({
+        pageNumber,
+        coverageIndex,
+        beatId,
+        sourceEvidenceId:
+          typeof coverageRecord?.sourceEvidenceId === 'string'
+            ? coverageRecord.sourceEvidenceId
+            : null,
+        dispositionKind:
+          typeof disposition?.kind === 'string'
+            ? disposition.kind
+            : null,
+        matchingActionIndexes,
+        attemptedPredicates,
+      });
+    }
+  }
+
+  return {
+    call: args.call,
+    repairMode: args.repairMode,
+    records,
+  };
 }
 
 function currentIssues(
@@ -208,6 +304,7 @@ export async function runOfflineRepairHarness(
     ...(scenario.repairResponses ?? []),
   ];
   const calls: OfflineRepairHarnessCall[] = [];
+  const actionCoverageCensuses: OfflineRepairHarnessActionCoverageCensus[] = [];
   let outcome: OfflineRepairHarnessResult['outcome'];
   let summaries: readonly TemplateRepairSummary[] = [];
   let diagnosticTrail: readonly DraftValidationAttemptDiagnostics[] = [];
@@ -241,7 +338,17 @@ export async function runOfflineRepairHarness(
           if (call > responseQueue.length) {
             throw new Error('offline_harness_response_exhausted');
           }
-          return responseJson(responseQueue[call - 1]);
+          const response = responseQueue[call - 1];
+          const census = sanitizedActionCoverageCensus({
+            call,
+            repairMode:
+              authority.kind === 'repair'
+                ? authority.repairMode
+                : null,
+            response,
+          });
+          if (census) actionCoverageCensuses.push(census);
+          return responseJson(response);
         },
       },
     );
@@ -323,6 +430,7 @@ export async function runOfflineRepairHarness(
     providerCalls: 0,
     outcome,
     calls,
+    actionCoverageCensuses,
     stages,
     completeCensusCoverage,
     monotonicCompleteIssueDelta,

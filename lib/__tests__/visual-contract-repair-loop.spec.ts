@@ -1034,7 +1034,8 @@ describe('Source Evidence ID compact repair', () => {
     );
   });
 
-  it('keeps mixed source-ID and other failures on the existing whole-draft repair path', async () => {
+  it('repairs a closed mixed source-ID set before the remaining whole-draft failure', async () => {
+    const input = bunnySource();
     const invalid = withElevenInvalidEvidenceIds();
     invalid.recurringProps[0].material = '';
     const calls: Array<{
@@ -1050,25 +1051,49 @@ describe('Source Evidence ID compact repair', () => {
       authority,
     ) => {
       calls.push({ system, user, options, authority });
-      return JSON.stringify(calls.length === 1 ? invalid : bunnyDraft());
+      if (calls.length === 1) return JSON.stringify(invalid);
+      if (calls.length === 2) {
+        const affected = JSON.parse(user).affectedRecords as Array<{
+          pageNumber: number;
+          beatId: string;
+        }>;
+        return JSON.stringify({
+          patches: affected.map((record) => ({
+            pageNumber: record.pageNumber,
+            beatId: record.beatId,
+            sourceEvidenceId: input.sourceEvidenceCatalog.entries.find(
+              (entry) => entry.pageNumber === record.pageNumber,
+            )!.sourceEvidenceId,
+          })),
+        });
+      }
+      return JSON.stringify(bunnyDraft());
     };
 
-    const result = await compileBookVisualContractTemplate(bunnySource(), {
+    const result = await compileBookVisualContractTemplate(input, {
       callLLM: caller,
     });
 
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(3);
     expect(calls[1]!.authority).toMatchObject({
+      kind: 'repair',
+      repairMode: 'source_evidence_id_patch',
+    });
+    expect(calls[1]!.options?.jsonSchema?.name).toBe(
+      SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
+    );
+    expect(calls[1]!.options?.maxOutputTokens).toBe(32_000);
+    expect(calls[2]!.authority).toMatchObject({
       kind: 'repair',
       repairMode: 'full_draft',
     });
-    expect(calls[1]!.options?.jsonSchema?.name).toBe(
+    expect(calls[2]!.options?.jsonSchema?.name).toBe(
       TEMPLATE_DRAFT_SCHEMA_NAME,
     );
-    expect(calls[1]!.options?.maxOutputTokens).toBe(32_000);
-    expect(calls[1]!.system).toMatch(/FULL-DRAFT REPAIR MODE/);
+    expect(calls[2]!.options?.maxOutputTokens).toBe(36_000);
+    expect(calls[2]!.system).toMatch(/FULL-DRAFT REPAIR MODE/);
     const repairInput = decodeTemplateRepairUserPrompt(
-      calls[1]!.user,
+      calls[2]!.user,
     );
     expect(repairInput.sourceAuthoringInput).toBe(
       buildTemplateCompileUserPrompt(
@@ -1077,12 +1102,14 @@ describe('Source Evidence ID compact repair', () => {
       ),
     );
     expect(repairInput.validationIssues).toEqual(
-      result.repairAttempts[0]!.diagnosticIssues,
+      result.repairAttempts[1]!.diagnosticIssues,
     );
     expect(JSON.stringify(repairInput)).not.toContain(
       JSON.stringify(invalid),
     );
-    expect(result.repairAttempts[0]!.nextRepairMode).toBe('full_draft');
+    expect(
+      result.repairAttempts.map((attempt) => attempt.nextRepairMode),
+    ).toEqual(['source_evidence_id_patch', 'full_draft']);
   });
 });
 

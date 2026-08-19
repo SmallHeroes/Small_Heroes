@@ -111,6 +111,106 @@ export function relevantSourceEvidenceCatalogEntries(args: {
     }));
 }
 
+const SOURCE_EVIDENCE_ID_REPAIR_FAILURE_CODES = new Set<
+  SourceEvidenceIdRepairAffectedRecord['failureCode']
+>([
+  'source_evidence_id_malformed',
+  'source_evidence_id_unknown',
+  'source_evidence_id_wrong_page',
+]);
+
+/**
+ * Proves that the complete affected-record set can use the existing compact
+ * Source Evidence repair without borrowing authority from unrelated failures.
+ * This is deliberately stricter than the applier: ambiguous or stale compiler
+ * evidence stays on the existing fail-closed route before provider dispatch.
+ */
+export function sourceEvidenceIdRepairAffectedRecordsAreClosed(args: {
+  draft: Record<string, unknown>;
+  catalog: SourceEvidenceCatalog;
+  affectedRecords: readonly SourceEvidenceIdRepairAffectedRecord[];
+}): boolean {
+  if (args.affectedRecords.length === 0) return false;
+  const pages = Array.isArray(args.draft.pageContracts)
+    ? args.draft.pageContracts
+    : [];
+  const seen = new Set<string>();
+
+  for (const record of args.affectedRecords) {
+    if (
+      !SOURCE_EVIDENCE_ID_REPAIR_FAILURE_CODES.has(record.failureCode) ||
+      !Number.isSafeInteger(record.pageNumber) ||
+      record.pageNumber < 1 ||
+      !Number.isSafeInteger(record.coverageIndex) ||
+      record.coverageIndex < 0 ||
+      typeof record.beatId !== 'string' ||
+      record.beatId.length === 0 ||
+      record.coverageRecord.beatId !== record.beatId
+    ) {
+      return false;
+    }
+    const key = patchKey(record);
+    if (seen.has(key)) return false;
+    seen.add(key);
+
+    if (
+      !args.catalog.entries.some(
+        (entry) => entry.pageNumber === record.pageNumber,
+      )
+    ) {
+      return false;
+    }
+    const matchingPages = pages
+      .map(recordValue)
+      .filter((page) => page?.pageNumber === record.pageNumber);
+    if (matchingPages.length !== 1) return false;
+    const coverage = Array.isArray(
+      matchingPages[0]!.actionSemanticCoverage,
+    )
+      ? matchingPages[0]!.actionSemanticCoverage
+      : [];
+    const currentCoverage = recordValue(coverage[record.coverageIndex]);
+    if (
+      !currentCoverage ||
+      currentCoverage.beatId !== record.beatId ||
+      currentCoverage.sourceEvidenceId !==
+        record.coverageRecord.sourceEvidenceId ||
+      coverage
+        .map(recordValue)
+        .filter((candidate) => candidate?.beatId === record.beatId)
+        .length !== 1
+    ) {
+      return false;
+    }
+    const resolution = resolveSourceEvidenceId({
+      catalog: args.catalog,
+      sourceEvidenceId: currentCoverage.sourceEvidenceId,
+      pageNumber: record.pageNumber,
+    });
+    if (resolution.ok || resolution.code !== record.failureCode) {
+      return false;
+    }
+
+    const disposition = recordValue(currentCoverage.disposition);
+    if (disposition?.kind === 'action_requirement') {
+      const actions = Array.isArray(matchingPages[0]!.actionRequirements)
+        ? matchingPages[0]!.actionRequirements
+        : [];
+      const matchingActions = actions
+        .map(recordValue)
+        .filter((action) => action?.beatId === record.beatId);
+      if (
+        matchingActions.length !== 1 ||
+        !record.actionRequirement ||
+        record.actionRequirement.beatId !== record.beatId
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 export function buildSourceEvidenceIdRepairUserPrompt(args: {
   catalog: SourceEvidenceCatalog;
   affectedRecords: readonly SourceEvidenceIdRepairAffectedRecord[];

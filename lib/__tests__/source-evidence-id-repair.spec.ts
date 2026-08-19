@@ -4,6 +4,7 @@ import { buildSourceEvidenceCatalog } from '@/lib/visual-contract-compiler/sourc
 import {
   applySourceEvidenceIdPatches,
   parseSourceEvidenceIdPatches,
+  sourceEvidenceIdRepairAffectedRecordsAreClosed,
   type SourceEvidenceIdPatch,
   type SourceEvidenceIdRepairAffectedRecord,
 } from '@/lib/visual-contract-compiler/sourceEvidenceIdRepair';
@@ -164,6 +165,129 @@ function phenomenonActionRepairFixture() {
     },
   };
 }
+
+function closedAuthorityFixture(args?: {
+  failureCode?: SourceEvidenceIdRepairAffectedRecord['failureCode'];
+  actionRequirement?: boolean;
+}) {
+  const fixture = repairFixture();
+  const failureCode = args?.failureCode ?? 'source_evidence_id_unknown';
+  const sourceEvidenceId =
+    failureCode === 'source_evidence_id_malformed'
+      ? 'malformed-source-evidence'
+      : failureCode === 'source_evidence_id_wrong_page'
+        ? fixture.pageTwoId
+        : `se1_${'f'.repeat(64)}`;
+  const beatId = 'beat:page-one';
+  const disposition = args?.actionRequirement
+    ? { kind: 'action_requirement' }
+    : { kind: 'non_visual', rationale: 'narrative_context' };
+  const action = args?.actionRequirement
+    ? {
+        beatId,
+        subject: {
+          kind: 'source_phenomenon',
+          sourceEvidenceId,
+        },
+        predicate: 'touches',
+        object: { kind: 'cast', id: 'child:hero' },
+        spatialEffect: null,
+        polarity: 'must',
+        laterality: null,
+      }
+    : null;
+  const coverageRecord = {
+    beatId,
+    sourceEvidenceId,
+    disposition,
+  };
+  const draft = {
+    pageContracts: [{
+      pageNumber: 1,
+      actionSemanticCoverage: [coverageRecord],
+      actionRequirements: action ? [action] : [],
+    }],
+  };
+  const affectedRecords: SourceEvidenceIdRepairAffectedRecord[] = [{
+    pageNumber: 1,
+    coverageIndex: 0,
+    beatId,
+    failureCode,
+    coverageRecord: structuredClone(coverageRecord),
+    actionRequirement: action ? structuredClone(action) : null,
+  }];
+  return {
+    affectedRecords,
+    catalog: fixture.catalog,
+    draft,
+  };
+}
+
+describe('sourceEvidenceIdRepairAffectedRecordsAreClosed', () => {
+  it.each([
+    'source_evidence_id_malformed',
+    'source_evidence_id_unknown',
+    'source_evidence_id_wrong_page',
+  ] as const)('admits one exact current %s record', (failureCode) => {
+    const fixture = closedAuthorityFixture({ failureCode });
+
+    expect(sourceEvidenceIdRepairAffectedRecordsAreClosed(fixture)).toBe(true);
+  });
+
+  it('admits one exact action-bound phenomenon record', () => {
+    const fixture = closedAuthorityFixture({ actionRequirement: true });
+
+    expect(sourceEvidenceIdRepairAffectedRecordsAreClosed(fixture)).toBe(true);
+  });
+
+  it.each([
+    ['empty affected set', (fixture: ReturnType<typeof closedAuthorityFixture>) => {
+      fixture.affectedRecords = [];
+    }],
+    ['duplicate authority key', (fixture: ReturnType<typeof closedAuthorityFixture>) => {
+      fixture.affectedRecords.push(structuredClone(fixture.affectedRecords[0]!));
+    }],
+    ['stale coverage index', (fixture: ReturnType<typeof closedAuthorityFixture>) => {
+      fixture.affectedRecords[0]!.coverageIndex = 1;
+    }],
+    ['stale beat identity', (fixture: ReturnType<typeof closedAuthorityFixture>) => {
+      fixture.affectedRecords[0]!.beatId = 'beat:stale';
+    }],
+    ['stale source identity', (fixture: ReturnType<typeof closedAuthorityFixture>) => {
+      fixture.affectedRecords[0]!.coverageRecord.sourceEvidenceId = `se1_${'e'.repeat(64)}`;
+    }],
+    ['missing same-page catalog authority', (fixture: ReturnType<typeof closedAuthorityFixture>) => {
+      fixture.catalog.entries = fixture.catalog.entries.filter(
+        (entry) => entry.pageNumber !== 1,
+      );
+    }],
+    ['duplicate current page', (fixture: ReturnType<typeof closedAuthorityFixture>) => {
+      fixture.draft.pageContracts.push(structuredClone(fixture.draft.pageContracts[0]!));
+    }],
+    ['duplicate current beat', (fixture: ReturnType<typeof closedAuthorityFixture>) => {
+      fixture.draft.pageContracts[0]!.actionSemanticCoverage.push(
+        structuredClone(fixture.draft.pageContracts[0]!.actionSemanticCoverage[0]!),
+      );
+    }],
+  ])('rejects %s', (_label, mutate) => {
+    const fixture = closedAuthorityFixture();
+    mutate(fixture);
+
+    expect(sourceEvidenceIdRepairAffectedRecordsAreClosed(fixture)).toBe(false);
+  });
+
+  it.each([
+    ['missing action', []],
+    ['duplicate action', null],
+  ])('rejects an action-bound record with %s', (_label, actions) => {
+    const fixture = closedAuthorityFixture({ actionRequirement: true });
+    const current = fixture.draft.pageContracts[0]!.actionRequirements;
+    fixture.draft.pageContracts[0]!.actionRequirements =
+      actions ?? [current[0]!, structuredClone(current[0]!)];
+
+    expect(sourceEvidenceIdRepairAffectedRecordsAreClosed(fixture)).toBe(false);
+  });
+});
 
 describe('parseSourceEvidenceIdPatches rejection guards', () => {
   it('rejects invalid JSON', () => {

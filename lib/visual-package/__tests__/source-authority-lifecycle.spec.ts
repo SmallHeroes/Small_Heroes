@@ -5597,7 +5597,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(invalid).toEqual(inputBeforeAuthoring);
   });
 
-  it('keeps mixed causal and independent source-evidence failures on the fail-closed full-draft route', async () => {
+  it('repairs a closed mixed causal and independent source-evidence set before wider routing', async () => {
     const snapshot = storySnapshot('fox_uri_adventure');
     const request = requestFor(snapshot, 'live');
     const valid = actionCapabilityCalibrationDraft(snapshot);
@@ -5622,10 +5622,36 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         rationale: 'narrative_context',
       },
     });
+    const phenomenonSourceEvidenceId = (
+      valid.pageContracts.find((page) => page.pageNumber === 7)! as unknown as {
+        actionSemanticCoverage: Array<{ sourceEvidenceId: string }>;
+      }
+    ).actionSemanticCoverage[0]!.sourceEvidenceId;
+    const independentSourceEvidenceId =
+      snapshot.content.sourceEvidenceCatalog.entries.find(
+        (entry) => entry.pageNumber === 6,
+      )!.sourceEvidenceId;
     const inputBeforeAuthoring = structuredClone(invalid);
     const provider: VisualContractAuthoringProvider = {
       call: vi.fn(async (args) => ({
-        output: JSON.stringify(args.attempt === 1 ? invalid : valid),
+        output: JSON.stringify(
+          args.attempt === 1
+            ? invalid
+            : {
+                patches: [
+                  {
+                    pageNumber: 6,
+                    beatId: 'beat:p6:independent_non_visual',
+                    sourceEvidenceId: independentSourceEvidenceId,
+                  },
+                  {
+                    pageNumber: 7,
+                    beatId: phenomenonPage.actionSemanticCoverage[0]!.beatId,
+                    sourceEvidenceId: phenomenonSourceEvidenceId,
+                  },
+                ],
+              },
+        ),
         receipt: {
           provider: 'openai',
           model: 'gpt-5.6-sol',
@@ -5653,7 +5679,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       failure: null,
     });
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
-      .toEqual([null, 'full_draft']);
+      .toEqual([null, 'source_evidence_id_patch']);
     expect(
       result.receipt.attempts[0]!.draftValidationDiagnostics?.items.map(
         (item) => `${item.issue.family}:${item.issue.code}`,
@@ -5669,6 +5695,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         ?.currentUniqueCount,
     ).toBe(5);
     expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(
+      vi.mocked(provider.call).mock.calls[1]![0].options.jsonSchema?.name,
+    ).toBe('SourceEvidenceIdRepairPatches');
     expect(invalid).toEqual(inputBeforeAuthoring);
   });
 
@@ -5865,14 +5894,15 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
   });
 
-  it('does not spend a compact source-evidence repair on an independent action-semantic failure', async () => {
+  it('repairs closed source evidence before an independent action-semantic page repair', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const invalid = fullyActionedBunnyDraft(snapshot);
-    const repaired = fullyActionedBunnyDraft(snapshot);
     const sourcePage = invalid.pageContracts[0]! as unknown as {
+      pageNumber: number;
       actionRequirements: unknown[];
       actionSemanticCoverage: Array<{
+        beatId: string;
         sourceEvidenceId: string;
         disposition: Record<string, unknown>;
       }>;
@@ -5901,24 +5931,88 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         contractValue: 'unreachable',
       },
     });
+    const validSourceEvidenceId =
+      snapshot.content.sourceEvidenceCatalog.entries.find(
+        (entry) => entry.pageNumber === sourcePage.pageNumber,
+      )!.sourceEvidenceId;
+    const repairedIndependentPage = structuredClone(
+      independentPage,
+    ) as unknown as Record<string, unknown>;
+    delete repairedIndependentPage.castIds;
+    delete repairedIndependentPage.castStates;
+    delete repairedIndependentPage.characterPresence;
+    repairedIndependentPage.propConstraints ??= [];
 
     const provider: VisualContractAuthoringProvider = {
-      call: vi.fn(async (args) => ({
-        output: JSON.stringify(
-          args.attempt === 1 ? invalid : repaired,
-        ),
-        receipt: {
-          provider: 'openai',
-          model: 'gpt-5.6-sol',
-          responseId: `independent-action-response-${args.attempt}`,
-          usage: {
-            input_tokens: 1_000,
-            output_tokens: 2_000,
-            total_tokens: 3_000,
-            output_tokens_details: { reasoning_tokens: 500 },
+      call: vi.fn(async (args) => {
+        const output =
+          args.attempt === 1
+            ? invalid
+            : args.attempt === 2
+              ? {
+                  patches: [
+                    {
+                      pageNumber: sourcePage.pageNumber,
+                      beatId: sourcePage.actionSemanticCoverage[0]!.beatId,
+                      sourceEvidenceId: validSourceEvidenceId,
+                    },
+                  ],
+                }
+              : args.attempt === 3
+                ? {
+                    patches: [
+                      {
+                        pageNumber: sourcePage.pageNumber,
+                        coverageIndex: 0,
+                        beatId:
+                          sourcePage.actionSemanticCoverage[0]!.beatId,
+                        sourceEvidenceId: validSourceEvidenceId,
+                        presentationClass: 'composition_focus',
+                        contractPointer: '/pageContracts/0/mustShow/0',
+                      },
+                    ],
+                  }
+                : (() => {
+                    const payload = decodePageContractRepairUserPrompt(
+                      args.userPrompt,
+                    );
+                    const affectedPage = payload.affectedPages.find(
+                      (page) => page.pageNumber === independentPage.pageNumber,
+                    );
+                    const permitted = affectedPage?.permittedPointerValues[0];
+                    if (!permitted) {
+                      throw new Error(
+                        'expected represented-elsewhere pointer authority',
+                      );
+                    }
+                    const repairedPage = structuredClone(
+                      repairedIndependentPage,
+                    );
+                    const coverage = repairedPage.actionSemanticCoverage as Array<
+                      Record<string, unknown>
+                    >;
+                    coverage[coverage.length - 1]!.disposition = {
+                      kind: 'represented_elsewhere',
+                      contractPointer: permitted.contractPointer,
+                      contractValue: permitted.contractValue,
+                    };
+                    return { pageContracts: [repairedPage] };
+                  })();
+        return {
+          output: JSON.stringify(output),
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `independent-action-response-${args.attempt}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+              output_tokens_details: { reasoning_tokens: 500 },
+            },
           },
-        },
-      })),
+        };
+      }),
     };
 
     const result = await runVisualContractAuthoring({
@@ -5929,12 +6023,17 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
     expect(result.receipt).toMatchObject({
       status: 'completed',
-      callCount: 2,
-      repairCount: 1,
+      callCount: 4,
+      repairCount: 3,
       failure: null,
     });
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
-      .toEqual([null, 'full_draft']);
+      .toEqual([
+        null,
+        'source_evidence_id_patch',
+        'presentation_requirement_patch',
+        'page_contract_patch',
+      ]);
     expect(
       result.receipt.attempts[0]!.draftValidationDiagnostics?.items,
     ).toEqual(
@@ -5959,10 +6058,16 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         }),
       ]),
     );
-    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(provider.call).toHaveBeenCalledTimes(4);
     expect(
       vi.mocked(provider.call).mock.calls[1]![0].options.jsonSchema?.name,
-    ).toBe('BookVisualContractTemplateDraft');
+    ).toBe('SourceEvidenceIdRepairPatches');
+    expect(
+      vi.mocked(provider.call).mock.calls[2]![0].options.jsonSchema?.name,
+    ).toBe('PresentationRequirementRepairPatches');
+    expect(
+      vi.mocked(provider.call).mock.calls[3]![0].options.jsonSchema?.name,
+    ).toBe('PageContractRepairPatches');
   });
 
   it('records a compact presentation-requirement repair and persists a candidate after full revalidation', async () => {
