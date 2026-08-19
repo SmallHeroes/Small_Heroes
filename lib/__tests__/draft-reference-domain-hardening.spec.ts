@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   DraftAuthorityReferenceDomainError,
-  TemplateRepairExhaustedError,
+  TemplateRepairStagnationError,
   TemplateRepairOutputInvalidError,
   compileBookVisualContractTemplate,
   compilerOwnedActionCheckId,
@@ -1712,8 +1712,8 @@ describe('captured reference-domain matrix', () => {
       JSON.stringify(draft));
     await expect(
       compileBookVisualContractTemplate(input, { callLLM }),
-    ).rejects.toBeInstanceOf(TemplateRepairExhaustedError);
-    expect(callLLM).toHaveBeenCalledTimes(7);
+    ).rejects.toBeInstanceOf(TemplateRepairStagnationError);
+    expect(callLLM).toHaveBeenCalledTimes(2);
     expect(
       decodeTemplateRepairUserPrompt(
         String(callLLM.mock.calls[1]![1]),
@@ -1788,7 +1788,10 @@ describe('captured reference-domain matrix', () => {
         callIndex === 5 ||
         callIndex === 6
       ) {
-        return JSON.stringify(worldOnlyResidual);
+        const variant = structuredClone(worldOnlyResidual);
+        const cover = variant.coverContract as { title: string };
+        cover.title = `${cover.title} Attempt ${callIndex}.`;
+        return JSON.stringify(variant);
       }
       if (callIndex === 7) {
         return JSON.stringify(referenceOnlyResidual);
@@ -1888,7 +1891,11 @@ describe('captured reference-domain matrix', () => {
         failingCallIndex === 5 ||
         failingCallIndex === 6
       ) {
-        return JSON.stringify(worldOnlyResidual);
+        const variant = structuredClone(worldOnlyResidual);
+        const cover = variant.coverContract as { title: string };
+        cover.title =
+          `${cover.title} Failing attempt ${failingCallIndex}.`;
+        return JSON.stringify(variant);
       }
       if (failingCallIndex === 7) {
         return JSON.stringify(referenceOnlyResidual);

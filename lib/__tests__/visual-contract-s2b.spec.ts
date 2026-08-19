@@ -14,6 +14,7 @@ import { extractSourceFromMarkdown } from '../../scripts/extract-visual-contract
 import {
   compileBookVisualContractTemplate,
   TemplateRepairExhaustedError,
+  TemplateRepairStagnationError,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import { InvalidTemplateContractError } from '../visual-contract-compiler/validateTemplateContract';
@@ -38,13 +39,14 @@ const stubFrom = (t: unknown): ContractLlmCaller => async () => JSON.stringify(t
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const page = (t: any, n: number) => t.pageContracts.find((p: any) => p.pageNumber === n);
 
-async function expectTypedRepairExhaustion(
+async function expectTypedRepairStagnation(
   draft: unknown,
   code:
     | 'unresolved_reference'
     | 'ambiguous_reference'
     | 'final_structural_invariant_invalid'
     | 'topology_malformed',
+  expectedTerminal: 'stagnated' | 'exhausted' = 'stagnated',
 ): Promise<void> {
   let thrown: unknown;
   try {
@@ -54,17 +56,25 @@ async function expectTypedRepairExhaustion(
   } catch (error) {
     thrown = error;
   }
-  expect(thrown).toBeInstanceOf(TemplateRepairExhaustedError);
-  const exhaustion = thrown as TemplateRepairExhaustedError;
-  expect(exhaustion.attempts).toHaveLength(7);
+  expect(thrown).toBeInstanceOf(
+    expectedTerminal === 'stagnated'
+      ? TemplateRepairStagnationError
+      : TemplateRepairExhaustedError,
+  );
+  const failure = thrown as
+    | TemplateRepairStagnationError
+    | TemplateRepairExhaustedError;
+  expect(failure.attempts).toHaveLength(
+    expectedTerminal === 'stagnated' ? 2 : 7,
+  );
   expect(
-    exhaustion.attempts.every((attempt) =>
+    failure.attempts.every((attempt) =>
       attempt.diagnosticIssues.some((issue) => issue.code === code),
     ),
   ).toBe(true);
   if (code === 'final_structural_invariant_invalid') {
     expect(
-      exhaustion.attempts.every((attempt) =>
+      failure.attempts.every((attempt) =>
         attempt.diagnosticIssues.some(
           (issue) =>
             issue.family === 'draft_contract' &&
@@ -76,7 +86,7 @@ async function expectTypedRepairExhaustion(
       ),
     ).toBe(true);
   }
-  expect(JSON.stringify(exhaustion.attempts)).not.toContain(
+  expect(JSON.stringify(failure.attempts)).not.toContain(
     'clinic.nonexistent_room',
   );
 }
@@ -117,9 +127,10 @@ describe('S2b — the compiler OWNS the zone-ref canonicalization', () => {
   it('an unresolved zone ref (no declared zone) → repair (throws, never guesses)', async () => {
     const draft = bunnyDraft();
     page(draft, 5).zoneId = 'clinic.nonexistent_room';
-    await expectTypedRepairExhaustion(
+    await expectTypedRepairStagnation(
       draft,
       'unresolved_reference',
+      'exhausted',
     );
   });
 
@@ -128,9 +139,10 @@ describe('S2b — the compiler OWNS the zone-ref canonicalization', () => {
     // Two distinct exact ids that share a normalized form → any non-exact ref matching that form is ambiguous.
     draft.zones.push({ id: 'clinic_exam_room', locationId: 'clinic', name: 'dup', description: 'dup', stableGeometry: ['x'] });
     page(draft, 1).zoneId = 'CLINIC-EXAM-ROOM'; // normalizes to clinic.exam.room, exact-matches neither
-    await expectTypedRepairExhaustion(
+    await expectTypedRepairStagnation(
       draft,
       'ambiguous_reference',
+      'exhausted',
     );
   });
 
@@ -192,7 +204,7 @@ describe('S2b — the compiler owns only deterministically implied transition en
   ])('leaves an underdetermined endpoint set on page $pageNumber fail-closed', async ({ pageNumber, transition }) => {
     const draft = bunnyDraft();
     page(draft, pageNumber).transition = transition;
-    await expectTypedRepairExhaustion(
+    await expectTypedRepairStagnation(
       draft,
       'final_structural_invariant_invalid',
     );
@@ -209,7 +221,7 @@ describe('S2b — the compiler owns only deterministically implied transition en
     };
     page(draft, 5).zoneId = 'clinic.exam_room';
 
-    await expectTypedRepairExhaustion(
+    await expectTypedRepairStagnation(
       draft,
       'final_structural_invariant_invalid',
     );
@@ -301,7 +313,7 @@ describe('S2b — genuine transition-CONTINUITY violations are left for the vali
       fromZoneId: 'clinic.waiting_room',
       toZoneId: 'clinic.exam_room',
     };
-    await expectTypedRepairExhaustion(
+    await expectTypedRepairStagnation(
       draft,
       'final_structural_invariant_invalid',
     );
@@ -312,7 +324,7 @@ describe('S2b — genuine transition-CONTINUITY violations are left for the vali
     // p6 was a steady exam_room page; teleport it to a different declared zone while still "steady".
     page(draft, 6).zoneId = 'clinic_exterior.entrance';
     page(draft, 6).transition = { kind: 'steady' };
-    await expectTypedRepairExhaustion(
+    await expectTypedRepairStagnation(
       draft,
       'topology_malformed',
     );

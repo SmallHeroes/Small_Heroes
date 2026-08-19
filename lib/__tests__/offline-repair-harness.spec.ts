@@ -278,6 +278,43 @@ describe('offline Visual Contract repair harness', () => {
     );
   });
 
+  it('reports an exact complete fixed point after one repair without reaching a provider or a third stub call', async () => {
+    const fixedPoint = bunnyDraft();
+    fixedPoint.worldType = '';
+    const input = bunnySource();
+    delete (input as unknown as Record<string, unknown>).worldType;
+
+    const result = await runOfflineRepairHarness({
+      input,
+      initialDraft: fixedPoint,
+      repairResponses: [structuredClone(fixedPoint), bunnyDraft()],
+      completeDiagnosticIssuesByAttempt: [
+        [WORLD_TYPE_MISSING],
+        [WORLD_TYPE_MISSING],
+      ],
+    });
+
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'repair_stagnated',
+      completeCensusCoverage: 'complete',
+      monotonicCompleteIssueDelta: true,
+      maxPositiveCompleteIssueDelta: 0,
+      finalCompleteIssueCount: 1,
+    });
+    expect(result.calls).toHaveLength(2);
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'full_draft',
+    ]);
+    expect(result.stages).toHaveLength(2);
+    expect(result.stages[1]).toEqual(expect.objectContaining({
+      completeDelta: 0,
+      classification: 'stable',
+    }));
+  });
+
   it('defers one represented-elsewhere residual behind atomic BookSurface and closes it without issue growth', async () => {
     const initial = bunnyDraft();
     for (const page of initial.pageContracts) {

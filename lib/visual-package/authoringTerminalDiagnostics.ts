@@ -13,6 +13,7 @@ export type AuthoringTerminalFailureCode =
   | 'call_budget_exhausted'
   | 'provider_output_decode_failed'
   | 'draft_validation_repair_regressed'
+  | 'draft_validation_repair_stagnated'
   | 'draft_validation_repair_exhausted'
   | 'repair_output_invalid'
   | 'draft_authority_reference_domain_invalid'
@@ -49,6 +50,7 @@ export type AuthoringTerminalErrorClass =
   | 'call_budget_violation'
   | 'provider_output_decode_failure'
   | 'draft_validation_regression'
+  | 'draft_validation_stagnation'
   | 'draft_validation_budget_exhausted'
   | 'repair_output_failure'
   | 'authority_reference_domain_failure'
@@ -74,6 +76,7 @@ export type AuthoringRepairReasonCode =
   | 'call_budget_not_repairable'
   | 'initial_output_not_decodable'
   | 'repair_increased_complete_issue_count'
+  | 'repair_made_no_complete_issue_progress'
   | 'draft_validation_budget_consumed'
   | 'completed_repair_output_unusable'
   | 'authority_reference_domain_not_repairable'
@@ -96,6 +99,7 @@ export type AuthoringDiagnosticCode =
   | 'call_budget_exhausted'
   | 'provider_output_json_invalid'
   | 'draft_validation_repair_regressed'
+  | 'draft_validation_repair_stagnated'
   | 'draft_schema_validation_failed'
   | 'draft_contract_validation_failed'
   | 'source_evidence_validation_failed'
@@ -256,6 +260,15 @@ const TERMINAL_DEFINITIONS: Record<
     repairReasonCode: 'repair_increased_complete_issue_count',
     diagnosticCode: 'draft_validation_repair_regressed',
     message: 'completed repair increased the complete validation issue census',
+  },
+  draft_validation_repair_stagnated: {
+    phase: 'draft_validation',
+    errorClass: 'draft_validation_stagnation',
+    repairEligibility: 'ineligible',
+    repairReasonCode: 'repair_made_no_complete_issue_progress',
+    diagnosticCode: 'draft_validation_repair_stagnated',
+    message:
+      'completed repair left the canonical draft and complete validation issues unchanged',
   },
   draft_validation_repair_exhausted: {
     phase: 'draft_validation',
@@ -442,6 +455,7 @@ const AUTHORING_DIAGNOSTIC_CODES = new Set<AuthoringDiagnosticCode>([
   'call_budget_exhausted',
   'provider_output_json_invalid',
   'draft_validation_repair_regressed',
+  'draft_validation_repair_stagnated',
   'draft_schema_validation_failed',
   'draft_contract_validation_failed',
   'source_evidence_validation_failed',

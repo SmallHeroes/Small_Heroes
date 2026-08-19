@@ -4,6 +4,42 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the current deferred represented-elsewhere milestone is based on pushed `9d9aa56f0a77e76bf126f8cb9657123db05e2b81`.
 
+## EXACT REPAIR-STATE STAGNATION GUARD — local green; immutable Claude QA next
+
+The second consecutive live failure remains a hard stop: no Fresh, credential,
+provider, Candidate, Wizard, image or render action is authorized. The consumed
+receipt v46 trajectory `17 -> 7 -> 7 -> 7 -> 7 -> 7 -> 7` proved that a fixed
+invalid state could spend every remaining BookSurface repair call.
+
+The first offline milestone now stops only when two consecutive complete
+attempts have both the same canonical invalid draft and the same normalized
+typed issue census including causes. Count equality, route subsets and
+issue-only equality do not qualify. The positive-regression guard remains
+separate and earlier. An atomically rejected PageContract output retains its
+existing one-call closed correction allowance.
+
+The offline harness reports `repair_stagnated`, two injected responses,
+`providerCalls:0`, complete delta `0` and no Candidate. Lifecycle evidence uses
+the new sanitized `draft_validation_repair_stagnated` terminal; current
+receipt/readiness advance v46/v44 -> v47/v45 with the predecessors immutable.
+Request v42, Candidate v9, policy v17, output budget v6, prompts, schemas,
+model, tier, reasoning, call caps, retry and fallback remain unchanged.
+
+Focused validation passes 153/153 compiler/harness/lifecycle, 169/169 canonical
+boundary, 24/24 terminal diagnostics and 63/63 reference/S2b tests; TypeScript
+and diff-check pass. One literal repository gate recorded 609/609
+resource-intensive PASS. Its ordinary phase initially exposed seven stale
+stagnation expectations, all subsequently corrected and focused-green, plus
+the five established missing ignored-output fixture failures; no retry was
+used. Durable records are
+`docs/ai-workflow/R1D_TYPED_PROP_CONSTRAINT_REPAIR_AUTHORITY_AND_STAGNATION_GUARD_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_EXACT_REPAIR_STATE_STAGNATION_GUARD_IMPLEMENTATION_EVIDENCE.md`.
+
+Next action is a local focused commit and Claude Code read-only adversarial QA
+over the immutable base-to-head range. The typed nine-clause prop-constraint
+authority remains a separate second milestone and will not begin before PASS.
+
 ## DEFERRED REPRESENTED-ELSEWHERE / BOOKSURFACE ROUTING — live terminal HOLD; hard stop
 
 The single eight-page Koko live attempt under

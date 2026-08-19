@@ -340,6 +340,35 @@ function templateRepairIssueRegressionCounts(
   };
 }
 
+function templateRepairCompleteStateFingerprint(
+  attempt: TemplateRepairAttempt,
+): string | null {
+  if (attempt.diagnosticPopulation !== 'complete') return null;
+  return JSON.stringify(
+    canonicalize({
+      diagnosticIssues: normalizeDraftValidationIssues(
+        attempt.diagnosticIssues,
+      ),
+      draft: attempt.draft,
+    }),
+  );
+}
+
+function templateRepairStateFingerprintIsStagnant(
+  previous: TemplateRepairAttempt,
+  current: TemplateRepairAttempt,
+): boolean {
+  const previousFingerprint =
+    templateRepairCompleteStateFingerprint(previous);
+  const currentFingerprint =
+    templateRepairCompleteStateFingerprint(current);
+  return (
+    previousFingerprint !== null &&
+    currentFingerprint !== null &&
+    previousFingerprint === currentFingerprint
+  );
+}
+
 function sourceEvidenceIdDiagnosticIssues(
   affectedRecords: readonly SourceEvidenceIdRepairAffectedRecord[],
 ): DraftValidationIssue[] {
@@ -826,6 +855,58 @@ export class TemplateRepairIssueRegressionError extends InvalidTemplateContractE
     this.rejectedAttempt = current.attempt;
     this.previousIssueCount = counts.previous;
     this.currentIssueCount = counts.current;
+    this.repairMode = previous.nextRepairMode;
+    this.attempts = attempts.map((attempt) => ({
+      attempt: attempt.attempt,
+      diagnosticIssues: attempt.diagnosticIssues,
+      ...(attempt.nextRepairMode
+        ? { nextRepairMode: attempt.nextRepairMode }
+        : {}),
+      ...(attempt.nextRepairBudgetClass
+        ? { nextRepairBudgetClass: attempt.nextRepairBudgetClass }
+        : {}),
+    }));
+    this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
+      attempts.map((attempt) => attempt.diagnosticIssues),
+    );
+  }
+}
+
+/**
+ * A completed repair left both the canonical invalid draft and the exact
+ * complete, normalized issue fingerprint unchanged. The compiler retains the
+ * preceding invalid draft in memory and stops before another paid dispatch.
+ * Route subsets, count-only equality, and issue-only equality are never
+ * eligible evidence.
+ */
+export class TemplateRepairStagnationError extends InvalidTemplateContractError {
+  readonly draftValidationDiagnostics: readonly DraftValidationAttemptDiagnostics[];
+  readonly attempts: readonly TemplateRepairSummary[];
+  readonly retainedAttempt: number;
+  readonly rejectedAttempt: number;
+  readonly issueCount: number;
+  readonly repairMode: NonNullable<TemplateRepairSummary['nextRepairMode']>;
+
+  constructor(attempts: readonly TemplateRepairAttempt[]) {
+    const current = attempts[attempts.length - 1];
+    const previous = attempts[attempts.length - 2];
+    const normalizedCurrent = current
+      ? normalizeDraftValidationIssues(current.diagnosticIssues)
+      : [];
+    if (
+      !current ||
+      !previous ||
+      !previous.nextRepairMode ||
+      normalizedCurrent.length === 0 ||
+      !templateRepairStateFingerprintIsStagnant(previous, current)
+    ) {
+      throw new Error('template_repair_stagnation_evidence_invalid');
+    }
+    super([...current.errors], [...current.diagnosticIssues]);
+    this.name = 'TemplateRepairStagnationError';
+    this.retainedAttempt = previous.attempt;
+    this.rejectedAttempt = current.attempt;
+    this.issueCount = normalizedCurrent.length;
     this.repairMode = previous.nextRepairMode;
     this.attempts = attempts.map((attempt) => ({
       attempt: attempt.attempt,
@@ -5192,6 +5273,24 @@ export async function compileBookVisualContractTemplate(
       // or dispatching another repair. Invalid drafts never become candidates.
       draft = structuredClone(previousAttempt.draft) as Record<string, unknown>;
       throw new TemplateRepairIssueRegressionError(repairAttempts);
+    }
+
+    if (
+      previousAttempt &&
+      !pageContractCorrectionGranted &&
+      templateRepairStateFingerprintIsStagnant(
+        previousAttempt,
+        currentAttempt,
+      )
+    ) {
+      // The next repair input would be selected from the same canonical draft
+      // and complete typed failure frontier. Retain the preceding invalid
+      // draft and stop before spending another call; invalid drafts never
+      // become candidates. An atomically rejected PageContract response is
+      // not a completed repair state: its one explicitly bounded correction
+      // call remains governed by the existing closed retry contract.
+      draft = structuredClone(previousAttempt.draft) as Record<string, unknown>;
+      throw new TemplateRepairStagnationError(repairAttempts);
     }
 
     if (bookSurfaceRouteAdmissionAccounting) {

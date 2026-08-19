@@ -22,6 +22,7 @@ import {
   SourceEvidenceIdValidationError,
   TemplateRepairExhaustedError,
   TemplateRepairIssueRegressionError,
+  TemplateRepairStagnationError,
   TemplateRepairOutputInvalidError,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
@@ -73,6 +74,7 @@ import {
   draftValidationIssueIsValid,
   normalizeDraftValidationIssues,
   type DraftValidationIssue,
+  type PageFinalStructuralCause,
 } from '../visual-contract-compiler/draftValidationDiagnostics';
 import { projectPageMustShow } from '../visual-contract-compiler/projectContractProse';
 
@@ -226,6 +228,16 @@ const withEmptyMaterial = (): any => {
   return d;
 };
 
+// Keeps the same typed validation frontier while proving that the provider
+// changed the canonical draft. This is used only by call-budget tests; exact
+// repeated state is covered separately by the stagnation regression.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const withEmptyMaterialVariant = (variant: number): any => {
+  const draft = withEmptyMaterial();
+  draft.recurringProps[0].description = `${draft.recurringProps[0].description} Variant ${variant}.`;
+  return draft;
+};
+
 /** A caller that returns a fixed SEQUENCE of drafts (clamped to the last) and records every prompt it received. */
 function recordingCaller(drafts: unknown[]): { caller: ContractLlmCaller; prompts: Array<{ system: string; user: string; options: Parameters<ContractLlmCaller>[2]; authority: Parameters<ContractLlmCaller>[3] }>; calls: () => number } {
   const prompts: Array<{ system: string; user: string; options: Parameters<ContractLlmCaller>[2]; authority: Parameters<ContractLlmCaller>[3] }> = [];
@@ -267,7 +279,10 @@ function withElevenInvalidEvidenceIds(): any {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function withDuplicateBeatOnRawPage(rawPageNumber: unknown): any {
+function withDuplicateBeatOnRawPage(
+  rawPageNumber: unknown,
+  variant = 0,
+): any {
   const input = bunnySource();
   const draft = bunnyDraft();
   const compilerPageNumber =
@@ -289,6 +304,7 @@ function withDuplicateBeatOnRawPage(rawPageNumber: unknown): any {
       },
     ];
   }
+  draft.recurringProps[0].description = `${draft.recurringProps[0].description} Variant ${variant}.`;
   return draft;
 }
 
@@ -498,7 +514,11 @@ describe('Stage 3 — bounded repair loop', () => {
   });
 
   it('two invalid drafts are repaired and pass on attempt 3 within the 3-repair budget', async () => {
-    const { caller, prompts, calls } = recordingCaller([withEmptyMaterial(), withEmptyMaterial(), bunnyDraft()]);
+    const { caller, prompts, calls } = recordingCaller([
+      withEmptyMaterialVariant(1),
+      withEmptyMaterialVariant(2),
+      bunnyDraft(),
+    ]);
     const res = await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
     expect(res.provenance.attempt).toBe(3);
     expect(res.repairAttempts).toHaveLength(2);
@@ -512,9 +532,9 @@ describe('Stage 3 — bounded repair loop', () => {
 
   it('uses the approved fourth standard call and completes after three invalid validation frontiers', async () => {
     const { caller, prompts, calls } = recordingCaller([
-      withEmptyMaterial(),
-      withEmptyMaterial(),
-      withEmptyMaterial(),
+      withEmptyMaterialVariant(1),
+      withEmptyMaterialVariant(2),
+      withEmptyMaterialVariant(3),
       bunnyDraft(),
     ]);
     const result = await compileBookVisualContractTemplate(
@@ -537,10 +557,10 @@ describe('Stage 3 — bounded repair loop', () => {
 
   it('uses the approved fifth standard call and completes after four invalid validation frontiers', async () => {
     const { caller, prompts, calls } = recordingCaller([
-      withEmptyMaterial(),
-      withEmptyMaterial(),
-      withEmptyMaterial(),
-      withEmptyMaterial(),
+      withEmptyMaterialVariant(1),
+      withEmptyMaterialVariant(2),
+      withEmptyMaterialVariant(3),
+      withEmptyMaterialVariant(4),
       bunnyDraft(),
     ]);
     const result = await compileBookVisualContractTemplate(
@@ -563,11 +583,11 @@ describe('Stage 3 — bounded repair loop', () => {
 
   it('uses the approved sixth standard call and completes after five invalid validation frontiers', async () => {
     const { caller, prompts, calls } = recordingCaller([
-      withEmptyMaterial(),
-      withEmptyMaterial(),
-      withEmptyMaterial(),
-      withEmptyMaterial(),
-      withEmptyMaterial(),
+      withEmptyMaterialVariant(1),
+      withEmptyMaterialVariant(2),
+      withEmptyMaterialVariant(3),
+      withEmptyMaterialVariant(4),
+      withEmptyMaterialVariant(5),
       bunnyDraft(),
     ]);
     const result = await compileBookVisualContractTemplate(
@@ -596,12 +616,12 @@ describe('Stage 3 — bounded repair loop', () => {
 
   it('uses the approved seventh standard call and completes after six invalid validation frontiers', async () => {
     const { caller, prompts, calls } = recordingCaller([
-      withEmptyMaterial(),
-      withEmptyMaterial(),
-      withEmptyMaterial(),
-      withEmptyMaterial(),
-      withEmptyMaterial(),
-      withEmptyMaterial(),
+      withEmptyMaterialVariant(1),
+      withEmptyMaterialVariant(2),
+      withEmptyMaterialVariant(3),
+      withEmptyMaterialVariant(4),
+      withEmptyMaterialVariant(5),
+      withEmptyMaterialVariant(6),
       bunnyDraft(),
     ]);
     const result = await compileBookVisualContractTemplate(
@@ -659,9 +679,18 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(calls).toBe(2); // initial + the one (failed) repair call
   });
 
-  it('exhausts after the initial + 6 repairs, writes NOTHING, and does not over-call the model', async () => {
+  it('exhausts after seven changing invalid drafts, writes NOTHING, and does not over-call the model', async () => {
     // An 8th (valid) draft is provided but must NEVER be requested — the cap is 6 repairs.
-    const { caller, calls } = recordingCaller([withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), withEmptyMaterial(), bunnyDraft()]);
+    const { caller, calls } = recordingCaller([
+      withEmptyMaterialVariant(1),
+      withEmptyMaterialVariant(2),
+      withEmptyMaterialVariant(3),
+      withEmptyMaterialVariant(4),
+      withEmptyMaterialVariant(5),
+      withEmptyMaterialVariant(6),
+      withEmptyMaterialVariant(7),
+      bunnyDraft(),
+    ]);
     let thrown: unknown;
     try {
       await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
@@ -688,15 +717,10 @@ describe('Stage 3 — bounded repair loop', () => {
   ])(
     'keeps duplicate-beat diagnostics typed through bounded exhaustion for %s pageNumber',
     async (_label, pageNumber, expectedLocatorKind) => {
-      const invalid = withDuplicateBeatOnRawPage(pageNumber);
       const { caller, calls } = recordingCaller([
-        invalid,
-        invalid,
-        invalid,
-        invalid,
-        invalid,
-        invalid,
-        invalid,
+        ...Array.from({ length: 7 }, (_value, index) =>
+          withDuplicateBeatOnRawPage(pageNumber, index + 1),
+        ),
       ]);
       let thrown: unknown;
       try {
@@ -2032,22 +2056,9 @@ describe('page-contract compact repair routing', () => {
     ensureBookSurfacePageShape(firstAttempt);
     firstAttempt.worldType = '';
 
-    const finalSlotMixed = structuredClone(valid);
-    ensureBookSurfacePageShape(finalSlotMixed);
-    finalSlotMixed.coverContract.mustShow = [''];
-    finalSlotMixed.pageContracts[0].camera = '';
-    const structurallyAuthorizedUniqueBytes = Array.from(
-      { length: 18_000 },
-      (_value, index) => String.fromCodePoint(0x10000 + index),
-    ).join('');
-    finalSlotMixed.pageContracts[0].mustNotShow = [
-      ...finalSlotMixed.pageContracts[0].mustNotShow,
-      `structural-only-${structurallyAuthorizedUniqueBytes}`,
-    ];
-    finalSlotMixed.pageContracts[1].actionSemanticCoverage[0].disposition = {
-      kind: 'unsupported',
-      reason: 'closed_action_catalog_gap',
-    };
+    const regressed = structuredClone(valid);
+    ensureBookSurfacePageShape(regressed);
+    for (const page of regressed.pageContracts) page.camera = '';
 
     const calls: Array<{
       system: string;
@@ -2062,7 +2073,7 @@ describe('page-contract compact repair routing', () => {
     ) => {
       calls.push({ system, user, authority });
       return JSON.stringify(
-        calls.length <= 5 ? firstAttempt : finalSlotMixed,
+        calls.length === 1 ? firstAttempt : regressed,
       );
     };
 
@@ -2079,7 +2090,7 @@ describe('page-contract compact repair routing', () => {
     }
 
     expect(regressionError).toBeDefined();
-    expect(calls).toHaveLength(6);
+    expect(calls).toHaveLength(2);
     expect(
       calls.map((call) =>
         call.authority?.kind === 'repair'
@@ -2089,14 +2100,10 @@ describe('page-contract compact repair routing', () => {
     ).toEqual([
       null,
       'full_draft',
-      'full_draft',
-      'full_draft',
-      'full_draft',
-      'full_draft',
     ]);
     expect(regressionError).toMatchObject({
-      retainedAttempt: 5,
-      rejectedAttempt: 6,
+      retainedAttempt: 1,
+      rejectedAttempt: 2,
       repairMode: 'full_draft',
     });
     expect(regressionError!.currentIssueCount).toBeGreaterThan(
@@ -2106,17 +2113,128 @@ describe('page-contract compact repair routing', () => {
       regressionError!.attempts.map(
         (attempt) => attempt.nextRepairMode,
       ),
-    ).toEqual([
-      'full_draft',
-      'full_draft',
-      'full_draft',
-      'full_draft',
-      'full_draft',
-      undefined,
+    ).toEqual(['full_draft', undefined]);
+  });
+
+  it('stops before a third dispatch when a repair leaves the exact complete issue fingerprint unchanged', async () => {
+    const fixedPoint = bunnyDraft();
+    ensureBookSurfacePageShape(fixedPoint);
+    fixedPoint.worldType = '';
+    const calls: Parameters<ContractLlmCaller>[3][] = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      _user,
+      _options,
+      authority,
+    ) => {
+      calls.push(authority);
+      return JSON.stringify(structuredClone(fixedPoint));
+    };
+
+    let stagnationError: TemplateRepairStagnationError | undefined;
+    try {
+      await compileBookVisualContractTemplate(bunnySource(), {
+        callLLM: caller,
+      });
+    } catch (error) {
+      expect(error).toBeInstanceOf(TemplateRepairStagnationError);
+      stagnationError = error as TemplateRepairStagnationError;
+    }
+
+    expect(calls).toHaveLength(2);
+    expect(
+      calls.map((authority) =>
+        authority?.kind === 'repair' ? authority.repairMode : null,
+      ),
+    ).toEqual([null, 'full_draft']);
+    expect(stagnationError).toMatchObject({
+      retainedAttempt: 1,
+      rejectedAttempt: 2,
+      issueCount: 3,
+      repairMode: 'full_draft',
+    });
+    expect(
+      stagnationError!.attempts.map(
+        (attempt) => attempt.nextRepairMode,
+      ),
+    ).toEqual(['full_draft', undefined]);
+  });
+
+  it('requires complete cause-aware fingerprint equality for stagnation evidence', () => {
+    const issue = (
+      pageNumber: number,
+      causes: readonly [
+        PageFinalStructuralCause,
+        ...PageFinalStructuralCause[],
+      ],
+    ): DraftValidationIssue => ({
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber,
+      },
+      causes,
+    });
+    const attempt = (
+      diagnosticIssues: readonly DraftValidationIssue[],
+      diagnosticPopulation: 'complete' | 'route_subset' = 'complete',
+      nextRepairMode: 'book_surface_patch' | undefined = undefined,
+      draft: Record<string, unknown> = {},
+    ) => ({
+      attempt: nextRepairMode ? 1 : 2,
+      errors: diagnosticIssues.map(() => 'sanitized'),
+      diagnosticIssues,
+      diagnosticPopulation,
+      draft,
+      ...(nextRepairMode ? { nextRepairMode } : {}),
+    });
+    const prior = issue(1, [
+      'page_prop_constraints_invalid',
+      'page_steering_invalid',
     ]);
-    expect(JSON.stringify(regressionError)).not.toContain(
-      'structural-only-',
-    );
+
+    expect(() =>
+      new TemplateRepairStagnationError([
+        attempt([prior], 'complete', 'book_surface_patch'),
+        attempt([issue(1, ['page_steering_invalid'])]),
+      ] as never),
+    ).toThrow('template_repair_stagnation_evidence_invalid');
+    expect(() =>
+      new TemplateRepairStagnationError([
+        attempt([issue(1, ['page_steering_invalid'])], 'complete', 'book_surface_patch'),
+        attempt([issue(2, ['page_steering_invalid'])]),
+      ] as never),
+    ).toThrow('template_repair_stagnation_evidence_invalid');
+    expect(() =>
+      new TemplateRepairStagnationError([
+        attempt([issue(1, ['page_steering_invalid'])], 'complete', 'book_surface_patch'),
+        attempt([issue(1, ['page_steering_invalid'])], 'route_subset'),
+      ] as never),
+    ).toThrow('template_repair_stagnation_evidence_invalid');
+    expect(() =>
+      new TemplateRepairStagnationError([
+        attempt(
+          [issue(1, ['page_steering_invalid'])],
+          'complete',
+          'book_surface_patch',
+          { camera: 'wide' },
+        ),
+        attempt(
+          [issue(1, ['page_steering_invalid'])],
+          'complete',
+          undefined,
+          { camera: 'close' },
+        ),
+      ] as never),
+    ).toThrow('template_repair_stagnation_evidence_invalid');
+    expect(() =>
+      new TemplateRepairStagnationError([
+        attempt([issue(1, ['page_steering_invalid'])], 'complete', 'book_surface_patch'),
+        attempt([issue(1, ['page_steering_invalid'])]),
+      ] as never),
+    ).not.toThrow();
   });
 
   it('does not classify rising raw emissions or unlike diagnostic populations as a complete-census regression', () => {

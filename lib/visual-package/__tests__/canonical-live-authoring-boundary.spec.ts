@@ -921,7 +921,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v46',
+      'visual-contract-authoring-receipt/v47',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -2935,13 +2935,13 @@ describe('canonical live authoring executable boundary', () => {
     const evidence = readRejectedEvidence(fixture, result);
     expect(result.status).toBe('failed');
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v46',
+      version: 'visual-contract-authoring-receipt/v47',
       status: 'failed',
       callCount: 0,
       failure: { code: 'request_invalid' },
     });
     expect(result.readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v44',
+      version: 'visual-contract-authoring-readiness/v45',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'request_invalid',
@@ -2992,13 +2992,13 @@ describe('canonical live authoring executable boundary', () => {
       const evidence = readRejectedEvidence(fixture, result);
       expect(result.status).toBe('failed');
       expect(result.receipt).toMatchObject({
-        version: 'visual-contract-authoring-receipt/v46',
+        version: 'visual-contract-authoring-receipt/v47',
         status: 'failed',
         callCount: 0,
         failure: { code: 'request_invalid' },
       });
       expect(result.readiness).toMatchObject({
-        version: 'visual-contract-authoring-readiness/v44',
+        version: 'visual-contract-authoring-readiness/v45',
         authoringOutcome: {
           status: 'failed',
           failureCode: 'request_invalid',
@@ -3251,9 +3251,12 @@ describe('canonical live authoring executable boundary', () => {
       const invalid = structuredClone(valid);
       invalid.recurringProps[0].material = '';
       const outputs = [
-        ...Array.from({ length: repairCount }, () =>
-          responseFor(invalid),
-        ),
+        ...Array.from({ length: repairCount }, (_value, index) => {
+          const variant = structuredClone(invalid);
+          variant.recurringProps[0].description =
+            `${variant.recurringProps[0].description} Attempt ${index + 1}.`;
+          return responseFor(variant);
+        }),
         responseFor(valid),
       ];
       const adapter = fakeAdapter({
@@ -3372,15 +3375,12 @@ describe('canonical live authoring executable boundary', () => {
     const invalid = fullyActionedDraft(fixture.snapshot);
     invalid.recurringProps[0].material = '';
     const adapter = fakeAdapter({
-      responses: [
-        responseFor(invalid),
-        responseFor(invalid),
-        responseFor(invalid),
-        responseFor(invalid),
-        responseFor(invalid),
-        responseFor(invalid),
-        responseFor(invalid),
-      ],
+      responses: Array.from({ length: 7 }, (_value, index) => {
+        const variant = structuredClone(invalid);
+        variant.recurringProps[0].description =
+          `${variant.recurringProps[0].description} Attempt ${index + 1}.`;
+        return responseFor(variant);
+      }),
     });
     const result =
       await runCanonicalLiveVisualContractAuthoring(

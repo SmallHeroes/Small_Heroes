@@ -6,6 +6,7 @@ import {
   compileBookVisualContractTemplate,
   TemplateRepairExhaustedError,
   TemplateRepairIssueRegressionError,
+  TemplateRepairStagnationError,
   TemplateRepairOutputInvalidError,
   TemplateRepairRouteAdmissionError,
   type TemplateCompileInput,
@@ -75,8 +76,9 @@ export interface OfflineRepairHarnessResult {
   providerCalls: 0;
   outcome:
     | 'candidate'
-    | 'repair_exhausted'
-    | 'repair_regressed'
+     | 'repair_exhausted'
+     | 'repair_regressed'
+     | 'repair_stagnated'
     | 'repair_output_invalid'
     | 'repair_route_not_admissible'
     | 'invalid_draft'
@@ -149,6 +151,13 @@ function errorEvidence(error: unknown): {
   if (error instanceof TemplateRepairIssueRegressionError) {
     return {
       outcome: 'repair_regressed',
+      attempts: error.attempts,
+      diagnostics: error.draftValidationDiagnostics,
+    };
+  }
+  if (error instanceof TemplateRepairStagnationError) {
+    return {
+      outcome: 'repair_stagnated',
       attempts: error.attempts,
       diagnostics: error.draftValidationDiagnostics,
     };
