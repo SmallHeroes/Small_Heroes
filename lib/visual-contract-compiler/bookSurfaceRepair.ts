@@ -27,15 +27,20 @@ import {
   withTemplateDraftActionRequirementDefinitions,
 } from './templateDraftSchema';
 import { SOURCE_EVIDENCE_ID_PATTERN } from './sourceEvidenceCatalog';
+import {
+  classifyPagePropConstraints,
+  pagePropConstraintViolationsAreValid,
+  type PagePropConstraintViolation,
+} from './pagePropConstraintValidation';
 
 export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
   'book-surface-repair-schema/v6' as const;
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =
-  'book-surface-repair-prompt/v10' as const;
+  'book-surface-repair-prompt/v11' as const;
 export const BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION =
-  'book-surface-repair-user-prompt/v10' as const;
+  'book-surface-repair-user-prompt/v11' as const;
 
 const MAX_VALIDATION_MESSAGES = 128;
 const MAX_VALIDATION_MESSAGE_LENGTH = 1_024;
@@ -248,6 +253,7 @@ export interface BookSurfaceRepairAffectedPage
   extends PageContractRepairAffectedPage {
   writableFields: BookSurfaceWritablePageField[];
   readOnlyContext: BookSurfacePageReadOnlyContext;
+  propConstraintViolations: PagePropConstraintViolation[];
 }
 
 export interface BookSurfaceRepairAuthority {
@@ -298,6 +304,63 @@ function exactKeys(
 
 function canonicalJson(value: unknown): string {
   return JSON.stringify(canonicalize(value));
+}
+
+function pageHasPropConstraintRepairCause(
+  page: Pick<PageContractRepairAffectedPage, 'repairTargets'>,
+): boolean {
+  return page.repairTargets.some(
+    (target) =>
+      target.code === 'final_structural_invariant_invalid' &&
+      target.causes.includes('page_prop_constraints_invalid'),
+  );
+}
+
+function expectedPagePropConstraintViolations(args: {
+  pageContract: Record<string, unknown>;
+  repairTargets: PageContractRepairAffectedPage['repairTargets'];
+  recurringPropIds: readonly string[];
+  anchorIds: readonly string[];
+}): PagePropConstraintViolation[] | null {
+  if (
+    !pageHasPropConstraintRepairCause({
+      repairTargets: args.repairTargets,
+    })
+  ) {
+    return [];
+  }
+  const result = classifyPagePropConstraints({
+    propConstraints: args.pageContract.propConstraints,
+    propIds: new Set(args.recurringPropIds),
+    anchorIds: new Set(args.anchorIds),
+  }).violations;
+  return result.length > 0 &&
+    result.length <= MAX_VALIDATION_MESSAGES &&
+    pagePropConstraintViolationsAreValid(result)
+    ? result
+    : null;
+}
+
+function affectedPagePropConstraintAuthorityIsCurrent(args: {
+  page: BookSurfaceRepairAffectedPage;
+  recurringPropIds: readonly string[];
+  pageContract?: Record<string, unknown>;
+  anchorIds?: readonly string[];
+}): boolean {
+  const expected = expectedPagePropConstraintViolations({
+    pageContract: args.pageContract ?? args.page.pageContract,
+    repairTargets: args.page.repairTargets,
+    recurringPropIds: args.recurringPropIds,
+    anchorIds: args.anchorIds ?? args.page.readOnlyContext.anchorIds,
+  });
+  return (
+    expected !== null &&
+    pagePropConstraintViolationsAreValid(
+      args.page.propConstraintViolations,
+    ) &&
+    canonicalJson(expected) ===
+      canonicalJson(args.page.propConstraintViolations)
+  );
 }
 
 function bookSurfaceRepairAuthorityIsIntact(
@@ -380,6 +443,34 @@ function uniqueRecordIds(
   }
   const strings = ids as string[];
   return new Set(strings).size === strings.length ? strings : null;
+}
+
+function anchorIdsForPageContract(args: {
+  draft: Record<string, unknown>;
+  pageContract: Record<string, unknown>;
+}): string[] | null {
+  if (typeof args.pageContract.locationId !== 'string') return null;
+  const locations = Array.isArray(args.draft.locations)
+    ? args.draft.locations.map(recordValue)
+    : [];
+  const matches = locations.filter(
+    (location) => location?.id === args.pageContract.locationId,
+  );
+  if (matches.length !== 1 || !matches[0]) return null;
+  const anchors =
+    matches[0].anchors === undefined
+      ? []
+      : Array.isArray(matches[0].anchors)
+        ? matches[0].anchors.map(recordValue)
+        : [null];
+  const anchorIds = anchors.flatMap((anchor) =>
+    typeof anchor?.id === 'string' ? [anchor.id] : [],
+  );
+  return anchors.some((anchor) => anchor === null) ||
+    anchorIds.length !== anchors.length ||
+    new Set(anchorIds).size !== anchorIds.length
+    ? null
+    : [...anchorIds].sort(lexicalCompare);
 }
 
 function cleanValidationMessages(
@@ -1252,6 +1343,8 @@ export function bookSurfaceRepairAuthority(args: {
     return null;
   }
   if (pageIssueEntries.length === 0) return null;
+  const refs = referenceAuthority(args.authorityDraft);
+  if (!refs) return null;
 
   const affectedPages = pageContractRepairAffectedPages({
     draft: args.draft,
@@ -1272,7 +1365,26 @@ export function bookSurfaceRepairAuthority(args: {
       pageNumber: page.pageNumber,
       includeTransitionTopology: writableFields?.includes('transition') ?? false,
     });
-    return validationHints && writableFields && readOnlyContext
+    const propConstraintViolations = readOnlyContext
+      ? expectedPagePropConstraintViolations({
+          pageContract: page.pageContract,
+          repairTargets: page.repairTargets,
+          recurringPropIds: refs.recurringPropIds,
+          anchorIds: readOnlyContext.anchorIds,
+        })
+      : null;
+    const propConstraintDiagnosticCount = pageIssueEntries.filter(
+      ({ issue }) =>
+        issue.locator.kind === 'page' &&
+        issue.locator.pageNumber === page.pageNumber &&
+        'causes' in issue &&
+        issue.causes.includes('page_prop_constraints_invalid'),
+    ).length;
+    return validationHints &&
+      writableFields &&
+      readOnlyContext &&
+      propConstraintViolations &&
+      propConstraintViolations.length === propConstraintDiagnosticCount
       ? {
           ...page,
           pageContract: objectProjection(
@@ -1282,6 +1394,7 @@ export function bookSurfaceRepairAuthority(args: {
           validationHints,
           writableFields,
           readOnlyContext,
+          propConstraintViolations,
         }
       : null;
   });
@@ -1305,7 +1418,6 @@ export function bookSurfaceRepairAuthority(args: {
     recurringPropIssueEntries.map(({ message }) => message),
     { allowEmpty: !repairRecurringProps },
   );
-  const refs = referenceAuthority(args.authorityDraft);
   const typedRecurringProps = recurringProps as Record<string, unknown>[];
   const recurringPropIds = recurringProps.some((value) => value === null)
     ? null
@@ -1339,7 +1451,6 @@ export function bookSurfaceRepairAuthority(args: {
     !recurringPropValidationHints ||
     (repairRecurringProps && recurringPropValidationHints.length === 0) ||
     (!repairRecurringProps && recurringPropValidationHints.length > 0) ||
-    !refs ||
     !recurringPropIds ||
     recurringPropLifecycleContext === null ||
     JSON.stringify([...recurringPropIds].sort()) !==
@@ -1378,13 +1489,13 @@ export function buildBookSurfaceRepairSystemPrompt(): string {
   return [
     'Repair one closed book surface atomically: exact presentation dispositions, the cover only when coverAuthority is non-null, recurring props only when recurringPropAuthority is non-null, and only the structural page fields supplied by affectedPages.',
     'Decode the compact input exactly: ["s",i] references stringDictionary[i], ["a",...items] is an array, and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
-    'The decoded root contains presentationTargets, nullable coverAuthority and recurringPropAuthority, affectedPages with exact structural projections, causal repairTargets, writableFields, diagnosticCount and readOnlyContext, and referenceAuthority.',
+    'The decoded root contains presentationTargets, nullable coverAuthority and recurringPropAuthority, affectedPages with exact structural projections, causal repairTargets, writableFields, diagnosticCount, typed propConstraintViolations and readOnlyContext, and referenceAuthority.',
     'Return presentationPatches in the exact target order, coverContract or null exactly as authorized, recurringProps or null exactly as authorized, and pageStructuralPatches in the exact affected-page order.',
     'Every pageStructuralPatch must return the strict full patch shape. Copy pageNumber exactly. Return a repaired non-null value only for that page\'s exact writableFields and return null for every other structural field, including locationId, zoneId and sameLocationAs.',
     'readOnlyContext is preservation authority only and must never be returned. Use its cast/presence, anchors, spatial nodes, scrubbed safety, lifecycle, transition and action-binding facts to keep the repair valid.',
     'When actionRequirements is writable, return exactly one semantic action for every existing action index, in the same order. Never add, drop or reorder actions. The compiler reattaches the exact beatId and any source_phenomenon Source Evidence subject from its private authority before apply; never return or alter actionSemanticCoverage.',
     'For each presentation target, copy its identities and one exact permitted contractPointer. The overlapping page mustShow array is not writable; preserve it exactly so the compiler can resolve the authorized pointer/value locally.',
-    'No raw validation prose is included. Use only the typed targets, causes, exact projections, bounded diagnostic counts and read-only authority supplied in the decoded payload.',
+    'No raw validation prose is included. For writable propConstraints, use only the closed propConstraintViolations codes and their constraintIndex/relatedConstraintIndex positions to repair the supplied projection. Use only the typed targets, causes, exact projections, bounded diagnostic counts and read-only authority supplied in the decoded payload.',
     'When recurringPropAuthority is non-null, preserve the exact recurring-prop ID order and resolve only its typed lifecycle invariant. Use lifecycleContext as read-only page visibility authority: every page before a non-null firstRevealPage must be listed forbidden, and no listed required page may precede it. Otherwise return recurringProps:null.',
     'When coverAuthority is non-null, repair its semantic fields and return a well-shaped cover identity. The compiler preserves an already-valid current location/zone/cast identity; when the current identity is invalid, it accepts only a replacement inside referenceAuthority and never invents a reference. Otherwise return coverContract:null.',
     'Preserve all valid semantics. Never infer or return unrelated page or global fields.',
@@ -1396,6 +1507,18 @@ export function buildBookSurfaceRepairUserPrompt(args: {
   authority: BookSurfaceRepairAuthority;
 }): string {
   if (!bookSurfaceRepairAuthorityIsIntact(args.authority)) {
+    throw new Error('book_surface_repair_authority_mismatch');
+  }
+  if (
+    args.authority.affectedPages.some(
+      (page) =>
+        !affectedPagePropConstraintAuthorityIsCurrent({
+          page,
+          recurringPropIds:
+            args.authority.referenceAuthority.recurringPropIds,
+        }),
+    )
+  ) {
     throw new Error('book_surface_repair_authority_mismatch');
   }
   const payload = {
@@ -1436,6 +1559,9 @@ export function buildBookSurfaceRepairUserPrompt(args: {
       repairTargets: structuredClone(value.repairTargets),
       writableFields: [...value.writableFields],
       diagnosticCount: value.validationHints.length,
+      propConstraintViolations: structuredClone(
+        value.propConstraintViolations,
+      ),
       readOnlyContext: providerReadOnlyContext(value.readOnlyContext),
     })),
     referenceAuthority: structuredClone(
@@ -1722,6 +1848,19 @@ function validatePageAuthorityAndPatches(args: {
   const draftPages = Array.isArray(args.draft.pageContracts)
     ? args.draft.pageContracts.map(recordValue)
     : [];
+  const draftRecurringProps = Array.isArray(args.draft.recurringProps)
+    ? args.draft.recurringProps.map(recordValue)
+    : [];
+  const currentRecurringPropIds = draftRecurringProps.some(
+    (prop) => prop === null,
+  )
+    ? null
+    : uniqueRecordIds(
+        draftRecurringProps as Record<string, unknown>[],
+      );
+  if (!currentRecurringPropIds) {
+    throw new Error('book_surface_repair_authority_mismatch');
+  }
   for (let index = 0; index < pageNumbers.length; index += 1) {
     const affectedPage = args.authority.affectedPages[index]!;
     const patch = args.patches[index]!;
@@ -1729,6 +1868,12 @@ function validatePageAuthorityAndPatches(args: {
     const matches = draftPages.filter(
       (page) => page?.pageNumber === affectedPage.pageNumber,
     );
+    const currentAnchorIds = matches[0]
+      ? anchorIdsForPageContract({
+          draft: args.draft,
+          pageContract: matches[0],
+        })
+      : null;
     const expectedWritableFields = writableFieldsForAffectedPage({
       page: affectedPage,
       presentationTargets: args.authority.presentationTargets,
@@ -1754,6 +1899,17 @@ function validatePageAuthorityAndPatches(args: {
         affectedPage.pageNumber,
         affectedPage.writableFields.includes('transition'),
       ) ||
+      !currentAnchorIds ||
+      !orderedValuesEqual(
+        currentAnchorIds,
+        affectedPage.readOnlyContext.anchorIds,
+      ) ||
+      !affectedPagePropConstraintAuthorityIsCurrent({
+        page: affectedPage,
+        recurringPropIds: currentRecurringPropIds,
+        pageContract: matches[0],
+        anchorIds: currentAnchorIds,
+      }) ||
       canonicalJson(
         objectProjection(matches[0], PAGE_CONTRACT_KEYS),
       ) !== canonicalJson(authorityPage)

@@ -520,6 +520,80 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.providerCalls).toBe(0);
   });
 
+  it('closes a typed prop-constraint violation through BookSurface with non-positive complete-census delta', async () => {
+    const initial = bunnyDraft();
+    for (const page of initial.pageContracts) {
+      page.propConstraints ??= [];
+    }
+    const page1 = initial.pageContracts[0]!;
+    page1.propConstraints = [{
+      propId: 'prop:offline_unknown',
+      visibility: 'required',
+    }];
+
+    const result = await runOfflineRepairHarness({
+      input: bunnySource(),
+      initialDraft: initial,
+      repairResponses: [{
+        presentationPatches: [],
+        coverContract: null,
+        recurringProps: null,
+        pageStructuralPatches: [{
+          pageNumber: 1,
+          locationId: null,
+          zoneId: null,
+          sameLocationAs: null,
+          mustShow: null,
+          mustNotShow: null,
+          propState: null,
+          propConstraints: [{
+            propId: 'wall_stickers',
+            visibility: 'required',
+          }],
+          actionRequirements: null,
+          camera: null,
+          transition: null,
+        }],
+      }],
+      completeDiagnosticIssuesByAttempt: [[{
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        locator: {
+          kind: 'page',
+          fieldRole: 'final_structure',
+          pageNumber: 1,
+        },
+        causes: ['page_prop_constraints_invalid'],
+      }], []],
+    });
+
+    expect(result.providerCalls).toBe(0);
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'book_surface_patch',
+    ]);
+    expect(result.outcome).toBe('candidate');
+    expect(result.stages.map((stage) => ({
+      completeIssueCount: stage.completeIssueCount,
+      completeDelta: stage.completeDelta,
+      classification: stage.classification,
+    }))).toEqual([
+      {
+        completeIssueCount: 1,
+        completeDelta: null,
+        classification: 'baseline',
+      },
+      {
+        completeIssueCount: 0,
+        completeDelta: -1,
+        classification: 'improved',
+      },
+    ]);
+    expect(result.completeCensusCoverage).toBe('complete');
+    expect(result.monotonicCompleteIssueDelta).toBe(true);
+    expect(result.maxPositiveCompleteIssueDelta).toBe(0);
+  });
+
   it('replays the production BookSurface, spatial and PageContract selectors without a provider', async () => {
     const bookSurfaceDraft = bunnyDraft();
     bookSurfaceDraft.pageContracts[0]!.camera = '';

@@ -36,6 +36,10 @@ import {
   type DraftValidationIssue,
   type PageFinalStructuralCause,
 } from './draftValidationDiagnostics';
+import {
+  classifyPagePropConstraints,
+  type PagePropConstraintViolation,
+} from './pagePropConstraintValidation';
 
 export type ContractValidationResult =
   | { ok: true; contract: BookVisualContract }
@@ -797,8 +801,6 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
 
     // ── Contract v2 (Stage 3): structured per-page PROPS / ACTIONS / HAZARDS. Present-only, like every rule above.
     const errorsBeforePageV2 = errors.length;
-    /** propId → visibility on THIS page. Stage 4 reads it to detect action↔visibility conflicts. */
-    const visibilityByProp = new Map<string, string>();
     const pageCastIdSet = new Set(Array.isArray(pc.castIds) ? (pc.castIds as unknown[]).filter(isStr) : []);
     const pageZone = isStr(pc.zoneId) ? zoneById.get(pc.zoneId) : undefined;
     const zoneNodeIds = new Set<string>(
@@ -814,42 +816,64 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     errors.useIssue(
       pageFinalStructuralIssue(p, i, 'page_prop_constraints_invalid'),
     );
-    const propConstraints = nonEmptyArrayOrNull(pc.propConstraints, `${label}.propConstraints`, errors);
-    if (propConstraints) {
-      propConstraints.forEach((raw, j) => {
-        const cLabel = `${label}.propConstraints[${j}]`;
-        if (!isObj(raw) || !isStr(raw.propId)) {
-          errors.push(`${cLabel}.propId missing`);
-          return;
+    const propConstraintClassification = classifyPagePropConstraints({
+      propConstraints: pc.propConstraints,
+      propIds,
+      anchorIds: scope.anchorIds,
+    });
+    /** propId → visibility on THIS page. Stage 4 reads the classifier's exact last-valid-write state. */
+    const visibilityByProp = propConstraintClassification.visibilityByProp;
+    const propConstraintValues = Array.isArray(pc.propConstraints)
+      ? pc.propConstraints
+      : [];
+    const propConstraintMessage = (
+      violation: PagePropConstraintViolation,
+    ): string => {
+      if (violation.code === 'prop_constraints_not_array') {
+        return `${label}.propConstraints must be an array when present`;
+      }
+      if (violation.code === 'prop_constraints_empty') {
+        return `${label}.propConstraints must be a NON-EMPTY array when present — omit the key instead of []`;
+      }
+      if (!('constraintIndex' in violation)) {
+        throw new Error('page prop-constraint classifier evidence invalid');
+      }
+      const raw = propConstraintValues[violation.constraintIndex];
+      const cLabel = `${label}.propConstraints[${violation.constraintIndex}]`;
+      if (violation.code === 'prop_id_missing') {
+        return `${cLabel}.propId missing`;
+      }
+      if (!isObj(raw) || !isStr(raw.propId)) {
+        throw new Error('page prop-constraint classifier evidence invalid');
+      }
+      if (violation.code === 'prop_id_unknown') {
+        return `${cLabel} references unknown propId "${raw.propId}"`;
+      }
+      if (violation.code === 'visibility_invalid') {
+        return `${cLabel} (${raw.propId}) visibility "${String(raw.visibility)}" is not one of ${[...PROP_VISIBILITIES].join(' | ')}`;
+      }
+      if (violation.code === 'visibility_self_contradiction') {
+        const related = propConstraintValues[
+          violation.relatedConstraintIndex
+        ];
+        if (!isObj(related)) {
+          throw new Error('page prop-constraint classifier evidence invalid');
         }
-        if (!propIds.has(raw.propId)) {
-          errors.push(`${cLabel} references unknown propId "${raw.propId}"`);
-        }
-        if (!isStr(raw.visibility) || !PROP_VISIBILITIES.has(raw.visibility)) {
-          errors.push(
-            `${cLabel} (${raw.propId}) visibility "${String(raw.visibility)}" is not one of ${[...PROP_VISIBILITIES].join(' | ')}`
-          );
-        } else {
-          // Intra-page self-contradiction — detectable from shape alone, so it belongs in Stage 3.
-          const prior = visibilityByProp.get(raw.propId);
-          if (prior !== undefined && prior !== raw.visibility) {
-            errors.push(
-              `${label}.propConstraints declares propId "${raw.propId}" as both "${prior}" and "${raw.visibility}" on the same page`
-            );
-          }
-          visibilityByProp.set(raw.propId, raw.visibility);
-        }
-        if (raw.stateId !== undefined && !isStr(raw.stateId)) {
-          errors.push(`${cLabel} (${raw.propId}) stateId must be a non-empty string when present`);
-        }
-        if (raw.anchorId !== undefined) {
-          if (!isStr(raw.anchorId)) {
-            errors.push(`${cLabel} (${raw.propId}) anchorId must be a non-empty string when present`);
-          } else if (!scope.anchorIds.has(raw.anchorId)) {
-            errors.push(`${cLabel} (${raw.propId}) references unknown anchorId "${raw.anchorId}" of location "${String(pc.locationId)}"`);
-          }
-        }
-      });
+        return `${label}.propConstraints declares propId "${raw.propId}" as both "${String(related.visibility)}" and "${String(raw.visibility)}" on the same page`;
+      }
+      if (violation.code === 'state_id_invalid') {
+        return `${cLabel} (${raw.propId}) stateId must be a non-empty string when present`;
+      }
+      if (violation.code === 'anchor_id_invalid') {
+        return `${cLabel} (${raw.propId}) anchorId must be a non-empty string when present`;
+      }
+      if (violation.code === 'anchor_id_unknown') {
+        return `${cLabel} (${raw.propId}) references unknown anchorId "${String(raw.anchorId)}" of location "${String(pc.locationId)}"`;
+      }
+      throw new Error('unreachable page prop-constraint violation');
+    };
+    for (const violation of propConstraintClassification.violations) {
+      errors.push(propConstraintMessage(violation));
     }
 
     errors.useIssue(

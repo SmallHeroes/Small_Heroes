@@ -2,7 +2,52 @@
 
 **Updated:** 2026-08-19
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the current deferred represented-elsewhere milestone is based on pushed `9d9aa56f0a77e76bf126f8cb9657123db05e2b81`.
+**Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the typed prop-constraint authority milestone is based on pushed `f191af386eb0f8fe31aa3a7ef20b7aacf3be2a45`.
+
+## TYPED PROP-CONSTRAINT REPAIR AUTHORITY — local green; Claude immutable-range QA next
+
+No Fresh, credential, provider, Candidate, Wizard, image or render action has
+occurred. The consumed live receipt remains a hard stop until this offline
+milestone receives independent Claude Code PASS.
+
+The nine existing deterministic page prop-constraint clauses now have one
+pure shared classifier. `validateBookVisualContract` reconstructs the exact
+legacy message text/order/count from the authored draft while consuming the
+classifier's exact last-valid-write `visibilityByProp` map for Stage 4. No
+validation rule or broad `page_prop_constraints_invalid` identity changed.
+
+BookSurface authority now carries only closed records containing a clause code
+and bounded array indexes. It never carries raw validation prose or authored
+prop/anchor values inside those records. Authority construction, prompt
+materialization and atomic apply independently recompute the records from the
+current page plus trusted recurring-prop and anchor authority; count, code,
+index, related-index or authority drift fails closed before mutation. The
+BookSurface output schema remains v6. Its system/user prompt advances v10 ->
+v11 because the decoded input contract and instructions changed.
+
+The `$0` production-backed harness proves `initial -> book_surface_patch ->
+Candidate`, complete census `1 -> 0`, delta `-1`, `providerCalls:0` and no
+positive issue growth. A prop-heavy 12-page authority carrying all seven
+item-level violations per page plus eight presentation targets remains
+admissible with at least 4,096 bytes of canonical headroom.
+
+Current authority advances to authoring request/receipt/readiness v43/v48/v46;
+B0 input/materialization/verification v32/v41/v41; execution materialization
+input/result v31/v35; Supervisor request/readiness/result v40/v40/v33; and
+Fresh Readiness v40. Immediate authoring predecessors v42/v47/v45 remain
+immutable legacy. Candidate v9, BookSurface schema v6, policy v17, output
+budget v6, model, tier, reasoning, price, timeout, call caps, retry and fallback
+are unchanged.
+
+All 602 targeted assertions pass on the final tree. One combined invocation
+recorded 598 passes plus four process/Git fixture failures under accumulated
+subprocess load, including Vitest `onTaskUpdate` timeout; the exact affected
+21-test materialization file then passed 21/21 in isolation without a code
+change. TypeScript and diff-check pass. One literal `npm run check` ran without
+retry: ordinary phase recorded 3,320 passes and only the five established
+missing ignored-`outputs/` fixture failures; resource-intensive phase passed
+609/609. Durable evidence:
+`docs/ai-workflow/R1D_TYPED_PROP_CONSTRAINT_REPAIR_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
 
 ## EXACT REPAIR-STATE STAGNATION GUARD — independent Claude QA PASS; push next
 

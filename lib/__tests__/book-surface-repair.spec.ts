@@ -332,16 +332,16 @@ function patch(
   };
 }
 
-describe('atomic causal book-surface repair v10 input authority', () => {
-  it('publishes the strict v6 causal-delta schema under v10 prompts with nullable cover/props and no action coverage', () => {
+describe('atomic causal book-surface repair v11 typed input authority', () => {
+  it('publishes the strict v6 causal-delta schema under v11 prompts with nullable cover/props and no action coverage', () => {
     expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
       'book-surface-repair-schema/v6',
     );
     expect(BOOK_SURFACE_REPAIR_PROMPT_VERSION).toBe(
-      'book-surface-repair-prompt/v10',
+      'book-surface-repair-prompt/v11',
     );
     expect(BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION).toBe(
-      'book-surface-repair-user-prompt/v10',
+      'book-surface-repair-user-prompt/v11',
     );
     expect(buildBookSurfaceRepairSystemPrompt()).toContain(
       'Return a repaired non-null value only for that page\'s exact writableFields',
@@ -405,6 +405,113 @@ describe('atomic causal book-surface repair v10 input authority', () => {
       characterPresence: { child: true, companion: true },
       actionBindingAuthority: [],
     });
+    expect(selected.affectedPages[0]?.propConstraintViolations).toEqual([]);
+  });
+
+  it('binds every item-level prop-constraint template as closed index-only authority and rejects tamper before prompt or apply', () => {
+    const value = draft();
+    const valuePages = value.pageContracts as Array<Record<string, unknown>>;
+    valuePages[0]!.propConstraints = [
+      null,
+      {
+        propId: 'prop:unknown',
+        visibility: 'maybe',
+        stateId: '',
+        anchorId: 7,
+      },
+      {
+        propId: 'prop:cake',
+        visibility: 'required',
+        anchorId: 'anchor:unknown',
+      },
+      { propId: 'prop:cake', visibility: 'forbidden' },
+    ];
+    const issue = pageStructureIssueWithCause(
+      1,
+      'page_prop_constraints_invalid',
+    );
+    const selected = bookSurfaceRepairAuthority({
+      draft: value,
+      authorityDraft: value,
+      presentationTargets: [],
+      structuralDiagnosticIssues: Array.from({ length: 7 }, () => issue),
+      structuralValidationMessages: Array.from(
+        { length: 7 },
+        (_, index) => `sanitized prop constraint ${index}`,
+      ),
+    });
+    expect(selected).not.toBeNull();
+    const expected = [
+      { code: 'prop_id_missing', constraintIndex: 0 },
+      { code: 'prop_id_unknown', constraintIndex: 1 },
+      { code: 'visibility_invalid', constraintIndex: 1 },
+      { code: 'state_id_invalid', constraintIndex: 1 },
+      { code: 'anchor_id_invalid', constraintIndex: 1 },
+      { code: 'anchor_id_unknown', constraintIndex: 2 },
+      {
+        code: 'visibility_self_contradiction',
+        constraintIndex: 3,
+        relatedConstraintIndex: 2,
+      },
+    ];
+    expect(selected!.affectedPages[0]!.propConstraintViolations).toEqual(
+      expected,
+    );
+    const decoded = decodeBookSurfaceRepairUserPrompt(
+      buildBookSurfaceRepairUserPrompt({ authority: selected! }),
+    ) as {
+      affectedPages: Array<{ propConstraintViolations: unknown[] }>;
+    };
+    expect(decoded.affectedPages[0]!.propConstraintViolations).toEqual(
+      expected,
+    );
+    const typedJson = JSON.stringify(
+      decoded.affectedPages[0]!.propConstraintViolations,
+    );
+    expect(typedJson).not.toContain('prop:unknown');
+    expect(typedJson).not.toContain('anchor:unknown');
+    expect(typedJson).not.toContain('sanitized prop constraint');
+
+    const patchValue: BookSurfaceRepairPatch = {
+      presentationPatches: [],
+      coverContract: null,
+      recurringProps: null,
+      pageStructuralPatches: [
+        structuralPatchFromAuthority(selected!),
+      ],
+    };
+    const snapshot = structuredClone(value);
+    for (const mutate of [
+      (authorityValue: BookSurfaceRepairAuthority) => {
+        authorityValue.affectedPages[0]!.propConstraintViolations[1] = {
+          code: 'visibility_invalid',
+          constraintIndex: 1,
+        };
+      },
+      (authorityValue: BookSurfaceRepairAuthority) => {
+        authorityValue.affectedPages[0]!.propConstraintViolations[6] = {
+          code: 'visibility_self_contradiction',
+          constraintIndex: 3,
+          relatedConstraintIndex: 1,
+        };
+      },
+    ]) {
+      const tampered = structuredClone(selected!);
+      mutate(tampered);
+      const { authorityDigest: _digest, ...content } = tampered;
+      tampered.authorityDigest = canonicalJsonDigest(content);
+      expect(() =>
+        buildBookSurfaceRepairUserPrompt({ authority: tampered }),
+      ).toThrow('book_surface_repair_authority_mismatch');
+      expect(() =>
+        applyBookSurfaceRepairPatch({
+          draft: value,
+          authority: tampered,
+          patch: patchValue,
+        }),
+      ).toThrow('book_surface_repair_authority_mismatch');
+      expect(value).toEqual(snapshot);
+    }
   });
 
   it('includes recurring props only for the exact lifecycle identity', () => {
@@ -1026,6 +1133,83 @@ describe('atomic causal book-surface repair v10 input authority', () => {
     for (const message of normalizedMessages) {
       expect(decodedJson).not.toContain(message);
     }
+  });
+
+  it('keeps at least 4096 bytes of route headroom with twelve pages and 84 typed prop violations', () => {
+    const value = draft(12);
+    const pages = value.pageContracts as Array<Record<string, unknown>>;
+    for (const pageValue of pages) {
+      pageValue.propConstraints = [
+        null,
+        {
+          propId: 'prop:unknown',
+          visibility: 'maybe',
+          stateId: '',
+          anchorId: 7,
+        },
+        {
+          propId: 'prop:cake',
+          visibility: 'required',
+          anchorId: 'anchor:unknown',
+        },
+        { propId: 'prop:cake', visibility: 'forbidden' },
+      ];
+    }
+    const propIssueForPage = (pageNumber: number) =>
+      pageStructureIssueWithCause(
+        pageNumber,
+        'page_prop_constraints_invalid',
+      );
+    const pageIssues = pages.flatMap((_, pageIndex) =>
+      Array.from({ length: 7 }, () => propIssueForPage(pageIndex + 1)),
+    );
+    const issues = [coverProjectionIssue, ...pageIssues];
+    const selected = bookSurfaceRepairAuthority({
+      draft: value,
+      authorityDraft: value,
+      presentationTargets: Array.from(
+        { length: 8 },
+        (_, index) => presentationTarget(index + 1),
+      ),
+      structuralDiagnosticIssues: issues,
+      structuralValidationMessages: issues.map(
+        (issue, index) =>
+          `${issue.code}: bounded prop-heavy validation ${index}`,
+      ),
+    });
+    expect(selected).not.toBeNull();
+    expect(
+      selected!.affectedPages.flatMap(
+        (pageValue) => pageValue.propConstraintViolations,
+      ),
+    ).toHaveLength(84);
+    const systemPrompt = buildBookSurfaceRepairSystemPrompt();
+    const userPrompt = buildBookSurfaceRepairUserPrompt({
+      authority: selected!,
+    });
+    const accounting = visualContractAuthoringInputAccounting(
+      systemPrompt,
+      userPrompt,
+      BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+    );
+    const decoded = decodeBookSurfaceRepairUserPrompt(userPrompt) as {
+      affectedPages: Array<{ propConstraintViolations: unknown[] }>;
+    };
+    expect(
+      decoded.affectedPages.flatMap(
+        (pageValue) => pageValue.propConstraintViolations,
+      ),
+    ).toHaveLength(84);
+    expect(59_904 - accounting.estimatedBytes).toBeGreaterThanOrEqual(
+      4_096,
+    );
+    expect(
+      visualContractAuthoringRouteIsAdmissible({
+        systemPrompt,
+        userPrompt,
+        schema: BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+      }),
+    ).toBe(true);
   });
 
   it('refuses a presentation overlap only when its frozen mustShow is structurally invalid', () => {
@@ -1901,6 +2085,7 @@ describe('atomic causal book-surface repair v10 input authority', () => {
     const pages = original.pageContracts as Array<Record<string, unknown>>;
     pages[0]!.propConstraints = [
       { propId: 'prop:cake', visibility: 'forbidden' },
+      { propId: 'prop:unknown', visibility: 'required' },
     ];
     pages[1]!.propConstraints = [
       { propId: 'prop:cake', visibility: 'forbidden' },
@@ -1920,6 +2105,9 @@ describe('atomic causal book-surface repair v10 input authority', () => {
     });
     expect(selected).not.toBeNull();
     const validPagePatch = structuralPatchFromAuthority(selected!);
+    validPagePatch.propConstraints = [
+      { propId: 'prop:cake', visibility: 'forbidden' },
+    ];
     const recurringProps = [
       { ...recurringProp(), firstRevealPage: 2 },
     ];
@@ -1962,6 +2150,7 @@ describe('atomic causal book-surface repair v10 input authority', () => {
     const pages = original.pageContracts as Array<Record<string, unknown>>;
     pages[0]!.propConstraints = [
       { propId: 'prop:cake', visibility: 'forbidden' },
+      { propId: 'prop:unknown', visibility: 'required' },
     ];
     pages[1]!.propConstraints = [
       { propId: 'prop:cake', visibility: 'forbidden' },

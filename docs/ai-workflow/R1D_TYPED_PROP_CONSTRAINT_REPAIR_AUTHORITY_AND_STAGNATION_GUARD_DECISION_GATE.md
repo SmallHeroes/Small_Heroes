@@ -128,3 +128,19 @@ Claude Cowork is not required: this is an engineering authority/observability ch
 - Do not reuse consumed Fresh/Execution Requests.
 - Do not access credentials, call a provider, create Fresh, run live authoring, mint/promote a Candidate, mutate Wizard state, generate images or render.
 - Do not increase budget/calls/retries/fallbacks or change the model/tier/reasoning.
+
+## 13. Execution clarification
+
+The approved gate was implemented as two independently reviewable milestones.
+The exact-fingerprint stagnation guard landed first and received independent
+Claude Code PASS. The second milestone is only the typed prop-constraint
+classifier and BookSurface prompt authority described above. It does not edit
+the compiler loop, offline-harness implementation, terminal taxonomy or
+authoring policy; those surfaces already contain the reviewed first milestone.
+
+The nine legacy validator messages comprise two collection-level clauses and
+seven item-level clauses. Collection records therefore contain only `code`;
+item records contain `code + constraintIndex`, and only the contradiction
+record additionally contains `relatedConstraintIndex`. This is the smallest
+truthful, index-only authority shape and does not invent an item index where no
+array item exists.

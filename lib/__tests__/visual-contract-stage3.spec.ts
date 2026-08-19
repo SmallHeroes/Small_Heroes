@@ -20,6 +20,11 @@ import {
 import {
   canonicalizePageActionCastGroups,
 } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
+import {
+  PAGE_PROP_CONSTRAINT_VIOLATION_CODES,
+  classifyPagePropConstraints,
+  pagePropConstraintViolationIsValid,
+} from '@/lib/visual-contract-compiler/pagePropConstraintValidation';
 
 /**
  * Stage 3 — Contract v2 STRUCTURED SCHEMA.
@@ -290,6 +295,152 @@ describe('Stage 3 — closed enums are enforced at RUNTIME, not just by the TS t
           },
         ],
       })
+    ).toBe(false);
+  });
+});
+
+describe('Stage 3 — shared typed prop-constraint classifier parity', () => {
+  function propConstraintResult(propConstraints: unknown) {
+    const contract = baseContract();
+    const result = validateBookVisualContract({
+      ...contract,
+      pageContracts: [
+        { ...contract.pageContracts[0], propConstraints },
+      ],
+    } as never);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected invalid prop constraints');
+    const indexes = result.errors.flatMap((message, index) =>
+      message.startsWith('page 1.propConstraints') ? [index] : [],
+    );
+    return {
+      errors: indexes.map((index) => result.errors[index]!),
+      issues: indexes.map((index) => result.diagnosticIssues[index]!),
+    };
+  }
+
+  it('pins one closed code to each of the nine existing error templates', () => {
+    expect(PAGE_PROP_CONSTRAINT_VIOLATION_CODES).toEqual([
+      'prop_constraints_not_array',
+      'prop_constraints_empty',
+      'prop_id_missing',
+      'prop_id_unknown',
+      'visibility_invalid',
+      'visibility_self_contradiction',
+      'state_id_invalid',
+      'anchor_id_invalid',
+      'anchor_id_unknown',
+    ]);
+    expect(
+      classifyPagePropConstraints({
+        propConstraints: 'invalid',
+        propIds: new Set(['exam_chair']),
+        anchorIds: new Set(['reception_desk']),
+      }).violations,
+    ).toEqual([{ code: 'prop_constraints_not_array' }]);
+    expect(
+      classifyPagePropConstraints({
+        propConstraints: [],
+        propIds: new Set(['exam_chair']),
+        anchorIds: new Set(['reception_desk']),
+      }).violations,
+    ).toEqual([{ code: 'prop_constraints_empty' }]);
+    expect(propConstraintResult('invalid').errors).toEqual([
+      'page 1.propConstraints must be an array when present',
+    ]);
+    expect(propConstraintResult([]).errors).toEqual([
+      'page 1.propConstraints must be a NON-EMPTY array when present — omit the key instead of []',
+    ]);
+  });
+
+  it('preserves exact per-entry message order, broad diagnostic identity and last-valid related indexes', () => {
+    const constraints = [
+      null,
+      {
+        propId: 'unknown_prop',
+        visibility: 'maybe',
+        stateId: '',
+        anchorId: 7,
+      },
+      {
+        propId: 'exam_chair',
+        visibility: 'required',
+        anchorId: 'unknown_anchor',
+      },
+      { propId: 'exam_chair', visibility: 'forbidden' },
+      { propId: 'exam_chair', visibility: 'required' },
+    ];
+    const classified = classifyPagePropConstraints({
+      propConstraints: constraints,
+      propIds: new Set(['exam_chair']),
+      anchorIds: new Set(['reception_desk']),
+    });
+    expect(classified.violations).toEqual([
+      { code: 'prop_id_missing', constraintIndex: 0 },
+      { code: 'prop_id_unknown', constraintIndex: 1 },
+      { code: 'visibility_invalid', constraintIndex: 1 },
+      { code: 'state_id_invalid', constraintIndex: 1 },
+      { code: 'anchor_id_invalid', constraintIndex: 1 },
+      { code: 'anchor_id_unknown', constraintIndex: 2 },
+      {
+        code: 'visibility_self_contradiction',
+        constraintIndex: 3,
+        relatedConstraintIndex: 2,
+      },
+      {
+        code: 'visibility_self_contradiction',
+        constraintIndex: 4,
+        relatedConstraintIndex: 3,
+      },
+    ]);
+    expect(classified.visibilityByProp.get('exam_chair')).toBe('required');
+    expect(classified.visibilityByProp.has('unknown_prop')).toBe(false);
+    expect(classified.violations.every(pagePropConstraintViolationIsValid)).toBe(
+      true,
+    );
+    const validated = propConstraintResult(constraints);
+    expect(validated.errors).toEqual([
+      'page 1.propConstraints[0].propId missing',
+      'page 1.propConstraints[1] references unknown propId "unknown_prop"',
+      'page 1.propConstraints[1] (unknown_prop) visibility "maybe" is not one of required | forbidden',
+      'page 1.propConstraints[1] (unknown_prop) stateId must be a non-empty string when present',
+      'page 1.propConstraints[1] (unknown_prop) anchorId must be a non-empty string when present',
+      'page 1.propConstraints[2] (exam_chair) references unknown anchorId "unknown_anchor" of location "clinic"',
+      'page 1.propConstraints declares propId "exam_chair" as both "required" and "forbidden" on the same page',
+      'page 1.propConstraints declares propId "exam_chair" as both "forbidden" and "required" on the same page',
+    ]);
+    expect(validated.issues).toHaveLength(validated.errors.length);
+    expect(
+      validated.issues.every(
+        (issue) =>
+          issue.code === 'final_structural_invariant_invalid' &&
+          'causes' in issue &&
+          issue.causes.length === 1 &&
+          issue.causes[0] === 'page_prop_constraints_invalid',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects non-canonical typed records without accepting authored or oversized data', () => {
+    expect(
+      pagePropConstraintViolationIsValid({
+        code: 'prop_id_unknown',
+        constraintIndex: 0,
+        propId: 'forbidden authored value',
+      }),
+    ).toBe(false);
+    expect(
+      pagePropConstraintViolationIsValid({
+        code: 'visibility_self_contradiction',
+        constraintIndex: 2,
+        relatedConstraintIndex: 2,
+      }),
+    ).toBe(false);
+    expect(
+      pagePropConstraintViolationIsValid({
+        code: 'prop_id_missing',
+        constraintIndex: 1_000_001,
+      }),
     ).toBe(false);
   });
 });
