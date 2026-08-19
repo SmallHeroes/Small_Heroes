@@ -3,8 +3,10 @@ export const VISUAL_PACKAGE_PROMOTION_VERSION = 'visual-package-promotion/v3' as
 export const STORY_SOURCE_IDENTITY_VERSION = 'story-source/v1' as const;
 export const CANDIDATE_EVIDENCE_VERSION = 'visual-package-candidate/v1' as const;
 export const PROP_REFERENCE_CATALOG_VERSION = 'prop-reference-catalog/v1' as const;
-export const SOURCE_PROMPT_RECONCILIATION_VERSION = 'source-prompt-reconciliation/v2' as const;
+export const SOURCE_PROMPT_RECONCILIATION_VERSION = 'source-prompt-reconciliation/v3' as const;
 export const LEGACY_SOURCE_PROMPT_RECONCILIATION_VERSION =
+  'source-prompt-reconciliation/v2' as const;
+export const LEGACY_SOURCE_PROMPT_RECONCILIATION_VERSION_V1 =
   'source-prompt-reconciliation/v1' as const;
 export const SOURCE_PROMPT_PROJECTION_VERSION = 'style01-source-prompt-projection/v1' as const;
 /** Read-only package locator shared by qualification and the offline promotion writer. */

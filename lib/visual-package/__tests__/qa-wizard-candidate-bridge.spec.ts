@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,10 +11,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
   QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION,
+  QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V2,
   QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1,
   advanceQaWizardApprovedReconciliation,
   attestQaWizardCandidateValidation,
   buildProductionAuthoringContext,
+  buildLegacyReconciliationReviewBundleV2,
   buildReconciliationReviewBundle,
   buildStorySourceAuthoritySnapshot,
   buildVisualContractAuthoringRequest,
@@ -29,10 +32,12 @@ import {
   persistVisualContractCandidate,
   prepareCanonicalPreLiveReadiness,
   prepareQaWizardCandidateReconciliation,
+  projectLegacySourcePromptReconciliationV2,
   qaWizardCandidateBridgeManifestIsValid,
   qaWizardCandidateValidationAttestationIsValid,
   recordQaWizardReconciliationApproval,
   renderReconciliationReviewMarkdown,
+  renderLegacyReconciliationReviewMarkdownV2,
   runCanonicalLiveExecution,
   runVisualContractAuthoring,
   type CanonicalPreLiveReadinessEvidence,
@@ -54,6 +59,7 @@ import {
   type BookVisualContract,
   type BookVisualContractTemplate,
 } from '@/lib/visual-contract-compiler';
+import type { ActionSemanticCoverageRecord } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 
 const roots: string[] = [];
 const BANK = path.join(process.cwd(), 'story-bank', 'v3-approved');
@@ -355,6 +361,7 @@ function persistLegacyBridgeManifest(args: {
   source: QaWizardCandidateBridgeManifest;
   version?:
     | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION
+    | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V2
     | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1;
   mutate?: (value: QaWizardCandidateBridgeManifest) => void;
 }): {
@@ -364,7 +371,73 @@ function persistLegacyBridgeManifest(args: {
   const manifest = structuredClone(args.source);
   manifest.version =
     args.version ?? QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1;
-  delete manifest.candidateValidation;
+  if (
+    manifest.version !== QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION
+  ) {
+    delete manifest.candidateValidation;
+  }
+  const currentReconciliation = JSON.parse(
+    fs.readFileSync(
+      path.join(args.repoRoot, manifest.reconciliation.path),
+      'utf8',
+    ),
+  ) as SourcePromptReconciliation;
+  const legacyReconciliation =
+    projectLegacySourcePromptReconciliationV2(currentReconciliation);
+  const snapshot = buildStorySourceAuthoritySnapshot({
+    repoRoot: args.repoRoot,
+    storyKey: manifest.source.storyKey,
+    storyPath: manifest.source.storyPath,
+  });
+  const candidate = JSON.parse(
+    fs.readFileSync(
+      path.join(args.repoRoot, manifest.visualContract.candidatePath),
+      'utf8',
+    ),
+  ) as {
+    template: BookVisualContractTemplate;
+    actionSemanticCoverage: ActionSemanticCoverageRecord[];
+  };
+  const legacyReview = buildLegacyReconciliationReviewBundleV2({
+    reconciliation: legacyReconciliation,
+    sourceIdentity: snapshot.content.sourceIdentity,
+    sourceAuthoritySnapshotDigest: snapshot.digest,
+    rawStorySource: snapshot.content.normalizedRawStorySource,
+    template: candidate.template,
+    ...(snapshot.content.authoredCoverAuthority
+      ? { authoredCoverAuthority: snapshot.content.authoredCoverAuthority }
+      : {}),
+    actionSemanticCoverage: candidate.actionSemanticCoverage,
+  });
+  const bridgeOutput = path.posix.dirname(
+    path.posix.dirname(args.source.visualContract.templatePath),
+  );
+  const legacyReconciliationPath =
+    `${bridgeOutput}/reconciliations/${legacyReview.reconciliationDigest}.json`;
+  const legacyReviewPath = `${bridgeOutput}/reviews/${legacyReview.digest}.json`;
+  const legacyMarkdownPath = `${bridgeOutput}/reviews/${legacyReview.digest}.md`;
+  writeText(
+    args.repoRoot,
+    legacyReconciliationPath,
+    `${JSON.stringify(legacyReconciliation, null, 2)}\n`,
+  );
+  writeText(
+    args.repoRoot,
+    legacyReviewPath,
+    `${JSON.stringify(legacyReview, null, 2)}\n`,
+  );
+  writeText(
+    args.repoRoot,
+    legacyMarkdownPath,
+    renderLegacyReconciliationReviewMarkdownV2(legacyReview),
+  );
+  manifest.reconciliation.version = legacyReconciliation.version;
+  manifest.reconciliation.digest = legacyReview.reconciliationDigest;
+  manifest.reconciliation.path = legacyReconciliationPath;
+  manifest.reconciliation.reviewBundleVersion = legacyReview.version;
+  manifest.reconciliation.reviewBundleDigest = legacyReview.digest;
+  manifest.reconciliation.reviewBundlePath = legacyReviewPath;
+  manifest.reconciliation.reviewMarkdownPath = legacyMarkdownPath;
   args.mutate?.(manifest);
   const {
     digestAlgorithm: _digestAlgorithm,
@@ -373,7 +446,7 @@ function persistLegacyBridgeManifest(args: {
   } = manifest;
   manifest.digest = canonicalJsonDigest(payload);
   const manifestPath = path.posix.join(
-    path.posix.dirname(path.posix.dirname(args.source.visualContract.templatePath)),
+    bridgeOutput,
     'bridge-manifests',
     `${manifest.digest}.json`,
   );
@@ -922,7 +995,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     expect(fs.existsSync(outputAbsolute)).toBe(false);
   });
 
-  it('attests the unchanged Candidate at a later clean pushed consumer HEAD, rejects tamper and repository drift, and carries authority through manifest v3', async () => {
+  it('attests the unchanged Candidate at a later clean pushed consumer HEAD, rejects tamper and repository drift, and carries authority through manifest v4', async () => {
     const fixture = await materializeCanonicalCandidate();
     const original = loadQaWizardCandidateValidationAttestation({
       repoRoot: fixture.repoRoot,
@@ -1039,7 +1112,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       write: true,
     });
     expect(prepared.manifest.version).toBe(
-      'qa-wizard-candidate-bridge-manifest/v3',
+      'qa-wizard-candidate-bridge-manifest/v4',
     );
     expect(prepared.manifest.candidateValidation).toEqual({
       version: current.attestation.version,
@@ -1355,7 +1428,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     expect(JSON.parse(cliResult.stdout)).toMatchObject({
       status: 'awaiting_exact_reconciliation_content',
       manifest: {
-        version: 'qa-wizard-candidate-bridge-manifest/v3',
+        version: 'qa-wizard-candidate-bridge-manifest/v4',
         visualContract: {
           templatePath:
             `outputs/bridge-cli/candidate-template-projections/${candidate.templateDigest}.json`,
@@ -1554,7 +1627,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     ).toThrow(/immutable|already exists|collision/i);
   }, 30_000);
 
-  it('replays exact legacy v2 and v1 pending and approved manifests read-only without upgrading them', async () => {
+  it('replays exact legacy v3, v2, and v1 pending and approved manifests read-only without upgrading them', async () => {
     const fixture = await materializeCanonicalCandidate();
     const prepared = prepareQaWizardCandidateReconciliation({
       ...prepareArgs(fixture),
@@ -1583,6 +1656,17 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
         approvedAt: APPROVED_AT,
       }),
     ).toThrow(/read-only/i);
+    const legacyV2OnlyPending = persistLegacyBridgeManifest({
+      repoRoot: fixture.repoRoot,
+      source: prepared.manifest,
+      version: QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V2,
+    });
+    expect(
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: legacyV2OnlyPending.path,
+      }),
+    ).toEqual(legacyV2OnlyPending.manifest);
     const legacyTemplatePath = 'outputs/legacy-v1/template.json';
     const projectedTemplateBytes = fs.readFileSync(
       path.join(
@@ -1692,26 +1776,45 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
       write: true,
     });
-    const legacyV2Approval = structuredClone(approval.attestation);
-    legacyV2Approval.pendingManifestDigest = legacyV2Pending.manifest.digest;
-    const {
-      digestAlgorithm: _v2ApprovalDigestAlgorithm,
-      digest: _v2ApprovalDigest,
-      ...legacyV2ApprovalPayload
-    } = legacyV2Approval;
-    legacyV2Approval.digest = canonicalJsonDigest(legacyV2ApprovalPayload);
-    const legacyV2ApprovalPath =
-      `outputs/bridge/reconciliation-approvals/${legacyV2Approval.digest}.json`;
-    writeText(
-      fixture.repoRoot,
-      legacyV2ApprovalPath,
-      canonicalContentAddressedJsonBytes(legacyV2Approval),
-    );
     const legacyV2Approved = persistLegacyBridgeManifest({
       repoRoot: fixture.repoRoot,
       source: advanced.manifest,
       version: QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION,
       mutate(manifest) {
+        const legacyV2Approval = structuredClone(approval.attestation);
+        legacyV2Approval.pendingManifestDigest = legacyV2Pending.manifest.digest;
+        legacyV2Approval.reconciliationVersion = manifest.reconciliation.version;
+        legacyV2Approval.reconciliationDigest = manifest.reconciliation.digest;
+        legacyV2Approval.reviewBundleVersion =
+          manifest.reconciliation.reviewBundleVersion;
+        legacyV2Approval.reviewBundleDigest =
+          manifest.reconciliation.reviewBundleDigest;
+        legacyV2Approval.reviewMarkdownSha256 = crypto
+          .createHash('sha256')
+          .update(
+            fs.readFileSync(
+              path.join(
+                fixture.repoRoot,
+                manifest.reconciliation.reviewMarkdownPath,
+              ),
+              'utf8',
+            ),
+            'utf8',
+          )
+          .digest('hex');
+        const {
+          digestAlgorithm: _v2ApprovalDigestAlgorithm,
+          digest: _v2ApprovalDigest,
+          ...legacyV2ApprovalPayload
+        } = legacyV2Approval;
+        legacyV2Approval.digest = canonicalJsonDigest(legacyV2ApprovalPayload);
+        const legacyV2ApprovalPath =
+          `outputs/bridge/reconciliation-approvals/${legacyV2Approval.digest}.json`;
+        writeText(
+          fixture.repoRoot,
+          legacyV2ApprovalPath,
+          canonicalContentAddressedJsonBytes(legacyV2Approval),
+        );
         manifest.reconciliation.pendingManifestDigest =
           legacyV2Pending.manifest.digest;
         manifest.reconciliation.approvalAttestationDigest =
@@ -1726,21 +1829,6 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
         manifestPath: legacyV2Approved.path,
       }),
     ).toEqual(legacyV2Approved.manifest);
-    const legacyApproval = structuredClone(approval.attestation);
-    legacyApproval.pendingManifestDigest = legacyPending.manifest.digest;
-    const {
-      digestAlgorithm: _approvalDigestAlgorithm,
-      digest: _approvalDigest,
-      ...legacyApprovalPayload
-    } = legacyApproval;
-    legacyApproval.digest = canonicalJsonDigest(legacyApprovalPayload);
-    const legacyApprovalPath =
-      `outputs/bridge/reconciliation-approvals/${legacyApproval.digest}.json`;
-    writeText(
-      fixture.repoRoot,
-      legacyApprovalPath,
-      canonicalContentAddressedJsonBytes(legacyApproval),
-    );
     const legacyContext = buildProductionAuthoringContext({
       repoRoot: fixture.repoRoot,
       storyKey: STORY_KEY,
@@ -1751,11 +1839,46 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       styleId: STYLE_ID,
       styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
     });
+    let legacyApprovalPath = '';
     const legacyApproved = persistLegacyBridgeManifest({
       repoRoot: fixture.repoRoot,
       source: advanced.manifest,
       mutate(manifest) {
         manifest.visualContract.templatePath = legacyTemplatePath;
+        const legacyApproval = structuredClone(approval.attestation);
+        legacyApproval.pendingManifestDigest = legacyPending.manifest.digest;
+        legacyApproval.reconciliationVersion = manifest.reconciliation.version;
+        legacyApproval.reconciliationDigest = manifest.reconciliation.digest;
+        legacyApproval.reviewBundleVersion =
+          manifest.reconciliation.reviewBundleVersion;
+        legacyApproval.reviewBundleDigest =
+          manifest.reconciliation.reviewBundleDigest;
+        legacyApproval.reviewMarkdownSha256 = crypto
+          .createHash('sha256')
+          .update(
+            fs.readFileSync(
+              path.join(
+                fixture.repoRoot,
+                manifest.reconciliation.reviewMarkdownPath,
+              ),
+              'utf8',
+            ),
+            'utf8',
+          )
+          .digest('hex');
+        const {
+          digestAlgorithm: _approvalDigestAlgorithm,
+          digest: _approvalDigest,
+          ...legacyApprovalPayload
+        } = legacyApproval;
+        legacyApproval.digest = canonicalJsonDigest(legacyApprovalPayload);
+        legacyApprovalPath =
+          `outputs/bridge/reconciliation-approvals/${legacyApproval.digest}.json`;
+        writeText(
+          fixture.repoRoot,
+          legacyApprovalPath,
+          canonicalContentAddressedJsonBytes(legacyApproval),
+        );
         manifest.reconciliation.pendingManifestDigest =
           legacyPending.manifest.digest;
         manifest.reconciliation.approvalAttestationDigest =

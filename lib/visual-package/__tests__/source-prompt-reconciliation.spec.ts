@@ -15,7 +15,14 @@ import {
 } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 import { normalizedTextDigest } from '@/lib/visual-package/integrity';
 import {
+  buildReconciliationReviewBundle,
+  renderReconciliationReviewMarkdown,
+} from '@/lib/visual-package/reconciliationLifecycle';
+import {
   buildSourcePromptReconciliationDraft,
+  legacySourcePromptReconciliationV2Issues,
+  projectLegacySourcePromptReconciliationV2,
+  reviewerPresentationRebindPointerIsPermittedForPage,
   sourcePromptReconciliationIssues,
   type ReconciliationSourceRequirement,
   type SourcePromptReconciliation,
@@ -26,6 +33,16 @@ const REVIEW = {
   status: 'approved',
   reviewedBy: 'fixture reviewer',
   reviewedAt: '2026-07-23T08:00:00.000Z',
+} as const;
+const GUY_REVIEW = {
+  status: 'approved',
+  reviewedBy: 'Guy',
+  reviewedAt: '2026-08-20T08:00:00.000Z',
+} as const;
+const PENDING_REVIEW = {
+  status: 'pending',
+  reviewedBy: null,
+  reviewedAt: null,
 } as const;
 
 function source(withDirections = true, changedPlot = false): string {
@@ -236,7 +253,7 @@ function validate(
   });
 }
 
-describe('source-prompt reconciliation v2', () => {
+describe('source-prompt reconciliation v3', () => {
   it('keeps the shared reconciliation/selector/package authority free of the Fox key, prop id, and page literal', () => {
     const sharedModules = [
       'lib/visual-package/sourcePromptReconciliation.ts',
@@ -472,6 +489,292 @@ describe('source-prompt reconciliation v2', () => {
         (issue) => issue.code,
       ),
     ).toContain('reconciliation_invalid');
+  });
+
+  it('supports only explicit same-page rebinds or visible Guy-reviewed supersessions and preserves v2 read-only validation', () => {
+    const raw = source(false);
+    const contract = template();
+    contract.pageContracts[0]!.mustShow.push(
+      'the exact alternate beacon composition selected by the reviewer',
+    );
+    const sourceIdentity = identity(raw);
+    const content = parseStorySourceContent(raw);
+    const coverage: ActionSemanticCoverageRecord[] = [
+      {
+        version: ACTION_SEMANTIC_COVERAGE_VERSION,
+        pageNumber: 1,
+        beatId: 'beat:p1:rebound_must_show',
+        sourceEvidenceId: `se1_${'a'.repeat(64)}`,
+        sourcePhrase: 'The child selects the exact alternate beacon composition.',
+        disposition: {
+          kind: 'presentation_requirement',
+          presentationClass: 'composition_focus',
+          contractPointer: '/pageContracts/0/mustShow/0',
+          contractValue: contract.pageContracts[0]!.mustShow[0]!,
+        },
+        reviewState: 'unreviewed',
+      },
+      {
+        version: ACTION_SEMANTIC_COVERAGE_VERSION,
+        pageNumber: 1,
+        beatId: 'beat:p1:rebound_prop_state',
+        sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+        sourcePhrase: 'The rescue beacon is blinking ahead.',
+        disposition: {
+          kind: 'presentation_requirement',
+          presentationClass: 'static_state',
+          contractPointer: '/pageContracts/0/mustShow/0',
+          contractValue: contract.pageContracts[0]!.mustShow[0]!,
+        },
+        reviewState: 'unreviewed',
+      },
+      {
+        version: ACTION_SEMANTIC_COVERAGE_VERSION,
+        pageNumber: 2,
+        beatId: 'beat:p2:unsupported_detail',
+        sourceEvidenceId: `se1_${'c'.repeat(64)}`,
+        sourcePhrase: 'A source detail intentionally omitted from the frozen illustration.',
+        disposition: {
+          kind: 'presentation_requirement',
+          presentationClass: 'ambient_event',
+          contractPointer: '/pageContracts/1/mustShow/0',
+          contractValue: contract.pageContracts[1]!.mustShow[0]!,
+        },
+        reviewState: 'unreviewed',
+      },
+    ];
+    const artifact = buildSourcePromptReconciliationDraft(
+      {
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        pages: content.pages,
+        actionSemanticCoverage: coverage,
+      },
+      contract,
+    );
+    preserved(
+      artifact.frames[0]!.sourceRequirements[0]!,
+      'cover:story-promise',
+      '/coverContract/mustShow/0',
+      contract.coverContract.mustShow[0],
+    );
+    artifact.frames[1]!.sourceRequirements[0]!.visualBeats = [{
+      id: 'page:1:reviewed-rebinds',
+      description: 'reviewed exact alternate evidence for two page-one source beats',
+      aspects: ['composition', 'staging'],
+      disposition: 'preserved',
+      contractEvidence: [
+        {
+          path: '/pageContracts/0/mustShow/1',
+          value: contract.pageContracts[0]!.mustShow[1],
+        },
+        {
+          path: '/pageContracts/0/propState/0/state',
+          value: contract.pageContracts[0]!.propState![0]!.state,
+        },
+      ],
+      justification: null,
+      supersessionReview: null,
+    }];
+    preserved(
+      artifact.frames[2]!.sourceRequirements[0]!,
+      'page:2:remaining-story',
+      '/pageContracts/1/camera',
+      contract.pageContracts[1]!.camera,
+    );
+    artifact.review = PENDING_REVIEW;
+    artifact.presentationRequirementDispositions.entries = [
+      {
+        pageNumber: 1,
+        beatId: coverage[0]!.beatId,
+        sourceEvidenceId: coverage[0]!.sourceEvidenceId,
+        kind: 'rebound',
+        reboundPointer: '/pageContracts/0/mustShow/1',
+        reboundValue: contract.pageContracts[0]!.mustShow[1]!,
+        justification: null,
+        review: PENDING_REVIEW,
+      },
+      {
+        pageNumber: 1,
+        beatId: coverage[1]!.beatId,
+        sourceEvidenceId: coverage[1]!.sourceEvidenceId,
+        kind: 'rebound',
+        reboundPointer: '/pageContracts/0/propState/0/state',
+        reboundValue: contract.pageContracts[0]!.propState![0]!.state,
+        justification: null,
+        review: PENDING_REVIEW,
+      },
+      {
+        pageNumber: 2,
+        beatId: coverage[2]!.beatId,
+        sourceEvidenceId: coverage[2]!.sourceEvidenceId,
+        kind: 'superseded',
+        reboundPointer: null,
+        reboundValue: null,
+        justification: 'Guy may approve omitting this exact source moment from the illustration.',
+        review: PENDING_REVIEW,
+      },
+    ];
+
+    expect(validate(raw, artifact, contract, sourceIdentity, coverage)).toEqual([
+      expect.objectContaining({
+        code: 'reconciliation_incomplete',
+        field: 'review',
+      }),
+    ]);
+    const pendingBundle = buildReconciliationReviewBundle({
+      reconciliation: artifact,
+      sourceIdentity,
+      rawStorySource: raw,
+      template: contract,
+      actionSemanticCoverage: coverage,
+    });
+    expect(pendingBundle.blockingIssues).toEqual([
+      expect.objectContaining({ field: 'review' }),
+    ]);
+    expect(pendingBundle.presentationRequirementDispositions).toHaveLength(3);
+    const pendingMarkdown = renderReconciliationReviewMarkdown(pendingBundle);
+    expect(pendingMarkdown).toContain('## Presentation Requirement reviewer decisions');
+    expect(pendingMarkdown).toContain('**REBIND**');
+    expect(pendingMarkdown).toContain('**SUPERSEDE / WILL NOT BE DEPICTED**');
+    expect(pendingMarkdown).toContain('/pageContracts/0/propState/0/state');
+    expect(pendingMarkdown).toContain(coverage[2]!.sourcePhrase);
+    expect(
+      reviewerPresentationRebindPointerIsPermittedForPage({
+        template: contract,
+        pageNumber: 1,
+        pointer: '/pageContracts/0/propState/0/state',
+      }),
+    ).toBe(true);
+    expect(
+      reviewerPresentationRebindPointerIsPermittedForPage({
+        template: contract,
+        pageNumber: 1,
+        pointer: '/pageContracts/0/actionRequirements/0/predicate',
+      }),
+    ).toBe(false);
+
+    artifact.review = GUY_REVIEW;
+    for (const entry of artifact.presentationRequirementDispositions.entries) {
+      entry.review = GUY_REVIEW;
+    }
+    expect(validate(raw, artifact, contract, sourceIdentity, coverage)).toEqual([]);
+    expect(buildReconciliationReviewBundle({
+      reconciliation: artifact,
+      sourceIdentity,
+      rawStorySource: raw,
+      template: contract,
+      actionSemanticCoverage: coverage,
+    }).readyForApproval).toBe(true);
+
+    const expectRejected = (
+      mutate: (candidate: SourcePromptReconciliation) => void,
+      code: 'reconciliation_invalid' | 'reconciliation_incomplete',
+    ) => {
+      const candidate = structuredClone(artifact);
+      mutate(candidate);
+      expect(
+        validate(raw, candidate, contract, sourceIdentity, coverage).map(
+          (issue) => issue.code,
+        ),
+      ).toContain(code);
+    };
+    expectRejected((candidate) => {
+      candidate.presentationRequirementDispositions.entries[0]!.beatId = 'orphan';
+    }, 'reconciliation_invalid');
+    expectRejected((candidate) => {
+      candidate.presentationRequirementDispositions.entries.push(
+        structuredClone(candidate.presentationRequirementDispositions.entries[0]!),
+      );
+    }, 'reconciliation_invalid');
+    expectRejected((candidate) => {
+      const entry = candidate.presentationRequirementDispositions.entries[0]!;
+      entry.reboundPointer = '/pageContracts/1/mustShow/0';
+      entry.reboundValue = contract.pageContracts[1]!.mustShow[0]!;
+    }, 'reconciliation_invalid');
+    expectRejected((candidate) => {
+      const entry = candidate.presentationRequirementDispositions.entries[0]!;
+      entry.reboundPointer = '/pageContracts/0/camera';
+      entry.reboundValue = contract.pageContracts[0]!.camera;
+    }, 'reconciliation_invalid');
+    expectRejected((candidate) => {
+      candidate.presentationRequirementDispositions.entries[0]!.reboundValue = 'stale';
+    }, 'reconciliation_invalid');
+    expectRejected((candidate) => {
+      const entry = candidate.presentationRequirementDispositions.entries[0]!;
+      entry.reboundPointer = '/pageContracts/0/mustShow/0';
+      entry.reboundValue = contract.pageContracts[0]!.mustShow[0]!;
+    }, 'reconciliation_invalid');
+    expectRejected((candidate) => {
+      candidate.frames[1]!.sourceRequirements[0]!.visualBeats[0]!
+        .contractEvidence = candidate.frames[1]!.sourceRequirements[0]!
+        .visualBeats[0]!.contractEvidence.slice(1);
+    }, 'reconciliation_incomplete');
+    expectRejected((candidate) => {
+      candidate.presentationRequirementDispositions.entries[2]!.justification = '';
+    }, 'reconciliation_invalid');
+    expectRejected((candidate) => {
+      const entry = candidate.presentationRequirementDispositions.entries[2]!;
+      entry.reboundPointer = '/pageContracts/1/mustShow/0';
+      entry.reboundValue = contract.pageContracts[1]!.mustShow[0]!;
+    }, 'reconciliation_invalid');
+    expectRejected((candidate) => {
+      candidate.review = REVIEW;
+      for (const entry of candidate.presentationRequirementDispositions.entries) {
+        entry.review = REVIEW;
+      }
+    }, 'reconciliation_invalid');
+    expectRejected((candidate) => {
+      (candidate.presentationRequirementDispositions.entries[0] as unknown as Record<string, unknown>)
+        .extra = true;
+    }, 'reconciliation_invalid');
+    expectRejected((candidate) => {
+      candidate.frames[1]!.sourceRequirements[0]!.visualBeats[0]!
+        .contractEvidence.unshift({
+          path: '/pageContracts/0/mustShow/0',
+          value: contract.pageContracts[0]!.mustShow[0],
+        });
+    }, 'reconciliation_invalid');
+
+    const legacy = projectLegacySourcePromptReconciliationV2(artifact);
+    expect(
+      legacySourcePromptReconciliationV2Issues({
+        raw: legacy,
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        rawStorySource: raw,
+        template: contract,
+        templateDigest: canonicalHash(contract),
+        actionSemanticCoverage: coverage,
+      }).map((issue) => issue.code),
+    ).toContain('reconciliation_incomplete');
+    expect(
+      sourcePromptReconciliationIssues({
+        raw: legacy,
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        rawStorySource: raw,
+        template: contract,
+        templateDigest: canonicalHash(contract),
+        actionSemanticCoverage: coverage,
+      }).map((issue) => issue.code),
+    ).toContain('reconciliation_invalid');
+
+    const oldComplete = reviewedArtifact(raw, contract).artifact;
+    const oldCompleteV2 = projectLegacySourcePromptReconciliationV2(
+      oldComplete,
+    );
+    expect(
+      legacySourcePromptReconciliationV2Issues({
+        raw: oldCompleteV2,
+        storyKey: 'dunes_rescue',
+        sourceIdentity,
+        rawStorySource: raw,
+        template: contract,
+        templateDigest: canonicalHash(contract),
+        actionSemanticCoverage: [],
+      }),
+    ).toEqual([]);
   });
 
   it('invalidates an old package after any plot/source edit and accepts a rebuilt evidence artifact without shared-code changes', () => {

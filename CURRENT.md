@@ -1,8 +1,50 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-19
+**Updated:** 2026-08-20
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-mixed-source-compact-scheduler` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the Candidate-validation attestation milestone is based on `d461080bb86c4e32bfe8442891d583a699e46880`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; this milestone is based on `6c9127d9f02d7eb79d8e41d6430adb2f25963bee`.
+
+## QA WIZARD PRESENTATION DISPOSITIONS — local green; Claude re-gate next
+
+The immutable eight-page Chameleon Candidate and its authoring artifacts remain
+unchanged. Semantic review found three Presentation Requirements with correct
+alternate `mustShow` evidence, two with correct alternate
+`propState[*].state` evidence, and five whose requested moment is absent from
+the frozen Candidate. The prior reconciliation contract could neither correct
+a mis-bound pointer nor record an honest explicit omission.
+
+Source Prompt Reconciliation now advances from v2 to v3 with a separate
+`presentation-requirement-disposition/v1` block. A reviewer may rebind only to
+an exact different value on the same page under `mustShow/{index}` or
+`propState/{index}/state`, and the replacement must be cited by preserved
+story-prose evidence. A reviewer may instead supersede one exact requirement
+only with a non-empty justification. Orphans, duplicates, stale values,
+cross-page or broader pointers, uncited rebinds, contradictory original plus
+replacement evidence, mixed disposition fields, and non-Guy final approval all
+fail closed. Candidate and compiler-authored coverage remain immutable.
+
+The review bundle/Markdown advance from v2 to v3 and display every rebind and
+every `SUPERSEDE / WILL NOT BE DEPICTED` decision before ordinary source
+requirements. QA Wizard manifest v4 binds the new reconciliation authority.
+Exact manifest v3/v2/v1 plus reconciliation/review v2 remain read-only legacy
+evidence; current writers never upgrade or mutate them.
+
+Final focused validation passes **6 files / 184 tests**, TypeScript, and
+`git diff --check`. One literal `npm run check` ran once: TypeScript and the
+autonomous Story typecheck passed; resource-intensive passed **20 files / 610
+tests**; ordinary passed **3,344** and skipped 65, failing only the five
+established missing ignored-`outputs/` fixture assertions in four unchanged
+specs. No changed or adjacent functional test failed.
+
+Durable records:
+`docs/ai-workflow/R1D_QA_WIZARD_PRESENTATION_DISPOSITIONS_DECISION_GATE.md` and
+`docs/ai-workflow/R1D_QA_WIZARD_PRESENTATION_DISPOSITIONS_IMPLEMENTATION_EVIDENCE.md`.
+Next: focused local commit and independent Claude Code re-gate. After PASS and
+push, re-attest the unchanged Candidate at the new clean HEAD and materialize a
+fresh pending reconciliation proposal. Guy must inspect and explicitly decide
+the five proposed omissions before approval. No provider, Fresh, live
+authoring, image, render, publication, deployment or production action occurred
+or is authorized by this milestone.
 
 ## CANDIDATE VALIDATION ATTESTATION + QA WIZARD MANIFEST V3 — local green; Claude re-gate next
 

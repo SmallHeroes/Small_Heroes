@@ -17,6 +17,7 @@ import {
 
 import { canonicalJsonDigest, isoTimestampIsValid, nonEmpty, resolveRepoPath } from './integrity';
 import {
+  LEGACY_SOURCE_PROMPT_RECONCILIATION_VERSION,
   SOURCE_PROMPT_PROJECTION_VERSION,
   SOURCE_PROMPT_RECONCILIATION_VERSION,
   type StorySourceIdentity,
@@ -83,6 +84,8 @@ export const PRESENTATION_REQUIREMENT_RECONCILIATION_VERSION =
   'presentation-requirement-reconciliation/v1' as const;
 export const ACTION_SEMANTIC_COVERAGE_RECONCILIATION_AUTHORITY_VERSION =
   'action-semantic-coverage-reconciliation-authority/v1' as const;
+export const PRESENTATION_REQUIREMENT_DISPOSITION_VERSION =
+  'presentation-requirement-disposition/v1' as const;
 
 export interface ReconciliationPresentationRequirement {
   pageNumber: number;
@@ -107,6 +110,22 @@ export interface ActionSemanticCoverageReconciliationAuthority {
   records: ActionSemanticCoverageRecord[];
 }
 
+export interface ReviewerPresentationRequirementDisposition {
+  pageNumber: number;
+  beatId: string;
+  sourceEvidenceId: string;
+  kind: 'rebound' | 'superseded';
+  reboundPointer: string | null;
+  reboundValue: string | null;
+  justification: string | null;
+  review: ReconciliationReviewState;
+}
+
+export interface PresentationRequirementDispositionBinding {
+  version: typeof PRESENTATION_REQUIREMENT_DISPOSITION_VERSION;
+  entries: ReviewerPresentationRequirementDisposition[];
+}
+
 /**
  * Offline authoring/promotion evidence. This artifact never becomes prompt text: it proves that the frozen
  * contract's provider projection preserves (or explicitly supersedes) every human-reviewed source beat.
@@ -125,7 +144,17 @@ export interface SourcePromptReconciliation {
   actionSemanticCoverageAuthority: ActionSemanticCoverageReconciliationAuthority;
   /** Candidate-bound visible non-action beats that require explicit preserved review evidence. */
   presentationRequirements: PresentationRequirementReconciliationBinding;
+  /** Human-authored corrections or explicit omissions; never compiler-authored approval. */
+  presentationRequirementDispositions: PresentationRequirementDispositionBinding;
   review: ReconciliationReviewState;
+}
+
+export interface LegacySourcePromptReconciliationV2
+  extends Omit<
+    SourcePromptReconciliation,
+    'version' | 'presentationRequirementDispositions'
+  > {
+  version: typeof LEGACY_SOURCE_PROMPT_RECONCILIATION_VERSION;
 }
 
 export interface SourcePromptReconciliationInput {
@@ -154,6 +183,31 @@ function reviewStateIsApproved(value: unknown): value is ReconciliationReviewSta
     nonEmpty(state.reviewedBy) &&
     isoTimestampIsValid(state.reviewedAt)
   );
+}
+
+function exactObjectKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
+}
+
+function reviewStateIsPending(value: unknown): value is ReconciliationReviewState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const state = value as Record<string, unknown>;
+  return (
+    exactObjectKeys(state, ['status', 'reviewedBy', 'reviewedAt']) &&
+    state.status === 'pending' &&
+    state.reviewedBy === null &&
+    state.reviewedAt === null
+  );
+}
+
+function reviewStateIsGuyApproved(value: unknown): value is ReconciliationReviewState {
+  return reviewStateIsApproved(value) && value.reviewedBy === 'Guy';
+}
+
+function reviewStateIsDispositionCompatible(value: unknown): value is ReconciliationReviewState {
+  return reviewStateIsPending(value) || reviewStateIsGuyApproved(value);
 }
 
 function contractProjection(
@@ -299,7 +353,26 @@ export function buildSourcePromptReconciliationDraft(
       actionSemanticCoverageAuthority(actionSemanticCoverage),
     presentationRequirements:
       presentationRequirementBinding(actionSemanticCoverage),
+    presentationRequirementDispositions: {
+      version: PRESENTATION_REQUIREMENT_DISPOSITION_VERSION,
+      entries: [],
+    },
     review: { status: 'pending', reviewedBy: null, reviewedAt: null },
+  };
+}
+
+/** Frozen projection used only to reconstruct immutable reconciliation-v2 evidence. */
+export function projectLegacySourcePromptReconciliationV2(
+  reconciliation: SourcePromptReconciliation,
+): LegacySourcePromptReconciliationV2 {
+  const {
+    presentationRequirementDispositions: _presentationRequirementDispositions,
+    version: _version,
+    ...legacy
+  } = structuredClone(reconciliation);
+  return {
+    ...legacy,
+    version: LEGACY_SOURCE_PROMPT_RECONCILIATION_VERSION,
   };
 }
 
@@ -324,6 +397,26 @@ export function resolveJsonPointer(root: unknown, pointer: string): { found: boo
     current = (current as Record<string, unknown>)[token];
   }
   return { found: true, value: current };
+}
+
+export function reviewerPresentationRebindPointerIsPermittedForPage(args: {
+  template: BookVisualContractTemplate;
+  pageNumber: number;
+  pointer: string;
+}): boolean {
+  const pageIndex = args.template.pageContracts.findIndex(
+    (candidate) => candidate.pageNumber === args.pageNumber,
+  );
+  if (pageIndex < 0) return false;
+  const pagePrefix = `/pageContracts/${pageIndex}/`;
+  if (!args.pointer.startsWith(pagePrefix)) return false;
+  const suffix = args.pointer.slice(pagePrefix.length);
+  if (!/^mustShow\/(?:0|[1-9]\d*)$/.test(suffix) &&
+      !/^propState\/(?:0|[1-9]\d*)\/state$/.test(suffix)) {
+    return false;
+  }
+  const resolved = resolveJsonPointer(args.template, args.pointer);
+  return resolved.found && typeof resolved.value === 'string';
 }
 
 const DIRECTION_ALLOWED_ASPECTS = new Set<ReconciliationAspect>([
@@ -421,7 +514,7 @@ function expectedSourcesForFrame(args: {
   ];
 }
 
-export function sourcePromptReconciliationIssues(args: {
+export interface SourcePromptReconciliationIssueArgs {
   raw: unknown;
   storyKey: string;
   sourceIdentity: StorySourceIdentity;
@@ -432,14 +525,198 @@ export function sourcePromptReconciliationIssues(args: {
   authoredCoverAuthority?: AuthoredCoverAuthority;
   actionSemanticCoverage: readonly ActionSemanticCoverageRecord[];
   requireComplete?: boolean;
-}): VisualPackageIssue[] {
+}
+
+function presentationRequirementIdentity(value: {
+  pageNumber: number;
+  beatId: string;
+  sourceEvidenceId: string;
+}): string {
+  return `${value.pageNumber}:${value.beatId}:${value.sourceEvidenceId}`;
+}
+
+function validatedPresentationRequirementDispositions(args: {
+  raw: unknown;
+  review: unknown;
+  requirements: readonly ReconciliationPresentationRequirement[];
+  frames: readonly SourcePromptReconciliationFrame[];
+  template: BookVisualContractTemplate;
+  requireComplete: boolean;
+  issues: VisualPackageIssue[];
+}): Map<string, ReviewerPresentationRequirementDisposition> {
+  const accepted = new Map<string, ReviewerPresentationRequirementDisposition>();
+  if (!args.raw || typeof args.raw !== 'object' || Array.isArray(args.raw)) {
+    args.issues.push(packageIssue(
+      'reconciliation_invalid',
+      'presentation-requirement dispositions are missing or malformed',
+      { field: 'presentationRequirementDispositions' },
+    ));
+    return accepted;
+  }
+  const binding = args.raw as Record<string, unknown>;
+  if (
+    !exactObjectKeys(binding, ['version', 'entries']) ||
+    binding.version !== PRESENTATION_REQUIREMENT_DISPOSITION_VERSION ||
+    !Array.isArray(binding.entries)
+  ) {
+    args.issues.push(packageIssue(
+      'reconciliation_invalid',
+      'presentation-requirement dispositions have an unsupported shape or version',
+      { field: 'presentationRequirementDispositions' },
+    ));
+    return accepted;
+  }
+  const requirements = new Map(
+    args.requirements.map((requirement) => [
+      presentationRequirementIdentity(requirement),
+      requirement,
+    ]),
+  );
+  for (const [index, rawEntry] of binding.entries.entries()) {
+    const field = `presentationRequirementDispositions.entries[${index}]`;
+    if (!rawEntry || typeof rawEntry !== 'object' || Array.isArray(rawEntry)) {
+      args.issues.push(packageIssue('reconciliation_invalid', `${field} is malformed`, { field }));
+      continue;
+    }
+    const entry = rawEntry as Record<string, unknown>;
+    if (!exactObjectKeys(entry, [
+      'pageNumber',
+      'beatId',
+      'sourceEvidenceId',
+      'kind',
+      'reboundPointer',
+      'reboundValue',
+      'justification',
+      'review',
+    ])) {
+      args.issues.push(packageIssue('reconciliation_invalid', `${field} has unexpected or missing fields`, {
+        field,
+      }));
+      continue;
+    }
+    const typed = entry as unknown as ReviewerPresentationRequirementDisposition;
+    const identity = presentationRequirementIdentity(typed);
+    const requirement = requirements.get(identity);
+    if (
+      !Number.isSafeInteger(typed.pageNumber) ||
+      typed.pageNumber <= 0 ||
+      !nonEmpty(typed.beatId) ||
+      !nonEmpty(typed.sourceEvidenceId) ||
+      !requirement ||
+      accepted.has(identity)
+    ) {
+      args.issues.push(packageIssue(
+        'reconciliation_invalid',
+        `${field} is orphaned, duplicated, or does not match one exact presentation requirement`,
+        { field },
+      ));
+      continue;
+    }
+    if (
+      !reviewStateIsDispositionCompatible(typed.review) ||
+      canonicalJsonDigest(typed.review) !== canonicalJsonDigest(args.review)
+    ) {
+      args.issues.push(packageIssue(
+        'reconciliation_invalid',
+        `${field} review must exactly match the pending or Guy-approved reconciliation review`,
+        { field: `${field}.review` },
+      ));
+      continue;
+    }
+    if (typed.kind === 'rebound') {
+      const resolved = typeof typed.reboundPointer === 'string'
+        ? resolveJsonPointer(args.template, typed.reboundPointer)
+        : { found: false as const };
+      if (
+        !nonEmpty(typed.reboundPointer) ||
+        !nonEmpty(typed.reboundValue) ||
+        typed.justification !== null ||
+        typed.reboundPointer === requirement.contractPointer ||
+        !reviewerPresentationRebindPointerIsPermittedForPage({
+          template: args.template,
+          pageNumber: typed.pageNumber,
+          pointer: typed.reboundPointer,
+        }) ||
+        !resolved.found ||
+        typeof resolved.value !== 'string' ||
+        canonicalJsonDigest(resolved.value) !== canonicalJsonDigest(typed.reboundValue)
+      ) {
+        args.issues.push(packageIssue(
+          'reconciliation_invalid',
+          `${field} rebound must cite different exact same-page mustShow or propState.state evidence`,
+          { field },
+        ));
+        continue;
+      }
+      const frame = args.frames.find(
+        (candidate) =>
+          candidate.frameKind === 'page' &&
+          candidate.pageNumber === typed.pageNumber,
+      );
+      const storyRequirement = frame?.sourceRequirements.find(
+        (candidate) => candidate.sourceKind === 'story_prose',
+      );
+      const reboundIsCited = storyRequirement?.visualBeats.some(
+        (beat) =>
+          beat.disposition === 'preserved' &&
+          beat.contractEvidence.some(
+            (citation) =>
+              citation.path === typed.reboundPointer &&
+              canonicalJsonDigest(citation.value) === canonicalJsonDigest(typed.reboundValue),
+          ),
+      ) === true;
+      if (!reboundIsCited) {
+        if (args.requireComplete) {
+          args.issues.push(packageIssue(
+            'reconciliation_incomplete',
+            `${field} rebound is not cited by a preserved story-prose beat`,
+            { field },
+          ));
+        }
+        continue;
+      }
+    } else if (typed.kind === 'superseded') {
+      if (
+        typed.reboundPointer !== null ||
+        typed.reboundValue !== null ||
+        !nonEmpty(typed.justification)
+      ) {
+        args.issues.push(packageIssue(
+          'reconciliation_invalid',
+          `${field} supersession must contain only a non-empty justification`,
+          { field },
+        ));
+        continue;
+      }
+    } else {
+      args.issues.push(packageIssue(
+        'reconciliation_invalid',
+        `${field} has an unsupported disposition kind`,
+        { field: `${field}.kind` },
+      ));
+      continue;
+    }
+    accepted.set(identity, typed);
+  }
+  return accepted;
+}
+
+function sourcePromptReconciliationIssuesForVersion(
+  args: SourcePromptReconciliationIssueArgs,
+  options: {
+    version:
+      | typeof SOURCE_PROMPT_RECONCILIATION_VERSION
+      | typeof LEGACY_SOURCE_PROMPT_RECONCILIATION_VERSION;
+    presentationDispositions: boolean;
+  },
+): VisualPackageIssue[] {
   const issues: VisualPackageIssue[] = [];
   if (!args.raw || typeof args.raw !== 'object' || Array.isArray(args.raw)) {
     return [packageIssue('reconciliation_invalid', 'reconciliation artifact is not an object')];
   }
-  const reconciliation = args.raw as Partial<SourcePromptReconciliation>;
+  const reconciliation = args.raw as Partial<SourcePromptReconciliation> & Record<string, unknown>;
   if (
-    reconciliation.version !== SOURCE_PROMPT_RECONCILIATION_VERSION ||
+    reconciliation.version !== options.version ||
     reconciliation.projectionVersion !== SOURCE_PROMPT_PROJECTION_VERSION
   ) {
     issues.push(packageIssue(
@@ -447,7 +724,7 @@ export function sourcePromptReconciliationIssues(args: {
       'reconciliation version or provider-projection version is unsupported',
       {
         expected: {
-          version: SOURCE_PROMPT_RECONCILIATION_VERSION,
+          version: options.version,
           projectionVersion: SOURCE_PROMPT_PROJECTION_VERSION,
         },
         actual: {
@@ -567,6 +844,27 @@ export function sourcePromptReconciliationIssues(args: {
   const expectedPresentationBinding = authoritativeCoverage
     ? presentationRequirementBinding(authoritativeCoverage)
     : null;
+  const validatedDispositions = options.presentationDispositions
+    ? validatedPresentationRequirementDispositions({
+        raw: reconciliation.presentationRequirementDispositions,
+        review: reconciliation.review,
+        requirements: expectedPresentationBinding?.requirements ?? [],
+        frames,
+        template: args.template,
+        requireComplete: args.requireComplete !== false,
+        issues,
+      })
+    : new Map<string, ReviewerPresentationRequirementDisposition>();
+  if (
+    !options.presentationDispositions &&
+    reconciliation.presentationRequirementDispositions !== undefined
+  ) {
+    issues.push(packageIssue(
+      'reconciliation_invalid',
+      'legacy reconciliation must not contain presentation-requirement dispositions',
+      { field: 'presentationRequirementDispositions' },
+    ));
+  }
   if (
     !presentationBinding ||
     typeof presentationBinding !== 'object' ||
@@ -638,11 +936,26 @@ export function sourcePromptReconciliationIssues(args: {
                   canonicalJsonDigest(requirement.contractValue),
             ),
         );
-        if (args.requireComplete !== false && !preserved) {
+        const reviewedDisposition = validatedDispositions.get(
+          presentationRequirementIdentity(requirement),
+        );
+        if (preserved && reviewedDisposition !== undefined) {
+          issues.push(packageIssue(
+            'reconciliation_invalid',
+            `${field} cannot retain original preserved evidence and a reviewer disposition simultaneously`,
+            { field },
+          ));
+          continue;
+        }
+        if (
+          args.requireComplete !== false &&
+          !preserved &&
+          reviewedDisposition === undefined
+        ) {
           issues.push(
             packageIssue(
               'reconciliation_incomplete',
-              `${field} lacks one approved preserved story-prose beat with exact contract evidence`,
+              `${field} lacks original preserved evidence, a reviewed exact rebind, or a reviewed explicit supersession`,
               { field },
             ),
           );
@@ -839,6 +1152,25 @@ export function sourcePromptReconciliationIssues(args: {
     ));
   }
   return issues;
+}
+
+export function sourcePromptReconciliationIssues(
+  args: SourcePromptReconciliationIssueArgs,
+): VisualPackageIssue[] {
+  return sourcePromptReconciliationIssuesForVersion(args, {
+    version: SOURCE_PROMPT_RECONCILIATION_VERSION,
+    presentationDispositions: true,
+  });
+}
+
+/** Frozen read-only validator for reconciliation v2 artifacts referenced by legacy QA Wizard manifests. */
+export function legacySourcePromptReconciliationV2Issues(
+  args: SourcePromptReconciliationIssueArgs,
+): VisualPackageIssue[] {
+  return sourcePromptReconciliationIssuesForVersion(args, {
+    version: LEGACY_SOURCE_PROMPT_RECONCILIATION_VERSION,
+    presentationDispositions: false,
+  });
 }
 
 export function loadSourcePromptReconciliation(args: {

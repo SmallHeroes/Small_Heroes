@@ -158,7 +158,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
       preRenderBlueprintAuthoringInputErrors(fixture.context, CONFIG),
     ).toContainEqual(
       expect.stringContaining(
-        'presentationRequirements.requirements[0] lacks one approved preserved story-prose beat',
+        'presentationRequirements.requirements[0] lacks original preserved evidence, a reviewed exact rebind, or a reviewed explicit supersession',
       ),
     );
   });

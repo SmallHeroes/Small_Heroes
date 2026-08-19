@@ -19,7 +19,12 @@ import { loadTemplateForPackage } from './artifacts';
 import { loadStoryAuthoredCoverAuthority } from './coverSourceFidelity';
 import {
   buildSourcePromptReconciliationDraft,
+  legacySourcePromptReconciliationV2Issues,
+  projectLegacySourcePromptReconciliationV2,
   sourcePromptReconciliationIssues,
+  type LegacySourcePromptReconciliationV2,
+  type ReconciliationReviewState,
+  type ReviewerPresentationRequirementDisposition,
   type SourcePromptReconciliation,
 } from './sourcePromptReconciliation';
 import type {
@@ -38,8 +43,12 @@ import {
 } from './visualContractAuthoringLifecycle';
 
 export const RECONCILIATION_REVIEW_BUNDLE_VERSION =
-  'source-prompt-reconciliation-review-bundle/v2' as const;
+  'source-prompt-reconciliation-review-bundle/v3' as const;
 export const RECONCILIATION_REVIEW_RENDERER_VERSION =
+  'source-prompt-reconciliation-review-markdown/v3' as const;
+export const LEGACY_RECONCILIATION_REVIEW_BUNDLE_VERSION =
+  'source-prompt-reconciliation-review-bundle/v2' as const;
+export const LEGACY_RECONCILIATION_REVIEW_RENDERER_VERSION =
   'source-prompt-reconciliation-review-markdown/v2' as const;
 
 export interface ReconciliationReviewRequirement {
@@ -55,6 +64,21 @@ export interface ReconciliationReviewRequirement {
   requiredCitationRoots: string[];
 }
 
+export interface ReconciliationReviewPresentationDisposition {
+  pageNumber: number;
+  beatId: string;
+  sourceEvidenceId: string;
+  sourcePhrase: string | null;
+  presentationClass: string | null;
+  kind: ReviewerPresentationRequirementDisposition['kind'];
+  originalPointer: string | null;
+  originalValue: string | null;
+  reboundPointer: string | null;
+  reboundValue: string | null;
+  justification: string | null;
+  review: ReconciliationReviewState;
+}
+
 export interface ReconciliationReviewBundle {
   version: typeof RECONCILIATION_REVIEW_BUNDLE_VERSION;
   rendererVersion: typeof RECONCILIATION_REVIEW_RENDERER_VERSION;
@@ -64,11 +88,21 @@ export interface ReconciliationReviewBundle {
   templateDigest: string;
   reconciliationDigest: string;
   requirements: ReconciliationReviewRequirement[];
+  presentationRequirementDispositions: ReconciliationReviewPresentationDisposition[];
   blockingIssues: VisualPackageIssue[];
   readyForApproval: boolean;
   reviewInstructions: string[];
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
+}
+
+export interface LegacyReconciliationReviewBundleV2
+  extends Omit<
+    ReconciliationReviewBundle,
+    'version' | 'rendererVersion' | 'presentationRequirementDispositions'
+  > {
+  version: typeof LEGACY_RECONCILIATION_REVIEW_BUNDLE_VERSION;
+  rendererVersion: typeof LEGACY_RECONCILIATION_REVIEW_RENDERER_VERSION;
 }
 
 export interface ProductionReconciliationDraftFromFiles {
@@ -156,6 +190,38 @@ export function buildReconciliationReviewBundle(args: {
           : pageContractRoot(args.template, frame.pageNumber),
     })),
   );
+  const presentationRequirementDispositions =
+    args.reconciliation.presentationRequirementDispositions.entries.map(
+      (entry): ReconciliationReviewPresentationDisposition => {
+        const requirement =
+          args.reconciliation.presentationRequirements.requirements.find(
+            (candidate) =>
+              candidate.pageNumber === entry.pageNumber &&
+              candidate.beatId === entry.beatId &&
+              candidate.sourceEvidenceId === entry.sourceEvidenceId,
+          );
+        const coverage = args.actionSemanticCoverage.find(
+          (candidate) =>
+            candidate.pageNumber === entry.pageNumber &&
+            candidate.beatId === entry.beatId &&
+            candidate.sourceEvidenceId === entry.sourceEvidenceId,
+        );
+        return {
+          pageNumber: entry.pageNumber,
+          beatId: entry.beatId,
+          sourceEvidenceId: entry.sourceEvidenceId,
+          sourcePhrase: coverage?.sourcePhrase ?? null,
+          presentationClass: requirement?.presentationClass ?? null,
+          kind: entry.kind,
+          originalPointer: requirement?.contractPointer ?? null,
+          originalValue: requirement?.contractValue ?? null,
+          reboundPointer: entry.reboundPointer,
+          reboundValue: entry.reboundValue,
+          justification: entry.justification,
+          review: structuredClone(entry.review),
+        };
+      },
+    );
   const withoutDigest = {
     version: RECONCILIATION_REVIEW_BUNDLE_VERSION,
     rendererVersion: RECONCILIATION_REVIEW_RENDERER_VERSION,
@@ -163,6 +229,84 @@ export function buildReconciliationReviewBundle(args: {
     sourceDigest: args.sourceIdentity.digest,
     sourceAuthoritySnapshotDigest:
       args.sourceAuthoritySnapshotDigest ?? null,
+    templateDigest,
+    reconciliationDigest: canonicalJsonDigest(args.reconciliation),
+    requirements,
+    presentationRequirementDispositions,
+    blockingIssues,
+    readyForApproval: blockingIssues.length === 0,
+    reviewInstructions: [
+      'Enumerate every visual beat required by each exact source requirement; do not replace sourceText with a paraphrase.',
+      'A preserved beat must cite one or more exact RFC-6901 JSON pointers and exact current values.',
+      'An intentionally superseded beat must include a human-reviewed justification and may not supersede authored cover authority.',
+      'Every Presentation Requirement rebind or supersession is a separate Guy-reviewed decision listed prominently below.',
+      'A rebind may cite only exact same-page mustShow or propState.state evidence; it never mutates Candidate coverage.',
+      'A Presentation Requirement supersession means the named source moment will not be depicted and must be accepted explicitly.',
+      'Leave uncertain or uncovered meaning unresolved; unresolved coverage blocks reconciliation and Blueprint approval.',
+      'Reconciliation approval is independent and grants no Blueprint, Board, package, render, publication, or release authority.',
+    ],
+  };
+  return {
+    ...withoutDigest,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(reviewPayload(withoutDigest)),
+  };
+}
+
+/** Frozen v2 review reconstruction for immutable QA Wizard manifest replay only. */
+export function buildLegacyReconciliationReviewBundleV2(args: {
+  reconciliation: LegacySourcePromptReconciliationV2;
+  sourceIdentity: StorySourceIdentity;
+  sourceAuthoritySnapshotDigest?: string;
+  rawStorySource: string;
+  template: BookVisualContractTemplate;
+  authoredCoverAuthority?: AuthoredCoverAuthority;
+  actionSemanticCoverage: readonly ActionSemanticCoverageRecord[];
+}): LegacyReconciliationReviewBundleV2 {
+  const templateDigest = canonicalJsonDigest(args.template);
+  const blockingIssues = legacySourcePromptReconciliationV2Issues({
+    raw: args.reconciliation,
+    storyKey: args.reconciliation.storyKey,
+    sourceIdentity: args.sourceIdentity,
+    sourceAuthoritySnapshotDigest: args.sourceAuthoritySnapshotDigest,
+    rawStorySource: args.rawStorySource,
+    template: args.template,
+    templateDigest,
+    authoredCoverAuthority: args.authoredCoverAuthority,
+    actionSemanticCoverage: args.actionSemanticCoverage,
+    requireComplete: true,
+  });
+  const requirements = args.reconciliation.frames.flatMap((frame) =>
+    frame.sourceRequirements.map((requirement) => ({
+      frameKind: frame.frameKind,
+      pageNumber: frame.pageNumber,
+      sourceKind: requirement.sourceKind,
+      sourceText: requirement.sourceText,
+      visualBeatCount: requirement.visualBeats.length,
+      unresolved:
+        requirement.visualBeats.length === 0 ||
+        requirement.visualBeats.some((beat) => beat.disposition === 'unresolved'),
+      requiredCitationRoots:
+        frame.frameKind === 'cover'
+          ? [
+              '/coverContract',
+              '/worldType',
+              '/locations',
+              '/zones',
+              '/cast',
+              '/humanCast',
+              '/recurringProps',
+              '/forbiddenGlobalElements',
+            ]
+          : pageContractRoot(args.template, frame.pageNumber),
+    })),
+  );
+  const withoutDigest = {
+    version: LEGACY_RECONCILIATION_REVIEW_BUNDLE_VERSION,
+    rendererVersion: LEGACY_RECONCILIATION_REVIEW_RENDERER_VERSION,
+    storyKey: args.reconciliation.storyKey,
+    sourceDigest: args.sourceIdentity.digest,
+    sourceAuthoritySnapshotDigest: args.sourceAuthoritySnapshotDigest ?? null,
     templateDigest,
     reconciliationDigest: canonicalJsonDigest(args.reconciliation),
     requirements,
@@ -179,7 +323,40 @@ export function buildReconciliationReviewBundle(args: {
   return {
     ...withoutDigest,
     digestAlgorithm: 'canonical-json-sha256',
-    digest: canonicalJsonDigest(reviewPayload(withoutDigest)),
+    digest: canonicalJsonDigest(withoutDigest),
+  };
+}
+
+export function buildLegacyProductionReconciliationDraftBundleV2(args: {
+  storyKey: string;
+  sourceIdentity: StorySourceIdentity;
+  sourceAuthoritySnapshotDigest?: string;
+  rawStorySource: string;
+  template: BookVisualContractTemplate;
+  authoredCoverAuthority?: AuthoredCoverAuthority;
+  actionSemanticCoverage: readonly ActionSemanticCoverageRecord[];
+}): {
+  reconciliation: LegacySourcePromptReconciliationV2;
+  reviewBundle: LegacyReconciliationReviewBundleV2;
+  markdown: string;
+} {
+  const current = buildProductionReconciliationDraftBundle(args);
+  const reconciliation = projectLegacySourcePromptReconciliationV2(
+    current.reconciliation,
+  );
+  const reviewBundle = buildLegacyReconciliationReviewBundleV2({
+    reconciliation,
+    sourceIdentity: args.sourceIdentity,
+    sourceAuthoritySnapshotDigest: args.sourceAuthoritySnapshotDigest,
+    rawStorySource: args.rawStorySource,
+    template: args.template,
+    authoredCoverAuthority: args.authoredCoverAuthority,
+    actionSemanticCoverage: args.actionSemanticCoverage,
+  });
+  return {
+    reconciliation,
+    reviewBundle,
+    markdown: renderLegacyReconciliationReviewMarkdownV2(reviewBundle),
   };
 }
 
@@ -417,6 +594,80 @@ export function buildProductionReconciliationDraftFromFiles(args: {
 
 export function renderReconciliationReviewMarkdown(
   bundle: ReconciliationReviewBundle,
+): string {
+  const lines = [
+    '# Source Prompt Reconciliation Review',
+    '',
+    `- Story: \`${bundle.storyKey}\``,
+    `- Story Source digest: \`${bundle.sourceDigest}\``,
+    `- Story Source authority snapshot digest: \`${bundle.sourceAuthoritySnapshotDigest ?? 'legacy-not-bound'}\``,
+    `- Visual Contract digest: \`${bundle.templateDigest}\``,
+    `- Reconciliation digest: \`${bundle.reconciliationDigest}\``,
+    `- Review-bundle digest: \`${bundle.digest}\``,
+    `- Ready for reconciliation approval: **${bundle.readyForApproval ? 'YES' : 'NO'}**`,
+    '',
+    '## Review rules',
+    '',
+    ...bundle.reviewInstructions.map((instruction) => `- ${instruction}`),
+    '',
+    '## Presentation Requirement reviewer decisions',
+    '',
+  ];
+  if (bundle.presentationRequirementDispositions.length === 0) {
+    lines.push('- None.', '');
+  } else {
+    for (const disposition of bundle.presentationRequirementDispositions) {
+      lines.push(
+        `### Page ${disposition.pageNumber} — ${disposition.beatId}`,
+        '',
+        `- Decision: **${disposition.kind === 'rebound' ? 'REBIND' : 'SUPERSEDE / WILL NOT BE DEPICTED'}**`,
+        `- Source phrase: ${disposition.sourcePhrase === null ? '`unresolved`' : `“${disposition.sourcePhrase}”`}`,
+        `- Source Evidence ID: \`${disposition.sourceEvidenceId}\``,
+        `- Presentation class: \`${disposition.presentationClass ?? 'unresolved'}\``,
+        `- Original evidence: ${disposition.originalPointer === null ? '`unresolved`' : `\`${disposition.originalPointer}\` = ${JSON.stringify(disposition.originalValue)}`}`,
+        `- Rebound evidence: ${disposition.reboundPointer === null ? 'None.' : `\`${disposition.reboundPointer}\` = ${JSON.stringify(disposition.reboundValue)}`}`,
+        `- Supersession justification: ${disposition.justification ?? 'None.'}`,
+        `- Decision review: \`${disposition.review.status}\` by \`${disposition.review.reviewedBy ?? 'nobody'}\` at \`${disposition.review.reviewedAt ?? 'not-reviewed'}\``,
+        '',
+      );
+    }
+  }
+  lines.push(
+    '## Exact source requirements',
+    '',
+  );
+  for (const requirement of bundle.requirements) {
+    lines.push(
+      `### ${requirement.frameKind} ${requirement.pageNumber} — ${requirement.sourceKind}`,
+      '',
+      '```text',
+      requirement.sourceText,
+      '```',
+      '',
+      `- Visual beats: ${requirement.visualBeatCount}`,
+      `- Unresolved/blocking: ${requirement.unresolved ? 'YES' : 'NO'}`,
+      `- Allowed citation roots: ${requirement.requiredCitationRoots.map((root) => `\`${root}\``).join(', ')}`,
+      '',
+    );
+  }
+  lines.push('## Blocking issues', '');
+  if (bundle.blockingIssues.length === 0) {
+    lines.push('- None.', '');
+  } else {
+    lines.push(
+      ...bundle.blockingIssues.map(
+        (issue) =>
+          `- \`${issue.code}\`${issue.field ? ` at \`${issue.field}\`` : ''}: ${issue.message}`,
+      ),
+      '',
+    );
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+/** Frozen markdown-v2 renderer for immutable QA Wizard manifest replay only. */
+export function renderLegacyReconciliationReviewMarkdownV2(
+  bundle: LegacyReconciliationReviewBundleV2,
 ): string {
   const lines = [
     '# Source Prompt Reconciliation Review',
