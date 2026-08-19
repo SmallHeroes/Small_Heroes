@@ -11,7 +11,11 @@
  * `standaloneTokenPattern` boundary against niqqud-STRIPPED text (the bank source is fully vowelized).
  */
 import { standaloneTokenPattern, containsAsStandaloneToken, escapeRegexLiteral } from '@/lib/story-bank-personalization';
-import { companionPresenceTokens } from '@/lib/companion-presence-aliases';
+import {
+  companionIdentityTokenPattern,
+  companionNameTokens,
+  companionPresenceTokens,
+} from '@/lib/companion-presence-aliases';
 
 export type HumanGender = 'male' | 'female' | 'unspecified';
 export type Confidence = 'high' | 'low';
@@ -99,6 +103,25 @@ function standaloneMatchIndices(haystack: string, needle: string): number[] {
   return out;
 }
 
+/** Match a proper companion name, including one attached Hebrew conjunction ו. */
+function companionIdentityMatches(
+  haystack: string,
+  needle: string,
+): Array<{ index: number; conjunctionPrefixed: boolean }> {
+  const re = new RegExp(companionIdentityTokenPattern(needle), 'gu');
+  const normalizedNeedle = stripNiqqud(needle).toLowerCase();
+  const out: Array<{ index: number; conjunctionPrefixed: boolean }> = [];
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(haystack)) !== null) {
+    out.push({
+      index: match.index,
+      conjunctionPrefixed: match[0] === `ו${normalizedNeedle}`,
+    });
+    if (match.index === re.lastIndex) re.lastIndex += 1;
+  }
+  return out;
+}
+
 // Clause-initial particles: an alias right after one of these is the clause SUBJECT (an actor), not a construct.
 const CLAUSE_PARTICLES = new Set(['אז', 'ואז', 'אבל', 'אך', 'כי', 'אולם', 'אלא', 'וגם', 'וכך', 'ואם', 'ולכן']);
 // Object / oblique markers: the human is a participant in the action (present), NOT a possessor.
@@ -127,6 +150,22 @@ export function hasPresentHebrewMention(prose: string, aliases: string[]): boole
   for (const alias of aliases) {
     for (const idx of standaloneMatchIndices(clean, alias)) {
       const kind = classifyHebrewMention(clean.slice(0, idx));
+      if (kind === 'actor' || kind === 'object') return true;
+    }
+  }
+  return false;
+}
+
+/** Companion-only variant: proper names may carry one attached conjunction ו. */
+export function hasPresentHebrewCompanionMention(
+  prose: string,
+  aliases: string[],
+): boolean {
+  const clean = stripNiqqud(prose);
+  for (const alias of aliases) {
+    for (const match of companionIdentityMatches(clean, alias)) {
+      if (match.conjunctionPrefixed) return true;
+      const kind = classifyHebrewMention(clean.slice(0, match.index));
       if (kind === 'actor' || kind === 'object') return true;
     }
   }
@@ -351,12 +390,34 @@ export function extractDeterministicFacts(input: DeterministicFactsInput): Deter
         ),
       ]
     : [];
+  const companionIdentityNeedles = input.companion?.name
+    ? [
+        ...new Set(
+          companionNameTokens(
+            input.companion.name,
+            input.companion.id?.replace(/^companion:/, '') ??
+              input.companion.id,
+          )
+            .map((token) => stripNiqqud(token).toLowerCase())
+            .filter((token) => token.length >= 2),
+        ),
+      ]
+    : [];
   const companionPresentPages: number[] = [];
   const companionAbsentPages: number[] = [];
   for (const p of pages) {
     if (companionNeedles.length > 0) {
       const haystack = stripNiqqud(p.text).toLowerCase();
-      if (companionNeedles.some((n) => containsAsStandaloneToken(haystack, n))) companionPresentPages.push(p.pageNumber);
+      if (
+        companionNeedles.some((needle) =>
+          containsAsStandaloneToken(haystack, needle),
+        ) ||
+        companionIdentityNeedles.some(
+          (needle) => companionIdentityMatches(haystack, needle).length > 0,
+        )
+      ) {
+        companionPresentPages.push(p.pageNumber);
+      }
     }
   }
 

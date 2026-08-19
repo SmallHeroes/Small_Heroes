@@ -4,7 +4,41 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-mixed-source-compact-scheduler` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the offline mixed-source scheduler milestone is based on `1df7fc41dc48066bef09a6db98d92edd9beb886a`.
 
-## CHAMELEON ACTION REPRESENTABILITY CALIBRATION — locally complete; Claude QA required; no live authorization
+## HEBREW CONJUNCTION-PREFIXED COMPANION PRESENCE — locally green; Claude QA required; no live authorization
+
+Claude Code independently PASSed the preceding Chameleon representability
+audit at exact range `5963301a..1dc1e189` with no findings. Its advisory
+confirmed the pre-existing blocker was narrow but real: the shared standalone
+boundary cannot recognize an attached Hebrew conjunction before a proper name.
+
+The new correction leaves the generic matcher unchanged and admits only one
+attached `ו` for companion name/identity aliases. It deliberately does not
+admit ב/ל/כ/מ/ש/ה: `מקים`, `הקים`, and `שקים` remain ordinary words rather than
+Kim identity; `ודניאל` still cannot match `דני`. Species, recurring-human,
+child, denylist, and gender-marker matching remain unchanged. Deterministic
+facts, the positive absent-companion contradiction, and the review report now
+share the same narrow companion-identity rule.
+
+The exact eight-page Chameleon Story Source + visual directions now include Kim
+on page 7. The source-faithful draft reaches offline `candidate` on the initial
+production-compiler call with issue counts `0`, eight coverage records and
+`providerCalls:0`. This is not a persisted canonical Candidate and grants no
+Wizard or render authority.
+
+Final focused validation passes **7 files / 101 tests**, TypeScript and
+diff-check. One literal `npm run check` ran once: TypeScript and autonomous
+story typecheck passed; resource-intensive passed **20 files / 609 tests**;
+ordinary reported the five established missing-output assertions plus one stale
+inventory assertion introduced by the prior new spec. The inventory was updated
+from `303/283` to `304/284`, explicitly classifies the Chameleon spec as
+ordinary, and passes focused. The literal full gate was not rerun, and no
+missing output was copied or fabricated.
+
+No catalog, Story Source, visual direction, prompt, schema, policy, budget,
+request/receipt, Candidate persistence, Wizard, or render behavior changed. No
+credential, provider, network, Fresh, live, image or render action occurred.
+
+## CHAMELEON ACTION REPRESENTABILITY CALIBRATION — independent Claude QA PASS; no live authorization
 
 The pushed mixed Source-Evidence scheduler remains independently PASSed. The
 next `$0` calibration does not infer the missing historical provider draft. A
@@ -18,13 +52,12 @@ decisions. The exact action gaps are broader than missing verbs: `runs` is
 absent, while `walks`, `waves`, and `opens` reject the required
 anthropomorphized-prop subject and `turns` forbids the story's object.
 
-The canonical Story Source + visual-direction fixture also exposed a separate
-general blocker: page 7 contains `וקִים`, but deterministic standalone-token
-presence extraction omits that conjunction-prefixed name. A source-faithful
-draft therefore persists at `cast_authority_mismatch` and cannot become a
-Candidate. This audit milestone will record the evidence only; companion
-presence extraction is a separate semantic/anchor Decision Gate before any
-Fresh or live attempt.
+At the audited commit, the canonical Story Source + visual-direction fixture
+also exposed a separate general blocker: page 7 contains `וקִים`, but the prior
+deterministic standalone-token extraction omitted that conjunction-prefixed
+name. The audit correctly persisted at `cast_authority_mismatch` and minted no
+Candidate. The separate semantic/anchor Decision Gate above now corrects that
+defect without changing the audit's historical evidence.
 
 No catalog, prompt, schema, policy, Story Source, visual direction, Candidate,
 Wizard or render behavior changed. No credential, provider, network, Fresh,
@@ -41,8 +74,8 @@ fixture was copied or fabricated. The literal gate preceded the final
 fail-closed binding of reviewed IDs to the supplied Source Evidence Catalog;
 the same focused **4 files / 39 tests**, TypeScript, and diff-check passed again
 after that hardening, and the literal full gate was not rerun. The milestone is
-captured in one focused local commit and is ready for independent read-only
-Claude Code review.
+captured in one focused local commit and Claude Code returned independent PASS
+with no findings.
 
 ## MIXED SOURCE-EVIDENCE COMPACT SCHEDULER + ACTION COVERAGE CENSUS — independent Claude QA PASS; push next
 

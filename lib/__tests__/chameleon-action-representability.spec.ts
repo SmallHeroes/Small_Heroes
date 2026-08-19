@@ -456,7 +456,7 @@ describe('Chameleon action representability calibration', () => {
     ).toThrow('action_semantic_audit_candidate_predicate_invalid');
   });
 
-  it('proves the exact source and visual-direction surface are blocked by the missed prefixed companion mention', async () => {
+  it('proves the exact source and visual-direction surface accepts the prefixed companion mention offline', async () => {
     const input = chameleonSource();
     const facts = extractDeterministicFacts(input);
     expect(input.pages[6]!.text).toContain('וקִים');
@@ -465,36 +465,27 @@ describe('Chameleon action representability calibration', () => {
       childPresence: 'partial',
       companionPresence: 'partial',
     });
-    expect(facts.companionPresentPages).not.toContain(7);
+    expect(facts.companionPresentPages).toContain(7);
 
     const draft = calibrationDraft();
     const result = await runOfflineRepairHarness({
       input,
       initialDraft: draft,
-      repairResponses: [structuredClone(draft)],
+      completeDiagnosticIssuesByAttempt: [[]],
     });
 
     expect(result.providerCalls).toBe(0);
-    expect(result.outcome).toBe('repair_stagnated');
-    expect(result.calls.map((call) => call.repairMode)).toEqual([
-      null,
-      'full_draft',
+    expect(result.outcome).toBe('candidate');
+    expect(result.calls.map((call) => call.repairMode)).toEqual([null]);
+    expect(result.stages).toEqual([
+      expect.objectContaining({
+        attempt: 1,
+        surfacedIssueCount: 0,
+        completeIssueCount: 0,
+        classification: 'baseline',
+      }),
     ]);
-    expect(result.stages).toHaveLength(2);
-    expect(
-      result.stages.every(
-        (stage) =>
-          stage.surfacedIssueCount === 1 &&
-          stage.surfacedDiagnosticIssues[0]?.code ===
-            'cast_authority_mismatch',
-      ),
-    ).toBe(true);
-    expect(
-      result.stages.flatMap((stage) => stage.surfacedDiagnosticIssues),
-    ).not.toContainEqual(
-      expect.objectContaining({ code: 'topology_malformed' }),
-    );
-    expect(result.actionCoverageCensuses).toHaveLength(2);
+    expect(result.actionCoverageCensuses).toHaveLength(1);
     expect(
       result.actionCoverageCensuses.every(
         (census) =>

@@ -9,7 +9,11 @@
 import type { BookVisualContractTemplate, TemplateHumanCastMember } from './contractTemplateTypes';
 import { stripNiqqud, type DeterministicFacts } from './extractDeterministicFacts';
 import { containsAsStandaloneToken } from '../story-bank-personalization';
-import { companionPresenceTokens } from '../companion-presence-aliases';
+import {
+  companionNameTokens,
+  companionPresenceTokens,
+  containsCompanionIdentityToken,
+} from '../companion-presence-aliases';
 import {
   coverSourceFidelityIssues,
   resolveAuthoredCoverZone,
@@ -81,17 +85,31 @@ function proseAbsencePresenceFlags(
 ): ProseAbsenceFlag[] {
   // Every named cast member whose PRESENCE is fact-governed: recurring humans + the companion. A member is
   // "present" on a page iff its cast id is in that page's (fact-recomputed) castIds.
-  const targets: Array<{ id: string; role: string; aliases: string[] }> = facts.humans.map((h) => ({
+  const targets: Array<{
+    id: string;
+    role: string;
+    aliases: string[];
+    conjunctionAwareAliases: string[];
+  }> = facts.humans.map((h) => ({
     id: h.id,
     role: h.role,
     aliases: h.aliasesFound,
+    conjunctionAwareAliases: [],
   }));
   const companion = template.cast?.companion;
   if (companion?.id && companion.name) {
     // Deterministic presence tokens (name parts + registry + manual English/Hebrew aliases, e.g. buni/bunny/rabbit),
     // keyed from the AUTHORITATIVE companion id — the raw registry id, sans the "companion:" cast-namespace prefix.
     const registryId = companion.id.replace(/^companion:/, '');
-    targets.push({ id: companion.id, role: 'companion', aliases: companionPresenceTokens(companion.name, registryId) });
+    targets.push({
+      id: companion.id,
+      role: 'companion',
+      aliases: companionPresenceTokens(companion.name, registryId),
+      conjunctionAwareAliases: companionNameTokens(
+        companion.name,
+        registryId,
+      ),
+    });
   }
 
   const flags: ProseAbsenceFlag[] = [];
@@ -111,7 +129,17 @@ function proseAbsencePresenceFlags(
         // Case-insensitive: lowercase both sides (a no-op for Hebrew; catches "Buni" vs the "buni" token).
         const clean = stripNiqqud(text).toLowerCase();
         for (const alias of t.aliases) {
-          if (alias && containsAsStandaloneToken(clean, stripNiqqud(alias).toLowerCase())) {
+          const normalizedAlias = stripNiqqud(alias).toLowerCase();
+          const conjunctionAware = t.conjunctionAwareAliases.some(
+            (candidate) =>
+              stripNiqqud(candidate).toLowerCase() === normalizedAlias,
+          );
+          if (
+            alias &&
+            (containsAsStandaloneToken(clean, normalizedAlias) ||
+              (conjunctionAware &&
+                containsCompanionIdentityToken(clean, normalizedAlias)))
+          ) {
             matchedAliases.add(alias);
             fields.add(field);
           }

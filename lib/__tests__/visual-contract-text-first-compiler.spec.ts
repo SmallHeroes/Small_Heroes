@@ -509,6 +509,27 @@ describe('leak-class closure — a character named in prose but ABSENT per facts
     expect(review).not.toMatch(/p2: \*\*companion\*\*/);
   });
 
+  it('flags an attached Hebrew conjunction before a companion name on an absent page', async () => {
+    const { template, facts, notes } = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: stubFrom(bunnyTemplate()),
+    });
+    const companionName = (template.cast.companion as { name: string }).name;
+    const p1 = template.pageContracts.find((pc) => pc.pageNumber === 1)!;
+    (p1 as unknown as { mustShow: string[] }).mustShow = [
+      ...(p1.mustShow ?? []),
+      `הילד ו${companionName} עומדים יחד`,
+    ];
+
+    const review = renderVisualContractReview({
+      storyKey: BUNNY_KEY,
+      facts,
+      template,
+      notes,
+      valid: true,
+    });
+    expect(review).toMatch(/p1: \*\*companion\*\*[^\n]*mustShow/);
+  });
+
   it('catches an ENGLISH companion mention ("Buni"/"bunny") via the deterministic tokens (Codex FAIL #5)', async () => {
     const { template, facts, notes } = await compileBookVisualContractTemplate(bunnySource(), {
       callLLM: stubFrom(bunnyTemplate()),

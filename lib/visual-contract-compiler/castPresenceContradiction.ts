@@ -15,7 +15,12 @@
  * mustShowAbsenceContradictions.
  */
 import { companionNameTokens } from '../companion-presence-aliases';
-import { hasPresentHebrewMention, hasCleanEnglishMention, stripNiqqud } from './extractDeterministicFacts';
+import {
+  hasPresentHebrewCompanionMention,
+  hasPresentHebrewMention,
+  hasCleanEnglishMention,
+  stripNiqqud,
+} from './extractDeterministicFacts';
 
 const HEBREW_CHAR = /[֐-׿]/;
 const isStr = (v: unknown): v is string => typeof v === 'string';
@@ -74,7 +79,10 @@ export function mustShowPositivelyReferences(mustShow: string[], t: CastRefTarge
   const text = mustShow.join('\n');
   if (!text) return false;
   return (
-    (t.hebrewAliases.length > 0 && hasPresentHebrewMention(text, t.hebrewAliases)) ||
+    (t.hebrewAliases.length > 0 &&
+      (t.role === 'companion'
+        ? hasPresentHebrewCompanionMention(text, t.hebrewAliases)
+        : hasPresentHebrewMention(text, t.hebrewAliases))) ||
     (t.englishAliases.length > 0 && hasCleanEnglishMention(text, t.englishAliases))
   );
 }

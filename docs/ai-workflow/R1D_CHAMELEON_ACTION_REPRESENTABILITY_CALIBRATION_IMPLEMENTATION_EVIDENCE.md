@@ -77,6 +77,15 @@ attempt.
   focused **4 files / 39 tests**, TypeScript, and diff-check passed again. The
   literal full gate was not rerun.
 
-This is local implementation evidence, not independent technical PASS. Claude
-Code must review the immutable commit range read-only before any companion
-presence correction or paid boundary.
+## Independent QA
+
+Claude Code independently reviewed exact range `5963301a..1dc1e189` read-only
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It verified all five
+catalog claims against Action Catalog v3, the generic/no-inference contract,
+catalog-backed evidence identity, privacy and non-authorization, and reproduced
+the page-7 `וקִים` omission. Its advisory scan found the same conjunction miss
+on only 2 of 144 QA-bank pages, both in Chameleon; it correctly classified the
+defect as narrow but decisive rather than the systemic authoring cause.
+
+This PASS authorized no paid or downstream boundary. Companion presence is
+handled by the separate conjunction-prefix milestone and Decision Gate.

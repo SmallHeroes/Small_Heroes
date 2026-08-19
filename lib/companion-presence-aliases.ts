@@ -4,6 +4,10 @@
  */
 import { getCompanionById } from './companions';
 import { stripNikud } from './hebrew-text';
+import { escapeRegexLiteral } from './story-bank-personalization';
+
+const TOKEN_CHAR_CLASS = '\\u0590-\\u05FFa-zA-Z0-9';
+const HEBREW_LETTERS_ONLY = /^[\u0590-\u05FF]+$/u;
 
 const MANUAL_ALIASES: Record<string, string[]> = {
   fox_uri: ['fox', 'uri', 'אורי', 'אוּרי'],
@@ -81,4 +85,32 @@ export function companionNameTokens(companionName: string, companionId?: string 
     return SPECIES_WORDS.has(n) || SPECIES_WORDS.has(n.replace(/^ה/, ''));
   };
   return companionPresenceTokens(companionName, companionId).filter((t) => !isSpecies(t));
+}
+
+/**
+ * Proper-name boundary for companion identity. Hebrew permits an attached
+ * conjunction ו before a proper name (`וקִים`). The generic standalone-token
+ * matcher intentionally cannot admit it because it also protects denylist and
+ * gender gates. Keep this widening companion-name-only and conjunction-only:
+ * admitting every Hebrew clitic would false-match ordinary words such as
+ * `מקים`, `הקים`, and `שקים` as the name `קים`.
+ */
+export function companionIdentityTokenPattern(rawToken: string): string {
+  const token = stripNikud(rawToken.normalize('NFC')).toLowerCase();
+  if (token.length < 2) {
+    throw new Error('companion_identity_token_invalid');
+  }
+  const escaped = escapeRegexLiteral(token);
+  const body = HEBREW_LETTERS_ONLY.test(token)
+    ? `(?:ו)?${escaped}`
+    : escaped;
+  return `(?<![${TOKEN_CHAR_CLASS}])${body}(?![${TOKEN_CHAR_CLASS}])`;
+}
+
+export function containsCompanionIdentityToken(
+  text: string,
+  rawToken: string,
+): boolean {
+  const clean = stripNikud(text.normalize('NFC')).toLowerCase();
+  return new RegExp(companionIdentityTokenPattern(rawToken), 'u').test(clean);
 }

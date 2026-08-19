@@ -10,6 +10,8 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
+import { containsCompanionIdentityToken } from '../companion-presence-aliases';
+import { containsAsStandaloneToken } from '../story-bank-personalization';
 import { extractDeterministicFacts, hasCleanEnglishMention, type DeterministicFactsInput } from '../visual-contract-compiler/extractDeterministicFacts';
 import { validateBookVisualContractTemplate } from '../visual-contract-compiler/validateTemplateContract';
 import { mustShowAbsenceContradictions } from '../visual-contract-compiler/castPresenceContradiction';
@@ -29,6 +31,35 @@ const bunnyTemplate = (): any => migrateLegacyBookVisualContractTemplateV1(
 const pageOf = (t: any, n: number) => t.pageContracts.find((p: any) => p.pageNumber === n);
 
 describe('Fix 1 — alias-aware companion presence detection', () => {
+  it('admits only an attached Hebrew conjunction for companion identity', () => {
+    expect(containsAsStandaloneToken('וקִים', 'קים')).toBe(false);
+    expect(containsCompanionIdentityToken('וקִים', 'קִים')).toBe(true);
+    expect(containsCompanionIdentityToken('קִים', 'קִים')).toBe(true);
+    expect(containsCompanionIdentityToken('ודניאל', 'דני')).toBe(false);
+    expect(containsCompanionIdentityToken('מקים אוהל', 'קים')).toBe(false);
+    expect(containsCompanionIdentityToken('הקים מגדל', 'קים')).toBe(false);
+    expect(containsCompanionIdentityToken('סחב שקים', 'קים')).toBe(false);
+    expect(() => containsCompanionIdentityToken('ו', 'ו')).toThrow(
+      'companion_identity_token_invalid',
+    );
+  });
+
+  it('detects a conjunction-prefixed proper name without widening ordinary Hebrew prefixes', () => {
+    const input: DeterministicFactsInput = {
+      storyKey: 'chameleon_test',
+      pageCount: 4,
+      companion: { id: 'chameleon_koko', name: 'קִים' },
+      pages: [
+        { pageNumber: 1, text: '{{childName}} וקִים עלו לאוטובוס.' },
+        { pageNumber: 2, text: 'הילד מקים אוהל קטן.' },
+        { pageNumber: 3, text: 'הילד סחב שקים למחסן.' },
+        { pageNumber: 4, text: 'הילד הקים מגדל קוביות.' },
+      ],
+    };
+
+    expect(extractDeterministicFacts(input).companionPresentPages).toEqual([1]);
+  });
+
   it('detects the companion by its prose SHORT name ("אוּרי") — not only the full roster name', () => {
     const input: DeterministicFactsInput = {
       storyKey: 'fox_test',
@@ -160,6 +191,21 @@ describe('Fix 2 — cross-field fail-closed validator', () => {
 });
 
 describe('mustShowAbsenceContradictions — helper unit', () => {
+  it('treats conjunction-prefixed companion names as identity without prefix substrings', () => {
+    const base = (name: string, mustShow: string) => ({
+      cast: { companion: { id: 'companion:test', name } },
+      humanCast: [],
+      pageContracts: [
+        { pageNumber: 1, castIds: ['child:hero'], mustShow: [mustShow] },
+      ],
+    });
+
+    expect(mustShowAbsenceContradictions(base('קִים', 'הילד וקִים עומדים יחד')))
+      .toEqual([{ page: 1, id: 'companion:test', role: 'companion' }]);
+    expect(mustShowAbsenceContradictions(base('דני', 'ודניאל עומד לצד הילד')))
+      .toEqual([]);
+  });
+
   it('flags a positive companion reference but excludes a possessive one', () => {
     const contract = {
       cast: { companion: { id: 'companion:fox_uri', name: 'השועל אוּרי' } },
