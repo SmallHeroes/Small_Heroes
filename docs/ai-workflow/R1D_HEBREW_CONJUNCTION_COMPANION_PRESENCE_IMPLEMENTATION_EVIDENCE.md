@@ -71,3 +71,22 @@ This milestone closes the observed conjunction-prefixed companion identity
 defect and proves the exact Chameleon source-shaped fixture offline. It does not
 resolve the five Action Semantic gaps, classify the five review-required beats,
 prove a provider response, or authorize paid execution.
+
+## Independent QA
+
+Claude Code independently reviewed exact range `1dc1e189..9b87fb4a` read-only
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It executed the real
+matcher against bare, conjunction-prefixed, niqqud, in-sentence, longer-suffix,
+other-prefix, chained-prefix, degenerate and regex-metacharacter cases; verified
+the generic matcher and species/human scopes remained unchanged; traced all
+three consumers to the shared identity boundary; reproduced Chameleon page 7,
+offline `candidate`, zero issues and zero provider calls; and confirmed the
+inventory correction exactly names the new ordinary spec.
+
+The review noted only that the private index helper relies on already-normalized
+callers. Every current caller supplies niqqud-stripped text, the public helper
+normalizes both sides, and an unnormalized future caller would under-detect
+fail-closed rather than assert false identity. This was advisory, not a finding.
+
+The PASS authorizes no push, Fresh, provider, persisted Candidate, Wizard,
+image, render, deployment, or production action.

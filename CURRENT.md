@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-mixed-source-compact-scheduler` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the offline mixed-source scheduler milestone is based on `1df7fc41dc48066bef09a6db98d92edd9beb886a`.
 
-## HEBREW CONJUNCTION-PREFIXED COMPANION PRESENCE — locally green; Claude QA required; no live authorization
+## HEBREW CONJUNCTION-PREFIXED COMPANION PRESENCE — independent Claude QA PASS; push before Fresh
 
 Claude Code independently PASSed the preceding Chameleon representability
 audit at exact range `5963301a..1dc1e189` with no findings. Its advisory
@@ -37,6 +37,21 @@ missing output was copied or fabricated.
 No catalog, Story Source, visual direction, prompt, schema, policy, budget,
 request/receipt, Candidate persistence, Wizard, or render behavior changed. No
 credential, provider, network, Fresh, live, image or render action occurred.
+
+Claude Code independently reviewed exact range `1dc1e189..9b87fb4a` and
+returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It executed the real boundary
+against conjunction, niqqud, suffix, other-prefix, chained-prefix, degenerate
+and regex-metacharacter cases; confirmed the generic matcher, species, humans
+and personalization are unchanged; traced extractor/validator/review to the
+same identity rule; reproduced page 7 and offline Candidate; and verified the
+inventory correction is exact.
+
+The next action is not another repair-route change. After the two local commits
+are pushed and exact upstream parity is restored, produce new canonical Fresh
+Readiness for the eight-page Chameleon source, run the Supervisor verify-only
+boundary, obtain an independent pre-spend audit, and then perform at most one
+bounded live authoring invocation. Any failure remains terminal for diagnosis;
+no automatic second attempt is authorized.
 
 ## CHAMELEON ACTION REPRESENTABILITY CALIBRATION — independent Claude QA PASS; no live authorization
 
