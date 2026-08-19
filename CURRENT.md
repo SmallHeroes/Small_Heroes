@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-book-surface-typed-hint-compaction-render-unblock` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the current deferred represented-elsewhere milestone is based on pushed `9d9aa56f0a77e76bf126f8cb9657123db05e2b81`.
 
-## DEFERRED REPRESENTED-ELSEWHERE / BOOKSURFACE ROUTING — independent QA PASS; push next
+## DEFERRED REPRESENTED-ELSEWHERE / BOOKSURFACE ROUTING — live terminal HOLD; hard stop
 
 The single eight-page Koko live attempt under
 `outputs/r1d-missing-binding-fresh-9d9aa56f-20260818T220552372Z` is consumed
@@ -53,9 +53,38 @@ Claude Code reviewed immutable range
 `9d9aa56f0a77e76bf126f8cb9657123db05e2b81..9dbc9b8de2c23fa597a3a9b04d549eeee7684a48`
 read-only and confirmed the exact closed eligibility, BookSurface coverage
 non-mutation, scan-based flat-to-local rebinding, ambiguity/stale rejection,
-offline Candidate trajectory and lack of authority drift. Next: push, new
-current-head Fresh and one canonical live attempt. That live is
-the second consecutive bounded attempt; failure is a hard stop with no retry.
+offline Candidate trajectory and lack of authority drift.
+
+The pushed closeout HEAD `d3c50c85` produced one new Fresh v39 root at
+`outputs/r1d-deferred-represented-fresh-d3c50c85-20260819T000133976Z`.
+Prepare/verify returned the same digest
+`beb76a067877f54066bc7f44a6e89174eda977d22edba3d03df3220e616e8dd9`
+with no credential access, provider call, preflight or live authority. Claude
+Code independently verified the eight-file Fresh inventory, all five
+preservation fences and a zero-write Supervisor v39 readiness bound to Execution
+Request `24405a58e4ca54e925a30a08154fd694a5fbb727d84ff63e7d15a5daedc95f01`.
+OpenAI's official current Sol pricing matched the frozen canonical prices.
+
+The one authorized live invocation then ended fail-closed after seven completed
+provider calls and six BookSurface repairs. Receipt v46
+`b4f8ad031b0ead6d1adf4ea67b1664d51ccbdb42e7bfaf32ae1cde845d10178d`
+records `17 -> 7 -> 7 -> 7 -> 7 -> 7 -> 7` complete unique issues. Attempt 2
+resolved all ten closed-catalog gaps; the remaining seven page-scoped
+`final_structural_invariant_invalid / page_prop_constraints_invalid` identities
+on pages 1 through 7 persisted unchanged through every remaining repair.
+Terminal is `draft_validation_repair_exhausted`; no transport retry or fallback
+occurred. Nominal cost was USD 1.490370 and conservative accounted cost was USD
+1.777768.
+
+Supervisor v32 correctly returned `child_failed / child_nonzero_exit`, child
+exit 1, cleared credential authority and `outputAuthority:null`. Claude Code's
+post-live artifact audit returned integrity PASS and execution HOLD. No
+Candidate, reconciliation, Wizard, Blueprint or render authority exists. The
+target represented-elsewhere/PageContract path was not exercised because this
+initial draft contained no represented-elsewhere diagnostic; the routing fix
+did select BookSurface instead of full-draft. This is the second consecutive
+bounded live failure, so the mandatory boundary is now **hard stop: no retry,
+no third live, no symptom-fix milestone and no render**.
 
 ## COMPILER-OWNED MISSING ACTION BINDING + BOUNDED CORRECTION — independent QA PASS; push next
 

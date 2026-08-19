@@ -135,3 +135,55 @@ The already-authorized next step is push, one new current-head Fresh Readiness
 and one canonical live authoring attempt. It is the second consecutive bounded
 live attempt: any failure is a hard stop with no retry and no symptom-fix loop.
 Wizard reconciliation and LOW render require a real current Candidate.
+
+## Post-PASS Fresh and single live outcome
+
+After push, one new Fresh v39 root was created at
+`outputs/r1d-deferred-represented-fresh-d3c50c85-20260819T000133976Z`.
+Probe, prepare and verify passed; prepare and verify returned identical Fresh
+digest
+`beb76a067877f54066bc7f44a6e89174eda977d22edba3d03df3220e616e8dd9`.
+The verified evidence retained `credentialAccess:none`, `providerCalls:0`,
+`canonicalPreflight:not_run` and `liveAuthority:none`. Claude Code independently
+audited the exact eight-file inventory, five preservation fences and zero-write
+Supervisor readiness v39. OpenAI's official current default-tier Sol prices
+matched the canonical price authority before spend.
+
+The exact canonical Supervisor invocation bound to Execution Request
+`24405a58e4ca54e925a30a08154fd694a5fbb727d84ff63e7d15a5daedc95f01`
+was consumed once. It returned child exit 1 and no output authority. Receipt
+v46 digest
+`b4f8ad031b0ead6d1adf4ea67b1664d51ccbdb42e7bfaf32ae1cde845d10178d`
+records:
+
+- seven completed logical/provider dispatches, six repairs, zero transport
+  retries and no fallback;
+- route `initial -> book_surface_patch x6`;
+- complete unique issue progression `17 -> 7 -> 7 -> 7 -> 7 -> 7 -> 7`;
+- ten closed-catalog action-semantic gaps resolved by attempt 2;
+- seven persistent page structural identities on pages 1 through 7, each with
+  cause `page_prop_constraints_invalid`, unresolved through all remaining
+  BookSurface attempts;
+- terminal `draft_validation_repair_exhausted` /
+  `draft_validation_budget_exhausted`;
+- aggregate usage 53,355 input, 21,870 cached input, 31,464 cache-write input,
+  42,756 output, 16,312 reasoning and 96,111 total tokens;
+- USD 1.490370 nominal and USD 1.777768 conservative accounted cost;
+- `candidateDigest:null` and `reconciliationDigest:null`.
+
+Supervisor v32 persisted `child_failed`, reason `child_nonzero_exit`, child exit
+1, suppressed child streams, credential read success followed by
+`authorityCleared:true`, and `outputAuthority:null`. Its stderr artifact is zero
+bytes. Claude Code independently recomputed and cross-checked the persisted
+artifact graph and returned **Artifact Integrity PASS / Execution HOLD**.
+
+The implementation's BookSurface preference was exercised: no full-draft route
+was selected. The exact represented-elsewhere residual and PageContract
+rebinding were not exercised because this initial response contained no
+represented-elsewhere diagnostic. The terminal failure is a BookSurface
+fixed-point on page prop constraints, not provider transport, budget overrun,
+artifact corruption or a positive complete-census regression.
+
+This run is the second consecutive bounded live failure. The mandatory stop
+condition is active: no retry, no third live attempt, no symptom-fix milestone,
+no Wizard mutation and no render. No Candidate or downstream authority exists.
