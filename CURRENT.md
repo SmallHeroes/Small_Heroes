@@ -4,6 +4,46 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-mixed-source-compact-scheduler` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the offline mixed-source scheduler milestone is based on `1df7fc41dc48066bef09a6db98d92edd9beb886a`.
 
+## CHAMELEON ACTION REPRESENTABILITY CALIBRATION — locally complete; Claude QA required; no live authorization
+
+The pushed mixed Source-Evidence scheduler remains independently PASSed. The
+next `$0` calibration does not infer the missing historical provider draft. A
+generic review-only audit now distinguishes current valid action authority,
+presentation authority, exact catalog/domain gaps, and unresolved product
+classification.
+
+For 15 reviewed Chameleon beats, the current evidence is: 3 representable
+actions, 2 representable presentation states, 5 exact action gaps and 5 review
+decisions. The exact action gaps are broader than missing verbs: `runs` is
+absent, while `walks`, `waves`, and `opens` reject the required
+anthropomorphized-prop subject and `turns` forbids the story's object.
+
+The canonical Story Source + visual-direction fixture also exposed a separate
+general blocker: page 7 contains `וקִים`, but deterministic standalone-token
+presence extraction omits that conjunction-prefixed name. A source-faithful
+draft therefore persists at `cast_authority_mismatch` and cannot become a
+Candidate. This audit milestone will record the evidence only; companion
+presence extraction is a separate semantic/anchor Decision Gate before any
+Fresh or live attempt.
+
+No catalog, prompt, schema, policy, Story Source, visual direction, Candidate,
+Wizard or render behavior changed. No credential, provider, network, Fresh,
+live, image or render action occurred.
+
+Focused validation passes **4 files / 39 tests**, TypeScript and diff-check.
+One literal `npm run check` ran once without retry: TypeScript passed; the
+resource-intensive phase passed **20 files / 609 tests**; the 284-file ordinary
+phase failed only five established assertions whose ignored historical
+`outputs/` fixtures are absent (one each in `child-lexicon-ages-5-8.spec.ts`,
+`momentum-gate-koko.spec.ts`, and `page-entity-qa.spec.ts`, plus two in
+`story-read-back-validation.spec.ts`). No changed test failed and no missing
+fixture was copied or fabricated. The literal gate preceded the final
+fail-closed binding of reviewed IDs to the supplied Source Evidence Catalog;
+the same focused **4 files / 39 tests**, TypeScript, and diff-check passed again
+after that hardening, and the literal full gate was not rerun. The milestone is
+captured in one focused local commit and is ready for independent read-only
+Claude Code review.
+
 ## MIXED SOURCE-EVIDENCE COMPACT SCHEDULER + ACTION COVERAGE CENSUS — independent Claude QA PASS; push next
 
 No Fresh, credential, provider, live, image or render action has occurred. The
