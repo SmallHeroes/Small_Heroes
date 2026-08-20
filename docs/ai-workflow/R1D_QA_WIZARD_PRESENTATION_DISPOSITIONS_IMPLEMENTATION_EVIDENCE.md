@@ -19,6 +19,26 @@ The implementation contains no Chameleon-, page-, beat-, phrase-, cast-, or
 prop-specific mapping. Story-specific decisions remain absent until a reviewer
 authors a proposal and Guy approves its exact content.
 
+## Independent QA finding and correction
+
+Claude Code's first read-only gate returned HOLD on one valid BLOCKER. The
+initial validator treated any citation of a requirement's declared pointer as
+that requirement's intent, then rejected a disposition when both appeared.
+Real Candidate pointers are not unique: two distinct requirements may share
+the same visual evidence, and a rebind target may also be another requirement's
+declared pointer.
+
+The correction removes only that pointer-level intent inference. Disposition
+authority remains keyed by the exact requirement triple. Three focused cases
+now validate cleanly:
+
+- one requirement preserves a shared pointer while another is rebound;
+- one requirement preserves a shared pointer while another is superseded;
+- a rebind target equals a different requirement's declared pointer.
+
+All orphan, duplicate, stale-value, cross-page, forbidden-domain, uncited,
+malformed, non-Guy and review-mismatch negatives remain unchanged.
+
 ## Versioned authority
 
 - new `presentation-requirement-disposition/v1`;
@@ -56,8 +76,10 @@ For `superseded`:
 
 Every disposition review must exactly match the root reconciliation review.
 Pending proposals remain blocked. Final disposition approval is accepted only
-for reviewer `Guy` with a valid timestamp. Original preserved evidence and a
-disposition cannot coexist for the same requirement.
+for reviewer `Guy` with a valid timestamp. Disposition intent is keyed by exact
+requirement identity rather than inferred from a citation: multiple source
+requirements may honestly share one visual pointer, and one requirement's
+preserved citation cannot invalidate another requirement's reviewed decision.
 
 ## Review visibility
 
@@ -124,7 +146,7 @@ Claude Code should attempt to falsify:
 
 - exact-key/version validation and disposition identity uniqueness;
 - cross-page, arbitrary-field, stale-value and uncited rebinds;
-- original-evidence plus disposition contradiction;
+- shared-pointer preserved/rebound/superseded identity confusion;
 - machine/non-Guy final approval;
 - omission visibility in JSON and Markdown;
 - legacy v3/v2/v1 replay or mutation widening;

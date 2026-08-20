@@ -939,14 +939,6 @@ function sourcePromptReconciliationIssuesForVersion(
         const reviewedDisposition = validatedDispositions.get(
           presentationRequirementIdentity(requirement),
         );
-        if (preserved && reviewedDisposition !== undefined) {
-          issues.push(packageIssue(
-            'reconciliation_invalid',
-            `${field} cannot retain original preserved evidence and a reviewer disposition simultaneously`,
-            { field },
-          ));
-          continue;
-        }
         if (
           args.requireComplete !== false &&
           !preserved &&

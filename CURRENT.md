@@ -19,9 +19,21 @@ an exact different value on the same page under `mustShow/{index}` or
 `propState/{index}/state`, and the replacement must be cited by preserved
 story-prose evidence. A reviewer may instead supersede one exact requirement
 only with a non-empty justification. Orphans, duplicates, stale values,
-cross-page or broader pointers, uncited rebinds, contradictory original plus
-replacement evidence, mixed disposition fields, and non-Guy final approval all
-fail closed. Candidate and compiler-authored coverage remain immutable.
+cross-page or broader pointers, uncited rebinds, mixed disposition fields, and
+non-Guy final approval all fail closed. Disposition intent is keyed only by
+exact requirement identity: a citation may honestly serve another requirement
+that shares the same visual pointer without invalidating a reviewed rebind or
+supersession. Candidate and compiler-authored coverage remain immutable.
+
+Claude Code's first read-only gate found one valid BLOCKER in the initial
+commit: the validator inferred requirement intent from shared page citations.
+Because multiple distinct requirements may legitimately share one pointer, a
+strong preserved requirement could falsely invalidate a different
+requirement's rebind or supersession. The follow-up correction removes only
+that unsound inference. Focused regressions now prove preserved+rebound,
+preserved+superseded, and a rebind whose target is another requirement's
+declared pointer. All disposition identity, citation, pointer-domain and Guy
+review guards remain unchanged.
 
 The review bundle/Markdown advance from v2 to v3 and display every rebind and
 every `SUPERSEDE / WILL NOT BE DEPICTED` decision before ordinary source

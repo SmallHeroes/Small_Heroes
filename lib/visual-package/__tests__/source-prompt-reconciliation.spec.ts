@@ -728,13 +728,83 @@ describe('source-prompt reconciliation v3', () => {
       (candidate.presentationRequirementDispositions.entries[0] as unknown as Record<string, unknown>)
         .extra = true;
     }, 'reconciliation_invalid');
-    expectRejected((candidate) => {
-      candidate.frames[1]!.sourceRequirements[0]!.visualBeats[0]!
-        .contractEvidence.unshift({
-          path: '/pageContracts/0/mustShow/0',
-          value: contract.pageContracts[0]!.mustShow[0],
-        });
-    }, 'reconciliation_invalid');
+
+    const sharedOriginalWithRebound = structuredClone(artifact);
+    sharedOriginalWithRebound.presentationRequirementDispositions.entries =
+      sharedOriginalWithRebound.presentationRequirementDispositions.entries.slice(1);
+    sharedOriginalWithRebound.frames[1]!.sourceRequirements[0]!.visualBeats[0]!
+      .contractEvidence.unshift({
+        path: '/pageContracts/0/mustShow/0',
+        value: contract.pageContracts[0]!.mustShow[0],
+      });
+    expect(
+      validate(
+        raw,
+        sharedOriginalWithRebound,
+        contract,
+        sourceIdentity,
+        coverage,
+      ),
+    ).toEqual([]);
+
+    const sharedOriginalWithSupersession = structuredClone(
+      sharedOriginalWithRebound,
+    );
+    const sharedSupersession =
+      sharedOriginalWithSupersession.presentationRequirementDispositions
+        .entries[0]!;
+    sharedSupersession.kind = 'superseded';
+    sharedSupersession.reboundPointer = null;
+    sharedSupersession.reboundValue = null;
+    sharedSupersession.justification =
+      'Guy explicitly accepts omitting this distinct source moment.';
+    expect(
+      validate(
+        raw,
+        sharedOriginalWithSupersession,
+        contract,
+        sourceIdentity,
+        coverage,
+      ),
+    ).toEqual([]);
+
+    const targetIsAnotherRequirementPointer = structuredClone(
+      sharedOriginalWithRebound,
+    );
+    const targetCollisionCoverage = structuredClone(coverage);
+    const targetOwnerDisposition = targetCollisionCoverage[0]!.disposition;
+    if (targetOwnerDisposition.kind !== 'presentation_requirement') {
+      throw new Error('fixture presentation requirement drift');
+    }
+    targetOwnerDisposition.contractPointer = '/pageContracts/0/mustShow/1';
+    targetOwnerDisposition.contractValue =
+      contract.pageContracts[0]!.mustShow[1]!;
+    targetIsAnotherRequirementPointer.actionSemanticCoverageAuthority.records =
+      structuredClone(targetCollisionCoverage);
+    const targetCollisionDigest = canonicalHash(targetCollisionCoverage);
+    targetIsAnotherRequirementPointer.actionSemanticCoverageAuthority
+      .actionSemanticCoverageDigest = targetCollisionDigest;
+    targetIsAnotherRequirementPointer.presentationRequirements
+      .actionSemanticCoverageDigest = targetCollisionDigest;
+    targetIsAnotherRequirementPointer.presentationRequirements.requirements[0]!
+      .contractPointer = '/pageContracts/0/mustShow/1';
+    targetIsAnotherRequirementPointer.presentationRequirements.requirements[0]!
+      .contractValue = contract.pageContracts[0]!.mustShow[1]!;
+    const targetCollisionRebind =
+      targetIsAnotherRequirementPointer.presentationRequirementDispositions
+        .entries[0]!;
+    targetCollisionRebind.reboundPointer = '/pageContracts/0/mustShow/1';
+    targetCollisionRebind.reboundValue =
+      contract.pageContracts[0]!.mustShow[1]!;
+    expect(
+      validate(
+        raw,
+        targetIsAnotherRequirementPointer,
+        contract,
+        sourceIdentity,
+        targetCollisionCoverage,
+      ),
+    ).toEqual([]);
 
     const legacy = projectLegacySourcePromptReconciliationV2(artifact);
     expect(
