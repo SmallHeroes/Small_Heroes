@@ -30,7 +30,10 @@
  *   node scripts/mint-set-identity-board.cjs --story <key> --identity <id> --style <db-or-style-id> \
  *       --contract <path.json> --render [--quality low|medium] [--registry-root <dir>]
  *
- *   # 3. human approval — the ONLY step that can approve, and only over a QA-passed entry
+ *   # 3. same-byte QA recheck — exactly once for a failed/unapproved rendered entry; no render or upload
+ *   node scripts/mint-set-identity-board.cjs --recheck --entry <path.json> --contract <path.json>
+ *
+ *   # 4. human approval — the ONLY step that can approve, and only over a QA-passed entry
  *   node scripts/mint-set-identity-board.cjs --approve --entry <path.json> --approved-by "<name>"
  *
  * The canonical launcher preloads the repository's `server-only` shim before registering tsx or importing this
@@ -40,14 +43,16 @@
  */
 import path from 'path';
 import { createHash } from 'crypto';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 
+import { canonicalHash } from '@/lib/canonical-json';
 import { styleIdFromDatabaseValue } from '@/lib/styles';
 import type { BookVisualContract } from '@/lib/visual-contract-compiler';
 
 import {
   SET_IDENTITY_BOARD_VERSION,
   SET_IDENTITY_REGISTRY_VERSION,
+  buildBoardQaInstruction,
   buildSetIdentityBoardPrompt,
   computeSetBoardContentPolicyDigest,
   computeSetDefinitionHash,
@@ -56,6 +61,8 @@ import {
   qaSetIdentityBoardImage,
   saveRegistryEntry,
   setIdentityBoardRegistryPath,
+  validateSetIdentityBoardRegistryIdentity,
+  verifyBoardAssetBytes,
   type BoardQaResult,
   type SetDefinition,
   type SetIdentityBoardRegistryEntry,
@@ -89,10 +96,16 @@ export type BoardUploader = (args: {
 /** Runs the character-free vision QA over the uploaded board. */
 export type BoardQaRunner = (args: { imageUrl: string; def: SetDefinition }) => Promise<BoardQaResult>;
 
+/** Loads the exact durable bytes and provider-readable URL for a same-byte QA recheck. */
+export type BoardAssetLoader = (args: {
+  storageKey: string;
+}) => Promise<{ buffer: Buffer; url: string }>;
+
 export interface MintDeps {
   renderBoard: BoardRenderer;
   uploadBoard: BoardUploader;
   runBoardQa: BoardQaRunner;
+  loadBoardAsset: BoardAssetLoader;
   /** Injected clock — keeps `qaCheckedAt`/`approvedAt` deterministic under test. */
   now: () => Date;
 }
@@ -104,6 +117,8 @@ interface LiveRendererModules {
 
 interface LiveStorageModules {
   uploadContentAddressedObjectNoOverwrite: typeof import('@/lib/image-storage').uploadContentAddressedObjectNoOverwrite;
+  downloadStorageObjectBytes: typeof import('@/lib/image-storage').downloadStorageObjectBytes;
+  resolveStoragePublicUrl: typeof import('@/lib/image-storage').resolveStoragePublicUrl;
 }
 
 export interface LiveImportPreflightDeps {
@@ -161,11 +176,23 @@ const liveRenderBoard: BoardRenderer = async ({ prompt, negativePrompt, quality 
 
 /** The live uploader: the content-addressed, no-overwrite door added for P0-4a. There is no other. */
 export const loadLiveStorageModules: LiveImportPreflightDeps['loadStorageModules'] = async () => {
-  const { uploadContentAddressedObjectNoOverwrite } = await import('@/lib/image-storage');
-  if (typeof uploadContentAddressedObjectNoOverwrite !== 'function') {
+  const {
+    downloadStorageObjectBytes,
+    resolveStoragePublicUrl,
+    uploadContentAddressedObjectNoOverwrite,
+  } = await import('@/lib/image-storage');
+  if (
+    typeof uploadContentAddressedObjectNoOverwrite !== 'function' ||
+    typeof downloadStorageObjectBytes !== 'function' ||
+    typeof resolveStoragePublicUrl !== 'function'
+  ) {
     throw new Error('live storage import surface is incomplete');
   }
-  return { uploadContentAddressedObjectNoOverwrite };
+  return {
+    uploadContentAddressedObjectNoOverwrite,
+    downloadStorageObjectBytes,
+    resolveStoragePublicUrl,
+  };
 };
 
 const liveUploadBoard: BoardUploader = async ({ identity, buffer, contentType }) => {
@@ -177,6 +204,13 @@ const liveUploadBoard: BoardUploader = async ({ identity, buffer, contentType })
     expectedSha256: identity.assetSha256,
   });
   return { url, storageKey };
+};
+
+const liveLoadBoardAsset: BoardAssetLoader = async ({ storageKey }) => {
+  const { downloadStorageObjectBytes, resolveStoragePublicUrl } = await loadLiveStorageModules();
+  const buffer = await downloadStorageObjectBytes(storageKey);
+  if (!buffer) throw new Error(`board object "${storageKey}" is missing or unreadable`);
+  return { buffer, url: resolveStoragePublicUrl(storageKey) };
 };
 
 /**
@@ -239,6 +273,7 @@ export const liveMintDeps: MintDeps = {
   renderBoard: liveRenderBoard,
   uploadBoard: liveUploadBoard,
   runBoardQa: liveRunBoardQa,
+  loadBoardAsset: liveLoadBoardAsset,
   now: () => new Date(),
 };
 
@@ -298,9 +333,15 @@ export async function runLiveImportPreflight(
       ...(typeof storage.uploadContentAddressedObjectNoOverwrite === 'function'
         ? ['uploadContentAddressedObjectNoOverwrite']
         : []),
+      ...(typeof storage.downloadStorageObjectBytes === 'function'
+        ? ['downloadStorageObjectBytes']
+        : []),
+      ...(typeof storage.resolveStoragePublicUrl === 'function'
+        ? ['resolveStoragePublicUrl']
+        : []),
     ];
     const visionEndpoint = new URL(vision.endpoint);
-    if (rendererFunctionExports.length !== 2 || storageFunctionExports.length !== 1) {
+    if (rendererFunctionExports.length !== 2 || storageFunctionExports.length !== 3) {
       throw new Error('live-import preflight found an incomplete renderer or storage function-export surface');
     }
     if (
@@ -352,11 +393,17 @@ export interface ApproveArgs {
   approvedBy: string;
 }
 
+export interface RecheckArgs {
+  mode: 'recheck';
+  entry: string;
+  contract: string;
+}
+
 export interface LiveImportPreflightArgs {
   mode: 'preflight-live-imports';
 }
 
-export type CliArgs = MintArgs | ApproveArgs | LiveImportPreflightArgs;
+export type CliArgs = MintArgs | ApproveArgs | RecheckArgs | LiveImportPreflightArgs;
 
 export const CANONICAL_BOARD_MINT_COMMAND = 'node scripts/mint-set-identity-board.cjs';
 
@@ -373,6 +420,9 @@ export const USAGE = `mint-set-identity-board — mint + approve Set Identity Bo
 
   APPROVE (the only step that may approve; refuses unless qaStatus === 'passed'):
     ${CANONICAL_BOARD_MINT_COMMAND} --approve --entry <path.json> --approved-by "<name>"
+
+  RECHECK (one Vision-only pass over the exact existing bytes; never renders or uploads):
+    ${CANONICAL_BOARD_MINT_COMMAND} --recheck --entry <path.json> --contract <path.json>
 
   LIVE-IMPORT PREFLIGHT (zero external cost; imports exact live renderer/storage graph, never invokes it;
   local imports may load operating-system/native modules):
@@ -397,7 +447,7 @@ export function parseArgs(argv: string[]): CliArgs {
     'entry',
     'approved-by',
   ]);
-  const booleanFlags = new Set(['render', 'approve', 'preflight-live-imports']);
+  const booleanFlags = new Set(['render', 'approve', 'recheck', 'preflight-live-imports']);
   const flags: Record<string, string> = {};
   const bare = new Set<string>();
   const seen = new Set<string>();
@@ -449,6 +499,22 @@ export function parseArgs(argv: string[]): CliArgs {
       if (!flags[required]?.trim()) throw new Error(`--${required} is required with --approve`);
     }
     return { mode: 'approve', entry: flags.entry, approvedBy: flags['approved-by'].trim() };
+  }
+
+  if (bare.has('recheck')) {
+    const recheckFlags = new Set(['recheck', 'entry', 'contract']);
+    const incompatible = [...seen].find((key) => !recheckFlags.has(key));
+    if (incompatible) {
+      throw new Error(`--${incompatible} cannot be used with --recheck`);
+    }
+    for (const required of ['entry', 'contract'] as const) {
+      if (!flags[required]?.trim()) throw new Error(`--${required} is required with --recheck`);
+    }
+    return {
+      mode: 'recheck',
+      entry: flags.entry,
+      contract: flags.contract,
+    };
   }
 
   const mintFlags = new Set(['story', 'identity', 'style', 'contract', 'out', 'registry-root', 'render', 'quality']);
@@ -607,9 +673,179 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
         `  ${CANONICAL_BOARD_MINT_COMMAND} --approve --entry "${outPath}" --approved-by "<name>"`
     );
   } else {
-    console.log(`\nQA FAILED — this board can never be approved. Fix the set/prompt and re-mint.`);
+    console.log(
+      `\nQA FAILED — this board is not approvable. A reviewed false positive may receive the one canonical ` +
+        `same-byte --recheck; a verified visual defect requires a new mint.`,
+    );
   }
   return entry;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RECHECK — exactly one Vision-only pass over the exact already-stored bytes
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const SET_BOARD_QA_RECHECK_RECEIPT_VERSION = 'set-board-qa-recheck-receipt/v1' as const;
+export const SET_BOARD_QA_INSTRUCTION_VERSION = 'set-board-qa-instruction/v1' as const;
+
+interface SetBoardQaRecheckReceiptPayload {
+  version: typeof SET_BOARD_QA_RECHECK_RECEIPT_VERSION;
+  status: 'armed' | 'completed';
+  storyKey: string;
+  setIdentityId: string;
+  styleId: string;
+  setDefinitionHash: string;
+  contentPolicyDigest: string;
+  promptHash: string;
+  storageKey: string;
+  assetSha256: string;
+  priorQaStatus: 'failed';
+  priorQaCheckedAt: string;
+  instructionVersion: typeof SET_BOARD_QA_INSTRUCTION_VERSION;
+  instructionDigest: string;
+  armedAt: string;
+  result: null | {
+    qaStatus: BoardQaResult['qaStatus'];
+    qaFlagCount: number;
+    qaFlagsDigest: string;
+    qaCheckedAt: string;
+  };
+}
+
+export type SetBoardQaRecheckReceipt = SetBoardQaRecheckReceiptPayload & {
+  digest: string;
+};
+
+export function setBoardQaRecheckReceiptPath(entryPath: string): string {
+  return `${entryPath}.qa-recheck.json`;
+}
+
+function qaRecheckReceipt(payload: SetBoardQaRecheckReceiptPayload): SetBoardQaRecheckReceipt {
+  return { ...payload, digest: canonicalHash(payload) };
+}
+
+function writeQaRecheckReceipt(
+  receiptPath: string,
+  receipt: SetBoardQaRecheckReceipt,
+  exclusive: boolean,
+): void {
+  writeFileSync(receiptPath, JSON.stringify(receipt, null, 2), exclusive ? { flag: 'wx' } : undefined);
+}
+
+export async function runRecheck(
+  args: RecheckArgs,
+  deps: MintDeps = liveMintDeps,
+): Promise<SetIdentityBoardRegistryEntry> {
+  const receiptPath = setBoardQaRecheckReceiptPath(args.entry);
+  if (existsSync(receiptPath)) {
+    throw new Error(`refusing to recheck: the one-shot recheck record already exists at "${receiptPath}"`);
+  }
+
+  const entry = loadRegistryEntry(args.entry);
+  if (!entry) throw new Error(`no registry entry at "${args.entry}"`);
+  if (entry.qaStatus !== 'failed') {
+    throw new Error(`refusing to recheck: qaStatus is "${entry.qaStatus}", not "failed"`);
+  }
+  if (entry.approvedBy !== null || entry.approvedAt !== null) {
+    throw new Error('refusing to recheck: an approved registry entry is immutable');
+  }
+  if (
+    typeof entry.storageKey !== 'string' ||
+    typeof entry.assetSha256 !== 'string' ||
+    typeof entry.qaCheckedAt !== 'string' ||
+    !entry.storageKey.trim() ||
+    !entry.assetSha256.trim() ||
+    !entry.qaCheckedAt.trim()
+  ) {
+    throw new Error('refusing to recheck: entry has no complete rendered-byte/QA authority');
+  }
+
+  const contract = JSON.parse(readFileSync(args.contract, 'utf-8')) as BookVisualContract;
+  const styleId = styleIdFromDatabaseValue(entry.styleId);
+  const def = projectSetDefinition(contract, entry.setIdentityId, styleId);
+  const setDefinitionHash = computeSetDefinitionHash(contract, entry.setIdentityId, styleId);
+  const contentPolicyDigest = computeSetBoardContentPolicyDigest(def);
+  const declaredPropIds = def.contentPolicy.includedPropIds;
+  const { promptHash } = buildSetIdentityBoardPrompt(def);
+  const identityValidation = validateSetIdentityBoardRegistryIdentity(entry, {
+    registryVersion: SET_IDENTITY_REGISTRY_VERSION,
+    boardVersion: SET_IDENTITY_BOARD_VERSION,
+    storyKey: def.storyKey,
+    setIdentityId: def.setIdentityId,
+    styleId,
+    setDefinitionHash,
+    contentPolicyDigest,
+    declaredPropIds,
+  });
+  if (!identityValidation.ok) {
+    throw new Error(`refusing to recheck: ${identityValidation.errors.join('; ')}`);
+  }
+  if (entry.promptHash !== promptHash) {
+    throw new Error('refusing to recheck: promptHash no longer matches the current exact Board prompt');
+  }
+
+  const loaded = await deps.loadBoardAsset({ storageKey: entry.storageKey });
+  const actualSha256 = createHash('sha256').update(loaded.buffer).digest('hex');
+  const byteValidation = verifyBoardAssetBytes(entry, actualSha256);
+  if (!byteValidation.ok) {
+    throw new Error(`refusing to recheck: ${byteValidation.errors.join('; ')}`);
+  }
+
+  const instruction = buildBoardQaInstruction(def);
+  const instructionDigest = canonicalHash({
+    version: SET_BOARD_QA_INSTRUCTION_VERSION,
+    instruction,
+  });
+  const armedAt = deps.now().toISOString();
+  const armedPayload: SetBoardQaRecheckReceiptPayload = {
+    version: SET_BOARD_QA_RECHECK_RECEIPT_VERSION,
+    status: 'armed',
+    storyKey: entry.storyKey,
+    setIdentityId: entry.setIdentityId,
+    styleId: entry.styleId,
+    setDefinitionHash: entry.setDefinitionHash,
+    contentPolicyDigest: entry.contentPolicyDigest,
+    promptHash: entry.promptHash,
+    storageKey: entry.storageKey,
+    assetSha256: entry.assetSha256,
+    priorQaStatus: 'failed',
+    priorQaCheckedAt: entry.qaCheckedAt,
+    instructionVersion: SET_BOARD_QA_INSTRUCTION_VERSION,
+    instructionDigest,
+    armedAt,
+    result: null,
+  };
+  writeQaRecheckReceipt(receiptPath, qaRecheckReceipt(armedPayload), true);
+
+  const qa = await deps.runBoardQa({ imageUrl: loaded.url, def });
+  const qaCheckedAt = deps.now().toISOString();
+  const completedPayload: SetBoardQaRecheckReceiptPayload = {
+    ...armedPayload,
+    status: 'completed',
+    result: {
+      qaStatus: qa.qaStatus,
+      qaFlagCount: qa.qaFlags.length,
+      qaFlagsDigest: canonicalHash(qa.qaFlags),
+      qaCheckedAt,
+    },
+  };
+  writeQaRecheckReceipt(receiptPath, qaRecheckReceipt(completedPayload), false);
+
+  if (qa.qaStatus !== 'passed') {
+    console.log(`board QA recheck: failed (${qa.qaFlags.length} flag(s)); registry remains failed`);
+    return entry;
+  }
+
+  const passed: SetIdentityBoardRegistryEntry = {
+    ...entry,
+    qaStatus: 'passed',
+    qaCheckedAt,
+    approvedBy: null,
+    approvedAt: null,
+  };
+  saveRegistryEntry(args.entry, passed);
+  console.log(`board QA recheck: passed; exact bytes remain UNAPPROVED: ${args.entry}`);
+  return passed;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -684,6 +920,10 @@ export async function runCli(
   }
   if (args.mode === 'approve') {
     await runApprove(args, deps);
+    return;
+  }
+  if (args.mode === 'recheck') {
+    await runRecheck(args, deps);
     return;
   }
   await runMint(args, deps);

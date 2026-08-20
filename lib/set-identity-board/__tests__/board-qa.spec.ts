@@ -109,6 +109,9 @@ describe('qaSetIdentityBoardImage — well-formed responses', () => {
     const instruction = buildBoardQaInstruction(def);
     expect(instruction).toContain('exactly 1');
     expect(instruction).toContain('Area 1');
+    expect(instruction).toContain('doorway "main_door": a wide wooden doorway');
+    expect(instruction).toContain('require a distinct, recognizable physical instance of that prop');
+    expect(instruction).toContain('stripe, pattern, texture, material, or shape');
     expect(instruction).toContain('Covered Parcel');
     expect(instruction).toContain('Portable Lantern');
   });

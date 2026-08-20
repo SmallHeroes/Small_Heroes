@@ -81,14 +81,52 @@ export function validateSetIdentityBoardRegistryEntry(
   entry: unknown,
   expected: ExpectedRegistryIdentity
 ): RegistryValidation {
+  const identityValidation = registryIdentityErrors(entry, expected);
+  if (identityValidation.shapeInvalid) {
+    return { ok: false, errors: identityValidation.errors };
+  }
+
+  const typed = entry as SetIdentityBoardRegistryEntry;
+  const errors = [...identityValidation.errors];
+  if (typed.qaStatus !== 'passed') {
+    errors.push(`qaStatus must be "passed" (got "${typed.qaStatus}")`);
+  }
+  // Human approval is EXPLICIT — both fields must be non-empty. A candidate (null/null) is rejected here.
+  if (!isNonEmptyString(typed.approvedBy)) {
+    errors.push('approvedBy is empty — a human must explicitly approve this board');
+  }
+  if (!isNonEmptyString(typed.approvedAt)) {
+    errors.push('approvedAt is empty — a human must explicitly approve this board');
+  }
+
+  return errors.length === 0 ? { ok: true } : { ok: false, errors };
+}
+
+/**
+ * Validate the immutable identity/content portion of a rendered candidate without requiring QA or human approval.
+ * This is the only validator suitable for the same-byte recheck path: the full live validator must continue to
+ * reject the exact failed/unapproved candidate that a recheck is allowed to inspect.
+ */
+export function validateSetIdentityBoardRegistryIdentity(
+  entry: unknown,
+  expected: ExpectedRegistryIdentity
+): RegistryValidation {
+  const validation = registryIdentityErrors(entry, expected);
+  return validation.errors.length === 0 ? { ok: true } : { ok: false, errors: validation.errors };
+}
+
+function registryIdentityErrors(
+  entry: unknown,
+  expected: ExpectedRegistryIdentity,
+): { errors: string[]; shapeInvalid: boolean } {
   if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
-    return { ok: false, errors: ['entry is not an object'] };
+    return { errors: ['entry is not an object'], shapeInvalid: true };
   }
   const e = entry as Record<string, unknown>;
 
   const errors = shapeErrors(e);
   // If the shape is already broken, further field comparisons would be noise — report shape problems alone.
-  if (errors.length > 0) return { ok: false, errors };
+  if (errors.length > 0) return { errors, shapeInvalid: true };
 
   const typed = entry as SetIdentityBoardRegistryEntry;
 
@@ -120,18 +158,8 @@ export function validateSetIdentityBoardRegistryEntry(
   if (JSON.stringify(typed.declaredPropIds) !== JSON.stringify(expected.declaredPropIds)) {
     errors.push('declaredPropIds mismatch (the board prop-content declaration changed)');
   }
-  if (typed.qaStatus !== 'passed') {
-    errors.push(`qaStatus must be "passed" (got "${typed.qaStatus}")`);
-  }
-  // Human approval is EXPLICIT — both fields must be non-empty. A candidate (null/null) is rejected here.
-  if (!isNonEmptyString(typed.approvedBy)) {
-    errors.push('approvedBy is empty — a human must explicitly approve this board');
-  }
-  if (!isNonEmptyString(typed.approvedAt)) {
-    errors.push('approvedAt is empty — a human must explicitly approve this board');
-  }
 
-  return errors.length === 0 ? { ok: true } : { ok: false, errors };
+  return { errors, shapeInvalid: false };
 }
 
 /**

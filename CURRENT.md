@@ -2,7 +2,43 @@
 
 **Updated:** 2026-08-20
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; this milestone is based on `2bc9a2ccdfdf3d06abe34cc1a850174c185d02ec`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; this milestone is based on pushed commit `a001a097e003df68b5c96639ed2cbb2ce93f94da`.
+
+## SET BOARD SAME-BYTE QA RECHECK — local green; Claude gate next
+
+The first authorized LOW Chameleon home Set Board completed exactly one
+`gpt-image-2` generation and one content-addressed no-overwrite upload. The
+stored PNG SHA-256 is
+`492c8933ba67dbf3a537909e5925228aebf03f9690cd20443a55b72f0071bfd7`.
+Vision QA returned only `excluded-prop:prop_striped_sock`, so the current v4
+Registry correctly remains `failed` and unapproved. Direct inspection of the
+exact downloaded bytes shows an empty bedroom with a striped/fringed blanket
+and no distinct sock. The town Board was not minted; no reroll, retry, page
+render, Wizard promotion or approval occurred.
+
+The general correction gives QA the existing allowed zone geometry and an
+explicit distinct-recognizable-object rule: an allowed furnishing, surface,
+color, stripe, pattern, texture, material or shape is not itself an excluded
+prop. It also adds one canonical `--recheck` mode over a failed, unapproved,
+rendered Registry entry. The mode recomputes Set identity, content policy and
+prompt authority, downloads the exact storage object, verifies its SHA-256,
+and writes a content-digested one-shot receipt before the single Vision call.
+It can update only `qaStatus` and `qaCheckedAt` on an affirmative pass; it
+cannot render, upload or approve. A failure, interruption or existing receipt
+permanently blocks another recheck.
+
+Provider-free validation passes **4 files / 130 tests**, `npx tsc --noEmit`
+and `git diff --check`. One literal `npm run check` passes TypeScript,
+autonomous Story typecheck, ordinary **3,360 tests**, and resource-intensive
+**20 files / 610 tests**. It fails only the five established missing
+ignored-`outputs/` fixture assertions in four unchanged specs. Durable records:
+`docs/ai-workflow/R1D_SET_BOARD_SAME_BYTE_QA_RECHECK_DECISION_GATE.md` and
+`docs/ai-workflow/R1D_SET_BOARD_SAME_BYTE_QA_RECHECK_IMPLEMENTATION_EVIDENCE.md`.
+
+Next: focused commit and independent Claude Code PASS. Only after PASS and
+push, run the one Vision-only home recheck. If it passes, Guy must still
+eyeball and explicitly approve the exact PNG before the town Board is minted
+or Visual Package/Wizard/render work resumes.
 
 ## CHAMELEON SET BOARD PROVIDER-SAFE IDENTITY LABELS — local green; Claude re-gate next
 

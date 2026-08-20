@@ -108,6 +108,8 @@ function fakePreflightDeps(overrides: Partial<LiveImportPreflightDeps> = {}): Li
     })) as LiveImportPreflightDeps['loadRendererModules'],
     loadStorageModules: vi.fn(async () => ({
       uploadContentAddressedObjectNoOverwrite: vi.fn(),
+      downloadStorageObjectBytes: vi.fn(),
+      resolveStoragePublicUrl: vi.fn(),
     })) as LiveImportPreflightDeps['loadStorageModules'],
     inspectVisionSurface: vi.fn(() => ({
       endpoint: 'https://api.openai.com/v1/chat/completions',
@@ -129,6 +131,9 @@ function forbiddenMintDeps(): MintDeps {
     }),
     runBoardQa: vi.fn(async () => {
       throw new Error('Vision callback must not be reachable from preflight');
+    }),
+    loadBoardAsset: vi.fn(async () => {
+      throw new Error('board asset load must not be reachable from preflight');
     }),
     now: vi.fn(() => {
       throw new Error('approval/registry clock must not be reachable from preflight');

@@ -4,12 +4,16 @@ import os from 'os';
 import path from 'path';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { canonicalHash } from '@/lib/canonical-json';
 import {
+  SET_BOARD_QA_RECHECK_RECEIPT_VERSION,
   liveMintDeps,
   parseArgs,
   runApprove,
   runCli,
   runMint,
+  runRecheck,
+  setBoardQaRecheckReceiptPath,
   type MintArgs,
   type MintDeps,
 } from '@/scripts/mint-set-identity-board';
@@ -76,6 +80,10 @@ function makeDeps(overrides: Partial<MintDeps> = {}): MintDeps {
       url: `https://cdn.example/${setIdentityBoardStorageKey(identity)}`,
     })),
     runBoardQa: vi.fn(async () => ({ qaStatus: 'passed' as const, qaFlags: [] })),
+    loadBoardAsset: vi.fn(async ({ storageKey }) => ({
+      buffer: BOARD_BYTES,
+      url: `https://cdn.example/${storageKey}`,
+    })),
     now: () => NOW,
     ...overrides,
   };
@@ -252,6 +260,199 @@ describe('mint NEVER auto-approves', () => {
     const entry = await runMint(mintArgs(), deps);
     expect(entry.qaStatus).toBe('failed');
     expect(entry.approvedBy).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// --recheck: one Vision-only adjudication over the exact already-stored bytes
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('--recheck — one-shot, same-byte, Vision-only QA adjudication', () => {
+  async function failedEntry(out = path.join(tmp, 'entry.json')) {
+    await runMint(
+      mintArgs({ out }),
+      makeDeps({
+        runBoardQa: vi.fn(async () => ({
+          qaStatus: 'failed' as const,
+          qaFlags: ['excluded-prop:prop_synthetic'],
+        })),
+      }),
+    );
+    return out;
+  }
+
+  it('parses only the exact recheck surface and refuses spend/approval flags', () => {
+    expect(parseArgs(['--recheck', '--entry', 'e.json', '--contract', 'c.json'])).toEqual({
+      mode: 'recheck',
+      entry: 'e.json',
+      contract: 'c.json',
+    });
+    expect(() => parseArgs(['--recheck', '--entry', 'e.json'])).toThrow(/--contract is required/);
+    expect(() =>
+      parseArgs(['--recheck', '--entry', 'e.json', '--contract', 'c.json', '--render']),
+    ).toThrow(/--render cannot be used with --recheck/);
+    expect(() =>
+      parseArgs(['--recheck', '--entry', 'e.json', '--contract', 'c.json', '--approved-by', 'guy']),
+    ).toThrow(/--approved-by cannot be used with --recheck/);
+  });
+
+  it('arms before Vision, verifies exact bytes, passes without render/upload, and remains unapproved', async () => {
+    const out = await failedEntry();
+    const before = readEntry(out);
+    const receiptPath = setBoardQaRecheckReceiptPath(out);
+    const recheckTime = new Date('2026-07-17T09:05:00.000Z');
+    const runBoardQa = vi.fn(async () => {
+      const armed = JSON.parse(readFileSync(receiptPath, 'utf-8')) as Record<string, unknown>;
+      expect(armed.status).toBe('armed');
+      expect(armed.result).toBeNull();
+      return { qaStatus: 'passed' as const, qaFlags: [] };
+    });
+    const deps = makeDeps({ runBoardQa, now: () => recheckTime });
+
+    const result = await runRecheck({ mode: 'recheck', entry: out, contract: contractPath }, deps);
+
+    expect(deps.renderBoard).not.toHaveBeenCalled();
+    expect(deps.uploadBoard).not.toHaveBeenCalled();
+    expect(deps.loadBoardAsset).toHaveBeenCalledTimes(1);
+    expect(runBoardQa).toHaveBeenCalledTimes(1);
+    expect(result.qaStatus).toBe('passed');
+    expect(result.qaCheckedAt).toBe(recheckTime.toISOString());
+    expect(result.approvedBy).toBeNull();
+    expect(result.approvedAt).toBeNull();
+    expect(readEntry(out)).toEqual(result);
+    expect({ ...result, qaStatus: before.qaStatus, qaCheckedAt: before.qaCheckedAt }).toEqual(before);
+
+    const stored = JSON.parse(readFileSync(receiptPath, 'utf-8')) as Record<string, unknown>;
+    const { digest, ...payload } = stored;
+    expect(stored.version).toBe(SET_BOARD_QA_RECHECK_RECEIPT_VERSION);
+    expect(stored.status).toBe('completed');
+    expect(stored.result).toEqual({
+      qaStatus: 'passed',
+      qaFlagCount: 0,
+      qaFlagsDigest: canonicalHash([]),
+      qaCheckedAt: recheckTime.toISOString(),
+    });
+    expect(digest).toBe(canonicalHash(payload));
+  });
+
+  it('persists a failed adjudication without changing the registry and refuses every second recheck', async () => {
+    const out = await failedEntry();
+    const before = readEntry(out);
+    const deps = makeDeps({
+      runBoardQa: vi.fn(async () => ({
+        qaStatus: 'failed' as const,
+        qaFlags: ['people', 'excluded-prop:prop_synthetic'],
+      })),
+    });
+
+    await expect(runRecheck({ mode: 'recheck', entry: out, contract: contractPath }, deps)).resolves.toEqual(before);
+    expect(readEntry(out)).toEqual(before);
+    expect(deps.renderBoard).not.toHaveBeenCalled();
+    expect(deps.uploadBoard).not.toHaveBeenCalled();
+    expect(deps.runBoardQa).toHaveBeenCalledTimes(1);
+
+    const receipt = JSON.parse(readFileSync(setBoardQaRecheckReceiptPath(out), 'utf-8')) as {
+      status: string;
+      result: { qaStatus: string; qaFlagCount: number; qaFlagsDigest: string };
+    };
+    expect(receipt.status).toBe('completed');
+    expect(receipt.result).toEqual(expect.objectContaining({
+      qaStatus: 'failed',
+      qaFlagCount: 2,
+      qaFlagsDigest: canonicalHash(['people', 'excluded-prop:prop_synthetic']),
+    }));
+
+    await expect(runRecheck({ mode: 'recheck', entry: out, contract: contractPath }, deps)).rejects.toThrow(
+      /one-shot recheck record already exists/,
+    );
+    expect(deps.loadBoardAsset).toHaveBeenCalledTimes(1);
+    expect(deps.runBoardQa).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves an armed one-shot record when Vision throws, so an unrecorded retry is impossible', async () => {
+    const out = await failedEntry();
+    const deps = makeDeps({
+      runBoardQa: vi.fn(async () => {
+        throw new Error('synthetic Vision outage');
+      }),
+    });
+
+    await expect(runRecheck({ mode: 'recheck', entry: out, contract: contractPath }, deps)).rejects.toThrow(
+      'synthetic Vision outage',
+    );
+    expect(readEntry(out).qaStatus).toBe('failed');
+    const receipt = JSON.parse(readFileSync(setBoardQaRecheckReceiptPath(out), 'utf-8')) as Record<string, unknown>;
+    expect(receipt.status).toBe('armed');
+    expect(receipt.result).toBeNull();
+    await expect(runRecheck({ mode: 'recheck', entry: out, contract: contractPath }, deps)).rejects.toThrow(
+      /one-shot recheck record already exists/,
+    );
+  });
+
+  it('rejects identity/prompt drift and byte drift before Vision and before arming', async () => {
+    const out = await failedEntry();
+    const original = readEntry(out);
+    writeFileSync(out, JSON.stringify({ ...original, setDefinitionHash: 'e'.repeat(64) }));
+    const identityDeps = makeDeps();
+    await expect(runRecheck({ mode: 'recheck', entry: out, contract: contractPath }, identityDeps)).rejects.toThrow(
+      /setDefinitionHash mismatch/,
+    );
+    expect(identityDeps.loadBoardAsset).not.toHaveBeenCalled();
+    expect(identityDeps.runBoardQa).not.toHaveBeenCalled();
+
+    const promptDrift = { ...original, promptHash: 'f'.repeat(64) };
+    writeFileSync(out, JSON.stringify(promptDrift));
+    const promptDeps = makeDeps();
+    await expect(runRecheck({ mode: 'recheck', entry: out, contract: contractPath }, promptDeps)).rejects.toThrow(
+      /promptHash no longer matches/,
+    );
+    expect(promptDeps.loadBoardAsset).not.toHaveBeenCalled();
+    expect(promptDeps.runBoardQa).not.toHaveBeenCalled();
+    expect(() => readFileSync(setBoardQaRecheckReceiptPath(out), 'utf-8')).toThrow();
+
+    await failedEntry(out);
+    const byteDeps = makeDeps({
+      loadBoardAsset: vi.fn(async () => ({
+        buffer: Buffer.from('different bytes'),
+        url: 'https://cdn.example/different',
+      })),
+    });
+    await expect(runRecheck({ mode: 'recheck', entry: out, contract: contractPath }, byteDeps)).rejects.toThrow(
+      /board bytes changed/,
+    );
+    expect(byteDeps.runBoardQa).not.toHaveBeenCalled();
+    expect(() => readFileSync(setBoardQaRecheckReceiptPath(out), 'utf-8')).toThrow();
+  });
+
+  it.each([
+    ['pending', false],
+    ['passed', false],
+    ['failed', true],
+  ] as const)('rejects a %s or approved entry before loading bytes', async (qaStatus, approved) => {
+    const out = await failedEntry();
+    const entry = {
+      ...readEntry(out),
+      qaStatus,
+      approvedBy: approved ? 'guy' : null,
+      approvedAt: approved ? NOW.toISOString() : null,
+    };
+    writeFileSync(out, JSON.stringify(entry));
+    const deps = makeDeps();
+    await expect(runRecheck({ mode: 'recheck', entry: out, contract: contractPath }, deps)).rejects.toThrow(
+      approved ? /approved registry entry is immutable/ : /qaStatus is .* not "failed"/,
+    );
+    expect(deps.loadBoardAsset).not.toHaveBeenCalled();
+    expect(deps.runBoardQa).not.toHaveBeenCalled();
+  });
+
+  it('routes --recheck through runCli without making render or upload reachable', async () => {
+    const out = await failedEntry();
+    const deps = makeDeps();
+    await runCli(['--recheck', '--entry', out, '--contract', contractPath], deps);
+    expect(deps.renderBoard).not.toHaveBeenCalled();
+    expect(deps.uploadBoard).not.toHaveBeenCalled();
+    expect(deps.loadBoardAsset).toHaveBeenCalledTimes(1);
+    expect(readEntry(out).qaStatus).toBe('passed');
   });
 });
 

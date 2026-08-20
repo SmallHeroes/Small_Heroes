@@ -92,10 +92,17 @@ function placementAreaLabels(def: SetDefinition, zoneIds: readonly string[]): st
     .map((index) => `Area ${index + 1}`);
 }
 
+function allowedGeometryLines(def: SetDefinition): string[] {
+  return def.zones.flatMap((zone, zoneIndex) =>
+    zone.geometry.map((geometry) => `- Area ${zoneIndex + 1}: ${geometry}`),
+  );
+}
+
 /** Build the character-free QA instruction from the projection ONLY (no story literals). */
 export function buildBoardQaInstruction(def: SetDefinition): string {
   assertSetBoardPositiveAuthoritySpoilerNeutral(def);
   const openings = allowedOpenings(def);
+  const geometryLines = allowedGeometryLines(def);
   const openingsLine = openings.length
     ? `The ONLY wall openings that belong to this set are: ${openings.join(', ')}. Flag any other opening kind (e.g. a doorway/window/balcony door not in that list) as "opening-kind-not-in-contract".`
     : 'This set has NO wall openings. Flag any doorway, window, or balcony door as "opening-kind-not-in-contract".';
@@ -129,6 +136,9 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
     '- "text" for any text, letters, numbers, labels, captions, or watermarks',
     '- "panels" for any story panel, page layout, panel border, or gutter',
     openingsLine,
+    'ALLOWED SET GEOMETRY AND BUILT-IN FURNISHINGS:',
+    ...(geometryLines.length ? geometryLines : ['- none declared']),
+    'Treat the geometry and built-in furnishings above as permitted set content. For an excluded-prop flag, require a distinct, recognizable physical instance of that prop. Do NOT flag an allowed surface, furnishing, color, stripe, pattern, texture, material, or shape merely because it resembles or shares words with the excluded prop name.',
     'UNDECLARED OR PAGE-CONDITIONED PROPS THAT MUST NOT APPEAR:',
     ...(excludedPropLines.length ? excludedPropLines : ['- none']),
     'FIXED PROP COUNT AND PLACEMENT:',
