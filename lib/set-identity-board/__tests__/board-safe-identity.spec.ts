@@ -15,7 +15,7 @@ import {
 import { clone, makeContract, STYLE } from './board-fixtures';
 
 const FROZEN_CLEAN_PROMPT_HASH =
-  '8680ba4d16cd20cdbd1bea9e0745f7f01a5bdf1b825453192c597732d33a6e56';
+  '62b9a05cb790a21150d05e75b8152a245388069e1c9287b4fcb9682ec38c5743';
 
 function unsafeDefinition(): SetDefinition {
   const definition = projectSetDefinition(makeContract(), 'set_alpha', STYLE);

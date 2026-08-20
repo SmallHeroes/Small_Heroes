@@ -24,6 +24,9 @@ import { getNegativeStylePromptBlock, getSetBoardStylePromptBlock } from '@/lib/
 import type { SetDefinition, SetDefinitionLocation, SetDefinitionZone } from './types';
 import {
   assertCurrentSetBoardAmbientDressingPolicy,
+  SET_BOARD_AMBIENT_PALETTE_COLOR_LABELS,
+  SET_BOARD_AMBIENT_PALETTE_INTENT_LABEL,
+  SET_BOARD_AMBIENT_PALETTE_TARGET_LABELS,
   selectSetBoardAmbientDressing,
 } from './ambientDressing';
 import {
@@ -157,6 +160,12 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
       'non_text_wall_decor',
     ].includes(category))
     .map(({ label }) => label);
+  const preferredPalette = ambientPolicy.preferredColorFamilies
+    .map((color) => SET_BOARD_AMBIENT_PALETTE_COLOR_LABELS[color])
+    .join(', ');
+  const paletteTargets = ambientPolicy.paletteTargets
+    .map((target) => SET_BOARD_AMBIENT_PALETTE_TARGET_LABELS[target])
+    .join('; ');
 
   const sections: string[] = [
     'SET IDENTITY BOARD — SINGLE ESTABLISHING VIEW OF ONE PHYSICAL SET',
@@ -183,6 +192,8 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
     '- Select only a physically appropriate subset from these allowed categories:',
     ...ambientCategoryLines.map((line) => `  ${line}`),
     `- When the declared geometry is a sleeping room with a bed, prioritize the applicable safe items from this subset: ${sleepingPriorityLabels.join('; ')}.`,
+    `- For these palette-sensitive surfaces — ${paletteTargets} — keep the ambient palette ${SET_BOARD_AMBIENT_PALETTE_INTENT_LABEL} and prefer a balanced mix drawn from ${preferredPalette}.`,
+    '- Do not make pink or coral the dominant combined cue across large furnishings and toy clothing. One isolated pink or coral accent is allowed; do not replace it with an all-blue stereotype.',
     '- Every dressing detail must be visibly inanimate, text-free, spoiler-neutral, and subordinate to the exact authored geometry.',
     '- Never imitate, substitute for, or visually introduce a blocked/page-conditioned recurring prop.',
     '',

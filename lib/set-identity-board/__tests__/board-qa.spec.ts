@@ -127,6 +127,16 @@ describe('qaSetIdentityBoardImage — well-formed responses', () => {
     expect(instruction).toContain('clearly manufactured, inert toy or cloth doll');
     expect(instruction).toContain('Flag it only if it is depicted as alive');
   });
+
+  it('flags only a dominant combined gender cue while allowing an isolated pink accent', () => {
+    const instruction = buildBoardQaInstruction(makeDef());
+    expect(instruction).toContain('ambient-palette-strongly-gender-coded');
+    expect(instruction).toContain('large soft furnishings and bedding');
+    expect(instruction).toContain('clothing on inanimate toys or cloth dolls');
+    expect(instruction).toContain('A single pink or coral accent is allowed and is not a defect');
+    expect(instruction).toContain('Do not require an all-blue room');
+    expect(instruction).toContain('muted sage green, soft teal, muted violet, warm ochre, natural linen');
+  });
 });
 
 /**

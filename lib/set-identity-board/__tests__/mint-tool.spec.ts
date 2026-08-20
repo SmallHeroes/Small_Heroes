@@ -326,6 +326,7 @@ describe('--recheck — one-shot, same-byte, Vision-only QA adjudication', () =>
     const stored = JSON.parse(readFileSync(receiptPath, 'utf-8')) as Record<string, unknown>;
     const { digest, ...payload } = stored;
     expect(stored.version).toBe(SET_BOARD_QA_RECHECK_RECEIPT_VERSION);
+    expect(stored.instructionVersion).toBe('set-board-qa-instruction/v3');
     expect(stored.status).toBe('completed');
     expect(stored.result).toEqual({
       qaStatus: 'passed',

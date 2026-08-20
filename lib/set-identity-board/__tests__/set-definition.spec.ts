@@ -295,17 +295,44 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
   it('projects the same current ambient-dressing policy for every set without story-specific branching', () => {
     const indoor = projectSetDefinition(makeContract(), ID, STYLE);
     expect(indoor.contentPolicy.ambientDressing).toMatchObject({
-      version: 'set-board-ambient-dressing/v1',
+      version: 'set-board-ambient-dressing/v2',
       density: 'rich_lived_in',
       selectionMode: 'space_appropriate_subset',
       minimumDistinctDetails: 4,
       inanimateOnly: true,
       textFree: true,
       spoilerNeutral: true,
+      paletteIntent: 'balanced_child_friendly',
+      isolatedPinkAccentAllowed: true,
+      avoidDominantGenderCoding: true,
     });
     expect(indoor.contentPolicy.ambientDressing.allowedCategories).toContain(
       'clearly_inanimate_cloth_doll',
     );
+    expect(indoor.contentPolicy.ambientDressing.preferredColorFamilies).toEqual([
+      'sage_green',
+      'teal',
+      'muted_violet',
+      'ochre',
+      'natural_linen',
+    ]);
+    expect(indoor.contentPolicy.ambientDressing.paletteTargets).toEqual([
+      'large_soft_furnishings_and_bedding',
+      'toy_clothing',
+    ]);
+  });
+
+  it('returns isolated clones of the current palette authority', () => {
+    const first = projectSetDefinition(makeContract(), ID, STYLE);
+    const second = projectSetDefinition(makeContract(), ID, STYLE);
+    first.contentPolicy.ambientDressing.preferredColorFamilies.pop();
+    expect(second.contentPolicy.ambientDressing.preferredColorFamilies).toEqual([
+      'sage_green',
+      'teal',
+      'muted_violet',
+      'ochre',
+      'natural_linen',
+    ]);
   });
 
   it('fails closed when reviewed stable authority includes a reveal-gated prop', () => {

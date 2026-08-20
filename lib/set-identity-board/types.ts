@@ -16,17 +16,36 @@
 import type { SpatialNode, SpatialRelation } from '@/lib/visual-contract-compiler';
 
 /** Version of the spoiler-neutral SET projection + prompt derivation. */
-export const SET_IDENTITY_BOARD_VERSION = 'set-board/v5' as const;
+export const SET_IDENTITY_BOARD_VERSION = 'set-board/v6' as const;
 
 /** Version of the on-disk registry entry schema. Bump to invalidate previously-saved registry entries. */
-export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v5' as const;
+export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v6' as const;
 
 /** Version of the declared board-content policy carried through registry/package/runtime identities. */
-export const SET_BOARD_CONTENT_POLICY_VERSION = 'set-board-content/v4' as const;
+export const SET_BOARD_CONTENT_POLICY_VERSION = 'set-board-content/v5' as const;
 
 /** Version of the bounded non-narrative dressing range carried by every current Set Definition. */
 export const SET_BOARD_AMBIENT_DRESSING_POLICY_VERSION =
-  'set-board-ambient-dressing/v1' as const;
+  'set-board-ambient-dressing/v2' as const;
+
+export const SET_BOARD_AMBIENT_PALETTE_COLOR_FAMILIES = [
+  'sage_green',
+  'teal',
+  'muted_violet',
+  'ochre',
+  'natural_linen',
+] as const;
+
+export type SetBoardAmbientPaletteColorFamily =
+  (typeof SET_BOARD_AMBIENT_PALETTE_COLOR_FAMILIES)[number];
+
+export const SET_BOARD_AMBIENT_PALETTE_TARGETS = [
+  'large_soft_furnishings_and_bedding',
+  'toy_clothing',
+] as const;
+
+export type SetBoardAmbientPaletteTarget =
+  (typeof SET_BOARD_AMBIENT_PALETTE_TARGETS)[number];
 
 export const SET_BOARD_AMBIENT_DRESSING_CATEGORIES = [
   'fixed_practical_light',
@@ -52,6 +71,11 @@ export interface SetBoardAmbientDressingPolicy {
   inanimateOnly: true;
   textFree: true;
   spoilerNeutral: true;
+  paletteIntent: 'balanced_child_friendly';
+  preferredColorFamilies: SetBoardAmbientPaletteColorFamily[];
+  paletteTargets: SetBoardAmbientPaletteTarget[];
+  isolatedPinkAccentAllowed: true;
+  avoidDominantGenderCoding: true;
 }
 
 /** Version of the structured cast/undeclared-prop guard carried by every direct prompt input. */

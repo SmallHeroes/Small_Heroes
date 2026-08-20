@@ -3,8 +3,12 @@ import { canonicalHash } from '@/lib/canonical-json';
 import {
   SET_BOARD_AMBIENT_DRESSING_CATEGORIES,
   SET_BOARD_AMBIENT_DRESSING_POLICY_VERSION,
+  SET_BOARD_AMBIENT_PALETTE_COLOR_FAMILIES,
+  SET_BOARD_AMBIENT_PALETTE_TARGETS,
   type SetBoardAmbientDressingCategory,
   type SetBoardAmbientDressingPolicy,
+  type SetBoardAmbientPaletteColorFamily,
+  type SetBoardAmbientPaletteTarget,
 } from './types';
 
 export const SET_BOARD_AMBIENT_DRESSING_LABELS: Readonly<
@@ -30,6 +34,11 @@ const CANONICAL_POLICY: SetBoardAmbientDressingPolicy = {
   inanimateOnly: true,
   textFree: true,
   spoilerNeutral: true,
+  paletteIntent: 'balanced_child_friendly',
+  preferredColorFamilies: [...SET_BOARD_AMBIENT_PALETTE_COLOR_FAMILIES],
+  paletteTargets: [...SET_BOARD_AMBIENT_PALETTE_TARGETS],
+  isolatedPinkAccentAllowed: true,
+  avoidDominantGenderCoding: true,
 };
 
 const CANONICAL_POLICY_DIGEST = canonicalHash(CANONICAL_POLICY);
@@ -50,6 +59,27 @@ export interface SetBoardAmbientDressingSelection {
   category: SetBoardAmbientDressingCategory;
   label: string;
 }
+
+export const SET_BOARD_AMBIENT_PALETTE_COLOR_LABELS: Readonly<
+  Record<SetBoardAmbientPaletteColorFamily, string>
+> = Object.freeze({
+  sage_green: 'muted sage green',
+  teal: 'soft teal',
+  muted_violet: 'muted violet',
+  ochre: 'warm ochre',
+  natural_linen: 'natural linen',
+});
+
+export const SET_BOARD_AMBIENT_PALETTE_TARGET_LABELS: Readonly<
+  Record<SetBoardAmbientPaletteTarget, string>
+> = Object.freeze({
+  large_soft_furnishings_and_bedding: 'large soft furnishings and bedding',
+  toy_clothing: 'clothing on inanimate toys or cloth dolls',
+});
+
+/** Provider-safe prose for the structured intent; deliberately avoids cast/child identity vocabulary. */
+export const SET_BOARD_AMBIENT_PALETTE_INTENT_LABEL =
+  'balanced and broadly suitable' as const;
 
 /**
  * Select the prompt-visible subset after the ordinary blocked-cast/prop vocabulary check. A generic decor category

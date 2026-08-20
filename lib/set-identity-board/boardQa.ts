@@ -16,6 +16,9 @@
 import type { BoardQaResult, SetDefinition } from './types';
 import {
   assertCurrentSetBoardAmbientDressingPolicy,
+  SET_BOARD_AMBIENT_PALETTE_COLOR_LABELS,
+  SET_BOARD_AMBIENT_PALETTE_INTENT_LABEL,
+  SET_BOARD_AMBIENT_PALETTE_TARGET_LABELS,
   selectSetBoardAmbientDressing,
 } from './ambientDressing';
 import { setBoardSafeIdentityLabel } from './boardSafeIdentity';
@@ -154,6 +157,12 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
       'non_text_wall_decor',
     ].includes(category))
     .map(({ label }) => label);
+  const preferredPalette = ambientPolicy.preferredColorFamilies
+    .map((color) => SET_BOARD_AMBIENT_PALETTE_COLOR_LABELS[color])
+    .join(', ');
+  const paletteTargets = ambientPolicy.paletteTargets
+    .map((target) => SET_BOARD_AMBIENT_PALETTE_TARGET_LABELS[target])
+    .join('; ');
 
   return [
     `Inspect this image as a CHARACTER-FREE set reference sheet for set identity "${setBoardSafeIdentityLabel(def)}".`,
@@ -179,6 +188,8 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
     ...ambientCategoryLines,
     `- For a sleeping room with a bed, a hotel-like image containing only a bed, side table, window, and empty floor/walls is too sparse. Expect several applicable safe details from: ${sleepingPriorityLabels.join('; ')}.`,
     '- If the set is materially sparse, generic, or lacks the minimum distinct ambient details, return "ambient-dressing-too-sparse".',
+    `- Inspect these palette-sensitive surfaces: ${paletteTargets}. The ambient palette must read as ${SET_BOARD_AMBIENT_PALETTE_INTENT_LABEL}; preferred balancing colors include ${preferredPalette}.`,
+    '- A single pink or coral accent is allowed and is not a defect. Do not require an all-blue room. Return "ambient-palette-strongly-gender-coded" only when large furnishings and toy clothing combine into a materially dominant gender-coded presentation.',
     'If the image is a clean, empty, spoiler-neutral, sufficiently dressed set plate with only the allowed openings and exact fixed-prop count/placement, return an empty flag list.',
   ].join('\n');
 }

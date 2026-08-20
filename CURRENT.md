@@ -1,10 +1,60 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-20
+**Updated:** 2026-08-21
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; this milestone is based on pushed commit `a346e652ccc66597129a259773756c9510cf16d6`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active gender-inclusive palette milestone is based on pushed commit `ddc85b2ad4c752bc163427a4bca880d516bc4e4f`.
 
-## SET BOARD AMBIENT DRESSING — local green; Claude gate next
+## SET BOARD GENDER-INCLUSIVE AMBIENT PALETTE — local green; Claude gate next
+
+Guy accepted the richer child-room composition of the first v5 Chameleon Home
+Board but rejected its combined gender cue: a large coral-pink blanket together
+with a cloth doll in pink clothing. The defect is general rather than
+Chameleon-specific. The canonical v5 ambient policy described soft furnishings
+and a cloth doll but carried no palette intent, so the provider complied with
+all technical authority while producing a room that can read as specifically
+for a girl.
+
+The local correction advances Board/Registry/content/ambient/QA-instruction
+authority to v6/v6/v5/v2/v3. The ambient policy now carries an exact
+`balanced_child_friendly` intent, a closed preferred range of muted sage, teal,
+violet, ochre and natural linen, and exact targets for large soft
+furnishings/bedding and inanimate-toy clothing. Prompt projection permits an
+isolated pink/coral accent but forbids a dominant combined cue and explicitly
+avoids replacing it with an all-blue stereotype. Ordinary Vision QA uses the
+same structured policy and may return
+`ambient-palette-strongly-gender-coded` only for a materially dominant
+combination.
+
+The exact Chameleon dry projection ran provider-free and produced current v6
+identity: Set Definition hash
+`803dea01a0346579b0e38160cd683acfa09966daecf90d945389da4a3a67d172`,
+content-policy digest
+`6ba2b1be70c243bc83e67770ed14b8fb227fab5da092a2f290c234254798bd70`,
+and prompt hash
+`ecda380efcd76e3baa53df1c589cf0039729385bba5f1ac001854ea909d547db`.
+It rendered, uploaded, and QA'd nothing. The prior v5 Registry remained
+byte-identical during this dry proof and stays QA-passed but unapproved.
+
+Provider-free validation currently passes the entire Set Board suite plus the
+two board-consuming Visual Package seams at **15 files / 367 tests**, and
+`npx --no-install tsc --noEmit` passes. The literal `npm run check` passes
+TypeScript, autonomous Story typecheck, ordinary **3,370 tests** with 65
+skipped, and resource-intensive **20 files / 610 tests**. Its nonzero exit is
+only the five established assertions in four unchanged files whose ignored
+historical `outputs/` fixtures are absent from this worktree. Durable
+planning/evidence records:
+`docs/ai-workflow/R1D_SET_BOARD_GENDER_INCLUSIVE_AMBIENT_PALETTE_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_SET_BOARD_GENDER_INCLUSIVE_AMBIENT_PALETTE_IMPLEMENTATION_EVIDENCE.md`.
+
+Next: literal repository check, focused commit and independent Claude Code
+adversarial PASS. Only after PASS and push is one additional canonical
+Chameleon Home Board at `gpt-image-2` LOW plus ordinary Vision QA authorized.
+The exact resulting PNG stops for Guy's visual approval. No retry, approval,
+Town Board, Wizard promotion, page render, or book render is authorized by
+this milestone.
+
+## SET BOARD AMBIENT DRESSING — completed and superseded
 
 Guy rejected the first LOW Chameleon home Board as visually sparse: bed,
 side table and window read as a guest room or rental rather than a child's
@@ -50,11 +100,12 @@ specs. Durable records:
 `docs/ai-workflow/R1D_SET_BOARD_AMBIENT_DRESSING_DECISION_GATE.md` and
 `docs/ai-workflow/R1D_SET_BOARD_AMBIENT_DRESSING_IMPLEMENTATION_EVIDENCE.md`.
 
-Next: focused commit and independent Claude Code gate. Only after PASS and
-push, mint one replacement Chameleon Home Board at `gpt-image-2` LOW, run its
-ordinary Vision QA, inspect the exact PNG, and stop for Guy's visual approval.
-The old sparse Board stays unapproved; Town Board and all page/book rendering
-remain blocked.
+After independent PASS and push, one replacement Chameleon Home Board was
+minted at `gpt-image-2` LOW. It passed ordinary Vision QA and solved the sparse
+guest-room defect, but Guy rejected the combined coral-pink blanket and pink
+doll clothing as an avoidable gender cue. The exact v5 image and Registry
+remain unapproved evidence and are superseded by the gender-inclusive v6
+milestone above. Town Board and all page/book rendering remain blocked.
 
 ## SET BOARD SAME-BYTE QA RECHECK — completed and superseded
 

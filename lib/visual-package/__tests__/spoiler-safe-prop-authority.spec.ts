@@ -136,10 +136,10 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
       contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
       promptHash,
     }).toEqual({
-      boardVersion: 'set-board/v5',
-      setDefinitionHash: '97574004a72906d9d4d9d7c98610fc63c3d9a9bce1610f47babf60ec3345b49b',
-      contentPolicyDigest: '04cbec0eb86a76a16da86d187aa87a6db3163a57c4992afa5a40ac585b254e11',
-      promptHash: 'fe749ff5ea2af00a0437a181cbca24254f3b06866cf5ba82490017da3d851622',
+      boardVersion: 'set-board/v6',
+      setDefinitionHash: 'd8b3cd429fe8f9212037cac9f90d3e161090d679aeb3f092471e80f26d1d1b74',
+      contentPolicyDigest: 'c77bfcfa93dc95a60c5b1e3adee3169dfa24be623ee833c2f791d66077a96329',
+      promptHash: 'ab2705aeb98f2213e88076e37fab1930032bd4dd2fe602fe45a2ffe980dd6632',
     });
     expect(definition.contentPolicy.includedPropIds).toEqual([
       'prop_chair_leg',
@@ -225,7 +225,7 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
     })).toThrow(PageReferenceCompatibilityError);
   });
 
-  it('preserves historical Fox evidence while rejecting prior Board identities under v5 authority', () => {
+  it('preserves historical Fox evidence while rejecting prior Board identities under v6 authority', () => {
     const source = contract();
     const definition = projectSetDefinition(source, SET_ID, STYLE_ID);
     const historicalPath = path.join(
@@ -262,6 +262,20 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
       ...historical,
       registryVersion: 'set-registry/v4',
       boardVersion: 'set-board/v4',
+    }, expected).ok).toBe(false);
+    expect(validateSetIdentityBoardRegistryEntry({
+      ...expected,
+      registryVersion: 'set-registry/v5',
+      boardVersion: 'set-board/v5',
+      storageKey: 'set-identity-boards/prior-v5.png',
+      assetSha256: 'a'.repeat(64),
+      promptHash: 'b'.repeat(64),
+      model: 'gpt-image-2',
+      quality: 'low',
+      qaStatus: 'passed',
+      qaCheckedAt: '2026-08-20T00:00:00.000Z',
+      approvedBy: null,
+      approvedAt: null,
     }, expected).ok).toBe(false);
   });
 });

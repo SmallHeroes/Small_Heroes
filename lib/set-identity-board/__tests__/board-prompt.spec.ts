@@ -169,7 +169,7 @@ describe('buildSetIdentityBoardPrompt', () => {
   it('requires bounded rich ambient dressing while preserving exact story-prop authority', () => {
     const { def, prompt, negativePrompt } = buildForFixture();
     expect(def.contentPolicy.ambientDressing).toEqual({
-      version: 'set-board-ambient-dressing/v1',
+      version: 'set-board-ambient-dressing/v2',
       density: 'rich_lived_in',
       selectionMode: 'space_appropriate_subset',
       minimumDistinctDetails: 4,
@@ -187,6 +187,20 @@ describe('buildSetIdentityBoardPrompt', () => {
       inanimateOnly: true,
       textFree: true,
       spoilerNeutral: true,
+      paletteIntent: 'balanced_child_friendly',
+      preferredColorFamilies: [
+        'sage_green',
+        'teal',
+        'muted_violet',
+        'ochre',
+        'natural_linen',
+      ],
+      paletteTargets: [
+        'large_soft_furnishings_and_bedding',
+        'toy_clothing',
+      ],
+      isolatedPinkAccentAllowed: true,
+      avoidDominantGenderCoding: true,
     });
     expect(prompt).toContain('AMBIENT SET DRESSING');
     expect(prompt).toContain('at least 4 visually distinct');
@@ -194,6 +208,11 @@ describe('buildSetIdentityBoardPrompt', () => {
     expect(prompt).toContain('picture books with blank, unreadable covers');
     expect(prompt).toContain('toy storage with simple wooden blocks');
     expect(prompt).toContain('clearly manufactured, inanimate cloth doll');
+    expect(prompt).toContain('large soft furnishings and bedding');
+    expect(prompt).toContain('clothing on inanimate toys or cloth dolls');
+    expect(prompt).toContain('muted sage green, soft teal, muted violet, warm ochre, natural linen');
+    expect(prompt).toContain('One isolated pink or coral accent is allowed');
+    expect(prompt).toContain('do not replace it with an all-blue stereotype');
     expect(prompt).toContain('Never imitate, substitute for, or visually introduce a blocked/page-conditioned recurring prop');
     expect(negativePrompt).toMatch(/NO people/i);
   });
@@ -201,6 +220,14 @@ describe('buildSetIdentityBoardPrompt', () => {
   it('rejects a forged ambient policy before prompt construction', () => {
     const def = projectSetDefinition(makeContract(), 'set_hall', STYLE);
     def.contentPolicy.ambientDressing.minimumDistinctDetails = 1 as 4;
+    expect(() => buildSetIdentityBoardPrompt(def)).toThrow(
+      /set_board_ambient_dressing_policy_invalid/,
+    );
+  });
+
+  it('rejects forged palette authority before prompt construction', () => {
+    const def = projectSetDefinition(makeContract(), 'set_hall', STYLE);
+    def.contentPolicy.ambientDressing.preferredColorFamilies = ['teal'];
     expect(() => buildSetIdentityBoardPrompt(def)).toThrow(
       /set_board_ambient_dressing_policy_invalid/,
     );

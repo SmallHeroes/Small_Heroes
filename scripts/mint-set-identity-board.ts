@@ -695,7 +695,7 @@ export async function runMint(args: MintArgs, deps: MintDeps = liveMintDeps): Pr
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const SET_BOARD_QA_RECHECK_RECEIPT_VERSION = 'set-board-qa-recheck-receipt/v1' as const;
-export const SET_BOARD_QA_INSTRUCTION_VERSION = 'set-board-qa-instruction/v2' as const;
+export const SET_BOARD_QA_INSTRUCTION_VERSION = 'set-board-qa-instruction/v3' as const;
 
 interface SetBoardQaRecheckReceiptPayload {
   version: typeof SET_BOARD_QA_RECHECK_RECEIPT_VERSION;
