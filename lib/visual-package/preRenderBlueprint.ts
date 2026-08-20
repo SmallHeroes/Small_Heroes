@@ -1467,18 +1467,33 @@ function regionsAreStaticallyBeside(
 
 function staticSpatialConstraintIsFeasible(args: {
   action: PageActionRequirement;
+  affordance: Extract<BlueprintSpatialAffordance, { kind: 'action_space' }>;
   placements: readonly BlueprintFramePlacement[];
 }): boolean {
-  const { action, placements } = args;
+  const { action, affordance, placements } = args;
   const constraint = action.spatialConstraint;
   if (!constraint) return true;
-  const targetPlacement = placementForEntity(
-    placements,
-    constraint.target,
-  );
-  if (!targetPlacement || !regionIsValid(targetPlacement.region)) {
-    return false;
-  }
+  const targetRegion = (() => {
+    if (
+      constraint.target.kind === 'cast' ||
+      constraint.target.kind === 'prop'
+    ) {
+      const targetPlacement = placementForEntity(
+        placements,
+        constraint.target,
+      );
+      return targetPlacement && regionIsValid(targetPlacement.region)
+        ? targetPlacement.region
+        : null;
+    }
+    const targetEntries = affordance.spatialTargetRegions.filter((entry) =>
+      entityRefEquals(entry.target, constraint.target),
+    );
+    return targetEntries.length === 1 && regionIsValid(targetEntries[0].region)
+      ? targetEntries[0].region
+      : null;
+  })();
+  if (!targetRegion) return false;
   const subjectPlacements = actionSubjectEntities(action).map((subject) =>
     placementForEntity(placements, subject),
   );
@@ -1495,7 +1510,7 @@ function staticSpatialConstraintIsFeasible(args: {
       return subjectPlacements.every((placement) =>
         regionsAreStaticallyBeside(
           placement!.region,
-          targetPlacement.region,
+          targetRegion,
         ),
       );
   }
@@ -1985,6 +2000,7 @@ function validateFrame(args: {
           actionParticipantsFitSpace(action, candidate, validPlacements) &&
           staticSpatialConstraintIsFeasible({
             action,
+            affordance: candidate,
             placements: validPlacements,
           }) &&
           Boolean(

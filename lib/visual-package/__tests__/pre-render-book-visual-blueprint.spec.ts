@@ -480,6 +480,43 @@ function buildStaticBesideGroupFixture(options: {
   return rebindEmbeddedAuthority({ blueprint, context: fixture.context });
 }
 
+function buildStaticBesideSpatialFixture(options: {
+  targetRegion?: BlueprintRegion;
+} = {}): BlueprintFixture {
+  const fixture = buildStaticBesideGroupFixture();
+  const blueprint = clone(fixture.blueprint);
+  const page = blueprint.visualContract.pageContracts[0]!;
+  const action = page.actionRequirements?.[0];
+  const actionSpace = blueprint.worldPlan.affordances.find(
+    (entry) => entry.kind === 'action_space',
+  );
+  const targetId = blueprint.visualContract.zones[0]?.spatialNodes?.[0]?.id;
+  if (
+    !action ||
+    !action.spatialConstraint ||
+    !actionSpace ||
+    actionSpace.kind !== 'action_space' ||
+    !targetId
+  ) {
+    throw new Error('static spatial fixture is incomplete');
+  }
+  const oldTarget = action.spatialConstraint.target;
+  action.spatialConstraint.target = { kind: 'spatial', id: targetId };
+  actionSpace.supportedEntities = actionSpace.supportedEntities.filter(
+    (entry) => entry.kind !== oldTarget.kind || entry.id !== oldTarget.id,
+  );
+  actionSpace.supportedEntities.push({ kind: 'spatial', id: targetId });
+  actionSpace.spatialTargetRegions = [
+    {
+      target: { kind: 'spatial', id: targetId },
+      region:
+        options.targetRegion ?? { x: 330, y: 450, width: 80, height: 100 },
+    },
+  ];
+  refreshContractProjections(blueprint);
+  return rebindEmbeddedAuthority({ blueprint, context: fixture.context });
+}
+
 function buildActionSemanticBlueprint(
   semantic: 'phenomenon' | 'directional_move' | 'relation_move',
 ): BlueprintFixture {
@@ -1549,6 +1586,48 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
     expect(
       issueCodes(restamp(fabricatedDestination), fixture.context),
     ).toContain('action_infeasible');
+  });
+
+  it('proves static beside against one exact spatial-node target region', () => {
+    const fixture = buildStaticBesideSpatialFixture();
+    const result = validatePreRenderBookVisualBlueprint(
+      fixture.blueprint,
+      fixture.context,
+    );
+    expect(result.ok, result.ok ? '' : JSON.stringify(result.issues)).toBe(true);
+
+    const missing = clone(fixture.blueprint);
+    const missingSpace = missing.worldPlan.affordances.find(
+      (entry) => entry.kind === 'action_space',
+    );
+    if (!missingSpace || missingSpace.kind !== 'action_space') {
+      throw new Error('static spatial action space missing');
+    }
+    missingSpace.spatialTargetRegions = [];
+    expect(issueCodes(restamp(missing), fixture.context)).toContain(
+      'action_infeasible',
+    );
+
+    const ambiguous = clone(fixture.blueprint);
+    const ambiguousSpace = ambiguous.worldPlan.affordances.find(
+      (entry) => entry.kind === 'action_space',
+    );
+    if (!ambiguousSpace || ambiguousSpace.kind !== 'action_space') {
+      throw new Error('static spatial action space missing');
+    }
+    ambiguousSpace.spatialTargetRegions.push(
+      clone(ambiguousSpace.spatialTargetRegions[0]!),
+    );
+    expect(issueCodes(restamp(ambiguous), fixture.context)).toContain(
+      'action_infeasible',
+    );
+
+    const overlap = buildStaticBesideSpatialFixture({
+      targetRegion: { x: 250, y: 450, width: 80, height: 100 },
+    });
+    expect(issueCodes(overlap.blueprint, overlap.context)).toContain(
+      'action_infeasible',
+    );
   });
 
   it('maximumActors counts cast subjects only, not source phenomena or cast objects', () => {

@@ -4,6 +4,39 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; this milestone is based on `6c9127d9f02d7eb79d8e41d6430adb2f25963bee`.
 
+## CHAMELEON BLUEPRINT STATIC SPATIAL FEASIBILITY — local green; Claude re-gate next
+
+The approved eight-page Chameleon Production Authoring Context passed the
+provider-free Blueprint preflight, then produced one complete nine-frame draft
+with six connections and 54 affordances. Before this correction, that exact
+draft failed on one issue only: page 8's valid `sits beside sp_bed` action was
+impossible because static constraint validation required a cast/prop placement
+for every target even though Blueprint placements cannot represent fixed
+spatial nodes.
+
+The validator now preserves exact current-frame placement authority for cast
+and prop targets and uses exactly one matching typed `spatialTargetRegions`
+entry only for spatial/anchor targets. Existing beside overlap, distance,
+vertical alignment, participant, consumer and capacity rules remain unchanged.
+Missing, duplicate and false geometry fails closed.
+
+The same content-addressed Chameleon draft
+`07e69767e11244dbb81d439175958b0f52fe0a4eb12dffc53d69d1e6173eb980`
+now compiles to Blueprint digest
+`1d52af9e2de461aa981e7d17a9324b7b5c9be9cdaca21a70e01de7befd5ed72f`
+with zero validation issues. Focused validation passes **3 files / 133 tests**,
+TypeScript and `git diff --check`. One literal `npm run check` passed TypeScript,
+autonomous Story typecheck, resource-intensive **20 files / 610 tests**, and
+ordinary **3,345** tests with 65 skipped; it failed only the five established
+ignored-`outputs/` fixture assertions in four unchanged specs. No provider,
+image, network, database, production or render action occurred. Decision Gate and implementation evidence:
+`docs/ai-workflow/R1D_BLUEPRINT_STATIC_SPATIAL_CONSTRAINT_FEASIBILITY_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_BLUEPRINT_STATIC_SPATIAL_CONSTRAINT_FEASIBILITY_IMPLEMENTATION_EVIDENCE.md`.
+Next: literal repository gate, focused commit and independent Claude Code
+re-gate, then persist the exact Blueprint review packet. No Blueprint approval,
+Wizard promotion or render authority is claimed yet.
+
 ## QA WIZARD PRESENTATION DISPOSITIONS — local green; Claude re-gate next
 
 The immutable eight-page Chameleon Candidate and its authoring artifacts remain
