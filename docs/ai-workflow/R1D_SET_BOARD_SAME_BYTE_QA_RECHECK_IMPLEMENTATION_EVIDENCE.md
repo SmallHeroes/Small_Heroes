@@ -86,3 +86,23 @@ not part of the code commit. The town Board remains unminted.
 After an independent Claude Code PASS and push, the only next external action
 is one canonical Vision-only recheck of the existing home Board. A pass still
 requires Guy's separate visual inspection and explicit `--approve` command.
+
+## Independent QA correction
+
+Claude Code independently reviewed immutable range `a001a097..40901c63` and
+returned **PASS — 0 BLOCKER, 0 MAJOR, 2 MINOR**. Its differential comparison
+proved the Registry validator split behavior-identical across 28 structurally
+valid and invalid cases. The two valid MINORs concerned receipt evidence only:
+
+1. completed receipt bytes were written directly over the armed receipt and
+   could be truncated by interruption;
+2. an exclusive-create race loser received raw `EEXIST` instead of the bounded
+   existing-record message.
+
+The follow-up writes completed receipts to a unique temporary file, fsyncs the
+complete bytes, closes it, and atomically renames it over the armed receipt.
+It also converts `EEXIST` at the authoritative `wx` boundary to the same
+bounded refusal used by the pre-check. A hostile test creates the competing
+receipt during asset loading and proves the losing invocation reaches neither
+Vision, render nor upload. Focused follow-up validation passes **2 files / 85
+tests**, `npx tsc --noEmit`, and `git diff --check`.

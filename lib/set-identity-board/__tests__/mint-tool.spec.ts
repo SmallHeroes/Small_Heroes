@@ -389,6 +389,24 @@ describe('--recheck — one-shot, same-byte, Vision-only QA adjudication', () =>
     );
   });
 
+  it('reports the same bounded one-shot refusal when another process wins the exclusive-create race', async () => {
+    const out = await failedEntry();
+    const receiptPath = setBoardQaRecheckReceiptPath(out);
+    const deps = makeDeps({
+      loadBoardAsset: vi.fn(async () => {
+        writeFileSync(receiptPath, '{"synthetic":"race-winner"}');
+        return { buffer: BOARD_BYTES, url: 'https://cdn.example/race-winner' };
+      }),
+    });
+
+    await expect(runRecheck({ mode: 'recheck', entry: out, contract: contractPath }, deps)).rejects.toThrow(
+      /refusing to recheck: the one-shot recheck record already exists/,
+    );
+    expect(deps.runBoardQa).not.toHaveBeenCalled();
+    expect(deps.renderBoard).not.toHaveBeenCalled();
+    expect(deps.uploadBoard).not.toHaveBeenCalled();
+  });
+
   it('rejects identity/prompt drift and byte drift before Vision and before arming', async () => {
     const out = await failedEntry();
     const original = readEntry(out);

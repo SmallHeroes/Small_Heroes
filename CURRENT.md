@@ -27,7 +27,7 @@ It can update only `qaStatus` and `qaCheckedAt` on an affirmative pass; it
 cannot render, upload or approve. A failure, interruption or existing receipt
 permanently blocks another recheck.
 
-Provider-free validation passes **4 files / 130 tests**, `npx tsc --noEmit`
+Provider-free validation passes **4 files / 131 tests**, `npx tsc --noEmit`
 and `git diff --check`. One literal `npm run check` passes TypeScript,
 autonomous Story typecheck, ordinary **3,360 tests**, and resource-intensive
 **20 files / 610 tests**. It fails only the five established missing
@@ -35,8 +35,16 @@ ignored-`outputs/` fixture assertions in four unchanged specs. Durable records:
 `docs/ai-workflow/R1D_SET_BOARD_SAME_BYTE_QA_RECHECK_DECISION_GATE.md` and
 `docs/ai-workflow/R1D_SET_BOARD_SAME_BYTE_QA_RECHECK_IMPLEMENTATION_EVIDENCE.md`.
 
-Next: focused commit and independent Claude Code PASS. Only after PASS and
-push, run the one Vision-only home recheck. If it passes, Guy must still
+Claude Code independently PASSed the implementation commit `40901c63` with
+zero BLOCKER, zero MAJOR and two evidence-quality MINORs. The follow-up makes
+the completed receipt replacement atomic through a fully written and fsynced
+temporary file plus rename, and maps an exclusive-create race loss to the same
+bounded one-shot refusal as the ordinary existing-record path. The added race
+regression and adjacent launcher suite pass **2 files / 85 tests**; TypeScript
+and `git diff --check` pass. No external action occurred during the correction.
+
+Next: focused correction commit and Claude Code micro re-gate. Only after PASS
+and push, run the one Vision-only home recheck. If it passes, Guy must still
 eyeball and explicitly approve the exact PNG before the town Board is minted
 or Visual Package/Wizard/render work resumes.
 

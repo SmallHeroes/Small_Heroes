@@ -43,7 +43,16 @@
  */
 import path from 'path';
 import { createHash } from 'crypto';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import {
+  closeSync,
+  existsSync,
+  fsyncSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'fs';
 
 import { canonicalHash } from '@/lib/canonical-json';
 import { styleIdFromDatabaseValue } from '@/lib/styles';
@@ -724,12 +733,51 @@ function qaRecheckReceipt(payload: SetBoardQaRecheckReceiptPayload): SetBoardQaR
   return { ...payload, digest: canonicalHash(payload) };
 }
 
+let qaRecheckTemporaryWriteCounter = 0;
+
+function recheckAlreadyExistsError(receiptPath: string): Error {
+  return new Error(`refusing to recheck: the one-shot recheck record already exists at "${receiptPath}"`);
+}
+
 function writeQaRecheckReceipt(
   receiptPath: string,
   receipt: SetBoardQaRecheckReceipt,
   exclusive: boolean,
 ): void {
-  writeFileSync(receiptPath, JSON.stringify(receipt, null, 2), exclusive ? { flag: 'wx' } : undefined);
+  const bytes = JSON.stringify(receipt, null, 2);
+  if (exclusive) {
+    let descriptor: number | null = null;
+    try {
+      descriptor = openSync(receiptPath, 'wx');
+      writeFileSync(descriptor, bytes, 'utf8');
+      fsyncSync(descriptor);
+      closeSync(descriptor);
+      descriptor = null;
+      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+        throw recheckAlreadyExistsError(receiptPath);
+      }
+      throw error;
+    } finally {
+      if (descriptor !== null) closeSync(descriptor);
+    }
+  }
+
+  qaRecheckTemporaryWriteCounter += 1;
+  const temporary = `${receiptPath}.tmp-${process.pid}-${qaRecheckTemporaryWriteCounter}`;
+  let descriptor: number | null = null;
+  try {
+    descriptor = openSync(temporary, 'wx');
+    writeFileSync(descriptor, bytes, 'utf8');
+    fsyncSync(descriptor);
+    closeSync(descriptor);
+    descriptor = null;
+    renameSync(temporary, receiptPath);
+  } finally {
+    if (descriptor !== null) closeSync(descriptor);
+    if (existsSync(temporary)) unlinkSync(temporary);
+  }
 }
 
 export async function runRecheck(
@@ -738,7 +786,7 @@ export async function runRecheck(
 ): Promise<SetIdentityBoardRegistryEntry> {
   const receiptPath = setBoardQaRecheckReceiptPath(args.entry);
   if (existsSync(receiptPath)) {
-    throw new Error(`refusing to recheck: the one-shot recheck record already exists at "${receiptPath}"`);
+    throw recheckAlreadyExistsError(receiptPath);
   }
 
   const entry = loadRegistryEntry(args.entry);
