@@ -14,8 +14,15 @@
  * verify the forbidden vocabulary without a network.
  */
 import type { BoardQaResult, SetDefinition } from './types';
+import {
+  assertCurrentSetBoardAmbientDressingPolicy,
+  selectSetBoardAmbientDressing,
+} from './ambientDressing';
 import { setBoardSafeIdentityLabel } from './boardSafeIdentity';
-import { assertSetBoardPositiveAuthoritySpoilerNeutral } from './positiveAuthoritySpoilerGuard';
+import {
+  assertSetBoardPositiveAuthoritySpoilerNeutral,
+  positiveAuthorityLabelIsSafe,
+} from './positiveAuthoritySpoilerGuard';
 
 const OPENING_KINDS: ReadonlySet<string> = new Set(['doorway', 'window', 'balcony_door']);
 
@@ -101,6 +108,7 @@ function allowedGeometryLines(def: SetDefinition): string[] {
 /** Build the character-free QA instruction from the projection ONLY (no story literals). */
 export function buildBoardQaInstruction(def: SetDefinition): string {
   assertSetBoardPositiveAuthoritySpoilerNeutral(def);
+  assertCurrentSetBoardAmbientDressingPolicy(def.contentPolicy.ambientDressing);
   const openings = allowedOpenings(def);
   const geometryLines = allowedGeometryLines(def);
   const openingsLine = openings.length
@@ -126,12 +134,35 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
       `"prop-count:${fact.propId}" and wrong placement as "prop-placement:${fact.propId}".`
     );
   });
+  const ambientPolicy = def.contentPolicy.ambientDressing;
+  const ambientSelections = selectSetBoardAmbientDressing(
+    ambientPolicy,
+    (label) => positiveAuthorityLabelIsSafe(def, label),
+  );
+  const ambientCategoryLines = ambientSelections.map(({ label }) => `- ${label}`);
+  const allowsInanimateDoll = ambientSelections.some(
+    ({ category }) => category === 'clearly_inanimate_cloth_doll',
+  );
+  const sleepingPriorityLabels = ambientSelections
+    .filter(({ category }) => [
+      'fixed_practical_light',
+      'books_without_readable_text',
+      'soft_furnishing',
+      'toy_storage_and_blocks',
+      'clearly_inanimate_cloth_doll',
+      'ordinary_storage',
+      'non_text_wall_decor',
+    ].includes(category))
+    .map(({ label }) => label);
 
   return [
     `Inspect this image as a CHARACTER-FREE set reference sheet for set identity "${setBoardSafeIdentityLabel(def)}".`,
     'It must show ONLY the empty physical set (architecture, fixed surfaces, fixed objects). Return a list of contamination flags for anything present that must NOT be, using these exact categories where they apply:',
     '- "people" for any person, child, human figure, or character',
     '- "animals" for any animal, creature, mascot, or pet',
+    ...(allowsInanimateDoll
+      ? ['- Do NOT flag a clearly manufactured, inert toy or cloth doll as a person, animal, or living character. Flag it only if it is depicted as alive, acting, posing, or occupying the scene as a character.']
+      : []),
     '- "action" for any pose, gesture, or narrative action',
     '- "text" for any text, letters, numbers, labels, captions, or watermarks',
     '- "panels" for any story panel, page layout, panel border, or gutter',
@@ -143,7 +174,12 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
     ...(excludedPropLines.length ? excludedPropLines : ['- none']),
     'FIXED PROP COUNT AND PLACEMENT:',
     ...(fixedPropLines.length ? fixedPropLines : ['- none']),
-    'If the image is a clean, empty, spoiler-neutral set plate with only the allowed openings and exact fixed-prop count/placement, return an empty flag list.',
+    'REQUIRED AMBIENT SET DRESSING:',
+    `- The set must read as ${ambientPolicy.density.replace(/_/g, ' ')}, with at least ${ambientPolicy.minimumDistinctDetails} visually distinct, space-appropriate ambient details selected from the allowed categories below.`,
+    ...ambientCategoryLines,
+    `- For a sleeping room with a bed, a hotel-like image containing only a bed, side table, window, and empty floor/walls is too sparse. Expect several applicable safe details from: ${sleepingPriorityLabels.join('; ')}.`,
+    '- If the set is materially sparse, generic, or lacks the minimum distinct ambient details, return "ambient-dressing-too-sparse".',
+    'If the image is a clean, empty, spoiler-neutral, sufficiently dressed set plate with only the allowed openings and exact fixed-prop count/placement, return an empty flag list.',
   ].join('\n');
 }
 

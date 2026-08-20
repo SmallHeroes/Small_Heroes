@@ -4,6 +4,10 @@ import type { BookVisualContract } from '@/lib/visual-contract-compiler';
 import { getSetBoardStylePromptBlock } from '@/lib/styles';
 
 import { buildSetIdentityBoardPrompt } from '../boardPrompt';
+import {
+  currentSetBoardAmbientDressingPolicy,
+  selectSetBoardAmbientDressing,
+} from '../ambientDressing';
 import { projectSetDefinition } from '../setDefinition';
 
 /**
@@ -160,6 +164,73 @@ describe('buildSetIdentityBoardPrompt', () => {
     expect(a.promptHash).toBe(b.promptHash);
     expect(a.prompt).toBe(b.prompt);
     expect(a.negativePrompt).toBe(b.negativePrompt);
+  });
+
+  it('requires bounded rich ambient dressing while preserving exact story-prop authority', () => {
+    const { def, prompt, negativePrompt } = buildForFixture();
+    expect(def.contentPolicy.ambientDressing).toEqual({
+      version: 'set-board-ambient-dressing/v1',
+      density: 'rich_lived_in',
+      selectionMode: 'space_appropriate_subset',
+      minimumDistinctDetails: 4,
+      allowedCategories: [
+        'fixed_practical_light',
+        'books_without_readable_text',
+        'soft_furnishing',
+        'toy_storage_and_blocks',
+        'clearly_inanimate_cloth_doll',
+        'non_text_wall_decor',
+        'plant',
+        'ordinary_storage',
+        'surface_detail',
+      ],
+      inanimateOnly: true,
+      textFree: true,
+      spoilerNeutral: true,
+    });
+    expect(prompt).toContain('AMBIENT SET DRESSING');
+    expect(prompt).toContain('at least 4 visually distinct');
+    expect(prompt).toContain('small night light');
+    expect(prompt).toContain('picture books with blank, unreadable covers');
+    expect(prompt).toContain('toy storage with simple wooden blocks');
+    expect(prompt).toContain('clearly manufactured, inanimate cloth doll');
+    expect(prompt).toContain('Never imitate, substitute for, or visually introduce a blocked/page-conditioned recurring prop');
+    expect(negativePrompt).toMatch(/NO people/i);
+  });
+
+  it('rejects a forged ambient policy before prompt construction', () => {
+    const def = projectSetDefinition(makeContract(), 'set_hall', STYLE);
+    def.contentPolicy.ambientDressing.minimumDistinctDetails = 1 as 4;
+    expect(() => buildSetIdentityBoardPrompt(def)).toThrow(
+      /set_board_ambient_dressing_policy_invalid/,
+    );
+  });
+
+  it('removes a generic ambient category that collides with a blocked recurring prop', () => {
+    const contract = makeContract();
+    contract.recurringProps.push({
+      id: 'prop_cloth_doll',
+      name: 'Cloth Doll',
+      description: 'a page-conditioned cloth doll',
+    });
+    const def = projectSetDefinition(contract, 'set_hall', STYLE);
+    const { prompt, negativePrompt } = buildSetIdentityBoardPrompt(def);
+    expect(prompt).not.toMatch(/inanimate cloth doll/i);
+    expect(negativePrompt).toContain('Cloth Doll');
+    expect(prompt).toContain('at least 4 visually distinct');
+  });
+
+  it('fails before provider prompt construction when fewer than four ambient categories remain safe', () => {
+    const policy = currentSetBoardAmbientDressingPolicy();
+    const onlyThreeSafe = new Set([
+      'picture books with blank, unreadable covers',
+      'soft furnishing, such as a woven rug or cushion',
+      'small material and surface details that make the set specific and lived-in',
+    ]);
+    expect(() => selectSetBoardAmbientDressing(
+      policy,
+      (label) => onlyThreeSafe.has(label),
+    )).toThrow(/set_board_ambient_dressing_authority_insufficient/);
   });
 });
 

@@ -22,7 +22,14 @@ import { canonicalHash } from '@/lib/canonical-json';
 import { getNegativeStylePromptBlock, getSetBoardStylePromptBlock } from '@/lib/styles';
 
 import type { SetDefinition, SetDefinitionLocation, SetDefinitionZone } from './types';
-import { assertSetBoardPositiveAuthoritySpoilerNeutral } from './positiveAuthoritySpoilerGuard';
+import {
+  assertCurrentSetBoardAmbientDressingPolicy,
+  selectSetBoardAmbientDressing,
+} from './ambientDressing';
+import {
+  assertSetBoardPositiveAuthoritySpoilerNeutral,
+  positiveAuthorityLabelIsSafe,
+} from './positiveAuthoritySpoilerGuard';
 import {
   setBoardSafeIdentityLabel,
   setBoardSafeLocationName,
@@ -104,6 +111,7 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
   // Defense in depth for callers that construct/read a SetDefinition without using projectSetDefinition.
   // This runs before any positive prompt text or provider-facing hash can be produced.
   assertSetBoardPositiveAuthoritySpoilerNeutral(def);
+  assertCurrentSetBoardAmbientDressingPolicy(def.contentPolicy.ambientDressing);
   const openings = openingKindsPresent(def);
   const providerSafeIdentity = setBoardSafeIdentityLabel(def);
 
@@ -133,6 +141,22 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
       (prop) =>
         `NO ${prop.name}; it is not declared as a stable fixed set object and must be absent from this base board`,
     );
+  const ambientPolicy = def.contentPolicy.ambientDressing;
+  const ambientSelections = selectSetBoardAmbientDressing(
+    ambientPolicy,
+    (label) => positiveAuthorityLabelIsSafe(def, label),
+  );
+  const ambientCategoryLines = ambientSelections.map(({ label }) => `- ${label}`);
+  const sleepingPriorityLabels = ambientSelections
+    .filter(({ category }) => [
+      'fixed_practical_light',
+      'books_without_readable_text',
+      'soft_furnishing',
+      'toy_storage_and_blocks',
+      'clearly_inanimate_cloth_doll',
+      'non_text_wall_decor',
+    ].includes(category))
+    .map(({ label }) => label);
 
   const sections: string[] = [
     'SET IDENTITY BOARD — SINGLE ESTABLISHING VIEW OF ONE PHYSICAL SET',
@@ -151,7 +175,16 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
     ...(materialLines.length ? materialLines : ['- (no fixed set objects bound into this set)']),
     '',
     'STABLE OBJECT AUTHORITY:',
-    '- Only the fixed set objects declared above belong to this stable physical-set view.',
+    '- Exact recurring/story-prop identity comes only from the fixed set objects declared above.',
+    '- Ambient dressing below is non-narrative background detail, never a recurring story prop or new spatial opening.',
+    '',
+    'AMBIENT SET DRESSING (bounded visual personality, not story content):',
+    `- Density: ${ambientPolicy.density}; use at least ${ambientPolicy.minimumDistinctDetails} visually distinct, space-appropriate details rather than a sparse or generic room/set.`,
+    '- Select only a physically appropriate subset from these allowed categories:',
+    ...ambientCategoryLines.map((line) => `  ${line}`),
+    `- When the declared geometry is a sleeping room with a bed, prioritize the applicable safe items from this subset: ${sleepingPriorityLabels.join('; ')}.`,
+    '- Every dressing detail must be visibly inanimate, text-free, spoiler-neutral, and subordinate to the exact authored geometry.',
+    '- Never imitate, substitute for, or visually introduce a blocked/page-conditioned recurring prop.',
     '',
     'WALL OPENINGS:',
     ...(openings.length

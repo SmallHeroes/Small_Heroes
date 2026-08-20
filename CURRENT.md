@@ -2,9 +2,55 @@
 
 **Updated:** 2026-08-20
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; this milestone is based on pushed commit `a001a097e003df68b5c96639ed2cbb2ce93f94da`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; this milestone is based on pushed commit `a346e652ccc66597129a259773756c9510cf16d6`.
 
-## SET BOARD SAME-BYTE QA RECHECK — local green; Claude gate next
+## SET BOARD AMBIENT DRESSING — local green; Claude gate next
+
+Guy rejected the first LOW Chameleon home Board as visually sparse: bed,
+side table and window read as a guest room or rental rather than a child's
+room. The image provider followed its authority correctly. The v4 Set
+Definition allowed only exact geometry/fixed story props, and the prompt said
+that only those declared objects belonged. Automated QA checked contamination
+and topology but had no product-quality rule for lived-in set personality.
+
+The general correction adds a canonical
+`set-board-ambient-dressing/v1` policy to every Set Definition. It authorizes
+only a space-appropriate subset of nine closed, inanimate, text-free,
+spoiler-neutral background categories, requires at least four distinct
+details, and routes every label through the existing blocked cast/action/prop
+guard. Sleeping-room geometry prioritizes a fixed night light, unreadable-cover
+picture books, a rug/cushion, toy storage/blocks, an inert cloth doll and
+non-text wall decor. Vision QA now fails a hotel-like sparse room as
+`ambient-dressing-too-sparse` and distinguishes inert toys from living
+characters without weakening the people/animal/action gate.
+
+Board, Registry, content policy and QA instruction advance to v5/v5/v4/v2.
+Immediate v4 Board/Registry entries are rejected. The exact Chameleon home dry
+preview is provider-free and has Set Definition hash
+`8ab05aa8518b40d483e128184ae772da8b80b73c47b2c5a9edf82d6623046f0d`,
+content-policy digest
+`26d37114006e132cbf54ffac599d47fabfd3bb142923f126a07ec27383de3fb8`,
+and prompt hash
+`b6888865317b6014a3a903a8bb839c4c5a7d94855fcc48eaf21561d3f9f711c4`.
+All six Chameleon page-conditioned props remain negative-only.
+
+Provider-free validation passes the entire Set Board suite at **13 files / 327
+tests**, the focused Set Board + Visual Package seam at **8 files / 176
+tests**, TypeScript and `git diff --check`. The final literal `npm run check`
+passes TypeScript, autonomous Story typecheck, ordinary **3,367 tests** and
+resource-intensive **20 files / 610 tests**. Its nonzero exit is only the five
+established missing ignored-`outputs/` fixture assertions in four unchanged
+specs. Durable records:
+`docs/ai-workflow/R1D_SET_BOARD_AMBIENT_DRESSING_DECISION_GATE.md` and
+`docs/ai-workflow/R1D_SET_BOARD_AMBIENT_DRESSING_IMPLEMENTATION_EVIDENCE.md`.
+
+Next: focused commit and independent Claude Code gate. Only after PASS and
+push, mint one replacement Chameleon Home Board at `gpt-image-2` LOW, run its
+ordinary Vision QA, inspect the exact PNG, and stop for Guy's visual approval.
+The old sparse Board stays unapproved; Town Board and all page/book rendering
+remain blocked.
+
+## SET BOARD SAME-BYTE QA RECHECK — completed and pushed
 
 The first authorized LOW Chameleon home Set Board completed exactly one
 `gpt-image-2` generation and one content-addressed no-overwrite upload. The

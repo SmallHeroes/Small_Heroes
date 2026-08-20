@@ -16,13 +16,43 @@
 import type { SpatialNode, SpatialRelation } from '@/lib/visual-contract-compiler';
 
 /** Version of the spoiler-neutral SET projection + prompt derivation. */
-export const SET_IDENTITY_BOARD_VERSION = 'set-board/v4' as const;
+export const SET_IDENTITY_BOARD_VERSION = 'set-board/v5' as const;
 
 /** Version of the on-disk registry entry schema. Bump to invalidate previously-saved registry entries. */
-export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v4' as const;
+export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v5' as const;
 
 /** Version of the declared board-content policy carried through registry/package/runtime identities. */
-export const SET_BOARD_CONTENT_POLICY_VERSION = 'set-board-content/v3' as const;
+export const SET_BOARD_CONTENT_POLICY_VERSION = 'set-board-content/v4' as const;
+
+/** Version of the bounded non-narrative dressing range carried by every current Set Definition. */
+export const SET_BOARD_AMBIENT_DRESSING_POLICY_VERSION =
+  'set-board-ambient-dressing/v1' as const;
+
+export const SET_BOARD_AMBIENT_DRESSING_CATEGORIES = [
+  'fixed_practical_light',
+  'books_without_readable_text',
+  'soft_furnishing',
+  'toy_storage_and_blocks',
+  'clearly_inanimate_cloth_doll',
+  'non_text_wall_decor',
+  'plant',
+  'ordinary_storage',
+  'surface_detail',
+] as const;
+
+export type SetBoardAmbientDressingCategory =
+  (typeof SET_BOARD_AMBIENT_DRESSING_CATEGORIES)[number];
+
+export interface SetBoardAmbientDressingPolicy {
+  version: typeof SET_BOARD_AMBIENT_DRESSING_POLICY_VERSION;
+  density: 'rich_lived_in';
+  selectionMode: 'space_appropriate_subset';
+  minimumDistinctDetails: 4;
+  allowedCategories: SetBoardAmbientDressingCategory[];
+  inanimateOnly: true;
+  textFree: true;
+  spoilerNeutral: true;
+}
 
 /** Version of the structured cast/undeclared-prop guard carried by every direct prompt input. */
 export const LEGACY_SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION =
@@ -77,6 +107,8 @@ export interface SetBoardContentPolicy {
   version: typeof SET_BOARD_CONTENT_POLICY_VERSION;
   includedPropIds: string[];
   excludedProps: SetBoardExcludedProp[];
+  /** Non-story dressing is a bounded generative range; approved bytes lock its exact visual realization. */
+  ambientDressing: SetBoardAmbientDressingPolicy;
 }
 
 export interface SetBoardBlockedCastIdentity {

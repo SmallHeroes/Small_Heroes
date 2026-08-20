@@ -16,6 +16,7 @@ import {
   QA_CALL_FAILED_FLAG,
   QA_RESPONSE_MALFORMED_FLAG,
 } from '../boardQa';
+import { currentSetBoardAmbientDressingPolicy } from '../ambientDressing';
 import {
   SET_BOARD_CONTENT_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
@@ -45,6 +46,7 @@ function makeDef(): SetDefinition {
       version: SET_BOARD_CONTENT_POLICY_VERSION,
       includedPropIds: [],
       excludedProps: [],
+      ambientDressing: currentSetBoardAmbientDressingPolicy(),
     },
     positiveAuthorityPolicy: {
       version: SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
@@ -101,6 +103,7 @@ describe('qaSetIdentityBoardImage — well-formed responses', () => {
       version: SET_BOARD_CONTENT_POLICY_VERSION,
       includedPropIds: ['prop_table'],
       excludedProps: [{ propId: 'prop_later', name: 'Covered Parcel', reasons: ['lifecycle'] }],
+      ambientDressing: currentSetBoardAmbientDressingPolicy(),
     };
     def.positiveAuthorityPolicy.blockedProps = [
       { propId: 'prop_later', name: 'Covered Parcel' },
@@ -114,6 +117,15 @@ describe('qaSetIdentityBoardImage — well-formed responses', () => {
     expect(instruction).toContain('stripe, pattern, texture, material, or shape');
     expect(instruction).toContain('Covered Parcel');
     expect(instruction).toContain('Portable Lantern');
+  });
+
+  it('fails a sparse hotel-like room and distinguishes inert dolls from living characters', () => {
+    const instruction = buildBoardQaInstruction(makeDef());
+    expect(instruction).toContain('ambient-dressing-too-sparse');
+    expect(instruction).toContain('at least 4');
+    expect(instruction).toContain('hotel-like image');
+    expect(instruction).toContain('clearly manufactured, inert toy or cloth doll');
+    expect(instruction).toContain('Flag it only if it is depicted as alive');
   });
 });
 
@@ -208,7 +220,12 @@ describe('boardContaminationFlags — pure classifier', () => {
   });
 
   it('returns nothing for a clean set observation', () => {
-    expect(boardContaminationFlags(['wooden floor', 'stone hearth', 'warm daylight'])).toEqual([]);
+    expect(boardContaminationFlags([
+      'wooden floor',
+      'stone hearth',
+      'warm daylight',
+      'clearly inanimate cloth doll',
+    ])).toEqual([]);
   });
 
   it('is case-insensitive and ignores non-string entries', () => {

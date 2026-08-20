@@ -292,6 +292,22 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
     expect(computeSetDefinitionHash(base, ID, STYLE)).toBe(computeSetDefinitionHash(makeContract(), ID, STYLE));
   });
 
+  it('projects the same current ambient-dressing policy for every set without story-specific branching', () => {
+    const indoor = projectSetDefinition(makeContract(), ID, STYLE);
+    expect(indoor.contentPolicy.ambientDressing).toMatchObject({
+      version: 'set-board-ambient-dressing/v1',
+      density: 'rich_lived_in',
+      selectionMode: 'space_appropriate_subset',
+      minimumDistinctDetails: 4,
+      inanimateOnly: true,
+      textFree: true,
+      spoilerNeutral: true,
+    });
+    expect(indoor.contentPolicy.ambientDressing.allowedCategories).toContain(
+      'clearly_inanimate_cloth_doll',
+    );
+  });
+
   it('fails closed when reviewed stable authority includes a reveal-gated prop', () => {
     const contract = makeContract();
     const prop = contract.recurringProps.find((candidate) => candidate.id === 'floor_lamp')!;

@@ -15,7 +15,7 @@ import {
 import { clone, makeContract, STYLE } from './board-fixtures';
 
 const FROZEN_CLEAN_PROMPT_HASH =
-  '8676bda34dcc9312a4814a3b24fb6f5c5601535b2f66d944fbfe7c7f9ef72bfc';
+  '8680ba4d16cd20cdbd1bea9e0745f7f01a5bdf1b825453192c597732d33a6e56';
 
 function unsafeDefinition(): SetDefinition {
   const definition = projectSetDefinition(makeContract(), 'set_alpha', STYLE);
@@ -25,7 +25,7 @@ function unsafeDefinition(): SetDefinition {
 }
 
 describe('Set Board provider-safe identity labels', () => {
-  it('keeps existing clean provider prompt bytes and prompt hash exact', () => {
+  it('locks the current clean provider prompt bytes and prompt hash exactly', () => {
     const definition = projectSetDefinition(makeContract(), 'set_alpha', STYLE);
     const result = buildSetIdentityBoardPrompt(definition);
     expect(definition.positiveAuthorityPolicy.version).toBe(

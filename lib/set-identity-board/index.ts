@@ -9,6 +9,8 @@ export {
   SET_IDENTITY_BOARD_VERSION,
   SET_IDENTITY_REGISTRY_VERSION,
   SET_BOARD_CONTENT_POLICY_VERSION,
+  SET_BOARD_AMBIENT_DRESSING_POLICY_VERSION,
+  SET_BOARD_AMBIENT_DRESSING_CATEGORIES,
   LEGACY_SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   type SetDefinition,
@@ -16,6 +18,8 @@ export {
   type SetDefinitionZone,
   type SetDefinitionFixedFact,
   type SetBoardContentPolicy,
+  type SetBoardAmbientDressingPolicy,
+  type SetBoardAmbientDressingCategory,
   type SetBoardExcludedProp,
   type SetBoardPositiveAuthorityPolicy,
   type SetBoardBlockedCastIdentity,
@@ -25,6 +29,12 @@ export {
   type SetIdentityBoardBindingContext,
   type BoardQaResult,
 } from './types';
+
+export {
+  currentSetBoardAmbientDressingPolicy,
+  assertCurrentSetBoardAmbientDressingPolicy,
+  SET_BOARD_AMBIENT_DRESSING_LABELS,
+} from './ambientDressing';
 
 export {
   groupLocationsBySetIdentity,

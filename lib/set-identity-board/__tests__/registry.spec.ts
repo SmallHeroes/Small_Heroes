@@ -81,17 +81,17 @@ describe('validateSetIdentityBoardRegistryEntry — fail-closed', () => {
     if (!result.ok) expect(result.errors.join(' ')).toMatch(/approvedBy|approvedAt/);
   });
 
-  it('REJECTS a historical set-board/v1 entry under v2 content authority', () => {
+  it('REJECTS the immediately prior set-board/v4 entry under current v5 authority', () => {
     const e = approvedEntry();
-    e.boardVersion = 'set-board/v1';
+    e.boardVersion = 'set-board/v4';
     const result = validateSetIdentityBoardRegistryEntry(e, EXPECTED);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors.join(' ')).toContain('boardVersion mismatch');
   });
 
-  it('REJECTS a stale registryVersion', () => {
+  it('REJECTS the immediately prior set-registry/v4 entry under current v5 authority', () => {
     const e = approvedEntry();
-    e.registryVersion = 'set-registry/v0';
+    e.registryVersion = 'set-registry/v4';
     expect(validateSetIdentityBoardRegistryEntry(e, EXPECTED).ok).toBe(false);
   });
 

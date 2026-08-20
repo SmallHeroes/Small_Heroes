@@ -34,6 +34,7 @@ import {
   type SetDefinitionLocation,
   type SetDefinitionZone,
 } from './types';
+import { currentSetBoardAmbientDressingPolicy } from './ambientDressing';
 import { assertSetBoardPositiveAuthoritySpoilerNeutral } from './positiveAuthoritySpoilerGuard';
 
 function byId<T extends { id: string }>(items: readonly T[]): T[] {
@@ -297,6 +298,7 @@ export function projectSetDefinition(
     version: SET_BOARD_CONTENT_POLICY_VERSION,
     includedPropIds: fixedSetFacts.map((fact) => fact.propId).sort(),
     excludedProps,
+    ambientDressing: currentSetBoardAmbientDressingPolicy(),
   };
   const authorityPolicy = positiveAuthorityPolicy(
     contract,

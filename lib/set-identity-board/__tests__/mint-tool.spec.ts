@@ -21,6 +21,7 @@ import { setIdentityBoardStorageKey } from '../liveResolverDeps';
 import { validateSetIdentityBoardRegistryEntry } from '../registry';
 import { computeSetDefinitionHash } from '../setDefinition';
 import type { SetBoardPositiveAuthorityLeakError } from '../positiveAuthoritySpoilerGuard';
+import { currentSetBoardAmbientDressingPolicy } from '../ambientDressing';
 import {
   SET_BOARD_CONTENT_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
@@ -593,6 +594,7 @@ describe('mint — the LIVE vision adapter is fail-closed (P1-6 seam)', () => {
       version: SET_BOARD_CONTENT_POLICY_VERSION,
       includedPropIds: [],
       excludedProps: [],
+      ambientDressing: currentSetBoardAmbientDressingPolicy(),
     },
     positiveAuthorityPolicy: {
       version: SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,

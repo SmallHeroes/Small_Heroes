@@ -136,10 +136,10 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
       contentPolicyDigest: computeSetBoardContentPolicyDigest(definition),
       promptHash,
     }).toEqual({
-      boardVersion: 'set-board/v4',
-      setDefinitionHash: '30df3cf6b98edffd23d44c75cb50cec1c4fff237661c8f5a9de6068086152e5b',
-      contentPolicyDigest: '94e3b2ece0c6486dc8fad19f8e998c13d336779112ff4a50f0d8676a12f2fb97',
-      promptHash: 'c40fe64cd5343d826e6853b4caa9a9b63e32e50afdb1fa982e194036f01869fd',
+      boardVersion: 'set-board/v5',
+      setDefinitionHash: '97574004a72906d9d4d9d7c98610fc63c3d9a9bce1610f47babf60ec3345b49b',
+      contentPolicyDigest: '04cbec0eb86a76a16da86d187aa87a6db3163a57c4992afa5a40ac585b254e11',
+      promptHash: 'fe749ff5ea2af00a0437a181cbca24254f3b06866cf5ba82490017da3d851622',
     });
     expect(definition.contentPolicy.includedPropIds).toEqual([
       'prop_chair_leg',
@@ -225,7 +225,7 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
     })).toThrow(PageReferenceCompatibilityError);
   });
 
-  it('preserves historical Fox evidence while rejecting both v1 and v2 identities for v3 authority', () => {
+  it('preserves historical Fox evidence while rejecting prior Board identities under v5 authority', () => {
     const source = contract();
     const definition = projectSetDefinition(source, SET_ID, STYLE_ID);
     const historicalPath = path.join(
@@ -257,6 +257,11 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
       ...historical,
       registryVersion: 'set-registry/v2',
       boardVersion: 'set-board/v2',
+    }, expected).ok).toBe(false);
+    expect(validateSetIdentityBoardRegistryEntry({
+      ...historical,
+      registryVersion: 'set-registry/v4',
+      boardVersion: 'set-board/v4',
     }, expected).ok).toBe(false);
   });
 });
