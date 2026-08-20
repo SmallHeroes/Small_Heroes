@@ -76,6 +76,11 @@ sleeping-room priorities. `Backpack`, `Neighborhood cat`, `Flashlight`, `Last
 bus`, `Striped sock` and `Walking bus stop` remain exclusively in negative
 authority and are explicitly forbidden.
 
+The shared category range deliberately delegates physical appropriateness to
+the bounded image prompt instead of encoding a bedroom/outdoor type map. The
+future Town Board must therefore receive a separate product inspection before
+approval and must not contain bedroom-only dressing.
+
 ## Test evidence
 
 - Entire Set Board suite: **13 files / 327 tests PASS**.
@@ -96,8 +101,11 @@ authority and are explicitly forbidden.
 
 No provider, image, Vision, upload, database, approval, Town Board, Wizard
 promotion, page render, full-book render, deployment or production action
-occurred. The old v4 Home Registry/QA receipt and its exact sparse PNG remain
-recoverable and unapproved; they are not rewritten or staged.
+occurred. Before this commit, the one-shot recheck of the old v4 Home bytes ran
+under `set-board-qa-instruction/v1` and returned zero flags, leaving the v4
+Registry `passed` but unapproved. Guy subsequently rejected the exact sparse
+PNG on product quality. Current v5 authority rejects the v4 Registry regardless
+of that historical QA status; neither artifact is rewritten or staged here.
 
 After a focused commit, independent Claude Code PASS and push, the only next
 external action is one canonical replacement Home Board at `gpt-image-2` LOW

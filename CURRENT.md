@@ -24,6 +24,12 @@ non-text wall decor. Vision QA now fails a hotel-like sparse room as
 `ambient-dressing-too-sparse` and distinguishes inert toys from living
 characters without weakening the people/animal/action gate.
 
+Physical appropriateness remains a bounded image-model choice inside the
+closed category range rather than a hardcoded indoor/outdoor map. The future
+Town Board therefore requires its own visual inspection before approval; it
+must not acquire bedroom-only dressing merely because those categories exist
+in the shared range.
+
 Board, Registry, content policy and QA instruction advance to v5/v5/v4/v2.
 Immediate v4 Board/Registry entries are rejected. The exact Chameleon home dry
 preview is provider-free and has Set Definition hash
@@ -50,17 +56,20 @@ ordinary Vision QA, inspect the exact PNG, and stop for Guy's visual approval.
 The old sparse Board stays unapproved; Town Board and all page/book rendering
 remain blocked.
 
-## SET BOARD SAME-BYTE QA RECHECK — completed and pushed
+## SET BOARD SAME-BYTE QA RECHECK — completed and superseded
 
 The first authorized LOW Chameleon home Set Board completed exactly one
 `gpt-image-2` generation and one content-addressed no-overwrite upload. The
 stored PNG SHA-256 is
 `492c8933ba67dbf3a537909e5925228aebf03f9690cd20443a55b72f0071bfd7`.
-Vision QA returned only `excluded-prop:prop_striped_sock`, so the current v4
-Registry correctly remains `failed` and unapproved. Direct inspection of the
-exact downloaded bytes shows an empty bedroom with a striped/fringed blanket
-and no distinct sock. The town Board was not minted; no reroll, retry, page
-render, Wizard promotion or approval occurred.
+Initial Vision QA returned only `excluded-prop:prop_striped_sock`. The later
+one-shot same-byte recheck ran under `set-board-qa-instruction/v1`, returned
+zero flags, and changed the v4 Registry to `passed` while leaving both approval
+fields null. Direct inspection still shows a sparse bedroom with a
+striped/fringed blanket and no distinct sock, and Guy rejected it on product
+quality. Current v5 identity rejects that v4 Registry independently of its QA
+status. The town Board was not minted; no reroll, page render, Wizard promotion
+or approval occurred.
 
 The general correction gives QA the existing allowed zone geometry and an
 explicit distinct-recognizable-object rule: an allowed furnishing, surface,
@@ -89,10 +98,10 @@ bounded one-shot refusal as the ordinary existing-record path. The added race
 regression and adjacent launcher suite pass **2 files / 85 tests**; TypeScript
 and `git diff --check` pass. No external action occurred during the correction.
 
-Next: focused correction commit and Claude Code micro re-gate. Only after PASS
-and push, run the one Vision-only home recheck. If it passes, Guy must still
-eyeball and explicitly approve the exact PNG before the town Board is minted
-or Visual Package/Wizard/render work resumes.
+This milestone and its atomic receipt-write correction are completed and
+pushed through `a346e652`. Its one-shot receipt remains immutable historical
+evidence; it neither authorizes the rejected PNG nor satisfies current v5
+Board/Registry authority.
 
 ## CHAMELEON SET BOARD PROVIDER-SAFE IDENTITY LABELS — local green; Claude re-gate next
 
