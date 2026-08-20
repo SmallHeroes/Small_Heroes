@@ -23,6 +23,10 @@ import { getNegativeStylePromptBlock, getSetBoardStylePromptBlock } from '@/lib/
 
 import type { SetDefinition, SetDefinitionLocation, SetDefinitionZone } from './types';
 import { assertSetBoardPositiveAuthoritySpoilerNeutral } from './positiveAuthoritySpoilerGuard';
+import {
+  setBoardSafeIdentityLabel,
+  setBoardSafeLocationName,
+} from './boardSafeIdentity';
 
 /**
  * The wall-APERTURE kinds (a subset of `SpatialNodeKind`). Only these are announced as "openings" in the prompt;
@@ -61,13 +65,13 @@ function openingKindsPresent(def: SetDefinition): string[] {
   return Array.from(present).sort().map(humanizeKind);
 }
 
-function locationLine(loc: SetDefinitionLocation): string {
+function locationLine(definition: SetDefinition, loc: SetDefinitionLocation): string {
   const facets: string[] = [];
   if (loc.timeOfDay) facets.push(`time of day: ${loc.timeOfDay}`);
   if (loc.lighting) facets.push(`lighting: ${loc.lighting}`);
   if (loc.environmentClass) facets.push(`environment: ${loc.environmentClass}`);
   const facetText = facets.length ? ` (${facets.join('; ')})` : '';
-  return `- ${loc.name}${facetText}`;
+  return `- ${setBoardSafeLocationName(definition, loc)}${facetText}`;
 }
 
 function zoneGeometryLines(zone: SetDefinitionZone, index: number): string[] {
@@ -101,6 +105,7 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
   // This runs before any positive prompt text or provider-facing hash can be produced.
   assertSetBoardPositiveAuthoritySpoilerNeutral(def);
   const openings = openingKindsPresent(def);
+  const providerSafeIdentity = setBoardSafeIdentityLabel(def);
 
   const geometryLines = def.zones.flatMap(zoneGeometryLines);
   const materialLines = def.fixedSetFacts.map((f) => {
@@ -134,10 +139,10 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
     'Render ONE single canonical establishing view of this unoccupied physical set: a SINGLE CONTINUOUS ILLUSTRATION filling the frame edge to edge, from one natural establishing angle wide enough to take in the entire connected space at once.',
     'Compose the result as one uninterrupted picture filling the frame edge to edge.',
     '',
-    `SET IDENTITY: ${def.setIdentityId}  (board ${def.boardVersion})`,
+    `SET IDENTITY: ${providerSafeIdentity}  (board ${def.boardVersion})`,
     '',
     'THE ONE PHYSICAL SET (all of the areas below are ONE continuous connected space, shown together in the single view):',
-    ...def.locations.map(locationLine),
+    ...def.locations.map((location) => locationLine(def, location)),
     '',
     'SET GEOMETRY (the fixed architecture of this set):',
     ...(geometryLines.length ? geometryLines : ['- (no structured geometry authored for this set)']),

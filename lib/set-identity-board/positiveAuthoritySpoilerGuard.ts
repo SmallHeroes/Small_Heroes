@@ -27,7 +27,10 @@ interface CanonicalTerm {
   words: string[];
 }
 
-const GENERIC_CAST_TERMS = [
+// These closed vocabularies are part of set-board-positive-authority/v2.
+// Changing either list requires a new policy version so historical prompt
+// projection cannot be silently reinterpreted.
+const GENERIC_CAST_TERMS_V2 = [
   'person',
   'people',
   'human',
@@ -43,7 +46,7 @@ const GENERIC_CAST_TERMS = [
   'pet',
 ] as const;
 
-const ACTION_TERMS = [
+const ACTION_TERMS_V2 = [
   'step through',
   'steps through',
   'stepping through',
@@ -244,13 +247,37 @@ function canonicalTerms(values: readonly string[], includeIndividualWords: boole
   return terms;
 }
 
+/**
+ * Closed label-only classifier shared by the prompt and Vision projections.
+ * It does not sanitize descriptive authority; those fields remain in the
+ * ordinary fail-closed source scan below.
+ */
+export function positiveAuthorityLabelIsSafe(
+  definition: SetDefinition,
+  value: string,
+): boolean {
+  const sourceWords = canonicalSetBoardWords(value);
+  if (sourceWords.length === 0) return true;
+  const candidateGroups: CanonicalTerm[][] = [
+    canonicalTerms(GENERIC_CAST_TERMS_V2, false),
+    ...definition.positiveAuthorityPolicy.blockedCast.map((identity) =>
+      canonicalTerms([identity.castId, ...identity.labels], true)),
+    ...[
+      ...definition.positiveAuthorityPolicy.blockedProps,
+      ...definition.contentPolicy.excludedProps,
+    ].map((prop) =>
+      deriveExcludedPropCanonicalTerms(prop).map((label) => ({
+        label,
+        words: canonicalSetBoardWords(label),
+      }))),
+    canonicalTerms(ACTION_TERMS_V2, false),
+  ];
+  return !candidateGroups.some((terms) =>
+    terms.some((term) => containsTerm(sourceWords, term.words)));
+}
+
 function positiveAuthoritySources(definition: SetDefinition): PositiveAuthoritySource[] {
   const sources: PositiveAuthoritySource[] = [
-    {
-      fieldPath: 'setIdentityId',
-      provenance: 'SetDefinition.setIdentityId -> positive SET IDENTITY line',
-      value: definition.setIdentityId,
-    },
     {
       fieldPath: 'boardVersion',
       provenance: 'SetDefinition.boardVersion -> positive SET IDENTITY line',
@@ -261,11 +288,6 @@ function positiveAuthoritySources(definition: SetDefinition): PositiveAuthorityS
   for (const [locationIndex, location] of definition.locations.entries()) {
     const prefix = `locations[${locationIndex}]`;
     sources.push(
-      {
-        fieldPath: `${prefix}.name`,
-        provenance: `SetDefinitionLocation ${JSON.stringify(location.id)} -> positive location line`,
-        value: location.name,
-      },
       {
         fieldPath: `${prefix}.timeOfDay`,
         provenance: `SetDefinitionLocation ${JSON.stringify(location.id)} -> positive time-of-day facet`,
@@ -381,7 +403,7 @@ export function assertSetBoardPositiveAuthoritySpoilerNeutral(
     }
   }
 
-  const genericCastTerms = canonicalTerms(GENERIC_CAST_TERMS, false);
+  const genericCastTerms = canonicalTerms(GENERIC_CAST_TERMS_V2, false);
   const blockedCast = definition.positiveAuthorityPolicy.blockedCast.map((identity) => ({
     identity: identity.castId,
     terms: canonicalTerms([identity.castId, ...identity.labels], true),
@@ -393,7 +415,7 @@ export function assertSetBoardPositiveAuthoritySpoilerNeutral(
       words: canonicalSetBoardWords(label),
     })),
   }));
-  const actionTerms = canonicalTerms(ACTION_TERMS, false);
+  const actionTerms = canonicalTerms(ACTION_TERMS_V2, false);
 
   for (const source of sources) {
     const sourceWords = canonicalSetBoardWords(source.value);

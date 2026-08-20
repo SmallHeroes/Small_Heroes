@@ -78,14 +78,14 @@ describe('Set Board positive free-text spoiler guard', () => {
     })).not.toContain('prop');
   });
 
-  it('rejects an excluded prop leaking through a positive location name', () => {
+  it('projects an unsafe metadata-only location name without weakening excluded-prop authority', () => {
     const contract = revealGatedContract();
     contract.setBoardAuthorities![0].locations[0].name = 'Bucket Supply Room';
-
-    expectLeak(
-      () => projectSetDefinition(contract, SET_ID, STYLE),
-      { fieldPath: 'locations[0].name' },
-    );
+    const definition = projectSetDefinition(contract, SET_ID, STYLE);
+    const { prompt, negativePrompt } = buildSetIdentityBoardPrompt(definition);
+    expect(prompt).not.toContain('Bucket Supply Room');
+    expect(prompt).toMatch(/location_[a-f0-9]{64}/);
+    expect(negativePrompt).toContain('NO Old Tin Bucket');
   });
 
   it('rejects the validated partial lighting leak with precise field provenance', () => {
@@ -100,13 +100,12 @@ describe('Set Board positive free-text spoiler guard', () => {
     expect(leak.excludedPropName).toBe('Old Tin Bucket');
   });
 
-  it('rejects adjacent leaks through set identity, projected geometry, and fixed-object material', () => {
+  it('projects metadata identity while rejecting adjacent geometry and fixed-object material leaks', () => {
     const identityLeak = projectSetDefinition(revealGatedContract(), SET_ID, STYLE);
     identityLeak.setIdentityId = 'set_bucket_gallery';
-    expectLeak(
-      () => buildSetIdentityBoardPrompt(identityLeak),
-      { fieldPath: 'setIdentityId' },
-    );
+    const identityPrompt = buildSetIdentityBoardPrompt(identityLeak).prompt;
+    expect(identityPrompt).not.toContain('set_bucket_gallery');
+    expect(identityPrompt).toMatch(/SET IDENTITY: set_[a-f0-9]{64}/);
 
     const geometryLeak = revealGatedContract();
     geometryLeak.setBoardAuthorities![0].areas[1].spatialNodes.push({

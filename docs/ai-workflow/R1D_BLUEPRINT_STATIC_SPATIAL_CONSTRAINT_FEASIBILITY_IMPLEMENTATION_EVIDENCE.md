@@ -6,7 +6,9 @@ The Blueprint validator now accepts exact typed fixed-set geometry for a static
 `beside` constraint. `cast` and `prop` targets remain bound to their unique
 current-frame placement; `spatial` and `anchor` targets must instead have
 exactly one matching, resolving `spatialTargetRegions` entry on the selected
-action-space affordance. All existing horizontal-gap, vertical-overlap,
+action-space affordance. The target region must be structurally valid; the
+existing static-`beside` geometry then requires horizontal separation with
+vertical overlap between the subject and target. All existing horizontal-gap, vertical-overlap,
 non-overlap, subject-placement, consumer, participant and capacity rules remain
 unchanged.
 
@@ -42,7 +44,7 @@ The direct validator suite proves:
 
 - exact spatial-node target geometry is accepted;
 - a missing or duplicate target region is rejected;
-- overlapping geometry is rejected;
+- subject/target overlap for `beside` is rejected;
 - existing cast-group/current-prop-placement static behavior stays green;
 - missing prop placement and fabricated static destinations remain rejected.
 

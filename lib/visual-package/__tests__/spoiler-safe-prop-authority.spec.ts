@@ -137,7 +137,7 @@ describe('spoiler-safe board and page-conditioned prop authority', () => {
       promptHash,
     }).toEqual({
       boardVersion: 'set-board/v4',
-      setDefinitionHash: 'a1323cd835291da11a8b74dc1844a91a75bcd7578a0413a476be11c5ecd39aa8',
+      setDefinitionHash: '30df3cf6b98edffd23d44c75cb50cec1c4fff237661c8f5a9de6068086152e5b',
       contentPolicyDigest: '94e3b2ece0c6486dc8fad19f8e998c13d336779112ff4a50f0d8676a12f2fb97',
       promptHash: 'c40fe64cd5343d826e6853b4caa9a9b63e32e50afdb1fa982e194036f01869fd',
     });

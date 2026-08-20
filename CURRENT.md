@@ -2,7 +2,61 @@
 
 **Updated:** 2026-08-20
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; this milestone is based on `6c9127d9f02d7eb79d8e41d6430adb2f25963bee`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; this milestone is based on `2bc9a2ccdfdf3d06abe34cc1a850174c185d02ec`.
+
+## CHAMELEON SET BOARD PROVIDER-SAFE IDENTITY LABELS — local green; Claude re-gate next
+
+Claude Code independently PASSed the preceding Blueprint static-spatial
+correction at immutable range `418fbfe4..2bc9a2cc` with zero BLOCKER/MAJOR and
+one documentation-only MINOR. The evidence now correctly states that a valid
+static `beside` target region must remain horizontally separated with vertical
+overlap; it does not claim target-region overlap with the action footprint.
+
+Guy approved the exact Chameleon Blueprint review packet. The persisted
+approval digest is
+`f48affee3fdbf9db826c19ccbb99a65047a604b21ba3ad3cce18e9d56449a3ba`
+for Blueprint
+`e473e9e965b5439b8aabee22cff45bc103348eb7294e962b070ab1628152dabd`.
+Visual Package assembly then reached Set Board projection and exposed one
+general provider-boundary defect: the metadata identity
+`set_child_home_night` and location name `Child's home` contain the cast token
+`child`, so the positive-authority guard rejected them before any Board call.
+The Vision QA instruction independently emitted the same raw Set id.
+
+The local correction adds one versioned provider-safe label projection used by
+both image and Vision prompts. Clean labels remain byte-identical. Unsafe
+labels become full canonical SHA-256 identifiers; raw Set/location authority
+continues to key definition, registry, storage and runtime. Descriptive
+lighting, environment, geometry and fixed-object authority remains unmodified
+and fail-closed. The positive-authority policy advances from v1 to v2; Board
+and Registry remain v4.
+
+Provider-free proof now succeeds for both required Chameleon Boards. The home
+Board dry projection has definition hash
+`c890d4fd2d97c26d93677930cb937ba48ac20c41c2447149ad2beec0bbd20d70`
+and prompt hash
+`d62ac59dba6d24e3875ea9dd2c9d9da75812a866bd26c8f06a90e00fcb5ff1ce`;
+neither raw unsafe label appears in its positive prompt. Exact Visual Package
+assembly now advances to the expected missing current Registry artifacts for
+only `set_child_home_night` and `set_town_night`. No provider, image, Vision,
+upload, approval or render call occurred.
+
+Focused validation passes **4 files / 37 tests**, all Set Board suites pass
+**13 files / 311 tests**, adjacent Visual Package suites pass **3 files / 50
+tests**, the adjacent frozen Fox identity fixture passes **1 file / 6 tests**,
+and TypeScript plus `git diff --check` pass. One literal `npm run check` passed
+TypeScript, autonomous Story typecheck and resource-intensive **20 files / 610
+tests**. Ordinary passed **3,351** and skipped 65, failing only the same five
+established missing ignored-`outputs/` fixture assertions in four unchanged
+specs. No changed or adjacent functional test failed. Durable records:
+`docs/ai-workflow/R1D_SET_BOARD_PROVIDER_SAFE_IDENTITY_LABELS_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_SET_BOARD_PROVIDER_SAFE_IDENTITY_LABELS_IMPLEMENTATION_EVIDENCE.md`.
+
+Next: focused commit and independent Claude Code re-gate. After PASS and push,
+mint exactly the two required LOW Boards, run their Vision QA, and stop for Guy
+to eyeball/approve before Visual Package assembly, Wizard qualification or any
+page render.
 
 ## CHAMELEON BLUEPRINT STATIC SPATIAL FEASIBILITY — local green; Claude re-gate next
 

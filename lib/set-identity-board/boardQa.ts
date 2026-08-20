@@ -14,6 +14,8 @@
  * verify the forbidden vocabulary without a network.
  */
 import type { BoardQaResult, SetDefinition } from './types';
+import { setBoardSafeIdentityLabel } from './boardSafeIdentity';
+import { assertSetBoardPositiveAuthoritySpoilerNeutral } from './positiveAuthoritySpoilerGuard';
 
 const OPENING_KINDS: ReadonlySet<string> = new Set(['doorway', 'window', 'balcony_door']);
 
@@ -92,6 +94,7 @@ function placementAreaLabels(def: SetDefinition, zoneIds: readonly string[]): st
 
 /** Build the character-free QA instruction from the projection ONLY (no story literals). */
 export function buildBoardQaInstruction(def: SetDefinition): string {
+  assertSetBoardPositiveAuthoritySpoilerNeutral(def);
   const openings = allowedOpenings(def);
   const openingsLine = openings.length
     ? `The ONLY wall openings that belong to this set are: ${openings.join(', ')}. Flag any other opening kind (e.g. a doorway/window/balcony door not in that list) as "opening-kind-not-in-contract".`
@@ -118,7 +121,7 @@ export function buildBoardQaInstruction(def: SetDefinition): string {
   });
 
   return [
-    `Inspect this image as a CHARACTER-FREE set reference sheet for set identity "${def.setIdentityId}".`,
+    `Inspect this image as a CHARACTER-FREE set reference sheet for set identity "${setBoardSafeIdentityLabel(def)}".`,
     'It must show ONLY the empty physical set (architecture, fixed surfaces, fixed objects). Return a list of contamination flags for anything present that must NOT be, using these exact categories where they apply:',
     '- "people" for any person, child, human figure, or character',
     '- "animals" for any animal, creature, mascot, or pet',

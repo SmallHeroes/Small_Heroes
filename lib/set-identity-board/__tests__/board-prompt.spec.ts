@@ -233,9 +233,9 @@ describe('buildSetIdentityBoardPrompt — ONE continuous establishing view, neve
 });
 
 describe('positive-authority guard — direct prompt construction fails closed', () => {
-  it('rejects a blocked cast label before prompt construction', () => {
+  it('rejects a blocked cast phrase in descriptive lighting before prompt construction', () => {
     const def = projectSetDefinition(makeContract(), 'set_hall', STYLE);
-    def.locations[0].name = 'Kid waits in the hall';
+    def.locations[0].lighting = 'Kid waits in the hall';
     expect(() => buildSetIdentityBoardPrompt(def)).toThrow(/set_board_positive_authority_leak/);
   });
 

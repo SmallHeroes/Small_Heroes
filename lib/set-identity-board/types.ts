@@ -25,8 +25,10 @@ export const SET_IDENTITY_REGISTRY_VERSION = 'set-registry/v4' as const;
 export const SET_BOARD_CONTENT_POLICY_VERSION = 'set-board-content/v3' as const;
 
 /** Version of the structured cast/undeclared-prop guard carried by every direct prompt input. */
-export const SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION =
+export const LEGACY_SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION =
   'set-board-positive-authority/v1' as const;
+export const SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION =
+  'set-board-positive-authority/v2' as const;
 
 /** A location as it appears in the SET-only projection (set facts only — no cast/appearance/page data). */
 export interface SetDefinitionLocation {

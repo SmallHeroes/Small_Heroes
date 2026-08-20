@@ -9,6 +9,7 @@ export {
   SET_IDENTITY_BOARD_VERSION,
   SET_IDENTITY_REGISTRY_VERSION,
   SET_BOARD_CONTENT_POLICY_VERSION,
+  LEGACY_SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   type SetDefinition,
   type SetDefinitionLocation,
@@ -36,9 +37,15 @@ export {
 export { buildSetIdentityBoardPrompt } from './boardPrompt';
 
 export {
+  setBoardSafeIdentityLabel,
+  setBoardSafeLocationName,
+} from './boardSafeIdentity';
+
+export {
   assertSetBoardPositiveAuthoritySpoilerNeutral,
   canonicalSetBoardWords,
   deriveExcludedPropCanonicalTerms,
+  positiveAuthorityLabelIsSafe,
   SetBoardPositiveAuthoritySpoilerError,
   SetBoardPositiveAuthorityLeakError,
 } from './positiveAuthoritySpoilerGuard';
