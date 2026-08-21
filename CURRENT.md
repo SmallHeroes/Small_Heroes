@@ -4,6 +4,45 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
+## WIZARD NO-PHOTO ANCHOR — LOCAL GREEN; ACCEPTED UI RESTORATION NEXT
+
+The first real fake-paid Chameleon QA order completed checkout, text, DNA and
+companion authority, then failed before cover generation with
+`ANCHOR_GATE_BLOCK: approved child canonical anchor missing before cover generation`.
+The order intentionally followed the Wizard's advertised no-photo path. The
+root cause was exact: `runDnaStage` generated a canonical child anchor only
+when `Order.childImageUrl` was nonblank, while every cover/page path correctly
+required that approved anchor.
+
+The general correction adds a separate Style 01 description-template identity
+lane. It uses the approved boy/girl template, character-free Style 01 technique
+references, locked child DNA, age/gender and story wardrobe with
+`referenceMode: anchor_template`. It never invokes photo resemblance scoring,
+never persists a score or threshold, and records
+`source: generated_story_anchor`. The photo and Style 02 paths remain unchanged.
+Generated candidates advance only when an actual anchor description, semantic
+QA and authoritative style QA all pass. Missing Vision evidence stops after
+the current image instead of spending another attempt. Crash recovery accepts
+only a matching fully-passed `description_template` candidate and retains the
+same provenance; injected or failed generic rows cannot be promoted.
+
+Provider-free validation passes **8 files / 79 tests**, TypeScript and
+`git diff --check`. The failed Order remains immutable evidence and is not
+retried. No provider, storage, database, deployment, image, or Production
+operation was performed by this implementation. Decision authority and full
+proof plan:
+`docs/ai-workflow/R1D_WIZARD_NO_PHOTO_ANCHOR_AND_ACCEPTED_UI_RESTORE_DECISION_GATE.md`.
+Implementation record:
+`docs/ai-workflow/R1D_WIZARD_NO_PHOTO_ANCHOR_IMPLEMENTATION_EVIDENCE.md`.
+
+The current QA deployment also exposed a separate presentation regression:
+the functional branch does not contain Guy's accepted Landing/Wizard design
+head `1dc555396065cee9724fa530bc17c262901e8c35`. The next isolated milestone
+restores that presentation authority without replacing current Visual Package,
+Story Matrix, checkout or generation logic. No new Order is allowed until both
+milestones are locally green and Claude Code independently PASSes the immutable
+range.
+
 ## WIZARD V4 PACKAGE SELECTION — INDEPENDENT PASS; REMOTE FULL-BOOK QA GATE PREPARED
 
 Guy approved publication of exact Visual Package v4 revision

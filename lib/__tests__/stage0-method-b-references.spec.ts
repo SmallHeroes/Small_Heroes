@@ -3,11 +3,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import {
+  buildStage0DescriptionTemplatePrompt,
+  buildStage0DescriptionTemplateReferences,
   buildStage0MethodBReferences,
   buildStage0MethodBPrompt,
   sanitizeStage0AnchorIdentityText,
+  shouldGenerateStage0DescriptionTemplateAnchor,
+  stage0DescriptionTemplateCandidatePassesQa,
   type Stage0MethodBReferenceLayout,
 } from '../generation-pipeline/stage0-method-b';
+import { STYLE_01_CHILD_PHOTO_IDENTITY_RULE } from '../style01-gptimage';
 import {
   LION_BEDTIME_BAR_CHILD_PHOTO_DESCRIPTION,
   LION_BEDTIME_BAR_LOCKED_CHILD_DESCRIPTION,
@@ -64,6 +69,73 @@ describe('Stage0 Method B reference layouts (Brief F)', () => {
     expect(refs.labels.join(' ')).not.toContain('style01_child_template');
     expect(refs.paths[0]).toBe(photo);
     expect(refs.paths.some((p) => p.endsWith('boy.png'))).toBe(false);
+  });
+
+  it('builds the no-photo authority from one approved child template plus character-free style refs', () => {
+    const refs = buildStage0DescriptionTemplateReferences({ childGender: 'boy' });
+    expect(refs.referenceMode).toBe('anchor_template');
+    expect(refs.labels[0]).toBe('style01_child_template');
+    expect(refs.paths[0].replace(/\\/g, '/')).toMatch(/style-references\/01-child-template\/boy\.png$/);
+    expect(refs.labels).not.toContain('raw_child_photo');
+    expect(refs.paths).toHaveLength(refs.labels.length);
+    expect(refs.labels.slice(1).every((label) => /^style01_ref_\d$/.test(label))).toBe(true);
+  });
+
+  it('keeps the no-photo prompt bound to story DNA and wardrobe without photo-likeness claims', () => {
+    const prompt = buildStage0DescriptionTemplatePrompt({
+      order: { childGender: 'boy', childAge: 5 },
+      lockedChildDescription: 'Short curly black hair, warm brown skin, dark eyes.',
+      wardrobeLock: 'BOOK WARDROBE LOCK: teal pajamas with small moon shapes.',
+    });
+    expect(prompt).toContain('DESCRIPTION-DEFINED STORYBOOK CHILD');
+    expect(prompt).toContain('Short curly black hair');
+    expect(prompt).toContain('teal pajamas');
+    expect(prompt).toContain('5-year-old kindergarten-age boy');
+    expect(prompt).not.toContain(STYLE_01_CHILD_PHOTO_IDENTITY_RULE);
+    expect(prompt).not.toMatch(/PHOTO IDENTITY|raw child photo|resemblance|likeness/i);
+  });
+
+  it('selects the no-photo generator only for a missing Style 01 child anchor', () => {
+    expect(shouldGenerateStage0DescriptionTemplateAnchor({
+      hasExistingChildAnchor: false,
+      childImageUrl: null,
+      orderStyleBranch: 'style01',
+    })).toBe(true);
+    expect(shouldGenerateStage0DescriptionTemplateAnchor({
+      hasExistingChildAnchor: true,
+      childImageUrl: null,
+      orderStyleBranch: 'style01',
+    })).toBe(false);
+    expect(shouldGenerateStage0DescriptionTemplateAnchor({
+      hasExistingChildAnchor: false,
+      childImageUrl: 'https://example.test/child.png',
+      orderStyleBranch: 'style01',
+    })).toBe(false);
+    expect(shouldGenerateStage0DescriptionTemplateAnchor({
+      hasExistingChildAnchor: false,
+      childImageUrl: null,
+      orderStyleBranch: 'style02',
+    })).toBe(false);
+  });
+
+  it('requires both semantic and style QA for a no-photo candidate', () => {
+    const result = (semantic: boolean, style: boolean) => ({
+      anchorVisionDescription: 'A five-year-old child.',
+      semantic: { ok: semantic },
+      styleQa: { ok: style, notes: 'Authoritative visual QA result.' },
+    }) as Parameters<typeof stage0DescriptionTemplateCandidatePassesQa>[0];
+    expect(stage0DescriptionTemplateCandidatePassesQa(result(true, true))).toBe(true);
+    expect(stage0DescriptionTemplateCandidatePassesQa(result(false, true))).toBe(false);
+    expect(stage0DescriptionTemplateCandidatePassesQa(result(true, false))).toBe(false);
+    expect(stage0DescriptionTemplateCandidatePassesQa(result(false, false))).toBe(false);
+    expect(stage0DescriptionTemplateCandidatePassesQa({
+      ...result(true, true),
+      anchorVisionDescription: null,
+    })).toBe(false);
+    expect(stage0DescriptionTemplateCandidatePassesQa({
+      ...result(true, true),
+      styleQa: { ok: true, notes: 'OPENAI_API_KEY missing — style vision QA skipped' },
+    } as Parameters<typeof stage0DescriptionTemplateCandidatePassesQa>[0])).toBe(false);
   });
 
   it('Bar corrected identity has olive/tan skin — not pale, no toddler-pushing softness', () => {

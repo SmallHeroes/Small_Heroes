@@ -193,6 +193,8 @@ export type PipelineCache = {
   stage0AnchorCandidates?: Array<{
     attempt: number;
     url: string;
+    /** Absent on legacy rows and therefore interpreted as the existing photo identity lane. */
+    identityMode?: 'photo' | 'description_template';
     model?: string;
     resemblanceScore?: number;
     faceDetectConfidence?: number;
@@ -202,6 +204,7 @@ export type PipelineCache = {
     geometryWeird?: boolean;
     passed?: boolean;
     semanticPass?: boolean;
+    stylePass?: boolean;
     embeddingVerdict?: 'hard_fail' | 'soft_ok';
     createdAt: string;
   }>;

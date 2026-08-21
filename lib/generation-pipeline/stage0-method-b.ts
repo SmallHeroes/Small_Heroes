@@ -8,6 +8,7 @@ import {
 } from '@/lib/anchor-resemblance-gate';
 import { evaluateAnchorStyleFromVision } from '@/lib/anchor-style-qa';
 import {
+  evaluateImageFaceSignal,
   resolveEffectiveThreshold,
   resolveResemblanceThresholdConfig,
   scoreResemblanceAgainstReference,
@@ -17,6 +18,7 @@ import {
   STYLE_01_ANTI_STYLE02,
   STYLE_01_AVOIDANCE_NEGATIVE,
   STYLE_01_CHILD_PHOTO_IDENTITY_RULE,
+  STYLE_01_CHILD_TEMPLATE_STYLE_RULE,
   STYLE_01_NO_TEXT,
   STYLE_01_REFERENCE_INSTRUCTION,
   STYLE_01_RENDERING_CORRECTION,
@@ -59,6 +61,55 @@ export type Stage0MethodBResult = {
   styleQa: Awaited<ReturnType<typeof evaluateAnchorStyleFromVision>>;
   embeddingVerdict: string;
 };
+
+export type Stage0DescriptionTemplateReferences = {
+  paths: string[];
+  labels: string[];
+  referenceMode: Extract<GPTImageReferenceMode, 'anchor_template'>;
+};
+
+export type Stage0DescriptionTemplateResult = {
+  anchorUrl: string;
+  anchorModel: string;
+  anchorPrompt: string;
+  referenceImages: string[];
+  referenceOrderLabels: string[];
+  faceSignal: Awaited<ReturnType<typeof evaluateImageFaceSignal>>;
+  anchorVisionDescription: string | null;
+  semantic: ReturnType<typeof evaluateAnchorSemanticQa>;
+  styleQa: Awaited<ReturnType<typeof evaluateAnchorStyleFromVision>>;
+};
+
+export function shouldGenerateStage0DescriptionTemplateAnchor(input: {
+  hasExistingChildAnchor: boolean;
+  childImageUrl: string | null | undefined;
+  orderStyleBranch: 'style01' | 'style02';
+}): boolean {
+  return (
+    !input.hasExistingChildAnchor &&
+    !input.childImageUrl?.trim() &&
+    input.orderStyleBranch === 'style01'
+  );
+}
+
+export function stage0DescriptionTemplateQaEvidenceIsAvailable(
+  result: Pick<Stage0DescriptionTemplateResult, 'anchorVisionDescription' | 'semantic' | 'styleQa'>
+): boolean {
+  const styleEvidenceUnavailable = /(?:skipped|style qa http|style qa error)/i.test(
+    result.styleQa.notes
+  );
+  return Boolean(result.anchorVisionDescription?.trim()) && !styleEvidenceUnavailable;
+}
+
+export function stage0DescriptionTemplateCandidatePassesQa(
+  result: Pick<Stage0DescriptionTemplateResult, 'anchorVisionDescription' | 'semantic' | 'styleQa'>
+): boolean {
+  return (
+    stage0DescriptionTemplateQaEvidenceIsAvailable(result) &&
+    result.semantic.ok &&
+    result.styleQa.ok
+  );
+}
 
 /** Production Stage 0: photo-first identity + style refs (no generic child template). */
 export function buildStage0MethodBReferences(input: {
@@ -104,6 +155,26 @@ export function buildStage0MethodBReferences(input: {
     referenceMode: 'anchor_template_photo_last',
     paths: [templatePath, ...styleRefPaths, input.childPhotoUrl],
     labels: ['style01_child_template', ...styleLabels, 'raw_child_photo'],
+  };
+}
+
+/** No-photo identity authority: approved gender template + character-free Style 01 technique refs. */
+export function buildStage0DescriptionTemplateReferences(input: {
+  childGender: string | null | undefined;
+}): Stage0DescriptionTemplateReferences {
+  const styleRefPaths = resolveStyle01StyleReferencePaths(
+    'fantasy-cave',
+    resolveStyle01RefBudgetConfig() === 'A' ? 2 : 3
+  );
+  const styleLabels = [
+    'style01_ref_1',
+    'style01_ref_2',
+    ...(styleRefPaths.length > 2 ? ['style01_ref_3'] : []),
+  ];
+  return {
+    referenceMode: 'anchor_template',
+    paths: [resolveStyle01ChildTemplatePath(input.childGender), ...styleRefPaths],
+    labels: ['style01_child_template', ...styleLabels],
   };
 }
 
@@ -206,6 +277,43 @@ export function buildStage0MethodBPrompt(input: {
     .join('\n\n');
 }
 
+/**
+ * Canonical Style 01 child authority when the family intentionally continues without an uploaded image.
+ * Identity comes only from the locked story DNA; the generic template supplies rendering/proportions.
+ */
+export function buildStage0DescriptionTemplatePrompt(input: {
+  order: Pick<Order, 'childGender' | 'childAge'>;
+  lockedChildDescription: string;
+  wardrobeLock?: string;
+}): string {
+  const lockedChildDescription = sanitizeStage0AnchorIdentityText(input.lockedChildDescription);
+  return [
+    'CANONICAL CHILD ANCHOR — DESCRIPTION-DEFINED STORYBOOK CHILD (Style 01 watercolor).',
+    'Generate ONE stable neutral child character for continuity across every page in this book.',
+    STAGE0_ANCHOR_NEUTRAL_EXPRESSION,
+    STAGE0_ANCHOR_STYLE_FIDELITY,
+    buildStage0AnchorAgeLockLine({
+      childAge: input.order.childAge,
+      childGender: input.order.childGender,
+    }),
+    STAGE0_ANCHOR_ANTI_TODDLER,
+    'Front or 3/4 view, half/full body, clean near-empty background.',
+    'NO props. NO companion. NO family. NO story objects. NO text.',
+    'The SYSTEM TEMPLATE provides Style 01 proportions and rendering only. It is not a specific child identity.',
+    'The CHILD VISUAL LOCK below is the complete identity authority. Preserve it consistently and do not invent additional identity traits.',
+    STYLE_01_CHILD_TEMPLATE_STYLE_RULE,
+    STYLE_01_SHARED,
+    STYLE_01_RENDERING_CORRECTION,
+    `CHILD VISUAL LOCK: ${lockedChildDescription}`,
+    input.wardrobeLock ?? '',
+    STYLE_01_REFERENCE_INSTRUCTION,
+    STYLE_01_NO_TEXT,
+    STYLE_01_ANTI_STYLE02,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
 export async function generateStage0MethodBAnchor(input: {
   order: Order;
   childPhotoUrl: string;
@@ -294,5 +402,76 @@ export async function generateStage0MethodBAnchor(input: {
     semantic,
     styleQa,
     embeddingVerdict: embeddingEval.verdict,
+  };
+}
+
+/** Generate and QA a canonical Style 01 child without claiming photo likeness. */
+export async function generateStage0DescriptionTemplateAnchor(input: {
+  order: Order;
+  lockedChildDescription: string;
+  wardrobeLock?: string;
+  childStructuredHair?: string | null;
+  attemptSuffix?: string;
+}): Promise<Stage0DescriptionTemplateResult> {
+  assertPipelineStyleBranchMatchesOrder({
+    orderIllustrationStyle: input.order.illustrationStyle,
+    pipelineStyleBranch: 'style01',
+    context: 'stage0 description-template child anchor',
+  });
+  assertIdentityLockFreeOfClothingWhenWardrobeApplies({
+    identityLockText: input.lockedChildDescription,
+    wardrobeLock: input.wardrobeLock,
+  });
+  const refs = buildStage0DescriptionTemplateReferences({
+    childGender: input.order.childGender,
+  });
+  const anchorPrompt = buildStage0DescriptionTemplatePrompt(input);
+
+  console.log(
+    `[anchor_stage0_description_template] orderId=${input.order.id} finalOrder=${JSON.stringify(refs.labels)} ` +
+      `paths=${JSON.stringify(refs.paths.map((p) => path.basename(p)))}`
+  );
+
+  const anchorResult = await generateGPTImage({
+    finalPrompt: anchorPrompt,
+    negativePrompt: STYLE_01_AVOIDANCE_NEGATIVE,
+    referenceImages: refs.paths,
+    referenceMode: refs.referenceMode,
+    requireReferenceEdit: true,
+    size: '1024x1536',
+    quality: (process.env.GPT_IMAGE_QUALITY?.trim() || 'low') as 'low' | 'medium' | 'high',
+    modelOverride: resolveStyle01GptModel(),
+  });
+
+  const { uploadOrderSubpathAsset } = await import('@/lib/image-storage');
+  const anchorUrl = await uploadOrderSubpathAsset({
+    orderId: input.order.id,
+    subpath: `character-anchors/child-canonical-description-${input.attemptSuffix ?? Date.now()}.png`,
+    buffer: anchorResult.buffer,
+    contentType: 'image/png',
+  });
+  const [faceSignal, anchorVisionDescription, styleQa] = await Promise.all([
+    evaluateImageFaceSignal(anchorUrl),
+    describeChildFromPhoto(anchorUrl).catch(() => null),
+    evaluateAnchorStyleFromVision(anchorUrl),
+  ]);
+  const semantic = evaluateAnchorSemanticQa({
+    childGender: input.order.childGender,
+    childPhotoDescription: null,
+    childStructuredHair: input.childStructuredHair,
+    anchorVisionDescription,
+    faceDetectConfidence: faceSignal.faceDetectConfidence,
+  });
+
+  return {
+    anchorUrl,
+    anchorModel: anchorResult.model,
+    anchorPrompt,
+    referenceImages: refs.paths,
+    referenceOrderLabels: refs.labels,
+    faceSignal,
+    anchorVisionDescription,
+    semantic,
+    styleQa,
   };
 }

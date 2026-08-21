@@ -136,7 +136,11 @@ import {
 import { STYLE_01_AVOIDANCE_NEGATIVE, assertCompanionSheetRenderable } from '@/lib/style01-gptimage';
 import {
   buildStage0MethodBPrompt,
+  generateStage0DescriptionTemplateAnchor,
   generateStage0MethodBAnchor,
+  shouldGenerateStage0DescriptionTemplateAnchor,
+  stage0DescriptionTemplateCandidatePassesQa,
+  stage0DescriptionTemplateQaEvidenceIsAvailable,
 } from '@/lib/generation-pipeline/stage0-method-b';
 import {
   buildStage0Style02Prompt,
@@ -173,6 +177,7 @@ import {
   parsePipelineCache,
 } from './helpers';
 import type { ChunkProcessResult, PipelineCache } from './types';
+import { generatedStoryAnchorHasRecoverableCandidate } from './stage0-candidate-recovery';
 
 const log = createLogger({ subsystem: 'chunk-runner' });
 
@@ -309,17 +314,31 @@ async function promotePendingChildAnchorToPassed(
 ): Promise<PipelineCache> {
   const child = getChildCanonicalAnchor(cache);
   if (!child?.url) return cache;
+  const generatedFromDescription = child.source === 'generated_story_anchor';
+  if (
+    generatedFromDescription &&
+    !generatedStoryAnchorHasRecoverableCandidate(cache, child.url)
+  ) {
+    throw new Error(
+      'ANCHOR_QA_BLOCK: pending description-template anchor lacks matching passed semantic/style candidate evidence'
+    );
+  }
   const anchorGate = resolveAnchorGateConfig();
   // Resume path: a pending anchor from a prior run already exists. Never re-block — it was
   // already generated. Auto-accept if it clears the calibrated soft floor (or the dev/QA
   // override is set); otherwise accept-best-and-flag for async QA. No env var, no dead-end.
-  const score = child.resemblanceScore ?? 0;
-  const embeddingEval = evaluateAnchorEmbeddingScore(score, anchorGate);
-  const override = isChildAnchorReviewApproved(order.id, cache, order);
+  const score = generatedFromDescription ? null : (child.resemblanceScore ?? 0);
+  const embeddingEval = score === null ? null : evaluateAnchorEmbeddingScore(score, anchorGate);
+  const override = generatedFromDescription
+    ? false
+    : isChildAnchorReviewApproved(order.id, cache, order);
   const lowConfidence: PipelineCache['childAnchorLowConfidence'] =
-    embeddingEval.autoAccept || override
+    generatedFromDescription || embeddingEval?.autoAccept || override
       ? undefined
-      : { reason: embeddingEval.band === 'hard_fail' ? 'hard_band' : 'soft_band', score };
+      : {
+          reason: embeddingEval?.band === 'hard_fail' ? 'hard_band' : 'soft_band',
+          score: score ?? 0,
+        };
 
   const nextCache: PipelineCache = {
     ...cache,
@@ -356,9 +375,11 @@ async function promotePendingChildAnchorToPassed(
   });
 
   console.log(
-    `[anchor_review] orderId=${order.id} promoted pending anchor to passed ` +
-      `score=${score.toFixed(3)} band=${embeddingEval.band}` +
-      `${lowConfidence ? ` lowConfidence=${lowConfidence.reason} (flagged for async QA)` : ' (auto-accept)'}`
+    generatedFromDescription
+      ? `[anchor_review] orderId=${order.id} promoted passed description-template anchor; no photo-likeness claim`
+      : `[anchor_review] orderId=${order.id} promoted pending anchor to passed ` +
+          `score=${(score ?? 0).toFixed(3)} band=${embeddingEval?.band ?? 'unknown'}` +
+          `${lowConfidence ? ` lowConfidence=${lowConfidence.reason} (flagged for async QA)` : ' (auto-accept)'}`
   );
   return nextCache;
 }
@@ -538,6 +559,136 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
   ) {
     throw new Error(
       'GENERATION_ANCHOR_EXPERIMENT=true: use scripts/run-stage0-anchor-experiment.ts instead of production Stage 0'
+    );
+  } else if (shouldGenerateStage0DescriptionTemplateAnchor({
+    hasExistingChildAnchor: Boolean(existingChildAnchorForGate),
+    childImageUrl: order.childImageUrl,
+    orderStyleBranch: resolveOrderStyleBranch(order.illustrationStyle),
+  })) {
+    const stage0Companion = resolveCompanionForOrder(order);
+    const storyFilePath = resolveCachedStoryFilePath(cache);
+    const storyFileKey = storyFilePath ? path.basename(storyFilePath, '.md') : undefined;
+    const wardrobeLock =
+      resolveStyle01StoryWardrobeLock(stage0Companion?.id, storyFileKey, {
+        category: cache.challengeCategory,
+      }) ?? '';
+    const maxAnchorAttempts = Math.min(
+      6,
+      Math.max(1, Number.parseInt(process.env.CHILD_ANCHOR_MAX_ATTEMPTS ?? '4', 10) || 4)
+    );
+    const candidateRows: NonNullable<PipelineCache['stage0AnchorCandidates']> = [];
+    let acceptedResult: Awaited<ReturnType<typeof generateStage0DescriptionTemplateAnchor>> | null = null;
+    let acceptedAttempt = 0;
+
+    for (let attempt = 1; attempt <= maxAnchorAttempts; attempt += 1) {
+      const result = await generateStage0DescriptionTemplateAnchor({
+        order,
+        lockedChildDescription,
+        wardrobeLock,
+        childStructuredHair: nextCache.dna?.childStructured?.hair,
+        attemptSuffix: `a${attempt}`,
+      });
+      const passed = stage0DescriptionTemplateCandidatePassesQa(result);
+      candidateRows.push({
+        attempt,
+        url: result.anchorUrl,
+        identityMode: 'description_template',
+        model: result.anchorModel,
+        faceDetectConfidence: result.faceSignal.faceDetectConfidence,
+        faceAreaRatio: result.faceSignal.faceAreaRatio,
+        semanticPass: Boolean(result.anchorVisionDescription?.trim()) && result.semantic.ok,
+        stylePass:
+          result.styleQa.ok &&
+          !/(?:skipped|style qa http|style qa error)/i.test(result.styleQa.notes),
+        passed,
+        createdAt: new Date().toISOString(),
+      });
+      nextCache.stage0AnchorCandidates = [...candidateRows];
+      nextCache.stage0AnchorPrompt = result.anchorPrompt;
+      nextCache.stage0AnchorReferenceOrderLabels = result.referenceOrderLabels;
+      await saveCache(order.id, nextCache);
+
+      console.log(
+        `[anchor_stage0_attempt] orderId=${order.id} method=description-template ` +
+          `attempt=${attempt}/${maxAnchorAttempts} semantic=${result.semantic.ok} style=${result.styleQa.ok}`
+      );
+      if (!stage0DescriptionTemplateQaEvidenceIsAvailable(result)) {
+        throw new Error(
+          'ANCHOR_QA_EVIDENCE_BLOCK: description-template semantic/style QA evidence is unavailable; no additional image attempt dispatched'
+        );
+      }
+      if (passed) {
+        acceptedResult = result;
+        acceptedAttempt = attempt;
+        break;
+      }
+    }
+
+    if (!acceptedResult) {
+      throw new Error(
+        'ANCHOR_QA_BLOCK: description-template child anchor did not pass semantic and style QA within the bounded attempt budget'
+      );
+    }
+
+    const now = new Date().toISOString();
+    nextCache.stage0AnchorCandidates = candidateRows;
+    nextCache.stage0AnchorPrompt = acceptedResult.anchorPrompt;
+    nextCache.stage0AnchorReferenceOrderLabels = acceptedResult.referenceOrderLabels;
+    nextCache.stage0SelectedAttempt = acceptedAttempt;
+    nextCache.childAnchorApproved = true;
+    nextCache.childAnchorLowConfidence = undefined;
+    nextCache.characterAnchorStore = upsertCharacterAnchor(nextCache, {
+      orderId: order.id,
+      styleId: order.illustrationStyle,
+      characterId: 'child',
+      role: 'child',
+      anchorType: 'canonical_portrait',
+      source: 'generated_story_anchor',
+      url: acceptedResult.anchorUrl,
+      provider: 'openai',
+      model: acceptedResult.anchorModel,
+      quality: process.env.GPT_IMAGE_QUALITY?.trim() || 'low',
+      promptUsed: acceptedResult.anchorPrompt,
+      inputDescriptionUsed: lockedChildDescription,
+      referenceOrderUsed: acceptedResult.referenceImages,
+      qaStatus: 'passed',
+      anchorQuality: process.env.GPT_IMAGE_QUALITY?.trim() || 'low',
+      qaNotes: [
+        'identityMode=description_template; no photo-likeness claim',
+        `semanticPass=${acceptedResult.semantic.ok}`,
+        `stylePass=${acceptedResult.styleQa.ok}`,
+        `faceDetectConfidence=${acceptedResult.faceSignal.faceDetectConfidence.toFixed(3)}`,
+        acceptedResult.styleQa.notes,
+      ]
+        .filter(Boolean)
+        .join(' | '),
+      createdAt: now,
+      updatedAt: now,
+    }).characterAnchorStore;
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        characterAnchors: persistChildAnchorOnOrder(order, {
+          anchorImageUrl: acceptedResult.anchorUrl,
+          anchorType: 'canonical_portrait',
+          source: 'generated_story_anchor',
+          qaStatus: 'passed',
+          anchorApproved: true,
+          anchorQuality: process.env.GPT_IMAGE_QUALITY?.trim() || 'low',
+          styleId: order.illustrationStyle,
+          provider: 'openai',
+          model: acceptedResult.anchorModel,
+          promptUsed: acceptedResult.anchorPrompt,
+          inputDescriptionUsed: lockedChildDescription,
+          referenceOrderUsed: acceptedResult.referenceImages,
+          qaNotes: 'Generated from approved Style 01 template and locked story description; no photo-likeness claim',
+        }),
+      },
+    });
+    await saveCache(order.id, nextCache);
+    console.log(
+      `[anchor_stage0] orderId=${order.id} accepted description-template anchor attempt=${acceptedAttempt}`
     );
   } else if (!existingChildAnchorForGate && (order.childImageUrl ?? '').trim()) {
     const childReferenceImageUrl = order.childImageUrl ?? '';
