@@ -17,8 +17,9 @@
  * prefers-reduced-motion: fades only, no idle loop.
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
+import { companionIdleVideoSrc, warmedIdleVideoSrc } from '@/lib/web/companion-idle-video';
 import styles from './companion-spotlight.module.css';
 
 type CompanionSpotlightProps = {
@@ -28,11 +29,13 @@ type CompanionSpotlightProps = {
   onClose: () => void;
 };
 
+/** Stable presentation seam retained for tests and non-dialog consumers. */
 export function companionSpotlightCutoutSrc(companionImage: string): string {
-  const match = /^\/companions\/([^/]+)\//.exec(companionImage);
-  return match ? `/Images/spotlight/${match[1]}.png` : companionImage;
+  const companionSlug = companionImage.split('/')[2] ?? '';
+  return companionSlug ? `/Images/spotlight/${companionSlug}.png` : companionImage;
 }
 
+/** Stable Wizard handoff seam; category remains the only query authority. */
 export function companionSpotlightWizardHref(category: string): string {
   return `/wizard?category=${encodeURIComponent(category)}`;
 }
@@ -50,6 +53,32 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
      next.config bundles every style01-sheet PNG onto the render functions'
      disk, and these pushed api/debug/replicate-image past Vercel's 250MB cap. */
   const cutoutSrc = companionSpotlightCutoutSrc(companion.image);
+
+  /* Idle VIDEO (per Guy): the popup shows ONLY the video — no image-then-
+     video flash. The landing page warms every clip into a blob URL at idle,
+     so the first frame paints in milliseconds. The still cutout is now purely
+     a FALLBACK: reduced motion, a failed clip, or a cold cache that stays
+     slow past a short grace window (then it fades away if the video lands). */
+  const idleVideoSrc = companionIdleVideoSrc(companion.image);
+  const [videoLive, setVideoLive] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [artShown, setArtShown] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }, []);
+  const showVideo = Boolean(idleVideoSrc) && !videoFailed && !reducedMotion;
+
+  /* Grace window: only if the clip is still not painting after 700ms does the
+     cutout step in (a slow empty stage is worse than the still art). Cleared
+     the moment the video goes live so the warm path never shows the image. */
+  useEffect(() => {
+    if (!showVideo || videoLive || artShown) return;
+    const timer = window.setTimeout(() => setArtShown(true), 700);
+    return () => window.clearTimeout(timer);
+  }, [showVideo, videoLive, artShown]);
+
+  const renderArt = !showVideo || artShown;
 
   const requestClose = useCallback(() => {
     if (startedClosingRef.current) return;
@@ -82,7 +111,7 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
 
   /* Spring-from-origin: hand the clicked card's center to CSS. */
   const originStyle: Record<string, string> = {};
-  if (originRect && typeof window !== 'undefined') {
+  if (originRect) {
     const cx = originRect.x + originRect.width / 2;
     const cy = originRect.y + originRect.height / 2;
     originStyle['--from-x'] = `${cx - window.innerWidth / 2}px`;
@@ -116,22 +145,43 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
         </button>
 
         <div className={styles.stage} aria-hidden="true">
-          <span className={styles.glow} />
-          <img
-            className={styles.art}
-            src={cutoutSrc}
-            alt=""
-            draggable={false}
-            onError={(e) => {
-              const img = e.currentTarget;
-              if (img.dataset.fallback !== '1') {
-                img.dataset.fallback = '1';
-                img.src = companion.image;
-              } else {
-                img.style.visibility = 'hidden';
-              }
-            }}
-          />
+          {renderArt ? (
+            <img
+              className={styles.art}
+              data-hidden={showVideo && videoLive ? '1' : '0'}
+              src={cutoutSrc}
+              alt=""
+              draggable={false}
+              onError={(e) => {
+                const img = e.currentTarget;
+                if (img.dataset.fallback !== '1') {
+                  img.dataset.fallback = '1';
+                  img.src = companion.image;
+                } else {
+                  img.style.visibility = 'hidden';
+                }
+              }}
+            />
+          ) : null}
+          {showVideo ? (
+            <div className={styles.videoBox} data-live={videoLive ? '1' : '0'}>
+              <video
+                src={idleVideoSrc ? warmedIdleVideoSrc(idleVideoSrc) : undefined}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                disablePictureInPicture
+                onLoadedData={() => setVideoLive(true)}
+                onPlaying={() => setVideoLive(true)}
+                onError={() => {
+                  setVideoFailed(true);
+                  setVideoLive(false);
+                }}
+              />
+            </div>
+          ) : null}
           <span className={`${styles.spark} ${styles.spark1}`} />
           <span className={`${styles.spark} ${styles.spark2}`} />
           <span className={`${styles.spark} ${styles.spark3}`} />
@@ -143,9 +193,8 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
             {companion.name}
           </h2>
           {companion.tagline ? <p className={styles.tagline}>{companion.tagline}</p> : null}
-          <p className={styles.context}>
-            {slot.companionLine} · {slot.oneLiner}
-          </p>
+          {/* the small "עם <החבר> · <one-liner>" line was dropped per Guy —
+              it repeated what the tagline and the CTA already say */}
 
           <a
             className={styles.cta}
@@ -155,9 +204,6 @@ export function CompanionSpotlight({ slot, originRect, onClose }: CompanionSpotl
           >
             מתחילים סיפור עם {companion.name} ←
           </a>
-          <button type="button" className={styles.maybe} onClick={requestClose}>
-            אולי חבר אחר
-          </button>
         </div>
       </div>
     </div>

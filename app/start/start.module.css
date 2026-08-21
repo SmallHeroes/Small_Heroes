@@ -5,9 +5,10 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  /* Light entry, matching the rest of the site (the night band was cut per Guy) */
   background: linear-gradient(165deg, var(--surface-page, #fff) 0%, #f7f2ff 38%, #eef6fa 100%);
   color: var(--dark);
-  font-family: var(--fb);
+  font-family: var(--font-rubik, var(--fb));
 }
 
 .navbar {
@@ -121,13 +122,13 @@
 }
 
 .title {
-  font-family: var(--fd);
-  font-size: clamp(30px, 4.2vw, 48px);
-  font-weight: 900;
-  line-height: 1.12;
+  font-family: var(--font-suez, var(--fd));
+  font-size: clamp(32px, 4.2vw, 52px);
+  font-weight: 400;
+  line-height: 1.14;
   color: var(--dark);
   margin: 0 0 12px;
-  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 .sub {
@@ -184,8 +185,11 @@
   margin-bottom: 14px;
   padding: 8px 16px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #fff4d6 0%, var(--yellow) 100%);
-  color: #3d2f10;
+  /* the pale-yellow gradient is banned — this is a label chip, so it joins
+     the light-purple chip family (same as the About role chips) */
+  background: var(--purple-100);
+  border: 1px solid var(--purple-200);
+  color: var(--purple-600);
   font-size: 14px;
   font-weight: 700;
 }
@@ -231,7 +235,7 @@
   width: 100%;
   min-height: 100%;
   padding: 24px 22px 22px;
-  border: 1px solid #eceaf3;
+  border: 1px solid var(--n-100);
   border-radius: 28px;
   background: var(--white);
   box-shadow: 0 12px 34px rgba(17, 22, 34, 0.08);
@@ -374,7 +378,7 @@
 }
 
 .directionPrice span {
-  font-family: 'Heebo', var(--fb), sans-serif;
+  font-family: var(--font-rubik, var(--fb)), sans-serif;
   font-size: clamp(48px, 6vw, 62px);
   font-weight: 900;
   line-height: 0.95;

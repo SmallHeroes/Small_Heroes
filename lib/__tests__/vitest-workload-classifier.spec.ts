@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(307);
+    expect(partition.inventory).toHaveLength(310);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(287);
+    expect(partition.ordinary).toHaveLength(290);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -104,6 +104,9 @@ describe('Vitest workload classifier', () => {
     );
     expect(partition.ordinary).toContain(
       'lib/set-identity-board/__tests__/board-safe-identity.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/accepted-landing-wizard-presentation.spec.ts',
     );
   });
 

@@ -123,6 +123,18 @@ const nextConfig = {
     }
     // dev story-bank browser lists the bank → keep story-bank, drop media/headless/companions/all-style.
     excludes['/api/dev/story-bank'] = [...MEDIA, ...HEADLESS, ...COMPANIONS, ...ALL_STYLE];
+    // This debug route hard-403s on every Vercel deployment. Keep the restored
+    // Landing marketing media out of its serverless trace so those CDN assets
+    // cannot push the otherwise unreachable function over Vercel's bundle cap.
+    excludes['/api/debug/replicate-image'] = [
+      ...MEDIA,
+      ...HEADLESS,
+      ...COMPANIONS,
+      ...ALL_STYLE,
+      'story-bank/**',
+      'public/Videos/**',
+      'public/Images/**',
+    ];
     return excludes;
   })(),
   /**

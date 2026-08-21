@@ -13,29 +13,28 @@ import './landing/landing.css';
 import './landing/motion.css';
 import './landing/about.css';
 import './category-challenge-card.css';
+import './landing/wow-2027.css';
 import './premium-2027.css';
 
 export const metadata: Metadata = {
-  title: 'גיבורים קטנים — ספרי ילדים מותאמים אישית לחיזוק רגשי',
+  title: 'גיבורים קטנים | ספר ילדים אישי שבו הילד שלכם הוא הגיבור',
   description:
-    'צרו ספר ילדים מותאם אישית — סיפור ואיורים סביב מה שהילד עובר עכשיו: פחד לפני שינה, ביקור רפואי, אח חדש, מעבר בבית או בגן. שאלון קצר, ספר דיגיטלי בעברית.',
+    'ספר ילדים דיגיטלי אישי בעברית שבו הילד שלכם נכנס לתפקיד הראשי. סיפורים מקוריים על רגעים שילדים מכירים, עם דמות מאוירת וקריינות מלאה.',
   alternates: { canonical: 'https://smallheroes.co.il/' },
   openGraph: {
     type: 'website',
-    title: 'גיבורים קטנים — ספר ילדים מותאם אישית',
-    description:
-      'סיפור אישי עם איורים מקוריים, שם הילד/ה, ודמות מלווה — ספר שנבנה במיוחד בשבילכם.',
+    title: 'הפעם, הילד שלכם הוא הגיבור של הסיפור.',
+    description: 'סיפור ילדים אישי, מאויר ומוקרא בעברית - עם הילד שלכם בתפקיד הראשי.',
     url: 'https://smallheroes.co.il/',
     locale: 'he_IL',
     siteName: 'גיבורים קטנים',
-    images: [{ url: 'https://smallheroes.co.il/Images/HeroIllustrated.png' }],
+    images: [{ url: 'https://smallheroes.co.il/Images/DesktopHero.webp' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'גיבורים קטנים — ספר ילדים מותאם אישית',
-    description:
-      'סיפור אישי עם איורים מקוריים, שם הילד/ה, ודמות מלווה — ספר שנבנה במיוחד בשבילכם.',
-    images: ['https://smallheroes.co.il/Images/HeroIllustrated.png'],
+    title: 'הפעם, הילד שלכם הוא הגיבור של הסיפור.',
+    description: 'סיפור ילדים אישי, מאויר ומוקרא בעברית - עם הילד שלכם בתפקיד הראשי.',
+    images: ['https://smallheroes.co.il/Images/DesktopHero.webp'],
   },
 };
 

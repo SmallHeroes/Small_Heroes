@@ -1,0 +1,93 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   WOW-2027.CSS — R1D-2027-WOW-SITE-REDESIGN-V2
+   Per Guy: the original hero composition stays; this layer now carries
+   the decided TYPE voice (Rubik display), the strong-yellow tag accent,
+   and the /start story-world cards. No pale-yellow surfaces, no aqua tags.
+
+   Palette (the only colors this layer may use):
+   night    #241b4d / #2c2158 / #38296b     purple DNA, deepened
+   purple   --purple-500 / --purple-600     brand continuity
+   coral    #ff8a65 → #ff6b57               warm energy (/start accents)
+   yellow   --yellow-400 on --n-900         strong accent (tags/marks, per Guy)
+   paper    #ffffff / #fbfaff               day sections (existing)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --wow-night-1: #241b4d;
+  --wow-night-2: #2c2158;
+  --wow-night-3: #38296b;
+  --wow-coral: #ff6b57;
+  --wow-coral-soft: #ff8a65;
+  --wow-coral-ink: #341a10;
+  --wow-yellow: var(--yellow-400);
+  /* deep plum ink on the strong yellow — the brown ink is banned (per Guy) */
+  --wow-yellow-ink: var(--n-900);
+  --wow-glow: #ffd9a8;
+  /* Heading voice: Suez One (the face Guy approved; Rubik run reverted) */
+  --font-wow-display: var(--font-rubik), 'Rubik', sans-serif;
+  --font-wow-body: var(--font-rubik), 'Rubik', sans-serif;
+}
+
+/* ── Day sections pick up the decided voice ────────────────────────── */
+/* Guy's weight scale on Rubik: H1 = 800, H2 = 600. */
+.section-h2, .sample-h2 {
+  font-family: var(--font-wow-display);
+  font-weight: 600;
+}
+
+/* strong yellow is the tag accent (per Guy: "the strong yellow in the tags") */
+.hero-badge, .sample-kicker {
+  background: var(--wow-yellow);
+  color: var(--wow-yellow-ink);
+  border: none;
+  box-shadow: 0 1px 3px rgba(36, 27, 77, 0.14);
+}
+
+
+/* (The /start "story worlds" night cards were cut per Guy — the start grid
+   uses the same light card design as the homepage.) */
+
+
+/* Guy's original hero composition is back; only the TYPE voice carries over
+   (standing ruling: no Abraham-led identity). */
+.hero-h1 {
+  font-family: var(--font-wow-display);
+  font-weight: 800;
+}
+
+/* ── The heading weight scale, by ELEMENT ───────────────────────────────
+   Guy's ruling: H1 = 800, H2 = 600 on Rubik. Anchoring it to the tag (not
+   to a list of classes) means every heading obeys it — including ones added
+   later — and the descendant selector outranks the single-class rules that
+   set the old Secular One weights. Rubik ships as a variable font, so both
+   weights are real instances, not synthesised. */
+.landing-body h1 {
+  font-weight: 800;
+}
+
+.landing-body h2 {
+  font-weight: 600;
+}
+
+/* Secular One shipped a SINGLE weight, so every 800/900 written against
+   --fd used to collapse to one rendered weight. Rubik is variable, so those
+   declarations suddenly became real and a few large display lines started
+   out-weighing the section headings. This settles them under the scale:
+   nothing below H1 is heavier than H1, and nothing large competes with H2. */
+.landing-body h3 {
+  font-weight: 600;
+}
+
+.price-name,
+.about-name {
+  font-weight: 700;
+}
+
+.about-belief,
+.about-tech-line {
+  font-weight: 600;
+}
+
+.logo-brand {
+  font-weight: 800;
+}

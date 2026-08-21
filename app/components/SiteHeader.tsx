@@ -112,6 +112,11 @@ export function SiteHeader({ variant = 'full', confirmLeave = false }: SiteHeade
         </div>
 
         <div className={styles.endCluster}>
+          {variant === 'full' ? (
+            <a href={ROUTES.start} className={styles.navCta} data-event="nav_start_click">
+              ליצור ספר
+            </a>
+          ) : null}
           <AccountControl user={user} onAuthChange={onAuthChange} />
         </div>
       </div>

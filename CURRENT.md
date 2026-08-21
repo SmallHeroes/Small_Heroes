@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
-## WIZARD NO-PHOTO ANCHOR — LOCAL GREEN; ACCEPTED UI RESTORATION NEXT
+## WIZARD NO-PHOTO ANCHOR + ACCEPTED UI RESTORATION — LOCAL GREEN; CLAUDE QA NEXT
 
 The first real fake-paid Chameleon QA order completed checkout, text, DNA and
 companion authority, then failed before cover generation with
@@ -36,12 +36,28 @@ Implementation record:
 `docs/ai-workflow/R1D_WIZARD_NO_PHOTO_ANCHOR_IMPLEMENTATION_EVIDENCE.md`.
 
 The current QA deployment also exposed a separate presentation regression:
-the functional branch does not contain Guy's accepted Landing/Wizard design
-head `1dc555396065cee9724fa530bc17c262901e8c35`. The next isolated milestone
-restores that presentation authority without replacing current Visual Package,
-Story Matrix, checkout or generation logic. No new Order is allowed until both
-milestones are locally green and Claude Code independently PASSes the immutable
-range.
+the functional branch did not contain Guy's accepted Landing/Wizard design
+head `1dc555396065cee9724fa530bc17c262901e8c35`. That accepted presentation is
+now restored locally without replacing current Visual Package, Story Matrix,
+checkout or generation logic. The current `public/JS/wizard.js`,
+`public/JS/content.js`, Matrix response and package manifest remain byte-exact
+to the functional base. The only server-tracing addition keeps the restored
+CDN marketing media out of the deployment-only hard-403 debug function.
+
+The combined local proof passes the focused no-photo/presentation suite,
+TypeScript with generated Next cache isolated, and a production `next build`.
+Desktop and mobile headless-browser checks show the accepted Landing, all six
+story cards and the restored Wizard without horizontal overflow or runtime
+errors; the no-photo control remains visible. Literal `npm run check` confirms
+all **610** resource-intensive assertions pass; its nonzero status remains the
+known three Vitest worker reporting timeouts plus five historical missing
+ignored-output fixtures in unchanged tests. The workload inventory correction
+is independently green. Full evidence:
+`docs/ai-workflow/R1D_ACCEPTED_LANDING_WIZARD_UI_RESTORE_IMPLEMENTATION_EVIDENCE.md`.
+
+No new Order is allowed until Claude Code independently PASSes the immutable
+two-commit range. The failed fake-paid order remains immutable evidence; QA is
+not redeployed and Production is untouched.
 
 ## WIZARD V4 PACKAGE SELECTION — INDEPENDENT PASS; REMOTE FULL-BOOK QA GATE PREPARED
 

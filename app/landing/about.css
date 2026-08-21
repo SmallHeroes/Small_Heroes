@@ -7,8 +7,8 @@
   background:
     radial-gradient(90% 60% at 50% 0%, var(--surface-page, #fff) 0%, transparent 70%),
     linear-gradient(180deg, var(--surface-page, #fff) 0%, var(--surface-alt, #f7f6fb) 100%);
-  border-top: 1px solid #f4edda;
-  border-bottom: 1px solid #f4edda;
+  border-top: 1px solid var(--purple-100);
+  border-bottom: 1px solid var(--purple-100);
 }
 
 .about-intro {
@@ -43,11 +43,11 @@
 
 .about-person {
   background: #fff;
-  border: 1px solid #f1e9d2;
+  border: 1px solid var(--n-200);
   border-radius: 24px;
   padding: 34px 28px 30px;
   text-align: center;
-  box-shadow: 0 12px 32px rgba(103, 82, 40, 0.06);
+  box-shadow: 0 12px 32px rgba(40, 33, 74, 0.06);
 }
 
 .about-portrait-ring {
@@ -56,7 +56,7 @@
   margin: 0 auto 16px;
   border-radius: 50%;
   padding: 4px;
-  background: conic-gradient(from 210deg, #ffe9a8, #ffd6e4, #d9ccff, #ffe9a8);
+  background: conic-gradient(from 210deg, var(--purple-200), #ffd6e4, #bcd9ff, var(--purple-200));
 }
 
 .about-portrait {
@@ -79,9 +79,9 @@
   display: inline-block;
   font-size: 13.5px;
   font-weight: 700;
-  color: #8a6d2f;
-  background: #fdf3d7;
-  border: 1px solid #f3e4b6;
+  color: var(--purple-600);
+  background: var(--purple-100);
+  border: 1px solid var(--purple-200);
   border-radius: 999px;
   padding: 4px 14px;
   margin-bottom: 14px;
@@ -99,13 +99,13 @@
   font-family: var(--fd);
   font-weight: 800;
   font-size: 17.5px;
-  color: #6d5a2e;
+  color: var(--n-700);
   text-align: center;
   max-width: 560px;
   margin: 36px auto 0;
   padding: 16px 22px;
   background: var(--surface-sunken, #f1eff9);
-  border: 1px dashed #ecdcae;
+  border: 1px dashed var(--purple-200);
   border-radius: 18px;
   line-height: 1.7;
 }
@@ -145,7 +145,7 @@
 
 .about-approach-card {
   background: #fff;
-  border: 1px solid #f1e9d2;
+  border: 1px solid var(--n-200);
   border-radius: 20px;
   padding: 26px 22px;
   text-align: center;
@@ -158,8 +158,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 14px;
-  color: #b48a2c;
-  background: #fdf3d7;
+  color: var(--purple-600);
+  background: var(--purple-100);
   margin-bottom: 12px;
 }
 
@@ -193,7 +193,7 @@
   [data-motion='on'] .about-person.is-visible:hover,
   [data-motion='on'] .about-approach-card.is-visible:hover {
     transform: translate3d(0, -4px, 0);
-    box-shadow: 0 18px 40px rgba(103, 82, 40, 0.10);
+    box-shadow: 0 18px 40px rgba(40, 33, 74, 0.10);
   }
 }
 

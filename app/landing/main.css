@@ -3,30 +3,72 @@
    Shared foundation
    ═══════════════════════════════════════════════════════════ */
 
-@font-face {
-  font-family: 'Abraham';
-  src: url('/Fonts/Abraham-Regular.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
+/* Headings: Suez One (loaded via next/font/local in app/layout.tsx as
+   --font-suez). Abraham is unlicensed and must not be @font-face'd here. */
 
 :root {
-  --purple: #886cff;
-  --purple-d: #7459f0;
-  --purple-lt: #ede8ff;
-  --purple-bg: #faf8ff;
-  --yellow: #ffee6c;
-  --dark: #18171a;
-  --mid: #5f5a70;
-  --soft: #9692aa;
-  --white: #ffffff;
-  --border: #ebe7f7;
-  --bg-light: #f7f6fb;
+  /* ── Brand palette ──────────────────────────────────────────────────
+     Purple at hue 265-271, a warmer violet than the old 251 blue-violet.
+     The move exists for a reason beyond taste: the previous primary
+     (#886cff) measured 3.73:1 on white, so it could never carry text, and
+     a second hand-picked purple had to stand in wherever text was needed.
+     --purple-500 measures 4.86 and does both jobs.
+     The neutrals sit on hue 250-264 so they read as part of the purple's
+     family rather than beside it - a hue you feel, not one you see.
+     Every pairing below was measured; see the palette spec. */
+  --purple-50:  #f7f2fe;
+  --purple-100: #efe4fd;
+  --purple-200: #dfc9fa;
+  --purple-300: #c9a5f6;
+  --purple-400: #ae7bf0;
+  --purple-500: #9349e5;  /* primary   4.86 on white */
+  --purple-600: #7b2fcc;  /* hover     6.73 - and text on any purple tint */
+  --purple-700: #661faa;
+  --purple-800: #511889;
+  --purple-900: #37105e;
+
+  --n-0:   #ffffff;
+  --n-50:  #f7f5fa;
+  --n-100: #edeaf3;
+  --n-200: #d9d4e3;
+  --n-300: #b3acc1;
+  --n-400: #8b8499;
+  --n-500: #6b6479;
+  --n-600: #524c5f;
+  --n-700: #3b3746;
+  --n-800: #2a2733;
+  --n-900: #1c1b21;
+
+  --yellow-100: #fff8de;
+  --yellow-200: #fff0b4;
+  --yellow-300: #ffe482;
+  --yellow-400: #ffd745;  /* tags and highlights only, never white text */
+  --yellow-500: #f5c21b;
+
+  --disabled-bg:  var(--n-100);
+  --disabled-ink: var(--n-300);
+
+  /* The previous names stay as aliases, so every existing rule moves with
+     the palette instead of having to be found and rewritten. */
+  --purple: var(--purple-500);
+  --purple-d: var(--purple-600);
+  --purple-lt: var(--purple-100);
+  --purple-bg: var(--purple-50);
+  --yellow: var(--yellow-400);
+  --dark: var(--n-900);
+  --mid: var(--n-500);
+  --soft: var(--n-400);
+  --white: var(--n-0);
+  --border: var(--n-200);
+  --bg-light: var(--n-50);
   --bg-lighter: #fafafa;
 
-  --fd: 'Abraham', 'Heebo', sans-serif;
-  --fb: 'Heebo', sans-serif;
+  /* Heading voice: Secular One (Google Fonts, OFL — commercial-safe),
+     a geometric Hebrew display face built for headlines. */
+  /* Per Guy: Rubik carries BOTH display and body until a new display
+     face is chosen — it simply works better than the Secular One run. */
+  --fd: var(--font-rubik, 'Rubik'), 'Rubik', sans-serif;
+  --fb: var(--font-rubik, 'Rubik'), 'Rubik', sans-serif;
 
   --max-w: 1440px;
   --site-max: 1440px;
@@ -50,6 +92,9 @@ html {
   scroll-behavior: smooth;
   max-width: 100%;
   overflow-x: clip;
+  /* Suez One ships a single 400 weight — render real faces only, never a
+     smeared synthetic bold (Heebo falls to its nearest loaded weight). */
+  font-synthesis: none;
 }
 
 body {

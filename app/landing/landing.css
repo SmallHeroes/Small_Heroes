@@ -8,7 +8,7 @@
 
 /* ── Recent books history strip ──────────────────────────── */
 .book-history-section {
-  background: linear-gradient(135deg, #f3efff 0%, #ede8ff 100%);
+  background: linear-gradient(135deg, var(--purple-50) 0%, var(--purple-100) 100%);
   border-bottom: 1px solid rgba(124, 58, 237, 0.12);
   padding: 10px 20px;
   display: flex;
@@ -145,7 +145,7 @@
 .section-h2 {
   font-family: var(--fd);
   font-size: clamp(30px, 4vw, 48px);
-  font-weight: 900;
+  font-weight: 600;
   color: var(--dark);
   line-height: 1.05;
   text-align: center;
@@ -162,6 +162,8 @@
 
 .hero {
   padding: 52px 0 0px;
+  position: relative;
+  isolation: isolate;
 }
 
 .hero-wrap {
@@ -170,6 +172,120 @@
   justify-content: space-between;
   gap: 24px;
   min-height: 0;
+  /* above the doodle sky */
+  position: relative;
+  z-index: 1;
+}
+
+/* ── The storybook sky ────────────────────────────────────────────────
+   A lavender wash plus line doodles from the book's own vocabulary,
+   drifting in the hero's quiet zones. Decorative only: it sits under the
+   content, takes no pointer events, and never animates for users who
+   asked for stillness. */
+.hero-doodles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  /* The wash does NOT reach transparent at the hero's floor: it hands over
+     to the next section at the same value, so the field reads as one room
+     rather than stopping at a seam (per Guy). */
+  background: linear-gradient(
+    180deg,
+    rgba(240, 236, 255, 0.62) 0%,
+    rgba(243, 240, 255, 0.36) 52%,
+    rgba(244, 241, 255, 0.26) 100%
+  );
+}
+
+/* ── The sky runs hero -> value -> helps, and stops at the dark room ───
+   Per Guy the field carries all the way down to the charcoal sample
+   section. Each layer picks up at exactly the value the one above handed
+   over, so there is no seam anywhere in the run; the last one keeps its
+   tint to the very end and lets the dark section take over, which is a
+   deliberate cut rather than a fade into nothing. */
+.value-doodles,
+.helps-doodles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.value-doodles {
+  background: linear-gradient(
+    180deg,
+    rgba(244, 241, 255, 0.26) 0%,
+    rgba(245, 242, 255, 0.2) 100%
+  );
+}
+
+.helps-doodles {
+  background: linear-gradient(
+    180deg,
+    rgba(245, 242, 255, 0.2) 0%,
+    rgba(246, 243, 255, 0.14) 100%
+  );
+}
+
+.hero-doodle {
+  position: absolute;
+  /* PHYSICAL sides on purpose: the marks are anchored to the composition
+     (art left, copy right), and logical properties would mirror them onto
+     the very elements they exist to avoid in this RTL document. */
+  left: var(--x-left, auto);
+  right: var(--x-right, auto);
+  top: var(--y-top, auto);
+  bottom: var(--y-bottom, auto);
+  width: var(--size, 24px);
+  height: var(--size, 24px);
+  color: var(--purple-300);
+  opacity: 0.75;
+  rotate: var(--tilt, 0deg);
+  /* rotate is a separate property, so the float owns translate outright */
+  animation: hero-doodle-float var(--dur, 12s) ease-in-out var(--delay, 0s) infinite alternate;
+}
+
+.hero-doodle[data-tone='gold'] {
+  color: var(--yellow-500);
+  opacity: 0.85;
+}
+
+.hero-doodle svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes hero-doodle-float {
+  from { translate: 0 0; }
+  to { translate: 0 var(--drift, -13px); }
+}
+
+/* Each viewport shows only the set placed for its layout. */
+.hero-doodle[data-scope='mobile'] {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .hero-doodle[data-scope='desktop'] {
+    display: none;
+  }
+
+  .hero-doodle[data-scope='mobile'] {
+    display: block;
+    opacity: 0.62;
+  }
+}
+
+/* Stillness stays still: the sky remains, the drift does not. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-doodle {
+    animation: none;
+    translate: 0 0;
+  }
 }
 
 .hero-text {
@@ -187,7 +303,7 @@
   padding: 8px 16px;
   border-radius: 999px;
   background: var(--yellow);
-  color: #3d2f10;
+  color: var(--n-900);
   font-family: var(--fb);
   font-size: 13px;
   font-weight: 600;
@@ -198,48 +314,36 @@
 
 .hero-h1 {
   font-family: var(--fd);
-  font-size: clamp(52px, 7vw, 82px);
-  font-weight: 900;
+  /* short two-beat headline: two big confident lines */
+  font-size: clamp(44px, 4.6vw, 64px);
+  font-weight: 800;
   color: var(--dark);
-  line-height: 1.02;
-  margin-bottom: 8px;
+  line-height: 1.08;
+  margin-bottom: 14px;
+  text-wrap: balance;
 }
+
+/* each sentence owns its line — the promise never merges into line 1 */
+.hero-h1-line {
+  display: block;
+}
+
+/* the promise line carries the brand color — the eye lands on the answer */
+.hero-h1-line--accent {
+  color: var(--purple);
+}
+
    
 .hero-sub2 {
   font-family: var(--fb);
-  font-size: clamp(17px, 1.6vw, 20px);
+  font-size: clamp(17px, 1.7vw, 21px);
   font-weight: 400;
   color: #5a5568;
-  line-height: 1.65;
+  line-height: 1.7;
   max-width: 560px;
-  margin-bottom: 20px;
-}
-
-.hero-bullets {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0;
-  margin: 0 0 22px;
-  max-width: 520px;
-}
-
-.hero-bullets li {
-  position: relative;
-  padding-right: 22px;
-  font-size: 15px;
-  font-weight: 500;
-  color: #3d3850;
-  line-height: 1.5;
-}
-
-.hero-bullets li::before {
-  content: '•';
-  position: absolute;
-  right: 0;
-  color: var(--purple);
-  font-weight: 700;
+  /* the bullets are gone (per Guy) - the sub leads straight into the CTAs,
+     so it gets the breathing room they used to occupy */
+  margin-bottom: 30px;
 }
 
 .hero-btns {
@@ -255,42 +359,111 @@
 .hero-img-wrap {
   flex: 0 0 auto;
   position: relative;
-  width: min(480px, 42vw);
-  aspect-ratio: 1024 / 1536;
+  /* The frame is WIDER and shorter than the old composite (per Guy: open
+     the pages up so the friend is visible in the middle one). Three panels
+     at ~44% each only fit with big overlaps in a 1.32 frame; at 1.52 they
+     stand apart and none of them had to shrink. Also the 3D tilt's stage:
+     perspective lives on the wrap, rotation on .hero-float. */
+  /* How MUCH of each page shows is set by the percentages below, not by
+     this width — so the width is free to be tuned for the copy's breathing
+     room instead. */
+  width: min(762px, 55vw);
+  aspect-ratio: 1216 / 800;
   align-self: center;
-  isolation: isolate;
+  perspective: 1100px;
 }
 
-.hero-glow {
-  position: absolute;
-  width: 78%;
-  height: 40%;
-  left: 50%;
-  top: 62%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  /* Staged key light, not a yellow blob: a cool purple pool that reads as a
-     spotlight on a shelf. (Pale-yellow washes are out of the palette.) */
-  background: radial-gradient(
-    circle,
-    rgba(136, 108, 255, 0.34) 0%,
-    rgba(136, 108, 255, 0.14) 46%,
-    rgba(255, 255, 255, 0) 72%
-  );
-  filter: blur(36px);
-  z-index: 0;
-  pointer-events: none;
-}
-
-.hero-img {
+/* ── The story collage ────────────────────────────────────────────────
+   Three separate panels composed here rather than baked into one export,
+   so each beat can arrive on its own. Percentages mirror the proportions
+   of Guy's original composite: the outcome is the largest card and sits in
+   front, the fear is the smallest and furthest back. */
+.hero-collage {
   position: relative;
-  display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  object-position: center bottom;
-  z-index: 1;
 }
+
+.hero-beat {
+  position: absolute;
+  display: block;
+  /* the shine rides inside the page's edge; the radius is a touch tighter
+     than the art's own corners so it never cuts outside them */
+  border-radius: 8px;
+  overflow: hidden;
+  /* the panels ride on transparency and carry their own light; a soft
+     shadow grounds them on the white page */
+  filter: drop-shadow(0 22px 36px rgba(45, 30, 90, 0.18));
+  /* revealed in STORY order — see the delays below. `backwards` (not
+     `both`): the end state already equals the resting style, and a
+     forwards fill would outrank the hover transform. */
+  animation: hero-beat-in 620ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.hero-beat-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Sizes, settled with Guy over three rounds: 35.2 / 39.6 / 44 of the frame
+   width — the smallest is 80% of the largest. Levelling them to 90% made
+   the block read as heavy, so the ladder came back, just gentler than the
+   67% it started at. Each page is vertically centred, the widths follow the
+   panels' native 0.67, and the frame's ratio is set so the largest fills
+   its height exactly. The left offsets keep the composition open: the
+   middle page still shows about two thirds of itself, which is where the
+   friend stands, so she clears the page in front of her. */
+
+/* 1 — the waiting room: smallest, furthest back */
+.hero-beat[data-beat='1'] {
+  left: 4%;
+  top: 10%;
+  width: 35.2%;
+  z-index: 1;
+  animation-delay: 260ms;
+}
+
+/* 2 — meeting the friend */
+.hero-beat[data-beat='2'] {
+  left: 25%;
+  top: 5%;
+  width: 39.6%;
+  z-index: 2;
+  animation-delay: 480ms;
+}
+
+/* 3 — walking out: largest, in front, full height of the frame */
+.hero-beat[data-beat='3'] {
+  left: 52%;
+  top: 0;
+  width: 44%;
+  z-index: 3;
+  animation-delay: 700ms;
+}
+
+/* (Per-panel hover cut per Guy: the whole collage already tilts with the
+   cursor as one object — see initHeroTilt — and a second hover behaviour on
+   the same thing fought it.) */
+
+/* each beat lifts into place from slightly below and behind */
+@keyframes hero-beat-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0) scale(0.94) rotate(-1.4deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+}
+
+/* (The diagonal light sweep was cut per Guy — it read as luxury-product
+   packaging, and these are pictures.) */
+
+/* (The star trail and the per-panel sparks were cut per Guy — the pictures
+   carry the hero, and the flourishes were competing with them.) */
+
 
 /* ── Book Gallery ──────────────────────────────────────────── */
 .gallery-section {
@@ -306,7 +479,7 @@
   color: var(--dark);
   font-family: var(--fd);
   font-size: clamp(30px, 4vw, 48px);
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .gallery-sub {
@@ -454,18 +627,8 @@
   margin-top: 32px;
 }
 
-.why-section {
-  background: var(--bg-lighter);
-}
-
-.why-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  align-items: stretch;
-}
-
-/* Shared card typography — why + how sections */
+/* Shared card typography — how section (the why/what-you-get section was
+   removed per Guy, 2026-08-16) */
 .landing-card-title {
   font-family: var(--fb);
   font-size: 20px;
@@ -482,22 +645,6 @@
   margin: 0;
 }
 
-.why-card {
-  background: var(--white);
-  border-radius: 20px;
-  padding: 18px 16px;
-  min-width: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--shadow-card);
-  text-align: right;
-}
-
-.why-card .landing-card-body {
-  flex: 1;
-}
-
 .how-it-works-section {
   padding: 76px 0;
   background: var(--bg-lighter);
@@ -506,9 +653,10 @@
 
 .how-card {
   width: 33%;
+  display: flex;
   background: var(--white);
   border-radius: 20px;
-  padding: 18px 16px;
+  padding: 24px 22px 22px;
   box-shadow: var(--shadow-card);
   text-align: right;
   border: 1px solid var(--border);
@@ -519,13 +667,36 @@
   align-items: stretch;
   justify-content: center;
   gap: 16px;
-  margin-top: 52px;
+  margin-top: 28px;
 }
 
 .how-step {
   flex: 1 1 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   text-align: start;
+}
+
+/* the step's order lives in a chip, not glued into the title text */
+.how-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--purple-100);
+  color: var(--purple-600);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.how-step .landing-card-title,
+.how-step .landing-card-body {
+  margin: 0;
 }
 
 .step-divider {
@@ -549,7 +720,7 @@
 
 .sample-text {
   width: 100%;
-  max-width: 760px;
+  max-width: 900px;
   min-width: 0;
 }
 
@@ -568,26 +739,55 @@
 .sample-h2 {
   font-family: var(--fd);
   font-size: clamp(32px, 4vw, 48px);
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.12;
   color: var(--dark);
   margin-bottom: 18px;
 }
 
+/* wider measure per Guy — 640px made the lines feel cramped and broke the
+   paragraph into too many short rows */
 .sample-p {
   font-size: 20px;
   color: #474257;
-  line-height: 1.8;
-  margin: 0 auto 10px;
-  max-width: 640px;
+  line-height: 1.75;
+  margin: 0 auto 12px;
+  max-width: 860px;
 }
 
-.sample-caption {
-  margin: 12px auto 18px;
-  font-size: 15px;
-  line-height: 1.65;
-  color: #6b5f72;
-  max-width: 560px;
+/* (.sample-caption retired — the "טקסט, איורים וקריינות" line above the
+   book was dropped per Guy) */
+
+/* ── The dark reading room ────────────────────────────────────────────
+   TRIAL (per Guy): the sample section takes the footer's charcoal, so the
+   page has one deliberate break in its brightness and the open book reads
+   like a lit object in a dim room. Everything inside inverts to the same
+   scale the footer already uses: white heading, light-grey prose. */
+.sample-section--dark {
+  background: #2b2b31;
+}
+
+.sample-section--dark .sample-h2 {
+  color: #fff;
+}
+
+.sample-section--dark .sample-p {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.sample-section--dark .sample-p--soft {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+/* the book stops being a flat cut-out and casts into the dark */
+.sample-section--dark .sample-book-illustration img {
+  box-shadow: 0 34px 70px rgba(0, 0, 0, 0.45);
+  border-radius: 10px;
+}
+
+/* the yellow kicker keeps its plum ink — it is the one warm mark left */
+.sample-section--dark .sample-kicker {
+  color: var(--wow-yellow-ink, #2b2440);
 }
 
 .sample-quote {
@@ -806,17 +1006,24 @@
   content: "💡";
 }
 
+/* ── Pricing goes LIGHT (per Guy) ─────────────────────────────────────
+   The purple field made the three white cards read as tiles floating on a
+   poster. On a near-white ground they read as what they are: three things
+   to compare. Everything that was reversed out of the purple - the eyebrow,
+   the heading, the sub, the launch note - comes back to ink, and the cards
+   pick up a defined edge and a lighter shadow so they still lift off the
+   page. */
 .pricing-section {
-  background: var(--purple);
+  background: linear-gradient(180deg, #ffffff 0%, #faf9ff 100%);
   padding: 80px 0 72px;
 }
 
 .pricing-section .section-h2 {
-  color: #fff;
+  color: var(--dark);
 }
 
 .pricing-section .section-sub {
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--mid);
 }
 
 .pricing-sub {
@@ -835,15 +1042,24 @@
 .price-card {
   position: relative;
   background: var(--white);
-  border: 1px solid #eceaf3;
+  /* a real edge: on the old purple ground the white card cut itself out,
+     on near-white it needs the line to hold its shape */
+  border: 1px solid var(--n-200);
   border-radius: 28px;
   padding: 26px 24px 24px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   text-align: right;
-  box-shadow: 0 12px 34px rgba(17, 22, 34, 0.10);
+  box-shadow: 0 10px 30px rgba(40, 33, 74, 0.07);
   min-height: 100%;
+}
+
+/* the middle package is the one being recommended by layout, so it gets
+   the brand edge rather than a badge */
+.price-card--mid {
+  border-color: var(--purple-300);
+  box-shadow: 0 14px 38px rgba(123, 47, 204, 0.16);
 }
 
 .price-card--mid {
@@ -944,8 +1160,10 @@
   justify-content: flex-start;
   gap: 4px;
   font-family: var(--fd);
-  font-size: 28px;
-  font-weight: 800;
+  /* the ₪ sign — calm, so the number reads as a price and not a poster
+     (per Guy: the old 28/800 next to a 62/900 figure shouted) */
+  font-size: 20px;
+  font-weight: 600;
   line-height: 1;
   color: var(--dark);
   margin: auto 0 18px;
@@ -953,7 +1171,7 @@
 
 /* Launch discount: struck-through "original" price shown above the current price. */
 .price-was {
-  font-family: 'Heebo', sans-serif; /* override --fd — Abraham digits render incorrectly, so the struck price was illegible */
+  font-family: var(--fb); /* override --fd — display-face digits misrender, so the struck price was illegible */
   font-size: 21px;
   font-weight: 700;
   color: #8b83a6; /* muted (secondary) but legible on white */
@@ -969,17 +1187,29 @@
   gap: 8px;
 }
 
+/* Calmed per Guy: 62px/900 was heavier than every heading on the page and
+   turned the card into a price tag. It stays the card's largest element,
+   just no longer its loudest. */
 .price-now-digits {
-  font-family: 'Heebo', sans-serif; /* override --fd — Abraham digits render incorrectly */
-  font-size: 62px;
-  font-weight: 900;
-  line-height: 0.95;
+  font-family: var(--fb); /* override --fd — display-face digits misrender */
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
   font-feature-settings: "tnum"; /* tabular numerals for clean alignment */
+}
+
+/* ── The card's own call to action ────────────────────────────────────
+   Full width, so the three cards close on one aligned row of buttons. */
+.price-cta {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
 }
 
 .price-launch-flag {
   align-self: center;
-  font-family: 'Heebo', sans-serif; /* running font — legible at small pill size, unlike --fd */
+  font-family: var(--fb); /* running font — legible at small pill size, unlike --fd */
   font-size: 12.5px;
   font-weight: 800;
   color: var(--purple, #7c5cfc);
@@ -1000,7 +1230,7 @@
   margin-top: 22px;
   font-size: 16px;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--mid);
 }
 
 .pricing-section+.faq-section {
@@ -1028,7 +1258,7 @@
   background: #f7f7f8;
   border-radius: 18px;
   overflow: hidden;
-  border: 1px solid #eceaf3;
+  border: 1px solid var(--n-100);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -1096,8 +1326,17 @@
   max-width: 480px;
 }
 
+/* Plain white under the sky layer: the old white->cream gradient would
+   compound with it into exactly the band we are removing. */
 .helps-section {
-  background: linear-gradient(180deg, #fff 0%, var(--cream) 100%);
+  background: #fff;
+  position: relative;
+  isolation: isolate;
+}
+
+.helps-section > .wrap {
+  position: relative;
+  z-index: 1;
 }
 
 .helps-grid {
@@ -1130,7 +1369,7 @@
   max-width: 42rem;
   font-size: 16px;
   line-height: 1.65;
-  color: #3d2f10;
+  color: var(--n-700);
 }
 
 .trust-band__inner {
@@ -1314,11 +1553,6 @@
 }
 
 @media (max-width: 960px) {
-  .why-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-  }
-
   .trust-points {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     max-width: 640px;
@@ -1371,15 +1605,17 @@
     margin-right: auto;
   }
 
-  .hero-bullets {
-    margin-left: auto;
-    margin-right: auto;
-    text-align: right;
-  }
-
   .hero-cta-note {
     margin-left: auto;
     margin-right: auto;
+  }
+
+  /* centred under the stacked CTAs, and short enough to stay on one line */
+  .hero-cta-notes {
+    justify-content: center;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
   }
 
   .hero-btns {
@@ -1388,21 +1624,42 @@
 
   .hero-img-wrap {
     width: 100%;
-    max-width: 280px;
+    /* matches the phone arrangement below (the old stacked export was
+       362 x 512, and the CSS collage keeps that frame) */
+    max-width: 300px;
+    aspect-ratio: 362 / 512;
     order: 1;
-    margin: 4px auto 0;
+    /* a touch of air above the collage (per Guy: some, not too much) */
+    margin: 26px auto 0;
+    perspective: none;
   }
 
-  .hero-img {
-    object-position: center bottom;
+  /* Phones re-stack the beats: the friend sits above, and the fear and the
+     outcome sit below it — the same three cards, a taller frame. Same
+     ladder as the desktop: 46.4 / 52 / 58 of the frame width. */
+  .hero-beat[data-beat='1'] {
+    left: 1%;
+    top: 40%;
+    width: 46.4%;
   }
 
-  .hero-glow {
-    width: 84%;
-    height: 44%;
-    top: 64%;
-    filter: blur(28px);
+  .hero-beat[data-beat='2'] {
+    left: 18%;
+    top: 0;
+    width: 52%;
   }
+
+  .hero-beat[data-beat='3'] {
+    left: 41%;
+    top: 36%;
+    width: 58%;
+  }
+
+  .hero-beat {
+    filter: drop-shadow(0 14px 24px rgba(45, 30, 90, 0.18));
+    border-radius: 6px;
+  }
+
 
   .helps-grid,
   .fit-grid {
@@ -1507,17 +1764,6 @@
     flex-direction: column;
   }
 
-  .hero-bullets {
-    flex-direction: column;
-    align-items: center;
-    padding-right: 0;
-    list-style: none;
-  }
-
-  .hero-bullets li {
-    font-size: 14px;
-  }
-
   .nav-links {
     display: none;
   }
@@ -1530,10 +1776,6 @@
     font-size: 17px;
   }
 
-  .why-grid {
-    grid-template-columns: 1fr;
-  }
-
   .trust-points {
     grid-template-columns: 1fr;
     max-width: 420px;
@@ -1544,18 +1786,15 @@
     max-width: none;
   }
 
-  .why-card,
   .fit-card {
     padding: 20px 16px;
   }
 
-  .why-card h3,
   .fit-card h3,
   .landing-card-title {
     font-size: 20px;
   }
 
-  .why-card p,
   .fit-card p,
   .sample-p,
   .landing-card-body {
@@ -1655,7 +1894,7 @@
   }
 
   .price-now-digits {
-    font-size: 52px;
+    font-size: 38px;
   }
 
   .price-features li {
@@ -1705,10 +1944,34 @@
    קצב צפוף יותר, אמביינס עדין בהירו, מיקרו-אינטראקציות בוגרות.
    ═══════════════════════════════════════════════════════════ */
 
-/* ── ריתמוס: נשימה בין סקשנים, בלי למרוח ── */
+/* ── ריתמוס: נשימה מדורגת — לא כל סקשן באותו משקל ── */
 .section { padding: 72px 0; }
 .section-sub { margin-bottom: 38px; }
-.hero { padding: 48px 0 0; }
+
+/* HERO — the entrance to the world: most of the first viewport, with a hint
+   that the page continues (conversion brief §4). svh keeps phones honest. */
+.hero {
+  /* per Guy: -10% top / -20% bottom off the conversion-pass values */
+  padding: 50px 0 58px;
+  min-height: clamp(620px, 76svh, 840px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* discovery is lighter; the decision moments are heavier */
+.helps-section { padding: 64px 0 72px; }
+.sample-section { padding: 96px 0; }
+.how-it-works-section { padding: 84px 0; }
+.pricing-section { padding: 96px 0 104px; }
+.faq-section { padding: 72px 0 84px; }
+
+@media (max-width: 960px) {
+  /* stacked hero: content decides the height; comfortable frame */
+  .hero { padding: 40px 0 48px; min-height: 0; }
+  .sample-section, .pricing-section { padding: 72px 0; }
+}
 
 @media (max-width: 860px) {
   .section { padding: 56px 0; }
@@ -1725,7 +1988,7 @@
     right: 0;
     height: 3px;
     width: 100%;
-    background: linear-gradient(270deg, var(--purple), #ffb46c, var(--yellow));
+    background: linear-gradient(270deg, var(--purple-500), #ffb46c, var(--yellow-400));
     transform-origin: right; /* RTL: ממלא מימין לשמאל */
     transform: scaleX(0);
     z-index: 300;
@@ -1751,20 +2014,16 @@
 .hero-float {
   animation: hero-float 7s ease-in-out infinite alternate;
   will-change: transform;
+  /* MUST be sized: the collage inside is height:100% and its beats are
+     positioned with percentage tops. Without a definite height here the
+     chain collapses to zero and every beat stacks at the frame's top edge. */
+  width: 100%;
+  height: 100%;
 }
 
 @keyframes hero-float {
   from { transform: translate3d(0, 0, 0) rotate(-0.2deg); }
   to { transform: translate3d(0, -10px, 0) rotate(0.3deg); }
-}
-
-.hero-glow {
-  animation: hero-glow-breathe 6s ease-in-out infinite alternate;
-}
-
-@keyframes hero-glow-breathe {
-  from { opacity: 0.75; transform: translate(-50%, -50%) scale(0.97); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
 }
 
 /* ── CTA ראשי: הילה בהובר + סוויפ ברק עדין ── */
@@ -1806,7 +2065,6 @@
 /* ── reduced-motion: כל שכבת ה-2026 כבה לגמרי ── */
 @media (prefers-reduced-motion: reduce) {
   .hero-float,
-  .hero-glow,
   .scroll-progress,
   .btn-primary::after {
     animation: none !important;
@@ -1817,32 +2075,336 @@
   .scroll-progress { display: none !important; }
 }
 
-/* ── פס ההשקה: מהצהוב־לימון אל משפחת הקרם (מתחבר לסקשן עלינו) ── */
+/* ── פס ההשקה: הסגול הבהיר של המותג (per Guy) ── */
 .early-stage-band {
-  background: var(--surface-sunken, #f1eff9);
-  border-top: 1px solid #f4e8c8;
-  border-bottom: 1px solid #f4e8c8;
+  background: var(--purple-100);
+  border-top: 1px solid var(--purple-200);
+  border-bottom: 1px solid var(--purple-200);
 }
 
 
 /* ── 2027 hero staging ──────────────────────────────────────────────
    The illustration is a held object on a lit surface: key light above,
    contact shadow below. Depth comes from the shadow pair, not from scale. */
-.hero-img {
-  filter: drop-shadow(0 18px 28px rgba(38, 26, 74, 0.18));
+/* Stillness: every beat is simply present, in place, at once — and the
+   magic holds its breath rather than blinking. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-beat {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
 }
 
-.hero-img-wrap::after {
+/* (No oval contact shadow: the story panels carry their own shadows, and a
+   static floor blob under the tilting collage broke the illusion.) */
+
+/* ── Conversion-pass additions (brief 2026-08) ─────────────────── */
+
+/* closing reassurance under the use-case grid */
+.helps-closing {
+  margin: 30px auto 0;
+  text-align: center;
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--mid);
+  max-width: 54ch;
+}
+
+/* the line under a section h2 (how / gallery / about) — REGULAR body text,
+   never heading weight (per Guy: one heading per section, the line after it
+   must not compete with it) */
+.section-lede {
+  font-size: clamp(17.5px, 2vw, 20px);
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--n-600);
+  text-align: center;
+  max-width: 56ch;
+  margin: 10px auto 14px;
+  text-wrap: balance;
+}
+
+/* the CTA under the how-steps */
+.how-foot {
+  margin-top: 40px;
+  text-align: center;
+}
+
+/* step 3 lands on the point — pinned to the card floor so the three cards
+   close on one shared baseline instead of a ragged bottom edge */
+.how-step-emphasis {
+  margin: auto 0 0;
+  padding-top: 8px;
+  font-family: var(--fd);
+  font-size: 21px;
+  color: var(--purple);
+}
+
+/* ═══ Guy's copy spec (2026-08) — new section blocks ═══════════════ */
+
+/* ── HERO: the three reassurances under the CTAs ───────────────────
+   One line on desktop with dot separators; wraps to two on a phone. */
+.hero-cta-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #7a7589;
+  max-width: 520px;
+}
+.hero-cta-notes li { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.hero-cta-notes li + li::before {
   content: '';
-  position: absolute;
-  inset-inline: 12%;
-  bottom: 2%;
-  height: 26px;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
-  background: radial-gradient(50% 100% at 50% 50%, rgba(38, 26, 74, 0.22), transparent 72%);
-  filter: blur(9px);
-  z-index: 0;
-  pointer-events: none;
+  background: #c9c3dd;
+}
+
+/* ── מה מקבלים: five short promises, evenly weighted ───────────────
+   3-up on desktop (the last row centres), 1-up on phones. Each card is
+   a flat surface with a purple check — no heavy borders, so the section
+   reads as a list, not as a second pricing table. */
+/* Plain white: the tint now comes from the sky layer above it, and two
+   gradients stacked would compound into a band at the seam. */
+.value-section {
+  background: #fff;
+  position: relative;
+  isolation: isolate;
+}
+
+/* the content rides above the sky */
+.value-section > .wrap {
+  position: relative;
+  z-index: 1;
+}
+
+/* flex (not grid) so the 5th/6th items centre on the last row instead of
+   hugging the start edge */
+.value-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px;
+  max-width: 1000px;
+  margin: 34px auto 0;
+}
+
+.value-card {
+  flex: 0 1 calc((100% - 36px) / 3);
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px 22px;
+  border-radius: 20px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  text-align: start;
+}
+
+.value-card-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--purple-100);
+  color: var(--purple-600);
+}
+.value-card-mark svg { width: 18px; height: 18px; }
+
+.value-card-title {
+  font-family: var(--fd);
+  font-weight: 400;
+  font-size: 19px;
+  line-height: 1.3;
+  color: var(--dark);
+  margin: 0;
+}
+
+.value-card-body {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--mid);
+}
+
+.value-spreads {
+  margin: 24px auto 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--n-500);
+}
+
+/* ── ספר לדוגמה: the second, softer paragraph (about the companion) ── */
+.sample-p--soft {
+  font-size: 17.5px;
+  color: var(--n-500);
+  max-width: 800px;
+}
+
+/* ── איך זה עובד: the closing line above the CTA ───────────────────── */
+.how-closing {
+  margin: 0 auto 22px;
+  max-width: 40ch;
+  font-family: var(--fd);
+  font-size: clamp(20px, 2.2vw, 26px);
+  line-height: 1.35;
+  color: var(--dark);
+}
+
+/* ── למה הסיפורים שלנו עובדים אחרת: four numbered story-craft cards ── */
+.why-section {
+  background: var(--white);
+}
+
+.why-sub {
+  margin: 0 auto 6px;
+  max-width: 56ch;
+  text-align: center;
+  font-size: 16.5px;
+  line-height: 1.7;
+  color: var(--mid);
+}
+
+.why-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  max-width: 900px;
+  margin: 32px auto 0;
+}
+
+.why-card {
+  position: relative;
+  padding: 26px 24px 24px;
+  border-radius: 20px;
+  background: var(--bg-lighter);
+  border: 1px solid var(--border);
+  text-align: start;
+}
+
+.why-card-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--purple-100);
+  color: var(--purple);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.why-card-title {
+  font-family: var(--fd);
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 1.3;
+  color: var(--dark);
+  margin: 0 0 8px;
+}
+
+.why-card-body {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: var(--mid);
+}
+
+/* ── איך אנחנו שומרים על איכות: the sub under the lede ─────────────── */
+.trust-band__sub {
+  margin: 0 auto;
+  max-width: 48ch;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--mid);
+}
+
+/* ── מחירים: the launch notice replaces the per-card buy buttons ───── */
+/* (The waitlist bubble under the pricing grid is gone: each card carries its
+   own CTA now — per Guy, laying the ground for production.) */
+
+/* ── מאחורי גיבורים קטנים: the shared-language close ───────────────── */
+.about-shared {
+  margin-top: 56px;
+  text-align: center;
+}
+
+.about-shared-h3 {
+  font-family: var(--fd);
+  font-weight: 400;
+  font-size: clamp(23px, 2.8vw, 31px);
+  line-height: 1.2;
+  color: var(--dark);
+  margin: 0 0 16px;
+}
+
+.about-shared-lines {
+  margin: 0 auto 22px;
+  max-width: 58ch;
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--mid);
+}
+
+.about-shared-note {
+  margin: 0 auto;
+  max-width: 58ch;
+  padding: 18px 22px;
+  border-radius: 18px;
+  background: var(--surface-sunken, #f1eff9);
+  border: 1px solid var(--purple-200);
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: var(--n-700);
+}
+
+/* ── the new blocks on phones ──────────────────────────────────────── */
+@media (max-width: 860px) {
+  .value-grid { gap: 14px; max-width: 520px; }
+  .value-card { flex: 1 1 100%; min-width: 0; padding: 20px 18px; }
+  .why-grid { grid-template-columns: 1fr; gap: 14px; max-width: 520px; }
+  .why-card { padding: 22px 20px 20px; }
+  .about-shared { margin-top: 44px; }
+}
+
+/* pricing eyebrow above the decision question */
+.pricing-eyebrow {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  /* the deep brand purple, not --purple: at 14px this is body-size text, so
+     it needs 4.5:1 and the lighter one only reaches 3.7 on the new white */
+  color: var(--purple-600);
+  margin-bottom: 8px;
+}
+
+/* final CTA closes the page like a scene, not a banner */
+.footer--warm { padding: 104px 0 96px; }
+
+.footer-micro {
+  margin-top: 14px;
+  font-size: 14.5px;
+  opacity: 0.82;
+}
+
+@media (max-width: 860px) {
+  .footer--warm { padding: 72px 0 64px; }
 }
 
 /* Primary CTA reads as the one lit object on the page. */

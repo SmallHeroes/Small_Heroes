@@ -9,7 +9,10 @@ import type { MvpMatrixCategoryPayload } from '@/lib/web/mvp-matrix-response';
 import { initLandingMotion } from './motion';
 import { SiteHeader } from '@/app/components/SiteHeader';
 import { AboutSection } from './about-section';
+import { HeroDoodles, ValueDoodles, HelpsDoodles } from './hero-doodles';
+import { HeroCollage } from './hero-collage';
 import { CompanionSpotlight } from '@/app/components/CompanionSpotlight';
+import { warmCompanionIdleVideos } from '@/lib/web/companion-idle-video';
 
 type SpotlightState = {
   slot: MvpMatrixCategoryPayload;
@@ -103,6 +106,12 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
   useEffect(() => initLandingMotion(), []);
 
+  /* Warm the six idle clips at idle priority so a spotlight's video paints
+     instantly (per Guy: only the video, no image-then-video flash). */
+  useEffect(() => {
+    warmCompanionIdleVideos(matrixCategories.map((slot) => slot.companion.image));
+  }, [matrixCategories]);
+
   return (
     <>
       <div className="landing-body" data-motion="on">
@@ -112,19 +121,17 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
         <main>
           <section className="hero">
+            <HeroDoodles />
             <div className="wrap hero-wrap">
               <div className="hero-text">
                 <div className="hero-badge" data-reveal="hero" data-reveal-delay="0">{L.hero.badge}</div>
-                <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">{L.hero.h1}</h1>
+                <h1 className="hero-h1" data-reveal="hero" data-reveal-delay="60">
+                  <span className="hero-h1-line">{L.hero.h1Line1}</span>{' '}
+                  <span className="hero-h1-line hero-h1-line--accent">{L.hero.h1Line2}</span>
+                </h1>
                 <p className="hero-sub2" data-reveal="hero" data-reveal-delay="120">{L.hero.sub}</p>
 
-                <ul className="hero-bullets" data-reveal="hero" data-reveal-delay="180">
-                  {L.hero.bullets.map((bullet) => (
-                    <li key={bullet}>{bullet}</li>
-                  ))}
-                </ul>
-
-                <div className="hero-btns" data-reveal="hero" data-reveal-delay="240">
+                <div className="hero-btns" data-reveal="hero" data-reveal-delay="180">
                   <a
                     href={startHref}
                     className="btn-primary"
@@ -132,71 +139,126 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                   >
                     {L.hero.ctaPrimary}
                   </a>
+                  {/* lands on the sample section — the book itself (a video of
+                      it, once Guy's clip exists). The gallery is a look, not a
+                      sample, so it is no longer the destination. */}
                   <a href="#sample" className="btn-light">
                     {L.hero.ctaSecondary}
                   </a>
                 </div>
 
-                <p className="hero-cta-note" data-reveal="hero" data-reveal-delay="300">{L.hero.ctaNote}</p>
+                {/* three short reassurances, dot-separated on one line (they
+                    wrap to two on a phone rather than shrinking) */}
+                <ul className="hero-cta-notes" data-reveal="hero" data-reveal-delay="240">
+                  {L.hero.ctaNotes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
               </div>
 
-              <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120">
-                <div className="hero-glow" aria-hidden="true" />
-                {/* .hero-float carries the ambient float animation; parallax stays on the img itself
-                    (inline transform) so the two never fight over the same transform. */}
+              <div className="hero-img-wrap" data-reveal="scale" data-reveal-delay="120" data-tilt="hero">
+                {/* Guy's three story beats, now separate files, so the collage
+                    is composed in CSS and the beats can arrive IN ORDER —
+                    fear, then the friend, then walking out. Desktop keeps the
+                    3D cursor tilt (motion.ts, hover+fine-pointer only):
+                    rotation lives on .hero-float, so it never fights the
+                    per-panel reveal transforms. */}
                 <div className="hero-float">
-                  <img
-                    src="/Images/hero-child-fox.png"
-                    alt="ילד וחבר הסיפור"
-                    className="hero-img"
-                    data-parallax="hero-img"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
+                  <HeroCollage />
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="section helps-section" id="helps">
+          {/* מה מקבלים — the concrete promise, straight after the hero */}
+          {/* the storybook sky continues here and fades out inside this
+              section, so the field never stops at a seam (per Guy) */}
+          <section className="section value-section" id="value">
+            <ValueDoodles />
             <div className="wrap">
-              <h2 className="section-h2" data-reveal="up">{L.helps.h2}</h2>
-              <p className="section-sub" data-reveal="up" data-reveal-delay="60">{L.helps.sub}</p>
-              <div className="mvp-challenge-grid mvp-challenge-grid--landing">
-                {matrixCategories.map((slot, index) => (
-                  <CategoryChallengeCard
-                    key={slot.category}
-                    slot={slot}
-                    as="button"
-                    onClick={(event) => {
-                      const rect = event.currentTarget.getBoundingClientRect();
-                      setSpotlight({
-                        slot,
-                        originRect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-                        originEl: event.currentTarget,
-                      });
-                    }}
-                    data-event="landing_companion_spotlight_open"
-                    data-category={slot.category}
+              <h2 className="section-h2" data-reveal="up">{L.value.h2}</h2>
+              <p className="section-lede" data-reveal="up" data-reveal-delay="60">{L.value.lede}</p>
+
+              <div className="value-grid">
+                {L.value.items.map((item, index) => (
+                  <article
+                    key={item.title}
+                    className="value-card"
                     data-reveal="up"
-                    data-reveal-delay={String(80 + index * 55)}
-                  />
+                    data-reveal-delay={String(100 + index * 70)}
+                  >
+                    <span className="value-card-mark" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4.5 12.5l4.5 4.5 10.5-11" />
+                      </svg>
+                    </span>
+                    <h3 className="value-card-title">{item.title}</h3>
+                    <p className="value-card-body">{item.body}</p>
+                  </article>
                 ))}
               </div>
+
             </div>
           </section>
 
-          <section className="section sample-section" id="sample">
+          {/* the last section under the sky: the field runs on to here, and
+              the dark room below takes over from it (per Guy) */}
+          <section className="section helps-section" id="helps">
+            <HelpsDoodles />
+            <div className="wrap">
+              <h2 className="section-h2" data-reveal="up">{L.helps.h2}</h2>
+              <p className="section-lede" data-reveal="up" data-reveal-delay="50">{L.helps.lede}</p>
+              <div className="mvp-challenge-grid mvp-challenge-grid--landing">
+                {matrixCategories.map((slot, index) => {
+                  {/* Landing-side marketing copy per category; the wizard keeps
+                      the matrix source untouched. */}
+                  {/* one short emotional line per card; the grey description
+                      paragraph was dropped per Guy (people don't read it) */}
+                  const marketing = L.helps.cards[slot.category];
+                  const displaySlot = { ...slot, oneLiner: '' };
+                  return (
+                    <CategoryChallengeCard
+                      key={slot.category}
+                      slot={displaySlot}
+                      lead={marketing?.lead}
+                      as="button"
+                      onClick={(event) => {
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        setSpotlight({
+                          slot: displaySlot,
+                          originRect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+                          originEl: event.currentTarget,
+                        });
+                      }}
+                      data-event="landing_companion_spotlight_open"
+                      data-category={slot.category}
+                      data-reveal="up"
+                      data-reveal-delay={String(80 + index * 55)}
+                    />
+                  );
+                })}
+              </div>
+              <p className="helps-closing" data-reveal="fade" data-reveal-delay="380">{L.helps.closing}</p>
+            </div>
+          </section>
+
+          {/* TRIAL per Guy: the charcoal "reading room" break in the page's
+              brightness — drop the --dark modifier to go back to white */}
+          <section className="section sample-section sample-section--dark" id="sample">
             <div className="wrap sample-wrap">
               <div className="sample-text">
                 <div className="sample-kicker" data-reveal="up">{L.sample.kicker}</div>
-                <h2 className="sample-h2" data-reveal="up" data-reveal-delay="60">{L.sample.h2}</h2>
+                <h2 className="sample-h2" data-reveal="up" data-reveal-delay="60">
+                  {L.sample.h2Line1}
+                  <br />
+                  {L.sample.h2Line2}
+                </h2>
                 <p className="sample-p" data-reveal="up" data-reveal-delay="120">{L.sample.p1}</p>
-                <p className="sample-caption" data-reveal="up" data-reveal-delay="180">{L.sample.caption}</p>
-                <a href={startHref} className="btn-primary" data-event="landing_start_click" data-reveal="up" data-reveal-delay="240">
-                  {L.sample.cta}
-                </a>
+                <p className="sample-p sample-p--soft" data-reveal="up" data-reveal-delay="160">{L.sample.p2}</p>
+
+                {/* The CTA that pointed at the gallery is gone (per Guy: the
+                    gallery is show, not a sample). The sample IS this section —
+                    the book below, and a video of it once Guy's clip lands. */}
               </div>
 
               <div className="sample-img-wrap sample-preview-wrap" data-reveal="scale" data-reveal-delay="120">
@@ -204,7 +266,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 <figure className="sample-book-illustration">
                   <img
                     src="/Images/Book.webp"
-                    alt="המחשה — דוגמה לספר מותאם אישית"
+                    alt="המחשה - דוגמה לספר מותאם אישית"
                     loading="lazy"
                   />
                 </figure>
@@ -212,40 +274,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
-          <section className="section why-section">
-            <div className="wrap">
-              <h2 className="section-h2" data-reveal="up">{L.why.h2}</h2>
-              <p className="section-sub" data-reveal="up" data-reveal-delay="60">{L.why.sub}</p>
-
-              <div className="why-grid">
-                {L.why.cards.map((card, index) => (
-                  <article key={card.title} className="why-card" data-reveal="up" data-reveal-delay={String(80 + index * 70)}>
-                    <h3 className="landing-card-title">{card.title}</h3>
-                    <p className="landing-card-body">{card.body}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="how-it-works-section how-section" id="how">
-            <div className="wrap">
-              <h2 className="section-h2" data-reveal="up">{L.how.h2}</h2>
-
-              <div className="steps-row">
-                {L.how.steps.map((step, index) => (
-                  <article key={step.title} className="how-card" data-reveal="up" data-reveal-delay={String(80 + index * 90)}>
-                    <div className="how-step">
-                      <div className="landing-card-title">{step.title}</div>
-                      <p className="landing-card-body">{step.body}</p>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="gallery-section">
+          <section className="gallery-section" id="gallery">
             <div className="wrap">
               <h2 className="gallery-h2" data-reveal="up">{L.gallery.h2}</h2>
               <p className="gallery-sub" data-reveal="up" data-reveal-delay="60">{L.gallery.sub}</p>
@@ -295,7 +324,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               >
                 {GALLERY_STYLE01.map((src) => (
                   <div key={src} className="gallery-card">
-                    <img src={src} alt="עמוד מתוך ספר — מאוייר" loading="lazy" />
+                    <img src={src} alt="עמוד מתוך ספר - מאוייר" loading="lazy" />
                   </div>
                 ))}
               </div>
@@ -309,7 +338,7 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
               >
                 {GALLERY_STYLE02.map((src) => (
                   <div key={src} className="gallery-card">
-                    <img src={src} alt="עמוד מתוך ספר — ריאליסטי" loading="lazy" />
+                    <img src={src} alt="עמוד מתוך ספר - ריאליסטי" loading="lazy" />
                   </div>
                 ))}
               </div>
@@ -326,10 +355,71 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
             </div>
           </section>
 
+
+          <section className="how-it-works-section how-section" id="how">
+            <div className="wrap">
+              <h2 className="section-h2" data-reveal="up">{L.how.h2}</h2>
+              <p className="section-lede" data-reveal="up" data-reveal-delay="60">{L.how.lede}</p>
+
+              <div className="steps-row">
+                {L.how.steps.map((step, index) => {
+                  /* presentation only: the "N. " prefix in the copy becomes a
+                     number chip; the content file stays untouched */
+                  const numbered = step.title.match(/^(\d+)\.\s*(.*)$/);
+                  return (
+                    <article key={step.title} className="how-card" data-reveal="up" data-reveal-delay={String(100 + index * 90)}>
+                      <div className="how-step">
+                        <span className="how-step-num" aria-hidden="true">{numbered ? numbered[1] : index + 1}</span>
+                        <div className="landing-card-title">{numbered ? numbered[2] : step.title}</div>
+                        <p className="landing-card-body">{step.body}</p>
+                        {'emphasis' in step && step.emphasis ? (
+                          <p className="how-step-emphasis">{step.emphasis}</p>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="how-foot" data-reveal="up" data-reveal-delay="300">
+                <p className="how-closing">{L.how.closing}</p>
+                <a href={startHref} className="btn-primary" data-event="landing_start_click">
+                  {L.how.cta}
+                </a>
+              </div>
+            </div>
+          </section>
+
+          {/* למה הסיפורים שלנו עובדים אחרת — the story-craft argument */}
+          <section className="section why-section" id="why">
+            <div className="wrap">
+              <h2 className="section-h2" data-reveal="up">{L.why.h2}</h2>
+              <p className="section-lede" data-reveal="up" data-reveal-delay="50">{L.why.lede}</p>
+              <p className="why-sub" data-reveal="up" data-reveal-delay="80">{L.why.sub}</p>
+
+              <div className="why-grid">
+                {L.why.cards.map((card, index) => (
+                  <article
+                    key={card.title}
+                    className="why-card"
+                    data-reveal="up"
+                    data-reveal-delay={String(120 + index * 80)}
+                  >
+                    <span className="why-card-index" aria-hidden="true">{index + 1}</span>
+                    <h3 className="why-card-title">{card.title}</h3>
+                    <p className="why-card-body">{card.body}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+
           <section className="trust-band" id="trust">
             <div className="wrap trust-band__inner">
               <header className="trust-band__header">
                 <h2 className="trust-band__h2" data-reveal="up">{L.trust.h2}</h2>
+                <p className="section-lede" data-reveal="up" data-reveal-delay="50">{L.trust.lede}</p>
+                <p className="trust-band__sub" data-reveal="up" data-reveal-delay="80">{L.trust.sub}</p>
               </header>
               <div className="trust-points">
                 {L.trust.pillars.map((pillar, i) => (
@@ -356,10 +446,16 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
 
           <section className="section pricing-section" id="pricing">
             <div className="wrap">
-              <h2 className="section-h2" data-reveal="up">{L.pricing.h2}</h2>
-              <p className="section-sub pricing-sub" data-reveal="up" data-reveal-delay="60">{L.pricing.sub}</p>
+              <div className="pricing-eyebrow" data-reveal="up">{L.pricing.kicker}</div>
+              <h2 className="section-h2" data-reveal="up" data-reveal-delay="40">{L.pricing.h2}</h2>
+              <p className="section-sub pricing-sub" data-reveal="up" data-reveal-delay="80">{L.pricing.sub}</p>
 
               <div className="pricing-grid">
+                {/* Each card opens the flow (per Guy, laying the ground for
+                    production). The direction rides along in the URL so the
+                    handoff is already correct the day the wizard honours it —
+                    today wizard.js deliberately clears it and the reader picks
+                    the direction actively in step 8. */}
                 {L.pricing.cards.map((card, index) => (
                   <article
                     key={card.direction}
@@ -367,9 +463,6 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                     data-reveal="scale"
                     data-reveal-delay={String(100 + index * 90)}
                   >
-                    {'badge' in card && card.badge ? (
-                      <div className="price-badge-floating">{card.badge}</div>
-                    ) : null}
                     <div className="price-kicker">{card.kicker}</div>
                     <div className="price-name">{card.name}</div>
                     <div className="price-pages">{card.pages}</div>
@@ -380,20 +473,16 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                       ))}
                     </ul>
                     <div className="price-num">
-                      {card.originalPrice ? (
-                        <span className="price-was" aria-hidden="true">₪{card.originalPrice}</span>
-                      ) : null}
                       <span className="price-now">
                         ₪<span className="price-now-digits">{card.price}</span>
-                        {card.originalPrice ? <span className="price-launch-flag">מחיר השקה</span> : null}
                       </span>
                     </div>
+
                     <a
-                      href={startHref}
-                      className={
-                        (index === 1 ? 'btn-primary' : 'btn-outline') + ' price-btn'
-                      }
-                      data-event="landing_start_click"
+                      className="btn-primary price-cta"
+                      href={`${startHref}${startHref.includes('?') ? '&' : '?'}direction=${card.direction}`}
+                      data-event="landing_pricing_cta"
+                      data-direction={card.direction}
                     >
                       {card.cta}
                     </a>
@@ -401,7 +490,8 @@ export default function LandingPage({ content: L, startHref, matrixCategories }:
                 ))}
               </div>
 
-              <div className="pricing-note" data-reveal="fade" data-reveal-delay="320">{L.pricing.note}</div>
+
+              <div className="pricing-note" data-reveal="fade" data-reveal-delay="360">{L.pricing.note}</div>
             </div>
           </section>
 

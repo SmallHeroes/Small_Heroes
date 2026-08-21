@@ -102,6 +102,14 @@ export function initLandingMotion(root?: HTMLElement | null): void {
   addEventListener('scroll', rescueOnScreen, { passive: true });
 
   if (!window.matchMedia('(pointer: fine)').matches) return;
+
+  /* The tilt is set up BEFORE the parallax, and deliberately so: it used to
+     sit after the `if (!img) return` below, which meant the whole hero lean
+     silently died the day the single hero image was replaced by the CSS
+     collage and the parallax hook went with it. The two effects are
+     independent, so neither may gate the other. */
+  initHeroTilt(el);
+
   const img = el.querySelector<HTMLElement>(P);
   if (!img) return;
   let t = 0;
@@ -114,4 +122,56 @@ export function initLandingMotion(root?: HTMLElement | null): void {
   };
   onScroll();
   addEventListener('scroll', onScroll, { passive: true });
+}
+
+/**
+ * The hero WOW beat: the story strip is a held card that leans toward the
+ * cursor (max ~4.5deg) and breathes a gentle bob when the cursor is away.
+ * Desktop-only (hover + fine pointer; reduced-motion never reaches here).
+ * Rotation lives on .hero-float; the CSS float animation is retired in its
+ * favor so the two never fight over one transform.
+ */
+function initHeroTilt(el: HTMLElement): void {
+  if (!window.matchMedia('(hover: hover)').matches) return;
+  const wrap = el.querySelector<HTMLElement>('[data-tilt="hero"]');
+  const card = wrap?.querySelector<HTMLElement>('.hero-float');
+  if (!wrap || !card) return;
+
+  card.style.animation = 'none';
+  card.style.willChange = 'transform';
+
+  const MAX_DEG = 4.5;
+  let targetX = 0;
+  let targetY = 0;
+  let curX = 0;
+  let curY = 0;
+  let curBob = 0;
+  let hovering = false;
+  let bobPhase = 0;
+
+  wrap.addEventListener('pointermove', (e) => {
+    const r = wrap.getBoundingClientRect();
+    const nx = (e.clientX - r.left) / r.width - 0.5;   // -0.5..0.5
+    const ny = (e.clientY - r.top) / r.height - 0.5;
+    hovering = true;
+    targetY = nx * MAX_DEG * 2;    // rotateY follows horizontal travel
+    targetX = -ny * MAX_DEG * 2;   // rotateX follows vertical travel
+  });
+  wrap.addEventListener('pointerleave', () => {
+    hovering = false;
+    targetX = 0;
+    targetY = 0;
+  });
+
+  const tick = () => {
+    bobPhase += 1 / 60;
+    const idleBob = hovering ? 0 : Math.sin(bobPhase * 0.9) * 5;
+    const idleSway = hovering ? 0 : Math.sin(bobPhase * 0.55) * 0.5;
+    curX += (targetX - curX) * 0.085;
+    curY += (targetY + idleSway - curY) * 0.085;
+    curBob += (idleBob - curBob) * 0.06;
+    card.style.transform = `rotateX(${curX.toFixed(3)}deg) rotateY(${curY.toFixed(3)}deg) translate3d(0, ${curBob.toFixed(2)}px, 0)`;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
