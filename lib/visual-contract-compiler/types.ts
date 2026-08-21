@@ -12,6 +12,7 @@
  */
 
 import type { ActionPredicate } from './actionSemanticCatalog';
+import type { StoryTimeOfDay } from '@/lib/story-time-of-day';
 
 export {
   ACTION_PREDICATE_VALUES,
@@ -63,7 +64,7 @@ export interface VisualLocation {
   name: string;
   description: string;
   /** For cover/world matching (e.g. `day`, `night`, `dusk`). */
-  timeOfDay?: string;
+  timeOfDay?: StoryTimeOfDay;
   /** ONE canonical set ref per location, reused across that location's pages (filled in 1B). */
   setReference?: SetReferenceDescriptor;
   /**
@@ -210,7 +211,7 @@ export interface SetBoardStableLocation {
   /** Character-free physical label used by the board prompt. */
   name: string;
   environmentClass: EnvironmentClass;
-  timeOfDay: string;
+  timeOfDay: StoryTimeOfDay;
   /** Stable environmental light only; no portable/cast-operated/page-conditioned source. */
   lighting: string;
 }
@@ -686,7 +687,7 @@ export interface CoverContract {
    * authority requires this array so cover cast can never be inferred from title/direction prose.
    */
   castIds?: string[];
-  timeOfDay?: string;
+  timeOfDay?: StoryTimeOfDay;
   mustShow: string[];
   mustNotShow: string[];
 }

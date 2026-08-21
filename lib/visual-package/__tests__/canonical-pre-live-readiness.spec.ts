@@ -529,10 +529,10 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v41',
+            'canonical-live-request-verification/v42',
           structuredOutputCompatibility: {
             schemaName: 'BookVisualContractTemplateDraft',
-            schemaVersion: 'vc-draft-schema/v15',
+            schemaVersion: 'vc-draft-schema/v16',
             compatibility: {
               profileVersion:
                 OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
@@ -572,7 +572,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v40',
+            'canonical-live-execution-readiness/v41',
         },
       },
     });
@@ -727,7 +727,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         verifyB0: (args) =>
           ({
             ...verifyCanonicalLiveRequestBundle(args),
-            version: 'canonical-live-request-verification/v32',
+            version: 'canonical-live-request-verification/v41',
           }) as unknown as ReturnType<
             typeof verifyCanonicalLiveRequestBundle
           >,
@@ -747,7 +747,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         verifyExecution: (args) =>
           ({
             ...verifyCanonicalLiveExecution(args),
-            version: 'canonical-live-execution-readiness/v31',
+            version: 'canonical-live-execution-readiness/v40',
           }) as unknown as ReturnType<
             typeof verifyCanonicalLiveExecution
           >,
@@ -822,7 +822,7 @@ describe('canonical pre-live readiness orchestrator', () => {
     const current = prepare(fixture);
     expect(current.status).toBe('ready_for_spend_gate');
     const prior = structuredClone(current) as unknown as Record<string, unknown>;
-    prior.version = 'canonical-pre-live-readiness-evidence/v31';
+    prior.version = 'canonical-pre-live-readiness-evidence/v40';
     const {
       digestAlgorithm: _algorithm,
       digest: _digest,

@@ -97,9 +97,33 @@ function allConstNodes(schema: unknown): Array<Record<string, unknown>> {
 }
 
 describe('OpenAI Responses structured-output compatibility profile', () => {
+  it('closes location, stable-board, and cover time authority to the same five values', () => {
+    const root = TEMPLATE_DRAFT_JSON_SCHEMA as {
+      properties: Record<string, any>;
+    };
+    const expectedNullable = {
+      type: ['string', 'null'],
+      enum: ['night', 'day', 'dusk', 'dawn', 'mixed', null],
+    };
+    const locationTime =
+      root.properties.locations.items.properties.timeOfDay;
+    const stableTime =
+      root.properties.setBoardAuthorities.items.properties.locations
+        .items.properties.timeOfDay;
+    const coverTime =
+      root.properties.coverContract.properties.timeOfDay;
+
+    expect(locationTime).toEqual(expectedNullable);
+    expect(coverTime).toEqual(expectedNullable);
+    expect(stableTime).toEqual({
+      type: 'string',
+      enum: ['night', 'day', 'dusk', 'dawn', 'mixed'],
+    });
+  });
+
   it('positive-controls the fully serialized current Visual Contract and Blueprint schemas', () => {
     expect(TEMPLATE_DRAFT_SCHEMA_VERSION).toBe(
-      'vc-draft-schema/v15',
+      'vc-draft-schema/v16',
     );
     expect(PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION).toBe(
       'pre-render-blueprint-draft-schema/v6',

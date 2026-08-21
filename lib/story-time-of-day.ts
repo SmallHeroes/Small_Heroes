@@ -3,7 +3,15 @@
  * Enforces consistent lighting atmosphere (especially night stories).
  */
 
-export type StoryTimeOfDay = 'night' | 'day' | 'dusk' | 'dawn' | 'mixed';
+export const STORY_TIME_OF_DAY_VALUES = [
+  'night',
+  'day',
+  'dusk',
+  'dawn',
+  'mixed',
+] as const;
+
+export type StoryTimeOfDay = (typeof STORY_TIME_OF_DAY_VALUES)[number];
 
 export type StoryTimeOfDayContext = {
   storyTimeOfDay: StoryTimeOfDay;
@@ -21,8 +29,48 @@ const NIGHT_TEXT =
 const NIGHT_HE = /(?:לילה|בלילה|חש(?:ך|כה)|כוכב(?:ים)?|ירח|ליל)/u;
 const DAY_TEXT =
   /\b(daytime|midday|noon|sunny|sunshine|bright blue sky|golden afternoon|morning sun|broad daylight)\b/i;
-const DUSK_TEXT = /\b(dusk|twilight|sunset|golden hour)\b/i;
+const DUSK_TEXT = /\b(dusk|twilight|sunset|golden hour|evening)\b/i;
 const DAWN_TEXT = /\b(dawn|sunrise|early morning light)\b/i;
+const DUSK_HE = /(?:ערב|בערב|שקיעה|דמדומים)/u;
+const DAWN_HE = /(?:שחר|זריחה)/u;
+
+export function isStoryTimeOfDay(value: unknown): value is StoryTimeOfDay {
+  return (
+    typeof value === 'string' &&
+    (STORY_TIME_OF_DAY_VALUES as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Canonicalize authored time prose into the one closed runtime authority.
+ *
+ * This is deliberately fail-closed: exact values stay exact, one cue family
+ * maps to that family, more than one family maps to `mixed`, and text with no
+ * recognized cue returns null rather than acquiring a default.
+ */
+export function canonicalizeStoryTimeOfDayAuthority(
+  value: unknown,
+): StoryTimeOfDay | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (isStoryTimeOfDay(normalized)) return normalized;
+
+  const families = new Set<Exclude<StoryTimeOfDay, 'mixed'>>();
+  if (NIGHT_TEXT.test(normalized) || NIGHT_HE.test(normalized)) {
+    families.add('night');
+  }
+  if (DAY_TEXT.test(normalized)) families.add('day');
+  if (DUSK_TEXT.test(normalized) || DUSK_HE.test(normalized)) {
+    families.add('dusk');
+  }
+  if (DAWN_TEXT.test(normalized) || DAWN_HE.test(normalized)) {
+    families.add('dawn');
+  }
+  if (families.size === 0) return null;
+  if (families.size > 1) return 'mixed';
+  return [...families][0] ?? null;
+}
 
 const INDOOR_RE =
   /\b(indoors?|inside|bedroom|room|porch|window|kitchen|hallway|living room|bedside)\b/i;
@@ -83,13 +131,7 @@ export function resolveStoryTimeOfDay(input: {
 }
 
 export function inferPageTimeOfDayFromDirection(imageDirection?: string | null): StoryTimeOfDay | null {
-  const hay = (imageDirection ?? '').trim();
-  if (!hay) return null;
-  if (NIGHT_TEXT.test(hay) || NIGHT_HE.test(hay)) return 'night';
-  if (DAWN_TEXT.test(hay)) return 'dawn';
-  if (DUSK_TEXT.test(hay)) return 'dusk';
-  if (DAY_TEXT.test(hay)) return 'day';
-  return null;
+  return canonicalizeStoryTimeOfDayAuthority(imageDirection);
 }
 
 /** Effective lighting lock for one page (page override > direction inference > story default). */

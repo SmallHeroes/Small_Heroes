@@ -18,6 +18,10 @@ import type {
   FrozenVisualPackageAuthority,
   VisualPackageV4,
 } from './visualPackageV4';
+import {
+  STORY_TIME_OF_DAY_VALUES,
+  isStoryTimeOfDay,
+} from '@/lib/story-time-of-day';
 
 function issue(
   code: VisualPackageIssue['code'],
@@ -54,7 +58,6 @@ export function runtimeWorldAuthorityIssues(
     template.coverContract.locationId,
     ...template.pageContracts.map((page) => page.locationId),
   ]);
-  const allowedTimes = new Set(['day', 'night', 'dusk', 'dawn', 'mixed']);
   for (const locationId of referencedLocationIds) {
     const location = locationById.get(locationId);
     if (!location) continue; // the shared validator/page checks report the unresolved id
@@ -67,10 +70,10 @@ export function runtimeWorldAuthorityIssues(
       issues.push(issue('world_authority_incomplete', `location ${locationId} has no explicit timeOfDay`, {
         field: `template.locations.${locationId}.timeOfDay`,
       }));
-    } else if (!allowedTimes.has(location.timeOfDay.trim().toLowerCase())) {
+    } else if (!isStoryTimeOfDay(location.timeOfDay)) {
       issues.push(issue('world_authority_contradictory', `location ${locationId} has unsupported timeOfDay authority`, {
         field: `template.locations.${locationId}.timeOfDay`,
-        expected: [...allowedTimes],
+        expected: [...STORY_TIME_OF_DAY_VALUES],
         actual: location.timeOfDay,
       }));
     }

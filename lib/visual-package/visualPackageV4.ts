@@ -24,6 +24,7 @@ import type {
   PreRenderBlueprintValidationContext,
   PreRenderBookVisualBlueprint,
 } from './preRenderBlueprintTypes';
+import { isStoryTimeOfDay } from '@/lib/story-time-of-day';
 import type { SourcePromptReconciliation } from './sourcePromptReconciliation';
 import {
   canonicalJsonDigest,
@@ -642,10 +643,7 @@ export function validateVisualPackageV4(value: unknown): string[] {
       );
       if (
         !location?.environmentClass ||
-        !location.timeOfDay?.trim() ||
-        !['day', 'night', 'dusk', 'dawn', 'mixed'].includes(
-          location.timeOfDay.trim().toLowerCase(),
-        ) ||
+        !isStoryTimeOfDay(location.timeOfDay) ||
         !location.lighting?.trim()
       ) {
         issues.push(

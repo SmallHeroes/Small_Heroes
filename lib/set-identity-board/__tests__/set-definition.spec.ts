@@ -365,6 +365,19 @@ describe('projectSetDefinition / computeSetDefinitionHash — set-only, personal
 });
 
 describe('reviewed stable Set Board authority validation', () => {
+  it('rejects stable-board time prose outside the closed runtime authority', () => {
+    const contract = makeContract();
+    (
+      contract.setBoardAuthorities![0]!.locations[0] as unknown as {
+        timeOfDay: string;
+      }
+    ).timeOfDay = 'evening into night';
+
+    expect(setBoardStableAuthorityErrors(contract).join(' ')).toMatch(
+      /timeOfDay must be day\|night\|dusk\|dawn\|mixed/,
+    );
+  });
+
   it('accepts a canonical key-sorted persistence round trip while preserving exact projection checks', () => {
     const source = makeContract();
     const persisted = JSON.parse(

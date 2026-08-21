@@ -37,6 +37,7 @@ import {
   comparePropArtifacts,
   resolveRequiredPropArtifacts,
 } from './propArtifacts';
+import { runtimeWorldAuthorityIssues } from './runtimeAuthority';
 import {
   buildProductionAuthoringContext,
   buildProductionAuthoringContextFromFrozenVisualPackageCandidate,
@@ -69,7 +70,7 @@ import {
 } from './visualPackageV4';
 
 export const VISUAL_PACKAGE_V4_QUALIFICATION_VERSION =
-  'visual-package-v5-offline-qualification/v3' as const;
+  'visual-package-v5-offline-qualification/v4' as const;
 
 export interface ApprovedBlueprintLifecyclePaths {
   blueprintPath: string;
@@ -99,6 +100,7 @@ export type VisualPackageV4QualificationReasonCode =
   | 'blueprint_stale'
   | 'board_stale'
   | 'prop_reference_stale'
+  | 'world_authority_invalid'
   | 'layout_incompatible'
   | 'legacy_authority_forbidden';
 
@@ -755,6 +757,7 @@ type QualificationSafetyReasonCode =
   | 'candidate_invalid'
   | 'package_review_invalid'
   | 'package_approval_invalid'
+  | 'world_authority_invalid'
   | 'layout_incompatible';
 
 function safetyFenceQualification(
@@ -767,6 +770,8 @@ function safetyFenceQualification(
       'package review validation failed at a protected qualification boundary',
     package_approval_invalid:
       'package approval validation failed at a protected qualification boundary',
+    world_authority_invalid:
+      'world authority validation failed at a protected qualification boundary',
     layout_incompatible:
       'layout validation failed at a protected qualification boundary',
   };
@@ -937,6 +942,28 @@ function qualifyVisualPackageV4CandidateUnchecked(
   }
   if (currentContext) {
     const content = candidate.content;
+    safety.reasonCode = 'world_authority_invalid';
+    reasons.push(
+      ...runtimeWorldAuthorityIssues(
+        currentContext.template.content,
+        content.review.worldMode,
+      ).map((worldIssue) =>
+        qualificationReason(
+          'world_authority_invalid',
+          `${worldIssue.code}: ${worldIssue.message}`,
+          {
+            ...(worldIssue.field ? { field: worldIssue.field } : {}),
+            ...(worldIssue.expected !== undefined
+              ? { expected: worldIssue.expected }
+              : {}),
+            ...(worldIssue.actual !== undefined
+              ? { actual: worldIssue.actual }
+              : {}),
+          },
+        ),
+      ),
+    );
+    safety.reasonCode = 'candidate_invalid';
     if (
       currentContext.sourceSnapshot.rawDigest !==
         content.sourceSnapshot.rawDigest ||
@@ -1132,6 +1159,7 @@ function qualifyVisualPackageV4CandidateUnchecked(
       'blueprint_stale',
       'board_stale',
       'prop_reference_stale',
+      'world_authority_invalid',
       'layout_incompatible',
     ].includes(reason.code),
   );

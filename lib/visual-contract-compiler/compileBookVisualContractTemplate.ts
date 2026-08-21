@@ -47,6 +47,9 @@ import {
   TEMPLATE_DRAFT_SCHEMA_VERSION,
 } from './templateDraftSchema';
 import {
+  canonicalizeStoryTimeOfDayAuthority,
+} from '@/lib/story-time-of-day';
+import {
   sanitizedTemplateRepairOutputIdentity,
   type TemplateRepairMode,
   type TemplateRepairOutputFailureCode,
@@ -230,7 +233,7 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v13' as const;
+  'vc-template-prompt/v14' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
   'vc-template-user-prompt/v13' as const;
 /** Normal bounded safety net after the initial authoring call. */
@@ -1465,7 +1468,7 @@ export function buildTemplateCompileSystemPrompt(): string {
     'you MUST NOT restate or contradict them.',
     '',
     'Draft ONLY the DESCRIPTIVE fields:',
-    '- worldType, locations[] (including authored setIdentityId/setReference bindings), zones[] (with stableGeometry',
+    '- worldType, locations[] (closed time; authored setIdentityId/setReference bindings), zones[] (with stableGeometry',
     '  plus exact spatialNodes/spatialRelations selection authority for zones not projected from stable areas),',
     '- setBoardAuthorities: separate stable character-free projection per pending/ready set. Areas declare exact',
     '  zoneProjection; only environmental light, unbound fixed architecture, and recurring-prop stablePropId safe on',
@@ -3076,7 +3079,7 @@ function canonicalizeTopology(
       });
       cover = applied.cover;
       notes.push(...applied.notes);
-      if (cover.timeOfDay === null) delete cover.timeOfDay;
+      normalizeDraftTimeOfDayField(cover, 'timeOfDay');
       return { pages, cover, notes };
     } catch (error) {
       if (error instanceof AuthoredCoverAuthorityError) {
@@ -3135,15 +3138,27 @@ function canonicalizeTopology(
   }
   cover.zoneId = coverZone.id;
   cover.locationId = coverZone.locationId;
-  if (cover.timeOfDay === null) delete cover.timeOfDay;
+  normalizeDraftTimeOfDayField(cover, 'timeOfDay');
   return { pages, cover, notes };
+}
+
+function normalizeDraftTimeOfDayField(
+  record: Record<string, unknown>,
+  field: string,
+): void {
+  if (record[field] === null) {
+    delete record[field];
+    return;
+  }
+  const canonical = canonicalizeStoryTimeOfDayAuthority(record[field]);
+  if (canonical) record[field] = canonical;
 }
 
 /** Strict structured output uses null for optional fields; contracts use omission so validation stays exact. */
 function normalizeDraftLocations(raw: unknown): BookVisualContractTemplate['locations'] {
   return asArr(raw).map((value) => {
     const location = { ...asObj(value) };
-    if (location.timeOfDay === null) delete location.timeOfDay;
+    normalizeDraftTimeOfDayField(location, 'timeOfDay');
     if (location.topology === null) delete location.topology;
     if (location.setIdentityId === null) delete location.setIdentityId;
     if (location.setReference === null) {
@@ -3442,6 +3457,16 @@ function normalizeDraftSpatialAuthorities(args: {
   const authorities = asArr(args.draft.setBoardAuthorities).map(
     (rawAuthority, authorityIndex) => {
       const authority = { ...asObj(rawAuthority) };
+      authority.locations = asArr(authority.locations).map(
+        (rawLocation) => {
+          const stableLocation = { ...asObj(rawLocation) };
+          normalizeDraftTimeOfDayField(
+            stableLocation,
+            'timeOfDay',
+          );
+          return stableLocation;
+        },
+      );
       if (
         Object.prototype.hasOwnProperty.call(
           authority,

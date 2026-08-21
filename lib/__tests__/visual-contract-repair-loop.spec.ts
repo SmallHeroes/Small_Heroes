@@ -319,6 +319,35 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(res.provenance.maxOutputTokens).toBe(40_000);
   });
 
+  it('canonicalizes authored time prose before emitting closed referenced world authority', async () => {
+    const draft = bunnyDraft();
+    draft.locations[0].timeOfDay = 'evening into night';
+    draft.coverContract.timeOfDay = 'evening';
+    const { caller, calls } = recordingCaller([draft]);
+
+    const result = await compileBookVisualContractTemplate(
+      bunnySource(),
+      { callLLM: caller },
+    );
+
+    expect(calls()).toBe(1);
+    expect(result.template.locations[0]?.timeOfDay).toBe('mixed');
+    expect(result.template.coverContract.timeOfDay).toBe('dusk');
+    expect(
+      result.template.locations
+        .filter((location) =>
+          result.template.pageContracts.some(
+            (page) => page.locationId === location.id,
+          ),
+        )
+        .every((location) =>
+          ['day', 'night', 'dusk', 'dawn', 'mixed'].includes(
+            String(location.timeOfDay),
+          ),
+        ),
+    ).toBe(true);
+  });
+
   it('routes a homogeneous closed-catalog gap through the compact presentation repair', async () => {
     const invalid = bunnyDraft();
     const pageIndex = 0;

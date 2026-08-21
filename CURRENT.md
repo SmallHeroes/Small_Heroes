@@ -2,7 +2,53 @@
 
 **Updated:** 2026-08-21
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Blueprint text-safe contract milestone is based on pushed commit `bb37be96925b2c4a63a4a9d1e59dea3e91af9a84`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active time-of-day authority-closure milestone is based on local commit `cf07e5cbd70afaaf694ec665164ab553aa648ce6`.
+
+## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — LOCAL GREEN; CLAUDE QA NEXT
+
+The exact approved Chameleon Visual Package candidate
+`c3e28ae1c22ab2bfcea53dddd0e802b71d97b4adbaf6a395313a1a6445df4e82`
+passed offline qualification but finalization rejected its shared Town
+location because the authoring contract allowed open prose
+`evening into night` while runtime accepted only
+`day | night | dusk | dawn | mixed`. No publication, locator mutation,
+Wizard promotion or render occurred.
+
+Guy approved
+`docs/ai-workflow/R1D_VISUAL_TIME_OF_DAY_AUTHORITY_CLOSURE_DECISION_GATE.md`.
+The local implementation establishes one shared closed domain across Visual
+Contract typing/schema, stable Set Board authority, qualification and runtime.
+The deterministic canonicalizer maps `evening` to `dusk`, multiple cue
+families to `mixed`, and unknown/blank prose to no authority; it never invents
+a default. Compiler regression proves Chameleon's historical Town phrase
+becomes `mixed` and cover `evening` becomes `dusk`. Provider drafts can no
+longer emit arbitrary time strings.
+
+Visual Package qualification now invokes the same runtime world-authority
+validator as finalization, returning `world_authority_invalid` before product
+approval. Schema/prompt authority advances to draft v16/system prompt v14,
+authoring request/receipt/readiness v44/v49/v47, B0 v33/v42/v42, execution
+materialization v32/v36, Supervisor v41/v41/v34, Fresh v41, and package
+qualification v4. Immediate authoring predecessors remain immutable legacy;
+all current-only downstream envelopes reject their immediate predecessor.
+Candidate v9, policy/model/budgets/retries/fallback, Boards, story, and
+renderer are unchanged.
+
+Provider-free validation passes TypeScript and **13 focused files / 581
+tests**. Literal `npm run check` passes TypeScript, autonomous Story typecheck,
+ordinary **3,392 tests** and all **610 resource-intensive tests**. Its five
+ordinary failures are only the established missing ignored-`outputs/` fixture
+assertions in four unchanged specs. No changed or adjacent test failed.
+`git diff --check` passes. Durable implementation record:
+`docs/ai-workflow/R1D_VISUAL_TIME_OF_DAY_AUTHORITY_CLOSURE_IMPLEMENTATION_EVIDENCE.md`.
+
+No provider, credential, network, Vision, image, storage/database,
+publication, locator, Wizard, render, deployment or production action
+occurred; the pre-existing untracked Chameleon Board directory remains
+untouched. Next is a focused local commit and independent Claude Code gate.
+Only after PASS may the Chameleon authority chain be rebuilt deterministically
+offline and presented to Guy for fresh exact approvals. One LOW page remains a
+later gated proof before any full-book render.
 
 ## BLUEPRINT TEXT-SAFE CONTRACT — IMPLEMENTED LOCALLY; CLAUDE QA NEXT
 

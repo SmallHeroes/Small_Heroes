@@ -25,6 +25,7 @@ import {
   NON_VISUAL_RATIONALE_VALUES,
   PRESENTATION_REQUIREMENT_CLASS_VALUES,
 } from './actionSemanticCoverage';
+import { STORY_TIME_OF_DAY_VALUES } from '@/lib/story-time-of-day';
 
 /** Build a strict object schema: additionalProperties:false + required = every property. */
 function obj(properties: Record<string, unknown>): Record<string, unknown> {
@@ -39,6 +40,10 @@ function obj(properties: Record<string, unknown>): Record<string, unknown> {
 const nullableString = { type: ['string', 'null'] } as const;
 const nullableNumber = { type: ['number', 'null'] } as const;
 const stringArray = { type: 'array', items: { type: 'string' } } as const;
+const nullableStoryTimeOfDay = {
+  type: ['string', 'null'],
+  enum: [...STORY_TIME_OF_DAY_VALUES, null],
+} as const;
 
 const anchor = obj({ id: { type: 'string' }, description: { type: 'string' } });
 const setReference = obj({
@@ -54,7 +59,7 @@ const location = obj({
   description: { type: 'string' },
   environmentClass: { type: 'string', enum: ['indoor', 'outdoor', 'neutral'] },
   lighting: { type: 'string' },
-  timeOfDay: nullableString,
+  timeOfDay: nullableStoryTimeOfDay,
   anchors: { type: 'array', items: anchor },
   topology: nullableString,
   setIdentityId: nullableString,
@@ -65,7 +70,7 @@ const setBoardStableLocation = obj({
   locationId: { type: 'string' },
   name: { type: 'string' },
   environmentClass: { type: 'string', enum: ['indoor', 'outdoor', 'neutral'] },
-  timeOfDay: { type: 'string' },
+  timeOfDay: { type: 'string', enum: [...STORY_TIME_OF_DAY_VALUES] },
   lighting: { type: 'string' },
 });
 const setBoardStableNode = obj({
@@ -194,7 +199,7 @@ export const TEMPLATE_DRAFT_COVER_CONTRACT_JSON_SCHEMA = obj({
   locationId: { type: 'string' },
   zoneId: { type: 'string' },
   castIds: stringArray,
-  timeOfDay: nullableString,
+  timeOfDay: nullableStoryTimeOfDay,
   mustShow: stringArray,
   mustNotShow: stringArray,
 });
@@ -655,7 +660,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
   });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v15' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v16' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

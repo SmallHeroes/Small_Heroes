@@ -177,9 +177,19 @@ function packageApproval(args: {
 
 function materialize(
   shape: BlueprintFixtureShape = 'single_location',
+  mutateTemplate?: (template: Record<string, unknown>) => void,
 ): MaterializedLifecycle {
   const repoRoot = temporaryRoot();
-  const fixture = buildBlueprintFixture(shape);
+  const fixture = buildBlueprintFixture(shape, {
+    ...(mutateTemplate
+      ? {
+          mutateTemplate: (template) =>
+            mutateTemplate(
+              template as unknown as Record<string, unknown>,
+            ),
+        }
+      : {}),
+  });
   const storyKey = fixture.blueprint.identity.storyKey;
   const storyPath = fixture.context.source.path;
   const templatePath = fixture.context.templateIdentity.artifactPath;
@@ -356,6 +366,52 @@ describe('production visual-package/v4 candidate lifecycle', () => {
       .toBe(false);
     expect(fs.existsSync(path.join(lifecycle.repoRoot, publicationPlan.locatorPath)))
       .toBe(false);
+  });
+
+  it('rejects open time prose during qualification before finalization can claim publication readiness', () => {
+    const lifecycle = materialize(
+      'single_location',
+      (template) => {
+        const locations = template.locations as Array<
+          Record<string, unknown>
+        >;
+        locations[0]!.timeOfDay = 'evening into night';
+      },
+    );
+    const approval = packageApproval(lifecycle);
+    const persistence = persistVisualPackageV4CandidateReview({
+      repoRoot: lifecycle.repoRoot,
+      outputDir: 'visual-packages/working',
+      candidate: lifecycle.candidate,
+      packageReview: lifecycle.packageReview,
+      write: true,
+    });
+
+    const qualification = qualifyVisualPackageV4Candidate({
+      repoRoot: lifecycle.repoRoot,
+      candidate: lifecycle.candidate,
+      packageReview: lifecycle.packageReview,
+      approval,
+    });
+
+    expect(qualification.candidateValid).toBe(false);
+    expect(qualification.readyForPublication).toBe(false);
+    expect(qualification.reasons).toContainEqual(
+      expect.objectContaining({
+        code: 'world_authority_invalid',
+        field: expect.stringContaining('.timeOfDay'),
+        actual: 'evening into night',
+      }),
+    );
+    expect(() =>
+      finalizeApprovedVisualPackageV4({
+        repoRoot: lifecycle.repoRoot,
+        candidate: lifecycle.candidate,
+        packageReview: lifecycle.packageReview,
+        packageReviewArtifactPath: persistence.packageReviewPath,
+        approval,
+      }),
+    ).toThrow(/world_authority_invalid|unsupported timeOfDay/i);
   });
 
   it.each([

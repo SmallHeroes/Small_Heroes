@@ -3,6 +3,7 @@ import type {
   SetBoardStableAuthority,
 } from './types';
 import { canonicalHash } from '@/lib/canonical-json';
+import { isStoryTimeOfDay } from '@/lib/story-time-of-day';
 
 const ENVIRONMENT_CLASSES = new Set(['indoor', 'outdoor', 'neutral']);
 const SPATIAL_NODE_KINDS = new Set([
@@ -139,7 +140,11 @@ export function setBoardStableAuthorityErrors(input: unknown): string[] {
         );
       }
       if (!isStr(rawLocation.name)) errors.push(`${locationLabel}.name missing`);
-      if (!isStr(rawLocation.timeOfDay)) errors.push(`${locationLabel}.timeOfDay missing`);
+      if (!isStoryTimeOfDay(rawLocation.timeOfDay)) {
+        errors.push(
+          `${locationLabel}.timeOfDay must be day|night|dusk|dawn|mixed`,
+        );
+      }
       if (!isStr(rawLocation.lighting)) errors.push(`${locationLabel}.lighting missing`);
       if (!isStr(rawLocation.environmentClass) || !ENVIRONMENT_CLASSES.has(rawLocation.environmentClass)) {
         errors.push(`${locationLabel}.environmentClass must be indoor|outdoor|neutral`);
