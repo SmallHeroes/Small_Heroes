@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active gender-inclusive palette milestone is based on pushed commit `ddc85b2ad4c752bc163427a4bca880d516bc4e4f`.
 
-## SET BOARD GENDER-INCLUSIVE AMBIENT PALETTE — local green; Claude gate next
+## CHAMELEON HOME BOARD v6 — PRODUCT-APPROVED; TOWN BOARD GATE NEXT
 
 Guy accepted the richer child-room composition of the first v5 Chameleon Home
 Board but rejected its combined gender cue: a large coral-pink blanket together
@@ -35,7 +35,7 @@ and prompt hash
 It rendered, uploaded, and QA'd nothing. The prior v5 Registry remained
 byte-identical during this dry proof and stays QA-passed but unapproved.
 
-Provider-free validation currently passes the entire Set Board suite plus the
+Provider-free validation passes the entire Set Board suite plus the
 two board-consuming Visual Package seams at **15 files / 367 tests**, and
 `npx --no-install tsc --noEmit` passes. The literal `npm run check` passes
 TypeScript, autonomous Story typecheck, ordinary **3,370 tests** with 65
@@ -47,12 +47,26 @@ planning/evidence records:
 and
 `docs/ai-workflow/R1D_SET_BOARD_GENDER_INCLUSIVE_AMBIENT_PALETTE_IMPLEMENTATION_EVIDENCE.md`.
 
-Next: literal repository check, focused commit and independent Claude Code
-adversarial PASS. Only after PASS and push is one additional canonical
-Chameleon Home Board at `gpt-image-2` LOW plus ordinary Vision QA authorized.
-The exact resulting PNG stops for Guy's visual approval. No retry, approval,
-Town Board, Wizard promotion, page render, or book render is authorized by
-this milestone.
+The focused implementation is pushed at `8075ec83`; independent Claude Code
+returned technical PASS with no BLOCKER, MAJOR or MINOR findings. One canonical
+`gpt-image-2` LOW Home Board then rendered exactly once. Its downloaded bytes
+are 2,052,912 bytes with SHA-256
+`7a782c72b86ceb07ba631def11d40b520b4753d97a63e8430a2fcb32180d7189`,
+ordinary Vision QA passed, and Guy product-approved those exact bytes at
+`2026-08-21T00:10:06.222Z`. The v6 Registry is therefore bindable.
+
+The contract still requires `set_town_night`. Its provider-free v6 projection
+has Set Definition hash
+`5b1917ceec616cd9c8613f8075f2a7b3426c96e9549eaeef40f2381eb550b9dc`,
+content-policy digest
+`18dbeae69a4e08133a05f04005fbf27ac387be307927fd7b5bd66b1259c497b9`,
+and prompt hash
+`6250ada128e707bab1a7e3060544233bed3d798ffc2808a41fff0d406fa5987c`.
+It renders nothing and remains pending/unapproved. Next is the independent
+Town-board Decision Gate and, only with its explicit spend authority, one LOW
+Town Board plus ordinary Vision QA and Guy inspection. Wizard promotion, page
+render and book render remain blocked until both required boards are approved
+and bound.
 
 ## SET BOARD AMBIENT DRESSING — completed and superseded
 
