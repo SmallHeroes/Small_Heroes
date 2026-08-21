@@ -198,7 +198,7 @@ Real Chameleon dry preview (`--write false`):
 - provider/image/network/database/production calls: all zero;
 - preview output root: absent after execution.
 
-Focused validation for this lifecycle is **8 files / 124 tests PASS**,
+Focused validation for this lifecycle was **8 files / 124 tests PASS**,
 including reconciliation, package qualification, production package,
 production lifecycle, time canonicalization, workload classification and the
 real QA Wizard bridge seams. The direct migration suite is **4/4 PASS**.
@@ -214,5 +214,47 @@ tests** with gate status `passed`. The overall command remains nonzero solely
 because of those five baseline fixture failures; no changed or adjacent
 functional test failed.
 
-No real migration artifact or approval has been written. The next gate is
-independent read-only Claude Code review of the focused lifecycle commit.
+Claude Code's first read-only filesystem-lifecycle audit returned **HOLD** with
+one BLOCKER, one MAJOR and two MINOR findings. The BLOCKER proved that
+`prepare` wrote pending reconciliation and review JSON through the shared
+insertion-order pretty-JSON writer, while `record` required those exact files
+to use sorted canonical JSON bytes; therefore approval always rejected the
+artifact preparation itself had written. The MAJOR was the absence of direct
+coverage for `prepare`, `record` and `advance`. The first in-scope MINOR showed
+that the exported pending-reconciliation builder could receive a non-time
+template directly even though every CLI caller derived an exact migration.
+The second MINOR concerned the older shared permissive timestamp validator and
+was outside the range.
+
+The corrective implementation:
+
+1. leaves the shared reconciliation writer and all historical bytes unchanged;
+2. validates reconciliation/review JSON against that writer's exact
+   insertion-order pretty form, while manifest/template/snapshot/approval
+   artifacts retain sorted canonical-byte validation;
+3. independently rebuilds the expected pending or approved reconciliation on
+   reload before accepting its exact writer bytes;
+4. makes the exported builder require its migrated-template argument to equal
+   the deterministic time-only projection; and
+5. locally requires new migration approval timestamps to be exact UTC ISO
+   instants, without widening the shared timestamp change into this milestone.
+
+Corrective provider-free validation is **8 files / 126 tests PASS**. The direct
+migration suite is **6/6 PASS**. An always-run hermetic test locks the shared
+writer byte form. When the ignored approved Chameleon package is locally
+present, an artifact-conditioned test executes it through a temporary,
+automatically removed filesystem lifecycle:
+`prepare -> reload -> approve -> reload -> advance`. It proves source bytes
+remain unchanged and that a same-digest canonical key reorder is rejected as
+the wrong persisted writer form. A clean checkout skips only that
+artifact-conditioned integration while retaining the hermetic writer proof.
+TypeScript and `git diff --check` pass.
+
+The corrective literal `npm run check` passes TypeScript and autonomous Story
+typecheck. Ordinary passes **3,404 tests**, skips 65 and retains only the same
+five established missing ignored-`outputs/` fixture assertions in four
+unchanged specs. Resource-intensive passes **20 files / 610 tests** with gate
+status `passed`. No changed or adjacent functional test failed.
+
+No real migration artifact or approval has been written. The next gate is an
+independent read-only Claude Code re-gate of the focused corrective commit.

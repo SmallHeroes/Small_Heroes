@@ -11,6 +11,7 @@ import {
 import {
   buildReconciliationReviewBundle,
   persistReconciliationDraftBundle,
+  reconciliationDraftBundleJsonBytes,
   renderReconciliationReviewMarkdown,
 } from './reconciliationLifecycle';
 import {
@@ -180,6 +181,17 @@ function sha256(value: unknown): value is string {
   return typeof value === 'string' && SHA256_HEX.test(value);
 }
 
+function canonicalUtcTimestampIsValid(value: unknown): value is string {
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+  ) {
+    return false;
+  }
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
+}
+
 function canonicalRelativePath(value: unknown): value is string {
   return nonEmptyString(value) &&
     !path.isAbsolute(value) &&
@@ -224,6 +236,28 @@ function assertCurrentCanonicalArtifact(args: {
       canonicalContentAddressedJsonBytes(args.value)
   ) {
     throw new Error(`${args.label} path or bytes are not canonical`);
+  }
+}
+
+function assertCurrentReconciliationBundleJsonArtifact(args: {
+  repoRoot: string;
+  artifactPath: string;
+  digest: string;
+  value: unknown;
+  label: string;
+  category: 'reconciliations' | 'reviews';
+}): void {
+  const absolutePath = resolveRepoPath(args.repoRoot, args.artifactPath);
+  if (
+    !canonicalArtifactPathMatchesDigest({
+      absolutePath,
+      digest: args.digest,
+    }) ||
+    path.basename(path.dirname(absolutePath)) !== args.category ||
+    fs.readFileSync(absolutePath, 'utf8') !==
+      reconciliationDraftBundleJsonBytes(args.value)
+  ) {
+    throw new Error(`${args.label} path or bytes do not match its writer`);
   }
 }
 
@@ -402,7 +436,7 @@ export function timeAuthorityMigrationManifestIsValid(
   } else if (
     value.reconciliation.status !== 'approved' ||
     value.reconciliation.reviewedBy !== 'Guy' ||
-    !isoTimestampIsValid(value.reconciliation.reviewedAt) ||
+    !canonicalUtcTimestampIsValid(value.reconciliation.reviewedAt) ||
     !sha256(value.reconciliation.approvalDigest) ||
     !canonicalRelativePath(value.reconciliation.approvalPath) ||
     !isObject(value.productionContext) ||
@@ -465,7 +499,7 @@ export function timeAuthorityMigrationApprovalIsValid(
     !canonicalRelativePath(value.reviewMarkdownPath) ||
     !sha256(value.reviewMarkdownSha256) ||
     value.approvedBy !== 'Guy' ||
-    !isoTimestampIsValid(value.approvedAt) ||
+    !canonicalUtcTimestampIsValid(value.approvedAt) ||
     value.authorityScope !==
       'time_authority_migration_reconciliation_exact_content_only' ||
     !exactStringArray(
@@ -590,6 +624,12 @@ export function buildPendingTimeAuthorityMigrationReconciliation(
   ) {
     throw new Error('source reconciliation is not exact Guy-approved content');
   }
+  const exactMigration = buildTimeAuthorityMigrationProjection(sourceTemplate);
+  if (canonicalJsonDigest(migratedTemplate) !== exactMigration.digest) {
+    throw new Error(
+      'migrated template is not the exact time-authority projection',
+    );
+  }
   const pending = structuredClone(source);
   pending.templateDigest = canonicalJsonDigest(migratedTemplate);
   pending.templateSchemaVersion = migratedTemplate.schemaVersion;
@@ -650,7 +690,7 @@ export function approveTimeAuthorityMigrationReconciliation(
   pending: SourcePromptReconciliation,
   approvedAt: string,
 ): SourcePromptReconciliation {
-  if (!isoTimestampIsValid(approvedAt)) {
+  if (!canonicalUtcTimestampIsValid(approvedAt)) {
     throw new Error('migration approval timestamp is invalid');
   }
   const pendingReviewIsExact = (review: {
@@ -1111,7 +1151,10 @@ export function recordTimeAuthorityMigrationReconciliationApproval(args: {
     typeof persistReconciliationDraftBundle
   >;
 } {
-  if (args.approvedBy !== 'Guy' || !isoTimestampIsValid(args.approvedAt)) {
+  if (
+    args.approvedBy !== 'Guy' ||
+    !canonicalUtcTimestampIsValid(args.approvedAt)
+  ) {
     throw new Error('time-authority migration approval is invalid');
   }
   const pendingManifest = loadMigrationManifest({
@@ -1144,18 +1187,27 @@ export function recordTimeAuthorityMigrationReconciliationApproval(args: {
   });
   const actionSemanticCoverage =
     source.sourceReconciliation.actionSemanticCoverageAuthority.records;
+  const expectedPending = buildPendingTimeAuthorityMigrationReconciliation(
+    source.sourceReconciliation,
+    source.candidate.content.visualContractTemplate.content,
+    migration.template,
+  );
   const pending = readJsonObject<SourcePromptReconciliation>(
     resolveRepoPath(args.repoRoot, pendingManifest.reconciliation.path),
     'pending migrated reconciliation',
   );
-  if (canonicalJsonDigest(pending) !== pendingManifest.reconciliation.digest) {
+  if (
+    canonicalJsonDigest(pending) !== pendingManifest.reconciliation.digest ||
+    canonicalJsonDigest(expectedPending) !==
+      pendingManifest.reconciliation.digest
+  ) {
     throw new Error('pending migrated reconciliation digest is stale');
   }
-  assertCurrentCanonicalArtifact({
+  assertCurrentReconciliationBundleJsonArtifact({
     repoRoot: args.repoRoot,
     artifactPath: pendingManifest.reconciliation.path,
     digest: pendingManifest.reconciliation.digest,
-    value: pending,
+    value: expectedPending,
     label: 'pending migrated reconciliation',
     category: 'reconciliations',
   });
@@ -1182,7 +1234,7 @@ export function recordTimeAuthorityMigrationReconciliationApproval(args: {
   ) {
     throw new Error('pending migrated reconciliation review is stale');
   }
-  assertCurrentCanonicalArtifact({
+  assertCurrentReconciliationBundleJsonArtifact({
     repoRoot: args.repoRoot,
     artifactPath: pendingManifest.reconciliation.reviewBundlePath,
     digest: pendingReviewBundle.digest,
@@ -1290,7 +1342,7 @@ export function advanceApprovedTimeAuthorityMigration(args: {
     approval.migratedTemplateDigest !==
       pendingManifest.migration.migratedTemplateDigest ||
     approval.approvedBy !== 'Guy' ||
-    !isoTimestampIsValid(approval.approvedAt)
+    !canonicalUtcTimestampIsValid(approval.approvedAt)
   ) {
     throw new Error('time-authority migration approval is invalid or stale');
   }
@@ -1324,17 +1376,27 @@ export function advanceApprovedTimeAuthorityMigration(args: {
     resolveRepoPath(args.repoRoot, approval.reconciliationPath),
     'approved migrated reconciliation',
   );
+  const expectedPending = buildPendingTimeAuthorityMigrationReconciliation(
+    source.sourceReconciliation,
+    source.candidate.content.visualContractTemplate.content,
+    migration.template,
+  );
+  const expectedApproved = approveTimeAuthorityMigrationReconciliation(
+    expectedPending,
+    approval.approvedAt,
+  );
   if (
     canonicalJsonDigest(approvedReconciliation) !==
-      approval.reconciliationDigest
+      approval.reconciliationDigest ||
+    canonicalJsonDigest(expectedApproved) !== approval.reconciliationDigest
   ) {
     throw new Error('approved migrated reconciliation digest is stale');
   }
-  assertCurrentCanonicalArtifact({
+  assertCurrentReconciliationBundleJsonArtifact({
     repoRoot: args.repoRoot,
     artifactPath: approval.reconciliationPath,
     digest: approval.reconciliationDigest,
-    value: approvedReconciliation,
+    value: expectedApproved,
     label: 'approved migrated reconciliation',
     category: 'reconciliations',
   });
@@ -1366,7 +1428,7 @@ export function advanceApprovedTimeAuthorityMigration(args: {
   ) {
     throw new Error('approved migrated reconciliation review is stale');
   }
-  assertCurrentCanonicalArtifact({
+  assertCurrentReconciliationBundleJsonArtifact({
     repoRoot: args.repoRoot,
     artifactPath: approval.reviewBundlePath,
     digest: approval.reviewBundleDigest,

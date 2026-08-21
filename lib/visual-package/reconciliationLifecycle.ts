@@ -745,11 +745,11 @@ export function persistReconciliationDraftBundle(args: {
   if (args.write === true) {
     writeImmutableLocalArtifact({
       destinationPath: reconciliationPath,
-      bytes: `${JSON.stringify(args.reconciliation, null, 2)}\n`,
+      bytes: reconciliationDraftBundleJsonBytes(args.reconciliation),
     });
     writeImmutableLocalArtifact({
       destinationPath: reviewBundlePath,
-      bytes: `${JSON.stringify(args.reviewBundle, null, 2)}\n`,
+      bytes: reconciliationDraftBundleJsonBytes(args.reviewBundle),
     });
     writeImmutableLocalArtifact({
       destinationPath: markdownPath,
@@ -762,6 +762,10 @@ export function persistReconciliationDraftBundle(args: {
     markdownPath: repoRelativePath(args.repoRoot, markdownPath),
     wrote: args.write === true,
   };
+}
+
+export function reconciliationDraftBundleJsonBytes(value: unknown): string {
+  return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 function resolveOutputRoot(repoRoot: string, outputDir: string): string {

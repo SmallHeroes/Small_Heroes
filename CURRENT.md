@@ -93,22 +93,44 @@ digest `51901523133394266c7e5a795e2ee5b5cf471733d9d781e61107484e3460f365`,
 pending reconciliation digest
 `cf0684dad5746395842298d97f7ba5de30b6aef62487e8e799f638a9dae8cc5b`,
 and zero provider, image, network, database or production calls. The preview
-root remains absent. The new lifecycle plus reconciliation/package/Wizard,
-time canonicalization and workload-classification seams pass **8 files / 124
-tests**; TypeScript, lint and `git diff --check` pass. One literal
-`npm run check` passes TypeScript and autonomous Story typecheck, then passes
-**3,402 ordinary tests** with 65 skipped and all **20 files / 610
-resource-intensive tests**. Its nonzero exit is only the same five established
-missing ignored-`outputs/` fixture assertions in four unchanged specs; no
-changed or adjacent functional test failed.
+root remains absent. Claude Code's first filesystem-lifecycle audit correctly
+HOLDed the commit: the shared reconciliation writer persists insertion-ordered
+pretty JSON, while the new approval loader incorrectly required sorted
+canonical JSON bytes, so `prepare` succeeded but `approve` could never reload
+its own artifact. Claude also found that the three filesystem-authority phases
+had no direct test and that the exported reconciliation builder did not itself
+prove its migrated-template argument was the exact time-only projection.
+
+The local correction preserves the shared writer and historical bytes. It adds
+a writer-form-specific exact-byte validator only for reconciliation/review JSON,
+keeps canonical validation for manifest/template/snapshot/approval artifacts,
+rebuilds expected pending and approved reconciliation content independently on
+reload, and requires the exported builder's template to equal the exact
+deterministic migration. New approval timestamps are locally restricted to
+canonical UTC ISO instants without changing the pre-existing shared timestamp
+validator.
+
+The new lifecycle plus reconciliation/package/Wizard, time canonicalization
+and workload-classification seams now pass **8 files / 126 tests**; the direct
+migration suite is **6/6**. Its always-run hermetic proof locks the shared
+writer byte form, while its artifact-conditioned real-package temp-root test
+covers `prepare -> approve -> advance` write/reload/cleanup, source-byte
+immutability, and same-digest byte-reordering rejection when the ignored
+approved package is locally present. TypeScript and
+`git diff --check` pass. The corrective literal `npm run check` passes
+TypeScript and autonomous Story typecheck, then passes **3,404 ordinary tests**
+with 65 skipped and all **20 files / 610 resource-intensive tests**. Its nonzero
+exit is only the same five established missing ignored-`outputs/` fixture
+assertions in four unchanged specs; no changed or adjacent functional test
+failed.
 
 No provider, credential, network, Vision, image, storage/database,
 publication, locator, Wizard, render, deployment or production action
 occurred; no real migration artifact was written, and the pre-existing
 untracked Chameleon Board directory remains untouched. Next is a focused local
-commit and independent Claude Code review of the offline lifecycle. Only after
-PASS may Codex materialize the pending exact-content review for Guy. One LOW
-page remains a later gated proof before any full-book render.
+corrective commit and independent Claude Code re-gate. Only after PASS may
+Codex materialize the pending exact-content review for Guy. One LOW page
+remains a later gated proof before any full-book render.
 
 ## BLUEPRINT TEXT-SAFE CONTRACT — IMPLEMENTED LOCALLY; CLAUDE QA NEXT
 
