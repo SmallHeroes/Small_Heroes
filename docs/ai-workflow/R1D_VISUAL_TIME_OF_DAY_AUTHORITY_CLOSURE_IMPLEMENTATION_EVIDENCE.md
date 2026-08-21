@@ -346,6 +346,8 @@ only a temporary test-root attestation and proves its replay is idempotent.
 
 Local real-artifact proof:
 
+- exact approved manifest path:
+  `outputs/r1d-chameleon-time-authority-migration-pending-20260821T125112868Z/time-authority-migration-manifests/a57c3cffd9cd7e2ee43c3a62380f890025c050830ecc8fde378fe21e7936184a.json`;
 - Blueprint: `c6f753eabdb278842c3d8e686bd844752c849a930d15970f06ddf3f918e91208`;
 - authoring authority:
   `dd2cdeb52124402f18c62ed0a216e0d7b35903ca446d3701245b173428baa62b`;
@@ -370,7 +372,15 @@ Validation:
 - resource assertions: **20 files / 610 tests PASS**, exit zero in the literal
   run.
 
+Independent QA PASSed all twelve claims. Its one MINOR was that the reproduced
+Blueprint/authority/review identities are intentionally bound to the approved
+reconciliation artifact path but that path was not recorded beside them; the
+exact path is now recorded above. The local migration approval wrapper also
+narrows `approvedBy` to the exact `Guy` literal and requires canonical UTC ISO
+milliseconds before invoking the unchanged historical approval writer.
+
 No real migrated Blueprint was persisted into the approved lifecycle root, no
 Blueprint approval was issued, and no Visual Package, Wizard, image or render
-action occurred in this implementation milestone. Independent Claude Code QA
-is required before materializing the fresh Blueprint Candidate/Review.
+action occurred in this implementation milestone. Independent Claude Code
+re-gate of the small correction is required before materializing the fresh
+Blueprint Candidate/Review.

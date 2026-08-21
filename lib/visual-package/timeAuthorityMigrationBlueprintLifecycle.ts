@@ -7,6 +7,7 @@ import {
 } from './preRenderBlueprintAuthoring';
 import {
   persistPreRenderBlueprintLifecycle,
+  PRE_RENDER_BLUEPRINT_APPROVER,
   writePreRenderBlueprintApprovalAttestation,
   type PreRenderBlueprintApprovalAttestation,
   type PreRenderBlueprintArtifactWrite,
@@ -54,7 +55,7 @@ export interface ApproveTimeAuthorityMigratedBlueprintArgs {
   outputRoot: string;
   candidatePath: string;
   reviewPath: string;
-  approvedBy: string;
+  approvedBy: typeof PRE_RENDER_BLUEPRINT_APPROVER;
   approvedAt: string;
   note?: string;
 }
@@ -72,6 +73,14 @@ function readJson<T>(filePath: string, label: string): T {
   } catch {
     throw new Error(`${label} is missing or invalid JSON`);
   }
+}
+
+function canonicalUtcTimestampIsValid(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) {
+    return false;
+  }
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
 }
 
 function assertExactTimeAuthorityBlueprint(args: {
@@ -145,6 +154,9 @@ export async function prepareTimeAuthorityMigratedBlueprint(
 export function approveTimeAuthorityMigratedBlueprint(
   args: ApproveTimeAuthorityMigratedBlueprintArgs,
 ): ApprovedTimeAuthorityMigratedBlueprint {
+  if (!canonicalUtcTimestampIsValid(args.approvedAt)) {
+    throw new Error('approvedAt must be a canonical UTC ISO timestamp');
+  }
   const migration = loadApprovedTimeAuthorityMigration({
     repoRoot: args.repoRoot,
     approvedManifestPath: args.approvedManifestPath,

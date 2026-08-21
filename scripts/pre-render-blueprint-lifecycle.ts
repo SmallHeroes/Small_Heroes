@@ -100,13 +100,17 @@ function usage(): string {
 function approveMigration(tokens: string[]): void {
   const flags = parseFlags(tokens, APPROVE_MIGRATION_FLAGS);
   const repoRoot = requireFlag(flags, '--repo-root');
+  const approvedBy = requireFlag(flags, '--approved-by');
+  if (approvedBy !== 'Guy') {
+    throw new Error('--approved-by must be exact value Guy');
+  }
   const approved = approveTimeAuthorityMigratedBlueprint({
     repoRoot,
     approvedManifestPath: requireFlag(flags, '--migration-manifest'),
     outputRoot: requireFlag(flags, '--out'),
     candidatePath: requireFlag(flags, '--candidate'),
     reviewPath: requireFlag(flags, '--review'),
-    approvedBy: requireFlag(flags, '--approved-by'),
+    approvedBy,
     approvedAt: requireFlag(flags, '--approved-at'),
     ...(flags.has('--note') ? { note: flags.get('--note') } : {}),
   });

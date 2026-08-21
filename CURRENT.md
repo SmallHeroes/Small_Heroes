@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active provider-free Blueprint continuation correction starts from local documentation head `5b33b1fe3862ce05280ad30a1108472611d36e56`, which follows pushed lifecycle correction `02225d0bfc7e87d2d3682c2444ecbc542d9811ac`.
 
-## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — RECONCILIATION APPROVED; BLUEPRINT BRIDGE LOCALLY GREEN; CLAUDE QA NEXT
+## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — RECONCILIATION APPROVED; BLUEPRINT BRIDGE PASS; MINOR CORRECTION RE-GATE NEXT
 
 The exact approved Chameleon Visual Package candidate
 `c3e28ae1c22ab2bfcea53dddd0e802b71d97b4adbaf6a395313a1a6445df4e82`
@@ -181,14 +181,17 @@ affordance and `authorityChanged: true`; no real approval is created. A hostile
 redigested context identity is rejected. A temporary test-only approval proves
 exact Candidate/Review binding and idempotent replay. The final-syntax real CLI
 prepare smoke reports zero provider/image/network/database/production calls.
+These identities are intentionally path-bound and reproduce against exact
+approved manifest
+`outputs/r1d-chameleon-time-authority-migration-pending-20260821T125112868Z/time-authority-migration-manifests/a57c3cffd9cd7e2ee43c3a62380f890025c050830ecc8fde378fe21e7936184a.json`.
 
 Focused validation passes **5 files / 58 tests**, the direct migration suite
 passes **6/6**, TypeScript, Story typecheck, `npm run lint`, and
 `git diff --check`. Literal `npm run check` passes all **3,404** ordinary
 assertions except the same five missing ignored-`outputs/` fixture assertions
 in four unchanged specs. Its resource phase passes all **20 files / 610
-tests** with exit zero. The implementation remains local pending independent
-Claude Code QA.
+tests** with exit zero. Claude Code PASSed the bridge; the small documented
+path-binding/timestamp correction remains local pending its re-gate.
 
 No real migrated Blueprint Candidate/Review has been materialized in the
 approved output root, no new Blueprint approval exists, and no Visual Package,

@@ -647,6 +647,24 @@ describe('offline time-authority migration lifecycle', () => {
         expect(fs.existsSync(path.join(migratedAuthorityRoot, 'approvals')))
           .toBe(false);
 
+        expect(() => approveTimeAuthorityMigratedBlueprint({
+          repoRoot,
+          approvedManifestPath: advanced.manifestArtifact.path,
+          outputRoot: `${outputDir}/blueprint-lifecycle`,
+          candidatePath: path.relative(
+            repoRoot,
+            migratedBlueprint.persisted.candidate.path,
+          ),
+          reviewPath: path.relative(
+            repoRoot,
+            migratedBlueprint.persisted.reviewPacket.path,
+          ),
+          approvedBy: 'Guy',
+          approvedAt: '2026',
+        })).toThrow(/canonical UTC ISO timestamp/);
+        expect(fs.existsSync(path.join(migratedAuthorityRoot, 'approvals')))
+          .toBe(false);
+
         const migratedApproval = approveTimeAuthorityMigratedBlueprint({
           repoRoot,
           approvedManifestPath: advanced.manifestArtifact.path,
