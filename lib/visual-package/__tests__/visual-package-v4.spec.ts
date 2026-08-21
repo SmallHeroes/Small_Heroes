@@ -1,5 +1,11 @@
 import { createHash } from 'crypto';
-import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 
@@ -22,6 +28,7 @@ import {
   computeVisualPackageV4PackageReviewDigest,
   createPreRenderBlueprintValidationEvidence,
   evaluateVisualPackageV4Qualification,
+  evaluateWizardVisualPackageSelection,
   finalizeVisualPackageV4,
   loadCurrentVisualPackageV4,
   loadFrozenVisualPackageV4,
@@ -366,6 +373,59 @@ describe('R1D-PVB-C1 immutable visual-package/v5', () => {
     expect(
       readFileSync(path.join(root, firstPublication.packagePath), 'utf8'),
     ).toContain(first.revisionDigest);
+  });
+
+  it('admits a current Wizard slot only while its package-bound Story Source remains exact', () => {
+    const root = temporaryRoot();
+    const approvedPackagesDir = path.join(root, 'visual-packages', 'approved');
+    const packageValue = packageFor(buildBlueprintFixture('single_location'));
+    const sourcePath = path.join(
+      root,
+      packageValue.sourceSnapshot.identity.path,
+    );
+    mkdirSync(path.dirname(sourcePath), { recursive: true });
+    writeFileSync(sourcePath, packageValue.sourceSnapshot.content, 'utf8');
+    const publication = publishVisualPackageV4({
+      repoRoot: root,
+      approvedPackagesDir,
+      packageValue,
+      write: true,
+    });
+
+    expect(
+      evaluateWizardVisualPackageSelection({
+        repoRoot: root,
+        approvedPackagesDir,
+        storyKey: packageValue.storyKey,
+        styleId: packageValue.styleId,
+      }),
+    ).toMatchObject({
+      renderQualified: true,
+      packagePath: publication.packagePath,
+      sourcePath: packageValue.sourceSnapshot.identity.path,
+      sourceRawDigest: packageValue.sourceSnapshot.rawDigest,
+      pageCount: packageValue.sourceSnapshot.identity.pageCount,
+      reasons: [],
+    });
+
+    writeFileSync(
+      sourcePath,
+      `${packageValue.sourceSnapshot.content}\nchanged`,
+      'utf8',
+    );
+    expect(
+      evaluateWizardVisualPackageSelection({
+        repoRoot: root,
+        approvedPackagesDir,
+        storyKey: packageValue.storyKey,
+        styleId: packageValue.styleId,
+      }),
+    ).toMatchObject({
+      renderQualified: false,
+      packageValue: null,
+      frozenAuthority: null,
+      sourcePath: null,
+    });
   });
 
   it('rejects v3 masquerade, changed immutable content, stale approval, and silent layout remap', () => {

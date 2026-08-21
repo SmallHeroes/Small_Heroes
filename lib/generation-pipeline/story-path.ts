@@ -41,3 +41,48 @@ export function resolveCachedStoryFilePath(cache: StoryRefCache): string | undef
   }
   return undefined;
 }
+
+/**
+ * Rehydrate the exact repo-relative Story Source frozen on the Order. Current
+ * orders persist `story-bank/<bank>/<story>.md`; older basename-only orders
+ * return null and retain the legacy companion selector.
+ */
+export function resolveFrozenOrderStorySelection(
+  selectionFilename: string | null | undefined,
+): {
+  storyFilePath: string;
+  storyFileRef: string;
+  storyDir: string;
+  selectionFilename: string;
+} | null {
+  const relative = String(selectionFilename ?? '')
+    .trim()
+    .replace(/\\/g, '/');
+  const parts = relative.split('/');
+  if (
+    parts.length !== 3 ||
+    parts[0] !== 'story-bank' ||
+    !parts[1] ||
+    !parts[2] ||
+    !parts[2].endsWith('.md') ||
+    parts.some((part) => part === '.' || part === '..')
+  ) {
+    return null;
+  }
+  const root = path.resolve(process.cwd());
+  const storyFilePath = path.resolve(root, ...parts);
+  const contained = path.relative(root, storyFilePath);
+  if (
+    !contained ||
+    contained.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(contained)
+  ) {
+    return null;
+  }
+  return {
+    storyFilePath,
+    storyFileRef: relative,
+    storyDir: parts[1],
+    selectionFilename: parts[2],
+  };
+}

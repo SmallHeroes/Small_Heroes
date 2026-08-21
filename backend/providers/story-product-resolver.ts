@@ -27,6 +27,8 @@ import {
   STORY_BANK_V3_DIR_NAME,
   V3_APPROVED_DIR_NAME,
 } from './story-bank-index';
+import { STYLE_IDS } from '@/lib/styles';
+import { evaluateWizardVisualPackageSelection } from '@/lib/visual-package/wizardVisualPackageSelection';
 
 export type StoryDirection = 'bedtime' | 'adventure' | 'fantasy';
 const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
@@ -63,7 +65,12 @@ export type ResolvedStoryProduct = {
   displayPages: number;
   /** Base price — always from DIRECTION_PAGE_MAP (the pricing table). */
   priceILS: number;
-  source: 'v3_approved_binding' | 'companion_golden' | 'client_direction' | 'legacy_length';
+  source:
+    | 'visual_package_v4'
+    | 'v3_approved_binding'
+    | 'companion_golden'
+    | 'client_direction'
+    | 'legacy_length';
   storyFile?: string;
 };
 
@@ -126,7 +133,8 @@ function buildResolved(
 function assertMatrixBinding(
   challengeCategory: string | null | undefined,
   companionId: string,
-  direction: StoryDirection
+  direction: StoryDirection,
+  repoRoot: string,
 ): void {
   const category = normalizeMvpCategory(challengeCategory);
   if (!category) return;
@@ -137,7 +145,7 @@ function assertMatrixBinding(
       422
     );
   }
-  if (!isSlotSellable(category, direction)) {
+  if (!isSlotSellable(category, direction, { repoRoot })) {
     throw new StoryProductResolutionError(
       `Matrix slot not sellable: ${category} × ${direction}`,
       422
@@ -150,13 +158,56 @@ export function resolveStoryProductTruth(input: {
   clientDirection?: string | null;
   legacyLength?: string | null;
   challengeCategory?: string | null;
-}): ResolvedStoryProduct {
+}, options: { repoRoot?: string } = {}): ResolvedStoryProduct {
+  const repoRoot = options.repoRoot ?? process.cwd();
   const clientDirection = normalizeDirection(input.clientDirection);
   const companionId = typeof input.companionId === 'string' ? input.companionId.trim() : '';
+  const legacyDirection = clientDirection
+    ? null
+    : LEGACY_LENGTH_TO_DIRECTION[String(input.legacyLength ?? '').trim()] ?? null;
+  const requestedDirection = clientDirection ?? legacyDirection;
+
+  // ── 0. Published Visual Package v4 — exact package-bound Story Source ──
+  if (companionId && requestedDirection) {
+    const selection = evaluateWizardVisualPackageSelection({
+      repoRoot,
+      storyKey: `${companionId}_${requestedDirection}`,
+      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+    });
+    if (selection.renderQualified && selection.sourcePath) {
+      const storyFile = join(repoRoot, selection.sourcePath);
+      const fm = readStoryFrontmatter(storyFile);
+      if (fm.direction !== requestedDirection) {
+        throw new StoryProductResolutionError(
+          `Visual Package v4 story ${selection.sourcePath} declares direction=${fm.direction ?? 'missing'} — expected ${requestedDirection}`,
+          500,
+        );
+      }
+      if (fm.pages !== selection.pageCount) {
+        throw new StoryProductResolutionError(
+          `Visual Package v4 story ${selection.sourcePath} declares pages=${fm.pages ?? 'missing'} — package binds ${selection.pageCount}`,
+          500,
+        );
+      }
+      const resolved = buildResolved(
+        requestedDirection,
+        'visual_package_v4',
+        storyFile,
+        fm.pages,
+      );
+      assertMatrixBinding(
+        input.challengeCategory,
+        companionId,
+        resolved.storyDirection,
+        repoRoot,
+      );
+      return resolved;
+    }
+  }
 
   // ── 1. v3-approved binding — only when direction explicitly matches ──
   if (companionId && isV3ApprovedBankEnabled()) {
-    const v3ApprovedDir = join(process.cwd(), 'story-bank', V3_APPROVED_DIR_NAME);
+    const v3ApprovedDir = join(repoRoot, 'story-bank', V3_APPROVED_DIR_NAME);
     const boundDirections = DIRECTIONS.filter((d) =>
       existsSync(join(v3ApprovedDir, `${companionId}_${d}.md`))
     );
@@ -185,16 +236,18 @@ export function resolveStoryProductTruth(input: {
           );
         }
         const resolved = buildResolved(v3Direction, 'v3_approved_binding', storyFile, fm.pages);
-        assertMatrixBinding(input.challengeCategory, companionId, resolved.storyDirection);
+        assertMatrixBinding(
+          input.challengeCategory,
+          companionId,
+          resolved.storyDirection,
+          repoRoot,
+        );
         return resolved;
       }
     }
   }
 
   // ── 2./3. Client direction (or legacy length) — must be valid, no guessing ──
-  const legacyDirection = clientDirection
-    ? null
-    : LEGACY_LENGTH_TO_DIRECTION[String(input.legacyLength ?? '').trim()] ?? null;
   const direction = clientDirection ?? legacyDirection;
   if (!direction) {
     throw new StoryProductResolutionError(
@@ -207,7 +260,7 @@ export function resolveStoryProductTruth(input: {
     const selection = selectCompanionStory(companionId, direction);
     if (selection) {
       const storyFile = join(
-        process.cwd(),
+        repoRoot,
         'story-bank',
         selection.dirName ?? STORY_BANK_V3_DIR_NAME,
         selection.filename
@@ -220,7 +273,12 @@ export function resolveStoryProductTruth(input: {
         );
       }
       const resolved = buildResolved(direction, 'companion_golden', storyFile, fm.pages);
-      assertMatrixBinding(input.challengeCategory, companionId, resolved.storyDirection);
+      assertMatrixBinding(
+        input.challengeCategory,
+        companionId,
+        resolved.storyDirection,
+        repoRoot,
+      );
       return resolved;
     }
     // Companion without a golden for this direction → the wizard offered a
@@ -232,6 +290,11 @@ export function resolveStoryProductTruth(input: {
   }
 
   const resolved = buildResolved(direction, clientDirection ? 'client_direction' : 'legacy_length');
-  assertMatrixBinding(input.challengeCategory, companionId, resolved.storyDirection);
+  assertMatrixBinding(
+    input.challengeCategory,
+    companionId,
+    resolved.storyDirection,
+    repoRoot,
+  );
   return resolved;
 }

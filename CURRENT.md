@@ -2,7 +2,78 @@
 
 **Updated:** 2026-08-21
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active provider-free Set Board rebind milestone starts from pushed and independently re-gated Blueprint approval head `8b42eb0f994d2f6052d93b6ca83ae08239b52203`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
+
+## WIZARD V4 PACKAGE SELECTION — LOCAL GREEN; ONE LOW PAGE RENDERED; CLAUDE QA NEXT
+
+Guy approved publication of exact Visual Package v4 revision
+`a9c253d989118262ed2b38a671fc7eccf6af44a084512af35285ad2f548a14fb`
+and instructed Codex to connect the new stories to the Wizard without routine
+approval pauses. The immutable revision now exists under
+`visual-packages/approved/revisions/`, and the Chameleon bedtime current
+locator points to it. Qualification replays cleanly with exact package-bound
+Story Source raw digest
+`2d00d37e8aa290e5353bfe1b94fa2dc498d7200c46f6204bfe7903a033e685d4`.
+
+The root cause of the remaining Wizard disconnect was three independent legacy
+reads: Matrix availability used visual-package/v3 qualification, product
+resolution preferred the old `story-bank/v3-approved` story, and an empty
+generation cache reselected by companion/direction instead of honoring the
+Order's already-frozen repo-relative source path. The general correction adds
+one v4 Wizard-selection boundary that validates the current locator, immutable
+revision and exact on-disk Story Source bytes; Matrix, order validation and
+product resolution share it. Text finalization now consumes a safe exact
+`story-bank/<bank>/<story>.md` Order selection before any legacy selector.
+Slots without valid v4 authority retain their prior legacy behavior.
+
+Next server file tracing now includes the approved v4 package revisions for
+Matrix/order/generation functions and the Set Board registries for generation
+workers. Only the exact approved Home registry
+`803dea01a0346579b0e38160cd683acfa09966daecf90d945389da4a3a67d172`
+and Town registry
+`fd15ad19983952607f118282aa05d9e8f6931697453994ee4d8516ece78f7651`
+belong to this milestone; the four other local Board/recheck artifacts remain
+untracked user/runtime evidence and are not part of the commit.
+
+Provider-free runtime proof binds the exact new source, package revision,
+resolved contract and both approved Board byte hashes into
+`style01-runtime-authority/v6`; runtime contract hash is
+`27c03ccb634eb8c1a68f2d81fc421bc7235982027d91e2fd0c0d2eda445e601a`.
+With both legacy and QA Story flags off, the Matrix exposes exactly Chameleon
+bedtime as production-render-qualified/selectable and the resolver returns the
+autonomous eight-beat source (16 physical pages, ₪59). The real Wizard browser
+flow proceeds from category selection through child/style/voice/product to the
+checkout summary with that exact 16-page product and no browser errors. No
+payment, Order row or remote database write was attempted.
+
+After that zero-cost proof, one explicitly approved `gpt-image-2` LOW page was
+rendered through the same frozen runtime authority. It made exactly one
+provider call, zero transport retries, no fallback, no visual-QA call and no
+remote database/storage access. The final prompt binds package revision
+`a9c253…`, `set_town_night` and the new source phenomenon; it contains no old
+Chameleon story prose. The 1024x1536 PNG is
+`outputs/r1d-published-wizard-chameleon-page1-proof/page-01-gpt-image-2-low.png`,
+SHA-256
+`439087aa931545a9cf9d3afabc9e8cf7bb7e9d062b23c355fc518a42eb9655a7`.
+This is technical runtime proof, not automatic visual approval: the scene is
+coherent and attractive, but Kim acquired a small satchel despite the package's
+natural/no-permanent-clothing authority, so no full-book spend follows from
+this page.
+
+Focused validation passes **9 files / 109 tests**, TypeScript and
+`git diff --check`. Literal `npm run check` passes TypeScript, autonomous Story
+typecheck, **3,415 ordinary tests** and all **610 resource-intensive tests**.
+Its nonzero result is only the same five established missing ignored-`outputs/`
+fixture assertions in four unchanged tests plus three known Vitest worker
+`onTaskUpdate` RPC timeouts after all resource-intensive assertions passed.
+No changed or adjacent test failed. Durable implementation record:
+`docs/ai-workflow/R1D_WIZARD_V4_PACKAGE_SELECTION_IMPLEMENTATION_EVIDENCE.md`.
+
+This milestone proves the new-story Wizard chain in local/preview runtime and
+does not flip the existing Vercel Production generation/enforcement kill
+switches, deploy, charge a customer or render a full book. Production cutover
+still requires the existing quarantine/deployment operation and must not be
+inferred from package qualification.
 
 ## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — BLUEPRINT APPROVED; SET BOARD REBIND LOCAL GREEN; CLAUDE QA NEXT
 

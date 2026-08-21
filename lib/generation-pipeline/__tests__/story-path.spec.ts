@@ -2,7 +2,11 @@ import path from 'path';
 
 import { describe, expect, it } from 'vitest';
 
-import { resolveCachedStoryFilePath, toRepoRelativeStoryPath } from '../story-path';
+import {
+  resolveCachedStoryFilePath,
+  resolveFrozenOrderStorySelection,
+  toRepoRelativeStoryPath,
+} from '../story-path';
 
 describe('story-path (0095 P0)', () => {
   it('toRepoRelativeStoryPath makes an absolute cwd path repo-relative (posix)', () => {
@@ -51,5 +55,33 @@ describe('story-path (0095 P0)', () => {
     const resolved = resolveCachedStoryFilePath({ storyFilePath: rel })!;
     expect(path.isAbsolute(resolved)).toBe(true);
     expect(toRepoRelativeStoryPath(resolved)).toBe(rel);
+  });
+
+  it('rehydrates an exact package-bound Order story without changing its bank', () => {
+    expect(
+      resolveFrozenOrderStorySelection(
+        'story-bank/qa-autonomous-20260815-v1/chameleon_koko_bedtime.md',
+      ),
+    ).toEqual({
+      storyFilePath: path.join(
+        process.cwd(),
+        'story-bank',
+        'qa-autonomous-20260815-v1',
+        'chameleon_koko_bedtime.md',
+      ),
+      storyFileRef:
+        'story-bank/qa-autonomous-20260815-v1/chameleon_koko_bedtime.md',
+      storyDir: 'qa-autonomous-20260815-v1',
+      selectionFilename: 'chameleon_koko_bedtime.md',
+    });
+  });
+
+  it.each([
+    'chameleon_koko_bedtime.md',
+    '../story-bank/qa-autonomous-20260815-v1/chameleon_koko_bedtime.md',
+    'story-bank/../secret.md',
+    'story-bank/qa-autonomous-20260815-v1/not-markdown.json',
+  ])('does not reinterpret legacy or escaping Order refs: %s', (value) => {
+    expect(resolveFrozenOrderStorySelection(value)).toBeNull();
   });
 });

@@ -31,11 +31,13 @@ describe('GET /api/wizard/mvp-matrix', () => {
       './qa-authorities/wizard/**/*',
       './story-bank/qa-autonomous-20260815-v1/**/*',
       './story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/**/*',
+      './visual-packages/approved/**/*',
       './public/companions/*/style01-sheets/**/*',
     ]);
     expect(nextConfig.outputFileTracingIncludes?.['/api/orders']).toEqual([
       './story-bank/qa-autonomous-20260815-v1/**/*',
       './story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/**/*',
+      './visual-packages/approved/**/*',
     ]);
     expect(nextConfig.outputFileTracingExcludes?.['/api/orders']).not.toContain('story-bank/**');
   });
@@ -78,14 +80,16 @@ describe('GET /api/wizard/mvp-matrix', () => {
     const res = await GET();
     const body = await res.json();
     for (const category of body.categories) {
-      for (const direction of Object.values(category.directions) as Array<{
+      for (const [directionName, direction] of Object.entries(category.directions) as Array<[string, {
         qaAuthoringReady: boolean;
         productionRenderQualified: boolean;
         selectable: boolean;
-      }>) {
+      }]>) {
         expect(direction.qaAuthoringReady).toBe(false);
-        expect(direction.productionRenderQualified).toBe(false);
-        expect(direction.selectable).toBe(false);
+        const isPublishedChameleon =
+          category.category === 'TRANSITION' && directionName === 'bedtime';
+        expect(direction.productionRenderQualified).toBe(isPublishedChameleon);
+        expect(direction.selectable).toBe(isPublishedChameleon);
       }
     }
   });
@@ -99,16 +103,18 @@ describe('GET /api/wizard/mvp-matrix', () => {
     const res = await GET();
     const body = await res.json();
     for (const category of body.categories) {
-      for (const direction of Object.values(category.directions) as Array<{
+      for (const [directionName, direction] of Object.entries(category.directions) as Array<[string, {
         sellable: boolean;
         qaAuthoringReady: boolean;
         productionRenderQualified: boolean;
         selectable: boolean;
-      }>) {
+      }]>) {
         expect(direction.sellable).toBe(true);
         expect(direction.qaAuthoringReady).toBe(false);
-        expect(direction.productionRenderQualified).toBe(false);
-        expect(direction.selectable).toBe(false);
+        const isPublishedChameleon =
+          category.category === 'TRANSITION' && directionName === 'bedtime';
+        expect(direction.productionRenderQualified).toBe(isPublishedChameleon);
+        expect(direction.selectable).toBe(isPublishedChameleon);
       }
     }
   });

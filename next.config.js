@@ -37,6 +37,11 @@ const nextConfig = {
       './story-bank/qa-autonomous-20260815-v1/**/*',
       './story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/**/*',
     ];
+    // Fresh Wizard selection reads the mutable v4 locator once; render workers
+    // then load only the immutable revision frozen on the Order. Set Board
+    // registries are likewise read-only runtime authority for the bind stage.
+    const VISUAL_PACKAGE_V4_AUTHORITIES = ['./visual-packages/approved/**/*'];
+    const SET_IDENTITY_BOARD_REGISTRY = ['./set-identity-boards/**/*'];
     // (#35) The Style01 multi-view companion sheets (public/companions/<id>/style01-sheets/**) have NO URL fallback:
     // resolveStyle01CompanionReferencePaths() does existsSync()->readFileSync() on the FUNCTION disk. Bundle them
     // into the render functions so the strong multi-view anchor is reachable in serverless (~49 files: 42 png + 7
@@ -44,17 +49,21 @@ const nextConfig = {
     // applies excludes AFTER includes to the combined set — an exclude that matched these would delete them).
     const STYLE01_COMPANION_SHEETS = ['./public/companions/*/style01-sheets/**/*'];
     const includes = {
-      '/api/generate': ['./backend/assets/fonts/**/*', './story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
-      '/api/generate/worker': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
-      '/api/generate/cron/sweep': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
-      '/api/dev/generation/resume': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
-      '/api/debug/regen-page': ['./story-bank/**/*', ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/generate': ['./backend/assets/fonts/**/*', './story-bank/**/*', ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/generate/worker': ['./story-bank/**/*', ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/generate/cron/sweep': ['./story-bank/**/*', ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/dev/generation/resume': ['./story-bank/**/*', ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/debug/regen-page': ['./story-bank/**/*', ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/wizard/mvp-matrix': [
         ...WIZARD_QA_AUTHORITIES,
         ...WIZARD_QA_STORIES,
+        ...VISUAL_PACKAGE_V4_AUTHORITIES,
         ...STYLE01_COMPANION_SHEETS,
       ],
-      '/api/orders': WIZARD_QA_STORIES,
+      '/api/orders': [
+        ...WIZARD_QA_STORIES,
+        ...VISUAL_PACKAGE_V4_AUTHORITIES,
+      ],
       '/api/orders/[orderId]/power-card': ['./story-bank/**/*', './node_modules/@sparticuz/chromium/**/*'],
     };
     return includes;

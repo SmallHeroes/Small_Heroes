@@ -19,13 +19,12 @@ import {
 } from '@/backend/config/mvp-story-matrix';
 import { DIRECTION_PAGE_MAP, displayPagesForBeats } from '@/backend/config/wizard';
 import { STYLE_IDS } from '@/lib/styles';
-import { evaluateRenderQualification } from '@/lib/visual-package/qualification';
+import { evaluateWizardVisualPackageSelection } from '@/lib/visual-package/wizardVisualPackageSelection';
 import {
   isWizardQaCatalogEnabled,
   loadWizardQaCatalog,
   type WizardQaRenderCatalog,
 } from '@/lib/wizard-render-readiness';
-import path from 'node:path';
 
 const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
 
@@ -68,22 +67,22 @@ function buildCategoryPayload(
   category: MvpCategory,
   publicVisible: boolean,
   qaCatalog: WizardQaRenderCatalog | null,
+  repoRoot: string,
 ) {
   const copy = MVP_WIZARD_CARD_COPY[category];
   const companionId = MVP_STORY_MATRIX[category].companionId;
   const companion = getCompanionById(companionId);
   const directions = Object.fromEntries(
     DIRECTIONS.map((direction) => {
-      const summary = matrixSlotSummary(category, direction);
+      const summary = matrixSlotSummary(category, direction, { repoRoot });
       const pageMap = DIRECTION_PAGE_MAP[direction];
       const storyKey = `${companionId}_${direction}`;
       const qaAuthority = qaCatalog?.records.find(
         (record) => record.category === category && record.direction === direction,
       ) ?? null;
-      const productionQualification = evaluateRenderQualification({
-        repoRoot: process.cwd(),
+      const productionQualification = evaluateWizardVisualPackageSelection({
+        repoRoot,
         storyKey,
-        storyPath: path.join('story-bank', 'v3-approved', `${storyKey}.md`),
         styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
       });
       return [
@@ -145,13 +144,16 @@ function buildCategoryPayload(
   };
 }
 
-export function buildMvpMatrixResponse() {
+export function buildMvpMatrixResponse(
+  options: { repoRoot?: string } = {},
+) {
+  const repoRoot = options.repoRoot ?? process.cwd();
   const dev = isDevEnvironment();
   const qaCatalog = isWizardQaCatalogEnabled()
-    ? loadWizardQaCatalog({ repoRoot: process.cwd() })
+    ? loadWizardQaCatalog({ repoRoot })
     : null;
   const categories = allMvpCategories().map((category) =>
-    buildCategoryPayload(category, true, qaCatalog)
+    buildCategoryPayload(category, true, qaCatalog, repoRoot)
   );
 
   const mvpSet = new Set(allMvpCategories());

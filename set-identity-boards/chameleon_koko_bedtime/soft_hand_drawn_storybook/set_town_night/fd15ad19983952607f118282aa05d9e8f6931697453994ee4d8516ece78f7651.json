@@ -1,0 +1,19 @@
+{
+  "approvedAt": "2026-08-21T15:56:22.298Z",
+  "approvedBy": "Guy",
+  "assetSha256": "41580dfa9ea11a8dd5c6027ffd5cc5a46f5afe0bfc6eae62c047d00cd05a751e",
+  "boardVersion": "set-board/v6",
+  "contentPolicyDigest": "18dbeae69a4e08133a05f04005fbf27ac387be307927fd7b5bd66b1259c497b9",
+  "declaredPropIds": [],
+  "model": "gpt-image-2",
+  "promptHash": "6250ada128e707bab1a7e3060544233bed3d798ffc2808a41fff0d406fa5987c",
+  "qaCheckedAt": "2026-08-21T05:12:03.835Z",
+  "qaStatus": "passed",
+  "quality": "low",
+  "registryVersion": "set-registry/v6",
+  "setDefinitionHash": "fd15ad19983952607f118282aa05d9e8f6931697453994ee4d8516ece78f7651",
+  "setIdentityId": "set_town_night",
+  "storageKey": "set-identity-boards/chameleon_koko_bedtime/soft_hand_drawn_storybook/set_town_night/5b1917ceec616cd9c8613f8075f2a7b3426c96e9549eaeef40f2381eb550b9dc.41580dfa9ea11a8dd5c6027ffd5cc5a46f5afe0bfc6eae62c047d00cd05a751e.png",
+  "storyKey": "chameleon_koko_bedtime",
+  "styleId": "soft_hand_drawn_storybook"
+}

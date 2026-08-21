@@ -16,6 +16,7 @@ export * from './openaiResponsesStructuredOutputSchemaCompatibility';
 export * from './preRenderBlueprintAuthoring';
 export * from './preRenderBlueprintLifecycle';
 export * from './visualPackageV4';
+export * from './wizardVisualPackageSelection';
 export * from './styleAuthority';
 export * from './productionAuthoringContext';
 export * from './productionReadiness';

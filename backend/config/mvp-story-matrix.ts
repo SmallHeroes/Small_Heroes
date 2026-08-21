@@ -12,6 +12,8 @@ import {
   V3_APPROVED_DIR_NAME,
   WIZARD_QA_STORY_DIR_NAME,
 } from '../providers/story-bank-index';
+import { STYLE_IDS } from '@/lib/styles';
+import { evaluateWizardVisualPackageSelection } from '@/lib/visual-package/wizardVisualPackageSelection';
 
 export type SlotStatus = 'approved' | 'approved_v3' | 'in_gate' | 'missing';
 export type MvpCategory = keyof typeof MVP_STORY_MATRIX;
@@ -250,7 +252,11 @@ export function isGoldenSlotRuntimeReady(companionId: string, direction: StoryDi
   return existsSync(storyFile);
 }
 
-export function isSlotSellable(category: string, direction: string): boolean {
+export function isSlotSellable(
+  category: string,
+  direction: string,
+  options: { repoRoot?: string } = {},
+): boolean {
   const cat = normalizeMvpCategory(category);
   const dir = normalizeStoryDirection(direction);
   if (!cat || !dir) return false;
@@ -259,6 +265,12 @@ export function isSlotSellable(category: string, direction: string): boolean {
   const companionId = MVP_STORY_MATRIX[cat].companionId;
 
   if (configured === 'missing' || configured === 'in_gate') return false;
+  const v4Selection = evaluateWizardVisualPackageSelection({
+    repoRoot: options.repoRoot ?? process.cwd(),
+    storyKey: `${companionId}_${dir}`,
+    styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  });
+  if (v4Selection.renderQualified) return true;
   if (configured === 'approved_v3') return isV3SlotRuntimeReady(companionId, dir);
   if (configured === 'approved') return isGoldenSlotRuntimeReady(companionId, dir);
   return false;
@@ -270,7 +282,11 @@ export function sellableDirectionsFor(category: string): StoryDirection[] {
   return DIRECTIONS.filter((dir) => isSlotSellable(cat, dir));
 }
 
-export function matrixSlotSummary(category: MvpCategory, direction: StoryDirection): {
+export function matrixSlotSummary(
+  category: MvpCategory,
+  direction: StoryDirection,
+  options: { repoRoot?: string } = {},
+): {
   configured: SlotStatus;
   sellable: boolean;
   companionId: string;
@@ -278,7 +294,7 @@ export function matrixSlotSummary(category: MvpCategory, direction: StoryDirecti
   const configured = configuredSlotStatus(category, direction);
   return {
     configured,
-    sellable: isSlotSellable(category, direction),
+    sellable: isSlotSellable(category, direction, options),
     companionId: MVP_STORY_MATRIX[category].companionId,
   };
 }
@@ -301,7 +317,11 @@ export function enforceMvpOrderSlot(input: {
   challengeCategory?: string | null;
   clientDirection?: string | null;
   clientCompanionId?: string | null;
-}): { category: MvpCategory; direction: StoryDirection; companionId: string } {
+}, options: { repoRoot?: string } = {}): {
+  category: MvpCategory;
+  direction: StoryDirection;
+  companionId: string;
+} {
   const category = normalizeMvpCategory(input.challengeCategory);
   if (!category) {
     throw new MvpMatrixValidationError('השילוב שנבחר אינו זמין לרכישה כרגע');
@@ -312,7 +332,7 @@ export function enforceMvpOrderSlot(input: {
     throw new MvpMatrixValidationError('יש לבחור סוג חוויה תקין לפני המשך');
   }
 
-  if (!isSlotSellable(category, direction)) {
+  if (!isSlotSellable(category, direction, options)) {
     throw new MvpMatrixValidationError(
       'השילוב שנבחר אינו זמין לרכישה כרגע — נסו כיוון אחר או אתגר אחר'
     );

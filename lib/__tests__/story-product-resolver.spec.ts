@@ -96,12 +96,43 @@ describe('resolveStoryProductTruth', () => {
           challengeCategory: category,
         });
         expect(resolved.storyDirection).toBe(direction);
-        expect(resolved.source).toBe('v3_approved_binding');
+        const isPublishedChameleon =
+          companionId === 'chameleon_koko' && direction === 'bedtime';
+        expect(resolved.source).toBe(
+          isPublishedChameleon
+            ? 'visual_package_v4'
+            : 'v3_approved_binding',
+        );
         expect(resolved.storyFile).toBe(
-          path.join(V3_APPROVED_DIR, `${companionId}_${direction}.md`),
+          isPublishedChameleon
+            ? path.join(QA_AUTONOMOUS_DIR, `${companionId}_${direction}.md`)
+            : path.join(V3_APPROVED_DIR, `${companionId}_${direction}.md`),
         );
       }
     }
+  });
+
+  it('uses the published v4 package source for the new Chameleon story without legacy or QA flags', () => {
+    delete process.env.ENABLE_V3_APPROVED_BANK;
+    delete process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
+
+    const resolved = resolveStoryProductTruth({
+      challengeCategory: 'TRANSITION',
+      companionId: 'chameleon_koko',
+      clientDirection: 'bedtime',
+    });
+    expect(resolved).toEqual({
+      storyDirection: 'bedtime',
+      storyLength: 'short',
+      pages: 8,
+      displayPages: 16,
+      priceILS: 59,
+      source: 'visual_package_v4',
+      storyFile: path.join(
+        QA_AUTONOMOUS_DIR,
+        'chameleon_koko_bedtime.md',
+      ),
+    });
   });
 
   it('QA flag binds all sellable slots to the autonomous QA bank with canonical page counts', () => {

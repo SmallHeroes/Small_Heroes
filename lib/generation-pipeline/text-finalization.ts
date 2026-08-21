@@ -16,7 +16,11 @@ import {
   effectiveStoryDirectionForV3,
 } from './helpers';
 import type { PipelineCache } from './types';
-import { resolveCachedStoryFilePath, toRepoRelativeStoryPath } from './story-path';
+import {
+  resolveCachedStoryFilePath,
+  resolveFrozenOrderStorySelection,
+  toRepoRelativeStoryPath,
+} from './story-path';
 import { resolveCompanionForOrder } from './anchor-registry';
 import { beatsFromStoryPages, resolveBookShotPlan } from '@/lib/book-shot-plan';
 import { buildFrozenStoryProductTruth } from './frozen-product-truth';
@@ -39,6 +43,26 @@ export async function finalizeAndPersistStoryText(
   const directionForV3 = effectiveStoryDirectionForV3(order.storyDirection, storyLength);
 
   let storyFilePath = resolveCachedStoryFilePath(cache);
+  if (!storyFilePath) {
+    const frozenOrderStory = resolveFrozenOrderStorySelection(
+      order.selectionFilename,
+    );
+    if (frozenOrderStory) {
+      storyFilePath = frozenOrderStory.storyFilePath;
+      cache = {
+        ...cache,
+        storyFilePath: frozenOrderStory.storyFileRef,
+        storyDir: frozenOrderStory.storyDir,
+        // Story Markdown stays on the v3 loader contract; the v4 authority is
+        // carried separately by the exact repo-relative storyFilePath and the
+        // frozen Visual Package authority.
+        storyBankVersion: 'v3',
+        selectionFilename: frozenOrderStory.selectionFilename,
+        directionForV3,
+        challengeCategory,
+      };
+    }
+  }
   if (!storyFilePath) {
     const selection = selectCompanionStory(resolvedCompanion?.id, directionForV3);
     if (!selection) {
