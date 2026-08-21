@@ -3,7 +3,7 @@
 **Date:** 2026-08-21
 **Branch/worktree:** `codex/qa-wizard-presentation-dispositions` / `C:\GNart\Work\sh-wt-r1d-output-budget`
 **Approved base:** `cf07e5cbd70afaaf694ec665164ab553aa648ce6`
-**Status:** implementation and QA correction green; Claude Code re-gate pending
+**Status:** closure correction independently PASSed; provider-free rebuild lifecycle green locally; Claude Code review next
 
 ## Outcome
 
@@ -96,13 +96,13 @@ bytes.
 
 ## Next gate
 
-Give Claude Code the focused corrective commit range for adversarial read-only
-review. Only after technical PASS may Codex
-perform the deterministic offline Chameleon rebuild and present the newly
-content-addressed Blueprint and Visual Package digests to Guy for fresh exact
-approval. Publication/Wizard promotion then precede one separately gated
-`gpt-image-2` LOW page. Full-book rendering remains blocked until Guy inspects
-and accepts that page.
+Give Claude Code the focused provider-free lifecycle commit range for
+adversarial read-only review. Only after technical PASS may Codex materialize
+the pending migration review and present its exact reconciliation content to
+Guy. Fresh Blueprint and Visual Package approvals remain later identities;
+publication/Wizard promotion then precede one separately gated `gpt-image-2`
+LOW page. Full-book rendering remains blocked until Guy inspects and accepts
+that page.
 
 ## Independent QA findings and correction
 
@@ -144,3 +144,75 @@ coverage is available from the already frozen Visual Package Candidate through
 the existing offline production-context path; new downstream content-addressed
 artifacts and fresh exact approvals are still required. No paid authoring call
 is needed or authorized.
+
+## Provider-free rebuild lifecycle
+
+Claude Code independently re-gated `7e97e69f..f810fa5a` and returned **PASS**
+with no BLOCKER, MAJOR or MINOR finding. The next repository investigation
+proved that the existing QA Wizard bridge is deliberately unable to substitute
+a new template: it binds its template path and digest to the historical Visual
+Contract Candidate. Reusing it would recreate the stale authority.
+
+The focused follow-up adds an explicit offline lifecycle rooted instead in the
+exact approved Visual Package candidate, package review and Guy package
+approval. Preparation:
+
+1. requalifies that immutable package under current code and requires exactly
+   one `template_stale` reason attributable to `timeOfDay`;
+2. verifies the source snapshot, package identities, approved reconciliation
+   and frozen Action Semantic Coverage;
+3. performs the deterministic time-only migration and proves the non-time
+   projection digest is unchanged;
+4. rebinds an existing contract-evidence value only when its JSON pointer
+   resolves exactly in both old and migrated templates and its old value is not
+   stale;
+5. resets the root reconciliation review, presentation disposition reviews and
+   supersession reviews to `pending`; and
+6. emits only content-addressed local review evidence with explicit
+   non-authority exclusions.
+
+Fresh approval and advance are separate CLI phases. Approval validates the
+pending template, reconciliation, review bundle and Markdown byte-for-byte and
+records exact Guy/time identity. Advance validates them again and calls the
+existing frozen-Visual-Package production-context builder with the migrated
+template and freshly approved reconciliation. It does not create Blueprint,
+package, Wizard, render, provider, image, publication or deployment authority.
+
+New artifact contracts:
+
+- migration projection: `visual-contract-time-authority-migration/v1`;
+- migration manifest: `qa-wizard-time-authority-migration-manifest/v1`;
+- exact-content approval:
+  `qa-wizard-time-authority-migration-approval/v1`.
+
+Real Chameleon dry preview (`--write false`):
+
+- source approved package candidate:
+  `c3e28ae1c22ab2bfcea53dddd0e802b71d97b4adbaf6a395313a1a6445df4e82`;
+- migrated template:
+  `51901523133394266c7e5a795e2ee5b5cf471733d9d781e61107484e3460f365`;
+- pending reconciliation:
+  `cf0684dad5746395842298d97f7ba5de30b6aef62487e8e799f638a9dae8cc5b`;
+- pending review bundle:
+  `f816a7d7c9d27e80b319d2540c1e3d4795224d0ba12b92b5286b654f593fb6dc`;
+- provider/image/network/database/production calls: all zero;
+- preview output root: absent after execution.
+
+Focused validation for this lifecycle is **8 files / 124 tests PASS**,
+including reconciliation, package qualification, production package,
+production lifecycle, time canonicalization, workload classification and the
+real QA Wizard bridge seams. The direct migration suite is **4/4 PASS**.
+`npx --no-install tsc --noEmit`, `npm run lint`, and `git diff --check` pass.
+
+One literal `npm run check` passes TypeScript and autonomous Story typecheck.
+The ordinary phase passes **3,402 tests**, skips 65 and retains only the five
+established missing ignored-`outputs/` fixture assertions in four unchanged
+specs: `momentum-gate-koko`, `page-entity-qa`,
+`story-read-back-validation` (two assertions), and
+`child-lexicon-ages-5-8`. The resource-intensive phase passes **20 files / 610
+tests** with gate status `passed`. The overall command remains nonzero solely
+because of those five baseline fixture failures; no changed or adjacent
+functional test failed.
+
+No real migration artifact or approval has been written. The next gate is
+independent read-only Claude Code review of the focused lifecycle commit.

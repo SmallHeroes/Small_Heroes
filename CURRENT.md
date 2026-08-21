@@ -2,9 +2,9 @@
 
 **Updated:** 2026-08-21
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active time-of-day authority-closure milestone is based on local commit `cf07e5cbd70afaaf694ec665164ab553aa648ce6`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active provider-free rebuild milestone is based on pushed commit `f810fa5a6f2e2d9d68d46c92491b690ee42c2db6`.
 
-## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — QA CORRECTION GREEN; CLAUDE RE-GATE NEXT
+## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — OFFLINE REBUILD LIFECYCLE GREEN; CLAUDE QA NEXT
 
 The exact approved Chameleon Visual Package candidate
 `c3e28ae1c22ab2bfcea53dddd0e802b71d97b4adbaf6a395313a1a6445df4e82`
@@ -64,14 +64,51 @@ Corrective validation passes **6 focused files / 175 tests**, TypeScript and
 autonomous Story typecheck, **3,398 ordinary tests** and all **610
 resource-intensive tests**; its same five ordinary failures are only the
 established missing ignored-`outputs/` fixtures in four unchanged specs.
+Claude Code independently re-gated `7e97e69f..f810fa5a` and returned **PASS**
+with no BLOCKER, MAJOR or MINOR finding.
+
+The existing QA Wizard bridge cannot perform the approved rebuild because it
+binds its output template to the historical Candidate digest. A new explicit
+provider-free lifecycle instead starts from the exact approved Visual Package
+candidate, review and approval. It first proves that current qualification is
+blocked solely by the historical `timeOfDay` template defect, preserves its
+frozen action-semantic coverage, deterministically migrates only the three time
+surfaces, and creates a new reconciliation whose review, every presentation
+disposition review and every supersession review are reset to `pending`.
+Contract evidence that points at a containing object such as `/coverContract`
+is rebound only when its old value exactly resolves in the old template and
+its new value exactly resolves in the migrated template; stale or unmappable
+evidence fails closed.
+
+The lifecycle uses new content-addressed manifest and approval v1 artifacts
+and three offline CLI phases: `prepare`, `approve`, and `advance`. It validates
+exact source package identities, migration/non-time digests, canonical paths
+and bytes, review JSON/Markdown, fresh Guy approval, and the final existing
+frozen-package production context. Every artifact explicitly excludes
+Blueprint/package approval, Wizard/render, provider/image, publication and
+deployment authority.
+
+A real `--write false` Chameleon preview succeeds with migrated template
+digest `51901523133394266c7e5a795e2ee5b5cf471733d9d781e61107484e3460f365`,
+pending reconciliation digest
+`cf0684dad5746395842298d97f7ba5de30b6aef62487e8e799f638a9dae8cc5b`,
+and zero provider, image, network, database or production calls. The preview
+root remains absent. The new lifecycle plus reconciliation/package/Wizard,
+time canonicalization and workload-classification seams pass **8 files / 124
+tests**; TypeScript, lint and `git diff --check` pass. One literal
+`npm run check` passes TypeScript and autonomous Story typecheck, then passes
+**3,402 ordinary tests** with 65 skipped and all **20 files / 610
+resource-intensive tests**. Its nonzero exit is only the same five established
+missing ignored-`outputs/` fixture assertions in four unchanged specs; no
+changed or adjacent functional test failed.
 
 No provider, credential, network, Vision, image, storage/database,
 publication, locator, Wizard, render, deployment or production action
-occurred; the pre-existing untracked Chameleon Board directory remains
-untouched. Next is Claude Code re-gate on the focused corrective commit. Only
-after PASS may the Chameleon authority chain be rebuilt deterministically
-offline and presented to Guy for fresh exact approvals. One LOW page remains
-a later gated proof before any full-book render.
+occurred; no real migration artifact was written, and the pre-existing
+untracked Chameleon Board directory remains untouched. Next is a focused local
+commit and independent Claude Code review of the offline lifecycle. Only after
+PASS may Codex materialize the pending exact-content review for Guy. One LOW
+page remains a later gated proof before any full-book render.
 
 ## BLUEPRINT TEXT-SAFE CONTRACT — IMPLEMENTED LOCALLY; CLAUDE QA NEXT
 

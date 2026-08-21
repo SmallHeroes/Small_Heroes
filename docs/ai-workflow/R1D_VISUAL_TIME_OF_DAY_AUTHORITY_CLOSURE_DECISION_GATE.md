@@ -1,9 +1,9 @@
 # R1D Visual Time-of-Day Authority Closure — Decision Gate
 
-**Status:** approved by Guy; implemented; first Claude Code gate complete; corrective re-gate pending
+**Status:** approved by Guy; closure correction independently PASSed; provider-free rebuild lifecycle awaiting Claude Code review
 **Date:** 2026-08-21
 **Branch/worktree:** `codex/qa-wizard-presentation-dispositions` / `C:\GNart\Work\sh-wt-r1d-output-budget`
-**Observed head:** `cf07e5cbd70afaaf694ec665164ab553aa648ce6`
+**Rebuild lifecycle base:** `f810fa5a6f2e2d9d68d46c92491b690ee42c2db6`
 
 Guy approved this Decision Gate on 2026-08-21 with: “מאשר את Decision
 Gate לסגירת time-of-day ולהרכבה מחדש.” The approval covers the closed
