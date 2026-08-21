@@ -36,6 +36,7 @@ import { buildStyle01AnatomyIntegrityLock } from '@/lib/style01-visual-polish';
 
 import {
   RuntimeBlueprintCanvasError,
+  resolveRuntimeBlueprintProviderCanvas,
 } from '../runtime-blueprint-canvas';
 import { generateSinglePageWithRuntimeCanvas } from '../../single-page-image-regen';
 import {
@@ -635,6 +636,31 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
       ).rejects.toThrow(RuntimeBlueprintCanvasError);
     }
     expect(generateGptSpy).not.toHaveBeenCalled();
+  });
+
+  it('accepts the same supported body-band range as Visual Package without remapping it', () => {
+    const runtime = authority();
+    const frame = structuredClone(
+      requireRuntimeBlueprintFrame(runtime.bookProjection, 1),
+    );
+    frame.layoutPlan.textSafeRegion = {
+      x: 0,
+      y: 650,
+      width: 1000,
+      height: 350,
+    };
+    expect(
+      resolveRuntimeBlueprintProviderCanvas({
+        frame,
+        legacyCanvas: '1024x1024',
+      }),
+    ).toBe('1024x1536');
+    expect(frame.layoutPlan.textSafeRegion).toEqual({
+      x: 0,
+      y: 650,
+      width: 1000,
+      height: 350,
+    });
   });
 
   it('authoritative batch canvas stays portrait when the order is PDF-enabled', async () => {

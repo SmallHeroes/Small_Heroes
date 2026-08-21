@@ -57,7 +57,6 @@ function wholeBookDraft(blueprint: PreRenderBookVisualBlueprint): unknown {
       narrative: clone(frame.narrative),
       placements: clone(frame.placements),
       camera: clone(frame.camera),
-      textSafeRegion: clone(frame.textSafeRegion),
       affordanceIds: clone(frame.affordanceIds),
       continuity: {
         connectionId: frame.continuity.connectionId ?? null,
@@ -198,7 +197,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
   });
 
   it.each(shapes)(
-    'uses one shared whole-book call for %s and returns exact valid v3 authority',
+    'uses one shared whole-book call for %s and returns exact valid v4 authoring authority',
     async (shape) => {
       const fixture = buildBlueprintFixture(shape);
       const calls: Array<{
@@ -223,6 +222,12 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
       );
       expect(calls[0].system).toContain(
         'historical imageDirection, which is advisory',
+      );
+      expect(calls[0].system).toContain(
+        'reserve x=0,y=0,width=1000,height=250 on the cover',
+      );
+      expect(calls[0].system).toContain(
+        'x=0,y=750,width=1000,height=250 on every body page',
       );
       expect(calls[0].options).toMatchObject({
         model: CONFIG.model,
@@ -250,10 +255,13 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         ).ok,
       ).toBe(true);
       expect(result.blueprint.version).toBe(
-        'pre-render-book-visual-blueprint/v4',
+        'pre-render-book-visual-blueprint/v5',
       );
       expect(result.blueprint.identity.authoringAuthority.digest).toBe(
         fixture.blueprint.identity.authoringAuthority.digest,
+      );
+      expect(result.blueprint.frames.map((frame) => frame.textSafeRegion)).toEqual(
+        fixture.blueprint.frames.map((frame) => frame.textSafeRegion),
       );
     },
   );
@@ -269,6 +277,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
       frame.zoneId = 'zone:wrong';
       frame.castIds = ['companion:invented'];
       frame.aspectRatio = { width: 1, height: 1 };
+      frame.textSafeRegion = { x: 99, y: 99, width: 1, height: 1 };
       frame.propLifecycle = {
         requiredPropIds: ['prop:invented'],
         forbiddenPropIds: [],
@@ -286,6 +295,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
       zoneId: fixture.context.template.coverContract.zoneId,
       castIds: ['child:hero'],
       aspectRatio: { width: 2, height: 3 },
+      textSafeRegion: { x: 0, y: 0, width: 1000, height: 250 },
     });
     expect(
       result.blueprint.frames.some((frame) =>
@@ -297,13 +307,15 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
   it('repairs only with bounded whole-book calls and records exact provenance', async () => {
     const fixture = buildBlueprintFixture('single_location');
     const invalid = wholeBookDraft(fixture.blueprint) as {
-      frames: Array<{ textSafeRegion: unknown }>;
+      frames: Array<{
+        placements: Array<{ region: unknown }>;
+      }>;
     };
-    invalid.frames[1].textSafeRegion = {
-      x: 0,
-      y: 300,
-      width: 1000,
-      height: 700,
+    invalid.frames[1].placements[0].region = {
+      x: 100,
+      y: 800,
+      width: 150,
+      height: 100,
     };
     const valid = wholeBookDraft(fixture.blueprint);
     const outputs = [invalid, valid];
@@ -328,8 +340,11 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance).toMatchObject({
       passingAttempt: 2,
       callCount: 2,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v4',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v5',
     });
+    expect((calls[1] as { system: string }).system).toContain(
+      'never return textSafeRegion',
+    );
   });
 
   it('fails closed after the initial whole-book call plus two repairs', async () => {
@@ -440,5 +455,13 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
 
   it('declares every structured-output object strict and fully required', () => {
     assertStrictObjects(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA);
+    const root = PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA as {
+      properties: {
+        frames: { items: { properties: Record<string, unknown> } };
+      };
+    };
+    expect(root.properties.frames.items.properties).not.toHaveProperty(
+      'textSafeRegion',
+    );
   });
 });

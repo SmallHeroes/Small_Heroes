@@ -40,6 +40,12 @@ import type {
   VisualPackageReviewReality,
   VisualPackageTemplateIdentity,
 } from './types';
+import {
+  PRE_RENDER_BLUEPRINT_LAYOUT_POLICY,
+  PRE_RENDER_BLUEPRINT_LAYOUT_POLICY_VERSION,
+  preRenderBlueprintTextSafeRegionIsSupported,
+  type PreRenderBlueprintLayoutCompatibilityPolicy,
+} from './preRenderBlueprintLayoutPolicy';
 
 export const VISUAL_PACKAGE_V4_VERSION = 'visual-package/v5' as const;
 export const VISUAL_PACKAGE_V4_LOCATOR_VERSION =
@@ -67,7 +73,7 @@ export const VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS = [
   'release',
 ] as const;
 export const VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION =
-  'portrait-layout-compatibility/v1' as const;
+  PRE_RENDER_BLUEPRINT_LAYOUT_POLICY_VERSION;
 export const VISUAL_PACKAGE_V4_FREEZE_VERSION =
   'frozen-visual-package-authority/v3' as const;
 
@@ -135,52 +141,11 @@ export interface VisualPackageV4PackageReview {
   digest: string;
 }
 
-export interface VisualPackageV4LayoutCompatibilityPolicy {
-  version: typeof VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION;
-  aspectRatio: '2:3';
-  coordinateSpace: 'portrait-normalized-1000';
-  cover: {
-    zone: 'top_clear';
-    x: 0;
-    y: 0;
-    width: 1000;
-    minHeight: 250;
-    maxHeight: 350;
-  };
-  body: {
-    zone: 'bottom_clear';
-    x: 0;
-    bottom: 1000;
-    width: 1000;
-    minHeight: 250;
-    maxHeight: 350;
-  };
-  remapPolicy: 'reject';
-}
+export type VisualPackageV4LayoutCompatibilityPolicy =
+  PreRenderBlueprintLayoutCompatibilityPolicy;
 
-export const VISUAL_PACKAGE_V4_LAYOUT_POLICY: VisualPackageV4LayoutCompatibilityPolicy =
-  {
-    version: VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION,
-    aspectRatio: '2:3',
-    coordinateSpace: 'portrait-normalized-1000',
-    cover: {
-      zone: 'top_clear',
-      x: 0,
-      y: 0,
-      width: 1000,
-      minHeight: 250,
-      maxHeight: 350,
-    },
-    body: {
-      zone: 'bottom_clear',
-      x: 0,
-      bottom: 1000,
-      width: 1000,
-      minHeight: 250,
-      maxHeight: 350,
-    },
-    remapPolicy: 'reject',
-  };
+export const VISUAL_PACKAGE_V4_LAYOUT_POLICY =
+  PRE_RENDER_BLUEPRINT_LAYOUT_POLICY;
 
 export interface VisualPackageV4 {
   manifestVersion: typeof VISUAL_PACKAGE_V4_VERSION;
@@ -430,10 +395,6 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function finiteCoordinate(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
 export function visualPackageV4LayoutIssues(
   value: unknown,
 ): string[] {
@@ -481,13 +442,7 @@ export function visualPackageV4LayoutIssues(
     const region = isObjectRecord(rawFrame.textSafeRegion)
       ? rawFrame.textSafeRegion
       : null;
-    if (
-      !region ||
-      !finiteCoordinate(region.x) ||
-      !finiteCoordinate(region.y) ||
-      !finiteCoordinate(region.width) ||
-      !finiteCoordinate(region.height)
-    ) {
+    if (!region) {
       issues.push(`${frameId} text-safe region is missing or invalid`);
       continue;
     }
@@ -497,28 +452,14 @@ export function visualPackageV4LayoutIssues(
     }
     const frame = rawFrame as unknown as PreRenderBookVisualBlueprint['frames'][number];
     if (frame.kind === 'cover') {
-      const policy = VISUAL_PACKAGE_V4_LAYOUT_POLICY.cover;
-      if (
-        region.x !== policy.x ||
-        region.y !== policy.y ||
-        region.width !== policy.width ||
-        region.height < policy.minHeight ||
-        region.height > policy.maxHeight
-      ) {
+      if (!preRenderBlueprintTextSafeRegionIsSupported('cover', region)) {
         issues.push(
           `${frame.id} is not exactly representable as the cover top text-safe band`,
         );
       }
       continue;
     }
-    const policy = VISUAL_PACKAGE_V4_LAYOUT_POLICY.body;
-    if (
-      region.x !== policy.x ||
-      region.width !== policy.width ||
-      region.y + region.height !== policy.bottom ||
-      region.height < policy.minHeight ||
-      region.height > policy.maxHeight
-    ) {
+    if (!preRenderBlueprintTextSafeRegionIsSupported('page', region)) {
       issues.push(
         `${frame.id} is not exactly representable as the body bottom text-safe band`,
       );

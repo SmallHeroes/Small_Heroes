@@ -9,6 +9,7 @@ export * from './qualification';
 export * from './audit';
 export * from './releaseGate';
 export * from './preRenderBlueprintTypes';
+export * from './preRenderBlueprintLayoutPolicy';
 export * from './preRenderBlueprint';
 export * from './preRenderBlueprintDraftSchema';
 export * from './openaiResponsesStructuredOutputSchemaCompatibility';

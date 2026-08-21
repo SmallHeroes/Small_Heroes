@@ -824,11 +824,12 @@ describe('R1D-PVB-A — coverage, references, and deterministic authority', () =
     expect(issueCodes(digestMutation, fixture.context)).toContain('digest_mismatch');
   });
 
-  it('rejects immutable v2/v3 Blueprint bytes as current v4 authority without mutating them', () => {
+  it('rejects immutable v2/v3/v4 Blueprint bytes as current v5 authority without mutating them', () => {
     const fixture = buildBlueprintFixture('single_location');
     for (const version of [
       'pre-render-book-visual-blueprint/v2',
       'pre-render-book-visual-blueprint/v3',
+      'pre-render-book-visual-blueprint/v4',
     ]) {
       const historical = clone(fixture.blueprint) as unknown as Record<string, unknown>;
       historical.version = version;
@@ -1879,8 +1880,33 @@ describe('R1D-PVB-A — spatial feasibility and safety', () => {
     const requiredProp = page2.placements.find(
       (placement) => placement.subject.kind === 'prop',
     )!;
-    requiredProp.region = { x: 100, y: 100, width: 120, height: 100 };
+    requiredProp.region = { x: 100, y: 800, width: 120, height: 100 };
     expect(issueCodes(restamp(bad), fixture.context)).toContain('text_safe_collision');
+  });
+
+  it('requires the shared cover-top/body-bottom text-safe policy before package assembly', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const legacyHeight = clone(fixture.blueprint);
+    legacyHeight.frames[0].textSafeRegion = {
+      x: 0,
+      y: 0,
+      width: 1000,
+      height: 240,
+    };
+    expect(issueCodes(restamp(legacyHeight), fixture.context)).toContain(
+      'text_safe_policy_invalid',
+    );
+
+    const pageTop = clone(fixture.blueprint);
+    pageTop.frames[1].textSafeRegion = {
+      x: 0,
+      y: 0,
+      width: 1000,
+      height: 250,
+    };
+    expect(issueCodes(restamp(pageTop), fixture.context)).toContain(
+      'text_safe_policy_invalid',
+    );
   });
 });
 

@@ -105,15 +105,15 @@ function provenanceFor(
   authoringAuthorityDigest: string,
 ): PreRenderBlueprintAuthoringProvenance {
   return {
-    version: 'pre-render-blueprint-authoring-provenance/v3',
+    version: 'pre-render-blueprint-authoring-provenance/v4',
     blueprintDigest,
     authoringAuthorityDigest,
     model: 'synthetic-offline-fixture',
     reasoningEffort: 'high',
     maxOutputTokens: 48_000,
     noFallback: true,
-    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v5',
-    promptVersion: 'pre-render-blueprint-authoring-prompt/v4',
+    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
+    promptVersion: 'pre-render-blueprint-authoring-prompt/v5',
     passingAttempt: 1,
     callCount: 1,
     systemPromptDigest: 'a'.repeat(64),
@@ -220,10 +220,6 @@ function materialize(
     frames: clone(fixture.blueprint.frames).map((frame) => ({
       ...frame,
       pageNumber: frame.kind === 'cover' ? null : frame.pageNumber,
-      textSafeRegion:
-        frame.kind === 'cover'
-          ? { x: 0, y: 0, width: 1000, height: 250 }
-          : { x: 0, y: 750, width: 1000, height: 250 },
     })),
   };
   const blueprint = assemblePreRenderBookVisualBlueprintFromDraft({

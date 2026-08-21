@@ -244,7 +244,6 @@ const frame = obj({
     },
     affordanceId: { type: 'string' },
   }),
-  textSafeRegion: region,
   affordanceIds: stringArray,
   continuity: obj({
     connectionId: nullableString,
@@ -262,6 +261,6 @@ export const PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA: Record<string, unknown> = o
 });
 
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION =
-  'pre-render-blueprint-draft-schema/v5' as const;
+  'pre-render-blueprint-draft-schema/v6' as const;
 export const PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME =
   'PreRenderBookVisualBlueprintWholeBookDraft' as const;

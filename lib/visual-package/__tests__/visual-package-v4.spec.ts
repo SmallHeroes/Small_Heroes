@@ -22,12 +22,12 @@ import {
   computeVisualPackageV4PackageReviewDigest,
   createPreRenderBlueprintValidationEvidence,
   evaluateVisualPackageV4Qualification,
-  finalizePreRenderBookVisualBlueprint,
   finalizeVisualPackageV4,
   loadCurrentVisualPackageV4,
   loadFrozenVisualPackageV4,
   publishVisualPackageV4,
   validateVisualPackageV4,
+  visualPackageV4LayoutIssues,
   type PreRenderBlueprintApprovalAttestation,
   type PreRenderBlueprintAuthoringProvenance,
   type PreRenderBookVisualBlueprint,
@@ -63,28 +63,11 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function withSupportedLayout(
-  blueprint: PreRenderBookVisualBlueprint,
-): PreRenderBookVisualBlueprint {
-  const {
-    digest: _digest,
-    digestAlgorithm: _digestAlgorithm,
-    ...draft
-  } = clone(blueprint);
-  for (const frame of draft.frames) {
-    frame.textSafeRegion =
-      frame.kind === 'cover'
-        ? { x: 0, y: 0, width: 1000, height: 250 }
-        : { x: 0, y: 750, width: 1000, height: 250 };
-  }
-  return finalizePreRenderBookVisualBlueprint(draft);
-}
-
 function provenanceFor(
   blueprint: PreRenderBookVisualBlueprint,
 ): PreRenderBlueprintAuthoringProvenance {
   return {
-    version: 'pre-render-blueprint-authoring-provenance/v3',
+    version: 'pre-render-blueprint-authoring-provenance/v4',
     blueprintDigest: blueprint.digest,
     authoringAuthorityDigest:
       blueprint.identity.authoringAuthority.digest,
@@ -92,8 +75,8 @@ function provenanceFor(
     reasoningEffort: 'medium',
     maxOutputTokens: 48_000,
     noFallback: true,
-    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v5',
-    promptVersion: 'pre-render-blueprint-authoring-prompt/v4',
+    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
+    promptVersion: 'pre-render-blueprint-authoring-prompt/v5',
     passingAttempt: 1,
     callCount: 1,
     systemPromptDigest: 'a'.repeat(64),
@@ -160,7 +143,7 @@ function packageFor(
   originalFixture: BlueprintFixture,
   note?: string,
 ): VisualPackageV4 {
-  const blueprint = withSupportedLayout(originalFixture.blueprint);
+  const blueprint = clone(originalFixture.blueprint);
   const context = {
     ...originalFixture.context,
     template: blueprint.visualContract,
@@ -421,5 +404,21 @@ describe('R1D-PVB-C1 immutable visual-package/v5', () => {
         issue.includes('body bottom text-safe band'),
       ),
     ).toBe(true);
+  });
+
+  it('uses the shared supported range without remapping package geometry', () => {
+    const packageValue = packageFor(buildBlueprintFixture('single_location'));
+    const body = packageValue.blueprint.content.frames.find(
+      (frame) => frame.kind === 'page',
+    );
+    if (!body) throw new Error('fixture body frame missing');
+    body.textSafeRegion = { x: 0, y: 650, width: 1000, height: 350 };
+    expect(visualPackageV4LayoutIssues(packageValue)).toEqual([]);
+    expect(body.textSafeRegion).toEqual({
+      x: 0,
+      y: 650,
+      width: 1000,
+      height: 350,
+    });
   });
 });

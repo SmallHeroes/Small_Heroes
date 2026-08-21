@@ -455,7 +455,7 @@ describe('Wizard/order to chunk-runner render qualification', () => {
       'visual-package/v5',
     );
     expect(runtimeAuthority?.packageValue.blueprint.content.version).toBe(
-      'pre-render-book-visual-blueprint/v4',
+      'pre-render-book-visual-blueprint/v5',
     );
     expect(runtimeAuthority?.bookProjection.frames).toHaveLength(13);
     expect(runtimeAuthority?.bookProjection.frames.map((frame) => frame.pageNumber))

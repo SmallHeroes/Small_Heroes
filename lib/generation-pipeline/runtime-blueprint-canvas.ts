@@ -1,4 +1,8 @@
 import type { RuntimeBlueprintFrameProjection } from './runtime-blueprint-projection';
+import {
+  preRenderBlueprintTextSafeRegionIsSupported,
+  preRenderBlueprintTextZone,
+} from '@/lib/visual-package/preRenderBlueprintLayoutPolicy';
 
 export type ProviderImageCanvas =
   | '1024x1024'
@@ -13,20 +17,6 @@ export class RuntimeBlueprintCanvasError extends Error {
     super(`[runtime_blueprint_canvas] ${message}`);
     this.name = 'RuntimeBlueprintCanvasError';
   }
-}
-
-function isExactRegion(
-  value: unknown,
-  expected: { x: number; y: number; width: number; height: number },
-): boolean {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const region = value as Record<string, unknown>;
-  return (
-    region.x === expected.x &&
-    region.y === expected.y &&
-    region.width === expected.width &&
-    region.height === expected.height
-  );
 }
 
 /**
@@ -57,14 +47,14 @@ export function resolveRuntimeBlueprintProviderCanvas(args: {
     );
   }
 
-  const isCover = frame.pageNumber === 0;
-  const expectedTextZone = isCover ? 'top_clear' : 'bottom_clear';
-  const expectedRegion = isCover
-    ? { x: 0, y: 0, width: 1000, height: 250 }
-    : { x: 0, y: 750, width: 1000, height: 250 };
+  const frameKind = frame.pageNumber === 0 ? 'cover' : 'page';
+  const expectedTextZone = preRenderBlueprintTextZone(frameKind);
   if (
     layout.textZone !== expectedTextZone ||
-    !isExactRegion(layout.textSafeRegion, expectedRegion)
+    !preRenderBlueprintTextSafeRegionIsSupported(
+      frameKind,
+      layout.textSafeRegion,
+    )
   ) {
     throw new RuntimeBlueprintCanvasError(
       `frame ${frame.frameId} is not exactly representable by the approved ${expectedTextZone} portrait policy; remap rejected`,

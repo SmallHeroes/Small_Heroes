@@ -15,7 +15,6 @@ import {
   computeVisualPackageV4ApprovalDigest,
   computeVisualPackageV4PackageReviewDigest,
   createPreRenderBlueprintValidationEvidence,
-  finalizePreRenderBookVisualBlueprint,
   finalizeVisualPackageV4,
   type PreRenderBlueprintApprovalAttestation,
   type PreRenderBlueprintAuthoringProvenance,
@@ -38,28 +37,11 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function withSupportedLayout(
-  blueprint: PreRenderBookVisualBlueprint,
-): PreRenderBookVisualBlueprint {
-  const {
-    digest: _digest,
-    digestAlgorithm: _digestAlgorithm,
-    ...draft
-  } = clone(blueprint);
-  for (const frame of draft.frames) {
-    frame.textSafeRegion =
-      frame.kind === 'cover'
-        ? { x: 0, y: 0, width: 1000, height: 250 }
-        : { x: 0, y: 750, width: 1000, height: 250 };
-  }
-  return finalizePreRenderBookVisualBlueprint(draft);
-}
-
 function provenanceFor(
   blueprint: PreRenderBookVisualBlueprint,
 ): PreRenderBlueprintAuthoringProvenance {
   return {
-    version: 'pre-render-blueprint-authoring-provenance/v3',
+    version: 'pre-render-blueprint-authoring-provenance/v4',
     blueprintDigest: blueprint.digest,
     authoringAuthorityDigest:
       blueprint.identity.authoringAuthority.digest,
@@ -67,8 +49,8 @@ function provenanceFor(
     reasoningEffort: 'medium',
     maxOutputTokens: 48_000,
     noFallback: true,
-    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v5',
-    promptVersion: 'pre-render-blueprint-authoring-prompt/v4',
+    draftSchemaVersion: 'pre-render-blueprint-draft-schema/v6',
+    promptVersion: 'pre-render-blueprint-authoring-prompt/v5',
     passingAttempt: 1,
     callCount: 1,
     systemPromptDigest: 'a'.repeat(64),
@@ -140,7 +122,7 @@ export function buildVisualPackageV4Fixture(
   fixture: BlueprintFixture;
 } {
   const originalFixture = buildBlueprintFixture(shape, blueprintOptions);
-  const blueprint = withSupportedLayout(originalFixture.blueprint);
+  const blueprint = clone(originalFixture.blueprint);
   const context = {
     ...originalFixture.context,
     template: blueprint.visualContract,

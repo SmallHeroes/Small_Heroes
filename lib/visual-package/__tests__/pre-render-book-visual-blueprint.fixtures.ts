@@ -764,7 +764,7 @@ function makeWorldAndFrames(
         angle: 'eye_level',
         affordanceId: camera.id,
       },
-      textSafeRegion: { x: 0, y: 0, width: 1000, height: 250 },
+      textSafeRegion: { x: 0, y: 750, width: 1000, height: 250 },
       affordanceIds: frameAffordanceIds,
       continuity: {
         previousFrameId: pageIndex === 0 ? 'frame:cover' : `frame:page:${page.pageNumber - 1}`,

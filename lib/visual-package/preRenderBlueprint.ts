@@ -61,6 +61,7 @@ import type {
   StorySourceIdentity,
   VisualPackageTemplateIdentity,
 } from './types';
+import { preRenderBlueprintTextSafeRegionIsSupported } from './preRenderBlueprintLayoutPolicy';
 
 type Obj = Record<string, unknown>;
 
@@ -1660,6 +1661,18 @@ function validateFrame(args: {
     }));
   }
   const textRegionOk = addRegionIssue(issues, frame.textSafeRegion, `${field}.textSafeRegion`);
+  if (
+    textRegionOk &&
+    !preRenderBlueprintTextSafeRegionIsSupported(frame.kind, frame.textSafeRegion)
+  ) {
+    issues.push(
+      issue(
+        'text_safe_policy_invalid',
+        'frame text-safe region is not representable by the shared portrait layout policy',
+        { field: `${field}.textSafeRegion`, actual: frame.textSafeRegion },
+      ),
+    );
+  }
   const zone = index.zones.get(frame.zoneId);
   if (!zone || zone.locationId !== frame.locationId || !index.locations.has(frame.locationId)) {
     issues.push(issue('reference_unresolved', 'frame location/zone does not resolve coherently', {

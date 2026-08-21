@@ -35,17 +35,18 @@ import {
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
 } from './preRenderBlueprintDraftSchema';
+import { canonicalPreRenderBlueprintTextSafeRegion } from './preRenderBlueprintLayoutPolicy';
 import { sourcePromptReconciliationIssues } from './sourcePromptReconciliation';
 import {
   assertOpenAIResponsesStructuredOutputSchemaCompatible,
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION =
-  'pre-render-blueprint-authoring-prompt/v4' as const;
+  'pre-render-blueprint-authoring-prompt/v5' as const;
 export const PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION =
-  'pre-render-blueprint-repair-prompt/v4' as const;
+  'pre-render-blueprint-repair-prompt/v5' as const;
 export const PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION =
-  'pre-render-blueprint-authoring-provenance/v3' as const;
+  'pre-render-blueprint-authoring-provenance/v4' as const;
 export const PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS = 2 as const;
 
 type Obj = Record<string, unknown>;
@@ -250,7 +251,9 @@ function deterministicFrameOverlay(args: {
     propLifecycle: { requiredPropIds, forbiddenPropIds },
     placements: clone(raw.placements) as PortraitBlueprintFrame['placements'],
     camera: clone(raw.camera) as PortraitBlueprintFrame['camera'],
-    textSafeRegion: clone(raw.textSafeRegion) as PortraitBlueprintFrame['textSafeRegion'],
+    textSafeRegion: canonicalPreRenderBlueprintTextSafeRegion(
+      isCover ? 'cover' : 'page',
+    ),
     affordanceIds: clone(raw.affordanceIds) as string[],
     continuity: {
       previousFrameId: isCover
@@ -410,7 +413,10 @@ export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
     'self-approve Action Semantic Coverage or Semantic Reconciliation.',
     '',
     'Author the complete connection graph, spatial affordances, reveal-safe supporting geometry, and one frame',
-    'for the cover plus every exact Story Source page. Each frame must show text-safe layout, placements, actions,',
+    'for the cover plus every exact Story Source page. The compiler owns the text-safe regions and they are not',
+    'part of your output: reserve x=0,y=0,width=1000,height=250 on the cover and',
+    'x=0,y=750,width=1000,height=250 on every body page. Keep every key cast, action, action destination, and',
+    'required-prop placement outside its exact reserved band. Each frame must show placements, actions,',
     'props, camera access, transitions, and safety support. The compiler will overwrite all upstream deterministic',
     'identity, coverage, aspect-ratio, location/zone/cast, lifecycle, and transition-kind fields after this call.',
     'Do not include Board identities, image assets, render prompts, approval, lifecycle timestamps, or prose outside JSON.',
@@ -450,6 +456,8 @@ function buildRepairSystemPrompt(): string {
     'Return the complete corrected strict JSON object, not a page fragment.',
     'Preserve valid content and fix every supplied deterministic validation error.',
     'The same authority precedence and prohibitions from the initial call remain binding.',
+    'The compiler owns text-safe geometry: keep the exact cover top 250 band and every body-page bottom 250 band',
+    'clear of all key cast, action, action-destination, and required-prop placements; never return textSafeRegion.',
   ].join('\n');
 }
 

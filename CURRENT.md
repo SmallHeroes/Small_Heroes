@@ -2,7 +2,55 @@
 
 **Updated:** 2026-08-21
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active gender-inclusive palette milestone is based on pushed commit `ddc85b2ad4c752bc163427a4bca880d516bc4e4f`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Blueprint text-safe contract milestone is based on pushed commit `bb37be96925b2c4a63a4a9d1e59dea3e91af9a84`.
+
+## BLUEPRINT TEXT-SAFE CONTRACT — IMPLEMENTED LOCALLY; CLAUDE QA NEXT
+
+Both Chameleon Set Boards v6 are approved and exact deterministic Board
+resolution selects only those current Home/Town identities. The next real
+Visual Package assembly exposed a general contract defect: the approved
+Blueprint used a free-authored top band of height 240 on all nine frames,
+while Visual Package v5 requires a supported top cover band and bottom body
+band, and runtime independently required only the exact 250-unit defaults.
+The old Blueprint remains immutable historical evidence; its planning
+approval cannot authorize a replacement digest.
+
+Guy approved
+`docs/ai-workflow/R1D_BLUEPRINT_TEXT_SAFE_LAYOUT_CONTRACT_DECISION_GATE.md`.
+The local implementation introduces one shared portrait layout policy without
+changing its package bytes or `portrait-layout-compatibility/v1` identity.
+Blueprint authoring now removes `textSafeRegion` from provider structured
+output, tells both initial and repair prompts to keep the exact compiler-owned
+bands clear, and deterministically stamps cover
+`{x:0,y:0,width:1000,height:250}` and body
+`{x:0,y:750,width:1000,height:250}`. Blueprint validation, package
+representability, and runtime canvas selection now use the same policy
+predicate. Package/runtime still reject and never remap. The supported
+250–350 range remains intact, while authoring chooses the canonical 250-unit
+default.
+
+Immutable authority boundaries advance to Blueprint v5, authoring authority
+v4, draft schema v6, initial/repair prompt v5, and provenance v4. Existing
+Blueprint v4 bytes are rejected as current v5 authority, and existing approval
+digest binding continues to prevent reuse against a regenerated Blueprint.
+The production-package test no longer overwrites frame regions to hide the
+seam.
+
+Provider-free validation passes the nine focused Blueprint/Package/Runtime/
+Wizard suites at **247/247 tests**, the Visual Package lifecycle at **31/31**,
+and the real QA Wizard bridge at **8/8**. `npx --no-install tsc --noEmit` and
+`git diff --check` pass. Literal `npm run check` passes TypeScript, autonomous
+Story typecheck, **3,373 ordinary tests**, and all **610 resource-intensive
+tests**. Its only five failures are the established missing ignored-output
+fixture assertions in four unchanged test files. No provider, Vision, image,
+audio, storage, database, deployment, Blueprint artifact regeneration, package
+approval, Wizard promotion, or render occurred.
+
+Next is a focused local commit and independent Claude Code falsification. Only
+after technical PASS will the Chameleon Blueprint be regenerated offline into
+new content-addressed evidence and shown to Guy for exact-digest planning
+approval. Visual Package approval, Wizard promotion, and the smallest LOW page
+proof remain later separate gates.
 
 ## CHAMELEON HOME BOARD v6 — PRODUCT-APPROVED; TOWN BOARD GATE NEXT
 
