@@ -36,3 +36,4 @@ export * from './canonicalPreLiveReadiness';
 export * from './qaWizardCandidateBridge';
 export * from './timeAuthorityMigrationLifecycle';
 export * from './timeAuthorityMigrationBlueprintLifecycle';
+export * from './timeAuthorityMigrationSetBoardLifecycle';

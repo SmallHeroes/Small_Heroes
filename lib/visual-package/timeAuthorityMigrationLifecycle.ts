@@ -42,6 +42,7 @@ import {
 import {
   VISUAL_PACKAGE_V4_CANDIDATE_VERSION,
   computeVisualPackageV4CandidateDigest,
+  type VisualPackageV4Approval,
   type VisualPackageV4Candidate,
   type VisualPackageV4PackageReview,
 } from './visualPackageV4';
@@ -754,7 +755,7 @@ function loadSourceAuthority(args: {
   snapshot: StorySourceAuthoritySnapshot;
   candidate: VisualPackageV4Candidate;
   packageReview: VisualPackageV4PackageReview;
-  packageApproval: Record<string, unknown>;
+  packageApproval: VisualPackageV4Approval;
   sourceReconciliation: SourcePromptReconciliation;
 } {
   const candidateAbsolutePath = resolveRepoPath(
@@ -777,7 +778,7 @@ function loadSourceAuthority(args: {
     reviewAbsolutePath,
     'source Visual Package review',
   );
-  const packageApproval = readJsonObject<Record<string, unknown>>(
+  const packageApproval = readJsonObject<VisualPackageV4Approval>(
     approvalAbsolutePath,
     'source Visual Package approval',
   );
@@ -1530,6 +1531,11 @@ export function loadApprovedTimeAuthorityMigration(args: {
     blueprint: PreRenderBookVisualBlueprint;
     attestation: PreRenderBlueprintApprovalAttestation;
   };
+  sourcePackage: {
+    candidate: VisualPackageV4Candidate;
+    packageReview: VisualPackageV4PackageReview;
+    packageApproval: VisualPackageV4Approval;
+  };
 } {
   const approvedManifest = loadMigrationManifest({
     repoRoot: args.repoRoot,
@@ -1607,6 +1613,11 @@ export function loadApprovedTimeAuthorityMigration(args: {
       attestation: structuredClone(
         source.candidate.content.planningApproval.content,
       ),
+    },
+    sourcePackage: {
+      candidate: structuredClone(source.candidate),
+      packageReview: structuredClone(source.packageReview),
+      packageApproval: structuredClone(source.packageApproval),
     },
   };
 }

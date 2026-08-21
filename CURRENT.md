@@ -2,9 +2,9 @@
 
 **Updated:** 2026-08-21
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active provider-free Blueprint continuation correction starts from local documentation head `5b33b1fe3862ce05280ad30a1108472611d36e56`, which follows pushed lifecycle correction `02225d0bfc7e87d2d3682c2444ecbc542d9811ac`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active provider-free Set Board rebind milestone starts from pushed and independently re-gated Blueprint approval head `8b42eb0f994d2f6052d93b6ca83ae08239b52203`.
 
-## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — RECONCILIATION APPROVED; BLUEPRINT BRIDGE PASS; MINOR CORRECTION RE-GATE NEXT
+## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — BLUEPRINT APPROVED; SET BOARD REBIND LOCAL GREEN; CLAUDE QA NEXT
 
 The exact approved Chameleon Visual Package candidate
 `c3e28ae1c22ab2bfcea53dddd0e802b71d97b4adbaf6a395313a1a6445df4e82`
@@ -177,7 +177,7 @@ repair attempts. New Blueprint `c6f753eabdb278842c3d8e686bd844752c849a930d15970f
 and authority `dd2cdeb52124402f18c62ed0a216e0d7b35903ca446d3701245b173428baa62b`
 differ from historical Blueprint `fc1412a3…` only at the three approved
 time-of-day paths. The new review reports no changed frame, connection or
-affordance and `authorityChanged: true`; no real approval is created. A hostile
+affordance and `authorityChanged: true`; prepare creates no approval. A hostile
 redigested context identity is rejected. A temporary test-only approval proves
 exact Candidate/Review binding and idempotent replay. The final-syntax real CLI
 prepare smoke reports zero provider/image/network/database/production calls.
@@ -190,16 +190,55 @@ passes **6/6**, TypeScript, Story typecheck, `npm run lint`, and
 `git diff --check`. Literal `npm run check` passes all **3,404** ordinary
 assertions except the same five missing ignored-`outputs/` fixture assertions
 in four unchanged specs. Its resource phase passes all **20 files / 610
-tests** with exit zero. Claude Code PASSed the bridge; the small documented
-path-binding/timestamp correction remains local pending its re-gate.
+tests** with exit zero. Claude Code PASSed the bridge and the follow-up exact
+path, literal approver and canonical timestamp correction.
 
-No real migrated Blueprint Candidate/Review has been materialized in the
-approved output root, no new Blueprint approval exists, and no Visual Package,
-Wizard or render action occurred. After Claude PASS, materialize the exact
-Blueprint Candidate/Review, obtain a fresh exact Guy approval, rebuild and
-approve the Visual Package, qualify the Wizard path, and only then run the one
-already-authorized LOW page. Full-book render still waits for Guy's inspection
-of that page.
+The exact migrated Blueprint and Review were subsequently materialized and
+Guy approved Blueprint
+`c6f753eabdb278842c3d8e686bd844752c849a930d15970f06ddf3f918e91208`
+with Review
+`137be727f154a03ee97f43afb2c2a46ed41b59f81bb18c196c7c11c30605da57`.
+The canonical approval digest is
+`aeff01b6f77599b59fc4ed5e462b78192129bc61ec753dd6c8622d59e9e2c7ed`,
+recorded at `2026-08-21T14:24:55.642Z`. Replaying the approval is byte-
+identical. No provider, image, Wizard, package approval or render occurred.
+
+The first exact Visual Package reassembly then failed closed only because the
+approved Town Board remains bound to the pre-migration Set Definition hash
+`5b1917ceec616cd9c8613f8075f2a7b3426c96e9549eaeef40f2381eb550b9dc`,
+while the approved closed time authority deterministically expects
+`fd15ad19983952607f118282aa05d9e8f6931697453994ee4d8516ece78f7651`.
+The Board image, storage key, asset SHA, prompt hash, content policy, declared
+props, QA evidence and every non-time identity field are unchanged. Reusing
+the old human approval under a new identity would be incorrect; rerendering
+the already accepted image would be wasteful.
+
+The local zero-cost correction adds a closed Set Board rebind lifecycle. It
+replays the exact approved migration and source package, proves the change is
+time-only, prepares pending content-addressed Candidate/Review artifacts, and
+requires a second exact `Guy` approval with a canonical UTC timestamp before
+writing the new immutable Registry entry. Provider, image, Vision, network,
+database, Wizard, publication, locator, deployment and render boundaries are
+explicitly excluded. The real-artifact-conditioned test proves the unchanged
+Home Board plus the approved re-bound Town bytes assemble the migrated Visual
+Package with exactly one remaining reason: `package_approval_missing`.
+
+Focused validation currently passes **20 files / 417 tests**, including the
+entire Set Board suite and adjacent migration, Blueprint, Visual Package,
+Wizard and workload-classification seams. The dedicated lifecycle is **4/4**,
+TypeScript, Story autonomous typecheck, `npm run lint`, and
+`git diff --check` pass. Literal `npm run check` passes **3,407 ordinary
+tests** and includes the new rebind proof; its five failures are the same
+missing ignored-`outputs/` fixtures in four unchanged specs. All **610**
+resource assertions pass, but the two-worker phase reports two established
+Vitest `onTaskUpdate` RPC timeouts and therefore exits nonzero. A direct
+single-worker replay of the exact 20-file resource partition passes **610/610**
+with exit zero. The remaining gates are a focused commit and independent
+Claude Code falsification. Only after that PASS will the real rebind
+Candidate/Review be materialized for Guy's exact approval. Visual Package
+approval, Wizard qualification and the already-authorized smallest LOW page
+remain later explicit boundaries. Full-book render still waits for Guy's
+inspection of that page.
 
 ## BLUEPRINT TEXT-SAFE CONTRACT — IMPLEMENTED LOCALLY; CLAUDE QA NEXT
 
