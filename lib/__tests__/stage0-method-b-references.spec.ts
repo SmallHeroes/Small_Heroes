@@ -232,6 +232,13 @@ describe('Stage0 Method B reference layouts (Brief F)', () => {
     expect(Array.from(sanitized ?? '')).toHaveLength(240);
   });
 
+  it('keeps a note idempotent when the 240-code-point boundary lands on whitespace', () => {
+    const boundaryInput = `${'x'.repeat(239)} ${'y'.repeat(20)}`;
+    const sanitized = sanitizeStage0StyleQaNotes(boundaryInput);
+    expect(sanitized).toBe('x'.repeat(239));
+    expect(sanitizeStage0StyleQaNotes(sanitized ?? '')).toBe(sanitized);
+  });
+
   it('Bar corrected identity has olive/tan skin — not pale, no toddler-pushing softness', () => {
     expect(LION_BEDTIME_BAR_CHILD_PHOTO_DESCRIPTION).toMatch(/olive/i);
     expect(LION_BEDTIME_BAR_CHILD_PHOTO_DESCRIPTION).toMatch(/NOT pale/i);

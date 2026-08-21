@@ -69,17 +69,23 @@ an account-specific model is available.
 
 ## Validation
 
-Provider-free focused suites:
+Provider-free focused suites after the independent-QA correction:
 
 ```text
 8 test files passed
-78 tests passed
+79 tests passed
 ```
 
 The coverage includes diagnostics derivation, canonical ordering, sanitization,
 redaction and cap behavior, unavailable Style evidence, exact-shape tampering,
 terminal messages, legacy recovery, malformed-present recovery rejection, and a
 recursive production-source census for retired hardcoded Claude IDs.
+
+Claude Code's first pass found one fail-safe truncation-boundary issue: a note
+whose 240th code point was whitespace could be stored with a trailing space and
+then fail idempotent re-validation during recovery. The correction trims the end
+after code-point truncation and pins the exact boundary with a regression. No
+authorization or pass/fail rule changed.
 
 Additional results:
 

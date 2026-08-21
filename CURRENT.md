@@ -29,7 +29,7 @@ environment overrides, prompts, thresholds, references, attempt counts, payment
 flow and Production aliases are unchanged. A source census rejects either known
 retired ID outside the authority declaration.
 
-Provider-free focused validation is green: 8 files / 78 tests, isolated
+Provider-free focused validation is green: 8 files / 79 tests, isolated
 `tsc --noEmit`, and `git diff --check`. Literal `npm run check` compiled both
 TypeScript projects, then ran the complete 311-file inventory: the ordinary
 partition passed 3,435 tests and failed 5 only because four historical

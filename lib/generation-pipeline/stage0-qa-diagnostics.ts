@@ -56,7 +56,10 @@ export function sanitizeStage0StyleQaNotes(notes: string): string | null {
     .replace(/\s+([,.;:!?])/gu, '$1')
     .trim();
   if (!normalized) return null;
-  return Array.from(normalized).slice(0, MAX_STYLE_NOTE_CODE_POINTS).join('');
+  return Array.from(normalized)
+    .slice(0, MAX_STYLE_NOTE_CODE_POINTS)
+    .join('')
+    .trimEnd();
 }
 
 export function buildStage0DescriptionTemplateQaDiagnostics(
