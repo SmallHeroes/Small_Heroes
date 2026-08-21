@@ -799,7 +799,7 @@ describe('repairable producer census and typed-only boundary', () => {
       InvalidTemplateContractError: {
         'compileBookVisualContractTemplate.ts': 13,
         'contractArtifact.ts': 1,
-        'contractTemplateMigration.ts': 9,
+        'contractTemplateMigration.ts': 11,
         'validateTemplateContract.ts': 1,
       },
       InvalidVisualContractError: {

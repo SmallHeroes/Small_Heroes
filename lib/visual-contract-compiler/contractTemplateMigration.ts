@@ -8,6 +8,7 @@ import {
   assertValidBookVisualContractTemplate,
   InvalidTemplateContractError,
 } from './validateTemplateContract';
+import { canonicalizeStoryTimeOfDayAuthority } from '@/lib/story-time-of-day';
 
 export const LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION = 'vc-schema/v1' as const;
 export const LEGACY_VISUAL_CONTRACT_SCHEMA_VERSION_V2 = 'vc-schema/v2' as const;
@@ -30,6 +31,55 @@ function objectValue(value: unknown): value is Record<string, unknown> {
 
 function hasOwn(value: Record<string, unknown>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function invalidTimeOfDayMigration(field: string): never {
+  throw new InvalidTemplateContractError([
+    `explicit time-of-day migration cannot canonicalize ${field}`,
+  ], [{
+    family: 'draft_schema',
+    code: 'value_domain_invalid',
+    locator: { kind: 'root', fieldRole: 'value' },
+  }]);
+}
+
+function canonicalizeOptionalTimeOfDay(
+  record: Record<string, unknown>,
+): void {
+  if (!hasOwn(record, 'timeOfDay')) return;
+  if (record.timeOfDay === null) {
+    delete record.timeOfDay;
+    return;
+  }
+  const canonical = canonicalizeStoryTimeOfDayAuthority(record.timeOfDay);
+  if (!canonical) invalidTimeOfDayMigration('optional timeOfDay');
+  record.timeOfDay = canonical;
+}
+
+function canonicalizeRequiredTimeOfDay(
+  record: Record<string, unknown>,
+): void {
+  const canonical = canonicalizeStoryTimeOfDayAuthority(record.timeOfDay);
+  if (!canonical) invalidTimeOfDayMigration('required timeOfDay');
+  record.timeOfDay = canonical;
+}
+
+function migrateTimeOfDayAuthorities(candidate: Record<string, unknown>): void {
+  if (Array.isArray(candidate.locations)) {
+    for (const location of candidate.locations) {
+      if (objectValue(location)) canonicalizeOptionalTimeOfDay(location);
+    }
+  }
+  if (objectValue(candidate.coverContract)) {
+    canonicalizeOptionalTimeOfDay(candidate.coverContract);
+  }
+  if (!Array.isArray(candidate.setBoardAuthorities)) return;
+  for (const authority of candidate.setBoardAuthorities) {
+    if (!objectValue(authority) || !Array.isArray(authority.locations)) continue;
+    for (const location of authority.locations) {
+      if (objectValue(location)) canonicalizeRequiredTimeOfDay(location);
+    }
+  }
 }
 
 function migrateLegacyActionSubjects(candidate: Record<string, unknown>): void {
@@ -285,6 +335,34 @@ export function migrateLegacyBookVisualContractTemplateV3(
   }
   const candidate = structuredClone(input);
   candidate.schemaVersion = VISUAL_CONTRACT_SCHEMA_VERSION;
+  assertValidBookVisualContractTemplate(candidate);
+  return candidate;
+}
+
+/**
+ * Explicit offline migration for current-schema template evidence authored
+ * before time-of-day became a closed authority. The source bytes remain
+ * immutable; callers persist the validated clone under its new digest and
+ * rebuild every downstream approval bound to the old template digest. Runtime
+ * loaders never invoke this path.
+ */
+export function migrateBookVisualContractTemplateTimeOfDayAuthority(
+  input: unknown,
+): BookVisualContractTemplate {
+  if (
+    !objectValue(input) ||
+    input.schemaVersion !== VISUAL_CONTRACT_SCHEMA_VERSION
+  ) {
+    throw new InvalidTemplateContractError([
+      `explicit time-of-day migration requires ${VISUAL_CONTRACT_SCHEMA_VERSION} input`,
+    ], [{
+      family: 'draft_schema',
+      code: 'schema_version_invalid',
+      locator: { kind: 'root', fieldRole: 'schema_version' },
+    }]);
+  }
+  const candidate = structuredClone(input);
+  migrateTimeOfDayAuthorities(candidate);
   assertValidBookVisualContractTemplate(candidate);
   return candidate;
 }

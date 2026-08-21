@@ -6,6 +6,7 @@ import {
   assertValidBookVisualContractTemplate,
   migrateLegacyBookVisualContractTemplateV1,
   migrateLegacyBookVisualContractTemplateV3,
+  migrateBookVisualContractTemplateTimeOfDayAuthority,
   projectPageMustShow,
   projectPageMustNotShow,
   projectCoverMustNotShow,
@@ -164,6 +165,73 @@ describe('Stage 4 — the baseline still holds (additive proof)', () => {
     const { schemaVersion: _beforeVersion, ...beforePayload } = before;
     const { schemaVersion: _afterVersion, ...afterPayload } = migrated;
     expect(afterPayload).toEqual(beforePayload);
+  });
+
+  it('migrates current-schema open time authority offline without mutating or widening any other field', () => {
+    const historical = JSON.parse(
+      readFileSync(
+        'story-bank/v3-approved/fox_uri_adventure.visual-contract-template.json',
+        'utf8',
+      ),
+    );
+    const current = migrateLegacyBookVisualContractTemplateV1(historical, {
+      areaZoneIds: {
+        set_room_balcony_night: {
+          board_room_openings: ['z_room_window', 'z_window_threshold'],
+          board_balcony: ['z_balcony_railing', 'z_balcony_bucket_corner'],
+        },
+      },
+      pageZoneNodeIds: {
+        z_balcony_railing: { railing: 'metal_railing' },
+      },
+    });
+    current.locations[0]!.timeOfDay = 'evening into night' as never;
+    current.coverContract.timeOfDay = 'evening' as never;
+    current.setBoardAuthorities![0]!.locations[0]!.timeOfDay =
+      'evening into night' as never;
+    const before = structuredClone(current);
+
+    expect(() => assertValidBookVisualContractTemplate(current)).toThrow(
+      /timeOfDay/,
+    );
+    const migrated =
+      migrateBookVisualContractTemplateTimeOfDayAuthority(current);
+
+    expect(migrated.locations[0]!.timeOfDay).toBe('mixed');
+    expect(migrated.coverContract.timeOfDay).toBe('dusk');
+    expect(
+      migrated.setBoardAuthorities![0]!.locations[0]!.timeOfDay,
+    ).toBe('mixed');
+    expect(current).toEqual(before);
+    expect(migrated).not.toBe(current);
+    expect(() => assertValidBookVisualContractTemplate(migrated)).not.toThrow();
+
+    const maskTimeAuthority = (value: typeof current) => {
+      const masked = structuredClone(value);
+      for (const location of masked.locations) location.timeOfDay = 'day';
+      masked.coverContract.timeOfDay = 'day';
+      for (const authority of masked.setBoardAuthorities ?? []) {
+        for (const location of authority.locations) location.timeOfDay = 'day';
+      }
+      return masked;
+    };
+    expect(maskTimeAuthority(migrated)).toEqual(maskTimeAuthority(current));
+  });
+
+  it('refuses to guess an unmappable current-schema time during offline migration', () => {
+    const historical = JSON.parse(
+      readFileSync(
+        'story-bank/v3-approved/bunny_ometz_adventure.visual-contract-template.json',
+        'utf8',
+      ),
+    );
+    const current = migrateLegacyBookVisualContractTemplateV1(historical);
+    current.locations[0]!.timeOfDay = 'purple hour' as never;
+    const before = structuredClone(current);
+    expect(() =>
+      migrateBookVisualContractTemplateTimeOfDayAuthority(current),
+    ).toThrow(/timeOfDay/);
+    expect(current).toEqual(before);
   });
 
   it('a structure-free contract is untouched, and a well-formed structured one passes', () => {

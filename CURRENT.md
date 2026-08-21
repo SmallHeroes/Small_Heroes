@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active time-of-day authority-closure milestone is based on local commit `cf07e5cbd70afaaf694ec665164ab553aa648ce6`.
 
-## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — LOCAL GREEN; CLAUDE QA NEXT
+## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — QA CORRECTION GREEN; CLAUDE RE-GATE NEXT
 
 The exact approved Chameleon Visual Package candidate
 `c3e28ae1c22ab2bfcea53dddd0e802b71d97b4adbaf6a395313a1a6445df4e82`
@@ -42,13 +42,36 @@ assertions in four unchanged specs. No changed or adjacent test failed.
 `git diff --check` passes. Durable implementation record:
 `docs/ai-workflow/R1D_VISUAL_TIME_OF_DAY_AUTHORITY_CLOSURE_IMPLEMENTATION_EVIDENCE.md`.
 
+Claude Code technically PASSed the closure and confirmed every falsification
+target. It also found that the plan lacked an explicit offline migration API
+for the already-authored current-schema Candidate, and that new Hebrew cue
+regexes could match `מערב` or `שחרור`. The follow-up adds one explicit,
+runtime-unreachable migration that clones, canonicalizes only the three time
+authority surfaces, rejects unmappable values, validates the whole template,
+and leaves source bytes untouched. Hebrew cues now require whole tokens; tests
+also close the pre-existing `ירחון` collision.
+
+A read-only `$0` probe against immutable Candidate `fada3965…` succeeded:
+template `4e945dc0…` becomes new digest `51901523…`, Town and its stable Board
+become `mixed`, cover becomes `dusk`, and full validation passes. The authoring
+Candidate is not reminted. Its already-frozen package coverage can feed the
+existing offline production-context path, while reconciliation, Blueprint,
+package review and approvals must all receive fresh content-addressed identity.
+No paid authoring rerun is needed or authorized.
+
+Corrective validation passes **6 focused files / 175 tests**, TypeScript and
+`git diff --check`. A second literal `npm run check` passes TypeScript,
+autonomous Story typecheck, **3,398 ordinary tests** and all **610
+resource-intensive tests**; its same five ordinary failures are only the
+established missing ignored-`outputs/` fixtures in four unchanged specs.
+
 No provider, credential, network, Vision, image, storage/database,
 publication, locator, Wizard, render, deployment or production action
 occurred; the pre-existing untracked Chameleon Board directory remains
-untouched. Next is a focused local commit and independent Claude Code gate.
-Only after PASS may the Chameleon authority chain be rebuilt deterministically
-offline and presented to Guy for fresh exact approvals. One LOW page remains a
-later gated proof before any full-book render.
+untouched. Next is Claude Code re-gate on the focused corrective commit. Only
+after PASS may the Chameleon authority chain be rebuilt deterministically
+offline and presented to Guy for fresh exact approvals. One LOW page remains
+a later gated proof before any full-book render.
 
 ## BLUEPRINT TEXT-SAFE CONTRACT — IMPLEMENTED LOCALLY; CLAUDE QA NEXT
 

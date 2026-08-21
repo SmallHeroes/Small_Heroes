@@ -1,6 +1,6 @@
 # R1D Visual Time-of-Day Authority Closure — Decision Gate
 
-**Status:** approved by Guy; implemented locally; independent Claude Code gate pending
+**Status:** approved by Guy; implemented; first Claude Code gate complete; corrective re-gate pending
 **Date:** 2026-08-21
 **Branch/worktree:** `codex/qa-wizard-presentation-dispositions` / `C:\GNart\Work\sh-wt-r1d-output-budget`
 **Observed head:** `cf07e5cbd70afaaf694ec665164ab553aa648ce6`

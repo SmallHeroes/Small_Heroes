@@ -38,6 +38,11 @@ describe('story-time-of-day', () => {
       expect(canonicalizeStoryTimeOfDayAuthority(raw)).toBeNull();
     });
 
+  it.each(['מערב', 'צפון מערב', 'שחרור', 'ירחון'])
+    ('does not match a Hebrew cue inside another word: %s', (raw) => {
+      expect(canonicalizeStoryTimeOfDayAuthority(raw)).toBeNull();
+    });
+
   it('reads frontmatter timeOfDay', () => {
     const raw = 'timeOfDay: night\ncategory: NIGHT_FEAR\n';
     expect(parseStoryTimeOfDayFromFrontmatter(raw)).toBe('night');

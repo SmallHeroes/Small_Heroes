@@ -26,13 +26,16 @@ const CATEGORY_DEFAULT_TIME: Partial<Record<string, StoryTimeOfDay>> = {
 
 const NIGHT_TEXT =
   /\b(night|nighttime|starlit|starry|moonlight|moonlit|midnight|after dark|in the dark)\b/i;
-const NIGHT_HE = /(?:לילה|בלילה|חש(?:ך|כה)|כוכב(?:ים)?|ירח|ליל)/u;
+const NIGHT_HE =
+  /(?<!\p{L})(?:לילה|בלילה|הלילה|ובלילה|והלילה|חשך|חשכה|בחשך|בחשכה|כוכב|כוכבים|ירח|ליל)(?!\p{L})/u;
 const DAY_TEXT =
   /\b(daytime|midday|noon|sunny|sunshine|bright blue sky|golden afternoon|morning sun|broad daylight)\b/i;
 const DUSK_TEXT = /\b(dusk|twilight|sunset|golden hour|evening)\b/i;
 const DAWN_TEXT = /\b(dawn|sunrise|early morning light)\b/i;
-const DUSK_HE = /(?:ערב|בערב|שקיעה|דמדומים)/u;
-const DAWN_HE = /(?:שחר|זריחה)/u;
+const DUSK_HE =
+  /(?<!\p{L})(?:ערב|בערב|הערב|ובערב|והערב|שקיעה|בשקיעה|השקיעה|דמדומים|בדמדומים)(?!\p{L})/u;
+const DAWN_HE =
+  /(?<!\p{L})(?:שחר|השחר|בשחר|זריחה|בזריחה|הזריחה)(?!\p{L})/u;
 
 export function isStoryTimeOfDay(value: unknown): value is StoryTimeOfDay {
   return (

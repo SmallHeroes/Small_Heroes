@@ -184,6 +184,7 @@ export {
   migrateLegacyBookVisualContractTemplateV1,
   migrateLegacyBookVisualContractTemplateV2,
   migrateLegacyBookVisualContractTemplateV3,
+  migrateBookVisualContractTemplateTimeOfDayAuthority,
   type VisualContractReferenceDomainMigration,
 } from './contractTemplateMigration';
 export {
