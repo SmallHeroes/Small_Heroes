@@ -165,3 +165,26 @@ locator bytes are unchanged; no package, Story Source, Board, renderer,
 provider, payment, deployment or production-switch behavior changes.
 Corrective validation passes 9 adjacent files / 110 tests, TypeScript and
 `git diff --check`.
+
+Claude Code independently re-gated exact corrective range
+`282182fcb2fbee70bab91f00d06cabef30a7240c..9329d4856770217b4bd01fb2110ad40ff4305644`
+and returned PASS with no remaining finding. Its hostile probes verified all
+missing/additional locator-key cases, rejection before immutable revision
+loading, fail-closed Wizard selection, accepted key-order permutations, and
+unchanged package/source/Board/sellability behavior. Its expanded suite passed
+32 files / 990 tests; the only process noise was the established Vitest worker
+RPC timeout after assertions completed.
+
+Read-only remote inspection then verified that the exact HEAD Preview is READY
+and returns Chameleon bedtime as selectable and production-render-qualified.
+It also established the operational boundary: `qa.smallheroes.co.il` still
+targets an older Preview, the current branch lacks the staging-QA middleware
+scope, and Production remains on `ed1da86c…` while this feature branch is 557
+commits ahead. No environment, alias, database, payment, provider or Production
+mutation was performed during that inspection.
+
+The next separately gated operation is documented in
+`R1D_WIZARD_REMOTE_QA_FULL_BOOK_OPERATIONAL_PROOF_DECISION_GATE.md`: one
+synthetic fake-paid LOW book on branch-scoped Preview authority, followed by
+readiness and Reader verification. That gate is not Production launch
+authority.

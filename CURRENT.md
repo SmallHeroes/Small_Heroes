@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
-## WIZARD V4 PACKAGE SELECTION — LOCAL GREEN; ONE LOW PAGE RENDERED; CLAUDE RE-GATE NEXT
+## WIZARD V4 PACKAGE SELECTION — INDEPENDENT PASS; REMOTE FULL-BOOK QA GATE PREPARED
 
 Guy approved publication of exact Visual Package v4 revision
 `a9c253d989118262ed2b38a671fc7eccf6af44a084512af35285ad2f548a14fb`
@@ -78,6 +78,30 @@ extra key. It does not change the locator version, accepted locator bytes,
 package identity, Story Source, render policy or production boundary. The
 expanded adjacent validation now passes **9 files / 110 tests**, and TypeScript
 and `git diff --check` remain clean.
+
+Claude Code independently re-gated corrective range
+`282182fcb2fbee70bab91f00d06cabef30a7240c..9329d4856770217b4bd01fb2110ad40ff4305644`
+and returned **PASS with no BLOCKER, MAJOR or MINOR finding**. It verified exact
+five-key locator rejection before immutable revision loading, hostile Wizard
+selection failure, unchanged live locator/revision bytes, and the unchanged
+sellability/product path. Its expanded read-only validation passed 32 files /
+990 tests; only the known Vitest worker RPC timeout messages appeared after
+assertions completed.
+
+The exact current Vercel Preview deployment is READY for HEAD `9329d485…`, and
+its remote Matrix reports only Chameleon bedtime as selectable and
+production-render-qualified. The stable `qa.smallheroes.co.il` alias still
+points at an older Preview, and the current feature branch does not yet have
+the staging-QA middleware carve-out. Production remains on historical commit
+`ed1da86c…`; this branch is 557 commits ahead and must not be promoted there.
+
+The remaining milestone is therefore an operational QA proof, not another
+authoring or package fix. Decision Gate
+`docs/ai-workflow/R1D_WIZARD_REMOTE_QA_FULL_BOOK_OPERATIONAL_PROOF_DECISION_GATE.md`
+authorizes one synthetic fake-paid Chameleon bedtime order on branch-scoped
+Preview settings at LOW quality, then full Order -> chunked generation ->
+readiness -> Reader inspection. It explicitly excludes Production, real
+payment, customer data, a second paid attempt and any safety/readiness bypass.
 
 This milestone proves the new-story Wizard chain in local/preview runtime and
 does not flip the existing Vercel Production generation/enforcement kill
