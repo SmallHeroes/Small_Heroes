@@ -152,3 +152,16 @@ full-book spend were performed.
 - No Vercel deployment or Production kill-switch was changed. The proof is
   local/preview runtime evidence; existing production quarantine/cutover work
   remains a separate operational boundary.
+
+## Independent QA correction
+
+Claude Code's first read-only pass verified every original handoff claim and
+returned PASS with one pre-existing MINOR: the now load-bearing mutable current
+locator validated required values but tolerated unknown keys. The corrective
+milestone makes its exact five-key shape mandatory before loading the immutable
+revision. A hostile locator carrying an additional key is rejected by both the
+direct loader and the Wizard selection boundary. The locator version and valid
+locator bytes are unchanged; no package, Story Source, Board, renderer,
+provider, payment, deployment or production-switch behavior changes.
+Corrective validation passes 9 adjacent files / 110 tests, TypeScript and
+`git diff --check`.

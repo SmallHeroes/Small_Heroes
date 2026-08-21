@@ -428,6 +428,55 @@ describe('R1D-PVB-C1 immutable visual-package/v5', () => {
     });
   });
 
+  it('rejects unknown current-locator keys before Wizard sellability', () => {
+    const root = temporaryRoot();
+    const approvedPackagesDir = path.join(root, 'visual-packages', 'approved');
+    const packageValue = packageFor(buildBlueprintFixture('single_location'));
+    const sourcePath = path.join(
+      root,
+      packageValue.sourceSnapshot.identity.path,
+    );
+    mkdirSync(path.dirname(sourcePath), { recursive: true });
+    writeFileSync(sourcePath, packageValue.sourceSnapshot.content, 'utf8');
+    const publication = publishVisualPackageV4({
+      repoRoot: root,
+      approvedPackagesDir,
+      packageValue,
+      write: true,
+    });
+    const locatorPath = path.join(root, publication.locatorPath);
+    const hostileLocator = {
+      ...(JSON.parse(readFileSync(locatorPath, 'utf8')) as Record<
+        string,
+        unknown
+      >),
+      hostileExtraKey: true,
+    };
+    writeFileSync(locatorPath, `${JSON.stringify(hostileLocator)}\n`, 'utf8');
+
+    expect(() =>
+      loadCurrentVisualPackageV4({
+        repoRoot: root,
+        locatorPath: publication.locatorPath,
+        storyKey: packageValue.storyKey,
+        styleId: packageValue.styleId,
+      }),
+    ).toThrow('current locator keys are invalid');
+    expect(
+      evaluateWizardVisualPackageSelection({
+        repoRoot: root,
+        approvedPackagesDir,
+        storyKey: packageValue.storyKey,
+        styleId: packageValue.styleId,
+      }),
+    ).toMatchObject({
+      renderQualified: false,
+      packageValue: null,
+      frozenAuthority: null,
+      sourcePath: null,
+    });
+  });
+
   it('rejects v3 masquerade, changed immutable content, stale approval, and silent layout remap', () => {
     expect(
       validateVisualPackageV4({

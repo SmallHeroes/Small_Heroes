@@ -203,6 +203,14 @@ export interface VisualPackageV4Locator {
   revisionDigest: string;
 }
 
+const VISUAL_PACKAGE_V4_LOCATOR_KEYS = [
+  'packagePath',
+  'revisionDigest',
+  'storyKey',
+  'styleId',
+  'version',
+] as const;
+
 export interface FrozenVisualPackageAuthority {
   [key: string]: string;
   version: typeof VISUAL_PACKAGE_V4_FREEZE_VERSION;
@@ -771,6 +779,12 @@ function locatorIssues(value: unknown): string[] {
   }
   const locator = value as VisualPackageV4Locator;
   const issues: string[] = [];
+  if (
+    JSON.stringify(Object.keys(value).sort()) !==
+    JSON.stringify(VISUAL_PACKAGE_V4_LOCATOR_KEYS)
+  ) {
+    issues.push('current locator keys are invalid');
+  }
   if (locator.version !== VISUAL_PACKAGE_V4_LOCATOR_VERSION) {
     issues.push('current locator version is unsupported');
   }

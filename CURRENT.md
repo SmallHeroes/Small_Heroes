@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
-## WIZARD V4 PACKAGE SELECTION — LOCAL GREEN; ONE LOW PAGE RENDERED; CLAUDE QA NEXT
+## WIZARD V4 PACKAGE SELECTION — LOCAL GREEN; ONE LOW PAGE RENDERED; CLAUDE RE-GATE NEXT
 
 Guy approved publication of exact Visual Package v4 revision
 `a9c253d989118262ed2b38a671fc7eccf6af44a084512af35285ad2f548a14fb`
@@ -68,6 +68,16 @@ fixture assertions in four unchanged tests plus three known Vitest worker
 `onTaskUpdate` RPC timeouts after all resource-intensive assertions passed.
 No changed or adjacent test failed. Durable implementation record:
 `docs/ai-workflow/R1D_WIZARD_V4_PACKAGE_SELECTION_IMPLEMENTATION_EVIDENCE.md`.
+
+Claude's first independent pass verified all ten handoff claims and returned
+PASS with one pre-existing MINOR now made load-bearing by Wizard sellability:
+the mutable current locator accepted unknown keys. The focused corrective
+milestone makes the five-key locator shape exact before revision loading and
+adds hostile proof that both direct loading and Wizard selection reject an
+extra key. It does not change the locator version, accepted locator bytes,
+package identity, Story Source, render policy or production boundary. The
+expanded adjacent validation now passes **9 files / 110 tests**, and TypeScript
+and `git diff --check` remain clean.
 
 This milestone proves the new-story Wizard chain in local/preview runtime and
 does not flip the existing Vercel Production generation/enforcement kill
