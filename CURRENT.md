@@ -37,8 +37,12 @@ partition passed 3,435 tests and failed 5 only because four historical
 assertions and exited nonzero only on three known Vitest worker
 `onTaskUpdate` RPC timeouts. No provider, image,
 audio, storage, database, deployment, Order or render action has occurred in this
-correction. Independent Claude Code review remains required before a fresh
-photo-backed Order for Bar. Decision record:
+correction. Claude Code independently re-gated full range
+`539dd1f1..95ebce20` and returned PASS with 0 BLOCKER / 0 MAJOR / 0 MINOR after
+the one fail-safe note-truncation finding was corrected and re-tested. The fresh
+photo-backed Bar operation is governed separately by:
+`docs/ai-workflow/R1D_BAR_PHOTO_WIZARD_FULL_BOOK_QA_OPERATION_DECISION_GATE.md`.
+Decision record:
 `docs/ai-workflow/R1D_ANCHOR_QA_DIAGNOSTICS_AND_ANTHROPIC_MODEL_AUTHORITY_DECISION_GATE.md`.
 Implementation evidence:
 `docs/ai-workflow/R1D_ANCHOR_QA_DIAGNOSTICS_AND_ANTHROPIC_MODEL_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
