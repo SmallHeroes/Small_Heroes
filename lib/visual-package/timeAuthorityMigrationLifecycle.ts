@@ -45,6 +45,12 @@ import {
   type VisualPackageV4Candidate,
   type VisualPackageV4PackageReview,
 } from './visualPackageV4';
+import type {
+  PreRenderBlueprintApprovalAttestation,
+} from './preRenderBlueprintLifecycle';
+import type {
+  PreRenderBookVisualBlueprint,
+} from './preRenderBlueprintTypes';
 import {
   buildVisualPackageV4PackageReview,
   qualifyVisualPackageV4Candidate,
@@ -1503,4 +1509,104 @@ export function advanceApprovedTimeAuthorityMigration(args: {
     write: args.write,
   });
   return { manifest, manifestArtifact, context };
+}
+
+/**
+ * Rebuild the approved production context from immutable migration evidence.
+ *
+ * The persisted manifest deliberately stores only the context identity. This
+ * loader replays the existing advance boundary from its content-addressed
+ * pending manifest and approval, then requires the reconstructed approved
+ * manifest to be byte-identical to the supplied artifact. Downstream
+ * lifecycles therefore never need an independently supplied context file.
+ */
+export function loadApprovedTimeAuthorityMigration(args: {
+  repoRoot: string;
+  approvedManifestPath: string;
+}): {
+  manifest: TimeAuthorityMigrationManifest;
+  context: ProductionAuthoringContext;
+  previousApproved: {
+    blueprint: PreRenderBookVisualBlueprint;
+    attestation: PreRenderBlueprintApprovalAttestation;
+  };
+} {
+  const approvedManifest = loadMigrationManifest({
+    repoRoot: args.repoRoot,
+    manifestPath: args.approvedManifestPath,
+  });
+  if (
+    approvedManifest.stage !== 'reconciliation_approved' ||
+    approvedManifest.productionContext === null ||
+    approvedManifest.reconciliation.status !== 'approved' ||
+    approvedManifest.reconciliation.approvalPath === null
+  ) {
+    throw new Error('time-authority migration reconciliation is not approved');
+  }
+
+  const approvedManifestAbsolute = resolveRepoPath(
+    args.repoRoot,
+    args.approvedManifestPath,
+  );
+  const outputRootAbsolute = path.dirname(path.dirname(approvedManifestAbsolute));
+  const outputDir = repoRelativePath(args.repoRoot, outputRootAbsolute);
+  const approval = readJsonObject<TimeAuthorityMigrationApproval>(
+    resolveRepoPath(
+      args.repoRoot,
+      approvedManifest.reconciliation.approvalPath,
+    ),
+    'time-authority migration approval',
+  );
+  if (
+    !timeAuthorityMigrationApprovalIsValid(approval) ||
+    approval.digest !== approvedManifest.reconciliation.approvalDigest
+  ) {
+    throw new Error('approved migration manifest approval binding is invalid');
+  }
+  const pendingManifestPath = repoRelativePath(
+    args.repoRoot,
+    path.join(
+      outputRootAbsolute,
+      'time-authority-migration-manifests',
+      `${approval.pendingManifestDigest}.json`,
+    ),
+  );
+  const replay = advanceApprovedTimeAuthorityMigration({
+    repoRoot: args.repoRoot,
+    outputDir,
+    pendingManifestPath,
+    approvalPath: approvedManifest.reconciliation.approvalPath,
+    styleId: approvedManifest.productionContext.styleId,
+    styleAuthorityPath:
+      approvedManifest.productionContext.styleAuthorityPath,
+    expectedStyleAuthorityDigest:
+      approvedManifest.productionContext.styleAuthorityDigest,
+    write: false,
+  });
+  if (
+    canonicalContentAddressedJsonBytes(replay.manifest) !==
+      canonicalContentAddressedJsonBytes(approvedManifest) ||
+    replay.context.version !== approvedManifest.productionContext.version ||
+    replay.context.digest !== approvedManifest.productionContext.digest
+  ) {
+    throw new Error('approved migration manifest does not match its reconstructed context');
+  }
+  const source = loadSourceAuthority({
+    repoRoot: args.repoRoot,
+    sourcePackageCandidatePath:
+      approvedManifest.source.sourcePackageCandidatePath,
+    sourcePackageReviewPath: approvedManifest.source.sourcePackageReviewPath,
+    sourcePackageApprovalPath:
+      approvedManifest.source.sourcePackageApprovalPath,
+  });
+  return {
+    manifest: approvedManifest,
+    context: replay.context,
+    previousApproved: {
+      blueprint: structuredClone(source.candidate.content.blueprint.content),
+      attestation: structuredClone(
+        source.candidate.content.planningApproval.content,
+      ),
+    },
+  };
 }

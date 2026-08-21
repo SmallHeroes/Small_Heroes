@@ -35,3 +35,4 @@ export * from './canonicalMaterializationInputWriter';
 export * from './canonicalPreLiveReadiness';
 export * from './qaWizardCandidateBridge';
 export * from './timeAuthorityMigrationLifecycle';
+export * from './timeAuthorityMigrationBlueprintLifecycle';

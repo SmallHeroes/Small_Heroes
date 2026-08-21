@@ -282,3 +282,95 @@ No approval, provider, credential, network, Vision, image, database/storage,
 publication, locator, Wizard, render, deployment or production action
 occurred. The next gate is Guy's explicit exact-content acceptance of the five
 rebinds and five non-depiction supersessions in the pending review.
+
+## Approved reconciliation and Blueprint continuation correction
+
+Guy subsequently approved exact reconciliation
+`cf0684dad5746395842298d97f7ba5de30b6aef62487e8e799f638a9dae8cc5b`
+and all ten decisions in review bundle
+`f816a7d7c9d27e80b319d2540c1e3d4795224d0ba12b92b5286b654f593fb6dc`.
+The lifecycle recorded approval
+`bdbf9098898f7f64be41678b98e1ea86e23ac04218fa141ff214fecda9442e06`
+at `2026-08-21T12:59:21.749Z` and advanced to approved manifest
+`a57c3cffd9cd7e2ee43c3a62380f890025c050830ecc8fde378fe21e7936184a`
+with production context
+`0a6dc6e8b533fd4b61fe5cbae40549c6adb9b687216c7bdfb8d4903fecfaf186`.
+The approval scope remains exact reconciliation content only and does not
+confer Blueprint, package, Wizard, render, publication or deployment authority.
+
+An offline audit replayed all four recorded whole-book Blueprint drafts under
+that exact context. Draft `1dec723c…` passed immediately with zero repairs. Its
+assembled content differs from approved historical Blueprint `fc1412a3…` at
+exactly these paths and nowhere else after excluding root identity/digest:
+
+- `/visualContract/coverContract/timeOfDay`: `evening` -> `dusk`;
+- `/visualContract/locations/0/timeOfDay`: `evening into night` -> `mixed`;
+- `/visualContract/setBoardAuthorities/0/locations/0/timeOfDay`:
+  `evening into night` -> `mixed`.
+
+The audit exposed one downstream lifecycle gap: advance returned the complete
+`ProductionAuthoringContext` only in memory and persisted only its identity;
+the generic Blueprint CLI trusted an independently supplied context file, while
+the public Candidate-backed context builder correctly rejected the migrated
+template against the historical Visual Contract Candidate digest. Manual JSON
+construction or mutation would have bypassed the intended authority chain.
+
+The local correction adds:
+
+1. `loadApprovedTimeAuthorityMigration`, which loads one canonical approved
+   manifest, derives its pending manifest from the exact approval, replays the
+   existing advance boundary with `write:false`, and requires the rebuilt
+   approved manifest and production-context identity to match exactly;
+2. `prepareTimeAuthorityMigratedBlueprint`, an offline-only composition that
+   injects a caller-supplied recorded draft into the existing Blueprint
+   compiler and persists the existing lifecycle artifacts; and
+3. `approveTimeAuthorityMigratedBlueprint`, which reloads the same approved
+   migration, reconstructs its production context, re-proves the exact time-
+   only Blueprint content, and invokes the existing exact Candidate/Review
+   approval writer without accepting an external context; and
+4. `prepare-migration` plus `approve-migration` on the existing offline
+   Blueprint CLI, with contained repository-relative manifest, draft,
+   Candidate, review and output paths. Prior Blueprint and approval evidence
+   are derived only from the exact approved source package; the caller cannot
+   substitute another package's comparison evidence.
+
+The historical Blueprint and approval are read-only comparison evidence. The
+new review records no changed frames, connections or affordances and records
+only `authorityChanged: true`. Before persistence and again before approval,
+the bridge requires the new Blueprint content to equal the source Blueprint
+after replacing only its Visual Contract with the exact approved migrated
+template; a valid but unrelated draft is rejected as non-time drift. The code
+neither copies nor auto-creates a new approval. Any real new Blueprint requires
+Guy's exact digest approval through `approve-migration`; the test suite issues
+only a temporary test-root attestation and proves its replay is idempotent.
+
+Local real-artifact proof:
+
+- Blueprint: `c6f753eabdb278842c3d8e686bd844752c849a930d15970f06ddf3f918e91208`;
+- authoring authority:
+  `dd2cdeb52124402f18c62ed0a216e0d7b35903ca446d3701245b173428baa62b`;
+- review packet:
+  `137be727f154a03ee97f43afb2c2a46ed41b59f81bb18c196c7c11c30605da57`;
+- repair attempts: zero;
+- provider, credential, network, image, database and production calls: zero;
+- redigested manifest with a substituted context digest: rejected;
+- source package, historical Blueprint, historical approval and recorded draft:
+  byte-identical before and after.
+
+Validation:
+
+- direct migration suite: **6/6 PASS**, including temporary
+  prepare/approve/replay coverage;
+- adjacent Blueprint/package/Wizard set: **5 files / 58 tests PASS**;
+- TypeScript and Story autonomous typecheck: PASS;
+- `npm run lint`: PASS under the repository's honest lint gate;
+- `git diff --check`: PASS;
+- literal `npm run check`: **3,404 ordinary tests PASS**, with only the same
+  five missing ignored-output fixture assertions in four unchanged specs;
+- resource assertions: **20 files / 610 tests PASS**, exit zero in the literal
+  run.
+
+No real migrated Blueprint was persisted into the approved lifecycle root, no
+Blueprint approval was issued, and no Visual Package, Wizard, image or render
+action occurred in this implementation milestone. Independent Claude Code QA
+is required before materializing the fresh Blueprint Candidate/Review.

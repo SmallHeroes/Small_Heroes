@@ -15,6 +15,18 @@
  *     --context <validation-context.json> --candidate <blueprint.json> \
  *     --review <review.json> --out <artifact-root> --approved-by Guy \
  *     --approved-at <ISO-timestamp> [--note <text>]
+ *
+ *   npm run pre-render-blueprint -- prepare-migration \
+ *     --repo-root <absolute-repo-root> --migration-manifest <repo-relative-json> \
+ *     --draft <repo-relative-json> --out <repo-relative-artifact-root> \
+ *     --model <model-id> --reasoning-effort <effort> \
+ *     --max-output-tokens <positive-integer>
+ *
+ *   npm run pre-render-blueprint -- approve-migration \
+ *     --repo-root <absolute-repo-root> --migration-manifest <repo-relative-json> \
+ *     --candidate <repo-relative-json> --review <repo-relative-json> \
+ *     --out <repo-relative-artifact-root> --approved-by Guy \
+ *     --approved-at <ISO-timestamp> [--note <text>]
  */
 import { readFileSync } from 'fs';
 
@@ -30,6 +42,11 @@ import type {
   PreRenderBlueprintValidationContext,
   PreRenderBookVisualBlueprint,
 } from '@/lib/visual-package/preRenderBlueprintTypes';
+import { resolveRepoPath } from '@/lib/visual-package/integrity';
+import {
+  approveTimeAuthorityMigratedBlueprint,
+  prepareTimeAuthorityMigratedBlueprint,
+} from '@/lib/visual-package/timeAuthorityMigrationBlueprintLifecycle';
 
 const PREPARE_FLAGS = new Set([
   '--context',
@@ -48,15 +65,124 @@ const APPROVE_FLAGS = new Set([
   '--approved-at',
   '--note',
 ]);
+const PREPARE_MIGRATION_FLAGS = new Set([
+  '--repo-root',
+  '--migration-manifest',
+  '--draft',
+  '--out',
+  '--model',
+  '--reasoning-effort',
+  '--max-output-tokens',
+]);
+const APPROVE_MIGRATION_FLAGS = new Set([
+  '--repo-root',
+  '--migration-manifest',
+  '--candidate',
+  '--review',
+  '--out',
+  '--approved-by',
+  '--approved-at',
+  '--note',
+]);
 
 function usage(): string {
   return [
     'Offline Blueprint lifecycle:',
     '  prepare --context <json> --draft <json> --out <dir> --model <id> --reasoning-effort <value> --max-output-tokens <integer>',
+    '  prepare-migration --repo-root <absolute-dir> --migration-manifest <repo-relative-json> --draft <repo-relative-json> --out <repo-relative-dir> --model <id> --reasoning-effort <value> --max-output-tokens <integer>',
+    '  approve-migration --repo-root <absolute-dir> --migration-manifest <repo-relative-json> --candidate <repo-relative-json> --review <repo-relative-json> --out <repo-relative-dir> --approved-by Guy --approved-at <ISO> [--note <text>]',
     '  approve --context <json> --candidate <json> --review <json> --out <dir> --approved-by Guy --approved-at <ISO> [--note <text>]',
     '',
     'No --live mode exists. This entrypoint imports no provider, network, storage, or database boundary.',
   ].join('\n');
+}
+
+function approveMigration(tokens: string[]): void {
+  const flags = parseFlags(tokens, APPROVE_MIGRATION_FLAGS);
+  const repoRoot = requireFlag(flags, '--repo-root');
+  const approved = approveTimeAuthorityMigratedBlueprint({
+    repoRoot,
+    approvedManifestPath: requireFlag(flags, '--migration-manifest'),
+    outputRoot: requireFlag(flags, '--out'),
+    candidatePath: requireFlag(flags, '--candidate'),
+    reviewPath: requireFlag(flags, '--review'),
+    approvedBy: requireFlag(flags, '--approved-by'),
+    approvedAt: requireFlag(flags, '--approved-at'),
+    ...(flags.has('--note') ? { note: flags.get('--note') } : {}),
+  });
+  process.stdout.write(
+    `${JSON.stringify({
+      mode: 'approved_time_authority_migration_blueprint_approval',
+      migrationManifestDigest: approved.manifest.digest,
+      productionContextDigest: approved.context.digest,
+      approvalDigest: approved.attestation.digest,
+      blueprintDigest: approved.attestation.blueprintDigest,
+      authoringAuthorityDigest:
+        approved.attestation.authoringAuthorityDigest,
+      reviewPacketDigest: approved.attestation.reviewPacketDigest,
+      artifact: approved.artifact.path,
+      boundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        productionWrites: 0,
+      },
+    }, null, 2)}\n`,
+  );
+}
+
+async function prepareMigration(tokens: string[]): Promise<void> {
+  const flags = parseFlags(tokens, PREPARE_MIGRATION_FLAGS);
+  const repoRoot = requireFlag(flags, '--repo-root');
+  const maxOutputTokens = Number(requireFlag(flags, '--max-output-tokens'));
+  if (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens <= 0) {
+    throw new Error('--max-output-tokens must be a positive safe integer');
+  }
+  const draft = readJson<unknown>(
+    resolveRepoPath(repoRoot, requireFlag(flags, '--draft')),
+  );
+  const prepared = await prepareTimeAuthorityMigratedBlueprint({
+    repoRoot,
+    approvedManifestPath: requireFlag(flags, '--migration-manifest'),
+    draft,
+    outputRoot: requireFlag(flags, '--out'),
+    authoringConfig: {
+      model: requireFlag(flags, '--model'),
+      reasoningEffort: requireFlag(flags, '--reasoning-effort'),
+      maxOutputTokens,
+    },
+  });
+  process.stdout.write(
+    `${JSON.stringify({
+      mode: 'approved_time_authority_migration_offline_prepare',
+      migrationManifestDigest: prepared.manifest.digest,
+      productionContextDigest: prepared.context.digest,
+      blueprintDigest: prepared.authored.blueprint.digest,
+      authoringAuthorityDigest:
+        prepared.authored.blueprint.identity.authoringAuthority.digest,
+      reviewPacketDigest: prepared.persisted.review.packet.digest,
+      priorApprovedDiff: prepared.persisted.review.packet.priorApprovedDiff,
+      repairAttemptCount: prepared.authored.repairAttempts.length,
+      artifacts: {
+        candidate: prepared.persisted.candidate.path,
+        provenance: prepared.persisted.provenance.path,
+        validationEvidence: prepared.persisted.validationEvidence.path,
+        reviewPacket: prepared.persisted.reviewPacket.path,
+        reviewMarkdown: prepared.persisted.reviewMarkdown.path,
+        contactSheet: prepared.persisted.contactSheet.path,
+      },
+      boundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        productionWrites: 0,
+      },
+    }, null, 2)}\n`,
+  );
 }
 
 function parseFlags(
@@ -185,6 +311,14 @@ async function main(): Promise<void> {
   }
   if (command === 'prepare') {
     await prepare(tokens);
+    return;
+  }
+  if (command === 'prepare-migration') {
+    await prepareMigration(tokens);
+    return;
+  }
+  if (command === 'approve-migration') {
+    approveMigration(tokens);
     return;
   }
   if (command === 'approve') {

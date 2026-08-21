@@ -2,9 +2,9 @@
 
 **Updated:** 2026-08-21
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active provider-free rebuild milestone is based on pushed commit `f810fa5a6f2e2d9d68d46c92491b690ee42c2db6`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active provider-free Blueprint continuation correction starts from local documentation head `5b33b1fe3862ce05280ad30a1108472611d36e56`, which follows pushed lifecycle correction `02225d0bfc7e87d2d3682c2444ecbc542d9811ac`.
 
-## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — OFFLINE REBUILD LIFECYCLE GREEN; CLAUDE QA NEXT
+## VISUAL TIME-OF-DAY AUTHORITY CLOSURE — RECONCILIATION APPROVED; BLUEPRINT BRIDGE LOCALLY GREEN; CLAUDE QA NEXT
 
 The exact approved Chameleon Visual Package candidate
 `c3e28ae1c22ab2bfcea53dddd0e802b71d97b4adbaf6a395313a1a6445df4e82`
@@ -142,14 +142,61 @@ approval and production context. An identical write replay returned
 All three approved source-package artifacts retained their exact pre-write
 lengths and SHA-256 identities.
 
-No approval was recorded and no provider, credential, network, Vision, image,
-storage/database, publication, locator, Wizard, render, deployment or
-production action occurred. The pre-existing untracked Chameleon Board
-directory remains untouched. The next required authority is Guy's explicit
-exact-content acceptance of the ten pending presentation decisions: five exact
-evidence rebinds and five explicit non-depiction supersessions. Only after that
-approval may the lifecycle record approval and advance the migrated production
-context. One LOW page remains a later gated proof before any full-book render.
+Guy explicitly approved reconciliation
+`cf0684dad5746395842298d97f7ba5de30b6aef62487e8e799f638a9dae8cc5b`,
+including the five rebinds and five supersessions in review bundle
+`f816a7d7c9d27e80b319d2540c1e3d4795224d0ba12b92b5286b654f593fb6dc`.
+The exact approval was recorded at `2026-08-21T12:59:21.749Z` as
+`bdbf9098898f7f64be41678b98e1ea86e23ac04218fa141ff214fecda9442e06`.
+Advance then produced approved migration manifest
+`a57c3cffd9cd7e2ee43c3a62380f890025c050830ecc8fde378fe21e7936184a`
+and production-context digest
+`0a6dc6e8b533fd4b61fe5cbae40549c6adb9b687216c7bdfb8d4903fecfaf186`.
+All source-package, review, approval and Board bytes remained unchanged; no
+provider, credential, network, image, database, locator, Wizard, publication,
+deployment or production boundary was reached.
+
+The approved manifest originally persisted only the production-context
+identity, while the generic Blueprint CLI accepted an independently supplied
+context JSON and the public context builder required a Visual Contract
+Candidate matching the new template digest. This left no canonical consumer
+for the newly approved migration. A local focused correction now adds an
+approved-manifest loader that reconstructs the context by replaying the exact
+pending manifest and approval and requires the rebuilt approved manifest to be
+byte-identical. The Blueprint lifecycle gains offline-only
+`prepare-migration` and `approve-migration` lanes. Prepare accepts the approved
+manifest plus a recorded whole-book draft, persists a fresh Candidate/Review,
+and uses the historical Blueprint/approval embedded in that exact source
+package only for a non-authorizing prior diff. Approval reloads the same
+approved migration and reconstructs its context instead of accepting a caller-
+supplied context. Both lanes reject any otherwise-valid Blueprint whose
+content differs beyond replacement by the approved migrated Visual Contract.
+
+The recorded draft `1dec723c…` compiles under the migrated context with zero
+repair attempts. New Blueprint `c6f753eabdb278842c3d8e686bd844752c849a930d15970f06ddf3f918e91208`
+and authority `dd2cdeb52124402f18c62ed0a216e0d7b35903ca446d3701245b173428baa62b`
+differ from historical Blueprint `fc1412a3…` only at the three approved
+time-of-day paths. The new review reports no changed frame, connection or
+affordance and `authorityChanged: true`; no real approval is created. A hostile
+redigested context identity is rejected. A temporary test-only approval proves
+exact Candidate/Review binding and idempotent replay. The final-syntax real CLI
+prepare smoke reports zero provider/image/network/database/production calls.
+
+Focused validation passes **5 files / 58 tests**, the direct migration suite
+passes **6/6**, TypeScript, Story typecheck, `npm run lint`, and
+`git diff --check`. Literal `npm run check` passes all **3,404** ordinary
+assertions except the same five missing ignored-`outputs/` fixture assertions
+in four unchanged specs. Its resource phase passes all **20 files / 610
+tests** with exit zero. The implementation remains local pending independent
+Claude Code QA.
+
+No real migrated Blueprint Candidate/Review has been materialized in the
+approved output root, no new Blueprint approval exists, and no Visual Package,
+Wizard or render action occurred. After Claude PASS, materialize the exact
+Blueprint Candidate/Review, obtain a fresh exact Guy approval, rebuild and
+approve the Visual Package, qualify the Wizard path, and only then run the one
+already-authorized LOW page. Full-book render still waits for Guy's inspection
+of that page.
 
 ## BLUEPRINT TEXT-SAFE CONTRACT — IMPLEMENTED LOCALLY; CLAUDE QA NEXT
 

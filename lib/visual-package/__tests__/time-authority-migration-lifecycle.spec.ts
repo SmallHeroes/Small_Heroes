@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   approveTimeAuthorityMigrationReconciliation,
+  approveTimeAuthorityMigratedBlueprint,
   advanceApprovedTimeAuthorityMigration,
   buildPendingTimeAuthorityMigrationReconciliation,
   buildProductionReconciliationDraftFromSourceSnapshot,
@@ -12,7 +13,9 @@ import {
   buildStorySourceAuthoritySnapshot,
   buildTimeAuthorityMigrationProjection,
   canonicalJsonDigest,
+  loadApprovedTimeAuthorityMigration,
   prepareTimeAuthorityMigrationReconciliation,
+  prepareTimeAuthorityMigratedBlueprint,
   reconciliationDraftBundleJsonBytes,
   recordTimeAuthorityMigrationReconciliationApproval,
   sourcePromptReconciliationIssues,
@@ -50,11 +53,57 @@ const STYLE_AUTHORITY_PATH =
   'style-authorities/style01/soft_hand_drawn_storybook.style-authority.json';
 const STYLE_AUTHORITY_DIGEST =
   '3517e8620d7b6a16abd5c4edc5284a7bc30e0f09bbfea748b07e9ef2f3ebde20';
+const SOURCE_BLUEPRINT_ROOT =
+  'outputs/r1d-chameleon-qa-wizard-dispositions-418fbfe4-20260820T090012541Z/blueprint-lifecycle/authorities/41f4bfe787100812f1706169ad1a71e8a61aa4233d251309582b114f3161598d';
+const SOURCE_BLUEPRINT_PATH =
+  `${SOURCE_BLUEPRINT_ROOT}/candidates/fc1412a3c19d627518860c053d46fae3e79d7fd60eb16bfdfb1521248e899e5f/blueprint.json`;
+const SOURCE_BLUEPRINT_APPROVAL_PATH =
+  `${SOURCE_BLUEPRINT_ROOT}/approvals/fc1412a3c19d627518860c053d46fae3e79d7fd60eb16bfdfb1521248e899e5f/9993a7f7771065d0b4aa2b251ce821b1bc3dcde2c59306a3b124606e5ec8b67e.json`;
+const SOURCE_BLUEPRINT_DRAFT_PATH =
+  'outputs/r1d-chameleon-qa-wizard-dispositions-418fbfe4-20260820T090012541Z/blueprint-inputs/1dec723cea4e2bd38cbff15641a726aaee4692f0a1d98b09f15812f018ff104c.whole-book-draft.json';
 const REAL_PACKAGE_AVAILABLE = [
   SOURCE_PACKAGE_CANDIDATE_PATH,
   SOURCE_PACKAGE_REVIEW_PATH,
   SOURCE_PACKAGE_APPROVAL_PATH,
+  SOURCE_BLUEPRINT_PATH,
+  SOURCE_BLUEPRINT_APPROVAL_PATH,
+  SOURCE_BLUEPRINT_DRAFT_PATH,
 ].every((artifactPath) => fs.existsSync(path.join(process.cwd(), artifactPath)));
+
+function blueprintContentProjection(value: Record<string, unknown>): unknown {
+  const {
+    identity: _identity,
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...content
+  } = value;
+  return content;
+}
+
+function changedJsonPaths(before: unknown, after: unknown, pointer = ''): string[] {
+  if (Object.is(before, after)) return [];
+  if (
+    before === null ||
+    after === null ||
+    typeof before !== 'object' ||
+    typeof after !== 'object' ||
+    Array.isArray(before) !== Array.isArray(after)
+  ) {
+    return [pointer || '/'];
+  }
+  const beforeRecord = before as Record<string, unknown>;
+  const afterRecord = after as Record<string, unknown>;
+  return [...new Set([
+    ...Object.keys(beforeRecord),
+    ...Object.keys(afterRecord),
+  ])]
+    .sort()
+    .flatMap((key) => changedJsonPaths(
+      beforeRecord[key],
+      afterRecord[key],
+      `${pointer}/${key}`,
+    ));
+}
 
 function redigest<T extends { digestAlgorithm: string; digest: string }>(
   value: T,
@@ -432,7 +481,7 @@ describe('offline time-authority migration lifecycle', () => {
 
   it.skipIf(!REAL_PACKAGE_AVAILABLE)(
     'persists, reloads, approves, and advances the real package with exact writer bytes and no source mutation',
-    () => {
+    async () => {
       const repoRoot = process.cwd();
       const outputsRoot = path.join(repoRoot, 'outputs');
       fs.mkdirSync(outputsRoot, { recursive: true });
@@ -444,6 +493,9 @@ describe('offline time-authority migration lifecycle', () => {
         SOURCE_PACKAGE_CANDIDATE_PATH,
         SOURCE_PACKAGE_REVIEW_PATH,
         SOURCE_PACKAGE_APPROVAL_PATH,
+        SOURCE_BLUEPRINT_PATH,
+        SOURCE_BLUEPRINT_APPROVAL_PATH,
+        SOURCE_BLUEPRINT_DRAFT_PATH,
       ];
       const sourceBytesBefore = sourcePaths.map((artifactPath) =>
         fs.readFileSync(path.join(repoRoot, artifactPath)),
@@ -462,6 +514,10 @@ describe('offline time-authority migration lifecycle', () => {
         expect(prepared.manifestArtifact.created).toBe(true);
         expect(prepared.migratedTemplateArtifact.created).toBe(true);
         expect(prepared.reconciliationArtifacts.wrote).toBe(true);
+        expect(() => loadApprovedTimeAuthorityMigration({
+          repoRoot,
+          approvedManifestPath: prepared.manifestArtifact.path,
+        })).toThrow(/reconciliation is not approved/);
 
         const pendingReconciliationAbsolute = path.join(
           repoRoot,
@@ -523,6 +579,163 @@ describe('offline time-authority migration lifecycle', () => {
         expect(advanced.context.template.identity.digest).toBe(
           prepared.manifest.migration.migratedTemplateDigest,
         );
+
+        const reloaded = loadApprovedTimeAuthorityMigration({
+          repoRoot,
+          approvedManifestPath: advanced.manifestArtifact.path,
+        });
+        expect(reloaded.manifest).toEqual(advanced.manifest);
+        expect(reloaded.context).toEqual(advanced.context);
+
+        const sourceBlueprint = JSON.parse(fs.readFileSync(
+          path.join(repoRoot, SOURCE_BLUEPRINT_PATH),
+          'utf8',
+        )) as Record<string, unknown>;
+        const sourceBlueprintDraft = JSON.parse(fs.readFileSync(
+          path.join(repoRoot, SOURCE_BLUEPRINT_DRAFT_PATH),
+          'utf8',
+        ));
+        const migratedBlueprint = await prepareTimeAuthorityMigratedBlueprint({
+          repoRoot,
+          approvedManifestPath: advanced.manifestArtifact.path,
+          draft: sourceBlueprintDraft,
+          outputRoot: `${outputDir}/blueprint-lifecycle`,
+          authoringConfig: {
+            model: 'offline-deterministic-blueprint-author/v2',
+            reasoningEffort: 'none',
+            maxOutputTokens: 48_000,
+          },
+        });
+        expect(migratedBlueprint.manifest.digest).toBe(
+          advanced.manifest.digest,
+        );
+        expect(migratedBlueprint.context.digest).toBe(advanced.context.digest);
+        expect(migratedBlueprint.authored.repairAttempts).toEqual([]);
+        expect(migratedBlueprint.persisted.evidence.valid).toBe(true);
+        expect(migratedBlueprint.persisted.review.packet.readyForApproval)
+          .toBe(true);
+        expect(migratedBlueprint.persisted.review.packet.priorApprovedDiff)
+          .toEqual({
+            status: 'compared',
+            previousBlueprintDigest: sourceBlueprint.digest,
+            previousApprovalDigest:
+              '9993a7f7771065d0b4aa2b251ce821b1bc3dcde2c59306a3b124606e5ec8b67e',
+            changedFrameIds: [],
+            addedConnectionIds: [],
+            removedConnectionIds: [],
+            addedAffordanceIds: [],
+            removedAffordanceIds: [],
+            authorityChanged: true,
+          });
+        expect(changedJsonPaths(
+          blueprintContentProjection(sourceBlueprint),
+          blueprintContentProjection(
+            migratedBlueprint.authored.blueprint as unknown as Record<string, unknown>,
+          ),
+        )).toEqual([
+          '/visualContract/coverContract/timeOfDay',
+          '/visualContract/locations/0/timeOfDay',
+          '/visualContract/setBoardAuthorities/0/locations/0/timeOfDay',
+        ]);
+        expect(fs.existsSync(migratedBlueprint.persisted.candidate.path))
+          .toBe(true);
+        expect(fs.existsSync(migratedBlueprint.persisted.reviewPacket.path))
+          .toBe(true);
+        const migratedAuthorityRoot = path.dirname(path.dirname(path.dirname(
+          migratedBlueprint.persisted.candidate.path,
+        )));
+        expect(fs.existsSync(path.join(migratedAuthorityRoot, 'approvals')))
+          .toBe(false);
+
+        const migratedApproval = approveTimeAuthorityMigratedBlueprint({
+          repoRoot,
+          approvedManifestPath: advanced.manifestArtifact.path,
+          outputRoot: `${outputDir}/blueprint-lifecycle`,
+          candidatePath: path.relative(
+            repoRoot,
+            migratedBlueprint.persisted.candidate.path,
+          ),
+          reviewPath: path.relative(
+            repoRoot,
+            migratedBlueprint.persisted.reviewPacket.path,
+          ),
+          approvedBy: 'Guy',
+          approvedAt: APPROVED_AT,
+          note: 'test-only time-authority Blueprint planning approval',
+        });
+        expect(migratedApproval.manifest.digest).toBe(
+          advanced.manifest.digest,
+        );
+        expect(migratedApproval.context.digest).toBe(advanced.context.digest);
+        expect(migratedApproval.attestation).toMatchObject({
+          blueprintDigest: migratedBlueprint.authored.blueprint.digest,
+          authoringAuthorityDigest:
+            migratedBlueprint.authored.blueprint.identity.authoringAuthority.digest,
+          reviewPacketDigest:
+            migratedBlueprint.persisted.review.packet.digest,
+          approvedBy: 'Guy',
+          approvedAt: APPROVED_AT,
+          scope: 'blueprint_planning_approval_only',
+        });
+        expect(migratedApproval.artifact.created).toBe(true);
+        expect(fs.existsSync(migratedApproval.artifact.path)).toBe(true);
+        const migratedApprovalReplay = approveTimeAuthorityMigratedBlueprint({
+          repoRoot,
+          approvedManifestPath: advanced.manifestArtifact.path,
+          outputRoot: `${outputDir}/blueprint-lifecycle`,
+          candidatePath: path.relative(
+            repoRoot,
+            migratedBlueprint.persisted.candidate.path,
+          ),
+          reviewPath: path.relative(
+            repoRoot,
+            migratedBlueprint.persisted.reviewPacket.path,
+          ),
+          approvedBy: 'Guy',
+          approvedAt: APPROVED_AT,
+          note: 'test-only time-authority Blueprint planning approval',
+        });
+        expect(migratedApprovalReplay.attestation).toEqual(
+          migratedApproval.attestation,
+        );
+        expect(migratedApprovalReplay.artifact.created).toBe(false);
+
+        const nonTimeDriftDraft = structuredClone(sourceBlueprintDraft);
+        nonTimeDriftDraft.frames[0].narrative.summary =
+          'HOSTILE NON-TIME BLUEPRINT DRIFT';
+        await expect(prepareTimeAuthorityMigratedBlueprint({
+          repoRoot,
+          approvedManifestPath: advanced.manifestArtifact.path,
+          draft: nonTimeDriftDraft,
+          outputRoot: `${outputDir}/hostile-blueprint-lifecycle`,
+          authoringConfig: {
+            model: 'offline-deterministic-blueprint-author/v2',
+            reasoningEffort: 'none',
+            maxOutputTokens: 48_000,
+          },
+        })).rejects.toThrow(/non-time content drift/);
+        expect(fs.existsSync(path.join(
+          outputRoot,
+          'hostile-blueprint-lifecycle',
+        ))).toBe(false);
+
+        const hostileApproved = structuredClone(advanced.manifest);
+        hostileApproved.productionContext!.digest = 'e'.repeat(64);
+        const hostileRedigested = redigest(hostileApproved);
+        const hostileManifestPath = path.join(
+          outputRoot,
+          'time-authority-migration-manifests',
+          `${hostileRedigested.digest}.json`,
+        );
+        fs.writeFileSync(
+          hostileManifestPath,
+          canonicalContentAddressedJsonBytes(hostileRedigested),
+          'utf8',
+        );
+        expect(() => loadApprovedTimeAuthorityMigration({
+          repoRoot,
+          approvedManifestPath: path.relative(repoRoot, hostileManifestPath),
+        })).toThrow(/reconstructed context/);
 
         sourcePaths.forEach((artifactPath, index) => {
           expect(fs.readFileSync(path.join(repoRoot, artifactPath))).toEqual(
