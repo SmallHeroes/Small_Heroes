@@ -188,3 +188,15 @@ The next separately gated operation is documented in
 synthetic fake-paid LOW book on branch-scoped Preview authority, followed by
 readiness and Reader verification. That gate is not Production launch
 authority.
+
+Claude Code's first read-only pre-action review of that Gate returned HOLD on
+two documentation gaps only. It found no unsafe code path: fake payment is
+fenced independently by runtime environment validation, middleware and the
+fake route; the visual-QA replacement cap does not disable readiness; and the
+10-image nominal accounting is supported by the real pipeline. The corrected
+Gate now names all four inherited fake-payment dependencies and forbids
+mutating or exposing them. It also pins the runtime source to READY deployment
+`dpl_BFNmgEQrMPjrAhrJyNtHFFvuA9Sc` at exact reviewed SHA `14b9ea2a…` and
+requires the post-environment redeployment to preserve that SHA before the QA
+alias may move. No Vercel environment, alias, Order, database, storage,
+provider, payment or Production action occurred during this correction.

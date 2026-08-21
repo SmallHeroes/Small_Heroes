@@ -103,6 +103,27 @@ Preview settings at LOW quality, then full Order -> chunked generation ->
 readiness -> Reader inspection. It explicitly excludes Production, real
 payment, customer data, a second paid attempt and any safety/readiness bypass.
 
+Claude Code's first read-only pre-action review of that Gate returned **HOLD**
+with one documentation MAJOR and one documentation MINOR, and found no unsafe
+runtime path. The Gate had not named the inherited fake-payment prerequisites
+(`PAYMENT_PROVIDER=fake`, `ALLOW_FAKE_PAYMENTS=true`,
+`ENABLE_FAKE_PAYMENT=true`, and non-empty `SITE_PASSWORD` plus matching
+`sh_access` cookie), and it referred to the older `9329d485…` Preview rather
+than choosing the post-Gate deployment. Read-only Vercel inventory confirms
+all four dependency names already exist at Preview scope; their encrypted
+values were not accessed. They are now explicitly preserved, not mutated, and
+failure of the authenticated runtime probe is a pre-Order stop.
+
+The runtime source is now pinned unambiguously: redeploy READY source
+deployment `dpl_BFNmgEQrMPjrAhrJyNtHFFvuA9Sc` at reviewed SHA
+`14b9ea2a9d12796f10859a221d3cec8fd4c0438b` after adding exactly four
+non-secret branch overrides. The resulting READY deployment must retain that
+Git SHA and is the only allowed QA-alias target. The older `9329d485…`
+deployment and the later documentation-only correction are not alias targets.
+The Gate also records that the one-attempt Stage-0 cap can create a
+configuration-induced hold; it bounds spend but is not a product-quality
+conclusion.
+
 This milestone proves the new-story Wizard chain in local/preview runtime and
 does not flip the existing Vercel Production generation/enforcement kill
 switches, deploy, charge a customer or render a full book. Production cutover

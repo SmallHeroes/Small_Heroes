@@ -14,7 +14,10 @@ Prove the first complete new-story path through the deployed Wizard:
 
 1. bind only the branch
    `codex/qa-wizard-presentation-dispositions` to the staging-QA carve-out;
-2. redeploy the exact reviewed branch head and verify its immutable Git SHA;
+2. redeploy reviewed source deployment
+   `dpl_BFNmgEQrMPjrAhrJyNtHFFvuA9Sc`, whose immutable Git SHA is
+   `14b9ea2a9d12796f10859a221d3cec8fd4c0438b`, after the branch-only
+   environment settings are present;
 3. point only `qa.smallheroes.co.il` at that Preview deployment;
 4. create one synthetic Chameleon bedtime order through the real Wizard and
    fake-payment path;
@@ -76,9 +79,15 @@ Authorized external surfaces after independent pre-action review:
 
 - Vercel Preview environment scoped only to
   `codex/qa-wizard-presentation-dispositions`;
-- the exact Preview deployment for the reviewed Git SHA;
+- a new READY redeployment of reviewed source deployment
+  `dpl_BFNmgEQrMPjrAhrJyNtHFFvuA9Sc`, still bound to exact reviewed Git SHA
+  `14b9ea2a9d12796f10859a221d3cec8fd4c0438b`;
 - only the `qa.smallheroes.co.il` alias;
 - synthetic QA rows/assets belonging to the one test order.
+
+The older READY deployment `dpl_8yZHTPb6oeEa7B5peK7dtEVGkgod` is an earlier
+runtime proof at `9329d485…`; it is not the alias target for this operation.
+The later documentation-only corrective commit also is not a runtime target.
 
 ## 6. Expected behavior after the operation
 
@@ -109,16 +118,37 @@ book remains evidence of a real gate result; it is not silently released.
 
 ### Preview setup
 
-1. Add only the branch-scoped QA settings required by existing middleware and
-   fake-payment logic. Existing secret values are reused without printing,
-   downloading or copying them.
-2. Set LOW image quality and cost-bounded QA controls for this branch only:
-   one Stage-0 anchor attempt and at most one visual-QA replacement per
-   artifact. Do not change provider, model, transport retry or fallback code.
-3. Redeploy and prove READY status, exact Git SHA and branch-only environment.
-4. Assign only `qa.smallheroes.co.il`; prove apex and Production aliases did
+1. Add exactly these four non-secret branch-scoped Preview overrides, and no
+   others:
+   - `ALLOW_STAGING_QA=true`;
+   - `GPT_IMAGE_QUALITY=low`;
+   - `CHILD_ANCHOR_MAX_ATTEMPTS=1`;
+   - `PAGE_VISUAL_QA_MAX_REGENS=1`.
+2. Preserve the four existing encrypted Preview dependencies required by the
+   fake-payment trigger:
+   - `PAYMENT_PROVIDER` must resolve to `fake`;
+   - `ALLOW_FAKE_PAYMENTS` must resolve to `true`;
+   - `ENABLE_FAKE_PAYMENT` must resolve to `true`;
+   - `SITE_PASSWORD` must be non-empty, and the caller must hold the matching
+     `sh_access` cookie.
+
+   Their names and Preview scopes were verified through the Vercel environment
+   inventory; their values were not read or printed. They are inherited
+   dependencies, not authorized mutations. Do not add, remove, override,
+   download or copy them. If the authenticated runtime probe does not satisfy
+   all four, stop before Order creation and return to a separate gate.
+3. Keep `PAGE_VISUAL_QA_ENABLED` unchanged. The regeneration cap lowers only
+   the replacement budget; it must not disable visual QA or readiness. The
+   Stage-0 cap intentionally trades retry robustness for bounded QA spend: an
+   anchor hold under this configuration is a bounded-proof configuration
+   outcome, not evidence that the uncapped product path is defective.
+4. Redeploy exact source deployment `dpl_BFNmgEQrMPjrAhrJyNtHFFvuA9Sc`
+   after the four branch overrides are present. Require the new deployment to
+   be READY and its Git SHA to remain exact `14b9ea2a…`; do not deploy the
+   later documentation-only correction head as runtime authority.
+5. Assign only `qa.smallheroes.co.il`; prove apex and Production aliases did
    not move.
-5. Re-run the remote Matrix and fake-payment gate probes before creating data.
+6. Re-run the remote Matrix and fake-payment gate probes before creating data.
 
 ### One operational book
 
