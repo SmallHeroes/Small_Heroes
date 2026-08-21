@@ -1,10 +1,54 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-21
+**Updated:** 2026-08-22
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
-## WIZARD NO-PHOTO ANCHOR + ACCEPTED UI RESTORATION — LOCAL GREEN; CLAUDE QA NEXT
+## FIRST NEW-STORY WIZARD QA ORDER — STOPPED SAFELY AT CHILD-ANCHOR QA
+
+Claude Code independently passed the immutable two-commit implementation
+range ending at `0b711aedd25d39b3813077470f2da1478b14d6b8`. The exact READY Preview
+deployment `dpl_137gpenMQtXyw8wD4E8rediXwkx1` was bound only to
+`qa.smallheroes.co.il`; the Production deployment and aliases remained on
+`dpl_2X7E6d1acZ5vKJVhLSuKFGP5Q4HN` / `ed1da86c…`.
+
+The deployed browser proof traversed the restored Landing and real Wizard with
+one synthetic no-photo profile through `TRANSITION` / Chameleon, Style 01,
+bedtime, 16 physical pages and fake checkout. The single authorized fake-paid
+Order is `cmt3hfqkf0002ky04rqrcc05v`. Checkout and text/DNA completed; the new
+description-template lane generated and uploaded exactly one LOW child-anchor
+candidate. This proves that the original missing-anchor wiring defect is
+closed.
+
+The candidate then failed both semantic and Style 01 QA. Persisted evidence is
+one `description_template` candidate, `gpt-image-2`, face-detect confidence
+`1`, face-area ratio `0.98296875`, `semanticPass:false`, `stylePass:false`,
+`passed:false`. The Order stopped at `failed`; text is `done`, while image,
+audio and package remain `pending`. No cover, page image, narration or package
+was generated. The worker made no manual retry and no second Order was
+created.
+
+The bounded Preview override `CHILD_ANCHOR_MAX_ATTEMPTS=1` intentionally traded
+retry robustness for one-image proof cost. The operational gate explicitly
+classified an anchor hold under that override as a bounded-proof outcome, not
+proof that the ordinary default multi-attempt product path is defective. One
+additional operational defect was observed: the configured/default Anthropic
+Vision model `claude-sonnet-4-20250514` returned `404 model not found`. The
+existing OpenAI fallback returned an anchor description, so the 404 added a
+wasted call but did not by itself cause the terminal result; authoritative
+Style QA also returned `false`.
+
+The persisted candidate row stores only semantic/style booleans, not the
+closed semantic sub-result or style notes. Face detection passed, but the
+remaining exact semantic sub-cause cannot be reconstructed from canonical
+evidence and must not be guessed. Before another paid Order, independently
+audit this run and decide a separate correction milestone for current Vision
+model authority plus sanitized per-candidate QA diagnostics and bounded anchor
+attempt policy. The failed Order and generated anchor remain immutable runtime
+evidence. Full record:
+`docs/ai-workflow/R1D_WIZARD_REMOTE_QA_FULL_BOOK_OPERATIONAL_PROOF_EVIDENCE.md`.
+
+## WIZARD NO-PHOTO ANCHOR + ACCEPTED UI RESTORATION — IMPLEMENTED, PUSHED, INDEPENDENT PASS
 
 The first real fake-paid Chameleon QA order completed checkout, text, DNA and
 companion authority, then failed before cover generation with
@@ -55,9 +99,9 @@ ignored-output fixtures in unchanged tests. The workload inventory correction
 is independently green. Full evidence:
 `docs/ai-workflow/R1D_ACCEPTED_LANDING_WIZARD_UI_RESTORE_IMPLEMENTATION_EVIDENCE.md`.
 
-No new Order is allowed until Claude Code independently PASSes the immutable
-two-commit range. The failed fake-paid order remains immutable evidence; QA is
-not redeployed and Production is untouched.
+Claude Code independently passed the immutable two-commit range. The accepted
+Landing/Wizard and no-photo correction were deployed only to the QA alias and
+used by the bounded runtime proof above. Production remains untouched.
 
 ## WIZARD V4 PACKAGE SELECTION — INDEPENDENT PASS; REMOTE FULL-BOOK QA GATE PREPARED
 
