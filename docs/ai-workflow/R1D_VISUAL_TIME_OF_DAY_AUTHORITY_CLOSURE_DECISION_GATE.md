@@ -1,6 +1,6 @@
 # R1D Visual Time-of-Day Authority Closure — Decision Gate
 
-**Status:** approved by Guy; closure correction independently PASSed; provider-free rebuild lifecycle correction awaiting Claude Code re-gate
+**Status:** approved by Guy; provider-free rebuild lifecycle independently PASSed; exact-content reconciliation pending Guy approval
 **Date:** 2026-08-21
 **Branch/worktree:** `codex/qa-wizard-presentation-dispositions` / `C:\GNart\Work\sh-wt-r1d-output-budget`
 **Rebuild lifecycle base:** `f810fa5a6f2e2d9d68d46c92491b690ee42c2db6`

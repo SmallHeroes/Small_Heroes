@@ -256,5 +256,29 @@ five established missing ignored-`outputs/` fixture assertions in four
 unchanged specs. Resource-intensive passes **20 files / 610 tests** with gate
 status `passed`. No changed or adjacent functional test failed.
 
-No real migration artifact or approval has been written. The next gate is an
-independent read-only Claude Code re-gate of the focused corrective commit.
+Claude Code independently re-gated exact correction range
+`f9338f4240c067c1b16488077b854ec49ebf5c15..02225d0bfc7e87d2d3682c2444ecbc542d9811ac`
+and returned **PASS**, verifying all fourteen correction claims and closing the
+prior BLOCKER, MAJOR and both MINORs.
+
+After that PASS, the authorized offline `prepare` phase materialized only a
+pending review under
+`outputs/r1d-chameleon-time-authority-migration-pending-20260821T125112868Z`.
+Its canonical manifest digest is
+`352ea8ed9944415b0881401a9f1230d9c75454ffed0871c324f3bb05e3e20e33`;
+its migrated-template digest is
+`51901523133394266c7e5a795e2ee5b5cf471733d9d781e61107484e3460f365`;
+its reconciliation digest is
+`cf0684dad5746395842298d97f7ba5de30b6aef62487e8e799f638a9dae8cc5b`;
+and its review-bundle digest is
+`f816a7d7c9d27e80b319d2540c1e3d4795224d0ba12b92b5286b654f593fb6dc`.
+The manifest stage is `reconciliation_pending`; reviewer, reviewed timestamp,
+approval and production context are all null. An identical write replay
+returned `created: false` for the canonical artifacts and preserved artifact
+bytes. The three source-package inputs retained their exact pre-write lengths
+and SHA-256 identities.
+
+No approval, provider, credential, network, Vision, image, database/storage,
+publication, locator, Wizard, render, deployment or production action
+occurred. The next gate is Guy's explicit exact-content acceptance of the five
+rebinds and five non-depiction supersessions in the pending review.
