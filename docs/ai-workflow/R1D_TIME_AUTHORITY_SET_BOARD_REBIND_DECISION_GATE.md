@@ -50,9 +50,13 @@ not usable until that exact approval is recorded.
    the live Board resolver.
 6. Candidate, review and approval are exact-key, content-addressed artifacts.
 7. Approval writes only the exact target Registry path, never overwrites
-   different bytes, and is replay-idempotent.
+   different bytes, preflights any existing target bytes before recording the
+   approval artifact, and is replay-idempotent.
 8. Hostile path, digest, identity, asset, QA, timestamp, approver, extra-key,
    stale-source and non-time drift must fail before a Registry write.
+9. The public CLI imports Set Board authority only through pure submodules; it
+   must not transitively load `liveResolverDeps`, image storage, Supabase or a
+   provider SDK.
 
 ## Acceptance proof
 

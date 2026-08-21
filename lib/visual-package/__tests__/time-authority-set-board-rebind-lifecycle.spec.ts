@@ -217,15 +217,33 @@ describe.skipIf(!REAL_ARTIFACTS_AVAILABLE)(
     it('exposes a write-free CLI preview with every external boundary at zero', () => {
       const fixture = tempAuthority();
       const requestPath = path.join(fixture.root, 'prepare-request.json');
+      const importSentinelPath = path.join(
+        fixture.root,
+        'forbid-external-imports.cjs',
+      );
       fs.writeFileSync(requestPath, `${JSON.stringify({
         repoRoot: REPO_ROOT,
         approvedManifestPath: APPROVED_MANIFEST_PATH,
         setIdentityId: TOWN_SET_ID,
         targetBoardRegistryDir: fixture.boardRegistryDir,
       }, null, 2)}\n`, 'utf8');
+      fs.writeFileSync(importSentinelPath, [
+        "const Module = require('node:module');",
+        'const originalLoad = Module._load;',
+        'Module._load = function(request) {',
+        "  const id = String(request);",
+        "  if (id.includes('@supabase') || id.includes('image-storage') || id.includes('liveResolverDeps')) {",
+        "    throw new Error('forbidden_external_import:' + id);",
+        '  }',
+        '  return originalLoad.apply(this, arguments);',
+        '};',
+        '',
+      ].join('\n'), 'utf8');
       const childEnv = { ...process.env };
       delete childEnv.OPENAI_API_KEY;
       const child = spawnSync(process.execPath, [
+        '--require',
+        importSentinelPath,
         '--require',
         './node_modules/tsx/dist/cjs/index.cjs',
         '--require',
@@ -262,7 +280,10 @@ describe.skipIf(!REAL_ARTIFACTS_AVAILABLE)(
           productionWrites: 0,
         },
       });
-      expect(fs.readdirSync(fixture.root)).toEqual(['prepare-request.json']);
+      expect(fs.readdirSync(fixture.root).sort()).toEqual([
+        'forbid-external-imports.cjs',
+        'prepare-request.json',
+      ]);
     });
 
     it('writes no target authority until exact Guy approval, then replays idempotently', () => {
@@ -359,6 +380,37 @@ describe.skipIf(!REAL_ARTIFACTS_AVAILABLE)(
       expect(replay.approval.digest).toBe(approved.approval.digest);
       expect(replay.approvalArtifact.created).toBe(false);
       expect(replay.registryArtifact.created).toBe(false);
+
+      const approvalDirectory = path.join(
+        fixture.root,
+        'set-board-rebind-approvals',
+      );
+      const approvalFilesBeforeConflict = fs.readdirSync(approvalDirectory)
+        .sort();
+      const registryBytesBeforeConflict = fs.readFileSync(
+        targetAbsolute,
+        'utf8',
+      );
+      expect(() => approveTimeAuthoritySetBoardRebind({
+        repoRoot: REPO_ROOT,
+        approvedManifestPath: APPROVED_MANIFEST_PATH,
+        outputRoot: fixture.outputDir,
+        setIdentityId: TOWN_SET_ID,
+        targetBoardRegistryDir: fixture.boardRegistryDir,
+        candidatePath: prepared.candidateArtifact.path,
+        reviewPath: prepared.reviewArtifact.path,
+        approvedBy: 'Guy',
+        approvedAt: '2026-08-21T16:00:00.000Z',
+        write: true,
+      })).toThrow(
+        'target Set Board Registry entry conflicts with requested approval',
+      );
+      expect(fs.readdirSync(approvalDirectory).sort()).toEqual(
+        approvalFilesBeforeConflict,
+      );
+      expect(fs.readFileSync(targetAbsolute, 'utf8')).toBe(
+        registryBytesBeforeConflict,
+      );
     });
 
     it('assembles the migrated package offline with the preserved Board image', () => {

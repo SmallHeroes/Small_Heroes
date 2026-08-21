@@ -240,6 +240,28 @@ approval, Wizard qualification and the already-authorized smallest LOW page
 remain later explicit boundaries. Full-book render still waits for Guy's
 inspection of that page.
 
+Claude Code's first audit HOLDed the Set Board rebind commit on two valid
+findings. The lifecycle imported the broad Set Board barrel, which did not
+perform network work but transitively loaded the Supabase/image-storage graph;
+and a second approval timestamp could write a new approval artifact before
+colliding with an already-approved Registry entry. The local correction now
+imports only the pure Set Board `types`, `setDefinition`, `registry` and
+`registryPath` modules. A runtime import sentinel rejects Supabase,
+`image-storage` or `liveResolverDeps`, and an esbuild metafile confirms none is
+present. Approval now preflights exact target Registry bytes before recording
+approval, and a regression proves a conflicting second timestamp leaves both
+the original Registry bytes and approval-file inventory unchanged. The
+corrected dedicated lifecycle passes **4/4**; the full focused Set Board,
+migration, Blueprint, package, Wizard and workload-classification slice passes
+**20 files / 417 tests**; TypeScript and `git diff --check` pass. The literal
+repository check preserves the already-recorded baseline: all **3,407**
+ordinary tests and all **610** resource assertions pass, while the same five
+ignored-output fixture assertions and two resource-worker `onTaskUpdate` RPC
+timeouts keep the aggregate command nonzero. The exact 20-file resource
+partition remains independently green at **610/610** with one worker. This
+provider-free correction is ready for its focused local commit and independent
+Claude Code micro re-gate.
+
 ## BLUEPRINT TEXT-SAFE CONTRACT — IMPLEMENTED LOCALLY; CLAUDE QA NEXT
 
 Both Chameleon Set Boards v6 are approved and exact deterministic Board

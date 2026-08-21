@@ -1,7 +1,8 @@
 # R1D Time-Authority Set Board Rebind — Implementation Evidence
 
-**Status:** local implementation green; independent Claude Code QA required
-before any real rebind artifact is materialized
+**Status:** initial independent HOLD corrected locally; focused validation
+green; Claude Code micro re-gate required before any real rebind artifact is
+materialized
 
 **Branch/worktree:** `codex/qa-wizard-presentation-dispositions` / `C:\GNart\Work\sh-wt-r1d-output-budget`
 
@@ -40,14 +41,21 @@ cannot satisfy the live Board resolver.
 Approval reconstructs the same Candidate and Review, requires their canonical
 paths and bytes, requires exact approver `Guy` and a strict canonical UTC
 timestamp, builds the one exact approved target entry, and writes only
-immutable local artifacts. Replays are byte-identical no-ops. The independent
+immutable local artifacts. Before recording approval it compares the intended
+Registry bytes with any existing target, so a conflicting approval timestamp
+cannot leave an orphan approval artifact. Replays are byte-identical no-ops. The independent
 approval validator binds the full target Registry entry to the Candidate, not
 merely to a caller-supplied redigest.
 
 The offline CLI `time-authority-set-board-rebind` exposes only `prepare` and
-`approve`. It imports no provider, image, Vision, network, storage, database,
+`approve`. Set Board imports bypass the public barrel and use only the pure
+`types`, `setDefinition`, `registry` and `registryPath` submodules. The CLI
+therefore imports no provider, image, Vision, network, storage, database,
 Wizard, publication, locator, render or deployment path and reports all such
-boundary counters as zero.
+boundary counters as zero. An import sentinel fails the CLI if Supabase,
+`image-storage` or `liveResolverDeps` enters its runtime graph; an independent
+esbuild metafile reports none of those inputs (the only `node_modules` input is
+the intentional `server-only` shim).
 
 The approved migration loader now returns a cloned, typed source-package
 authority alongside the reconstructed context. It does not change any
@@ -87,6 +95,9 @@ Tests reject:
 - redigested approval plus target-entry drift;
 - non-`Guy` approval;
 - invalid calendar timestamps;
+- a second validly signed timestamp against already-approved differing
+  Registry bytes, before a second approval artifact is written;
+- transitive Supabase, image-storage or live-resolver imports in the CLI;
 - missing, stale, conflicting or non-time-only source/target identity through
   the production builders;
 - writes before the exact approval boundary.
@@ -94,6 +105,20 @@ Tests reject:
 The source Registry and image are never modified. Test approvals and Registry
 entries exist only in contained temporary output roots and are deleted after
 each test.
+
+## Independent HOLD and correction
+
+Claude Code's first read-only audit found two valid defects in the initial
+commit. The lifecycle used the broad Set Board barrel and therefore loaded the
+Supabase/image-storage dependency graph despite making no external call. It
+also wrote an approval artifact before discovering that a second approval
+timestamp conflicted with the already-written immutable Registry entry.
+
+The correction imports only the four pure Set Board submodules named above,
+adds both a runtime forbidden-import sentinel and an independent esbuild graph
+check, and preflights any existing target Registry bytes before writing the
+approval artifact. The second-timestamp regression proves that both the
+Registry bytes and approval-file inventory remain unchanged on conflict.
 
 ## Validation
 

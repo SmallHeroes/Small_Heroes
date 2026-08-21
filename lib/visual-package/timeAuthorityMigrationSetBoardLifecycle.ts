@@ -5,15 +5,21 @@ import type { BookVisualContract } from '@/lib/visual-contract-compiler/types';
 import {
   SET_IDENTITY_BOARD_VERSION,
   SET_IDENTITY_REGISTRY_VERSION,
+  type SetIdentityBoardRegistryEntry,
+} from '@/lib/set-identity-board/types';
+import {
   computeSetBoardContentPolicyDigest,
   computeSetDefinitionHash,
   projectSetDefinition,
-  setIdentityBoardRegistryPath,
+} from '@/lib/set-identity-board/setDefinition';
+import {
   validateSetIdentityBoardRegistryEntry,
   validateSetIdentityBoardRegistryIdentity,
   type ExpectedRegistryIdentity,
-  type SetIdentityBoardRegistryEntry,
-} from '@/lib/set-identity-board';
+} from '@/lib/set-identity-board/registry';
+import {
+  setIdentityBoardRegistryPath,
+} from '@/lib/set-identity-board/registryPath';
 
 import {
   canonicalContentAddressedJsonBytes,
@@ -797,6 +803,19 @@ function readExpectedCanonicalArtifact<T>(args: {
   return value;
 }
 
+function assertImmutableLocalBytesCompatible(args: {
+  destinationPath: string;
+  bytes: string;
+  label: string;
+}): void {
+  if (
+    fs.existsSync(args.destinationPath) &&
+    fs.readFileSync(args.destinationPath, 'utf8') !== args.bytes
+  ) {
+    throw new Error(`${args.label} conflicts with requested approval`);
+  }
+}
+
 export function approveTimeAuthoritySetBoardRebind(
   args: ApproveTimeAuthoritySetBoardRebindArgs,
 ): {
@@ -913,19 +932,26 @@ export function approveTimeAuthoritySetBoardRebind(
       `${approval.digest}.json`,
     ),
   );
+  const registryAbsolutePath = resolveRepoPath(
+    args.repoRoot,
+    candidate.targetRegistryPath,
+  );
+  const registryBytes = `${JSON.stringify(targetRegistryEntry, null, 2)}\n`;
   let approvalCreated = false;
   let registryCreated = false;
   if (args.write === true) {
+    assertImmutableLocalBytesCompatible({
+      destinationPath: registryAbsolutePath,
+      bytes: registryBytes,
+      label: 'target Set Board Registry entry',
+    });
     approvalCreated = writeCanonicalContentAddressedJsonArtifact({
       destinationPath: resolveRepoPath(args.repoRoot, approvalPath),
       value: approval,
     }).created;
     registryCreated = writeImmutableLocalArtifact({
-      destinationPath: resolveRepoPath(
-        args.repoRoot,
-        candidate.targetRegistryPath,
-      ),
-      bytes: `${JSON.stringify(targetRegistryEntry, null, 2)}\n`,
+      destinationPath: registryAbsolutePath,
+      bytes: registryBytes,
     }).created;
   }
   return {
