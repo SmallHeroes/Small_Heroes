@@ -88,4 +88,35 @@ describe('Stage 0 candidate recovery provenance', () => {
     expect(pickStage0Candidate(cache)).toBeNull();
     expect(attachPendingChildAnchorFromCandidate(order, cache, row)).toBe(cache);
   });
+
+  it('keeps legacy passed rows readable but rejects present malformed QA diagnostics', () => {
+    const legacyRow = {
+      attempt: 1,
+      url: 'https://example.test/legacy-generated-anchor.png',
+      identityMode: 'description_template' as const,
+      semanticPass: true,
+      stylePass: true,
+      passed: true,
+      createdAt: '2026-08-21T00:00:00.000Z',
+    };
+    expect(stage0CandidateIsRecoverable(legacyRow)).toBe(true);
+    expect(stage0CandidateIsRecoverable({
+      ...legacyRow,
+      qaDiagnostics: {
+        version: 'stage0-description-template-candidate-qa/v1',
+        reasonCodes: [],
+        styleNotes: null,
+        injected: true,
+      },
+    } as unknown as Parameters<typeof stage0CandidateIsRecoverable>[0])).toBe(false);
+
+    expect(stage0CandidateIsRecoverable({
+      ...legacyRow,
+      qaDiagnostics: {
+        version: 'stage0-description-template-candidate-qa/v1',
+        reasonCodes: ['style_mismatch'],
+        styleNotes: 'The technique does not match.',
+      },
+    })).toBe(false);
+  });
 });

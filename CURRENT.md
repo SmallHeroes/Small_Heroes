@@ -4,6 +4,45 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
+## ANCHOR QA DIAGNOSTICS + CURRENT ANTHROPIC DEFAULTS — IMPLEMENTED LOCALLY, QA PENDING
+
+The first new-story Wizard QA Order proved checkout, text/DNA and the child-anchor
+generation path, then stopped safely when the generated no-photo anchor failed
+semantic and Style 01 QA. The canonical row retained only pass/fail booleans, so
+the exact semantic/style subcauses could not be reconstructed after the run. The
+same run also exposed retired Anthropic defaults: Sonnet 4 returned a provider
+404 before the existing OpenAI description fallback completed.
+
+The focused offline correction now persists an optional, exact-shape
+`stage0-description-template-candidate-qa/v1` record for description-template
+candidates. It contains only a closed, canonical reason-code array plus a
+normalized, redacted Style QA note capped at 240 Unicode code points. Terminal
+holds report attempts consumed and the closed union of reasons without raw model
+output or child appearance text. Legacy candidate rows remain readable; a row
+that claims the new diagnostics shape but tampers with it is rejected fail-closed.
+
+Production Anthropic defaults now come from one source-owned authority module.
+The retired `claude-sonnet-4-20250514` default is replaced by
+`claude-sonnet-4-6`; the retired `claude-3-5-haiku-20241022` patch default is
+replaced by `claude-haiku-4-5-20251001`. Existing Opus 4.5 story/support behavior,
+environment overrides, prompts, thresholds, references, attempt counts, payment
+flow and Production aliases are unchanged. A source census rejects either known
+retired ID outside the authority declaration.
+
+Provider-free focused validation is green: 8 files / 78 tests, isolated
+`tsc --noEmit`, and `git diff --check`. Literal `npm run check` compiled both
+TypeScript projects, then ran the complete 311-file inventory: the ordinary
+partition passed 3,435 tests and failed 5 only because four historical
+`outputs/` fixture paths are absent; the resource partition passed all 610
+assertions and exited nonzero only on three known Vitest worker
+`onTaskUpdate` RPC timeouts. No provider, image,
+audio, storage, database, deployment, Order or render action has occurred in this
+correction. Independent Claude Code review remains required before a fresh
+photo-backed Order for Bar. Decision record:
+`docs/ai-workflow/R1D_ANCHOR_QA_DIAGNOSTICS_AND_ANTHROPIC_MODEL_AUTHORITY_DECISION_GATE.md`.
+Implementation evidence:
+`docs/ai-workflow/R1D_ANCHOR_QA_DIAGNOSTICS_AND_ANTHROPIC_MODEL_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
+
 ## FIRST NEW-STORY WIZARD QA ORDER — STOPPED SAFELY AT CHILD-ANCHOR QA
 
 Claude Code independently passed the immutable two-commit implementation

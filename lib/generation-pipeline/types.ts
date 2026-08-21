@@ -205,6 +205,7 @@ export type PipelineCache = {
     passed?: boolean;
     semanticPass?: boolean;
     stylePass?: boolean;
+    qaDiagnostics?: import('./stage0-qa-diagnostics').Stage0DescriptionTemplateCandidateQaDiagnostics;
     embeddingVerdict?: 'hard_fail' | 'soft_ok';
     createdAt: string;
   }>;

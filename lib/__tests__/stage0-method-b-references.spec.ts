@@ -17,6 +17,13 @@ import {
   LION_BEDTIME_BAR_CHILD_PHOTO_DESCRIPTION,
   LION_BEDTIME_BAR_LOCKED_CHILD_DESCRIPTION,
 } from '../generation-pipeline/stage0-resemblance-experiment';
+import {
+  buildStage0DescriptionTemplateQaDiagnostics,
+  formatStage0DescriptionTemplateQaBudgetFailure,
+  sanitizeStage0StyleQaNotes,
+  stage0DescriptionTemplateQaDiagnosticsIsValid,
+  summarizeStage0DescriptionTemplateQaReasons,
+} from '../generation-pipeline/stage0-qa-diagnostics';
 
 describe('Stage0 Method B reference layouts (Brief F)', () => {
   const photo = '/tmp/bar.jpg';
@@ -136,6 +143,93 @@ describe('Stage0 Method B reference layouts (Brief F)', () => {
       ...result(true, true),
       styleQa: { ok: true, notes: 'OPENAI_API_KEY missing — style vision QA skipped' },
     } as Parameters<typeof stage0DescriptionTemplateCandidatePassesQa>[0])).toBe(false);
+  });
+
+  it('persists closed ordered no-photo QA reasons and sanitized bounded style evidence', () => {
+    const diagnostics = buildStage0DescriptionTemplateQaDiagnostics({
+      anchorVisionDescription: 'A child with short brown hair.',
+      semantic: {
+        genderMismatch: true,
+        missingHairTraits: ['wavy'],
+        faceDetectOk: false,
+      },
+      styleQa: {
+        style01Match: false,
+        looksPhotoreal: true,
+        looksPortrait: true,
+        notes:
+          '  Too glossy\u0000; see https://example.test/private and user@example.test.  ',
+      },
+    });
+
+    expect(diagnostics).toEqual({
+      version: 'stage0-description-template-candidate-qa/v1',
+      reasonCodes: [
+        'gender_mismatch',
+        'hair_trait_missing',
+        'face_detect_low',
+        'style_mismatch',
+        'style_photoreal',
+        'style_portrait',
+      ],
+      styleNotes: 'Too glossy; see [redacted] and [redacted].',
+    });
+    expect(stage0DescriptionTemplateQaDiagnosticsIsValid(diagnostics)).toBe(true);
+    expect(JSON.stringify(diagnostics)).not.toContain('example.test');
+  });
+
+  it('keeps unavailable evidence distinct and rejects malformed diagnostic authority', () => {
+    const diagnostics = buildStage0DescriptionTemplateQaDiagnostics({
+      anchorVisionDescription: null,
+      semantic: {
+        genderMismatch: false,
+        missingHairTraits: [],
+        faceDetectOk: true,
+      },
+      styleQa: {
+        style01Match: true,
+        looksPhotoreal: false,
+        looksPortrait: false,
+        notes: 'style QA HTTP 503 — skipped',
+      },
+    });
+    expect(diagnostics.reasonCodes).toEqual([
+      'vision_description_missing',
+      'style_evidence_unavailable',
+    ]);
+    expect(summarizeStage0DescriptionTemplateQaReasons([diagnostics, diagnostics])).toEqual(
+      diagnostics.reasonCodes
+    );
+    expect(formatStage0DescriptionTemplateQaBudgetFailure({
+      diagnostics: [diagnostics],
+      attemptsUsed: 1,
+      maxAttempts: 1,
+    })).toBe(
+      'ANCHOR_QA_BLOCK: description-template child anchor did not pass semantic and style QA ' +
+      'within the bounded attempt budget (attempts=1/1 ' +
+      'reasonCodes=vision_description_missing|style_evidence_unavailable)'
+    );
+
+    expect(stage0DescriptionTemplateQaDiagnosticsIsValid({
+      ...diagnostics,
+      extra: true,
+    })).toBe(false);
+    expect(stage0DescriptionTemplateQaDiagnosticsIsValid({
+      ...diagnostics,
+      reasonCodes: [...diagnostics.reasonCodes].reverse(),
+    })).toBe(false);
+    expect(stage0DescriptionTemplateQaDiagnosticsIsValid({
+      ...diagnostics,
+      styleNotes: ' unsanitized ',
+    })).toBe(false);
+  });
+
+  it('caps sanitized style notes and redacts secret-like tokens', () => {
+    const sanitized = sanitizeStage0StyleQaNotes(
+      `api-1234567890 ${'x'.repeat(400)}`
+    );
+    expect(sanitized).not.toContain('api-1234567890');
+    expect(Array.from(sanitized ?? '')).toHaveLength(240);
   });
 
   it('Bar corrected identity has olive/tan skin — not pale, no toddler-pushing softness', () => {

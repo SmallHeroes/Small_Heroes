@@ -1,6 +1,10 @@
 import fs from 'fs/promises';
 import type { GeneratedStory, ShotVisualDirection, StoryPage } from './pipeline';
 import {
+  ANTHROPIC_SUPPORT_MODEL_DEFAULT,
+  ANTHROPIC_VISION_MODEL_DEFAULT,
+} from './anthropic-model-authority';
+import {
   applyPersonalizationPatches,
   type LetterContext,
   type PatchContext,
@@ -788,7 +792,7 @@ async function swapGender(
 ): Promise<string[]> {
   const provider = process.env.STORY_PROVIDER || 'openai';
   const model = process.env.PIPELINE_SUPPORT_MODEL ||
-    (provider === 'anthropic' ? 'claude-sonnet-4-20250514' : 'gpt-4o-mini');
+    (provider === 'anthropic' ? ANTHROPIC_SUPPORT_MODEL_DEFAULT : 'gpt-4o-mini');
 
   const fromLabel = fromGender === 'female' ? 'נקבה' : 'זכר';
   const toLabel = toGender === 'female' ? 'נקבה' : 'זכר';
@@ -945,7 +949,7 @@ async function personalizeChildName(
 ): Promise<string[]> {
   const provider = process.env.STORY_PROVIDER || 'openai';
   const model = process.env.PIPELINE_SUPPORT_MODEL ||
-    (provider === 'anthropic' ? 'claude-sonnet-4-20250514' : 'gpt-4o-mini');
+    (provider === 'anthropic' ? ANTHROPIC_SUPPORT_MODEL_DEFAULT : 'gpt-4o-mini');
 
   const childWord = childGender === 'female' ? 'הילדה' : 'הילד';
   const pagesBlock = pages.map(p => `=== עמוד ${p.pageNumber} ===\n${p.text}`).join('\n\n');
@@ -1181,10 +1185,11 @@ export async function describeChildFromPhoto(photoUrl: string): Promise<string |
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        // (render-loop Phase 1, section 8) Parameterize the Anthropic vision model so ops can point at a working
-        // model without a deploy — the hardcoded id 404s on every photo-vision call, wasting a round-trip before the
-        // OpenAI fallback. A NEW var (not CHILD_PHOTO_VISION_MODEL, which names the OpenAI/gpt-4o fallback model).
-        model: process.env.CHILD_PHOTO_VISION_ANTHROPIC_MODEL?.trim() || 'claude-sonnet-4-20250514',
+        // Keep the Anthropic model separately overridable from the OpenAI fallback.
+        // The default is centralized in current provider lifecycle authority.
+        model:
+          process.env.CHILD_PHOTO_VISION_ANTHROPIC_MODEL?.trim() ||
+          ANTHROPIC_VISION_MODEL_DEFAULT,
         max_tokens: 400,
         temperature: 0.2,
         system: systemPrompt,

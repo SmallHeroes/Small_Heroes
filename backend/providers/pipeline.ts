@@ -14,6 +14,10 @@ import { STORY_LENGTHS } from '../config/wizard';
 import { normalizeIllustrationStyle, STYLE_PROFILES, type FinalIllustrationStyle } from '../config/visual-system';
 import type { Companion } from '../../lib/companions';
 import { getCategoryBranching } from '../../lib/categoryBranching';
+import {
+  ANTHROPIC_PATCH_MODEL_DEFAULT,
+  ANTHROPIC_STORY_MODEL_DEFAULT,
+} from './anthropic-model-authority';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Input
@@ -589,10 +593,10 @@ function isStoryStage(stage: string): boolean {
 }
 
 function getModelForStage(stage: string, provider: string): string {
-  const defaultStoryModel = provider === 'anthropic' ? 'claude-opus-4-5' : 'gpt-5.3-pro';
-  const defaultSupportModel = provider === 'anthropic' ? 'claude-opus-4-5' : 'gpt-5.3-chat-latest';
+  const defaultStoryModel = provider === 'anthropic' ? ANTHROPIC_STORY_MODEL_DEFAULT : 'gpt-5.3-pro';
+  const defaultSupportModel = provider === 'anthropic' ? ANTHROPIC_STORY_MODEL_DEFAULT : 'gpt-5.3-chat-latest';
   if (stage === 'PersonalizationPatch') {
-    return process.env.PATCH_MODEL || (provider === 'anthropic' ? 'claude-3-5-haiku-20241022' : 'gpt-4o-mini');
+    return process.env.PATCH_MODEL || (provider === 'anthropic' ? ANTHROPIC_PATCH_MODEL_DEFAULT : 'gpt-4o-mini');
   }
   if (stage === 'CompanionLetter') {
     return (

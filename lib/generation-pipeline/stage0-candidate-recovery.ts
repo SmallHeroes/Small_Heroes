@@ -3,11 +3,23 @@ import type { PipelineCache } from './types';
 import type { CharacterAnchorEntry } from './character-anchor-store';
 import { upsertCharacterAnchor } from './character-anchor-store';
 import { resolveResemblanceThresholdConfig, resolveEffectiveThreshold } from '@/lib/resemblance-core';
+import { stage0DescriptionTemplateQaDiagnosticsMatchCandidate } from './stage0-qa-diagnostics';
 
 export type Stage0CandidateRow = NonNullable<PipelineCache['stage0AnchorCandidates']>[number];
 
 export function stage0CandidateIsRecoverable(row: Stage0CandidateRow): boolean {
   if (row.identityMode !== 'description_template') return true;
+  if (
+    row.qaDiagnostics !== undefined &&
+    !stage0DescriptionTemplateQaDiagnosticsMatchCandidate({
+      diagnostics: row.qaDiagnostics,
+      semanticPass: row.semanticPass,
+      stylePass: row.stylePass,
+      passed: row.passed,
+    })
+  ) {
+    return false;
+  }
   return row.passed === true && row.semanticPass === true && row.stylePass === true;
 }
 

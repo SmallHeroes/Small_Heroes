@@ -178,6 +178,10 @@ import {
 } from './helpers';
 import type { ChunkProcessResult, PipelineCache } from './types';
 import { generatedStoryAnchorHasRecoverableCandidate } from './stage0-candidate-recovery';
+import {
+  buildStage0DescriptionTemplateQaDiagnostics,
+  formatStage0DescriptionTemplateQaBudgetFailure,
+} from './stage0-qa-diagnostics';
 
 const log = createLogger({ subsystem: 'chunk-runner' });
 
@@ -589,6 +593,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
         attemptSuffix: `a${attempt}`,
       });
       const passed = stage0DescriptionTemplateCandidatePassesQa(result);
+      const qaDiagnostics = buildStage0DescriptionTemplateQaDiagnostics(result);
       candidateRows.push({
         attempt,
         url: result.anchorUrl,
@@ -599,7 +604,8 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
         semanticPass: Boolean(result.anchorVisionDescription?.trim()) && result.semantic.ok,
         stylePass:
           result.styleQa.ok &&
-          !/(?:skipped|style qa http|style qa error)/i.test(result.styleQa.notes),
+          !qaDiagnostics.reasonCodes.includes('style_evidence_unavailable'),
+        qaDiagnostics,
         passed,
         createdAt: new Date().toISOString(),
       });
@@ -626,7 +632,13 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
 
     if (!acceptedResult) {
       throw new Error(
-        'ANCHOR_QA_BLOCK: description-template child anchor did not pass semantic and style QA within the bounded attempt budget'
+        formatStage0DescriptionTemplateQaBudgetFailure({
+          diagnostics: candidateRows.flatMap((row) =>
+            row.qaDiagnostics ? [row.qaDiagnostics] : []
+          ),
+          attemptsUsed: candidateRows.length,
+          maxAttempts: maxAnchorAttempts,
+        })
       );
     }
 

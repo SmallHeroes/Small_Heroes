@@ -34,6 +34,7 @@ import {
   sanitizeTransientExpressionFromIdentity,
 } from '@/lib/child-photo-dna-sanitize';
 import type { GPTImageReferenceMode } from '@/lib/generate-image';
+import { stage0StyleQaEvidenceIsUnavailable } from './stage0-qa-diagnostics';
 
 export type Stage0MethodBReferenceLayout =
   /** Legacy — template dominates edit base; photo last. */
@@ -95,9 +96,7 @@ export function shouldGenerateStage0DescriptionTemplateAnchor(input: {
 export function stage0DescriptionTemplateQaEvidenceIsAvailable(
   result: Pick<Stage0DescriptionTemplateResult, 'anchorVisionDescription' | 'semantic' | 'styleQa'>
 ): boolean {
-  const styleEvidenceUnavailable = /(?:skipped|style qa http|style qa error)/i.test(
-    result.styleQa.notes
-  );
+  const styleEvidenceUnavailable = stage0StyleQaEvidenceIsUnavailable(result.styleQa.notes);
   return Boolean(result.anchorVisionDescription?.trim()) && !styleEvidenceUnavailable;
 }
 
