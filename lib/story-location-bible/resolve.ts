@@ -27,6 +27,7 @@ import type {
   SceneGraph,
   StoryLocationPlanBundle,
 } from './types';
+export { resolvePageLocationPlan } from './resolvePageLocationPlan';
 
 function parseZone(raw: unknown): LocationZone | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -332,27 +333,6 @@ export function resolveStoryLocationPlan(args: {
     bible: { ...derived, source: 'derived' },
     pagePlans: derivePageLocationPlans(derived, args.pages),
   };
-}
-
-export function resolvePageLocationPlan(
-  bundle: StoryLocationPlanBundle,
-  pageNumber: number
-): PageLocationPlan | null {
-  const direct = bundle.pagePlans.find((p) => p.page === pageNumber);
-  if (direct) return direct;
-  if (pageNumber === 0) {
-    const p1 = bundle.pagePlans.find((p) => p.page === 1);
-    if (!p1) return null;
-    return {
-      ...p1,
-      page: 0,
-      visibleAnchors: [
-        ...p1.visibleAnchors,
-        'story promise: child + companion + key home-night anchors',
-      ],
-    };
-  }
-  return null;
 }
 
 export function isStoryLocationPlanValid(bundle: StoryLocationPlanBundle): boolean {

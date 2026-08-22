@@ -6,9 +6,9 @@ import { isVisualContractEnforcementEnabled } from '@/lib/visual-contract-compil
 import { readFrozenVisualContract } from '@/lib/visual-contract-compiler/readFrozenVisualContract';
 import type {
   ApprovedPvbRuntimeAuthorityBinding,
+  BookVisualContractTemplate,
   ResolvedBookVisualContract,
 } from '@/lib/visual-contract-compiler/contractTemplateTypes';
-import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler';
 import type { SetIdentityBoardBindingContext } from '@/lib/set-identity-board/types';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import {

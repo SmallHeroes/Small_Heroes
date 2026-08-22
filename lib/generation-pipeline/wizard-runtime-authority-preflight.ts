@@ -1,13 +1,11 @@
 import path from 'path';
 
 import { STYLE_IDS } from '@/lib/styles';
-import {
-  assertValidResolvedBookVisualContract,
-  computeVisualContractHash,
-  materialize,
-  type ResolvedFamilyAppearanceProfile,
-} from '@/lib/visual-contract-compiler';
+import { computeVisualContractHash } from '@/lib/visual-contract-compiler/contractHash';
 import { isVisualContractEnforcementEnabled } from '@/lib/visual-contract-compiler/contractRenderGuards';
+import type { ResolvedFamilyAppearanceProfile } from '@/lib/visual-contract-compiler/contractTemplateTypes';
+import { materialize } from '@/lib/visual-contract-compiler/materializeContract';
+import { assertValidResolvedBookVisualContract } from '@/lib/visual-contract-compiler/validateResolvedContract';
 import {
   createLiveBoardResolverDeps,
 } from '@/lib/set-identity-board/liveResolverDeps';

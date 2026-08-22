@@ -73,9 +73,9 @@ export {
   formatLocationPlanTable,
   isStoryLocationPlanValid,
   loadStoryLocationPlanOverride,
-  resolvePageLocationPlan,
   resolveStoryLocationPlan,
 } from './resolve';
+export { resolvePageLocationPlan } from './resolvePageLocationPlan';
 export {
   assembleStyle01BookReferencesWithZoneSheets,
   buildIsolatedObjectReferencePromptBlock,

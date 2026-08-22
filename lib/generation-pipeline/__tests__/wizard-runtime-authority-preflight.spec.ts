@@ -1,5 +1,7 @@
 import fs from 'fs';
 import path from 'path';
+import { execFileSync, spawnSync } from 'child_process';
+import { createRequire } from 'module';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -14,6 +16,23 @@ import {
 
 const REPO_ROOT = process.cwd();
 const STORY_KEY = 'chameleon_koko_bedtime';
+const require = createRequire(import.meta.url);
+const nextConfig = require('../../../next.config.js') as {
+  outputFileTracingIncludes?: Record<string, string[]>;
+  outputFileTracingExcludes?: Record<string, string[]>;
+};
+
+const PROVIDER_IMPORT_SENTINEL = [
+  "const Module = require('node:module');",
+  'const originalLoad = Module._load;',
+  'Module._load = function(request, parent, isMain) {',
+  "  const id = String(request).replaceAll('\\\\', '/');",
+  "  if (/(^|\\/)(openai|replicate)(\\/|$)/.test(id) || id.includes('/generate-image')) {",
+  "    throw new Error('forbidden_provider_import:' + id);",
+  '  }',
+  '  return originalLoad.call(this, request, parent, isMain);',
+  '};',
+].join('\n');
 
 function localApprovedBoardDeps(): BoardResolverDeps {
   const assetShaByStorageKey = new Map<string, string>();
@@ -160,7 +179,35 @@ describe('deployed Wizard runtime-authority preflight', () => {
     expect(boardByteReadCount).toBe(3);
   });
 
-  it('keeps the public route non-production-only and contains no provider or database imports', () => {
+  it('bundles every filesystem authority required by the deployed preflight', () => {
+    expect(
+      nextConfig.outputFileTracingIncludes?.[
+        '/api/dev/runtime-authority-preflight'
+      ],
+    ).toEqual([
+      './story-bank/**/*',
+      './visual-packages/approved/**/*',
+      './set-identity-boards/**/*',
+      './style-references/01/**/*',
+      './style-references/01-child-template/**/*',
+      './public/companions/*/style01-sheets/**/*',
+    ]);
+    expect(
+      nextConfig.outputFileTracingExcludes?.[
+        '/api/dev/runtime-authority-preflight'
+      ],
+    ).toEqual([
+      'node_modules/@ffmpeg-installer/**',
+      'node_modules/@ffprobe-installer/**',
+      'node_modules/@sparticuz/chromium/**',
+      'node_modules/puppeteer-core/**',
+      'public/companions/**/*.jpg',
+      'style-references/02/**',
+      'style-references/style-02-locked-samples/**',
+    ]);
+  });
+
+  it('keeps the public route non-production-only and its transitive load graph provider-free', () => {
     const routeSource = fs.readFileSync(
       path.join(
         REPO_ROOT,
@@ -179,5 +226,47 @@ describe('deployed Wizard runtime-authority preflight', () => {
     expect(`${routeSource}\n${moduleSource}`).not.toMatch(
       /generateImage|generateBookCover|generateAllPageImages|prisma|@\/lib\/prisma|@\/backend\/providers\/image/,
     );
+
+    const routeImport = [
+      PROVIDER_IMPORT_SENTINEL,
+      "import('./app/api/dev/runtime-authority-preflight/route.ts')",
+      "  .then(() => process.stdout.write('provider-import-isolated'))",
+      '  .catch((error) => { console.error(error); process.exitCode = 1; });',
+    ].join('\n');
+    const output = execFileSync(
+      process.execPath,
+      [
+        '--require',
+        './scripts/shims/register-server-only.cjs',
+        '--import',
+        'tsx',
+        '--eval',
+        routeImport,
+      ],
+      { cwd: REPO_ROOT, encoding: 'utf8' },
+    );
+    expect(output).toBe('provider-import-isolated');
+
+    const sentinelControl = [
+      PROVIDER_IMPORT_SENTINEL,
+      "import('./lib/generate-image.ts')",
+      '  .then(() => process.exitCode = 2)',
+      '  .catch((error) => { console.error(error.message); process.exitCode = 1; });',
+    ].join('\n');
+    const control = spawnSync(
+      process.execPath,
+      [
+        '--require',
+        './scripts/shims/register-server-only.cjs',
+        '--import',
+        'tsx',
+        '--eval',
+        sentinelControl,
+      ],
+      { cwd: REPO_ROOT, encoding: 'utf8' },
+    );
+    expect(control.status).toBe(1);
+    expect(control.stderr).toContain('forbidden_provider_import:');
+    expect(control.stderr).toContain('generate-image.ts');
   });
 });

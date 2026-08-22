@@ -37,7 +37,7 @@ import {
   PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION,
   type PreRenderBlueprintAuthoringAttempt,
   type PreRenderBlueprintAuthoringProvenance,
-} from './preRenderBlueprintAuthoring';
+} from './preRenderBlueprintAuthoringContract';
 import { PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION } from './preRenderBlueprintDraftSchema';
 import type {
   ReconciliationDisposition,

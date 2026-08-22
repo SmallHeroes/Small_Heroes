@@ -60,9 +60,30 @@ approved revision `a9c253d9…`, source `2d00d37e…`, two Board bindings and fr
 0–8 with counters fixed at zero except exactly four Board storage reads. A
 second-read SHA drift fails closed. Focused authority validation is **6 files /
 57 tests PASS**; repository-wide `tsc --noEmit` and `git diff --check` pass.
-The endpoint remains non-production-only. It must be independently reviewed,
-pushed and deployed from an identifiable commit before its remote result can
-authorize a fresh paid Wizard order.
+
+The first independent review correctly held deployment: the new route had no
+explicit Vercel trace inventory for its dynamically-read package, Story Source,
+Board and reference assets, and two broad runtime imports pulled provider code
+into the function graph despite never calling it. The corrective milestone now
+assigns the route the same bounded Story 01 authority/reference trace as the
+render gate and replaces those barrels with direct pure submodules. A real
+transitive `Module._load` sentinel rejects OpenAI, Replicate and
+`generate-image`; the route loads under that sentinel, while the sentinel's
+control import fails as expected. The bundled graph is reduced to **115 inputs /
+40 node_modules inputs**, of which **38 are the explicitly allowed read-only
+Supabase Storage client**; OpenAI, Replicate, `generate-image` and their retry
+paths are absent. The storage module's generic retry helper remains imported,
+but the preflight's read-only byte-download path does not invoke it. The
+six-file authority/regression slice is **65/65 PASS**, the
+tracing/classifier slice is **12/12 PASS**, `tsc --noEmit` and
+`git diff --check` pass. Literal `npm run check` compiled both TypeScript
+projects; the ordinary partition passed **3,442** assertions and retained only
+the five established missing ignored-`outputs/` fixture failures, while the
+resource partition passed **610/610** assertions and reported only the three
+known Vitest `onTaskUpdate` RPC timeouts. The endpoint remains
+non-production-only. It still
+requires independent re-gate, push and deployment from an identifiable commit
+before its remote result can authorize a fresh paid Wizard order.
 
 Claude Code's first read-only review returned technical PASS with three minor
 maintainability/test notes. The follow-up keeps the callback locally non-throwing

@@ -9,7 +9,7 @@ import {
   assertValidPreRenderBookVisualBlueprint,
   computePreRenderBookVisualBlueprintDigest,
 } from './preRenderBlueprint';
-import type { PreRenderBlueprintAuthoringProvenance } from './preRenderBlueprintAuthoring';
+import type { PreRenderBlueprintAuthoringProvenance } from './preRenderBlueprintAuthoringContract';
 import {
   createPreRenderBlueprintValidationEvidence,
   validatePreRenderBlueprintApprovalAttestation,

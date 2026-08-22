@@ -18,13 +18,13 @@ import {
 } from '@/lib/visual-contract-compiler/derivePageVisualContracts';
 import { effectivePropVisibility } from '@/lib/visual-contract-compiler/propLifecycle';
 import { computeVisualContractHash } from '@/lib/visual-contract-compiler/contractHash';
-import { resolvePageLocationPlan } from '@/lib/story-location-bible';
-import {
-  canonicalJsonDigest,
-  type FrozenVisualPackageAuthority,
-  type PortraitBlueprintFrame,
-  type VisualPackageV4,
-} from '@/lib/visual-package';
+import { resolvePageLocationPlan } from '@/lib/story-location-bible/resolvePageLocationPlan';
+import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
+import type { PortraitBlueprintFrame } from '@/lib/visual-package/preRenderBlueprintTypes';
+import type {
+  FrozenVisualPackageAuthority,
+  VisualPackageV4,
+} from '@/lib/visual-package/visualPackageV4';
 import {
   buildApprovedPvbRuntimeAuthorityBinding,
   runtimeWorldProjectionDigest,

@@ -20,7 +20,7 @@ import {
 } from './preRenderBlueprint';
 import type {
   PreRenderBlueprintAuthoringProvenance,
-} from './preRenderBlueprintAuthoring';
+} from './preRenderBlueprintAuthoringContract';
 import {
   createPreRenderBlueprintValidationEvidence,
   validatePreRenderBlueprintApprovalAttestation,

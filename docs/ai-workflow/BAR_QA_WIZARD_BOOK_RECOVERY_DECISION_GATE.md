@@ -133,6 +133,14 @@ closed status, content digests, set identities and zero-effect counters. It
 must have no Order, database-write, image, audio, Vision, retry, fallback,
 approval, publication, locator-update or Production capability.
 
+The deployment boundary must explicitly trace the package-bound Story Source,
+approved Visual Package revisions, Set Board registries, Style 01 references and
+companion sheets into this route's serverless function. Its transitive module
+graph may include the read-only Supabase Storage client needed to hash approved
+Board bytes, but must not load OpenAI, Replicate, `generate-image`, image-provider
+adapters or database clients. Both properties require executable regressions;
+direct-source string scans are insufficient.
+
 The Preview branch receives an exact `VISUAL_CONTRACT_ENFORCEMENT=true`
 override and a fresh QA-only deployment. A passing local test is necessary but
 not sufficient; the deployed preflight must pass before another paid order.
