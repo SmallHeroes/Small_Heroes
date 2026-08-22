@@ -12,6 +12,7 @@ import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySou
 
 import {
   canonicalJsonDigest,
+  isoTimestampIsValid,
   repoRelativePath,
   resolveRepoPath,
 } from './integrity';
@@ -50,6 +51,71 @@ export const LEGACY_RECONCILIATION_REVIEW_BUNDLE_VERSION =
   'source-prompt-reconciliation-review-bundle/v2' as const;
 export const LEGACY_RECONCILIATION_REVIEW_RENDERER_VERSION =
   'source-prompt-reconciliation-review-markdown/v2' as const;
+
+export const SOURCE_PROMPT_RECONCILIATION_APPROVER = 'Guy' as const;
+
+/**
+ * Apply Guy's exact human-review decision to a fully pending reconciliation.
+ *
+ * Every overall, supersession and Presentation Requirement decision must be
+ * exact pending state. This is intentionally pure: callers remain responsible
+ * for binding the pending bytes, review bundle and approval artifact before
+ * persisting or advancing any downstream authority.
+ */
+export function approvePendingSourcePromptReconciliation(args: {
+  pending: SourcePromptReconciliation;
+  approvedBy: typeof SOURCE_PROMPT_RECONCILIATION_APPROVER;
+  approvedAt: string;
+}): SourcePromptReconciliation {
+  if (
+    args.approvedBy !== SOURCE_PROMPT_RECONCILIATION_APPROVER ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(args.approvedAt) ||
+    !isoTimestampIsValid(args.approvedAt) ||
+    new Date(args.approvedAt).toISOString() !== args.approvedAt
+  ) {
+    throw new Error('reconciliation approval identity or timestamp is invalid');
+  }
+  const pendingReviewIsExact = (review: ReconciliationReviewState | null): boolean =>
+    review?.status === 'pending' &&
+    review.reviewedBy === null &&
+    review.reviewedAt === null;
+  if (
+    !pendingReviewIsExact(args.pending.review) ||
+    args.pending.frames.some((frame) =>
+      frame.sourceRequirements.some((requirement) =>
+        requirement.visualBeats.some((beat) =>
+          beat.disposition === 'intentionally_superseded' &&
+          !pendingReviewIsExact(beat.supersessionReview),
+        ),
+      ),
+    ) ||
+    args.pending.presentationRequirementDispositions.entries.some(
+      (entry) => !pendingReviewIsExact(entry.review),
+    )
+  ) {
+    throw new Error('reconciliation is not exact pending review');
+  }
+  const approved = structuredClone(args.pending);
+  const review: ReconciliationReviewState = {
+    status: 'approved',
+    reviewedBy: SOURCE_PROMPT_RECONCILIATION_APPROVER,
+    reviewedAt: args.approvedAt,
+  };
+  approved.review = { ...review };
+  for (const frame of approved.frames) {
+    for (const requirement of frame.sourceRequirements) {
+      for (const beat of requirement.visualBeats) {
+        if (beat.disposition === 'intentionally_superseded') {
+          beat.supersessionReview = { ...review };
+        }
+      }
+    }
+  }
+  for (const entry of approved.presentationRequirementDispositions.entries) {
+    entry.review = { ...review };
+  }
+  return approved;
+}
 
 export interface ReconciliationReviewRequirement {
   frameKind: 'cover' | 'page';

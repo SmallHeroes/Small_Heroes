@@ -196,9 +196,11 @@ function lexicalCompare(left: string, right: string): number {
   return 0;
 }
 
-function canonicalBytes(value: unknown): string {
+export function preRenderBlueprintLifecycleJsonBytes(value: unknown): string {
   return JSON.stringify(canonicalize(value));
 }
+
+const canonicalBytes = preRenderBlueprintLifecycleJsonBytes;
 
 function payloadWithoutDigest<T extends { digestAlgorithm: string; digest: string }>(
   value: T,
@@ -926,9 +928,9 @@ export function persistPreRenderBlueprintLifecycle(args: {
 
   const root = authorityRoot(args.root, args.blueprint);
   const candidateBytes = serializePreRenderBookVisualBlueprint(args.blueprint);
-  const provenanceBytes = canonicalBytes(args.provenance);
-  const evidenceBytes = canonicalBytes(evidence);
-  const reviewBytes = canonicalBytes(review.packet);
+  const provenanceBytes = preRenderBlueprintLifecycleJsonBytes(args.provenance);
+  const evidenceBytes = preRenderBlueprintLifecycleJsonBytes(evidence);
+  const reviewBytes = preRenderBlueprintLifecycleJsonBytes(review.packet);
   const provenanceDigest = canonicalJsonDigest(args.provenance);
   const markdownDigest = canonicalJsonDigest(review.markdown);
   const contactSheetDigest = canonicalJsonDigest(review.contactSheetHtml);

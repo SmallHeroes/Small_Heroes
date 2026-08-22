@@ -9,6 +9,7 @@ import {
   type SourcePromptReconciliation,
 } from './sourcePromptReconciliation';
 import {
+  approvePendingSourcePromptReconciliation,
   buildReconciliationReviewBundle,
   persistReconciliationDraftBundle,
   reconciliationDraftBundleJsonBytes,
@@ -698,53 +699,11 @@ export function approveTimeAuthorityMigrationReconciliation(
   pending: SourcePromptReconciliation,
   approvedAt: string,
 ): SourcePromptReconciliation {
-  if (!canonicalUtcTimestampIsValid(approvedAt)) {
-    throw new Error('migration approval timestamp is invalid');
-  }
-  const pendingReviewIsExact = (review: {
-    status: string;
-    reviewedBy: string | null;
-    reviewedAt: string | null;
-  } | null): boolean =>
-    review?.status === 'pending' &&
-    review.reviewedBy === null &&
-    review.reviewedAt === null;
-  if (
-    !pendingReviewIsExact(pending.review) ||
-    pending.frames.some((frame) =>
-      frame.sourceRequirements.some((requirement) =>
-        requirement.visualBeats.some((beat) =>
-          beat.disposition === 'intentionally_superseded' &&
-          !pendingReviewIsExact(beat.supersessionReview),
-        ),
-      ),
-    ) ||
-    pending.presentationRequirementDispositions.entries.some(
-      (entry) => !pendingReviewIsExact(entry.review),
-    )
-  ) {
-    throw new Error('migration reconciliation is not exact pending review');
-  }
-  const approved = structuredClone(pending);
-  const review = {
-    status: 'approved' as const,
-    reviewedBy: 'Guy',
-    reviewedAt: approvedAt,
-  };
-  approved.review = review;
-  for (const frame of approved.frames) {
-    for (const requirement of frame.sourceRequirements) {
-      for (const beat of requirement.visualBeats) {
-        if (beat.disposition === 'intentionally_superseded') {
-          beat.supersessionReview = { ...review };
-        }
-      }
-    }
-  }
-  for (const entry of approved.presentationRequirementDispositions.entries) {
-    entry.review = { ...review };
-  }
-  return approved;
+  return approvePendingSourcePromptReconciliation({
+    pending,
+    approvedBy: 'Guy',
+    approvedAt,
+  });
 }
 
 function loadSourceAuthority(args: {

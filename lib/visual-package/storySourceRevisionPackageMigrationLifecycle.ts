@@ -290,7 +290,7 @@ function canonicalRelativePath(value: string): boolean {
     path.posix.normalize(value) === value;
 }
 
-function readContainedRegularFile(args: {
+export function readContainedRegularFile(args: {
   repoRoot: string;
   relativePath: string;
   allowedRoot: string;
@@ -851,7 +851,7 @@ function persistJson(args: {
   };
 }
 
-function assertOutputArtifactPlanIsSafe(args: {
+export function assertStorySourceRevisionMigrationArtifactPlanIsSafe(args: {
   repoRoot: string;
   outputRoot: string;
   artifacts: Array<{ path: string; bytes: string }>;
@@ -1158,7 +1158,7 @@ export function prepareStorySourceRevisionPackageMigration(
   });
   let manifestCreated = false;
   if (write) {
-    assertOutputArtifactPlanIsSafe({
+    assertStorySourceRevisionMigrationArtifactPlanIsSafe({
       repoRoot: args.repoRoot,
       outputRoot,
       artifacts: [
@@ -1272,4 +1272,57 @@ export function prepareStorySourceRevisionPackageMigration(
       created: manifestCreated,
     },
   };
+}
+
+/**
+ * Load and fully re-derive a pending migration before it can receive approval.
+ * This boundary deliberately consults the still-current locator; downstream
+ * stages use the immutable approval artifact instead, so historical evidence
+ * remains readable after the locator eventually advances.
+ */
+export function loadPendingStorySourceRevisionPackageMigration(args: {
+  repoRoot: string;
+  manifestPath: string;
+}): PreparedStorySourceRevisionPackageMigration {
+  const manifestFile = readContainedRegularFile({
+    repoRoot: args.repoRoot,
+    relativePath: args.manifestPath,
+    allowedRoot: 'outputs',
+    label: 'Story Source revision package migration manifest',
+  });
+  const raw = parseJsonObject(
+    manifestFile.bytes,
+    'Story Source revision package migration manifest',
+  );
+  const manifest = raw as unknown as StorySourceRevisionPackageMigrationManifest;
+  if (
+    manifest.version !== STORY_SOURCE_REVISION_PACKAGE_MIGRATION_MANIFEST_VERSION ||
+    manifest.stage !== 'reconciliation_pending' ||
+    manifest.digestAlgorithm !== 'canonical-json-sha256' ||
+    manifest.digest !== canonicalJsonDigest((({ digestAlgorithm: _a, digest: _d, ...payload }) => payload)(manifest)) ||
+    path.basename(manifestFile.absolutePath) !== `${manifest.digest}.json` ||
+    path.basename(path.dirname(manifestFile.absolutePath)) !==
+      'story-source-revision-package-migration-manifests'
+  ) {
+    throw new Error('Story Source revision package migration manifest is invalid');
+  }
+  const outputRoot = path.dirname(path.dirname(manifestFile.absolutePath));
+  const outputDir = repoRelativePath(args.repoRoot, outputRoot);
+  const rebuilt = prepareStorySourceRevisionPackageMigration({
+    repoRoot: args.repoRoot,
+    outputDir,
+    storyKey: manifest.storyKey,
+    styleId: manifest.styleId,
+    locatorPath: manifest.sourcePackage.locatorPath,
+    acceptedRevisionManifestPath: manifest.acceptedRevision.manifestPath,
+    write: false,
+  });
+  if (
+    canonicalContentAddressedJsonBytes(rebuilt.manifest) !==
+      canonicalContentAddressedJsonBytes(manifest) ||
+    rebuilt.artifacts.manifestPath !== args.manifestPath
+  ) {
+    throw new Error('Story Source revision package migration manifest is stale');
+  }
+  return rebuilt;
 }

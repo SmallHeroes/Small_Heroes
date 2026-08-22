@@ -330,3 +330,53 @@ export function buildProductionAuthoringContextFromFrozenVisualPackageCandidate(
       .actionSemanticCoverageAuthority.records,
   );
 }
+
+/**
+ * Rebuild a production context from an exact, already-approved reconciliation
+ * artifact whose complete Action Semantic Coverage is the migration authority.
+ *
+ * The caller must independently validate the approval attestation. This helper
+ * still re-reads the artifact, binds its whole-object digest, requires exact
+ * Guy approval, and runs the ordinary complete reconciliation/template/source
+ * validation before returning a context.
+ */
+export function buildProductionAuthoringContextFromApprovedReconciliation(
+  args: ProductionAuthoringContextBaseArgs & {
+    expectedReconciliationDigest: string;
+  },
+): ProductionAuthoringContext {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(
+      fs.readFileSync(
+        resolveRepoPath(args.repoRoot, args.reconciliationPath),
+        'utf8',
+      ),
+    ) as unknown;
+  } catch (error) {
+    throw new InvalidProductionAuthoringContextError([
+      `approved reconciliation cannot be read: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    ]);
+  }
+  const reconciliation = raw as SourcePromptReconciliation;
+  const coverage = reconciliation?.actionSemanticCoverageAuthority?.records;
+  if (
+    canonicalJsonDigest(raw) !== args.expectedReconciliationDigest ||
+    reconciliation?.review?.status !== 'approved' ||
+    reconciliation.review.reviewedBy !== 'Guy' ||
+    !Array.isArray(coverage)
+  ) {
+    throw new InvalidProductionAuthoringContextError([
+      'approved reconciliation digest, review or coverage authority is invalid',
+    ]);
+  }
+  const context = buildProductionAuthoringContextWithCoverage(args, coverage);
+  if (context.reconciliation.digest !== args.expectedReconciliationDigest) {
+    throw new InvalidProductionAuthoringContextError([
+      'approved reconciliation context digest is stale',
+    ]);
+  }
+  return context;
+}
