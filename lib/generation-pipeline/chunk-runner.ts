@@ -182,6 +182,7 @@ import {
   buildStage0DescriptionTemplateQaDiagnostics,
   formatStage0DescriptionTemplateQaBudgetFailure,
 } from './stage0-qa-diagnostics';
+import { resolveStage0AnchorMaxAttempts } from './stage0-attempt-policy';
 
 const log = createLogger({ subsystem: 'chunk-runner' });
 
@@ -575,10 +576,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
       resolveStyle01StoryWardrobeLock(stage0Companion?.id, storyFileKey, {
         category: cache.challengeCategory,
       }) ?? '';
-    const maxAnchorAttempts = Math.min(
-      6,
-      Math.max(1, Number.parseInt(process.env.CHILD_ANCHOR_MAX_ATTEMPTS ?? '4', 10) || 4)
-    );
+    const maxAnchorAttempts = resolveStage0AnchorMaxAttempts();
     const candidateRows: NonNullable<PipelineCache['stage0AnchorCandidates']> = [];
     let acceptedResult: Awaited<ReturnType<typeof generateStage0DescriptionTemplateAnchor>> | null = null;
     let acceptedAttempt = 0;
@@ -741,10 +739,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     // calibrated soft-accept floor or the budget is spent. Default 4 (≈ initial 3 + one
     // regenerate round); capped at 6 to bound gpt-image spend. We early-exit the loop the
     // moment a candidate auto-accepts, so a strong first anchor costs only one attempt.
-    const maxAnchorAttempts = Math.min(
-      6,
-      Math.max(1, Number.parseInt(process.env.CHILD_ANCHOR_MAX_ATTEMPTS ?? '4', 10) || 4)
-    );
+    const maxAnchorAttempts = resolveStage0AnchorMaxAttempts();
     const candidateRows: NonNullable<PipelineCache['stage0AnchorCandidates']> = [];
     let bestResult:
       | Awaited<ReturnType<typeof generateStage0MethodBAnchor>>

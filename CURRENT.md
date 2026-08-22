@@ -4,6 +4,57 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
+## WIZARD PREVIEW ENVIRONMENT AUTHORITY — LOCAL GREEN, CLAUDE QA NEXT
+
+The fresh Bar/Chameleon Wizard Order remains uncreated. Independent QA correctly
+held the paid boundary because Vercel SSO prevented direct inspection of the
+encrypted Preview resource selection. The prior branch-specific Production
+database/Supabase overrides were removed, the branch was redeployed from exact
+Git source `138a7356d2eb330e7fe51b6fe824c98fc64d5c4e`, and the replacement deployment
+resolved Product Truth plus the full package/contract/Board preflight against
+staging. A fake-payment negative probe reached the staging database and returned
+`Order not found`; no Order or provider call was created.
+
+The focused correction adds a Preview-only, read-only
+`wizard-preview-environment-preflight/v1` endpoint. It emits only safe resource
+hostnames/project refs, closed policy values and zero-effect counters. It passes
+only for exact staging Supabase authority, no Production resource identifier,
+fake payment, Visual Contract enforcement, LOW image quality, four bounded
+Stage-0 anchor attempts and two bounded page-QA regenerations. It performs no
+database, storage, provider, image, audio or network operation; Production and
+unapproved Preview environments return 404. Stage-0 attempt calculation now has
+one source of truth shared by both shipped anchor branches and the preflight,
+without changing the prior default/minimum/maximum semantics.
+
+The earlier `CHILD_ANCHOR_MAX_ATTEMPTS=1` record below is historical. The live
+branch-scoped Preview value is now exact `4`. The earlier claim that Stage-0
+candidate rows contain only booleans is likewise historical: the independently
+re-gated `stage0-description-template-candidate-qa/v1` correction below persists
+closed reason codes plus redacted bounded notes and validates them during
+recovery. The current Anthropic Vision default is `claude-sonnet-4-6` and the
+retired model is denied.
+
+Local focused validation is **14 files / 152 tests PASS** plus TypeScript and
+diff hygiene. It includes the real package/Board preflight, fake-payment and
+flat-price narration assertions, current Anthropic authority, Stage-0
+diagnostics/recovery, visual-QA bounds and environment separation. No deploy,
+Order, payment,
+provider, render, storage/database write, Production secret rotation or external
+mutation is authorized by this local result. Next action is the focused green
+commit and Guy-mediated Claude Code review; after push/PASS, deploy the exact
+commit, provide a 23-hour Vercel share URL, and re-gate the two safe preflights
+before the single approved fake-paid LOW book.
+
+The literal `npm run check` used the corrected **319 / 299 / 20** inventory.
+Both TypeScript projects passed. The ordinary phase reported **3,495 PASS / 65
+skipped / 8 failures**: five are the four established ignored-output fixture
+files, one was the expected inventory pin introduced by this new spec and is now
+corrected at 7/7, and two were 5-second Windows timeouts in the unchanged package
+migration suite. The resource phase reported **606 PASS / 5 timeouts** plus the
+three known post-assertion `onTaskUpdate` RPC timeouts. All seven timed assertions
+then passed in isolated one-worker runs with a 30-second diagnostic allowance;
+no assertion failed. No ignored fixture was fabricated or imported.
+
 ## ACCEPTED-SOURCE PACKAGE PROMOTION — LOCAL GREEN, CLAUDE QA NEXT
 
 Guy approved exact Visual Package Candidate
@@ -386,7 +437,7 @@ interior render, manual safety flag, Production change or self-approval is
 allowed. Decision record:
 `docs/ai-workflow/BAR_QA_WIZARD_BOOK_RECOVERY_DECISION_GATE.md`.
 
-## ANCHOR QA DIAGNOSTICS + CURRENT ANTHROPIC DEFAULTS — IMPLEMENTED LOCALLY, QA PENDING
+## ANCHOR QA DIAGNOSTICS + CURRENT ANTHROPIC DEFAULTS — INDEPENDENT QA PASS
 
 The first new-story Wizard QA Order proved checkout, text/DNA and the child-anchor
 generation path, then stopped safely when the generated no-photo anchor failed
@@ -429,7 +480,7 @@ Decision record:
 Implementation evidence:
 `docs/ai-workflow/R1D_ANCHOR_QA_DIAGNOSTICS_AND_ANTHROPIC_MODEL_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
 
-## FIRST NEW-STORY WIZARD QA ORDER — STOPPED SAFELY AT CHILD-ANCHOR QA
+## HISTORICAL FIRST NEW-STORY WIZARD QA ORDER — STOPPED SAFELY AT CHILD-ANCHOR QA
 
 Claude Code independently passed the immutable two-commit implementation
 range ending at `0b711aedd25d39b3813077470f2da1478b14d6b8`. The exact READY Preview
@@ -453,7 +504,7 @@ audio and package remain `pending`. No cover, page image, narration or package
 was generated. The worker made no manual retry and no second Order was
 created.
 
-The bounded Preview override `CHILD_ANCHOR_MAX_ATTEMPTS=1` intentionally traded
+At the time, the bounded Preview override `CHILD_ANCHOR_MAX_ATTEMPTS=1` intentionally traded
 retry robustness for one-image proof cost. The operational gate explicitly
 classified an anchor hold under that override as a bounded-proof outcome, not
 proof that the ordinary default multi-attempt product path is defective. One
@@ -463,14 +514,14 @@ existing OpenAI fallback returned an anchor description, so the 404 added a
 wasted call but did not by itself cause the terminal result; authoritative
 Style QA also returned `false`.
 
-The persisted candidate row stores only semantic/style booleans, not the
+That historical candidate row stores only semantic/style booleans, not the
 closed semantic sub-result or style notes. Face detection passed, but the
 remaining exact semantic sub-cause cannot be reconstructed from canonical
-evidence and must not be guessed. Before another paid Order, independently
-audit this run and decide a separate correction milestone for current Vision
-model authority plus sanitized per-candidate QA diagnostics and bounded anchor
-attempt policy. The failed Order and generated anchor remain immutable runtime
-evidence. Full record:
+evidence and must not be guessed. The resulting precondition for current Vision
+model authority, sanitized per-candidate QA diagnostics and bounded anchor
+attempt policy was subsequently completed and independently passed in the
+section above; the live Preview now resolves four attempts. The failed Order and
+generated anchor remain immutable runtime evidence. Full record:
 `docs/ai-workflow/R1D_WIZARD_REMOTE_QA_FULL_BOOK_OPERATIONAL_PROOF_EVIDENCE.md`.
 
 ## WIZARD NO-PHOTO ANCHOR + ACCEPTED UI RESTORATION — IMPLEMENTED, PUSHED, INDEPENDENT PASS

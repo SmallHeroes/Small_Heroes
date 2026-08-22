@@ -40,16 +40,18 @@ export function isProductionRuntime(): boolean {
  * Returns a human-readable reason if a PRODUCTION resource is configured, else null.
  * (Bucket name is identical across envs — `book-images` — so the project is identified by SUPABASE_URL.)
  */
-export function findProdResourceLeak(): string | null {
-  const appHost = hostOf(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL);
+export function findProdResourceLeak(
+  source: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const appHost = hostOf(source.NEXT_PUBLIC_APP_URL || source.APP_URL);
   if (appHost && PROD_APP_HOSTS.includes(appHost)) {
     return `app URL host "${appHost}" is the PRODUCTION domain`;
   }
-  const supabaseHost = hostOf(process.env.SUPABASE_URL);
+  const supabaseHost = hostOf(source.SUPABASE_URL);
   if (supabaseHost && supabaseHost.includes(PROD_SUPABASE_REF)) {
     return `SUPABASE_URL "${supabaseHost}" is the PRODUCTION Supabase project`;
   }
-  const dbConn = `${process.env.DATABASE_URL || ''}|${process.env.DIRECT_URL || ''}`.toLowerCase();
+  const dbConn = `${source.DATABASE_URL || ''}|${source.DIRECT_URL || ''}`.toLowerCase();
   if (dbConn.includes(PROD_SUPABASE_REF)) {
     return `DATABASE_URL/DIRECT_URL points at the PRODUCTION Supabase project (${PROD_SUPABASE_REF})`;
   }
