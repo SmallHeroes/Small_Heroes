@@ -12,6 +12,9 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { isQualityEvidenceContractStale } from './quality-check-result';
 import { SAFETY_SHA256_RE } from './asset-safety-signal';
+import { QUALITY_REGEN_BUDGET } from './quality-regen-policy';
+
+export { QUALITY_REGEN_BUDGET } from './quality-regen-policy';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -30,9 +33,6 @@ type Db = PrismaClient | Prisma.TransactionClient;
  * gate so every artifact is re-QA'd under the safety-aware rule rather than delivered on stale, un-safety-QA'd evidence.
  */
 export const QUALITY_EVALUATOR_CONTRACT_VERSION = 'qa-v3';
-
-/** Durable regen budget per artifact: one candidate + at most two replacements is 2 regens (#7-a: 5→2). */
-export const QUALITY_REGEN_BUDGET = 2;
 
 export const QUALITY_SCOPE = 'base_book';
 

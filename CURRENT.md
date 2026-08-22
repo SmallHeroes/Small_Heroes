@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
-## WIZARD PREVIEW ENVIRONMENT AUTHORITY — LOCAL GREEN, CLAUDE QA NEXT
+## WIZARD PREVIEW ENVIRONMENT AUTHORITY — CORRECTIVE LOCAL GREEN, CLAUDE RE-GATE NEXT
 
 The fresh Bar/Chameleon Wizard Order remains uncreated. Independent QA correctly
 held the paid boundary because Vercel SSO prevented direct inspection of the
@@ -16,44 +16,54 @@ staging. A fake-payment negative probe reached the staging database and returned
 `Order not found`; no Order or provider call was created.
 
 The focused correction adds a Preview-only, read-only
-`wizard-preview-environment-preflight/v1` endpoint. It emits only safe resource
-hostnames/project refs, closed policy values and zero-effect counters. It passes
-only for exact staging Supabase authority, no Production resource identifier,
-fake payment, Visual Contract enforcement, LOW image quality, four bounded
-Stage-0 anchor attempts and two bounded page-QA regenerations. It performs no
-database, storage, provider, image, audio or network operation; Production and
-unapproved Preview environments return 404. Stage-0 attempt calculation now has
-one source of truth shared by both shipped anchor branches and the preflight,
-without changing the prior default/minimum/maximum semantics.
+`wizard-preview-environment-preflight/v2` endpoint. It emits only safe resource
+hostnames/project refs, closed enums, credential-classification status,
+booleans/numbers and zero-effect counters. It passes only for exact staging
+Supabase URL/database authority, a legacy service-role JWT whose closed
+`iss`/`ref`/`role` claims identify the staging backend, no Production resource
+identifier, fake payment with a configured site password, Visual Contract
+enforcement, LOW image quality, four bounded Stage-0 anchor attempts and two
+bounded page-QA regenerations. Missing, malformed, wrong-project, anon-role and
+non-inspectable `sb_secret_*` values fail closed without disclosing any key
+bytes. The endpoint performs no database, storage, provider, image, audio or
+network operation; Production and unapproved Preview environments return 404.
+Stage-0 attempt calculation has one source shared by both shipped anchor
+branches and the preflight. Page-QA regeneration now likewise has one pure
+source shared by the renderer, durable evidence budget and preflight, without
+changing either policy.
 
-The earlier `CHILD_ANCHOR_MAX_ATTEMPTS=1` record below is historical. The live
-branch-scoped Preview value is now exact `4`. The earlier claim that Stage-0
-candidate rows contain only booleans is likewise historical: the independently
-re-gated `stage0-description-template-candidate-qa/v1` correction below persists
-closed reason codes plus redacted bounded notes and validates them during
-recovery. The current Anthropic Vision default is `claude-sonnet-4-6` and the
-retired model is denied.
+The earlier `CHILD_ANCHOR_MAX_ATTEMPTS=1` record below is historical. The
+branch-scoped Preview value is intended to be exact `4`, but this remains an
+environment claim until v2 is deployed and returns PASS. The earlier claim that
+Stage-0 candidate rows contain only booleans is likewise historical: the
+independently re-gated `stage0-description-template-candidate-qa/v1` correction
+below persists closed reason codes plus redacted bounded notes and validates
+them during recovery. The current Anthropic Vision default is
+`claude-sonnet-4-6` and the retired model is denied.
 
-Local focused validation is **14 files / 152 tests PASS** plus TypeScript and
-diff hygiene. It includes the real package/Board preflight, fake-payment and
-flat-price narration assertions, current Anthropic authority, Stage-0
-diagnostics/recovery, visual-QA bounds and environment separation. No deploy,
-Order, payment,
-provider, render, storage/database write, Production secret rotation or external
-mutation is authorized by this local result. Next action is the focused green
-commit and Guy-mediated Claude Code review; after push/PASS, deploy the exact
-commit, provide a 23-hour Vercel share URL, and re-gate the two safe preflights
-before the single approved fake-paid LOW book.
+Claude's first review passed the v1 mechanism but held the pre-order gate because
+v1 did not inspect `SUPABASE_SERVICE_ROLE_KEY`, did not require the password used
+by fake-payment confirmation, emitted three raw non-secret env strings, and
+duplicated the Page-QA parser. The v2 correction closes all four findings. Local
+focused validation and the literal repository check are recorded below after
+the correction commit. No deploy, Order, payment, provider, render,
+storage/database read or write, Production secret rotation/deployment deletion,
+or external mutation is authorized by this local result. Next action is the
+focused green commit and Guy-mediated Claude Code re-gate; after push/PASS,
+deploy the exact commit and re-gate the two safe endpoints before the single
+approved fake-paid LOW book.
 
-The literal `npm run check` used the corrected **319 / 299 / 20** inventory.
-Both TypeScript projects passed. The ordinary phase reported **3,495 PASS / 65
-skipped / 8 failures**: five are the four established ignored-output fixture
-files, one was the expected inventory pin introduced by this new spec and is now
-corrected at 7/7, and two were 5-second Windows timeouts in the unchanged package
-migration suite. The resource phase reported **606 PASS / 5 timeouts** plus the
-three known post-assertion `onTaskUpdate` RPC timeouts. All seven timed assertions
-then passed in isolated one-worker runs with a 30-second diagnostic allowance;
-no assertion failed. No ignored fixture was fabricated or imported.
+Corrective focused validation is **14 files / 189 tests PASS**. The literal
+`npm run check` used the unchanged **319 / 299 / 20** inventory and both
+TypeScript projects passed. The ordinary phase reported **3,500 PASS / 65
+skipped / 6 failures**: five are the four established ignored-output fixture
+files and one is a 5-second Windows timeout in the unchanged package-migration
+suite. The resource phase reported **608 PASS / 3 timeouts** plus three known
+post-assertion `onTaskUpdate` RPC timeouts. The four timed assertions passed in
+isolated one-worker runs with a 30-second allowance: package migration **8/8**,
+execution materialization **21/21**, and QA Bridge **8/8** (the Bridge process
+still exited 1 only on one post-assertion RPC timeout). No ignored fixture was
+fabricated or imported.
 
 ## ACCEPTED-SOURCE PACKAGE PROMOTION — LOCAL GREEN, CLAUDE QA NEXT
 

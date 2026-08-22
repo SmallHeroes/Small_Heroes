@@ -2,24 +2,34 @@ import 'server-only';
 
 import { findProdResourceLeak } from '@/lib/generation-chunked/env-separation-guard';
 import {
+  classifySupabaseServiceRoleAuthority,
+  type SupabaseServiceRoleAuthorityStatus,
+} from '@/lib/generation-chunked/supabase-service-role-authority';
+import {
+  QUALITY_REGEN_BUDGET,
+  resolvePageVisualQaMaxRegens,
+} from './quality-regen-policy';
+import {
   resolveStage0AnchorMaxAttempts,
   STAGE0_ANCHOR_DEFAULT_MAX_ATTEMPTS,
 } from './stage0-attempt-policy';
 
 export const WIZARD_PREVIEW_ENVIRONMENT_PREFLIGHT_VERSION =
-  'wizard-preview-environment-preflight/v1' as const;
+  'wizard-preview-environment-preflight/v2' as const;
 export const WIZARD_PREVIEW_STAGING_SUPABASE_REF =
   'qvksgpzzosotubcbizay' as const;
-export const WIZARD_PREVIEW_PAGE_QA_MAX_REGENS = 2 as const;
+export const WIZARD_PREVIEW_PAGE_QA_MAX_REGENS = QUALITY_REGEN_BUDGET;
 
 export const WIZARD_PREVIEW_ENVIRONMENT_REASON_VALUES = [
   'not_preview',
   'staging_qa_disabled',
   'production_resource_configured',
   'supabase_authority_invalid',
+  'supabase_service_role_authority_invalid',
   'database_authority_invalid',
   'direct_database_authority_invalid',
   'fake_payment_disabled',
+  'site_password_missing',
   'visual_contract_enforcement_disabled',
   'child_anchor_attempt_policy_invalid',
   'image_quality_not_low',
@@ -36,23 +46,30 @@ type SafeResourceAuthority = {
   databaseHost: string | null;
   directDatabaseHost: string | null;
   productionResourceLeak: boolean;
+  serviceRoleAuthority: SupabaseServiceRoleAuthorityStatus;
 };
+
+type ClosedExpectedValue<TExpected extends string> =
+  | TExpected
+  | 'other'
+  | 'missing';
 
 export type WizardPreviewEnvironmentPreflight = {
   version: typeof WIZARD_PREVIEW_ENVIRONMENT_PREFLIGHT_VERSION;
   status: 'passed' | 'failed';
   reasons: WizardPreviewEnvironmentReason[];
   environment: {
-    vercelEnvironment: string | null;
+    vercelEnvironment: ClosedExpectedValue<'preview'>;
     stagingQaEnabled: boolean;
   };
   resources: SafeResourceAuthority;
   policy: {
-    paymentProvider: string | null;
+    paymentProvider: ClosedExpectedValue<'fake'>;
     fakePaymentEnabled: boolean;
+    sitePasswordConfigured: boolean;
     visualContractEnforcement: boolean;
     childAnchorMaxAttempts: number;
-    imageQuality: string | null;
+    imageQuality: ClosedExpectedValue<'low'>;
     pageVisualQaMaxRegens: number;
   };
   effects: {
@@ -98,10 +115,12 @@ function connectionTargetsExpectedStaging(
   }
 }
 
-function resolvePageVisualQaMaxRegens(rawValue: string | undefined): number {
-  const parsed = Number.parseInt(rawValue ?? '', 10);
-  const requested = parsed || WIZARD_PREVIEW_PAGE_QA_MAX_REGENS;
-  return Math.min(2, Math.max(0, requested));
+function closedExpectedValue<TExpected extends string>(
+  value: string | undefined,
+  expected: TExpected,
+): ClosedExpectedValue<TExpected> {
+  if (!value?.trim()) return 'missing';
+  return value === expected ? expected : 'other';
 }
 
 export function buildWizardPreviewEnvironmentPreflight(
@@ -112,6 +131,10 @@ export function buildWizardPreviewEnvironmentPreflight(
   const directDatabaseHost = safeHostname(source.DIRECT_URL);
   const projectRef = supabaseProjectRef(supabaseHost);
   const productionResourceLeak = findProdResourceLeak(source) !== null;
+  const serviceRoleAuthority = classifySupabaseServiceRoleAuthority(
+    source.SUPABASE_SERVICE_ROLE_KEY,
+    WIZARD_PREVIEW_STAGING_SUPABASE_REF,
+  );
   const childAnchorMaxAttempts = resolveStage0AnchorMaxAttempts(
     source.CHILD_ANCHOR_MAX_ATTEMPTS,
   );
@@ -122,6 +145,7 @@ export function buildWizardPreviewEnvironmentPreflight(
     source.PAYMENT_PROVIDER === 'fake' &&
     source.ENABLE_FAKE_PAYMENT === 'true' &&
     source.ALLOW_FAKE_PAYMENTS === 'true';
+  const sitePasswordConfigured = Boolean(source.SITE_PASSWORD?.trim());
 
   const reasons: WizardPreviewEnvironmentReason[] = [];
   if (source.VERCEL_ENV !== 'preview') reasons.push('not_preview');
@@ -130,6 +154,9 @@ export function buildWizardPreviewEnvironmentPreflight(
   if (projectRef !== WIZARD_PREVIEW_STAGING_SUPABASE_REF) {
     reasons.push('supabase_authority_invalid');
   }
+  if (serviceRoleAuthority !== 'matched') {
+    reasons.push('supabase_service_role_authority_invalid');
+  }
   if (!connectionTargetsExpectedStaging(source.DATABASE_URL, databaseHost)) {
     reasons.push('database_authority_invalid');
   }
@@ -137,6 +164,7 @@ export function buildWizardPreviewEnvironmentPreflight(
     reasons.push('direct_database_authority_invalid');
   }
   if (!fakePaymentEnabled) reasons.push('fake_payment_disabled');
+  if (!sitePasswordConfigured) reasons.push('site_password_missing');
   if (source.VISUAL_CONTRACT_ENFORCEMENT !== 'true') {
     reasons.push('visual_contract_enforcement_disabled');
   }
@@ -153,7 +181,7 @@ export function buildWizardPreviewEnvironmentPreflight(
     status: reasons.length === 0 ? 'passed' : 'failed',
     reasons,
     environment: {
-      vercelEnvironment: source.VERCEL_ENV ?? null,
+      vercelEnvironment: closedExpectedValue(source.VERCEL_ENV, 'preview'),
       stagingQaEnabled: source.ALLOW_STAGING_QA === 'true',
     },
     resources: {
@@ -163,14 +191,16 @@ export function buildWizardPreviewEnvironmentPreflight(
       databaseHost,
       directDatabaseHost,
       productionResourceLeak,
+      serviceRoleAuthority,
     },
     policy: {
-      paymentProvider: source.PAYMENT_PROVIDER ?? null,
+      paymentProvider: closedExpectedValue(source.PAYMENT_PROVIDER, 'fake'),
       fakePaymentEnabled,
+      sitePasswordConfigured,
       visualContractEnforcement:
         source.VISUAL_CONTRACT_ENFORCEMENT === 'true',
       childAnchorMaxAttempts,
-      imageQuality: source.GPT_IMAGE_QUALITY ?? null,
+      imageQuality: closedExpectedValue(source.GPT_IMAGE_QUALITY, 'low'),
       pageVisualQaMaxRegens,
     },
     effects: {

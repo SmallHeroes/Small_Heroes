@@ -3,12 +3,14 @@
 ## 1. Proposed change
 
 Add one Preview-only, read-only environment preflight that exposes only safe
-resource hostnames, the expected staging Supabase project reference, resolved
-bounded QA policy values and closed pass/fail reasons. Extract the Stage-0
-anchor-attempt calculation into one shared helper used by both render branches
-and the preflight. Correct `CURRENT.md` so the old one-attempt incident is
-clearly historical and the already-shipped per-candidate diagnostics are not
-misread as an open blocker.
+resource hostnames, the expected staging Supabase project reference, a closed
+service-role authority status, resolved bounded QA policy values and closed
+pass/fail reasons. Extract the Stage-0 anchor-attempt and Page-QA regeneration
+calculations into pure shared helpers used by their runtime consumers and the
+preflight. Require the non-empty password needed by fake-payment confirmation.
+Correct `CURRENT.md` so the old one-attempt incident is clearly historical and
+the already-shipped per-candidate diagnostics are not misread as an open
+blocker.
 
 ## 2. Why now?
 
@@ -32,7 +34,12 @@ special cases. Production always returns 404.
 ## 5. Files likely affected
 
 - `lib/generation-pipeline/stage0-attempt-policy.ts`
+- `lib/generation-pipeline/quality-regen-policy.ts`
 - `lib/generation-pipeline/wizard-preview-environment-preflight.ts`
+- `lib/generation-chunked/supabase-service-role-authority.ts`
+- `lib/generation-chunked/env-separation-guard.ts`
+- `lib/generation-pipeline/page-visual-qa.ts`
+- `lib/generation-pipeline/quality-evidence.ts`
 - `lib/generation-pipeline/chunk-runner.ts`
 - `app/api/dev/wizard-environment-preflight/route.ts`
 - focused tests
@@ -41,21 +48,26 @@ special cases. Production always returns 404.
 ## 6. Expected behavior after change
 
 On the approved Preview, the endpoint returns `passed` only when all database
-and Supabase authorities point to exact staging, no Production identifier is
-present, fake payment and Visual Contract enforcement are active, image quality
-is LOW, and the bounded anchor/page-QA policy resolves to the approved values.
-The response never includes credentials, connection strings, tokens or secret
-values. Any mismatch returns a closed reason list and HTTP 409. Production and
-unapproved Preview deployments return 404.
+and Supabase authorities point to exact staging, the backend key is an
+inspectable legacy JWT with exact Supabase/staging/service-role claims, no
+Production identifier is present, fake payment and its site-password gate are
+active, image quality is LOW, and bounded anchor/page-QA policy resolves to the
+approved values. New opaque `sb_secret_*` keys are reported as unverifiable and
+cannot pass this zero-network endpoint. The response never includes credentials,
+connection strings, tokens or raw env values. Any mismatch returns a closed
+reason list and HTTP 409. Production and unapproved Preview deployments return
+404.
 
 ## 7. Validation plan
 
-Unit-test passing staging, every authority-family failure, production leakage,
-bounded numeric parsing, response redaction, route status and provider/DB/network
-import isolation. Run the Stage-0 diagnostics/recovery tests, fake-payment gate,
-environment-separation tests, `npx --no-install tsc --noEmit`, diff hygiene and
-the ordinary repository check where practical. Independent Claude Code review
-precedes deployment; a temporary Vercel share URL then permits remote re-gate.
+Unit-test passing staging, prod/wrong-role/missing/unverifiable backend keys,
+every authority-family failure, Production leakage, missing site password,
+bounded numeric parsing, closed response values, redaction, route status and
+provider/DB/network import isolation. Run the Stage-0 diagnostics/recovery tests,
+fake-payment gate, Page-QA/evidence tests, environment-separation tests,
+`npx --no-install tsc --noEmit`, diff hygiene and the ordinary repository check
+where practical. Independent Claude Code review precedes deployment; a temporary
+Vercel share URL then permits remote re-gate.
 
 ## 8. Cost impact
 

@@ -4,6 +4,8 @@ import { execFileSync, spawnSync } from 'child_process';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { findProdResourceLeak } from '@/lib/generation-chunked/env-separation-guard';
+import { classifySupabaseServiceRoleAuthority } from '@/lib/generation-chunked/supabase-service-role-authority';
 import {
   buildWizardPreviewEnvironmentPreflight,
   WIZARD_PREVIEW_ENVIRONMENT_REASON_VALUES,
@@ -12,9 +14,27 @@ import {
   resolveStage0AnchorMaxAttempts,
   STAGE0_ANCHOR_DEFAULT_MAX_ATTEMPTS,
 } from '../stage0-attempt-policy';
+import {
+  QUALITY_REGEN_BUDGET,
+  resolvePageVisualQaMaxRegens,
+} from '../quality-regen-policy';
 
 const REPO_ROOT = process.cwd();
 const STAGING_REF = 'qvksgpzzosotubcbizay';
+const PRODUCTION_REF = 'yevwpjxqusyyaxalbvyn';
+
+function legacySupabaseJwt(
+  projectRef: string,
+  role: 'service_role' | 'anon' = 'service_role',
+): string {
+  const encode = (value: unknown) =>
+    Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
+  return `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({
+    iss: 'supabase',
+    ref: projectRef,
+    role,
+  })}.test-signature`;
+}
 
 function passingEnv(): NodeJS.ProcessEnv {
   return {
@@ -35,7 +55,7 @@ function passingEnv(): NodeJS.ProcessEnv {
     GPT_IMAGE_QUALITY: 'low',
     PAGE_VISUAL_QA_MAX_REGENS: '2',
     SITE_PASSWORD: 'must-not-leak',
-    SUPABASE_SERVICE_ROLE_KEY: 'must-not-leak-either',
+    SUPABASE_SERVICE_ROLE_KEY: legacySupabaseJwt(STAGING_REF),
   };
 }
 
@@ -48,7 +68,7 @@ describe('Wizard Preview environment authority preflight', () => {
   it('returns only safe staging hosts and the exact bounded policy without any read or provider effect', () => {
     const result = buildWizardPreviewEnvironmentPreflight(passingEnv());
     expect(result).toEqual({
-      version: 'wizard-preview-environment-preflight/v1',
+      version: 'wizard-preview-environment-preflight/v2',
       status: 'passed',
       reasons: [],
       environment: {
@@ -62,10 +82,12 @@ describe('Wizard Preview environment authority preflight', () => {
         databaseHost: 'aws-0-eu-central-1.pooler.supabase.com',
         directDatabaseHost: `db.${STAGING_REF}.supabase.co`,
         productionResourceLeak: false,
+        serviceRoleAuthority: 'matched',
       },
       policy: {
         paymentProvider: 'fake',
         fakePaymentEnabled: true,
+        sitePasswordConfigured: true,
         visualContractEnforcement: true,
         childAnchorMaxAttempts: 4,
         imageQuality: 'low',
@@ -96,7 +118,8 @@ describe('Wizard Preview environment authority preflight', () => {
       DATABASE_URL:
         'postgresql://postgres.yevwpjxqusyyaxalbvyn:secret@aws-0-eu-central-1.pooler.supabase.com:6543/postgres',
       DIRECT_URL:
-        'postgresql://postgres:secret@db.yevwpjxqusyyaxalbvyn.supabase.co:5432/postgres',
+        `postgresql://postgres:secret@db.${PRODUCTION_REF}.supabase.co:5432/postgres`,
+      SUPABASE_SERVICE_ROLE_KEY: legacySupabaseJwt(PRODUCTION_REF),
       PAYMENT_PROVIDER: 'payme',
       ENABLE_FAKE_PAYMENT: 'false',
       ALLOW_FAKE_PAYMENTS: 'false',
@@ -104,12 +127,76 @@ describe('Wizard Preview environment authority preflight', () => {
       CHILD_ANCHOR_MAX_ATTEMPTS: '1',
       GPT_IMAGE_QUALITY: 'high',
       PAGE_VISUAL_QA_MAX_REGENS: '1',
+      SITE_PASSWORD: '',
     });
     const result = buildWizardPreviewEnvironmentPreflight(env);
     expect(result.status).toBe('failed');
     expect(result.reasons).toEqual(WIZARD_PREVIEW_ENVIRONMENT_REASON_VALUES);
     expect(result.resources.productionResourceLeak).toBe(true);
+    expect(result.resources.serviceRoleAuthority).toBe('mismatched');
     expect(JSON.stringify(result)).not.toContain('secret');
+  });
+
+  it('binds the backend credential to the exact staging service-role authority without exposing it', () => {
+    expect(
+      classifySupabaseServiceRoleAuthority(
+        legacySupabaseJwt(STAGING_REF),
+        STAGING_REF,
+      ),
+    ).toBe('matched');
+    expect(
+      classifySupabaseServiceRoleAuthority(
+        legacySupabaseJwt(PRODUCTION_REF),
+        STAGING_REF,
+      ),
+    ).toBe('mismatched');
+    expect(
+      classifySupabaseServiceRoleAuthority(
+        legacySupabaseJwt(STAGING_REF, 'anon'),
+        STAGING_REF,
+      ),
+    ).toBe('mismatched');
+    expect(
+      classifySupabaseServiceRoleAuthority('sb_secret_uninspectable', STAGING_REF),
+    ).toBe('unverifiable');
+    expect(classifySupabaseServiceRoleAuthority(undefined, STAGING_REF)).toBe(
+      'missing',
+    );
+
+    const prodKeyEnv = passingEnv();
+    prodKeyEnv.SUPABASE_SERVICE_ROLE_KEY = legacySupabaseJwt(PRODUCTION_REF);
+    const prodResult = buildWizardPreviewEnvironmentPreflight(prodKeyEnv);
+    expect(prodResult.status).toBe('failed');
+    expect(prodResult.reasons).toEqual([
+      'production_resource_configured',
+      'supabase_service_role_authority_invalid',
+    ]);
+    expect(prodResult.resources.serviceRoleAuthority).toBe('mismatched');
+    expect(findProdResourceLeak(prodKeyEnv)).toBe(
+      'SUPABASE_SERVICE_ROLE_KEY identifies the PRODUCTION Supabase project',
+    );
+    expect(JSON.stringify(prodResult)).not.toContain(
+      prodKeyEnv.SUPABASE_SERVICE_ROLE_KEY,
+    );
+  });
+
+  it('requires the password needed by fake-payment confirmation and emits only closed policy values', () => {
+    const missingPassword = passingEnv();
+    missingPassword.SITE_PASSWORD = '   ';
+    const missingResult = buildWizardPreviewEnvironmentPreflight(missingPassword);
+    expect(missingResult.status).toBe('failed');
+    expect(missingResult.reasons).toEqual(['site_password_missing']);
+    expect(missingResult.policy.sitePasswordConfigured).toBe(false);
+
+    const hostileValues = passingEnv();
+    hostileValues.VERCEL_ENV = 'preview-with-secret-like-suffix';
+    hostileValues.PAYMENT_PROVIDER = 'fake-with-secret-like-suffix';
+    hostileValues.GPT_IMAGE_QUALITY = 'low-with-secret-like-suffix';
+    const closed = buildWizardPreviewEnvironmentPreflight(hostileValues);
+    expect(closed.environment.vercelEnvironment).toBe('other');
+    expect(closed.policy.paymentProvider).toBe('other');
+    expect(closed.policy.imageQuality).toBe('other');
+    expect(JSON.stringify(closed)).not.toContain('secret-like-suffix');
   });
 
   it('does not accept an unrelated database host merely because a path or query mentions staging', () => {
@@ -144,6 +231,24 @@ describe('Wizard Preview environment authority preflight', () => {
     );
     expect(source.match(/resolveStage0AnchorMaxAttempts\(\)/gu)).toHaveLength(2);
     expect(source).not.toContain("CHILD_ANCHOR_MAX_ATTEMPTS ?? '4'");
+  });
+
+  it('shares one Page Visual QA regeneration calculation with the renderer and durable evidence budget', () => {
+    expect(QUALITY_REGEN_BUDGET).toBe(2);
+    expect(resolvePageVisualQaMaxRegens(undefined)).toBe(2);
+    expect(resolvePageVisualQaMaxRegens('not-a-number')).toBe(2);
+    expect(resolvePageVisualQaMaxRegens('0')).toBe(2);
+    expect(resolvePageVisualQaMaxRegens('1')).toBe(1);
+    expect(resolvePageVisualQaMaxRegens('2')).toBe(2);
+    expect(resolvePageVisualQaMaxRegens('99')).toBe(2);
+    expect(resolvePageVisualQaMaxRegens('-1')).toBe(0);
+
+    const source = fs.readFileSync(
+      path.join(REPO_ROOT, 'lib/generation-pipeline/page-visual-qa.ts'),
+      'utf8',
+    );
+    expect(source).toContain('resolvePageVisualQaMaxRegens()');
+    expect(source).not.toContain("PAGE_VISUAL_QA_MAX_REGENS ?? '2'");
   });
 
   it('returns 200 only for approved Preview authority, 409 for drift and 404 outside dev authority', async () => {

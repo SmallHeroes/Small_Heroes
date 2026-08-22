@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { isVercelProductionRuntime } from '@/lib/runtime-env';
+import { supabaseLegacyJwtReferencesProject } from './supabase-service-role-authority';
 
 /**
  * Env-separation guard (roundtable 0089 P0).
@@ -54,6 +55,14 @@ export function findProdResourceLeak(
   const dbConn = `${source.DATABASE_URL || ''}|${source.DIRECT_URL || ''}`.toLowerCase();
   if (dbConn.includes(PROD_SUPABASE_REF)) {
     return `DATABASE_URL/DIRECT_URL points at the PRODUCTION Supabase project (${PROD_SUPABASE_REF})`;
+  }
+  if (
+    supabaseLegacyJwtReferencesProject(
+      source.SUPABASE_SERVICE_ROLE_KEY,
+      PROD_SUPABASE_REF,
+    )
+  ) {
+    return 'SUPABASE_SERVICE_ROLE_KEY identifies the PRODUCTION Supabase project';
   }
   return null;
 }
