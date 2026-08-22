@@ -77,9 +77,26 @@ and worker infrastructure, not on this source-authority correction.
 The pending root is fresh-only by design: an identical second mint is rejected
 before writing; its five-file byte inventory remained unchanged. No approval,
 promotion, provider, render, deployment, database or storage operation occurred.
-Next action is an immutable focused commit and independent Claude Code re-gate.
-The pending revision must not be accepted or promoted before that PASS and
-Guy's exact future review acceptance.
+Claude Code independently re-gated the immutable source-authority range
+`38971f17..7327031c` with **0 BLOCKER / 0 MAJOR / 0 MINOR**.
+
+The next offline milestone is now implemented locally: the revision lifecycle
+accepts only pending v4 and produces review bundle, acceptance, revision identity
+and accepted manifest v2. The review exposes the exact neutral metadata change
+and complete boy/girl projections. Parent-manifest, technical-review, output and
+replay inputs are contained regular single-link files/directories; junction,
+symlink, reparse and hard-link aliases fail closed. Review and accepted-revision
+writes are staged and atomically renamed, and replay succeeds only for an exact
+inventory/byte match. Guy and timestamp authority are exact and calendar-valid.
+The dedicated lifecycle suite passes **6/6**; the materializer, lifecycle,
+source-authority and workload-classifier matrix passes **4 files / 126 tests**;
+both TypeScript checks pass. Literal `npm run check` passed **3,459** ordinary
+assertions and exposed the same five missing ignored-output fixtures plus the
+new test-inventory count; that count is corrected and green in the focused
+replacement. Resource-intensive passed **611/611** and retained only the three
+known worker RPC timeouts. No acceptance or promotion has occurred. This
+lifecycle milestone still requires a focused commit and independent Claude Code
+re-gate before Codex may mint the exact technical/product-review digests for Guy.
 
 ## FIRST PHOTO-BACKED BAR WIZARD BOOK — FULL GENERATION COMPLETE, RELEASE HELD FOR RECOVERY
 
