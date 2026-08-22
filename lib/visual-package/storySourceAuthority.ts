@@ -10,7 +10,7 @@ import {
 } from '@/lib/story-source-gender';
 import {
   assertSourceHasRealProse,
-} from '@/lib/visual-contract-compiler';
+} from '@/lib/visual-contract-compiler/assertSourceProse';
 import {
   AuthoredCoverAuthorityError,
   authoredCoverAuthorityFromLocationBible,

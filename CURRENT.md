@@ -4,7 +4,65 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
-## ACCEPTED-REVISION RUNTIME STORY SELECTION — LOCAL GREEN, AWAITING INDEPENDENT QA
+## STORY SOURCE REVISION PACKAGE MIGRATION PHASE 1 — LOCAL GREEN, AWAITING INDEPENDENT QA
+
+The accepted neutral Chameleon revision can now be migrated into the current
+approved Visual Package without another authoring/provider call. The new
+general offline lifecycle loads the exact current locator/revision and exact
+product-accepted Story Source revision, rebuilds current source snapshots,
+proves a complete old-to-new Source Evidence bijection, projects every mapped
+Visual Contract and Action Semantic Coverage binding, validates both, and
+creates a fresh pending reconciliation review. It cannot approve
+reconciliation, build or approve a Blueprint/package, update the locator,
+deploy, render, or write external state.
+
+The real preview and persisted artifact prove **92 → 92** unique evidence
+identities, all IDs changed, exactly **12** source excerpts changed, exactly
+**8** template evidence occurrences projected, **98** complete coverage records,
+and **155** evidence-ID occurrences in the source package. The only changed
+historical image directions are pages **6 and 8**. The migrated template digest
+is `8cd21c2c6ab3de7e801a7596b0eb4be1f103136f66d342d41b7b42845871c980`.
+
+The immutable pending root is
+`outputs/r1d-chameleon-source-revision-package-migration-pending-20260822T064826732Z`.
+Its manifest is
+`db14ca61024e125cb63499846e4e56d8043e0103cf2997cbe955b5bb2ed6e184`,
+pending reconciliation is
+`601bf27eec36b31a9be1074671715fb3c9868d3d6c9c56dcede57f1b1a77f8d5`,
+and review bundle is
+`dada71130f08bd71ffdd81686263ccce29be51d9e9fac8b21be40a0f0b542887`.
+The review is intentionally `readyForApproval: false` with only the expected
+`reconciliation_incomplete` blocker; all prior supersessions/rebinds and the
+overall reconciliation require fresh Guy review. A second exact write returned
+`created: false` and preserved the full byte inventory.
+
+The focused lifecycle/regression matrix passes **5 files / 130 tests**;
+`npx --no-install tsc --noEmit`, `npm run story:autonomous-typecheck` and
+`git diff --check` pass. The CLI import graph
+has **78 inputs / 0 node_modules / 0 provider-call-capable inputs**. It contains
+only static OpenAI schema-compatibility and provider-failure classification
+modules inherited by reconciliation validation. The manifest records every
+external counter as zero. The current package, locator and four untracked Board
+artifacts remain byte-identical and unstaged.
+
+One literal `npm run check` exercised the new **317-file** canonical inventory.
+Its ordinary phase reported **3,483 PASS / 65 skipped / 6 failures**: five are
+the established absent ignored-output fixtures and the sixth was the expected
+workload-inventory assertion introduced by this new spec. The inventory pin is
+now corrected to **317 total / 297 ordinary / 20 resource-intensive**. The
+resource phase reported **610 PASS / 1 timeout** plus three known Vitest worker
+`onTaskUpdate` RPC timeouts under parallel load. The timed file then passed
+**8/8 assertions** in isolation, including the
+junction regression that timed out under load; its Vitest process still exited
+nonzero only for one known post-assertion `onTaskUpdate` RPC timeout. No
+migration assertion failed.
+
+Next action: create the focused local commit and send Guy the immutable range
+and adversarial Claude Code brief. Provider/live/render, reconciliation
+approval and all downstream Blueprint/package/locator work remain HOLD until
+independent PASS and Guy's exact reconciliation/review acceptance.
+
+## ACCEPTED-REVISION RUNTIME STORY SELECTION — INDEPENDENT QA PASS
 
 The accepted neutral Story Source exposed one pre-spend runtime P0. Fresh
 Wizard selection correctly froze the package-bound nested `integrated.md`, but
@@ -53,14 +111,10 @@ audio, render, database, storage, deployment,
 package migration, approval, publication or locator operation has occurred.
 This is a Codex local result, not independent technical PASS.
 
-Next action: create the focused local commit and give Guy the exact immutable
-range plus a copy-ready Claude Code brief. The first read-only pass found the
-product-truth trace and accepted-cache-marker gaps above; those findings are now
-corrected locally and must receive a fresh user-routed micro re-gate.
-Provider/live/render remains
-HOLD. After PASS, build the
-zero-spend deterministic evidence/reconciliation/Blueprint/package migration;
-the existing two Board hashes must remain exact or that later milestone stops.
+Claude Code independently re-gated exact runtime head `a8f19540` with **0
+BLOCKER / 0 MAJOR / 0 MINOR**. Provider/live/render remained HOLD after that
+PASS; the zero-spend deterministic package migration is the active milestone
+recorded above.
 
 ## CHAMELEON GENDER-FLEXIBLE SOURCE AUTHORITY — PRODUCT-ACCEPTED REVISION V2
 
