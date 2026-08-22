@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -26,6 +27,12 @@ const materializer = require('../../scripts/materialize-story-source-revision.cj
     requestPath: string;
     write: boolean;
   };
+  readBoundRepoFile: (
+    reference: { path: string; sha256: string },
+    maximumBytes: number,
+    code: string,
+    allowedRootRelative: string,
+  ) => unknown;
   readRequestFile: (requestPath: string) => {
     bytes: Buffer;
     relativePath: string;
@@ -72,6 +79,8 @@ const SOURCE_MANIFEST_PATH =
   'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/manifest.json';
 const DIRECTION_PATH =
   'story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/chameleon_koko_bedtime.visual-directions.json';
+const BUNNY_DIRECTION_PATH =
+  'story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/bunny_ometz_bedtime.visual-directions.json';
 
 const EXPECTED_SOURCE_SHA =
   '6da0babf1d7e97a0841d1c414e15bd682a525d8ab0366df49def7247079dd407';
@@ -316,6 +325,13 @@ describe('story source revision materializer', () => {
     expect(() =>
       materializer.validateRequest({
         ...base,
+        storyKey: 'bunny_ometz_bedtime',
+        visualDirections: { record: boundReference(BUNNY_DIRECTION_PATH) },
+      }),
+    ).toThrow('story_source_revision_request_invalid');
+    expect(() =>
+      materializer.validateRequest({
+        ...base,
         textReplacements: [
           ...base.textReplacements,
           { expectedCount: 1, from: 'לילה', to: 'ערב' },
@@ -372,6 +388,122 @@ describe('story source revision materializer', () => {
     expect(() => materializer.resolveOutputDir('story-pipeline/escape')).toThrow(
       'story_source_revision_output_path_rejected',
     );
+  });
+
+  it('rejects reparse and hard-link aliases at every input authority root', () => {
+    const fixture = writeRequest();
+    const authorityRoot = path.join(fixture.root, 'authority');
+    const outsideRoot = path.join(fixture.root, 'outside');
+    fs.mkdirSync(authorityRoot);
+    fs.mkdirSync(outsideRoot);
+    const outsidePath = path.join(outsideRoot, 'source.txt');
+    fs.writeFileSync(outsidePath, 'outside-authority\n', 'utf8');
+    const allowedRootRelative = path
+      .relative(REPO_ROOT, authorityRoot)
+      .split('\\')
+      .join('/');
+
+    const junctionPath = path.join(authorityRoot, 'junction');
+    fs.symlinkSync(outsideRoot, junctionPath, 'junction');
+    const junctionFile = path.join(junctionPath, 'source.txt');
+    expect(() =>
+      materializer.readBoundRepoFile(
+        {
+          path: path.relative(REPO_ROOT, junctionFile).split('\\').join('/'),
+          sha256: sha256(fs.readFileSync(junctionFile)),
+        },
+        1024,
+        'story_source_revision_test_input_invalid',
+        allowedRootRelative,
+      ),
+    ).toThrow('story_source_revision_test_input_invalid');
+
+    const hardLinkPath = path.join(authorityRoot, 'hard-link.txt');
+    fs.linkSync(outsidePath, hardLinkPath);
+    expect(() =>
+      materializer.readBoundRepoFile(
+        {
+          path: path.relative(REPO_ROOT, hardLinkPath).split('\\').join('/'),
+          sha256: sha256(fs.readFileSync(hardLinkPath)),
+        },
+        1024,
+        'story_source_revision_test_input_invalid',
+        allowedRootRelative,
+      ),
+    ).toThrow('story_source_revision_test_input_invalid');
+
+    const requestAliasTarget = path.join(outsideRoot, 'request.json');
+    fs.writeFileSync(
+      requestAliasTarget,
+      `${JSON.stringify(requestFixture(), null, 2)}\n`,
+      'utf8',
+    );
+    const requestJunction = path.join(fixture.root, 'request-junction');
+    fs.symlinkSync(outsideRoot, requestJunction, 'junction');
+    expect(() =>
+      materializer.readRequestFile(path.join(requestJunction, 'request.json')),
+    ).toThrow('story_source_revision_request_path_rejected');
+
+    const requestHardLink = path.join(fixture.root, 'request-hard-link.json');
+    fs.linkSync(fixture.requestPath, requestHardLink);
+    expect(() => materializer.readRequestFile(requestHardLink)).toThrow(
+      'story_source_revision_request_path_rejected',
+    );
+  });
+
+  it('loads only pure deterministic contracts and no provider-capable batch module', () => {
+    const fixture = writeRequest();
+    const sentinelPath = path.join(fixture.root, 'forbidden-import-sentinel.cjs');
+    fs.writeFileSync(
+      sentinelPath,
+      [
+        "const Module = require('node:module');",
+        'const originalLoad = Module._load;',
+        'const forbidden = [',
+        "  'materialize-story-commission-briefs',",
+        "  'story-visual-direction-batch-core',",
+        "  'materialize-vnext-story-bank',",
+        "  'story-autonomous-batch-core',",
+        "  'openai',",
+        "  'replicate',",
+        '];',
+        'Module._load = function(request, parent, isMain) {',
+        "  if (forbidden.some((entry) => String(request).includes(entry))) {",
+        "    throw new Error(`forbidden_external_import:${request}`);",
+        '  }',
+        '  return originalLoad.call(this, request, parent, isMain);',
+        '};',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+    const cleanLoad = spawnSync(
+      process.execPath,
+      [
+        '--require',
+        sentinelPath,
+        '-e',
+        "require('./scripts/materialize-story-source-revision.cjs')",
+      ],
+      { cwd: REPO_ROOT, encoding: 'utf8', windowsHide: true },
+    );
+    expect({ stderr: cleanLoad.stderr, status: cleanLoad.status }).toEqual({
+      stderr: '',
+      status: 0,
+    });
+
+    const positiveControl = spawnSync(
+      process.execPath,
+      [
+        '--require',
+        sentinelPath,
+        '-e',
+        "require('./scripts/materialize-vnext-story-bank.cjs')",
+      ],
+      { cwd: REPO_ROOT, encoding: 'utf8', windowsHide: true },
+    );
+    expect(positiveControl.status).not.toBe(0);
+    expect(positiveControl.stderr).toContain('forbidden_external_import');
   });
 
   it('requires the exact CLI surface and explicit write decision', () => {

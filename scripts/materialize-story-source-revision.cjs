@@ -4,16 +4,14 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { injectDirections } = require('./story-bank-direction-integration.cjs');
 const {
-  findRecord,
-  loadCommissionAuthority,
   validateEditorialPassDraft,
-} = require('./materialize-story-commission-briefs.cjs');
-const { injectDirections } = require('./materialize-vnext-story-bank.cjs');
+} = require('./story-editorial-validation-contract.cjs');
 const {
   parseStory,
   validateVisualDirectionRecord,
-} = require('./story-visual-direction-batch-core.cjs');
+} = require('./story-visual-direction-contract.cjs');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const OUTPUTS_ROOT = path.join(REPO_ROOT, 'outputs');
@@ -99,6 +97,41 @@ function canonicalRepoRelativePathIsValid(value) {
   );
 }
 
+function storyKeyFromAcceptedSourcePath(sourceStoryPath) {
+  const acceptedRoot = ACCEPTED_SOURCE_ROOT.replace(/\/$/, '');
+  const sourceDirectory = path.posix.dirname(sourceStoryPath);
+  const relativeDirectory = path.posix.relative(acceptedRoot, sourceDirectory);
+  if (
+    !/^[a-z][a-z0-9_]{2,95}$/.test(relativeDirectory) ||
+    relativeDirectory.includes('/')
+  ) {
+    throw new Error('story_source_revision_request_invalid');
+  }
+  return relativeDirectory;
+}
+
+function assertNoSymbolicLinkComponents(rootPath, targetPath, code) {
+  const relative = path.relative(rootPath, targetPath);
+  if (
+    relative.length === 0 ||
+    relative.startsWith('..') ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error(code);
+  }
+  let current = rootPath;
+  const rootStat = fs.lstatSync(current);
+  if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
+    throw new Error(code);
+  }
+  for (const segment of relative.split(path.sep)) {
+    current = path.join(current, segment);
+    if (fs.lstatSync(current).isSymbolicLink()) {
+      throw new Error(code);
+    }
+  }
+}
+
 function cleanText(value, maximum = 4096) {
   return (
     typeof value === 'string' &&
@@ -157,6 +190,7 @@ function validateRequest(value) {
     value.visualDirections.record,
     'story_source_revision_request_invalid',
   );
+  const sourceStoryKey = storyKeyFromAcceptedSourcePath(value.source.story.path);
   if (
     !value.source.manifest.path.startsWith(ACCEPTED_SOURCE_ROOT) ||
     !value.source.story.path.startsWith(ACCEPTED_SOURCE_ROOT) ||
@@ -164,8 +198,10 @@ function validateRequest(value) {
     path.posix.basename(value.source.story.path) !== 'story.md' ||
     path.posix.dirname(value.source.manifest.path) !==
       path.posix.dirname(value.source.story.path) ||
+    value.storyKey !== sourceStoryKey ||
     !value.visualDirections.record.path.startsWith(STORYBOARD_INPUT_ROOT) ||
-    !value.visualDirections.record.path.endsWith('.visual-directions.json')
+    path.posix.basename(value.visualDirections.record.path) !==
+      `${sourceStoryKey}.visual-directions.json`
   ) {
     throw new Error('story_source_revision_request_invalid');
   }
@@ -222,22 +258,31 @@ function validateRequest(value) {
   return value;
 }
 
-function readBoundRepoFile(reference, maximumBytes, code) {
+function readBoundRepoFile(reference, maximumBytes, code, allowedRootRelative) {
   const absolutePath = path.resolve(REPO_ROOT, ...reference.path.split('/'));
+  const absoluteAllowedRoot = path.resolve(
+    REPO_ROOT,
+    ...allowedRootRelative.replace(/\/$/, '').split('/'),
+  );
   let linkStat;
   let realPath;
-  let realRoot;
+  let realAllowedRoot;
   try {
+    if (!pathIsInside(absoluteAllowedRoot, absolutePath)) {
+      throw new Error(code);
+    }
+    assertNoSymbolicLinkComponents(absoluteAllowedRoot, absolutePath, code);
     linkStat = fs.lstatSync(absolutePath);
     realPath = fs.realpathSync(absolutePath);
-    realRoot = fs.realpathSync(REPO_ROOT);
+    realAllowedRoot = fs.realpathSync(absoluteAllowedRoot);
   } catch {
     throw new Error(code);
   }
   if (
     linkStat.isSymbolicLink() ||
     !linkStat.isFile() ||
-    !pathIsInside(realRoot, realPath) ||
+    linkStat.nlink !== 1 ||
+    !pathIsInside(realAllowedRoot, realPath) ||
     linkStat.size < 1 ||
     linkStat.size > maximumBytes
   ) {
@@ -261,6 +306,14 @@ function readRequestFile(requestPath) {
   let realPath;
   let realOutputsRoot;
   try {
+    if (!pathIsInside(OUTPUTS_ROOT, absoluteRequestPath)) {
+      throw new Error('story_source_revision_request_path_rejected');
+    }
+    assertNoSymbolicLinkComponents(
+      OUTPUTS_ROOT,
+      absoluteRequestPath,
+      'story_source_revision_request_path_rejected',
+    );
     linkStat = fs.lstatSync(absoluteRequestPath);
     realPath = fs.realpathSync(absoluteRequestPath);
     realOutputsRoot = fs.realpathSync(OUTPUTS_ROOT);
@@ -271,6 +324,7 @@ function readRequestFile(requestPath) {
     path.extname(realPath).toLowerCase() !== '.json' ||
     linkStat.isSymbolicLink() ||
     !linkStat.isFile() ||
+    linkStat.nlink !== 1 ||
     !pathIsInside(realOutputsRoot, realPath) ||
     linkStat.size < 1 ||
     linkStat.size > 128 * 1024
@@ -391,22 +445,19 @@ function applyDirectionReplacements(record, replacements) {
   return output;
 }
 
-function validateSourceManifest(manifest, request, sourceFile, story, record) {
+function validateSourceManifest(manifest, request, sourceFile, story) {
   if (
     manifest?.version !== 'small-heroes-product-accepted-story-source-manifest/v1' ||
     manifest?.status !== 'product_accepted_story_source' ||
     manifest?.authorityScope !== 'story_text_only' ||
     manifest?.record?.briefId !== request.briefId ||
-    manifest?.record?.companionId !== record.companionId ||
-    manifest?.record?.direction !== record.brief.direction ||
-    manifest?.record?.textPageCount !== record.brief.pageCount ||
     manifest?.record?.story?.filename !== path.basename(sourceFile.relativePath) ||
     manifest?.record?.story?.bytes !== sourceFile.bytes.length ||
     manifest?.record?.story?.sha256 !== sourceFile.sha256 ||
-    story.companionId !== record.companionId ||
-    story.direction !== record.brief.direction ||
-    story.category !== record.brief.category ||
-    story.declaredPages !== record.brief.pageCount
+    story.companionId !== manifest?.record?.companionId ||
+    story.direction !== manifest?.record?.direction ||
+    story.category !== manifest?.record?.category ||
+    story.declaredPages !== manifest?.record?.textPageCount
   ) {
     throw new Error('story_source_revision_source_authority_invalid');
   }
@@ -414,22 +465,23 @@ function validateSourceManifest(manifest, request, sourceFile, story, record) {
 
 function buildStorySourceRevision({ requestFile, outputDir, write }) {
   const request = requestFile.request;
-  const authority = loadCommissionAuthority();
-  const record = findRecord(authority, request.briefId);
   const sourceManifestFile = readBoundRepoFile(
     request.source.manifest,
     128 * 1024,
     'story_source_revision_manifest_invalid',
+    ACCEPTED_SOURCE_ROOT,
   );
   const sourceFile = readBoundRepoFile(
     request.source.story,
     128 * 1024,
     'story_source_revision_story_invalid',
+    ACCEPTED_SOURCE_ROOT,
   );
   const directionFile = readBoundRepoFile(
     request.visualDirections.record,
     256 * 1024,
     'story_source_revision_direction_invalid',
+    STORYBOARD_INPUT_ROOT,
   );
 
   let sourceManifest;
@@ -442,7 +494,16 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
   }
   const sourceText = sourceFile.bytes.toString('utf8');
   const sourceStory = parseStory(sourceText);
-  validateSourceManifest(sourceManifest, request, sourceFile, sourceStory, record);
+  validateSourceManifest(sourceManifest, request, sourceFile, sourceStory);
+  const record = {
+    companionId: sourceManifest.record.companionId,
+    brief: {
+      id: sourceManifest.record.briefId,
+      direction: sourceManifest.record.direction,
+      category: sourceManifest.record.category,
+      pageCount: sourceManifest.record.textPageCount,
+    },
+  };
   validateVisualDirectionRecord(directionRecord, request.storyKey, sourceStory.declaredPages);
 
   const revisedSourceText = applyExactTextReplacements(
@@ -704,9 +765,11 @@ module.exports = {
   buildStorySourceRevision,
   canonicalBytes,
   parseArgs,
+  readBoundRepoFile,
   readRequestFile,
   resolveOutputDir,
   resolveProjection,
   sha256,
+  storyKeyFromAcceptedSourcePath,
   validateRequest,
 };

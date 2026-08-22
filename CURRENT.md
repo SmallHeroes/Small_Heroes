@@ -21,6 +21,17 @@ preview and writes only digest-named pending artifacts beneath `outputs/`.
 It cannot approve, promote, publish, update a locator, access a provider, write
 storage/database state or render.
 
+The first independent review held the initial implementation on three authority
+boundaries. The corrective milestone now derives `storyKey` from the accepted
+source directory and requires the direction filename plus record to match it,
+so a Chameleon source cannot be paired with Bunny directions. Source, manifest
+and direction bytes must resolve inside their exact authority roots with no
+symlink/junction component and no hard-link alias; the operator request has the
+same no-reparse/no-hard-link fence inside `outputs/`. Finally, the materializer
+imports three pure deterministic contract modules instead of provider-capable
+batch/promotion tools. A real `Module._load` sentinel proves that the CLI loads
+without those modules and has a failing positive control.
+
 The real Chameleon run produced the expected byte identities:
 
 - corrected accepted source `6da0babf1d7e97a0841d1c414e15bd682a525d8ab0366df49def7247079dd407`;
@@ -31,13 +42,18 @@ The real Chameleon run produced the expected byte identities:
 
 The pending manifest is
 `outputs/r1d-chameleon-gender-revision-pending/102153975198f49514b3304893904c77eb5e341d0ba6e7e906e917cf0ed6183e.manifest.json`.
-Focused validation is **4 files / 62 tests PASS** including the ordinary Vitest
+Focused validation is **4 files / 64 tests PASS** including the ordinary Vitest
 inventory, with `tsc --noEmit` and `git diff --check` green. Literal
-`npm run check` passed both TypeScript projects, **3,448** ordinary assertions
-and **610/610** resource assertions; its only nonzero causes remain the five
-known missing ignored-output fixture tests and three known Vitest worker RPC
-timeouts. Promotion still requires an immutable commit, independent Claude Code
-PASS and Guy's exact source/review acceptance; no downstream reconciliation,
+`npm run check` passed both TypeScript projects and **3,450** ordinary
+assertions; its five ordinary failures remain the known missing ignored-output
+fixtures. The resource partition passed **609/610** assertions; its existing
+junction test exceeded the shared 5-second timeout under load and then passed
+**8/8** standalone with a 15-second diagnostic timeout. The same three known
+Vitest worker RPC timeouts remain. The real no-write preview still reproduces manifest digest
+`102153975198…` and all five prior output identities after the corrective
+refactor. Promotion still requires an immutable corrective commit, independent
+Claude Code re-gate PASS and Guy's exact source/review acceptance; no downstream
+reconciliation,
 Blueprint, package or paid render is implied.
 
 ## FIRST PHOTO-BACKED BAR WIZARD BOOK — FULL GENERATION COMPLETE, RELEASE HELD FOR RECOVERY

@@ -19,17 +19,20 @@ deployment or render capability.
 The tool validates all inputs before writing:
 
 1. exact request and replacement shapes;
-2. canonical repository-relative paths and SHA-256 bindings;
-3. accepted manifest/story/brief/page-count authority;
-4. exact replacement counts with overlap/cascade rejection;
-5. canonical editorial-pass validation of the revised source;
-6. byte-identical female projection against the historical source;
-7. complete boy/girl gender projection using behavior tested against the
+2. canonical repository-relative paths and SHA-256 bindings, plus exact-root
+   realpath containment with no symlink/junction component or hard-link alias;
+3. `storyKey` derived from the accepted source directory and exact agreement
+   across request, accepted source directory, direction filename and record;
+4. accepted manifest/story/brief/page-count authority;
+5. exact replacement counts with overlap/cascade rejection;
+6. canonical editorial-pass validation of the revised source;
+7. byte-identical female projection against the historical source;
+8. complete boy/girl gender projection using behavior tested against the
    production personalization resolver;
-8. explicit page/field-only visual-direction changes and the existing
+9. explicit page/field-only visual-direction changes and the existing
    visual-direction validator;
-9. exact source projection after deterministic `injectDirections` assembly;
-10. fresh, non-symlink output below `outputs/`.
+10. exact source projection after deterministic `injectDirections` assembly;
+11. fresh, non-symlink output below `outputs/`.
 
 `--write false` performs the complete derivation without creating the output
 directory. `--write true` writes five digest-named files only after every check
@@ -92,6 +95,12 @@ Kim, not the child.
 ## Code and tests
 
 - `scripts/materialize-story-source-revision.cjs`
+- `scripts/story-editorial-validation-contract.cjs`
+- `scripts/story-visual-direction-contract.cjs`
+- `scripts/story-bank-direction-integration.cjs`
+- `scripts/materialize-story-commission-briefs.cjs`
+- `scripts/story-visual-direction-batch-core.cjs`
+- `scripts/materialize-vnext-story-bank.cjs`
 - `lib/__tests__/story-source-revision-materializer.spec.ts`
 - `lib/__tests__/vitest-workload-classifier.spec.ts`
 - `CURRENT.md`
@@ -100,22 +109,33 @@ Kim, not the child.
 Focused validation:
 
 ```text
-story-source-revision-materializer.spec.ts      6/6 PASS
+story-source-revision-materializer.spec.ts      8/8 PASS
 story-commission-materializer.spec.ts          31/31 PASS
 story-bank-personalization-gate.spec.ts         18/18 PASS
 vitest-workload-classifier.spec.ts               7/7 PASS
-total                                            62/62 PASS
+total                                            64/64 PASS
 ```
+
+The corrective tests reproduce the originally accepted Chameleon-source/Bunny-
+direction blend and now reject it. They also reject junction and hard-link
+aliases for authority inputs and the operator request. A child-process
+`Module._load` sentinel blocks provider-capable batch, promotion, OpenAI and
+Replicate module names; the revision CLI loads cleanly under it and the broad
+legacy materializer fails as the positive control. The real operator request's
+no-write preview remains byte-stable at manifest digest
+`102153975198f49514b3304893904c77eb5e341d0ba6e7e906e917cf0ed6183e`.
 
 Also required before commit:
 
 - `npx --no-install tsc --noEmit` — PASS;
 - `git diff --check` — PASS;
 - literal `npm run check` compiled both TypeScript projects. The ordinary
-  partition passed **3,448** assertions and retained exactly the five known
+  partition passed **3,450** assertions and retained exactly the five known
   failures caused by four absent historical `outputs/` fixtures. The resource
-  partition passed **610/610** assertions and exited nonzero only because of
-  the three established Vitest worker `onTaskUpdate` RPC timeouts. No new
+  partition passed **609/610** assertions: the existing QA Wizard bridge
+  junction test exceeded its shared 5-second timeout under load, then passed
+  **8/8** in an isolated rerun with a 15-second diagnostic timeout. The three
+  established Vitest worker `onTaskUpdate` RPC timeouts also remained. No new
   assertion failed.
 
 ## Explicit limitations and next gate
