@@ -691,7 +691,7 @@ describe('Visual Contract prompt authority-table compaction', () => {
       'vc-template-prompt/v14',
     );
     expect(TEMPLATE_USER_PROMPT_VERSION).toBe(
-      'vc-template-user-prompt/v13',
+      'vc-template-user-prompt/v14',
     );
     expect(REPAIR_PROMPT_VERSION).toBe(
       'vc-repair-prompt/v13',

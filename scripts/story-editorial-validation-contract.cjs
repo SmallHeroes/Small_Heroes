@@ -59,7 +59,28 @@ function validateFullGenderChips(markdown) {
   }
 }
 
-function normalizeAndValidateStoryDraft(record, draft, allowDelimiterNormalization) {
+const EDITORIAL_SOURCE_PROFILE_LEGACY_FEMALE = 'legacy_female';
+const EDITORIAL_SOURCE_PROFILE_GENDER_FLEXIBLE = 'gender_flexible';
+
+function expectedSourceGender(profile) {
+  if (
+    profile === undefined ||
+    profile === EDITORIAL_SOURCE_PROFILE_LEGACY_FEMALE
+  ) {
+    return 'female';
+  }
+  if (profile === EDITORIAL_SOURCE_PROFILE_GENDER_FLEXIBLE) {
+    return 'neutral';
+  }
+  throw new Error('story_writer_revision_source_profile_invalid');
+}
+
+function normalizeAndValidateStoryDraft(
+  record,
+  draft,
+  allowDelimiterNormalization,
+  options = {},
+) {
   const normalized = draft.text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
   const lines = normalized.split('\n');
   if (lines[0] !== '---') {
@@ -90,7 +111,7 @@ function normalizeAndValidateStoryDraft(record, draft, allowDelimiterNormalizati
     frontmatter.direction !== record.brief.direction ||
     frontmatter.category !== record.brief.category ||
     Number(frontmatter.pages) !== record.brief.pageCount ||
-    frontmatter.gender !== 'female' ||
+    frontmatter.gender !== expectedSourceGender(options.sourceProfile) ||
     frontmatter.endingType !== 'resolution'
   ) {
     throw new Error('story_writer_revision_identity_mismatch');
@@ -131,8 +152,13 @@ function normalizeAndValidateStoryDraft(record, draft, allowDelimiterNormalizati
   };
 }
 
-function validateEditorialPassDraft(record, draft) {
-  const validated = normalizeAndValidateStoryDraft(record, draft, false);
+function validateEditorialPassDraft(record, draft, options = {}) {
+  const validated = normalizeAndValidateStoryDraft(
+    record,
+    draft,
+    false,
+    options,
+  );
   if (
     validated.actions.length !== 0 ||
     validated.text !== draft.text ||
@@ -144,6 +170,8 @@ function validateEditorialPassDraft(record, draft) {
 }
 
 module.exports = {
+  EDITORIAL_SOURCE_PROFILE_GENDER_FLEXIBLE,
+  EDITORIAL_SOURCE_PROFILE_LEGACY_FEMALE,
   normalizeAndValidateStoryDraft,
   validateEditorialPassDraft,
 };

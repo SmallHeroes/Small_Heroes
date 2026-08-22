@@ -4,6 +4,11 @@ import path from 'path';
 import { getCompanionById } from '@/lib/companions';
 import { frontmatterField } from '@/lib/story-bank-v3-import';
 import {
+  storySourceGenderCompilerPromptValue,
+  storySourceGenderModeIsValid,
+  type StorySourceGenderMode,
+} from '@/lib/story-source-gender';
+import {
   assertSourceHasRealProse,
 } from '@/lib/visual-contract-compiler';
 import {
@@ -41,6 +46,8 @@ import {
 import type { StorySourceIdentity } from './types';
 
 export const STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION =
+  'story-source-authority-snapshot/v3' as const;
+export const LEGACY_STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION_V2 =
   'story-source-authority-snapshot/v2' as const;
 
 const DEFAULT_CHILD_GENDER = 'female';
@@ -59,7 +66,7 @@ export interface StorySourceAuthoritySnapshotContent {
   sourceEvidenceCatalog: SourceEvidenceCatalog;
   pageImageDirections: PageImageDirection[];
   authoredCoverAuthority: AuthoredCoverAuthority | null;
-  childGender: string;
+  sourceGenderMode: StorySourceGenderMode;
   companion: { id: string; name?: string } | null;
 }
 
@@ -68,6 +75,36 @@ export interface StorySourceAuthoritySnapshot {
   content: StorySourceAuthoritySnapshotContent;
   digestAlgorithm: 'canonical-json-sha256';
   digest: string;
+}
+
+export interface LegacyStorySourceAuthoritySnapshotV2 {
+  version: typeof LEGACY_STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION_V2;
+  content: Omit<StorySourceAuthoritySnapshotContent, 'sourceGenderMode'> & {
+    childGender: StorySourceGenderMode;
+  };
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
+
+export function legacyStorySourceAuthoritySnapshotV2(
+  snapshot: StorySourceAuthoritySnapshot,
+): LegacyStorySourceAuthoritySnapshotV2 {
+  const {
+    sourceGenderMode,
+    ...unchangedContent
+  } = snapshot.content;
+  const payload = {
+    version: LEGACY_STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION_V2,
+    content: {
+      ...unchangedContent,
+      childGender: sourceGenderMode,
+    },
+  };
+  return {
+    ...payload,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(payload),
+  };
 }
 
 export interface StorySourceAuthorityRequest {
@@ -160,6 +197,11 @@ export function buildStorySourceAuthoritySnapshot(
   const frontmatter = toVisualContractFrontmatterMarkdown(
     normalizedRawStorySource,
   );
+  const sourceGenderMode =
+    frontmatterField(frontmatter, 'gender') ?? DEFAULT_CHILD_GENDER;
+  if (!storySourceGenderModeIsValid(sourceGenderMode)) {
+    throw new Error('Story Source gender mode is invalid');
+  }
   const companionId = frontmatterField(frontmatter, 'companionId');
   const companion = companionId
     ? {
@@ -197,9 +239,7 @@ export function buildStorySourceAuthoritySnapshot(
         .slice()
         .sort((left, right) => left.pageNumber - right.pageNumber),
       authoredCoverAuthority,
-      childGender:
-        frontmatterField(frontmatter, 'gender') ??
-        DEFAULT_CHILD_GENDER,
+      sourceGenderMode,
       companion,
     },
   };
@@ -252,6 +292,13 @@ export function assertValidStorySourceAuthoritySnapshot(
   const reparsed = parseStorySourceContent(
     snapshot.content.normalizedRawStorySource,
   );
+  const reparsedGenderMode =
+    frontmatterField(
+      toVisualContractFrontmatterMarkdown(
+        snapshot.content.normalizedRawStorySource,
+      ),
+      'gender',
+    ) ?? DEFAULT_CHILD_GENDER;
   if (
     canonicalJsonDigest(reparsed.pages) !==
       canonicalJsonDigest(snapshot.content.pages) ||
@@ -264,6 +311,12 @@ export function assertValidStorySourceAuthoritySnapshot(
     issues.push(
       'snapshot parsed pages/image directions diverge from normalized raw Story Source',
     );
+  }
+  if (
+    !storySourceGenderModeIsValid(snapshot.content.sourceGenderMode) ||
+    reparsedGenderMode !== snapshot.content.sourceGenderMode
+  ) {
+    issues.push('snapshot source gender mode is stale or malformed');
   }
   const pages = snapshot.content.pages.map((page) => page.pageNumber);
   if (
@@ -299,7 +352,9 @@ export function storySourceSnapshotToTemplateInput(
     storyKey: snapshot.content.storyKey,
     fullStoryText: snapshot.content.fullStoryText,
     pageCount: snapshot.content.pages.length,
-    childGender: snapshot.content.childGender,
+    childGender: storySourceGenderCompilerPromptValue(
+      snapshot.content.sourceGenderMode,
+    ),
     companion: snapshot.content.companion,
     pageImageDirections: snapshot.content.pageImageDirections,
     pages: snapshot.content.pages,

@@ -19,6 +19,10 @@ import {
   type WizardPersonalizationContext,
 } from '../../lib/story-bank-personalization';
 import {
+  normalizedStorySourceGenderMode,
+  storySourceFixedGender,
+} from '../../lib/story-source-gender';
+import {
   ChildPhotoUploadError,
   normalizePhotoUrlForVision,
 } from '../../lib/child-photo-normalize';
@@ -291,11 +295,13 @@ export async function loadStoryFromBankContent(
   const coverSceneRaw = coverSceneMatch?.[1]?.trim() ?? '';
 
   // Extract explicit gender metadata (if present in story file header)
-  const genderMatch = raw.match(/^gender:\s*(female|male|girl|boy)\b/mi);
+  const genderMatch = raw.match(
+    /^gender:\s*(female|male|neutral|girl|boy)\b/mi,
+  );
   const explicitGender = genderMatch?.[1]?.trim().toLowerCase() ?? null;
-  const normalizedExplicitGender =
-    explicitGender === 'girl' || explicitGender === 'female' ? 'female' :
-    explicitGender === 'boy' || explicitGender === 'male' ? 'male' : null;
+  const normalizedExplicitGender = storySourceFixedGender(
+    normalizedStorySourceGenderMode(explicitGender) ?? 'neutral',
+  );
 
   const pageParts = raw.split(/---\s*Page\s*(\d+)\s*---/).slice(1);
   const pages: StoryPage[] = [];

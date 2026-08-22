@@ -36,6 +36,10 @@ import {
 } from '@/lib/visual-contract-compiler/sourceEvidenceCatalog';
 import { normalizedTextDigest } from '@/lib/visual-package/integrity';
 import {
+  storySourceGenderCompilerPromptValue,
+  storySourceGenderModeIsValid,
+} from '@/lib/story-source-gender';
+import {
   STORY_SOURCE_IDENTITY_VERSION,
   type StorySourceIdentity,
 } from '@/lib/visual-package/types';
@@ -81,7 +85,11 @@ export function extractSourceFromMarkdown(
   const content = parseStorySourceContent(rawMarkdown);
   const md = content.frontmatterMarkdown;
   const companionId = frontmatterField(md, 'companionId');
-  const gender = frontmatterField(md, 'gender') ?? DEFAULT_CHILD_GENDER;
+  const sourceGenderMode =
+    frontmatterField(md, 'gender') ?? DEFAULT_CHILD_GENDER;
+  if (!storySourceGenderModeIsValid(sourceGenderMode)) {
+    throw new Error(`extract-vc-source: ${storyKey} has invalid gender metadata`);
+  }
 
   if (content.pages.length === 0) {
     throw new Error(`extract-vc-source: ${storyKey} parsed 0 pages (bad markers or empty story)`);
@@ -121,7 +129,7 @@ export function extractSourceFromMarkdown(
     }),
     fullStoryText,
     pageCount: pages.length,
-    childGender: gender,
+    childGender: storySourceGenderCompilerPromptValue(sourceGenderMode),
     companion,
     pageImageDirections,
     pages,

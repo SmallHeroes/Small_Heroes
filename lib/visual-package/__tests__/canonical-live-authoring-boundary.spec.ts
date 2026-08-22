@@ -921,7 +921,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v49',
+      'visual-contract-authoring-receipt/v50',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -2918,7 +2918,7 @@ describe('canonical live authoring executable boundary', () => {
     const request = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    request.version = 'visual-contract-authoring-request/v40';
+    request.version = 'visual-contract-authoring-request/v44';
     redigestRequest(request);
     writeJson(
       fixture.repoRoot,
@@ -2935,13 +2935,13 @@ describe('canonical live authoring executable boundary', () => {
     const evidence = readRejectedEvidence(fixture, result);
     expect(result.status).toBe('failed');
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v49',
+      version: 'visual-contract-authoring-receipt/v50',
       status: 'failed',
       callCount: 0,
       failure: { code: 'request_invalid' },
     });
     expect(result.readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v47',
+      version: 'visual-contract-authoring-readiness/v48',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'request_invalid',
@@ -2992,13 +2992,13 @@ describe('canonical live authoring executable boundary', () => {
       const evidence = readRejectedEvidence(fixture, result);
       expect(result.status).toBe('failed');
       expect(result.receipt).toMatchObject({
-        version: 'visual-contract-authoring-receipt/v49',
+        version: 'visual-contract-authoring-receipt/v50',
         status: 'failed',
         callCount: 0,
         failure: { code: 'request_invalid' },
       });
       expect(result.readiness).toMatchObject({
-        version: 'visual-contract-authoring-readiness/v47',
+        version: 'visual-contract-authoring-readiness/v48',
         authoringOutcome: {
           status: 'failed',
           failureCode: 'request_invalid',

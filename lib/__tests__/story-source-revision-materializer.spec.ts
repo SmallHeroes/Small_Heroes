@@ -59,6 +59,14 @@ const directionContract = require('../../scripts/story-visual-direction-contract
     expectedPageCount: number,
   ) => unknown;
 };
+const editorialContract = require('../../scripts/story-editorial-validation-contract.cjs') as {
+  EDITORIAL_SOURCE_PROFILE_GENDER_FLEXIBLE: string;
+  validateEditorialPassDraft: (
+    record: unknown,
+    draft: { text: string; sha256: string },
+    options?: { sourceProfile?: string },
+  ) => unknown;
+};
 
 type TextReplacement = {
   expectedCount: number;
@@ -101,15 +109,17 @@ const STORYBOARD_CORPUS_PATH =
   'story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/manifest.json';
 
 const EXPECTED_SOURCE_SHA =
-  '6da0babf1d7e97a0841d1c414e15bd682a525d8ab0366df49def7247079dd407';
+  '2100ea1494a9d9112b842113470ba3d3cb6ad8f36749256dc8ab7d68291ecb75';
 const EXPECTED_DIRECTION_SHA =
   'a3b9483889c56caf0698eac87e62f89978e589f377c3a0ca5299a3d5075e3d29';
 const EXPECTED_INTEGRATED_SHA =
-  'ac1d0693f327b04ccbf7e2208460b70ca5c26159f9e4f3193bc0153b8ab2f310';
+  '3aac47b55f606fd65a127c0679ffb42e6b16f93783d7a6386d81e5e8db01cef4';
 const EXPECTED_FEMALE_SHA =
-  'dc614739573e0637510ebda887f4ec98f43d5b20b5e35e9eb5b1f6b487929ab8';
+  '19efe8f3f3f62adf219ee903f3a2b20be0ccc1cdcabf4cf75c9806d1483a872d';
+const EXPECTED_FEMALE_PROSE_SHA =
+  'c4e50ece51dbeb19687682f64dda8b0915e532da4e53de4eb60997b1571c21bd';
 const EXPECTED_MALE_SHA =
-  'c0fca7240a668445c0ad68acc4c58e3eb55f6bb89b079abc76b2a40597f79e7a';
+  '75999df45ff3b7e04bd8d390c51fd892cf03154a3d56e7a64afe64cf8909ce8d';
 
 const temporaryRoots: string[] = [];
 
@@ -144,6 +154,11 @@ function requestFixture(): StorySourceRevisionRequest {
       record: boundReference(DIRECTION_PATH),
     },
     textReplacements: [
+      {
+        expectedCount: 1,
+        from: 'gender: female',
+        to: 'gender: neutral',
+      },
       {
         expectedCount: 1,
         from: '{{childName}} ניסתה לסובב',
@@ -251,6 +266,10 @@ describe('story source revision materializer', () => {
     expect(fs.existsSync(fixture.outputAbsolute)).toBe(false);
     expect(result.manifest.version).toBe(materializer.MANIFEST_VERSION);
     expect(result.manifest.status).toBe('pending_exact_product_review');
+    expect(result.manifest.sourceGenderMode).toBe('neutral');
+    expect(result.manifest.metadataChanges).toEqual([
+      { field: 'gender', from: 'female', to: 'neutral' },
+    ]);
     expect(result.manifest.inputs.storyboardCorpusManifest).toEqual({
       bytes: 10988,
       digest: 'a793038efca754ea028aa9fc528f896261ade25b671865657282fb6220cfb6fa',
@@ -258,18 +277,20 @@ describe('story source revision materializer', () => {
       sha256: '2c884372b36b4e45266490f920fdae2c59809a4e8a444e4780471de8e62c631d',
     });
     expect(result.manifest.outputs.acceptedStoryCandidate).toMatchObject({
-      bytes: 6220,
+      bytes: 6221,
       sha256: EXPECTED_SOURCE_SHA,
     });
     expect(result.manifest.outputs.visualDirectionCandidate.sha256).toBe(
       EXPECTED_DIRECTION_SHA,
     );
     expect(result.manifest.outputs.integratedStoryCandidate).toMatchObject({
-      bytes: 9641,
+      bytes: 9642,
       sha256: EXPECTED_INTEGRATED_SHA,
     });
     expect(result.manifest.projections.female).toMatchObject({
-      byteIdenticalToPrevious: true,
+      byteIdenticalToPrevious: false,
+      proseByteIdenticalToPrevious: true,
+      proseSha256: EXPECTED_FEMALE_PROSE_SHA,
       sha256: EXPECTED_FEMALE_SHA,
     });
     expect(result.manifest.projections.male.sha256).toBe(EXPECTED_MALE_SHA);
@@ -337,10 +358,58 @@ describe('story source revision materializer', () => {
     }
   });
 
+  it('keeps legacy editorial validation female-only and admits neutral only through the explicit flexible profile', () => {
+    const record = {
+      companionId: 'chameleon_koko',
+      brief: {
+        category: 'TRANSITION',
+        direction: 'bedtime',
+        pageCount: 8,
+      },
+    };
+    const fixture = writeRequest();
+    const built = materializer.buildStorySourceRevision({
+      requestFile: materializer.readRequestFile(fixture.requestPath),
+      outputDir: materializer.resolveOutputDir(fixture.outputRelative),
+      write: false,
+    });
+    const source = materializer
+      .resolveProjection(repoBytes(SOURCE_PATH).toString('utf8'), 'girl')
+      .replace('gender: female', 'gender: neutral');
+    const draft = { text: source, sha256: sha256(source) };
+
+    expect(() =>
+      editorialContract.validateEditorialPassDraft(record, draft),
+    ).toThrow('story_writer_revision_identity_mismatch');
+    expect(() =>
+      editorialContract.validateEditorialPassDraft(record, draft, {
+        sourceProfile:
+          editorialContract.EDITORIAL_SOURCE_PROFILE_GENDER_FLEXIBLE,
+      }),
+    ).not.toThrow();
+    expect(built.manifest.sourceGenderMode).toBe('neutral');
+  });
+
   it('rejects malformed requests, overlapping replacements and target drift', () => {
     const base = requestFixture();
     expect(() =>
       materializer.validateRequest({ ...base, unexpected: true }),
+    ).toThrow('story_source_revision_request_invalid');
+    expect(() =>
+      materializer.validateRequest({
+        ...base,
+        textReplacements: base.textReplacements.slice(1),
+      }),
+    ).toThrow('story_source_revision_request_invalid');
+    expect(() =>
+      materializer.validateRequest({
+        ...base,
+        textReplacements: base.textReplacements.map((replacement, index) =>
+          index === 0
+            ? { ...replacement, to: 'gender: unspecified' }
+            : replacement,
+        ),
+      }),
     ).toThrow('story_source_revision_request_invalid');
     expect(() =>
       materializer.validateRequest({
@@ -373,7 +442,7 @@ describe('story source revision materializer', () => {
     ).toThrow('story_source_revision_request_invalid');
 
     const countDrift = structuredClone(base);
-    countDrift.textReplacements[0].expectedCount = 2;
+    countDrift.textReplacements[1].expectedCount = 2;
     const countFixture = writeRequest(countDrift);
     expect(() =>
       materializer.buildStorySourceRevision({
@@ -464,7 +533,7 @@ describe('story source revision materializer', () => {
     ).toThrow('story_source_revision_story_invalid_drift');
 
     const femaleDrift = requestFixture();
-    femaleDrift.textReplacements[0].to = '{{childName}} {ניסה|ניסו} לסובב';
+    femaleDrift.textReplacements[1].to = '{{childName}} {ניסה|ניסו} לסובב';
     const femaleFixture = writeRequest(femaleDrift);
     expect(() =>
       materializer.buildStorySourceRevision({

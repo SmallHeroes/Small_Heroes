@@ -306,15 +306,15 @@ describe('canonical live request materialization validators', () => {
       liveRequestMaterializationInputIssues({
         ...inputFor(fixture),
         version:
-          'canonical-live-request-materialization-input/v32',
+          'canonical-live-request-materialization-input/v33',
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v33',
+      'canonical-live-request-materialization-input/v34',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v42');
+    ).toBe('canonical-live-request-materialization/v43');
   });
 
   it.each([
@@ -492,7 +492,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v44',
+      version: 'visual-contract-authoring-request/v45',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -536,7 +536,7 @@ describe('canonical live request materialization artifacts', () => {
       promptAuthority: {
         initial: {
           systemPromptVersion: 'vc-template-prompt/v14',
-          userPromptVersion: 'vc-template-user-prompt/v13',
+          userPromptVersion: 'vc-template-user-prompt/v14',
         },
         repair: {
           systemPromptVersion: 'vc-repair-prompt/v13',

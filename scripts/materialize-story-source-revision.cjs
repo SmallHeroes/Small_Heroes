@@ -6,6 +6,7 @@ const path = require('node:path');
 
 const { injectDirections } = require('./story-bank-direction-integration.cjs');
 const {
+  EDITORIAL_SOURCE_PROFILE_GENDER_FLEXIBLE,
   validateEditorialPassDraft,
 } = require('./story-editorial-validation-contract.cjs');
 const {
@@ -18,8 +19,8 @@ const OUTPUTS_ROOT = path.join(REPO_ROOT, 'outputs');
 const ACCEPTED_SOURCE_ROOT =
   'story-pipeline/04_approved_story_sources/accepted/';
 const STORYBOARD_INPUT_ROOT = 'story-pipeline/05_storyboard_inputs/';
-const REQUEST_VERSION = 'small-heroes-story-source-revision-request/v2';
-const MANIFEST_VERSION = 'small-heroes-story-source-revision-pending-manifest/v3';
+const REQUEST_VERSION = 'small-heroes-story-source-revision-request/v3';
+const MANIFEST_VERSION = 'small-heroes-story-source-revision-pending-manifest/v4';
 const DIRECTION_MIGRATION_VERSION =
   'small-heroes-story-visual-direction-deterministic-migration/v1';
 const ALLOWED_DIRECTION_FIELDS = new Set([
@@ -28,6 +29,11 @@ const ALLOWED_DIRECTION_FIELDS = new Set([
   'mainAction',
   'setting',
 ]);
+const SOURCE_GENDER_METADATA_REPLACEMENT = Object.freeze({
+  expectedCount: 1,
+  from: 'gender: female',
+  to: 'gender: neutral',
+});
 
 const REQUEST_KEYS = [
   'briefId',
@@ -264,6 +270,26 @@ function validateRequest(value) {
     }
     textFrom.add(replacement.from);
   }
+  const genderMetadataReplacements = value.textReplacements.filter(
+    (replacement) =>
+      replacement.from.startsWith('gender:') ||
+      replacement.to.startsWith('gender:'),
+  );
+  if (
+    genderMetadataReplacements.length !== 1 ||
+    !exactKeys(
+      genderMetadataReplacements[0],
+      TEXT_REPLACEMENT_KEYS,
+    ) ||
+    genderMetadataReplacements[0].expectedCount !==
+      SOURCE_GENDER_METADATA_REPLACEMENT.expectedCount ||
+    genderMetadataReplacements[0].from !==
+      SOURCE_GENDER_METADATA_REPLACEMENT.from ||
+    genderMetadataReplacements[0].to !==
+      SOURCE_GENDER_METADATA_REPLACEMENT.to
+  ) {
+    throw new Error('story_source_revision_request_invalid');
+  }
   const textReplacements = value.textReplacements;
   for (let leftIndex = 0; leftIndex < textReplacements.length; leftIndex += 1) {
     for (let rightIndex = leftIndex + 1; rightIndex < textReplacements.length; rightIndex += 1) {
@@ -482,6 +508,24 @@ function resolveProjection(source, gender) {
   return output;
 }
 
+function stripCanonicalSourceGenderLine(source, expectedGender) {
+  const needle = `gender: ${expectedGender}\n`;
+  const firstPageIndex = source.indexOf('\n--- Page 1 ---\n');
+  const genderIndex = source.indexOf(needle);
+  if (
+    firstPageIndex < 0 ||
+    genderIndex < 0 ||
+    genderIndex >= firstPageIndex ||
+    countOccurrences(source, needle) !== 1 ||
+    countOccurrences(source.slice(0, firstPageIndex), 'gender: ') !== 1
+  ) {
+    throw new Error('story_source_revision_gender_metadata_invalid');
+  }
+  return `${source.slice(0, genderIndex)}${source.slice(
+    genderIndex + needle.length,
+  )}`;
+}
+
 function applyDirectionReplacements(record, replacements) {
   const output = structuredClone(record);
   for (const replacement of replacements) {
@@ -616,6 +660,7 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
     throw new Error('story_source_revision_input_json_invalid');
   }
   const sourceText = sourceFile.bytes.toString('utf8');
+  stripCanonicalSourceGenderLine(sourceText, 'female');
   const sourceStory = parseStory(sourceText);
   validateSourceManifest(sourceManifest, request, sourceFile, sourceStory);
   const record = {
@@ -642,10 +687,15 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
     'story_source_revision_text_target_invalid',
   );
   const revisedSourceSha256 = sha256(revisedSourceText);
-  validateEditorialPassDraft(record, {
-    text: revisedSourceText,
-    sha256: revisedSourceSha256,
-  });
+  validateEditorialPassDraft(
+    record,
+    {
+      text: revisedSourceText,
+      sha256: revisedSourceSha256,
+    },
+    { sourceProfile: EDITORIAL_SOURCE_PROFILE_GENDER_FLEXIBLE },
+  );
+  stripCanonicalSourceGenderLine(revisedSourceText, 'neutral');
   const revisedStory = parseStory(revisedSourceText);
 
   const previousFemaleProjection = resolveProjection(
@@ -656,7 +706,15 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
     revisedSourceText,
     'girl',
   );
-  if (previousFemaleProjection !== revisedFemaleProjection) {
+  const previousFemaleProseProjection = stripCanonicalSourceGenderLine(
+    previousFemaleProjection,
+    'female',
+  );
+  const revisedFemaleProseProjection = stripCanonicalSourceGenderLine(
+    revisedFemaleProjection,
+    'neutral',
+  );
+  if (previousFemaleProseProjection !== revisedFemaleProseProjection) {
     throw new Error('story_source_revision_female_projection_drift');
   }
   const revisedMaleProjection = resolveProjection(
@@ -718,6 +776,14 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
     authorityScope: 'story_source_and_visual_directions_only',
     storyKey: request.storyKey,
     briefId: request.briefId,
+    sourceGenderMode: 'neutral',
+    metadataChanges: [
+      {
+        field: 'gender',
+        from: 'female',
+        to: 'neutral',
+      },
+    ],
     request: {
       path: requestFile.relativePath,
       bytes: requestFile.bytes.length,
@@ -772,9 +838,15 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
     },
     projections: {
       female: {
-        byteIdenticalToPrevious: true,
+        byteIdenticalToPrevious: false,
         bytes: Buffer.byteLength(revisedFemaleProjection, 'utf8'),
         sha256: sha256(revisedFemaleProjection),
+        proseByteIdenticalToPrevious: true,
+        proseBytes: Buffer.byteLength(
+          revisedFemaleProseProjection,
+          'utf8',
+        ),
+        proseSha256: sha256(revisedFemaleProseProjection),
       },
       male: {
         bytes: Buffer.byteLength(revisedMaleProjection, 'utf8'),
@@ -907,6 +979,7 @@ module.exports = {
   resolveOutputDir,
   resolveProjection,
   sha256,
+  stripCanonicalSourceGenderLine,
   storyKeyFromAcceptedSourcePath,
   validateRequest,
   validateStoryboardCorpusManifest,

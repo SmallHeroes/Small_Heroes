@@ -2,7 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
 
-import { loadStoryFromBank } from '../../backend/providers/story-bank-loader';
+import {
+  loadStoryFromBank,
+  loadStoryFromBankContent,
+} from '../../backend/providers/story-bank-loader';
 import {
   createRepositorySourceInventory,
   STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS,
@@ -69,5 +72,30 @@ describe('production QA escape-hatches', () => {
     expect(boyP6).toMatch(/יואב/);
     expect(boyP6).toMatch(/הסתכל|תפס[^ה]|פתח[^ה]/);
     expect(boyP6).not.toMatch(/\{[^}]+\}/);
+  });
+
+  it('recognizes neutral source metadata while resolving customer prose only from Wizard gender', async () => {
+    const source = [
+      'title: "הסיפור של {{childName}}"',
+      'gender: neutral',
+      '',
+      '--- Page 1 ---',
+      '{{childName}} {נכנס|נכנסה} לחדר {שלו|שלה}.',
+      'imageDirection: the child enters the room',
+    ].join('\n');
+    const [boy, girl] = await Promise.all([
+      loadStoryFromBankContent(source, 'בר', 'קִים', 'boy', {
+        skipLlmPersonalization: true,
+      }),
+      loadStoryFromBankContent(source, 'נועה', 'קִים', 'girl', {
+        skipLlmPersonalization: true,
+      }),
+    ]);
+
+    expect(boy.pages[0]?.text).toBe('בר נכנס לחדר שלו.');
+    expect(girl.pages[0]?.text).toBe('נועה נכנסה לחדר שלה.');
+    expect(`${boy.pages[0]?.text}\n${girl.pages[0]?.text}`).not.toMatch(
+      /\{[^}]+\}/,
+    );
   });
 });

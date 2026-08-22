@@ -4,69 +4,82 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
-## CHAMELEON GENDER-CORRECT SOURCE REVISION — PENDING EXACT REVIEW, ZERO SPEND
+## CHAMELEON GENDER-FLEXIBLE SOURCE AUTHORITY — PENDING V4, ZERO SPEND
 
-The first full Bar Wizard order remains immutable legacy-path incident evidence;
-it cannot be upgraded after paid images to prove the new Visual Package/Board
-engine. A fresh order is not yet authorized because its package-bound Story
-Source still contains hard-coded feminine child grammar.
+The first Bar Wizard order remains immutable legacy-path incident evidence and
+cannot prove the new Visual Package/Board engine. The previously prepared v3
+source revision is also superseded: its prose was chip-complete, but its
+frontmatter still said `gender: female`, so the package authoring snapshot and
+compiler prompt continued to carry female authority.
 
-A general pending-only source-revision materializer now closes that content gap
-without rewriting the historical accepted story, QA Story Bank, storyboard,
-package or locator. It requires SHA-bound repository inputs, exact-count prose
-and page/field direction replacements, canonical editorial validation, exact
-female-projection equality, valid boy/girl projections, valid visual-direction
-authority and exact integrated-source projection. It supports a no-write
-preview and writes only digest-named pending artifacts beneath `outputs/`.
-It cannot approve, promote, publish, update a locator, access a provider, write
-storage/database state or render.
+The general correction introduces the closed Story Source mode `neutral` for a
+source that is proven complete for both boy and girl. Historical editorial
+callers remain exact-`female` by default; only the explicit
+`gender_flexible` profile accepts exact `neutral`. Runtime Story Bank loading
+recognizes `neutral` but continues to resolve customer prose solely from the
+Wizard's boy/girl value. Story Source snapshot v3 stores the closed source mode,
+and compiler user prompt v14 renders it as
+`gender-flexible source (boy/girl resolved at runtime)` instead of pretending
+that a reusable package belongs to one order gender.
 
-The first independent review held the initial implementation on three authority
-boundaries. The corrective milestone now derives `storyKey` from the accepted
-source directory and requires the direction filename plus record to match it,
-so a Chameleon source cannot be paired with Bunny directions. Source, manifest
-and direction bytes must resolve inside their exact authority roots with no
-symlink/junction component and no hard-link alias; the operator request has the
-same no-reparse/no-hard-link fence inside `outputs/`. Finally, the materializer
-imports three pure deterministic contract modules instead of provider-capable
-batch/promotion tools. A real `Module._load` sentinel proves that the CLI loads
-without those modules and has a failing positive control.
+Request v3 requires exactly one canonical metadata change from `female` to
+`neutral` in addition to the already bounded prose and direction replacements.
+Pending manifest v4 records that metadata delta, complete boy/girl projection
+digests, and female-prose equality after removing only the one canonical gender
+line. Historical accepted Story Source, storyboard corpus, approved package,
+current locator and Set Boards remain unchanged.
 
-The first corrective re-gate then found a same-name direction forgery that
-could pass filename/story-key checks. A first corpus binding rejected it against
-the canonical corpus, but the next adversarial pass proved that an attacker
-could supply both a forged direction and a self-rehashed sibling manifest.
-Request v2 closes that authority gap by pinning the storyboard corpus's exact
-path, whole-file SHA and canonical digest before the sibling is loaded. Pending
-manifest v3 additionally binds the selected record's source SHA, direction SHA,
-companion, category, direction and page count to the accepted Story Source. A
-renamed Bunny record and a matching self-rehashed corpus now both fail.
+The fresh pending-only artifact is:
 
-The real Chameleon run produced the expected byte identities:
+- request `outputs/r1d-chameleon-gender-revision-request-v3.json`, SHA-256
+  `19142a82f8856b0a908e8e65bf2fc9bbf4c61c8ff227598c87def5ee653fcfed`;
+- pending manifest
+  `outputs/r1d-chameleon-gender-revision-pending-v4/5864b11f6750d45948d2af8067344c01b2daf2d586af6fa0ff623f13d3635f53.manifest.json`;
+- neutral accepted-source candidate
+  `2100ea1494a9d9112b842113470ba3d3cb6ad8f36749256dc8ab7d68291ecb75`;
+- corrected directions
+  `a3b9483889c56caf0698eac87e62f89978e589f377c3a0ca5299a3d5075e3d29`;
+- integrated Story Source
+  `3aac47b55f606fd65a127c0679ffb42e6b16f93783d7a6386d81e5e8db01cef4`;
+- female full projection `19efe8f3f3f62adf219ee903f3a2b20be0ccc1cdcabf4cf75c9806d1483a872d`;
+- female prose-only projection
+  `c4e50ece51dbeb19687682f64dda8b0915e532da4e53de4eb60997b1571c21bd`,
+  byte-identical to the historical female prose;
+- male projection `75999df45ff3b7e04bd8d390c51fd892cf03154a3d56e7a64afe64cf8909ce8d`.
 
-- corrected accepted source `6da0babf1d7e97a0841d1c414e15bd682a525d8ab0366df49def7247079dd407`;
-- corrected visual directions `a3b9483889c56caf0698eac87e62f89978e589f377c3a0ca5299a3d5075e3d29`;
-- corrected integrated source `ac1d0693f327b04ccbf7e2208460b70ca5c26159f9e4f3193bc0153b8ab2f310`;
-- female projection remains byte-identical at `dc614739573e0637510ebda887f4ec98f43d5b20b5e35e9eb5b1f6b487929ab8`;
-- new male projection is `c0fca7240a668445c0ad68acc4c58e3eb55f6bb89b079abc76b2a40597f79e7a`.
+The authoring semantic cutover advances Snapshot v3, template user prompt v14,
+authoring request/receipt/readiness v45/v50/v48, B0 v34/v43/v43, execution
+materialization v33/v37, Supervisor v42/v42/v35 and Fresh readiness v42. The
+candidate remains v9 and the QA Wizard bridge remains v4 because both already
+bind the changed nested authorities. Immediate predecessor authoring artifacts
+are classified `legacy_immutable` and rejected as current authority.
 
-The current pending-v3 manifest is
-`outputs/r1d-chameleon-gender-revision-pending-v3/724b1aeeb076b67de99b79c52d7d0c5cfe3ca4dbd87818e67379f67f7ebfcb8a.manifest.json`.
-The prior local v1 and v2 pending roots are preserved as superseded, unapproved
-evidence. Focused validation is **4 files / 66 tests PASS** including the ordinary Vitest
-inventory, with `tsc --noEmit` and `git diff --check` green. Literal
-`npm run check` passed both TypeScript projects and **3,452** ordinary
-assertions; its five ordinary failures remain the known missing ignored-output
-fixtures. The resource partition passed **609/610** assertions; its existing
-junction test exceeded the shared 5-second timeout under load and then passed
-**8/8** standalone with a 15-second diagnostic timeout. The same three known
-Vitest worker RPC timeouts remain. The real no-write preview produces v3
-manifest `724b1aeeb076…`; the four content/migration outputs and both gender
-projections remain unchanged after the new corpus-authority binding. Promotion
-still requires an immutable corrective commit, independent
-Claude Code re-gate PASS and Guy's exact source/review acceptance; no downstream
-reconciliation,
-Blueprint, package or paid render is implied.
+The cutover initially exposed an important compatibility regression: the
+approved time-only migration was bound to its historical Snapshot v2 digest.
+The corrected reader now rebuilds current v3 only to prove source bytes and
+identity, while every time-only migration remains bound to the exact v2 or v3
+snapshot already named by its package reconciliation. It never rewrites or
+reinterprets v2 as current authoring authority. The real migration, approval,
+Set Board rebind and assembly pass **3 files / 112 tests**.
+
+Focused source/materialization/runtime suites pass all **289 assertions** after
+the stale version expectations were updated, and canonical authoring/Bridge
+consumers pass all **192 assertions**. `tsc --noEmit`, the autonomous Story
+typecheck and `git diff --check` pass. The one literal `npm run check` was not
+retried: its ordinary phase passed **3,449** assertions and exposed five known
+missing ignored-output fixtures plus five time-migration compatibility failures;
+the five new failures are now closed by the 112-test replacement above. Its
+resource phase passed **611/611** assertions and exited nonzero only for three
+known Vitest worker `onTaskUpdate` RPC timeouts. The full repository gate
+therefore remains truthfully non-green on the five baseline fixture failures
+and worker infrastructure, not on this source-authority correction.
+
+The pending root is fresh-only by design: an identical second mint is rejected
+before writing; its five-file byte inventory remained unchanged. No approval,
+promotion, provider, render, deployment, database or storage operation occurred.
+Next action is an immutable focused commit and independent Claude Code re-gate.
+The pending revision must not be accepted or promoted before that PASS and
+Guy's exact future review acceptance.
 
 ## FIRST PHOTO-BACKED BAR WIZARD BOOK — FULL GENERATION COMPLETE, RELEASE HELD FOR RECOVERY
 

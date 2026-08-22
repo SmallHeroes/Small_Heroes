@@ -16,7 +16,8 @@ import {
 } from './reconciliationLifecycle';
 import {
   buildStorySourceAuthoritySnapshot,
-  persistStorySourceAuthoritySnapshot,
+  legacyStorySourceAuthoritySnapshotV2,
+  type LegacyStorySourceAuthoritySnapshotV2,
   type StorySourceAuthoritySnapshot,
 } from './storySourceAuthority';
 import { SOURCE_PROMPT_RECONCILIATION_VERSION } from './types';
@@ -753,6 +754,9 @@ function loadSourceAuthority(args: {
   sourcePackageApprovalPath: string;
 }): {
   snapshot: StorySourceAuthoritySnapshot;
+  reconciliationSnapshot:
+    | StorySourceAuthoritySnapshot
+    | LegacyStorySourceAuthoritySnapshotV2;
   candidate: VisualPackageV4Candidate;
   packageReview: VisualPackageV4PackageReview;
   packageApproval: VisualPackageV4Approval;
@@ -851,6 +855,13 @@ function loadSourceAuthority(args: {
   }
   const sourceReconciliation =
     candidate.content.reconciliation.content;
+  const legacySnapshot =
+    legacyStorySourceAuthoritySnapshotV2(snapshot);
+  const reconciliationSnapshot =
+    sourceReconciliation.sourceAuthoritySnapshotDigest ===
+      legacySnapshot.digest
+      ? legacySnapshot
+      : snapshot;
   const sourceTemplate = candidate.content.visualContractTemplate.content;
   const actionSemanticCoverage =
     sourceReconciliation.actionSemanticCoverageAuthority.records;
@@ -858,7 +869,7 @@ function loadSourceAuthority(args: {
     raw: sourceReconciliation,
     storyKey: snapshot.content.storyKey,
     sourceIdentity: snapshot.content.sourceIdentity,
-    sourceAuthoritySnapshotDigest: snapshot.digest,
+    sourceAuthoritySnapshotDigest: reconciliationSnapshot.digest,
     rawStorySource: snapshot.content.normalizedRawStorySource,
     template: sourceTemplate,
     templateDigest: candidate.content.visualContractTemplate.digest,
@@ -877,6 +888,7 @@ function loadSourceAuthority(args: {
     packageReview,
     packageApproval,
     sourceReconciliation,
+    reconciliationSnapshot,
   };
 }
 
@@ -948,7 +960,8 @@ function assertManifestBindsSourceAuthority(args: {
     args.manifest.source.storyKey !== args.source.snapshot.content.storyKey ||
     args.manifest.source.storyPath !==
       args.source.snapshot.content.sourceIdentity.path ||
-    args.manifest.source.sourceSnapshotDigest !== args.source.snapshot.digest ||
+    args.manifest.source.sourceSnapshotDigest !==
+      args.source.reconciliationSnapshot.digest ||
     args.manifest.source.sourcePackageCandidateDigest !==
       args.source.candidate.digest ||
     args.manifest.source.sourcePackageReviewDigest !==
@@ -972,8 +985,8 @@ function assertManifestBindsSourceAuthority(args: {
   assertCurrentCanonicalArtifact({
     repoRoot: args.repoRoot,
     artifactPath: args.manifest.source.sourceSnapshotPath,
-    digest: args.source.snapshot.digest,
-    value: args.source.snapshot,
+    digest: args.source.reconciliationSnapshot.digest,
+    value: args.source.reconciliationSnapshot,
     label: 'migration source snapshot',
     category: 'source-snapshots',
   });
@@ -998,7 +1011,7 @@ export function prepareTimeAuthorityMigrationReconciliation(args: {
   manifest: TimeAuthorityMigrationManifest;
   manifestArtifact: { path: string; digest: string; created: boolean };
   migratedTemplateArtifact: { path: string; digest: string; created: boolean };
-  sourceSnapshotArtifact: ReturnType<typeof persistStorySourceAuthoritySnapshot>;
+  sourceSnapshotArtifact: { path: string; digest: string; created: boolean };
   reconciliationArtifacts: ReturnType<typeof persistReconciliationDraftBundle>;
 } {
   const source = loadSourceAuthority(args);
@@ -1016,7 +1029,7 @@ export function prepareTimeAuthorityMigrationReconciliation(args: {
     raw: pending,
     storyKey: source.snapshot.content.storyKey,
     sourceIdentity: source.snapshot.content.sourceIdentity,
-    sourceAuthoritySnapshotDigest: source.snapshot.digest,
+    sourceAuthoritySnapshotDigest: source.reconciliationSnapshot.digest,
     rawStorySource: source.snapshot.content.normalizedRawStorySource,
     template: migration.template,
     templateDigest: migration.digest,
@@ -1039,7 +1052,7 @@ export function prepareTimeAuthorityMigrationReconciliation(args: {
   const reviewBundle = buildReconciliationReviewBundle({
     reconciliation: pending,
     sourceIdentity: source.snapshot.content.sourceIdentity,
-    sourceAuthoritySnapshotDigest: source.snapshot.digest,
+    sourceAuthoritySnapshotDigest: source.reconciliationSnapshot.digest,
     rawStorySource: source.snapshot.content.normalizedRawStorySource,
     template: migration.template,
     ...(source.snapshot.content.authoredCoverAuthority
@@ -1061,10 +1074,12 @@ export function prepareTimeAuthorityMigrationReconciliation(args: {
     value: migration.template,
     write: args.write,
   });
-  const sourceSnapshotArtifact = persistStorySourceAuthoritySnapshot({
+  const sourceSnapshotArtifact = persistJson({
     repoRoot: args.repoRoot,
     outputDir: args.outputDir,
-    snapshot: source.snapshot,
+    category: 'source-snapshots',
+    digest: source.reconciliationSnapshot.digest,
+    value: source.reconciliationSnapshot,
     write: args.write,
   });
   const reconciliationArtifacts = persistReconciliationDraftBundle({
@@ -1081,7 +1096,7 @@ export function prepareTimeAuthorityMigrationReconciliation(args: {
     source: {
       storyKey: source.snapshot.content.storyKey,
       storyPath: source.snapshot.content.sourceIdentity.path,
-      sourceSnapshotDigest: source.snapshot.digest,
+      sourceSnapshotDigest: source.reconciliationSnapshot.digest,
       sourceSnapshotPath: sourceSnapshotArtifact.path,
       sourcePackageCandidateDigest: source.candidate.digest,
       sourcePackageCandidatePath: repoRelativePath(
@@ -1221,7 +1236,7 @@ export function recordTimeAuthorityMigrationReconciliationApproval(args: {
   const pendingReviewBundle = buildReconciliationReviewBundle({
     reconciliation: pending,
     sourceIdentity: source.snapshot.content.sourceIdentity,
-    sourceAuthoritySnapshotDigest: source.snapshot.digest,
+    sourceAuthoritySnapshotDigest: source.reconciliationSnapshot.digest,
     rawStorySource: source.snapshot.content.normalizedRawStorySource,
     template: migration.template,
     ...(source.snapshot.content.authoredCoverAuthority
@@ -1263,7 +1278,7 @@ export function recordTimeAuthorityMigrationReconciliationApproval(args: {
   const reviewBundle = buildReconciliationReviewBundle({
     reconciliation: approved,
     sourceIdentity: source.snapshot.content.sourceIdentity,
-    sourceAuthoritySnapshotDigest: source.snapshot.digest,
+    sourceAuthoritySnapshotDigest: source.reconciliationSnapshot.digest,
     rawStorySource: source.snapshot.content.normalizedRawStorySource,
     template: migration.template,
     ...(source.snapshot.content.authoredCoverAuthority
@@ -1410,7 +1425,7 @@ export function advanceApprovedTimeAuthorityMigration(args: {
   const approvedReviewBundle = buildReconciliationReviewBundle({
     reconciliation: approvedReconciliation,
     sourceIdentity: source.snapshot.content.sourceIdentity,
-    sourceAuthoritySnapshotDigest: source.snapshot.digest,
+    sourceAuthoritySnapshotDigest: source.reconciliationSnapshot.digest,
     rawStorySource: source.snapshot.content.normalizedRawStorySource,
     template: migration.template,
     ...(source.snapshot.content.authoredCoverAuthority

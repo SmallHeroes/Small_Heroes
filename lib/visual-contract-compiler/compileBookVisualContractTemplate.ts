@@ -235,7 +235,7 @@ const AUTHORING_REASONING_EFFORT =
 export const TEMPLATE_PROMPT_VERSION =
   'vc-template-prompt/v14' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v13' as const;
+  'vc-template-user-prompt/v14' as const;
 /** Normal bounded safety net after the initial authoring call. */
 const STANDARD_MAX_REPAIR_ATTEMPTS =
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS;
