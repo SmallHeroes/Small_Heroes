@@ -1,5 +1,9 @@
 # Wizard Preview Environment Authority — Implementation Evidence
 
+> Historical v2 evidence. The current pure endpoint is v3 and remains
+> fail-closed for opaque keys; `wizard-preorder-attestation/v1` is the sole
+> combined pre-Order PASS authority.
+
 ## Outcome
 
 One read-only Preview endpoint now makes the pre-order environment decision

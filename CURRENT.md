@@ -1,69 +1,65 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-22
+**Updated:** 2026-08-23
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active pre-Order attestation milestone starts from pushed environment-authority correction head `c89867dbbbbe6ae18b680a40596cf8660cf9dd8c`.
 
-## WIZARD PREVIEW ENVIRONMENT AUTHORITY — CORRECTIVE LOCAL GREEN, CLAUDE RE-GATE NEXT
+## WIZARD PRE-ORDER ATTESTATION — LOCAL GREEN, INDEPENDENT QA NEXT, ORDER STILL HOLD
 
-The fresh Bar/Chameleon Wizard Order remains uncreated. Independent QA correctly
-held the paid boundary because Vercel SSO prevented direct inspection of the
-encrypted Preview resource selection. The prior branch-specific Production
-database/Supabase overrides were removed, the branch was redeployed from exact
-Git source `138a7356d2eb330e7fe51b6fe824c98fc64d5c4e`, and the replacement deployment
-resolved Product Truth plus the full package/contract/Board preflight against
-staging. A fake-payment negative probe reached the staging database and returned
-`Order not found`; no Order or provider call was created.
+The fresh Bar/Chameleon Wizard Order remains uncreated and no provider or render
+spend has occurred. Exact deployment `dpl_HUP7nMgULZcL1ddPo65N2HWbncab` from
+Git source `c89867dbbbbe6ae18b680a40596cf8660cf9dd8c` proved every Preview policy and
+staging resource except one: the pure v2 environment endpoint could not decode
+the project identity of the current official opaque Supabase `sb_secret_*`
+credential. It therefore returned HTTP 409 solely for
+`supabase_service_role_authority_invalid`.
 
-The focused correction adds a Preview-only, read-only
-`wizard-preview-environment-preflight/v2` endpoint. It emits only safe resource
-hostnames/project refs, closed enums, credential-classification status,
-booleans/numbers and zero-effect counters. It passes only for exact staging
-Supabase URL/database authority, a legacy service-role JWT whose closed
-`iss`/`ref`/`role` claims identify the staging backend, no Production resource
-identifier, fake payment with a configured site password, Visual Contract
-enforcement, LOW image quality, four bounded Stage-0 anchor attempts and two
-bounded page-QA regenerations. Missing, malformed, wrong-project, anon-role and
-non-inspectable `sb_secret_*` values fail closed without disclosing any key
-bytes. The endpoint performs no database, storage, provider, image, audio or
-network operation; Production and unapproved Preview environments return 404.
-Stage-0 attempt calculation has one source shared by both shipped anchor
-branches and the preflight. Page-QA regeneration now likewise has one pure
-source shared by the renderer, durable evidence budget and preflight, without
-changing either policy.
+The separate runtime authority endpoint returned HTTP 200 against the same
+deployment and exercised the credential at the exact pinned staging URL. It
+resolved the current accepted Story Source, Visual Package, Contract, Blueprint
+and both Boards, and performed four real authenticated Board-byte downloads:
+two during binding and two during the final pre-render byte fence. Durable URL
+construction is pure and is not a Storage read. Every external write/provider
+counter remained zero.
 
-The earlier `CHILD_ANCHOR_MAX_ATTEMPTS=1` record below is historical. The
-branch-scoped Preview value is intended to be exact `4`, but this remains an
-environment claim until v2 is deployed and returns PASS. The earlier claim that
-Stage-0 candidate rows contain only booleans is likewise historical: the
-independently re-gated `stage0-description-template-candidate-qa/v1` correction
-below persists closed reason codes plus redacted bounded notes and validates
-them during recovery. The current Anthropic Vision default is
-`claude-sonnet-4-6` and the retired model is denied.
+Supabase's current backend keys are intentionally non-JWT and cannot expose an
+offline project-ref claim. The approved correction therefore does not waive
+identity. Environment preflight v3 keeps exact target selection independent in
+`SUPABASE_URL`, `DATABASE_URL` and `DIRECT_URL`; it reports opaque credentials
+as `supabase_service_role_proof_required`. The new combined
+`wizard-preorder-attestation/v1` is the sole pre-Order PASS authority. In one
+request it requires exact environment isolation, performs one bounded list of
+the private child-photo bucket to prove the opaque credential at that pinned
+target, and then requires the full package/contract/Board authority preflight.
+Rejected, unreachable or ambiguous proofs fail closed.
 
-Claude's first review passed the v1 mechanism but held the pre-order gate because
-v1 did not inspect `SUPABASE_SERVICE_ROLE_KEY`, did not require the password used
-by fake-payment confirmation, emitted three raw non-secret env strings, and
-duplicated the Page-QA parser. The v2 correction closes all four findings. Local
-focused validation and the literal repository check are recorded below after
-the correction commit. No deploy, Order, payment, provider, render,
-storage/database read or write, Production secret rotation/deployment deletion,
-or external mutation is authorized by this local result. Next action is the
-focused green commit and Guy-mediated Claude Code re-gate; after push/PASS,
-deploy the exact commit and re-gate the two safe endpoints before the single
-approved fake-paid LOW book.
+The runtime preflight core now requires injected Board read dependencies. Both
+dev preflight routes use a new read-only Supabase adapter instead of importing
+`image-storage`; their route graph has no upload/retry API. Responses expose no
+secret, connection string, password, bucket contents or raw remote error. A
+successful opaque path for the current two-Board package truthfully records five
+Storage reads total: one credential proof plus four Board downloads.
 
-Corrective focused validation is **14 files / 189 tests PASS**. The literal
-`npm run check` used the unchanged **319 / 299 / 20** inventory and both
-TypeScript projects passed. The ordinary phase reported **3,500 PASS / 65
-skipped / 6 failures**: five are the four established ignored-output fixture
-files and one is a 5-second Windows timeout in the unchanged package-migration
-suite. The resource phase reported **608 PASS / 3 timeouts** plus three known
-post-assertion `onTaskUpdate` RPC timeouts. The four timed assertions passed in
-isolated one-worker runs with a 30-second allowance: package migration **8/8**,
-execution materialization **21/21**, and QA Bridge **8/8** (the Bridge process
-still exited 1 only on one post-assertion RPC timeout). No ignored fixture was
-fabricated or imported.
+The earlier v2 corrective baseline remains **14 files / 189 tests PASS**. The
+new v3/combined changed-and-adjacent matrix passes **9 files / 106 tests**;
+`npx --no-install tsc --noEmit`, autonomous Story typecheck and
+`git diff --check` pass. The canonical Vitest supervisor exercised the new
+**320 / 300 / 20** inventory. Ordinary reported **3,522 PASS / 65 skipped / 7
+failures**: five are the established absent ignored-`outputs/` fixtures and two
+unchanged package-promotion tests exceeded their 5-second limit under full
+parallel load. Resource-intensive reported **609 PASS / 2 timeouts** plus three
+known `onTaskUpdate` RPC timeouts. The two resource tests passed in isolated
+single-worker runs (**8/8 QA Bridge; 21/21 execution materialization**), and the
+unchanged package-promotion spec passed **8/8** under a 30-second diagnostic
+allowance; its two slow cases took 7.4 and 5.8 seconds. No changed or adjacent
+functional test failed, but the repository-wide gate is truthfully not called
+green.
+
+Next action is a focused commit and Guy-mediated Claude Code re-gate. The Order
+remains HOLD until the reviewed commit is deployed and the combined endpoint
+itself returns PASS. No credential rotation, deployment deletion, Order, fake
+payment, database mutation, provider call or render is authorized by this local
+implementation state.
 
 ## ACCEPTED-SOURCE PACKAGE PROMOTION — LOCAL GREEN, CLAUDE QA NEXT
 

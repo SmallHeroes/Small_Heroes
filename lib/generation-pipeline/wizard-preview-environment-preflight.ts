@@ -15,7 +15,7 @@ import {
 } from './stage0-attempt-policy';
 
 export const WIZARD_PREVIEW_ENVIRONMENT_PREFLIGHT_VERSION =
-  'wizard-preview-environment-preflight/v2' as const;
+  'wizard-preview-environment-preflight/v3' as const;
 export const WIZARD_PREVIEW_STAGING_SUPABASE_REF =
   'qvksgpzzosotubcbizay' as const;
 export const WIZARD_PREVIEW_PAGE_QA_MAX_REGENS = QUALITY_REGEN_BUDGET;
@@ -26,6 +26,7 @@ export const WIZARD_PREVIEW_ENVIRONMENT_REASON_VALUES = [
   'production_resource_configured',
   'supabase_authority_invalid',
   'supabase_service_role_authority_invalid',
+  'supabase_service_role_proof_required',
   'database_authority_invalid',
   'direct_database_authority_invalid',
   'fake_payment_disabled',
@@ -154,7 +155,9 @@ export function buildWizardPreviewEnvironmentPreflight(
   if (projectRef !== WIZARD_PREVIEW_STAGING_SUPABASE_REF) {
     reasons.push('supabase_authority_invalid');
   }
-  if (serviceRoleAuthority !== 'matched') {
+  if (serviceRoleAuthority === 'opaque') {
+    reasons.push('supabase_service_role_proof_required');
+  } else if (serviceRoleAuthority !== 'legacy_claims_matched') {
     reasons.push('supabase_service_role_authority_invalid');
   }
   if (!connectionTargetsExpectedStaging(source.DATABASE_URL, databaseHost)) {

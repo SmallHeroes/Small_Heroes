@@ -62,6 +62,7 @@ const nextConfig = {
       '/api/generate/cron/sweep': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/generation/resume': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/dev/runtime-authority-preflight': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
+      '/api/dev/wizard-preorder-attestation': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/debug/regen-page': ['./story-bank/**/*', ...PRODUCT_ACCEPTED_STORY_REVISIONS, ...VISUAL_PACKAGE_V4_AUTHORITIES, ...SET_IDENTITY_BOARD_REGISTRY, ...STYLE01_REFS, ...STYLE01_COMPANION_SHEETS],
       '/api/wizard/mvp-matrix': [
         ...WIZARD_QA_AUTHORITIES,
@@ -114,6 +115,7 @@ const nextConfig = {
       '/api/generate/cron/sweep',
       '/api/dev/generation/resume',
       '/api/dev/runtime-authority-preflight',
+      '/api/dev/wizard-preorder-attestation',
       '/api/debug/regen-page',
     ];
     // Payment / status / webhook routes never render — drop every asset + heavy dep.

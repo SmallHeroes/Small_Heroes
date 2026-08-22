@@ -68,7 +68,7 @@ describe('Wizard Preview environment authority preflight', () => {
   it('returns only safe staging hosts and the exact bounded policy without any read or provider effect', () => {
     const result = buildWizardPreviewEnvironmentPreflight(passingEnv());
     expect(result).toEqual({
-      version: 'wizard-preview-environment-preflight/v2',
+      version: 'wizard-preview-environment-preflight/v3',
       status: 'passed',
       reasons: [],
       environment: {
@@ -82,7 +82,7 @@ describe('Wizard Preview environment authority preflight', () => {
         databaseHost: 'aws-0-eu-central-1.pooler.supabase.com',
         directDatabaseHost: `db.${STAGING_REF}.supabase.co`,
         productionResourceLeak: false,
-        serviceRoleAuthority: 'matched',
+        serviceRoleAuthority: 'legacy_claims_matched',
       },
       policy: {
         paymentProvider: 'fake',
@@ -129,11 +129,16 @@ describe('Wizard Preview environment authority preflight', () => {
       PAGE_VISUAL_QA_MAX_REGENS: '1',
       SITE_PASSWORD: '',
     });
+    env.SUPABASE_SERVICE_ROLE_KEY = 'malformed-key';
     const result = buildWizardPreviewEnvironmentPreflight(env);
     expect(result.status).toBe('failed');
-    expect(result.reasons).toEqual(WIZARD_PREVIEW_ENVIRONMENT_REASON_VALUES);
+    expect(result.reasons).toEqual(
+      WIZARD_PREVIEW_ENVIRONMENT_REASON_VALUES.filter(
+        (reason) => reason !== 'supabase_service_role_proof_required',
+      ),
+    );
     expect(result.resources.productionResourceLeak).toBe(true);
-    expect(result.resources.serviceRoleAuthority).toBe('mismatched');
+    expect(result.resources.serviceRoleAuthority).toBe('malformed');
     expect(JSON.stringify(result)).not.toContain('secret');
   });
 
@@ -143,7 +148,7 @@ describe('Wizard Preview environment authority preflight', () => {
         legacySupabaseJwt(STAGING_REF),
         STAGING_REF,
       ),
-    ).toBe('matched');
+    ).toBe('legacy_claims_matched');
     expect(
       classifySupabaseServiceRoleAuthority(
         legacySupabaseJwt(PRODUCTION_REF),
@@ -158,7 +163,10 @@ describe('Wizard Preview environment authority preflight', () => {
     ).toBe('mismatched');
     expect(
       classifySupabaseServiceRoleAuthority('sb_secret_uninspectable', STAGING_REF),
-    ).toBe('unverifiable');
+    ).toBe('opaque');
+    expect(
+      classifySupabaseServiceRoleAuthority('not-a-jwt', STAGING_REF),
+    ).toBe('malformed');
     expect(classifySupabaseServiceRoleAuthority(undefined, STAGING_REF)).toBe(
       'missing',
     );
@@ -177,6 +185,21 @@ describe('Wizard Preview environment authority preflight', () => {
     );
     expect(JSON.stringify(prodResult)).not.toContain(
       prodKeyEnv.SUPABASE_SERVICE_ROLE_KEY,
+    );
+  });
+
+  it('reports an opaque modern key as requiring runtime proof without treating it as malformed authority', () => {
+    const env = passingEnv();
+    env.SUPABASE_SERVICE_ROLE_KEY = 'sb_secret_current_backend_key';
+    const result = buildWizardPreviewEnvironmentPreflight(env);
+    expect(result).toMatchObject({
+      version: 'wizard-preview-environment-preflight/v3',
+      status: 'failed',
+      reasons: ['supabase_service_role_proof_required'],
+      resources: { serviceRoleAuthority: 'opaque' },
+    });
+    expect(JSON.stringify(result)).not.toContain(
+      env.SUPABASE_SERVICE_ROLE_KEY,
     );
   });
 
@@ -264,6 +287,17 @@ describe('Wizard Preview environment authority preflight', () => {
     expect(passed.status).toBe(200);
     expect((await passed.json()).status).toBe('passed');
 
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'sb_secret_current_backend_key');
+    const conditional = await GET();
+    expect(conditional.status).toBe(409);
+    expect((await conditional.json()).reasons).toEqual([
+      'supabase_service_role_proof_required',
+    ]);
+
+    vi.stubEnv(
+      'SUPABASE_SERVICE_ROLE_KEY',
+      legacySupabaseJwt(STAGING_REF),
+    );
     vi.stubEnv('CHILD_ANCHOR_MAX_ATTEMPTS', '1');
     const failed = await GET();
     expect(failed.status).toBe(409);

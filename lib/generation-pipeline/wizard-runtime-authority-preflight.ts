@@ -7,9 +7,6 @@ import type { ResolvedFamilyAppearanceProfile } from '@/lib/visual-contract-comp
 import { materialize } from '@/lib/visual-contract-compiler/materializeContract';
 import { assertValidResolvedBookVisualContract } from '@/lib/visual-contract-compiler/validateResolvedContract';
 import {
-  createLiveBoardResolverDeps,
-} from '@/lib/set-identity-board/liveResolverDeps';
-import {
   assertBoardsBoundForRender,
   resolveBoardBindings,
   type BoardResolverDeps,
@@ -81,11 +78,23 @@ export interface WizardRuntimeAuthorityPreflightResult {
 }
 
 export interface WizardRuntimeAuthorityPreflightDeps {
-  boardResolverDeps?: BoardResolverDeps;
+  boardResolverDeps: BoardResolverDeps;
 }
 
 function validStoryKey(value: string): boolean {
   return /^[a-z0-9][a-z0-9_]{1,127}$/.test(value);
+}
+
+export function wizardRuntimeAuthorityPreflightRequestIsValid(args: {
+  repoRoot: string;
+  storyKey: string;
+  styleId: string;
+}): boolean {
+  return (
+    path.isAbsolute(args.repoRoot) &&
+    validStoryKey(args.storyKey) &&
+    args.styleId === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK
+  );
 }
 
 function fail(
@@ -118,16 +127,12 @@ export async function runWizardRuntimeAuthorityPreflight(
     storyKey: string;
     styleId: string;
   },
-  deps: WizardRuntimeAuthorityPreflightDeps = {},
+  deps: WizardRuntimeAuthorityPreflightDeps,
 ): Promise<WizardRuntimeAuthorityPreflightResult> {
   if (!isVisualContractEnforcementEnabled()) {
     fail('enforcement_disabled');
   }
-  if (
-    !path.isAbsolute(args.repoRoot) ||
-    !validStoryKey(args.storyKey) ||
-    args.styleId !== STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK
-  ) {
+  if (!wizardRuntimeAuthorityPreflightRequestIsValid(args)) {
     fail('request_invalid');
   }
 
@@ -168,11 +173,7 @@ export async function runWizardRuntimeAuthorityPreflight(
 
   const contractHash = computeVisualContractHash(contract);
   let setIdentityBoards;
-  const boardResolverDeps =
-    deps.boardResolverDeps ??
-    createLiveBoardResolverDeps({
-      rootDir: path.join(args.repoRoot, 'set-identity-boards'),
-    });
+  const boardResolverDeps = deps.boardResolverDeps;
   try {
     setIdentityBoards = await resolveBoardBindings(
       {

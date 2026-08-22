@@ -143,11 +143,14 @@ describe('deployed Wizard runtime-authority preflight', () => {
     vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'true');
     await expect(
-      runWizardRuntimeAuthorityPreflight({
-        repoRoot: REPO_ROOT,
-        storyKey: '../escape',
-        styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
-      }),
+      runWizardRuntimeAuthorityPreflight(
+        {
+          repoRoot: REPO_ROOT,
+          storyKey: '../escape',
+          styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+        },
+        { boardResolverDeps: localApprovedBoardDeps() },
+      ),
     ).rejects.toMatchObject({
       code: 'request_invalid',
     });

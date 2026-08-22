@@ -1,5 +1,10 @@
 # Decision Gate — Wizard Preview Environment Authority
 
+> Superseded for pre-Order authorization by
+> `R1D_WIZARD_PREORDER_ATTESTATION_DECISION_GATE.md`. The pure environment
+> endpoint remains useful evidence, but an opaque modern Supabase key can be
+> authorized only by the combined runtime proof.
+
 ## 1. Proposed change
 
 Add one Preview-only, read-only environment preflight that exposes only safe

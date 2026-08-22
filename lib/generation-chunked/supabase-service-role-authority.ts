@@ -1,8 +1,9 @@
 export const SUPABASE_SERVICE_ROLE_AUTHORITY_STATUS_VALUES = [
-  'matched',
+  'legacy_claims_matched',
+  'opaque',
   'mismatched',
   'missing',
-  'unverifiable',
+  'malformed',
 ] as const;
 
 export type SupabaseServiceRoleAuthorityStatus =
@@ -46,20 +47,28 @@ function decodeLegacyJwtClaims(value: string | undefined): SupabaseLegacyJwtClai
 /**
  * Classifies a backend Supabase key without returning any key bytes or claims.
  * Legacy service-role keys are JWTs with closed `iss`, `ref`, and `role` claims.
- * New `sb_secret_*` keys intentionally expose no project identity, so this
- * zero-network classifier fails them closed as unverifiable rather than guessing.
+ * New `sb_secret_*` keys intentionally expose no project identity. This pure
+ * classifier reports them as opaque so a separate, pinned-target runtime proof
+ * can decide validity without pretending that the key carries inspectable claims.
  */
 export function classifySupabaseServiceRoleAuthority(
   value: string | undefined,
   expectedProjectRef: string,
 ): SupabaseServiceRoleAuthorityStatus {
-  if (!value?.trim()) return 'missing';
-  const claims = decodeLegacyJwtClaims(value);
-  if (!claims) return 'unverifiable';
+  const candidate = value?.trim();
+  if (!candidate) return 'missing';
+  if (
+    candidate.startsWith('sb_secret_') &&
+    candidate.length > 'sb_secret_'.length
+  ) {
+    return 'opaque';
+  }
+  const claims = decodeLegacyJwtClaims(candidate);
+  if (!claims) return 'malformed';
   return claims.issuer === 'supabase' &&
     claims.role === 'service_role' &&
     claims.projectRef === expectedProjectRef
-    ? 'matched'
+    ? 'legacy_claims_matched'
     : 'mismatched';
 }
 
