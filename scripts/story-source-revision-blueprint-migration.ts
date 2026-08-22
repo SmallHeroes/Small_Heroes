@@ -5,7 +5,9 @@
  * is imported or reachable from this entrypoint.
  */
 import {
+  prepareStorySourceRevisionPackageAssembly,
   prepareStorySourceRevisionBlueprintMigration,
+  recordStorySourceRevisionBlueprintApproval,
   recordStorySourceRevisionReconciliationApproval,
 } from '@/lib/visual-package/storySourceRevisionBlueprintMigrationLifecycle';
 
@@ -21,6 +23,21 @@ const APPROVAL_FLAGS = new Set([
 const BLUEPRINT_FLAGS = new Set([
   '--repo-root',
   '--approval',
+  '--write',
+]);
+const BLUEPRINT_APPROVAL_FLAGS = new Set([
+  '--repo-root',
+  '--manifest',
+  '--blueprint-digest',
+  '--review-digest',
+  '--approved-by',
+  '--approved-at',
+  '--write',
+]);
+const PACKAGE_ASSEMBLY_FLAGS = new Set([
+  '--repo-root',
+  '--manifest',
+  '--blueprint-approval',
   '--write',
 ]);
 
@@ -120,8 +137,77 @@ async function main(): Promise<void> {
     }, null, 2)}\n`);
     return;
   }
+  if (command === 'approve-blueprint') {
+    const values = parseFlags(tokens, BLUEPRINT_APPROVAL_FLAGS);
+    const approvedBy = required(values, '--approved-by');
+    if (approvedBy !== 'Guy') {
+      throw new Error('--approved-by must be exact value Guy');
+    }
+    const result = recordStorySourceRevisionBlueprintApproval({
+      repoRoot: required(values, '--repo-root'),
+      blueprintMigrationManifestPath: required(values, '--manifest'),
+      blueprintDigest: required(values, '--blueprint-digest'),
+      reviewPacketDigest: required(values, '--review-digest'),
+      approvedBy,
+      approvedAt: required(values, '--approved-at'),
+      write: writeValue(values),
+    });
+    process.stdout.write(`${JSON.stringify({
+      mode: 'story_source_revision_blueprint_approval',
+      blueprintMigrationManifestDigest: result.manifest.digest,
+      blueprintDigest: result.approval.blueprintDigest,
+      reviewPacketDigest: result.approval.reviewPacketDigest,
+      approvalDigest: result.approval.digest,
+      approvalPath: result.approvalPath,
+      created: result.created,
+      boundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        storageWrites: 0,
+        locatorWrites: 0,
+      },
+    }, null, 2)}\n`);
+    return;
+  }
+  if (command === 'assemble-package') {
+    const values = parseFlags(tokens, PACKAGE_ASSEMBLY_FLAGS);
+    const result = prepareStorySourceRevisionPackageAssembly({
+      repoRoot: required(values, '--repo-root'),
+      blueprintMigrationManifestPath: required(values, '--manifest'),
+      blueprintApprovalPath: required(values, '--blueprint-approval'),
+      write: writeValue(values),
+    });
+    process.stdout.write(`${JSON.stringify({
+      mode: 'story_source_revision_package_assembly',
+      manifestDigest: result.manifest.digest,
+      manifestPath: result.manifestPath,
+      candidateDigest: result.candidate.digest,
+      candidatePath: result.manifest.package.candidatePath,
+      reviewDigest: result.packageReview.digest,
+      reviewPath: result.manifest.package.reviewPath,
+      qualificationDigest: result.qualification.digest,
+      qualificationReasonCodes: result.manifest.package.qualificationReasonCodes,
+      readyForApproval: result.manifest.package.readyForApproval,
+      boardCount: result.manifest.authorityReuse.boardCount,
+      propReferenceCount: result.manifest.authorityReuse.propReferenceCount,
+      wrote: result.persisted?.wrote ?? false,
+      boundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        storageWrites: 0,
+        locatorWrites: 0,
+      },
+    }, null, 2)}\n`);
+    return;
+  }
   throw new Error(
-    'usage: approve-reconciliation|prepare-blueprint with exact key/value flags',
+    'usage: approve-reconciliation|prepare-blueprint|approve-blueprint|assemble-package with exact key/value flags',
   );
 }
 

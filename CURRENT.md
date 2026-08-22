@@ -4,59 +4,56 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
-## SOURCE REVISION RECONCILIATION + BLUEPRINT MIGRATION — LOCAL GREEN, CLAUDE QA NEXT
+## ACCEPTED-SOURCE BLUEPRINT APPROVAL + PACKAGE ASSEMBLY — LOCAL GREEN, CLAUDE QA NEXT
 
-Guy approved pending Source Reconciliation
-`601bf27eec36b31a9be1074671715fb3c9868d3d6c9c56dcede57f1b1a77f8d5`
-and Migration Review Bundle
-`dada71130f08bd71ffdd81686263ccce29be51d9e9fac8b21be40a0f0b542887`,
-including all ten recorded dispositions. The new general offline lifecycle
-re-derived phase 1 against the exact current package, recorded one immutable
-Guy approval, rebuilt a complete Production Authoring Context from the
-approved reconciliation, and replayed the existing approved Blueprint under
-the accepted neutral source authority without a provider call.
-
-The immutable reconciliation approval is
-`b6a8c144a86bfb1bd0ff6a431cee3149ea07c31a5e68285bba9d0e9364b583dd`.
-It binds approved reconciliation
-`57fdeb0477d8ecda77b55a7dd702845a15d3a3fa6e7a8ce077b3d7ebe3405f78`
-and approved review bundle
-`1288a8c45deb55253ff9a07061029d14f38dcb5027a7fe81d308745231535cac`.
-The Blueprint migration manifest is
-`ef8d3008069573eee621cecc8710b12d735ebaf0b72bb81028cc706ec9c3d7cd`;
-Production Authoring Context is
-`0cc212ea805e53395d9757c04b436ac55527aecc2f434c5a35c5c91dbee80d0c`;
-the new unapproved Blueprint candidate is
-`bdde1c154c513275b7b696cc641d692dc6a6dcb7c2b140c26271d1d456bd2bfe`;
-its authoring authority is
-`6e826abe7f015a8e0987c9ba8d84704ac385180284a2563f2b5a1a6ebb491aec`;
-and its review packet is
+Guy approved Blueprint Candidate
+`bdde1c154c513275b7b696cc641d692dc6a6dcb7c2b140c26271d1d456bd2bfe`
+and Review Packet
 `73121a73b6ca2565e7e44351d982bcc0ac49de00c14e4637539092925979a612`.
+The new offline adapter reloaded the entire accepted-source migration chain,
+recorded the exact Blueprint approval, and assembled a fresh Visual Package v5
+candidate/review without a provider, render, database, storage or locator call.
 
-The drift fence permits and observed exactly one content edit:
-`frame:page:8 / narrative.summary` changes `Kim beside her` to
-`Kim beside the child`, matching the accepted neutral page-8 direction. Every
-other Blueprint content field is byte-equivalent after compiler-owned identity
-and Visual Contract authority replacement. The first real write returned
-`created: true`; exact replay returned `created: false`. The manifest records
-provider/image/audio/database/storage/locator counters as zero.
+The immutable Blueprint approval is
+`34254986eea5d9fddf56d6e96dae5cd8ab53dce0845397d1c4f3b4b85805fe27`
+at canonical UTC time `2026-08-22T13:23:57.666Z`. The fresh package Candidate is
+`31176f576824ca7f3bb56d945c04e460f66c99d576cf6f63d3d2c00e864bfc9d`,
+Package Review is
+`bb6de707e9ae7ca88c46c6b13423ab9065fc999e32239562e5c7e133065eff61`,
+and the package-assembly manifest is
+`baf92870b9b94b8873e7971647d0e175a3228d2d8a198990893883f1d1a168d7`.
+Offline qualification digest
+`0c4c37effdf7de82923aff40dd1f7abc4f7b382438512dff3e7588b61e6847dc`
+is candidate-valid and review-ready, but correctly not publication-ready with
+exactly one reason: `package_approval_missing`.
 
-Focused validation is **9 files / 173 tests PASS**. Both TypeScript checks pass
-and the CLI graph is **83 repo inputs / 0 node_modules / no provider, render,
-database, storage or credential capability**. The one filename containing
-`openai` is a pure static schema-compatibility validator with no client or
-network surface. One literal `npm run check` used the exact **318 / 298 / 20**
-inventory: ordinary reported **3,488 PASS / 65 skipped / 5 failures**, all five
-the established absent ignored-output fixtures; resource-intensive reported
-**611/611 PASS** plus three known post-assertion Vitest `onTaskUpdate` RPC
-timeouts. The new migration spec passed in both focused and full runs.
+The assembled candidate reuses exactly the current package's two approved Set
+Boards and zero prop references. The current locator, historical package and
+four untracked Board artifacts retain their exact SHA-256 values. Preview,
+write and replay produced byte-identical approval/candidate/review/manifest
+artifacts. Every external counter is zero; package approval, publication,
+locator update, deploy, Wizard Order and render remain explicitly excluded.
 
-The current package, locator and four untracked Boards retain their exact
-preservation hashes. No package/locator/Board, provider, render, database,
-storage or deployment action occurred. Next action is a focused local commit
-and Guy-mediated independent Claude Code review. The Blueprint is not approved;
-package assembly and every Wizard/render action remain HOLD until exact Claude
-PASS and Guy approval of the Blueprint candidate/review above.
+Focused lifecycle validation is **7 files / 61 tests PASS**. The complete
+Visual Package suite reported **961 PASS / 1 timeout**; that old QA-bridge
+junction test then passed **8/8** in isolation and the process exited nonzero
+only for the known post-assertion Vitest `onTaskUpdate` RPC timeout. Both
+TypeScript checks pass. The CLI graph is **86 repo inputs / 0 node_modules**;
+its only OpenAI-named input is the pure schema-compatibility validator, with no
+provider/render/database/storage capability.
+
+One literal `npm run check` used the canonical **318 / 298 / 20** inventory.
+Ordinary reported **3,490 PASS / 65 skipped / 5 failures**, all five the
+established missing ignored-output fixtures. Resource-intensive reported
+**608 PASS / 3 timeouts** plus the known worker RPC timeouts; the two affected
+files pass their assertions in isolation, including the immediate-predecessor
+envelope regression at **1/1** and QA Bridge at **8/8**. The new package
+migration spec passed in both focused and full runs.
+
+Next action is a focused local commit and Guy-mediated independent Claude Code
+review. Package approval, publication, locator cutover, QA deploy, zero-spend
+runtime preflight and the one authorized Wizard full-book proof remain HOLD
+until Claude PASS and Guy approval of the exact Candidate/Review above.
 
 ## STORY SOURCE REVISION PACKAGE MIGRATION PHASE 1 — INDEPENDENT QA PASS
 

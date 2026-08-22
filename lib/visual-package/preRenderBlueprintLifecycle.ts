@@ -1088,7 +1088,7 @@ export function validatePreRenderBlueprintApprovalAttestation(args: {
   return stableIdSet(issues);
 }
 
-export function writePreRenderBlueprintApprovalAttestation(args: {
+export function planPreRenderBlueprintApprovalAttestation(args: {
   root: string;
   blueprint: PreRenderBookVisualBlueprint;
   context: PreRenderBlueprintValidationContext;
@@ -1096,10 +1096,9 @@ export function writePreRenderBlueprintApprovalAttestation(args: {
   approvedBy: string;
   approvedAt: string;
   note?: string;
-  hooks?: ImmutableWriteHooks;
 }): {
   attestation: PreRenderBlueprintApprovalAttestation;
-  artifact: PreRenderBlueprintArtifactWrite;
+  approvalPath: string;
 } {
   if (args.approvedBy !== PRE_RENDER_BLUEPRINT_APPROVER) {
     throw new Error('Blueprint approval is restricted to exact approver "Guy"');
@@ -1164,12 +1163,29 @@ export function writePreRenderBlueprintApprovalAttestation(args: {
     args.blueprint.digest,
     `${attestation.digest}.json`,
   );
+  return { attestation, approvalPath };
+}
+
+export function writePreRenderBlueprintApprovalAttestation(args: {
+  root: string;
+  blueprint: PreRenderBookVisualBlueprint;
+  context: PreRenderBlueprintValidationContext;
+  reviewPacket: PreRenderBlueprintReviewPacket;
+  approvedBy: string;
+  approvedAt: string;
+  note?: string;
+  hooks?: ImmutableWriteHooks;
+}): {
+  attestation: PreRenderBlueprintApprovalAttestation;
+  artifact: PreRenderBlueprintArtifactWrite;
+} {
+  const planned = planPreRenderBlueprintApprovalAttestation(args);
   return {
-    attestation,
+    attestation: planned.attestation,
     artifact: immutableWrite({
-      path: approvalPath,
-      bytes: canonicalBytes(attestation),
-      digest: attestation.digest,
+      path: planned.approvalPath,
+      bytes: canonicalBytes(planned.attestation),
+      digest: planned.attestation.digest,
       hooks: args.hooks,
     }),
   };

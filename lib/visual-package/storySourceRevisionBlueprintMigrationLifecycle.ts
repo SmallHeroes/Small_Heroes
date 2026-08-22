@@ -25,10 +25,13 @@ import {
 import {
   buildPreRenderBlueprintReviewBundle,
   createPreRenderBlueprintValidationEvidence,
+  planPreRenderBlueprintApprovalAttestation,
   persistPreRenderBlueprintLifecycle,
   preRenderBlueprintLifecycleJsonBytes,
+  writePreRenderBlueprintApprovalAttestation,
   type PersistedPreRenderBlueprintLifecycle,
   type PreRenderBlueprintApprovalAttestation,
+  type PreRenderBlueprintReviewPacket,
 } from './preRenderBlueprintLifecycle';
 import { serializePreRenderBookVisualBlueprint } from './preRenderBlueprint';
 import type { PreRenderBookVisualBlueprint } from './preRenderBlueprintTypes';
@@ -54,11 +57,23 @@ import {
   loadVisualPackageV4Revision,
   type VisualPackageV4,
 } from './visualPackageV4';
+import {
+  assembleVisualPackageV4Candidate,
+  loadApprovedBlueprintLifecycle,
+  persistVisualPackageV4CandidateReview,
+  qualifyVisualPackageV4Candidate,
+  type ApprovedBlueprintLifecyclePaths,
+} from './visualPackageV4Lifecycle';
+import type {
+  VisualPackageReviewReality,
+} from './types';
 
 export const STORY_SOURCE_REVISION_RECONCILIATION_APPROVAL_VERSION =
   'story-source-revision-reconciliation-approval/v1' as const;
 export const STORY_SOURCE_REVISION_BLUEPRINT_MIGRATION_MANIFEST_VERSION =
   'story-source-revision-blueprint-migration-manifest/v1' as const;
+export const STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_MANIFEST_VERSION =
+  'story-source-revision-package-assembly-manifest/v1' as const;
 
 export const STORY_SOURCE_REVISION_RECONCILIATION_APPROVAL_EXCLUSIONS = [
   'blueprint_approval',
@@ -80,6 +95,17 @@ export const STORY_SOURCE_REVISION_BLUEPRINT_MIGRATION_EXCLUSIONS = [
   'package_approval',
   'provider_call',
   'publication',
+] as const;
+
+export const STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_EXCLUSIONS = [
+  'database_write',
+  'deployment',
+  'image_render',
+  'locator_update',
+  'package_approval',
+  'provider_call',
+  'publication',
+  'storage_write',
 ] as const;
 
 const SHA256 = /^[a-f0-9]{64}$/;
@@ -190,6 +216,67 @@ export interface PreparedStorySourceRevisionBlueprintMigration {
   persisted: PersistedPreRenderBlueprintLifecycle | null;
 }
 
+export interface StorySourceRevisionPackageAssemblyManifest {
+  version: typeof STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_MANIFEST_VERSION;
+  stage: 'package_pending';
+  blueprintMigration: {
+    digest: string;
+    path: string;
+  };
+  blueprintApproval: {
+    digest: string;
+    path: string;
+  };
+  sourcePackageRevisionDigest: string;
+  productionContextDigest: string;
+  package: {
+    candidateDigest: string;
+    candidatePath: string;
+    reviewDigest: string;
+    reviewPath: string;
+    readyForApproval: true;
+    qualificationDigest: string;
+    qualificationReasonCodes: ['package_approval_missing'];
+  };
+  authorityReuse: {
+    boardCount: number;
+    boardsDigest: string;
+    propReferenceCount: number;
+    propReferencesDigest: string;
+    exactSourcePackageMatch: true;
+  };
+  externalCounters: {
+    providerCalls: 0;
+    imageRenders: 0;
+    audioRenders: 0;
+    databaseWrites: 0;
+    storageWrites: 0;
+    locatorWrites: 0;
+  };
+  doesNotAuthorize: typeof STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_EXCLUSIONS;
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
+
+export interface RecordedStorySourceRevisionBlueprintApproval {
+  manifest: StorySourceRevisionBlueprintMigrationManifest;
+  approval: PreRenderBlueprintApprovalAttestation;
+  approvalPath: string;
+  created: boolean;
+}
+
+export interface PreparedStorySourceRevisionPackageAssembly {
+  manifest: StorySourceRevisionPackageAssemblyManifest;
+  manifestPath: string;
+  context: ProductionAuthoringContext;
+  candidate: ReturnType<typeof assembleVisualPackageV4Candidate>['candidate'];
+  packageReview: ReturnType<
+    typeof assembleVisualPackageV4Candidate
+  >['packageReview'];
+  qualification: ReturnType<typeof qualifyVisualPackageV4Candidate>;
+  persisted: ReturnType<typeof persistVisualPackageV4CandidateReview> | null;
+}
+
 interface LoadedApprovedMigration {
   approval: StorySourceRevisionReconciliationApproval;
   approvalPath: string;
@@ -204,6 +291,14 @@ interface LoadedApprovedMigration {
 
 function sha256(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function canonicalUtcTimestampIsValid(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) {
+    return false;
+  }
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -659,6 +754,118 @@ function loadApprovedMigration(args: {
   };
 }
 
+function loadBlueprintMigrationManifest(args: {
+  repoRoot: string;
+  manifestPath: string;
+}): StorySourceRevisionBlueprintMigrationManifest {
+  const loaded = readOutputJson<StorySourceRevisionBlueprintMigrationManifest>({
+    repoRoot: args.repoRoot,
+    relativePath: args.manifestPath,
+    label: 'Story Source revision Blueprint migration manifest',
+  });
+  const manifest = loaded.value;
+  if (
+    !isObject(manifest) ||
+    !exactKeys(manifest as unknown as Record<string, unknown>, [
+      'blueprint',
+      'digest',
+      'digestAlgorithm',
+      'doesNotAuthorize',
+      'externalCounters',
+      'productionContextDigest',
+      'reconciliationApproval',
+      'reviewedContentEdits',
+      'sourcePackageRevisionDigest',
+      'stage',
+      'version',
+    ]) ||
+    !isObject(manifest.blueprint) ||
+    !exactKeys(manifest.blueprint as unknown as Record<string, unknown>, [
+      'authoringAuthorityDigest',
+      'candidatePath',
+      'changedFrameIds',
+      'contactSheetPath',
+      'digest',
+      'provenancePath',
+      'readyForApproval',
+      'reviewMarkdownPath',
+      'reviewPacketDigest',
+      'reviewPacketPath',
+      'validationEvidencePath',
+    ]) ||
+    manifest.version !==
+      STORY_SOURCE_REVISION_BLUEPRINT_MIGRATION_MANIFEST_VERSION ||
+    manifest.stage !== 'blueprint_pending' ||
+    manifest.digestAlgorithm !== 'canonical-json-sha256' ||
+    canonicalJsonDigest(digestPayload(manifest)) !== manifest.digest ||
+    !SHA256.test(manifest.digest) ||
+    path.posix.basename(args.manifestPath) !== `${manifest.digest}.json` ||
+    path.posix.basename(path.posix.dirname(args.manifestPath)) !==
+      'story-source-revision-blueprint-migration-manifests' ||
+    loaded.bytes !== canonicalContentAddressedJsonBytes(manifest) ||
+    manifest.blueprint.readyForApproval !== true ||
+    canonicalJsonDigest(manifest.blueprint.changedFrameIds) !==
+      canonicalJsonDigest(['frame:page:8']) ||
+    canonicalJsonDigest(manifest.reviewedContentEdits) !==
+      canonicalJsonDigest([{
+        frameId: 'frame:page:8',
+        field: 'narrative.summary',
+        from: OLD_PAGE_8_SUMMARY,
+        to: NEW_PAGE_8_SUMMARY,
+      }]) ||
+    canonicalJsonDigest(manifest.externalCounters) !==
+      canonicalJsonDigest({
+        providerCalls: 0,
+        imageRenders: 0,
+        audioRenders: 0,
+        databaseWrites: 0,
+        storageWrites: 0,
+        locatorWrites: 0,
+      }) ||
+    canonicalJsonDigest(manifest.doesNotAuthorize) !==
+      canonicalJsonDigest(STORY_SOURCE_REVISION_BLUEPRINT_MIGRATION_EXCLUSIONS)
+  ) {
+    throw new Error('Story Source revision Blueprint migration manifest is invalid');
+  }
+  return manifest;
+}
+
+function loadBlueprintMigrationArtifacts(args: {
+  repoRoot: string;
+  manifest: StorySourceRevisionBlueprintMigrationManifest;
+  migration: LoadedApprovedMigration;
+}): {
+  blueprint: PreRenderBookVisualBlueprint;
+  reviewPacket: PreRenderBlueprintReviewPacket;
+} {
+  const candidate = readOutputJson<PreRenderBookVisualBlueprint>({
+    repoRoot: args.repoRoot,
+    relativePath: args.manifest.blueprint.candidatePath,
+    label: 'Story Source revision Blueprint candidate',
+  });
+  const review = readOutputJson<PreRenderBlueprintReviewPacket>({
+    repoRoot: args.repoRoot,
+    relativePath: args.manifest.blueprint.reviewPacketPath,
+    label: 'Story Source revision Blueprint review packet',
+  });
+  if (
+    candidate.value.digest !== args.manifest.blueprint.digest ||
+    candidate.value.identity.authoringAuthority.digest !==
+      args.manifest.blueprint.authoringAuthorityDigest ||
+    candidate.bytes !== serializePreRenderBookVisualBlueprint(candidate.value) ||
+    review.value.digest !== args.manifest.blueprint.reviewPacketDigest ||
+    review.bytes !== preRenderBlueprintLifecycleJsonBytes(review.value)
+  ) {
+    throw new Error('Story Source revision Blueprint candidate or review changed');
+  }
+  assertExactMigratedBlueprint({
+    source: args.migration.sourcePackage.blueprint.content,
+    migratedTemplate: args.migration.migratedTemplate,
+    blueprint: candidate.value,
+  });
+  return { blueprint: candidate.value, reviewPacket: review.value };
+}
+
 function blueprintContentProjection(
   value: PreRenderBookVisualBlueprint,
 ): Record<string, unknown> {
@@ -950,6 +1157,300 @@ export async function prepareStorySourceRevisionBlueprintMigration(args: {
     manifestPath,
     context: migration.context,
     authored,
+    persisted,
+  };
+}
+
+export function recordStorySourceRevisionBlueprintApproval(args: {
+  repoRoot: string;
+  blueprintMigrationManifestPath: string;
+  blueprintDigest: string;
+  reviewPacketDigest: string;
+  approvedBy: 'Guy';
+  approvedAt: string;
+  write?: boolean;
+}): RecordedStorySourceRevisionBlueprintApproval {
+  if (
+    args.approvedBy !== 'Guy' ||
+    !canonicalUtcTimestampIsValid(args.approvedAt)
+  ) {
+    throw new Error('Blueprint approval requires exact Guy and canonical UTC time');
+  }
+  const manifest = loadBlueprintMigrationManifest({
+    repoRoot: args.repoRoot,
+    manifestPath: args.blueprintMigrationManifestPath,
+  });
+  if (
+    manifest.blueprint.digest !== args.blueprintDigest ||
+    manifest.blueprint.reviewPacketDigest !== args.reviewPacketDigest
+  ) {
+    throw new Error('Blueprint approval does not bind the reviewed migration artifacts');
+  }
+  const migration = loadApprovedMigration({
+    repoRoot: args.repoRoot,
+    approvalPath: manifest.reconciliationApproval.path,
+  });
+  if (
+    migration.approval.digest !== manifest.reconciliationApproval.digest ||
+    migration.sourcePackage.revisionDigest !==
+      manifest.sourcePackageRevisionDigest ||
+    migration.context.digest !== manifest.productionContextDigest
+  ) {
+    throw new Error('Blueprint migration manifest authority is stale');
+  }
+  const artifacts = loadBlueprintMigrationArtifacts({
+    repoRoot: args.repoRoot,
+    manifest,
+    migration,
+  });
+  const outputRoot = outputRootFromManifestPath(
+    args.repoRoot,
+    args.blueprintMigrationManifestPath,
+  );
+  const approvalRoot = path.join(outputRoot.absolute, 'blueprint-lifecycle');
+  const planned = planPreRenderBlueprintApprovalAttestation({
+    root: approvalRoot,
+    blueprint: artifacts.blueprint,
+    context: migration.context.validationContext,
+    reviewPacket: artifacts.reviewPacket,
+    approvedBy: args.approvedBy,
+    approvedAt: args.approvedAt,
+  });
+  const approvalPath = repoRelativePath(args.repoRoot, planned.approvalPath);
+  assertStorySourceRevisionMigrationArtifactPlanIsSafe({
+    repoRoot: args.repoRoot,
+    outputRoot: outputRoot.absolute,
+    artifacts: [{
+      path: approvalPath,
+      bytes: preRenderBlueprintLifecycleJsonBytes(planned.attestation),
+    }],
+  });
+  let created = false;
+  if (args.write === true) {
+    const written = writePreRenderBlueprintApprovalAttestation({
+      root: approvalRoot,
+      blueprint: artifacts.blueprint,
+      context: migration.context.validationContext,
+      reviewPacket: artifacts.reviewPacket,
+      approvedBy: args.approvedBy,
+      approvedAt: args.approvedAt,
+    });
+    if (
+      written.attestation.digest !== planned.attestation.digest ||
+      repoRelativePath(args.repoRoot, written.artifact.path) !== approvalPath
+    ) {
+      throw new Error('persisted Blueprint approval differs from its preflight');
+    }
+    created = written.artifact.created;
+  }
+  return {
+    manifest,
+    approval: planned.attestation,
+    approvalPath,
+    created,
+  };
+}
+
+export function prepareStorySourceRevisionPackageAssembly(args: {
+  repoRoot: string;
+  blueprintMigrationManifestPath: string;
+  blueprintApprovalPath: string;
+  write?: boolean;
+}): PreparedStorySourceRevisionPackageAssembly {
+  const blueprintManifest = loadBlueprintMigrationManifest({
+    repoRoot: args.repoRoot,
+    manifestPath: args.blueprintMigrationManifestPath,
+  });
+  const outputRoot = outputRootFromManifestPath(
+    args.repoRoot,
+    args.blueprintMigrationManifestPath,
+  );
+  const migration = loadApprovedMigration({
+    repoRoot: args.repoRoot,
+    approvalPath: blueprintManifest.reconciliationApproval.path,
+  });
+  const artifacts = loadBlueprintMigrationArtifacts({
+    repoRoot: args.repoRoot,
+    manifest: blueprintManifest,
+    migration,
+  });
+  const paths: ApprovedBlueprintLifecyclePaths = {
+    blueprintPath: blueprintManifest.blueprint.candidatePath,
+    authoringProvenancePath: blueprintManifest.blueprint.provenancePath,
+    validationEvidencePath:
+      blueprintManifest.blueprint.validationEvidencePath,
+    reviewPacketPath: blueprintManifest.blueprint.reviewPacketPath,
+    planningApprovalPath: args.blueprintApprovalPath,
+  };
+  const approvedBlueprint = loadApprovedBlueprintLifecycle({
+    repoRoot: args.repoRoot,
+    context: migration.context,
+    paths,
+  });
+  if (
+    approvedBlueprint.blueprint.content.digest !== artifacts.blueprint.digest ||
+    approvedBlueprint.reviewPacket.content.digest !== artifacts.reviewPacket.digest ||
+    approvedBlueprint.planningApproval.content.approvedBy !== 'Guy' ||
+    args.blueprintApprovalPath !== repoRelativePath(
+      args.repoRoot,
+      path.join(
+        outputRoot.absolute,
+        'blueprint-lifecycle',
+        'authorities',
+        artifacts.blueprint.identity.authoringAuthority.digest,
+        'approvals',
+        artifacts.blueprint.digest,
+        `${approvedBlueprint.planningApproval.content.digest}.json`,
+      ),
+    )
+  ) {
+    throw new Error('approved Blueprint lifecycle does not bind the migration');
+  }
+  const worldMode = migration.sourcePackage.review.worldMode;
+  if (worldMode === null) {
+    throw new Error('source package world-mode review authority is missing');
+  }
+  const reviewReality: VisualPackageReviewReality = {
+    authoredBy: approvedBlueprint.authoringProvenance.content.model,
+    reviewedBy: 'Guy',
+    reviewedAt: approvedBlueprint.planningApproval.content.approvedAt,
+    worldMode,
+  };
+  const assembled = assembleVisualPackageV4Candidate({
+    repoRoot: args.repoRoot,
+    context: migration.context,
+    approvedBlueprintPaths: paths,
+    review: reviewReality,
+  });
+  if (
+    canonicalJsonDigest(assembled.candidate.content.requiredBoards) !==
+      canonicalJsonDigest(migration.sourcePackage.requiredBoards) ||
+    canonicalJsonDigest(assembled.candidate.content.requiredPropReferences) !==
+      canonicalJsonDigest(migration.sourcePackage.requiredPropReferences)
+  ) {
+    throw new Error('source revision changed Board or prop authority');
+  }
+  const qualification = qualifyVisualPackageV4Candidate({
+    repoRoot: args.repoRoot,
+    candidate: assembled.candidate,
+    packageReview: assembled.packageReview,
+    approval: null,
+  });
+  if (
+    !qualification.candidateValid ||
+    !qualification.reviewReady ||
+    qualification.approvalValid ||
+    qualification.readyForPublication ||
+    qualification.reasons.length !== 1 ||
+    qualification.reasons[0]?.code !== 'package_approval_missing'
+  ) {
+    throw new Error('assembled package is not exactly ready for package approval');
+  }
+  const packageOutputDir = `${outputRoot.relative}/visual-package-candidate-lifecycle`;
+  const persistencePlan = persistVisualPackageV4CandidateReview({
+    repoRoot: args.repoRoot,
+    outputDir: packageOutputDir,
+    candidate: assembled.candidate,
+    packageReview: assembled.packageReview,
+    write: false,
+  });
+  const manifest = buildDigestArtifact({
+    version: STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_MANIFEST_VERSION,
+    stage: 'package_pending' as const,
+    blueprintMigration: {
+      digest: blueprintManifest.digest,
+      path: args.blueprintMigrationManifestPath,
+    },
+    blueprintApproval: {
+      digest: approvedBlueprint.planningApproval.content.digest,
+      path: args.blueprintApprovalPath,
+    },
+    sourcePackageRevisionDigest: migration.sourcePackage.revisionDigest,
+    productionContextDigest: migration.context.digest,
+    package: {
+      candidateDigest: assembled.candidate.digest,
+      candidatePath: persistencePlan.candidatePath,
+      reviewDigest: assembled.packageReview.digest,
+      reviewPath: persistencePlan.packageReviewPath,
+      readyForApproval: true as const,
+      qualificationDigest: qualification.digest,
+      qualificationReasonCodes: ['package_approval_missing'] as [
+        'package_approval_missing',
+      ],
+    },
+    authorityReuse: {
+      boardCount: assembled.candidate.content.requiredBoards.length,
+      boardsDigest: canonicalJsonDigest(
+        assembled.candidate.content.requiredBoards,
+      ),
+      propReferenceCount:
+        assembled.candidate.content.requiredPropReferences.length,
+      propReferencesDigest: canonicalJsonDigest(
+        assembled.candidate.content.requiredPropReferences,
+      ),
+      exactSourcePackageMatch: true as const,
+    },
+    externalCounters: {
+      providerCalls: 0 as const,
+      imageRenders: 0 as const,
+      audioRenders: 0 as const,
+      databaseWrites: 0 as const,
+      storageWrites: 0 as const,
+      locatorWrites: 0 as const,
+    },
+    doesNotAuthorize: STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_EXCLUSIONS,
+  }) as StorySourceRevisionPackageAssemblyManifest;
+  const manifestPath = artifactPath({
+    outputRoot: outputRoot.relative,
+    category: 'story-source-revision-package-assembly-manifests',
+    digest: manifest.digest,
+  });
+  const plans = [
+    {
+      path: persistencePlan.candidatePath,
+      bytes: `${JSON.stringify(assembled.candidate, null, 2)}\n`,
+    },
+    {
+      path: persistencePlan.packageReviewPath,
+      bytes: `${JSON.stringify(assembled.packageReview, null, 2)}\n`,
+    },
+    { path: manifestPath, bytes: canonicalContentAddressedJsonBytes(manifest) },
+  ];
+  assertStorySourceRevisionMigrationArtifactPlanIsSafe({
+    repoRoot: args.repoRoot,
+    outputRoot: outputRoot.absolute,
+    artifacts: plans,
+  });
+  let persisted: ReturnType<typeof persistVisualPackageV4CandidateReview> | null =
+    null;
+  if (args.write === true) {
+    persisted = persistVisualPackageV4CandidateReview({
+      repoRoot: args.repoRoot,
+      outputDir: packageOutputDir,
+      candidate: assembled.candidate,
+      packageReview: assembled.packageReview,
+      write: true,
+    });
+    if (
+      persisted.candidatePath !== persistencePlan.candidatePath ||
+      persisted.packageReviewPath !== persistencePlan.packageReviewPath
+    ) {
+      throw new Error('persisted package artifacts differ from the preflight');
+    }
+  }
+  persistCanonicalJson({
+    repoRoot: args.repoRoot,
+    relativePath: manifestPath,
+    value: manifest,
+    write: args.write === true,
+  });
+  return {
+    manifest,
+    manifestPath,
+    context: migration.context,
+    candidate: assembled.candidate,
+    packageReview: assembled.packageReview,
+    qualification,
     persisted,
   };
 }

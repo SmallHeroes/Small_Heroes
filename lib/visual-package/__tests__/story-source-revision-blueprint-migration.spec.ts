@@ -7,10 +7,14 @@ import { canonicalContentAddressedJsonBytes } from '../canonicalContentAddressed
 import { resolveRepoPath } from '../integrity';
 import {
   STORY_SOURCE_REVISION_BLUEPRINT_MIGRATION_EXCLUSIONS,
+  STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_EXCLUSIONS,
   prepareStorySourceRevisionBlueprintMigration,
+  prepareStorySourceRevisionPackageAssembly,
+  recordStorySourceRevisionBlueprintApproval,
   recordStorySourceRevisionReconciliationApproval,
 } from '../storySourceRevisionBlueprintMigrationLifecycle';
 import { prepareStorySourceRevisionPackageMigration } from '../storySourceRevisionPackageMigrationLifecycle';
+import { loadVisualPackageV4Revision } from '../visualPackageV4';
 
 const REPO_ROOT = process.cwd();
 const STORY_KEY = 'chameleon_koko_bedtime';
@@ -20,6 +24,7 @@ const LOCATOR_PATH =
 const ACCEPTED_MANIFEST_PATH =
   'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb/manifest.json';
 const APPROVED_AT = '2026-08-22T12:13:27.349Z';
+const BLUEPRINT_APPROVED_AT = '2026-08-22T14:37:11.208Z';
 
 function freshOutputRoot(label: string): { relative: string; absolute: string } {
   const relative = `outputs/qa-story-source-blueprint-${label}-${process.pid}-${Date.now()}`;
@@ -50,6 +55,32 @@ function approvePhaseOne(
       prepared.manifest.reconciliation.reviewBundleDigest,
     approvedBy: 'Guy',
     approvedAt: APPROVED_AT,
+    write,
+  });
+}
+
+async function prepareBlueprint(
+  phaseOne: ReturnType<typeof preparePhaseOne>,
+) {
+  const reconciliationApproval = approvePhaseOne(phaseOne);
+  return prepareStorySourceRevisionBlueprintMigration({
+    repoRoot: REPO_ROOT,
+    approvalPath: reconciliationApproval.approvalPath,
+    write: true,
+  });
+}
+
+function approveBlueprint(
+  prepared: Awaited<ReturnType<typeof prepareBlueprint>>,
+  write = true,
+) {
+  return recordStorySourceRevisionBlueprintApproval({
+    repoRoot: REPO_ROOT,
+    blueprintMigrationManifestPath: prepared.manifestPath,
+    blueprintDigest: prepared.manifest.blueprint.digest,
+    reviewPacketDigest: prepared.manifest.blueprint.reviewPacketDigest,
+    approvedBy: 'Guy',
+    approvedAt: BLUEPRINT_APPROVED_AT,
     write,
   });
 }
@@ -269,6 +300,193 @@ describe('Story Source revision reconciliation and Blueprint migration', () => {
           write: true,
         }),
       ).rejects.toThrow(
+        'migration output artifact conflicts with requested immutable bytes',
+      );
+      expect(fs.existsSync(manifestAbsolute)).toBe(false);
+    } finally {
+      cleanup(output.absolute);
+    }
+  });
+
+  it('records the exact Blueprint approval and assembles one replayable package pending exact Guy approval', async () => {
+    const output = freshOutputRoot('package-happy');
+    try {
+      const phaseOne = preparePhaseOne(output.relative);
+      const blueprint = await prepareBlueprint(phaseOne);
+      const approvalPreview = approveBlueprint(blueprint, false);
+      expect(approvalPreview.created).toBe(false);
+      expect(
+        fs.existsSync(resolveRepoPath(REPO_ROOT, approvalPreview.approvalPath)),
+      ).toBe(false);
+
+      const approval = approveBlueprint(blueprint, true);
+      expect(approval.created).toBe(true);
+      const approvalReplay = approveBlueprint(blueprint, true);
+      expect(approvalReplay.created).toBe(false);
+      expect(approvalReplay.approval.digest).toBe(approval.approval.digest);
+
+      const preview = prepareStorySourceRevisionPackageAssembly({
+        repoRoot: REPO_ROOT,
+        blueprintMigrationManifestPath: blueprint.manifestPath,
+        blueprintApprovalPath: approval.approvalPath,
+        write: false,
+      });
+      expect(preview.persisted).toBeNull();
+      expect(
+        fs.existsSync(resolveRepoPath(REPO_ROOT, preview.manifestPath)),
+      ).toBe(false);
+      expect(preview.qualification).toMatchObject({
+        candidateValid: true,
+        reviewReady: true,
+        approvalValid: false,
+        readyForPublication: false,
+      });
+      expect(preview.qualification.reasons.map((reason) => reason.code)).toEqual([
+        'package_approval_missing',
+      ]);
+      expect(preview.manifest.externalCounters).toEqual({
+        providerCalls: 0,
+        imageRenders: 0,
+        audioRenders: 0,
+        databaseWrites: 0,
+        storageWrites: 0,
+        locatorWrites: 0,
+      });
+      expect(preview.manifest.doesNotAuthorize).toEqual(
+        STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_EXCLUSIONS,
+      );
+      const sourcePackage = loadVisualPackageV4Revision({
+        repoRoot: REPO_ROOT,
+        packagePath: phaseOne.manifest.sourcePackage.packagePath,
+        expectedRevisionDigest: phaseOne.manifest.sourcePackage.revisionDigest,
+      });
+      expect(preview.candidate.content.requiredBoards).toEqual(
+        sourcePackage.requiredBoards,
+      );
+      expect(preview.candidate.content.requiredPropReferences).toEqual(
+        sourcePackage.requiredPropReferences,
+      );
+      expect(preview.manifest.authorityReuse).toMatchObject({
+        boardCount: 2,
+        propReferenceCount: 0,
+        exactSourcePackageMatch: true,
+      });
+      expect(preview.candidate.content.sourceSnapshot.identity.path).toBe(
+        phaseOne.manifest.acceptedRevision.integratedStoryPath,
+      );
+      expect(preview.candidate.content.blueprint.content.digest).toBe(
+        blueprint.manifest.blueprint.digest,
+      );
+
+      const first = prepareStorySourceRevisionPackageAssembly({
+        repoRoot: REPO_ROOT,
+        blueprintMigrationManifestPath: blueprint.manifestPath,
+        blueprintApprovalPath: approval.approvalPath,
+        write: true,
+      });
+      expect(first.persisted?.wrote).toBe(true);
+      const inventoryBefore = fs
+        .readdirSync(output.absolute, { recursive: true })
+        .map(String)
+        .sort();
+      const manifestBytes = fs.readFileSync(
+        resolveRepoPath(REPO_ROOT, first.manifestPath),
+      );
+      const second = prepareStorySourceRevisionPackageAssembly({
+        repoRoot: REPO_ROOT,
+        blueprintMigrationManifestPath: blueprint.manifestPath,
+        blueprintApprovalPath: approval.approvalPath,
+        write: true,
+      });
+      expect(second.candidate.digest).toBe(first.candidate.digest);
+      expect(second.packageReview.digest).toBe(first.packageReview.digest);
+      expect(
+        fs.readFileSync(resolveRepoPath(REPO_ROOT, second.manifestPath)),
+      ).toEqual(manifestBytes);
+      expect(
+        fs.readdirSync(output.absolute, { recursive: true }).map(String).sort(),
+      ).toEqual(inventoryBefore);
+    } finally {
+      cleanup(output.absolute);
+    }
+  });
+
+  it('rejects invalid Blueprint approvals and package collisions before partial writes', async () => {
+    const output = freshOutputRoot('package-reject');
+    try {
+      const phaseOne = preparePhaseOne(output.relative);
+      const blueprint = await prepareBlueprint(phaseOne);
+      const approvalRoot = path.join(output.absolute, 'blueprint-lifecycle', 'approvals');
+      expect(() =>
+        recordStorySourceRevisionBlueprintApproval({
+          repoRoot: REPO_ROOT,
+          blueprintMigrationManifestPath: blueprint.manifestPath,
+          blueprintDigest: '0'.repeat(64),
+          reviewPacketDigest: blueprint.manifest.blueprint.reviewPacketDigest,
+          approvedBy: 'Guy',
+          approvedAt: BLUEPRINT_APPROVED_AT,
+          write: true,
+        }),
+      ).toThrow('does not bind the reviewed migration artifacts');
+      expect(() =>
+        recordStorySourceRevisionBlueprintApproval({
+          repoRoot: REPO_ROOT,
+          blueprintMigrationManifestPath: blueprint.manifestPath,
+          blueprintDigest: blueprint.manifest.blueprint.digest,
+          reviewPacketDigest: blueprint.manifest.blueprint.reviewPacketDigest,
+          approvedBy: 'Claude' as 'Guy',
+          approvedAt: BLUEPRINT_APPROVED_AT,
+          write: true,
+        }),
+      ).toThrow('requires exact Guy and canonical UTC time');
+      expect(() =>
+        recordStorySourceRevisionBlueprintApproval({
+          repoRoot: REPO_ROOT,
+          blueprintMigrationManifestPath: blueprint.manifestPath,
+          blueprintDigest: blueprint.manifest.blueprint.digest,
+          reviewPacketDigest: blueprint.manifest.blueprint.reviewPacketDigest,
+          approvedBy: 'Guy',
+          approvedAt: '2026-08-22T14:37:11Z',
+          write: true,
+        }),
+      ).toThrow('requires exact Guy and canonical UTC time');
+      expect(fs.existsSync(approvalRoot)).toBe(false);
+
+      const approval = approveBlueprint(blueprint, true);
+      const alternateApprovalPath = `${output.relative}/alternate-approval.json`;
+      fs.copyFileSync(
+        resolveRepoPath(REPO_ROOT, approval.approvalPath),
+        resolveRepoPath(REPO_ROOT, alternateApprovalPath),
+      );
+      expect(() =>
+        prepareStorySourceRevisionPackageAssembly({
+          repoRoot: REPO_ROOT,
+          blueprintMigrationManifestPath: blueprint.manifestPath,
+          blueprintApprovalPath: alternateApprovalPath,
+          write: false,
+        }),
+      ).toThrow('approved Blueprint lifecycle does not bind the migration');
+      const first = prepareStorySourceRevisionPackageAssembly({
+        repoRoot: REPO_ROOT,
+        blueprintMigrationManifestPath: blueprint.manifestPath,
+        blueprintApprovalPath: approval.approvalPath,
+        write: true,
+      });
+      const manifestAbsolute = resolveRepoPath(REPO_ROOT, first.manifestPath);
+      const reviewAbsolute = resolveRepoPath(
+        REPO_ROOT,
+        first.manifest.package.reviewPath,
+      );
+      fs.unlinkSync(manifestAbsolute);
+      fs.appendFileSync(reviewAbsolute, 'tamper', 'utf8');
+      expect(() =>
+        prepareStorySourceRevisionPackageAssembly({
+          repoRoot: REPO_ROOT,
+          blueprintMigrationManifestPath: blueprint.manifestPath,
+          blueprintApprovalPath: approval.approvalPath,
+          write: true,
+        }),
+      ).toThrow(
         'migration output artifact conflicts with requested immutable bytes',
       );
       expect(fs.existsSync(manifestAbsolute)).toBe(false);
