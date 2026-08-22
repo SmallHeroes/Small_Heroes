@@ -33,11 +33,14 @@ batch/promotion tools. A real `Module._load` sentinel proves that the CLI loads
 without those modules and has a failing positive control.
 
 The first corrective re-gate then found a same-name direction forgery that
-could pass filename/story-key checks. Manifest v2 closes it by loading the
-sibling canonical storyboard-corpus manifest, verifying its canonical digest,
-and binding the selected record's source SHA, direction SHA, companion,
-category, direction and page count to the accepted Story Source. A renamed
-Bunny record with its internal key changed to Chameleon now fails.
+could pass filename/story-key checks. A first corpus binding rejected it against
+the canonical corpus, but the next adversarial pass proved that an attacker
+could supply both a forged direction and a self-rehashed sibling manifest.
+Request v2 closes that authority gap by pinning the storyboard corpus's exact
+path, whole-file SHA and canonical digest before the sibling is loaded. Pending
+manifest v3 additionally binds the selected record's source SHA, direction SHA,
+companion, category, direction and page count to the accepted Story Source. A
+renamed Bunny record and a matching self-rehashed corpus now both fail.
 
 The real Chameleon run produced the expected byte identities:
 
@@ -47,18 +50,18 @@ The real Chameleon run produced the expected byte identities:
 - female projection remains byte-identical at `dc614739573e0637510ebda887f4ec98f43d5b20b5e35e9eb5b1f6b487929ab8`;
 - new male projection is `c0fca7240a668445c0ad68acc4c58e3eb55f6bb89b079abc76b2a40597f79e7a`.
 
-The current pending-v2 manifest is
-`outputs/r1d-chameleon-gender-revision-pending-v2/e293fb7b9716a8cb88858bdf89295e28b86bdc6927777ac7b3a7725d679ef488.manifest.json`.
-The prior local v1 pending root is preserved as superseded, unapproved evidence.
-Focused validation is **4 files / 65 tests PASS** including the ordinary Vitest
+The current pending-v3 manifest is
+`outputs/r1d-chameleon-gender-revision-pending-v3/724b1aeeb076b67de99b79c52d7d0c5cfe3ca4dbd87818e67379f67f7ebfcb8a.manifest.json`.
+The prior local v1 and v2 pending roots are preserved as superseded, unapproved
+evidence. Focused validation is **4 files / 66 tests PASS** including the ordinary Vitest
 inventory, with `tsc --noEmit` and `git diff --check` green. Literal
-`npm run check` passed both TypeScript projects and **3,451** ordinary
+`npm run check` passed both TypeScript projects and **3,452** ordinary
 assertions; its five ordinary failures remain the known missing ignored-output
 fixtures. The resource partition passed **609/610** assertions; its existing
 junction test exceeded the shared 5-second timeout under load and then passed
 **8/8** standalone with a 15-second diagnostic timeout. The same three known
-Vitest worker RPC timeouts remain. The real no-write preview produces v2
-manifest `e293fb7b9716…`; the four content/migration outputs and both gender
+Vitest worker RPC timeouts remain. The real no-write preview produces v3
+manifest `724b1aeeb076…`; the four content/migration outputs and both gender
 projections remain unchanged after the new corpus-authority binding. Promotion
 still requires an immutable corrective commit, independent
 Claude Code re-gate PASS and Guy's exact source/review acceptance; no downstream

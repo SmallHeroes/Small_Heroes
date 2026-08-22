@@ -18,8 +18,8 @@ const OUTPUTS_ROOT = path.join(REPO_ROOT, 'outputs');
 const ACCEPTED_SOURCE_ROOT =
   'story-pipeline/04_approved_story_sources/accepted/';
 const STORYBOARD_INPUT_ROOT = 'story-pipeline/05_storyboard_inputs/';
-const REQUEST_VERSION = 'small-heroes-story-source-revision-request/v1';
-const MANIFEST_VERSION = 'small-heroes-story-source-revision-pending-manifest/v2';
+const REQUEST_VERSION = 'small-heroes-story-source-revision-request/v2';
+const MANIFEST_VERSION = 'small-heroes-story-source-revision-pending-manifest/v3';
 const DIRECTION_MIGRATION_VERSION =
   'small-heroes-story-visual-direction-deterministic-migration/v1';
 const ALLOWED_DIRECTION_FIELDS = new Set([
@@ -39,6 +39,7 @@ const REQUEST_KEYS = [
   'visualDirections',
 ];
 const FILE_REFERENCE_KEYS = ['path', 'sha256'];
+const CORPUS_REFERENCE_KEYS = ['digest', 'path', 'sha256'];
 const TEXT_REPLACEMENT_KEYS = ['expectedCount', 'from', 'to'];
 const DIRECTION_REPLACEMENT_KEYS = [
   'expectedCount',
@@ -176,6 +177,18 @@ function validateFileReference(value, code) {
   return value;
 }
 
+function validateCorpusReference(value, code) {
+  if (
+    !exactKeys(value, CORPUS_REFERENCE_KEYS) ||
+    !canonicalRepoRelativePathIsValid(value.path) ||
+    !/^[a-f0-9]{64}$/.test(value.sha256) ||
+    !/^[a-f0-9]{64}$/.test(value.digest)
+  ) {
+    throw new Error(code);
+  }
+  return value;
+}
+
 function validateReplacement(value, keys, code) {
   if (
     !exactKeys(value, keys) ||
@@ -198,7 +211,7 @@ function validateRequest(value) {
     !/^[a-z][a-z0-9_]{2,95}$/.test(value.storyKey) ||
     !/^[a-z][a-z0-9_]{2,159}$/.test(value.briefId) ||
     !exactKeys(value.source, ['manifest', 'story']) ||
-    !exactKeys(value.visualDirections, ['record']) ||
+    !exactKeys(value.visualDirections, ['corpusManifest', 'record']) ||
     !Array.isArray(value.textReplacements) ||
     value.textReplacements.length < 1 ||
     value.textReplacements.length > 64 ||
@@ -214,6 +227,10 @@ function validateRequest(value) {
     value.visualDirections.record,
     'story_source_revision_request_invalid',
   );
+  validateCorpusReference(
+    value.visualDirections.corpusManifest,
+    'story_source_revision_request_invalid',
+  );
   const sourceStoryKey = storyKeyFromAcceptedSourcePath(value.source.story.path);
   if (
     !value.source.manifest.path.startsWith(ACCEPTED_SOURCE_ROOT) ||
@@ -224,6 +241,11 @@ function validateRequest(value) {
       path.posix.dirname(value.source.story.path) ||
     value.storyKey !== sourceStoryKey ||
     !value.visualDirections.record.path.startsWith(STORYBOARD_INPUT_ROOT) ||
+    !value.visualDirections.corpusManifest.path.startsWith(STORYBOARD_INPUT_ROOT) ||
+    path.posix.basename(value.visualDirections.corpusManifest.path) !==
+      'manifest.json' ||
+    path.posix.dirname(value.visualDirections.corpusManifest.path) !==
+      path.posix.dirname(value.visualDirections.record.path) ||
     path.posix.basename(value.visualDirections.record.path) !==
       `${sourceStoryKey}.visual-directions.json`
   ) {
@@ -522,6 +544,9 @@ function validateStoryboardCorpusManifest(
   if (sha256(canonicalBytes(payload)) !== digest) {
     throw new Error('story_source_revision_storyboard_corpus_invalid');
   }
+  if (digest !== request.visualDirections.corpusManifest.digest) {
+    throw new Error('story_source_revision_storyboard_corpus_invalid');
+  }
   const storyKeys = new Set();
   for (const record of corpus.records) {
     if (
@@ -571,8 +596,8 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
     'story_source_revision_direction_invalid',
     STORYBOARD_INPUT_ROOT,
   );
-  const storyboardCorpusManifestFile = readContainedRepoFile(
-    `${path.posix.dirname(request.visualDirections.record.path)}/manifest.json`,
+  const storyboardCorpusManifestFile = readBoundRepoFile(
+    request.visualDirections.corpusManifest,
     512 * 1024,
     'story_source_revision_storyboard_corpus_invalid',
     STORYBOARD_INPUT_ROOT,

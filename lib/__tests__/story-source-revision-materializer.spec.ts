@@ -12,6 +12,7 @@ const require = createRequire(import.meta.url);
 const materializer = require('../../scripts/materialize-story-source-revision.cjs') as {
   MANIFEST_VERSION: string;
   REQUEST_VERSION: string;
+  canonicalBytes: (value: unknown) => string;
   buildStorySourceRevision: (input: {
     requestFile: ReturnType<typeof materializer.readRequestFile>;
     outputDir: string;
@@ -79,6 +80,7 @@ type StorySourceRevisionRequest = {
     story: { path: string; sha256: string };
   };
   visualDirections: {
+    corpusManifest: { digest: string; path: string; sha256: string };
     record: { path: string; sha256: string };
   };
   textReplacements: TextReplacement[];
@@ -123,6 +125,11 @@ function boundReference(relativePath: string) {
   return { path: relativePath, sha256: sha256(repoBytes(relativePath)) };
 }
 
+function corpusReference(relativePath: string) {
+  const corpus = JSON.parse(repoBytes(relativePath).toString('utf8'));
+  return { ...boundReference(relativePath), digest: corpus.digest as string };
+}
+
 function requestFixture(): StorySourceRevisionRequest {
   return {
     version: materializer.REQUEST_VERSION,
@@ -133,6 +140,7 @@ function requestFixture(): StorySourceRevisionRequest {
       story: boundReference(SOURCE_PATH),
     },
     visualDirections: {
+      corpusManifest: corpusReference(STORYBOARD_CORPUS_PATH),
       record: boundReference(DIRECTION_PATH),
     },
     textReplacements: [
@@ -348,7 +356,10 @@ describe('story source revision materializer', () => {
       materializer.validateRequest({
         ...base,
         storyKey: 'bunny_ometz_bedtime',
-        visualDirections: { record: boundReference(BUNNY_DIRECTION_PATH) },
+        visualDirections: {
+          corpusManifest: corpusReference(STORYBOARD_CORPUS_PATH),
+          record: boundReference(BUNNY_DIRECTION_PATH),
+        },
       }),
     ).toThrow('story_source_revision_request_invalid');
     expect(() =>
@@ -407,6 +418,37 @@ describe('story source revision materializer', () => {
         { sha256: sha256(forgedDirectionBytes) },
       ),
     ).toThrow('story_source_revision_storyboard_binding_invalid');
+  });
+
+  it('rejects a forged direction even when its sibling corpus is self-rehashed', () => {
+    const forgedDirection = JSON.parse(
+      repoBytes(BUNNY_DIRECTION_PATH).toString('utf8'),
+    );
+    forgedDirection.storyKey = 'chameleon_koko_bedtime';
+    const forgedDirectionBytes = `${JSON.stringify(forgedDirection, null, 2)}\n`;
+    const forgedCorpus = JSON.parse(
+      repoBytes(STORYBOARD_CORPUS_PATH).toString('utf8'),
+    );
+    const selectedRecord = forgedCorpus.records.find(
+      (record: { storyKey: string }) =>
+        record.storyKey === 'chameleon_koko_bedtime',
+    );
+    selectedRecord.visualDirectionSha256 = sha256(forgedDirectionBytes);
+    const { digest: _oldDigest, ...payload } = forgedCorpus;
+    forgedCorpus.digest = sha256(materializer.canonicalBytes(payload));
+
+    expect(forgedCorpus.digest).not.toBe(
+      requestFixture().visualDirections.corpusManifest.digest,
+    );
+    expect(() =>
+      materializer.validateStoryboardCorpusManifest(
+        forgedCorpus,
+        requestFixture(),
+        JSON.parse(repoBytes(SOURCE_MANIFEST_PATH).toString('utf8')),
+        { sha256: sha256(repoBytes(SOURCE_PATH)) },
+        { sha256: sha256(forgedDirectionBytes) },
+      ),
+    ).toThrow('story_source_revision_storyboard_corpus_invalid');
   });
 
   it('rejects source drift, female-projection drift and output escape', () => {
