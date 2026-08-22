@@ -4,6 +4,44 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
+## FIRST PHOTO-BACKED BAR WIZARD BOOK — FULL GENERATION COMPLETE, RELEASE HELD FOR RECOVERY
+
+One QA-only Wizard order for Bar (age six, boy), using the tracked Bar photo,
+Chameleon Transition story, Style 01 and mother narration, completed checkout,
+text, anchor, cover, eight interior images, eight audio assets, PDF and package.
+The order is deliberately held at `needs_human_qa`; no delivery email or Reader
+release occurred.
+
+The runtime exposed three independent launch blockers. First, the QA database
+was missing the already-repository-owned `PageUploadCandidate` table, so every
+candidate row failed before Vision. The exact migration is now applied and
+verified in QA, fixing future persistence. Second, the source carries hard-coded
+feminine protagonist grammar that the current narrow gender gate misses, so
+Bar's text and mother narration are not product-correct. Third, the approved
+wardrobe authority is too vague: the cover renders daytime clothes while the
+interior book uses pajamas. The eight retained interior images otherwise form a
+coherent, visually reviewed book and are not authorized for regeneration.
+
+The first zero-cost recovery correction now derives the strict visual-QA input
+from the assembled image contract before the candidate-persistence hold. When
+persistence fails it still stops before Vision, regeneration reservation or new
+image bytes, but returns `evidence_unknown` with the exact `qaInput`, unverified
+safety and the existing hold marker. The normal successful QA path reuses the
+same derivation helper, so recovery and live evaluation cannot drift. Direct
+page and cover regressions pass **1 file / 12 tests** with zero QA calls and zero
+replacement renders on the failure path; `git diff --check` passes. Repository-
+wide `tsc --noEmit` remains blocked by the separately documented pre-existing
+Next route-module export of `triggerGeneration`; this change introduces no new
+TypeScript diagnostic.
+
+The remaining plan is fail-closed: add SHA-bound stored-byte QA recovery, prepare
+gender-correct source and concrete gender-neutral wardrobe authority for exact
+review, stabilize text/audio/cover, then run Vision once on the final nine image
+assets and let the ordinary readiness gate decide release. No second order,
+interior render, manual safety flag, Production change or self-approval is
+allowed. Decision record:
+`docs/ai-workflow/BAR_QA_WIZARD_BOOK_RECOVERY_DECISION_GATE.md`.
+
 ## ANCHOR QA DIAGNOSTICS + CURRENT ANTHROPIC DEFAULTS — IMPLEMENTED LOCALLY, QA PENDING
 
 The first new-story Wizard QA Order proved checkout, text/DNA and the child-anchor

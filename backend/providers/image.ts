@@ -3241,6 +3241,45 @@ async function patchPageRefManifestQa(input: {
   }
 }
 
+async function deriveStyle01PageQaInput(
+  input: ImageInput,
+  image: GeneratedImage,
+): Promise<NonNullable<NonNullable<Style01PageMeta['pageVisualQa']>['qaInput']>> {
+  // QA must bind to what was actually assembled/forced, not the pre-assembly input. Covers have an empty
+  // pagePrompt but the assembler forces childPresence='present' and carries the real scene in sceneText.
+  const entityPresence = image.style01Meta?.entityPresence ?? deriveImageInputEntityPresence(input);
+  const assembledScene =
+    (image.style01Meta?.sceneText ?? '').trim() || (input.rawScenePrompt ?? input.pagePrompt ?? '').trim();
+  const structuredCtx = {
+    imagePrompt: assembledScene || undefined,
+    bookPageText: input.bookPageText ?? undefined,
+    rawScenePrompt: assembledScene || undefined,
+  };
+  const { pageHasHumanFamily } = await import('../../lib/family-coherence');
+
+  return {
+    expectsChild: entityPresence.childPresence === 'present',
+    expectsCompanion: entityPresence.companionPresence === 'present',
+    expectedPageTimeOfDay:
+      image.style01Meta?.effectivePageTimeOfDay ?? input.effectivePageTimeOfDay ?? null,
+    isEmotionalClosing: isEmotionalClosingBeat({
+      pageNumber: input.pageNumber,
+      totalPages: input.totalPages,
+      imagePrompt: assembledScene || input.pagePrompt || undefined,
+      bookPageText: input.bookPageText ?? undefined,
+    }),
+    hasStructuredObjects: sceneHasStructuredObjects(structuredCtx),
+    hasRailedBedOrCrib: sceneHasRailedBedOrCrib(structuredCtx),
+    hasHumanFamily: pageHasHumanFamily({
+      bookPageText: input.bookPageText,
+      imageDirection: assembledScene || input.rawScenePrompt || input.pagePrompt,
+      rawScenePrompt: assembledScene || input.rawScenePrompt,
+      pagePrompt: input.pagePrompt,
+      presentEntityIds: input.pageStoryState?.presentEntities,
+    }),
+  };
+}
+
 async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<GeneratedImage> {
   // Gap 2: hard fail if this Style 01 branch runs for a non-Style-01 order.
   assertPipelineStyleBranchMatchesOrder({
@@ -3274,6 +3313,7 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
       onCandidateUploaded,
     });
     if (candidatePersistenceError) {
+      const qaInput = await deriveStyle01PageQaInput(input, last);
       console.warn(
         `[page_visual_qa] HOLD_CANDIDATE_PERSISTENCE_FAILED orderId=${input.orderId ?? 'unknown'} ` +
           `page=${input.pageNumber} details=${candidatePersistenceError}`
@@ -3282,6 +3322,16 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
         ...last,
         style01Meta: {
           ...last.style01Meta!,
+          pageVisualQa: {
+            passed: true,
+            verdict: 'evidence_unknown',
+            reason: 'vision_skipped',
+            details: 'candidate_persistence_failed_before_qa',
+            regenAttempts,
+            safetyHazards: [],
+            safetyStatus: 'unverified',
+            qaInput,
+          },
           needsHumanReview: true,
           candidatePersistenceError,
         },
@@ -3289,47 +3339,10 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
     }
     if (!qaConfig.enabled) return last;
 
-    // (#5a-fix ITEM 1) QA MUST bind to what was actually ASSEMBLED/forced, not the pre-assembly input. Covers
-    // have an empty pagePrompt but the assembler forces childPresence='present' (last.style01Meta.entityPresence)
-    // and carries the real scene in last.style01Meta.sceneText. Deriving from the raw input would QA a cover
-    // against expectsChild=false — a cover missing the child could pass. Prefer the assembled contract.
-    const entityPresence = last.style01Meta?.entityPresence ?? deriveImageInputEntityPresence(input);
-    const expectsChild = entityPresence.childPresence === 'present';
-    const expectsCompanion = entityPresence.companionPresence === 'present';
-    const assembledScene =
-      (last.style01Meta?.sceneText ?? '').trim() || (input.rawScenePrompt ?? input.pagePrompt ?? '').trim();
-    const structuredCtx = {
-      imagePrompt: assembledScene || undefined,
-      bookPageText: input.bookPageText ?? undefined,
-      rawScenePrompt: assembledScene || undefined,
-    };
-    const hasStructuredObjects = sceneHasStructuredObjects(structuredCtx);
-    const hasRailedBedOrCrib = sceneHasRailedBedOrCrib(structuredCtx);
-    const isEmotionalClosing = isEmotionalClosingBeat({
-      pageNumber: input.pageNumber,
-      totalPages: input.totalPages,
-      imagePrompt: assembledScene || input.pagePrompt || undefined,
-      bookPageText: input.bookPageText ?? undefined,
-    });
-    const { pageHasHumanFamily } = await import('../../lib/family-coherence');
-    const hasHumanFamily = pageHasHumanFamily({
-      bookPageText: input.bookPageText,
-      imageDirection: assembledScene || input.rawScenePrompt || input.pagePrompt,
-      rawScenePrompt: assembledScene || input.rawScenePrompt,
-      pagePrompt: input.pagePrompt,
-      presentEntityIds: input.pageStoryState?.presentEntities,
-    });
-    const effectivePageTimeOfDay =
-      last.style01Meta?.effectivePageTimeOfDay ?? input.effectivePageTimeOfDay ?? null;
+    const qaInput = await deriveStyle01PageQaInput(input, last);
     const qaCallInput = {
       imageUrl: last.url,
-      expectsChild,
-      expectsCompanion,
-      expectedPageTimeOfDay: effectivePageTimeOfDay,
-      isEmotionalClosing,
-      hasStructuredObjects,
-      hasRailedBedOrCrib,
-      hasHumanFamily,
+      ...qaInput,
     };
     // Retryable evidence failures are re-QA'd on this same persisted URL before the budget decision. Missing or
     // persistently unavailable QA evidence is a hold, never a reason to buy different image bytes.
@@ -3363,15 +3376,7 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
           safetyHazards: qa.safetyHazards,
           safetyStatus: qa.safetyStatus,
           // (#7-a) The exact QA context, so a delivered-bytes re-QA at the persist seam applies the same checks.
-          qaInput: {
-            expectsChild,
-            expectsCompanion,
-            expectedPageTimeOfDay: effectivePageTimeOfDay,
-            isEmotionalClosing,
-            hasStructuredObjects,
-            hasRailedBedOrCrib,
-            hasHumanFamily,
-          },
+          qaInput,
         },
         needsHumanReview,
       },

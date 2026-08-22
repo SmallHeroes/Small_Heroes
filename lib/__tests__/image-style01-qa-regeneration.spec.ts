@@ -165,6 +165,24 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
     expect(reserve).not.toHaveBeenCalled();
     expect(result.style01Meta?.needsHumanReview).toBe(true);
     expect(result.style01Meta?.candidatePersistenceError).toBe('candidate row unavailable');
+    expect(result.style01Meta?.pageVisualQa).toEqual(expect.objectContaining({
+      passed: true,
+      verdict: 'evidence_unknown',
+      reason: 'vision_skipped',
+      details: 'candidate_persistence_failed_before_qa',
+      regenAttempts: 0,
+      safetyHazards: [],
+      safetyStatus: 'unverified',
+      qaInput: {
+        expectsChild: true,
+        expectsCompanion: false,
+        expectedPageTimeOfDay: 'day',
+        isEmotionalClosing: true,
+        hasStructuredObjects: false,
+        hasRailedBedOrCrib: false,
+        hasHumanFamily: false,
+      },
+    }));
   });
 
   it('verified visual failure is the only path that reserves and renders new bytes', async () => {
@@ -263,5 +281,33 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
       'persist:https://cdn.example/order-r1a/cover-candidate.png',
       'qa:https://cdn.example/order-r1a/cover-candidate.png',
     ]);
+  });
+
+  it('retains the exact assembled cover QA context when candidate persistence fails before Vision', async () => {
+    const result = await generateBookCover({
+      childName: 'Noa',
+      topicLabel: 'Courage',
+      storyTitle: 'Noa and the Quiet Light',
+      illustrationStyle: 'soft_hand_drawn_storybook',
+      orderId: 'order-r1a',
+      onCandidateUploaded: async () => {
+        throw new Error('cover candidate row unavailable');
+      },
+    });
+
+    expect(generateGptSpy).toHaveBeenCalledTimes(1);
+    expect(storeBufferSpy).toHaveBeenCalledTimes(1);
+    expect(evaluateQaSpy).not.toHaveBeenCalled();
+    expect(result.style01Meta?.needsHumanReview).toBe(true);
+    expect(result.style01Meta?.candidatePersistenceError).toBe('cover candidate row unavailable');
+    expect(result.style01Meta?.pageVisualQa?.qaInput).toEqual({
+      expectsChild: false,
+      expectsCompanion: false,
+      expectedPageTimeOfDay: 'day',
+      isEmotionalClosing: false,
+      hasStructuredObjects: false,
+      hasRailedBedOrCrib: false,
+      hasHumanFamily: false,
+    });
   });
 });
