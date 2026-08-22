@@ -72,6 +72,17 @@ export async function finalizeAndPersistStoryText(
       order.selectionFilename,
     );
     if (frozenOrderStory) {
+      if (
+        frozenOrderStory.storySourceAuthorityKind ===
+          'product_accepted_revision' &&
+        (!resolvedCompanion?.id ||
+          frozenOrderStory.storyKey !==
+            `${resolvedCompanion.id}_${directionForV3}`)
+      ) {
+        throw new StoryBankPersonalizationError(
+          'Product-accepted Story Source identity does not match the Wizard product',
+        );
+      }
       storyFilePath = frozenOrderStory.storyFilePath;
       assertFrozenOrderStorySourceFile(frozenOrderStory);
       if (
@@ -125,6 +136,13 @@ export async function finalizeAndPersistStoryText(
         'Product-accepted Story Source reference is invalid',
       );
     } else {
+      if (
+        cache.storySourceAuthorityKind === 'product_accepted_revision'
+      ) {
+        throw new StoryBankPersonalizationError(
+          'Accepted-revision cache source lacks exact frozen Order authority',
+        );
+      }
       const cachedAcceptedRevisionRef = [
         cache.devStoryBankFile,
         cache.storyFilePath,

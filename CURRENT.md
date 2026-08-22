@@ -21,29 +21,44 @@ cache, verifies the exact Order path/raw SHA/product version before
 personalization, makes the Order source override stale resume cache, and uses
 the same story key at contract freeze and render qualification. Accepted-source
 cache injection without exact Order authority, malformed/noncanonical paths,
-hard links and realpath escapes fail closed before Story Bank fallback. An
+hard links, junctions (including aliases that stay inside the repository) and
+realpath escapes fail closed before Story Bank fallback. An
 explicit cache story key or authority kind must agree with the exact frozen
-reference, and any pre-load authority failure now closes both Order text status
-and Generation Job status instead of leaving a misleading `running` state.
+reference; an accepted source key must also match the Wizard's exact
+companion/direction slot. Any pre-load authority failure now closes both Order
+text status and Generation Job status instead of leaving a misleading
+`running` state. Both Stage-0 anchor branches also use that canonical story key
+for wardrobe authority, so an accepted `integrated.md` is never misread as the
+story identity `integrated` before the first render.
 
 The accepted revision is also included in every Vercel function trace that
-selects, resumes, qualifies or renders the package. Direct runtime loading
-proves both Bar-boy and Bar-girl resolve all eight pages deterministically with
-no provider/network call. Focused validation is **22 files / 219 tests PASS**
-with **2 files / 2 tests skipped**; `npx --no-install tsc --noEmit` and
-`git diff --check` pass. One literal `npm run check` completed the ordinary
+selects, resumes, qualifies or renders the package, including the actual
+`/api/wizard/product-truth` request issued before Order creation. Direct runtime
+loading proves both Bar-boy and Bar-girl resolve all eight pages deterministically with
+no provider/network call. Final focused validation is **7 files / 50 tests
+PASS**; the broader runtime/Order/freeze/Story Source matrix is **22 files / 209
+tests PASS** with **2 files / 2 tests skipped**. `npx --no-install tsc
+--noEmit`, `npm run story:autonomous-typecheck` and `git diff --check` pass.
+Before the corrective micro-diff, one literal
+`npm run check` completed the ordinary
 phase with **3,475 PASS / 65 skipped / 5 failures**; every failure is one of the
 four established absent ignored-output fixture files. The resource phase
 recorded **609 PASS / 2 timeouts** plus three known Vitest
 `onTaskUpdate` RPC timeouts under parallel load. The two timed-out files pass all
 **29/29 assertions** when rerun with one worker; that isolated process still
-reports one known RPC timeout after the assertions. No milestone assertion
-failed. No provider, image, audio, render, database, storage, deployment,
+reports one known RPC timeout after the assertions. The complete corrective
+range then passed all 209 broader assertions, all 50 final focused assertions
+and both TypeScript checks. No milestone assertion failed. No provider, image,
+audio, render, database, storage, deployment,
 package migration, approval, publication or locator operation has occurred.
 This is a Codex local result, not independent technical PASS.
 
-Next action: create the focused local commit and send the exact immutable range
-to Claude Code. Provider/live/render remains HOLD. After PASS, build the
+Next action: create the focused local commit and give Guy the exact immutable
+range plus a copy-ready Claude Code brief. The first read-only pass found the
+product-truth trace and accepted-cache-marker gaps above; those findings are now
+corrected locally and must receive a fresh user-routed micro re-gate.
+Provider/live/render remains
+HOLD. After PASS, build the
 zero-spend deterministic evidence/reconciliation/Blueprint/package migration;
 the existing two Board hashes must remain exact or that later milestone stops.
 

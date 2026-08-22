@@ -577,5 +577,12 @@ describe('Wizard/order to chunk-runner render qualification', () => {
     );
     expect(chunkRunnerSource.match(/runWithStyle01RenderQualification\(/g))
       .toHaveLength(2);
+    expect(chunkRunnerSource.match(/runtimeStoryKey\(cache\)/g)).toHaveLength(2);
+    expect(chunkRunnerSource).toMatch(
+      /const storyFileKey = runtimeStoryKey\(cache\) \?\? undefined;[\s\S]*?resolveStyle01StoryWardrobeLock/,
+    );
+    expect(chunkRunnerSource).toMatch(
+      /const storyFileKey = runtimeStoryKey\(cache\) \?\? undefined;[\s\S]*?resolveStyle02BookWardrobeLock/,
+    );
   });
 });

@@ -47,7 +47,12 @@ function order(overrides: Partial<Order> = {}): Order {
   });
   return {
     id: 'accepted-revision-order',
-    characterAnchors: null,
+    characterAnchors: {
+      _wizard: {
+        challengeCategory: 'TRANSITION',
+        companionCharacterId: 'chameleon_koko',
+      },
+    },
     childGender: 'boy',
     childName: 'בר',
     expectedPageCount: frozen.expectedPageCount,
@@ -124,6 +129,39 @@ describe('accepted-revision text finalization boundary', () => {
       ),
     ).rejects.toThrow(
       'Accepted-revision cache source lacks exact frozen Order authority',
+    );
+    expect(mocks.loadStoryFromBank).not.toHaveBeenCalled();
+    expect(mocks.selectCompanionStory).not.toHaveBeenCalled();
+  });
+
+  it('does not reconstruct a legacy bank path from an accepted-authority cache marker', async () => {
+    await expect(
+      finalizeAndPersistStoryText(
+        order({
+          expectedPageCount: null,
+          frozenProductVersion: null,
+          selectionFilename: null,
+          storySourceHash: null,
+        }),
+        {
+          storyDir: 'qa-autonomous-20260815-v1',
+          storyKey: 'chameleon_koko_bedtime',
+          storySourceAuthorityKind: 'product_accepted_revision',
+          selectionFilename: 'chameleon_koko_bedtime.md',
+        },
+      ),
+    ).rejects.toThrow(
+      'Accepted-revision cache source lacks exact frozen Order authority',
+    );
+    expect(mocks.loadStoryFromBank).not.toHaveBeenCalled();
+    expect(mocks.selectCompanionStory).not.toHaveBeenCalled();
+  });
+
+  it('rejects a product-accepted Story Source that belongs to another Wizard slot', async () => {
+    await expect(
+      finalizeAndPersistStoryText(order({ storyDirection: 'adventure' }), {}),
+    ).rejects.toThrow(
+      'Product-accepted Story Source identity does not match the Wizard product',
     );
     expect(mocks.loadStoryFromBank).not.toHaveBeenCalled();
     expect(mocks.selectCompanionStory).not.toHaveBeenCalled();

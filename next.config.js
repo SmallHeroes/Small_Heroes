@@ -70,6 +70,11 @@ const nextConfig = {
         ...VISUAL_PACKAGE_V4_AUTHORITIES,
         ...STYLE01_COMPANION_SHEETS,
       ],
+      '/api/wizard/product-truth': [
+        ...WIZARD_QA_STORIES,
+        ...PRODUCT_ACCEPTED_STORY_REVISIONS,
+        ...VISUAL_PACKAGE_V4_AUTHORITIES,
+      ],
       '/api/orders': [
         ...WIZARD_QA_STORIES,
         ...PRODUCT_ACCEPTED_STORY_REVISIONS,

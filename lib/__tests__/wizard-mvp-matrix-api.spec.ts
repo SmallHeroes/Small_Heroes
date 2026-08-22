@@ -41,6 +41,14 @@ describe('GET /api/wizard/mvp-matrix', () => {
       './story-pipeline/04_approved_story_sources/accepted/**/*',
       './visual-packages/approved/**/*',
     ]);
+    expect(
+      nextConfig.outputFileTracingIncludes?.['/api/wizard/product-truth'],
+    ).toEqual([
+      './story-bank/qa-autonomous-20260815-v1/**/*',
+      './story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/**/*',
+      './story-pipeline/04_approved_story_sources/accepted/**/*',
+      './visual-packages/approved/**/*',
+    ]);
     expect(nextConfig.outputFileTracingExcludes?.['/api/orders']).not.toContain('story-bank/**');
   });
 

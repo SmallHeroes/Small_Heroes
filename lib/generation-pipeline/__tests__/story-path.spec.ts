@@ -55,6 +55,24 @@ describe('story-path (0095 P0)', () => {
     expect(resolveCachedStoryFilePath({})).toBeUndefined();
   });
 
+  it('requires an exact accepted ref when cache authority claims an accepted revision', () => {
+    expect(
+      resolveCachedStoryFilePath({
+        storyDir: 'qa-autonomous-20260815-v1',
+        storyKey: 'chameleon_koko_bedtime',
+        storySourceAuthorityKind: 'product_accepted_revision',
+        selectionFilename: 'chameleon_koko_bedtime.md',
+      }),
+    ).toBeUndefined();
+    expect(
+      resolveCachedStoryFilePath({
+        storyFilePath: ACCEPTED_REVISION,
+        storyKey: 'chameleon_koko_bedtime',
+        storySourceAuthorityKind: 'product_accepted_revision',
+      }),
+    ).toBe(path.join(process.cwd(), ...ACCEPTED_REVISION.split('/')));
+  });
+
   it('round-trips: store relative → resolve to absolute → relative again', () => {
     const abs = path.join(process.cwd(), 'story-bank', 'v3-approved', 'x.md');
     const rel = toRepoRelativeStoryPath(abs);
@@ -153,10 +171,37 @@ describe('story-path (0095 P0)', () => {
       expect(selection).not.toBeNull();
       expect(() =>
         assertFrozenOrderStorySourceFile(selection!, { repoRoot: root }),
-      ).toThrow('frozen_story_source_realpath_escape');
+      ).toThrow('frozen_story_source_path_alias_invalid');
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
       fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an accepted-revision path whose parent aliases another in-repository directory', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'story-authority-alias-'));
+    try {
+      const ref =
+        `story-pipeline/04_approved_story_sources/accepted/story_key/revisions/${'c'.repeat(64)}/integrated.md`;
+      const revisionDir = path.dirname(path.join(root, ...ref.split('/')));
+      const actual = path.join(root, 'actual-revision');
+      fs.mkdirSync(path.dirname(revisionDir), { recursive: true });
+      fs.mkdirSync(actual, { recursive: true });
+      fs.writeFileSync(path.join(actual, 'integrated.md'), 'aliased source', 'utf8');
+      fs.symlinkSync(
+        actual,
+        revisionDir,
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+      const selection = resolveFrozenOrderStorySelection(ref, {
+        repoRoot: root,
+      });
+      expect(selection).not.toBeNull();
+      expect(() =>
+        assertFrozenOrderStorySourceFile(selection!, { repoRoot: root }),
+      ).toThrow('frozen_story_source_path_alias_invalid');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 

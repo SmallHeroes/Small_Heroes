@@ -60,6 +60,17 @@ function safeSegment(value: string): boolean {
  */
 export function resolveCachedStoryFilePath(cache: StoryRefCache): string | undefined {
   const ref = cache.devStoryBankFile ?? cache.storyFilePath;
+  if (cache.storySourceAuthorityKind === 'product_accepted_revision') {
+    if (!ref || path.isAbsolute(ref)) return undefined;
+    const accepted = resolveFrozenOrderStorySelection(ref);
+    if (
+      accepted?.storySourceAuthorityKind !== 'product_accepted_revision' ||
+      (cache.storyKey != null && cache.storyKey !== accepted.storyKey)
+    ) {
+      return undefined;
+    }
+    return accepted.storyFilePath;
+  }
   if (ref) return path.isAbsolute(ref) ? ref : path.join(process.cwd(), ref);
   if (cache.selectionFilename) {
     const dir = cache.storyDir ?? STORY_BANK_V3_DIR_NAME;
@@ -136,9 +147,30 @@ export function assertFrozenOrderStorySourceFile(
 ): void {
   try {
     const root = path.resolve(options.repoRoot ?? process.cwd());
-    const expected = path.resolve(root, ...selection.storyFileRef.split('/'));
+    const storyPathParts = selection.storyFileRef.split('/');
+    const expected = path.resolve(root, ...storyPathParts);
     if (path.resolve(selection.storyFilePath) !== expected) {
       throw new Error('frozen_story_source_path_mismatch');
+    }
+    const realRoot = fs.realpathSync.native(root);
+    let current = root;
+    for (let index = 0; index < storyPathParts.length; index += 1) {
+      current = path.join(current, storyPathParts[index]);
+      const component = fs.lstatSync(current);
+      if (component.isSymbolicLink()) {
+        throw new Error('frozen_story_source_path_alias_invalid');
+      }
+      if (index < storyPathParts.length - 1 && !component.isDirectory()) {
+        throw new Error('frozen_story_source_path_component_invalid');
+      }
+      const realComponent = fs.realpathSync.native(current);
+      const expectedRealComponent = path.resolve(
+        realRoot,
+        ...storyPathParts.slice(0, index + 1),
+      );
+      if (path.resolve(realComponent) !== expectedRealComponent) {
+        throw new Error('frozen_story_source_path_alias_invalid');
+      }
     }
     const local = fs.lstatSync(expected);
     if (!local.isFile() || local.isSymbolicLink()) {
@@ -148,7 +180,6 @@ export function assertFrozenOrderStorySourceFile(
     if (stat.nlink !== 1) {
       throw new Error('frozen_story_source_link_count_invalid');
     }
-    const realRoot = fs.realpathSync.native(root);
     const realFile = fs.realpathSync.native(expected);
     const relative = path.relative(realRoot, realFile);
     if (

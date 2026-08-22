@@ -30,7 +30,7 @@ import {
   assertCacheHasNoLocalArtifactPaths,
   isServerlessRuntime,
 } from './runtime-artifact-store';
-import { resolveCachedStoryFilePath } from './story-path';
+import { resolveCachedStoryFilePath, runtimeStoryKey } from './story-path';
 import {
   buildPresentationWebpFromBuffer,
   evaluateImageSignal,
@@ -570,8 +570,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     orderStyleBranch: resolveOrderStyleBranch(order.illustrationStyle),
   })) {
     const stage0Companion = resolveCompanionForOrder(order);
-    const storyFilePath = resolveCachedStoryFilePath(cache);
-    const storyFileKey = storyFilePath ? path.basename(storyFilePath, '.md') : undefined;
+    const storyFileKey = runtimeStoryKey(cache) ?? undefined;
     const wardrobeLock =
       resolveStyle01StoryWardrobeLock(stage0Companion?.id, storyFileKey, {
         category: cache.challengeCategory,
@@ -706,8 +705,7 @@ async function runDnaStage(order: Order, cache: PipelineCache): Promise<Pipeline
     const childReferenceImageUrl = order.childImageUrl ?? '';
     const stage0Companion = resolveCompanionForOrder(order);
     const orderBranch = resolveOrderStyleBranch(order.illustrationStyle);
-    const storyFilePath = resolveCachedStoryFilePath(cache);
-    const storyFileKey = storyFilePath ? path.basename(storyFilePath, '.md') : undefined;
+    const storyFileKey = runtimeStoryKey(cache) ?? undefined;
     const storyWardrobe = resolveStyle01StoryWardrobeLock(stage0Companion?.id, storyFileKey, {
       category: cache.challengeCategory,
     });

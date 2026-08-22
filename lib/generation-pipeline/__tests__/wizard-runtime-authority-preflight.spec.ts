@@ -187,6 +187,7 @@ describe('deployed Wizard runtime-authority preflight', () => {
       '/api/dev/generation/resume',
       '/api/dev/runtime-authority-preflight',
       '/api/debug/regen-page',
+      '/api/wizard/product-truth',
     ]) {
       expect(nextConfig.outputFileTracingIncludes?.[route]).toContain(
         './story-pipeline/04_approved_story_sources/accepted/**/*',
