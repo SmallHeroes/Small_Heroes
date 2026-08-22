@@ -1,12 +1,15 @@
 /**
  * Offline-only Story Source revision reconciliation/Blueprint lifecycle.
  *
- * No provider, image, storage, database, deployment or locator implementation
- * is imported or reachable from this entrypoint.
+ * No provider, image, storage, database or deployment implementation is
+ * imported or reachable. The final command can atomically advance the exact
+ * reviewed local Visual Package locator after immutable publication preflight.
  */
 import {
+  publishStorySourceRevisionPackage,
   prepareStorySourceRevisionPackageAssembly,
   prepareStorySourceRevisionBlueprintMigration,
+  recordStorySourceRevisionPackageApproval,
   recordStorySourceRevisionBlueprintApproval,
   recordStorySourceRevisionReconciliationApproval,
 } from '@/lib/visual-package/storySourceRevisionBlueprintMigrationLifecycle';
@@ -38,6 +41,22 @@ const PACKAGE_ASSEMBLY_FLAGS = new Set([
   '--repo-root',
   '--manifest',
   '--blueprint-approval',
+  '--write',
+]);
+const PACKAGE_APPROVAL_FLAGS = new Set([
+  '--repo-root',
+  '--manifest',
+  '--candidate-digest',
+  '--review-digest',
+  '--approved-by',
+  '--approved-at',
+  '--write',
+]);
+const PACKAGE_PUBLICATION_FLAGS = new Set([
+  '--repo-root',
+  '--manifest',
+  '--package-approval',
+  '--published-at',
   '--write',
 ]);
 
@@ -206,8 +225,74 @@ async function main(): Promise<void> {
     }, null, 2)}\n`);
     return;
   }
+  if (command === 'approve-package') {
+    const values = parseFlags(tokens, PACKAGE_APPROVAL_FLAGS);
+    const approvedBy = required(values, '--approved-by');
+    if (approvedBy !== 'Guy') {
+      throw new Error('--approved-by must be exact value Guy');
+    }
+    const result = recordStorySourceRevisionPackageApproval({
+      repoRoot: required(values, '--repo-root'),
+      packageAssemblyManifestPath: required(values, '--manifest'),
+      packageCandidateDigest: required(values, '--candidate-digest'),
+      packageReviewDigest: required(values, '--review-digest'),
+      approvedBy,
+      approvedAt: required(values, '--approved-at'),
+      write: writeValue(values),
+    });
+    process.stdout.write(`${JSON.stringify({
+      mode: 'story_source_revision_package_approval',
+      packageAssemblyManifestDigest: result.assemblyManifest.digest,
+      candidateDigest: result.approval.packageCandidateDigest,
+      reviewDigest: result.approval.packageReviewDigest,
+      approvalDigest: result.approval.digest,
+      approvalPath: result.approvalPath,
+      created: result.created,
+      boundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        storageWrites: 0,
+        locatorWrites: 0,
+      },
+    }, null, 2)}\n`);
+    return;
+  }
+  if (command === 'publish-package') {
+    const values = parseFlags(tokens, PACKAGE_PUBLICATION_FLAGS);
+    const result = publishStorySourceRevisionPackage({
+      repoRoot: required(values, '--repo-root'),
+      packageAssemblyManifestPath: required(values, '--manifest'),
+      packageApprovalPath: required(values, '--package-approval'),
+      publishedAt: required(values, '--published-at'),
+      write: writeValue(values),
+    });
+    process.stdout.write(`${JSON.stringify({
+      mode: 'story_source_revision_package_publication',
+      manifestDigest: result.manifest.digest,
+      manifestPath: result.manifestPath,
+      approvalDigest: result.approval.digest,
+      revisionDigest: result.packageValue.revisionDigest,
+      packagePath: result.packagePath,
+      locatorPath: result.locatorPath,
+      locatorChanged: result.locatorChanged,
+      manifestCreated: result.manifestCreated,
+      boundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        storageWrites: 0,
+        locatorWrites: result.locatorChanged ? 1 : 0,
+      },
+    }, null, 2)}\n`);
+    return;
+  }
   throw new Error(
-    'usage: approve-reconciliation|prepare-blueprint|approve-blueprint|assemble-package with exact key/value flags',
+    'usage: approve-reconciliation|prepare-blueprint|approve-blueprint|assemble-package|approve-package|publish-package with exact key/value flags',
   );
 }
 

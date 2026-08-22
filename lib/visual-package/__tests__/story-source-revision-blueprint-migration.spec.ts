@@ -8,8 +8,11 @@ import { resolveRepoPath } from '../integrity';
 import {
   STORY_SOURCE_REVISION_BLUEPRINT_MIGRATION_EXCLUSIONS,
   STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_EXCLUSIONS,
+  STORY_SOURCE_REVISION_PACKAGE_PROMOTION_EXCLUSIONS,
+  publishStorySourceRevisionPackage,
   prepareStorySourceRevisionBlueprintMigration,
   prepareStorySourceRevisionPackageAssembly,
+  recordStorySourceRevisionPackageApproval,
   recordStorySourceRevisionBlueprintApproval,
   recordStorySourceRevisionReconciliationApproval,
 } from '../storySourceRevisionBlueprintMigrationLifecycle';
@@ -19,12 +22,16 @@ import { loadVisualPackageV4Revision } from '../visualPackageV4';
 const REPO_ROOT = process.cwd();
 const STORY_KEY = 'chameleon_koko_bedtime';
 const STYLE_ID = 'soft_hand_drawn_storybook';
-const LOCATOR_PATH =
-  'visual-packages/approved/chameleon_koko_bedtime.soft_hand_drawn_storybook.visual-package-current.json';
+const HISTORICAL_PACKAGE_PATH =
+  'visual-packages/approved/revisions/a9c253d989118262ed2b38a671fc7eccf6af44a084512af35285ad2f548a14fb.visual-package.json';
+const HISTORICAL_PACKAGE_DIGEST =
+  'a9c253d989118262ed2b38a671fc7eccf6af44a084512af35285ad2f548a14fb';
 const ACCEPTED_MANIFEST_PATH =
   'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb/manifest.json';
 const APPROVED_AT = '2026-08-22T12:13:27.349Z';
 const BLUEPRINT_APPROVED_AT = '2026-08-22T14:37:11.208Z';
+const PACKAGE_APPROVED_AT = '2026-08-22T16:21:43.109Z';
+const PACKAGE_PUBLISHED_AT = '2026-08-22T16:22:07.441Z';
 
 function freshOutputRoot(label: string): { relative: string; absolute: string } {
   const relative = `outputs/qa-story-source-blueprint-${label}-${process.pid}-${Date.now()}`;
@@ -32,15 +39,32 @@ function freshOutputRoot(label: string): { relative: string; absolute: string } 
 }
 
 function preparePhaseOne(outputDir: string) {
+  const historicalLocatorPath = `${outputDir}-historical-locator.json`;
+  const historicalLocatorAbsolute = resolveRepoPath(
+    REPO_ROOT,
+    historicalLocatorPath,
+  );
+  fs.mkdirSync(path.dirname(historicalLocatorAbsolute), { recursive: true });
+  fs.writeFileSync(historicalLocatorAbsolute, historicalLocatorBytes(), 'utf8');
   return prepareStorySourceRevisionPackageMigration({
     repoRoot: REPO_ROOT,
     outputDir,
     storyKey: STORY_KEY,
     styleId: STYLE_ID,
-    locatorPath: LOCATOR_PATH,
+    locatorPath: historicalLocatorPath,
     acceptedRevisionManifestPath: ACCEPTED_MANIFEST_PATH,
     write: true,
   });
+}
+
+function historicalLocatorBytes(): string {
+  return `${JSON.stringify({
+    version: 'visual-package-current-locator/v3',
+    storyKey: STORY_KEY,
+    styleId: STYLE_ID,
+    packagePath: HISTORICAL_PACKAGE_PATH,
+    revisionDigest: HISTORICAL_PACKAGE_DIGEST,
+  }, null, 2)}\n`;
 }
 
 function approvePhaseOne(
@@ -85,12 +109,59 @@ function approveBlueprint(
   });
 }
 
+async function preparePackage(outputDir: string) {
+  const phaseOne = preparePhaseOne(outputDir);
+  const blueprint = await prepareBlueprint(phaseOne);
+  const blueprintApproval = approveBlueprint(blueprint);
+  const packageAssembly = prepareStorySourceRevisionPackageAssembly({
+    repoRoot: REPO_ROOT,
+    blueprintMigrationManifestPath: blueprint.manifestPath,
+    blueprintApprovalPath: blueprintApproval.approvalPath,
+    write: true,
+  });
+  return { phaseOne, blueprint, blueprintApproval, packageAssembly };
+}
+
+function approvePackage(
+  prepared: Awaited<ReturnType<typeof preparePackage>>,
+  write = true,
+) {
+  return recordStorySourceRevisionPackageApproval({
+    repoRoot: REPO_ROOT,
+    packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+    packageCandidateDigest: prepared.packageAssembly.candidate.digest,
+    packageReviewDigest: prepared.packageAssembly.packageReview.digest,
+    approvedBy: 'Guy',
+    approvedAt: PACKAGE_APPROVED_AT,
+    write,
+  });
+}
+
+function prepareApprovedPackagesDirectory(output: {
+  relative: string;
+  absolute: string;
+}): { relative: string; absolute: string; locatorPath: string } {
+  const relative = `${output.relative}/approved-packages`;
+  const absolute = resolveRepoPath(REPO_ROOT, relative);
+  fs.mkdirSync(absolute, { recursive: true });
+  const locatorPath = `${relative}/${STORY_KEY}.${STYLE_ID}.visual-package-current.json`;
+  fs.writeFileSync(
+    resolveRepoPath(REPO_ROOT, locatorPath),
+    historicalLocatorBytes(),
+    'utf8',
+  );
+  return { relative, absolute, locatorPath };
+}
+
 function cleanup(absolute: string): void {
-  if (!fs.existsSync(absolute)) return;
   const allowed = path.join(REPO_ROOT, 'outputs') + path.sep;
   const resolved = path.resolve(absolute);
   if (!resolved.startsWith(allowed)) throw new Error('test cleanup escaped outputs');
-  fs.rmSync(resolved, { recursive: true, force: true });
+  if (fs.existsSync(resolved)) {
+    fs.rmSync(resolved, { recursive: true, force: true });
+  }
+  const historicalLocator = `${resolved}-historical-locator.json`;
+  if (fs.existsSync(historicalLocator)) fs.unlinkSync(historicalLocator);
 }
 
 describe('Story Source revision reconciliation and Blueprint migration', () => {
@@ -489,6 +560,247 @@ describe('Story Source revision reconciliation and Blueprint migration', () => {
       ).toThrow(
         'migration output artifact conflicts with requested immutable bytes',
       );
+      expect(fs.existsSync(manifestAbsolute)).toBe(false);
+    } finally {
+      cleanup(output.absolute);
+    }
+  });
+
+  it('records exact package approval and atomically publishes one replayable immutable revision', async () => {
+    const output = freshOutputRoot('package-promotion-happy');
+    try {
+      const prepared = await preparePackage(output.relative);
+      const approvalPreview = approvePackage(prepared, false);
+      expect(approvalPreview.created).toBe(false);
+      expect(
+        fs.existsSync(resolveRepoPath(REPO_ROOT, approvalPreview.approvalPath)),
+      ).toBe(false);
+      const approval = approvePackage(prepared, true);
+      expect(approval.created).toBe(true);
+      const approvalReplay = approvePackage(prepared, true);
+      expect(approvalReplay.created).toBe(false);
+      expect(approvalReplay.approval.digest).toBe(approval.approval.digest);
+
+      const approved = prepareApprovedPackagesDirectory(output);
+      const predecessorBytes = fs.readFileSync(
+        resolveRepoPath(REPO_ROOT, approved.locatorPath),
+        'utf8',
+      );
+      const preview = publishStorySourceRevisionPackage({
+        repoRoot: REPO_ROOT,
+        packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+        packageApprovalPath: approval.approvalPath,
+        publishedAt: PACKAGE_PUBLISHED_AT,
+        approvedPackagesDir: approved.absolute,
+        write: false,
+      });
+      expect(preview.locatorChanged).toBe(false);
+      expect(preview.manifestCreated).toBe(false);
+      expect(preview.manifest.externalCounters).toEqual({
+        providerCalls: 0,
+        imageRenders: 0,
+        audioRenders: 0,
+        databaseWrites: 0,
+        storageWrites: 0,
+        locatorWrites: 1,
+      });
+      expect(preview.manifest.doesNotAuthorize).toEqual(
+        STORY_SOURCE_REVISION_PACKAGE_PROMOTION_EXCLUSIONS,
+      );
+      expect(
+        fs.readFileSync(resolveRepoPath(REPO_ROOT, approved.locatorPath), 'utf8'),
+      ).toBe(predecessorBytes);
+      expect(fs.existsSync(resolveRepoPath(REPO_ROOT, preview.packagePath))).toBe(
+        false,
+      );
+      expect(
+        fs.existsSync(resolveRepoPath(REPO_ROOT, preview.manifestPath)),
+      ).toBe(false);
+
+      const first = publishStorySourceRevisionPackage({
+        repoRoot: REPO_ROOT,
+        packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+        packageApprovalPath: approval.approvalPath,
+        publishedAt: PACKAGE_PUBLISHED_AT,
+        approvedPackagesDir: approved.absolute,
+        write: true,
+      });
+      expect(first.locatorChanged).toBe(true);
+      expect(first.manifestCreated).toBe(true);
+      expect(fs.existsSync(resolveRepoPath(REPO_ROOT, first.packagePath))).toBe(
+        true,
+      );
+      expect(fs.existsSync(resolveRepoPath(REPO_ROOT, first.manifestPath))).toBe(
+        true,
+      );
+      const locatorBytes = fs.readFileSync(
+        resolveRepoPath(REPO_ROOT, first.locatorPath),
+      );
+      const packageBytes = fs.readFileSync(
+        resolveRepoPath(REPO_ROOT, first.packagePath),
+      );
+      const inventoryBefore = fs
+        .readdirSync(output.absolute, { recursive: true })
+        .map(String)
+        .sort();
+      expect(() =>
+        publishStorySourceRevisionPackage({
+          repoRoot: REPO_ROOT,
+          packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+          packageApprovalPath: approval.approvalPath,
+          publishedAt: '2026-08-22T16:22:07.442Z',
+          approvedPackagesDir: approved.absolute,
+          write: true,
+        }),
+      ).toThrow('already has a different timestamp or manifest');
+      const replay = publishStorySourceRevisionPackage({
+        repoRoot: REPO_ROOT,
+        packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+        packageApprovalPath: approval.approvalPath,
+        publishedAt: PACKAGE_PUBLISHED_AT,
+        approvedPackagesDir: approved.absolute,
+        write: true,
+      });
+      expect(replay.locatorChanged).toBe(false);
+      expect(replay.manifestCreated).toBe(false);
+      expect(replay.manifest.digest).toBe(first.manifest.digest);
+      expect(fs.readFileSync(resolveRepoPath(REPO_ROOT, replay.locatorPath))).toEqual(
+        locatorBytes,
+      );
+      expect(fs.readFileSync(resolveRepoPath(REPO_ROOT, replay.packagePath))).toEqual(
+        packageBytes,
+      );
+      expect(
+        fs.readdirSync(output.absolute, { recursive: true }).map(String).sort(),
+      ).toEqual(inventoryBefore);
+    } finally {
+      cleanup(output.absolute);
+    }
+  });
+
+  it('rejects package approval drift, stale locators, collisions and concurrent publication without partial writes', async () => {
+    const output = freshOutputRoot('package-promotion-reject');
+    try {
+      const prepared = await preparePackage(output.relative);
+      const approvalRoot = path.join(
+        output.absolute,
+        'visual-package-candidate-lifecycle',
+        'package-approvals',
+      );
+      expect(() =>
+        recordStorySourceRevisionPackageApproval({
+          repoRoot: REPO_ROOT,
+          packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+          packageCandidateDigest: '0'.repeat(64),
+          packageReviewDigest: prepared.packageAssembly.packageReview.digest,
+          approvedBy: 'Guy',
+          approvedAt: PACKAGE_APPROVED_AT,
+          write: true,
+        }),
+      ).toThrow('does not bind the reviewed package artifacts');
+      expect(() =>
+        recordStorySourceRevisionPackageApproval({
+          repoRoot: REPO_ROOT,
+          packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+          packageCandidateDigest: prepared.packageAssembly.candidate.digest,
+          packageReviewDigest: prepared.packageAssembly.packageReview.digest,
+          approvedBy: 'Claude' as 'Guy',
+          approvedAt: PACKAGE_APPROVED_AT,
+          write: true,
+        }),
+      ).toThrow('requires exact Guy and canonical UTC time');
+      expect(() =>
+        recordStorySourceRevisionPackageApproval({
+          repoRoot: REPO_ROOT,
+          packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+          packageCandidateDigest: prepared.packageAssembly.candidate.digest,
+          packageReviewDigest: prepared.packageAssembly.packageReview.digest,
+          approvedBy: 'Guy',
+          approvedAt: '2026-08-22T16:21:43Z',
+          write: true,
+        }),
+      ).toThrow('requires exact Guy and canonical UTC time');
+      expect(fs.existsSync(approvalRoot)).toBe(false);
+
+      const approval = approvePackage(prepared);
+      const approved = prepareApprovedPackagesDirectory(output);
+      const preview = publishStorySourceRevisionPackage({
+        repoRoot: REPO_ROOT,
+        packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+        packageApprovalPath: approval.approvalPath,
+        publishedAt: PACKAGE_PUBLISHED_AT,
+        approvedPackagesDir: approved.absolute,
+        write: false,
+      });
+      const locatorAbsolute = resolveRepoPath(REPO_ROOT, preview.locatorPath);
+      const packageAbsolute = resolveRepoPath(REPO_ROOT, preview.packagePath);
+      const manifestAbsolute = resolveRepoPath(REPO_ROOT, preview.manifestPath);
+      const predecessorBytes = fs.readFileSync(locatorAbsolute, 'utf8');
+
+      const alternateApprovalPath = `${output.relative}/alternate-package-approval.json`;
+      fs.copyFileSync(
+        resolveRepoPath(REPO_ROOT, approval.approvalPath),
+        resolveRepoPath(REPO_ROOT, alternateApprovalPath),
+      );
+      expect(() =>
+        publishStorySourceRevisionPackage({
+          repoRoot: REPO_ROOT,
+          packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+          packageApprovalPath: alternateApprovalPath,
+          publishedAt: PACKAGE_PUBLISHED_AT,
+          approvedPackagesDir: approved.absolute,
+          write: true,
+        }),
+      ).toThrow('invalid or noncanonical');
+      expect(fs.existsSync(packageAbsolute)).toBe(false);
+      expect(fs.existsSync(manifestAbsolute)).toBe(false);
+
+      fs.writeFileSync(locatorAbsolute, '{}\n', 'utf8');
+      expect(() =>
+        publishStorySourceRevisionPackage({
+          repoRoot: REPO_ROOT,
+          packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+          packageApprovalPath: approval.approvalPath,
+          publishedAt: PACKAGE_PUBLISHED_AT,
+          approvedPackagesDir: approved.absolute,
+          write: true,
+        }),
+      ).toThrow('locator changed after reviewed assembly');
+      expect(fs.existsSync(packageAbsolute)).toBe(false);
+      expect(fs.existsSync(manifestAbsolute)).toBe(false);
+
+      fs.writeFileSync(locatorAbsolute, predecessorBytes, 'utf8');
+      fs.mkdirSync(path.dirname(packageAbsolute), { recursive: true });
+      fs.writeFileSync(packageAbsolute, 'collision\n', 'utf8');
+      expect(() =>
+        publishStorySourceRevisionPackage({
+          repoRoot: REPO_ROOT,
+          packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+          packageApprovalPath: approval.approvalPath,
+          publishedAt: PACKAGE_PUBLISHED_AT,
+          approvedPackagesDir: approved.absolute,
+          write: true,
+        }),
+      ).toThrow('approved package revision conflicts');
+      expect(fs.readFileSync(locatorAbsolute, 'utf8')).toBe(predecessorBytes);
+      expect(fs.existsSync(manifestAbsolute)).toBe(false);
+      fs.unlinkSync(packageAbsolute);
+
+      const lockPath = `${locatorAbsolute}.story-source-revision-promotion.lock`;
+      fs.writeFileSync(lockPath, 'held\n', 'utf8');
+      expect(() =>
+        publishStorySourceRevisionPackage({
+          repoRoot: REPO_ROOT,
+          packageAssemblyManifestPath: prepared.packageAssembly.manifestPath,
+          packageApprovalPath: approval.approvalPath,
+          publishedAt: PACKAGE_PUBLISHED_AT,
+          approvedPackagesDir: approved.absolute,
+          write: true,
+        }),
+      ).toThrow();
+      expect(fs.readFileSync(lockPath, 'utf8')).toBe('held\n');
+      expect(fs.readFileSync(locatorAbsolute, 'utf8')).toBe(predecessorBytes);
+      expect(fs.existsSync(packageAbsolute)).toBe(false);
       expect(fs.existsSync(manifestAbsolute)).toBe(false);
     } finally {
       cleanup(output.absolute);

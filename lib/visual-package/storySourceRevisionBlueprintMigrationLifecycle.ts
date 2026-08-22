@@ -54,14 +54,23 @@ import {
   type StorySourceRevisionPackageMigrationManifest,
 } from './storySourceRevisionPackageMigrationLifecycle';
 import {
+  computeVisualPackageV4ApprovalDigest,
+  loadCurrentVisualPackageV4,
   loadVisualPackageV4Revision,
+  publishVisualPackageV4,
+  VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS,
+  VISUAL_PACKAGE_V4_APPROVAL_VERSION,
   type VisualPackageV4,
+  type VisualPackageV4Approval,
+  type VisualPackageV4Locator,
 } from './visualPackageV4';
 import {
   assembleVisualPackageV4Candidate,
+  finalizeApprovedVisualPackageV4,
   loadApprovedBlueprintLifecycle,
   persistVisualPackageV4CandidateReview,
   qualifyVisualPackageV4Candidate,
+  visualPackageV4ApprovalIssues,
   type ApprovedBlueprintLifecyclePaths,
 } from './visualPackageV4Lifecycle';
 import type {
@@ -74,6 +83,8 @@ export const STORY_SOURCE_REVISION_BLUEPRINT_MIGRATION_MANIFEST_VERSION =
   'story-source-revision-blueprint-migration-manifest/v1' as const;
 export const STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_MANIFEST_VERSION =
   'story-source-revision-package-assembly-manifest/v1' as const;
+export const STORY_SOURCE_REVISION_PACKAGE_PROMOTION_MANIFEST_VERSION =
+  'story-source-revision-package-promotion-manifest/v1' as const;
 
 export const STORY_SOURCE_REVISION_RECONCILIATION_APPROVAL_EXCLUSIONS = [
   'blueprint_approval',
@@ -106,6 +117,16 @@ export const STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_EXCLUSIONS = [
   'provider_call',
   'publication',
   'storage_write',
+] as const;
+
+export const STORY_SOURCE_REVISION_PACKAGE_PROMOTION_EXCLUSIONS = [
+  'database_write',
+  'deployment',
+  'image_render',
+  'provider_call',
+  'release',
+  'storage_write',
+  'wizard_order',
 ] as const;
 
 const SHA256 = /^[a-f0-9]{64}$/;
@@ -258,6 +279,43 @@ export interface StorySourceRevisionPackageAssemblyManifest {
   digest: string;
 }
 
+export interface StorySourceRevisionPackagePromotionManifest {
+  version: typeof STORY_SOURCE_REVISION_PACKAGE_PROMOTION_MANIFEST_VERSION;
+  stage: 'package_published';
+  packageAssembly: {
+    digest: string;
+    path: string;
+  };
+  packageApproval: {
+    digest: string;
+    path: string;
+    approvedBy: 'Guy';
+    approvedAt: string;
+  };
+  publication: {
+    publishedAt: string;
+    previousRevisionDigest: string;
+    previousLocatorSha256: string;
+    revisionDigest: string;
+    packagePath: string;
+    packageSha256: string;
+    locatorPath: string;
+    locatorSha256: string;
+  };
+  authorityReuse: StorySourceRevisionPackageAssemblyManifest['authorityReuse'];
+  externalCounters: {
+    providerCalls: 0;
+    imageRenders: 0;
+    audioRenders: 0;
+    databaseWrites: 0;
+    storageWrites: 0;
+    locatorWrites: 1;
+  };
+  doesNotAuthorize: typeof STORY_SOURCE_REVISION_PACKAGE_PROMOTION_EXCLUSIONS;
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
+
 export interface RecordedStorySourceRevisionBlueprintApproval {
   manifest: StorySourceRevisionBlueprintMigrationManifest;
   approval: PreRenderBlueprintApprovalAttestation;
@@ -275,6 +333,25 @@ export interface PreparedStorySourceRevisionPackageAssembly {
   >['packageReview'];
   qualification: ReturnType<typeof qualifyVisualPackageV4Candidate>;
   persisted: ReturnType<typeof persistVisualPackageV4CandidateReview> | null;
+}
+
+export interface RecordedStorySourceRevisionPackageApproval {
+  assemblyManifest: StorySourceRevisionPackageAssemblyManifest;
+  approval: VisualPackageV4Approval;
+  approvalPath: string;
+  created: boolean;
+}
+
+export interface PublishedStorySourceRevisionPackage {
+  manifest: StorySourceRevisionPackagePromotionManifest;
+  manifestPath: string;
+  packageValue: VisualPackageV4;
+  locator: VisualPackageV4Locator;
+  packagePath: string;
+  locatorPath: string;
+  approval: VisualPackageV4Approval;
+  locatorChanged: boolean;
+  manifestCreated: boolean;
 }
 
 interface LoadedApprovedMigration {
@@ -1452,5 +1529,483 @@ export function prepareStorySourceRevisionPackageAssembly(args: {
     packageReview: assembled.packageReview,
     qualification,
     persisted,
+  };
+}
+
+function loadStorySourceRevisionPackageAssembly(args: {
+  repoRoot: string;
+  assemblyManifestPath: string;
+}): {
+  manifest: StorySourceRevisionPackageAssemblyManifest;
+  prepared: PreparedStorySourceRevisionPackageAssembly;
+  migration: LoadedApprovedMigration;
+} {
+  const loaded = readOutputJson<StorySourceRevisionPackageAssemblyManifest>({
+    repoRoot: args.repoRoot,
+    relativePath: args.assemblyManifestPath,
+    label: 'Story Source revision package assembly manifest',
+  });
+  const manifest = loaded.value;
+  if (
+    !isObject(manifest) ||
+    !exactKeys(manifest as unknown as Record<string, unknown>, [
+      'authorityReuse',
+      'blueprintApproval',
+      'blueprintMigration',
+      'digest',
+      'digestAlgorithm',
+      'doesNotAuthorize',
+      'externalCounters',
+      'package',
+      'productionContextDigest',
+      'sourcePackageRevisionDigest',
+      'stage',
+      'version',
+    ]) ||
+    manifest.version !== STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_MANIFEST_VERSION ||
+    manifest.stage !== 'package_pending' ||
+    manifest.digestAlgorithm !== 'canonical-json-sha256' ||
+    canonicalJsonDigest(digestPayload(manifest)) !== manifest.digest ||
+    path.posix.basename(args.assemblyManifestPath) !== `${manifest.digest}.json` ||
+    path.posix.basename(path.posix.dirname(args.assemblyManifestPath)) !==
+      'story-source-revision-package-assembly-manifests' ||
+    loaded.bytes !== canonicalContentAddressedJsonBytes(manifest) ||
+    manifest.package.readyForApproval !== true ||
+    canonicalJsonDigest(manifest.package.qualificationReasonCodes) !==
+      canonicalJsonDigest(['package_approval_missing']) ||
+    manifest.authorityReuse.exactSourcePackageMatch !== true ||
+    canonicalJsonDigest(manifest.externalCounters) !==
+      canonicalJsonDigest({
+        providerCalls: 0,
+        imageRenders: 0,
+        audioRenders: 0,
+        databaseWrites: 0,
+        storageWrites: 0,
+        locatorWrites: 0,
+      }) ||
+    canonicalJsonDigest(manifest.doesNotAuthorize) !==
+      canonicalJsonDigest(STORY_SOURCE_REVISION_PACKAGE_ASSEMBLY_EXCLUSIONS)
+  ) {
+    throw new Error('Story Source revision package assembly manifest is invalid');
+  }
+  const prepared = prepareStorySourceRevisionPackageAssembly({
+    repoRoot: args.repoRoot,
+    blueprintMigrationManifestPath: manifest.blueprintMigration.path,
+    blueprintApprovalPath: manifest.blueprintApproval.path,
+    write: false,
+  });
+  if (
+    canonicalContentAddressedJsonBytes(prepared.manifest) !== loaded.bytes ||
+    prepared.candidate.digest !== manifest.package.candidateDigest ||
+    prepared.packageReview.digest !== manifest.package.reviewDigest ||
+    prepared.context.digest !== manifest.productionContextDigest
+  ) {
+    throw new Error('package assembly manifest does not replay exactly');
+  }
+  const blueprintManifest = loadBlueprintMigrationManifest({
+    repoRoot: args.repoRoot,
+    manifestPath: manifest.blueprintMigration.path,
+  });
+  const migration = loadApprovedMigration({
+    repoRoot: args.repoRoot,
+    approvalPath: blueprintManifest.reconciliationApproval.path,
+  });
+  if (
+    migration.sourcePackage.revisionDigest !==
+      manifest.sourcePackageRevisionDigest ||
+    migration.context.digest !== manifest.productionContextDigest
+  ) {
+    throw new Error('package assembly source authority is stale');
+  }
+  return { manifest, prepared, migration };
+}
+
+function packageApprovalPath(args: {
+  outputRoot: string;
+  candidateDigest: string;
+  approvalDigest: string;
+}): string {
+  return `${args.outputRoot}/visual-package-candidate-lifecycle/package-approvals/${args.candidateDigest}/${args.approvalDigest}.json`;
+}
+
+export function recordStorySourceRevisionPackageApproval(args: {
+  repoRoot: string;
+  packageAssemblyManifestPath: string;
+  packageCandidateDigest: string;
+  packageReviewDigest: string;
+  approvedBy: 'Guy';
+  approvedAt: string;
+  write?: boolean;
+}): RecordedStorySourceRevisionPackageApproval {
+  if (
+    args.approvedBy !== 'Guy' ||
+    !canonicalUtcTimestampIsValid(args.approvedAt)
+  ) {
+    throw new Error('Package approval requires exact Guy and canonical UTC time');
+  }
+  const loaded = loadStorySourceRevisionPackageAssembly({
+    repoRoot: args.repoRoot,
+    assemblyManifestPath: args.packageAssemblyManifestPath,
+  });
+  if (
+    loaded.manifest.package.candidateDigest !== args.packageCandidateDigest ||
+    loaded.manifest.package.reviewDigest !== args.packageReviewDigest
+  ) {
+    throw new Error('Package approval does not bind the reviewed package artifacts');
+  }
+  const approval: VisualPackageV4Approval = {
+    version: VISUAL_PACKAGE_V4_APPROVAL_VERSION,
+    approvedBy: args.approvedBy,
+    approvedAt: args.approvedAt,
+    scope: 'immutable_runtime_authority_promotion',
+    blueprintApprovalDigest: loaded.manifest.blueprintApproval.digest,
+    packageCandidateDigest: loaded.prepared.candidate.digest,
+    packageReviewDigest: loaded.prepared.packageReview.digest,
+    doesNotAuthorize: VISUAL_PACKAGE_V4_APPROVAL_EXCLUSIONS,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: '',
+  };
+  approval.digest = computeVisualPackageV4ApprovalDigest(approval);
+  const approvalIssues = visualPackageV4ApprovalIssues({
+    candidate: loaded.prepared.candidate,
+    packageReview: loaded.prepared.packageReview,
+    approval,
+  });
+  const qualification = qualifyVisualPackageV4Candidate({
+    repoRoot: args.repoRoot,
+    candidate: loaded.prepared.candidate,
+    packageReview: loaded.prepared.packageReview,
+    approval,
+  });
+  if (
+    approvalIssues.length > 0 ||
+    !qualification.candidateValid ||
+    !qualification.reviewReady ||
+    !qualification.approvalValid ||
+    !qualification.readyForPublication ||
+    qualification.reasons.length !== 0
+  ) {
+    throw new Error('Package approval does not make the exact package publication-ready');
+  }
+  const outputRoot = outputRootFromManifestPath(
+    args.repoRoot,
+    args.packageAssemblyManifestPath,
+  );
+  const approvalPath = packageApprovalPath({
+    outputRoot: outputRoot.relative,
+    candidateDigest: approval.packageCandidateDigest,
+    approvalDigest: approval.digest,
+  });
+  assertStorySourceRevisionMigrationArtifactPlanIsSafe({
+    repoRoot: args.repoRoot,
+    outputRoot: outputRoot.absolute,
+    artifacts: [{
+      path: approvalPath,
+      bytes: canonicalContentAddressedJsonBytes(approval),
+    }],
+  });
+  const artifact = persistCanonicalJson({
+    repoRoot: args.repoRoot,
+    relativePath: approvalPath,
+    value: approval,
+    write: args.write === true,
+  });
+  return {
+    assemblyManifest: loaded.manifest,
+    approval,
+    approvalPath,
+    created: artifact.created,
+  };
+}
+
+function assertLocalBytesCompatible(args: {
+  filePath: string;
+  expectedBytes: string;
+  label: string;
+}): void {
+  if (
+    fs.existsSync(args.filePath) &&
+    fs.readFileSync(args.filePath, 'utf8') !== args.expectedBytes
+  ) {
+    throw new Error(`${args.label} conflicts with requested immutable bytes`);
+  }
+}
+
+function assertNoConflictingPackagePromotionManifest(args: {
+  repoRoot: string;
+  outputRoot: string;
+  manifest: StorySourceRevisionPackagePromotionManifest;
+}): void {
+  const categoryPath = `${args.outputRoot}/story-source-revision-package-promotion-manifests`;
+  const categoryAbsolute = resolveRepoPath(args.repoRoot, categoryPath);
+  if (!fs.existsSync(categoryAbsolute)) return;
+  const expectedBytes = canonicalContentAddressedJsonBytes(args.manifest);
+  for (const entry of fs.readdirSync(categoryAbsolute, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+    const bytes = fs.readFileSync(path.join(categoryAbsolute, entry.name), 'utf8');
+    let existing: StorySourceRevisionPackagePromotionManifest;
+    try {
+      existing = JSON.parse(bytes) as StorySourceRevisionPackagePromotionManifest;
+    } catch {
+      throw new Error('existing package promotion manifest JSON is invalid');
+    }
+    if (!isObject(existing)) {
+      throw new Error('existing package promotion manifest JSON is invalid');
+    }
+    if (existing.version !== STORY_SOURCE_REVISION_PACKAGE_PROMOTION_MANIFEST_VERSION) {
+      continue;
+    }
+    if (
+      !isObject(existing.packageAssembly) ||
+      !isObject(existing.packageApproval) ||
+      !isObject(existing.publication) ||
+      existing.stage !== 'package_published' ||
+      existing.digestAlgorithm !== 'canonical-json-sha256' ||
+      canonicalJsonDigest(digestPayload(existing)) !== existing.digest ||
+      entry.name !== `${existing.digest}.json` ||
+      bytes !== canonicalContentAddressedJsonBytes(existing)
+    ) {
+      throw new Error('existing package promotion manifest is invalid');
+    }
+    if (
+      existing.packageAssembly.digest === args.manifest.packageAssembly.digest &&
+      existing.packageApproval.digest === args.manifest.packageApproval.digest &&
+      existing.publication.revisionDigest === args.manifest.publication.revisionDigest &&
+      bytes !== expectedBytes
+    ) {
+      throw new Error('package publication identity already has a different timestamp or manifest');
+    }
+  }
+}
+
+export function publishStorySourceRevisionPackage(args: {
+  repoRoot: string;
+  packageAssemblyManifestPath: string;
+  packageApprovalPath: string;
+  publishedAt: string;
+  approvedPackagesDir?: string;
+  write?: boolean;
+}): PublishedStorySourceRevisionPackage {
+  if (!canonicalUtcTimestampIsValid(args.publishedAt)) {
+    throw new Error('Package publication requires canonical UTC time');
+  }
+  const loaded = loadStorySourceRevisionPackageAssembly({
+    repoRoot: args.repoRoot,
+    assemblyManifestPath: args.packageAssemblyManifestPath,
+  });
+  const approvalArtifact = readOutputJson<VisualPackageV4Approval>({
+    repoRoot: args.repoRoot,
+    relativePath: args.packageApprovalPath,
+    label: 'Story Source revision package approval',
+  });
+  const approval = approvalArtifact.value;
+  const outputRoot = outputRootFromManifestPath(
+    args.repoRoot,
+    args.packageAssemblyManifestPath,
+  );
+  const expectedApprovalPath = packageApprovalPath({
+    outputRoot: outputRoot.relative,
+    candidateDigest: loaded.prepared.candidate.digest,
+    approvalDigest: approval.digest,
+  });
+  if (
+    args.packageApprovalPath !== expectedApprovalPath ||
+    approvalArtifact.bytes !== canonicalContentAddressedJsonBytes(approval) ||
+    approval.packageCandidateDigest !== loaded.prepared.candidate.digest ||
+    approval.packageReviewDigest !== loaded.prepared.packageReview.digest ||
+    visualPackageV4ApprovalIssues({
+      candidate: loaded.prepared.candidate,
+      packageReview: loaded.prepared.packageReview,
+      approval,
+    }).length > 0
+  ) {
+    throw new Error('Package approval artifact is invalid or noncanonical');
+  }
+  const packageValue = finalizeApprovedVisualPackageV4({
+    repoRoot: args.repoRoot,
+    candidate: loaded.prepared.candidate,
+    packageReview: loaded.prepared.packageReview,
+    packageReviewArtifactPath: loaded.manifest.package.reviewPath,
+    approval,
+  });
+  const approvedPackagesDir = path.resolve(
+    args.approvedPackagesDir ??
+      path.join(args.repoRoot, 'visual-packages', 'approved'),
+  );
+  const publicationPlan = publishVisualPackageV4({
+    repoRoot: args.repoRoot,
+    approvedPackagesDir,
+    packageValue,
+    write: false,
+  });
+  const previousLocator: VisualPackageV4Locator = {
+    version: publicationPlan.locator.version,
+    storyKey: packageValue.storyKey,
+    styleId: packageValue.styleId,
+    packagePath: loaded.migration.approval.sourcePackage.path,
+    revisionDigest: loaded.migration.sourcePackage.revisionDigest,
+  };
+  const previousLocatorBytes = `${JSON.stringify(previousLocator, null, 2)}\n`;
+  const nextLocatorBytes = `${JSON.stringify(publicationPlan.locator, null, 2)}\n`;
+  const packageBytes = `${JSON.stringify(packageValue, null, 2)}\n`;
+  const locatorAbsolute = resolveRepoPath(
+    args.repoRoot,
+    publicationPlan.locatorPath,
+  );
+  const packageAbsolute = resolveRepoPath(
+    args.repoRoot,
+    publicationPlan.packagePath,
+  );
+  if (!fs.existsSync(locatorAbsolute)) {
+    throw new Error('expected predecessor package locator is missing');
+  }
+  const locatorBefore = fs.readFileSync(locatorAbsolute, 'utf8');
+  if (
+    locatorBefore !== previousLocatorBytes &&
+    locatorBefore !== nextLocatorBytes
+  ) {
+    throw new Error('current package locator changed after reviewed assembly');
+  }
+  if (locatorBefore === previousLocatorBytes) {
+    const selected = loadCurrentVisualPackageV4({
+      repoRoot: args.repoRoot,
+      locatorPath: publicationPlan.locatorPath,
+      storyKey: packageValue.storyKey,
+      styleId: packageValue.styleId,
+    });
+    if (
+      selected.packageValue.revisionDigest !==
+        loaded.migration.sourcePackage.revisionDigest ||
+      selected.locator.packagePath !== loaded.migration.approval.sourcePackage.path
+    ) {
+      throw new Error('current package locator no longer selects the reviewed predecessor');
+    }
+  } else {
+    if (!fs.existsSync(packageAbsolute)) {
+      throw new Error('published package revision selected by the current locator is missing');
+    }
+    const selected = loadCurrentVisualPackageV4({
+      repoRoot: args.repoRoot,
+      locatorPath: publicationPlan.locatorPath,
+      storyKey: packageValue.storyKey,
+      styleId: packageValue.styleId,
+    });
+    if (
+      selected.packageValue.revisionDigest !== packageValue.revisionDigest ||
+      selected.locator.packagePath !== publicationPlan.packagePath
+    ) {
+      throw new Error('current package locator does not select the reviewed publication');
+    }
+  }
+  assertLocalBytesCompatible({
+    filePath: packageAbsolute,
+    expectedBytes: packageBytes,
+    label: 'approved package revision',
+  });
+  const manifest = buildDigestArtifact({
+    version: STORY_SOURCE_REVISION_PACKAGE_PROMOTION_MANIFEST_VERSION,
+    stage: 'package_published' as const,
+    packageAssembly: {
+      digest: loaded.manifest.digest,
+      path: args.packageAssemblyManifestPath,
+    },
+    packageApproval: {
+      digest: approval.digest,
+      path: args.packageApprovalPath,
+      approvedBy: 'Guy' as const,
+      approvedAt: approval.approvedAt,
+    },
+    publication: {
+      publishedAt: args.publishedAt,
+      previousRevisionDigest: loaded.migration.sourcePackage.revisionDigest,
+      previousLocatorSha256: sha256(previousLocatorBytes),
+      revisionDigest: packageValue.revisionDigest,
+      packagePath: publicationPlan.packagePath,
+      packageSha256: sha256(packageBytes),
+      locatorPath: publicationPlan.locatorPath,
+      locatorSha256: sha256(nextLocatorBytes),
+    },
+    authorityReuse: structuredClone(loaded.manifest.authorityReuse),
+    externalCounters: {
+      providerCalls: 0 as const,
+      imageRenders: 0 as const,
+      audioRenders: 0 as const,
+      databaseWrites: 0 as const,
+      storageWrites: 0 as const,
+      locatorWrites: 1 as const,
+    },
+    doesNotAuthorize: STORY_SOURCE_REVISION_PACKAGE_PROMOTION_EXCLUSIONS,
+  }) as StorySourceRevisionPackagePromotionManifest;
+  const manifestPath = artifactPath({
+    outputRoot: outputRoot.relative,
+    category: 'story-source-revision-package-promotion-manifests',
+    digest: manifest.digest,
+  });
+  assertNoConflictingPackagePromotionManifest({
+    repoRoot: args.repoRoot,
+    outputRoot: outputRoot.relative,
+    manifest,
+  });
+  assertStorySourceRevisionMigrationArtifactPlanIsSafe({
+    repoRoot: args.repoRoot,
+    outputRoot: outputRoot.absolute,
+    artifacts: [{
+      path: manifestPath,
+      bytes: canonicalContentAddressedJsonBytes(manifest),
+    }],
+  });
+  let locatorChanged = false;
+  let manifestCreated = false;
+  if (args.write === true) {
+    const lockPath = `${locatorAbsolute}.story-source-revision-promotion.lock`;
+    let lock: number | null = null;
+    try {
+      lock = fs.openSync(lockPath, 'wx');
+      const lockedLocatorBytes = fs.readFileSync(locatorAbsolute, 'utf8');
+      if (
+        lockedLocatorBytes !== previousLocatorBytes &&
+        lockedLocatorBytes !== nextLocatorBytes
+      ) {
+        throw new Error('current package locator changed during publication');
+      }
+      if (lockedLocatorBytes === previousLocatorBytes) {
+        publishVisualPackageV4({
+          repoRoot: args.repoRoot,
+          approvedPackagesDir,
+          packageValue,
+          write: true,
+        });
+        locatorChanged = true;
+      }
+      if (
+        fs.readFileSync(packageAbsolute, 'utf8') !== packageBytes ||
+        fs.readFileSync(locatorAbsolute, 'utf8') !== nextLocatorBytes
+      ) {
+        throw new Error('published package or locator bytes differ from preflight');
+      }
+      const persistedManifest = persistCanonicalJson({
+        repoRoot: args.repoRoot,
+        relativePath: manifestPath,
+        value: manifest,
+        write: true,
+      });
+      manifestCreated = persistedManifest.created;
+    } finally {
+      if (lock !== null) {
+        fs.closeSync(lock);
+        if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath);
+      }
+    }
+  }
+  return {
+    manifest,
+    manifestPath,
+    packageValue,
+    locator: publicationPlan.locator,
+    packagePath: publicationPlan.packagePath,
+    locatorPath: publicationPlan.locatorPath,
+    approval,
+    locatorChanged,
+    manifestCreated,
   };
 }

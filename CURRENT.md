@@ -4,56 +4,63 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
-## ACCEPTED-SOURCE BLUEPRINT APPROVAL + PACKAGE ASSEMBLY — LOCAL GREEN, CLAUDE QA NEXT
+## ACCEPTED-SOURCE PACKAGE PROMOTION — LOCAL GREEN, CLAUDE QA NEXT
 
-Guy approved Blueprint Candidate
-`bdde1c154c513275b7b696cc641d692dc6a6dcb7c2b140c26271d1d456bd2bfe`
-and Review Packet
-`73121a73b6ca2565e7e44351d982bcc0ac49de00c14e4637539092925979a612`.
-The new offline adapter reloaded the entire accepted-source migration chain,
-recorded the exact Blueprint approval, and assembled a fresh Visual Package v5
-candidate/review without a provider, render, database, storage or locator call.
+Guy approved exact Visual Package Candidate
+`31176f576824ca7f3bb56d945c04e460f66c99d576cf6f63d3d2c00e864bfc9d`
+and Package Review
+`bb6de707e9ae7ca88c46c6b13423ab9065fc999e32239562e5c7e133065eff61`.
+The focused promotion adapter reloaded and replayed the complete accepted-source
+assembly manifest
+`baf92870b9b94b8873e7971647d0e175a3228d2d8a198990893883f1d1a168d7`,
+recorded immutable Guy approval
+`c51cf5ccf76ba3aa32bef55f0b44093d10cf0612e0b6c872895fa852ce165860`,
+finalized Visual Package revision
+`2b488f2db44702106f49ad80c257b88269972ffb8ebbc92cced95f81c13d98a6`,
+and advanced only the exact Chameleon current locator. The promotion manifest is
+`6f4daa7dad20d9a86e0900d76affae2d799fe25e0aaebdd61ebd60f05ebf29ee`.
 
-The immutable Blueprint approval is
-`34254986eea5d9fddf56d6e96dae5cd8ab53dce0845397d1c4f3b4b85805fe27`
-at canonical UTC time `2026-08-22T13:23:57.666Z`. The fresh package Candidate is
-`31176f576824ca7f3bb56d945c04e460f66c99d576cf6f63d3d2c00e864bfc9d`,
-Package Review is
-`bb6de707e9ae7ca88c46c6b13423ab9065fc999e32239562e5c7e133065eff61`,
-and the package-assembly manifest is
-`baf92870b9b94b8873e7971647d0e175a3228d2d8a198990893883f1d1a168d7`.
-Offline qualification digest
-`0c4c37effdf7de82923aff40dd1f7abc4f7b382438512dff3e7588b61e6847dc`
-is candidate-valid and review-ready, but correctly not publication-ready with
-exactly one reason: `package_approval_missing`.
+Publication preview left the historical locator SHA-256
+`9d6ea2f84cbee48bb6f671edeea5aee2960328f55f0e3427bd4ee1e916b1cddf`
+unchanged. The exact write then created the immutable revision and changed the
+locator once; exact replay returned `locatorChanged:false` and
+`manifestCreated:false`. The new package file SHA-256 is
+`81fcbc2980abd89ace79a9ad8f7804f4a91570fa5b398cc8a4cd63e9b26a7859`
+and the new locator SHA-256 is
+`6d3d9431054a71b47456b659f343bc0674efa62403e6f488156b8a8fc02bb96b`.
+Stale/racing locators, conflicting revision bytes, alternate or tampered
+approval paths, wrong digests/approver/time and missing replay revisions reject
+before any locator advancement. A cooperative exclusive lock closes concurrent
+promotion within this lifecycle.
 
-The assembled candidate reuses exactly the current package's two approved Set
-Boards and zero prop references. The current locator, historical package and
-four untracked Board artifacts retain their exact SHA-256 values. Preview,
-write and replay produced byte-identical approval/candidate/review/manifest
-artifacts. Every external counter is zero; package approval, publication,
-locator update, deploy, Wizard Order and render remain explicitly excluded.
+Read-only runtime selection now resolves `visual_package_v4` to the exact
+product-accepted neutral source revision at
+`story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb/integrated.md`.
+Its raw source digest is
+`3aac47b55f606fd65a127c0679ffb42e6b16f93783d7a6386d81e5e8db01cef4`.
+Bar-boy and Bar-girl both resolve all eight story pages deterministically with
+no rewrite. Offline Wizard authority preflight validates the new package,
+Blueprint, materialized contract, all nine cover/page frames and both exact
+approved Boards with no provider, network, database or write reachability.
 
-Focused lifecycle validation is **7 files / 61 tests PASS**. The complete
-Visual Package suite reported **961 PASS / 1 timeout**; that old QA-bridge
-junction test then passed **8/8** in isolation and the process exited nonzero
-only for the known post-assertion Vitest `onTaskUpdate` RPC timeout. Both
-TypeScript checks pass. The CLI graph is **86 repo inputs / 0 node_modules**;
-its only OpenAI-named input is the pure schema-compatibility validator, with no
-provider/render/database/storage capability.
+Validation is **6 focused files / 36 tests PASS** plus **14 runtime files / 98
+tests PASS**. `npx --no-install tsc --noEmit` passes. The CLI graph is **86 repo
+inputs / 0 node_modules**; its only OpenAI-named input is the pure structured
+output compatibility validator and it contains no provider/render/database or
+storage capability. The four pre-existing untracked Board artifacts remain
+unstaged at exact SHA-256 values `8e530b44...`, `bbce002d...`, `a2bff526...`
+and `53e446c9...`.
 
 One literal `npm run check` used the canonical **318 / 298 / 20** inventory.
-Ordinary reported **3,490 PASS / 65 skipped / 5 failures**, all five the
+Ordinary reported **3,492 PASS / 65 skipped / 5 failures**, all five the
 established missing ignored-output fixtures. Resource-intensive reported
-**608 PASS / 3 timeouts** plus the known worker RPC timeouts; the two affected
-files pass their assertions in isolation, including the immediate-predecessor
-envelope regression at **1/1** and QA Bridge at **8/8**. The new package
-migration spec passed in both focused and full runs.
+**610 PASS / 1 timeout** plus three known Vitest `onTaskUpdate` RPC timeouts;
+the timed QA Bridge junction assertion took about 5.3 seconds and passed with
+the isolated diagnostic allowance at **8/8**. No milestone assertion failed.
 
 Next action is a focused local commit and Guy-mediated independent Claude Code
-review. Package approval, publication, locator cutover, QA deploy, zero-spend
-runtime preflight and the one authorized Wizard full-book proof remain HOLD
-until Claude PASS and Guy approval of the exact Candidate/Review above.
+review. QA deployment, the deployed provider-free preflight, Wizard Order and
+the one explicitly authorized full-book render remain HOLD until that PASS.
 
 ## STORY SOURCE REVISION PACKAGE MIGRATION PHASE 1 — INDEPENDENT QA PASS
 

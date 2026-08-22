@@ -21,6 +21,16 @@ const QA_AUTONOMOUS_DIR = path.join(
   'story-bank',
   'qa-autonomous-20260815-v1',
 );
+const CHAMELEON_ACCEPTED_REVISION = path.join(
+  process.cwd(),
+  'story-pipeline',
+  '04_approved_story_sources',
+  'accepted',
+  'chameleon_koko_bedtime',
+  'revisions',
+  '20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb',
+  'integrated.md',
+);
 const BUNNY_BEDTIME = path.join(V3_APPROVED_DIR, 'bunny_ometz_bedtime.md');
 
 const originalFlag = process.env.ENABLE_V3_APPROVED_BANK;
@@ -105,7 +115,7 @@ describe('resolveStoryProductTruth', () => {
         );
         expect(resolved.storyFile).toBe(
           isPublishedChameleon
-            ? path.join(QA_AUTONOMOUS_DIR, `${companionId}_${direction}.md`)
+            ? CHAMELEON_ACCEPTED_REVISION
             : path.join(V3_APPROVED_DIR, `${companionId}_${direction}.md`),
         );
       }
@@ -128,10 +138,7 @@ describe('resolveStoryProductTruth', () => {
       displayPages: 16,
       priceILS: 59,
       source: 'visual_package_v4',
-      storyFile: path.join(
-        QA_AUTONOMOUS_DIR,
-        'chameleon_koko_bedtime.md',
-      ),
+      storyFile: CHAMELEON_ACCEPTED_REVISION,
     });
   });
 
@@ -149,8 +156,12 @@ describe('resolveStoryProductTruth', () => {
           clientDirection: direction,
           challengeCategory: category,
         });
+        const isPublishedChameleon =
+          companionId === 'chameleon_koko' && direction === 'bedtime';
         expect(resolved.storyFile).toBe(
-          path.join(QA_AUTONOMOUS_DIR, `${companionId}_${direction}.md`),
+          isPublishedChameleon
+            ? CHAMELEON_ACCEPTED_REVISION
+            : path.join(QA_AUTONOMOUS_DIR, `${companionId}_${direction}.md`),
         );
         expect(resolved.pages).toBe(expectedPages[direction]);
         expect(resolved.displayPages).toBe(expectedPages[direction] * 2);

@@ -87,9 +87,9 @@ describe('deployed Wizard runtime-authority preflight', () => {
       storyKey: STORY_KEY,
       styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
       packageRevisionDigest:
-        'a9c253d989118262ed2b38a671fc7eccf6af44a084512af35285ad2f548a14fb',
+        '2b488f2db44702106f49ad80c257b88269972ffb8ebbc92cced95f81c13d98a6',
       sourceRawDigest:
-        '2d00d37e8aa290e5353bfe1b94fa2dc498d7200c46f6204bfe7903a033e685d4',
+        '3aac47b55f606fd65a127c0679ffb42e6b16f93783d7a6386d81e5e8db01cef4',
       checkedPageNumbers: [0, 1, 2, 3, 4, 5, 6, 7, 8],
       effects: {
         databaseReads: 0,

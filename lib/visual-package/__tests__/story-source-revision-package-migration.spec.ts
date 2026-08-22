@@ -14,21 +14,43 @@ import { resolveRepoPath } from '../integrity';
 const REPO_ROOT = process.cwd();
 const STORY_KEY = 'chameleon_koko_bedtime';
 const STYLE_ID = 'soft_hand_drawn_storybook';
-const LOCATOR_PATH =
+const HISTORICAL_PACKAGE_PATH =
+  'visual-packages/approved/revisions/a9c253d989118262ed2b38a671fc7eccf6af44a084512af35285ad2f548a14fb.visual-package.json';
+const HISTORICAL_PACKAGE_DIGEST =
+  'a9c253d989118262ed2b38a671fc7eccf6af44a084512af35285ad2f548a14fb';
+const CURRENT_LOCATOR_PATH =
   'visual-packages/approved/chameleon_koko_bedtime.soft_hand_drawn_storybook.visual-package-current.json';
 const ACCEPTED_MANIFEST_PATH =
   'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb/manifest.json';
 
 function prepare(outputDir: string, write = false) {
-  return prepareStorySourceRevisionPackageMigration({
-    repoRoot: REPO_ROOT,
-    outputDir,
-    storyKey: STORY_KEY,
-    styleId: STYLE_ID,
-    locatorPath: LOCATOR_PATH,
-    acceptedRevisionManifestPath: ACCEPTED_MANIFEST_PATH,
-    write,
-  });
+  const locatorPath = `${outputDir}-historical-locator-${process.pid}.json`;
+  const locatorAbsolute = resolveRepoPath(REPO_ROOT, locatorPath);
+  fs.mkdirSync(path.dirname(locatorAbsolute), { recursive: true });
+  fs.writeFileSync(
+    locatorAbsolute,
+    `${JSON.stringify({
+      version: 'visual-package-current-locator/v3',
+      storyKey: STORY_KEY,
+      styleId: STYLE_ID,
+      packagePath: HISTORICAL_PACKAGE_PATH,
+      revisionDigest: HISTORICAL_PACKAGE_DIGEST,
+    }, null, 2)}\n`,
+    'utf8',
+  );
+  try {
+    return prepareStorySourceRevisionPackageMigration({
+      repoRoot: REPO_ROOT,
+      outputDir,
+      storyKey: STORY_KEY,
+      styleId: STYLE_ID,
+      locatorPath,
+      acceptedRevisionManifestPath: ACCEPTED_MANIFEST_PATH,
+      write,
+    });
+  } finally {
+    fs.unlinkSync(locatorAbsolute);
+  }
 }
 
 describe('Story Source revision package migration phase 1', () => {
@@ -206,7 +228,7 @@ describe('Story Source revision package migration phase 1', () => {
       outputDir: 'outputs/qa-story-source-revision-package-migration-hostile',
       storyKey: STORY_KEY,
       styleId: STYLE_ID,
-      locatorPath: LOCATOR_PATH,
+      locatorPath: CURRENT_LOCATOR_PATH,
       acceptedRevisionManifestPath: ACCEPTED_MANIFEST_PATH.replace(
         '/chameleon_koko_bedtime/',
         '/bunny_ometz_bedtime/',
@@ -218,7 +240,7 @@ describe('Story Source revision package migration phase 1', () => {
       outputDir: 'outputs/qa-story-source-revision-package-migration-hostile',
       storyKey: STORY_KEY,
       styleId: STYLE_ID,
-      locatorPath: LOCATOR_PATH,
+      locatorPath: CURRENT_LOCATOR_PATH,
       acceptedRevisionManifestPath: ACCEPTED_MANIFEST_PATH.split('/').join('\\'),
       write: false,
     })).toThrow('not canonical for the story');
@@ -227,7 +249,7 @@ describe('Story Source revision package migration phase 1', () => {
       outputDir: 'visual-packages/hostile-output',
       storyKey: STORY_KEY,
       styleId: STYLE_ID,
-      locatorPath: LOCATOR_PATH,
+      locatorPath: CURRENT_LOCATOR_PATH,
       acceptedRevisionManifestPath: ACCEPTED_MANIFEST_PATH,
       write: false,
     })).toThrow('canonical child of outputs');
