@@ -29,10 +29,17 @@ image bytes, but returns `evidence_unknown` with the exact `qaInput`, unverified
 safety and the existing hold marker. The normal successful QA path reuses the
 same derivation helper, so recovery and live evaluation cannot drift. Direct
 page and cover regressions pass **1 file / 12 tests** with zero QA calls and zero
-replacement renders on the failure path; `git diff --check` passes. Repository-
-wide `tsc --noEmit` remains blocked by the separately documented pre-existing
-Next route-module export of `triggerGeneration`; this change introduces no new
-TypeScript diagnostic.
+replacement renders on the failure path; `git diff --check` passes.
+
+The pre-existing Next route-module export blocker is now closed without changing
+generation behavior. `triggerGeneration` moved from the HTTP-only
+`app/api/generate/route.ts` module into the sibling service boundary
+`app/api/generate/trigger.ts`; all Stripe, PayMe, PayMe-return and fake-payment
+callers now import that service directly. The service still applies the same
+Production/environment fences and delegates only to `startChunkedGeneration`.
+Focused payment, fake-payment, refund and book-ready reachability validation is
+**5 files / 68 tests PASS**; Next route type generation, repository-wide
+`tsc --noEmit` and `git diff --check` are green.
 
 Claude Code's first read-only review returned technical PASS with three minor
 maintainability/test notes. The follow-up keeps the callback locally non-throwing

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
-import { triggerGeneration } from '../../generate/route';
+import { triggerGeneration } from '../../generate/trigger';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import {

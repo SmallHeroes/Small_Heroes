@@ -1,7 +1,7 @@
 /**
  * Generation Orchestrator
  * POST /api/generate — Manual trigger (webhook fallback)
- * Also exports triggerGeneration() for use by the payment/webhook handlers.
+ * Payment/webhook handlers share the sibling `trigger.ts` service boundary.
  *
  * Chunked generation (lib/generation-pipeline/chunk-runner.ts) is the ONLY generation path.
  * The legacy single-invocation monolith was removed (0097): it set status ready/partial and
@@ -16,32 +16,13 @@ import { prisma } from '../../../lib/prisma';
 import { createLogger } from '../../../lib/logger';
 import { startChunkedGeneration } from '@/lib/generation-chunked/start';
 import {
-  assertEnvSeparation,
-  assertProdGenerationAllowed,
   isProdGenerationDisabled,
 } from '@/lib/generation-chunked/env-separation-guard';
 
 const GENERATION_ELIGIBLE_STATUS = 'paid';
 const RETRYABLE_STATUSES = [GENERATION_ELIGIBLE_STATUS, 'failed'] as const;
 const RETRYABLE_STATUS_VALUES: OrderStatus[] = [...RETRYABLE_STATUSES];
-const generationLogger = createLogger({ subsystem: 'generation', route: '/api/generate' });
 const generateApiLogger = createLogger({ subsystem: 'generation-api', route: '/api/generate' });
-
-// ─── Main Orchestrator (chunked — the only generation path) ───
-export async function triggerGeneration(orderId: string, reason = 'unspecified'): Promise<void> {
-  assertProdGenerationAllowed();
-  assertEnvSeparation();
-  // Chunked is the ONLY generation path. The legacy single-invocation monolith — which set
-  // status ready/partial and sent the book-ready email WITHOUT the anchor delivery gate — has
-  // been removed so no payment/dev route can bypass the low-confidence-anchor hold. The book-
-  // ready email is reachable solely from the chunked package stage (chunk-runner.ts), which
-  // applies resolveAnchorDeliveryGate. GENERATION_MONOLITH is no longer honored.
-  const result = await startChunkedGeneration(orderId, reason);
-  if (!result.started) {
-    generationLogger.warn('Chunked start rejected', { orderId, reason, message: result.message });
-  }
-  return;
-}
 
 // ─── API Route Handler (manual trigger / webhook fallback) ───
 export async function POST(req: Request) {

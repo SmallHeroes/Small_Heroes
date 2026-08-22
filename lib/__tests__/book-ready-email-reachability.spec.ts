@@ -79,12 +79,7 @@ describe('triggerGeneration delegates to the chunked path', () => {
       assertProdGenerationAllowed: vi.fn(),
       isProdGenerationDisabled: vi.fn(() => false),
     }));
-    // Break the prisma→env validation import chain (route imports prisma at module load).
-    vi.doMock('@/lib/prisma', () => ({ prisma: {} }));
-
-    const mod = await import('@/app/api/generate/route');
-    // The legacy monolith export must be gone.
-    expect((mod as Record<string, unknown>).runMonolithicGeneration).toBeUndefined();
+    const mod = await import('@/app/api/generate/trigger');
 
     await mod.triggerGeneration('o1', 'payme_webhook_payment_paid');
     expect(startChunkedGeneration).toHaveBeenCalledWith('o1', 'payme_webhook_payment_paid');

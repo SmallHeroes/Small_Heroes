@@ -4,7 +4,7 @@ import { createLogger } from '@/lib/logger';
 import { enforceRateLimit, enforceSameOrigin } from '@/lib/request-security';
 import { canUseFakePayments } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
-import { triggerGeneration } from '../../../generate/route';
+import { triggerGeneration } from '../../../generate/trigger';
 import {
   confirmCouponForOrder,
   couponConfirmFenceReason,
@@ -169,4 +169,3 @@ export async function POST(req: NextRequest) {
     redirectUrl: `${ROUTES.generating}?orderId=${encodeURIComponent(order.id)}&accessKey=${encodeURIComponent(paymentId)}`,
   });
 }
-

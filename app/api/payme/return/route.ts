@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { env } from '@/lib/env';
 import { ROUTES } from '@/lib/routes';
-import { triggerGeneration } from '../../generate/route';
+import { triggerGeneration } from '../../generate/trigger';
 import { verifyPaymePayment } from '@/lib/payme';
 import { confirmCouponForOrder, couponConfirmFenceReason } from '@/lib/coupon/coupon-service';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
@@ -190,4 +190,3 @@ export async function GET(req: NextRequest) {
   redirectUrl.searchParams.set('payment', 'checking');
   return NextResponse.redirect(redirectUrl);
 }
-
