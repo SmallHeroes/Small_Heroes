@@ -43,6 +43,20 @@ const materializer = require('../../scripts/materialize-story-source-revision.cj
   resolveProjection: (source: string, gender: 'boy' | 'girl') => string;
   sha256: (value: string | Buffer) => string;
   validateRequest: (value: unknown) => StorySourceRevisionRequest;
+  validateStoryboardCorpusManifest: (
+    corpus: any,
+    request: StorySourceRevisionRequest,
+    sourceManifest: any,
+    sourceFile: { sha256: string },
+    directionFile: { sha256: string },
+  ) => unknown;
+};
+const directionContract = require('../../scripts/story-visual-direction-contract.cjs') as {
+  validateVisualDirectionRecord: (
+    value: unknown,
+    storyKey: string,
+    expectedPageCount: number,
+  ) => unknown;
 };
 
 type TextReplacement = {
@@ -81,6 +95,8 @@ const DIRECTION_PATH =
   'story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/chameleon_koko_bedtime.visual-directions.json';
 const BUNNY_DIRECTION_PATH =
   'story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/bunny_ometz_bedtime.visual-directions.json';
+const STORYBOARD_CORPUS_PATH =
+  'story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/manifest.json';
 
 const EXPECTED_SOURCE_SHA =
   '6da0babf1d7e97a0841d1c414e15bd682a525d8ab0366df49def7247079dd407';
@@ -227,6 +243,12 @@ describe('story source revision materializer', () => {
     expect(fs.existsSync(fixture.outputAbsolute)).toBe(false);
     expect(result.manifest.version).toBe(materializer.MANIFEST_VERSION);
     expect(result.manifest.status).toBe('pending_exact_product_review');
+    expect(result.manifest.inputs.storyboardCorpusManifest).toEqual({
+      bytes: 10988,
+      digest: 'a793038efca754ea028aa9fc528f896261ade25b671865657282fb6220cfb6fa',
+      path: STORYBOARD_CORPUS_PATH,
+      sha256: '2c884372b36b4e45266490f920fdae2c59809a4e8a444e4780471de8e62c631d',
+    });
     expect(result.manifest.outputs.acceptedStoryCandidate).toMatchObject({
       bytes: 6220,
       sha256: EXPECTED_SOURCE_SHA,
@@ -360,6 +382,31 @@ describe('story source revision materializer', () => {
         write: false,
       }),
     ).toThrow('story_source_revision_direction_target_invalid');
+  });
+
+  it('rejects same-name visual directions that are not bound by the storyboard corpus', () => {
+    const forgedDirection = JSON.parse(
+      repoBytes(BUNNY_DIRECTION_PATH).toString('utf8'),
+    );
+    forgedDirection.storyKey = 'chameleon_koko_bedtime';
+    expect(
+      directionContract.validateVisualDirectionRecord(
+        forgedDirection,
+        'chameleon_koko_bedtime',
+        8,
+      ),
+    ).toBe(forgedDirection);
+
+    const forgedDirectionBytes = `${JSON.stringify(forgedDirection, null, 2)}\n`;
+    expect(() =>
+      materializer.validateStoryboardCorpusManifest(
+        JSON.parse(repoBytes(STORYBOARD_CORPUS_PATH).toString('utf8')),
+        requestFixture(),
+        JSON.parse(repoBytes(SOURCE_MANIFEST_PATH).toString('utf8')),
+        { sha256: sha256(repoBytes(SOURCE_PATH)) },
+        { sha256: sha256(forgedDirectionBytes) },
+      ),
+    ).toThrow('story_source_revision_storyboard_binding_invalid');
   });
 
   it('rejects source drift, female-projection drift and output escape', () => {

@@ -23,16 +23,18 @@ The tool validates all inputs before writing:
    realpath containment with no symlink/junction component or hard-link alias;
 3. `storyKey` derived from the accepted source directory and exact agreement
    across request, accepted source directory, direction filename and record;
-4. accepted manifest/story/brief/page-count authority;
-5. exact replacement counts with overlap/cascade rejection;
-6. canonical editorial-pass validation of the revised source;
-7. byte-identical female projection against the historical source;
-8. complete boy/girl gender projection using behavior tested against the
+4. canonical storyboard-corpus manifest digest and selected-record binding of
+   source SHA, direction SHA, companion, category, direction and page count;
+5. accepted manifest/story/brief/page-count authority;
+6. exact replacement counts with overlap/cascade rejection;
+7. canonical editorial-pass validation of the revised source;
+8. byte-identical female projection against the historical source;
+9. complete boy/girl gender projection using behavior tested against the
    production personalization resolver;
-9. explicit page/field-only visual-direction changes and the existing
+10. explicit page/field-only visual-direction changes and the existing
    visual-direction validator;
-10. exact source projection after deterministic `injectDirections` assembly;
-11. fresh, non-symlink output below `outputs/`.
+11. exact source projection after deterministic `injectDirections` assembly;
+12. fresh, non-symlink output below `outputs/`.
 
 `--write false` performs the complete derivation without creating the output
 directory. `--write true` writes five digest-named files only after every check
@@ -62,11 +64,14 @@ The request is local, unapproved operator input:
 
 ## Exact pending outputs
 
-Pending root:
-`outputs/r1d-chameleon-gender-revision-pending`
+Current pending root:
+`outputs/r1d-chameleon-gender-revision-pending-v2`
 
 - manifest digest:
-  `102153975198f49514b3304893904c77eb5e341d0ba6e7e906e917cf0ed6183e`
+  `e293fb7b9716a8cb88858bdf89295e28b86bdc6927777ac7b3a7725d679ef488`
+- storyboard-corpus authority:
+  - file SHA-256 `2c884372b36b4e45266490f920fdae2c59809a4e8a444e4780471de8e62c631d`
+  - canonical digest `a793038efca754ea028aa9fc528f896261ade25b671865657282fb6220cfb6fa`
 - corrected accepted Story Source:
   - bytes `6220`
   - SHA-256 `6da0babf1d7e97a0841d1c414e15bd682a525d8ab0366df49def7247079dd407`
@@ -109,28 +114,35 @@ Kim, not the child.
 Focused validation:
 
 ```text
-story-source-revision-materializer.spec.ts      8/8 PASS
+story-source-revision-materializer.spec.ts      9/9 PASS
 story-commission-materializer.spec.ts          31/31 PASS
 story-bank-personalization-gate.spec.ts         18/18 PASS
 vitest-workload-classifier.spec.ts               7/7 PASS
-total                                            64/64 PASS
+total                                            65/65 PASS
 ```
 
 The corrective tests reproduce the originally accepted Chameleon-source/Bunny-
 direction blend and now reject it. They also reject junction and hard-link
-aliases for authority inputs and the operator request. A child-process
+aliases for authority inputs and the operator request. A renamed Bunny
+direction record whose internal key is changed to Chameleon is still rejected
+because its SHA and source identity are absent from the canonical corpus
+record. A child-process
 `Module._load` sentinel blocks provider-capable batch, promotion, OpenAI and
 Replicate module names; the revision CLI loads cleanly under it and the broad
 legacy materializer fails as the positive control. The real operator request's
-no-write preview remains byte-stable at manifest digest
-`102153975198f49514b3304893904c77eb5e341d0ba6e7e906e917cf0ed6183e`.
+no-write preview produces v2 manifest digest
+`e293fb7b9716a8cb88858bdf89295e28b86bdc6927777ac7b3a7725d679ef488`.
+The source, direction, integrated source and direction-migration identities are
+unchanged; only the pending manifest advanced from unapproved v1 to v2 to carry
+the corpus authority descriptor. The v1 pending root remains unapproved and
+superseded.
 
 Also required before commit:
 
 - `npx --no-install tsc --noEmit` — PASS;
 - `git diff --check` — PASS;
 - literal `npm run check` compiled both TypeScript projects. The ordinary
-  partition passed **3,450** assertions and retained exactly the five known
+  partition passed **3,451** assertions and retained exactly the five known
   failures caused by four absent historical `outputs/` fixtures. The resource
   partition passed **609/610** assertions: the existing QA Wizard bridge
   junction test exceeded its shared 5-second timeout under load, then passed

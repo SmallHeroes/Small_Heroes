@@ -19,7 +19,7 @@ const ACCEPTED_SOURCE_ROOT =
   'story-pipeline/04_approved_story_sources/accepted/';
 const STORYBOARD_INPUT_ROOT = 'story-pipeline/05_storyboard_inputs/';
 const REQUEST_VERSION = 'small-heroes-story-source-revision-request/v1';
-const MANIFEST_VERSION = 'small-heroes-story-source-revision-pending-manifest/v1';
+const MANIFEST_VERSION = 'small-heroes-story-source-revision-pending-manifest/v2';
 const DIRECTION_MIGRATION_VERSION =
   'small-heroes-story-visual-direction-deterministic-migration/v1';
 const ALLOWED_DIRECTION_FIELDS = new Set([
@@ -46,6 +46,30 @@ const DIRECTION_REPLACEMENT_KEYS = [
   'from',
   'pageNumber',
   'to',
+];
+const STORYBOARD_CORPUS_KEYS = [
+  'authorityScope',
+  'companionCount',
+  'digest',
+  'directionBatch',
+  'directionCount',
+  'productionEligible',
+  'productionStoryBankTouched',
+  'records',
+  'status',
+  'storyCount',
+  'version',
+];
+const STORYBOARD_CORPUS_RECORD_KEYS = [
+  'category',
+  'companionId',
+  'direction',
+  'importSidecarSha256',
+  'integratedStorySha256',
+  'pageCount',
+  'sourceStorySha256',
+  'storyKey',
+  'visualDirectionSha256',
 ];
 
 function canonical(value) {
@@ -258,8 +282,8 @@ function validateRequest(value) {
   return value;
 }
 
-function readBoundRepoFile(reference, maximumBytes, code, allowedRootRelative) {
-  const absolutePath = path.resolve(REPO_ROOT, ...reference.path.split('/'));
+function readContainedRepoFile(relativePath, maximumBytes, code, allowedRootRelative) {
+  const absolutePath = path.resolve(REPO_ROOT, ...relativePath.split('/'));
   const absoluteAllowedRoot = path.resolve(
     REPO_ROOT,
     ...allowedRootRelative.replace(/\/$/, '').split('/'),
@@ -289,15 +313,25 @@ function readBoundRepoFile(reference, maximumBytes, code, allowedRootRelative) {
     throw new Error(code);
   }
   const bytes = fs.readFileSync(realPath);
-  if (sha256(bytes) !== reference.sha256) {
-    throw new Error(`${code}_drift`);
-  }
   return {
     absolutePath: realPath,
     bytes,
     relativePath: path.relative(REPO_ROOT, realPath).replaceAll('\\', '/'),
-    sha256: reference.sha256,
+    sha256: sha256(bytes),
   };
+}
+
+function readBoundRepoFile(reference, maximumBytes, code, allowedRootRelative) {
+  const file = readContainedRepoFile(
+    reference.path,
+    maximumBytes,
+    code,
+    allowedRootRelative,
+  );
+  if (file.sha256 !== reference.sha256) {
+    throw new Error(`${code}_drift`);
+  }
+  return file;
 }
 
 function readRequestFile(requestPath) {
@@ -463,6 +497,60 @@ function validateSourceManifest(manifest, request, sourceFile, story) {
   }
 }
 
+function validateStoryboardCorpusManifest(
+  corpus,
+  request,
+  sourceManifest,
+  sourceFile,
+  directionFile,
+) {
+  if (
+    !exactKeys(corpus, STORYBOARD_CORPUS_KEYS) ||
+    corpus.version !== 'small-heroes-storyboard-input-corpus/v1' ||
+    corpus.status !== 'qa_ready_for_low_story_generation' ||
+    corpus.authorityScope !== 'qa_only' ||
+    corpus.productionEligible !== false ||
+    corpus.productionStoryBankTouched !== false ||
+    !Number.isInteger(corpus.storyCount) ||
+    !Array.isArray(corpus.records) ||
+    corpus.records.length !== corpus.storyCount ||
+    !/^[a-f0-9]{64}$/.test(corpus.digest)
+  ) {
+    throw new Error('story_source_revision_storyboard_corpus_invalid');
+  }
+  const { digest, ...payload } = corpus;
+  if (sha256(canonicalBytes(payload)) !== digest) {
+    throw new Error('story_source_revision_storyboard_corpus_invalid');
+  }
+  const storyKeys = new Set();
+  for (const record of corpus.records) {
+    if (
+      !exactKeys(record, STORYBOARD_CORPUS_RECORD_KEYS) ||
+      !/^[a-z][a-z0-9_]{2,95}$/.test(record.storyKey) ||
+      storyKeys.has(record.storyKey)
+    ) {
+      throw new Error('story_source_revision_storyboard_corpus_invalid');
+    }
+    storyKeys.add(record.storyKey);
+  }
+  const matches = corpus.records.filter(
+    (record) => record.storyKey === request.storyKey,
+  );
+  const record = matches[0];
+  if (
+    matches.length !== 1 ||
+    record.companionId !== sourceManifest.record.companionId ||
+    record.direction !== sourceManifest.record.direction ||
+    record.category !== sourceManifest.record.category ||
+    record.pageCount !== sourceManifest.record.textPageCount ||
+    record.sourceStorySha256 !== sourceFile.sha256 ||
+    record.visualDirectionSha256 !== directionFile.sha256
+  ) {
+    throw new Error('story_source_revision_storyboard_binding_invalid');
+  }
+  return record;
+}
+
 function buildStorySourceRevision({ requestFile, outputDir, write }) {
   const request = requestFile.request;
   const sourceManifestFile = readBoundRepoFile(
@@ -483,11 +571,21 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
     'story_source_revision_direction_invalid',
     STORYBOARD_INPUT_ROOT,
   );
+  const storyboardCorpusManifestFile = readContainedRepoFile(
+    `${path.posix.dirname(request.visualDirections.record.path)}/manifest.json`,
+    512 * 1024,
+    'story_source_revision_storyboard_corpus_invalid',
+    STORYBOARD_INPUT_ROOT,
+  );
 
   let sourceManifest;
+  let storyboardCorpusManifest;
   let directionRecord;
   try {
     sourceManifest = JSON.parse(sourceManifestFile.bytes.toString('utf8'));
+    storyboardCorpusManifest = JSON.parse(
+      storyboardCorpusManifestFile.bytes.toString('utf8'),
+    );
     directionRecord = JSON.parse(directionFile.bytes.toString('utf8'));
   } catch {
     throw new Error('story_source_revision_input_json_invalid');
@@ -505,6 +603,13 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
     },
   };
   validateVisualDirectionRecord(directionRecord, request.storyKey, sourceStory.declaredPages);
+  validateStoryboardCorpusManifest(
+    storyboardCorpusManifest,
+    request,
+    sourceManifest,
+    sourceFile,
+    directionFile,
+  );
 
   const revisedSourceText = applyExactTextReplacements(
     sourceText,
@@ -609,6 +714,12 @@ function buildStorySourceRevision({ requestFile, outputDir, write }) {
         path: directionFile.relativePath,
         bytes: directionFile.bytes.length,
         sha256: directionFile.sha256,
+      },
+      storyboardCorpusManifest: {
+        path: storyboardCorpusManifestFile.relativePath,
+        bytes: storyboardCorpusManifestFile.bytes.length,
+        sha256: storyboardCorpusManifestFile.sha256,
+        digest: storyboardCorpusManifest.digest,
       },
     },
     outputs: {
@@ -766,10 +877,12 @@ module.exports = {
   canonicalBytes,
   parseArgs,
   readBoundRepoFile,
+  readContainedRepoFile,
   readRequestFile,
   resolveOutputDir,
   resolveProjection,
   sha256,
   storyKeyFromAcceptedSourcePath,
   validateRequest,
+  validateStoryboardCorpusManifest,
 };
