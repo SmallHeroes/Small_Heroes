@@ -1,0 +1,26 @@
+{
+  "briefId": "chameleon_koko_bedtime_walking_bus_stop_brief_v1",
+  "corrected": {
+    "acceptedStorySha256": "2100ea1494a9d9112b842113470ba3d3cb6ad8f36749256dc8ab7d68291ecb75",
+    "directionMigration": {
+      "digest": "593e0d8b3d957e073a27f9ceca150ca3b8a56329646090ff7ac89646ecf50d50",
+      "sha256": "5712aa6b79a5ecafab92fc114ca8323ed6ed8c159004d1d03b5c049c166f5939"
+    },
+    "integratedStorySha256": "3aac47b55f606fd65a127c0679ffb42e6b16f93783d7a6386d81e5e8db01cef4",
+    "visualDirectionSha256": "a3b9483889c56caf0698eac87e62f89978e589f377c3a0ca5299a3d5075e3d29"
+  },
+  "metadataChanges": [
+    {
+      "field": "gender",
+      "from": "female",
+      "to": "neutral"
+    }
+  ],
+  "parent": {
+    "acceptedManifestSha256": "32b3d0b7777839d874dc412c7c84a0cb8744512372791d51b2cd6b66d3cec4dd",
+    "acceptedStorySha256": "49d2866ee4cdef5ea5155c87f7769f6c653ba224ff4b5ec490a039dfd632a76d"
+  },
+  "sourceGenderMode": "neutral",
+  "storyKey": "chameleon_koko_bedtime",
+  "version": "small-heroes-story-source-revision-identity/v2"
+}

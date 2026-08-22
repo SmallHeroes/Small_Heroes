@@ -1,0 +1,25 @@
+{
+  "authorityScope": "deterministic_direction_text_migration_only",
+  "digest": "593e0d8b3d957e073a27f9ceca150ca3b8a56329646090ff7ac89646ecf50d50",
+  "fallbackUsed": false,
+  "previousDirectionSha256": "9656e61abb35cdcf9dbffa9e0ace5bc5996714f9f36d581d881173977c523070",
+  "providerCalls": 0,
+  "replacements": [
+    {
+      "expectedCount": 1,
+      "field": "mainAction",
+      "pageNumber": 6
+    },
+    {
+      "expectedCount": 1,
+      "field": "mainAction",
+      "pageNumber": 8
+    }
+  ],
+  "revisedDirectionSha256": "a3b9483889c56caf0698eac87e62f89978e589f377c3a0ca5299a3d5075e3d29",
+  "sourceStorySha256": "2100ea1494a9d9112b842113470ba3d3cb6ad8f36749256dc8ab7d68291ecb75",
+  "status": "pending_exact_review",
+  "storyKey": "chameleon_koko_bedtime",
+  "transportRetries": 0,
+  "version": "small-heroes-story-visual-direction-deterministic-migration/v1"
+}

@@ -1,0 +1,79 @@
+{
+  "authorityScope": "story_source_and_visual_directions_only",
+  "briefId": "chameleon_koko_bedtime_walking_bus_stop_brief_v1",
+  "digest": "b090505e232dc02c06ff8c3ce7684d2b433a00f9bba9fa907c541066da00dadd",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "production",
+    "render",
+    "runtime_locator",
+    "story_bank",
+    "visual_contract",
+    "visual_package"
+  ],
+  "files": {
+    "directionMigration": {
+      "bytes": 865,
+      "digest": "593e0d8b3d957e073a27f9ceca150ca3b8a56329646090ff7ac89646ecf50d50",
+      "filename": "direction-migration.json",
+      "sha256": "5712aa6b79a5ecafab92fc114ca8323ed6ed8c159004d1d03b5c049c166f5939"
+    },
+    "integratedStory": {
+      "bytes": 9642,
+      "filename": "integrated.md",
+      "sha256": "3aac47b55f606fd65a127c0679ffb42e6b16f93783d7a6386d81e5e8db01cef4"
+    },
+    "pendingManifest": {
+      "bytes": 3687,
+      "digest": "5864b11f6750d45948d2af8067344c01b2daf2d586af6fa0ff623f13d3635f53",
+      "filename": "source-revision-manifest.json",
+      "sha256": "2e89207215c1f64d53bab0448f71eced8b5787677821a1a97f496ce5eff116fc"
+    },
+    "reviewBundle": {
+      "bytes": 18133,
+      "digest": "2a84d1785e771072b5601e6fe1c85f84bd793b1666c229239ae60b3064d38565",
+      "filename": "review-bundle.json",
+      "sha256": "6d2921c51ad1e3dcc7baceb852fdb4af71ceb0a761b0c6179cfe6cbdaa9dfed9"
+    },
+    "revisionIdentity": {
+      "bytes": 1038,
+      "digest": "20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb",
+      "filename": "revision-identity.json",
+      "sha256": "20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb"
+    },
+    "story": {
+      "bytes": 6221,
+      "filename": "story.md",
+      "sha256": "2100ea1494a9d9112b842113470ba3d3cb6ad8f36749256dc8ab7d68291ecb75"
+    },
+    "visualDirections": {
+      "bytes": 5684,
+      "filename": "visual-directions.json",
+      "sha256": "a3b9483889c56caf0698eac87e62f89978e589f377c3a0ca5299a3d5075e3d29"
+    }
+  },
+  "metadataChanges": [
+    {
+      "field": "gender",
+      "from": "female",
+      "to": "neutral"
+    }
+  ],
+  "parent": {
+    "acceptedManifestSha256": "32b3d0b7777839d874dc412c7c84a0cb8744512372791d51b2cd6b66d3cec4dd",
+    "acceptedStorySha256": "49d2866ee4cdef5ea5155c87f7769f6c653ba224ff4b5ec490a039dfd632a76d"
+  },
+  "productAcceptance": {
+    "acceptedAt": "2026-08-22T04:52:27.429Z",
+    "acceptedBy": "Guy",
+    "bytes": 1582,
+    "path": "story-pipeline/04_approved_story_sources/approvals/revisions/chameleon_koko_bedtime/20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb.product-acceptance.json",
+    "sha256": "b64bd26589d9231e209377ebf93652c9a86c46a21ca41b4b3b8b9776bda49ee9"
+  },
+  "revisionDigest": "20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb",
+  "sourceGenderMode": "neutral",
+  "status": "product_accepted_story_source_revision",
+  "storyKey": "chameleon_koko_bedtime",
+  "version": "small-heroes-product-accepted-story-source-revision-manifest/v2"
+}

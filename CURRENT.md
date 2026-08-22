@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
-## CHAMELEON GENDER-FLEXIBLE SOURCE AUTHORITY — PENDING V4, ZERO SPEND
+## CHAMELEON GENDER-FLEXIBLE SOURCE AUTHORITY — PRODUCT-ACCEPTED REVISION V2
 
 The first Bar Wizard order remains immutable legacy-path incident evidence and
 cannot prove the new Visual Package/Board engine. The previously prepared v3
@@ -29,7 +29,7 @@ digests, and female-prose equality after removing only the one canonical gender
 line. Historical accepted Story Source, storyboard corpus, approved package,
 current locator and Set Boards remain unchanged.
 
-The fresh pending-only artifact is:
+The source revision began as the following fresh pending-only artifact:
 
 - request `outputs/r1d-chameleon-gender-revision-request-v3.json`, SHA-256
   `19142a82f8856b0a908e8e65bf2fc9bbf4c61c8ff227598c87def5ee653fcfed`;
@@ -75,12 +75,11 @@ therefore remains truthfully non-green on the five baseline fixture failures
 and worker infrastructure, not on this source-authority correction.
 
 The pending root is fresh-only by design: an identical second mint is rejected
-before writing; its five-file byte inventory remained unchanged. No approval,
-promotion, provider, render, deployment, database or storage operation occurred.
-Claude Code independently re-gated the immutable source-authority range
+before writing; its five-file byte inventory remained unchanged. Claude Code
+independently re-gated the immutable source-authority range
 `38971f17..7327031c` with **0 BLOCKER / 0 MAJOR / 0 MINOR**.
 
-The next offline milestone is now implemented locally: the revision lifecycle
+The revision lifecycle was then implemented locally: it
 accepts only pending v4 and produces review bundle, acceptance, revision identity
 and accepted manifest v2. The review exposes the exact neutral metadata change
 and complete boy/girl projections. Parent-manifest, technical-review, output and
@@ -94,9 +93,33 @@ both TypeScript checks pass. Literal `npm run check` passed **3,459** ordinary
 assertions and exposed the same five missing ignored-output fixtures plus the
 new test-inventory count; that count is corrected and green in the focused
 replacement. Resource-intensive passed **611/611** and retained only the three
-known worker RPC timeouts. No acceptance or promotion has occurred. This
-lifecycle milestone still requires a focused commit and independent Claude Code
-re-gate before Codex may mint the exact technical/product-review digests for Guy.
+known worker RPC timeouts. Claude Code independently re-gated lifecycle range
+`7327031c..7f2cc2f9` with **0 BLOCKER / 0 MAJOR / 0 MINOR**.
+
+The independently reviewed technical artifact is
+`b98cf8c541bf41f9fba4d36aa9d56c9dc47d22914c6869192f34db374a3eaae2`.
+The exact product-review bundle is
+`2a84d1785e771072b5601e6fe1c85f84bd793b1666c229239ae60b3064d38565`,
+and its Story Source revision is
+`20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb`.
+Guy explicitly approved both latter identities. Codex recorded that decision in
+product-acceptance v2 with exact `acceptedBy: Guy` and canonical timestamp
+`2026-08-22T04:52:27.429Z`.
+
+The canonical lifecycle preview proved the target absent without writing. The
+authorized promotion then atomically published the immutable eight-file accepted
+revision at
+`story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb/`.
+Its accepted manifest is v2 with digest
+`b090505e232dc02c06ff8c3ce7684d2b433a00f9bba9fa907c541066da00dadd`;
+it binds the exact product acceptance, source, directions, integrated source,
+review, pending manifest and revision identity. An immediate second authorized
+promotion returned `created: false` with byte-identical inventory, proving exact
+replay. The post-promotion lifecycle/materializer suites pass **2 files / 17
+tests**; `tsc --noEmit`, autonomous Story typecheck and `git diff --check` pass.
+No provider, render, deployment, database, storage or current-locator operation
+occurred. The accepted revision is not yet the current Wizard package authority;
+that downstream reconstruction remains the next zero-spend milestone.
 
 ## FIRST PHOTO-BACKED BAR WIZARD BOOK — FULL GENERATION COMPLETE, RELEASE HELD FOR RECOVERY
 

@@ -1,0 +1,154 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "chameleon_koko_bedtime",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "street_corner_bus_stop",
+      "setting": "Street-corner bus stop at dusk",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "walking bus stop"
+      ],
+      "mainAction": "The bus stop unfolds two thin legs beneath its bench and steps away as the child and Kim watch.",
+      "heroObject": "walking bus stop",
+      "shotType": "wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft evening light with the first warm streetlamps",
+      "continuityAnchors": []
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "street_corner_bus_stop",
+      "setting": "Sidewalk beside the vacated street corner",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "walking bus stop"
+      ],
+      "mainAction": "The child tries to turn the bus stop back while it braces its legs and folds its bench like stubborn arms; Kim observes.",
+      "heroObject": "braced walking bus stop",
+      "shotType": "medium",
+      "cameraAngle": "low_angle",
+      "lighting": "Deepening dusk under a warm streetlamp",
+      "continuityAnchors": [
+        "same bus stop with two thin legs"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "sleeping_alleys",
+      "setting": "Narrow residential alleys beneath balconies and laundry lines",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "walking bus stop"
+      ],
+      "mainAction": "Standing on the bench, the child frees the bus-stop roof from a laundry line while Kim wears the fallen striped sock.",
+      "heroObject": "snagged bus-stop roof",
+      "shotType": "medium_wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Gentle blue evening light from windows and streetlamps",
+      "continuityAnchors": [
+        "same walking bus stop",
+        "striped sock fallen from laundry line"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "evening_city_landmarks",
+      "setting": "Evening route past the bakery, fountain square, and playground",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "walking bus stop",
+        "baker"
+      ],
+      "mainAction": "The child and bus stop listen while Kim closes her eyes, with the busy bakery, splashing fountain, and still-moving swing marking noisy choices.",
+      "heroObject": "walking bus stop",
+      "shotType": "wide",
+      "cameraAngle": "high_angle",
+      "lighting": "Warm bakery glow against a darkening blue evening",
+      "continuityAnchors": [
+        "same walking bus stop"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "night_street",
+      "setting": "Quiet town street at night",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "walking bus stop",
+        "bus driver"
+      ],
+      "mainAction": "The bus stop runs after the last bus while waving its timetable, but the bus has stopped just ahead of it again; Kim spins nearby.",
+      "heroObject": "last bus and pursuing bus stop",
+      "shotType": "wide",
+      "cameraAngle": "ground_level",
+      "lighting": "Yellow bus headlights and streetlamps in the night",
+      "continuityAnchors": [
+        "same walking bus stop"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "quiet_curb_bay",
+      "setting": "Quiet curb bay behind the garden",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "walking bus stop",
+        "bus driver"
+      ],
+      "mainAction": "The child creates a temporary stop with the child's backpack as a bench and raised flashlight as a tiny moon while Kim waits and the bus opens its door.",
+      "heroObject": "temporary bus stop",
+      "shotType": "medium_wide",
+      "cameraAngle": "eye_level",
+      "lighting": "Soft streetlamp light with a bright flashlight glow",
+      "continuityAnchors": [
+        "same last bus",
+        "same walking bus stop"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "quiet_garden_neighborhood",
+      "setting": "Small garden between two trees in a quiet neighborhood",
+      "childPresence": "partial",
+      "companionPresence": "partial",
+      "supportingCharacters": [
+        "walking bus stop",
+        "bus driver",
+        "cat"
+      ],
+      "mainAction": "The bus stop steps down, spreads its roof between two trees, and settles as a cat sits on its bench; the child and Kim watch from the bus.",
+      "heroObject": "bus stop settled between two trees",
+      "shotType": "wide",
+      "cameraAngle": "three_quarter",
+      "lighting": "Hushed moonlight with warm light from the bus",
+      "continuityAnchors": [
+        "same last bus",
+        "same walking bus stop now carried across town"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "child_bedroom",
+      "setting": "Child's bedroom at night",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child rests in bed with Kim curled beside the child while the last bus passes softly outside.",
+      "heroObject": null,
+      "shotType": "medium",
+      "cameraAngle": "eye_level",
+      "lighting": "Dim cozy bedside light with cool moonlight at the window",
+      "continuityAnchors": [
+        "same last bus"
+      ]
+    }
+  ]
+}

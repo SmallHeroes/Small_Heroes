@@ -1,0 +1,93 @@
+{
+  "authorityScope": "story_source_and_visual_directions_only",
+  "briefId": "chameleon_koko_bedtime_walking_bus_stop_brief_v1",
+  "digest": "5864b11f6750d45948d2af8067344c01b2daf2d586af6fa0ff623f13d3635f53",
+  "inputs": {
+    "acceptedManifest": {
+      "bytes": 1642,
+      "path": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/manifest.json",
+      "sha256": "32b3d0b7777839d874dc412c7c84a0cb8744512372791d51b2cd6b66d3cec4dd"
+    },
+    "acceptedStory": {
+      "bytes": 5976,
+      "path": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/story.md",
+      "sha256": "49d2866ee4cdef5ea5155c87f7769f6c653ba224ff4b5ec490a039dfd632a76d"
+    },
+    "storyboardCorpusManifest": {
+      "bytes": 10988,
+      "digest": "a793038efca754ea028aa9fc528f896261ade25b671865657282fb6220cfb6fa",
+      "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/manifest.json",
+      "sha256": "2c884372b36b4e45266490f920fdae2c59809a4e8a444e4780471de8e62c631d"
+    },
+    "visualDirections": {
+      "bytes": 5670,
+      "path": "story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/chameleon_koko_bedtime.visual-directions.json",
+      "sha256": "9656e61abb35cdcf9dbffa9e0ace5bc5996714f9f36d581d881173977c523070"
+    }
+  },
+  "invariants": {
+    "approved": false,
+    "databaseWrites": 0,
+    "editoriallyCanonical": true,
+    "historicalInputsRewritten": false,
+    "integratedSourceProjectionExact": true,
+    "providerCalls": 0,
+    "renders": 0,
+    "storageWrites": 0,
+    "visualDirectionsValid": true
+  },
+  "metadataChanges": [
+    {
+      "field": "gender",
+      "from": "female",
+      "to": "neutral"
+    }
+  ],
+  "outputs": {
+    "acceptedStoryCandidate": {
+      "bytes": 6221,
+      "filename": "2100ea1494a9d9112b842113470ba3d3cb6ad8f36749256dc8ab7d68291ecb75.story.md",
+      "sha256": "2100ea1494a9d9112b842113470ba3d3cb6ad8f36749256dc8ab7d68291ecb75"
+    },
+    "directionMigration": {
+      "bytes": 865,
+      "digest": "593e0d8b3d957e073a27f9ceca150ca3b8a56329646090ff7ac89646ecf50d50",
+      "filename": "593e0d8b3d957e073a27f9ceca150ca3b8a56329646090ff7ac89646ecf50d50.direction-migration.json",
+      "sha256": "5712aa6b79a5ecafab92fc114ca8323ed6ed8c159004d1d03b5c049c166f5939"
+    },
+    "integratedStoryCandidate": {
+      "bytes": 9642,
+      "filename": "3aac47b55f606fd65a127c0679ffb42e6b16f93783d7a6386d81e5e8db01cef4.integrated.md",
+      "sha256": "3aac47b55f606fd65a127c0679ffb42e6b16f93783d7a6386d81e5e8db01cef4"
+    },
+    "visualDirectionCandidate": {
+      "bytes": 5684,
+      "filename": "a3b9483889c56caf0698eac87e62f89978e589f377c3a0ca5299a3d5075e3d29.visual-directions.json",
+      "sha256": "a3b9483889c56caf0698eac87e62f89978e589f377c3a0ca5299a3d5075e3d29"
+    }
+  },
+  "projections": {
+    "female": {
+      "byteIdenticalToPrevious": false,
+      "bytes": 5923,
+      "proseByteIdenticalToPrevious": true,
+      "proseBytes": 5907,
+      "proseSha256": "c4e50ece51dbeb19687682f64dda8b0915e532da4e53de4eb60997b1571c21bd",
+      "sha256": "19efe8f3f3f62adf219ee903f3a2b20be0ccc1cdcabf4cf75c9806d1483a872d"
+    },
+    "male": {
+      "bytes": 5883,
+      "sha256": "75999df45ff3b7e04bd8d390c51fd892cf03154a3d56e7a64afe64cf8909ce8d"
+    }
+  },
+  "request": {
+    "bytes": 4032,
+    "path": "outputs/r1d-chameleon-gender-revision-request-v3.json",
+    "sha256": "19142a82f8856b0a908e8e65bf2fc9bbf4c61c8ff227598c87def5ee653fcfed",
+    "version": "small-heroes-story-source-revision-request/v3"
+  },
+  "sourceGenderMode": "neutral",
+  "status": "pending_exact_product_review",
+  "storyKey": "chameleon_koko_bedtime",
+  "version": "small-heroes-story-source-revision-pending-manifest/v4"
+}

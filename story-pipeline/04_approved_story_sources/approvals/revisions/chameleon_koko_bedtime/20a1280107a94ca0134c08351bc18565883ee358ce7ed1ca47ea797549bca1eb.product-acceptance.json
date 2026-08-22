@@ -1,0 +1,42 @@
+{
+  "acceptedAt": "2026-08-22T04:52:27.429Z",
+  "acceptedBy": "Guy",
+  "acceptedStorySha256": "2100ea1494a9d9112b842113470ba3d3cb6ad8f36749256dc8ab7d68291ecb75",
+  "decision": "Guy approved the exact Story Source Revision and Product Review Bundle named in this artifact.",
+  "directionMigration": {
+    "digest": "593e0d8b3d957e073a27f9ceca150ca3b8a56329646090ff7ac89646ecf50d50",
+    "sha256": "5712aa6b79a5ecafab92fc114ca8323ed6ed8c159004d1d03b5c049c166f5939"
+  },
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "production",
+    "render",
+    "runtime_locator",
+    "story_bank",
+    "visual_contract",
+    "visual_package"
+  ],
+  "integratedStorySha256": "3aac47b55f606fd65a127c0679ffb42e6b16f93783d7a6386d81e5e8db01cef4",
+  "metadataChanges": [
+    {
+      "field": "gender",
+      "from": "female",
+      "to": "neutral"
+    }
+  ],
+  "pendingManifest": {
+    "digest": "5864b11f6750d45948d2af8067344c01b2daf2d586af6fa0ff623f13d3635f53",
+    "sha256": "2e89207215c1f64d53bab0448f71eced8b5787677821a1a97f496ce5eff116fc"
+  },
+  "reviewBundle": {
+    "digest": "2a84d1785e771072b5601e6fe1c85f84bd793b1666c229239ae60b3064d38565",
+    "sha256": "6d2921c51ad1e3dcc7baceb852fdb4af71ceb0a761b0c6179cfe6cbdaa9dfed9"
+  },
+  "revisionDigest": "20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb",
+  "sourceGenderMode": "neutral",
+  "status": "accepted",
+  "storyKey": "chameleon_koko_bedtime",
+  "version": "small-heroes-story-source-revision-product-acceptance/v2",
+  "visualDirectionSha256": "a3b9483889c56caf0698eac87e62f89978e589f377c3a0ca5299a3d5075e3d29"
+}
