@@ -41,6 +41,29 @@ Focused payment, fake-payment, refund and book-ready reachability validation is
 **5 files / 68 tests PASS**; Next route type generation, repository-wide
 `tsc --noEmit` and `git diff --check` are green.
 
+Post-run authority reconstruction proves that this first Bar order used the
+legacy render fallback: its Order/cache/evidence contain no frozen Visual
+Contract hash, Visual Package authority, Set Board bindings or runtime authority
+observability. The paid-image half-legacy fence correctly prevents post-hoc
+activation, so the retained order is incident evidence rather than a new-engine
+Wizard proof. A branch-scoped Preview override now sets
+`VISUAL_CONTRACT_ENFORCEMENT=true`; Production is untouched. A Vercel redeploy
+reached READY but carries no branch/commit metadata, so it has not been aliased
+to `qa.smallheroes.co.il` and is not accepted as cutover evidence.
+
+The replacement zero-spend preflight is implemented locally. It runs the real
+current v5 Chameleon package selection, deterministic contract materialization,
+package binding, approved Board lookup, a second Board-byte re-read at the
+provider-adjacent gate, and cover plus all eight page-reference checks. It has
+no Order, database or provider callback. On the real package it returns the
+approved revision `a9c253d9…`, source `2d00d37e…`, two Board bindings and frames
+0–8 with counters fixed at zero except exactly four Board storage reads. A
+second-read SHA drift fails closed. Focused authority validation is **6 files /
+57 tests PASS**; repository-wide `tsc --noEmit` and `git diff --check` pass.
+The endpoint remains non-production-only. It must be independently reviewed,
+pushed and deployed from an identifiable commit before its remote result can
+authorize a fresh paid Wizard order.
+
 Claude Code's first read-only review returned technical PASS with three minor
 maintainability/test notes. The follow-up keeps the callback locally non-throwing
 so one persistence failure emits only the authoritative hold log, corrects the

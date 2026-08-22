@@ -114,3 +114,28 @@ absence of release bypasses.
   nine artifacts have real non-unknown evidence.
 - Do not self-approve a new content digest as Guy.
 - Do not deploy to production.
+
+## 12. Post-run provenance correction and zero-spend cutover proof
+
+The completed Bar order is now proven to have rendered through the legacy
+fallback: it has no frozen contract hash, Visual Package authority, Set Board
+bindings, or runtime-authority observability. The paid-image half-legacy fence
+correctly forbids attaching those authorities after the fact. Therefore this
+order remains immutable incident evidence and cannot become proof of the new
+engine, even if its stored bytes later pass visual QA.
+
+Before any fresh paid order, add one protected non-production preflight that
+runs the same read-only authority chain used immediately before a Style 01
+provider call: current Visual Package selection, deterministic contract
+materialization and package binding, approved Set Board lookup plus byte
+verification, and cover/page reference qualification. It must return only
+closed status, content digests, set identities and zero-effect counters. It
+must have no Order, database-write, image, audio, Vision, retry, fallback,
+approval, publication, locator-update or Production capability.
+
+The Preview branch receives an exact `VISUAL_CONTRACT_ENFORCEMENT=true`
+override and a fresh QA-only deployment. A passing local test is necessary but
+not sufficient; the deployed preflight must pass before another paid order.
+Changing the source gender projection remains a separate content-authority
+revision. The historical approved source and package are not rewritten, and
+no future digest is approved on Guy's behalf.
