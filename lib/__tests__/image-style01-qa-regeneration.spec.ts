@@ -163,6 +163,7 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
     expect(storeBufferSpy).toHaveBeenCalledTimes(1);
     expect(evaluateQaSpy).not.toHaveBeenCalled();
     expect(reserve).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledTimes(1);
     expect(result.style01Meta?.needsHumanReview).toBe(true);
     expect(result.style01Meta?.candidatePersistenceError).toBe('candidate row unavailable');
     expect(result.style01Meta?.pageVisualQa).toEqual(expect.objectContaining({
@@ -270,6 +271,7 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
       topicLabel: 'Courage',
       storyTitle: 'Noa and the Quiet Light',
       illustrationStyle: 'soft_hand_drawn_storybook',
+      childDescription: 'A six-year-old child with short dark hair and a calm expression.',
       orderId: 'order-r1a',
       onCandidateUploaded: async (candidate) => {
         events.push(`persist:${candidate.url}`);
@@ -289,6 +291,7 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
       topicLabel: 'Courage',
       storyTitle: 'Noa and the Quiet Light',
       illustrationStyle: 'soft_hand_drawn_storybook',
+      childDescription: 'A six-year-old child with short dark hair and a calm expression.',
       orderId: 'order-r1a',
       onCandidateUploaded: async () => {
         throw new Error('cover candidate row unavailable');
@@ -298,10 +301,11 @@ describe('shipped Style01 caller — QA evidence versus image-regeneration budge
     expect(generateGptSpy).toHaveBeenCalledTimes(1);
     expect(storeBufferSpy).toHaveBeenCalledTimes(1);
     expect(evaluateQaSpy).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledTimes(1);
     expect(result.style01Meta?.needsHumanReview).toBe(true);
     expect(result.style01Meta?.candidatePersistenceError).toBe('cover candidate row unavailable');
     expect(result.style01Meta?.pageVisualQa?.qaInput).toEqual({
-      expectsChild: false,
+      expectsChild: true,
       expectsCompanion: false,
       expectedPageTimeOfDay: 'day',
       isEmotionalClosing: false,

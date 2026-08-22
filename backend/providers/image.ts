@@ -3301,8 +3301,8 @@ async function generateWithGPTImageStyle01Phase2(input: ImageInput): Promise<Gen
             await input.onCandidateUploaded!(candidate);
           } catch (error) {
             candidatePersistenceError = error instanceof Error ? error.message : String(error);
-            // The upload helper remains non-throwing; this marker lets the outer loop hold instead of QA/regenerate.
-            throw error;
+            // Record the failure locally. The one-shot renderer has already uploaded the bytes; returning here lets
+            // the outer loop emit the single authoritative hold instead of duplicating a generic persistence warning.
           }
         }
       : undefined;
