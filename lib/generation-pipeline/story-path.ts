@@ -1,7 +1,11 @@
 import path from 'path';
+import fs from 'fs';
 
 import { STORY_BANK_V3_DIR_NAME } from '@/backend/providers/story-bank-index';
-import type { PipelineCache } from './types';
+import type {
+  PipelineCache,
+  RuntimeStorySourceAuthorityKind,
+} from './types';
 
 /**
  * Story-path helpers for pipelineCache (roundtable 0095 P0)
@@ -23,8 +27,30 @@ export function toRepoRelativeStoryPath(p: string): string {
 
 type StoryRefCache = Pick<
   PipelineCache,
-  'devStoryBankFile' | 'storyFilePath' | 'storyDir' | 'selectionFilename'
+  | 'devStoryBankFile'
+  | 'storyFilePath'
+  | 'storyDir'
+  | 'selectionFilename'
+  | 'storyKey'
+  | 'storySourceAuthorityKind'
 >;
+
+export interface FrozenOrderStorySelection {
+  storyFilePath: string;
+  storyFileRef: string;
+  storyDir: string | null;
+  storyKey: string;
+  storySourceAuthorityKind: RuntimeStorySourceAuthorityKind;
+  selectionFilename: string;
+  revisionDigest: string | null;
+}
+
+const STORY_SEGMENT = /^[a-z0-9]+(?:[a-z0-9_-]*[a-z0-9])?$/;
+const REVISION_DIGEST = /^[0-9a-f]{64}$/;
+
+function safeSegment(value: string): boolean {
+  return STORY_SEGMENT.test(value) && value !== '.' && value !== '..';
+}
 
 /**
  * Resolve the absolute story `.md` path from cache. Handles, in order:
@@ -49,27 +75,33 @@ export function resolveCachedStoryFilePath(cache: StoryRefCache): string | undef
  */
 export function resolveFrozenOrderStorySelection(
   selectionFilename: string | null | undefined,
-): {
-  storyFilePath: string;
-  storyFileRef: string;
-  storyDir: string;
-  selectionFilename: string;
-} | null {
-  const relative = String(selectionFilename ?? '')
+  options: { repoRoot?: string } = {},
+): FrozenOrderStorySelection | null {
+  const supplied = String(selectionFilename ?? '');
+  const relative = supplied
     .trim()
     .replace(/\\/g, '/');
   const parts = relative.split('/');
-  if (
-    parts.length !== 3 ||
-    parts[0] !== 'story-bank' ||
-    !parts[1] ||
-    !parts[2] ||
-    !parts[2].endsWith('.md') ||
-    parts.some((part) => part === '.' || part === '..')
-  ) {
+  const legacyStoryBank =
+    parts.length === 3 &&
+    parts[0] === 'story-bank' &&
+    safeSegment(parts[1]) &&
+    parts[2].endsWith('.md') &&
+    safeSegment(parts[2].slice(0, -3));
+  const acceptedRevision =
+    parts.length === 7 &&
+    parts[0] === 'story-pipeline' &&
+    parts[1] === '04_approved_story_sources' &&
+    parts[2] === 'accepted' &&
+    safeSegment(parts[3]) &&
+    parts[4] === 'revisions' &&
+    REVISION_DIGEST.test(parts[5]) &&
+    parts[6] === 'integrated.md' &&
+    supplied === relative;
+  if (!legacyStoryBank && !acceptedRevision) {
     return null;
   }
-  const root = path.resolve(process.cwd());
+  const root = path.resolve(options.repoRoot ?? process.cwd());
   const storyFilePath = path.resolve(root, ...parts);
   const contained = path.relative(root, storyFilePath);
   if (
@@ -82,7 +114,111 @@ export function resolveFrozenOrderStorySelection(
   return {
     storyFilePath,
     storyFileRef: relative,
-    storyDir: parts[1],
-    selectionFilename: parts[2],
+    storyDir: legacyStoryBank ? parts[1] : null,
+    storyKey: legacyStoryBank ? parts[2].slice(0, -3) : parts[3],
+    storySourceAuthorityKind: legacyStoryBank
+      ? 'legacy_story_bank'
+      : 'product_accepted_revision',
+    selectionFilename: legacyStoryBank ? parts[2] : parts[6],
+    revisionDigest: acceptedRevision ? parts[5] : null,
   };
+}
+
+/**
+ * Reject link-based authority substitution before reading frozen Story Source
+ * bytes. The deployment asset must be one ordinary file whose real path stays
+ * inside the same repository root; a hard link is also rejected because its
+ * bytes can be mutated through a second filesystem name.
+ */
+export function assertFrozenOrderStorySourceFile(
+  selection: FrozenOrderStorySelection,
+  options: { repoRoot?: string } = {},
+): void {
+  try {
+    const root = path.resolve(options.repoRoot ?? process.cwd());
+    const expected = path.resolve(root, ...selection.storyFileRef.split('/'));
+    if (path.resolve(selection.storyFilePath) !== expected) {
+      throw new Error('frozen_story_source_path_mismatch');
+    }
+    const local = fs.lstatSync(expected);
+    if (!local.isFile() || local.isSymbolicLink()) {
+      throw new Error('frozen_story_source_not_regular_file');
+    }
+    const stat = fs.statSync(expected);
+    if (stat.nlink !== 1) {
+      throw new Error('frozen_story_source_link_count_invalid');
+    }
+    const realRoot = fs.realpathSync.native(root);
+    const realFile = fs.realpathSync.native(expected);
+    const relative = path.relative(realRoot, realFile);
+    if (
+      !relative ||
+      relative.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(relative)
+    ) {
+      throw new Error('frozen_story_source_realpath_escape');
+    }
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith('frozen_story_source_')
+    ) {
+      throw error;
+    }
+    throw new Error('frozen_story_source_file_unreadable');
+  }
+}
+
+/**
+ * Resolve the package identity carried through the durable pipeline cache.
+ * New accepted-revision orders always persist an explicit key. Historical
+ * caches retain the basename fallback for backwards-compatible resumes.
+ */
+export function runtimeStoryKey(cache: StoryRefCache): string | null {
+  const explicit = cache.storyKey?.trim();
+  const exactRef = cache.storyFilePath ?? cache.devStoryBankFile;
+  const parsedRef =
+    exactRef && !path.isAbsolute(exactRef)
+      ? resolveFrozenOrderStorySelection(exactRef)
+      : null;
+  const normalizedExactRef = String(exactRef ?? '').replace(/\\/g, '/');
+  const claimsAcceptedRevision = normalizedExactRef.startsWith(
+    'story-pipeline/04_approved_story_sources/accepted/',
+  );
+
+  if (explicit) {
+    if (!safeSegment(explicit)) return null;
+    if (claimsAcceptedRevision && !parsedRef) return null;
+    if (
+      cache.selectionFilename?.trim() === 'integrated.md' &&
+      parsedRef?.storySourceAuthorityKind !== 'product_accepted_revision'
+    ) {
+      return null;
+    }
+    if (parsedRef && parsedRef.storyKey !== explicit) return null;
+    if (
+      cache.storySourceAuthorityKind &&
+      parsedRef &&
+      parsedRef.storySourceAuthorityKind !== cache.storySourceAuthorityKind
+    ) {
+      return null;
+    }
+    if (
+      cache.storySourceAuthorityKind === 'product_accepted_revision' &&
+      parsedRef?.storySourceAuthorityKind !== 'product_accepted_revision'
+    ) {
+      return null;
+    }
+    return explicit;
+  }
+
+  if (exactRef && !path.isAbsolute(exactRef)) {
+    if (parsedRef) return parsedRef.storyKey;
+  }
+
+  const name = cache.selectionFilename?.trim();
+  if (!name || name.includes('/') || name.includes('\\')) return null;
+  const key = name.replace(/\.md$/i, '');
+  if (key === 'integrated') return null;
+  return safeSegment(key) ? key : null;
 }

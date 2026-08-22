@@ -17,6 +17,7 @@ import {
 } from './helpers';
 import type { PipelineCache } from './types';
 import {
+  assertFrozenOrderStorySourceFile,
   resolveCachedStoryFilePath,
   resolveFrozenOrderStorySelection,
   toRepoRelativeStoryPath,
@@ -25,6 +26,26 @@ import { resolveCompanionForOrder } from './anchor-registry';
 import { beatsFromStoryPages, resolveBookShotPlan } from '@/lib/book-shot-plan';
 import { buildFrozenStoryProductTruth } from './frozen-product-truth';
 import { withDeliveryInputMutation } from './readiness-manifest';
+
+async function persistStoryFinalizationFailure(
+  orderId: string,
+  error: unknown,
+): Promise<void> {
+  const message = error instanceof Error ? error.message : String(error);
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { textStatus: 'failed', lastError: message },
+  });
+  await prisma.generationJob.update({
+    where: { orderId },
+    data: {
+      status: 'failed',
+      currentStage: 'failed',
+      retryable: true,
+      lastError: message,
+    },
+  });
+}
 
 /**
  * PRE-SPEND gate: load, personalize, validate, and persist final story text.
@@ -42,17 +63,51 @@ export async function finalizeAndPersistStoryText(
   const storyLength = (order.storyLength as 'short' | 'medium' | 'long') ?? 'medium';
   const directionForV3 = effectiveStoryDirectionForV3(order.storyDirection, storyLength);
 
-  let storyFilePath = resolveCachedStoryFilePath(cache);
-  if (!storyFilePath) {
+  let storyFilePath: string | undefined;
+  try {
+    const frozenStoryRef = String(order.selectionFilename ?? '')
+      .trim()
+      .replace(/\\/g, '/');
     const frozenOrderStory = resolveFrozenOrderStorySelection(
       order.selectionFilename,
     );
     if (frozenOrderStory) {
       storyFilePath = frozenOrderStory.storyFilePath;
+      assertFrozenOrderStorySourceFile(frozenOrderStory);
+      if (
+        !order.expectedPageCount ||
+        !order.storySourceHash ||
+        !order.frozenProductVersion
+      ) {
+        throw new StoryBankPersonalizationError(
+          'Frozen Order Story Source authority is incomplete',
+        );
+      }
+      const sourceTruth = buildFrozenStoryProductTruth({
+        storyFilePath,
+        expectedPageCount: order.expectedPageCount,
+        storyDirection: directionForV3,
+      });
+      if (
+        sourceTruth.selectionFilename !== order.selectionFilename ||
+        sourceTruth.storySourceHash !== order.storySourceHash ||
+        sourceTruth.frozenProductVersion !== order.frozenProductVersion ||
+        sourceTruth.expectedPageCount !== order.expectedPageCount
+      ) {
+        throw new StoryBankPersonalizationError(
+          'Frozen Order Story Source authority does not match repository bytes',
+        );
+      }
+      const { storyDir: _staleStoryDir, ...cacheWithoutStoryDir } = cache;
       cache = {
-        ...cache,
+        ...cacheWithoutStoryDir,
         storyFilePath: frozenOrderStory.storyFileRef,
-        storyDir: frozenOrderStory.storyDir,
+        ...(frozenOrderStory.storyDir
+          ? { storyDir: frozenOrderStory.storyDir }
+          : {}),
+        storyKey: frozenOrderStory.storyKey,
+        storySourceAuthorityKind:
+          frozenOrderStory.storySourceAuthorityKind,
         // Story Markdown stays on the v3 loader contract; the v4 authority is
         // carried separately by the exact repo-relative storyFilePath and the
         // frozen Visual Package authority.
@@ -61,28 +116,64 @@ export async function finalizeAndPersistStoryText(
         directionForV3,
         challengeCategory,
       };
-    }
-  }
-  if (!storyFilePath) {
-    const selection = selectCompanionStory(resolvedCompanion?.id, directionForV3);
-    if (!selection) {
+    } else if (
+      frozenStoryRef.startsWith(
+        'story-pipeline/04_approved_story_sources/accepted/',
+      )
+    ) {
       throw new StoryBankPersonalizationError(
-        `No companion story file for companion=${resolvedCompanion?.id ?? '(none)'} direction=${directionForV3} — ` +
-          'v1 category/raw fallback removed; bind a v3-approved golden for this product.'
+        'Product-accepted Story Source reference is invalid',
       );
+    } else {
+      const cachedAcceptedRevisionRef = [
+        cache.devStoryBankFile,
+        cache.storyFilePath,
+      ].find((value) =>
+        String(value ?? '')
+          .replace(/\\/g, '/')
+          .startsWith(
+            'story-pipeline/04_approved_story_sources/accepted/',
+          ),
+      );
+      if (cachedAcceptedRevisionRef) {
+        throw new StoryBankPersonalizationError(
+          'Accepted-revision cache source lacks exact frozen Order authority',
+        );
+      }
+      storyFilePath = resolveCachedStoryFilePath(cache);
     }
-    const storyDir = selection.dirName ?? STORY_BANK_V3_DIR_NAME;
-    storyFilePath = path.join(process.cwd(), 'story-bank', storyDir, selection.filename);
-    cache = {
-      ...cache,
-      // Store the story ref REPO-RELATIVE (0095 P0) — absolute paths must not enter pipelineCache.
-      storyFilePath: toRepoRelativeStoryPath(storyFilePath),
-      storyDir,
-      storyBankVersion: 'v3',
-      selectionFilename: selection.filename,
-      directionForV3,
-      challengeCategory,
-    };
+    if (!storyFilePath) {
+      const selection = selectCompanionStory(
+        resolvedCompanion?.id,
+        directionForV3,
+      );
+      if (!selection) {
+        throw new StoryBankPersonalizationError(
+          `No companion story file for companion=${resolvedCompanion?.id ?? '(none)'} direction=${directionForV3} — ` +
+            'v1 category/raw fallback removed; bind a v3-approved golden for this product.',
+        );
+      }
+      const storyDir = selection.dirName ?? STORY_BANK_V3_DIR_NAME;
+      storyFilePath = path.join(
+        process.cwd(),
+        'story-bank',
+        storyDir,
+        selection.filename,
+      );
+      cache = {
+        ...cache,
+        // Store the story ref REPO-RELATIVE (0095 P0) — absolute paths must not enter pipelineCache.
+        storyFilePath: toRepoRelativeStoryPath(storyFilePath),
+        storyDir,
+        storyBankVersion: 'v3',
+        selectionFilename: selection.filename,
+        directionForV3,
+        challengeCategory,
+      };
+    }
+  } catch (error) {
+    await persistStoryFinalizationFailure(order.id, error);
+    throw error;
   }
 
   let story;
@@ -110,23 +201,16 @@ export async function finalizeAndPersistStoryText(
             : null,
       }
     );
+    if (
+      order.expectedPageCount != null &&
+      story.pages.length !== order.expectedPageCount
+    ) {
+      throw new StoryBankPersonalizationError(
+        `Frozen Story Source page count ${story.pages.length} does not match Order expectation ${order.expectedPageCount}`,
+      );
+    }
   } catch (err) {
-    await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        textStatus: 'failed',
-        lastError: err instanceof Error ? err.message : String(err),
-      },
-    });
-    await prisma.generationJob.update({
-      where: { orderId: order.id },
-      data: {
-        status: 'failed',
-        currentStage: 'failed',
-        retryable: true,
-        lastError: err instanceof Error ? err.message : String(err),
-      },
-    });
+    await persistStoryFinalizationFailure(order.id, err);
     throw err;
   }
 

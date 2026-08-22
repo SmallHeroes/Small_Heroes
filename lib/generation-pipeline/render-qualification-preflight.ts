@@ -1,5 +1,3 @@
-import path from 'path';
-
 import { STYLE_IDS, normalizeStyleId } from '@/lib/styles';
 import { computeVisualContractHash } from '@/lib/visual-contract-compiler/contractHash';
 import { isVisualContractEnforcementEnabled } from '@/lib/visual-contract-compiler/contractRenderGuards';
@@ -27,6 +25,7 @@ import {
   type RuntimeBlueprintBookProjection,
 } from './runtime-blueprint-projection';
 import { resolvePageReferenceAssets } from './page-reference-authority';
+import { runtimeStoryKey } from './story-path';
 import type { PipelineCache } from './types';
 
 export interface Style01PvbQualification {
@@ -63,6 +62,8 @@ export interface RenderQualificationPreflightArgs {
     | 'devStoryBankFile'
     | 'storyFilePath'
     | 'storyDir'
+    | 'storyKey'
+    | 'storySourceAuthorityKind'
     | 'selectionFilename'
     | 'visualContract'
     | 'visualPackageAuthority'
@@ -96,17 +97,6 @@ function issue(
   return { code, message, ...extra };
 }
 
-function storyKeyOf(
-  cache: RenderQualificationPreflightArgs['cache'],
-): string {
-  const value =
-    cache.selectionFilename ??
-    cache.storyFilePath ??
-    cache.devStoryBankFile ??
-    'unknown_story.md';
-  return path.basename(value, '.md');
-}
-
 function rejected(args: {
   storyKey: string;
   styleId: string;
@@ -135,7 +125,7 @@ export function evaluateStyle01VisualPackage(
   if (!isVisualContractEnforcementEnabled()) return null;
   const styleId = normalizeStyleId(args.illustrationStyle);
   if (styleId !== STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) return null;
-  const storyKey = storyKeyOf(args.cache);
+  const storyKey = runtimeStoryKey(args.cache) ?? 'unknown_story';
   const frozen = args.cache.visualPackageAuthority;
   if (!frozen) {
     return rejected({

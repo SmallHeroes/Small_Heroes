@@ -53,6 +53,7 @@ import {
   type FrozenVisualPackageAuthority,
 } from '@/lib/visual-package/visualPackageV4';
 import type { ReceiptSafeValue } from './atomic-operation';
+import { runtimeStoryKey } from './story-path';
 import type { PipelineCache } from './types';
 // `prisma` and the delivery-input barrier are LAZY-imported inside the function (below) — so importing this
 // module (and unit tests that inject both) never triggers `validateEnv()` at load. Type-only here.
@@ -79,13 +80,6 @@ export interface EnsureFrozenVisualContractDeps {
   db?: PrismaClient;
 }
 
-/** Bank stories carry a `selectionFilename`; the artifact key is that filename without the `.md` suffix. */
-function bankStoryKey(cache: PipelineCache): string | null {
-  const name = cache.selectionFilename?.trim();
-  if (!name) return null;
-  return name.replace(/\.md$/i, '');
-}
-
 /** Absolute dir the bank story's `<key>.visual-contract.json` artifact lives in (pairs with the story bank dir). */
 function bankArtifactDir(cache: PipelineCache): string {
   return path.join(process.cwd(), 'story-bank', cache.storyDir ?? STORY_BANK_V3_DIR_NAME);
@@ -100,7 +94,7 @@ async function defaultProduceContract(
     isVisualContractEnforcementEnabled() &&
     styleIdFromDatabaseValue(order.illustrationStyle) === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK
   ) {
-    const storyKey = bankStoryKey(cache) ?? 'unknown_story';
+    const storyKey = runtimeStoryKey(cache) ?? 'unknown_story';
     const qualification = evaluateVisualPackageV4Qualification({
       repoRoot: process.cwd(),
       storyKey,
@@ -133,7 +127,7 @@ async function defaultProduceContract(
     };
   }
 
-  const bankKey = bankStoryKey(cache);
+  const bankKey = runtimeStoryKey(cache);
   if (bankKey) {
     const dir = bankArtifactDir(cache);
     // (P0) PREFER a story TEMPLATE → materialize a per-order RESOLVED contract (concrete human skin/hair/style). A
@@ -187,7 +181,7 @@ export async function ensureFrozenVisualContract(
       }
       const qualification = evaluateVisualPackageV4Qualification({
         repoRoot: process.cwd(),
-        storyKey: bankStoryKey(cache) ?? 'unknown_story',
+        storyKey: runtimeStoryKey(cache) ?? 'unknown_story',
         styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
         frozenAuthority: cache.visualPackageAuthority,
         expectedOrderSourceRawDigest: order.storySourceHash,

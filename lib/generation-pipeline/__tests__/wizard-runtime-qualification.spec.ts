@@ -437,6 +437,29 @@ describe('Wizard/order to chunk-runner render qualification', () => {
       pageNumbers: Array.from({ length: 13 }, (_, pageNumber) => pageNumber),
     });
     expect(runtimeAuthority).not.toBeNull();
+    const { storyDir: _legacyStoryDir, ...cacheWithoutLegacyStoryDir } = cache;
+    const acceptedRevisionAuthority = requireStyle01RenderQualification({
+      illustrationStyle: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      frozenContractHash,
+      storySourceHash: frozenProduct.storySourceHash,
+      cache: {
+        ...cacheWithoutLegacyStoryDir,
+        storyFilePath:
+          'story-pipeline/04_approved_story_sources/accepted/fox_uri_adventure/revisions/' +
+          `${'a'.repeat(64)}/integrated.md`,
+        storyKey: 'fox_uri_adventure',
+        storySourceAuthorityKind: 'product_accepted_revision',
+        selectionFilename: 'integrated.md',
+      },
+      repoRoot: qualificationRoot,
+      pageNumbers: Array.from(
+        { length: 13 },
+        (_, pageNumber) => pageNumber,
+      ),
+    });
+    expect(acceptedRevisionAuthority?.qualification.storyKey).toBe(
+      'fox_uri_adventure',
+    );
     expect(runtimeAuthority).toMatchObject({
       version: 'style01-runtime-authority/v6',
       qualification: {

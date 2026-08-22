@@ -180,12 +180,25 @@ describe('deployed Wizard runtime-authority preflight', () => {
   });
 
   it('bundles every filesystem authority required by the deployed preflight', () => {
+    for (const route of [
+      '/api/generate',
+      '/api/generate/worker',
+      '/api/generate/cron/sweep',
+      '/api/dev/generation/resume',
+      '/api/dev/runtime-authority-preflight',
+      '/api/debug/regen-page',
+    ]) {
+      expect(nextConfig.outputFileTracingIncludes?.[route]).toContain(
+        './story-pipeline/04_approved_story_sources/accepted/**/*',
+      );
+    }
     expect(
       nextConfig.outputFileTracingIncludes?.[
         '/api/dev/runtime-authority-preflight'
       ],
     ).toEqual([
       './story-bank/**/*',
+      './story-pipeline/04_approved_story_sources/accepted/**/*',
       './visual-packages/approved/**/*',
       './set-identity-boards/**/*',
       './style-references/01/**/*',

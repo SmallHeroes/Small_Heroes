@@ -31,12 +31,14 @@ describe('GET /api/wizard/mvp-matrix', () => {
       './qa-authorities/wizard/**/*',
       './story-bank/qa-autonomous-20260815-v1/**/*',
       './story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/**/*',
+      './story-pipeline/04_approved_story_sources/accepted/**/*',
       './visual-packages/approved/**/*',
       './public/companions/*/style01-sheets/**/*',
     ]);
     expect(nextConfig.outputFileTracingIncludes?.['/api/orders']).toEqual([
       './story-bank/qa-autonomous-20260815-v1/**/*',
       './story-pipeline/05_storyboard_inputs/autonomous-20260815-v1/**/*',
+      './story-pipeline/04_approved_story_sources/accepted/**/*',
       './visual-packages/approved/**/*',
     ]);
     expect(nextConfig.outputFileTracingExcludes?.['/api/orders']).not.toContain('story-bank/**');

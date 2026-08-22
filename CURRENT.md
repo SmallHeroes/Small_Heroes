@@ -4,6 +4,49 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
+## ACCEPTED-REVISION RUNTIME STORY SELECTION — LOCAL GREEN, AWAITING INDEPENDENT QA
+
+The accepted neutral Story Source exposed one pre-spend runtime P0. Fresh
+Wizard selection correctly froze the package-bound nested `integrated.md`, but
+the Order rehydrator accepted only `story-bank/<bank>/<story>.md`. Text
+finalization could therefore fall back to the old QA bank and later stop on
+`frozen_product_truth_mismatch`; freeze and render qualification could also
+mis-derive the package key as `integrated`.
+
+The focused correction adds a closed parser for exactly the historical Story
+Bank form and the product-accepted revision form
+`story-pipeline/04_approved_story_sources/accepted/<storyKey>/revisions/<64-hex>/integrated.md`.
+It carries an explicit `storyKey` and source-authority kind through the durable
+cache, verifies the exact Order path/raw SHA/product version before
+personalization, makes the Order source override stale resume cache, and uses
+the same story key at contract freeze and render qualification. Accepted-source
+cache injection without exact Order authority, malformed/noncanonical paths,
+hard links and realpath escapes fail closed before Story Bank fallback. An
+explicit cache story key or authority kind must agree with the exact frozen
+reference, and any pre-load authority failure now closes both Order text status
+and Generation Job status instead of leaving a misleading `running` state.
+
+The accepted revision is also included in every Vercel function trace that
+selects, resumes, qualifies or renders the package. Direct runtime loading
+proves both Bar-boy and Bar-girl resolve all eight pages deterministically with
+no provider/network call. Focused validation is **22 files / 219 tests PASS**
+with **2 files / 2 tests skipped**; `npx --no-install tsc --noEmit` and
+`git diff --check` pass. One literal `npm run check` completed the ordinary
+phase with **3,475 PASS / 65 skipped / 5 failures**; every failure is one of the
+four established absent ignored-output fixture files. The resource phase
+recorded **609 PASS / 2 timeouts** plus three known Vitest
+`onTaskUpdate` RPC timeouts under parallel load. The two timed-out files pass all
+**29/29 assertions** when rerun with one worker; that isolated process still
+reports one known RPC timeout after the assertions. No milestone assertion
+failed. No provider, image, audio, render, database, storage, deployment,
+package migration, approval, publication or locator operation has occurred.
+This is a Codex local result, not independent technical PASS.
+
+Next action: create the focused local commit and send the exact immutable range
+to Claude Code. Provider/live/render remains HOLD. After PASS, build the
+zero-spend deterministic evidence/reconciliation/Blueprint/package migration;
+the existing two Board hashes must remain exact or that later milestone stops.
+
 ## CHAMELEON GENDER-FLEXIBLE SOURCE AUTHORITY — PRODUCT-ACCEPTED REVISION V2
 
 The first Bar Wizard order remains immutable legacy-path incident evidence and

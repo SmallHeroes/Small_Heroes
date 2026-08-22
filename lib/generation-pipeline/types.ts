@@ -2,6 +2,10 @@ import type { Prisma } from '@prisma/client';
 import type { Companion } from '@/lib/companions';
 import type { BookPageTemplate } from '@/lib/bookPageLayout';
 
+export type RuntimeStorySourceAuthorityKind =
+  | 'legacy_story_bank'
+  | 'product_accepted_revision';
+
 export type PipelineCache = {
   /**
    * Story `.md` reference. Stored REPO-RELATIVE (posix) — never an absolute/`process.cwd()` path —
@@ -12,6 +16,10 @@ export type PipelineCache = {
   storyFilePath?: string;
   /** Repo-relative story-bank subdir (e.g. `v3-approved`) — pairs with `selectionFilename`. */
   storyDir?: string;
+  /** Canonical product/package identity. Required for accepted-revision sources; optional on legacy caches. */
+  storyKey?: string;
+  /** Closed origin grammar for the exact frozen Story Source reference. */
+  storySourceAuthorityKind?: RuntimeStorySourceAuthorityKind;
   storyBankVersion?: 'v3' | 'v1';
   selectionFilename?: string;
   directionForV3?: 'bedtime' | 'adventure' | 'fantasy';
