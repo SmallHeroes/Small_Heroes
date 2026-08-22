@@ -4,6 +4,42 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active Wizard Visual Package v4 selection milestone starts from pushed and independently re-gated Set Board rebind head `3afabd7a7ada9c3434dc7cc455a3d32d4ded31a4`.
 
+## CHAMELEON GENDER-CORRECT SOURCE REVISION — PENDING EXACT REVIEW, ZERO SPEND
+
+The first full Bar Wizard order remains immutable legacy-path incident evidence;
+it cannot be upgraded after paid images to prove the new Visual Package/Board
+engine. A fresh order is not yet authorized because its package-bound Story
+Source still contains hard-coded feminine child grammar.
+
+A general pending-only source-revision materializer now closes that content gap
+without rewriting the historical accepted story, QA Story Bank, storyboard,
+package or locator. It requires SHA-bound repository inputs, exact-count prose
+and page/field direction replacements, canonical editorial validation, exact
+female-projection equality, valid boy/girl projections, valid visual-direction
+authority and exact integrated-source projection. It supports a no-write
+preview and writes only digest-named pending artifacts beneath `outputs/`.
+It cannot approve, promote, publish, update a locator, access a provider, write
+storage/database state or render.
+
+The real Chameleon run produced the expected byte identities:
+
+- corrected accepted source `6da0babf1d7e97a0841d1c414e15bd682a525d8ab0366df49def7247079dd407`;
+- corrected visual directions `a3b9483889c56caf0698eac87e62f89978e589f377c3a0ca5299a3d5075e3d29`;
+- corrected integrated source `ac1d0693f327b04ccbf7e2208460b70ca5c26159f9e4f3193bc0153b8ab2f310`;
+- female projection remains byte-identical at `dc614739573e0637510ebda887f4ec98f43d5b20b5e35e9eb5b1f6b487929ab8`;
+- new male projection is `c0fca7240a668445c0ad68acc4c58e3eb55f6bb89b079abc76b2a40597f79e7a`.
+
+The pending manifest is
+`outputs/r1d-chameleon-gender-revision-pending/102153975198f49514b3304893904c77eb5e341d0ba6e7e906e917cf0ed6183e.manifest.json`.
+Focused validation is **4 files / 62 tests PASS** including the ordinary Vitest
+inventory, with `tsc --noEmit` and `git diff --check` green. Literal
+`npm run check` passed both TypeScript projects, **3,448** ordinary assertions
+and **610/610** resource assertions; its only nonzero causes remain the five
+known missing ignored-output fixture tests and three known Vitest worker RPC
+timeouts. Promotion still requires an immutable commit, independent Claude Code
+PASS and Guy's exact source/review acceptance; no downstream reconciliation,
+Blueprint, package or paid render is implied.
+
 ## FIRST PHOTO-BACKED BAR WIZARD BOOK — FULL GENERATION COMPLETE, RELEASE HELD FOR RECOVERY
 
 One QA-only Wizard order for Bar (age six, boy), using the tracked Bar photo,
@@ -81,9 +117,10 @@ projects; the ordinary partition passed **3,442** assertions and retained only
 the five established missing ignored-`outputs/` fixture failures, while the
 resource partition passed **610/610** assertions and reported only the three
 known Vitest `onTaskUpdate` RPC timeouts. The endpoint remains
-non-production-only. It still
-requires independent re-gate, push and deployment from an identifiable commit
-before its remote result can authorize a fresh paid Wizard order.
+non-production-only. Claude Code independently re-gated the corrective range
+`5fcd22a9..de6101cb` with **0 BLOCKER / 0 MAJOR / 0 MINOR**. It still requires
+push and deployment from an identifiable commit before its remote result can
+authorize a fresh paid Wizard order.
 
 Claude Code's first read-only review returned technical PASS with three minor
 maintainability/test notes. The follow-up keeps the callback locally non-throwing
