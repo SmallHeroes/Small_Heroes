@@ -4,7 +4,45 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
 
-## TYPED COMPANION APPEARANCE STATE AUTHORITY — INDEPENDENT TECHNICAL PASS; STORY SOURCE REWRITE IN PROGRESS
+## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — LOCAL GREEN; INDEPENDENT STORY/ARTIFACT QA NEXT
+
+The separately approved zero-cost rewrite now exists as digest-bound staging,
+not as a mutation of the accepted Story Source. The new eight-page bedtime
+story makes tomorrow's first day at a new kindergarten explicit on page 1.
+Bar's paper moon lantern escapes on a delivery cart; Kim's warm-green, olive,
+amber-striped, blue-green and moonlit-teal changes create three wrong labels
+and then preserve the route sequence. The child stops and redirects the cart,
+tries one plausible but wrong ordering, discovers the sequence, leads the final
+leg, opens the gate, hangs the lantern and creates the first new sign in the
+kindergarten. Kim's anatomy and mustard satchel remain invariant.
+
+The canonical flexible-gender draft validator passes with zero normalization
+actions. Page word counts are `43, 42, 41, 41, 41, 44, 41, 45`; all are inside
+the 25–45 bedtime target. Both boy and girl expansions contain no unresolved
+chip. The staging Brief is SHA-256 `dc06be6f...e46ab6`; the 4,058-byte draft is
+SHA-256 `0ea3a150...a39059`.
+
+A first broader validation exposed that replacing the Brief id inside the live
+18-slot catalog would make the historical autonomous review corpus fail
+coverage. That was a real authority-boundary defect, not a test to weaken. The
+catalog, commission table, review table and historical corpus were restored;
+the new Brief and draft remain under ignored `outputs/` and are bound by an
+explicit non-authoritative evidence manifest. Final focused validation is **3
+files / 50 tests PASS**, plus TypeScript and diff check.
+
+The current accepted revision `20a128...` is unchanged. This milestone grants
+no Editor PASS, Guy story acceptance, accepted-source publication, bank/Wizard
+selection or render. After Guy-mediated Claude Code QA, the next technical
+boundary is a general versioned creative-rewrite lifecycle that carries an
+explicit `gender_flexible` profile and binds the prior revision, new Brief,
+Editor result and Guy approval.
+
+Durable records:
+`docs/ai-workflow/R1D_CHAMELEON_BAR_FIRST_KINDERGARTEN_STORY_SOURCE_REWRITE_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_CHAMELEON_BAR_FIRST_KINDERGARTEN_STORY_SOURCE_REWRITE_IMPLEMENTATION_EVIDENCE.md`.
+
+## TYPED COMPANION APPEARANCE STATE AUTHORITY — INDEPENDENT TECHNICAL PASS; STORY SOURCE REWRITE RELEASED TO ITS SEPARATE STAGING MILESTONE
 
 Guy approved a general closed Companion State system before the separate Bar/Kim
 Story Source rewrite. The repository cause is now addressed structurally: an
@@ -105,10 +143,10 @@ remains failed.
 No Story Source, approved package, locator, Blueprint, Board, Order, payment,
 image, audio, database, storage, deployment or remote state changed. The four
 pre-existing untracked Board artifacts remain byte-identical and unstaged. This
-milestone used no provider and cost **$0**. Next action is a focused local commit
-recording the independent PASS, followed by the separate Bar/Kim Story Source
-revision. The content revision remains provider-free and cannot replace the
-current accepted source without its own review and Guy acceptance.
+milestone used no provider and cost **$0**. Its independent PASS is recorded in
+commit `8bd2195e`; the separate Bar/Kim rewrite is now the staging milestone
+documented above. That content revision remains provider-free and cannot
+replace the current accepted source without its own review and Guy acceptance.
 
 ## WIZARD BOOK CONTINUITY + COMPOSITION AUTHORITY — LOCAL GREEN, CLAUDE QA NEXT
 

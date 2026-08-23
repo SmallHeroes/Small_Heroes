@@ -4,7 +4,7 @@
 
 **Challenge category:** `TRANSITION` · **Gender:** female · **Display name:** קִים; the ID remains `chameleon_koko`.
 
-**Immutable visual identity:** small round chameleon, harmonious warm green to yellow-green body, pale cream-yellow belly, large rotating eyes, curled tail, tiny mustard fabric shoulder satchel; never patchwork, pink-spotted, pure mint, or visually dissolved into the background.
+**Immutable visual identity:** small round chameleon, pale cream-yellow belly, large rotating eyes, curled tail, and tiny mustard fabric shoulder satchel. Her body may move through one closed, gradual appearance-state sequence—warm green, olive, one amber mismatch with stress stripes, blue-green attunement, and moonlit teal resolution—but uses one coherent state at a time; never random patchwork, pink-spotted, pure mint, or visually dissolved into the background.
 
 ## Child-facing promise
 
@@ -17,7 +17,7 @@ She carries traces of places without hiding inside them. The child helps her dis
 - **Visible desire:** map, sort, deliver, return, match, or preserve the moving colors/signs of a place before a concrete deadline.
 - **Lovable flaw:** she wants to classify every change before participating in it.
 - **Wrong help:** pulls an old color/sample/label from her satchel and matches by appearance too quickly, while her independently rotating eyes or sticky tongue collect contradictory evidence.
-- **Embodied tell:** eyes look backward and forward at once; tail tightens around the satchel when overloaded; body hue harmonizes but never disappears.
+- **Embodied tell:** eyes look backward and forward at once; tail tightens around the satchel when overloaded; body hue, pattern and posture move gradually with the place while her anatomy and mustard satchel never change.
 - **Child-only ability:** the child chooses which clue matters now and creates the first genuinely new mark, route, game, or arrangement instead of restoring the old place exactly.
 - **Relationship change:** קִים contributes memory and a portable archive; the child contributes selection and invention. By the payoff, her satchel carries one newly made trace rather than being the solution itself.
 - **Emotional underlayer, never headline:** change can include continuity without requiring exact restoration or self-erasure.
@@ -48,7 +48,7 @@ The satchel is a comic/action tool, not a required “home token” cure. A stor
 
 ## Direction modulation
 
-- **Bedtime:** use an active transition—day to night, last route, closing market, changing station, traveling object. Beats 6–8 reduce choices and motion into an earned arrival or completion; no bed, bedroom, sleepover, or sleep is required.
+- **Bedtime:** use an active transition—day to night, last route, closing market, changing station, traveling object. If colour state is causal, each change must be gradual, visible and useful as evidence rather than narrating emotion. Beats 6–8 reduce choices and motion into an earned arrival or completion; no bed, bedroom, sleepover, or sleep is required.
 - **Adventure:** a changing route or delivery where old labels repeatedly fail and the child invents a usable new marker.
 - **Fantasy:** one coherent change-rule affecting colors, maps, doors, or paths across at least three set pieces; never a sermon about preserving identity.
 
@@ -75,8 +75,8 @@ Replacing קִים with a generic colorful animal must break the split-eye evide
 
 ## Visual continuity locks
 
-- One harmonious warm-green/yellow-green body with pale cream-yellow belly; no multicolor patches or pink spots.
+- One coherent declared state at a time, progressing gradually from warm green through the closed state sequence; no random multicolor patches or pink spots.
 - Keep silhouette distinct from every background; harmonizing is not camouflage.
 - Tiny mustard fabric shoulder satchel remains the only canonical accessory.
-- Large eyes may rotate independently; tail stays softly curled unless action tightens it.
+- Large eyes may rotate independently; tail and body language may tighten or release only as part of the declared state while anatomy remains unchanged.
 - No scarf, magical color aura, human clothing, or disappearing body.
