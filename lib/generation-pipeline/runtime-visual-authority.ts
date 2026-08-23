@@ -251,7 +251,10 @@ export function buildRuntimePageAuthorityProjection(args: {
     safeScenePrompt: frame.safeScenePrompt,
     page: frame.contractPage,
     blueprintFrame: frame,
-    childCast: authority.contract.cast.child,
+    childCast: {
+      ...authority.contract.cast.child,
+      wardrobe: structuredClone(frame.resolvedChildWardrobe),
+    },
     ...(authority.contract.cast.companion
       ? { companionCast: authority.contract.cast.companion }
       : {}),

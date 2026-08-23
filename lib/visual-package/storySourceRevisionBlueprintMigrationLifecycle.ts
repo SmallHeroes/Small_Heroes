@@ -1094,6 +1094,7 @@ export async function prepareStorySourceRevisionBlueprintMigration(args: {
       model: 'offline-deterministic-blueprint-author/v3',
       reasoningEffort: 'none',
       maxOutputTokens: 48_000,
+      compositionPolicyVersion: null,
     },
     {
       callAuthor: async () => {

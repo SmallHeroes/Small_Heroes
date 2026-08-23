@@ -579,6 +579,65 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
     );
   });
 
+  it('projects an explicit page wardrobe transition into the runtime frame and page authority only on that page', () => {
+    const pajamas =
+      'Soft two-piece sage-green pajamas with a small cream moon print, matching pajama trousers, and cream slipper-socks.';
+    const runtime = authority('no_companion', {
+      mutateTemplate(template) {
+        template.pageContracts[0]!.childWardrobeOverride = {
+          description: pajamas,
+          forbidden: ['day clothes', 'outdoor shoes'],
+          origin: {
+            kind: 'authored',
+            authorNote: 'Reviewed bedtime wardrobe transition.',
+          },
+        };
+      },
+    });
+    const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);
+    const pageAuthority = buildRuntimePageAuthorityProjection({
+      authority: runtime,
+      pageNumber: 1,
+    });
+    expect(pageAuthority).not.toBeNull();
+    if (!pageAuthority) throw new Error('expected runtime page authority');
+
+    expect(frame.resolvedChildWardrobe).toEqual({
+      description: pajamas,
+      forbidden: ['day clothes', 'outdoor shoes'],
+    });
+    expect(pageAuthority.childCast.wardrobe).toEqual(
+      frame.resolvedChildWardrobe,
+    );
+    expect(frame.contractPromptBlock).toContain(pajamas);
+    expect(frame.contractPromptBlock).not.toContain(
+      'the same practical story outfit on every page',
+    );
+  });
+
+  it('keeps Kim canonical mustard satchel mandatory in the authoritative Blueprint prompt whenever she is visible', () => {
+    const runtime = authority('single_location');
+    const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);
+    expect(frame.entityPresence.companionPresence).toBe('present');
+
+    const assembled = assembleStyle01Phase2Prompt({
+      pageNumber: 1,
+      authoritativeBlueprintFrame: frame,
+      companion: {
+        id: 'chameleon_koko',
+        name: 'Kim',
+        visualDescription: 'A small natural green chameleon.',
+      },
+    });
+
+    expect(assembled.prompt).toContain(
+      'tiny fabric shoulder satchel in warm mustard',
+    );
+    expect(assembled.prompt).toContain(
+      'Do not add, remove, restyle, resize, substitute, or omit a required canonical accessory.',
+    );
+  });
+
   it('authoritative direct provider canvas ignores conflicting PDF optimization and stays exact portrait', async () => {
     const runtime = authority();
     const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);

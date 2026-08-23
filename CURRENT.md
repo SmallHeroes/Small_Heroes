@@ -4,6 +4,66 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active pre-Order attestation milestone starts from pushed environment-authority correction head `c89867dbbbbe6ae18b680a40596cf8660cf9dd8c`.
 
+## WIZARD BOOK CONTINUITY + COMPOSITION AUTHORITY — LOCAL GREEN, CLAUDE QA NEXT
+
+The first complete new-path Wizard proof for Order
+`cmt4xt95l0002l204bi1qrci2` produced one cover, eight body pages and mother
+narration on all eight pages. Guy accepted the overall look but rejected three
+visible continuity/composition defects: Bar changed clothing and colours before
+the legitimate final bedtime-pajama transition, Kim's canonical mustard
+satchel disappeared on some visible pages, and the body-page compositions kept
+the cast at nearly the same distant scale without a true close-up.
+
+The approved package reproduced the cause exactly. Its eight camera labels
+varied, but it contained no `close_up`; measured child placement occupied only
+about 1.5%-2.8% of normalized frame area on every body page. Its book-level
+child wardrobe described only "practical evening clothes" rather than exact
+garments/colours and had no typed page transition. The authoritative Blueprint
+prompt branch also bypassed the existing canonical companion/accessory locks,
+even though Kim's registry profile requires a tiny warm-mustard fabric shoulder
+satchel whenever she is visibly present.
+
+The general correction adds a typed `childWardrobeOverride` with explicit
+evidence origin. Pages without it inherit one exact book wardrobe; only the
+authored page receives the replacement, and the page-resolved value is frozen
+through contract derivation, Blueprint projection, runtime page authority and
+the provider seam. Night, location, category and loose prompt prose cannot
+silently change clothing. The authoritative Blueprint prompt now composes the
+package appearance with the canonical companion identity/accessory lock and
+requires the accessory whenever the companion is `present`.
+
+Newly authored production Blueprints explicitly opt into
+`blueprint-composition-policy/v1`. For books with at least eight body pages the
+validator measures actual geometry and requires a true close-up, a wide frame,
+at least three shot types and three angles, no three-page identical-shot run,
+at least 3.5x cast-scale contrast, and geometry matching medium/over-shoulder/
+close-up labels. Historical Blueprints and authority-preserving migrations do
+not acquire new validation semantics implicitly; the production authoring
+runner and ordinary prepare CLI opt in explicitly.
+
+Focused validation passes **14 files / 347 tests**. The real Story Source
+revision lifecycle separately passes **8/8** with the diagnostic 30-second
+allowance, and the original migration timeout is confirmed load-only rather
+than a functional failure. `npx --no-install tsc --noEmit` and
+`git diff --check` pass.
+
+One literal `npm run check` exercised the canonical **322 / 302 / 20**
+inventory. Its first ordinary pass exposed the policy-opt-in boundary above:
+the seven Story Source migration cases and one time-authority migration case
+initially failed because historical replay was accidentally opted in. That is
+now corrected and those **14 migration assertions** pass; the updated workload
+inventory test also passes **7/7**. The remaining ordinary failures are the five
+established absent ignored-`outputs/` fixtures. The resource phase recorded
+**605 PASS / 6 workload timeouts** plus four known Vitest `onTaskUpdate` RPC
+timeouts; none is in a changed or adjacent milestone file.
+
+No approved package, locator, Story Source, Board, order, payment, image, audio,
+database, storage, deployment or remote state changed. The four pre-existing
+untracked Board artifacts remain excluded. Next action is a focused local
+commit and Guy-mediated Claude Code adversarial review. A corrected Chameleon
+package and any new render remain HOLD until that PASS; this milestone spent
+zero provider dollars.
+
 ## WIZARD PRE-ORDER ATTESTATION — LOCAL GREEN, INDEPENDENT QA NEXT, ORDER STILL HOLD
 
 The fresh Bar/Chameleon Wizard Order remains uncreated and no provider or render

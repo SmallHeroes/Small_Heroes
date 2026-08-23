@@ -83,6 +83,8 @@ export interface RuntimeBlueprintFrameProjection {
     companion: ResolvedBookVisualContract['cast']['companion'];
     humans: ResolvedBookVisualContract['humanCast'];
   };
+  /** Exact page-resolved child wardrobe, including an explicit page override when authored. */
+  resolvedChildWardrobe: ResolvedPageContract['childWardrobe'];
   contractPage: ResolvedPageContract;
   contractPromptBlock: string;
   blueprintPromptBlock: string;
@@ -261,7 +263,7 @@ function buildBlueprintPromptBlock(args: {
     continuity: frame.continuity,
     textSafeRegion: frame.textSafeRegion,
     resolvedAppearanceDigest: args.resolvedAppearanceDigest,
-    childWardrobe: contract.cast.child.wardrobe,
+    childWardrobe: args.contractPage.childWardrobe,
     companionWardrobe: contract.cast.companion?.wardrobe ?? null,
     humanAppearance: contract.humanCast.map((member) => ({
       id: member.id,
@@ -476,6 +478,7 @@ export function buildRuntimeBlueprintBookProjection(args: {
       }),
       resolvedAppearanceDigest,
       resolvedAppearance,
+      resolvedChildWardrobe: contractPage.childWardrobe,
       contractPage,
       contractPromptBlock: buildPvbVisualContractFactsPromptBlock(
         contractPage,

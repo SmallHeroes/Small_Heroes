@@ -604,6 +604,7 @@ describe('offline time-authority migration lifecycle', () => {
             model: 'offline-deterministic-blueprint-author/v2',
             reasoningEffort: 'none',
             maxOutputTokens: 48_000,
+            compositionPolicyVersion: null,
           },
         });
         expect(migratedBlueprint.manifest.digest).toBe(
@@ -730,6 +731,7 @@ describe('offline time-authority migration lifecycle', () => {
             model: 'offline-deterministic-blueprint-author/v2',
             reasoningEffort: 'none',
             maxOutputTokens: 48_000,
+            compositionPolicyVersion: null,
           },
         })).rejects.toThrow(/non-time content drift/);
         expect(fs.existsSync(path.join(

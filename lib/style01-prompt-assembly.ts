@@ -337,6 +337,17 @@ export function assembleStyle01Phase2Prompt(
             : '',
         ].filter(Boolean).join('\n')
       : undefined;
+    const canonicalCompanionLock = buildStyle01CompanionTextLock({
+      companionId: input.companion?.id,
+      companionName: input.companion?.name,
+      companionStructured: input.companionStructured,
+      companionVisualDescription: input.companion?.visualDescription,
+    });
+    const canonicalAccessoryLock = buildCompanionAccessoryLockBlock({
+      companionId: input.companion?.id,
+      companionName: input.companion?.name,
+      companionPresence: entityPresence.companionPresence,
+    });
     const companionTextLock =
       entityPresence.companionPresence === 'present'
         ? [
@@ -345,9 +356,16 @@ export function assembleStyle01Phase2Prompt(
               input.companion?.visualDescription ??
               'match the exact resolved companion appearance'
             }.`,
-            'Do not add, remove, restyle, resize, or substitute the companion.',
-          ].join('\n')
-        : undefined;
+            canonicalCompanionLock,
+            canonicalAccessoryLock,
+            'Do not add, remove, restyle, resize, substitute, or omit a required canonical accessory.',
+          ]
+            .filter(Boolean)
+            .join('\n\n')
+        : entityPresence.companionPresence === 'partial' ||
+            entityPresence.companionPresence === 'offscreen_hint'
+          ? canonicalAccessoryLock
+          : undefined;
     const supportingCharacterLock = frame.supportingCharacters.length
       ? frame.supportingCharacters
           .map(

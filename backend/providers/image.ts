@@ -3455,7 +3455,8 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
     companionStructured: input.companionStructured,
     authoritativeEntityPresence: input.authoritativeEntityPresence,
     authoritativeChildWardrobe: input.runtimeVisualAuthority
-      ? input.runtimeVisualAuthority.contract.cast.child.wardrobe
+      ? input.runtimeBlueprintFrame?.resolvedChildWardrobe ??
+        input.runtimeVisualAuthority.contract.cast.child.wardrobe
       : undefined,
     authoritativeTimeOfDay: input.runtimeVisualAuthority
       ? input.effectivePageTimeOfDay

@@ -11,6 +11,7 @@ import type {
   PageVisualContract,
   VisualLocation,
   VisualZone,
+  WardrobeLock,
 } from './types';
 
 export interface ResolvedPageContract extends PageVisualContract {
@@ -20,6 +21,8 @@ export interface ResolvedPageContract extends PageVisualContract {
   companionWardrobeLock?: string;
   /** Child outfit lock, resolved from cast.child. */
   childWardrobeLock: string;
+  /** Exact page-resolved child wardrobe authority. */
+  childWardrobe: WardrobeLock;
   locationName: string;
   zoneName?: string;
   /** (Slice B) The page's own zone stableGeometry, resolved for the authoritative prompt block (per-page → no leak). */
@@ -33,7 +36,7 @@ function uniq(values: string[]): string[] {
 export function derivePageVisualContracts(contract: BookVisualContract): ResolvedPageContract[] {
   const locationById = new Map<string, VisualLocation>(contract.locations.map((l) => [l.id, l]));
   const zoneById = new Map<string, VisualZone>(contract.zones.map((z) => [z.id, z]));
-  const childWardrobeLock = contract.cast.child.wardrobe.description;
+  const childWardrobe = contract.cast.child.wardrobe;
   const companionWardrobeLock = contract.cast.companion?.wardrobe.description;
   const globalForbidden = contract.forbiddenGlobalElements ?? [];
 
@@ -41,10 +44,17 @@ export function derivePageVisualContracts(contract: BookVisualContract): Resolve
     .map((page): ResolvedPageContract => {
       const location = locationById.get(page.locationId);
       const zone = page.zoneId ? zoneById.get(page.zoneId) : undefined;
+      const effectiveChildWardrobe = page.childWardrobeOverride ?? childWardrobe;
       return {
         ...page,
         mustNotShow: uniq([...(page.mustNotShow ?? []), ...globalForbidden]),
-        childWardrobeLock,
+        childWardrobeLock: effectiveChildWardrobe.description,
+        childWardrobe: {
+          description: effectiveChildWardrobe.description,
+          ...(effectiveChildWardrobe.forbidden
+            ? { forbidden: [...effectiveChildWardrobe.forbidden] }
+            : {}),
+        },
         // Only lock the companion outfit on pages where the companion actually appears.
         companionWardrobeLock: page.characterPresence.companion ? companionWardrobeLock : undefined,
         locationName: location?.name ?? page.locationId,
@@ -85,6 +95,12 @@ export function deriveCoverVisualContract(contract: BookVisualContract): Resolve
     propState: [],
     camera: 'cover composition',
     childWardrobeLock: contract.cast.child.wardrobe.description,
+    childWardrobe: {
+      description: contract.cast.child.wardrobe.description,
+      ...(contract.cast.child.wardrobe.forbidden
+        ? { forbidden: [...contract.cast.child.wardrobe.forbidden] }
+        : {}),
+    },
     companionWardrobeLock: undefined,
     locationName: location?.name ?? cover.locationId,
     zoneName: zone?.name,

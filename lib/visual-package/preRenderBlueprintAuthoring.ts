@@ -20,6 +20,7 @@ import {
 } from './preRenderBlueprint';
 import {
   PRE_RENDER_BLUEPRINT_COORDINATE_SPACE,
+  PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
   PRE_RENDER_BLUEPRINT_PORTRAIT_ASPECT_RATIO,
   PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
   type BlueprintSpatialAffordance,
@@ -64,6 +65,14 @@ export interface PreRenderBlueprintAuthoringConfig {
   model: string;
   reasoningEffort: string;
   maxOutputTokens: number;
+  /**
+   * Explicit opt-in for materially enforced composition. Omit only when an
+   * authority-preserving migration must retain a historical Blueprint's exact
+   * validation semantics.
+   */
+  compositionPolicyVersion?:
+    | typeof PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
+    | null;
 }
 
 export interface PreRenderBlueprintAuthoringCallOptions {
@@ -261,6 +270,9 @@ function deterministicFrameOverlay(args: {
 export function assemblePreRenderBookVisualBlueprintFromDraft(args: {
   draft: unknown;
   context: PreRenderBlueprintValidationContext;
+  compositionPolicyVersion?:
+    | typeof PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
+    | null;
 }): PreRenderBookVisualBlueprint {
   const normalized = normalizeNullableDraftFields(args.draft);
   if (!isObj(normalized) || !isObj(normalized.worldPlan) || !Array.isArray(normalized.frames)) {
@@ -276,6 +288,9 @@ export function assemblePreRenderBookVisualBlueprintFromDraft(args: {
   });
   return finalizePreRenderBookVisualBlueprint({
     version: PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION,
+    ...(args.compositionPolicyVersion
+      ? { compositionPolicyVersion: args.compositionPolicyVersion }
+      : {}),
     identity: buildPreRenderBlueprintIdentity({ authority: authoringAuthority }),
     visualContract: clone(args.context.template),
     worldPlan: {
@@ -310,6 +325,14 @@ export function preRenderBlueprintAuthoringInputErrors(
     config.maxOutputTokens < 1
   ) {
     errors.push('authoring maxOutputTokens must be a positive integer');
+  }
+  if (
+    config.compositionPolicyVersion !== undefined &&
+    config.compositionPolicyVersion !== null &&
+    config.compositionPolicyVersion !==
+      PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
+  ) {
+    errors.push('authoring compositionPolicyVersion is unsupported');
   }
   const templateValidation = validateBookVisualContractTemplate(context.template);
   if (!templateValidation.ok) {
@@ -403,8 +426,14 @@ export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
     'part of your output: reserve x=0,y=0,width=1000,height=250 on the cover and',
     'x=0,y=750,width=1000,height=250 on every body page. Keep every key cast, action, action destination, and',
     'required-prop placement outside its exact reserved band. Each frame must show placements, actions,',
-    'props, camera access, transitions, and safety support. The compiler will overwrite all upstream deterministic',
-    'identity, coverage, aspect-ratio, location/zone/cast, lifecycle, and transition-kind fields after this call.',
+    'props, camera access, transitions, and safety support.',
+    'For eight or more body pages, author materially different cinematography: at least one true close_up, one wide,',
+    'at least three shot types and three camera angles, and never repeat one shot type three pages in a row. Camera',
+    'labels must match geometry: a close_up needs a key subject occupying at least 10% of the normalized frame; a',
+    'medium or over-shoulder frame must make a cast member materially larger than a distant wide figure. Across the',
+    'book, the largest cast scale must be at least 3.5x the smallest. Pixel nudges do not count as composition variety.',
+    'The compiler will overwrite all upstream deterministic identity, coverage, aspect-ratio, location/zone/cast,',
+    'lifecycle, and transition-kind fields after this call.',
     'Do not include Board identities, image assets, render prompts, approval, lifecycle timestamps, or prose outside JSON.',
   ].join('\n');
 }
@@ -526,6 +555,7 @@ export async function compilePreRenderBookVisualBlueprint(
       candidate = assemblePreRenderBookVisualBlueprintFromDraft({
         draft: parsedDraft,
         context,
+        compositionPolicyVersion: config.compositionPolicyVersion,
       });
       const validation = validatePreRenderBookVisualBlueprint(candidate, context);
       if (!validation.ok) errors = issueText(validation.issues);

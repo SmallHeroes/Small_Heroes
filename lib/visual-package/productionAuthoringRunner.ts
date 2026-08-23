@@ -1,6 +1,9 @@
 import path from 'path';
 
 import {
+  PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
+} from './preRenderBlueprintTypes';
+import {
   PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS,
   PreRenderBlueprintAuthoringRepairExhaustedError,
   compilePreRenderBookVisualBlueprint,
@@ -405,6 +408,8 @@ export async function runProductionBlueprintAuthoring(args: {
     model: args.request.model,
     reasoningEffort: args.request.reasoningEffort,
     maxOutputTokens: args.request.maxOutputTokens,
+    compositionPolicyVersion:
+      PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
   };
   let contextIssues: string[];
   try {

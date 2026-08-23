@@ -740,6 +740,88 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     if (!isObj(pc.characterPresence) || typeof (pc.characterPresence as Record<string, unknown>).child !== 'boolean') {
       errors.push(`${label}.characterPresence.child must be boolean`);
     }
+    if (pc.childWardrobeOverride !== undefined) {
+      errors.useIssue(pageFinalStructuralIssue(p, i, 'page_steering_invalid'));
+      const override = pc.childWardrobeOverride;
+      if (!isObj(override)) {
+        errors.push(`${label}.childWardrobeOverride must be an object when present`);
+      } else {
+        const allowedOverrideKeys = ['description', 'forbidden', 'origin'];
+        const actualOverrideKeys = Object.keys(override).sort();
+        if (
+          actualOverrideKeys.some((key) => !allowedOverrideKeys.includes(key)) ||
+          !actualOverrideKeys.includes('description') ||
+          !actualOverrideKeys.includes('origin')
+        ) {
+          errors.push(
+            `${label}.childWardrobeOverride keys are invalid — expected description, origin, and optional forbidden`,
+          );
+        }
+        if (!isStr(override.description)) {
+          errors.push(`${label}.childWardrobeOverride.description must be a non-empty string`);
+        }
+        if (
+          override.forbidden !== undefined &&
+          (!isStrArr(override.forbidden) || override.forbidden.some((entry) => !isStr(entry)))
+        ) {
+          errors.push(`${label}.childWardrobeOverride.forbidden must be a non-blank string[] when present`);
+        }
+        if (
+          isObj(pc.characterPresence) &&
+          pc.characterPresence.child !== true
+        ) {
+          errors.push(`${label}.childWardrobeOverride requires the child to be present on the page`);
+        }
+        const defaultWardrobe = isObj(c.cast) && isObj(c.cast.child) && isObj(c.cast.child.wardrobe)
+          ? c.cast.child.wardrobe.description
+          : undefined;
+        if (
+          isStr(override.description) &&
+          isStr(defaultWardrobe) &&
+          override.description.trim() === defaultWardrobe.trim()
+        ) {
+          errors.push(`${label}.childWardrobeOverride is a no-op — omit it when wardrobe is unchanged`);
+        }
+        const origin = override.origin;
+        if (!isObj(origin) || !isStr(origin.kind)) {
+          errors.push(`${label}.childWardrobeOverride.origin is invalid`);
+        } else if (origin.kind === 'story_evidence') {
+          if (
+            JSON.stringify(Object.keys(origin).sort()) !==
+              JSON.stringify(['kind', 'page', 'phrase']) ||
+            origin.page !== pc.pageNumber ||
+            !isStr(origin.phrase)
+          ) {
+            errors.push(
+              `${label}.childWardrobeOverride.origin story_evidence must contain exact kind/page/phrase for this page`,
+            );
+          }
+        } else if (origin.kind === 'authored') {
+          if (
+            JSON.stringify(Object.keys(origin).sort()) !==
+              JSON.stringify(['authorNote', 'kind']) ||
+            !isStr(origin.authorNote)
+          ) {
+            errors.push(
+              `${label}.childWardrobeOverride.origin authored must contain exact kind/authorNote`,
+            );
+          }
+        } else if (origin.kind === 'policy_default') {
+          if (
+            JSON.stringify(Object.keys(origin).sort()) !==
+              JSON.stringify(['kind', 'policyId', 'version']) ||
+            !isStr(origin.policyId) ||
+            !isStr(origin.version)
+          ) {
+            errors.push(
+              `${label}.childWardrobeOverride.origin policy_default must contain exact kind/policyId/version`,
+            );
+          }
+        } else {
+          errors.push(`${label}.childWardrobeOverride.origin.kind is unsupported`);
+        }
+      }
+    }
     errors.useIssue(pageFinalStructuralIssue(p, i, 'page_prop_state_invalid'));
     if (Array.isArray(pc.propState)) {
       pc.propState.forEach((ps) => {

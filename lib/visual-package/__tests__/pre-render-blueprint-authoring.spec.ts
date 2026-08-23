@@ -25,6 +25,7 @@ const CONFIG = {
   model: 'fixture-reasoning-model',
   reasoningEffort: 'medium',
   maxOutputTokens: 48_000,
+  compositionPolicyVersion: null,
 };
 
 function findConstNode(

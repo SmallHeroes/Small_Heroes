@@ -42,6 +42,9 @@ import type {
   PreRenderBlueprintValidationContext,
   PreRenderBookVisualBlueprint,
 } from '@/lib/visual-package/preRenderBlueprintTypes';
+import {
+  PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
+} from '@/lib/visual-package/preRenderBlueprintTypes';
 import { resolveRepoPath } from '@/lib/visual-package/integrity';
 import {
   approveTimeAuthorityMigratedBlueprint,
@@ -156,6 +159,7 @@ async function prepareMigration(tokens: string[]): Promise<void> {
       model: requireFlag(flags, '--model'),
       reasoningEffort: requireFlag(flags, '--reasoning-effort'),
       maxOutputTokens,
+      compositionPolicyVersion: null,
     },
   });
   process.stdout.write(
@@ -242,6 +246,8 @@ async function prepare(tokens: string[]): Promise<void> {
       model: requireFlag(flags, '--model'),
       reasoningEffort: requireFlag(flags, '--reasoning-effort'),
       maxOutputTokens,
+      compositionPolicyVersion:
+        PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
     },
     {
       // Deliberately returns only the supplied local fixture. No provider exists here.

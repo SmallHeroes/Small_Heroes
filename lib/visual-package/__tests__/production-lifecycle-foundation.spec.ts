@@ -722,6 +722,9 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(result.authoringResult?.blueprint.digest).toBe(
       result.receipt.blueprintDigest,
     );
+    expect(result.authoringResult?.blueprint.compositionPolicyVersion).toBe(
+      'blueprint-composition-policy/v1',
+    );
     expect(JSON.stringify(result.receipt)).not.toContain(
       'secret_debug_payload',
     );

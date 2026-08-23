@@ -313,6 +313,18 @@ export interface WardrobeLock {
   forbidden?: string[];
 }
 
+/**
+ * An explicit page-scoped child wardrobe transition.
+ *
+ * The book-level `cast.child.wardrobe` remains the default. A page may replace
+ * it only through this typed, reviewable authority. Keeping the origin beside
+ * the replacement prevents a renderer from inferring costume changes from
+ * location, time-of-day, story category, or loose prompt prose.
+ */
+export interface PageChildWardrobeOverride extends WardrobeLock {
+  origin: SafetyEvidenceOrigin;
+}
+
 export type VisualCastRole = 'child' | 'companion';
 
 export interface VisualCastMember {
@@ -632,6 +644,12 @@ export interface PageVisualContract {
   mustShow: string[];
   mustNotShow: string[];
   characterPresence: PageCharacterPresence;
+  /**
+   * Explicit replacement for the book-level child wardrobe on this page.
+   * Omit when unchanged. A present override is valid only while the child is
+   * present and must carry a typed evidence origin.
+   */
+  childWardrobeOverride?: PageChildWardrobeOverride;
   /** Resolved from the companion's wardrobe by derivePageVisualContracts (do not hand-set). */
   companionWardrobeLock?: string;
   propState: PagePropState[];

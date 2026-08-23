@@ -33,6 +33,7 @@ import {
 } from './sourcePromptReconciliation';
 import {
   PRE_RENDER_BLUEPRINT_AUTHORING_AUTHORITY_VERSION,
+  PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
   PRE_RENDER_BLUEPRINT_COORDINATE_SPACE,
   PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM,
   PRE_RENDER_BLUEPRINT_PORTRAIT_ASPECT_RATIO,
@@ -57,6 +58,7 @@ import {
   type PreRenderBookVisualBlueprintDraft,
   type RevealSafeSupportingGeometry,
 } from './preRenderBlueprintTypes';
+import { preRenderBlueprintCompositionPolicyIssues } from './preRenderBlueprintCompositionPolicy';
 import type {
   StorySourceIdentity,
   VisualPackageTemplateIdentity,
@@ -2438,6 +2440,17 @@ function validatePreRenderBookVisualBlueprintInternal(
       actual: input.version,
     }));
   }
+  if (
+    input.compositionPolicyVersion !== undefined &&
+    input.compositionPolicyVersion !==
+      PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
+  ) {
+    issues.push(issue('composition_policy_invalid', 'unsupported composition policy version', {
+      field: 'compositionPolicyVersion',
+      expected: PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
+      actual: input.compositionPolicyVersion,
+    }));
+  }
   if (input.digestAlgorithm !== PRE_RENDER_BLUEPRINT_DIGEST_ALGORITHM) {
     issues.push(issue('schema_invalid', 'unsupported blueprint digest algorithm', {
       field: 'digestAlgorithm',
@@ -2620,6 +2633,19 @@ function validatePreRenderBookVisualBlueprintInternal(
       });
     }
   });
+
+  if (
+    blueprint.compositionPolicyVersion ===
+    PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION
+  ) {
+    for (const message of preRenderBlueprintCompositionPolicyIssues(
+      blueprint.frames,
+    )) {
+      issues.push(
+        issue('composition_policy_invalid', message, { field: 'frames' }),
+      );
+    }
+  }
 
   const finalIssues = deterministicIssues(issues);
   return finalIssues.length === 0

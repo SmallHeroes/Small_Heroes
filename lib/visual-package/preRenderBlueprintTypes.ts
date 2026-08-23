@@ -35,6 +35,8 @@ export const PRE_RENDER_BLUEPRINT_RECONCILIATION_DIGEST_ALGORITHM =
   'canonical-json-sha256-excluding-review-lifecycle/v1' as const;
 export const PRE_RENDER_BLUEPRINT_COORDINATE_SPACE =
   'normalized-1000/v1' as const;
+export const PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION =
+  'blueprint-composition-policy/v1' as const;
 export const PRE_RENDER_BLUEPRINT_PORTRAIT_ASPECT_RATIO = {
   width: 2,
   height: 3,
@@ -297,6 +299,12 @@ export interface PreRenderBlueprintWorldPlan {
  */
 export interface PreRenderBookVisualBlueprint {
   version: typeof PRE_RENDER_BOOK_VISUAL_BLUEPRINT_VERSION;
+  /**
+   * Additive strict composition contract. Historical Blueprints omit it and
+   * retain their immutable validation semantics; newly authored Blueprints
+   * opt in and are checked against actual placement scale, not labels alone.
+   */
+  compositionPolicyVersion?: typeof PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION;
   identity: PreRenderBlueprintIdentity;
   visualContract: BookVisualContractTemplate;
   worldPlan: PreRenderBlueprintWorldPlan;
@@ -352,6 +360,7 @@ export type PreRenderBlueprintIssueCode =
   | 'action_infeasible'
   | 'traversal_infeasible'
   | 'camera_infeasible'
+  | 'composition_policy_invalid'
   | 'safety_infeasible'
   | 'transition_invalid'
   | 'reveal_violation'
