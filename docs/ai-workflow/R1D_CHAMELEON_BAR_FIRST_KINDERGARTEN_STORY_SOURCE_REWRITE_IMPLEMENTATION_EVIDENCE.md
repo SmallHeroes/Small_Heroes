@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-23
 
-**Status:** LOCAL GREEN; INDEPENDENT QA AND PRODUCT ACCEPTANCE PENDING
+**Status:** INDEPENDENT TECHNICAL PASS; REVISION 1 LOCAL GREEN; EDITORIAL RE-GATE AND PRODUCT ACCEPTANCE PENDING
 
 **Cost:** `$0`
 
@@ -101,13 +101,53 @@ control render with no unresolved chip.
 - The four pre-existing untracked Board files remain unstaged and retain
   SHA-256 values `8e530b44...`, `bbce002d...`, `a2bff526...` and `53e446c9...`.
 
+## Independent review and bounded Revision 1
+
+Claude Code reviewed exact commit `a0d75209` read-only and returned technical
+and artifact **PASS** with zero BLOCKER, zero MAJOR and zero MINOR. It
+independently reproduced the 50/50 tests, TypeScript, diff check, all three
+staging hashes, all four Board hashes, the eight page counts, 24 gender chips,
+the ordered Kim states, child-owned action/climax and the restored historical
+catalog boundary.
+
+Its separate closed editorial result was `revise` with two MINOR issues:
+
+1. Pages 4–6 did not visibly distinguish the failed green-to-amber ordering
+   from the successful Kim-state ordering.
+2. `על ראשה` had two feminine referents on page 4, while the girl form
+   `לא רצה לשער` created an oral homograph on page 5.
+
+The exact returned review is preserved at
+`outputs/r1d-chameleon-kim-story-rewrite-revision1/editorial-review-round1.json`
+(3,966 bytes; SHA-256
+`b799eeed95e9abb1fc17e6c2f9cec1a8ddcea282bfccfffae9c7797d5139577c`).
+Revision 1 preserves the reviewed v1 draft byte-for-byte and changes only pages
+4–6. The first assembly now closes the labels into a ring, so the cart circles
+the fountain. The child then opens the ring into a path, places the blank label
+at its terminal end, holds that end and leads the unmapped final segment. The
+possessive now names Kim explicitly, and `במקום למהר לשער` removes the gendered
+homograph while preserving the child's deliberate refusal to rush.
+
+Revision 1 is
+`outputs/r1d-chameleon-kim-story-rewrite-revision1/chameleon_koko_bedtime_first_kindergarten_lantern.revision1.md`
+(4,142 bytes; SHA-256
+`b18e824c96bf43a3d3f5b9dfe6457b2ad8a19112b73e89fcfbb55417a02afd09`).
+Its evidence manifest is 1,936 bytes, SHA-256
+`f8f273c005b2c9e14952d06c1bd21cd0251281f306126b1109a3349b5a5cf7bc`.
+Automated comparison proves identical frontmatter and pages 1–3/7–8, with
+exactly pages 4–6 changed. Page counts remain inside contract at
+`43, 42, 41, 45, 43, 45, 41, 45`; canonical validation again reports zero
+normalization actions. The same three focused suites remain **50/50 PASS**,
+with TypeScript and diff check clean.
+
 ## Known next boundary
 
-This is not yet an Editor PASS or an accepted Story Source. The older pilot
+This is not yet an Editor PASS or an accepted Story Source. Revision 1 requires
+a narrow independent editorial re-gate. The older pilot
 review CLI is intentionally limited to the single Dini pilot, and its accepted
 candidate writer defaults to the legacy `female` source profile. Reusing it for
-this neutral creative replacement would bypass authority. After independent
-story/artifact QA, the next technical milestone must provide a general
+this neutral creative replacement would bypass authority. After an editorial
+PASS and Guy story acceptance, the next technical milestone must provide a general
 versioned creative-rewrite lifecycle that explicitly binds the slot, prior
 revision, new Brief, `gender_flexible` profile, Editor result and Guy approval.
 
