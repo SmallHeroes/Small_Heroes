@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
 
-## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — PRODUCT-ACCEPTED STORY-TEXT REVISION LOCAL; INDEPENDENT LIFECYCLE QA NEXT
+## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — PRODUCT-ACCEPTED STORY-TEXT REVISION; INDEPENDENT LIFECYCLE QA PASS
 
 The separately approved zero-cost rewrite now exists as digest-bound staging,
 not as a mutation of the accepted Story Source. The new eight-page bedtime
@@ -89,10 +89,29 @@ resource-intensive passes **611/611**; ordinary passes **3,551** with 65
 skipped and six failures. Five are the established missing ignored-output
 fixtures in four unchanged files, and one unchanged package-migration test
 exceeded the five-second parallel timeout. Both slow package-migration cases
-pass **2/2** with a 30-second diagnostic allowance. Independent Claude Code QA
-of this lifecycle commit is still required before the technical milestone
-closes. No catalog, Wizard, package, Board, provider, render or remote
-authority moved.
+pass **2/2** with a 30-second diagnostic allowance.
+
+Claude Code independently reviewed immutable range
+`5dda3ec2ac7de4d7f5c0a758aa89ca2d90995613..633f39faaf898312694867382a58c8eec496bac9`
+and returned **PASS** on all 14 claims with zero BLOCKER, MAJOR or MINOR
+findings. The review recomputed the manifest, Review Bundle, Guy acceptance
+and revision-identity digests from canonical content; confirmed the exact
+seven-file inventory and genuine UTF-8 Hebrew; reproduced the boy/girl
+projections with zero residual chips; verified fork, atomic publication,
+replay/collision and self-contained-loader enforcement; and confirmed zero
+runtime reachability or external/provider reachability. Its focused execution
+passed **5 files / 62 tests**, including the dedicated **5/5**, with Node
+syntax, TypeScript and diff hygiene clean. The isolated package-migration suite
+passed **5/5 in 856 ms**, supporting the documented parallel-timeout
+classification.
+
+This is Codex recording Claude Code's independent verdict, not self-awarding
+QA. The lifecycle technical milestone is closed, but the accepted revision
+remains deliberately runtime-ineligible. No catalog, Wizard, package, Board,
+provider, render or remote authority moved. The next milestone requires a
+separate approved Decision Gate for new Visual Directions bound to revision
+`eca8b3c8...2115d`; it remains a zero-cost, no-render step until separately
+authorized.
 
 Durable records:
 `docs/ai-workflow/R1D_CHAMELEON_BAR_FIRST_KINDERGARTEN_STORY_SOURCE_REWRITE_DECISION_GATE.md`
