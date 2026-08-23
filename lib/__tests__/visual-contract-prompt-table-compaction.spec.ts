@@ -595,18 +595,18 @@ describe('Visual Contract prompt authority-table compaction', () => {
         utf8Lines(compactActionTable),
     ).toBe(2_060);
     expect(TEMPLATE_DRAFT_SCHEMA_VERSION).toBe(
-      'vc-draft-schema/v16',
+      'vc-draft-schema/v17',
     );
     expect(
       Buffer.byteLength(
         JSON.stringify(TEMPLATE_DRAFT_JSON_SCHEMA),
         'utf8',
       ),
-    ).toBe(13_661);
+    ).toBe(13_819);
     expect(
       canonicalJsonDigest(TEMPLATE_DRAFT_JSON_SCHEMA),
     ).toBe(
-      '88d24af5239ba94f86ec17de1c425d2b474f376e31213edbaca669289d7a46a5',
+      '72c2024f831cb0991ee262e5279a81ebc382983b3dc03334e6c344bbf385b6c1',
     );
   });
 
@@ -675,23 +675,23 @@ describe('Visual Contract prompt authority-table compaction', () => {
     ).toBeGreaterThan(1_024);
     expect(fox).toEqual({
       storyKey: 'fox_uri_adventure',
-      upperBound: 50_408,
-      headroom: 13_592,
+      upperBound: 49_682,
+      headroom: 14_318,
     });
     expect(worst).toEqual({
       storyKey: 'lion_shaket_fantasy',
-      upperBound: 53_832,
-      headroom: 10_168,
+      upperBound: 53_106,
+      headroom: 10_894,
     });
     expect(provider.call).not.toHaveBeenCalled();
   });
 
   it('binds only the changed prompt authorities and fails closed on a genuinely over-budget synthetic input before provider reachability', async () => {
     expect(TEMPLATE_PROMPT_VERSION).toBe(
-      'vc-template-prompt/v14',
+      'vc-template-prompt/v15',
     );
     expect(TEMPLATE_USER_PROMPT_VERSION).toBe(
-      'vc-template-user-prompt/v14',
+      'vc-template-user-prompt/v15',
     );
     expect(REPAIR_PROMPT_VERSION).toBe(
       'vc-repair-prompt/v13',

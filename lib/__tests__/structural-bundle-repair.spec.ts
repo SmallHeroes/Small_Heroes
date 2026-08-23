@@ -346,6 +346,36 @@ describe('recurring-prop and page structural bundle repair', () => {
     });
   });
 
+  it('excludes companion state selection from structural repair output and preserves the prior values', () => {
+    const original = draft();
+    const target = (original.pageContracts as Record<string, unknown>[])[0]!;
+    target.companionStateId = 'alert_olive_shift';
+    target.companionStateSourceEvidenceId = `se1_${'c'.repeat(64)}`;
+    const selected = authority(original)!;
+    expect(selected.affectedPages[0]!.pageContract).not.toHaveProperty(
+      'companionStateId',
+    );
+    const schemaPage = (
+      STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA.properties as {
+        pageContracts: { items: { properties: Record<string, unknown> } };
+      }
+    ).pageContracts.items.properties;
+    expect(schemaPage).not.toHaveProperty('companionStateId');
+
+    const result = applyStructuralBundleRepairPatch({
+      draft: original,
+      authority: selected,
+      patch: {
+        recurringProps: [prop('prop:bucket'), prop('prop:book')],
+        pageContracts: [page(1), page(2)],
+      },
+    });
+    expect((result.pageContracts as Record<string, unknown>[])[0]).toMatchObject({
+      companionStateId: 'alert_olive_shift',
+      companionStateSourceEvidenceId: `se1_${'c'.repeat(64)}`,
+    });
+  });
+
   it('rejects missing, extra, duplicate, renamed, and stale identities', () => {
     const original = draft();
     const selected = authority(original)!;

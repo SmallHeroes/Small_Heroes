@@ -1202,8 +1202,8 @@ describe('exact zero-cost authoring preflight', () => {
       },
       promptAuthority: {
         initial: {
-          systemPromptVersion: 'vc-template-prompt/v14',
-          userPromptVersion: 'vc-template-user-prompt/v14',
+          systemPromptVersion: 'vc-template-prompt/v15',
+          userPromptVersion: 'vc-template-user-prompt/v15',
         },
         repair: {
           systemPromptVersion: 'vc-repair-prompt/v13',
@@ -6020,6 +6020,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     delete repairedIndependentPage.castIds;
     delete repairedIndependentPage.castStates;
     delete repairedIndependentPage.characterPresence;
+    delete repairedIndependentPage.companionStateId;
+    delete repairedIndependentPage.companionStateSourceEvidenceId;
     repairedIndependentPage.propConstraints ??= [];
 
     const provider: VisualContractAuthoringProvider = {

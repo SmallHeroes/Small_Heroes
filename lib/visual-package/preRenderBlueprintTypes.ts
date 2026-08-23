@@ -361,6 +361,7 @@ export type PreRenderBlueprintIssueCode =
   | 'traversal_infeasible'
   | 'camera_infeasible'
   | 'composition_policy_invalid'
+  | 'companion_state_prose_conflict'
   | 'safety_infeasible'
   | 'transition_invalid'
   | 'reveal_violation'

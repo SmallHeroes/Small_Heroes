@@ -2202,6 +2202,43 @@ describe('page-contract compact repair', () => {
     }).toEqual(replacement);
   });
 
+  it('keeps companion state selection outside narrow PageContract repair authority and preserves it exactly', () => {
+    const original = draft();
+    const target = original.pageContracts[0] as Record<string, unknown>;
+    target.companionStateId = 'mismatched_amber_stripes';
+    target.companionStateSourceEvidenceId = `se1_${'b'.repeat(64)}`;
+    const affected = pageContractRepairAffectedPages({
+      draft: original,
+      diagnosticIssues: [issue(1)],
+      validationMessages: ['pageContracts[0].camera is invalid'],
+    })!;
+    const schemaPage = (
+      PAGE_CONTRACT_REPAIR_JSON_SCHEMA.properties as {
+        pageContracts: { items: { properties: Record<string, unknown> } };
+      }
+    ).pageContracts.items.properties;
+    expect(schemaPage).not.toHaveProperty('companionStateId');
+    expect(schemaPage).not.toHaveProperty(
+      'companionStateSourceEvidenceId',
+    );
+    expect(affected[0]!.pageContract).not.toHaveProperty(
+      'companionStateId',
+    );
+
+    const replacement = page(1);
+    replacement.camera = 'corrected portrait shot';
+    const result = applyPageContractRepairs({
+      draft: original,
+      affectedPages: affected,
+      pageContracts: [replacement],
+    });
+    expect((result.pageContracts as Record<string, unknown>[])[0]).toMatchObject({
+      camera: 'corrected portrait shot',
+      companionStateId: 'mismatched_amber_stripes',
+      companionStateSourceEvidenceId: `se1_${'b'.repeat(64)}`,
+    });
+  });
+
   it('applies a compound page repair only when every spatial target selects current-zone authority', () => {
     const original = spatialDraft();
     const snapshot = structuredClone(original);

@@ -175,6 +175,10 @@ import {
 } from './pageContractRepair';
 import { canonicalize } from '@/lib/canonical-json';
 import {
+  declaredCompanionAppearanceStateAuthority,
+  type CompanionAppearanceStateAuthority,
+} from '@/lib/companion-appearance-state';
+import {
   STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
   STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
   STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
@@ -233,9 +237,9 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v14' as const;
+  'vc-template-prompt/v15' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v14' as const;
+  'vc-template-user-prompt/v15' as const;
 /** Normal bounded safety net after the initial authoring call. */
 const STANDARD_MAX_REPAIR_ATTEMPTS =
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS;
@@ -1497,6 +1501,9 @@ export function buildTemplateCompileSystemPrompt(): string {
     `- Closed non_visual rationales: ${NON_VISUAL_RATIONALE_VALUES.join(' | ')}.`,
     '- For each given human, draft ONLY garments (each colour an explicit value) and forbiddenAppearance. Do NOT',
     '  output appearance (skinTone/hairColour/hairTexture/hairStyle) — the compiler injects those from a role policy.',
+    '- Companion state is closed and compiler-owned: draft nullable companionStateId + companionStateSourceEvidenceId.',
+    '  Use null/null when unchanged; otherwise select one exact declared id with exact same-page evidence. Never put',
+    '  companion hue/pattern/body-language in mustShow/mustNotShow; typed state is sole render authority.',
     '',
     'Topology: describe ONE location/zone graph in zones[] (each zone has a parent locationId). Stable-board area',
     'zoneProjection uses exact zone ids; one_to_one carries exactly one and one_to_many carries at least two. The',
@@ -1523,6 +1530,9 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     (h) =>
       `- ${h.id} (role=${h.role}, gender=${h.gender}); present on pages [${h.pagesPresent.join(', ')}]; draft ONLY garments/forbiddenAppearance for this person.`,
   );
+  const companionStateAuthority = input.companion
+    ? declaredCompanionAppearanceStateAuthority(input.companion.id)
+    : null;
   return [
     `storyKey: ${input.storyKey}`,
     `pageCount: ${input.pageCount}`,
@@ -1534,6 +1544,24 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
     facts.laterality.length
       ? `Laterality (from the text): ${facts.laterality.map((l) => `p${l.page}:${l.side}`).join(', ')}`
       : 'Laterality: none stated in the text (do NOT invent left/right).',
+    ...(companionStateAuthority
+      ? [
+          '',
+          'COMPANION STATE [id,index,role] (closed; compiler freezes full render payload):',
+          JSON.stringify({
+            default: companionStateAuthority.defaultStateId,
+            states: companionStateAuthority.states.map((state) => [
+              state.id,
+              state.continuityIndex,
+              state.continuityRole,
+            ]),
+          }),
+          'Use null/null when unchanged; otherwise move one step and cite exact same-page sourceEvidenceId. Never restate state appearance in mustShow/mustNotShow.',
+        ]
+      : [
+          '',
+          'COMPANION APPEARANCE STATE: this companion declares no state capability; every page must use null/null.',
+        ]),
     ...(input.authoredCoverAuthority
       ? [
           '',
@@ -1542,23 +1570,7 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
         ]
       : []),
     '',
-    'Produce a JSON BookVisualContractTemplate DRAFT (descriptive fields only) with keys: worldType, locations[],',
-    'zones[{id,locationId,name,description,stableGeometry[],spatialNodes[],spatialRelations[]}],',
-    'setBoardAuthorities[{setIdentityId,locations[],areas[{id,locationId,zoneProjection,spatialNodes,spatialRelations}]}],',
-    'cast{child,companion?}, humanCast[{id, garments, forbiddenAppearance}],',
-    'recurringProps[{id,name,description,material?,scale?,persistence?,firstRevealPage?}],',
-    'forbiddenGlobalElements[], coverContract{worldType,locationId,zoneId,castIds,timeOfDay,mustShow,mustNotShow},',
-    'pageContracts[{pageNumber, locationId, zoneId, sameLocationAs?,',
-    'mustShow[], mustNotShow[], propState[], propConstraints[{propId,visibility,stateId?,anchorId?}], camera, transition}].',
-    'Each page carries actionRequirements[{beatId,subject,predicate,object?,spatialEffect?,spatialConstraint?,polarity,laterality?}].',
-    'beatId is the exact same page-scoped key as its one actionSemanticCoverage record; never emit checkId.',
-    'subject is {kind:"entity",entity:{kind,id}}, {kind:"cast_group",castIds:[...]}, or',
-    '{kind:"source_phenomenon",sourceEvidenceId}; use []',
-    'when no beat binds to a catalog action; do not invent an action merely to populate the array.',
-    'and actionSemanticCoverage[{beatId,sourceEvidenceId,disposition}] arrays. beatId must use beat:p{page}:name.',
-    'Prop scopes: stable_set or page_frame only; follow system rules.',
-    'sourceEvidenceId must be selected exactly from the same-page catalog below. represented_elsewhere uses a root',
-    'JSON pointer under the exact current pageContracts[] item.',
+    'Return exactly the supplied strict-schema draft. Every property is required; use null for nullable fields and arrays only where the schema declares arrays. The system rules above govern identity, action coverage, source evidence, scope, and state selection.',
     '',
     `COMPLETE STORY SOURCE + SOURCE EVIDENCE CATALOG (${input.sourceEvidenceCatalog.version}; compiler-owned exact excerpts)`,
     'Read tuples in listed order, grouped by pageNumber. Together they are the complete Story Source; do not invent omitted prose.',
@@ -2653,6 +2665,7 @@ function overlayPage(
   facts: DeterministicFacts,
   childId: string,
   companionId: string | null,
+  sourceEvidenceCatalog: SourceEvidenceCatalog,
 ): Record<string, unknown> {
   const page = typeof pc.pageNumber === 'number' ? pc.pageNumber : -1;
   const companionPresent = companionId != null && facts.companionPresentPages.includes(page);
@@ -2684,6 +2697,34 @@ function overlayPage(
     castIds,
     characterPresence: { child: true, companion: companionPresent },
   };
+  const draftCompanionStateId = pc.companionStateId;
+  const draftCompanionStateSourceEvidenceId =
+    pc.companionStateSourceEvidenceId;
+  delete out.companionStateId;
+  delete out.companionStateSourceEvidenceId;
+  if (
+    (draftCompanionStateId !== null &&
+      draftCompanionStateId !== undefined) ||
+    (draftCompanionStateSourceEvidenceId !== null &&
+      draftCompanionStateSourceEvidenceId !== undefined)
+  ) {
+    const sourceResolution = resolveSourceEvidenceId({
+      catalog: sourceEvidenceCatalog,
+      sourceEvidenceId: draftCompanionStateSourceEvidenceId,
+      pageNumber: page,
+    });
+    out.companionStateOverride = {
+      stateId:
+        typeof draftCompanionStateId === 'string'
+          ? draftCompanionStateId.trim()
+          : '',
+      origin: {
+        kind: 'story_evidence',
+        page,
+        phrase: sourceResolution.ok ? sourceResolution.entry.excerpt : '',
+      },
+    };
+  }
   const actions = canonicalizePageActionCastGroups(
     pc.actionRequirements,
   );
@@ -4048,8 +4089,14 @@ function assembleTemplateFromDraft(
   const draftCast = asObj(draft.cast);
   const draftChild = asObj(draftCast.child);
   const draftCompanion = asObj(draftCast.companion);
+  const draftCompanionDescriptive = { ...draftCompanion };
+  delete draftCompanionDescriptive.companionAppearanceStateAuthority;
   const childId = CHILD_ID;
   const companionId = authoritativeCompanionCastId(input);
+  const companionStateAuthority: CompanionAppearanceStateAuthority | null =
+    input.companion
+      ? declaredCompanionAppearanceStateAuthority(input.companion.id)
+      : null;
 
   // Surface (don't silently swallow) a draft that tried to mis-id or inject a companion — identity is input-authoritative.
   const draftCompanionId = typeof draftCompanion.id === 'string' ? (draftCompanion.id as string) : undefined;
@@ -4067,10 +4114,16 @@ function assembleTemplateFromDraft(
   };
   if (input.companion) {
     authoritativeCast.companion = {
-      ...draftCompanion,
+      ...draftCompanionDescriptive,
       id: companionId,
       role: 'companion',
       ...(input.companion.name ? { name: input.companion.name } : {}),
+      ...(companionStateAuthority
+        ? {
+            companionAppearanceStateAuthority:
+              structuredClone(companionStateAuthority),
+          }
+        : {}),
     };
   }
 
@@ -4137,6 +4190,7 @@ function assembleTemplateFromDraft(
           facts,
           childId,
           companionId,
+          input.sourceEvidenceCatalog,
         ),
       );
     } catch (error) {

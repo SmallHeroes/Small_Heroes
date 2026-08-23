@@ -2,7 +2,67 @@
 
 **Updated:** 2026-08-23
 **Maintainer:** Codex
-**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active pre-Order attestation milestone starts from pushed environment-authority correction head `c89867dbbbbe6ae18b680a40596cf8660cf9dd8c`.
+**Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
+
+## TYPED COMPANION APPEARANCE STATE AUTHORITY — LOCAL GREEN, CLAUDE QA NEXT
+
+Guy approved a general closed Companion State system before the separate Bar/Kim
+Story Source rewrite. The repository cause is now addressed structurally: an
+opted-in companion declares one closed ordered appearance-state vocabulary;
+authoring freezes its complete copy inside the Visual Contract, pages select
+only a state id plus typed evidence, and runtime interprets only that frozen
+copy. Historical and non-capable companions omit the authority and retain their
+prior behavior.
+
+The authority owns hue, pattern and body-language changes while preserving one
+invariant companion identity and canonical accessory. Its shape fails closed
+unless it has canonical ids, contiguous ordered indexes, one baseline default,
+at least one transition and mismatch, and one resolved final state. Page state
+begins at the default, changes only by a non-no-op adjacent step while the
+companion is present, and carries forward through omitted or absent pages.
+Loose companion-scoped appearance prose is rejected in contract pages, the
+cover and Blueprint narratives.
+
+Kim is the first declaration, expressed as data rather than a runtime branch:
+`settled_warm_green` → `alert_olive_shift` →
+`mismatched_amber_stripes` → `attuning_blue_green` →
+`blended_moonlit_teal`. Her anatomy, face, eyes, tail and warm-mustard satchel
+remain invariant. The final provider prompt receives the resolved typed state
+and excludes the old fixed-green registry description whenever state authority
+is active; the satchel remains a separate required lock.
+
+Narrow PageContract and Structural Bundle repairs cannot author state fields.
+Their strict schemas and authority projections omit those fields, while their
+appliers preserve an existing selection. Initial/full authoring may select only
+from the compact closed id/index/role table and must cite exact same-page Source
+Evidence. The current draft schema is `vc-draft-schema/v17`; template system and
+user prompts are `v15`. The schema remains 13,819 bytes with digest
+`72c2024f831cb0991ee262e5279a81ebc382983b3dc03334e6c344bbf385b6c1`.
+The largest 12-page QA request is 62,605/64,000, leaving 1,395 units of input
+headroom without changing provider, model, call count, repair count or budget.
+
+Changed/adjacent validation passes: **9/9** dedicated Companion State tests,
+**242/242** complete authoring/lifecycle/Blueprint tests, **78/78** narrow repair
+tests, **29/29** runtime authority tests, **57/57** prompt/schema tests, and
+`npx --no-install tsc --noEmit` plus `git diff --check`. The canonical inventory
+is now **323 / 303 / 20**, and its classifier passes **7/7**.
+
+One literal `npm run check` completed both phases. Ordinary reported **3,544
+PASS / 65 skipped / 8 failures**: five are the established missing ignored
+`outputs/` fixtures, two unchanged package-migration tests exceeded the
+five-second parallel timeout, and the then-stale inventory count was corrected.
+Both migration cases pass in isolation with a 30-second diagnostic allowance
+(**2/2**, 6.5s and 6.1s). Resource-intensive reported **610 PASS / 1 timeout**
+plus three known Vitest `onTaskUpdate` RPC timeouts; the timed QA Bridge case
+passes in isolation (**1/1**, 6.0s). No changed or adjacent functional assertion
+remains failed.
+
+No Story Source, approved package, locator, Blueprint, Board, Order, payment,
+image, audio, database, storage, deployment or remote state changed. The four
+pre-existing untracked Board artifacts remain byte-identical and unstaged. This
+milestone used no provider and cost **$0**. Next action is a focused local commit
+and Guy-mediated Claude Code adversarial review. The Bar/Kim Story Source rewrite
+remains HOLD until that independent technical PASS, exactly as approved.
 
 ## WIZARD BOOK CONTINUITY + COMPOSITION AUTHORITY — LOCAL GREEN, CLAUDE QA NEXT
 

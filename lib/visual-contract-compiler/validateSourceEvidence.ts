@@ -52,7 +52,67 @@ export function sourceEvidenceValidation(
     (Array.isArray(pages) ? pages : []).map((p) => [p?.pageNumber, normalize(p?.text ?? '')])
   );
 
+  const validateOrigin = (args: {
+    origin: Extract<
+      NonNullable<
+        NonNullable<BookVisualContract['pageContracts'][number]['companionStateOverride']>
+      >['origin'],
+      { kind: 'story_evidence' }
+    >;
+    label: string;
+    locator: DraftValidationIssue['locator'];
+    purpose: string;
+  }): void => {
+    const sourceText = textByPage.get(args.origin.page);
+    if (sourceText === undefined) {
+      errors.push(
+        `${args.label} cites page ${String(args.origin.page)}, which is not one of the story's source pages`,
+      );
+      diagnosticIssues.push({
+        family: 'draft_contract',
+        code: 'source_evidence_phrase_invalid',
+        locator: args.locator,
+      });
+      return;
+    }
+    const needle = normalize(args.origin.phrase);
+    if (!needle) {
+      errors.push(
+        `${args.label} has an empty phrase — cite the exact story words the ${args.purpose} rests on`,
+      );
+      diagnosticIssues.push({
+        family: 'draft_contract',
+        code: 'source_evidence_phrase_invalid',
+        locator: args.locator,
+      });
+      return;
+    }
+    if (!sourceText.includes(needle)) {
+      errors.push(
+        `${args.label} quote ${JSON.stringify(args.origin.phrase)} does not occur on page ${args.origin.page} — ${args.purpose} source citation must be verifiable in the story text (never invent evidence)`,
+      );
+      diagnosticIssues.push({
+        family: 'draft_contract',
+        code: 'source_evidence_phrase_invalid',
+        locator: args.locator,
+      });
+    }
+  };
+
   for (const page of contract.pageContracts ?? []) {
+    const companionOrigin = page?.companionStateOverride?.origin;
+    if (companionOrigin?.kind === 'story_evidence') {
+      validateOrigin({
+        origin: companionOrigin,
+        label: `page ${page.pageNumber}.companionStateOverride.origin(story_evidence)`,
+        locator: {
+          kind: 'page',
+          fieldRole: 'source_evidence',
+          pageNumber: page.pageNumber,
+        },
+        purpose: 'companion appearance-state transition',
+      });
+    }
     const constraints = page?.safetyConstraints;
     if (!Array.isArray(constraints)) continue;
     constraints.forEach((safety, i) => {
@@ -75,24 +135,12 @@ export function sourceEvidenceValidation(
               itemIndex: i,
             };
 
-      const sourceText = textByPage.get(origin.page);
-      if (sourceText === undefined) {
-        errors.push(`${label} cites page ${String(origin.page)}, which is not one of the story's source pages`);
-        diagnosticIssues.push({ family: 'draft_contract', code: 'source_evidence_phrase_invalid', locator });
-        return;
-      }
-      const needle = normalize(origin.phrase);
-      if (!needle) {
-        errors.push(`${label} has an empty phrase — cite the exact story words the hazard rests on`);
-        diagnosticIssues.push({ family: 'draft_contract', code: 'source_evidence_phrase_invalid', locator });
-        return;
-      }
-      if (!sourceText.includes(needle)) {
-        errors.push(
-          `${label} quote ${JSON.stringify(origin.phrase)} does not occur on page ${origin.page} — a hazard's source citation must be verifiable in the story text (never invent evidence)`
-        );
-        diagnosticIssues.push({ family: 'draft_contract', code: 'source_evidence_phrase_invalid', locator });
-      }
+      validateOrigin({
+        origin,
+        label,
+        locator,
+        purpose: 'hazard',
+      });
     });
   }
 

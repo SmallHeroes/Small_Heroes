@@ -56,6 +56,9 @@ export interface PvbVisualContractFactsProjection {
     child: string;
     companion?: string;
   };
+  companionAppearanceState?: NonNullable<
+    ResolvedPageContract['resolvedCompanionState']
+  >;
   props: Array<{
     id: string;
     name: string;
@@ -169,6 +172,13 @@ export function projectPvbVisualContractFacts(
         ? { companion: page.companionWardrobeLock.trim() }
         : {}),
     },
+    ...(page.resolvedCompanionState
+      ? {
+          companionAppearanceState: structuredClone(
+            page.resolvedCompanionState,
+          ),
+        }
+      : {}),
     props,
     stableGeometry: [...(page.zoneStableGeometry ?? [])],
     forbiddenWorldElements: [...contract.forbiddenGlobalElements],
@@ -243,6 +253,12 @@ export function buildPvbVisualContractFactsPromptBlock(
     ),
     line('CHILD WARDROBE (locked)', facts.wardrobe.child),
     line('COMPANION WARDROBE (locked)', facts.wardrobe.companion),
+    line(
+      'COMPANION APPEARANCE STATE (typed; sole hue/pattern/body-language authority)',
+      facts.companionAppearanceState
+        ? JSON.stringify(facts.companionAppearanceState)
+        : undefined,
+    ),
     line('PROP FACTS', propFacts || undefined),
     line('STABLE GEOMETRY', facts.stableGeometry.join('; ') || undefined),
     line(
@@ -360,6 +376,12 @@ export function buildVisualContractPromptBlock(
     line('CAST PRESENT', presence.join(' + ') || 'none'),
     line('CHILD WARDROBE (locked)', page.childWardrobeLock),
     line('COMPANION WARDROBE (locked)', page.companionWardrobeLock),
+    line(
+      'COMPANION APPEARANCE STATE (typed; sole hue/pattern/body-language authority)',
+      page.resolvedCompanionState
+        ? JSON.stringify(page.resolvedCompanionState)
+        : undefined,
+    ),
     line('PROP STATE', propState || undefined),
     line('MUST SHOW', (page.mustShow ?? []).join('; ') || undefined),
     line('MUST NOT SHOW (never render)', (page.mustNotShow ?? []).join('; ') || undefined),

@@ -12,7 +12,7 @@ import {
   type RepresentedElsewherePointerValue,
 } from './actionSemanticCoverage';
 import {
-  TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
+  TEMPLATE_REPAIR_PAGE_CONTRACT_JSON_SCHEMA,
 } from './templateDraftSchema';
 import {
   draftAuthorityReferenceIssueIsValid,
@@ -68,7 +68,7 @@ export const PAGE_CONTRACT_REPAIR_JSON_SCHEMA: Record<
     pageContracts: {
       type: 'array',
       minItems: 1,
-      items: TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA,
+      items: TEMPLATE_REPAIR_PAGE_CONTRACT_JSON_SCHEMA,
     },
   });
 
@@ -106,7 +106,7 @@ export const PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA: Record<
 const PAGE_CONTRACT_KEYS = Object.freeze(
   Object.keys(
     (
-      TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA.properties as Record<
+      TEMPLATE_REPAIR_PAGE_CONTRACT_JSON_SCHEMA.properties as Record<
         string,
         unknown
       >
@@ -1114,7 +1114,7 @@ export function pageContractRepairAffectedPages(args: {
             }
             return {
               pageNumber,
-              pageContract: structuredClone(matches[0]!),
+              pageContract: pageContractSchemaProjection(matches[0]!),
               repairTargets: pageTargets,
               validationHints: [
                 ...(validationHintsByPage.get(pageNumber) ?? []),
@@ -2600,7 +2600,19 @@ function pageContractSchemaProjection(
   page: Record<string, unknown>,
 ): Record<string, unknown> {
   return Object.fromEntries(
-    PAGE_CONTRACT_KEYS.map((key) => [key, page[key]]),
+    PAGE_CONTRACT_KEYS
+      .filter((key) => Object.prototype.hasOwnProperty.call(page, key))
+      .map((key) => [key, page[key]]),
+  );
+}
+
+function preservedCompanionStateSelection(
+  page: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    ['companionStateId', 'companionStateSourceEvidenceId']
+      .filter((key) => Object.prototype.hasOwnProperty.call(page, key))
+      .map((key) => [key, structuredClone(page[key])]),
   );
 }
 
@@ -3261,6 +3273,7 @@ export function applyPageContractRepairs(args: {
           ...replacementPage,
           locationId: originalPage.locationId,
           zoneId: originalPage.zoneId,
+          ...preservedCompanionStateSelection(originalPage),
         }
       : targetedResult;
   });

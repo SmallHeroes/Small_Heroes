@@ -22,6 +22,11 @@ import {
 } from './child-photo-dna-sanitize';
 import { resolveCompanionLockSource } from './companion-lock-source';
 import {
+  buildCompanionAppearanceStatePromptBlock,
+  normalizeCompanionAppearanceStateId,
+  type ResolvedCompanionAppearanceState,
+} from './companion-appearance-state';
+import {
   classifyStyle01SceneClass,
   resolveStyle01SceneRefSubset,
   contractEnvironmentToStyle01Subset,
@@ -708,7 +713,25 @@ export function buildStyle01CompanionTextLock(input: {
   companionStructured?: { species: string; size: string; coloring: string; feature: string };
   companionVisualDescription?: string;
   storyCompanionLock?: string;
+  resolvedCompanionState?: ResolvedCompanionAppearanceState;
 }): string {
+  if (input.resolvedCompanionState) {
+    if (
+      !input.companionId ||
+      normalizeCompanionAppearanceStateId(input.companionId) !==
+        normalizeCompanionAppearanceStateId(
+          input.resolvedCompanionState.companionId,
+        )
+    ) {
+      throw new Error(
+        'resolved companion appearance state does not match the requested companion identity',
+      );
+    }
+    return buildCompanionAppearanceStatePromptBlock(
+      input.resolvedCompanionState,
+      input.companionName ?? 'companion',
+    );
+  }
   // Hand-authored canonical locks (Dini/Dobi) stay top precedence — they ARE registry-grade truth.
   if (input.storyCompanionLock?.trim()) return input.storyCompanionLock.trim();
   // Gap-1 rule: registry companion → registry visualDescription ONLY; DNA only for non-registry entities.

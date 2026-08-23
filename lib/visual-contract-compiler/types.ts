@@ -12,6 +12,9 @@
  */
 
 import type { ActionPredicate } from './actionSemanticCatalog';
+import type {
+  CompanionAppearanceStateAuthority,
+} from '@/lib/companion-appearance-state';
 import type { StoryTimeOfDay } from '@/lib/story-time-of-day';
 
 export {
@@ -332,6 +335,11 @@ export interface VisualCastMember {
   role: VisualCastRole;
   name?: string;
   wardrobe: WardrobeLock;
+  /**
+   * Optional complete frozen companion-state vocabulary. Valid only on the
+   * companion cast member. Omission preserves historical contract semantics.
+   */
+  companionAppearanceStateAuthority?: CompanionAppearanceStateAuthority;
 }
 
 /** Child is always present in the cast; companion is optional (some stories have none). */
@@ -616,6 +624,16 @@ export type SafetyEvidenceOrigin =
   | { kind: 'policy_default'; policyId: string; version: string };
 
 /**
+ * A page-scoped transition to one closed state in the companion's frozen
+ * appearance-state vocabulary. Omitted pages inherit the last resolved state,
+ * beginning with the authority's default state.
+ */
+export interface PageCompanionStateOverride {
+  stateId: string;
+  origin: SafetyEvidenceOrigin;
+}
+
+/**
  * vNext (Contract v2 / Stage 3): a per-page HAZARD PROHIBITION over AUTHORED STRUCTURE (pre-render) — distinct from
  * the render-time safety evaluator, which inspects rendered PIXELS post-render. Different tracks, deliberately.
  *
@@ -650,6 +668,11 @@ export interface PageVisualContract {
    * present and must carry a typed evidence origin.
    */
   childWardrobeOverride?: PageChildWardrobeOverride;
+  /**
+   * Explicit companion appearance-state transition. Valid only while the
+   * companion is present and only when the cast freezes a state authority.
+   */
+  companionStateOverride?: PageCompanionStateOverride;
   /** Resolved from the companion's wardrobe by derivePageVisualContracts (do not hand-set). */
   companionWardrobeLock?: string;
   propState: PagePropState[];

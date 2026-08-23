@@ -59,6 +59,7 @@ import {
   type RevealSafeSupportingGeometry,
 } from './preRenderBlueprintTypes';
 import { preRenderBlueprintCompositionPolicyIssues } from './preRenderBlueprintCompositionPolicy';
+import { companionAppearanceProseConflicts } from '@/lib/companion-appearance-state';
 import type {
   StorySourceIdentity,
   VisualPackageTemplateIdentity,
@@ -1661,6 +1662,26 @@ function validateFrame(args: {
     issues.push(issue('schema_invalid', 'frame narrative purpose/summary is incomplete', {
       field: `${field}.narrative`,
     }));
+  } else {
+    const companion = template.cast.companion;
+    const stateAuthority = companion?.companionAppearanceStateAuthority;
+    if (
+      companion &&
+      stateAuthority
+    ) {
+      for (const conflict of companionAppearanceProseConflicts({
+        authority: stateAuthority,
+        texts: [frame.narrative.summary],
+      })) {
+        issues.push(
+          issue(
+            'companion_state_prose_conflict',
+            `frame narrative contains companion-scoped appearance term ${JSON.stringify(conflict.term)} beside alias ${JSON.stringify(conflict.alias)}; typed companion state is the sole appearance authority`,
+            { field: `${field}.narrative.summary` },
+          ),
+        );
+      }
+    }
   }
   const textRegionOk = addRegionIssue(issues, frame.textSafeRegion, `${field}.textSafeRegion`);
   if (

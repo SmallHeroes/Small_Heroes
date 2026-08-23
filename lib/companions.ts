@@ -3,6 +3,11 @@ import 'server-only';
 import { existsSync, statSync } from 'fs';
 import { join } from 'path';
 
+import {
+  CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY,
+  type CompanionAppearanceStateAuthority,
+} from './companion-appearance-state';
+
 /**
  * Canonical companion definitions for story + image prompts (server).
  * Kept in sync manually with: `public/JS/companions.js` (client bundle).
@@ -66,6 +71,11 @@ export type Companion = {
   cardImage?: string;
   /** English, image-prompt friendly — must stay stable for Flux anchors */
   visualDescription: string;
+  /**
+   * Optional authoring declaration. New Visual Contracts freeze a complete
+   * copy; approved runtime never interprets state from this mutable record.
+   */
+  appearanceStateAuthority?: CompanionAppearanceStateAuthority;
 };
 
 /** Canonical Bolly — Small Heroes signature armadillo companion (image-consistency anchor). */
@@ -153,6 +163,7 @@ export const COMPANIONS_BY_CATEGORY: Record<ChallengeCategory, Companion[]> = {
       narrativeHook: 'מראה שבכל מקום חדש חלק מהבית נוסע איתך',
       visualDescription:
         'A small round chameleon in soft warm green with a gentle yellowish-green glow — ONE harmonious green-to-warm-yellow tone across the body (NOT patches, NOT pink spots, NOT pure mint); pale cream-yellow belly; big warm round eyes; shy gentle smile; tail softly curled; carries a TINY fabric shoulder satchel in warm mustard — her little travel bag ("a piece of home travels with her"); cute simplified storybook proportions — warm, huggable, slightly shy.',
+      appearanceStateAuthority: CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY,
     },
     {
       id: 'squirrel_navad',

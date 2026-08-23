@@ -119,6 +119,24 @@ function exactKeys(
   );
 }
 
+function pageContractProjection(
+  page: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    PAGE_CONTRACT_KEYS.map((key) => [key, structuredClone(page[key])]),
+  );
+}
+
+function preservedCompanionStateSelection(
+  page: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    ['companionStateId', 'companionStateSourceEvidenceId']
+      .filter((key) => Object.prototype.hasOwnProperty.call(page, key))
+      .map((key) => [key, structuredClone(page[key])]),
+  );
+}
+
 function positiveInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) > 0;
 }
@@ -297,7 +315,7 @@ export function structuralBundleRepairAuthority(args: {
       return matches.length === 1
         ? {
             pageNumber,
-            pageContract: structuredClone(matches[0]!),
+            pageContract: pageContractProjection(matches[0]!),
           }
         : null;
     });
@@ -582,7 +600,10 @@ export function applyStructuralBundleRepairPatch(args: {
       throw new Error('structural_bundle_repair_page_target_stale');
     }
     seenSelectedPages.add(page.pageNumber);
-    return structuredClone(patchPages.get(page.pageNumber)!);
+    return {
+      ...structuredClone(patchPages.get(page.pageNumber)!),
+      ...preservedCompanionStateSelection(page),
+    };
   });
   if (seenSelectedPages.size !== pageNumbers.size) {
     throw new Error('structural_bundle_repair_page_target_stale');

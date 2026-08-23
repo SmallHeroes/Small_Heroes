@@ -55,6 +55,9 @@ export interface RuntimePageAuthorityProjection {
   safeScenePrompt: string;
   page: ResolvedPageContract;
   blueprintFrame: RuntimeBlueprintFrameProjection;
+  resolvedCompanionState?: NonNullable<
+    RuntimeBlueprintFrameProjection['resolvedCompanionState']
+  >;
   childCast: Style01RuntimeAuthority['contract']['cast']['child'];
   companionCast?: NonNullable<
     Style01RuntimeAuthority['contract']['cast']['companion']
@@ -251,6 +254,13 @@ export function buildRuntimePageAuthorityProjection(args: {
     safeScenePrompt: frame.safeScenePrompt,
     page: frame.contractPage,
     blueprintFrame: frame,
+    ...(frame.resolvedCompanionState
+      ? {
+          resolvedCompanionState: structuredClone(
+            frame.resolvedCompanionState,
+          ),
+        }
+      : {}),
     childCast: {
       ...authority.contract.cast.child,
       wardrobe: structuredClone(frame.resolvedChildWardrobe),

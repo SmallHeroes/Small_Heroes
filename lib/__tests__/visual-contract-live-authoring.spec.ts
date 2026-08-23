@@ -25,6 +25,7 @@ import type {
 } from '../visual-contract-compiler/compileBookVisualContract';
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 import { OpenAIResponsesStructuredOutputSchemaCompatibilityError } from '../visual-package/openaiResponsesStructuredOutputSchemaCompatibility';
+import { CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY } from '../companion-appearance-state';
 
 const BUNNY_KEY = 'bunny_ometz_adventure';
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
@@ -37,6 +38,34 @@ function bunnyTemplate(): unknown {
     pages: bunnySource().pages,
     sourceEvidenceCatalog: bunnySource().sourceEvidenceCatalog,
   });
+}
+
+const CHAMELEON_KEY = 'chameleon_koko_bedtime';
+const CHAMELEON_PACKAGE = path.join(
+  process.cwd(),
+  'visual-packages',
+  'approved',
+  'revisions',
+  '2b488f2db44702106f49ad80c257b88269972ffb8ebbc92cced95f81c13d98a6.visual-package.json',
+);
+
+function chameleonSource(): TemplateCompileInput {
+  const packageValue = JSON.parse(
+    fs.readFileSync(CHAMELEON_PACKAGE, 'utf8'),
+  ) as { sourceSnapshot: { content: string } };
+  return extractSourceFromMarkdown(
+    CHAMELEON_KEY,
+    packageValue.sourceSnapshot.content,
+  ) as TemplateCompileInput;
+}
+
+function chameleonDraft(): Record<string, unknown> {
+  const packageValue = JSON.parse(
+    fs.readFileSync(CHAMELEON_PACKAGE, 'utf8'),
+  ) as {
+    visualContractTemplate: { content: Record<string, unknown> };
+  };
+  return structuredClone(packageValue.visualContractTemplate.content);
 }
 
 function findConstNode(
@@ -99,6 +128,10 @@ describe('Stage 1 — draft json_schema is strict-mode compliant', () => {
     expect(root.properties.pageContracts.items?.properties).toHaveProperty('propConstraints');
     expect(root.properties.pageContracts.items?.properties).toHaveProperty('actionRequirements');
     expect(root.properties.pageContracts.items?.properties).toHaveProperty('actionSemanticCoverage');
+    expect(root.properties.pageContracts.items?.properties).toMatchObject({
+      companionStateId: { type: ['string', 'null'] },
+      companionStateSourceEvidenceId: { type: ['string', 'null'] },
+    });
     expect(
       root.properties.pageContracts.items?.properties
         ?.actionRequirements,
@@ -257,8 +290,87 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
     expect(provenance.authoringModel).toBe('gpt-5.6-sol');
     expect(provenance.reasoningEffort).toBe('medium');
     expect(provenance.maxOutputTokens).toBe(40_000);
-    expect(provenance.schemaVersion).toBe('vc-draft-schema/v16');
+    expect(provenance.schemaVersion).toBe('vc-draft-schema/v17');
     expect(provenance.attempt).toBe(1);
+  });
+
+  it('injects frozen companion state authority and resolves nullable state selections from exact source evidence', async () => {
+    const input = chameleonSource();
+    const draft = chameleonDraft();
+    const pages = draft.pageContracts as Array<Record<string, unknown>>;
+    for (const page of pages) page.actionRequirements = [];
+    for (const authority of (draft.setBoardAuthorities ?? []) as Array<
+      Record<string, unknown>
+    >) {
+      delete authority.fixedObjects;
+    }
+    withCurrentActionSemanticCoverage({
+      draft: draft as { pageContracts: Array<object> },
+      pages: input.pages,
+      sourceEvidenceCatalog: input.sourceEvidenceCatalog,
+    });
+    const stateIds = new Map<number, string>([
+      [2, 'alert_olive_shift'],
+      [3, 'mismatched_amber_stripes'],
+      [4, 'attuning_blue_green'],
+      [5, 'blended_moonlit_teal'],
+    ]);
+    for (const page of pages) {
+      const pageNumber = Number(page.pageNumber);
+      page.companionStateId = stateIds.get(pageNumber) ?? null;
+      page.companionStateSourceEvidenceId = stateIds.has(pageNumber)
+        ? input.sourceEvidenceCatalog.entries.find(
+            (entry) => entry.pageNumber === pageNumber,
+          )!.sourceEvidenceId
+        : null;
+    }
+    const cast = draft.cast as {
+      companion?: Record<string, unknown>;
+    };
+    if (!cast.companion) throw new Error('Chameleon draft companion missing');
+    cast.companion.companionAppearanceStateAuthority = {
+      forged: 'draft must never own this authority',
+    };
+
+    const callLLM = vi.fn<ContractLlmCaller>(async () =>
+      JSON.stringify(draft),
+    );
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM,
+    });
+
+    expect(callLLM).toHaveBeenCalledTimes(1);
+    const initialUserPrompt = callLLM.mock.calls[0]![1];
+    expect(initialUserPrompt).toContain('mismatched_amber_stripes');
+    expect(initialUserPrompt).toContain(
+      'COMPANION STATE [id,index,role] (closed; compiler freezes full render payload):',
+    );
+    expect(initialUserPrompt).not.toContain(
+      'one harmonious warm amber-green body tone',
+    );
+    expect(
+      result.template.cast.companion?.companionAppearanceStateAuthority,
+    ).toEqual(CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY);
+    expect(
+      result.template.pageContracts.map((page) =>
+        page.companionStateOverride
+          ? [
+              page.pageNumber,
+              page.companionStateOverride.stateId,
+              page.companionStateOverride.origin.kind,
+            ]
+          : null,
+      ),
+    ).toEqual([
+      null,
+      [2, 'alert_olive_shift', 'story_evidence'],
+      [3, 'mismatched_amber_stripes', 'story_evidence'],
+      [4, 'attuning_blue_green', 'story_evidence'],
+      [5, 'blended_moonlit_teal', 'story_evidence'],
+      null,
+      null,
+      null,
+    ]);
   });
 
   it('does not permit VISUAL_CONTRACT_AUTHOR_MODEL substitution', async () => {

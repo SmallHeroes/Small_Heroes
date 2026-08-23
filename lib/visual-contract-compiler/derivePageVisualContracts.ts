@@ -13,6 +13,10 @@ import type {
   VisualZone,
   WardrobeLock,
 } from './types';
+import {
+  resolveCompanionAppearanceState,
+  type ResolvedCompanionAppearanceState,
+} from '@/lib/companion-appearance-state';
 
 export interface ResolvedPageContract extends PageVisualContract {
   /** mustNotShow ∪ forbiddenGlobalElements (deduped). */
@@ -23,6 +27,8 @@ export interface ResolvedPageContract extends PageVisualContract {
   childWardrobeLock: string;
   /** Exact page-resolved child wardrobe authority. */
   childWardrobe: WardrobeLock;
+  /** Exact carried-forward companion appearance state, only while visible. */
+  resolvedCompanionState?: ResolvedCompanionAppearanceState;
   locationName: string;
   zoneName?: string;
   /** (Slice B) The page's own zone stableGeometry, resolved for the authoritative prompt block (per-page → no leak). */
@@ -38,13 +44,38 @@ export function derivePageVisualContracts(contract: BookVisualContract): Resolve
   const zoneById = new Map<string, VisualZone>(contract.zones.map((z) => [z.id, z]));
   const childWardrobe = contract.cast.child.wardrobe;
   const companionWardrobeLock = contract.cast.companion?.wardrobe.description;
+  const companionStateAuthority =
+    contract.cast.companion?.companionAppearanceStateAuthority;
   const globalForbidden = contract.forbiddenGlobalElements ?? [];
+  let currentCompanionState = companionStateAuthority
+    ? resolveCompanionAppearanceState(
+        companionStateAuthority,
+        companionStateAuthority.defaultStateId,
+      )
+    : null;
+  if (companionStateAuthority && !currentCompanionState) {
+    throw new Error('frozen companion appearance-state default is unresolved');
+  }
 
   return contract.pageContracts
+    .slice()
+    .sort((a, b) => a.pageNumber - b.pageNumber)
     .map((page): ResolvedPageContract => {
       const location = locationById.get(page.locationId);
       const zone = page.zoneId ? zoneById.get(page.zoneId) : undefined;
       const effectiveChildWardrobe = page.childWardrobeOverride ?? childWardrobe;
+      if (page.companionStateOverride && companionStateAuthority) {
+        const nextState = resolveCompanionAppearanceState(
+          companionStateAuthority,
+          page.companionStateOverride.stateId,
+        );
+        if (!nextState) {
+          throw new Error(
+            `page ${page.pageNumber} companion appearance-state is unresolved`,
+          );
+        }
+        currentCompanionState = nextState;
+      }
       return {
         ...page,
         mustNotShow: uniq([...(page.mustNotShow ?? []), ...globalForbidden]),
@@ -57,13 +88,15 @@ export function derivePageVisualContracts(contract: BookVisualContract): Resolve
         },
         // Only lock the companion outfit on pages where the companion actually appears.
         companionWardrobeLock: page.characterPresence.companion ? companionWardrobeLock : undefined,
+        ...(page.characterPresence.companion && currentCompanionState
+          ? { resolvedCompanionState: structuredClone(currentCompanionState) }
+          : {}),
         locationName: location?.name ?? page.locationId,
         zoneName: zone?.name,
         // (Slice B) each page carries ONLY its own zone's geometry → the prompt block emits per-page, no cross-zone leak.
         zoneStableGeometry: zone?.stableGeometry,
       };
-    })
-    .sort((a, b) => a.pageNumber - b.pageNumber);
+    });
 }
 
 /**
@@ -80,6 +113,21 @@ export function deriveCoverVisualContract(contract: BookVisualContract): Resolve
   const location = contract.locations.find((l) => l.id === cover.locationId);
   const zone = cover.zoneId ? contract.zones.find((candidate) => candidate.id === cover.zoneId) : undefined;
   const castIds = cover.castIds ?? [contract.cast.child.id];
+  const coverShowsCompanion = contract.cast.companion
+    ? castIds.includes(contract.cast.companion.id)
+    : false;
+  const companionStateAuthority =
+    contract.cast.companion?.companionAppearanceStateAuthority;
+  const resolvedCompanionState =
+    coverShowsCompanion && companionStateAuthority
+      ? resolveCompanionAppearanceState(
+          companionStateAuthority,
+          companionStateAuthority.defaultStateId,
+        )
+      : null;
+  if (coverShowsCompanion && companionStateAuthority && !resolvedCompanionState) {
+    throw new Error('cover companion appearance-state default is unresolved');
+  }
   return {
     pageNumber: 0,
     locationId: cover.locationId,
@@ -89,7 +137,7 @@ export function deriveCoverVisualContract(contract: BookVisualContract): Resolve
     mustNotShow: uniq([...(cover.mustNotShow ?? []), ...(contract.forbiddenGlobalElements ?? [])]),
     characterPresence: {
       child: castIds.includes(contract.cast.child.id),
-      companion: contract.cast.companion ? castIds.includes(contract.cast.companion.id) : false,
+      companion: coverShowsCompanion,
     },
     castIds,
     propState: [],
@@ -102,6 +150,9 @@ export function deriveCoverVisualContract(contract: BookVisualContract): Resolve
         : {}),
     },
     companionWardrobeLock: undefined,
+    ...(resolvedCompanionState
+      ? { resolvedCompanionState: structuredClone(resolvedCompanionState) }
+      : {}),
     locationName: location?.name ?? cover.locationId,
     zoneName: zone?.name,
     zoneStableGeometry: zone?.stableGeometry,

@@ -342,6 +342,7 @@ export function assembleStyle01Phase2Prompt(
       companionName: input.companion?.name,
       companionStructured: input.companionStructured,
       companionVisualDescription: input.companion?.visualDescription,
+      resolvedCompanionState: frame.resolvedCompanionState,
     });
     const canonicalAccessoryLock = buildCompanionAccessoryLockBlock({
       companionId: input.companion?.id,
@@ -352,11 +353,15 @@ export function assembleStyle01Phase2Prompt(
       entityPresence.companionPresence === 'present'
         ? [
             'PER-ORDER COMPANION APPEARANCE (resolved Visual Contract; appearance only):',
-            `${input.companion?.name ?? 'the companion'} — ${
-              input.companion?.visualDescription ??
-              'match the exact resolved companion appearance'
-            }.`,
-            canonicalCompanionLock,
+            ...(frame.resolvedCompanionState
+              ? [canonicalCompanionLock]
+              : [
+                  `${input.companion?.name ?? 'the companion'} — ${
+                    input.companion?.visualDescription ??
+                    'match the exact resolved companion appearance'
+                  }.`,
+                  canonicalCompanionLock,
+                ]),
             canonicalAccessoryLock,
             'Do not add, remove, restyle, resize, substitute, or omit a required canonical accessory.',
           ]

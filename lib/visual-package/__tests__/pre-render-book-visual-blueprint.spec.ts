@@ -16,6 +16,7 @@ import {
 } from '@/lib/visual-package';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import { buildSourcePromptProjectionDigest } from '@/lib/visual-package/sourcePromptReconciliation';
+import { CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY } from '@/lib/companion-appearance-state';
 import {
   projectCoverMustNotShow,
   projectPageMustNotShow,
@@ -635,6 +636,59 @@ describe('R1D-PVB-A — schema generalization fixtures', () => {
     expect(() =>
       buildBlueprintFixture('wizard_runtime_qualification', { pageCount: 0 }),
     ).toThrow('Blueprint fixture pageCount must be a positive integer');
+  });
+
+  it('rejects companion-scoped appearance prose while preserving unrelated world-colour prose', () => {
+    const fixture = buildBlueprintFixture('single_location', {
+      mutateTemplate(template) {
+        const companion = template.cast.companion;
+        if (!companion) throw new Error('companion fixture missing');
+        const authority = structuredClone(
+          CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY,
+        );
+        authority.companionId = companion.id;
+        authority.subjectAliases = [companion.id, 'Guide'];
+        companion.companionAppearanceStateAuthority = authority;
+      },
+    });
+    expect(
+      validatePreRenderBookVisualBlueprint(
+        fixture.blueprint,
+        fixture.context,
+      ).ok,
+    ).toBe(true);
+
+    const bad = clone(fixture.blueprint);
+    bad.frames.find((frame) => frame.id === 'frame:page:1')!.narrative.summary =
+      'Guide turns blue-green while entering the room.';
+    expect(issueCodes(restamp(bad), fixture.context)).toContain(
+      'companion_state_prose_conflict',
+    );
+
+    const absentButNamed = clone(fixture.blueprint);
+    const absentFrame = absentButNamed.frames.find(
+      (frame) => frame.id === 'frame:page:1',
+    )!;
+    absentFrame.castIds = absentFrame.castIds.filter(
+      (castId) => castId !== fixture.context.template.cast.companion!.id,
+    );
+    absentFrame.narrative.summary =
+      'Guide turns blue-green outside the frame.';
+    expect(issueCodes(restamp(absentButNamed), fixture.context)).toContain(
+      'companion_state_prose_conflict',
+    );
+
+    const safe = clone(fixture.blueprint);
+    safe.frames.find((frame) => frame.id === 'frame:page:1')!.narrative.summary =
+      'A blue-green painted wall remains in the stable room.';
+    const safeResult = validatePreRenderBookVisualBlueprint(
+      restamp(safe),
+      fixture.context,
+    );
+    expect(
+      safeResult.ok,
+      safeResult.ok ? '' : JSON.stringify(safeResult.issues, null, 2),
+    ).toBe(true);
   });
 
   const shapes: BlueprintFixtureShape[] = [

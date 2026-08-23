@@ -40,6 +40,14 @@ import {
   classifyPagePropConstraints,
   type PagePropConstraintViolation,
 } from './pagePropConstraintValidation';
+import {
+  companionAppearanceProseConflicts,
+  companionAppearanceStateAuthorityIssues,
+  companionAppearanceStateTransitionIsGradual,
+  resolveCompanionAppearanceState,
+  type CompanionAppearanceStateAuthority,
+  type ResolvedCompanionAppearanceState,
+} from '@/lib/companion-appearance-state';
 
 export type ContractValidationResult =
   | { ok: true; contract: BookVisualContract }
@@ -111,6 +119,49 @@ function isStr(v: unknown): v is string {
 }
 function isStrArr(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((x) => typeof x === 'string');
+}
+
+function validateSafetyEvidenceOrigin(
+  label: string,
+  origin: unknown,
+  pageNumber: unknown,
+  errors: string[],
+): void {
+  if (!isObj(origin) || !isStr(origin.kind)) {
+    errors.push(`${label}.origin is invalid`);
+  } else if (origin.kind === 'story_evidence') {
+    if (
+      JSON.stringify(Object.keys(origin).sort()) !==
+        JSON.stringify(['kind', 'page', 'phrase']) ||
+      origin.page !== pageNumber ||
+      !isStr(origin.phrase)
+    ) {
+      errors.push(
+        `${label}.origin story_evidence must contain exact kind/page/phrase for this page`,
+      );
+    }
+  } else if (origin.kind === 'authored') {
+    if (
+      JSON.stringify(Object.keys(origin).sort()) !==
+        JSON.stringify(['authorNote', 'kind']) ||
+      !isStr(origin.authorNote)
+    ) {
+      errors.push(`${label}.origin authored must contain exact kind/authorNote`);
+    }
+  } else if (origin.kind === 'policy_default') {
+    if (
+      JSON.stringify(Object.keys(origin).sort()) !==
+        JSON.stringify(['kind', 'policyId', 'version']) ||
+      !isStr(origin.policyId) ||
+      !isStr(origin.version)
+    ) {
+      errors.push(
+        `${label}.origin policy_default must contain exact kind/policyId/version`,
+      );
+    }
+  } else {
+    errors.push(`${label}.origin.kind is unsupported`);
+  }
 }
 
 function pageFinalStructuralIssue(
@@ -390,6 +441,10 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     locator: { kind: 'root', fieldRole: 'cast_presence' },
   });
   const cast = isObj(c.cast) ? c.cast : undefined;
+  let companionAppearanceStateAuthority:
+    | CompanionAppearanceStateAuthority
+    | null = null;
+  let companionCastId: string | null = null;
   if (!cast) {
     errors.push('cast missing');
   } else {
@@ -397,10 +452,26 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
     if (!child || !isObj(child.wardrobe) || !isStr((child.wardrobe as Record<string, unknown>).description)) {
       errors.push('cast.child.wardrobe.description missing');
     }
+    if (child?.companionAppearanceStateAuthority !== undefined) {
+      errors.push('cast.child must not declare companionAppearanceStateAuthority');
+    }
     if (cast.companion !== undefined && cast.companion !== null) {
       const comp = cast.companion as Record<string, unknown>;
       if (!isObj(comp.wardrobe) || !isStr((comp.wardrobe as Record<string, unknown>).description)) {
         errors.push('cast.companion present but wardrobe.description missing');
+      }
+      companionCastId = isStr(comp.id) ? comp.id : null;
+      if (comp.companionAppearanceStateAuthority !== undefined) {
+        const authorityIssues = companionAppearanceStateAuthorityIssues(
+          comp.companionAppearanceStateAuthority,
+          companionCastId,
+        );
+        if (authorityIssues.length > 0) {
+          errors.push(...authorityIssues.map((entry) => `cast.companion.${entry}`));
+        } else {
+          companionAppearanceStateAuthority =
+            comp.companionAppearanceStateAuthority as CompanionAppearanceStateAuthority;
+        }
       }
     }
   }
@@ -782,44 +853,60 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
         ) {
           errors.push(`${label}.childWardrobeOverride is a no-op — omit it when wardrobe is unchanged`);
         }
-        const origin = override.origin;
-        if (!isObj(origin) || !isStr(origin.kind)) {
-          errors.push(`${label}.childWardrobeOverride.origin is invalid`);
-        } else if (origin.kind === 'story_evidence') {
-          if (
-            JSON.stringify(Object.keys(origin).sort()) !==
-              JSON.stringify(['kind', 'page', 'phrase']) ||
-            origin.page !== pc.pageNumber ||
-            !isStr(origin.phrase)
-          ) {
-            errors.push(
-              `${label}.childWardrobeOverride.origin story_evidence must contain exact kind/page/phrase for this page`,
-            );
-          }
-        } else if (origin.kind === 'authored') {
-          if (
-            JSON.stringify(Object.keys(origin).sort()) !==
-              JSON.stringify(['authorNote', 'kind']) ||
-            !isStr(origin.authorNote)
-          ) {
-            errors.push(
-              `${label}.childWardrobeOverride.origin authored must contain exact kind/authorNote`,
-            );
-          }
-        } else if (origin.kind === 'policy_default') {
-          if (
-            JSON.stringify(Object.keys(origin).sort()) !==
-              JSON.stringify(['kind', 'policyId', 'version']) ||
-            !isStr(origin.policyId) ||
-            !isStr(origin.version)
-          ) {
-            errors.push(
-              `${label}.childWardrobeOverride.origin policy_default must contain exact kind/policyId/version`,
-            );
-          }
-        } else {
-          errors.push(`${label}.childWardrobeOverride.origin.kind is unsupported`);
+        validateSafetyEvidenceOrigin(
+          `${label}.childWardrobeOverride`,
+          override.origin,
+          pc.pageNumber,
+          errors,
+        );
+      }
+    }
+    if (pc.companionStateOverride !== undefined) {
+      errors.useIssue(pageFinalStructuralIssue(p, i, 'page_steering_invalid'));
+      const override = pc.companionStateOverride;
+      if (!isObj(override)) {
+        errors.push(`${label}.companionStateOverride must be an object when present`);
+      } else {
+        if (
+          JSON.stringify(Object.keys(override).sort()) !==
+          JSON.stringify(['origin', 'stateId'])
+        ) {
+          errors.push(
+            `${label}.companionStateOverride keys are invalid — expected exact stateId and origin`,
+          );
         }
+        if (!isStr(override.stateId)) {
+          errors.push(`${label}.companionStateOverride.stateId must be a non-empty string`);
+        }
+        if (!companionAppearanceStateAuthority) {
+          errors.push(
+            `${label}.companionStateOverride requires cast.companion.companionAppearanceStateAuthority`,
+          );
+        } else if (
+          isStr(override.stateId) &&
+          !resolveCompanionAppearanceState(
+            companionAppearanceStateAuthority,
+            override.stateId,
+          )
+        ) {
+          errors.push(
+            `${label}.companionStateOverride.stateId "${override.stateId}" is not declared by the frozen companion authority`,
+          );
+        }
+        if (
+          isObj(pc.characterPresence) &&
+          pc.characterPresence.companion !== true
+        ) {
+          errors.push(
+            `${label}.companionStateOverride requires the companion to be present on the page`,
+          );
+        }
+        validateSafetyEvidenceOrigin(
+          `${label}.companionStateOverride`,
+          override.origin,
+          pc.pageNumber,
+          errors,
+        );
       }
     }
     errors.useIssue(pageFinalStructuralIssue(p, i, 'page_prop_state_invalid'));
@@ -1576,6 +1663,109 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
       }
     }
   });
+
+  // Companion appearance state is sequential authority: begin at the frozen
+  // default, carry it forward across omitted/absent pages, and permit only an
+  // explicit one-step transition on a page where the companion is present.
+  if (companionAppearanceStateAuthority) {
+    let resolvedState = resolveCompanionAppearanceState(
+      companionAppearanceStateAuthority,
+      companionAppearanceStateAuthority.defaultStateId,
+    );
+    const orderedPages = pages
+      .filter(
+        (page): page is Record<string, unknown> =>
+          isObj(page) &&
+          typeof page.pageNumber === 'number' &&
+          Number.isSafeInteger(page.pageNumber),
+      )
+      .sort((left, right) =>
+        Number(left.pageNumber) - Number(right.pageNumber),
+      );
+    for (const page of orderedPages) {
+      const pageNumber = Number(page.pageNumber);
+      const companionStateIssue = pageFinalStructuralIssue(
+        page,
+        pages.indexOf(page),
+        'page_steering_invalid',
+      );
+      const companionPresent =
+        isObj(page.characterPresence) &&
+        page.characterPresence.companion === true;
+      const override = isObj(page.companionStateOverride)
+        ? page.companionStateOverride
+        : null;
+      if (
+        override &&
+        companionPresent &&
+        isStr(override.stateId) &&
+        resolvedState
+      ) {
+        const nextState = resolveCompanionAppearanceState(
+          companionAppearanceStateAuthority,
+          override.stateId,
+        );
+        if (nextState) {
+          if (nextState.id === resolvedState.id) {
+            errors.useIssue(companionStateIssue);
+            errors.push(
+              `page ${pageNumber}.companionStateOverride is a no-op — omit it when the resolved companion state is unchanged`,
+            );
+          } else if (
+            !companionAppearanceStateTransitionIsGradual(
+              resolvedState,
+              nextState,
+            )
+          ) {
+            errors.useIssue(companionStateIssue);
+            errors.push(
+              `page ${pageNumber}.companionStateOverride jumps from "${resolvedState.id}" (index ${resolvedState.continuityIndex}) to "${nextState.id}" (index ${nextState.continuityIndex}) — adjacent authored transitions may move at most one continuity step`,
+            );
+          } else {
+            resolvedState = nextState;
+          }
+        }
+      }
+      for (const [field, texts] of [
+        ['mustShow', page.mustShow],
+        ['mustNotShow', page.mustNotShow],
+      ] as const) {
+        if (!isStrArr(texts)) continue;
+        for (const conflict of companionAppearanceProseConflicts({
+          authority: companionAppearanceStateAuthority,
+          texts,
+        })) {
+          errors.useIssue(companionStateIssue);
+          errors.push(
+            `page ${pageNumber}.${field}[${conflict.textIndex}] contains companion-scoped appearance term ${JSON.stringify(conflict.term)} beside alias ${JSON.stringify(conflict.alias)} — typed companion state is the sole appearance authority`,
+          );
+        }
+      }
+    }
+
+    if (companionCastId && isObj(cover)) {
+      const companionCoverIssue: DraftValidationIssue = {
+        family: 'draft_contract',
+        code: 'cover_projection_invalid',
+        locator: { kind: 'cover', fieldRole: 'prose_projection' },
+      };
+      for (const [field, texts] of [
+        ['mustShow', cover.mustShow],
+        ['mustNotShow', cover.mustNotShow],
+      ] as const) {
+        if (!isStrArr(texts)) continue;
+        for (const conflict of companionAppearanceProseConflicts({
+          authority: companionAppearanceStateAuthority,
+          texts,
+        })) {
+          errors.useIssue(companionCoverIssue);
+          errors.push(
+            `coverContract.${field}[${conflict.textIndex}] contains companion-scoped appearance term ${JSON.stringify(conflict.term)} beside alias ${JSON.stringify(conflict.alias)} — typed companion state is the sole appearance authority`,
+          );
+        }
+      }
+    }
+  }
 
   // ── Stage 4: PROP LIFECYCLE (cross-page). `firstRevealPage` lives on the PROP precisely so ONE book-level fact
   // governs every page — this is where that fact is enforced against them. Gated on the key being authored, so a

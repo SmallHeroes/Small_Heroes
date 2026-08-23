@@ -597,12 +597,19 @@ const actionSemanticCoverage = obj({
  */
 function pageContractJsonSchema(
   actionRequirementSchema: Record<string, unknown>,
+  options?: { includeCompanionStateSelection?: boolean },
 ): Record<string, unknown> {
   return obj({
     pageNumber: { type: 'number', minimum: 1, multipleOf: 1 },
     locationId: { type: 'string' },
     zoneId: { type: 'string' },
     sameLocationAs: nullableNumber,
+    ...(options?.includeCompanionStateSelection
+      ? {
+          companionStateId: nullableString,
+          companionStateSourceEvidenceId: nullableString,
+        }
+      : {}),
     mustShow: stringArray,
     mustNotShow: stringArray,
     propState: { type: 'array', items: propState },
@@ -622,6 +629,19 @@ function pageContractJsonSchema(
 }
 
 export const TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA: Record<
+  string,
+  unknown
+> = pageContractJsonSchema(
+  TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA,
+  { includeCompanionStateSelection: true },
+);
+
+/**
+ * Narrow repairs cannot select or rewrite companion state. Their output omits
+ * these compiler-owned fields and the repair appliers preserve the prior
+ * draft values byte-semantically.
+ */
+export const TEMPLATE_REPAIR_PAGE_CONTRACT_JSON_SCHEMA: Record<
   string,
   unknown
 > = pageContractJsonSchema(
@@ -660,7 +680,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
   });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v16' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v17' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

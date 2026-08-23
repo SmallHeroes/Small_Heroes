@@ -33,6 +33,7 @@ import {
   STYLE_01_RENDERING_CORRECTION,
 } from '@/lib/style01-gptimage';
 import { buildStyle01AnatomyIntegrityLock } from '@/lib/style01-visual-polish';
+import { CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY } from '@/lib/companion-appearance-state';
 
 import {
   RuntimeBlueprintCanvasError,
@@ -635,6 +636,61 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
     );
     expect(assembled.prompt).toContain(
       'Do not add, remove, restyle, resize, substitute, or omit a required canonical accessory.',
+    );
+  });
+
+  it('carries frozen typed companion state through Blueprint runtime authority into the final provider prompt', () => {
+    const runtime = authority('single_location', {
+      mutateTemplate(template) {
+        const companion = template.cast.companion;
+        if (!companion) throw new Error('companion fixture missing');
+        const authority = structuredClone(
+          CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY,
+        );
+        authority.companionId = companion.id;
+        authority.subjectAliases = [companion.id, 'Guide'];
+        companion.companionAppearanceStateAuthority = authority;
+        template.pageContracts[0]!.companionStateOverride = {
+          stateId: 'alert_olive_shift',
+          origin: {
+            kind: 'authored',
+            authorNote: 'Offline runtime projection fixture.',
+          },
+        };
+      },
+    });
+    const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);
+    const pageAuthority = buildRuntimePageAuthorityProjection({
+      authority: runtime,
+      pageNumber: 1,
+    });
+    if (!pageAuthority) throw new Error('runtime page authority missing');
+
+    expect(frame.resolvedCompanionState?.id).toBe('alert_olive_shift');
+    expect(pageAuthority.resolvedCompanionState).toEqual(
+      frame.resolvedCompanionState,
+    );
+    expect(frame.contractPromptBlock).toContain('alert_olive_shift');
+
+    const assembled = assembleStyle01Phase2Prompt({
+      pageNumber: 1,
+      authoritativeBlueprintFrame: frame,
+      companion: {
+        id: 'companion:guide',
+        name: 'Guide',
+        visualDescription:
+          'LEGACY_FIXED_GREEN_DESCRIPTION_MUST_NOT_REACH_PROVIDER',
+      },
+    });
+    expect(assembled.prompt).toContain('stateId=alert_olive_shift');
+    expect(assembled.prompt).toContain(
+      'one harmonious muted olive-green body tone',
+    );
+    expect(assembled.prompt).toContain(
+      'tiny warm-mustard fabric shoulder satchel',
+    );
+    expect(assembled.prompt).not.toContain(
+      'LEGACY_FIXED_GREEN_DESCRIPTION_MUST_NOT_REACH_PROVIDER',
     );
   });
 

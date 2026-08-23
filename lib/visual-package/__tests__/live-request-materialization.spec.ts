@@ -535,8 +535,8 @@ describe('canonical live request materialization artifacts', () => {
       },
       promptAuthority: {
         initial: {
-          systemPromptVersion: 'vc-template-prompt/v14',
-          userPromptVersion: 'vc-template-user-prompt/v14',
+          systemPromptVersion: 'vc-template-prompt/v15',
+          userPromptVersion: 'vc-template-user-prompt/v15',
         },
         repair: {
           systemPromptVersion: 'vc-repair-prompt/v13',
@@ -553,7 +553,7 @@ describe('canonical live request materialization artifacts', () => {
       },
       structuredOutput: {
         schemaName: 'BookVisualContractTemplateDraft',
-        schemaVersion: 'vc-draft-schema/v16',
+        schemaVersion: 'vc-draft-schema/v17',
         compatibilityProfileVersion:
           OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
         compatibilityProfileDigest:
