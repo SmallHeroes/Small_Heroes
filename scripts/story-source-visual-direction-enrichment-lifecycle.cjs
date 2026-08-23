@@ -621,6 +621,29 @@ function assertExistingCandidate(target, files) {
   }
 }
 
+function loadExistingCandidate({ requestPath, outputRoot }, roots = {}) {
+  const repoRoot = roots.repoRoot || REPO_ROOT;
+  const loaded = loadInputs(requestPath, roots);
+  const candidate = buildCandidate(loaded);
+  const outputRootAbsolute = canonicalOutputRoot(repoRoot, outputRoot, false);
+  const target = path.join(outputRootAbsolute, candidate.candidateDigest);
+  if (!fs.existsSync(target)) {
+    throw new Error('story_visual_direction_enrichment_candidate_missing');
+  }
+  assertNoLinkComponents(
+    path.resolve(repoRoot, OUTPUTS_ROOT_RELATIVE),
+    target,
+    'story_visual_direction_enrichment_candidate_collision',
+  );
+  assertExistingCandidate(target, candidate.files);
+  return {
+    candidate,
+    loaded,
+    target,
+    targetRelative: path.relative(repoRoot, target).replaceAll('\\', '/'),
+  };
+}
+
 function writeCandidateAtomically(outputRoot, candidate) {
   const target = path.join(outputRoot, candidate.candidateDigest);
   if (fs.existsSync(target)) {
@@ -740,6 +763,7 @@ module.exports = {
   REVISION_IDENTITY_VERSION,
   buildCandidate,
   compositionMetrics,
+  loadExistingCandidate,
   loadInputs,
   parseArgs,
   prepare,

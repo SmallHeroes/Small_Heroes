@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
 
-## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — STORY-SOURCE + VISUAL-DIRECTIONS TECHNICAL PASS; GUY PRODUCT APPROVAL NEXT
+## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — PRODUCT-ACCEPTED VISUAL DIRECTIONS STAGED; PUBLICATION LIFECYCLE AWAITING INDEPENDENT QA
 
 The separately approved zero-cost rewrite now exists as digest-bound staging,
 not as a mutation of the accepted Story Source. The new eight-page bedtime
@@ -200,12 +200,58 @@ Node's unflagged type stripping: verified on Node 22.19, but the minimum Node
 22.18 coupling is not pinned in `package.json`. That repository-wide runtime
 declaration is tracked for later hardening rather than expanding this accepted
 narrow gate. Exact Guy product approval of the Candidate and Review Bundle is
-now the sole remaining authority before the separate publication/package step.
+now recorded: Guy accepted Candidate
+`3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a`
+and Review Bundle
+`fa519a11bca42e0d565479329b9d5c0767972814ee28d6e73a764a35a1a3b57c`.
+
+The next zero-cost boundary is implemented locally as a separate general
+acceptance/publication lifecycle. It reloads and byte-revalidates the existing
+Candidate, binds Claude Code's exact technical PASS and accepted non-blocking
+Node-runtime MINOR, requires exact `Guy` product acceptance, and produces a
+complete content-addressed nine-file publication bundle. It does not reuse the
+historical v2 `female -> neutral` migration and does not copy the superseded
+bus-stop Visual Contract. Production code contains no story, child, companion,
+page or real-digest special case.
+
+The real ignored publication candidate remains revision
+`3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a`.
+Its accepted-v3 manifest digest is
+`157d729d9e023fde4e22d82a96bafcc19825523a1d5c7378d3df0a50eb4f8462`;
+the product-acceptance digest is
+`bf267c499381a581b34365790b6e3a74b2ab8e34bfee34d2f39143e456cad98b`;
+and the exact request SHA-256 is
+`5a3283d0a45cd81950e09224045eb7b9221881f204e3335d83ac3a8c453378a4`.
+The bundle preserves Story SHA-256 `b18e824c...2afd09`, Visual Directions
+SHA-256 `51e3bb3e...ab9778`, integrated-source SHA-256
+`9acf0433...7195b1`, Candidate identity and Review bytes.
+
+Real `prepare --write true` returned `created:true`; an exact replay returned
+`created:false`; and real `publish --write false` reports `wouldCreate:true`.
+The canonical accepted target does not exist. No real publish was executed.
+The bundle is explicitly runtime-ineligible with reason
+`accepted_story_source_requires_fresh_visual_contract`, so it cannot select a
+package or reach the Wizard. The general focused compatibility matrix passes
+**8 files / 80 tests**, with Node syntax, TypeScript and diff hygiene clean.
+Literal `npm run check` exercised the canonical **326 / 306 / 20** inventory.
+The resource-intensive partition passed **611/611**. Ordinary passed **3,561**
+with 65 skipped and seven failures: five are the established absent ignored
+`outputs/` fixtures in unchanged files, and two unchanged Blueprint-migration
+cases exceeded the five-second parallel timeout. That migration file passes
+**8/8** in isolation with one worker and a 30-second allowance. The new
+acceptance lifecycle passed **5/5** inside the literal repository run.
+Independent Claude Code QA remains mandatory before canonical Story Source
+publication. Fresh Blueprint/Visual Contract authoring, Visual Package review,
+locator/Wizard promotion and any render remain later separately gated steps.
 
 The durable records are
 `docs/ai-workflow/R1D_GENERAL_STORY_SOURCE_VISUAL_DIRECTIONS_ENRICHMENT_DECISION_GATE.md`
 and
-`docs/ai-workflow/R1D_GENERAL_STORY_SOURCE_VISUAL_DIRECTIONS_ENRICHMENT_IMPLEMENTATION_EVIDENCE.md`.
+`docs/ai-workflow/R1D_GENERAL_STORY_SOURCE_VISUAL_DIRECTIONS_ENRICHMENT_IMPLEMENTATION_EVIDENCE.md`,
+plus the acceptance/publication records
+`docs/ai-workflow/R1D_GENERAL_VISUAL_DIRECTIONS_ACCEPTANCE_PUBLICATION_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_GENERAL_VISUAL_DIRECTIONS_ACCEPTANCE_PUBLICATION_IMPLEMENTATION_EVIDENCE.md`.
 
 ## TYPED COMPANION APPEARANCE STATE AUTHORITY — INDEPENDENT TECHNICAL PASS; STORY SOURCE REWRITE RELEASED TO ITS SEPARATE STAGING MILESTONE
 

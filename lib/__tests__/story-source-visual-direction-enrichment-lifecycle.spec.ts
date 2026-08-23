@@ -174,6 +174,12 @@ describe('general Story Source visual-direction enrichment lifecycle', () => {
     expect(replay.created).toBe(false);
     expect(replay.candidateDigest).toBe(written.candidateDigest);
     expect(replay.reviewBundleDigest).toBe(written.reviewBundleDigest);
+    const existing = lifecycle.loadExistingCandidate(
+      { requestPath: args.requestPath, outputRoot: args.outputRoot },
+      { repoRoot: fixture.root },
+    );
+    expect(existing.candidate.candidateDigest).toBe(written.candidateDigest);
+    expect(relative(fixture.root, existing.target)).toBe(written.target);
   });
 
   it('rejects weak composition and loose protected appearance authority', () => {
