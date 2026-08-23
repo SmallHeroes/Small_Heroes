@@ -55,6 +55,7 @@ export const DRAFT_VALIDATION_ISSUE_CATALOG = {
     source_evidence_phrase_invalid: true,
     lifecycle_invariant_invalid: true,
     consumer_invariant_invalid: true,
+    continuity_authority_invalid: true,
     final_structural_invariant_invalid: true,
   },
   action_semantic: {

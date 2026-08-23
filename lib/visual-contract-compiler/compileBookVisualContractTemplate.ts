@@ -178,6 +178,15 @@ import {
   declaredCompanionAppearanceStateAuthority,
   type CompanionAppearanceStateAuthority,
 } from '@/lib/companion-appearance-state';
+import type {
+  StoryVisualContinuityIntent,
+} from './storyVisualContinuityIntent';
+import {
+  assertValidStoryVisualContinuityIntent,
+} from './storyVisualContinuityIntent';
+import {
+  resolveCompanionAccessoryProfile,
+} from '@/lib/companion-accessory';
 import {
   STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
   STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
@@ -237,9 +246,9 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v15' as const;
+  'vc-template-prompt/v16' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v15' as const;
+  'vc-template-user-prompt/v16' as const;
 /** Normal bounded safety net after the initial authoring call. */
 const STANDARD_MAX_REPAIR_ATTEMPTS =
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS;
@@ -1348,6 +1357,8 @@ export interface TemplateCompileInput extends DeterministicFactsInput {
   sourceEvidenceCatalog: SourceEvidenceCatalog;
   /** Source identity from which the catalog must deterministically rebuild. */
   sourceIdentity: SourceEvidenceStoryIdentity;
+  /** Optional product-accepted continuity authority bound to the source snapshot. */
+  continuityIntent?: StoryVisualContinuityIntent;
 }
 
 export interface TemplateCompileResult {
@@ -1504,6 +1515,7 @@ export function buildTemplateCompileSystemPrompt(): string {
     '- Companion state is closed and compiler-owned: draft nullable companionStateId + companionStateSourceEvidenceId.',
     '  Use null/null when unchanged; otherwise select one exact declared id with exact same-page evidence. Never put',
     '  companion hue/pattern/body-language in mustShow/mustNotShow; typed state is sole render authority.',
+    '- Child wardrobe is book-locked. Set two nullable page override fields only for an explicit same-page Story Source clothing change; otherwise null/null; never infer.',
     '',
     'Topology: describe ONE location/zone graph in zones[] (each zone has a parent locationId). Stable-board area',
     'zoneProjection uses exact zone ids; one_to_one carries exactly one and one_to_many carries at least two. The',
@@ -1532,6 +1544,9 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
   );
   const companionStateAuthority = input.companion
     ? declaredCompanionAppearanceStateAuthority(input.companion.id)
+    : null;
+  const companionAccessoryProfile = input.continuityIntent && input.companion
+    ? resolveCompanionAccessoryProfile(input.companion.id)
     : null;
   return [
     `storyKey: ${input.storyKey}`,
@@ -1562,6 +1577,30 @@ export function buildTemplateCompileUserPrompt(input: TemplateCompileInput, fact
           '',
           'COMPANION APPEARANCE STATE: this companion declares no state capability; every page must use null/null.',
         ]),
+    ...(input.continuityIntent
+      ? [
+          '',
+          'PRODUCT-ACCEPTED CONTINUITY INTENT (closed page authority):',
+          JSON.stringify(input.continuityIntent),
+          `Set childWardrobeOverrideDescription + childWardrobeOverrideSourceEvidenceId to non-null on exactly pages [${input.continuityIntent.childWardrobeTransitionPages.join(', ')}], citing exact same-page evidence; use null/null on every other page.`,
+          `Set companionStateId + companionStateSourceEvidenceId to non-null on exactly pages [${input.continuityIntent.companionStateTransitionPages.join(', ')}], citing exact same-page evidence; use null/null on every other page.`,
+        ]
+      : []),
+    ...(companionAccessoryProfile
+      ? [
+          '',
+          'CANONICAL COMPANION ACCESSORY (closed profile; cast.companion.wardrobe must include it and never contradict it):',
+          JSON.stringify({
+            accessory: companionAccessoryProfile.canonicalAccessory,
+            location: companionAccessoryProfile.accessoryLocation,
+            behavior: companionAccessoryProfile.accessoryBehavior,
+            requiredWhenVisible:
+              companionAccessoryProfile.accessoryRequiredWhenVisible,
+            forbiddenAlternatives:
+              companionAccessoryProfile.forbiddenAlternatives,
+          }),
+        ]
+      : []),
     ...(input.authoredCoverAuthority
       ? [
           '',
@@ -2697,6 +2736,38 @@ function overlayPage(
     castIds,
     characterPresence: { child: true, companion: companionPresent },
   };
+  const draftChildWardrobeOverrideDescription =
+    pc.childWardrobeOverrideDescription;
+  const draftChildWardrobeOverrideSourceEvidenceId =
+    pc.childWardrobeOverrideSourceEvidenceId;
+  delete out.childWardrobeOverrideDescription;
+  delete out.childWardrobeOverrideSourceEvidenceId;
+  if (
+    (draftChildWardrobeOverrideDescription !== null &&
+      draftChildWardrobeOverrideDescription !== undefined) ||
+    (draftChildWardrobeOverrideSourceEvidenceId !== null &&
+      draftChildWardrobeOverrideSourceEvidenceId !== undefined)
+  ) {
+    const sourceResolution = resolveSourceEvidenceId({
+      catalog: sourceEvidenceCatalog,
+      sourceEvidenceId:
+        draftChildWardrobeOverrideSourceEvidenceId,
+      pageNumber: page,
+    });
+    out.childWardrobeOverride = {
+      description:
+        typeof draftChildWardrobeOverrideDescription === 'string'
+          ? draftChildWardrobeOverrideDescription.trim()
+          : '',
+      origin: {
+        kind: 'story_evidence',
+        page,
+        phrase: sourceResolution.ok
+          ? sourceResolution.entry.excerpt
+          : '',
+      },
+    };
+  }
   const draftCompanionStateId = pc.companionStateId;
   const draftCompanionStateSourceEvidenceId =
     pc.companionStateSourceEvidenceId;
@@ -4093,6 +4164,10 @@ function assembleTemplateFromDraft(
   delete draftCompanionDescriptive.companionAppearanceStateAuthority;
   const childId = CHILD_ID;
   const companionId = authoritativeCompanionCastId(input);
+  const acceptedCompanionAccessoryProfile = input.continuityIntent &&
+    input.companion
+    ? resolveCompanionAccessoryProfile(input.companion.id)
+    : null;
   const companionStateAuthority: CompanionAppearanceStateAuthority | null =
     input.companion
       ? declaredCompanionAppearanceStateAuthority(input.companion.id)
@@ -4113,8 +4188,27 @@ function assembleTemplateFromDraft(
     child: { ...draftChild, id: childId, role: 'child' },
   };
   if (input.companion) {
+    const compilerOwnedCompanionWardrobe =
+      acceptedCompanionAccessoryProfile
+        ? {
+            description:
+              acceptedCompanionAccessoryProfile.accessoryForbiddenOnly
+                ? 'No worn companion accessory; preserve the canonical plain companion design.'
+                : [
+                    acceptedCompanionAccessoryProfile.canonicalAccessory,
+                    `at ${acceptedCompanionAccessoryProfile.accessoryLocation}`,
+                    acceptedCompanionAccessoryProfile.accessoryBehavior,
+                  ].join('; '),
+            forbidden: [
+              ...acceptedCompanionAccessoryProfile.forbiddenAlternatives,
+            ],
+          }
+        : null;
     authoritativeCast.companion = {
       ...draftCompanionDescriptive,
+      ...(compilerOwnedCompanionWardrobe
+        ? { wardrobe: compilerOwnedCompanionWardrobe }
+        : {}),
       id: companionId,
       role: 'companion',
       ...(input.companion.name ? { name: input.companion.name } : {}),
@@ -4262,6 +4356,70 @@ function assembleTemplateFromDraft(
       ...coverageDiagnosticIssues,
     );
     hasBlockingNonSurfaceFailure = true;
+  }
+  if (input.continuityIntent) {
+    const defaultChildWardrobeDescription = asObj(
+      asObj(authoritativeCast.child).wardrobe,
+    ).description;
+    const expectedChildWardrobePages =
+      input.continuityIntent.childWardrobeTransitionPages;
+    const actualChildWardrobePages = pageContracts
+      .filter((page) => asObj(page.childWardrobeOverride).description)
+      .map((page) => Number(page.pageNumber))
+      .sort((left, right) => left - right);
+    const expectedCompanionStatePages =
+      input.continuityIntent.companionStateTransitionPages;
+    const actualCompanionStatePages = pageContracts
+      .filter((page) => asObj(page.companionStateOverride).stateId)
+      .map((page) => Number(page.pageNumber))
+      .sort((left, right) => left - right);
+    const childWardrobeEvidenceInvalid = pageContracts.some((page) => {
+      const override = asObj(page.childWardrobeOverride);
+      if (Object.keys(override).length === 0) return false;
+      const origin = asObj(override.origin);
+      return (
+        typeof override.description !== 'string' ||
+        override.description.trim().length === 0 ||
+        (typeof defaultChildWardrobeDescription === 'string' &&
+          override.description.trim() ===
+            defaultChildWardrobeDescription.trim()) ||
+        origin.kind !== 'story_evidence' ||
+        origin.page !== page.pageNumber ||
+        typeof origin.phrase !== 'string' ||
+        origin.phrase.trim().length === 0
+      );
+    });
+    const companionStateEvidenceInvalid = pageContracts.some((page) => {
+      const override = asObj(page.companionStateOverride);
+      if (Object.keys(override).length === 0) return false;
+      const origin = asObj(override.origin);
+      return (
+        typeof override.stateId !== 'string' ||
+        override.stateId.trim().length === 0 ||
+        origin.kind !== 'story_evidence' ||
+        origin.page !== page.pageNumber ||
+        typeof origin.phrase !== 'string' ||
+        origin.phrase.trim().length === 0
+      );
+    });
+    if (
+      JSON.stringify(actualChildWardrobePages) !==
+        JSON.stringify(expectedChildWardrobePages) ||
+      JSON.stringify(actualCompanionStatePages) !==
+        JSON.stringify(expectedCompanionStatePages) ||
+      childWardrobeEvidenceInvalid ||
+      companionStateEvidenceInvalid
+    ) {
+      collectedErrors.push(
+        'accepted continuity intent is not represented exactly by typed child-wardrobe and companion-state page authority',
+      );
+      collectedDiagnosticIssues.push({
+        family: 'draft_contract',
+        code: 'continuity_authority_invalid',
+        locator: { kind: 'root', fieldRole: 'authority' },
+      });
+      hasBlockingNonSurfaceFailure = true;
+    }
   }
   const authoritativeCastIds = new Set([
     childId,
@@ -4640,6 +4798,31 @@ export async function compileBookVisualContractTemplate(
     sourceIdentity: input.sourceIdentity,
     pages: input.pages,
   });
+  if (input.continuityIntent) {
+    assertValidStoryVisualContinuityIntent(
+      input.continuityIntent,
+      input.pages.map((page) => page.pageNumber),
+    );
+    if (
+      input.continuityIntent.companionStateTransitionPages.length > 0 &&
+      (!input.companion ||
+        !declaredCompanionAppearanceStateAuthority(input.companion.id))
+    ) {
+      throw new Error(
+        'continuity_intent_companion_state_authority_missing',
+      );
+    }
+    if (
+      input.continuityIntent.companionAccessoryAuthority ===
+        'canonical_companion_profile' &&
+      (!input.companion ||
+        !resolveCompanionAccessoryProfile(input.companion.id))
+    ) {
+      throw new Error(
+        'continuity_intent_companion_accessory_authority_missing',
+      );
+    }
+  }
   assertOpenAIResponsesStructuredOutputSchemaCompatible(
     TEMPLATE_DRAFT_JSON_SCHEMA,
   );

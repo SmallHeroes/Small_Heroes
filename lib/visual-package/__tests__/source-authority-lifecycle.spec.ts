@@ -947,7 +947,7 @@ describe('Story Source authority snapshot', () => {
     expect(snapshot.content.sourceIdentity.path).toBe(
       fixture.storyPath,
     );
-    expect(snapshot.version).toBe('story-source-authority-snapshot/v3');
+    expect(snapshot.version).toBe('story-source-authority-snapshot/v4');
     expect(snapshot.content.sourceGenderMode).toBe('female');
   });
 
@@ -1202,8 +1202,8 @@ describe('exact zero-cost authoring preflight', () => {
       },
       promptAuthority: {
         initial: {
-          systemPromptVersion: 'vc-template-prompt/v15',
-          userPromptVersion: 'vc-template-user-prompt/v15',
+        systemPromptVersion: 'vc-template-prompt/v16',
+        userPromptVersion: 'vc-template-user-prompt/v16',
         },
         repair: {
           systemPromptVersion: 'vc-repair-prompt/v13',
@@ -3010,6 +3010,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       visualContractAuthoringArtifactVersionStatus(
         'request',
         'visual-contract-authoring-request/v45',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v46',
       ),
     ).toBe('current');
     expect(

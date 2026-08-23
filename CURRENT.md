@@ -1,8 +1,84 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-23
+**Updated:** 2026-08-24
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
+
+## ACCEPTED-V3 VISUAL CONTRACT AUTHORING — OFFLINE BINDING COMPLETE; AWAITING INDEPENDENT QA
+
+Claude Code independently reviewed publication range `2451309a..1af831c7`
+and returned **PASS with zero findings**. It proved the nine published files
+for accepted revision `3ef64541...f534a` are byte-identical to the reviewed
+bundle, reproduced all content/canonical digests, confirmed the revision is
+runtime-ineligible, and confirmed that the current locator and all four Board
+artifacts remain unchanged.
+
+The next provider-free milestone is now implemented locally. Root-cause
+analysis showed that canonical authoring parsed all eight new story pages and
+Visual Directions, but its source snapshot discarded the accepted manifest's
+typed continuity intent. The authoring draft could select typed Companion
+State but could not express the explicit page-8 child wardrobe transition.
+That made a fresh contract capable of repeating the original clothing drift
+even though the accepted Story Source already closed the intended behavior.
+
+A general accepted-v3 binder now revalidates the exact nine-file inventory,
+canonical bytes and digests, Guy product acceptance, Claude Code technical
+PASS, revision identity, enrichment/review bindings, source path and all file
+SHAs. It rejects aliases and hardlinks, binds only the exact v3 revision
+shape, leaves legacy v2 revision and top-level accepted-source paths backward
+compatible, and rejects malformed/unknown revision authority fail-closed.
+The source snapshot is now `story-source-authority-snapshot/v4` and carries
+the accepted authority into materialization and verification.
+
+The draft contract is now `vc-draft-schema/v18`. Its initial/full-draft shape
+has nullable typed child wardrobe description/evidence fields in addition to
+the existing Companion State pair. Accepted continuity requires wardrobe
+authority on exactly page 8 and Companion State transitions on exactly pages
+2, 3, 5 and 6. The compiler projects exact same-page evidence into typed
+contract overrides, freezes Kim's mustard satchel from the canonical companion
+profile, rejects missing/extra/no-op continuity as
+`continuity_authority_invalid`, and routes that closed root failure through
+the existing `full_draft` lane. Narrow page/structural repairs preserve all
+four continuity selections.
+
+The offline harness proves a missing accepted wardrobe transition routes
+`initial -> full_draft`, reduces the complete census `1 -> 0`, produces a
+Candidate with `providerCalls: 0`, and retains the exact typed pajamas origin
+plus the companion's canonical accessory. During regression testing, the
+new prompt initially pushed one historical 12-page QA source 49 units over
+the 64K input ceiling. The wording was compacted without changing schema,
+policy or semantics; all 12 short QA sources now pass and the worst has 1,025
+units of headroom. All 18 approved sources pass with at least 10,524 units.
+
+Real `$0` materialization and zero-write verification are complete under
+`outputs/r1d-chameleon-accepted-v3-continuity-authority-20260823T215049643Z`.
+The current identities are snapshot `35fe04ab...1f6a6c`, authoring request
+`27ec4041...b0f1b`, and manifest `5d6468ed...3042d2`; versions are snapshot
+v4, request v46, materialization/verification v44 and schema v18. Verification
+returned `verified` with zero credential, provider, model, network or retry
+activity. Focused validation passes **11 files / 334 tests**, TypeScript and
+diff hygiene are clean. Accepted-source bytes, locator SHA
+`6d3d9431...bb96b` and the four Board hashes remain exact.
+
+The repository-wide `npm run check` also reaches the expected historical
+baseline rather than exposing a milestone regression: the five assertions
+that read ignored `outputs/` fixtures fail because those fixtures are absent;
+the unchanged Blueprint-migration spec can exceed the ordinary 5-second
+timeout but passes **8/8** when isolated with 30 seconds; and all **611/611**
+resource-intensive assertions pass while Vitest still reports the three known
+`onTaskUpdate` worker RPC timeouts. The two exact-catalog expectations changed
+by this milestone were updated and pass. The full command therefore remains
+non-green for those pre-existing infrastructure/fixture reasons, which are
+recorded rather than hidden or repaired in this scope.
+
+This milestone has no provider, Candidate approval, Blueprint, package,
+locator, Wizard, image, Vision, audio or render authority. Its next action is
+independent Claude Code review of the focused commit. Only after PASS may the
+single already-authorized canonical live text-authoring attempt be considered.
+Durable evidence:
+`docs/ai-workflow/R1D_ACCEPTED_V3_VISUAL_CONTRACT_AUTHORING_AND_WIZARD_CUTOVER_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_ACCEPTED_V3_VISUAL_CONTRACT_AUTHORING_OFFLINE_IMPLEMENTATION_EVIDENCE.md`.
 
 ## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — PRODUCT-ACCEPTED VISUAL DIRECTIONS STAGED; PUBLICATION LIFECYCLE AWAITING INDEPENDENT QA
 

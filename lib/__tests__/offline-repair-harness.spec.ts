@@ -8,7 +8,10 @@ import {
   classifyOfflineRepairDelta,
   runOfflineRepairHarness,
 } from '../visual-contract-compiler/offlineRepairHarness';
-import type { TemplateCompileInput } from '../visual-contract-compiler/compileBookVisualContractTemplate';
+import {
+  compileBookVisualContractTemplate,
+  type TemplateCompileInput,
+} from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import type { DraftValidationIssue } from '../visual-contract-compiler/draftValidationDiagnostics';
 import {
   projectPageMustShow,
@@ -98,6 +101,12 @@ const CAPABILITY_COVERAGE_MISSING = {
     fieldRole: 'coverage',
     pageNumber: 1,
   },
+} satisfies DraftValidationIssue;
+
+const CONTINUITY_AUTHORITY_INVALID = {
+  family: 'draft_contract',
+  code: 'continuity_authority_invalid',
+  locator: { kind: 'root', fieldRole: 'authority' },
 } satisfies DraftValidationIssue;
 
 describe('offline Visual Contract repair harness', () => {
@@ -253,6 +262,78 @@ describe('offline Visual Contract repair harness', () => {
       },
     ]);
     expect(result.monotonicCompleteIssueDelta).toBe(true);
+  });
+
+  it('repairs an accepted typed wardrobe transition through full_draft without a provider call', async () => {
+    const input = bunnySource();
+    input.continuityIntent = {
+      version: 'small-heroes-story-visual-continuity-intent/v1',
+      childWardrobeAuthority: 'frozen_visual_contract',
+      childWardrobeTransitionPages: [12],
+      companionAccessoryAuthority: 'canonical_companion_profile',
+      companionAppearanceAuthority: 'frozen_companion_state',
+      companionStateTransitionPages: [],
+    };
+    const invalid = bunnyDraft();
+    const repaired = bunnyDraft();
+    const repairedPage = repaired.pageContracts.find(
+      (page) => page.pageNumber === 12,
+    );
+    const evidence = input.sourceEvidenceCatalog.entries.find(
+      (entry) => entry.pageNumber === 12,
+    );
+    if (!repairedPage || !evidence) {
+      throw new Error('offline_harness_wardrobe_fixture_missing');
+    }
+    repairedPage.childWardrobeOverrideDescription =
+      'soft sky-blue cotton pajamas for bedtime';
+    repairedPage.childWardrobeOverrideSourceEvidenceId =
+      evidence.sourceEvidenceId;
+
+    const result = await runOfflineRepairHarness({
+      input,
+      initialDraft: invalid,
+      repairResponses: [repaired],
+      completeDiagnosticIssuesByAttempt: [
+        [CONTINUITY_AUTHORITY_INVALID],
+        [],
+      ],
+    });
+
+    expect(result.outcome).toBe('candidate');
+    expect(result.providerCalls).toBe(0);
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'full_draft',
+    ]);
+    expect(result.stages.map((stage) => ({
+      complete: stage.completeIssueCount,
+      delta: stage.completeDelta,
+      classification: stage.classification,
+    }))).toEqual([
+      { complete: 1, delta: null, classification: 'baseline' },
+      { complete: 0, delta: -1, classification: 'improved' },
+    ]);
+    expect(result.monotonicCompleteIssueDelta).toBe(true);
+
+    const compiled = await compileBookVisualContractTemplate(input, {
+      callLLM: async () => JSON.stringify(repaired),
+    });
+    expect(
+      compiled.template.pageContracts.find(
+        (page) => page.pageNumber === 12,
+      )?.childWardrobeOverride,
+    ).toEqual({
+      description: 'soft sky-blue cotton pajamas for bedtime',
+      origin: {
+        kind: 'story_evidence',
+        page: 12,
+        phrase: evidence.excerpt,
+      },
+    });
+    expect(
+      compiled.template.cast.companion?.wardrobe.description,
+    ).toContain('tiny heart-shaped badge pinned to the chest');
   });
 
   it('distinguishes unmasking from genuine repair damage using the complete census', async () => {

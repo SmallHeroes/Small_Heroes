@@ -221,6 +221,7 @@ describe('closed draft-validation issue contract', () => {
       'source_evidence_phrase_invalid',
       'lifecycle_invariant_invalid',
       'consumer_invariant_invalid',
+      'continuity_authority_invalid',
       'final_structural_invariant_invalid',
     ]);
     expect(Object.keys(DRAFT_VALIDATION_ISSUE_CATALOG.action_semantic)).toEqual([

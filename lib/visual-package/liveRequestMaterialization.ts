@@ -20,6 +20,9 @@ import {
   type StorySourceAuthoritySnapshot,
 } from './storySourceAuthority';
 import {
+  acceptedStorySourceAuthoringAuthorityIssues,
+} from './acceptedStorySourceAuthoringAuthority';
+import {
   buildVisualContractAuthoringRequest,
   projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd,
   VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
@@ -40,13 +43,13 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION =
-  'canonical-live-request-materialization-input/v34' as const;
+  'canonical-live-request-materialization-input/v35' as const;
 export const STORY_SOURCE_AUTHORITY_REQUEST_ARTIFACT_VERSION =
   'story-source-authority-request/v1' as const;
 export const LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION =
-  'canonical-live-request-materialization/v43' as const;
+  'canonical-live-request-materialization/v44' as const;
 export const CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION =
-  'canonical-live-request-verification/v43' as const;
+  'canonical-live-request-verification/v44' as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN =
@@ -148,6 +151,8 @@ export interface LiveRequestMaterializationManifest {
     sourceEvidenceCatalogVersion: string;
     sourceEvidenceCatalogDigest: string;
     sourceEvidenceCatalogEntryCount: number;
+    acceptedRevisionAuthority:
+      StorySourceAuthoritySnapshot['content']['acceptedRevisionAuthority'];
   };
   artifacts: {
     sourceAuthorityRequest:
@@ -980,6 +985,7 @@ export function liveRequestMaterializationManifestIssues(
           'sourceEvidenceCatalogVersion',
           'sourceEvidenceCatalogDigest',
           'sourceEvidenceCatalogEntryCount',
+          'acceptedRevisionAuthority',
         ],
         'materialization_manifest_source_revision',
       ),
@@ -1075,6 +1081,22 @@ export function liveRequestMaterializationManifestIssues(
     ) {
       issues.push(
         'materialization_manifest_source_evidence_catalog_invalid',
+      );
+    }
+    if (
+      sourceRevision.acceptedRevisionAuthority !== null &&
+      acceptedStorySourceAuthoringAuthorityIssues(
+        sourceRevision.acceptedRevisionAuthority,
+        Array.isArray(sourceRevision.pageNumbers)
+          ? sourceRevision.pageNumbers.filter(
+              (pageNumber): pageNumber is number =>
+                Number.isSafeInteger(pageNumber),
+            )
+          : undefined,
+      ).length > 0
+    ) {
+      issues.push(
+        'materialization_manifest_accepted_revision_authority_invalid',
       );
     }
   }
@@ -1490,6 +1512,9 @@ export function materializeCanonicalLiveRequestBundle(args: {
         snapshot.content.sourceEvidenceCatalog.digest,
       sourceEvidenceCatalogEntryCount:
         snapshot.content.sourceEvidenceCatalog.entries.length,
+      acceptedRevisionAuthority: structuredClone(
+        snapshot.content.acceptedRevisionAuthority,
+      ),
     },
     artifacts: {
       sourceAuthorityRequest: {
@@ -2688,6 +2713,9 @@ function verifyCanonicalLiveRequestBundleUnsafe(args: {
       rebuiltSnapshot.content.sourceEvidenceCatalog.digest,
     sourceEvidenceCatalogEntryCount:
       rebuiltSnapshot.content.sourceEvidenceCatalog.entries.length,
+    acceptedRevisionAuthority: structuredClone(
+      rebuiltSnapshot.content.acceptedRevisionAuthority,
+    ),
   };
   exactCanonicalValue(
     manifest.sourceRevision,

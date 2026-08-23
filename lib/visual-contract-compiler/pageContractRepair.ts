@@ -2606,11 +2606,16 @@ function pageContractSchemaProjection(
   );
 }
 
-function preservedCompanionStateSelection(
+function preservedContinuitySelections(
   page: Record<string, unknown>,
 ): Record<string, unknown> {
   return Object.fromEntries(
-    ['companionStateId', 'companionStateSourceEvidenceId']
+    [
+      'childWardrobeOverrideDescription',
+      'childWardrobeOverrideSourceEvidenceId',
+      'companionStateId',
+      'companionStateSourceEvidenceId',
+    ]
       .filter((key) => Object.prototype.hasOwnProperty.call(page, key))
       .map((key) => [key, structuredClone(page[key])]),
   );
@@ -3273,7 +3278,7 @@ export function applyPageContractRepairs(args: {
           ...replacementPage,
           locationId: originalPage.locationId,
           zoneId: originalPage.zoneId,
-          ...preservedCompanionStateSelection(originalPage),
+          ...preservedContinuitySelections(originalPage),
         }
       : targetedResult;
   });

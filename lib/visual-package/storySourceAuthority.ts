@@ -43,10 +43,16 @@ import {
 import {
   writeCanonicalContentAddressedJsonArtifact,
 } from './canonicalContentAddressedJson';
+import {
+  acceptedStorySourceAuthoringAuthorityBindsSource,
+  acceptedStorySourceAuthoringAuthorityIssues,
+  loadAcceptedStorySourceAuthoringAuthority,
+  type AcceptedStorySourceAuthoringAuthority,
+} from './acceptedStorySourceAuthoringAuthority';
 import type { StorySourceIdentity } from './types';
 
 export const STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION =
-  'story-source-authority-snapshot/v3' as const;
+  'story-source-authority-snapshot/v4' as const;
 export const LEGACY_STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION_V2 =
   'story-source-authority-snapshot/v2' as const;
 
@@ -68,6 +74,9 @@ export interface StorySourceAuthoritySnapshotContent {
   authoredCoverAuthority: AuthoredCoverAuthority | null;
   sourceGenderMode: StorySourceGenderMode;
   companion: { id: string; name?: string } | null;
+  acceptedRevisionAuthority:
+    | AcceptedStorySourceAuthoringAuthority
+    | null;
 }
 
 export interface StorySourceAuthoritySnapshot {
@@ -79,7 +88,10 @@ export interface StorySourceAuthoritySnapshot {
 
 export interface LegacyStorySourceAuthoritySnapshotV2 {
   version: typeof LEGACY_STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION_V2;
-  content: Omit<StorySourceAuthoritySnapshotContent, 'sourceGenderMode'> & {
+  content: Omit<
+    StorySourceAuthoritySnapshotContent,
+    'acceptedRevisionAuthority' | 'sourceGenderMode'
+  > & {
     childGender: StorySourceGenderMode;
   };
   digestAlgorithm: 'canonical-json-sha256';
@@ -90,6 +102,7 @@ export function legacyStorySourceAuthoritySnapshotV2(
   snapshot: StorySourceAuthoritySnapshot,
 ): LegacyStorySourceAuthoritySnapshotV2 {
   const {
+    acceptedRevisionAuthority: _acceptedRevisionAuthority,
     sourceGenderMode,
     ...unchangedContent
   } = snapshot.content;
@@ -224,6 +237,12 @@ export function buildStorySourceAuthoritySnapshot(
     sourceIdentity,
     pages: content.pages,
   });
+  const acceptedRevisionAuthority =
+    loadAcceptedStorySourceAuthoringAuthority({
+      repoRoot: request.repoRoot,
+      storyKey,
+      storyPath: sourceIdentity.path,
+    });
   const snapshotWithoutDigest = {
     version: STORY_SOURCE_AUTHORITY_SNAPSHOT_VERSION,
     content: {
@@ -241,6 +260,7 @@ export function buildStorySourceAuthoritySnapshot(
       authoredCoverAuthority,
       sourceGenderMode,
       companion,
+      acceptedRevisionAuthority,
     },
   };
   return {
@@ -326,6 +346,22 @@ export function assertValidStorySourceAuthoritySnapshot(
   ) {
     issues.push('snapshot page coverage differs from source identity');
   }
+  if (
+    snapshot.content.acceptedRevisionAuthority !== null &&
+    (acceptedStorySourceAuthoringAuthorityIssues(
+        snapshot.content.acceptedRevisionAuthority,
+        pages,
+      ).length > 0 ||
+      !acceptedStorySourceAuthoringAuthorityBindsSource({
+        authority: snapshot.content.acceptedRevisionAuthority,
+        storyKey: snapshot.content.storyKey,
+        storyPath: snapshot.content.sourceIdentity.path,
+      }))
+  ) {
+    issues.push(
+      'snapshot accepted revision authority is stale or malformed',
+    );
+  }
   try {
     assertValidSourceEvidenceCatalog({
       catalog: snapshot.content.sourceEvidenceCatalog,
@@ -361,6 +397,13 @@ export function storySourceSnapshotToTemplateInput(
     sourceEvidenceCatalog:
       snapshot.content.sourceEvidenceCatalog,
     sourceIdentity: snapshot.content.sourceIdentity,
+    ...(snapshot.content.acceptedRevisionAuthority
+      ? {
+          continuityIntent:
+            snapshot.content.acceptedRevisionAuthority
+              .continuityIntent,
+        }
+      : {}),
     ...(snapshot.content.authoredCoverAuthority
       ? {
           authoredCoverAuthority:

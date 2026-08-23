@@ -127,11 +127,16 @@ function pageContractProjection(
   );
 }
 
-function preservedCompanionStateSelection(
+function preservedContinuitySelections(
   page: Record<string, unknown>,
 ): Record<string, unknown> {
   return Object.fromEntries(
-    ['companionStateId', 'companionStateSourceEvidenceId']
+    [
+      'childWardrobeOverrideDescription',
+      'childWardrobeOverrideSourceEvidenceId',
+      'companionStateId',
+      'companionStateSourceEvidenceId',
+    ]
       .filter((key) => Object.prototype.hasOwnProperty.call(page, key))
       .map((key) => [key, structuredClone(page[key])]),
   );
@@ -602,7 +607,7 @@ export function applyStructuralBundleRepairPatch(args: {
     seenSelectedPages.add(page.pageNumber);
     return {
       ...structuredClone(patchPages.get(page.pageNumber)!),
-      ...preservedCompanionStateSelection(page),
+      ...preservedContinuitySelections(page),
     };
   });
   if (seenSelectedPages.size !== pageNumbers.size) {

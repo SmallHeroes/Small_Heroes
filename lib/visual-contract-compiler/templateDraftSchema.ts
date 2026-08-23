@@ -597,15 +597,17 @@ const actionSemanticCoverage = obj({
  */
 function pageContractJsonSchema(
   actionRequirementSchema: Record<string, unknown>,
-  options?: { includeCompanionStateSelection?: boolean },
+  options?: { includeContinuitySelections?: boolean },
 ): Record<string, unknown> {
   return obj({
     pageNumber: { type: 'number', minimum: 1, multipleOf: 1 },
     locationId: { type: 'string' },
     zoneId: { type: 'string' },
     sameLocationAs: nullableNumber,
-    ...(options?.includeCompanionStateSelection
+    ...(options?.includeContinuitySelections
       ? {
+          childWardrobeOverrideDescription: nullableString,
+          childWardrobeOverrideSourceEvidenceId: nullableString,
           companionStateId: nullableString,
           companionStateSourceEvidenceId: nullableString,
         }
@@ -633,7 +635,7 @@ export const TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA: Record<
   unknown
 > = pageContractJsonSchema(
   TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA,
-  { includeCompanionStateSelection: true },
+  { includeContinuitySelections: true },
 );
 
 /**
@@ -680,7 +682,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
   });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v17' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v18' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;
