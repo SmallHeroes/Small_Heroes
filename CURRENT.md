@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
 
-## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — INDEPENDENT TECHNICAL PASS; REVISION 1 LOCAL GREEN; EDITORIAL RE-GATE NEXT
+## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — INDEPENDENT TECHNICAL AND EDITORIAL PASS; GUY ACCEPTANCE NEXT
 
 The separately approved zero-cost rewrite now exists as digest-bound staging,
 not as a mutation of the accepted Story Source. The new eight-page bedtime
@@ -53,8 +53,17 @@ referent, and `במקום למהר לשער` removes the female `רצה` homogra
 `b799eeed...39577c`, and its evidence manifest is
 `f8f273c0...5cf7bc`. Canonical validation is clean, only pages 4–6 differ,
 word counts are `43, 42, 41, 45, 43, 45, 41, 45`, and the same three suites pass
-**50/50** with TypeScript and diff check clean. Editorial re-gate remains
-required before Guy acceptance or any publication lifecycle work.
+**50/50** with TypeScript and diff check clean.
+
+Claude Code's narrow re-gate of `65a8ab74` returned technical/artifact **PASS**
+with zero findings and a fresh closed editorial **`pass`** with four strengths,
+zero issues, zero revision priorities and all eight preservation anchors. The
+exact 2,941-byte Editor result is SHA-256 `bd1bf219...4fce6`; its 1,708-byte
+evidence manifest is SHA-256 `ba4012a0...ea4fb` and binds Revision 1 plus both
+Editor rounds. Guy's explicit product acceptance is now the only remaining
+content gate before the general versioned creative-rewrite publication
+lifecycle may be implemented. No accepted source, catalog, Wizard, package or
+render authority has moved.
 
 Durable records:
 `docs/ai-workflow/R1D_CHAMELEON_BAR_FIRST_KINDERGARTEN_STORY_SOURCE_REWRITE_DECISION_GATE.md`

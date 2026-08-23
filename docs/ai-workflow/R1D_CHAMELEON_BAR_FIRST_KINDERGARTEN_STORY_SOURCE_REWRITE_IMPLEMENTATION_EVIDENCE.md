@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-23
 
-**Status:** INDEPENDENT TECHNICAL PASS; REVISION 1 LOCAL GREEN; EDITORIAL RE-GATE AND PRODUCT ACCEPTANCE PENDING
+**Status:** INDEPENDENT TECHNICAL AND EDITORIAL PASS; GUY PRODUCT ACCEPTANCE PENDING
 
 **Cost:** `$0`
 
@@ -140,17 +140,36 @@ exactly pages 4–6 changed. Page counts remain inside contract at
 normalization actions. The same three focused suites remain **50/50 PASS**,
 with TypeScript and diff check clean.
 
+Claude Code's narrow read-only re-gate of exact HEAD `65a8ab74` returned
+technical/artifact **PASS** with zero BLOCKER, MAJOR or MINOR findings and a
+fresh closed editorial **`pass`** with four strengths, zero issues, zero
+revision priorities and all eight preservation anchors. It independently
+confirmed the ring-to-path causality, blank-label continuity, both Hebrew
+read-aloud corrections, exact three-page revision scope, all page/word/gender
+contracts and every preservation fence.
+
+The exact round-two Editor result is preserved at
+`outputs/r1d-chameleon-kim-story-rewrite-editorial-pass/editorial-review-round2.json`
+(2,941 bytes; SHA-256
+`bd1bf219cd3e0361a2875a00604ae9ac8e66fe69694ee96fa8d1064c8cc4fce6`).
+Its evidence manifest binds the passed draft, both Editor rounds and the prior
+revision manifest; it is 1,708 bytes with SHA-256
+`ba4012a01eb7b9f286fc7da4880d2af4dfc77ec283a95deb566cbd76ae8ea4fb`.
+The manifest remains non-product authority and explicitly excludes accepted
+source, bank, Wizard, visual and render authority.
+
 ## Known next boundary
 
-This is not yet an Editor PASS or an accepted Story Source. Revision 1 requires
-a narrow independent editorial re-gate. The older pilot
+Revision 1 now has an independent Editor PASS but is not an accepted Story
+Source. Guy's explicit product acceptance is the next gate. The older pilot
 review CLI is intentionally limited to the single Dini pilot, and its accepted
 candidate writer defaults to the legacy `female` source profile. Reusing it for
-this neutral creative replacement would bypass authority. After an editorial
-PASS and Guy story acceptance, the next technical milestone must provide a general
+this neutral creative replacement would bypass authority. After Guy story
+acceptance, the next technical milestone must provide a general
 versioned creative-rewrite lifecycle that explicitly binds the slot, prior
 revision, new Brief, `gender_flexible` profile, Editor result and Guy approval.
 
 No provider, render, image, audio, Vision, credential, storage, database,
-Board, accepted-source, catalog, bank, Wizard, package, locator, deployment or
-push action occurred.
+Board, accepted-source, catalog, bank, Wizard, package, locator or deployment
+action occurred in this closeout. Guy pushed the reviewed branch through
+`65a8ab74`; Codex performed no push.
