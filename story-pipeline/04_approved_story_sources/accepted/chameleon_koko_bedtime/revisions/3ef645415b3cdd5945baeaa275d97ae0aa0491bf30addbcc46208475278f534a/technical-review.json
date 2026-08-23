@@ -1,0 +1,21 @@
+{
+  "acceptedMinor": [
+    {
+      "code": "node_type_stripping_runtime_coupling",
+      "disposition": "accepted_non_blocking",
+      "note": "Verified on Node 22.19; repository-wide runtime pinning remains separate hardening."
+    }
+  ],
+  "baseCommit": "15fa4c9dc2d2757a7b82e41d98207a51c633cb8f",
+  "blocker": 0,
+  "candidateDigest": "3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a",
+  "digest": "b447194273806856307c924974ebc13d07417272fa44a125ab25d87ad1b369f0",
+  "digestAlgorithm": "canonical-json-sha256",
+  "headCommit": "67d08a31ea6e822f0c4f2bd3e225a5dad5b0bbd0",
+  "major": 0,
+  "minor": 1,
+  "reviewBundleDigest": "fa519a11bca42e0d565479329b9d5c0767972814ee28d6e73a764a35a1a3b57c",
+  "reviewer": "Claude Code",
+  "status": "pass",
+  "version": "small-heroes-story-source-visual-direction-technical-review/v1"
+}

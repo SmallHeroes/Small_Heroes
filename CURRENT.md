@@ -227,8 +227,8 @@ SHA-256 `51e3bb3e...ab9778`, integrated-source SHA-256
 `9acf0433...7195b1`, Candidate identity and Review bytes.
 
 Real `prepare --write true` returned `created:true`; an exact replay returned
-`created:false`; and real `publish --write false` reports `wouldCreate:true`.
-The canonical accepted target does not exist. No real publish was executed.
+`created:false`; and the pre-QA real `publish --write false` reported
+`wouldCreate:true`.
 The bundle is explicitly runtime-ineligible with reason
 `accepted_story_source_requires_fresh_visual_contract`, so it cannot select a
 package or reach the Wizard. The general focused compatibility matrix passes
@@ -240,8 +240,26 @@ with 65 skipped and seven failures: five are the established absent ignored
 cases exceeded the five-second parallel timeout. That migration file passes
 **8/8** in isolation with one worker and a 30-second allowance. The new
 acceptance lifecycle passed **5/5** inside the literal repository run.
-Independent Claude Code QA remains mandatory before canonical Story Source
-publication. Fresh Blueprint/Visual Contract authoring, Visual Package review,
+
+Claude Code independently reviewed immutable range `972a25ad..2451309a` and
+returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It verified all ten claims,
+re-derived the accepted-v3 manifest, product-acceptance and technical-review
+digests, checked every descriptor against disk, attacked the review gate with
+nine re-digested mutations, proved the seven-module local import graph and
+confirmed the real accepted target was absent before publication.
+
+After that PASS, the already authorized canonical `publish --write true`
+created revision `3ef64541...f534a`; an immediate identical replay returned
+`created:false`. The accepted directory contains exactly the same nine files as
+the staged bundle, byte-for-byte. Every external counter remains zero. The
+current locator is unchanged at SHA-256 `6d3d9431...bb96b`, still selects
+package `2b488f2d...98a6`, and therefore still pins the predecessor Story Source
+until a fresh Visual Contract and package are separately approved. Publication
+initially exposed one test-fixture assumption: its temp repository copied the
+newly published revision and then expected it to be absent. The fixture now
+removes only that revision from its temp copy; production code is unchanged.
+The expanded Story Source/Package/Wizard matrix passes **14 files / 154 tests**.
+Fresh Blueprint/Visual Contract authoring, Visual Package review,
 locator/Wizard promotion and any render remain later separately gated steps.
 
 The durable records are

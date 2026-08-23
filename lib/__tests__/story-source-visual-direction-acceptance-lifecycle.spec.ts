@@ -53,6 +53,10 @@ function buildFixture() {
   fs.cpSync(path.join(REPO_ROOT, ACCEPTED_STORY_ROOT), acceptedTarget, {
     recursive: true,
   });
+  fs.rmSync(
+    path.join(acceptedTarget, 'revisions', CANDIDATE_DIGEST),
+    { recursive: true, force: true },
+  );
   const enrichmentTarget = path.join(root, ENRICHMENT_ROOT);
   fs.mkdirSync(path.dirname(enrichmentTarget), { recursive: true });
   fs.cpSync(path.join(REPO_ROOT, ENRICHMENT_ROOT), enrichmentTarget, {

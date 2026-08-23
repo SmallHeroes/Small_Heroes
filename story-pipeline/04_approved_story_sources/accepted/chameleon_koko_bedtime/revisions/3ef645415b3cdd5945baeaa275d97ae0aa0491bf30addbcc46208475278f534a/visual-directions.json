@@ -1,0 +1,153 @@
+{
+  "version": "small-heroes-story-visual-direction-record/v1",
+  "storyKey": "chameleon_koko_bedtime",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "settingKey": "child_home_lantern_corner",
+      "setting": "Cozy craft corner at the child's home beside the evening footpath",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child lights a paper moon lantern while the companion's tongue misses it, presses the delivery-cart button, and sends the lantern rolling away.",
+      "heroObject": "paper moon lantern on a puppy-sized night delivery cart",
+      "shotType": "medium_close",
+      "cameraAngle": "three_quarter",
+      "lighting": "Warm indoor lamplight meeting cool early-evening light at the doorway",
+      "continuityAnchors": [
+        "same paper moon lantern",
+        "same puppy-sized night delivery cart",
+        "same loose route labels"
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "settingKey": "hedge_lined_garden_path",
+      "setting": "Hedge-lined pedestrian garden path after sunset",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The cart salutes one hedge after another until the child catches it and presses the brake while the companion fixes a new label to the route.",
+      "heroObject": "braked night delivery cart carrying the moon lantern",
+      "shotType": "wide",
+      "cameraAngle": "ground_level",
+      "lighting": "Soft garden lamps and fading blue evening light",
+      "continuityAnchors": [
+        "same paper moon lantern",
+        "same night delivery cart",
+        "first route label remains attached"
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "settingKey": "closing_market_bakery_front",
+      "setting": "Closing market arcade beside an open bakery window",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child turns the cart handle toward the kindergarten as the bakery window opens, while the companion labels a bread roll and the cart lunges after it.",
+      "heroObject": "bread roll pulling the lantern cart off route",
+      "shotType": "close",
+      "cameraAngle": "low_angle",
+      "lighting": "Warm bakery-window glow against the darkening market arcade",
+      "continuityAnchors": [
+        "same paper moon lantern",
+        "same night delivery cart",
+        "earlier route labels remain attached"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "settingKey": "bakery_fountain_crossing",
+      "setting": "Round fountain crossing between the bakery and the distant kindergarten gate",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child arranges three wet labels into a closed ring inside the cart, which circles the fountain and returns with the bread roll resting on the companion's head.",
+      "heroObject": "closed ring of wet route labels inside the circling cart",
+      "shotType": "extreme_wide",
+      "cameraAngle": "overhead",
+      "lighting": "Fountain reflections, warm bakery spill, and a small pool of light at the distant gate",
+      "continuityAnchors": [
+        "same paper moon lantern",
+        "same night delivery cart",
+        "three wet labels joined into a closed ring",
+        "same bread roll from the bakery"
+      ]
+    },
+    {
+      "pageNumber": 5,
+      "settingKey": "bakery_fountain_crossing",
+      "setting": "Flat stone beside the fountain on the route to the kindergarten",
+      "childPresence": "partial",
+      "companionPresence": "partial",
+      "supportingCharacters": [],
+      "mainAction": "The child's hands open the label ring into a path and place a blank label at its end while the companion watches both the route behind and the way forward.",
+      "heroObject": "opened route-label path ending in one blank label",
+      "shotType": "detail",
+      "cameraAngle": "high_angle",
+      "lighting": "Rippling fountain light across the stone and labels",
+      "continuityAnchors": [
+        "same wet route labels now opened into a path",
+        "new blank terminal label",
+        "same night delivery cart waiting beside the stone"
+      ]
+    },
+    {
+      "pageNumber": 6,
+      "settingKey": "kindergarten_gate_approach",
+      "setting": "Safe pedestrian path rising toward the closed kindergarten gate",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child threads the ordered labels into the cart, holds the blank final label, and leads the lantern up the last unmapped stretch toward the gate.",
+      "heroObject": "ordered label ribbon guiding the moon-lantern cart",
+      "shotType": "medium_wide",
+      "cameraAngle": "low_angle",
+      "lighting": "Quiet moonlight with the lantern casting a warm moving pool along the path",
+      "continuityAnchors": [
+        "same paper moon lantern",
+        "same night delivery cart",
+        "same ordered label ribbon",
+        "blank label remains in the child's hand"
+      ]
+    },
+    {
+      "pageNumber": 7,
+      "settingKey": "new_kindergarten_courtyard",
+      "setting": "New kindergarten courtyard just before the gate closes for the night",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [
+        "kindergarten guard"
+      ],
+      "mainAction": "The child lifts and hangs the moon lantern above the courtyard path, then draws a moon on the blank label as the guard and companion watch.",
+      "heroObject": "newly hung paper moon lantern and completed terminal label",
+      "shotType": "medium",
+      "cameraAngle": "three_quarter",
+      "lighting": "The paper lantern switches on against a calm moonlit courtyard",
+      "continuityAnchors": [
+        "same paper moon lantern now hanging above the path",
+        "same night delivery cart stopped at the gate",
+        "ordered label ribbon ends with the completed moon label"
+      ]
+    },
+    {
+      "pageNumber": 8,
+      "settingKey": "child_bedroom",
+      "setting": "Child's bedroom at night with the kindergarten visible beyond the rooftops",
+      "childPresence": "present",
+      "companionPresence": "present",
+      "supportingCharacters": [],
+      "mainAction": "The child settles in bed while the companion curls on the windowsill and closes one eye, then the other, beneath the distant blink of the moon lantern.",
+      "heroObject": "distant paper moon lantern glowing in the kindergarten courtyard",
+      "shotType": "medium_close",
+      "cameraAngle": "eye_level",
+      "lighting": "Dim bedside glow, cool moonlight, and one distant warm lantern beyond the window",
+      "continuityAnchors": [
+        "same paper moon lantern now visible across the rooftops",
+        "same quiet bedroom window"
+      ]
+    }
+  ]
+}

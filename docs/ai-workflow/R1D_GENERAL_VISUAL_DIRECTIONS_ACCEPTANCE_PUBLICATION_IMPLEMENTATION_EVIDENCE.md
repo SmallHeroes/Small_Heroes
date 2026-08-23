@@ -7,17 +7,19 @@
 
 **Base:** `972a25ad1f8f4243d01f4b8be92076713a63b28d`
 
-**Status:** locally green publication-candidate preparation; independent Claude
-Code QA required before canonical publication
+**Status:** canonical Story Source revision published after independent Claude
+Code PASS; focused artifact re-gate required before fresh Blueprint authoring
 
 ## Outcome
 
 The repository now has one general provider-free lifecycle for accepting and
 publishing a Story Source revision that already contains product-reviewed
-Visual Directions. The real approved Bar/Kim candidate is staged under ignored
-`outputs/` as a complete immutable nine-file publication bundle. The real
-canonical accepted target is absent and no publish, Blueprint authoring,
-package promotion, Wizard change or render occurred.
+Visual Directions. The real approved Bar/Kim candidate was staged under
+ignored `outputs/` as a complete immutable nine-file publication bundle.
+Claude Code independently PASSed the implementation and artifacts with no
+findings. The exact bundle was then published to the canonical accepted Story
+Source revisions directory and replayed byte-idempotently. No Blueprint
+authoring, package promotion, Wizard change or render occurred.
 
 This is a new v3 accepted-revision schema because the old v2 lifecycle encodes
 the historical `female -> neutral` migration and cannot truthfully represent a
@@ -38,9 +40,10 @@ this exact accepted source.
 - `prepare` builds and optionally atomically writes one complete publication
   candidate below ignored `outputs/`.
 - `publish` re-runs all validation, requires the exact staged bundle and can
-  atomically write only the complete revision directory. The real repository
-  was exercised with `--write false` only; `--write true` was tested only in
-  hermetic temporary repositories.
+  atomically write only the complete revision directory. Before independent QA,
+  the real repository was exercised with `--write false` only and `--write
+  true` was tested only in hermetic temporary repositories. After PASS, one
+  authorized real `--write true` publication and one exact replay were run.
 - The executable contains no Bar, Kim, chameleon, kindergarten, bedtime,
   Candidate or Review digest branch and has no provider, HTTP, process,
   database, locator, Wizard or render capability.
@@ -109,11 +112,20 @@ acceptance, continuity intent, identity and the explicit exclusions.
 1. `prepare --write false`: `created:false`, nothing written.
 2. `prepare --write true`: `created:true`, exact nine-file bundle written.
 3. identical `prepare --write true`: `created:false`, byte-exact replay.
-4. `publish --write false`: `created:false`, `wouldCreate:true`.
-5. Canonical target
+4. pre-QA `publish --write false`: `created:false`, `wouldCreate:true`.
+5. Claude Code reviewed `972a25ad..2451309a` read-only and returned **PASS — 0
+   BLOCKER / 0 MAJOR / 0 MINOR**, verifying all ten claims and independently
+   re-deriving every digest.
+6. post-PASS `publish --write true`: `created:true`; canonical target
    `story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a`
-   does not exist.
-6. Every external/provider/render/database/locator/Wizard counter is zero.
+   created with exactly nine files.
+7. immediate identical `publish --write true`: `created:false`; every accepted
+   file is byte-identical to the staged bundle.
+8. Every external/provider/render/database/storage/locator/Wizard counter is
+   zero.
+9. Current-locator SHA-256 remains
+   `6d3d9431054a71b47456b659f343bc0674efa62403e6f488156b8a8fc02bb96b`
+   and still selects package `2b488f2d...98a6`.
 
 ## Validation
 
@@ -141,7 +153,13 @@ acceptance, continuity intent, identity and the explicit exclusions.
 - isolated migration diagnostic with one worker and 30-second allowance:
   **1 file / 8 tests PASS**;
 - the new acceptance lifecycle itself passed **5/5** inside the literal
-  repository run.
+  repository run;
+- post-publication expanded Story Source/Package/Wizard matrix: **14 files /
+  154 tests PASS**;
+- the first post-publication run exposed only a temporal fixture assumption:
+  the hermetic fixture copied the newly published revision and expected it to
+  be absent. The fixture now removes that revision from its temp copy before
+  exercising pre-publication behavior; no production code changed.
 
 ## Preservation fence
 
@@ -165,7 +183,8 @@ Claude Code should try to prove any of the following:
 4. prepare/publish can replay across story identities.
 5. the nine-file bundle differs from the approved Candidate or parent Story
    Source, or a manifest digest cannot be independently reproduced.
-6. the real canonical accepted target exists despite the stated boundary.
+6. the real canonical accepted target differs from the staged nine-file bundle
+   or exact replay rewrites it.
 7. v3 is reachable by current runtime/package/Wizard selection before a fresh
    Visual Contract.
 8. production code contains story-specific logic or can call any external,
@@ -173,7 +192,6 @@ Claude Code should try to prove any of the following:
 
 ## Explicitly out of scope
 
-- canonical accepted-revision publication before Claude Code PASS;
 - fresh Blueprint/Visual Contract authoring;
 - package assembly, review, approval or locator promotion;
 - Wizard selection or deployment;

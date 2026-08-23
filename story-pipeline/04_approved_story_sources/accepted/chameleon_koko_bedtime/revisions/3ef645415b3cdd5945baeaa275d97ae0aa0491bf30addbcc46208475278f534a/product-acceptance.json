@@ -1,0 +1,31 @@
+{
+  "acceptedAt": "2026-08-23T12:39:21.963Z",
+  "acceptedBy": "Guy",
+  "authorityScope": "story_source_and_visual_directions_only",
+  "candidateDigest": "3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a",
+  "decision": "Guy approved the exact Visual Directions Candidate and Review Bundle.",
+  "digest": "bf267c499381a581b34365790b6e3a74b2ab8e34bfee34d2f39143e456cad98b",
+  "digestAlgorithm": "canonical-json-sha256",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "image_render",
+    "production",
+    "provider_call",
+    "runtime_locator",
+    "story_bank_current_pointer",
+    "visual_contract",
+    "visual_package",
+    "wizard"
+  ],
+  "reviewBundleDigest": "fa519a11bca42e0d565479329b9d5c0767972814ee28d6e73a764a35a1a3b57c",
+  "revisionDigest": "3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a",
+  "runtimeEligibility": {
+    "eligible": false,
+    "reason": "accepted_story_source_requires_fresh_visual_contract"
+  },
+  "status": "accepted",
+  "storyKey": "chameleon_koko_bedtime",
+  "technicalReviewDigest": "b447194273806856307c924974ebc13d07417272fa44a125ab25d87ad1b369f0",
+  "version": "small-heroes-story-source-visual-direction-product-acceptance/v1"
+}
