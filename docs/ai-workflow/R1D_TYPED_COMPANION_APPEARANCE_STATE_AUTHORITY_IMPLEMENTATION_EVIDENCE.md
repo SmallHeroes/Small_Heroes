@@ -195,6 +195,24 @@ status evidence. No frozen state authority, continuity, schema, validator call
 site, repair, runtime seam, Story Source, package, locator, Board or provider
 behavior changed.
 
+## Independent technical closure
+
+Claude Code's final read-only re-gate returned **PASS** on range
+`5cb03368..bf5f6fd9`. It verified the exact one-commit/four-file topology,
+reproduced all **28/28** claimed Hebrew and English outcomes with zero failures,
+added five successful world-colour falsification probes, reproduced
+**121/121** tests, TypeScript and diff-check success, and re-established the
+4/4 byte-identical untracked Board fence.
+
+The review records one non-blocking limitation: a bounded attribution matcher
+is defence in depth rather than a complete natural-language parser, so compound
+phrasing can bypass it. Typed page state, frozen authority and provider prompt
+ownership remain the load-bearing controls. Evidence of prose actually
+overriding typed state in a render would reopen this decision; absent that
+evidence, the separate Bar/Kim Story Source rewrite is technically authorized
+to proceed. The PASS is not product acceptance and authorizes no render,
+provider, package, locator or deployment mutation.
+
 ## Preservation fence
 
 The four pre-existing untracked Board artifacts remain unstaged and

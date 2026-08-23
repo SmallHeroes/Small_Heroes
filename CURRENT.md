@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
 
-## TYPED COMPANION APPEARANCE STATE AUTHORITY — SECOND NARROW HOLD CORRECTED LOCALLY, RE-GATE NEXT
+## TYPED COMPANION APPEARANCE STATE AUTHORITY — INDEPENDENT TECHNICAL PASS; STORY SOURCE REWRITE IN PROGRESS
 
 Guy approved a general closed Companion State system before the separate Bar/Kim
 Story Source rewrite. The repository cause is now addressed structurally: an
@@ -48,6 +48,16 @@ the same text. `קים נעשתה ירוקה`, `הזיקית הירוקה`, `ק�
 `Kim's stripes sharpened` now reject; `Kim looks at the blue sky`, `Kim sits on
 the green grass`, `Kim's blue scarf rests by the bed`, and
 `קים הביטה בשמיים הכחולים` remain valid.
+
+Claude Code's final narrow re-gate returned **PASS**. It independently
+reproduced all **28/28** claimed rejection/allowance cases with zero failures,
+all six bounded Hebrew inflections, the state-id fail-closed behavior and five
+additional world-colour controls. It also reproduced **121/121** tests,
+TypeScript and diff-check success, exact four-file topology, and the 4/4 Board
+preservation fence. Claude recorded that compound natural-language attribution
+can always produce more regex bypasses; this is a bounded defence-in-depth
+limitation, not a failure of the typed state authority. The separate Story
+Source rewrite may now proceed under Guy's earlier approval.
 
 Kim is the first declaration, expressed as data rather than a runtime branch:
 `settled_warm_green` → `alert_olive_shift` →
@@ -96,9 +106,9 @@ No Story Source, approved package, locator, Blueprint, Board, Order, payment,
 image, audio, database, storage, deployment or remote state changed. The four
 pre-existing untracked Board artifacts remain byte-identical and unstaged. This
 milestone used no provider and cost **$0**. Next action is a focused local commit
-for the prose correction and a Guy-mediated narrow Claude Code re-gate. The
-Bar/Kim Story Source rewrite remains HOLD until that independent technical PASS,
-exactly as approved.
+recording the independent PASS, followed by the separate Bar/Kim Story Source
+revision. The content revision remains provider-free and cannot replace the
+current accepted source without its own review and Guy acceptance.
 
 ## WIZARD BOOK CONTINUITY + COMPOSITION AUTHORITY — LOCAL GREEN, CLAUDE QA NEXT
 
