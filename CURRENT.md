@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
 
-## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — PRODUCT-ACCEPTED STORY-TEXT REVISION; INDEPENDENT LIFECYCLE QA PASS
+## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — STORY-SOURCE QA PASS; VISUAL DIRECTIONS CANDIDATE LOCAL, INDEPENDENT QA NEXT
 
 The separately approved zero-cost rewrite now exists as digest-bound staging,
 not as a mutation of the accepted Story Source. The new eight-page bedtime
@@ -121,6 +121,54 @@ plus the general lifecycle records
 `docs/ai-workflow/R1D_GENERAL_CREATIVE_STORY_SOURCE_REPLACEMENT_LIFECYCLE_DECISION_GATE.md`
 and
 `docs/ai-workflow/R1D_GENERAL_CREATIVE_STORY_SOURCE_REPLACEMENT_LIFECYCLE_IMPLEMENTATION_EVIDENCE.md`.
+
+The next zero-cost authority gap is now implemented locally as a separate
+general Visual Directions enrichment lifecycle. Investigation proved the old
+direction wave can read only the 18 legacy top-level accepted sources, while
+the old revision/package route is specialized to the historical
+`female -> neutral` migration. Neither can truthfully enrich the new creative
+revision. The new lifecycle instead loads and completely revalidates the
+accepted `story_text_only` revision, binds one exact typed direction record,
+deterministically injects eight `imageDirection:` lines, proves byte-exact
+source projection, and atomically writes a content-addressed review candidate
+under ignored `outputs/`. It has no publication, package, locator, Wizard,
+provider or render capability.
+
+The real candidate digest is
+`3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a`;
+its manifest digest is `42b8f35a...fe6795`, Review Bundle digest is
+`fa519a11...a3b57c`, Visual Directions SHA-256 is
+`51e3bb3e...ab9778`, and integrated-source SHA-256 is
+`9acf0433...7195b1`. The candidate remains explicitly runtime-ineligible with
+reason `visual_directions_candidate_not_product_accepted`.
+
+The eight-page storyboard contains seven distinct shot types and six camera
+angles. Pages 2 and 4 are wide/extreme-wide; pages 1, 3, 5 and 8 are
+close-focus; no adjacent shot/angle pair repeats and the maximum same-shot run
+is one. The direction prose claims no child identity/wardrobe and no companion
+appearance state. Its review intent binds the later typed wardrobe transition
+to page 8, canonical companion accessory authority, and frozen Companion State
+transitions to pages 2, 3, 5 and 6. Initial real write returned `created:true`;
+exact replay returned `created:false`.
+
+Dedicated plus adjacent validation currently passes **7 files / 73 tests**,
+including **5/5** new lifecycle tests, with Node syntax, TypeScript and diff
+hygiene clean. One literal `npm run check` exercised the canonical **325 / 305 /
+20** inventory. Ordinary reported **3,555 PASS / 65 skipped / 7 failures**:
+five are the established absent ignored-`outputs/` fixtures and two unchanged
+Story Source package-migration cases exceeded the five-second parallel timeout.
+That migration file passes **8/8** in isolation with one worker and a 30-second
+allowance. Resource-intensive reported **610 PASS / 1 timeout** plus the three
+known Vitest worker `onTaskUpdate` RPC timeouts; the timed QA Bridge file passes
+**8/8** under the same isolated diagnostic conditions. No assertion introduced
+by this milestone failed. Independent Claude Code QA is required before Guy
+reviews or accepts the exact Candidate and Review digests. No accepted revision,
+package, locator, Wizard, Board, provider, render or remote authority moved.
+
+The durable records are
+`docs/ai-workflow/R1D_GENERAL_STORY_SOURCE_VISUAL_DIRECTIONS_ENRICHMENT_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_GENERAL_STORY_SOURCE_VISUAL_DIRECTIONS_ENRICHMENT_IMPLEMENTATION_EVIDENCE.md`.
 
 ## TYPED COMPANION APPEARANCE STATE AUTHORITY — INDEPENDENT TECHNICAL PASS; STORY SOURCE REWRITE RELEASED TO ITS SEPARATE STAGING MILESTONE
 
