@@ -165,6 +165,29 @@ by this milestone failed. Independent Claude Code QA is required before Guy
 reviews or accepts the exact Candidate and Review digests. No accepted revision,
 package, locator, Wizard, Board, provider, render or remote authority moved.
 
+Claude Code's independent review of `a970af68..15fa4c9d` verified every other
+claim but issued **HOLD / 1 MAJOR** on the protected-authority prose guard. The
+guard recognized only the literal role word `companion`, so declared aliases,
+an elliptical second-sentence body-colour claim, and six ordinary child-clothing
+phrasings could bypass it. The narrow correction now reuses the existing
+`CompanionAppearanceStateAuthority` declaration and its canonical
+`subjectAliases`/`reservedAppearanceTerms`, adds the generic role alias without
+story-specific code, rejects explicit body/skin appearance claims across
+sentence boundaries, and recognizes child-attributed garments or dressing
+actions. Three world/prop controls remain legal, including green scenery and a
+fallen striped sock. All eleven reported bypasses now reject.
+
+The real candidate preview still returns `created:false` with Candidate
+`3ef64541...f534a`, manifest `42b8f35a...fe6795`, Review Bundle
+`fa519a11...a3b57c`, directions `51e3bb3e...ab9778` and integrated source
+`9acf0433...7195b1` unchanged. The correction is awaiting Claude Code's narrow
+re-gate. Corrective validation passes the dedicated suite **6/6** and the full
+focused matrix **7 files / 74 tests**, with Node syntax, TypeScript and diff
+hygiene clean. The literal repository check was not repeated because Claude's
+authorized re-gate scope is confined to this guard and its fixtures; the parent
+run and its documented fixture/parallel-timeout classification remain the
+broader evidence. This grants no Candidate acceptance or downstream authority.
+
 The durable records are
 `docs/ai-workflow/R1D_GENERAL_STORY_SOURCE_VISUAL_DIRECTIONS_ENRICHMENT_DECISION_GATE.md`
 and

@@ -217,6 +217,58 @@ describe('general Story Source visual-direction enrichment lifecycle', () => {
     ).toThrow('story_visual_direction_enrichment_protected_authority_invalid');
   });
 
+  it('rejects declared companion aliases, elliptical body-state prose, and ordinary wardrobe phrasing', () => {
+    const companionAppearanceBypasses = [
+      'Kim body hue turns teal.',
+      'Kim turns olive and striped.',
+      'The chameleon body colour shifts to blue-green.',
+      'Her body hue shifts to teal.',
+      'The companion stands by the gate. Body hue turns teal.',
+    ];
+    for (const mainAction of companionAppearanceBypasses) {
+      const record = validDirectionRecord();
+      record.pages[0].mainAction = mainAction;
+      expect(
+        lifecycle.protectedAuthorityIssues(record, 'chameleon_koko'),
+        mainAction,
+      ).toContain('page_1_mainAction_companion_appearance_authority');
+    }
+
+    const wardrobeBypasses = [
+      'The child puts on a coat.',
+      'The child waits in a hoodie.',
+      'The child ties her shoes.',
+      'The child gets dressed.',
+      'The child changes clothes.',
+      'The child waits in a scarf.',
+    ];
+    for (const mainAction of wardrobeBypasses) {
+      const record = validDirectionRecord();
+      record.pages[0].mainAction = mainAction;
+      expect(
+        lifecycle.protectedAuthorityIssues(record, 'chameleon_koko'),
+        mainAction,
+      ).toContain('page_1_mainAction_wardrobe_authority');
+    }
+
+    for (const mainAction of [
+      'Kim stands beside green trees.',
+      'The companion stands by the gate. Green banners hang above it.',
+      'The child carries a green paper label.',
+    ]) {
+      const record = validDirectionRecord();
+      record.pages[0].mainAction = mainAction;
+      expect(
+        lifecycle.protectedAuthorityIssues(record, 'chameleon_koko'),
+        mainAction,
+      ).toEqual([]);
+    }
+
+    expect(
+      lifecycle.protectedAuthorityIssues(validDirectionRecord(), 'unknown_companion'),
+    ).toEqual(['companion_appearance_state_authority_missing']);
+  });
+
   it('rejects stale source bindings, extra request keys, and hard-linked inputs', () => {
     const stale = buildFixture();
     stale.request.sourceRevision.manifestDigest = 'f'.repeat(64);

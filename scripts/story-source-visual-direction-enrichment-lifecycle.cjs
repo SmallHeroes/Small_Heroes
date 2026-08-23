@@ -7,6 +7,7 @@ const materializer = require('./materialize-story-source-revision.cjs');
 const creativeReplacement = require('./story-source-creative-replacement-lifecycle.cjs');
 const directionContract = require('./story-visual-direction-contract.cjs');
 const directionIntegration = require('./story-bank-direction-integration.cjs');
+const companionAppearanceState = require('../lib/companion-appearance-state.ts');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const OUTPUTS_ROOT_RELATIVE = 'outputs';
@@ -239,11 +240,31 @@ function readRequestFile(requestPath, roots = {}) {
   };
 }
 
-function protectedAuthorityIssues(record) {
+function protectedAuthorityIssues(record, companionId) {
   const issues = [];
-  const wardrobe = /\b(?:wardrobe|outfit|wearing|wears|pajamas?|pyjamas?|shirt|trousers|pants|dress|skirt|sweater|jacket)\b/i;
-  const companion = /\bcompanion\b/i;
-  const appearance = /\b(?:body\s+(?:hue|colou?r)|skin\s+colou?r|appearance\s+state|green(?:ish)?|olive|teal|turquoise|blue[- ]green|amber\s+stripes?|striped|stripes?\s+(?:sharpen|soften)|pattern|camouflage)\b/i;
+  const childReference =
+    /\b(?:child|boy|girl|kid|toddler)\b|\{\{childName\}\}/i;
+  const wardrobeGarment =
+    /\b(?:wardrobe|outfits?|pajamas?|pyjamas?|shirts?|trousers|pants|dresses?|skirts?|sweaters?|jackets?|coats?|hoodies?|shoes?|clothes|clothing|scarves|scarf|socks?|boots?|shorts|blouses?|tops?|uniforms?|costumes?|robes?|gowns?|slippers?)\b/i;
+  const wardrobeChange =
+    /\b(?:wears?|wearing|wore|puts?\s+on|takes?\s+off|gets?\s+dressed|changes?\s+clothes|ties?\s+(?:his|her|their)\s+shoes?)\b/i;
+  const explicitBodyAppearance =
+    /\b(?:(?:his|her|its|their)\s+)?(?:body|skin)\s+(?:hue|colou?r|tone|pattern|turns?|shifts?|changes?|becomes?|goes?|looks?)\b/i;
+  const declaredAuthority =
+    companionAppearanceState.declaredCompanionAppearanceStateAuthority(companionId);
+  if (
+    !declaredAuthority ||
+    companionAppearanceState.companionAppearanceStateAuthorityIssues(
+      declaredAuthority,
+      companionId,
+    ).length > 0
+  ) {
+    return ['companion_appearance_state_authority_missing'];
+  }
+  const authority = {
+    ...declaredAuthority,
+    subjectAliases: [...new Set(['companion', ...declaredAuthority.subjectAliases])],
+  };
   for (const page of record.pages) {
     const fields = [
       ['setting', page.setting],
@@ -261,11 +282,19 @@ function protectedAuthorityIssues(record) {
     ];
     for (const [field, raw] of fields) {
       if (typeof raw !== 'string') continue;
-      if (wardrobe.test(raw)) {
+      if (
+        wardrobeChange.test(raw) ||
+        (childReference.test(raw) && wardrobeGarment.test(raw))
+      ) {
         issues.push(`page_${page.pageNumber}_${field}_wardrobe_authority`);
       }
-      const clauses = raw.split(/[.;!?]/u);
-      if (clauses.some((clause) => companion.test(clause) && appearance.test(clause))) {
+      if (
+        explicitBodyAppearance.test(raw) ||
+        companionAppearanceState.companionAppearanceProseConflicts({
+          authority,
+          texts: [raw],
+        }).length > 0
+      ) {
         issues.push(`page_${page.pageNumber}_${field}_companion_appearance_authority`);
       }
     }
@@ -407,7 +436,7 @@ function loadInputs(requestPath, roots = {}) {
   if (!directionFile.bytes.equals(expectedDirectionBytes)) {
     throw new Error('story_visual_direction_enrichment_directions_not_canonical');
   }
-  const authorityIssues = protectedAuthorityIssues(record);
+  const authorityIssues = protectedAuthorityIssues(record, story.companionId);
   if (authorityIssues.length > 0) {
     throw new Error(
       `story_visual_direction_enrichment_protected_authority_invalid:${authorityIssues.join(',')}`,

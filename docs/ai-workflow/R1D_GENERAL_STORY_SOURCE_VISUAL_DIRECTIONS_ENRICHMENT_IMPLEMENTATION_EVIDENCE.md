@@ -178,6 +178,61 @@ deployment or render operation occurred. Cost was `$0`.
 - `npx --no-install tsc --noEmit`: PASS;
 - `git diff --check`: PASS.
 
+## Independent QA HOLD and narrow correction
+
+Claude Code verified claims 1–6 and 8–14 on range
+`a970af6888e8025aeb4d342a36e2fee4e678afe9..15fa4c9dc2d2757a7b82e41d98207a51c633cb8f`
+but issued `HOLD / 1 MAJOR` on claim 7. The first guard recognized companion
+appearance only when the literal role token `companion` and an appearance term
+occurred in the same punctuation-delimited clause. Declared aliases, an
+elliptical second-sentence body-state claim and six ordinary child-wardrobe
+phrasings could therefore pass into `imageDirection` prose.
+
+The corrective scope is deliberately narrow:
+
+- resolve the accepted source's `companionId` through the already shipped and
+  validated `CompanionAppearanceStateAuthority` declaration;
+- reuse that authority's canonical `subjectAliases`,
+  `reservedAppearanceTerms` and existing attribution matcher rather than add a
+  story-specific alias branch;
+- include the generic role word `companion` in the per-validation clone only;
+- reject explicit body/skin hue, colour, tone, pattern or state-change prose
+  even when an alias appears in a preceding sentence;
+- recognize ordinary dressing actions and child-attributed garment prose;
+- preserve legal set/prop colour and garment descriptions that do not claim
+  the child's wardrobe or the companion's appearance.
+
+Regression coverage reproduces all eleven reported bypasses and three negative
+controls. The historical `striped sock fallen from laundry line` continuity
+anchor remains legal because it is a prop, not child wardrobe authority.
+
+After the correction, the real provider-free preview returns `created:false`
+and preserves every identity exactly:
+
+- Candidate `3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a`;
+- manifest `42b8f35a72c89d559389c2d278eec3a12733d27061d89cdd2b3b2735cefe6795`;
+- Review Bundle `fa519a11bca42e0d565479329b9d5c0767972814ee28d6e73a764a35a1a3b57c`;
+- Visual Directions `51e3bb3e7bd8266befe7f1030c86fb979feef919dfc223442dfe039dc6ab9778`;
+- integrated source `9acf0433386ac515d08d5d30f0429dc6b9f03596b29ba0994316ff69507195b1`.
+
+Corrective validation:
+
+- dedicated lifecycle suite: **6/6 PASS**;
+- lifecycle plus creative replacement, revision materializer, story commission,
+  Companion State, Blueprint composition and workload inventory: **7 files /
+  74 tests PASS**;
+- `node --check`: PASS;
+- `npx --no-install tsc --noEmit`: PASS;
+- `git diff --check`: PASS.
+
+The literal repository check was not repeated for this two-production/test-file
+micro-correction because Claude explicitly confined the re-gate to the guard and
+its rejection fixtures. The parent run's complete 325-file result and its
+fixture/parallel-timeout classification remain recorded above.
+
+This correction still performs no provider, model, image, Vision, network,
+storage, database, payment, deployment, publication, Wizard or render action.
+
 ## Preservation fence
 
 - accepted creative source revision `eca8b3c8...2115d`: unchanged;
