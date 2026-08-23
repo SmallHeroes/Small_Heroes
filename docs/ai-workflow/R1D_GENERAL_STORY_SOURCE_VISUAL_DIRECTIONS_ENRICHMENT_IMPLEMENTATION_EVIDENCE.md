@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-23
 
-**State:** local implementation green; independent Claude Code QA required
+**State:** independent Claude Code PASS; exact Guy product approval required
 
 **Branch:** `codex/qa-wizard-presentation-dispositions`
 
@@ -232,6 +232,31 @@ fixture/parallel-timeout classification remain recorded above.
 
 This correction still performs no provider, model, image, Vision, network,
 storage, database, payment, deployment, publication, Wizard or render action.
+
+## Independent corrective re-gate
+
+Claude Code independently reviewed immutable range
+`15fa4c9dc2d2757a7b82e41d98207a51c633cb8f..67d08a31ea6e822f0c4f2bd3e225a5dad5b0bbd0`
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 1 MINOR**. It reproduced all eleven
+reported hostile cases, confirmed the legal controls, exercised additional
+English and Hebrew aliases, proved missing authorities fail closed and verified
+that the per-call alias clone never mutates or accumulates in the declared
+authority. All five candidate identities and the four-file Board preservation
+fence remained exact.
+
+The one non-blocking MINOR is an explicit runtime-coupling note: this is the
+repository's first `.cjs` CLI to require a `.ts` module through Node's unflagged
+type stripping. The path works on the verified Node 22.19 runtime and the loaded
+authority module has no imports or unsupported TypeScript syntax. `package.json`
+does not currently pin the minimum Node 22.18 behavior. That repository-wide
+runtime declaration is accepted as later hardening and does not reopen this
+narrow, provider-free candidate gate.
+
+The technical gate is closed. It does not grant product acceptance. The next
+required authority is Guy's exact approval of Candidate
+`3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a`
+and Review Bundle
+`fa519a11bca42e0d565479329b9d5c0767972814ee28d6e73a764a35a1a3b57c`.
 
 ## Preservation fence
 

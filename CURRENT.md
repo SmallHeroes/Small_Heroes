@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
 
-## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — STORY-SOURCE QA PASS; VISUAL DIRECTIONS CANDIDATE LOCAL, INDEPENDENT QA NEXT
+## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — STORY-SOURCE + VISUAL-DIRECTIONS TECHNICAL PASS; GUY PRODUCT APPROVAL NEXT
 
 The separately approved zero-cost rewrite now exists as digest-bound staging,
 not as a mutation of the accepted Story Source. The new eight-page bedtime
@@ -187,6 +187,20 @@ hygiene clean. The literal repository check was not repeated because Claude's
 authorized re-gate scope is confined to this guard and its fixtures; the parent
 run and its documented fixture/parallel-timeout classification remain the
 broader evidence. This grants no Candidate acceptance or downstream authority.
+
+Claude Code independently re-gated immutable correction range
+`15fa4c9dc2d2757a7b82e41d98207a51c633cb8f..67d08a31ea6e822f0c4f2bd3e225a5dad5b0bbd0`
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 1 MINOR**. It reproduced all eleven
+hostile rejections, four named legal controls, seven additional over-block
+controls, five missing-authority failures and additional English/Hebrew alias
+attacks. It independently confirmed the authority clone never mutates and all
+five candidate identities remain exact. The non-blocking MINOR records that this
+is the repository's first `.cjs` CLI to require a `.ts` authority module through
+Node's unflagged type stripping: verified on Node 22.19, but the minimum Node
+22.18 coupling is not pinned in `package.json`. That repository-wide runtime
+declaration is tracked for later hardening rather than expanding this accepted
+narrow gate. Exact Guy product approval of the Candidate and Review Bundle is
+now the sole remaining authority before the separate publication/package step.
 
 The durable records are
 `docs/ai-workflow/R1D_GENERAL_STORY_SOURCE_VISUAL_DIRECTIONS_ENRICHMENT_DECISION_GATE.md`
