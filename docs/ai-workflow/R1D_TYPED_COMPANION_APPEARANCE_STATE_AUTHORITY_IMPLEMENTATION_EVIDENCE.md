@@ -128,6 +128,40 @@ green:
 
 No changed or adjacent functional assertion remains failed.
 
+## Independent QA finding and focused correction
+
+Claude Code's first read-only pass verified the authority, continuity,
+identity/accessory preservation, repair isolation, runtime seam and preservation
+fence, but issued one MAJOR HOLD on prose ownership. The original exact Unicode
+word boundary did not recognize attached Hebrew prefixes on an alias or term,
+and stripped niqqud could not reconcile marked defective `יָרֹק` with plene
+`ירוק`. Three exact English expressions were also not reserved.
+
+The corrective milestone is intentionally limited to the pure prose matcher,
+Kim's reserved appearance-term data, its dedicated regression suite and this
+status evidence:
+
+- Hebrew terms accept up to two attached prefixes from the closed prefix set;
+- Hebrew aliases accept the narrower non-ambiguous set, including `לקים` and
+  `וקים`, without classifying the ordinary verb `מקים` as the alias Kim;
+- marked defective `יָרֹק` is a marked-only reserved term, so the ordinary
+  unmarked noun `ירק` remains valid;
+- exact English `greenish`, `olive` and `stripes sharpen` are reserved without
+  a broad stem rule, preserving `greenhouse` and `evergreen`;
+- all reported inputs now reject: `קים לירוק`, `קים בירוק`, `קים וירוק`,
+  `קים מירוק`, `קים הירוק`, `קים והירוק`, `לקים ירוק`, `לְקִים יָרֹק`, the
+  canon-shaped niqqud sentence `קִים נִשְׁאַרָה בְּיָרֹק רַךְ הַיּוֹם`,
+  `Kim turns greenish`, `Kim goes olive`, and `Kim's stripes sharpen`;
+- explicit safe controls remain accepted: `Kim stands by the greenhouse`,
+  `Kim watches evergreen branches`, `קים אכלה ירק`, and
+  `בר מקים אוהל ירוק`.
+
+Corrective validation: dedicated Companion State **9/9**, adjacent Blueprint
+**112/112** (**121/121** total), `npx --no-install tsc --noEmit` PASS, and
+`git diff --check` PASS. No frozen authority, continuity, schema, repair,
+runtime, Story Source, package, locator, Board or provider behavior changed.
+The Bar/Kim rewrite remains blocked pending the narrow independent re-gate.
+
 ## Preservation fence
 
 The four pre-existing untracked Board artifacts remain unstaged and

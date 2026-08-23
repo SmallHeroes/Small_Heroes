@@ -322,6 +322,45 @@ describe('closed companion appearance-state authority', () => {
       }),
     ).toEqual([]);
 
+    const hebrewAndEnglishEscapes = [
+      'קים לירוק',
+      'קים בירוק',
+      'קים וירוק',
+      'קים מירוק',
+      'קים הירוק',
+      'קים והירוק',
+      'לקים ירוק',
+      'לְקִים יָרֹק',
+      'קִים נִשְׁאַרָה בְּיָרֹק רַךְ הַיּוֹם',
+      'Kim turns greenish.',
+      'Kim goes olive.',
+      "Kim's stripes sharpen.",
+    ];
+    for (const text of hebrewAndEnglishEscapes) {
+      expect(
+        companionAppearanceProseConflicts({
+          authority: CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY,
+          texts: [text],
+        }),
+        text,
+      ).not.toEqual([]);
+    }
+
+    for (const text of [
+      'Kim stands by the greenhouse.',
+      'Kim watches evergreen branches.',
+      'קים אכלה ירק.',
+      'בר מקים אוהל ירוק.',
+    ]) {
+      expect(
+        companionAppearanceProseConflicts({
+          authority: CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY,
+          texts: [text],
+        }),
+        text,
+      ).toEqual([]);
+    }
+
     const stateIdReservedAutomatically = structuredClone(
       CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY,
     );
@@ -334,9 +373,11 @@ describe('closed companion appearance-state authority', () => {
         authority: stateIdReservedAutomatically,
         texts: ['Kim must look alert_olive_shift.'],
       }),
-    ).toEqual([
-      { textIndex: 0, alias: 'Kim', term: 'alert_olive_shift' },
-    ]);
+    ).toEqual(
+      expect.arrayContaining([
+        { textIndex: 0, alias: 'Kim', term: 'alert_olive_shift' },
+      ]),
+    );
   });
 
   it('verifies story-evidence origins against the exact same-page source text', () => {

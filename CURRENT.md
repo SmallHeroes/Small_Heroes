@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
 
-## TYPED COMPANION APPEARANCE STATE AUTHORITY — LOCAL GREEN, CLAUDE QA NEXT
+## TYPED COMPANION APPEARANCE STATE AUTHORITY — CLAUDE HOLD CORRECTED LOCALLY, RE-GATE NEXT
 
 Guy approved a general closed Companion State system before the separate Bar/Kim
 Story Source rewrite. The repository cause is now addressed structurally: an
@@ -22,6 +22,18 @@ begins at the default, changes only by a non-no-op adjacent step while the
 companion is present, and carries forward through omitted or absent pages.
 Loose companion-scoped appearance prose is rejected in contract pages, the
 cover and Blueprint narratives.
+
+Claude Code's first independent pass verified the frozen authority, closed
+vocabulary, continuity, identity/accessory preservation, repair isolation and
+the complete runtime seam, but issued one MAJOR HOLD on the prose guard. Exact
+Hebrew word boundaries did not catch attached prefixes on Kim or colour terms,
+and niqqud stripping did not reconcile the defective spelling `יָרֹק` with
+`ירוק`. Exact English forms `greenish`, `olive` and `stripes sharpen` were also
+absent. The focused correction now distinguishes Hebrew alias prefixes from
+the wider term-prefix set, handles marked defective spellings as marked-only
+reserved data, and adds exact English terms without broad stemming. This
+closes the reported escapes while keeping `greenhouse`, `evergreen`, ordinary
+unmarked `ירק`, and `בר מקים אוהל ירוק` valid.
 
 Kim is the first declaration, expressed as data rather than a runtime branch:
 `settled_warm_green` → `alert_olive_shift` →
@@ -47,6 +59,13 @@ tests, **29/29** runtime authority tests, **57/57** prompt/schema tests, and
 `npx --no-install tsc --noEmit` plus `git diff --check`. The canonical inventory
 is now **323 / 303 / 20**, and its classifier passes **7/7**.
 
+The corrective re-gate scope passes **9/9** dedicated Companion State tests and
+**112/112** adjacent Blueprint tests (**121/121** total), plus
+`npx --no-install tsc --noEmit` and `git diff --check`. Its regression matrix
+includes every exact Hebrew/English escape from the HOLD and explicit safe
+controls for English word stems, the Hebrew noun `ירק`, and the ambiguous verb
+`מקים`.
+
 One literal `npm run check` completed both phases. Ordinary reported **3,544
 PASS / 65 skipped / 8 failures**: five are the established missing ignored
 `outputs/` fixtures, two unchanged package-migration tests exceeded the
@@ -61,8 +80,9 @@ No Story Source, approved package, locator, Blueprint, Board, Order, payment,
 image, audio, database, storage, deployment or remote state changed. The four
 pre-existing untracked Board artifacts remain byte-identical and unstaged. This
 milestone used no provider and cost **$0**. Next action is a focused local commit
-and Guy-mediated Claude Code adversarial review. The Bar/Kim Story Source rewrite
-remains HOLD until that independent technical PASS, exactly as approved.
+for the prose correction and a Guy-mediated narrow Claude Code re-gate. The
+Bar/Kim Story Source rewrite remains HOLD until that independent technical PASS,
+exactly as approved.
 
 ## WIZARD BOOK CONTINUITY + COMPOSITION AUTHORITY — LOCAL GREEN, CLAUDE QA NEXT
 

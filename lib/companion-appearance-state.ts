@@ -83,6 +83,11 @@ const CONTINUITY_ROLES = new Set<CompanionAppearanceContinuityRole>([
 ]);
 
 const STATE_ID_PATTERN = /^[a-z][a-z0-9_]*$/;
+const HEBREW_SCRIPT_PATTERN = /\p{Script=Hebrew}/u;
+const COMBINING_MARK_PATTERN = /\p{M}/u;
+const HEBREW_ALIAS_BOUND_PREFIX_PATTERN =
+  '(?:[ובלכ]\\p{M}*|ו\\p{M}*[בלכ]\\p{M}*)?';
+const HEBREW_TERM_BOUND_PREFIX_PATTERN = '(?:[והבכלמש]\\p{M}*){0,2}';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -110,6 +115,37 @@ function normalizeSearchText(value: string): string {
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
+}
+
+function normalizeMarkedSearchText(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function regexEscape(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function containsSearchPhrase(args: {
+  haystack: string;
+  needle: string;
+  hebrewPrefixKind: 'alias' | 'term';
+}): boolean {
+  const { haystack, needle, hebrewPrefixKind } = args;
+  if (!needle) return false;
+  const boundPrefixes = HEBREW_SCRIPT_PATTERN.test(needle)
+    ? hebrewPrefixKind === 'alias'
+      ? HEBREW_ALIAS_BOUND_PREFIX_PATTERN
+      : HEBREW_TERM_BOUND_PREFIX_PATTERN
+    : '';
+  return new RegExp(
+    `(?:^|[^\\p{L}\\p{N}])${boundPrefixes}${regexEscape(needle)}(?:$|[^\\p{L}\\p{N}])`,
+    'u',
+  ).test(haystack);
 }
 
 function normalizedUniqueStrings(
@@ -323,27 +359,44 @@ export function companionAppearanceProseConflicts(args: {
   const terms = [
     ...args.authority.states.map((state) => state.id),
     ...args.authority.reservedAppearanceTerms,
-  ].map((raw) => ({
-    raw,
-    normalized: normalizeSearchText(raw),
-  }));
+  ].map((raw) => {
+    const marked = normalizeMarkedSearchText(raw);
+    const markedOnly =
+      HEBREW_SCRIPT_PATTERN.test(marked) &&
+      COMBINING_MARK_PATTERN.test(marked);
+    return {
+      raw,
+      normalized: markedOnly ? null : normalizeSearchText(raw),
+      marked: markedOnly ? marked : null,
+    };
+  });
   const conflicts: CompanionAppearanceProseConflict[] = [];
-  const containsPhrase = (haystack: string, needle: string): boolean => {
-    if (!needle) return false;
-    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(
-      `(?:^|[^\\p{L}\\p{N}])${escaped}(?:$|[^\\p{L}\\p{N}])`,
-      'u',
-    ).test(haystack);
-  };
   args.texts.forEach((text, textIndex) => {
     const normalized = normalizeSearchText(text);
+    const marked = normalizeMarkedSearchText(text);
     const alias = aliases.find((candidate) =>
-      containsPhrase(normalized, candidate.normalized),
+      containsSearchPhrase({
+        haystack: normalized,
+        needle: candidate.normalized,
+        hebrewPrefixKind: 'alias',
+      }),
     );
     if (!alias) return;
     for (const term of terms) {
-      if (containsPhrase(normalized, term.normalized)) {
+      if (
+        (term.normalized !== null &&
+          containsSearchPhrase({
+            haystack: normalized,
+            needle: term.normalized,
+            hebrewPrefixKind: 'term',
+          })) ||
+        (term.marked !== null &&
+          containsSearchPhrase({
+            haystack: marked,
+            needle: term.marked,
+            hebrewPrefixKind: 'term',
+          }))
+      ) {
         conflicts.push({ textIndex, alias: alias.raw, term: term.raw });
       }
     }
@@ -400,16 +453,25 @@ export const CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY: CompanionAppearanceState
     'attuning_blue_green',
     'blended_moonlit_teal',
     'warm green',
+    'green',
+    'greenish',
     'yellow-green',
+    'yellow',
     'olive-green',
+    'olive',
     'amber-green',
+    'amber',
     'blue-green',
+    'blue',
     'teal-green',
+    'teal',
     'stress stripes',
     'sharp stripes',
+    'stripes sharpen',
     'body colour',
     'body color',
     'ירוק',
+    'יָרֹק',
     'צהוב',
     'זית',
     'ענבר',
