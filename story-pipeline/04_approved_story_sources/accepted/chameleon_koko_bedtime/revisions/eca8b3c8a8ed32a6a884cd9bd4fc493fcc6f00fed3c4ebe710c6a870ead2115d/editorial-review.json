@@ -1,0 +1,22 @@
+{
+  "version": "small-heroes-story-editorial-review/v1",
+  "verdict": "pass",
+  "strengths": [
+    "The failed attempt is now demonstrated rather than asserted: P4 closes the three labels 'לטבעת' and the cart's consequent 'הקיפה את המזרקה וחזרה אל קִים' is the visible result of that geometry, while P5's 'ופתח את הטבעת והניח תווית ריקה בסוף' is the single named change that converts the ring into a path with an end.",
+    "The blank terminal label is a continuous physical object across three pages — introduced at the opened end of the ring (P5), held by the child at the strip's end while leading the cart to the gate (P6), and inscribed with the moon to become the kindergarten's first new sign (P7) — so the payoff lands on an object the child created rather than on a restated theme.",
+    "Kim stays structurally non-swappable and her colour record is now the strip's content: tongue-caused inciting error (P1), 'שתי עיניים, שתי ראיות' (P2), amber stress stripes under the bakery light (P3), blue-green with one eye back and one forward at the turn (P5), teal on the moonlit run (P6) — and P6's 'העגלה הפסיקה לרדוף אחרי שיח, מלפפון או לחמנייה' explicitly retires all three earlier wrong matches.",
+    "The child's authority rises at exactly the right beat: the cart that has driven events since P1 is now led by the child — 'אחז בתווית הריקה והוביל את העגלה לשער ופתח אותו' — and the internal transition still resolves without a moral, carried by 'הוא כבר מכיר את הדרך' with bedtime imagery withheld to P8."
+  ],
+  "issues": [],
+  "revisionPriorities": [],
+  "mustPreserve": [
+    "P1's single-line establishment of tomorrow / first day / new kindergarten together with the made-object want ('אני רוצה שמשהו שהכנתי יחכה לי שם בבוקר').",
+    "The tongue-on-the-button inciting error, which makes Kim causally responsible for the problem she then helps document.",
+    "'שתי עיניים, שתי ראיות' as Kim's stated operating rule.",
+    "The three wrong matches (bush P2, cucumber crate P3, roll P3) together with their explicit retirement at P6.",
+    "The ring-to-path geometry: 'וסגר אותן לטבעת' plus 'הקיפה את המזרקה' at P4, and 'ופתח את הטבעת' at P5 — this is the load-bearing causal explanation and must not be softened back into an ordering argument.",
+    "The blank terminal label chain across P5 → P6 → P7, including the child physically holding it while leading the final unmapped segment.",
+    "'במקום למהר לשער' as the deliberate-choice beat that replaces hurrying with evidence.",
+    "P8's explicit anatomy and satchel invariance ('אותו גוף קטן, אותו זנב, והתיק החרדלי') alongside the resolved teal state."
+  ]
+}

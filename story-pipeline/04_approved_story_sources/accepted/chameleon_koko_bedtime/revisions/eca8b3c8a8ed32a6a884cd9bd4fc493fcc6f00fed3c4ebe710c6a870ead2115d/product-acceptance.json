@@ -1,0 +1,35 @@
+{
+  "acceptedAt": "2026-08-23T10:18:46.007Z",
+  "acceptedBy": "Guy",
+  "approvedEditorialReviewSha256": "bd1bf219cd3e0361a2875a00604ae9ac8e66fe69694ee96fa8d1064c8cc4fce6",
+  "approvedStoryRevisionSha256": "b18e824c96bf43a3d3f5b9dfe6457b2ad8a19112b73e89fcfbb55417a02afd09",
+  "decision": "Guy explicitly approved Story Revision b18e824c96bf43a3d3f5b9dfe6457b2ad8a19112b73e89fcfbb55417a02afd09 and Editorial Review bd1bf219cd3e0361a2875a00604ae9ac8e66fe69694ee96fa8d1064c8cc4fce6, and authorized the general creative replacement route for chameleon_koko_bedtime without render authority.",
+  "digest": "f63400631a808f76c8c36f339d98a176f6aa8f63b27a8f42cf27e63103129d95",
+  "exclusions": [
+    "blueprint",
+    "deployment",
+    "production",
+    "render",
+    "runtime_locator",
+    "story_bank",
+    "visual_contract",
+    "visual_directions",
+    "visual_package",
+    "wizard"
+  ],
+  "predecessor": {
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb/manifest.json",
+    "manifestSha256": "e53816df057241b09b0841b18d63496c6b3baf9894b5377c1d1da3ff73012d07",
+    "revisionDigest": "20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb"
+  },
+  "reviewBundle": {
+    "digest": "d415b07833d5f799083223e161b33c999becbafc36347dfe04c55cb49d4ae524",
+    "sha256": "3ba72b8efbc52f25f71286f694cb46461624f0df2cd7dde62b0afa24a6ca4e89"
+  },
+  "revisionDigest": "eca8b3c8a8ed32a6a884cd9bd4fc493fcc6f00fed3c4ebe710c6a870ead2115d",
+  "sourceGenderMode": "neutral",
+  "sourceProfile": "gender_flexible",
+  "status": "accepted",
+  "storyKey": "chameleon_koko_bedtime",
+  "version": "small-heroes-story-source-creative-replacement-product-acceptance/v1"
+}

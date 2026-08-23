@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
 
-## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — INDEPENDENT TECHNICAL AND EDITORIAL PASS; GUY ACCEPTANCE NEXT
+## BAR/KIM FIRST-KINDERGARTEN STORY REWRITE — PRODUCT-ACCEPTED STORY-TEXT REVISION LOCAL; INDEPENDENT LIFECYCLE QA NEXT
 
 The separately approved zero-cost rewrite now exists as digest-bound staging,
 not as a mutation of the accepted Story Source. The new eight-page bedtime
@@ -60,15 +60,48 @@ with zero findings and a fresh closed editorial **`pass`** with four strengths,
 zero issues, zero revision priorities and all eight preservation anchors. The
 exact 2,941-byte Editor result is SHA-256 `bd1bf219...4fce6`; its 1,708-byte
 evidence manifest is SHA-256 `ba4012a0...ea4fb` and binds Revision 1 plus both
-Editor rounds. Guy's explicit product acceptance is now the only remaining
-content gate before the general versioned creative-rewrite publication
-lifecycle may be implemented. No accepted source, catalog, Wizard, package or
-render authority has moved.
+Editor rounds. Guy explicitly accepted Story Revision `b18e824c...2afd09` and
+Editorial Review `bd1bf219...4fce6`, and authorized the general creative
+replacement route without render authority.
+
+The missing general lifecycle is now implemented locally. It publishes a
+content-addressed, immutable `story_text_only` revision rather than reusing the
+specialized v2 gender-correction route or copying the predecessor's visual
+directions. The new revision is
+`eca8b3c8a8ed32a6a884cd9bd4fc493fcc6f00fed3c4ebe710c6a870ead2115d`;
+its manifest digest is `1dffb1a6...ab757`, Review Bundle digest is
+`d415b078...ae524`, and Guy acceptance digest is `f6340063...129d95`.
+The revision binds predecessor `20a128...`, Brief `dc06be6f...e46ab6`, the
+approved story and exact Editorial PASS. A self-contained loader reconstructs
+the complete authority from the accepted directory and predecessor even after
+the ignored staging inputs are absent.
+
+The manifest is explicitly runtime-ineligible with reason
+`visual_directions_not_approved`; its exact seven-file inventory contains no
+`integrated.md` and no `visual-directions.json`. The Visual Package current
+locator remains SHA-256 `6d3d9431...bb96b` and still resolves predecessor-bound
+package `2b488f2d...98a6`; the existing Wizard therefore remains unchanged.
+Identical real-artifact replay returns `created:false`. The final focused
+general + v2 compatibility/Brief/inventory matrix passes **6 files / 68
+tests**, the dedicated new suite passes **5/5**, and TypeScript/diff hygiene
+pass. Literal `npm run check` has the correct **324 / 304 / 20** partition:
+resource-intensive passes **611/611**; ordinary passes **3,551** with 65
+skipped and six failures. Five are the established missing ignored-output
+fixtures in four unchanged files, and one unchanged package-migration test
+exceeded the five-second parallel timeout. Both slow package-migration cases
+pass **2/2** with a 30-second diagnostic allowance. Independent Claude Code QA
+of this lifecycle commit is still required before the technical milestone
+closes. No catalog, Wizard, package, Board, provider, render or remote
+authority moved.
 
 Durable records:
 `docs/ai-workflow/R1D_CHAMELEON_BAR_FIRST_KINDERGARTEN_STORY_SOURCE_REWRITE_DECISION_GATE.md`
 and
-`docs/ai-workflow/R1D_CHAMELEON_BAR_FIRST_KINDERGARTEN_STORY_SOURCE_REWRITE_IMPLEMENTATION_EVIDENCE.md`.
+`docs/ai-workflow/R1D_CHAMELEON_BAR_FIRST_KINDERGARTEN_STORY_SOURCE_REWRITE_IMPLEMENTATION_EVIDENCE.md`,
+plus the general lifecycle records
+`docs/ai-workflow/R1D_GENERAL_CREATIVE_STORY_SOURCE_REPLACEMENT_LIFECYCLE_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_GENERAL_CREATIVE_STORY_SOURCE_REPLACEMENT_LIFECYCLE_IMPLEMENTATION_EVIDENCE.md`.
 
 ## TYPED COMPANION APPEARANCE STATE AUTHORITY — INDEPENDENT TECHNICAL PASS; STORY SOURCE REWRITE RELEASED TO ITS SEPARATE STAGING MILESTONE
 
@@ -147,7 +180,7 @@ Changed/adjacent validation passes: **9/9** dedicated Companion State tests,
 **242/242** complete authoring/lifecycle/Blueprint tests, **78/78** narrow repair
 tests, **29/29** runtime authority tests, **57/57** prompt/schema tests, and
 `npx --no-install tsc --noEmit` plus `git diff --check`. The canonical inventory
-is now **323 / 303 / 20**, and its classifier passes **7/7**.
+is now **324 / 304 / 20**, and its classifier passes **7/7**.
 
 The corrective re-gate scope passes **9/9** dedicated Companion State tests and
 **112/112** adjacent Blueprint tests (**121/121** total), plus

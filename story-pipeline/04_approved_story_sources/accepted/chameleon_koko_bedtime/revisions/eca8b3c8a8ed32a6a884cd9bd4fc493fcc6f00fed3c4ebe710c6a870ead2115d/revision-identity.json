@@ -1,0 +1,23 @@
+{
+  "approvedContent": {
+    "creativeBriefSha256": "dc06be6f13c475ef82b34dba1e8c9a31ded92f2c98cdc38749708df6b4e46ab6",
+    "editorialReviewSha256": "bd1bf219cd3e0361a2875a00604ae9ac8e66fe69694ee96fa8d1064c8cc4fce6",
+    "storySha256": "b18e824c96bf43a3d3f5b9dfe6457b2ad8a19112b73e89fcfbb55417a02afd09"
+  },
+  "identity": {
+    "briefId": "chameleon_koko_bedtime_first_kindergarten_lantern_brief_v2",
+    "category": "TRANSITION",
+    "companionId": "chameleon_koko",
+    "direction": "bedtime",
+    "pageCount": 8
+  },
+  "predecessor": {
+    "manifestPath": "story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb/manifest.json",
+    "manifestSha256": "e53816df057241b09b0841b18d63496c6b3baf9894b5377c1d1da3ff73012d07",
+    "revisionDigest": "20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb"
+  },
+  "sourceGenderMode": "neutral",
+  "sourceProfile": "gender_flexible",
+  "storyKey": "chameleon_koko_bedtime",
+  "version": "small-heroes-story-source-creative-replacement-identity/v1"
+}
