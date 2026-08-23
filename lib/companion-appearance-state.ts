@@ -88,6 +88,79 @@ const COMBINING_MARK_PATTERN = /\p{M}/u;
 const HEBREW_ALIAS_BOUND_PREFIX_PATTERN =
   '(?:[ובלכ]\\p{M}*|ו\\p{M}*[בלכ]\\p{M}*)?';
 const HEBREW_TERM_BOUND_PREFIX_PATTERN = '(?:[והבכלמש]\\p{M}*){0,2}';
+const HEBREW_ADJECTIVE_SUFFIX_PATTERN = '(?:יים|יות|ים|ות|ית|ה)?';
+const POSSESSIVE_APPEARANCE_TERM_PATTERN =
+  /(?:stripe|body colour|body color|pattern|פסים|צבע הגוף|גוון הגוף)/u;
+const APPEARANCE_LINK_WORDS = new Set([
+  'is',
+  'was',
+  'turn',
+  'turns',
+  'turned',
+  'become',
+  'becomes',
+  'became',
+  'go',
+  'goes',
+  'went',
+  'remain',
+  'remains',
+  'remained',
+  'stay',
+  'stays',
+  'stayed',
+  'look',
+  'looks',
+  'looked',
+  'appear',
+  'appears',
+  'appeared',
+  'seem',
+  'seems',
+  'seemed',
+  'היא',
+  'הוא',
+  'היה',
+  'היתה',
+  'הייתה',
+  'נהיה',
+  'נהיתה',
+  'נהייתה',
+  'נעשה',
+  'נעשתה',
+  'הפך',
+  'הפכה',
+  'הופך',
+  'הופכת',
+  'נשאר',
+  'נשארה',
+  'נותר',
+  'נותרה',
+  'נראה',
+  'נראית',
+  'נראתה',
+]);
+const APPEARANCE_LINK_MODIFIERS = new Set([
+  'now',
+  'still',
+  'slowly',
+  'suddenly',
+  'softly',
+  'visibly',
+  'very',
+  'slightly',
+  'fully',
+  'mostly',
+  'gently',
+  'כעת',
+  'עדיין',
+  'לאט',
+  'פתאום',
+  'ברכות',
+  'מאוד',
+  'מעט',
+  'לגמרי',
+]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -130,22 +203,83 @@ function regexEscape(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function containsSearchPhrase(args: {
+interface SearchPhraseMatch {
+  start: number;
+  end: number;
+}
+
+function searchPhraseMatches(args: {
   haystack: string;
   needle: string;
   hebrewPrefixKind: 'alias' | 'term';
-}): boolean {
+  allowHebrewAdjectiveSuffix?: boolean;
+}): SearchPhraseMatch[] {
   const { haystack, needle, hebrewPrefixKind } = args;
-  if (!needle) return false;
-  const boundPrefixes = HEBREW_SCRIPT_PATTERN.test(needle)
+  if (!needle) return [];
+  const isHebrew = HEBREW_SCRIPT_PATTERN.test(needle);
+  const boundPrefixes = isHebrew
     ? hebrewPrefixKind === 'alias'
       ? HEBREW_ALIAS_BOUND_PREFIX_PATTERN
       : HEBREW_TERM_BOUND_PREFIX_PATTERN
     : '';
-  return new RegExp(
-    `(?:^|[^\\p{L}\\p{N}])${boundPrefixes}${regexEscape(needle)}(?:$|[^\\p{L}\\p{N}])`,
-    'u',
-  ).test(haystack);
+  const suffix =
+    isHebrew && args.allowHebrewAdjectiveSuffix
+      ? HEBREW_ADJECTIVE_SUFFIX_PATTERN
+      : '';
+  const pattern = new RegExp(
+    `(^|[^\\p{L}\\p{N}])(${boundPrefixes}${regexEscape(needle)}${suffix})(?=$|[^\\p{L}\\p{N}])`,
+    'gu',
+  );
+  return Array.from(haystack.matchAll(pattern), (match) => {
+    const leadingBoundary = match[1] ?? '';
+    const phrase = match[2] ?? '';
+    const start = (match.index ?? 0) + leadingBoundary.length;
+    return { start, end: start + phrase.length };
+  });
+}
+
+function appearanceAttributionLinkIsValid(
+  value: string,
+  allowPossessiveOnlyLink: boolean,
+): boolean {
+  const words = value.toLowerCase().match(/\p{L}+/gu) ?? [];
+  if (words.length === 0) return true;
+  if (words.length === 1 && words[0] === 's') {
+    return allowPossessiveOnlyLink;
+  }
+  const linkWords = words.filter(
+    (word) => !APPEARANCE_LINK_MODIFIERS.has(word),
+  );
+  return (
+    linkWords.length === 1 && APPEARANCE_LINK_WORDS.has(linkWords[0] ?? '')
+  );
+}
+
+function phraseMatchesAreAppearanceAttributed(args: {
+  haystack: string;
+  aliasMatches: readonly SearchPhraseMatch[];
+  termMatches: readonly SearchPhraseMatch[];
+  allowPossessiveOnlyLink: boolean;
+}): boolean {
+  for (const alias of args.aliasMatches) {
+    for (const term of args.termMatches) {
+      const between =
+        alias.end <= term.start
+          ? args.haystack.slice(alias.end, term.start)
+          : term.end <= alias.start
+            ? args.haystack.slice(term.end, alias.start)
+            : '';
+      if (
+        appearanceAttributionLinkIsValid(
+          between,
+          args.allowPossessiveOnlyLink,
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function normalizedUniqueStrings(
@@ -356,6 +490,7 @@ export function companionAppearanceProseConflicts(args: {
     raw,
     normalized: normalizeSearchText(raw),
   }));
+  const stateIds = new Set(args.authority.states.map((state) => state.id));
   const terms = [
     ...args.authority.states.map((state) => state.id),
     ...args.authority.reservedAppearanceTerms,
@@ -366,7 +501,12 @@ export function companionAppearanceProseConflicts(args: {
       COMBINING_MARK_PATTERN.test(marked);
     return {
       raw,
+      isStateId: stateIds.has(raw),
+      allowsPossessiveOnlyLink: POSSESSIVE_APPEARANCE_TERM_PATTERN.test(
+        normalizeSearchText(raw),
+      ),
       normalized: markedOnly ? null : normalizeSearchText(raw),
+      relationNeedle: normalizeSearchText(raw),
       marked: markedOnly ? marked : null,
     };
   });
@@ -374,30 +514,50 @@ export function companionAppearanceProseConflicts(args: {
   args.texts.forEach((text, textIndex) => {
     const normalized = normalizeSearchText(text);
     const marked = normalizeMarkedSearchText(text);
-    const alias = aliases.find((candidate) =>
-      containsSearchPhrase({
-        haystack: normalized,
-        needle: candidate.normalized,
-        hebrewPrefixKind: 'alias',
-      }),
-    );
-    if (!alias) return;
+    const aliasMatches = aliases
+      .map((alias) => ({
+        alias,
+        matches: searchPhraseMatches({
+          haystack: normalized,
+          needle: alias.normalized,
+          hebrewPrefixKind: 'alias',
+        }),
+      }))
+      .filter((entry) => entry.matches.length > 0);
+    if (aliasMatches.length === 0) return;
     for (const term of terms) {
-      if (
-        (term.normalized !== null &&
-          containsSearchPhrase({
+      const markedPresence =
+        term.marked === null ||
+        searchPhraseMatches({
+          haystack: marked,
+          needle: term.marked,
+          hebrewPrefixKind: 'term',
+          allowHebrewAdjectiveSuffix: true,
+        }).length > 0;
+      if (!markedPresence) continue;
+      const relationMatches = searchPhraseMatches({
+        haystack: normalized,
+        needle: term.relationNeedle,
+        hebrewPrefixKind: 'term',
+        allowHebrewAdjectiveSuffix: true,
+      });
+      if (relationMatches.length === 0) continue;
+      const attributedAlias = aliasMatches.find(
+        (entry) =>
+          term.isStateId ||
+          phraseMatchesAreAppearanceAttributed({
             haystack: normalized,
-            needle: term.normalized,
-            hebrewPrefixKind: 'term',
-          })) ||
-        (term.marked !== null &&
-          containsSearchPhrase({
-            haystack: marked,
-            needle: term.marked,
-            hebrewPrefixKind: 'term',
-          }))
-      ) {
-        conflicts.push({ textIndex, alias: alias.raw, term: term.raw });
+            aliasMatches: entry.matches,
+            termMatches: relationMatches,
+            allowPossessiveOnlyLink: term.allowsPossessiveOnlyLink,
+          }),
+      );
+      if (attributedAlias) {
+        conflicts.push({
+          textIndex,
+          alias: attributedAlias.alias.raw,
+          term: term.raw,
+        });
       }
     }
   });
@@ -468,6 +628,7 @@ export const CHAMELEON_KOKO_APPEARANCE_STATE_AUTHORITY: CompanionAppearanceState
     'stress stripes',
     'sharp stripes',
     'stripes sharpen',
+    'stripes sharpened',
     'body colour',
     'body color',
     'ירוק',

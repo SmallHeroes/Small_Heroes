@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/qa-wizard-presentation-dispositions` in `C:\GNart\Work\sh-wt-r1d-output-budget`; the active typed Companion State milestone starts from pushed continuity/composition head `48654340f2e879b91619a2c256d47f726970e395`.
 
-## TYPED COMPANION APPEARANCE STATE AUTHORITY — CLAUDE HOLD CORRECTED LOCALLY, RE-GATE NEXT
+## TYPED COMPANION APPEARANCE STATE AUTHORITY — SECOND NARROW HOLD CORRECTED LOCALLY, RE-GATE NEXT
 
 Guy approved a general closed Companion State system before the separate Bar/Kim
 Story Source rewrite. The repository cause is now addressed structurally: an
@@ -35,6 +35,20 @@ reserved data, and adds exact English terms without broad stemming. This
 closes the reported escapes while keeping `greenhouse`, `evergreen`, ordinary
 unmarked `ירק`, and `בר מקים אוהל ירוק` valid.
 
+Claude's narrow re-gate reproduced every first-correction claim but found the
+remaining Hebrew adjective suffix class (`ירוקה`, `ירוקים`, `ירוקות`) and the
+English past-tense phrase `stripes sharpened`. It also correctly identified
+that blindly accepting suffixes would make the existing same-line alias+colour
+heuristic over-block world descriptions such as Kim looking at a blue sky.
+The second correction therefore closes both directions together: Hebrew terms
+accept a bounded adjective suffix, while non-state appearance vocabulary must
+be directly attributed to the companion by adjacency, possessive form, or a
+closed appearance/change link. Closed state ids remain fail-closed anywhere in
+the same text. `קים נעשתה ירוקה`, `הזיקית הירוקה`, `קים בירוקה`, and
+`Kim's stripes sharpened` now reject; `Kim looks at the blue sky`, `Kim sits on
+the green grass`, `Kim's blue scarf rests by the bed`, and
+`קים הביטה בשמיים הכחולים` remain valid.
+
 Kim is the first declaration, expressed as data rather than a runtime branch:
 `settled_warm_green` → `alert_olive_shift` →
 `mismatched_amber_stripes` → `attuning_blue_green` →
@@ -64,7 +78,9 @@ The corrective re-gate scope passes **9/9** dedicated Companion State tests and
 `npx --no-install tsc --noEmit` and `git diff --check`. Its regression matrix
 includes every exact Hebrew/English escape from the HOLD and explicit safe
 controls for English word stems, the Hebrew noun `ירק`, and the ambiguous verb
-`מקים`.
+`מקים`. The second correction adds the residual suffix/past-tense cases and
+the three companion-plus-world-colour safe controls without changing the
+**121/121** result.
 
 One literal `npm run check` completed both phases. Ordinary reported **3,544
 PASS / 65 skipped / 8 failures**: five are the established missing ignored

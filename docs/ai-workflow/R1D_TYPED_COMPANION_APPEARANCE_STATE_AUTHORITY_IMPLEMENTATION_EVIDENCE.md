@@ -162,6 +162,39 @@ Corrective validation: dedicated Companion State **9/9**, adjacent Blueprint
 runtime, Story Source, package, locator, Board or provider behavior changed.
 The Bar/Kim rewrite remains blocked pending the narrow independent re-gate.
 
+## Second narrow QA finding and correction
+
+Claude Code's re-gate reproduced all first-correction claims but retained HOLD
+for Hebrew adjectival suffixes: `קים ירוקה`, `קים נעשתה ירוקה`,
+`הזיקית הירוקה`, and `קים בירוקה` escaped. It also identified the coupled
+over-block risk: simply accepting `ה`, `ים` and `ות` after a colour would make
+an alias plus unrelated world colour in the same sentence fail, for example
+`קים הביטה בשמיים הכחולים`. English `Kim's stripes sharpened` was the remaining
+past-tense escape.
+
+The correction addresses the under-block and over-block as one matcher rule:
+
+- Hebrew appearance terms accept the bounded adjective suffix family `ה`,
+  `ים`, `ות`, `ית`, `יים`, and `יות`;
+- ordinary appearance terms require direct attribution to a matched companion
+  alias: adjacency, possessive form, or one closed copula/appearance/change
+  link with optional bounded modifiers;
+- exact closed state ids remain unambiguous and reject beside a companion alias
+  anywhere in the same text;
+- `stripes sharpened` is now an exact reserved phrase;
+- the four Hebrew suffix cases and English past tense reject;
+- companion-plus-world-colour controls remain valid: `Kim looks at the blue
+  sky`, `Kim sits on the green grass`, `Kim's blue scarf rests by the bed`, and
+  `קים הביטה בשמיים הכחולים`.
+
+Second-correction validation: dedicated Companion State **9/9**, adjacent
+Blueprint **112/112** (**121/121** total),
+`npx --no-install tsc --noEmit` PASS, and `git diff --check` PASS. The change is
+limited to the pure matcher, reserved-term data, dedicated regressions and
+status evidence. No frozen state authority, continuity, schema, validator call
+site, repair, runtime seam, Story Source, package, locator, Board or provider
+behavior changed.
+
 ## Preservation fence
 
 The four pre-existing untracked Board artifacts remain unstaged and

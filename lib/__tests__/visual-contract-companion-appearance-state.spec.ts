@@ -335,6 +335,11 @@ describe('closed companion appearance-state authority', () => {
       'Kim turns greenish.',
       'Kim goes olive.',
       "Kim's stripes sharpen.",
+      "Kim's stripes sharpened.",
+      'קים ירוקה.',
+      'קים נעשתה ירוקה.',
+      'הזיקית הירוקה.',
+      'קים בירוקה.',
     ];
     for (const text of hebrewAndEnglishEscapes) {
       expect(
@@ -351,6 +356,10 @@ describe('closed companion appearance-state authority', () => {
       'Kim watches evergreen branches.',
       'קים אכלה ירק.',
       'בר מקים אוהל ירוק.',
+      'Kim looks at the blue sky.',
+      'Kim sits on the green grass.',
+      "Kim's blue scarf rests by the bed.",
+      'קים הביטה בשמיים הכחולים.',
     ]) {
       expect(
         companionAppearanceProseConflicts({
