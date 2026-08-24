@@ -75,10 +75,15 @@ allowance. The resource partition still reports the three known Vitest
 belongs to a changed file or authority.
 
 This local milestone remains provider-free and has not modified the failed
-live evidence, accepted source, package, locator or Boards. Claude Code's HOLD
-on commit `2072fd52` is accepted and addressed locally. A narrow independent
-re-gate of the corrective commit is still required before any second paid
-attempt; no technical PASS is inferred. Durable records:
+live evidence, accepted source, package, locator or Boards. Claude Code
+independently reviewed `2072fd52..fd689b6e` and returned **PASS**: both the
+dangling-reference BLOCKER and reference-reachability MAJOR are closed. Its one
+MINOR was a shortened Blueprint payload name in the evidence document; the
+production constant and census test already used the correct exact name. That
+documentation-only correction, plus the explicit explanation that nine
+missing-fixture assertions occur across five files and already existed at the
+correction base, is isolated locally for a micro re-gate before any second paid
+attempt. Durable records:
 `docs/ai-workflow/R1D_ACTION_COVERAGE_BEAT_ID_SCHEMA_ALIGNMENT_DECISION_GATE.md`
 and
 `docs/ai-workflow/R1D_ACTION_COVERAGE_BEAT_ID_SCHEMA_ALIGNMENT_IMPLEMENTATION_EVIDENCE.md`,

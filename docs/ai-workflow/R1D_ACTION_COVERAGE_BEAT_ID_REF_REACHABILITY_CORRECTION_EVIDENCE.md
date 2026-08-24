@@ -6,7 +6,7 @@
 
 **Correction base:** `2072fd527a97515a65484e08318fa9045364f218`
 
-**Status:** local green; narrow independent Claude Code re-gate pending
+**Status:** independent Claude Code PASS on `fd689b6e`; one documentation MINOR corrected locally, micro re-gate pending
 
 ## Outcome
 
@@ -59,7 +59,8 @@ its green result did not prove wire-schema reference integrity.
      `PageContractRepairPatches`, `PageSpatialReferenceRepairPatches`,
      `BookSurfaceRepairPatch`, `StructuralBundleRepairPatch`,
      `PresentationRequirementRepairPatches`,
-     `StablePropScopeRepairPatches`, and `PreRenderBlueprintDraft`;
+     `StablePropScopeRepairPatches`, and
+     `PreRenderBookVisualBlueprintWholeBookDraft`;
    - every payload is compatible and emits zero unresolved local references.
 4. Hostile and positive controls
    - a missing local definition rejects;
@@ -111,8 +112,8 @@ No admission threshold or budget was weakened.
 Literal `npm run check` reached the existing dedicated-worktree baseline:
 
 - ordinary partition: **3,564 passed**, 70 skipped, 11 failed;
-- nine failures are missing ignored historical `outputs/` fixtures in five
-  unchanged test files;
+- nine failed assertions are missing ignored historical `outputs/` fixtures
+  in five unchanged test files;
 - two failures are the unchanged Blueprint migration tests exceeding the
   ordinary five-second timeout;
 - that exact migration suite passes **8/8 in 29.37 seconds** with the
@@ -122,13 +123,31 @@ Literal `npm run check` reached the existing dedicated-worktree baseline:
 
 No failed assertion belongs to a changed file or changed authority.
 
+The `9` versus `5` wording is assertion count versus file count, not a new
+regression: one page-entity assertion, two story-read-back assertions, one
+child-lexicon assertion, four Visual Directions lifecycle assertions and one
+momentum assertion total nine across five files. The correction base already
+recorded 70 skips and the same 11 failures. Neither those five fixture-reading
+files nor any staging/PG spec that determines the skipped inventory changed in
+`2072fd52..fd689b6e`.
+
+## Independent re-gate
+
+Claude Code independently reviewed `2072fd52..fd689b6e` and returned **PASS**:
+both the dangling-reference BLOCKER and reference-reachability MAJOR are
+closed. It independently enumerated exactly nine provider schemas and eleven
+emission sites, reproduced zero unresolved references, verified hostile and
+escaped-pointer behavior, confirmed the wire bytes/digest and version cutover,
+and found no operational-policy drift. Its single MINOR was this document's
+shortened ninth payload name; the production constant and census test already
+used the correct exact name. The documentation correction is intentionally
+isolated for a micro re-gate and does not alter implementation authority.
+
 ## Boundaries and next gate
 
 The immutable failed-live root
 `outputs/r1d-chameleon-v3-live-20260824T063821169Z` remains unchanged and no
 second paid attempt was made. This evidence does not self-award independent
-technical PASS. Claude Code must re-gate the correction range from `2072fd52`
-through the focused corrective commit, with special attention to both original
-findings, all nine provider payloads, hostile reference handling, version
-identity and unchanged operational policy. Only a PASS permits one bounded
-paid live authoring attempt.
+technical PASS. Claude Code has passed the implementation range; only the
+isolated exact-name documentation correction remains for a micro re-gate
+before one bounded paid live authoring attempt.
