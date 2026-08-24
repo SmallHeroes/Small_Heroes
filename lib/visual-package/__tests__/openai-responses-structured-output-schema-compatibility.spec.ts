@@ -156,13 +156,13 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       'page-spatial-reference-repair-schema/v1',
     );
     expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
-      'book-surface-repair-schema/v6',
+      'book-surface-repair-schema/v7',
     );
     expect(STRUCTURAL_BUNDLE_REPAIR_SCHEMA_VERSION).toBe(
       'structural-bundle-repair-schema/v4',
     );
     expect(PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION).toBe(
-      'presentation-requirement-repair-schema/v1',
+      'presentation-requirement-repair-schema/v2',
     );
     expect(STABLE_PROP_SCOPE_REPAIR_SCHEMA_VERSION).toBe(
       'stable-prop-scope-repair-schema/v1',

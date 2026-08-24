@@ -24,6 +24,7 @@ import {
   legacyVisualContractAuthoringTerminalFailureIsValid,
   legacyVisualContractRepairOutputDiagnosticsIsValid,
   legacyVisualContractRepairOutputDiagnosticsV1IsValid,
+  legacyVisualContractRepairOutputDiagnosticsV2IsValid,
   visualContractAuthoringTerminalFailureIsValid,
   visualContractRepairRouteAdmissionDiagnosticsIsValid,
   visualContractRepairOutputDiagnosticsIsValid,
@@ -752,7 +753,7 @@ describe('Visual Contract-specific terminal extension', () => {
       'repair_output_recurring_prop_invalid',
     );
     expect(visual.repairOutputDiagnostics).toEqual({
-      version: 'visual-contract-repair-output-diagnostics/v3',
+      version: 'visual-contract-repair-output-diagnostics/v4',
       repairAttempt: 2,
       repairMode: 'book_surface_patch',
       failureCode: 'recurring_prop_invalid',
@@ -812,7 +813,7 @@ describe('Visual Contract-specific terminal extension', () => {
         visualContractAuthoringTerminalFailureIsValid(roundTrip),
       ).toBe(true);
       expect(roundTrip.repairOutputDiagnostics).toMatchObject({
-        version: 'visual-contract-repair-output-diagnostics/v3',
+        version: 'visual-contract-repair-output-diagnostics/v4',
         failureCode,
         identity,
         repairOutputDiagnosticCount: 1,
@@ -820,7 +821,43 @@ describe('Visual Contract-specific terminal extension', () => {
     },
   );
 
-  it('keeps v1 diagnostics explicitly legacy-only and rejects v2 identities or unknown versions under v1', () => {
+  it.each([
+    [
+      'presentation_requirement_repair_target_association_invalid',
+      'target_identity_invalid',
+    ],
+    [
+      'presentation_requirement_repair_pointer_choice_not_permitted',
+      'application_rejected',
+    ],
+    [
+      'presentation_requirement_repair_class_invalid',
+      'application_rejected',
+    ],
+  ] as const)(
+    'persists distinct bounded presentation-repair identity %s',
+    (identity, failureCode) => {
+      const failure = buildVisualContractAuthoringTerminalFailure({
+        code: 'repair_output_invalid',
+        issueCodes: ['repair_output_invalid'],
+        repairOutputDiagnostics: {
+          repairAttempt: 2,
+          repairMode: 'book_surface_patch',
+          failureCode,
+          identity,
+          carriedDraftDiagnosticCount: 21,
+        },
+      });
+      expect(failure.repairOutputDiagnostics).toMatchObject({
+        version: 'visual-contract-repair-output-diagnostics/v4',
+        failureCode,
+        identity,
+      });
+      expect(visualContractAuthoringTerminalFailureIsValid(failure)).toBe(true);
+    },
+  );
+
+  it('keeps v1-v3 diagnostics immutable and rejects identities introduced by later versions', () => {
     const currentFailure = buildVisualContractAuthoringTerminalFailure({
       code: 'repair_output_invalid',
       issueCodes: ['repair_output_invalid'],
@@ -833,7 +870,7 @@ describe('Visual Contract-specific terminal extension', () => {
       },
     });
     const current = currentFailure.repairOutputDiagnostics!;
-    const legacy = {
+    const legacyV1 = {
       ...current,
       version: 'visual-contract-repair-output-diagnostics/v1',
     };
@@ -841,8 +878,12 @@ describe('Visual Contract-specific terminal extension', () => {
       ...current,
       version: 'visual-contract-repair-output-diagnostics/v2',
     };
-    const forgedLegacyAddition = {
-      ...legacy,
+    const legacyV3 = {
+      ...current,
+      version: 'visual-contract-repair-output-diagnostics/v3',
+    };
+    const forgedLegacyV2Addition = {
+      ...legacyV1,
       identity:
         'page_contract_repair_action_binding_component_target_invalid',
     };
@@ -850,49 +891,64 @@ describe('Visual Contract-specific terminal extension', () => {
       ...legacyV2,
       identity: 'book_surface_repair_action_binding_changed',
     };
+    const forgedLegacyV4Addition = {
+      ...legacyV3,
+      identity: 'presentation_requirement_repair_target_association_invalid',
+    };
     const unknown = {
       ...current,
-      version: 'visual-contract-repair-output-diagnostics/v4',
+      version: 'visual-contract-repair-output-diagnostics/v5',
     };
     const legacyFailure = {
       ...currentFailure,
-      repairOutputDiagnostics: legacy,
+      repairOutputDiagnostics: legacyV1,
     };
     const forgedLegacyFailure = {
       ...currentFailure,
-      repairOutputDiagnostics: forgedLegacyAddition,
+      repairOutputDiagnostics: forgedLegacyV2Addition,
     };
 
-    expect(legacyVisualContractRepairOutputDiagnosticsV1IsValid(legacy))
+    expect(legacyVisualContractRepairOutputDiagnosticsV1IsValid(legacyV1))
       .toBe(true);
-    expect(legacyVisualContractRepairOutputDiagnosticsIsValid(legacyV2))
+    expect(legacyVisualContractRepairOutputDiagnosticsV2IsValid(legacyV2))
+      .toBe(true);
+    expect(legacyVisualContractRepairOutputDiagnosticsIsValid(legacyV3))
       .toBe(true);
     expect(
-      legacyVisualContractRepairOutputDiagnosticsIsValid(
+      legacyVisualContractRepairOutputDiagnosticsV2IsValid(
         forgedLegacyV3Addition,
       ),
     ).toBe(false);
-    expect(visualContractRepairOutputDiagnosticsIsReadable(legacy))
+    expect(
+      legacyVisualContractRepairOutputDiagnosticsIsValid(
+        forgedLegacyV4Addition,
+      ),
+    ).toBe(false);
+    expect(visualContractRepairOutputDiagnosticsIsReadable(legacyV1))
       .toBe(true);
-    expect(visualContractRepairOutputDiagnosticsIsValid(legacy))
+    expect(visualContractRepairOutputDiagnosticsIsReadable(legacyV2))
+      .toBe(true);
+    expect(visualContractRepairOutputDiagnosticsIsReadable(legacyV3))
+      .toBe(true);
+    expect(visualContractRepairOutputDiagnosticsIsValid(legacyV1))
       .toBe(false);
-    expect(visualContractRepairOutputDiagnosticsVersionStatus(legacy))
+    expect(visualContractRepairOutputDiagnosticsVersionStatus(legacyV1))
       .toBe('legacy_immutable');
     expect(visualContractAuthoringTerminalFailureIsValid(legacyFailure))
       .toBe(true);
     expect(
       legacyVisualContractRepairOutputDiagnosticsV1IsValid(
-        forgedLegacyAddition,
+        forgedLegacyV2Addition,
       ),
     ).toBe(false);
     expect(
       visualContractRepairOutputDiagnosticsVersionStatus(
-        forgedLegacyAddition,
+        forgedLegacyV2Addition,
       ),
     ).toBe('unsupported');
     expect(
       visualContractRepairOutputDiagnosticsIsReadable(
-        forgedLegacyAddition,
+        forgedLegacyV2Addition,
       ),
     ).toBe(false);
     expect(

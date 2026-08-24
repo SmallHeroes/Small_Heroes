@@ -481,7 +481,7 @@ describe('canonical live request verification library', () => {
     );
 
     expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
-      'canonical-live-request-verification/v46',
+      'canonical-live-request-verification/v47',
     );
     expect(result).toEqual({
       version: CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,

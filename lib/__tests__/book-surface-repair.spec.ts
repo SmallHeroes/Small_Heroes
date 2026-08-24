@@ -155,7 +155,7 @@ function presentationPatch(
     beatId: `beat:p${pageNumber}:test`,
     sourceEvidenceId: `se1_${'a'.repeat(64)}`,
     presentationClass,
-    contractPointer: `/pageContracts/${pageNumber - 1}/mustShow/${mustShowIndex}`,
+    pointerChoiceIndex: mustShowIndex,
   };
 }
 
@@ -333,15 +333,15 @@ function patch(
 }
 
 describe('atomic causal book-surface repair v11 typed input authority', () => {
-  it('publishes the strict v6 causal-delta schema under v11 prompts with nullable cover/props and no action coverage', () => {
+  it('publishes the strict v7 bounded-choice schema under v12 prompts with nullable cover/props and no action coverage', () => {
     expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
-      'book-surface-repair-schema/v6',
+      'book-surface-repair-schema/v7',
     );
     expect(BOOK_SURFACE_REPAIR_PROMPT_VERSION).toBe(
-      'book-surface-repair-prompt/v11',
+      'book-surface-repair-prompt/v12',
     );
     expect(BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION).toBe(
-      'book-surface-repair-user-prompt/v11',
+      'book-surface-repair-user-prompt/v12',
     );
     expect(buildBookSurfaceRepairSystemPrompt()).toContain(
       'Return a repaired non-null value only for that page\'s exact writableFields',
@@ -361,6 +361,14 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
     ]);
     expect(properties.coverContract?.anyOf).toContainEqual({ type: 'null' });
     expect(properties.recurringProps?.anyOf).toContainEqual({ type: 'null' });
+    const presentationPatchSchema = (
+      properties.presentationPatches?.items as Record<string, unknown>
+    ).properties as Record<string, unknown>;
+    expect(presentationPatchSchema).toHaveProperty(
+      'pointerChoiceIndex',
+      { type: 'integer', minimum: 0 },
+    );
+    expect(presentationPatchSchema).not.toHaveProperty('contractPointer');
     const pageSchema = properties.pageStructuralPatches?.items as Record<
       string,
       unknown
@@ -1872,7 +1880,7 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
     expect(original).toEqual(snapshot);
   });
 
-  it('rejects missing, duplicate, reordered, stale, and unpermitted presentation patches atomically', () => {
+  it('rejects missing, duplicate, and reordered presentation targets with a distinct association error before mutation', () => {
     const original = draft();
     const snapshot = structuredClone(original);
     const selected = authority(original);
@@ -1880,14 +1888,7 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
     for (const presentationPatches of [
       [presentationPatch(1)],
       [presentationPatch(1), presentationPatch(1)],
-      [presentationPatch(2), presentationPatch(1)],
-      [
-        presentationPatch(1),
-        {
-          ...presentationPatch(2),
-          contractPointer: '/pageContracts/1/mustShow/999',
-        },
-      ],
+      [presentationPatch(2, 'composition_focus', 1), presentationPatch(1)],
     ]) {
       expect(() =>
         applyBookSurfaceRepairPatch({
@@ -1895,12 +1896,52 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
           authority: selected,
           patch: { ...validPatch, presentationPatches },
         }),
-      ).toThrow();
+      ).toThrow(
+        'presentation_requirement_repair_target_association_invalid',
+      );
       expect(original).toEqual(snapshot);
     }
   });
 
-  it('reattaches compiler-owned presentation target identity by exact ordered target', () => {
+  it('rejects out-of-range bounded choices and invalid classes distinctly before mutation', () => {
+    const original = draft();
+    const snapshot = structuredClone(original);
+    const selected = authority(original);
+
+    expect(() =>
+      applyBookSurfaceRepairPatch({
+        draft: original,
+        authority: selected,
+        patch: {
+          ...patch(),
+          presentationPatches: [
+            presentationPatch(1),
+            { ...presentationPatch(2), pointerChoiceIndex: 999 },
+          ],
+        },
+      }),
+    ).toThrow(
+      'presentation_requirement_repair_pointer_choice_not_permitted',
+    );
+    expect(original).toEqual(snapshot);
+
+    expect(() =>
+      applyBookSurfaceRepairPatch({
+        draft: original,
+        authority: selected,
+        patch: {
+          ...patch(),
+          presentationPatches: [
+            { ...presentationPatch(1), presentationClass: 'invalid' },
+            presentationPatch(2),
+          ],
+        } as never,
+      }),
+    ).toThrow('presentation_requirement_repair_class_invalid');
+    expect(original).toEqual(snapshot);
+  });
+
+  it('rejects forged presentation identities instead of restoring them by array position', () => {
     const original = draft();
     const snapshot = structuredClone(original);
     const selected = authority(original);
@@ -1914,28 +1955,18 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
       }),
     );
 
-    const result = applyBookSurfaceRepairPatch({
-      draft: original,
-      authority: selected,
-      patch: {
-        ...patch(),
-        presentationPatches: hostilePatches,
-      },
-    });
-
-    const pages = result.pageContracts as ReturnType<typeof page>[];
-    expect(pages[0]!.actionSemanticCoverage[0]!.disposition).toEqual({
-      kind: 'presentation_requirement',
-      presentationClass: hostilePatches[0]!.presentationClass,
-      contractPointer: hostilePatches[0]!.contractPointer,
-      contractValue: pages[0]!.mustShow[0],
-    });
-    expect(pages[1]!.actionSemanticCoverage[0]!.disposition).toEqual({
-      kind: 'presentation_requirement',
-      presentationClass: hostilePatches[1]!.presentationClass,
-      contractPointer: hostilePatches[1]!.contractPointer,
-      contractValue: pages[1]!.mustShow[0],
-    });
+    expect(() =>
+      applyBookSurfaceRepairPatch({
+        draft: original,
+        authority: selected,
+        patch: {
+          ...patch(),
+          presentationPatches: hostilePatches,
+        },
+      }),
+    ).toThrow(
+      'presentation_requirement_repair_target_association_invalid',
+    );
     expect(original).toEqual(snapshot);
   });
 

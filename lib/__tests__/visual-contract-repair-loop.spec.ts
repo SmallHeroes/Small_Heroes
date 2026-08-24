@@ -102,12 +102,11 @@ function bookSurfaceStructuralPatch(
   });
 }
 
-function bookSurfaceV6Response(args: {
+function bookSurfaceV7Response(args: {
   payload: Record<string, unknown>;
   coverContract: Record<string, unknown> | null;
   recurringProps: Record<string, unknown>[] | null;
   repairedPages: readonly Record<string, unknown>[];
-  hostileEchoIdentity?: boolean;
 }): Record<string, unknown> {
   const presentationTargets = args.payload.presentationTargets as
     | PresentationRequirementRepairTarget[]
@@ -120,26 +119,19 @@ function bookSurfaceV6Response(args: {
       }>
     | undefined;
   if (!presentationTargets || !affectedPages) {
-    throw new Error('missing book-surface v6 fixture authority');
+    throw new Error('missing book-surface v7 fixture authority');
   }
   const repairedPagesByNumber = new Map(
     args.repairedPages.map((page) => [page.pageNumber, page]),
   );
   return {
-    presentationPatches: presentationTargets.map((target, index) => ({
-      pageNumber: args.hostileEchoIdentity ? 90 + index : target.pageNumber,
-      coverageIndex: args.hostileEchoIdentity
-        ? 90 + index
-        : target.coverageIndex,
-      beatId: args.hostileEchoIdentity
-        ? `beat:p${90 + index}:provider_forged`
-        : target.beatId,
-      sourceEvidenceId: args.hostileEchoIdentity
-        ? `se1_${String(index + 1).repeat(64)}`
-        : target.sourceEvidenceId,
+    presentationPatches: presentationTargets.map((target) => ({
+      pageNumber: target.pageNumber,
+      coverageIndex: target.coverageIndex,
+      beatId: target.beatId,
+      sourceEvidenceId: target.sourceEvidenceId,
       presentationClass: 'composition_focus',
-      contractPointer:
-        target.permittedPointerValues[0]!.contractPointer,
+      pointerChoiceIndex: 0,
     })),
     coverContract: args.coverContract,
     recurringProps: args.recurringProps,
@@ -373,7 +365,7 @@ describe('Stage 3 — bounded repair loop', () => {
             beatId: targetBeatId,
             sourceEvidenceId: firstCoverage.sourceEvidenceId,
             presentationClass: 'composition_focus',
-            contractPointer: `/pageContracts/${pageIndex}/mustShow/0`,
+            pointerChoiceIndex: 0,
           },
         ],
       });
@@ -1281,12 +1273,11 @@ describe('page-contract compact repair routing', () => {
       if (calls.length === 1) return JSON.stringify(initial);
       const payload = decodeBookSurfaceRepairUserPrompt(user);
       return JSON.stringify(
-        bookSurfaceV6Response({
+        bookSurfaceV7Response({
           payload,
           coverContract: repairedCover,
           recurringProps: null,
           repairedPages,
-          hostileEchoIdentity: true,
         }),
       );
     };
@@ -1494,7 +1485,7 @@ describe('page-contract compact repair routing', () => {
         return repaired;
       });
       return JSON.stringify(
-        bookSurfaceV6Response({
+        bookSurfaceV7Response({
           payload,
           coverContract: {
             ...structuredClone(
@@ -1709,7 +1700,7 @@ describe('page-contract compact repair routing', () => {
       if (calls.length === 3) {
         const payload = decodeBookSurfaceRepairUserPrompt(user);
         return JSON.stringify(
-          bookSurfaceV6Response({
+          bookSurfaceV7Response({
             payload,
             coverContract: repairedCover,
             recurringProps: null,
@@ -1786,7 +1777,7 @@ describe('page-contract compact repair routing', () => {
     ]);
   });
 
-  it('repeats BookSurface v6 with null cover after the mixed repair leaves only page structure', async () => {
+  it('repeats BookSurface v7 with null cover after the mixed repair leaves only page structure', async () => {
     const valid = bunnyDraft();
     const initial = structuredClone(valid);
     initial.coverContract.mustShow = [''];
@@ -1843,7 +1834,7 @@ describe('page-contract compact repair routing', () => {
       const payload = decodeBookSurfaceRepairUserPrompt(user);
       if (calls.length === 2) {
         return JSON.stringify(
-          bookSurfaceV6Response({
+          bookSurfaceV7Response({
             payload,
             coverContract: repairedCover,
             recurringProps: valid.recurringProps,
@@ -1852,7 +1843,7 @@ describe('page-contract compact repair routing', () => {
         );
       }
       return JSON.stringify(
-        bookSurfaceV6Response({
+        bookSurfaceV7Response({
           payload,
           coverContract: null,
           recurringProps: null,
@@ -1981,8 +1972,7 @@ describe('page-contract compact repair routing', () => {
             beatId: target.beatId,
             sourceEvidenceId: target.sourceEvidenceId,
             presentationClass: 'composition_focus',
-            contractPointer:
-              target.permittedPointerValues[0]!.contractPointer,
+            pointerChoiceIndex: 0,
           }));
         const nextDraft = structuredClone(initial) as Record<
           string,
@@ -2004,14 +1994,12 @@ describe('page-contract compact repair routing', () => {
           if (!coverage?.[patch.coverageIndex]) {
             throw new Error('missing presentation coverage fixture');
           }
-          const permitted = target.permittedPointerValues.find(
-            (value) =>
-              value.contractPointer === patch.contractPointer,
-          );
+          const permitted =
+            target.permittedPointerValues[patch.pointerChoiceIndex];
           coverage[patch.coverageIndex]!.disposition = {
             kind: 'presentation_requirement',
             presentationClass: patch.presentationClass,
-            contractPointer: patch.contractPointer,
+            contractPointer: permitted!.contractPointer,
             contractValue: permitted!.contractValue,
           };
         }
@@ -2039,7 +2027,7 @@ describe('page-contract compact repair routing', () => {
       });
       const payload = decodeBookSurfaceRepairUserPrompt(user);
       return JSON.stringify(
-        bookSurfaceV6Response({
+        bookSurfaceV7Response({
           payload,
           coverContract: repairedCover,
           recurringProps: valid.recurringProps,
@@ -2425,7 +2413,7 @@ describe('page-contract compact repair routing', () => {
     );
   });
 
-  it('routes a pure page-structural failure through null-cover BookSurface v6', async () => {
+  it('routes a pure page-structural failure through null-cover BookSurface v7', async () => {
     const invalid = bunnyDraft();
     invalid.pageContracts[0].camera = '';
     ensureBookSurfacePageShape(invalid);
@@ -2449,7 +2437,7 @@ describe('page-contract compact repair routing', () => {
       calls.push({ user, options, authority });
       if (calls.length === 1) return JSON.stringify(invalid);
       return JSON.stringify(
-        bookSurfaceV6Response({
+        bookSurfaceV7Response({
           payload: decodeBookSurfaceRepairUserPrompt(user),
           coverContract: null,
           recurringProps: null,
@@ -2557,7 +2545,7 @@ describe('page-contract compact repair routing', () => {
       calls.push({ user, authority });
       if (calls.length === 1) return JSON.stringify(initial);
       return JSON.stringify(
-        bookSurfaceV6Response({
+        bookSurfaceV7Response({
           payload: decodeBookSurfaceRepairUserPrompt(user),
           coverContract: null,
           recurringProps: null,

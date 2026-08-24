@@ -631,7 +631,7 @@ describe('offline Visual Contract repair harness', () => {
         beatId: capabilityCoverage.beatId,
         sourceEvidenceId: capabilityCoverage.sourceEvidenceId,
         presentationClass: 'composition_focus',
-        contractPointer: '/pageContracts/0/mustShow/0',
+        pointerChoiceIndex: 0,
       }],
       coverContract: null,
       recurringProps: null,

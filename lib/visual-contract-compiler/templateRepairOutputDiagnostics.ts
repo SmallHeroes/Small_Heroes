@@ -38,6 +38,12 @@ export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_V3_ADDITION_VALUES = [
   'book_surface_repair_lifecycle_obligation_invalid',
 ] as const;
 
+export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_V4_ADDITION_VALUES = [
+  'presentation_requirement_repair_class_invalid',
+  'presentation_requirement_repair_pointer_choice_not_permitted',
+  'presentation_requirement_repair_target_association_invalid',
+] as const;
+
 /**
  * Closed, compiler-owned identities that may cross the repair-output boundary.
  * They contain no authored/provider content. Unknown exceptions deliberately
@@ -46,6 +52,7 @@ export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_V3_ADDITION_VALUES = [
 export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_VALUES = [
   'book_surface_repair_authority_mismatch',
   ...TEMPLATE_REPAIR_OUTPUT_IDENTITY_V3_ADDITION_VALUES,
+  ...TEMPLATE_REPAIR_OUTPUT_IDENTITY_V4_ADDITION_VALUES,
   'book_surface_repair_cover_invalid',
   'book_surface_repair_cover_reference_invalid',
   'book_surface_repair_non_target_drift',

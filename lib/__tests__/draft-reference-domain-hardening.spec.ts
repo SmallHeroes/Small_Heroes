@@ -440,6 +440,18 @@ describe('captured reference-domain matrix', () => {
         'page_contract_repair_action_binding_component_target_invalid',
         'target_identity_invalid',
       ],
+      [
+        'presentation_requirement_repair_target_association_invalid',
+        'target_identity_invalid',
+      ],
+      [
+        'presentation_requirement_repair_pointer_choice_not_permitted',
+        'application_rejected',
+      ],
+      [
+        'presentation_requirement_repair_class_invalid',
+        'application_rejected',
+      ],
     ] as const;
     for (const [identity, failureCode] of componentIdentities) {
       expect(

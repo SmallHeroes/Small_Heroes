@@ -7,13 +7,13 @@ import {
 } from './actionSemanticCoverage';
 
 export const PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION =
-  'presentation-requirement-repair-schema/v1' as const;
+  'presentation-requirement-repair-schema/v2' as const;
 export const PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME =
   'PresentationRequirementRepairPatches' as const;
 export const PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION =
-  'presentation-requirement-repair-prompt/v1' as const;
+  'presentation-requirement-repair-prompt/v2' as const;
 export const PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION =
-  'presentation-requirement-repair-user-prompt/v1' as const;
+  'presentation-requirement-repair-user-prompt/v2' as const;
 
 function strictObject(
   properties: Record<string, unknown>,
@@ -35,7 +35,7 @@ const presentationRequirementPatch = strictObject({
     type: 'string',
     enum: PRESENTATION_REQUIREMENT_CLASS_VALUES,
   },
-  contractPointer: { type: 'string' },
+  pointerChoiceIndex: { type: 'integer', minimum: 0 },
 });
 
 export const PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA: Record<
@@ -69,7 +69,7 @@ export interface PresentationRequirementRepairPatch {
   beatId: string;
   sourceEvidenceId: string;
   presentationClass: PresentationRequirementClass;
-  contractPointer: string;
+  pointerChoiceIndex: number;
 }
 
 function recordValue(value: unknown): Record<string, unknown> | null {
@@ -192,11 +192,11 @@ export function buildPresentationRequirementRepairSystemPrompt(): string {
   return [
     'You repair ONLY closed Action Semantic Catalog gaps that are presentation requirements rather than physical actions.',
     'Return exactly one patch for every target and no other patch.',
-    'Choose one compiler-provided same-page mustShow contractPointer and one closed presentationClass.',
+    'Choose one closed presentationClass and one zero-based pointerChoiceIndex into that target\'s ordered permittedPointerValues array.',
     'Use static_state for visible pose/state, lighting_state for illumination, composition_focus for framing/emphasis, graphic_sound_cue for visible sound lettering, and ambient_event for a depictable environmental occurrence.',
     'Do not use this lane to disguise a physical action, spatial action, or unsupported predicate.',
-    'Copy all identities and pointers exactly. The compiler resolves contractValue locally.',
-    'Do not return prose, contractValue, a full draft, or any extra key.',
+    'Copy all target identities exactly. Never return a raw contractPointer; the compiler resolves the selected pointer and contractValue locally.',
+    'Do not return prose, contractPointer, contractValue, a full draft, or any extra key.',
     'Output only the JSON patch object required by the schema.',
   ].join('\n');
 }
@@ -230,7 +230,7 @@ export function parsePresentationRequirementRepairPatches(
         'beatId',
         'sourceEvidenceId',
         'presentationClass',
-        'contractPointer',
+        'pointerChoiceIndex',
       ]) ||
       !Number.isSafeInteger(patch.pageNumber) ||
       (patch.pageNumber as number) < 1 ||
@@ -238,12 +238,17 @@ export function parsePresentationRequirementRepairPatches(
       (patch.coverageIndex as number) < 0 ||
       typeof patch.beatId !== 'string' ||
       typeof patch.sourceEvidenceId !== 'string' ||
-      !PRESENTATION_REQUIREMENT_CLASS_VALUES.includes(
-        patch.presentationClass as PresentationRequirementClass,
-      ) ||
-      typeof patch.contractPointer !== 'string'
+      !Number.isSafeInteger(patch.pointerChoiceIndex) ||
+      (patch.pointerChoiceIndex as number) < 0
     ) {
       throw new Error('presentation_requirement_repair_patch_invalid');
+    }
+    if (
+      !PRESENTATION_REQUIREMENT_CLASS_VALUES.includes(
+        patch.presentationClass as PresentationRequirementClass,
+      )
+    ) {
+      throw new Error('presentation_requirement_repair_class_invalid');
     }
     return patch as unknown as PresentationRequirementRepairPatch;
   });
@@ -296,11 +301,22 @@ export function applyPresentationRequirementRepairPatches(args: {
       throw new Error('presentation_requirement_repair_patch_unexpected_or_duplicate');
     }
     seen.add(key);
-    const selection = target.permittedPointerValues.find(
-      (candidate) => candidate.contractPointer === patch.contractPointer,
-    );
+    if (
+      !PRESENTATION_REQUIREMENT_CLASS_VALUES.includes(
+        patch.presentationClass as PresentationRequirementClass,
+      )
+    ) {
+      throw new Error('presentation_requirement_repair_class_invalid');
+    }
+    const selection =
+      Number.isSafeInteger(patch.pointerChoiceIndex) &&
+      patch.pointerChoiceIndex >= 0
+        ? target.permittedPointerValues[patch.pointerChoiceIndex]
+        : undefined;
     if (!selection) {
-      throw new Error('presentation_requirement_repair_pointer_not_permitted');
+      throw new Error(
+        'presentation_requirement_repair_pointer_choice_not_permitted',
+      );
     }
     const matchingPages = pages
       .map(recordValue)
@@ -325,7 +341,7 @@ export function applyPresentationRequirementRepairPatches(args: {
     record.disposition = {
       kind: 'presentation_requirement',
       presentationClass: patch.presentationClass,
-      contractPointer: patch.contractPointer,
+      contractPointer: selection.contractPointer,
       contractValue: selection.contractValue,
     };
   }

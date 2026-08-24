@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+  PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
+  PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION,
+  PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION,
   applyPresentationRequirementRepairPatches,
   buildPresentationRequirementRepairUserPrompt,
   parsePresentationRequirementRepairPatches,
@@ -58,12 +61,21 @@ function patch() {
     beatId: 'beat:p4:echo_returns',
     sourceEvidenceId: SOURCE_EVIDENCE_ID,
     presentationClass: 'graphic_sound_cue' as const,
-    contractPointer: '/pageContracts/0/mustShow/0',
+    pointerChoiceIndex: 0,
   };
 }
 
 describe('presentation requirement compact repair', () => {
   it('uses a Responses-compatible strict schema', () => {
+    expect(PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION).toBe(
+      'presentation-requirement-repair-schema/v2',
+    );
+    expect(PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION).toBe(
+      'presentation-requirement-repair-prompt/v2',
+    );
+    expect(PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION).toBe(
+      'presentation-requirement-repair-user-prompt/v2',
+    );
     expect(
       assertOpenAIResponsesStructuredOutputSchemaCompatible(
         PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
@@ -94,6 +106,7 @@ describe('presentation requirement compact repair', () => {
     });
     expect(prompt).not.toContain('worldType');
     expect(prompt).toContain(SOURCE_EVIDENCE_ID);
+    expect(prompt).toContain('permittedPointerValues');
   });
 
   it('parses exact-key patches and applies only the targeted disposition', () => {
@@ -129,6 +142,73 @@ describe('presentation requirement compact repair', () => {
     );
   });
 
+  it('keeps the dedicated lane identity-keyed and order-independent across pages', () => {
+    const value = draft();
+    const secondSourceEvidenceId = `se1_${'b'.repeat(64)}`;
+    value.pageContracts.push({
+      pageNumber: 5,
+      mustShow: ['the lantern glows', 'the doorway is visible'],
+      actionSemanticCoverage: [
+        {
+          beatId: 'beat:p5:lantern_glows',
+          sourceEvidenceId: secondSourceEvidenceId,
+          disposition: {
+            kind: 'unsupported',
+            reason: 'closed_action_catalog_gap',
+          },
+        },
+      ],
+    });
+    const selected = presentationRequirementRepairTargets({
+      draft: value,
+      gaps: [
+        {
+          pageNumber: 4,
+          coverageIndex: 0,
+          beatId: 'beat:p4:echo_returns',
+          sourceEvidenceId: SOURCE_EVIDENCE_ID,
+          sourcePhrase: 'The echo returns.',
+          reason: 'closed_action_catalog_gap',
+        },
+        {
+          pageNumber: 5,
+          coverageIndex: 0,
+          beatId: 'beat:p5:lantern_glows',
+          sourceEvidenceId: secondSourceEvidenceId,
+          sourcePhrase: 'The lantern glows.',
+          reason: 'closed_action_catalog_gap',
+        },
+      ],
+    });
+    if (!selected) throw new Error('expected multi-page repair targets');
+    const repaired = applyPresentationRequirementRepairPatches({
+      draft: value,
+      targets: selected,
+      patches: [
+        {
+          pageNumber: 5,
+          coverageIndex: 0,
+          beatId: 'beat:p5:lantern_glows',
+          sourceEvidenceId: secondSourceEvidenceId,
+          presentationClass: 'lighting_state',
+          pointerChoiceIndex: 1,
+        },
+        { ...patch(), pointerChoiceIndex: 1 },
+      ],
+    });
+    const pages = repaired.pageContracts as Array<{
+      actionSemanticCoverage: Array<{ disposition: Record<string, unknown> }>;
+    }>;
+    expect(pages[0]!.actionSemanticCoverage[0]!.disposition).toMatchObject({
+      contractPointer: '/pageContracts/0/mustShow/1',
+      contractValue: 'the child listens',
+    });
+    expect(pages[1]!.actionSemanticCoverage[0]!.disposition).toMatchObject({
+      contractPointer: '/pageContracts/1/mustShow/1',
+      contractValue: 'the doorway is visible',
+    });
+  });
+
   it.each([
     ['invalid json', 'x', 'presentation_requirement_repair_response_invalid_json'],
     ['extra root key', JSON.stringify({ patches: [patch()], extra: true }), 'presentation_requirement_repair_response_invalid_shape'],
@@ -150,9 +230,18 @@ describe('presentation requirement compact repair', () => {
     ).toThrow('presentation_requirement_repair_patch_unexpected_or_duplicate');
     expect(() =>
       applyPresentationRequirementRepairPatches({
-        draft: draft(), targets: targets(), patches: [{ ...patch(), contractPointer: '/pageContracts/0/mustShow/9' }],
+        draft: draft(), targets: targets(), patches: [{ ...patch(), pointerChoiceIndex: 9 }],
       }),
-    ).toThrow('presentation_requirement_repair_pointer_not_permitted');
+    ).toThrow(
+      'presentation_requirement_repair_pointer_choice_not_permitted',
+    );
+    expect(() =>
+      applyPresentationRequirementRepairPatches({
+        draft: draft(),
+        targets: targets(),
+        patches: [{ ...patch(), presentationClass: 'invalid' }] as never,
+      }),
+    ).toThrow('presentation_requirement_repair_class_invalid');
     const stale = draft();
     stale.pageContracts[0]!.actionSemanticCoverage[0]!.beatId = 'beat:p4:other';
     expect(() =>

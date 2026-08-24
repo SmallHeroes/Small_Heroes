@@ -1086,6 +1086,8 @@ export function templateRepairOutputFailureCode(
       'page_contract_repair_action_binding_component_beat_id_invalid' ||
     identity ===
       'page_contract_repair_action_binding_component_target_invalid' ||
+    identity ===
+      'presentation_requirement_repair_target_association_invalid' ||
     /_(?:target_stale|target_set_empty|target_duplicate|target_invalid_or_duplicate|affected_record_duplicate|affected_page_duplicate|patch_set_incomplete|patch_unexpected_or_duplicate|page_unexpected_or_duplicate|page_not_unique|beat_not_unique|prop_set_mismatch|page_set_mismatch|action_beat_id_invalid|coverage_beat_id_invalid)$/.test(
       identity,
     )

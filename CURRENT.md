@@ -4,6 +4,68 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-chameleon-v3-live-authoring` in `C:\GNart\Work\sh-live-chameleon-v3`, based on pushed accepted-v3 authoring head `be2d7e445de37d08811f1640901e12c449586d1a`.
 
+## BOOKSURFACE TARGET ASSOCIATION — OFFLINE CORRECTION GREEN; AWAITING INDEPENDENT QA
+
+The one bounded post-schema-correction live attempt ran from
+`outputs/r1d-chameleon-v3-live-20260824T084303866Z`. It made exactly two
+provider calls (`initial -> book_surface_patch`), with no retry or fallback,
+and produced no Candidate. The immutable v50 receipt is
+`b0/authoring-receipts/d3040113341d902cf78c5c2cd4d3928bf01e5465c886361cc535ee597ae911da.json`.
+It records 21 complete-census issues after the initial draft, nominal cost
+`$0.965705`, conservative accounted cost `$1.062285`, and the terminal legacy
+identity `presentation_requirement_repair_pointer_not_permitted`. No further
+live attempt was made.
+
+Independent diagnosis proved that BookSurface restored each returned
+presentation target's compiler-owned identity by array position before
+validating the returned identity tuple. That made the ordered association
+comparison unable to distinguish a correctly associated response from a
+reordered one. The same output contract also asked the provider to copy a raw
+JSON pointer even though every target already carried a finite ordered set of
+permitted compiler-owned pointer/value pairs.
+
+The approved zero-cost correction removes positional identity restoration.
+BookSurface now validates the original returned identities as an exact ordered
+bijection before any other compiler-owned restoration. Both BookSurface and
+the dedicated presentation lane now receive only a zero-based
+`pointerChoiceIndex`; the compiler resolves the selected pointer and value from
+that exact target's ordered authority. BookSurface rejects missing, extra,
+duplicate, forged or reordered association as
+`presentation_requirement_repair_target_association_invalid`, rejects an
+invalid ordinal as
+`presentation_requirement_repair_pointer_choice_not_permitted`, and rejects
+an invalid class as `presentation_requirement_repair_class_invalid`. Failed
+application leaves the source draft unchanged. The dedicated lane remains
+identity-keyed and order-independent.
+
+Because those three identities are persisted terminal authority, the current
+repair-output diagnostics advance from v3 to v4. Authoring request/receipt/
+readiness and their canonical materialization wrappers advance one version in
+lockstep; v1-v3 diagnostics and the immediately prior request, receipt and
+readiness forms remain readable immutable legacy authority. The old
+`presentation_requirement_repair_pointer_not_permitted` identity remains
+accepted for legacy receipts only. Model, provider, call count, repair count,
+token budgets, cost ceiling, retry, fallback, catalog, Story Source, package,
+locator, Wizard and renderer are unchanged.
+
+The adversarial offline suite passes **14 files / 642 tests**, including
+cross-page targets, reversed correct-own-target patches, missing/duplicate/
+forged identities, out-of-range choices, invalid classes, atomicity, provider
+schema compatibility, receipt persistence and the full canonical request/
+readiness chain. `npx --no-install tsc --noEmit` passes. Repository-wide
+`npm run check` reaches the unchanged dedicated-worktree baseline: the
+resource-intensive partition passes **20 files / 611 tests**; ordinary passes
+**3,569** tests with 70 skipped and 11 failures. Nine failures are the same
+missing ignored historical fixtures across five unchanged files; two are the
+unchanged Blueprint-migration assertions exceeding the ordinary five-second
+limit. That exact suite passes **8/8** with a 30-second diagnostic allowance.
+No changed file or authority fails. The milestone made no provider,
+credential, Fresh, live, Candidate, Wizard, image, audio, render, deployment
+or external write. Durable records:
+`docs/ai-workflow/R1D_BOOK_SURFACE_TARGET_ASSOCIATION_AND_BOUNDED_POINTER_SELECTION_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_BOOK_SURFACE_TARGET_ASSOCIATION_AND_BOUNDED_POINTER_SELECTION_IMPLEMENTATION_EVIDENCE.md`.
+
 ## CHAMELEON ACCEPTED-V3 LIVE ATTEMPT — FAIL-CLOSED; DANGLING-REF CORRECTION GREEN OFFLINE
 
 The first and only authorized accepted-v3 live text-authoring attempt ran from

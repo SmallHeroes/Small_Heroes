@@ -34,13 +34,13 @@ import {
 } from './pagePropConstraintValidation';
 
 export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
-  'book-surface-repair-schema/v6' as const;
+  'book-surface-repair-schema/v7' as const;
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =
-  'book-surface-repair-prompt/v11' as const;
+  'book-surface-repair-prompt/v12' as const;
 export const BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION =
-  'book-surface-repair-user-prompt/v11' as const;
+  'book-surface-repair-user-prompt/v12' as const;
 
 const MAX_VALIDATION_MESSAGES = 128;
 const MAX_VALIDATION_MESSAGE_LENGTH = 1_024;
@@ -1494,7 +1494,7 @@ export function buildBookSurfaceRepairSystemPrompt(): string {
     'Every pageStructuralPatch must return the strict full patch shape. Copy pageNumber exactly. Return a repaired non-null value only for that page\'s exact writableFields and return null for every other structural field, including locationId, zoneId and sameLocationAs.',
     'readOnlyContext is preservation authority only and must never be returned. Use its cast/presence, anchors, spatial nodes, scrubbed safety, lifecycle, transition and action-binding facts to keep the repair valid.',
     'When actionRequirements is writable, return exactly one semantic action for every existing action index, in the same order. Never add, drop or reorder actions. The compiler reattaches the exact beatId and any source_phenomenon Source Evidence subject from its private authority before apply; never return or alter actionSemanticCoverage.',
-    'For each presentation target, copy its identities and one exact permitted contractPointer. The overlapping page mustShow array is not writable; preserve it exactly so the compiler can resolve the authorized pointer/value locally.',
+    'For each presentation target, preserve the exact target order, copy its identities exactly, and choose one zero-based pointerChoiceIndex into that target\'s ordered permittedPointerValues. Never return a raw contractPointer. The overlapping page mustShow array is not writable; preserve it exactly so the compiler can resolve the authorized pointer/value locally.',
     'No raw validation prose is included. For writable propConstraints, use only the closed propConstraintViolations codes and their constraintIndex/relatedConstraintIndex positions to repair the supplied projection. Use only the typed targets, causes, exact projections, bounded diagnostic counts and read-only authority supplied in the decoded payload.',
     'When recurringPropAuthority is non-null, preserve the exact recurring-prop ID order and resolve only its typed lifecycle invariant. Use lifecycleContext as read-only page visibility authority: every page before a non-null firstRevealPage must be listed forbidden, and no listed required page may precede it. Otherwise return recurringProps:null.',
     'When coverAuthority is non-null, repair its semantic fields and return a well-shaped cover identity. The compiler preserves an already-valid current location/zone/cast identity; when the current identity is invalid, it accepts only a replacement inside referenceAuthority and never invents a reference. Otherwise return coverContract:null.',
@@ -1793,37 +1793,51 @@ function validatePresentationAuthorityAndPatches(args: {
   draft: Record<string, unknown>;
   targets: readonly PresentationRequirementRepairTarget[];
   patches: readonly PresentationRequirementRepairPatch[];
-}): void {
+}): Array<{ contractPointer: string; contractValue: string }> {
+  if (!presentationTargetsAreValidForDraft({
+    draft: args.draft,
+    targets: args.targets,
+  })) {
+    throw new Error('book_surface_repair_authority_mismatch');
+  }
   if (
-    !presentationTargetsAreValidForDraft({
-      draft: args.draft,
-      targets: args.targets,
-    }) ||
     args.targets.length !== args.patches.length ||
     !orderedValuesEqual(
       args.targets.map(presentationTargetKey),
       args.patches.map(presentationTargetKey),
     )
   ) {
-    throw new Error('book_surface_repair_authority_mismatch');
+    throw new Error(
+      'presentation_requirement_repair_target_association_invalid',
+    );
   }
+  const selections: Array<{
+    contractPointer: string;
+    contractValue: string;
+  }> = [];
   for (let index = 0; index < args.targets.length; index += 1) {
     const target = args.targets[index]!;
     const patch = args.patches[index]!;
     if (
       !PRESENTATION_REQUIREMENT_CLASS_VALUES.includes(
         patch.presentationClass as PresentationRequirementClass,
-      ) ||
-      !target.permittedPointerValues.some(
-        (permitted) =>
-          permitted.contractPointer === patch.contractPointer,
       )
     ) {
+      throw new Error('presentation_requirement_repair_class_invalid');
+    }
+    const selection =
+      Number.isSafeInteger(patch.pointerChoiceIndex) &&
+      patch.pointerChoiceIndex >= 0
+        ? target.permittedPointerValues[patch.pointerChoiceIndex]
+        : undefined;
+    if (!selection) {
       throw new Error(
-        'presentation_requirement_repair_pointer_not_permitted',
+        'presentation_requirement_repair_pointer_choice_not_permitted',
       );
     }
+    selections.push(structuredClone(selection));
   }
+  return selections;
 }
 
 function validatePageAuthorityAndPatches(args: {
@@ -2384,32 +2398,6 @@ function restoreCompilerOwnedPreRevealConstraints(args: {
   return restored;
 }
 
-function restoreCompilerOwnedPresentationTargetIdentity(args: {
-  authority: BookSurfaceRepairAuthority;
-  patch: BookSurfaceRepairPatch;
-}): BookSurfaceRepairPatch {
-  const restored = structuredClone(args.patch);
-  if (
-    restored.presentationPatches.length !==
-    args.authority.presentationTargets.length
-  ) {
-    return restored;
-  }
-  for (
-    let targetIndex = 0;
-    targetIndex < args.authority.presentationTargets.length;
-    targetIndex += 1
-  ) {
-    const target = args.authority.presentationTargets[targetIndex]!;
-    const patch = restored.presentationPatches[targetIndex]!;
-    patch.pageNumber = target.pageNumber;
-    patch.coverageIndex = target.coverageIndex;
-    patch.beatId = target.beatId;
-    patch.sourceEvidenceId = target.sourceEvidenceId;
-  }
-  return restored;
-}
-
 function restoreCompilerOwnedRecurringPropIdentity(args: {
   authority: BookSurfaceRepairAuthority;
   patch: BookSurfaceRepairPatch;
@@ -2514,19 +2502,26 @@ export function applyBookSurfaceRepairPatch(args: {
     throw new Error('book_surface_repair_authority_mismatch');
   }
   let validatedPatch: BookSurfaceRepairPatch;
+  let presentationSelections: Array<{
+    contractPointer: string;
+    contractValue: string;
+  }>;
   try {
+    const providerPatch = parseBookSurfaceRepairPatch(JSON.stringify(args.patch));
+    presentationSelections = validatePresentationAuthorityAndPatches({
+      draft: args.draft,
+      targets: args.authority.presentationTargets,
+      patches: providerPatch.presentationPatches,
+    });
     validatedPatch = restoreCompilerOwnedCoverReferenceIdentity({
       authority: args.authority,
       patch: restoreCompilerOwnedRecurringPropIdentity({
         authority: args.authority,
-        patch: restoreCompilerOwnedPresentationTargetIdentity({
+        patch: restoreCompilerOwnedPreRevealConstraints({
           authority: args.authority,
-          patch: restoreCompilerOwnedPreRevealConstraints({
+          patch: restoreCompilerOwnedActionBindingIdentity({
             authority: args.authority,
-            patch: restoreCompilerOwnedActionBindingIdentity({
-              authority: args.authority,
-              patch: parseBookSurfaceRepairPatch(JSON.stringify(args.patch)),
-            }),
+            patch: providerPatch,
           }),
         }),
       }),
@@ -2535,11 +2530,6 @@ export function applyBookSurfaceRepairPatch(args: {
     if (error instanceof Error) throw error;
     throw new Error('book_surface_repair_response_invalid_shape');
   }
-  validatePresentationAuthorityAndPatches({
-    draft: args.draft,
-    targets: args.authority.presentationTargets,
-    patches: validatedPatch.presentationPatches,
-  });
   validatePageAuthorityAndPatches({
     draft: args.draft,
     authority: args.authority,
@@ -2588,26 +2578,19 @@ export function applyBookSurfaceRepairPatch(args: {
       page[key] = pagePatch[key];
     }
   }
-  const presentationSelections = patch.presentationPatches.map(
-    (presentationPatch, index) => {
-      const target = args.authority.presentationTargets[index]!;
-      const selection = target.permittedPointerValues.find(
-        (permitted) =>
-          permitted.contractPointer ===
-          presentationPatch.contractPointer,
-      )!;
-      if (
-        samePageMustShowValue({
-          pages: resultPages,
-          pageNumber: presentationPatch.pageNumber,
-          pointer: presentationPatch.contractPointer,
-        }) !== selection.contractValue
-      ) {
-        throw new Error('presentation_requirement_repair_target_stale');
-      }
-      return selection;
-    },
-  );
+  for (let index = 0; index < patch.presentationPatches.length; index += 1) {
+    const presentationPatch = patch.presentationPatches[index]!;
+    const selection = presentationSelections[index]!;
+    if (
+      samePageMustShowValue({
+        pages: resultPages,
+        pageNumber: presentationPatch.pageNumber,
+        pointer: selection.contractPointer,
+      }) !== selection.contractValue
+    ) {
+      throw new Error('presentation_requirement_repair_target_stale');
+    }
+  }
   for (let index = 0; index < patch.presentationPatches.length; index += 1) {
     const presentationPatch = patch.presentationPatches[index]!;
     const page = resultPages.find(
@@ -2622,7 +2605,7 @@ export function applyBookSurfaceRepairPatch(args: {
     coverageRecord.disposition = {
       kind: 'presentation_requirement',
       presentationClass: presentationPatch.presentationClass,
-      contractPointer: presentationPatch.contractPointer,
+      contractPointer: selection.contractPointer,
       contractValue: selection.contractValue,
     };
   }
