@@ -309,6 +309,16 @@ describe('Stage 3 — bounded repair loop', () => {
     expect(res.provenance.repairPromptVersion).toBeUndefined();
     expect(calls()).toBe(1);
     expect(res.provenance.maxOutputTokens).toBe(40_000);
+    expect(res.actionSemanticCoverage).toContainEqual(
+      expect.objectContaining({
+        pageNumber: 1,
+        disposition: {
+          kind: 'represented_elsewhere',
+          contractPointer: '/pageContracts/0/locationId',
+          contractValue: 'clinic',
+        },
+      }),
+    );
   });
 
   it('canonicalizes authored time prose before emitting closed referenced world authority', async () => {
@@ -408,12 +418,22 @@ describe('Stage 3 — bounded repair loop', () => {
     const { caller, prompts, calls } = recordingCaller([withEmptyMaterial(), bunnyDraft()]);
     const res = await compileBookVisualContractTemplate(bunnySource(), { callLLM: caller });
     expect(res.provenance.attempt).toBe(2);
-    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v15');
+    expect(res.provenance.repairPromptVersion).toBe('vc-repair-prompt/v16');
     expect(res.repairAttempts).toHaveLength(1);
     expect(res.repairAttempts[0].attempt).toBe(1);
     expect(res.repairAttempts[0].diagnosticIssues.length).toBeGreaterThan(0);
     expect(JSON.stringify(res.repairAttempts)).not.toMatch(/material/i);
     expect(calls()).toBe(2);
+    expect(res.actionSemanticCoverage).toContainEqual(
+      expect.objectContaining({
+        pageNumber: 1,
+        disposition: {
+          kind: 'represented_elsewhere',
+          contractPointer: '/pageContracts/0/locationId',
+          contractValue: 'clinic',
+        },
+      }),
+    );
     expect(prompts.map((call) => call.options?.maxOutputTokens)).toEqual([
       40_000,
       32_000,
@@ -1907,8 +1927,11 @@ describe('page-contract compact repair routing', () => {
         beatId: initial.pageContracts[0].actionSemanticCoverage[0].beatId,
         sourceEvidenceId:
           initial.pageContracts[0].actionSemanticCoverage[0].sourceEvidenceId,
-        disposition:
-          initial.pageContracts[0].actionSemanticCoverage[0].disposition,
+        disposition: {
+          kind: 'represented_elsewhere',
+          contractPointer: '/pageContracts/0/locationId',
+          contractValue: 'clinic',
+        },
       }),
     );
     expect(result.provenance.attempt).toBe(3);
@@ -2503,8 +2526,11 @@ describe('page-contract compact repair routing', () => {
         sourceEvidenceId:
           invalid.pageContracts[0].actionSemanticCoverage[0]
             .sourceEvidenceId,
-        disposition:
-          invalid.pageContracts[0].actionSemanticCoverage[0].disposition,
+        disposition: {
+          kind: 'represented_elsewhere',
+          contractPointer: '/pageContracts/0/locationId',
+          contractValue: 'clinic',
+        },
       }),
     );
     expect(result.provenance.attempt).toBe(2);
@@ -2583,8 +2609,11 @@ describe('page-contract compact repair routing', () => {
         sourceEvidenceId:
           initial.pageContracts[0].actionSemanticCoverage[0]
             .sourceEvidenceId,
-        disposition:
-          initial.pageContracts[0].actionSemanticCoverage[0].disposition,
+        disposition: {
+          kind: 'represented_elsewhere',
+          contractPointer: '/pageContracts/0/locationId',
+          contractValue: 'clinic',
+        },
       }),
     );
   });

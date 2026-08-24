@@ -558,7 +558,7 @@ export function withTemplateDraftActionRequirementDefinitions(
     },
   };
 }
-const actionSemanticCoverageDisposition = {
+const canonicalActionSemanticCoverageDisposition = {
   anyOf: [
     obj({
       kind: { type: 'string', const: 'action_requirement' },
@@ -593,11 +593,55 @@ const actionSemanticCoverageDisposition = {
     }),
   ],
 };
-const actionSemanticCoverage = obj({
-  beatId: templateDraftBeatIdJsonSchema(),
-  sourceEvidenceId: { type: 'string' },
-  disposition: actionSemanticCoverageDisposition,
-});
+
+/**
+ * Initial/full-draft provider wire authority. JSON pointers and their values
+ * are compiler-owned: the provider selects a same-page value or mustShow
+ * ordinal, and the compiler materializes the canonical disposition locally.
+ */
+const initialFullDraftActionSemanticCoverageDisposition = {
+  anyOf: [
+    obj({
+      kind: { type: 'string', const: 'action_requirement' },
+    }),
+    obj({
+      kind: { type: 'string', const: 'represented_elsewhere' },
+      representedValue: { type: 'string' },
+    }),
+    obj({
+      kind: { type: 'string', const: 'presentation_requirement' },
+      presentationClass: {
+        type: 'string',
+        enum: PRESENTATION_REQUIREMENT_CLASS_VALUES,
+      },
+      mustShowIndex: { type: 'integer', minimum: 0 },
+    }),
+    obj({
+      kind: { type: 'string', const: 'non_visual' },
+      rationale: {
+        type: 'string',
+        enum: NON_VISUAL_RATIONALE_VALUES,
+      },
+    }),
+    obj({
+      kind: { type: 'string', const: 'unsupported' },
+      reason: {
+        type: 'string',
+        const: 'closed_action_catalog_gap',
+      },
+    }),
+  ],
+};
+
+function actionSemanticCoverageJsonSchema(
+  dispositionSchema: Record<string, unknown>,
+): Record<string, unknown> {
+  return obj({
+    beatId: templateDraftBeatIdJsonSchema(),
+    sourceEvidenceId: { type: 'string' },
+    disposition: dispositionSchema,
+  });
+}
 
 /**
  * Strict page-contract member schema. Exported so the bounded page-only repair
@@ -606,7 +650,10 @@ const actionSemanticCoverage = obj({
  */
 function pageContractJsonSchema(
   actionRequirementSchema: Record<string, unknown>,
-  options?: { includeContinuitySelections?: boolean },
+  options?: {
+    includeContinuitySelections?: boolean;
+    actionSemanticCoverageDisposition?: Record<string, unknown>;
+  },
 ): Record<string, unknown> {
   return obj({
     pageNumber: { type: 'number', minimum: 1, multipleOf: 1 },
@@ -632,7 +679,10 @@ function pageContractJsonSchema(
     actionSemanticCoverage: {
       type: 'array',
       minItems: 1,
-      items: actionSemanticCoverage,
+      items: actionSemanticCoverageJsonSchema(
+        options?.actionSemanticCoverageDisposition ??
+          canonicalActionSemanticCoverageDisposition,
+      ),
     },
     camera: { type: 'string' },
     transition,
@@ -644,7 +694,11 @@ export const TEMPLATE_DRAFT_PAGE_CONTRACT_JSON_SCHEMA: Record<
   unknown
 > = pageContractJsonSchema(
   TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA,
-  { includeContinuitySelections: true },
+  {
+    includeContinuitySelections: true,
+    actionSemanticCoverageDisposition:
+      initialFullDraftActionSemanticCoverageDisposition,
+  },
 );
 
 /**
@@ -691,7 +745,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
   });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v20' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v21' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

@@ -119,6 +119,10 @@ describe('S2b — the compiler OWNS the zone-ref canonicalization', () => {
   it('DERIVES each page locationId from its zone — the fox failure (zoneId ∉ its location) is cleared', async () => {
     const draft = bunnyDraft();
     page(draft, 5).locationId = 'clinic_exterior'; // WRONG: exam_room is a zone of "clinic", not clinic_exterior
+    page(draft, 5).actionSemanticCoverage[0].disposition = {
+      kind: 'represented_elsewhere',
+      representedValue: 'exam_chair',
+    };
     const { template, notes } = await compileBookVisualContractTemplate(bunnySource(), { callLLM: stubFrom(draft) });
     expect(page(template, 5).locationId).toBe('clinic'); // derived from the resolved zone, not the draft
     expect(notes.some((n) => /overridden/i.test(n))).toBe(true);

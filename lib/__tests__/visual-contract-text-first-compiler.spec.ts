@@ -128,6 +128,7 @@ describe('text-first compiler — C3 assembly (facts overlaid LAST) + fail-close
       callLLM: stubFrom(bunnyTemplate()),
     });
     expect(notes).toEqual([
+      'compiler materialized initial/full-draft same-page disposition bindings represented_bound=12 represented_unbound=0 represented_ambiguous=0 presentation_bound=0 presentation_invalid=0',
       'coverContract zoneId proposed as "clinic.waiting_room" from its authored location/page graph',
       'coverContract castIds proposed from the fact-authoritative first page for human review',
     ]);

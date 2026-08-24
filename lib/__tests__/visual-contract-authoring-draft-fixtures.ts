@@ -22,7 +22,7 @@ export function withCurrentActionSemanticCoverage<
     }>;
   };
 }): Draft {
-  for (const [pageIndex, rawPage] of args.draft.pageContracts.entries()) {
+  for (const rawPage of args.draft.pageContracts) {
     const page = rawPage as Record<string, unknown>;
     const pageNumber = Number(page.pageNumber);
     const sourcePage = args.pages.find(
@@ -48,8 +48,7 @@ export function withCurrentActionSemanticCoverage<
         sourceEvidenceId: sourceEvidence.sourceEvidenceId,
         disposition: {
           kind: 'represented_elsewhere',
-          contractPointer: `/pageContracts/${pageIndex}/locationId`,
-          contractValue,
+          representedValue: contractValue,
         },
       },
     ];

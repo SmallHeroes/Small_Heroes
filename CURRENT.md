@@ -4,6 +4,60 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-chameleon-v3-live-authoring` in `C:\GNart\Work\sh-live-chameleon-v3`, based on pushed accepted-v3 authoring head `be2d7e445de37d08811f1640901e12c449586d1a`.
 
+## INITIAL/FULL-DRAFT SAME-PAGE DISPOSITION BINDING — OFFLINE GREEN; AWAITING INDEPENDENT QA
+
+The failed paid attempt's complete initial census contained 21 unique issues:
+eight final structural invariants, five represented-elsewhere unresolved
+pointers, four represented-elsewhere out-of-scope pointers, three closed
+catalog gaps and one represented-elsewhere value mismatch. Initial and
+full-draft authoring still asked the provider to invent raw JSON pointers and
+copy their values even though same-page pointer authority belongs to the
+compiler. No further paid attempt was justified against that open contract.
+
+Guy approved a provider-free general correction. The initial/full-draft wire
+schema is now pointer-free: `represented_elsewhere` returns one exact
+`representedValue`, and `presentation_requirement` returns a zero-based
+`mustShowIndex`. Before validation, the compiler clones the response and
+materializes canonical internal pointer/value pairs. Represented values bind
+only when exactly one validator-permitted, structured, non-action, non-prose
+same-page occurrence exists. Presentation ordinals bind only to an existing
+string in that page's `mustShow`. Cross-page, zero-match, duplicate-value,
+negative, fractional, string and out-of-range selections become compiler-owned
+non-resolving sentinels and therefore fail through the existing closed
+validation/repair path before Candidate minting. Provider-authored raw pointer
+shapes are never trusted. Narrow repair schemas keep their established
+compiler-bounded canonical pointer/value contracts.
+
+Current authority advances to draft schema v21, initial prompt v19, full-draft
+prompt v16, request v50, receipt v52 and readiness v50. Canonical
+materialization/readiness/execution wrappers advance one version in lockstep;
+the immediately prior forms are readable immutable legacy authority. The
+current schema is 13,977 bytes with digest
+`82f8c6dbb51c2bacea8265eef33b6cb2f9fb2ba76be8dea516344204966a88d6`.
+All 18 approved sources remain within the unchanged 64K ceiling: Fox is
+49,995 units with 14,005 headroom; the largest approved source is
+`lion_shaket_fantasy` at 53,419 with 10,581 headroom. The QA-source census is
+also green.
+
+Hostile binding tests, initial and full-draft compile paths, the zero-provider
+harness, schema compatibility, lifecycle and the canonical authority chain are
+green. The harness reaches Candidate in one initial call with zero surfaced or
+complete issues and `providerCalls: 0`; no historical represented-pointer
+identity is emitted. TypeScript passes. Repository-wide `npm run check`
+reaches the dedicated-worktree baseline: resource-intensive passes **20 files
+/ 611 tests**; ordinary passes **3,579** tests with 70 skipped and 10 failures.
+Nine failures are unchanged missing ignored historical artifacts across five
+unchanged fixture-reading files; the remaining assertion is the unchanged
+Blueprint-migration suite exceeding the ordinary five-second limit. That
+exact suite passes **8/8** in 16.33 seconds with the established 30-second
+diagnostic allowance. No changed file or authority fails. Independent Claude
+Code falsification remains before any new Fresh Readiness or paid attempt. No
+provider, credential, live, Candidate persistence, Wizard, image, audio,
+render, deployment or external write occurred. Durable records:
+`docs/ai-workflow/R1D_INITIAL_FULL_DRAFT_SAME_PAGE_DISPOSITION_BINDING_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_INITIAL_FULL_DRAFT_SAME_PAGE_DISPOSITION_BINDING_IMPLEMENTATION_EVIDENCE.md`.
+
 ## BOOKSURFACE TARGET ASSOCIATION — OFFLINE CORRECTION GREEN; AWAITING INDEPENDENT QA
 
 The one bounded post-schema-correction live attempt ran from
@@ -43,8 +97,9 @@ repair-output diagnostics advance from v3 to v4. Authoring request/receipt/
 readiness and their canonical materialization wrappers advance one version in
 lockstep; v1-v3 diagnostics and the immediately prior request, receipt and
 readiness forms remain readable immutable legacy authority. The old
-`presentation_requirement_repair_pointer_not_permitted` identity remains
-accepted for legacy receipts only. Model, provider, call count, repair count,
+`presentation_requirement_repair_pointer_not_permitted` identity remains a
+closed readable identity for historical evidence under diagnostic v4, but no
+current repair route emits it. Model, provider, call count, repair count,
 token budgets, cost ceiling, retry, fallback, catalog, Story Source, package,
 locator, Wizard and renderer are unchanged.
 

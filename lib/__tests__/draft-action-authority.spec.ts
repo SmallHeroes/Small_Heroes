@@ -329,8 +329,7 @@ describe('compiler-owned draft action identity', () => {
       disposition: {
         kind: 'presentation_requirement',
         presentationClass: 'lighting_state',
-        contractPointer: '/pageContracts/0/mustShow/0',
-        contractValue: mustShow[0],
+        mustShowIndex: 0,
       },
     });
 

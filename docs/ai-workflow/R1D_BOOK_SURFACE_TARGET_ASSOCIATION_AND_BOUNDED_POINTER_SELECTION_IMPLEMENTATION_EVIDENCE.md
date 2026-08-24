@@ -69,8 +69,9 @@ version. Current repair-output diagnostics advance v3 -> v4. Authoring request,
 receipt, readiness and their canonical materialization/execution wrappers each
 advance one version. Immediately prior versions remain readable legacy
 authority, and the historical
-`presentation_requirement_repair_pointer_not_permitted` identity remains valid
-only for legacy evidence. Association maps to bounded failure code
+`presentation_requirement_repair_pointer_not_permitted` identity remains a
+closed readable identity for historical evidence under diagnostic v4, but no
+current repair route emits it. Association maps to bounded failure code
 `target_identity_invalid`; choice and class map to `application_rejected`.
 
 Current contract versions changed by this milestone:

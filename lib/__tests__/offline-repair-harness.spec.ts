@@ -133,7 +133,7 @@ const PAGE_ACTION_REQUIREMENTS_INVALID = {
 } satisfies DraftValidationIssue;
 
 describe('offline Visual Contract repair harness', () => {
-  it('executes the production compiler with a local response queue and no provider boundary', async () => {
+  it('compiler-binds exact initial selectors, eliminates the historical pointer family, and reaches Candidate without provider or repair', async () => {
     const result = await runOfflineRepairHarness({
       input: bunnySource(),
       initialDraft: bunnyDraft(),
@@ -179,6 +179,9 @@ describe('offline Visual Contract repair harness', () => {
     ]);
     expect(result.monotonicCompleteIssueDelta).toBe(true);
     expect(result.maxPositiveCompleteIssueDelta).toBe(0);
+    expect(JSON.stringify(result.stages)).not.toMatch(
+      /represented_elsewhere_pointer_(?:out_of_scope|unresolved)/,
+    );
   });
 
   it('closes an exact missing source-phenomenon binding before routing and spends no repair slot', async () => {
@@ -585,8 +588,7 @@ describe('offline Visual Contract repair harness', () => {
     const representedCoverageIndex = 0;
     sourceRecord.disposition = {
       kind: 'represented_elsewhere',
-      contractPointer: '/pageContracts/999/locationId',
-      contractValue: 'outside the current page',
+      representedValue: 'outside the current page',
     };
     const actionBeatId = 'beat:p2:offline_invalid_action';
     page2.actionRequirements = [{

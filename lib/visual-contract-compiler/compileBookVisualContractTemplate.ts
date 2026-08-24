@@ -236,6 +236,10 @@ import {
   stablePropScopeRepairTargets,
   type StablePropScopeRepairTarget,
 } from './stablePropScopeRepair';
+import {
+  bindInitialFullDraftSamePageDispositions,
+  initialFullDraftDispositionBindingNote,
+} from './initialFullDraftDispositionBinding';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -246,7 +250,7 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v18' as const;
+  'vc-template-prompt/v19' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
   'vc-template-user-prompt/v16' as const;
 /** Normal bounded safety net after the initial authoring call. */
@@ -256,7 +260,7 @@ const STANDARD_MAX_REPAIR_ATTEMPTS =
 const MAX_REPAIR_ATTEMPTS = STANDARD_MAX_REPAIR_ATTEMPTS + 1;
 
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v15' as const;
+  'vc-repair-prompt/v16' as const;
 export const REPAIR_USER_PROMPT_VERSION =
   'vc-repair-user-prompt/v14' as const;
 
@@ -1505,10 +1509,10 @@ export function buildTemplateCompileSystemPrompt(): string {
     '  never use a location id, zone id, Set Board area id, prose label, another zone\'s node, or invented id;',
     '  otherwise use schema-valid entity/none.',
     '- actionSemanticCoverage: one per same-page source visual beat; exact sourceEvidenceId; beatId=beat:p{pageNumber}:{[a-z0-9_]+};',
-    '  action_requirement copies bound same-page action beatId; represented_elsewhere exact page pointer/value;',
+    '  action_requirement copies bound same-page action beatId; represented_elsewhere copies one exact representedValue that occurs exactly once among structured, non-action, non-prose strings on that same page; the compiler binds its pointer;',
     '  non_visual closed rationale; unsupported=closed_action_catalog_gap; omit source prose/imageDirection/self-approval.',
     `- presentation_requirement classes=${PRESENTATION_REQUIREMENT_CLASS_VALUES.join('|')}; use one exact same-page`,
-    '  /pageContracts/{page-index}/mustShow/{item-index} pointer/value only for static state, light, composition, graphic sound,',
+    '  zero-based mustShowIndex only for static state, light, composition, graphic sound,',
     '  event not acting on an entity; never action/interaction/entity-acting phenomenon/movement/spatial relation,',
     '  authored IDs, prose matching, fuzzy lookup, or force-fit.',
     `- Closed non_visual rationales: ${NON_VISUAL_RATIONALE_VALUES.join(' | ')}.`,
@@ -4943,24 +4947,33 @@ export async function compileBookVisualContractTemplate(
     },
   } satisfies ContractLlmCallOptions;
 
-  let draft = asObj(
-    parseContractJson(
-      await deps.callLLM(
-        buildTemplateCompileSystemPrompt(),
-        buildTemplateCompileUserPrompt(input, facts),
-        llmOpts,
-        {
-          kind: 'initial',
-          budgetClass: 'standard',
-          systemPromptVersion: TEMPLATE_PROMPT_VERSION,
-          userPromptVersion: TEMPLATE_USER_PROMPT_VERSION,
-        },
+  const deterministicNormalizationNotes: string[] = [];
+  const initialBinding = bindInitialFullDraftSamePageDispositions(
+    asObj(
+      parseContractJson(
+        await deps.callLLM(
+          buildTemplateCompileSystemPrompt(),
+          buildTemplateCompileUserPrompt(input, facts),
+          llmOpts,
+          {
+            kind: 'initial',
+            budgetClass: 'standard',
+            systemPromptVersion: TEMPLATE_PROMPT_VERSION,
+            userPromptVersion: TEMPLATE_USER_PROMPT_VERSION,
+          },
+        ),
       ),
     ),
   );
+  let draft = initialBinding.draft;
+  const initialBindingNote = initialFullDraftDispositionBindingNote(
+    initialBinding.stats,
+  );
+  if (initialBindingNote) {
+    deterministicNormalizationNotes.push(initialBindingNote);
+  }
 
   const repairAttempts: TemplateRepairAttempt[] = [];
-  const deterministicNormalizationNotes: string[] = [];
   let pageContractPreviousFailure:
     | PageContractRepairPreviousFailure
     | null = null;
@@ -5816,29 +5829,42 @@ export async function compileBookVisualContractTemplate(
         pageContractIncompleteFailureSeen = false;
         pageContractCorrectionGranted = false;
       } else {
-        draft = asObj(
-          parseContractJson(
-            await deps.callLLM(
-              buildTemplateRepairSystemPrompt(),
-              buildTemplateRepairUserPrompt(
-                input,
-                facts,
-                attemptDiagnosticIssues,
+        const fullDraftBinding =
+          bindInitialFullDraftSamePageDispositions(
+            asObj(
+              parseContractJson(
+                await deps.callLLM(
+                  buildTemplateRepairSystemPrompt(),
+                  buildTemplateRepairUserPrompt(
+                    input,
+                    facts,
+                    attemptDiagnosticIssues,
+                  ),
+                  standardOptionsForAttempt(
+                    llmOpts,
+                    attempt + 1,
+                  ),
+                  {
+                    kind: 'repair',
+                    budgetClass: 'standard',
+                    repairMode: 'full_draft',
+                    systemPromptVersion: REPAIR_PROMPT_VERSION,
+                    userPromptVersion: REPAIR_USER_PROMPT_VERSION,
+                  },
+                ),
               ),
-              standardOptionsForAttempt(
-                llmOpts,
-                attempt + 1,
-              ),
-              {
-                kind: 'repair',
-                budgetClass: 'standard',
-                repairMode: 'full_draft',
-                systemPromptVersion: REPAIR_PROMPT_VERSION,
-                userPromptVersion: REPAIR_USER_PROMPT_VERSION,
-              },
             ),
-          ),
-        );
+          );
+        draft = fullDraftBinding.draft;
+        const fullDraftBindingNote =
+          initialFullDraftDispositionBindingNote(
+            fullDraftBinding.stats,
+          );
+        if (fullDraftBindingNote) {
+          deterministicNormalizationNotes.push(
+            fullDraftBindingNote,
+          );
+        }
       }
     } catch (error) {
       const failureIdentity =

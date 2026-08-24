@@ -341,8 +341,7 @@ function calibrationDraft(): Record<string, unknown> & {
           disposition: {
             kind: 'presentation_requirement',
             presentationClass: 'composition_focus',
-            contractPointer: `/pageContracts/${pageIndex}/mustShow/1`,
-            contractValue: direction.mainAction,
+            mustShowIndex: 1,
           },
         },
       ],
