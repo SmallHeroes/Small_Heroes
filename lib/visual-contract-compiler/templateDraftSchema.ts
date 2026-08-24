@@ -305,6 +305,16 @@ const GENERIC_ACTION_SPATIAL_CONSTRAINT_JSON_SCHEMA = obj({
   target: GENERIC_ACTION_OBJECT_JSON_SCHEMA,
 });
 
+export const TEMPLATE_DRAFT_BEAT_ID_PATTERN =
+  '^beat:p[1-9][0-9]*:[a-z0-9_]+$' as const;
+
+function templateDraftBeatIdJsonSchema(): Record<string, unknown> {
+  return {
+    type: 'string',
+    pattern: TEMPLATE_DRAFT_BEAT_ID_PATTERN,
+  };
+}
+
 /**
  * The unchanged whole-draft action shape. The full Story Source already sits
  * close to the immutable 64K provider ceiling, so static catalog coupling is
@@ -312,10 +322,7 @@ const GENERIC_ACTION_SPATIAL_CONSTRAINT_JSON_SCHEMA = obj({
  * catalog-strict schemas on every bounded page-rewrite lane below.
  */
 export const TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA = obj({
-  beatId: {
-    type: 'string',
-    pattern: '^beat:p[1-9][0-9]*:[a-z0-9_]+$',
-  },
+  beatId: templateDraftBeatIdJsonSchema(),
   subject: GENERIC_ACTION_SUBJECT_JSON_SCHEMA,
   predicate: {
     type: 'string',
@@ -395,6 +402,7 @@ function actionRequirementSchemaGroups(): ActionRequirementSchemaGroup[] {
 function buildActionRequirementSchemaAuthority(): {
   itemSchema: Record<string, unknown>;
   definitions: Record<string, unknown>;
+  beatIdSchemaReference: Record<string, unknown>;
 } {
   const definitions: Record<string, unknown> = {};
   const definitionNames = new Map<string, string>();
@@ -411,6 +419,9 @@ function buildActionRequirementSchemaAuthority(): {
     return { $ref: `#/$defs/${name}` };
   };
 
+  const beatIdSchemaReference = schemaRef(
+    templateDraftBeatIdJsonSchema(),
+  );
   const branches = actionRequirementSchemaGroups().map((group) => {
     const { definition } = group;
     if (
@@ -452,10 +463,7 @@ function buildActionRequirementSchemaAuthority(): {
           })
         : null;
     return obj({
-      beatId: schemaRef({
-        type: 'string',
-        pattern: '^beat:p[1-9][0-9]*:[a-z0-9_]+$',
-      }),
+      beatId: beatIdSchemaReference,
       subject: schemaRef(subjectSchema),
       predicate: {
         type: 'string',
@@ -503,6 +511,7 @@ function buildActionRequirementSchemaAuthority(): {
   return {
     itemSchema: { anyOf: branches },
     definitions,
+    beatIdSchemaReference,
   };
 }
 
@@ -585,7 +594,7 @@ const actionSemanticCoverageDisposition = {
   ],
 };
 const actionSemanticCoverage = obj({
-  beatId: { type: 'string' },
+  beatId: ACTION_REQUIREMENT_SCHEMA_AUTHORITY.beatIdSchemaReference,
   sourceEvidenceId: { type: 'string' },
   disposition: actionSemanticCoverageDisposition,
 });
@@ -682,7 +691,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
   });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v18' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v19' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

@@ -109,6 +109,29 @@ const CONTINUITY_AUTHORITY_INVALID = {
   locator: { kind: 'root', fieldRole: 'authority' },
 } satisfies DraftValidationIssue;
 
+const BEAT_ID_OUT_OF_SCOPE = {
+  family: 'action_semantic',
+  code: 'beat_identity_out_of_scope',
+  locator: {
+    kind: 'page_item',
+    collectionRole: 'page_action_semantic_coverage',
+    fieldRole: 'identity',
+    pageNumber: 1,
+    itemIndex: 0,
+  },
+} satisfies DraftValidationIssue;
+
+const PAGE_ACTION_REQUIREMENTS_INVALID = {
+  family: 'draft_contract',
+  code: 'final_structural_invariant_invalid',
+  locator: {
+    kind: 'page',
+    fieldRole: 'final_structure',
+    pageNumber: 1,
+  },
+  causes: ['page_action_requirements_invalid'],
+} satisfies DraftValidationIssue;
+
 describe('offline Visual Contract repair harness', () => {
   it('executes the production compiler with a local response queue and no provider boundary', async () => {
     const result = await runOfflineRepairHarness({
@@ -262,6 +285,121 @@ describe('offline Visual Contract repair harness', () => {
       },
     ]);
     expect(result.monotonicCompleteIssueDelta).toBe(true);
+  });
+
+  it('closes a historical free-form coverage beatId and its structural consequence offline with delta 2 to 0', async () => {
+    const invalid = bunnyDraft();
+    const repaired = bunnyDraft();
+    const invalidPage = invalid.pageContracts[0]!;
+    const repairedPage = repaired.pageContracts[0]!;
+    const repairedCoverage = (
+      repairedPage.actionSemanticCoverage as Array<Record<string, unknown>>
+    )[0]!;
+    const sourceEvidenceId = repairedCoverage.sourceEvidenceId;
+    if (typeof sourceEvidenceId !== 'string') {
+      throw new Error('offline_harness_source_evidence_missing');
+    }
+    const validBeatId = 'beat:p1:offline_look';
+    repairedPage.actionRequirements = [{
+      beatId: validBeatId,
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: 'waves',
+      object: null,
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'must',
+      laterality: null,
+    }];
+    repairedCoverage.beatId = validBeatId;
+    repairedCoverage.disposition = { kind: 'action_requirement' };
+    const projectionPage = structuredClone(
+      repairedPage,
+    ) as unknown as PageVisualContract;
+    projectionPage.actionRequirements = [{
+      checkId: 'action:p1_offline_look',
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: 'waves',
+      polarity: 'must',
+    }];
+    const [actionProjection] = projectPageMustShow(
+      projectionPage,
+      repaired as unknown as BookVisualContract,
+    );
+    if (!actionProjection) {
+      throw new Error('offline_harness_action_projection_missing');
+    }
+    (repairedPage.mustShow as string[]).push(actionProjection);
+    (
+      invalidPage.actionSemanticCoverage as Array<Record<string, unknown>>
+    )[0]!.beatId = 'p1_offline_look';
+
+    const result = await runOfflineRepairHarness({
+      input: bunnySource(),
+      initialDraft: invalid,
+      repairResponses: [repaired],
+      completeDiagnosticIssuesByAttempt: [
+        [BEAT_ID_OUT_OF_SCOPE, PAGE_ACTION_REQUIREMENTS_INVALID],
+        [],
+      ],
+    });
+
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'candidate',
+      completeCensusCoverage: 'complete',
+      monotonicCompleteIssueDelta: true,
+      maxPositiveCompleteIssueDelta: 0,
+      finalCompleteIssueCount: 0,
+    });
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'full_draft',
+    ]);
+    expect(result.stages.map((stage) => ({
+      completeIssueCount: stage.completeIssueCount,
+      completeDelta: stage.completeDelta,
+      classification: stage.classification,
+    }))).toEqual([
+      {
+        completeIssueCount: 2,
+        completeDelta: null,
+        classification: 'baseline',
+      },
+      {
+        completeIssueCount: 0,
+        completeDelta: -2,
+        classification: 'improved',
+      },
+    ]);
+    expect(result.actionCoverageCensuses[1]!.records[0]).toMatchObject({
+      pageNumber: 1,
+      beatId: validBeatId,
+      dispositionKind: 'action_requirement',
+      matchingActionIndexes: [0],
+      attemptedPredicates: ['waves'],
+    });
+
+    const compiled = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: async () => JSON.stringify(repaired),
+    });
+    expect(compiled.actionSemanticCoverage).toContainEqual(
+      expect.objectContaining({
+        pageNumber: 1,
+        beatId: validBeatId,
+        sourceEvidenceId,
+        disposition: {
+          kind: 'action_requirement',
+          checkId: 'action:p1_offline_look',
+        },
+      }),
+    );
   });
 
   it('repairs an accepted typed wardrobe transition through full_draft without a provider call', async () => {

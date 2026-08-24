@@ -595,18 +595,18 @@ describe('Visual Contract prompt authority-table compaction', () => {
         utf8Lines(compactActionTable),
     ).toBe(2_060);
     expect(TEMPLATE_DRAFT_SCHEMA_VERSION).toBe(
-      'vc-draft-schema/v18',
+      'vc-draft-schema/v19',
     );
     expect(
       Buffer.byteLength(
         JSON.stringify(TEMPLATE_DRAFT_JSON_SCHEMA),
         'utf8',
       ),
-    ).toBe(14_023);
+    ).toBe(14_028);
     expect(
       canonicalJsonDigest(TEMPLATE_DRAFT_JSON_SCHEMA),
     ).toBe(
-      '6ca1a5c42a2a11b16fdd5fe29a19ab89ddced73ddc0d430fbea0cb89c6b4ec9d',
+      'a4c5e664e877a6aa0d7e8791c58e6b3beaa322f6aebb43f5d8ef389d944e77bd',
     );
   });
 
@@ -675,26 +675,26 @@ describe('Visual Contract prompt authority-table compaction', () => {
     ).toBeGreaterThan(1_024);
     expect(fox).toEqual({
       storyKey: 'fox_uri_adventure',
-      upperBound: 50_052,
-      headroom: 13_948,
+      upperBound: 50_042,
+      headroom: 13_958,
     });
     expect(worst).toEqual({
       storyKey: 'lion_shaket_fantasy',
-      upperBound: 53_476,
-      headroom: 10_524,
+      upperBound: 53_466,
+      headroom: 10_534,
     });
     expect(provider.call).not.toHaveBeenCalled();
   });
 
   it('binds only the changed prompt authorities and fails closed on a genuinely over-budget synthetic input before provider reachability', async () => {
     expect(TEMPLATE_PROMPT_VERSION).toBe(
-      'vc-template-prompt/v16',
+      'vc-template-prompt/v17',
     );
     expect(TEMPLATE_USER_PROMPT_VERSION).toBe(
       'vc-template-user-prompt/v16',
     );
     expect(REPAIR_PROMPT_VERSION).toBe(
-      'vc-repair-prompt/v13',
+      'vc-repair-prompt/v14',
     );
     expect(REPAIR_USER_PROMPT_VERSION).toBe(
       'vc-repair-user-prompt/v14',
@@ -784,6 +784,20 @@ describe('Visual Contract prompt authority-table compaction', () => {
       expect(prompt).toContain("another zone's node");
       expect(prompt).toContain('invented spatial id');
       expect(prompt).toContain('schema-valid entity/none form');
+    }
+  });
+
+  it('states the same-page lexical beatId contract in initial and full-draft repair prompts', () => {
+    const compilePrompt = buildTemplateCompileSystemPrompt();
+    const repairPrompt = buildTemplateRepairSystemPrompt();
+
+    for (const prompt of [compilePrompt, repairPrompt]) {
+      expect(prompt).toContain(
+        'beatId=beat:p{pageNumber}:{[a-z0-9_]+}',
+      );
+      expect(prompt).toContain(
+        'action_requirement copies bound same-page action beatId',
+      );
     }
   });
 });

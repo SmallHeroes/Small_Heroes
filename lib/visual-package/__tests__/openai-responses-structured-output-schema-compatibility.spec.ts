@@ -123,7 +123,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
 
   it('positive-controls the fully serialized current Visual Contract and Blueprint schemas', () => {
     expect(TEMPLATE_DRAFT_SCHEMA_VERSION).toBe(
-      'vc-draft-schema/v18',
+      'vc-draft-schema/v19',
     );
     expect(PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION).toBe(
       'pre-render-blueprint-draft-schema/v6',

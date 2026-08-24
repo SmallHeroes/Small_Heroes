@@ -529,10 +529,10 @@ describe('canonical pre-live readiness orchestrator', () => {
       canonicalAuthorities: {
         b0: {
           verificationVersion:
-            'canonical-live-request-verification/v44',
+            'canonical-live-request-verification/v45',
           structuredOutputCompatibility: {
             schemaName: 'BookVisualContractTemplateDraft',
-            schemaVersion: 'vc-draft-schema/v18',
+            schemaVersion: 'vc-draft-schema/v19',
             compatibility: {
               profileVersion:
                 OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,

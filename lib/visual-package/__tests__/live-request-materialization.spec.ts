@@ -310,11 +310,11 @@ describe('canonical live request materialization validators', () => {
       }),
     ).toContain('materialization_input_version_invalid');
     expect(LIVE_REQUEST_MATERIALIZATION_INPUT_VERSION).toBe(
-      'canonical-live-request-materialization-input/v35',
+      'canonical-live-request-materialization-input/v36',
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v44');
+    ).toBe('canonical-live-request-materialization/v45');
   });
 
   it.each([
@@ -492,7 +492,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v46',
+      version: 'visual-contract-authoring-request/v47',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',
@@ -535,11 +535,11 @@ describe('canonical live request materialization artifacts', () => {
       },
       promptAuthority: {
         initial: {
-          systemPromptVersion: 'vc-template-prompt/v16',
+          systemPromptVersion: 'vc-template-prompt/v17',
           userPromptVersion: 'vc-template-user-prompt/v16',
         },
         repair: {
-          systemPromptVersion: 'vc-repair-prompt/v13',
+          systemPromptVersion: 'vc-repair-prompt/v14',
           userPromptVersion: 'vc-repair-user-prompt/v14',
         },
         bookSurfaceRepair: {
@@ -553,7 +553,7 @@ describe('canonical live request materialization artifacts', () => {
       },
       structuredOutput: {
         schemaName: 'BookVisualContractTemplateDraft',
-        schemaVersion: 'vc-draft-schema/v18',
+        schemaVersion: 'vc-draft-schema/v19',
         compatibilityProfileVersion:
           OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION,
         compatibilityProfileDigest:

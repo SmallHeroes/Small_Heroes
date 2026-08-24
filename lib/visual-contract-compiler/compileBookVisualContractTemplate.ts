@@ -246,7 +246,7 @@ const CHILD_ID = 'child:hero';
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v16' as const;
+  'vc-template-prompt/v17' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
   'vc-template-user-prompt/v16' as const;
 /** Normal bounded safety net after the initial authoring call. */
@@ -256,7 +256,7 @@ const STANDARD_MAX_REPAIR_ATTEMPTS =
 const MAX_REPAIR_ATTEMPTS = STANDARD_MAX_REPAIR_ATTEMPTS + 1;
 
 export const REPAIR_PROMPT_VERSION =
-  'vc-repair-prompt/v13' as const;
+  'vc-repair-prompt/v14' as const;
 export const REPAIR_USER_PROMPT_VERSION =
   'vc-repair-user-prompt/v14' as const;
 
@@ -1498,13 +1498,13 @@ export function buildTemplateCompileSystemPrompt(): string {
     ...actionSemanticCatalogPromptTable(),
     '- actionRequirements: typed subject/predicate/object/required closed spatialEffect; cast_group=2+ unique same-page',
     '  castIds; spatialConstraint=static. No movement/relation prose. source_phenomenon=exact same-page sourceEvidenceId;',
-    '  compiler resolves it; no invented/fuzzy identity.',
+    '  no invented/fuzzy identity.',
     '- Every {kind:"spatial",id} in a page action or safety constraint MUST use an exact spatialNodes[].id from that',
     '  page\'s exact zoneId. Never use a location id, zone id, Set Board area id, prose label, another zone\'s node, or',
     '  an invented spatial id. Use the schema-valid entity/none form when the reference is not page-zone spatial.',
-    '- Cover each same-page Story Source visual beat once in actionSemanticCoverage with exact catalog sourceEvidenceId;',
-    '  no source prose/imageDirection. action_requirement shares one action beatId; represented_elsewhere uses exact',
-    '  same-page pointer/value; non_visual closed rationale; unsupported only closed_action_catalog_gap; no self-approval.',
+    '- actionSemanticCoverage: one per same-page source visual beat; exact sourceEvidenceId; beatId=beat:p{pageNumber}:{[a-z0-9_]+};',
+    '  action_requirement copies bound same-page action beatId; represented_elsewhere exact page pointer/value;',
+    '  non_visual closed rationale; unsupported=closed_action_catalog_gap; omit source prose/imageDirection/self-approval.',
     `- presentation_requirement classes=${PRESENTATION_REQUIREMENT_CLASS_VALUES.join('|')}; use one exact same-page`,
     '  /pageContracts/{page-index}/mustShow/{item-index} pointer/value only for static state, light, composition, graphic sound,',
     '  event not acting on an entity; never action/interaction/entity-acting phenomenon/movement/spatial relation,',

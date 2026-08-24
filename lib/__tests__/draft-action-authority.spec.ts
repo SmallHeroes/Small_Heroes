@@ -9,7 +9,9 @@ import {
 import { buildSourceEvidenceCatalog } from '../visual-contract-compiler/sourceEvidenceCatalog';
 import {
   CATALOG_STRICT_PAGE_CONTRACT_JSON_SCHEMA,
+  TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA,
   TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA_DEFINITIONS,
+  TEMPLATE_DRAFT_BEAT_ID_PATTERN,
   TEMPLATE_DRAFT_JSON_SCHEMA,
 } from '../visual-contract-compiler/templateDraftSchema';
 import { projectPageMustShow } from '../visual-contract-compiler/projectContractProse';
@@ -226,6 +228,20 @@ describe('compiler-owned draft action identity', () => {
     expect(callLLM).toHaveBeenCalledTimes(2);
   });
 
+  it('rejects a schema-valid coverage beatId from another page before minting action identity', async () => {
+    const draft = draftFor(['look']);
+    const page = (draft.pageContracts as Array<Record<string, unknown>>)[0]!;
+    (
+      page.actionSemanticCoverage as Array<Record<string, unknown>>
+    )[0]!.beatId = 'beat:p2:look';
+    const callLLM = vi.fn(async () => JSON.stringify(draft));
+
+    await expect(
+      compileBookVisualContractTemplate(input, { callLLM }),
+    ).rejects.toBeInstanceOf(TemplateRepairOutputInvalidError);
+    expect(callLLM).toHaveBeenCalledTimes(2);
+  });
+
   it('normalizes an exact duplicate stable-key component without consuming a repair', async () => {
     const draft = draftFor(['look']);
     const page = (draft.pageContracts as Array<Record<string, unknown>>)[0]!;
@@ -337,6 +353,42 @@ describe('compiler-owned draft action identity', () => {
 });
 
 describe('strict bounded-repair authority shapes', () => {
+  it('uses one lexical beatId authority for actions and semantic coverage', () => {
+    const page = (CATALOG_STRICT_PAGE_CONTRACT_JSON_SCHEMA as any)
+      .properties;
+    const actionBeatSchemas = page.actionRequirements.items.anyOf.map(
+      (branch: any) => branch.properties.beatId,
+    );
+    const coverageBeatSchema =
+      page.actionSemanticCoverage.items.properties.beatId;
+    const wholeDraftActionBeatSchema = (
+      TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA as any
+    ).properties.beatId;
+
+    expect(actionBeatSchemas).not.toHaveLength(0);
+    expect(actionBeatSchemas.every(
+      (schema: unknown) =>
+        JSON.stringify(schema) === JSON.stringify(coverageBeatSchema),
+    )).toBe(true);
+    const strictBeatDefinition =
+      TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA_DEFINITIONS[
+        coverageBeatSchema.$ref.slice('#/$defs/'.length)
+      ];
+    expect(strictBeatDefinition).toEqual({
+      type: 'string',
+      pattern: TEMPLATE_DRAFT_BEAT_ID_PATTERN,
+    });
+    expect(wholeDraftActionBeatSchema).toEqual(strictBeatDefinition);
+
+    const beatIdPattern = new RegExp(TEMPLATE_DRAFT_BEAT_ID_PATTERN);
+    expect(beatIdPattern.test('beat:p1:look')).toBe(true);
+    expect(beatIdPattern.test('beat:p12:child_looks')).toBe(true);
+    expect(beatIdPattern.test('p1:look')).toBe(false);
+    expect(beatIdPattern.test('beat:page1:look')).toBe(false);
+    expect(beatIdPattern.test('beat:p1:LOOK')).toBe(false);
+    expect(beatIdPattern.test('beat:p1:child-looks')).toBe(false);
+  });
+
   it('authors beatId rather than checkId and encodes relation arity in distinct variants', () => {
     const page = (CATALOG_STRICT_PAGE_CONTRACT_JSON_SCHEMA as any)
       .properties;
