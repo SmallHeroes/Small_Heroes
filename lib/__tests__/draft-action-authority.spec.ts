@@ -368,17 +368,27 @@ describe('strict bounded-repair authority shapes', () => {
     expect(actionBeatSchemas).not.toHaveLength(0);
     expect(actionBeatSchemas.every(
       (schema: unknown) =>
-        JSON.stringify(schema) === JSON.stringify(coverageBeatSchema),
+        JSON.stringify(schema) === JSON.stringify(actionBeatSchemas[0]),
     )).toBe(true);
     const strictBeatDefinition =
       TEMPLATE_DRAFT_ACTION_REQUIREMENT_JSON_SCHEMA_DEFINITIONS[
-        coverageBeatSchema.$ref.slice('#/$defs/'.length)
+        actionBeatSchemas[0].$ref.slice('#/$defs/'.length)
       ];
     expect(strictBeatDefinition).toEqual({
       type: 'string',
       pattern: TEMPLATE_DRAFT_BEAT_ID_PATTERN,
     });
     expect(wholeDraftActionBeatSchema).toEqual(strictBeatDefinition);
+    expect(coverageBeatSchema).toEqual(strictBeatDefinition);
+
+    const rootPage = (TEMPLATE_DRAFT_JSON_SCHEMA as any)
+      .properties.pageContracts.items.properties;
+    expect(rootPage.actionRequirements.items.properties.beatId).toEqual(
+      strictBeatDefinition,
+    );
+    expect(
+      rootPage.actionSemanticCoverage.items.properties.beatId,
+    ).toEqual(strictBeatDefinition);
 
     const beatIdPattern = new RegExp(TEMPLATE_DRAFT_BEAT_ID_PATTERN);
     expect(beatIdPattern.test('beat:p1:look')).toBe(true);

@@ -594,7 +594,7 @@ const actionSemanticCoverageDisposition = {
   ],
 };
 const actionSemanticCoverage = obj({
-  beatId: ACTION_REQUIREMENT_SCHEMA_AUTHORITY.beatIdSchemaReference,
+  beatId: templateDraftBeatIdJsonSchema(),
   sourceEvidenceId: { type: 'string' },
   disposition: actionSemanticCoverageDisposition,
 });
@@ -691,7 +691,7 @@ export const TEMPLATE_DRAFT_JSON_SCHEMA: Record<string, unknown> = obj({
   });
 
 /** Bump when the draft schema shape changes (recorded in authoring provenance). */
-export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v19' as const;
+export const TEMPLATE_DRAFT_SCHEMA_VERSION = 'vc-draft-schema/v20' as const;
 
 /** The structured-output request name (OpenAI json_schema `name`). */
 export const TEMPLATE_DRAFT_SCHEMA_NAME = 'BookVisualContractTemplateDraft' as const;

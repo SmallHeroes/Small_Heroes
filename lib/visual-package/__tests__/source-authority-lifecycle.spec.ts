@@ -1202,11 +1202,11 @@ describe('exact zero-cost authoring preflight', () => {
       },
       promptAuthority: {
         initial: {
-        systemPromptVersion: 'vc-template-prompt/v17',
+        systemPromptVersion: 'vc-template-prompt/v18',
         userPromptVersion: 'vc-template-user-prompt/v16',
         },
         repair: {
-          systemPromptVersion: 'vc-repair-prompt/v14',
+          systemPromptVersion: 'vc-repair-prompt/v15',
           userPromptVersion: 'vc-repair-user-prompt/v14',
         },
         pageContractRepair: {
@@ -3015,9 +3015,15 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'request',
-        'visual-contract-authoring-request/v47',
+        'visual-contract-authoring-request/v48',
       ),
     ).toBe('current');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v47',
+      ),
+    ).toBe('legacy_immutable');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'request',

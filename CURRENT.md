@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-chameleon-v3-live-authoring` in `C:\GNart\Work\sh-live-chameleon-v3`, based on pushed accepted-v3 authoring head `be2d7e445de37d08811f1640901e12c449586d1a`.
 
-## CHAMELEON ACCEPTED-V3 LIVE ATTEMPT — FAIL-CLOSED; BEAT-ID SCHEMA ALIGNMENT GREEN OFFLINE
+## CHAMELEON ACCEPTED-V3 LIVE ATTEMPT — FAIL-CLOSED; DANGLING-REF CORRECTION GREEN OFFLINE
 
 The first and only authorized accepted-v3 live text-authoring attempt ran from
 Fresh Readiness under
@@ -24,42 +24,66 @@ were arbitrary strings even though the compiler imposed the same lexical and
 same-page rule later. The provider could therefore satisfy structured output
 and still be rejected universally by the compiler.
 
-The provider-free correction now uses one shared schema definition for both
-strict action and coverage beat IDs, keeps the whole-draft action shape
-equivalent, and states the exact same-page copy rule in initial and full-draft
-repair prompts. The compiler's page-number guard remains independent: a
-schema-valid `beat:p2:*` on page 1 still fails closed. Versions move to schema
-v19, initial system prompt v17, full-draft repair system prompt v14, authoring
-request v47, materialization input v36, and materialization/verification v45;
-v46 requests remain immutable legacy authority. Model, budgets, calls, repair
-count, retries, fallback, catalog, Story Source, package, locator, Wizard and
-renderer do not change.
+The first provider-free correction aligned both fields to one exported lexical
+pattern, but Claude Code correctly returned HOLD: coverage used a local `$ref`
+inside two self-contained provider payloads that did not carry the matching
+`$defs`. The old compatibility gate checked `$ref` syntax but not whether the
+target existed, so all local tests remained green while the initial and page
+repair wire schemas each contained one dangling reference.
+
+The separate corrective milestone keeps the strict action branches on their
+shared `$defs` authority and emits the coverage beat-ID schema inline from the
+same exported pattern wherever the payload must remain self-contained. It also
+upgrades the general OpenAI structured-output compatibility profile to v2:
+every permitted local JSON Pointer must now resolve in the serialized root,
+including escaped pointer tokens, while missing and malformed references fail
+closed with the existing sanitized rule identity. A census over all nine real
+provider payloads — initial draft, six repair shapes, page-spatial repair and
+Blueprint — is compatible and has zero unresolved local references.
+
+The compiler's page-number guard remains independent: a schema-valid
+`beat:p2:*` on page 1 still fails closed. Current authority versions are draft
+schema v20, page-contract repair schema v3, structural-bundle repair schema v4,
+initial prompt v18, full-draft repair prompt v15, authoring request v48,
+materialization input v37, materialization/verification v46, and compatibility
+profile/evidence v2. Requests v46 and v47 remain immutable legacy authority.
+Model, budgets, calls, repair count, retries, fallback, catalog, Story Source,
+package, locator, Wizard and renderer do not change.
 
 The zero-provider harness replays the historical free-form coverage identity
 and its structural consequence, routes `initial -> full_draft`, reduces the
 complete census `2 -> 0`, produces a Candidate, and reports
-`providerCalls: 0`. Schema compatibility remains green. All 12 QA sources and
-all 18 approved sources stay under the unchanged 64K input ceiling; the tight
-QA case is `chameleon_koko_adventure` at 62,965 units with 1,035 headroom, and
-the largest approved input has 10,534 headroom. Focused validation is **13
-files / 407 tests PASS**, TypeScript and diff hygiene are clean.
+`providerCalls: 0`. Schema compatibility remains green. The current schema is
+14,066 bytes with digest
+`cc29c6c630f95de2b090f157935b6857d8670141fd453e7a8ab6dcefdc11581f`.
+All 12 QA sources and all 18 approved sources stay under the unchanged 64K
+input ceiling; the tight QA case is `chameleon_koko_adventure` at 62,914 units
+with 1,086 headroom. Fox is 49,991 with 14,009 headroom, and the largest
+approved input is `lion_shaket_fantasy` at 53,415 with 10,585 headroom.
+Focused validation is **13 files / 411 tests PASS**, TypeScript and diff
+hygiene are clean.
 
 The repository-wide `npm run check` reaches its existing fixture/infrastructure
 baseline: the resource-intensive partition passes **20 files / 611 tests**;
-the ordinary partition passes **3,560** tests with 70 skipped and 11 failures.
+the ordinary partition passes **3,564** tests with 70 skipped and 11 failures.
 Nine failures read ignored historical artifacts absent from this dedicated
 worktree, across five unchanged test files; the other two are the unchanged
 Blueprint-migration suite exceeding the ordinary five-second limit. That exact
-suite passes **8/8** in 23.4 seconds with the established 30-second diagnostic
-allowance. No failed assertion belongs to a changed file or authority.
+suite passes **8/8** in 29.37 seconds with the established 30-second diagnostic
+allowance. The resource partition still reports the three known Vitest
+`onTaskUpdate` RPC timeouts after all 611 assertions pass. No failed assertion
+belongs to a changed file or authority.
 
 This local milestone remains provider-free and has not modified the failed
-live evidence, accepted source, package, locator or Boards. Independent Claude
-Code QA is still required before any second paid attempt; Claude was
-temporarily unavailable, so no technical PASS is inferred. Durable records:
+live evidence, accepted source, package, locator or Boards. Claude Code's HOLD
+on commit `2072fd52` is accepted and addressed locally. A narrow independent
+re-gate of the corrective commit is still required before any second paid
+attempt; no technical PASS is inferred. Durable records:
 `docs/ai-workflow/R1D_ACTION_COVERAGE_BEAT_ID_SCHEMA_ALIGNMENT_DECISION_GATE.md`
 and
-`docs/ai-workflow/R1D_ACTION_COVERAGE_BEAT_ID_SCHEMA_ALIGNMENT_IMPLEMENTATION_EVIDENCE.md`.
+`docs/ai-workflow/R1D_ACTION_COVERAGE_BEAT_ID_SCHEMA_ALIGNMENT_IMPLEMENTATION_EVIDENCE.md`,
+superseded by
+`docs/ai-workflow/R1D_ACTION_COVERAGE_BEAT_ID_REF_REACHABILITY_CORRECTION_EVIDENCE.md`.
 
 ## ACCEPTED-V3 VISUAL CONTRACT AUTHORING — OFFLINE BINDING COMPLETE; AWAITING INDEPENDENT QA
 

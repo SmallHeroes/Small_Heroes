@@ -595,18 +595,18 @@ describe('Visual Contract prompt authority-table compaction', () => {
         utf8Lines(compactActionTable),
     ).toBe(2_060);
     expect(TEMPLATE_DRAFT_SCHEMA_VERSION).toBe(
-      'vc-draft-schema/v19',
+      'vc-draft-schema/v20',
     );
     expect(
       Buffer.byteLength(
         JSON.stringify(TEMPLATE_DRAFT_JSON_SCHEMA),
         'utf8',
       ),
-    ).toBe(14_028);
+    ).toBe(14_066);
     expect(
       canonicalJsonDigest(TEMPLATE_DRAFT_JSON_SCHEMA),
     ).toBe(
-      'a4c5e664e877a6aa0d7e8791c58e6b3beaa322f6aebb43f5d8ef389d944e77bd',
+      'cc29c6c630f95de2b090f157935b6857d8670141fd453e7a8ab6dcefdc11581f',
     );
   });
 
@@ -675,26 +675,26 @@ describe('Visual Contract prompt authority-table compaction', () => {
     ).toBeGreaterThan(1_024);
     expect(fox).toEqual({
       storyKey: 'fox_uri_adventure',
-      upperBound: 50_042,
-      headroom: 13_958,
+      upperBound: 49_991,
+      headroom: 14_009,
     });
     expect(worst).toEqual({
       storyKey: 'lion_shaket_fantasy',
-      upperBound: 53_466,
-      headroom: 10_534,
+      upperBound: 53_415,
+      headroom: 10_585,
     });
     expect(provider.call).not.toHaveBeenCalled();
   });
 
   it('binds only the changed prompt authorities and fails closed on a genuinely over-budget synthetic input before provider reachability', async () => {
     expect(TEMPLATE_PROMPT_VERSION).toBe(
-      'vc-template-prompt/v17',
+      'vc-template-prompt/v18',
     );
     expect(TEMPLATE_USER_PROMPT_VERSION).toBe(
       'vc-template-user-prompt/v16',
     );
     expect(REPAIR_PROMPT_VERSION).toBe(
-      'vc-repair-prompt/v14',
+      'vc-repair-prompt/v15',
     );
     expect(REPAIR_USER_PROMPT_VERSION).toBe(
       'vc-repair-user-prompt/v14',
@@ -774,7 +774,7 @@ describe('Visual Contract prompt authority-table compaction', () => {
     const compilePrompt = buildTemplateCompileSystemPrompt();
     const repairPrompt = buildTemplateRepairSystemPrompt();
     const invariant =
-      'Every {kind:"spatial",id} in a page action or safety constraint MUST use an exact spatialNodes[].id from that';
+      'Page action/safety {kind:"spatial",id} MUST be an exact spatialNodes[].id from that';
 
     for (const prompt of [compilePrompt, repairPrompt]) {
       expect(prompt).toContain(invariant);
@@ -782,8 +782,8 @@ describe('Visual Contract prompt authority-table compaction', () => {
       expect(prompt).toContain('location id, zone id, Set Board area id');
       expect(prompt).toContain('prose label');
       expect(prompt).toContain("another zone's node");
-      expect(prompt).toContain('invented spatial id');
-      expect(prompt).toContain('schema-valid entity/none form');
+      expect(prompt).toContain('invented id');
+      expect(prompt).toContain('schema-valid entity/none');
     }
   });
 

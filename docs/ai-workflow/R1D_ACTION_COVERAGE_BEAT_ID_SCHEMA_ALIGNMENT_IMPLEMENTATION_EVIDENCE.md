@@ -6,7 +6,16 @@
 
 **Base:** `be2d7e445de37d08811f1640901e12c449586d1a`
 
-**Status:** local green; independent Claude Code review pending
+**Status:** superseded by Claude Code HOLD on `2072fd52`
+
+> **Superseded correction record:** Claude Code reviewed the implementation at
+> commit `2072fd52` and returned HOLD because the coverage `$ref` was dangling
+> in two self-contained provider payloads and the compatibility profile did not
+> validate reference reachability. This file is retained as the historical
+> evidence submitted for that review; its claims that every coverage site used
+> a resolvable shared `$ref` and that compatibility was green are not current.
+> The corrective evidence is recorded in
+> `R1D_ACTION_COVERAGE_BEAT_ID_REF_REACHABILITY_CORRECTION_EVIDENCE.md`.
 
 ## Outcome
 

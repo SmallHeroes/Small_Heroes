@@ -3,29 +3,47 @@ import { z } from 'zod';
 import { zodTextFormat } from 'openai/helpers/zod';
 
 import {
+  TEMPLATE_DRAFT_BEAT_ID_PATTERN,
   TEMPLATE_DRAFT_JSON_SCHEMA,
+  TEMPLATE_DRAFT_SCHEMA_NAME,
   TEMPLATE_DRAFT_SCHEMA_VERSION,
 } from '@/lib/visual-contract-compiler/templateDraftSchema';
 import {
   SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+  SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
   SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_VERSION,
 } from '@/lib/visual-contract-compiler/sourceEvidenceIdRepair';
 import {
   PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+  PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
   PAGE_CONTRACT_REPAIR_SCHEMA_VERSION,
   PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+  PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
   PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
 import {
   BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+  BOOK_SURFACE_REPAIR_SCHEMA_NAME,
   BOOK_SURFACE_REPAIR_SCHEMA_VERSION,
 } from '@/lib/visual-contract-compiler/bookSurfaceRepair';
 import {
   STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+  STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
   STRUCTURAL_BUNDLE_REPAIR_SCHEMA_VERSION,
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
 import {
+  PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+  PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+  PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION,
+} from '@/lib/visual-contract-compiler/presentationRequirementRepair';
+import {
+  STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
+  STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
+  STABLE_PROP_SCOPE_REPAIR_SCHEMA_VERSION,
+} from '@/lib/visual-contract-compiler/stablePropScopeRepair';
+import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+  PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
 } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
 import {
@@ -123,7 +141,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
 
   it('positive-controls the fully serialized current Visual Contract and Blueprint schemas', () => {
     expect(TEMPLATE_DRAFT_SCHEMA_VERSION).toBe(
-      'vc-draft-schema/v19',
+      'vc-draft-schema/v20',
     );
     expect(PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION).toBe(
       'pre-render-blueprint-draft-schema/v6',
@@ -132,7 +150,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       'source-evidence-id-repair-schema/v1',
     );
     expect(PAGE_CONTRACT_REPAIR_SCHEMA_VERSION).toBe(
-      'page-contract-repair-schema/v2',
+      'page-contract-repair-schema/v3',
     );
     expect(PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION).toBe(
       'page-spatial-reference-repair-schema/v1',
@@ -141,7 +159,13 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       'book-surface-repair-schema/v6',
     );
     expect(STRUCTURAL_BUNDLE_REPAIR_SCHEMA_VERSION).toBe(
-      'structural-bundle-repair-schema/v3',
+      'structural-bundle-repair-schema/v4',
+    );
+    expect(PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION).toBe(
+      'presentation-requirement-repair-schema/v1',
+    );
+    expect(STABLE_PROP_SCOPE_REPAIR_SCHEMA_VERSION).toBe(
+      'stable-prop-scope-repair-schema/v1',
     );
 
     for (const schema of [
@@ -151,6 +175,8 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
       BOOK_SURFACE_REPAIR_JSON_SCHEMA,
       STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+      PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+      STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
       PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     ]) {
       const serialized = JSON.parse(
@@ -187,6 +213,67 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
           .limits.maximumEnumValues,
       );
     }
+  });
+
+  it('keeps every named provider payload free of unresolvable local references', () => {
+    const payloads = new Map<string, Record<string, unknown>>([
+      [TEMPLATE_DRAFT_SCHEMA_NAME, TEMPLATE_DRAFT_JSON_SCHEMA],
+      [
+        SOURCE_EVIDENCE_ID_REPAIR_SCHEMA_NAME,
+        SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
+      ],
+      [PAGE_CONTRACT_REPAIR_SCHEMA_NAME, PAGE_CONTRACT_REPAIR_JSON_SCHEMA],
+      [
+        PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
+        PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
+      ],
+      [BOOK_SURFACE_REPAIR_SCHEMA_NAME, BOOK_SURFACE_REPAIR_JSON_SCHEMA],
+      [
+        STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
+        STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
+      ],
+      [
+        PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
+        PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+      ],
+      [
+        STABLE_PROP_SCOPE_REPAIR_SCHEMA_NAME,
+        STABLE_PROP_SCOPE_REPAIR_JSON_SCHEMA,
+      ],
+      [
+        PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
+        PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+      ],
+    ]);
+
+    for (const [name, schema] of payloads) {
+      const evidence =
+        evaluateOpenAIResponsesStructuredOutputSchemaCompatibility(
+          schema,
+        );
+      expect(
+        evidence.issues.filter(
+          (issue) => issue.ruleId === 'OAI_SO_REFERENCE_INVALID',
+        ),
+        name,
+      ).toEqual([]);
+      expect(evidence.status, name).toBe('compatible');
+    }
+
+    const initialPage = (TEMPLATE_DRAFT_JSON_SCHEMA as any)
+      .properties.pageContracts.items.properties;
+    const repairPage = (PAGE_CONTRACT_REPAIR_JSON_SCHEMA as any)
+      .properties.pageContracts.items.properties;
+    const expectedBeatIdSchema = {
+      type: 'string',
+      pattern: TEMPLATE_DRAFT_BEAT_ID_PATTERN,
+    };
+    expect(
+      initialPage.actionSemanticCoverage.items.properties.beatId,
+    ).toEqual(expectedBeatIdSchema);
+    expect(
+      repairPage.actionSemanticCoverage.items.properties.beatId,
+    ).toEqual(expectedBeatIdSchema);
   });
 
   it('uses an explicit matching type for every production const, including the Blueprint boolean literal', () => {
@@ -413,8 +500,32 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       schema: withProperty({ $ref: 'https://invalid.example/schema' }),
       rule: 'OAI_SO_REFERENCE_INVALID',
     },
+    {
+      label: 'local reference does not resolve',
+      schema: withProperty({ $ref: '#/$defs/does_not_exist' }),
+      rule: 'OAI_SO_REFERENCE_INVALID',
+    },
+    {
+      label: 'local reference has an invalid JSON Pointer escape',
+      schema: {
+        ...objectSchema({ linked: { $ref: '#/$defs/bad~2name' } }),
+        $defs: { 'bad~2name': { type: 'string' } },
+      },
+      rule: 'OAI_SO_REFERENCE_INVALID',
+    },
   ])('rejects $label with a stable rule identifier', ({ schema, rule }) => {
     expectRule(schema, rule);
+  });
+
+  it('resolves escaped JSON Pointer definition names without leaking them', () => {
+    const schema = {
+      ...objectSchema({ linked: { $ref: '#/$defs/a~1b~0c' } }),
+      $defs: { 'a/b~c': { type: 'string' } },
+    };
+    expect(
+      assertOpenAIResponsesStructuredOutputSchemaCompatible(schema)
+        .status,
+    ).toBe('compatible');
   });
 
   it('enforces each quantitative limit in the compatibility profile', () => {

@@ -201,7 +201,7 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v47' as const;
+  'visual-contract-authoring-request/v48' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v50' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
@@ -299,6 +299,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V45 =
   'visual-contract-authoring-request/v45' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V46 =
   'visual-contract-authoring-request/v46' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V47 =
+  'visual-contract-authoring-request/v47' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -1113,7 +1115,8 @@ export function visualContractAuthoringArtifactVersionStatus(
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V43 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V44 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V45 ||
-        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V46
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V46 ||
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V47
       ? 'legacy_immutable'
       : 'unsupported';
   }

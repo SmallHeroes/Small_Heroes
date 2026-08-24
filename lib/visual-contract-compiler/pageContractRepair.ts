@@ -23,7 +23,7 @@ import { SOURCE_EVIDENCE_ID_PATTERN } from './sourceEvidenceCatalog';
 import { canonicalize } from '@/lib/canonical-json';
 
 export const PAGE_CONTRACT_REPAIR_SCHEMA_VERSION =
-  'page-contract-repair-schema/v2' as const;
+  'page-contract-repair-schema/v3' as const;
 export const PAGE_CONTRACT_REPAIR_SCHEMA_NAME =
   'PageContractRepairPatches' as const;
 export const PAGE_CONTRACT_REPAIR_PROMPT_VERSION =

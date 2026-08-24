@@ -14,7 +14,7 @@ import {
 } from './pageContractRepair';
 
 export const STRUCTURAL_BUNDLE_REPAIR_SCHEMA_VERSION =
-  'structural-bundle-repair-schema/v3' as const;
+  'structural-bundle-repair-schema/v4' as const;
 export const STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME =
   'StructuralBundleRepairPatch' as const;
 export const STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION =

@@ -1,9 +1,9 @@
 import { canonicalJsonDigest } from './integrity';
 
 export const OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION =
-  'openai-responses-structured-output-compatibility-profile/v1' as const;
+  'openai-responses-structured-output-compatibility-profile/v2' as const;
 export const OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION =
-  'openai-responses-structured-output-compatibility-evidence/v1' as const;
+  'openai-responses-structured-output-compatibility-evidence/v2' as const;
 
 export const OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE = {
   version:
@@ -276,6 +276,34 @@ function withoutEvidenceDigest(
   return value;
 }
 
+function decodeJsonPointerToken(value: string): string | null {
+  if (/~(?:[^01]|$)/u.test(value)) return null;
+  return value.replace(/~1/gu, '/').replace(/~0/gu, '~');
+}
+
+function localSchemaReferenceResolves(
+  root: unknown,
+  reference: string,
+): boolean {
+  if (reference === '#') return true;
+  if (!reference.startsWith('#/')) return false;
+
+  let current: unknown = root;
+  for (const encodedToken of reference.slice(2).split('/')) {
+    const token = decodeJsonPointerToken(encodedToken);
+    if (
+      token === null ||
+      current === null ||
+      typeof current !== 'object' ||
+      !Object.prototype.hasOwnProperty.call(current, token)
+    ) {
+      return false;
+    }
+    current = (current as Record<string, unknown>)[token];
+  }
+  return true;
+}
+
 export function evaluateOpenAIResponsesStructuredOutputSchemaCompatibility(
   schema: unknown,
 ): OpenAIResponsesStructuredOutputCompatibilityEvidence {
@@ -370,9 +398,16 @@ export function evaluateOpenAIResponsesStructuredOutputSchemaCompatibility(
       }
 
       if (hasRef) {
-        if (
+        const invalidReferenceSyntax =
           typeof node.$ref !== 'string' ||
-          (node.$ref !== '#' && !node.$ref.startsWith('#/$defs/'))
+          (node.$ref !== '#' && !node.$ref.startsWith('#/$defs/'));
+        if (
+          invalidReferenceSyntax ||
+          (typeof node.$ref === 'string' &&
+            !localSchemaReferenceResolves(
+              serialized.serialized,
+              node.$ref,
+            ))
         ) {
           add('OAI_SO_REFERENCE_INVALID', structuralPath);
         }
