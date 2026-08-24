@@ -4,6 +4,60 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-chameleon-v3-live-authoring` in `C:\GNart\Work\sh-live-chameleon-v3`, based on pushed accepted-v3 authoring head `be2d7e445de37d08811f1640901e12c449586d1a`.
 
+## DEFERRED-REPRESENTED BOOKSURFACE SCHEDULER — OFFLINE GREEN; AWAITING INDEPENDENT QA
+
+The bounded paid attempt at
+`outputs/r1d-chameleon-v3-live-20260824T221642600Z` made four provider calls
+and correctly stopped before Candidate minting when its complete unique issue
+census regressed from 11 to 16. Its route was
+`initial -> book_surface_patch -> page_spatial_reference_patch -> full_draft`;
+the complete census was `21 -> 12 -> 11 -> 16`. No further paid attempt was
+made.
+
+Diagnosis isolated a scheduler contradiction, not a new binder defect. At the
+11-issue frontier, all capability gaps were already closed. Five deferred
+represented-elsewhere diagnostics coexisted with six independently
+BookSurface-writable structural diagnostics. The scheduler's adjacent comment
+and per-issue predicate permit that population, but an unconditional
+`capabilityGapPages.size > 0` conjunct suppressed BookSurface once the gap set
+became empty and forced the broader `full_draft` route.
+
+Guy approved a focused `$0` correction. The standalone conjunct is removed;
+the existing per-issue rule still admits `coverage_missing` only on an actual
+capability-gap page, and the existing closed BookSurface writable-cause set is
+unchanged. A production-compiler offline harness now proves the exact
+`11 -> 5 -> 0` complete/surfaced census through
+`initial -> book_surface_patch -> page_contract_patch`, Candidate outcome,
+monotonic non-positive delta and `providerCalls: 0`. The BookSurface response
+cannot edit `actionSemanticCoverage`; the five represented identities persist
+exactly, including their closed locators, until the existing compiler-bounded
+PageContract lane closes them.
+
+Counterexamples prove that zero-gap `coverage_missing` and a non-BookSurface
+root cause still block BookSurface and route to `full_draft`. An exact
+BookSurface fixed point remains bounded: the same canonical draft plus the
+same complete diagnostic fingerprint terminates as `repair_stagnated` after
+two offline calls at `2 -> 2`. The offline harness passes 15/15; nine focused
+compiler/repair files pass 245/245; TypeScript and `git diff --check` pass.
+Repository-wide `npm run check` retains the recorded non-zero
+infrastructure/historical baseline: ordinary passes 285 files / 3,583 tests,
+skips 17 files / 70 tests, and has the same 10 failures (nine absent ignored
+historical-output assertions across five unchanged fixture-reading files and
+the unchanged Blueprint-migration assertion exceeding the ordinary
+five-second limit). The four new passing harness tests exactly explain
+the rise from the recorded 3,579-pass baseline. The resource-intensive
+partition's 20 files and 611 assertions pass before the two known Vitest
+`onTaskUpdate` RPC timeouts; the unchanged Blueprint suite passes 8/8 in
+16.62 seconds under its established 30-second diagnostic allowance, and no
+changed file fails. No prompt, schema, provider, policy, budget, call count,
+receipt/readiness version, Candidate, Wizard, render, package, locator,
+database or deployment surface changed. No credential, provider, network,
+live, image, audio or render operation occurred. Durable records:
+`docs/ai-workflow/R1D_DEFERRED_REPRESENTED_BOOK_SURFACE_SCHEDULER_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_DEFERRED_REPRESENTED_BOOK_SURFACE_SCHEDULER_IMPLEMENTATION_EVIDENCE.md`.
+Independent Claude Code falsification is required before any new paid attempt.
+
 ## INITIAL/FULL-DRAFT SAME-PAGE DISPOSITION BINDING — OFFLINE GREEN; AWAITING INDEPENDENT QA
 
 The failed paid attempt's complete initial census contained 21 unique issues:

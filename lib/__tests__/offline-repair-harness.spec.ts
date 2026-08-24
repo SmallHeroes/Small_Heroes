@@ -763,6 +763,346 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.providerCalls).toBe(0);
   });
 
+  it('routes the live-shaped zero-gap 11 issue frontier through BookSurface then PageContract with delta 11 to 5 to 0', async () => {
+    const valid = bunnyDraft();
+    const initial = structuredClone(valid);
+    for (const page of initial.pageContracts) {
+      delete page.castIds;
+      delete page.characterPresence;
+      delete page.castStates;
+      page.propConstraints ??= [];
+      page.actionRequirements ??= [];
+    }
+
+    const representedPages = initial.pageContracts.slice(0, 5);
+    const structuralPages = initial.pageContracts.slice(0, 6);
+    for (const [index, page] of structuralPages.entries()) {
+      page.camera = '';
+      if (index < representedPages.length) {
+        const coverage = page.actionSemanticCoverage as Array<
+          Record<string, unknown>
+        >;
+        coverage[0]!.disposition = {
+          kind: 'represented_elsewhere',
+          representedValue: `offline-unbound-value-p${String(page.pageNumber)}`,
+        };
+      }
+    }
+
+    const bookSurfaceResponse = {
+      presentationPatches: [],
+      coverContract: null,
+      recurringProps: null,
+      pageStructuralPatches: structuralPages.map((page, index) => ({
+        pageNumber: page.pageNumber,
+        locationId: null,
+        zoneId: null,
+        sameLocationAs: null,
+        mustShow: structuredClone(valid.pageContracts[index]!.mustShow),
+        mustNotShow: structuredClone(
+          valid.pageContracts[index]!.mustNotShow,
+        ),
+        propState: null,
+        propConstraints: null,
+        actionRequirements: null,
+        camera: valid.pageContracts[index]!.camera,
+        transition: null,
+      })),
+    };
+    const representedRepairPages = representedPages.map((page, index) => {
+      const repairedPage = structuredClone(page);
+      repairedPage.camera = valid.pageContracts[index]!.camera;
+      const coverage = repairedPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+      coverage[0]!.disposition = {
+        kind: 'represented_elsewhere',
+        contractPointer: `/pageContracts/${String(index)}/locationId`,
+        contractValue: repairedPage.locationId,
+      };
+      return repairedPage;
+    });
+    const representedIssues = representedPages.map((page, itemIndex) => ({
+      family: 'action_semantic',
+      code: 'represented_elsewhere_pointer_out_of_scope',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_action_semantic_coverage',
+        fieldRole: 'reference',
+        pageNumber: page.pageNumber as number,
+        itemIndex,
+      },
+    })) satisfies DraftValidationIssue[];
+    const structuralIssues = structuralPages.map((page) => ({
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: page.pageNumber as number,
+      },
+      causes: ['page_steering_invalid'],
+    })) satisfies DraftValidationIssue[];
+
+    const result = await runOfflineRepairHarness({
+      input: bunnySource(),
+      initialDraft: initial,
+      repairResponses: [
+        bookSurfaceResponse,
+        { pageContracts: representedRepairPages },
+      ],
+      completeDiagnosticIssuesByAttempt: [
+        [...representedIssues, ...structuralIssues],
+        representedIssues,
+        [],
+      ],
+    });
+
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'book_surface_patch',
+      'page_contract_patch',
+    ]);
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'candidate',
+      completeCensusCoverage: 'complete',
+      monotonicCompleteIssueDelta: true,
+      maxPositiveCompleteIssueDelta: 0,
+      finalCompleteIssueCount: 0,
+    });
+    expect(result.calls.map((call) => call.kind)).toEqual([
+      'initial',
+      'repair',
+      'repair',
+    ]);
+    expect(result.stages.map((stage) => ({
+      nextRepairMode: stage.nextRepairMode,
+      surfacedIssueCount: stage.surfacedIssueCount,
+      completeIssueCount: stage.completeIssueCount,
+      completeDelta: stage.completeDelta,
+    }))).toEqual([
+      {
+        nextRepairMode: 'book_surface_patch',
+        surfacedIssueCount: 11,
+        completeIssueCount: 11,
+        completeDelta: null,
+      },
+      {
+        nextRepairMode: 'page_contract_patch',
+        surfacedIssueCount: 5,
+        completeIssueCount: 5,
+        completeDelta: -6,
+      },
+      {
+        nextRepairMode: null,
+        surfacedIssueCount: 0,
+        completeIssueCount: 0,
+        completeDelta: -5,
+      },
+    ]);
+    expect(result.stages[0]!.surfacedDiagnosticIssues.filter(
+      (issue) =>
+        issue.family === 'action_semantic' &&
+        issue.code === 'represented_elsewhere_pointer_out_of_scope',
+    )).toEqual(representedIssues);
+    expect(result.stages[1]!.surfacedDiagnosticIssues).toEqual(
+      representedIssues,
+    );
+    expect(JSON.stringify(bookSurfaceResponse)).not.toContain(
+      'actionSemanticCoverage',
+    );
+  });
+
+  it('does not admit BookSurface when coverage_missing is not bound to a capability-gap page', async () => {
+    const input = bunnySource();
+    const initial = bunnyDraft();
+    for (const page of initial.pageContracts) {
+      delete page.castIds;
+      delete page.characterPresence;
+      delete page.castStates;
+      page.propConstraints ??= [];
+      page.actionRequirements ??= [];
+    }
+    initial.pageContracts[0]!.camera = '';
+    initial.pageContracts[0]!.actionSemanticCoverage = [];
+
+    const result = await runOfflineRepairHarness({
+      input,
+      initialDraft: initial,
+      repairResponses: [bunnyDraft()],
+      completeDiagnosticIssuesByAttempt: [
+        [CAPABILITY_COVERAGE_MISSING, PAGE_STEERING_INVALID],
+        [],
+      ],
+    });
+
+    expect(result.providerCalls).toBe(0);
+    expect(result.outcome).toBe('candidate');
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'full_draft',
+    ]);
+    expect(result.calls.some(
+      (call) => call.repairMode === 'book_surface_patch',
+    )).toBe(false);
+  });
+
+  it('does not admit BookSurface when deferred represented coverage coexists with a non-BookSurface root cause', async () => {
+    const input = bunnySource();
+    delete (input as unknown as Record<string, unknown>).worldType;
+    const initial = bunnyDraft();
+    initial.worldType = '';
+    for (const page of initial.pageContracts) {
+      delete page.castIds;
+      delete page.characterPresence;
+      delete page.castStates;
+      page.propConstraints ??= [];
+      page.actionRequirements ??= [];
+    }
+    const coverage = initial.pageContracts[0]!
+      .actionSemanticCoverage as Array<Record<string, unknown>>;
+    coverage[0]!.disposition = {
+      kind: 'represented_elsewhere',
+      representedValue: 'offline-unbound-root-counterexample',
+    };
+    const representedIssue = {
+      family: 'action_semantic',
+      code: 'represented_elsewhere_pointer_out_of_scope',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_action_semantic_coverage',
+        fieldRole: 'reference',
+        pageNumber: 1,
+        itemIndex: 0,
+      },
+    } satisfies DraftValidationIssue;
+
+    const result = await runOfflineRepairHarness({
+      input,
+      initialDraft: initial,
+      repairResponses: [bunnyDraft()],
+      completeDiagnosticIssuesByAttempt: [
+        [WORLD_TYPE_MISSING, representedIssue],
+        [],
+      ],
+    });
+
+    expect(result.providerCalls).toBe(0);
+    expect(result.outcome).toBe('candidate');
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'full_draft',
+    ]);
+    expect(result.calls.some(
+      (call) => call.repairMode === 'book_surface_patch',
+    )).toBe(false);
+  });
+
+  it('stops an exact zero-gap BookSurface fixed point after two offline calls', async () => {
+    const initial = bunnyDraft();
+    for (const page of initial.pageContracts) {
+      delete page.castIds;
+      delete page.characterPresence;
+      delete page.castStates;
+      page.propConstraints ??= [];
+      page.actionRequirements ??= [];
+    }
+    const page1 = initial.pageContracts[0]!;
+    const invalidConstraints = [{
+      propId: 'prop:offline_unknown',
+      visibility: 'required',
+    }];
+    page1.propConstraints = invalidConstraints;
+    const coverage = page1.actionSemanticCoverage as Array<
+      Record<string, unknown>
+    >;
+    coverage[0]!.disposition = {
+      kind: 'represented_elsewhere',
+      representedValue: 'offline-unbound-stagnation',
+    };
+    const representedIssue = {
+      family: 'action_semantic',
+      code: 'represented_elsewhere_pointer_out_of_scope',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_action_semantic_coverage',
+        fieldRole: 'reference',
+        pageNumber: 1,
+        itemIndex: 0,
+      },
+    } satisfies DraftValidationIssue;
+    const structuralIssue = {
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: 1,
+      },
+      causes: ['page_prop_constraints_invalid'],
+    } satisfies DraftValidationIssue;
+    const unchangedBookSurfaceResponse = {
+      presentationPatches: [],
+      coverContract: null,
+      recurringProps: null,
+      pageStructuralPatches: [{
+        pageNumber: 1,
+        locationId: null,
+        zoneId: null,
+        sameLocationAs: null,
+        mustShow: null,
+        mustNotShow: null,
+        propState: null,
+        propConstraints: structuredClone(invalidConstraints),
+        actionRequirements: null,
+        camera: null,
+        transition: null,
+      }],
+    };
+
+    const result = await runOfflineRepairHarness({
+      input: bunnySource(),
+      initialDraft: initial,
+      repairResponses: [unchangedBookSurfaceResponse, bunnyDraft()],
+      completeDiagnosticIssuesByAttempt: [
+        [representedIssue, structuralIssue],
+        [representedIssue, structuralIssue],
+      ],
+    });
+
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'repair_stagnated',
+      completeCensusCoverage: 'complete',
+      monotonicCompleteIssueDelta: true,
+      maxPositiveCompleteIssueDelta: 0,
+      finalCompleteIssueCount: 2,
+    });
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'book_surface_patch',
+    ]);
+    expect(result.stages.map((stage) => ({
+      nextRepairMode: stage.nextRepairMode,
+      completeIssueCount: stage.completeIssueCount,
+      completeDelta: stage.completeDelta,
+    }))).toEqual([
+      {
+        nextRepairMode: 'book_surface_patch',
+        completeIssueCount: 2,
+        completeDelta: null,
+      },
+      {
+        nextRepairMode: null,
+        completeIssueCount: 2,
+        completeDelta: 0,
+      },
+    ]);
+  });
+
   it('closes a typed prop-constraint violation through BookSurface with non-positive complete-census delta', async () => {
     const initial = bunnyDraft();
     for (const page of initial.pageContracts) {

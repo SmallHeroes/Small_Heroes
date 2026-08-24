@@ -1331,7 +1331,6 @@ function semanticCoverageIssuesAllowIndependentBookSurfaceRepair(args: {
 }): boolean {
   return (
     args.issues.length > 0 &&
-    args.capabilityGapPages.size > 0 &&
     args.issues.every(
       (issue) =>
         issue.family === 'action_semantic' &&
