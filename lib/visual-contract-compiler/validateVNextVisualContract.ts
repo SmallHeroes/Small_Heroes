@@ -32,11 +32,16 @@ import {
   draftValidationIssueIsValid,
   type DraftValidationIssue,
   type PageFinalStructuralCause,
+  type PageTransitionStructuralCause,
 } from './draftValidationDiagnostics';
+import {
+  analyzePageTransition,
+  analyzeTransitionSequence,
+  type PageTransitionFinding,
+} from './transitionAnalysis';
 import type {
   BookVisualContract,
   EnvironmentClass,
-  PageTransition,
   PageVisualContract,
   RecurringHumanCastMember,
 } from './types';
@@ -79,12 +84,6 @@ export function isInvalidVNextVisualContractError(
   );
 }
 
-const TRANSITION_KINDS = new Set<PageTransition['kind']>([
-  'steady',
-  'before_transition',
-  'threshold',
-  'after_transition',
-]);
 const HUMAN_GENDERS = new Set<RecurringHumanCastMember['gender']>([
   'male',
   'female',
@@ -110,8 +109,9 @@ function repeatIssueForNewErrors(
 function pageFinalStructuralIssue(
   page: PageVisualContract,
   pageIndex: number,
-  cause: PageFinalStructuralCause,
+  cause: PageFinalStructuralCause | readonly PageFinalStructuralCause[],
 ): DraftValidationIssue {
+  const causes = [...new Set(Array.isArray(cause) ? cause : [cause])].sort();
   return typeof page.pageNumber === 'number' &&
     Number.isSafeInteger(page.pageNumber) &&
     page.pageNumber > 0
@@ -123,7 +123,7 @@ function pageFinalStructuralIssue(
           fieldRole: 'final_structure',
           pageNumber: page.pageNumber,
         },
-        causes: [cause],
+        causes,
       }
     : {
         family: 'draft_contract',
@@ -137,6 +137,24 @@ function pageFinalStructuralIssue(
       };
 }
 
+function appendTransitionFindings(args: {
+  page: PageVisualContract;
+  pageIndex: number;
+  findings: readonly PageTransitionFinding[];
+  errors: string[];
+  diagnosticIssues: DraftValidationIssue[];
+}): void {
+  for (const finding of args.findings) {
+    args.errors.push(finding.message);
+    args.diagnosticIssues.push(
+      pageFinalStructuralIssue(args.page, args.pageIndex, [
+        'page_transition_invalid',
+        finding.cause as PageTransitionStructuralCause,
+      ]),
+    );
+  }
+}
+
 /** Collect every id a per-page `castIds[]` entry is allowed to resolve to. */
 function collectCastIds(contract: BookVisualContract): Set<string> {
   const ids = new Set<string>();
@@ -146,60 +164,6 @@ function collectCastIds(contract: BookVisualContract): Set<string> {
     if (isStr(member?.id)) ids.add(member.id);
   }
   return ids;
-}
-
-function validateTransition(
-  label: string,
-  page: PageVisualContract,
-  zoneIds: Set<string>,
-  errors: string[],
-): void {
-  const t = page.transition;
-  if (t == null) return; // absent === steady; nothing to check
-  if (typeof t !== 'object' || Array.isArray(t) || !TRANSITION_KINDS.has(t.kind)) {
-    errors.push(`${label}.transition.kind invalid (${String((t as PageTransition)?.kind)})`);
-    return;
-  }
-  if (t.kind === 'steady') {
-    // A steady page must not sit in a "destination" — it declares no move.
-    if (isStr(t.toZoneId)) {
-      errors.push(`${label} is steady but declares a destination zone "${t.toZoneId}"`);
-    }
-    return;
-  }
-  // Non-steady: from/to must exist and differ.
-  if (!isStr(t.fromZoneId) || !zoneIds.has(t.fromZoneId)) {
-    errors.push(`${label}.transition.fromZoneId "${String(t.fromZoneId)}" is not a declared zone`);
-  }
-  if (!isStr(t.toZoneId) || !zoneIds.has(t.toZoneId)) {
-    errors.push(`${label}.transition.toZoneId "${String(t.toZoneId)}" is not a declared zone`);
-  }
-  if (isStr(t.fromZoneId) && isStr(t.toZoneId) && t.fromZoneId === t.toZoneId) {
-    errors.push(`${label}.transition from/to zones must differ ("${t.fromZoneId}")`);
-  }
-  // Zone alignment per kind: before → origin, after → destination, threshold → either endpoint.
-  if (t.kind === 'before_transition') {
-    if (isStr(t.toZoneId) && page.zoneId === t.toZoneId) {
-      errors.push(`${label} is before_transition but already sits in the destination zone "${t.toZoneId}"`);
-    }
-    if (isStr(t.fromZoneId) && isStr(page.zoneId) && page.zoneId !== t.fromZoneId) {
-      errors.push(`${label} before_transition zone "${page.zoneId}" must be the origin "${t.fromZoneId}"`);
-    }
-  } else if (t.kind === 'after_transition') {
-    if (isStr(t.toZoneId) && isStr(page.zoneId) && page.zoneId !== t.toZoneId) {
-      errors.push(`${label} after_transition zone "${page.zoneId}" must be the destination "${t.toZoneId}"`);
-    }
-  } else if (t.kind === 'threshold') {
-    if (
-      isStr(page.zoneId) &&
-      isStr(t.fromZoneId) &&
-      isStr(t.toZoneId) &&
-      page.zoneId !== t.fromZoneId &&
-      page.zoneId !== t.toZoneId
-    ) {
-      errors.push(`${label} threshold zone "${page.zoneId}" must be the origin or the destination`);
-    }
-  }
 }
 
 function validateHumanCast(
@@ -442,14 +406,17 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
     );
 
     // (3) transitions well-formed.
-    const errorCountBeforeTransition = errors.length;
-    validateTransition(label, page, zoneIds, errors);
-    repeatIssueForNewErrors(
+    appendTransitionFindings({
+      page,
+      pageIndex,
+      findings: analyzePageTransition({
+        label,
+        page,
+        declaredZoneIds: zoneIds,
+      }),
       errors,
-      errorCountBeforeTransition,
       diagnosticIssues,
-      pageFinalStructuralIssue(page, pageIndex, 'page_transition_invalid'),
-    );
+    });
   }
 
   // (2d) CROSS-FIELD fail-closed: a page whose `mustShow` POSITIVELY references a cast member declared ABSENT (its
@@ -509,77 +476,18 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
   // This closes the "undeclared scene move" hole (a steady page teleporting to another zone/location without a
   // transition) and, by induction from the first page, guarantees a page can never sit in a zone the story has
   // not transitioned into. The first page establishes the opening zone (nothing precedes it).
-  {
-    const pagesSorted = [...(contract.pageContracts ?? []).entries()]
-      .filter(([, page]) => typeof page.pageNumber === 'number')
-      .sort(([, left], [, right]) => left.pageNumber - right.pageNumber);
-    const establishedZones = new Set<string>();
-    let previousZone: string | undefined;
-    let previousPage: number | undefined;
-    let lastThresholdEdge: { fromZoneId: string; toZoneId: string } | undefined;
-    for (const [pageIndex, p] of pagesSorted) {
-      const errorCountBeforePageContinuity = errors.length;
-      const kind: PageTransition['kind'] = p.transition?.kind ?? 'steady';
-      // (C2) The opening page establishes the origin — nothing precedes it — so it CANNOT declare a DEPARTING move.
-      // A threshold/after_transition first page would depart from an origin no prior page established (the per-page
-      // "departs from an established zone" check below is SKIPPED while previousZone is undefined). steady and
-      // before_transition (which declare no move and stand in the origin) remain valid on page 1.
-      if (previousZone === undefined && (kind === 'threshold' || kind === 'after_transition')) {
-        errors.push(
-          `page ${p.pageNumber} declares a ${kind} transition with no established origin — the opening page must be steady or before_transition (nothing precedes it to depart from)`,
-        );
-      }
-      if (previousZone !== undefined && isStr(p.zoneId)) {
-        if (kind === 'steady' || kind === 'before_transition') {
-          if (p.zoneId !== previousZone) {
-            errors.push(
-              `page ${p.pageNumber} moves to zone "${p.zoneId}" from "${previousZone}" (page ${previousPage}) without a transition — a ${kind} page declares no move (undeclared scene move)`,
-            );
-          }
-          lastThresholdEdge = undefined;
-        } else {
-          const from = p.transition?.fromZoneId;
-          const to = p.transition?.toZoneId;
-          if (isStr(from) && !establishedZones.has(from)) {
-            errors.push(
-              `page ${p.pageNumber} (${kind}) departs from "${from}" but that zone has not been established yet`,
-            );
-          }
-          const continuesThreshold =
-            kind === 'after_transition' &&
-            isStr(from) &&
-            isStr(to) &&
-            lastThresholdEdge?.fromZoneId === from &&
-            lastThresholdEdge.toZoneId === to;
-          if (isStr(from) && from !== previousZone && !continuesThreshold) {
-            errors.push(
-              `page ${p.pageNumber} (${kind}) departs from "${from}" but the previous page (${previousPage}) was in "${previousZone}" — the move is not continuous (undeclared scene move)`,
-            );
-          }
-          if (kind === 'threshold' && isStr(from) && isStr(to)) {
-            lastThresholdEdge = { fromZoneId: from, toZoneId: to };
-          } else {
-            lastThresholdEdge = undefined;
-          }
-          if (isStr(to)) establishedZones.add(to);
-        }
-      }
-      if (isStr(p.zoneId)) {
-        establishedZones.add(p.zoneId);
-        previousZone = p.zoneId;
-        previousPage = p.pageNumber;
-      }
-      repeatIssueForNewErrors(
-        errors,
-        errorCountBeforePageContinuity,
-        diagnosticIssues,
-        pageFinalStructuralIssue(
-          p,
-          pageIndex,
-          'page_transition_invalid',
-        ),
-      );
-    }
+  for (const analysis of analyzeTransitionSequence(
+    [...(contract.pageContracts ?? []).entries()].map(
+      ([pageIndex, page]) => ({ page, pageIndex }),
+    ),
+  )) {
+    appendTransitionFindings({
+      page: contract.pageContracts[analysis.pageIndex]!,
+      pageIndex: analysis.pageIndex,
+      findings: analysis.findings,
+      errors,
+      diagnosticIssues,
+    });
   }
 
   if (errors.length > 0) {

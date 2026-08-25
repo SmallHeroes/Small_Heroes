@@ -4,15 +4,16 @@ import type {
   DraftValidationIssue,
   PageFinalStructuralCause,
 } from '@/lib/visual-contract-compiler/draftValidationDiagnostics';
+import { PAGE_TRANSITION_STRUCTURAL_CAUSES } from '@/lib/visual-contract-compiler/draftValidationDiagnostics';
 import {
   BOOK_SURFACE_REPAIR_JSON_SCHEMA,
   BOOK_SURFACE_REPAIR_PROMPT_VERSION,
   BOOK_SURFACE_REPAIR_SCHEMA_VERSION,
   BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION,
-  applyBookSurfaceRepairPatch,
+  applyBookSurfaceRepairPatch as applyBookSurfaceRepairPatchWithAuthorityDraft,
   bookSurfaceRepairAuthority,
   buildBookSurfaceRepairSystemPrompt,
-  buildBookSurfaceRepairUserPrompt,
+  buildBookSurfaceRepairUserPrompt as buildBookSurfaceRepairUserPromptWithPrivateAuthority,
   decodeBookSurfaceRepairUserPrompt,
   parseBookSurfaceRepairPatch,
   type BookSurfaceRepairAuthority,
@@ -30,6 +31,43 @@ import {
   visualContractAuthoringRouteIsAdmissible,
 } from '@/lib/visual-contract-compiler/authoringPolicy';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
+import {
+  analyzePageTransition,
+  analyzeTransitionSequence,
+} from '@/lib/visual-contract-compiler/transitionAnalysis';
+import type { PageVisualContract } from '@/lib/visual-contract-compiler/types';
+
+function buildBookSurfaceRepairUserPrompt(args: {
+  authority: BookSurfaceRepairAuthority;
+  authorityDraft: Record<string, unknown>;
+  expectedAuthorityDigest?: string;
+}): string {
+  return buildBookSurfaceRepairUserPromptWithPrivateAuthority({
+    authority: args.authority,
+    authorityDraft: args.authorityDraft,
+    expectedAuthorityDigest:
+      args.expectedAuthorityDigest ?? args.authority.authorityDigest,
+  });
+}
+
+// Most unit fixtures use the same bytes for authored and compiler-effective
+// state. Tests that exercise normalization pass authorityDraft explicitly.
+function applyBookSurfaceRepairPatch(args: {
+  draft: Record<string, unknown>;
+  authority: BookSurfaceRepairAuthority;
+  authorityDraft?: Record<string, unknown>;
+  expectedAuthorityDigest?: string;
+  patch: BookSurfaceRepairPatch;
+}): Record<string, unknown> {
+  return applyBookSurfaceRepairPatchWithAuthorityDraft({
+    draft: args.draft,
+    authority: args.authority,
+    authorityDraft: args.authorityDraft ?? args.draft,
+    expectedAuthorityDigest:
+      args.expectedAuthorityDigest ?? args.authority.authorityDigest,
+    patch: args.patch,
+  });
+}
 
 function cover() {
   return {
@@ -87,10 +125,10 @@ function page(pageNumber: number) {
     characterPresence: { child: true, companion: true },
     safetyConstraints: [],
     transition: {
-      kind: 'steady',
-      fromZoneId: null,
-      toZoneId: null,
-      cue: null,
+      kind: pageNumber === 1 ? 'steady' : 'after_transition',
+      fromZoneId: pageNumber === 1 ? null : `zone:${pageNumber - 1}`,
+      toZoneId: pageNumber === 1 ? null : `zone:${pageNumber}`,
+      cue: pageNumber === 1 ? null : `enter zone ${pageNumber}`,
     },
   };
 }
@@ -227,6 +265,15 @@ function structuralPatchFromAuthority(
   );
 }
 
+function finalStructuralRepairTarget(
+  target: BookSurfaceRepairAuthority['affectedPages'][number]['repairTargets'][number],
+) {
+  if (target.code !== 'final_structural_invariant_invalid') {
+    throw new Error('expected final structural repair target');
+  }
+  return target;
+}
+
 const coverProjectionIssue: DraftValidationIssue = {
   family: 'draft_contract',
   code: 'cover_projection_invalid',
@@ -270,6 +317,93 @@ function pageStructureIssueWithCause(
     },
     causes: [cause],
   };
+}
+
+function openingTransitionFailure(value: Record<string, unknown>) {
+  const pages = value.pageContracts as Array<Record<string, unknown>>;
+  pages.find((candidate) => candidate.pageNumber === 1)!.transition = {
+    kind: 'threshold',
+    fromZoneId: 'zone:1',
+    toZoneId: 'zone:2',
+    cue: 'opening departure',
+  };
+  return {
+    issue: {
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: 1,
+      },
+      causes: [
+        'page_transition_invalid',
+        'page_transition_opening_departure_without_origin',
+      ].sort(),
+    } as DraftValidationIssue,
+    message:
+      'page 1 declares a threshold transition with no established origin — the opening page must be steady or before_transition (nothing precedes it to depart from)',
+  };
+}
+
+function analyzedTransitionFailures(value: Record<string, unknown>) {
+  const pages = (value.pageContracts as Array<Record<string, unknown>>).map(
+    (candidate, pageIndex) => ({
+      page: candidate as unknown as PageVisualContract,
+      pageIndex,
+    }),
+  );
+  const declaredZoneIds = new Set(
+    (value.zones as Array<{ id: string }>).map((zone) => zone.id),
+  );
+  const findings = [
+    ...pages.flatMap(({ page }) =>
+      analyzePageTransition({
+        label: `page ${page.pageNumber}`,
+        page,
+        declaredZoneIds,
+      }).map((finding) => ({ pageNumber: page.pageNumber, ...finding })),
+    ),
+    ...analyzeTransitionSequence(pages).flatMap((analysis) =>
+      analysis.findings.map((finding) => ({
+        pageNumber: analysis.pageNumber,
+        ...finding,
+      })),
+    ),
+  ];
+  return {
+    issues: findings.map(
+      ({ pageNumber, cause }) => ({
+        family: 'draft_contract',
+        code: 'final_structural_invariant_invalid',
+        locator: {
+          kind: 'page',
+          fieldRole: 'final_structure',
+          pageNumber,
+        },
+        causes: ['page_transition_invalid', cause].sort(),
+      }) as DraftValidationIssue,
+    ),
+    messages: findings.map(({ message }) => message),
+    findings,
+  };
+}
+
+function transitionAuthorityFor(
+  value: Record<string, unknown>,
+  authorityDraft = value,
+): BookSurfaceRepairAuthority {
+  const failures = analyzedTransitionFailures(authorityDraft);
+  const selected = bookSurfaceRepairAuthority({
+    draft: value,
+    authorityDraft,
+    presentationTargets: [],
+    structuralDiagnosticIssues: failures.issues,
+    structuralValidationMessages: failures.messages,
+  });
+  expect(failures.issues.length).toBeGreaterThan(0);
+  expect(selected).not.toBeNull();
+  return selected!;
 }
 
 function authority(
@@ -332,16 +466,19 @@ function patch(
   };
 }
 
-describe('atomic causal book-surface repair v11 typed input authority', () => {
-  it('publishes the strict v7 bounded-choice schema under v12 prompts with nullable cover/props and no action coverage', () => {
+describe('atomic causal book-surface repair v13 typed input authority', () => {
+  it('publishes the byte-identical strict v7 schema under v13 prompts with nullable cover/props and no action coverage', () => {
     expect(BOOK_SURFACE_REPAIR_SCHEMA_VERSION).toBe(
       'book-surface-repair-schema/v7',
     );
     expect(BOOK_SURFACE_REPAIR_PROMPT_VERSION).toBe(
-      'book-surface-repair-prompt/v12',
+      'book-surface-repair-prompt/v13',
     );
     expect(BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION).toBe(
-      'book-surface-repair-user-prompt/v12',
+      'book-surface-repair-user-prompt/v13',
+    );
+    expect(canonicalJsonDigest(BOOK_SURFACE_REPAIR_JSON_SCHEMA)).toBe(
+      'a1d16581b25d9af14b33fdaa21806713f739212e51afa53643ba4c030739b20f',
     );
     expect(buildBookSurfaceRepairSystemPrompt()).toContain(
       'Return a repaired non-null value only for that page\'s exact writableFields',
@@ -466,7 +603,10 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
       expected,
     );
     const decoded = decodeBookSurfaceRepairUserPrompt(
-      buildBookSurfaceRepairUserPrompt({ authority: selected! }),
+      buildBookSurfaceRepairUserPrompt({
+        authority: selected!,
+        authorityDraft: value,
+      }),
     ) as {
       affectedPages: Array<{ propConstraintViolations: unknown[] }>;
     };
@@ -509,7 +649,10 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
       const { authorityDigest: _digest, ...content } = tampered;
       tampered.authorityDigest = canonicalJsonDigest(content);
       expect(() =>
-        buildBookSurfaceRepairUserPrompt({ authority: tampered }),
+        buildBookSurfaceRepairUserPrompt({
+          authority: tampered,
+          authorityDraft: value,
+        }),
       ).toThrow('book_surface_repair_authority_mismatch');
       expect(() =>
         applyBookSurfaceRepairPatch({
@@ -551,7 +694,10 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
       },
     ]);
     const decoded = decodeBookSurfaceRepairUserPrompt(
-      buildBookSurfaceRepairUserPrompt({ authority: selected }),
+      buildBookSurfaceRepairUserPrompt({
+        authority: selected,
+        authorityDraft: lifecycleDraft,
+      }),
     ) as {
       recurringPropAuthority: {
         lifecycleContext: unknown;
@@ -585,7 +731,7 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
 
   });
 
-  it('maps every closed page cause to its exact writable fields and conditional context', () => {
+  it('maps every non-transition page cause to its exact writable fields', () => {
     const cases: Array<
       [PageFinalStructuralCause, string[] | null]
     > = [
@@ -610,7 +756,6 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
       ['page_projection_containment_invalid', null],
       ['page_cast_binding_invalid', null],
       ['page_human_presence_binding_invalid', null],
-      ['page_transition_invalid', ['transition']],
     ];
     for (const [cause, expectedWritableFields] of cases) {
       const value = draft();
@@ -631,18 +776,305 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
       expect(selected!.affectedPages[0]?.writableFields).toEqual(
         expectedWritableFields,
       );
-      expect(
-        selected!.affectedPages[0]?.readOnlyContext.transitionTopology,
-      ).toEqual(
-        cause === 'page_transition_invalid'
-          ? {
-              previous: null,
-              current: { pageNumber: 1, zoneId: 'zone:1' },
-              next: { pageNumber: 2, zoneId: 'zone:2' },
-            }
-          : null,
-      );
+      expect(selected!.transitionAuthority).toBeNull();
     }
+  });
+
+  it('maps a broad transition cause plus its closed subtype only to transition authority', () => {
+    expect(PAGE_TRANSITION_STRUCTURAL_CAUSES).toHaveLength(13);
+    const value = draft();
+    const failure = openingTransitionFailure(value);
+    const selected = bookSurfaceRepairAuthority({
+      draft: value,
+      authorityDraft: value,
+      presentationTargets: [],
+      structuralDiagnosticIssues: [failure.issue],
+      structuralValidationMessages: [failure.message],
+    });
+    expect(selected).not.toBeNull();
+    expect(selected!.affectedPages[0]!.writableFields).toEqual([
+      'transition',
+    ]);
+    expect(selected!.affectedPages[0]!.repairTargets[0]).toMatchObject({
+      causes: [
+        'page_transition_invalid',
+        'page_transition_opening_departure_without_origin',
+      ].sort(),
+    });
+    expect(selected!.transitionAuthority!.declaredZoneIds).toEqual([
+      'zone:1',
+      'zone:2',
+      'zone:3',
+    ]);
+    expect(selected!.transitionAuthority!.authorityDraftDigest).toBe(
+      canonicalJsonDigest(value),
+    );
+    expect(selected!.transitionAuthority!.pages[0]).toMatchObject({
+      pageNumber: 1,
+      previous: null,
+      next: { pageNumber: 2, zoneId: 'zone:2' },
+      establishedZoneIdsBeforePage: [],
+      lastThresholdEdgeBeforePage: null,
+    });
+    expect(() =>
+      buildBookSurfaceRepairUserPrompt({
+        authority: selected!,
+        authorityDraft: value,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      buildBookSurfaceRepairUserPromptWithPrivateAuthority({
+        authority: selected!,
+        expectedAuthorityDigest: selected!.authorityDigest,
+      } as never),
+    ).toThrow('book_surface_repair_authority_mismatch');
+    expect(() =>
+      buildBookSurfaceRepairUserPromptWithPrivateAuthority({
+        authority: selected!,
+        authorityDraft: value,
+      } as never),
+    ).toThrow('book_surface_repair_authority_mismatch');
+    expect(() =>
+      applyBookSurfaceRepairPatchWithAuthorityDraft({
+        draft: value,
+        authority: selected!,
+        expectedAuthorityDigest: selected!.authorityDigest,
+        patch: {
+          presentationPatches: [],
+          coverContract: null,
+          recurringProps: null,
+          pageStructuralPatches: [
+            structuralPatchFromAuthority(selected!),
+          ],
+        },
+      } as never),
+    ).toThrow('book_surface_repair_authority_mismatch');
+  });
+
+  it('canonicalizes out-of-order pages but rejects duplicate, gapped, missing-target, broad-only, and false subtype authority', () => {
+    const unordered = draft();
+    const unorderedPages = unordered.pageContracts as Array<
+      Record<string, unknown>
+    >;
+    unordered.pageContracts = [
+      unorderedPages[2]!,
+      unorderedPages[0]!,
+      unorderedPages[1]!,
+    ];
+    const opening = openingTransitionFailure(unordered);
+    const selected = bookSurfaceRepairAuthority({
+      draft: unordered,
+      authorityDraft: unordered,
+      presentationTargets: [],
+      structuralDiagnosticIssues: [opening.issue],
+      structuralValidationMessages: [opening.message],
+    });
+    expect(selected).not.toBeNull();
+    expect(
+      selected!.transitionAuthority!.pages.map((candidate) =>
+        candidate.pageNumber,
+      ),
+    ).toEqual([1, 2, 3]);
+    expect(
+      selected!.transitionAuthority!.pages.map((candidate) => ({
+        pageNumber: candidate.pageNumber,
+        previous: candidate.previous,
+        next: candidate.next,
+      })),
+    ).toEqual([
+      {
+        pageNumber: 1,
+        previous: null,
+        next: { pageNumber: 2, zoneId: 'zone:2' },
+      },
+      {
+        pageNumber: 2,
+        previous: { pageNumber: 1, zoneId: 'zone:1' },
+        next: { pageNumber: 3, zoneId: 'zone:3' },
+      },
+      {
+        pageNumber: 3,
+        previous: { pageNumber: 2, zoneId: 'zone:2' },
+        next: null,
+      },
+    ]);
+
+    for (const mutate of [
+      (value: Record<string, unknown>) => {
+        const pages = value.pageContracts as Array<Record<string, unknown>>;
+        pages[2]!.pageNumber = 2;
+      },
+      (value: Record<string, unknown>) => {
+        const pages = value.pageContracts as Array<Record<string, unknown>>;
+        pages[2]!.pageNumber = 4;
+      },
+    ]) {
+      const invalid = draft();
+      mutate(invalid);
+      const failure = openingTransitionFailure(invalid);
+      expect(
+        bookSurfaceRepairAuthority({
+          draft: invalid,
+          authorityDraft: invalid,
+          presentationTargets: [],
+          structuralDiagnosticIssues: [failure.issue],
+          structuralValidationMessages: [failure.message],
+        }),
+      ).toBeNull();
+    }
+
+    const value = draft();
+    expect(
+      bookSurfaceRepairAuthority({
+        draft: value,
+        authorityDraft: value,
+        presentationTargets: [],
+        structuralDiagnosticIssues: [
+          pageStructureIssueWithCause(1, 'page_transition_invalid'),
+        ],
+        structuralValidationMessages: ['legacy broad transition issue'],
+      }),
+    ).toBeNull();
+    expect(
+      bookSurfaceRepairAuthority({
+        draft: value,
+        authorityDraft: value,
+        presentationTargets: [],
+        structuralDiagnosticIssues: [
+          {
+            ...pageStructureIssueWithCause(
+              9,
+              'page_transition_opening_departure_without_origin',
+            ),
+            causes: [
+              'page_transition_invalid',
+              'page_transition_opening_departure_without_origin',
+            ],
+          } as DraftValidationIssue,
+        ],
+        structuralValidationMessages: ['missing target'],
+      }),
+    ).toBeNull();
+
+    const falseSubtype = draft();
+    const falseFailure = openingTransitionFailure(falseSubtype);
+    expect(
+      bookSurfaceRepairAuthority({
+        draft: falseSubtype,
+        authorityDraft: falseSubtype,
+        presentationTargets: [],
+        structuralDiagnosticIssues: [
+          {
+            ...falseFailure.issue,
+            causes: [
+              'page_transition_invalid',
+              'page_transition_origin_not_established',
+            ].sort(),
+          } as DraftValidationIssue,
+        ],
+        structuralValidationMessages: [falseFailure.message],
+      }),
+    ).toBeNull();
+  });
+
+  it('distinguishes the same target page through prior-threshold and established-history authority', () => {
+    const priorThreshold = (kind: 'threshold' | 'after_transition') => {
+      const value = draft();
+      const pages = value.pageContracts as Array<Record<string, unknown>>;
+      pages[1]!.transition = {
+        kind,
+        fromZoneId: 'zone:1',
+        toZoneId: 'zone:2',
+        cue: 'same edge',
+      };
+      pages[2]!.transition = {
+        kind: 'after_transition',
+        fromZoneId: 'zone:1',
+        toZoneId: 'zone:2',
+        cue: 'common target',
+      };
+      return value;
+    };
+    const thresholdGood = priorThreshold('threshold');
+    const thresholdBad = priorThreshold('after_transition');
+    const goodAuthority = transitionAuthorityFor(thresholdGood);
+    const badAuthority = transitionAuthorityFor(thresholdBad);
+    const goodTarget = goodAuthority.affectedPages.find(
+      (candidate) => candidate.pageNumber === 3,
+    )!;
+    const badTarget = badAuthority.affectedPages.find(
+      (candidate) => candidate.pageNumber === 3,
+    )!;
+    expect(goodTarget.pageContract).toEqual(badTarget.pageContract);
+    expect(goodTarget.readOnlyContext).toEqual(badTarget.readOnlyContext);
+    expect(finalStructuralRepairTarget(goodTarget.repairTargets[0]!).causes).not.toContain(
+      'page_transition_origin_not_previous_zone',
+    );
+    expect(finalStructuralRepairTarget(badTarget.repairTargets[0]!).causes).toContain(
+      'page_transition_origin_not_previous_zone',
+    );
+    expect(
+      goodAuthority.transitionAuthority!.pages[2]!
+        .lastThresholdEdgeBeforePage,
+    ).toEqual({ fromZoneId: 'zone:1', toZoneId: 'zone:2' });
+    expect(
+      badAuthority.transitionAuthority!.pages[2]!
+        .lastThresholdEdgeBeforePage,
+    ).toBeNull();
+
+    const establishedHistory = (openingZone: string) => {
+      const value = draft(4);
+      const pages = value.pageContracts as Array<Record<string, unknown>>;
+      pages[0]!.zoneId = openingZone;
+      pages[1]!.transition = {
+        kind: 'after_transition',
+        fromZoneId: openingZone,
+        toZoneId: 'zone:2',
+        cue: 'enter B',
+      };
+      pages[2]!.zoneId = 'zone:2';
+      pages[2]!.transition = {
+        kind: 'threshold',
+        fromZoneId: 'zone:1',
+        toZoneId: 'zone:2',
+        cue: 'common threshold',
+      };
+      pages[3]!.transition = {
+        kind: 'after_transition',
+        fromZoneId: 'zone:1',
+        toZoneId: 'zone:2',
+        cue: 'common suffix',
+      };
+      return value;
+    };
+    const establishedGood = establishedHistory('zone:1');
+    const establishedBad = establishedHistory('zone:3');
+    const historyGood = transitionAuthorityFor(establishedGood);
+    const historyBad = transitionAuthorityFor(establishedBad);
+    const goodPage4 = historyGood.affectedPages.find(
+      (candidate) => candidate.pageNumber === 4,
+    )!;
+    const badPage4 = historyBad.affectedPages.find(
+      (candidate) => candidate.pageNumber === 4,
+    )!;
+    expect(goodPage4.pageContract).toEqual(badPage4.pageContract);
+    expect(goodPage4.readOnlyContext).toEqual(badPage4.readOnlyContext);
+    expect(finalStructuralRepairTarget(goodPage4.repairTargets[0]!).causes).not.toContain(
+      'page_transition_origin_not_established',
+    );
+    expect(finalStructuralRepairTarget(badPage4.repairTargets[0]!).causes).toContain(
+      'page_transition_origin_not_established',
+    );
+    const goodPage4State = historyGood.transitionAuthority!.pages[3]!;
+    const badPage4State = historyBad.transitionAuthority!.pages[3]!;
+    expect(goodPage4State.previous).toEqual(badPage4State.previous);
+    expect(goodPage4State.lastThresholdEdgeBeforePage).toEqual(
+      badPage4State.lastThresholdEdgeBeforePage,
+    );
+    expect(goodPage4State.establishedZoneIdsBeforePage).toContain('zone:1');
+    expect(badPage4State.establishedZoneIdsBeforePage).not.toContain(
+      'zone:1',
+    );
   });
 
   it('unions only canonical writable fields and rejects hostile drift in every other page field', () => {
@@ -708,36 +1140,229 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
 
   it('rejects tampered compiler-owned read-only context before prompt or apply', () => {
     const value = draft();
+    const failure = openingTransitionFailure(value);
     const selected = bookSurfaceRepairAuthority({
       draft: value,
       authorityDraft: value,
       presentationTargets: [],
-      structuralDiagnosticIssues: [
-        pageStructureIssueWithCause(1, 'page_transition_invalid'),
-      ],
-      structuralValidationMessages: ['sanitized transition'],
+      structuralDiagnosticIssues: [failure.issue],
+      structuralValidationMessages: [failure.message],
     });
     expect(selected).not.toBeNull();
-    const tampered = structuredClone(selected!);
-    tampered.affectedPages[0]!.readOnlyContext.transitionTopology!
-      .current.zoneId = 'zone:tampered';
+    const originalBytes = JSON.stringify(value);
+    const mutations: Array<(candidate: BookSurfaceRepairAuthority) => void> = [
+      (candidate) => candidate.transitionAuthority!.pages.reverse(),
+      (candidate) => { candidate.transitionAuthority!.pages.pop(); },
+      (candidate) => {
+        candidate.transitionAuthority!.pages.push(
+          structuredClone(candidate.transitionAuthority!.pages[1]!),
+        );
+      },
+      (candidate) => {
+        candidate.transitionAuthority!.pages[1]!.effectiveTransition.kind =
+          'threshold';
+      },
+      (candidate) => {
+        candidate.transitionAuthority!.pages[1]!.effectiveTransition.fromZoneId =
+          'zone:3';
+      },
+      (candidate) => {
+        candidate.transitionAuthority!.pages[0]!
+          .establishedZoneIdsBeforePage = ['zone:tampered'];
+      },
+      (candidate) => {
+        candidate.transitionAuthority!.pages[1]!
+          .lastThresholdEdgeBeforePage = {
+            fromZoneId: 'zone:1',
+            toZoneId: 'zone:2',
+          };
+      },
+      (candidate) => {
+        candidate.transitionAuthority!.declaredZoneIds = ['zone:1'];
+      },
+      (candidate) => {
+        candidate.transitionAuthority!.authorityDraftDigest = 'f'.repeat(64);
+      },
+      (candidate) => {
+        finalStructuralRepairTarget(
+          candidate.affectedPages[0]!.repairTargets[0]!,
+        ).causes = [
+          'page_transition_invalid',
+          'page_transition_origin_not_established',
+        ];
+      },
+      (candidate) => {
+        finalStructuralRepairTarget(
+          candidate.affectedPages[0]!.repairTargets[0]!,
+        ).causes = ['page_prop_state_invalid'];
+        candidate.affectedPages[0]!.writableFields = ['propState'];
+        candidate.transitionAuthority = null;
+      },
+    ];
+    for (const mutate of mutations) {
+      const tampered = structuredClone(selected!);
+      mutate(tampered);
+      const { authorityDigest: _digest, ...content } = tampered;
+      tampered.authorityDigest = canonicalJsonDigest(content);
+      expect(() =>
+        buildBookSurfaceRepairUserPrompt({
+          authority: tampered,
+          authorityDraft: value,
+          expectedAuthorityDigest: selected!.authorityDigest,
+        }),
+      ).toThrow('book_surface_repair_authority_mismatch');
+      expect(() =>
+        applyBookSurfaceRepairPatch({
+          draft: value,
+          authority: tampered,
+          authorityDraft: value,
+          expectedAuthorityDigest: selected!.authorityDigest,
+          patch: {
+            presentationPatches: [],
+            coverContract: null,
+            recurringProps: null,
+            pageStructuralPatches: [
+              structuralPatchFromAuthority(selected!),
+            ],
+          },
+        }),
+      ).toThrow('book_surface_repair_authority_mismatch');
+      expect(JSON.stringify(value)).toBe(originalBytes);
+    }
+  });
+
+  it('uses one deterministic zone ordering for transition and reference authority', () => {
+    const value = draft(5);
+    const zoneIds = ['zone_1', 'zone-1', 'zone:1', 'zone:a', 'zone:A'];
+    const zones = value.zones as Array<Record<string, unknown>>;
+    const pages = value.pageContracts as Array<Record<string, unknown>>;
+    for (let index = 0; index < zoneIds.length; index += 1) {
+      zones[index]!.id = zoneIds[index]!;
+      pages[index]!.zoneId = zoneIds[index]!;
+      pages[index]!.transition =
+        index === 0
+          ? {
+              kind: 'threshold',
+              fromZoneId: zoneIds[0],
+              toZoneId: zoneIds[1],
+              cue: 'opening departure',
+            }
+          : {
+              kind: 'after_transition',
+              fromZoneId: zoneIds[index - 1],
+              toZoneId: zoneIds[index],
+              cue: `enter ${zoneIds[index]}`,
+            };
+    }
+    const selected = transitionAuthorityFor(value);
+    const lexicalOrder = [
+      'zone-1',
+      'zone:1',
+      'zone:A',
+      'zone:a',
+      'zone_1',
+    ];
+    expect(selected.transitionAuthority!.declaredZoneIds).toEqual(
+      lexicalOrder,
+    );
+    expect(selected.referenceAuthority.zones.map((zone) => zone.id)).toEqual(
+      lexicalOrder,
+    );
     expect(() =>
-      buildBookSurfaceRepairUserPrompt({ authority: tampered }),
-    ).toThrow('book_surface_repair_authority_mismatch');
+      buildBookSurfaceRepairUserPrompt({
+        authority: selected,
+        authorityDraft: value,
+      }),
+    ).not.toThrow();
+    const pagePatch = structuralPatchFromAuthority(selected);
+    pagePatch.transition = {
+      kind: 'steady',
+      fromZoneId: null,
+      toZoneId: null,
+      cue: null,
+    };
     expect(() =>
       applyBookSurfaceRepairPatch({
         draft: value,
-        authority: tampered,
+        authority: selected,
+        authorityDraft: value,
         patch: {
           presentationPatches: [],
           coverContract: null,
           recurringProps: null,
-          pageStructuralPatches: [
-            structuralPatchFromAuthority(selected!),
-          ],
+          pageStructuralPatches: [pagePatch],
         },
       }),
-    ).toThrow('book_surface_repair_authority_mismatch');
+    ).not.toThrow();
+  });
+
+  it('rejects invented or normalization-looking transition endpoints before mutation', () => {
+    const value = draft();
+    openingTransitionFailure(value);
+    const selected = transitionAuthorityFor(value);
+    const originalBytes = JSON.stringify(value);
+    for (const endpoint of ['zone:invented', 'ZONE:1']) {
+      const pagePatch = structuralPatchFromAuthority(selected);
+      pagePatch.transition = {
+        ...(pagePatch.transition as Record<string, unknown>),
+        fromZoneId: endpoint,
+      };
+      expect(() =>
+        applyBookSurfaceRepairPatch({
+          draft: value,
+          authority: selected,
+          authorityDraft: value,
+          patch: {
+            presentationPatches: [],
+            coverContract: null,
+            recurringProps: null,
+            pageStructuralPatches: [pagePatch],
+          },
+        }),
+      ).toThrow('book_surface_repair_transition_reference_invalid');
+      expect(JSON.stringify(value)).toBe(originalBytes);
+    }
+  });
+
+  it('exposes typed effective transition state without compiler digest, raw prose, adjacent cue, or private material', () => {
+    const value = draft();
+    const pages = value.pageContracts as Array<Record<string, unknown>>;
+    pages[1]!.transition = {
+      ...(pages[1]!.transition as Record<string, unknown>),
+      cue: 'ADJACENT_CUE_SENTINEL',
+    };
+    const failure = openingTransitionFailure(value);
+    const selected = bookSurfaceRepairAuthority({
+      draft: value,
+      authorityDraft: value,
+      presentationTargets: [],
+      structuralDiagnosticIssues: [failure.issue],
+      structuralValidationMessages: [failure.message],
+    })!;
+    const rawPrompt = buildBookSurfaceRepairUserPrompt({
+      authority: selected,
+      authorityDraft: value,
+    });
+    const decoded = decodeBookSurfaceRepairUserPrompt(rawPrompt) as {
+      transitionAuthority: Record<string, unknown>;
+    };
+    expect(decoded.transitionAuthority).not.toHaveProperty(
+      'authorityDraftDigest',
+    );
+    expect(decoded.transitionAuthority).toHaveProperty('declaredZoneIds');
+    expect(decoded.transitionAuthority).toHaveProperty('pages');
+    for (const forbidden of [
+      selected.transitionAuthority!.authorityDraftDigest,
+      failure.message,
+      'ADJACENT_CUE_SENTINEL',
+      'RAW_STORY_SOURCE_SENTINEL',
+      'PROVIDER_RESPONSE_SENTINEL',
+      'SECRET_CREDENTIAL_SENTINEL',
+      'REMOVE_SENTINEL',
+      'attemptIndex',
+    ]) {
+      expect(rawPrompt).not.toContain(forbidden);
+    }
   });
 
   it('rejects stale, duplicate, unsafe, or unrelated authority before prompt construction', () => {
@@ -842,7 +1467,10 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
     expect(selected?.coverValidationHints).toEqual([]);
     expect(
       decodeBookSurfaceRepairUserPrompt(
-        buildBookSurfaceRepairUserPrompt({ authority: selected! }),
+        buildBookSurfaceRepairUserPrompt({
+          authority: selected!,
+          authorityDraft: original,
+        }),
       ).coverAuthority,
     ).toBeNull();
     const result = applyBookSurfaceRepairPatch({
@@ -866,9 +1494,11 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
   });
 
   it('encodes only compact structural projections and exact presentation authority', () => {
-    const selected = authority();
+    const value = draft();
+    const selected = authority(value);
     const rawPrompt = buildBookSurfaceRepairUserPrompt({
       authority: selected,
+      authorityDraft: value,
     });
     const payload = decodeBookSurfaceRepairUserPrompt(rawPrompt);
     expect(payload.presentationTargets).toEqual(
@@ -966,6 +1596,7 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
 
     const rawPrompt = buildBookSurfaceRepairUserPrompt({
       authority: selected!,
+      authorityDraft: value,
     });
     const decoded = decodeBookSurfaceRepairUserPrompt(rawPrompt) as {
       affectedPages: Array<{
@@ -1099,6 +1730,7 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
     const systemPrompt = buildBookSurfaceRepairSystemPrompt();
     const userPrompt = buildBookSurfaceRepairUserPrompt({
       authority: selected!,
+      authorityDraft: value,
     });
     const accounting = visualContractAuthoringInputAccounting(
       systemPrompt,
@@ -1194,6 +1826,7 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
     const systemPrompt = buildBookSurfaceRepairSystemPrompt();
     const userPrompt = buildBookSurfaceRepairUserPrompt({
       authority: selected!,
+      authorityDraft: value,
     });
     const accounting = visualContractAuthoringInputAccounting(
       systemPrompt,
@@ -1219,6 +1852,104 @@ describe('atomic causal book-surface repair v11 typed input authority', () => {
       }),
     ).toBe(true);
   });
+
+  it.each([8, 12])(
+    'freezes compact transition-chain accounting with %i pages',
+    (pageCount) => {
+      const value = draft(pageCount);
+      const failure = openingTransitionFailure(value);
+      const issues: DraftValidationIssue[] = [failure.issue];
+      const messages = [failure.message];
+      if (pageCount === 12) {
+        const pages = value.pageContracts as Array<Record<string, unknown>>;
+        for (const pageValue of pages) {
+          pageValue.propConstraints = [
+            null,
+            {
+              propId: 'prop:unknown',
+              visibility: 'maybe',
+              stateId: '',
+              anchorId: 7,
+            },
+            {
+              propId: 'prop:cake',
+              visibility: 'required',
+              anchorId: 'anchor:unknown',
+            },
+            { propId: 'prop:cake', visibility: 'forbidden' },
+          ];
+        }
+        for (let pageNumber = 1; pageNumber <= 12; pageNumber += 1) {
+          for (let index = 0; index < 7; index += 1) {
+            issues.push(
+              pageStructureIssueWithCause(
+                pageNumber,
+                'page_prop_constraints_invalid',
+              ),
+            );
+            messages.push(`typed prop violation ${pageNumber}:${index}`);
+          }
+        }
+      }
+      const selected = bookSurfaceRepairAuthority({
+        draft: value,
+        authorityDraft: value,
+        presentationTargets: [],
+        structuralDiagnosticIssues: issues,
+        structuralValidationMessages: messages,
+      });
+      expect(selected).not.toBeNull();
+      const systemPrompt = buildBookSurfaceRepairSystemPrompt();
+      const userPrompt = buildBookSurfaceRepairUserPrompt({
+        authority: selected!,
+        authorityDraft: value,
+      });
+      const decoded = decodeBookSurfaceRepairUserPrompt(userPrompt) as {
+        transitionAuthority: { pages: unknown[] };
+        affectedPages: Array<{ propConstraintViolations: unknown[] }>;
+      };
+      const accounting = visualContractAuthoringInputAccounting(
+        systemPrompt,
+        userPrompt,
+        BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+      );
+      expect(decoded.transitionAuthority.pages).toHaveLength(pageCount);
+      expect(
+        decoded.affectedPages.flatMap(
+          (candidate) => candidate.propConstraintViolations,
+        ),
+      ).toHaveLength(pageCount === 12 ? 84 : 0);
+      expect(accounting).toEqual(
+        pageCount === 8
+          ? {
+              systemBytes: 3_523,
+              userBytes: 3_234,
+              schemaBytes: 15_921,
+              separatorBytes: 2,
+              protocolAllowance: 4_096,
+              estimatedBytes: 26_776,
+            }
+          : {
+              systemBytes: 3_523,
+              userBytes: 7_089,
+              schemaBytes: 15_921,
+              separatorBytes: 2,
+              protocolAllowance: 4_096,
+              estimatedBytes: 30_631,
+            },
+      );
+      expect(59_904 - accounting.estimatedBytes).toBeGreaterThanOrEqual(
+        4_096,
+      );
+      expect(
+        visualContractAuthoringRouteIsAdmissible({
+          systemPrompt,
+          userPrompt,
+          schema: BOOK_SURFACE_REPAIR_JSON_SCHEMA,
+        }),
+      ).toBe(true);
+    },
+  );
 
   it('refuses a presentation overlap only when its frozen mustShow is structurally invalid', () => {
     const value = draft();

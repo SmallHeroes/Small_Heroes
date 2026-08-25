@@ -1,11 +1,12 @@
 # Decision Gate — BookSurface Typed Transition Authority
 
-**Status:** proposed; awaiting Guy approval
-**Date:** 2026-08-25
+**Status:** approved by Guy on 2026-08-26; implemented offline; independent Claude Code QA pending
+**Date:** 2026-08-26
 **Owner:** Codex
 **Branch/worktree:** `codex/r1d-qa-wizard-downstream-lifecycle` in
 `C:\GNart\Work\sh-live-chameleon-v3`
 **Diagnosis base:** `0269d3ae3f27eece591a9cd89399f5d3e4f7c18c`
+**Implementation base:** `d88337288db1eeb895cb9355f40ec23385436dee`
 
 ## 1. Proposed change
 
@@ -89,10 +90,12 @@ Expected production surfaces:
 - focused compiler, diagnostic, repair-loop and offline-harness tests
 - `CURRENT.md` and implementation evidence
 
-`compileBookVisualContractTemplate.ts` and `pageContractRepair.ts` should remain
-unchanged unless implementation proves that existing typed issue plumbing
-cannot carry the new causes safely. Any such scope expansion must be reported
-before editing those files.
+`pageContractRepair.ts` remains unchanged. Investigation proved that
+`compileBookVisualContractTemplate.ts` must retain the exact effective draft
+and a compiler-captured expected authority digest across dispatch and apply.
+That narrow scope expansion is required to prevent a caller from coherently
+rehashing a downgraded target set and its replacement authority; it does not
+widen repair routing or writable fields.
 
 ## 4. Risk of hardcoding
 
@@ -202,9 +205,9 @@ migrated or reused. The current v7 response schema stays available unchanged.
 
 ## 10. Review assignment and decisions
 
-Guy must decide whether to authorize this exact typed transition-authority
-design and confirm that a transition-authorized repair may replace
-provider-owned `kind`/`cue` while the compiler itself never chooses them.
+Guy authorized this exact typed transition-authority design on 2026-08-26 and
+confirmed that a transition-authorized repair may replace provider-owned
+`kind`/`cue` while the compiler itself never chooses them.
 
 Claude Code must try to falsify:
 
@@ -244,3 +247,41 @@ available to the repair route.
   Candidate semantics, Wizard selection or downstream render contracts.
 - Do not patch Chameleon, Bar, Kim or pages 2/3/6 specially.
 - Do not reuse or mutate either consumed Fresh root.
+
+## 13. Offline implementation outcome
+
+The approved design is implemented locally on top of `d8833728`. The shared
+analyzer covers all thirteen existing transition failure branches; the
+validator emits the unchanged broad compatibility cause plus the exact closed
+subcause; and BookSurface carries one effective ordered chain with the state
+used by validation. The provider-visible projection omits raw diagnostic prose,
+the rejected draft, credential/provider material and the private authority
+digest. `kind` and `cue` remain provider-owned.
+
+The compiler stores both the exact effective draft and the original expected
+authority digest. Prompt construction and patch application independently
+re-derive the authority and reject missing, stale, rehashed, downgraded,
+duplicated, gapped, out-of-order or endpoint-incompatible evidence. Canonical
+ordering uses an explicit lexical comparator, including mixed-case and
+punctuation-bearing zone IDs.
+
+The required cutover census matches section 5 exactly. The BookSurface schema
+remains v7 with digest
+`a1d16581b25d9af14b33fdaa21806713f739212e51afa53643ba4c030739b20f`.
+The five-file load-bearing matrix passes 201/201 and TypeScript passes. Exact
+transition-chain accounting is 26,776 bytes for eight pages and 30,631 bytes
+for twelve pages plus 84 typed prop violations; both remain route-admissible
+with at least 4,096 bytes of headroom. The adjacent coupled-page harness reaches
+`3 -> 1 -> 0`; the historical live-shaped mixed harness remains
+`19 -> 6 -> 5 -> 0`, reaches Candidate and uses zero provider calls.
+
+Literal `npm run check` on the final bytes passes both TypeScript phases, 3,736
+ordinary assertions and 613/613 resource-intensive assertions. Its exit 1 is
+fully explained by nine pre-existing missing ignored-output fixture assertions
+in five unchanged files plus three known Vitest `onTaskUpdate` RPC timeouts;
+no changed-code assertion fails.
+
+No Fresh, credential, provider, live authoring, Candidate publication, Wizard
+order, payment, render, deployment or push occurred. The implementation is not
+accepted until its focused local commit receives an independent Claude Code
+PASS.

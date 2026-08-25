@@ -34,13 +34,23 @@ import {
   isQualityEvidenceContractStale,
   type QualityCheckResult,
 } from '@/lib/generation-pipeline/quality-check-result';
+import {
+  analyzePageTransition,
+  analyzeTransitionSequence,
+} from '@/lib/visual-contract-compiler/transitionAnalysis';
 
 /** JSON deep clone (all fixtures are JSON-safe) — avoids relying on the structuredClone lib global. */
 function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
-function pageTransitionDiagnostic(pageNumber: number) {
+function pageTransitionDiagnostic(
+  pageNumber: number,
+  cause:
+    | 'page_transition_no_move_zone_changed'
+    | 'page_transition_origin_not_established'
+    | 'page_transition_opening_departure_without_origin',
+) {
   return {
     family: 'draft_contract',
     code: 'final_structural_invariant_invalid',
@@ -49,7 +59,7 @@ function pageTransitionDiagnostic(pageNumber: number) {
       fieldRole: 'final_structure',
       pageNumber,
     },
-    causes: ['page_transition_invalid'],
+    causes: ['page_transition_invalid', cause].sort(),
   } as const;
 }
 
@@ -210,6 +220,32 @@ function seqBase(): BookVisualContract {
       { pageNumber: 2, locationId: 'house', zoneId: 'house.attic', mustShow: ['the child in the attic'], mustNotShow: [], characterPresence: { child: true, companion: false }, propState: [], camera: 'wide', castIds: ['child:hero'], transition: { kind: 'after_transition', fromZoneId: 'house.hall', toZoneId: 'house.attic', cue: 'up the stairs' } },
     ],
   };
+}
+
+type MatrixTransition = Record<string, unknown> | null;
+
+function transitionMatrixContract(
+  pages: Array<{ zoneId: 'zone:A' | 'zone:B' | 'zone:C'; transition: MatrixTransition }>,
+): BookVisualContract {
+  const base = seqBase();
+  base.zones = [
+    { id: 'zone:A', locationId: 'house', name: 'A', description: 'zone A' },
+    { id: 'zone:B', locationId: 'house', name: 'B', description: 'zone B' },
+    { id: 'zone:C', locationId: 'house', name: 'C', description: 'zone C' },
+  ];
+  base.pageContracts = pages.map((value, index) => ({
+    pageNumber: index + 1,
+    locationId: 'house',
+    zoneId: value.zoneId,
+    mustShow: [`page ${index + 1}`],
+    mustNotShow: [],
+    characterPresence: { child: true, companion: false },
+    propState: [],
+    camera: 'wide',
+    castIds: ['child:hero'],
+    transition: value.transition,
+  })) as unknown as BookVisualContract['pageContracts'];
+  return base;
 }
 
 describe('WS0 vNext — golden fixtures validate (100% coverage, valid transitions, castIds resolve)', () => {
@@ -379,6 +415,319 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     expect(validateVNextVisualContract(good).ok).toBe(true);
   });
 
+  it('preserves exact prose/order while attaching one closed subtype to all thirteen transition branches', () => {
+    const rows: Array<{
+      name: string;
+      targetPage: number;
+      contract: BookVisualContract;
+      causes: string[];
+      messages: string[];
+    }> = [
+      {
+        name: 'invalid kind',
+        targetPage: 1,
+        contract: transitionMatrixContract([
+          { zoneId: 'zone:A', transition: { kind: 'teleport' } },
+        ]),
+        causes: ['page_transition_kind_invalid'],
+        messages: ['page 1.transition.kind invalid (teleport)'],
+      },
+      {
+        name: 'steady destination',
+        targetPage: 1,
+        contract: transitionMatrixContract([
+          {
+            zoneId: 'zone:A',
+            transition: { kind: 'steady', toZoneId: 'zone:B' },
+          },
+        ]),
+        causes: ['page_transition_steady_destination_declared'],
+        messages: [
+          'page 1 is steady but declares a destination zone "zone:B"',
+        ],
+      },
+      {
+        name: 'missing origin',
+        targetPage: 1,
+        contract: transitionMatrixContract([
+          {
+            zoneId: 'zone:A',
+            transition: {
+              kind: 'before_transition',
+              toZoneId: 'zone:B',
+            },
+          },
+        ]),
+        causes: ['page_transition_from_zone_undeclared'],
+        messages: [
+          'page 1.transition.fromZoneId "undefined" is not a declared zone',
+        ],
+      },
+      {
+        name: 'undeclared destination',
+        targetPage: 1,
+        contract: transitionMatrixContract([
+          {
+            zoneId: 'zone:A',
+            transition: {
+              kind: 'before_transition',
+              fromZoneId: 'zone:A',
+              toZoneId: 'zone:missing',
+            },
+          },
+        ]),
+        causes: ['page_transition_to_zone_undeclared'],
+        messages: [
+          'page 1.transition.toZoneId "zone:missing" is not a declared zone',
+        ],
+      },
+      {
+        name: 'equal endpoints',
+        targetPage: 2,
+        contract: transitionMatrixContract([
+          { zoneId: 'zone:A', transition: { kind: 'steady' } },
+          {
+            zoneId: 'zone:A',
+            transition: {
+              kind: 'after_transition',
+              fromZoneId: 'zone:A',
+              toZoneId: 'zone:A',
+            },
+          },
+        ]),
+        causes: ['page_transition_endpoints_equal'],
+        messages: [
+          'page 2.transition from/to zones must differ ("zone:A")',
+        ],
+      },
+      {
+        name: 'before already at destination',
+        targetPage: 1,
+        contract: transitionMatrixContract([
+          {
+            zoneId: 'zone:B',
+            transition: {
+              kind: 'before_transition',
+              fromZoneId: 'zone:A',
+              toZoneId: 'zone:B',
+            },
+          },
+        ]),
+        causes: [
+          'page_transition_before_already_destination',
+          'page_transition_before_zone_not_origin',
+        ],
+        messages: [
+          'page 1 is before_transition but already sits in the destination zone "zone:B"',
+          'page 1 before_transition zone "zone:B" must be the origin "zone:A"',
+        ],
+      },
+      {
+        name: 'before origin alignment',
+        targetPage: 1,
+        contract: transitionMatrixContract([
+          {
+            zoneId: 'zone:C',
+            transition: {
+              kind: 'before_transition',
+              fromZoneId: 'zone:A',
+              toZoneId: 'zone:B',
+            },
+          },
+        ]),
+        causes: ['page_transition_before_zone_not_origin'],
+        messages: [
+          'page 1 before_transition zone "zone:C" must be the origin "zone:A"',
+        ],
+      },
+      {
+        name: 'after destination alignment',
+        targetPage: 2,
+        contract: transitionMatrixContract([
+          { zoneId: 'zone:A', transition: { kind: 'steady' } },
+          {
+            zoneId: 'zone:A',
+            transition: {
+              kind: 'after_transition',
+              fromZoneId: 'zone:A',
+              toZoneId: 'zone:B',
+            },
+          },
+        ]),
+        causes: ['page_transition_after_zone_not_destination'],
+        messages: [
+          'page 2 after_transition zone "zone:A" must be the destination "zone:B"',
+        ],
+      },
+      {
+        name: 'threshold endpoint alignment',
+        targetPage: 2,
+        contract: transitionMatrixContract([
+          { zoneId: 'zone:A', transition: { kind: 'steady' } },
+          {
+            zoneId: 'zone:C',
+            transition: {
+              kind: 'threshold',
+              fromZoneId: 'zone:A',
+              toZoneId: 'zone:B',
+            },
+          },
+        ]),
+        causes: ['page_transition_threshold_zone_not_endpoint'],
+        messages: [
+          'page 2 threshold zone "zone:C" must be the origin or the destination',
+        ],
+      },
+      {
+        name: 'opening departure',
+        targetPage: 1,
+        contract: transitionMatrixContract([
+          {
+            zoneId: 'zone:A',
+            transition: {
+              kind: 'threshold',
+              fromZoneId: 'zone:A',
+              toZoneId: 'zone:B',
+            },
+          },
+        ]),
+        causes: ['page_transition_opening_departure_without_origin'],
+        messages: [
+          'page 1 declares a threshold transition with no established origin — the opening page must be steady or before_transition (nothing precedes it to depart from)',
+        ],
+      },
+      {
+        name: 'undeclared move',
+        targetPage: 2,
+        contract: transitionMatrixContract([
+          { zoneId: 'zone:A', transition: { kind: 'steady' } },
+          { zoneId: 'zone:B', transition: { kind: 'steady' } },
+        ]),
+        causes: ['page_transition_no_move_zone_changed'],
+        messages: [
+          'page 2 moves to zone "zone:B" from "zone:A" (page 1) without a transition — a steady page declares no move (undeclared scene move)',
+        ],
+      },
+      {
+        name: 'origin not established',
+        targetPage: 3,
+        contract: transitionMatrixContract([
+          { zoneId: 'zone:A', transition: { kind: 'steady' } },
+          {
+            zoneId: 'zone:B',
+            transition: {
+              kind: 'threshold',
+              fromZoneId: 'zone:C',
+              toZoneId: 'zone:B',
+            },
+          },
+          {
+            zoneId: 'zone:B',
+            transition: {
+              kind: 'after_transition',
+              fromZoneId: 'zone:C',
+              toZoneId: 'zone:B',
+            },
+          },
+        ]),
+        causes: ['page_transition_origin_not_established'],
+        messages: [
+          'page 3 (after_transition) departs from "zone:C" but that zone has not been established yet',
+        ],
+      },
+      {
+        name: 'origin not previous zone',
+        targetPage: 3,
+        contract: transitionMatrixContract([
+          { zoneId: 'zone:A', transition: { kind: 'steady' } },
+          {
+            zoneId: 'zone:B',
+            transition: {
+              kind: 'after_transition',
+              fromZoneId: 'zone:A',
+              toZoneId: 'zone:B',
+            },
+          },
+          {
+            zoneId: 'zone:B',
+            transition: {
+              kind: 'after_transition',
+              fromZoneId: 'zone:A',
+              toZoneId: 'zone:B',
+            },
+          },
+        ]),
+        causes: ['page_transition_origin_not_previous_zone'],
+        messages: [
+          'page 3 (after_transition) departs from "zone:A" but the previous page (2) was in "zone:B" — the move is not continuous (undeclared scene move)',
+        ],
+      },
+    ];
+
+    for (const row of rows) {
+      const declaredZoneIds = new Set(row.contract.zones.map((zone) => zone.id));
+      const targetIndex = row.contract.pageContracts.findIndex(
+        (page) => page.pageNumber === row.targetPage,
+      );
+      const targetPage = row.contract.pageContracts[targetIndex]!;
+      const local = analyzePageTransition({
+        label: `page ${row.targetPage}`,
+        page: targetPage,
+        declaredZoneIds,
+      });
+      const sequence = analyzeTransitionSequence(
+        row.contract.pageContracts.map((page, pageIndex) => ({
+          page,
+          pageIndex,
+        })),
+      ).find((value) => value.pageNumber === row.targetPage)!;
+      const findings = [...local, ...sequence.findings];
+      expect(findings.map((finding) => finding.cause), row.name).toEqual(
+        row.causes,
+      );
+      expect(findings.map((finding) => finding.message), row.name).toEqual(
+        row.messages,
+      );
+
+      const result = validateVNextVisualContract(row.contract);
+      expect(result.ok, row.name).toBe(false);
+      if (result.ok) continue;
+      const issues = result.diagnosticIssues.filter(
+        (issue) =>
+          issue.family === 'draft_contract' &&
+          issue.code === 'final_structural_invariant_invalid' &&
+          issue.locator.kind === 'page' &&
+          issue.locator.pageNumber === row.targetPage &&
+          'causes' in issue &&
+          issue.causes.includes('page_transition_invalid'),
+      );
+      expect(
+        issues.flatMap((issue) =>
+          'causes' in issue
+            ? issue.causes.filter(
+                (cause) => cause !== 'page_transition_invalid',
+              )
+            : [],
+        ),
+        row.name,
+      ).toEqual(row.causes);
+      expect(
+        issues.every(
+          (issue) =>
+            'causes' in issue &&
+            issue.causes.length === 2 &&
+            JSON.stringify(issue.causes) ===
+              JSON.stringify([...issue.causes].sort()),
+        ),
+        row.name,
+      ).toBe(true);
+      expect(
+        result.errors.filter((message) => row.messages.includes(message)),
+        row.name,
+      ).toEqual(row.messages);
+    }
+  });
+
   it('a steady page silently changing zone/location (no transition) is rejected (undeclared scene move)', () => {
     const bad = clone(classroomHome);
     // Strip the declared move: page 3 now claims to be "steady" in the living room after a steady classroom
@@ -390,7 +739,7 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     if (!r.ok) {
       expect(r.errors.join(' ')).toMatch(/undeclared scene move/);
       expect(r.diagnosticIssues).toContainEqual(
-        pageTransitionDiagnostic(3),
+        pageTransitionDiagnostic(3, 'page_transition_no_move_zone_changed'),
       );
       expect(r.diagnosticIssues).not.toContainEqual({
         family: 'draft_contract',
@@ -440,7 +789,7 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     if (!r.ok) {
       expect(r.errors.join(' ')).toMatch(/undeclared scene move/);
       expect(r.diagnosticIssues).toContainEqual(
-        pageTransitionDiagnostic(2),
+        pageTransitionDiagnostic(2, 'page_transition_no_move_zone_changed'),
       );
     }
   });
@@ -473,7 +822,7 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     if (!r.ok) {
       expect(r.errors.join(' ')).toMatch(/undeclared scene move|not continuous/);
       expect(r.diagnosticIssues).toContainEqual(
-        pageTransitionDiagnostic(2),
+        pageTransitionDiagnostic(2, 'page_transition_origin_not_established'),
       );
     }
   });
@@ -512,7 +861,10 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     if (!r.ok) {
       expect(r.errors.join(' ')).toMatch(/opening page must be steady or before_transition/);
       expect(r.diagnosticIssues).toContainEqual(
-        pageTransitionDiagnostic(1),
+        pageTransitionDiagnostic(
+          1,
+          'page_transition_opening_departure_without_origin',
+        ),
       );
     }
   });
@@ -522,7 +874,10 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     if (!r.ok) {
       expect(r.errors.join(' ')).toMatch(/opening page must be steady or before_transition/);
       expect(r.diagnosticIssues).toContainEqual(
-        pageTransitionDiagnostic(1),
+        pageTransitionDiagnostic(
+          1,
+          'page_transition_opening_departure_without_origin',
+        ),
       );
     }
   });

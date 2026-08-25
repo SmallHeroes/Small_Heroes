@@ -1,8 +1,10 @@
 import { canonicalize } from '@/lib/canonical-json';
 
 export const DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION =
-  'draft-validation-attempt-diagnostics/v4' as const;
+  'draft-validation-attempt-diagnostics/v5' as const;
 export const LEGACY_DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION =
+  'draft-validation-attempt-diagnostics/v4' as const;
+export const LEGACY_DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION_V3 =
   'draft-validation-attempt-diagnostics/v3' as const;
 export const LEGACY_DRAFT_VALIDATION_ATTEMPT_DIAGNOSTICS_VERSION_V2 =
   'draft-validation-attempt-diagnostics/v2' as const;
@@ -93,6 +95,25 @@ export type ActionSemanticValidationIssueCode =
 export type SourceEvidenceIdValidationIssueCode =
   keyof typeof DRAFT_VALIDATION_ISSUE_CATALOG.source_evidence_id;
 
+export const PAGE_TRANSITION_STRUCTURAL_CAUSES = [
+  'page_transition_kind_invalid',
+  'page_transition_steady_destination_declared',
+  'page_transition_from_zone_undeclared',
+  'page_transition_to_zone_undeclared',
+  'page_transition_endpoints_equal',
+  'page_transition_before_already_destination',
+  'page_transition_before_zone_not_origin',
+  'page_transition_after_zone_not_destination',
+  'page_transition_threshold_zone_not_endpoint',
+  'page_transition_opening_departure_without_origin',
+  'page_transition_no_move_zone_changed',
+  'page_transition_origin_not_established',
+  'page_transition_origin_not_previous_zone',
+] as const;
+
+export type PageTransitionStructuralCause =
+  (typeof PAGE_TRANSITION_STRUCTURAL_CAUSES)[number];
+
 export const PAGE_FINAL_STRUCTURAL_CAUSES = [
   'page_spatial_binding_invalid',
   'page_steering_invalid',
@@ -110,6 +131,7 @@ export const PAGE_FINAL_STRUCTURAL_CAUSES = [
   'page_cast_binding_invalid',
   'page_human_presence_binding_invalid',
   'page_transition_invalid',
+  ...PAGE_TRANSITION_STRUCTURAL_CAUSES,
 ] as const;
 
 export type PageFinalStructuralCause =
@@ -409,6 +431,9 @@ const TRANSITION_STATE_SET = new Set<string>([
 ]);
 const PAGE_FINAL_STRUCTURAL_CAUSE_SET = new Set<string>(
   PAGE_FINAL_STRUCTURAL_CAUSES,
+);
+const PAGE_TRANSITION_STRUCTURAL_CAUSE_SET = new Set<string>(
+  PAGE_TRANSITION_STRUCTURAL_CAUSES,
 );
 
 const ISSUE_KEYS = ['code', 'family', 'locator'].sort();
@@ -734,7 +759,10 @@ export function draftValidationIssueIsValid(
     const canonicalCauses = [...new Set(causes)].sort();
     if (
       causes.length !== canonicalCauses.length ||
-      JSON.stringify(causes) !== JSON.stringify(canonicalCauses)
+      JSON.stringify(causes) !== JSON.stringify(canonicalCauses) ||
+      (causes.some((cause) =>
+        PAGE_TRANSITION_STRUCTURAL_CAUSE_SET.has(cause),
+      ) && !causes.includes('page_transition_invalid'))
     ) {
       return false;
     }

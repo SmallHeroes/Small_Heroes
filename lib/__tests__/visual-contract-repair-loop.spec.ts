@@ -71,6 +71,8 @@ import { extractDeterministicFacts } from '../visual-contract-compiler/extractDe
 import type { ContractLlmCaller } from '../visual-contract-compiler/compileBookVisualContract';
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 import {
+  buildDraftValidationAttemptDiagnostics,
+  draftValidationIssueKey,
   draftValidationIssueIsValid,
   normalizeDraftValidationIssues,
   type DraftValidationIssue,
@@ -2304,6 +2306,73 @@ describe('page-contract compact repair routing', () => {
     ).not.toThrow();
   });
 
+  it('keeps a changed transition subtype persistent while rejecting it as stagnation evidence', () => {
+    const previousIssue: DraftValidationIssue = {
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: 3,
+      },
+      causes: [
+        'page_transition_from_zone_undeclared',
+        'page_transition_invalid',
+      ],
+    };
+    const currentIssue: DraftValidationIssue = {
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: 3,
+      },
+      causes: [
+        'page_transition_invalid',
+        'page_transition_origin_not_previous_zone',
+      ],
+    };
+
+    expect(draftValidationIssueKey(previousIssue)).toBe(
+      draftValidationIssueKey(currentIssue),
+    );
+    expect(normalizeDraftValidationIssues([previousIssue])).toHaveLength(1);
+    expect(normalizeDraftValidationIssues([currentIssue])).toHaveLength(1);
+
+    const diagnostics = buildDraftValidationAttemptDiagnostics({
+      emittedIssues: [currentIssue],
+      previousIssues: [previousIssue],
+      finalAttempt: false,
+    });
+    expect(diagnostics).toMatchObject({
+      currentUniqueCount: 1,
+      newlyIntroducedCount: 0,
+      persistentCount: 1,
+      resolvedCount: 0,
+      items: [{ state: 'persistent', issue: currentIssue }],
+    });
+
+    const attempt = (
+      attemptNumber: number,
+      diagnosticIssue: DraftValidationIssue,
+      nextRepairMode?: 'book_surface_patch',
+    ) => ({
+      attempt: attemptNumber,
+      errors: ['sanitized'],
+      diagnosticIssues: [diagnosticIssue],
+      diagnosticPopulation: 'complete' as const,
+      draft: {},
+      ...(nextRepairMode ? { nextRepairMode } : {}),
+    });
+    expect(() =>
+      new TemplateRepairStagnationError([
+        attempt(1, previousIssue, 'book_surface_patch'),
+        attempt(2, currentIssue),
+      ] as never),
+    ).toThrow('template_repair_stagnation_evidence_invalid');
+  });
+
   it('does not classify rising raw emissions or unlike diagnostic populations as a complete-census regression', () => {
     const pageIssue = (pageNumber: number): DraftValidationIssue => ({
       family: 'draft_contract',
@@ -2433,6 +2502,80 @@ describe('page-contract compact repair routing', () => {
     expect(result.provenance.attempt).toBe(2);
     expect(result.repairAttempts[0]?.nextRepairMode).toBe(
       'full_draft',
+    );
+  });
+
+  it('binds an authored transition patch target to the compiler-effective transition chain', async () => {
+    const valid = bunnyDraft();
+    ensureBookSurfacePageShape(valid);
+    const invalid = structuredClone(valid);
+    const authoredTransition = {
+      kind: 'before_transition',
+      fromZoneId: null,
+      toZoneId: 'clinic_exterior.entrance',
+      cue: 'look toward the clinic exit too early',
+    };
+    invalid.pageContracts[4].transition = authoredTransition;
+    const invalidBytes = JSON.stringify(invalid);
+    const repairedPage5 = structuredClone(valid.pageContracts[4]);
+    const calls: Array<{
+      user: string;
+      authority: Parameters<ContractLlmCaller>[3];
+    }> = [];
+    const caller: ContractLlmCaller = async (
+      _system,
+      user,
+      _options,
+      authority,
+    ) => {
+      calls.push({ user, authority });
+      if (calls.length === 1) return JSON.stringify(invalid);
+      return JSON.stringify(
+        bookSurfaceV7Response({
+          payload: decodeBookSurfaceRepairUserPrompt(user),
+          coverContract: null,
+          recurringProps: null,
+          repairedPages: [repairedPage5],
+        }),
+      );
+    };
+
+    const result = await compileBookVisualContractTemplate(bunnySource(), {
+      callLLM: caller,
+    });
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]!.authority).toMatchObject({
+      kind: 'repair',
+      repairMode: 'book_surface_patch',
+    });
+    const payload = decodeBookSurfaceRepairUserPrompt(calls[1]!.user);
+    const affectedPage = (
+      payload.affectedPages as Array<{
+        pageNumber: number;
+        pageStructuralProjection: { transition: unknown };
+      }>
+    ).find((page) => page.pageNumber === 5)!;
+    expect(affectedPage.pageStructuralProjection.transition).toEqual(
+      authoredTransition,
+    );
+    const effectivePage = (
+      payload.transitionAuthority as {
+        pages: Array<{
+          pageNumber: number;
+          effectiveTransition: Record<string, unknown>;
+        }>;
+      }
+    ).pages.find((page) => page.pageNumber === 5)!;
+    expect(effectivePage.effectiveTransition).toEqual({
+      kind: 'before_transition',
+      fromZoneId: 'clinic.exam_room',
+      toZoneId: 'clinic_exterior.entrance',
+    });
+    expect(effectivePage.effectiveTransition).not.toHaveProperty('cue');
+    expect(JSON.stringify(invalid)).toBe(invalidBytes);
+    expect(result.template.pageContracts[4]!.transition).toEqual(
+      valid.pageContracts[4]!.transition,
     );
   });
 

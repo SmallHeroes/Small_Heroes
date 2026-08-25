@@ -5127,6 +5127,10 @@ export async function compileBookVisualContractTemplate(
     let bookSurfaceAuthority:
       | BookSurfaceRepairAuthority
       | undefined;
+    let bookSurfaceExpectedAuthorityDigest: string | undefined;
+    let bookSurfaceAuthorityDraft:
+      | Record<string, unknown>
+      | undefined;
     let bookSurfaceRepairPrompts:
       | { systemPrompt: string; userPrompt: string }
       | undefined;
@@ -5146,6 +5150,7 @@ export async function compileBookVisualContractTemplate(
         attemptDiagnosticPopulation = 'complete';
       }
       if (err instanceof BookSurfaceStructuralValidationError) {
+        bookSurfaceAuthorityDraft = err.bookSurfaceAuthorityDraft;
         bookSurfaceAuthority =
           bookSurfaceRepairAuthority({
             draft,
@@ -5156,6 +5161,8 @@ export async function compileBookVisualContractTemplate(
             structuralValidationMessages: err.structuralErrors,
           }) ?? undefined;
         if (!bookSurfaceAuthority) throw err.completeError;
+        bookSurfaceExpectedAuthorityDigest =
+          bookSurfaceAuthority.authorityDigest;
         attemptErrors = [...err.completeError.errors];
         attemptDiagnosticIssues = [
           ...err.completeError.diagnosticIssues,
@@ -5169,6 +5176,7 @@ export async function compileBookVisualContractTemplate(
         if (!presentationRequirementAffectedTargets) {
           throw err.completeError;
         }
+        bookSurfaceAuthorityDraft = err.bookSurfaceAuthorityDraft;
         bookSurfaceAuthority =
           bookSurfaceRepairAuthority({
             draft,
@@ -5180,6 +5188,8 @@ export async function compileBookVisualContractTemplate(
             structuralValidationMessages: err.structuralErrors,
           }) ?? undefined;
         if (bookSurfaceAuthority) {
+          bookSurfaceExpectedAuthorityDigest =
+            bookSurfaceAuthority.authorityDigest;
           bookSurfaceAdmissionFallbackTargets = [
             ...presentationRequirementAffectedTargets,
           ];
@@ -5586,9 +5596,17 @@ export async function compileBookVisualContractTemplate(
     }
 
     if (bookSurfaceAuthority) {
+      if (
+        !bookSurfaceAuthorityDraft ||
+        !bookSurfaceExpectedAuthorityDigest
+      ) {
+        throw new Error('book_surface_repair_authority_draft_missing');
+      }
       const systemPrompt = buildBookSurfaceRepairSystemPrompt();
       const userPrompt = buildBookSurfaceRepairUserPrompt({
         authority: bookSurfaceAuthority,
+        authorityDraft: bookSurfaceAuthorityDraft,
+        expectedAuthorityDigest: bookSurfaceExpectedAuthorityDigest,
       });
       const inputAccounting =
         visualContractAuthoringInputAccounting(
@@ -5919,6 +5937,12 @@ export async function compileBookVisualContractTemplate(
           patch: parseStructuralBundleRepairPatch(rawPatch),
         });
       } else if (bookSurfaceAuthority) {
+        if (
+          !bookSurfaceAuthorityDraft ||
+          !bookSurfaceExpectedAuthorityDigest
+        ) {
+          throw new Error('book_surface_repair_authority_draft_missing');
+        }
         const rawPatch = await deps.callLLM(
           bookSurfaceRepairPrompts!.systemPrompt,
           bookSurfaceRepairPrompts!.userPrompt,
@@ -5938,6 +5962,8 @@ export async function compileBookVisualContractTemplate(
         draft = applyBookSurfaceRepairPatch({
           draft,
           authority: bookSurfaceAuthority,
+          authorityDraft: bookSurfaceAuthorityDraft,
+          expectedAuthorityDigest: bookSurfaceExpectedAuthorityDigest,
           patch: parseBookSurfaceRepairPatch(rawPatch),
         });
       } else if (representedElsewhereAuthority) {

@@ -1425,7 +1425,7 @@ describe('exact zero-cost authoring preflight', () => {
         receipt: rejected.receipt,
         write: false,
       }),
-    ).toThrow(/receipt v53 requires/);
+    ).toThrow(/receipt v54 requires/);
     expect(() =>
       persistVisualContractAuthoringReceipt({
         repoRoot: tempRoot(),
@@ -1445,7 +1445,7 @@ describe('exact zero-cost authoring preflight', () => {
         invalidRequestFallbackBudget: authoritativeFallback,
         write: false,
       }),
-    ).toThrow(/receipt v53 requires/);
+    ).toThrow(/receipt v54 requires/);
 
     const validReadiness =
       buildVisualContractAuthoringReadinessEvidence({
@@ -1497,7 +1497,7 @@ describe('exact zero-cost authoring preflight', () => {
         invalidRequestFallbackBudget: authoritativeFallback,
         write: false,
       }),
-    ).toThrow(/receipt v53 requires/);
+    ).toThrow(/receipt v54 requires/);
     const forgedReadiness = structuredClone(validReadiness);
     forgedReadiness.authoringReceiptDigest = forgedReceipt.digest;
     forgedReadiness.standardAttemptOutputBudget = invalidSchedule;
@@ -1517,7 +1517,7 @@ describe('exact zero-cost authoring preflight', () => {
         invalidRequestFallbackBudget: authoritativeFallback,
         write: false,
       }),
-    ).toThrow(/receipt v53 requires/);
+    ).toThrow(/receipt v54 requires/);
 
     expect(() =>
       buildVisualContractAuthoringReadinessEvidence({
@@ -2093,7 +2093,7 @@ describe('exact zero-cost authoring preflight', () => {
         write: false,
       }),
     ).toThrow(
-      /readiness v51 requires exact typed draft-validation evidence/,
+      /readiness v52 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -2222,7 +2222,7 @@ describe('exact zero-cost authoring preflight', () => {
     const request = structuredClone(
       requestFor(snapshot, 'live'),
     ) as unknown as Record<string, unknown>;
-    expect(request.version).toBe('visual-contract-authoring-request/v51');
+    expect(request.version).toBe('visual-contract-authoring-request/v52');
     request.policyVersion = 'visual-contract-authoring-policy/v17';
     const pricing = request.pricing as Record<string, unknown>;
     Object.assign(pricing, {
@@ -2677,7 +2677,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       result.receipt.attempts[0]
         .draftValidationDiagnostics,
     ).toMatchObject({
-      version: 'draft-validation-attempt-diagnostics/v4',
+      version: 'draft-validation-attempt-diagnostics/v5',
       emittedCount: 4,
       currentUniqueCount: 4,
       finalAttempt: true,
@@ -2721,7 +2721,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v51',
+      version: 'visual-contract-authoring-readiness/v52',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -2787,7 +2787,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v51',
+      version: 'visual-contract-authoring-readiness/v52',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -2892,9 +2892,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
   it('classifies every prior authoring authority as immutable without mutating its bytes', () => {
     const immediatelyPrior = [
-      ['request', 'visual-contract-authoring-request/v35'],
-      ['receipt', 'visual-contract-authoring-receipt/v39'],
-      ['readiness', 'visual-contract-authoring-readiness/v37'],
+      ['request', 'visual-contract-authoring-request/v51'],
+      ['receipt', 'visual-contract-authoring-receipt/v53'],
+      ['readiness', 'visual-contract-authoring-readiness/v51'],
       ['candidate', 'visual-contract-candidate-artifact/v8'],
     ] as const;
     const historicalBytes = immediatelyPrior.map(([kind, version]) =>
@@ -3177,13 +3177,13 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'request',
-        'visual-contract-authoring-request/v50',
+        'visual-contract-authoring-request/v51',
       ),
     ).toBe('legacy_immutable');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'request',
-        'visual-contract-authoring-request/v51',
+        'visual-contract-authoring-request/v52',
       ),
     ).toBe('current');
     expect(
@@ -3483,13 +3483,13 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'receipt',
-        'visual-contract-authoring-receipt/v52',
+        'visual-contract-authoring-receipt/v53',
       ),
     ).toBe('legacy_immutable');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'receipt',
-        'visual-contract-authoring-receipt/v53',
+        'visual-contract-authoring-receipt/v54',
       ),
     ).toBe('current');
     expect(
@@ -3705,13 +3705,13 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
-        'visual-contract-authoring-readiness/v50',
+        'visual-contract-authoring-readiness/v51',
       ),
     ).toBe('legacy_immutable');
     expect(
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
-        'visual-contract-authoring-readiness/v51',
+        'visual-contract-authoring-readiness/v52',
       ),
     ).toBe('current');
     expect(
@@ -3772,7 +3772,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const prior = structuredClone(
       result.receipt,
     ) as unknown as Record<string, unknown>;
-    prior.version = 'visual-contract-authoring-receipt/v52';
+    prior.version = 'visual-contract-authoring-receipt/v53';
     const {
       digestAlgorithm: _digestAlgorithm,
       digest: _digest,
@@ -3809,7 +3809,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       string,
       unknown
     >;
-    prior.version = 'visual-contract-authoring-readiness/v50';
+    prior.version = 'visual-contract-authoring-readiness/v51';
     const {
       digestAlgorithm: _digestAlgorithm,
       digest: _digest,
@@ -3826,7 +3826,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v51 requires/);
+    ).toThrow(/readiness v52 requires/);
   });
 
   it('rejects a re-digested current receipt with an open-ended terminal code', async () => {
@@ -3944,7 +3944,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).toThrow(
-      /receipt v53 requires exact typed draft-validation evidence/,
+      /receipt v54 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -3993,7 +3993,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v53',
+      'visual-contract-authoring-receipt/v54',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -5713,7 +5713,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v51 requires exact typed draft-validation evidence/);
+    ).toThrow(/readiness v52 requires exact typed draft-validation evidence/);
   });
 
   it('records the compact source-evidence repair as a bounded second provider call', async () => {
@@ -6756,7 +6756,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           ),
         write: false,
       }),
-    ).toThrow(/receipt v53 requires/);
+    ).toThrow(/receipt v54 requires/);
 
     for (const mutate of [
       (receipt: typeof result.receipt) => {
@@ -6821,7 +6821,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           receipt: replayedReceipt,
           write: false,
         }),
-      ).toThrow(/receipt v53 requires/);
+      ).toThrow(/receipt v54 requires/);
       expect(() =>
         buildVisualContractCandidateArtifact({
           request,
@@ -6860,7 +6860,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: malformedAccountingReceipt,
         write: false,
       }),
-    ).toThrow(/receipt v53 requires/);
+    ).toThrow(/receipt v54 requires/);
     expect(() =>
       buildVisualContractCandidateArtifact({
         request,
@@ -7511,7 +7511,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v53',
+      version: 'visual-contract-authoring-receipt/v54',
       status: 'completed',
       callCount: 3,
       repairCount: 2,
@@ -8021,11 +8021,11 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(structuralHintCount).toBe(111);
     expect(
       result.receipt.attempts[1].inputAccounting.estimatedBytes,
-    ).toBe(37_717);
+    ).toBe(37_916);
     expect(
       59_904 -
         result.receipt.attempts[1].inputAccounting.estimatedBytes,
-    ).toBe(22_187);
+    ).toBe(21_988);
     expect(
       structuralHintCount +
         (mixedPayload.presentationTargets as unknown[]).length,
@@ -8227,7 +8227,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         request,
         receipt: tampered,
       }),
-    ).toThrow(/readiness v51 requires current/);
+    ).toThrow(/readiness v52 requires current/);
   });
 
   it('stops after a completed repair increases the complete issue census and persists no synthetic attempt', async () => {
@@ -8358,7 +8358,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(provider.call).toHaveBeenCalledTimes(2);
     expect(result.compileResult).toBeNull();
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v53',
+      version: 'visual-contract-authoring-receipt/v54',
       status: 'failed',
       callCount: 2,
       repairCount: 1,
@@ -8403,7 +8403,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       receipt: result.receipt,
     });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v51',
+      version: 'visual-contract-authoring-readiness/v52',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'draft_validation_repair_stagnated',
@@ -8446,7 +8446,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: forged,
         write: false,
       }),
-    ).toThrow(/receipt v53 requires/);
+    ).toThrow(/receipt v54 requires/);
   });
 
   it('persists only bounded target context for an unusable represented-elsewhere repair selection', async () => {
@@ -9155,7 +9155,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: representedRoutePositionTamper,
         write: false,
       }),
-    ).toThrow(/receipt v53 requires/);
+    ).toThrow(/receipt v54 requires/);
 
     const tamperedReceipt = structuredClone(result.receipt);
     tamperedReceipt.failure!.repairRouteAdmissionDiagnostics!
@@ -9176,7 +9176,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: tamperedReceipt,
         write: false,
       }),
-    ).toThrow(/receipt v53 requires/);
+    ).toThrow(/receipt v54 requires/);
 
     for (const mutate of [
       (receipt: typeof result.receipt) => {
@@ -9206,7 +9206,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           receipt: routeIdentityTamper,
           write: false,
         }),
-      ).toThrow(/receipt v53 requires/);
+      ).toThrow(/receipt v54 requires/);
     }
 
     const tamperedReadiness = structuredClone(readiness);
@@ -9228,7 +9228,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v51 requires/);
+    ).toThrow(/readiness v52 requires/);
 
     const legacyReceipt = structuredClone(result.receipt);
     (legacyReceipt as unknown as { version: string }).version =
@@ -9258,7 +9258,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: legacyReceipt as unknown as typeof result.receipt,
         write: false,
       }),
-    ).toThrow(/receipt v53 requires/);
+    ).toThrow(/receipt v54 requires/);
 
     const crossBoundReadiness = structuredClone(readiness);
     crossBoundReadiness.sourceSnapshotDigest = '0'.repeat(64);
@@ -9279,7 +9279,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v51 requires/);
+    ).toThrow(/readiness v52 requires/);
   });
 
   it('bridges a current candidate presentation requirement into pending Semantic Reconciliation without self-approval', async () => {

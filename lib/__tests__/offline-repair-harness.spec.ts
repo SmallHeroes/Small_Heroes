@@ -921,7 +921,10 @@ describe('offline Visual Contract repair harness', () => {
         fieldRole: 'final_structure',
         pageNumber: initial.pageContracts[0]!.pageNumber as number,
       },
-      causes: ['page_transition_invalid'],
+      causes: [
+        'page_transition_invalid',
+        'page_transition_opening_departure_without_origin',
+      ] as const,
     } satisfies DraftValidationIssue;
 
     const result = await runOfflineRepairHarness({
@@ -1053,6 +1056,159 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.calls[3]).toMatchObject({
       repairMode: 'represented_elsewhere_patch',
       schemaName: 'RepresentedElsewhereRepairPatches',
+    });
+  });
+
+  it('repairs two threshold-coupled adjacent transitions atomically before one represented residual with 3-to-1-to-0 delta', async () => {
+    const valid = bunnyDraft();
+    const initial = structuredClone(valid);
+    for (const page of initial.pageContracts) {
+      delete page.castIds;
+      delete page.characterPresence;
+      delete page.castStates;
+      page.propConstraints ??= [];
+      page.actionRequirements ??= [];
+    }
+    const page4 = initial.pageContracts[3]!;
+    const page5 = initial.pageContracts[4]!;
+    page4.transition = {
+      kind: 'after_transition',
+      fromZoneId: 'clinic.exam_room',
+      toZoneId: 'clinic.waiting_room',
+      cue: 'departure from an unestablished adjacent origin',
+    };
+    page5.transition = {
+      kind: 'before_transition',
+      fromZoneId: 'clinic.exam_room',
+      toZoneId: 'clinic.waiting_room',
+      cue: 'adjacent page declares no move after the zone changed',
+    };
+    const representedPage = page5;
+    const representedCoverage = representedPage.actionSemanticCoverage as Array<
+      Record<string, unknown>
+    >;
+    representedCoverage[0]!.disposition = {
+      kind: 'represented_elsewhere',
+      representedValue: 'offline residual without a bound pointer',
+    };
+
+    const transitionPatch = (pageNumber: number) => ({
+      pageNumber,
+      locationId: null,
+      zoneId: null,
+      sameLocationAs: null,
+      mustShow: null,
+      mustNotShow: null,
+      propState: null,
+      propConstraints: null,
+      actionRequirements: null,
+      camera: null,
+      transition: structuredClone(
+        valid.pageContracts[pageNumber - 1]!.transition,
+      ),
+    });
+    const representedIssue = {
+      family: 'action_semantic',
+      code: 'represented_elsewhere_pointer_out_of_scope',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_action_semantic_coverage',
+        fieldRole: 'reference',
+        pageNumber: representedPage.pageNumber as number,
+        itemIndex: 0,
+      },
+    } satisfies DraftValidationIssue;
+    const transitionIssue = (
+      pageNumber: number,
+      causes: string[],
+    ) => ({
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber,
+      },
+      causes: ['page_transition_invalid', ...causes].sort(),
+    }) as DraftValidationIssue;
+
+    const result = await runOfflineRepairHarness({
+      input: bunnySource(),
+      initialDraft: initial,
+      repairResponses: [
+        {
+          presentationPatches: [],
+          coverContract: null,
+          recurringProps: null,
+          pageStructuralPatches: [transitionPatch(4), transitionPatch(5)],
+        },
+        {
+          patches: [{
+            pageNumber: representedPage.pageNumber,
+            coverageIndex: 0,
+            beatId: representedCoverage[0]!.beatId,
+            sourceEvidenceId: representedCoverage[0]!.sourceEvidenceId,
+            pointerChoiceIndex: 0,
+          }],
+        },
+      ],
+      completeDiagnosticIssuesByAttempt: [
+        [
+          representedIssue,
+          transitionIssue(4, [
+            'page_transition_origin_not_established',
+            'page_transition_origin_not_previous_zone',
+          ]),
+          transitionIssue(5, [
+            'page_transition_no_move_zone_changed',
+          ]),
+        ],
+        [representedIssue],
+        [],
+      ],
+    });
+
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'book_surface_patch',
+      'represented_elsewhere_patch',
+    ]);
+    expect(result.stages.map((stage) => ({
+      nextRepairMode: stage.nextRepairMode,
+      surfacedIssueCount: stage.surfacedIssueCount,
+      completeIssueCount: stage.completeIssueCount,
+      completeDelta: stage.completeDelta,
+    }))).toEqual([
+      {
+        nextRepairMode: 'book_surface_patch',
+        surfacedIssueCount: 3,
+        completeIssueCount: 3,
+        completeDelta: null,
+      },
+      {
+        nextRepairMode: 'represented_elsewhere_patch',
+        surfacedIssueCount: 1,
+        completeIssueCount: 1,
+        completeDelta: -2,
+      },
+      {
+        nextRepairMode: null,
+        surfacedIssueCount: 0,
+        completeIssueCount: 0,
+        completeDelta: -1,
+      },
+    ]);
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'candidate',
+      monotonicCompleteIssueDelta: true,
+      maxPositiveCompleteIssueDelta: 0,
+      finalCompleteIssueCount: 0,
+    });
+    expect(result.calls[1]).toMatchObject({
+      repairMode: 'book_surface_patch',
+      schemaName: 'BookSurfaceRepairPatch',
     });
   });
 

@@ -1,8 +1,10 @@
 import { canonicalHash, canonicalize } from '@/lib/canonical-json';
 import {
   draftValidationIssueIsValid,
+  PAGE_TRANSITION_STRUCTURAL_CAUSES,
   type DraftValidationIssue,
   type PageFinalStructuralCause,
+  type PageTransitionStructuralCause,
 } from './draftValidationDiagnostics';
 import {
   decodePageContractRepairInput,
@@ -32,18 +34,28 @@ import {
   pagePropConstraintViolationsAreValid,
   type PagePropConstraintViolation,
 } from './pagePropConstraintValidation';
+import {
+  analyzePageTransition,
+  analyzeTransitionSequence,
+  type EffectiveTransitionState,
+  type TransitionEdgeState,
+} from './transitionAnalysis';
+import type { PageVisualContract } from './types';
 
 export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
   'book-surface-repair-schema/v7' as const;
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =
-  'book-surface-repair-prompt/v12' as const;
+  'book-surface-repair-prompt/v13' as const;
 export const BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION =
-  'book-surface-repair-user-prompt/v12' as const;
+  'book-surface-repair-user-prompt/v13' as const;
 
 const MAX_VALIDATION_MESSAGES = 128;
 const MAX_VALIDATION_MESSAGE_LENGTH = 1_024;
+const PAGE_TRANSITION_STRUCTURAL_CAUSE_SET = new Set<string>(
+  PAGE_TRANSITION_STRUCTURAL_CAUSES,
+);
 
 function lexicalCompare(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -124,6 +136,19 @@ const PAGE_CAUSE_WRITABLE_FIELDS: Record<
   page_cast_binding_invalid: null,
   page_human_presence_binding_invalid: null,
   page_transition_invalid: ['transition'],
+  page_transition_kind_invalid: ['transition'],
+  page_transition_steady_destination_declared: ['transition'],
+  page_transition_from_zone_undeclared: ['transition'],
+  page_transition_to_zone_undeclared: ['transition'],
+  page_transition_endpoints_equal: ['transition'],
+  page_transition_before_already_destination: ['transition'],
+  page_transition_before_zone_not_origin: ['transition'],
+  page_transition_after_zone_not_destination: ['transition'],
+  page_transition_threshold_zone_not_endpoint: ['transition'],
+  page_transition_opening_departure_without_origin: ['transition'],
+  page_transition_no_move_zone_changed: ['transition'],
+  page_transition_origin_not_established: ['transition'],
+  page_transition_origin_not_previous_zone: ['transition'],
 };
 
 const PAGE_STRUCTURAL_PATCH_JSON_SCHEMA = strictObject(
@@ -235,11 +260,22 @@ export interface BookSurfacePageReadOnlyContext {
     propId: string;
     firstRevealPage: number;
   }>;
-  transitionTopology: {
-    previous: { pageNumber: number; zoneId: string } | null;
-    current: { pageNumber: number; zoneId: string };
-    next: { pageNumber: number; zoneId: string } | null;
-  } | null;
+}
+
+export interface BookSurfaceTransitionAuthorityPage {
+  pageNumber: number;
+  zoneId: string;
+  effectiveTransition: EffectiveTransitionState;
+  previous: { pageNumber: number; zoneId: string } | null;
+  next: { pageNumber: number; zoneId: string } | null;
+  establishedZoneIdsBeforePage: string[];
+  lastThresholdEdgeBeforePage: TransitionEdgeState | null;
+}
+
+export interface BookSurfaceTransitionAuthority {
+  authorityDraftDigest: string;
+  declaredZoneIds: string[];
+  pages: BookSurfaceTransitionAuthorityPage[];
 }
 
 export interface BookSurfaceRecurringPropLifecycleContext {
@@ -268,6 +304,7 @@ export interface BookSurfaceRepairAuthority {
   coverValidationHints: string[];
   recurringPropValidationHints: string[];
   referenceAuthority: BookSurfaceReferenceAuthority;
+  transitionAuthority: BookSurfaceTransitionAuthority | null;
 }
 
 type BookSurfaceRepairAuthorityContent = Omit<
@@ -365,11 +402,22 @@ function affectedPagePropConstraintAuthorityIsCurrent(args: {
 
 function bookSurfaceRepairAuthorityIsIntact(
   authority: BookSurfaceRepairAuthority,
+  authorityDraft: Record<string, unknown>,
+  expectedAuthorityDigest: string,
 ): boolean {
+  if (recordValue(authorityDraft) === null) return false;
   const { authorityDigest, ...content } = authority;
   return (
     /^[a-f0-9]{64}$/.test(authorityDigest) &&
-    canonicalHash(content) === authorityDigest
+    /^[a-f0-9]{64}$/.test(expectedAuthorityDigest) &&
+    authorityDigest === expectedAuthorityDigest &&
+    canonicalHash(content) === authorityDigest &&
+    transitionAuthorityIsCurrent({
+      authority: authority.transitionAuthority,
+      affectedPages: authority.affectedPages,
+      referenceAuthority: authority.referenceAuthority,
+      authorityDraft,
+    })
   );
 }
 
@@ -633,8 +681,351 @@ function providerReadOnlyContext(
     preRevealPropObligations: structuredClone(
       value.preRevealPropObligations,
     ),
-    transitionTopology: structuredClone(value.transitionTopology),
   };
+}
+
+function transitionSubcauses(
+  causes: readonly PageFinalStructuralCause[],
+): PageTransitionStructuralCause[] {
+  return causes.filter((cause): cause is PageTransitionStructuralCause =>
+    PAGE_TRANSITION_STRUCTURAL_CAUSE_SET.has(cause),
+  );
+}
+
+function transitionTargetCausesByPage(
+  pages: readonly BookSurfaceRepairAffectedPage[],
+): Map<number, PageFinalStructuralCause[]> | null {
+  const result = new Map<number, PageFinalStructuralCause[]>();
+  for (const page of pages) {
+    const target = page.repairTargets[0];
+    if (
+      page.repairTargets.length !== 1 ||
+      target?.code !== 'final_structural_invariant_invalid'
+    ) {
+      return null;
+    }
+    const typed = transitionSubcauses(target.causes);
+    const hasBroad = target.causes.includes('page_transition_invalid');
+    if (typed.length === 0 && !hasBroad) continue;
+    if (
+      !hasBroad ||
+      typed.length === 0 ||
+      !page.writableFields.includes('transition')
+    ) {
+      return null;
+    }
+    result.set(
+      page.pageNumber,
+      [
+        'page_transition_invalid',
+        ...typed,
+      ].sort() as PageFinalStructuralCause[],
+    );
+  }
+  return result;
+}
+
+function transitionAuthorityPagesFromAnalysis(
+  analysis: ReturnType<typeof analyzeTransitionSequence>,
+): BookSurfaceTransitionAuthorityPage[] | null {
+  const pages = analysis.map((value) => {
+    if (
+      value.zoneId === null ||
+      (value.next !== null && value.next.zoneId === null)
+    ) {
+      return null;
+    }
+    return {
+      pageNumber: value.pageNumber,
+      zoneId: value.zoneId,
+      effectiveTransition: structuredClone(value.effectiveTransition),
+      previous: structuredClone(value.previous),
+      next:
+        value.next === null
+          ? null
+          : {
+              pageNumber: value.next.pageNumber,
+              zoneId: value.next.zoneId as string,
+            },
+      establishedZoneIdsBeforePage: [
+        ...value.establishedZoneIdsBeforePage,
+      ],
+      lastThresholdEdgeBeforePage: structuredClone(
+        value.lastThresholdEdgeBeforePage,
+      ),
+    } satisfies BookSurfaceTransitionAuthorityPage;
+  });
+  return pages.some((page) => page === null)
+    ? null
+    : (pages as BookSurfaceTransitionAuthorityPage[]);
+}
+
+interface BookSurfaceTransitionAuthorityAnalysis {
+  authority: BookSurfaceTransitionAuthority;
+  entries: Array<{
+    pageNumber: number;
+    cause: PageTransitionStructuralCause;
+    message: string;
+  }>;
+}
+
+function analyzeBookSurfaceTransitionAuthorityDraft(
+  authorityDraft: Record<string, unknown>,
+): BookSurfaceTransitionAuthorityAnalysis | null {
+  const zones = Array.isArray(authorityDraft.zones)
+    ? authorityDraft.zones.map(recordValue)
+    : [];
+  const declaredZoneIds = zones.flatMap((zone) =>
+    typeof zone?.id === 'string' && zone.id.trim().length > 0
+      ? [zone.id]
+      : [],
+  );
+  const pageRecords = Array.isArray(authorityDraft.pageContracts)
+    ? authorityDraft.pageContracts.map(recordValue)
+    : [];
+  const pageNumbers = pageRecords.map((page) => page?.pageNumber);
+  const sortedPageNumbers = [...pageNumbers]
+    .filter((value): value is number => positiveInteger(value))
+    .sort((left, right) => left - right);
+  if (
+    zones.length === 0 ||
+    zones.some((zone) => zone === null) ||
+    declaredZoneIds.length !== zones.length ||
+    new Set(declaredZoneIds).size !== declaredZoneIds.length ||
+    pageRecords.length === 0 ||
+    pageRecords.some((page) => page === null) ||
+    sortedPageNumbers.length !== pageRecords.length ||
+    new Set(sortedPageNumbers).size !== sortedPageNumbers.length ||
+    sortedPageNumbers.some((pageNumber, index) => pageNumber !== index + 1)
+  ) {
+    return null;
+  }
+  const pageInputs = (pageRecords as Record<string, unknown>[]).map(
+    (page, pageIndex) => ({
+      page: page as unknown as PageVisualContract,
+      pageIndex,
+    }),
+  );
+  const declaredZoneSet = new Set(declaredZoneIds);
+  const sequence = analyzeTransitionSequence(pageInputs);
+  const pages = transitionAuthorityPagesFromAnalysis(sequence);
+  if (!pages) return null;
+  return {
+    authority: {
+      authorityDraftDigest: canonicalHash(authorityDraft),
+      declaredZoneIds: [...declaredZoneIds].sort(lexicalCompare),
+      pages,
+    },
+    entries: [
+      ...pageInputs.flatMap(({ page }) =>
+        analyzePageTransition({
+          label: `page ${page.pageNumber}`,
+          page,
+          declaredZoneIds: declaredZoneSet,
+        }).map((finding) => ({
+          pageNumber: page.pageNumber,
+          cause: finding.cause,
+          message: finding.message,
+        })),
+      ),
+      ...sequence.flatMap((value) =>
+        value.findings.map((finding) => ({
+          pageNumber: value.pageNumber,
+          cause: finding.cause,
+          message: finding.message,
+        })),
+      ),
+    ],
+  };
+}
+
+function buildBookSurfaceTransitionAuthority(args: {
+  authorityDraft: Record<string, unknown>;
+  affectedPages: readonly BookSurfaceRepairAffectedPage[];
+  structuralIssueEntries: readonly {
+    issue: DraftValidationIssue;
+    message: string;
+  }[];
+}): BookSurfaceTransitionAuthority | null {
+  const targetCauses = transitionTargetCausesByPage(args.affectedPages);
+  if (!targetCauses || targetCauses.size === 0) return null;
+  const analysis = analyzeBookSurfaceTransitionAuthorityDraft(
+    args.authorityDraft,
+  );
+  if (!analysis) return null;
+  const expectedEntries = analysis.entries;
+  const actualEntries: Array<{
+    pageNumber: number;
+    cause: PageTransitionStructuralCause;
+    message: string;
+  }> = [];
+  for (const { issue, message } of args.structuralIssueEntries) {
+    if (
+      issue.family !== 'draft_contract' ||
+      issue.code !== 'final_structural_invariant_invalid' ||
+      issue.locator.kind !== 'page' ||
+      !('causes' in issue) ||
+      !issue.causes.includes('page_transition_invalid')
+    ) {
+      continue;
+    }
+    const typed = transitionSubcauses(issue.causes);
+    if (issue.causes.length !== 2 || typed.length !== 1) return null;
+    actualEntries.push({
+      pageNumber: issue.locator.pageNumber,
+      cause: typed[0]!,
+      message,
+    });
+  }
+  const entriesMatch =
+    actualEntries.length === expectedEntries.length &&
+    actualEntries.every((actual, index) => {
+      const expected = expectedEntries[index]!;
+      return actual.pageNumber === expected.pageNumber &&
+        actual.cause === expected.cause &&
+        (actual.message === expected.message ||
+          actual.message === `structure: ${expected.message}`);
+    });
+  if (
+    !entriesMatch ||
+    canonicalJson([...targetCauses.keys()].sort((a, b) => a - b)) !==
+      canonicalJson(
+        [...new Set(expectedEntries.map((entry) => entry.pageNumber))].sort(
+          (a, b) => a - b,
+        ),
+      )
+  ) {
+    return null;
+  }
+  for (const [pageNumber, causes] of targetCauses) {
+    const expectedCauses = [
+      'page_transition_invalid',
+      ...new Set(
+        expectedEntries
+          .filter((entry) => entry.pageNumber === pageNumber)
+          .map((entry) => entry.cause),
+      ),
+    ].sort();
+    if (canonicalJson(causes) !== canonicalJson(expectedCauses)) return null;
+  }
+  return analysis.authority;
+}
+
+function transitionAuthorityIsCurrent(args: {
+  authority: BookSurfaceTransitionAuthority | null;
+  affectedPages: readonly BookSurfaceRepairAffectedPage[];
+  referenceAuthority: BookSurfaceReferenceAuthority;
+  authorityDraft: Record<string, unknown>;
+}): boolean {
+  const targetCauses = transitionTargetCausesByPage(args.affectedPages);
+  if (!targetCauses) return false;
+  if (targetCauses.size === 0) return args.authority === null;
+  const sourceAnalysis = analyzeBookSurfaceTransitionAuthorityDraft(
+    args.authorityDraft,
+  );
+  if (!sourceAnalysis) return false;
+  if (args.authority === null) return false;
+  if (
+    !exactKeys(args.authority as unknown as Record<string, unknown>, [
+      'authorityDraftDigest',
+      'declaredZoneIds',
+      'pages',
+    ]) ||
+    args.authority.authorityDraftDigest !==
+      canonicalHash(args.authorityDraft) ||
+    canonicalJson(args.authority) !==
+      canonicalJson(sourceAnalysis.authority) ||
+    !uniqueStrings(args.authority.declaredZoneIds) ||
+    canonicalJson(args.authority.declaredZoneIds) !==
+      canonicalJson(
+        args.referenceAuthority.zones
+          .map((zone) => zone.id)
+          .sort(lexicalCompare),
+      ) ||
+    args.authority.pages.length === 0
+  ) {
+    return false;
+  }
+  const pageNumbers = args.authority.pages.map((page) => page.pageNumber);
+  if (
+    new Set(pageNumbers).size !== pageNumbers.length ||
+    pageNumbers.some((pageNumber, index) => pageNumber !== index + 1)
+  ) {
+    return false;
+  }
+  for (let index = 0; index < args.authority.pages.length; index += 1) {
+    const page = args.authority.pages[index]!;
+    const previous = index === 0 ? null : args.authority.pages[index - 1]!;
+    const next =
+      index === args.authority.pages.length - 1
+        ? null
+        : args.authority.pages[index + 1]!;
+    if (
+      !exactKeys(page as unknown as Record<string, unknown>, [
+        'pageNumber',
+        'zoneId',
+        'effectiveTransition',
+        'previous',
+        'next',
+        'establishedZoneIdsBeforePage',
+        'lastThresholdEdgeBeforePage',
+      ]) ||
+      typeof page.zoneId !== 'string' ||
+      page.zoneId.length === 0 ||
+      !uniqueStrings(page.establishedZoneIdsBeforePage) ||
+      !exactKeys(
+        page.effectiveTransition as unknown as Record<string, unknown>,
+        ['kind', 'fromZoneId', 'toZoneId'],
+      ) ||
+      ![
+        'steady',
+        'before_transition',
+        'threshold',
+        'after_transition',
+        'invalid',
+      ].includes(page.effectiveTransition.kind) ||
+      ![page.effectiveTransition.fromZoneId, page.effectiveTransition.toZoneId]
+        .every((value) => value === null ||
+          (typeof value === 'string' && value.length > 0)) ||
+      canonicalJson(page.previous) !==
+        canonicalJson(
+          previous
+            ? { pageNumber: previous.pageNumber, zoneId: previous.zoneId }
+            : null,
+        ) ||
+      canonicalJson(page.next) !==
+        canonicalJson(
+          next ? { pageNumber: next.pageNumber, zoneId: next.zoneId } : null,
+        )
+    ) {
+      return false;
+    }
+  }
+  const findingsByPage = new Map<number, PageTransitionStructuralCause[]>();
+  for (const entry of sourceAnalysis.entries) {
+    findingsByPage.set(entry.pageNumber, [
+      ...(findingsByPage.get(entry.pageNumber) ?? []),
+      entry.cause,
+    ]);
+  }
+  const pagesWithFindings = [...findingsByPage.entries()]
+    .filter(([, findings]) => findings.length > 0)
+    .map(([pageNumber]) => pageNumber)
+    .sort((a, b) => a - b);
+  if (
+    canonicalJson(pagesWithFindings) !==
+    canonicalJson([...targetCauses.keys()].sort((a, b) => a - b))
+  ) {
+    return false;
+  }
+  for (const [pageNumber, causes] of targetCauses) {
+    const expected = [
+      'page_transition_invalid',
+      ...new Set(findingsByPage.get(pageNumber) ?? []),
+    ].sort();
+    if (canonicalJson(causes) !== canonicalJson(expected)) return false;
+  }
+  return true;
 }
 
 function buildRecurringPropLifecycleContext(args: {
@@ -754,7 +1145,6 @@ function pageReadOnlyContext(args: {
   draft: Record<string, unknown>;
   authorityDraft: Record<string, unknown>;
   pageNumber: number;
-  includeTransitionTopology: boolean;
 }): BookSurfacePageReadOnlyContext | null {
   const draftPages = Array.isArray(args.draft.pageContracts)
     ? args.draft.pageContracts.map(recordValue)
@@ -945,18 +1335,6 @@ function pageReadOnlyContext(args: {
       : [],
   ).sort((left, right) => lexicalCompare(left.propId, right.propId));
 
-  const orderedAuthorityPages = authorityPages
-    .filter((page): page is Record<string, unknown> => page !== null)
-    .sort((left, right) => Number(left.pageNumber) - Number(right.pageNumber));
-  const topologyEntry = (pageNumber: number) => {
-    const matches = orderedAuthorityPages.filter(
-      (page) => page.pageNumber === pageNumber,
-    );
-    return matches.length === 1 &&
-      typeof matches[0]!.zoneId === 'string'
-      ? { pageNumber, zoneId: matches[0]!.zoneId as string }
-      : null;
-  };
   return {
     castIds: [...castIds],
     characterPresence: {
@@ -968,20 +1346,12 @@ function pageReadOnlyContext(args: {
     safetyConstraints,
     actionBindingAuthority,
     preRevealPropObligations,
-    transitionTopology: args.includeTransitionTopology
-      ? {
-          previous: topologyEntry(args.pageNumber - 1),
-          current: { pageNumber: args.pageNumber, zoneId },
-          next: topologyEntry(args.pageNumber + 1),
-        }
-      : null,
   };
 }
 
 function pageReadOnlyContextIsValid(
   value: BookSurfacePageReadOnlyContext,
   pageNumber: number,
-  transitionIsWritable: boolean,
 ): boolean {
   if (
     !exactKeys(value as unknown as Record<string, unknown>, [
@@ -992,7 +1362,6 @@ function pageReadOnlyContextIsValid(
       'safetyConstraints',
       'actionBindingAuthority',
       'preRevealPropObligations',
-      'transitionTopology',
     ]) ||
     !uniqueStrings(value.castIds) ||
     value.castIds.length === 0 ||
@@ -1085,41 +1454,7 @@ function pageReadOnlyContextIsValid(
     }
     obligationIds.add(obligation.propId);
   }
-  const topology = value.transitionTopology;
-  if (topology === null) return !transitionIsWritable;
-  if (!transitionIsWritable) return false;
-  if (
-    !exactKeys(topology as unknown as Record<string, unknown>, [
-      'previous',
-      'current',
-      'next',
-    ])
-  ) {
-    return false;
-  }
-  const topologyEntryIsValid = (
-    entry: { pageNumber: number; zoneId: string } | null,
-    expectedPageNumber: number,
-  ) =>
-    entry === null ||
-    (exactKeys(entry as unknown as Record<string, unknown>, [
-      'pageNumber',
-      'zoneId',
-    ]) &&
-      entry.pageNumber === expectedPageNumber &&
-      typeof entry.zoneId === 'string' &&
-      entry.zoneId.length > 0);
-  return (
-    exactKeys(topology.current as unknown as Record<string, unknown>, [
-      'pageNumber',
-      'zoneId',
-    ]) &&
-    topology.current.pageNumber === pageNumber &&
-    typeof topology.current.zoneId === 'string' &&
-    topology.current.zoneId.length > 0 &&
-    topologyEntryIsValid(topology.previous, pageNumber - 1) &&
-    topologyEntryIsValid(topology.next, pageNumber + 1)
-  );
+  return true;
 }
 
 function referenceAuthority(
@@ -1227,8 +1562,8 @@ function referenceAuthority(
     locationIds: [...locationIds].sort(),
     zones: zoneAuthority.sort(
       (left, right) =>
-        left.id.localeCompare(right.id) ||
-        left.locationId.localeCompare(right.locationId),
+        lexicalCompare(left.id, right.id) ||
+        lexicalCompare(left.locationId, right.locationId),
     ),
     castIds: castIds.sort(),
     spatialReferenceIdsByZone: (
@@ -1237,7 +1572,7 @@ function referenceAuthority(
         spatialReferenceIds: string[];
       }>
     )
-      .sort((left, right) => left.zoneId.localeCompare(right.zoneId)),
+      .sort((left, right) => lexicalCompare(left.zoneId, right.zoneId)),
   };
 }
 
@@ -1363,7 +1698,6 @@ export function bookSurfaceRepairAuthority(args: {
       draft: args.draft,
       authorityDraft: args.authorityDraft,
       pageNumber: page.pageNumber,
-      includeTransitionTopology: writableFields?.includes('transition') ?? false,
     });
     const propConstraintViolations = readOnlyContext
       ? expectedPagePropConstraintViolations({
@@ -1458,6 +1792,19 @@ export function bookSurfaceRepairAuthority(args: {
   ) {
     return null;
   }
+  const typedAffectedPages =
+    cleanedAffectedPages as BookSurfaceRepairAffectedPage[];
+  const hasTransitionTargets = typedAffectedPages.some((page) =>
+    page.writableFields.includes('transition'),
+  );
+  const transitionAuthority = hasTransitionTargets
+    ? buildBookSurfaceTransitionAuthority({
+        authorityDraft: args.authorityDraft,
+        affectedPages: typedAffectedPages,
+        structuralIssueEntries,
+      })
+    : null;
+  if (hasTransitionTargets && transitionAuthority === null) return null;
   const authorityContent: BookSurfaceRepairAuthorityContent = {
     sourceDraftDigest: canonicalHash(args.draft),
     coverContract:
@@ -1472,12 +1819,11 @@ export function bookSurfaceRepairAuthority(args: {
     presentationTargets: args.presentationTargets.map((target) =>
       structuredClone(target),
     ),
-    affectedPages: (
-      cleanedAffectedPages as BookSurfaceRepairAffectedPage[]
-    ).map((value) => structuredClone(value)),
+    affectedPages: typedAffectedPages.map((value) => structuredClone(value)),
     coverValidationHints,
     recurringPropValidationHints,
     referenceAuthority: refs,
+    transitionAuthority: structuredClone(transitionAuthority),
   };
   return {
     authorityDigest: canonicalHash(authorityContent),
@@ -1489,13 +1835,13 @@ export function buildBookSurfaceRepairSystemPrompt(): string {
   return [
     'Repair one closed book surface atomically: exact presentation dispositions, the cover only when coverAuthority is non-null, recurring props only when recurringPropAuthority is non-null, and only the structural page fields supplied by affectedPages.',
     'Decode the compact input exactly: ["s",i] references stringDictionary[i], ["a",...items] is an array, and ["o",i,...values] is an object whose ordered keys are objectShapes[i].',
-    'The decoded root contains presentationTargets, nullable coverAuthority and recurringPropAuthority, affectedPages with exact structural projections, causal repairTargets, writableFields, diagnosticCount, typed propConstraintViolations and readOnlyContext, and referenceAuthority.',
+    'The decoded root contains presentationTargets, nullable coverAuthority, recurringPropAuthority and transitionAuthority, affectedPages with exact structural projections, causal repairTargets, writableFields, diagnosticCount, typed propConstraintViolations and readOnlyContext, and referenceAuthority.',
     'Return presentationPatches in the exact target order, coverContract or null exactly as authorized, recurringProps or null exactly as authorized, and pageStructuralPatches in the exact affected-page order.',
     'Every pageStructuralPatch must return the strict full patch shape. Copy pageNumber exactly. Return a repaired non-null value only for that page\'s exact writableFields and return null for every other structural field, including locationId, zoneId and sameLocationAs.',
-    'readOnlyContext is preservation authority only and must never be returned. Use its cast/presence, anchors, spatial nodes, scrubbed safety, lifecycle, transition and action-binding facts to keep the repair valid.',
+    'readOnlyContext and transitionAuthority are preservation authority only and must never be returned. Use the read-only cast/presence, anchors, spatial nodes, scrubbed safety, lifecycle, transition-chain and action-binding facts to keep the repair valid.',
     'When actionRequirements is writable, return exactly one semantic action for every existing action index, in the same order. Never add, drop or reorder actions. The compiler reattaches the exact beatId and any source_phenomenon Source Evidence subject from its private authority before apply; never return or alter actionSemanticCoverage.',
     'For each presentation target, preserve the exact target order, copy its identities exactly, and choose one zero-based pointerChoiceIndex into that target\'s ordered permittedPointerValues. Never return a raw contractPointer. The overlapping page mustShow array is not writable; preserve it exactly so the compiler can resolve the authorized pointer/value locally.',
-    'No raw validation prose is included. For writable propConstraints, use only the closed propConstraintViolations codes and their constraintIndex/relatedConstraintIndex positions to repair the supplied projection. Use only the typed targets, causes, exact projections, bounded diagnostic counts and read-only authority supplied in the decoded payload.',
+    'No raw validation prose is included. For writable propConstraints, use only the closed propConstraintViolations codes and their constraintIndex/relatedConstraintIndex positions. For writable transitions, use the closed transition subcauses and the one ordered effective transitionAuthority chain, including established zones and the prior threshold edge, to repair every coupled target atomically. Use only the typed targets, causes, exact projections, bounded diagnostic counts and read-only authority supplied in the decoded payload.',
     'When recurringPropAuthority is non-null, preserve the exact recurring-prop ID order and resolve only its typed lifecycle invariant. Use lifecycleContext as read-only page visibility authority: every page before a non-null firstRevealPage must be listed forbidden, and no listed required page may precede it. Otherwise return recurringProps:null.',
     'When coverAuthority is non-null, repair its semantic fields and return a well-shaped cover identity. The compiler preserves an already-valid current location/zone/cast identity; when the current identity is invalid, it accepts only a replacement inside referenceAuthority and never invents a reference. Otherwise return coverContract:null.',
     'Preserve all valid semantics. Never infer or return unrelated page or global fields.',
@@ -1505,8 +1851,16 @@ export function buildBookSurfaceRepairSystemPrompt(): string {
 
 export function buildBookSurfaceRepairUserPrompt(args: {
   authority: BookSurfaceRepairAuthority;
+  authorityDraft: Record<string, unknown>;
+  expectedAuthorityDigest: string;
 }): string {
-  if (!bookSurfaceRepairAuthorityIsIntact(args.authority)) {
+  if (
+    !bookSurfaceRepairAuthorityIsIntact(
+      args.authority,
+      args.authorityDraft,
+      args.expectedAuthorityDigest,
+    )
+  ) {
     throw new Error('book_surface_repair_authority_mismatch');
   }
   if (
@@ -1550,6 +1904,16 @@ export function buildBookSurfaceRepairUserPrompt(args: {
             diagnosticCount:
               args.authority.recurringPropValidationHints.length,
           },
+    transitionAuthority:
+      args.authority.transitionAuthority === null
+        ? null
+        : (() => {
+            const {
+              authorityDraftDigest: _authorityDraftDigest,
+              ...providerAuthority
+            } = args.authority.transitionAuthority;
+            return structuredClone(providerAuthority);
+          })(),
     affectedPages: args.authority.affectedPages.map((value) => ({
       pageNumber: value.pageNumber,
       pageStructuralProjection: pageStructuralProjection(
@@ -1911,7 +2275,6 @@ function validatePageAuthorityAndPatches(args: {
       !pageReadOnlyContextIsValid(
         affectedPage.readOnlyContext,
         affectedPage.pageNumber,
-        affectedPage.writableFields.includes('transition'),
       ) ||
       !currentAnchorIds ||
       !orderedValuesEqual(
@@ -1942,6 +2305,23 @@ function validatePageAuthorityAndPatches(args: {
         (writable && patch[key] === null)
       ) {
         throw new Error('book_surface_repair_non_target_drift');
+      }
+    }
+    if (writableFields.has('transition')) {
+      const transition = recordValue(patch.transition);
+      const declaredZoneIds = new Set(
+        args.authority.referenceAuthority.zones.map((zone) => zone.id),
+      );
+      if (
+        !transition ||
+        ['fromZoneId', 'toZoneId'].some((key) => {
+          const value = transition[key];
+          return value !== null &&
+            value !== undefined &&
+            (typeof value !== 'string' || !declaredZoneIds.has(value));
+        })
+      ) {
+        throw new Error('book_surface_repair_transition_reference_invalid');
       }
     }
 
@@ -2492,10 +2872,16 @@ function restoreCompilerOwnedCoverReferenceIdentity(args: {
 export function applyBookSurfaceRepairPatch(args: {
   draft: Record<string, unknown>;
   authority: BookSurfaceRepairAuthority;
+  authorityDraft: Record<string, unknown>;
+  expectedAuthorityDigest: string;
   patch: BookSurfaceRepairPatch;
 }): Record<string, unknown> {
   if (
-    !bookSurfaceRepairAuthorityIsIntact(args.authority) ||
+    !bookSurfaceRepairAuthorityIsIntact(
+      args.authority,
+      args.authorityDraft,
+      args.expectedAuthorityDigest,
+    ) ||
     typeof args.authority.sourceDraftDigest !== 'string' ||
     canonicalHash(args.draft) !== args.authority.sourceDraftDigest
   ) {

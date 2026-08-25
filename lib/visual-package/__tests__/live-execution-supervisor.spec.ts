@@ -767,10 +767,10 @@ describe('canonical live execution request and readiness', () => {
       canonicalLiveExecutionRequestIssues(fixture.request),
     ).toEqual([]);
     expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
-      'canonical-live-request-verification/v49',
+      'canonical-live-request-verification/v50',
     );
     expect(CANONICAL_LIVE_EXECUTION_RESULT_VERSION).toBe(
-      'canonical-live-execution-result/v37',
+      'canonical-live-execution-result/v38',
     );
     expect(readiness.version).toBe(
       CANONICAL_LIVE_EXECUTION_READINESS_VERSION,
@@ -927,7 +927,7 @@ describe('canonical live execution request and readiness', () => {
     const legacyRequest = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    legacyRequest.version = 'canonical-live-execution-request/v44';
+    legacyRequest.version = 'canonical-live-execution-request/v45';
     const {
       digestAlgorithm: _requestAlgorithm,
       digest: _requestDigest,
@@ -947,7 +947,7 @@ describe('canonical live execution request and readiness', () => {
       readiness,
     ) as unknown as Record<string, unknown>;
     legacyReadiness.version =
-      'canonical-live-execution-readiness/v44';
+      'canonical-live-execution-readiness/v45';
     const {
       digestAlgorithm: _readinessAlgorithm,
       digest: _readinessDigest,

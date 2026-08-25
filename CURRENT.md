@@ -1,19 +1,61 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-25
+**Updated:** 2026-08-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed diagnosis base `0269d3ae3f27eece591a9cd89399f5d3e4f7c18c`.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed implementation base `d88337288db1eeb895cb9355f40ec23385436dee`.
 
-## SECOND BOUNDED LIVE AUTHORING ATTEMPT — CONSUMED; TYPED TRANSITION AUTHORITY HOLD
+## BOOKSURFACE TYPED TRANSITION AUTHORITY — OFFLINE GREEN; INDEPENDENT QA PENDING
 
-The reviewed page-local transition-routing correction was pushed at
-`0269d3ae`. A new Fresh Readiness root was then prepared and verified at
-`outputs/r1d-chameleon-v3-fresh-readiness-20260825T202050621Z`; its immutable
-Fresh digest is `e0191bf77bea5ff9e4c92df57f97650d953eb29af7453b4d61cda6534b1a8b99`.
-The exact execution request passed Supervisor readiness with an empty reason
-catalog, a `$10` hard ceiling and `$6.541304` projected maximum.
+Guy approved the typed-transition Decision Gate on 2026-08-26. The general
+offline implementation is complete on top of `d8833728`; it has not yet been
+committed or independently accepted. It replaces the under-specified
+BookSurface transition input with thirteen closed transition subcauses and one
+ordered effective transition-chain authority derived by the same analyzer the
+validator uses. The broad `page_transition_invalid` cause and its diagnostic
+identity remain compatible. Provider authority over `kind` and `cue` is
+preserved; the compiler supplies only effective read-only state and exact
+endpoint authority.
 
-The one authorized live invocation is consumed. Receipt
+The shared analyzer preserves every existing transition rule, message, order
+and state update. BookSurface now receives actual ordered predecessor and
+successor pages, effective transition state, declared and established zones,
+and the prior threshold edge. The full authority is integrity-bound to the
+exact effective compiler draft. A compiler-captured expected digest remains
+outside the mutable authority, so a caller cannot coherently rehash a downgraded
+target set, remove transition authority and obtain a different writable field.
+Missing private draft state, stale or rehashed authority, duplicate/gapped
+topology, endpoint mismatch and mixed-case/punctuation sorting drift all fail
+closed before prompt construction and before patch application.
+
+The justified implementation scope includes
+`compileBookVisualContractTemplate.ts`: the compiler must retain the exact
+effective draft and its original authority digest across provider dispatch and
+apply. Without that private binding, a self-consistent rehash could evade the
+tamper check. No page-contract route, validation policy, Candidate, Wizard or
+render contract was widened.
+
+Offline proof is green. The five-file compiler/repair/harness matrix passes
+201/201; TypeScript and `git diff --check` pass. The adjacent coupled-page
+harness reaches `3 -> 1 -> 0`, and the existing live-shaped mixed frontier
+still reaches `19 -> 6 -> 5 -> 0` through BookSurface then pure
+represented-elsewhere repair with zero provider calls. Exact 8-page and
+12-page accounting is 26,776 and 30,631 estimated bytes respectively; both
+remain admissible with more than 4,096 bytes of route headroom. The BookSurface
+v7 schema digest remains
+`a1d16581b25d9af14b33fdaa21806713f739212e51afa53643ba4c030739b20f`.
+The diagnostic/prompt/request/Fresh authorities advance exactly as recorded in
+`docs/ai-workflow/R1D_BOOK_SURFACE_TYPED_TRANSITION_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`;
+policy v18, seven calls, six repairs, zero retries, no fallback, `$10` ceiling,
+model, Candidate and downstream Wizard/render shapes are unchanged.
+
+Literal `npm run check` on the final bytes passes both TypeScript phases, 3,736
+ordinary assertions and all 613 resource-intensive assertions. It reproduces
+only nine missing ignored-output fixture assertions across five unchanged
+files, 70 skips and three known Vitest `onTaskUpdate` RPC timeout events. The
+command therefore exits 1 and is recorded honestly as a baseline/environment
+failure; no changed-code assertion fails.
+
+The prior consumed live evidence remains immutable. Receipt
 `784f4cd144a38e20522c0bf112197c3df230f1d8ff4c36624e2b5ee524aa29c3`
 records seven completed canonical provider calls, six repairs, zero transport
 retries, no fallback, nominal cost `$1.359974` and conservative cost
@@ -25,43 +67,14 @@ The complete normalized census was
 plus `page_transition_invalid` on pages 2, 3 and 6. Attempts 6 and 7 had
 different user-prompt digests but returned the same response digest
 `5e0e59b326821fbc3bdeb940a570dc096e6d7e84c591af9dde0283b862d2f775`;
-the exact-state stagnation guard then stopped correctly. No second invocation,
-Candidate, Wizard progression or render occurred.
+the exact-state stagnation guard then stopped correctly. No invocation,
+Candidate, Wizard progression or render has occurred under this Decision Gate.
 
-The prior correction worked but did not close provider solvability: it kept
-the surfaced transition failures on `book_surface_patch`, resolved the page-4
-and page-7 transition failures, and avoided the destructive `full_draft`
-fallback. The remaining root cause is an incomplete transition-repair input.
-The validator distinguishes thirteen local and cross-page transition failure
-classes and walks ordered pages with `establishedZones`, `previousZone` and
-`lastThresholdEdge`. BookSurface exposes only the broad
-`page_transition_invalid` cause, the authored page transition and adjacent
-`pageNumber +/- 1` zone IDs. It omits the exact typed subtype, the effective
-compiler-canonicalized transition, the actual sorted predecessor/successor,
-the established-zone set and the prior threshold edge. Two books can therefore
-produce the same provider-visible target while the same page-3 transition is
-valid after a matching page-2 threshold and invalid after a page-2
-after-transition.
-
-The existing `$0` `19 -> 6 -> 5 -> 0` harness remains honest for routing and
-application: it runs the production compiler and real validation. Its
-limitation is narrower than Claude Code first stated: it supplies a
-hand-authored correct transition response, so it does not prove that the
-provider can derive that response from the current payload. Claude Code and
-three independent read-only audits agree on the information gap. Claude's
-suggestions to pass raw English error strings and a repair-attempt index are
-not accepted as the durable contract: prose can drift and an attempt number
-adds no missing semantic truth. The proposed general correction instead uses
-closed typed transition subcauses plus compiler-derived sequential state from
-one shared analyzer, with no raw validation prose.
-
-The stop rule is now binding: this is the second consecutive paid authoring
-failure. No new provider/live attempt, budget/model/call change, best-of-N,
-Candidate, Wizard progression or render is authorized. The next action is
-Guy's decision on
-`docs/ai-workflow/R1D_BOOK_SURFACE_TYPED_TRANSITION_AUTHORITY_DECISION_GATE.md`.
-Implementation remains `$0` and offline until a focused commit receives an
-independent Claude Code PASS.
+The binding next action is a focused local commit followed by Claude Code's
+adversarial read-only review of the immutable implementation range. Codex does
+not self-award that PASS. Fresh, provider/live authoring, Candidate creation,
+Wizard progression and render remain forbidden until Claude Code returns PASS;
+the prior two-failure stop rule and every consumed Fresh root remain binding.
 
 ## PAGE-LOCAL TRANSITION CONTINUITY ROUTING — INDEPENDENT TECHNICAL PASS; PUSHED AND SUPERSEDED BY LIVE DIAGNOSIS
 

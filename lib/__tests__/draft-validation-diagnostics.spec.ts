@@ -10,6 +10,7 @@ import {
   MAX_DRAFT_VALIDATION_STRUCTURAL_INDEX,
   MAX_PERSISTED_DRAFT_VALIDATION_TRANSITION_ITEMS,
   PAGE_FINAL_STRUCTURAL_CAUSES,
+  PAGE_TRANSITION_STRUCTURAL_CAUSES,
   buildDraftValidationDiagnosticTrail,
   draftValidationAttemptDiagnosticsIsValid,
   draftValidationDiagnosticCodesForIssues,
@@ -465,6 +466,7 @@ describe('closed draft-validation issue contract', () => {
       'page_cast_binding_invalid',
       'page_human_presence_binding_invalid',
       'page_transition_invalid',
+      ...PAGE_TRANSITION_STRUCTURAL_CAUSES,
     ]);
     const steering = pageFinalStructuralIssue(['page_steering_invalid']);
     const spatial = pageFinalStructuralIssue([
@@ -487,7 +489,7 @@ describe('closed draft-validation issue contract', () => {
       [pageFinalStructuralIssue(['page_transition_invalid'])],
     ]);
     expect(trail[0]).toMatchObject({
-      version: 'draft-validation-attempt-diagnostics/v4',
+      version: 'draft-validation-attempt-diagnostics/v5',
       emittedCount: 2,
       currentUniqueCount: 1,
       newlyIntroducedCount: 1,
@@ -512,6 +514,7 @@ describe('closed draft-validation issue contract', () => {
     for (const relativePath of [
       'lib/visual-contract-compiler/validateBookVisualContract.ts',
       'lib/visual-contract-compiler/validateVNextVisualContract.ts',
+      'lib/visual-contract-compiler/transitionAnalysis.ts',
     ]) {
       const sourceFile = ts.createSourceFile(
         relativePath,
@@ -530,6 +533,22 @@ describe('closed draft-validation issue contract', () => {
         ) {
           producedCauses.add(node.arguments[2].text);
         }
+        if (
+          relativePath.endsWith('transitionAnalysis.ts') &&
+          ts.isPropertyAssignment(node) &&
+          ((ts.isIdentifier(node.name) && node.name.text === 'cause') ||
+            (ts.isStringLiteral(node.name) && node.name.text === 'cause')) &&
+          ts.isStringLiteral(node.initializer)
+        ) {
+          producedCauses.add(node.initializer.text);
+        }
+        if (
+          relativePath.endsWith('validateVNextVisualContract.ts') &&
+          ts.isStringLiteral(node) &&
+          node.text === 'page_transition_invalid'
+        ) {
+          producedCauses.add(node.text);
+        }
         ts.forEachChild(node, visit);
       };
       visit(sourceFile);
@@ -546,6 +565,26 @@ describe('closed draft-validation issue contract', () => {
       'page_steering_invalid',
     ]);
     expect(draftValidationIssueIsValid(valid)).toBe(true);
+    expect(
+      draftValidationIssueIsValid(
+        pageFinalStructuralIssue(['page_transition_invalid']),
+      ),
+    ).toBe(true);
+    expect(
+      draftValidationIssueIsValid(
+        pageFinalStructuralIssue([
+          'page_transition_no_move_zone_changed',
+        ]),
+      ),
+    ).toBe(false);
+    expect(
+      draftValidationIssueIsValid(
+        pageFinalStructuralIssue([
+          'page_transition_invalid',
+          'page_transition_no_move_zone_changed',
+        ].sort() as PageFinalStructuralCause[]),
+      ),
+    ).toBe(true);
 
     const mutations: Array<(value: Record<string, unknown>) => void> = [
       (value) => {
@@ -730,6 +769,9 @@ describe('canonical per-attempt transitions', () => {
       },
       (value) => {
         value.truncated = true;
+      },
+      (value) => {
+        value.version = 'draft-validation-attempt-diagnostics/v4';
       },
       (value) => {
         value.version = 'draft-validation-attempt-diagnostics/v3';
