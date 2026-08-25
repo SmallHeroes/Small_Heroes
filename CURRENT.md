@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; current downstream implementation base `3c6c04ceeb569fab17b749867121621cbba81016`.
 
-## QA WIZARD BLUEPRINT OPERATOR — OFFLINE GREEN; INDEPENDENT CLAUDE GATE PENDING
+## QA WIZARD BLUEPRINT OPERATOR — INDEPENDENT TECHNICAL PASS; FRESH INPUT PENDING
 
 The downstream Blueprint boundary is now reachable only through one explicit
 operator lifecycle. It reloads the approved QA Wizard Candidate bridge and
@@ -70,16 +70,34 @@ gate. Claude Code then independently re-gated exact correction range
 and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It traced both producer
 orders, reproduced the hostile aggregate-aware cases, and independently passed
 TypeScript, 32/32 lifecycle tests and a 221/221 adapter/live-boundary/launcher
-matrix. This accepts the replay correction only; the remaining operator
-claim/credential/persistence/approval surfaces still receive one bounded
-independent audit before live authority is exercised.
+  matrix. This accepts the replay correction. The remaining operator
+  claim/credential/persistence/approval surfaces then received their own bounded
+independent audit.
+
+Claude Code independently reviewed the complete operator-plus-correction range
+`90f3f20a2689373c7938daef353ea6926deadba7..8ea8d413d69b1642c0bf9c0c5c4245d51ed8bf66`
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It traced stable-authority
+single-use claim before lazy credential/provider access, fail-closed uncertain
+recovery, exact terminal replay, candidate self-replay before persistence, the
+independent `$5` spend fence, credential identity and sanitization,
+writer-shaped adapter evidence, exact Guy approval, the bounded Windows claim,
+callsite/import isolation and the absence of story-specific shortcuts. Its
+process sandbox did not permit a new `npx` invocation, so that pass relied on
+exhaustive static tracing plus the already-recorded green 32/32, 119/119 and
+TypeScript runs; `git diff --check` was independently clean. The separate
+Responses-boundary range
+`3c6c04ceeb569fab17b749867121621cbba81016..90f3f20a2689373c7938daef353ea6926deadba7`
+also received **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR** in an independent
+read-only audit.
 
 No provider, paid live authoring, credential-backed request, Candidate
 publication, Blueprint approval, Wizard order, database/storage write, image,
 audio, render or deployment occurred in this milestone. The next gate is an
-independent read-only Claude Code audit of the exact committed range. Only a
-technical PASS permits a fresh preflight and one bounded paid Blueprint live
-attempt. Durable evidence:
+exact new-story Visual Contract Candidate and approved QA Wizard bridge under a
+fresh current repository authority; the only bridge currently discoverable on
+disk is bound to the superseded bus-stop Story Source and must not be reused.
+Only after that upstream chain exists may this operator prepare and execute one
+bounded paid Blueprint attempt. Durable evidence:
 `docs/ai-workflow/R1D_QA_WIZARD_BLUEPRINT_OPERATOR_IMPLEMENTATION_EVIDENCE.md`.
 
 ## BLUEPRINT RESPONSES BOUNDARY — OFFLINE GREEN; INDEPENDENT QA PENDING

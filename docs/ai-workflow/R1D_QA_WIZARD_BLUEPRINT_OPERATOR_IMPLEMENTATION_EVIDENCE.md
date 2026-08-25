@@ -92,8 +92,8 @@ persisting its secret.
 - This milestone does not create or approve a real Blueprint, reconcile a
   Visual Package, qualify a Wizard product, create an order, fake-pay, render,
   upload, write the database, deploy or publish.
-- The exact combined commit range still requires Claude Code's independent
-  read-only PASS. Codex does not self-award that gate.
+- The exact combined operator and correction ranges have independent Claude
+  Code PASS verdicts. Codex does not self-award those gates.
 - A paid live attempt remains bounded to the compiler-owned model, three calls,
   two repairs, zero transport retries, no fallback and the independent $5 hard
   ceiling.
@@ -135,6 +135,30 @@ read-only and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It independen
 traced compiler and adapter producer ordering, attempted full rehash plus
 aggregate-rebind counterexamples, and ran TypeScript, 32/32 lifecycle and
 221/221 adapter/canonical-live-boundary/launcher checks. No external action was
-performed. This PASS closes the correction findings; one bounded independent
-audit of the remaining operator claim, credential, persistence and approval
-surfaces is still required before paid live execution.
+performed. This PASS closes the correction findings. The remaining operator
+claim, credential, persistence and approval surfaces then received their own
+bounded independent audit.
+
+Claude Code independently audited cumulative operator range
+`90f3f20a2689373c7938daef353ea6926deadba7..8ea8d413d69b1642c0bf9c0c5c4245d51ed8bf66`
+read-only and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It verified
+the stable-authority claim precedes lazy credential/provider access,
+fail-closed uncertain recovery, exact terminal replay, pre-persistence
+candidate replay, independent cost reservation, credential file identity and
+sanitization, writer-shaped response evidence, candidate-keyed exact Guy
+approval, the stated Windows process/concurrency boundary, the production
+callsite census and the absence of a story-specific shortcut. Its environment
+blocked new `npx` commands, so the verdict used exhaustive static tracing and
+the already-recorded green TypeScript, 32/32 lifecycle and 119/119 focused
+matrix; it independently confirmed `git diff --check` is clean.
+
+Claude Code also independently audited the Responses-boundary range
+`3c6c04ceeb569fab17b749867121621cbba81016..90f3f20a2689373c7938daef353ea6926deadba7`
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**, including independent
+TypeScript and 70/70 adapter/foundation verification.
+
+The operator is therefore technically accepted. It still cannot be invoked
+for the current accepted-v3 Chameleon story until that Story Source first has
+a current Visual Contract Candidate and an exact approved QA Wizard bridge.
+The only approved bridge currently present on disk is bound to the superseded
+bus-stop Story Source and is explicitly ineligible for the new-story proof.
