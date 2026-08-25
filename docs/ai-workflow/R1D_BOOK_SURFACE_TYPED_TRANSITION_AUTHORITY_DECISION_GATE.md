@@ -283,5 +283,6 @@ no changed-code assertion fails.
 
 No Fresh, credential, provider, live authoring, Candidate publication, Wizard
 order, payment, render, deployment or push occurred. The implementation is not
-accepted until its focused local commit receives an independent Claude Code
-PASS.
+accepted until local implementation commit
+`ee61db4d908fce3b1407734d5cb61c991e32de30` plus this post-commit documentation
+reconciliation receive an independent Claude Code PASS.

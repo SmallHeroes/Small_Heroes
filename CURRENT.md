@@ -2,13 +2,13 @@
 
 **Updated:** 2026-08-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed implementation base `d88337288db1eeb895cb9355f40ec23385436dee`.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed implementation base `d88337288db1eeb895cb9355f40ec23385436dee`, local unpushed implementation commit `ee61db4d908fce3b1407734d5cb61c991e32de30`.
 
 ## BOOKSURFACE TYPED TRANSITION AUTHORITY — OFFLINE GREEN; INDEPENDENT QA PENDING
 
 Guy approved the typed-transition Decision Gate on 2026-08-26. The general
-offline implementation is complete on top of `d8833728`; it has not yet been
-committed or independently accepted. It replaces the under-specified
+offline implementation is committed locally at `ee61db4d`; it has not been
+independently accepted or pushed. It replaces the under-specified
 BookSurface transition input with thirteen closed transition subcauses and one
 ordered effective transition-chain authority derived by the same analyzer the
 validator uses. The broad `page_transition_invalid` cause and its diagnostic
@@ -38,7 +38,8 @@ Offline proof is green. The five-file compiler/repair/harness matrix passes
 201/201; TypeScript and `git diff --check` pass. The adjacent coupled-page
 harness reaches `3 -> 1 -> 0`, and the existing live-shaped mixed frontier
 still reaches `19 -> 6 -> 5 -> 0` through BookSurface then pure
-represented-elsewhere repair with zero provider calls. Exact 8-page and
+represented-elsewhere repair, ending in a synthetic in-memory Candidate
+outcome with zero provider calls and no Candidate publication. Exact 8-page and
 12-page accounting is 26,776 and 30,631 estimated bytes respectively; both
 remain admissible with more than 4,096 bytes of route headroom. The BookSurface
 v7 schema digest remains
@@ -67,14 +68,17 @@ The complete normalized census was
 plus `page_transition_invalid` on pages 2, 3 and 6. Attempts 6 and 7 had
 different user-prompt digests but returned the same response digest
 `5e0e59b326821fbc3bdeb940a570dc096e6d7e84c591af9dde0283b862d2f775`;
-the exact-state stagnation guard then stopped correctly. No invocation,
-Candidate, Wizard progression or render has occurred under this Decision Gate.
+the exact-state stagnation guard then stopped correctly. No live invocation,
+persisted/published Candidate authority, Wizard progression or render has
+occurred under this Decision Gate.
 
-The binding next action is a focused local commit followed by Claude Code's
-adversarial read-only review of the immutable implementation range. Codex does
-not self-award that PASS. Fresh, provider/live authoring, Candidate creation,
-Wizard progression and render remain forbidden until Claude Code returns PASS;
-the prior two-failure stop rule and every consumed Fresh root remain binding.
+The focused implementation commit is complete. The binding next action is
+Claude Code's adversarial read-only review of the immutable base-to-current-HEAD
+range, including the post-commit documentation reconciliation. Codex does not
+self-award that PASS. Fresh, provider/live authoring, Candidate
+publication/persistence, Wizard progression and render remain forbidden until
+Claude Code returns PASS; the prior two-failure stop rule and every consumed
+Fresh root remain binding.
 
 ## PAGE-LOCAL TRANSITION CONTINUITY ROUTING — INDEPENDENT TECHNICAL PASS; PUSHED AND SUPERSEDED BY LIVE DIAGNOSIS
 

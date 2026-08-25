@@ -280,13 +280,15 @@ environmental failures were repaired.
 
 Codex's local checks and parallel read-only audits found no remaining
 implementation defect, but Codex does not self-award independent technical
-acceptance. The next action is:
+acceptance. The focused implementation is committed locally at
+`ee61db4d908fce3b1407734d5cb61c991e32de30`; the only later range change is
+this post-commit documentation-state reconciliation. The next action is:
 
-1. create one focused local commit from the explicit paths above;
-2. give Claude Code the immutable base-to-head range, read-only first pass;
-3. fix any valid finding in a separate commit and re-gate;
-4. only after Claude Code PASS may Guy decide whether to authorize a new Fresh
+1. give Claude Code the immutable base-to-current-HEAD range, read-only first
+   pass;
+2. fix any valid finding in a separate commit and re-gate;
+3. only after Claude Code PASS may Guy decide whether to authorize a new Fresh
    and one bounded live attempt.
 
-Until that PASS, no Fresh, provider/live authoring, Candidate, Wizard or render
-action is authorized.
+Until that PASS, no Fresh, provider/live authoring, Candidate
+publication/persistence, Wizard progression or render action is authorized.
