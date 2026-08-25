@@ -430,6 +430,41 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     }
   });
 
+  it('attributes continuity to pageNumber after sorting an out-of-order page array', () => {
+    const bad = seqBase();
+    bad.pageContracts[1].transition = { kind: 'steady' };
+    bad.pageContracts.reverse();
+
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.join(' ')).toMatch(/undeclared scene move/);
+      expect(r.diagnosticIssues).toContainEqual(
+        pageTransitionDiagnostic(2),
+      );
+    }
+  });
+
+  it('retains the original collection index when a malformed numeric pageNumber needs a fallback locator', () => {
+    const bad = seqBase();
+    bad.pageContracts[1].pageNumber = 0;
+
+    const r = validateVNextVisualContract(bad);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      const fallbackDiagnostics = r.diagnosticIssues.filter((issue) =>
+        issue.family === 'draft_contract' &&
+        issue.code === 'final_structural_invariant_invalid' &&
+        issue.locator.kind === 'collection_item' &&
+        issue.locator.collectionRole === 'page_contracts' &&
+        issue.locator.fieldRole === 'final_structure' &&
+        issue.locator.itemIndex === 1,
+      );
+      expect(fallbackDiagnostics.length).toBeGreaterThan(0);
+      expect(fallbackDiagnostics.every((issue) => !('causes' in issue))).toBe(true);
+    }
+  });
+
   it('a transition departing from a zone the story never established is rejected', () => {
     const bad = seqBase();
     bad.pageContracts[0].zoneId = 'house.attic'; // start in the attic, but page 2 claims to arrive FROM the hall

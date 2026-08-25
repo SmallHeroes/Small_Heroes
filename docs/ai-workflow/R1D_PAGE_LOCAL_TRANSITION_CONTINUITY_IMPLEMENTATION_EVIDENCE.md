@@ -86,11 +86,13 @@ injects a live-shaped masked frontier:
   masks.
 
 Diagnostic normalization merges the transition cause with the page-one final
-structural identity in the independent complete census, so both initial
-surfaced and complete counts are 19 even though their member detail differs.
-After the first BookSurface repair the transition identity becomes surfaced.
+structural identity in the injected independent complete census, so both
+initial surfaced and complete counts are 19 even though their member detail
+differs. The injected census measures regression separately and does not drive
+route selection. After the first BookSurface repair the transition identity
+becomes surfaced by the real validator.
 
-The asserted route and complete census are:
+The asserted real surfaced route and replayed complete census are:
 
 `19 -> 6 -> 5 -> 0`
 
@@ -99,7 +101,7 @@ The asserted route and complete census are:
 The harness proves:
 
 - Candidate outcome with `providerCalls: 0`;
-- complete-census deltas `-13`, `-1`, `-5` and no positive delta;
+- injected complete-census deltas `-13`, `-1`, `-5` and no positive delta;
 - stage one contains exactly five pointer issues plus one page-local transition
   issue;
 - the second BookSurface response targets exactly one page and only
@@ -132,8 +134,8 @@ Documentation:
 
 ## Validation
 
-- focused validator/compiler/harness matrix: **4 files, 136/136 PASS**;
-- broader relevant compiler/repair matrix: **33 files, 774/774 PASS**;
+- focused validator/compiler/harness matrix: **4 files, 138/138 PASS**;
+- broader relevant compiler/repair matrix: **33 files, 776/776 PASS**;
 - `npx --no-install tsc --noEmit`: exit 0;
 - `git diff --check`: exit 0;
 - full `npm run check`:
@@ -180,3 +182,33 @@ attempt to falsify:
 
 No Fresh Readiness, provider call or render is allowed before independent PASS
 and an exact push of the reviewed head.
+
+## First independent verdict and correction
+
+Claude Code reviewed exact range `e25ae0c0..3d4ebefa` read-only and returned
+**PASS — 0 BLOCKER / 0 MAJOR / 2 non-gating MINOR**. It independently traced
+all ten implementation claims, including unchanged validation messages,
+page-local BookSurface authority, pure represented scheduling, normalization
+and the real surfaced `19 -> 6 -> 5 -> 0` route.
+
+The two MINOR observations were valid proof-quality improvements:
+
+1. No explicit regression exercised out-of-order attribution or the fallback
+   collection index for a malformed numeric `pageNumber`.
+2. The harness receives `completeDiagnosticIssuesByAttempt`; those injected
+   independent census values measure regression but do not themselves prove
+   route selection. Real `surfacedDiagnosticIssues` and `nextRepairMode`
+   outputs are the load-bearing causal proof.
+
+A separate test/docs correction closes both. The validator suite now reverses
+the page array and proves attribution remains on page 2, then supplies numeric
+page 0 and proves the fallback retains original `itemIndex: 1` without an
+invented cause. Test name and evidence wording distinguish real surfaced
+outputs from replayed complete census inputs. Post-correction validation is
+138/138 focused, 776/776 broader relevant tests, TypeScript exit 0 and clean
+diff check. The full repository check was not repeated because production code
+is unchanged from the already-recorded full run; the correction changes only
+tests and documentation.
+
+The correction still requires a focused Claude Code micro re-gate before push,
+Fresh Readiness or live execution.

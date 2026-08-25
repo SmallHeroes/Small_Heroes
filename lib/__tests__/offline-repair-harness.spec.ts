@@ -759,7 +759,7 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.providerCalls).toBe(0);
   });
 
-  it('routes a masked live-shaped 19-issue frontier through transition-only BookSurface then the pure represented lane', async () => {
+  it('routes a real surfaced 19-to-6-to-5 frontier while replaying the independent complete census', async () => {
     const valid = bunnyDraft();
     const initial = structuredClone(valid);
     for (const page of initial.pageContracts) {
