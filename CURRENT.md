@@ -65,8 +65,14 @@ TypeScript, 32/32 lifecycle and the 119/119 focused matrix remain green.
 
 The first Claude Code invocation over the combined range reached its explicit
 $7 audit budget without returning a verdict. It is not counted as a technical
-gate. The correction receives a new immutable commit and a fresh independent
-Claude Code audit before any live authority is exercised.
+gate. Claude Code then independently re-gated exact correction range
+`fbb9acd2e0f190a1a721b11b4a18a9eef017cf4d..8ea8d413d69b1642c0bf9c0c5c4245d51ed8bf66`
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It traced both producer
+orders, reproduced the hostile aggregate-aware cases, and independently passed
+TypeScript, 32/32 lifecycle tests and a 221/221 adapter/live-boundary/launcher
+matrix. This accepts the replay correction only; the remaining operator
+claim/credential/persistence/approval surfaces still receive one bounded
+independent audit before live authority is exercised.
 
 No provider, paid live authoring, credential-backed request, Candidate
 publication, Blueprint approval, Wizard order, database/storage write, image,
