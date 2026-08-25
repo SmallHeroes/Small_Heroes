@@ -3315,7 +3315,7 @@ describe('canonical live authoring executable boundary', () => {
         repairCount + 1,
       );
       expect(result.receipt.attempts[0]
-        ?.reservedExposureBeforeCallUsd).toBe(9.9275);
+        ?.reservedExposureBeforeCallUsd).toBe(7.04);
       expect(result.persistence.candidate).not.toBeNull();
       expect(result.readiness).toMatchObject({
         visualContractCandidate: {
@@ -3389,13 +3389,13 @@ describe('canonical live authoring executable boundary', () => {
       result.receipt.attempts.map(
         (attempt) => attempt.nominalEstimatedCostUsd,
       ),
-    ).toEqual([0.064475, 0.03605]);
+    ).toEqual([0.04358, 0.02484]);
     expect(result.receipt.nominalEstimatedCostUsd).toBe(
-      0.100525,
+      0.06842,
     );
     expect(
       result.receipt.conservativeAccountedCostUsd,
-    ).toBe(0.114125);
+    ).toBe(0.0781);
     expect(
       result.receipt.attempts.every(
         (attempt) =>
@@ -3436,13 +3436,13 @@ describe('canonical live authoring executable boundary', () => {
           attempt.reservedExposureBeforeCallUsd,
       ),
     ).toEqual([
-      9.9275,
-      8.240375,
-      6.81725,
-      5.262125,
-      4.103,
-      2.943875,
-      1.78475,
+      7.04,
+      5.8575,
+      4.851,
+      3.7565,
+      2.926,
+      2.0955,
+      1.265,
     ]);
   });
 

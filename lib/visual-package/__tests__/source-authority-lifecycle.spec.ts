@@ -1136,6 +1136,22 @@ describe('exact zero-cost authoring preflight', () => {
     ).toBe(expected);
   });
 
+  it('projects the current eight-page and twelve-page price authorities exactly', () => {
+    const projected = (pageCount: number) =>
+      projectedMaximumAuthoringCostWithTerminalReferenceCleanupUsd({
+        standardMaxInputTokens: 64_000,
+        standardAttemptOutputLimits:
+          buildVisualContractAuthoringStandardAttemptOutputBudget(pageCount)
+            .limits,
+        cleanupMaxInputTokens: 12_000,
+        cleanupMaxOutputTokens: 1_000,
+        cleanupMaxCalls: 1,
+      });
+
+    expect(projected(8)).toBe(6.541304);
+    expect(projected(12)).toBe(7.04);
+  });
+
   it('rejects the prior schedule authority even when its payload is re-digested', () => {
     const legacy = structuredClone(
       standardAttemptOutputBudgetForBase(36_000),
@@ -1259,17 +1275,17 @@ describe('exact zero-cost authoring preflight', () => {
         },
       },
       pricing: {
-        version: 'openai-standard-pricing/2026-07-27-v2',
-        uncachedInputUsdPerUnit: 5,
-        cacheWriteInputUsdPerUnit: 6.25,
-        cachedInputUsdPerUnit: 0.5,
-        outputUsdPerUnit: 30,
+        version: 'openai-standard-pricing/2026-08-25-v3',
+        uncachedInputUsdPerUnit: 4,
+        cacheWriteInputUsdPerUnit: 5,
+        cachedInputUsdPerUnit: 0.4,
+        outputUsdPerUnit: 20,
         regionalUpliftMultiplier: 1.1,
         source:
           'https://developers.openai.com/api/docs/pricing',
       },
       costBudget: {
-        projectedMaxUsd: 9.9275,
+        projectedMaxUsd: 7.04,
         hardCeilingUsd: 10,
       },
     });
@@ -1356,7 +1372,7 @@ describe('exact zero-cost authoring preflight', () => {
       26_000,
       26_000,
     ]);
-    expect(invalidProjectedMaxUsd).toBeGreaterThan(9.9275);
+    expect(invalidProjectedMaxUsd).toBeGreaterThan(7.04);
     request.tokenBudget.standardAttempts = invalidSchedule;
     request.costBudget.projectedMaxUsd = invalidProjectedMaxUsd;
     const {
@@ -1937,7 +1953,7 @@ describe('exact zero-cost authoring preflight', () => {
       repairCount: 0,
       attempts: [],
       standardAttemptOutputBudget: authoritativeFallback,
-      projectedMaxCostUsd: 9.9275,
+      projectedMaxCostUsd: 7.04,
       failure: {
         code: 'request_invalid',
         issues: expect.arrayContaining([
@@ -2081,13 +2097,13 @@ describe('exact zero-cost authoring preflight', () => {
     );
   });
 
-  it('uses cache-write worst case plus regional uplift and treats the $5 boundary inclusively', () => {
+  it('uses cache-write worst case plus regional uplift and treats an exact ceiling inclusively', () => {
     expect(
       conservativeAuthoringCostUsd({
         inputTokens: 64_000,
         outputTokens: 36_000,
       }),
-    ).toBe(1.628);
+    ).toBe(1.144);
     expect(authoringSpendIsWithinCeiling(4.999999, 5)).toBe(
       true,
     );
@@ -2108,14 +2124,14 @@ describe('exact zero-cost authoring preflight', () => {
         conservativeAccountedCostUsd: 0,
         providerCallsCompleted: 0,
       }),
-    ).toBe(9.9275);
+    ).toBe(7.04);
     expect(
       authoringReservedExposureUsd({
         request,
-        conservativeAccountedCostUsd: 1.628,
+        conservativeAccountedCostUsd: 1.144,
         providerCallsCompleted: 1,
       }),
-    ).toBe(9.7955);
+    ).toBe(6.952);
     expect(
       authoringSpendIsWithinCeiling(
         authoringReservedExposureUsd({
@@ -2172,7 +2188,7 @@ describe('exact zero-cost authoring preflight', () => {
       string,
       unknown
     >;
-    pricing.cacheWriteInputUsdPerUnit = 5;
+    pricing.cacheWriteInputUsdPerUnit = 6.25;
     request.pricingDigest = canonicalJsonDigest(pricing);
     const {
       digestAlgorithm: _digestAlgorithm,
@@ -2195,6 +2211,52 @@ describe('exact zero-cost authoring preflight', () => {
     });
     expect(result.receipt.failure?.issues).toContain(
       'price_assumptions_mismatch',
+    );
+    expect(provider.call).not.toHaveBeenCalled();
+  });
+
+  it('rejects the prior policy and July pricing after re-digesting a current outer request', async () => {
+    const snapshot = snapshotFor(
+      writeStoryFixture({ pageCount: 12 }),
+    );
+    const request = structuredClone(
+      requestFor(snapshot, 'live'),
+    ) as unknown as Record<string, unknown>;
+    expect(request.version).toBe('visual-contract-authoring-request/v51');
+    request.policyVersion = 'visual-contract-authoring-policy/v17';
+    const pricing = request.pricing as Record<string, unknown>;
+    Object.assign(pricing, {
+      version: 'openai-standard-pricing/2026-07-27-v2',
+      uncachedInputUsdPerUnit: 5,
+      cacheWriteInputUsdPerUnit: 6.25,
+      cachedInputUsdPerUnit: 0.5,
+      outputUsdPerUnit: 30,
+    });
+    request.pricingDigest = canonicalJsonDigest(pricing);
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = request;
+    request.digest = canonicalJsonDigest(payload);
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request:
+        request as unknown as ReturnType<typeof requestFor>,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt.failure?.issues).toEqual(
+      expect.arrayContaining([
+        'authoring_policy_version_mismatch',
+        'price_assumptions_mismatch',
+      ]),
     );
     expect(provider.call).not.toHaveBeenCalled();
   });
@@ -2708,7 +2770,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     );
   });
 
-  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in readiness v18', async () => {
+  it('separates import-preflight attestation, authoring outcome, coverage, candidate state, and receipt-copied execution in current readiness', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const result = await runVisualContractAuthoring({
@@ -3958,11 +4020,11 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       totalTokens: 3_000,
     });
     expect(result.receipt.nominalEstimatedCostUsd).toBe(
-      0.065,
+      0.044,
     );
     expect(
       result.receipt.conservativeAccountedCostUsd,
-    ).toBe(0.072875);
+    ).toBe(0.0495);
     expect(result.receipt.pricing).toEqual(request.pricing);
     expect(result.receipt.pricingDigest).toBe(
       request.pricingDigest,
@@ -3972,9 +4034,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       model: 'gpt-5.6-sol',
       responseId: 'response-1',
       usageEvidenceKind: 'legacy_injected_compatibility',
-      reservedExposureBeforeCallUsd: 9.9275,
-      nominalEstimatedCostUsd: 0.065,
-      conservativeAccountedCostUsd: 0.072875,
+      reservedExposureBeforeCallUsd: 7.04,
+      nominalEstimatedCostUsd: 0.044,
+      conservativeAccountedCostUsd: 0.0495,
       status: 'response_received',
     });
     expect(
@@ -4001,14 +4063,14 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       totalTokens: 1_100,
     };
     expect(nominalAuthoringUsageCostUsd(usage)).toBe(
-      0.007475,
+      0.00558,
     );
     expect(
       conservativeAuthoringCostUsd({
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
       }),
-    ).toBe(0.010175);
+    ).toBe(0.0077);
   });
 
   it('sanitizes provider failures and refuses provider/model substitution', async () => {
@@ -5077,24 +5139,24 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       7_000,
     );
     expect(result.receipt.nominalEstimatedCostUsd).toBe(
-      0.455,
+      0.308,
     );
     expect(
       result.receipt.conservativeAccountedCostUsd,
-    ).toBe(0.510125);
+    ).toBe(0.3465);
     expect(
       result.receipt.attempts.map(
         (attempt) =>
           attempt.reservedExposureBeforeCallUsd,
       ),
     ).toEqual([
-      9.9275,
-      8.240375,
-      6.81725,
-      5.262125,
-      4.103,
-      2.943875,
-      1.78475,
+      7.04,
+      5.8575,
+      4.851,
+      3.7565,
+      2.926,
+      2.0955,
+      1.265,
     ]);
     expect(
       result.receipt.attempts.reduce(

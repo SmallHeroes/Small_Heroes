@@ -548,7 +548,7 @@ describe('canonical live request materialization artifacts', () => {
         },
       },
       costBudget: {
-        projectedMaxUsd: 9.9275,
+        projectedMaxUsd: 7.04,
         hardCeilingUsd: 10,
       },
       structuredOutput: {

@@ -4,6 +4,43 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-represented-elsewhere-narrow-patch` in `C:\GNart\Work\sh-live-chameleon-v3`, based on `06280b5a3f971996280e6d59a686eca4f890cd8a`.
 
+## GPT-5.6 SOL PRICING AUTHORITY CUTOVER — IMPLEMENTED; AWAITING INDEPENDENT QA
+
+The official current promotional Standard schedule for `gpt-5.6-sol` is now
+`$4.00/M` ordinary input, `$5.00/M` cache write, `$0.40/M` cached input and
+`$20.00/M` output. The checked-in July schedule was safely higher but no longer
+truthful as current price authority, so the Fresh root prepared before this
+discovery is invalidated and must never authorize live execution.
+
+The authoring policy advances from v17 to v18 and the nested dated pricing
+authority advances to `openai-standard-pricing/2026-08-25-v3`; the 1.10 regional
+uplift, `$10` hard ceiling, model, service tier, reasoning effort, output
+schedule, call count, zero retry and no-fallback rules are unchanged. Outer
+request/receipt/readiness, B0, Supervisor and Fresh versions remain unchanged;
+their exact content digests bind the new nested authority. A re-digested current
+outer request carrying policy v17 plus the full July price table fails closed
+on both policy and price mismatch before provider reachability.
+
+The unchanged eight-page schedule now projects to `$6.541304`; twelve pages
+project to `$7.04`; one conservative 64K/36K call is `$1.144`. The lifecycle
+suite passes 108/108 and TypeScript passes. The six canonical downstream files
+pass all 333 assertions, including Fresh 14/14. Vitest then emits the established
+post-assertion `onTaskUpdate` RPC timeout; the isolated Supervisor likewise
+passes 42/42 before the same runner-only event. Per the existing infrastructure
+Decision Gate, the event is recorded rather than hidden by retry, pool change,
+timeout inflation, serialization, skip or assertion weakening. Independent
+Claude Code must distinguish this separate infrastructure HOLD from the focused
+pricing implementation.
+
+The durable records are
+`docs/ai-workflow/R1D_GPT_5_6_SOL_PRICING_AUTHORITY_CUTOVER_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_GPT_5_6_SOL_PRICING_AUTHORITY_CUTOVER_IMPLEMENTATION_EVIDENCE.md`.
+No provider, paid live, Candidate, Wizard, image, audio, render, database,
+storage or deployment action occurred. After independent acceptance and push,
+the next `$0` milestone is the generic Candidate-to-Wizard downstream bridge;
+only then should a brand-new Fresh root authorize one bounded live attempt.
+
 ## REPRESENTED-ELSEWHERE NARROW PATCH — INDEPENDENT PASS; QA MINORS CLOSED LOCALLY
 
 The last bounded paid attempt is preserved under

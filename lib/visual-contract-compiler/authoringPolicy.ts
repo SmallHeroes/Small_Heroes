@@ -4,7 +4,7 @@ import {
 } from './draftValidationDiagnostics';
 
 export const VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
-  'visual-contract-authoring-policy/v17' as const;
+  'visual-contract-authoring-policy/v18' as const;
 
 export const VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION =
   'visual-contract-authoring-standard-attempt-output-budget/v6' as const;
@@ -261,19 +261,20 @@ export function visualContractAuthoringRouteIsAdmissible(args: {
 }
 
 /**
- * Standard-tier prices published for `gpt-5.6-sol`, plus the published
- * regional-processing uplift. Spend authorization uses the cache-write rate
- * and uplift for every possible input token so the conservative reservation
- * remains independent of the provider-reported input partition.
+ * Current promotional Standard-tier prices published for `gpt-5.6-sol`, plus
+ * the published regional-processing uplift. Spend authorization uses the
+ * cache-write rate and uplift for every possible input token so the
+ * conservative reservation remains independent of the provider-reported
+ * input partition.
  */
 export const VISUAL_CONTRACT_AUTHORING_PRICE_ASSUMPTIONS = {
-  version: 'openai-standard-pricing/2026-07-27-v2',
+  version: 'openai-standard-pricing/2026-08-25-v3',
   currency: 'USD',
   unitTokens: 1_000_000,
-  uncachedInputUsdPerUnit: 5,
-  cacheWriteInputUsdPerUnit: 6.25,
-  cachedInputUsdPerUnit: 0.5,
-  outputUsdPerUnit: 30,
+  uncachedInputUsdPerUnit: 4,
+  cacheWriteInputUsdPerUnit: 5,
+  cachedInputUsdPerUnit: 0.4,
+  outputUsdPerUnit: 20,
   regionalUpliftMultiplier: 1.1,
   source:
     'https://developers.openai.com/api/docs/pricing',

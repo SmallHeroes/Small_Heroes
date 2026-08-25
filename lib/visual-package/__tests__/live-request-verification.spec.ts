@@ -548,7 +548,7 @@ describe('canonical live request verification library', () => {
         },
         transportRetries: 0,
         noFallback: true,
-        projectedMaxUsd: 9.9275,
+        projectedMaxUsd: 7.04,
         hardCeilingUsd: 10,
       },
       structuredOutputCompatibility:

@@ -566,7 +566,7 @@ describe('canonical pre-live readiness orchestrator', () => {
               limits: [40_000, 32_000, 36_000, 24_000, 24_000, 24_000, 24_000],
               totalPool: 204_000,
             },
-            projectedMaxUsd: 9.9275,
+            projectedMaxUsd: 7.04,
             hardCeilingUsd: 10,
           },
         },
