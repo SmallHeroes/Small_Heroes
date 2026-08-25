@@ -1,5 +1,7 @@
 import path from 'path';
 
+import { canonicalize } from '@/lib/canonical-json';
+
 import {
   PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
 } from './preRenderBlueprintTypes';
@@ -13,7 +15,10 @@ import {
   type PreRenderBlueprintAuthoringResult,
 } from './preRenderBlueprintAuthoring';
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from './preRenderBlueprintDraftSchema';
-import { writeImmutableLocalArtifact } from './preRenderBlueprintLifecycle';
+import {
+  writeImmutableLocalArtifact,
+  type ImmutableWriteHooks,
+} from './preRenderBlueprintLifecycle';
 import {
   canonicalJsonDigest,
   isoTimestampIsValid,
@@ -32,6 +37,7 @@ import {
   injectedAuthoringExecutionAttestation,
   notRunAuthoringExecutionAttestation,
   sanitizedAuthoringDiagnostics,
+  type AuthoringDiagnosticCode,
   type AuthoringExecutionAttestation,
   type AuthoringTerminalFailure,
   type AuthoringTerminalFailureCode,
@@ -63,8 +69,10 @@ export const PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
 export const LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
   'production-blueprint-authoring-request/v3' as const;
 export const PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION =
-  'production-blueprint-authoring-receipt/v5' as const;
+  'production-blueprint-authoring-receipt/v6' as const;
 export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION =
+  'production-blueprint-authoring-receipt/v5' as const;
+export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V4 =
   'production-blueprint-authoring-receipt/v4' as const;
 export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V3 =
   'production-blueprint-authoring-receipt/v3' as const;
@@ -87,6 +95,7 @@ export function productionAuthoringReceiptVersionStatus(
     return 'current';
   }
   return version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION ||
+    version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V4 ||
     version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V3
     ? 'legacy_immutable'
     : 'unsupported';
@@ -108,6 +117,42 @@ export interface ProductionAuthoringRunRequest {
   maxOutputTokens: typeof BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS;
   noFallback: true;
   callBudget: ProductionAuthoringCallBudget;
+}
+
+const PRODUCTION_AUTHORING_RUN_REQUEST_KEYS = [
+  'callBudget',
+  'contextDigest',
+  'maxOutputTokens',
+  'mode',
+  'model',
+  'noFallback',
+  'reasoningEffort',
+  'requestId',
+  'requestedAt',
+  'version',
+] as const;
+
+export function buildProductionAuthoringRunRequest(args: {
+  context: ProductionAuthoringContext;
+  mode: 'preflight' | 'live';
+  requestId: string;
+  requestedAt: string;
+}): ProductionAuthoringRunRequest {
+  return {
+    version: PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
+    mode: args.mode,
+    requestId: args.requestId,
+    requestedAt: args.requestedAt,
+    contextDigest: args.context.digest,
+    model: BLUEPRINT_AUTHORING_MODEL,
+    reasoningEffort: BLUEPRINT_AUTHORING_REASONING_EFFORT,
+    maxOutputTokens: BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
+    noFallback: BLUEPRINT_AUTHORING_NO_FALLBACK,
+    callBudget: {
+      maxCalls: BLUEPRINT_AUTHORING_MAX_CALLS,
+      maxRepairCount: BLUEPRINT_AUTHORING_MAX_REPAIRS,
+    },
+  };
 }
 
 export interface ProductionAuthoringProviderReceipt {
@@ -159,6 +204,47 @@ export type ProductionAuthoringAttemptFailureCode =
   | 'input_token_ceiling_exceeded'
   | 'cost_ceiling_exceeded';
 
+export type ProductionAuthoringAttemptFailureEvidenceKind =
+  | 'compiler_pre_dispatch'
+  | 'compiler_response_boundary'
+  | 'provider_adapter_boundary'
+  | 'raw_provider_exception';
+
+export type ProductionAuthoringAttemptFailureEvidenceReason =
+  | 'adapter_policy_mismatch'
+  | 'boundary_reason_invalid'
+  | 'completion_status_invalid'
+  | 'cost_evidence_mismatch'
+  | 'cost_ceiling_exceeded'
+  | 'execution_attestation_invalid'
+  | 'input_ceiling_exceeded'
+  | 'provider_call_failed'
+  | 'provider_evidence_version_invalid'
+  | 'provider_identity_mismatch'
+  | 'raw_provider_exception'
+  | 'response_id_invalid'
+  | 'response_output_empty'
+  | 'spend_reservation_exceeded'
+  | 'usage_invalid';
+
+export const PRODUCTION_AUTHORING_ATTEMPT_FAILURE_EVIDENCE_REASONS = [
+  'adapter_policy_mismatch',
+  'boundary_reason_invalid',
+  'completion_status_invalid',
+  'cost_evidence_mismatch',
+  'cost_ceiling_exceeded',
+  'execution_attestation_invalid',
+  'input_ceiling_exceeded',
+  'provider_call_failed',
+  'provider_evidence_version_invalid',
+  'provider_identity_mismatch',
+  'raw_provider_exception',
+  'response_id_invalid',
+  'response_output_empty',
+  'spend_reservation_exceeded',
+  'usage_invalid',
+] as const satisfies readonly ProductionAuthoringAttemptFailureEvidenceReason[];
+
 export interface ProductionAuthoringAttemptReceipt {
   attempt: number;
   kind: 'initial' | 'repair';
@@ -180,9 +266,11 @@ export interface ProductionAuthoringAttemptReceipt {
   executionAttestation: AuthoringExecutionAttestation;
   validationDiagnostics: {
     count: number;
-    codes: string[];
+    codes: AuthoringDiagnosticCode[];
   };
   failureCode: ProductionAuthoringAttemptFailureCode | null;
+  failureEvidenceKind: ProductionAuthoringAttemptFailureEvidenceKind | null;
+  failureEvidenceReason: ProductionAuthoringAttemptFailureEvidenceReason | null;
 }
 
 export interface ProductionAuthoringProviderBoundaryEvidence {
@@ -231,6 +319,12 @@ export interface ProductionAuthoringRunResult {
   authoringResult: PreRenderBlueprintAuthoringResult | null;
 }
 
+export function productionAuthoringReceiptBytes(
+  receipt: ProductionAuthoringRunReceipt,
+): string {
+  return `${JSON.stringify(canonicalize(receipt), null, 2)}\n`;
+}
+
 export class InvalidProductionAuthoringRunRequestError extends Error {
   constructor(readonly issues: string[]) {
     super(`Invalid production authoring request:\n- ${issues.join('\n- ')}`);
@@ -248,7 +342,8 @@ class AuthoringCallBudgetError extends Error {
 export class ProductionAuthoringProviderBoundaryError extends Error {
   constructor(
     readonly failureCode: ProductionAuthoringAttemptFailureCode,
-    readonly evidence: ProductionAuthoringProviderBoundaryEvidence = {},
+    readonly evidence: ProductionAuthoringProviderBoundaryEvidence,
+    readonly failureEvidenceReason: ProductionAuthoringAttemptFailureEvidenceReason,
   ) {
     super(`blueprint authoring boundary rejected ${failureCode}`);
     this.name = 'ProductionAuthoringProviderBoundaryError';
@@ -260,6 +355,24 @@ function requestIssues(
   context: ProductionAuthoringContext,
 ): string[] {
   const issues: string[] = [];
+  if (
+    !request ||
+    typeof request !== 'object' ||
+    Array.isArray(request) ||
+    JSON.stringify(Object.keys(request).sort()) !==
+      JSON.stringify([...PRODUCTION_AUTHORING_RUN_REQUEST_KEYS].sort())
+  ) {
+    return ['request keys are invalid'];
+  }
+  if (
+    !request.callBudget ||
+    typeof request.callBudget !== 'object' ||
+    Array.isArray(request.callBudget) ||
+    JSON.stringify(Object.keys(request.callBudget).sort()) !==
+      JSON.stringify(['maxCalls', 'maxRepairCount'])
+  ) {
+    issues.push('callBudget keys are invalid');
+  }
   if (request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION) {
     issues.push('request version is unsupported');
   }
@@ -332,6 +445,39 @@ function requestIssues(
     issues.push('canonical Blueprint policy invariants are invalid');
   }
   return issues;
+}
+
+export function productionAuthoringRunRequestIssues(args: {
+  request: ProductionAuthoringRunRequest;
+  context: ProductionAuthoringContext;
+}): string[] {
+  try {
+    return requestIssues(args.request, args.context);
+  } catch {
+    return ['request or production context cannot be validated'];
+  }
+}
+
+export function productionBlueprintAuthoringPreflightIssues(args: {
+  request: ProductionAuthoringRunRequest;
+  context: ProductionAuthoringContext;
+}): string[] {
+  const issues = productionAuthoringRunRequestIssues(args);
+  if (issues.length > 0) return issues;
+  try {
+    return preRenderBlueprintAuthoringInputErrors(
+      args.context.validationContext,
+      {
+        model: args.request.model,
+        reasoningEffort: args.request.reasoningEffort,
+        maxOutputTokens: args.request.maxOutputTokens,
+        compositionPolicyVersion:
+          PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
+      },
+    );
+  } catch {
+    return ['production Blueprint authoring input cannot be validated'];
+  }
 }
 
 function numeric(value: unknown): number | undefined {
@@ -466,7 +612,7 @@ function failureReceipt(args: {
   });
 }
 
-function aggregateProductionAuthoringExecutionAttestations(
+export function aggregateProductionAuthoringExecutionAttestations(
   values: readonly AuthoringExecutionAttestation[],
 ): AuthoringExecutionAttestation {
   const providerReached = values.filter(
@@ -675,6 +821,8 @@ export async function runProductionBlueprintAuthoring(args: {
               codes: [],
             },
             failureCode: null,
+            failureEvidenceKind: null,
+            failureEvidenceReason: null,
           } satisfies ProductionAuthoringAttemptReceipt;
           try {
             if (
@@ -696,9 +844,18 @@ export async function runProductionBlueprintAuthoring(args: {
                   expectedReservedExposureBeforeCallUsd,
                 cumulativeConservativeCostUsd,
                 failureCode,
+                failureEvidenceKind: 'compiler_pre_dispatch',
+                failureEvidenceReason:
+                  failureCode === 'input_token_ceiling_exceeded'
+                    ? 'input_ceiling_exceeded'
+                    : 'spend_reservation_exceeded',
               });
               throw new ProductionAuthoringProviderBoundaryError(
                 failureCode,
+                {},
+                failureCode === 'input_token_ceiling_exceeded'
+                  ? 'input_ceiling_exceeded'
+                  : 'spend_reservation_exceeded',
               );
             }
             const response = await args.provider!.call({
@@ -779,31 +936,65 @@ export async function runProductionBlueprintAuthoring(args: {
             } satisfies ProductionAuthoringAttemptReceipt;
             const recordBoundaryFailure = (
               failureCode: ProductionAuthoringAttemptFailureCode,
+              failureEvidenceReason: ProductionAuthoringAttemptFailureEvidenceReason,
             ): never => {
-              attempts.push({ ...received, failureCode });
+              attempts.push({
+                ...received,
+                failureCode,
+                failureEvidenceKind: 'compiler_response_boundary',
+                failureEvidenceReason,
+              });
               throw new ProductionAuthoringProviderBoundaryError(
                 failureCode,
+                {},
+                failureEvidenceReason,
               );
             };
             if (
               !providerMatches ||
               !modelMatches
             ) {
-              recordBoundaryFailure('provider_policy_mismatch');
+              recordBoundaryFailure(
+                'provider_policy_mismatch',
+                'provider_identity_mismatch',
+              );
             }
             if (
               received.providerEvidenceVersion !==
-                OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION ||
-              !responseId ||
-              !output.trim() ||
+              OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION
+            ) {
+              recordBoundaryFailure(
+                'provider_evidence_invalid',
+                'provider_evidence_version_invalid',
+              );
+            }
+            if (!responseId) {
+              recordBoundaryFailure(
+                'provider_evidence_invalid',
+                'response_id_invalid',
+              );
+            }
+            if (!output.trim()) {
+              recordBoundaryFailure(
+                'provider_evidence_invalid',
+                'response_output_empty',
+              );
+            }
+            if (
               !canonicalCompletedExecutionAttestationIsValid(
                 response.receipt.executionAttestation,
               )
             ) {
-              recordBoundaryFailure('provider_evidence_invalid');
+              recordBoundaryFailure(
+                'provider_evidence_invalid',
+                'execution_attestation_invalid',
+              );
             }
             if (received.completionStatus !== 'completed') {
-              recordBoundaryFailure('completion_status_invalid');
+              recordBoundaryFailure(
+                'completion_status_invalid',
+                'completion_status_invalid',
+              );
             }
             if (
               !received.usageEvidenceComplete ||
@@ -811,7 +1002,7 @@ export async function runProductionBlueprintAuthoring(args: {
               usage.inputTokens > BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS ||
               usage.outputTokens > BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS
             ) {
-              recordBoundaryFailure('usage_invalid');
+              recordBoundaryFailure('usage_invalid', 'usage_invalid');
             }
             const costEvidenceMatches =
               blueprintAuthoringInputAccountingIsValid(
@@ -826,17 +1017,26 @@ export async function runProductionBlueprintAuthoring(args: {
               response.receipt.conservativeCallCostUsd ===
                 conservativeCallCostUsd;
             if (!costEvidenceMatches) {
-              recordBoundaryFailure('provider_evidence_invalid');
+              recordBoundaryFailure(
+                'provider_evidence_invalid',
+                'cost_evidence_mismatch',
+              );
             }
             const acceptedCumulativeConservativeCostUsd =
               nextCumulativeConservativeCostUsd ??
-              recordBoundaryFailure('cost_ceiling_exceeded');
+              recordBoundaryFailure(
+                'cost_ceiling_exceeded',
+                'cost_evidence_mismatch',
+              );
             if (
               !blueprintAuthoringSpendIsWithinCeiling(
                 acceptedCumulativeConservativeCostUsd,
               )
             ) {
-              recordBoundaryFailure('cost_ceiling_exceeded');
+              recordBoundaryFailure(
+                'cost_ceiling_exceeded',
+                'cost_ceiling_exceeded',
+              );
             }
             cumulativeConservativeCostUsd =
               acceptedCumulativeConservativeCostUsd;
@@ -857,6 +1057,15 @@ export async function runProductionBlueprintAuthoring(args: {
                   : boundaryError
                     ? boundaryError.failureCode
                     : 'provider_call_failed';
+              let failureEvidenceReason: ProductionAuthoringAttemptFailureEvidenceReason =
+                boundaryError &&
+                PRODUCTION_AUTHORING_ATTEMPT_FAILURE_EVIDENCE_REASONS.includes(
+                  boundaryError.failureEvidenceReason,
+                )
+                  ? boundaryError.failureEvidenceReason
+                  : boundaryError
+                    ? 'boundary_reason_invalid'
+                    : 'raw_provider_exception';
               const evidence = boundaryError?.evidence;
               const evidenceUsage = canonicalUsage(
                 evidence?.usage,
@@ -931,6 +1140,7 @@ export async function runProductionBlueprintAuthoring(args: {
                   !identityEvidenceKeysPresent)
               ) {
                 failureCode = 'provider_evidence_invalid';
+                failureEvidenceReason = 'boundary_reason_invalid';
               }
               attempts.push({
                 ...base,
@@ -989,6 +1199,12 @@ export async function runProductionBlueprintAuthoring(args: {
                     ? evidenceExecutionAttestation
                     : injectedAuthoringExecutionAttestation(),
                 failureCode,
+                failureEvidenceKind: boundaryError
+                  ? 'provider_adapter_boundary'
+                  : 'raw_provider_exception',
+                failureEvidenceReason: boundaryError
+                  ? failureEvidenceReason
+                  : 'raw_provider_exception',
               });
             }
             throw error;
@@ -1037,6 +1253,12 @@ export async function runProductionBlueprintAuthoring(args: {
     });
     return { receipt, authoringResult };
   } catch (error) {
+    if (error instanceof PreRenderBlueprintAuthoringRepairExhaustedError) {
+      copyValidationExhaustionEvidence({
+        error,
+        receipts: attempts,
+      });
+    }
     const budgetFailure =
       callBudgetExhausted ||
       error instanceof AuthoringCallBudgetError ||
@@ -1079,15 +1301,6 @@ export async function runProductionBlueprintAuthoring(args: {
             })
           ? 'draft_validation_repair_exhausted'
           : 'local_processing_failed');
-    if (
-      failureCode === 'draft_validation_repair_exhausted' &&
-      error instanceof PreRenderBlueprintAuthoringRepairExhaustedError
-    ) {
-      copyValidationExhaustionEvidence({
-        error,
-        receipts: attempts,
-      });
-    }
     return {
       receipt: failureReceipt({
         request: args.request,
@@ -1121,6 +1334,7 @@ export function persistProductionAuthoringReceipt(args: {
   outputDir: string;
   receipt: ProductionAuthoringRunReceipt;
   write?: boolean;
+  hooks?: ImmutableWriteHooks;
 }): { receiptPath: string; wrote: boolean } {
   const root = path.resolve(args.repoRoot, args.outputDir);
   repoRelativePath(args.repoRoot, root);
@@ -1132,7 +1346,8 @@ export function persistProductionAuthoringReceipt(args: {
   if (args.write === true) {
     writeImmutableLocalArtifact({
       destinationPath: absolute,
-      bytes: `${JSON.stringify(args.receipt, null, 2)}\n`,
+      bytes: productionAuthoringReceiptBytes(args.receipt),
+      hooks: args.hooks,
     });
   }
   return {

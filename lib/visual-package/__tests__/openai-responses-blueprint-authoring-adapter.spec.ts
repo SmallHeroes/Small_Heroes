@@ -526,4 +526,69 @@ describe('canonical OpenAI Responses Blueprint authoring policy', () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('keeps the canonical adapter behind the claimed operator and the legacy runner callsite preflight-only', () => {
+    const excludedDirectories = new Set([
+      '.git',
+      '.next',
+      '__tests__',
+      'coverage',
+      'node_modules',
+      'outputs',
+    ]);
+    const sourceFiles = (root: string): string[] =>
+      fs.readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+        const absolute = path.join(root, entry.name);
+        if (entry.isDirectory()) {
+          return excludedDirectories.has(entry.name) ? [] : sourceFiles(absolute);
+        }
+        return entry.isFile() &&
+          /\.(?:[cm]?js|tsx?)$/.test(entry.name) &&
+          !/\.(?:spec|test)\.(?:[cm]?js|tsx?)$/.test(entry.name)
+          ? [absolute]
+          : [];
+      });
+    const roots = [process.cwd()];
+    const occurrences = (needle: string) =>
+      roots
+        .flatMap(sourceFiles)
+        .map((absolute) => ({
+          path: path.relative(process.cwd(), absolute).replace(/\\/g, '/'),
+          count: fs.readFileSync(absolute, 'utf8').split(needle).length - 1,
+        }))
+        .filter((entry) => entry.count > 0)
+        .sort((left, right) => left.path.localeCompare(right.path));
+
+    expect(occurrences('runProductionBlueprintAuthoring(')).toEqual([
+      {
+        path: 'lib/visual-package/productionAuthoringRunner.ts',
+        count: 1,
+      },
+      {
+        path: 'lib/visual-package/qaWizardBlueprintAuthoringLifecycle.ts',
+        count: 1,
+      },
+      { path: 'scripts/production-visual-lifecycle.ts', count: 1 },
+    ]);
+    expect(
+      occurrences('createOpenAIResponsesBlueprintAuthoringAdapter('),
+    ).toEqual([
+      {
+        path:
+          'lib/visual-package/openaiResponsesBlueprintAuthoringAdapter.ts',
+        count: 1,
+      },
+      {
+        path: 'lib/visual-package/qaWizardBlueprintAuthoringLifecycle.ts',
+        count: 1,
+      },
+      { path: 'scripts/qa-wizard-blueprint-authoring.ts', count: 1 },
+    ]);
+    const legacyCli = fs.readFileSync(
+      path.join(process.cwd(), 'scripts', 'production-visual-lifecycle.ts'),
+      'utf8',
+    );
+    expect(legacyCli).toContain("request.authoringRequest.mode !== 'preflight'");
+    expect(legacyCli).toContain('provider_unreachable_authoring_preflight');
+  });
 });

@@ -1,4 +1,5 @@
 import {
+  chmodSync,
   existsSync,
   mkdtempSync,
   readFileSync,
@@ -196,6 +197,27 @@ describe('R1D-PVB-B - immutable Blueprint review and approval lifecycle', () => 
     expect(readFileSync(destinationPath, 'utf8')).toBe(
       '{"value":"first"}',
     );
+  });
+
+  it('reuses identical immutable bytes even when the existing file is read-only', () => {
+    const destinationPath = path.join(
+      temporaryRoot(),
+      'immutable',
+      'read-only.json',
+    );
+    const bytes = '{"value":"stable"}';
+    expect(
+      writeImmutableLocalArtifact({ destinationPath, bytes }),
+    ).toEqual({ created: true });
+    chmodSync(destinationPath, 0o444);
+    try {
+      expect(
+        writeImmutableLocalArtifact({ destinationPath, bytes }),
+      ).toEqual({ created: false });
+      expect(readFileSync(destinationPath, 'utf8')).toBe(bytes);
+    } finally {
+      chmodSync(destinationPath, 0o666);
+    }
   });
 
   it('leaves no destination or temp file when publication fails', () => {

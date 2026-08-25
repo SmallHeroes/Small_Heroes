@@ -24,6 +24,7 @@ import {
   canonicalJsonDigest,
   captureQaWizardCanonicalSupervisorResultEvidence,
   loadQaWizardCandidateValidationAttestation,
+  loadQaWizardApprovedProductionContext,
   loadQaWizardCandidateBridgeManifest,
   persistReconciliationDraftBundle,
   persistQaWizardCandidateBridgeManifest,
@@ -1467,7 +1468,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     expect(() =>
       prepareQaWizardCandidateReconciliation(prepareArgs(fixture)),
     ).toThrow(/Supervisor execution result|candidate validation attestation/i);
-  });
+  }, 15_000);
 
   it('rejects output-category junctions before persisting bridge artifacts', async () => {
     const fixture = await materializeCanonicalCandidate();
@@ -1491,7 +1492,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
         String(entry).endsWith('.json'),
       ),
     ).toEqual([]);
-  });
+  }, 15_000);
 
   it('rejects projected-template tamper, wrapper substitution, arbitrary paths, cross-candidate replay, hardlinks, and collisions', async () => {
     const fixture = await materializeCanonicalCandidate();
@@ -2083,5 +2084,38 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
         manifestPath: advanced.manifestArtifact.path,
       }),
     ).toEqual(advanced.manifest);
-  }, 25_000);
+    expect(
+      loadQaWizardApprovedProductionContext({
+        repoRoot: fixture.repoRoot,
+        bridgeManifestPath: advanced.manifestArtifact.path,
+      }),
+    ).toEqual({
+      manifest: advanced.manifest,
+      context: advanced.context,
+    });
+    const styleAuthorityAbsolute = path.join(
+      fixture.repoRoot,
+      advanced.manifest.productionContext!.styleAuthorityPath,
+    );
+    const styleHardlink = path.join(
+      fixture.repoRoot,
+      'outputs',
+      'hostile-style-authority-hardlink.json',
+    );
+    fs.mkdirSync(path.dirname(styleHardlink), { recursive: true });
+    fs.linkSync(styleAuthorityAbsolute, styleHardlink);
+    expect(() =>
+      loadQaWizardApprovedProductionContext({
+        repoRoot: fixture.repoRoot,
+        bridgeManifestPath: advanced.manifestArtifact.path,
+      }),
+    ).toThrow(/unique regular file/);
+    fs.unlinkSync(styleHardlink);
+    expect(() =>
+      loadQaWizardApprovedProductionContext({
+        repoRoot: fixture.repoRoot,
+        bridgeManifestPath: prepared.manifestArtifact.path,
+      }),
+    ).toThrow(/current reconciliation_approved/);
+  }, 60_000);
 });

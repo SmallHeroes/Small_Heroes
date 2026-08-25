@@ -4,6 +4,59 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; current downstream implementation base `3c6c04ceeb569fab17b749867121621cbba81016`.
 
+## QA WIZARD BLUEPRINT OPERATOR — OFFLINE GREEN; INDEPENDENT CLAUDE GATE PENDING
+
+The downstream Blueprint boundary is now reachable only through one explicit
+operator lifecycle. It reloads the approved QA Wizard Candidate bridge and
+production context, writes an immutable provider-free preflight, and requires
+an atomic repository-global execution claim before lazily reading the one
+declared `OPENAI_API_KEY` assignment or constructing the OpenAI adapter. The
+claim is keyed by stable authoring authority rather than caller-selected output
+paths, so a second request or process cannot obtain another paid dispatch for
+the same authority. A completed or failed terminal is replayed without provider
+access; an uncertain claim remains closed. On Windows this proves process
+restart and concurrent-process exclusion, not durability across abrupt host or
+power loss.
+
+The operator manifest, execution claim, execution record and candidate-keyed
+approval decision are all v1 canonical content-addressed authorities. The
+authoring request remains v4; the sanitized receipt advances to v6. Replay now
+binds complete typed accounting, the fixed Blueprint schema/separator bytes,
+the 64K input ceiling, exact code/reason/evidence-kind combinations, exact
+canonical-adapter dispatch/route/model states, closed diagnostics, usage, cost,
+and aggregate execution attestation. It cannot accept re-digested array/scalar
+confusion, non-finite JSON, over-ceiling accounting, impossible adapter state,
+or compiler-only evidence represented as an adapter failure. Raw prompts,
+drafts, provider outputs, exceptions, credential material and unrelated env
+assignments are not persisted.
+
+The candidate is self-replayed in memory before any terminal artifact is
+published. Exact Guy approval is a separate candidate-digest-bound step and
+publishes its fixed decision before the variable approval artifacts, with
+crash-safe exact replay. No approval, Visual Package, Wizard qualification,
+image/audio render, publication or deployment is implied by a successful
+authoring terminal.
+
+Current offline proof: TypeScript passes; the operator lifecycle passes 32/32;
+the Candidate bridge passes 8/8 in a stable single-thread run; the remaining
+focused Blueprint boundary/lifecycle/census files pass 119/119; CLI help and
+`git diff --check` pass. The full repository check passes both TypeScript
+phases, 3,711 ordinary assertions and 610 resource-intensive assertions. It
+reproduces 11 unchanged baseline failures (nine missing ignored-output fixtures
+and two five-second migration tests), plus three resource timing failures and
+the known Vitest `onTaskUpdate` RPC events; none is a changed-code assertion
+failure. Two bridge tests that repeatedly exceeded the unscoped five-second
+default now carry explicit 15-second budgets, and the expanded final bridge
+test carries 60 seconds.
+
+No provider, paid live authoring, credential-backed request, Candidate
+publication, Blueprint approval, Wizard order, database/storage write, image,
+audio, render or deployment occurred in this milestone. The next gate is an
+independent read-only Claude Code audit of the exact committed range. Only a
+technical PASS permits a fresh preflight and one bounded paid Blueprint live
+attempt. Durable evidence:
+`docs/ai-workflow/R1D_QA_WIZARD_BLUEPRINT_OPERATOR_IMPLEMENTATION_EVIDENCE.md`.
+
 ## BLUEPRINT RESPONSES BOUNDARY — OFFLINE GREEN; INDEPENDENT QA PENDING
 
 The first downstream milestone now gives Pre-Render Blueprint authoring its own

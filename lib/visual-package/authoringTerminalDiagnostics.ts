@@ -474,6 +474,49 @@ const AUTHORING_DIAGNOSTIC_CODES = new Set<AuthoringDiagnosticCode>([
   'call_budget_invariant_failed',
   'unexpected_local_error',
 ]);
+const AUTHORING_VALIDATION_DIAGNOSTIC_CODES = new Set<AuthoringDiagnosticCode>([
+  'action_semantic_validation_failed',
+  'authority_reference_validation_failed',
+  'draft_contract_validation_failed',
+  'draft_schema_validation_failed',
+  'source_evidence_validation_failed',
+]);
+
+const AUTHORING_VALIDATION_DIAGNOSTIC_KEYS = ['codes', 'count'].sort();
+
+export function authoringValidationDiagnosticsAreValid(
+  value: unknown,
+): value is { count: number; codes: AuthoringDiagnosticCode[] } {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const diagnostics = value as Record<string, unknown>;
+  if (
+    JSON.stringify(Object.keys(diagnostics).sort()) !==
+      JSON.stringify(AUTHORING_VALIDATION_DIAGNOSTIC_KEYS) ||
+    !Number.isSafeInteger(diagnostics.count) ||
+    Number(diagnostics.count) < 0 ||
+    Number(diagnostics.count) > MAX_PERSISTED_AUTHORING_DIAGNOSTIC_COUNT ||
+    !Array.isArray(diagnostics.codes) ||
+    diagnostics.codes.length > MAX_PERSISTED_AUTHORING_DIAGNOSTIC_CODES
+  ) {
+    return false;
+  }
+  const codes = diagnostics.codes;
+  const canonicalCodes = [...new Set(codes)].sort();
+  return (
+    codes.every(
+      (code) =>
+        typeof code === 'string' &&
+        AUTHORING_VALIDATION_DIAGNOSTIC_CODES.has(
+          code as AuthoringDiagnosticCode,
+        ),
+    ) &&
+    JSON.stringify(codes) === JSON.stringify(canonicalCodes) &&
+    codes.length <= Number(diagnostics.count) + 1 &&
+    (Number(diagnostics.count) === 0) === (codes.length === 0)
+  );
+}
 
 const TERMINAL_FAILURE_KEYS = [
   'code',
@@ -509,7 +552,7 @@ export function authoringTerminalFailureIsValid(
     TERMINAL_DEFINITIONS[
       failure.code as AuthoringTerminalFailureCode
     ];
-  const permittedPrimaryDiagnosticCodes =
+  const permittedPrimaryDiagnosticCodes: readonly AuthoringDiagnosticCode[] =
     failure.code === 'local_processing_failed'
       ? [
           definition.diagnosticCode,
@@ -528,6 +571,14 @@ export function authoringTerminalFailureIsValid(
         : [definition.diagnosticCode];
   const diagnosticCodes = failure.diagnosticCodes;
   const issues = failure.issues;
+  const permittedDiagnosticCodes = new Set<AuthoringDiagnosticCode>([
+    ...permittedPrimaryDiagnosticCodes,
+    'draft_schema_validation_failed',
+    'source_evidence_validation_failed',
+    'action_semantic_validation_failed',
+    'authority_reference_validation_failed',
+    'draft_contract_validation_failed',
+  ]);
   return (
     failure.message === definition.message &&
     failure.phase === definition.phase &&
@@ -547,8 +598,12 @@ export function authoringTerminalFailureIsValid(
         typeof code === 'string' &&
         AUTHORING_DIAGNOSTIC_CODES.has(
           code as AuthoringDiagnosticCode,
-        ),
+        ) &&
+        permittedDiagnosticCodes.has(code as AuthoringDiagnosticCode),
     ) &&
+    JSON.stringify(diagnosticCodes) ===
+      JSON.stringify([...new Set(diagnosticCodes)].sort()) &&
+    diagnosticCodes.length <= Number(failure.diagnosticCount) + 1 &&
     permittedPrimaryDiagnosticCodes.some((code) =>
       diagnosticCodes.includes(code),
     ) &&
@@ -558,7 +613,9 @@ export function authoringTerminalFailureIsValid(
     issues.every(
       (issue) =>
         typeof issue === 'string' && SAFE_ISSUE_CODE.test(issue),
-    )
+    ) &&
+    JSON.stringify(issues) ===
+      JSON.stringify([...new Set(issues)].sort())
   );
 }
 

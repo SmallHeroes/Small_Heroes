@@ -2884,6 +2884,71 @@ export function loadQaWizardCandidateBridgeManifest(args: {
   return raw;
 }
 
+/**
+ * Rehydrates the only production context that an approved current bridge is
+ * allowed to authorize. Callers cannot substitute Story Source, template,
+ * candidate, reconciliation, style, or digest inputs.
+ */
+export function loadQaWizardApprovedProductionContext(args: {
+  repoRoot: string;
+  bridgeManifestPath: string;
+}): {
+  manifest: QaWizardCandidateBridgeManifest;
+  context: ProductionAuthoringContext;
+} {
+  const manifest = loadQaWizardCandidateBridgeManifest({
+    repoRoot: args.repoRoot,
+    manifestPath: args.bridgeManifestPath,
+  });
+  if (
+    manifest.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION ||
+    manifest.stage !== 'reconciliation_approved' ||
+    manifest.productionContext === null
+  ) {
+    throw new Error(
+      'Blueprint authoring requires a current reconciliation_approved QA Wizard bridge',
+    );
+  }
+  resolveExistingContainedArtifact({
+    repoRoot: args.repoRoot,
+    relativePath: manifest.productionContext.styleAuthorityPath,
+    label: 'approved production style authority',
+  });
+  const context = buildProductionAuthoringContext({
+    repoRoot: args.repoRoot,
+    storyKey: manifest.source.storyKey,
+    storyPath: manifest.source.storyPath,
+    templatePath: manifest.visualContract.templatePath,
+    reconciliationPath: manifest.reconciliation.path,
+    candidatePath: manifest.visualContract.candidatePath,
+    styleId: manifest.productionContext.styleId,
+    styleAuthorityPath: manifest.productionContext.styleAuthorityPath,
+    expectedStyleAuthorityDigest:
+      manifest.productionContext.styleAuthorityDigest,
+  });
+  if (
+    context.version !== manifest.productionContext.version ||
+    context.digest !== manifest.productionContext.digest ||
+    context.styleId !== manifest.productionContext.styleId ||
+    context.styleAuthority.identity.artifactPath !==
+      manifest.productionContext.styleAuthorityPath ||
+    context.styleAuthority.identity.digest !==
+      manifest.productionContext.styleAuthorityDigest ||
+    context.sourceSnapshot.identity.digest !== manifest.source.sourceDigest ||
+    context.template.identity.digest !== manifest.visualContract.templateDigest ||
+    context.reconciliation.digest !== manifest.reconciliation.digest ||
+    context.reconciliation.content.review.status !== 'approved' ||
+    context.reconciliation.content.review.reviewedBy !== 'Guy' ||
+    context.reconciliation.content.review.reviewedAt !==
+      manifest.reconciliation.reviewedAt
+  ) {
+    throw new Error(
+      'approved QA Wizard bridge production context is stale or substituted',
+    );
+  }
+  return { manifest, context };
+}
+
 function loadCanonicalReceipt(args: {
   repoRoot: string;
   receiptPath: string;

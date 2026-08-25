@@ -1,0 +1,3109 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+import {
+  canonicalContentAddressedJsonBytes,
+} from './canonicalContentAddressedJson';
+import {
+  canonicalJsonDigest,
+  repoRelativePath,
+  resolveRepoPath,
+} from './integrity';
+import {
+  QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION,
+  loadQaWizardApprovedProductionContext,
+  type QaWizardCandidateBridgeManifest,
+} from './qaWizardCandidateBridge';
+import {
+  PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
+  PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
+  buildProductionAuthoringRunRequest,
+  aggregateProductionAuthoringExecutionAttestations,
+  persistProductionAuthoringReceipt,
+  productionAuthoringReceiptBytes,
+  productionBlueprintAuthoringPreflightIssues,
+  runProductionBlueprintAuthoring,
+  type ProductionAuthoringProvider,
+  type ProductionAuthoringAttemptFailureCode,
+  type ProductionAuthoringRunReceipt,
+  type ProductionAuthoringRunRequest,
+} from './productionAuthoringRunner';
+import type { ProductionAuthoringContext } from './productionAuthoringContext';
+import {
+  authoringBudgetExhaustionBindingIsValid,
+  canonicalCompletedExecutionAttestationIsValid,
+  authoringExecutionAttestationIsValid,
+  authoringTerminalFailureIsValid,
+  authoringValidationDiagnosticsAreValid,
+} from './authoringTerminalDiagnostics';
+import {
+  BLUEPRINT_AUTHORING_MAX_CALLS,
+  BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+  BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
+  BLUEPRINT_AUTHORING_MAX_REPAIRS,
+  BLUEPRINT_AUTHORING_MODEL,
+  OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION,
+  blueprintAuthoringInputAccountingIsCanonicalForSchema,
+  blueprintAuthoringReservedExposureUsd,
+  blueprintAuthoringSpendIsWithinCeiling,
+  blueprintAuthoringUsageIsInternallyConsistent,
+  conservativeBlueprintAuthoringCostUsd,
+  nominalBlueprintAuthoringUsageCostUsd,
+} from './blueprintAuthoringPolicy';
+import {
+  PRE_RENDER_BLUEPRINT_APPROVAL_VERSION,
+  PRE_RENDER_BLUEPRINT_APPROVER,
+  computePreRenderBlueprintApprovalDigest,
+  computePreRenderBlueprintReviewPacketDigest,
+  buildPreRenderBlueprintReviewBundle,
+  createPreRenderBlueprintValidationEvidence,
+  planPreRenderBlueprintApprovalAttestation,
+  preRenderBlueprintLifecycleJsonBytes,
+  persistPreRenderBlueprintLifecycle,
+  validatePreRenderBlueprintApprovalAttestation,
+  writeImmutableLocalArtifact,
+  type PreRenderBlueprintApprovalAttestation,
+  type PreRenderBlueprintReviewPacket,
+  type ImmutableWriteHooks,
+} from './preRenderBlueprintLifecycle';
+import {
+  assertValidPreRenderBookVisualBlueprint,
+  buildPreRenderBlueprintAuthoringAuthority,
+  serializePreRenderBookVisualBlueprint,
+} from './preRenderBlueprint';
+import type { PreRenderBookVisualBlueprint } from './preRenderBlueprintTypes';
+import {
+  PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION,
+  PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION,
+  PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION,
+  type PreRenderBlueprintAuthoringAttempt,
+  type PreRenderBlueprintAuthoringProvenance,
+} from './preRenderBlueprintAuthoringContract';
+import {
+  PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+  PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
+} from './preRenderBlueprintDraftSchema';
+
+export const QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION =
+  'qa-wizard-blueprint-authoring-manifest/v1' as const;
+export const QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION =
+  'qa-wizard-blueprint-execution-claim/v1' as const;
+export const QA_WIZARD_BLUEPRINT_EXECUTION_RECORD_VERSION =
+  'qa-wizard-blueprint-execution-record/v1' as const;
+export const QA_WIZARD_BLUEPRINT_APPROVAL_DECISION_VERSION =
+  'qa-wizard-blueprint-approval-decision/v1' as const;
+
+export const QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT =
+  'outputs/qa-wizard-blueprint-authoring-ledger-v1' as const;
+
+const DIGEST_ALGORITHM = 'canonical-json-sha256' as const;
+const HEX_SHA256 = /^[a-f0-9]{64}$/;
+const CANONICAL_UTC_MILLISECONDS =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+const BEFORE_APPROVAL_EXCLUSIONS = [
+  'blueprint_approval',
+  'visual_package_authoring',
+  'visual_package_approval',
+  'wizard_qualification',
+  'wizard_render',
+  'image_render',
+  'audio_render',
+  'production_publication',
+  'deployment',
+] as const;
+
+const AFTER_APPROVAL_EXCLUSIONS = [
+  'visual_package_authoring',
+  'visual_package_approval',
+  'wizard_qualification',
+  'wizard_render',
+  'image_render',
+  'audio_render',
+  'production_publication',
+  'deployment',
+] as const;
+
+export type QaWizardBlueprintAuthoringStage =
+  | 'live_request_preflight_passed'
+  | 'blueprint_candidate'
+  | 'authoring_failed'
+  | 'blueprint_approved';
+
+interface ManifestPredecessor {
+  version: typeof QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION;
+  digest: string;
+  path: string;
+}
+
+interface ManifestBridgeAuthority {
+  version: typeof QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION;
+  digest: string;
+  path: string;
+}
+
+interface ManifestContextAuthority {
+  version: ProductionAuthoringContext['version'];
+  digest: string;
+}
+
+interface ManifestRequestAuthority {
+  version: typeof PRODUCTION_AUTHORING_RUN_REQUEST_VERSION;
+  digest: string;
+  path: string;
+  requestId: string;
+  requestedAt: string;
+  mode: 'live';
+}
+
+interface ManifestReceiptAuthority {
+  version: typeof PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION;
+  digest: string;
+  path: string;
+  status: 'completed' | 'failed';
+}
+
+interface ManifestBlueprintAuthority {
+  blueprintDigest: string;
+  authoringAuthorityDigest: string;
+  candidatePath: string;
+  provenanceDigest: string;
+  provenancePath: string;
+  validationEvidenceDigest: string;
+  validationEvidencePath: string;
+  reviewPacketDigest: string;
+  reviewPacketPath: string;
+  reviewMarkdownDigest: string;
+  reviewMarkdownPath: string;
+  contactSheetDigest: string;
+  contactSheetPath: string;
+}
+
+interface ManifestApprovalAuthority {
+  version: typeof PRE_RENDER_BLUEPRINT_APPROVAL_VERSION;
+  digest: string;
+  path: string;
+  approvedBy: typeof PRE_RENDER_BLUEPRINT_APPROVER;
+  approvedAt: string;
+}
+
+export interface QaWizardBlueprintAuthoringManifest {
+  version: typeof QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION;
+  stage: QaWizardBlueprintAuthoringStage;
+  predecessor: ManifestPredecessor | null;
+  bridge: ManifestBridgeAuthority;
+  context: ManifestContextAuthority;
+  request: ManifestRequestAuthority;
+  receipt: ManifestReceiptAuthority | null;
+  blueprint: ManifestBlueprintAuthority | null;
+  approval: ManifestApprovalAuthority | null;
+  doesNotAuthorize: readonly string[];
+  digestAlgorithm: typeof DIGEST_ALGORITHM;
+  digest: string;
+}
+
+export interface QaWizardBlueprintExecutionClaim {
+  version: typeof QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  preflightManifestPath: string;
+  requestedAt: string;
+  scope: 'single_use_paid_blueprint_authoring';
+  digestAlgorithm: typeof DIGEST_ALGORITHM;
+  digest: string;
+}
+
+export interface QaWizardBlueprintExecutionRecord {
+  version: typeof QA_WIZARD_BLUEPRINT_EXECUTION_RECORD_VERSION;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  claimDigest: string;
+  claimPath: string;
+  terminalManifestDigest: string;
+  terminalManifestPath: string;
+  receiptDigest: string;
+  receiptPath: string;
+  status: 'completed' | 'failed';
+  digestAlgorithm: typeof DIGEST_ALGORITHM;
+  digest: string;
+}
+
+export interface QaWizardBlueprintApprovalDecision {
+  version: typeof QA_WIZARD_BLUEPRINT_APPROVAL_DECISION_VERSION;
+  candidateManifestDigest: string;
+  candidateManifestPath: string;
+  blueprintDigest: string;
+  authoringAuthorityDigest: string;
+  reviewPacketDigest: string;
+  approvalDigest: string;
+  approvalPath: string;
+  approvedManifestDigest: string;
+  approvedManifestPath: string;
+  approvedBy: typeof PRE_RENDER_BLUEPRINT_APPROVER;
+  approvedAt: string;
+  note: string | null;
+  scope: 'single_blueprint_approval_decision';
+  digestAlgorithm: typeof DIGEST_ALGORITHM;
+  digest: string;
+}
+
+export interface PreparedQaWizardBlueprintLiveRequest {
+  manifest: QaWizardBlueprintAuthoringManifest;
+  manifestPath: string;
+  request: ProductionAuthoringRunRequest;
+  requestPath: string;
+  wrote: boolean;
+}
+
+export interface QaWizardBlueprintExecutionResult {
+  replayed: boolean;
+  manifest: QaWizardBlueprintAuthoringManifest;
+  manifestPath: string;
+  receipt: ProductionAuthoringRunReceipt;
+  receiptPath: string;
+  claimPath: string;
+  executionRecordPath: string;
+}
+
+export interface QaWizardBlueprintApprovalResult {
+  manifest: QaWizardBlueprintAuthoringManifest;
+  manifestPath: string;
+  attestation: PreRenderBlueprintApprovalAttestation;
+  approvalPath: string;
+  wrote: boolean;
+}
+
+export interface QaWizardBlueprintExecutionDependencies {
+  providerFactory?: () =>
+    | ProductionAuthoringProvider
+    | Promise<ProductionAuthoringProvider>;
+  hooks?: {
+    /** Test-only crash seam after the atomic process-restart claim and before provider access. */
+    afterClaim?: () => void;
+    /** Test-only crash seam after the atomic receipt and before terminal authority. */
+    afterReceipt?: () => void;
+    /** Test-only crash seam after terminal manifest and before request-keyed lookup. */
+    afterTerminalManifest?: () => void;
+    /** Test-only crash seam after the candidate-keyed approval decision. */
+    afterApprovalDecision?: () => void;
+    /** Test-only race seam immediately before lifecycle containment is rechecked. */
+    beforeLifecycleArtifactPublish?: (
+      temporaryPath: string,
+      destinationPath: string,
+    ) => void;
+    /** Test-only race seam immediately before receipt publication. */
+    beforeReceiptArtifactPublish?: (
+      temporaryPath: string,
+      destinationPath: string,
+    ) => void;
+    /** Test-only race seam immediately before terminal-lookup publication. */
+    beforeTerminalLookupPublish?: (
+      temporaryPath: string,
+      destinationPath: string,
+    ) => void;
+  };
+}
+
+const MANIFEST_KEYS = [
+  'approval',
+  'blueprint',
+  'bridge',
+  'context',
+  'digest',
+  'digestAlgorithm',
+  'doesNotAuthorize',
+  'predecessor',
+  'receipt',
+  'request',
+  'stage',
+  'version',
+] as const;
+const PREDECESSOR_KEYS = ['digest', 'path', 'version'] as const;
+const BRIDGE_KEYS = ['digest', 'path', 'version'] as const;
+const CONTEXT_KEYS = ['digest', 'version'] as const;
+const REQUEST_KEYS = [
+  'digest',
+  'mode',
+  'path',
+  'requestId',
+  'requestedAt',
+  'version',
+] as const;
+const RECEIPT_KEYS = ['digest', 'path', 'status', 'version'] as const;
+const BLUEPRINT_KEYS = [
+  'authoringAuthorityDigest',
+  'blueprintDigest',
+  'candidatePath',
+  'contactSheetDigest',
+  'contactSheetPath',
+  'provenanceDigest',
+  'provenancePath',
+  'reviewMarkdownDigest',
+  'reviewMarkdownPath',
+  'reviewPacketDigest',
+  'reviewPacketPath',
+  'validationEvidenceDigest',
+  'validationEvidencePath',
+] as const;
+const APPROVAL_KEYS = [
+  'approvedAt',
+  'approvedBy',
+  'digest',
+  'path',
+  'version',
+] as const;
+const CLAIM_KEYS = [
+  'authoringAuthorityDigest',
+  'digest',
+  'digestAlgorithm',
+  'preflightManifestDigest',
+  'preflightManifestPath',
+  'requestDigest',
+  'requestedAt',
+  'scope',
+  'version',
+] as const;
+const EXECUTION_RECORD_KEYS = [
+  'authoringAuthorityDigest',
+  'claimDigest',
+  'claimPath',
+  'digest',
+  'digestAlgorithm',
+  'receiptDigest',
+  'receiptPath',
+  'requestDigest',
+  'status',
+  'terminalManifestDigest',
+  'terminalManifestPath',
+  'version',
+] as const;
+const APPROVAL_DECISION_KEYS = [
+  'approvalDigest',
+  'approvalPath',
+  'approvedAt',
+  'approvedBy',
+  'approvedManifestDigest',
+  'approvedManifestPath',
+  'authoringAuthorityDigest',
+  'blueprintDigest',
+  'candidateManifestDigest',
+  'candidateManifestPath',
+  'digest',
+  'digestAlgorithm',
+  'note',
+  'reviewPacketDigest',
+  'scope',
+  'version',
+] as const;
+const RECEIPT_TOP_LEVEL_KEYS = [
+  'attempts',
+  'authoringProvenanceDigest',
+  'blueprintDigest',
+  'callBudget',
+  'callCount',
+  'contextDigest',
+  'digest',
+  'digestAlgorithm',
+  'executionAttestation',
+  'failure',
+  'maxOutputTokens',
+  'mode',
+  'model',
+  'noFallback',
+  'reasoningEffort',
+  'repairCount',
+  'requestDigest',
+  'requestId',
+  'requestedAt',
+  'status',
+  'version',
+] as const;
+const ATTEMPT_KEYS = [
+  'attempt',
+  'completionStatus',
+  'conservativeCallCostUsd',
+  'cumulativeConservativeCostUsd',
+  'executionAttestation',
+  'failureCode',
+  'failureEvidenceKind',
+  'failureEvidenceReason',
+  'inputAccounting',
+  'kind',
+  'model',
+  'nominalEstimatedCostUsd',
+  'provider',
+  'providerEvidenceVersion',
+  'reservedExposureBeforeCallUsd',
+  'responseDigest',
+  'responseId',
+  'systemPromptDigest',
+  'usage',
+  'usageEvidenceComplete',
+  'userPromptDigest',
+  'validationDiagnostics',
+] as const;
+const SAFE_USAGE_KEYS = [
+  'cacheWriteInputTokens',
+  'cachedInputTokens',
+  'inputTokens',
+  'outputTokens',
+  'reasoningTokens',
+  'totalTokens',
+] as const;
+const ATTEMPT_FAILURE_CODES = [
+  'provider_call_failed',
+  'call_budget_exhausted',
+  'provider_policy_mismatch',
+  'provider_evidence_invalid',
+  'completion_status_invalid',
+  'usage_invalid',
+  'input_token_ceiling_exceeded',
+  'cost_ceiling_exceeded',
+] as const satisfies readonly ProductionAuthoringAttemptFailureCode[];
+const BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES = [
+  'call_budget_exhausted',
+  'completion_status_invalid',
+  'context_invalid',
+  'cost_ceiling_exceeded',
+  'draft_validation_repair_exhausted',
+  'input_token_ceiling_exceeded',
+  'local_processing_failed',
+  'provider_call_failed',
+  'provider_evidence_invalid',
+  'provider_policy_mismatch',
+  'usage_invalid',
+] as const;
+
+function record(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function exactKeys(
+  value: unknown,
+  expected: readonly string[],
+): value is Record<string, unknown> {
+  return (
+    record(value) &&
+    JSON.stringify(Object.keys(value).sort()) ===
+      JSON.stringify([...expected].sort())
+  );
+}
+
+function canonicalUtcTimestampIsValid(value: unknown): value is string {
+  if (typeof value !== 'string' || !CANONICAL_UTC_MILLISECONDS.test(value)) {
+    return false;
+  }
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString() === value;
+}
+
+function executionStateUncertain(cause?: unknown): Error {
+  const error = new Error('execution_state_uncertain');
+  if (cause !== undefined) {
+    (error as Error & { cause?: unknown }).cause = cause;
+  }
+  return error;
+}
+
+function digestPayload<T extends object>(payload: T): T & {
+  digestAlgorithm: typeof DIGEST_ALGORITHM;
+  digest: string;
+} {
+  return {
+    ...payload,
+    digestAlgorithm: DIGEST_ALGORITHM,
+    digest: canonicalJsonDigest(payload),
+  };
+}
+
+function payloadWithoutDigest(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = value;
+  return payload;
+}
+
+function sameStringArray(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function manifestExclusions(
+  stage: QaWizardBlueprintAuthoringStage,
+): readonly string[] {
+  return stage === 'blueprint_approved'
+    ? AFTER_APPROVAL_EXCLUSIONS
+    : BEFORE_APPROVAL_EXCLUSIONS;
+}
+
+function manifestPayload(
+  value: Omit<
+    QaWizardBlueprintAuthoringManifest,
+    'digestAlgorithm' | 'digest'
+  >,
+): Omit<
+  QaWizardBlueprintAuthoringManifest,
+  'digestAlgorithm' | 'digest'
+> {
+  return value;
+}
+
+function buildManifest(
+  value: Omit<
+    QaWizardBlueprintAuthoringManifest,
+    'digestAlgorithm' | 'digest'
+  >,
+): QaWizardBlueprintAuthoringManifest {
+  return digestPayload(manifestPayload(value));
+}
+
+function outputDirFromManifestPath(manifestPath: string): string {
+  const normalized = manifestPath.replace(/\\/g, '/');
+  if (path.posix.basename(path.posix.dirname(normalized)) !== 'blueprint-authoring-manifests') {
+    throw new Error('Blueprint authoring manifest path is outside its canonical category');
+  }
+  return path.posix.dirname(path.posix.dirname(normalized));
+}
+
+function relativeArtifactPath(args: {
+  repoRoot: string;
+  outputDir: string;
+  category: string;
+  fileName: string;
+}): string {
+  return repoRelativePath(
+    args.repoRoot,
+    path.join(
+      resolveRepoPath(args.repoRoot, args.outputDir),
+      args.category,
+      args.fileName,
+    ),
+  );
+}
+
+function readUniqueContainedUtf8(args: {
+  repoRoot: string;
+  artifactPath: string;
+  label: string;
+}): { absolutePath: string; rawBytes: string } {
+  const absolutePath = resolveRepoPath(args.repoRoot, args.artifactPath);
+  if (!fs.existsSync(absolutePath)) {
+    throw new Error(`${args.label} is missing`);
+  }
+  const stat = fs.lstatSync(absolutePath);
+  const repoRealPath = fs.realpathSync(path.resolve(args.repoRoot));
+  const artifactRealPath = fs.realpathSync(absolutePath);
+  assertContainedRealPath({ repoRealPath, candidateRealPath: artifactRealPath });
+  if (
+    !stat.isFile() ||
+    stat.isSymbolicLink() ||
+    stat.nlink !== 1 ||
+    normalizedAbsolute(absolutePath) !== normalizedAbsolute(artifactRealPath)
+  ) {
+    throw new Error(`${args.label} must be one unique contained regular file`);
+  }
+  const rawBytes = fs.readFileSync(absolutePath, 'utf8');
+  return { absolutePath, rawBytes };
+}
+
+function readJsonObject(args: {
+  repoRoot: string;
+  artifactPath: string;
+  label: string;
+}): { absolutePath: string; rawBytes: string; value: Record<string, unknown> } {
+  const { absolutePath, rawBytes } = readUniqueContainedUtf8(args);
+  let value: unknown;
+  try {
+    value = JSON.parse(rawBytes) as unknown;
+  } catch {
+    throw new Error(`${args.label} JSON is invalid`);
+  }
+  if (!record(value)) throw new Error(`${args.label} must be a JSON object`);
+  return { absolutePath, rawBytes, value };
+}
+
+function assertCanonicalContentAddressedJson(args: {
+  artifactPath: string;
+  absolutePath: string;
+  rawBytes: string;
+  value: Record<string, unknown>;
+  digest: string;
+  category: string;
+  label: string;
+}): void {
+  if (
+    path.basename(args.absolutePath) !== `${args.digest}.json` ||
+    path.basename(path.dirname(args.absolutePath)) !== args.category ||
+    args.rawBytes !== canonicalContentAddressedJsonBytes(args.value)
+  ) {
+    throw new Error(`${args.label} path or bytes are not canonical`);
+  }
+}
+
+function sameOutputDir(args: {
+  repoRoot: string;
+  outputDir: string;
+  manifestPath: string;
+}): string {
+  const requested = repoRelativePath(
+    args.repoRoot,
+    resolveRepoPath(args.repoRoot, args.outputDir),
+  );
+  const manifested = outputDirFromManifestPath(args.manifestPath);
+  if (requested !== manifested) {
+    throw new Error('Blueprint authoring outputDir differs from the manifest authority root');
+  }
+  return requested;
+}
+
+function manifestShapeIsValid(
+  value: unknown,
+): value is QaWizardBlueprintAuthoringManifest {
+  try {
+    if (!exactKeys(value, MANIFEST_KEYS)) return false;
+    const manifest = value as unknown as QaWizardBlueprintAuthoringManifest;
+    if (
+    manifest.version !== QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION ||
+    ![
+      'live_request_preflight_passed',
+      'blueprint_candidate',
+      'authoring_failed',
+      'blueprint_approved',
+    ].includes(manifest.stage) ||
+    manifest.digestAlgorithm !== DIGEST_ALGORITHM ||
+    typeof manifest.digest !== 'string' ||
+    !HEX_SHA256.test(manifest.digest) ||
+    manifest.digest !==
+      canonicalJsonDigest(payloadWithoutDigest(value)) ||
+    !sameStringArray(
+      manifest.doesNotAuthorize,
+      manifestExclusions(manifest.stage),
+    ) ||
+    !exactKeys(manifest.bridge, BRIDGE_KEYS) ||
+    manifest.bridge.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION ||
+    typeof manifest.bridge.digest !== 'string' ||
+    !HEX_SHA256.test(manifest.bridge.digest) ||
+    typeof manifest.bridge.path !== 'string' ||
+    !exactKeys(manifest.context, CONTEXT_KEYS) ||
+    typeof manifest.context.digest !== 'string' ||
+    !HEX_SHA256.test(manifest.context.digest) ||
+    !exactKeys(manifest.request, REQUEST_KEYS) ||
+    manifest.request.version !== PRODUCTION_AUTHORING_RUN_REQUEST_VERSION ||
+    manifest.request.mode !== 'live' ||
+    typeof manifest.request.digest !== 'string' ||
+    !HEX_SHA256.test(manifest.request.digest) ||
+    typeof manifest.request.path !== 'string' ||
+    typeof manifest.request.requestId !== 'string' ||
+    !canonicalUtcTimestampIsValid(manifest.request.requestedAt)
+    ) {
+      return false;
+    }
+    const isPreflight = manifest.stage === 'live_request_preflight_passed';
+  const isCandidate = manifest.stage === 'blueprint_candidate';
+  const isFailure = manifest.stage === 'authoring_failed';
+  const isApproved = manifest.stage === 'blueprint_approved';
+  if (
+    (isPreflight && manifest.predecessor !== null) ||
+    (!isPreflight && !exactKeys(manifest.predecessor, PREDECESSOR_KEYS)) ||
+    (manifest.predecessor !== null &&
+      (manifest.predecessor.version !==
+        QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION ||
+        typeof manifest.predecessor.digest !== 'string' ||
+        !HEX_SHA256.test(manifest.predecessor.digest) ||
+        typeof manifest.predecessor.path !== 'string'))
+  ) {
+    return false;
+  }
+  if (isPreflight) {
+    return (
+      manifest.receipt === null &&
+      manifest.blueprint === null &&
+      manifest.approval === null
+    );
+  }
+  if (
+    !exactKeys(manifest.receipt, RECEIPT_KEYS) ||
+    manifest.receipt.version !== PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION ||
+    typeof manifest.receipt.digest !== 'string' ||
+    !HEX_SHA256.test(manifest.receipt.digest) ||
+    typeof manifest.receipt.path !== 'string' ||
+    manifest.receipt.status !== (isFailure ? 'failed' : 'completed')
+  ) {
+    return false;
+  }
+  if (isFailure) {
+    return manifest.blueprint === null && manifest.approval === null;
+  }
+  if (
+    !exactKeys(manifest.blueprint, BLUEPRINT_KEYS) ||
+    Object.entries(manifest.blueprint).some(([key, entry]) =>
+      key.endsWith('Path')
+        ? typeof entry !== 'string'
+        : typeof entry !== 'string' || !HEX_SHA256.test(entry),
+    )
+  ) {
+    return false;
+  }
+  if (isCandidate) return manifest.approval === null;
+  return (
+    isApproved &&
+    exactKeys(manifest.approval, APPROVAL_KEYS) &&
+    manifest.approval.version === PRE_RENDER_BLUEPRINT_APPROVAL_VERSION &&
+    typeof manifest.approval.digest === 'string' &&
+    HEX_SHA256.test(manifest.approval.digest) &&
+    typeof manifest.approval.path === 'string' &&
+    manifest.approval.approvedBy === PRE_RENDER_BLUEPRINT_APPROVER &&
+    canonicalUtcTimestampIsValid(manifest.approval.approvedAt)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function requestAuthority(args: {
+  request: ProductionAuthoringRunRequest;
+  requestPath: string;
+}): ManifestRequestAuthority {
+  return {
+    version: args.request.version,
+    digest: canonicalJsonDigest(args.request),
+    path: args.requestPath,
+    requestId: args.request.requestId,
+    requestedAt: args.request.requestedAt,
+    mode: 'live',
+  };
+}
+
+function bridgeAuthority(args: {
+  bridge: QaWizardCandidateBridgeManifest;
+  bridgeManifestPath: string;
+}): ManifestBridgeAuthority {
+  if (
+    args.bridge.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
+  ) {
+    throw new Error('legacy QA Wizard bridge cannot authorize Blueprint authoring');
+  }
+  return {
+    version: args.bridge.version,
+    digest: args.bridge.digest,
+    path: args.bridgeManifestPath,
+  };
+}
+
+function persistRequest(args: {
+  repoRoot: string;
+  outputDir: string;
+  request: ProductionAuthoringRunRequest;
+  write: boolean;
+}): { path: string; created: boolean } {
+  const digest = canonicalJsonDigest(args.request);
+  const artifactPath = relativeArtifactPath({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    category: 'blueprint-authoring-requests',
+    fileName: `${digest}.json`,
+  });
+  const created = args.write
+    ? writeImmutableLocalArtifact({
+        destinationPath: resolveRepoPath(args.repoRoot, artifactPath),
+        bytes: canonicalContentAddressedJsonBytes(args.request),
+        hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+      }).created
+    : false;
+  return { path: artifactPath, created };
+}
+
+function persistManifest(args: {
+  repoRoot: string;
+  outputDir: string;
+  manifest: QaWizardBlueprintAuthoringManifest;
+  write: boolean;
+}): { path: string; created: boolean } {
+  if (!manifestShapeIsValid(args.manifest)) {
+    throw new Error('Blueprint authoring manifest construction is invalid');
+  }
+  const artifactPath = relativeArtifactPath({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    category: 'blueprint-authoring-manifests',
+    fileName: `${args.manifest.digest}.json`,
+  });
+  const created = args.write
+    ? writeImmutableLocalArtifact({
+        destinationPath: resolveRepoPath(args.repoRoot, artifactPath),
+        bytes: canonicalContentAddressedJsonBytes(args.manifest),
+        hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+      }).created
+    : false;
+  return { path: artifactPath, created };
+}
+
+function loadProductionRequest(args: {
+  repoRoot: string;
+  outputDir: string;
+  authority: ManifestRequestAuthority;
+  context: ProductionAuthoringContext;
+}): ProductionAuthoringRunRequest {
+  const expectedPath = relativeArtifactPath({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    category: 'blueprint-authoring-requests',
+    fileName: `${args.authority.digest}.json`,
+  });
+  if (args.authority.path !== expectedPath) {
+    throw new Error('Blueprint authoring request path is noncanonical');
+  }
+  const loaded = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: args.authority.path,
+    label: 'Blueprint authoring request',
+  });
+  assertCanonicalContentAddressedJson({
+    artifactPath: args.authority.path,
+    ...loaded,
+    digest: args.authority.digest,
+    category: 'blueprint-authoring-requests',
+    label: 'Blueprint authoring request',
+  });
+  const request = loaded.value as unknown as ProductionAuthoringRunRequest;
+  const issues = productionBlueprintAuthoringPreflightIssues({
+    request,
+    context: args.context,
+  });
+  if (
+    issues.length > 0 ||
+    canonicalJsonDigest(request) !== args.authority.digest ||
+    request.version !== args.authority.version ||
+    request.mode !== 'live' ||
+    request.requestId !== args.authority.requestId ||
+    request.requestedAt !== args.authority.requestedAt
+  ) {
+    throw new Error(
+      `Blueprint authoring request is stale or invalid${
+        issues.length > 0 ? `: ${issues.join('; ')}` : ''
+      }`,
+    );
+  }
+  return request;
+}
+
+function finiteNonnegative(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function canonicalSafeUsage(
+  value: unknown,
+): Record<(typeof SAFE_USAGE_KEYS)[number], number> | null {
+  if (!exactKeys(value, SAFE_USAGE_KEYS)) return null;
+  if (
+    !Object.values(value).every(
+      (entry) => Number.isSafeInteger(entry) && Number(entry) >= 0,
+    )
+  ) {
+    return null;
+  }
+  const usage = value as Record<(typeof SAFE_USAGE_KEYS)[number], number>;
+  return blueprintAuthoringUsageIsInternallyConsistent(usage) ? usage : null;
+}
+
+function attemptReceiptIsValid(args: {
+  attempt: unknown;
+  index: number;
+  priorCumulativeCostUsd: number;
+}): { valid: boolean; cumulativeCostUsd: number } {
+  if (!exactKeys(args.attempt, ATTEMPT_KEYS)) {
+    return { valid: false, cumulativeCostUsd: args.priorCumulativeCostUsd };
+  }
+  const attempt = args.attempt as Record<string, unknown>;
+  const usage = attempt.usage;
+  const diagnostics = attempt.validationDiagnostics;
+  const inputAccounting = attempt.inputAccounting;
+  const expectedAttempt = args.index + 1;
+  const expectedReservation = blueprintAuthoringReservedExposureUsd({
+    conservativeAccountedCostUsd: args.priorCumulativeCostUsd,
+    callsCompleted: args.index,
+  });
+  const completeUsage = canonicalSafeUsage(usage);
+  const nominal = completeUsage
+    ? nominalBlueprintAuthoringUsageCostUsd(completeUsage)
+    : null;
+  const conservative = completeUsage
+    ? conservativeBlueprintAuthoringCostUsd({
+        inputTokens: completeUsage.inputTokens,
+        outputTokens: completeUsage.outputTokens,
+      })
+    : null;
+  const nextCumulativeCostUsd =
+    conservative === null
+      ? args.priorCumulativeCostUsd
+      : args.priorCumulativeCostUsd + conservative;
+  const fullAccounting =
+    blueprintAuthoringInputAccountingIsCanonicalForSchema(
+      inputAccounting,
+      PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+    ) &&
+    inputAccounting.estimatedBytes <= BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS &&
+    attempt.reservedExposureBeforeCallUsd === expectedReservation;
+  const fullUsageCostEvidence =
+    completeUsage !== null &&
+    attempt.nominalEstimatedCostUsd === nominal &&
+    attempt.conservativeCallCostUsd === conservative &&
+    attempt.cumulativeConservativeCostUsd === nextCumulativeCostUsd;
+  const canonicalCompletedEvidence =
+    attempt.provider === 'openai' &&
+    attempt.model === BLUEPRINT_AUTHORING_MODEL &&
+    typeof attempt.responseId === 'string' &&
+    /^[A-Za-z0-9_-]{1,200}$/.test(attempt.responseId) &&
+    typeof attempt.responseDigest === 'string' &&
+    HEX_SHA256.test(attempt.responseDigest) &&
+    attempt.providerEvidenceVersion ===
+      OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION &&
+    attempt.completionStatus === 'completed' &&
+    attempt.usageEvidenceComplete === true &&
+    fullAccounting &&
+    fullUsageCostEvidence &&
+    completeUsage.inputTokens <= BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS &&
+    completeUsage.outputTokens <= BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS &&
+    canonicalCompletedExecutionAttestationIsValid(
+      attempt.executionAttestation,
+    );
+  const canonicalProviderResponseEvidence =
+    attempt.provider === 'openai' &&
+    attempt.model === BLUEPRINT_AUTHORING_MODEL &&
+    typeof attempt.responseId === 'string' &&
+    /^[A-Za-z0-9_-]{1,200}$/.test(attempt.responseId) &&
+    typeof attempt.responseDigest === 'string' &&
+    HEX_SHA256.test(attempt.responseDigest) &&
+    attempt.providerEvidenceVersion ===
+      OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION &&
+    canonicalCompletedExecutionAttestationIsValid(
+      attempt.executionAttestation,
+    );
+  const noResponseEvidence =
+    attempt.responseId === null &&
+    attempt.responseDigest === null &&
+    attempt.usage === null &&
+    attempt.providerEvidenceVersion === null &&
+    attempt.completionStatus === null &&
+    attempt.usageEvidenceComplete === false &&
+    attempt.nominalEstimatedCostUsd === null &&
+    attempt.conservativeCallCostUsd === null;
+  const preDispatchFailure =
+    attempt.provider === 'openai' &&
+    attempt.model === BLUEPRINT_AUTHORING_MODEL &&
+    noResponseEvidence &&
+    blueprintAuthoringInputAccountingIsCanonicalForSchema(
+      inputAccounting,
+      PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+    ) &&
+    attempt.reservedExposureBeforeCallUsd === expectedReservation &&
+    attempt.cumulativeConservativeCostUsd === args.priorCumulativeCostUsd &&
+    record(attempt.executionAttestation) &&
+    attempt.executionAttestation.evidenceKind === 'not_run';
+  const providerCallFailure =
+    attempt.failureEvidenceKind === 'raw_provider_exception' &&
+    attempt.provider === 'openai' &&
+    attempt.model === BLUEPRINT_AUTHORING_MODEL &&
+    noResponseEvidence &&
+    attempt.inputAccounting === null &&
+    attempt.reservedExposureBeforeCallUsd === null &&
+    attempt.cumulativeConservativeCostUsd === null &&
+    record(attempt.executionAttestation) &&
+    attempt.executionAttestation.evidenceKind === 'injected_adapter_unattested' &&
+    attempt.executionAttestation.logicalProviderCalls === 1;
+  const canonicalAdapterFailureAttestationIsValid =
+    authoringExecutionAttestationIsValid(attempt.executionAttestation) &&
+    (attempt.executionAttestation.evidenceKind === 'not_run' ||
+      (attempt.executionAttestation.evidenceKind ===
+        'canonical_adapter_observed' &&
+        attempt.executionAttestation.logicalProviderCalls === 1 &&
+        attempt.executionAttestation.canonicalModelConfirmed === true &&
+        ((attempt.executionAttestation.transportDispatchCount === 0 &&
+          attempt.executionAttestation.canonicalRouteConfirmed === false) ||
+          (attempt.executionAttestation.transportDispatchCount === 1 &&
+            attempt.executionAttestation.canonicalRouteConfirmed === true)))) &&
+    attempt.executionAttestation.transportRetryCount === 0 &&
+    attempt.executionAttestation.fallbackUsed === false;
+  const canonicalAdapterResponseBoundaryAttestationIsValid =
+    canonicalAdapterFailureAttestationIsValid &&
+    authoringExecutionAttestationIsValid(attempt.executionAttestation) &&
+    attempt.executionAttestation.evidenceKind ===
+      'canonical_adapter_observed' &&
+    attempt.executionAttestation.transportDispatchCount === 1;
+  const canonicalAdapterNoResponseFailure =
+    attempt.failureEvidenceKind === 'provider_adapter_boundary' &&
+    attempt.provider === 'openai' &&
+    attempt.model === BLUEPRINT_AUTHORING_MODEL &&
+    attempt.responseId === null &&
+    attempt.responseDigest === null &&
+    attempt.usage === null &&
+    attempt.providerEvidenceVersion ===
+      OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION &&
+    attempt.completionStatus === null &&
+    attempt.usageEvidenceComplete === false &&
+    fullAccounting &&
+    attempt.nominalEstimatedCostUsd === null &&
+    attempt.conservativeCallCostUsd === null &&
+    attempt.cumulativeConservativeCostUsd === args.priorCumulativeCostUsd &&
+    canonicalAdapterFailureAttestationIsValid;
+  const canonicalAdapterNoResponseWasNotRun =
+    canonicalAdapterNoResponseFailure &&
+    record(attempt.executionAttestation) &&
+    attempt.executionAttestation.evidenceKind === 'not_run';
+  const boundaryFailureEvidence =
+    blueprintAuthoringInputAccountingIsCanonicalForSchema(
+      inputAccounting,
+      PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+    ) &&
+    inputAccounting.estimatedBytes <= BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS &&
+    attempt.reservedExposureBeforeCallUsd === expectedReservation &&
+    (attempt.failureEvidenceKind !== 'provider_adapter_boundary' ||
+      attempt.failureEvidenceReason === 'execution_attestation_invalid' ||
+      attempt.failureEvidenceReason === 'boundary_reason_invalid' ||
+      canonicalAdapterResponseBoundaryAttestationIsValid) &&
+    (completeUsage === null
+      ? attempt.usage === null &&
+        attempt.nominalEstimatedCostUsd === null &&
+        attempt.conservativeCallCostUsd === null &&
+        (attempt.cumulativeConservativeCostUsd === null ||
+          attempt.cumulativeConservativeCostUsd ===
+            args.priorCumulativeCostUsd)
+      : fullUsageCostEvidence);
+  const failureCode = ATTEMPT_FAILURE_CODES.includes(
+    attempt.failureCode as ProductionAuthoringAttemptFailureCode,
+  )
+    ? (attempt.failureCode as ProductionAuthoringAttemptFailureCode)
+    : null;
+  const responseOrAdapterBoundary =
+    attempt.failureEvidenceKind === 'compiler_response_boundary' ||
+    attempt.failureEvidenceKind === 'provider_adapter_boundary';
+  const failedEvidenceValid =
+    failureCode === 'provider_call_failed'
+      ? (providerCallFailure &&
+          attempt.failureEvidenceReason === 'raw_provider_exception') ||
+        (canonicalAdapterNoResponseFailure &&
+          attempt.failureEvidenceReason === 'provider_call_failed')
+      : failureCode === 'call_budget_exhausted'
+        ? false
+        : failureCode === 'input_token_ceiling_exceeded'
+          ? attempt.failureEvidenceKind === 'compiler_pre_dispatch' &&
+            attempt.failureEvidenceReason === 'input_ceiling_exceeded' &&
+            preDispatchFailure &&
+            inputAccounting.estimatedBytes > BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS
+          : failureCode === 'cost_ceiling_exceeded'
+            ? (attempt.failureEvidenceKind === 'compiler_pre_dispatch' &&
+                attempt.failureEvidenceReason ===
+                  'spend_reservation_exceeded' &&
+                preDispatchFailure &&
+                inputAccounting.estimatedBytes <=
+                  BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS &&
+                !blueprintAuthoringSpendIsWithinCeiling(
+                  expectedReservation,
+                )) ||
+              (responseOrAdapterBoundary &&
+                attempt.failureEvidenceReason === 'cost_ceiling_exceeded' &&
+                canonicalCompletedEvidence &&
+                !blueprintAuthoringSpendIsWithinCeiling(nextCumulativeCostUsd))
+            : failureCode === 'provider_policy_mismatch'
+              ? (canonicalAdapterNoResponseWasNotRun &&
+                  attempt.failureEvidenceReason ===
+                    'adapter_policy_mismatch') ||
+                (responseOrAdapterBoundary &&
+                  attempt.failureEvidenceReason ===
+                    'provider_identity_mismatch' &&
+                  boundaryFailureEvidence &&
+                  typeof attempt.responseDigest === 'string' &&
+                  HEX_SHA256.test(attempt.responseDigest) &&
+                  (attempt.provider === 'unknown-provider' ||
+                    attempt.model === 'unknown-model'))
+              : failureCode === 'completion_status_invalid'
+                ? responseOrAdapterBoundary &&
+                  attempt.failureEvidenceReason ===
+                    'completion_status_invalid' &&
+                  boundaryFailureEvidence &&
+                  canonicalProviderResponseEvidence &&
+                  attempt.completionStatus === null
+                : failureCode === 'usage_invalid'
+                  ? responseOrAdapterBoundary &&
+                    attempt.failureEvidenceReason === 'usage_invalid' &&
+                    boundaryFailureEvidence &&
+                    canonicalProviderResponseEvidence &&
+                    attempt.completionStatus === 'completed' &&
+                    (attempt.usageEvidenceComplete !== true ||
+                      completeUsage === null ||
+                      completeUsage.inputTokens >
+                        BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS ||
+                      completeUsage.outputTokens >
+                        BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS)
+                  : failureCode === 'provider_evidence_invalid'
+                    ? responseOrAdapterBoundary &&
+                      boundaryFailureEvidence &&
+                      (attempt.failureEvidenceReason ===
+                        'response_output_empty' ||
+                        (attempt.failureEvidenceReason ===
+                          'cost_evidence_mismatch' &&
+                          attempt.failureEvidenceKind ===
+                            'compiler_response_boundary') ||
+                        (attempt.failureEvidenceReason ===
+                          'provider_evidence_version_invalid' &&
+                          attempt.failureEvidenceKind ===
+                            'compiler_response_boundary' &&
+                          attempt.providerEvidenceVersion === null) ||
+                        (attempt.failureEvidenceReason ===
+                          'response_id_invalid' &&
+                          attempt.responseId === null) ||
+                        (attempt.failureEvidenceReason ===
+                          'execution_attestation_invalid' &&
+                          !canonicalProviderResponseEvidence) ||
+                        (attempt.failureEvidenceReason ===
+                          'boundary_reason_invalid' &&
+                          attempt.failureEvidenceKind ===
+                            'provider_adapter_boundary'))
+                    : false;
+  return {
+    valid:
+      expectedAttempt === attempt.attempt &&
+      attempt.kind === (args.index === 0 ? 'initial' : 'repair') &&
+      (attempt.provider === 'openai' ||
+        attempt.provider === 'unknown-provider') &&
+      (attempt.model === BLUEPRINT_AUTHORING_MODEL ||
+        attempt.model === 'unknown-model') &&
+      (attempt.responseId === null ||
+        (typeof attempt.responseId === 'string' &&
+          /^[A-Za-z0-9_-]{1,200}$/.test(attempt.responseId))) &&
+      typeof attempt.systemPromptDigest === 'string' &&
+      HEX_SHA256.test(attempt.systemPromptDigest) &&
+      typeof attempt.userPromptDigest === 'string' &&
+      HEX_SHA256.test(attempt.userPromptDigest) &&
+      (attempt.responseDigest === null ||
+        (typeof attempt.responseDigest === 'string' &&
+          HEX_SHA256.test(attempt.responseDigest))) &&
+      (attempt.providerEvidenceVersion === null ||
+        attempt.providerEvidenceVersion ===
+          OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION) &&
+      (attempt.completionStatus === null ||
+        attempt.completionStatus === 'completed') &&
+      authoringExecutionAttestationIsValid(attempt.executionAttestation) &&
+      authoringValidationDiagnosticsAreValid(diagnostics) &&
+      (attempt.failureCode === null
+        ? attempt.failureEvidenceKind === null &&
+          attempt.failureEvidenceReason === null &&
+          canonicalCompletedEvidence
+        : failedEvidenceValid),
+    cumulativeCostUsd:
+      attempt.failureCode === null
+        ? nextCumulativeCostUsd
+        : args.priorCumulativeCostUsd,
+  };
+}
+
+export function productionBlueprintAuthoringReceiptReplayIsValid(args: {
+  receipt: Record<string, unknown>;
+  request: ProductionAuthoringRunRequest;
+  expectedStatus: 'completed' | 'failed';
+  expectedDigest: string;
+}): args is {
+  receipt: ProductionAuthoringRunReceipt & Record<string, unknown>;
+  request: ProductionAuthoringRunRequest;
+  expectedStatus: 'completed' | 'failed';
+  expectedDigest: string;
+} {
+  try {
+    const receipt = args.receipt as unknown as ProductionAuthoringRunReceipt;
+  const attempts = receipt.attempts;
+  let cumulativeCostUsd = 0;
+  let attemptsValid = Array.isArray(attempts);
+  if (attemptsValid) {
+    for (const [index, attempt] of attempts.entries()) {
+      const result = attemptReceiptIsValid({
+        attempt,
+        index,
+        priorCumulativeCostUsd: cumulativeCostUsd,
+      });
+      attemptsValid &&= result.valid;
+      cumulativeCostUsd = result.cumulativeCostUsd;
+    }
+  }
+  const replayAttempts = attemptsValid
+    ? (attempts as ProductionAuthoringRunReceipt['attempts'])
+    : [];
+  const aggregateAttestation = attemptsValid
+    ? aggregateProductionAuthoringExecutionAttestations(
+        replayAttempts.map((attempt) => attempt.executionAttestation),
+      )
+    : null;
+  const firstFailedAttemptIndex = attemptsValid
+    ? replayAttempts.findIndex((attempt) => attempt.failureCode !== null)
+    : -1;
+  const failureAttemptOrderingIsValid =
+    firstFailedAttemptIndex === -1 ||
+    (firstFailedAttemptIndex === replayAttempts.length - 1 &&
+      replayAttempts.filter((attempt) => attempt.failureCode !== null).length ===
+        1);
+  const finalAttempt = attemptsValid
+    ? replayAttempts.length > 0
+      ? replayAttempts[replayAttempts.length - 1]!
+      : null
+    : null;
+  const terminalCodeForFinalAttempt =
+    finalAttempt?.failureCode === 'provider_call_failed'
+      ? 'provider_call_failed'
+      : finalAttempt?.failureCode === 'provider_policy_mismatch'
+        ? 'provider_policy_mismatch'
+        : finalAttempt?.failureCode === 'provider_evidence_invalid'
+          ? 'provider_evidence_invalid'
+          : finalAttempt?.failureCode === 'completion_status_invalid'
+            ? 'completion_status_invalid'
+            : finalAttempt?.failureCode === 'usage_invalid'
+              ? 'usage_invalid'
+              : finalAttempt?.failureCode === 'input_token_ceiling_exceeded'
+                ? 'input_token_ceiling_exceeded'
+                : finalAttempt?.failureCode === 'cost_ceiling_exceeded'
+                  ? 'cost_ceiling_exceeded'
+                  : null;
+  const attemptBoundTerminalCodes = [
+    'provider_call_failed',
+    'provider_policy_mismatch',
+    'provider_evidence_invalid',
+    'completion_status_invalid',
+    'usage_invalid',
+    'input_token_ceiling_exceeded',
+    'cost_ceiling_exceeded',
+  ] as const;
+  const budgetStoppedAttemptShapeIsValid =
+    replayAttempts.length === BLUEPRINT_AUTHORING_MAX_CALLS &&
+    receipt.repairCount === BLUEPRINT_AUTHORING_MAX_REPAIRS &&
+    replayAttempts.every(
+      (attempt) =>
+        attempt.failureCode === null &&
+        attempt.failureEvidenceKind === null &&
+        attempt.failureEvidenceReason === null,
+    );
+  const repairExhaustionEvidenceIsValid =
+    receipt.failure?.code === 'call_budget_exhausted' ||
+    receipt.failure?.code === 'draft_validation_repair_exhausted'
+      ? budgetStoppedAttemptShapeIsValid &&
+          replayAttempts.every(
+            (attempt) =>
+              attempt.validationDiagnostics.count > 0 &&
+              attempt.validationDiagnostics.codes.length > 0,
+          )
+      : true;
+  const attemptDiagnosticSequenceIsValid = replayAttempts.every(
+    (attempt, index) => {
+      const finalAttempt = index === replayAttempts.length - 1;
+      if (!finalAttempt && attempt.failureCode === null) {
+        return (
+          attempt.validationDiagnostics.count > 0 &&
+          attempt.validationDiagnostics.codes.length > 0
+        );
+      }
+      if (receipt.status === 'completed' && finalAttempt) {
+        return (
+          attempt.failureCode === null &&
+          attempt.validationDiagnostics.count === 0 &&
+          attempt.validationDiagnostics.codes.length === 0
+        );
+      }
+      return true;
+    },
+  );
+  const zeroAttemptContextFailureIsValid =
+    receipt.failure?.code !== 'context_invalid' ||
+    (replayAttempts.length === 0 &&
+      receipt.callCount === 0 &&
+      receipt.repairCount === 0 &&
+      receipt.executionAttestation.evidenceKind === 'not_run');
+    return (
+    exactKeys(args.receipt, RECEIPT_TOP_LEVEL_KEYS) &&
+    receipt.version === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION &&
+    receipt.digestAlgorithm === DIGEST_ALGORITHM &&
+    receipt.digest === args.expectedDigest &&
+    receipt.digest === canonicalJsonDigest(payloadWithoutDigest(args.receipt)) &&
+    receipt.requestDigest === canonicalJsonDigest(args.request) &&
+    receipt.requestId === args.request.requestId &&
+    receipt.requestedAt === args.request.requestedAt &&
+    receipt.mode === 'live' &&
+    receipt.contextDigest === args.request.contextDigest &&
+    receipt.model === args.request.model &&
+    receipt.reasoningEffort === args.request.reasoningEffort &&
+    receipt.maxOutputTokens === args.request.maxOutputTokens &&
+    receipt.noFallback === true &&
+    canonicalJsonDigest(receipt.callBudget) ===
+      canonicalJsonDigest(args.request.callBudget) &&
+    receipt.status === args.expectedStatus &&
+    attemptsValid &&
+    failureAttemptOrderingIsValid &&
+    replayAttempts.length <= BLUEPRINT_AUTHORING_MAX_CALLS &&
+    receipt.callCount === replayAttempts.length &&
+    receipt.repairCount === Math.max(0, replayAttempts.length - 1) &&
+    receipt.repairCount <= BLUEPRINT_AUTHORING_MAX_REPAIRS &&
+    authoringExecutionAttestationIsValid(receipt.executionAttestation) &&
+    aggregateAttestation !== null &&
+    canonicalJsonDigest(receipt.executionAttestation) ===
+      canonicalJsonDigest(aggregateAttestation) &&
+    authoringBudgetExhaustionBindingIsValid({
+      failure: receipt.failure,
+      logicalProviderCalls: receipt.executionAttestation.logicalProviderCalls,
+      repairCount: receipt.repairCount,
+      expectedLogicalProviderCalls: BLUEPRINT_AUTHORING_MAX_CALLS,
+      expectedRepairCount: BLUEPRINT_AUTHORING_MAX_REPAIRS,
+    }) &&
+    repairExhaustionEvidenceIsValid &&
+    attemptDiagnosticSequenceIsValid &&
+    zeroAttemptContextFailureIsValid &&
+    (receipt.status === 'completed'
+      ? receipt.failure === null &&
+        replayAttempts.length >= 1 &&
+        replayAttempts.every((attempt) => attempt.failureCode === null) &&
+        finalAttempt !== null &&
+        finalAttempt.validationDiagnostics.count === 0 &&
+        finalAttempt.validationDiagnostics.codes.length === 0 &&
+        typeof receipt.blueprintDigest === 'string' &&
+        HEX_SHA256.test(receipt.blueprintDigest) &&
+        typeof receipt.authoringProvenanceDigest === 'string' &&
+        HEX_SHA256.test(receipt.authoringProvenanceDigest)
+      : authoringTerminalFailureIsValid(receipt.failure) &&
+        BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES.includes(
+          receipt.failure.code as (typeof BLUEPRINT_RUNNER_TERMINAL_FAILURE_CODES)[number],
+        ) &&
+        (terminalCodeForFinalAttempt === null
+          ? !attemptBoundTerminalCodes.includes(
+              receipt.failure.code as (typeof attemptBoundTerminalCodes)[number],
+            )
+          : receipt.failure.code === terminalCodeForFinalAttempt) &&
+        receipt.blueprintDigest === null &&
+        receipt.authoringProvenanceDigest === null)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function loadProductionReceipt(args: {
+  repoRoot: string;
+  outputDir: string;
+  authority: ManifestReceiptAuthority;
+  request: ProductionAuthoringRunRequest;
+}): ProductionAuthoringRunReceipt {
+  const expectedPath = relativeArtifactPath({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    category: 'authoring-receipts',
+    fileName: `${args.authority.digest}.json`,
+  });
+  if (args.authority.path !== expectedPath) {
+    throw new Error('Blueprint authoring receipt path is noncanonical');
+  }
+  let loaded: ReturnType<typeof readJsonObject>;
+  let canonicalReceiptBytes: string;
+  try {
+    loaded = readJsonObject({
+      repoRoot: args.repoRoot,
+      artifactPath: args.authority.path,
+      label: 'Blueprint authoring receipt',
+    });
+    canonicalReceiptBytes = productionAuthoringReceiptBytes(
+      loaded.value as unknown as ProductionAuthoringRunReceipt,
+    );
+  } catch {
+    throw new Error('Blueprint authoring receipt is stale or invalid');
+  }
+  if (
+    path.basename(loaded.absolutePath) !== `${args.authority.digest}.json` ||
+    path.basename(path.dirname(loaded.absolutePath)) !== 'authoring-receipts' ||
+    loaded.rawBytes !== canonicalReceiptBytes ||
+    !productionBlueprintAuthoringReceiptReplayIsValid({
+      receipt: loaded.value,
+      request: args.request,
+      expectedStatus: args.authority.status,
+      expectedDigest: args.authority.digest,
+    })
+  ) {
+    throw new Error('Blueprint authoring receipt is stale or invalid');
+  }
+  return loaded.value as unknown as ProductionAuthoringRunReceipt;
+}
+
+function safeRepairAttemptsFromReceipt(
+  receipt: ProductionAuthoringRunReceipt,
+): PreRenderBlueprintAuthoringAttempt[] {
+  return receipt.attempts.slice(0, receipt.repairCount).map((attempt, index) => ({
+    attempt: index + 1,
+    errors:
+      attempt.validationDiagnostics.codes.length > 0
+        ? [...attempt.validationDiagnostics.codes]
+        : ['draft_contract_validation_failed'],
+    draft: null,
+  }));
+}
+
+function expectedAuthoringProvenance(args: {
+  blueprint: PreRenderBookVisualBlueprint;
+  receipt: ProductionAuthoringRunReceipt;
+}): PreRenderBlueprintAuthoringProvenance {
+  const firstAttempt = args.receipt.attempts[0];
+  if (!firstAttempt || args.receipt.status !== 'completed') {
+    throw new Error('completed Blueprint evidence lacks its passing attempt');
+  }
+  return {
+    version: PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION,
+    blueprintDigest: args.blueprint.digest,
+    authoringAuthorityDigest:
+      args.blueprint.identity.authoringAuthority.digest,
+    model: args.receipt.model,
+    reasoningEffort: args.receipt.reasoningEffort,
+    maxOutputTokens: args.receipt.maxOutputTokens,
+    noFallback: true,
+    draftSchemaVersion: PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
+    promptVersion: PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION,
+    ...(args.receipt.callCount > 1
+      ? { repairPromptVersion: PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION }
+      : {}),
+    passingAttempt: args.receipt.callCount,
+    callCount: args.receipt.callCount,
+    systemPromptDigest: firstAttempt.systemPromptDigest,
+    userPromptDigest: firstAttempt.userPromptDigest,
+  };
+}
+
+function readBlueprintArtifacts(args: {
+  repoRoot: string;
+  outputDir: string;
+  context: ProductionAuthoringContext;
+  authority: ManifestBlueprintAuthority;
+  receipt: ProductionAuthoringRunReceipt;
+}): {
+  blueprint: PreRenderBookVisualBlueprint;
+  reviewPacket: PreRenderBlueprintReviewPacket;
+} {
+  const authorityRoot = path.posix.join(
+    args.outputDir.replace(/\\/g, '/'),
+    'blueprint-lifecycle',
+    'authorities',
+    args.authority.authoringAuthorityDigest,
+  );
+  const expectedPaths = {
+    candidatePath: path.posix.join(
+      authorityRoot,
+      'candidates',
+      args.authority.blueprintDigest,
+      'blueprint.json',
+    ),
+    provenancePath: path.posix.join(
+      authorityRoot,
+      'provenance',
+      `${args.authority.provenanceDigest}.json`,
+    ),
+    validationEvidencePath: path.posix.join(
+      authorityRoot,
+      'validation',
+      `${args.authority.validationEvidenceDigest}.json`,
+    ),
+    reviewPacketPath: path.posix.join(
+      authorityRoot,
+      'reviews',
+      args.authority.reviewPacketDigest,
+      'review.json',
+    ),
+    reviewMarkdownPath: path.posix.join(
+      authorityRoot,
+      'reviews',
+      args.authority.reviewPacketDigest,
+      `review.${args.authority.reviewMarkdownDigest}.md`,
+    ),
+    contactSheetPath: path.posix.join(
+      authorityRoot,
+      'reviews',
+      args.authority.reviewPacketDigest,
+      `contact-sheet.${args.authority.contactSheetDigest}.html`,
+    ),
+  };
+  if (
+    Object.entries(expectedPaths).some(
+      ([key, expected]) =>
+        args.authority[key as keyof typeof expectedPaths] !== expected,
+    )
+  ) {
+    throw new Error('Blueprint lifecycle artifact paths are noncanonical');
+  }
+  const candidate = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: args.authority.candidatePath,
+    label: 'Blueprint candidate',
+  });
+  const blueprint = candidate.value as unknown as PreRenderBookVisualBlueprint;
+  assertValidPreRenderBookVisualBlueprint(
+    blueprint,
+    args.context.validationContext,
+  );
+  if (
+    candidate.rawBytes !== serializePreRenderBookVisualBlueprint(blueprint) ||
+    blueprint.digest !== args.authority.blueprintDigest ||
+    blueprint.identity.authoringAuthority.digest !==
+      args.authority.authoringAuthorityDigest ||
+    args.receipt.blueprintDigest !== blueprint.digest
+  ) {
+    throw new Error('Blueprint candidate is stale or substituted');
+  }
+
+  const provenance = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: args.authority.provenancePath,
+    label: 'Blueprint provenance',
+  });
+  const validation = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: args.authority.validationEvidencePath,
+    label: 'Blueprint validation evidence',
+  });
+  const review = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: args.authority.reviewPacketPath,
+    label: 'Blueprint review packet',
+  });
+  const reviewPacket = review.value as unknown as PreRenderBlueprintReviewPacket;
+  const safeRepairAttempts = safeRepairAttemptsFromReceipt(args.receipt);
+  const expectedProvenance = expectedAuthoringProvenance({
+    blueprint,
+    receipt: args.receipt,
+  });
+  const expectedValidation = createPreRenderBlueprintValidationEvidence({
+    blueprint,
+    context: args.context.validationContext,
+  });
+  const expectedReview = buildPreRenderBlueprintReviewBundle({
+    blueprint,
+    context: args.context.validationContext,
+    provenance: expectedProvenance,
+    repairAttempts: safeRepairAttempts,
+  });
+  if (
+    provenance.rawBytes !==
+      preRenderBlueprintLifecycleJsonBytes(expectedProvenance) ||
+    canonicalJsonDigest(expectedProvenance) !==
+      args.authority.provenanceDigest ||
+    args.receipt.authoringProvenanceDigest !== args.authority.provenanceDigest ||
+    validation.rawBytes !==
+      preRenderBlueprintLifecycleJsonBytes(expectedValidation) ||
+    expectedValidation.digest !== args.authority.validationEvidenceDigest ||
+    expectedValidation.valid !== true ||
+    review.rawBytes !==
+      preRenderBlueprintLifecycleJsonBytes(expectedReview.packet) ||
+    computePreRenderBlueprintReviewPacketDigest(reviewPacket) !==
+      args.authority.reviewPacketDigest ||
+    reviewPacket.digest !== args.authority.reviewPacketDigest ||
+    reviewPacket.blueprintDigest !== blueprint.digest ||
+    reviewPacket.authoringAuthorityDigest !==
+      blueprint.identity.authoringAuthority.digest ||
+    reviewPacket.validationEvidenceDigest !==
+      args.authority.validationEvidenceDigest ||
+    reviewPacket.authoringProvenance.digest !==
+      args.authority.provenanceDigest ||
+    reviewPacket.readyForApproval !== true ||
+    reviewPacket.blockers.length !== 0
+  ) {
+    throw new Error('Blueprint lifecycle evidence is stale or invalid');
+  }
+  for (const [label, artifactPath, digest] of [
+    [
+      'Blueprint review markdown',
+      args.authority.reviewMarkdownPath,
+      args.authority.reviewMarkdownDigest,
+    ],
+    [
+      'Blueprint contact sheet',
+      args.authority.contactSheetPath,
+      args.authority.contactSheetDigest,
+    ],
+  ] as const) {
+    const loaded = readUniqueContainedUtf8({
+      repoRoot: args.repoRoot,
+      artifactPath,
+      label,
+    });
+    const expectedBytes = label === 'Blueprint review markdown'
+      ? expectedReview.markdown
+      : expectedReview.contactSheetHtml;
+    if (
+      loaded.rawBytes !== expectedBytes ||
+      canonicalJsonDigest(loaded.rawBytes) !== digest
+    ) {
+      throw new Error(`${label} is stale or invalid`);
+    }
+  }
+  return { blueprint, reviewPacket };
+}
+
+function predecessorAuthority(args: {
+  manifest: QaWizardBlueprintAuthoringManifest;
+  manifestPath: string;
+}): ManifestPredecessor {
+  return {
+    version: args.manifest.version,
+    digest: args.manifest.digest,
+    path: args.manifestPath,
+  };
+}
+
+export function prepareQaWizardBlueprintLiveRequest(args: {
+  repoRoot: string;
+  bridgeManifestPath: string;
+  outputDir: string;
+  requestId: string;
+  requestedAt: string;
+  write?: boolean;
+}): PreparedQaWizardBlueprintLiveRequest {
+  if (!canonicalUtcTimestampIsValid(args.requestedAt)) {
+    throw new Error('requestedAt must be canonical UTC with millisecond precision');
+  }
+  const { manifest: bridge, context } =
+    loadQaWizardApprovedProductionContext({
+      repoRoot: args.repoRoot,
+      bridgeManifestPath: args.bridgeManifestPath,
+    });
+  const request = buildProductionAuthoringRunRequest({
+    context,
+    mode: 'live',
+    requestId: args.requestId,
+    requestedAt: args.requestedAt,
+  });
+  const issues = productionBlueprintAuthoringPreflightIssues({
+    request,
+    context,
+  });
+  if (issues.length > 0) {
+    throw new Error(`Blueprint live request preflight failed: ${issues.join('; ')}`);
+  }
+  if (args.write === true) {
+    prepareBlueprintOperatorOutputRoot({
+      repoRoot: args.repoRoot,
+      outputDir: args.outputDir,
+    });
+  }
+  const requestArtifact = persistRequest({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    request,
+    write: args.write === true,
+  });
+  const manifest = buildManifest({
+    version: QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION,
+    stage: 'live_request_preflight_passed',
+    predecessor: null,
+    bridge: bridgeAuthority({
+      bridge,
+      bridgeManifestPath: args.bridgeManifestPath,
+    }),
+    context: { version: context.version, digest: context.digest },
+    request: requestAuthority({
+      request,
+      requestPath: requestArtifact.path,
+    }),
+    receipt: null,
+    blueprint: null,
+    approval: null,
+    doesNotAuthorize: [...BEFORE_APPROVAL_EXCLUSIONS],
+  });
+  const manifestArtifact = persistManifest({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    manifest,
+    write: args.write === true,
+  });
+  return {
+    manifest,
+    manifestPath: manifestArtifact.path,
+    request,
+    requestPath: requestArtifact.path,
+    wrote: args.write === true,
+  };
+}
+
+const OPERATOR_OUTPUT_CATEGORIES = [
+  'authoring-receipts',
+  'blueprint-authoring-manifests',
+  'blueprint-authoring-requests',
+  'blueprint-lifecycle',
+] as const;
+
+const COMPILER_LEDGER_CATEGORIES = [
+  'approval-decisions',
+  'execution-claims',
+  'terminal-lookups',
+] as const;
+
+let writableProbeCounter = 0;
+
+function normalizedAbsolute(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function assertContainedRealPath(args: {
+  repoRealPath: string;
+  candidateRealPath: string;
+}): void {
+  const relative = path.relative(args.repoRealPath, args.candidateRealPath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('Blueprint authoring output resolves outside the repository');
+  }
+}
+
+function writableProbe(directory: string): void {
+  writableProbeCounter += 1;
+  const probe = path.join(
+    directory,
+    `.blueprint-authoring-write-probe-${process.pid}-${writableProbeCounter}`,
+  );
+  let descriptor: number | null = null;
+  try {
+    descriptor = fs.openSync(probe, 'wx');
+    fs.writeFileSync(descriptor, 'probe', 'utf8');
+    fs.fsyncSync(descriptor);
+    fs.closeSync(descriptor);
+    descriptor = null;
+  } catch {
+    throw new Error('Blueprint authoring output is not writable');
+  } finally {
+    if (descriptor !== null) fs.closeSync(descriptor);
+    if (fs.existsSync(probe)) fs.unlinkSync(probe);
+  }
+}
+
+function ensureContainedDirectory(args: {
+  repoRoot: string;
+  directoryPath: string;
+  writable?: boolean;
+}): string {
+  const suppliedRepoRoot = path.resolve(args.repoRoot);
+  const repoRealPath = fs.realpathSync(suppliedRepoRoot);
+  if (normalizedAbsolute(suppliedRepoRoot) !== normalizedAbsolute(repoRealPath)) {
+    throw new Error('Blueprint authoring repository uses a symlink or junction alias');
+  }
+  const target = path.resolve(args.directoryPath);
+  const relative = path.relative(repoRealPath, target);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('Blueprint authoring output resolves outside the repository');
+  }
+  let current = repoRealPath;
+  for (const segment of relative.split(path.sep).filter(Boolean)) {
+    current = path.join(current, segment);
+    if (!fs.existsSync(current)) {
+      try {
+        fs.mkdirSync(current);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      }
+    }
+    const stat = fs.lstatSync(current);
+    const real = fs.realpathSync(current);
+    assertContainedRealPath({ repoRealPath, candidateRealPath: real });
+    if (
+      !stat.isDirectory() ||
+      stat.isSymbolicLink() ||
+      normalizedAbsolute(current) !== normalizedAbsolute(real)
+    ) {
+      throw new Error('Blueprint authoring output uses a symlink or junction alias');
+    }
+  }
+  if (args.writable === true) writableProbe(target);
+  return target;
+}
+
+function containedPublishHooks(args: {
+  repoRoot: string;
+  beforeCheck?: (temporaryPath: string, destinationPath: string) => void;
+}): ImmutableWriteHooks {
+  const validateExistingArtifact = (destinationPath: string): void => {
+    const repoRealPath = fs.realpathSync(path.resolve(args.repoRoot));
+    const destination = path.resolve(destinationPath);
+    const destinationStat = fs.lstatSync(destination);
+    const destinationRealPath = fs.realpathSync(destination);
+    assertContainedRealPath({
+      repoRealPath,
+      candidateRealPath: destinationRealPath,
+    });
+    if (
+      !destinationStat.isFile() ||
+      destinationStat.isSymbolicLink() ||
+      destinationStat.nlink !== 1 ||
+      normalizedAbsolute(destination) !==
+        normalizedAbsolute(destinationRealPath)
+    ) {
+      throw new Error(
+        'Blueprint authoring existing artifact is not a unique contained regular file',
+      );
+    }
+  };
+  return {
+    // Operator artifacts may publish into deeply nested authority directories
+    // that another process can rename. Keeping the private temp at the stable
+    // repository root lets `finally` remove it even if a destination parent is
+    // swapped before the atomic link.
+    temporaryDirectoryPath: path.resolve(args.repoRoot),
+    flushPublishedArtifact: true,
+    beforeExistingArtifactRead: validateExistingArtifact,
+    beforePublish(temporaryPath, destinationPath) {
+      args.beforeCheck?.(temporaryPath, destinationPath);
+      const repoRealPath = fs.realpathSync(path.resolve(args.repoRoot));
+      const parent = path.dirname(path.resolve(destinationPath));
+      const parentRealPath = fs.realpathSync(parent);
+      const temporaryStat = fs.lstatSync(temporaryPath);
+      const temporaryRealPath = fs.realpathSync(temporaryPath);
+      assertContainedRealPath({
+        repoRealPath,
+        candidateRealPath: parentRealPath,
+      });
+      assertContainedRealPath({
+        repoRealPath,
+        candidateRealPath: temporaryRealPath,
+      });
+      if (
+        normalizedAbsolute(parent) !== normalizedAbsolute(parentRealPath) ||
+        !temporaryStat.isFile() ||
+        temporaryStat.isSymbolicLink() ||
+        temporaryStat.nlink !== 1 ||
+        normalizedAbsolute(temporaryPath) !==
+          normalizedAbsolute(temporaryRealPath)
+      ) {
+        throw new Error(
+          'Blueprint authoring publish path uses a symlink or junction alias',
+        );
+      }
+    },
+  };
+}
+
+function prepareBlueprintOperatorOutputRoot(args: {
+  repoRoot: string;
+  outputDir: string;
+}): string {
+  const outputRoot = ensureContainedDirectory({
+    repoRoot: args.repoRoot,
+    directoryPath: resolveRepoPath(args.repoRoot, args.outputDir),
+  });
+  for (const category of OPERATOR_OUTPUT_CATEGORIES) {
+    ensureContainedDirectory({
+      repoRoot: args.repoRoot,
+      directoryPath: path.join(outputRoot, category),
+      writable: true,
+    });
+  }
+  return outputRoot;
+}
+
+function prepareCompilerOwnedLedger(args: { repoRoot: string }): string {
+  const root = ensureContainedDirectory({
+    repoRoot: args.repoRoot,
+    directoryPath: resolveRepoPath(
+      args.repoRoot,
+      QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+    ),
+  });
+  for (const category of COMPILER_LEDGER_CATEGORIES) {
+    ensureContainedDirectory({
+      repoRoot: args.repoRoot,
+      directoryPath: path.join(root, category),
+      writable: true,
+    });
+  }
+  return root;
+}
+
+function prepareBlueprintLifecycleAuthorityDirectories(args: {
+  repoRoot: string;
+  outputDir: string;
+  authoringAuthorityDigest: string;
+  blueprintDigest?: string;
+  reviewPacketDigest?: string;
+}): string {
+  const lifecycleRoot = path.join(
+    resolveRepoPath(args.repoRoot, args.outputDir),
+    'blueprint-lifecycle',
+  );
+  const authorityRoot = path.join(
+    lifecycleRoot,
+    'authorities',
+    args.authoringAuthorityDigest,
+  );
+  for (const directory of [
+    authorityRoot,
+    path.join(authorityRoot, 'approvals'),
+    path.join(authorityRoot, 'candidates'),
+    path.join(authorityRoot, 'provenance'),
+    path.join(authorityRoot, 'reviews'),
+    path.join(authorityRoot, 'validation'),
+    ...(args.blueprintDigest
+      ? [
+          path.join(authorityRoot, 'candidates', args.blueprintDigest),
+          path.join(authorityRoot, 'approvals', args.blueprintDigest),
+        ]
+      : []),
+    ...(args.reviewPacketDigest
+      ? [path.join(authorityRoot, 'reviews', args.reviewPacketDigest)]
+      : []),
+  ]) {
+    ensureContainedDirectory({
+      repoRoot: args.repoRoot,
+      directoryPath: directory,
+      writable: true,
+    });
+  }
+  return lifecycleRoot;
+}
+
+interface LoadedQaWizardBlueprintManifest {
+  manifest: QaWizardBlueprintAuthoringManifest;
+  manifestPath: string;
+  outputDir: string;
+  bridge: QaWizardCandidateBridgeManifest;
+  context: ProductionAuthoringContext;
+  request: ProductionAuthoringRunRequest;
+  receipt: ProductionAuthoringRunReceipt | null;
+  blueprint: PreRenderBookVisualBlueprint | null;
+  reviewPacket: PreRenderBlueprintReviewPacket | null;
+}
+
+function loadQaWizardBlueprintManifestAuthority(args: {
+  repoRoot: string;
+  manifestPath: string;
+}): LoadedQaWizardBlueprintManifest {
+  const loaded = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: args.manifestPath,
+    label: 'Blueprint authoring manifest',
+  });
+  if (repoRelativePath(args.repoRoot, loaded.absolutePath) !== args.manifestPath) {
+    throw new Error('Blueprint authoring manifest path is noncanonical');
+  }
+  if (!manifestShapeIsValid(loaded.value)) {
+    throw new Error('Blueprint authoring manifest is invalid or tampered');
+  }
+  const manifest = loaded.value as unknown as QaWizardBlueprintAuthoringManifest;
+  assertCanonicalContentAddressedJson({
+    artifactPath: args.manifestPath,
+    ...loaded,
+    digest: manifest.digest,
+    category: 'blueprint-authoring-manifests',
+    label: 'Blueprint authoring manifest',
+  });
+  const outputDir = outputDirFromManifestPath(args.manifestPath);
+  const { manifest: bridge, context } =
+    loadQaWizardApprovedProductionContext({
+      repoRoot: args.repoRoot,
+      bridgeManifestPath: manifest.bridge.path,
+    });
+  if (
+    bridge.version !== manifest.bridge.version ||
+    bridge.digest !== manifest.bridge.digest ||
+    context.version !== manifest.context.version ||
+    context.digest !== manifest.context.digest
+  ) {
+    throw new Error('Blueprint authoring bridge or context authority is stale');
+  }
+  const request = loadProductionRequest({
+    repoRoot: args.repoRoot,
+    outputDir,
+    authority: manifest.request,
+    context,
+  });
+
+  let predecessor: LoadedQaWizardBlueprintManifest | null = null;
+  if (manifest.predecessor !== null) {
+    const expectedPath = relativeArtifactPath({
+      repoRoot: args.repoRoot,
+      outputDir,
+      category: 'blueprint-authoring-manifests',
+      fileName: `${manifest.predecessor.digest}.json`,
+    });
+    if (manifest.predecessor.path !== expectedPath) {
+      throw new Error('Blueprint authoring predecessor path is noncanonical');
+    }
+    predecessor = loadQaWizardBlueprintManifestAuthority({
+      repoRoot: args.repoRoot,
+      manifestPath: manifest.predecessor.path,
+    });
+    const expectedPredecessorStage =
+      manifest.stage === 'blueprint_approved'
+        ? 'blueprint_candidate'
+        : 'live_request_preflight_passed';
+    if (
+      predecessor.manifest.version !== manifest.predecessor.version ||
+      predecessor.manifest.digest !== manifest.predecessor.digest ||
+      predecessor.manifest.stage !== expectedPredecessorStage ||
+      predecessor.outputDir !== outputDir ||
+      canonicalJsonDigest(predecessor.manifest.bridge) !==
+        canonicalJsonDigest(manifest.bridge) ||
+      canonicalJsonDigest(predecessor.manifest.context) !==
+        canonicalJsonDigest(manifest.context) ||
+      canonicalJsonDigest(predecessor.manifest.request) !==
+        canonicalJsonDigest(manifest.request)
+    ) {
+      throw new Error('Blueprint authoring predecessor authority is stale');
+    }
+    if (
+      manifest.stage === 'blueprint_approved' &&
+      (canonicalJsonDigest(predecessor.manifest.receipt) !==
+        canonicalJsonDigest(manifest.receipt) ||
+        canonicalJsonDigest(predecessor.manifest.blueprint) !==
+          canonicalJsonDigest(manifest.blueprint))
+    ) {
+      throw new Error('Blueprint approval changed the candidate or receipt authority');
+    }
+  }
+
+  const receipt = manifest.receipt
+      ? loadProductionReceipt({
+          repoRoot: args.repoRoot,
+          outputDir,
+          authority: manifest.receipt,
+          request,
+      })
+    : null;
+  const blueprintArtifacts =
+    manifest.blueprint && receipt
+        ? readBlueprintArtifacts({
+            repoRoot: args.repoRoot,
+            outputDir,
+            context,
+          authority: manifest.blueprint,
+          receipt,
+        })
+      : null;
+
+  if (manifest.stage === 'blueprint_approved') {
+    const approval = readJsonObject({
+      repoRoot: args.repoRoot,
+      artifactPath: manifest.approval!.path,
+      label: 'Blueprint approval attestation',
+    });
+    const attestation =
+      approval.value as unknown as PreRenderBlueprintApprovalAttestation;
+    const expectedApprovalKeys = attestation.note === undefined
+      ? [
+          'approvedAt',
+          'approvedBy',
+          'authoringAuthorityDigest',
+          'blueprintDigest',
+          'digest',
+          'digestAlgorithm',
+          'doesNotAuthorize',
+          'reviewPacketDigest',
+          'scope',
+          'version',
+        ]
+      : [
+          'approvedAt',
+          'approvedBy',
+          'authoringAuthorityDigest',
+          'blueprintDigest',
+          'digest',
+          'digestAlgorithm',
+          'doesNotAuthorize',
+          'note',
+          'reviewPacketDigest',
+          'scope',
+          'version',
+        ];
+    const validationIssues = validatePreRenderBlueprintApprovalAttestation({
+      blueprint: blueprintArtifacts!.blueprint,
+      context: context.validationContext,
+      reviewPacket: blueprintArtifacts!.reviewPacket,
+      attestation,
+    });
+    const planned = planPreRenderBlueprintApprovalAttestation({
+      root: path.join(
+        resolveRepoPath(args.repoRoot, outputDir),
+        'blueprint-lifecycle',
+      ),
+      blueprint: blueprintArtifacts!.blueprint,
+      context: context.validationContext,
+      reviewPacket: blueprintArtifacts!.reviewPacket,
+      approvedBy: attestation.approvedBy,
+      approvedAt: attestation.approvedAt,
+      ...(attestation.note ? { note: attestation.note } : {}),
+    });
+    if (
+      !exactKeys(approval.value, expectedApprovalKeys) ||
+      approval.rawBytes !== preRenderBlueprintLifecycleJsonBytes(approval.value) ||
+      validationIssues.length > 0 ||
+      computePreRenderBlueprintApprovalDigest(attestation) !==
+        manifest.approval!.digest ||
+      attestation.digest !== manifest.approval!.digest ||
+      attestation.approvedBy !== manifest.approval!.approvedBy ||
+      attestation.approvedAt !== manifest.approval!.approvedAt ||
+      repoRelativePath(args.repoRoot, planned.approvalPath) !==
+        manifest.approval!.path
+    ) {
+      throw new Error('Blueprint approval authority is stale or invalid');
+    }
+    if (!predecessor) {
+      throw new Error('Blueprint approval lacks its candidate predecessor');
+    }
+    const expectedDecision = buildApprovalDecision({
+      candidate: predecessor,
+      approval: manifest.approval!,
+      approvedManifest: manifest,
+      approvedManifestPath: args.manifestPath,
+      note: attestation.note ?? null,
+    });
+    const decisionPath = approvalDecisionPath({
+      repoRoot: args.repoRoot,
+      blueprintDigest: blueprintArtifacts!.blueprint.digest,
+    });
+    const decision = readJsonObject({
+      repoRoot: args.repoRoot,
+      artifactPath: decisionPath,
+      label: 'Blueprint approval decision',
+    });
+    if (
+      !approvalDecisionIsValid(decision.value) ||
+      decision.rawBytes !== canonicalContentAddressedJsonBytes(expectedDecision) ||
+      repoRelativePath(args.repoRoot, decision.absolutePath) !== decisionPath
+    ) {
+      throw new Error('Blueprint approval decision is stale or invalid');
+    }
+  }
+
+  return {
+    manifest,
+    manifestPath: args.manifestPath,
+    outputDir,
+    bridge,
+    context,
+    request,
+    receipt,
+    blueprint: blueprintArtifacts?.blueprint ?? null,
+    reviewPacket: blueprintArtifacts?.reviewPacket ?? null,
+  };
+}
+
+export function loadQaWizardBlueprintAuthoringManifest(args: {
+  repoRoot: string;
+  manifestPath: string;
+}): QaWizardBlueprintAuthoringManifest {
+  return loadQaWizardBlueprintManifestAuthority(args).manifest;
+}
+
+function expectedAuthoringAuthorityDigest(
+  context: ProductionAuthoringContext,
+): string {
+  const validation = context.validationContext;
+  return buildPreRenderBlueprintAuthoringAuthority({
+    storyKey: context.storyKey,
+    source: validation.source,
+    template: validation.templateIdentity,
+    reconciliation: validation.reconciliation,
+    reconciliationArtifactPath: validation.reconciliationArtifactPath,
+    style: validation.style,
+  }).digest;
+}
+
+function compilerLedgerArtifactPath(args: {
+  repoRoot: string;
+  category: (typeof COMPILER_LEDGER_CATEGORIES)[number];
+  authorityDigest: string;
+}): string {
+  return relativeArtifactPath({
+    repoRoot: args.repoRoot,
+    outputDir: QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+    category: args.category,
+    fileName: `${args.authorityDigest}.json`,
+  });
+}
+
+function claimPath(args: {
+  repoRoot: string;
+  authoringAuthorityDigest: string;
+}): string {
+  return compilerLedgerArtifactPath({
+    repoRoot: args.repoRoot,
+    category: 'execution-claims',
+    authorityDigest: args.authoringAuthorityDigest,
+  });
+}
+
+function terminalLookupPath(args: {
+  repoRoot: string;
+  authoringAuthorityDigest: string;
+}): string {
+  return compilerLedgerArtifactPath({
+    repoRoot: args.repoRoot,
+    category: 'terminal-lookups',
+    authorityDigest: args.authoringAuthorityDigest,
+  });
+}
+
+function approvalDecisionPath(args: {
+  repoRoot: string;
+  blueprintDigest: string;
+}): string {
+  return compilerLedgerArtifactPath({
+    repoRoot: args.repoRoot,
+    category: 'approval-decisions',
+    authorityDigest: args.blueprintDigest,
+  });
+}
+
+function buildExecutionClaim(args: {
+  request: ProductionAuthoringRunRequest;
+  preflightManifest: QaWizardBlueprintAuthoringManifest;
+  preflightManifestPath: string;
+  authoringAuthorityDigest: string;
+}): QaWizardBlueprintExecutionClaim {
+  return digestPayload({
+    version: QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION,
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+    requestDigest: canonicalJsonDigest(args.request),
+    preflightManifestDigest: args.preflightManifest.digest,
+    preflightManifestPath: args.preflightManifestPath,
+    requestedAt: args.request.requestedAt,
+    scope: 'single_use_paid_blueprint_authoring' as const,
+  });
+}
+
+function executionClaimIsValid(
+  value: unknown,
+): value is QaWizardBlueprintExecutionClaim {
+  return (
+    exactKeys(value, CLAIM_KEYS) &&
+    value.version === QA_WIZARD_BLUEPRINT_EXECUTION_CLAIM_VERSION &&
+    value.digestAlgorithm === DIGEST_ALGORITHM &&
+    typeof value.authoringAuthorityDigest === 'string' &&
+    HEX_SHA256.test(value.authoringAuthorityDigest) &&
+    typeof value.requestDigest === 'string' &&
+    HEX_SHA256.test(value.requestDigest) &&
+    typeof value.preflightManifestDigest === 'string' &&
+    HEX_SHA256.test(value.preflightManifestDigest) &&
+    typeof value.preflightManifestPath === 'string' &&
+    canonicalUtcTimestampIsValid(value.requestedAt) &&
+    value.scope === 'single_use_paid_blueprint_authoring' &&
+    value.digest === canonicalJsonDigest(payloadWithoutDigest(value))
+  );
+}
+
+function buildExecutionRecord(args: {
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  claim: QaWizardBlueprintExecutionClaim;
+  claimPath: string;
+  manifest: QaWizardBlueprintAuthoringManifest;
+  manifestPath: string;
+  receipt: ProductionAuthoringRunReceipt;
+  receiptPath: string;
+}): QaWizardBlueprintExecutionRecord {
+  return digestPayload({
+    version: QA_WIZARD_BLUEPRINT_EXECUTION_RECORD_VERSION,
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+    requestDigest: args.requestDigest,
+    claimDigest: args.claim.digest,
+    claimPath: args.claimPath,
+    terminalManifestDigest: args.manifest.digest,
+    terminalManifestPath: args.manifestPath,
+    receiptDigest: args.receipt.digest,
+    receiptPath: args.receiptPath,
+    status: args.receipt.status as 'completed' | 'failed',
+  });
+}
+
+function executionRecordIsValid(
+  value: unknown,
+): value is QaWizardBlueprintExecutionRecord {
+  return (
+    exactKeys(value, EXECUTION_RECORD_KEYS) &&
+    value.version === QA_WIZARD_BLUEPRINT_EXECUTION_RECORD_VERSION &&
+    value.digestAlgorithm === DIGEST_ALGORITHM &&
+    (value.status === 'completed' || value.status === 'failed') &&
+    [
+      value.requestDigest,
+      value.authoringAuthorityDigest,
+      value.claimDigest,
+      value.terminalManifestDigest,
+      value.receiptDigest,
+      value.digest,
+    ].every((entry) => typeof entry === 'string' && HEX_SHA256.test(entry)) &&
+    typeof value.claimPath === 'string' &&
+    typeof value.terminalManifestPath === 'string' &&
+    typeof value.receiptPath === 'string' &&
+    value.digest === canonicalJsonDigest(payloadWithoutDigest(value))
+  );
+}
+
+function loadExecutionRecord(args: {
+  repoRoot: string;
+  outputDir: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+}): QaWizardBlueprintExecutionResult | null {
+  const lookupPath = terminalLookupPath(args);
+  const absolute = resolveRepoPath(args.repoRoot, lookupPath);
+  if (!fs.existsSync(absolute)) return null;
+  const loaded = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: lookupPath,
+    label: 'Blueprint authoring terminal lookup',
+  });
+  if (
+    !executionRecordIsValid(loaded.value) ||
+    loaded.value.authoringAuthorityDigest !== args.authoringAuthorityDigest ||
+    loaded.value.requestDigest !== args.requestDigest ||
+    loaded.value.claimPath !== claimPath(args) ||
+    path.basename(loaded.absolutePath) !==
+      `${args.authoringAuthorityDigest}.json` ||
+    path.basename(path.dirname(loaded.absolutePath)) !==
+      'terminal-lookups' ||
+    repoRelativePath(args.repoRoot, loaded.absolutePath) !== lookupPath ||
+    loaded.rawBytes !== canonicalContentAddressedJsonBytes(loaded.value)
+  ) {
+    throw new Error('Blueprint authoring terminal lookup is invalid or tampered');
+  }
+  const claim = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: loaded.value.claimPath,
+    label: 'Blueprint authoring execution claim',
+  });
+  if (
+    !executionClaimIsValid(claim.value) ||
+    claim.value.authoringAuthorityDigest !== args.authoringAuthorityDigest ||
+    claim.value.requestDigest !== args.requestDigest ||
+    claim.value.preflightManifestDigest !== args.preflightManifestDigest ||
+    claim.value.digest !== loaded.value.claimDigest ||
+    path.basename(claim.absolutePath) !==
+      `${args.authoringAuthorityDigest}.json` ||
+    path.basename(path.dirname(claim.absolutePath)) !==
+      'execution-claims' ||
+    repoRelativePath(args.repoRoot, claim.absolutePath) !== loaded.value.claimPath ||
+    claim.rawBytes !== canonicalContentAddressedJsonBytes(claim.value)
+  ) {
+    throw new Error('Blueprint authoring execution claim is invalid or tampered');
+  }
+  const terminal = loadQaWizardBlueprintManifestAuthority({
+    repoRoot: args.repoRoot,
+    manifestPath: loaded.value.terminalManifestPath,
+  });
+  if (
+    terminal.manifest.digest !== loaded.value.terminalManifestDigest ||
+    terminal.outputDir !== args.outputDir ||
+    terminal.manifest.predecessor?.digest !== args.preflightManifestDigest ||
+    terminal.receipt === null ||
+    terminal.receipt.digest !== loaded.value.receiptDigest ||
+    terminal.manifest.receipt?.path !== loaded.value.receiptPath ||
+    terminal.receipt.status !== loaded.value.status ||
+    !['blueprint_candidate', 'authoring_failed'].includes(
+      terminal.manifest.stage,
+    )
+  ) {
+    throw new Error('Blueprint authoring terminal authority is stale');
+  }
+  return {
+    replayed: true,
+    manifest: terminal.manifest,
+    manifestPath: terminal.manifestPath,
+    receipt: terminal.receipt,
+    receiptPath: loaded.value.receiptPath,
+    claimPath: loaded.value.claimPath,
+    executionRecordPath: lookupPath,
+  };
+}
+
+function recoverTerminalLookup(args: {
+  repoRoot: string;
+  outputDir: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+}): QaWizardBlueprintExecutionResult | null {
+  const expectedClaimPath = claimPath(args);
+  const claimArtifact = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: expectedClaimPath,
+    label: 'Blueprint authoring execution claim',
+  });
+  if (
+    !executionClaimIsValid(claimArtifact.value) ||
+    claimArtifact.value.authoringAuthorityDigest !==
+      args.authoringAuthorityDigest ||
+    claimArtifact.value.requestDigest !== args.requestDigest ||
+    claimArtifact.value.preflightManifestDigest !==
+      args.preflightManifestDigest ||
+    repoRelativePath(args.repoRoot, claimArtifact.absolutePath) !==
+      expectedClaimPath ||
+    claimArtifact.rawBytes !==
+      canonicalContentAddressedJsonBytes(claimArtifact.value)
+  ) {
+    throw new Error('Blueprint authoring execution claim is invalid or tampered');
+  }
+  const manifestDirectory = resolveRepoPath(
+    args.repoRoot,
+    path.posix.join(args.outputDir, 'blueprint-authoring-manifests'),
+  );
+  const terminals: LoadedQaWizardBlueprintManifest[] = [];
+  for (const entry of fs.readdirSync(manifestDirectory, { withFileTypes: true })) {
+    if (!entry.isFile() || !/^[a-f0-9]{64}\.json$/.test(entry.name)) continue;
+    const manifestPath = repoRelativePath(
+      args.repoRoot,
+      path.join(manifestDirectory, entry.name),
+    );
+    const candidate = loadQaWizardBlueprintManifestAuthority({
+      repoRoot: args.repoRoot,
+      manifestPath,
+    });
+    if (
+      ['blueprint_candidate', 'authoring_failed'].includes(
+        candidate.manifest.stage,
+      ) &&
+      candidate.manifest.request.digest === args.requestDigest &&
+      candidate.manifest.predecessor?.digest === args.preflightManifestDigest
+    ) {
+      terminals.push(candidate);
+    }
+  }
+  if (terminals.length === 0) return null;
+  if (terminals.length !== 1 || terminals[0]!.receipt === null) {
+    throw new Error('execution_state_uncertain');
+  }
+  const terminal = terminals[0]!;
+  const receipt = terminal.receipt;
+  if (receipt === null) throw new Error('execution_state_uncertain');
+  const receiptPath = terminal.manifest.receipt!.path;
+  const recordValue = buildExecutionRecord({
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+    requestDigest: args.requestDigest,
+    claim: claimArtifact.value,
+    claimPath: expectedClaimPath,
+    manifest: terminal.manifest,
+    manifestPath: terminal.manifestPath,
+    receipt,
+    receiptPath,
+  });
+  const lookupPath = terminalLookupPath(args);
+  writeImmutableLocalArtifact({
+    destinationPath: resolveRepoPath(args.repoRoot, lookupPath),
+    bytes: canonicalContentAddressedJsonBytes(recordValue),
+    hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+  });
+  return loadExecutionRecord(args);
+}
+
+function blueprintAuthorityFromPersistence(args: {
+  repoRoot: string;
+  persisted: ReturnType<typeof persistPreRenderBlueprintLifecycle>;
+  blueprint: PreRenderBookVisualBlueprint;
+}): ManifestBlueprintAuthority {
+  return {
+    blueprintDigest: args.blueprint.digest,
+    authoringAuthorityDigest:
+      args.blueprint.identity.authoringAuthority.digest,
+    candidatePath: repoRelativePath(args.repoRoot, args.persisted.candidate.path),
+    provenanceDigest: args.persisted.provenance.digest,
+    provenancePath: repoRelativePath(args.repoRoot, args.persisted.provenance.path),
+    validationEvidenceDigest: args.persisted.validationEvidence.digest,
+    validationEvidencePath: repoRelativePath(
+      args.repoRoot,
+      args.persisted.validationEvidence.path,
+    ),
+    reviewPacketDigest: args.persisted.reviewPacket.digest,
+    reviewPacketPath: repoRelativePath(
+      args.repoRoot,
+      args.persisted.reviewPacket.path,
+    ),
+    reviewMarkdownDigest: args.persisted.reviewMarkdown.digest,
+    reviewMarkdownPath: repoRelativePath(
+      args.repoRoot,
+      args.persisted.reviewMarkdown.path,
+    ),
+    contactSheetDigest: args.persisted.contactSheet.digest,
+    contactSheetPath: repoRelativePath(
+      args.repoRoot,
+      args.persisted.contactSheet.path,
+    ),
+  };
+}
+
+export async function executeQaWizardBlueprintLiveRequest(
+  args: {
+    repoRoot: string;
+    preflightManifestPath: string;
+    outputDir: string;
+    write: true;
+  },
+  deps: QaWizardBlueprintExecutionDependencies = {},
+): Promise<QaWizardBlueprintExecutionResult> {
+  if (args.write !== true) {
+    throw new Error('execute-live requires write=true');
+  }
+  const preflight = loadQaWizardBlueprintManifestAuthority({
+    repoRoot: args.repoRoot,
+    manifestPath: args.preflightManifestPath,
+  });
+  if (preflight.manifest.stage !== 'live_request_preflight_passed') {
+    throw new Error('execute-live requires a preflight-passed manifest');
+  }
+  const outputDir = sameOutputDir({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    manifestPath: args.preflightManifestPath,
+  });
+  prepareBlueprintOperatorOutputRoot({
+    repoRoot: args.repoRoot,
+    outputDir,
+  });
+  prepareCompilerOwnedLedger({ repoRoot: args.repoRoot });
+  const authoringAuthorityDigest = expectedAuthoringAuthorityDigest(
+    preflight.context,
+  );
+  const requestDigest = canonicalJsonDigest(preflight.request);
+  const executionClaimPath = claimPath({
+    repoRoot: args.repoRoot,
+    authoringAuthorityDigest,
+  });
+  let existingTerminal: QaWizardBlueprintExecutionResult | null;
+  try {
+    existingTerminal = loadExecutionRecord({
+      repoRoot: args.repoRoot,
+      outputDir,
+      authoringAuthorityDigest,
+      requestDigest,
+      preflightManifestDigest: preflight.manifest.digest,
+    });
+  } catch (cause) {
+    throw executionStateUncertain(cause);
+  }
+  if (existingTerminal) return existingTerminal;
+
+  // A published claim owns this authority even if an adversarial path swap
+  // makes its downstream lifecycle tree unreadable. Detect that ownership
+  // before touching the mutable output tree so a retry cannot escape the
+  // paid-call fence through a raw containment error.
+  if (fs.existsSync(resolveRepoPath(args.repoRoot, executionClaimPath))) {
+    try {
+      const recovered = recoverTerminalLookup({
+        repoRoot: args.repoRoot,
+        outputDir,
+        authoringAuthorityDigest,
+        requestDigest,
+        preflightManifestDigest: preflight.manifest.digest,
+      });
+      if (recovered) return recovered;
+    } catch (cause) {
+      throw executionStateUncertain(cause);
+    }
+    throw executionStateUncertain();
+  }
+
+  prepareBlueprintLifecycleAuthorityDirectories({
+    repoRoot: args.repoRoot,
+    outputDir,
+    authoringAuthorityDigest,
+  });
+
+  const claim = buildExecutionClaim({
+    request: preflight.request,
+    preflightManifest: preflight.manifest,
+    preflightManifestPath: preflight.manifestPath,
+    authoringAuthorityDigest,
+  });
+  let claimWrite: { created: boolean };
+  try {
+    claimWrite = writeImmutableLocalArtifact({
+      destinationPath: resolveRepoPath(args.repoRoot, executionClaimPath),
+      bytes: canonicalContentAddressedJsonBytes(claim),
+      hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+    });
+  } catch (cause) {
+    throw executionStateUncertain(cause);
+  }
+  if (!claimWrite.created) {
+    try {
+      const completedDuringClaimRace = loadExecutionRecord({
+        repoRoot: args.repoRoot,
+        outputDir,
+        authoringAuthorityDigest,
+        requestDigest,
+        preflightManifestDigest: preflight.manifest.digest,
+      });
+      if (completedDuringClaimRace) return completedDuringClaimRace;
+      const recovered = recoverTerminalLookup({
+        repoRoot: args.repoRoot,
+        outputDir,
+        authoringAuthorityDigest,
+        requestDigest,
+        preflightManifestDigest: preflight.manifest.digest,
+      });
+      if (recovered) return recovered;
+      throw executionStateUncertain();
+    } catch (cause) {
+      if (cause instanceof Error && cause.message === 'execution_state_uncertain') {
+        throw cause;
+      }
+      throw executionStateUncertain(cause);
+    }
+  }
+  try {
+    const publishedClaim = readJsonObject({
+      repoRoot: args.repoRoot,
+      artifactPath: executionClaimPath,
+      label: 'Blueprint authoring execution claim',
+    });
+    if (
+      !executionClaimIsValid(publishedClaim.value) ||
+      publishedClaim.value.digest !== claim.digest ||
+      publishedClaim.rawBytes !== canonicalContentAddressedJsonBytes(claim) ||
+      repoRelativePath(args.repoRoot, publishedClaim.absolutePath) !==
+        executionClaimPath
+    ) {
+      throw new Error('published Blueprint authoring claim is invalid');
+    }
+    deps.hooks?.afterClaim?.();
+
+  const providerFactory =
+    deps.providerFactory ??
+    (async (): Promise<ProductionAuthoringProvider> => {
+      const adapter = await import('./openaiResponsesBlueprintAuthoringAdapter');
+      return adapter.createOpenAIResponsesBlueprintAuthoringAdapter();
+    });
+  let providerPromise: Promise<ProductionAuthoringProvider> | null = null;
+  const provider: ProductionAuthoringProvider = {
+    call(callArgs) {
+      providerPromise ??= Promise.resolve(providerFactory());
+      return providerPromise.then((resolved) => resolved.call(callArgs));
+    },
+  };
+
+  const result = await runProductionBlueprintAuthoring({
+    request: preflight.request,
+    context: preflight.context,
+    provider,
+  });
+  if (
+    result.receipt.status !== 'completed' &&
+    result.receipt.status !== 'failed'
+  ) {
+    throw new Error('live Blueprint authoring returned a nonterminal receipt');
+  }
+  if (
+    !productionBlueprintAuthoringReceiptReplayIsValid({
+      receipt: result.receipt as unknown as Record<string, unknown>,
+      request: preflight.request,
+      expectedStatus: result.receipt.status,
+      expectedDigest: result.receipt.digest,
+    })
+  ) {
+    throw new Error('live Blueprint authoring returned an unreplayable receipt');
+  }
+  const persistedReceipt = persistProductionAuthoringReceipt({
+    repoRoot: args.repoRoot,
+    outputDir,
+    receipt: result.receipt,
+    write: true,
+    hooks: containedPublishHooks({
+      repoRoot: args.repoRoot,
+      beforeCheck: deps.hooks?.beforeReceiptArtifactPublish,
+    }),
+  });
+  deps.hooks?.afterReceipt?.();
+  let stage: 'blueprint_candidate' | 'authoring_failed';
+  let blueprint: ManifestBlueprintAuthority | null = null;
+  if (result.receipt.status === 'completed') {
+    if (
+      !result.authoringResult ||
+      result.receipt.blueprintDigest !== result.authoringResult.blueprint.digest ||
+      result.receipt.authoringProvenanceDigest !==
+        canonicalJsonDigest(result.authoringResult.provenance)
+    ) {
+      throw new Error('completed Blueprint receipt lacks its exact authoring result');
+    }
+    const safeRepairAttempts = safeRepairAttemptsFromReceipt(result.receipt);
+    const expectedProvenance = expectedAuthoringProvenance({
+      blueprint: result.authoringResult.blueprint,
+      receipt: result.receipt,
+    });
+    if (
+      canonicalJsonDigest(expectedProvenance) !==
+      canonicalJsonDigest(result.authoringResult.provenance)
+    ) {
+      throw new Error('completed Blueprint provenance is not receipt-derived');
+    }
+    const review = buildPreRenderBlueprintReviewBundle({
+      blueprint: result.authoringResult.blueprint,
+      context: preflight.context.validationContext,
+      provenance: expectedProvenance,
+      repairAttempts: safeRepairAttempts,
+    });
+    const lifecycleRoot = prepareBlueprintLifecycleAuthorityDirectories({
+      repoRoot: args.repoRoot,
+      outputDir,
+      authoringAuthorityDigest,
+      blueprintDigest: result.authoringResult.blueprint.digest,
+      reviewPacketDigest: review.packet.digest,
+    });
+    const persisted = persistPreRenderBlueprintLifecycle({
+      root: lifecycleRoot,
+      blueprint: result.authoringResult.blueprint,
+      context: preflight.context.validationContext,
+      provenance: expectedProvenance,
+      repairAttempts: safeRepairAttempts,
+      hooks: containedPublishHooks({
+        repoRoot: args.repoRoot,
+        beforeCheck: deps.hooks?.beforeLifecycleArtifactPublish,
+      }),
+    });
+    blueprint = blueprintAuthorityFromPersistence({
+      repoRoot: args.repoRoot,
+      persisted,
+      blueprint: result.authoringResult.blueprint,
+    });
+    stage = 'blueprint_candidate';
+  } else {
+    if (result.authoringResult !== null) {
+      throw new Error('failed Blueprint receipt unexpectedly includes an authoring result');
+    }
+    stage = 'authoring_failed';
+  }
+  const receiptAuthority: ManifestReceiptAuthority = {
+    version: result.receipt.version,
+    digest: result.receipt.digest,
+    path: persistedReceipt.receiptPath,
+    status: stage === 'blueprint_candidate' ? 'completed' : 'failed',
+  };
+  const terminalManifest = buildManifest({
+    version: QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION,
+    stage,
+    predecessor: predecessorAuthority({
+      manifest: preflight.manifest,
+      manifestPath: preflight.manifestPath,
+    }),
+    bridge: preflight.manifest.bridge,
+    context: preflight.manifest.context,
+    request: preflight.manifest.request,
+    receipt: receiptAuthority,
+    blueprint,
+    approval: null,
+    doesNotAuthorize: [...BEFORE_APPROVAL_EXCLUSIONS],
+  });
+  const terminalManifestArtifact = persistManifest({
+    repoRoot: args.repoRoot,
+    outputDir,
+    manifest: terminalManifest,
+    write: true,
+  });
+  const executionRecord = buildExecutionRecord({
+    authoringAuthorityDigest,
+    requestDigest,
+    claim,
+    claimPath: executionClaimPath,
+    manifest: terminalManifest,
+    manifestPath: terminalManifestArtifact.path,
+    receipt: result.receipt,
+    receiptPath: persistedReceipt.receiptPath,
+  });
+  deps.hooks?.afterTerminalManifest?.();
+  const executionRecordPath = terminalLookupPath({
+    repoRoot: args.repoRoot,
+    authoringAuthorityDigest,
+  });
+  writeImmutableLocalArtifact({
+    destinationPath: resolveRepoPath(args.repoRoot, executionRecordPath),
+    bytes: canonicalContentAddressedJsonBytes(executionRecord),
+    hooks: containedPublishHooks({
+      repoRoot: args.repoRoot,
+      beforeCheck: deps.hooks?.beforeTerminalLookupPublish,
+    }),
+  });
+    return {
+      replayed: false,
+      manifest: terminalManifest,
+      manifestPath: terminalManifestArtifact.path,
+      receipt: result.receipt,
+      receiptPath: persistedReceipt.receiptPath,
+      claimPath: executionClaimPath,
+      executionRecordPath,
+    };
+  } catch (cause) {
+    throw executionStateUncertain(cause);
+  }
+}
+
+function assertImmutableBytesCompatible(args: {
+  repoRoot: string;
+  destinationPath: string;
+  bytes: string;
+  label: string;
+}): void {
+  if (!fs.existsSync(args.destinationPath)) return;
+  const loaded = readUniqueContainedUtf8({
+    repoRoot: args.repoRoot,
+    artifactPath: repoRelativePath(args.repoRoot, args.destinationPath),
+    label: args.label,
+  });
+  if (loaded.rawBytes !== args.bytes) {
+    throw new Error(`${args.label} conflicts with existing immutable bytes`);
+  }
+}
+
+function assertSingleApprovalInventory(args: {
+  repoRoot: string;
+  approvalPath: string;
+}): void {
+  const directory = path.dirname(args.approvalPath);
+  if (!fs.existsSync(directory)) return;
+  ensureContainedDirectory({
+    repoRoot: args.repoRoot,
+    directoryPath: directory,
+  });
+  const entries = fs
+    .readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.name.endsWith('.json'))
+    .map((entry) => path.join(directory, entry.name));
+  for (const entry of entries) {
+    readUniqueContainedUtf8({
+      repoRoot: args.repoRoot,
+      artifactPath: repoRelativePath(args.repoRoot, entry),
+      label: 'Blueprint approval inventory entry',
+    });
+  }
+  if (
+    entries.some(
+      (entry) => normalizedAbsolute(entry) !== normalizedAbsolute(args.approvalPath),
+    )
+  ) {
+    throw new Error('Blueprint candidate already has a different approval');
+  }
+}
+
+function buildApprovalDecision(args: {
+  candidate: LoadedQaWizardBlueprintManifest;
+  approval: ManifestApprovalAuthority;
+  approvedManifest: QaWizardBlueprintAuthoringManifest;
+  approvedManifestPath: string;
+  note: string | null;
+}): QaWizardBlueprintApprovalDecision {
+  return digestPayload({
+    version: QA_WIZARD_BLUEPRINT_APPROVAL_DECISION_VERSION,
+    candidateManifestDigest: args.candidate.manifest.digest,
+    candidateManifestPath: args.candidate.manifestPath,
+    blueprintDigest: args.candidate.manifest.blueprint!.blueprintDigest,
+    authoringAuthorityDigest:
+      args.candidate.manifest.blueprint!.authoringAuthorityDigest,
+    reviewPacketDigest: args.candidate.manifest.blueprint!.reviewPacketDigest,
+    approvalDigest: args.approval.digest,
+    approvalPath: args.approval.path,
+    approvedManifestDigest: args.approvedManifest.digest,
+    approvedManifestPath: args.approvedManifestPath,
+    approvedBy: args.approval.approvedBy,
+    approvedAt: args.approval.approvedAt,
+    note: args.note,
+    scope: 'single_blueprint_approval_decision' as const,
+  });
+}
+
+function approvalDecisionIsValid(
+  value: unknown,
+): value is QaWizardBlueprintApprovalDecision {
+  return (
+    exactKeys(value, APPROVAL_DECISION_KEYS) &&
+    value.version === QA_WIZARD_BLUEPRINT_APPROVAL_DECISION_VERSION &&
+    value.digestAlgorithm === DIGEST_ALGORITHM &&
+    [
+      value.candidateManifestDigest,
+      value.blueprintDigest,
+      value.authoringAuthorityDigest,
+      value.reviewPacketDigest,
+      value.approvalDigest,
+      value.approvedManifestDigest,
+      value.digest,
+    ].every((entry) => typeof entry === 'string' && HEX_SHA256.test(entry)) &&
+    [
+      value.candidateManifestPath,
+      value.approvalPath,
+      value.approvedManifestPath,
+    ].every((entry) => typeof entry === 'string' && entry.length > 0) &&
+    value.approvedBy === PRE_RENDER_BLUEPRINT_APPROVER &&
+    canonicalUtcTimestampIsValid(value.approvedAt) &&
+    (value.note === null || typeof value.note === 'string') &&
+    value.scope === 'single_blueprint_approval_decision' &&
+    value.digest === canonicalJsonDigest(payloadWithoutDigest(value))
+  );
+}
+
+export function recordQaWizardBlueprintApproval(
+  args: {
+    repoRoot: string;
+    candidateManifestPath: string;
+    outputDir: string;
+    expectedBlueprintDigest: string;
+    expectedAuthoringAuthorityDigest: string;
+    expectedReviewPacketDigest: string;
+    approvedBy: typeof PRE_RENDER_BLUEPRINT_APPROVER;
+    approvedAt: string;
+    note?: string;
+    write?: boolean;
+  },
+  deps: Pick<QaWizardBlueprintExecutionDependencies, 'hooks'> = {},
+): QaWizardBlueprintApprovalResult {
+  if (args.approvedBy !== PRE_RENDER_BLUEPRINT_APPROVER) {
+    throw new Error('Blueprint approval is restricted to exact approver "Guy"');
+  }
+  if (!canonicalUtcTimestampIsValid(args.approvedAt)) {
+    throw new Error('approvedAt must be canonical UTC with millisecond precision');
+  }
+  const candidate = loadQaWizardBlueprintManifestAuthority({
+    repoRoot: args.repoRoot,
+    manifestPath: args.candidateManifestPath,
+  });
+  if (
+    candidate.manifest.stage !== 'blueprint_candidate' ||
+    !candidate.manifest.blueprint ||
+    !candidate.blueprint ||
+    !candidate.reviewPacket
+  ) {
+    throw new Error('Blueprint approval requires a complete candidate manifest');
+  }
+  const outputDir = sameOutputDir({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    manifestPath: args.candidateManifestPath,
+  });
+  if (
+    args.expectedBlueprintDigest !==
+      candidate.manifest.blueprint.blueprintDigest ||
+    args.expectedAuthoringAuthorityDigest !==
+      candidate.manifest.blueprint.authoringAuthorityDigest ||
+    args.expectedReviewPacketDigest !==
+      candidate.manifest.blueprint.reviewPacketDigest
+  ) {
+    throw new Error('Blueprint approval expected digests do not match the candidate');
+  }
+  const lifecycleRoot = path.join(
+    resolveRepoPath(args.repoRoot, outputDir),
+    'blueprint-lifecycle',
+  );
+  const planned = planPreRenderBlueprintApprovalAttestation({
+    root: lifecycleRoot,
+    blueprint: candidate.blueprint,
+    context: candidate.context.validationContext,
+    reviewPacket: candidate.reviewPacket,
+    approvedBy: args.approvedBy,
+    approvedAt: args.approvedAt,
+    ...(args.note ? { note: args.note } : {}),
+  });
+  const approvalPath = repoRelativePath(args.repoRoot, planned.approvalPath);
+  const approvalAuthority: ManifestApprovalAuthority = {
+    version: planned.attestation.version,
+    digest: planned.attestation.digest,
+    path: approvalPath,
+    approvedBy: planned.attestation.approvedBy,
+    approvedAt: planned.attestation.approvedAt,
+  };
+  const approvedManifest = buildManifest({
+    version: QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION,
+    stage: 'blueprint_approved',
+    predecessor: predecessorAuthority({
+      manifest: candidate.manifest,
+      manifestPath: candidate.manifestPath,
+    }),
+    bridge: candidate.manifest.bridge,
+    context: candidate.manifest.context,
+    request: candidate.manifest.request,
+    receipt: candidate.manifest.receipt,
+    blueprint: candidate.manifest.blueprint,
+    approval: approvalAuthority,
+    doesNotAuthorize: [...AFTER_APPROVAL_EXCLUSIONS],
+  });
+  const approvedManifestPath = relativeArtifactPath({
+    repoRoot: args.repoRoot,
+    outputDir,
+    category: 'blueprint-authoring-manifests',
+    fileName: `${approvedManifest.digest}.json`,
+  });
+  const decision = buildApprovalDecision({
+    candidate,
+    approval: approvalAuthority,
+    approvedManifest,
+    approvedManifestPath,
+    note: planned.attestation.note ?? null,
+  });
+  if (!approvalDecisionIsValid(decision)) {
+    throw new Error('Blueprint approval decision construction is invalid');
+  }
+  const decisionPath = approvalDecisionPath({
+    repoRoot: args.repoRoot,
+    blueprintDigest: candidate.blueprint.digest,
+  });
+  assertSingleApprovalInventory({
+    repoRoot: args.repoRoot,
+    approvalPath: planned.approvalPath,
+  });
+  assertImmutableBytesCompatible({
+    repoRoot: args.repoRoot,
+    destinationPath: planned.approvalPath,
+    bytes: preRenderBlueprintLifecycleJsonBytes(planned.attestation),
+    label: 'Blueprint approval',
+  });
+  assertImmutableBytesCompatible({
+    repoRoot: args.repoRoot,
+    destinationPath: resolveRepoPath(args.repoRoot, approvedManifestPath),
+    bytes: canonicalContentAddressedJsonBytes(approvedManifest),
+    label: 'approved Blueprint manifest',
+  });
+  assertImmutableBytesCompatible({
+    repoRoot: args.repoRoot,
+    destinationPath: resolveRepoPath(args.repoRoot, decisionPath),
+    bytes: canonicalContentAddressedJsonBytes(decision),
+    label: 'Blueprint approval decision',
+  });
+  if (args.write === true) {
+    prepareBlueprintOperatorOutputRoot({
+      repoRoot: args.repoRoot,
+      outputDir,
+    });
+    prepareCompilerOwnedLedger({ repoRoot: args.repoRoot });
+    prepareBlueprintLifecycleAuthorityDirectories({
+      repoRoot: args.repoRoot,
+      outputDir,
+      authoringAuthorityDigest:
+        candidate.blueprint.identity.authoringAuthority.digest,
+      blueprintDigest: candidate.blueprint.digest,
+      reviewPacketDigest: candidate.reviewPacket.digest,
+    });
+    try {
+      writeImmutableLocalArtifact({
+        destinationPath: resolveRepoPath(args.repoRoot, decisionPath),
+        bytes: canonicalContentAddressedJsonBytes(decision),
+        hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+      });
+    } catch (cause) {
+      const error = new Error('Blueprint candidate already has a different approval decision');
+      (error as Error & { cause?: unknown }).cause = cause;
+      throw error;
+    }
+    deps.hooks?.afterApprovalDecision?.();
+    writeImmutableLocalArtifact({
+      destinationPath: planned.approvalPath,
+      bytes: preRenderBlueprintLifecycleJsonBytes(planned.attestation),
+      hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+    });
+    persistManifest({
+      repoRoot: args.repoRoot,
+      outputDir,
+      manifest: approvedManifest,
+      write: true,
+    });
+  }
+  return {
+    manifest: approvedManifest,
+    manifestPath: approvedManifestPath,
+    attestation: planned.attestation,
+    approvalPath,
+    wrote: args.write === true,
+  };
+}

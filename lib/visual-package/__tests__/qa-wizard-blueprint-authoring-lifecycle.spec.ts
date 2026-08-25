@@ -1,0 +1,2290 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const bridgeLoaderMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../qaWizardCandidateBridge', async () => {
+  const actual = await vi.importActual<
+    typeof import('../qaWizardCandidateBridge')
+  >('../qaWizardCandidateBridge');
+  return {
+    ...actual,
+    loadQaWizardApprovedProductionContext: bridgeLoaderMock,
+  };
+});
+
+import {
+  QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION,
+  type QaWizardCandidateBridgeManifest,
+} from '../qaWizardCandidateBridge';
+import {
+  QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+  executeQaWizardBlueprintLiveRequest,
+  loadQaWizardBlueprintAuthoringManifest,
+  prepareQaWizardBlueprintLiveRequest,
+  productionBlueprintAuthoringReceiptReplayIsValid,
+  recordQaWizardBlueprintApproval,
+} from '../qaWizardBlueprintAuthoringLifecycle';
+import {
+  buildProductionAuthoringContext,
+  type ProductionAuthoringContext,
+} from '../productionAuthoringContext';
+import { buildStorySourceAuthoritySnapshot } from '../storySourceAuthority';
+import {
+  STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+} from '../styleAuthority';
+import {
+  BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+  OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION,
+  blueprintAuthoringInputAccounting,
+  blueprintAuthoringReservedExposureUsd,
+  conservativeBlueprintAuthoringCostUsd,
+  nominalBlueprintAuthoringUsageCostUsd,
+} from '../blueprintAuthoringPolicy';
+import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '../preRenderBlueprintDraftSchema';
+import type { ProductionAuthoringProvider } from '../productionAuthoringRunner';
+import { ProductionAuthoringProviderBoundaryError } from '../productionAuthoringRunner';
+import { createOpenAIResponsesBlueprintAuthoringAdapter } from '../openaiResponsesBlueprintAuthoringAdapter';
+import type { OpenAIResponsesAuthoringTransport } from '../openaiResponsesVisualContractAuthoringAdapter';
+import {
+  buildAuthoringTerminalFailure,
+  notRunAuthoringExecutionAttestation,
+} from '../authoringTerminalDiagnostics';
+import { canonicalJsonDigest } from '../integrity';
+import { createLazyLocalOpenAICredentialReader } from '../../../scripts/lib/qa-wizard-blueprint-local-credential';
+import {
+  buildBlueprintFixture,
+  buildVisualContractCandidateFixture,
+} from './pre-render-book-visual-blueprint.fixtures';
+
+const tempRoots: string[] = [];
+const OUTPUT_DIR = 'outputs/blueprint-operator';
+const REQUESTED_AT = '2026-08-25T12:00:00.000Z';
+const APPROVED_AT = '2026-08-25T12:30:00.000Z';
+const STYLE_ID = 'soft_hand_drawn_storybook';
+
+afterEach(() => {
+  bridgeLoaderMock.mockReset();
+  for (const root of tempRoots.splice(0)) {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function tempRoot(): string {
+  const root = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'qa-wizard-blueprint-operator-'),
+  );
+  tempRoots.push(root);
+  return root;
+}
+
+function writeJson(root: string, relative: string, value: unknown): void {
+  const destination = path.join(root, relative);
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.writeFileSync(destination, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+}
+
+function writeText(root: string, relative: string, value: string): void {
+  const destination = path.join(root, relative);
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.writeFileSync(destination, value, 'utf8');
+}
+
+function styleAuthorityContent(): unknown {
+  return JSON.parse(
+    fs.readFileSync(
+      path.join(process.cwd(), STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH),
+      'utf8',
+    ),
+  ) as unknown;
+}
+
+function buildContext(): {
+  repoRoot: string;
+  context: ProductionAuthoringContext;
+  fixture: ReturnType<typeof buildBlueprintFixture>;
+} {
+  const repoRoot = tempRoot();
+  const fixture = buildBlueprintFixture('single_location');
+  const storyKey = fixture.blueprint.identity.storyKey;
+  const storyPath = fixture.context.source.path;
+  const templatePath = fixture.context.templateIdentity.artifactPath;
+  const reconciliationPath = fixture.context.reconciliationArtifactPath;
+  const candidatePath = 'authorities/visual-contract-candidate.json';
+  writeText(repoRoot, storyPath, fixture.context.rawStorySource);
+  writeJson(repoRoot, templatePath, fixture.context.template);
+  writeJson(repoRoot, reconciliationPath, fixture.context.reconciliation);
+  const snapshot = buildStorySourceAuthoritySnapshot({
+    repoRoot,
+    storyKey,
+    storyPath,
+  });
+  writeJson(
+    repoRoot,
+    candidatePath,
+    buildVisualContractCandidateFixture({
+      fixture,
+      sourceSnapshotDigest: snapshot.digest,
+    }),
+  );
+  writeJson(
+    repoRoot,
+    STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+    styleAuthorityContent(),
+  );
+  const context = buildProductionAuthoringContext({
+    repoRoot,
+    storyKey,
+    storyPath,
+    templatePath,
+    reconciliationPath,
+    candidatePath,
+    styleId: STYLE_ID,
+    styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+  });
+  return { repoRoot, context, fixture };
+}
+
+function approvedBridge(
+  context: ProductionAuthoringContext,
+): QaWizardCandidateBridgeManifest {
+  return {
+    version: QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION,
+    stage: 'reconciliation_approved',
+    productionContext: {
+      version: context.version,
+      digest: context.digest,
+      styleId: context.styleId,
+      styleAuthorityPath: context.styleAuthority.identity.artifactPath,
+      styleAuthorityDigest: context.styleAuthority.identity.digest,
+    },
+    digest: canonicalJsonDigest({
+      fixture: 'approved-qa-wizard-bridge',
+      contextDigest: context.digest,
+    }),
+  } as unknown as QaWizardCandidateBridgeManifest;
+}
+
+function setup() {
+  const built = buildContext();
+  const bridge = approvedBridge(built.context);
+  const bridgeManifestPath =
+    `outputs/bridge/bridge-manifests/${bridge.digest}.json`;
+  bridgeLoaderMock.mockImplementation(() => ({
+    manifest: bridge,
+    context: built.context,
+  }));
+  return { ...built, bridge, bridgeManifestPath };
+}
+
+function providerDraft(
+  fixture: ReturnType<typeof buildBlueprintFixture>,
+): unknown {
+  return {
+    worldPlan: fixture.blueprint.worldPlan,
+    frames: fixture.blueprint.frames.map((frame) => ({
+      ...frame,
+      pageNumber: frame.kind === 'cover' ? null : frame.pageNumber,
+    })),
+  };
+}
+
+function providerReceipt(args: {
+  attempt: number;
+  systemPrompt: string;
+  userPrompt: string;
+}) {
+  const usage = {
+    inputTokens: 120,
+    cachedInputTokens: 0,
+    cacheWriteInputTokens: 0,
+    outputTokens: 80,
+    reasoningTokens: 20,
+    totalTokens: 200,
+  };
+  const conservativeCallCostUsd = conservativeBlueprintAuthoringCostUsd({
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+  });
+  return {
+    provider: 'openai',
+    model: 'gpt-5.6-sol',
+    responseId: `response-${args.attempt}`,
+    usage: {
+      input_tokens: usage.inputTokens,
+      cached_input_tokens: usage.cachedInputTokens,
+      cache_write_input_tokens: usage.cacheWriteInputTokens,
+      output_tokens: usage.outputTokens,
+      reasoning_tokens: usage.reasoningTokens,
+      total_tokens: usage.totalTokens,
+      secret_debug_payload: 'must-not-persist',
+    },
+    evidenceVersion:
+      OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION,
+    completionStatus: 'completed',
+    usageEvidenceComplete: true,
+    executionAttestation: {
+      evidenceKind: 'canonical_adapter_observed' as const,
+      logicalProviderCalls: 1,
+      transportDispatchCount: 1,
+      transportRetryCount: 0,
+      fallbackUsed: false,
+      canonicalRouteConfirmed: true,
+      canonicalModelConfirmed: true,
+    },
+    inputAccounting: blueprintAuthoringInputAccounting({
+      systemPrompt: args.systemPrompt,
+      userPrompt: args.userPrompt,
+      schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+    }),
+    reservedExposureBeforeCallUsd: blueprintAuthoringReservedExposureUsd({
+      conservativeAccountedCostUsd:
+        (args.attempt - 1) * conservativeCallCostUsd,
+      callsCompleted: args.attempt - 1,
+    }),
+    nominalEstimatedCostUsd: nominalBlueprintAuthoringUsageCostUsd(usage),
+    conservativeCallCostUsd,
+  };
+}
+
+function passingProvider(
+  fixture: ReturnType<typeof buildBlueprintFixture>,
+  call = vi.fn(),
+): ProductionAuthoringProvider {
+  return {
+    call: async (args) => {
+      call(args);
+      return {
+        output: JSON.stringify(providerDraft(fixture)),
+        receipt: providerReceipt(args),
+      };
+    },
+  };
+}
+
+function prepare(args: ReturnType<typeof setup>) {
+  return prepareQaWizardBlueprintLiveRequest({
+    repoRoot: args.repoRoot,
+    bridgeManifestPath: args.bridgeManifestPath,
+    outputDir: OUTPUT_DIR,
+    requestId: 'blueprint-live-request-001',
+    requestedAt: REQUESTED_AT,
+    write: true,
+  });
+}
+
+function fileInventory(root: string): Array<{ path: string; bytes: string }> {
+  if (!fs.existsSync(root)) return [];
+  const result: Array<{ path: string; bytes: string }> = [];
+  const visit = (directory: string): void => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) visit(absolute);
+      else if (entry.isFile()) {
+        result.push({
+          path: path.relative(root, absolute).split('\\').join('/'),
+          bytes: fs.readFileSync(absolute, 'utf8'),
+        });
+      }
+    }
+  };
+  visit(root);
+  return result.sort((left, right) => left.path.localeCompare(right.path));
+}
+
+describe('QA Wizard Blueprint authoring operator lifecycle', () => {
+  it('prepares the exact live request without provider access and rejects loose timestamps', () => {
+    const subject = setup();
+    expect(() =>
+      prepareQaWizardBlueprintLiveRequest({
+        repoRoot: subject.repoRoot,
+        bridgeManifestPath: subject.bridgeManifestPath,
+        outputDir: OUTPUT_DIR,
+        requestId: 'bad-timestamp',
+        requestedAt: '2026-08-25',
+        write: true,
+      }),
+    ).toThrow(/canonical UTC/);
+    expect(bridgeLoaderMock).not.toHaveBeenCalled();
+
+    const result = prepare(subject);
+    expect(result.request).toMatchObject({
+      version: 'production-blueprint-authoring-request/v4',
+      mode: 'live',
+      model: 'gpt-5.6-sol',
+      reasoningEffort: 'medium',
+      maxOutputTokens: 48_000,
+      noFallback: true,
+      callBudget: { maxCalls: 3, maxRepairCount: 2 },
+    });
+    expect(result.manifest.stage).toBe('live_request_preflight_passed');
+    expect(
+      loadQaWizardBlueprintAuthoringManifest({
+        repoRoot: subject.repoRoot,
+        manifestPath: result.manifestPath,
+      }),
+    ).toEqual(result.manifest);
+    for (const category of [
+      'authoring-receipts',
+      'blueprint-authoring-manifests',
+      'blueprint-authoring-requests',
+      'blueprint-lifecycle',
+    ]) {
+      expect(
+        fs.statSync(path.join(subject.repoRoot, OUTPUT_DIR, category)).isDirectory(),
+      ).toBe(true);
+    }
+  });
+
+  it('claims before lazy provider access, persists a complete Candidate, and replays with zero calls', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const providerCalls = vi.fn();
+    const providerFactory = vi.fn(() => {
+      const claimDirectory = path.join(
+        subject.repoRoot,
+        QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+        'execution-claims',
+      );
+      expect(fs.readdirSync(claimDirectory)).toHaveLength(1);
+      return passingProvider(subject.fixture, providerCalls);
+    });
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory },
+    );
+    expect(result.replayed).toBe(false);
+    expect(
+      result.manifest.stage,
+      JSON.stringify(result.receipt, null, 2),
+    ).toBe('blueprint_candidate');
+    expect(result.receipt.status).toBe('completed');
+    expect(providerFactory).toHaveBeenCalledTimes(1);
+    expect(providerCalls).toHaveBeenCalledTimes(1);
+    expect(
+      loadQaWizardBlueprintAuthoringManifest({
+        repoRoot: subject.repoRoot,
+        manifestPath: result.manifestPath,
+      }),
+    ).toEqual(result.manifest);
+    const beforeReplay = fileInventory(path.join(subject.repoRoot, OUTPUT_DIR));
+    const forbiddenFactory = vi.fn(() => {
+      throw new Error('provider_must_not_load_on_replay');
+    });
+    const replay = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: forbiddenFactory },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replay.manifest.digest).toBe(result.manifest.digest);
+    expect(forbiddenFactory).not.toHaveBeenCalled();
+    expect(fileInventory(path.join(subject.repoRoot, OUTPUT_DIR))).toEqual(
+      beforeReplay,
+    );
+    expect(JSON.stringify(beforeReplay)).not.toContain('must-not-persist');
+  });
+
+  it('fails closed after an orphan claim and never automatically retries', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        {
+          hooks: {
+            afterClaim() {
+              throw new Error('simulated_crash_after_claim');
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    const providerFactory = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    expect(providerFactory).not.toHaveBeenCalled();
+  });
+
+  it('recovers a completed terminal manifest after a crash without another provider call', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        {
+          providerFactory: () => passingProvider(subject.fixture),
+          hooks: {
+            afterTerminalManifest() {
+              throw new Error('simulated_crash_before_terminal_lookup');
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    const providerFactory = vi.fn(() => passingProvider(subject.fixture));
+    const recovered = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory },
+    );
+    expect(recovered.replayed).toBe(true);
+    expect(recovered.manifest.stage).toBe('blueprint_candidate');
+    expect(providerFactory).not.toHaveBeenCalled();
+  });
+
+  it('classifies a crash after receipt as uncertain and never redispatches', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const providerCalls = vi.fn();
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        {
+          providerFactory: () => passingProvider(subject.fixture, providerCalls),
+          hooks: {
+            afterReceipt() {
+              throw new Error('simulated_crash_after_receipt');
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    expect(providerCalls).toHaveBeenCalledTimes(1);
+    const retryFactory = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: retryFactory },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    expect(retryFactory).not.toHaveBeenCalled();
+  });
+
+  it('admits only one concurrent owner for the same paid request', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    let releaseProvider!: () => void;
+    let providerEntered!: () => void;
+    const release = new Promise<void>((resolve) => {
+      releaseProvider = resolve;
+    });
+    const entered = new Promise<void>((resolve) => {
+      providerEntered = resolve;
+    });
+    const providerCalls = vi.fn();
+    const providerFactory = vi.fn((): ProductionAuthoringProvider => ({
+      call: async (args) => {
+        providerCalls(args);
+        providerEntered();
+        await release;
+        return {
+          output: JSON.stringify(providerDraft(subject.fixture)),
+          receipt: providerReceipt(args),
+        };
+      },
+    }));
+    const executeArgs = {
+      repoRoot: subject.repoRoot,
+      preflightManifestPath: preflight.manifestPath,
+      outputDir: OUTPUT_DIR,
+      write: true as const,
+    };
+    const owner = executeQaWizardBlueprintLiveRequest(executeArgs, {
+      providerFactory,
+    });
+    await entered;
+    await expect(
+      executeQaWizardBlueprintLiveRequest(executeArgs, { providerFactory }),
+    ).rejects.toThrow('execution_state_uncertain');
+    releaseProvider();
+    const completed = await owner;
+    expect(completed.manifest.stage).toBe('blueprint_candidate');
+    expect(providerFactory).toHaveBeenCalledTimes(1);
+    expect(providerCalls).toHaveBeenCalledTimes(1);
+  });
+
+  it('admits only one paid owner across output roots and caller-minted request identities', async () => {
+    const subject = setup();
+    const firstOutput = 'outputs/blueprint-operator-a';
+    const secondOutput = 'outputs/blueprint-operator-b';
+    const first = prepareQaWizardBlueprintLiveRequest({
+      repoRoot: subject.repoRoot,
+      bridgeManifestPath: subject.bridgeManifestPath,
+      outputDir: firstOutput,
+      requestId: 'caller-request-a',
+      requestedAt: '2026-08-25T12:00:00.000Z',
+      write: true,
+    });
+    const second = prepareQaWizardBlueprintLiveRequest({
+      repoRoot: subject.repoRoot,
+      bridgeManifestPath: subject.bridgeManifestPath,
+      outputDir: secondOutput,
+      requestId: 'caller-request-b',
+      requestedAt: '2026-08-25T12:01:00.000Z',
+      write: true,
+    });
+    let releaseProvider!: () => void;
+    let providerEntered!: () => void;
+    const release = new Promise<void>((resolve) => {
+      releaseProvider = resolve;
+    });
+    const entered = new Promise<void>((resolve) => {
+      providerEntered = resolve;
+    });
+    const providerCalls = vi.fn();
+    const providerFactory = vi.fn((): ProductionAuthoringProvider => ({
+      call: async (args) => {
+        providerCalls(args);
+        providerEntered();
+        await release;
+        return {
+          output: JSON.stringify(providerDraft(subject.fixture)),
+          receipt: providerReceipt(args),
+        };
+      },
+    }));
+    const owner = executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: first.manifestPath,
+        outputDir: firstOutput,
+        write: true,
+      },
+      { providerFactory },
+    );
+    await entered;
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: second.manifestPath,
+          outputDir: secondOutput,
+          write: true,
+        },
+        { providerFactory },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    releaseProvider();
+    await expect(owner).resolves.toMatchObject({
+      manifest: { stage: 'blueprint_candidate' },
+    });
+    expect(providerFactory).toHaveBeenCalledTimes(1);
+    expect(providerCalls).toHaveBeenCalledTimes(1);
+    expect(
+      fs.readdirSync(
+        path.join(
+          subject.repoRoot,
+          QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+          'execution-claims',
+        ),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('rejects partial success usage/evidence during receipt replay', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => passingProvider(subject.fixture) },
+    );
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: result.receipt as unknown as Record<string, unknown>,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: result.receipt.digest,
+      }),
+    ).toBe(true);
+    const forged = JSON.parse(JSON.stringify(result.receipt)) as Record<
+      string,
+      unknown
+    > & { attempts: Array<Record<string, unknown>>; digest: string };
+    forged.attempts[0]!.usage = { inputTokens: 120 };
+    forged.attempts[0]!.usageEvidenceComplete = false;
+    const {
+      digest: _digest,
+      digestAlgorithm: _digestAlgorithm,
+      ...payload
+    } = forged;
+    forged.digest = canonicalJsonDigest(payload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: forged,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: forged.digest,
+      }),
+    ).toBe(false);
+    const inconsistentUsage = JSON.parse(
+      JSON.stringify(result.receipt),
+    ) as Record<string, unknown> & {
+      attempts: Array<Record<string, unknown>>;
+      digest: string;
+    };
+    inconsistentUsage.attempts[0]!.usage = {
+      inputTokens: 1,
+      outputTokens: 1,
+      totalTokens: 999,
+      cachedInputTokens: 0,
+      cacheWriteInputTokens: 0,
+      reasoningTokens: 0,
+    };
+    const {
+      digest: _inconsistentDigest,
+      digestAlgorithm: _inconsistentDigestAlgorithm,
+      ...inconsistentPayload
+    } = inconsistentUsage;
+    inconsistentUsage.digest = canonicalJsonDigest(inconsistentPayload);
+    expect(() =>
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: inconsistentUsage,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: inconsistentUsage.digest,
+      }),
+    ).not.toThrow();
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: inconsistentUsage,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: inconsistentUsage.digest,
+      }),
+    ).toBe(false);
+    const hostileAttempts = JSON.parse(JSON.stringify(result.receipt)) as Record<
+      string,
+      unknown
+    > & { attempts: unknown[]; digest: string };
+    hostileAttempts.attempts = [null];
+    const {
+      digest: _hostileDigest,
+      digestAlgorithm: _hostileDigestAlgorithm,
+      ...hostilePayload
+    } = hostileAttempts;
+    hostileAttempts.digest = canonicalJsonDigest(hostilePayload);
+    expect(() =>
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: hostileAttempts,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: hostileAttempts.digest,
+      }),
+    ).not.toThrow();
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: hostileAttempts,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: hostileAttempts.digest,
+      }),
+    ).toBe(false);
+    const nonFiniteTopLevel = JSON.parse(
+      JSON.stringify(result.receipt),
+    ) as Record<string, unknown>;
+    nonFiniteTopLevel.callCount = Number.POSITIVE_INFINITY;
+    expect(() =>
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: nonFiniteTopLevel,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: result.receipt.digest,
+      }),
+    ).not.toThrow();
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: nonFiniteTopLevel,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: result.receipt.digest,
+      }),
+    ).toBe(false);
+    const arrayDigestConfusion = JSON.parse(
+      JSON.stringify(result.receipt),
+    ) as Record<string, unknown> & { digest: string };
+    arrayDigestConfusion.blueprintDigest = [result.receipt.blueprintDigest];
+    const {
+      digest: _arrayDigest,
+      digestAlgorithm: _arrayDigestAlgorithm,
+      ...arrayDigestPayload
+    } = arrayDigestConfusion;
+    arrayDigestConfusion.digest = canonicalJsonDigest(arrayDigestPayload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: arrayDigestConfusion,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: arrayDigestConfusion.digest,
+      }),
+    ).toBe(false);
+    const arrayAttemptIdentity = JSON.parse(
+      JSON.stringify(result.receipt),
+    ) as Record<string, unknown> & {
+      attempts: Array<Record<string, unknown>>;
+      digest: string;
+    };
+    arrayAttemptIdentity.attempts[0]!.provider = ['openai'];
+    const {
+      digest: _arrayAttemptDigest,
+      digestAlgorithm: _arrayAttemptDigestAlgorithm,
+      ...arrayAttemptPayload
+    } = arrayAttemptIdentity;
+    arrayAttemptIdentity.digest = canonicalJsonDigest(arrayAttemptPayload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: arrayAttemptIdentity,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: arrayAttemptIdentity.digest,
+      }),
+    ).toBe(false);
+    const nonEmittableTerminal = JSON.parse(
+      JSON.stringify(result.receipt),
+    ) as Record<string, unknown> & { digest: string };
+    Object.assign(nonEmittableTerminal, {
+      status: 'failed',
+      blueprintDigest: null,
+      authoringProvenanceDigest: null,
+      failure: buildAuthoringTerminalFailure({
+        code: 'provider_output_decode_failed',
+        issueCodes: ['provider_output_decode_failed'],
+      }),
+    });
+    const {
+      digest: _nonEmittableDigest,
+      digestAlgorithm: _nonEmittableDigestAlgorithm,
+      ...nonEmittablePayload
+    } = nonEmittableTerminal;
+    nonEmittableTerminal.digest = canonicalJsonDigest(nonEmittablePayload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: nonEmittableTerminal,
+        request: preflight.request,
+        expectedStatus: 'failed',
+        expectedDigest: nonEmittableTerminal.digest,
+      }),
+    ).toBe(false);
+    const impossibleContextTerminal = JSON.parse(
+      JSON.stringify(nonEmittableTerminal),
+    ) as Record<string, unknown> & { digest: string };
+    impossibleContextTerminal.failure = buildAuthoringTerminalFailure({
+      code: 'context_invalid',
+      issueCodes: ['context_invalid'],
+    });
+    const {
+      digest: _contextDigest,
+      digestAlgorithm: _contextDigestAlgorithm,
+      ...contextPayload
+    } = impossibleContextTerminal;
+    impossibleContextTerminal.digest = canonicalJsonDigest(contextPayload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: impossibleContextTerminal,
+        request: preflight.request,
+        expectedStatus: 'failed',
+        expectedDigest: impossibleContextTerminal.digest,
+      }),
+    ).toBe(false);
+  });
+
+  it('accepts only the closed three-validation-attempt replay shape for call-budget terminals', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const calls = vi.fn();
+    const exhausted = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: () => ({
+          call: async (args) => {
+            calls(args);
+            return {
+              output: JSON.stringify({ invalid: true }),
+              receipt: providerReceipt(args),
+            };
+          },
+        }),
+      },
+    );
+    expect(calls).toHaveBeenCalledTimes(3);
+    expect(exhausted.receipt.failure?.code).toBe(
+      'draft_validation_repair_exhausted',
+    );
+    const deniedFourth = JSON.parse(
+      JSON.stringify(exhausted.receipt),
+    ) as Record<string, unknown> & {
+      attempts: Array<{
+        validationDiagnostics: { count: number; codes: string[] };
+      }>;
+      digest: string;
+    };
+    deniedFourth.failure = buildAuthoringTerminalFailure({
+      code: 'call_budget_exhausted',
+      issueCodes: ['call_budget_exhausted'],
+    });
+    const {
+      digest: _deniedDigest,
+      digestAlgorithm: _deniedDigestAlgorithm,
+      ...deniedPayload
+    } = deniedFourth;
+    deniedFourth.digest = canonicalJsonDigest(deniedPayload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: deniedFourth,
+        request: preflight.request,
+        expectedStatus: 'failed',
+        expectedDigest: deniedFourth.digest,
+      }),
+    ).toBe(true);
+    const missingPriorEvidence = JSON.parse(
+      JSON.stringify(deniedFourth),
+    ) as typeof deniedFourth;
+    missingPriorEvidence.attempts[0]!.validationDiagnostics = {
+      count: 0,
+      codes: [],
+    };
+    const {
+      digest: _missingPriorDigest,
+      digestAlgorithm: _missingPriorDigestAlgorithm,
+      ...missingPriorPayload
+    } = missingPriorEvidence;
+    missingPriorEvidence.digest = canonicalJsonDigest(missingPriorPayload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: missingPriorEvidence,
+        request: preflight.request,
+        expectedStatus: 'failed',
+        expectedDigest: missingPriorEvidence.digest,
+      }),
+    ).toBe(false);
+  });
+
+  it('binds completion-status terminal failure to exact observed provider evidence', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: () => ({
+          call: async (args) => ({
+            output: JSON.stringify(providerDraft(subject.fixture)),
+            receipt: {
+              ...providerReceipt(args),
+              completionStatus: 'incomplete',
+            },
+          }),
+        }),
+      },
+    );
+    expect(result.receipt.failure?.code).toBe('completion_status_invalid');
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: result.receipt as unknown as Record<string, unknown>,
+        request: preflight.request,
+        expectedStatus: 'failed',
+        expectedDigest: result.receipt.digest,
+      }),
+    ).toBe(true);
+    const forged = JSON.parse(JSON.stringify(result.receipt)) as Record<
+      string,
+      unknown
+    > & { attempts: Array<Record<string, unknown>>; digest: string };
+    Object.assign(forged.attempts[0]!, {
+      provider: 'unknown-provider',
+      model: 'unknown-model',
+      responseId: null,
+      responseDigest: null,
+      usage: null,
+      providerEvidenceVersion: null,
+      completionStatus: null,
+      usageEvidenceComplete: false,
+      nominalEstimatedCostUsd: null,
+      conservativeCallCostUsd: null,
+      cumulativeConservativeCostUsd: null,
+      executionAttestation: {
+        evidenceKind: 'not_run',
+        logicalProviderCalls: 0,
+        transportDispatchCount: 0,
+        transportRetryCount: 0,
+        fallbackUsed: false,
+        canonicalRouteConfirmed: false,
+        canonicalModelConfirmed: false,
+      },
+    });
+    forged.executionAttestation = {
+      evidenceKind: 'not_run',
+      logicalProviderCalls: 0,
+      transportDispatchCount: 0,
+      transportRetryCount: 0,
+      fallbackUsed: false,
+      canonicalRouteConfirmed: false,
+      canonicalModelConfirmed: false,
+    };
+    const {
+      digest: _digest,
+      digestAlgorithm: _digestAlgorithm,
+      ...payload
+    } = forged;
+    forged.digest = canonicalJsonDigest(payload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: forged,
+        request: preflight.request,
+        expectedStatus: 'failed',
+        expectedDigest: forged.digest,
+      }),
+    ).toBe(false);
+  });
+
+  it('persists only closed repair diagnostics and never raw invalid draft material', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const rawSecret = 'RAW_REPAIR_SECRET_MUST_NEVER_PERSIST';
+    const calls = vi.fn();
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: () => ({
+          call: async (args) => {
+            calls(args);
+            return {
+              output:
+                args.attempt === 1
+                  ? JSON.stringify({ rawSecret })
+                  : JSON.stringify(providerDraft(subject.fixture)),
+              receipt: providerReceipt(args),
+            };
+          },
+        }),
+      },
+    );
+    expect(result.manifest.stage).toBe('blueprint_candidate');
+    expect(result.receipt.callCount).toBe(2);
+    expect(calls).toHaveBeenCalledTimes(2);
+    const inventory = fileInventory(subject.repoRoot);
+    expect(JSON.stringify(inventory)).not.toContain(rawSecret);
+    const reviewPath = path.join(
+      subject.repoRoot,
+      result.manifest.blueprint!.reviewPacketPath,
+    );
+    const review = JSON.parse(fs.readFileSync(reviewPath, 'utf8')) as {
+      warnings: string[];
+      repairAttemptCount: number;
+    };
+    expect(review.repairAttemptCount).toBe(1);
+    expect(review.warnings.length).toBeGreaterThan(0);
+    expect(review.warnings.every((warning) => /^[a-z0-9_ :]+$/.test(warning))).toBe(
+      true,
+    );
+    const missingRepairEvidence = JSON.parse(
+      JSON.stringify(result.receipt),
+    ) as Record<string, unknown> & {
+      attempts: Array<{
+        validationDiagnostics: { count: number; codes: string[] };
+      }>;
+      digest: string;
+    };
+    missingRepairEvidence.attempts[0]!.validationDiagnostics = {
+      count: 0,
+      codes: [],
+    };
+    const {
+      digest: _missingRepairDigest,
+      digestAlgorithm: _missingRepairDigestAlgorithm,
+      ...missingRepairPayload
+    } = missingRepairEvidence;
+    missingRepairEvidence.digest = canonicalJsonDigest(missingRepairPayload);
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: missingRepairEvidence,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: missingRepairEvidence.digest,
+      }),
+    ).toBe(false);
+
+    const closedDiagnosticVariants = [
+      { count: 1, codes: ['mysecret'] },
+      { count: 1, codes: ['provider_call_failed'] },
+      {
+        count: 1,
+        codes: [
+          'action_semantic_validation_failed',
+          'draft_contract_validation_failed',
+          'draft_schema_validation_failed',
+        ],
+      },
+      {
+        count: 17,
+        codes: [
+          'action_semantic_capability_gap',
+          'action_semantic_validation_failed',
+          'authority_reference_validation_failed',
+          'call_budget_exhausted',
+          'call_budget_invariant_failed',
+          'context_validation_failed',
+          'cost_ceiling_exceeded',
+          'draft_authority_reference_domain_invalid',
+          'draft_contract_validation_failed',
+          'draft_schema_validation_failed',
+          'draft_validation_repair_regressed',
+          'draft_validation_repair_stagnated',
+          'input_token_ceiling_exceeded',
+          'post_compile_authority_incomplete',
+          'provider_adapter_missing',
+          'provider_call_failed',
+          'provider_completion_invalid',
+        ],
+      },
+      {
+        count: 2,
+        codes: [
+          'source_evidence_validation_failed',
+          'draft_contract_validation_failed',
+        ],
+      },
+      {
+        count: 2,
+        codes: [
+          'draft_contract_validation_failed',
+          'draft_contract_validation_failed',
+        ],
+      },
+      { count: 0, codes: ['draft_contract_validation_failed'] },
+    ];
+    for (const diagnostics of closedDiagnosticVariants) {
+      const forgedDiagnostics = JSON.parse(
+        JSON.stringify(result.receipt),
+      ) as Record<string, unknown> & {
+        attempts: Array<{
+          validationDiagnostics: { count: number; codes: string[] };
+        }>;
+        digest: string;
+      };
+      forgedDiagnostics.attempts[0]!.validationDiagnostics = diagnostics;
+      const {
+        digest: _forgedDigest,
+        digestAlgorithm: _forgedDigestAlgorithm,
+        ...forgedPayload
+      } = forgedDiagnostics;
+      forgedDiagnostics.digest = canonicalJsonDigest(forgedPayload);
+      expect(() =>
+        productionBlueprintAuthoringReceiptReplayIsValid({
+          receipt: forgedDiagnostics,
+          request: preflight.request,
+          expectedStatus: 'completed',
+          expectedDigest: forgedDiagnostics.digest,
+        }),
+      ).not.toThrow();
+      expect(
+        productionBlueprintAuthoringReceiptReplayIsValid({
+          receipt: forgedDiagnostics,
+          request: preflight.request,
+          expectedStatus: 'completed',
+          expectedDigest: forgedDiagnostics.digest,
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it('replays a one-error repair whose closed fallback and category codes outnumber the raw issue count', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const calls = vi.fn();
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: () => ({
+          call: async (args) => {
+            calls(args);
+            return {
+              output:
+                args.attempt === 1
+                  ? '{'
+                  : JSON.stringify(providerDraft(subject.fixture)),
+              receipt: providerReceipt(args),
+            };
+          },
+        }),
+      },
+    );
+    expect(result.manifest.stage).toBe('blueprint_candidate');
+    expect(calls).toHaveBeenCalledTimes(2);
+    expect(result.receipt.attempts[0]!.validationDiagnostics).toEqual({
+      count: 1,
+      codes: [
+        'draft_contract_validation_failed',
+        'draft_schema_validation_failed',
+      ],
+    });
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: result.receipt as unknown as Record<string, unknown>,
+        request: preflight.request,
+        expectedStatus: 'completed',
+        expectedDigest: result.receipt.digest,
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects a nested lifecycle junction before provider access', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const external = tempRoot();
+    const authoritiesPath = path.join(
+      subject.repoRoot,
+      OUTPUT_DIR,
+      'blueprint-lifecycle',
+      'authorities',
+    );
+    fs.symlinkSync(
+      external,
+      authoritiesPath,
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    const providerFactory = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory },
+      ),
+    ).rejects.toThrow(/resolves outside the repository|symlink or junction alias/);
+    expect(providerFactory).not.toHaveBeenCalled();
+  });
+
+  it('rechecks lifecycle containment at publish and blocks a post-provider junction swap', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const external = tempRoot();
+    const providerCalls = vi.fn();
+    let swapped = false;
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        {
+          providerFactory: () => passingProvider(subject.fixture, providerCalls),
+          hooks: {
+            beforeLifecycleArtifactPublish() {
+              if (swapped) return;
+              swapped = true;
+              const authorities = path.join(
+                subject.repoRoot,
+                OUTPUT_DIR,
+                'blueprint-lifecycle',
+                'authorities',
+              );
+              fs.renameSync(authorities, `${authorities}-safe-backup`);
+              fs.symlinkSync(
+                external,
+                authorities,
+                process.platform === 'win32' ? 'junction' : 'dir',
+              );
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    expect(providerCalls).toHaveBeenCalledTimes(1);
+    expect(swapped).toBe(true);
+    expect(fileInventory(external)).toEqual([]);
+    expect(
+      fileInventory(subject.repoRoot).filter((entry) =>
+        entry.path.includes('.tmp'),
+      ),
+    ).toEqual([]);
+    const retryFactory = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: retryFactory },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    expect(retryFactory).not.toHaveBeenCalled();
+  });
+
+  it.each(['receipt', 'lifecycle', 'terminal'] as const)(
+    'rejects an identical-byte hardlink at the %s publication boundary',
+    async (surface) => {
+      const subject = setup();
+      const preflight = prepare(subject);
+      const external = tempRoot();
+      const providerCalls = vi.fn();
+      let installedPath: string | null = null;
+      const installHardlink = (
+        temporaryPath: string,
+        destinationPath: string,
+      ): void => {
+        if (installedPath !== null) return;
+        const source = path.join(external, `${surface}.json`);
+        fs.copyFileSync(temporaryPath, source);
+        fs.linkSync(source, destinationPath);
+        installedPath = destinationPath;
+      };
+      await expect(
+        executeQaWizardBlueprintLiveRequest(
+          {
+            repoRoot: subject.repoRoot,
+            preflightManifestPath: preflight.manifestPath,
+            outputDir: OUTPUT_DIR,
+            write: true,
+          },
+          {
+            providerFactory: () => passingProvider(subject.fixture, providerCalls),
+            hooks: {
+              ...(surface === 'receipt'
+                ? { beforeReceiptArtifactPublish: installHardlink }
+                : {}),
+              ...(surface === 'lifecycle'
+                ? { beforeLifecycleArtifactPublish: installHardlink }
+                : {}),
+              ...(surface === 'terminal'
+                ? { beforeTerminalLookupPublish: installHardlink }
+                : {}),
+            },
+          },
+        ),
+      ).rejects.toThrow('execution_state_uncertain');
+      expect(providerCalls).toHaveBeenCalledTimes(1);
+      expect(installedPath).not.toBeNull();
+      expect(fs.lstatSync(installedPath!).nlink).toBe(2);
+      expect(
+        fileInventory(subject.repoRoot).filter((entry) =>
+          entry.path.includes('.tmp'),
+        ),
+      ).toEqual([]);
+      const retryFactory = vi.fn(() => passingProvider(subject.fixture));
+      await expect(
+        executeQaWizardBlueprintLiveRequest(
+          {
+            repoRoot: subject.repoRoot,
+            preflightManifestPath: preflight.manifestPath,
+            outputDir: OUTPUT_DIR,
+            write: true,
+          },
+          { providerFactory: retryFactory },
+        ),
+      ).rejects.toThrow('execution_state_uncertain');
+      expect(retryFactory).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects a semantically equal but byte-noncanonical terminal manifest', async () => {
+    const baseline = setup();
+    const baselinePreflight = prepare(baseline);
+    const baselineResult = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: baseline.repoRoot,
+        preflightManifestPath: baselinePreflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => passingProvider(baseline.fixture) },
+    );
+
+    const subject = setup();
+    const preflight = prepare(subject);
+    const hostilePath = path.join(
+      subject.repoRoot,
+      baselineResult.manifestPath,
+    );
+    const hostileBytes = JSON.stringify(baselineResult.manifest);
+    fs.mkdirSync(path.dirname(hostilePath), { recursive: true });
+    fs.writeFileSync(hostilePath, hostileBytes, 'utf8');
+    const providerCalls = vi.fn();
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: () => passingProvider(subject.fixture, providerCalls) },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    expect(providerCalls).toHaveBeenCalledTimes(1);
+    expect(fs.readFileSync(hostilePath, 'utf8')).toBe(hostileBytes);
+    const retryFactory = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: retryFactory },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    expect(retryFactory).not.toHaveBeenCalled();
+  });
+
+  it('persists a sanitized terminal failure and replays it with zero calls', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const providerFactory = vi.fn(() => ({
+      call: async () => {
+        throw new Error('secret_provider_failure_detail');
+      },
+    }));
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory },
+    );
+    expect(result.manifest.stage).toBe('authoring_failed');
+    expect(result.receipt.status).toBe('failed');
+    expect(result.manifest.blueprint).toBeNull();
+    expect(JSON.stringify(fileInventory(path.join(subject.repoRoot, OUTPUT_DIR))))
+      .not.toContain('secret_provider_failure_detail');
+    const replayFactory = vi.fn(() => passingProvider(subject.fixture));
+    const replay = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: replayFactory },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replay.manifest.stage).toBe('authoring_failed');
+    expect(replayFactory).not.toHaveBeenCalled();
+
+    const hostileFailureVariants = [
+      (failure: Record<string, unknown>) => {
+        const codes = failure.diagnosticCodes as string[];
+        failure.diagnosticCodes = [...codes, codes[0]!];
+      },
+      (failure: Record<string, unknown>) => {
+        const codes = failure.diagnosticCodes as string[];
+        failure.diagnosticCodes = [
+          ...new Set([...codes, 'action_semantic_capability_gap']),
+        ].sort();
+      },
+      (failure: Record<string, unknown>) => {
+        failure.diagnosticCount = 1;
+        failure.diagnosticCodes = [
+          'draft_contract_validation_failed',
+          'draft_schema_validation_failed',
+          'provider_call_failed',
+        ];
+      },
+      (failure: Record<string, unknown>) => {
+        const issues = failure.issues as string[];
+        failure.issues = [...issues, issues[0]!];
+      },
+      (failure: Record<string, unknown>) => {
+        failure.issues = ['z_issue', 'a_issue'];
+      },
+    ];
+    for (const mutate of hostileFailureVariants) {
+      const forged = JSON.parse(JSON.stringify(result.receipt)) as Record<
+        string,
+        unknown
+      > & { digest: string; failure: Record<string, unknown> };
+      mutate(forged.failure);
+      const {
+        digest: _forgedDigest,
+        digestAlgorithm: _forgedDigestAlgorithm,
+        ...forgedPayload
+      } = forged;
+      forged.digest = canonicalJsonDigest(forgedPayload);
+      expect(
+        productionBlueprintAuthoringReceiptReplayIsValid({
+          receipt: forged,
+          request: preflight.request,
+          expectedStatus: 'failed',
+          expectedDigest: forged.digest,
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it.each([
+    'credential',
+    'transport_before_dispatch',
+    'transport',
+    'empty_output',
+  ] as const)(
+    'accepts and zero-call replays the canonical adapter %s failure receipt',
+    async (failureKind) => {
+      const subject = setup();
+      const preflight = prepare(subject);
+      const readCredential = vi.fn(() => {
+        if (failureKind === 'credential') {
+          throw new Error('raw credential failure must never persist');
+        }
+        return 'test-key-must-never-persist';
+      });
+      const transport: OpenAIResponsesAuthoringTransport & {
+        create: ReturnType<typeof vi.fn>;
+      } = {
+        create: vi.fn(async (request) => {
+          if (failureKind === 'transport_before_dispatch') {
+            throw new Error('raw pre-dispatch transport failure must never persist');
+          }
+          request.observations.transportDispatchStarted = true;
+          request.observations.transportDispatchCount += 1;
+          request.observations.canonicalRouteConfirmed = true;
+          request.observations.canonicalModelConfirmed = true;
+          if (failureKind === 'transport') {
+            throw new Error('raw transport failure must never persist');
+          }
+          request.observations.httpResponseReceived = true;
+          request.observations.httpStatus = 200;
+          return {
+            id: 'resp-empty-output-1',
+            model: 'gpt-5.6-sol',
+            status: 'completed',
+            output_text: '   ',
+            usage: {
+              input_tokens: 1_000,
+              input_tokens_details: {
+                cached_tokens: 100,
+                cache_write_tokens: 200,
+              },
+              output_tokens: 2_000,
+              output_tokens_details: { reasoning_tokens: 500 },
+              total_tokens: 3_000,
+            },
+          };
+        }),
+      };
+      const providerFactory = vi.fn(() =>
+        createOpenAIResponsesBlueprintAuthoringAdapter({
+          readCredential,
+          transport,
+        }),
+      );
+      const result = await executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory },
+      );
+      expect(result.manifest.stage).toBe('authoring_failed');
+      expect(result.receipt.failure?.code).toBe(
+        failureKind === 'empty_output'
+          ? 'provider_evidence_invalid'
+          : 'provider_call_failed',
+      );
+      expect(
+        productionBlueprintAuthoringReceiptReplayIsValid({
+          receipt: result.receipt as unknown as Record<string, unknown>,
+          request: preflight.request,
+          expectedStatus: 'failed',
+          expectedDigest: result.receipt.digest,
+        }),
+        JSON.stringify(result.receipt, null, 2),
+      ).toBe(true);
+      expect(JSON.stringify(result.receipt)).not.toMatch(
+        /raw credential failure|raw transport failure|raw pre-dispatch transport failure|test-key-must-never-persist/i,
+      );
+      if (
+        failureKind === 'transport_before_dispatch' ||
+        failureKind === 'transport'
+      ) {
+        const impossibleAdapterAttestation = JSON.parse(
+          JSON.stringify(result.receipt),
+        ) as Record<string, unknown> & {
+          attempts: Array<Record<string, unknown>>;
+          digest: string;
+        };
+        const attestation = impossibleAdapterAttestation.attempts[0]!
+          .executionAttestation as Record<string, unknown>;
+        if (failureKind === 'transport_before_dispatch') {
+          attestation.canonicalModelConfirmed = false;
+        } else {
+          attestation.canonicalRouteConfirmed = false;
+        }
+        const {
+          digest: _attestationDigest,
+          digestAlgorithm: _attestationDigestAlgorithm,
+          ...attestationPayload
+        } = impossibleAdapterAttestation;
+        impossibleAdapterAttestation.digest =
+          canonicalJsonDigest(attestationPayload);
+        expect(
+          productionBlueprintAuthoringReceiptReplayIsValid({
+            receipt: impossibleAdapterAttestation,
+            request: preflight.request,
+            expectedStatus: 'failed',
+            expectedDigest: impossibleAdapterAttestation.digest,
+          }),
+        ).toBe(false);
+      }
+      if (failureKind === 'empty_output') {
+        const singletonArrayBoundary = JSON.parse(
+          JSON.stringify(result.receipt),
+        ) as Record<string, unknown> & {
+          attempts: Array<Record<string, unknown>>;
+          digest: string;
+        };
+        Object.assign(singletonArrayBoundary.attempts[0]!, {
+          provider: ['openai'],
+          model: ['gpt-5.6-sol'],
+          failureEvidenceKind: ['provider_adapter_boundary'],
+        });
+        const {
+          digest: _singletonDigest,
+          digestAlgorithm: _singletonDigestAlgorithm,
+          ...singletonPayload
+        } = singletonArrayBoundary;
+        singletonArrayBoundary.digest = canonicalJsonDigest(singletonPayload);
+        expect(
+          productionBlueprintAuthoringReceiptReplayIsValid({
+            receipt: singletonArrayBoundary,
+            request: preflight.request,
+            expectedStatus: 'failed',
+            expectedDigest: singletonArrayBoundary.digest,
+          }),
+        ).toBe(false);
+
+        const impossibleStaticAccounting = JSON.parse(
+          JSON.stringify(result.receipt),
+        ) as Record<string, unknown> & {
+          attempts: Array<Record<string, unknown>>;
+          digest: string;
+        };
+        const staticAccounting = impossibleStaticAccounting.attempts[0]!
+          .inputAccounting as Record<string, number>;
+        staticAccounting.systemBytes! +=
+          staticAccounting.schemaBytes! + staticAccounting.separatorBytes!;
+        staticAccounting.schemaBytes = 0;
+        staticAccounting.separatorBytes = 0;
+        const {
+          digest: _staticAccountingDigest,
+          digestAlgorithm: _staticAccountingDigestAlgorithm,
+          ...staticAccountingPayload
+        } = impossibleStaticAccounting;
+        impossibleStaticAccounting.digest = canonicalJsonDigest(
+          staticAccountingPayload,
+        );
+        expect(
+          productionBlueprintAuthoringReceiptReplayIsValid({
+            receipt: impossibleStaticAccounting,
+            request: preflight.request,
+            expectedStatus: 'failed',
+            expectedDigest: impossibleStaticAccounting.digest,
+          }),
+        ).toBe(false);
+
+        const overCeilingBoundary = JSON.parse(
+          JSON.stringify(result.receipt),
+        ) as Record<string, unknown> & {
+          attempts: Array<Record<string, unknown>>;
+          digest: string;
+        };
+        const overCeilingAccounting = overCeilingBoundary.attempts[0]!
+          .inputAccounting as Record<string, number>;
+        const overCeilingEstimatedBytes =
+          BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS + 1;
+        const accountingDelta =
+          overCeilingEstimatedBytes - overCeilingAccounting.estimatedBytes!;
+        expect(accountingDelta).toBeGreaterThan(0);
+        overCeilingAccounting.userBytes! += accountingDelta;
+        overCeilingAccounting.estimatedBytes = overCeilingEstimatedBytes;
+        const {
+          digest: _overCeilingDigest,
+          digestAlgorithm: _overCeilingDigestAlgorithm,
+          ...overCeilingPayload
+        } = overCeilingBoundary;
+        overCeilingBoundary.digest = canonicalJsonDigest(overCeilingPayload);
+        expect(
+          productionBlueprintAuthoringReceiptReplayIsValid({
+            receipt: overCeilingBoundary,
+            request: preflight.request,
+            expectedStatus: 'failed',
+            expectedDigest: overCeilingBoundary.digest,
+          }),
+        ).toBe(false);
+
+        for (const impossibleAdapterBoundary of [
+          {
+            reason: 'cost_evidence_mismatch',
+            providerEvidenceVersion:
+              OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION,
+          },
+          {
+            reason: 'provider_evidence_version_invalid',
+            providerEvidenceVersion: null,
+          },
+        ] as const) {
+          const compilerBoundary = JSON.parse(
+            JSON.stringify(result.receipt),
+          ) as Record<string, unknown> & {
+            attempts: Array<Record<string, unknown>>;
+            digest: string;
+          };
+          Object.assign(compilerBoundary.attempts[0]!, {
+            failureEvidenceKind: 'compiler_response_boundary',
+            failureEvidenceReason: impossibleAdapterBoundary.reason,
+            providerEvidenceVersion:
+              impossibleAdapterBoundary.providerEvidenceVersion,
+          });
+          const {
+            digest: _compilerDigest,
+            digestAlgorithm: _compilerDigestAlgorithm,
+            ...compilerPayload
+          } = compilerBoundary;
+          compilerBoundary.digest = canonicalJsonDigest(compilerPayload);
+          expect(
+            productionBlueprintAuthoringReceiptReplayIsValid({
+              receipt: compilerBoundary,
+              request: preflight.request,
+              expectedStatus: 'failed',
+              expectedDigest: compilerBoundary.digest,
+            }),
+          ).toBe(true);
+
+          compilerBoundary.attempts[0]!.failureEvidenceKind =
+            'provider_adapter_boundary';
+          const {
+            digest: _adapterDigest,
+            digestAlgorithm: _adapterDigestAlgorithm,
+            ...adapterPayload
+          } = compilerBoundary;
+          compilerBoundary.digest = canonicalJsonDigest(adapterPayload);
+          expect(
+            productionBlueprintAuthoringReceiptReplayIsValid({
+              receipt: compilerBoundary,
+              request: preflight.request,
+              expectedStatus: 'failed',
+              expectedDigest: compilerBoundary.digest,
+            }),
+          ).toBe(false);
+        }
+      }
+      const replayFactory = vi.fn(() => passingProvider(subject.fixture));
+      const replay = await executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: replayFactory },
+      );
+      expect(replay.replayed).toBe(true);
+      expect(replay.receipt.digest).toBe(result.receipt.digest);
+      expect(replayFactory).not.toHaveBeenCalled();
+    },
+  );
+
+  it('reads only the exact local OpenAI credential after the execution claim and never persists source material', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const credentialRoot = tempRoot();
+    const credentialPath = path.join(credentialRoot, 'approved-local.env');
+    const credential = 'sk-test-focused-credential-1234567890';
+    const unrelatedSecret = 'postgres-secret-must-not-enter-process-authority';
+    fs.writeFileSync(
+      credentialPath,
+      [
+        '# local operator credential source',
+        `OPENAI_API_KEY='${credential}'`,
+        `DATABASE_URL=${unrelatedSecret}`,
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+    const beforeRead = vi.fn(() => {
+      const claims = path.join(
+        subject.repoRoot,
+        QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+        'execution-claims',
+      );
+      expect(fs.existsSync(claims)).toBe(true);
+      expect(fs.readdirSync(claims)).toHaveLength(1);
+    });
+    const readCredential = createLazyLocalOpenAICredentialReader({
+      credentialFilePath: credentialPath,
+      hooks: { beforeCredentialSourceRead: beforeRead },
+    });
+    expect(beforeRead).not.toHaveBeenCalled();
+    const transport: OpenAIResponsesAuthoringTransport = {
+      create: vi.fn(async (request) => {
+        expect(request.apiKey).toBe(credential);
+        request.observations.transportDispatchStarted = true;
+        request.observations.transportDispatchCount += 1;
+        request.observations.canonicalRouteConfirmed = true;
+        request.observations.canonicalModelConfirmed = true;
+        throw new Error('raw transport failure must not persist');
+      }),
+    };
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: () =>
+          createOpenAIResponsesBlueprintAuthoringAdapter({
+            readCredential,
+            transport,
+          }),
+      },
+    );
+    expect(result.manifest.stage).toBe('authoring_failed');
+    expect(beforeRead).toHaveBeenCalledTimes(1);
+    expect(readCredential()).toBe(credential);
+    expect(beforeRead).toHaveBeenCalledTimes(1);
+    const persisted = JSON.stringify(fileInventory(subject.repoRoot));
+    expect(persisted).not.toContain(credential);
+    expect(persisted).not.toContain(unrelatedSecret);
+    expect(persisted).not.toContain(credentialPath);
+
+    for (const source of [
+      'OTHER_KEY=value\n',
+      'OPENAI_API_KEY=short\n',
+      `${`OPENAI_API_KEY=${credential}\n`.repeat(2)}`,
+    ]) {
+      const invalidPath = path.join(tempRoot(), 'invalid.env');
+      fs.writeFileSync(invalidPath, source, 'utf8');
+      const invalidReader = createLazyLocalOpenAICredentialReader({
+        credentialFilePath: invalidPath,
+      });
+      expect(invalidReader).toThrowError('credential_source_invalid');
+    }
+  });
+
+  it('replays a canonical combined-invalid response using deterministic evidence precedence', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const transport: OpenAIResponsesAuthoringTransport = {
+      create: vi.fn(async (request) => {
+        request.observations.transportDispatchStarted = true;
+        request.observations.transportDispatchCount += 1;
+        request.observations.canonicalRouteConfirmed = true;
+        request.observations.canonicalModelConfirmed = true;
+        request.observations.httpResponseReceived = true;
+        request.observations.httpStatus = 200;
+        return {
+          model: 'gpt-5.6-sol',
+          status: 'incomplete',
+          output_text: '',
+        };
+      }),
+    };
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: () =>
+          createOpenAIResponsesBlueprintAuthoringAdapter({
+            readCredential: () => 'test-key-must-never-persist',
+            transport,
+          }),
+      },
+    );
+    expect(result.manifest.stage).toBe('authoring_failed');
+    expect(result.receipt.failure?.code).toBe('provider_evidence_invalid');
+    expect(result.receipt.attempts[0]).toMatchObject({
+      failureEvidenceKind: 'provider_adapter_boundary',
+      failureEvidenceReason: 'response_id_invalid',
+    });
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: result.receipt as unknown as Record<string, unknown>,
+        request: preflight.request,
+        expectedStatus: 'failed',
+        expectedDigest: result.receipt.digest,
+      }),
+    ).toBe(true);
+  });
+
+  it('replays a repair-time credential failure with prior closed diagnostics', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const readCredential = vi.fn(() => {
+      if (readCredential.mock.calls.length > 1) {
+        throw new Error('raw repair credential failure must never persist');
+      }
+      return 'test-key-must-never-persist';
+    });
+    const transport: OpenAIResponsesAuthoringTransport = {
+      create: vi.fn(async (request) => {
+        request.observations.transportDispatchStarted = true;
+        request.observations.transportDispatchCount += 1;
+        request.observations.canonicalRouteConfirmed = true;
+        request.observations.canonicalModelConfirmed = true;
+        request.observations.httpResponseReceived = true;
+        request.observations.httpStatus = 200;
+        return {
+          id: 'resp-invalid-first-draft',
+          model: 'gpt-5.6-sol',
+          status: 'completed',
+          output_text: '{"invalid":true}',
+          usage: {
+            input_tokens: 1_000,
+            input_tokens_details: {
+              cached_tokens: 100,
+              cache_write_tokens: 200,
+            },
+            output_tokens: 2_000,
+            output_tokens_details: { reasoning_tokens: 500 },
+            total_tokens: 3_000,
+          },
+        };
+      }),
+    };
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      {
+        providerFactory: () =>
+          createOpenAIResponsesBlueprintAuthoringAdapter({
+            readCredential,
+            transport,
+          }),
+      },
+    );
+    expect(result.receipt.failure?.code).toBe('provider_call_failed');
+    expect(result.receipt.attempts).toHaveLength(2);
+    expect(result.receipt.attempts[0]!.validationDiagnostics.count).toBeGreaterThan(
+      0,
+    );
+    expect(result.receipt.attempts[0]!.validationDiagnostics.codes.length).toBeGreaterThan(
+      0,
+    );
+    expect(result.receipt.attempts[1]!.failureEvidenceKind).toBe(
+      'provider_adapter_boundary',
+    );
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: result.receipt as unknown as Record<string, unknown>,
+        request: preflight.request,
+        expectedStatus: 'failed',
+        expectedDigest: result.receipt.digest,
+      }),
+    ).toBe(true);
+    expect(JSON.stringify(result.receipt)).not.toMatch(
+      /raw repair credential failure|test-key-must-never-persist/i,
+    );
+    const replayFactory = vi.fn(() => passingProvider(subject.fixture));
+    const replay = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: replayFactory },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replayFactory).not.toHaveBeenCalled();
+  });
+
+  it('replays an exact pre-response adapter policy failure', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const provider: ProductionAuthoringProvider = {
+      call: async (args) => {
+        const inputAccounting = blueprintAuthoringInputAccounting({
+          systemPrompt: args.systemPrompt,
+          userPrompt: args.userPrompt,
+          schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+        });
+        throw new ProductionAuthoringProviderBoundaryError(
+          'provider_policy_mismatch',
+          {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            providerEvidenceVersion:
+              OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION,
+            inputAccounting,
+            reservedExposureBeforeCallUsd:
+              blueprintAuthoringReservedExposureUsd({
+                conservativeAccountedCostUsd: 0,
+                callsCompleted: 0,
+              }),
+            executionAttestation: notRunAuthoringExecutionAttestation(),
+          },
+          'adapter_policy_mismatch',
+        );
+      },
+    };
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => provider },
+    );
+    expect(result.receipt.failure?.code).toBe('provider_policy_mismatch');
+    expect(
+      productionBlueprintAuthoringReceiptReplayIsValid({
+        receipt: result.receipt as unknown as Record<string, unknown>,
+        request: preflight.request,
+        expectedStatus: 'failed',
+        expectedDigest: result.receipt.digest,
+      }),
+    ).toBe(true);
+    const replayFactory = vi.fn(() => passingProvider(subject.fixture));
+    const replay = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: replayFactory },
+    );
+    expect(replay.replayed).toBe(true);
+    expect(replayFactory).not.toHaveBeenCalled();
+  });
+
+  it('rejects reordered receipt bytes even when semantic value and digest match', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => passingProvider(subject.fixture) },
+    );
+    const receiptPath = path.join(subject.repoRoot, result.receiptPath);
+    const parsed = JSON.parse(fs.readFileSync(receiptPath, 'utf8')) as Record<
+      string,
+      unknown
+    > & { attempts: Array<Record<string, unknown>> };
+    const reordered = Object.fromEntries(
+      Object.entries({
+        ...parsed,
+        attempts: parsed.attempts.map((attempt) =>
+          Object.fromEntries(Object.entries(attempt).reverse()),
+        ),
+      }).reverse(),
+    );
+    fs.writeFileSync(
+      receiptPath,
+      `${JSON.stringify(reordered, null, 2)}\n`,
+      'utf8',
+    );
+    const replayFactory = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: replayFactory },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    expect(replayFactory).not.toHaveBeenCalled();
+  });
+
+  it('rejects an on-disk non-finite receipt as stale without escaping the loader boundary', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const result = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => passingProvider(subject.fixture) },
+    );
+    const receiptPath = path.join(subject.repoRoot, result.receiptPath);
+    const canonicalBytes = fs.readFileSync(receiptPath, 'utf8');
+    const hostileBytes = canonicalBytes.replace(
+      /"callCount": 1,/,
+      '"callCount": 1e400,',
+    );
+    expect(hostileBytes).not.toBe(canonicalBytes);
+    fs.writeFileSync(receiptPath, hostileBytes, 'utf8');
+    const replayFactory = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: replayFactory },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    expect(replayFactory).not.toHaveBeenCalled();
+  });
+
+  it('records one exact Guy approval and rejects a second timestamp without residue', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const candidate = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => passingProvider(subject.fixture) },
+    );
+    const approvalArgs = {
+      repoRoot: subject.repoRoot,
+      candidateManifestPath: candidate.manifestPath,
+      outputDir: OUTPUT_DIR,
+      expectedBlueprintDigest:
+        candidate.manifest.blueprint!.blueprintDigest,
+      expectedAuthoringAuthorityDigest:
+        candidate.manifest.blueprint!.authoringAuthorityDigest,
+      expectedReviewPacketDigest:
+        candidate.manifest.blueprint!.reviewPacketDigest,
+      approvedBy: 'Guy' as const,
+      approvedAt: APPROVED_AT,
+    };
+    const preview = recordQaWizardBlueprintApproval({
+      ...approvalArgs,
+      write: false,
+    });
+    expect(preview.manifest.stage).toBe('blueprint_approved');
+    expect(fs.existsSync(path.join(subject.repoRoot, preview.approvalPath))).toBe(
+      false,
+    );
+    const written = recordQaWizardBlueprintApproval({
+      ...approvalArgs,
+      write: true,
+    });
+    expect(
+      loadQaWizardBlueprintAuthoringManifest({
+        repoRoot: subject.repoRoot,
+        manifestPath: written.manifestPath,
+      }),
+    ).toEqual(written.manifest);
+    const inventoryBeforeReplay = fileInventory(
+      path.join(subject.repoRoot, OUTPUT_DIR),
+    );
+    const replay = recordQaWizardBlueprintApproval({
+      ...approvalArgs,
+      write: true,
+    });
+    expect(replay.attestation.digest).toBe(written.attestation.digest);
+    expect(fileInventory(path.join(subject.repoRoot, OUTPUT_DIR))).toEqual(
+      inventoryBeforeReplay,
+    );
+    expect(() =>
+      recordQaWizardBlueprintApproval({
+        ...approvalArgs,
+        approvedAt: '2026-08-25T12:31:00.000Z',
+        write: true,
+      }),
+    ).toThrow(/different approval/);
+    expect(fileInventory(path.join(subject.repoRoot, OUTPUT_DIR))).toEqual(
+      inventoryBeforeReplay,
+    );
+  });
+
+  it('publishes the candidate-keyed approval decision before variable artifacts and recovers exact replay', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const candidate = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: () => passingProvider(subject.fixture) },
+    );
+    const approvalArgs = {
+      repoRoot: subject.repoRoot,
+      candidateManifestPath: candidate.manifestPath,
+      outputDir: OUTPUT_DIR,
+      expectedBlueprintDigest:
+        candidate.manifest.blueprint!.blueprintDigest,
+      expectedAuthoringAuthorityDigest:
+        candidate.manifest.blueprint!.authoringAuthorityDigest,
+      expectedReviewPacketDigest:
+        candidate.manifest.blueprint!.reviewPacketDigest,
+      approvedBy: 'Guy' as const,
+      approvedAt: APPROVED_AT,
+      write: true,
+    };
+    const preview = recordQaWizardBlueprintApproval({
+      ...approvalArgs,
+      write: false,
+    });
+    expect(() =>
+      recordQaWizardBlueprintApproval(approvalArgs, {
+        hooks: {
+          afterApprovalDecision() {
+            throw new Error('simulated_crash_after_approval_decision');
+          },
+        },
+      }),
+    ).toThrow('simulated_crash_after_approval_decision');
+    expect(fs.existsSync(path.join(subject.repoRoot, preview.approvalPath))).toBe(
+      false,
+    );
+    expect(fs.existsSync(path.join(subject.repoRoot, preview.manifestPath))).toBe(
+      false,
+    );
+    expect(() =>
+      recordQaWizardBlueprintApproval({
+        ...approvalArgs,
+        approvedAt: '2026-08-25T12:31:00.000Z',
+      }),
+    ).toThrow(/approval decision.*conflicts|different approval decision/);
+    const recovered = recordQaWizardBlueprintApproval(approvalArgs);
+    expect(recovered.manifest.stage).toBe('blueprint_approved');
+    expect(
+      loadQaWizardBlueprintAuthoringManifest({
+        repoRoot: subject.repoRoot,
+        manifestPath: recovered.manifestPath,
+      }),
+    ).toEqual(recovered.manifest);
+  });
+
+  it('rejects added manifest and nested callBudget keys before any provider access', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    const manifestAbsolute = path.join(subject.repoRoot, preflight.manifestPath);
+    const originalManifest = fs.readFileSync(manifestAbsolute, 'utf8');
+    const hostileManifest = JSON.parse(originalManifest) as Record<string, unknown>;
+    hostileManifest.hostileExtraKey = true;
+    fs.writeFileSync(manifestAbsolute, `${JSON.stringify(hostileManifest)}\n`, 'utf8');
+    expect(() =>
+      loadQaWizardBlueprintAuthoringManifest({
+        repoRoot: subject.repoRoot,
+        manifestPath: preflight.manifestPath,
+      }),
+    ).toThrow(/invalid or tampered/);
+    fs.writeFileSync(manifestAbsolute, originalManifest, 'utf8');
+
+    const requestAbsolute = path.join(subject.repoRoot, preflight.requestPath);
+    const originalRequest = fs.readFileSync(requestAbsolute, 'utf8');
+    const hostileRequest = JSON.parse(originalRequest) as {
+      callBudget: Record<string, unknown>;
+    };
+    hostileRequest.callBudget.hostileExtraKey = true;
+    fs.writeFileSync(
+      requestAbsolute,
+      `${JSON.stringify(hostileRequest, null, 2)}\n`,
+      'utf8',
+    );
+    const providerFactory = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory },
+      ),
+    ).rejects.toThrow(/request.*canonical|request.*invalid/i);
+    expect(providerFactory).not.toHaveBeenCalled();
+  });
+});

@@ -36,6 +36,7 @@ export * from './canonicalMaterializationInput';
 export * from './canonicalMaterializationInputWriter';
 export * from './canonicalPreLiveReadiness';
 export * from './qaWizardCandidateBridge';
+export * from './qaWizardBlueprintAuthoringLifecycle';
 export * from './timeAuthorityMigrationLifecycle';
 export * from './timeAuthorityMigrationBlueprintLifecycle';
 export * from './timeAuthorityMigrationSetBoardLifecycle';

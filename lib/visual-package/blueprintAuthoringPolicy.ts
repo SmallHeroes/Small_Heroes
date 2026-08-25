@@ -160,6 +160,22 @@ export function blueprintAuthoringInputAccountingIsValid(
   }
 }
 
+export function blueprintAuthoringInputAccountingIsCanonicalForSchema(
+  value: unknown,
+  schema: Record<string, unknown>,
+): value is BlueprintAuthoringInputAccounting {
+  if (!blueprintAuthoringInputAccountingIsValid(value)) return false;
+  try {
+    return (
+      value.schemaBytes ===
+        Buffer.byteLength(JSON.stringify(schema), 'utf8') &&
+      value.separatorBytes === Buffer.byteLength('\n\n', 'utf8')
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function blueprintAuthoringUsageIsInternallyConsistent(
   usage: BlueprintAuthoringUsage,
 ): boolean {

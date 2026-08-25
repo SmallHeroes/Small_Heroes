@@ -9,6 +9,7 @@ import {
   PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
   auditProductionStoryReadiness,
+  buildProductionAuthoringRunRequest,
   buildProductionAuthoringContext,
   buildStorySourceAuthoritySnapshot,
   buildProductionReconciliationDraftBundle,
@@ -19,6 +20,7 @@ import {
   persistReconciliationDraftBundle,
   productionAuthoringReceiptVersionStatus,
   productionAuthoringRequestVersionStatus,
+  productionBlueprintAuthoringPreflightIssues,
   runProductionBlueprintAuthoring,
   ProductionAuthoringProviderBoundaryError,
   type ProductionAuthoringProvider,
@@ -700,6 +702,29 @@ describe('reconciliation draft and review workflow', () => {
 });
 
 describe('provider-isolated Blueprint authoring runner', () => {
+  it('builds one exact locked request and rejects added nested budget authority', () => {
+    const { context } = buildContext();
+    const request = buildProductionAuthoringRunRequest({
+      context,
+      mode: 'live',
+      requestId: 'request-live',
+      requestedAt: '2026-07-27T12:00:00.000Z',
+    });
+    expect(request).toEqual(requestFor(context, 'live'));
+    const hostile = structuredClone(request) as ProductionAuthoringRunRequest & {
+      callBudget: ProductionAuthoringRunRequest['callBudget'] & {
+        extra: boolean;
+      };
+    };
+    hostile.callBudget.extra = true;
+    expect(
+      productionBlueprintAuthoringPreflightIssues({
+        request: hostile,
+        context,
+      }),
+    ).toContain('callBudget keys are invalid');
+  });
+
   it('keeps provider, network, storage, registry, approval, publication, render, and Vision unreachable in preflight', async () => {
     const { context } = buildContext('multi_zone_transition');
     const provider = {
@@ -800,7 +825,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'production-blueprint-authoring-receipt/v5',
+      PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION,
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.repairCount).toBe(0);
@@ -1109,7 +1134,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
         cumulativeConservativeCostUsd: 0.00242,
         failureCode: 'provider_evidence_invalid',
       });
-      expect(JSON.stringify(result.receipt)).not.toContain('999');
+      expect(JSON.stringify(result.receipt)).not.toContain(':999');
     },
   );
 
@@ -1425,6 +1450,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
               receipt.conservativeCallCostUsd,
             cumulativeConservativeCostUsd: 999,
           },
+          'completion_status_invalid',
         );
       }),
     };
@@ -1445,7 +1471,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
       cumulativeConservativeCostUsd: 0.00242,
       failureCode: 'provider_evidence_invalid',
     });
-    expect(JSON.stringify(result.receipt)).not.toContain('999');
+    expect(JSON.stringify(result.receipt)).not.toContain(':999');
   });
 
   it('reclassifies malformed thrown-boundary attestation evidence without claiming a dispatch', async () => {
@@ -1478,6 +1504,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
             cumulativeConservativeCostUsd:
               receipt.conservativeCallCostUsd,
           },
+          'completion_status_invalid',
         );
       }),
     };
@@ -1527,6 +1554,7 @@ describe('provider-isolated Blueprint authoring runner', () => {
             cumulativeConservativeCostUsd:
               receipt.conservativeCallCostUsd,
           },
+          'completion_status_invalid',
         );
       }),
     };

@@ -186,6 +186,12 @@ export interface PersistedPreRenderBlueprintLifecycle {
 }
 
 export interface ImmutableWriteHooks {
+  /** Optional existing same-volume stable directory for the private temporary file. */
+  temporaryDirectoryPath?: string;
+  /** Flush the published file and, where supported, its parent directory. */
+  flushPublishedArtifact?: boolean;
+  /** Validate an already-published destination before idempotent byte reuse. */
+  beforeExistingArtifactRead?: (destinationPath: string) => void;
   /** Test-only fault seam after durable temp fsync and before atomic publish. */
   beforePublish?: (temporaryPath: string, destinationPath: string) => void;
 }
@@ -818,6 +824,45 @@ export function buildPreRenderBlueprintReviewBundle(args: {
 
 let temporaryWriteCounter = 0;
 
+function fsyncPublishedArtifact(destination: string): void {
+  let artifactDescriptor: number | null = null;
+  let directoryDescriptor: number | null = null;
+  try {
+    // `fsync` on a read-only file handle returns EPERM on Windows. `r+` is
+    // non-truncating and lets FlushFileBuffers establish the portable file
+    // durability barrier without changing the immutable bytes.
+    artifactDescriptor = openSync(destination, 'r+');
+    fsyncSync(artifactDescriptor);
+    closeSync(artifactDescriptor);
+    artifactDescriptor = null;
+    try {
+      directoryDescriptor = openSync(path.dirname(destination), 'r');
+      fsyncSync(directoryDescriptor);
+      closeSync(directoryDescriptor);
+      directoryDescriptor = null;
+    } catch (error) {
+      if (directoryDescriptor !== null) {
+        closeSync(directoryDescriptor);
+        directoryDescriptor = null;
+      }
+      if (
+        process.platform !== 'win32' ||
+        !['EPERM', 'EINVAL', 'EISDIR'].includes(
+          String((error as NodeJS.ErrnoException).code),
+        )
+      ) {
+        throw error;
+      }
+      // Node cannot FlushFileBuffers on Windows directory handles. Flushing
+      // the linked destination above is the strongest portable Node barrier;
+      // any surviving destination remains an immutable fail-closed claim.
+    }
+  } finally {
+    if (artifactDescriptor !== null) closeSync(artifactDescriptor);
+    if (directoryDescriptor !== null) closeSync(directoryDescriptor);
+  }
+}
+
 /**
  * Atomic content-addressed no-overwrite publication.
  *
@@ -833,13 +878,19 @@ export function writeImmutableLocalArtifact(args: {
   const destination = path.resolve(args.destinationPath);
   mkdirSync(path.dirname(destination), { recursive: true });
   if (existsSync(destination)) {
+    args.hooks?.beforeExistingArtifactRead?.(destination);
     if (readFileSync(destination, 'utf8') !== args.bytes) {
       throw new Error(`immutable artifact collision at ${destination}`);
     }
     return { created: false };
   }
   temporaryWriteCounter += 1;
-  const temporary = `${destination}.tmp-${process.pid}-${temporaryWriteCounter}`;
+  const temporary = args.hooks?.temporaryDirectoryPath
+    ? path.join(
+        path.resolve(args.hooks.temporaryDirectoryPath),
+        `.immutable-${process.pid}-${temporaryWriteCounter}.tmp`,
+      )
+    : `${destination}.tmp-${process.pid}-${temporaryWriteCounter}`;
   let descriptor: number | null = null;
   try {
     descriptor = openSync(temporary, 'wx');
@@ -851,13 +902,16 @@ export function writeImmutableLocalArtifact(args: {
     try {
       linkSync(temporary, destination);
     } catch (error) {
-      if (
-        (error as NodeJS.ErrnoException).code === 'EEXIST' &&
-        readFileSync(destination, 'utf8') === args.bytes
-      ) {
-        return { created: false };
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+        args.hooks?.beforeExistingArtifactRead?.(destination);
+        if (readFileSync(destination, 'utf8') === args.bytes) {
+          return { created: false };
+        }
       }
       throw error;
+    }
+    if (args.hooks?.flushPublishedArtifact === true) {
+      fsyncPublishedArtifact(destination);
     }
     return { created: true };
   } finally {

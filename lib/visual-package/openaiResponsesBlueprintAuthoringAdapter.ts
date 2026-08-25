@@ -34,6 +34,7 @@ import type {
 import {
   ProductionAuthoringProviderBoundaryError,
   type ProductionAuthoringAttemptFailureCode,
+  type ProductionAuthoringAttemptFailureEvidenceReason,
   type ProductionAuthoringProvider,
   type ProductionAuthoringProviderBoundaryEvidence,
   type ProductionAuthoringProviderResponse,
@@ -96,12 +97,42 @@ function productionFailureCode(
   }
 }
 
+function adapterFailureEvidenceReason(
+  code: BlueprintAuthoringAdapterBoundaryCode,
+): ProductionAuthoringAttemptFailureEvidenceReason {
+  switch (code) {
+    case 'provider_call_failed':
+      return 'provider_call_failed';
+    case 'provider_identity_invalid':
+      return 'provider_identity_mismatch';
+    case 'provider_completion_invalid':
+      return 'completion_status_invalid';
+    case 'usage_invalid':
+      return 'usage_invalid';
+    case 'input_ceiling_exceeded':
+      return 'input_ceiling_exceeded';
+    case 'spend_reservation_exceeded':
+      return 'spend_reservation_exceeded';
+    case 'cost_ceiling_exceeded':
+      return 'cost_ceiling_exceeded';
+    case 'provider_evidence_invalid':
+      return 'boundary_reason_invalid';
+    case 'adapter_terminal':
+    case 'attempt_sequence_invalid':
+    case 'call_budget_exhausted':
+    case 'policy_mismatch':
+      return 'adapter_policy_mismatch';
+  }
+}
+
 export class BlueprintAuthoringAdapterBoundaryError extends ProductionAuthoringProviderBoundaryError {
   constructor(
     readonly code: BlueprintAuthoringAdapterBoundaryCode,
     evidence: ProductionAuthoringProviderBoundaryEvidence = {},
+    failureEvidenceReason: ProductionAuthoringAttemptFailureEvidenceReason =
+      adapterFailureEvidenceReason(code),
   ) {
-    super(productionFailureCode(code), evidence);
+    super(productionFailureCode(code), evidence, failureEvidenceReason);
     this.message = `blueprint_authoring_${code}`;
     this.name = 'BlueprintAuthoringAdapterBoundaryError';
   }
@@ -298,11 +329,14 @@ export function createOpenAIResponsesBlueprintAuthoringAdapter(
       const closeAndThrow = (
         code: BlueprintAuthoringAdapterBoundaryCode,
         evidence: ProductionAuthoringProviderBoundaryEvidence = {},
+        failureEvidenceReason: ProductionAuthoringAttemptFailureEvidenceReason =
+          adapterFailureEvidenceReason(code),
       ): never => {
         terminal = true;
         throw new BlueprintAuthoringAdapterBoundaryError(
           code,
           evidence,
+          failureEvidenceReason,
         );
       };
       const policyIssues = callPolicyIssues({
@@ -464,20 +498,33 @@ export function createOpenAIResponsesBlueprintAuthoringAdapter(
           responseBoundaryEvidence,
         );
       }
-      if (response?.status !== 'completed') {
-        closeAndThrow(
-          'provider_completion_invalid',
-          responseBoundaryEvidence,
-        );
-      }
       if (
         typeof responseId !== 'string' ||
-        !/^[A-Za-z0-9_-]{1,200}$/.test(responseId) ||
-        !output.trim() ||
-        !canonicalCompletedExecutionAttestationIsValid(executionAttestation)
+        !/^[A-Za-z0-9_-]{1,200}$/.test(responseId)
       ) {
         closeAndThrow(
           'provider_evidence_invalid',
+          responseBoundaryEvidence,
+          'response_id_invalid',
+        );
+      }
+      if (!output.trim()) {
+        closeAndThrow(
+          'provider_evidence_invalid',
+          responseBoundaryEvidence,
+          'response_output_empty',
+        );
+      }
+      if (!canonicalCompletedExecutionAttestationIsValid(executionAttestation)) {
+        closeAndThrow(
+          'provider_evidence_invalid',
+          responseBoundaryEvidence,
+          'execution_attestation_invalid',
+        );
+      }
+      if (response?.status !== 'completed') {
+        closeAndThrow(
+          'provider_completion_invalid',
           responseBoundaryEvidence,
         );
       }
