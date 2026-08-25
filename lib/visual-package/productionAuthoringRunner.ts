@@ -12,6 +12,7 @@ import {
   type PreRenderBlueprintAuthoringConfig,
   type PreRenderBlueprintAuthoringResult,
 } from './preRenderBlueprintAuthoring';
+import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from './preRenderBlueprintDraftSchema';
 import { writeImmutableLocalArtifact } from './preRenderBlueprintLifecycle';
 import {
   canonicalJsonDigest,
@@ -25,7 +26,9 @@ import {
 } from './productionAuthoringContext';
 import {
   aggregateAuthoringExecutionAttestations,
+  authoringExecutionAttestationIsValid,
   buildAuthoringTerminalFailure,
+  canonicalCompletedExecutionAttestationIsValid,
   injectedAuthoringExecutionAttestation,
   notRunAuthoringExecutionAttestation,
   sanitizedAuthoringDiagnostics,
@@ -33,13 +36,49 @@ import {
   type AuthoringTerminalFailure,
   type AuthoringTerminalFailureCode,
 } from './authoringTerminalDiagnostics';
+import {
+  BLUEPRINT_AUTHORING_HARD_COST_CEILING_USD,
+  BLUEPRINT_AUTHORING_MAX_CALLS,
+  BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+  BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
+  BLUEPRINT_AUTHORING_MAX_REPAIRS,
+  BLUEPRINT_AUTHORING_MODEL,
+  BLUEPRINT_AUTHORING_NO_FALLBACK,
+  BLUEPRINT_AUTHORING_REASONING_EFFORT,
+  OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION,
+  blueprintAuthoringInputAccounting,
+  blueprintAuthoringInputAccountingIsValid,
+  blueprintAuthoringReservedExposureUsd,
+  blueprintAuthoringSpendIsWithinCeiling,
+  blueprintAuthoringUsageIsInternallyConsistent,
+  conservativeBlueprintAuthoringCostUsd,
+  nominalBlueprintAuthoringUsageCostUsd,
+  projectedMaximumBlueprintAuthoringCostUsd,
+  type BlueprintAuthoringInputAccounting,
+  type BlueprintAuthoringUsage,
+} from './blueprintAuthoringPolicy';
 
 export const PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
+  'production-blueprint-authoring-request/v4' as const;
+export const LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION =
   'production-blueprint-authoring-request/v3' as const;
 export const PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION =
-  'production-blueprint-authoring-receipt/v4' as const;
+  'production-blueprint-authoring-receipt/v5' as const;
 export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION =
+  'production-blueprint-authoring-receipt/v4' as const;
+export const LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V3 =
   'production-blueprint-authoring-receipt/v3' as const;
+
+export function productionAuthoringRequestVersionStatus(
+  version: unknown,
+): 'current' | 'legacy_immutable' | 'unsupported' {
+  if (version === PRODUCTION_AUTHORING_RUN_REQUEST_VERSION) {
+    return 'current';
+  }
+  return version === LEGACY_PRODUCTION_AUTHORING_RUN_REQUEST_VERSION
+    ? 'legacy_immutable'
+    : 'unsupported';
+}
 
 export function productionAuthoringReceiptVersionStatus(
   version: unknown,
@@ -47,8 +86,8 @@ export function productionAuthoringReceiptVersionStatus(
   if (version === PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION) {
     return 'current';
   }
-  return version ===
-    LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION
+  return version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION ||
+    version === LEGACY_PRODUCTION_AUTHORING_RUN_RECEIPT_VERSION_V3
     ? 'legacy_immutable'
     : 'unsupported';
 }
@@ -64,9 +103,9 @@ export interface ProductionAuthoringRunRequest {
   requestId: string;
   requestedAt: string;
   contextDigest: string;
-  model: string;
-  reasoningEffort: string;
-  maxOutputTokens: number;
+  model: typeof BLUEPRINT_AUTHORING_MODEL;
+  reasoningEffort: typeof BLUEPRINT_AUTHORING_REASONING_EFFORT;
+  maxOutputTokens: typeof BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS;
   noFallback: true;
   callBudget: ProductionAuthoringCallBudget;
 }
@@ -76,6 +115,14 @@ export interface ProductionAuthoringProviderReceipt {
   model: string;
   responseId?: string;
   usage?: Record<string, unknown> | null;
+  evidenceVersion?: string;
+  completionStatus?: string;
+  usageEvidenceComplete?: boolean;
+  executionAttestation?: AuthoringExecutionAttestation;
+  inputAccounting?: BlueprintAuthoringInputAccounting;
+  reservedExposureBeforeCallUsd?: number;
+  nominalEstimatedCostUsd?: number;
+  conservativeCallCostUsd?: number;
 }
 
 export interface ProductionAuthoringProviderResponse {
@@ -98,8 +145,19 @@ export interface SafeAuthoringUsage {
   outputTokens?: number;
   totalTokens?: number;
   cachedInputTokens?: number;
+  cacheWriteInputTokens?: number;
   reasoningTokens?: number;
 }
+
+export type ProductionAuthoringAttemptFailureCode =
+  | 'provider_call_failed'
+  | 'call_budget_exhausted'
+  | 'provider_policy_mismatch'
+  | 'provider_evidence_invalid'
+  | 'completion_status_invalid'
+  | 'usage_invalid'
+  | 'input_token_ceiling_exceeded'
+  | 'cost_ceiling_exceeded';
 
 export interface ProductionAuthoringAttemptReceipt {
   attempt: number;
@@ -111,12 +169,37 @@ export interface ProductionAuthoringAttemptReceipt {
   userPromptDigest: string;
   responseDigest: string | null;
   usage: SafeAuthoringUsage | null;
+  providerEvidenceVersion: string | null;
+  completionStatus: string | null;
+  usageEvidenceComplete: boolean;
+  inputAccounting: BlueprintAuthoringInputAccounting | null;
+  reservedExposureBeforeCallUsd: number | null;
+  nominalEstimatedCostUsd: number | null;
+  conservativeCallCostUsd: number | null;
+  cumulativeConservativeCostUsd: number | null;
   executionAttestation: AuthoringExecutionAttestation;
   validationDiagnostics: {
     count: number;
     codes: string[];
   };
-  failureCode: 'provider_call_failed' | 'call_budget_exhausted' | null;
+  failureCode: ProductionAuthoringAttemptFailureCode | null;
+}
+
+export interface ProductionAuthoringProviderBoundaryEvidence {
+  provider?: unknown;
+  model?: unknown;
+  responseId?: unknown;
+  responseDigest?: unknown;
+  usage?: Record<string, unknown> | null;
+  providerEvidenceVersion?: unknown;
+  completionStatus?: unknown;
+  usageEvidenceComplete?: unknown;
+  inputAccounting?: unknown;
+  reservedExposureBeforeCallUsd?: unknown;
+  nominalEstimatedCostUsd?: unknown;
+  conservativeCallCostUsd?: unknown;
+  cumulativeConservativeCostUsd?: unknown;
+  executionAttestation?: unknown;
 }
 
 export interface ProductionAuthoringRunReceipt {
@@ -162,6 +245,16 @@ class AuthoringCallBudgetError extends Error {
   }
 }
 
+export class ProductionAuthoringProviderBoundaryError extends Error {
+  constructor(
+    readonly failureCode: ProductionAuthoringAttemptFailureCode,
+    readonly evidence: ProductionAuthoringProviderBoundaryEvidence = {},
+  ) {
+    super(`blueprint authoring boundary rejected ${failureCode}`);
+    this.name = 'ProductionAuthoringProviderBoundaryError';
+  }
+}
+
 function requestIssues(
   request: ProductionAuthoringRunRequest,
   context: ProductionAuthoringContext,
@@ -199,33 +292,44 @@ function requestIssues(
   ) {
     issues.push('production authoring reconciliation content is stale');
   }
-  if (!nonEmpty(request.model) || !nonEmpty(request.reasoningEffort)) {
-    issues.push('exact model and reasoningEffort are required');
+  if (request.model !== BLUEPRINT_AUTHORING_MODEL) {
+    issues.push('model differs from canonical Blueprint policy');
+  }
+  if (
+    request.reasoningEffort !==
+    BLUEPRINT_AUTHORING_REASONING_EFFORT
+  ) {
+    issues.push('reasoningEffort differs from canonical Blueprint policy');
   }
   if (
     !Number.isSafeInteger(request.maxOutputTokens) ||
-    request.maxOutputTokens < 1
+    request.maxOutputTokens !==
+      BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS
   ) {
-    issues.push('maxOutputTokens must be a positive safe integer');
+    issues.push('maxOutputTokens differs from canonical Blueprint policy');
   }
-  if (request.noFallback !== true) {
+  if (request.noFallback !== BLUEPRINT_AUTHORING_NO_FALLBACK) {
     issues.push('noFallback must be true');
   }
   if (
     !Number.isSafeInteger(request.callBudget?.maxCalls) ||
-    request.callBudget.maxCalls < 1 ||
-    request.callBudget.maxCalls >
-      PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS + 1
+    request.callBudget.maxCalls !== BLUEPRINT_AUTHORING_MAX_CALLS
   ) {
-    issues.push(
-      `maxCalls must be between 1 and ${PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS + 1}`,
-    );
+    issues.push('maxCalls differs from canonical Blueprint policy');
   }
   if (
     !Number.isSafeInteger(request.callBudget?.maxRepairCount) ||
-    request.callBudget.maxRepairCount !== request.callBudget.maxCalls - 1
+    request.callBudget.maxRepairCount !== BLUEPRINT_AUTHORING_MAX_REPAIRS
   ) {
-    issues.push('maxRepairCount must equal maxCalls - 1');
+    issues.push('maxRepairCount differs from canonical Blueprint policy');
+  }
+  if (
+    PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS !==
+      BLUEPRINT_AUTHORING_MAX_REPAIRS ||
+    projectedMaximumBlueprintAuthoringCostUsd() >
+      BLUEPRINT_AUTHORING_HARD_COST_CEILING_USD
+  ) {
+    issues.push('canonical Blueprint policy invariants are invalid');
   }
   return issues;
 }
@@ -250,6 +354,12 @@ function safeUsage(raw: Record<string, unknown> | null | undefined): SafeAuthori
         (raw.input_tokens_details as Record<string, unknown> | undefined)
           ?.cached_tokens,
       ),
+    cacheWriteInputTokens:
+      numeric(raw.cache_write_input_tokens) ??
+      numeric(
+        (raw.input_tokens_details as Record<string, unknown> | undefined)
+          ?.cache_write_tokens,
+      ),
     reasoningTokens:
       numeric(raw.reasoning_tokens) ??
       numeric(
@@ -262,9 +372,37 @@ function safeUsage(raw: Record<string, unknown> | null | undefined): SafeAuthori
     : null;
 }
 
-function safeProviderLabel(value: unknown, fallback: string): string {
-  if (!nonEmpty(value)) return fallback;
-  return value.slice(0, 160).replace(/[\r\n\t]/g, ' ');
+function canonicalUsage(
+  raw: Record<string, unknown> | null | undefined,
+): BlueprintAuthoringUsage | null {
+  const safe = safeUsage(raw);
+  if (
+    safe?.inputTokens === undefined ||
+    safe.cachedInputTokens === undefined ||
+    safe.cacheWriteInputTokens === undefined ||
+    safe.outputTokens === undefined ||
+    safe.reasoningTokens === undefined ||
+    safe.totalTokens === undefined
+  ) {
+    return null;
+  }
+  const usage: BlueprintAuthoringUsage = {
+    inputTokens: safe.inputTokens,
+    cachedInputTokens: safe.cachedInputTokens,
+    cacheWriteInputTokens: safe.cacheWriteInputTokens,
+    outputTokens: safe.outputTokens,
+    reasoningTokens: safe.reasoningTokens,
+    totalTokens: safe.totalTokens,
+  };
+  return blueprintAuthoringUsageIsInternallyConsistent(usage)
+    ? usage
+    : null;
+}
+
+function safeUsageFromCanonical(
+  usage: BlueprintAuthoringUsage,
+): SafeAuthoringUsage {
+  return { ...usage };
 }
 
 function receiptPayload(
@@ -310,7 +448,7 @@ function failureReceipt(args: {
     callCount: args.attempts.length,
     repairCount: Math.max(0, args.attempts.length - 1),
     executionAttestation:
-      aggregateAuthoringExecutionAttestations(
+      aggregateProductionAuthoringExecutionAttestations(
         args.attempts.map(
           (attempt) => attempt.executionAttestation,
         ),
@@ -326,6 +464,17 @@ function failureReceipt(args: {
       issueCodes: args.issueCodes,
     }),
   });
+}
+
+function aggregateProductionAuthoringExecutionAttestations(
+  values: readonly AuthoringExecutionAttestation[],
+): AuthoringExecutionAttestation {
+  const providerReached = values.filter(
+    (value) => value.evidenceKind !== 'not_run',
+  );
+  return providerReached.length === 0
+    ? notRunAuthoringExecutionAttestation()
+    : aggregateAuthoringExecutionAttestations(providerReached);
 }
 
 function copyValidationExhaustionEvidence(args: {
@@ -476,6 +625,7 @@ export async function runProductionBlueprintAuthoring(args: {
 
   const attempts: ProductionAuthoringAttemptReceipt[] = [];
   let callBudgetExhausted = false;
+  let cumulativeConservativeCostUsd = 0;
   try {
     const authoringResult = await compilePreRenderBookVisualBlueprint(
       args.context.validationContext,
@@ -488,18 +638,38 @@ export async function runProductionBlueprintAuthoring(args: {
             throw new AuthoringCallBudgetError();
           }
           const kind = attempt === 1 ? 'initial' : 'repair';
+          const expectedInputAccounting =
+            blueprintAuthoringInputAccounting({
+              systemPrompt,
+              userPrompt,
+              schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+            });
+          const expectedReservedExposureBeforeCallUsd =
+            blueprintAuthoringReservedExposureUsd({
+              conservativeAccountedCostUsd:
+                cumulativeConservativeCostUsd,
+              callsCompleted: attempt - 1,
+            });
           const base = {
             attempt,
             kind,
-            provider: 'injected-provider',
+            provider: 'openai',
             model: args.request.model,
             responseId: null,
             systemPromptDigest: canonicalJsonDigest(systemPrompt),
             userPromptDigest: canonicalJsonDigest(userPrompt),
             responseDigest: null,
             usage: null,
+            providerEvidenceVersion: null,
+            completionStatus: null,
+            usageEvidenceComplete: false,
+            inputAccounting: null,
+            reservedExposureBeforeCallUsd: null,
+            nominalEstimatedCostUsd: null,
+            conservativeCallCostUsd: null,
+            cumulativeConservativeCostUsd: null,
             executionAttestation:
-              injectedAuthoringExecutionAttestation(),
+              notRunAuthoringExecutionAttestation(),
             validationDiagnostics: {
               count: 0,
               codes: [],
@@ -507,6 +677,30 @@ export async function runProductionBlueprintAuthoring(args: {
             failureCode: null,
           } satisfies ProductionAuthoringAttemptReceipt;
           try {
+            if (
+              expectedInputAccounting.estimatedBytes >
+                BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS ||
+              !blueprintAuthoringSpendIsWithinCeiling(
+                expectedReservedExposureBeforeCallUsd,
+              )
+            ) {
+              const failureCode: ProductionAuthoringAttemptFailureCode =
+                expectedInputAccounting.estimatedBytes >
+                BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS
+                  ? 'input_token_ceiling_exceeded'
+                  : 'cost_ceiling_exceeded';
+              attempts.push({
+                ...base,
+                inputAccounting: expectedInputAccounting,
+                reservedExposureBeforeCallUsd:
+                  expectedReservedExposureBeforeCallUsd,
+                cumulativeConservativeCostUsd,
+                failureCode,
+              });
+              throw new ProductionAuthoringProviderBoundaryError(
+                failureCode,
+              );
+            }
             const response = await args.provider!.call({
               attempt,
               kind,
@@ -514,29 +708,289 @@ export async function runProductionBlueprintAuthoring(args: {
               userPrompt,
               options,
             });
-            attempts.push({
+            const providerMatches =
+              response.receipt.provider === 'openai';
+            const modelMatches =
+              response.receipt.model === BLUEPRINT_AUTHORING_MODEL;
+            const provider = providerMatches
+              ? 'openai'
+              : 'unknown-provider';
+            const model = modelMatches
+              ? BLUEPRINT_AUTHORING_MODEL
+              : 'unknown-model';
+            const responseId =
+              typeof response.receipt.responseId === 'string' &&
+              /^[A-Za-z0-9_-]{1,200}$/.test(
+                response.receipt.responseId,
+              )
+                ? response.receipt.responseId
+                : null;
+            const output =
+              typeof response.output === 'string'
+                ? response.output
+                : '';
+            const usage = canonicalUsage(response.receipt.usage);
+            const nominalEstimatedCostUsd = usage
+              ? nominalBlueprintAuthoringUsageCostUsd(usage)
+              : null;
+            const conservativeCallCostUsd = usage
+              ? conservativeBlueprintAuthoringCostUsd({
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                })
+              : null;
+            const nextCumulativeConservativeCostUsd =
+              conservativeCallCostUsd === null
+                ? null
+                : cumulativeConservativeCostUsd +
+                  conservativeCallCostUsd;
+            const executionAttestation =
+              canonicalCompletedExecutionAttestationIsValid(
+                response.receipt.executionAttestation,
+              )
+                ? response.receipt.executionAttestation
+                : injectedAuthoringExecutionAttestation();
+            const received = {
               ...base,
-              provider: safeProviderLabel(
-                response.receipt.provider,
-                'injected-provider',
-              ),
-              model: safeProviderLabel(
-                response.receipt.model,
-                args.request.model,
-              ),
-              responseId: nonEmpty(response.receipt.responseId)
-                ? response.receipt.responseId.slice(0, 200)
+              provider,
+              model,
+              responseId,
+              responseDigest: canonicalJsonDigest(output),
+              usage: usage ? safeUsageFromCanonical(usage) : null,
+              providerEvidenceVersion:
+                response.receipt.evidenceVersion ===
+                OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION
+                ? OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION
                 : null,
-              responseDigest: canonicalJsonDigest(response.output),
-              usage: safeUsage(response.receipt.usage),
-            });
-            return response.output;
+              completionStatus:
+                response.receipt.completionStatus === 'completed'
+                ? 'completed'
+                : null,
+              usageEvidenceComplete:
+                response.receipt.usageEvidenceComplete === true,
+              inputAccounting: expectedInputAccounting,
+              reservedExposureBeforeCallUsd:
+                expectedReservedExposureBeforeCallUsd,
+              nominalEstimatedCostUsd,
+              conservativeCallCostUsd,
+              cumulativeConservativeCostUsd:
+                nextCumulativeConservativeCostUsd,
+              executionAttestation,
+            } satisfies ProductionAuthoringAttemptReceipt;
+            const recordBoundaryFailure = (
+              failureCode: ProductionAuthoringAttemptFailureCode,
+            ): never => {
+              attempts.push({ ...received, failureCode });
+              throw new ProductionAuthoringProviderBoundaryError(
+                failureCode,
+              );
+            };
+            if (
+              !providerMatches ||
+              !modelMatches
+            ) {
+              recordBoundaryFailure('provider_policy_mismatch');
+            }
+            if (
+              received.providerEvidenceVersion !==
+                OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION ||
+              !responseId ||
+              !output.trim() ||
+              !canonicalCompletedExecutionAttestationIsValid(
+                response.receipt.executionAttestation,
+              )
+            ) {
+              recordBoundaryFailure('provider_evidence_invalid');
+            }
+            if (received.completionStatus !== 'completed') {
+              recordBoundaryFailure('completion_status_invalid');
+            }
+            if (
+              !received.usageEvidenceComplete ||
+              !usage ||
+              usage.inputTokens > BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS ||
+              usage.outputTokens > BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS
+            ) {
+              recordBoundaryFailure('usage_invalid');
+            }
+            const costEvidenceMatches =
+              blueprintAuthoringInputAccountingIsValid(
+                response.receipt.inputAccounting,
+              ) &&
+              canonicalJsonDigest(response.receipt.inputAccounting) ===
+                canonicalJsonDigest(expectedInputAccounting) &&
+              response.receipt.reservedExposureBeforeCallUsd ===
+                expectedReservedExposureBeforeCallUsd &&
+              response.receipt.nominalEstimatedCostUsd ===
+                nominalEstimatedCostUsd &&
+              response.receipt.conservativeCallCostUsd ===
+                conservativeCallCostUsd;
+            if (!costEvidenceMatches) {
+              recordBoundaryFailure('provider_evidence_invalid');
+            }
+            const acceptedCumulativeConservativeCostUsd =
+              nextCumulativeConservativeCostUsd ??
+              recordBoundaryFailure('cost_ceiling_exceeded');
+            if (
+              !blueprintAuthoringSpendIsWithinCeiling(
+                acceptedCumulativeConservativeCostUsd,
+              )
+            ) {
+              recordBoundaryFailure('cost_ceiling_exceeded');
+            }
+            cumulativeConservativeCostUsd =
+              acceptedCumulativeConservativeCostUsd;
+            attempts.push(received);
+            return output;
           } catch (error) {
-            const code =
-              error instanceof AuthoringCallBudgetError
-                ? 'call_budget_exhausted'
-                : 'provider_call_failed';
-            attempts.push({ ...base, failureCode: code });
+            if (
+              !attempts.some((entry) => entry.attempt === attempt)
+            ) {
+              const boundaryError =
+                error instanceof
+                ProductionAuthoringProviderBoundaryError
+                  ? error
+                  : null;
+              let failureCode: ProductionAuthoringAttemptFailureCode =
+                error instanceof AuthoringCallBudgetError
+                  ? 'call_budget_exhausted'
+                  : boundaryError
+                    ? boundaryError.failureCode
+                    : 'provider_call_failed';
+              const evidence = boundaryError?.evidence;
+              const evidenceUsage = canonicalUsage(
+                evidence?.usage,
+              );
+              const evidenceNominalEstimatedCostUsd = evidenceUsage
+                ? nominalBlueprintAuthoringUsageCostUsd(evidenceUsage)
+                : null;
+              const evidenceConservativeCallCostUsd = evidenceUsage
+                ? conservativeBlueprintAuthoringCostUsd({
+                    inputTokens: evidenceUsage.inputTokens,
+                    outputTokens: evidenceUsage.outputTokens,
+                  })
+                : null;
+              const evidenceCumulativeConservativeCostUsd =
+                evidenceConservativeCallCostUsd === null
+                  ? cumulativeConservativeCostUsd
+                  : cumulativeConservativeCostUsd +
+                    evidenceConservativeCallCostUsd;
+              const accountingEvidenceMatches =
+                blueprintAuthoringInputAccountingIsValid(
+                  evidence?.inputAccounting,
+                ) &&
+                canonicalJsonDigest(evidence.inputAccounting) ===
+                  canonicalJsonDigest(expectedInputAccounting) &&
+                evidence?.reservedExposureBeforeCallUsd ===
+                  expectedReservedExposureBeforeCallUsd;
+              const usageCostEvidenceMatches = evidenceUsage
+                ? evidence?.usageEvidenceComplete === true &&
+                  evidence.nominalEstimatedCostUsd ===
+                    evidenceNominalEstimatedCostUsd &&
+                  evidence.conservativeCallCostUsd ===
+                    evidenceConservativeCallCostUsd &&
+                  evidence.cumulativeConservativeCostUsd ===
+                    evidenceCumulativeConservativeCostUsd
+                : (evidence?.usage === null ||
+                    evidence?.usage === undefined) &&
+                  (evidence?.nominalEstimatedCostUsd === null ||
+                    evidence?.nominalEstimatedCostUsd === undefined) &&
+                  (evidence?.conservativeCallCostUsd === null ||
+                    evidence?.conservativeCallCostUsd === undefined) &&
+                  (evidence?.cumulativeConservativeCostUsd === null ||
+                    evidence?.cumulativeConservativeCostUsd === undefined);
+              let evidenceExecutionAttestation =
+                notRunAuthoringExecutionAttestation();
+              const rawEvidenceExecutionAttestation =
+                evidence?.executionAttestation;
+              const evidenceExecutionAttestationIsValid =
+                authoringExecutionAttestationIsValid(
+                  rawEvidenceExecutionAttestation,
+                );
+              if (evidenceExecutionAttestationIsValid) {
+                evidenceExecutionAttestation =
+                  rawEvidenceExecutionAttestation;
+              }
+              const identityEvidenceKeysPresent =
+                evidence !== undefined &&
+                Object.prototype.hasOwnProperty.call(
+                  evidence,
+                  'provider',
+                ) &&
+                Object.prototype.hasOwnProperty.call(
+                  evidence,
+                  'model',
+                );
+              if (
+                boundaryError &&
+                (evidence?.providerEvidenceVersion !==
+                  OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION ||
+                  !accountingEvidenceMatches ||
+                  !usageCostEvidenceMatches ||
+                  !evidenceExecutionAttestationIsValid ||
+                  !identityEvidenceKeysPresent)
+              ) {
+                failureCode = 'provider_evidence_invalid';
+              }
+              attempts.push({
+                ...base,
+                provider:
+                  evidence?.provider === 'openai'
+                    ? 'openai'
+                    : boundaryError
+                      ? 'unknown-provider'
+                      : base.provider,
+                model:
+                  evidence?.model === BLUEPRINT_AUTHORING_MODEL
+                    ? BLUEPRINT_AUTHORING_MODEL
+                    : boundaryError
+                      ? 'unknown-model'
+                      : base.model,
+                responseId:
+                  typeof evidence?.responseId === 'string' &&
+                  /^[A-Za-z0-9_-]{1,200}$/.test(evidence.responseId)
+                    ? evidence.responseId
+                    : null,
+                responseDigest:
+                  typeof evidence?.responseDigest === 'string' &&
+                  /^[a-f0-9]{64}$/.test(evidence.responseDigest)
+                    ? evidence.responseDigest
+                    : null,
+                usage: evidenceUsage
+                  ? safeUsageFromCanonical(evidenceUsage)
+                  : null,
+                providerEvidenceVersion:
+                  evidence?.providerEvidenceVersion ===
+                  OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION
+                    ? OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION
+                    : null,
+                completionStatus:
+                  evidence?.completionStatus === 'completed'
+                    ? 'completed'
+                    : null,
+                usageEvidenceComplete:
+                  evidence?.usageEvidenceComplete === true,
+                inputAccounting: boundaryError
+                  ? expectedInputAccounting
+                  : null,
+                reservedExposureBeforeCallUsd: boundaryError
+                  ? expectedReservedExposureBeforeCallUsd
+                  : null,
+                nominalEstimatedCostUsd:
+                  evidenceNominalEstimatedCostUsd,
+                conservativeCallCostUsd:
+                  evidenceConservativeCallCostUsd,
+                cumulativeConservativeCostUsd:
+                  boundaryError
+                    ? evidenceCumulativeConservativeCostUsd
+                    : null,
+                executionAttestation:
+                  boundaryError
+                    ? evidenceExecutionAttestation
+                    : injectedAuthoringExecutionAttestation(),
+                failureCode,
+              });
+            }
             throw error;
           }
         },
@@ -569,7 +1023,7 @@ export async function runProductionBlueprintAuthoring(args: {
       callCount: attempts.length,
       repairCount: Math.max(0, attempts.length - 1),
       executionAttestation:
-        aggregateAuthoringExecutionAttestations(
+        aggregateProductionAuthoringExecutionAttestations(
           attempts.map(
             (attempt) => attempt.executionAttestation,
           ),
@@ -592,11 +1046,31 @@ export async function runProductionBlueprintAuthoring(args: {
     const providerFailure = attempts.some(
       (attempt) => attempt.failureCode === 'provider_call_failed',
     );
+    const terminalAttemptFailure = [...attempts]
+      .reverse()
+      .find((attempt) => attempt.failureCode !== null)
+      ?.failureCode;
+    const exactBoundaryFailure: AuthoringTerminalFailureCode | null =
+      terminalAttemptFailure === 'provider_policy_mismatch'
+        ? 'provider_policy_mismatch'
+        : terminalAttemptFailure === 'provider_evidence_invalid'
+            ? 'provider_evidence_invalid'
+            : terminalAttemptFailure === 'completion_status_invalid'
+              ? 'completion_status_invalid'
+              : terminalAttemptFailure === 'usage_invalid'
+                ? 'usage_invalid'
+                : terminalAttemptFailure ===
+                    'input_token_ceiling_exceeded'
+                  ? 'input_token_ceiling_exceeded'
+                : terminalAttemptFailure === 'cost_ceiling_exceeded'
+                  ? 'cost_ceiling_exceeded'
+                : null;
     const failureCode: AuthoringTerminalFailureCode = budgetFailure
       ? 'call_budget_exhausted'
       : providerFailure
         ? 'provider_call_failed'
-        : error instanceof
+        : exactBoundaryFailure ??
+          (error instanceof
               PreRenderBlueprintAuthoringRepairExhaustedError &&
             productionRepairExhaustionIsProven({
               error,
@@ -604,7 +1078,7 @@ export async function runProductionBlueprintAuthoring(args: {
               attempts,
             })
           ? 'draft_validation_repair_exhausted'
-          : 'local_processing_failed';
+          : 'local_processing_failed');
     if (
       failureCode === 'draft_validation_repair_exhausted' &&
       error instanceof PreRenderBlueprintAuthoringRepairExhaustedError

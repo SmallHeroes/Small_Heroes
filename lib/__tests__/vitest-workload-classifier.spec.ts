@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(329);
+    expect(partition.inventory).toHaveLength(330);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(309);
+    expect(partition.ordinary).toHaveLength(310);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -86,6 +86,9 @@ describe('Vitest workload classifier', () => {
     );
     expect(partition.ordinary).toContain(
       'lib/visual-package/__tests__/pre-render-blueprint-composition-policy.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/visual-package/__tests__/openai-responses-blueprint-authoring-adapter.spec.ts',
     );
     expect(partition.ordinary).toContain(
       'lib/__tests__/offline-repair-harness.spec.ts',

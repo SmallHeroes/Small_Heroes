@@ -2,13 +2,15 @@
 
 **Date:** 2026-08-17
 
+**Last reconciled:** 2026-08-25
+
 **Status:** accepted for implementation under Guy's standing instruction to continue autonomously until a real Wizard render proof; exact approvals of unseen artifact contents remain mandatory checkpoints
 
-**Base:** `b2f6a7418f0f112a1ab911153be2718f1a339d45`
+**Current implementation base:** `3c6c04ceeb569fab17b749867121621cbba81016`
 
-**Branch:** `codex/r1d-real-candidate-qa-wizard-low-bridge`
+**Branch:** `codex/r1d-qa-wizard-downstream-lifecycle`
 
-**Worktree:** `C:\GNart\Work\sh-wt-r1d-output-budget`
+**Worktree:** `C:\GNart\Work\sh-live-chameleon-v3`
 
 ## 1. Proposed change
 
@@ -21,10 +23,20 @@ The Visual Contract authoring route is now independently QA-passed and Fresh Rea
 ## 3. Scope and stop-check
 
 - General lifecycle tooling for every Story Source; no story, child, companion, page, or style literal.
-- QA authority and ignored local evidence only. Production aliases, deployments, database/storage, and production locators remain untouched.
+- Immutable local QA evidence first. The real Wizard reads only the canonical
+  `visual-packages/approved` locator, so the eventual approved revision must be
+  published there on this feature branch with compare-and-swap protection and
+  then exercised through a Preview deployment. Production aliases and the live
+  Production deployment remain untouched.
 - Implementation and offline validation cost `$0`.
-- Later spend is separately gated: bounded text-provider authoring, then exactly one gpt-image-2 LOW page before any continuation. Guy has already authorized a full-book LOW proof after the first page proves the real path.
-- The smallest safe proof is: offline lifecycle tests -> real frozen Wizard dry-run with provider blocked -> one LOW page -> remaining pages without re-rendering page one.
+- Later spend is bounded independently: Blueprint text authoring has its own
+  `$5` fence; Visual Contract v18 has its existing `$10` fence. Image proof uses
+  `gpt-image-2` LOW. Guy has authorized one complete book after the real frozen
+  path is proven, without re-rendering already accepted assets.
+- The smallest honest image stage is not literally one provider call: the real
+  Stage 0 may create bounded identity anchors, followed by cover and page 1.
+  The proof therefore records every dispatch and asset, stops before unbounded
+  continuation on uncertainty, and resumes only for missing pages.
 - Product acceptance remains Guy's. Claude Code must independently falsify the implementation before any provider or image spend.
 - Claude Cowork is not required for this technical bridge; exact semantic and visual reviews remain Guy checkpoints.
 
@@ -54,9 +66,9 @@ Guy's approval binds the exact Blueprint digest, context, authoring authority, v
 
 The bridge validates existing Board, Set Identity, recurring-prop, and geometry authorities. Missing, stale, contradictory, or unapproved dependencies fail closed. It cannot mint, mutate, import, approve, or force-fit Board entries, and it cannot replace recurring props with fixed architecture.
 
-### Decision 7 — publication is an explicit QA-only promotion
+### Decision 7 — publication is branch-local canonical promotion
 
-The bridge assembles and qualifies a real Visual Package v5 using existing lifecycle functions. Only after Guy approves the exact package review, `worldMode`/reality conclusions, Blueprint binding, and promotion digest may it persist an immutable QA package revision and update a QA-only current locator. Production package registries and deployment state are out of scope.
+The bridge assembles and qualifies a real Visual Package v5 using existing lifecycle functions. Only after Guy approves the exact package review, `worldMode`/reality conclusions, Blueprint binding, and promotion digest may it persist an immutable package revision and compare-and-swap the canonical current locator on this feature branch. A parallel QA registry would not prove the real Wizard. Production deployment state remains out of scope until a separately verified Preview deployment is requested.
 
 ### Decision 8 — the proof crosses the real Wizard freeze
 
@@ -94,9 +106,17 @@ A real candidate can be inspected and semantically approved, authored into an ex
 ## 8. Cost boundaries
 
 - Implementation, fixtures, publication dry-run, and Wizard qualification: `$0`.
-- A later Blueprint live call receives its own official pricing lookup and explicit hard reservation; it does not silently inherit the Visual Contract `$5` fence.
-- A later Visual Contract attempt retains its existing model/tier, 64K input ceiling, standard 3 calls / 2 repairs plus the already-authorized bounded terminal cleanup, zero transport retries, no fallback, and hard `$5.00` ceiling.
-- Image proof: gpt-image-2 LOW, one page first. The remaining book pages may proceed only after the first result proves the real route; page one is not rendered twice.
+- Blueprint authoring uses its independent current-price policy: OpenAI Responses,
+  `gpt-5.6-sol`, default tier, medium reasoning, 64K input, 48K output,
+  3 calls / 2 repairs, zero retries, no fallback, and a `$5.00` hard ceiling.
+- A later Visual Contract attempt retains policy v18: the existing model/tier,
+  64K input ceiling, seven standard calls / six repairs plus one already-bounded
+  terminal cleanup call, zero transport retries, no fallback, and a `$10.00`
+  hard ceiling.
+- Image proof: `gpt-image-2` LOW through the real Wizard worker. Stage 0,
+  cover and page 1 are measured first; the rest of the book may continue under
+  the same frozen authority and append-only ledger, and accepted assets are not
+  rendered twice.
 
 ## 9. Rollback
 
@@ -113,4 +133,9 @@ Before publication, revert the bridge commits and delete only the new ignored QA
 
 ## 11. Explicit exclusions
 
-No production deployment, production locator/alias, database/storage write, Board mutation, payment, publication outside the QA registry, raw credential handling outside the canonical child, Visual Contract or image provider call during implementation, Vision, retry/fallback expansion, model/tier/token-budget change, or release acceptance.
+No Production deployment or alias, Board mutation, raw credential handling
+outside the canonical child, retry/fallback expansion, unapproved exact content,
+or release acceptance. A fresh QA order, QA database state, fake payment,
+Preview deployment, bounded text-provider execution and one complete LOW book
+are authorized only after their offline lifecycle, independent QA and exact
+artifact approvals have passed.

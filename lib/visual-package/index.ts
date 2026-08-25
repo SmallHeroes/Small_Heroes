@@ -22,6 +22,7 @@ export * from './productionAuthoringContext';
 export * from './productionReadiness';
 export * from './reconciliationLifecycle';
 export * from './productionAuthoringRunner';
+export * from './blueprintAuthoringPolicy';
 export * from './visualPackageV4Lifecycle';
 export * from './storySourceAuthority';
 export * from './visualContractAuthoringLifecycle';

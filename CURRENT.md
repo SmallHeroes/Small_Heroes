@@ -2,7 +2,59 @@
 
 **Updated:** 2026-08-25
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-represented-elsewhere-narrow-patch` in `C:\GNart\Work\sh-live-chameleon-v3`; current pricing milestone review base `f4de883e9918e623c77d1635932de48f1b7678d2`.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; current downstream implementation base `3c6c04ceeb569fab17b749867121621cbba81016`.
+
+## BLUEPRINT RESPONSES BOUNDARY — OFFLINE GREEN; INDEPENDENT QA PENDING
+
+The first downstream milestone now gives Pre-Render Blueprint authoring its own
+canonical provider boundary. It does not reuse or silently inherit the Visual
+Contract call/cost policy. `pre-render-blueprint-authoring-policy/v1` locks
+OpenAI Responses, `gpt-5.6-sol`, default service tier, medium reasoning,
+structured output, tools disabled, `store:false`, streaming, zero transport
+retries, a 20-minute timeout, 64K input, 48K output, three calls / two repairs,
+no fallback and an independent `$5.00` hard ceiling. The current official
+pricing authority is `openai-standard-pricing/2026-08-25-v3`; the conservative
+three-call maximum is `$4.224` including the existing 1.10 regional uplift.
+
+The adapter reads `OPENAI_API_KEY` only after exact call options, structured
+schema, input admission and remaining-call reservation pass. It uses the
+existing guarded one-destination OpenAI Responses transport and becomes
+terminal after any boundary failure. The provider adapter is deliberately not
+exported from the shared visual-package barrel. A child-process import sentinel
+proves that both the offline barrel and `productionAuthoringRunner` load zero
+OpenAI/provider modules, while direct adapter import trips the same sentinel.
+
+The production runner advances to request v4 and receipt v5. Request v3 and
+receipt v4/v3 remain immutable legacy identities. Each attempt records only
+prompt/output digests, closed provider/model labels, normalized usage, exact
+input accounting, pre-call reserved exposure, recomputed nominal/conservative
+cost, cumulative conservative cost, closed diagnostics and execution
+attestation. Raw prompts, responses, errors, credentials and provider material
+are never persisted. Missing, forged or internally inconsistent policy,
+identity, usage, cost or attestation evidence stops before compiler repair.
+Pre-dispatch failures remain `not_run`; a later pre-dispatch failure does not
+erase already proven canonical dispatches.
+
+Offline validation is green: the two focused files pass 68/68, the seven-file
+Blueprint/compiler/canonical-boundary matrix passes 378/378,
+`npx --no-install tsc --noEmit` exits 0 and `git diff --check` is clean.
+
+The literal repository `npm run check` passed both TypeScript phases and exposed
+one changed-scope census assertion because the new spec increased canonical
+inventory from 329 to 330. That exact classifier count and ordinary-membership
+assertion were corrected and its file now passes 7/7 without rerunning the full
+check. The same run otherwise reproduced the known baseline: nine missing
+ignored-output fixture assertions and two five-second Blueprint-migration
+timeouts; resource-intensive passed 613/613 assertions before two known
+post-run `onTaskUpdate` RPC errors. No baseline fixture, timeout, pool or retry
+was changed. No
+credential was read and no provider, network, live authoring, Candidate,
+Blueprint artifact, Wizard, image, audio, render, database, storage, deployment
+or external write occurred. The next milestone is the immutable operator lane:
+approved bridge/context replay, exact live-request preflight, single-use paid
+execution claim, receipt/Blueprint lifecycle persistence and separate exact Guy
+Blueprint approval. Independent Claude Code review of this milestone is still
+required before that implementation is treated as accepted.
 
 ## GPT-5.6 SOL PRICING AUTHORITY CUTOVER — INDEPENDENT TECHNICAL PASS
 

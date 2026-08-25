@@ -18,10 +18,32 @@ import {
   persistProductionAuthoringReceipt,
   persistReconciliationDraftBundle,
   productionAuthoringReceiptVersionStatus,
+  productionAuthoringRequestVersionStatus,
   runProductionBlueprintAuthoring,
+  ProductionAuthoringProviderBoundaryError,
+  type ProductionAuthoringProvider,
   type ProductionAuthoringContext,
   type ProductionAuthoringRunRequest,
 } from '@/lib/visual-package';
+import {
+  createOpenAIResponsesBlueprintAuthoringAdapter,
+} from '@/lib/visual-package/openaiResponsesBlueprintAuthoringAdapter';
+import type {
+  OpenAIResponsesAuthoringTransport,
+  OpenAIResponsesAuthoringTransportRequest,
+} from '@/lib/visual-package/openaiResponsesVisualContractAuthoringAdapter';
+import {
+  BLUEPRINT_AUTHORING_MAX_CALLS,
+  BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
+  BLUEPRINT_AUTHORING_MODEL,
+  BLUEPRINT_AUTHORING_REASONING_EFFORT,
+  OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION,
+  blueprintAuthoringInputAccounting,
+  blueprintAuthoringReservedExposureUsd,
+  conservativeBlueprintAuthoringCostUsd,
+  nominalBlueprintAuthoringUsageCostUsd,
+} from '@/lib/visual-package/blueprintAuthoringPolicy';
+import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
 import { projectZoneStableGeometry } from '@/lib/visual-contract-compiler';
 
 import {
@@ -40,6 +62,9 @@ const ALL_SHAPES: BlueprintFixtureShape[] = [
   'no_companion',
   'reveal_timeline',
 ];
+type ProductionProviderCallArgs = Parameters<
+  ProductionAuthoringProvider['call']
+>[0];
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -149,7 +174,7 @@ function buildContext(
 function requestFor(
   context: ProductionAuthoringContext,
   mode: 'preflight' | 'live',
-  maxCalls = 3,
+  maxCalls = BLUEPRINT_AUTHORING_MAX_CALLS,
 ): ProductionAuthoringRunRequest {
   return {
     version: PRODUCTION_AUTHORING_RUN_REQUEST_VERSION,
@@ -157,14 +182,75 @@ function requestFor(
     requestId: `request-${mode}`,
     requestedAt: '2026-07-27T12:00:00.000Z',
     contextDigest: context.digest,
-    model: 'injected-production-model',
-    reasoningEffort: 'high',
-    maxOutputTokens: 48_000,
+    model: BLUEPRINT_AUTHORING_MODEL,
+    reasoningEffort: BLUEPRINT_AUTHORING_REASONING_EFFORT,
+    maxOutputTokens: BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
     noFallback: true,
     callBudget: {
       maxCalls,
       maxRepairCount: maxCalls - 1,
     },
+  };
+}
+
+function canonicalProviderReceipt(args: {
+  attempt: number;
+  systemPrompt: string;
+  userPrompt: string;
+}) {
+  const usage = {
+    inputTokens: 120,
+    cachedInputTokens: 0,
+    cacheWriteInputTokens: 0,
+    outputTokens: 80,
+    reasoningTokens: 20,
+    totalTokens: 200,
+  };
+  const conservativeCallCostUsd =
+    conservativeBlueprintAuthoringCostUsd({
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+    });
+  return {
+    provider: 'openai',
+    model: BLUEPRINT_AUTHORING_MODEL,
+    responseId: `response-${args.attempt}`,
+    usage: {
+      input_tokens: usage.inputTokens,
+      cached_input_tokens: usage.cachedInputTokens,
+      cache_write_input_tokens: usage.cacheWriteInputTokens,
+      output_tokens: usage.outputTokens,
+      reasoning_tokens: usage.reasoningTokens,
+      total_tokens: usage.totalTokens,
+      secret_debug_payload: 'must-not-persist',
+    },
+    evidenceVersion:
+      OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION,
+    completionStatus: 'completed',
+    usageEvidenceComplete: true,
+    executionAttestation: {
+      evidenceKind: 'canonical_adapter_observed' as const,
+      logicalProviderCalls: 1,
+      transportDispatchCount: 1,
+      transportRetryCount: 0,
+      fallbackUsed: false,
+      canonicalRouteConfirmed: true,
+      canonicalModelConfirmed: true,
+    },
+    inputAccounting: blueprintAuthoringInputAccounting({
+      systemPrompt: args.systemPrompt,
+      userPrompt: args.userPrompt,
+      schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+    }),
+    reservedExposureBeforeCallUsd:
+      blueprintAuthoringReservedExposureUsd({
+        conservativeAccountedCostUsd:
+          (args.attempt - 1) * conservativeCallCostUsd,
+        callsCompleted: args.attempt - 1,
+      }),
+    nominalEstimatedCostUsd:
+      nominalBlueprintAuthoringUsageCostUsd(usage),
+    conservativeCallCostUsd,
   };
 }
 
@@ -631,6 +717,30 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(result.receipt.attempts).toEqual([]);
     expect(result.authoringResult).toBeNull();
     expect(provider.call).not.toHaveBeenCalled();
+    const readCredential = vi.fn(() => 'must-not-be-read');
+    const transport: OpenAIResponsesAuthoringTransport & {
+      create: ReturnType<typeof vi.fn>;
+    } = {
+      create: vi.fn(async () => {
+        throw new Error('transport must remain unreachable');
+      }),
+    };
+    const realAdapter =
+      createOpenAIResponsesBlueprintAuthoringAdapter({
+        readCredential,
+        transport,
+      });
+    const realAdapterPreflight =
+      await runProductionBlueprintAuthoring({
+        request: requestFor(context, 'preflight'),
+        context,
+        provider: realAdapter,
+      });
+    expect(realAdapterPreflight.receipt.status).toBe(
+      'preflight_passed',
+    );
+    expect(readCredential).not.toHaveBeenCalled();
+    expect(transport.create).not.toHaveBeenCalled();
     expect(JSON.stringify(result.receipt)).not.toMatch(
       /systemPrompt|userPrompt|responseBody|credential|apiKey|Bearer/i,
     );
@@ -675,22 +785,12 @@ describe('provider-isolated Blueprint authoring runner', () => {
     );
   });
 
-  it('records only strict receipt metadata and sanitized usage through an injected live adapter', async () => {
+  it('records only strict receipt metadata and sanitized usage through a canonical live adapter', async () => {
     const { context, materialized } = buildContext('single_location');
     const provider = {
-      call: vi.fn(async () => ({
-        output: providerDraft(materialized.fixture),
-        receipt: {
-          provider: 'injected-test-provider',
-          model: 'injected-production-model',
-          responseId: 'response-1',
-          usage: {
-            input_tokens: 120,
-            output_tokens: 80,
-            total_tokens: 200,
-            secret_debug_payload: 'must-not-persist',
-          },
-        },
+      call: vi.fn(async (args: ProductionProviderCallArgs) => ({
+        output: JSON.stringify(providerDraft(materialized.fixture)),
+        receipt: canonicalProviderReceipt(args),
       })),
     };
     const result = await runProductionBlueprintAuthoring({
@@ -700,23 +800,37 @@ describe('provider-isolated Blueprint authoring runner', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'production-blueprint-authoring-receipt/v4',
+      'production-blueprint-authoring-receipt/v5',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.repairCount).toBe(0);
     expect(result.receipt.executionAttestation).toEqual({
-      evidenceKind: 'injected_adapter_unattested',
+      evidenceKind: 'canonical_adapter_observed',
       logicalProviderCalls: 1,
-      transportDispatchCount: null,
-      transportRetryCount: null,
-      fallbackUsed: null,
-      canonicalRouteConfirmed: null,
-      canonicalModelConfirmed: null,
+      transportDispatchCount: 1,
+      transportRetryCount: 0,
+      fallbackUsed: false,
+      canonicalRouteConfirmed: true,
+      canonicalModelConfirmed: true,
     });
     expect(result.receipt.attempts[0]?.usage).toEqual({
       inputTokens: 120,
       outputTokens: 80,
       totalTokens: 200,
+      cachedInputTokens: 0,
+      cacheWriteInputTokens: 0,
+      reasoningTokens: 20,
+    });
+    expect(result.receipt.attempts[0]).toMatchObject({
+      inputAccounting: canonicalProviderReceipt({
+        attempt: 1,
+        systemPrompt: provider.call.mock.calls[0]![0].systemPrompt,
+        userPrompt: provider.call.mock.calls[0]![0].userPrompt,
+      }).inputAccounting,
+      reservedExposureBeforeCallUsd: 4.224,
+      nominalEstimatedCostUsd: 0.00208,
+      conservativeCallCostUsd: 0.00242,
+      cumulativeConservativeCostUsd: 0.00242,
     });
     expect(result.receipt.attempts[0]?.responseDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(result.authoringResult?.blueprint.digest).toBe(
@@ -730,25 +844,703 @@ describe('provider-isolated Blueprint authoring runner', () => {
     );
   });
 
-  it('enforces exact call budget with no fallback and never persists raw provider failures', async () => {
+  it('rejects a noncanonical call budget before provider reachability', async () => {
     const { context } = buildContext('single_location');
     const provider = {
       call: vi.fn(async () => {
         throw new Error('Bearer secret-token provider failure');
       }),
     };
+    await expect(
+      runProductionBlueprintAuthoring({
+        request: requestFor(context, 'live', 1),
+        context,
+        provider,
+      }),
+    ).rejects.toThrow(/maxCalls differs from canonical Blueprint policy/);
+    expect(provider.call).not.toHaveBeenCalled();
+  });
+
+  it('redacts a canonical-adapter provider failure without another compiler call', async () => {
+    const { context } = buildContext('single_location');
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('Bearer raw-provider-secret');
+      }),
+    };
     const result = await runProductionBlueprintAuthoring({
-      request: requestFor(context, 'live', 1),
+      request: requestFor(context, 'live'),
       context,
       provider,
     });
-    expect(result.receipt.status).toBe('failed');
-    expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.failure?.code).toBe('provider_call_failed');
-    expect(JSON.stringify(result.receipt)).not.toContain('secret-token');
-    expect(
-      result.receipt.attempts[0]?.validationDiagnostics,
-    ).toEqual({ count: 0, codes: [] });
+    expect(result.receipt.callCount).toBe(1);
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(result.receipt)).not.toMatch(
+      /raw-provider-secret|Bearer/i,
+    );
+    expect(result.receipt.executionAttestation.evidenceKind).toBe(
+      'injected_adapter_unattested',
+    );
+  });
+
+  it('keeps a credential failure explicitly not-run with zero transport dispatches', async () => {
+    const { context } = buildContext('single_location');
+    const readCredential = vi.fn(() => {
+      throw new Error('raw missing credential material');
+    });
+    const transport: OpenAIResponsesAuthoringTransport & {
+      create: ReturnType<typeof vi.fn>;
+    } = {
+      create: vi.fn(async () => {
+        throw new Error('transport must remain unreachable');
+      }),
+    };
+    const provider =
+      createOpenAIResponsesBlueprintAuthoringAdapter({
+        readCredential,
+        transport,
+      });
+
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.failure?.code).toBe('provider_call_failed');
+    expect(readCredential).toHaveBeenCalledTimes(1);
+    expect(transport.create).not.toHaveBeenCalled();
+    expect(result.receipt.executionAttestation).toEqual({
+      evidenceKind: 'not_run',
+      logicalProviderCalls: 0,
+      transportDispatchCount: 0,
+      transportRetryCount: 0,
+      fallbackUsed: false,
+      canonicalRouteConfirmed: false,
+      canonicalModelConfirmed: false,
+    });
+    expect(result.receipt.attempts[0]).toMatchObject({
+      provider: 'openai',
+      model: BLUEPRINT_AUTHORING_MODEL,
+      inputAccounting: expect.objectContaining({
+        estimatedBytes: expect.any(Number),
+      }),
+      reservedExposureBeforeCallUsd: 4.224,
+      executionAttestation: {
+        evidenceKind: 'not_run',
+        transportDispatchCount: 0,
+      },
+      failureCode: 'provider_call_failed',
+    });
+    expect(JSON.stringify(result.receipt)).not.toMatch(
+      /raw missing credential material|credential|apiKey|Bearer/i,
+    );
+  });
+
+  it('preserves a proven canonical dispatch when a later repair credential read is not run', async () => {
+    const { context } = buildContext('single_location');
+    const readCredential = vi.fn(() => {
+      if (readCredential.mock.calls.length > 1) {
+        throw new Error('raw second credential failure');
+      }
+      return 'test-key-never-persisted';
+    });
+    const transport: OpenAIResponsesAuthoringTransport & {
+      create: ReturnType<typeof vi.fn>;
+    } = {
+      create: vi.fn(async (
+        request: OpenAIResponsesAuthoringTransportRequest,
+      ) => {
+        request.observations.transportDispatchStarted = true;
+        request.observations.transportDispatchCount += 1;
+        request.observations.canonicalRouteConfirmed = true;
+        request.observations.canonicalModelConfirmed = true;
+        return {
+          id: 'response-invalid-draft-1',
+          model: BLUEPRINT_AUTHORING_MODEL,
+          status: 'completed',
+          output_text: '{"invalid":true}',
+          usage: {
+            input_tokens: 120,
+            input_tokens_details: {
+              cached_tokens: 0,
+              cache_write_tokens: 0,
+            },
+            output_tokens: 80,
+            output_tokens_details: { reasoning_tokens: 20 },
+            total_tokens: 200,
+          },
+        };
+      }),
+    };
+    const provider =
+      createOpenAIResponsesBlueprintAuthoringAdapter({
+        readCredential,
+        transport,
+      });
+
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.failure?.code).toBe('provider_call_failed');
+    expect(readCredential).toHaveBeenCalledTimes(2);
+    expect(transport.create).toHaveBeenCalledTimes(1);
+    expect(result.receipt.attempts).toHaveLength(2);
+    expect(result.receipt.attempts[0]?.executionAttestation.evidenceKind).toBe(
+      'canonical_adapter_observed',
+    );
+    expect(result.receipt.attempts[1]?.executionAttestation.evidenceKind).toBe(
+      'not_run',
+    );
+    expect(result.receipt.executionAttestation).toEqual({
+      evidenceKind: 'canonical_adapter_observed',
+      logicalProviderCalls: 1,
+      transportDispatchCount: 1,
+      transportRetryCount: 0,
+      fallbackUsed: false,
+      canonicalRouteConfirmed: true,
+      canonicalModelConfirmed: true,
+    });
+    expect(JSON.stringify(result.receipt)).not.toMatch(
+      /raw second credential failure|test-key-never-persisted/i,
+    );
+  });
+
+  it('rejects forged canonical evidence before compiler repair and persists no output', async () => {
+    const { context } = buildContext('single_location');
+    const rawOutput = 'raw-hostile-output-must-not-persist';
+    const rawEvidence = 'raw-hostile-evidence-must-not-persist';
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => ({
+        output: rawOutput,
+        receipt: {
+          ...canonicalProviderReceipt(args),
+          evidenceVersion: rawEvidence,
+        },
+      })),
+    };
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+    expect(result.receipt.failure?.code).toBe(
+      'provider_evidence_invalid',
+    );
+    expect(result.receipt.callCount).toBe(1);
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(result.receipt)).not.toContain(rawOutput);
+    expect(JSON.stringify(result.receipt)).not.toContain(rawEvidence);
+  });
+
+  it('rejects missing cost evidence before compiler repair with the exact sanitized code', async () => {
+    const { context } = buildContext('single_location');
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => {
+        const receipt = canonicalProviderReceipt(args);
+        const { inputAccounting: _missing, ...withoutAccounting } =
+          receipt;
+        return {
+          output: JSON.stringify({ invalid: true }),
+          receipt: withoutAccounting,
+        };
+      }),
+    };
+
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.failure?.code).toBe(
+      'provider_evidence_invalid',
+    );
+    expect(result.receipt.callCount).toBe(1);
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(result.receipt.attempts[0]).toMatchObject({
+      inputAccounting: expect.objectContaining({
+        estimatedBytes: expect.any(Number),
+      }),
+      reservedExposureBeforeCallUsd: 4.224,
+      conservativeCallCostUsd: 0.00242,
+      cumulativeConservativeCostUsd: 0.00242,
+      failureCode: 'provider_evidence_invalid',
+    });
+  });
+
+  it.each([
+    'reservedExposureBeforeCallUsd',
+    'nominalEstimatedCostUsd',
+    'conservativeCallCostUsd',
+  ] as const)(
+    'rejects forged %s before compiler repair and persists the recomputed value only',
+    async (field) => {
+      const { context, materialized } = buildContext('single_location');
+      const provider = {
+        call: vi.fn(async (args: ProductionProviderCallArgs) => ({
+          output: JSON.stringify(providerDraft(materialized.fixture)),
+          receipt: {
+            ...canonicalProviderReceipt(args),
+            [field]: 999,
+          },
+        })),
+      };
+
+      const result = await runProductionBlueprintAuthoring({
+        request: requestFor(context, 'live'),
+        context,
+        provider,
+      });
+
+      expect(result.receipt.failure?.code).toBe(
+        'provider_evidence_invalid',
+      );
+      expect(provider.call).toHaveBeenCalledTimes(1);
+      expect(result.receipt.repairCount).toBe(0);
+      expect(result.receipt.attempts[0]).toMatchObject({
+        reservedExposureBeforeCallUsd: 4.224,
+        nominalEstimatedCostUsd: 0.00208,
+        conservativeCallCostUsd: 0.00242,
+        cumulativeConservativeCostUsd: 0.00242,
+        failureCode: 'provider_evidence_invalid',
+      });
+      expect(JSON.stringify(result.receipt)).not.toContain('999');
+    },
+  );
+
+  it.each([
+    ['logical calls', { logicalProviderCalls: 2 }],
+    ['zero dispatch', { transportDispatchCount: 0 }],
+    ['multiple dispatches', { transportDispatchCount: 2 }],
+    ['retry', { transportRetryCount: 1 }],
+    ['fallback', { fallbackUsed: true }],
+    ['route', { canonicalRouteConfirmed: false }],
+    ['model', { canonicalModelConfirmed: false }],
+    [
+      'evidence kind',
+      {
+        evidenceKind: 'not_run',
+        logicalProviderCalls: 0,
+        transportDispatchCount: 0,
+        transportRetryCount: 0,
+        fallbackUsed: false,
+        canonicalRouteConfirmed: false,
+        canonicalModelConfirmed: false,
+      },
+    ],
+  ] as const)(
+    'rejects mutated canonical attestation axis %s without compiler repair',
+    async (_label, mutation) => {
+      const { context, materialized } = buildContext('single_location');
+      const provider = {
+        call: vi.fn(async (args: ProductionProviderCallArgs) => {
+          const receipt = canonicalProviderReceipt(args);
+          return {
+            output: JSON.stringify(providerDraft(materialized.fixture)),
+            receipt: {
+              ...receipt,
+              executionAttestation: {
+                ...receipt.executionAttestation,
+                ...mutation,
+              },
+            },
+          };
+        }),
+      };
+
+      const result = await runProductionBlueprintAuthoring({
+        request: requestFor(context, 'live'),
+        context,
+        provider,
+      });
+
+      expect(result.receipt.failure?.code).toBe(
+        'provider_evidence_invalid',
+      );
+      expect(provider.call).toHaveBeenCalledTimes(1);
+      expect(result.receipt.repairCount).toBe(0);
+    },
+  );
+
+  it.each([
+    [
+      'output ceiling',
+      {
+        input_tokens: 120,
+        cached_input_tokens: 0,
+        cache_write_input_tokens: 0,
+        output_tokens: 48_001,
+        reasoning_tokens: 20,
+        total_tokens: 48_121,
+      },
+    ],
+    [
+      'total mismatch',
+      {
+        input_tokens: 120,
+        cached_input_tokens: 0,
+        cache_write_input_tokens: 0,
+        output_tokens: 80,
+        reasoning_tokens: 20,
+        total_tokens: 201,
+      },
+    ],
+    [
+      'cache partition overflow',
+      {
+        input_tokens: 120,
+        cached_input_tokens: 100,
+        cache_write_input_tokens: 21,
+        output_tokens: 80,
+        reasoning_tokens: 20,
+        total_tokens: 200,
+      },
+    ],
+    [
+      'reasoning overflow',
+      {
+        input_tokens: 120,
+        cached_input_tokens: 0,
+        cache_write_input_tokens: 0,
+        output_tokens: 80,
+        reasoning_tokens: 81,
+        total_tokens: 200,
+      },
+    ],
+  ] as const)(
+    'rejects invalid usage evidence: %s',
+    async (_label, usage) => {
+      const { context, materialized } = buildContext('single_location');
+      const provider = {
+        call: vi.fn(async (args: ProductionProviderCallArgs) => ({
+          output: JSON.stringify(providerDraft(materialized.fixture)),
+          receipt: {
+            ...canonicalProviderReceipt(args),
+            usage,
+          },
+        })),
+      };
+
+      const result = await runProductionBlueprintAuthoring({
+        request: requestFor(context, 'live'),
+        context,
+        provider,
+      });
+
+      expect(result.receipt.failure?.code).toBe('usage_invalid');
+      expect(provider.call).toHaveBeenCalledTimes(1);
+      expect(result.receipt.repairCount).toBe(0);
+    },
+  );
+
+  it('preserves one observed dispatch and zero retries when transport fails', async () => {
+    const { context } = buildContext('single_location');
+    const transport: OpenAIResponsesAuthoringTransport & {
+      create: ReturnType<typeof vi.fn>;
+    } = {
+      create: vi.fn(async (
+        request: OpenAIResponsesAuthoringTransportRequest,
+      ) => {
+        request.observations.transportDispatchStarted = true;
+        request.observations.transportDispatchCount += 1;
+        request.observations.canonicalRouteConfirmed = true;
+        request.observations.canonicalModelConfirmed = true;
+        throw new Error('raw transport failure must not persist');
+      }),
+    };
+    const provider =
+      createOpenAIResponsesBlueprintAuthoringAdapter({
+        transport,
+        readCredential: () => 'test-key-never-persisted',
+      });
+
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.failure?.code).toBe('provider_call_failed');
+    expect(transport.create).toHaveBeenCalledTimes(1);
+    expect(result.receipt.executionAttestation).toEqual({
+      evidenceKind: 'canonical_adapter_observed',
+      logicalProviderCalls: 1,
+      transportDispatchCount: 1,
+      transportRetryCount: 0,
+      fallbackUsed: false,
+      canonicalRouteConfirmed: true,
+      canonicalModelConfirmed: true,
+    });
+    expect(JSON.stringify(result.receipt)).not.toMatch(
+      /raw transport failure must not persist|test-key-never-persisted/i,
+    );
+  });
+
+  it('preserves dispatched canonical adapter cost evidence and exact completion failure without repair', async () => {
+    const { context } = buildContext('single_location');
+    const transport: OpenAIResponsesAuthoringTransport & {
+      create: ReturnType<typeof vi.fn>;
+    } = {
+      create: vi.fn(async (
+        request: OpenAIResponsesAuthoringTransportRequest,
+      ) => {
+        request.observations.transportDispatchStarted = true;
+        request.observations.transportDispatchCount += 1;
+        request.observations.canonicalRouteConfirmed = true;
+        request.observations.canonicalModelConfirmed = true;
+        return {
+          id: 'response-incomplete-1',
+          model: BLUEPRINT_AUTHORING_MODEL,
+          status: 'incomplete',
+          output_text: '{"incomplete":true}',
+          usage: {
+            input_tokens: 120,
+            input_tokens_details: {
+              cached_tokens: 0,
+              cache_write_tokens: 0,
+            },
+            output_tokens: 80,
+            output_tokens_details: { reasoning_tokens: 20 },
+            total_tokens: 200,
+          },
+        };
+      }),
+    };
+    const provider =
+      createOpenAIResponsesBlueprintAuthoringAdapter({
+        transport,
+        readCredential: () => 'test-key-never-persisted',
+      });
+
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.failure?.code).toBe(
+      'completion_status_invalid',
+    );
+    expect(transport.create).toHaveBeenCalledTimes(1);
+    expect(result.receipt.attempts[0]).toMatchObject({
+      usage: {
+        inputTokens: 120,
+        outputTokens: 80,
+        totalTokens: 200,
+      },
+      reservedExposureBeforeCallUsd: 4.224,
+      conservativeCallCostUsd: 0.00242,
+      cumulativeConservativeCostUsd: 0.00242,
+      executionAttestation: {
+        evidenceKind: 'canonical_adapter_observed',
+        transportDispatchCount: 1,
+        transportRetryCount: 0,
+      },
+      failureCode: 'completion_status_invalid',
+    });
+  });
+
+  it('records an omitted provider model as unknown without losing dispatched usage evidence', async () => {
+    const { context } = buildContext('single_location');
+    const transport: OpenAIResponsesAuthoringTransport & {
+      create: ReturnType<typeof vi.fn>;
+    } = {
+      create: vi.fn(async (
+        request: OpenAIResponsesAuthoringTransportRequest,
+      ) => {
+        request.observations.transportDispatchStarted = true;
+        request.observations.transportDispatchCount += 1;
+        request.observations.canonicalRouteConfirmed = true;
+        request.observations.canonicalModelConfirmed = true;
+        return {
+          id: 'response-model-omitted-1',
+          status: 'completed',
+          output_text: '{"invalid":true}',
+          usage: {
+            input_tokens: 120,
+            input_tokens_details: {
+              cached_tokens: 0,
+              cache_write_tokens: 0,
+            },
+            output_tokens: 80,
+            output_tokens_details: { reasoning_tokens: 20 },
+            total_tokens: 200,
+          },
+        };
+      }),
+    };
+    const provider =
+      createOpenAIResponsesBlueprintAuthoringAdapter({
+        transport,
+        readCredential: () => 'test-key-never-persisted',
+      });
+
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.failure?.code).toBe(
+      'provider_policy_mismatch',
+    );
+    expect(transport.create).toHaveBeenCalledTimes(1);
+    expect(result.receipt.attempts[0]).toMatchObject({
+      provider: 'openai',
+      model: 'unknown-model',
+      conservativeCallCostUsd: 0.00242,
+      cumulativeConservativeCostUsd: 0.00242,
+      failureCode: 'provider_policy_mismatch',
+    });
+  });
+
+  it('recomputes dispatched cost evidence and rejects a forged cumulative amount', async () => {
+    const { context } = buildContext('single_location');
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => {
+        const receipt = canonicalProviderReceipt(args);
+        throw new ProductionAuthoringProviderBoundaryError(
+          'completion_status_invalid',
+          {
+            provider: receipt.provider,
+            model: receipt.model,
+            responseId: receipt.responseId,
+            responseDigest: 'a'.repeat(64),
+            usage: receipt.usage,
+            providerEvidenceVersion: receipt.evidenceVersion,
+            completionStatus: 'incomplete',
+            usageEvidenceComplete: true,
+            executionAttestation: receipt.executionAttestation,
+            inputAccounting: receipt.inputAccounting,
+            reservedExposureBeforeCallUsd:
+              receipt.reservedExposureBeforeCallUsd,
+            nominalEstimatedCostUsd:
+              receipt.nominalEstimatedCostUsd,
+            conservativeCallCostUsd:
+              receipt.conservativeCallCostUsd,
+            cumulativeConservativeCostUsd: 999,
+          },
+        );
+      }),
+    };
+
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.failure?.code).toBe(
+      'provider_evidence_invalid',
+    );
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(result.receipt.attempts[0]).toMatchObject({
+      nominalEstimatedCostUsd: 0.00208,
+      conservativeCallCostUsd: 0.00242,
+      cumulativeConservativeCostUsd: 0.00242,
+      failureCode: 'provider_evidence_invalid',
+    });
+    expect(JSON.stringify(result.receipt)).not.toContain('999');
+  });
+
+  it('reclassifies malformed thrown-boundary attestation evidence without claiming a dispatch', async () => {
+    const { context } = buildContext('single_location');
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => {
+        const receipt = canonicalProviderReceipt(args);
+        throw new ProductionAuthoringProviderBoundaryError(
+          'completion_status_invalid',
+          {
+            provider: receipt.provider,
+            model: receipt.model,
+            responseId: receipt.responseId,
+            responseDigest: 'b'.repeat(64),
+            usage: receipt.usage,
+            providerEvidenceVersion: receipt.evidenceVersion,
+            completionStatus: 'incomplete',
+            usageEvidenceComplete: true,
+            executionAttestation: {
+              ...receipt.executionAttestation,
+              hostileExtraKey: true,
+            },
+            inputAccounting: receipt.inputAccounting,
+            reservedExposureBeforeCallUsd:
+              receipt.reservedExposureBeforeCallUsd,
+            nominalEstimatedCostUsd:
+              receipt.nominalEstimatedCostUsd,
+            conservativeCallCostUsd:
+              receipt.conservativeCallCostUsd,
+            cumulativeConservativeCostUsd:
+              receipt.conservativeCallCostUsd,
+          },
+        );
+      }),
+    };
+
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.failure?.code).toBe(
+      'provider_evidence_invalid',
+    );
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(result.receipt.attempts[0]?.executionAttestation.evidenceKind).toBe(
+      'not_run',
+    );
+    expect(result.receipt.executionAttestation.evidenceKind).toBe('not_run');
+    expect(JSON.stringify(result.receipt)).not.toContain(
+      'hostileExtraKey',
+    );
+  });
+
+  it('does not credit an omitted boundary model as the requested canonical model', async () => {
+    const { context } = buildContext('single_location');
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => {
+        const receipt = canonicalProviderReceipt(args);
+        throw new ProductionAuthoringProviderBoundaryError(
+          'completion_status_invalid',
+          {
+            provider: receipt.provider,
+            responseId: receipt.responseId,
+            responseDigest: 'c'.repeat(64),
+            usage: receipt.usage,
+            providerEvidenceVersion: receipt.evidenceVersion,
+            completionStatus: 'incomplete',
+            usageEvidenceComplete: true,
+            executionAttestation: receipt.executionAttestation,
+            inputAccounting: receipt.inputAccounting,
+            reservedExposureBeforeCallUsd:
+              receipt.reservedExposureBeforeCallUsd,
+            nominalEstimatedCostUsd:
+              receipt.nominalEstimatedCostUsd,
+            conservativeCallCostUsd:
+              receipt.conservativeCallCostUsd,
+            cumulativeConservativeCostUsd:
+              receipt.conservativeCallCostUsd,
+          },
+        );
+      }),
+    };
+
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.failure?.code).toBe(
+      'provider_evidence_invalid',
+    );
+    expect(result.receipt.attempts[0]?.model).toBe('unknown-model');
     expect(provider.call).toHaveBeenCalledTimes(1);
   });
 
@@ -756,16 +1548,12 @@ describe('provider-isolated Blueprint authoring runner', () => {
     const { context } = buildContext('single_location');
     const rawDraftSentinel = 'raw-draft-must-not-persist';
     const provider = {
-      call: vi.fn(async ({ attempt }: { attempt: number }) => ({
-        output: {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => ({
+        output: JSON.stringify({
           rawDraftSentinel,
-          attempt,
-        },
-        receipt: {
-          provider: 'injected-test-provider',
-          model: 'injected-production-model',
-          responseId: `response-${attempt}`,
-        },
+          attempt: args.attempt,
+        }),
+        receipt: canonicalProviderReceipt(args),
       })),
     };
     const result = await runProductionBlueprintAuthoring({
@@ -804,36 +1592,27 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(serialized).not.toContain('"output"');
   });
 
-  it('keeps call-budget exhaustion redacted without copying compiler-wrapped failure text', async () => {
+  it('keeps legacy request and receipt versions immutable after the canonical cutover', async () => {
     const { context } = buildContext('single_location');
     const provider = {
-      call: vi.fn(async () => ({
-        output: { invalidDraft: 'call-budget-secret-sentinel' },
-        receipt: {
-          provider: 'injected-test-provider',
-          model: 'injected-production-model',
-        },
-      })),
+      call: vi.fn(async () => {
+        throw new Error('provider must remain unreachable');
+      }),
     };
-    const result = await runProductionBlueprintAuthoring({
-      request: requestFor(context, 'live', 1),
-      context,
-      provider,
-    });
-
-    expect(result.receipt.failure?.code).toBe('call_budget_exhausted');
-    expect(result.receipt.callCount).toBe(1);
-    expect(result.receipt.repairCount).toBe(0);
     expect(
-      result.receipt.attempts[0]?.validationDiagnostics,
-    ).toEqual({ count: 0, codes: [] });
-    expect(provider.call).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(result.receipt)).not.toMatch(
-      /call-budget-secret-sentinel|authoring call budget exhausted|repair call failed/i,
-    );
+      productionAuthoringRequestVersionStatus(
+        'production-blueprint-authoring-request/v3',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      productionAuthoringReceiptVersionStatus(
+        'production-blueprint-authoring-receipt/v4',
+      ),
+    ).toBe('legacy_immutable');
+    expect(provider.call).not.toHaveBeenCalled();
   });
 
-  it('fails unexpected local request processing closed and retains v3 only as immutable legacy evidence', async () => {
+  it('fails unexpected local request processing closed and retains prior receipts as immutable legacy evidence', async () => {
     const { context } = buildContext('single_location');
     const request = requestFor(context, 'live');
     const rawError = 'raw-blueprint-local-error-must-not-persist';
