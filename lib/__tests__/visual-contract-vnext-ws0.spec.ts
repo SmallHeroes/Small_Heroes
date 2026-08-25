@@ -40,6 +40,19 @@ function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
+function pageTransitionDiagnostic(pageNumber: number) {
+  return {
+    family: 'draft_contract',
+    code: 'final_structural_invariant_invalid',
+    locator: {
+      kind: 'page',
+      fieldRole: 'final_structure',
+      pageNumber,
+    },
+    causes: ['page_transition_invalid'],
+  } as const;
+}
+
 // ── Shared cast (child + companion) ────────────────────────────────────────────────────────────
 const child = { id: 'child:hero', role: 'child' as const, name: 'Dana', wardrobe: { description: 'red raincoat + yellow boots' } };
 const companion = { id: 'companion:fox', role: 'companion' as const, name: 'Fox', wardrobe: { description: 'green scarf' } };
@@ -374,7 +387,21 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     bad.pageContracts[2].transition = { kind: 'steady' }; // page 3 just "is" at home
     const r = validateVNextVisualContract(bad);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.join(' ')).toMatch(/undeclared scene move/);
+    if (!r.ok) {
+      expect(r.errors.join(' ')).toMatch(/undeclared scene move/);
+      expect(r.diagnosticIssues).toContainEqual(
+        pageTransitionDiagnostic(3),
+      );
+      expect(r.diagnosticIssues).not.toContainEqual({
+        family: 'draft_contract',
+        code: 'topology_malformed',
+        locator: {
+          kind: 'collection',
+          collectionRole: 'page_contracts',
+          fieldRole: 'transition',
+        },
+      });
+    }
   });
 
   it('a steady page sitting in destination B, with a later before_transition A→B, is rejected (Codex sequence case)', () => {
@@ -388,7 +415,19 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     ];
     const r = validateVNextVisualContract(bad);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.join(' ')).toMatch(/undeclared scene move/);
+    if (!r.ok) {
+      expect(r.errors.join(' ')).toMatch(/undeclared scene move/);
+      const transitionPages = r.diagnosticIssues.flatMap((issue) =>
+        issue.family === 'draft_contract' &&
+        issue.code === 'final_structural_invariant_invalid' &&
+        issue.locator.kind === 'page' &&
+        'causes' in issue &&
+        issue.causes.includes('page_transition_invalid')
+          ? [issue.locator.pageNumber]
+          : [],
+      );
+      expect([...new Set(transitionPages)]).toEqual([2, 3]);
+    }
   });
 
   it('a transition departing from a zone the story never established is rejected', () => {
@@ -396,7 +435,12 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
     bad.pageContracts[0].zoneId = 'house.attic'; // start in the attic, but page 2 claims to arrive FROM the hall
     const r = validateVNextVisualContract(bad);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.join(' ')).toMatch(/undeclared scene move|not continuous/);
+    if (!r.ok) {
+      expect(r.errors.join(' ')).toMatch(/undeclared scene move|not continuous/);
+      expect(r.diagnosticIssues).toContainEqual(
+        pageTransitionDiagnostic(2),
+      );
+    }
   });
 
   // ── C2: opening-page continuity guard (a non-steady FIRST page has no origin to depart from) ──────
@@ -430,12 +474,22 @@ describe('WS0 vNext — fail-closed on malformed / rule violations', () => {
   it('(C2) opening page THRESHOLD → REJECTED (no origin can be established before the first page)', () => {
     const r = validateVNextVisualContract(firstPageContract({ kind: 'threshold', fromZoneId: 'house.hall', toZoneId: 'house.attic', cue: 'the door opens' }, 'house.hall'));
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.join(' ')).toMatch(/opening page must be steady or before_transition/);
+    if (!r.ok) {
+      expect(r.errors.join(' ')).toMatch(/opening page must be steady or before_transition/);
+      expect(r.diagnosticIssues).toContainEqual(
+        pageTransitionDiagnostic(1),
+      );
+    }
   });
   it('(C2) opening page AFTER_TRANSITION → REJECTED (no origin can be established before the first page)', () => {
     const r = validateVNextVisualContract(firstPageContract({ kind: 'after_transition', fromZoneId: 'house.hall', toZoneId: 'house.attic', cue: 'stepping inside' }, 'house.attic'));
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.join(' ')).toMatch(/opening page must be steady or before_transition/);
+    if (!r.ok) {
+      expect(r.errors.join(' ')).toMatch(/opening page must be steady or before_transition/);
+      expect(r.diagnosticIssues).toContainEqual(
+        pageTransitionDiagnostic(1),
+      );
+    }
   });
 
   // ── P1 #5: remaining structural locks ───────────────────────────────────────────────────────────

@@ -759,7 +759,7 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.providerCalls).toBe(0);
   });
 
-  it('routes the live-shaped zero-gap 11 issue frontier through BookSurface then the represented-elsewhere lane with delta 11 to 5 to 0', async () => {
+  it('routes a masked live-shaped 19-issue frontier through transition-only BookSurface then the pure represented lane', async () => {
     const valid = bunnyDraft();
     const initial = structuredClone(valid);
     for (const page of initial.pageContracts) {
@@ -771,7 +771,25 @@ describe('offline Visual Contract repair harness', () => {
     }
 
     const representedPages = initial.pageContracts.slice(0, 5);
-    const structuralPages = initial.pageContracts.slice(0, 6);
+    const structuralPages = initial.pageContracts.slice(0, 8);
+    const capabilityPages = initial.pageContracts.slice(5, 11);
+    const capabilityPageNumbers = new Set(
+      capabilityPages.map((page) => page.pageNumber),
+    );
+    const validOpeningTransition = structuredClone(
+      valid.pageContracts[0]!.transition,
+    );
+    const openingZoneId = initial.pageContracts[0]!.zoneId;
+    const distantZoneId = initial.pageContracts[4]!.zoneId;
+    expect(typeof openingZoneId).toBe('string');
+    expect(typeof distantZoneId).toBe('string');
+    expect(distantZoneId).not.toBe(openingZoneId);
+    initial.pageContracts[0]!.transition = {
+      kind: 'threshold',
+      fromZoneId: openingZoneId,
+      toZoneId: distantZoneId,
+      cue: 'offline opening departure with no established origin',
+    };
     for (const [index, page] of structuralPages.entries()) {
       page.camera = '';
       if (index < representedPages.length) {
@@ -784,9 +802,34 @@ describe('offline Visual Contract repair harness', () => {
         };
       }
     }
+    for (const page of capabilityPages) {
+      const coverage = page.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+      coverage.push({
+        ...structuredClone(coverage[0]!),
+        beatId: `beat:p${String(page.pageNumber)}:offline_valid_guard`,
+      });
+      coverage[0]!.disposition = {
+        kind: 'unsupported',
+        reason: 'closed_action_catalog_gap',
+      };
+    }
 
     const bookSurfaceResponse = {
-      presentationPatches: [],
+      presentationPatches: capabilityPages.map((page) => {
+        const coverage = page.actionSemanticCoverage as Array<
+          Record<string, unknown>
+        >;
+        return {
+          pageNumber: page.pageNumber,
+          coverageIndex: 0,
+          beatId: coverage[0]!.beatId,
+          sourceEvidenceId: coverage[0]!.sourceEvidenceId,
+          presentationClass: 'composition_focus',
+          pointerChoiceIndex: 0,
+        };
+      }),
       coverContract: null,
       recurringProps: null,
       pageStructuralPatches: structuralPages.map((page, index) => ({
@@ -794,7 +837,9 @@ describe('offline Visual Contract repair harness', () => {
         locationId: null,
         zoneId: null,
         sameLocationAs: null,
-        mustShow: structuredClone(valid.pageContracts[index]!.mustShow),
+        mustShow: capabilityPageNumbers.has(page.pageNumber)
+          ? null
+          : structuredClone(valid.pageContracts[index]!.mustShow),
         mustNotShow: structuredClone(
           valid.pageContracts[index]!.mustNotShow,
         ),
@@ -804,6 +849,24 @@ describe('offline Visual Contract repair harness', () => {
         camera: valid.pageContracts[index]!.camera,
         transition: null,
       })),
+    };
+    const transitionBookSurfaceResponse = {
+      presentationPatches: [],
+      coverContract: null,
+      recurringProps: null,
+      pageStructuralPatches: [{
+        pageNumber: initial.pageContracts[0]!.pageNumber,
+        locationId: null,
+        zoneId: null,
+        sameLocationAs: null,
+        mustShow: null,
+        mustNotShow: null,
+        propState: null,
+        propConstraints: null,
+        actionRequirements: null,
+        camera: null,
+        transition: validOpeningTransition,
+      }],
     };
     const representedRepairPages = representedPages.map((page, index) => {
       const repairedPage = structuredClone(page);
@@ -839,12 +902,34 @@ describe('offline Visual Contract repair harness', () => {
       },
       causes: ['page_steering_invalid'],
     })) satisfies DraftValidationIssue[];
+    const capabilityIssues = capabilityPages.map((page) => ({
+      family: 'action_semantic',
+      code: 'closed_catalog_capability_gap',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_action_semantic_coverage',
+        fieldRole: 'disposition',
+        pageNumber: page.pageNumber as number,
+        itemIndex: 0,
+      },
+    })) satisfies DraftValidationIssue[];
+    const transitionIssue = {
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: initial.pageContracts[0]!.pageNumber as number,
+      },
+      causes: ['page_transition_invalid'],
+    } satisfies DraftValidationIssue;
 
     const result = await runOfflineRepairHarness({
       input: bunnySource(),
       initialDraft: initial,
       repairResponses: [
         bookSurfaceResponse,
+        transitionBookSurfaceResponse,
         {
           patches: representedRepairPages.map((page) => {
             const coverage = page.actionSemanticCoverage as Array<
@@ -861,7 +946,13 @@ describe('offline Visual Contract repair harness', () => {
         },
       ],
       completeDiagnosticIssuesByAttempt: [
-        [...representedIssues, ...structuralIssues],
+        [
+          ...representedIssues,
+          ...capabilityIssues,
+          ...structuralIssues,
+          transitionIssue,
+        ],
+        [...representedIssues, transitionIssue],
         representedIssues,
         [],
       ],
@@ -869,6 +960,7 @@ describe('offline Visual Contract repair harness', () => {
 
     expect(result.calls.map((call) => call.repairMode)).toEqual([
       null,
+      'book_surface_patch',
       'book_surface_patch',
       'represented_elsewhere_patch',
     ]);
@@ -885,6 +977,7 @@ describe('offline Visual Contract repair harness', () => {
       'initial',
       'repair',
       'repair',
+      'repair',
     ]);
     expect(result.stages.map((stage) => ({
       nextRepairMode: stage.nextRepairMode,
@@ -894,15 +987,21 @@ describe('offline Visual Contract repair harness', () => {
     }))).toEqual([
       {
         nextRepairMode: 'book_surface_patch',
-        surfacedIssueCount: 11,
-        completeIssueCount: 11,
+        surfacedIssueCount: 19,
+        completeIssueCount: 19,
         completeDelta: null,
+      },
+      {
+        nextRepairMode: 'book_surface_patch',
+        surfacedIssueCount: 6,
+        completeIssueCount: 6,
+        completeDelta: -13,
       },
       {
         nextRepairMode: 'represented_elsewhere_patch',
         surfacedIssueCount: 5,
         completeIssueCount: 5,
-        completeDelta: -6,
+        completeDelta: -1,
       },
       {
         nextRepairMode: null,
@@ -916,12 +1015,45 @@ describe('offline Visual Contract repair harness', () => {
         issue.family === 'action_semantic' &&
         issue.code === 'represented_elsewhere_pointer_out_of_scope',
     )).toEqual(representedIssues);
-    expect(result.stages[1]!.surfacedDiagnosticIssues).toEqual(
+    expect(result.stages[0]!.surfacedDiagnosticIssues).not.toContainEqual(
+      transitionIssue,
+    );
+    expect(result.stages[1]!.surfacedDiagnosticIssues).toEqual([
+      ...representedIssues,
+      transitionIssue,
+    ]);
+    expect(result.stages[2]!.surfacedDiagnosticIssues).toEqual(
       representedIssues,
     );
     expect(JSON.stringify(bookSurfaceResponse)).not.toContain(
       'actionSemanticCoverage',
     );
+    expect(JSON.stringify(transitionBookSurfaceResponse)).not.toContain(
+      'actionSemanticCoverage',
+    );
+    expect(transitionBookSurfaceResponse.pageStructuralPatches).toEqual([
+      {
+        pageNumber: initial.pageContracts[0]!.pageNumber,
+        locationId: null,
+        zoneId: null,
+        sameLocationAs: null,
+        mustShow: null,
+        mustNotShow: null,
+        propState: null,
+        propConstraints: null,
+        actionRequirements: null,
+        camera: null,
+        transition: validOpeningTransition,
+      },
+    ]);
+    expect(result.calls[2]).toMatchObject({
+      repairMode: 'book_surface_patch',
+      schemaName: 'BookSurfaceRepairPatch',
+    });
+    expect(result.calls[3]).toMatchObject({
+      repairMode: 'represented_elsewhere_patch',
+      schemaName: 'RepresentedElsewhereRepairPatches',
+    });
   });
 
   it('replays the production-shaped 17 to 9 to 6 to 0 frontier through three exact narrow lanes without a provider', async () => {

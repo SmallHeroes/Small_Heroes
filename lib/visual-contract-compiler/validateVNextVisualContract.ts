@@ -510,15 +510,15 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
   // transition) and, by induction from the first page, guarantees a page can never sit in a zone the story has
   // not transitioned into. The first page establishes the opening zone (nothing precedes it).
   {
-    const errorCountBeforeContinuity = errors.length;
-    const pagesSorted = [...(contract.pageContracts ?? [])]
-      .filter((p) => typeof p.pageNumber === 'number')
-      .sort((a, b) => a.pageNumber - b.pageNumber);
+    const pagesSorted = [...(contract.pageContracts ?? []).entries()]
+      .filter(([, page]) => typeof page.pageNumber === 'number')
+      .sort(([, left], [, right]) => left.pageNumber - right.pageNumber);
     const establishedZones = new Set<string>();
     let previousZone: string | undefined;
     let previousPage: number | undefined;
     let lastThresholdEdge: { fromZoneId: string; toZoneId: string } | undefined;
-    for (const p of pagesSorted) {
+    for (const [pageIndex, p] of pagesSorted) {
+      const errorCountBeforePageContinuity = errors.length;
       const kind: PageTransition['kind'] = p.transition?.kind ?? 'steady';
       // (C2) The opening page establishes the origin — nothing precedes it — so it CANNOT declare a DEPARTING move.
       // A threshold/after_transition first page would depart from an origin no prior page established (the per-page
@@ -569,17 +569,17 @@ export function validateVNextVisualContract(input: unknown): VNextContractValida
         previousZone = p.zoneId;
         previousPage = p.pageNumber;
       }
+      repeatIssueForNewErrors(
+        errors,
+        errorCountBeforePageContinuity,
+        diagnosticIssues,
+        pageFinalStructuralIssue(
+          p,
+          pageIndex,
+          'page_transition_invalid',
+        ),
+      );
     }
-    repeatIssueForNewErrors(
-      errors,
-      errorCountBeforeContinuity,
-      diagnosticIssues,
-      {
-        family: 'draft_contract',
-        code: 'topology_malformed',
-        locator: { kind: 'collection', collectionRole: 'page_contracts', fieldRole: 'transition' },
-      },
-    );
   }
 
   if (errors.length > 0) {

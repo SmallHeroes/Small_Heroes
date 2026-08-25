@@ -2,9 +2,59 @@
 
 **Updated:** 2026-08-25
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; current downstream implementation base `3c6c04ceeb569fab17b749867121621cbba81016`.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; current offline correction base `e25ae0c0451856791c6f0f60b5c1919a2c9e8212`.
 
-## QA WIZARD PACKAGE OPERATOR — INDEPENDENT TECHNICAL PASS; PUSH PENDING
+## PAGE-LOCAL TRANSITION CONTINUITY ROUTING — OFFLINE GREEN; INDEPENDENT QA PENDING
+
+The first bounded paid authoring attempt on the pushed package-operator head
+ended safely without a Candidate. Fresh Readiness root
+`outputs/r1d-chameleon-v3-fresh-readiness-20260825T184449411Z` produced the
+route `initial 19 -> book_surface_patch 6 -> full_draft 16`; the complete-census
+regression guard correctly stopped before call four. The run made three
+provider calls with no retry or fallback and recorded nominal cost `$1.143956`
+and conservative cost `$1.258362` in receipt
+`b0/authoring-receipts/6b8e150474dab40242e127aa72f8b40414fd0ebdefc7b538b0e7bc27b2c5c4a1.json`.
+No live rerun has occurred.
+
+Root cause is diagnostic addressability, not provider quality, budget or the
+regression guard. Base validation masked one already-invalid cross-page
+transition while action requirements were invalid. The first BookSurface
+repair could alter only `actionRequirements`; after those errors closed, full
+vNext validation surfaced the pre-existing continuity failure. Although the
+validator knew the affected page, it emitted a collection-level
+`topology_malformed` identity. No narrow route could acquire that coarse
+surface, so the scheduler selected `full_draft`, which regressed the complete
+unique census from 6 to 16.
+
+The offline correction preserves every validation rule and error message but
+attributes each cross-page continuity failure to the affected page as the
+existing `final_structural_invariant_invalid/page_transition_invalid`
+diagnostic. Existing BookSurface mapping then grants only that page's
+`transition` field; no repair-lane predicate is widened and the pure
+`represented_elsewhere_patch` lane remains unchanged. A production-shaped
+offline harness now proves `19 -> 6 -> 5 -> 0` through
+`book_surface_patch -> book_surface_patch -> represented_elsewhere_patch`,
+Candidate outcome, zero provider calls, transition-only second repair and no
+action-coverage write authority. Validator tests cover opening departure,
+undeclared moves, unestablished/discontinuous origin and multiple affected
+pages.
+
+Focused proof is 136/136. The broader relevant compiler/repair matrix is
+774/774. TypeScript and `git diff --check` pass. Full `npm run check` passes
+3,722 ordinary assertions and all 613 resource-intensive assertions. It
+reproduces only the nine documented missing ignored-output fixture assertions
+across five unchanged files, 70 skips and the three known Vitest
+`onTaskUpdate` RPC timeout events; no changed-code assertion fails.
+
+No credential, provider/live call, Candidate, Wizard order, image, audio,
+render, database/storage write, deployment or push occurred during this
+offline correction. The next gate is a focused local commit and independent
+Claude Code adversarial review. Only after PASS and an exact push may a new
+Fresh Readiness root authorize one bounded live attempt. Durable documents:
+`docs/ai-workflow/R1D_PAGE_LOCAL_TRANSITION_CONTINUITY_DECISION_GATE.md` and
+`docs/ai-workflow/R1D_PAGE_LOCAL_TRANSITION_CONTINUITY_IMPLEMENTATION_EVIDENCE.md`.
+
+## QA WIZARD PACKAGE OPERATOR — INDEPENDENT TECHNICAL PASS; PUSHED AND SUPERSEDED BY LIVE DIAGNOSIS
 
 The missing general package boundary is now implemented. It consumes only an
 exact `blueprint_approved` QA Wizard manifest, replays the approved bridge,
@@ -60,8 +110,8 @@ regression plus truthful crash and dynamic-import wording. Claude then
 micro-re-gated exact range `dbfd3a59..be2e5f99` and returned PASS with zero
 BLOCKER, zero MAJOR and zero MINOR after independently reproducing 9/9 tests,
 TypeScript and diff checks. Codex records those verdicts and does not self-award
-independent PASS. The branch now requires one explicit push to create a
-same-name upstream before Fresh Readiness. Durable evidence:
+independent PASS. That package-operator head was subsequently pushed and used
+as the exact input to the Fresh/live attempt documented above. Durable evidence:
 `docs/ai-workflow/R1D_QA_WIZARD_PACKAGE_OPERATOR_IMPLEMENTATION_EVIDENCE.md`.
 
 ## QA WIZARD BLUEPRINT OPERATOR — INDEPENDENT TECHNICAL PASS; FRESH INPUT PENDING
