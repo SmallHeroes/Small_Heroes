@@ -31,9 +31,10 @@ transition-continuity issue.
 
 Base validation masks vNext continuity while page action requirements are
 invalid. Once the first BookSurface repair closes those base errors, the
-continuity failure is unmasked. The BookSurface patch did not create it: that
-attempt had authority only for `actionRequirements`, and its non-target
-preservation guard kept `transition` unchanged.
+continuity failure is unmasked. The BookSurface patch did not create it: its
+only structural page-field authority was `actionRequirements`; separate
+presentation authority could not touch `transition`, and the non-target
+preservation guard kept that field unchanged.
 
 The continuity error is currently reported as a collection-level topology
 identity even though the validator knows the exact current page and the only

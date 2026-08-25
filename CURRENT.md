@@ -19,9 +19,10 @@ No live rerun has occurred.
 Root cause is diagnostic addressability, not provider quality, budget or the
 regression guard. Base validation masked one already-invalid cross-page
 transition while action requirements were invalid. The first BookSurface
-repair could alter only `actionRequirements`; after those errors closed, full
-vNext validation surfaced the pre-existing continuity failure. Although the
-validator knew the affected page, it emitted a collection-level
+repair's only structural page-field authority was `actionRequirements`;
+separate presentation authority could not touch `transition`. After those
+errors closed, full vNext validation surfaced the pre-existing failure.
+Although the validator knew the affected page, it emitted a collection-level
 `topology_malformed` identity. No narrow route could acquire that coarse
 surface, so the scheduler selected `full_draft`, which regressed the complete
 unique census from 6 to 16.
