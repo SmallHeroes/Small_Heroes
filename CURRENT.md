@@ -82,12 +82,25 @@ receipt and readiness artifacts with exact non-null bounded `targetContext`.
 Removing the production adapter allow-list entry makes the new mapping test
 fail with `adapter_policy_mismatch`; restoring it returns green. The closure
 changes no production file, version, policy or runtime behavior. Focused tests
-pass 276/276 and TypeScript passes. The canonical full check reports 286
-ordinary files / 3,629 passing assertions with the same 11 baseline failures
-in six unchanged files; resource-intensive reports 20/20 files and 613/613
-assertions passing before one known Vitest `onTaskUpdate` RPC timeout. A
-read-only Claude Code micro re-gate of the test-only closure is required before
-Fresh Readiness or a paid attempt.
+pass 276/276 and TypeScript passes. The closure run of the canonical full check
+reported 286 ordinary files / 3,629 passing assertions and 11 failures; two
+independent re-gate runs reported 3,630 passing assertions and 10 failures.
+The stable population is 3,640 non-skipped assertions across the same six
+unchanged files: nine fixed missing historical-output fixtures plus one or two
+run-variable five-second Blueprint-migration timeouts. Resource-intensive is
+stable at 20/20 files and 613/613 assertions passing; only the known post-run
+Vitest `onTaskUpdate` RPC error count varied from one to three. Claude Code
+returned technical PASS for the test-only closure with two additional
+non-blocking MINORs. Both are now closed locally: the documentation records the
+observed count range instead of a fixed flaky number, and the four defensive
+`target_identity_invalid` subreasons (`kind_drift`, `beat_drift`,
+`source_drift`, `target_stale`) each pass an exact receipt/readiness disk
+round-trip on the real two-attempt represented-lane carrier. The four states
+cannot be produced legitimately by provider output because they represent
+compiler-owned state changing after prompt construction; their actual compiler
+errors and atomicity remain covered by the existing parameterized module test.
+The expanded lifecycle file passes 106/106 and TypeScript passes. Neither the
+PASS nor this cleanup by itself authorizes Fresh Readiness or paid work.
 
 ## DEFERRED-REPRESENTED BOOKSURFACE SCHEDULER — OFFLINE GREEN; AWAITING INDEPENDENT QA
 

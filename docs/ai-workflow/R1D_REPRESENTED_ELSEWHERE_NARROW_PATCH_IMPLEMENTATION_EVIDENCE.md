@@ -230,14 +230,41 @@ Closure validation:
   production restoration and a clean production diff;
 - `npx --no-install tsc --noEmit --pretty false`: exit **0**;
 - `git diff --check`: exit **0**;
-- canonical `npm run check`: ordinary **286 files / 3,629 assertions PASS**,
-  17 files / 70 assertions skipped, with the same 11 baseline failures in six
-  unchanged files; resource-intensive **20/20 files / 613/613 assertions
-  PASS**, followed by one known Vitest `onTaskUpdate` RPC timeout.
+- canonical `npm run check`: the closure run recorded ordinary **286 files /
+  3,629 assertions PASS** and 11 failures; two independent re-gate runs recorded
+  3,630 assertions passing and 10 failures. The invariant population is 3,640
+  non-skipped assertions across the same six unchanged files: nine missing
+  historical-output fixtures plus one or two run-variable five-second
+  Blueprint-migration timeouts. Resource-intensive is stable at **20/20 files /
+  613/613 assertions PASS**; the known post-run Vitest `onTaskUpdate` RPC error
+  count varied from one to three.
 
 No production file, schema, prompt, version, policy, budget, route, provider,
-Candidate, Wizard or render behavior changes in this closure. It requires only
-a read-only Claude Code micro re-gate over the test-and-documentation commit.
+Candidate, Wizard or render behavior changes in this closure. Claude Code
+independently re-gated this test-and-documentation commit and returned technical
+PASS with two additional non-blocking documentation/coverage MINORs.
+
+### Post-PASS MINOR cleanup
+
+Both additional MINORs are closed without production changes. The canonical
+full-check account above now separates invariant totals from the observed
+run-variable Blueprint and Vitest RPC counts. The existing real
+`choice_out_of_range` lifecycle run also acts as one authentic two-attempt v53
+receipt carrier for a four-row artifact matrix covering `kind_drift`,
+`beat_drift`, `source_drift` and `target_stale`. For every row the production
+terminal builder derives `target_identity_invalid`, receipt/readiness writers
+validate and persist canonical bytes, both artifacts reload exactly, readiness
+rebuilds identically from the loaded receipt, the context has exactly the three
+closed keys, and the same raw prompt/pointer/value exclusions remain true.
+
+These four states are intentionally not forced through four artificial provider
+runs. They are defensive compiler-owned stale-state guards: a strict provider
+response can select only the published identity and ordinal and cannot mutate
+the compiler's current kind, beat, source or permitted domain after prompt
+construction. Their real error construction and atomicity are already exercised
+as a parameterized compiler test; the added matrix closes the missing artifact
+round-trip layer. The focused lifecycle test passes, the complete lifecycle file
+passes **106/106**, TypeScript exits **0**, and `git diff --check` is clean.
 
 ## Cost and external-state proof
 

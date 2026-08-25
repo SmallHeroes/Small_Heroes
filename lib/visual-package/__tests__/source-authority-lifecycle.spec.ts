@@ -71,6 +71,7 @@ import {
   buildVisualContractAuthoringRejectedRequestFallbackBudget,
   buildVisualContractAuthoringRequest,
   buildVisualContractAuthoringStandardAttemptOutputBudget,
+  buildVisualContractAuthoringTerminalFailure,
   buildVisualContractCandidateArtifact,
   authoringReservedExposureUsd,
   authoringSpendIsWithinCeiling,
@@ -8611,8 +8612,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       ),
     ).toBe(true);
 
-    const persistedBytes = `${receiptBytes}\n${readinessBytes}`;
-    for (const forbidden of [
+    const forbiddenMaterial = [
       privateRepresentedValue,
       'stale represented value',
       '/pageContracts/99/propState/0/state',
@@ -8621,8 +8621,162 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       'contractPointer',
       'contractValue',
       ...rawRepairMaterial,
-    ]) {
+    ];
+    const persistedBytes = `${receiptBytes}\n${readinessBytes}`;
+    for (const forbidden of forbiddenMaterial) {
       expect(persistedBytes).not.toContain(forbidden);
+    }
+
+    for (const closedSubreason of [
+      'kind_drift',
+      'beat_drift',
+      'source_drift',
+      'target_stale',
+    ] as const) {
+      const targetContext = {
+        pageNumber: 8,
+        coverageIndex: 1,
+        closedSubreason,
+      } as const;
+      const variantReceipt = structuredClone(result.receipt);
+      const variantFailure =
+        buildVisualContractAuthoringTerminalFailure({
+          code: 'repair_output_invalid',
+          issueCodes: ['repair_output_invalid'],
+          repairOutputDiagnostics: {
+            repairAttempt: 2,
+            repairMode: 'represented_elsewhere_patch',
+            failureCode: 'target_identity_invalid',
+            identity:
+              'represented_elsewhere_repair_target_association_invalid',
+            targetContext,
+            carriedDraftDiagnosticCount: 1,
+          },
+        });
+      variantReceipt.failure = variantFailure;
+      const terminalAttempt =
+        variantReceipt.attempts[variantReceipt.attempts.length - 1];
+      if (!terminalAttempt) {
+        throw new Error('expected represented-elsewhere terminal attempt');
+      }
+      terminalAttempt.validationDiagnostics = {
+        count: variantFailure.diagnosticCount,
+        codes: [...variantFailure.diagnosticCodes],
+      };
+      const {
+        digestAlgorithm: _variantDigestAlgorithm,
+        digest: _variantDigest,
+        ...variantReceiptPayload
+      } = variantReceipt;
+      variantReceipt.digest = canonicalJsonDigest(
+        variantReceiptPayload,
+      );
+
+      expect(
+        visualContractAuthoringTerminalFailureIsValid(
+          variantReceipt.failure,
+        ),
+      ).toBe(true);
+      expect(variantReceipt.failure).toMatchObject({
+        diagnosticCodes: [
+          'repair_output_target_identity_invalid',
+        ],
+        repairOutputDiagnostics: {
+          failureCode: 'target_identity_invalid',
+          targetContext,
+        },
+      });
+
+      const variantReadiness =
+        buildVisualContractAuthoringReadinessEvidence({
+          snapshot,
+          request,
+          receipt: variantReceipt,
+        });
+      const variantOutputDir =
+        `outputs/represented-elsewhere-target-context/${closedSubreason}`;
+      const variantReceiptWrite =
+        persistVisualContractAuthoringReceipt({
+          repoRoot: persistedRoot,
+          outputDir: variantOutputDir,
+          request,
+          receipt: variantReceipt,
+          write: true,
+        });
+      const variantReadinessWrite =
+        persistVisualContractAuthoringReadiness({
+          repoRoot: persistedRoot,
+          outputDir: variantOutputDir,
+          request,
+          evidence: variantReadiness,
+          receipt: variantReceipt,
+          write: true,
+        });
+      const variantReceiptBytes = fs.readFileSync(
+        path.join(persistedRoot, variantReceiptWrite.path),
+        'utf8',
+      );
+      const variantReadinessBytes = fs.readFileSync(
+        path.join(persistedRoot, variantReadinessWrite.path),
+        'utf8',
+      );
+      const loadedVariantReceipt = JSON.parse(
+        variantReceiptBytes,
+      ) as typeof variantReceipt;
+      const loadedVariantReadiness = JSON.parse(
+        variantReadinessBytes,
+      ) as typeof variantReadiness;
+      const loadedVariantDiagnostics =
+        loadedVariantReceipt.failure?.repairOutputDiagnostics;
+      if (
+        loadedVariantDiagnostics?.version !==
+        'visual-contract-repair-output-diagnostics/v5'
+      ) {
+        throw new Error(
+          'expected persisted target-identity diagnostics',
+        );
+      }
+
+      expect(loadedVariantReceipt).toEqual(variantReceipt);
+      expect(loadedVariantReadiness).toEqual(variantReadiness);
+      expect(
+        loadedVariantReceipt.failure?.repairOutputDiagnostics,
+      ).toMatchObject({
+        failureCode: 'target_identity_invalid',
+        targetContext,
+      });
+      expect(
+        loadedVariantReadiness.authoringOutcome
+          .terminalClassification?.repairOutputDiagnostics,
+      ).toMatchObject({
+        failureCode: 'target_identity_invalid',
+        targetContext,
+      });
+      expect(
+        Object.keys(loadedVariantDiagnostics.targetContext!).sort(),
+      ).toEqual(['closedSubreason', 'coverageIndex', 'pageNumber']);
+      expect(
+        loadedVariantReadiness.authoringOutcome
+          .terminalClassification,
+      ).toEqual(loadedVariantReceipt.failure);
+      expect(
+        buildVisualContractAuthoringReadinessEvidence({
+          snapshot,
+          request,
+          receipt: loadedVariantReceipt,
+        }),
+      ).toEqual(loadedVariantReadiness);
+      expect(
+        visualContractAuthoringTerminalFailureIsValid(
+          loadedVariantReceipt.failure,
+        ),
+      ).toBe(true);
+
+      const variantPersistedBytes =
+        `${variantReceiptBytes}\n${variantReadinessBytes}`;
+      for (const forbidden of forbiddenMaterial) {
+        expect(variantPersistedBytes).not.toContain(forbidden);
+      }
     }
   });
 
