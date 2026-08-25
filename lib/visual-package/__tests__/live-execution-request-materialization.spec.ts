@@ -365,7 +365,7 @@ describe('canonical live execution request materialization', () => {
     expect(
       CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_RESULT_VERSION,
     ).toBe(
-      'canonical-live-execution-request-materialization-result/v39',
+      'canonical-live-execution-request-materialization-result/v40',
     );
     expect(result).toMatchObject({
       version:
@@ -405,6 +405,8 @@ describe('canonical live execution request materialization', () => {
         typeof request.canonicalBundle.compactRepairStructuredOutputCompatibility;
       pageContractRepairStructuredOutputCompatibility:
         typeof request.canonicalBundle.pageContractRepairStructuredOutputCompatibility;
+      representedElsewhereRepairStructuredOutputCompatibility:
+        typeof request.canonicalBundle.representedElsewhereRepairStructuredOutputCompatibility;
       pageSpatialReferenceRepairStructuredOutputCompatibility:
         typeof request.canonicalBundle.pageSpatialReferenceRepairStructuredOutputCompatibility;
       structuralBundleRepairStructuredOutputCompatibility:
@@ -447,13 +449,15 @@ describe('canonical live execution request materialization', () => {
       manifestPath: fixture.manifestPath,
       manifestDigest: fixture.manifestDigest,
       verificationVersion:
-        'canonical-live-request-verification/v48',
+        'canonical-live-request-verification/v49',
       structuredOutputCompatibility:
         manifest.structuredOutputCompatibility,
       compactRepairStructuredOutputCompatibility:
         manifest.compactRepairStructuredOutputCompatibility,
       pageContractRepairStructuredOutputCompatibility:
         manifest.pageContractRepairStructuredOutputCompatibility,
+      representedElsewhereRepairStructuredOutputCompatibility:
+        manifest.representedElsewhereRepairStructuredOutputCompatibility,
       pageSpatialReferenceRepairStructuredOutputCompatibility:
         manifest.pageSpatialReferenceRepairStructuredOutputCompatibility,
       structuralBundleRepairStructuredOutputCompatibility:
@@ -1299,7 +1303,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       (args) =>
         ({
           ...verifyCanonicalLiveRequestBundle(args),
-          version: 'canonical-live-request-verification/v42',
+          version: 'canonical-live-request-verification/v48',
         }) as unknown as ReturnType<
           typeof verifyCanonicalLiveRequestBundle
         >;
@@ -1320,7 +1324,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       (args) =>
         ({
           ...verifyCanonicalLiveExecution(args),
-          version: 'canonical-live-execution-readiness/v41',
+          version: 'canonical-live-execution-readiness/v44',
         }) as unknown as ReturnType<
           typeof verifyCanonicalLiveExecution
         >;

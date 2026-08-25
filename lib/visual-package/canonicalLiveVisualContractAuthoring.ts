@@ -179,6 +179,10 @@ function authoringRequestValue(
     object.pageContractRepairStructuredOutput,
     'visual contract authoring request pageContractRepairStructuredOutput',
   );
+  const representedElsewhereRepairStructuredOutput = objectValue(
+    object.representedElsewhereRepairStructuredOutput,
+    'visual contract authoring request representedElsewhereRepairStructuredOutput',
+  );
   const pageSpatialReferenceRepairStructuredOutput = objectValue(
     object.pageSpatialReferenceRepairStructuredOutput,
     'visual contract authoring request pageSpatialReferenceRepairStructuredOutput',
@@ -246,6 +250,10 @@ function authoringRequestValue(
   const pageContractRepairPromptAuthority = objectValue(
     promptAuthority.pageContractRepair,
     'visual contract authoring request pageContractRepair promptAuthority',
+  );
+  const representedElsewhereRepairPromptAuthority = objectValue(
+    promptAuthority.representedElsewhereRepair,
+    'visual contract authoring request representedElsewhereRepair promptAuthority',
   );
   const pageSpatialReferenceRepairPromptAuthority = objectValue(
     promptAuthority.pageSpatialReferenceRepair,
@@ -359,6 +367,27 @@ function authoringRequestValue(
         pageContractRepairStructuredOutput.compatibilityStatus,
       serializedSchemaDigest:
         pageContractRepairStructuredOutput.serializedSchemaDigest,
+    },
+    representedElsewhereRepairStructuredOutput: {
+      strict: representedElsewhereRepairStructuredOutput.strict,
+      schemaName:
+        representedElsewhereRepairStructuredOutput.schemaName,
+      schemaVersion:
+        representedElsewhereRepairStructuredOutput.schemaVersion,
+      schemaDigest:
+        representedElsewhereRepairStructuredOutput.schemaDigest,
+      compatibilityProfileVersion:
+        representedElsewhereRepairStructuredOutput.compatibilityProfileVersion,
+      compatibilityProfileDigest:
+        representedElsewhereRepairStructuredOutput.compatibilityProfileDigest,
+      compatibilityEvidenceVersion:
+        representedElsewhereRepairStructuredOutput.compatibilityEvidenceVersion,
+      compatibilityEvidenceDigest:
+        representedElsewhereRepairStructuredOutput.compatibilityEvidenceDigest,
+      compatibilityStatus:
+        representedElsewhereRepairStructuredOutput.compatibilityStatus,
+      serializedSchemaDigest:
+        representedElsewhereRepairStructuredOutput.serializedSchemaDigest,
     },
     pageSpatialReferenceRepairStructuredOutput: {
       strict: pageSpatialReferenceRepairStructuredOutput.strict,
@@ -581,6 +610,14 @@ function authoringRequestValue(
         systemPromptDigest:
           pageContractRepairPromptAuthority.systemPromptDigest,
       },
+      representedElsewhereRepair: {
+        systemPromptVersion:
+          representedElsewhereRepairPromptAuthority.systemPromptVersion,
+        userPromptVersion:
+          representedElsewhereRepairPromptAuthority.userPromptVersion,
+        systemPromptDigest:
+          representedElsewhereRepairPromptAuthority.systemPromptDigest,
+      },
       pageSpatialReferenceRepair: {
         systemPromptVersion:
           pageSpatialReferenceRepairPromptAuthority.systemPromptVersion,
@@ -654,6 +691,7 @@ const REQUEST_KEYS = new Set([
   'structuredOutput',
   'compactRepairStructuredOutput',
   'pageContractRepairStructuredOutput',
+  'representedElsewhereRepairStructuredOutput',
   'pageSpatialReferenceRepairStructuredOutput',
   'structuralBundleRepairStructuredOutput',
   'bookSurfaceRepairStructuredOutput',
@@ -701,6 +739,18 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'serializedSchemaDigest',
   ]),
   pageContractRepairStructuredOutput: new Set([
+    'strict',
+    'schemaName',
+    'schemaVersion',
+    'schemaDigest',
+    'compatibilityProfileVersion',
+    'compatibilityProfileDigest',
+    'compatibilityEvidenceVersion',
+    'compatibilityEvidenceDigest',
+    'compatibilityStatus',
+    'serializedSchemaDigest',
+  ]),
+  representedElsewhereRepairStructuredOutput: new Set([
     'strict',
     'schemaName',
     'schemaVersion',
@@ -824,6 +874,7 @@ const REQUEST_NESTED_KEYS: Record<string, Set<string>> = {
     'repair',
     'sourceEvidenceIdRepair',
     'pageContractRepair',
+    'representedElsewhereRepair',
     'pageSpatialReferenceRepair',
     'structuralBundleRepair',
     'bookSurfaceRepair',
@@ -886,6 +937,18 @@ const REQUEST_OBJECT_FIELDS = {
     serializedSchemaDigest: 'string',
   },
   pageContractRepairStructuredOutput: {
+    strict: 'boolean',
+    schemaName: 'string',
+    schemaVersion: 'string',
+    schemaDigest: 'string',
+    compatibilityProfileVersion: 'string',
+    compatibilityProfileDigest: 'string',
+    compatibilityEvidenceVersion: 'string',
+    compatibilityEvidenceDigest: 'string',
+    compatibilityStatus: 'string',
+    serializedSchemaDigest: 'string',
+  },
+  representedElsewhereRepairStructuredOutput: {
     strict: 'boolean',
     schemaName: 'string',
     schemaVersion: 'string',
@@ -1014,6 +1077,11 @@ const PROMPT_AUTHORITY_FIELDS = {
     systemPromptDigest: 'string',
   },
   pageContractRepair: {
+    systemPromptVersion: 'string',
+    userPromptVersion: 'string',
+    systemPromptDigest: 'string',
+  },
+  representedElsewhereRepair: {
     systemPromptVersion: 'string',
     userPromptVersion: 'string',
     systemPromptDigest: 'string',

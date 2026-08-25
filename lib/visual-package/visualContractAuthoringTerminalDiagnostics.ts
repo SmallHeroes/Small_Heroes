@@ -5,15 +5,20 @@ import {
   type DraftAuthorityReferenceIssue,
 } from '@/lib/visual-contract-compiler/draftAuthorityReferenceDiagnostics';
 import {
+  LEGACY_TEMPLATE_REPAIR_MODE_VALUES,
   TEMPLATE_REPAIR_MODE_VALUES,
   TEMPLATE_REPAIR_OUTPUT_FAILURE_CODE_VALUES,
   TEMPLATE_REPAIR_OUTPUT_IDENTITY_V2_ADDITION_VALUES,
   TEMPLATE_REPAIR_OUTPUT_IDENTITY_V3_ADDITION_VALUES,
   TEMPLATE_REPAIR_OUTPUT_IDENTITY_V4_ADDITION_VALUES,
+  TEMPLATE_REPAIR_OUTPUT_IDENTITY_V5_ADDITION_VALUES,
   templateRepairOutputIdentityIsValid,
+  templateRepairOutputTargetContextIsValid,
+  type LegacyTemplateRepairMode,
   type TemplateRepairMode,
   type TemplateRepairOutputFailureCode,
   type TemplateRepairOutputIdentity,
+  type TemplateRepairOutputTargetContext,
 } from '@/lib/visual-contract-compiler/templateRepairOutputDiagnostics';
 import {
   VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS,
@@ -40,11 +45,13 @@ export interface VisualContractAuthoringTerminalFailure
   repairOutputDiagnostics:
     | VisualContractRepairOutputDiagnostics
     | LegacyVisualContractRepairOutputDiagnostics
+    | LegacyVisualContractRepairOutputDiagnosticsV3
     | LegacyVisualContractRepairOutputDiagnosticsV2
     | LegacyVisualContractRepairOutputDiagnosticsV1
     | null;
   repairRouteAdmissionDiagnostics:
     | VisualContractRepairRouteAdmissionDiagnostics
+    | LegacyVisualContractRepairRouteAdmissionDiagnostics
     | null;
 }
 
@@ -56,12 +63,15 @@ export interface LegacyVisualContractAuthoringTerminalFailure
   repairOutputDiagnostics:
     | VisualContractRepairOutputDiagnostics
     | LegacyVisualContractRepairOutputDiagnostics
+    | LegacyVisualContractRepairOutputDiagnosticsV3
     | LegacyVisualContractRepairOutputDiagnosticsV2
     | LegacyVisualContractRepairOutputDiagnosticsV1
     | null;
 }
 
 export const VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION =
+  'visual-contract-repair-route-admission-diagnostics/v2' as const;
+export const LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION =
   'visual-contract-repair-route-admission-diagnostics/v1' as const;
 
 export interface VisualContractRepairRouteAdmissionDiagnostics {
@@ -82,9 +92,17 @@ export interface VisualContractRepairRouteAdmissionDiagnosticsInput {
   carriedDraftDiagnosticCount: number;
 }
 
+export interface LegacyVisualContractRepairRouteAdmissionDiagnostics
+  extends Omit<VisualContractRepairRouteAdmissionDiagnostics, 'version'> {
+  version: typeof LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION;
+  repairMode: LegacyTemplateRepairMode;
+}
+
 export const VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION =
-  'visual-contract-repair-output-diagnostics/v4' as const;
+  'visual-contract-repair-output-diagnostics/v5' as const;
 export const LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION =
+  'visual-contract-repair-output-diagnostics/v4' as const;
+export const LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION_V3 =
   'visual-contract-repair-output-diagnostics/v3' as const;
 export const LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION_V2 =
   'visual-contract-repair-output-diagnostics/v2' as const;
@@ -97,6 +115,7 @@ export interface VisualContractRepairOutputDiagnostics {
   repairMode: TemplateRepairMode;
   failureCode: TemplateRepairOutputFailureCode;
   identity: TemplateRepairOutputIdentity;
+  targetContext: TemplateRepairOutputTargetContext | null;
   carriedDraftDiagnosticCount: number;
   repairOutputDiagnosticCount: 1;
 }
@@ -104,11 +123,16 @@ export interface VisualContractRepairOutputDiagnostics {
 export interface LegacyVisualContractRepairOutputDiagnostics {
   version: typeof LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION;
   repairAttempt: number;
-  repairMode: TemplateRepairMode;
+  repairMode: LegacyTemplateRepairMode;
   failureCode: TemplateRepairOutputFailureCode;
   identity: TemplateRepairOutputIdentity;
   carriedDraftDiagnosticCount: number;
   repairOutputDiagnosticCount: 1;
+}
+
+export interface LegacyVisualContractRepairOutputDiagnosticsV3
+  extends Omit<LegacyVisualContractRepairOutputDiagnostics, 'version'> {
+  version: typeof LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION_V3;
 }
 
 export interface LegacyVisualContractRepairOutputDiagnosticsV1
@@ -126,11 +150,15 @@ export interface VisualContractRepairOutputDiagnosticsInput {
   repairMode: TemplateRepairMode;
   failureCode: TemplateRepairOutputFailureCode;
   identity: TemplateRepairOutputIdentity;
+  targetContext?: TemplateRepairOutputTargetContext | null;
   carriedDraftDiagnosticCount: number;
 }
 
-const REPAIR_MODES = new Set<TemplateRepairMode>(
+const CURRENT_REPAIR_MODES = new Set<TemplateRepairMode>(
   TEMPLATE_REPAIR_MODE_VALUES,
+);
+const LEGACY_REPAIR_MODES = new Set<LegacyTemplateRepairMode>(
+  LEGACY_TEMPLATE_REPAIR_MODE_VALUES,
 );
 const REPAIR_FAILURE_CODES =
   new Set<TemplateRepairOutputFailureCode>(
@@ -145,16 +173,25 @@ const V3_IDENTITY_ADDITIONS = new Set<string>(
 const V4_IDENTITY_ADDITIONS = new Set<string>(
   TEMPLATE_REPAIR_OUTPUT_IDENTITY_V4_ADDITION_VALUES,
 );
+const V5_IDENTITY_ADDITIONS = new Set<string>(
+  TEMPLATE_REPAIR_OUTPUT_IDENTITY_V5_ADDITION_VALUES,
+);
 
-const REPAIR_OUTPUT_DIAGNOSTIC_KEYS = [
+const CURRENT_REPAIR_OUTPUT_DIAGNOSTIC_KEYS = [
   'carriedDraftDiagnosticCount',
   'failureCode',
   'identity',
   'repairAttempt',
   'repairMode',
   'repairOutputDiagnosticCount',
+  'targetContext',
   'version',
 ].sort();
+
+const LEGACY_REPAIR_OUTPUT_DIAGNOSTIC_KEYS =
+  CURRENT_REPAIR_OUTPUT_DIAGNOSTIC_KEYS.filter(
+    (key) => key !== 'targetContext',
+  );
 
 const REPAIR_ROUTE_ADMISSION_INPUT_ACCOUNTING_KEYS = [
   'estimatedBytes',
@@ -188,6 +225,25 @@ function exactObjectKeys(
 export function visualContractRepairRouteAdmissionDiagnosticsIsValid(
   value: unknown,
 ): value is VisualContractRepairRouteAdmissionDiagnostics {
+  return visualContractRepairRouteAdmissionDiagnosticsShapeIsValid(
+    value,
+    VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION,
+  );
+}
+
+export function legacyVisualContractRepairRouteAdmissionDiagnosticsIsValid(
+  value: unknown,
+): value is LegacyVisualContractRepairRouteAdmissionDiagnostics {
+  return visualContractRepairRouteAdmissionDiagnosticsShapeIsValid(
+    value,
+    LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION,
+  );
+}
+
+function visualContractRepairRouteAdmissionDiagnosticsShapeIsValid(
+  value: unknown,
+  version: string,
+): boolean {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return false;
   }
@@ -205,6 +261,21 @@ export function visualContractRepairRouteAdmissionDiagnosticsIsValid(
     return false;
   }
   const inputAccounting = accounting as Record<string, unknown>;
+  const legacyVersion =
+    version ===
+    LEGACY_VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION;
+  const routeIdentityIsValid = legacyVersion
+    ? diagnostics.repairMode === 'book_surface_patch' &&
+      diagnostics.repairAttempt ===
+        VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS
+    : (diagnostics.repairMode === 'book_surface_patch' &&
+        diagnostics.repairAttempt ===
+          VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS) ||
+      (diagnostics.repairMode === 'represented_elsewhere_patch' &&
+        Number.isSafeInteger(diagnostics.repairAttempt) &&
+        (diagnostics.repairAttempt as number) >= 2 &&
+        (diagnostics.repairAttempt as number) <=
+          VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS);
   const numericAccounting = [
     inputAccounting.systemBytes,
     inputAccounting.userBytes,
@@ -218,11 +289,8 @@ export function visualContractRepairRouteAdmissionDiagnosticsIsValid(
       inputAccounting,
       REPAIR_ROUTE_ADMISSION_INPUT_ACCOUNTING_KEYS,
     ) &&
-    diagnostics.version ===
-      VISUAL_CONTRACT_REPAIR_ROUTE_ADMISSION_DIAGNOSTICS_VERSION &&
-    diagnostics.repairAttempt ===
-      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS &&
-    diagnostics.repairMode === 'book_surface_patch' &&
+    diagnostics.version === version &&
+    routeIdentityIsValid &&
     diagnostics.maxAdmissibleInputBytes ===
       VISUAL_CONTRACT_AUTHORING_MAX_INPUT_TOKENS -
         VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN &&
@@ -244,6 +312,29 @@ export function visualContractRepairRouteAdmissionDiagnosticsIsValid(
     (inputAccounting.estimatedBytes as number) >
       (diagnostics.maxAdmissibleInputBytes as number)
   );
+}
+
+export function visualContractRepairRouteAdmissionDiagnosticsIsReadable(
+  value: unknown,
+): value is
+  | VisualContractRepairRouteAdmissionDiagnostics
+  | LegacyVisualContractRepairRouteAdmissionDiagnostics {
+  return (
+    visualContractRepairRouteAdmissionDiagnosticsIsValid(value) ||
+    legacyVisualContractRepairRouteAdmissionDiagnosticsIsValid(value)
+  );
+}
+
+export function visualContractRepairRouteAdmissionDiagnosticsVersionStatus(
+  value: unknown,
+): 'current' | 'legacy_immutable' | 'unsupported' {
+  if (visualContractRepairRouteAdmissionDiagnosticsIsValid(value)) {
+    return 'current';
+  }
+  if (legacyVisualContractRepairRouteAdmissionDiagnosticsIsValid(value)) {
+    return 'legacy_immutable';
+  }
+  return 'unsupported';
 }
 
 function buildVisualContractRepairRouteAdmissionDiagnostics(
@@ -291,32 +382,42 @@ export function visualContractRepairOutputDiagnosticCodeFor(
 function buildVisualContractRepairOutputDiagnostics(
   input: VisualContractRepairOutputDiagnosticsInput,
 ): VisualContractRepairOutputDiagnostics {
-  if (
-    !Number.isSafeInteger(input.repairAttempt) ||
-    input.repairAttempt < 1 ||
-    !Number.isSafeInteger(input.carriedDraftDiagnosticCount) ||
-    input.carriedDraftDiagnosticCount < 0 ||
-    !REPAIR_MODES.has(input.repairMode) ||
-    !REPAIR_FAILURE_CODES.has(input.failureCode) ||
-    !templateRepairOutputIdentityIsValid(input.identity)
-  ) {
-    throw new Error(
-      'Visual Contract repair-output diagnostics input is invalid',
-    );
-  }
-  return {
+  const diagnostics: VisualContractRepairOutputDiagnostics = {
     version: VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION,
     repairAttempt: input.repairAttempt,
     repairMode: input.repairMode,
     failureCode: input.failureCode,
     identity: input.identity,
+    targetContext: input.targetContext ?? null,
     carriedDraftDiagnosticCount:
       input.carriedDraftDiagnosticCount,
     repairOutputDiagnosticCount: 1,
   };
+  if (!visualContractRepairOutputDiagnosticsIsValid(diagnostics)) {
+    throw new Error(
+      'Visual Contract repair-output diagnostics input is invalid',
+    );
+  }
+  return diagnostics;
 }
 
-function visualContractRepairOutputDiagnosticsShapeIsValid(
+function visualContractRepairOutputDiagnosticCoreIsValid(
+  diagnostics: Record<string, unknown>,
+): boolean {
+  return (
+    Number.isSafeInteger(diagnostics.repairAttempt) &&
+    (diagnostics.repairAttempt as number) >= 1 &&
+    typeof diagnostics.failureCode === 'string' &&
+    REPAIR_FAILURE_CODES.has(
+      diagnostics.failureCode as TemplateRepairOutputFailureCode,
+    ) &&
+    Number.isSafeInteger(diagnostics.carriedDraftDiagnosticCount) &&
+    (diagnostics.carriedDraftDiagnosticCount as number) >= 0 &&
+    diagnostics.repairOutputDiagnosticCount === 1
+  );
+}
+
+function legacyVisualContractRepairOutputDiagnosticsShapeIsValid(
   value: unknown,
   args: {
     version: string;
@@ -328,66 +429,110 @@ function visualContractRepairOutputDiagnosticsShapeIsValid(
   }
   const diagnostics = value as Record<string, unknown>;
   return (
-    JSON.stringify(Object.keys(diagnostics).sort()) ===
-      JSON.stringify(REPAIR_OUTPUT_DIAGNOSTIC_KEYS) &&
+    exactObjectKeys(diagnostics, LEGACY_REPAIR_OUTPUT_DIAGNOSTIC_KEYS) &&
     diagnostics.version === args.version &&
-    Number.isSafeInteger(diagnostics.repairAttempt) &&
-    (diagnostics.repairAttempt as number) >= 1 &&
     typeof diagnostics.repairMode === 'string' &&
-    REPAIR_MODES.has(diagnostics.repairMode as TemplateRepairMode) &&
-    typeof diagnostics.failureCode === 'string' &&
-    REPAIR_FAILURE_CODES.has(
-      diagnostics.failureCode as TemplateRepairOutputFailureCode,
+    LEGACY_REPAIR_MODES.has(
+      diagnostics.repairMode as LegacyTemplateRepairMode,
     ) &&
     args.identityIsValid(diagnostics.identity) &&
-    Number.isSafeInteger(diagnostics.carriedDraftDiagnosticCount) &&
-    (diagnostics.carriedDraftDiagnosticCount as number) >= 0 &&
-    diagnostics.repairOutputDiagnosticCount === 1
+    visualContractRepairOutputDiagnosticCoreIsValid(diagnostics)
   );
 }
 
 export function visualContractRepairOutputDiagnosticsIsValid(
   value: unknown,
 ): value is VisualContractRepairOutputDiagnostics {
-  return visualContractRepairOutputDiagnosticsShapeIsValid(value, {
-    version: VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION,
-    identityIsValid: templateRepairOutputIdentityIsValid,
-  });
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const diagnostics = value as Record<string, unknown>;
+  if (
+    !exactObjectKeys(diagnostics, CURRENT_REPAIR_OUTPUT_DIAGNOSTIC_KEYS) ||
+    diagnostics.version !==
+      VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION ||
+    typeof diagnostics.repairMode !== 'string' ||
+    !CURRENT_REPAIR_MODES.has(
+      diagnostics.repairMode as TemplateRepairMode,
+    ) ||
+    !templateRepairOutputIdentityIsValid(diagnostics.identity) ||
+    !visualContractRepairOutputDiagnosticCoreIsValid(diagnostics)
+  ) {
+    return false;
+  }
+  const isRepresentedElsewhereMode =
+    diagnostics.repairMode === 'represented_elsewhere_patch';
+  const isRepresentedElsewhereIdentity =
+    typeof diagnostics.identity === 'string' &&
+    V5_IDENTITY_ADDITIONS.has(diagnostics.identity);
+  if (
+    isRepresentedElsewhereMode
+      ? !isRepresentedElsewhereIdentity && diagnostics.identity !== 'unclassified'
+      : isRepresentedElsewhereIdentity
+  ) {
+    return false;
+  }
+  if (
+    diagnostics.identity !==
+    'represented_elsewhere_repair_target_association_invalid'
+  ) {
+    return diagnostics.targetContext === null;
+  }
+  if (!templateRepairOutputTargetContextIsValid(diagnostics.targetContext)) {
+    return false;
+  }
+  return diagnostics.targetContext.closedSubreason === 'choice_out_of_range'
+    ? diagnostics.failureCode === 'reference_authority_invalid'
+    : diagnostics.failureCode === 'target_identity_invalid';
 }
 
 export function legacyVisualContractRepairOutputDiagnosticsIsValid(
   value: unknown,
 ): value is LegacyVisualContractRepairOutputDiagnostics {
-  return visualContractRepairOutputDiagnosticsShapeIsValid(value, {
+  return legacyVisualContractRepairOutputDiagnosticsShapeIsValid(value, {
     version: LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION,
     identityIsValid: (identity) =>
       templateRepairOutputIdentityIsValid(identity) &&
-      !V4_IDENTITY_ADDITIONS.has(identity),
+      !V5_IDENTITY_ADDITIONS.has(identity),
+  });
+}
+
+export function legacyVisualContractRepairOutputDiagnosticsV3IsValid(
+  value: unknown,
+): value is LegacyVisualContractRepairOutputDiagnosticsV3 {
+  return legacyVisualContractRepairOutputDiagnosticsShapeIsValid(value, {
+    version: LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION_V3,
+    identityIsValid: (identity) =>
+      templateRepairOutputIdentityIsValid(identity) &&
+      !V4_IDENTITY_ADDITIONS.has(identity) &&
+      !V5_IDENTITY_ADDITIONS.has(identity),
   });
 }
 
 export function legacyVisualContractRepairOutputDiagnosticsV2IsValid(
   value: unknown,
 ): value is LegacyVisualContractRepairOutputDiagnosticsV2 {
-  return visualContractRepairOutputDiagnosticsShapeIsValid(value, {
+  return legacyVisualContractRepairOutputDiagnosticsShapeIsValid(value, {
     version: LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION_V2,
     identityIsValid: (identity) =>
       templateRepairOutputIdentityIsValid(identity) &&
       !V3_IDENTITY_ADDITIONS.has(identity) &&
-      !V4_IDENTITY_ADDITIONS.has(identity),
+      !V4_IDENTITY_ADDITIONS.has(identity) &&
+      !V5_IDENTITY_ADDITIONS.has(identity),
   });
 }
 
 export function legacyVisualContractRepairOutputDiagnosticsV1IsValid(
   value: unknown,
 ): value is LegacyVisualContractRepairOutputDiagnosticsV1 {
-  return visualContractRepairOutputDiagnosticsShapeIsValid(value, {
+  return legacyVisualContractRepairOutputDiagnosticsShapeIsValid(value, {
     version: LEGACY_VISUAL_CONTRACT_REPAIR_OUTPUT_DIAGNOSTICS_VERSION_V1,
     identityIsValid: (identity) =>
       templateRepairOutputIdentityIsValid(identity) &&
       !V2_IDENTITY_ADDITIONS.has(identity) &&
       !V3_IDENTITY_ADDITIONS.has(identity) &&
-      !V4_IDENTITY_ADDITIONS.has(identity),
+      !V4_IDENTITY_ADDITIONS.has(identity) &&
+      !V5_IDENTITY_ADDITIONS.has(identity),
   });
 }
 
@@ -396,11 +541,13 @@ export function visualContractRepairOutputDiagnosticsIsReadable(
 ): value is
   | VisualContractRepairOutputDiagnostics
   | LegacyVisualContractRepairOutputDiagnostics
+  | LegacyVisualContractRepairOutputDiagnosticsV3
   | LegacyVisualContractRepairOutputDiagnosticsV2
   | LegacyVisualContractRepairOutputDiagnosticsV1 {
   return (
     visualContractRepairOutputDiagnosticsIsValid(value) ||
     legacyVisualContractRepairOutputDiagnosticsIsValid(value) ||
+    legacyVisualContractRepairOutputDiagnosticsV3IsValid(value) ||
     legacyVisualContractRepairOutputDiagnosticsV2IsValid(value) ||
     legacyVisualContractRepairOutputDiagnosticsV1IsValid(value)
   );
@@ -412,6 +559,7 @@ export function visualContractRepairOutputDiagnosticsVersionStatus(
   if (visualContractRepairOutputDiagnosticsIsValid(value)) return 'current';
   if (
     legacyVisualContractRepairOutputDiagnosticsIsValid(value) ||
+    legacyVisualContractRepairOutputDiagnosticsV3IsValid(value) ||
     legacyVisualContractRepairOutputDiagnosticsV2IsValid(value) ||
     legacyVisualContractRepairOutputDiagnosticsV1IsValid(value)
   ) {
@@ -587,7 +735,7 @@ export function visualContractAuthoringTerminalFailureIsValid(
   if (shared.code === 'repair_route_input_not_admissible') {
     return (
       repairOutputDiagnostics === null &&
-      visualContractRepairRouteAdmissionDiagnosticsIsValid(
+      visualContractRepairRouteAdmissionDiagnosticsIsReadable(
         repairRouteAdmissionDiagnostics,
       ) &&
       shared.diagnosticCount ===

@@ -239,6 +239,7 @@ export {
 export * from './sourceEvidenceCatalog';
 export * from './sourceEvidenceIdRepair';
 export * from './pageContractRepair';
+export * from './representedElsewhereRepair';
 export * from './structuralBundleRepair';
 export * from './bookSurfaceRepair';
 export * from './stablePropScopeRepair';

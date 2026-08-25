@@ -22,8 +22,16 @@ import { extractDeterministicFacts } from '@/lib/visual-contract-compiler/extrac
 import {
   ActionSemanticCapabilityGapError,
   actionSemanticCapabilityGapDiagnosticIssues,
+  type ActionSemanticCoverageTemplate,
 } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 import { decodePageContractRepairUserPrompt } from '@/lib/visual-contract-compiler/pageContractRepair';
+import {
+  REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+  buildRepresentedElsewhereRepairSystemPrompt,
+  buildRepresentedElsewhereRepairUserPrompt,
+  decodeRepresentedElsewhereRepairUserPrompt,
+  representedElsewhereRepairAuthority,
+} from '@/lib/visual-contract-compiler/representedElsewhereRepair';
 import {
   projectPageMustShow,
   projectZoneStableGeometry,
@@ -48,6 +56,7 @@ import { normalizeExactActionBindingComponents } from '@/lib/visual-contract-com
 import {
   authoringRejectedEvidencePageCount,
   authoringStandardAttemptOutputLimitsForBase,
+  visualContractAuthoringInputAccounting,
 } from '@/lib/visual-contract-compiler/authoringPolicy';
 import { migrateLegacySetBoardFixture } from '@/lib/set-identity-board/__tests__/current-authority-fixtures';
 import {
@@ -522,6 +531,43 @@ function fullyActionedBunnyDraft(
     ];
   }
   return draft;
+}
+
+function withPageEightRepresentedElsewhereResidual(
+  base: BookVisualContractTemplate & Record<string, unknown>,
+  permittedValue: string,
+): BookVisualContractTemplate & Record<string, unknown> {
+  const next = structuredClone(base);
+  const representedPage = next.pageContracts[7] as unknown as {
+    pageNumber: number;
+    propState: Array<{ propId: string; state: string }>;
+    actionSemanticCoverage: Array<{
+      beatId: string;
+      sourceEvidenceId: string;
+      disposition: Record<string, unknown>;
+    }>;
+  };
+  const representedSource = representedPage.actionSemanticCoverage[0];
+  if (!representedSource) {
+    throw new Error('Expected seeded page-eight Source Evidence');
+  }
+  if (!representedPage.propState[0]) {
+    throw new Error('Expected seeded page-eight prop state');
+  }
+  representedPage.propState[0].state = permittedValue;
+  representedPage.actionSemanticCoverage = [
+    ...representedPage.actionSemanticCoverage,
+    {
+      beatId: 'beat:p8:post_cleanup_represented_residual',
+      sourceEvidenceId: representedSource.sourceEvidenceId,
+      disposition: {
+        kind: 'represented_elsewhere',
+        contractPointer: '/pageContracts/99/propState/0/state',
+        contractValue: 'stale represented value',
+      },
+    },
+  ];
+  return next;
 }
 
 function presentationAwareBunnyDraft(
@@ -1362,7 +1408,7 @@ describe('exact zero-cost authoring preflight', () => {
         receipt: rejected.receipt,
         write: false,
       }),
-    ).toThrow(/receipt v52 requires/);
+    ).toThrow(/receipt v53 requires/);
     expect(() =>
       persistVisualContractAuthoringReceipt({
         repoRoot: tempRoot(),
@@ -1382,7 +1428,7 @@ describe('exact zero-cost authoring preflight', () => {
         invalidRequestFallbackBudget: authoritativeFallback,
         write: false,
       }),
-    ).toThrow(/receipt v52 requires/);
+    ).toThrow(/receipt v53 requires/);
 
     const validReadiness =
       buildVisualContractAuthoringReadinessEvidence({
@@ -1434,7 +1480,7 @@ describe('exact zero-cost authoring preflight', () => {
         invalidRequestFallbackBudget: authoritativeFallback,
         write: false,
       }),
-    ).toThrow(/receipt v52 requires/);
+    ).toThrow(/receipt v53 requires/);
     const forgedReadiness = structuredClone(validReadiness);
     forgedReadiness.authoringReceiptDigest = forgedReceipt.digest;
     forgedReadiness.standardAttemptOutputBudget = invalidSchedule;
@@ -1454,7 +1500,7 @@ describe('exact zero-cost authoring preflight', () => {
         invalidRequestFallbackBudget: authoritativeFallback,
         write: false,
       }),
-    ).toThrow(/receipt v52 requires/);
+    ).toThrow(/receipt v53 requires/);
 
     expect(() =>
       buildVisualContractAuthoringReadinessEvidence({
@@ -1485,6 +1531,63 @@ describe('exact zero-cost authoring preflight', () => {
       },
     ],
   ])('rejects altered page-contract repair %s before provider reachability', async (
+    _label,
+    expectedIssue,
+    mutate,
+  ) => {
+    const snapshot = snapshotFor(
+      writeStoryFixture({
+        pageCount: 12,
+        companion: true,
+        multiLocation: true,
+        cover: true,
+      }),
+    );
+    const request = structuredClone(
+      requestFor(snapshot, 'preflight'),
+    );
+    mutate(request);
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _digest,
+      ...payload
+    } = request;
+    request.digest = canonicalJsonDigest(payload);
+    const provider = {
+      call: vi.fn(async () => {
+        throw new Error('must remain unreachable');
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.issues).toContain(expectedIssue);
+    expect(provider.call).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'schema authority',
+      'represented_elsewhere_repair_structured_output_mismatch',
+      (request: ReturnType<typeof requestFor>) => {
+        request.representedElsewhereRepairStructuredOutput.schemaDigest =
+          'd'.repeat(64);
+      },
+    ],
+    [
+      'prompt authority',
+      'prompt_authority_mismatch',
+      (request: ReturnType<typeof requestFor>) => {
+        request.promptAuthority.representedElsewhereRepair.systemPromptDigest =
+          'c'.repeat(64);
+      },
+    ],
+  ])('rejects altered represented-elsewhere repair %s before provider reachability', async (
     _label,
     expectedIssue,
     mutate,
@@ -1973,7 +2076,7 @@ describe('exact zero-cost authoring preflight', () => {
         write: false,
       }),
     ).toThrow(
-      /readiness v50 requires exact typed draft-validation evidence/,
+      /readiness v51 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -2555,7 +2658,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v50',
+      version: 'visual-contract-authoring-readiness/v51',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -2621,7 +2724,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v50',
+      version: 'visual-contract-authoring-readiness/v51',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -3013,6 +3116,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v50',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v51',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3313,6 +3422,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v52',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v53',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3529,6 +3644,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'readiness',
         'visual-contract-authoring-readiness/v50',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v51',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3588,7 +3709,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     const prior = structuredClone(
       result.receipt,
     ) as unknown as Record<string, unknown>;
-    prior.version = 'visual-contract-authoring-receipt/v49';
+    prior.version = 'visual-contract-authoring-receipt/v52';
     const {
       digestAlgorithm: _digestAlgorithm,
       digest: _digest,
@@ -3625,7 +3746,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       string,
       unknown
     >;
-    prior.version = 'visual-contract-authoring-readiness/v47';
+    prior.version = 'visual-contract-authoring-readiness/v50';
     const {
       digestAlgorithm: _digestAlgorithm,
       digest: _digest,
@@ -3642,7 +3763,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v50 requires/);
+    ).toThrow(/readiness v51 requires/);
   });
 
   it('rejects a re-digested current receipt with an open-ended terminal code', async () => {
@@ -3760,7 +3881,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         write: false,
       }),
     ).toThrow(
-      /receipt v52 requires exact typed draft-validation evidence/,
+      /receipt v53 requires exact typed draft-validation evidence/,
     );
   });
 
@@ -3809,7 +3930,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v52',
+      'visual-contract-authoring-receipt/v53',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -5148,6 +5269,167 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       maxOutputTokens: 1_000,
     });
 
+    const initialWithRepresentedResidual =
+      withPageEightRepresentedElsewhereResidual(
+        initialSpatialAndLatentFailure,
+        'Represented authority target',
+      );
+    const worldWithRepresentedResidual =
+      withPageEightRepresentedElsewhereResidual(
+        worldOnlyResidual,
+        'Represented authority target',
+      );
+    const representedAfterCleanupResidual =
+      withPageEightRepresentedElsewhereResidual(
+        referenceOnlyResidual,
+        `Oversized represented authority ${'R'.repeat(70_000)}`,
+      );
+    const providerForTerminalResidual = (
+      terminalResidual: BookVisualContractTemplate & Record<string, unknown>,
+    ): VisualContractAuthoringProvider => ({
+      call: vi.fn(async (call) => {
+        let output: unknown;
+        if (call.attempt === 1) {
+          output = initialWithRepresentedResidual;
+        } else if (
+          call.attempt === 3 ||
+          call.attempt === 4 ||
+          call.attempt === 5 ||
+          call.attempt === 6
+        ) {
+          const variant = structuredClone(worldWithRepresentedResidual);
+          variant.recurringProps[0].description =
+            `${variant.recurringProps[0].description} Post-cleanup attempt ${call.attempt}.`;
+          output = variant;
+        } else if (call.attempt === 7) {
+          output = terminalResidual;
+        } else {
+          const payload = JSON.parse(call.userPrompt) as {
+            targets: Array<{
+              pageNumber: number;
+              actionIndex: number;
+              fieldRole: string;
+              permittedSpatialReferences: Array<{ id: string }>;
+            }>;
+          };
+          output = {
+            patches: payload.targets.map((target) => ({
+              pageNumber: target.pageNumber,
+              actionIndex: target.actionIndex,
+              fieldRole: target.fieldRole,
+              spatialReferenceId:
+                target.permittedSpatialReferences.find(
+                  (reference) =>
+                    reference.id ===
+                    `fixture_cleanup_chair_p${target.pageNumber}`,
+                )?.id ?? target.permittedSpatialReferences[0]!.id,
+            })),
+          };
+        }
+        return {
+          output: JSON.stringify(output),
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `post-cleanup-response-${call.attempt}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 1_000,
+              total_tokens: 2_000,
+            },
+          },
+        };
+      }),
+    });
+    const postCleanupRepresentedProvider =
+      providerForTerminalResidual(representedAfterCleanupResidual);
+    const postCleanupRepresentedResult = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: postCleanupRepresentedProvider,
+    });
+    expect(postCleanupRepresentedProvider.call).toHaveBeenCalledTimes(7);
+    expect(postCleanupRepresentedResult.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 7,
+      repairCount: 6,
+      draftValidationStatus: 'repair_exhausted',
+      failure: {
+        code: 'draft_validation_repair_exhausted',
+        repairRouteAdmissionDiagnostics: null,
+      },
+    });
+    expect(
+      postCleanupRepresentedResult.receipt.attempts[6]
+        ?.draftValidationDiagnostics,
+    ).toMatchObject({
+      currentUniqueCount: 7,
+      finalAttempt: true,
+    });
+    expect(() =>
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: postCleanupRepresentedResult.receipt,
+      }),
+    ).not.toThrow();
+
+    const pureRepresentedAtStandardExhaustion =
+      withPageEightRepresentedElsewhereResidual(
+        fullyActionedBunnyDraft(snapshot),
+        `Oversized represented prop-state authority ${'P'.repeat(70_000)}`,
+      );
+    const pureRepresentedProvider = providerForTerminalResidual(
+      pureRepresentedAtStandardExhaustion,
+    );
+    const pureRepresentedResult = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider: pureRepresentedProvider,
+    });
+    expect(pureRepresentedProvider.call).toHaveBeenCalledTimes(7);
+    expect(pureRepresentedResult.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 7,
+      repairCount: 6,
+      draftValidationStatus: 'repair_exhausted',
+      failure: {
+        code: 'draft_validation_repair_exhausted',
+        repairRouteAdmissionDiagnostics: null,
+      },
+    });
+    const pureFinalDiagnostics =
+      pureRepresentedResult.receipt.attempts[6]
+        ?.draftValidationDiagnostics;
+    expect(pureFinalDiagnostics).toMatchObject({
+      currentUniqueCount: 1,
+      finalAttempt: true,
+    });
+    const pureRepresentedAuthority = representedElsewhereRepairAuthority({
+      draft: pureRepresentedAtStandardExhaustion,
+      diagnosticIssues:
+        pureFinalDiagnostics?.items
+          .filter((item) => item.state !== 'resolved')
+          .map((item) => item.issue) ?? [],
+      pointerTemplate:
+        pureRepresentedAtStandardExhaustion as unknown as
+          ActionSemanticCoverageTemplate,
+      sourceEvidenceCatalog:
+        snapshot.content.sourceEvidenceCatalog,
+    });
+    expect(pureRepresentedAuthority).not.toBeNull();
+    const pureRepresentedInputAccounting =
+      visualContractAuthoringInputAccounting(
+        buildRepresentedElsewhereRepairSystemPrompt(),
+        buildRepresentedElsewhereRepairUserPrompt({
+          authority: pureRepresentedAuthority!,
+        }),
+        REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+      );
+    expect(pureRepresentedInputAccounting.estimatedBytes).toBeGreaterThan(
+      59_904,
+    );
+
     const oversizedReferenceOnlyResidual = structuredClone(
       referenceOnlyResidual,
     );
@@ -5368,7 +5650,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v50 requires exact typed draft-validation evidence/);
+    ).toThrow(/readiness v51 requires exact typed draft-validation evidence/);
   });
 
   it('records the compact source-evidence repair as a bounded second provider call', async () => {
@@ -6064,16 +6346,6 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       snapshot.content.sourceEvidenceCatalog.entries.find(
         (entry) => entry.pageNumber === sourcePage.pageNumber,
       )!.sourceEvidenceId;
-    const repairedIndependentPage = structuredClone(
-      independentPage,
-    ) as unknown as Record<string, unknown>;
-    delete repairedIndependentPage.castIds;
-    delete repairedIndependentPage.castStates;
-    delete repairedIndependentPage.characterPresence;
-    delete repairedIndependentPage.companionStateId;
-    delete repairedIndependentPage.companionStateSourceEvidenceId;
-    repairedIndependentPage.propConstraints ??= [];
-
     const provider: VisualContractAuthoringProvider = {
       call: vi.fn(async (args) => {
         const output =
@@ -6104,30 +6376,34 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
                     ],
                   }
                 : (() => {
-                    const payload = decodePageContractRepairUserPrompt(
-                      args.userPrompt,
-                    );
-                    const affectedPage = payload.affectedPages.find(
+                    const authority =
+                      decodeRepresentedElsewhereRepairUserPrompt(
+                        args.userPrompt,
+                      );
+                    const affectedPage = authority.pages.find(
                       (page) => page.pageNumber === independentPage.pageNumber,
                     );
-                    const permitted = affectedPage?.permittedPointerValues[0];
-                    if (!permitted) {
+                    const target = affectedPage?.targets.find(
+                      (candidate) =>
+                        candidate.coverageIndex ===
+                        independentPage.actionSemanticCoverage.length - 1,
+                    );
+                    if (!target) {
                       throw new Error(
-                        'expected represented-elsewhere pointer authority',
+                        'expected represented-elsewhere target authority',
                       );
                     }
-                    const repairedPage = structuredClone(
-                      repairedIndependentPage,
-                    );
-                    const coverage = repairedPage.actionSemanticCoverage as Array<
-                      Record<string, unknown>
-                    >;
-                    coverage[coverage.length - 1]!.disposition = {
-                      kind: 'represented_elsewhere',
-                      contractPointer: permitted.contractPointer,
-                      contractValue: permitted.contractValue,
+                    return {
+                      patches: [
+                        {
+                          pageNumber: target.pageNumber,
+                          coverageIndex: target.coverageIndex,
+                          beatId: target.beatId,
+                          sourceEvidenceId: target.sourceEvidenceId,
+                          pointerChoiceIndex: 0,
+                        },
+                      ],
                     };
-                    return { pageContracts: [repairedPage] };
                   })();
         return {
           output: JSON.stringify(output),
@@ -6163,7 +6439,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         null,
         'source_evidence_id_patch',
         'presentation_requirement_patch',
-        'page_contract_patch',
+        'represented_elsewhere_patch',
       ]);
     expect(
       result.receipt.attempts[0]!.draftValidationDiagnostics?.items,
@@ -6198,7 +6474,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toBe('PresentationRequirementRepairPatches');
     expect(
       vi.mocked(provider.call).mock.calls[3]![0].options.jsonSchema?.name,
-    ).toBe('PageContractRepairPatches');
+    ).toBe('RepresentedElsewhereRepairPatches');
   });
 
   it('records a compact presentation-requirement repair and persists a candidate after full revalidation', async () => {
@@ -6417,7 +6693,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           ),
         write: false,
       }),
-    ).toThrow(/receipt v52 requires/);
+    ).toThrow(/receipt v53 requires/);
 
     for (const mutate of [
       (receipt: typeof result.receipt) => {
@@ -6482,7 +6758,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           receipt: replayedReceipt,
           write: false,
         }),
-      ).toThrow(/receipt v52 requires/);
+      ).toThrow(/receipt v53 requires/);
       expect(() =>
         buildVisualContractCandidateArtifact({
           request,
@@ -6521,7 +6797,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: malformedAccountingReceipt,
         write: false,
       }),
-    ).toThrow(/receipt v52 requires/);
+    ).toThrow(/receipt v53 requires/);
     expect(() =>
       buildVisualContractCandidateArtifact({
         request,
@@ -7172,7 +7448,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v52',
+      version: 'visual-contract-authoring-receipt/v53',
       status: 'completed',
       callCount: 3,
       repairCount: 2,
@@ -7888,7 +8164,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         request,
         receipt: tampered,
       }),
-    ).toThrow(/readiness v50 requires current/);
+    ).toThrow(/readiness v51 requires current/);
   });
 
   it('stops after a completed repair increases the complete issue census and persists no synthetic attempt', async () => {
@@ -8019,7 +8295,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(provider.call).toHaveBeenCalledTimes(2);
     expect(result.compileResult).toBeNull();
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v52',
+      version: 'visual-contract-authoring-receipt/v53',
       status: 'failed',
       callCount: 2,
       repairCount: 1,
@@ -8064,7 +8340,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       receipt: result.receipt,
     });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v50',
+      version: 'visual-contract-authoring-readiness/v51',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'draft_validation_repair_stagnated',
@@ -8107,7 +8383,74 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: forged,
         write: false,
       }),
-    ).toThrow(/receipt v52 requires/);
+    ).toThrow(/receipt v53 requires/);
+  });
+
+  it('records an oversized represented-elsewhere route refusal before a second provider call', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const oversizedRepresented =
+      withPageEightRepresentedElsewhereResidual(
+        fullyActionedBunnyDraft(snapshot),
+        `Oversized represented prop-state authority ${'A'.repeat(70_000)}`,
+      );
+    const provider = successfulProvider(oversizedRepresented);
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(result.compileResult).toBeNull();
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 1,
+      repairCount: 0,
+      draftValidationStatus: 'interrupted',
+      failure: {
+        code: 'repair_route_input_not_admissible',
+        repairRouteAdmissionDiagnostics: {
+          version:
+            'visual-contract-repair-route-admission-diagnostics/v2',
+          repairAttempt: 2,
+          repairMode: 'represented_elsewhere_patch',
+          maxAdmissibleInputBytes: 59_904,
+          carriedDraftDiagnosticCount: 1,
+          routeAdmissionDiagnosticCount: 1,
+        },
+      },
+    });
+    expect(result.receipt.attempts).toHaveLength(1);
+    expect(
+      result.receipt.failure!.repairRouteAdmissionDiagnostics!
+        .inputAccounting.estimatedBytes,
+    ).toBeGreaterThan(59_904);
+    const readiness = buildVisualContractAuthoringReadinessEvidence({
+      snapshot,
+      request,
+      receipt: result.receipt,
+    });
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/represented-route-admission-attempt-two',
+        request,
+        receipt: result.receipt,
+        write: false,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      persistVisualContractAuthoringReadiness({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/represented-route-admission-attempt-two',
+        request,
+        evidence: readiness,
+        receipt: result.receipt,
+        write: false,
+      }),
+    ).not.toThrow();
   });
 
   it('records a final-standard-slot BookSurface route-admission refusal without inventing a seventh provider attempt', async () => {
@@ -8212,7 +8555,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         repairEligibility: 'ineligible',
         repairRouteAdmissionDiagnostics: {
           version:
-            'visual-contract-repair-route-admission-diagnostics/v1',
+            'visual-contract-repair-route-admission-diagnostics/v2',
           repairAttempt: 7,
           repairMode: 'book_surface_patch',
           maxAdmissibleInputBytes: 59_904,
@@ -8292,6 +8635,72 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       }),
     ).not.toThrow();
 
+    const representedElsewhereRouteReceipt = structuredClone(result.receipt);
+    representedElsewhereRouteReceipt.failure!
+      .repairRouteAdmissionDiagnostics!.repairMode =
+      'represented_elsewhere_patch';
+    const {
+      digestAlgorithm: _representedRouteDigestAlgorithm,
+      digest: _representedRouteDigest,
+      ...representedRoutePayload
+    } = representedElsewhereRouteReceipt;
+    representedElsewhereRouteReceipt.digest = canonicalJsonDigest(
+      representedRoutePayload,
+    );
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        representedElsewhereRouteReceipt.failure,
+      ),
+    ).toBe(true);
+    const representedElsewhereReadiness =
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: representedElsewhereRouteReceipt,
+      });
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/represented-route-admission',
+        request,
+        receipt: representedElsewhereRouteReceipt,
+        write: false,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      persistVisualContractAuthoringReadiness({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/represented-route-admission',
+        request,
+        evidence: representedElsewhereReadiness,
+        receipt: representedElsewhereRouteReceipt,
+        write: false,
+      }),
+    ).not.toThrow();
+
+    const representedRoutePositionTamper = structuredClone(
+      representedElsewhereRouteReceipt,
+    );
+    representedRoutePositionTamper.failure!
+      .repairRouteAdmissionDiagnostics!.repairAttempt = 6;
+    const {
+      digestAlgorithm: _representedPositionDigestAlgorithm,
+      digest: _representedPositionDigest,
+      ...representedPositionPayload
+    } = representedRoutePositionTamper;
+    representedRoutePositionTamper.digest = canonicalJsonDigest(
+      representedPositionPayload,
+    );
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: tempRoot(),
+        outputDir: 'outputs/represented-route-position-tamper',
+        request,
+        receipt: representedRoutePositionTamper,
+        write: false,
+      }),
+    ).toThrow(/receipt v53 requires/);
+
     const tamperedReceipt = structuredClone(result.receipt);
     tamperedReceipt.failure!.repairRouteAdmissionDiagnostics!
       .maxAdmissibleInputBytes = 59_903;
@@ -8311,7 +8720,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: tamperedReceipt,
         write: false,
       }),
-    ).toThrow(/receipt v52 requires/);
+    ).toThrow(/receipt v53 requires/);
 
     for (const mutate of [
       (receipt: typeof result.receipt) => {
@@ -8341,7 +8750,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           receipt: routeIdentityTamper,
           write: false,
         }),
-      ).toThrow(/receipt v52 requires/);
+      ).toThrow(/receipt v53 requires/);
     }
 
     const tamperedReadiness = structuredClone(readiness);
@@ -8363,7 +8772,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v50 requires/);
+    ).toThrow(/readiness v51 requires/);
 
     const legacyReceipt = structuredClone(result.receipt);
     (legacyReceipt as unknown as { version: string }).version =
@@ -8393,7 +8802,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: legacyReceipt as unknown as typeof result.receipt,
         write: false,
       }),
-    ).toThrow(/receipt v52 requires/);
+    ).toThrow(/receipt v53 requires/);
 
     const crossBoundReadiness = structuredClone(readiness);
     crossBoundReadiness.sourceSnapshotDigest = '0'.repeat(64);
@@ -8414,7 +8823,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
         write: false,
       }),
-    ).toThrow(/readiness v50 requires/);
+    ).toThrow(/readiness v51 requires/);
   });
 
   it('bridges a current candidate presentation requirement into pending Semantic Reconciliation without self-approval', async () => {
@@ -9023,11 +9432,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           'repair_output_recurring_prop_invalid',
         ]),
         repairOutputDiagnostics: {
-          version: 'visual-contract-repair-output-diagnostics/v4',
+          version: 'visual-contract-repair-output-diagnostics/v5',
           repairAttempt: 2,
           repairMode: 'book_surface_patch',
           failureCode: 'recurring_prop_invalid',
           identity: 'book_surface_repair_prop_change_not_authorized',
+          targetContext: null,
           carriedDraftDiagnosticCount: expect.any(Number),
           repairOutputDiagnosticCount: 1,
         },
@@ -9108,6 +9518,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     }
     legacyRepairDiagnostics.version =
       'visual-contract-repair-output-diagnostics/v1';
+    delete legacyRepairDiagnostics.targetContext;
     const {
       digestAlgorithm: _legacyDigestAlgorithm,
       digest: _legacyDigest,

@@ -460,6 +460,9 @@ function executionRequestPayload(
       pageContractRepairStructuredOutputCompatibility:
         fixture.materialized.manifest
           .pageContractRepairStructuredOutputCompatibility,
+      representedElsewhereRepairStructuredOutputCompatibility:
+        fixture.materialized.manifest
+          .representedElsewhereRepairStructuredOutputCompatibility,
       pageSpatialReferenceRepairStructuredOutputCompatibility:
         fixture.materialized.manifest
           .pageSpatialReferenceRepairStructuredOutputCompatibility,
@@ -764,7 +767,7 @@ describe('canonical live execution request and readiness', () => {
       canonicalLiveExecutionRequestIssues(fixture.request),
     ).toEqual([]);
     expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
-      'canonical-live-request-verification/v48',
+      'canonical-live-request-verification/v49',
     );
     expect(CANONICAL_LIVE_EXECUTION_RESULT_VERSION).toBe(
       'canonical-live-execution-result/v37',
@@ -924,7 +927,7 @@ describe('canonical live execution request and readiness', () => {
     const legacyRequest = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    legacyRequest.version = 'canonical-live-execution-request/v40';
+    legacyRequest.version = 'canonical-live-execution-request/v44';
     const {
       digestAlgorithm: _requestAlgorithm,
       digest: _requestDigest,
@@ -944,7 +947,7 @@ describe('canonical live execution request and readiness', () => {
       readiness,
     ) as unknown as Record<string, unknown>;
     legacyReadiness.version =
-      'canonical-live-execution-readiness/v40';
+      'canonical-live-execution-readiness/v44';
     const {
       digestAlgorithm: _readinessAlgorithm,
       digest: _readinessDigest,

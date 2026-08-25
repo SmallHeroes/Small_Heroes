@@ -54,6 +54,7 @@ import {
   type TemplateRepairMode,
   type TemplateRepairOutputFailureCode,
   type TemplateRepairOutputIdentity,
+  type TemplateRepairOutputTargetContext,
 } from './templateRepairOutputDiagnostics';
 import {
   assertOpenAIResponsesStructuredOutputSchemaCompatible,
@@ -89,6 +90,7 @@ import {
   VISUAL_CONTRACT_AUTHORING_TRANSPORT_RETRIES,
   authoringMaxOutputTokens,
   authoringStandardAttemptOutputLimits,
+  terminalReferenceCleanupDiagnosticPopulationIsEligible,
   terminalReferenceCleanupPredecessorIsEligible,
   visualContractAuthoringInputAccounting,
   visualContractAuthoringRouteIsAdmissible,
@@ -173,6 +175,19 @@ import {
   type PageSpatialReferenceRepairTarget,
   type PageSpatialRepairAuthority,
 } from './pageContractRepair';
+import {
+  REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+  REPRESENTED_ELSEWHERE_REPAIR_PROMPT_VERSION,
+  REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME,
+  REPRESENTED_ELSEWHERE_REPAIR_USER_PROMPT_VERSION,
+  RepresentedElsewhereRepairTargetAssociationError,
+  applyRepresentedElsewhereRepairPatches,
+  buildRepresentedElsewhereRepairSystemPrompt,
+  buildRepresentedElsewhereRepairUserPrompt,
+  parseRepresentedElsewhereRepairPatches,
+  representedElsewhereRepairAuthority,
+  type RepresentedElsewhereRepairAuthority,
+} from './representedElsewhereRepair';
 import { canonicalize } from '@/lib/canonical-json';
 import {
   declaredCompanionAppearanceStateAuthority,
@@ -312,6 +327,7 @@ interface TemplateRepairAttempt {
   /** Narrow patch or existing whole-draft repair selected after this failure. */
   nextRepairMode?:
     | 'source_evidence_id_patch'
+    | 'represented_elsewhere_patch'
     | 'page_contract_patch'
     | 'page_spatial_reference_patch'
     | 'stable_prop_scope_patch'
@@ -329,6 +345,7 @@ export interface TemplateRepairSummary {
   diagnosticIssues: readonly DraftValidationIssue[];
   nextRepairMode?:
     | 'source_evidence_id_patch'
+    | 'represented_elsewhere_patch'
     | 'page_contract_patch'
     | 'page_spatial_reference_patch'
     | 'stable_prop_scope_patch'
@@ -339,6 +356,29 @@ export interface TemplateRepairSummary {
   nextRepairBudgetClass?:
     | 'standard'
     | 'terminal_reference_cleanup';
+}
+
+const REPRESENTED_ELSEWHERE_DIAGNOSTIC_CODES = new Set([
+  'represented_elsewhere_pointer_out_of_scope',
+  'represented_elsewhere_pointer_unresolved',
+  'represented_elsewhere_value_mismatch',
+] as const);
+
+function completeDiagnosticPopulationIsPureRepresentedElsewhere(
+  population: TemplateRepairAttempt['diagnosticPopulation'],
+  issues: readonly DraftValidationIssue[],
+): boolean {
+  return (
+    population === 'complete' &&
+    issues.length > 0 &&
+    issues.every(
+      (issue) =>
+        issue.family === 'action_semantic' &&
+        REPRESENTED_ELSEWHERE_DIAGNOSTIC_CODES.has(
+          issue.code as never,
+        ),
+    )
+  );
 }
 
 function templateRepairIssueRegressionCounts(
@@ -962,6 +1002,7 @@ export class TemplateRepairOutputInvalidError extends Error {
     readonly repairMode: TemplateRepairMode,
     readonly failureCode: TemplateRepairOutputFailureCode,
     readonly identity: TemplateRepairOutputIdentity,
+    readonly targetContext: TemplateRepairOutputTargetContext | null = null,
   ) {
     super('completed template repair output was unusable');
     this.name = 'TemplateRepairOutputInvalidError';
@@ -1044,6 +1085,11 @@ export function templateRepairOutputFailureCode(
   if (error instanceof InvalidVisualContractError) {
     return 'json_invalid';
   }
+  if (error instanceof RepresentedElsewhereRepairTargetAssociationError) {
+    return error.closedSubreason === 'choice_out_of_range'
+      ? 'reference_authority_invalid'
+      : 'target_identity_invalid';
+  }
   const identity = sanitizedTemplateRepairOutputIdentity(error);
   if (identity.endsWith('_response_invalid_json')) {
     return 'json_invalid';
@@ -1084,6 +1130,7 @@ export function templateRepairOutputFailureCode(
   if (
     identity === 'book_surface_repair_action_binding_changed' ||
     identity === 'book_surface_repair_action_binding_stale' ||
+    identity === 'represented_elsewhere_repair_authority_invalid' ||
     identity ===
       'page_contract_repair_action_binding_component_stale' ||
     identity ===
@@ -4903,6 +4950,13 @@ export async function compileBookVisualContractTemplate(
       schema: PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
     },
   } satisfies ContractLlmCallOptions;
+  const representedElsewhereRepairLlmOpts = {
+    ...llmOpts,
+    jsonSchema: {
+      name: REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME,
+      schema: REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+    },
+  } satisfies ContractLlmCallOptions;
   const pageSpatialReferenceRepairLlmOpts = {
     ...llmOpts,
     jsonSchema: {
@@ -5034,6 +5088,15 @@ export async function compileBookVisualContractTemplate(
     let pageContractAffectedPages:
       | PageContractRepairAffectedPage[]
       | null = null;
+    let representedElsewhereAuthority:
+      | RepresentedElsewhereRepairAuthority
+      | null = null;
+    let representedElsewhereRepairPrompts:
+      | { systemPrompt: string; userPrompt: string }
+      | undefined;
+    let representedElsewhereRouteAdmissionAccounting:
+      | VisualContractAuthoringInputAccounting
+      | undefined;
     let pageSpatialReferenceAffectedTargets:
       | PageSpatialReferenceRepairTarget[]
       | null = null;
@@ -5384,12 +5447,38 @@ export async function compileBookVisualContractTemplate(
             diagnosticIssues: attemptDiagnosticIssues,
           }) ?? undefined;
         if (!structuralBundleAuthority) {
-          pageContractAffectedPages = pageContractRepairAffectedPages({
-            draft,
-            diagnosticIssues: attemptDiagnosticIssues,
-            validationMessages: attemptErrors,
-            pointerTemplate: pageContractPointerTemplate,
-          });
+          if (
+            completeDiagnosticPopulationIsPureRepresentedElsewhere(
+              attemptDiagnosticPopulation,
+              attemptDiagnosticIssues,
+            )
+          ) {
+            representedElsewhereAuthority = pageContractPointerTemplate
+              ? representedElsewhereRepairAuthority({
+                  draft,
+                  diagnosticIssues: attemptDiagnosticIssues,
+                  pointerTemplate: pageContractPointerTemplate,
+                  sourceEvidenceCatalog: input.sourceEvidenceCatalog,
+                })
+              : null;
+            if (!representedElsewhereAuthority) {
+              // A pure represented-elsewhere frontier may use only its exact
+              // compiler-owned target/domain authority. Missing, ambiguous or
+              // empty authority stops locally rather than widening to a full
+              // page or whole-draft provider response.
+              throw new InvalidTemplateContractError(
+                [...attemptErrors],
+                attemptDiagnosticIssues,
+              );
+            }
+          } else {
+            pageContractAffectedPages = pageContractRepairAffectedPages({
+              draft,
+              diagnosticIssues: attemptDiagnosticIssues,
+              validationMessages: attemptErrors,
+              pointerTemplate: pageContractPointerTemplate,
+            });
+          }
         }
       }
     }
@@ -5417,6 +5506,8 @@ export async function compileBookVisualContractTemplate(
               repairPromptVersion:
                 lastRepairMode === 'source_evidence_id_patch'
                   ? SOURCE_EVIDENCE_ID_REPAIR_PROMPT_VERSION
+                  : lastRepairMode === 'represented_elsewhere_patch'
+                    ? REPRESENTED_ELSEWHERE_REPAIR_PROMPT_VERSION
                   : lastRepairMode === 'page_contract_patch'
                     ? PAGE_CONTRACT_REPAIR_PROMPT_VERSION
                     : lastRepairMode === 'stable_prop_scope_patch'
@@ -5464,6 +5555,34 @@ export async function compileBookVisualContractTemplate(
           [],
         ]),
       };
+    }
+
+    if (representedElsewhereAuthority) {
+      const systemPrompt = buildRepresentedElsewhereRepairSystemPrompt();
+      const userPrompt = buildRepresentedElsewhereRepairUserPrompt({
+        authority: representedElsewhereAuthority,
+      });
+      if (
+        visualContractAuthoringRouteIsAdmissible({
+          systemPrompt,
+          userPrompt,
+          schema: REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+          maxInputTokens:
+            representedElsewhereRepairLlmOpts.maxInputTokens,
+        })
+      ) {
+        representedElsewhereRepairPrompts = {
+          systemPrompt,
+          userPrompt,
+        };
+      } else {
+        representedElsewhereRouteAdmissionAccounting =
+          visualContractAuthoringInputAccounting(
+            systemPrompt,
+            userPrompt,
+            REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+          );
+      }
     }
 
     if (bookSurfaceAuthority) {
@@ -5576,6 +5695,25 @@ export async function compileBookVisualContractTemplate(
       throw new TemplateRepairStagnationError(repairAttempts);
     }
 
+    if (
+      representedElsewhereRouteAdmissionAccounting &&
+      attempt <= STANDARD_MAX_REPAIR_ATTEMPTS
+    ) {
+      repairAttempts[repairAttempts.length - 1]!.nextRepairMode =
+        'represented_elsewhere_patch';
+      repairAttempts[
+        repairAttempts.length - 1
+      ]!.nextRepairBudgetClass = 'standard';
+      throw new TemplateRepairRouteAdmissionError(
+        repairAttempts,
+        attempt + 1,
+        'represented_elsewhere_patch',
+        representedElsewhereRouteAdmissionAccounting,
+        representedElsewhereRepairLlmOpts.maxInputTokens -
+          VISUAL_CONTRACT_AUTHORING_ROUTE_SAFETY_MARGIN,
+      );
+    }
+
     if (bookSurfaceRouteAdmissionAccounting) {
       repairAttempts[repairAttempts.length - 1]!.nextRepairMode =
         'book_surface_patch';
@@ -5599,7 +5737,10 @@ export async function compileBookVisualContractTemplate(
       terminalReferenceCleanupPredecessorIsEligible(
         precedingRepairMode,
       ) &&
-      pageSpatialReferenceAffectedTargets !== null;
+      pageSpatialReferenceAffectedTargets !== null &&
+      terminalReferenceCleanupDiagnosticPopulationIsEligible(
+        currentAttempt.diagnosticIssues,
+      );
     if (
       attempt > STANDARD_MAX_REPAIR_ATTEMPTS &&
       !terminalReferenceCleanupEligible
@@ -5627,6 +5768,8 @@ export async function compileBookVisualContractTemplate(
           ? 'structural_bundle_patch'
         : bookSurfaceAuthority
           ? 'book_surface_patch'
+        : representedElsewhereAuthority
+          ? 'represented_elsewhere_patch'
         : pageContractAffectedPages
           ? 'page_contract_patch'
           : 'full_draft';
@@ -5797,6 +5940,30 @@ export async function compileBookVisualContractTemplate(
           authority: bookSurfaceAuthority,
           patch: parseBookSurfaceRepairPatch(rawPatch),
         });
+      } else if (representedElsewhereAuthority) {
+        const rawPatch = await deps.callLLM(
+          representedElsewhereRepairPrompts!.systemPrompt,
+          representedElsewhereRepairPrompts!.userPrompt,
+          standardOptionsForAttempt(
+            representedElsewhereRepairLlmOpts,
+            attempt + 1,
+          ),
+          {
+            kind: 'repair',
+            budgetClass: 'standard',
+            repairMode: 'represented_elsewhere_patch',
+            systemPromptVersion:
+              REPRESENTED_ELSEWHERE_REPAIR_PROMPT_VERSION,
+            userPromptVersion:
+              REPRESENTED_ELSEWHERE_REPAIR_USER_PROMPT_VERSION,
+          },
+        );
+        draft = applyRepresentedElsewhereRepairPatches({
+          draft,
+          authority: representedElsewhereAuthority,
+          pointerTemplate: pageContractPointerTemplate!,
+          patches: parseRepresentedElsewhereRepairPatches(rawPatch),
+        });
       } else if (pageContractAffectedPages) {
         const rawPatch = await deps.callLLM(
           buildPageContractRepairSystemPrompt(),
@@ -5914,6 +6081,13 @@ export async function compileBookVisualContractTemplate(
         repairMode,
         failureCode,
         failureIdentity,
+        error instanceof RepresentedElsewhereRepairTargetAssociationError
+          ? {
+              pageNumber: error.pageNumber,
+              coverageIndex: error.coverageIndex,
+              closedSubreason: error.closedSubreason,
+            }
+          : null,
       );
     }
   }

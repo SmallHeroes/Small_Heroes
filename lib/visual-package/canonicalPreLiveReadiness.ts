@@ -56,7 +56,7 @@ import {
 } from './preRenderBlueprintLifecycle';
 
 export const CANONICAL_PRE_LIVE_READINESS_EVIDENCE_VERSION =
-  'canonical-pre-live-readiness-evidence/v44' as const;
+  'canonical-pre-live-readiness-evidence/v45' as const;
 export const CANONICAL_PRE_LIVE_READINESS_FAILURE_VERSION =
   'canonical-pre-live-readiness-failure/v3' as const;
 export const CANONICAL_PRE_LIVE_READINESS_HISTORICAL_FAILURE_VERSION =
@@ -204,6 +204,8 @@ export interface CanonicalPreLiveReadinessEvidence {
       compactRepairStructuredOutputCompatibility:
         LiveRequestStructuredOutputCompatibilityAuthority;
       pageContractRepairStructuredOutputCompatibility:
+        LiveRequestStructuredOutputCompatibilityAuthority;
+      representedElsewhereRepairStructuredOutputCompatibility:
         LiveRequestStructuredOutputCompatibilityAuthority;
       pageSpatialReferenceRepairStructuredOutputCompatibility:
         LiveRequestStructuredOutputCompatibilityAuthority;
@@ -1556,6 +1558,7 @@ function evidenceIssues(value: unknown): string[] {
         'structuredOutputCompatibility',
         'compactRepairStructuredOutputCompatibility',
         'pageContractRepairStructuredOutputCompatibility',
+        'representedElsewhereRepairStructuredOutputCompatibility',
         'pageSpatialReferenceRepairStructuredOutputCompatibility',
         'structuralBundleRepairStructuredOutputCompatibility',
         'bookSurfaceRepairStructuredOutputCompatibility',
@@ -1591,6 +1594,10 @@ function evidenceIssues(value: unknown): string[] {
       liveRequestStructuredOutputCompatibilityAuthorityIssues(
         b0.pageContractRepairStructuredOutputCompatibility,
         'pre_live_evidence_b0_page_contract_repair_structured_output_compatibility',
+      ).length > 0 ||
+      liveRequestStructuredOutputCompatibilityAuthorityIssues(
+        b0.representedElsewhereRepairStructuredOutputCompatibility,
+        'pre_live_evidence_b0_represented_elsewhere_repair_structured_output_compatibility',
       ).length > 0 ||
       liveRequestStructuredOutputCompatibilityAuthorityIssues(
         b0.pageSpatialReferenceRepairStructuredOutputCompatibility,
@@ -2093,6 +2100,8 @@ function evidenceValue(args: {
           args.b0.compactRepairStructuredOutputCompatibility,
         pageContractRepairStructuredOutputCompatibility:
           args.b0.pageContractRepairStructuredOutputCompatibility,
+        representedElsewhereRepairStructuredOutputCompatibility:
+          args.b0.representedElsewhereRepairStructuredOutputCompatibility,
         pageSpatialReferenceRepairStructuredOutputCompatibility:
           args.b0.pageSpatialReferenceRepairStructuredOutputCompatibility,
         structuralBundleRepairStructuredOutputCompatibility:

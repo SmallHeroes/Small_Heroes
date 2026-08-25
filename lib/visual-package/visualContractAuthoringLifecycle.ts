@@ -32,6 +32,7 @@ import {
   authoringStandardAttemptOutputLimitsForBase,
   authoringRejectedEvidencePageCount,
   terminalReferenceCleanupPredecessorIsEligible,
+  terminalReferenceCleanupDiagnosticPopulationIsEligible,
   visualContractAuthoringInputAccounting,
   type VisualContractAuthoringStandardAttemptOutputLimits,
   type VisualContractAuthoringInputAccounting,
@@ -100,6 +101,14 @@ import {
   buildPageContractRepairSystemPrompt,
   buildPageSpatialReferenceRepairSystemPrompt,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
+import {
+  REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+  REPRESENTED_ELSEWHERE_REPAIR_PROMPT_VERSION,
+  REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME,
+  REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_VERSION,
+  REPRESENTED_ELSEWHERE_REPAIR_USER_PROMPT_VERSION,
+  buildRepresentedElsewhereRepairSystemPrompt,
+} from '@/lib/visual-contract-compiler/representedElsewhereRepair';
 import {
   STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
   STRUCTURAL_BUNDLE_REPAIR_PROMPT_VERSION,
@@ -201,11 +210,11 @@ import {
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
-  'visual-contract-authoring-request/v50' as const;
+  'visual-contract-authoring-request/v51' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v52' as const;
+  'visual-contract-authoring-receipt/v53' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
-  'visual-contract-authoring-readiness/v50' as const;
+  'visual-contract-authoring-readiness/v51' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v9' as const;
 export const CANONICAL_IMPORT_PREFLIGHT_ATTESTATION_VERSION =
@@ -305,6 +314,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V48 =
   'visual-contract-authoring-request/v48' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V49 =
   'visual-contract-authoring-request/v49' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V50 =
+  'visual-contract-authoring-request/v50' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
   'visual-contract-authoring-receipt/v4' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V3 =
@@ -403,6 +414,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V50 =
   'visual-contract-authoring-receipt/v50' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V51 =
   'visual-contract-authoring-receipt/v51' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V52 =
+  'visual-contract-authoring-receipt/v52' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -501,6 +514,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V48 =
   'visual-contract-authoring-readiness/v48' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V49 =
   'visual-contract-authoring-readiness/v49' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V50 =
+  'visual-contract-authoring-readiness/v50' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
   'visual-contract-candidate-artifact/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION_V1 =
@@ -612,6 +627,20 @@ export interface VisualContractAuthoringRequest {
     strict: true;
     schemaName: typeof PAGE_CONTRACT_REPAIR_SCHEMA_NAME;
     schemaVersion: typeof PAGE_CONTRACT_REPAIR_SCHEMA_VERSION;
+    schemaDigest: string;
+    compatibilityProfileVersion:
+      typeof OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION;
+    compatibilityProfileDigest: string;
+    compatibilityEvidenceVersion:
+      typeof OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_EVIDENCE_VERSION;
+    compatibilityEvidenceDigest: string;
+    compatibilityStatus: 'compatible';
+    serializedSchemaDigest: string;
+  };
+  representedElsewhereRepairStructuredOutput: {
+    strict: true;
+    schemaName: typeof REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME;
+    schemaVersion: typeof REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_VERSION;
     schemaDigest: string;
     compatibilityProfileVersion:
       typeof OPENAI_RESPONSES_STRUCTURED_OUTPUT_COMPATIBILITY_PROFILE_VERSION;
@@ -759,6 +788,13 @@ export interface VisualContractAuthoringRequest {
         typeof PAGE_CONTRACT_REPAIR_USER_PROMPT_VERSION;
       systemPromptDigest: string;
     };
+    representedElsewhereRepair: {
+      systemPromptVersion:
+        typeof REPRESENTED_ELSEWHERE_REPAIR_PROMPT_VERSION;
+      userPromptVersion:
+        typeof REPRESENTED_ELSEWHERE_REPAIR_USER_PROMPT_VERSION;
+      systemPromptDigest: string;
+    };
     pageSpatialReferenceRepair: {
       systemPromptVersion:
         typeof PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION;
@@ -855,6 +891,7 @@ export interface VisualContractAuthoringAttemptReceipt {
     | 'full_draft'
     | 'source_evidence_id_patch'
     | 'page_contract_patch'
+    | 'represented_elsewhere_patch'
     | 'page_spatial_reference_patch'
     | 'stable_prop_scope_patch'
     | 'presentation_requirement_patch'
@@ -1130,7 +1167,8 @@ export function visualContractAuthoringArtifactVersionStatus(
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V46 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V47 ||
         version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V48 ||
-        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V49
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V49 ||
+        version === LEGACY_VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION_V50
       ? 'legacy_immutable'
       : 'unsupported';
   }
@@ -1185,6 +1223,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V49,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V50,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V51,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V52,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -1236,6 +1275,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V47,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V48,
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V49,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V50,
     ],
     candidate: [
       LEGACY_VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION,
@@ -1573,6 +1613,14 @@ export function buildVisualContractAuthoringRequest(args: {
     compatibilityAuthorityFromEvidence(
       pageContractRepairCompatibilityEvidence,
     );
+  const representedElsewhereRepairCompatibilityEvidence =
+    assertOpenAIResponsesStructuredOutputSchemaCompatible(
+      REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+    );
+  const representedElsewhereRepairCompatibilityAuthority =
+    compatibilityAuthorityFromEvidence(
+      representedElsewhereRepairCompatibilityEvidence,
+    );
   const pageSpatialReferenceRepairCompatibilityEvidence =
     assertOpenAIResponsesStructuredOutputSchemaCompatible(
       PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
@@ -1687,6 +1735,26 @@ export function buildVisualContractAuthoringRequest(args: {
         pageContractRepairCompatibilityAuthority.status,
       serializedSchemaDigest:
         pageContractRepairCompatibilityAuthority.serializedSchemaDigest,
+    },
+    representedElsewhereRepairStructuredOutput: {
+      strict: true as const,
+      schemaName: REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME,
+      schemaVersion: REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_VERSION,
+      schemaDigest: canonicalJsonDigest(
+        REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+      ),
+      compatibilityProfileVersion:
+        representedElsewhereRepairCompatibilityAuthority.profileVersion,
+      compatibilityProfileDigest:
+        representedElsewhereRepairCompatibilityAuthority.profileDigest,
+      compatibilityEvidenceVersion:
+        representedElsewhereRepairCompatibilityAuthority.evidenceVersion,
+      compatibilityEvidenceDigest:
+        representedElsewhereRepairCompatibilityAuthority.evidenceDigest,
+      compatibilityStatus:
+        representedElsewhereRepairCompatibilityAuthority.status,
+      serializedSchemaDigest:
+        representedElsewhereRepairCompatibilityAuthority.serializedSchemaDigest,
     },
     pageSpatialReferenceRepairStructuredOutput: {
       strict: true as const,
@@ -1886,6 +1954,15 @@ export function buildVisualContractAuthoringRequest(args: {
           buildPageContractRepairSystemPrompt(),
         ),
       },
+      representedElsewhereRepair: {
+        systemPromptVersion:
+          REPRESENTED_ELSEWHERE_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          REPRESENTED_ELSEWHERE_REPAIR_USER_PROMPT_VERSION,
+        systemPromptDigest: canonicalJsonDigest(
+          buildRepresentedElsewhereRepairSystemPrompt(),
+        ),
+      },
       pageSpatialReferenceRepair: {
         systemPromptVersion:
           PAGE_SPATIAL_REFERENCE_REPAIR_PROMPT_VERSION,
@@ -2032,6 +2109,11 @@ export function visualContractAuthoringRequestIssues(args: {
       'page_contract_repair_structured_output_mismatch',
       request.pageContractRepairStructuredOutput,
       exact.pageContractRepairStructuredOutput,
+    ],
+    [
+      'represented_elsewhere_repair_structured_output_mismatch',
+      request.representedElsewhereRepairStructuredOutput,
+      exact.representedElsewhereRepairStructuredOutput,
     ],
     [
       'page_spatial_reference_repair_structured_output_mismatch',
@@ -2643,35 +2725,10 @@ function terminalReferenceCleanupResidualIsProven(
   const currentItems = diagnostics.items.filter(
     (item) => item.state !== 'resolved',
   );
-  const referencePages = new Set(
-    currentItems.flatMap(({ issue }) =>
-      issue.family === 'draft_contract' &&
-      issue.code === 'out_of_scope_reference' &&
-      issue.locator.kind === 'page_item' &&
-      issue.locator.collectionRole === 'page_actions' &&
-      issue.locator.fieldRole === 'reference'
-        ? [issue.locator.pageNumber]
-        : [],
-    ),
-  );
   return (
     currentItems.length === diagnostics.currentUniqueCount &&
-    referencePages.size > 0 &&
-    currentItems.every(
-      ({ issue }) =>
-        (issue.family === 'draft_contract' &&
-          issue.code === 'out_of_scope_reference' &&
-          issue.locator.kind === 'page_item' &&
-          issue.locator.collectionRole === 'page_actions' &&
-          issue.locator.fieldRole === 'reference') ||
-        (issue.family === 'draft_contract' &&
-          issue.code === 'final_structural_invariant_invalid' &&
-          issue.locator.kind === 'page' &&
-          referencePages.has(issue.locator.pageNumber) &&
-          'causes' in issue &&
-          exactJson(issue.causes, [
-            'page_action_requirements_invalid',
-          ])),
+    terminalReferenceCleanupDiagnosticPopulationIsEligible(
+      currentItems.map(({ issue }) => issue),
     )
   );
 }
@@ -3132,6 +3189,10 @@ function expectedCallOptions(
   const pageContractRepair =
     promptAuthority?.kind === 'repair' &&
     promptAuthority.repairMode === 'page_contract_patch';
+  const representedElsewhereRepair =
+    promptAuthority?.kind === 'repair' &&
+    promptAuthority.repairMode ===
+      'represented_elsewhere_patch';
   const pageSpatialReferenceRepair =
     promptAuthority?.kind === 'repair' &&
     promptAuthority.repairMode ===
@@ -3165,9 +3226,12 @@ function expectedCallOptions(
         ? request.compactRepairStructuredOutput.schemaName
         : pageContractRepair
           ? request.pageContractRepairStructuredOutput.schemaName
-          : pageSpatialReferenceRepair
-            ? request.pageSpatialReferenceRepairStructuredOutput
+          : representedElsewhereRepair
+            ? request.representedElsewhereRepairStructuredOutput
                 .schemaName
+            : pageSpatialReferenceRepair
+              ? request.pageSpatialReferenceRepairStructuredOutput
+                  .schemaName
             : structuralBundleRepair
               ? request.structuralBundleRepairStructuredOutput
                   .schemaName
@@ -3185,8 +3249,10 @@ function expectedCallOptions(
         ? SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA
         : pageContractRepair
           ? PAGE_CONTRACT_REPAIR_JSON_SCHEMA
-          : pageSpatialReferenceRepair
-            ? PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA
+          : representedElsewhereRepair
+            ? REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA
+            : pageSpatialReferenceRepair
+              ? PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA
             : structuralBundleRepair
               ? STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA
               : bookSurfaceRepair
@@ -3333,6 +3399,31 @@ function visualContractAuthoringAttemptPromptBinding(args: {
         schemaVersion: PAGE_CONTRACT_REPAIR_SCHEMA_VERSION,
         requestStructuredOutput:
           request.pageContractRepairStructuredOutput,
+      };
+    case 'represented_elsewhere_patch':
+      return {
+        systemPrompt:
+          buildRepresentedElsewhereRepairSystemPrompt(),
+        systemPromptVersion:
+          REPRESENTED_ELSEWHERE_REPAIR_PROMPT_VERSION,
+        userPromptVersion:
+          REPRESENTED_ELSEWHERE_REPAIR_USER_PROMPT_VERSION,
+        requestSystemPromptVersion:
+          request.promptAuthority.representedElsewhereRepair
+            .systemPromptVersion,
+        requestUserPromptVersion:
+          request.promptAuthority.representedElsewhereRepair
+            .userPromptVersion,
+        requestSystemPromptDigest:
+          request.promptAuthority.representedElsewhereRepair
+            .systemPromptDigest,
+        requestUserPromptDigest: null,
+        schema: REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+        schemaName: REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME,
+        schemaVersion:
+          REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_VERSION,
+        requestStructuredOutput:
+          request.representedElsewhereRepairStructuredOutput,
       };
     case 'page_spatial_reference_patch':
       return {
@@ -3711,6 +3802,10 @@ export function visualContractAuthoringCallPromptAuthorityIssues(
         : repairPromptAuthority?.repairMode ===
             'page_contract_patch'
           ? args.request.promptAuthority?.pageContractRepair
+          : repairPromptAuthority?.repairMode ===
+              'represented_elsewhere_patch'
+            ? args.request.promptAuthority
+                ?.representedElsewhereRepair
           : repairPromptAuthority?.repairMode ===
               'page_spatial_reference_patch'
             ? args.request.promptAuthority
@@ -4610,6 +4705,7 @@ export async function runVisualContractAuthoring(args: {
         repairMode: error.repairMode,
         failureCode: error.failureCode,
         identity: error.identity,
+        targetContext: error.targetContext,
         carriedDraftDiagnosticCount,
       };
     } else if (
@@ -4824,24 +4920,28 @@ function visualContractAuthoringReceiptRouteAdmissionBindingIsValid(
       (attempt.draftValidationDiagnostics?.emittedCount ?? 0),
     0,
   );
+  const completedAttemptCount = receipt.attempts.length;
+  const nextRepairAttempt = completedAttemptCount + 1;
+  const routePositionIsValid =
+    diagnostics?.repairMode === 'book_surface_patch'
+      ? nextRepairAttempt === VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS
+      : diagnostics?.repairMode === 'represented_elsewhere_patch' &&
+        nextRepairAttempt >= 2 &&
+        nextRepairAttempt <= VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS;
   return (
     diagnostics !== null &&
     diagnostics !== undefined &&
     receipt.status === 'failed' &&
     receipt.draftValidationStatus === 'interrupted' &&
-    receipt.attempts.length ===
-      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS - 1 &&
-    receipt.callCount ===
-      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS - 1 &&
-    receipt.repairCount ===
-      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS - 1 &&
+    completedAttemptCount >= 1 &&
+    completedAttemptCount <= VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS &&
+    receipt.callCount === completedAttemptCount &&
+    receipt.repairCount === completedAttemptCount - 1 &&
     receipt.executionAttestation.logicalProviderCalls ===
       receipt.callCount &&
-    diagnostics.repairAttempt ===
-      VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_CALLS &&
-    diagnostics.repairAttempt === receipt.attempts.length + 1 &&
+    routePositionIsValid &&
+    diagnostics.repairAttempt === nextRepairAttempt &&
     diagnostics.repairAttempt === receipt.callCount + 1 &&
-    diagnostics.repairMode === 'book_surface_patch' &&
     diagnostics.carriedDraftDiagnosticCount ===
       carriedDraftDiagnosticCount &&
     receipt.attempts.every(
@@ -5122,7 +5222,7 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'readiness v50 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
+      'readiness v51 requires current, digest-bound request and receipt evidence; legacy artifacts remain immutable',
     );
   }
   const canonicalImportPreflight =
@@ -5320,7 +5420,7 @@ export function persistVisualContractAuthoringReceipt(args: {
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'receipt v52 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
+      'receipt v53 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
     );
   }
   return persistJsonArtifact({
@@ -5532,7 +5632,7 @@ export function persistVisualContractAuthoringReadiness(args: {
       canonicalJsonDigest(readinessPayload)
   ) {
     throw new Error(
-      'readiness v50 requires exact typed draft-validation evidence, a valid current receipt, and a valid current digest',
+      'readiness v51 requires exact typed draft-validation evidence, a valid current receipt, and a valid current digest',
     );
   }
   return persistJsonArtifact({

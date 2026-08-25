@@ -1,4 +1,4 @@
-export const TEMPLATE_REPAIR_MODE_VALUES = [
+export const LEGACY_TEMPLATE_REPAIR_MODE_VALUES = [
   'source_evidence_id_patch',
   'page_contract_patch',
   'page_spatial_reference_patch',
@@ -7,6 +7,18 @@ export const TEMPLATE_REPAIR_MODE_VALUES = [
   'structural_bundle_patch',
   'book_surface_patch',
   'full_draft',
+] as const;
+
+export type LegacyTemplateRepairMode =
+  (typeof LEGACY_TEMPLATE_REPAIR_MODE_VALUES)[number];
+
+export const TEMPLATE_REPAIR_MODE_V2_ADDITION_VALUES = [
+  'represented_elsewhere_patch',
+] as const;
+
+export const TEMPLATE_REPAIR_MODE_VALUES = [
+  ...LEGACY_TEMPLATE_REPAIR_MODE_VALUES,
+  ...TEMPLATE_REPAIR_MODE_V2_ADDITION_VALUES,
 ] as const;
 
 export type TemplateRepairMode =
@@ -44,6 +56,36 @@ export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_V4_ADDITION_VALUES = [
   'presentation_requirement_repair_target_association_invalid',
 ] as const;
 
+export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_V5_ADDITION_VALUES = [
+  'represented_elsewhere_repair_response_invalid_json',
+  'represented_elsewhere_repair_response_invalid_shape',
+  'represented_elsewhere_repair_target_set_empty',
+  'represented_elsewhere_repair_target_duplicate',
+  'represented_elsewhere_repair_patch_invalid',
+  'represented_elsewhere_repair_patch_set_incomplete',
+  'represented_elsewhere_repair_patch_unexpected_or_duplicate',
+  'represented_elsewhere_repair_non_target_drift',
+  'represented_elsewhere_repair_authority_invalid',
+  'represented_elsewhere_repair_target_association_invalid',
+] as const;
+
+export const REPRESENTED_ELSEWHERE_REPAIR_OUTPUT_CLOSED_SUBREASON_VALUES = [
+  'kind_drift',
+  'beat_drift',
+  'source_drift',
+  'target_stale',
+  'choice_out_of_range',
+] as const;
+
+export type RepresentedElsewhereRepairOutputClosedSubreason =
+  (typeof REPRESENTED_ELSEWHERE_REPAIR_OUTPUT_CLOSED_SUBREASON_VALUES)[number];
+
+export interface TemplateRepairOutputTargetContext {
+  pageNumber: number;
+  coverageIndex: number;
+  closedSubreason: RepresentedElsewhereRepairOutputClosedSubreason;
+}
+
 /**
  * Closed, compiler-owned identities that may cross the repair-output boundary.
  * They contain no authored/provider content. Unknown exceptions deliberately
@@ -53,6 +95,7 @@ export const TEMPLATE_REPAIR_OUTPUT_IDENTITY_VALUES = [
   'book_surface_repair_authority_mismatch',
   ...TEMPLATE_REPAIR_OUTPUT_IDENTITY_V3_ADDITION_VALUES,
   ...TEMPLATE_REPAIR_OUTPUT_IDENTITY_V4_ADDITION_VALUES,
+  ...TEMPLATE_REPAIR_OUTPUT_IDENTITY_V5_ADDITION_VALUES,
   'book_surface_repair_cover_invalid',
   'book_surface_repair_cover_reference_invalid',
   'book_surface_repair_non_target_drift',
@@ -141,6 +184,17 @@ const TEMPLATE_REPAIR_OUTPUT_IDENTITIES =
     TEMPLATE_REPAIR_OUTPUT_IDENTITY_VALUES,
   );
 
+const REPRESENTED_ELSEWHERE_REPAIR_OUTPUT_CLOSED_SUBREASONS =
+  new Set<RepresentedElsewhereRepairOutputClosedSubreason>(
+    REPRESENTED_ELSEWHERE_REPAIR_OUTPUT_CLOSED_SUBREASON_VALUES,
+  );
+
+const TEMPLATE_REPAIR_OUTPUT_TARGET_CONTEXT_KEYS = [
+  'closedSubreason',
+  'coverageIndex',
+  'pageNumber',
+].sort();
+
 export function templateRepairOutputIdentityIsValid(
   value: unknown,
 ): value is TemplateRepairOutputIdentity {
@@ -159,4 +213,25 @@ export function sanitizedTemplateRepairOutputIdentity(
     templateRepairOutputIdentityIsValid(error.message)
     ? error.message
     : 'unclassified';
+}
+
+export function templateRepairOutputTargetContextIsValid(
+  value: unknown,
+): value is TemplateRepairOutputTargetContext {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const context = value as Record<string, unknown>;
+  return (
+    JSON.stringify(Object.keys(context).sort()) ===
+      JSON.stringify(TEMPLATE_REPAIR_OUTPUT_TARGET_CONTEXT_KEYS) &&
+    Number.isSafeInteger(context.pageNumber) &&
+    (context.pageNumber as number) >= 1 &&
+    Number.isSafeInteger(context.coverageIndex) &&
+    (context.coverageIndex as number) >= 0 &&
+    typeof context.closedSubreason === 'string' &&
+    REPRESENTED_ELSEWHERE_REPAIR_OUTPUT_CLOSED_SUBREASONS.has(
+      context.closedSubreason as RepresentedElsewhereRepairOutputClosedSubreason,
+    )
+  );
 }

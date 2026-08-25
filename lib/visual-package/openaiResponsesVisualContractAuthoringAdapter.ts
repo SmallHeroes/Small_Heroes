@@ -51,6 +51,10 @@ import {
   PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
 import {
+  REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+  REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/representedElsewhereRepair';
+import {
   STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
   STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
@@ -247,6 +251,9 @@ function exactCallOptionsIssues(
     (schemaName === PAGE_CONTRACT_REPAIR_SCHEMA_NAME &&
       schemaDigest ===
         canonicalJsonDigest(PAGE_CONTRACT_REPAIR_JSON_SCHEMA)) ||
+    (schemaName === REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME &&
+      schemaDigest ===
+        canonicalJsonDigest(REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA)) ||
     (schemaName === PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME &&
       schemaDigest ===
         canonicalJsonDigest(PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA)) ||

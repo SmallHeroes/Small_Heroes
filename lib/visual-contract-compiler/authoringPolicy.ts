@@ -1,3 +1,8 @@
+import {
+  normalizeDraftValidationIssues,
+  type DraftValidationIssue,
+} from './draftValidationDiagnostics';
+
 export const VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
   'visual-contract-authoring-policy/v17' as const;
 
@@ -45,6 +50,42 @@ export function terminalReferenceCleanupPredecessorIsEligible(
   (typeof VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_ELIGIBLE_PRECEDING_REPAIR_MODES)[number] {
   return VISUAL_CONTRACT_AUTHORING_TERMINAL_REFERENCE_CLEANUP_ELIGIBLE_PRECEDING_REPAIR_MODES.some(
     (eligibleMode) => repairMode === eligibleMode,
+  );
+}
+
+export function terminalReferenceCleanupDiagnosticPopulationIsEligible(
+  issues: readonly DraftValidationIssue[],
+): boolean {
+  const currentIssues = normalizeDraftValidationIssues(issues);
+  const referencePages = new Set(
+    currentIssues.flatMap((issue) =>
+      issue.family === 'draft_contract' &&
+      issue.code === 'out_of_scope_reference' &&
+      issue.locator.kind === 'page_item' &&
+      issue.locator.collectionRole === 'page_actions' &&
+      issue.locator.fieldRole === 'reference'
+        ? [issue.locator.pageNumber]
+        : [],
+    ),
+  );
+  return (
+    currentIssues.length > 0 &&
+    referencePages.size > 0 &&
+    currentIssues.every(
+      (issue) =>
+        (issue.family === 'draft_contract' &&
+          issue.code === 'out_of_scope_reference' &&
+          issue.locator.kind === 'page_item' &&
+          issue.locator.collectionRole === 'page_actions' &&
+          issue.locator.fieldRole === 'reference') ||
+        (issue.family === 'draft_contract' &&
+          issue.code === 'final_structural_invariant_invalid' &&
+          issue.locator.kind === 'page' &&
+          referencePages.has(issue.locator.pageNumber) &&
+          'causes' in issue &&
+          issue.causes.length === 1 &&
+          issue.causes[0] === 'page_action_requirements_invalid'),
+    )
   );
 }
 export const VISUAL_CONTRACT_AUTHORING_MAX_CALLS =

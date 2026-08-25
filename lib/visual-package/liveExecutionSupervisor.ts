@@ -41,9 +41,9 @@ import {
 } from './visualContractAuthoringLifecycle';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_VERSION =
-  'canonical-live-execution-request/v44' as const;
+  'canonical-live-execution-request/v45' as const;
 export const CANONICAL_LIVE_EXECUTION_READINESS_VERSION =
-  'canonical-live-execution-readiness/v44' as const;
+  'canonical-live-execution-readiness/v45' as const;
 export const CANONICAL_LIVE_EXECUTION_PROBE_VERSION =
   'canonical-live-execution-probe/v1' as const;
 export const CANONICAL_LIVE_EXECUTION_RESULT_VERSION =
@@ -122,6 +122,8 @@ export interface CanonicalLiveExecutionRequest {
       LiveRequestStructuredOutputCompatibilityAuthority;
     pageContractRepairStructuredOutputCompatibility:
       LiveRequestStructuredOutputCompatibilityAuthority;
+    representedElsewhereRepairStructuredOutputCompatibility:
+      LiveRequestStructuredOutputCompatibilityAuthority;
     pageSpatialReferenceRepairStructuredOutputCompatibility:
       LiveRequestStructuredOutputCompatibilityAuthority;
     structuralBundleRepairStructuredOutputCompatibility:
@@ -174,6 +176,9 @@ export interface CanonicalLiveExecutionReadiness {
       | LiveRequestStructuredOutputCompatibilityAuthority
       | null;
     pageContractRepairStructuredOutputCompatibility:
+      | LiveRequestStructuredOutputCompatibilityAuthority
+      | null;
+    representedElsewhereRepairStructuredOutputCompatibility:
       | LiveRequestStructuredOutputCompatibilityAuthority
       | null;
     pageSpatialReferenceRepairStructuredOutputCompatibility:
@@ -903,6 +908,7 @@ export function canonicalLiveExecutionRequestIssues(
         'structuredOutputCompatibility',
         'compactRepairStructuredOutputCompatibility',
         'pageContractRepairStructuredOutputCompatibility',
+        'representedElsewhereRepairStructuredOutputCompatibility',
         'pageSpatialReferenceRepairStructuredOutputCompatibility',
         'structuralBundleRepairStructuredOutputCompatibility',
         'bookSurfaceRepairStructuredOutputCompatibility',
@@ -933,6 +939,10 @@ export function canonicalLiveExecutionRequestIssues(
     liveRequestStructuredOutputCompatibilityAuthorityIssues(
       canonicalBundle.pageContractRepairStructuredOutputCompatibility,
       'execution_canonical_bundle_page_contract_repair_structured_output_compatibility',
+    ).length > 0 ||
+    liveRequestStructuredOutputCompatibilityAuthorityIssues(
+      canonicalBundle.representedElsewhereRepairStructuredOutputCompatibility,
+      'execution_canonical_bundle_represented_elsewhere_repair_structured_output_compatibility',
     ).length > 0 ||
     liveRequestStructuredOutputCompatibilityAuthorityIssues(
       canonicalBundle.pageSpatialReferenceRepairStructuredOutputCompatibility,
@@ -1978,6 +1988,7 @@ function initialReadinessState(args: {
       structuredOutputCompatibility: null,
       compactRepairStructuredOutputCompatibility: null,
       pageContractRepairStructuredOutputCompatibility: null,
+      representedElsewhereRepairStructuredOutputCompatibility: null,
       pageSpatialReferenceRepairStructuredOutputCompatibility: null,
       structuralBundleRepairStructuredOutputCompatibility: null,
       bookSurfaceRepairStructuredOutputCompatibility: null,
@@ -2391,6 +2402,8 @@ function evaluateReadinessCore(args: {
     b0.compactRepairStructuredOutputCompatibility;
   state.b0.pageContractRepairStructuredOutputCompatibility =
     b0.pageContractRepairStructuredOutputCompatibility;
+  state.b0.representedElsewhereRepairStructuredOutputCompatibility =
+    b0.representedElsewhereRepairStructuredOutputCompatibility;
   state.b0.pageSpatialReferenceRepairStructuredOutputCompatibility =
     b0.pageSpatialReferenceRepairStructuredOutputCompatibility;
   state.b0.structuralBundleRepairStructuredOutputCompatibility =
@@ -2423,6 +2436,13 @@ function evaluateReadinessCore(args: {
       canonicalJsonDigest(
         request.canonicalBundle
           .pageContractRepairStructuredOutputCompatibility,
+      ) ||
+    canonicalJsonDigest(
+      b0.representedElsewhereRepairStructuredOutputCompatibility,
+    ) !==
+      canonicalJsonDigest(
+        request.canonicalBundle
+          .representedElsewhereRepairStructuredOutputCompatibility,
       ) ||
     canonicalJsonDigest(
       b0.pageSpatialReferenceRepairStructuredOutputCompatibility,
@@ -2468,6 +2488,7 @@ function evaluateReadinessCore(args: {
     state.b0.structuredOutputCompatibility = null;
     state.b0.compactRepairStructuredOutputCompatibility = null;
     state.b0.pageContractRepairStructuredOutputCompatibility = null;
+    state.b0.representedElsewhereRepairStructuredOutputCompatibility = null;
     state.b0.pageSpatialReferenceRepairStructuredOutputCompatibility = null;
     state.b0.structuralBundleRepairStructuredOutputCompatibility = null;
     state.b0.bookSurfaceRepairStructuredOutputCompatibility = null;
@@ -2660,6 +2681,7 @@ export function canonicalLiveExecutionReadinessIssues(
         'structuredOutputCompatibility',
         'compactRepairStructuredOutputCompatibility',
         'pageContractRepairStructuredOutputCompatibility',
+        'representedElsewhereRepairStructuredOutputCompatibility',
         'pageSpatialReferenceRepairStructuredOutputCompatibility',
         'structuralBundleRepairStructuredOutputCompatibility',
         'bookSurfaceRepairStructuredOutputCompatibility',
@@ -2692,6 +2714,11 @@ export function canonicalLiveExecutionReadinessIssues(
       liveRequestStructuredOutputCompatibilityAuthorityIssues(
         b0.pageContractRepairStructuredOutputCompatibility,
         'execution_readiness_b0_page_contract_repair_structured_output_compatibility',
+      ).length > 0) ||
+    (b0.representedElsewhereRepairStructuredOutputCompatibility !== null &&
+      liveRequestStructuredOutputCompatibilityAuthorityIssues(
+        b0.representedElsewhereRepairStructuredOutputCompatibility,
+        'execution_readiness_b0_represented_elsewhere_repair_structured_output_compatibility',
       ).length > 0) ||
     (b0.pageSpatialReferenceRepairStructuredOutputCompatibility !== null &&
       liveRequestStructuredOutputCompatibilityAuthorityIssues(
@@ -2727,6 +2754,7 @@ export function canonicalLiveExecutionReadinessIssues(
       (b0.structuredOutputCompatibility === null ||
         b0.compactRepairStructuredOutputCompatibility === null ||
         b0.pageContractRepairStructuredOutputCompatibility === null ||
+        b0.representedElsewhereRepairStructuredOutputCompatibility === null ||
         b0.pageSpatialReferenceRepairStructuredOutputCompatibility === null ||
         b0.structuralBundleRepairStructuredOutputCompatibility === null ||
         b0.bookSurfaceRepairStructuredOutputCompatibility === null ||
@@ -2737,6 +2765,7 @@ export function canonicalLiveExecutionReadinessIssues(
       (b0.structuredOutputCompatibility !== null ||
         b0.compactRepairStructuredOutputCompatibility !== null ||
         b0.pageContractRepairStructuredOutputCompatibility !== null ||
+        b0.representedElsewhereRepairStructuredOutputCompatibility !== null ||
         b0.pageSpatialReferenceRepairStructuredOutputCompatibility !== null ||
         b0.structuralBundleRepairStructuredOutputCompatibility !== null ||
         b0.bookSurfaceRepairStructuredOutputCompatibility !== null ||

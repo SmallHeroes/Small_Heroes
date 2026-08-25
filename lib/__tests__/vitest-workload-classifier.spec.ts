@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(328);
+    expect(partition.inventory).toHaveLength(329);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(308);
+    expect(partition.ordinary).toHaveLength(309);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -89,6 +89,9 @@ describe('Vitest workload classifier', () => {
     );
     expect(partition.ordinary).toContain(
       'lib/__tests__/offline-repair-harness.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/represented-elsewhere-repair.spec.ts',
     );
     expect(partition.ordinary).toContain(
       'lib/visual-package/__tests__/accepted-story-source-authoring-authority.spec.ts',

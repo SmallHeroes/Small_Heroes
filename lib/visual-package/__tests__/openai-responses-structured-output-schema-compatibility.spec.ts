@@ -22,6 +22,11 @@ import {
   PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
 import {
+  REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+  REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME,
+  REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_VERSION,
+} from '@/lib/visual-contract-compiler/representedElsewhereRepair';
+import {
   BOOK_SURFACE_REPAIR_JSON_SCHEMA,
   BOOK_SURFACE_REPAIR_SCHEMA_NAME,
   BOOK_SURFACE_REPAIR_SCHEMA_VERSION,
@@ -152,6 +157,9 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
     expect(PAGE_CONTRACT_REPAIR_SCHEMA_VERSION).toBe(
       'page-contract-repair-schema/v3',
     );
+    expect(REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_VERSION).toBe(
+      'represented-elsewhere-repair-schema/v1',
+    );
     expect(PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_VERSION).toBe(
       'page-spatial-reference-repair-schema/v1',
     );
@@ -172,6 +180,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       TEMPLATE_DRAFT_JSON_SCHEMA,
       SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
       PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+      REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
       PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
       BOOK_SURFACE_REPAIR_JSON_SCHEMA,
       STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
@@ -224,6 +233,10 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       ],
       [PAGE_CONTRACT_REPAIR_SCHEMA_NAME, PAGE_CONTRACT_REPAIR_JSON_SCHEMA],
       [
+        REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME,
+        REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+      ],
+      [
         PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
         PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
       ],
@@ -245,6 +258,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
         PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
       ],
     ]);
+    expect(payloads.size).toBe(10);
 
     for (const [name, schema] of payloads) {
       const evidence =
@@ -281,6 +295,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       TEMPLATE_DRAFT_JSON_SCHEMA,
       SOURCE_EVIDENCE_ID_REPAIR_JSON_SCHEMA,
       PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+      REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
       PAGE_SPATIAL_REFERENCE_REPAIR_JSON_SCHEMA,
       BOOK_SURFACE_REPAIR_JSON_SCHEMA,
       STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,

@@ -907,6 +907,10 @@ function loadCanonicalSupervisorArtifacts(args: {
       bundleVerification.pageContractRepairStructuredOutputCompatibility,
     ],
     [
+      executionRequest.canonicalBundle.representedElsewhereRepairStructuredOutputCompatibility,
+      bundleVerification.representedElsewhereRepairStructuredOutputCompatibility,
+    ],
+    [
       executionRequest.canonicalBundle.pageSpatialReferenceRepairStructuredOutputCompatibility,
       bundleVerification.pageSpatialReferenceRepairStructuredOutputCompatibility,
     ],
@@ -1075,6 +1079,10 @@ function loadCanonicalSupervisorArtifacts(args: {
       executionRequest.canonicalBundle.pageContractRepairStructuredOutputCompatibility,
     ],
     [
+      liveReadiness.b0.representedElsewhereRepairStructuredOutputCompatibility,
+      executionRequest.canonicalBundle.representedElsewhereRepairStructuredOutputCompatibility,
+    ],
+    [
       liveReadiness.b0.pageSpatialReferenceRepairStructuredOutputCompatibility,
       executionRequest.canonicalBundle.pageSpatialReferenceRepairStructuredOutputCompatibility,
     ],
@@ -1108,6 +1116,10 @@ function loadCanonicalSupervisorArtifacts(args: {
     [
       freshReadiness.canonicalAuthorities.b0.pageContractRepairStructuredOutputCompatibility,
       executionRequest.canonicalBundle.pageContractRepairStructuredOutputCompatibility,
+    ],
+    [
+      freshReadiness.canonicalAuthorities.b0.representedElsewhereRepairStructuredOutputCompatibility,
+      executionRequest.canonicalBundle.representedElsewhereRepairStructuredOutputCompatibility,
     ],
     [
       freshReadiness.canonicalAuthorities.b0.pageSpatialReferenceRepairStructuredOutputCompatibility,

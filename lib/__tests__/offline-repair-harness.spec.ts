@@ -666,24 +666,20 @@ describe('offline Visual Contract repair harness', () => {
         },
       ],
     };
-    const representedRepairPage = structuredClone(page2);
-    representedRepairPage.actionRequirements = [repairedPage2Action];
-    (
-      representedRepairPage.actionSemanticCoverage as Array<
-        Record<string, unknown>
-      >
-    )[representedCoverageIndex]!.disposition = {
-      kind: 'represented_elsewhere',
-      contractPointer: '/pageContracts/1/locationId',
-      contractValue: page2.locationId,
-    };
-
     const result = await runOfflineRepairHarness({
       input: bunnySource(),
       initialDraft: initial,
       repairResponses: [
         bookSurfaceResponse,
-        { pageContracts: [representedRepairPage] },
+        {
+          patches: [{
+            pageNumber: 2,
+            coverageIndex: representedCoverageIndex,
+            beatId: sourceRecord.beatId,
+            sourceEvidenceId: sourceRecord.sourceEvidenceId,
+            pointerChoiceIndex: 0,
+          }],
+        },
       ],
       completeDiagnosticIssuesByAttempt: [
         [
@@ -730,7 +726,7 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.calls.map((call) => call.repairMode)).toEqual([
       null,
       'book_surface_patch',
-      'page_contract_patch',
+      'represented_elsewhere_patch',
     ]);
     expect(result.outcome).toBe('candidate');
     expect(result.stages.map((stage) => ({
@@ -746,7 +742,7 @@ describe('offline Visual Contract repair harness', () => {
         completeDelta: null,
       },
       {
-        nextRepairMode: 'page_contract_patch',
+        nextRepairMode: 'represented_elsewhere_patch',
         surfacedIssueCount: 1,
         completeIssueCount: 1,
         completeDelta: -4,
@@ -763,7 +759,7 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.providerCalls).toBe(0);
   });
 
-  it('routes the live-shaped zero-gap 11 issue frontier through BookSurface then PageContract with delta 11 to 5 to 0', async () => {
+  it('routes the live-shaped zero-gap 11 issue frontier through BookSurface then the represented-elsewhere lane with delta 11 to 5 to 0', async () => {
     const valid = bunnyDraft();
     const initial = structuredClone(valid);
     for (const page of initial.pageContracts) {
@@ -849,7 +845,20 @@ describe('offline Visual Contract repair harness', () => {
       initialDraft: initial,
       repairResponses: [
         bookSurfaceResponse,
-        { pageContracts: representedRepairPages },
+        {
+          patches: representedRepairPages.map((page) => {
+            const coverage = page.actionSemanticCoverage as Array<
+              Record<string, unknown>
+            >;
+            return {
+              pageNumber: page.pageNumber,
+              coverageIndex: 0,
+              beatId: coverage[0]!.beatId,
+              sourceEvidenceId: coverage[0]!.sourceEvidenceId,
+              pointerChoiceIndex: 0,
+            };
+          }),
+        },
       ],
       completeDiagnosticIssuesByAttempt: [
         [...representedIssues, ...structuralIssues],
@@ -861,7 +870,7 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.calls.map((call) => call.repairMode)).toEqual([
       null,
       'book_surface_patch',
-      'page_contract_patch',
+      'represented_elsewhere_patch',
     ]);
     expect(result).toMatchObject({
       executionMode: 'offline_stub',
@@ -890,7 +899,7 @@ describe('offline Visual Contract repair harness', () => {
         completeDelta: null,
       },
       {
-        nextRepairMode: 'page_contract_patch',
+        nextRepairMode: 'represented_elsewhere_patch',
         surfacedIssueCount: 5,
         completeIssueCount: 5,
         completeDelta: -6,
@@ -912,6 +921,376 @@ describe('offline Visual Contract repair harness', () => {
     );
     expect(JSON.stringify(bookSurfaceResponse)).not.toContain(
       'actionSemanticCoverage',
+    );
+  });
+
+  it('replays the production-shaped 17 to 9 to 6 to 0 frontier through three exact narrow lanes without a provider', async () => {
+    const input = bunnySource();
+    const valid = bunnyDraft();
+    for (const page of valid.pageContracts) {
+      delete page.castIds;
+      delete page.characterPresence;
+      delete page.castStates;
+      page.propConstraints ??= [];
+      page.actionRequirements ??= [];
+    }
+
+    const page6 = valid.pageContracts[5]!;
+    const page6Zone = (
+      valid.zones as Array<Record<string, unknown> & {
+        id: string;
+        spatialNodes?: Array<Record<string, unknown>>;
+        stableGeometry?: string[];
+      }>
+    ).find((zone) => zone.id === page6.zoneId);
+    if (!page6Zone) throw new Error('offline_harness_spatial_zone_missing');
+    const permittedSpatialReferenceId = 'offline_harness_story_anchor';
+    page6Zone.spatialNodes = [
+      ...(page6Zone.spatialNodes ?? []),
+      {
+        id: permittedSpatialReferenceId,
+        kind: 'furniture',
+        description: 'A stable story anchor for offline repair proof.',
+      },
+    ];
+    page6Zone.stableGeometry = projectZoneStableGeometry(
+      page6Zone as unknown as VisualZone,
+    )!;
+
+    const page6Coverage = page6.actionSemanticCoverage as Array<
+      Record<string, unknown>
+    >;
+    const page6SourceEvidenceId = page6Coverage[0]!.sourceEvidenceId;
+    const actionRecords = [
+      {
+        beatId: 'beat:p6:offline_spatial_touch',
+        predicate: 'touches',
+      },
+      {
+        beatId: 'beat:p6:offline_spatial_look',
+        predicate: 'looks_at',
+      },
+    ];
+    page6.actionRequirements = actionRecords.map((record) => ({
+      beatId: record.beatId,
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: record.predicate,
+      object: {
+        kind: 'spatial',
+        id: permittedSpatialReferenceId,
+      },
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'affirmative',
+      laterality: null,
+    }));
+    page6Coverage.push(
+      ...actionRecords.map((record) => ({
+        beatId: record.beatId,
+        sourceEvidenceId: page6SourceEvidenceId,
+        disposition: { kind: 'action_requirement' },
+      })),
+    );
+    const initial = structuredClone(valid);
+    const representedCoordinates = [
+      { pageNumber: 2, coverageIndex: 0 },
+      { pageNumber: 3, coverageIndex: 0 },
+      { pageNumber: 5, coverageIndex: 0 },
+      { pageNumber: 6, coverageIndex: 0 },
+      { pageNumber: 6, coverageIndex: 1 },
+      { pageNumber: 8, coverageIndex: 0 },
+    ] as const;
+    const initialPage6Coverage = initial.pageContracts[5]!
+      .actionSemanticCoverage as Array<Record<string, unknown>>;
+    initialPage6Coverage.splice(1, 0, {
+      ...structuredClone(initialPage6Coverage[0]!),
+      beatId: 'beat:p6:offline_represented_second',
+    });
+    const page4Coverage = initial.pageContracts[3]!
+      .actionSemanticCoverage as Array<Record<string, unknown>>;
+    page4Coverage.push({
+      ...structuredClone(page4Coverage[0]!),
+      beatId: 'beat:p4:offline_gap_second',
+    });
+    page4Coverage.push({
+      ...structuredClone(page4Coverage[0]!),
+      beatId: 'beat:p4:offline_valid_guard',
+    });
+    const page7Coverage = initial.pageContracts[6]!
+      .actionSemanticCoverage as Array<Record<string, unknown>>;
+    page7Coverage.push({
+      ...structuredClone(page7Coverage[0]!),
+      beatId: 'beat:p7:offline_valid_guard',
+    });
+
+    for (const page of initial.pageContracts.slice(0, 8)) page.camera = '';
+    for (const coordinate of representedCoordinates) {
+      const coverage = initial.pageContracts[coordinate.pageNumber - 1]!
+        .actionSemanticCoverage as Array<Record<string, unknown>>;
+      coverage[coordinate.coverageIndex]!.disposition = {
+        kind: 'represented_elsewhere',
+        contractPointer: `/outside/offline/p${String(coordinate.pageNumber)}`,
+        contractValue: 'outside the compiler-owned page domain',
+      };
+    }
+    const capabilityCoordinates = [
+      { pageNumber: 4, coverageIndex: 0 },
+      { pageNumber: 4, coverageIndex: 1 },
+      { pageNumber: 7, coverageIndex: 0 },
+    ] as const;
+    for (const coordinate of capabilityCoordinates) {
+      const coverage = initial.pageContracts[coordinate.pageNumber - 1]!
+        .actionSemanticCoverage as Array<Record<string, unknown>>;
+      coverage[coordinate.coverageIndex]!.disposition = {
+        kind: 'unsupported',
+        reason: 'closed_action_catalog_gap',
+      };
+    }
+
+    const invalidSpatialActions = structuredClone(
+      initial.pageContracts[5]!.actionRequirements,
+    ) as Array<Record<string, unknown>>;
+    for (const action of invalidSpatialActions) {
+      action.polarity = 'must';
+      action.object = {
+        kind: 'spatial',
+        id: 'the furniture',
+      };
+    }
+    const invalidSpatialPage = structuredClone(initial.pageContracts[5]!);
+    invalidSpatialPage.actionRequirements = invalidSpatialActions;
+    invalidSpatialPage.camera = valid.pageContracts[5]!.camera;
+    const page6MustShow = [
+      ...(initial.pageContracts[5]!.mustShow as string[]),
+    ];
+    for (const projected of projectPageMustShow(
+      invalidSpatialPage as unknown as PageVisualContract,
+      {
+        ...initial,
+        pageContracts: [
+          ...initial.pageContracts.slice(0, 5),
+          invalidSpatialPage,
+          ...initial.pageContracts.slice(6),
+        ],
+      } as unknown as BookVisualContract,
+    )) {
+      if (!page6MustShow.includes(projected)) page6MustShow.push(projected);
+    }
+    const bookSurfaceResponse = {
+      presentationPatches: capabilityCoordinates.map((coordinate) => {
+        const coverage = initial.pageContracts[coordinate.pageNumber - 1]!
+          .actionSemanticCoverage as Array<Record<string, unknown>>;
+        return {
+          pageNumber: coordinate.pageNumber,
+          coverageIndex: coordinate.coverageIndex,
+          beatId: coverage[coordinate.coverageIndex]!.beatId,
+          sourceEvidenceId:
+            coverage[coordinate.coverageIndex]!.sourceEvidenceId,
+          presentationClass: 'composition_focus',
+          pointerChoiceIndex: 0,
+        };
+      }),
+      coverContract: null,
+      recurringProps: null,
+      pageStructuralPatches: initial.pageContracts.slice(0, 8).map((page, index) => ({
+        pageNumber: page.pageNumber,
+        locationId: null,
+        zoneId: null,
+        sameLocationAs: null,
+        mustShow:
+          page.pageNumber === 4 || page.pageNumber === 7
+            ? null
+            : page.pageNumber === 6
+              ? page6MustShow
+              : structuredClone(valid.pageContracts[index]!.mustShow),
+        mustNotShow: structuredClone(
+          valid.pageContracts[index]!.mustNotShow,
+        ),
+        propState: null,
+        propConstraints: null,
+        actionRequirements:
+          page.pageNumber === 6 ? invalidSpatialActions : null,
+        camera: valid.pageContracts[index]!.camera,
+        transition: null,
+      })),
+    };
+
+    const representedIssues = [
+      { pageNumber: 2, itemIndex: 1 },
+      { pageNumber: 3, itemIndex: 2 },
+      { pageNumber: 5, itemIndex: 4 },
+      { pageNumber: 6, itemIndex: 5 },
+      { pageNumber: 6, itemIndex: 6 },
+      { pageNumber: 8, itemIndex: 10 },
+    ].map(({ pageNumber, itemIndex }) => ({
+      family: 'action_semantic',
+      code: 'represented_elsewhere_pointer_out_of_scope',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_action_semantic_coverage',
+        fieldRole: 'reference',
+        pageNumber,
+        itemIndex,
+      },
+    })) satisfies DraftValidationIssue[];
+    const capabilityIssues = [
+      { pageNumber: 4, itemIndex: 0 },
+      { pageNumber: 4, itemIndex: 1 },
+      { pageNumber: 7, itemIndex: 0 },
+    ].map(({ pageNumber, itemIndex }) => ({
+      family: 'action_semantic',
+      code: 'closed_catalog_capability_gap',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_action_semantic_coverage',
+        fieldRole: 'disposition',
+        pageNumber,
+        itemIndex,
+      },
+    })) satisfies DraftValidationIssue[];
+    const initialStructuralIssues = initial.pageContracts.slice(0, 8).map((page) => ({
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: page.pageNumber as number,
+      },
+      causes: page.pageNumber === 6
+        ? [
+            'page_action_requirements_invalid',
+            'page_steering_invalid',
+          ]
+        : ['page_steering_invalid'],
+    })) satisfies DraftValidationIssue[];
+    const spatialIssues = [0, 1].map((itemIndex) => ({
+      family: 'draft_contract',
+      code: 'out_of_scope_reference',
+      locator: {
+        kind: 'page_item',
+        collectionRole: 'page_actions',
+        fieldRole: 'reference',
+        pageNumber: 6,
+        itemIndex,
+      },
+    })) satisfies DraftValidationIssue[];
+    const page6StructuralIssue = {
+      family: 'draft_contract',
+      code: 'final_structural_invariant_invalid',
+      locator: {
+        kind: 'page',
+        fieldRole: 'final_structure',
+        pageNumber: 6,
+      },
+      causes: ['page_action_requirements_invalid'],
+    } satisfies DraftValidationIssue;
+
+    const result = await runOfflineRepairHarness({
+      input,
+      initialDraft: initial,
+      repairResponses: [
+        bookSurfaceResponse,
+        {
+          patches: [0, 1].map((actionIndex) => ({
+            pageNumber: 6,
+            actionIndex,
+            fieldRole: 'object',
+            spatialReferenceId: permittedSpatialReferenceId,
+          })),
+        },
+        {
+          patches: representedCoordinates.map((coordinate) => {
+            const coverage = initial.pageContracts[
+              coordinate.pageNumber - 1
+            ]!.actionSemanticCoverage as Array<Record<string, unknown>>;
+            return {
+              pageNumber: coordinate.pageNumber,
+              coverageIndex: coordinate.coverageIndex,
+              beatId: coverage[coordinate.coverageIndex]!.beatId,
+              sourceEvidenceId:
+                coverage[coordinate.coverageIndex]!.sourceEvidenceId,
+              pointerChoiceIndex: 0,
+            };
+          }),
+        },
+      ],
+      completeDiagnosticIssuesByAttempt: [
+        [
+          ...capabilityIssues,
+          ...representedIssues,
+          ...initialStructuralIssues,
+        ],
+        [
+          ...representedIssues,
+          page6StructuralIssue,
+          ...spatialIssues,
+        ],
+        representedIssues,
+        [],
+      ],
+    });
+
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'book_surface_patch',
+      'page_spatial_reference_patch',
+      'represented_elsewhere_patch',
+    ]);
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'candidate',
+      completeCensusCoverage: 'complete',
+      monotonicCompleteIssueDelta: true,
+      maxPositiveCompleteIssueDelta: 0,
+      finalCompleteIssueCount: 0,
+    });
+    expect(result.calls[result.calls.length - 1]).toMatchObject({
+      schemaName: 'RepresentedElsewhereRepairPatches',
+    });
+    expect(result.stages.map((stage) => ({
+      nextRepairMode: stage.nextRepairMode,
+      surfacedIssueCount: stage.surfacedIssueCount,
+      completeIssueCount: stage.completeIssueCount,
+      completeDelta: stage.completeDelta,
+    }))).toEqual([
+      {
+        nextRepairMode: 'book_surface_patch',
+        surfacedIssueCount: 17,
+        completeIssueCount: 17,
+        completeDelta: null,
+      },
+      {
+        nextRepairMode: 'page_spatial_reference_patch',
+        surfacedIssueCount: 9,
+        completeIssueCount: 9,
+        completeDelta: -8,
+      },
+      {
+        nextRepairMode: 'represented_elsewhere_patch',
+        surfacedIssueCount: 6,
+        completeIssueCount: 6,
+        completeDelta: -3,
+      },
+      {
+        nextRepairMode: null,
+        surfacedIssueCount: 0,
+        completeIssueCount: 0,
+        completeDelta: -6,
+      },
+    ]);
+    expect(
+      result.stages[2]!.surfacedDiagnosticIssues.map(
+        (issue) => issue.locator.kind === 'page_item'
+          ? issue.locator.pageNumber
+          : null,
+      ).sort((left, right) => (left ?? 0) - (right ?? 0)),
+    ).toEqual([2, 3, 5, 6, 6, 8]);
+    expect(JSON.stringify(result.calls)).not.toMatch(
+      /page_contract_patch|full_draft/,
     );
   });
 

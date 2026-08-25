@@ -314,7 +314,7 @@ describe('canonical live request materialization validators', () => {
     );
     expect(
       LIVE_REQUEST_MATERIALIZATION_MANIFEST_VERSION,
-    ).toBe('canonical-live-request-materialization/v48');
+    ).toBe('canonical-live-request-materialization/v49');
   });
 
   it.each([
@@ -492,7 +492,7 @@ describe('canonical live request materialization artifacts', () => {
 
     expect(result.status).toBe('materialized_inputs_only');
     expect(request).toMatchObject({
-      version: 'visual-contract-authoring-request/v50',
+      version: 'visual-contract-authoring-request/v51',
       mode: 'live',
       provider: 'openai',
       endpoint: 'responses',

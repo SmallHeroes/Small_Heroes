@@ -798,7 +798,7 @@ describe('repairable producer census and typed-only boundary', () => {
     expect(census.producers).toEqual({
       ActionSemanticCoverageValidationError: {},
       InvalidTemplateContractError: {
-        'compileBookVisualContractTemplate.ts': 13,
+        'compileBookVisualContractTemplate.ts': 14,
         'contractArtifact.ts': 1,
         'contractTemplateMigration.ts': 11,
         'validateTemplateContract.ts': 1,

@@ -16,17 +16,25 @@ import {
   type DraftAuthorityReferenceIssue,
 } from '../visual-contract-compiler/draftAuthorityReferenceDiagnostics';
 import {
+  sanitizedTemplateRepairOutputIdentity,
+  templateRepairOutputTargetContextIsValid,
+} from '../visual-contract-compiler/templateRepairOutputDiagnostics';
+import {
   authoringTerminalFailureIsValid,
   buildAuthoringTerminalFailure,
 } from '../visual-package/authoringTerminalDiagnostics';
 import {
   buildVisualContractAuthoringTerminalFailure,
+  legacyVisualContractRepairRouteAdmissionDiagnosticsIsValid,
   legacyVisualContractAuthoringTerminalFailureIsValid,
   legacyVisualContractRepairOutputDiagnosticsIsValid,
   legacyVisualContractRepairOutputDiagnosticsV1IsValid,
   legacyVisualContractRepairOutputDiagnosticsV2IsValid,
+  legacyVisualContractRepairOutputDiagnosticsV3IsValid,
   visualContractAuthoringTerminalFailureIsValid,
+  visualContractRepairRouteAdmissionDiagnosticsIsReadable,
   visualContractRepairRouteAdmissionDiagnosticsIsValid,
+  visualContractRepairRouteAdmissionDiagnosticsVersionStatus,
   visualContractRepairOutputDiagnosticsIsValid,
   visualContractRepairOutputDiagnosticsIsReadable,
   visualContractRepairOutputDiagnosticsVersionStatus,
@@ -617,7 +625,7 @@ describe('Visual Contract-specific terminal extension', () => {
       repairOutputDiagnostics: null,
     });
     expect(failure.repairRouteAdmissionDiagnostics).toEqual({
-      version: 'visual-contract-repair-route-admission-diagnostics/v1',
+      version: 'visual-contract-repair-route-admission-diagnostics/v2',
       repairAttempt: 7,
       repairMode: 'book_surface_patch',
       inputAccounting,
@@ -630,6 +638,11 @@ describe('Visual Contract-specific terminal extension', () => {
         failure.repairRouteAdmissionDiagnostics,
       ),
     ).toBe(true);
+    expect(
+      visualContractRepairRouteAdmissionDiagnosticsVersionStatus(
+        failure.repairRouteAdmissionDiagnostics,
+      ),
+    ).toBe('current');
     expect(visualContractAuthoringTerminalFailureIsValid(failure)).toBe(true);
     expect(authoringTerminalFailureIsValid(failure)).toBe(false);
 
@@ -646,6 +659,80 @@ describe('Visual Contract-specific terminal extension', () => {
         currentWithoutRouteSlot,
       ),
     ).toBe(false);
+
+    const legacyRouteDetails = {
+      ...failure.repairRouteAdmissionDiagnostics!,
+      version: 'visual-contract-repair-route-admission-diagnostics/v1',
+    };
+    const legacyRouteFailure = {
+      ...failure,
+      repairRouteAdmissionDiagnostics: legacyRouteDetails,
+    };
+    expect(
+      legacyVisualContractRepairRouteAdmissionDiagnosticsIsValid(
+        legacyRouteDetails,
+      ),
+    ).toBe(true);
+    expect(
+      visualContractRepairRouteAdmissionDiagnosticsIsReadable(
+        legacyRouteDetails,
+      ),
+    ).toBe(true);
+    expect(
+      visualContractRepairRouteAdmissionDiagnosticsVersionStatus(
+        legacyRouteDetails,
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractRepairRouteAdmissionDiagnosticsIsValid(
+        legacyRouteDetails,
+      ),
+    ).toBe(false);
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        legacyRouteFailure,
+      ),
+    ).toBe(true);
+    expect(
+      legacyVisualContractRepairRouteAdmissionDiagnosticsIsValid({
+        ...legacyRouteDetails,
+        repairMode: 'represented_elsewhere_patch',
+      }),
+    ).toBe(false);
+
+    for (const repairAttempt of [2, 7]) {
+      const representedElsewhereFailure =
+        buildVisualContractAuthoringTerminalFailure({
+          code: 'repair_route_input_not_admissible',
+          issueCodes: ['repair_route_input_not_admissible'],
+          repairRouteAdmissionDiagnostics: {
+            repairAttempt,
+            repairMode: 'represented_elsewhere_patch',
+            inputAccounting,
+            maxAdmissibleInputBytes: 59_904,
+            carriedDraftDiagnosticCount: 6,
+          },
+        });
+      expect(
+        visualContractRepairRouteAdmissionDiagnosticsIsValid(
+          representedElsewhereFailure.repairRouteAdmissionDiagnostics,
+        ),
+      ).toBe(true);
+      expect(
+        visualContractAuthoringTerminalFailureIsValid(
+          representedElsewhereFailure,
+        ),
+      ).toBe(true);
+    }
+    for (const repairAttempt of [1, 8, 9]) {
+      expect(
+        visualContractRepairRouteAdmissionDiagnosticsIsValid({
+          ...failure.repairRouteAdmissionDiagnostics,
+          repairAttempt,
+          repairMode: 'represented_elsewhere_patch',
+        }),
+      ).toBe(false);
+    }
   });
 
   it('rejects route-admission threshold, accounting, identity, count, and mutual-exclusion tampering', () => {
@@ -669,7 +756,7 @@ describe('Visual Contract-specific terminal extension', () => {
     });
     const details = valid.repairRouteAdmissionDiagnostics!;
     const invalidDetails = [
-      { ...details, version: 'visual-contract-repair-route-admission-diagnostics/v2' },
+      { ...details, version: 'visual-contract-repair-route-admission-diagnostics/v3' },
       { ...details, repairAttempt: 1 },
       { ...details, repairAttempt: 2 },
       { ...details, repairAttempt: 3 },
@@ -753,11 +840,12 @@ describe('Visual Contract-specific terminal extension', () => {
       'repair_output_recurring_prop_invalid',
     );
     expect(visual.repairOutputDiagnostics).toEqual({
-      version: 'visual-contract-repair-output-diagnostics/v4',
+      version: 'visual-contract-repair-output-diagnostics/v5',
       repairAttempt: 2,
       repairMode: 'book_surface_patch',
       failureCode: 'recurring_prop_invalid',
       identity: 'book_surface_repair_prop_invalid',
+      targetContext: null,
       carriedDraftDiagnosticCount: 39,
       repairOutputDiagnosticCount: 1,
     });
@@ -813,7 +901,7 @@ describe('Visual Contract-specific terminal extension', () => {
         visualContractAuthoringTerminalFailureIsValid(roundTrip),
       ).toBe(true);
       expect(roundTrip.repairOutputDiagnostics).toMatchObject({
-        version: 'visual-contract-repair-output-diagnostics/v4',
+        version: 'visual-contract-repair-output-diagnostics/v5',
         failureCode,
         identity,
         repairOutputDiagnosticCount: 1,
@@ -849,7 +937,7 @@ describe('Visual Contract-specific terminal extension', () => {
         },
       });
       expect(failure.repairOutputDiagnostics).toMatchObject({
-        version: 'visual-contract-repair-output-diagnostics/v4',
+        version: 'visual-contract-repair-output-diagnostics/v5',
         failureCode,
         identity,
       });
@@ -857,7 +945,217 @@ describe('Visual Contract-specific terminal extension', () => {
     },
   );
 
-  it('keeps v1-v3 diagnostics immutable and rejects identities introduced by later versions', () => {
+  it.each([
+    ['kind_drift', 'target_identity_invalid'],
+    ['beat_drift', 'target_identity_invalid'],
+    ['source_drift', 'target_identity_invalid'],
+    ['target_stale', 'target_identity_invalid'],
+    ['choice_out_of_range', 'reference_authority_invalid'],
+  ] as const)(
+    'persists only closed represented-elsewhere target context for %s',
+    (closedSubreason, failureCode) => {
+      const targetContext = {
+        pageNumber: 6,
+        coverageIndex: 4,
+        closedSubreason,
+      };
+      expect(templateRepairOutputTargetContextIsValid(targetContext)).toBe(true);
+      const failure = buildVisualContractAuthoringTerminalFailure({
+        code: 'repair_output_invalid',
+        issueCodes: ['repair_output_invalid'],
+        repairOutputDiagnostics: {
+          repairAttempt: 4,
+          repairMode: 'represented_elsewhere_patch',
+          failureCode,
+          identity:
+            'represented_elsewhere_repair_target_association_invalid',
+          targetContext,
+          carriedDraftDiagnosticCount: 6,
+        },
+      });
+      expect(failure.repairOutputDiagnostics).toEqual({
+        version: 'visual-contract-repair-output-diagnostics/v5',
+        repairAttempt: 4,
+        repairMode: 'represented_elsewhere_patch',
+        failureCode,
+        identity:
+          'represented_elsewhere_repair_target_association_invalid',
+        targetContext,
+        carriedDraftDiagnosticCount: 6,
+        repairOutputDiagnosticCount: 1,
+      });
+      expect(
+        visualContractAuthoringTerminalFailureIsValid(
+          JSON.parse(JSON.stringify(canonicalize(failure))),
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it.each([
+    ['represented_elsewhere_repair_response_invalid_json', 'json_invalid'],
+    ['represented_elsewhere_repair_response_invalid_shape', 'shape_invalid'],
+    ['represented_elsewhere_repair_target_set_empty', 'target_identity_invalid'],
+    ['represented_elsewhere_repair_target_duplicate', 'target_identity_invalid'],
+    ['represented_elsewhere_repair_patch_invalid', 'shape_invalid'],
+    ['represented_elsewhere_repair_patch_set_incomplete', 'target_identity_invalid'],
+    [
+      'represented_elsewhere_repair_patch_unexpected_or_duplicate',
+      'target_identity_invalid',
+    ],
+    ['represented_elsewhere_repair_non_target_drift', 'non_target_drift'],
+    ['represented_elsewhere_repair_authority_invalid', 'target_identity_invalid'],
+  ] as const)(
+    'persists represented-elsewhere set-level identity %s without target content',
+    (identity, failureCode) => {
+      const failure = buildVisualContractAuthoringTerminalFailure({
+        code: 'repair_output_invalid',
+        issueCodes: ['repair_output_invalid'],
+        repairOutputDiagnostics: {
+          repairAttempt: 4,
+          repairMode: 'represented_elsewhere_patch',
+          failureCode,
+          identity,
+          carriedDraftDiagnosticCount: 6,
+        },
+      });
+      expect(failure.repairOutputDiagnostics).toMatchObject({
+        version: 'visual-contract-repair-output-diagnostics/v5',
+        repairMode: 'represented_elsewhere_patch',
+        identity,
+        targetContext: null,
+      });
+      expect(visualContractAuthoringTerminalFailureIsValid(failure)).toBe(true);
+    },
+  );
+
+  it.each([
+    'represented_elsewhere_repair_response_invalid_json',
+    'represented_elsewhere_repair_response_invalid_shape',
+    'represented_elsewhere_repair_target_set_empty',
+    'represented_elsewhere_repair_target_duplicate',
+    'represented_elsewhere_repair_patch_invalid',
+    'represented_elsewhere_repair_patch_set_incomplete',
+    'represented_elsewhere_repair_patch_unexpected_or_duplicate',
+    'represented_elsewhere_repair_non_target_drift',
+    'represented_elsewhere_repair_authority_invalid',
+    'represented_elsewhere_repair_target_association_invalid',
+  ] as const)(
+    'sanitizes represented-elsewhere identity %s without carrying exception text',
+    (identity) => {
+      expect(sanitizedTemplateRepairOutputIdentity(new Error(identity))).toBe(
+        identity,
+      );
+      expect(
+        sanitizedTemplateRepairOutputIdentity({
+          message: identity,
+          providerText: 'forbidden',
+        }),
+      ).toBe('unclassified');
+    },
+  );
+
+  it('rejects cross-lane identities and any unclosed or misplaced target context', () => {
+    const valid = buildVisualContractAuthoringTerminalFailure({
+      code: 'repair_output_invalid',
+      issueCodes: ['repair_output_invalid'],
+      repairOutputDiagnostics: {
+        repairAttempt: 4,
+        repairMode: 'represented_elsewhere_patch',
+        failureCode: 'target_identity_invalid',
+        identity:
+          'represented_elsewhere_repair_target_association_invalid',
+        targetContext: {
+          pageNumber: 6,
+          coverageIndex: 4,
+          closedSubreason: 'target_stale',
+        },
+        carriedDraftDiagnosticCount: 6,
+      },
+    });
+    const diagnostics = valid.repairOutputDiagnostics!;
+    if (!visualContractRepairOutputDiagnosticsIsValid(diagnostics)) {
+      throw new Error('expected current repair-output diagnostics');
+    }
+    const invalidContexts = [
+      null,
+      { ...diagnostics.targetContext, closedSubreason: 'provider-authored prose' },
+      { ...diagnostics.targetContext, pageNumber: 0 },
+      { ...diagnostics.targetContext, coverageIndex: -1 },
+      { ...diagnostics.targetContext, providerText: 'forbidden' },
+    ];
+    for (const targetContext of invalidContexts) {
+      expect(
+        visualContractAuthoringTerminalFailureIsValid({
+          ...valid,
+          repairOutputDiagnostics: { ...diagnostics, targetContext },
+        }),
+      ).toBe(false);
+    }
+    expect(
+      visualContractAuthoringTerminalFailureIsValid({
+        ...valid,
+        repairOutputDiagnostics: {
+          ...diagnostics,
+          repairMode: 'book_surface_patch',
+        },
+      }),
+    ).toBe(false);
+    expect(
+      visualContractAuthoringTerminalFailureIsValid({
+        ...valid,
+        repairOutputDiagnostics: {
+          ...diagnostics,
+          identity: 'book_surface_repair_prop_invalid',
+        },
+      }),
+    ).toBe(false);
+    expect(
+      visualContractAuthoringTerminalFailureIsValid({
+        ...valid,
+        repairOutputDiagnostics: {
+          ...diagnostics,
+          identity: 'represented_elsewhere_repair_target_set_empty',
+        },
+      }),
+    ).toBe(false);
+    expect(
+      visualContractRepairOutputDiagnosticsIsValid({
+        ...diagnostics,
+        failureCode: 'reference_authority_invalid',
+      }),
+    ).toBe(false);
+    const choiceFailure = buildVisualContractAuthoringTerminalFailure({
+      code: 'repair_output_invalid',
+      issueCodes: ['repair_output_invalid'],
+      repairOutputDiagnostics: {
+        repairAttempt: 4,
+        repairMode: 'represented_elsewhere_patch',
+        failureCode: 'reference_authority_invalid',
+        identity:
+          'represented_elsewhere_repair_target_association_invalid',
+        targetContext: {
+          pageNumber: 6,
+          coverageIndex: 4,
+          closedSubreason: 'choice_out_of_range',
+        },
+        carriedDraftDiagnosticCount: 6,
+      },
+    });
+    expect(visualContractAuthoringTerminalFailureIsValid(choiceFailure))
+      .toBe(true);
+    expect(
+      visualContractRepairOutputDiagnosticsIsValid({
+        ...diagnostics,
+        targetContext: {
+          ...diagnostics.targetContext!,
+          closedSubreason: 'choice_out_of_range',
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it('keeps v1-v4 diagnostics immutable and rejects later identities and modes', () => {
     const currentFailure = buildVisualContractAuthoringTerminalFailure({
       code: 'repair_output_invalid',
       issueCodes: ['repair_output_invalid'],
@@ -870,17 +1168,25 @@ describe('Visual Contract-specific terminal extension', () => {
       },
     });
     const current = currentFailure.repairOutputDiagnostics!;
+    if (!visualContractRepairOutputDiagnosticsIsValid(current)) {
+      throw new Error('expected current repair-output diagnostics');
+    }
+    const { targetContext: _targetContext, ...legacyBase } = current;
     const legacyV1 = {
-      ...current,
+      ...legacyBase,
       version: 'visual-contract-repair-output-diagnostics/v1',
     };
     const legacyV2 = {
-      ...current,
+      ...legacyBase,
       version: 'visual-contract-repair-output-diagnostics/v2',
     };
     const legacyV3 = {
-      ...current,
+      ...legacyBase,
       version: 'visual-contract-repair-output-diagnostics/v3',
+    };
+    const legacyV4 = {
+      ...legacyBase,
+      version: 'visual-contract-repair-output-diagnostics/v4',
     };
     const forgedLegacyV2Addition = {
       ...legacyV1,
@@ -895,9 +1201,17 @@ describe('Visual Contract-specific terminal extension', () => {
       ...legacyV3,
       identity: 'presentation_requirement_repair_target_association_invalid',
     };
+    const forgedLegacyV5Addition = {
+      ...legacyV4,
+      identity: 'represented_elsewhere_repair_target_association_invalid',
+    };
+    const forgedLegacyMode = {
+      ...legacyV4,
+      repairMode: 'represented_elsewhere_patch',
+    };
     const unknown = {
       ...current,
-      version: 'visual-contract-repair-output-diagnostics/v5',
+      version: 'visual-contract-repair-output-diagnostics/v6',
     };
     const legacyFailure = {
       ...currentFailure,
@@ -912,7 +1226,9 @@ describe('Visual Contract-specific terminal extension', () => {
       .toBe(true);
     expect(legacyVisualContractRepairOutputDiagnosticsV2IsValid(legacyV2))
       .toBe(true);
-    expect(legacyVisualContractRepairOutputDiagnosticsIsValid(legacyV3))
+    expect(legacyVisualContractRepairOutputDiagnosticsV3IsValid(legacyV3))
+      .toBe(true);
+    expect(legacyVisualContractRepairOutputDiagnosticsIsValid(legacyV4))
       .toBe(true);
     expect(
       legacyVisualContractRepairOutputDiagnosticsV2IsValid(
@@ -920,8 +1236,18 @@ describe('Visual Contract-specific terminal extension', () => {
       ),
     ).toBe(false);
     expect(
-      legacyVisualContractRepairOutputDiagnosticsIsValid(
+      legacyVisualContractRepairOutputDiagnosticsV3IsValid(
         forgedLegacyV4Addition,
+      ),
+    ).toBe(false);
+    expect(
+      legacyVisualContractRepairOutputDiagnosticsIsValid(
+        forgedLegacyV5Addition,
+      ),
+    ).toBe(false);
+    expect(
+      legacyVisualContractRepairOutputDiagnosticsIsValid(
+        forgedLegacyMode,
       ),
     ).toBe(false);
     expect(visualContractRepairOutputDiagnosticsIsReadable(legacyV1))
@@ -930,6 +1256,23 @@ describe('Visual Contract-specific terminal extension', () => {
       .toBe(true);
     expect(visualContractRepairOutputDiagnosticsIsReadable(legacyV3))
       .toBe(true);
+    expect(visualContractRepairOutputDiagnosticsIsReadable(legacyV4))
+      .toBe(true);
+    for (const legacy of [legacyV1, legacyV2, legacyV3, legacyV4]) {
+      expect(
+        visualContractRepairOutputDiagnosticsIsReadable({
+          ...legacy,
+          repairMode: 'represented_elsewhere_patch',
+        }),
+      ).toBe(false);
+      expect(
+        visualContractRepairOutputDiagnosticsIsReadable({
+          ...legacy,
+          identity:
+            'represented_elsewhere_repair_target_association_invalid',
+        }),
+      ).toBe(false);
+    }
     expect(visualContractRepairOutputDiagnosticsIsValid(legacyV1))
       .toBe(false);
     expect(visualContractRepairOutputDiagnosticsVersionStatus(legacyV1))
@@ -973,6 +1316,9 @@ describe('Visual Contract-specific terminal extension', () => {
       },
     });
     const diagnostics = valid.repairOutputDiagnostics!;
+    if (!visualContractRepairOutputDiagnosticsIsValid(diagnostics)) {
+      throw new Error('expected current repair-output diagnostics');
+    }
     const invalidDetails = [
       { ...diagnostics, identity: 'provider-authored prose' },
       { ...diagnostics, carriedDraftDiagnosticCount: -1 },
@@ -997,6 +1343,14 @@ describe('Visual Contract-specific terminal extension', () => {
         repairOutputDiagnostics: missingIdentity,
       }),
     ).toBe(false);
+    const { targetContext: _targetContext, ...missingTargetContext } =
+      diagnostics;
+    expect(
+      visualContractAuthoringTerminalFailureIsValid({
+        ...valid,
+        repairOutputDiagnostics: missingTargetContext,
+      }),
+    ).toBe(false);
     expect(
       visualContractAuthoringTerminalFailureIsValid({
         ...valid,
@@ -1018,6 +1372,7 @@ describe('Visual Contract-specific terminal extension', () => {
         diagnostics.carriedDraftDiagnosticCount,
       failureCode: diagnostics.failureCode,
       repairAttempt: diagnostics.repairAttempt,
+      targetContext: diagnostics.targetContext,
     };
     expect(
       visualContractAuthoringTerminalFailureIsValid({

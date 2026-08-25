@@ -1,8 +1,77 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-24
+**Updated:** 2026-08-25
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-chameleon-v3-live-authoring` in `C:\GNart\Work\sh-live-chameleon-v3`, based on pushed accepted-v3 authoring head `be2d7e445de37d08811f1640901e12c449586d1a`.
+**Working branch:** `codex/r1d-represented-elsewhere-narrow-patch` in `C:\GNart\Work\sh-live-chameleon-v3`, based on `06280b5a3f971996280e6d59a686eca4f890cd8a`.
+
+## REPRESENTED-ELSEWHERE NARROW PATCH — OFFLINE GREEN; AWAITING INDEPENDENT QA
+
+The last bounded paid attempt is preserved under
+`outputs/r1d-chameleon-v3-live-20260824T214715731Z`. Its immutable receipt is
+`b0/authoring-receipts/08d4e6c00679914313b6e35c17662191a918176e1fd47bae13f74dba28741a25.json`.
+It made four provider calls and three repairs with no retry or fallback. The
+complete unique census moved `17 -> 9 -> 6`; the fourth response was rejected
+before application as
+`page_contract_repair_represented_elsewhere_target_invalid`, so no Candidate
+or render was produced. Nominal cost was `$1.268059`; conservative accounted
+cost was `$1.395553`. The six remaining issues were pure
+represented-elsewhere references on pages 2, 3, 5, 6, 6 and 8.
+
+Diagnosis found that the scheduler sent this pure six-field cleanup to the
+broad PageContract route. That route required six complete page-contract
+echoes and associated them through a contract much wider than the change: one
+compiler-owned same-page pointer selection for each existing coverage record.
+The failure was therefore a target-association contract mismatch, not evidence
+that another paid retry, full-draft rewrite or larger budget was justified.
+
+Guy approved a `$0`, system-general correction. A distinct
+`represented_elsewhere_patch` lane now accepts only a complete diagnostic
+population composed of the three closed represented-elsewhere identities. It
+runs after independently repairable BookSurface and page-spatial work and
+before PageContract or full-draft widening. The provider-visible patch contains
+only `pageNumber`, page-local `coverageIndex`, `beatId`, `sourceEvidenceId` and
+`pointerChoiceIndex`. The compiler constructs the deterministic permitted
+pointer/value domain per page, maps complete-census global item indexes back to
+page-local coverage indexes, requires an order-independent exact target set,
+and atomically restores the selected compiler-owned pointer and value. Missing,
+extra, duplicate, forged, cross-page or out-of-range selections fail closed;
+non-target draft bytes remain unchanged. Persisted failures contain only the
+page, local coverage index and a closed subreason, never raw pointers, values,
+draft text or provider output.
+
+The new schema is `represented-elsewhere-repair-schema/v1`, digest
+`c15013c5ed2a5482156e19dd95c3e46b10bdb01fa9df5da04c4d78b321c20a4d`;
+the system-prompt digest is
+`31616197c8bf80963735aa92fa633a725138ff4a5a2ebf2d3fabea0880ff5543`.
+Repair-output diagnostics advance to v5 and route-admission diagnostics to v2.
+Authoring request/receipt/readiness advance to v51/v53/v51; the B0 manifest and
+verification advance to v49, execution request/readiness to v45, execution
+materialization result to v40 and Fresh evidence to v45. Immediate predecessors
+remain immutable readable legacy authority. Input envelope v39/v35, execution
+result v37, Candidate v9, provider evidence v6, draft v21, policy v17, model,
+budgets, standard call count, retry and fallback are unchanged.
+
+The production-shaped offline harness reaches Candidate through exactly
+`17 -> 9 -> 6 -> 0` and
+`initial -> book_surface_patch -> page_spatial_reference_patch -> represented_elsewhere_patch`,
+with complete and surfaced censuses equal, monotonic non-positive deltas and
+`providerCalls: 0`. Mixed spatial-plus-represented residuals stop at the normal
+seven-call repair bound; the pre-existing eighth-call cleanup remains available
+only for the shared pure terminal-reference predicate. Oversized represented
+requests fail route admission without dispatch. Focused integration passes
+14 files / 675 assertions; the two repository censuses pass 27/27; TypeScript
+and `git diff --check` pass. Repository-wide `npm run check` has no changed-file
+failure: ordinary passes 286 files / 3,628 assertions, skips 17 files / 70
+assertions and retains 11 baseline failures in unchanged files (nine missing
+ignored historical-output fixtures and two five-second Blueprint-migration
+timeouts). Resource-intensive passes 20 files / 612 assertions before the
+three known Vitest `onTaskUpdate` RPC timeout errors. No credential, provider,
+network, live, Candidate persistence, Wizard, image, audio, render, database,
+deployment or other external operation occurred. Durable records:
+`docs/ai-workflow/R1D_REPRESENTED_ELSEWHERE_NARROW_PATCH_DECISION_GATE.md` and
+`docs/ai-workflow/R1D_REPRESENTED_ELSEWHERE_NARROW_PATCH_IMPLEMENTATION_EVIDENCE.md`.
+Independent Claude Code falsification is required before Fresh Readiness or a
+paid attempt.
 
 ## DEFERRED-REPRESENTED BOOKSURFACE SCHEDULER — OFFLINE GREEN; AWAITING INDEPENDENT QA
 

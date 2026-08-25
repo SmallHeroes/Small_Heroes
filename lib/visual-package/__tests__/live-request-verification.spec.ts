@@ -481,7 +481,7 @@ describe('canonical live request verification library', () => {
     );
 
     expect(CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION).toBe(
-      'canonical-live-request-verification/v48',
+      'canonical-live-request-verification/v49',
     );
     expect(result).toEqual({
       version: CANONICAL_LIVE_REQUEST_VERIFICATION_VERSION,
@@ -559,6 +559,9 @@ describe('canonical live request verification library', () => {
       pageContractRepairStructuredOutputCompatibility:
         materialized.manifest
           .pageContractRepairStructuredOutputCompatibility,
+      representedElsewhereRepairStructuredOutputCompatibility:
+        materialized.manifest
+          .representedElsewhereRepairStructuredOutputCompatibility,
       pageSpatialReferenceRepairStructuredOutputCompatibility:
         materialized.manifest
           .pageSpatialReferenceRepairStructuredOutputCompatibility,
@@ -689,7 +692,7 @@ describe('canonical live request verification library', () => {
       materialized.manifest,
       (value) => {
         value.version =
-          'canonical-live-request-materialization/v42';
+          'canonical-live-request-materialization/v48';
       },
     );
     expect(
@@ -1084,6 +1087,7 @@ describe('canonical live request verification library', () => {
 
   it.each([
     'pageContractRepairStructuredOutputCompatibility',
+    'representedElsewhereRepairStructuredOutputCompatibility',
     'structuralBundleRepairStructuredOutputCompatibility',
     'bookSurfaceRepairStructuredOutputCompatibility',
     'stablePropScopeRepairStructuredOutputCompatibility',
