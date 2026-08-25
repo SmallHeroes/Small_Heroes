@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; current downstream implementation base `3c6c04ceeb569fab17b749867121621cbba81016`.
 
-## QA WIZARD PACKAGE OPERATOR — OFFLINE GREEN; INDEPENDENT QA PENDING
+## QA WIZARD PACKAGE OPERATOR — INDEPENDENT PASS; MINOR RE-GATE PENDING
 
 The missing general package boundary is now implemented. It consumes only an
 exact `blueprint_approved` QA Wizard manifest, replays the approved bridge,
@@ -24,16 +24,22 @@ canonical locator's exact present/absent predecessor state. A global
 candidate-keyed publication claim precedes a locator-specific exclusive lock;
 under that lock only the reviewed predecessor or the exact successor replay is
 accepted. The immutable revision is written before the locator, and both are
-reloaded byte-for-byte before terminal evidence. Recovery is proven after the
-approval decision, publication claim, revision write and locator replacement.
+reloaded byte-for-byte before terminal evidence. In-process recovery is proven
+after the approval decision, publication claim, revision write and locator
+replacement. A true process or host death while the exclusive locator lock is
+held deliberately leaves that lock in place; later publication fails closed
+until an operator verifies state and removes it. The operator never steals or
+silently removes a pre-existing lock.
 
 The public `qa-wizard-package` CLI exposes only prepare, approve and publish,
-with exact request keys, one output root and explicit write intent. Its bundled
-dependency census contains zero `node_modules` and none of the provider,
-storage, generation or API-route capability surfaces. It contains no story,
-child, companion, page or style literal and makes no schema-version fork.
+with exact request keys, one output root and explicit write intent. Its static
+command graph has no provider, credential, storage, generation or API-route
+capability. A broader bundler census can enumerate an upstream dynamic OpenAI
+import, but none of these commands reaches that live-request executor or
+constructs a provider client. It contains no story, child, companion, page or
+style literal and makes no schema-version fork.
 
-Local proof is green: package lifecycle 8/8; the Blueprint/package/current-v5
+Local proof is green: package lifecycle 9/9; the Blueprint/package/current-v5
 matrix 50/50; Story Source migration compatibility 8/8; workload classifier
 7/7; TypeScript, CLI help, sanitized malformed-request rejection and diff
 checks all pass. The two existing package-migration integration cases measured
@@ -47,10 +53,13 @@ no changed-code assertion fails.
 
 No credential, provider/live call, package artifact, locator, image, audio,
 database/storage write, Wizard order, payment, deployment or render occurred.
-Independent Claude Code review of the exact implementation range is pending;
-Codex does not self-award its PASS. After PASS the branch still requires one
-explicit push to create a same-name upstream before Fresh Readiness. Durable
-evidence:
+Claude Code independently reviewed exact range `42fbab55..dbfd3a59` read-only
+and returned technical PASS with no BLOCKER or MAJOR. Its two MINOR notes are
+closed in a separate test/documentation correction: an explicit held-lock
+fail-closed regression plus truthful crash and dynamic-import wording. That
+correction is awaiting a narrow Claude micro re-gate; Codex does not self-award
+its PASS. After the re-gate the branch still requires one explicit push to
+create a same-name upstream before Fresh Readiness. Durable evidence:
 `docs/ai-workflow/R1D_QA_WIZARD_PACKAGE_OPERATOR_IMPLEMENTATION_EVIDENCE.md`.
 
 ## QA WIZARD BLUEPRINT OPERATOR — INDEPENDENT TECHNICAL PASS; FRESH INPUT PENDING

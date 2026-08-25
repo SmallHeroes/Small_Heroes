@@ -522,6 +522,34 @@ describe('QA Wizard visual-package lifecycle', () => {
     expect(fileInventory(subject.repoRoot)).toEqual(inventory);
   });
 
+  it('fails closed without removing a held locator lock or publishing bytes', async () => {
+    const subject = await approvedBlueprintSubject();
+    const prepared = preparePackage(subject);
+    const approved = approvePackage(subject, prepared);
+    const args = {
+      repoRoot: subject.repoRoot,
+      approvedManifestPath: approved.manifestPath,
+      outputDir: PACKAGE_OUTPUT_DIR,
+      publishedAt: PACKAGE_PUBLISHED_AT,
+      write: true,
+    };
+    const preview = publishQaWizardApprovedPackage({ ...args, write: false });
+    const locatorAbsolute = path.join(subject.repoRoot, preview.locatorPath);
+    const lockPath = `${locatorAbsolute}.qa-wizard-package.lock`;
+    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+    fs.writeFileSync(lockPath, 'held\n', 'utf8');
+
+    expect(() => publishQaWizardApprovedPackage(args)).toThrow();
+    expect(fs.readFileSync(lockPath, 'utf8')).toBe('held\n');
+    expect(fs.existsSync(locatorAbsolute)).toBe(false);
+    expect(fs.existsSync(path.join(subject.repoRoot, preview.packagePath))).toBe(
+      false,
+    );
+    expect(fs.existsSync(path.join(subject.repoRoot, preview.manifestPath))).toBe(
+      false,
+    );
+  });
+
   it.each([
     'afterPublicationClaim',
     'afterRevisionWrite',

@@ -49,9 +49,12 @@ locator conflicts to callers.
   exact approved successor is accepted. The immutable revision is written
   first, the mutable locator second, and both are reloaded byte-for-byte before
   the terminal manifest is written.
-- Replay converges after interruptions following approval decision,
-  publication claim, revision write or locator replacement. Conflicting
-  locator state, package bytes, global decision or claim fails closed.
+- Replay converges after in-process interruptions following approval decision,
+  publication claim, revision write or locator replacement. A true process or
+  host death while the locator lock is held deliberately leaves that lock in
+  place; later publication fails closed until an operator verifies the state
+  and removes the stale lock. Conflicting locator state, package bytes, global
+  decision, claim or held lock never gets overwritten automatically.
 - `scripts/qa-wizard-package.ts` exposes only `prepare-package`,
   `approve-package` and `publish-package`, each with an exact request object,
   one output root and explicit `--write true|false`. Rejections disclose only a
@@ -72,11 +75,13 @@ locator conflicts to callers.
 
 ## Falsification coverage
 
-The new eight-test lifecycle suite builds a hermetic approved Blueprint chain
+The new nine-test lifecycle suite builds a hermetic approved Blueprint chain
 and proves exact preparation, zero counters, approval replay, conflicting
 approval rejection, locator CAS, publication replay, locator tamper rejection,
-and recovery at all four durable seams. Existing Visual Package, Blueprint and
-Story Source migration suites prove compatibility with the shared primitives.
+recovery at all four durable seams, and fail-closed preservation of an existing
+locator lock without publishing revision, locator or terminal-manifest bytes.
+Existing Visual Package, Blueprint and Story Source migration suites prove
+compatibility with the shared primitives.
 
 The two package-publication cases in the existing Story Source migration suite
 perform several complete lifecycle replays and measured 6.7–8.7 seconds. Their
@@ -84,15 +89,20 @@ test-only budgets are now explicit at 30 seconds instead of inheriting the
 unrelated five-second unit-test default; assertions and production behavior are
 unchanged.
 
-An esbuild dependency census of the real CLI entry reports zero `node_modules`
-inputs and zero OpenAI, Anthropic, Supabase, ElevenLabs, image-storage,
-generation-pipeline or API-route inputs. CLI help loads successfully, and a
-missing request returns only `operator_request_invalid` with no write claim.
+The real CLI command graph has no statically reachable provider, credential,
+storage, generation-pipeline or API-route capability. The broader esbuild graph
+can enumerate the OpenAI SDK through an upstream dynamic import, but none of
+the three package commands reaches that live-request executor or constructs a
+provider client. The OpenAI-named static inputs are canonical-JSON/diagnostic
+utilities without SDK, environment or network access. CLI help loads
+successfully, and a missing request returns only `operator_request_invalid`
+with no write claim.
 
 ## Validation
 
 - `npx --no-install tsc --noEmit` — PASS.
-- QA Wizard package lifecycle — 8/8 PASS.
+- QA Wizard package lifecycle — 9/9 PASS after the independent-QA lock-parity
+  regression.
 - Blueprint/package/current-v5 focused matrix — 50/50 PASS.
 - Story Source revision Blueprint/package migration — 8/8 PASS under its
   explicit integration budgets.
@@ -116,11 +126,14 @@ revision or locator. It makes no credential read, provider call, cost, image,
 Vision, audio, database/storage write, Wizard order, payment, deployment or
 Production action.
 
-Independent Claude Code review is still required for the exact commit range;
-Codex does not self-award that PASS. After PASS, the current branch must be
-pushed to an exact same-name upstream before Fresh Readiness. The live chain
-then remains: one current accepted-v3 Visual Contract attempt, exact
-reconciliation approval, bounded Blueprint authoring and exact Blueprint
-approval, package preparation and exact package approval, canonical locator
-publication, fresh Preview deployment, preorder attestation, Bar/mother Wizard
-order, fake payment and one full LOW render.
+Claude Code independently reviewed exact range `42fbab55..dbfd3a59` read-only
+and returned technical PASS with no BLOCKER or MAJOR. Its two MINOR notes are
+closed here by the held-lock regression and the corrected crash/import-boundary
+wording; the correction still requires its own micro re-gate. Codex records
+Claude's verdict and does not self-award independent PASS. After the re-gate,
+the current branch must be pushed to an exact same-name upstream before Fresh
+Readiness. The live chain then remains: one current accepted-v3 Visual Contract
+attempt, exact reconciliation approval, bounded Blueprint authoring and exact
+Blueprint approval, package preparation and exact package approval, canonical
+locator publication, fresh Preview deployment, preorder attestation,
+Bar/mother Wizard order, fake payment and one full LOW render.
