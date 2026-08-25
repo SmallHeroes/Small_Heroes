@@ -187,6 +187,58 @@ The first full check exposed two relevant census expectations: one additional
 were corrected to explicit counts and the second full check contains neither
 failure.
 
+## Independent QA and test-only MINOR closure
+
+Claude Code independently reviewed exact range
+`06280b5a3f971996280e6d59a686eca4f890cd8a..e8ca485c8f5f83d357063bb5ff7431c9d043cb43`
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 2 MINOR**. Its direct and
+multi-dimensional adversarial review verified the ten implementation claims,
+the exact-set and page-local binding, atomicity, sanitization, route and
+call-eight boundaries, version cutover and unchanged policy surfaces. The two
+MINORs were test-coverage gaps, not production defects:
+
+1. The new schema allow-list entry lacked a public adapter body-mapping test.
+2. Non-null repair `targetContext` lacked a receipt/readiness disk round-trip
+   test through the real lifecycle.
+
+The separate closure is test-only:
+
+- `canonical-live-authoring-boundary.spec.ts` now passes the exact
+  `RepresentedElsewhereRepairPatches` name and schema through
+  `buildOpenAIResponsesVisualContractAuthoringBody` and asserts the locked
+  model, service tier, structured-output, tool, token and storage policy.
+- A controlled mutation removed only the production represented-elsewhere
+  allow-list clause. The new test failed exactly with
+  `visual_contract_authoring_adapter_policy_mismatch: structured_output`.
+  Restoring the clause returned the repository to a zero-production-file diff.
+- `source-authority-lifecycle.spec.ts` now drives the real initial and
+  represented-elsewhere routes with an injected provider. Its second response
+  copies the compiler-published target identity and chooses the first
+  out-of-range ordinal, producing the real closed `choice_out_of_range`
+  association failure.
+- The test persists and reloads both receipt and readiness, proves exact v5
+  `targetContext` `{ pageNumber: 8, coverageIndex: 1,
+  closedSubreason: 'choice_out_of_range' }`, rebuilds readiness from the loaded
+  receipt byte-for-byte, and proves that raw prompts, outputs, pointer/value
+  authority and the private represented value are absent from persisted bytes.
+
+Closure validation:
+
+- both new tests: **2/2 PASS**;
+- complete changed spec files: **2 files / 276 assertions PASS**;
+- controlled adapter mutation: **1 expected failure**, followed by exact
+  production restoration and a clean production diff;
+- `npx --no-install tsc --noEmit --pretty false`: exit **0**;
+- `git diff --check`: exit **0**;
+- canonical `npm run check`: ordinary **286 files / 3,629 assertions PASS**,
+  17 files / 70 assertions skipped, with the same 11 baseline failures in six
+  unchanged files; resource-intensive **20/20 files / 613/613 assertions
+  PASS**, followed by one known Vitest `onTaskUpdate` RPC timeout.
+
+No production file, schema, prompt, version, policy, budget, route, provider,
+Candidate, Wizard or render behavior changes in this closure. It requires only
+a read-only Claude Code micro re-gate over the test-and-documentation commit.
+
 ## Cost and external-state proof
 
 Cost is `$0`. No credential was read and no provider, network, Fresh, live

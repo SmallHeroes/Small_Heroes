@@ -8386,6 +8386,246 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toThrow(/receipt v53 requires/);
   });
 
+  it('persists only bounded target context for an unusable represented-elsewhere repair selection', async () => {
+    const snapshot = bunnySnapshot();
+    const request = requestFor(snapshot, 'live');
+    const privateRepresentedValue =
+      'PRIVATE_REPRESENTED_VALUE_MUST_NOT_PERSIST';
+    const invalid = withPageEightRepresentedElsewhereResidual(
+      fullyActionedBunnyDraft(snapshot),
+      privateRepresentedValue,
+    );
+    const rawRepairMaterial: string[] = [];
+    const provider: VisualContractAuthoringProvider = {
+      call: vi.fn(async (args) => {
+        const output =
+          args.attempt === 1
+            ? invalid
+            : (() => {
+                const authority =
+                  decodeRepresentedElsewhereRepairUserPrompt(
+                    args.userPrompt,
+                  );
+                const page = authority.pages[0];
+                const target = page?.targets[0];
+                if (!page || !target) {
+                  throw new Error(
+                    'expected represented-elsewhere target authority',
+                  );
+                }
+                return {
+                  patches: [
+                    {
+                      pageNumber: target.pageNumber,
+                      coverageIndex: target.coverageIndex,
+                      beatId: target.beatId,
+                      sourceEvidenceId: target.sourceEvidenceId,
+                      pointerChoiceIndex:
+                        page.permittedPointerValues.length,
+                    },
+                  ],
+                };
+              })();
+        const outputBytes = JSON.stringify(output);
+        if (args.attempt === 2) {
+          rawRepairMaterial.push(args.userPrompt, outputBytes);
+        }
+        return {
+          output: outputBytes,
+          receipt: {
+            provider: 'openai',
+            model: 'gpt-5.6-sol',
+            responseId: `represented-target-context-${args.attempt}`,
+            usage: {
+              input_tokens: 1_000,
+              output_tokens: 2_000,
+              total_tokens: 3_000,
+              output_tokens_details: { reasoning_tokens: 500 },
+            },
+          },
+        };
+      }),
+    };
+
+    const result = await runVisualContractAuthoring({
+      request,
+      snapshot,
+      provider,
+    });
+    const expectedTargetContext = {
+      pageNumber: 8,
+      coverageIndex: 1,
+      closedSubreason: 'choice_out_of_range',
+    } as const;
+
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(rawRepairMaterial).toHaveLength(2);
+    expect(
+      vi.mocked(provider.call).mock.calls.map(
+        ([call]) => call.options.jsonSchema?.name,
+      ),
+    ).toEqual([
+      'BookVisualContractTemplateDraft',
+      'RepresentedElsewhereRepairPatches',
+    ]);
+    expect(result.compileResult).toBeNull();
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([null, 'represented_elsewhere_patch']);
+    expect(result.receipt).toMatchObject({
+      status: 'failed',
+      callCount: 2,
+      repairCount: 1,
+      candidateDigest: null,
+      failure: {
+        code: 'repair_output_invalid',
+        diagnosticCodes: [
+          'repair_output_reference_authority_invalid',
+        ],
+        diagnosticCount: 2,
+        repairOutputDiagnostics: {
+          version: 'visual-contract-repair-output-diagnostics/v5',
+          repairAttempt: 2,
+          repairMode: 'represented_elsewhere_patch',
+          failureCode: 'reference_authority_invalid',
+          identity:
+            'represented_elsewhere_repair_target_association_invalid',
+          targetContext: expectedTargetContext,
+          carriedDraftDiagnosticCount: 1,
+          repairOutputDiagnosticCount: 1,
+        },
+      },
+    });
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        result.receipt.failure,
+      ),
+    ).toBe(true);
+    const receiptDiagnostics =
+      result.receipt.failure?.repairOutputDiagnostics;
+    if (
+      receiptDiagnostics?.version !==
+      'visual-contract-repair-output-diagnostics/v5'
+    ) {
+      throw new Error(
+        'expected current represented-elsewhere repair diagnostics',
+      );
+    }
+
+    const readiness = buildVisualContractAuthoringReadinessEvidence({
+      snapshot,
+      request,
+      receipt: result.receipt,
+    });
+    const readinessDiagnostics =
+      readiness.authoringOutcome.terminalClassification
+        ?.repairOutputDiagnostics;
+    if (
+      readinessDiagnostics?.version !==
+      'visual-contract-repair-output-diagnostics/v5'
+    ) {
+      throw new Error(
+        'expected current readiness repair diagnostics',
+      );
+    }
+    expect(readinessDiagnostics.targetContext).toEqual(
+      expectedTargetContext,
+    );
+
+    const persistedRoot = tempRoot();
+    const outputDir = 'outputs/represented-elsewhere-target-context';
+    const receiptWrite = persistVisualContractAuthoringReceipt({
+      repoRoot: persistedRoot,
+      outputDir,
+      request,
+      receipt: result.receipt,
+      write: true,
+    });
+    const readinessWrite = persistVisualContractAuthoringReadiness({
+      repoRoot: persistedRoot,
+      outputDir,
+      request,
+      evidence: readiness,
+      receipt: result.receipt,
+      write: true,
+    });
+    const receiptBytes = fs.readFileSync(
+      path.join(persistedRoot, receiptWrite.path),
+      'utf8',
+    );
+    const readinessBytes = fs.readFileSync(
+      path.join(persistedRoot, readinessWrite.path),
+      'utf8',
+    );
+    const loadedReceipt = JSON.parse(
+      receiptBytes,
+    ) as typeof result.receipt;
+    const loadedReadiness = JSON.parse(
+      readinessBytes,
+    ) as typeof readiness;
+
+    expect(loadedReceipt).toEqual(result.receipt);
+    expect(loadedReadiness).toEqual(readiness);
+    const loadedReceiptDiagnostics =
+      loadedReceipt.failure?.repairOutputDiagnostics;
+    if (
+      loadedReceiptDiagnostics?.version !==
+      'visual-contract-repair-output-diagnostics/v5'
+    ) {
+      throw new Error(
+        'expected persisted current repair diagnostics',
+      );
+    }
+    const loadedReadinessDiagnostics =
+      loadedReadiness.authoringOutcome.terminalClassification
+        ?.repairOutputDiagnostics;
+    if (
+      loadedReadinessDiagnostics?.version !==
+      'visual-contract-repair-output-diagnostics/v5'
+    ) {
+      throw new Error(
+        'expected persisted current readiness diagnostics',
+      );
+    }
+    expect(loadedReceiptDiagnostics.targetContext).toEqual(
+      expectedTargetContext,
+    );
+    expect(loadedReadinessDiagnostics.targetContext).toEqual(
+      expectedTargetContext,
+    );
+    expect(
+      Object.keys(loadedReceiptDiagnostics.targetContext!).sort(),
+    ).toEqual(['closedSubreason', 'coverageIndex', 'pageNumber']);
+    expect(
+      loadedReadiness.authoringOutcome.terminalClassification,
+    ).toEqual(loadedReceipt.failure);
+    expect(
+      buildVisualContractAuthoringReadinessEvidence({
+        snapshot,
+        request,
+        receipt: loadedReceipt,
+      }),
+    ).toEqual(loadedReadiness);
+    expect(
+      visualContractAuthoringTerminalFailureIsValid(
+        loadedReceipt.failure,
+      ),
+    ).toBe(true);
+
+    const persistedBytes = `${receiptBytes}\n${readinessBytes}`;
+    for (const forbidden of [
+      privateRepresentedValue,
+      'stale represented value',
+      '/pageContracts/99/propState/0/state',
+      'pointerChoiceIndex',
+      'permittedPointerValues',
+      'contractPointer',
+      'contractValue',
+      ...rawRepairMaterial,
+    ]) {
+      expect(persistedBytes).not.toContain(forbidden);
+    }
+  });
+
   it('records an oversized represented-elsewhere route refusal before a second provider call', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');

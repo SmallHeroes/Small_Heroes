@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-represented-elsewhere-narrow-patch` in `C:\GNart\Work\sh-live-chameleon-v3`, based on `06280b5a3f971996280e6d59a686eca4f890cd8a`.
 
-## REPRESENTED-ELSEWHERE NARROW PATCH — OFFLINE GREEN; AWAITING INDEPENDENT QA
+## REPRESENTED-ELSEWHERE NARROW PATCH — INDEPENDENT PASS; QA MINORS CLOSED LOCALLY
 
 The last bounded paid attempt is preserved under
 `outputs/r1d-chameleon-v3-live-20260824T214715731Z`. Its immutable receipt is
@@ -70,8 +70,24 @@ network, live, Candidate persistence, Wizard, image, audio, render, database,
 deployment or other external operation occurred. Durable records:
 `docs/ai-workflow/R1D_REPRESENTED_ELSEWHERE_NARROW_PATCH_DECISION_GATE.md` and
 `docs/ai-workflow/R1D_REPRESENTED_ELSEWHERE_NARROW_PATCH_IMPLEMENTATION_EVIDENCE.md`.
-Independent Claude Code falsification is required before Fresh Readiness or a
-paid attempt.
+
+Claude Code independently reviewed exact range
+`06280b5a3f971996280e6d59a686eca4f890cd8a..e8ca485c8f5f83d357063bb5ff7431c9d043cb43`
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 2 MINOR**. Both MINORs were
+test-coverage gaps rather than implementation defects. A separate test-only
+closure now covers the public adapter mapping for
+`RepresentedElsewhereRepairPatches` and an actual
+`choice_out_of_range` compiler failure persisted and reloaded through both the
+receipt and readiness artifacts with exact non-null bounded `targetContext`.
+Removing the production adapter allow-list entry makes the new mapping test
+fail with `adapter_policy_mismatch`; restoring it returns green. The closure
+changes no production file, version, policy or runtime behavior. Focused tests
+pass 276/276 and TypeScript passes. The canonical full check reports 286
+ordinary files / 3,629 passing assertions with the same 11 baseline failures
+in six unchanged files; resource-intensive reports 20/20 files and 613/613
+assertions passing before one known Vitest `onTaskUpdate` RPC timeout. A
+read-only Claude Code micro re-gate of the test-only closure is required before
+Fresh Readiness or a paid attempt.
 
 ## DEFERRED-REPRESENTED BOOKSURFACE SCHEDULER — OFFLINE GREEN; AWAITING INDEPENDENT QA
 

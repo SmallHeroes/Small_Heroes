@@ -35,6 +35,10 @@ import {
   PAGE_SPATIAL_REFERENCE_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/pageContractRepair';
 import {
+  REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+  REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME,
+} from '@/lib/visual-contract-compiler/representedElsewhereRepair';
+import {
   STRUCTURAL_BUNDLE_REPAIR_JSON_SCHEMA,
   STRUCTURAL_BUNDLE_REPAIR_SCHEMA_NAME,
 } from '@/lib/visual-contract-compiler/structuralBundleRepair';
@@ -752,6 +756,38 @@ describe('canonical OpenAI Responses authoring adapter', () => {
       type: 'json_schema',
       name: PAGE_CONTRACT_REPAIR_SCHEMA_NAME,
       schema: PAGE_CONTRACT_REPAIR_JSON_SCHEMA,
+      strict: true,
+    });
+    expect(body).toMatchObject({
+      model: 'gpt-5.6-sol',
+      service_tier: 'default',
+      max_output_tokens: 32_000,
+      tools: [],
+      tool_choice: 'none',
+      store: false,
+    });
+  });
+
+  it('maps the represented-elsewhere repair schema without changing the locked provider policy', () => {
+    const fixture = createLiveFixture(
+      'represented-elsewhere-schema-body',
+    );
+    const options = exactOptions(fixture.request, 2);
+    options.jsonSchema = {
+      name: REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME,
+      schema: REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
+    };
+
+    const body = buildOpenAIResponsesVisualContractAuthoringBody({
+      systemPrompt: 'represented-elsewhere-system',
+      userPrompt: 'represented-elsewhere-user',
+      options,
+    });
+
+    expect(body.text?.format).toMatchObject({
+      type: 'json_schema',
+      name: REPRESENTED_ELSEWHERE_REPAIR_SCHEMA_NAME,
+      schema: REPRESENTED_ELSEWHERE_REPAIR_JSON_SCHEMA,
       strict: true,
     });
     expect(body).toMatchObject({
