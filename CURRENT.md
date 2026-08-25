@@ -2,9 +2,9 @@
 
 **Updated:** 2026-08-25
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-represented-elsewhere-narrow-patch` in `C:\GNart\Work\sh-live-chameleon-v3`, based on `06280b5a3f971996280e6d59a686eca4f890cd8a`.
+**Working branch:** `codex/r1d-represented-elsewhere-narrow-patch` in `C:\GNart\Work\sh-live-chameleon-v3`; current pricing milestone review base `f4de883e9918e623c77d1635932de48f1b7678d2`.
 
-## GPT-5.6 SOL PRICING AUTHORITY CUTOVER — IMPLEMENTED; AWAITING INDEPENDENT QA
+## GPT-5.6 SOL PRICING AUTHORITY CUTOVER — INDEPENDENT TECHNICAL PASS
 
 The official current promotional Standard schedule for `gpt-5.6-sol` is now
 `$4.00/M` ordinary input, `$5.00/M` cache write, `$0.40/M` cached input and
@@ -31,6 +31,17 @@ Decision Gate, the event is recorded rather than hidden by retry, pool change,
 timeout inflation, serialization, skip or assertion weakening. Independent
 Claude Code must distinguish this separate infrastructure HOLD from the focused
 pricing implementation.
+
+Claude Code independently reviewed immutable range
+`f4de883e9918e623c77d1635932de48f1b7678d2..5ac32398a57bafa7393714baeff5184f696ad8f4`
+and returned **PASS — 0 BLOCKER / 0 MAJOR**. It independently recomputed every
+published cost anchor from the production formulas, confirmed the outer-version
+decision and nested digest binding, confirmed provider-unreachable rejection of
+the re-digested v17/July request, and found no parallel stale production price
+table. Its only informational note was the historical branch-base wording in
+this document header; that wording is corrected in this documentation-only
+follow-up. Claude explicitly retained the Vitest RPC event as a separate
+pre-existing infrastructure HOLD and granted no live or render authority.
 
 The durable records are
 `docs/ai-workflow/R1D_GPT_5_6_SOL_PRICING_AUTHORITY_CUTOVER_DECISION_GATE.md`
