@@ -210,5 +210,14 @@ diff check. The full repository check was not repeated because production code
 is unchanged from the already-recorded full run; the correction changes only
 tests and documentation.
 
-The correction still requires a focused Claude Code micro re-gate before push,
-Fresh Readiness or live execution.
+The first bounded micro-gate invocation reached its `$4` audit ceiling without
+returning a verdict and is not counted as a gate. A narrower Sonnet micro
+re-gate then reviewed exact range `3d4ebefa..ce3c4939` read-only and returned
+**PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It confirmed exact four-file
+test/docs scope, both non-vacuous validator tests, truthful surfaced-versus-
+injected-census wording and no new overclaim or drift. Both prior MINORs are
+closed.
+
+This technical gate authorizes push of the reviewed correction under normal
+repository policy. Fresh Readiness or live execution still requires exact
+same-name-origin parity at the final pushed docs-record head.
