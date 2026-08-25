@@ -944,6 +944,21 @@ function attemptReceiptIsValid(args: {
     conservative === null
       ? args.priorCumulativeCostUsd
       : args.priorCumulativeCostUsd + conservative;
+  const responseIdIsValid =
+    typeof attempt.responseId === 'string' &&
+    /^[A-Za-z0-9_-]{1,200}$/.test(attempt.responseId);
+  const responseDigestIsValid =
+    typeof attempt.responseDigest === 'string' &&
+    HEX_SHA256.test(attempt.responseDigest);
+  const providerEvidenceVersionIsCurrent =
+    attempt.providerEvidenceVersion ===
+    OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION;
+  const canonicalResponseEnvelope =
+    attempt.provider === 'openai' &&
+    attempt.model === BLUEPRINT_AUTHORING_MODEL &&
+    responseIdIsValid &&
+    responseDigestIsValid &&
+    providerEvidenceVersionIsCurrent;
   const fullAccounting =
     blueprintAuthoringInputAccountingIsCanonicalForSchema(
       inputAccounting,
@@ -957,14 +972,7 @@ function attemptReceiptIsValid(args: {
     attempt.conservativeCallCostUsd === conservative &&
     attempt.cumulativeConservativeCostUsd === nextCumulativeCostUsd;
   const canonicalCompletedEvidence =
-    attempt.provider === 'openai' &&
-    attempt.model === BLUEPRINT_AUTHORING_MODEL &&
-    typeof attempt.responseId === 'string' &&
-    /^[A-Za-z0-9_-]{1,200}$/.test(attempt.responseId) &&
-    typeof attempt.responseDigest === 'string' &&
-    HEX_SHA256.test(attempt.responseDigest) &&
-    attempt.providerEvidenceVersion ===
-      OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION &&
+    canonicalResponseEnvelope &&
     attempt.completionStatus === 'completed' &&
     attempt.usageEvidenceComplete === true &&
     fullAccounting &&
@@ -975,14 +983,7 @@ function attemptReceiptIsValid(args: {
       attempt.executionAttestation,
     );
   const canonicalProviderResponseEvidence =
-    attempt.provider === 'openai' &&
-    attempt.model === BLUEPRINT_AUTHORING_MODEL &&
-    typeof attempt.responseId === 'string' &&
-    /^[A-Za-z0-9_-]{1,200}$/.test(attempt.responseId) &&
-    typeof attempt.responseDigest === 'string' &&
-    HEX_SHA256.test(attempt.responseDigest) &&
-    attempt.providerEvidenceVersion ===
-      OPENAI_RESPONSES_BLUEPRINT_AUTHORING_EVIDENCE_VERSION &&
+    canonicalResponseEnvelope &&
     canonicalCompletedExecutionAttestationIsValid(
       attempt.executionAttestation,
     );
@@ -1018,25 +1019,42 @@ function attemptReceiptIsValid(args: {
     record(attempt.executionAttestation) &&
     attempt.executionAttestation.evidenceKind === 'injected_adapter_unattested' &&
     attempt.executionAttestation.logicalProviderCalls === 1;
-  const canonicalAdapterFailureAttestationIsValid =
+  const exactInjectedAdapterAttestationIsValid =
     authoringExecutionAttestationIsValid(attempt.executionAttestation) &&
-    (attempt.executionAttestation.evidenceKind === 'not_run' ||
-      (attempt.executionAttestation.evidenceKind ===
-        'canonical_adapter_observed' &&
-        attempt.executionAttestation.logicalProviderCalls === 1 &&
-        attempt.executionAttestation.canonicalModelConfirmed === true &&
-        ((attempt.executionAttestation.transportDispatchCount === 0 &&
-          attempt.executionAttestation.canonicalRouteConfirmed === false) ||
-          (attempt.executionAttestation.transportDispatchCount === 1 &&
-            attempt.executionAttestation.canonicalRouteConfirmed === true)))) &&
-    attempt.executionAttestation.transportRetryCount === 0 &&
-    attempt.executionAttestation.fallbackUsed === false;
-  const canonicalAdapterResponseBoundaryAttestationIsValid =
-    canonicalAdapterFailureAttestationIsValid &&
+    attempt.executionAttestation.evidenceKind ===
+      'injected_adapter_unattested' &&
+    attempt.executionAttestation.logicalProviderCalls === 1;
+  const canonicalAdapterObservedAttestationIsValid =
     authoringExecutionAttestationIsValid(attempt.executionAttestation) &&
     attempt.executionAttestation.evidenceKind ===
       'canonical_adapter_observed' &&
+    attempt.executionAttestation.logicalProviderCalls === 1 &&
+    attempt.executionAttestation.canonicalModelConfirmed === true &&
+    ((attempt.executionAttestation.transportDispatchCount === 0 &&
+      attempt.executionAttestation.canonicalRouteConfirmed === false) ||
+      (attempt.executionAttestation.transportDispatchCount === 1 &&
+        attempt.executionAttestation.canonicalRouteConfirmed === true)) &&
+    attempt.executionAttestation.transportRetryCount === 0 &&
+    attempt.executionAttestation.fallbackUsed === false;
+  const canonicalAdapterFailureAttestationIsValid =
+    (authoringExecutionAttestationIsValid(attempt.executionAttestation) &&
+      attempt.executionAttestation.evidenceKind === 'not_run') ||
+    canonicalAdapterObservedAttestationIsValid;
+  const canonicalAdapterResponseBoundaryAttestationIsValid =
+    canonicalAdapterObservedAttestationIsValid &&
+    authoringExecutionAttestationIsValid(attempt.executionAttestation) &&
     attempt.executionAttestation.transportDispatchCount === 1;
+  const invalidAdapterExecutionAttestationEvidenceIsValid =
+    canonicalAdapterObservedAttestationIsValid &&
+    !canonicalCompletedExecutionAttestationIsValid(
+      attempt.executionAttestation,
+    );
+  const compilerResponseBoundaryEvidenceIsWriterShaped =
+    attempt.failureEvidenceKind === 'compiler_response_boundary' &&
+    responseDigestIsValid &&
+    (canonicalCompletedExecutionAttestationIsValid(
+      attempt.executionAttestation,
+    ) || exactInjectedAdapterAttestationIsValid);
   const canonicalAdapterNoResponseFailure =
     attempt.failureEvidenceKind === 'provider_adapter_boundary' &&
     attempt.provider === 'openai' &&
@@ -1065,9 +1083,10 @@ function attemptReceiptIsValid(args: {
     inputAccounting.estimatedBytes <= BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS &&
     attempt.reservedExposureBeforeCallUsd === expectedReservation &&
     (attempt.failureEvidenceKind !== 'provider_adapter_boundary' ||
-      attempt.failureEvidenceReason === 'execution_attestation_invalid' ||
       attempt.failureEvidenceReason === 'boundary_reason_invalid' ||
-      canonicalAdapterResponseBoundaryAttestationIsValid) &&
+      (attempt.failureEvidenceReason === 'execution_attestation_invalid'
+        ? invalidAdapterExecutionAttestationEvidenceIsValid
+        : canonicalAdapterResponseBoundaryAttestationIsValid)) &&
     (completeUsage === null
       ? attempt.usage === null &&
         attempt.nominalEstimatedCostUsd === null &&
@@ -1081,9 +1100,20 @@ function attemptReceiptIsValid(args: {
   )
     ? (attempt.failureCode as ProductionAuthoringAttemptFailureCode)
     : null;
-  const responseOrAdapterBoundary =
-    attempt.failureEvidenceKind === 'compiler_response_boundary' ||
+  const responseBoundaryEvidenceIsWriterShaped =
+    compilerResponseBoundaryEvidenceIsWriterShaped ||
     attempt.failureEvidenceKind === 'provider_adapter_boundary';
+  const providerIdentityMismatchEvidenceIsValid =
+    attempt.failureEvidenceKind === 'compiler_response_boundary'
+      ? responseDigestIsValid &&
+        (attempt.provider === 'unknown-provider' ||
+          attempt.model === 'unknown-model')
+      : attempt.failureEvidenceKind === 'provider_adapter_boundary'
+        ? attempt.provider === 'openai' &&
+          attempt.model === 'unknown-model' &&
+          providerEvidenceVersionIsCurrent &&
+          responseDigestIsValid
+        : false;
   const failedEvidenceValid =
     failureCode === 'provider_call_failed'
       ? (providerCallFailure &&
@@ -1107,7 +1137,7 @@ function attemptReceiptIsValid(args: {
                 !blueprintAuthoringSpendIsWithinCeiling(
                   expectedReservation,
                 )) ||
-              (responseOrAdapterBoundary &&
+              (responseBoundaryEvidenceIsWriterShaped &&
                 attempt.failureEvidenceReason === 'cost_ceiling_exceeded' &&
                 canonicalCompletedEvidence &&
                 !blueprintAuthoringSpendIsWithinCeiling(nextCumulativeCostUsd))
@@ -1115,23 +1145,20 @@ function attemptReceiptIsValid(args: {
               ? (canonicalAdapterNoResponseWasNotRun &&
                   attempt.failureEvidenceReason ===
                     'adapter_policy_mismatch') ||
-                (responseOrAdapterBoundary &&
+                (responseBoundaryEvidenceIsWriterShaped &&
                   attempt.failureEvidenceReason ===
                     'provider_identity_mismatch' &&
                   boundaryFailureEvidence &&
-                  typeof attempt.responseDigest === 'string' &&
-                  HEX_SHA256.test(attempt.responseDigest) &&
-                  (attempt.provider === 'unknown-provider' ||
-                    attempt.model === 'unknown-model'))
+                  providerIdentityMismatchEvidenceIsValid)
               : failureCode === 'completion_status_invalid'
-                ? responseOrAdapterBoundary &&
+                ? responseBoundaryEvidenceIsWriterShaped &&
                   attempt.failureEvidenceReason ===
                     'completion_status_invalid' &&
                   boundaryFailureEvidence &&
                   canonicalProviderResponseEvidence &&
                   attempt.completionStatus === null
                 : failureCode === 'usage_invalid'
-                  ? responseOrAdapterBoundary &&
+                  ? responseBoundaryEvidenceIsWriterShaped &&
                     attempt.failureEvidenceReason === 'usage_invalid' &&
                     boundaryFailureEvidence &&
                     canonicalProviderResponseEvidence &&
@@ -1143,25 +1170,40 @@ function attemptReceiptIsValid(args: {
                       completeUsage.outputTokens >
                         BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS)
                   : failureCode === 'provider_evidence_invalid'
-                    ? responseOrAdapterBoundary &&
+                    ? responseBoundaryEvidenceIsWriterShaped &&
                       boundaryFailureEvidence &&
-                      (attempt.failureEvidenceReason ===
-                        'response_output_empty' ||
+                      ((attempt.failureEvidenceReason ===
+                        'response_output_empty' &&
+                        canonicalResponseEnvelope) ||
                         (attempt.failureEvidenceReason ===
                           'cost_evidence_mismatch' &&
                           attempt.failureEvidenceKind ===
-                            'compiler_response_boundary') ||
+                            'compiler_response_boundary' &&
+                          canonicalCompletedEvidence) ||
                         (attempt.failureEvidenceReason ===
                           'provider_evidence_version_invalid' &&
                           attempt.failureEvidenceKind ===
                             'compiler_response_boundary' &&
+                          attempt.provider === 'openai' &&
+                          attempt.model === BLUEPRINT_AUTHORING_MODEL &&
+                          responseDigestIsValid &&
                           attempt.providerEvidenceVersion === null) ||
                         (attempt.failureEvidenceReason ===
                           'response_id_invalid' &&
+                          attempt.provider === 'openai' &&
+                          attempt.model === BLUEPRINT_AUTHORING_MODEL &&
+                          providerEvidenceVersionIsCurrent &&
+                          responseDigestIsValid &&
                           attempt.responseId === null) ||
                         (attempt.failureEvidenceReason ===
                           'execution_attestation_invalid' &&
-                          !canonicalProviderResponseEvidence) ||
+                          canonicalResponseEnvelope &&
+                          ((attempt.failureEvidenceKind ===
+                            'compiler_response_boundary' &&
+                            exactInjectedAdapterAttestationIsValid) ||
+                            (attempt.failureEvidenceKind ===
+                              'provider_adapter_boundary' &&
+                              invalidAdapterExecutionAttestationEvidenceIsValid))) ||
                         (attempt.failureEvidenceReason ===
                           'boundary_reason_invalid' &&
                           attempt.failureEvidenceKind ===

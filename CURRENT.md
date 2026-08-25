@@ -49,6 +49,25 @@ failure. Two bridge tests that repeatedly exceeded the unscoped five-second
 default now carry explicit 15-second budgets, and the expanded final bridge
 test carries 60 seconds.
 
+Post-commit adversarial replay probes found that response-boundary failure
+replay still accepted some re-digested evidence shapes that neither writer can
+emit. The correction now binds every compiler response attempt to a valid
+response digest plus either canonical-completed or exact
+`injected_adapter_unattested(1)` execution evidence. Adapter response failures
+require their exact observed dispatch state, while
+`execution_attestation_invalid` is source-specific. The producer check order
+also binds the evidence available at each reason: identity, version, response
+ID, output, attestation, completion, usage and cost. Hostile regressions
+recompute both aggregate attestation and receipt digest before proving that
+stripped version/ID/digest fields and impossible route/model/dispatch states
+reject. Two independent read-only falsification passes returned 0 findings;
+TypeScript, 32/32 lifecycle and the 119/119 focused matrix remain green.
+
+The first Claude Code invocation over the combined range reached its explicit
+$7 audit budget without returning a verdict. It is not counted as a technical
+gate. The correction receives a new immutable commit and a fresh independent
+Claude Code audit before any live authority is exercised.
+
 No provider, paid live authoring, credential-backed request, Candidate
 publication, Blueprint approval, Wizard order, database/storage write, image,
 audio, render or deployment occurred in this milestone. The next gate is an

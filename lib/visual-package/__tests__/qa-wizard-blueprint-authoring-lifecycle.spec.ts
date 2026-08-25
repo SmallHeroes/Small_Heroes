@@ -46,12 +46,17 @@ import {
 } from '../blueprintAuthoringPolicy';
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '../preRenderBlueprintDraftSchema';
 import type { ProductionAuthoringProvider } from '../productionAuthoringRunner';
-import { ProductionAuthoringProviderBoundaryError } from '../productionAuthoringRunner';
+import {
+  ProductionAuthoringProviderBoundaryError,
+  aggregateProductionAuthoringExecutionAttestations,
+} from '../productionAuthoringRunner';
 import { createOpenAIResponsesBlueprintAuthoringAdapter } from '../openaiResponsesBlueprintAuthoringAdapter';
 import type { OpenAIResponsesAuthoringTransport } from '../openaiResponsesVisualContractAuthoringAdapter';
 import {
   buildAuthoringTerminalFailure,
+  injectedAuthoringExecutionAttestation,
   notRunAuthoringExecutionAttestation,
+  type AuthoringExecutionAttestation,
 } from '../authoringTerminalDiagnostics';
 import { canonicalJsonDigest } from '../integrity';
 import { createLazyLocalOpenAICredentialReader } from '../../../scripts/lib/qa-wizard-blueprint-local-credential';
@@ -91,6 +96,27 @@ function writeText(root: string, relative: string, value: string): void {
   const destination = path.join(root, relative);
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.writeFileSync(destination, value, 'utf8');
+}
+
+function rebindAggregateAndRedigestReceipt(
+  receipt: Record<string, unknown> & {
+    attempts: Array<Record<string, unknown>>;
+    digest: string;
+  },
+): void {
+  receipt.executionAttestation =
+    aggregateProductionAuthoringExecutionAttestations(
+      receipt.attempts.map(
+        (attempt) =>
+          attempt.executionAttestation as AuthoringExecutionAttestation,
+      ),
+    );
+  const {
+    digest: _digest,
+    digestAlgorithm: _digestAlgorithm,
+    ...payload
+  } = receipt;
+  receipt.digest = canonicalJsonDigest(payload);
 }
 
 function styleAuthorityContent(): unknown {
@@ -1590,13 +1616,7 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
         } else {
           attestation.canonicalRouteConfirmed = false;
         }
-        const {
-          digest: _attestationDigest,
-          digestAlgorithm: _attestationDigestAlgorithm,
-          ...attestationPayload
-        } = impossibleAdapterAttestation;
-        impossibleAdapterAttestation.digest =
-          canonicalJsonDigest(attestationPayload);
+        rebindAggregateAndRedigestReceipt(impossibleAdapterAttestation);
         expect(
           productionBlueprintAuthoringReceiptReplayIsValid({
             receipt: impossibleAdapterAttestation,
@@ -1632,6 +1652,157 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
             expectedDigest: singletonArrayBoundary.digest,
           }),
         ).toBe(false);
+
+        for (const failureEvidenceKind of [
+          'provider_adapter_boundary',
+          'compiler_response_boundary',
+        ] as const) {
+          for (const responseEvidenceMutation of [
+            { providerEvidenceVersion: null },
+            { responseDigest: null },
+            { responseId: null },
+          ]) {
+            const strippedResponseEvidence = JSON.parse(
+              JSON.stringify(result.receipt),
+            ) as Record<string, unknown> & {
+              attempts: Array<Record<string, unknown>>;
+              digest: string;
+            };
+            Object.assign(strippedResponseEvidence.attempts[0]!, {
+              failureEvidenceKind,
+              ...responseEvidenceMutation,
+            });
+            rebindAggregateAndRedigestReceipt(strippedResponseEvidence);
+            expect(
+              productionBlueprintAuthoringReceiptReplayIsValid({
+                receipt: strippedResponseEvidence,
+                request: preflight.request,
+                expectedStatus: 'failed',
+                expectedDigest: strippedResponseEvidence.digest,
+              }),
+            ).toBe(false);
+          }
+        }
+
+        const compilerResponseBoundary = JSON.parse(
+          JSON.stringify(result.receipt),
+        ) as Record<string, unknown> & {
+          attempts: Array<Record<string, unknown>>;
+          digest: string;
+        };
+        compilerResponseBoundary.attempts[0]!.failureEvidenceKind =
+          'compiler_response_boundary';
+        rebindAggregateAndRedigestReceipt(compilerResponseBoundary);
+        expect(
+          productionBlueprintAuthoringReceiptReplayIsValid({
+            receipt: compilerResponseBoundary,
+            request: preflight.request,
+            expectedStatus: 'failed',
+            expectedDigest: compilerResponseBoundary.digest,
+          }),
+        ).toBe(true);
+        compilerResponseBoundary.attempts[0]!.executionAttestation =
+          notRunAuthoringExecutionAttestation();
+        rebindAggregateAndRedigestReceipt(compilerResponseBoundary);
+        expect(
+          productionBlueprintAuthoringReceiptReplayIsValid({
+            receipt: compilerResponseBoundary,
+            request: preflight.request,
+            expectedStatus: 'failed',
+            expectedDigest: compilerResponseBoundary.digest,
+          }),
+        ).toBe(false);
+
+        const compilerExecutionInvalid = JSON.parse(
+          JSON.stringify(result.receipt),
+        ) as Record<string, unknown> & {
+          attempts: Array<Record<string, unknown>>;
+          digest: string;
+        };
+        Object.assign(compilerExecutionInvalid.attempts[0]!, {
+          failureEvidenceKind: 'compiler_response_boundary',
+          failureEvidenceReason: 'execution_attestation_invalid',
+          executionAttestation: injectedAuthoringExecutionAttestation(),
+        });
+        rebindAggregateAndRedigestReceipt(compilerExecutionInvalid);
+        expect(
+          productionBlueprintAuthoringReceiptReplayIsValid({
+            receipt: compilerExecutionInvalid,
+            request: preflight.request,
+            expectedStatus: 'failed',
+            expectedDigest: compilerExecutionInvalid.digest,
+          }),
+        ).toBe(true);
+        compilerExecutionInvalid.attempts[0]!.executionAttestation =
+          notRunAuthoringExecutionAttestation();
+        rebindAggregateAndRedigestReceipt(compilerExecutionInvalid);
+        expect(
+          productionBlueprintAuthoringReceiptReplayIsValid({
+            receipt: compilerExecutionInvalid,
+            request: preflight.request,
+            expectedStatus: 'failed',
+            expectedDigest: compilerExecutionInvalid.digest,
+          }),
+        ).toBe(false);
+
+        const adapterExecutionInvalid = JSON.parse(
+          JSON.stringify(result.receipt),
+        ) as Record<string, unknown> & {
+          attempts: Array<Record<string, unknown>>;
+          digest: string;
+        };
+        const observedWithoutDispatch = {
+          ...(adapterExecutionInvalid.attempts[0]!
+            .executionAttestation as Record<string, unknown>),
+          transportDispatchCount: 0,
+          canonicalRouteConfirmed: false,
+          canonicalModelConfirmed: true,
+        };
+        Object.assign(adapterExecutionInvalid.attempts[0]!, {
+          failureEvidenceReason: 'execution_attestation_invalid',
+          executionAttestation: observedWithoutDispatch,
+        });
+        rebindAggregateAndRedigestReceipt(adapterExecutionInvalid);
+        expect(
+          productionBlueprintAuthoringReceiptReplayIsValid({
+            receipt: adapterExecutionInvalid,
+            request: preflight.request,
+            expectedStatus: 'failed',
+            expectedDigest: adapterExecutionInvalid.digest,
+          }),
+        ).toBe(true);
+
+        for (const impossibleExecutionAttestation of [
+          notRunAuthoringExecutionAttestation(),
+          injectedAuthoringExecutionAttestation(),
+          {
+            ...observedWithoutDispatch,
+            canonicalModelConfirmed: false,
+          },
+          {
+            ...observedWithoutDispatch,
+            transportDispatchCount: 1,
+            canonicalRouteConfirmed: false,
+          },
+        ]) {
+          const impossibleExecutionEvidence = JSON.parse(
+            JSON.stringify(adapterExecutionInvalid),
+          ) as Record<string, unknown> & {
+            attempts: Array<Record<string, unknown>>;
+            digest: string;
+          };
+          impossibleExecutionEvidence.attempts[0]!.executionAttestation =
+            impossibleExecutionAttestation;
+          rebindAggregateAndRedigestReceipt(impossibleExecutionEvidence);
+          expect(
+            productionBlueprintAuthoringReceiptReplayIsValid({
+              receipt: impossibleExecutionEvidence,
+              request: preflight.request,
+              expectedStatus: 'failed',
+              expectedDigest: impossibleExecutionEvidence.digest,
+            }),
+          ).toBe(false);
+        }
 
         const impossibleStaticAccounting = JSON.parse(
           JSON.stringify(result.receipt),
@@ -1890,6 +2061,35 @@ describe('QA Wizard Blueprint authoring operator lifecycle', () => {
         expectedDigest: result.receipt.digest,
       }),
     ).toBe(true);
+    for (const failureEvidenceKind of [
+      'provider_adapter_boundary',
+      'compiler_response_boundary',
+    ] as const) {
+      for (const responseEvidenceMutation of [
+        { providerEvidenceVersion: null },
+        { responseDigest: null },
+      ]) {
+        const strippedResponseIdEvidence = JSON.parse(
+          JSON.stringify(result.receipt),
+        ) as Record<string, unknown> & {
+          attempts: Array<Record<string, unknown>>;
+          digest: string;
+        };
+        Object.assign(strippedResponseIdEvidence.attempts[0]!, {
+          failureEvidenceKind,
+          ...responseEvidenceMutation,
+        });
+        rebindAggregateAndRedigestReceipt(strippedResponseIdEvidence);
+        expect(
+          productionBlueprintAuthoringReceiptReplayIsValid({
+            receipt: strippedResponseIdEvidence,
+            request: preflight.request,
+            expectedStatus: 'failed',
+            expectedDigest: strippedResponseIdEvidence.digest,
+          }),
+        ).toBe(false);
+      }
+    }
   });
 
   it('replays a repair-time credential failure with prior closed diagnostics', async () => {

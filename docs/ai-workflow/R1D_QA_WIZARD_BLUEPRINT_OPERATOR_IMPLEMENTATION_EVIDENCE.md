@@ -97,3 +97,35 @@ persisting its secret.
 - A paid live attempt remains bounded to the compiler-owned model, three calls,
   two repairs, zero transport retries, no fallback and the independent $5 hard
   ceiling.
+
+## Post-commit replay correction
+
+Adversarial probes after the first operator commit found two related replay
+fidelity gaps. Fully re-digested failures could carry an execution attestation
+that the claimed compiler/adapter source never writes, and the response-ID or
+empty-output reasons could omit provider-version/ID/digest evidence that is
+already present at those producer checkpoints.
+
+The general correction binds source and producer order rather than naming one
+historical receipt:
+
+- every `compiler_response_boundary` attempt has a response digest and either
+  canonical-completed or exact `injected_adapter_unattested(1)` evidence;
+- adapter response failures use exact canonical-observed dispatch evidence;
+- adapter/compiler `execution_attestation_invalid` shapes are distinct;
+- `response_id_invalid` requires current provider evidence version plus the
+  already-computed output digest;
+- `response_output_empty` additionally requires the earlier valid response ID;
+- provider identity, evidence version, completion, usage and cost reasons are
+  matched to the fields available at their actual producer position.
+
+The new hostile cases recompute the aggregate execution attestation and the
+receipt digest, so rejection is attributable to the source/reason contract
+rather than a stale outer hash. Two separate read-only falsification passes
+returned PASS with 0 findings. TypeScript, the 32-test lifecycle suite, the
+119-test focused matrix and `git diff --check` pass after the correction.
+
+An attempted Claude Code review of the original combined range exhausted its
+explicit $7 audit budget before emitting a verdict. That attempt grants no
+technical PASS; the committed correction must receive a fresh Claude Code
+re-gate before any paid live action.
