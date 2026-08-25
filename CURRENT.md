@@ -4,6 +4,55 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; current downstream implementation base `3c6c04ceeb569fab17b749867121621cbba81016`.
 
+## QA WIZARD PACKAGE OPERATOR — OFFLINE GREEN; INDEPENDENT QA PENDING
+
+The missing general package boundary is now implemented. It consumes only an
+exact `blueprint_approved` QA Wizard manifest, replays the approved bridge,
+production context and Blueprint lifecycle, and delegates package assembly to
+the existing Visual Package v5 validators. Review authorship is derived from
+the immutable provider provenance; callers supply only closed `worldMode`,
+exact `Guy`, and a strict millisecond UTC review timestamp. Preparation must
+end with valid candidate/review, exactly one `package_approval_missing` reason,
+and zero provider, image, audio, database, storage or locator writes.
+
+Package approval remains a separate exact decision binding the Blueprint
+approval, candidate and package review. A repository-global candidate-keyed
+decision is written before variable approval artifacts, so a second timestamp,
+note or digest conflicts. Publication has no alternate registry input: it can
+write only `visual-packages/approved`. The reviewed candidate snapshots the
+canonical locator's exact present/absent predecessor state. A global
+candidate-keyed publication claim precedes a locator-specific exclusive lock;
+under that lock only the reviewed predecessor or the exact successor replay is
+accepted. The immutable revision is written before the locator, and both are
+reloaded byte-for-byte before terminal evidence. Recovery is proven after the
+approval decision, publication claim, revision write and locator replacement.
+
+The public `qa-wizard-package` CLI exposes only prepare, approve and publish,
+with exact request keys, one output root and explicit write intent. Its bundled
+dependency census contains zero `node_modules` and none of the provider,
+storage, generation or API-route capability surfaces. It contains no story,
+child, companion, page or style literal and makes no schema-version fork.
+
+Local proof is green: package lifecycle 8/8; the Blueprint/package/current-v5
+matrix 50/50; Story Source migration compatibility 8/8; workload classifier
+7/7; TypeScript, CLI help, sanitized malformed-request rejection and diff
+checks all pass. The two existing package-migration integration cases measured
+6.7–8.7 seconds and now carry explicit 30-second test budgets instead of the
+unrelated five-second unit default; their assertions and production code are
+unchanged. Full `npm run check` passes both TypeScript phases, 3,721 ordinary
+assertions and all 613 resource-intensive assertions. It reproduces only the
+nine documented missing ignored-output fixture assertions (five unchanged
+files), 70 skips, and the three known Vitest `onTaskUpdate` RPC timeout events;
+no changed-code assertion fails.
+
+No credential, provider/live call, package artifact, locator, image, audio,
+database/storage write, Wizard order, payment, deployment or render occurred.
+Independent Claude Code review of the exact implementation range is pending;
+Codex does not self-award its PASS. After PASS the branch still requires one
+explicit push to create a same-name upstream before Fresh Readiness. Durable
+evidence:
+`docs/ai-workflow/R1D_QA_WIZARD_PACKAGE_OPERATOR_IMPLEMENTATION_EVIDENCE.md`.
+
 ## QA WIZARD BLUEPRINT OPERATOR — INDEPENDENT TECHNICAL PASS; FRESH INPUT PENDING
 
 The downstream Blueprint boundary is now reachable only through one explicit

@@ -676,7 +676,7 @@ describe('Story Source revision reconciliation and Blueprint migration', () => {
     } finally {
       cleanup(output.absolute);
     }
-  });
+  }, 30_000);
 
   it('rejects package approval drift, stale locators, collisions and concurrent publication without partial writes', async () => {
     const output = freshOutputRoot('package-promotion-reject');
@@ -805,5 +805,5 @@ describe('Story Source revision reconciliation and Blueprint migration', () => {
     } finally {
       cleanup(output.absolute);
     }
-  });
+  }, 30_000);
 });
