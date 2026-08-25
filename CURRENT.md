@@ -2,9 +2,68 @@
 
 **Updated:** 2026-08-25
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; current offline correction base `e25ae0c0451856791c6f0f60b5c1919a2c9e8212`.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed diagnosis base `0269d3ae3f27eece591a9cd89399f5d3e4f7c18c`.
 
-## PAGE-LOCAL TRANSITION CONTINUITY ROUTING — INDEPENDENT TECHNICAL PASS; PUSH PENDING
+## SECOND BOUNDED LIVE AUTHORING ATTEMPT — CONSUMED; TYPED TRANSITION AUTHORITY HOLD
+
+The reviewed page-local transition-routing correction was pushed at
+`0269d3ae`. A new Fresh Readiness root was then prepared and verified at
+`outputs/r1d-chameleon-v3-fresh-readiness-20260825T202050621Z`; its immutable
+Fresh digest is `e0191bf77bea5ff9e4c92df57f97650d953eb29af7453b4d61cda6534b1a8b99`.
+The exact execution request passed Supervisor readiness with an empty reason
+catalog, a `$10` hard ceiling and `$6.541304` projected maximum.
+
+The one authorized live invocation is consumed. Receipt
+`784f4cd144a38e20522c0bf112197c3df230f1d8ff4c36624e2b5ee524aa29c3`
+records seven completed canonical provider calls, six repairs, zero transport
+retries, no fallback, nominal cost `$1.359974` and conservative cost
+`$1.575197`. It ended fail-closed as
+`draft_validation_repair_stagnated`; no Candidate or output authority exists.
+The complete normalized census was
+`21 -> 17 -> 12 -> 9 -> 7 -> 7 -> 7`. The final seven issues are four unchanged
+`represented_elsewhere_pointer_unresolved` identities (pages 2, 3, 5 and 6)
+plus `page_transition_invalid` on pages 2, 3 and 6. Attempts 6 and 7 had
+different user-prompt digests but returned the same response digest
+`5e0e59b326821fbc3bdeb940a570dc096e6d7e84c591af9dde0283b862d2f775`;
+the exact-state stagnation guard then stopped correctly. No second invocation,
+Candidate, Wizard progression or render occurred.
+
+The prior correction worked but did not close provider solvability: it kept
+the surfaced transition failures on `book_surface_patch`, resolved the page-4
+and page-7 transition failures, and avoided the destructive `full_draft`
+fallback. The remaining root cause is an incomplete transition-repair input.
+The validator distinguishes thirteen local and cross-page transition failure
+classes and walks ordered pages with `establishedZones`, `previousZone` and
+`lastThresholdEdge`. BookSurface exposes only the broad
+`page_transition_invalid` cause, the authored page transition and adjacent
+`pageNumber +/- 1` zone IDs. It omits the exact typed subtype, the effective
+compiler-canonicalized transition, the actual sorted predecessor/successor,
+the established-zone set and the prior threshold edge. Two books can therefore
+produce the same provider-visible target while the same page-3 transition is
+valid after a matching page-2 threshold and invalid after a page-2
+after-transition.
+
+The existing `$0` `19 -> 6 -> 5 -> 0` harness remains honest for routing and
+application: it runs the production compiler and real validation. Its
+limitation is narrower than Claude Code first stated: it supplies a
+hand-authored correct transition response, so it does not prove that the
+provider can derive that response from the current payload. Claude Code and
+three independent read-only audits agree on the information gap. Claude's
+suggestions to pass raw English error strings and a repair-attempt index are
+not accepted as the durable contract: prose can drift and an attempt number
+adds no missing semantic truth. The proposed general correction instead uses
+closed typed transition subcauses plus compiler-derived sequential state from
+one shared analyzer, with no raw validation prose.
+
+The stop rule is now binding: this is the second consecutive paid authoring
+failure. No new provider/live attempt, budget/model/call change, best-of-N,
+Candidate, Wizard progression or render is authorized. The next action is
+Guy's decision on
+`docs/ai-workflow/R1D_BOOK_SURFACE_TYPED_TRANSITION_AUTHORITY_DECISION_GATE.md`.
+Implementation remains `$0` and offline until a focused commit receives an
+independent Claude Code PASS.
+
+## PAGE-LOCAL TRANSITION CONTINUITY ROUTING — INDEPENDENT TECHNICAL PASS; PUSHED AND SUPERSEDED BY LIVE DIAGNOSIS
 
 The first bounded paid authoring attempt on the pushed package-operator head
 ended safely without a Candidate. Fresh Readiness root
