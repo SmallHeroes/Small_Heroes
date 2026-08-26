@@ -1,8 +1,59 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-26
+**Updated:** 2026-08-27
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; reviewed foundation `dad01fec0c1fe15e448e0ddc3b78b897dff657cd` is pushed and matches `origin/codex/r1d-qa-wizard-downstream-lifecycle` (`0/0`).
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; remote-safe base `85b86fde4abbe3b5a3df9428d61391c00a1a18e9`; local provider-projection base `895b7f7b469a8249df4df63bed487f0ae8c39ab4` is unpushed pending corrective re-gate.
+
+## PROVIDER SPATIAL EGRESS — CORRECTIVE LOCAL GREEN; INDEPENDENT QA PENDING
+
+Guy approved the closed provider policy: compiler-owned `[spatial:<id>]`
+identity remains in canonical Contract/Blueprint authority, while image and
+Vision providers receive natural prose only. This is a general boundary, not
+a Chameleon/page-specific rewrite.
+
+Independent review placed `895b7f7b` on HOLD for three valid defects: the
+first provider projector could erase a target after `away from`, treated any
+ordinary `spatial:` prose as an internal marker, and left book-level
+`forbiddenGlobalElements` raw on active image/Vision paths. The correction
+removes deletion-based string surgery. Exact known markers resolve to stable
+natural labels; the canonical `natural label + marker` form deduplicates; a
+repeated marker remains meaningful; only the exact bracketed internal syntax
+is forbidden at egress; unknown or book-level ambiguous identities terminate
+before provider dispatch.
+
+The one provider projection now covers page action/safety/must-show/must-not-
+show and book-level forbidden prose. Its derived values feed PVB facts, the
+legacy contract block, runtime Blueprint narrative/direction/entity presence,
+location Bible/set topology, contract Vision and world-QA Vision. Defense-in-
+depth assertions run on the complete visual-contract/PVB/Blueprint prompt
+blocks, the final composed image prompt and both Vision prompts. Canonical
+Contract bytes retain their markers and are not mutated.
+
+The behavior cutover advances provider spatial projection v1→v2, PVB facts
+v2→v3 and runtime Blueprint book/frame/evidence v4→v5. Focused validation is
+9 files / 221 assertions PASS; `npx --no-install tsc --noEmit` and
+`git diff --check` pass. Literal `npm run check` passed both TypeScript phases.
+Its ordinary partition passed 3,829, skipped 70 and failed the same nine
+missing ignored-output fixture assertions plus one unrelated 5-second
+migration timeout. Its resource partition passed 615 assertions and reported
+12 subprocess/Git fixture timeouts plus the three known Vitest worker
+`onTaskUpdate` RPC timeouts. The command remains honestly exit 1 and is not
+called a clean PASS. The ordinary migration file was rerun alone with a
+30-second timeout and passed all 8/8 assertions, confirming load rather than
+a semantic regression.
+
+The large historical bridge-v4 reader is not on this critical branch. Its
+exact five-file WIP is preserved locally as commit `8fcd122b` on
+`codex/r1d-historical-bridge-v4-loader-deferred`; it is unpushed and deferred.
+No provider, network, credential, image, Vision, order, render, deployment or
+paid operation occurred in this closure.
+
+Binding next action after the corrective commit is independent Claude Code
+re-gate. Separately, the runtime audit found that a Wizard-selected v4 package
+identity is not persisted on the Order and later freeze re-reads the mutable
+current locator; package-backed orders can also fall through all contract
+guards when environment flags are off. That order-binding/fail-closed closure
+is the next offline milestone; legacy Story-bank orders remain out of scope.
 
 ## CANDIDATE SEMANTIC-CORRECTION FOUNDATION — INDEPENDENT PASS; QA CLOSURE LOCAL-GREEN
 

@@ -303,8 +303,10 @@ human approval of two visible body-state phrases, which Guy owns.
    fixtures; no image.
 6. **What must Guy decide now?** Confirm the fail-closed mixed-frontier
    capability tradeoff before the semantic-correction lifecycle proceeds.
-   Exact content approval remains a later explicit gate, and prompt-marker
-   policy is required only before Visual Contract steering is enabled.
+   Exact content approval remains a later explicit gate. Guy subsequently
+   approved natural provider prose without `[spatial:<id>]`, while the stable
+   ID remains in canonical internal authority; another steered render stays
+   blocked until that egress boundary passes independent QA.
 7. **What should Claude Code falsify?** The authority, source-binding,
    compatibility, eligibility and partial-write targets listed above.
 8. **Claude Cowork?** Not needed now.

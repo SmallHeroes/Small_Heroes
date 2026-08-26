@@ -5,6 +5,7 @@
  * Fail-closed: errors/skips never return passed:true. Vision-driven, general (bible-fed, no literals).
  */
 import { resolveEntityQaVisionDataUrl } from './page-entity-qa';
+import { assertProviderPromptHasNoInternalSpatialMarkers } from '@/lib/visual-contract-compiler/projectContractProse';
 
 export type PageWorldQaFailure = 'wrong_zone' | 'object_state_drift' | 'forbidden_scene';
 
@@ -41,7 +42,7 @@ export function buildWorldQaPrompt(input: {
     ? input.forbiddenScenes.map((f) => `"${f}"`).join(', ')
     : '(none)';
 
-  return `You are strict WORLD/SETTING QA for a children's picture-book page. Judge the SETTING and the
+  const prompt = `You are strict WORLD/SETTING QA for a children's picture-book page. Judge the SETTING and the
 IDENTITY of the listed recurring objects ONLY. Ignore character counts/identity (a separate QA covers
 those), and ignore camera framing.
 
@@ -66,6 +67,10 @@ HARD-fail only GROSS drift:
 - wrong_zone if settingMatchesZone is false.
 - object_state_drift if a listed object is VISIBLE but consistentWithIdentity is false (redesigned into a different object).
 - forbidden_scene if forbiddenScenePresent is true.`;
+  return assertProviderPromptHasNoInternalSpatialMarkers(
+    prompt,
+    'world-QA Vision prompt',
+  );
 }
 
 function isIncompleteWorldQaRaw(raw: Record<string, unknown>): boolean {

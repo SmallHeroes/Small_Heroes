@@ -14,7 +14,10 @@
  */
 import type { BookVisualContract } from './types';
 import type { ResolvedPageContract } from './derivePageVisualContracts';
-import { projectPageProviderPromptProse } from './projectContractProse';
+import {
+  assertProviderPromptHasNoInternalSpatialMarkers,
+  projectPageProviderPromptProse,
+} from './projectContractProse';
 
 export type ContractQaCheck =
   | 'wrong_location'
@@ -109,10 +112,11 @@ export function buildContractVisionInstruction(
   isCover?: boolean
 ): string {
   const location = contract.locations.find((l) => l.id === page.locationId);
-  return [
+  const providerProse = projectPageProviderPromptProse(page, contract);
+  const instruction = [
     'Inspect this children\'s-book illustration and answer ONLY as JSON.',
     `Expected place: ${location?.name ?? page.locationId}${location?.description ? ` (${location.description})` : ''}.`,
-    `Forbidden (must NOT appear): ${(contract.forbiddenGlobalElements ?? []).join(', ') || 'none'}.`,
+    `Forbidden (must NOT appear): ${providerProse.forbiddenGlobalElements.join(', ') || 'none'}.`,
     'In forbiddenEntitiesPresent, list EVERY LIVE animal/creature visible that is NOT the child and NOT the declared companion — including a background or secondary live animal (e.g. an armadillo, pangolin, or extra pet) EVEN IF the companion is also present. A second live creature is a violation. Do NOT list plush toys, stuffed animals, dolls, pictures, or decor — only living characters.',
     `Required to be visible: ${resolveMajorProps(page, contract).join(', ') || 'none'}.`,
     page.characterPresence.companion
@@ -123,6 +127,10 @@ export function buildContractVisionInstruction(
   ]
     .filter(Boolean)
     .join('\n');
+  return assertProviderPromptHasNoInternalSpatialMarkers(
+    instruction,
+    'contract Vision instruction',
+  );
 }
 
 /** Parse a vision model's JSON into a normalized observation (defensive / fail-safe defaults). */

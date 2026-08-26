@@ -87,6 +87,23 @@ describe('contractPageWorldExpectation — project the page world expectation fr
     });
   });
 
+  it('naturalizes book-level spatial authority before the Vision expectation', () => {
+    const marked = structuredClone(contract);
+    marked.zones[0]!.spatialNodes = [
+      {
+        id: 'floor',
+        kind: 'floor',
+        description: 'the pale clinic floor',
+      },
+    ];
+    marked.forbiddenGlobalElements = [
+      'keep every character away from [spatial:floor]',
+    ];
+    expect(contractPageWorldExpectation(marked, 5)?.forbiddenScenes).toEqual([
+      'keep every character away from the pale clinic floor',
+    ]);
+  });
+
   it('page not in the contract → null (no world QA, neutral)', () => {
     expect(contractPageWorldExpectation(contract, 99)).toBeNull();
   });

@@ -5,7 +5,10 @@
  * authoritative prompt builder remains available for enforcement-off development
  * compatibility. Both paths share the marker-free provider prose projection.
  */
-import { projectPageProviderPromptProse } from './projectContractProse';
+import {
+  assertProviderPromptHasNoInternalSpatialMarkers,
+  projectPageProviderPromptProse,
+} from './projectContractProse';
 import type { BookVisualContract } from './types';
 import type { ResolvedPageContract } from './derivePageVisualContracts';
 
@@ -15,7 +18,7 @@ function line(label: string, value: string | undefined | null): string | null {
 }
 
 export const PVB_VISUAL_CONTRACT_FACTS_VERSION =
-  'pvb-visual-contract-facts/v2' as const;
+  'pvb-visual-contract-facts/v3' as const;
 
 /**
  * Explicit allowlisted projection for enforced PVB rendering.
@@ -182,7 +185,7 @@ export function projectPvbVisualContractFacts(
       : {}),
     props,
     stableGeometry: [...(page.zoneStableGeometry ?? [])],
-    forbiddenWorldElements: [...contract.forbiddenGlobalElements],
+    forbiddenWorldElements: [...providerProse.forbiddenGlobalElements],
     safetyConstraints: safetyConstraints ? [safetyConstraints] : [],
   };
 }
@@ -272,7 +275,10 @@ export function buildPvbVisualContractFactsPromptBlock(
     ),
     'AUTHORITY: Blueprint frame is the sole authority for camera, action, composition, staging, pose, blocking, eyeline, placements, and page layout. This facts block may only constrain verified world, location, zone, transition, set identity, cast, wardrobe, props, stable geometry, and safety. If any statement conflicts with the Blueprint frame, the Blueprint frame wins.',
   ];
-  return lines.filter((value): value is string => value != null).join('\n');
+  return assertProviderPromptHasNoInternalSpatialMarkers(
+    lines.filter((value): value is string => value != null).join('\n'),
+    'PVB visual-contract facts block',
+  );
 }
 
 export function buildVisualContractPromptBlock(
@@ -399,7 +405,10 @@ export function buildVisualContractPromptBlock(
     'AUTHORITY: runtime presentation may influence camera, composition, staging, pose, blocking, eyeline, and emotion ONLY. It may NEVER change reality mode, location, zone, transition, set identity, cast, wardrobe, required content, props, or forbidden content. Where they conflict, THIS contract wins.',
   ];
 
-  return lines.filter((l): l is string => l != null).join('\n');
+  return assertProviderPromptHasNoInternalSpatialMarkers(
+    lines.filter((l): l is string => l != null).join('\n'),
+    'visual-contract prompt block',
+  );
 }
 
 /**
@@ -412,7 +421,13 @@ export function composeContractAuthoritativePrompt(
   basePrompt: string
 ): string {
   const block = (contractBlock ?? '').trim();
-  if (!block) return basePrompt;
-  if (basePrompt.startsWith(block)) return basePrompt;
-  return `${block}\n\n${basePrompt}`;
+  const finalPrompt = !block
+    ? basePrompt
+    : basePrompt.startsWith(block)
+      ? basePrompt
+      : `${block}\n\n${basePrompt}`;
+  return assertProviderPromptHasNoInternalSpatialMarkers(
+    finalPrompt,
+    'composed image prompt',
+  );
 }

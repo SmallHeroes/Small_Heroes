@@ -89,4 +89,21 @@ describe('page world QA (deterministic evaluator)', () => {
     expect(p).toMatch(/indoor room/);
     expect(p).toMatch(/wrong_zone/);
   });
+
+  it('fails closed before Vision when any future field reintroduces an internal marker', () => {
+    expect(() =>
+      buildWorldQaPrompt({
+        zoneDescription: 'room [spatial:floor]',
+        objects,
+        forbiddenScenes: [],
+      }),
+    ).toThrow('unresolved internal spatial reference marker');
+    expect(() =>
+      buildWorldQaPrompt({
+        zoneDescription: 'spatial: awareness room',
+        objects,
+        forbiddenScenes: [],
+      }),
+    ).not.toThrow();
+  });
 });

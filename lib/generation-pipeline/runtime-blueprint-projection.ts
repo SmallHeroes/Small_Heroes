@@ -7,7 +7,11 @@ import {
   contractToLocationPlanBundle,
 } from '@/lib/visual-contract-compiler/adapters';
 import { buildPvbVisualContractFactsPromptBlock } from '@/lib/visual-contract-compiler/buildVisualContractPromptBlock';
-import { projectProviderSafeSpatialProse } from '@/lib/visual-contract-compiler/projectContractProse';
+import {
+  assertProviderPromptHasNoInternalSpatialMarkers,
+  projectPageProviderPromptProse,
+  projectProviderSafeSpatialProse,
+} from '@/lib/visual-contract-compiler/projectContractProse';
 import type {
   ApprovedPvbRuntimeAuthorityBinding,
   ResolvedBookVisualContract,
@@ -32,11 +36,11 @@ import {
 } from '@/lib/visual-package/runtimeAuthority';
 
 export const RUNTIME_BLUEPRINT_BOOK_PROJECTION_VERSION =
-  'runtime-blueprint-book-projection/v4' as const;
+  'runtime-blueprint-book-projection/v5' as const;
 export const RUNTIME_BLUEPRINT_FRAME_PROJECTION_VERSION =
-  'runtime-blueprint-frame-projection/v4' as const;
+  'runtime-blueprint-frame-projection/v5' as const;
 export const RUNTIME_BLUEPRINT_FRAME_EVIDENCE_VERSION =
-  'runtime-blueprint-frame-evidence/v4' as const;
+  'runtime-blueprint-frame-evidence/v5' as const;
 
 export interface RuntimeBlueprintReferenceIdentities {
   boards: VisualPackageV4['requiredBoards'];
@@ -406,14 +410,22 @@ export function buildRuntimeBlueprintBookProjection(args: {
         contract,
       ),
     };
-    const blueprintPromptBlock = buildBlueprintPromptBlock({
-      packageValue,
-      frame,
-      providerNarrative,
-      contract,
+    const providerProse = projectPageProviderPromptProse(
       contractPage,
-      resolvedAppearanceDigest,
-    });
+      contract,
+    );
+    const blueprintPromptBlock =
+      assertProviderPromptHasNoInternalSpatialMarkers(
+        buildBlueprintPromptBlock({
+          packageValue,
+          frame,
+          providerNarrative,
+          contract,
+          contractPage,
+          resolvedAppearanceDigest,
+        }),
+        'runtime Blueprint prompt block',
+      );
     const visualDirection: ShotVisualDirection = {
       locationZone: `${location.name} / ${zone.name}`,
       mainAction: providerNarrative.summary,
@@ -437,7 +449,7 @@ export function buildRuntimeBlueprintBookProjection(args: {
       ],
       mustNotInclude: [
         ...forbiddenPropIds,
-        ...contract.forbiddenGlobalElements,
+        ...providerProse.forbiddenGlobalElements,
       ],
       camera: `${frame.camera.shot} ${frame.camera.angle}`,
       composition: `exact normalized placements ${JSON.stringify(
@@ -526,7 +538,7 @@ export function buildRuntimeBlueprintBookProjection(args: {
           ...new Set([
             ...forbiddenPropIds,
             ...pageLocationPlan.forbiddenDrift,
-            ...contract.forbiddenGlobalElements,
+            ...providerProse.forbiddenGlobalElements,
           ]),
         ],
       },

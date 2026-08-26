@@ -159,6 +159,9 @@ describe('contractToLocationPlanBundle', () => {
     page.mustNotShow = [
       'the child must not cross the pale clinic floor [spatial:floor]',
     ];
+    marked.forbiddenGlobalElements = [
+      'keep every character away from [spatial:floor]',
+    ];
 
     const bundle = contractToLocationPlanBundle(marked);
     const plan = resolvePageLocationPlan(bundle, 1)!;
@@ -170,6 +173,12 @@ describe('contractToLocationPlanBundle', () => {
     expect(plan.forbiddenDrift).toEqual([
       'the child must not cross the pale clinic floor',
     ]);
+    expect(bundle.bible.forbiddenDrift).toEqual([
+      'keep every character away from the pale clinic floor',
+    ]);
+    expect(block).toContain(
+      'keep every character away from the pale clinic floor',
+    );
     expect(block).not.toContain('[spatial:');
     expect(marked.pageContracts[0]!.mustShow[0]).toContain('[spatial:floor]');
     expect(marked.pageContracts[0]!.mustNotShow[0]).toContain('[spatial:floor]');

@@ -18,6 +18,8 @@ import {
   projectCoverMustNotShow,
   projectPageActionProse,
   projectPageProviderPromptProse,
+  projectProviderSafeBookSpatialProse,
+  projectProviderSafeSpatialProse,
   type BookVisualContract,
   type PageVisualContract,
   type VisualZone,
@@ -1118,6 +1120,52 @@ describe('Stage 3 — the projections are pure, deterministic and order-stable',
     );
   });
 
+  it('preserves the spatial target, permits ordinary prose, handles repeats, and rejects only exact unresolved markers', () => {
+    const sc = structuredContract();
+    const page = sc.pageContracts[0]!;
+
+    expect(
+      projectProviderSafeSpatialProse(
+        'keep the child away from [spatial:floor]',
+        page,
+        sc,
+      ),
+    ).toBe('keep the child away from the pale vinyl floor');
+    expect(
+      projectProviderSafeSpatialProse(
+        '[spatial:floor] remains beyond [spatial:floor]',
+        page,
+        sc,
+      ),
+    ).toBe(
+      'the pale vinyl floor remains beyond the pale vinyl floor',
+    );
+    expect(
+      projectProviderSafeSpatialProse(
+        'spatial: awareness matters in composition',
+        page,
+        sc,
+      ),
+    ).toBe('spatial: awareness matters in composition');
+    expect(() =>
+      projectProviderSafeSpatialProse(
+        'unknown [spatial:not_in_page_zone]',
+        page,
+        sc,
+      ),
+    ).toThrow('unresolved internal spatial reference marker');
+
+    sc.forbiddenGlobalElements = [
+      'keep every character away from [spatial:floor]',
+    ];
+    expect(
+      projectProviderSafeBookSpatialProse(
+        sc.forbiddenGlobalElements[0]!,
+        sc,
+      ),
+    ).toBe('keep every character away from the pale vinyl floor');
+  });
+
   it('projects spatial action prose naturally for providers while its canonical mustShow identity stays exact', () => {
     const sc = structuredContract();
     const page = structuredClone(sc.pageContracts[0]!);
@@ -1247,12 +1295,18 @@ describe('Stage 3 — TIER C: the prompt block gains the projected lines ONLY wh
   it('the provider vision instruction receives marker-free mustShow prose', () => {
     const sc = structuredContract();
     const [page] = derivePageVisualContracts(sc);
+    sc.forbiddenGlobalElements = [
+      'keep every character away from [spatial:floor]',
+    ];
     page.mustShow = [
       'Examination chair beside the pale vinyl floor [spatial:floor]',
     ];
     const instruction = buildContractVisionInstruction(page, sc);
     expect(instruction).toContain(
       'Required to be visible: Examination chair beside the pale vinyl floor.',
+    );
+    expect(instruction).toContain(
+      'Forbidden (must NOT appear): keep every character away from the pale vinyl floor.',
     );
     expect(instruction).not.toContain('[spatial:');
   });

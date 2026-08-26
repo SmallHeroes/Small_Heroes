@@ -219,6 +219,20 @@ describe('composeContractAuthoritativePrompt — render-seam injection', () => {
     expect(composeContractAuthoritativePrompt(undefined, 'scene')).toBe('scene');
     expect(composeContractAuthoritativePrompt('   ', 'scene')).toBe('scene');
   });
+  it('fails closed on an exact internal marker at final image egress but permits ordinary spatial prose', () => {
+    expect(() =>
+      composeContractAuthoritativePrompt(
+        'CONTRACT',
+        'keep away from [spatial:floor]',
+      ),
+    ).toThrow('unresolved internal spatial reference marker');
+    expect(
+      composeContractAuthoritativePrompt(
+        'CONTRACT',
+        'spatial: awareness matters',
+      ),
+    ).toContain('spatial: awareness matters');
+  });
 });
 
 describe('requireValidContractForRender — fail-closed migration contract', () => {

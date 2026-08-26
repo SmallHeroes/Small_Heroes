@@ -208,6 +208,8 @@ export {
   PROVIDER_SPATIAL_REFERENCE_PROJECTION_VERSION,
   projectPageActionProse,
   projectPageSafetyProse,
+  assertProviderPromptHasNoInternalSpatialMarkers,
+  projectProviderSafeBookSpatialProse,
   projectProviderSafeSpatialProse,
   projectPageProviderPromptProse,
   type ProviderPagePromptProse,

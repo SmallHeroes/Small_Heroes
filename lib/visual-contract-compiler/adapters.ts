@@ -29,6 +29,7 @@ import type {
 } from '@/lib/story-location-bible/types';
 import {
   projectPageProviderPromptProse,
+  projectProviderSafeBookSpatialProse,
   projectProviderSafeSpatialProse,
 } from './projectContractProse';
 
@@ -152,18 +153,22 @@ function toPageLocationPlan(
  * `description` instead. Elements come from the location's anchors + its freeform topology as a `layout` element.
  * Neutral (undefined) when the room has neither → fabricate nothing (matches the adapter's unknown→neutral rule).
  */
-function setTopologyOf(contract: BookVisualContract): SetTopology | undefined {
+function setTopologyOf(
+  contract: BookVisualContract,
+  providerGlobalForbidden: string[],
+): SetTopology | undefined {
   if (contract.locations.length !== 1 || contract.zones.length !== 1) return undefined;
   const loc = contract.locations[0];
   const elements: SetTopologyElement[] = (loc.anchors ?? []).map((a) => ({ id: a.id, placement: a.description }));
   if (loc.topology?.trim()) elements.push({ id: 'layout', placement: loc.topology.trim() });
   if (!elements.length) return undefined;
   const timeOfDay = loc.timeOfDay ?? contract.coverContract.timeOfDay;
-  const forbidden = contract.forbiddenGlobalElements ?? [];
   return {
     elements,
     ...(timeOfDay ? { timeOfDay } : {}),
-    ...(forbidden.length ? { forbidden } : {}),
+    ...(providerGlobalForbidden.length
+      ? { forbidden: providerGlobalForbidden }
+      : {}),
   };
 }
 
@@ -222,13 +227,16 @@ function primarySettingOf(contract: BookVisualContract, mode: LocationContinuity
 export function contractToLocationPlanBundle(contract: BookVisualContract): StoryLocationPlanBundle {
   const anchorsFor = anchorsByLocation(contract);
   const mode = continuityModeOf(contract);
-  const setTopology = setTopologyOf(contract);
+  const providerGlobalForbidden = (contract.forbiddenGlobalElements ?? []).map(
+    (value) => projectProviderSafeBookSpatialProse(value, contract),
+  );
+  const setTopology = setTopologyOf(contract, providerGlobalForbidden);
   const bible: BookLocationBible = {
     continuityMode: mode,
     primarySetting: primarySettingOf(contract, mode),
     allowedZones: contract.zones.map((z) => toLocationZone(z, anchorsFor)),
     fixedAnchors: toFixedAnchors(contract.locations),
-    forbiddenDrift: contract.forbiddenGlobalElements ?? [],
+    forbiddenDrift: providerGlobalForbidden,
     // (WS0b P1-1) Contract books drive continuity PER-PAGE (PageLocationPlan.transition) — no global future-transition
     // list leaks onto every page. Legacy books still populate + emit their own bible.transitionRules.
     transitionRules: [],
@@ -522,6 +530,8 @@ export function contractPageWorldExpectation(
   const zoneDescription = (zone?.description ?? loc?.description ?? loc?.name ?? '').trim();
   if (!zoneDescription) return null; // no describable setting → no world QA (neutral)
   const objects = (contract.recurringProps ?? []).map((p) => ({ label: p.name, identity: p.description }));
-  const forbiddenScenes = contract.forbiddenGlobalElements ?? [];
+  const forbiddenScenes = (contract.forbiddenGlobalElements ?? []).map(
+    (value) => projectProviderSafeBookSpatialProse(value, contract),
+  );
   return { zoneDescription, objects, forbiddenScenes };
 }

@@ -82,15 +82,13 @@ frontiers containing the unreviewed presentation gap do not.
   the projector used for every refreshed spatial authority; frozen legacy
   bytes remain selected by the compatibility profile rather than guessed from
   `vc-schema/v4` alone.
-- The description-aware action/safety projector can emit internal
-  `[spatial:<id>]` markers into the optional Visual Contract steering prompt.
-  Enforcement is hard-off in Production but explicitly enabled by QA render
-  runners. The current approved Chameleon package has no safety constraints
-  and therefore emits no marker through the safety projector. Its page-8
-  action prose does contain `[spatial:sp_bed]`, so a QA prompt path that emits
-  action prose must not be described as marker-free. Before another steered
-  render, Guy must decide whether provider prompt prose should retain the
-  stable marker or use a distinct description-only projection.
+- The canonical description-aware action/safety projector retains internal
+  `[spatial:<id>]` markers for review and correction identity. Guy selected a
+  distinct provider projection: every image/Vision egress receives natural
+  prose, while canonical Contract/Blueprint authority remains marker-bearing.
+  The corrective closure advances that provider projection to v2, rejects
+  unknown/ambiguous markers before dispatch, and asserts the complete final
+  image and Vision prompts rather than relying only on per-field surgery.
 - This milestone does not add a lexical/free-prose cover contradiction
   detector. The real cover defect will be closed only by the typed
   `cover_visible_recurring_prop` overlay operation with exact before-state.

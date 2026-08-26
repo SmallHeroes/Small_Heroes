@@ -534,10 +534,13 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
       'the child must not cross the stable clear floor plane [spatial:floor]';
     const markedNarrative =
       'The child pauses beside the stable clear floor plane [spatial:floor]';
+    const markedGlobalForbidden =
+      'keep every character away from [spatial:floor]';
     const runtime = authority('no_companion', {
       mutateTemplate(template) {
         template.pageContracts[0]!.mustShow.push(markedVisible);
         template.pageContracts[0]!.mustNotShow.push(markedForbidden);
+        template.forbiddenGlobalElements.push(markedGlobalForbidden);
       },
       mutateWorld({ frames }) {
         const frame = frames.find(
@@ -557,6 +560,9 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
 
     expect(canonicalPage.mustShow).toContain(markedVisible);
     expect(canonicalPage.mustNotShow).toContain(markedForbidden);
+    expect(runtime.contract.forbiddenGlobalElements).toContain(
+      markedGlobalForbidden,
+    );
     expect(canonicalFrame.narrative.summary).toBe(markedNarrative);
     expect(frame.narrative.summary).toBe(
       'The child pauses beside the stable clear floor plane',
@@ -569,6 +575,15 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
     );
     expect(frame.entityPresence.forbiddenEntities).toContain(
       'the child must not cross the stable clear floor plane',
+    );
+    expect(frame.entityPresence.forbiddenEntities).toContain(
+      'keep every character away from the stable clear floor plane',
+    );
+    expect(frame.visualDirection.mustNotInclude).toContain(
+      'keep every character away from the stable clear floor plane',
+    );
+    expect(frame.locationBible.forbiddenDrift).toContain(
+      'keep every character away from the stable clear floor plane',
     );
     expect(JSON.stringify(frame.pageLocationPlan)).not.toContain('[spatial:');
     expect(JSON.stringify(frame.entityPresence)).not.toContain('[spatial:');

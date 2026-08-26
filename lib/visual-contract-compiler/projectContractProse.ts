@@ -88,12 +88,14 @@ function humanizeKind(kind: string): string {
 export const SPATIAL_REFERENCE_PROJECTION_VERSION =
   'spatial-reference-projection/v2' as const;
 export const PROVIDER_SPATIAL_REFERENCE_PROJECTION_VERSION =
-  'provider-spatial-reference-projection/v1' as const;
+  'provider-spatial-reference-projection/v2' as const;
+
+const INTERNAL_SPATIAL_REFERENCE_MARKER = /\[spatial:[^\]\r\n]*\]/u;
 
 type SpatialReferenceProjectionMode =
   | 'legacy_kind'
   | 'description_v2'
-  | 'provider_description_v1';
+  | 'provider_description_v2';
 
 type SpatialProjectionPageContext = Pick<
   PageVisualContract,
@@ -171,8 +173,8 @@ function refLabel(
         NonNullable<VisualZone['spatialNodes']>[number]
       >(zoneOfPage(page, contract)?.spatialNodes).find((n) => n.id === ref.id);
       if (!node) {
-        return spatialMode === 'provider_description_v1'
-          ? 'the referenced area'
+        return spatialMode === 'provider_description_v2'
+          ? `[spatial:${ref.id}]`
           : ref.id;
       }
       if (spatialMode === 'legacy_kind') {
@@ -180,7 +182,7 @@ function refLabel(
         return `the ${humanizeKind(node.kind)}`;
       }
       const description = readableSpatialDescription(node.description);
-      if (spatialMode === 'provider_description_v1') {
+      if (spatialMode === 'provider_description_v2') {
         return description
           ? `the ${description}`
           : typeof node.kind === 'string'
@@ -413,6 +415,55 @@ function providerSpatialLabel(
   return 'the referenced area';
 }
 
+type ProviderSpatialNode = NonNullable<VisualZone['spatialNodes']>[number];
+
+/**
+ * Provider egress invariant. Only the compiler-owned bracketed identity syntax
+ * is forbidden; ordinary natural prose containing the word `spatial:` is not.
+ */
+export function assertProviderPromptHasNoInternalSpatialMarkers(
+  value: string,
+  surface = 'provider prompt',
+): string {
+  if (INTERNAL_SPATIAL_REFERENCE_MARKER.test(value)) {
+    throw new Error(
+      `[provider_spatial_prose_projection] unresolved internal spatial reference marker in ${surface}`,
+    );
+  }
+  return value;
+}
+
+function projectProviderSafeSpatialProseFromNodes(
+  value: string,
+  nodes: ProviderSpatialNode[],
+  surface: string,
+): string {
+  let projected = value;
+  const labelsById = new Map<string, Set<string>>();
+
+  for (const node of nodes) {
+    if (typeof node.id !== 'string' || node.id.length === 0) continue;
+    const labels = labelsById.get(node.id) ?? new Set<string>();
+    labels.add(providerSpatialLabel(node));
+    labelsById.set(node.id, labels);
+  }
+
+  for (const [id, labels] of labelsById) {
+    // A book-level id that resolves to conflicting natural descriptions is not
+    // safe to guess. Leave its marker intact so the egress assertion fails.
+    if (labels.size !== 1) continue;
+    const naturalLabel = [...labels][0]!;
+    const marker = `[spatial:${id}]`;
+    projected = projected
+      .split(`${naturalLabel} ${marker}`)
+      .join(naturalLabel)
+      .split(marker)
+      .join(naturalLabel);
+  }
+
+  return assertProviderPromptHasNoInternalSpatialMarkers(projected, surface);
+}
+
 /**
  * Remove compiler-owned spatial identity markers at the provider boundary while
  * preserving the readable authored prose around them. Canonical Contract prose
@@ -424,31 +475,30 @@ export function projectProviderSafeSpatialProse(
   page: SpatialProjectionPageContext,
   contract: BookVisualContract,
 ): string {
-  let projected = value;
-  for (const node of safeObjectElements<
-    NonNullable<VisualZone['spatialNodes']>[number]
-  >(zoneOfPage(page, contract)?.spatialNodes)) {
-    if (typeof node.id !== 'string' || node.id.length === 0) continue;
-    const naturalLabel = providerSpatialLabel(node);
-    const marker = `[spatial:${node.id}]`;
-    const description = readableSpatialDescription(node.description);
-    if (description) {
-      projected = projected
-        .split(`the ${description} ${marker}`)
-        .join(naturalLabel);
-    }
-    projected = projected
-      .split(` ${marker}`)
-      .join('')
-      .split(marker)
-      .join(naturalLabel);
-  }
-  if (projected.includes('spatial:')) {
-    throw new Error(
-      '[provider_spatial_prose_projection] unresolved internal spatial reference marker',
-    );
-  }
-  return projected;
+  return projectProviderSafeSpatialProseFromNodes(
+    value,
+    safeObjectElements<ProviderSpatialNode>(
+      zoneOfPage(page, contract)?.spatialNodes,
+    ),
+    'page-scoped provider prose',
+  );
+}
+
+/**
+ * Book-level prose has no page zone. Resolve only ids whose natural label is
+ * unique across the book; conflicting ids fail closed at provider egress.
+ */
+export function projectProviderSafeBookSpatialProse(
+  value: string,
+  contract: BookVisualContract,
+): string {
+  return projectProviderSafeSpatialProseFromNodes(
+    value,
+    safeObjectElements<VisualZone>(contract.zones).flatMap((zone) =>
+      safeObjectElements<ProviderSpatialNode>(zone.spatialNodes),
+    ),
+    'book-scoped provider prose',
+  );
 }
 
 export interface ProviderPagePromptProse {
@@ -457,6 +507,7 @@ export interface ProviderPagePromptProse {
   safety: string;
   mustShow: string[];
   mustNotShow: string[];
+  forbiddenGlobalElements: string[];
 }
 
 /** One provider-only projection for every free-prose page surface. */
@@ -464,24 +515,39 @@ export function projectPageProviderPromptProse(
   page: PageVisualContract,
   contract: BookVisualContract,
 ): ProviderPagePromptProse {
+  const forbiddenGlobalElements = (contract.forbiddenGlobalElements ?? []).map(
+    (value) => projectProviderSafeBookSpatialProse(value, contract),
+  );
+  const globalForbidden = new Set(contract.forbiddenGlobalElements ?? []);
+  const action = projectPageActionProseWithSpatialMode(
+    page,
+    contract,
+    'provider_description_v2',
+  );
+  const safety = projectPageSafetyProseWithSpatialMode(
+    page,
+    contract,
+    'provider_description_v2',
+  );
   return {
     version: PROVIDER_SPATIAL_REFERENCE_PROJECTION_VERSION,
-    action: projectPageActionProseWithSpatialMode(
-      page,
-      contract,
-      'provider_description_v1',
+    action: assertProviderPromptHasNoInternalSpatialMarkers(
+      action,
+      'page action prose',
     ),
-    safety: projectPageSafetyProseWithSpatialMode(
-      page,
-      contract,
-      'provider_description_v1',
+    safety: assertProviderPromptHasNoInternalSpatialMarkers(
+      safety,
+      'page safety prose',
     ),
     mustShow: (page.mustShow ?? []).map((value) =>
       projectProviderSafeSpatialProse(value, page, contract),
     ),
     mustNotShow: (page.mustNotShow ?? []).map((value) =>
-      projectProviderSafeSpatialProse(value, page, contract),
+      globalForbidden.has(value)
+        ? projectProviderSafeBookSpatialProse(value, contract)
+        : projectProviderSafeSpatialProse(value, page, contract),
     ),
+    forbiddenGlobalElements,
   };
 }
 
