@@ -29,6 +29,47 @@ import {
 } from '../../../backend/providers/story-product-resolver';
 import { mergeOriginalChildPhotoUrlIntoAnchors } from '../../../lib/child-photo-deletion';
 import { buildFrozenStoryProductTruth } from '../../../lib/generation-pipeline/frozen-product-truth';
+import {
+  OrderVisualPackageAuthorityError,
+  requireOrderVisualPackageAuthority,
+} from '../../../lib/generation-pipeline/order-visual-package-authority';
+
+const EXISTING_ORDER_AUTHORITY_SELECT = {
+  id: true,
+  totalPrice: true,
+  selectionFilename: true,
+  storySourceHash: true,
+  illustrationStyle: true,
+  visualPackageAuthority: true,
+} satisfies Prisma.OrderSelect;
+
+type ExistingOrderAuthority = Prisma.OrderGetPayload<{
+  select: typeof EXISTING_ORDER_AUTHORITY_SELECT;
+}>;
+
+function existingOrderResponse(existingOrder: ExistingOrderAuthority) {
+  try {
+    // Replay the historical Order's own immutable binding. A later current-locator
+    // promotion must not turn an idempotent retry into a different product or a 409.
+    requireOrderVisualPackageAuthority(existingOrder);
+  } catch (error) {
+    if (error instanceof OrderVisualPackageAuthorityError) {
+      console.error(
+        '[POST /api/orders] existing session package authority mismatch:',
+        error.message,
+      );
+      return NextResponse.json(
+        { error: 'order_visual_package_authority_conflict' },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
+  return NextResponse.json({
+    orderId: existingOrder.id,
+    totalPrice: Number(existingOrder.totalPrice) / 100,
+  });
+}
 
 function toStringOrNull(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
@@ -97,6 +138,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Fast idempotent replay is deliberately before product resolution, photo persistence,
+    // customer mutation, and current-locator reads. Once a session owns an Order, only that
+    // Order's frozen authority may decide the replay. The post-upsert check below remains as
+    // the concurrency fence for a session whose Order is created between this read and upsert.
+    if (sessionId) {
+      const existingSession = await prisma.wizardSession.findUnique({
+        where: { sessionId },
+        select: { order: { select: EXISTING_ORDER_AUTHORITY_SELECT } },
+      });
+      if (existingSession?.order) {
+        return existingOrderResponse(existingSession.order);
+      }
+    }
+
     const { child, topic, challenge, desiredOutcome, helpers, avoid, product, contact, familyContext } = wizardData;
     const w = wizardData as Record<string, unknown>;
     const bookName = typeof w.bookName === 'string' ? w.bookName.trim().slice(0, 60) : null;
@@ -142,6 +197,21 @@ export async function POST(req: NextRequest) {
         ) as object)
       : undefined;
 
+    const persistedIllustrationStyle = mapStyleToDatabaseValue(
+      product?.illustrationStyle ?? 'soft_hand_drawn_storybook'
+    );
+    // A style must be sellable before it participates in package selection. This keeps the
+    // resolver-selected package style and the persisted Order style in one namespace.
+    try {
+      assertOrderStyleSellable(persistedIllustrationStyle, 'order creation');
+    } catch (err) {
+      console.warn(`[POST /api/orders] ${(err as Error).message}`);
+      return NextResponse.json(
+        { error: 'illustration_style_not_available', message: 'הסגנון המבוקש עדיין לא זמין לרכישה' },
+        { status: 400 }
+      );
+    }
+
     // Source of truth: direction/pages/price come from the story that will be
     // served (companion golden / v3-approved binding) — never from a guess.
     let resolvedProduct;
@@ -151,6 +221,7 @@ export async function POST(req: NextRequest) {
         clientDirection: matrixDirection,
         legacyLength: product?.length,
         challengeCategory: storedChallengeCategory,
+        illustrationStyle: persistedIllustrationStyle,
       });
     } catch (error) {
       if (error instanceof StoryProductResolutionError) {
@@ -167,6 +238,33 @@ export async function POST(req: NextRequest) {
           storyDirection,
         })
       : null;
+    if (resolvedProduct.visualPackageAuthority) {
+      if (!frozenProductTruth) {
+        throw new Error(
+          'Visual Package product is missing frozen Story Source truth',
+        );
+      }
+      try {
+        requireOrderVisualPackageAuthority({
+          selectionFilename: frozenProductTruth.selectionFilename,
+          storySourceHash: frozenProductTruth.storySourceHash,
+          illustrationStyle: persistedIllustrationStyle,
+          visualPackageAuthority: resolvedProduct.visualPackageAuthority,
+        });
+      } catch (error) {
+        if (error instanceof OrderVisualPackageAuthorityError) {
+          console.error(
+            '[POST /api/orders] selected package authority is inconsistent:',
+            error.message,
+          );
+          return NextResponse.json(
+            { error: 'order_visual_package_authority_invalid' },
+            { status: 500 },
+          );
+        }
+        throw error;
+      }
+    }
     if (
       typeof product?.direction === 'string' &&
       product.direction.trim() &&
@@ -184,20 +282,6 @@ export async function POST(req: NextRequest) {
       bundleEnabled: Boolean(product?.bundleEnabled),
       videoEnabled: Boolean(product?.videoEnabled),
     });
-    const persistedIllustrationStyle = mapStyleToDatabaseValue(
-      product?.illustrationStyle ?? 'soft_hand_drawn_storybook'
-    );
-    // Gap 2 (bunny forensics): Style 02 is visible in the wizard but NOT sellable
-    // until its gate chain opens. Server-side block — the UI can be bypassed.
-    try {
-      assertOrderStyleSellable(persistedIllustrationStyle, 'order creation');
-    } catch (err) {
-      console.warn(`[POST /api/orders] ${(err as Error).message}`);
-      return NextResponse.json(
-        { error: 'illustration_style_not_available', message: 'הסגנון המבוקש עדיין לא זמין לרכישה' },
-        { status: 400 }
-      );
-    }
     // Fail-CLOSED narration-voice gate: `selectedVoice` MUST exist in the backend registry
     // (backend/config/voices.ts → findVoiceById is the strict source of truth for producible voices). A stale/removed id
     // (e.g. a returning user whose persisted wizard state still holds a voice we later dropped) or any client-supplied
@@ -286,13 +370,10 @@ export async function POST(req: NextRequest) {
       // the existing order instead of creating a duplicate.
       const existingOrder = await prisma.order.findUnique({
         where: { wizardSessionId: wizardSession.id },
-        select: { id: true, totalPrice: true },
+        select: EXISTING_ORDER_AUTHORITY_SELECT,
       });
       if (existingOrder) {
-        return NextResponse.json({
-          orderId: existingOrder.id,
-          totalPrice: Number(existingOrder.totalPrice) / 100,
-        });
+        return existingOrderResponse(existingOrder);
       }
     }
 
@@ -334,6 +415,12 @@ export async function POST(req: NextRequest) {
         storyLength,
         storyDirection,
         ...(frozenProductTruth ?? {}),
+        ...(resolvedProduct.visualPackageAuthority
+          ? {
+              visualPackageAuthority:
+                resolvedProduct.visualPackageAuthority as unknown as Prisma.InputJsonValue,
+            }
+          : {}),
         illustrationStyle: persistedIllustrationStyle,
         audioEnabled: product.audioEnabled,
         selectedVoice: requestedVoice,

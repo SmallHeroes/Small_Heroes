@@ -620,4 +620,52 @@ describe('ExceptionCase producer + lifecycle', () => {
     }
     expect(reissueCreate).not.toHaveBeenCalled(); // no fulfillment enqueued; the throw rolls back the transition too
   });
+
+  it('refuses to reissue for an accepted-revision Order with missing package authority (not_ready, no claim, no enqueue)', async () => {
+    const previousAppUrl = process.env.APP_URL;
+    const previousPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.APP_URL = 'https://app.example.com';
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com';
+    const oldOutbox = { id: 'ob1', status: 'failed', failureClass: 'send_ambiguous', firstSendAttemptAt: new Date('2026-06-30T11:00:00.000Z') };
+    const reissueCreate = vi.fn();
+    const caseTransition = vi.fn(async () => ({ count: 1 }));
+    const tx = {
+      exceptionCase: { updateMany: caseTransition },
+      exceptionCaseAudit: { create: vi.fn(async () => ({})) },
+      reissueBudget: { findUnique: vi.fn(async () => null), create: vi.fn(), updateMany: vi.fn(async () => ({ count: 1 })) },
+      deliveryOutbox: {
+        findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === 'ob1' ? oldOutbox : null)),
+        create: reissueCreate,
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+      order: {
+        findUnique: vi.fn(async () => ({
+          status: 'ready', fulfillmentVersion: 1, inputVersion: 3,
+          customerEmail: 'parent@example.com', customerName: 'Parent', childName: 'Child',
+          selectionFilename:
+            'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/' +
+            `revisions/${'a'.repeat(64)}/integrated.md`,
+          storySourceHash: 'b'.repeat(64),
+          illustrationStyle: 'pencil_watercolor',
+          visualPackageAuthority: null,
+          book: { readUrl: 'https://app.example.com/ready?orderId=o1', pdfUrl: null, pages: [] },
+        })),
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+      bookReadiness: { findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })) },
+    };
+    const db = { $transaction: vi.fn(async (cb: (inner: typeof tx) => unknown) => cb(tx)) };
+    try {
+      const result = await reissueConfirmedFailedDelivery(db as never, {
+        exceptionCase: { id: 'ec1', orderId: 'o1', status: 'open', claimVersion: 4 },
+        outboxId: 'ob1', providerMessageId: 'email_1', providerEvent: 'bounced', now: NOW,
+      });
+      expect(result).toBe('not_ready');
+    } finally {
+      if (previousAppUrl === undefined) delete process.env.APP_URL; else process.env.APP_URL = previousAppUrl;
+      if (previousPublicAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL; else process.env.NEXT_PUBLIC_APP_URL = previousPublicAppUrl;
+    }
+    expect(caseTransition).not.toHaveBeenCalled();
+    expect(reissueCreate).not.toHaveBeenCalled();
+  });
 });

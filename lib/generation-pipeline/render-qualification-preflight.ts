@@ -25,8 +25,17 @@ import {
   type RuntimeBlueprintBookProjection,
 } from './runtime-blueprint-projection';
 import { resolvePageReferenceAssets } from './page-reference-authority';
-import { runtimeStoryKey } from './story-path';
+import {
+  runtimeStoryKey,
+  storyRefClaimsAcceptedRevisionNamespace,
+} from './story-path';
 import type { PipelineCache } from './types';
+import {
+  OrderVisualPackageAuthorityError,
+  orderRequiresVisualPackageAuthority,
+  requireOrderVisualPackageAuthority,
+  type OrderVisualPackageAuthorityInput,
+} from './order-visual-package-authority';
 
 export interface Style01PvbQualification {
   storyKey: string;
@@ -37,6 +46,7 @@ export interface Style01PvbQualification {
   packageValue: VisualPackageV4 | null;
   template: BookVisualContractTemplate | null;
   frozenAuthority: FrozenVisualPackageAuthority | null;
+  orderVisualPackageAuthorityRequired: boolean;
 }
 
 export class RenderQualificationPreflightError extends Error {
@@ -57,6 +67,8 @@ export interface RenderQualificationPreflightArgs {
   frozenContractHash?: string | null;
   /** Exact raw Story Source snapshot digest frozen on Order. */
   storySourceHash?: string | null;
+  /** Durable Order authority. Required whenever cache/origin claims an accepted revision. */
+  order?: OrderVisualPackageAuthorityInput;
   cache: Pick<
     PipelineCache,
     | 'devStoryBankFile'
@@ -77,7 +89,7 @@ export interface RenderQualificationPreflightArgs {
 }
 
 export interface Style01RuntimeAuthority {
-  version: 'style01-runtime-authority/v6';
+  version: 'style01-runtime-authority/v7';
   repoRoot: string;
   qualification: Style01PvbQualification;
   packageValue: VisualPackageV4;
@@ -87,6 +99,7 @@ export interface Style01RuntimeAuthority {
   packageBinding: ApprovedPvbRuntimeAuthorityBinding;
   bookProjection: RuntimeBlueprintBookProjection;
   boardBindings?: SetIdentityBoardBindingContext;
+  orderVisualPackageAuthorityRequired: boolean;
 }
 
 function issue(
@@ -102,6 +115,7 @@ function rejected(args: {
   styleId: string;
   packagePath?: string | null;
   reasons: VisualPackageIssue[];
+  orderVisualPackageAuthorityRequired?: boolean;
 }): Style01PvbQualification {
   return {
     storyKey: args.storyKey,
@@ -112,7 +126,18 @@ function rejected(args: {
     packageValue: null,
     template: null,
     frozenAuthority: null,
+    orderVisualPackageAuthorityRequired:
+      args.orderVisualPackageAuthorityRequired ?? false,
   };
+}
+
+function cacheClaimsAcceptedRevision(
+  cache: RenderQualificationPreflightArgs['cache'],
+): boolean {
+  if (cache.storySourceAuthorityKind === 'product_accepted_revision') return true;
+  return [cache.storyFilePath, cache.devStoryBankFile].some((value) =>
+    storyRefClaimsAcceptedRevisionNamespace(value),
+  );
 }
 
 /**
@@ -122,19 +147,93 @@ function rejected(args: {
 export function evaluateStyle01VisualPackage(
   args: RenderQualificationPreflightArgs,
 ): Style01PvbQualification | null {
-  if (!isVisualContractEnforcementEnabled()) return null;
   const styleId = normalizeStyleId(args.illustrationStyle);
-  if (styleId !== STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) return null;
   const storyKey = runtimeStoryKey(args.cache) ?? 'unknown_story';
-  const frozen = args.cache.visualPackageAuthority;
+  let orderFrozenAuthority: FrozenVisualPackageAuthority | null = null;
+  let orderVisualPackageAuthorityRequired = false;
+  try {
+    if (args.order) {
+      orderVisualPackageAuthorityRequired =
+        orderRequiresVisualPackageAuthority(args.order);
+      orderFrozenAuthority = requireOrderVisualPackageAuthority(args.order);
+    } else if (cacheClaimsAcceptedRevision(args.cache)) {
+      return rejected({
+        storyKey,
+        styleId,
+        orderVisualPackageAuthorityRequired: true,
+        reasons: [
+          issue(
+            'frozen_authority_missing',
+            'accepted-revision cache has no durable Order Visual Package authority input',
+          ),
+        ],
+      });
+    }
+  } catch (error) {
+    return rejected({
+      storyKey,
+      styleId,
+      orderVisualPackageAuthorityRequired: true,
+      reasons: [
+        issue(
+          'frozen_authority_mismatch',
+          error instanceof OrderVisualPackageAuthorityError
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : String(error),
+        ),
+      ],
+    });
+  }
+  if (
+    !orderVisualPackageAuthorityRequired &&
+    !isVisualContractEnforcementEnabled()
+  ) {
+    return null;
+  }
+  if (styleId !== STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK) {
+    if (!orderVisualPackageAuthorityRequired) return null;
+    return rejected({
+      storyKey,
+      styleId,
+      orderVisualPackageAuthorityRequired: true,
+      reasons: [
+        issue(
+          'frozen_authority_mismatch',
+          `package-backed Order style ${JSON.stringify(styleId)} has no runtime authority implementation`,
+        ),
+      ],
+    });
+  }
+  const frozen = orderFrozenAuthority ?? args.cache.visualPackageAuthority;
   if (!frozen) {
     return rejected({
       storyKey,
       styleId,
+      orderVisualPackageAuthorityRequired,
       reasons: [
         issue(
           'frozen_authority_missing',
           'pipelineCache.visualPackageAuthority is missing; visual-package/v3 and current-locator fallback are forbidden',
+        ),
+      ],
+    });
+  }
+  if (
+    orderFrozenAuthority &&
+    (!args.cache.visualPackageAuthority ||
+      canonicalJsonDigest(args.cache.visualPackageAuthority) !==
+        canonicalJsonDigest(orderFrozenAuthority))
+  ) {
+    return rejected({
+      storyKey,
+      styleId,
+      orderVisualPackageAuthorityRequired: true,
+      reasons: [
+        issue(
+          'frozen_authority_mismatch',
+          'pipeline cache Visual Package authority differs from frozen Order authority',
         ),
       ],
     });
@@ -144,7 +243,8 @@ export function evaluateStyle01VisualPackage(
     storyKey,
     styleId,
     frozenAuthority: frozen,
-    expectedOrderSourceRawDigest: args.storySourceHash,
+    expectedOrderSourceRawDigest:
+      args.order?.storySourceHash ?? args.storySourceHash,
   });
   const reasons = qualification.reasons.map((message) =>
     issue('frozen_authority_mismatch', message),
@@ -159,6 +259,7 @@ export function evaluateStyle01VisualPackage(
     template:
       qualification.packageValue?.visualContractTemplate.content ?? null,
     frozenAuthority: qualification.frozenAuthority,
+    orderVisualPackageAuthorityRequired,
   };
 }
 
@@ -299,7 +400,7 @@ function requireFrozenAuthority(
     contract,
   });
   return {
-    version: 'style01-runtime-authority/v6',
+    version: 'style01-runtime-authority/v7',
     repoRoot: args.repoRoot ?? process.cwd(),
     qualification,
     packageValue,
@@ -309,6 +410,8 @@ function requireFrozenAuthority(
     packageBinding: binding,
     bookProjection,
     ...(boardContext ? { boardBindings: boardContext } : {}),
+    orderVisualPackageAuthorityRequired:
+      qualification.orderVisualPackageAuthorityRequired,
   };
 }
 

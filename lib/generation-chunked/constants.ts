@@ -78,7 +78,9 @@ export function getPagePersistMarginMs(): number {
 export const AUDIO_PAGES_PER_CHUNK = 3;
 
 /** Bump when pipeline semantics change — part of artifact idempotency key. */
-export const GENERATION_VERSION = 1;
+// v2: package-backed Orders are bound to their Order-frozen Visual Package
+// authority and provider/Board seams enforce it independently of rollout flags.
+export const GENERATION_VERSION = 2;
 
 export const CHUNK_STAGES = [
   'pending',

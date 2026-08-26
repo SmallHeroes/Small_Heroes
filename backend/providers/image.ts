@@ -49,6 +49,7 @@ import {
 } from '@/lib/styles';
 import { composeVisualDirectorPrompt, type VisualDirectorInput } from '../../lib/visualDirector';
 import { composeContractAuthoritativePrompt } from '../../lib/visual-contract-compiler/buildVisualContractPromptBlock';
+import { assertProviderPromptHasNoInternalSpatialMarkers } from '../../lib/visual-contract-compiler/projectContractProse';
 import { appendOperatorNoteToRenderPrompt } from '../../lib/human-qa/operator-note';
 import type { Companion } from '../../lib/companions';
 import path from 'path';
@@ -463,6 +464,8 @@ export interface ImageInput {
   visualContractPromptBlock?: string;
   /** R1C preflight-issued, exact package/frozen-contract authority. Required for enforced Style01 provider calls. */
   runtimeVisualAuthority?: Style01RuntimeAuthority | null;
+  /** Durable Order predicate; when true the provider fence is active regardless of environment flags. */
+  runtimeVisualAuthorityRequired?: boolean;
   /** Exact deterministic PVB frame projection; required whenever runtimeVisualAuthority is v4. */
   runtimeBlueprintFrame?: RuntimeBlueprintFrameProjection;
   /** Exact contract cast/content presence; bypasses all story-text/direction inference on the enforced path. */
@@ -833,6 +836,8 @@ export interface CoverImageInput {
   visualContractPromptBlock?: string;
   /** R1C preflight-issued authority, forwarded unchanged to the shared provider seam. */
   runtimeVisualAuthority?: Style01RuntimeAuthority | null;
+  /** Durable Order predicate; package-backed cover calls must set this true. */
+  runtimeVisualAuthorityRequired?: boolean;
   /**
    * (Milestone B) Tagged set refs for the COVER. EMPTY/absent today → byte-identical no-op; forwarded verbatim into
    * the SAME Style01 assembly the pages use, so cover parity is automatic. Milestone C populates it.
@@ -3635,6 +3640,13 @@ async function generateWithGPTImageStyle01Phase2Once(input: ImageInput): Promise
   // contract block above. Additive pose/spacing guidance only; never enters the contract block, its hash, the
   // safety-QA prompt/qaInput, or the negatives. Absent note → `prompt === basePrompt` (byte-identical to today).
   const prompt = appendOperatorNoteToRenderPrompt(basePrompt, input.operatorNote);
+  // Egress defense in depth on the EXACT provider bytes: the assertion inside
+  // composeContractAuthoritativePrompt covers only a prefix of this string (role map,
+  // copy instructions and the operator note are appended after it).
+  assertProviderPromptHasNoInternalSpatialMarkers(
+    prompt,
+    'final Style01 provider prompt',
+  );
 
   console.log(
     `[style01_phase2] orderId=${input.orderId ?? 'unknown'} page=${input.pageNumber} ` +
@@ -4151,6 +4163,7 @@ function applyRuntimeWorldAuthority(input: ImageInput): ImageInput {
   const projection = buildRuntimePageAuthorityProjection({
     illustrationStyle: input.illustrationStyle,
     authority: input.runtimeVisualAuthority,
+    runtimeVisualAuthorityRequired: input.runtimeVisualAuthorityRequired,
     pageNumber: input.pageNumber,
     requestedVisualDirection: input.visualDirection,
   });
@@ -4381,6 +4394,7 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
   assertStyle01RuntimeAuthorityForPage({
     illustrationStyle: input.illustrationStyle,
     authority: input.runtimeVisualAuthority,
+    runtimeVisualAuthorityRequired: input.runtimeVisualAuthorityRequired,
     pageNumber: 0,
   });
   assertShippedBookStyleEngineActive(input.illustrationStyle);
@@ -4420,6 +4434,7 @@ export async function generateBookCover(input: CoverImageInput): Promise<Generat
     contractStyleRefEnvironment: input.contractStyleRefEnvironment ?? null,
     visualContractPromptBlock: input.visualContractPromptBlock,
     runtimeVisualAuthority: input.runtimeVisualAuthority,
+    runtimeVisualAuthorityRequired: input.runtimeVisualAuthorityRequired,
     // (Milestone B) Forward the cover's tagged set refs into the SAME Style01 assembly the pages use — absent today,
     // so this stays a no-op and cover parity comes for free from the shared seam.
     setIdentityBoardRefs: input.setIdentityBoardRefs,
@@ -4590,6 +4605,8 @@ export async function generateAllPageImages(
     illustrationStyle: string;
     /** R1C exact approved/frozen authority. Required before any enforced Style01 model/provider call. */
     runtimeVisualAuthority?: Style01RuntimeAuthority | null;
+    /** Durable Order predicate; package-backed page calls must set this true. */
+    runtimeVisualAuthorityRequired?: boolean;
     childDescription?: string;
     /** Child first name (Visual Director and prompts). */
     childName?: string | null;
@@ -4689,6 +4706,7 @@ export async function generateAllPageImages(
     const projection = buildRuntimePageAuthorityProjection({
       illustrationStyle: config.illustrationStyle,
       authority: config.runtimeVisualAuthority,
+      runtimeVisualAuthorityRequired: config.runtimeVisualAuthorityRequired,
       pageNumber: page.pageNumber,
       requestedVisualDirection: page.visualDirection,
     });
@@ -4721,7 +4739,7 @@ export async function generateAllPageImages(
   const normalizedStyle = normalizeStyleId(config.illustrationStyle);
   const pvbRuntimeActive =
     config.runtimeVisualAuthority?.version ===
-    'style01-runtime-authority/v6';
+    'style01-runtime-authority/v7';
   const printPdfOptimized = pvbRuntimeActive
     ? false
     : !!config.pdfEnabled;
@@ -5318,6 +5336,7 @@ export async function generateAllPageImages(
       | 'operatorNote'
       | 'setIdentityBoardRefs'
       | 'runtimeVisualAuthority'
+      | 'runtimeVisualAuthorityRequired'
       | 'runtimeBlueprintFrame'
     > = {
       bookPageText: page.bookPageText ?? null,
@@ -5330,6 +5349,7 @@ export async function generateAllPageImages(
       // `taggedRefPlan` stays null → byte-identical.
       setIdentityBoardRefs: page.setIdentityBoardRefs ?? undefined,
       runtimeVisualAuthority: config.runtimeVisualAuthority,
+      runtimeVisualAuthorityRequired: config.runtimeVisualAuthorityRequired,
       runtimeBlueprintFrame: page.runtimeBlueprintFrame,
       guardedV2RecipeId:
         pvbRuntimeActive

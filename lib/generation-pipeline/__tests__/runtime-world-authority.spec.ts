@@ -114,7 +114,7 @@ function authority(
     contract,
   });
   return {
-    version: 'style01-runtime-authority/v6',
+    version: 'style01-runtime-authority/v7',
     repoRoot: process.cwd(),
     qualification: {
       storyKey: packageValue.storyKey,
@@ -125,6 +125,7 @@ function authority(
       packageValue,
       template: packageValue.visualContractTemplate.content,
       frozenAuthority,
+      orderVisualPackageAuthorityRequired: false,
     },
     packageValue,
     frozenAuthority,
@@ -135,6 +136,7 @@ function authority(
       frozen: frozenAuthority,
     }),
     bookProjection,
+    orderVisualPackageAuthorityRequired: false,
   };
 }
 
@@ -291,7 +293,7 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
 
   it('reports the exact v5 runtime-authority requirement for absent or stale authority', () => {
     const expectedMessage =
-      '[runtime_world_authority:runtime_authority_missing] enforced Style01 provider call has no style01-runtime-authority/v6 preflight-issued authority';
+      '[runtime_world_authority:runtime_authority_missing] required Style01 provider call has no style01-runtime-authority/v7 preflight-issued authority';
     expect(() =>
       assertStyle01RuntimeAuthorityForPage({
         illustrationStyle: 'soft_hand_drawn_storybook',
@@ -311,6 +313,41 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
         pageNumber: 1,
       }),
     ).toThrowError(expectedMessage);
+  });
+
+  it('keeps the package-required provider fence active in Production with enforcement off', async () => {
+    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'false');
+    await expect(
+      generateImage({
+        ...imageInput(null),
+        runtimeVisualAuthorityRequired: true,
+      }),
+    ).rejects.toBeInstanceOf(RuntimeVisualAuthorityBoundaryError);
+    await expect(
+      generateBookCover({
+        childName: 'Noa',
+        topicLabel: 'Courage',
+        storyTitle: 'Fixture',
+        illustrationStyle: 'soft_hand_drawn_storybook',
+        runtimeVisualAuthorityRequired: true,
+      }),
+    ).rejects.toBeInstanceOf(RuntimeVisualAuthorityBoundaryError);
+    expect(generateGptSpy).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects a legacy runtime authority when the provider call claims Order-frozen package authority', () => {
+    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'false');
+    expect(() =>
+      assertStyle01RuntimeAuthorityForPage({
+        illustrationStyle: 'soft_hand_drawn_storybook',
+        authority: authority(),
+        runtimeVisualAuthorityRequired: true,
+        pageNumber: 1,
+      }),
+    ).toThrow(/received a legacy runtime authority/);
   });
 
   it('blocks direct page and cover provider entry before provider reachability when v5 authority is absent', async () => {

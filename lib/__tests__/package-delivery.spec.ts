@@ -6,6 +6,11 @@ const order = {
   customerEmail: 'parent@example.com',
   customerName: 'Parent',
   childName: 'Kid',
+  // Genuine legacy story-bank Order: no package authority anywhere.
+  selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+  storySourceHash: 'f'.repeat(64),
+  illustrationStyle: 'pencil_watercolor' as const,
+  visualPackageAuthority: null,
 };
 
 const allowGate = {
@@ -207,6 +212,72 @@ describe('finalizePackageDelivery — readiness-independent safety pre-gate (Fix
     );
     expect(result.mode).toBe('safety_hold');
     expect(commit).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe('finalizePackageDelivery — readiness-independent package-authority gate', () => {
+  const packageOrderInvalid = {
+    ...order,
+    selectionFilename:
+      'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/' +
+      `revisions/${'a'.repeat(64)}/integrated.md`,
+    storySourceHash: 'b'.repeat(64),
+    visualPackageAuthority: null,
+  };
+
+  it('readiness OFF + accepted-revision Order with missing authority → contract_world hold, no ship CAS, no email', async () => {
+    const prisma = db();
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order: packageOrderInvalid, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true, manifest: null });
+    // The park goes through writeOrderHoldFenced ($executeRaw); the legacy ship path is never entered.
+    expect(prisma.$executeRaw).toHaveBeenCalled();
+    expect(prisma.order.update).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(prisma.generationJob.update).toHaveBeenCalled();
+  });
+
+  it('readiness OFF + legacy Order carrying package authority (origin mix) → same hold, no email', async () => {
+    const prisma = db();
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      {
+        order: { ...order, visualPackageAuthority: { version: 'hostile' } },
+        deliveryGate: allowGate,
+        safetyGate: { held: false, reason: null },
+        readUrl: 'https://app/ready?orderId=o1',
+        pdfUrl: null,
+        firstAudioUrl: null,
+      },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('readiness ON delegates the same predicate to the readiness commit (no pre-park, evidence-rich path)', async () => {
+    const prisma = db();
+    const send = vi.fn();
+    const commit = vi.fn(async () => ({
+      manifestStatus: 'blocked' as const,
+      enqueued: false,
+      orderStatus: 'needs_human_qa',
+      reason: 'contract_world_hold:visual_package_authority_invalid',
+      revision: 1,
+    }));
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order: packageOrderInvalid, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { readinessEnabled: () => true, commit: commit as never, send },
+    );
+    expect(result).toMatchObject({ mode: 'manifest', deliveryHeld: true });
+    expect(commit).toHaveBeenCalledTimes(1);
     expect(send).not.toHaveBeenCalled();
   });
 });

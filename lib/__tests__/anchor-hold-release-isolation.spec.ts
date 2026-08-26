@@ -195,6 +195,25 @@ describe('anchor-hold-release DELIVERY (flag-OFF: direct send)', () => {
     expect(postCommit).toHaveBeenCalledTimes(1);
   });
 
+  it('package-backed Order with missing authority → 409 BEFORE any release CAS or email (flag-independent guard)', async () => {
+    const { POST, email, releaseExec, commit } = await loadRoute({
+      flagOn: false,
+      order: heldOrder('anchor_low_confidence:soft_band', {
+        selectionFilename:
+          'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/' +
+          `revisions/${'a'.repeat(64)}/integrated.md`,
+        storySourceHash: 'b'.repeat(64),
+        illustrationStyle: 'pencil_watercolor',
+        visualPackageAuthority: null,
+      }),
+    });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(releaseExec).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
+  });
+
   it('a concurrent caller that loses the release CAS (0 rows) → 409, no send (exactly-once)', async () => {
     const { POST, email } = await loadRoute({
       flagOn: false, order: heldOrder('anchor_low_confidence:soft_band'),

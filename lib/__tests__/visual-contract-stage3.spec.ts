@@ -20,6 +20,7 @@ import {
   projectPageProviderPromptProse,
   projectProviderSafeBookSpatialProse,
   projectProviderSafeSpatialProse,
+  PROVIDER_SPATIAL_REFERENCE_PROJECTION_VERSION,
   type BookVisualContract,
   type PageVisualContract,
   type VisualZone,
@@ -1090,6 +1091,19 @@ describe('Stage 3 — the projections are pure, deterministic and order-stable',
     expect(projectPageMustNotShow(page, sc)).toEqual([
       'the child must NOT sit on the pale vinyl floor [spatial:floor]',
     ]);
+  });
+
+  it('pins the provider spatial projection version tag (behavior cutover marker)', () => {
+    // The v1→v2 cutover is a real behavior boundary (description-aware labels,
+    // non-destructive dedupe); downstream evidence records this exact tag.
+    expect(PROVIDER_SPATIAL_REFERENCE_PROJECTION_VERSION).toBe(
+      'provider-spatial-reference-projection/v2',
+    );
+    const sc = structuredContract();
+    const page = sc.pageContracts[0]!;
+    expect(projectPageProviderPromptProse(page, sc).version).toBe(
+      PROVIDER_SPATIAL_REFERENCE_PROJECTION_VERSION,
+    );
   });
 
   it('keeps canonical spatial identity markers while projecting marker-free provider prose without mutation', () => {

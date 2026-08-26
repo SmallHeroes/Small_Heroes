@@ -34,6 +34,8 @@ vi.mock('@/backend/providers/story-bank-index', async () => {
 
 import { buildFrozenStoryProductTruth } from '../frozen-product-truth';
 import { finalizeAndPersistStoryText } from '../text-finalization';
+import { evaluateWizardVisualPackageSelection } from '@/lib/visual-package/wizardVisualPackageSelection';
+import { STYLE_IDS } from '@/lib/styles';
 
 const SOURCE_REF =
   'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb/integrated.md';
@@ -45,6 +47,14 @@ function order(overrides: Partial<Order> = {}): Order {
     expectedPageCount: 8,
     storyDirection: 'bedtime',
   });
+  const selection = evaluateWizardVisualPackageSelection({
+    repoRoot: process.cwd(),
+    storyKey: 'chameleon_koko_bedtime',
+    styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+  });
+  if (!selection.frozenAuthority) {
+    throw new Error('published Chameleon authority fixture is missing');
+  }
   return {
     id: 'accepted-revision-order',
     characterAnchors: {
@@ -62,6 +72,8 @@ function order(overrides: Partial<Order> = {}): Order {
     storyLength: 'short',
     storySourceHash: frozen.storySourceHash,
     topic: 'TRANSITION',
+    illustrationStyle: 'SOFT_HAND_DRAWN_STORYBOOK',
+    visualPackageAuthority: selection.frozenAuthority,
     ...overrides,
   } as Order;
 }
@@ -72,9 +84,17 @@ describe('accepted-revision text finalization boundary', () => {
   });
 
   it('rejects frozen source byte drift before personalization or legacy fallback', async () => {
+    const changedDigest = '0'.repeat(64);
+    const base = order();
     await expect(
       finalizeAndPersistStoryText(
-        order({ storySourceHash: '0'.repeat(64) }),
+        order({
+          storySourceHash: changedDigest,
+          visualPackageAuthority: {
+            ...(base.visualPackageAuthority as object),
+            sourceRawDigest: changedDigest,
+          },
+        }),
         {},
       ),
     ).rejects.toThrow(

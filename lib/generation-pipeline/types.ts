@@ -97,8 +97,8 @@ export type PipelineCache = {
    * and persisted here by `ensureFrozenVisualContract` before the cover, atomically with `Order.visualContractHash`
    * (= its canonical hash). Typed as opaque JSON (the contract is a deep interface tree that isn't structurally a
    * `Prisma.InputJsonObject`, so a typed field would break every `PipelineCache → InputJsonValue` write); consumers
-   * cast/parse it back to `BookVisualContract`. Present only when the freeze ran (flag on + a contract available);
-   * absent = legacy behavior. No consumer reads it yet in WS0b — adapters/steering land in later slices.
+   * cast/parse it back to `BookVisualContract`. Legacy presence remains rollout-controlled; package-backed Orders
+   * require it in every environment. Absence is renderable only for a genuine legacy Order whose gate is off.
    */
   visualContract?: Prisma.InputJsonValue;
   /**
@@ -109,14 +109,12 @@ export type PipelineCache = {
   visualPackageAuthority?: import('@/lib/visual-package').FrozenVisualPackageAuthority;
   /**
    * (Set Identity Board, Milestone C) This order's per-order board ACTIVATION + BINDINGS, pinned to the frozen
-   * contract hash. Written ONLY by `set-identity-board-stage.ts`, ONLY at the fresh dna→cover transition, and ONLY
-   * when `isSetIdentityBoardEnabled()` (hard-off on Vercel Production) — via a single-key `jsonb_set`, never
-   * `saveCache`.
+   * contract hash. Written ONLY by `set-identity-board-stage.ts`, before the first paid image (fresh or recovery),
+   * when either the legacy rollout gate is active or the durable Order is package-backed — via a single-key
+   * `jsonb_set`, never `saveCache`.
    *
-   * ABSENT = LEGACY ORDER, and permanently so: every board branch (bind stage, pre-render assertion, tagged refs,
-   * the `set_refs` stage decision) gates on this field being `mode:'required-v2'`, so an order that never got a
-   * snapshot renders byte-identically to today FOREVER — including an order already in flight when the flag is
-   * switched on. Boards are never introduced mid-book.
+   * ABSENT may remain the permanent legacy state only for a genuine legacy Order. Package-backed Orders must acquire
+   * a `required-v2` snapshot before their first paid image and fail closed if it is missing or cannot be bound.
    *
    * Carries only DURABLE descriptors (`storageKey` + a resolved url), never a local /tmp path —
    * `assertCacheHasNoLocalArtifactPaths` would reject the cache on serverless.

@@ -49,6 +49,11 @@ import {
   openExceptionCase,
   resolveActiveRecoveryCaseInTx,
 } from '@/lib/generation-chunked/exception-case';
+import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
+import {
+  OrderVisualPackageAuthorityError,
+  requireOrderVisualPackageAuthority,
+} from './order-visual-package-authority';
 
 const log = createLogger({ subsystem: 'readiness-manifest' });
 
@@ -314,6 +319,8 @@ export interface OrderTruth {
   storySourceHash: string | null;
   selectionFilename: string | null;
   frozenProductVersion: string | null;
+  visualPackageAuthority?: Prisma.JsonValue | null;
+  illustrationStyle: string;
   customerEmail: string;
   customerName: string | null;
   childName: string;
@@ -599,6 +606,8 @@ function isToctou(e: unknown): boolean {
  */
 function fingerprintOf(f: {
   expectedPageCount: number | null; storySourceHash: string | null; selectionFilename: string | null; frozenProductVersion: string | null;
+  visualPackageAuthority?: Prisma.JsonValue | null;
+  illustrationStyle: string;
   fulfillmentVersion: number; inputVersion: number; deliveryFenceVersion: number;
   customerEmail: string; customerName: string | null; childName: string; readUrl: string | null; pdfUrl: string | null; firstAudioUrl: string | null;
   cover: string | null; pages: Array<[number, string, string | null]>;
@@ -608,7 +617,17 @@ function fingerprintOf(f: {
     // (delivery fence — Codex round-4 P0) deliveryFenceVersion joins the fingerprint: a hold write that bumps it
     // between the out-of-tx eval and the in-tx commit drifts this hash → early TOCTOU abort (before the manifest),
     // in addition to the final ready-CAS fence binding. Defense-in-depth against the READ COMMITTED interleave.
-    frozen: [f.expectedPageCount, f.storySourceHash, f.selectionFilename, f.frozenProductVersion, f.fulfillmentVersion, f.inputVersion, f.deliveryFenceVersion],
+    frozen: [
+      f.expectedPageCount,
+      f.storySourceHash,
+      f.selectionFilename,
+      f.frozenProductVersion,
+      canonicalJsonDigest(f.visualPackageAuthority ?? null),
+      f.illustrationStyle,
+      f.fulfillmentVersion,
+      f.inputVersion,
+      f.deliveryFenceVersion,
+    ],
     payload: [f.customerEmail, f.customerName, f.childName, f.readUrl, f.pdfUrl, f.firstAudioUrl],
     cover: f.cover, pages: f.pages,
     // (#7-a) Quality evidence participates in the TOCTOU fingerprint: an evidence mutation between eval and
@@ -621,7 +640,7 @@ function fingerprintOf(f: {
 }
 
 const COMMIT_SELECT = {
-  id: true, fulfillmentVersion: true, inputVersion: true, deliveryFenceVersion: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true,
+  id: true, fulfillmentVersion: true, inputVersion: true, deliveryFenceVersion: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true, visualPackageAuthority: true, illustrationStyle: true,
   customerEmail: true, customerName: true, childName: true, visualContractHash: true,
   book: { select: { coverImageUrl: true, readUrl: true, pdfUrl: true, pages: { orderBy: { pageNumber: 'asc' as const }, select: { pageNumber: true, text: true, audioUrl: true, imageAsset: { select: { url: true, presentationUrl: true } } } } } },
 } as const;
@@ -632,7 +651,7 @@ async function loadCommitInputs(db: PrismaClient | Tx, orderId: string): Promise
   if (!o || !o.book) return null;
   const pages = o.book.pages.map((p) => ({ pageNumber: p.pageNumber, imageUrl: p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null, text: p.text }));
   const firstAudioUrl = o.book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
-  const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, inputVersion: o.inputVersion, deliveryFenceVersion: o.deliveryFenceVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName, visualContractHash: o.visualContractHash };
+  const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, inputVersion: o.inputVersion, deliveryFenceVersion: o.deliveryFenceVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, visualPackageAuthority: o.visualPackageAuthority, illustrationStyle: o.illustrationStyle, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName, visualContractHash: o.visualContractHash };
   const book: BookData = { coverImageUrl: o.book.coverImageUrl, readUrl: o.book.readUrl, pdfUrl: o.book.pdfUrl, firstAudioUrl, pages };
   const quality = await loadQualityEvidence(db, orderId);
   const fingerprint = fingerprintOf({
@@ -698,6 +717,59 @@ interface ReadinessDecision {
   contractHardHold: boolean;
   /** (Fix 5) The kind of hard hold, driving a distinct top-level marker (`safety_hold:` vs `contract_world_hold:`). */
   hardHoldKind: HardHoldKind | null;
+}
+
+/**
+ * Delivery is never allowed to outlive a malformed package binding. This gate
+ * runs before asset inspection and cannot be softened by QA_SOFT_DELIVER: an
+ * accepted-revision Order must carry one exact, internally consistent package
+ * authority; a genuine legacy Order must carry none.
+ */
+function orderVisualPackageAuthorityDecision(
+  order: OrderTruth,
+): ReadinessDecision | null {
+  try {
+    requireOrderVisualPackageAuthority(order);
+    return null;
+  } catch (error) {
+    if (!(error instanceof OrderVisualPackageAuthorityError)) throw error;
+    const authorityDigest = canonicalJsonDigest(
+      order.visualPackageAuthority ?? null,
+    );
+    const reason = 'visual_package_authority_invalid';
+    const evidence = {
+      scope: BASE_BOOK_SCOPE,
+      visualPackageAuthority: {
+        status: 'blocked',
+        reason,
+        authorityDigest,
+        issues: [...error.reasons],
+      },
+    };
+    const inputsHash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          reason,
+          selectionFilename: order.selectionFilename,
+          storySourceHash: order.storySourceHash,
+          illustrationStyle: order.illustrationStyle,
+          authorityDigest,
+          inputVersion: order.inputVersion,
+          deliveryFenceVersion: order.deliveryFenceVersion,
+        }),
+      )
+      .digest('hex');
+    return {
+      status: 'blocked',
+      reason,
+      inputsHash,
+      evidence,
+      blockExceptionKind: 'integrity_blocked',
+      blockClassification: 'package_authority_invalid',
+      contractHardHold: true,
+      hardHoldKind: 'contract_world',
+    };
+  }
 }
 
 /** The current delivered-bytes hash per artifact, taken from the integrity gate's inspect evidence (the same
@@ -1001,32 +1073,36 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
     const loaded = await loadCommitInputs(prisma, args.orderId);
     if (!loaded) throw new Error('readiness_inputs_missing');
     const appBaseUrl = deps.appBaseUrl ?? readAppBaseUrl();
-    const result = await evaluateBaseBookIntegrity(buildIntegrityInput(loaded.order, loaded.book, appBaseUrl), deps.inspect ?? inspectAsset);
-    // (#7-a) FAIL-CLOSED Quality gate. Required artifacts = cover + every rendered page. The current
-    // delivered-bytes hash comes from the integrity gate's inspect (same presentationUrl ?? url bytes), so a
-    // PASS row for other bytes cannot authorize the delivered image. No `passed` for every artifact → BLOCK.
-    const requiredKeys = [coverArtifactKey(), ...loaded.book.pages.map((p) => pageArtifactKey(p.pageNumber))];
-    // (WS0b) Thread the Order's active contract so a QualityEvidence row bound to a superseded contract is re-QA'd
-    // (contract_stale → evidence_unknown). null (no contract frozen) → isQualityEvidenceContractStale(null,null) is
-    // false → byte-identical to today. This is the ONLY caller that threads activeContractHash.
-    // (release-as-readiness-mode, 2a-2) PROJECTION: apply the operator's override to a COPY of exactly one quality row
-    // so Gate 1 evaluates the intended release. `loaded.quality` (and thus the raw TOCTOU fingerprint) is untouched.
-    // This projection is NOT the authority — applyReleaseInTx re-checks admissibility on RAW data inside the tx.
-    const releaseRuntime: ReleaseRuntime | undefined = args.release
-      ? {
-          orderId: args.orderId,
-          request: args.release,
-          currentHash: currentArtifactHashes(result).get(args.release.artifactKey) ?? null,
-          observedFence: loaded.order.deliveryFenceVersion,
-          observedInputVersion: loaded.order.inputVersion,
-          activeContractHash: loaded.order.visualContractHash,
-        }
-      : undefined;
-    const projectedQuality = args.release ? projectReleaseOntoQuality(loaded.quality, args.release) : loaded.quality;
-    const quality = evaluateQualityGate(requiredKeys, projectedQuality, currentArtifactHashes(result), {
-      activeContractHash: loaded.order.visualContractHash,
-    });
-    const decision = decideReadiness(result, quality);
+    let decision = orderVisualPackageAuthorityDecision(loaded.order);
+    let releaseRuntime: ReleaseRuntime | undefined;
+    if (!decision) {
+      const result = await evaluateBaseBookIntegrity(buildIntegrityInput(loaded.order, loaded.book, appBaseUrl), deps.inspect ?? inspectAsset);
+      // (#7-a) FAIL-CLOSED Quality gate. Required artifacts = cover + every rendered page. The current
+      // delivered-bytes hash comes from the integrity gate's inspect (same presentationUrl ?? url bytes), so a
+      // PASS row for other bytes cannot authorize the delivered image. No `passed` for every artifact → BLOCK.
+      const requiredKeys = [coverArtifactKey(), ...loaded.book.pages.map((p) => pageArtifactKey(p.pageNumber))];
+      // (WS0b) Thread the Order's active contract so a QualityEvidence row bound to a superseded contract is re-QA'd
+      // (contract_stale → evidence_unknown). null (no contract frozen) → isQualityEvidenceContractStale(null,null) is
+      // false → byte-identical to today. This is the ONLY caller that threads activeContractHash.
+      // (release-as-readiness-mode, 2a-2) PROJECTION: apply the operator's override to a COPY of exactly one quality row
+      // so Gate 1 evaluates the intended release. `loaded.quality` (and thus the raw TOCTOU fingerprint) is untouched.
+      // This projection is NOT the authority — applyReleaseInTx re-checks admissibility on RAW data inside the tx.
+      releaseRuntime = args.release
+        ? {
+            orderId: args.orderId,
+            request: args.release,
+            currentHash: currentArtifactHashes(result).get(args.release.artifactKey) ?? null,
+            observedFence: loaded.order.deliveryFenceVersion,
+            observedInputVersion: loaded.order.inputVersion,
+            activeContractHash: loaded.order.visualContractHash,
+          }
+        : undefined;
+      const projectedQuality = args.release ? projectReleaseOntoQuality(loaded.quality, args.release) : loaded.quality;
+      const quality = evaluateQualityGate(requiredKeys, projectedQuality, currentArtifactHashes(result), {
+        activeContractHash: loaded.order.visualContractHash,
+      });
+      decision = decideReadiness(result, quality);
+    }
     try {
       // (Codex B′) Receipt-fence the commit tx (flag-on). operationKey = order + scope + the inputVersion this
       // attempt evaluated + the combined integrity+quality inputsHash + the anchor disposition. A TOCTOU/revision

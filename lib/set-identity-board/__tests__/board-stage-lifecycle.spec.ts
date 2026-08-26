@@ -13,6 +13,12 @@ import {
 import { SetIdentityBoardUnavailableError, type BoardResolverDeps } from '../resolveBoards';
 import { clone, makeApprovedEntry, makeContract, STYLE } from './board-fixtures';
 import { computeSetDefinitionHash } from '../setDefinition';
+import {
+  VISUAL_PACKAGE_V4_FREEZE_VERSION,
+  VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION,
+  VISUAL_PACKAGE_V4_VERSION,
+  type FrozenVisualPackageAuthority,
+} from '@/lib/visual-package/visualPackageV4';
 
 /**
  * SCOPE + HONESTY NOTE.
@@ -31,6 +37,12 @@ import { computeSetDefinitionHash } from '../setDefinition';
 
 const REQUIRED_ID = 'set_alpha';
 const ORDER_ID = 'order_synthetic_1';
+const PACKAGE_STORY_KEY = 'chameleon_koko_bedtime';
+const PACKAGE_REVISION = 'a'.repeat(64);
+const PACKAGE_SOURCE_DIGEST = 'b'.repeat(64);
+const PACKAGE_SOURCE =
+  `story-pipeline/04_approved_story_sources/accepted/${PACKAGE_STORY_KEY}/` +
+  `revisions/${PACKAGE_REVISION}/integrated.md`;
 
 function frozenHash(): string {
   return computeVisualContractHash(makeContract());
@@ -46,6 +58,36 @@ function makeOrder(overrides: Partial<Order> = {}): Order {
     visualContractHash: frozenHash(),
     ...overrides,
   } as unknown as Order;
+}
+
+function makePackageAuthority(): FrozenVisualPackageAuthority {
+  return {
+    version: VISUAL_PACKAGE_V4_FREEZE_VERSION,
+    manifestVersion: VISUAL_PACKAGE_V4_VERSION,
+    storyKey: PACKAGE_STORY_KEY,
+    styleId: STYLE,
+    packagePath: `visual-packages/approved/${PACKAGE_STORY_KEY}/${STYLE}/revisions/${'c'.repeat(64)}.visual-package.json`,
+    packageRevisionDigest: 'c'.repeat(64),
+    sourcePath: PACKAGE_SOURCE,
+    sourceDigest: 'd'.repeat(64),
+    sourceRawDigest: PACKAGE_SOURCE_DIGEST,
+    blueprintDigest: 'e'.repeat(64),
+    authoringAuthorityDigest: 'f'.repeat(64),
+    planningApprovalDigest: '1'.repeat(64),
+    styleAuthorityDigest: '2'.repeat(64),
+    visualContractTemplateDigest: '3'.repeat(64),
+    reconciliationDigest: '4'.repeat(64),
+    layoutPolicyVersion: VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION,
+  };
+}
+
+function makePackageOrder(overrides: Partial<Order> = {}): Order {
+  return makeOrder({
+    selectionFilename: PACKAGE_SOURCE,
+    storySourceHash: PACKAGE_SOURCE_DIGEST,
+    visualPackageAuthority: makePackageAuthority(),
+    ...overrides,
+  });
 }
 
 /** A cache with a frozen, readable contract — i.e. an order the freeze already ran for. */
@@ -193,8 +235,8 @@ describe('stage order — dna → set_refs → cover when enabled + snapshotted'
   });
 });
 
-describe('stage order — dna → cover (NO set_refs) when the flag is off', () => {
-  it('the flag off means no snapshot is ever written, so set_refs is unreachable', async () => {
+describe('legacy stage order — dna → cover (NO set_refs) when the flag is off', () => {
+  it('the flag off means no legacy snapshot is written, so set_refs is unreachable', async () => {
     const barrier = makeBarrier();
     const db = makeDb();
     const cache = await ensureSetIdentityBoardSnapshot(makeOrder(), makeCache(), {
@@ -208,7 +250,7 @@ describe('stage order — dna → cover (NO set_refs) when the flag is off', () 
     expect(deriveStartingStageReplica(JOB, cache, false)).toBe('cover');
   });
 
-  it('Vercel Production can never ACTIVATE an order, even with the var leaked on', async () => {
+  it('Vercel Production does not activate a legacy Order even with the var leaked on', async () => {
     process.env.VERCEL_ENV = 'production';
     enableFlag();
     const barrier = makeBarrier();
@@ -216,7 +258,7 @@ describe('stage order — dna → cover (NO set_refs) when the flag is off', () 
       db: asPrisma(makeDb()),
       withMutation: barrier.withMutation,
     });
-    // The flag is the gate on ACTIVATION, and prod is hard-off → no snapshot → set_refs unreachable → legacy.
+    // For a legacy Order the rollout flag remains hard-off in Production.
     expect(cache.setIdentityBoards).toBeUndefined();
     expect(barrier.withMutation).not.toHaveBeenCalled();
     expect(shouldEnterSetRefsStage(cache)).toBe(false);
@@ -234,6 +276,39 @@ describe('stage order — dna → cover (NO set_refs) when the flag is off', () 
     expect(
       deriveStartingStageReplica({ textDone: true, imagesDone: true, audioDone: true, packaged: true }, cache, true)
     ).toBe('done');
+  });
+});
+
+describe('package-backed Orders require Board activation independent of rollout flags', () => {
+  it.each([
+    ['preview with the flag off', 'preview', undefined],
+    ['Production even with the flag leaked off', 'production', 'false'],
+  ])('activates the required-v2 snapshot in %s', async (_label, vercelEnv, flag) => {
+    process.env.VERCEL_ENV = vercelEnv;
+    if (flag === undefined) delete process.env.SET_IDENTITY_BOARD;
+    else process.env.SET_IDENTITY_BOARD = flag;
+    const barrier = makeBarrier();
+    const order = makePackageOrder();
+    const cache = await ensureSetIdentityBoardSnapshot(order, makeCache(), {
+      db: asPrisma(makeDb()),
+      withMutation: barrier.withMutation,
+    });
+
+    expect(cache.setIdentityBoards).toMatchObject({
+      mode: 'required-v2',
+      frozenContractHash: frozenHash(),
+      bindings: {},
+    });
+    expect(barrier.withMutation).toHaveBeenCalledTimes(1);
+    expect(shouldEnterSetRefsStage(cache)).toBe(true);
+  });
+
+  it('fails closed before render when the package Order has no Board snapshot', async () => {
+    delete process.env.SET_IDENTITY_BOARD;
+    process.env.VERCEL_ENV = 'production';
+    await expect(assertBound(makePackageOrder(), makeCache())).rejects.toThrow(
+      /package-backed Order has no required-v2 Board snapshot/,
+    );
   });
 });
 

@@ -32,6 +32,8 @@ import {
   finalizeVisualPackageV4,
   loadCurrentVisualPackageV4,
   loadFrozenVisualPackageV4,
+  loadVisualPackageV4Revision,
+  InvalidVisualPackageV4Error,
   publishVisualPackageV4,
   validateVisualPackageV4,
   visualPackageV4LayoutIssues,
@@ -373,6 +375,51 @@ describe('R1D-PVB-C1 immutable visual-package/v5', () => {
     expect(
       readFileSync(path.join(root, firstPublication.packagePath), 'utf8'),
     ).toContain(first.revisionDigest);
+  });
+
+  it('rejects aliased package-path spellings at the immutable loader and the frozen-authority loader', () => {
+    const root = temporaryRoot();
+    const approvedPackagesDir = path.join(root, 'visual-packages', 'approved');
+    const packageValue = packageFor(buildBlueprintFixture('single_location'));
+    const publication = publishVisualPackageV4({
+      repoRoot: root,
+      approvedPackagesDir,
+      packageValue,
+      write: true,
+    });
+    const frozen = buildFrozenVisualPackageAuthority({
+      packageValue,
+      packagePath: publication.packagePath,
+    });
+    // Canonical spelling loads.
+    expect(
+      loadVisualPackageV4Revision({
+        repoRoot: root,
+        packagePath: publication.packagePath,
+      }).revisionDigest,
+    ).toBe(packageValue.revisionDigest);
+    // Every aliased spelling of the SAME file fails closed at the loader —
+    // it must never let expected authority be reconstructed from the alias.
+    const aliases = [
+      `./${publication.packagePath}`,
+      publication.packagePath.replace(
+        'visual-packages/',
+        'visual-packages//',
+      ),
+      publication.packagePath.replace(/\//g, '\\'),
+      ` ${publication.packagePath}`,
+    ];
+    for (const alias of aliases) {
+      expect(() =>
+        loadVisualPackageV4Revision({ repoRoot: root, packagePath: alias }),
+      ).toThrow(InvalidVisualPackageV4Error);
+      expect(() =>
+        loadFrozenVisualPackageV4({
+          repoRoot: root,
+          frozen: { ...frozen, packagePath: alias },
+        }),
+      ).toThrow(InvalidVisualPackageV4Error);
+    }
   });
 
   it('admits a current Wizard slot only while its package-bound Story Source remains exact', () => {

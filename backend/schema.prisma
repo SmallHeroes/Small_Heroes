@@ -231,6 +231,9 @@ model Order {
   storySourceHash      String?
   selectionFilename    String?
   frozenProductVersion String?
+  /// Exact immutable Visual Package selected when a package-backed Order is created.
+  /// Nullable only for legacy story-bank Orders; accepted-revision Orders fail closed when absent.
+  visualPackageAuthority Json?
   fulfillmentVersion   Int      @default(1)  // logical delivery-event version; part of the Outbox dedupe key
   // Monotonic optimistic-concurrency token (P1-f #5). Every writer of delivery inputs
   // (text/frozen/assets/payload fields) advances it through withDeliveryInputMutation in the same transaction.

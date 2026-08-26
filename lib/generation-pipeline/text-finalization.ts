@@ -20,12 +20,14 @@ import {
   assertFrozenOrderStorySourceFile,
   resolveCachedStoryFilePath,
   resolveFrozenOrderStorySelection,
+  storyRefClaimsAcceptedRevisionNamespace,
   toRepoRelativeStoryPath,
 } from './story-path';
 import { resolveCompanionForOrder } from './anchor-registry';
 import { beatsFromStoryPages, resolveBookShotPlan } from '@/lib/book-shot-plan';
 import { buildFrozenStoryProductTruth } from './frozen-product-truth';
 import { withDeliveryInputMutation } from './readiness-manifest';
+import { requireOrderVisualPackageAuthority } from './order-visual-package-authority';
 
 async function persistStoryFinalizationFailure(
   orderId: string,
@@ -65,13 +67,11 @@ export async function finalizeAndPersistStoryText(
 
   let storyFilePath: string | undefined;
   try {
-    const frozenStoryRef = String(order.selectionFilename ?? '')
-      .trim()
-      .replace(/\\/g, '/');
     const frozenOrderStory = resolveFrozenOrderStorySelection(
       order.selectionFilename,
     );
     if (frozenOrderStory) {
+      const visualPackageAuthority = requireOrderVisualPackageAuthority(order);
       if (
         frozenOrderStory.storySourceAuthorityKind ===
           'product_accepted_revision' &&
@@ -109,7 +109,11 @@ export async function finalizeAndPersistStoryText(
           'Frozen Order Story Source authority does not match repository bytes',
         );
       }
-      const { storyDir: _staleStoryDir, ...cacheWithoutStoryDir } = cache;
+      const {
+        storyDir: _staleStoryDir,
+        visualPackageAuthority: _staleVisualPackageAuthority,
+        ...cacheWithoutStoryDir
+      } = cache;
       cache = {
         ...cacheWithoutStoryDir,
         storyFilePath: frozenOrderStory.storyFileRef,
@@ -126,12 +130,14 @@ export async function finalizeAndPersistStoryText(
         selectionFilename: frozenOrderStory.selectionFilename,
         directionForV3,
         challengeCategory,
+        ...(visualPackageAuthority ? { visualPackageAuthority } : {}),
       };
     } else if (
-      frozenStoryRef.startsWith(
-        'story-pipeline/04_approved_story_sources/accepted/',
-      )
+      storyRefClaimsAcceptedRevisionNamespace(order.selectionFilename)
     ) {
+      // Any aliased spelling of the accepted namespace (./, //, \\, case,
+      // whitespace) fails closed here — it must never degrade to the legacy
+      // companion selector below.
       throw new StoryBankPersonalizationError(
         'Product-accepted Story Source reference is invalid',
       );
@@ -146,13 +152,7 @@ export async function finalizeAndPersistStoryText(
       const cachedAcceptedRevisionRef = [
         cache.devStoryBankFile,
         cache.storyFilePath,
-      ].find((value) =>
-        String(value ?? '')
-          .replace(/\\/g, '/')
-          .startsWith(
-            'story-pipeline/04_approved_story_sources/accepted/',
-          ),
-      );
+      ].find((value) => storyRefClaimsAcceptedRevisionNamespace(value));
       if (cachedAcceptedRevisionRef) {
         throw new StoryBankPersonalizationError(
           'Accepted-revision cache source lacks exact frozen Order authority',

@@ -48,6 +48,34 @@ export interface FrozenOrderStorySelection {
 const STORY_SEGMENT = /^[a-z0-9]+(?:[a-z0-9_-]*[a-z0-9])?$/;
 const REVISION_DIGEST = /^[0-9a-f]{64}$/;
 
+export const ACCEPTED_REVISION_NAMESPACE_PREFIX =
+  'story-pipeline/04_approved_story_sources/accepted/';
+
+/**
+ * Hostile accepted-namespace detector. A reference CLAIMS the accepted product
+ * namespace when any plausible filesystem interpretation of it reaches into
+ * that tree: surrounding whitespace is trimmed, backslashes fold to `/`,
+ * duplicate separators collapse, self (`.`) segments drop, and the comparison
+ * is case-insensitive (a case-aliased spelling resolves on Windows dev
+ * filesystems). This function decides only namespace OWNERSHIP — it grants no
+ * authority. Every caller must fail closed when a claiming reference does not
+ * ALSO parse as the exact canonical byte spelling; classifying a noncanonical
+ * claiming spelling as "legacy" is the path-authority bypass this closes.
+ */
+export function storyRefClaimsAcceptedRevisionNamespace(
+  value: unknown,
+): boolean {
+  const segments = String(value ?? '')
+    .trim()
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter((segment) => segment !== '' && segment !== '.');
+  if (segments.length === 0) return false;
+  return `${segments.join('/').toLowerCase()}/`.startsWith(
+    ACCEPTED_REVISION_NAMESPACE_PREFIX,
+  );
+}
+
 function safeSegment(value: string): boolean {
   return STORY_SEGMENT.test(value) && value !== '.' && value !== '..';
 }
@@ -212,10 +240,8 @@ export function runtimeStoryKey(cache: StoryRefCache): string | null {
     exactRef && !path.isAbsolute(exactRef)
       ? resolveFrozenOrderStorySelection(exactRef)
       : null;
-  const normalizedExactRef = String(exactRef ?? '').replace(/\\/g, '/');
-  const claimsAcceptedRevision = normalizedExactRef.startsWith(
-    'story-pipeline/04_approved_story_sources/accepted/',
-  );
+  const claimsAcceptedRevision =
+    storyRefClaimsAcceptedRevisionNamespace(exactRef);
 
   if (explicit) {
     if (!safeSegment(explicit)) return null;

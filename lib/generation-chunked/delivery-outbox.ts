@@ -15,6 +15,10 @@ import type { Prisma, PrismaClient, DeliveryOutbox } from '@prisma/client';
 import { canonicalHash } from '@/lib/canonical-json';
 import { createLogger } from '@/lib/logger';
 import { isCanonicalReadUrl } from '@/lib/generation-pipeline/integrity-gate';
+import {
+  OrderVisualPackageAuthorityError,
+  requireOrderVisualPackageAuthority,
+} from '@/lib/generation-pipeline/order-visual-package-authority';
 
 const log = createLogger({ subsystem: 'delivery-outbox' });
 
@@ -395,6 +399,10 @@ export async function repairInvalidPayloadDelivery(
           customerEmail: true,
           customerName: true,
           childName: true,
+          selectionFilename: true,
+          storySourceHash: true,
+          illustrationStyle: true,
+          visualPackageAuthority: true,
           book: {
             select: {
               readUrl: true,
@@ -424,6 +432,16 @@ export async function repairInvalidPayloadDelivery(
       ) ||
       deliveryDedupeKey(row.orderId, row.scope, order.fulfillmentVersion) !== row.dedupeKey
     ) {
+      return 'not_repairable';
+    }
+    // A payload repair re-arms a send against a pre-existing manifest, so it must re-prove the durable
+    // package-authority predicate itself before rebuilding the row.
+    try {
+      requireOrderVisualPackageAuthority(order);
+    } catch (authorityError) {
+      if (!(authorityError instanceof OrderVisualPackageAuthorityError)) {
+        throw authorityError;
+      }
       return 'not_repairable';
     }
     const firstAudio = order.book.pages.find((page) => page.audioUrl?.trim())?.audioUrl;

@@ -16,7 +16,9 @@
  *     legacy artifacts still degrade to the explicitly documented development path.
  *   - Enforced non-production Style01: enforcement implies freeze, only the exact render-qualified local package
  *     template is materialized/source-bound, and every failure propagates before image spend. No live authoring or
- *     compiler call is reachable on this branch. Vercel production remains hard-off.
+ *     compiler call is reachable on this branch.
+ *   - Package-backed Order: the persisted immutable package authority makes freeze mandatory in every environment,
+ *     including Production and flags-off; no current locator or legacy degradation is reachable.
  *
  * The `mutationPayload` covers 100% of what this operation authoritatively writes — `{ visualContractHash,
  * visualContract }` — so a same-`operationKey` retry carrying different content FAILS CLOSED (it cannot, since the
@@ -52,7 +54,9 @@ import {
   evaluateVisualPackageV4Qualification,
   type FrozenVisualPackageAuthority,
 } from '@/lib/visual-package/visualPackageV4';
+import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import type { ReceiptSafeValue } from './atomic-operation';
+import { requireOrderVisualPackageAuthority } from './order-visual-package-authority';
 import { runtimeStoryKey } from './story-path';
 import type { PipelineCache } from './types';
 // `prisma` and the delivery-input barrier are LAZY-imported inside the function (below) — so importing this
@@ -78,6 +82,8 @@ export interface EnsureFrozenVisualContractDeps {
   withMutation?: WithDeliveryInputMutation;
   /** Prisma client (tests). Default: the shared client. */
   db?: PrismaClient;
+  /** Repository root override for hermetic immutable-package tests. */
+  repoRoot?: string;
 }
 
 /** Absolute dir the bank story's `<key>.visual-contract.json` artifact lives in (pairs with the story bank dir). */
@@ -89,16 +95,32 @@ function bankArtifactDir(cache: PipelineCache): string {
 async function defaultProduceContract(
   order: Order,
   cache: PipelineCache,
+  repoRoot: string,
 ): Promise<ProducedContract | null> {
+  const orderVisualPackageAuthority =
+    requireOrderVisualPackageAuthority(order);
+  const styleId = styleIdFromDatabaseValue(order.illustrationStyle);
+  const packageRuntimeRequired = orderVisualPackageAuthority !== null;
   if (
-    isVisualContractEnforcementEnabled() &&
-    styleIdFromDatabaseValue(order.illustrationStyle) === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK
+    packageRuntimeRequired &&
+    styleId !== STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK
+  ) {
+    throw new InvalidVisualPackageV4Error([
+      `package-backed Order style ${JSON.stringify(styleId)} has no runtime authority implementation`,
+    ]);
+  }
+  if (
+    styleId === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK &&
+    (packageRuntimeRequired || isVisualContractEnforcementEnabled())
   ) {
     const storyKey = runtimeStoryKey(cache) ?? 'unknown_story';
     const qualification = evaluateVisualPackageV4Qualification({
-      repoRoot: process.cwd(),
+      repoRoot,
       storyKey,
       styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      ...(orderVisualPackageAuthority
+        ? { frozenAuthority: orderVisualPackageAuthority }
+        : {}),
       expectedOrderSourceRawDigest: order.storySourceHash,
     });
     if (
@@ -162,9 +184,14 @@ export async function ensureFrozenVisualContract(
   cache: PipelineCache,
   deps: EnsureFrozenVisualContractDeps = {},
 ): Promise<PipelineCache> {
+  const orderVisualPackageAuthority =
+    requireOrderVisualPackageAuthority(order);
+  const packageRuntimeRequired = orderVisualPackageAuthority !== null;
   const runtimeAuthorityEnforced =
-    isVisualContractEnforcementEnabled() &&
-    styleIdFromDatabaseValue(order.illustrationStyle) === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
+    packageRuntimeRequired ||
+    (isVisualContractEnforcementEnabled() &&
+      styleIdFromDatabaseValue(order.illustrationStyle) ===
+        STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK);
   if (!isVisualContractFreezeEnabled() && !runtimeAuthorityEnforced) return cache;
   // Already produced + bound + cached → nothing to do (cheap resume fast-path: no LLM, no write, no fence). But ONLY
   // when the cached contract's hash MATCHES the Order stamp — a mismatched pair (a partial/failed prior freeze that
@@ -179,11 +206,22 @@ export async function ensureFrozenVisualContract(
           'frozen order visual-package/v5 authority is missing',
         ]);
       }
+      if (
+        orderVisualPackageAuthority &&
+        canonicalJsonDigest(cache.visualPackageAuthority) !==
+          canonicalJsonDigest(orderVisualPackageAuthority)
+      ) {
+        throw new InvalidVisualPackageV4Error([
+          'pipeline cache Visual Package authority differs from frozen Order authority',
+        ]);
+      }
+      const frozenAuthority =
+        orderVisualPackageAuthority ?? cache.visualPackageAuthority;
       const qualification = evaluateVisualPackageV4Qualification({
-        repoRoot: process.cwd(),
+        repoRoot: deps.repoRoot ?? process.cwd(),
         storyKey: runtimeStoryKey(cache) ?? 'unknown_story',
         styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
-        frozenAuthority: cache.visualPackageAuthority,
+        frozenAuthority,
         expectedOrderSourceRawDigest: order.storySourceHash,
       });
       if (!qualification.renderQualified) {
@@ -195,7 +233,9 @@ export async function ensureFrozenVisualContract(
   }
 
   const db = deps.db ?? (await import('@/lib/prisma')).prisma;
-  const produce = deps.produce ?? ((o, c) => defaultProduceContract(o, c));
+  const produce =
+    deps.produce ??
+    ((o, c) => defaultProduceContract(o, c, deps.repoRoot ?? process.cwd()));
   const withMutation = deps.withMutation ?? (await import('./readiness-manifest')).withDeliveryInputMutation;
 
   let produced: ProducedContract | null;
@@ -224,6 +264,16 @@ export async function ensureFrozenVisualContract(
   if (runtimeAuthorityEnforced && !visualPackageAuthority) {
     throw new InvalidVisualPackageV4Error([
       'enforced Style01 freeze produced no immutable visual-package/v5 authority',
+    ]);
+  }
+  if (
+    orderVisualPackageAuthority &&
+    visualPackageAuthority &&
+    canonicalJsonDigest(visualPackageAuthority) !==
+      canonicalJsonDigest(orderVisualPackageAuthority)
+  ) {
+    throw new InvalidVisualPackageV4Error([
+      'produced Visual Package authority differs from frozen Order authority',
     ]);
   }
   // (Fix 1 — belt, before :persist) Defense-in-depth on the money fence: never hash/persist a resolved-shaped contract

@@ -330,6 +330,62 @@ describe('claimDueDeliveries — atomic claim', () => {
   });
 });
 
+describe('invalid-payload repair — durable package-authority refusal', () => {
+  it('refuses to re-arm a send for an accepted-revision Order with missing package authority', async () => {
+    const invalidRow = row({
+      status: 'invalid_payload',
+      sendAttempted: false,
+      payload: {},
+      payloadHash: 'stale',
+    });
+    const outboxUpdateMany = vi.fn(async () => ({ count: 1 }));
+    const tx = {
+      deliveryOutbox: {
+        findUnique: vi.fn(async () => invalidRow),
+        updateMany: outboxUpdateMany,
+      },
+      order: {
+        findUnique: vi.fn(async () => ({
+          status: 'ready',
+          inputVersion: 7,
+          deliveryFenceVersion: 0,
+          fulfillmentVersion: 1,
+          customerEmail: 'c@e.com',
+          customerName: 'C',
+          childName: 'K',
+          selectionFilename:
+            'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/' +
+            `revisions/${'a'.repeat(64)}/integrated.md`,
+          storySourceHash: 'b'.repeat(64),
+          illustrationStyle: 'pencil_watercolor',
+          visualPackageAuthority: null,
+          book: {
+            readUrl: 'https://app.example.com/ready?orderId=o1',
+            pdfUrl: null,
+            pages: [],
+          },
+        })),
+      },
+      bookReadiness: {
+        findUnique: vi.fn(async () => ({ status: 'passed', currentManifestId: 'm1' })),
+      },
+    };
+    const db = {
+      $transaction: vi.fn(async (callback: (inner: typeof tx) => unknown) => callback(tx)),
+    };
+    const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.example.com';
+    try {
+      await expect(repairInvalidPayloadDelivery(db as never, 'ob1', NOW))
+        .resolves.toBe('not_repairable');
+    } finally {
+      if (previousAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = previousAppUrl;
+    }
+    expect(outboxUpdateMany).not.toHaveBeenCalled();
+  });
+});
+
 describe('invalid-payload repair crash recovery', () => {
   it('recognizes a prior committed repair instead of escalating the case to refund', async () => {
     const repairedRow = row({

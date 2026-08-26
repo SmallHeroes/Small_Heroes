@@ -17,6 +17,7 @@ const DELIVERY_ORDER_FIELDS = new Set([
   'storySourceHash',
   'selectionFilename',
   'frozenProductVersion',
+  'visualPackageAuthority',
   'fulfillmentVersion',
   'inputVersion',
 ]);
@@ -361,12 +362,12 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     ]);
   });
 
-  it('covers Order-table frozen delivery inputs (storySourceHash/selectionFilename/frozenProductVersion/expectedPageCount) — set + classifier, regression-proof', () => {
+  it('covers Order-table frozen delivery inputs, including immutable Visual Package authority — set + classifier, regression-proof', () => {
     // The frozen product-truth fields ARE delivery inputs: any post-creation writer of them must be
     // barrier-protected (order creation is the sole exemption). Pin both the coverage SET and the classifier so a
     // dropped field can't silently narrow Order coverage (the comprehensive scan above already enforces it, but
     // nothing tested that Order + these fields are in scope until now).
-    for (const field of ['storySourceHash', 'selectionFilename', 'frozenProductVersion', 'expectedPageCount']) {
+    for (const field of ['storySourceHash', 'selectionFilename', 'frozenProductVersion', 'expectedPageCount', 'visualPackageAuthority']) {
       expect(DELIVERY_ORDER_FIELDS.has(field), `${field} must be a tracked Order delivery input`).toBe(true);
     }
     const fixture = `
@@ -375,6 +376,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
         await tx.order.update({ data: { selectionFilename: 'x' } });
         await tx.order.update({ data: { frozenProductVersion: 'x' } });
         await tx.order.update({ data: { expectedPageCount: 5 } });
+        await tx.order.update({ data: { visualPackageAuthority: { packageRevisionDigest: 'x' } } });
         await tx.order.update({ data: { status: 'ready', packageStatus: 'done' } });
       }
     `;
@@ -382,7 +384,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     // each frozen-field Order write is classified as a delivery-input writer (→ must be barrier-protected)…
     const flaggedFields = sites.filter(isDeliveryInputWriter).flatMap((site) => site.dataFields ?? []);
     expect(flaggedFields).toEqual(
-      expect.arrayContaining(['storySourceHash', 'selectionFilename', 'frozenProductVersion', 'expectedPageCount']),
+      expect.arrayContaining(['storySourceHash', 'selectionFilename', 'frozenProductVersion', 'expectedPageCount', 'visualPackageAuthority']),
     );
     // …while a pure order-STATE write (no delivery input) is NOT flagged, so the classifier stays discriminating.
     const stateSite = sites.find((site) => site.dataFields?.includes('status'));

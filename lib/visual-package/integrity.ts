@@ -46,6 +46,48 @@ export function resolveRepoPath(repoRoot: string, relativePath: string): string 
   return resolved;
 }
 
+/**
+ * Canonical repo-relative posix reference check for authority trust boundaries.
+ * A path that resolves to the same file under an aliased spelling (`./x`,
+ * `a//b`, `a\b`, surrounding whitespace, `..` self-references, drive letters)
+ * must be rejected, not normalized: authority equality comparisons are byte
+ * comparisons, and an alias that "means" the canonical path would otherwise
+ * bypass them. Empty result = canonical.
+ */
+export function relativeArtifactPathIssues(
+  label: string,
+  value: unknown,
+): string[] {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return [`${label} is missing`];
+  }
+  const issues: string[] = [];
+  if (value !== value.trim()) {
+    issues.push(`${label} has surrounding whitespace`);
+  }
+  if (value.includes('\\')) {
+    issues.push(`${label} must use forward-slash separators`);
+  }
+  if (value.startsWith('/') || /^[A-Za-z]:/.test(value)) {
+    issues.push(`${label} must be repository-relative`);
+  }
+  const segments = value.split('/');
+  if (segments.some((segment) => segment === '')) {
+    issues.push(`${label} has empty path segments`);
+  }
+  if (segments.some((segment) => segment === '.' || segment === '..')) {
+    issues.push(`${label} has self or parent path segments`);
+  }
+  if (
+    segments.some(
+      (segment) => segment !== '' && segment !== segment.trim(),
+    )
+  ) {
+    issues.push(`${label} has whitespace-padded path segments`);
+  }
+  return issues;
+}
+
 export function buildStorySourceIdentity(args: {
   repoRoot: string;
   storyPath: string;

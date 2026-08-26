@@ -20,6 +20,7 @@
  */
 import { canonicalHash } from '@/lib/canonical-json';
 import { getNegativeStylePromptBlock, getSetBoardStylePromptBlock } from '@/lib/styles';
+import { assertProviderPromptHasNoInternalSpatialMarkers } from '@/lib/visual-contract-compiler/projectContractProse';
 
 import type { SetDefinition, SetDefinitionLocation, SetDefinitionZone } from './types';
 import {
@@ -209,6 +210,12 @@ export function buildSetIdentityBoardPrompt(def: SetDefinition): {
   ];
 
   const prompt = sections.join('\n');
+  // Set boards are provider egress too: zone geometry/fixed-object prose is contract-derived, so the
+  // internal `[spatial:<id>]` marker syntax must never leave through this seam either.
+  assertProviderPromptHasNoInternalSpatialMarkers(
+    prompt,
+    'set identity board prompt',
+  );
 
   const negativePrompt = [
     getNegativeStylePromptBlock(def.styleId),

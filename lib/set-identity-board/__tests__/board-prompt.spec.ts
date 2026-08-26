@@ -158,6 +158,33 @@ describe('buildSetIdentityBoardPrompt', () => {
     expect(negativePrompt).not.toMatch(/fox|balcony|bedroom|uri|bucket/i);
   });
 
+  it('fails closed when internal [spatial:<id>] marker syntax reaches the board prompt (provider egress)', () => {
+    // Mutate the projected SetDefinition — the exact input seam the prompt builder consumes —
+    // so any upstream source of marker-carrying geometry prose is representative.
+    const def = projectSetDefinition(makeContract(), 'set_hall', STYLE);
+    const hostile = {
+      ...def,
+      zones: def.zones.map((zone, index) =>
+        index === 0
+          ? { ...zone, geometry: [...zone.geometry, 'a shelf beside the [spatial:door_east] arch'] }
+          : zone,
+      ),
+    };
+    expect(() => buildSetIdentityBoardPrompt(hostile)).toThrow(
+      /unresolved internal spatial reference marker/,
+    );
+    // Ordinary prose mentioning the word "spatial" is not an internal marker.
+    const benign = {
+      ...def,
+      zones: def.zones.map((zone, index) =>
+        index === 0
+          ? { ...zone, geometry: [...zone.geometry, 'spatial: awareness of the hall layout'] }
+          : zone,
+      ),
+    };
+    expect(() => buildSetIdentityBoardPrompt(benign)).not.toThrow();
+  });
+
   it('is deterministic: same input → same promptHash', () => {
     const a = buildForFixture();
     const b = buildForFixture();

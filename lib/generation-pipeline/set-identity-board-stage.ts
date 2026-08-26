@@ -10,14 +10,15 @@
  *   fresh:  text → dna → [freeze] → [ACTIVATE] → set_refs [BIND] → cover → page_images
  *   resume: (currentStage) → [freeze] → [ASSERT] → …
  *
- * LEGACY OFF IS INERT. Read this as the compatibility argument in code:
+ * LEGACY OFF IS INERT; PACKAGE AUTHORITY IS MANDATORY. Read this as the compatibility argument in code:
  *   - `ensureSetIdentityBoardSnapshot` is the ONLY writer of `cache.setIdentityBoards`. With both the board flag and
  *     non-production Style01 enforcement off, no snapshot is written. R1C enforcement intentionally implies board
  *     activation so an enforced request cannot qualify and then render board-less.
  *   - Every OTHER function here gates on the SNAPSHOT being `required-v2`, not on the flag. With no snapshot they
  *     return `cache` / `undefined` / do nothing, before reading the contract, before any DB call, before any I/O.
- *   - Therefore, enforcement off + board flag off means zero extra DB reads, writes, or prompt bytes. Production
- *     remains identical because both gates are hard-off there.
+ *   - Therefore, a genuine legacy Order with enforcement off + board flag off performs zero extra DB reads, writes,
+ *     or prompt work. A package-backed Order is intentionally different: its persisted Order authority requires
+ *     snapshot activation in every environment, including Production and flags-off.
  *
  * Gating the post-activation steps on the SNAPSHOT rather than the flag is not an oversight — it is the fence in
  * both directions: an activated order can never silently drop its board because someone flipped the env var off
@@ -27,7 +28,7 @@
  * (P0-1) `shouldEnterSetRefsStage` used to read the flag too, which broke that fence in the first direction: an
  * activated-but-unbound order whose flag went down would skip `set_refs` entirely and then be asserted-to-death at
  * the cover, unable to ever bind. The board flag (or R1C Style01 enforcement) governs snapshot CREATION and nothing
- * after activation; post-activation behavior remains structural.
+ * after activation; package-backed Orders additionally require activation from their durable Order identity.
  */
 import { type Order, type PrismaClient } from '@prisma/client';
 import { canonicalHash } from '@/lib/canonical-json';
@@ -52,6 +53,7 @@ import {
 import type { SetIdentityBoardBindingContext } from '@/lib/set-identity-board/types';
 import type { ReceiptSafeValue } from './atomic-operation';
 import type { PipelineCache } from './types';
+import { requireOrderVisualPackageAuthority } from './order-visual-package-authority';
 // Lazy-imported inside the functions (mirrors ensure-frozen-visual-contract.ts). Type-only here.
 type WithDeliveryInputMutation = typeof import('./readiness-manifest').withDeliveryInputMutation;
 
@@ -151,7 +153,7 @@ async function persistBoardContext(
  * path — and it can only happen at the fresh dna→cover transition, before any paid image exists.
  *
  * No-op (returns `cache` untouched) when:
- *   - board flag and Style01 enforcement off → legacy OFF-inertness
+ *   - board flag and Style01 enforcement off on a genuine legacy Order → legacy OFF-inertness
  *   - there is no frozen contract           → freeze off / no artifact → legacy order, nothing to derive a set from
  *   - the same snapshot already exists      → idempotent resume (no write, no inputVersion bump)
  *   - the book already has a paid image     → HALF-LEGACY FENCE (below)
@@ -171,11 +173,14 @@ export async function ensureSetIdentityBoardSnapshot(
   cache: PipelineCache,
   deps: SetIdentityBoardStageDeps = {}
 ): Promise<PipelineCache> {
-  // R1C: an enforced Style01 request cannot remain a board-less legacy order. Production remains inert because
-  // both gates are hard-off there; enforcement-off retains the original board-flag lifecycle exactly.
+  const packageRuntimeRequired =
+    requireOrderVisualPackageAuthority(order) !== null;
+  // A package-backed Order cannot remain board-less, regardless of rollout flags or environment. Genuine legacy
+  // Orders retain the original board-flag/enforcement lifecycle exactly.
   const runtimeAuthorityEnforced =
-    isVisualContractEnforcementEnabled() &&
-    boardStyleIdOf(order) === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK;
+    packageRuntimeRequired ||
+    (isVisualContractEnforcementEnabled() &&
+      boardStyleIdOf(order) === STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK);
   if (!isSetIdentityBoardEnabled() && !runtimeAuthorityEnforced) return cache;
 
   const active = activeFrozenContract(cache);
@@ -256,8 +261,17 @@ export async function requireSetIdentityBoardsBoundForRender(
   cache: PipelineCache,
   deps: SetIdentityBoardStageDeps = {}
 ): Promise<void> {
+  const packageRuntimeRequired =
+    requireOrderVisualPackageAuthority(order) !== null;
   const snapshot = cache.setIdentityBoards;
-  if (snapshot?.mode !== 'required-v2') return; // LEGACY → no-op, no I/O, no deps → byte-identical.
+  if (snapshot?.mode !== 'required-v2') {
+    if (packageRuntimeRequired) {
+      throw new SetIdentityBoardUnavailableError('*', [
+        'package-backed Order has no required-v2 Board snapshot',
+      ]);
+    }
+    return; // LEGACY → no-op, no I/O, no deps → byte-identical.
+  }
 
   const active = activeFrozenContract(cache);
   if (!active) {
@@ -294,7 +308,8 @@ export async function requireSetIdentityBoardsBoundForRender(
  * any required identity still unbound (the required list derived from the contract via `listRequiredSetIdentityIds`
  * inside `hasUnboundRequiredSetIdentity`). OFF-inertness is UNCHANGED and now rests on one fact instead of two: a
  * legacy order has no snapshot, so this returns false at the first line, before it reads the contract — and with
- * the flag off no order can ever acquire a snapshot. Byte-identical.
+ * the legacy rollout flag off such an Order cannot acquire a snapshot. Package-backed activation is decided before
+ * this structural stage selector. Byte-identical for legacy.
  *
  * An activated order with an UNREADABLE contract returns false (→ `cover`) rather than entering a stage that cannot
  * bind; the pre-render assert then fails it closed with the precise reason. It is never silently rendered.

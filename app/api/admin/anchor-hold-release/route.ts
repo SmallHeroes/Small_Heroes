@@ -27,6 +27,10 @@ import { resolveHumanQaCaseOnReleaseInTx } from '@/lib/human-qa/record-hold';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import { executeAnchorReleaseCas } from '@/lib/generation-pipeline/order-authority';
 import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
+import {
+  OrderVisualPackageAuthorityError,
+  requireOrderVisualPackageAuthority,
+} from '@/lib/generation-pipeline/order-visual-package-authority';
 
 const log = createLogger({ subsystem: 'anchor-hold', route: '/api/admin/anchor-hold-release' });
 
@@ -91,6 +95,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const holdReason = order.deliveryHoldReason ?? '';
   if (!holdReason.startsWith('anchor_low_confidence:')) {
     return NextResponse.json({ error: `Not releasable via anchor endpoint (reason=${holdReason || 'none'})` }, { status: 409 });
+  }
+
+  // Durable package-authority guard, flag-INDEPENDENT: break-glass anchor release must never ship an Order whose
+  // frozen Visual Package authority is missing/mismatched (or a legacy Order carrying package authority). On
+  // readiness-ON the commit re-evaluates the same predicate in-tx; this early guard is what closes the
+  // readiness-OFF direct-send branch below, where no other authority check would run.
+  try {
+    requireOrderVisualPackageAuthority(order);
+  } catch (authorityError) {
+    if (!(authorityError instanceof OrderVisualPackageAuthorityError)) throw authorityError;
+    log.warn('Anchor release refused — Order Visual Package authority invalid', {
+      orderId,
+      reason: authorityError.message,
+    });
+    return NextResponse.json(
+      { error: 'Order Visual Package authority invalid — not releasable via anchor endpoint' },
+      { status: 409 },
+    );
   }
 
   // (re-gate forward fix — separate AUTHORIZATION from DELIVERY) AUTHORIZATION is flag-INDEPENDENT (kept exactly as

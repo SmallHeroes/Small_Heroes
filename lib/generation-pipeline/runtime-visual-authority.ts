@@ -78,9 +78,15 @@ function invalid(message: string, pageNumber?: number): never {
 export function assertStyle01RuntimeAuthorityForPage(args: {
   illustrationStyle?: string | null;
   authority?: Style01RuntimeAuthority | null;
+  runtimeVisualAuthorityRequired?: boolean;
   pageNumber: number;
 }): Style01RuntimeAuthority | null {
-  if (!isVisualContractEnforcementEnabled()) return null;
+  if (
+    !args.runtimeVisualAuthorityRequired &&
+    !isVisualContractEnforcementEnabled()
+  ) {
+    return null;
+  }
   if (
     normalizeStyleId(args.illustrationStyle) !==
     STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK
@@ -88,10 +94,19 @@ export function assertStyle01RuntimeAuthorityForPage(args: {
     return null;
   }
   const authority = args.authority;
-  if (!authority || authority.version !== 'style01-runtime-authority/v6') {
+  if (!authority || authority.version !== 'style01-runtime-authority/v7') {
     throw new RuntimeVisualAuthorityBoundaryError(
       'runtime_authority_missing',
-      'enforced Style01 provider call has no style01-runtime-authority/v6 preflight-issued authority',
+      'required Style01 provider call has no style01-runtime-authority/v7 preflight-issued authority',
+      args.pageNumber,
+    );
+  }
+  if (
+    args.runtimeVisualAuthorityRequired &&
+    !authority.orderVisualPackageAuthorityRequired
+  ) {
+    invalid(
+      'provider call requires Order-frozen package authority but received a legacy runtime authority',
       args.pageNumber,
     );
   }
@@ -207,6 +222,7 @@ export function constrainRuntimePresentationNote(
 export function buildRuntimePageAuthorityProjection(args: {
   illustrationStyle?: string | null;
   authority?: Style01RuntimeAuthority | null;
+  runtimeVisualAuthorityRequired?: boolean;
   pageNumber: number;
   requestedVisualDirection?: Partial<ShotVisualDirection> | null;
 }): RuntimePageAuthorityProjection | null {

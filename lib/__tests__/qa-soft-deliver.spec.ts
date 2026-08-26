@@ -185,6 +185,11 @@ describe('QA soft-deliver integration', () => {
     customerEmail: 'parent@example.com',
     customerName: 'Parent',
     childName: 'Kid',
+    // Genuine legacy story-bank Order: the soft-deliver behavior under test is legacy-only.
+    selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+    storySourceHash: 'f'.repeat(64),
+    illustrationStyle: 'pencil_watercolor' as const,
+    visualPackageAuthority: null,
   };
 
   beforeEach(() => {

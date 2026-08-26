@@ -43,11 +43,12 @@ export function isVisualContractDevOverrideEnabled(): boolean {
 /**
  * (WS0b) Whether the contract is PRODUCED, FROZEN, and BOUND on the live generation path — i.e. whether
  * `ensureFrozenVisualContract` compiles/loads the contract, stamps `Order.visualContractHash`, and persists
- * it into `pipelineCache` before the cover. Default OFF: with the flag off the freeze is a no-op and render
- * output is byte-identical to today (no stamp, no cache write, no `inputVersion` bump). This gates ONLY the
+ * it into `pipelineCache` before the cover. For genuine legacy Orders, with the flag off the freeze is a no-op and
+ * render output is byte-identical (no stamp, no cache write, no `inputVersion` bump). This flag gates ONLY the
  * freeze/binding plumbing — it changes NOTHING that gets rendered (steering is a separate flag) and enables
  * NO blocking check. Hard-gated to NON-PRODUCTION (mirrors enforcement + the prod-generation kill-switch):
- * even if the var leaks onto Vercel Production the freeze stays OFF there until prod is deliberately cut over.
+ * even if the var leaks onto Vercel Production the flag stays OFF there. Package-backed Orders do not use this
+ * rollout flag as authority: their durable Order binding makes freeze/validation mandatory at the caller.
  */
 export function isVisualContractFreezeEnabled(): boolean {
   if (isVercelProductionRuntime()) return false;
@@ -57,13 +58,14 @@ export function isVisualContractFreezeEnabled(): boolean {
 /**
  * Whether the contract steers live render output. R1C makes this identical to the non-production enforcement gate:
  * an enforced request can never qualify and then fall through a second disabled steering flag into inferred-world
- * prompts. Enforcement off keeps the legacy path; Vercel production remains hard-off.
+ * prompts. Enforcement off keeps the genuine legacy path; package-backed Orders carry their own mandatory runtime
+ * authority and therefore do not depend on this rollout flag.
  */
 export function isVisualContractSteeringEnabled(): boolean {
   if (isVercelProductionRuntime()) return false;
   // R1C: enforcement makes the approved contract authoritative. A second flag would allow an enforced request
-  // to pass qualification and then render through the legacy inferred-world path. Production remains hard-off
-  // because enforcement itself is hard-off there.
+  // to pass qualification and then render through the legacy inferred-world path. This rollout flag remains
+  // hard-off in Production; package-backed callers enforce their separate durable Order authority instead.
   return isVisualContractEnforcementEnabled();
 }
 
@@ -84,7 +86,8 @@ export function isMissingVisualContractError(e: unknown): e is MissingVisualCont
 
 /**
  * Require a valid contract before rendering. Fail-closed per context:
- *  - production: always required (unless enforcement is globally off — then this is a no-op pass).
+ *  - package-backed Order (`requiredByOrder`): always required, including Production and flags-off.
+ *  - legacy production: required only when the rollout enforcement gate is active.
  *  - qa_audition: required, with a clear message.
  *  - dev_creator: required UNLESS the explicit dev override is set.
  *
@@ -93,14 +96,20 @@ export function isMissingVisualContractError(e: unknown): e is MissingVisualCont
  */
 export function requireValidContractForRender(
   contract: unknown,
-  context: RenderContext
+  context: RenderContext,
+  options: { requiredByOrder?: boolean } = {},
 ): BookVisualContract {
   // When the layer is globally disabled, do not block legacy renders — but if a contract IS provided
   // it must still be structurally valid (don't feed a broken contract into the prompt).
-  const enforcement = isVisualContractEnforcementEnabled();
+  const enforcement =
+    options.requiredByOrder === true || isVisualContractEnforcementEnabled();
 
   if (contract == null) {
-    if (context === 'dev_creator' && isVisualContractDevOverrideEnabled()) {
+    if (
+      !options.requiredByOrder &&
+      context === 'dev_creator' &&
+      isVisualContractDevOverrideEnabled()
+    ) {
       // Explicit dev override — caller proceeds without a contract knowingly.
       return null as unknown as BookVisualContract;
     }

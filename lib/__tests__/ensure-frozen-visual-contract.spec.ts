@@ -1,3 +1,7 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ensureFrozenVisualContract } from '@/lib/generation-pipeline/ensure-frozen-visual-contract';
@@ -8,6 +12,14 @@ import {
   type BookVisualContract,
 } from '@/lib/visual-contract-compiler';
 import type { Order } from '@prisma/client';
+import {
+  buildFrozenVisualPackageAuthority,
+  loadCurrentVisualPackageV4,
+  publishVisualPackageV4,
+  visualPackageV4LocatorPath,
+} from '@/lib/visual-package/visualPackageV4';
+import { buildVisualPackageV4Fixture } from '@/lib/visual-package/__tests__/visual-package-v4.fixtures';
+import { STYLE_IDS } from '@/lib/styles';
 
 /**
  * WS0b commit (a) + fix (B2): freeze mechanism. These prove the WIRING/idempotency contract with the barrier +
@@ -38,7 +50,7 @@ const VALID_CONTRACT = {
 const REAL_HASH = computeVisualContractHash(VALID_CONTRACT);
 
 function fakeOrder(
-  overrides: Partial<Pick<Order, 'id' | 'visualContractHash' | 'childName' | 'childGender' | 'illustrationStyle'>> = {},
+  overrides: Partial<Order> = {},
 ): Order {
   return {
     id: 'ord_1',
@@ -76,6 +88,9 @@ function makeWithMutation(seedCache: Record<string, unknown> = {}) {
         // Simulate the atomic single-key jsonb_set: preserve every existing key, set ONLY visualContract.
         if (/jsonb_set/i.test(sql) && sql.includes('visualContract')) {
           jobStore.pipelineCache = { ...jobStore.pipelineCache, visualContract: JSON.parse(String(values[0])) };
+          if (sql.includes('visualPackageAuthority')) {
+            jobStore.pipelineCache.visualPackageAuthority = JSON.parse(String(values[1]));
+          }
         }
         return 1;
       }),
@@ -89,6 +104,7 @@ function makeWithMutation(seedCache: Record<string, unknown> = {}) {
 
 describe('ensureFrozenVisualContract (WS0b freeze)', () => {
   const savedFlag = process.env.VISUAL_CONTRACT_FREEZE;
+  const temporaryRoots: string[] = [];
   beforeEach(() => {
     delete process.env.VISUAL_CONTRACT_FREEZE;
   });
@@ -97,6 +113,9 @@ describe('ensureFrozenVisualContract (WS0b freeze)', () => {
     else process.env.VISUAL_CONTRACT_FREEZE = savedFlag;
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+    for (const root of temporaryRoots.splice(0)) {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('flag OFF → no-op: no produce, no fence, same cache reference', async () => {
@@ -105,6 +124,123 @@ describe('ensureFrozenVisualContract (WS0b freeze)', () => {
     const cache: PipelineCache = { textFinalized: true };
     const out = await ensureFrozenVisualContract(fakeOrder(), cache, { produce, withMutation: fn, db: {} as never });
     expect(out).toBe(cache);
+    expect(produce).not.toHaveBeenCalled();
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('Production + flags OFF freezes a package-backed Order from its immutable revision, never the advanced current locator', async () => {
+    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'false');
+    vi.stubEnv('VISUAL_CONTRACT_FREEZE', 'false');
+    const repoRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'small-heroes-order-package-freeze-'),
+    );
+    temporaryRoots.push(repoRoot);
+    const storyKey = 'package_order_fixture';
+    const sourcePath =
+      `story-pipeline/04_approved_story_sources/accepted/${storyKey}/revisions/` +
+      `${'a'.repeat(64)}/integrated.md`;
+    const packageA = buildVisualPackageV4Fixture('no_companion', 'package A', {
+      storyKey,
+      sourcePath,
+      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      styleContent: { renderingContract: 'immutable package A' },
+    }).packageValue;
+    const publishedA = publishVisualPackageV4({
+      repoRoot,
+      approvedPackagesDir: path.join(repoRoot, 'visual-packages', 'approved'),
+      packageValue: packageA,
+      write: true,
+    });
+    const frozenA = buildFrozenVisualPackageAuthority({
+      packageValue: packageA,
+      packagePath: publishedA.packagePath,
+    });
+    const packageB = buildVisualPackageV4Fixture('no_companion', 'package B', {
+      storyKey,
+      sourcePath,
+      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      styleContent: { renderingContract: 'advanced mutable locator package B' },
+    }).packageValue;
+    publishVisualPackageV4({
+      repoRoot,
+      approvedPackagesDir: path.join(repoRoot, 'visual-packages', 'approved'),
+      packageValue: packageB,
+      write: true,
+    });
+    const current = loadCurrentVisualPackageV4({
+      repoRoot,
+      locatorPath: visualPackageV4LocatorPath({
+        repoRoot,
+        storyKey,
+        styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      }),
+      storyKey,
+      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+    });
+    expect(current.packageValue.revisionDigest).toBe(packageB.revisionDigest);
+    expect(current.packageValue.revisionDigest).not.toBe(packageA.revisionDigest);
+
+    const order = fakeOrder({
+      familyContext: null,
+      illustrationStyle: 'pencil_watercolor',
+      selectionFilename: sourcePath,
+      storySourceHash: packageA.sourceSnapshot.rawDigest,
+      visualPackageAuthority: frozenA,
+    });
+    const cache: PipelineCache = {
+      storyFilePath: sourcePath,
+      storyKey,
+      storySourceAuthorityKind: 'product_accepted_revision',
+      selectionFilename: 'integrated.md',
+      textFinalized: true,
+      dna: {
+        childDNA: 'fixture',
+        companionDNA: '',
+        childStructured: {
+          face: 'deep brown skin',
+          hair: 'dark brown curly hair',
+          body: 'young child proportions',
+          clothing: 'green shirt',
+          signature: 'small smile',
+        },
+      },
+    };
+    const { fn } = makeWithMutation();
+    const out = await ensureFrozenVisualContract(order, cache, {
+      withMutation: fn,
+      db: {} as never,
+      repoRoot,
+    });
+    expect(out.visualPackageAuthority).toEqual(frozenA);
+    expect(
+      (out.visualContract as unknown as {
+        approvedRuntimeAuthority?: { packageRevisionDigest?: string };
+      }).approvedRuntimeAuthority?.packageRevisionDigest,
+    ).toBe(packageA.revisionDigest);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('Production + flags OFF never degrades a package-backed Order with missing authority to legacy', async () => {
+    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('VISUAL_CONTRACT_ENFORCEMENT', 'false');
+    vi.stubEnv('VISUAL_CONTRACT_FREEZE', 'false');
+    const produce = vi.fn();
+    const { fn } = makeWithMutation();
+    await expect(
+      ensureFrozenVisualContract(
+        fakeOrder({
+          illustrationStyle: 'pencil_watercolor',
+          selectionFilename:
+            'story-pipeline/04_approved_story_sources/accepted/package_order_fixture/revisions/' +
+            `${'a'.repeat(64)}/integrated.md`,
+          storySourceHash: 'b'.repeat(64),
+          visualPackageAuthority: null,
+        }),
+        { textFinalized: true },
+        { produce, withMutation: fn, db: {} as never },
+      ),
+    ).rejects.toThrow(/missing frozen Visual Package authority/);
     expect(produce).not.toHaveBeenCalled();
     expect(fn).not.toHaveBeenCalled();
   });

@@ -69,6 +69,7 @@ import {
 } from '@/lib/generation-pipeline/runtime-blueprint-projection';
 import { resolveRuntimeBlueprintPdfOptimization } from '@/lib/generation-pipeline/runtime-blueprint-canvas';
 import type { ReceiptSafeValue } from '@/lib/generation-pipeline/atomic-operation';
+import { orderRequiresVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
 
 const regenLogger = createLogger({ subsystem: 'regen-page', route: '/api/debug/regen-page' });
 
@@ -351,12 +352,15 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   }
 
   const pipelineCache = parsePipelineCache(order.generationJob?.pipelineCache);
+  const runtimeVisualAuthorityRequired =
+    orderRequiresVisualPackageAuthority(order);
   // Resolve exact package/frozen/board metadata before story selection, DNA/photo analysis, storage, or any model.
   // Enforcement-off returns null and preserves the historical recovery path below byte-for-byte.
   const earlyRuntimeAuthority = requireStyle01RenderQualification({
     illustrationStyle: order.illustrationStyle,
     frozenContractHash: order.visualContractHash,
     storySourceHash: order.storySourceHash,
+    order,
     cache: pipelineCache,
   });
 
@@ -940,6 +944,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       illustrationStyle: order.illustrationStyle,
       frozenContractHash: order.visualContractHash,
       storySourceHash: order.storySourceHash,
+      order,
       cache: pipelineCache,
       pageNumbers: [pageNumber],
     },
@@ -958,6 +963,7 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
         config: {
           illustrationStyle: order.illustrationStyle,
           runtimeVisualAuthority,
+          runtimeVisualAuthorityRequired,
           childName: order.childName ?? null,
           childAge: order.childAge ?? null,
           childGender: order.childGender ?? null,

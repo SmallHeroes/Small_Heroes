@@ -14,6 +14,10 @@ import {
   type BookReadyPayload,
 } from './delivery-outbox';
 import { isCanonicalReadUrl } from '@/lib/generation-pipeline/integrity-gate';
+import {
+  OrderVisualPackageAuthorityError,
+  requireOrderVisualPackageAuthority,
+} from '@/lib/generation-pipeline/order-visual-package-authority';
 
 export const EXCEPTION_SCOPE_BASE_BOOK = 'base_book';
 export const EXCEPTION_LEASE_MS = 4 * 60 * 1000;
@@ -363,6 +367,10 @@ export async function reissueConfirmedFailedDelivery(
           customerEmail: true,
           customerName: true,
           childName: true,
+          selectionFilename: true,
+          storySourceHash: true,
+          illustrationStyle: true,
+          visualPackageAuthority: true,
           book: {
             select: {
               readUrl: true,
@@ -403,6 +411,17 @@ export async function reissueConfirmedFailedDelivery(
         process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL,
       )
     ) {
+      return 'not_ready';
+    }
+    // A reissue re-enqueues against a pre-existing manifest, so it must re-prove the durable package-authority
+    // predicate itself: an Order that reached `ready` before the authority gate existed (or through a legacy
+    // flag-off window) must not be re-delivered with invalid authority.
+    try {
+      requireOrderVisualPackageAuthority(order);
+    } catch (authorityError) {
+      if (!(authorityError instanceof OrderVisualPackageAuthorityError)) {
+        throw authorityError;
+      }
       return 'not_ready';
     }
 

@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/prisma';
 import { generateImage } from '../../../../backend/providers/image';
 import { resolveImageModelMode, resolveReplicateImageModel } from '../../../../lib/replicate';
 import { withDeliveryInputMutation } from '../../../../lib/generation-pipeline/readiness-manifest';
+import { orderRequiresVisualPackageAuthority } from '../../../../lib/generation-pipeline/order-visual-package-authority';
 
 interface DebugImageRequest {
   orderId: string;
@@ -44,6 +45,17 @@ export async function POST(req: NextRequest) {
 
     if (!order || !order.book) {
       return NextResponse.json({ error: 'Order or generated book not found' }, { status: 404 });
+    }
+
+    // A package-backed Order's pages may only be produced through the qualified provider seam
+    // (chunk runner / single-page regen), which binds the Order-frozen package, contract and Boards.
+    // This debug route bypasses all of that, so it refuses package-backed Orders outright — a
+    // malformed accepted-revision reference also throws here, which is the same fail-closed outcome.
+    if (orderRequiresVisualPackageAuthority(order)) {
+      return NextResponse.json(
+        { error: 'package-backed Order pages cannot be mutated through the debug image route' },
+        { status: 409 },
+      );
     }
 
     const requestedPageNumber = body.pageNumber ?? 1;

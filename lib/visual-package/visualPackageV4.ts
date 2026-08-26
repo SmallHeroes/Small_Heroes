@@ -31,6 +31,7 @@ import {
   isoTimestampIsValid,
   nonEmpty,
   normalizedTextDigest,
+  relativeArtifactPathIssues,
   repoRelativePath,
   resolveRepoPath,
 } from './integrity';
@@ -230,6 +231,25 @@ export interface FrozenVisualPackageAuthority {
   reconciliationDigest: string;
   layoutPolicyVersion: typeof VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION;
 }
+
+const FROZEN_VISUAL_PACKAGE_AUTHORITY_KEYS = [
+  'authoringAuthorityDigest',
+  'blueprintDigest',
+  'layoutPolicyVersion',
+  'manifestVersion',
+  'packagePath',
+  'packageRevisionDigest',
+  'planningApprovalDigest',
+  'reconciliationDigest',
+  'sourceDigest',
+  'sourcePath',
+  'sourceRawDigest',
+  'storyKey',
+  'styleAuthorityDigest',
+  'styleId',
+  'version',
+  'visualContractTemplateDigest',
+] as const;
 
 export interface VisualPackageV4Qualification {
   renderQualified: boolean;
@@ -773,6 +793,79 @@ export function buildFrozenVisualPackageAuthority(args: {
   };
 }
 
+/**
+ * Parse persisted JSON at the Order/cache trust boundary. Content identity is
+ * re-derived later by `loadFrozenVisualPackageV4`; this first fence prevents a
+ * partial, extended, or wrong-version envelope from being treated as authority.
+ */
+export function assertFrozenVisualPackageAuthority(
+  value: unknown,
+): asserts value is FrozenVisualPackageAuthority {
+  const issues: string[] = [];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new InvalidVisualPackageV4Error([
+      'frozen order authority must be an object',
+    ]);
+  }
+  const row = value as Record<string, unknown>;
+  if (
+    JSON.stringify(Object.keys(row).sort()) !==
+    JSON.stringify([...FROZEN_VISUAL_PACKAGE_AUTHORITY_KEYS].sort())
+  ) {
+    issues.push('frozen order authority keys are invalid');
+  }
+  if (row.version !== VISUAL_PACKAGE_V4_FREEZE_VERSION) {
+    issues.push('frozen order authority version is unsupported');
+  }
+  if (row.manifestVersion !== VISUAL_PACKAGE_V4_VERSION) {
+    issues.push('frozen order authority manifest version is unsupported');
+  }
+  if (row.layoutPolicyVersion !== VISUAL_PACKAGE_V4_LAYOUT_POLICY_VERSION) {
+    issues.push('frozen order authority layout policy is unsupported');
+  }
+  for (const key of ['storyKey', 'styleId'] as const) {
+    if (!nonEmpty(row[key])) {
+      issues.push(`frozen order authority ${key} is missing`);
+    }
+  }
+  // Path fields are byte-compared against canonical repository references
+  // downstream, so an aliased spelling (`./x`, `a//b`, backslash, whitespace)
+  // must fail here rather than resolve to the same file under a different name.
+  for (const key of ['packagePath', 'sourcePath'] as const) {
+    issues.push(
+      ...relativeArtifactPathIssues(`frozen order authority ${key}`, row[key]),
+    );
+  }
+  if (
+    typeof row.packagePath === 'string' &&
+    typeof row.packageRevisionDigest === 'string' &&
+    SHA256_HEX.test(row.packageRevisionDigest) &&
+    !row.packagePath.endsWith(
+      `/${row.packageRevisionDigest}.visual-package.json`,
+    )
+  ) {
+    issues.push(
+      'frozen order authority packagePath does not name its exact package revision',
+    );
+  }
+  for (const key of [
+    'packageRevisionDigest',
+    'sourceDigest',
+    'sourceRawDigest',
+    'blueprintDigest',
+    'authoringAuthorityDigest',
+    'planningApprovalDigest',
+    'styleAuthorityDigest',
+    'visualContractTemplateDigest',
+    'reconciliationDigest',
+  ] as const) {
+    if (typeof row[key] !== 'string' || !SHA256_HEX.test(row[key])) {
+      issues.push(`frozen order authority ${key} is invalid`);
+    }
+  }
+  if (issues.length > 0) throw new InvalidVisualPackageV4Error(issues);
+}
+
 function locatorIssues(value: unknown): string[] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return ['current locator must be an object'];
@@ -808,7 +901,23 @@ export function loadVisualPackageV4Revision(args: {
   packagePath: string;
   expectedRevisionDigest?: string;
 }): VisualPackageV4 {
+  const pathIssues = relativeArtifactPathIssues(
+    'immutable package path',
+    args.packagePath,
+  );
+  if (pathIssues.length > 0) {
+    throw new InvalidVisualPackageV4Error(pathIssues);
+  }
   const absolute = resolveRepoPath(args.repoRoot, args.packagePath);
+  // Round-trip canonicality: the caller's spelling must BE the repository
+  // reference, not merely resolve to it. An aliased spelling would otherwise
+  // let `buildFrozenVisualPackageAuthority` reconstruct "expected" authority
+  // from the caller's own alias and compare it against itself.
+  if (repoRelativePath(args.repoRoot, absolute) !== args.packagePath) {
+    throw new InvalidVisualPackageV4Error([
+      `immutable package path is not repository-canonical: ${args.packagePath}`,
+    ]);
+  }
   if (!fs.existsSync(absolute)) {
     throw new InvalidVisualPackageV4Error([
       `immutable package revision is missing: ${args.packagePath}`,
@@ -874,8 +983,9 @@ export function loadCurrentVisualPackageV4(args: {
 
 export function loadFrozenVisualPackageV4(args: {
   repoRoot: string;
-  frozen: FrozenVisualPackageAuthority;
+  frozen: unknown;
 }): VisualPackageV4 {
+  assertFrozenVisualPackageAuthority(args.frozen);
   const packageValue = loadVisualPackageV4Revision({
     repoRoot: args.repoRoot,
     packagePath: args.frozen.packagePath,

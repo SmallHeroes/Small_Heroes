@@ -72,6 +72,7 @@ describe('resolveStoryProductTruth', () => {
     expect(resolved.storyLength).toBe('medium');
     expect(resolved.priceILS).toBe(79);
     expect(resolved.source).toBe('v3_approved_binding');
+    expect(resolved.visualPackageAuthority).toBeUndefined();
   });
 
   it('client bedtime + bunny → v3 bedtime binding preserved', () => {
@@ -88,6 +89,7 @@ describe('resolveStoryProductTruth', () => {
     expect(resolved.displayPages).toBe(16);
     expect(resolved.priceILS).toBe(59);
     expect(resolved.source).toBe('v3_approved_binding');
+    expect(resolved.visualPackageAuthority).toBeUndefined();
   });
 
   it('guard: sellable matrix combos never change direction between request and response', () => {
@@ -122,7 +124,7 @@ describe('resolveStoryProductTruth', () => {
     }
   });
 
-  it('uses the published v4 package source for the new Chameleon story without legacy or QA flags', () => {
+  it('uses the currently published v4 package source for the Chameleon slot without legacy or QA flags', () => {
     delete process.env.ENABLE_V3_APPROVED_BANK;
     delete process.env.ENABLE_WIZARD_QA_RENDER_CATALOG;
 
@@ -131,7 +133,7 @@ describe('resolveStoryProductTruth', () => {
       companionId: 'chameleon_koko',
       clientDirection: 'bedtime',
     });
-    expect(resolved).toEqual({
+    expect(resolved).toMatchObject({
       storyDirection: 'bedtime',
       storyLength: 'short',
       pages: 8,
@@ -140,6 +142,27 @@ describe('resolveStoryProductTruth', () => {
       source: 'visual_package_v4',
       storyFile: CHAMELEON_ACCEPTED_REVISION,
     });
+    expect(resolved.visualPackageAuthority).toBeDefined();
+    expect(resolved.visualPackageAuthority?.sourcePath).toBe(
+      path.relative(process.cwd(), CHAMELEON_ACCEPTED_REVISION).replace(/\\/g, '/'),
+    );
+    expect(resolved.visualPackageAuthority?.sourceRawDigest).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('never selects a Style 01 package for an Order requesting another illustration style', () => {
+    process.env.ENABLE_V3_APPROVED_BANK = 'true';
+    const resolved = resolveStoryProductTruth({
+      challengeCategory: 'TRANSITION',
+      companionId: 'chameleon_koko',
+      clientDirection: 'bedtime',
+      illustrationStyle: 'detailed_whimsical_world',
+    });
+
+    expect(resolved.source).toBe('v3_approved_binding');
+    expect(resolved.storyFile).toBe(
+      path.join(V3_APPROVED_DIR, 'chameleon_koko_bedtime.md'),
+    );
+    expect(resolved.visualPackageAuthority).toBeUndefined();
   });
 
   it('QA flag binds all sellable slots to the autonomous QA bank with canonical page counts', () => {
@@ -180,6 +203,7 @@ describe('resolveStoryProductTruth', () => {
     expect(resolved.storyDirection).toBe('adventure');
     expect(resolved.priceILS).toBe(79);
     expect(resolved.source).toBe('companion_golden');
+    expect(resolved.visualPackageAuthority).toBeUndefined();
   });
 
   it('v3 binding with mismatched pages frontmatter fails loudly (500) — old 10-beat bedtime rejected', () => {
@@ -210,6 +234,7 @@ describe('resolveStoryProductTruth', () => {
     expect(resolved.storyDirection).toBe('bedtime');
     expect(resolved.priceILS).toBe(59);
     expect(resolved.source).toBe('legacy_length');
+    expect(resolved.visualPackageAuthority).toBeUndefined();
   });
 
   it('non-canonical frontmatter: pages follow the served story, dev warning fires (launch-routing guard)', () => {

@@ -24,6 +24,8 @@ const stubInspect = async (url: string | null | undefined): Promise<AssetInspect
 // COMMIT_SELECT-shaped order row (loadCommitInputs reads it both out-of-tx and in-tx).
 const orderRowFull = {
   id: 'o1', fulfillmentVersion: 1, inputVersion: 0, deliveryFenceVersion: 0, expectedPageCount: 2, storySourceHash: 'src', selectionFilename: 'bedtime/foo.md', frozenProductVersion: 'v3',
+  visualPackageAuthority: null,
+  illustrationStyle: 'pencil_watercolor',
   customerEmail: 'c@e.com', customerName: 'Cust', childName: 'Kid',
   book: { coverImageUrl: 'https://h/cover.png', readUrl: 'https://app.example.com/ready?orderId=o1', pdfUrl: null, pages: [
     { pageNumber: 1, text: 'עמוד אחד', audioUrl: null, imageAsset: { url: 'https://h/p1.png', presentationUrl: null } },
@@ -31,6 +33,28 @@ const orderRowFull = {
   ] },
 };
 const badPageRow = { ...orderRowFull, book: { ...orderRowFull.book, pages: [orderRowFull.book.pages[0], { ...orderRowFull.book.pages[1], imageAsset: { url: 'https://h/p2-bad.png', presentationUrl: null } }] } };
+
+function validPackageAuthority(sourcePath: string, sourceRawDigest: string) {
+  return {
+    version: 'frozen-visual-package-authority/v3',
+    manifestVersion: 'visual-package/v5',
+    storyKey: 'readiness_fixture',
+    styleId: 'soft_hand_drawn_storybook',
+    packagePath:
+      `visual-packages/approved/readiness_fixture/soft_hand_drawn_storybook/revisions/${'c'.repeat(64)}.visual-package.json`,
+    packageRevisionDigest: 'c'.repeat(64),
+    sourcePath,
+    sourceDigest: 'd'.repeat(64),
+    sourceRawDigest,
+    blueprintDigest: 'e'.repeat(64),
+    authoringAuthorityDigest: 'f'.repeat(64),
+    planningApprovalDigest: '1'.repeat(64),
+    styleAuthorityDigest: '2'.repeat(64),
+    visualContractTemplateDigest: '3'.repeat(64),
+    reconciliationDigest: '4'.repeat(64),
+    layoutPolicyVersion: 'portrait-layout-compatibility/v1',
+  };
+}
 
 // (#7-a) Passing durable Quality evidence for an order: the delivered-bytes hash (presentationUrl ?? url)
 // must equal what the integrity gate's inspect computes (stubInspect hashes the same url), else the gate
@@ -319,6 +343,218 @@ describe('withDeliveryInputMutation — atomic writer barrier (P1-f #5)', () => 
 });
 
 describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches', () => {
+  it('hard-holds an accepted-revision Order with missing package authority before asset inspection', async () => {
+    const packageOrder = {
+      ...orderRowFull,
+      selectionFilename:
+        'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/' +
+        `revisions/${'a'.repeat(64)}/integrated.md`,
+      storySourceHash: 'b'.repeat(64),
+      visualPackageAuthority: null,
+    };
+    const tx = mockTx(packageOrder);
+    const inspect = vi.fn(stubInspect);
+
+    const result = await commitBaseBookReadiness(
+      mockPrisma(tx, packageOrder) as never,
+      args(),
+      { inspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+
+    expect(result).toMatchObject({
+      manifestStatus: 'blocked',
+      enqueued: false,
+      orderStatus: 'needs_human_qa',
+      reason:
+        'contract_world_hold:visual_package_authority_invalid',
+    });
+    expect(inspect).not.toHaveBeenCalled();
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+    expect(tx.exceptionCase.upsert).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'aliased ./ accepted reference with null authority',
+      (selectionFilename: string, storySourceHash: string) => ({
+        selectionFilename: `./${selectionFilename}`,
+        storySourceHash,
+        visualPackageAuthority: null,
+      }),
+    ],
+    [
+      'doubled-separator accepted reference with null authority',
+      (selectionFilename: string, storySourceHash: string) => ({
+        selectionFilename: selectionFilename.replace(
+          'story-pipeline/',
+          'story-pipeline//',
+        ),
+        storySourceHash,
+        visualPackageAuthority: null,
+      }),
+    ],
+    [
+      'malformed authority envelope',
+      (selectionFilename: string, storySourceHash: string) => ({
+        selectionFilename,
+        storySourceHash,
+        visualPackageAuthority: {
+          ...validPackageAuthority(selectionFilename, storySourceHash),
+          hostileExtraKey: 'x',
+        },
+      }),
+    ],
+    [
+      'source digest mismatch',
+      (selectionFilename: string, storySourceHash: string) => ({
+        selectionFilename,
+        storySourceHash,
+        visualPackageAuthority: {
+          ...validPackageAuthority(selectionFilename, storySourceHash),
+          sourceRawDigest: '9'.repeat(64),
+        },
+      }),
+    ],
+    [
+      'story mismatch',
+      (selectionFilename: string, storySourceHash: string) => ({
+        selectionFilename,
+        storySourceHash,
+        visualPackageAuthority: {
+          ...validPackageAuthority(selectionFilename, storySourceHash),
+          storyKey: 'another_story',
+        },
+      }),
+    ],
+    [
+      'style mismatch',
+      (selectionFilename: string, storySourceHash: string) => ({
+        selectionFilename,
+        storySourceHash,
+        illustrationStyle: 'detailed_whimsical_world',
+        visualPackageAuthority: validPackageAuthority(
+          selectionFilename,
+          storySourceHash,
+        ),
+      }),
+    ],
+    [
+      'aliased package path inside the authority envelope',
+      (selectionFilename: string, storySourceHash: string) => ({
+        selectionFilename,
+        storySourceHash,
+        visualPackageAuthority: {
+          ...validPackageAuthority(selectionFilename, storySourceHash),
+          packagePath: `./${
+            validPackageAuthority(selectionFilename, storySourceHash)
+              .packagePath
+          }`,
+        },
+      }),
+    ],
+    [
+      'legacy Story Source carrying package authority (origin mix)',
+      (selectionFilename: string, storySourceHash: string) => ({
+        selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+        storySourceHash,
+        visualPackageAuthority: validPackageAuthority(
+          selectionFilename,
+          storySourceHash,
+        ),
+      }),
+    ],
+  ])(
+    'hard-holds %s even with QA soft delivery enabled — no inspection, no Outbox, no soft deliver',
+    async (_label, mutate) => {
+      vi.stubEnv('QA_SOFT_DELIVER', 'true');
+      vi.stubEnv('VERCEL_ENV', 'preview');
+      try {
+        const selectionFilename =
+          'story-pipeline/04_approved_story_sources/accepted/readiness_fixture/' +
+          `revisions/${'a'.repeat(64)}/integrated.md`;
+        const storySourceHash = 'b'.repeat(64);
+        const packageOrder = {
+          ...orderRowFull,
+          ...mutate(selectionFilename, storySourceHash),
+        };
+        const tx = mockTx(packageOrder);
+        const inspect = vi.fn(stubInspect);
+
+        const result = await commitBaseBookReadiness(
+          mockPrisma(tx, packageOrder) as never,
+          args(),
+          { inspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+        );
+
+        expect(result).toMatchObject({
+          manifestStatus: 'blocked',
+          enqueued: false,
+          orderStatus: 'needs_human_qa',
+          reason: 'contract_world_hold:visual_package_authority_invalid',
+        });
+        expect(inspect).not.toHaveBeenCalled();
+        expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+        expect(tx.exceptionCase.upsert).not.toHaveBeenCalled();
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+
+  it('genuine legacy Order with null authority keeps the ordinary readiness path under QA soft delivery', async () => {
+    vi.stubEnv('QA_SOFT_DELIVER', 'true');
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    try {
+      const tx = mockTx();
+      const inspect = vi.fn(stubInspect);
+      const result = await commitBaseBookReadiness(
+        mockPrisma(tx) as never,
+        args(),
+        { inspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+      );
+      expect(result).toMatchObject({
+        manifestStatus: 'passed',
+        enqueued: true,
+        orderStatus: 'ready',
+      });
+      expect(inspect).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('continues through ordinary integrity and delivery for an exact package-bound Order', async () => {
+    const selectionFilename =
+      'story-pipeline/04_approved_story_sources/accepted/readiness_fixture/' +
+      `revisions/${'a'.repeat(64)}/integrated.md`;
+    const storySourceHash = 'b'.repeat(64);
+    const packageOrder = {
+      ...orderRowFull,
+      selectionFilename,
+      storySourceHash,
+      visualPackageAuthority: validPackageAuthority(
+        selectionFilename,
+        storySourceHash,
+      ),
+    };
+    const tx = mockTx(packageOrder);
+    const inspect = vi.fn(stubInspect);
+
+    const result = await commitBaseBookReadiness(
+      mockPrisma(tx, packageOrder) as never,
+      args(),
+      { inspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+
+    expect(result).toMatchObject({
+      manifestStatus: 'passed',
+      enqueued: true,
+      orderStatus: 'ready',
+    });
+    expect(inspect).toHaveBeenCalledTimes(3);
+    expect(tx.deliveryOutbox.create).toHaveBeenCalledTimes(1);
+  });
+
   it('PASS + anchor allows: one immutable manifest INSERT, enqueue, order ready, job done', async () => {
     const tx = mockTx();
     const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
@@ -467,6 +703,41 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     const r = await commitBaseBookReadiness(prisma as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
     expect(prisma.$transaction).toHaveBeenCalledTimes(2); // aborted on drift, re-evaluated fresh, then committed
     expect(r.manifestStatus).toBe('passed');
+  });
+
+  it('treats a Visual Package authority change as delivery-input TOCTOU drift', async () => {
+    const drifted = {
+      ...orderRowFull,
+      visualPackageAuthority: {
+        version: 'hostile-authority-substitution',
+        packageRevisionDigest: 'a'.repeat(64),
+      },
+    };
+    const tx = mockTx();
+    tx.order.findUnique = vi
+      .fn()
+      .mockResolvedValueOnce(drifted)
+      .mockResolvedValue(orderRowFull);
+    const prisma = {
+      order: { findUnique: vi.fn(async () => orderRowFull) },
+      qualityEvidence: {
+        findMany: vi.fn(async () => passingQualityRows(orderRowFull)),
+      },
+      $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)),
+    };
+
+    const result = await commitBaseBookReadiness(
+      prisma as never,
+      args(),
+      {
+        inspect: stubInspect,
+        now: () => NOW,
+        appBaseUrl: 'https://app.example.com',
+      },
+    );
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(result.manifestStatus).toBe('passed');
   });
 
   it('retries the whole transaction on a revision collision (P2002)', async () => {

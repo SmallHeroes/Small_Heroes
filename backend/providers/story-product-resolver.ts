@@ -27,8 +27,9 @@ import {
   STORY_BANK_V3_DIR_NAME,
   V3_APPROVED_DIR_NAME,
 } from './story-bank-index';
-import { STYLE_IDS } from '@/lib/styles';
+import { styleIdFromDatabaseValue } from '@/lib/styles';
 import { evaluateWizardVisualPackageSelection } from '@/lib/visual-package/wizardVisualPackageSelection';
+import type { FrozenVisualPackageAuthority } from '@/lib/visual-package/visualPackageV4';
 
 export type StoryDirection = 'bedtime' | 'adventure' | 'fantasy';
 const DIRECTIONS: StoryDirection[] = ['bedtime', 'adventure', 'fantasy'];
@@ -72,6 +73,8 @@ export type ResolvedStoryProduct = {
     | 'client_direction'
     | 'legacy_length';
   storyFile?: string;
+  /** Exact immutable package selected for a package-backed Order. Never present on legacy products. */
+  visualPackageAuthority?: FrozenVisualPackageAuthority;
 };
 
 function normalizeDirection(value: unknown): StoryDirection | null {
@@ -158,6 +161,8 @@ export function resolveStoryProductTruth(input: {
   clientDirection?: string | null;
   legacyLength?: string | null;
   challengeCategory?: string | null;
+  /** Persisted database style value. Defaults to the launch Style 01 for legacy callers. */
+  illustrationStyle?: string | null;
 }, options: { repoRoot?: string } = {}): ResolvedStoryProduct {
   const repoRoot = options.repoRoot ?? process.cwd();
   const clientDirection = normalizeDirection(input.clientDirection);
@@ -166,15 +171,24 @@ export function resolveStoryProductTruth(input: {
     ? null
     : LEGACY_LENGTH_TO_DIRECTION[String(input.legacyLength ?? '').trim()] ?? null;
   const requestedDirection = clientDirection ?? legacyDirection;
+  const packageStyleId = styleIdFromDatabaseValue(
+    input.illustrationStyle ?? 'pencil_watercolor',
+  );
 
   // ── 0. Published Visual Package v4 — exact package-bound Story Source ──
   if (companionId && requestedDirection) {
     const selection = evaluateWizardVisualPackageSelection({
       repoRoot,
       storyKey: `${companionId}_${requestedDirection}`,
-      styleId: STYLE_IDS.SOFT_HAND_DRAWN_STORYBOOK,
+      styleId: packageStyleId,
     });
-    if (selection.renderQualified && selection.sourcePath) {
+    if (selection.renderQualified) {
+      if (!selection.sourcePath || !selection.frozenAuthority) {
+        throw new StoryProductResolutionError(
+          'Visual Package v4 selection is render-qualified but its immutable authority is incomplete',
+          500,
+        );
+      }
       const storyFile = join(repoRoot, selection.sourcePath);
       const fm = readStoryFrontmatter(storyFile);
       if (fm.direction !== requestedDirection) {
@@ -201,7 +215,10 @@ export function resolveStoryProductTruth(input: {
         resolved.storyDirection,
         repoRoot,
       );
-      return resolved;
+      return {
+        ...resolved,
+        visualPackageAuthority: selection.frozenAuthority,
+      };
     }
   }
 

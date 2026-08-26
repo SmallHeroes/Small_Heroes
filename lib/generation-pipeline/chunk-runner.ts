@@ -76,9 +76,10 @@ import {
   runWithStyle01RenderQualification,
 } from './render-qualification-preflight';
 import { requireRuntimeBlueprintFrame } from './runtime-blueprint-projection';
-// (Set Identity Board, Milestone C) ACTIVATE → BIND → ASSERT. Every one of these is a no-op for an order without a
-// `pipelineCache.setIdentityBoards` snapshot, and only `ensureSetIdentityBoardSnapshot` can create one (flag-gated,
-// hard-off on prod) — so with the flag off this import adds no DB call, no write, and no prompt byte.
+import { orderRequiresVisualPackageAuthority } from './order-visual-package-authority';
+// (Set Identity Board, Milestone C) ACTIVATE → BIND → ASSERT. Genuine legacy Orders remain rollout-flag gated and
+// inert when off. Package-backed Orders are activated from durable Order authority in every environment, so they
+// cannot reach a paid image without the package-required Board snapshot and bindings.
 import {
   ensureSetIdentityBoardSnapshot,
   requireSetIdentityBoardsBoundForRender,
@@ -207,16 +208,23 @@ function overBudget(startedAt: number, budgetMs: number): boolean {
 
 /**
  * (P1/OQ-T5) Fail-closed render gate — call right after the (best-effort) visual-contract freeze and BEFORE any paid
- * image. A NO-OP unless enforcement is ON (staging; hard-off on Vercel prod → byte-identical to today). When
- * enforcement is on it BLOCKS render if the frozen contract is absent or invalid: a resolved-kind contract must pass
+ * image. A NO-OP for a genuine legacy Order unless rollout enforcement is ON. For a package-backed Order the durable
+ * Order identity makes this gate mandatory even in Production/flags-off. When active it BLOCKS render if the frozen
+ * contract is absent or invalid: a resolved-kind contract must pass
  * the FULL Resolved validator (no legacy fall-through for a bad Resolved), a genuine legacy contract passes the base
  * validator, and no contract at all throws MissingVisualContractError. This closes the WS0b degrade-to-legacy gap — an
  * invalid Resolved that the freeze declined to persist no longer silently renders on the legacy path. The raw stored
  * value is handed to the guard so IT runs the right validator (never a blind cast).
  */
-function requireRenderableFrozenContract(cache: PipelineCache): void {
-  if (!isVisualContractEnforcementEnabled()) return; // default off; hard-off on prod → byte-identical no-op
-  requireValidContractForRender(cache.visualContract ?? null, 'production');
+function requireRenderableFrozenContract(
+  order: Order,
+  cache: PipelineCache,
+): void {
+  const requiredByOrder = orderRequiresVisualPackageAuthority(order);
+  if (!requiredByOrder && !isVisualContractEnforcementEnabled()) return;
+  requireValidContractForRender(cache.visualContract ?? null, 'production', {
+    requiredByOrder,
+  });
 }
 
 async function updateStage(orderId: string, stage: ChunkStage, extra?: Prisma.GenerationJobUpdateInput) {
@@ -1103,10 +1111,13 @@ async function runCoverStage(
   }
 
   assertShippedBookStyleEngineActive(order.illustrationStyle);
+  const runtimeVisualAuthorityRequired =
+    orderRequiresVisualPackageAuthority(order);
   const earlyRuntimeAuthority = requireStyle01RenderQualification({
     illustrationStyle: order.illustrationStyle,
     frozenContractHash: order.visualContractHash,
     storySourceHash: order.storySourceHash,
+    order,
     cache,
     pageNumbers: [0],
   });
@@ -1226,6 +1237,7 @@ async function runCoverStage(
       illustrationStyle: order.illustrationStyle,
       frozenContractHash: order.visualContractHash,
       storySourceHash: order.storySourceHash,
+      order,
       cache,
       pageNumbers: [0],
     },
@@ -1253,6 +1265,7 @@ async function runCoverStage(
     coverSceneHint: earlyRuntimeAuthority ? undefined : story.coverSceneHint,
     illustrationStyle: order.illustrationStyle,
     runtimeVisualAuthority,
+    runtimeVisualAuthorityRequired,
     childDescription: lockedChildDescription,
     characterSheet: earlyRuntimeAuthority ? undefined : story.characterSheet,
     referenceImages: gptReferenceImages,
@@ -1446,10 +1459,13 @@ async function runPageImagesChunk(
   }
 
   const pagesToRender = pendingPages.slice(0, getPageImagesPerChunk());
+  const runtimeVisualAuthorityRequired =
+    orderRequiresVisualPackageAuthority(order);
   const earlyRuntimeAuthority = requireStyle01RenderQualification({
     illustrationStyle: order.illustrationStyle,
     frozenContractHash: order.visualContractHash,
     storySourceHash: order.storySourceHash,
+    order,
     cache,
     pageNumbers: pagesToRender.map((page) => page.pageNumber),
   });
@@ -1844,6 +1860,7 @@ async function runPageImagesChunk(
       illustrationStyle: order.illustrationStyle,
       frozenContractHash: order.visualContractHash,
       storySourceHash: order.storySourceHash,
+      order,
       cache,
       pageNumbers: pagesForGen.map((page) => page.pageNumber),
     },
@@ -1871,6 +1888,7 @@ async function runPageImagesChunk(
       persistUploadedPageCandidate(order.id, pageNumber, candidate),
     illustrationStyle: order.illustrationStyle,
     runtimeVisualAuthority,
+    runtimeVisualAuthorityRequired,
     childName: order.childName,
     childAge: order.childAge,
     childGender: order.childGender,
@@ -2528,21 +2546,20 @@ export async function processGenerationChunk(
 
   try {
     // (WS0b/C3) Resume path: text + DNA are already done, so a resume can enter directly at cover/page_images/
-    // audio/package — freeze the visual contract BEFORE any paid image here too (idempotent; a no-op when the flag
-    // is off or the contract is already frozen). RELOCATED inside the try (C3) so a freeze-time
+    // audio/package — freeze the visual contract BEFORE any paid image here too (idempotent; a legacy no-op when the
+    // flag is off, mandatory for package-backed Orders, and a replay when already frozen). RELOCATED inside the try (C3) so a freeze-time
     // AtomicOperationOutcomeUnknownError is reconciled by the isOutcomeUnknown handler below (never leaked). It runs
     // before the loop, so ordering on the normal path is unchanged. The fresh path freezes at the dna→cover transition.
     if (stage !== 'text' && stage !== 'dna') {
       cache = await ensureFrozenVisualContract(order, cache);
-      requireRenderableFrozenContract(cache); // (P1/OQ-T5) block render on an absent/invalid contract (enforcement on)
-      // (Milestone C) A resume can enter DIRECTLY at cover/page_images — assert the boards here too, so a
-      // missing/stale binding can never reach a paid image. NOTE: no snapshot is written on the resume path; an
-      // order that got here without one is legacy and stays legacy (this call is then a pure no-op).
-      //
-      // EXCEPT at 'set_refs': that stage is what CREATES the bindings, so a worker that crashed between
-      // updateStage('set_refs') and the bind would be asserted-to-death here and could never resume. set_refs runs
-      // its own assert immediately AFTER binding, which is the gate that actually matters (it is still before the
-      // cover — the first paid image).
+      requireRenderableFrozenContract(order, cache); // block package-backed render independent of env flags
+      // A package-backed resume may have crashed after freeze and before Board activation. Recreate only that
+      // Order-owned snapshot (legacy resume semantics stay unchanged), then route any incomplete binding back to
+      // set_refs before asserting or spending.
+      if (orderRequiresVisualPackageAuthority(order)) {
+        cache = await ensureSetIdentityBoardSnapshot(order, cache);
+        if (shouldEnterSetRefsStage(cache)) stage = 'set_refs';
+      }
       if (stage !== 'set_refs') await requireSetIdentityBoardsBoundForRender(order, cache);
     }
     while (!overBudget(startedAt, budgetMs)) {
@@ -2563,16 +2580,16 @@ export async function processGenerationChunk(
           return { stage: 'dna', done: true, stopChunk: true };
         }
         // (WS0b) Fresh path: text + DNA are finalized — freeze the visual contract BEFORE the cover (the first
-        // paid image). Idempotent + non-blocking; a no-op when the flag is off or no contract is available.
+        // paid image). Idempotent; legacy remains flag-controlled while package-backed Orders fail closed.
         cache = await ensureFrozenVisualContract(order, cache);
-        requireRenderableFrozenContract(cache); // (P1/OQ-T5) block render on an absent/invalid contract (enforcement on)
-        // (Milestone C) The ONE activation point: a NEWLY frozen contract, before any paid image. Flag off / no
-        // frozen contract / a book that already has a paid image → returns `cache` untouched and no snapshot is
-        // ever written, so `shouldEnterSetRefsStage` is false and the next line is `stage = 'cover'` — identical
-        // to today. The assert runs before it (a no-op here on a fresh order) to keep the guard chain uniform.
-        await requireSetIdentityBoardsBoundForRender(order, cache);
+        requireRenderableFrozenContract(order, cache); // block package-backed render independent of env flags
+        // Activate before asserting: package-backed Orders require a snapshot even in Production/flags-off, while
+        // genuine legacy Orders keep the historical flag-controlled no-op.
         cache = await ensureSetIdentityBoardSnapshot(order, cache);
         stage = shouldEnterSetRefsStage(cache) ? 'set_refs' : 'cover';
+        if (stage !== 'set_refs') {
+          await requireSetIdentityBoardsBoundForRender(order, cache);
+        }
         continue;
       }
 
