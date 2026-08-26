@@ -2,63 +2,93 @@
 
 **Updated:** 2026-08-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed implementation base `6bedc6a396b07c0261991b859a554e5954adcc87`, with the focused compiler-binding milestone at local HEAD pending independent QA and push.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed implementation base `6bedc6a396b07c0261991b859a554e5954adcc87`, first implementation `6e006341799973dc6e57917d438886e695c58d8b`, and the focused QA correction at local HEAD pending independent re-gate and push.
 
-## COMPILER-OWNED CAST + CONTINUITY EVIDENCE BINDING — OFFLINE GREEN; INDEPENDENT QA PENDING
+## COMPILER-OWNED CAST + CONTINUITY EVIDENCE BINDING — QA CORRECTION OFFLINE GREEN; RE-GATE PENDING
 
 The first fully captured revised-Chameleon run exposed two deterministic
 identity-domain defects rather than another provider-quality or budget defect.
-The compiler replaced the draft cast with canonical IDs but left the draft's
-typed action references on provider aliases such as `child` and the raw
-companion ID. Separately, compact Source Evidence repair changed an action
-coverage ID without carrying it to the exact compiler-bound companion-state or
-wardrobe selector that supplied the represented-elsewhere value.
+The compiler replaced draft cast identities but left typed action references
+on provider aliases, and compact Source Evidence repair updated coverage
+without carrying the exact validated ID to its bound continuity selector. The
+general production correction rebinds all five typed cast-reference positions
+and propagates matching companion-state/wardrobe evidence atomically, with no
+story, child, companion, page, state, wardrobe or known-ID special case.
 
-The general offline correction is complete. A pure projection now rebinds only
-exact provider-wire child/companion aliases in all five typed action-reference
-positions before every compiler attempt. It preserves authoritative, unknown,
-non-cast and malformed values; ambiguous or cross-role aliases receive a
-non-resolving compiler sentinel so they cannot validate as another person.
-Source Evidence repair now propagates a validated ID atomically only when the
-same-page represented-elsewhere pointer, value and old ID all match. Stale or
-mismatched associations cannot borrow authority, and conflicting repairs for
-one selector reject before returning a result. There is no story, child,
-companion, page, state, wardrobe or known-ID special case.
+Claude Code independently verified that production correction and returned
+`PASS — 0 BLOCKER / 1 MAJOR / 4 MINOR`. The MAJOR was confined to evidence
+authority: harness v2 accepted complete populations supplied by the scenario,
+so its synthetic `2 -> 0` was not a compiler measurement. The MINORs were
+missing cast-group/order, null-companion shared-alias and same-ID idempotence
+coverage plus inconsistent census wording.
+
+The separate offline correction is green. Every sanitized repair summary now
+carries the compiler's existing `complete | route_subset` population through
+all terminal errors and Candidate success. Harness v3 rejects the legacy
+caller-supplied census before compilation, verifies exact summary/trail
+alignment by canonically rebuilding the persisted trail from full compiler
+emissions, counts only compiler-tagged complete attempts, and treats a fully
+validated Candidate as complete zero. Stage identities come from the full
+emissions rather than the persisted trail's bounded item window: a hostile
+140-identity regression remains 140 in count/list/digest despite only 128
+persisted items. Partial or unlike populations retain null complete deltas and
+cannot claim monotonicity. Scenario-mode CLI exits 0 only for complete coverage
+with monotonicity exactly true; capture mode retains its separate congruence
+rule. Production receipt, request, Candidate, Wizard and render schemas are
+unchanged; only the offline harness version and additive compile-review summary
+change.
 
 The exact historical capture replays with zero provider calls. Its corrected
-route changes from the old broad third call to
-`initial -> source_evidence_id_patch -> book_surface_patch`; all source-ID,
-source-phrase and continuity-authority failures disappear by attempt two while
-previously masked transition failures surface, leaving the normalized count
-at `14 -> 14`. A separate zero-provider frontier probe using the historical
-third full draft plus fourth Source Evidence patch reaches `7 -> 2`; only two
-genuine capability gaps remain and the next route is the existing
-`presentation_requirement_patch`. The stored third response in the full
-sequence is an obsolete full-draft response, so the corrected
-BookSurface schema rejects it as `repair_output_invalid`. The replay honestly
-reports old-receipt incongruence rather than rewriting immutable evidence.
+route is `initial -> source_evidence_id_patch -> book_surface_patch`.
+Source-ID, source-phrase and continuity failures disappear while six
+previously masked transition identities surface; normalized surfaced and
+compiler-tagged complete counts are both `14 -> 14`, monotonic true. The
+captured corrected frontier reaches complete `7 -> 2`, delta `-5`, leaving only
+page 3/item 0 and page 8/item 5 capability gaps before the existing
+`presentation_requirement_patch`. Both paths are ordinary digest-bound tests,
+not ad-hoc commands. A generic compact wardrobe scenario reaches a
+compiler-measured complete Candidate path `3 -> 0`, and a counterexample proves
+`complete -> route_subset` produces partial coverage with null deltas.
 
-Final focused validation is 5 files / 137 assertions, TypeScript and
-`git diff --check` all passing. A literal full check exercised 334 canonical
-specs. Its only change-owned failure was the expected census change from 333
-to 334. That run preceded the final raw-human collision correction and was not
-repeated. The final production bytes are covered by the complete focused
-137/137 run, both exact zero-provider replay probes, TypeScript and diff-check.
-The remaining nine full-check failures are the established missing
-ignored-output fixtures in five unchanged files; all 623 resource assertions
-pass, with the same three known Vitest worker RPC timeouts. No changed
-production assertion fails.
+The tracked capture fixture deliberately contains four full sanitized
+structured draft outputs (218,861 bytes), including authored set-reference
+prompt strings. It contains no credential, photo, PII, request, receipt,
+HTTP/database material or transport envelope. Its raw SHA-256, source/replay
+identities and all four payload digests are fixed and rechecked by ordinary
+tests.
 
-No prompt/schema/model/budget/retry/fallback/validator/catalog/Candidate/
-Wizard/render policy changed. No credential, provider/live call, Candidate,
-Wizard action, image, audio, render, database/storage write, deployment or push
-occurred. The prior Fresh root remains consumed. The binding next action is an
-adversarial Claude Code review of exact range `6bedc6a3..HEAD`; PASS is required
-before push, a new Fresh root and at most one new paid authoring attempt. Durable
-records:
-`docs/ai-workflow/R1D_COMPILER_OWNED_CAST_AND_CONTINUITY_BINDING_DECISION_GATE.md`
+Here `complete` means the full collected population for the currently
+evaluable compiler pass, not hypothetical failures behind unmet prerequisites.
+Cast groups pass through the shared canonical sorter after alias binding;
+duplicates remain visible so alias collapse fails validation instead of being
+silently repaired. New tests cover canonical order, duplicate preservation,
+the null-companion shared alias and order-independent same-selector/same-ID
+continuity repair.
+
+Current correction validation is 9 files / 425 assertions, TypeScript and
+`git diff --check` all passing. The final-byte literal `npm run check` passed
+both TypeScript phases. Ordinary passed 3,788 assertions, skipped 70 and failed
+only the same nine absent ignored-output assertions across five unchanged
+fixture readers. Resource passed 621 assertions; two assertions in one
+unchanged subprocess-heavy materialization file crossed the fixed five-second
+bound, with the three known worker RPC timeouts. That exact file then passed
+21/21 isolated, including both timed cases. The literal repository command
+therefore remains exit 1 at the documented fixture/infrastructure baseline and
+is not relabeled as a PASS. The original production bytes are covered by the
+focused 137/137 run; correction bytes are covered by the 425-test matrix and
+committed zero-provider capture regressions.
+
+No prompt/provider-schema/model/budget/retry/fallback/validator/catalog/
+Candidate/Wizard/render policy changed. No credential, provider/live call,
+Candidate, Wizard action, image, audio, render, database/storage write,
+deployment or push occurred. The prior Fresh root remains consumed. The
+binding next action is an adversarial Claude Code re-gate of correction range
+`6e006341..HEAD`; PASS is required before push, a new Fresh root and at most one
+new paid authoring attempt. Durable records:
+`docs/ai-workflow/R1D_COMPILER_OWNED_CAST_AND_CONTINUITY_BINDING_DECISION_GATE.md`,
+`docs/ai-workflow/R1D_COMPILER_OWNED_CAST_AND_CONTINUITY_BINDING_IMPLEMENTATION_EVIDENCE.md`,
 and
-`docs/ai-workflow/R1D_COMPILER_OWNED_CAST_AND_CONTINUITY_BINDING_IMPLEMENTATION_EVIDENCE.md`.
+`docs/ai-workflow/R1D_COMPILER_OWNED_CENSUS_QA_CORRECTION_EVIDENCE.md`.
 
 ## CANONICAL PROJECTION + REPLAY EVIDENCE — INDEPENDENT PASS; PUSH/FRESH PENDING
 

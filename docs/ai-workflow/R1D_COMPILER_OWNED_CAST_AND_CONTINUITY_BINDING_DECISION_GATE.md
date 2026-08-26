@@ -1,6 +1,7 @@
 # Decision Gate — Compiler-Owned Cast and Continuity Evidence Binding
 
-**Status:** approved by Guy on 2026-08-26; offline implementation green; independent QA pending
+**Status:** approved by Guy on 2026-08-26; first implementation independently
+verified for correctness; offline QA-evidence correction green and pending re-gate
 **Date:** 2026-08-26
 **Owner:** Codex
 **Branch/worktree:** `codex/r1d-qa-wizard-downstream-lifecycle` in
@@ -30,9 +31,11 @@ Chameleon live authoring replay.
 
 The single bounded live attempt at Fresh root
 `r1d-chameleon-v3-fresh-readiness-20260826T042742202Z` captured five responses
-and failed with the complete issue path `21 -> 18 -> 14 -> 12 -> 13`. Offline
-replay reproduced it with zero provider calls and proved the regression guard
-correctly retained attempt 4 and rejected attempt 5.
+and failed with the historical, pre-fix receipt path
+`21 -> 18 -> 14 -> 12 -> 13`; that immutable receipt marked each recorded
+population complete. It is not a current corrected-replay census. Offline
+replay reproduced the historical outcome with zero provider calls and proved
+the regression guard correctly retained attempt 4 and rejected attempt 5.
 
 The retained draft had 12 issues. Ten were manufactured by two deterministic
 compiler mismatches:
@@ -44,11 +47,12 @@ compiler mismatches:
   bound `companionStateSourceEvidenceId` stale, so continuity projection emitted
   an empty evidence phrase.
 
-An in-memory replay applying only these two bindings reduced the retained
-complete census from 12 to the two genuine action capability gaps and selected
-the existing `presentation_requirement_patch` route. A separate attempt-1
-probe showed that exact continuity propagation changes the next route from
-`full_draft` to the existing `book_surface_patch` route.
+At decision time, an exploratory in-memory replay applying only these two
+bindings reduced the corrected frontier's surfaced identities to two action
+capability gaps and selected the existing `presentation_requirement_patch`
+route. That observation was motivation, not a persisted complete-census claim.
+A separate attempt-1 probe showed that exact continuity propagation changes
+the next route from `full_draft` to the existing `book_surface_patch` route.
 
 ## 3. Scope
 
@@ -97,8 +101,9 @@ families are eligible. Zero or multiple associations do not guess.
   aliases cannot validate as another cast member.
 - A validated compact evidence patch updates its exact bound continuity selector
   in the same transaction, preventing a stale ID from surviving projection.
-- The captured retained draft reports only its two real capability gaps and
-  proceeds through an existing narrow repair lane instead of another full draft.
+- The captured corrected frontier removes the binding-related identities,
+  reports two surfaced capability gaps and proceeds through an existing narrow
+  repair lane instead of another full draft.
 - Regression and stagnation guards retain their current fail-closed behavior.
 
 ## 7. Validation plan
@@ -112,8 +117,10 @@ All proof before independent QA is offline and costs `$0`.
    source-phenomenon action propagation, zero association, wrong pointer,
    stale old ID, value mismatch, ambiguous association and input immutability.
 3. Replay the captured production responses through the real compiler/harness
-   with injected responses only. Prove zero provider calls, non-increasing
-   complete census, and the expected narrow next route.
+   with recorded responses only. Complete counts may come only from
+   compiler-owned diagnostic-population metadata; route subsets remain null.
+   Prove zero provider calls, non-increasing comparable complete populations,
+   and the expected narrow next route.
 4. Run focused suites, broader compiler/lifecycle suites,
    `npx --no-install tsc --noEmit`, `git diff --check`, and literal
    `npm run check`, reporting any established fixture/infrastructure baseline
@@ -155,7 +162,44 @@ Claude Code must try to falsify:
 Claude Cowork is not required for this deterministic engineering correction.
 Guy remains the product/editorial/visual authority for the resulting book.
 
-## 11. Do not do
+## 11. Independent-QA correction
+
+Claude Code returned a correctness PASS on `6bedc6a3..6e006341` with one
+evidence MAJOR and four coverage/documentation MINORs. The production binding
+change was verified correct; the former harness nevertheless sourced its
+`completeIssueCount` from `scenario.completeDiagnosticIssuesByAttempt`, so the
+test-supplied `2 -> 0` was not a compiler measurement.
+
+The offline correction makes compiler-owned population metadata the sole
+census authority. `TemplateRepairSummary` now carries the compiler's existing
+`complete | route_subset` classification through every sanitized terminal and
+Candidate result. Harness v3 rejects the legacy injected-census field before
+compilation, checks summary/trail alignment, counts only compiler-tagged
+complete populations, treats a fully validated Candidate as a complete zero,
+and returns null across unlike or partial populations. Exact alignment is
+proved by canonically rebuilding the persisted trail from full compiler
+emissions, so its 128-item storage window cannot truncate the harness's stage
+evidence. Scenario-mode CLI success requires complete coverage and monotonicity
+exactly true; capture mode keeps its separate congruence boundary.
+
+A tracked, digest-bound fixture derived from captured attempts 1–4 now proves
+the current corrected paths in ordinary tests: complete `14 -> 14` selects
+`book_surface_patch`, and complete `7 -> 2` selects
+`presentation_requirement_patch`, with zero provider calls. Here `complete`
+retains the already-audited compiler meaning: the full collected population
+for the currently evaluable validation pass, not hypothetical failures hidden
+behind unsatisfied prerequisites. The fixture deliberately tracks four full
+sanitized structured draft outputs (including authored set-reference prompt
+strings), but no credential, photo, PII, request, receipt or transport envelope;
+all four payload digests are hardcoded and recomputed by the regression.
+
+The cast-group correction remains projection followed by the existing shared
+canonical sorter; duplicates are deliberately preserved so validation can
+reject a provider declaration that collapses two aliases onto one identity.
+New regressions cover that bridge, the null-companion shared-alias branch and
+same-selector/same-ID continuity-patch idempotence.
+
+## 12. Do not do
 
 - Do not add a Chameleon, Bar, Kim, page-number or known-ID special case.
 - Do not weaken the complete-census regression guard or validator.

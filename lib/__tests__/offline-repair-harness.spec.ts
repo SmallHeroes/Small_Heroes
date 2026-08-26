@@ -1,9 +1,16 @@
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { extractSourceFromMarkdown } from '../../scripts/extract-visual-contract-sources';
+import { canonicalHash } from '../canonical-json';
+import {
+  buildStorySourceAuthoritySnapshot,
+  storySourceSnapshotToTemplateInput,
+} from '../visual-package/storySourceAuthority';
 import {
   classifyOfflineRepairDelta,
   runOfflineRepairHarness,
@@ -25,6 +32,44 @@ import type {
 import { withCurrentActionSemanticCoverage } from './visual-contract-authoring-draft-fixtures';
 
 const BANK = path.join(process.cwd(), 'story-bank/v3-approved');
+const CHAMELEON_SOURCE_PATH =
+  'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a/integrated.md';
+
+interface CapturedChameleonFrontierPair {
+  initialDraftDigest: string;
+  sourceEvidenceRepairDigest: string;
+  initialDraft: Record<string, unknown>;
+  sourceEvidenceRepair: Record<string, unknown>;
+}
+
+interface CapturedChameleonFrontiers {
+  version: string;
+  sourceSnapshotDigest: string;
+  replayEvidenceDigest: string;
+  capturedAttempts: number[];
+  exactReplay: CapturedChameleonFrontierPair;
+  correctedFrontier: CapturedChameleonFrontierPair;
+}
+
+function capturedChameleonFrontiers(): CapturedChameleonFrontiers {
+  return JSON.parse(
+    fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'lib/__tests__/fixtures/chameleon-v3-captured-corrected-frontier.json',
+      ),
+      'utf8',
+    ),
+  ) as CapturedChameleonFrontiers;
+}
+
+function chameleonSourceSnapshot() {
+  return buildStorySourceAuthoritySnapshot({
+    repoRoot: process.cwd(),
+    storyKey: 'chameleon_koko_bedtime',
+    storyPath: CHAMELEON_SOURCE_PATH,
+  });
+}
 
 function bunnySource(): TemplateCompileInput {
   return extractSourceFromMarkdown(
@@ -64,23 +109,6 @@ function bunnyDraft(): Record<string, unknown> & {
   });
 }
 
-const WORLD_TYPE_MISSING = {
-  family: 'draft_contract',
-  code: 'world_type_missing',
-  locator: { kind: 'root', fieldRole: 'world_type' },
-} satisfies DraftValidationIssue;
-
-const PAGE_STEERING_INVALID = {
-  family: 'draft_contract',
-  code: 'final_structural_invariant_invalid',
-  locator: {
-    kind: 'page',
-    fieldRole: 'final_structure',
-    pageNumber: 1,
-  },
-  causes: ['page_steering_invalid'],
-} satisfies DraftValidationIssue;
-
 const CAPABILITY_GAP = {
   family: 'action_semantic',
   code: 'closed_catalog_capability_gap',
@@ -93,55 +121,15 @@ const CAPABILITY_GAP = {
   },
 } satisfies DraftValidationIssue;
 
-const CAPABILITY_COVERAGE_MISSING = {
-  family: 'action_semantic',
-  code: 'coverage_missing',
-  locator: {
-    kind: 'page',
-    fieldRole: 'coverage',
-    pageNumber: 1,
-  },
-} satisfies DraftValidationIssue;
-
-const CONTINUITY_AUTHORITY_INVALID = {
-  family: 'draft_contract',
-  code: 'continuity_authority_invalid',
-  locator: { kind: 'root', fieldRole: 'authority' },
-} satisfies DraftValidationIssue;
-
-const BEAT_ID_OUT_OF_SCOPE = {
-  family: 'action_semantic',
-  code: 'beat_identity_out_of_scope',
-  locator: {
-    kind: 'page_item',
-    collectionRole: 'page_action_semantic_coverage',
-    fieldRole: 'identity',
-    pageNumber: 1,
-    itemIndex: 0,
-  },
-} satisfies DraftValidationIssue;
-
-const PAGE_ACTION_REQUIREMENTS_INVALID = {
-  family: 'draft_contract',
-  code: 'final_structural_invariant_invalid',
-  locator: {
-    kind: 'page',
-    fieldRole: 'final_structure',
-    pageNumber: 1,
-  },
-  causes: ['page_action_requirements_invalid'],
-} satisfies DraftValidationIssue;
-
 describe('offline Visual Contract repair harness', () => {
   it('compiler-binds exact initial selectors, eliminates the historical pointer family, and reaches Candidate without provider or repair', async () => {
     const result = await runOfflineRepairHarness({
       input: bunnySource(),
       initialDraft: bunnyDraft(),
-      completeDiagnosticIssuesByAttempt: [[]],
     });
 
     expect(result.version).toBe(
-      'visual-contract-offline-repair-harness-result/v2',
+      'visual-contract-offline-repair-harness-result/v3',
     );
     expect(result.executionMode).toBe('offline_stub');
     expect(result.providerCalls).toBe(0);
@@ -175,6 +163,7 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.stages).toEqual([
       expect.objectContaining({
         attempt: 1,
+        diagnosticPopulation: 'complete',
         surfacedIssueCount: 0,
         completeIssueCount: 0,
         classification: 'baseline',
@@ -185,6 +174,194 @@ describe('offline Visual Contract repair harness', () => {
     expect(JSON.stringify(result.stages)).not.toMatch(
       /represented_elsewhere_pointer_(?:out_of_scope|unresolved)/,
     );
+  });
+
+  it('rejects a caller-supplied complete census before compiling the scenario', async () => {
+    const forgedScenario = {
+      input: bunnySource(),
+      initialDraft: bunnyDraft(),
+      completeDiagnosticIssuesByAttempt: [[CAPABILITY_GAP]],
+    };
+
+    await expect(
+      runOfflineRepairHarness(forgedScenario),
+    ).rejects.toThrow(
+      'offline_harness_caller_supplied_complete_census_forbidden',
+    );
+  });
+
+  it('preserves a complete compiler census beyond the persisted diagnostic-item cap', async () => {
+    const input = bunnySource();
+    const initial = bunnyDraft();
+    const page = initial.pageContracts[0]!;
+    const coverage = page.actionSemanticCoverage as Array<Record<string, unknown>>;
+    const base = structuredClone(coverage[0]!);
+    coverage.push(
+      ...Array.from({ length: 140 }, (_, index) => ({
+        ...structuredClone(base),
+        beatId: `beat:p1:overflow_${index}`,
+        disposition: {
+          kind: 'represented_elsewhere',
+          representedValue: `not-present-${index}`,
+        },
+      })),
+    );
+
+    const result = await runOfflineRepairHarness({
+      input,
+      initialDraft: initial,
+      repairResponses: [{}],
+    });
+
+    expect(result).toMatchObject({
+      version: 'visual-contract-offline-repair-harness-result/v3',
+      outcome: 'repair_output_invalid',
+      completeCensusCoverage: 'complete',
+      monotonicCompleteIssueDelta: true,
+      maxPositiveCompleteIssueDelta: 0,
+      finalSurfacedIssueCount: 140,
+      finalCompleteIssueCount: 140,
+    });
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'represented_elsewhere_patch',
+    ]);
+    expect(result.stages).toHaveLength(1);
+    expect(result.stages[0]).toMatchObject({
+      attempt: 1,
+      diagnosticPopulation: 'complete',
+      surfacedIssueCount: 140,
+      completeIssueCount: 140,
+      completeDelta: null,
+      classification: 'baseline',
+    });
+    expect(result.stages[0]!.surfacedDiagnosticIssues).toHaveLength(140);
+    expect(result.stages[0]!.surfacedDiagnosticIssues.every(
+      (issue) => issue.code === 'represented_elsewhere_pointer_out_of_scope',
+    )).toBe(true);
+    expect(result.terminalIssueDigest).toBe(
+      canonicalHash(result.stages[0]!.surfacedDiagnosticIssues),
+    );
+  });
+
+  it('CLI fails closed when complete-census monotonicity is unavailable', () => {
+    const input = bunnySource();
+    delete (input as unknown as Record<string, unknown>).worldType;
+    const initialDraft = bunnyDraft();
+    initialDraft.worldType = '';
+    const root = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'offline-harness-cli-partial-'),
+    );
+    try {
+      const scenarioPath = path.join(root, 'scenario.json');
+      fs.writeFileSync(scenarioPath, JSON.stringify({
+        input,
+        initialDraft,
+        repairResponses: [{}, {}],
+      }), 'utf8');
+      const run = spawnSync(process.execPath, [
+        '--require',
+        'tsx/cjs',
+        '--require',
+        './scripts/shims/register-server-only.cjs',
+        'scripts/visual-contract-repair-offline-harness.ts',
+        '--scenario',
+        scenarioPath,
+      ], {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      });
+
+      expect(run.error).toBeUndefined();
+      expect(run.status).toBe(1);
+      expect(JSON.parse(run.stdout)).toMatchObject({
+        version: 'visual-contract-offline-repair-harness-result/v3',
+        completeCensusCoverage: 'partial',
+        monotonicCompleteIssueDelta: null,
+        maxPositiveCompleteIssueDelta: null,
+      });
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('CLI succeeds only with complete monotonic compiler census evidence', () => {
+    const root = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'offline-harness-cli-complete-'),
+    );
+    try {
+      const scenarioPath = path.join(root, 'scenario.json');
+      fs.writeFileSync(scenarioPath, JSON.stringify({
+        input: bunnySource(),
+        initialDraft: bunnyDraft(),
+      }), 'utf8');
+      const run = spawnSync(process.execPath, [
+        '--require',
+        'tsx/cjs',
+        '--require',
+        './scripts/shims/register-server-only.cjs',
+        'scripts/visual-contract-repair-offline-harness.ts',
+        '--scenario',
+        scenarioPath,
+      ], {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      });
+
+      expect(run.error).toBeUndefined();
+      expect(run.status).toBe(0);
+      expect(JSON.parse(run.stdout)).toMatchObject({
+        version: 'visual-contract-offline-repair-harness-result/v3',
+        outcome: 'candidate',
+        completeCensusCoverage: 'complete',
+        monotonicCompleteIssueDelta: true,
+      });
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not compare a complete census with later route subsets', async () => {
+    const input = bunnySource();
+    delete (input as unknown as Record<string, unknown>).worldType;
+    const initialDraft = bunnyDraft();
+    initialDraft.worldType = '';
+
+    const result = await runOfflineRepairHarness({
+      input,
+      initialDraft,
+      repairResponses: [{}, {}],
+    });
+
+    expect(result.outcome).toBe('repair_output_invalid');
+    expect(result.completeCensusCoverage).toBe('partial');
+    expect(result.monotonicCompleteIssueDelta).toBeNull();
+    expect(result.maxPositiveCompleteIssueDelta).toBeNull();
+    expect(result.stages.map((stage) => ({
+      population: stage.diagnosticPopulation,
+      count: stage.completeIssueCount,
+      delta: stage.completeDelta,
+      classification: stage.classification,
+    }))).toEqual([
+      {
+        population: 'complete',
+        count: 3,
+        delta: null,
+        classification: 'baseline',
+      },
+      {
+        population: 'route_subset',
+        count: null,
+        delta: null,
+        classification: 'complete_census_unavailable',
+      },
+      {
+        population: 'route_subset',
+        count: null,
+        delta: null,
+        classification: 'complete_census_unavailable',
+      },
+    ]);
   });
 
   it('stops before applying a captured response when the production route changed', async () => {
@@ -344,7 +521,6 @@ describe('offline Visual Contract repair harness', () => {
     const result = await runOfflineRepairHarness({
       input: source,
       initialDraft: draft,
-      completeDiagnosticIssuesByAttempt: [[]],
     });
 
     expect(result.outcome).toBe('candidate');
@@ -359,7 +535,7 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.monotonicCompleteIssueDelta).toBe(true);
   });
 
-  it('replays an injected full-draft repair and reports exact issue delta', async () => {
+  it('replays a full-draft repair and reports the compiler-owned issue delta', async () => {
     const invalid = bunnyDraft();
     invalid.worldType = '';
     const input = bunnySource();
@@ -369,10 +545,6 @@ describe('offline Visual Contract repair harness', () => {
       input,
       initialDraft: invalid,
       repairResponses: [bunnyDraft()],
-      completeDiagnosticIssuesByAttempt: [
-        [WORLD_TYPE_MISSING],
-        [],
-      ],
     });
 
     expect(result.outcome).toBe('candidate');
@@ -391,14 +563,14 @@ describe('offline Visual Contract repair harness', () => {
     }))).toEqual([
       {
         surfaced: 3,
-        complete: 1,
+        complete: 3,
         delta: null,
         classification: 'baseline',
       },
       {
         surfaced: 0,
         complete: 0,
-        delta: -1,
+        delta: -3,
         classification: 'improved',
       },
     ]);
@@ -461,10 +633,6 @@ describe('offline Visual Contract repair harness', () => {
       input: bunnySource(),
       initialDraft: invalid,
       repairResponses: [repaired],
-      completeDiagnosticIssuesByAttempt: [
-        [BEAT_ID_OUT_OF_SCOPE, PAGE_ACTION_REQUIREMENTS_INVALID],
-        [],
-      ],
     });
 
     expect(result).toMatchObject({
@@ -563,10 +731,6 @@ describe('offline Visual Contract repair harness', () => {
       input,
       initialDraft: invalid,
       repairResponses: [repaired],
-      completeDiagnosticIssuesByAttempt: [
-        [CONTINUITY_AUTHORITY_INVALID],
-        [],
-      ],
     });
 
     expect(result.outcome).toBe('candidate');
@@ -647,7 +811,6 @@ describe('offline Visual Contract repair harness', () => {
     const coverage = page.actionSemanticCoverage as Array<
       Record<string, unknown>
     >;
-    const coverageIndex = coverage.length;
     coverage.push({
       beatId,
       sourceEvidenceId: malformedSourceEvidenceId,
@@ -656,17 +819,6 @@ describe('offline Visual Contract repair harness', () => {
         representedValue: description,
       },
     });
-    const sourceIssue = {
-      family: 'source_evidence_id',
-      code: 'source_evidence_id_unknown',
-      locator: {
-        kind: 'source_evidence',
-        fieldRole: 'source_evidence',
-        pageNumber: 12,
-        coverageIndex,
-      },
-    } satisfies DraftValidationIssue;
-
     const result = await runOfflineRepairHarness({
       input,
       initialDraft: initial,
@@ -677,10 +829,6 @@ describe('offline Visual Contract repair harness', () => {
           sourceEvidenceId: evidence.sourceEvidenceId,
         }],
       }],
-      completeDiagnosticIssuesByAttempt: [
-        [sourceIssue, CONTINUITY_AUTHORITY_INVALID],
-        [],
-      ],
     });
 
     expect(result).toMatchObject({
@@ -700,9 +848,20 @@ describe('offline Visual Contract repair harness', () => {
       count: stage.completeIssueCount,
       delta: stage.completeDelta,
       classification: stage.classification,
+      population: stage.diagnosticPopulation,
     }))).toEqual([
-      { count: 2, delta: null, classification: 'baseline' },
-      { count: 0, delta: -2, classification: 'improved' },
+      {
+        count: 3,
+        delta: null,
+        classification: 'baseline',
+        population: 'complete',
+      },
+      {
+        count: 0,
+        delta: -3,
+        classification: 'improved',
+        population: 'complete',
+      },
     ]);
     let compileCall = 0;
     const compiled = await compileBookVisualContractTemplate(input, {
@@ -749,6 +908,174 @@ describe('offline Visual Contract repair harness', () => {
     });
   });
 
+  it('replays the exact captured Chameleon start as complete 14 to 14 without provider input', async () => {
+    const fixture = capturedChameleonFrontiers();
+    expect(fixture).toMatchObject({
+      version: 'chameleon-v3-captured-corrected-frontiers/v1',
+      sourceSnapshotDigest:
+        '35fe04ab5601031735bd7bdd283bab7a8d897bc399427d592e39fe56aa1f6a6c',
+      replayEvidenceDigest:
+        '828d16fb01ce9d5cee18c1701f9f9e61c124148e42035288a844b38bb18f6079',
+      capturedAttempts: [1, 2, 3, 4],
+      exactReplay: {
+        initialDraftDigest:
+          'af75da34297fe39734d9387a592d003ee26e9b090564ff2dce14eea24c9f85d3',
+        sourceEvidenceRepairDigest:
+          'f931de520ccfa9f874e46f0312a0cce5e6ec50bad2125bcff7fbeb47c0d1db9d',
+      },
+      correctedFrontier: {
+        initialDraftDigest:
+          'ca933f4f1af7beac9a6abbb283b96982442eee702e0c5913c6b9441095148dc7',
+        sourceEvidenceRepairDigest:
+          '739e52580a17ce9bf8d8c6a27e9b3228c15ff2be760db55ee134a3cd484d6a54',
+      },
+    });
+    expect(canonicalHash(fixture.exactReplay.initialDraft)).toBe(
+      fixture.exactReplay.initialDraftDigest,
+    );
+    expect(
+      canonicalHash(fixture.exactReplay.sourceEvidenceRepair),
+    ).toBe(fixture.exactReplay.sourceEvidenceRepairDigest);
+    const snapshot = chameleonSourceSnapshot();
+    expect(snapshot.digest).toBe(fixture.sourceSnapshotDigest);
+
+    const result = await runOfflineRepairHarness({
+      input: storySourceSnapshotToTemplateInput(snapshot),
+      initialDraft: fixture.exactReplay.initialDraft,
+      repairResponses: [
+        fixture.exactReplay.sourceEvidenceRepair,
+        {},
+      ],
+    });
+
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'repair_output_invalid',
+      completeCensusCoverage: 'complete',
+      monotonicCompleteIssueDelta: true,
+      maxPositiveCompleteIssueDelta: 0,
+      finalCompleteIssueCount: 14,
+    });
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'source_evidence_id_patch',
+      'book_surface_patch',
+    ]);
+    expect(result.stages.map((stage) => ({
+      population: stage.diagnosticPopulation,
+      count: stage.completeIssueCount,
+      delta: stage.completeDelta,
+      next: stage.nextRepairMode,
+    }))).toEqual([
+      {
+        population: 'complete',
+        count: 14,
+        delta: null,
+        next: 'source_evidence_id_patch',
+      },
+      {
+        population: 'complete',
+        count: 14,
+        delta: 0,
+        next: 'book_surface_patch',
+      },
+    ]);
+    expect(result.stages[0]!.surfacedDiagnosticIssues.some(
+      (issue) => issue.family === 'source_evidence_id',
+    )).toBe(true);
+    expect(result.stages[1]!.surfacedDiagnosticIssues.some(
+      (issue) => issue.family === 'source_evidence_id',
+    )).toBe(false);
+    expect(result.stages[1]!.surfacedDiagnosticIssues.filter(
+      (issue) =>
+        issue.code === 'final_structural_invariant_invalid' &&
+        'causes' in issue &&
+        issue.causes?.includes('page_transition_invalid'),
+    )).toHaveLength(6);
+  });
+
+  it('replays the captured Chameleon corrected frontier from complete 7 to 2 without provider input', async () => {
+    const fixture = capturedChameleonFrontiers();
+    expect(canonicalHash(fixture.correctedFrontier.initialDraft)).toBe(
+      fixture.correctedFrontier.initialDraftDigest,
+    );
+    expect(
+      canonicalHash(
+        fixture.correctedFrontier.sourceEvidenceRepair,
+      ),
+    ).toBe(
+      fixture.correctedFrontier.sourceEvidenceRepairDigest,
+    );
+    const snapshot = chameleonSourceSnapshot();
+    expect(snapshot.digest).toBe(fixture.sourceSnapshotDigest);
+
+    const result = await runOfflineRepairHarness({
+      input: storySourceSnapshotToTemplateInput(snapshot),
+      initialDraft: fixture.correctedFrontier.initialDraft,
+      repairResponses: [
+        fixture.correctedFrontier.sourceEvidenceRepair,
+        {},
+      ],
+    });
+
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'repair_output_invalid',
+      completeCensusCoverage: 'complete',
+      monotonicCompleteIssueDelta: true,
+      maxPositiveCompleteIssueDelta: 0,
+      finalCompleteIssueCount: 2,
+    });
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'source_evidence_id_patch',
+      'presentation_requirement_patch',
+    ]);
+    expect(result.stages.map((stage) => ({
+      population: stage.diagnosticPopulation,
+      count: stage.completeIssueCount,
+      delta: stage.completeDelta,
+      next: stage.nextRepairMode,
+    }))).toEqual([
+      {
+        population: 'complete',
+        count: 7,
+        delta: null,
+        next: 'source_evidence_id_patch',
+      },
+      {
+        population: 'complete',
+        count: 2,
+        delta: -5,
+        next: 'presentation_requirement_patch',
+      },
+    ]);
+    expect(result.stages[1]!.surfacedDiagnosticIssues.map((issue) => ({
+      code: issue.code,
+      pageNumber:
+        issue.locator.kind === 'page_item'
+          ? issue.locator.pageNumber
+          : null,
+      itemIndex:
+        issue.locator.kind === 'page_item'
+          ? issue.locator.itemIndex
+          : null,
+    }))).toEqual([
+      {
+        code: 'closed_catalog_capability_gap',
+        pageNumber: 3,
+        itemIndex: 0,
+      },
+      {
+        code: 'closed_catalog_capability_gap',
+        pageNumber: 8,
+        itemIndex: 5,
+      },
+    ]);
+  });
+
   it('distinguishes unmasking from genuine repair damage using the complete census', async () => {
     expect(classifyOfflineRepairDelta({
       surfacedDelta: 11,
@@ -774,11 +1101,6 @@ describe('offline Visual Contract repair harness', () => {
       input,
       initialDraft: invalid,
       repairResponses: [stillInvalid, bunnyDraft()],
-      completeDiagnosticIssuesByAttempt: [
-        [WORLD_TYPE_MISSING],
-        [WORLD_TYPE_MISSING, PAGE_STEERING_INVALID],
-        [],
-      ],
     });
 
     expect(result.outcome).toBe('repair_regressed');
@@ -804,10 +1126,6 @@ describe('offline Visual Contract repair harness', () => {
       input,
       initialDraft: fixedPoint,
       repairResponses: [structuredClone(fixedPoint), bunnyDraft()],
-      completeDiagnosticIssuesByAttempt: [
-        [WORLD_TYPE_MISSING],
-        [WORLD_TYPE_MISSING],
-      ],
     });
 
     expect(result).toMatchObject({
@@ -817,7 +1135,7 @@ describe('offline Visual Contract repair harness', () => {
       completeCensusCoverage: 'complete',
       monotonicCompleteIssueDelta: true,
       maxPositiveCompleteIssueDelta: 0,
-      finalCompleteIssueCount: 1,
+      finalCompleteIssueCount: 3,
     });
     expect(result.calls).toHaveLength(2);
     expect(result.calls.map((call) => call.repairMode)).toEqual([
@@ -953,46 +1271,6 @@ describe('offline Visual Contract repair harness', () => {
           }],
         },
       ],
-      completeDiagnosticIssuesByAttempt: [
-        [
-          CAPABILITY_GAP,
-          CAPABILITY_COVERAGE_MISSING,
-          PAGE_STEERING_INVALID,
-          {
-            family: 'draft_contract',
-            code: 'final_structural_invariant_invalid',
-            locator: {
-              kind: 'page',
-              fieldRole: 'final_structure',
-              pageNumber: 2,
-            },
-            causes: ['page_action_requirements_invalid'],
-          },
-          {
-            family: 'action_semantic',
-            code: 'represented_elsewhere_pointer_out_of_scope',
-            locator: {
-              kind: 'page_item',
-              collectionRole: 'page_action_semantic_coverage',
-              fieldRole: 'reference',
-              pageNumber: 2,
-              itemIndex: 1,
-            },
-          },
-        ],
-        [{
-          family: 'action_semantic',
-          code: 'represented_elsewhere_pointer_out_of_scope',
-          locator: {
-            kind: 'page_item',
-            collectionRole: 'page_action_semantic_coverage',
-            fieldRole: 'reference',
-            pageNumber: 2,
-            itemIndex: 1,
-          },
-        }],
-        [],
-      ],
     });
 
     expect(result.calls.map((call) => call.repairMode)).toEqual([
@@ -1031,7 +1309,7 @@ describe('offline Visual Contract repair harness', () => {
     expect(result.providerCalls).toBe(0);
   });
 
-  it('routes a real surfaced 19-to-6-to-5 frontier while replaying the independent complete census', async () => {
+  it('routes a real 19-to-6-to-5 frontier under the compiler-owned complete census', async () => {
     const valid = bunnyDraft();
     const initial = structuredClone(valid);
     for (const page of initial.pageContracts) {
@@ -1219,17 +1497,6 @@ describe('offline Visual Contract repair harness', () => {
             };
           }),
         },
-      ],
-      completeDiagnosticIssuesByAttempt: [
-        [
-          ...representedIssues,
-          ...capabilityIssues,
-          ...structuralIssues,
-          transitionIssue,
-        ],
-        [...representedIssues, transitionIssue],
-        representedIssues,
-        [],
       ],
     });
 
@@ -1423,20 +1690,6 @@ describe('offline Visual Contract repair harness', () => {
             pointerChoiceIndex: 0,
           }],
         },
-      ],
-      completeDiagnosticIssuesByAttempt: [
-        [
-          representedIssue,
-          transitionIssue(4, [
-            'page_transition_origin_not_established',
-            'page_transition_origin_not_previous_zone',
-          ]),
-          transitionIssue(5, [
-            'page_transition_no_move_zone_changed',
-          ]),
-        ],
-        [representedIssue],
-        [],
       ],
     });
 
@@ -1777,20 +2030,6 @@ describe('offline Visual Contract repair harness', () => {
           }),
         },
       ],
-      completeDiagnosticIssuesByAttempt: [
-        [
-          ...capabilityIssues,
-          ...representedIssues,
-          ...initialStructuralIssues,
-        ],
-        [
-          ...representedIssues,
-          page6StructuralIssue,
-          ...spatialIssues,
-        ],
-        representedIssues,
-        [],
-      ],
     });
 
     expect(result.calls.map((call) => call.repairMode)).toEqual([
@@ -1871,10 +2110,6 @@ describe('offline Visual Contract repair harness', () => {
       input,
       initialDraft: initial,
       repairResponses: [bunnyDraft()],
-      completeDiagnosticIssuesByAttempt: [
-        [CAPABILITY_COVERAGE_MISSING, PAGE_STEERING_INVALID],
-        [],
-      ],
     });
 
     expect(result.providerCalls).toBe(0);
@@ -1922,10 +2157,6 @@ describe('offline Visual Contract repair harness', () => {
       input,
       initialDraft: initial,
       repairResponses: [bunnyDraft()],
-      completeDiagnosticIssuesByAttempt: [
-        [WORLD_TYPE_MISSING, representedIssue],
-        [],
-      ],
     });
 
     expect(result.providerCalls).toBe(0);
@@ -2005,10 +2236,6 @@ describe('offline Visual Contract repair harness', () => {
       input: bunnySource(),
       initialDraft: initial,
       repairResponses: [unchangedBookSurfaceResponse, bunnyDraft()],
-      completeDiagnosticIssuesByAttempt: [
-        [representedIssue, structuralIssue],
-        [representedIssue, structuralIssue],
-      ],
     });
 
     expect(result).toMatchObject({
@@ -2077,16 +2304,6 @@ describe('offline Visual Contract repair harness', () => {
           transition: null,
         }],
       }],
-      completeDiagnosticIssuesByAttempt: [[{
-        family: 'draft_contract',
-        code: 'final_structural_invariant_invalid',
-        locator: {
-          kind: 'page',
-          fieldRole: 'final_structure',
-          pageNumber: 1,
-        },
-        causes: ['page_prop_constraints_invalid'],
-      }], []],
     });
 
     expect(result.providerCalls).toBe(0);
@@ -2185,59 +2402,6 @@ describe('offline Visual Contract repair harness', () => {
     delete repairedPage3.castIds;
     delete repairedPage3.characterPresence;
     repairedPage3.propConstraints ??= [];
-    const sourceIssue = {
-      family: 'source_evidence_id',
-      code: 'source_evidence_id_malformed',
-      locator: {
-        kind: 'source_evidence',
-        fieldRole: 'source_evidence',
-        pageNumber: 1,
-        coverageIndex: 0,
-      },
-    } satisfies DraftValidationIssue;
-    const page2Issue = {
-      family: 'draft_contract',
-      code: 'final_structural_invariant_invalid',
-      locator: {
-        kind: 'page',
-        fieldRole: 'final_structure',
-        pageNumber: 2,
-      },
-      causes: ['page_steering_invalid'],
-    } satisfies DraftValidationIssue;
-    const page3CardinalityIssue = {
-      family: 'action_semantic',
-      code: 'action_binding_cardinality_invalid',
-      locator: {
-        kind: 'page_item',
-        collectionRole: 'page_actions',
-        fieldRole: 'cardinality',
-        pageNumber: 3,
-        itemIndex: 0,
-      },
-    } satisfies DraftValidationIssue;
-    const page3MissingIssue = {
-      family: 'action_semantic',
-      code: 'action_binding_missing',
-      locator: {
-        kind: 'page_item',
-        collectionRole: 'page_actions',
-        fieldRole: 'action_binding',
-        pageNumber: 3,
-        itemIndex: 0,
-      },
-    } satisfies DraftValidationIssue;
-    const page3StructuralIssue = {
-      family: 'draft_contract',
-      code: 'final_structural_invariant_invalid',
-      locator: {
-        kind: 'page',
-        fieldRole: 'final_structure',
-        pageNumber: 3,
-      },
-      causes: ['page_action_requirements_invalid'],
-    } satisfies DraftValidationIssue;
-
     const result = await runOfflineRepairHarness({
       input,
       initialDraft: initial,
@@ -2270,23 +2434,6 @@ describe('offline Visual Contract repair harness', () => {
             transition: null,
           }],
         },
-      ],
-      completeDiagnosticIssuesByAttempt: [
-        [
-          sourceIssue,
-          page2Issue,
-          page3CardinalityIssue,
-          page3MissingIssue,
-          page3StructuralIssue,
-        ],
-        [
-          page2Issue,
-          page3CardinalityIssue,
-          page3MissingIssue,
-          page3StructuralIssue,
-        ],
-        [page2Issue],
-        [],
       ],
     });
 

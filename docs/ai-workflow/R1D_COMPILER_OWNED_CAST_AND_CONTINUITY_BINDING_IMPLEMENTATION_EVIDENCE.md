@@ -5,7 +5,9 @@
 **Worktree:** `C:\GNart\Work\sh-live-chameleon-v3`
 **Implementation base:** `6bedc6a396b07c0261991b859a554e5954adcc87`
 **Review range:** `6bedc6a396b07c0261991b859a554e5954adcc87..HEAD` after the focused local commit
-**Status:** offline green; independent Claude Code review required before Fresh, provider/live authoring, Candidate, Wizard or render
+**Status:** first implementation independently verified for correctness; Claude's
+offline-evidence findings corrected locally; independent re-gate required before
+Fresh, provider/live authoring, Candidate, Wizard or render
 
 ## Outcome
 
@@ -48,10 +50,19 @@ story, page-number, wardrobe, state or known evidence-ID special case.
 - `lib/__tests__/visual-contract-repair-loop.spec.ts` — the production compiler
   accepts a raw child/companion alias draft in one attempt and emits only
   authoritative action identities.
+- `lib/visual-contract-compiler/offlineRepairHarness.ts` — v3 derives complete
+  counts only from compiler-owned population metadata and rejects the legacy
+  caller-supplied census field.
 - `lib/__tests__/offline-repair-harness.spec.ts` — compact wardrobe evidence
-  route reaches `2 -> 0`, a synthetic in-memory Candidate and zero provider
-  calls while the production compiler materializes the repaired evidence
-  phrase.
+  reaches compiler-measured `3 -> 0`; digest-bound captured Chameleon fixtures
+  prove complete `14 -> 14` and `7 -> 2`, a 140-identity census proves the
+  bounded trail cannot truncate harness evidence, and scenario CLI exit
+  semantics fail closed; all with zero provider calls.
+- `lib/__tests__/fixtures/chameleon-v3-captured-corrected-frontier.json` — a
+  218,861-byte tracked copy of four sanitized structured draft outputs from
+  captured attempts 1–4, including authored `setReference.prompt` strings and
+  their hardcoded/recomputed digests; no credential, photo, PII, request,
+  receipt, HTTP/database material or provider transport envelope.
 - `lib/__tests__/vitest-workload-classifier.spec.ts` — canonical test census
   advances from 333 to 334 and proves the new spec remains in the ordinary
   partition.
@@ -79,29 +90,81 @@ The historical third response was authored against the former `full_draft`
 route, so the corrected replay rejects that response as
 `repair_output_invalid`. This is expected falsification, not a claim that the
 old receipt remains congruent after a causal code correction. Before that
-terminal, the surfaced census moved `14 -> 14`: every Source Evidence ID,
+terminal, the normalized surfaced population moved `14 -> 14`: every Source Evidence ID,
 source-evidence phrase and continuity-authority issue disappeared while six
 previously masked transition failures surfaced. The next route changed from
 the historical broad `full_draft` request to the existing narrow
-`book_surface_patch`. The runner explicitly reports
+`book_surface_patch`. Harness v3 also reports both stages as compiler-owned
+`diagnosticPopulation: complete`, `completeIssueCount: 14 -> 14`,
+`monotonicCompleteIssueDelta: true` and `maxPositiveCompleteIssueDelta: 0`.
+The runner explicitly reports
 `providerCalls: 0`, `exactCapturedCallSequence: false` and
 `receiptOutcomeCongruent: false` because the old third response no longer has
 the schema selected by the corrected compiler.
 
 A second zero-provider diagnostic starts from the historical third captured
 full draft and applies the historical fourth Source Evidence patch. On the
-corrected compiler it moves the surfaced census `7 -> 2`; the only remaining
+corrected compiler it moves the normalized surfaced population `7 -> 2`; the
+same two stages are compiler-tagged complete, so harness v3 independently
+computes `completeIssueCount: 7 -> 2`, `completeDelta: -5` and monotonic true.
+The only remaining
 issues are the genuine capability gaps at page 3/item 0 and page 8/item 5, and
 the next route is the existing `presentation_requirement_patch`. The harness
 then stops because no new response was supplied. This is an offline frontier
-probe, not a Candidate claim.
+probe, not a Candidate claim. Both captured paths are committed as ordinary,
+digest-bound regression tests; neither receives diagnostic issues from the
+test. `complete` keeps the previously audited compiler meaning: all collected
+diagnostics for the currently evaluable validation pass, not an oracle for
+hypothetical failures behind unmet prerequisites.
 
 The cast projection is independently exercised both as a pure function and
 through `compileBookVisualContractTemplate`; the compact continuity repair is
 independently exercised through the offline harness and the production
 compiler. No historical artifact was rewritten to manufacture congruence.
 
-## Validation
+## QA correction validation
+
+Claude Code's first audit returned `PASS — 0 BLOCKER / 1 MAJOR / 4 MINOR`.
+The MAJOR was evidence authority, not production binding correctness: the old
+harness read complete sets from the scenario. The four MINORs were cast-group
+canonicalization coverage, a null-companion shared-alias branch, same-selector
+same-ID continuity idempotence coverage, and census wording.
+
+The correction exports the existing diagnostic-population type, centralizes
+all six sanitized repair-summary projections, advances only the offline
+harness result to v3, rejects legacy census injection before compilation and
+rebuilds the persisted diagnostic trail from the compiler's full emissions
+before exact canonical comparison. Complete stage identities come from those
+full emissions, not the trail's bounded item window: a dedicated regression
+retains all 140 identities/count/digest while the persisted trail contains 128
+items. Scenario-mode CLI exit 0 now requires complete coverage plus monotonicity
+exactly true; capture mode retains its separate congruence rule. Production
+authoring receipts continue to map only the existing diagnostic trail, so no
+receipt, request, Candidate or lifecycle schema changes. The standalone
+compile-review artifact gains the additive `diagnosticPopulation` field by
+design.
+
+Current correction validation:
+
+```text
+offline/repair/replay/cast/source/validator matrix: 9 files, 425 tests passed
+offline harness alone: 29 tests passed
+complete 140 identities through persisted 128-item trail: passed
+scenario CLI partial / complete monotonic: exit 1 / exit 0
+compiler-measured compact Candidate: 3 -> 0
+captured exact start: complete 14 -> 14
+captured corrected frontier: complete 7 -> 2
+provider calls across all three proofs: 0
+npx --no-install tsc --noEmit: exit 0
+git diff --check: exit 0
+```
+
+The cast-group bridge uses the shared canonical sorter and intentionally does
+not deduplicate: alias collapse must remain visible to the validator. Dedicated
+tests cover canonical order, duplicate preservation, the null-companion shared
+alias and same-selector/same-ID order-independent continuity coalescing.
+
+## Original milestone validation
 
 Final focused run:
 
@@ -110,7 +173,7 @@ Final focused run:
 137 tests passed
 ```
 
-The final count includes permanent positive regressions for both a redundant
+The original count includes permanent positive regressions for both a redundant
 raw human entry carrying the canonical child ID and the exact captured shape
 where raw human cast repeats the provider child alias even though authoritative
 human facts are empty. The exported projection requires the authoritative
@@ -139,13 +202,26 @@ reproduced the three known Vitest `onTaskUpdate` RPC timeout events. The literal
 full command exited 1 for documented fixture/runtime baseline reasons and was
 not rerun; no changed production assertion failed in that run.
 
+After the compiler-owned census correction reached final bytes, one new
+literal `npm run check` was executed. Both TypeScript phases passed. Ordinary
+reported 3,788 passing, 70 skipped and only the same nine absent
+ignored-output assertions across the same five unchanged files. Resource
+reported 621 passing and two fixed-five-second timeouts in the unchanged
+`live-execution-request-materialization.spec.ts`, plus the three known worker
+RPC timeouts. That exact file subsequently passed 21/21 in isolation; the two
+timed tests completed in 4,965ms and 4,310ms. The literal command remains exit
+1 and is recorded as such; the isolated classification does not relabel the
+repository gate as passing.
+
 ## Preserved authority
 
-No response schema, prompt or user-prompt version, schema digest, model,
+No provider response schema, prompt or user-prompt version, schema digest, model,
 reasoning effort, service tier, input/output allowance, seven-call/six-repair
 fence, retry count, fallback policy, `$10` ceiling, validator rule, action
 catalog, Candidate format, Wizard contract, payment behavior or render policy
-changed. The complete-census regression and stagnation guards are untouched.
+changed. The complete-census regression and stagnation guards are untouched;
+the correction exposes and tests their existing population boundary rather
+than weakening or redefining it.
 
 No credential was read. No provider, network, live authoring, Candidate mint,
 approval, Wizard order, fake payment, image, Vision, narration, full-book

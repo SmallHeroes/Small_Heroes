@@ -3930,7 +3930,7 @@ describe('canonical live authoring executable boundary', () => {
       exactCapturedCallSequence: true,
       receiptOutcomeCongruent: true,
       harness: {
-        version: 'visual-contract-offline-repair-harness-result/v2',
+        version: 'visual-contract-offline-repair-harness-result/v3',
         executionMode: 'offline_stub',
         providerCalls: 0,
         outcome: 'repair_exhausted',

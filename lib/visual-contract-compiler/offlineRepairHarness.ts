@@ -23,26 +23,19 @@ import { buildDraftAuthorityReferenceDiagnostics } from './draftAuthorityReferen
 import {
   buildDraftValidationDiagnosticTrail,
   draftValidationIssueIsValid,
+  normalizeDraftValidationIssues,
   type DraftValidationAttemptDiagnostics,
   type DraftValidationIssue,
 } from './draftValidationDiagnostics';
 import { InvalidTemplateContractError } from './validateTemplateContract';
 
 export const OFFLINE_REPAIR_HARNESS_RESULT_VERSION =
-  'visual-contract-offline-repair-harness-result/v2' as const;
+  'visual-contract-offline-repair-harness-result/v3' as const;
 
 export interface OfflineRepairHarnessScenario {
   input: TemplateCompileInput;
   initialDraft: unknown;
   repairResponses?: readonly unknown[];
-  /**
-   * Optional independent census for each resulting draft, in validation order.
-   * These lists never drive routing; they let the harness distinguish a newly
-   * surfaced issue from a genuinely newly introduced issue.
-   */
-  completeDiagnosticIssuesByAttempt?: readonly (
-    readonly DraftValidationIssue[]
-  )[];
   /**
    * Optional captured call sequence. A mismatch stops before the queued
    * response is returned, so an old patch can never be applied to a new route.
@@ -108,6 +101,8 @@ export type OfflineRepairDeltaClassification =
 export interface OfflineRepairHarnessStage {
   attempt: number;
   nextRepairMode: TemplateRepairSummary['nextRepairMode'] | null;
+  /** Derived only from compiler-owned attempt metadata. */
+  diagnosticPopulation: TemplateRepairSummary['diagnosticPopulation'];
   surfacedDiagnosticIssues: readonly DraftValidationIssue[];
   surfacedIssueCount: number;
   surfacedDelta: number | null;
@@ -235,29 +230,6 @@ function sanitizedActionCoverageCensus(args: {
   };
 }
 
-function currentIssues(
-  diagnostics: DraftValidationAttemptDiagnostics,
-): DraftValidationIssue[] {
-  return diagnostics.items
-    .filter((item) => item.state !== 'resolved')
-    .map((item) => structuredClone(item.issue));
-}
-
-function uniqueIssueCount(
-  diagnosticIssues: readonly DraftValidationIssue[],
-): number {
-  if (
-    diagnosticIssues.some(
-      (issue) => !draftValidationIssueIsValid(issue),
-    )
-  ) {
-    throw new Error('offline_harness_diagnostic_issue_invalid');
-  }
-  return buildDraftValidationDiagnosticTrail([
-    diagnosticIssues,
-  ])[0]!.currentUniqueCount;
-}
-
 export function classifyOfflineRepairDelta(args: {
   surfacedDelta: number | null;
   completeDelta: number | null;
@@ -273,6 +245,92 @@ export function classifyOfflineRepairDelta(args: {
       : 'improved';
   }
   return args.surfacedDelta > 0 ? 'unmasking' : 'stable';
+}
+
+function routeSubsetSummaries(
+  diagnosticIssuesByAttempt: readonly (
+    readonly DraftValidationIssue[]
+  )[],
+): TemplateRepairSummary[] {
+  return diagnosticIssuesByAttempt.map((diagnosticIssues, index) => ({
+    attempt: index + 1,
+    diagnosticIssues,
+    diagnosticPopulation: 'route_subset',
+  }));
+}
+
+function normalizedCompilerIssues(
+  issues: readonly DraftValidationIssue[],
+): readonly DraftValidationIssue[] {
+  if (issues.some((issue) => !draftValidationIssueIsValid(issue))) {
+    throw new Error('offline_harness_compiler_diagnostic_invalid');
+  }
+  return normalizeDraftValidationIssues(issues);
+}
+
+function compilerDiagnosticIssuesByStage(args: {
+  summaries: readonly TemplateRepairSummary[];
+  diagnosticTrail: readonly DraftValidationAttemptDiagnostics[];
+  outcome: OfflineRepairHarnessResult['outcome'];
+}): readonly (readonly DraftValidationIssue[])[] {
+  const expectedTrailLength =
+    args.summaries.length + (args.outcome === 'candidate' ? 1 : 0);
+  if (args.diagnosticTrail.length !== expectedTrailLength) {
+    throw new Error(
+      'offline_harness_compiler_diagnostic_alignment_invalid',
+    );
+  }
+  for (const [index, summary] of args.summaries.entries()) {
+    if (
+      summary.attempt !== index + 1 ||
+      summary.diagnosticIssues.some(
+        (issue) => !draftValidationIssueIsValid(issue),
+      )
+    ) {
+      throw new Error(
+        'offline_harness_compiler_diagnostic_alignment_invalid',
+      );
+    }
+  }
+  const emissionsByAttempt: (readonly DraftValidationIssue[])[] = [
+    ...args.summaries.map((summary) => summary.diagnosticIssues),
+    ...(args.outcome === 'candidate' ? [[]] : []),
+  ];
+  const expectedTrail = buildDraftValidationDiagnosticTrail(
+    emissionsByAttempt,
+  );
+  if (canonicalHash(expectedTrail) !== canonicalHash(args.diagnosticTrail)) {
+    throw new Error(
+      'offline_harness_compiler_diagnostic_alignment_invalid',
+    );
+  }
+  if (
+    args.outcome === 'candidate' &&
+    args.diagnosticTrail[args.diagnosticTrail.length - 1]
+      ?.currentUniqueCount !== 0
+  ) {
+    throw new Error(
+      'offline_harness_candidate_complete_census_invalid',
+    );
+  }
+  return emissionsByAttempt.map((issues) =>
+    normalizedCompilerIssues(issues),
+  );
+}
+
+function compilerDiagnosticPopulationAt(args: {
+  index: number;
+  summaries: readonly TemplateRepairSummary[];
+  outcome: OfflineRepairHarnessResult['outcome'];
+  diagnosticTrailLength: number;
+}): TemplateRepairSummary['diagnosticPopulation'] {
+  const summary = args.summaries[args.index];
+  if (summary) return summary.diagnosticPopulation;
+  return args.outcome === 'candidate' &&
+    args.diagnosticTrailLength === args.summaries.length + 1 &&
+    args.index === args.diagnosticTrailLength - 1
+    ? 'complete'
+    : 'route_subset';
 }
 
 function errorEvidence(error: unknown): {
@@ -376,6 +434,7 @@ function errorEvidence(error: unknown): {
     };
   }
   if (error instanceof ActionSemanticCapabilityGapError) {
+    const diagnostics = error.draftValidationDiagnostics;
     return {
       outcome: 'invalid_draft',
       terminalFailureCode: 'action_semantic_capability_gap',
@@ -384,26 +443,25 @@ function errorEvidence(error: unknown): {
         gapCount: error.gaps.length,
       }),
       terminalFailureIdentityComplete: true,
-      attempts: [{
-        attempt: 1,
-        diagnosticIssues: error.diagnosticIssues,
-      }],
-      diagnostics: error.draftValidationDiagnostics,
+      attempts: routeSubsetSummaries(
+        error.diagnosticIssuesByAttempt,
+      ),
+      diagnostics,
     };
   }
   if (error instanceof InvalidTemplateContractError) {
+    const diagnostics = buildDraftValidationDiagnosticTrail([
+      error.diagnosticIssues,
+    ]);
     return {
       outcome: 'invalid_draft',
       terminalFailureCode: null,
       terminalFailureIdentityDigest: null,
       terminalFailureIdentityComplete: false,
-      attempts: [{
-        attempt: 1,
-        diagnosticIssues: error.diagnosticIssues,
-      }],
-      diagnostics: buildDraftValidationDiagnosticTrail([
+      attempts: routeSubsetSummaries([
         error.diagnosticIssues,
       ]),
+      diagnostics,
     };
   }
   return {
@@ -424,6 +482,16 @@ function errorEvidence(error: unknown): {
 export async function runOfflineRepairHarness(
   scenario: OfflineRepairHarnessScenario,
 ): Promise<OfflineRepairHarnessResult> {
+  if (
+    Object.prototype.hasOwnProperty.call(
+      scenario,
+      'completeDiagnosticIssuesByAttempt',
+    )
+  ) {
+    throw new Error(
+      'offline_harness_caller_supplied_complete_census_forbidden',
+    );
+  }
   const responseQueue = [
     scenario.initialDraft,
     ...(scenario.repairResponses ?? []),
@@ -560,23 +628,39 @@ export async function runOfflineRepairHarness(
     diagnosticTrail = evidence.diagnostics;
   }
 
-  const completeSets =
-    scenario.completeDiagnosticIssuesByAttempt ?? [];
-  for (const issues of completeSets) uniqueIssueCount(issues);
+  const compilerIssuesByStage = compilerDiagnosticIssuesByStage({
+    summaries,
+    diagnosticTrail,
+    outcome,
+  });
 
   const stages = diagnosticTrail.map((diagnostics, index) => {
-    const surfacedDiagnosticIssues = currentIssues(diagnostics);
+    const surfacedDiagnosticIssues = compilerIssuesByStage[index]!;
     const surfacedIssueCount = diagnostics.currentUniqueCount;
     const previousSurfacedIssueCount =
       index > 0
         ? diagnosticTrail[index - 1]!.currentUniqueCount
         : null;
-    const completeIssueCount = completeSets[index]
-      ? uniqueIssueCount(completeSets[index]!)
-      : null;
+    const summary = summaries[index];
+    const diagnosticPopulation = compilerDiagnosticPopulationAt({
+      index,
+      summaries,
+      outcome,
+      diagnosticTrailLength: diagnosticTrail.length,
+    });
+    const completeIssueCount =
+      diagnosticPopulation === 'complete'
+        ? surfacedIssueCount
+        : null;
     const previousCompleteIssueCount =
-      index > 0 && completeSets[index - 1]
-        ? uniqueIssueCount(completeSets[index - 1]!)
+      index > 0 &&
+      compilerDiagnosticPopulationAt({
+        index: index - 1,
+        summaries,
+        outcome,
+        diagnosticTrailLength: diagnosticTrail.length,
+      }) === 'complete'
+        ? diagnosticTrail[index - 1]!.currentUniqueCount
         : null;
     const surfacedDelta =
       previousSurfacedIssueCount === null
@@ -589,8 +673,8 @@ export async function runOfflineRepairHarness(
         : completeIssueCount - previousCompleteIssueCount;
     return {
       attempt: index + 1,
-      nextRepairMode:
-        summaries[index]?.nextRepairMode ?? null,
+      nextRepairMode: summary?.nextRepairMode ?? null,
+      diagnosticPopulation,
       surfacedDiagnosticIssues,
       surfacedIssueCount,
       surfacedDelta,
@@ -606,10 +690,13 @@ export async function runOfflineRepairHarness(
   const knownDeltas = stages
     .map((stage) => stage.completeDelta)
     .filter((delta): delta is number => delta !== null);
+  const completeStageCount = stages.filter(
+    (stage) => stage.diagnosticPopulation === 'complete',
+  ).length;
   const completeCensusCoverage =
-    completeSets.length === 0
+    completeStageCount === 0
       ? 'absent'
-      : completeSets.length >= stages.length
+      : completeStageCount === stages.length
         ? 'complete'
         : 'partial';
   const monotonicCompleteIssueDelta =

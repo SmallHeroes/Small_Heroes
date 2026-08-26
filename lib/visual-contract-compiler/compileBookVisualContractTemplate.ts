@@ -315,6 +315,10 @@ export interface TemplateAuthoringProvenance {
 }
 
 /** In-memory repair state. Exact prose and rejected drafts never cross the compiler boundary. */
+export type TemplateRepairDiagnosticPopulation =
+  | 'complete'
+  | 'route_subset';
+
 interface TemplateRepairAttempt {
   /** 1 = initial; 2–3 = standard repairs; 4 = terminal reference cleanup. */
   attempt: number;
@@ -323,7 +327,7 @@ interface TemplateRepairAttempt {
   /** Closed compiler-owned sibling identities; never used to select repair input or mode. */
   diagnosticIssues: readonly DraftValidationIssue[];
   /** Only complete censuses may be compared by the repair regression guard. */
-  diagnosticPopulation: 'complete' | 'route_subset';
+  diagnosticPopulation: TemplateRepairDiagnosticPopulation;
   /** The descriptive draft object this attempt failed with; retained only for the next repair prompt. */
   draft: unknown;
   /** Narrow patch or existing whole-draft repair selected after this failure. */
@@ -345,6 +349,8 @@ interface TemplateRepairAttempt {
 export interface TemplateRepairSummary {
   attempt: number;
   diagnosticIssues: readonly DraftValidationIssue[];
+  /** Compiler-owned evidence boundary: only `complete` is a full census. */
+  diagnosticPopulation: TemplateRepairDiagnosticPopulation;
   nextRepairMode?:
     | 'source_evidence_id_patch'
     | 'represented_elsewhere_patch'
@@ -358,6 +364,28 @@ export interface TemplateRepairSummary {
   nextRepairBudgetClass?:
     | 'standard'
     | 'terminal_reference_cleanup';
+}
+
+function templateRepairSummary(
+  attempt: TemplateRepairAttempt,
+): TemplateRepairSummary {
+  return {
+    attempt: attempt.attempt,
+    diagnosticIssues: attempt.diagnosticIssues,
+    diagnosticPopulation: attempt.diagnosticPopulation,
+    ...(attempt.nextRepairMode
+      ? { nextRepairMode: attempt.nextRepairMode }
+      : {}),
+    ...(attempt.nextRepairBudgetClass
+      ? { nextRepairBudgetClass: attempt.nextRepairBudgetClass }
+      : {}),
+  };
+}
+
+function templateRepairSummaries(
+  attempts: readonly TemplateRepairAttempt[],
+): TemplateRepairSummary[] {
+  return attempts.map(templateRepairSummary);
 }
 
 const REPRESENTED_ELSEWHERE_DIAGNOSTIC_CODES = new Set([
@@ -863,19 +891,7 @@ export class TemplateRepairExhaustedError extends InvalidTemplateContractError {
       attempts[attempts.length - 1]?.diagnosticIssues ?? [],
     );
     this.name = 'TemplateRepairExhaustedError';
-    this.attempts = attempts.map((attempt) => ({
-      attempt: attempt.attempt,
-      diagnosticIssues: attempt.diagnosticIssues,
-      ...(attempt.nextRepairMode
-        ? { nextRepairMode: attempt.nextRepairMode }
-        : {}),
-      ...(attempt.nextRepairBudgetClass
-        ? {
-            nextRepairBudgetClass:
-              attempt.nextRepairBudgetClass,
-          }
-        : {}),
-    }));
+    this.attempts = templateRepairSummaries(attempts);
     this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
       attempts.map((attempt) => attempt.diagnosticIssues),
     );
@@ -919,16 +935,7 @@ export class TemplateRepairIssueRegressionError extends InvalidTemplateContractE
     this.previousIssueCount = counts.previous;
     this.currentIssueCount = counts.current;
     this.repairMode = previous.nextRepairMode;
-    this.attempts = attempts.map((attempt) => ({
-      attempt: attempt.attempt,
-      diagnosticIssues: attempt.diagnosticIssues,
-      ...(attempt.nextRepairMode
-        ? { nextRepairMode: attempt.nextRepairMode }
-        : {}),
-      ...(attempt.nextRepairBudgetClass
-        ? { nextRepairBudgetClass: attempt.nextRepairBudgetClass }
-        : {}),
-    }));
+    this.attempts = templateRepairSummaries(attempts);
     this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
       attempts.map((attempt) => attempt.diagnosticIssues),
     );
@@ -971,16 +978,7 @@ export class TemplateRepairStagnationError extends InvalidTemplateContractError 
     this.rejectedAttempt = current.attempt;
     this.issueCount = normalizedCurrent.length;
     this.repairMode = previous.nextRepairMode;
-    this.attempts = attempts.map((attempt) => ({
-      attempt: attempt.attempt,
-      diagnosticIssues: attempt.diagnosticIssues,
-      ...(attempt.nextRepairMode
-        ? { nextRepairMode: attempt.nextRepairMode }
-        : {}),
-      ...(attempt.nextRepairBudgetClass
-        ? { nextRepairBudgetClass: attempt.nextRepairBudgetClass }
-        : {}),
-    }));
+    this.attempts = templateRepairSummaries(attempts);
     this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
       attempts.map((attempt) => attempt.diagnosticIssues),
     );
@@ -1008,19 +1006,7 @@ export class TemplateRepairOutputInvalidError extends Error {
   ) {
     super('completed template repair output was unusable');
     this.name = 'TemplateRepairOutputInvalidError';
-    this.attempts = attempts.map((attempt) => ({
-      attempt: attempt.attempt,
-      diagnosticIssues: attempt.diagnosticIssues,
-      ...(attempt.nextRepairMode
-        ? { nextRepairMode: attempt.nextRepairMode }
-        : {}),
-      ...(attempt.nextRepairBudgetClass
-        ? {
-            nextRepairBudgetClass:
-              attempt.nextRepairBudgetClass,
-          }
-        : {}),
-    }));
+    this.attempts = templateRepairSummaries(attempts);
     this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
       attempts.map((attempt) => attempt.diagnosticIssues),
     );
@@ -1051,19 +1037,7 @@ export class TemplateRepairRouteAdmissionError extends Error {
     this.name = 'TemplateRepairRouteAdmissionError';
     this.repairMode = repairMode;
     this.inputAccounting = { ...inputAccounting };
-    this.attempts = attempts.map((attempt) => ({
-      attempt: attempt.attempt,
-      diagnosticIssues: attempt.diagnosticIssues,
-      ...(attempt.nextRepairMode
-        ? { nextRepairMode: attempt.nextRepairMode }
-        : {}),
-      ...(attempt.nextRepairBudgetClass
-        ? {
-            nextRepairBudgetClass:
-              attempt.nextRepairBudgetClass,
-          }
-        : {}),
-    }));
+    this.attempts = templateRepairSummaries(attempts);
     this.draftValidationDiagnostics = buildDraftValidationDiagnosticTrail(
       attempts.map((attempt) => attempt.diagnosticIssues),
     );
@@ -1430,7 +1404,7 @@ export interface TemplateCompileResult {
   provenance: TemplateAuthoringProvenance;
   /** Sanitized FAILED-attempt metadata. Exact errors and drafts never leave the in-memory repair loop. */
   repairAttempts: TemplateRepairSummary[];
-  /** Complete validated-attempt trail, including a zero-current successful final attempt. */
+  /** Normalized attempt trail; repair summaries identify complete vs subset populations. */
   draftValidationDiagnostics: readonly DraftValidationAttemptDiagnostics[];
 }
 
@@ -5549,19 +5523,7 @@ export async function compileBookVisualContractTemplate(
           ...assembled.notes,
         ],
         provenance,
-        repairAttempts: repairAttempts.map((repair) => ({
-          attempt: repair.attempt,
-          diagnosticIssues: repair.diagnosticIssues,
-          ...(repair.nextRepairMode
-            ? { nextRepairMode: repair.nextRepairMode }
-            : {}),
-          ...(repair.nextRepairBudgetClass
-            ? {
-                nextRepairBudgetClass:
-                  repair.nextRepairBudgetClass,
-              }
-            : {}),
-        })),
+        repairAttempts: templateRepairSummaries(repairAttempts),
         draftValidationDiagnostics: buildDraftValidationDiagnosticTrail([
           ...repairAttempts.map((repair) => repair.diagnosticIssues),
           [],

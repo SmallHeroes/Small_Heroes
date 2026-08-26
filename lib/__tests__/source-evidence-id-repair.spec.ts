@@ -825,6 +825,54 @@ describe('applySourceEvidenceIdPatches rejection guards', () => {
     expect(fixture.draft).toEqual(inputBefore);
   });
 
+  it('coalesces same-selector same-ID continuity repairs independent of patch order', () => {
+    const fixture = continuityRepairFixture('companion');
+    const secondBeatId = 'beat:p1:companion_shift_two';
+    const secondCoverage = {
+      ...structuredClone(fixture.page.actionSemanticCoverage[0]!),
+      beatId: secondBeatId,
+    };
+    fixture.page.actionSemanticCoverage.push(secondCoverage);
+    fixture.affectedRecords.push({
+      ...structuredClone(fixture.affectedRecords[0]!),
+      coverageIndex: 1,
+      beatId: secondBeatId,
+      coverageRecord: structuredClone(secondCoverage),
+    });
+    const secondPatch = {
+      ...fixture.patch,
+      beatId: secondBeatId,
+    };
+    const inputBefore = structuredClone(fixture.draft);
+
+    const forward = applySourceEvidenceIdPatches({
+      draft: fixture.draft,
+      catalog: fixture.catalog,
+      affectedRecords: fixture.affectedRecords,
+      patches: [fixture.patch, secondPatch],
+    });
+    const reverse = applySourceEvidenceIdPatches({
+      draft: fixture.draft,
+      catalog: fixture.catalog,
+      affectedRecords: fixture.affectedRecords,
+      patches: [secondPatch, fixture.patch],
+    });
+
+    expect(forward).toEqual(reverse);
+    expect(forward).toMatchObject({
+      pageContracts: [{
+        companionStateSourceEvidenceId:
+          fixture.patch.sourceEvidenceId,
+        actionSemanticCoverage: [
+          { sourceEvidenceId: fixture.patch.sourceEvidenceId },
+          { sourceEvidenceId: fixture.patch.sourceEvidenceId },
+        ],
+        actionRequirements: [],
+      }],
+    });
+    expect(fixture.draft).toEqual(inputBefore);
+  });
+
   it('applies one exact patch per affected record without mutating the input', () => {
     const fixture = repairFixture();
     const result = applySourceEvidenceIdPatches({

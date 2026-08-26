@@ -21,8 +21,8 @@ function usage(): string {
     '  npm run visual-contract-repair-harness -- --scenario <json>',
     '  npm run visual-contract-repair-harness -- --capture <json> --snapshot <json> --request <json> --receipt <json>',
     '',
-    'The scenario JSON contains input, initialDraft, optional repairResponses,',
-    'and optional completeDiagnosticIssuesByAttempt. The command writes no files.',
+    'The scenario JSON contains input, initialDraft and optional repairResponses.',
+    'Complete-census evidence is derived only from compiler-owned metadata. The command writes no files.',
   ].join('\n');
 }
 
@@ -149,7 +149,10 @@ async function main(): Promise<void> {
   ) as OfflineRepairHarnessScenario;
   const result = await runOfflineRepairHarness(scenario);
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-  if (result.monotonicCompleteIssueDelta === false) {
+  if (
+    result.completeCensusCoverage !== 'complete' ||
+    result.monotonicCompleteIssueDelta !== true
+  ) {
     process.exitCode = 1;
   }
 }

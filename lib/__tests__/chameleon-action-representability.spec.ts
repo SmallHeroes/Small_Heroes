@@ -470,7 +470,6 @@ describe('Chameleon action representability calibration', () => {
     const result = await runOfflineRepairHarness({
       input,
       initialDraft: draft,
-      completeDiagnosticIssuesByAttempt: [[]],
     });
 
     expect(result.providerCalls).toBe(0);

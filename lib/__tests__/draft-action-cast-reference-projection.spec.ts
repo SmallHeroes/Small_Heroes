@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { projectDraftActionCastReferences } from '@/lib/visual-contract-compiler/draftActionCastReferenceProjection';
+import { canonicalizePageActionCastGroups } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 
 function fullReferenceDraft() {
   return {
@@ -89,7 +90,52 @@ describe('projectDraftActionCastReferences', () => {
         },
       ],
     }]);
+    const projectedPage = (
+      result.draft.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    const canonicalActions = canonicalizePageActionCastGroups(
+      projectedPage.actionRequirements,
+    );
+    expect(
+      (canonicalActions[1]!.subject as { castIds: string[] }).castIds,
+    ).toEqual(['child:hero', 'companion:koko']);
     expect(input).toEqual(before);
+  });
+
+  it('hands projected cast groups to the shared canonicalizer without hiding duplicates', () => {
+    const input = fullReferenceDraft();
+    const group = (
+      input.pageContracts[0]!.actionRequirements[1]!.subject as {
+        castIds: string[];
+      }
+    );
+    group.castIds = ['child', 'child:hero', 'koko'];
+
+    const projected = projectDraftActionCastReferences({
+      draft: input,
+      authoritativeChildId: 'child:hero',
+      authoritativeCompanionId: 'companion:koko',
+      authoritativeHumanIds: [],
+    });
+    const page = (
+      projected.draft.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    const canonical = canonicalizePageActionCastGroups(
+      page.actionRequirements,
+    );
+
+    expect(
+      (canonical[1]!.subject as { castIds: string[] }).castIds,
+    ).toEqual([
+      'child:hero',
+      'child:hero',
+      'companion:koko',
+    ]);
+    expect(
+      new Set(
+        (canonical[1]!.subject as { castIds: string[] }).castIds,
+      ).size,
+    ).toBe(2);
   });
 
   it('preserves authoritative IDs, unknown aliases, non-cast refs and malformed values', () => {
@@ -195,6 +241,46 @@ describe('projectDraftActionCastReferences', () => {
         subject: {
           castIds: ['child:hero', 'unowned-companion'],
         },
+      }],
+    });
+  });
+
+  it('invalidates a shared child/companion alias when companion authority is absent', () => {
+    const input = {
+      cast: {
+        child: { id: 'shared' },
+        companion: { id: 'shared' },
+      },
+      pageContracts: [{
+        pageNumber: 1,
+        actionRequirements: [{
+          subject: {
+            kind: 'cast_group',
+            castIds: ['shared', 'child:hero'],
+          },
+        }],
+      }],
+    };
+
+    const result = projectDraftActionCastReferences({
+      draft: input,
+      authoritativeChildId: 'child:hero',
+      authoritativeCompanionId: null,
+      authoritativeHumanIds: [],
+    });
+
+    expect(result.reboundReferenceCount).toBe(0);
+    expect(result.conflictingReferenceCount).toBe(1);
+    expect(result.draft).toMatchObject({
+      pageContracts: [{
+        actionRequirements: [{
+          subject: {
+            castIds: [
+              '__compiler_invalid_ambiguous_cast_reference__',
+              'child:hero',
+            ],
+          },
+        }],
       }],
     });
   });
