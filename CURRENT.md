@@ -2,9 +2,9 @@
 
 **Updated:** 2026-08-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; reviewed/pushed base and origin are `b35f76301254ff089d3ce381e08f257cc7b39f1d`; the Set Board positive-authority precision and collect-all admission milestone spans that base through local `HEAD`, is unpushed, and is pending independent Claude Code review.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; reviewed/pushed base and origin are `b35f76301254ff089d3ce381e08f257cc7b39f1d`; the Set Board positive-authority precision and collect-all admission milestone spans that base through local `HEAD`, is unpushed, and has independent Claude Code PASS.
 
-## SET BOARD POSITIVE-AUTHORITY PRECISION + COLLECT-ALL ADMISSION — OFFLINE GREEN; INDEPENDENT QA PENDING
+## SET BOARD POSITIVE-AUTHORITY PRECISION + COLLECT-ALL ADMISSION — INDEPENDENT TECHNICAL PASS
 
 The revised Chameleon paid authoring attempt already succeeded. Candidate
 `be2d3202…bcbc9` has 8 pages, 66 coverage records and zero Template errors.
@@ -38,15 +38,21 @@ TypeScript phases. Ordinary passes 3,809 assertions, skips 70 and fails only
 the nine known missing ignored-output fixture assertions across five unchanged
 files. Resource passes 623/623 assertions, then emits the three known Vitest
 worker RPC timeouts. The command therefore remains exit 1 and is not called a
-clean PASS. Two independent read-only adversarial audits found zero findings.
+clean PASS. Two internal read-only adversarial audits found zero findings.
+
+Claude Code then independently reviewed immutable range `b35f7630..f3df8eb9`
+and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It ran the 74-test core
+matrix, all 1,095 Visual Package assertions with five skips, and TypeScript;
+all assertions passed. It independently reproduced the three post-completion
+Vitest RPC timeouts and classified them as harness noise. Codex records this
+external verdict; it does not self-award it.
 
 No provider, image, audio, Board mint, Registry/storage/database write,
 deployment, Wizard order or render occurred in this milestone. The binding
-next action is Claude Code review of `b35f7630..HEAD`. After PASS: run the
-general offline reconciliation operator, obtain the exact content approval,
-mint and QA the three LOW Boards, complete Blueprint/package publication and
-Preview preflight, then run the already authorized fake-paid LOW full Wizard
-book for Bar age 5 with mom narration. Detailed evidence:
+next action is the general offline reconciliation operator, followed by exact
+content approval, mint and QA of the three LOW Boards, Blueprint/package
+publication and Preview preflight, then the already authorized fake-paid LOW
+full Wizard book for Bar age 5 with mom narration. Detailed evidence:
 `docs/ai-workflow/R1D_SET_BOARD_POSITIVE_AUTHORITY_PRECISION_IMPLEMENTATION_EVIDENCE.md`.
 
 All lower sections are historical milestone records. When they describe a
