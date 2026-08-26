@@ -2222,8 +2222,8 @@ describe('exact zero-cost authoring preflight', () => {
     const request = structuredClone(
       requestFor(snapshot, 'live'),
     ) as unknown as Record<string, unknown>;
-    expect(request.version).toBe('visual-contract-authoring-request/v52');
-    request.policyVersion = 'visual-contract-authoring-policy/v17';
+    expect(request.version).toBe('visual-contract-authoring-request/v53');
+    request.policyVersion = 'visual-contract-authoring-policy/v18';
     const pricing = request.pricing as Record<string, unknown>;
     Object.assign(pricing, {
       version: 'openai-standard-pricing/2026-07-27-v2',
@@ -2721,7 +2721,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v52',
+      version: 'visual-contract-authoring-readiness/v53',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -2787,7 +2787,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v52',
+      version: 'visual-contract-authoring-readiness/v53',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -3185,6 +3185,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v52',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v53',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3497,6 +3503,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v55',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v56',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3718,6 +3730,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v52',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v53',
       ),
     ).toBe('current');
     expect(
@@ -3999,7 +4017,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v55',
+      'visual-contract-authoring-receipt/v56',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -7517,7 +7535,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v55',
+      version: 'visual-contract-authoring-receipt/v56',
       status: 'completed',
       callCount: 3,
       repairCount: 2,
@@ -8364,7 +8382,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(provider.call).toHaveBeenCalledTimes(2);
     expect(result.compileResult).toBeNull();
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v55',
+      version: 'visual-contract-authoring-receipt/v56',
       status: 'failed',
       callCount: 2,
       repairCount: 1,
@@ -8409,7 +8427,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       receipt: result.receipt,
     });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v52',
+      version: 'visual-contract-authoring-readiness/v53',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'draft_validation_repair_stagnated',

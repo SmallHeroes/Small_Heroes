@@ -2,9 +2,69 @@
 
 **Updated:** 2026-08-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed implementation base `6bedc6a396b07c0261991b859a554e5954adcc87`, first implementation `6e006341799973dc6e57917d438886e695c58d8b`, and the focused QA correction at local HEAD pending independent re-gate and push.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; reviewed/pushed base and origin are `64c0b5dfbb0233162ee86e07021b49ebef998549`; the compiler-owned Page Contract source-evidence identity fence is the current locally green offline milestone at local `HEAD`, unpushed and pending independent Claude Code review.
 
-## COMPILER-OWNED CAST + CONTINUITY EVIDENCE BINDING — QA CORRECTION OFFLINE GREEN; RE-GATE PENDING
+## PAGE-CONTRACT SOURCE-EVIDENCE IDENTITY FENCE — EXACT LIVE CAPTURE ADVANCES 12→5 OFFLINE; FINAL GATE PENDING
+
+The one authorized post-Fresh paid attempt stopped after two calls with no
+Candidate. Receipt `945315dd…` records conservative cost `$0.770925`, zero
+retry/fallback and terminal identity
+`page_contract_repair_presentation_target_invalid`. Complete forensics proved
+that all nine presentation classes and pointer/value pairs were valid. The
+provider instead changed opaque `sourceEvidenceId` values on all nine targets
+and 26 of 50 coverage records while preserving every target beat ID. This was
+an under-closed complete-page repair application boundary, not another catalog,
+budget, presentation-choice or scheduler failure.
+
+The general offline correction makes coverage source IDs compiler-owned on
+every Page Contract repair page. Existing ordinals rebind to original draft
+IDs; typed component appends bind to target IDs. Existing target-specific
+appliers remain the only authority for beat changes, and a post-application
+coverage-identity plus ordered action-beat topology comparison rejects
+unrelated reorder, count or beat drift before a structural replacement can
+enter the draft. Exact class,
+pointer/value, spatial, continuity and action-binding checks remain intact.
+
+Because identical provider bytes now have different application semantics,
+policy advances v18→v19 and the full request/receipt/Fresh/live execution
+authority chain advances one version. Request v52, receipt v55 and readiness
+v52 remain immutable legacy evidence only. Prompt v12, user prompt v13, Page
+Contract schema v3 and digest `1c704959…`, input encoding v3, model, budget,
+retry/fallback, Candidate, Wizard, package and render semantics are unchanged.
+
+The real immutable capture was injected into the current harness with zero
+provider calls. The complete census moves `12→5` (delta `-7`) and the third
+observed route is `book_surface_patch`; monotonic complete delta is true and
+maximum positive delta is zero. The old canonical replay entry rejects the old
+v52/v18 request by design after cutover, so no old artifact was rewritten or
+redigested.
+
+Current focused proof: repair/compiler/harness 147/147; live/Fresh/version
+481/481 assertions pass, with two known post-assertion Vitest worker RPC timeout
+events in the long combined run; TypeScript and `git diff --check` pass. The
+literal final-byte `npm run check` completed both TypeScript phases. Ordinary
+ran 314 files: 292 passed, 17 skipped and the same five unchanged
+fixture-reading files failed on nine absent ignored-output assertions; 3,790
+assertions passed and 70 skipped. Resource ran 20/20 files and 623/623
+assertions passed. Three known Vitest worker `onTaskUpdate` RPC timeout events
+still make the Vitest/repository process exit 1, so the command is not relabeled
+as a clean PASS. An additional isolated supervisor run passed 46/46 assertions
+and reproduced one post-assertion RPC timeout, confirming the same runner
+classification without changing the literal repository result. No changed
+production assertion failed. No provider, credential, network, Candidate,
+Wizard, image, audio, render, database/storage, deployment or package action
+occurred in this correction.
+
+Binding order: commit the focused milestone; Guy pushes; Claude Code
+adversarially reviews the immutable range; only a PASS allows a new Fresh root
+and one bounded live attempt. A failure still permits only offline diagnosis,
+never a blind paid retry. Detailed record:
+`docs/ai-workflow/R1D_PAGE_CONTRACT_SOURCE_EVIDENCE_IDENTITY_FENCE_IMPLEMENTATION_EVIDENCE.md`.
+
+All lower sections are historical milestone records. When they describe a
+different pending next action, this top section is the current binding state.
+
+## HISTORICAL — COMPILER-OWNED CAST + CONTINUITY EVIDENCE BINDING
 
 The first fully captured revised-Chameleon run exposed two deterministic
 identity-domain defects rather than another provider-quality or budget defect.

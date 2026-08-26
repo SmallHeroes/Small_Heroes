@@ -1026,6 +1026,10 @@ describe('page-contract compact repair', () => {
         disposition: { kind: 'action_requirement' },
       })),
     );
+    for (const record of replacementCoverage) {
+      record.sourceEvidenceId = `se1_${'f'.repeat(64)}`;
+    }
+    const replacementSnapshot = structuredClone(replacement);
 
     const result = applyPageContractRepairs({
       draft: original,
@@ -1033,10 +1037,27 @@ describe('page-contract compact repair', () => {
       pageContracts: [replacement],
     });
     expect(original).toEqual(snapshot);
+    expect(replacement).toEqual(replacementSnapshot);
+    const expectedReplacement = structuredClone(replacement);
+    const expectedCoverage =
+      expectedReplacement.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+    for (let index = 0; index < 5; index += 1) {
+      expectedCoverage[index]!.sourceEvidenceId = (
+        pageTwo.actionSemanticCoverage as Array<
+          Record<string, unknown>
+        >
+      )[index]!.sourceEvidenceId;
+    }
+    sourceEvidenceIds.forEach((sourceEvidenceId, index) => {
+      expectedCoverage[5 + index]!.sourceEvidenceId =
+        sourceEvidenceId;
+    });
     expect(
       (result.pageContracts as Array<Record<string, unknown>>)[1],
     ).toEqual({
-      ...replacement,
+      ...expectedReplacement,
       castIds: ['child:hero'],
       castStates: [],
       characterPresence: [],
@@ -1082,13 +1103,6 @@ describe('page-contract compact repair', () => {
       (
         page.actionRequirements as Array<Record<string, unknown>>
       )[0]!.predicate = 'moves';
-    });
-    reject((page) => {
-      (
-        page.actionSemanticCoverage as Array<
-          Record<string, unknown>
-        >
-      )[5]!.sourceEvidenceId = `se1_${'f'.repeat(64)}`;
     });
     for (const [, collidingBeatId] of [
       ['non_visual', 'beat:p2:untouched_non_visual'],
@@ -2166,16 +2180,40 @@ describe('page-contract compact repair', () => {
 
   it('preserves compiler-owned page topology while applying an otherwise valid complete-page repair', () => {
     const original = draft();
+    const originalPage = (
+      original.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    (
+      originalPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    ).push({
+      beatId: 'beat:p1:second',
+      sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+      disposition: {
+        kind: 'non_visual',
+        rationale: 'narrative_context',
+      },
+    });
     const snapshot = structuredClone(original);
     const affected = pageContractRepairAffectedPages({
       draft: original,
       diagnosticIssues: [issue(1)],
       validationMessages: ['pageContracts[0].camera is invalid'],
     })!;
-    const replacement = page(1);
+    const replacement = structuredClone(originalPage);
     replacement.locationId = 'invented:location';
     replacement.zoneId = 'invented:zone';
     replacement.camera = 'corrected portrait shot';
+    const replacementCoverage =
+      replacement.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >;
+    replacementCoverage[0]!.sourceEvidenceId =
+      `se1_${'c'.repeat(64)}`;
+    replacementCoverage[1]!.sourceEvidenceId =
+      `se1_${'d'.repeat(64)}`;
+    const replacementSnapshot = structuredClone(replacement);
 
     const result = applyPageContractRepairs({
       draft: original,
@@ -2187,6 +2225,7 @@ describe('page-contract compact repair', () => {
     )[0]!;
 
     expect(original).toEqual(snapshot);
+    expect(replacement).toEqual(replacementSnapshot);
     expect(repaired.locationId).toBe(
       (snapshot.pageContracts[0] as Record<string, unknown>)
         .locationId,
@@ -2195,11 +2234,224 @@ describe('page-contract compact repair', () => {
       (snapshot.pageContracts[0] as Record<string, unknown>).zoneId,
     );
     expect(repaired.camera).toBe('corrected portrait shot');
+    expect(
+      repaired.actionSemanticCoverage,
+    ).toEqual(originalPage.actionSemanticCoverage);
     expect({
       ...repaired,
       locationId: replacement.locationId,
       zoneId: replacement.zoneId,
+      actionSemanticCoverage: replacement.actionSemanticCoverage,
     }).toEqual(replacement);
+  });
+
+  it('rejects structural action or coverage topology drift before replacement', () => {
+    const original = draft();
+    const originalPage = (
+      original.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    const action = (beatId: string, predicate: string) => ({
+      beatId,
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate,
+      object: null,
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'must',
+      laterality: null,
+    });
+    originalPage.actionRequirements = [
+      action('beat:p1:test', 'looks_at'),
+      action('beat:p1:second', 'moves'),
+    ];
+    (
+      originalPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    ).push({
+      beatId: 'beat:p1:second',
+      sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+      disposition: {
+        kind: 'non_visual',
+        rationale: 'narrative_context',
+      },
+    });
+    const affected = pageContractRepairAffectedPages({
+      draft: original,
+      diagnosticIssues: [issue(1)],
+      validationMessages: ['pageContracts[0].camera is invalid'],
+    })!;
+    const replacement = structuredClone(originalPage);
+    replacement.camera = 'corrected portrait shot';
+    const reject = (
+      mutate: (coverage: Array<Record<string, unknown>>) => void,
+    ) => {
+      const hostile = structuredClone(replacement);
+      mutate(
+        hostile.actionSemanticCoverage as Array<
+          Record<string, unknown>
+        >,
+      );
+      expect(() =>
+        applyPageContractRepairs({
+          draft: original,
+          affectedPages: affected,
+          pageContracts: [hostile],
+        }),
+      ).toThrow('page_contract_repair_action_binding_scope_invalid');
+    };
+
+    reject((coverage) => {
+      [coverage[0], coverage[1]] = [coverage[1]!, coverage[0]!];
+    });
+    reject((coverage) => {
+      coverage[1]!.beatId = coverage[0]!.beatId;
+    });
+    reject((coverage) => {
+      coverage[1]!.beatId = 'beat:p1:invented';
+    });
+    reject((coverage) => {
+      coverage.push(structuredClone(coverage[0]!));
+    });
+    reject((coverage) => {
+      coverage.pop();
+    });
+    reject((coverage) => {
+      coverage[0]!.sourceEvidenceId = 'se1_bad';
+    });
+
+    const rejectAction = (
+      mutate: (actions: Array<Record<string, unknown>>) => void,
+    ) => {
+      const hostile = structuredClone(replacement);
+      mutate(
+        hostile.actionRequirements as Array<
+          Record<string, unknown>
+        >,
+      );
+      expect(() =>
+        applyPageContractRepairs({
+          draft: original,
+          affectedPages: affected,
+          pageContracts: [hostile],
+        }),
+      ).toThrow('page_contract_repair_action_binding_scope_invalid');
+    };
+    rejectAction((actions) => {
+      [actions[0], actions[1]] = [actions[1]!, actions[0]!];
+    });
+    rejectAction((actions) => {
+      actions[1]!.beatId = actions[0]!.beatId;
+    });
+    rejectAction((actions) => {
+      actions[1]!.beatId = 'beat:p1:invented';
+    });
+    rejectAction((actions) => {
+      actions.push(structuredClone(actions[0]!));
+    });
+    rejectAction((actions) => {
+      actions.pop();
+    });
+  });
+
+  it('rejects structural action beat drift beside an otherwise valid presentation repair', () => {
+    const original = draft();
+    const originalPage = (
+      original.pageContracts as Array<Record<string, unknown>>
+    )[0]!;
+    originalPage.actionRequirements = [
+      {
+        beatId: 'beat:p1:test',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: null,
+        spatialEffect: null,
+        spatialConstraint: null,
+        polarity: 'must',
+        laterality: null,
+      },
+    ];
+    const originalCoverage = (
+      originalPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!;
+    originalCoverage.disposition = {
+      kind: 'unsupported',
+      reason: 'closed_action_catalog_gap',
+    };
+    const permitted = {
+      contractPointer: '/pageContracts/0/mustShow/0',
+      contractValue: 'page 1',
+    };
+    const affectedPages = [
+      {
+        pageNumber: 1,
+        pageContract: structuredClone(originalPage),
+        repairTargets: [
+          {
+            family: 'draft_contract' as const,
+            code: 'final_structural_invariant_invalid' as const,
+            pageNumber: 1,
+            causes: ['page_steering_invalid'] as const,
+          },
+          {
+            family: 'action_semantic' as const,
+            code: 'closed_catalog_capability_gap' as const,
+            pageNumber: 1,
+            coverageIndex: 0,
+            beatId: originalCoverage.beatId as string,
+            sourceEvidenceId:
+              originalCoverage.sourceEvidenceId as string,
+            sourcePhrase: 'sanitized source phrase',
+            permittedPointerValues: [permitted],
+          },
+        ],
+        validationHints: ['mixed structural and presentation repair'],
+        permittedPointerValues: [],
+      },
+    ];
+    const replacement = structuredClone(originalPage);
+    replacement.camera = 'corrected portrait shot';
+    (
+      replacement.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.disposition = {
+      kind: 'presentation_requirement',
+      presentationClass: 'composition_focus',
+      ...permitted,
+    };
+
+    const accepted = applyPageContractRepairs({
+      draft: original,
+      affectedPages,
+      pageContracts: [replacement],
+    });
+    expect(
+      (accepted.pageContracts as Array<Record<string, unknown>>)[0],
+    ).toMatchObject({
+      camera: 'corrected portrait shot',
+      actionRequirements: originalPage.actionRequirements,
+    });
+
+    const hostile = structuredClone(replacement);
+    (
+      hostile.actionRequirements as Array<Record<string, unknown>>
+    )[0]!.beatId = 'beat:p1:invented';
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages,
+        pageContracts: [hostile],
+      }),
+    ).toThrow('page_contract_repair_action_binding_scope_invalid');
   });
 
   it('keeps companion state selection outside narrow PageContract repair authority and preserves it exactly', () => {
@@ -2681,6 +2933,18 @@ describe('page-contract compact repair', () => {
       kind: 'unsupported',
       reason: 'closed_action_catalog_gap',
     };
+    (
+      originalPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    ).push({
+      beatId: 'beat:p1:untouched',
+      sourceEvidenceId: `se1_${'b'.repeat(64)}`,
+      disposition: {
+        kind: 'non_visual',
+        rationale: 'narrative_context',
+      },
+    });
     const snapshot = structuredClone(original);
     const permitted = {
       contractPointer: '/pageContracts/0/mustShow/0',
@@ -2708,16 +2972,21 @@ describe('page-contract compact repair', () => {
       },
     ];
     const replacement = structuredClone(originalPage);
-    (
+    const replacementCoverage =
       replacement.actionSemanticCoverage as Array<
         Record<string, unknown>
-      >
-    )[0]!.disposition = {
+      >;
+    replacementCoverage[0]!.sourceEvidenceId =
+      `se1_${'c'.repeat(64)}`;
+    replacementCoverage[1]!.sourceEvidenceId =
+      `se1_${'d'.repeat(64)}`;
+    replacementCoverage[0]!.disposition = {
       kind: 'presentation_requirement',
       presentationClass: 'composition_focus',
       ...permitted,
     };
     replacement.camera = 'hostile response camera';
+    const replacementSnapshot = structuredClone(replacement);
 
     const result = applyPageContractRepairs({
       draft: original,
@@ -2740,6 +3009,7 @@ describe('page-contract compact repair', () => {
       ...permitted,
     };
     expect(original).toEqual(snapshot);
+    expect(replacement).toEqual(replacementSnapshot);
     expect(repaired).toEqual(expected);
 
     const hostile = structuredClone(replacement);
@@ -2758,6 +3028,20 @@ describe('page-contract compact repair', () => {
         draft: original,
         affectedPages,
         pageContracts: [hostile],
+      }),
+    ).toThrow('page_contract_repair_presentation_target_invalid');
+
+    const wrongBeat = structuredClone(replacement);
+    (
+      wrongBeat.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    )[0]!.beatId = 'beat:p1:wrong_target';
+    expect(() =>
+      applyPageContractRepairs({
+        draft: original,
+        affectedPages,
+        pageContracts: [wrongBeat],
       }),
     ).toThrow('page_contract_repair_presentation_target_invalid');
   });

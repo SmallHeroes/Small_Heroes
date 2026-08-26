@@ -2838,6 +2838,149 @@ function pointerValueIsPermitted(
   );
 }
 
+/**
+ * `sourceEvidenceId` is compiler identity, never provider write authority.
+ * Page-contract repair still transports complete pages, so normalize every
+ * pre-existing coverage slot before either a narrow target or a structural
+ * replacement can enter the draft. The existing target-specific appliers,
+ * rather than this transport normalizer, remain the sole authority for beat
+ * topology changes.
+ */
+function rebindPageContractCoverageSourceEvidenceIdentity(args: {
+  affectedPage: PageContractRepairAffectedPage;
+  originalPage: Record<string, unknown>;
+  replacementPage: Record<string, unknown>;
+}): Record<string, unknown> {
+  const replacementPage = structuredClone(args.replacementPage);
+  const originalCoverage = Array.isArray(
+    args.originalPage.actionSemanticCoverage,
+  )
+    ? args.originalPage.actionSemanticCoverage
+    : [];
+  const replacementCoverage = Array.isArray(
+    replacementPage.actionSemanticCoverage,
+  )
+    ? replacementPage.actionSemanticCoverage
+    : [];
+  const componentTargets = args.affectedPage.repairTargets.filter(
+    (target): target is ActionBindingComponentRepairTarget =>
+      target.code === 'action_beat_binding_component_invalid',
+  );
+  const scopeError =
+    componentTargets.length > 0
+      ? 'page_contract_repair_action_binding_component_scope_invalid'
+      : 'page_contract_repair_action_binding_scope_invalid';
+  const appendedCoverageCount = componentTargets.reduce(
+    (sum, target) => sum + target.coverageDeficit,
+    0,
+  );
+  if (
+    replacementCoverage.length !==
+    originalCoverage.length + appendedCoverageCount
+  ) {
+    throw new Error(scopeError);
+  }
+
+  for (let index = 0; index < originalCoverage.length; index += 1) {
+    const originalRecord = recordValue(originalCoverage[index]);
+    const replacementRecord = recordValue(replacementCoverage[index]);
+    if (
+      !originalRecord ||
+      !replacementRecord ||
+      typeof originalRecord.beatId !== 'string' ||
+      typeof replacementRecord.beatId !== 'string' ||
+      typeof originalRecord.sourceEvidenceId !== 'string' ||
+      typeof replacementRecord.sourceEvidenceId !== 'string' ||
+      !SOURCE_EVIDENCE_ID_PATTERN.test(
+        originalRecord.sourceEvidenceId,
+      ) ||
+      !SOURCE_EVIDENCE_ID_PATTERN.test(
+        replacementRecord.sourceEvidenceId,
+      )
+    ) {
+      throw new Error(scopeError);
+    }
+    replacementRecord.sourceEvidenceId =
+      originalRecord.sourceEvidenceId;
+  }
+
+  let appendedIndex = originalCoverage.length;
+  for (const target of componentTargets) {
+    if (
+      !SOURCE_EVIDENCE_ID_PATTERN.test(target.sourceEvidenceId)
+    ) {
+      throw new Error(
+        'page_contract_repair_action_binding_component_target_invalid',
+      );
+    }
+    for (
+      let offset = 0;
+      offset < target.coverageDeficit;
+      offset += 1
+    ) {
+      const record = recordValue(
+        replacementCoverage[appendedIndex],
+      );
+      if (
+        !record ||
+        typeof record.beatId !== 'string' ||
+        typeof record.sourceEvidenceId !== 'string' ||
+        !SOURCE_EVIDENCE_ID_PATTERN.test(record.sourceEvidenceId)
+      ) {
+        throw new Error(scopeError);
+      }
+      record.sourceEvidenceId = target.sourceEvidenceId;
+      appendedIndex += 1;
+    }
+  }
+  if (appendedIndex !== replacementCoverage.length) {
+    throw new Error(scopeError);
+  }
+  return replacementPage;
+}
+
+function pageContractCoverageIdentityProjection(
+  page: Record<string, unknown>,
+): readonly Record<string, unknown>[] | null {
+  if (!Array.isArray(page.actionSemanticCoverage)) return null;
+  const projection: Record<string, unknown>[] = [];
+  for (const value of page.actionSemanticCoverage) {
+    const record = recordValue(value);
+    if (
+      !record ||
+      typeof record.beatId !== 'string' ||
+      typeof record.sourceEvidenceId !== 'string' ||
+      !SOURCE_EVIDENCE_ID_PATTERN.test(record.sourceEvidenceId)
+    ) {
+      return null;
+    }
+    projection.push({
+      beatId: record.beatId,
+      sourceEvidenceId: record.sourceEvidenceId,
+    });
+  }
+  return projection;
+}
+
+function pageContractActionBeatIdentityProjection(
+  page: Record<string, unknown>,
+): readonly string[] | null {
+  if (
+    page.actionRequirements === undefined ||
+    page.actionRequirements === null
+  ) {
+    return [];
+  }
+  if (!Array.isArray(page.actionRequirements)) return null;
+  const projection: string[] = [];
+  for (const value of page.actionRequirements) {
+    const record = recordValue(value);
+    if (!record || typeof record.beatId !== 'string') return null;
+    projection.push(record.beatId);
+  }
+  return projection;
+}
+
 function assertPageSpatialRepairTarget(
   target: PageContractSpatialRepairTarget,
 ): Set<string> {
@@ -3237,10 +3380,16 @@ export function applyPageContractRepairs(args: {
     }
     seen.add(pageNumber);
     const affectedPage = affectedByPage.get(pageNumber)!;
-    const replacementPage = replacements.get(pageNumber);
-    if (!replacementPage) {
+    const providerReplacementPage = replacements.get(pageNumber);
+    if (!providerReplacementPage) {
       throw new Error('page_contract_repair_patch_set_incomplete');
     }
+    const replacementPage =
+      rebindPageContractCoverageSourceEvidenceIdentity({
+        affectedPage,
+        originalPage,
+        replacementPage: providerReplacementPage,
+      });
     const targetedResult = structuredClone(originalPage);
     for (const target of affectedPage.repairTargets) {
       if (target.code === 'final_structural_invariant_invalid') continue;
@@ -3252,15 +3401,43 @@ export function applyPageContractRepairs(args: {
         resultPage: targetedResult,
       });
     }
-    const hasStructuralAuthority = affectedPage.repairTargets.some(
-      (target) => target.code === 'final_structural_invariant_invalid',
-    );
+    const replacementCoverageIdentity =
+      pageContractCoverageIdentityProjection(replacementPage);
+    const authorizedCoverageIdentity =
+      pageContractCoverageIdentityProjection(targetedResult);
+    const replacementActionBeatIdentity =
+      pageContractActionBeatIdentityProjection(replacementPage);
+    const authorizedActionBeatIdentity =
+      pageContractActionBeatIdentityProjection(targetedResult);
     const hasActionBindingComponentAuthority =
       affectedPage.repairTargets.some(
         (target) =>
           target.code ===
           'action_beat_binding_component_invalid',
       );
+    if (
+      !replacementCoverageIdentity ||
+      !authorizedCoverageIdentity ||
+      !replacementActionBeatIdentity ||
+      !authorizedActionBeatIdentity ||
+      !canonicalValuesEqual(
+        replacementCoverageIdentity,
+        authorizedCoverageIdentity,
+      ) ||
+      !canonicalValuesEqual(
+        replacementActionBeatIdentity,
+        authorizedActionBeatIdentity,
+      )
+    ) {
+      throw new Error(
+        hasActionBindingComponentAuthority
+          ? 'page_contract_repair_action_binding_component_scope_invalid'
+          : 'page_contract_repair_action_binding_scope_invalid',
+      );
+    }
+    const hasStructuralAuthority = affectedPage.repairTargets.some(
+      (target) => target.code === 'final_structural_invariant_invalid',
+    );
     if (
       hasActionBindingComponentAuthority &&
       !hasStructuralAuthority &&
