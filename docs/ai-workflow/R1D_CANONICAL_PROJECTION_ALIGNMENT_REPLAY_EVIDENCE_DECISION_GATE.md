@@ -1,7 +1,8 @@
 # Decision Gate — Canonical Projection Alignment and Replay Evidence
 
 **Status:** approved by Guy on 2026-08-26; implementation complete locally;
-independent Claude Code gate pending
+initial Claude Code review found no production defect and issued a
+verification-completeness HOLD; executable micro re-gate pending
 **Date:** 2026-08-26
 **Owner:** Codex
 **Branch/worktree:** `codex/r1d-qa-wizard-downstream-lifecycle` in
@@ -11,7 +12,9 @@ independent Claude Code gate pending
 ## 1. Proposed change
 
 Close the compiler-created represented-elsewhere pointer defect and make every
-future live authoring response replayable offline.
+captured response from a run that can advance replayable offline. A terminal
+provider decode failure may discard an already captured prefix; that accepted
+forensic-fidelity loss cannot mint a Candidate or advance the Wizard.
 
 1. Make the initial/full-draft disposition binder enumerate the same canonical
    page projection that final Action Semantic validation resolves. Transient
@@ -21,11 +24,14 @@ future live authoring response replayable offline.
    The compiler owns only canonical pointer construction and exact value
    binding; it does not invent companion state, wardrobe, story meaning or
    presentation prose.
-3. Persist every captured canonical structured provider response as a local,
-   content-addressed, sanitized evidence artifact when the live lifecycle is
-   configured to write evidence. Bind its path and digest into the authoring
-   receipt. Do not persist prompts, credentials, reasoning, transport headers
-   or any unstructured provider material.
+3. Persist every captured canonical structured provider response from a run
+   that can advance as a local, content-addressed, sanitized evidence artifact
+   when the live lifecycle is configured to write evidence. Bind its path and
+   digest into the authoring receipt. Do not persist prompts, credentials,
+   reasoning, transport headers or any unstructured provider material. On a
+   terminal `provider_output_decode_failed`, discard the run's valid captured
+   prefix and keep the replay locator null; this intentionally trades forensic
+   fidelity for the smaller privacy surface on a run that cannot advance.
 4. Add a replay loader that validates the artifact identity and feeds the same
    production compiler entry point used by live authoring. Historical receipts
    remain immutable and honestly non-replayable.
@@ -96,9 +102,11 @@ duplicate values, null selectors, malformed pages and legacy drafts.
   create an unresolved pointer by deleting its own target.
 - The terminal F7 shape can proceed through typed BookSurface transition repair
   and, when necessary, the existing pure represented-elsewhere lane.
-- Every newly captured canonical structured response can be loaded and replayed
-  offline with verified bytes and digest, including a response received before
-  a terminal post-response cost-ceiling classification.
+- Every newly captured canonical structured response from a run that can
+  advance can be loaded and replayed offline with verified bytes and digest,
+  including a response received before a terminal post-response cost-ceiling
+  classification. A run ending in `provider_output_decode_failed` remains
+  fail-closed with no Candidate and intentionally retains no captured prefix.
 
 ## 6. Validation plan
 

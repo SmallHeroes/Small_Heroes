@@ -10,7 +10,9 @@
 
 **Decision Gate:** `R1D_CANONICAL_PROJECTION_ALIGNMENT_REPLAY_EVIDENCE_DECISION_GATE.md`
 
-**State:** offline implementation green; independent Claude Code review pending
+**State:** offline implementation green; initial Claude Code review found no
+production defect and issued a verification-completeness HOLD; executable
+micro re-gate pending
 
 ## Outcome
 
@@ -152,15 +154,17 @@ exact responses must be replayed offline before any second paid call.
 The older approved package is bound to the superseded walking/bus-stop Story
 Source and is not used as proof for the revised kindergarten story.
 
-## Known bounded limitation for review
+## Accepted bounded diagnostic limitation
 
 If one or more calls were captured successfully and a later call terminates as
 `provider_output_decode_failed`, the current failure path discards that valid
 captured prefix and records a null replay locator for the whole receipt. This
-is privacy-safe and cannot mint a Candidate or advance the Wizard, but it
-narrows the literal Decision Gate claim that every captured response remains
-replayable. Claude Code must decide whether this is a non-gating diagnostic
-limitation or requires correction before live.
+is privacy-safe and cannot mint a Candidate or advance the Wizard. Claude Code
+verified that behavior in its initial read-only review and classified it as a
+non-gating MINOR. The Decision Gate now states the exact contract: every
+captured response from a run that can advance remains replayable; a terminal
+decode failure intentionally discards its prefix as an accepted
+forensic-fidelity loss.
 
 ## Unchanged production policy
 
@@ -171,11 +175,15 @@ Candidate remains v9. No Wizard, payment, image, audio, or render policy changed
 
 ## Next binding gate
 
-Claude Code must review the immutable code-plus-documentation range read-only
+Claude Code's initial review found no production defect but withheld PASS
+because its plan-mode sandbox blocked test execution and it did not line-read
+the replay runner, CLI capture proof, transition enumeration, or remaining
+identity guards. Claude Code must now micro re-gate the immutable
+code-plus-documentation range read-only with executable local-test authority
 and try to falsify binding uniqueness, exhaustive call identity, replay
 determinism, privacy, immutable sidecar persistence, receipt/authority binding,
-bridge reload behavior, version rejection, the decode-failure limitation, and
-the exact revised-Chameleon evidence wording. Codex does not self-award PASS.
+bridge reload behavior, version rejection, and the exact revised-Chameleon
+evidence wording. Codex does not self-award PASS.
 Only an independent PASS permits a new Fresh root and one bounded paid live
 authoring attempt. A failed attempt permits offline replay, not a second paid
 attempt.

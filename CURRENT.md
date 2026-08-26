@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed implementation base `d88337288db1eeb895cb9355f40ec23385436dee`, local unpushed code commit `beda712a2f142579bdf68da8f8c4739cf60324c5`.
 
-## CANONICAL PROJECTION + REPLAY EVIDENCE — OFFLINE GREEN; CLAUDE QA PENDING
+## CANONICAL PROJECTION + REPLAY EVIDENCE — OFFLINE GREEN; CLAUDE MICRO RE-GATE PENDING
 
 Guy approved the canonical-projection/replay-evidence Decision Gate and the
 bounded post-PASS live/render sequence on 2026-08-26. The general offline code
@@ -55,19 +55,24 @@ attempt will therefore be the first combined capture of the revised story; it
 must be replayed offline before any second paid attempt, whether it succeeds or
 fails.
 
-One bounded diagnostic limitation is disclosed for independent review: if a
+One bounded diagnostic limitation was explicitly reviewed: if a
 valid captured prefix is followed by `provider_output_decode_failed`, the
 current terminal path discards that prefix and records no replay locator. It is
-privacy-safe, cannot mint a Candidate or advance the Wizard, but narrows the
-Gate's literal “every captured response” claim. Claude Code must decide whether
-to accept it or require a correction before live.
+privacy-safe and cannot mint a Candidate or advance the Wizard. Claude Code
+classified it as a non-gating MINOR. The Decision Gate now says precisely that
+every captured response from a run that can advance is replayable; a terminal
+decode failure intentionally trades forensic fidelity for a smaller privacy
+surface and retains no prefix.
 
 No credential, provider/live call, Candidate, Wizard order, image, audio,
 render, database/storage write, deployment or push occurred in this milestone.
-The binding next action is read-only Claude Code review of the immutable
-code-plus-evidence range. Codex does not self-award PASS. Only PASS permits a
-new Fresh root and one bounded paid live attempt; a live failure permits
-offline replay, not another paid call.
+Claude Code's initial read-only audit found zero production defects but issued
+a verification-completeness HOLD because its plan-mode sandbox blocked the
+reported test census and it did not finish the replay-runner, CLI-capture and
+transition-enumeration inspections. The binding next action is an executable
+read-only micro re-gate of those exact gaps. Codex does not self-award PASS.
+Only PASS permits a new Fresh root and one bounded paid live attempt; a live
+failure permits offline replay, not another paid call.
 
 ## BOOKSURFACE TYPED TRANSITION AUTHORITY — OFFLINE GREEN; INDEPENDENT QA PENDING
 
