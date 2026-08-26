@@ -4,7 +4,7 @@
 **Maintainer:** Codex
 **Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; this milestone starts from local reviewed base `d9eb74223f97232e5d78300a7e85c70d4437b5ee`. The last observed remote head after `git fetch` was `b35f76301254ff089d3ce381e08f257cc7b39f1d`, so the user's reported push had not yet become visible from this worktree.
 
-## RECONCILIATION REVIEWER AUTHORING — LOCAL GREEN; INDEPENDENT CLAUDE CODE QA PENDING
+## RECONCILIATION REVIEWER AUTHORING — INDEPENDENT CLAUDE CODE PASS; SEMANTIC CORRECTION NEXT
 
 The revised Chameleon paid authoring attempt already succeeded. Candidate
 `be2d3202…bcbc9` has 8 pages, 66 coverage records and zero current structural
@@ -60,6 +60,26 @@ assertions across five unchanged files. Resource passes all 20 files and all
 627 assertions, then reports the three known Vitest worker `onTaskUpdate` RPC
 timeouts. The literal repository command therefore remains exit 1 and is not
 relabeled a clean PASS.
+
+Claude Code 2.1.195 independently reviewed immutable range
+`d9eb7422..1e216bb5` in read-only plan mode and returned **PASS — 0 BLOCKER /
+0 MAJOR**. It independently traced all ten authority claims, the legacy
+reserved-timestamp closure, per-record `non_visual` visibility, filesystem and
+partial-write fences, CLI paths and positive replay. It did not rerun tests
+because plan mode withheld execution approval; its verdict is an independent
+static/adversarial review of the exact committed bytes, while the reported
+test results above are Codex's executed evidence.
+
+Claude recorded three non-blocking observations: boundary counters are
+declarative but the module imports no external capability; the repository
+check baseline remains honestly red; and a hypothetically fully re-forged
+Candidate-to-bridge chain can re-digest a changed coverage `sourcePhrase`
+because the pre-existing Candidate architecture does not re-derive phrases
+from Story Source text at this downstream boundary. The last observation is
+not a bypass of this operator, but it is now an explicit acceptance criterion
+for the next semantic-correction lifecycle: every corrected source phrase must
+be re-anchored to exact source-evidence authority, not merely to an upstream
+digest.
 
 The current paid Candidate is deliberately **not approved**. An offline semantic
 audit found four content-authority defects that structural validation does not

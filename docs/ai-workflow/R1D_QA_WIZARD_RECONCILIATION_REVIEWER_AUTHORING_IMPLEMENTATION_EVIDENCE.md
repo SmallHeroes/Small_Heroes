@@ -167,6 +167,32 @@ gap; a self-consistent redigested phrase tamper now fails before approval/write.
 Both focused re-gates returned **0 BLOCKER / 0 MAJOR / 0 MINOR**. These are
 internal audits, not Claude Code's independent technical PASS.
 
+### Independent Claude Code QA
+
+Claude Code 2.1.195 reviewed immutable range `d9eb7422..1e216bb5` in
+read-only plan mode and returned **PASS — 0 BLOCKER / 0 MAJOR** for this
+zero-spend operator. It independently traced all ten implementation claims and
+re-falsified both corrected findings. It did not rerun TypeScript/Vitest because
+plan mode withheld execution approval; the executed results above remain
+Codex's evidence, while Claude's verdict is the required independent static and
+adversarial review.
+
+Claude recorded three non-blocking observations:
+
+1. boundary counters are declarative, acceptable here because the module's
+   import graph contains no provider/network/database capability;
+2. the literal repository check remains honestly exit 1 at the documented
+   fixture/RPC baseline; and
+3. a hypothetically fully re-forged upstream Candidate-to-bridge chain could
+   re-digest a changed coverage `sourcePhrase`, because the pre-existing
+   Candidate boundary authenticates coverage by digest rather than re-deriving
+   each phrase from Story Source text at this downstream stage.
+
+Observation 3 is outside this operator's approval authority and does not change
+the PASS. It is carried forward as a required hostile target for the separate
+Candidate semantic-correction lifecycle: corrected coverage phrases must be
+re-anchored to exact source-evidence authority.
+
 ## Current semantic HOLD
 
 The immutable paid Candidate `be2d3202ef92b7d0d0e2d9647871bc590cb8ec9bf55465e450c9c8141e7bcbc9`
