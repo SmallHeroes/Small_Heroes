@@ -1,8 +1,7 @@
 # Decision Gate — Canonical Projection Alignment and Replay Evidence
 
 **Status:** approved by Guy on 2026-08-26; implementation complete locally;
-initial Claude Code review found no production defect and issued a
-verification-completeness HOLD; executable micro re-gate pending
+independent Claude Code executable micro re-gate PASS; push/Fresh pending
 **Date:** 2026-08-26
 **Owner:** Codex
 **Branch/worktree:** `codex/r1d-qa-wizard-downstream-lifecycle` in

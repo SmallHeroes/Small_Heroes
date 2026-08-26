@@ -10,9 +10,8 @@
 
 **Decision Gate:** `R1D_CANONICAL_PROJECTION_ALIGNMENT_REPLAY_EVIDENCE_DECISION_GATE.md`
 
-**State:** offline implementation green; initial Claude Code review found no
-production defect and issued a verification-completeness HOLD; executable
-micro re-gate pending
+**State:** offline implementation green; independent Claude Code executable
+micro re-gate PASS; push/Fresh pending
 
 ## Outcome
 
@@ -173,17 +172,34 @@ standard repairs, zero transport retries, no fallback, `$10` hard ceiling,
 64K maximum input, and the existing single terminal-cleanup allowance. The
 Candidate remains v9. No Wizard, payment, image, audio, or render policy changed.
 
-## Next binding gate
+## Independent Claude Code gate
 
 Claude Code's initial review found no production defect but withheld PASS
-because its plan-mode sandbox blocked test execution and it did not line-read
-the replay runner, CLI capture proof, transition enumeration, or remaining
-identity guards. Claude Code must now micro re-gate the immutable
-code-plus-documentation range read-only with executable local-test authority
-and try to falsify binding uniqueness, exhaustive call identity, replay
-determinism, privacy, immutable sidecar persistence, receipt/authority binding,
-bridge reload behavior, version rejection, and the exact revised-Chameleon
-evidence wording. Codex does not self-award PASS.
-Only an independent PASS permits a new Fresh root and one bounded paid live
-authoring attempt. A failed attempt permits offline replay, not a second paid
-attempt.
+because its plan-mode sandbox blocked test execution and left narrow static
+gaps. The executable micro re-gate then closed every gap against immutable HEAD
+`e968c8979f132b8f14fb99ceb5f6b0a57df3102e`:
+
+- independent Audit A reproduced 14 files / 491 assertions, both typechecks,
+  clean diff and clean worktree;
+- G2 verified exact replay-call and terminal-outcome fencing. Its one
+  conditional concern about missing digest fields was closed because Evidence
+  v2 makes them required, exact-key validated, value validated and
+  digest-rebuilt before the runner;
+- G3 verified the real non-vacuous CLI subprocess, four content-addressed
+  inputs, exact v1/v2 outputs, zero provider calls and unchanged input bytes;
+- G4 verified exactly thirteen closed transition causes, the shared analyzer,
+  ordered effective chain, independent re-derivation and provider ownership of
+  `kind`/`cue`;
+- G5/G6/M1 verified `/origin/` exclusion, exhaustive call-options identity,
+  v21/v55 cutovers, v54 rejection and truthful decode-failure wording.
+
+Final verdict: **PASS — 0 BLOCKER, 0 MAJOR, 1 closed non-gating MINOR**. Claude
+explicitly closed the prior verification-completeness HOLD and authorized a new
+Fresh root plus exactly one bounded paid live authoring attempt. It did not
+authorize render before a valid Candidate completes downstream package and
+Wizard gates. No Claude QA invocation pushed, called a provider or rendered.
+
+The binding next action is to push the exact reviewed implementation plus this
+truthful verdict record, create a new Fresh root at origin parity, and consume
+exactly one bounded live attempt. A failed attempt permits offline replay, not
+a second paid attempt.
