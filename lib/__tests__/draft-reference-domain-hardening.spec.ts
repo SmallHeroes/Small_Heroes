@@ -15,6 +15,7 @@ import {
 import {
   sanitizedTemplateRepairOutputIdentity,
 } from '../visual-contract-compiler/templateRepairOutputDiagnostics';
+import { ActionSemanticCapabilityGapError } from '../visual-contract-compiler/actionSemanticCoverage';
 import { projectPageMustShow } from '../visual-contract-compiler/projectContractProse';
 import { buildSourceEvidenceCatalog } from '../visual-contract-compiler/sourceEvidenceCatalog';
 import type {
@@ -1196,6 +1197,15 @@ describe('captured reference-domain matrix', () => {
     expect(result.template.pageContracts[0]!.actionRequirements).toHaveLength(
       actions(invalid).length,
     );
+    expect(result.template.pageContracts[0]!.mustShow).not.toContain(
+      'the child looks at the window',
+    );
+    for (const line of projectPageMustShow(
+      result.template.pageContracts[0]!,
+      result.template as unknown as BookVisualContract,
+    )) {
+      expect(result.template.pageContracts[0]!.mustShow).toContain(line);
+    }
   });
 
   it('co-observes action-binding and page-spatial failures but rejects structural coverage drift', async () => {
@@ -1445,9 +1455,18 @@ describe('captured reference-domain matrix', () => {
           (page.actionRequirements as unknown[]).length,
       ),
     );
+    for (const page of result.template.pageContracts) {
+      expect(page.mustShow).not.toContain('the child looks at the window');
+      for (const line of projectPageMustShow(
+        page,
+        result.template as unknown as BookVisualContract,
+      )) {
+        expect(page.mustShow).toContain(line);
+      }
+    }
   });
 
-  it('collects spatial, presentation and structure into one complete-page repair frontier', async () => {
+  it('fails closed before a mixed structural repair can self-authorize an unsupported presentation beat', async () => {
     const invalid = matrixDraft();
     actions(invalid)[0]!.object = {
       kind: 'spatial',
@@ -1464,110 +1483,54 @@ describe('captured reference-domain matrix', () => {
       },
     });
 
-    const repairedPage = structuredClone(pageRecord(matrixDraft()));
-    repairedPage.actionSemanticCoverage = [
-      ...(repairedPage.actionSemanticCoverage as Array<
-        Record<string, unknown>
-      >),
-      {
-        beatId: 'beat:p1:presentation_gap',
-        sourceEvidenceId:
-          sourceEvidenceCatalog.entries[0]!.sourceEvidenceId,
-        disposition: {
-          kind: 'presentation_requirement',
-          presentationClass: 'composition_focus',
-          contractPointer: '/pageContracts/0/mustShow/0',
-          contractValue: (repairedPage.mustShow as string[])[0],
-        },
-      },
-    ];
-    delete repairedPage.castIds;
-    delete repairedPage.characterPresence;
-
-    let callIndex = 0;
     const authorities: unknown[] = [];
-    const userPrompts: string[] = [];
     const callLLM = vi.fn(async (
       _system: string,
-      user: string,
+      _user: string,
       _options?: unknown,
       authority?: unknown,
     ) => {
       authorities.push(authority);
-      userPrompts.push(user);
-      const output =
-        callIndex === 0
-          ? invalid
-          : { pageContracts: [repairedPage] };
-      callIndex += 1;
-      return JSON.stringify(output);
+      return JSON.stringify(invalid);
     });
 
-    const result = await compileBookVisualContractTemplate(input, {
-      callLLM,
-    });
+    let failure: unknown;
+    try {
+      await compileBookVisualContractTemplate(input, { callLLM });
+    } catch (error) {
+      failure = error;
+    }
 
-    expect(callLLM).toHaveBeenCalledTimes(2);
-    expect(authorities).toEqual([
-      expect.objectContaining({ kind: 'initial' }),
+    expect(failure).toBeInstanceOf(ActionSemanticCapabilityGapError);
+    expect(
+      (failure as ActionSemanticCapabilityGapError).gaps,
+    ).toEqual([
       expect.objectContaining({
-        kind: 'repair',
-        repairMode: 'page_contract_patch',
-      }),
-    ]);
-    const encoded = JSON.parse(userPrompts[1]!) as Record<
-      string,
-      unknown
-    >;
-    expect(encoded).toHaveProperty('encodingVersion');
-    const combined = decodePageContractRepairUserPrompt(
-      userPrompts[1]!,
-    );
-    expect(combined.affectedPages).toHaveLength(1);
-    expect(combined.affectedPages[0]!.repairTargets).toEqual([
-      {
-        family: 'draft_contract',
-        code: 'final_structural_invariant_invalid',
-        pageNumber: 1,
-        causes: [
-          'page_action_requirements_invalid',
-          'page_steering_invalid',
-        ],
-      },
-      expect.objectContaining({
-        family: 'action_semantic',
-        code: 'closed_catalog_capability_gap',
         pageNumber: 1,
         coverageIndex: 37,
         beatId: 'beat:p1:presentation_gap',
-        permittedPointerValues: expect.arrayContaining([
-          expect.objectContaining({
-            contractPointer: '/pageContracts/0/mustShow/0',
-          }),
-        ]),
+        reason: 'closed_action_catalog_gap',
       }),
     ]);
-    expect(combined.affectedPages[0]!.validationHints).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('camera'),
-        expect.stringContaining('closed_catalog_capability_gap'),
-      ]),
-    );
-    expect(result.repairAttempts).toHaveLength(1);
     expect(
-      result.repairAttempts.map((attempt) =>
-        attempt.nextRepairMode,
-      ),
-    ).toEqual(['page_contract_patch']);
-    expect(result.provenance.attempt).toBe(2);
-    expect(
-      result.actionSemanticCoverage.find(
-        (record) => record.beatId === 'beat:p1:presentation_gap',
-      )?.disposition,
-    ).toMatchObject({
-      kind: 'presentation_requirement',
-      presentationClass: 'composition_focus',
-    });
+      (failure as ActionSemanticCapabilityGapError).diagnosticIssues,
+    ).toEqual([
+      {
+        family: 'action_semantic',
+        code: 'closed_catalog_capability_gap',
+        locator: {
+          kind: 'page_item',
+          collectionRole: 'page_action_semantic_coverage',
+          fieldRole: 'disposition',
+          pageNumber: 1,
+          itemIndex: 37,
+        },
+      },
+    ]);
+    expect(callLLM).toHaveBeenCalledTimes(1);
+    expect(authorities).toEqual([
+      expect.objectContaining({ kind: 'initial' }),
+    ]);
   });
 
   it('emits both relation locator variants from structural context', async () => {
@@ -1616,6 +1579,10 @@ describe('captured reference-domain matrix', () => {
       relation: 'beside',
       target: { kind: 'spatial', id: 'hostile_constraint' },
     };
+    // Keep this route test independent of the historical kind-only projection
+    // compatibility matrix. The compiler owns the exact v2 projection after
+    // the bounded spatial patch resolves each typed reference.
+    pageRecord(draft).mustShow = [];
     let callIndex = 0;
     const callLLM = vi.fn(async (
       _system: string,
@@ -1641,13 +1608,23 @@ describe('captured reference-domain matrix', () => {
         callIndex === 0
           ? draft
           : {
-            patches: repairInput!.targets.map((target) => ({
-              pageNumber: target.pageNumber,
-              actionIndex: target.actionIndex,
-              fieldRole: target.fieldRole,
-              spatialReferenceId:
-                target.permittedSpatialReferences[0]!.id,
-            })),
+            patches: repairInput!.targets.map((target) => {
+              const spatialReferenceId =
+                `structure_${target.actionIndex + 1}`;
+              if (
+                !target.permittedSpatialReferences.some(
+                  (candidate) => candidate.id === spatialReferenceId,
+                )
+              ) {
+                throw new Error('expected spatial identity is not permitted');
+              }
+              return {
+                pageNumber: target.pageNumber,
+                actionIndex: target.actionIndex,
+                fieldRole: target.fieldRole,
+                spatialReferenceId,
+              };
+            }),
             };
       callIndex += 1;
       return JSON.stringify(output);
@@ -1700,15 +1677,15 @@ describe('captured reference-domain matrix', () => {
       .actionRequirements!;
     expect(repairedActions[1]!.object).toEqual({
       kind: 'spatial',
-      id: 'structure_1',
+      id: 'structure_2',
     });
     expect(repairedActions[2]!.spatialEffect).toMatchObject({
       kind: 'relation',
-      target: { kind: 'spatial', id: 'structure_1' },
+      target: { kind: 'spatial', id: 'structure_3' },
     });
     expect(repairedActions[3]!.spatialConstraint).toEqual({
       relation: 'beside',
-      target: { kind: 'spatial', id: 'structure_1' },
+      target: { kind: 'spatial', id: 'structure_4' },
     });
   });
 

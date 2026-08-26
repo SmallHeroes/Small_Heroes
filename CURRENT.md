@@ -2,7 +2,84 @@
 
 **Updated:** 2026-08-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; this milestone starts from local reviewed base `d9eb74223f97232e5d78300a7e85c70d4437b5ee`. The last observed remote head after `git fetch` was `b35f76301254ff089d3ce381e08f257cc7b39f1d`, so the user's reported push had not yet become visible from this worktree.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; the current milestone starts from local reviewed base `4c34e05bf1633ca0f083a0dd1184025783d5f278`. The last observed remote head after `git fetch` was still `b35f76301254ff089d3ce381e08f257cc7b39f1d`, so the user's latest reported push had not yet become visible from this worktree.
+
+## CANDIDATE SEMANTIC-CORRECTION FOUNDATION — COMPILER HARDENED; OUTER AUTHORITY CUT OVER; LIFECYCLE NEXT
+
+The four semantic defects in paid Chameleon Candidate `be2d3202…bcbc9` are
+not being hidden by another provider retry or by editing Candidate v9. This
+focused `$0` foundation milestone closes the compiler seams and establishes a
+safe version boundary before the immutable correction overlay is implemented.
+No provider, credential, network, image, audio, Wizard, payment or render path
+was reached.
+
+Spatial action prose now uses projection v2: exact spatial-node description
+plus stable node ID, so two same-kind nodes cannot collapse to the same
+generic phrase. A legacy kind-only projection is upgraded only through a
+unique one-to-one mapping; ambiguous legacy cardinality remains invalid. When
+an in-place `mustShow` projection is upgraded, its exact same-pointer
+presentation coverage `contractValue` is rebound atomically.
+
+Deterministic human extraction adds only low-ambiguity source-prose forms of
+`kindergarten_guard` (`שומר הגן`, `שומרת הגן`, `kindergarten guard`) and a
+closed deterministic appearance policy. Bare `שומר/שומרת` and Image
+Directions cannot mint cast. This is general role authority, not a Chameleon,
+Kim, Bar or page-specific branch.
+
+Presentation repair now has a strict pure eligibility contract with exact
+keys, exact source beat, presentation class, same-page pointer/value choices,
+unique use and complete consumption. No independently persisted and digest-
+bound eligibility authority exists yet in the production request. Therefore
+policy v20 deliberately passes an empty eligibility set and terminates with
+typed `action_semantic_capability_gap`; the provider cannot authorize its own
+repair route. The offline harness and receipt lifecycle now prove this
+fail-closed boundary while retaining source-ID, PageContract, pure structural
+BookSurface and other authorized repair coverage.
+
+Because the same provider bytes now have different semantic acceptance, the
+authority chain advances atomically: authoring request/receipt/readiness
+v54/v57/v54; live-request materialization input/verification v42/v52;
+execution materialization input/result v39/v44; execution supervisor
+request/result v49/v42; canonical pre-live readiness v49. Policy is v20.
+The immediately prior authoring request/receipt/readiness v53/v56/v53 remain
+explicit immutable legacy evidence. Candidate remains v9; no historical
+artifact was redigested or promoted.
+
+The paid historical bridge-v4 chain must not be reconstructed with these
+current builders. The next milestone must load and re-attest its exact bytes,
+digests, paths and cross-links through a frozen read-only compatibility
+profile, clone its effective template/coverage, apply the typed overlay, and
+create fresh current reconciliation authority. The original Candidate and
+receipt chain remain byte-immutable.
+
+Focused proof on final bytes: compiler/repair/harness plus the reference-domain
+and immutable Fox compatibility regressions pass 10 files and 343/343
+assertions; Source authority lifecycle passes 108/108 assertions; TypeScript
+and `git diff --check` pass. Literal `npm run check` passes both TypeScript
+phases. Ordinary passes 3,814 assertions, skips 70 and fails only the same nine
+missing ignored-output fixture assertions across five unchanged files.
+Resource-intensive passes all 20 files and all 627 assertions, then reports
+the three known Vitest worker `onTaskUpdate` RPC timeouts. The literal command
+therefore remains exit 1 and is not relabeled a clean PASS.
+
+The 8-file outer cutover matrix separately ran 405 assertions: the first
+parallel run passed 400 and hit five 5-second test timeouts under Windows load;
+the three affected files were rerun in isolation with a 30-second test timeout
+and all 21/21, 14/14 and 46/46 assertions passed. The latter two still emitted
+the known post-assertion Vitest worker `onTaskUpdate` RPC timeout, so those
+processes exit 1 and are not mislabeled a clean command PASS.
+
+Binding next action: commit this compiler/cutover milestone and obtain
+independent Claude Code review of the immutable range. On PASS, implement the
+new frozen historical loader plus semantic-correction lifecycle, produce the
+exact real correction/review packet for Guy, and only after approval continue
+to fresh reconciliation, Blueprint/package/Wizard and the authorized one LOW
+full-book render.
+
+Decision and acceptance record:
+`docs/ai-workflow/R1D_VISUAL_CONTRACT_CANDIDATE_SEMANTIC_CORRECTION_DECISION_GATE.md`.
+Implementation evidence:
+`docs/ai-workflow/R1D_CANDIDATE_SEMANTIC_CORRECTION_FOUNDATION_IMPLEMENTATION_EVIDENCE.md`.
 
 ## RECONCILIATION REVIEWER AUTHORING — INDEPENDENT CLAUDE CODE PASS; SEMANTIC CORRECTION NEXT
 

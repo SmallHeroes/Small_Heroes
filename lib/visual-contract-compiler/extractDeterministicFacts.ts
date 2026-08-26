@@ -212,6 +212,18 @@ interface HumanLexEntry {
 
 const HUMAN_LEXICON: HumanLexEntry[] = [
   {
+    // Deliberately compound, low-ambiguity role phrases only. Bare
+    // שומר/שומרת are ordinary verbs in children's prose and must never mint a
+    // supporting human. Image directions remain non-authoritative for cast.
+    id: 'human:kindergarten_guard',
+    role: 'kindergarten_guard',
+    heMale: ['שומר הגן'],
+    heFemale: ['שומרת הגן'],
+    enMale: [],
+    enFemale: [],
+    enNeutral: ['kindergarten guard'],
+  },
+  {
     id: 'human:doctor',
     role: 'doctor',
     heMale: ['הרופא', 'רופא'],

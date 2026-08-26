@@ -908,7 +908,7 @@ describe('offline Visual Contract repair harness', () => {
     });
   });
 
-  it('replays the exact captured Chameleon start as complete 14 to 14 without provider input', async () => {
+  it('keeps the exact captured Chameleon start terminal when reviewed presentation authority is absent', async () => {
     const fixture = capturedChameleonFrontiers();
     expect(fixture).toMatchObject({
       version: 'chameleon-v3-captured-corrected-frontiers/v1',
@@ -951,51 +951,27 @@ describe('offline Visual Contract repair harness', () => {
     expect(result).toMatchObject({
       executionMode: 'offline_stub',
       providerCalls: 0,
-      outcome: 'repair_output_invalid',
-      completeCensusCoverage: 'complete',
-      monotonicCompleteIssueDelta: true,
-      maxPositiveCompleteIssueDelta: 0,
-      finalCompleteIssueCount: 14,
+      outcome: 'invalid_draft',
+      terminalFailureCode: 'action_semantic_capability_gap',
+      completeCensusCoverage: 'absent',
+      monotonicCompleteIssueDelta: null,
+      maxPositiveCompleteIssueDelta: null,
+      finalCompleteIssueCount: null,
     });
     expect(result.calls.map((call) => call.repairMode)).toEqual([
       null,
       'source_evidence_id_patch',
-      'book_surface_patch',
     ]);
-    expect(result.stages.map((stage) => ({
-      population: stage.diagnosticPopulation,
-      count: stage.completeIssueCount,
-      delta: stage.completeDelta,
-      next: stage.nextRepairMode,
-    }))).toEqual([
-      {
-        population: 'complete',
-        count: 14,
-        delta: null,
-        next: 'source_evidence_id_patch',
-      },
-      {
-        population: 'complete',
-        count: 14,
-        delta: 0,
-        next: 'book_surface_patch',
-      },
-    ]);
-    expect(result.stages[0]!.surfacedDiagnosticIssues.some(
-      (issue) => issue.family === 'source_evidence_id',
-    )).toBe(true);
-    expect(result.stages[1]!.surfacedDiagnosticIssues.some(
-      (issue) => issue.family === 'source_evidence_id',
-    )).toBe(false);
-    expect(result.stages[1]!.surfacedDiagnosticIssues.filter(
-      (issue) =>
-        issue.code === 'final_structural_invariant_invalid' &&
-        'causes' in issue &&
-        issue.causes?.includes('page_transition_invalid'),
-    )).toHaveLength(6);
+    expect(
+      result.stages.every(
+        (stage) =>
+          stage.diagnosticPopulation === 'route_subset' &&
+          stage.completeIssueCount === null,
+      ),
+    ).toBe(true);
   });
 
-  it('replays the captured Chameleon corrected frontier from complete 7 to 2 without provider input', async () => {
+  it('keeps the captured Chameleon corrected frontier terminal without reviewed presentation authority', async () => {
     const fixture = capturedChameleonFrontiers();
     expect(canonicalHash(fixture.correctedFrontier.initialDraft)).toBe(
       fixture.correctedFrontier.initialDraftDigest,
@@ -1022,58 +998,24 @@ describe('offline Visual Contract repair harness', () => {
     expect(result).toMatchObject({
       executionMode: 'offline_stub',
       providerCalls: 0,
-      outcome: 'repair_output_invalid',
-      completeCensusCoverage: 'complete',
-      monotonicCompleteIssueDelta: true,
-      maxPositiveCompleteIssueDelta: 0,
-      finalCompleteIssueCount: 2,
+      outcome: 'invalid_draft',
+      terminalFailureCode: 'action_semantic_capability_gap',
+      completeCensusCoverage: 'absent',
+      monotonicCompleteIssueDelta: null,
+      maxPositiveCompleteIssueDelta: null,
+      finalCompleteIssueCount: null,
     });
     expect(result.calls.map((call) => call.repairMode)).toEqual([
       null,
       'source_evidence_id_patch',
-      'presentation_requirement_patch',
     ]);
-    expect(result.stages.map((stage) => ({
-      population: stage.diagnosticPopulation,
-      count: stage.completeIssueCount,
-      delta: stage.completeDelta,
-      next: stage.nextRepairMode,
-    }))).toEqual([
-      {
-        population: 'complete',
-        count: 7,
-        delta: null,
-        next: 'source_evidence_id_patch',
-      },
-      {
-        population: 'complete',
-        count: 2,
-        delta: -5,
-        next: 'presentation_requirement_patch',
-      },
-    ]);
-    expect(result.stages[1]!.surfacedDiagnosticIssues.map((issue) => ({
-      code: issue.code,
-      pageNumber:
-        issue.locator.kind === 'page_item'
-          ? issue.locator.pageNumber
-          : null,
-      itemIndex:
-        issue.locator.kind === 'page_item'
-          ? issue.locator.itemIndex
-          : null,
-    }))).toEqual([
-      {
-        code: 'closed_catalog_capability_gap',
-        pageNumber: 3,
-        itemIndex: 0,
-      },
-      {
-        code: 'closed_catalog_capability_gap',
-        pageNumber: 8,
-        itemIndex: 5,
-      },
-    ]);
+    expect(
+      result.stages.every(
+        (stage) =>
+          stage.diagnosticPopulation === 'route_subset' &&
+          stage.completeIssueCount === null,
+      ),
+    ).toBe(true);
   });
 
   it('distinguishes unmasking from genuine repair damage using the complete census', async () => {
@@ -1149,7 +1091,7 @@ describe('offline Visual Contract repair harness', () => {
     }));
   });
 
-  it('defers one represented-elsewhere residual behind atomic BookSurface and closes it without issue growth', async () => {
+  it('keeps a mixed BookSurface frontier terminal when reviewed presentation authority is absent', async () => {
     const initial = bunnyDraft();
     for (const page of initial.pageContracts) {
       delete page.castIds;
@@ -1273,43 +1215,27 @@ describe('offline Visual Contract repair harness', () => {
       ],
     });
 
-    expect(result.calls.map((call) => call.repairMode)).toEqual([
-      null,
-      'book_surface_patch',
-      'represented_elsewhere_patch',
-    ]);
-    expect(result.outcome).toBe('candidate');
-    expect(result.stages.map((stage) => ({
-      nextRepairMode: stage.nextRepairMode,
-      surfacedIssueCount: stage.surfacedIssueCount,
-      completeIssueCount: stage.completeIssueCount,
-      completeDelta: stage.completeDelta,
-    }))).toEqual([
-      {
-        nextRepairMode: 'book_surface_patch',
-        surfacedIssueCount: 5,
-        completeIssueCount: 5,
-        completeDelta: null,
-      },
-      {
-        nextRepairMode: 'represented_elsewhere_patch',
-        surfacedIssueCount: 1,
-        completeIssueCount: 1,
-        completeDelta: -4,
-      },
-      {
-        nextRepairMode: null,
-        surfacedIssueCount: 0,
-        completeIssueCount: 0,
-        completeDelta: -1,
-      },
-    ]);
-    expect(result.monotonicCompleteIssueDelta).toBe(true);
-    expect(result.maxPositiveCompleteIssueDelta).toBe(0);
-    expect(result.providerCalls).toBe(0);
+    expect(result.calls.map((call) => call.repairMode)).toEqual([null]);
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'invalid_draft',
+      terminalFailureCode: 'action_semantic_capability_gap',
+      completeCensusCoverage: 'absent',
+      monotonicCompleteIssueDelta: null,
+      maxPositiveCompleteIssueDelta: null,
+      finalCompleteIssueCount: null,
+    });
+    expect(
+      result.stages.every(
+        (stage) =>
+          stage.diagnosticPopulation === 'route_subset' &&
+          stage.completeIssueCount === null,
+      ),
+    ).toBe(true);
   });
 
-  it('routes a real 19-to-6-to-5 frontier under the compiler-owned complete census', async () => {
+  it('keeps the real 19-to-6-to-5 fixture terminal without reviewed presentation authority', async () => {
     const valid = bunnyDraft();
     const initial = structuredClone(valid);
     for (const page of initial.pageContracts) {
@@ -1500,102 +1426,25 @@ describe('offline Visual Contract repair harness', () => {
       ],
     });
 
-    expect(result.calls.map((call) => call.repairMode)).toEqual([
-      null,
-      'book_surface_patch',
-      'book_surface_patch',
-      'represented_elsewhere_patch',
-    ]);
+    expect(result.calls.map((call) => call.repairMode)).toEqual([null]);
     expect(result).toMatchObject({
       executionMode: 'offline_stub',
       providerCalls: 0,
-      outcome: 'candidate',
-      completeCensusCoverage: 'complete',
-      monotonicCompleteIssueDelta: true,
-      maxPositiveCompleteIssueDelta: 0,
-      finalCompleteIssueCount: 0,
+      outcome: 'invalid_draft',
+      terminalFailureCode: 'action_semantic_capability_gap',
+      completeCensusCoverage: 'absent',
+      monotonicCompleteIssueDelta: null,
+      maxPositiveCompleteIssueDelta: null,
+      finalCompleteIssueCount: null,
     });
-    expect(result.calls.map((call) => call.kind)).toEqual([
-      'initial',
-      'repair',
-      'repair',
-      'repair',
-    ]);
-    expect(result.stages.map((stage) => ({
-      nextRepairMode: stage.nextRepairMode,
-      surfacedIssueCount: stage.surfacedIssueCount,
-      completeIssueCount: stage.completeIssueCount,
-      completeDelta: stage.completeDelta,
-    }))).toEqual([
-      {
-        nextRepairMode: 'book_surface_patch',
-        surfacedIssueCount: 19,
-        completeIssueCount: 19,
-        completeDelta: null,
-      },
-      {
-        nextRepairMode: 'book_surface_patch',
-        surfacedIssueCount: 6,
-        completeIssueCount: 6,
-        completeDelta: -13,
-      },
-      {
-        nextRepairMode: 'represented_elsewhere_patch',
-        surfacedIssueCount: 5,
-        completeIssueCount: 5,
-        completeDelta: -1,
-      },
-      {
-        nextRepairMode: null,
-        surfacedIssueCount: 0,
-        completeIssueCount: 0,
-        completeDelta: -5,
-      },
-    ]);
-    expect(result.stages[0]!.surfacedDiagnosticIssues.filter(
-      (issue) =>
-        issue.family === 'action_semantic' &&
-        issue.code === 'represented_elsewhere_pointer_out_of_scope',
-    )).toEqual(representedIssues);
-    expect(result.stages[0]!.surfacedDiagnosticIssues).not.toContainEqual(
-      transitionIssue,
-    );
-    expect(result.stages[1]!.surfacedDiagnosticIssues).toEqual([
-      ...representedIssues,
-      transitionIssue,
-    ]);
-    expect(result.stages[2]!.surfacedDiagnosticIssues).toEqual(
-      representedIssues,
-    );
-    expect(JSON.stringify(bookSurfaceResponse)).not.toContain(
-      'actionSemanticCoverage',
-    );
-    expect(JSON.stringify(transitionBookSurfaceResponse)).not.toContain(
-      'actionSemanticCoverage',
-    );
-    expect(transitionBookSurfaceResponse.pageStructuralPatches).toEqual([
-      {
-        pageNumber: initial.pageContracts[0]!.pageNumber,
-        locationId: null,
-        zoneId: null,
-        sameLocationAs: null,
-        mustShow: null,
-        mustNotShow: null,
-        propState: null,
-        propConstraints: null,
-        actionRequirements: null,
-        camera: null,
-        transition: validOpeningTransition,
-      },
-    ]);
-    expect(result.calls[2]).toMatchObject({
-      repairMode: 'book_surface_patch',
-      schemaName: 'BookSurfaceRepairPatch',
-    });
-    expect(result.calls[3]).toMatchObject({
-      repairMode: 'represented_elsewhere_patch',
-      schemaName: 'RepresentedElsewhereRepairPatches',
-    });
+    expect(result.calls.map((call) => call.kind)).toEqual(['initial']);
+    expect(
+      result.stages.every(
+        (stage) =>
+          stage.diagnosticPopulation === 'route_subset' &&
+          stage.completeIssueCount === null,
+      ),
+    ).toBe(true);
   });
 
   it('repairs two threshold-coupled adjacent transitions atomically before one represented residual with 3-to-1-to-0 delta', async () => {
@@ -1737,7 +1586,7 @@ describe('offline Visual Contract repair harness', () => {
     });
   });
 
-  it('replays the production-shaped 17 to 9 to 6 to 0 frontier through three exact narrow lanes without a provider', async () => {
+  it('keeps the production-shaped 17-to-9-to-6-to-0 fixture terminal without reviewed presentation authority', async () => {
     const input = bunnySource();
     const valid = bunnyDraft();
     for (const page of valid.pageContracts) {
@@ -2032,65 +1881,24 @@ describe('offline Visual Contract repair harness', () => {
       ],
     });
 
-    expect(result.calls.map((call) => call.repairMode)).toEqual([
-      null,
-      'book_surface_patch',
-      'page_spatial_reference_patch',
-      'represented_elsewhere_patch',
-    ]);
+    expect(result.calls.map((call) => call.repairMode)).toEqual([null]);
     expect(result).toMatchObject({
       executionMode: 'offline_stub',
       providerCalls: 0,
-      outcome: 'candidate',
-      completeCensusCoverage: 'complete',
-      monotonicCompleteIssueDelta: true,
-      maxPositiveCompleteIssueDelta: 0,
-      finalCompleteIssueCount: 0,
+      outcome: 'invalid_draft',
+      terminalFailureCode: 'action_semantic_capability_gap',
+      completeCensusCoverage: 'absent',
+      monotonicCompleteIssueDelta: null,
+      maxPositiveCompleteIssueDelta: null,
+      finalCompleteIssueCount: null,
     });
-    expect(result.calls[result.calls.length - 1]).toMatchObject({
-      schemaName: 'RepresentedElsewhereRepairPatches',
-    });
-    expect(result.stages.map((stage) => ({
-      nextRepairMode: stage.nextRepairMode,
-      surfacedIssueCount: stage.surfacedIssueCount,
-      completeIssueCount: stage.completeIssueCount,
-      completeDelta: stage.completeDelta,
-    }))).toEqual([
-      {
-        nextRepairMode: 'book_surface_patch',
-        surfacedIssueCount: 17,
-        completeIssueCount: 17,
-        completeDelta: null,
-      },
-      {
-        nextRepairMode: 'page_spatial_reference_patch',
-        surfacedIssueCount: 9,
-        completeIssueCount: 9,
-        completeDelta: -8,
-      },
-      {
-        nextRepairMode: 'represented_elsewhere_patch',
-        surfacedIssueCount: 6,
-        completeIssueCount: 6,
-        completeDelta: -3,
-      },
-      {
-        nextRepairMode: null,
-        surfacedIssueCount: 0,
-        completeIssueCount: 0,
-        completeDelta: -6,
-      },
-    ]);
     expect(
-      result.stages[2]!.surfacedDiagnosticIssues.map(
-        (issue) => issue.locator.kind === 'page_item'
-          ? issue.locator.pageNumber
-          : null,
-      ).sort((left, right) => (left ?? 0) - (right ?? 0)),
-    ).toEqual([2, 3, 5, 6, 6, 8]);
-    expect(JSON.stringify(result.calls)).not.toMatch(
-      /page_contract_patch|full_draft/,
-    );
+      result.stages.every(
+        (stage) =>
+          stage.diagnosticPopulation === 'route_subset' &&
+          stage.completeIssueCount === null,
+      ),
+    ).toBe(true);
   });
 
   it('does not admit BookSurface when coverage_missing is not bound to a capability-gap page', async () => {

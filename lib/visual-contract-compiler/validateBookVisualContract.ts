@@ -10,7 +10,9 @@ import { resolvePageCheckIds } from './pageCheckIds';
 import { VISUAL_CONTRACT_SCHEMA_VERSION } from './contractTemplateTypes';
 import {
   projectCoverMustNotShow,
+  projectPageMustNotShowLegacySpatial,
   projectPageMustNotShow,
+  projectPageMustShowLegacySpatial,
   projectPageMustShow,
   projectZoneStableGeometry,
 } from './projectContractProse';
@@ -1638,9 +1640,51 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
       // (c) TIER-B CONTAINMENT — the stored prose must CONTAIN the structure's projection. NOT equality:
       // mustShow/mustNotShow are multi-source (zone exclusions, style guards, spoiler prose), so extra stored
       // steering is legitimate and must survive. A v1 page projects nothing → vacuously contained.
-      const missingFrom = (projected: string[], stored: unknown): string[] => {
-        const have = isStrArr(stored) ? stored : [];
-        return projected.filter((p) => !have.includes(p));
+      const spatialProjectionCompatibility = (args: {
+        current: string[];
+        legacy: string[];
+        stored: unknown;
+      }): { missing: string[]; ambiguous: string[] } => {
+        const have = isStrArr(args.stored) ? args.stored : [];
+        if (args.current.length !== args.legacy.length) {
+          return { missing: [...args.current], ambiguous: [] };
+        }
+        const missing: string[] = [];
+        const ambiguous: string[] = [];
+        for (let index = 0; index < args.current.length; index += 1) {
+          const current = args.current[index]!;
+          const legacy = args.legacy[index]!;
+          if (current === legacy) {
+            if (!have.includes(current)) missing.push(current);
+            continue;
+          }
+          const hasCurrent = have.includes(current);
+          const hasLegacy = have.includes(legacy);
+          const distinctCurrentTargetCount = new Set(
+            args.current.filter(
+              (candidate, candidateIndex) =>
+                args.legacy[candidateIndex] === legacy &&
+                candidate !== legacy,
+            ),
+          ).size;
+          // One kind-only legacy line may stand in for one historical claim.
+          // It cannot satisfy two distinct current spatial identities: that
+          // would recreate the exact same-kind collapse v2 closes.
+          if (
+            !hasCurrent &&
+            (!hasLegacy || distinctCurrentTargetCount !== 1)
+          ) {
+            missing.push(current);
+          }
+          if (hasLegacy && distinctCurrentTargetCount > 1) {
+            const ambiguity = `${legacy} maps to ${distinctCurrentTargetCount} current spatial claims`;
+            if (!ambiguous.includes(ambiguity)) ambiguous.push(ambiguity);
+          }
+          if (hasCurrent && hasLegacy) {
+            ambiguous.push(`${legacy} <> ${current}`);
+          }
+        }
+        return { missing, ambiguous };
       };
       errors.useIssue(
         pageFinalStructuralIssue(
@@ -1649,16 +1693,34 @@ export function validateBookVisualContract(input: unknown): ContractValidationRe
           'page_projection_containment_invalid',
         ),
       );
-      const missShow = missingFrom(projectPageMustShow(pcTyped, contractView), pc.mustShow);
-      if (missShow.length > 0) {
+      const showProjection = spatialProjectionCompatibility({
+        current: projectPageMustShow(pcTyped, contractView),
+        legacy: projectPageMustShowLegacySpatial(pcTyped, contractView),
+        stored: pc.mustShow,
+      });
+      if (showProjection.missing.length > 0) {
         errors.push(
-          `${label}.mustShow does not CONTAIN its structure's projection — missing ${JSON.stringify(missShow)}. Every projected requirement must appear in mustShow (extra hand-authored steering is allowed; a projected one may not be dropped)`
+          `${label}.mustShow does not CONTAIN its structure's projection — missing ${JSON.stringify(showProjection.missing)}. Every projected requirement must appear in mustShow (extra hand-authored steering is allowed; a projected one may not be dropped)`
         );
       }
-      const missNot = missingFrom(projectPageMustNotShow(pcTyped, contractView), pc.mustNotShow);
-      if (missNot.length > 0) {
+      if (showProjection.ambiguous.length > 0) {
         errors.push(
-          `${label}.mustNotShow does not CONTAIN its structure's projection — missing ${JSON.stringify(missNot)}`
+          `${label}.mustShow contains BOTH legacy and current spatial projections for the same structured claim — ${JSON.stringify(showProjection.ambiguous)}`,
+        );
+      }
+      const notShowProjection = spatialProjectionCompatibility({
+        current: projectPageMustNotShow(pcTyped, contractView),
+        legacy: projectPageMustNotShowLegacySpatial(pcTyped, contractView),
+        stored: pc.mustNotShow,
+      });
+      if (notShowProjection.missing.length > 0) {
+        errors.push(
+          `${label}.mustNotShow does not CONTAIN its structure's projection — missing ${JSON.stringify(notShowProjection.missing)}`
+        );
+      }
+      if (notShowProjection.ambiguous.length > 0) {
+        errors.push(
+          `${label}.mustNotShow contains BOTH legacy and current spatial projections for the same structured claim — ${JSON.stringify(notShowProjection.ambiguous)}`,
         );
       }
     }

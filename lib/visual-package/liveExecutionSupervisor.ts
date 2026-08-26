@@ -46,13 +46,13 @@ import {
 } from './visualContractAuthoringReplayEvidence';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_VERSION =
-  'canonical-live-execution-request/v48' as const;
+  'canonical-live-execution-request/v49' as const;
 export const CANONICAL_LIVE_EXECUTION_READINESS_VERSION =
-  'canonical-live-execution-readiness/v48' as const;
+  'canonical-live-execution-readiness/v49' as const;
 export const CANONICAL_LIVE_EXECUTION_PROBE_VERSION =
   'canonical-live-execution-probe/v1' as const;
 export const CANONICAL_LIVE_EXECUTION_RESULT_VERSION =
-  'canonical-live-execution-result/v41' as const;
+  'canonical-live-execution-result/v42' as const;
 export const CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION =
   'canonical-live-execution-child-output-authority/v2' as const;
 

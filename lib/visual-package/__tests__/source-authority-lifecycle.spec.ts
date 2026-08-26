@@ -1262,11 +1262,11 @@ describe('exact zero-cost authoring preflight', () => {
       promptAuthority: {
         initial: {
         systemPromptVersion: 'vc-template-prompt/v19',
-        userPromptVersion: 'vc-template-user-prompt/v16',
+        userPromptVersion: 'vc-template-user-prompt/v17',
         },
         repair: {
           systemPromptVersion: 'vc-repair-prompt/v16',
-          userPromptVersion: 'vc-repair-user-prompt/v14',
+          userPromptVersion: 'vc-repair-user-prompt/v15',
         },
         pageContractRepair: {
           systemPromptVersion: 'page-contract-repair-prompt/v12',
@@ -2222,7 +2222,7 @@ describe('exact zero-cost authoring preflight', () => {
     const request = structuredClone(
       requestFor(snapshot, 'live'),
     ) as unknown as Record<string, unknown>;
-    expect(request.version).toBe('visual-contract-authoring-request/v53');
+    expect(request.version).toBe('visual-contract-authoring-request/v54');
     request.policyVersion = 'visual-contract-authoring-policy/v18';
     const pricing = request.pricing as Record<string, unknown>;
     Object.assign(pricing, {
@@ -2375,7 +2375,7 @@ describe('source-grounded closed action authority', () => {
     });
   });
 
-  it('fails closed when a presentation-repair response cannot resolve a closed-vocabulary gap', async () => {
+  it('fails closed before presentation repair when reviewed eligibility is absent', async () => {
     const snapshot = bunnySnapshot();
     const draft = fullyActionedBunnyDraft(snapshot);
     const first = draft.pageContracts[0] as PageVisualContract &
@@ -2426,17 +2426,13 @@ describe('source-grounded closed action authority', () => {
     } catch (error) {
       thrown = error;
     }
-    expect(thrown).toBeInstanceOf(TemplateRepairOutputInvalidError);
+    expect(thrown).toBeInstanceOf(ActionSemanticCapabilityGapError);
     expect(
-      (thrown as TemplateRepairOutputInvalidError).repairMode,
-    ).toBe('presentation_requirement_patch');
-    expect(
-      (thrown as TemplateRepairOutputInvalidError).attempts[0]
-        ?.diagnosticIssues,
-    ).toHaveLength(4);
+      (thrown as ActionSemanticCapabilityGapError).gaps,
+    ).toHaveLength(2);
     expect(
       JSON.stringify(
-        (thrown as TemplateRepairOutputInvalidError)
+        (thrown as ActionSemanticCapabilityGapError)
           .draftValidationDiagnostics,
       ),
     ).not.toMatch(/beat:p\d+:unsupported|exact source phrase/i);
@@ -2609,7 +2605,7 @@ describe('source-grounded closed action authority', () => {
 });
 
 describe('sanitized receipts and immutable artifact lifecycle', () => {
-  it('attempts only the compact presentation lane for homogeneous catalog gaps and fails closed on unusable repair output', async () => {
+  it('does not dispatch the compact presentation lane without reviewed eligibility', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const draft = fullyActionedBunnyDraft(snapshot);
@@ -2638,37 +2634,34 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       snapshot,
       provider,
     });
-    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(provider.call).toHaveBeenCalledTimes(1);
     expect(
       vi.mocked(provider.call).mock.calls.map(
         ([call]) => call.options.maxOutputTokens,
       ),
-    ).toEqual([40_000, 32_000]);
+    ).toEqual([40_000]);
     expect(result).toMatchObject({
       compileResult: null,
       receipt: {
         status: 'failed',
-        callCount: 2,
-        repairCount: 1,
+        callCount: 1,
+        repairCount: 0,
         candidateDigest: null,
         actionSemanticCoverage: {
-          status: 'not_evaluated',
-          gapCount: 0,
+          status: 'capability_gap',
+          gapCount: 2,
         },
         failure: {
-          code: 'repair_output_invalid',
+          code: 'action_semantic_capability_gap',
         },
       },
     });
     expect(result.receipt.failure).toMatchObject({
-      phase: 'repair_output_validation',
+      phase: 'action_semantic_capability',
       repairEligibility: 'ineligible',
-      repairReasonCode:
-        'completed_repair_output_unusable',
-      diagnosticCount: 5,
-      diagnosticCodes: [
-        'repair_output_shape_invalid',
-      ],
+      repairReasonCode: 'semantic_capability_not_repairable',
+      diagnosticCount: 2,
+      diagnosticCodes: ['action_semantic_capability_gap'],
     });
     expect(result.receipt.draftValidationStatus).toBe(
       'interrupted',
@@ -2678,8 +2671,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         .draftValidationDiagnostics,
     ).toMatchObject({
       version: 'draft-validation-attempt-diagnostics/v5',
-      emittedCount: 4,
-      currentUniqueCount: 4,
+      emittedCount: 2,
+      currentUniqueCount: 2,
       finalAttempt: true,
       items: expect.arrayContaining([
         {
@@ -2721,7 +2714,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v53',
+      version: 'visual-contract-authoring-readiness/v54',
       draftValidation: {
         status: 'interrupted',
         attempts: result.receipt.attempts.map(
@@ -2787,7 +2780,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         receipt: result.receipt,
       });
     expect(absent).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v53',
+      version: 'visual-contract-authoring-readiness/v54',
       canonicalImportPreflight: {
         status: 'not_attested',
       },
@@ -3191,6 +3184,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'request',
         'visual-contract-authoring-request/v53',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'request',
+        'visual-contract-authoring-request/v54',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3509,6 +3508,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         'receipt',
         'visual-contract-authoring-receipt/v56',
       ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'receipt',
+        'visual-contract-authoring-receipt/v57',
+      ),
     ).toBe('current');
     expect(
       visualContractAuthoringArtifactVersionStatus(
@@ -3736,6 +3741,12 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       visualContractAuthoringArtifactVersionStatus(
         'readiness',
         'visual-contract-authoring-readiness/v53',
+      ),
+    ).toBe('legacy_immutable');
+    expect(
+      visualContractAuthoringArtifactVersionStatus(
+        'readiness',
+        'visual-contract-authoring-readiness/v54',
       ),
     ).toBe('current');
     expect(
@@ -4017,7 +4028,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v56',
+      'visual-contract-authoring-receipt/v57',
     );
     expect(result.receipt.callCount).toBe(1);
     expect(result.receipt.draftValidationStatus).toBe(
@@ -4806,7 +4817,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toBeGreaterThanOrEqual(4_096);
   });
 
-  it('binds a capability gap after full-draft repair to a bounded compact presentation attempt', async () => {
+  it('stops after full-draft repair exposes a capability gap without reviewed eligibility', async () => {
     const snapshot = bunnySnapshot();
     const invalid = fullyActionedBunnyDraft(snapshot);
     invalid.worldType = '';
@@ -4843,25 +4854,25 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
     expect(result.receipt).toMatchObject({
       status: 'failed',
-      callCount: 3,
-      repairCount: 2,
+      callCount: 2,
+      repairCount: 1,
       candidateDigest: null,
       draftValidationStatus: 'interrupted',
       actionSemanticCoverage: {
-        status: 'not_evaluated',
-        gapCount: 0,
+        status: 'capability_gap',
+        gapCount: 1,
       },
       failure: {
-        code: 'repair_output_invalid',
+        code: 'action_semantic_capability_gap',
         repairEligibility: 'ineligible',
       },
     });
-    expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(provider.call).toHaveBeenCalledTimes(2);
     expect(
       vi.mocked(provider.call).mock.calls.map(
         ([call]) => call.options.maxOutputTokens,
       ),
-    ).toEqual([40_000, 32_000, 36_000]);
+    ).toEqual([40_000, 32_000]);
     expect(result.receipt.attempts[0]).toMatchObject({
       kind: 'initial',
       draftValidationDiagnostics: {
@@ -4874,9 +4885,9 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       kind: 'repair',
       repairMode: 'full_draft',
       draftValidationDiagnostics: {
-        emittedCount: 2,
-        currentUniqueCount: 2,
-        newlyIntroducedCount: 2,
+        emittedCount: 1,
+        currentUniqueCount: 1,
+        newlyIntroducedCount: 1,
         resolvedCount: 3,
         finalAttempt: true,
         items: expect.arrayContaining([
@@ -4898,10 +4909,8 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         ]),
       },
     });
-    expect(result.receipt.attempts[2]).toMatchObject({
-      kind: 'repair',
-      repairMode: 'presentation_requirement_patch',
-    });
+    expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
+      .toEqual([null, 'full_draft']);
     const serialized = JSON.stringify(result.receipt);
     expect(serialized).not.toContain(
       `beat:p${gapPage.pageNumber}:unsupported`,
@@ -6199,7 +6208,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(invalid).toEqual(inputBeforeAuthoring);
   });
 
-  it('repairs a malformed source-evidence identity before classifying its dependent closed-catalog gap', async () => {
+  it('repairs malformed source evidence, then keeps the dependent capability gap terminal', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const invalid = fullyActionedBunnyDraft(snapshot);
@@ -6298,17 +6307,24 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      status: 'completed',
-      callCount: 3,
-      repairCount: 2,
-      draftValidationStatus: 'completed',
-      failure: null,
+      status: 'failed',
+      callCount: 2,
+      repairCount: 1,
+      draftValidationStatus: 'interrupted',
+      candidateDigest: null,
+      actionSemanticCoverage: {
+        status: 'capability_gap',
+        gapCount: 1,
+      },
+      failure: {
+        code: 'action_semantic_capability_gap',
+        repairEligibility: 'ineligible',
+      },
     });
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
       .toEqual([
         null,
         'source_evidence_id_patch',
-        'presentation_requirement_patch',
       ]);
     expect(
       result.receipt.attempts[0]!.draftValidationDiagnostics?.items.map(
@@ -6345,54 +6361,25 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         }),
       ]),
     );
-    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
-    expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(provider.call).toHaveBeenCalledTimes(2);
     const calls = vi.mocked(provider.call).mock.calls.map(([call]) => call);
     expect(calls.map((call) => call.options.maxOutputTokens)).toEqual([
       40_000,
       32_000,
-      36_000,
     ]);
     expect(calls[1]!.options.jsonSchema?.name).toBe(
       'SourceEvidenceIdRepairPatches',
     );
-    expect(calls[2]!.options.jsonSchema?.name).toBe(
-      PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
-    );
     expect(calls[1]!.userPrompt).not.toContain('worldType');
-    expect(calls[2]!.userPrompt).not.toContain('worldType');
     expect(invalid).toEqual(inputBeforeAuthoring);
     expect(ordinaryPageRecord.actionRequirements[0]).toMatchObject({
       predicate: 'looks_at',
       object: null,
     });
-    expect(
-      result.compileResult?.actionSemanticCoverage.find(
-        (record) =>
-          record.pageNumber === targetPage.pageNumber &&
-          record.beatId === targetCoverage.beatId,
-      ),
-    ).toMatchObject({
-      sourceEvidenceId: validSourceEvidenceId,
-      disposition: {
-        kind: 'presentation_requirement',
-        presentationClass: 'composition_focus',
-        contractPointer: '/pageContracts/0/mustShow/0',
-      },
-    });
-    expect(
-      result.compileResult?.actionSemanticCoverage.find(
-        (record) =>
-          record.pageNumber === ordinaryPage.pageNumber &&
-          record.beatId === ordinaryCoverage.beatId,
-      ),
-    ).toMatchObject({
-      sourceEvidenceId: ordinarySourceEvidenceId,
-      disposition: { kind: 'action_requirement' },
-    });
+    expect(result.compileResult).toBeNull();
   });
 
-  it('repairs closed source evidence before an independent action-semantic page repair', async () => {
+  it('repairs closed source evidence before an independent capability gap remains terminal', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const invalid = fullyActionedBunnyDraft(snapshot);
@@ -6516,17 +6503,23 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      status: 'completed',
-      callCount: 4,
-      repairCount: 3,
-      failure: null,
+      status: 'failed',
+      callCount: 2,
+      repairCount: 1,
+      candidateDigest: null,
+      draftValidationStatus: 'interrupted',
+      actionSemanticCoverage: {
+        status: 'capability_gap',
+      },
+      failure: {
+        code: 'action_semantic_capability_gap',
+        repairEligibility: 'ineligible',
+      },
     });
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
       .toEqual([
         null,
         'source_evidence_id_patch',
-        'presentation_requirement_patch',
-        'represented_elsewhere_patch',
       ]);
     expect(
       result.receipt.attempts[0]!.draftValidationDiagnostics?.items,
@@ -6552,19 +6545,14 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         }),
       ]),
     );
-    expect(provider.call).toHaveBeenCalledTimes(4);
+    expect(provider.call).toHaveBeenCalledTimes(2);
     expect(
       vi.mocked(provider.call).mock.calls[1]![0].options.jsonSchema?.name,
     ).toBe('SourceEvidenceIdRepairPatches');
-    expect(
-      vi.mocked(provider.call).mock.calls[2]![0].options.jsonSchema?.name,
-    ).toBe('PresentationRequirementRepairPatches');
-    expect(
-      vi.mocked(provider.call).mock.calls[3]![0].options.jsonSchema?.name,
-    ).toBe('RepresentedElsewhereRepairPatches');
+    expect(result.compileResult).toBeNull();
   });
 
-  it('records a compact presentation-requirement repair and persists a candidate after full revalidation', async () => {
+  it('does not dispatch compact presentation repair without reviewed eligibility', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const invalid = fullyActionedBunnyDraft(snapshot);
@@ -6621,30 +6609,24 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      status: 'completed',
-      callCount: 2,
-      repairCount: 1,
-      draftValidationStatus: 'completed',
-      failure: null,
+      status: 'failed',
+      callCount: 1,
+      repairCount: 0,
+      candidateDigest: null,
+      draftValidationStatus: 'interrupted',
+      actionSemanticCoverage: {
+        status: 'capability_gap',
+        gapCount: 1,
+      },
+      failure: {
+        code: 'action_semantic_capability_gap',
+        repairEligibility: 'ineligible',
+      },
     });
-    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
-      .toEqual([null, 'presentation_requirement_patch']);
-    const secondCall = vi.mocked(provider.call).mock.calls[1]![0];
-    expect(secondCall.options.maxOutputTokens).toBe(32_000);
-    expect(secondCall.options.jsonSchema?.name).toBe(
-      PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME,
-    );
-    expect(secondCall.userPrompt).not.toContain('worldType');
-    expect(
-      result.compileResult?.actionSemanticCoverage.find(
-        (record) => record.beatId === coverage.beatId,
-      )?.disposition,
-    ).toMatchObject({
-      kind: 'presentation_requirement',
-      presentationClass: 'composition_focus',
-      contractPointer: '/pageContracts/0/mustShow/0',
-    });
+      .toEqual([null]);
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(result.compileResult).toBeNull();
   });
 
   it('records a bounded pure-structural BookSurface repair without resending action coverage', async () => {
@@ -7059,7 +7041,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
   });
 
-  it('normalizes six live-shaped action-binding components locally, repairs the latent book surface, and persists a candidate in two calls', async () => {
+  it('normalizes live-shaped bindings locally but keeps unreviewed presentation gaps terminal', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const fixture = liveShapedAtomicBindingFixture(snapshot);
@@ -7101,29 +7083,36 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
     expect(result.receipt, JSON.stringify(result.receipt, null, 2))
       .toMatchObject({
-        status: 'completed',
-        callCount: 2,
-        repairCount: 1,
-        failure: null,
-        draftValidationStatus: 'completed',
+        status: 'failed',
+        callCount: 1,
+        repairCount: 0,
+        candidateDigest: null,
+        draftValidationStatus: 'interrupted',
+        actionSemanticCoverage: {
+          status: 'capability_gap',
+          gapCount: 5,
+        },
+        failure: {
+          code: 'action_semantic_capability_gap',
+          repairEligibility: 'ineligible',
+        },
       });
-    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
-      .toEqual([null, 'book_surface_patch']);
+      .toEqual([null]);
     expect(
       result.receipt.attempts.map(
         (attempt) => attempt.appliedMaxOutputTokens,
       ),
-    ).toEqual([40_000, 32_000]);
-    expect(provider.call).toHaveBeenCalledTimes(2);
-    expect(calls).toHaveLength(2);
+    ).toEqual([40_000]);
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(calls).toHaveLength(1);
 
     expect(result.receipt.attempts[0]!.draftValidationDiagnostics)
       .toMatchObject({
         emittedCount: expect.any(Number),
-        currentUniqueCount: 22,
-        newlyIntroducedCount: 22,
-        finalAttempt: false,
+        currentUniqueCount: 5,
+        newlyIntroducedCount: 5,
+        finalAttempt: true,
       });
     expect(
       result.receipt.attempts[0]!.draftValidationDiagnostics!.items
@@ -7132,9 +7121,6 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toEqual(
       expect.arrayContaining([
         'action_semantic:closed_catalog_capability_gap',
-        'draft_contract:cover_projection_invalid',
-        'draft_contract:final_structural_invariant_invalid',
-        'draft_contract:lifecycle_invariant_invalid',
       ]),
     );
     expect(
@@ -7143,26 +7129,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).not.toContain(
       'action_binding_cardinality_invalid',
     );
-
-    const bookSurfaceCall = calls[1]!;
-    expect(bookSurfaceCall.options.jsonSchema?.name).toBe(
-      'BookSurfaceRepairPatch',
-    );
-    const bookSurfacePayload = decodeBookSurfaceRepairUserPrompt(
-      bookSurfaceCall.userPrompt,
-    );
-    expect(bookSurfacePayload.recurringPropAuthority).not.toBeNull();
-    expect(
-      (bookSurfacePayload.affectedPages as Array<{ pageNumber: number }>).map(
-        (page) => page.pageNumber,
-      ),
-    ).toEqual(Array.from({ length: 12 }, (_, index) => index + 1));
-    expect(result.receipt.attempts[1]!.draftValidationDiagnostics)
-      .toMatchObject({
-        emittedCount: 0,
-        currentUniqueCount: 0,
-        finalAttempt: true,
-      });
+    expect(result.compileResult).toBeNull();
   });
 
   it('persists a one-call candidate after compiler-owned missing source-phenomenon binding closure', async () => {
@@ -7252,7 +7219,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
   });
 
-  it('persists the live-shaped oversized mixed surface through one compact BookSurface v7 repair within the standard budget', async () => {
+  it('keeps an oversized mixed surface terminal without reviewed presentation eligibility', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const fixture = liveShapedAtomicBindingFixture(snapshot);
@@ -7325,54 +7292,34 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
     expect(result.receipt, JSON.stringify(result.receipt, null, 2))
       .toMatchObject({
-        status: 'completed',
-        callCount: 2,
-        repairCount: 1,
-        failure: null,
-        draftValidationStatus: 'completed',
+        status: 'failed',
+        callCount: 1,
+        repairCount: 0,
+        candidateDigest: null,
+        draftValidationStatus: 'interrupted',
+        actionSemanticCoverage: {
+          status: 'capability_gap',
+          gapCount: 5,
+        },
+        failure: {
+          code: 'action_semantic_capability_gap',
+          repairEligibility: 'ineligible',
+        },
       });
-    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
-      .toEqual([null, 'book_surface_patch']);
+      .toEqual([null]);
     expect(
       result.receipt.attempts.map(
         (attempt) => attempt.appliedMaxOutputTokens,
       ),
-    ).toEqual([40_000, 32_000]);
-    expect(provider.call).toHaveBeenCalledTimes(2);
+    ).toEqual([40_000]);
+    expect(provider.call).toHaveBeenCalledTimes(1);
     expect(fixture.initial).toEqual(initialBefore);
-    expect(calls[1]!.options.jsonSchema?.name).toBe(
-      'BookSurfaceRepairPatch',
-    );
-    const bookSurfacePayload = decodeBookSurfaceRepairUserPrompt(
-      calls[1]!.userPrompt,
-    );
-    expect(bookSurfacePayload.recurringPropAuthority).not.toBeNull();
-    expect(
-      (bookSurfacePayload.affectedPages as Array<{ pageNumber: number }>).map(
-        (page) => page.pageNumber,
-      ),
-    ).toEqual(Array.from({ length: 12 }, (_, index) => index + 1));
-    for (const call of calls.slice(1)) {
-      const admittedUpperBound =
-        Buffer.byteLength(
-          [
-            call.systemPrompt,
-            call.userPrompt,
-            JSON.stringify(call.options.jsonSchema?.schema),
-          ].join('\n'),
-          'utf8',
-        ) + 4_096;
-      expect(admittedUpperBound).toBeLessThanOrEqual(
-        request.tokenBudget.maxInputTokens,
-      );
-      expect(
-        request.tokenBudget.maxInputTokens - admittedUpperBound,
-      ).toBeGreaterThanOrEqual(4_096);
-    }
+    expect(calls).toHaveLength(1);
+    expect(result.compileResult).toBeNull();
   });
 
-  it('stops a repeated mixed BookSurface fixed point before spending the remaining standard calls', async () => {
+  it('stops a repeated mixed fixture before BookSurface when presentation eligibility is absent', async () => {
     const snapshot = bunnySnapshot();
     const fixture = liveShapedAtomicBindingFixture(snapshot);
     const provider: VisualContractAuthoringProvider = {
@@ -7421,27 +7368,23 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
 
     expect(result.receipt).toMatchObject({
       status: 'failed',
-      callCount: 3,
-      repairCount: 2,
+      callCount: 1,
+      repairCount: 0,
       candidateDigest: null,
       draftValidationStatus: 'interrupted',
       failure: {
-        code: 'draft_validation_repair_stagnated',
+        code: 'action_semantic_capability_gap',
         repairEligibility: 'ineligible',
       },
     });
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
-      .toEqual([
-        null,
-        'book_surface_patch',
-        'book_surface_patch',
-      ]);
-    expect(provider.call).toHaveBeenCalledTimes(3);
+      .toEqual([null]);
+    expect(provider.call).toHaveBeenCalledTimes(1);
     const finalDiagnostics =
-      result.receipt.attempts[2]!.draftValidationDiagnostics;
+      result.receipt.attempts[0]!.draftValidationDiagnostics;
     expect(finalDiagnostics).toMatchObject({
-      currentUniqueCount: 2,
-      persistentCount: 2,
+      currentUniqueCount: 5,
+      newlyIntroducedCount: 5,
       finalAttempt: true,
     });
     expect(
@@ -7450,8 +7393,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
         .map((item) => item.issue.code),
     ).toEqual(
       expect.arrayContaining([
-        'cover_projection_invalid',
-        'final_structural_invariant_invalid',
+        'closed_catalog_capability_gap',
       ]),
     );
   });
@@ -7535,7 +7477,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v56',
+      version: 'visual-contract-authoring-receipt/v57',
       status: 'completed',
       callCount: 3,
       repairCount: 2,
@@ -7916,7 +7858,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     },
   );
 
-  it('repeats BookSurface with null cover for the 12-page pure structural residual and persists a candidate', async () => {
+  it('keeps an expanded 12-page presentation-gap frontier terminal before BookSurface', async () => {
     const snapshot = bunnySnapshot();
     const request = requestFor(snapshot, 'live');
     const fixture = liveShapedAtomicBindingFixture(snapshot);
@@ -8000,116 +7942,32 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      status: 'completed',
-      callCount: 3,
-      repairCount: 2,
-      failure: null,
-      draftValidationStatus: 'completed',
+      status: 'failed',
+      callCount: 1,
+      repairCount: 0,
+      candidateDigest: null,
+      draftValidationStatus: 'interrupted',
+      actionSemanticCoverage: {
+        status: 'capability_gap',
+        gapCount: originalPresentationGapCount + addedPresentationGaps,
+      },
+      failure: {
+        code: 'action_semantic_capability_gap',
+        repairEligibility: 'ineligible',
+      },
     });
-    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
-    expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(provider.call).toHaveBeenCalledTimes(1);
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
-      .toEqual([null, 'book_surface_patch', 'book_surface_patch']);
+      .toEqual([null]);
     expect(
       result.receipt.attempts.map(
         (attempt) => attempt.appliedMaxOutputTokens,
       ),
-    ).toEqual([40_000, 32_000, 36_000]);
-
-    const mixedPayload = decodeBookSurfaceRepairUserPrompt(
-      calls[1]!.userPrompt,
-    );
+    ).toEqual([40_000]);
+    expect(calls).toHaveLength(1);
     expect(
       result.receipt.attempts[0].draftValidationDiagnostics?.emittedCount,
-    ).toBe(35);
-    expect(mixedPayload.coverAuthority).not.toBeNull();
-    expect(mixedPayload.recurringPropAuthority).not.toBeNull();
-    expect(mixedPayload.presentationTargets).toHaveLength(
-      originalPresentationGapCount + addedPresentationGaps,
-    );
-    const coverHintCount = (
-      mixedPayload.coverAuthority as { diagnosticCount: number }
-    ).diagnosticCount;
-    const recurringPropHintCount = (
-      mixedPayload.recurringPropAuthority as {
-        diagnosticCount: number;
-      }
-    ).diagnosticCount;
-    const pageHintCounts = (
-      mixedPayload.affectedPages as Array<{ diagnosticCount: number }>
-    ).map((page) => page.diagnosticCount);
-    const structuralHintCount =
-      coverHintCount +
-      recurringPropHintCount +
-      pageHintCounts.reduce((total, count) => total + count, 0);
-    expect(structuralHintCount).toBe(111);
-    expect(
-      result.receipt.attempts[1].inputAccounting.estimatedBytes,
-    ).toBe(37_916);
-    expect(
-      59_904 -
-        result.receipt.attempts[1].inputAccounting.estimatedBytes,
-    ).toBe(21_988);
-    expect(
-      structuralHintCount +
-        (mixedPayload.presentationTargets as unknown[]).length,
-    ).toBeGreaterThan(128);
-    expect(
-      Math.max(coverHintCount, recurringPropHintCount, ...pageHintCounts),
-    ).toBeLessThanOrEqual(128);
-    expect(
-      result.receipt.attempts[1].inputAccounting.estimatedBytes,
-    ).toBeLessThanOrEqual(59_904);
-    expect(mixedPayload.affectedPages).toHaveLength(12);
-
-    const purePayload = decodeBookSurfaceRepairUserPrompt(
-      calls[2]!.userPrompt,
-    );
-    expect(purePayload.coverAuthority).toBeNull();
-    expect(purePayload.recurringPropAuthority).toBeNull();
-    expect(purePayload.presentationTargets).toEqual([]);
-    expect(
-      (purePayload.affectedPages as Array<{ pageNumber: number }>).map(
-        (page) => page.pageNumber,
-      ),
-    ).toEqual(Array.from({ length: 12 }, (_value, index) => index + 1));
-    expect(JSON.stringify(purePayload.affectedPages)).not.toContain(
-      'actionSemanticCoverage',
-    );
-
-    expect(
-      result.receipt.attempts[1].draftValidationDiagnostics,
-    ).toMatchObject({
-      currentUniqueCount: 12,
-      finalAttempt: false,
-    });
-    expect(
-      result.receipt.attempts[1].draftValidationDiagnostics?.items
-        .filter((item) => item.state !== 'resolved')
-        .map((item) => item.issue.code),
-    ).toEqual(
-      Array.from(
-        { length: 12 },
-        () => 'final_structural_invariant_invalid',
-      ),
-    );
-    const persistedPageFinalItems =
-      result.receipt.attempts[1].draftValidationDiagnostics?.items.filter(
-        (item) =>
-          item.state !== 'resolved' &&
-          item.issue.family === 'draft_contract' &&
-          item.issue.code === 'final_structural_invariant_invalid' &&
-          item.issue.locator.kind === 'page' &&
-          'causes' in item.issue,
-      ) ?? [];
-    expect(persistedPageFinalItems).toHaveLength(12);
-    expect(
-      persistedPageFinalItems.every((item) =>
-        'causes' in item.issue
-          ? item.issue.causes.includes('page_steering_invalid')
-          : false,
-      ),
-    ).toBe(true);
+    ).toBe(originalPresentationGapCount + addedPresentationGaps);
     expect(
       result.receipt.attempts.flatMap(
         (attempt) =>
@@ -8118,13 +7976,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
           ) ?? [],
       ),
     ).not.toContain('action_binding_cardinality_invalid');
-    expect(
-      result.receipt.attempts[2].draftValidationDiagnostics,
-    ).toMatchObject({
-      emittedCount: 0,
-      currentUniqueCount: 0,
-      finalAttempt: true,
-    });
+    expect(result.compileResult).toBeNull();
   });
 
   it('keeps source-regeneration repair below 64k and stops its exact fixed point without transporting the rejected draft', async () => {
@@ -8382,7 +8234,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     expect(provider.call).toHaveBeenCalledTimes(2);
     expect(result.compileResult).toBeNull();
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v56',
+      version: 'visual-contract-authoring-receipt/v57',
       status: 'failed',
       callCount: 2,
       repairCount: 1,
@@ -8427,7 +8279,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       receipt: result.receipt,
     });
     expect(readiness).toMatchObject({
-      version: 'visual-contract-authoring-readiness/v53',
+      version: 'visual-contract-authoring-readiness/v54',
       authoringOutcome: {
         status: 'failed',
         failureCode: 'draft_validation_repair_stagnated',
@@ -8965,28 +8817,6 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       ...finalSlotMixed.pageContracts[0]!.mustNotShow,
       `${sentinel}${structurallyAuthorizedUniqueBytes}`,
     ];
-    const presentationPage = finalSlotMixed.pageContracts[1]! as
-      PageVisualContract & {
-        actionSemanticCoverage: Array<{
-          beatId: string;
-          sourceEvidenceId: string;
-          disposition: Record<string, unknown>;
-        }>;
-      };
-    const presentationCoverage =
-      presentationPage.actionSemanticCoverage[0]!;
-    presentationPage.actionRequirements = (
-      presentationPage.actionRequirements ?? []
-    ).filter(
-      (action) =>
-        (action as unknown as { beatId?: string }).beatId !==
-        presentationCoverage.beatId,
-    );
-    presentationCoverage.disposition = {
-      kind: 'unsupported',
-      reason: 'closed_action_catalog_gap',
-    };
-
     const provider: VisualContractAuthoringProvider = {
       call: vi.fn(async (args) => {
         const output =
@@ -9737,19 +9567,6 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
       }>;
     };
     invalidPage.camera = '';
-    const targetBeatId = invalidPage.actionSemanticCoverage[0]!.beatId;
-    invalidPage.actionRequirements = (
-      invalidPage.actionRequirements ?? []
-    ).filter(
-      (action) =>
-        (action as unknown as { beatId?: string }).beatId !==
-        targetBeatId,
-    );
-    invalidPage.actionSemanticCoverage[0]!.disposition = {
-      kind: 'unsupported',
-      reason: 'closed_action_catalog_gap',
-    };
-
     const repairedPage = structuredClone(valid.pageContracts[0]!) as
       PageVisualContract & {
         actionSemanticCoverage: Array<{
@@ -9762,19 +9579,6 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     delete (repairedPage as unknown as Record<string, unknown>)
       .characterPresence;
     repairedPage.propConstraints ??= [];
-    repairedPage.actionRequirements = (
-      repairedPage.actionRequirements ?? []
-    ).filter(
-      (action) =>
-        (action as unknown as { beatId?: string }).beatId !==
-        targetBeatId,
-    );
-    repairedPage.actionSemanticCoverage[0]!.disposition = {
-      kind: 'presentation_requirement',
-      presentationClass: 'composition_focus',
-      contractPointer: '/pageContracts/0/mustShow/0',
-      contractValue: repairedPage.mustShow[0],
-    };
     const calls: Parameters<VisualContractAuthoringProvider['call']>[0][] = [];
     let providerCall = 0;
     const provider: VisualContractAuthoringProvider = {
@@ -10058,7 +9862,7 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     ).toEqual(loadedLegacyReadiness);
   });
 
-  it('keeps a non-BookSurface mixed authority failure inside the bounded full-draft loop', async () => {
+  it('keeps a non-BookSurface mixed authority failure terminal when presentation eligibility is absent', async () => {
     const snapshot = bunnySnapshot();
     const valid = fullyActionedBunnyDraft(snapshot);
     const invalid = structuredClone(valid);
@@ -10139,47 +9943,44 @@ describe('sanitized receipts and immutable artifact lifecycle', () => {
     });
 
     expect(result.receipt).toMatchObject({
-      status: 'completed',
-      callCount: 3,
-      repairCount: 2,
-      failure: null,
-      draftValidationStatus: 'completed',
+      status: 'failed',
+      callCount: 1,
+      repairCount: 0,
+      candidateDigest: null,
+      draftValidationStatus: 'interrupted',
+      actionSemanticCoverage: {
+        status: 'capability_gap',
+        gapCount: 1,
+      },
+      failure: {
+        code: 'action_semantic_capability_gap',
+        repairEligibility: 'ineligible',
+      },
     });
     expect(result.receipt.attempts.map((attempt) => attempt.repairMode))
-      .toEqual([null, 'full_draft', 'full_draft']);
-    expect(provider.call).toHaveBeenCalledTimes(3);
+      .toEqual([null]);
+    expect(provider.call).toHaveBeenCalledTimes(1);
     expect(
       vi.mocked(provider.call).mock.calls.map(
         ([call]) => call.options.maxOutputTokens,
       ),
-    ).toEqual([40_000, 32_000, 36_000]);
-    expect(result.receipt.attempts[1].draftValidationDiagnostics)
+    ).toEqual([40_000]);
+    expect(result.receipt.attempts[0].draftValidationDiagnostics)
       .toMatchObject({
-        currentUniqueCount: expect.any(Number),
-        finalAttempt: false,
+        currentUniqueCount: 1,
+        finalAttempt: true,
       });
     expect(
-      result.receipt.attempts[1].draftValidationDiagnostics
-        ?.currentUniqueCount,
-    ).toBeGreaterThan(1);
-    expect(
-      result.receipt.attempts[1].draftValidationDiagnostics
+      result.receipt.attempts[0].draftValidationDiagnostics
         ?.items
         .filter((item) => item.state !== 'resolved')
         .map((item) => item.issue.family),
-    ).toEqual(
-      expect.arrayContaining(['draft_contract', 'action_semantic']),
-    );
+    ).toEqual(['action_semantic']);
     expect(
-      result.receipt.attempts[1].draftValidationDiagnostics
+      result.receipt.attempts[0].draftValidationDiagnostics
         ?.items.map((item) => item.issue.code),
     ).toContain('closed_catalog_capability_gap');
-    expect(result.receipt.attempts[2].draftValidationDiagnostics)
-      .toMatchObject({
-        currentUniqueCount: 0,
-        finalAttempt: true,
-      });
-    expect(result.receipt.candidateDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.compileResult).toBeNull();
     expect(JSON.stringify(result.receipt)).not.toContain(rejectedId);
   });
 });

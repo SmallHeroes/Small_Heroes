@@ -4,8 +4,8 @@ import {
   assertValidBookVisualContractTemplate,
   validateBookVisualContractTemplate,
   projectZoneStableGeometry,
-  projectPageMustShow,
-  projectPageMustNotShow,
+  projectPageMustShowLegacySpatial,
+  projectPageMustNotShowLegacySpatial,
   resolvePageCheckIds,
   sourceEvidenceErrors,
   type BookVisualContract,
@@ -199,13 +199,18 @@ describe('fox — TIER A / TIER B: the prose IS the structure’s projection', (
     }
   });
 
-  it('TIER B: every page’s mustShow / mustNotShow CONTAINS its projection (extra hand-authored steering survives)', () => {
+  it('TIER B: every immutable v1 page contains its legacy spatial projection', () => {
     const t = foxTemplate();
     for (const p of t.pageContracts) {
-      for (const line of projectPageMustShow(p, t)) expect(p.mustShow).toContain(line);
-      for (const line of projectPageMustNotShow(p, t)) expect(p.mustNotShow).toContain(line);
+      // Current-or-unique-legacy compatibility belongs to the production
+      // validator. This artifact assertion proves only the frozen v1 bytes
+      // against the historical projector that authored them.
+      const projectedMustShow = projectPageMustShowLegacySpatial(p, t);
+      const projectedMustNotShow = projectPageMustNotShowLegacySpatial(p, t);
+      for (const line of projectedMustShow) expect(p.mustShow).toContain(line);
+      for (const line of projectedMustNotShow) expect(p.mustNotShow).toContain(line);
       // containment, NOT equality — fox's authored zone/style/spoiler prose is still there.
-      expect(p.mustShow.length).toBeGreaterThan(projectPageMustShow(p, t).length);
+      expect(p.mustShow.length).toBeGreaterThan(projectedMustShow.length);
     }
   });
 });

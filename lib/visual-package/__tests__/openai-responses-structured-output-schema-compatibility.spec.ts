@@ -170,7 +170,7 @@ describe('OpenAI Responses structured-output compatibility profile', () => {
       'structural-bundle-repair-schema/v4',
     );
     expect(PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION).toBe(
-      'presentation-requirement-repair-schema/v2',
+      'presentation-requirement-repair-schema/v3',
     );
     expect(STABLE_PROP_SCOPE_REPAIR_SCHEMA_VERSION).toBe(
       'stable-prop-scope-repair-schema/v1',

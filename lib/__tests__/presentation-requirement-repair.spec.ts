@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   PRESENTATION_REQUIREMENT_REPAIR_JSON_SCHEMA,
+  PRESENTATION_REQUIREMENT_REPAIR_ELIGIBILITY_VERSION,
   PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION,
   PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION,
   PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION,
@@ -13,6 +14,32 @@ import {
 import { assertOpenAIResponsesStructuredOutputSchemaCompatible } from '../visual-package/openaiResponsesStructuredOutputSchemaCompatibility';
 
 const SOURCE_EVIDENCE_ID = `se1_${'a'.repeat(64)}`;
+
+function eligibility(args: {
+  pageNumber?: number;
+  beatId?: string;
+  sourceEvidenceId?: string;
+  presentationClass?: 'graphic_sound_cue' | 'lighting_state';
+  values?: Array<{ contractPointer: string; contractValue: string }>;
+} = {}) {
+  return {
+    version: PRESENTATION_REQUIREMENT_REPAIR_ELIGIBILITY_VERSION,
+    pageNumber: args.pageNumber ?? 4,
+    beatId: args.beatId ?? 'beat:p4:echo_returns',
+    sourceEvidenceId: args.sourceEvidenceId ?? SOURCE_EVIDENCE_ID,
+    presentationClass: args.presentationClass ?? 'graphic_sound_cue',
+    permittedPointerValues: args.values ?? [
+      {
+        contractPointer: '/pageContracts/0/mustShow/0',
+        contractValue: 'visible sound lettering near the railing',
+      },
+      {
+        contractPointer: '/pageContracts/0/mustShow/1',
+        contractValue: 'the child listens',
+      },
+    ],
+  } as const;
+}
 
 function draft() {
   return {
@@ -49,6 +76,7 @@ function targets() {
         reason: 'closed_action_catalog_gap',
       },
     ],
+    eligibilities: [eligibility()],
   });
   if (!value) throw new Error('expected repair targets');
   return value;
@@ -68,13 +96,13 @@ function patch() {
 describe('presentation requirement compact repair', () => {
   it('uses a Responses-compatible strict schema', () => {
     expect(PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION).toBe(
-      'presentation-requirement-repair-schema/v2',
+      'presentation-requirement-repair-schema/v3',
     );
     expect(PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION).toBe(
-      'presentation-requirement-repair-prompt/v2',
+      'presentation-requirement-repair-prompt/v3',
     );
     expect(PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION).toBe(
-      'presentation-requirement-repair-user-prompt/v2',
+      'presentation-requirement-repair-user-prompt/v3',
     );
     expect(
       assertOpenAIResponsesStructuredOutputSchemaCompatible(
@@ -179,6 +207,25 @@ describe('presentation requirement compact repair', () => {
           reason: 'closed_action_catalog_gap',
         },
       ],
+      eligibilities: [
+        eligibility(),
+        eligibility({
+          pageNumber: 5,
+          beatId: 'beat:p5:lantern_glows',
+          sourceEvidenceId: secondSourceEvidenceId,
+          presentationClass: 'lighting_state',
+          values: [
+            {
+              contractPointer: '/pageContracts/1/mustShow/0',
+              contractValue: 'the lantern glows',
+            },
+            {
+              contractPointer: '/pageContracts/1/mustShow/1',
+              contractValue: 'the doorway is visible',
+            },
+          ],
+        }),
+      ],
     });
     if (!selected) throw new Error('expected multi-page repair targets');
     const repaired = applyPresentationRequirementRepairPatches({
@@ -252,6 +299,21 @@ describe('presentation requirement compact repair', () => {
   });
 
   it('keeps mixed or unsafe capability gaps terminal by refusing authority', () => {
+    expect(
+      presentationRequirementRepairTargets({
+        draft: draft(),
+        gaps: [
+          {
+            pageNumber: 4,
+            coverageIndex: 0,
+            beatId: 'beat:p4:echo_returns',
+            sourceEvidenceId: SOURCE_EVIDENCE_ID,
+            sourcePhrase: 'The echo returns.',
+            reason: 'closed_action_catalog_gap',
+          },
+        ],
+      }),
+    ).toBeNull();
     const noMustShow = draft();
     noMustShow.pageContracts[0]!.mustShow = [];
     expect(
@@ -267,6 +329,45 @@ describe('presentation requirement compact repair', () => {
             reason: 'closed_action_catalog_gap',
           },
         ],
+        eligibilities: [eligibility()],
+      }),
+    ).toBeNull();
+  });
+
+  it('rejects extra-key, unused, and multiply-consumed eligibility authority', () => {
+    const gap = {
+      pageNumber: 4,
+      coverageIndex: 0,
+      beatId: 'beat:p4:echo_returns',
+      sourceEvidenceId: SOURCE_EVIDENCE_ID,
+      sourcePhrase: 'The echo returns.',
+      reason: 'closed_action_catalog_gap' as const,
+    };
+    expect(
+      presentationRequirementRepairTargets({
+        draft: draft(),
+        gaps: [gap],
+        eligibilities: [{ ...eligibility(), injectedApproval: true } as never],
+      }),
+    ).toBeNull();
+    expect(
+      presentationRequirementRepairTargets({
+        draft: draft(),
+        gaps: [gap],
+        eligibilities: [
+          eligibility(),
+          eligibility({
+            beatId: 'beat:p4:unused',
+            sourceEvidenceId: `se1_${'c'.repeat(64)}`,
+          }),
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      presentationRequirementRepairTargets({
+        draft: draft(),
+        gaps: [gap, { ...gap, coverageIndex: 1 }],
+        eligibilities: [eligibility()],
       }),
     ).toBeNull();
   });

@@ -68,7 +68,9 @@ import {
 } from './coverSourceAuthority';
 import {
   projectCoverMustNotShow,
+  projectPageMustNotShowLegacySpatial,
   projectPageMustNotShow,
+  projectPageMustShowLegacySpatial,
   projectPageMustShow,
   projectZoneStableGeometry,
 } from './projectContractProse';
@@ -269,7 +271,7 @@ const AUTHORING_REASONING_EFFORT =
 export const TEMPLATE_PROMPT_VERSION =
   'vc-template-prompt/v19' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
-  'vc-template-user-prompt/v16' as const;
+  'vc-template-user-prompt/v17' as const;
 /** Normal bounded safety net after the initial authoring call. */
 const STANDARD_MAX_REPAIR_ATTEMPTS =
   VISUAL_CONTRACT_AUTHORING_STANDARD_MAX_REPAIRS;
@@ -279,7 +281,7 @@ const MAX_REPAIR_ATTEMPTS = STANDARD_MAX_REPAIR_ATTEMPTS + 1;
 export const REPAIR_PROMPT_VERSION =
   'vc-repair-prompt/v16' as const;
 export const REPAIR_USER_PROMPT_VERSION =
-  'vc-repair-user-prompt/v14' as const;
+  'vc-repair-user-prompt/v15' as const;
 
 /** The production authoring model is exact and never environment-overridable. */
 export function resolveAuthoringModel(): string {
@@ -2129,7 +2131,7 @@ function formatEvidence(h: HumanFact): string {
 // canonical paletteId = the cast id, which is also the palette selection key — never a fabricated string);
 // hairStyle → an explicit policy value + policy_default origin. An UNKNOWN role FAILS (never auto-classified).
 const FAMILY_PROFILE_ROLES = new Set(['mother', 'father', 'parent', 'sibling', 'grandparent']);
-const APPEARANCE_POLICY_VERSION = 'role-policy/v1';
+const APPEARANCE_POLICY_VERSION = 'role-policy/v2';
 const HAIR_STYLE_POLICY: Record<string, { value: string; policyId: string }> = {
   mother: { value: 'medium-length, worn loose in a simple everyday style', policyId: 'mother-hair-style' },
   father: { value: 'short, tidy everyday cut', policyId: 'father-hair-style' },
@@ -2139,6 +2141,10 @@ const HAIR_STYLE_POLICY: Record<string, { value: string; policyId: string }> = {
   doctor: { value: 'short, neatly combed, side part', policyId: 'doctor-hair-style' },
   nurse: { value: 'neat, tied back for work', policyId: 'nurse-hair-style' },
   teacher: { value: 'neat, simple everyday style', policyId: 'teacher-hair-style' },
+  kindergarten_guard: {
+    value: 'neat, practical everyday work style',
+    policyId: 'kindergarten-guard-hair-style',
+  },
 };
 
 /** Inject the appearance binding skeleton for a human's role. Throws (fail-closed) for an unknown role. */
@@ -2811,26 +2817,111 @@ function appendMissingExactProjectionStrings(
   return result;
 }
 
+function upgradeLegacySpatialProjectionStrings(args: {
+  stored: unknown;
+  legacy: readonly string[];
+  current: readonly string[];
+  onReplacement?: (replacement: {
+    storedIndex: number;
+    before: string;
+    after: string;
+  }) => void;
+}): string[] | null {
+  if (
+    !Array.isArray(args.stored) ||
+    args.stored.some(
+      (value) =>
+        typeof value !== 'string' || value.trim().length === 0,
+    ) ||
+    args.legacy.length !== args.current.length
+  ) {
+    return null;
+  }
+  const result = [...args.stored] as string[];
+  const processedLegacy = new Set<string>();
+  for (let index = 0; index < args.current.length; index += 1) {
+    const legacy = args.legacy[index]!;
+    if (processedLegacy.has(legacy)) continue;
+    processedLegacy.add(legacy);
+    const pendingCurrent = [
+      ...new Set(
+        args.current.filter(
+          (current, currentIndex) =>
+            args.legacy[currentIndex] === legacy &&
+            current !== legacy &&
+            !result.includes(current),
+        ),
+      ),
+    ];
+    if (pendingCurrent.length === 0) continue;
+    const legacyIndexes = result
+      .map((value, storedIndex) => value === legacy ? storedIndex : -1)
+      .filter((storedIndex) => storedIndex >= 0);
+    // A one-to-one declaration-order pairing is deterministic and preserves
+    // every pointer index. Any missing/extra legacy occurrence is ambiguous;
+    // leave it untouched so append+validation fail closed on the mixed state.
+    if (legacyIndexes.length === pendingCurrent.length) {
+      for (let replacementIndex = 0; replacementIndex < pendingCurrent.length; replacementIndex += 1) {
+        const storedIndex = legacyIndexes[replacementIndex]!;
+        const after = pendingCurrent[replacementIndex]!;
+        result[storedIndex] = after;
+        args.onReplacement?.({ storedIndex, before: legacy, after });
+      }
+    }
+  }
+  return result;
+}
+
 /**
- * Page steering prose is an append-only projection of compiler-grounded
- * structure. Existing authored strings and pointer indexes never move.
- * Malformed arrays remain untouched so final validation still fails closed.
+ * Page steering prose preserves authored pointer indexes. Exact legacy
+ * kind-only spatial projections are upgraded in place to the description-aware
+ * projection before missing compiler-owned values are appended. Malformed or
+ * ambiguous arrays remain untouched so final validation still fails closed.
  */
 export function appendCompilerOwnedPageProjections(
   template: BookVisualContractTemplate,
+  actionSemanticCoverage: ActionSemanticCoverageRecord[] = [],
 ): void {
   const contractView = template as unknown as BookVisualContract;
-  for (const page of template.pageContracts) {
+  for (const [pageIndex, page] of template.pageContracts.entries()) {
     const pageView = page as unknown as PageVisualContract;
     const pageRecord = page as unknown as Record<string, unknown>;
+    const projectedMustShow = projectPageMustShow(pageView, contractView);
+    const upgradedMustShow = upgradeLegacySpatialProjectionStrings({
+      stored: pageRecord.mustShow,
+      legacy: projectPageMustShowLegacySpatial(pageView, contractView),
+      current: projectedMustShow,
+      onReplacement: ({ storedIndex, before, after }) => {
+        const pointer = `/pageContracts/${pageIndex}/mustShow/${storedIndex}`;
+        for (const record of actionSemanticCoverage) {
+          if (
+            record.pageNumber === page.pageNumber &&
+            record.disposition.kind === 'presentation_requirement' &&
+            record.disposition.contractPointer === pointer &&
+            record.disposition.contractValue === before
+          ) {
+            record.disposition.contractValue = after;
+          }
+        }
+      },
+    });
     const mustShow = appendMissingExactProjectionStrings(
-      pageRecord.mustShow,
-      projectPageMustShow(pageView, contractView),
+      upgradedMustShow ?? pageRecord.mustShow,
+      projectedMustShow,
     );
     if (mustShow) pageRecord.mustShow = mustShow;
+    const projectedMustNotShow = projectPageMustNotShow(
+      pageView,
+      contractView,
+    );
+    const upgradedMustNotShow = upgradeLegacySpatialProjectionStrings({
+      stored: pageRecord.mustNotShow,
+      legacy: projectPageMustNotShowLegacySpatial(pageView, contractView),
+      current: projectedMustNotShow,
+    });
     const mustNotShow = appendMissingExactProjectionStrings(
-      pageRecord.mustNotShow,
-      projectPageMustNotShow(pageView, contractView),
+      upgradedMustNotShow ?? pageRecord.mustNotShow,
+      projectedMustNotShow,
     );
     if (mustNotShow) pageRecord.mustNotShow = mustNotShow;
   }
@@ -4506,7 +4597,7 @@ function assembleTemplateFromDraft(
       ...projectCoverMustNotShow(template as unknown as BookVisualContract),
     ]),
   ];
-  appendCompilerOwnedPageProjections(template);
+  appendCompilerOwnedPageProjections(template, actionSemanticCoverage);
 
   // coverContract.worldType is a COMPILER-owned copy of the top-level worldType — enforce the equality invariant.
   if ((template.coverContract as { worldType?: unknown }).worldType !== template.worldType) {
@@ -5148,9 +5239,16 @@ export async function compileBookVisualContractTemplate(
           presentationRequirementRepairTargets({
             draft,
             gaps: err.gaps,
+            // No reviewed eligibility is bound to the current Story Source
+            // snapshot/request identity. Keep the live lane fail-closed rather
+            // than accepting an unbound caller/source field as authority.
+            eligibilities: [],
           });
         if (!presentationRequirementAffectedTargets) {
-          throw err.completeError;
+          throw new ActionSemanticCapabilityGapError(
+            err.gaps,
+            repairAttempts.map((repair) => repair.diagnosticIssues),
+          );
         }
         bookSurfaceAuthorityDraft = err.bookSurfaceAuthorityDraft;
         bookSurfaceAuthority =
@@ -5370,6 +5468,9 @@ export async function compileBookVisualContractTemplate(
           presentationRequirementRepairTargets({
             draft,
             gaps: err.gaps,
+            // See the mixed structural branch above: provider output cannot
+            // authorize its own presentation reclassification.
+            eligibilities: [],
           });
         if (!presentationRequirementAffectedTargets) {
           throw repairAttempts.length === 0

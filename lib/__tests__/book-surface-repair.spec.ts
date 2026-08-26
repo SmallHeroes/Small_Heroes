@@ -168,6 +168,7 @@ function presentationTarget(
     beatId: `beat:p${pageNumber}:test`,
     sourceEvidenceId: `se1_${'a'.repeat(64)}`,
     sourcePhrase: `source phrase page ${pageNumber}`,
+    presentationClass: 'static_state',
     permittedPointerValues: [
       {
         contractPointer: `/pageContracts/${pageNumber - 1}/mustShow/0`,

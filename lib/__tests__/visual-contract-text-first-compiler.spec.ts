@@ -16,6 +16,7 @@ import {
   assertCastIsFactAuthoritative,
   buildTemplateCompileSystemPrompt,
   buildTemplateCompileUserPrompt,
+  injectAppearance,
   type TemplateCompileInput,
 } from '../visual-contract-compiler/compileBookVisualContractTemplate';
 import { renderVisualContractReview } from '../visual-contract-compiler/writeVisualContractReview';
@@ -90,6 +91,63 @@ describe('text-first compiler — C2 deterministic facts (Hebrew morphology, nev
     expect(doctor.genderEvidence?.page).toBe(4); // "הרופא קרא" — actor mention, not the p1 construct
     expect(mother.gender).toBe('female');
     expect(mother.genderEvidence?.phrase).toContain('אמא');
+  });
+
+  it('derives a low-ambiguity kindergarten guard from source prose, never from a bare verb or image direction', () => {
+    const base = {
+      storyKey: 'guard_role_probe',
+      pageCount: 3,
+      pages: [
+        { pageNumber: 1, text: 'קִים שומרת בתיק תווית חדשה.' },
+        { pageNumber: 2, text: 'שומרת הגן כבר עמדה לסגור.' },
+        { pageNumber: 3, text: 'הילד חזר הביתה.' },
+      ],
+      pageImageDirections: [
+        {
+          pageNumber: 3,
+          imageDirection: 'Supporting characters: kindergarten guard.',
+        },
+      ],
+      companion: null,
+    };
+    const facts = extractDeterministicFacts(base);
+    expect(facts.humans).toEqual([
+      expect.objectContaining({
+        id: 'human:kindergarten_guard',
+        role: 'kindergarten_guard',
+        gender: 'female',
+        pagesPresent: [2],
+        aliasesFound: ['שומרת הגן'],
+        genderEvidence: expect.objectContaining({
+          page: 2,
+          phrase: 'שומרת הגן כבר עמדה לסגור.',
+        }),
+      }),
+    ]);
+    const male = extractDeterministicFacts({
+      ...base,
+      pages: [
+        { pageNumber: 1, text: 'שומר הגן כבר עמד לסגור.' },
+        { pageNumber: 2, text: 'הילד חזר הביתה.' },
+        { pageNumber: 3, text: 'הלילה נשאר שקט.' },
+      ],
+      pageImageDirections: [],
+    }).humans[0]!;
+    expect(male).toMatchObject({
+      id: 'human:kindergarten_guard',
+      gender: 'male',
+      pagesPresent: [1],
+    });
+    expect(injectAppearance('kindergarten_guard', male.id)).toMatchObject({
+      skinTone: {
+        mode: 'deterministic_palette',
+        origin: { paletteId: 'human:kindergarten_guard' },
+      },
+      hairStyle: {
+        mode: 'explicit',
+        origin: { policyId: 'kindergarten-guard-hair-style' },
+      },
+    });
   });
 
   it('reproduces the doctor presence graph EXACTLY (genitive + construct excluded)', () => {

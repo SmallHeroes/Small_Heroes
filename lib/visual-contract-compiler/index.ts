@@ -200,8 +200,11 @@ export {
 export {
   projectZoneStableGeometry,
   projectPageMustShow,
+  projectPageMustShowLegacySpatial,
   projectPageMustNotShow,
+  projectPageMustNotShowLegacySpatial,
   projectCoverMustNotShow,
+  SPATIAL_REFERENCE_PROJECTION_VERSION,
   projectPageActionProse,
   projectPageSafetyProse,
 } from './projectContractProse';

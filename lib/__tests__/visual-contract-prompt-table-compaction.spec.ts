@@ -691,13 +691,13 @@ describe('Visual Contract prompt authority-table compaction', () => {
       'vc-template-prompt/v19',
     );
     expect(TEMPLATE_USER_PROMPT_VERSION).toBe(
-      'vc-template-user-prompt/v16',
+      'vc-template-user-prompt/v17',
     );
     expect(REPAIR_PROMPT_VERSION).toBe(
       'vc-repair-prompt/v16',
     );
     expect(REPAIR_USER_PROMPT_VERSION).toBe(
-      'vc-repair-user-prompt/v14',
+      'vc-repair-user-prompt/v15',
     );
 
     const repoRoot = fs.mkdtempSync(

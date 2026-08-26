@@ -8,6 +8,7 @@ import {
   migrateLegacyBookVisualContractTemplateV3,
   migrateBookVisualContractTemplateTimeOfDayAuthority,
   projectPageMustShow,
+  projectPageMustShowLegacySpatial,
   projectPageMustNotShow,
   projectCoverMustNotShow,
   projectZoneStableGeometry,
@@ -298,6 +299,90 @@ describe('Stage 4 — compiler-owned page prose projection', () => {
       ).toBe(stored);
       expect(validateBookVisualContract(contract).ok).toBe(false);
     }
+  });
+
+  it('upgrades duplicate same-kind legacy projections one-to-one and rebinds exact presentation values', () => {
+    const contract = baseContract();
+    const zone = contract.zones[0]!;
+    zone.spatialNodes = [
+      { id: 'rear_rail', kind: 'railing', description: 'Low fountain rim behind the stone.' },
+      { id: 'forward_rail', kind: 'railing', description: 'Slim guide rail toward the gate.' },
+    ];
+    zone.stableGeometry = projectZoneStableGeometry(zone);
+    const page = contract.pageContracts[0]!;
+    page.actionRequirements = [
+      {
+        checkId: 'action:look_back',
+        subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } },
+        predicate: 'looks_at',
+        object: { kind: 'spatial', id: 'rear_rail' },
+        polarity: 'must',
+      },
+      {
+        checkId: 'action:look_forward',
+        subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } },
+        predicate: 'looks_at',
+        object: { kind: 'spatial', id: 'forward_rail' },
+        polarity: 'must',
+      },
+    ] as never;
+    page.mustShow = projectPageMustShowLegacySpatial(page, contract);
+    expect(page.mustShow).toEqual([
+      'the child looks at the railing',
+      'the child looks at the railing',
+    ]);
+    const coverage = [{
+      pageNumber: 1,
+      disposition: {
+        kind: 'presentation_requirement',
+        presentationClass: 'static_state',
+        contractPointer: '/pageContracts/0/mustShow/0',
+        contractValue: 'the child looks at the railing',
+      },
+    }];
+
+    appendCompilerOwnedPageProjections(contract as never, coverage as never);
+
+    expect(page.mustShow).toEqual(projectPageMustShow(page, contract));
+    expect(coverage[0]!.disposition.contractValue).toBe(
+      'the child looks at the low fountain rim behind the stone [spatial:rear_rail]',
+    );
+    expect(validateBookVisualContract(contract).ok).toBe(true);
+  });
+
+  it('rejects one kind-only legacy line as authority for two distinct spatial claims', () => {
+    const contract = baseContract();
+    const zone = contract.zones[0]!;
+    zone.spatialNodes = [
+      { id: 'rear_rail', kind: 'railing', description: 'Low fountain rim behind the stone.' },
+      { id: 'forward_rail', kind: 'railing', description: 'Slim guide rail toward the gate.' },
+    ];
+    zone.stableGeometry = projectZoneStableGeometry(zone);
+    const page = contract.pageContracts[0]!;
+    page.actionRequirements = [
+      {
+        checkId: 'action:look_back',
+        subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } },
+        predicate: 'looks_at',
+        object: { kind: 'spatial', id: 'rear_rail' },
+        polarity: 'must',
+      },
+      {
+        checkId: 'action:look_forward',
+        subject: { kind: 'entity', entity: { kind: 'cast', id: 'child:hero' } },
+        predicate: 'looks_at',
+        object: { kind: 'spatial', id: 'forward_rail' },
+        polarity: 'must',
+      },
+    ] as never;
+    page.mustShow = ['the child looks at the railing'];
+
+    const result = validateBookVisualContract(contract);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected ambiguous legacy rejection');
+    expect(result.errors.join('\n')).toContain(
+      'maps to 2 current spatial claims',
+    );
   });
 });
 

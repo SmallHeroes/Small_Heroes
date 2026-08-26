@@ -4,7 +4,7 @@ import {
 } from './draftValidationDiagnostics';
 
 export const VISUAL_CONTRACT_AUTHORING_POLICY_VERSION =
-  'visual-contract-authoring-policy/v19' as const;
+  'visual-contract-authoring-policy/v20' as const;
 
 export const VISUAL_CONTRACT_AUTHORING_STANDARD_ATTEMPT_OUTPUT_BUDGET_VERSION =
   'visual-contract-authoring-standard-attempt-output-budget/v6' as const;

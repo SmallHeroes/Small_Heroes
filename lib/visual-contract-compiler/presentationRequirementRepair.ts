@@ -7,13 +7,16 @@ import {
 } from './actionSemanticCoverage';
 
 export const PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_VERSION =
-  'presentation-requirement-repair-schema/v2' as const;
+  'presentation-requirement-repair-schema/v3' as const;
 export const PRESENTATION_REQUIREMENT_REPAIR_SCHEMA_NAME =
   'PresentationRequirementRepairPatches' as const;
 export const PRESENTATION_REQUIREMENT_REPAIR_PROMPT_VERSION =
-  'presentation-requirement-repair-prompt/v2' as const;
+  'presentation-requirement-repair-prompt/v3' as const;
 export const PRESENTATION_REQUIREMENT_REPAIR_USER_PROMPT_VERSION =
-  'presentation-requirement-repair-user-prompt/v2' as const;
+  'presentation-requirement-repair-user-prompt/v3' as const;
+
+export const PRESENTATION_REQUIREMENT_REPAIR_ELIGIBILITY_VERSION =
+  'presentation-requirement-repair-eligibility/v1' as const;
 
 function strictObject(
   properties: Record<string, unknown>,
@@ -60,6 +63,16 @@ export interface PresentationRequirementRepairTarget {
   beatId: string;
   sourceEvidenceId: string;
   sourcePhrase: string;
+  presentationClass: PresentationRequirementClass;
+  permittedPointerValues: PresentationRequirementRepairPointerValue[];
+}
+
+export interface PresentationRequirementRepairEligibility {
+  version: typeof PRESENTATION_REQUIREMENT_REPAIR_ELIGIBILITY_VERSION;
+  pageNumber: number;
+  beatId: string;
+  sourceEvidenceId: string;
+  presentationClass: PresentationRequirementClass;
   permittedPointerValues: PresentationRequirementRepairPointerValue[];
 }
 
@@ -117,15 +130,79 @@ function lexicalCompare(left: string, right: string): number {
 export function presentationRequirementRepairTargets(args: {
   draft: Record<string, unknown>;
   gaps: readonly ActionSemanticCapabilityGap[];
+  eligibilities?: readonly PresentationRequirementRepairEligibility[];
 }): PresentationRequirementRepairTarget[] | null {
   if (args.gaps.length === 0) return null;
+  const eligibilities = args.eligibilities ?? [];
   const pages = Array.isArray(args.draft.pageContracts)
     ? args.draft.pageContracts
     : [];
   const targets: PresentationRequirementRepairTarget[] = [];
   const seen = new Set<string>();
+  const eligibilityKeys = new Set<string>();
+  const usedEligibilityKeys = new Set<string>();
+
+  for (const eligibility of eligibilities) {
+    if (
+      !eligibility ||
+      !exactKeys(eligibility as unknown as Record<string, unknown>, [
+        'version',
+        'pageNumber',
+        'beatId',
+        'sourceEvidenceId',
+        'presentationClass',
+        'permittedPointerValues',
+      ]) ||
+      eligibility.version !==
+        PRESENTATION_REQUIREMENT_REPAIR_ELIGIBILITY_VERSION ||
+      !Number.isSafeInteger(eligibility.pageNumber) ||
+      eligibility.pageNumber < 1 ||
+      !/^beat:p[1-9][0-9]*:[a-z0-9_]+$/.test(eligibility.beatId) ||
+      !/^se1_[a-f0-9]{64}$/.test(eligibility.sourceEvidenceId) ||
+      !PRESENTATION_REQUIREMENT_CLASS_VALUES.includes(
+        eligibility.presentationClass,
+      ) ||
+      !Array.isArray(eligibility.permittedPointerValues) ||
+      eligibility.permittedPointerValues.length === 0 ||
+      eligibility.permittedPointerValues.some(
+        (value) =>
+          !value ||
+          !exactKeys(value as unknown as Record<string, unknown>, [
+            'contractPointer',
+            'contractValue',
+          ]) ||
+          typeof value.contractPointer !== 'string' ||
+          typeof value.contractValue !== 'string' ||
+          value.contractValue.trim().length === 0,
+      )
+    ) {
+      return null;
+    }
+    const key = canonicalJson([
+      eligibility.pageNumber,
+      eligibility.beatId,
+      eligibility.sourceEvidenceId,
+    ]);
+    if (eligibilityKeys.has(key)) return null;
+    eligibilityKeys.add(key);
+  }
 
   for (const gap of args.gaps) {
+    const matchingEligibilities = eligibilities.filter(
+      (eligibility) =>
+        eligibility.pageNumber === gap.pageNumber &&
+        eligibility.beatId === gap.beatId &&
+        eligibility.sourceEvidenceId === gap.sourceEvidenceId,
+    );
+    if (matchingEligibilities.length !== 1) return null;
+    const eligibility = matchingEligibilities[0]!;
+    const eligibilityKey = canonicalJson([
+      eligibility.pageNumber,
+      eligibility.beatId,
+      eligibility.sourceEvidenceId,
+    ]);
+    if (usedEligibilityKeys.has(eligibilityKey)) return null;
+    usedEligibilityKeys.add(eligibilityKey);
     const matchingPages = pages
       .map((page, pageIndex) => ({ page: recordValue(page), pageIndex }))
       .filter(({ page }) => page?.pageNumber === gap.pageNumber);
@@ -147,7 +224,7 @@ export function presentationRequirementRepairTargets(args: {
       return null;
     }
     const mustShow = Array.isArray(page.mustShow) ? page.mustShow : [];
-    const permittedPointerValues = mustShow
+    const samePagePointerValues = mustShow
       .map((value, index) =>
         typeof value === 'string' && value.trim().length > 0
           ? {
@@ -165,6 +242,27 @@ export function presentationRequirementRepairTargets(args: {
           lexicalCompare(left.contractPointer, right.contractPointer) ||
           lexicalCompare(left.contractValue, right.contractValue),
       );
+    const permittedPointerValues = eligibility.permittedPointerValues
+      .map((permitted) =>
+        samePagePointerValues.find(
+          (candidate) =>
+            candidate.contractPointer === permitted.contractPointer &&
+            candidate.contractValue === permitted.contractValue,
+        ) ?? null,
+      )
+      .filter(
+        (value): value is PresentationRequirementRepairPointerValue =>
+          value !== null,
+      );
+    if (
+      permittedPointerValues.length !==
+        eligibility.permittedPointerValues.length ||
+      new Set(
+        permittedPointerValues.map((value) => canonicalJson(value)),
+      ).size !== permittedPointerValues.length
+    ) {
+      return null;
+    }
     if (permittedPointerValues.length === 0) return null;
     const target: PresentationRequirementRepairTarget = {
       pageNumber: gap.pageNumber,
@@ -172,6 +270,7 @@ export function presentationRequirementRepairTargets(args: {
       beatId: gap.beatId,
       sourceEvidenceId: gap.sourceEvidenceId,
       sourcePhrase: gap.sourcePhrase,
+      presentationClass: eligibility.presentationClass,
       permittedPointerValues,
     };
     const key = targetKey(target);
@@ -179,6 +278,8 @@ export function presentationRequirementRepairTargets(args: {
     seen.add(key);
     targets.push(target);
   }
+
+  if (usedEligibilityKeys.size !== eligibilityKeys.size) return null;
 
   return targets.sort(
     (left, right) =>
@@ -192,7 +293,7 @@ export function buildPresentationRequirementRepairSystemPrompt(): string {
   return [
     'You repair ONLY closed Action Semantic Catalog gaps that are presentation requirements rather than physical actions.',
     'Return exactly one patch for every target and no other patch.',
-    'Choose one closed presentationClass and one zero-based pointerChoiceIndex into that target\'s ordered permittedPointerValues array.',
+    'Copy each target presentationClass exactly and choose one zero-based pointerChoiceIndex into that target\'s ordered, independently approved permittedPointerValues array.',
     'Use static_state for visible pose/state, lighting_state for illumination, composition_focus for framing/emphasis, graphic_sound_cue for visible sound lettering, and ambient_event for a depictable environmental occurrence.',
     'Do not use this lane to disguise a physical action, spatial action, or unsupported predicate.',
     'Copy all target identities exactly. Never return a raw contractPointer; the compiler resolves the selected pointer and contractValue locally.',
@@ -304,7 +405,8 @@ export function applyPresentationRequirementRepairPatches(args: {
     if (
       !PRESENTATION_REQUIREMENT_CLASS_VALUES.includes(
         patch.presentationClass as PresentationRequirementClass,
-      )
+      ) ||
+      patch.presentationClass !== target.presentationClass
     ) {
       throw new Error('presentation_requirement_repair_class_invalid');
     }

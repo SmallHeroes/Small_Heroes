@@ -84,6 +84,18 @@ function humanizeKind(kind: string): string {
   return kind.replace(/_/g, ' ');
 }
 
+export const SPATIAL_REFERENCE_PROJECTION_VERSION =
+  'spatial-reference-projection/v2' as const;
+
+type SpatialReferenceProjectionMode = 'legacy_kind' | 'description_v2';
+
+function readableSpatialDescription(description: string): string {
+  const trimmed = description.trim().replace(/[.!?]+$/u, '');
+  if (!trimmed) return '';
+  const withoutArticle = trimmed.replace(/^(?:a|an|the)\s+/iu, '');
+  return withoutArticle.replace(/^[A-Z]/u, (value) => value.toLowerCase());
+}
+
 /** The page's own zone (never another zone — geometry is zone-scoped by construction). */
 function zoneOfPage(page: PageVisualContract, contract: BookVisualContract): VisualZone | undefined {
   if (!page.zoneId) return undefined;
@@ -121,7 +133,12 @@ function castGroupLabel(
  * projection, never a validator — dangling ids are rejected by validateBookVisualContract, and a projection must
  * not throw on input the validator is about to reject anyway.
  */
-function refLabel(ref: EntityRef, page: PageVisualContract, contract: BookVisualContract): string {
+function refLabel(
+  ref: EntityRef,
+  page: PageVisualContract,
+  contract: BookVisualContract,
+  spatialMode: SpatialReferenceProjectionMode,
+): string {
   if (!isObj(ref) || typeof ref.kind !== 'string' || typeof ref.id !== 'string') {
     return '';
   }
@@ -138,7 +155,14 @@ function refLabel(ref: EntityRef, page: PageVisualContract, contract: BookVisual
       const node = safeObjectElements<
         NonNullable<VisualZone['spatialNodes']>[number]
       >(zoneOfPage(page, contract)?.spatialNodes).find((n) => n.id === ref.id);
-      return node ? `the ${humanizeKind(node.kind)}` : ref.id;
+      if (!node) return ref.id;
+      if (spatialMode === 'legacy_kind') {
+        return `the ${humanizeKind(node.kind)}`;
+      }
+      const description = readableSpatialDescription(node.description);
+      return description
+        ? `the ${description} [spatial:${node.id}]`
+        : `spatial:${node.id}`;
     }
     case 'anchor': {
       const location = safeObjectElements<BookVisualContract['locations'][number]>(
@@ -204,7 +228,8 @@ export function projectActionPredicateProse(
 function actionProseLine(
   action: PageActionRequirement,
   page: PageVisualContract,
-  contract: BookVisualContract
+  contract: BookVisualContract,
+  spatialMode: SpatialReferenceProjectionMode = 'description_v2',
 ): string | null {
   // This projector is called before the total contract validator on the compiler-owned
   // projection pass. Unknown provider-authored predicates belong to validation/repair;
@@ -262,7 +287,7 @@ function actionProseLine(
   if (!isObj(action.subject) && typeof legacyActorId !== 'string') return null;
   const actor =
     action.subject?.kind === 'entity'
-      ? refLabel(action.subject.entity, page, contract)
+      ? refLabel(action.subject.entity, page, contract, spatialMode)
       : action.subject?.kind === 'cast_group'
         ? castGroupLabel(action.subject.castIds, contract)
       : action.subject?.kind === 'source_phenomenon'
@@ -270,14 +295,16 @@ function actionProseLine(
         : castLabel(legacyActorId ?? 'unresolved:legacy_actor', contract);
   const verb = projectActionPredicateProse(action.predicate);
   const hand = action.laterality ? ` with the ${action.laterality} hand` : '';
-  const object = action.object ? ` ${refLabel(action.object, page, contract)}` : '';
+  const object = action.object
+    ? ` ${refLabel(action.object, page, contract, spatialMode)}`
+    : '';
   const spatialResult = action.spatialEffect
     ? action.spatialEffect.kind === 'directional'
       ? ` ${action.spatialEffect.direction.replace(/_/g, ' ')}`
-      : ` ${action.spatialEffect.relation.replace(/_/g, ' ')} ${refLabel(action.spatialEffect.target, page, contract)}`
+      : ` ${action.spatialEffect.relation.replace(/_/g, ' ')} ${refLabel(action.spatialEffect.target, page, contract, spatialMode)}`
     : '';
   const spatialConstraint = action.spatialConstraint
-    ? ` ${action.spatialConstraint.relation} ${refLabel(action.spatialConstraint.target, page, contract)}`
+    ? ` ${action.spatialConstraint.relation} ${refLabel(action.spatialConstraint.target, page, contract, spatialMode)}`
     : '';
   const lead = action.polarity === 'must_not' ? `${actor} must NOT ${verb}` : `${actor} ${verb}`;
   return `${lead}${object}${spatialResult}${spatialConstraint}${hand}`;
@@ -287,7 +314,8 @@ function actionProseLine(
 function safetyProseLine(
   safety: SafetyConstraint,
   page: PageVisualContract,
-  contract: BookVisualContract
+  contract: BookVisualContract,
+  spatialMode: SpatialReferenceProjectionMode = 'description_v2',
 ): string | null {
   if (
     typeof safety.subjectId !== 'string' ||
@@ -296,7 +324,7 @@ function safetyProseLine(
     !(safety.relation in SAFETY_RELATION_PROSE)
   ) return null;
   const subject = castLabel(safety.subjectId, contract);
-  return `${subject} ${SAFETY_RELATION_PROSE[safety.relation]} ${refLabel(safety.target, page, contract)}`;
+  return `${subject} ${SAFETY_RELATION_PROSE[safety.relation]} ${refLabel(safety.target, page, contract, spatialMode)}`;
 }
 
 /**
@@ -345,6 +373,30 @@ function propName(propId: string, contract: BookVisualContract): string {
  * present in the stored `mustShow`.
  */
 export function projectPageMustShow(page: PageVisualContract, contract: BookVisualContract): string[] {
+  return projectPageMustShowWithSpatialMode(
+    page,
+    contract,
+    'description_v2',
+  );
+}
+
+/**
+ * Historical vc-schema/v4 read compatibility only. New compiler output must
+ * use `projectPageMustShow`; this projector exists so immutable old Candidates
+ * remain reviewable and can be upgraded by an explicit correction overlay.
+ */
+export function projectPageMustShowLegacySpatial(
+  page: PageVisualContract,
+  contract: BookVisualContract,
+): string[] {
+  return projectPageMustShowWithSpatialMode(page, contract, 'legacy_kind');
+}
+
+function projectPageMustShowWithSpatialMode(
+  page: PageVisualContract,
+  contract: BookVisualContract,
+  spatialMode: SpatialReferenceProjectionMode,
+): string[] {
   const out: string[] = [];
   for (const pc of safeObjectElements<
     NonNullable<PageVisualContract['propConstraints']>[number]
@@ -353,7 +405,7 @@ export function projectPageMustShow(page: PageVisualContract, contract: BookVisu
   }
   for (const action of safeObjectElements<PageActionRequirement>(page.actionRequirements)) {
     if (action.polarity === 'must') {
-      const line = actionProseLine(action, page, contract);
+      const line = actionProseLine(action, page, contract, spatialMode);
       if (line !== null) out.push(line);
     }
   }
@@ -366,6 +418,26 @@ export function projectPageMustShow(page: PageVisualContract, contract: BookVisu
  * what keeps them clear of the `mustShow`-only floor/bed staging lock). Pure + UNWIRED in Stage 3 (see above).
  */
 export function projectPageMustNotShow(page: PageVisualContract, contract: BookVisualContract): string[] {
+  return projectPageMustNotShowWithSpatialMode(
+    page,
+    contract,
+    'description_v2',
+  );
+}
+
+/** See `projectPageMustShowLegacySpatial`. */
+export function projectPageMustNotShowLegacySpatial(
+  page: PageVisualContract,
+  contract: BookVisualContract,
+): string[] {
+  return projectPageMustNotShowWithSpatialMode(page, contract, 'legacy_kind');
+}
+
+function projectPageMustNotShowWithSpatialMode(
+  page: PageVisualContract,
+  contract: BookVisualContract,
+  spatialMode: SpatialReferenceProjectionMode,
+): string[] {
   const out: string[] = [];
   for (const pc of safeObjectElements<
     NonNullable<PageVisualContract['propConstraints']>[number]
@@ -374,12 +446,12 @@ export function projectPageMustNotShow(page: PageVisualContract, contract: BookV
   }
   for (const action of safeObjectElements<PageActionRequirement>(page.actionRequirements)) {
     if (action.polarity === 'must_not') {
-      const line = actionProseLine(action, page, contract);
+      const line = actionProseLine(action, page, contract, spatialMode);
       if (line !== null) out.push(line);
     }
   }
   for (const safety of safeObjectElements<SafetyConstraint>(page.safetyConstraints)) {
-    const line = safetyProseLine(safety, page, contract);
+    const line = safetyProseLine(safety, page, contract, spatialMode);
     if (line !== null) out.push(line);
   }
   return out;

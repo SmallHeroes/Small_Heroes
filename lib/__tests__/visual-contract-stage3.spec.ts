@@ -10,6 +10,7 @@ import {
   deriveCoverVisualContract,
   projectZoneStableGeometry,
   projectPageMustShow,
+  projectPageMustShowLegacySpatial,
   projectPageMustNotShow,
   projectCoverMustNotShow,
   projectPageActionProse,
@@ -1038,7 +1039,60 @@ describe('Stage 3 — the projections are pure, deterministic and order-stable',
     // The prop NAME is load-bearing: the vision gate matches recurringProps[].name against mustShow prose.
     expect(projectPageMustShow(page, sc)).toEqual(['Examination chair', 'the child sits on Examination chair']);
     // Hazards are always prohibitions → they can only ever land in mustNotShow, never mustShow.
-    expect(projectPageMustNotShow(page, sc)).toEqual(['the child must NOT sit on the floor']);
+    expect(projectPageMustNotShow(page, sc)).toEqual([
+      'the child must NOT sit on the pale vinyl floor [spatial:floor]',
+    ]);
+  });
+
+  it('projects two same-kind spatial nodes by exact identity and description while preserving a legacy reader', () => {
+    const sc = structuredContract();
+    const zone = sc.zones[0]!;
+    zone.spatialNodes = [
+      ...(zone.spatialNodes ?? []),
+      {
+        id: 'rear_rail',
+        kind: 'railing',
+        description: 'Low fountain rim behind the stone.',
+      },
+      {
+        id: 'forward_rail',
+        kind: 'railing',
+        description: 'Slim guide rail toward the gate.',
+      },
+    ];
+    const page = sc.pageContracts[0]!;
+    page.actionRequirements = [
+      {
+        checkId: 'action:look_back',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: { kind: 'spatial', id: 'rear_rail' },
+        polarity: 'must',
+      },
+      {
+        checkId: 'action:look_forward',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: { kind: 'spatial', id: 'forward_rail' },
+        polarity: 'must',
+      },
+    ];
+    expect(projectPageMustShow(page, sc)).toEqual([
+      'Examination chair',
+      'the child looks at the low fountain rim behind the stone [spatial:rear_rail]',
+      'the child looks at the slim guide rail toward the gate [spatial:forward_rail]',
+    ]);
+    expect(projectPageMustShowLegacySpatial(page, sc)).toEqual([
+      'Examination chair',
+      'the child looks at the railing',
+      'the child looks at the railing',
+    ]);
   });
 
   it('TIER B (unwired): the cover no-spoiler projection reads the prop lifecycle', () => {
@@ -1067,7 +1121,9 @@ describe('Stage 3 — TIER C: the prompt block gains the projected lines ONLY wh
     const [page] = derivePageVisualContracts(sc);
     const block = buildVisualContractPromptBlock(page, sc);
     expect(block).toContain('ACTION BEATS: the child sits on Examination chair');
-    expect(block).toContain('SAFETY (never render): the child must NOT sit on the floor');
+    expect(block).toContain(
+      'SAFETY (never render): the child must NOT sit on the pale vinyl floor [spatial:floor]',
+    );
     // The projected geometry rides the existing per-page (own-zone only) STABLE GEOMETRY line.
     expect(block).toContain('STABLE GEOMETRY: floor "floor": a pale vinyl floor');
     // AUTHORITY must close the block so "THIS contract wins" covers the new lines too.
