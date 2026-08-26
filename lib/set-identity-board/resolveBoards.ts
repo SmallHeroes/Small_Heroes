@@ -44,6 +44,7 @@ import {
   verifyBoardAssetBytes,
   type ExpectedRegistryIdentity,
 } from './registry';
+import { collectRequiredSetBoardAdmissionCensus } from './setBoardAdmission';
 
 /**
  * The single fail-closed error for "this order cannot be rendered with a trustworthy set board". Carries the set
@@ -103,6 +104,24 @@ function expectedIdentityFor(
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
+}
+
+function assertCompleteBoardAdmission(
+  contract: BookVisualContract,
+  styleId: string,
+): void {
+  const census = collectRequiredSetBoardAdmissionCensus(contract, styleId);
+  if (census.admitted) return;
+  throw new SetIdentityBoardUnavailableError(
+    '*',
+    [
+      ...census.contractIssues,
+      ...census.results.flatMap((result) => result.issues),
+    ].map((issue) =>
+      `[${issue.code}] ${issue.setIdentityId}` +
+      (issue.fieldPath ? ` ${issue.fieldPath}` : '') +
+      `: ${issue.message}`),
+  );
 }
 
 /**
@@ -215,6 +234,7 @@ export async function resolveBoardBindings(
 ): Promise<SetIdentityBoardBindingContext> {
   const { contract, styleId, frozenContractHash, existing } = args;
 
+  assertCompleteBoardAdmission(contract, styleId);
   const bindings: Record<string, SetIdentityBoardBinding> = {};
   for (const setIdentityId of listRequiredSetIdentityIds(contract)) {
     const expected = expectedIdentityFor(contract, setIdentityId, styleId);
@@ -292,6 +312,7 @@ export async function assertBoardsBoundForRender(
     ]);
   }
 
+  assertCompleteBoardAdmission(args.contract, args.styleId);
   for (const setIdentityId of listRequiredSetIdentityIds(args.contract)) {
     const binding = snapshot.bindings?.[setIdentityId];
     if (!binding) {

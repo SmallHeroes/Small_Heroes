@@ -98,6 +98,7 @@ export type VisualPackageV4QualificationReasonCode =
   | 'style_stale'
   | 'reconciliation_stale'
   | 'blueprint_stale'
+  | 'set_authority_invalid'
   | 'board_stale'
   | 'prop_reference_stale'
   | 'world_authority_invalid'
@@ -1057,22 +1058,27 @@ function qualifyVisualPackageV4CandidateUnchecked(
       template: currentContext.template.content,
       styleId: currentContext.styleId,
     });
+    const boardAuthorityInvalid = currentBoards.issues.some((issue) =>
+      issue.code === 'board_authority_invalid');
     reasons.push(
       ...currentBoards.issues.map((issue) =>
         qualificationReason(
-          'board_stale',
+          issue.code === 'board_authority_invalid'
+            ? 'set_authority_invalid'
+            : 'board_stale',
           `${issue.code}: ${issue.message}`,
         ),
       ),
-      ...compareBoardArtifacts(
-        content.requiredBoards,
-        currentBoards.boards,
-      ).map((issue) =>
-        qualificationReason(
-          'board_stale',
-          `${issue.code}: ${issue.message}`,
-        ),
-      ),
+      ...(boardAuthorityInvalid
+        ? []
+        : compareBoardArtifacts(
+            content.requiredBoards,
+            currentBoards.boards,
+          ).map((issue) =>
+            qualificationReason(
+              'board_stale',
+              `${issue.code}: ${issue.message}`,
+            ))),
     );
     const currentProps = resolveRequiredPropArtifacts({
       repoRoot: args.repoRoot,
@@ -1157,6 +1163,7 @@ function qualifyVisualPackageV4CandidateUnchecked(
       'style_stale',
       'reconciliation_stale',
       'blueprint_stale',
+      'set_authority_invalid',
       'board_stale',
       'prop_reference_stale',
       'world_authority_invalid',

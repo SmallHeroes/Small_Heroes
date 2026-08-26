@@ -23,6 +23,7 @@ import {
   type ExpectedRegistryIdentity,
 } from '@/lib/set-identity-board/registry';
 import { setIdentityBoardRegistryPath } from '@/lib/set-identity-board/registryPath';
+import { collectRequiredSetBoardAdmissionCensus } from '@/lib/set-identity-board/setBoardAdmission';
 
 import {
   buildStorySourceIdentity,
@@ -230,6 +231,31 @@ export function resolveRequiredBoardArtifacts(args: {
   const boards: VisualPackageBoardArtifactIdentity[] = [];
   const issues: VisualPackageIssue[] = [];
   const setProjectionContract = args.template as unknown as BookVisualContract;
+  const admission = collectRequiredSetBoardAdmissionCensus(
+    setProjectionContract,
+    args.styleId,
+  );
+  if (!admission.admitted) {
+    return {
+      boards,
+      issues: [
+        ...admission.contractIssues,
+        ...admission.results.flatMap((result) => result.issues),
+      ]
+        .map((admissionIssue) => issue(
+          'board_authority_invalid',
+          admissionIssue.message,
+          {
+            field:
+              (admissionIssue.setIdentityId === '*'
+                ? 'requiredBoards'
+                : `requiredBoards.${admissionIssue.setIdentityId}`) +
+              (admissionIssue.fieldPath ? `.${admissionIssue.fieldPath}` : ''),
+            actual: admissionIssue,
+          },
+        )),
+    };
+  }
   for (const setIdentityId of listRequiredSetIdentityIds(setProjectionContract)) {
     const expected = boardExpectedIdentity(args.template, setIdentityId, args.styleId);
     const artifactPath = setIdentityBoardRegistryPath(expected, args.boardRegistryRoot);

@@ -170,6 +170,7 @@ export type VisualPackageIssueCode =
   | 'reconciliation_identity_mismatch'
   | 'reconciliation_source_mismatch'
   | 'reconciliation_template_mismatch'
+  | 'board_authority_invalid'
   | 'board_unresolved'
   | 'board_identity_mismatch'
   | 'board_artifact_mismatch'

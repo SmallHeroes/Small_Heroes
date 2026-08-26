@@ -1,8 +1,10 @@
 import { getSetBoardStylePromptBlock } from '@/lib/styles';
 
 import {
+  SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   type SetBoardExcludedProp,
+  type SetBoardPositiveAuthorityPolicyVersion,
   type SetDefinition,
 } from './types';
 
@@ -20,6 +22,7 @@ interface PositiveAuthoritySource {
   fieldPath: string;
   provenance: string;
   value: string;
+  architecturalScaleFixtureSuffix?: string[];
 }
 
 interface CanonicalTerm {
@@ -112,6 +115,28 @@ const CAST_LABEL_STOP_WORDS = new Set([
   'the',
 ]);
 
+// Every closed vocabulary and derivation rule in this v3 block is
+// hash-semantic set-board-positive-authority/v3 policy. Any addition,
+// removal, or reinterpretation requires a new positive-authority policy
+// version; never edit these semantics in place for an approved v3 identity.
+const ARCHITECTURAL_SCALE_MODIFIERS_V3 = new Set([
+  'scale',
+  'scaled',
+  'sized',
+]);
+
+const ARCHITECTURAL_SCALE_FIXTURE_SUFFIXES_V3 = new Set([
+  'bed',
+  'table',
+  'craft table',
+  'work table',
+]);
+
+const LEADING_SPATIAL_NODE_ID_NAMESPACES_V3 = new Set([
+  'node',
+  'spatial',
+]);
+
 export class SetBoardPositiveAuthoritySpoilerError extends Error {
   readonly code = 'set_board_positive_authority_spoiler_leak' as const;
   readonly isSetBoardPositiveAuthoritySpoilerError = true as const;
@@ -155,6 +180,10 @@ export class SetBoardPositiveAuthorityLeakError extends Error {
   }
 }
 
+export type SetBoardPositiveAuthorityIssue =
+  | SetBoardPositiveAuthoritySpoilerError
+  | SetBoardPositiveAuthorityLeakError;
+
 /**
  * Canonical word extraction is deliberately small and explainable:
  * - Unicode NFKC normalization
@@ -182,6 +211,8 @@ export function canonicalSetBoardWords(value: string): string[] {
  */
 export function deriveExcludedPropCanonicalTerms(
   prop: Pick<SetBoardExcludedProp, 'propId' | 'name'>,
+  policyVersion: SetBoardPositiveAuthorityPolicyVersion =
+    SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
 ): string[] {
   const nameWords = canonicalSetBoardWords(prop.name);
   const idWords = canonicalSetBoardWords(prop.propId);
@@ -189,16 +220,43 @@ export function deriveExcludedPropCanonicalTerms(
     idWords.shift();
   }
 
-  const nameWordSet = new Set(nameWords);
-  const sharedSemanticHead = idWords
-    .slice()
-    .reverse()
-    .find((word) => nameWordSet.has(word));
-  const head = sharedSemanticHead ?? nameWords[nameWords.length - 1];
+  let headWords: string[] = [];
+  if (
+    policyVersion ===
+    SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION
+  ) {
+    const terminalIdWord = idWords[idWords.length - 1];
+    const nameWordSet = new Set(nameWords);
+    const sharedSemanticHead = idWords
+      .slice()
+      .reverse()
+      .find((word) => nameWordSet.has(word));
+    const alignedNameWord = nameWords
+      .slice()
+      .reverse()
+      .find((word) =>
+        Boolean(terminalIdWord) &&
+        canonicalSingularPluralPair(word, terminalIdWord));
+    const fallbackNameHead =
+      sharedSemanticHead ?? nameWords[nameWords.length - 1];
+    headWords = alignedNameWord && terminalIdWord
+      ? [terminalIdWord, alignedNameWord]
+      : fallbackNameHead
+        ? [fallbackNameHead]
+        : [];
+  } else {
+    const nameWordSet = new Set(nameWords);
+    const sharedSemanticHead = idWords
+      .slice()
+      .reverse()
+      .find((word) => nameWordSet.has(word));
+    const head = sharedSemanticHead ?? nameWords[nameWords.length - 1];
+    headWords = head ? [head] : [];
+  }
   const candidates = [
     nameWords,
     idWords,
-    head ? [head] : [],
+    ...headWords.map((word) => [word]),
   ];
 
   const seen = new Set<string>();
@@ -214,12 +272,106 @@ export function deriveExcludedPropCanonicalTerms(
   return terms;
 }
 
+function canonicalSingularPluralPair(left: string, right: string): boolean {
+  return left === right ||
+    (left.length > 2 && `${left}s` === right) ||
+    (right.length > 2 && `${right}s` === left);
+}
+
 function containsTerm(sourceWords: readonly string[], termWords: readonly string[]): boolean {
   if (termWords.length === 0 || termWords.length > sourceWords.length) return false;
   for (let start = 0; start <= sourceWords.length - termWords.length; start += 1) {
     if (termWords.every((word, offset) => sourceWords[start + offset] === word)) return true;
   }
   return false;
+}
+
+function containsCastTerm(
+  sourceWords: readonly string[],
+  termWords: readonly string[],
+  policyVersion: SetBoardPositiveAuthorityPolicyVersion,
+  architecturalScaleChildOrdinals: ReadonlySet<number>,
+): boolean {
+  if (
+    policyVersion !==
+      SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION ||
+    termWords.length !== 1 ||
+    termWords[0] !== 'child'
+  ) {
+    return containsTerm(sourceWords, termWords);
+  }
+  for (let index = 0; index < sourceWords.length; index += 1) {
+    if (sourceWords[index] !== termWords[0]) continue;
+    if (!architecturalScaleChildOrdinals.has(index)) return true;
+  }
+  return false;
+}
+
+function architecturalScaleChildOrdinals(
+  source: PositiveAuthoritySource,
+  policyVersion: SetBoardPositiveAuthorityPolicyVersion,
+): ReadonlySet<number> {
+  if (
+    policyVersion !== SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION ||
+    !/^zones\[\d+\]\.geometry\[\d+\]$/u.test(source.fieldPath) ||
+    !source.architecturalScaleFixtureSuffix
+  ) {
+    return new Set<number>();
+  }
+  const normalized = source.value.normalize('NFKC').toLowerCase();
+  const tokenMatches = [
+    ...normalized.matchAll(/\p{L}[\p{L}\p{M}\p{N}]*|\p{N}+/gu),
+  ];
+  const ordinals = new Set<number>();
+  for (let index = 0; index < tokenMatches.length - 1; index += 1) {
+    const current = tokenMatches[index];
+    const next = tokenMatches[index + 1];
+    if (
+      current[0] !== 'child' ||
+      !ARCHITECTURAL_SCALE_MODIFIERS_V3.has(next[0]) ||
+      current.index === undefined ||
+      next.index === undefined
+    ) {
+      continue;
+    }
+    const separator = normalized.slice(
+      current.index + current[0].length,
+      next.index,
+    );
+    // The exception is lexical, not semantic guesswork: only an explicit
+    // hyphen/dash compound is architectural. Spaced prose such as
+    // "the child scaled the wall" remains ordinary cast authority.
+    if (!/^\p{Pd}+$/u.test(separator)) continue;
+    const fixtureSuffix = source.architecturalScaleFixtureSuffix;
+    if (fixtureSuffix.every((word, offset) =>
+      tokenMatches[index + 2 + offset]?.[0] === word)) {
+      ordinals.add(index);
+    }
+  }
+  return ordinals;
+}
+
+function architecturalScaleFixtureSuffix(
+  node: SetDefinition['zones'][number]['spatialNodes'][number] | undefined,
+): string[] | undefined {
+  if (node?.kind !== 'furniture') return undefined;
+  const words = canonicalSetBoardWords(node.id);
+  while (
+    words.length > 0 &&
+    LEADING_SPATIAL_NODE_ID_NAMESPACES_V3.has(words[0])
+  ) {
+    words.shift();
+  }
+  return ARCHITECTURAL_SCALE_FIXTURE_SUFFIXES_V3.has(words.join(' '))
+    ? words
+    : undefined;
+}
+
+function supportedPolicyVersion(
+  value: unknown,
+): value is SetBoardPositiveAuthorityPolicyVersion {
+  return value === SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION ||
+    value === SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION;
 }
 
 function canonicalTerms(values: readonly string[], includeIndividualWords: boolean): CanonicalTerm[] {
@@ -256,24 +408,34 @@ export function positiveAuthorityLabelIsSafe(
   definition: SetDefinition,
   value: string,
 ): boolean {
+  const policyVersion = definition.positiveAuthorityPolicy?.version;
+  if (!supportedPolicyVersion(policyVersion)) return false;
   const sourceWords = canonicalSetBoardWords(value);
   if (sourceWords.length === 0) return true;
-  const candidateGroups: CanonicalTerm[][] = [
+  const castGroups: CanonicalTerm[][] = [
     canonicalTerms(GENERIC_CAST_TERMS_V2, false),
     ...definition.positiveAuthorityPolicy.blockedCast.map((identity) =>
       canonicalTerms([identity.castId, ...identity.labels], true)),
-    ...[
-      ...definition.positiveAuthorityPolicy.blockedProps,
-      ...definition.contentPolicy.excludedProps,
-    ].map((prop) =>
-      deriveExcludedPropCanonicalTerms(prop).map((label) => ({
-        label,
-        words: canonicalSetBoardWords(label),
-      }))),
-    canonicalTerms(ACTION_TERMS_V2, false),
   ];
-  return !candidateGroups.some((terms) =>
-    terms.some((term) => containsTerm(sourceWords, term.words)));
+  if (castGroups.some((terms) =>
+    terms.some((term) =>
+      containsTerm(sourceWords, term.words)))) {
+    return false;
+  }
+  const propGroups = [
+    ...definition.positiveAuthorityPolicy.blockedProps,
+    ...definition.contentPolicy.excludedProps,
+  ].map((prop) =>
+    deriveExcludedPropCanonicalTerms(prop, policyVersion).map((label) => ({
+      label,
+      words: canonicalSetBoardWords(label),
+    })));
+  if (propGroups.some((terms) =>
+    terms.some((term) => containsTerm(sourceWords, term.words)))) {
+    return false;
+  }
+  return !canonicalTerms(ACTION_TERMS_V2, false).some((term) =>
+    containsTerm(sourceWords, term.words));
 }
 
 function positiveAuthoritySources(definition: SetDefinition): PositiveAuthoritySource[] {
@@ -308,12 +470,19 @@ function positiveAuthoritySources(definition: SetDefinition): PositiveAuthorityS
 
   for (const [zoneIndex, zone] of definition.zones.entries()) {
     for (const [geometryIndex, geometry] of zone.geometry.entries()) {
+      const node = geometryIndex < zone.spatialNodes.length
+        ? zone.spatialNodes[geometryIndex]
+        : undefined;
+      const fixtureSuffix = architecturalScaleFixtureSuffix(node);
       sources.push({
         fieldPath: `zones[${zoneIndex}].geometry[${geometryIndex}]`,
         provenance:
           `SetDefinitionZone ${JSON.stringify(zone.id)} projected spatial-node description/closed relation ` +
           '-> positive geometry line',
         value: geometry,
+        ...(fixtureSuffix
+          ? { architecturalScaleFixtureSuffix: fixtureSuffix }
+          : {}),
       });
     }
   }
@@ -354,22 +523,37 @@ function positiveAuthoritySources(definition: SetDefinition): PositiveAuthorityS
  * Location/zone/node ids, placement ids, and raw relation endpoints are not prompt prose: the prompt uses neutral
  * area/local-node aliases. Relation labels and opening kinds are closed enums, not authored free text.
  */
-export function assertSetBoardPositiveAuthoritySpoilerNeutral(
+export function collectSetBoardPositiveAuthorityIssues(
   definition: SetDefinition,
-): void {
-  if (
-    definition.positiveAuthorityPolicy?.version !==
-    SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION
-  ) {
-    throw new SetBoardPositiveAuthorityLeakError(
+): SetBoardPositiveAuthorityIssue[] {
+  const policyVersion = definition.positiveAuthorityPolicy?.version;
+  if (!supportedPolicyVersion(policyVersion)) {
+    return [new SetBoardPositiveAuthorityLeakError(
       definition.setIdentityId,
       'policy',
       'positiveAuthorityPolicy.version',
       'direct SetDefinition prompt-input policy',
-      String(definition.positiveAuthorityPolicy?.version ?? '(missing)'),
-    );
+      String(policyVersion ?? '(missing)'),
+    )];
   }
 
+  const issues: SetBoardPositiveAuthorityIssue[] = [];
+  const seen = new Set<string>();
+  const add = (candidate: SetBoardPositiveAuthorityIssue): void => {
+    const key = candidate instanceof SetBoardPositiveAuthoritySpoilerError
+      ? [candidate.code, candidate.fieldPath, candidate.excludedPropId, candidate.matchedTerm].join('\u0000')
+      : [
+          candidate.code,
+          candidate.category,
+          candidate.fieldPath,
+          candidate.matchedTerm,
+          candidate.blockedIdentity ?? '',
+        ].join('\u0000');
+    if (!seen.has(key)) {
+      seen.add(key);
+      issues.push(candidate);
+    }
+  };
   const sources = positiveAuthoritySources(definition);
   const excludedProps = definition.contentPolicy.excludedProps
     .slice()
@@ -377,7 +561,7 @@ export function assertSetBoardPositiveAuthoritySpoilerNeutral(
   const termsByProp = new Map<string, CanonicalTerm[]>(
     excludedProps.map((prop) => [
       prop.propId,
-      deriveExcludedPropCanonicalTerms(prop).map((label) => ({
+      deriveExcludedPropCanonicalTerms(prop, policyVersion).map((label) => ({
         label,
         words: canonicalSetBoardWords(label),
       })),
@@ -388,17 +572,17 @@ export function assertSetBoardPositiveAuthoritySpoilerNeutral(
     const sourceWords = canonicalSetBoardWords(source.value);
     if (sourceWords.length === 0) continue;
     for (const prop of excludedProps) {
-      for (const term of termsByProp.get(prop.propId) ?? []) {
-        if (containsTerm(sourceWords, term.words)) {
-          throw new SetBoardPositiveAuthoritySpoilerError(
-            definition.setIdentityId,
-            source.fieldPath,
-            source.provenance,
-            prop.propId,
-            prop.name,
-            term.label,
-          );
-        }
+      const term = (termsByProp.get(prop.propId) ?? []).find((candidate) =>
+        containsTerm(sourceWords, candidate.words));
+      if (term) {
+        add(new SetBoardPositiveAuthoritySpoilerError(
+          definition.setIdentityId,
+          source.fieldPath,
+          source.provenance,
+          prop.propId,
+          prop.name,
+          term.label,
+        ));
       }
     }
   }
@@ -408,67 +592,97 @@ export function assertSetBoardPositiveAuthoritySpoilerNeutral(
     identity: identity.castId,
     terms: canonicalTerms([identity.castId, ...identity.labels], true),
   }));
+  const excludedPropIds = new Set(excludedProps.map((prop) => prop.propId));
   const blockedProps = definition.positiveAuthorityPolicy.blockedProps.map((prop) => ({
     identity: prop.propId,
-    terms: deriveExcludedPropCanonicalTerms(prop).map((label) => ({
+    terms: deriveExcludedPropCanonicalTerms(prop, policyVersion).map((label) => ({
       label,
       words: canonicalSetBoardWords(label),
     })),
-  }));
+  })).filter((prop) => !excludedPropIds.has(prop.identity));
   const actionTerms = canonicalTerms(ACTION_TERMS_V2, false);
 
   for (const source of sources) {
     const sourceWords = canonicalSetBoardWords(source.value);
     if (sourceWords.length === 0) continue;
-    for (const term of genericCastTerms) {
-      if (containsTerm(sourceWords, term.words)) {
-        throw new SetBoardPositiveAuthorityLeakError(
-          definition.setIdentityId,
-          'cast',
-          source.fieldPath,
-          source.provenance,
-          term.label,
-        );
-      }
-    }
+    const scaleChildOrdinals = architecturalScaleChildOrdinals(
+      source,
+      policyVersion,
+    );
+    const specificallyBlockedCastLabels = new Set<string>();
     for (const blocked of blockedCast) {
       for (const term of blocked.terms) {
-        if (containsTerm(sourceWords, term.words)) {
-          throw new SetBoardPositiveAuthorityLeakError(
+        if (containsCastTerm(
+          sourceWords,
+          term.words,
+          policyVersion,
+          scaleChildOrdinals,
+        )) {
+          add(new SetBoardPositiveAuthorityLeakError(
             definition.setIdentityId,
             'cast',
             source.fieldPath,
             source.provenance,
             term.label,
             blocked.identity,
-          );
+          ));
+          specificallyBlockedCastLabels.add(term.label);
+          break;
         }
+      }
+    }
+    for (const term of genericCastTerms) {
+      if (
+        !specificallyBlockedCastLabels.has(term.label) &&
+        containsCastTerm(
+          sourceWords,
+          term.words,
+          policyVersion,
+          scaleChildOrdinals,
+        )
+      ) {
+        add(new SetBoardPositiveAuthorityLeakError(
+          definition.setIdentityId,
+          'cast',
+          source.fieldPath,
+          source.provenance,
+          term.label,
+        ));
       }
     }
     for (const blocked of blockedProps) {
       for (const term of blocked.terms) {
         if (containsTerm(sourceWords, term.words)) {
-          throw new SetBoardPositiveAuthorityLeakError(
+          add(new SetBoardPositiveAuthorityLeakError(
             definition.setIdentityId,
             'undeclared_prop',
             source.fieldPath,
             source.provenance,
             term.label,
             blocked.identity,
-          );
+          ));
+          break;
         }
       }
     }
     for (const term of actionTerms) {
       if (containsTerm(sourceWords, term.words)) {
-        throw new SetBoardPositiveAuthorityLeakError(
+        add(new SetBoardPositiveAuthorityLeakError(
           definition.setIdentityId,
           'action',
           source.fieldPath,
           source.provenance,
           term.label,
-        );
+        ));
       }
     }
   }
+  return issues;
+}
+
+export function assertSetBoardPositiveAuthoritySpoilerNeutral(
+  definition: SetDefinition,
+): void {
+  const [firstIssue] = collectSetBoardPositiveAuthorityIssues(definition);
+  if (firstIssue) throw firstIssue;
 }

@@ -14,6 +14,7 @@ export {
   SET_BOARD_AMBIENT_PALETTE_COLOR_FAMILIES,
   SET_BOARD_AMBIENT_PALETTE_TARGETS,
   LEGACY_SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+  SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   type SetDefinition,
   type SetDefinitionLocation,
@@ -26,6 +27,7 @@ export {
   type SetBoardAmbientPaletteTarget,
   type SetBoardExcludedProp,
   type SetBoardPositiveAuthorityPolicy,
+  type SetBoardPositiveAuthorityPolicyVersion,
   type SetBoardBlockedCastIdentity,
   type SetBoardBlockedPropIdentity,
   type SetIdentityBoardRegistryEntry,
@@ -43,10 +45,21 @@ export {
 export {
   groupLocationsBySetIdentity,
   listRequiredSetIdentityIds,
+  collectSetDefinitionAdmissionIssues,
   projectSetDefinition,
   computeSetBoardContentPolicyDigest,
   computeSetDefinitionHash,
 } from './setDefinition';
+
+export {
+  SET_BOARD_ADMISSION_CENSUS_VERSION,
+  collectRequiredSetBoardAdmissionCensus,
+  assertRequiredSetBoardAdmission,
+  RequiredSetBoardAdmissionError,
+  type SetBoardAdmissionIssue,
+  type SetBoardAdmissionResult,
+  type RequiredSetBoardAdmissionCensus,
+} from './setBoardAdmission';
 
 export { buildSetIdentityBoardPrompt } from './boardPrompt';
 
@@ -57,11 +70,13 @@ export {
 
 export {
   assertSetBoardPositiveAuthoritySpoilerNeutral,
+  collectSetBoardPositiveAuthorityIssues,
   canonicalSetBoardWords,
   deriveExcludedPropCanonicalTerms,
   positiveAuthorityLabelIsSafe,
   SetBoardPositiveAuthoritySpoilerError,
   SetBoardPositiveAuthorityLeakError,
+  type SetBoardPositiveAuthorityIssue,
 } from './positiveAuthoritySpoilerGuard';
 
 export {

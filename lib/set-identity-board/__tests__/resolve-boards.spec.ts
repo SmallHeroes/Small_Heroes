@@ -42,6 +42,43 @@ async function bindFresh(deps: BoardResolverDeps = makeDeps()): Promise<SetIdent
   );
 }
 
+function makeContractWithLateInvalidSet() {
+  const contract = makeContract();
+  const meadow = contract.locations.find((location) => location.id === 'meadow')!;
+  meadow.setIdentityId = 'set_beta';
+  meadow.setReference = { status: 'pending' };
+  meadow.timeOfDay = 'night';
+  meadow.lighting = 'stable moonlight';
+  const meadowZone = contract.zones.find((zone) => zone.id === 'z_meadow')!;
+  meadowZone.spatialNodes = [{
+    id: 'meadow_floor',
+    kind: 'floor',
+    description: 'Level meadow path.',
+  }];
+  contract.setBoardAuthorities!.push({
+    setIdentityId: 'set_beta',
+    locations: [{
+      locationId: 'meadow',
+      name: 'Meadow',
+      timeOfDay: 'night',
+      lighting: 'the child waits under stable moonlight',
+      environmentClass: 'outdoor',
+    }],
+    areas: [{
+      id: 'board_meadow',
+      locationId: 'meadow',
+      zoneProjection: { cardinality: 'one_to_one', zoneIds: ['z_meadow'] },
+      spatialNodes: [{
+        id: 'meadow_floor',
+        kind: 'floor',
+        description: 'Level meadow path.',
+      }],
+    }],
+    fixedObjects: [],
+  });
+  return contract;
+}
+
 describe('resolveBoardBindings — LOOK UP → VERIFY → BIND', () => {
   it('binds every REQUIRED set identity and ignores identities that need no board', async () => {
     const ctx = await bindFresh();
@@ -220,6 +257,21 @@ describe('resolveBoardBindings — FAIL-CLOSED (§6), never a downgrade', () => 
       )
     ).rejects.toThrow(/set_board_stable_authority_invalid/);
   });
+
+  it('censuses every required Set before touching Registry or storage deps', async () => {
+    const deps = makeDeps();
+    await expect(resolveBoardBindings(
+      {
+        contract: makeContractWithLateInvalidSet(),
+        styleId: STYLE,
+        frozenContractHash: FROZEN_HASH,
+      },
+      deps,
+    )).rejects.toThrow(/set_board_positive_authority_leak/);
+    expect(deps.loadRegistryEntry).not.toHaveBeenCalled();
+    expect(deps.fetchAssetSha256).not.toHaveBeenCalled();
+    expect(deps.resolveDurableUrl).not.toHaveBeenCalled();
+  });
 });
 
 describe('assertBoardsBoundForRender — the pre-image gate', () => {
@@ -227,6 +279,24 @@ describe('assertBoardsBoundForRender — the pre-image gate', () => {
   function verifier(sha: string | null = 'sha-approved-bytes') {
     return { fetchAssetSha256: vi.fn(async () => sha) };
   }
+
+  it('censuses every required Set before re-reading any bound asset bytes', async () => {
+    const deps = verifier();
+    await expect(assertBoardsBoundForRender(
+      {
+        contract: makeContractWithLateInvalidSet(),
+        cache: {
+          setIdentityBoards: snapshotBoardMode({
+            frozenContractHash: FROZEN_HASH,
+          }),
+        },
+        styleId: STYLE,
+        activeFrozenContractHash: FROZEN_HASH,
+      },
+      deps,
+    )).rejects.toThrow(/set_board_positive_authority_leak/);
+    expect(deps.fetchAssetSha256).not.toHaveBeenCalled();
+  });
 
   it('is a NO-OP for a LEGACY order (no snapshot) — this is the flag-off path', async () => {
     const deps = verifier();

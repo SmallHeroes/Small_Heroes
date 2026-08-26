@@ -7,10 +7,21 @@ import type { BookVisualContract } from '@/lib/visual-contract-compiler';
 
 import { buildSetIdentityBoardPrompt } from '../boardPrompt';
 import {
+  collectSetBoardPositiveAuthorityIssues,
   deriveExcludedPropCanonicalTerms,
+  positiveAuthorityLabelIsSafe,
+  SetBoardPositiveAuthorityLeakError,
   SetBoardPositiveAuthoritySpoilerError,
 } from '../positiveAuthoritySpoilerGuard';
-import { projectSetDefinition } from '../setDefinition';
+import {
+  collectSetDefinitionAdmissionIssues,
+  computeSetDefinitionHash,
+  projectSetDefinition,
+} from '../setDefinition';
+import {
+  SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
+  SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+} from '../types';
 import { clone, makeContract, STYLE } from './board-fixtures';
 import { migrateLegacySetBoardFixture } from './current-authority-fixtures';
 
@@ -62,6 +73,22 @@ function expectLeak(
   throw new Error('expected positive board authority to fail closed');
 }
 
+function addStableGeometryNode(
+  contract: BookVisualContract,
+  description: string,
+  id: string,
+  kind: 'furniture' | 'wall' = 'furniture',
+): void {
+  const authorityArea = contract.setBoardAuthorities![0].areas[0];
+  const zoneId = authorityArea.zoneProjection.zoneIds[0];
+  const zone = contract.zones.find((candidate) => candidate.id === zoneId)!;
+  authorityArea.spatialNodes.push({ id, kind, description });
+  zone.spatialNodes = [
+    ...(zone.spatialNodes ?? []),
+    { id, kind, description },
+  ];
+}
+
 describe('Set Board positive free-text spoiler guard', () => {
   it('derives full phrases and one semantic head while dropping the prop_ namespace', () => {
     expect(deriveExcludedPropCanonicalTerms({
@@ -76,6 +103,315 @@ describe('Set Board positive free-text spoiler guard', () => {
       propId: 'prop_globe',
       name: 'Globe',
     })).not.toContain('prop');
+    expect(deriveExcludedPropCanonicalTerms({
+      propId: 'prop_route_labels',
+      name: 'Route-label set',
+    }, SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION)).toEqual([
+      'route label set',
+      'route labels',
+      'labels',
+      'label',
+    ]);
+    expect(deriveExcludedPropCanonicalTerms({
+      propId: 'prop_lantern',
+      name: 'Old Lamp',
+    }, SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION)).toEqual([
+      'old lamp',
+      'lantern',
+      'lamp',
+    ]);
+  });
+
+  it('uses v3 only for a v2 false collision and keeps clean v2 identity bytes stable', () => {
+    const clean = projectSetDefinition(makeContract(), SET_ID, STYLE);
+    expect(clean.positiveAuthorityPolicy.version).toBe(
+      SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+    );
+    expect(computeSetDefinitionHash(makeContract(), SET_ID, STYLE)).toBe(
+      'f4e271938edf91beb3b12c7b8634e43564edfbfecfd5a6d66eee42b747101f50',
+    );
+
+    const physicalScale = makeContract();
+    addStableGeometryNode(
+      physicalScale,
+      'Fixed child-scale work table.',
+      'spatial_work_table',
+    );
+    const precise = projectSetDefinition(physicalScale, SET_ID, STYLE);
+    expect(precise.positiveAuthorityPolicy.version).toBe(
+      SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
+    );
+    expect(() => buildSetIdentityBoardPrompt(precise)).not.toThrow();
+    expect(computeSetDefinitionHash(physicalScale, SET_ID, STYLE)).not.toBe(
+      'f4e271938edf91beb3b12c7b8634e43564edfbfecfd5a6d66eee42b747101f50',
+    );
+  });
+
+  it('bounds the child-scale exemption to physical fields and still catches a real child occurrence', () => {
+    for (const [description, id] of [
+      ['Fixed child-scale craft table.', 'spatial_craft_table'],
+      ['Child-scale bed beside the wall.', 'spatial_bed'],
+    ] as const) {
+      const contract = makeContract();
+      addStableGeometryNode(contract, description, id);
+      expect(() => projectSetDefinition(contract, SET_ID, STYLE)).not.toThrow();
+    }
+    for (const modifier of ['scale', 'scaled', 'sized']) {
+      const contract = makeContract();
+      addStableGeometryNode(
+        contract,
+        `Fixed child-${modifier} work table.`,
+        'spatial_work_table',
+      );
+      expect(() => projectSetDefinition(contract, SET_ID, STYLE)).not.toThrow();
+    }
+
+    const actualCast = makeContract();
+    addStableGeometryNode(
+      actualCast,
+      'Fixed child-scale bed with a child sleeping beside it.',
+      'unsafe_bed',
+    );
+    expect(() => projectSetDefinition(actualCast, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_leak/,
+    );
+
+    for (const description of [
+      'Fixed person-sized bed.',
+      'Fixed child-sized person sculpture.',
+      'Fixed child-scale table beside Kid.',
+      'The child scaled the wall.',
+      'The child sized the table.',
+      'The child scale model was moved.',
+    ]) {
+      const hostile = makeContract();
+      addStableGeometryNode(hostile, description, 'hostile_scale_phrase');
+      expect(() => projectSetDefinition(hostile, SET_ID, STYLE)).toThrow(
+        /set_board_positive_authority_leak/,
+      );
+    }
+
+    const nonGeometry = makeContract();
+    addStableGeometryNode(
+      nonGeometry,
+      'Fixed child-scale work table.',
+      'safe_table',
+    );
+    nonGeometry.setBoardAuthorities![0].locations[0].lighting =
+      'child-scale warm lighting';
+    expect(() => projectSetDefinition(nonGeometry, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_leak/,
+    );
+
+    const precise = makeContract();
+    addStableGeometryNode(
+      precise,
+      'Fixed child-scale work table.',
+      'spatial_work_table',
+    );
+    const preciseDefinition = projectSetDefinition(precise, SET_ID, STYLE);
+    expect(positiveAuthorityLabelIsSafe(
+      preciseDefinition,
+      'Child-scale room',
+    )).toBe(false);
+  });
+
+  it('binds the scale exception to a closed furniture head and exact node suffix', () => {
+    for (const representation of [
+      'portrait',
+      'statue',
+      'photo',
+      'silhouette',
+    ]) {
+      const hostile = makeContract();
+      addStableGeometryNode(
+        hostile,
+        `Fixed child-scale ${representation}.`,
+        `spatial_${representation}`,
+      );
+      expect(() => projectSetDefinition(hostile, SET_ID, STYLE)).toThrow(
+        /set_board_positive_authority_leak/,
+      );
+    }
+
+    for (const representation of [
+      'portrait',
+      'statue',
+      'photo',
+      'silhouette',
+    ]) {
+      const disguised = makeContract();
+      addStableGeometryNode(
+        disguised,
+        `Fixed child-scale ${representation} table.`,
+        `spatial_${representation}_table`,
+      );
+      expect(() => projectSetDefinition(disguised, SET_ID, STYLE)).toThrow(
+        /set_board_positive_authority_leak/,
+      );
+    }
+
+    const wrongKind = makeContract();
+    addStableGeometryNode(
+      wrongKind,
+      'Fixed child-scale bed.',
+      'spatial_bed',
+      'wall',
+    );
+    expect(() => projectSetDefinition(wrongKind, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_leak/,
+    );
+
+    for (const [id, description] of [
+      ['spatial_bed', 'Fixed child-scale portrait.'],
+      ['spatial_portrait', 'Fixed child-scale bed.'],
+    ] as const) {
+      const mismatch = makeContract();
+      addStableGeometryNode(mismatch, description, id);
+      expect(() => projectSetDefinition(mismatch, SET_ID, STYLE)).toThrow(
+        /set_board_positive_authority_leak/,
+      );
+    }
+  });
+
+  it('allows environmental route geometry while keeping route-label prop authority closed', () => {
+    const contract = revealGatedContract({
+      propId: 'prop_route_labels',
+      propName: 'Route-label set',
+    });
+    addStableGeometryNode(
+      contract,
+      'Route opening toward the market.',
+      'route_threshold',
+    );
+    const definition = projectSetDefinition(contract, SET_ID, STYLE);
+    expect(definition.positiveAuthorityPolicy.version).toBe(
+      SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
+    );
+
+    for (const leak of [
+      'Route-label set attached to the wall.',
+      'Route labels attached to the wall.',
+      'Single label attached to the wall.',
+    ]) {
+      const hostile = clone(definition);
+      hostile.zones[0].geometry[0] = leak;
+      expect(() => buildSetIdentityBoardPrompt(hostile)).toThrow(
+        /set_board_positive_authority_spoiler_leak/,
+      );
+    }
+
+    const actualRouteProp = revealGatedContract({
+      propId: 'prop_route',
+      propName: 'Route',
+    });
+    addStableGeometryNode(
+      actualRouteProp,
+      'Route opening toward the market.',
+      'actual_route_prop_leak',
+    );
+    expect(() => projectSetDefinition(actualRouteProp, SET_ID, STYLE)).toThrow(
+      /set_board_positive_authority_spoiler_leak/,
+    );
+  });
+
+  it('does not let a v3 scale exception weaken an unrelated excluded-prop head', () => {
+    for (const evidence of [
+      {
+        propId: 'prop_lantern',
+        propName: 'Old Lamp',
+        description: 'Fixed child-scale table beside an old lamp.',
+        matchedTerm: 'old lamp',
+      },
+      {
+        propId: 'prop_treasure_chest',
+        propName: 'Treasure Box',
+        description: 'Fixed child-scale table beside a treasure alcove.',
+        matchedTerm: 'treasure',
+      },
+    ]) {
+      const contract = revealGatedContract(evidence);
+      addStableGeometryNode(
+        contract,
+        evidence.description,
+        'spatial_table',
+      );
+      expect(() => projectSetDefinition(contract, SET_ID, STYLE)).toThrow(
+        /set_board_positive_authority_spoiler_leak/,
+      );
+      expect(collectSetDefinitionAdmissionIssues(
+        contract,
+        SET_ID,
+        STYLE,
+      )).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          excludedPropId: evidence.propId,
+          matchedTerm: evidence.matchedTerm,
+        }),
+      ]));
+    }
+  });
+
+  it('collects every positive-authority field issue while the direct projector stays fail-closed', () => {
+    const contract = revealGatedContract();
+    contract.setBoardAuthorities![0].locations[0].lighting =
+      'bucket glow beside the child';
+    addStableGeometryNode(
+      contract,
+      'bucket-plated shelf where the child waits',
+      'hostile_shelf',
+    );
+    const issues = collectSetDefinitionAdmissionIssues(
+      contract,
+      SET_ID,
+      STYLE,
+    );
+    expect(issues.map((candidate) => candidate.fieldPath)).toEqual([
+      'locations[0].lighting',
+      'zones[0].geometry[2]',
+      'locations[0].lighting',
+      'zones[0].geometry[2]',
+    ]);
+    expect(new Set(issues.map((candidate) => candidate.code))).toEqual(
+      new Set([
+        'set_board_positive_authority_spoiler_leak',
+        'set_board_positive_authority_leak',
+      ]),
+    );
+    expect(() => projectSetDefinition(contract, SET_ID, STYLE)).toThrow(
+      SetBoardPositiveAuthoritySpoilerError,
+    );
+
+    const precise = clone(projectSetDefinition(
+      (() => {
+        const safe = makeContract();
+        addStableGeometryNode(safe, 'Fixed child-scale table.', 'spatial_table');
+        return safe;
+      })(),
+      SET_ID,
+      STYLE,
+    ));
+    precise.zones[0].geometry.push('the child waits');
+    expect(collectSetBoardPositiveAuthorityIssues(precise)).toHaveLength(1);
+  });
+
+  it('keeps distinct blocked identities visible when they share one label', () => {
+    const definition = clone(projectSetDefinition(makeContract(), SET_ID, STYLE));
+    definition.positiveAuthorityPolicy.version =
+      SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION;
+    definition.positiveAuthorityPolicy.blockedProps = [
+      { propId: 'prop_spare_label', name: 'Spare Label' },
+      { propId: 'prop_terminal_label', name: 'Terminal Label' },
+    ];
+    definition.zones[0].geometry.push('Single label attached to the wall.');
+    expect(collectSetBoardPositiveAuthorityIssues(definition)
+      .filter((candidate): candidate is SetBoardPositiveAuthorityLeakError =>
+        candidate instanceof SetBoardPositiveAuthorityLeakError &&
+        candidate.category === 'undeclared_prop')
+      .map((candidate) => candidate.blockedIdentity)).toEqual([
+      'prop_spare_label',
+      'prop_terminal_label',
+    ]);
   });
 
   it('projects an unsafe metadata-only location name without weakening excluded-prop authority', () => {

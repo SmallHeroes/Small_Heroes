@@ -2,6 +2,7 @@ import { canonicalHash } from '@/lib/canonical-json';
 
 import {
   LEGACY_SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+  SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   type SetDefinition,
   type SetDefinitionLocation,
@@ -47,7 +48,10 @@ export function setBoardSafeIdentityLabel(definition: SetDefinition): string {
   if (version === LEGACY_SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION) {
     return definition.setIdentityId;
   }
-  if (version !== SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION) {
+  if (
+    version !== SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION &&
+    version !== SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION
+  ) {
     throw new Error(
       `unsupported Set Board positive-authority policy version: ${version || '(missing)'}`,
     );
@@ -72,7 +76,10 @@ export function setBoardSafeLocationName(
   if (version === LEGACY_SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION) {
     return location.name;
   }
-  if (version !== SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION) {
+  if (
+    version !== SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION &&
+    version !== SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION
+  ) {
     throw new Error(
       `unsupported Set Board positive-authority policy version: ${version || '(missing)'}`,
     );

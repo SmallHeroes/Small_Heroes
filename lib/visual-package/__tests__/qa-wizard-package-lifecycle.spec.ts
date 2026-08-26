@@ -32,6 +32,8 @@ import {
   publishQaWizardApprovedPackage,
   recordQaWizardPackageApproval,
 } from '../qaWizardPackageLifecycle';
+import * as visualPackageArtifacts from '../artifacts';
+import { qualifyVisualPackageV4Candidate } from '../visualPackageV4Lifecycle';
 import {
   buildProductionAuthoringContext,
   type ProductionAuthoringContext,
@@ -397,6 +399,40 @@ describe('QA Wizard visual-package lifecycle', () => {
       .toBe(true);
     expect(fs.existsSync(path.join(subject.repoRoot, written.manifest.package.reviewPath)))
       .toBe(true);
+  });
+
+  it('treats invalid Set authority as candidate-invalid without stale-board noise', async () => {
+    const subject = await approvedBlueprintSubject();
+    const prepared = preparePackage(subject);
+    const resolver = vi.spyOn(
+      visualPackageArtifacts,
+      'resolveRequiredBoardArtifacts',
+    )
+      .mockReturnValue({
+        boards: [],
+        issues: [{
+          code: 'board_authority_invalid',
+          message: 'synthetic complete Set authority census failure',
+        }],
+      });
+    const qualification = qualifyVisualPackageV4Candidate({
+      repoRoot: subject.repoRoot,
+      candidate: prepared.candidate,
+      packageReview: prepared.packageReview,
+    });
+    expect(qualification).toMatchObject({
+      candidateValid: false,
+      reviewReady: false,
+      approvalValid: false,
+      readyForPublication: false,
+    });
+    expect(qualification.reasons.map((reason) => reason.code)).toContain(
+      'set_authority_invalid',
+    );
+    expect(qualification.reasons.map((reason) => reason.code)).not.toContain(
+      'board_stale',
+    );
+    resolver.mockRestore();
   });
 
   it('records one exact approval, replays without changes, and rejects another timestamp', async () => {

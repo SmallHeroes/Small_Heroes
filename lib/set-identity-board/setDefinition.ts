@@ -23,19 +23,24 @@ import { requireSetBoardStableAuthority } from '@/lib/visual-contract-compiler/s
 
 import {
   SET_BOARD_CONTENT_POLICY_VERSION,
+  SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
   SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
   SET_IDENTITY_BOARD_VERSION,
   type SetBoardContentPolicy,
   type SetBoardExcludedProp,
   type SetBoardExclusionReason,
   type SetBoardPositiveAuthorityPolicy,
+  type SetBoardPositiveAuthorityPolicyVersion,
   type SetDefinition,
   type SetDefinitionFixedFact,
   type SetDefinitionLocation,
   type SetDefinitionZone,
 } from './types';
 import { currentSetBoardAmbientDressingPolicy } from './ambientDressing';
-import { assertSetBoardPositiveAuthoritySpoilerNeutral } from './positiveAuthoritySpoilerGuard';
+import {
+  collectSetBoardPositiveAuthorityIssues,
+  type SetBoardPositiveAuthorityIssue,
+} from './positiveAuthoritySpoilerGuard';
 
 function byId<T extends { id: string }>(items: readonly T[]): T[] {
   return items.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -232,6 +237,8 @@ function projectFixedSetFacts(
 function positiveAuthorityPolicy(
   contract: BookVisualContract,
   includedPropIds: ReadonlySet<string>,
+  version: SetBoardPositiveAuthorityPolicyVersion =
+    SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
 ): SetBoardPositiveAuthorityPolicy {
   const blockedCast = [
     contract.cast?.child,
@@ -262,18 +269,18 @@ function positiveAuthorityPolicy(
     .map((prop) => ({ propId: prop.id, name: prop.name }))
     .sort((a, b) => (a.propId < b.propId ? -1 : a.propId > b.propId ? 1 : 0));
   return {
-    version: SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION,
+    version,
     blockedCast,
     blockedProps,
   };
 }
 
-export function projectSetDefinition(
+function evaluateSetDefinition(
   contract: BookVisualContract,
   setIdentityId: string,
   styleId: string,
   opts?: { boardVersion?: string },
-): SetDefinition {
+): { definition: SetDefinition; issues: SetBoardPositiveAuthorityIssue[] } {
   const authority = requireSetBoardStableAuthority(contract, setIdentityId);
   const group = groupLocationsBySetIdentity(contract).get(setIdentityId) ?? [];
   const locations = authority.locations
@@ -316,8 +323,51 @@ export function projectSetDefinition(
     contentPolicy,
     positiveAuthorityPolicy: authorityPolicy,
   };
-  assertSetBoardPositiveAuthoritySpoilerNeutral(definition);
-  return definition;
+  const v2Issues = collectSetBoardPositiveAuthorityIssues(definition);
+  if (v2Issues.length === 0) return { definition, issues: [] };
+
+  // Compatibility is compiler-owned and deterministic: a definition that has
+  // always passed v2 keeps the same policy/hash/Registry identity. Only a v2
+  // rejection is evaluated under the more precise v3 matcher, and v3 is then
+  // bound into the definition hash. This avoids a global Registry migration.
+  const preciseDefinition: SetDefinition = {
+    ...definition,
+    positiveAuthorityPolicy: positiveAuthorityPolicy(
+      contract,
+      new Set(contentPolicy.includedPropIds),
+      SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION,
+    ),
+  };
+  const preciseIssues = collectSetBoardPositiveAuthorityIssues(
+    preciseDefinition,
+  );
+  return { definition: preciseDefinition, issues: preciseIssues };
+}
+
+export function collectSetDefinitionAdmissionIssues(
+  contract: BookVisualContract,
+  setIdentityId: string,
+  styleId: string,
+  opts?: { boardVersion?: string },
+): SetBoardPositiveAuthorityIssue[] {
+  return evaluateSetDefinition(contract, setIdentityId, styleId, opts).issues;
+}
+
+export function projectSetDefinition(
+  contract: BookVisualContract,
+  setIdentityId: string,
+  styleId: string,
+  opts?: { boardVersion?: string },
+): SetDefinition {
+  const evaluated = evaluateSetDefinition(
+    contract,
+    setIdentityId,
+    styleId,
+    opts,
+  );
+  const [firstIssue] = evaluated.issues;
+  if (firstIssue) throw firstIssue;
+  return evaluated.definition;
 }
 
 export function computeSetBoardContentPolicyDigest(definition: SetDefinition): string {

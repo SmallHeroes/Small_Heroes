@@ -518,7 +518,9 @@ export function auditProductionStoryReadiness(args: {
       reasons.push(
         ...boardResult.issues.map((issue) =>
           reason(
-            /approve/i.test(issue.message)
+            issue.code === 'board_authority_invalid'
+              ? 'set_authority_invalid'
+              : /approve/i.test(issue.message)
               ? 'board_unapproved'
               : /version|mismatch|changed|digest/i.test(issue.message)
                 ? 'board_stale'

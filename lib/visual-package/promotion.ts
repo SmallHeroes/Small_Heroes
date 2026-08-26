@@ -386,10 +386,13 @@ export function promoteVisualPackage(args: PromoteVisualPackageArgs): VisualPack
       styleId: manifest.styleId,
     });
     issues.push(...boards.issues);
-    issues.push(...compareBoardArtifacts(
-      Array.isArray(manifest.requiredBoards) ? manifest.requiredBoards : [],
-      boards.boards,
-    ));
+    if (!boards.issues.some((issue) =>
+      issue.code === 'board_authority_invalid')) {
+      issues.push(...compareBoardArtifacts(
+        Array.isArray(manifest.requiredBoards) ? manifest.requiredBoards : [],
+        boards.boards,
+      ));
+    }
     const propArtifacts = resolveRequiredPropArtifacts({
       repoRoot: args.repoRoot,
       storyKey: manifest.storyKey,

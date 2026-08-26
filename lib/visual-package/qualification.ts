@@ -234,10 +234,13 @@ export function evaluateRenderQualification(args: {
         styleId: args.styleId,
       });
       reasons.push(...boards.issues);
-      reasons.push(...compareBoardArtifacts(
-        Array.isArray(manifest.requiredBoards) ? manifest.requiredBoards : [],
-        boards.boards,
-      ));
+      if (!boards.issues.some((issue) =>
+        issue.code === 'board_authority_invalid')) {
+        reasons.push(...compareBoardArtifacts(
+          Array.isArray(manifest.requiredBoards) ? manifest.requiredBoards : [],
+          boards.boards,
+        ));
+      }
       const propArtifacts = resolveRequiredPropArtifacts({
         repoRoot: args.repoRoot,
         storyKey: args.storyKey,

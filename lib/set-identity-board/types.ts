@@ -83,6 +83,18 @@ export const LEGACY_SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION =
   'set-board-positive-authority/v1' as const;
 export const SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION =
   'set-board-positive-authority/v2' as const;
+/**
+ * Precise matcher semantics for definitions that the stricter v2 matcher
+ * rejects only because physical modifier/semantic-head tokens collide with
+ * cast or prop vocabulary. Clean v2 definitions deliberately remain v2 so
+ * already-approved Registry identities do not drift.
+ */
+export const SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION =
+  'set-board-positive-authority/v3' as const;
+
+export type SetBoardPositiveAuthorityPolicyVersion =
+  | typeof SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION
+  | typeof SET_BOARD_POSITIVE_AUTHORITY_PRECISE_POLICY_VERSION;
 
 /** A location as it appears in the SET-only projection (set facts only — no cast/appearance/page data). */
 export interface SetDefinitionLocation {
@@ -146,7 +158,7 @@ export interface SetBoardBlockedPropIdentity {
 }
 
 export interface SetBoardPositiveAuthorityPolicy {
-  version: typeof SET_BOARD_POSITIVE_AUTHORITY_POLICY_VERSION;
+  version: SetBoardPositiveAuthorityPolicyVersion;
   blockedCast: SetBoardBlockedCastIdentity[];
   /** Every recurring prop not explicitly listed in `contentPolicy.includedPropIds`. */
   blockedProps: SetBoardBlockedPropIdentity[];
