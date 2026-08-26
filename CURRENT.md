@@ -2,7 +2,72 @@
 
 **Updated:** 2026-08-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed implementation base `d88337288db1eeb895cb9355f40ec23385436dee`, local unpushed implementation commit `ee61db4d908fce3b1407734d5cb61c991e32de30`.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed implementation base `d88337288db1eeb895cb9355f40ec23385436dee`, local unpushed code commit `beda712a2f142579bdf68da8f8c4739cf60324c5`.
+
+## CANONICAL PROJECTION + REPLAY EVIDENCE — OFFLINE GREEN; CLAUDE QA PENDING
+
+Guy approved the canonical-projection/replay-evidence Decision Gate and the
+bounded post-PASS live/render sequence on 2026-08-26. The general offline code
+milestone is committed locally at `beda712a`; it is not pushed and has not been
+independently accepted. It aligns initial/full-draft transient selectors with
+the compiler's final wardrobe, companion-state and source-evidence projection,
+then binds each disposition to one exact same-page pointer/value. Ambiguous,
+missing, stale, rehashed or cross-page authority fails closed. Transition
+`kind` and `cue` remain provider-owned, and narrow repair routes retain their
+existing typed authority.
+
+The same production authoring path can now capture privacy-minimised structured
+responses into an immutable content-addressed sidecar and replay them with zero
+provider calls. Replay fences the exact call count/order, route, schema,
+prompt digests, exhaustive provider-call options, Candidate or typed terminal
+failure, and final complete issue count/digest. The receipt, supervisor child
+authority and QA Wizard bridge bind and physically reload the exact sidecar;
+missing, moved, substituted or mutated evidence fails closed. The graph is
+one-way rather than circular: evidence binds request/attempts, the receipt binds
+evidence, and the child authority binds the receipt.
+
+Fresh/version cutovers are deliberate: template draft v21, canonical
+request/readiness v47, supervisor result v40, child-output authority v2,
+materialization input/result v37/v42, canonical pre-live evidence v47,
+authoring receipt v55 and replay evidence v2. Immediate predecessor and hostile
+redigest tests reject old shapes at the correct boundaries. Production policy
+remains v18: `gpt-5.6-sol`, medium reasoning, seven calls, six repairs, zero
+retries, no fallback, `$10` hard ceiling and 64K maximum input. Candidate v9,
+Wizard, payment and render semantics are unchanged.
+
+Final focused proof is 14 files / 491 assertions passing. The compiler-focused
+matrix is 83/83 and the canonical boundary/launcher/accepted-source matrix is
+210/210. Isolated downstream reruns pass supervisor 46/46, materialization
+21/21, Story Source lifecycle 108/108, canonical pre-live 14/14 and bridge 9/9.
+TypeScript, autonomous Story typecheck and `git diff --check` pass. A literal
+`npm run check` earlier in the milestone passed both TypeScript phases, 3,753
+ordinary assertions and 620 resource assertions, reproducing only the nine
+known missing ignored-output fixture assertions across five unchanged files,
+70 skips and three known Vitest RPC timeouts. It preceded the final focused
+hostile additions and is not claimed as a final-byte full check.
+
+The revised Chameleon proof is intentionally bounded. Exact accepted snapshot
+`35fe04ab5601031735bd7bdd283bab7a8d897bc399427d592e39fe56aa1f6a6c`
+is covered by a sparse selector-level continuity regression on pages 2, 3, 5,
+6 and 8. No full provider Template Draft exists for this revision, and the
+older approved package belongs to a superseded Story Source. The next live
+attempt will therefore be the first combined capture of the revised story; it
+must be replayed offline before any second paid attempt, whether it succeeds or
+fails.
+
+One bounded diagnostic limitation is disclosed for independent review: if a
+valid captured prefix is followed by `provider_output_decode_failed`, the
+current terminal path discards that prefix and records no replay locator. It is
+privacy-safe, cannot mint a Candidate or advance the Wizard, but narrows the
+Gate's literal “every captured response” claim. Claude Code must decide whether
+to accept it or require a correction before live.
+
+No credential, provider/live call, Candidate, Wizard order, image, audio,
+render, database/storage write, deployment or push occurred in this milestone.
+The binding next action is read-only Claude Code review of the immutable
+code-plus-evidence range. Codex does not self-award PASS. Only PASS permits a
+new Fresh root and one bounded paid live attempt; a live failure permits
+offline replay, not another paid call.
 
 ## BOOKSURFACE TYPED TRANSITION AUTHORITY — OFFLINE GREEN; INDEPENDENT QA PENDING
 
