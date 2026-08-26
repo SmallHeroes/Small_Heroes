@@ -291,7 +291,7 @@ describe('canonical Visual Contract authoring launcher', () => {
       mode: 'canonical_visual_contract_live_authoring',
       status: 'failed',
       receipt: {
-        version: 'visual-contract-authoring-receipt/v21',
+        version: 'visual-contract-authoring-receipt/v55',
         status: 'failed',
         digest: 'a'.repeat(64),
         callCount: 3,
@@ -306,7 +306,7 @@ describe('canonical Visual Contract authoring launcher', () => {
         },
       },
       readiness: {
-        version: 'visual-contract-authoring-readiness/v18',
+        version: 'visual-contract-authoring-readiness/v52',
         digest: 'b'.repeat(64),
         authoringOutcome: { status: 'failed' },
         blueprintAuthoringReady: false,
@@ -323,6 +323,11 @@ describe('canonical Visual Contract authoring launcher', () => {
         authoringReceipt: {
           path: 'outputs/receipt.json',
           digest: 'a'.repeat(64),
+          created: true,
+        },
+        structuredDraftReplayEvidence: {
+          path: 'outputs/replay-evidence.json',
+          digest: 'd'.repeat(64),
           created: true,
         },
         providerFailureEvidence: null,
@@ -352,6 +357,11 @@ describe('canonical Visual Contract authoring launcher', () => {
       },
       persistence: {
         authoringRequestKind: 'approved_live_request',
+        structuredDraftReplayEvidence: {
+          path: 'outputs/replay-evidence.json',
+          digest: 'd'.repeat(64),
+          created: true,
+        },
       },
     });
   });

@@ -572,7 +572,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         },
         supervisorVerification: {
           version:
-            'canonical-live-execution-readiness/v46',
+            'canonical-live-execution-readiness/v47',
         },
       },
     });
@@ -747,7 +747,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         verifyExecution: (args) =>
           ({
             ...verifyCanonicalLiveExecution(args),
-            version: 'canonical-live-execution-readiness/v45',
+            version: 'canonical-live-execution-readiness/v46',
           }) as unknown as ReturnType<
             typeof verifyCanonicalLiveExecution
           >,
@@ -822,7 +822,7 @@ describe('canonical pre-live readiness orchestrator', () => {
     const current = prepare(fixture);
     expect(current.status).toBe('ready_for_spend_gate');
     const prior = structuredClone(current) as unknown as Record<string, unknown>;
-    prior.version = 'canonical-pre-live-readiness-evidence/v45';
+    prior.version = 'canonical-pre-live-readiness-evidence/v46';
     const {
       digestAlgorithm: _algorithm,
       digest: _digest,
@@ -1212,6 +1212,7 @@ describe('canonical pre-live readiness orchestrator', () => {
         `${OUTPUT_ROOT}/b0/provider-call-failure-evidence`,
         `${OUTPUT_ROOT}/b0/readiness-evidence`,
         `${OUTPUT_ROOT}/b0/rejected-authoring-requests`,
+        `${OUTPUT_ROOT}/b0/structured-draft-replay-evidence`,
       ],
     });
   });

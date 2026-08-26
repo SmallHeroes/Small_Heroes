@@ -177,6 +177,12 @@ import {
   type SanitizedProviderFailureDiagnostic,
 } from './providerFailureDiagnostics';
 import {
+  VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION,
+  captureVisualContractAuthoringStructuredResponse,
+  visualContractAuthoringAttemptHasCapturedResponse,
+  type VisualContractAuthoringStructuredResponseCapture,
+} from './visualContractAuthoringReplayEvidence';
+import {
   aggregateAuthoringExecutionAttestations,
   authoringBudgetExhaustionBindingIsValid,
   authoringExecutionAttestationIsValid,
@@ -212,7 +218,7 @@ import {
 export const VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION =
   'visual-contract-authoring-request/v52' as const;
 export const VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION =
-  'visual-contract-authoring-receipt/v54' as const;
+  'visual-contract-authoring-receipt/v55' as const;
 export const VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v52' as const;
 export const VISUAL_CONTRACT_CANDIDATE_ARTIFACT_VERSION =
@@ -420,6 +426,8 @@ export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V52 =
   'visual-contract-authoring-receipt/v52' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V53 =
   'visual-contract-authoring-receipt/v53' as const;
+export const LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V54 =
+  'visual-contract-authoring-receipt/v54' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION =
   'visual-contract-authoring-readiness/v2' as const;
 export const LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION_V1 =
@@ -1003,6 +1011,11 @@ export interface VisualContractAuthoringReceipt {
       typeof SOURCE_EVIDENCE_CATALOG_VERSION;
     sourceEvidenceCatalogDigest: string;
   };
+  structuredDraftReplayEvidence: {
+    version: typeof VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION;
+    path: string;
+    digest: string;
+  } | null;
   failure: VisualContractAuthoringTerminalFailure | null;
   doesNotAuthorize: string[];
   digestAlgorithm: 'canonical-json-sha256';
@@ -1013,6 +1026,9 @@ export interface VisualContractAuthoringRunResult {
   receipt: VisualContractAuthoringReceipt;
   compileResult: TemplateCompileResult | null;
   providerFailureEvidence: ProviderCallFailureEvidence | null;
+  /** Non-authoritative in-memory JSON captures for local replay evidence. */
+  structuredResponseCaptures:
+    readonly VisualContractAuthoringStructuredResponseCapture[];
 }
 
 export interface VisualContractAuthoringReadinessEvidence {
@@ -1232,6 +1248,7 @@ export function visualContractAuthoringArtifactVersionStatus(
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V51,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V52,
       LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V53,
+      LEGACY_VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION_V54,
     ],
     readiness: [
       LEGACY_VISUAL_CONTRACT_AUTHORING_READINESS_VERSION,
@@ -2276,16 +2293,105 @@ function zeroUsage(): VisualContractAuthoringUsage {
 function finalizeReceipt(
   receipt: Omit<
     VisualContractAuthoringReceipt,
-    'digestAlgorithm' | 'digest'
-  >,
+    | 'structuredDraftReplayEvidence'
+    | 'digestAlgorithm'
+    | 'digest'
+  > &
+    Partial<
+      Pick<
+        VisualContractAuthoringReceipt,
+        'structuredDraftReplayEvidence'
+      >
+    >,
 ): VisualContractAuthoringReceipt {
-  return {
+  const payload = {
     ...receipt,
+    structuredDraftReplayEvidence:
+      receipt.structuredDraftReplayEvidence ?? null,
+  };
+  return {
+    ...payload,
     digestAlgorithm: 'canonical-json-sha256',
     digest: canonicalJsonDigest(
-      receiptWithoutDigest(receipt),
+      receiptWithoutDigest(payload),
     ),
   };
+}
+
+export function bindVisualContractAuthoringReplayEvidenceToReceipt(args: {
+  receipt: VisualContractAuthoringReceipt;
+  path: string;
+  digest: string;
+}): VisualContractAuthoringReceipt {
+  if (!visualContractAuthoringReplayEvidenceIsRequired(args.receipt)) {
+    throw new Error(
+      'structured draft replay evidence is not required for this receipt',
+    );
+  }
+  if (
+    !/^[a-f0-9]{64}$/.test(args.digest) ||
+    !canonicalReplayEvidenceRelativePath(args.path) ||
+    !args.path.endsWith(
+      `/structured-draft-replay-evidence/${args.digest}.json`,
+    )
+  ) {
+    throw new Error('structured draft replay evidence locator is invalid');
+  }
+  const existing = args.receipt.structuredDraftReplayEvidence;
+  if (existing !== null) {
+    if (
+      existing &&
+      typeof existing === 'object' &&
+      !Array.isArray(existing) &&
+      existing.version ===
+        VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION &&
+      existing.path === args.path &&
+      existing.digest === args.digest
+    ) {
+      return args.receipt;
+    }
+    throw new Error(
+      'structured draft replay evidence locator is already bound',
+    );
+  }
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = args.receipt;
+  return finalizeReceipt({
+    ...payload,
+    structuredDraftReplayEvidence: {
+      version: VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION,
+      path: args.path,
+      digest: args.digest,
+    },
+  });
+}
+
+function canonicalReplayEvidenceRelativePath(
+  value: unknown,
+): value is string {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > 1024 ||
+    path.isAbsolute(value) ||
+    value.includes('\\') ||
+    value.includes('\0') ||
+    /[*?[\]{}!]/.test(value)
+  ) {
+    return false;
+  }
+  const segments = value.split('/');
+  return (
+    segments.every(
+      (segment) =>
+        segment.length > 0 &&
+        segment !== '.' &&
+        segment !== '..',
+    ) && path.posix.normalize(value) === value
+  );
 }
 
 function receiptActionSemanticCoverage(
@@ -3948,6 +4054,7 @@ export async function runVisualContractAuthoring(args: {
       }),
       compileResult: null,
       providerFailureEvidence: null,
+      structuredResponseCaptures: [],
     };
   }
   if (requestIssues.length > 0) {
@@ -3962,6 +4069,7 @@ export async function runVisualContractAuthoring(args: {
       }),
       compileResult: null,
       providerFailureEvidence: null,
+      structuredResponseCaptures: [],
     };
   }
   if (args.request.mode === 'preflight') {
@@ -4006,6 +4114,7 @@ export async function runVisualContractAuthoring(args: {
       }),
       compileResult: null,
       providerFailureEvidence: null,
+      structuredResponseCaptures: [],
     };
   }
   if (!args.provider) {
@@ -4017,11 +4126,14 @@ export async function runVisualContractAuthoring(args: {
       }),
       compileResult: null,
       providerFailureEvidence: null,
+      structuredResponseCaptures: [],
     };
   }
 
   const attempts: VisualContractAuthoringAttemptReceipt[] =
     [];
+  const structuredResponseCaptures:
+    VisualContractAuthoringStructuredResponseCapture[] = [];
   let completedUnrecordedProviderAttempt:
     | Omit<VisualContractAuthoringAttemptReceipt, 'status'>
     | null = null;
@@ -4475,6 +4587,30 @@ export async function runVisualContractAuthoring(args: {
                 status: 'response_received',
               };
             attempts.push(receipt);
+            // Only the branded canonical Responses adapter is eligible for
+            // durable replay capture. Legacy injected providers remain a
+            // test-only compatibility seam and must preserve their existing
+            // terminal-classification behavior.
+            if (promptAuthority && canonicalProviderEvidence) {
+              const capture =
+                captureVisualContractAuthoringStructuredResponse({
+                  attempt,
+                  responseOutput,
+                  options: options ?? {},
+                  promptAuthority,
+                  systemPromptDigest: base.systemPromptDigest,
+                  userPromptDigest: base.userPromptDigest,
+                  providerResponseDigest:
+                    receipt.responseDigest!,
+                });
+              if (!capture) {
+                terminal.code = 'provider_output_decode_failed';
+                throw new Error(
+                  'provider structured response does not match the privacy-safe closed capture shape of its declared schema',
+                );
+              }
+              structuredResponseCaptures.push(capture);
+            }
             if (
               !authoringSpendIsWithinCeiling(
                 aggregateConservativeAccountedCost(attempts),
@@ -4530,6 +4666,7 @@ export async function runVisualContractAuthoring(args: {
         }),
         compileResult: null,
         providerFailureEvidence: null,
+        structuredResponseCaptures,
       };
     }
     const candidateDigest = canonicalJsonDigest(
@@ -4587,6 +4724,7 @@ export async function runVisualContractAuthoring(args: {
       }),
       compileResult,
       providerFailureEvidence: null,
+      structuredResponseCaptures,
     };
   } catch (error) {
     const unrecordedProviderAttempt =
@@ -4832,6 +4970,7 @@ export async function runVisualContractAuthoring(args: {
       receipt,
       compileResult: null,
       providerFailureEvidence,
+      structuredResponseCaptures,
     };
   }
 }
@@ -5123,6 +5262,162 @@ function visualContractAuthoringAttemptInputAccountingIsValid(args: {
   return accounting.estimatedBytes <= accounting.ceiling;
 }
 
+function visualContractAuthoringReplayEvidenceIsRequired(
+  receipt: VisualContractAuthoringReceipt,
+): boolean {
+  return (
+    receipt.failure?.code !== 'provider_output_decode_failed' &&
+    receipt.attempts.some(
+      (attempt) =>
+        visualContractAuthoringAttemptHasCapturedResponse(attempt) &&
+        attempt.providerEvidenceVersion ===
+          OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+    )
+  );
+}
+
+function visualContractAuthoringReplayEvidenceBindingIsValid(
+  receipt: VisualContractAuthoringReceipt,
+): boolean {
+  const locator = receipt.structuredDraftReplayEvidence;
+  const replayEvidenceRequired =
+    visualContractAuthoringReplayEvidenceIsRequired(receipt);
+  if (!replayEvidenceRequired) return locator === null;
+  if (locator === null) return false;
+  if (
+    !locator ||
+    typeof locator !== 'object' ||
+    Array.isArray(locator) ||
+    JSON.stringify(Object.keys(locator).sort()) !==
+      JSON.stringify(['digest', 'path', 'version'])
+  ) {
+    return false;
+  }
+  return (
+    replayableTerminalFailureIsCanonical(receipt) &&
+    locator.version ===
+      VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION &&
+    /^[a-f0-9]{64}$/.test(locator.digest) &&
+    canonicalReplayEvidenceRelativePath(locator.path) &&
+    locator.path.endsWith(
+      `/structured-draft-replay-evidence/${locator.digest}.json`,
+    )
+  );
+}
+
+function replayableTerminalFailureIsCanonical(
+  receipt: VisualContractAuthoringReceipt,
+): boolean {
+  const failure = receipt.failure;
+  if (receipt.status === 'completed') return failure === null;
+  if (!failure) return true;
+  const finalDiagnostics = [...receipt.attempts]
+    .reverse()
+    .find(
+      (attempt) => attempt.draftValidationDiagnostics !== null,
+    )?.draftValidationDiagnostics;
+  const carriedDraftDiagnosticCount = receipt.attempts.reduce(
+    (count, attempt) =>
+      count +
+      (attempt.draftValidationDiagnostics?.emittedCount ?? 0),
+    0,
+  );
+  let rebuilt: VisualContractAuthoringTerminalFailure;
+  switch (failure.code) {
+    case 'draft_validation_repair_exhausted':
+      rebuilt = buildVisualContractAuthoringTerminalFailure({
+        code: failure.code,
+        diagnosticCountOverride: carriedDraftDiagnosticCount,
+        issueCodes: [failure.code],
+      });
+      break;
+    case 'draft_validation_repair_regressed':
+    case 'draft_validation_repair_stagnated':
+      if (!finalDiagnostics) return false;
+      rebuilt = buildVisualContractAuthoringTerminalFailure({
+        code: failure.code,
+        diagnosticCountOverride:
+          finalDiagnostics.currentUniqueCount,
+        issueCodes: [failure.code],
+      });
+      break;
+    case 'repair_output_invalid': {
+      const diagnostics = failure.repairOutputDiagnostics;
+      if (
+        !diagnostics ||
+        diagnostics.version !==
+          'visual-contract-repair-output-diagnostics/v5'
+      ) {
+        return false;
+      }
+      rebuilt = buildVisualContractAuthoringTerminalFailure({
+        code: failure.code,
+        issueCodes: [failure.code],
+        repairOutputDiagnostics: {
+          repairAttempt: diagnostics.repairAttempt,
+          repairMode: diagnostics.repairMode,
+          failureCode: diagnostics.failureCode,
+          identity: diagnostics.identity,
+          targetContext: diagnostics.targetContext,
+          carriedDraftDiagnosticCount:
+            diagnostics.carriedDraftDiagnosticCount,
+        },
+      });
+      break;
+    }
+    case 'repair_route_input_not_admissible': {
+      const diagnostics = failure.repairRouteAdmissionDiagnostics;
+      if (
+        !diagnostics ||
+        diagnostics.version !==
+          'visual-contract-repair-route-admission-diagnostics/v2'
+      ) {
+        return false;
+      }
+      rebuilt = buildVisualContractAuthoringTerminalFailure({
+        code: failure.code,
+        issueCodes: [failure.code],
+        repairRouteAdmissionDiagnostics: {
+          repairAttempt: diagnostics.repairAttempt,
+          repairMode: diagnostics.repairMode,
+          inputAccounting: diagnostics.inputAccounting,
+          maxAdmissibleInputBytes:
+            diagnostics.maxAdmissibleInputBytes,
+          carriedDraftDiagnosticCount:
+            diagnostics.carriedDraftDiagnosticCount,
+        },
+      });
+      break;
+    }
+    case 'draft_authority_reference_domain_invalid': {
+      const diagnostics = failure.authorityReferenceDiagnostics;
+      if (!diagnostics || diagnostics.truncated) return false;
+      rebuilt = buildVisualContractAuthoringTerminalFailure({
+        code: failure.code,
+        issueCodes: [failure.code],
+        authorityReferenceIssues: diagnostics.items,
+      });
+      break;
+    }
+    case 'action_semantic_capability_gap':
+      if (
+        receipt.actionSemanticCoverage.status !== 'capability_gap'
+      ) {
+        return false;
+      }
+      rebuilt = buildVisualContractAuthoringTerminalFailure({
+        code: failure.code,
+        diagnosticCountOverride:
+          receipt.actionSemanticCoverage.gapCount,
+        issueCodes: [failure.code],
+      });
+      break;
+    default:
+      return true;
+  }
+  return exactJson(failure, rebuilt);
+}
+
 export function buildVisualContractAuthoringReadinessEvidence(args: {
   snapshot: StorySourceAuthoritySnapshot;
   request: VisualContractAuthoringRequest;
@@ -5225,6 +5520,9 @@ export function buildVisualContractAuthoringReadinessEvidence(args: {
       args.receipt,
     ) ||
     !receiptDraftValidationIsValid ||
+    !visualContractAuthoringReplayEvidenceBindingIsValid(
+      args.receipt,
+    ) ||
     args.receipt.digestAlgorithm !==
       'canonical-json-sha256' ||
     args.receipt.digest !==
@@ -5423,13 +5721,16 @@ export function persistVisualContractAuthoringReceipt(args: {
     !visualContractAuthoringReceiptDraftValidationIsValid(
       args.receipt,
     ) ||
+    !visualContractAuthoringReplayEvidenceBindingIsValid(
+      args.receipt,
+    ) ||
     args.receipt.digestAlgorithm !==
       'canonical-json-sha256' ||
     args.receipt.digest !==
       canonicalJsonDigest(receiptPayload)
   ) {
     throw new Error(
-      'receipt v54 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
+      'receipt v55 requires exact typed draft-validation evidence, an exact Visual Contract terminal, and valid bindings',
     );
   }
   return persistJsonArtifact({
@@ -5483,6 +5784,9 @@ export function buildVisualContractCandidateArtifact(args: {
       request: args.request,
     }) ||
     args.receipt.candidateDigest !== templateDigest ||
+    !visualContractAuthoringReplayEvidenceBindingIsValid(
+      args.receipt,
+    ) ||
     args.receipt.digestAlgorithm !==
       'canonical-json-sha256' ||
     args.receipt.digest !==

@@ -766,3 +766,35 @@ export function buildProviderCallFailureEvidence(args: {
     digest: canonicalJsonDigest(withoutDigest),
   };
 }
+
+export function bindProviderCallFailureEvidenceToReceipt(args: {
+  evidence: ProviderCallFailureEvidence;
+  expectedCurrentAuthoringReceiptDigest: string;
+  authoringReceiptDigest: string;
+}): ProviderCallFailureEvidence {
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = args.evidence;
+  if (
+    args.evidence.digestAlgorithm !== 'canonical-json-sha256' ||
+    args.evidence.digest !== canonicalJsonDigest(payload) ||
+    args.evidence.authoringReceiptDigest !==
+      args.expectedCurrentAuthoringReceiptDigest ||
+    !/^[a-f0-9]{64}$/.test(args.authoringReceiptDigest)
+  ) {
+    throw new Error(
+      'provider failure evidence receipt binding is invalid',
+    );
+  }
+  const reboundPayload = {
+    ...payload,
+    authoringReceiptDigest: args.authoringReceiptDigest,
+  };
+  return {
+    ...reboundPayload,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(reboundPayload),
+  };
+}

@@ -140,6 +140,9 @@ describe('offline Visual Contract repair harness', () => {
       completeDiagnosticIssuesByAttempt: [[]],
     });
 
+    expect(result.version).toBe(
+      'visual-contract-offline-repair-harness-result/v2',
+    );
     expect(result.executionMode).toBe('offline_stub');
     expect(result.providerCalls).toBe(0);
     expect(result.outcome).toBe('candidate');
@@ -182,6 +185,118 @@ describe('offline Visual Contract repair harness', () => {
     expect(JSON.stringify(result.stages)).not.toMatch(
       /represented_elsewhere_pointer_(?:out_of_scope|unresolved)/,
     );
+  });
+
+  it('stops before applying a captured response when the production route changed', async () => {
+    const result = await runOfflineRepairHarness({
+      input: bunnySource(),
+      initialDraft: bunnyDraft(),
+      expectedCalls: [
+        {
+          kind: 'initial',
+          repairMode: null,
+          budgetClass: 'standard',
+          schemaName: 'stale-captured-schema',
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'unexpected_failure',
+    });
+    expect(result.calls).toEqual([
+      expect.objectContaining({
+        call: 1,
+        kind: 'initial',
+        repairMode: null,
+      }),
+    ]);
+    expect(result.actionCoverageCensuses).toEqual([]);
+  });
+
+  it('rejects captured provider call-option drift before returning a queued response', async () => {
+    const result = await runOfflineRepairHarness({
+      input: bunnySource(),
+      initialDraft: bunnyDraft(),
+      expectedCalls: [
+        {
+          kind: 'initial',
+          repairMode: null,
+          budgetClass: 'standard',
+          schemaName: 'BookVisualContractTemplateDraft',
+          callOptionsDigest: 'f'.repeat(64),
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      providerCalls: 0,
+      outcome: 'unexpected_failure',
+      candidateTemplateDigest: null,
+    });
+    expect(result.calls).toHaveLength(1);
+    expect(result.calls[0]!.callOptionsDigest).toMatch(
+      /^[a-f0-9]{64}$/,
+    );
+  });
+
+  it('rejects an unexpected extra call before dequeuing its captured response', async () => {
+    const invalid = bunnyDraft();
+    invalid.worldType = '';
+    const input = bunnySource();
+    delete (input as unknown as Record<string, unknown>).worldType;
+
+    const result = await runOfflineRepairHarness({
+      input,
+      initialDraft: invalid,
+      repairResponses: [bunnyDraft()],
+      expectedCalls: [
+        {
+          kind: 'initial',
+          repairMode: null,
+          budgetClass: 'standard',
+          schemaName: 'BookVisualContractTemplateDraft',
+        },
+      ],
+    });
+
+    expect(result.outcome).not.toBe('candidate');
+    expect(result.candidateTemplateDigest).toBeNull();
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'full_draft',
+    ]);
+    expect(result.actionCoverageCensuses).toHaveLength(1);
+  });
+
+  it('rejects Candidate completion when an expected captured call was never consumed', async () => {
+    const result = await runOfflineRepairHarness({
+      input: bunnySource(),
+      initialDraft: bunnyDraft(),
+      repairResponses: [bunnyDraft()],
+      expectedCalls: [
+        {
+          kind: 'initial',
+          repairMode: null,
+          budgetClass: 'standard',
+          schemaName: 'BookVisualContractTemplateDraft',
+        },
+        {
+          kind: 'repair',
+          repairMode: 'full_draft',
+          budgetClass: 'standard',
+          schemaName: 'BookVisualContractTemplateDraft',
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      outcome: 'unexpected_failure',
+      candidateTemplateDigest: null,
+    });
+    expect(result.calls).toHaveLength(1);
   });
 
   it('closes an exact missing source-phenomenon binding before routing and spends no repair slot', async () => {
@@ -430,6 +545,19 @@ describe('offline Visual Contract repair harness', () => {
       'soft sky-blue cotton pajamas for bedtime';
     repairedPage.childWardrobeOverrideSourceEvidenceId =
       evidence.sourceEvidenceId;
+    (
+      repairedPage.actionSemanticCoverage as Array<
+        Record<string, unknown>
+      >
+    ).push({
+      beatId: 'beat:p12:wardrobe_transition',
+      sourceEvidenceId: evidence.sourceEvidenceId,
+      disposition: {
+        kind: 'represented_elsewhere',
+        representedValue:
+          'soft sky-blue cotton pajamas for bedtime',
+      },
+    });
 
     const result = await runOfflineRepairHarness({
       input,
@@ -472,6 +600,19 @@ describe('offline Visual Contract repair harness', () => {
         phrase: evidence.excerpt,
       },
     });
+    expect(compiled.actionSemanticCoverage).toContainEqual(
+      expect.objectContaining({
+        pageNumber: 12,
+        beatId: 'beat:p12:wardrobe_transition',
+        disposition: {
+          kind: 'represented_elsewhere',
+          contractPointer:
+            '/pageContracts/11/childWardrobeOverride/description',
+          contractValue:
+            'soft sky-blue cotton pajamas for bedtime',
+        },
+      }),
+    );
     expect(
       compiled.template.cast.companion?.wardrobe.description,
     ).toContain('tiny heart-shaped badge pinned to the chest');
@@ -2148,6 +2289,7 @@ describe('offline Visual Contract repair harness', () => {
       },
     ] as const;
 
+    const terminalFailureIdentityDigests: string[] = [];
     for (const scenario of scenarios) {
       const result = await runOfflineRepairHarness({
         input: bunnySource(),
@@ -2160,6 +2302,14 @@ describe('offline Visual Contract repair harness', () => {
         scenario.expected,
       ]);
       expect(result.outcome).toBe('repair_output_invalid');
+      expect(result.terminalFailureIdentityComplete).toBe(true);
+      expect(result.terminalFailureIdentityDigest).toMatch(
+        /^[a-f0-9]{64}$/,
+      );
+      terminalFailureIdentityDigests.push(
+        result.terminalFailureIdentityDigest!,
+      );
     }
+    expect(new Set(terminalFailureIdentityDigests)).toHaveLength(3);
   });
 });

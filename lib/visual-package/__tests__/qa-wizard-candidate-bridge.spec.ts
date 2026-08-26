@@ -21,6 +21,8 @@ import {
   buildStorySourceAuthoritySnapshot,
   buildVisualContractAuthoringRequest,
   buildVisualContractAuthoringReadinessEvidence,
+  bindVisualContractAuthoringReplayEvidenceToReceipt,
+  buildVisualContractAuthoringReplayEvidence,
   canonicalJsonDigest,
   captureQaWizardCanonicalSupervisorResultEvidence,
   loadQaWizardCandidateValidationAttestation,
@@ -61,6 +63,8 @@ import {
   type BookVisualContractTemplate,
 } from '@/lib/visual-contract-compiler';
 import type { ActionSemanticCoverageRecord } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
+import { TEMPLATE_DRAFT_JSON_SCHEMA } from '@/lib/visual-contract-compiler/templateDraftSchema';
+import { projectClosedSchemaFixture } from '@/lib/visual-package/__tests__/helpers/projectClosedSchemaFixture';
 
 const roots: string[] = [];
 const BANK = path.join(process.cwd(), 'story-bank', 'v3-approved');
@@ -79,6 +83,7 @@ interface CanonicalCandidateFixture {
   receiptPath: string;
   readinessPath: string;
   candidatePath: string;
+  replayEvidencePath: string;
   freshReadinessPath: string;
   supervisorExecutionRequestPath: string;
   supervisorExecutionResultPath: string;
@@ -246,6 +251,21 @@ function fullyActionedDraft(
     ];
   }
   return draft;
+}
+
+function fullyActionedProviderWireDraft(
+  snapshot: StorySourceAuthoritySnapshot,
+): Record<string, unknown> {
+  const finalDraft = fullyActionedDraft(snapshot);
+  finalDraft.coverContract.zoneId = finalDraft.pageContracts[0]!.zoneId;
+  finalDraft.coverContract.castIds = [
+    ...(finalDraft.pageContracts[0]!.castIds ?? []),
+  ];
+  return projectClosedSchemaFixture({
+    value: finalDraft,
+    schema: TEMPLATE_DRAFT_JSON_SCHEMA,
+    root: TEMPLATE_DRAFT_JSON_SCHEMA,
+  }) as Record<string, unknown>;
 }
 
 function streamedResponse(output: unknown): Record<string, unknown> {
@@ -491,7 +511,9 @@ async function materializeCanonicalCandidate(
   const provisionalRun = await runVisualContractAuthoring({
     request: provisionalRequest,
     snapshot: provisionalSnapshot,
-    provider: canonicalProvider(fullyActionedDraft(provisionalSnapshot)),
+    provider: canonicalProvider(
+      fullyActionedProviderWireDraft(provisionalSnapshot),
+    ),
     requiredMode: 'live',
     requiredProviderEvidenceVersion:
       OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
@@ -549,43 +571,69 @@ async function materializeCanonicalCandidate(
   let receiptPath: string | null = null;
   let readinessPath: string | null = null;
   let candidatePath: string | null = null;
+  let replayEvidencePath: string | null = null;
   const persistAuthoringOutputs = async () => {
     const run = await runVisualContractAuthoring({
       request,
       snapshot,
-      provider: canonicalProvider(fullyActionedDraft(snapshot)),
+      provider: canonicalProvider(
+        fullyActionedProviderWireDraft(snapshot),
+      ),
       requiredMode: 'live',
       requiredProviderEvidenceVersion:
         OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
     });
     expect(run.receipt.status).toBe('completed');
     expect(run.compileResult).not.toBeNull();
+    const replayEvidence =
+      buildVisualContractAuthoringReplayEvidence({
+        sourceSnapshotDigest: snapshot.digest,
+        request,
+        receipt: run.receipt,
+        captures: run.structuredResponseCaptures,
+      });
+    if (!replayEvidence) {
+      throw new Error('fixture replay evidence was not captured');
+    }
+    const outputDir = `${OUTPUT_ROOT}/b0`;
+    replayEvidencePath =
+      `${outputDir}/structured-draft-replay-evidence/${replayEvidence.digest}.json`;
+    const receipt =
+      bindVisualContractAuthoringReplayEvidenceToReceipt({
+        receipt: run.receipt,
+        path: replayEvidencePath,
+        digest: replayEvidence.digest,
+      });
     const readiness = buildVisualContractAuthoringReadinessEvidence({
       snapshot,
       request,
-      receipt: run.receipt,
+      receipt,
     });
-    const outputDir = `${OUTPUT_ROOT}/b0`;
     const receiptWrite = persistVisualContractAuthoringReceipt({
       repoRoot: canonicalRepoRoot,
       outputDir,
       request,
-      receipt: run.receipt,
+      receipt,
       write: true,
     });
+    writeText(
+      canonicalRepoRoot,
+      replayEvidencePath,
+      canonicalLiveAuthoringJsonBytes(replayEvidence),
+    );
     const readinessWrite = persistVisualContractAuthoringReadiness({
       repoRoot: canonicalRepoRoot,
       outputDir,
       request,
       evidence: readiness,
-      receipt: run.receipt,
+      receipt,
       write: true,
     });
     const candidateWrite = persistVisualContractCandidate({
       repoRoot: canonicalRepoRoot,
       outputDir,
       request,
-      receipt: run.receipt,
+      receipt,
       compileResult: run.compileResult!,
       write: true,
     });
@@ -635,7 +683,12 @@ async function materializeCanonicalCandidate(
     expect(liveResult.outputAuthority).toBeNull();
     await persistAuthoringOutputs();
   }
-  if (!receiptPath || !readinessPath || !candidatePath) {
+  if (
+    !receiptPath ||
+    !readinessPath ||
+    !candidatePath ||
+    !replayEvidencePath
+  ) {
     throw new Error('fixture canonical authoring outputs were not persisted');
   }
   const supervisorResultSourcePath =
@@ -695,6 +748,7 @@ async function materializeCanonicalCandidate(
     receiptPath,
     readinessPath,
     candidatePath,
+    replayEvidencePath,
     freshReadinessPath: freshPath(fresh),
     supervisorExecutionRequestPath:
       fresh.canonicalAuthorities.executionRequest.path,
@@ -996,6 +1050,58 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     expect(fs.existsSync(outputAbsolute)).toBe(false);
   });
 
+  it('reloads the receipt-bound replay sidecar and rejects deletion or byte tamper before Candidate and manifest consumption', async () => {
+    const fixture = await materializeCanonicalCandidate();
+    const replayAbsolute = path.join(
+      fixture.repoRoot,
+      fixture.replayEvidencePath,
+    );
+    const replayBytes = fs.readFileSync(replayAbsolute, 'utf8');
+
+    fs.rmSync(replayAbsolute);
+    expect(() =>
+      attestQaWizardCandidateValidation({
+        ...candidateValidationArgs(
+          fixture,
+          'outputs/replay-deletion-attestation',
+        ),
+        write: false,
+      }),
+    ).toThrow(/replay evidence.*missing/i);
+    fs.writeFileSync(replayAbsolute, replayBytes, 'utf8');
+
+    const prepared = prepareQaWizardCandidateReconciliation({
+      ...prepareArgs(fixture, 'outputs/replay-bound-bridge'),
+      write: true,
+    });
+    fs.rmSync(replayAbsolute);
+    expect(() =>
+      prepareQaWizardCandidateReconciliation({
+        ...prepareArgs(
+          fixture,
+          'outputs/replay-deletion-reconciliation',
+        ),
+        write: false,
+      }),
+    ).toThrow(/replay evidence.*missing/i);
+    fs.writeFileSync(replayAbsolute, replayBytes, 'utf8');
+
+    fs.appendFileSync(replayAbsolute, ' ', 'utf8');
+    expect(() =>
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: prepared.manifestArtifact.path,
+      }),
+    ).toThrow(/replay evidence.*canonical/i);
+    fs.writeFileSync(replayAbsolute, replayBytes, 'utf8');
+    expect(
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: prepared.manifestArtifact.path,
+      }),
+    ).toEqual(prepared.manifest);
+  }, 30_000);
+
   it('attests the unchanged Candidate at a later clean pushed consumer HEAD, rejects tamper and repository drift, and carries authority through manifest v4', async () => {
     const fixture = await materializeCanonicalCandidate();
     const original = loadQaWizardCandidateValidationAttestation({
@@ -1188,20 +1294,58 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       supervisorSourceAbsolute,
       'utf8',
     );
-    const priorSupervisorResult = JSON.parse(
+    for (const priorVersion of [
+      'canonical-live-execution-result/v21',
+      'canonical-live-execution-result/v38',
+    ]) {
+      const priorSupervisorResult = JSON.parse(
+        supervisorSourceBytes,
+      ) as Record<string, unknown>;
+      priorSupervisorResult.version = priorVersion;
+      writeText(
+        fixture.repoRoot,
+        supervisorSourcePath,
+        canonicalLiveAuthoringJsonBytes(priorSupervisorResult),
+      );
+      expect(() =>
+        captureQaWizardCanonicalSupervisorResultEvidence({
+          repoRoot: fixture.repoRoot,
+          outputDir: `${OUTPUT_ROOT}/execution-prior-result`,
+          supervisorResultSourcePath: supervisorSourcePath,
+          write: false,
+        }),
+      ).toThrow(/Supervisor execution result/i);
+      fs.writeFileSync(
+        supervisorSourceAbsolute,
+        supervisorSourceBytes,
+        'utf8',
+      );
+    }
+
+    const priorChildAuthorityResult = JSON.parse(
       supervisorSourceBytes,
     ) as Record<string, unknown>;
-    priorSupervisorResult.version =
-      'canonical-live-execution-result/v21';
+    const priorChildAuthority = priorChildAuthorityResult.outputAuthority as
+      Record<string, unknown>;
+    priorChildAuthority.version =
+      'canonical-live-execution-child-output-authority/v1';
+    const {
+      digestAlgorithm: _priorAuthorityDigestAlgorithm,
+      digest: _priorAuthorityDigest,
+      ...priorChildAuthorityPayload
+    } = priorChildAuthority;
+    priorChildAuthority.digest = canonicalJsonDigest(
+      priorChildAuthorityPayload,
+    );
     writeText(
       fixture.repoRoot,
       supervisorSourcePath,
-      canonicalLiveAuthoringJsonBytes(priorSupervisorResult),
+      canonicalLiveAuthoringJsonBytes(priorChildAuthorityResult),
     );
     expect(() =>
       captureQaWizardCanonicalSupervisorResultEvidence({
         repoRoot: fixture.repoRoot,
-        outputDir: `${OUTPUT_ROOT}/execution-prior-result`,
+        outputDir: `${OUTPUT_ROOT}/execution-prior-authority`,
         supervisorResultSourcePath: supervisorSourcePath,
         write: false,
       }),
@@ -1250,6 +1394,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       `${OUTPUT_ROOT}/b0/provider-call-failure-evidence`,
       `${OUTPUT_ROOT}/b0/readiness-evidence`,
       `${OUTPUT_ROOT}/b0/rejected-authoring-requests`,
+      `${OUTPUT_ROOT}/b0/structured-draft-replay-evidence`,
     ]);
     const alteredAbsenceRequestPath = writeRedigestedCanonicalArtifact({
       repoRoot: fixture.repoRoot,
@@ -1260,6 +1405,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
           `${OUTPUT_ROOT}/b0/contract-candidates`,
           `${OUTPUT_ROOT}/b0/provider-call-failure-evidence`,
           `${OUTPUT_ROOT}/b0/readiness-evidence`,
+          `${OUTPUT_ROOT}/b0/rejected-authoring-requests`,
           `${OUTPUT_ROOT}/b0/unrelated-empty-category`,
         ];
       },

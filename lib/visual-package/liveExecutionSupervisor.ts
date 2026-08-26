@@ -39,17 +39,22 @@ import {
   type VisualContractAuthoringReceipt,
   type VisualContractCandidateArtifact,
 } from './visualContractAuthoringLifecycle';
+import {
+  VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION,
+  assertValidVisualContractAuthoringReplayEvidence,
+  type VisualContractAuthoringReplayEvidence,
+} from './visualContractAuthoringReplayEvidence';
 
 export const CANONICAL_LIVE_EXECUTION_REQUEST_VERSION =
-  'canonical-live-execution-request/v46' as const;
+  'canonical-live-execution-request/v47' as const;
 export const CANONICAL_LIVE_EXECUTION_READINESS_VERSION =
-  'canonical-live-execution-readiness/v46' as const;
+  'canonical-live-execution-readiness/v47' as const;
 export const CANONICAL_LIVE_EXECUTION_PROBE_VERSION =
   'canonical-live-execution-probe/v1' as const;
 export const CANONICAL_LIVE_EXECUTION_RESULT_VERSION =
-  'canonical-live-execution-result/v38' as const;
+  'canonical-live-execution-result/v40' as const;
 export const CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION =
-  'canonical-live-execution-child-output-authority/v1' as const;
+  'canonical-live-execution-child-output-authority/v2' as const;
 
 export const CANONICAL_LIVE_EXECUTION_EXPECTED_ABSENCE_CATEGORIES = [
   'authoring-receipts',
@@ -57,6 +62,7 @@ export const CANONICAL_LIVE_EXECUTION_EXPECTED_ABSENCE_CATEGORIES = [
   'provider-call-failure-evidence',
   'readiness-evidence',
   'rejected-authoring-requests',
+  'structured-draft-replay-evidence',
 ] as const;
 
 const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
@@ -254,6 +260,8 @@ export interface CanonicalLiveExecutionChildOutputAuthority {
   authoringRequest:
     CanonicalLiveExecutionChildOutputArtifactAuthority;
   authoringReceipt:
+    CanonicalLiveExecutionChildOutputArtifactAuthority;
+  structuredDraftReplayEvidence:
     CanonicalLiveExecutionChildOutputArtifactAuthority;
   authoringReadiness:
     CanonicalLiveExecutionChildOutputArtifactAuthority;
@@ -517,6 +525,7 @@ export function canonicalLiveExecutionChildOutputAuthorityIssues(
       'outputRoot',
       'authoringRequest',
       'authoringReceipt',
+      'structuredDraftReplayEvidence',
       'authoringReadiness',
       'visualContractCandidate',
       'observation',
@@ -550,6 +559,11 @@ export function canonicalLiveExecutionChildOutputAuthorityIssues(
       field: 'authoringReceipt',
       category: 'authoring-receipts',
       version: VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION,
+    },
+    {
+      field: 'structuredDraftReplayEvidence',
+      category: 'structured-draft-replay-evidence',
+      version: VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION,
     },
     {
       field: 'authoringReadiness',
@@ -2178,6 +2192,14 @@ function buildCanonicalLiveExecutionChildOutputAuthority(args: {
     category: 'authoring-receipts',
     expectedVersion: VISUAL_CONTRACT_AUTHORING_RECEIPT_VERSION,
   });
+  const structuredDraftReplayEvidence =
+    soleCanonicalChildOutputArtifact({
+      repositoryRealPath: args.repositoryRealPath,
+      outputRoot,
+      category: 'structured-draft-replay-evidence',
+      expectedVersion:
+        VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION,
+    });
   const authoringReadiness = soleCanonicalChildOutputArtifact({
     repositoryRealPath: args.repositoryRealPath,
     outputRoot,
@@ -2204,6 +2226,7 @@ function buildCanonicalLiveExecutionChildOutputAuthority(args: {
   });
 
   const receipt = authoringReceipt.value;
+  const replayEvidence = structuredDraftReplayEvidence.value;
   const readiness = authoringReadiness.value;
   const candidate = visualContractCandidate.value;
   const readinessOutcome = recordValue(
@@ -2212,10 +2235,20 @@ function buildCanonicalLiveExecutionChildOutputAuthority(args: {
   const readinessCandidate = recordValue(
     readiness.visualContractCandidate,
   );
+  const receiptReplayLocator = recordValue(
+    receipt.structuredDraftReplayEvidence,
+  );
   if (
     receipt.requestDigest !== authoringRequest.descriptor.digest ||
     receipt.status !== 'completed' ||
     receipt.failure !== null ||
+    !receiptReplayLocator ||
+    receiptReplayLocator.version !==
+      VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION ||
+    receiptReplayLocator.path !==
+      structuredDraftReplayEvidence.descriptor.path ||
+    receiptReplayLocator.digest !==
+      structuredDraftReplayEvidence.descriptor.digest ||
     typeof receipt.candidateDigest !== 'string' ||
     !DIGEST_PATTERN.test(receipt.candidateDigest) ||
     readiness.authoringRequestDigest !==
@@ -2244,6 +2277,8 @@ function buildCanonicalLiveExecutionChildOutputAuthority(args: {
   }
   const typedReceipt =
     receipt as unknown as VisualContractAuthoringReceipt;
+  const typedReplayEvidence =
+    replayEvidence as unknown as VisualContractAuthoringReplayEvidence;
   const typedAuthoringRequest =
     authoringRequest.value as unknown as VisualContractAuthoringRequest;
   const typedReadiness =
@@ -2257,6 +2292,12 @@ function buildCanonicalLiveExecutionChildOutputAuthority(args: {
       request: typedAuthoringRequest,
       receipt: typedReceipt,
       write: false,
+    });
+    assertValidVisualContractAuthoringReplayEvidence({
+      evidence: typedReplayEvidence,
+      sourceSnapshotDigest: typedReceipt.sourceSnapshotDigest,
+      request: typedAuthoringRequest,
+      receipt: typedReceipt,
     });
     persistVisualContractAuthoringReadiness({
       repoRoot: args.repositoryRealPath,
@@ -2292,6 +2333,8 @@ function buildCanonicalLiveExecutionChildOutputAuthority(args: {
     outputRoot,
     authoringRequest: authoringRequest.descriptor,
     authoringReceipt: authoringReceipt.descriptor,
+    structuredDraftReplayEvidence:
+      structuredDraftReplayEvidence.descriptor,
     authoringReadiness: authoringReadiness.descriptor,
     visualContractCandidate:
       visualContractCandidate.descriptor,

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -63,11 +64,13 @@ import {
   canonicalJsonDigest,
   OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
   persistVisualContractAuthoringRequest,
+  persistVisualContractAuthoringReceipt,
   runVisualContractAuthoring,
   visualContractAuthoringCallPromptAuthorityIssues,
   visualContractAuthoringRequestIssues,
   type StorySourceAuthoritySnapshot,
   type VisualContractAuthoringProvider,
+  type VisualContractAuthoringReceipt,
   type VisualContractAuthoringRequest,
 } from '@/lib/visual-package';
 import {
@@ -94,6 +97,9 @@ import {
 import type {
   CanonicalLiveAuthoringArtifactStore,
 } from '@/lib/visual-package/canonicalLiveAuthoringArtifacts';
+import { replayVisualContractAuthoringEvidence } from '@/lib/visual-package/visualContractAuthoringReplayRunner';
+import type { VisualContractAuthoringReplayEvidence } from '@/lib/visual-package/visualContractAuthoringReplayEvidence';
+import { projectClosedSchemaFixture } from '@/lib/visual-package/__tests__/helpers/projectClosedSchemaFixture';
 
 const tempRoots: string[] = [];
 const REQUESTED_AT = '2026-07-27T12:00:00.000Z';
@@ -114,6 +120,25 @@ const LAUNCHER = path.join(
   'scripts',
   'visual-contract-authoring.cjs',
 );
+const TSX = path.join(
+  process.cwd(),
+  'node_modules',
+  'tsx',
+  'dist',
+  'cli.mjs',
+);
+const SERVER_ONLY_SHIM = path.join(
+  process.cwd(),
+  'scripts',
+  'shims',
+  'register-server-only.cjs',
+);
+const OFFLINE_REPLAY_CLI = path.join(
+  process.cwd(),
+  'scripts',
+  'visual-contract-repair-offline-harness.ts',
+);
+const ROOT_TSCONFIG = path.join(process.cwd(), 'tsconfig.json');
 const TOP_LEVEL_REQUEST_SCALAR_KINDS = {
   version: 'string',
   policyVersion: 'string',
@@ -224,6 +249,25 @@ function fullyActionedDraft(
   return draft;
 }
 
+type ProviderWireDraftFixture = Record<string, unknown> & {
+  recurringProps: Array<Record<string, unknown>>;
+};
+
+function fullyActionedProviderWireDraft(
+  snapshot: StorySourceAuthoritySnapshot,
+): ProviderWireDraftFixture {
+  const finalDraft = fullyActionedDraft(snapshot);
+  finalDraft.coverContract.zoneId = finalDraft.pageContracts[0]!.zoneId;
+  finalDraft.coverContract.castIds = [
+    ...(finalDraft.pageContracts[0]!.castIds ?? []),
+  ];
+  return projectClosedSchemaFixture({
+    value: finalDraft,
+    schema: TEMPLATE_DRAFT_JSON_SCHEMA,
+    root: TEMPLATE_DRAFT_JSON_SCHEMA,
+  }) as ProviderWireDraftFixture;
+}
+
 interface LiveFixture {
   repoRoot: string;
   sourceRequestPath: string;
@@ -249,6 +293,29 @@ function writeJson(
     `${JSON.stringify(value, null, 2)}\n`,
     'utf8',
   );
+}
+
+function immutableFileInventory(root: string): Record<string, string> {
+  const inventory: Record<string, string> = {};
+  const visit = (directory: string): void => {
+    for (const entry of fs
+      .readdirSync(directory, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name))) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(absolute);
+      } else if (entry.isFile()) {
+        inventory[
+          path.relative(root, absolute).split(path.sep).join('/')
+        ] = crypto
+          .createHash('sha256')
+          .update(fs.readFileSync(absolute))
+          .digest('hex');
+      }
+    }
+  };
+  visit(root);
+  return inventory;
 }
 
 function createLiveFixture(
@@ -942,7 +1009,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
   it('maps the exact request body, zero-retry transport options, and complete provider evidence', async () => {
     const fixture = createLiveFixture('mapping');
-    const draft = fullyActionedDraft(fixture.snapshot);
+    const draft = fullyActionedProviderWireDraft(fixture.snapshot);
     const adapter = fakeAdapter({
       responses: [streamedTerminalResponseFor(draft)],
     });
@@ -957,7 +1024,7 @@ describe('canonical OpenAI Responses authoring adapter', () => {
 
     expect(result.receipt.status).toBe('completed');
     expect(result.receipt.version).toBe(
-      'visual-contract-authoring-receipt/v54',
+      'visual-contract-authoring-receipt/v55',
     );
     expect(result.receipt.executionAttestation).toEqual({
       evidenceKind: 'canonical_adapter_observed',
@@ -2370,14 +2437,18 @@ describe('canonical live authoring executable boundary', () => {
   it('persists intent before provider reachability and receipt before all other post-call evidence', async () => {
     const fixture = createLiveFixture('write-order');
     const events: string[] = [];
+    let replayEvidence: unknown = null;
     const store: CanonicalLiveAuthoringArtifactStore = {
       prepare() {
         events.push('prepare');
       },
-      persist({ category, digest }) {
+      persist({ category, digest, value }) {
         events.push(`persist:${category}`);
+        if (category === 'structured-draft-replay-evidence') {
+          replayEvidence = value;
+        }
         return {
-          path: `synthetic/${category}/${digest}.json`,
+          path: `${fixture.outputDir}/${category}/${digest}.json`,
           digest,
           created: true,
         };
@@ -2386,7 +2457,7 @@ describe('canonical live authoring executable boundary', () => {
     const adapter = fakeAdapter({
       responses: [
         responseFor(
-          fullyActionedDraft(fixture.snapshot),
+          fullyActionedProviderWireDraft(fixture.snapshot),
         ),
       ],
       readCredential: vi.fn(() => {
@@ -2396,7 +2467,7 @@ describe('canonical live authoring executable boundary', () => {
       transportCreate: vi.fn(async () => {
         events.push('provider');
         return responseFor(
-          fullyActionedDraft(fixture.snapshot),
+          fullyActionedProviderWireDraft(fixture.snapshot),
         );
       }),
     });
@@ -2416,11 +2487,316 @@ describe('canonical live authoring executable boundary', () => {
       'credential',
       'provider',
       'persist:authoring-receipts',
+      'persist:structured-draft-replay-evidence',
       'persist:readiness-evidence',
       'persist:contract-candidates',
     ]);
     expect(
       result.persistence.providerFailureEvidence,
+    ).toBeNull();
+    expect(
+      result.persistence.structuredDraftReplayEvidence,
+    ).toMatchObject({ created: true });
+    expect(replayEvidence).toMatchObject({
+      version: 'visual-contract-authoring-replay-evidence/v2',
+      sourceSnapshotDigest: fixture.snapshot.digest,
+      authoringRequestDigest: fixture.request.digest,
+      authoringStatus: 'completed',
+      captureCoverage: 'complete_structured_responses',
+    });
+    expect(result.receipt.structuredDraftReplayEvidence).toEqual({
+      version: 'visual-contract-authoring-replay-evidence/v2',
+      path:
+        result.persistence.structuredDraftReplayEvidence!.path,
+      digest:
+        result.persistence.structuredDraftReplayEvidence!.digest,
+    });
+    const missingLocator = structuredClone(
+      result.receipt,
+    ) as unknown as Record<string, unknown>;
+    delete missingLocator.structuredDraftReplayEvidence;
+    const {
+      digestAlgorithm: _missingLocatorDigestAlgorithm,
+      digest: _missingLocatorDigest,
+      ...missingLocatorPayload
+    } = missingLocator;
+    missingLocator.digest = canonicalJsonDigest(
+      missingLocatorPayload,
+    );
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: fixture.repoRoot,
+        outputDir: fixture.outputDir,
+        request: fixture.request,
+        receipt: missingLocator as never,
+        write: false,
+      }),
+    ).toThrow(/receipt v55 requires/);
+    expect(JSON.stringify(replayEvidence)).not.toMatch(
+      /apiKey|systemPrompt\"|userPrompt\"|reasoning|credential/i,
+    );
+    const replay = await replayVisualContractAuthoringEvidence({
+      repoRoot: fixture.repoRoot,
+      snapshot: fixture.snapshot,
+      request: fixture.request,
+      receipt: result.receipt,
+      evidence:
+        replayEvidence as VisualContractAuthoringReplayEvidence,
+      evidencePath:
+        result.persistence.structuredDraftReplayEvidence!.path,
+    });
+    expect(replay).toMatchObject({
+      version: 'visual-contract-authoring-replay-result/v1',
+      executionMode: 'offline_captured_structured_responses',
+      providerCalls: 0,
+      exactCapturedCallSequence: true,
+      receiptCandidateDigestCongruent: true,
+      receiptFailureCodeCongruent: true,
+      receiptFinalIssueCountCongruent: true,
+      receiptFinalIssueDigestCongruent: true,
+      receiptTerminalFailureIdentityCongruent: true,
+      receiptOutcomeCongruent: true,
+      harness: {
+        executionMode: 'offline_stub',
+        providerCalls: 0,
+        outcome: 'candidate',
+      },
+    });
+    const mismatchedReceipt = structuredClone(result.receipt);
+    mismatchedReceipt.candidateDigest = 'f'.repeat(64);
+    const {
+      digestAlgorithm: _mismatchedDigestAlgorithm,
+      digest: _mismatchedDigest,
+      ...mismatchedPayload
+    } = mismatchedReceipt;
+    mismatchedReceipt.digest = canonicalJsonDigest(
+      mismatchedPayload,
+    );
+    const mismatchedReplay =
+      await replayVisualContractAuthoringEvidence({
+        repoRoot: fixture.repoRoot,
+        snapshot: fixture.snapshot,
+        request: fixture.request,
+        receipt: mismatchedReceipt,
+        evidence:
+          replayEvidence as VisualContractAuthoringReplayEvidence,
+        evidencePath:
+          result.persistence.structuredDraftReplayEvidence!.path,
+      });
+    expect(mismatchedReplay).toMatchObject({
+      exactCapturedCallSequence: true,
+      receiptCandidateDigestCongruent: false,
+      receiptOutcomeCongruent: false,
+      harness: { outcome: 'candidate' },
+    });
+    const crossBoundReceipt = structuredClone(result.receipt);
+    const crossBoundDigest = 'e'.repeat(64);
+    crossBoundReceipt.structuredDraftReplayEvidence = {
+      version: 'visual-contract-authoring-replay-evidence/v2',
+      path:
+        `outputs/cross-bound/structured-draft-replay-evidence/${crossBoundDigest}.json`,
+      digest: crossBoundDigest,
+    };
+    const {
+      digestAlgorithm: _crossBoundDigestAlgorithm,
+      digest: _crossBoundReceiptDigest,
+      ...crossBoundPayload
+    } = crossBoundReceipt;
+    crossBoundReceipt.digest = canonicalJsonDigest(
+      crossBoundPayload,
+    );
+    await expect(
+      replayVisualContractAuthoringEvidence({
+        repoRoot: fixture.repoRoot,
+        snapshot: fixture.snapshot,
+        request: fixture.request,
+        receipt: crossBoundReceipt,
+        evidence:
+          replayEvidence as VisualContractAuthoringReplayEvidence,
+        evidencePath:
+          result.persistence.structuredDraftReplayEvidence!.path,
+      }),
+    ).rejects.toThrow(/not exactly bound/);
+
+    const nonCanonicalReceipt = structuredClone(result.receipt);
+    nonCanonicalReceipt.structuredDraftReplayEvidence!.path =
+      nonCanonicalReceipt.structuredDraftReplayEvidence!.path.replace(
+        /\//g,
+        '\\',
+      );
+    const {
+      digestAlgorithm: _nonCanonicalDigestAlgorithm,
+      digest: _nonCanonicalReceiptDigest,
+      ...nonCanonicalPayload
+    } = nonCanonicalReceipt;
+    nonCanonicalReceipt.digest = canonicalJsonDigest(
+      nonCanonicalPayload,
+    );
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: fixture.repoRoot,
+        outputDir: fixture.outputDir,
+        request: fixture.request,
+        receipt: nonCanonicalReceipt,
+        write: false,
+      }),
+    ).toThrow(/receipt v55 requires/);
+    const wrongTypeLocatorReceipt = structuredClone(result.receipt);
+    (wrongTypeLocatorReceipt.structuredDraftReplayEvidence as unknown as {
+      path: unknown;
+    }).path = 7;
+    const {
+      digestAlgorithm: _wrongTypeLocatorDigestAlgorithm,
+      digest: _wrongTypeLocatorReceiptDigest,
+      ...wrongTypeLocatorPayload
+    } = wrongTypeLocatorReceipt;
+    wrongTypeLocatorReceipt.digest = canonicalJsonDigest(
+      wrongTypeLocatorPayload,
+    );
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: fixture.repoRoot,
+        outputDir: fixture.outputDir,
+        request: fixture.request,
+        receipt: wrongTypeLocatorReceipt,
+        write: false,
+      }),
+    ).toThrow(/receipt v55 requires/);
+  });
+
+  it('rejects a redigested phantom replay locator on a zero-attempt preflight receipt', async () => {
+    const fixture = createLiveFixture('phantom-replay-preflight');
+    const request = buildVisualContractAuthoringRequest({
+      snapshot: fixture.snapshot,
+      mode: 'preflight',
+      requestId: 'phantom-replay-preflight',
+      requestedAt: REQUESTED_AT,
+    });
+    const run = await runVisualContractAuthoring({
+      request,
+      snapshot: fixture.snapshot,
+    });
+    expect(run.receipt).toMatchObject({
+      status: 'preflight_passed',
+      attempts: [],
+      structuredDraftReplayEvidence: null,
+    });
+
+    const hostile = structuredClone(
+      run.receipt,
+    ) as VisualContractAuthoringReceipt;
+    const digest = 'a'.repeat(64);
+    hostile.structuredDraftReplayEvidence = {
+      version: 'visual-contract-authoring-replay-evidence/v2',
+      path:
+        `outputs/phantom/structured-draft-replay-evidence/${digest}.json`,
+      digest,
+    };
+    const {
+      digestAlgorithm: _digestAlgorithm,
+      digest: _receiptDigest,
+      ...payload
+    } = hostile;
+    hostile.digest = canonicalJsonDigest(payload);
+
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: fixture.repoRoot,
+        outputDir: fixture.outputDir,
+        request,
+        receipt: hostile,
+        write: false,
+      }),
+    ).toThrow(/receipt v55 requires/);
+  });
+
+  it.each(['throw', 'wrong_path'] as const)(
+    'stops after the receipt when replay evidence persistence returns %s',
+    async (failureMode) => {
+      const fixture = createLiveFixture(
+        `replay-persistence-${failureMode}`,
+      );
+      const events: string[] = [];
+      const store: CanonicalLiveAuthoringArtifactStore = {
+        prepare() {
+          events.push('prepare');
+        },
+        persist({ category, digest }) {
+          events.push(`persist:${category}`);
+          if (category === 'structured-draft-replay-evidence') {
+            if (failureMode === 'throw') {
+              throw new Error('replay evidence persistence failed');
+            }
+            return {
+              path:
+                `${fixture.outputDir}/wrong-category/${digest}.json`,
+              digest,
+              created: true,
+            };
+          }
+          return {
+            path: `${fixture.outputDir}/${category}/${digest}.json`,
+            digest,
+            created: true,
+          };
+        },
+      };
+      const adapter = fakeAdapter({
+        responses: [
+          responseFor(
+            fullyActionedProviderWireDraft(fixture.snapshot),
+          ),
+        ],
+      });
+
+      await expect(
+        runCanonicalLiveVisualContractAuthoring(
+          fixtureInput(fixture),
+          {
+            provider: adapter.provider,
+            artifactStoreFactory: () => store,
+          },
+        ),
+      ).rejects.toThrow(
+        failureMode === 'throw'
+          ? /replay evidence persistence failed/
+          : /persisted outside its receipt-bound path/,
+      );
+      expect(events).toEqual([
+        'prepare',
+        'persist:source-snapshots',
+        'persist:authoring-requests',
+        'persist:authoring-receipts',
+        'persist:structured-draft-replay-evidence',
+      ]);
+      expect(events).not.toContain('persist:readiness-evidence');
+      expect(events).not.toContain('persist:contract-candidates');
+    },
+  );
+
+  it('fails closed before Candidate when a completed response cannot be captured against its declared schema', async () => {
+    const fixture = createLiveFixture(
+      'uncapturable-structured-response',
+    );
+    const adapter = fakeAdapter({
+      responses: [
+        responseFor(fullyActionedDraft(fixture.snapshot)),
+      ],
+    });
+
+    const result =
+      await runCanonicalLiveVisualContractAuthoring(
+        fixtureInput(fixture),
+        { provider: adapter.provider },
+      );
+
+    expect(result.status).toBe('failed');
+    expect(result.receipt.failure?.code).toBe(
+      'provider_output_decode_failed',
+    );
+    expect(result.persistence.candidate).toBeNull();
+    expect(
+      result.persistence.structuredDraftReplayEvidence,
     ).toBeNull();
   });
 
@@ -2469,6 +2845,57 @@ describe('canonical live authoring executable boundary', () => {
     expect(
       result.persistence.providerFailureEvidence,
     ).toMatchObject({ created: true });
+    expect(result.persistence.candidate).toBeNull();
+  });
+
+  it('rebinds provider failure evidence when an earlier captured response adds the final replay locator', async () => {
+    const fixture = createLiveFixture(
+      'captured-response-then-provider-failure',
+    );
+    const invalid = fullyActionedProviderWireDraft(
+      fixture.snapshot,
+    );
+    invalid.recurringProps[0]!.material = '';
+    const adapter = fakeAdapter({
+      responses: [
+        responseFor(invalid),
+        new Error(RAW_PROVIDER_ERROR),
+      ],
+    });
+    const result = await runCanonicalLiveVisualContractAuthoring(
+      fixtureInput(fixture),
+      { provider: adapter.provider },
+    );
+
+    expect(result.status).toBe('failed');
+    expect(result.receipt.failure?.code).toBe(
+      'provider_call_failed',
+    );
+    expect(result.receipt.structuredDraftReplayEvidence).toEqual({
+      version: 'visual-contract-authoring-replay-evidence/v2',
+      path:
+        result.persistence.structuredDraftReplayEvidence!.path,
+      digest:
+        result.persistence.structuredDraftReplayEvidence!.digest,
+    });
+    const providerFailureEvidence = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          fixture.repoRoot,
+          result.persistence.providerFailureEvidence!.path,
+        ),
+        'utf8',
+      ),
+    ) as Record<string, unknown>;
+    expect(providerFailureEvidence.authoringReceiptDigest).toBe(
+      result.receipt.digest,
+    );
+    expect(providerFailureEvidence.digest).toBe(
+      result.persistence.providerFailureEvidence!.digest,
+    );
+    expect(JSON.stringify(providerFailureEvidence)).not.toContain(
+      RAW_PROVIDER_ERROR,
+    );
     expect(result.persistence.candidate).toBeNull();
   });
 
@@ -2786,7 +3213,7 @@ describe('canonical live authoring executable boundary', () => {
 
     const adapter = fakeAdapter({
       responses: [
-        responseFor(fullyActionedDraft(fixture.snapshot)),
+        responseFor(fullyActionedProviderWireDraft(fixture.snapshot)),
       ],
     });
     const result =
@@ -2971,7 +3398,7 @@ describe('canonical live authoring executable boundary', () => {
     const evidence = readRejectedEvidence(fixture, result);
     expect(result.status).toBe('failed');
     expect(result.receipt).toMatchObject({
-      version: 'visual-contract-authoring-receipt/v54',
+      version: 'visual-contract-authoring-receipt/v55',
       status: 'failed',
       callCount: 0,
       failure: { code: 'request_invalid' },
@@ -3028,7 +3455,7 @@ describe('canonical live authoring executable boundary', () => {
       const evidence = readRejectedEvidence(fixture, result);
       expect(result.status).toBe('failed');
       expect(result.receipt).toMatchObject({
-        version: 'visual-contract-authoring-receipt/v54',
+        version: 'visual-contract-authoring-receipt/v55',
         status: 'failed',
         callCount: 0,
         failure: { code: 'request_invalid' },
@@ -3283,7 +3710,7 @@ describe('canonical live authoring executable boundary', () => {
       const fixture = createLiveFixture(
         `repairs-${repairCount}`,
       );
-      const valid = fullyActionedDraft(fixture.snapshot);
+      const valid = fullyActionedProviderWireDraft(fixture.snapshot);
       const invalid = structuredClone(valid);
       invalid.recurringProps[0].material = '';
       const outputs = [
@@ -3333,7 +3760,7 @@ describe('canonical live authoring executable boundary', () => {
     const fixture = createLiveFixture(
       'partitioned-repair-cost',
     );
-    const valid = fullyActionedDraft(fixture.snapshot);
+    const valid = fullyActionedProviderWireDraft(fixture.snapshot);
     const invalid = structuredClone(valid);
     invalid.recurringProps[0].material = '';
     const adapter = fakeAdapter({
@@ -3408,7 +3835,7 @@ describe('canonical live authoring executable boundary', () => {
 
   it('fails after exactly six semantic repairs and persists no candidate', async () => {
     const fixture = createLiveFixture('repair-exhaustion');
-    const invalid = fullyActionedDraft(fixture.snapshot);
+    const invalid = fullyActionedProviderWireDraft(fixture.snapshot);
     invalid.recurringProps[0].material = '';
     const adapter = fakeAdapter({
       responses: Array.from({ length: 7 }, (_value, index) => {
@@ -3431,6 +3858,108 @@ describe('canonical live authoring executable boundary', () => {
     expect(result.receipt.repairCount).toBe(6);
     expect(result.persistence.candidate).toBeNull();
     expect(
+      result.persistence.structuredDraftReplayEvidence,
+    ).not.toBeNull();
+    const replayEvidence = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          fixture.repoRoot,
+          result.persistence.structuredDraftReplayEvidence!.path,
+        ),
+        'utf8',
+      ),
+    ) as VisualContractAuthoringReplayEvidence;
+    expect(replayEvidence.attempts).toHaveLength(7);
+    const replay = await replayVisualContractAuthoringEvidence({
+      repoRoot: fixture.repoRoot,
+      snapshot: fixture.snapshot,
+      request: fixture.request,
+      receipt: result.receipt,
+      evidence: replayEvidence,
+      evidencePath:
+        result.persistence.structuredDraftReplayEvidence!.path,
+    });
+    expect(replay).toMatchObject({
+      providerCalls: 0,
+      exactCapturedCallSequence: true,
+      receiptCandidateDigestCongruent: true,
+      receiptFailureCodeCongruent: true,
+      receiptFinalIssueCountCongruent: true,
+      receiptFinalIssueDigestCongruent: true,
+      receiptTerminalFailureIdentityCongruent: true,
+      receiptOutcomeCongruent: true,
+      harness: {
+        providerCalls: 0,
+        outcome: 'repair_exhausted',
+      },
+    });
+    expect(result.persistence.sourceSnapshot).not.toBeNull();
+    const beforeCli = immutableFileInventory(fixture.repoRoot);
+    const cli = spawnSync(
+      process.execPath,
+      [
+        TSX,
+        '--tsconfig',
+        ROOT_TSCONFIG,
+        '--require',
+        SERVER_ONLY_SHIM,
+        OFFLINE_REPLAY_CLI,
+        '--capture',
+        result.persistence.structuredDraftReplayEvidence!.path,
+        '--snapshot',
+        result.persistence.sourceSnapshot!.path,
+        '--request',
+        result.persistence.authoringRequest.path,
+        '--receipt',
+        result.persistence.authoringReceipt.path,
+      ],
+      {
+        cwd: fixture.repoRoot,
+        env: { ...process.env, NODE_ENV: 'test' },
+        encoding: 'utf8',
+        shell: false,
+        windowsHide: true,
+      },
+    );
+    expect(cli.status, cli.stderr).toBe(0);
+    expect(cli.stderr).toBe('');
+    expect(JSON.parse(cli.stdout)).toMatchObject({
+      version: 'visual-contract-authoring-replay-result/v1',
+      executionMode: 'offline_captured_structured_responses',
+      providerCalls: 0,
+      exactCapturedCallSequence: true,
+      receiptOutcomeCongruent: true,
+      harness: {
+        version: 'visual-contract-offline-repair-harness-result/v2',
+        executionMode: 'offline_stub',
+        providerCalls: 0,
+        outcome: 'repair_exhausted',
+      },
+    });
+    expect(immutableFileInventory(fixture.repoRoot)).toEqual(
+      beforeCli,
+    );
+    const forgedTerminalReceipt = structuredClone(result.receipt);
+    forgedTerminalReceipt.failure!.diagnosticCount =
+      forgedTerminalReceipt.failure!.diagnosticCount === 1 ? 2 : 1;
+    const {
+      digestAlgorithm: _forgedTerminalDigestAlgorithm,
+      digest: _forgedTerminalReceiptDigest,
+      ...forgedTerminalPayload
+    } = forgedTerminalReceipt;
+    forgedTerminalReceipt.digest = canonicalJsonDigest(
+      forgedTerminalPayload,
+    );
+    expect(() =>
+      persistVisualContractAuthoringReceipt({
+        repoRoot: fixture.repoRoot,
+        outputDir: fixture.outputDir,
+        request: fixture.request,
+        receipt: forgedTerminalReceipt,
+        write: false,
+      }),
+    ).toThrow(/receipt v55 requires/);
+    expect(
       result.receipt.attempts.map(
         (attempt) =>
           attempt.reservedExposureBeforeCallUsd,
@@ -3448,7 +3977,7 @@ describe('canonical live authoring executable boundary', () => {
 
   it('writes sanitized content-addressed evidence, is byte-idempotent, and fails closed on each evidence collision', async () => {
     const fixture = createLiveFixture('immutable');
-    const draft = fullyActionedDraft(fixture.snapshot);
+    const draft = fullyActionedProviderWireDraft(fixture.snapshot);
     const adapter = fakeAdapter({
       responses: [
         responseFor(draft),

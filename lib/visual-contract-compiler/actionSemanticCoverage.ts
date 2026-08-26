@@ -180,6 +180,10 @@ function isProseOnlyPagePointer(prefix: string, pointer: string): boolean {
   );
 }
 
+function isProvenanceOnlyPagePointer(pointer: string): boolean {
+  return pointer.includes('/origin/');
+}
+
 function lexicalCompare(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
@@ -302,6 +306,7 @@ export function representedElsewherePointerIsPermittedForPage(args: {
     prefix !== null &&
     args.pointer.startsWith(prefix) &&
     !args.pointer.startsWith(`${prefix}actionRequirements/`) &&
+    !isProvenanceOnlyPagePointer(args.pointer) &&
     !isProseOnlyPagePointer(prefix, args.pointer)
   );
 }

@@ -25,6 +25,8 @@ import {
   VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
   assertValidCanonicalLiveExecutionReadiness,
   buildCanonicalLiveExecutionRequest,
+  bindVisualContractAuthoringReplayEvidenceToReceipt,
+  buildVisualContractAuthoringReplayEvidence,
   buildVisualContractAuthoringStandardAttemptOutputBudget,
   buildVisualContractAuthoringReadinessEvidence,
   canonicalLiveExecutionExpectedAbsentPaths,
@@ -63,6 +65,8 @@ import {
   type BookVisualContract,
   type BookVisualContractTemplate,
 } from '@/lib/visual-contract-compiler';
+import { TEMPLATE_DRAFT_JSON_SCHEMA } from '@/lib/visual-contract-compiler/templateDraftSchema';
+import { projectClosedSchemaFixture } from '@/lib/visual-package/__tests__/helpers/projectClosedSchemaFixture';
 
 const REPO = process.cwd();
 const BANK = path.join(REPO, 'story-bank', 'v3-approved');
@@ -262,6 +266,21 @@ function fullyActionedDraft(
   return draft;
 }
 
+function fullyActionedProviderWireDraft(
+  snapshot: StorySourceAuthoritySnapshot,
+): Record<string, unknown> {
+  const finalDraft = fullyActionedDraft(snapshot);
+  finalDraft.coverContract.zoneId = finalDraft.pageContracts[0]!.zoneId;
+  finalDraft.coverContract.castIds = [
+    ...(finalDraft.pageContracts[0]!.castIds ?? []),
+  ];
+  return projectClosedSchemaFixture({
+    value: finalDraft,
+    schema: TEMPLATE_DRAFT_JSON_SCHEMA,
+    root: TEMPLATE_DRAFT_JSON_SCHEMA,
+  }) as Record<string, unknown>;
+}
+
 function streamedResponse(output: unknown): Record<string, unknown> {
   return {
     id: 'resp_supervisor_output_fixture_1',
@@ -345,7 +364,9 @@ async function writeSuccessfulChildOutputs(
   const run = await runVisualContractAuthoring({
     request,
     snapshot,
-    provider: canonicalProvider(fullyActionedDraft(snapshot)),
+    provider: canonicalProvider(
+      fullyActionedProviderWireDraft(snapshot),
+    ),
     requiredMode: 'live',
     requiredProviderEvidenceVersion:
       OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
@@ -353,32 +374,54 @@ async function writeSuccessfulChildOutputs(
   if (run.receipt.status !== 'completed' || !run.compileResult) {
     throw new Error('fixture authoring did not complete');
   }
+  const replayEvidence =
+    buildVisualContractAuthoringReplayEvidence({
+      sourceSnapshotDigest: snapshot.digest,
+      request,
+      receipt: run.receipt,
+      captures: run.structuredResponseCaptures,
+    });
+  if (!replayEvidence) {
+    throw new Error('fixture replay evidence was not captured');
+  }
+  const replayEvidencePath =
+    `${outputRoot}/structured-draft-replay-evidence/${replayEvidence.digest}.json`;
+  const receipt =
+    bindVisualContractAuthoringReplayEvidenceToReceipt({
+      receipt: run.receipt,
+      path: replayEvidencePath,
+      digest: replayEvidence.digest,
+    });
   const readiness =
     buildVisualContractAuthoringReadinessEvidence({
       snapshot,
       request,
-      receipt: run.receipt,
+      receipt,
     });
   persistVisualContractAuthoringReceipt({
     repoRoot: fixture.repoRoot,
     outputDir: outputRoot,
     request,
-    receipt: run.receipt,
+    receipt,
     write: true,
   });
+  writeCanonical(
+    path.join(fixture.repoRoot, replayEvidencePath),
+    replayEvidence,
+  );
   persistVisualContractAuthoringReadiness({
     repoRoot: fixture.repoRoot,
     outputDir: outputRoot,
     request,
     evidence: readiness,
-    receipt: run.receipt,
+    receipt,
     write: true,
   });
   persistVisualContractCandidate({
     repoRoot: fixture.repoRoot,
     outputDir: outputRoot,
     request,
-    receipt: run.receipt,
+    receipt,
     compileResult: run.compileResult,
     write: true,
   });
@@ -770,7 +813,7 @@ describe('canonical live execution request and readiness', () => {
       'canonical-live-request-verification/v50',
     );
     expect(CANONICAL_LIVE_EXECUTION_RESULT_VERSION).toBe(
-      'canonical-live-execution-result/v38',
+      'canonical-live-execution-result/v40',
     );
     expect(readiness.version).toBe(
       CANONICAL_LIVE_EXECUTION_READINESS_VERSION,
@@ -808,7 +851,7 @@ describe('canonical live execution request and readiness', () => {
     });
     expect(readiness.expectedAbsence).toEqual({
       status: 'verified',
-      checkedPathCount: 5,
+      checkedPathCount: 6,
     });
     expect(readiness.credentialIsolation).toEqual({
       policy: 'minimal-platform-allowlist/v1',
@@ -927,7 +970,7 @@ describe('canonical live execution request and readiness', () => {
     const legacyRequest = structuredClone(
       fixture.request,
     ) as unknown as Record<string, unknown>;
-    legacyRequest.version = 'canonical-live-execution-request/v45';
+    legacyRequest.version = 'canonical-live-execution-request/v46';
     const {
       digestAlgorithm: _requestAlgorithm,
       digest: _requestDigest,
@@ -947,7 +990,7 @@ describe('canonical live execution request and readiness', () => {
       readiness,
     ) as unknown as Record<string, unknown>;
     legacyReadiness.version =
-      'canonical-live-execution-readiness/v45';
+      'canonical-live-execution-readiness/v46';
     const {
       digestAlgorithm: _readinessAlgorithm,
       digest: _readinessDigest,
@@ -1344,6 +1387,22 @@ describe('B0 composition and explicit filesystem fences', () => {
     fs.mkdirSync(path.dirname(present), { recursive: true });
     fs.writeFileSync(present, 'must remain absent');
     expect(verifyFixture(fixture)).toMatchObject({
+      status: 'rejected',
+      reasonCodes: ['expected_absent_path_present'],
+      expectedAbsence: { status: 'rejected' },
+    });
+
+    const staleReplay = createExecutionFixture();
+    const replayPath = staleReplay.request.expectedAbsentPaths.find(
+      (candidate) =>
+        candidate.endsWith('/structured-draft-replay-evidence'),
+    );
+    expect(replayPath).toBeDefined();
+    fs.mkdirSync(
+      path.join(staleReplay.repoRoot, replayPath!),
+      { recursive: true },
+    );
+    expect(verifyFixture(staleReplay)).toMatchObject({
       status: 'rejected',
       reasonCodes: ['expected_absent_path_present'],
       expectedAbsence: { status: 'rejected' },
@@ -1876,7 +1935,7 @@ describe('future live test boundary', () => {
     });
     expect(
       CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION,
-    ).toBe('canonical-live-execution-child-output-authority/v1');
+    ).toBe('canonical-live-execution-child-output-authority/v2');
     expect(result.outputAuthority).toMatchObject({
       version:
         CANONICAL_LIVE_EXECUTION_CHILD_OUTPUT_AUTHORITY_VERSION,
@@ -1889,6 +1948,13 @@ describe('future live test boundary', () => {
         digest:
           fixture.materialized.manifest.artifacts
             .liveAuthoringRequest.digest,
+      },
+      structuredDraftReplayEvidence: {
+        version: 'visual-contract-authoring-replay-evidence/v2',
+        path: expect.stringContaining(
+          '/structured-draft-replay-evidence/',
+        ),
+        digest: expect.stringMatching(/^[a-f0-9]{64}$/),
       },
       observation: {
         phase: 'synchronous_after_child_close',
@@ -1945,6 +2011,10 @@ describe('future live test boundary', () => {
 
   it.each([
     'tampered_artifact',
+    'missing_replay_artifact',
+    'tampered_replay_artifact',
+    'cross_unbound_replay_artifact',
+    'multiple_replay_artifacts',
     'redigested_prompt_artifact',
     'multiple_artifacts',
     'multiple_request_artifacts',
@@ -1989,7 +2059,26 @@ describe('future live test boundary', () => {
                   );
                   fs.appendFileSync(receiptPath, ' ', 'utf8');
                 } else if (
-                  scenario === 'redigested_prompt_artifact'
+                  scenario === 'missing_replay_artifact' ||
+                  scenario === 'tampered_replay_artifact'
+                ) {
+                  const directory = path.join(
+                    fixture.repoRoot,
+                    outputRoot,
+                    'structured-draft-replay-evidence',
+                  );
+                  const replayPath = path.join(
+                    directory,
+                    fs.readdirSync(directory)[0]!,
+                  );
+                  if (scenario === 'missing_replay_artifact') {
+                    fs.rmSync(replayPath);
+                  } else {
+                    fs.appendFileSync(replayPath, ' ', 'utf8');
+                  }
+                } else if (
+                  scenario === 'redigested_prompt_artifact' ||
+                  scenario === 'cross_unbound_replay_artifact'
                 ) {
                   const loadSole = (category: string) => {
                     const directory = path.join(
@@ -2042,7 +2131,17 @@ describe('future live test boundary', () => {
                   );
                   const attempts = receiptArtifact.value
                     .attempts as Array<Record<string, unknown>>;
-                  attempts[0]!.systemPromptDigest = '4'.repeat(64);
+                  if (scenario === 'redigested_prompt_artifact') {
+                    attempts[0]!.systemPromptDigest = '4'.repeat(64);
+                  } else {
+                    receiptArtifact.value.structuredDraftReplayEvidence = {
+                      version:
+                        'visual-contract-authoring-replay-evidence/v2',
+                      path:
+                        `${outputRoot}/structured-draft-replay-evidence/${'4'.repeat(64)}.json`,
+                      digest: '4'.repeat(64),
+                    };
+                  }
                   const receiptDigest = replace(receiptArtifact);
 
                   const readinessArtifact = loadSole(
@@ -2060,11 +2159,14 @@ describe('future live test boundary', () => {
                   replace(candidateArtifact);
                 } else if (
                   scenario === 'multiple_artifacts' ||
-                  scenario === 'multiple_request_artifacts'
+                  scenario === 'multiple_request_artifacts' ||
+                  scenario === 'multiple_replay_artifacts'
                 ) {
                   const category =
                     scenario === 'multiple_request_artifacts'
                       ? 'authoring-requests'
+                      : scenario === 'multiple_replay_artifacts'
+                        ? 'structured-draft-replay-evidence'
                       : 'contract-candidates';
                   const directory = path.join(
                     fixture.repoRoot,

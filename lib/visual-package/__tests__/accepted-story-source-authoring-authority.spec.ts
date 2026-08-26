@@ -16,6 +16,9 @@ import {
   buildTemplateCompileUserPrompt,
 } from '@/lib/visual-contract-compiler/compileBookVisualContractTemplate';
 import { extractDeterministicFacts } from '@/lib/visual-contract-compiler/extractDeterministicFacts';
+import { bindInitialFullDraftSamePageDispositions } from '@/lib/visual-contract-compiler/initialFullDraftDispositionBinding';
+import { projectDraftPageContinuitySelections } from '@/lib/visual-contract-compiler/draftPageContinuityProjection';
+import { permittedRepresentedElsewherePointerValuesForPage } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
 
 const STORY_KEY = 'chameleon_koko_bedtime';
 const REVISION =
@@ -117,6 +120,131 @@ describe('accepted Story Source authoring authority', () => {
     expect(prompt).toContain('exactly pages [8]');
     expect(prompt).toContain('exactly pages [2, 3, 5, 6]');
     expect(prompt).toContain('tiny fabric shoulder satchel in warm mustard');
+  });
+
+  it('binds each accepted-source continuity intent in a sparse selector-level projection to a surviving final pointer', () => {
+    const snapshot = buildStorySourceAuthoritySnapshot({
+      repoRoot: process.cwd(),
+      storyKey: STORY_KEY,
+      storyPath: STORY_PATH,
+    });
+    expect(snapshot.digest).toBe(
+      '35fe04ab5601031735bd7bdd283bab7a8d897bc399427d592e39fe56aa1f6a6c',
+    );
+    const catalog = snapshot.content.sourceEvidenceCatalog;
+    const companionStates = new Map([
+      [2, 'alert_olive_shift'],
+      [3, 'mismatched_amber_stripes'],
+      [5, 'attuning_blue_green'],
+      [6, 'blended_moonlit_teal'],
+    ]);
+    const continuityPages = new Set([2, 3, 5, 6, 8]);
+    const pages = Array.from({ length: 8 }, (_value, index) => {
+      const pageNumber = index + 1;
+      const evidence = catalog.entries.find(
+        (entry) => entry.pageNumber === pageNumber,
+      )!;
+      const representedValue =
+        companionStates.get(pageNumber) ??
+        'soft blue-green cotton pajamas for bedtime';
+      return {
+        pageNumber,
+        ...(continuityPages.has(pageNumber)
+          ? {
+              ...(pageNumber === 8
+                ? {
+                    childWardrobeOverrideDescription:
+                      representedValue,
+                    childWardrobeOverrideSourceEvidenceId:
+                      evidence.sourceEvidenceId,
+                  }
+                : {
+                    companionStateId: representedValue,
+                    companionStateSourceEvidenceId:
+                      evidence.sourceEvidenceId,
+                  }),
+              actionSemanticCoverage: [
+                {
+                  beatId: `beat:p${pageNumber}:continuity_state`,
+                  sourceEvidenceId: evidence.sourceEvidenceId,
+                  disposition: {
+                    kind: 'represented_elsewhere',
+                    representedValue,
+                  },
+                },
+              ],
+            }
+          : { actionSemanticCoverage: [] }),
+      };
+    });
+
+    const bound = bindInitialFullDraftSamePageDispositions(
+      { pageContracts: pages },
+      {
+        pageContracts: pages.map((page) =>
+          projectDraftPageContinuitySelections({
+            pageDraft: {
+              ...structuredClone(page),
+              actionSemanticCoverage: [],
+            },
+            pageNumber: page.pageNumber,
+            sourceEvidenceCatalog: catalog,
+          }),
+        ),
+      } as never,
+    );
+
+    expect(
+      snapshot.content.acceptedRevisionAuthority?.continuityIntent,
+    ).toMatchObject({
+      childWardrobeTransitionPages: [8],
+      companionStateTransitionPages: [2, 3, 5, 6],
+    });
+    for (const pageNumber of continuityPages) {
+      const index = pageNumber - 1;
+      const page = pages[index]!;
+      const boundPage = (bound.draft.pageContracts as Array<
+        Record<string, unknown>
+      >)[index]!;
+      const disposition = (
+        boundPage.actionSemanticCoverage as Array<
+          Record<string, unknown>
+        >
+      )[0]!.disposition as Record<string, unknown>;
+      const expectedPointer =
+        pageNumber === 8
+          ? `/pageContracts/${index}/childWardrobeOverride/description`
+          : `/pageContracts/${index}/companionStateOverride/stateId`;
+      expect(disposition.contractPointer).toBe(expectedPointer);
+
+      const projectedPage = projectDraftPageContinuitySelections({
+        pageDraft: boundPage,
+        pageNumber,
+        sourceEvidenceCatalog: catalog,
+      });
+      expect(
+        permittedRepresentedElsewherePointerValuesForPage({
+          template: {
+            pageContracts: pages.map((candidate, candidateIndex) =>
+              candidateIndex === index
+                ? projectedPage
+                : { pageNumber: candidate.pageNumber },
+            ),
+          } as never,
+          pageNumber,
+        }),
+      ).toContainEqual({
+        contractPointer: expectedPointer,
+        contractValue:
+          companionStates.get(pageNumber) ??
+          'soft blue-green cotton pajamas for bedtime',
+      });
+    }
+    expect(bound.stats).toMatchObject({
+      representedBound: 5,
+      representedUnbound: 0,
+      representedAmbiguous: 0,
+    });
   });
 
   it('fails closed on stale accepted bytes and on a non-exact inventory', () => {

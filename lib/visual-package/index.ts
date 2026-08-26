@@ -26,6 +26,8 @@ export * from './blueprintAuthoringPolicy';
 export * from './visualPackageV4Lifecycle';
 export * from './storySourceAuthority';
 export * from './visualContractAuthoringLifecycle';
+export * from './visualContractAuthoringReplayEvidence';
+export * from './visualContractAuthoringReplayRunner';
 export * from './authoringTerminalDiagnostics';
 export * from './visualContractAuthoringTerminalDiagnostics';
 export * from './providerFailureDiagnostics';

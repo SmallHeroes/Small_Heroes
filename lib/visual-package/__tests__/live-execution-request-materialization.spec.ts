@@ -360,12 +360,12 @@ describe('canonical live execution request materialization', () => {
     expect(
       CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_INPUT_VERSION,
     ).toBe(
-      'canonical-live-execution-request-materialization-input/v36',
+      'canonical-live-execution-request-materialization-input/v37',
     );
     expect(
       CANONICAL_LIVE_EXECUTION_REQUEST_MATERIALIZATION_RESULT_VERSION,
     ).toBe(
-      'canonical-live-execution-request-materialization-result/v41',
+      'canonical-live-execution-request-materialization-result/v42',
     );
     expect(result).toMatchObject({
       version:
@@ -842,11 +842,20 @@ describe('public materializer command and external boundary', () => {
 describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
   it('rejects noncanonical bytes, unknown fields, traversal, globs, duplicates, and relative credential paths', () => {
     const fixture = createFixture();
+    expect(
+      canonicalLiveExecutionRequestMaterializationInputIssues({
+        ...fixture.input,
+        version:
+          'canonical-live-execution-request-materialization-input/v36',
+      }),
+    ).toContain(
+      'execution_request_materialization_input_version_invalid',
+    );
     const variants: unknown[] = [
       {
         ...fixture.input,
         version:
-          'canonical-live-execution-request-materialization-input/v19',
+          'canonical-live-execution-request-materialization-input/v36',
       },
       { ...fixture.input, unknown: true },
       { ...fixture.input, manifestPath: '../manifest.json' },
@@ -1324,7 +1333,7 @@ describe('fail-closed input, filesystem, Git, and B0 boundaries', () => {
       (args) =>
         ({
           ...verifyCanonicalLiveExecution(args),
-          version: 'canonical-live-execution-readiness/v45',
+          version: 'canonical-live-execution-readiness/v46',
         }) as unknown as ReturnType<
           typeof verifyCanonicalLiveExecution
         >;

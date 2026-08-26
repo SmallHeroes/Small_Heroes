@@ -46,17 +46,13 @@ function exactKeys(
   );
 }
 
-function emptyStats(): InitialFullDraftDispositionBindingStats {
-  return {
-    representedBound: 0,
-    representedUnbound: 0,
-    representedAmbiguous: 0,
-    presentationBound: 0,
-    presentationInvalid: 0,
-  };
+function compilerOwnedTopologyPointer(pointer: string): boolean {
+  return /\/(?:locationId|zoneId|transition\/(?:fromZoneId|toZoneId))$/.test(
+    pointer,
+  );
 }
 
-function representedElsewhereCandidateTemplate(
+function providerWireCandidateTemplate(
   pages: readonly unknown[],
 ): ActionSemanticCoverageTemplate {
   return {
@@ -65,12 +61,21 @@ function representedElsewhereCandidateTemplate(
       return page
         ? {
             ...structuredClone(page),
-            // The wire selector itself must never satisfy its own lookup.
             actionSemanticCoverage: [],
           }
         : { pageNumber: Number.NaN, actionSemanticCoverage: [] };
     }),
   } as unknown as ActionSemanticCoverageTemplate;
+}
+
+function emptyStats(): InitialFullDraftDispositionBindingStats {
+  return {
+    representedBound: 0,
+    representedUnbound: 0,
+    representedAmbiguous: 0,
+    presentationBound: 0,
+    presentationInvalid: 0,
+  };
 }
 
 function canonicalUnboundRepresentedElsewhere(): Record<string, unknown> {
@@ -105,12 +110,13 @@ function canonicalUnboundPresentation(
  */
 export function bindInitialFullDraftSamePageDispositions(
   input: Record<string, unknown>,
+  candidateTemplate: ActionSemanticCoverageTemplate,
 ): InitialFullDraftDispositionBindingResult {
   const draft = structuredClone(input);
   const pages = Array.isArray(draft.pageContracts)
     ? draft.pageContracts
     : [];
-  const candidateTemplate = representedElsewhereCandidateTemplate(pages);
+  const providerWireTemplate = providerWireCandidateTemplate(pages);
   const stats = emptyStats();
 
   for (const [pageIndex, pageValue] of pages.entries()) {
@@ -136,16 +142,49 @@ export function bindInitialFullDraftSamePageDispositions(
           typeof disposition.representedValue === 'string'
             ? disposition.representedValue
             : null;
-        const matches =
+        const finalCandidates =
           representedValue !== null && sameNumberPageCount === 1
             ? permittedRepresentedElsewherePointerValuesForPage({
                 template: candidateTemplate,
                 pageNumber: pageNumber as number,
-              }).filter(
-                (candidate) =>
-                  candidate.contractValue === representedValue,
-              )
+              })
             : [];
+        const directFinalMatches = finalCandidates.filter(
+          (candidate) =>
+            candidate.contractValue === representedValue,
+        );
+        const rawTopologyPointers =
+          representedValue === null
+            ? []
+            : permittedRepresentedElsewherePointerValuesForPage({
+                template: providerWireTemplate,
+                pageNumber: pageNumber as number,
+              })
+                .filter(
+                  (candidate) =>
+                    candidate.contractValue === representedValue &&
+                    compilerOwnedTopologyPointer(
+                      candidate.contractPointer,
+                    ),
+                )
+                .map((candidate) => candidate.contractPointer);
+        const mappedTopologyMatches = finalCandidates.filter(
+          (candidate) =>
+            rawTopologyPointers.includes(candidate.contractPointer),
+        );
+        const matches = [
+          ...new Map(
+            [...directFinalMatches, ...mappedTopologyMatches].map(
+              (candidate) => [
+                JSON.stringify([
+                  candidate.contractPointer,
+                  candidate.contractValue,
+                ]),
+                candidate,
+              ],
+            ),
+          ).values(),
+        ];
         if (matches.length === 1) {
           coverage.disposition = {
             kind: 'represented_elsewhere',

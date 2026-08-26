@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import {
   canonicalJsonDigest,
+  repoRelativePath,
   resolveRepoPath,
 } from './integrity';
 import {
@@ -25,6 +26,7 @@ import {
 import {
   OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
   VISUAL_CONTRACT_AUTHORING_REQUEST_VERSION,
+  bindVisualContractAuthoringReplayEvidenceToReceipt,
   buildVisualContractCandidateArtifact,
   buildVisualContractAuthoringReadinessEvidence,
   buildVisualContractAuthoringRequest,
@@ -34,6 +36,11 @@ import {
   type VisualContractAuthoringProvider,
   type VisualContractAuthoringRequest,
 } from './visualContractAuthoringLifecycle';
+import {
+  buildVisualContractAuthoringReplayEvidence,
+  visualContractAuthoringAttemptHasCapturedResponse,
+} from './visualContractAuthoringReplayEvidence';
+import { bindProviderCallFailureEvidenceToReceipt } from './providerFailureDiagnostics';
 
 export const CANONICAL_LIVE_AUTHORING_INTERRUPTION_LIMITATION =
   'The exact source snapshot and approved live request are durable before provider reachability, but forced process termination or disk failure during or immediately after a provider request can still occur before the in-memory sanitized receipt is durable; no automatic rerun or resume authority exists, and any later action must reconcile provider-side evidence first.';
@@ -74,6 +81,9 @@ export interface CanonicalLiveVisualContractAuthoringResult {
       | 'approved_live_request'
       | 'rejected_request_evidence';
     authoringReceipt: VisualContractAuthoringArtifactWrite;
+    structuredDraftReplayEvidence:
+      | VisualContractAuthoringArtifactWrite
+      | null;
     providerFailureEvidence:
       | VisualContractAuthoringArtifactWrite
       | null;
@@ -1669,28 +1679,100 @@ export async function runCanonicalLiveVisualContractAuthoring(
     requiredProviderEvidenceVersion:
       OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
   });
-  // Receipt is always the first post-call write. A provider-call failure then
-  // writes its additive sanitized sidecar before readiness. If either write
-  // cannot become durable, no readiness or candidate artifact is attempted.
+  const structuredDraftReplayEvidence =
+    buildVisualContractAuthoringReplayEvidence({
+      sourceSnapshotDigest: rebuiltSnapshot.digest,
+      request: requestForLifecycle,
+      receipt: authored.receipt,
+      captures: authored.structuredResponseCaptures,
+    });
+  const structuredDraftReplayEvidenceRequired =
+    authored.receipt.failure?.code !==
+      'provider_output_decode_failed' &&
+    authored.receipt.attempts.some(
+      (attempt) =>
+        visualContractAuthoringAttemptHasCapturedResponse(attempt) &&
+        attempt.providerEvidenceVersion ===
+          OPENAI_RESPONSES_AUTHORING_EVIDENCE_VERSION,
+    );
+  if (
+    (authored.compileResult ||
+      structuredDraftReplayEvidenceRequired) &&
+    !structuredDraftReplayEvidence
+  ) {
+    throw new Error(
+      'completed canonical authoring is missing replay evidence',
+    );
+  }
+  const replayEvidencePath = structuredDraftReplayEvidence
+    ? repoRelativePath(
+        repoRoot,
+        resolveRepoPath(
+          repoRoot,
+          path.join(
+            input.outputDir,
+            'structured-draft-replay-evidence',
+            `${structuredDraftReplayEvidence.digest}.json`,
+          ),
+        ),
+      )
+    : null;
+  const receipt =
+    structuredDraftReplayEvidence && replayEvidencePath
+      ? bindVisualContractAuthoringReplayEvidenceToReceipt({
+          receipt: authored.receipt,
+          path: replayEvidencePath,
+          digest: structuredDraftReplayEvidence.digest,
+        })
+      : authored.receipt;
+  // Receipt is always the first post-call write. Additive sanitized replay or
+  // provider-failure sidecars are then durable before readiness. If any
+  // required write fails, no readiness or candidate artifact is attempted.
   const authoringReceiptWrite = artifactStore.persist({
     category: 'authoring-receipts',
-    digest: authored.receipt.digest,
-    value: authored.receipt,
+    digest: receipt.digest,
+    value: receipt,
   });
+  const structuredDraftReplayEvidenceWrite =
+    structuredDraftReplayEvidence
+      ? artifactStore.persist({
+          category: 'structured-draft-replay-evidence',
+          digest: structuredDraftReplayEvidence.digest,
+          value: structuredDraftReplayEvidence,
+        })
+      : null;
+  if (
+    structuredDraftReplayEvidenceWrite &&
+    (replayEvidencePath !==
+      structuredDraftReplayEvidenceWrite.path ||
+      structuredDraftReplayEvidenceWrite.digest !==
+        structuredDraftReplayEvidence?.digest)
+  ) {
+    throw new Error(
+      'replay evidence persisted outside its receipt-bound path',
+    );
+  }
+  const providerFailureEvidence = authored.providerFailureEvidence
+    ? bindProviderCallFailureEvidenceToReceipt({
+        evidence: authored.providerFailureEvidence,
+        expectedCurrentAuthoringReceiptDigest:
+          authored.receipt.digest,
+        authoringReceiptDigest: receipt.digest,
+      })
+    : null;
   const providerFailureEvidenceWrite =
-    authored.providerFailureEvidence
+    providerFailureEvidence
       ? artifactStore.persist({
           category: 'provider-call-failure-evidence',
-          digest:
-            authored.providerFailureEvidence.digest,
-          value: authored.providerFailureEvidence,
+          digest: providerFailureEvidence.digest,
+          value: providerFailureEvidence,
         })
       : null;
   const readiness =
     buildVisualContractAuthoringReadinessEvidence({
       snapshot: rebuiltSnapshot,
       request: requestForLifecycle,
-      receipt: authored.receipt,
+      receipt,
     });
   const readinessWrite = artifactStore.persist({
     category: 'readiness-evidence',
@@ -1703,7 +1785,7 @@ export async function runCanonicalLiveVisualContractAuthoring(
   if (authored.compileResult) {
     const candidate = buildVisualContractCandidateArtifact({
       request: requestForLifecycle,
-      receipt: authored.receipt,
+      receipt,
       compileResult: authored.compileResult,
     });
     candidateWrite = artifactStore.persist({
@@ -1716,10 +1798,10 @@ export async function runCanonicalLiveVisualContractAuthoring(
   return {
     mode: 'canonical_visual_contract_live_authoring',
     status:
-      authored.receipt.status === 'completed'
+      receipt.status === 'completed'
         ? 'completed'
         : 'failed',
-    receipt: authored.receipt,
+    receipt,
     readiness,
     persistence: {
       sourceSnapshot: sourceSnapshotWrite,
@@ -1728,6 +1810,8 @@ export async function runCanonicalLiveVisualContractAuthoring(
         ? 'approved_live_request'
         : 'rejected_request_evidence',
       authoringReceipt: authoringReceiptWrite,
+      structuredDraftReplayEvidence:
+        structuredDraftReplayEvidenceWrite,
       providerFailureEvidence:
         providerFailureEvidenceWrite,
       readiness: readinessWrite,

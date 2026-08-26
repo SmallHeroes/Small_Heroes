@@ -255,6 +255,7 @@ import {
   bindInitialFullDraftSamePageDispositions,
   initialFullDraftDispositionBindingNote,
 } from './initialFullDraftDispositionBinding';
+import { projectDraftPageContinuitySelections } from './draftPageContinuityProjection';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -2783,71 +2784,16 @@ function overlayPage(
     }
   }
 
-  const out: Record<string, unknown> = {
+  let out: Record<string, unknown> = {
     ...pc,
     castIds,
     characterPresence: { child: true, companion: companionPresent },
   };
-  const draftChildWardrobeOverrideDescription =
-    pc.childWardrobeOverrideDescription;
-  const draftChildWardrobeOverrideSourceEvidenceId =
-    pc.childWardrobeOverrideSourceEvidenceId;
-  delete out.childWardrobeOverrideDescription;
-  delete out.childWardrobeOverrideSourceEvidenceId;
-  if (
-    (draftChildWardrobeOverrideDescription !== null &&
-      draftChildWardrobeOverrideDescription !== undefined) ||
-    (draftChildWardrobeOverrideSourceEvidenceId !== null &&
-      draftChildWardrobeOverrideSourceEvidenceId !== undefined)
-  ) {
-    const sourceResolution = resolveSourceEvidenceId({
-      catalog: sourceEvidenceCatalog,
-      sourceEvidenceId:
-        draftChildWardrobeOverrideSourceEvidenceId,
-      pageNumber: page,
-    });
-    out.childWardrobeOverride = {
-      description:
-        typeof draftChildWardrobeOverrideDescription === 'string'
-          ? draftChildWardrobeOverrideDescription.trim()
-          : '',
-      origin: {
-        kind: 'story_evidence',
-        page,
-        phrase: sourceResolution.ok
-          ? sourceResolution.entry.excerpt
-          : '',
-      },
-    };
-  }
-  const draftCompanionStateId = pc.companionStateId;
-  const draftCompanionStateSourceEvidenceId =
-    pc.companionStateSourceEvidenceId;
-  delete out.companionStateId;
-  delete out.companionStateSourceEvidenceId;
-  if (
-    (draftCompanionStateId !== null &&
-      draftCompanionStateId !== undefined) ||
-    (draftCompanionStateSourceEvidenceId !== null &&
-      draftCompanionStateSourceEvidenceId !== undefined)
-  ) {
-    const sourceResolution = resolveSourceEvidenceId({
-      catalog: sourceEvidenceCatalog,
-      sourceEvidenceId: draftCompanionStateSourceEvidenceId,
-      pageNumber: page,
-    });
-    out.companionStateOverride = {
-      stateId:
-        typeof draftCompanionStateId === 'string'
-          ? draftCompanionStateId.trim()
-          : '',
-      origin: {
-        kind: 'story_evidence',
-        page,
-        phrase: sourceResolution.ok ? sourceResolution.entry.excerpt : '',
-      },
-    };
-  }
+  out = projectDraftPageContinuitySelections({
+    pageDraft: out,
+    pageNumber: page,
+    sourceEvidenceCatalog,
+  });
   const actions = canonicalizePageActionCastGroups(
     pc.actionRequirements,
   );
@@ -3316,6 +3262,39 @@ function normalizeDraftTimeOfDayField(
   }
   const canonical = canonicalizeStoryTimeOfDayAuthority(record[field]);
   if (canonical) record[field] = canonical;
+}
+
+function bindInitialFullDraftDispositionsToFinalProjection(args: {
+  draft: Record<string, unknown>;
+  facts: DeterministicFacts;
+  input: TemplateCompileInput;
+}): {
+  draft: Record<string, unknown>;
+  note: string | null;
+} {
+  const { pages: canonicalPages } = canonicalizeTopology(
+    args.draft,
+    args.input.authoredCoverAuthority,
+  );
+  const candidateTemplate = {
+    pageContracts: canonicalPages.map((page) =>
+      overlayPage(
+        { ...page, actionSemanticCoverage: [] },
+        args.facts,
+        CHILD_ID,
+        authoritativeCompanionCastId(args.input),
+        args.input.sourceEvidenceCatalog,
+      ),
+    ),
+  } as unknown as ActionSemanticCoverageTemplate;
+  const binding = bindInitialFullDraftSamePageDispositions(
+    args.draft,
+    candidateTemplate,
+  );
+  return {
+    draft: binding.draft,
+    note: initialFullDraftDispositionBindingNote(binding.stats),
+  };
 }
 
 /** Strict structured output uses null for optional fields; contracts use omission so validation stays exact. */
@@ -5001,30 +4980,22 @@ export async function compileBookVisualContractTemplate(
   } satisfies ContractLlmCallOptions;
 
   const deterministicNormalizationNotes: string[] = [];
-  const initialBinding = bindInitialFullDraftSamePageDispositions(
-    asObj(
-      parseContractJson(
-        await deps.callLLM(
-          buildTemplateCompileSystemPrompt(),
-          buildTemplateCompileUserPrompt(input, facts),
-          llmOpts,
-          {
-            kind: 'initial',
-            budgetClass: 'standard',
-            systemPromptVersion: TEMPLATE_PROMPT_VERSION,
-            userPromptVersion: TEMPLATE_USER_PROMPT_VERSION,
-          },
-        ),
+  let draft = asObj(
+    parseContractJson(
+      await deps.callLLM(
+        buildTemplateCompileSystemPrompt(),
+        buildTemplateCompileUserPrompt(input, facts),
+        llmOpts,
+        {
+          kind: 'initial',
+          budgetClass: 'standard',
+          systemPromptVersion: TEMPLATE_PROMPT_VERSION,
+          userPromptVersion: TEMPLATE_USER_PROMPT_VERSION,
+        },
       ),
     ),
   );
-  let draft = initialBinding.draft;
-  const initialBindingNote = initialFullDraftDispositionBindingNote(
-    initialBinding.stats,
-  );
-  if (initialBindingNote) {
-    deterministicNormalizationNotes.push(initialBindingNote);
-  }
+  let initialFullDraftDispositionBindingPending = true;
 
   const repairAttempts: TemplateRepairAttempt[] = [];
   let pageContractPreviousFailure:
@@ -5138,6 +5109,19 @@ export async function compileBookVisualContractTemplate(
       | VisualContractAuthoringInputAccounting
       | undefined;
     try {
+      if (initialFullDraftDispositionBindingPending) {
+        const binding =
+          bindInitialFullDraftDispositionsToFinalProjection({
+            draft,
+            facts,
+            input,
+          });
+        draft = binding.draft;
+        if (binding.note) {
+          deterministicNormalizationNotes.push(binding.note);
+        }
+        initialFullDraftDispositionBindingPending = false;
+      }
       assembled = assembleTemplateFromDraft(draft, facts, input, authoringModel);
     } catch (err) {
       if (
@@ -6021,42 +6005,30 @@ export async function compileBookVisualContractTemplate(
         pageContractIncompleteFailureSeen = false;
         pageContractCorrectionGranted = false;
       } else {
-        const fullDraftBinding =
-          bindInitialFullDraftSamePageDispositions(
-            asObj(
-              parseContractJson(
-                await deps.callLLM(
-                  buildTemplateRepairSystemPrompt(),
-                  buildTemplateRepairUserPrompt(
-                    input,
-                    facts,
-                    attemptDiagnosticIssues,
-                  ),
-                  standardOptionsForAttempt(
-                    llmOpts,
-                    attempt + 1,
-                  ),
-                  {
-                    kind: 'repair',
-                    budgetClass: 'standard',
-                    repairMode: 'full_draft',
-                    systemPromptVersion: REPAIR_PROMPT_VERSION,
-                    userPromptVersion: REPAIR_USER_PROMPT_VERSION,
-                  },
-                ),
+        draft = asObj(
+          parseContractJson(
+            await deps.callLLM(
+              buildTemplateRepairSystemPrompt(),
+              buildTemplateRepairUserPrompt(
+                input,
+                facts,
+                attemptDiagnosticIssues,
               ),
+              standardOptionsForAttempt(
+                llmOpts,
+                attempt + 1,
+              ),
+              {
+                kind: 'repair',
+                budgetClass: 'standard',
+                repairMode: 'full_draft',
+                systemPromptVersion: REPAIR_PROMPT_VERSION,
+                userPromptVersion: REPAIR_USER_PROMPT_VERSION,
+              },
             ),
-          );
-        draft = fullDraftBinding.draft;
-        const fullDraftBindingNote =
-          initialFullDraftDispositionBindingNote(
-            fullDraftBinding.stats,
-          );
-        if (fullDraftBindingNote) {
-          deterministicNormalizationNotes.push(
-            fullDraftBindingNote,
-          );
-        }
+          ),
+        );
+        initialFullDraftDispositionBindingPending = true;
       }
     } catch (error) {
       const failureIdentity =

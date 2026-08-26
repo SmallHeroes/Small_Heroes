@@ -84,6 +84,11 @@ import {
   type VisualContractAuthoringReceipt,
   type VisualContractCandidateArtifact,
 } from './visualContractAuthoringLifecycle';
+import {
+  VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION,
+  assertValidVisualContractAuthoringReplayEvidence,
+  type VisualContractAuthoringReplayEvidence,
+} from './visualContractAuthoringReplayEvidence';
 import { loadTemplateForPackage } from './artifacts';
 import { validateBookVisualContractTemplate } from '../visual-contract-compiler';
 
@@ -985,6 +990,61 @@ function loadCanonicalSupervisorArtifacts(args: {
 
   const outputRoot = freshReadiness.request.outputRoot;
   const b0Root = `${outputRoot}/b0`;
+  const authoringRequest = loadCanonicalRequest({
+    repoRoot: args.repoRoot,
+    requestPath: args.authoringRequestPath,
+  });
+  const authoringReceipt = loadCanonicalReceipt({
+    repoRoot: args.repoRoot,
+    receiptPath: args.authoringReceiptPath,
+  });
+  const replayDescriptor =
+    childOutputAuthority.structuredDraftReplayEvidence;
+  const expectedReplayPath =
+    `${b0Root}/structured-draft-replay-evidence/${replayDescriptor.digest}.json`;
+  const receiptReplayLocator =
+    authoringReceipt.structuredDraftReplayEvidence;
+  if (
+    !receiptReplayLocator ||
+    receiptReplayLocator.version !==
+      VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION ||
+    receiptReplayLocator.path !== expectedReplayPath ||
+    receiptReplayLocator.digest !== replayDescriptor.digest ||
+    replayDescriptor.version !==
+      VISUAL_CONTRACT_AUTHORING_REPLAY_EVIDENCE_VERSION ||
+    replayDescriptor.path !== expectedReplayPath
+  ) {
+    throw new Error(
+      'structured draft replay evidence is not exactly bound to the canonical receipt and child output authority',
+    );
+  }
+  const replayEvidenceAbsolute = resolveExistingContainedArtifact({
+    repoRoot: args.repoRoot,
+    relativePath: expectedReplayPath,
+    label: 'structured draft replay evidence',
+  });
+  const replayEvidence = readJsonObject(
+    replayEvidenceAbsolute,
+    'structured draft replay evidence',
+  ) as unknown as VisualContractAuthoringReplayEvidence;
+  if (replayEvidence.digest !== replayDescriptor.digest) {
+    throw new Error(
+      'structured draft replay evidence digest does not match the canonical receipt and child output authority',
+    );
+  }
+  assertCanonicalJsonArtifact({
+    absolutePath: replayEvidenceAbsolute,
+    value: replayEvidence,
+    digest: replayDescriptor.digest,
+    category: 'structured-draft-replay-evidence',
+    label: 'structured draft replay evidence',
+  });
+  assertValidVisualContractAuthoringReplayEvidence({
+    evidence: replayEvidence,
+    sourceSnapshotDigest: authoringReceipt.sourceSnapshotDigest,
+    request: authoringRequest,
+    receipt: authoringReceipt,
+  });
   const expectedCanonicalAbsentPaths =
     canonicalLiveExecutionExpectedAbsentPaths(b0Root);
   for (const [label, artifactPath, category] of [

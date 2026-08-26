@@ -376,6 +376,14 @@ describe('Action Semantic Coverage validation', () => {
           mustNotShow: ['other raw page prose'],
           camera: 'portrait close shot',
           shot: 'close',
+          companionStateOverride: {
+            stateId: 'companion_state:quiet_green',
+            origin: {
+              kind: 'story_evidence',
+              page: 7,
+              phrase: 'source prose is provenance, not visual state',
+            },
+          },
           propState: [{ propId: 'prop:key', state: 'held' }],
           actionRequirements: [
             {
@@ -406,6 +414,11 @@ describe('Action Semantic Coverage validation', () => {
       {
         contractPointer: '/pageContracts/0/castIds/0',
         contractValue: 'child:hero',
+      },
+      {
+        contractPointer:
+          '/pageContracts/0/companionStateOverride/stateId',
+        contractValue: 'companion_state:quiet_green',
       },
       {
         contractPointer: '/pageContracts/0/locationId',
@@ -454,6 +467,8 @@ describe('Action Semantic Coverage validation', () => {
       '/pageContracts/0/shot',
       '/pageContracts/0/transition/cue',
       '/pageContracts/0/actionRequirements/0/checkId',
+      '/pageContracts/0/companionStateOverride/origin/kind',
+      '/pageContracts/0/companionStateOverride/origin/phrase',
       '/pageContracts/1/locationId',
     ]) {
       expect(

@@ -323,6 +323,21 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
             (entry) => entry.pageNumber === pageNumber,
           )!.sourceEvidenceId
         : null;
+      if (stateIds.has(pageNumber)) {
+        (
+          page.actionSemanticCoverage as Array<
+            Record<string, unknown>
+          >
+        ).push({
+          beatId: `beat:p${pageNumber}:companion_state_transition`,
+          sourceEvidenceId:
+            page.companionStateSourceEvidenceId,
+          disposition: {
+            kind: 'represented_elsewhere',
+            representedValue: stateIds.get(pageNumber),
+          },
+        });
+      }
     }
     const cast = draft.cast as {
       companion?: Record<string, unknown>;
@@ -371,6 +386,26 @@ describe('Stage 1 — compiler requests the dedicated authoring call + records p
       null,
       null,
     ]);
+    expect(
+      result.actionSemanticCoverage
+        .filter(({ beatId }) =>
+          beatId.endsWith(':companion_state_transition'),
+        )
+        .map((record) => [
+          record.pageNumber,
+          record.disposition,
+        ]),
+    ).toEqual(
+      [...stateIds].map(([pageNumber, stateId]) => [
+        pageNumber,
+        {
+          kind: 'represented_elsewhere',
+          contractPointer:
+            `/pageContracts/${pageNumber - 1}/companionStateOverride/stateId`,
+          contractValue: stateId,
+        },
+      ]),
+    );
   });
 
   it('does not permit VISUAL_CONTRACT_AUTHOR_MODEL substitution', async () => {
