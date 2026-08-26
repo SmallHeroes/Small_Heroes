@@ -911,6 +911,102 @@ describe('Stage 3 — repair prompt content (allowlist + inputs)', () => {
 });
 
 describe('Source Evidence ID compact repair', () => {
+  it('projects exact provider-wire child and companion action aliases before production assembly', async () => {
+    const input = bunnySource();
+    const draft = bunnyDraft();
+    const rawChildId = 'child';
+    const rawCompanionId = input.companion!.id;
+    draft.cast.child.id = rawChildId;
+    draft.cast.companion.id = rawCompanionId;
+    const targetPage = draft.pageContracts[1];
+    const aliasBeatId = targetPage.actionSemanticCoverage[0].beatId;
+    targetPage.actionRequirements = [{
+      beatId: aliasBeatId,
+      subject: {
+        kind: 'entity',
+        entity: { kind: 'cast', id: 'child:hero' },
+      },
+      predicate: 'looks_at',
+      object: { kind: 'cast', id: `companion:${rawCompanionId}` },
+      spatialEffect: null,
+      spatialConstraint: null,
+      polarity: 'must',
+      laterality: null,
+    }];
+    targetPage.actionSemanticCoverage[0].disposition = {
+      kind: 'action_requirement',
+    };
+    targetPage.mustShow = [
+      ...new Set([
+        ...targetPage.mustShow,
+        ...projectPageMustShow(targetPage, draft),
+      ]),
+    ];
+    const remapEntity = (value: unknown) => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+      const entity = value as { kind?: unknown; id?: unknown };
+      if (entity.kind !== 'cast') return;
+      if (entity.id === 'child:hero') entity.id = rawChildId;
+      if (entity.id === `companion:${rawCompanionId}`) {
+        entity.id = rawCompanionId;
+      }
+    };
+    for (const page of draft.pageContracts) {
+      for (const action of page.actionRequirements ?? []) {
+        if (action.subject?.kind === 'entity') {
+          remapEntity(action.subject.entity);
+        } else if (action.subject?.kind === 'cast_group') {
+          action.subject.castIds = action.subject.castIds.map(
+            (id: string) =>
+              id === 'child:hero'
+                ? rawChildId
+                : id === `companion:${rawCompanionId}`
+                  ? rawCompanionId
+                  : id,
+          );
+        }
+        remapEntity(action.object);
+        if (action.spatialEffect?.kind === 'relation') {
+          remapEntity(action.spatialEffect.target);
+        }
+        remapEntity(action.spatialConstraint?.target);
+      }
+    }
+    expect(targetPage.actionRequirements[0]).toMatchObject({
+      subject: {
+        entity: { kind: 'cast', id: rawChildId },
+      },
+      object: { kind: 'cast', id: rawCompanionId },
+    });
+    const calls: Parameters<ContractLlmCaller>[3][] = [];
+
+    const result = await compileBookVisualContractTemplate(input, {
+      callLLM: async (_system, _user, _options, authority) => {
+        calls.push(authority);
+        return JSON.stringify(draft);
+      },
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(result.provenance.attempt).toBe(1);
+    expect(
+      result.notes.some((note) =>
+        /compiler rebound \d+ exact draft action cast references/.test(note),
+      ),
+    ).toBe(true);
+    const serializedActions = JSON.stringify(
+      result.template.pageContracts.flatMap(
+        (page) => page.actionRequirements ?? [],
+      ),
+    );
+    expect(serializedActions).toContain('child:hero');
+    expect(serializedActions).toContain(
+      `companion:${rawCompanionId}`,
+    );
+    expect(serializedActions).not.toContain(`"id":"${rawChildId}"`);
+    expect(serializedActions).not.toContain(`"id":"${rawCompanionId}"`);
+  });
+
   it.each([
     ['zero', 0, 'collection_item'],
     ['negative', -1, 'collection_item'],

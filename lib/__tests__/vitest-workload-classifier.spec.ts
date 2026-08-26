@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(333);
+    expect(partition.inventory).toHaveLength(334);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(313);
+    expect(partition.ordinary).toHaveLength(314);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -74,6 +74,9 @@ describe('Vitest workload classifier', () => {
     );
     expect(partition.ordinary).toContain(
       'lib/__tests__/initial-full-draft-disposition-binding.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/draft-action-cast-reference-projection.spec.ts',
     );
     expect(partition.ordinary).toContain(
       'lib/__tests__/vitest-check-supervisor.spec.ts',

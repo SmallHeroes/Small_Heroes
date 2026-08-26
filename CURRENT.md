@@ -2,7 +2,63 @@
 
 **Updated:** 2026-08-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed implementation base `d88337288db1eeb895cb9355f40ec23385436dee`, local unpushed code commit `beda712a2f142579bdf68da8f8c4739cf60324c5`.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; pushed implementation base `6bedc6a396b07c0261991b859a554e5954adcc87`, with the focused compiler-binding milestone at local HEAD pending independent QA and push.
+
+## COMPILER-OWNED CAST + CONTINUITY EVIDENCE BINDING — OFFLINE GREEN; INDEPENDENT QA PENDING
+
+The first fully captured revised-Chameleon run exposed two deterministic
+identity-domain defects rather than another provider-quality or budget defect.
+The compiler replaced the draft cast with canonical IDs but left the draft's
+typed action references on provider aliases such as `child` and the raw
+companion ID. Separately, compact Source Evidence repair changed an action
+coverage ID without carrying it to the exact compiler-bound companion-state or
+wardrobe selector that supplied the represented-elsewhere value.
+
+The general offline correction is complete. A pure projection now rebinds only
+exact provider-wire child/companion aliases in all five typed action-reference
+positions before every compiler attempt. It preserves authoritative, unknown,
+non-cast and malformed values; ambiguous or cross-role aliases receive a
+non-resolving compiler sentinel so they cannot validate as another person.
+Source Evidence repair now propagates a validated ID atomically only when the
+same-page represented-elsewhere pointer, value and old ID all match. Stale or
+mismatched associations cannot borrow authority, and conflicting repairs for
+one selector reject before returning a result. There is no story, child,
+companion, page, state, wardrobe or known-ID special case.
+
+The exact historical capture replays with zero provider calls. Its corrected
+route changes from the old broad third call to
+`initial -> source_evidence_id_patch -> book_surface_patch`; all source-ID,
+source-phrase and continuity-authority failures disappear by attempt two while
+previously masked transition failures surface, leaving the normalized count
+at `14 -> 14`. A separate zero-provider frontier probe using the historical
+third full draft plus fourth Source Evidence patch reaches `7 -> 2`; only two
+genuine capability gaps remain and the next route is the existing
+`presentation_requirement_patch`. The stored third response in the full
+sequence is an obsolete full-draft response, so the corrected
+BookSurface schema rejects it as `repair_output_invalid`. The replay honestly
+reports old-receipt incongruence rather than rewriting immutable evidence.
+
+Final focused validation is 5 files / 137 assertions, TypeScript and
+`git diff --check` all passing. A literal full check exercised 334 canonical
+specs. Its only change-owned failure was the expected census change from 333
+to 334. That run preceded the final raw-human collision correction and was not
+repeated. The final production bytes are covered by the complete focused
+137/137 run, both exact zero-provider replay probes, TypeScript and diff-check.
+The remaining nine full-check failures are the established missing
+ignored-output fixtures in five unchanged files; all 623 resource assertions
+pass, with the same three known Vitest worker RPC timeouts. No changed
+production assertion fails.
+
+No prompt/schema/model/budget/retry/fallback/validator/catalog/Candidate/
+Wizard/render policy changed. No credential, provider/live call, Candidate,
+Wizard action, image, audio, render, database/storage write, deployment or push
+occurred. The prior Fresh root remains consumed. The binding next action is an
+adversarial Claude Code review of exact range `6bedc6a3..HEAD`; PASS is required
+before push, a new Fresh root and at most one new paid authoring attempt. Durable
+records:
+`docs/ai-workflow/R1D_COMPILER_OWNED_CAST_AND_CONTINUITY_BINDING_DECISION_GATE.md`
+and
+`docs/ai-workflow/R1D_COMPILER_OWNED_CAST_AND_CONTINUITY_BINDING_IMPLEMENTATION_EVIDENCE.md`.
 
 ## CANONICAL PROJECTION + REPLAY EVIDENCE — INDEPENDENT PASS; PUSH/FRESH PENDING
 

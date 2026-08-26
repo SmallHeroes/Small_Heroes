@@ -166,6 +166,63 @@ function phenomenonActionRepairFixture() {
   };
 }
 
+function continuityRepairFixture(
+  kind: 'companion' | 'wardrobe',
+) {
+  const fixture = repairFixture();
+  const oldSourceEvidenceId = `se1_${'f'.repeat(64)}`;
+  const beatId = `beat:p1:${kind}_shift`;
+  const contractValue =
+    kind === 'companion' ? 'alert_olive_shift' : 'green pajamas';
+  const contractPointer =
+    kind === 'companion'
+      ? '/pageContracts/0/companionStateOverride/stateId'
+      : '/pageContracts/0/childWardrobeOverride/description';
+  const disposition = {
+    kind: 'represented_elsewhere',
+    contractPointer,
+    contractValue,
+  };
+  const coverageRecord = {
+    beatId,
+    sourceEvidenceId: oldSourceEvidenceId,
+    disposition,
+  };
+  const page = {
+    pageNumber: 1,
+    ...(kind === 'companion'
+      ? {
+          companionStateId: contractValue,
+          companionStateSourceEvidenceId: oldSourceEvidenceId,
+        }
+      : {
+          childWardrobeOverrideDescription: contractValue,
+          childWardrobeOverrideSourceEvidenceId: oldSourceEvidenceId,
+        }),
+    actionSemanticCoverage: [coverageRecord],
+    actionRequirements: [],
+  };
+  const affectedRecords: SourceEvidenceIdRepairAffectedRecord[] = [{
+    pageNumber: 1,
+    coverageIndex: 0,
+    beatId,
+    failureCode: 'source_evidence_id_unknown',
+    coverageRecord: structuredClone(coverageRecord),
+    actionRequirement: null,
+  }];
+  return {
+    affectedRecords,
+    catalog: fixture.catalog,
+    draft: { pageContracts: [page] },
+    page,
+    patch: {
+      pageNumber: 1,
+      beatId,
+      sourceEvidenceId: fixture.pageOneId,
+    },
+  };
+}
+
 function closedAuthorityFixture(args?: {
   failureCode?: SourceEvidenceIdRepairAffectedRecord['failureCode'];
   actionRequirement?: boolean;
@@ -239,6 +296,17 @@ describe('sourceEvidenceIdRepairAffectedRecordsAreClosed', () => {
 
     expect(sourceEvidenceIdRepairAffectedRecordsAreClosed(fixture)).toBe(true);
   });
+
+  it.each(['companion', 'wardrobe'] as const)(
+    'admits an exact compiler-bound %s continuity association',
+    (kind) => {
+      const fixture = continuityRepairFixture(kind);
+
+      expect(sourceEvidenceIdRepairAffectedRecordsAreClosed(fixture)).toBe(
+        true,
+      );
+    },
+  );
 
   it.each([
     ['empty affected set', (fixture: ReturnType<typeof closedAuthorityFixture>) => {
@@ -610,6 +678,150 @@ describe('applySourceEvidenceIdPatches rejection guards', () => {
         sourceEvidenceId: fixture.patch.sourceEvidenceId,
       },
     });
+    expect(fixture.draft).toEqual(inputBefore);
+  });
+
+  it.each([
+    ['companion', 'companionStateSourceEvidenceId'],
+    ['wardrobe', 'childWardrobeOverrideSourceEvidenceId'],
+  ] as const)(
+    'atomically propagates a validated %s continuity evidence binding',
+    (kind, selectorField) => {
+      const fixture = continuityRepairFixture(kind);
+      const before = structuredClone(fixture.draft);
+
+      const result = applySourceEvidenceIdPatches({
+        draft: fixture.draft,
+        catalog: fixture.catalog,
+        affectedRecords: fixture.affectedRecords,
+        patches: [fixture.patch],
+      });
+      const resultPage = (
+        result.pageContracts as Array<Record<string, unknown>>
+      )[0]!;
+
+      expect(resultPage.actionSemanticCoverage).toMatchObject([
+        { sourceEvidenceId: fixture.patch.sourceEvidenceId },
+      ]);
+      expect(resultPage[selectorField]).toBe(
+        fixture.patch.sourceEvidenceId,
+      );
+      expect(fixture.draft).toEqual(before);
+    },
+  );
+
+  it.each([
+    [
+      'selector old ID differs from coverage',
+      (fixture: ReturnType<typeof continuityRepairFixture>) => {
+        (fixture.page as Record<string, unknown>)
+          .companionStateSourceEvidenceId =
+          `se1_${'e'.repeat(64)}`;
+      },
+    ],
+    [
+      'contract value differs from the raw selector value',
+      (fixture: ReturnType<typeof continuityRepairFixture>) => {
+        (fixture.page as Record<string, unknown>).companionStateId =
+          'different_state';
+      },
+    ],
+    [
+      'affected disposition is stale',
+      (fixture: ReturnType<typeof continuityRepairFixture>) => {
+        fixture.affectedRecords[0]!.coverageRecord.disposition = {
+          kind: 'represented_elsewhere',
+          contractPointer:
+            '/pageContracts/0/companionStateOverride/stateId',
+          contractValue: 'stale_state',
+        };
+      },
+    ],
+    [
+      'canonical disposition has an extra key',
+      (fixture: ReturnType<typeof continuityRepairFixture>) => {
+        (
+          fixture.page.actionSemanticCoverage[0]!.disposition as
+            Record<string, unknown>
+        ).extra = true;
+      },
+    ],
+    [
+      'pointer targets another page index',
+      (fixture: ReturnType<typeof continuityRepairFixture>) => {
+        (
+          fixture.page.actionSemanticCoverage[0]!.disposition as
+            Record<string, unknown>
+        ).contractPointer =
+          '/pageContracts/1/companionStateOverride/stateId';
+      },
+    ],
+  ])(
+    'patches coverage but does not borrow continuity authority when %s',
+    (_label, mutate) => {
+      const fixture = continuityRepairFixture('companion');
+      mutate(fixture);
+      const selectorBefore =
+        (fixture.page as Record<string, unknown>)
+          .companionStateSourceEvidenceId;
+
+      const result = applySourceEvidenceIdPatches({
+        draft: fixture.draft,
+        catalog: fixture.catalog,
+        affectedRecords: fixture.affectedRecords,
+        patches: [fixture.patch],
+      });
+      const resultPage = (
+        result.pageContracts as Array<Record<string, unknown>>
+      )[0]!;
+
+      expect(resultPage.actionSemanticCoverage).toMatchObject([
+        { sourceEvidenceId: fixture.patch.sourceEvidenceId },
+      ]);
+      expect(resultPage.companionStateSourceEvidenceId).toBe(
+        selectorBefore,
+      );
+    },
+  );
+
+  it('fails closed before returning when two repairs select different IDs for one continuity binding', () => {
+    const fixture = continuityRepairFixture('companion');
+    const secondBeatId = 'beat:p1:companion_shift_two';
+    const secondCoverage = {
+      ...structuredClone(fixture.page.actionSemanticCoverage[0]!),
+      beatId: secondBeatId,
+    };
+    fixture.page.actionSemanticCoverage.push(secondCoverage);
+    fixture.affectedRecords.push({
+      ...structuredClone(fixture.affectedRecords[0]!),
+      coverageIndex: 1,
+      beatId: secondBeatId,
+      coverageRecord: structuredClone(secondCoverage),
+    });
+    const alternativeId = `se1_${'a'.repeat(64)}`;
+    fixture.catalog.entries.push({
+      ...structuredClone(fixture.catalog.entries[0]!),
+      sourceEvidenceId: alternativeId,
+    });
+    const inputBefore = structuredClone(fixture.draft);
+
+    expect(() =>
+      applySourceEvidenceIdPatches({
+        draft: fixture.draft,
+        catalog: fixture.catalog,
+        affectedRecords: fixture.affectedRecords,
+        patches: [
+          fixture.patch,
+          {
+            pageNumber: 1,
+            beatId: secondBeatId,
+            sourceEvidenceId: alternativeId,
+          },
+        ],
+      }),
+    ).toThrowError(
+      'source_evidence_id_repair_continuity_binding_conflict',
+    );
     expect(fixture.draft).toEqual(inputBefore);
   });
 

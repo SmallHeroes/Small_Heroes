@@ -161,13 +161,17 @@ export function sourceEvidenceIdRepairAffectedRecordsAreClosed(args: {
       return false;
     }
     const matchingPages = pages
-      .map(recordValue)
-      .filter((page) => page?.pageNumber === record.pageNumber);
+      .map((value, pageIndex) => ({
+        page: recordValue(value),
+        pageIndex,
+      }))
+      .filter(({ page }) => page?.pageNumber === record.pageNumber);
     if (matchingPages.length !== 1) return false;
+    const matchingPage = matchingPages[0]!;
     const coverage = Array.isArray(
-      matchingPages[0]!.actionSemanticCoverage,
+      matchingPage.page!.actionSemanticCoverage,
     )
-      ? matchingPages[0]!.actionSemanticCoverage
+      ? matchingPage.page!.actionSemanticCoverage
       : [];
     const currentCoverage = recordValue(coverage[record.coverageIndex]);
     if (
@@ -190,11 +194,10 @@ export function sourceEvidenceIdRepairAffectedRecordsAreClosed(args: {
     if (resolution.ok || resolution.code !== record.failureCode) {
       return false;
     }
-
     const disposition = recordValue(currentCoverage.disposition);
     if (disposition?.kind === 'action_requirement') {
-      const actions = Array.isArray(matchingPages[0]!.actionRequirements)
-        ? matchingPages[0]!.actionRequirements
+      const actions = Array.isArray(matchingPage.page!.actionRequirements)
+        ? matchingPage.page!.actionRequirements
         : [];
       const matchingActions = actions
         .map(recordValue)
@@ -292,6 +295,74 @@ function patchKey(value: { pageNumber: number; beatId: string }): string {
   return `${value.pageNumber}\u0000${value.beatId}`;
 }
 
+type ContinuityEvidenceBinding = {
+  bindingKey: string;
+  sourceEvidenceField:
+    | 'companionStateSourceEvidenceId'
+    | 'childWardrobeOverrideSourceEvidenceId';
+};
+
+function continuityEvidenceBinding(args: {
+  page: Record<string, unknown>;
+  pageIndex: number;
+  currentCoverage: Record<string, unknown>;
+  affectedRecord: SourceEvidenceIdRepairAffectedRecord;
+}): ContinuityEvidenceBinding | null {
+  const disposition = recordValue(args.currentCoverage.disposition);
+  if (disposition?.kind !== 'represented_elsewhere') {
+    return null;
+  }
+  const companionPointer =
+    `/pageContracts/${args.pageIndex}/companionStateOverride/stateId`;
+  const wardrobePointer =
+    `/pageContracts/${args.pageIndex}/childWardrobeOverride/description`;
+  const pointer = disposition.contractPointer;
+  if (pointer !== companionPointer && pointer !== wardrobePointer) {
+    return null;
+  }
+  const affectedDisposition = recordValue(
+    args.affectedRecord.coverageRecord.disposition,
+  );
+  if (
+    !exactKeys(disposition, ['kind', 'contractPointer', 'contractValue']) ||
+    !affectedDisposition ||
+    !exactKeys(affectedDisposition, [
+      'kind',
+      'contractPointer',
+      'contractValue',
+    ]) ||
+    affectedDisposition.kind !== 'represented_elsewhere' ||
+    affectedDisposition.contractPointer !== pointer ||
+    affectedDisposition.contractValue !== disposition.contractValue ||
+    args.currentCoverage.sourceEvidenceId !==
+      args.affectedRecord.coverageRecord.sourceEvidenceId
+  ) {
+    return null;
+  }
+  const valueField =
+    pointer === companionPointer
+      ? 'companionStateId'
+      : 'childWardrobeOverrideDescription';
+  const sourceEvidenceField =
+    pointer === companionPointer
+      ? 'companionStateSourceEvidenceId'
+      : 'childWardrobeOverrideSourceEvidenceId';
+  const rawValue = args.page[valueField];
+  if (
+    typeof rawValue !== 'string' ||
+    rawValue.trim().length === 0 ||
+    rawValue.trim() !== disposition.contractValue ||
+    typeof args.currentCoverage.sourceEvidenceId !== 'string' ||
+    args.page[sourceEvidenceField] !== args.currentCoverage.sourceEvidenceId
+  ) {
+    return null;
+  }
+  return {
+    bindingKey: `${args.pageIndex}\u0000${sourceEvidenceField}`,
+    sourceEvidenceField,
+  };
+}
+
 export function applySourceEvidenceIdPatches(args: {
   draft: Record<string, unknown>;
   catalog: SourceEvidenceCatalog;
@@ -313,6 +384,14 @@ export function applySourceEvidenceIdPatches(args: {
     ? draft.pageContracts
     : [];
   const seen = new Set<string>();
+  const continuityBindings = new Map<
+    string,
+    {
+      page: Record<string, unknown>;
+      sourceEvidenceField: ContinuityEvidenceBinding['sourceEvidenceField'];
+      sourceEvidenceId: string;
+    }
+  >();
 
   for (const patch of args.patches) {
     const key = patchKey(patch);
@@ -329,13 +408,19 @@ export function applySourceEvidenceIdPatches(args: {
       throw new Error(`source_evidence_id_repair_patch_${resolution.code}`);
     }
     const matchingPages = pages
-      .map(recordValue)
-      .filter((page) => page?.pageNumber === patch.pageNumber);
+      .map((value, pageIndex) => ({
+        page: recordValue(value),
+        pageIndex,
+      }))
+      .filter(({ page }) => page?.pageNumber === patch.pageNumber);
     if (matchingPages.length !== 1) {
       throw new Error('source_evidence_id_repair_page_not_unique');
     }
-    const coverage = Array.isArray(matchingPages[0]!.actionSemanticCoverage)
-      ? matchingPages[0]!.actionSemanticCoverage
+    const matchingPage = matchingPages[0]!;
+    const coverage = Array.isArray(
+      matchingPage.page!.actionSemanticCoverage,
+    )
+      ? matchingPage.page!.actionSemanticCoverage
       : [];
     const matchingRecords = coverage
       .map(recordValue)
@@ -343,15 +428,40 @@ export function applySourceEvidenceIdPatches(args: {
     if (matchingRecords.length !== 1) {
       throw new Error('source_evidence_id_repair_beat_not_unique');
     }
+    const affectedRecord = expected.get(key)!;
+    const continuityBinding = continuityEvidenceBinding({
+      page: matchingPage.page!,
+      pageIndex: matchingPage.pageIndex,
+      currentCoverage: matchingRecords[0]!,
+      affectedRecord,
+    });
+    if (continuityBinding) {
+      const existing = continuityBindings.get(
+        continuityBinding.bindingKey,
+      );
+      if (
+        existing &&
+        existing.sourceEvidenceId !== patch.sourceEvidenceId
+      ) {
+        throw new Error(
+          'source_evidence_id_repair_continuity_binding_conflict',
+        );
+      }
+      continuityBindings.set(continuityBinding.bindingKey, {
+        page: matchingPage.page!,
+        sourceEvidenceField: continuityBinding.sourceEvidenceField,
+        sourceEvidenceId: patch.sourceEvidenceId,
+      });
+    }
     matchingRecords[0]!.sourceEvidenceId = patch.sourceEvidenceId;
     const disposition = recordValue(
       matchingRecords[0]!.disposition,
     );
     if (disposition?.kind === 'action_requirement') {
       const actions = Array.isArray(
-        matchingPages[0]!.actionRequirements,
+        matchingPage.page!.actionRequirements,
       )
-        ? matchingPages[0]!.actionRequirements
+        ? matchingPage.page!.actionRequirements
         : [];
       const matchingActions = actions
         .map(recordValue)
@@ -372,6 +482,10 @@ export function applySourceEvidenceIdPatches(args: {
   }
   if (seen.size !== expected.size) {
     throw new Error('source_evidence_id_repair_patch_set_incomplete');
+  }
+  for (const binding of continuityBindings.values()) {
+    binding.page[binding.sourceEvidenceField] =
+      binding.sourceEvidenceId;
   }
   return draft;
 }

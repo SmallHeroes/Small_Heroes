@@ -256,6 +256,7 @@ import {
   initialFullDraftDispositionBindingNote,
 } from './initialFullDraftDispositionBinding';
 import { projectDraftPageContinuitySelections } from './draftPageContinuityProjection';
+import { projectDraftActionCastReferences } from './draftActionCastReferenceProjection';
 
 /** The child's cast id is a fixed constant — the hero anchor. NEVER taken from the LLM draft. */
 const CHILD_ID = 'child:hero';
@@ -5004,6 +5005,23 @@ export async function compileBookVisualContractTemplate(
   let pageContractIncompleteFailureSeen = false;
   let pageContractCorrectionGranted = false;
   for (let attempt = 1; ; attempt++) {
+    const castReferenceProjection = projectDraftActionCastReferences({
+      draft,
+      authoritativeChildId: CHILD_ID,
+      authoritativeCompanionId: authoritativeCompanionCastId(input),
+      authoritativeHumanIds: facts.humans.map((human) => human.id),
+    });
+    draft = castReferenceProjection.draft;
+    if (castReferenceProjection.reboundReferenceCount > 0) {
+      deterministicNormalizationNotes.push(
+        `compiler rebound ${castReferenceProjection.reboundReferenceCount} exact draft action cast reference${castReferenceProjection.reboundReferenceCount === 1 ? '' : 's'} to authoritative identities`,
+      );
+    }
+    if (castReferenceProjection.conflictingReferenceCount > 0) {
+      deterministicNormalizationNotes.push(
+        `compiler invalidated ${castReferenceProjection.conflictingReferenceCount} ambiguous draft action cast reference${castReferenceProjection.conflictingReferenceCount === 1 ? '' : 's'}`,
+      );
+    }
     const recurringPropLifecycleNormalization =
       normalizeDraftRecurringPropLifecycle(draft);
     if (recurringPropLifecycleNormalization) {

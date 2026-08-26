@@ -618,6 +618,137 @@ describe('offline Visual Contract repair harness', () => {
     ).toContain('tiny heart-shaped badge pinned to the chest');
   });
 
+  it('atomically repairs a compiler-bound wardrobe evidence selector through the compact source route', async () => {
+    const input = bunnySource();
+    input.continuityIntent = {
+      version: 'small-heroes-story-visual-continuity-intent/v1',
+      childWardrobeAuthority: 'frozen_visual_contract',
+      childWardrobeTransitionPages: [12],
+      companionAccessoryAuthority: 'canonical_companion_profile',
+      companionAppearanceAuthority: 'frozen_companion_state',
+      companionStateTransitionPages: [],
+    };
+    const initial = bunnyDraft();
+    const page = initial.pageContracts.find(
+      (candidate) => candidate.pageNumber === 12,
+    );
+    const evidence = input.sourceEvidenceCatalog.entries.find(
+      (entry) => entry.pageNumber === 12,
+    );
+    if (!page || !evidence) {
+      throw new Error('offline_harness_wardrobe_source_fixture_missing');
+    }
+    const description = 'soft sky-blue cotton pajamas for bedtime';
+    const malformedSourceEvidenceId = `se1_${'f'.repeat(64)}`;
+    const beatId = 'beat:p12:wardrobe_transition';
+    page.childWardrobeOverrideDescription = description;
+    page.childWardrobeOverrideSourceEvidenceId =
+      malformedSourceEvidenceId;
+    const coverage = page.actionSemanticCoverage as Array<
+      Record<string, unknown>
+    >;
+    const coverageIndex = coverage.length;
+    coverage.push({
+      beatId,
+      sourceEvidenceId: malformedSourceEvidenceId,
+      disposition: {
+        kind: 'represented_elsewhere',
+        representedValue: description,
+      },
+    });
+    const sourceIssue = {
+      family: 'source_evidence_id',
+      code: 'source_evidence_id_unknown',
+      locator: {
+        kind: 'source_evidence',
+        fieldRole: 'source_evidence',
+        pageNumber: 12,
+        coverageIndex,
+      },
+    } satisfies DraftValidationIssue;
+
+    const result = await runOfflineRepairHarness({
+      input,
+      initialDraft: initial,
+      repairResponses: [{
+        patches: [{
+          pageNumber: 12,
+          beatId,
+          sourceEvidenceId: evidence.sourceEvidenceId,
+        }],
+      }],
+      completeDiagnosticIssuesByAttempt: [
+        [sourceIssue, CONTINUITY_AUTHORITY_INVALID],
+        [],
+      ],
+    });
+
+    expect(result).toMatchObject({
+      executionMode: 'offline_stub',
+      providerCalls: 0,
+      outcome: 'candidate',
+      completeCensusCoverage: 'complete',
+      monotonicCompleteIssueDelta: true,
+      maxPositiveCompleteIssueDelta: 0,
+      finalCompleteIssueCount: 0,
+    });
+    expect(result.calls.map((call) => call.repairMode)).toEqual([
+      null,
+      'source_evidence_id_patch',
+    ]);
+    expect(result.stages.map((stage) => ({
+      count: stage.completeIssueCount,
+      delta: stage.completeDelta,
+      classification: stage.classification,
+    }))).toEqual([
+      { count: 2, delta: null, classification: 'baseline' },
+      { count: 0, delta: -2, classification: 'improved' },
+    ]);
+    let compileCall = 0;
+    const compiled = await compileBookVisualContractTemplate(input, {
+      callLLM: async () => {
+        compileCall += 1;
+        return JSON.stringify(
+          compileCall === 1
+            ? initial
+            : {
+                patches: [{
+                  pageNumber: 12,
+                  beatId,
+                  sourceEvidenceId: evidence.sourceEvidenceId,
+                }],
+              },
+        );
+      },
+    });
+    expect(compileCall).toBe(2);
+    expect(compiled.actionSemanticCoverage).toContainEqual(
+      expect.objectContaining({
+        pageNumber: 12,
+        beatId,
+        sourceEvidenceId: evidence.sourceEvidenceId,
+        disposition: {
+          kind: 'represented_elsewhere',
+          contractPointer:
+            '/pageContracts/11/childWardrobeOverride/description',
+          contractValue: description,
+        },
+      }),
+    );
+    expect(
+      compiled.template.pageContracts.find(
+        (candidate) => candidate.pageNumber === 12,
+      )?.childWardrobeOverride,
+    ).toEqual({
+      description,
+      origin: {
+        kind: 'story_evidence',
+        page: 12,
+        phrase: evidence.excerpt,
+      },
+    });
+  });
+
   it('distinguishes unmasking from genuine repair damage using the complete census', async () => {
     expect(classifyOfflineRepairDelta({
       surfacedDelta: 11,
