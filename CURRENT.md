@@ -2,7 +2,55 @@
 
 **Updated:** 2026-08-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; reviewed/pushed base and origin are `64c0b5dfbb0233162ee86e07021b49ebef998549`; the compiler-owned Page Contract source-evidence identity fence is the current locally green offline milestone at local `HEAD`, unpushed and pending independent Claude Code review.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; reviewed/pushed base and origin are `b35f76301254ff089d3ce381e08f257cc7b39f1d`; the Set Board positive-authority precision and collect-all admission milestone spans that base through local `HEAD`, is unpushed, and is pending independent Claude Code review.
+
+## SET BOARD POSITIVE-AUTHORITY PRECISION + COLLECT-ALL ADMISSION — OFFLINE GREEN; INDEPENDENT QA PENDING
+
+The revised Chameleon paid authoring attempt already succeeded. Candidate
+`be2d3202…bcbc9` has 8 pages, 66 coverage records and zero Template errors.
+Receipt `0844f5ad…f5d9` records one provider invocation, zero retry/fallback,
+nominal cost `$0.465751` and conservative cost `$0.512337`. The Supervisor
+result is an exact post-hoc stdout recovery from that completed invocation, not
+a second execution. No further paid authoring call is needed.
+
+The downstream blocker was deterministic Set Board validation, not provider
+quality: `child-scale` furniture was classified as child/cast authority, bare
+`route` was incorrectly derived from excluded prop `prop_route_labels`, and
+fail-fast projection masked later Set/field findings. Code commit `ac9037be`
+implements a v2-first, versioned v3 fallback plus a two-layer collect-all
+census before Registry/storage access. The scale exception is node-bound to
+closed ordinary furniture suffixes; real cast prose, disguised representations,
+actions and prop leaks remain rejected. Residual orphan/malformed/empty
+authority shapes fail at contract scope. Downstream qualification reports
+`set_authority_invalid` rather than inventing stale or missing Board noise.
+
+The immutable real Candidate now admits 3/3 Sets with zero issues:
+`set_home` v3 (`e71fbd7a…`), `set_kindergarten` v2 (`a04ca201…`) and
+`set_neighborhood_route` v3 (`a9c0e87d…`). Both historical approved
+Chameleon package revisions remain exact v2, keep hashes `803dea01…` and
+`fd15ad19…`, and resolve their existing Registry Boards with zero issues. No
+Candidate, Board, Registry, package or locator byte was rewritten.
+
+Validation on the final code bytes: focused 74/74; full Set Board 349/349;
+selected downstream 129/129 with four intentional environment skips;
+TypeScript and `git diff --check` pass. Literal `npm run check` passes both
+TypeScript phases. Ordinary passes 3,809 assertions, skips 70 and fails only
+the nine known missing ignored-output fixture assertions across five unchanged
+files. Resource passes 623/623 assertions, then emits the three known Vitest
+worker RPC timeouts. The command therefore remains exit 1 and is not called a
+clean PASS. Two independent read-only adversarial audits found zero findings.
+
+No provider, image, audio, Board mint, Registry/storage/database write,
+deployment, Wizard order or render occurred in this milestone. The binding
+next action is Claude Code review of `b35f7630..HEAD`. After PASS: run the
+general offline reconciliation operator, obtain the exact content approval,
+mint and QA the three LOW Boards, complete Blueprint/package publication and
+Preview preflight, then run the already authorized fake-paid LOW full Wizard
+book for Bar age 5 with mom narration. Detailed evidence:
+`docs/ai-workflow/R1D_SET_BOARD_POSITIVE_AUTHORITY_PRECISION_IMPLEMENTATION_EVIDENCE.md`.
+
+All lower sections are historical milestone records. When they describe a
+different pending next action, this top section is the current binding state.
 
 ## PAGE-CONTRACT SOURCE-EVIDENCE IDENTITY FENCE — EXACT LIVE CAPTURE ADVANCES 12→5 OFFLINE; FINAL GATE PENDING
 
