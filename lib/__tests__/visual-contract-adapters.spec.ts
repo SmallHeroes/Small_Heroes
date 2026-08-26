@@ -139,6 +139,42 @@ describe('contractToLocationPlanBundle', () => {
     expect(block).toContain('exam table'); // forbidden drift (mustNotShow)
   });
 
+  it('projects marker-free visible and forbidden location prose while preserving canonical contract bytes', () => {
+    const marked = structuredClone(clinic);
+    const zone = marked.zones.find(
+      (candidate) => candidate.id === 'clinic.waiting_room',
+    )!;
+    zone.spatialNodes = [
+      {
+        id: 'floor',
+        kind: 'floor',
+        description: 'the pale clinic floor',
+      },
+    ];
+    zone.stableGeometry = ['floor "floor": the pale clinic floor'];
+    const page = marked.pageContracts[0]!;
+    page.mustShow = [
+      'the child waits on the pale clinic floor [spatial:floor]',
+    ];
+    page.mustNotShow = [
+      'the child must not cross the pale clinic floor [spatial:floor]',
+    ];
+
+    const bundle = contractToLocationPlanBundle(marked);
+    const plan = resolvePageLocationPlan(bundle, 1)!;
+    const block = buildLocationContinuityPromptBlock(bundle.bible, plan);
+
+    expect(plan.visibleAnchors).toEqual([
+      'the child waits on the pale clinic floor',
+    ]);
+    expect(plan.forbiddenDrift).toEqual([
+      'the child must not cross the pale clinic floor',
+    ]);
+    expect(block).not.toContain('[spatial:');
+    expect(marked.pageContracts[0]!.mustShow[0]).toContain('[spatial:floor]');
+    expect(marked.pageContracts[0]!.mustNotShow[0]).toContain('[spatial:floor]');
+  });
+
   // (P1-1) Per-page transitions — validated against the MULTI-ZONE clinic (waiting_room → exam_room), not a toy.
   it('(P1-1) contract books carry NO global transitionRules block — continuity is per-page', () => {
     expect(contractToLocationPlanBundle(clinic).bible.transitionRules).toEqual([]);

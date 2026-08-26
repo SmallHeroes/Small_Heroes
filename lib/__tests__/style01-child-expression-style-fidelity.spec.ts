@@ -23,7 +23,7 @@ function frame(input?: {
   height?: number;
 }): RuntimeBlueprintFrameProjection {
   return {
-    version: 'runtime-blueprint-frame-projection/v3',
+    version: 'runtime-blueprint-frame-projection/v4',
     packageRevisionDigest: 'a'.repeat(64),
     packagePath: 'visual-packages/approved/revisions/fixture.json',
     sourcePath: 'story-bank/v3-approved/fixture.md',

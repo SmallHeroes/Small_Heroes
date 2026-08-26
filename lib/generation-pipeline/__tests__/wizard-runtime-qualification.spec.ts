@@ -469,7 +469,7 @@ describe('Wizard/order to chunk-runner render qualification', () => {
       frozenAuthority: frozenPackage,
       contractHash: frozenContractHash,
       bookProjection: {
-        version: 'runtime-blueprint-book-projection/v3',
+        version: 'runtime-blueprint-book-projection/v4',
         packageRevisionDigest: packageValue.revisionDigest,
         blueprintDigest: packageValue.blueprint.digest,
       },

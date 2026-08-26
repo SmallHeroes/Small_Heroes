@@ -527,6 +527,63 @@ describe('R1D-PVB-C shared runtime Blueprint authority', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('removes internal spatial markers from active narrative, location, forbidden, and final provider prompt paths only', async () => {
+    const markedVisible =
+      'the child looks across the stable clear floor plane [spatial:floor]';
+    const markedForbidden =
+      'the child must not cross the stable clear floor plane [spatial:floor]';
+    const markedNarrative =
+      'The child pauses beside the stable clear floor plane [spatial:floor]';
+    const runtime = authority('no_companion', {
+      mutateTemplate(template) {
+        template.pageContracts[0]!.mustShow.push(markedVisible);
+        template.pageContracts[0]!.mustNotShow.push(markedForbidden);
+      },
+      mutateWorld({ frames }) {
+        const frame = frames.find(
+          (candidate) =>
+            candidate.kind === 'page' && candidate.pageNumber === 1,
+        );
+        if (!frame) throw new Error('fixture page frame 1 missing');
+        frame.narrative.summary = markedNarrative;
+      },
+    });
+    const canonicalPage = runtime.contract.pageContracts[0]!;
+    const canonicalFrame = runtime.packageValue.blueprint.content.frames.find(
+      (candidate) =>
+        candidate.kind === 'page' && candidate.pageNumber === 1,
+    )!;
+    const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);
+
+    expect(canonicalPage.mustShow).toContain(markedVisible);
+    expect(canonicalPage.mustNotShow).toContain(markedForbidden);
+    expect(canonicalFrame.narrative.summary).toBe(markedNarrative);
+    expect(frame.narrative.summary).toBe(
+      'The child pauses beside the stable clear floor plane',
+    );
+    expect(frame.pageLocationPlan.visibleAnchors).toContain(
+      'the child looks across the stable clear floor plane',
+    );
+    expect(frame.pageLocationPlan.forbiddenDrift).toContain(
+      'the child must not cross the stable clear floor plane',
+    );
+    expect(frame.entityPresence.forbiddenEntities).toContain(
+      'the child must not cross the stable clear floor plane',
+    );
+    expect(JSON.stringify(frame.pageLocationPlan)).not.toContain('[spatial:');
+    expect(JSON.stringify(frame.entityPresence)).not.toContain('[spatial:');
+    expect(frame.blueprintPromptBlock).not.toContain('[spatial:');
+
+    await generateImage(imageInput(runtime));
+    const providerInput = generateGptSpy.mock.calls[0][0] as {
+      finalPrompt: string;
+    };
+    expect(providerInput.finalPrompt).toContain(
+      'the stable clear floor plane',
+    );
+    expect(providerInput.finalPrompt).not.toContain('[spatial:');
+  });
+
   it('enforced prompt keeps contract world facts but excludes conflicting contract camera, body state, laterality and action authority', async () => {
     const runtime = authorityWithConflictingContractSteering();
     const frame = requireRuntimeBlueprintFrame(runtime.bookProjection, 1);

@@ -2,10 +2,10 @@
  * Visual Contract prompt projections.
  *
  * Enforced PVB uses the explicit facts-only projection below. The historical
- * authoritative prompt builder remains available unchanged for enforcement-off
- * development compatibility.
+ * authoritative prompt builder remains available for enforcement-off development
+ * compatibility. Both paths share the marker-free provider prose projection.
  */
-import { projectPageActionProse, projectPageSafetyProse } from './projectContractProse';
+import { projectPageProviderPromptProse } from './projectContractProse';
 import type { BookVisualContract } from './types';
 import type { ResolvedPageContract } from './derivePageVisualContracts';
 
@@ -15,7 +15,7 @@ function line(label: string, value: string | undefined | null): string | null {
 }
 
 export const PVB_VISUAL_CONTRACT_FACTS_VERSION =
-  'pvb-visual-contract-facts/v1' as const;
+  'pvb-visual-contract-facts/v2' as const;
 
 /**
  * Explicit allowlisted projection for enforced PVB rendering.
@@ -122,7 +122,8 @@ export function projectPvbVisualContractFacts(
       ...(prop?.persistence?.trim() ? { persistence: prop.persistence.trim() } : {}),
     };
   });
-  const safetyConstraints = projectPageSafetyProse(page, contract).trim();
+  const providerProse = projectPageProviderPromptProse(page, contract);
+  const safetyConstraints = providerProse.safety.trim();
 
   return {
     version: PVB_VISUAL_CONTRACT_FACTS_VERSION,
@@ -352,8 +353,7 @@ export function buildVisualContractPromptBlock(
   // (Stage 3) Deterministic PROJECTIONS of the page's structured action beats + hazard prohibitions. Computed here
   // and never stored/hashed, so no v1 prose field competes with them and they need no migration. A page that
   // authors no structure projects to '' → line() → null → the block stays byte-identical.
-  const actionProse = projectPageActionProse(page, contract);
-  const safetyProse = projectPageSafetyProse(page, contract);
+  const providerProse = projectPageProviderPromptProse(page, contract);
 
   const sameLocationNote =
     page.sameLocationAs != null
@@ -383,8 +383,8 @@ export function buildVisualContractPromptBlock(
         : undefined,
     ),
     line('PROP STATE', propState || undefined),
-    line('MUST SHOW', (page.mustShow ?? []).join('; ') || undefined),
-    line('MUST NOT SHOW (never render)', (page.mustNotShow ?? []).join('; ') || undefined),
+    line('MUST SHOW', providerProse.mustShow.join('; ') || undefined),
+    line('MUST NOT SHOW (never render)', providerProse.mustNotShow.join('; ') || undefined),
     line('CAMERA / ACTION', page.camera),
     // (Slice B) Authored steering fields — each omitted (line() → null) when unauthored, so the block is byte-identical
     // for contracts that do not use them. They are contract statements → protected by the AUTHORITY closer below.
@@ -394,8 +394,8 @@ export function buildVisualContractPromptBlock(
     line('LATERALITY', laterality || undefined),
     // (Stage 3) Projected from the page's structure — placed BEFORE the AUTHORITY closer so "THIS contract wins"
     // covers them too.
-    line('ACTION BEATS', actionProse || undefined),
-    line('SAFETY (never render)', safetyProse || undefined),
+    line('ACTION BEATS', providerProse.action || undefined),
+    line('SAFETY (never render)', providerProse.safety || undefined),
     'AUTHORITY: runtime presentation may influence camera, composition, staging, pose, blocking, eyeline, and emotion ONLY. It may NEVER change reality mode, location, zone, transition, set identity, cast, wardrobe, required content, props, or forbidden content. Where they conflict, THIS contract wins.',
   ];
 

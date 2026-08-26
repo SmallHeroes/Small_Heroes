@@ -258,7 +258,7 @@ describe('(WS0b e3) contractObservability — carried ALONGSIDE qaContext, never
 
 describe('R1D-PVB-C3 runtime authority observability', () => {
   const PVB = {
-    version: 'runtime-blueprint-frame-evidence/v3',
+    version: 'runtime-blueprint-frame-evidence/v4',
     packageRevisionDigest: 'a'.repeat(64),
     blueprintDigest: 'b'.repeat(64),
     bookProjectionDigest: 'c'.repeat(64),

@@ -14,6 +14,7 @@
  */
 import type { BookVisualContract } from './types';
 import type { ResolvedPageContract } from './derivePageVisualContracts';
+import { projectPageProviderPromptProse } from './projectContractProse';
 
 export type ContractQaCheck =
   | 'wrong_location'
@@ -95,7 +96,7 @@ export type ContractVisionCaller = (imageUrl: string, instruction: string) => Pr
 export function resolveMajorProps(page: ResolvedPageContract, contract: BookVisualContract): string[] {
   const propNames = new Set(contract.recurringProps.map((p) => p.name.toLowerCase()));
   const propIds = new Set(contract.recurringProps.map((p) => p.id.toLowerCase()));
-  return (page.mustShow ?? []).filter((m) => {
+  return projectPageProviderPromptProse(page, contract).mustShow.filter((m) => {
     const lc = m.toLowerCase();
     return propNames.has(lc) || propIds.has(lc) || [...propNames].some((n) => lc.includes(n));
   });

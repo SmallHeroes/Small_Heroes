@@ -17,8 +17,9 @@
  *    tested, but UNWIRED in Stage 3. `mustShow`/`mustNotShow` are MULTI-SOURCE (they also carry zone exclusions,
  *    style guards and spoiler prose that the structure provably cannot express yet), so an equality check would be
  *    false. Stage 4 wires the correct rule: CONTAINMENT (projection ⊆ stored).
- *  - TIER C `projectPageActionProse` / `projectPageSafetyProse` — WIRED, but never stored and never hashed: they
- *    are computed at prompt-block time. No v1 prose field competes with them, so they need no migration at all.
+ *  - TIER C `projectPageActionProse` / `projectPageSafetyProse` — canonical internal projections, never stored and
+ *    never hashed. Provider prompts use the distinct marker-free `projectPageProviderPromptProse` boundary; the
+ *    canonical projectors retain compiler-owned identity markers for review and correction authority.
  */
 import type {
   BookVisualContract,
@@ -86,8 +87,18 @@ function humanizeKind(kind: string): string {
 
 export const SPATIAL_REFERENCE_PROJECTION_VERSION =
   'spatial-reference-projection/v2' as const;
+export const PROVIDER_SPATIAL_REFERENCE_PROJECTION_VERSION =
+  'provider-spatial-reference-projection/v1' as const;
 
-type SpatialReferenceProjectionMode = 'legacy_kind' | 'description_v2';
+type SpatialReferenceProjectionMode =
+  | 'legacy_kind'
+  | 'description_v2'
+  | 'provider_description_v1';
+
+type SpatialProjectionPageContext = Pick<
+  PageVisualContract,
+  'locationId' | 'zoneId'
+>;
 
 function readableSpatialDescription(description: unknown): string {
   if (typeof description !== 'string') return '';
@@ -98,7 +109,10 @@ function readableSpatialDescription(description: unknown): string {
 }
 
 /** The page's own zone (never another zone — geometry is zone-scoped by construction). */
-function zoneOfPage(page: PageVisualContract, contract: BookVisualContract): VisualZone | undefined {
+function zoneOfPage(
+  page: SpatialProjectionPageContext,
+  contract: BookVisualContract,
+): VisualZone | undefined {
   if (!page.zoneId) return undefined;
   return safeObjectElements<VisualZone>(contract.zones).find(
     (z) => z.id === page.zoneId && z.locationId === page.locationId,
@@ -156,12 +170,23 @@ function refLabel(
       const node = safeObjectElements<
         NonNullable<VisualZone['spatialNodes']>[number]
       >(zoneOfPage(page, contract)?.spatialNodes).find((n) => n.id === ref.id);
-      if (!node) return ref.id;
+      if (!node) {
+        return spatialMode === 'provider_description_v1'
+          ? 'the referenced area'
+          : ref.id;
+      }
       if (spatialMode === 'legacy_kind') {
         if (typeof node.kind !== 'string') return `spatial:${node.id}`;
         return `the ${humanizeKind(node.kind)}`;
       }
       const description = readableSpatialDescription(node.description);
+      if (spatialMode === 'provider_description_v1') {
+        return description
+          ? `the ${description}`
+          : typeof node.kind === 'string'
+            ? `the ${humanizeKind(node.kind)}`
+            : 'the referenced area';
+      }
       return description
         ? `the ${description} [spatial:${node.id}]`
         : `spatial:${node.id}`;
@@ -334,10 +359,22 @@ function safetyProseLine(
  * authors none, so the caller's `line()` helper filters it out and the prompt block stays byte-identical.
  */
 export function projectPageActionProse(page: PageVisualContract, contract: BookVisualContract): string {
+  return projectPageActionProseWithSpatialMode(
+    page,
+    contract,
+    'description_v2',
+  );
+}
+
+function projectPageActionProseWithSpatialMode(
+  page: PageVisualContract,
+  contract: BookVisualContract,
+  spatialMode: SpatialReferenceProjectionMode,
+): string {
   const actions = safeObjectElements<PageActionRequirement>(page.actionRequirements);
   if (actions.length === 0) return '';
   return actions
-    .map((action) => actionProseLine(action, page, contract))
+    .map((action) => actionProseLine(action, page, contract, spatialMode))
     .filter((line): line is string => line !== null)
     .join('; ');
 }
@@ -347,9 +384,105 @@ export function projectPageActionProse(page: PageVisualContract, contract: BookV
  * page authors none (→ byte-identical prompt block).
  */
 export function projectPageSafetyProse(page: PageVisualContract, contract: BookVisualContract): string {
+  return projectPageSafetyProseWithSpatialMode(
+    page,
+    contract,
+    'description_v2',
+  );
+}
+
+function projectPageSafetyProseWithSpatialMode(
+  page: PageVisualContract,
+  contract: BookVisualContract,
+  spatialMode: SpatialReferenceProjectionMode,
+): string {
   const safety = safeObjectElements<SafetyConstraint>(page.safetyConstraints);
   if (safety.length === 0) return '';
-  return safety.map((s) => safetyProseLine(s, page, contract)).join('; ');
+  return safety
+    .map((s) => safetyProseLine(s, page, contract, spatialMode))
+    .filter((line): line is string => line !== null)
+    .join('; ');
+}
+
+function providerSpatialLabel(
+  node: NonNullable<VisualZone['spatialNodes']>[number],
+): string {
+  const description = readableSpatialDescription(node.description);
+  if (description) return `the ${description}`;
+  if (typeof node.kind === 'string') return `the ${humanizeKind(node.kind)}`;
+  return 'the referenced area';
+}
+
+/**
+ * Remove compiler-owned spatial identity markers at the provider boundary while
+ * preserving the readable authored prose around them. Canonical Contract prose
+ * remains marker-bearing; this projection is derived, prompt-only, and fail-closed
+ * when a marker cannot be resolved inside the page's own zone.
+ */
+export function projectProviderSafeSpatialProse(
+  value: string,
+  page: SpatialProjectionPageContext,
+  contract: BookVisualContract,
+): string {
+  let projected = value;
+  for (const node of safeObjectElements<
+    NonNullable<VisualZone['spatialNodes']>[number]
+  >(zoneOfPage(page, contract)?.spatialNodes)) {
+    if (typeof node.id !== 'string' || node.id.length === 0) continue;
+    const naturalLabel = providerSpatialLabel(node);
+    const marker = `[spatial:${node.id}]`;
+    const description = readableSpatialDescription(node.description);
+    if (description) {
+      projected = projected
+        .split(`the ${description} ${marker}`)
+        .join(naturalLabel);
+    }
+    projected = projected
+      .split(` ${marker}`)
+      .join('')
+      .split(marker)
+      .join(naturalLabel);
+  }
+  if (projected.includes('spatial:')) {
+    throw new Error(
+      '[provider_spatial_prose_projection] unresolved internal spatial reference marker',
+    );
+  }
+  return projected;
+}
+
+export interface ProviderPagePromptProse {
+  version: typeof PROVIDER_SPATIAL_REFERENCE_PROJECTION_VERSION;
+  action: string;
+  safety: string;
+  mustShow: string[];
+  mustNotShow: string[];
+}
+
+/** One provider-only projection for every free-prose page surface. */
+export function projectPageProviderPromptProse(
+  page: PageVisualContract,
+  contract: BookVisualContract,
+): ProviderPagePromptProse {
+  return {
+    version: PROVIDER_SPATIAL_REFERENCE_PROJECTION_VERSION,
+    action: projectPageActionProseWithSpatialMode(
+      page,
+      contract,
+      'provider_description_v1',
+    ),
+    safety: projectPageSafetyProseWithSpatialMode(
+      page,
+      contract,
+      'provider_description_v1',
+    ),
+    mustShow: (page.mustShow ?? []).map((value) =>
+      projectProviderSafeSpatialProse(value, page, contract),
+    ),
+    mustNotShow: (page.mustNotShow ?? []).map((value) =>
+      projectProviderSafeSpatialProse(value, page, contract),
+    ),
+  };
 }
 
 /* ── TIER B — mustShow / mustNotShow (pure + tested, UNWIRED in Stage 3; Stage 4 checks containment) ── */

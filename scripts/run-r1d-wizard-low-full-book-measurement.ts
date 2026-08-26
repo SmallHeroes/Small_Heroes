@@ -30,6 +30,7 @@ import {
   materialize,
   migrateLegacyBookVisualContractTemplateV1,
   projectPageMustShow,
+  projectProviderSafeSpatialProse,
   requiredPropIdsForPage,
   validateBookVisualContractTemplate,
   type BookVisualContract,
@@ -353,6 +354,15 @@ function buildPackage(
             `Cover location ${template.coverContract.locationId} has no page-backed canonical zone`,
           );
         }
+        const providerMustShow = (
+          page?.mustShow ?? template.coverContract.mustShow
+        ).map((value) =>
+          projectProviderSafeSpatialProse(
+            value,
+            { locationId, zoneId },
+            contract,
+          ),
+        );
         const requiredProps = requiredPropIdsForPage(contract, pageNumber ?? 0);
         const forbiddenProps = forbiddenPropIdsForPage(contract, pageNumber ?? 0);
         const actions = (page?.actionRequirements ?? []).filter((action) => action.polarity === 'must');
@@ -375,7 +385,7 @@ function buildPackage(
             ? {
                 purpose: 'cover_promise',
                 summary: IS_WIZARD_CATALOG
-                  ? template.coverContract.mustShow.join(' | ')
+                  ? providerMustShow.join(' | ')
                   : IS_DINI_BAR
                   ? 'A bedroom portal opens onto Dini’s orange-hill world and a lesson about protective space.'
                   : IS_BUNNY_BAR
@@ -393,7 +403,7 @@ function buildPackage(
                         : page?.transition?.kind !== 'steady'
                           ? 'transition'
                           : 'advance_action',
-                summary: [page?.camera, ...(page?.mustShow ?? [])].filter(Boolean).join(' | '),
+                summary: [page?.camera, ...providerMustShow].filter(Boolean).join(' | '),
               };
 
         const placements: BlueprintFramePlacement[] = [];

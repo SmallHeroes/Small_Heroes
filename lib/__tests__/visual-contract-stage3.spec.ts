@@ -6,6 +6,8 @@ import {
   validateBookVisualContract,
   assertValidBookVisualContractTemplate,
   buildVisualContractPromptBlock,
+  buildPvbVisualContractFactsPromptBlock,
+  buildContractVisionInstruction,
   derivePageVisualContracts,
   deriveCoverVisualContract,
   projectZoneStableGeometry,
@@ -15,6 +17,7 @@ import {
   projectPageMustNotShowLegacySpatial,
   projectCoverMustNotShow,
   projectPageActionProse,
+  projectPageProviderPromptProse,
   type BookVisualContract,
   type PageVisualContract,
   type VisualZone,
@@ -1087,6 +1090,61 @@ describe('Stage 3 — the projections are pure, deterministic and order-stable',
     ]);
   });
 
+  it('keeps canonical spatial identity markers while projecting marker-free provider prose without mutation', () => {
+    const sc = structuredContract();
+    const page = sc.pageContracts[0]!;
+    const before = canonicalHash(sc);
+    const provider = projectPageProviderPromptProse(page, sc);
+
+    expect(projectPageMustNotShow(page, sc)).toEqual([
+      'the child must NOT sit on the pale vinyl floor [spatial:floor]',
+    ]);
+    expect(provider.safety).toBe(
+      'the child must NOT sit on the pale vinyl floor',
+    );
+    expect(provider.mustNotShow).toContain(
+      'the child must NOT sit on the pale vinyl floor',
+    );
+    expect(JSON.stringify(provider)).not.toContain('[spatial:');
+    expect(canonicalHash(sc)).toBe(before);
+    expect(sc.pageContracts[0]!.mustNotShow).toContain(
+      'the child must NOT sit on the pale vinyl floor [spatial:floor]',
+    );
+
+    const unresolved = structuredClone(page);
+    unresolved.mustShow = ['unknown internal marker [spatial:not_in_page_zone]'];
+    expect(() => projectPageProviderPromptProse(unresolved, sc)).toThrow(
+      'unresolved internal spatial reference marker',
+    );
+  });
+
+  it('projects spatial action prose naturally for providers while its canonical mustShow identity stays exact', () => {
+    const sc = structuredContract();
+    const page = structuredClone(sc.pageContracts[0]!);
+    page.actionRequirements = [
+      {
+        checkId: 'action:looks_at_floor',
+        subject: {
+          kind: 'entity',
+          entity: { kind: 'cast', id: 'child:hero' },
+        },
+        predicate: 'looks_at',
+        object: { kind: 'spatial', id: 'floor' },
+        polarity: 'must',
+      },
+    ];
+
+    expect(projectPageMustShow(page, sc)).toContain(
+      'the child looks at the pale vinyl floor [spatial:floor]',
+    );
+    expect(projectPageActionProse(page, sc)).toBe(
+      'the child looks at the pale vinyl floor [spatial:floor]',
+    );
+    expect(projectPageProviderPromptProse(page, sc).action).toBe(
+      'the child looks at the pale vinyl floor',
+    );
+  });
+
   it('projects two same-kind spatial nodes by exact identity and description while preserving a legacy reader', () => {
     const sc = structuredContract();
     const zone = sc.zones[0]!;
@@ -1165,14 +1223,38 @@ describe('Stage 3 — TIER C: the prompt block gains the projected lines ONLY wh
     const block = buildVisualContractPromptBlock(page, sc);
     expect(block).toContain('ACTION BEATS: the child sits on Examination chair');
     expect(block).toContain(
-      'SAFETY (never render): the child must NOT sit on the pale vinyl floor [spatial:floor]',
+      'SAFETY (never render): the child must NOT sit on the pale vinyl floor',
     );
+    expect(block).not.toContain('[spatial:');
     // The projected geometry rides the existing per-page (own-zone only) STABLE GEOMETRY line.
     expect(block).toContain('STABLE GEOMETRY: floor "floor": a pale vinyl floor');
     // AUTHORITY must close the block so "THIS contract wins" covers the new lines too.
     expect(block.indexOf('SAFETY (never render)')).toBeLessThan(
       block.indexOf('AUTHORITY: runtime presentation'),
     );
+  });
+
+  it('the active PVB facts block projects spatial safety without internal markers', () => {
+    const sc = structuredContract();
+    const [page] = derivePageVisualContracts(sc);
+    const block = buildPvbVisualContractFactsPromptBlock(page, sc);
+    expect(block).toContain(
+      'SAFETY BOUNDARIES (never violate): the child must NOT sit on the pale vinyl floor',
+    );
+    expect(block).not.toContain('[spatial:');
+  });
+
+  it('the provider vision instruction receives marker-free mustShow prose', () => {
+    const sc = structuredContract();
+    const [page] = derivePageVisualContracts(sc);
+    page.mustShow = [
+      'Examination chair beside the pale vinyl floor [spatial:floor]',
+    ];
+    const instruction = buildContractVisionInstruction(page, sc);
+    expect(instruction).toContain(
+      'Required to be visible: Examination chair beside the pale vinyl floor.',
+    );
+    expect(instruction).not.toContain('[spatial:');
   });
 
   it('the COVER carries no page-level structure (it has no page contract) → no ACTION/SAFETY lines', () => {

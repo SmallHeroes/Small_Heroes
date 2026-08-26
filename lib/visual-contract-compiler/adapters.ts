@@ -27,6 +27,10 @@ import type {
   SetTopology,
   SetTopologyElement,
 } from '@/lib/story-location-bible/types';
+import {
+  projectPageProviderPromptProse,
+  projectProviderSafeSpatialProse,
+} from './projectContractProse';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. contract → StoryLocationPlanBundle
@@ -116,19 +120,21 @@ function composePageAction(
 
 function toPageLocationPlan(
   pc: PageVisualContract,
+  contract: BookVisualContract,
   propNameById?: Map<string, string>,
   castLabelById?: Map<string, string>,
 ): PageLocationPlan {
   // (Slice B) Promote per-(page,castId) body-state/laterality + prop-state transitions into the MANDATORY page action.
   // Empty → the pageAction key is omitted → buildPageActionPromptBlock returns null → byte-identical off-path.
   const pageAction = composePageAction(pc, propNameById, castLabelById);
+  const providerProse = projectPageProviderPromptProse(pc, contract);
   return {
     page: pc.pageNumber,
     zoneId: pc.zoneId ?? '',
     // The contract's mustShow are the page's visible anchors; mustNotShow are its forbidden-drift guards.
-    visibleAnchors: pc.mustShow ?? [],
+    visibleAnchors: providerProse.mustShow,
     allowedVariation: '',
-    forbiddenDrift: pc.mustNotShow ?? [],
+    forbiddenDrift: providerProse.mustNotShow,
     // A page's camera is the ONLY dimension imageDirection may influence — carried as the position hint.
     ...(pc.camera ? { cameraPositionHint: pc.camera } : {}),
     // (WS0b P1-1) Project the page's OWN transition so the consumer emits per-page continuity — NOT the whole book's
@@ -178,9 +184,21 @@ function coverPageLocationPlan(contract: BookVisualContract): PageLocationPlan {
   return {
     page: 0,
     zoneId: coverZone?.id ?? '',
-    visibleAnchors: cover.mustShow ?? [],
+    visibleAnchors: (cover.mustShow ?? []).map((value) =>
+      projectProviderSafeSpatialProse(
+        value,
+        { locationId: cover.locationId, zoneId: coverZone?.id },
+        contract,
+      ),
+    ),
     allowedVariation: '',
-    forbiddenDrift: cover.mustNotShow ?? [],
+    forbiddenDrift: (cover.mustNotShow ?? []).map((value) =>
+      projectProviderSafeSpatialProse(
+        value,
+        { locationId: cover.locationId, zoneId: coverZone?.id },
+        contract,
+      ),
+    ),
     contractCover: true,
   };
 }
@@ -225,7 +243,9 @@ export function contractToLocationPlanBundle(contract: BookVisualContract): Stor
   // legacy "home-night" synthesis. Real pages follow, unchanged.
   const pagePlans = [
     coverPageLocationPlan(contract),
-    ...contract.pageContracts.map((pc) => toPageLocationPlan(pc, propNameById, castLabelById)),
+    ...contract.pageContracts.map((pc) =>
+      toPageLocationPlan(pc, contract, propNameById, castLabelById),
+    ),
   ];
   return { bible, pagePlans };
 }

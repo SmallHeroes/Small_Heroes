@@ -7,6 +7,7 @@ import {
   contractToLocationPlanBundle,
 } from '@/lib/visual-contract-compiler/adapters';
 import { buildPvbVisualContractFactsPromptBlock } from '@/lib/visual-contract-compiler/buildVisualContractPromptBlock';
+import { projectProviderSafeSpatialProse } from '@/lib/visual-contract-compiler/projectContractProse';
 import type {
   ApprovedPvbRuntimeAuthorityBinding,
   ResolvedBookVisualContract,
@@ -31,11 +32,11 @@ import {
 } from '@/lib/visual-package/runtimeAuthority';
 
 export const RUNTIME_BLUEPRINT_BOOK_PROJECTION_VERSION =
-  'runtime-blueprint-book-projection/v3' as const;
+  'runtime-blueprint-book-projection/v4' as const;
 export const RUNTIME_BLUEPRINT_FRAME_PROJECTION_VERSION =
-  'runtime-blueprint-frame-projection/v3' as const;
+  'runtime-blueprint-frame-projection/v4' as const;
 export const RUNTIME_BLUEPRINT_FRAME_EVIDENCE_VERSION =
-  'runtime-blueprint-frame-evidence/v3' as const;
+  'runtime-blueprint-frame-evidence/v4' as const;
 
 export interface RuntimeBlueprintReferenceIdentities {
   boards: VisualPackageV4['requiredBoards'];
@@ -234,6 +235,7 @@ function relevantReferences(args: {
 function buildBlueprintPromptBlock(args: {
   packageValue: VisualPackageV4;
   frame: PortraitBlueprintFrame;
+  providerNarrative: PortraitBlueprintFrame['narrative'];
   contract: ResolvedBookVisualContract;
   contractPage: ResolvedPageContract;
   resolvedAppearanceDigest: string;
@@ -254,7 +256,7 @@ function buildBlueprintPromptBlock(args: {
     frameDigest: canonicalJsonDigest(frame),
     planningApprovalDigest: packageValue.planningApproval.content.digest,
     styleAuthorityDigest: packageValue.styleAuthority.digest,
-    narrative: frame.narrative,
+    narrative: args.providerNarrative,
     locationId: frame.locationId,
     zoneId: frame.zoneId,
     castIds: frame.castIds,
@@ -396,16 +398,25 @@ export function buildRuntimeBlueprintBookProjection(args: {
         ? [frame.continuity.connectionId]
         : [],
     );
+    const providerNarrative: PortraitBlueprintFrame['narrative'] = {
+      ...frame.narrative,
+      summary: projectProviderSafeSpatialProse(
+        frame.narrative.summary,
+        contractPage,
+        contract,
+      ),
+    };
     const blueprintPromptBlock = buildBlueprintPromptBlock({
       packageValue,
       frame,
+      providerNarrative,
       contract,
       contractPage,
       resolvedAppearanceDigest,
     });
     const visualDirection: ShotVisualDirection = {
       locationZone: `${location.name} / ${zone.name}`,
-      mainAction: frame.narrative.summary,
+      mainAction: providerNarrative.summary,
       visibleObjects: recurringObjects,
       characterPose: 'exactly as placed by the approved Blueprint frame',
       emotionVisual: frame.narrative.purpose,
@@ -454,7 +465,7 @@ export function buildRuntimeBlueprintBookProjection(args: {
       castIds: [...frame.castIds],
       requiredPropIds,
       forbiddenPropIds,
-      narrative: frame.narrative,
+      narrative: providerNarrative,
       camera: frame.camera,
       placements: frame.placements,
       worldGeometry:
@@ -514,7 +525,7 @@ export function buildRuntimeBlueprintBookProjection(args: {
         forbiddenEntities: [
           ...new Set([
             ...forbiddenPropIds,
-            ...(contractPage.mustNotShow ?? []),
+            ...pageLocationPlan.forbiddenDrift,
             ...contract.forbiddenGlobalElements,
           ]),
         ],

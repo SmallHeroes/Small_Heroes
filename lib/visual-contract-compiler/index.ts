@@ -205,8 +205,12 @@ export {
   projectPageMustNotShowLegacySpatial,
   projectCoverMustNotShow,
   SPATIAL_REFERENCE_PROJECTION_VERSION,
+  PROVIDER_SPATIAL_REFERENCE_PROJECTION_VERSION,
   projectPageActionProse,
   projectPageSafetyProse,
+  projectProviderSafeSpatialProse,
+  projectPageProviderPromptProse,
+  type ProviderPagePromptProse,
 } from './projectContractProse';
 /**
  * (Stage 4) Deterministic check-id resolution for a page's enforcement-relevant claims — Stage 5 binds exactly one
