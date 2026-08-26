@@ -106,6 +106,10 @@ book and render.
   extraction, while presentation-shaped gaps terminate unless independently
   approved eligibility is later wired. The historical cover defect is closed
   by the approved correction overlay, not by a new free-prose detector.
+- A mixed frontier that contains both an unreviewed presentation gap and an
+  otherwise repairable structural failure also terminates before repair. This
+  is the deliberate safety tradeoff: a broad repair may not erase an
+  unsupported beat and thereby make the provider authorize its own gap.
 
 ### Root causes
 
@@ -180,6 +184,15 @@ generic across stories and must prove exact before-state identities.
 - Existing bridge-v4/Candidate-v9 bytes remain immutable and readable only
   through the frozen historical loader; they are not accepted as current live-
   authoring artifacts, and no prior approval is transferred.
+- Every refreshed spatial authority in the correction overlay/review records
+  its projection version explicitly; `vc-schema/v4` alone is not treated as
+  proof of whether legacy-kind or description-v2 prose authored stored bytes.
+- Visual Contract enforcement remains hard-off in Production and explicit in
+  QA. The current Chameleon package has no safety constraints, so its active
+  PVB prompt cannot expose `[spatial:<id>]` through this projector. Before any
+  future package with a spatial safety constraint is rendered, Guy makes an
+  explicit product decision on retaining the marker or using a separate
+  description-only provider projection.
 
 ## 7. Validation plan
 
@@ -228,10 +241,13 @@ historical authority.
 
 ### Guy
 
-No additional product decision is required to implement the generic system;
-the standing authorization to proceed to an operational Wizard covers it.
-Guy must later approve the exact real correction/review digests, including the
-two bounded body-state phrases for p7 and p8, before they become authority.
+The compiler foundation is implemented and independently passed, but standing
+authorization is not treated as approval of its specific capability tradeoff.
+Before the semantic-correction lifecycle proceeds, Guy must explicitly confirm
+that a mixed frontier containing an unreviewed presentation gap may terminate
+without dispatching an otherwise available structural repair. Guy must later
+approve the exact real correction/review digests, including the two bounded
+body-state phrases for p7 and p8, before they become authority.
 
 ### Claude Code
 
@@ -285,8 +301,10 @@ human approval of two visible body-state phrases, which Guy owns.
 4. **Spend money?** No.
 5. **Smallest safe validation?** Offline real-artifact preview plus hostile
    fixtures; no image.
-6. **What must Guy decide now?** Nothing unresolved for implementation. Exact
-   content approval remains a later explicit gate.
+6. **What must Guy decide now?** Confirm the fail-closed mixed-frontier
+   capability tradeoff before the semantic-correction lifecycle proceeds.
+   Exact content approval remains a later explicit gate, and prompt-marker
+   policy is required only before Visual Contract steering is enabled.
 7. **What should Claude Code falsify?** The authority, source-binding,
    compatibility, eligibility and partial-write targets listed above.
 8. **Claude Cowork?** Not needed now.

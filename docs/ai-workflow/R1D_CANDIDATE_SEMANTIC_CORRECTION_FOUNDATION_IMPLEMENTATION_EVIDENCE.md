@@ -15,6 +15,16 @@ semantic-correction overlay and creates an explicit current/legacy authority
 cutover because identical provider bytes no longer have identical acceptance
 semantics.
 
+Independent Claude Code review of `4c34e05b..dad01fec` returned **PASS**. The
+review also identified one intentional capability reduction that this packet
+must state plainly: a frontier that combines an unreviewed closed-catalog
+presentation gap with an otherwise repairable structural failure now
+terminates before repair. This prevents a broad `full_draft` or BookSurface
+rewrite from deleting the unsupported beat and thereby self-authorizing the
+provider's own capability gap. Independently admissible source-ID,
+PageContract and pure structural BookSurface routes remain operational; mixed
+frontiers containing the unreviewed presentation gap do not.
+
 ## Implemented claims
 
 1. **Description-aware spatial projection v2.** Spatial references include the
@@ -38,11 +48,16 @@ semantics.
    from `TemplateCompileInput`. Both live compiler sites supply `[]`; a gap
    terminates as typed `ActionSemanticCapabilityGapError` before a presentation
    repair dispatch. Provider output cannot authorize its own route.
-7. **Policy and prompt cutover.** Authoring policy advances v19→v20; template
-   user prompt v16→v17 and full-repair user prompt v14→v15.
+7. **Policy, prompt and projection cutover.** Authoring policy advances
+   v19→v20; template user prompt v16→v17; full-repair user prompt v14→v15;
+   appearance policy `role-policy/v1→v2`; and presentation-requirement repair
+   schema/prompt/user-prompt `v2→v3`. The new closed authorities are
+   `presentation-requirement-repair-eligibility/v1` and
+   `spatial-reference-projection/v2`.
 8. **Atomic outer version cutover.** Current versions are:
    - authoring request/receipt/readiness `v54` / `v57` / `v54`;
-   - live-request materialization input/verification `v42` / `v52`;
+   - live-request materialization input/materialization/verification `v42` /
+     `v52` / `v52`;
    - execution materialization input/result `v39` / `v44`;
    - execution supervisor request/result `v49` / `v42`;
    - canonical pre-live readiness `v49`.
@@ -53,13 +68,28 @@ semantics.
 10. **Receipt truth updated.** Lifecycle tests prove typed capability-gap
     receipts, one-call terminal behavior where applicable, and continued
     operation of independently authorized source-ID, PageContract and pure
-    structural BookSurface routes.
+    structural BookSurface routes. They also prove the deliberate limitation:
+    a mixed frontier containing an unreviewed presentation gap terminates
+    before those otherwise repairable structural routes can dispatch.
 
 ## Deliberate boundaries
 
 - The pure presentation eligibility helper is implemented, but no independent
   eligibility artifact is yet persisted or bound to snapshot/request digests.
   Production therefore intentionally leaves the route disabled.
+- `SPATIAL_REFERENCE_PROJECTION_VERSION` names the current projection but is
+  not yet persisted by Candidate v9. The correction overlay/review must record
+  the projector used for every refreshed spatial authority; frozen legacy
+  bytes remain selected by the compatibility profile rather than guessed from
+  `vc-schema/v4` alone.
+- The description-aware action/safety projector can emit internal
+  `[spatial:<id>]` markers into the optional Visual Contract steering prompt.
+  Enforcement is hard-off in Production but explicitly enabled by QA render
+  runners. The current approved Chameleon package has no safety constraints
+  and therefore does not emit such markers through its active PVB route; a
+  future spatial-safety constraint would. Before such a package is rendered,
+  Guy must decide whether provider prompt prose should retain the stable
+  marker or use a distinct description-only projection.
 - This milestone does not add a lexical/free-prose cover contradiction
   detector. The real cover defect will be closed only by the typed
   `cover_visible_recurring_prop` overlay operation with exact before-state.
@@ -91,6 +121,19 @@ duplicate-action v2 upgrade, distinct same-kind fail-closed behavior, compact
 spatial repair projection, mixed unreviewed-presentation terminal, and frozen
 Fox v1 legacy-projector compatibility.
 
+### Test-shape disclosure for the reviewed range
+
+Across all changed `*.spec.ts` files in `4c34e05b..dad01fec`, 24 `it()`/`test()`
+blocks were removed and 29 were added. Literal `expect()` lines changed from
+177 removed to 77 added, a net reduction of 100. This is not hidden by the
+343/343 result: the removed success-path assertions exercised provider-authored
+presentation repair, while their replacements prove that the same fixtures
+terminate without independently reviewed eligibility. The strongest removed
+case explicitly let the provider author its own `presentation_requirement`
+disposition and asserted success; the replacement asserts the required
+fail-closed outcome. This is a deliberate coverage transformation and
+capability reduction, not evidence that the old route still operates.
+
 ### Source authority lifecycle
 
 `source-authority-lifecycle.spec.ts`: **108/108 assertions pass**.
@@ -114,6 +157,24 @@ worker errors are recorded rather than relabeled as a clean command PASS.
 
 - `npx --no-install tsc --noEmit`: exit 0.
 - `git diff --check`: exit 0.
+
+### Post-PASS QA-findings closure
+
+The follow-up closure makes both current and legacy spatial reference
+projectors total over malformed runtime descriptions/kinds. Valid-input bytes
+are unchanged; malformed references retain exact `spatial:<id>` fallback and
+the validator still returns itemized rejection.
+
+- focused ten-file compiler/repair/harness matrix: **349/349 pass** (the
+  original 343 plus six malformed-reference regressions);
+- `source-authority-lifecycle.spec.ts`: **108/108 pass**;
+- both TypeScript phases in literal `npm run check`: pass;
+- ordinary partition: **3,820 pass / 70 skip / the same 9 ENOENT failures in
+  five unchanged ignored-output fixture files**;
+- resource-intensive partition: **20/20 files and 627/627 assertions pass**,
+  followed by the same three worker `onTaskUpdate` RPC timeouts;
+- literal `npm run check`: exit 1 for those recorded baseline failures; it is
+  not relabeled a clean command PASS.
 
 ### Full repository check
 
@@ -144,8 +205,9 @@ command PASS.
    Candidate, reconciliation, Board, Blueprint, package, locator or Registry
    artifacts.
 7. Verify that pure structural BookSurface and other independently authorized
-   repair routes remain live while unreviewed presentation gaps stop typed and
-   sanitized.
+   repair routes remain live, while any mixed frontier containing an
+   unreviewed presentation gap stops typed and sanitized before structural
+   repair dispatch.
 
 This is Codex implementation evidence, not an independent technical PASS and
 not product acceptance.

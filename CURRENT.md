@@ -2,9 +2,9 @@
 
 **Updated:** 2026-08-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; the current milestone starts from local reviewed base `4c34e05bf1633ca0f083a0dd1184025783d5f278`. The last observed remote head after `git fetch` was still `b35f76301254ff089d3ce381e08f257cc7b39f1d`, so the user's latest reported push had not yet become visible from this worktree.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; reviewed foundation `dad01fec0c1fe15e448e0ddc3b78b897dff657cd` is pushed and matches `origin/codex/r1d-qa-wizard-downstream-lifecycle` (`0/0`).
 
-## CANDIDATE SEMANTIC-CORRECTION FOUNDATION — COMPILER HARDENED; OUTER AUTHORITY CUT OVER; LIFECYCLE NEXT
+## CANDIDATE SEMANTIC-CORRECTION FOUNDATION — INDEPENDENT PASS; QA CLOSURE LOCAL-GREEN
 
 The four semantic defects in paid Chameleon Candidate `be2d3202…bcbc9` are
 not being hidden by another provider retry or by editing Candidate v9. This
@@ -12,6 +12,15 @@ focused `$0` foundation milestone closes the compiler seams and establishes a
 safe version boundary before the immutable correction overlay is implemented.
 No provider, credential, network, image, audio, Wizard, payment or render path
 was reached.
+
+Claude Code independently reviewed `4c34e05b..dad01fec` and returned **PASS**.
+Its material clarification is now explicit: an unreviewed presentation gap is
+terminal even when the same frontier also contains a structural failure that
+could otherwise use `full_draft` or BookSurface repair. That capability loss
+is intentional because a broad rewrite could erase the unsupported beat and
+self-authorize the provider's own gap. Independently admitted source-ID,
+PageContract and pure structural BookSurface routes remain operational; mixed
+frontiers containing the unreviewed presentation gap do not.
 
 Spatial action prose now uses projection v2: exact spatial-node description
 plus stable node ID, so two same-kind nodes cannot collapse to the same
@@ -45,6 +54,24 @@ The immediately prior authoring request/receipt/readiness v53/v56/v53 remain
 explicit immutable legacy evidence. Candidate remains v9; no historical
 artifact was redigested or promoted.
 
+The complete supporting cutover also includes appearance `role-policy/v2`,
+presentation-requirement repair schema/prompt/user-prompt v3, eligibility v1,
+spatial-reference projection v2, and canonical live-request materialization
+v52. The original foundation range removed 24 and added 29 test blocks; it
+removed 177 and added 77 literal `expect()` lines (net -100). Those removals
+were reviewed as one-for-one conversions from provider-authored repair success
+to typed terminal behavior, not as hidden failing coverage.
+
+The QA closure hardens the v2 spatial projector over malformed runtime input:
+missing/null descriptions and kinds now retain exact `spatial:<id>` fallback
+identity, never throw before validation, and remain rejected with itemized
+validator errors. Candidate v9 still does not persist the projection version;
+the correction overlay/review must do so. The optional steering prompt remains
+hard-off in Production but is explicitly enabled by QA runners. The current
+Chameleon package has no safety constraints, so its active PVB prompt does not
+emit such markers; a future spatial-safety contract would require an explicit
+prompt-policy decision before render.
+
 The paid historical bridge-v4 chain must not be reconstructed with these
 current builders. The next milestone must load and re-attest its exact bytes,
 digests, paths and cross-links through a frozen read-only compatibility
@@ -69,9 +96,18 @@ and all 21/21, 14/14 and 46/46 assertions passed. The latter two still emitted
 the known post-assertion Vitest worker `onTaskUpdate` RPC timeout, so those
 processes exit 1 and are not mislabeled a clean command PASS.
 
-Binding next action: commit this compiler/cutover milestone and obtain
-independent Claude Code review of the immutable range. On PASS, implement the
-new frozen historical loader plus semantic-correction lifecycle, produce the
+Post-PASS closure proof on final code bytes: the focused ten-file matrix is
+349/349 and Source authority remains 108/108. Literal `npm run check` passes
+both TypeScript phases; ordinary is now 3,820 pass / 70 skip with the same nine
+missing-fixture failures across the same five unchanged files, and the
+resource partition is 20/20 files / 627/627 assertions followed by the same
+three worker RPC timeouts. The command therefore remains honestly exit 1.
+
+Binding next action: finish and independently re-gate the focused QA-closure
+commit. Before the semantic-correction lifecycle starts, Guy must explicitly
+accept the fail-closed mixed-frontier capability tradeoff; standing Wizard
+authorization is not substituted for that product choice. After that, build
+the frozen historical loader plus semantic-correction lifecycle, produce the
 exact real correction/review packet for Guy, and only after approval continue
 to fresh reconciliation, Blueprint/package/Wizard and the authorized one LOW
 full-book render.

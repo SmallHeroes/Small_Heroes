@@ -241,6 +241,50 @@ describe('Stage 4 — the baseline still holds (additive proof)', () => {
   });
 });
 
+describe('Stage 4 — malformed referenced spatial prose stays classifiable', () => {
+  it.each([
+    ['omitted', undefined],
+    ['null', null],
+  ])(
+    '%s description cannot make compiler-owned projection throw before validation',
+    (_label, description) => {
+      const contract = baseContract();
+      const zone = {
+        ...contract.zones[0],
+        spatialNodes: structuredClone(NODES),
+      } as unknown as VisualZone;
+      const floor = zone.spatialNodes![0]! as unknown as Record<string, unknown>;
+      if (description === undefined) delete floor.description;
+      else floor.description = description;
+      contract.zones = [zone];
+      contract.pageContracts[0]!.safetyConstraints = [
+        {
+          subjectId: 'child:hero',
+          relation: 'must_not_sit_on',
+          target: { kind: 'spatial', id: 'floor' },
+          origin: { kind: 'authored', authorNote: 'malformed-node totality probe' },
+        },
+      ];
+
+      expect(() =>
+        appendCompilerOwnedPageProjections(contract as never),
+      ).not.toThrow();
+      expect(contract.pageContracts[0]!.mustNotShow.join(' ')).toContain(
+        'spatial:floor',
+      );
+
+      let result: ReturnType<typeof validateBookVisualContract> | undefined;
+      expect(() => {
+        result = validateBookVisualContract(contract as never);
+      }).not.toThrow();
+      expect(result?.ok).toBe(false);
+      if (result && !result.ok) {
+        expect(result.errors.join('\n')).toContain('description missing');
+      }
+    },
+  );
+});
+
 describe('Stage 4 — compiler-owned page prose projection', () => {
   it('appends only missing exact projections without moving authored pointer indexes and is idempotent', () => {
     const contract = baseContract();

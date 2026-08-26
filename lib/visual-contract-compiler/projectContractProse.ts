@@ -89,7 +89,8 @@ export const SPATIAL_REFERENCE_PROJECTION_VERSION =
 
 type SpatialReferenceProjectionMode = 'legacy_kind' | 'description_v2';
 
-function readableSpatialDescription(description: string): string {
+function readableSpatialDescription(description: unknown): string {
+  if (typeof description !== 'string') return '';
   const trimmed = description.trim().replace(/[.!?]+$/u, '');
   if (!trimmed) return '';
   const withoutArticle = trimmed.replace(/^(?:a|an|the)\s+/iu, '');
@@ -157,6 +158,7 @@ function refLabel(
       >(zoneOfPage(page, contract)?.spatialNodes).find((n) => n.id === ref.id);
       if (!node) return ref.id;
       if (spatialMode === 'legacy_kind') {
+        if (typeof node.kind !== 'string') return `spatial:${node.id}`;
         return `the ${humanizeKind(node.kind)}`;
       }
       const description = readableSpatialDescription(node.description);

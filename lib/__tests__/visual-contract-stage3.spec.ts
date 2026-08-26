@@ -12,6 +12,7 @@ import {
   projectPageMustShow,
   projectPageMustShowLegacySpatial,
   projectPageMustNotShow,
+  projectPageMustNotShowLegacySpatial,
   projectCoverMustNotShow,
   projectPageActionProse,
   type BookVisualContract,
@@ -979,6 +980,48 @@ describe('Stage 3 — malformed structure fails CLOSED with an itemized result, 
       expect(() => projectZoneStableGeometry({ ...c.zones[0], ...patch } as never)).not.toThrow();
     }
   });
+
+  it.each([
+    ['omitted description', 'description', undefined],
+    ['null description', 'description', null],
+    ['omitted kind', 'kind', undefined],
+    ['null kind', 'kind', null],
+  ])(
+    'keeps referenced spatial prose total for a malformed %s',
+    (_label, field, value) => {
+      const contract = structuredClone(structuredContract());
+      const floor = contract.zones[0]!.spatialNodes![0]! as unknown as Record<
+        string,
+        unknown
+      >;
+      if (value === undefined) delete floor[field];
+      else floor[field] = value;
+      const page = contract.pageContracts[0]!;
+
+      expect(() => projectPageMustNotShow(page, contract)).not.toThrow();
+      expect(() =>
+        projectPageMustNotShowLegacySpatial(page, contract),
+      ).not.toThrow();
+      const current = projectPageMustNotShow(page, contract).join(' ');
+      const legacy = projectPageMustNotShowLegacySpatial(page, contract).join(
+        ' ',
+      );
+      expect(`${current} ${legacy}`).not.toMatch(/\b(?:null|undefined)\b/u);
+      if (field === 'description') expect(current).toContain('spatial:floor');
+      if (field === 'kind') expect(legacy).toContain('spatial:floor');
+
+      let result: ReturnType<typeof validateBookVisualContract> | undefined;
+      expect(() => {
+        result = validateBookVisualContract(contract as never);
+      }).not.toThrow();
+      expect(result?.ok).toBe(false);
+      if (result && !result.ok) {
+        expect(result.errors.join('\n')).toContain(
+          field === 'description' ? 'description missing' : 'kind "',
+        );
+      }
+    },
+  );
 });
 
 describe('Stage 3 — TIER A: stableGeometry stops being an independent authority once structure exists', () => {
