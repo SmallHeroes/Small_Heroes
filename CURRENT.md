@@ -2,58 +2,81 @@
 
 **Updated:** 2026-08-26
 **Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; reviewed/pushed base and origin are `b35f76301254ff089d3ce381e08f257cc7b39f1d`; the Set Board positive-authority precision and collect-all admission milestone spans that base through local `HEAD`, is unpushed, and has independent Claude Code PASS.
+**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; this milestone starts from local reviewed base `d9eb74223f97232e5d78300a7e85c70d4437b5ee`. The last observed remote head after `git fetch` was `b35f76301254ff089d3ce381e08f257cc7b39f1d`, so the user's reported push had not yet become visible from this worktree.
 
-## SET BOARD POSITIVE-AUTHORITY PRECISION + COLLECT-ALL ADMISSION — INDEPENDENT TECHNICAL PASS
+## RECONCILIATION REVIEWER AUTHORING — LOCAL GREEN; INDEPENDENT CLAUDE CODE QA PENDING
 
 The revised Chameleon paid authoring attempt already succeeded. Candidate
-`be2d3202…bcbc9` has 8 pages, 66 coverage records and zero Template errors.
-Receipt `0844f5ad…f5d9` records one provider invocation, zero retry/fallback,
-nominal cost `$0.465751` and conservative cost `$0.512337`. The Supervisor
-result is an exact post-hoc stdout recovery from that completed invocation, not
-a second execution. No further paid authoring call is needed.
+`be2d3202…bcbc9` has 8 pages, 66 coverage records and zero current structural
+Template errors. Receipt `0844f5ad…f5d9` records one provider invocation, zero
+retry/fallback, nominal cost `$0.465751` and conservative cost `$0.512337`.
+The Supervisor result is an exact post-hoc recovery from that invocation, not
+a second execution. This milestone makes no provider call and spends `$0`.
 
-The downstream blocker was deterministic Set Board validation, not provider
-quality: `child-scale` furniture was classified as child/cast authority, bare
-`route` was incorrectly derived from excluded prop `prop_route_labels`, and
-fail-fast projection masked later Set/field findings. Code commit `ac9037be`
-implements a v2-first, versioned v3 fallback plus a two-layer collect-all
-census before Registry/storage access. The scale exception is node-bound to
-closed ordinary furniture suffixes; real cast prose, disguised representations,
-actions and prop leaks remain rejected. Residual orphan/malformed/empty
-authority shapes fail at contract scope. Downstream qualification reports
-`set_authority_invalid` rather than inventing stale or missing Board noise.
+The bridge's deterministic downstream gap was an absent reviewer-authoring
+operator: it could create an empty pending reconciliation and verify already
+approved external JSON, but it could not safely bind, expose, validate and
+persist the intervening review decisions. The general new lifecycle accepts a
+strict versioned decision plan, replays the exact pending bridge/source/
+Candidate/template/coverage authorities, keeps identity and source fields
+compiler-owned, and emits immutable pending reconciliation, canonical review,
+full-fidelity content-review Markdown/JSON and one authoring manifest. A
+prospective in-memory approval is used only to prove complete zero-issue
+closure; persisted content remains pending until an exact later `Guy`
+approval.
 
-The immutable real Candidate now admits 3/3 Sets with zero issues:
-`set_home` v3 (`e71fbd7a…`), `set_kindergarten` v2 (`a04ca201…`) and
-`set_neighborhood_route` v3 (`a9c0e87d…`). Both historical approved
-Chameleon package revisions remain exact v2, keep hashes `803dea01…` and
-`fd15ad19…`, and resolve their existing Registry Boards with zero issues. No
-Candidate, Board, Registry, package or locator byte was rewritten.
+Every persisted input is resolved through the existing contained unique-file
+boundary, including realpath, symlink/junction and hardlink rejection. All
+output categories are preflighted before the first write. Content digests bind
+the bridge, source snapshot, Candidate, template, Action Semantic Coverage,
+reviewer plan, pending reconciliation, review bundle and rendered Markdown.
+The approval path independently replays all of them and uses Candidate coverage
+rather than self-declared embedded coverage. Dynamic Markdown fences prevent
+source or reviewer text from escaping the review structure. CLI preview/write
+routes report zero credential, provider, image, network, database and
+production counters.
 
-Validation on the final code bytes: focused 74/74; full Set Board 349/349;
-selected downstream 129/129 with four intentional environment skips;
-TypeScript and `git diff --check` pass. Literal `npm run check` passes both
-TypeScript phases. Ordinary passes 3,809 assertions, skips 70 and fails only
-the nine known missing ignored-output fixture assertions across five unchanged
-files. Resource passes 623/623 assertions, then emits the three known Vitest
-worker RPC timeouts. The command therefore remains exit 1 and is not called a
-clean PASS. Two internal read-only adversarial audits found zero findings.
+The full content packet also enumerates every Candidate `non_visual` decision,
+not merely a census: page, beat ID, source-evidence ID, exact phrase, rationale
+and `reviewState` are present in both digest-bound JSON and safely fenced
+Markdown. Approval replay rebuilds that list from Candidate authority. A
+self-consistent redigested phrase tamper is rejected before any approval write.
 
-Claude Code then independently reviewed immutable range `b35f7630..f3df8eb9`
-and returned **PASS — 0 BLOCKER / 0 MAJOR / 0 MINOR**. It ran the 74-test core
-matrix, all 1,095 Visual Package assertions with five skips, and TypeScript;
-all assertions passed. It independently reproduced the three post-completion
-Vitest RPC timeouts and classified them as harness noise. Codex records this
-external verdict; it does not self-award it.
+The synthetic timestamp used only for prospective validation is now one shared
+constant and is rejected by the attestation validator, shared builder, legacy
+approval recorder and new reviewed approval recorder. A cross-route regression
+constructs a self-consistent approved packet at that exact timestamp, invokes
+the legacy writer with `write:true`, and proves the approval inventory remains
+unchanged. This closes the timestamp MAJOR from the first internal adversarial
+audit. A second audit found the initially omitted per-record `non_visual`
+visibility described above; its correction also passed focused re-gate. The
+final internal result is 0 findings. It is not independent Claude Code PASS.
 
-No provider, image, audio, Board mint, Registry/storage/database write,
-deployment, Wizard order or render occurred in this milestone. The binding
-next action is the general offline reconciliation operator, followed by exact
-content approval, mint and QA of the three LOW Boards, Blueprint/package
-publication and Preview preflight, then the already authorized fake-paid LOW
-full Wizard book for Bar age 5 with mom narration. Detailed evidence:
-`docs/ai-workflow/R1D_SET_BOARD_POSITIVE_AUTHORITY_PRECISION_IMPLEMENTATION_EVIDENCE.md`.
+Final focused validation: QA Wizard bridge 13/13; source reconciliation 7/7;
+reserved-timestamp cross-route 1/1; TypeScript and `git diff --check` pass.
+Literal `npm run check` passes both TypeScript phases. Ordinary passes 3,809
+assertions, skips 70 and fails only the same nine missing ignored-output fixture
+assertions across five unchanged files. Resource passes all 20 files and all
+627 assertions, then reports the three known Vitest worker `onTaskUpdate` RPC
+timeouts. The literal repository command therefore remains exit 1 and is not
+relabeled a clean PASS.
+
+The current paid Candidate is deliberately **not approved**. An offline semantic
+audit found four content-authority defects that structural validation does not
+catch: contradictory cover reveal/no-spoiler clauses; lossy p5 spatial labels;
+the source-authoritative kindergarten guard omitted from p7 cast; and p8 eye
+closing falsely represented by an unrelated satchel `mustShow`. Minting Boards,
+Blueprint/package publication or rendering this Candidate would preserve those
+errors. The binding next action is a separate, general, immutable and
+provider-free Candidate semantic-correction lifecycle, followed by a corrected
+review packet and exact Guy approval. Only then may the existing downstream
+Board/Blueprint/package/Preview/Wizard sequence and the already authorized one
+LOW full-book render for Bar age 5 with mom narration proceed.
+
+No Candidate/source/Board/Registry/package/locator/runtime artifact was
+rewritten; no approval was minted; no provider, image, audio, storage/database,
+deployment, Wizard order or render occurred. Detailed evidence:
+`docs/ai-workflow/R1D_QA_WIZARD_RECONCILIATION_REVIEWER_AUTHORING_IMPLEMENTATION_EVIDENCE.md`.
 
 All lower sections are historical milestone records. When they describe a
 different pending next action, this top section is the current binding state.

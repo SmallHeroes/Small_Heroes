@@ -21,6 +21,7 @@ export * from './styleAuthority';
 export * from './productionAuthoringContext';
 export * from './productionReadiness';
 export * from './reconciliationLifecycle';
+export * from './reconciliationAuthoringLifecycle';
 export * from './productionAuthoringRunner';
 export * from './blueprintAuthoringPolicy';
 export * from './visualPackageV4Lifecycle';

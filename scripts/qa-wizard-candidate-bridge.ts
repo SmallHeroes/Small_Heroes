@@ -12,6 +12,12 @@ import {
   type PrepareQaWizardCandidateReconciliationRequest,
   type RecordQaWizardReconciliationApprovalRequest,
 } from '@/lib/visual-package/qaWizardCandidateBridge';
+import {
+  prepareQaWizardReviewedReconciliation,
+  recordQaWizardReviewedReconciliationApproval,
+  type PrepareQaWizardReviewedReconciliationRequest,
+  type RecordQaWizardReviewedReconciliationApprovalRequest,
+} from '@/lib/visual-package/reconciliationAuthoringLifecycle';
 
 type PrepareRequest = Omit<
   PrepareQaWizardCandidateReconciliationRequest,
@@ -33,6 +39,14 @@ type AttestRequest = Omit<
   AttestQaWizardCandidateValidationRequest,
   'outputDir' | 'write'
 >;
+type PrepareReviewedRequest = Omit<
+  PrepareQaWizardReviewedReconciliationRequest,
+  'outputDir' | 'write'
+>;
+type ApproveReviewedRequest = Omit<
+  RecordQaWizardReviewedReconciliationApprovalRequest,
+  'outputDir' | 'write'
+>;
 
 const ALLOWED_FLAGS = new Set(['--request', '--out', '--write']);
 
@@ -42,7 +56,9 @@ function usage(): string {
     '  capture-supervisor-result --request <json> --out <repo-relative-dir> --write true|false',
     '  attest-candidate-validation --request <json> --out <repo-relative-dir> --write true|false',
     '  prepare-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
+    '  prepare-reviewed-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
     '  approve-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
+    '  approve-reviewed-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
     '  advance-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
     '',
     'This entrypoint never decides approval, loads credentials, invokes providers, renders images, publishes production authority, or deploys. The approval command records, but cannot authenticate, an exact-content decision explicitly supplied by Guy; automation must stop before that command until Guy has reviewed the exact digests.',
@@ -258,6 +274,72 @@ function execute(command: string, tokens: string[]): void {
         version: result.context.version,
         digest: result.context.digest,
       },
+      bridgeBoundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        productionWrites: 0,
+      },
+    });
+    return;
+  }
+  if (command === 'prepare-reviewed-reconciliation') {
+    const result = prepareQaWizardReviewedReconciliation({
+      ...readRequest<PrepareReviewedRequest>(requestPath, [
+        'repoRoot',
+        'bridgeManifestPath',
+        'reviewerDecisionsPath',
+      ]),
+      outputDir,
+      write,
+    });
+    output({
+      status: write
+        ? 'reconciliation_content_pending_guy_review'
+        : 'reconciliation_content_review_preview_ready',
+      localImmutableWriteRequested: write,
+      contentReadyForGuyReview:
+        result.contentReview.contentReadyForGuyReview,
+      reviewerPlan: {
+        version: result.reviewerPlan.planVersion,
+        digest: result.reviewerPlan.digest,
+      },
+      reconciliation: {
+        version: result.pendingReconciliation.version,
+        digest: result.contentReview.pendingReconciliationDigest,
+      },
+      contentReview: {
+        version: result.contentReview.version,
+        digest: result.contentReview.digest,
+      },
+      authoringManifest: result.manifest,
+      artifacts: result.artifacts,
+      bridgeBoundaryEvidence: result.manifest.boundaryEvidence,
+    });
+    return;
+  }
+  if (command === 'approve-reviewed-reconciliation') {
+    const result = recordQaWizardReviewedReconciliationApproval({
+      ...readRequest<ApproveReviewedRequest>(requestPath, [
+        'repoRoot',
+        'authoringManifestPath',
+        'approvedBy',
+        'approvedAt',
+      ]),
+      outputDir,
+      write,
+    });
+    output({
+      status: write
+        ? 'exact_reviewed_reconciliation_approval_recorded'
+        : 'exact_reviewed_reconciliation_approval_preview_ready',
+      localImmutableWriteRequested: write,
+      approvalAttestation: result.approvalAttestation,
+      approvalArtifact: result.approvalArtifact,
+      approvedReconciliationArtifacts:
+        result.approvedReconciliationArtifacts,
       bridgeBoundaryEvidence: {
         credentialAccess: 'none',
         providerCalls: 0,

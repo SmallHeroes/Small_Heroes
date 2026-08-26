@@ -13,10 +13,12 @@ import {
   QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION,
   QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V2,
   QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1,
+  QA_WIZARD_RECONCILIATION_PROSPECTIVE_VALIDATION_TIMESTAMP,
   advanceQaWizardApprovedReconciliation,
   attestQaWizardCandidateValidation,
   buildProductionAuthoringContext,
   buildLegacyReconciliationReviewBundleV2,
+  buildQaWizardReconciliationApprovalAttestation,
   buildReconciliationReviewBundle,
   buildStorySourceAuthoritySnapshot,
   buildVisualContractAuthoringRequest,
@@ -35,10 +37,12 @@ import {
   persistVisualContractCandidate,
   prepareCanonicalPreLiveReadiness,
   prepareQaWizardCandidateReconciliation,
+  prepareQaWizardReviewedReconciliation,
   projectLegacySourcePromptReconciliationV2,
   qaWizardCandidateBridgeManifestIsValid,
   qaWizardCandidateValidationAttestationIsValid,
   recordQaWizardReconciliationApproval,
+  recordQaWizardReviewedReconciliationApproval,
   renderReconciliationReviewMarkdown,
   renderLegacyReconciliationReviewMarkdownV2,
   runCanonicalLiveExecution,
@@ -46,9 +50,11 @@ import {
   type CanonicalPreLiveReadinessEvidence,
   type LiveRequestMaterializationManifest,
   type QaWizardCandidateBridgeManifest,
+  type QaWizardReconciliationReviewerDecisions,
   type SourcePromptReconciliation,
   type StorySourceAuthoritySnapshot,
   type VisualContractAuthoringRequest,
+  type VisualContractCandidateArtifact,
 } from '@/lib/visual-package';
 import { canonicalLiveAuthoringJsonBytes } from '@/lib/visual-package/canonicalLiveAuthoringArtifacts';
 import { canonicalContentAddressedJsonBytes } from '@/lib/visual-package/canonicalContentAddressedJson';
@@ -209,6 +215,8 @@ function createDependencyAuthority(repoRoot: string): void {
 
 function fullyActionedDraft(
   snapshot: StorySourceAuthoritySnapshot,
+  includePresentationRequirements = false,
+  includeNonVisualCoverage = false,
 ): BookVisualContractTemplate & Record<string, unknown> {
   const draft = JSON.parse(
     fs.readFileSync(
@@ -241,6 +249,39 @@ function fullyActionedDraft(
         disposition: { kind: 'action_requirement' },
       },
     ];
+    if (includePresentationRequirements && page.pageNumber === 1) {
+      const coverage = (page as unknown as {
+        actionSemanticCoverage: Array<Record<string, unknown>>;
+      }).actionSemanticCoverage;
+      for (const [index, presentationClass] of [
+        'static_state',
+        'composition_focus',
+        'lighting_state',
+      ].entries()) {
+        coverage.push({
+          beatId: `beat:p1:presentation_${index + 1}`,
+          sourceEvidenceId: evidence.sourceEvidenceId,
+          disposition: {
+            kind: 'presentation_requirement',
+            presentationClass,
+            mustShowIndex: index,
+          },
+        });
+      }
+    }
+    if (includeNonVisualCoverage && page.pageNumber === 1) {
+      const coverage = (page as unknown as {
+        actionSemanticCoverage: Array<Record<string, unknown>>;
+      }).actionSemanticCoverage;
+      coverage.push({
+        beatId: 'beat:p1:non_visual_context',
+        sourceEvidenceId: evidence.sourceEvidenceId,
+        disposition: {
+          kind: 'non_visual',
+          rationale: 'narrative_context',
+        },
+      });
+    }
   }
   for (const page of draft.pageContracts) {
     page.mustShow = [
@@ -255,17 +296,56 @@ function fullyActionedDraft(
 
 function fullyActionedProviderWireDraft(
   snapshot: StorySourceAuthoritySnapshot,
+  includePresentationRequirements = false,
+  includeNonVisualCoverage = false,
 ): Record<string, unknown> {
-  const finalDraft = fullyActionedDraft(snapshot);
+  const finalDraft = fullyActionedDraft(
+    snapshot,
+    includePresentationRequirements,
+    includeNonVisualCoverage,
+  );
   finalDraft.coverContract.zoneId = finalDraft.pageContracts[0]!.zoneId;
   finalDraft.coverContract.castIds = [
     ...(finalDraft.pageContracts[0]!.castIds ?? []),
   ];
-  return projectClosedSchemaFixture({
+  const projected = projectClosedSchemaFixture({
     value: finalDraft,
     schema: TEMPLATE_DRAFT_JSON_SCHEMA,
     root: TEMPLATE_DRAFT_JSON_SCHEMA,
   }) as Record<string, unknown>;
+  if (includePresentationRequirements) {
+    const pageContracts = projected.pageContracts as Array<{
+      actionSemanticCoverage: Array<Record<string, unknown>>;
+    }>;
+    const coverage = pageContracts[0]!.actionSemanticCoverage;
+    for (const [index, presentationClass] of [
+      'static_state',
+      'composition_focus',
+      'lighting_state',
+    ].entries()) {
+      coverage[index + 1]!.disposition = {
+        kind: 'presentation_requirement',
+        presentationClass,
+        mustShowIndex: index,
+      };
+    }
+  }
+  if (includeNonVisualCoverage) {
+    const pageContracts = projected.pageContracts as Array<{
+      actionSemanticCoverage: Array<Record<string, unknown>>;
+    }>;
+    const record = pageContracts[0]!.actionSemanticCoverage.find(
+      (entry) => entry.beatId === 'beat:p1:non_visual_context',
+    );
+    if (!record) {
+      throw new Error('projected non-visual fixture coverage is missing');
+    }
+    record.disposition = {
+      kind: 'non_visual',
+      rationale: 'narrative_context',
+    };
+  }
+  return projected;
 }
 
 function streamedResponse(output: unknown): Record<string, unknown> {
@@ -480,7 +560,11 @@ function persistLegacyBridgeManifest(args: {
 }
 
 async function materializeCanonicalCandidate(
-  options: { supervisedAuthoring?: boolean } = {},
+  options: {
+    supervisedAuthoring?: boolean;
+    includePresentationRequirements?: boolean;
+    includeNonVisualCoverage?: boolean;
+  } = {},
 ): Promise<CanonicalCandidateFixture> {
   const parent = tempRoot();
   const repoRoot = path.join(parent, 'repository');
@@ -577,7 +661,11 @@ async function materializeCanonicalCandidate(
       request,
       snapshot,
       provider: canonicalProvider(
-        fullyActionedProviderWireDraft(snapshot),
+        fullyActionedProviderWireDraft(
+          snapshot,
+          options.includePresentationRequirements === true,
+          options.includeNonVisualCoverage === true,
+        ),
       ),
       requiredMode: 'live',
       requiredProviderEvidenceVersion:
@@ -902,12 +990,13 @@ function assertCandidateValidationTamperGuards(
 function approveReconciliation(args: {
   reconciliation: SourcePromptReconciliation;
   template: BookVisualContractTemplate;
+  approvedAt?: string;
 }): SourcePromptReconciliation {
   const approved = structuredClone(args.reconciliation);
   approved.review = {
     status: 'approved',
     reviewedBy: 'Guy',
-    reviewedAt: APPROVED_AT,
+    reviewedAt: args.approvedAt ?? APPROVED_AT,
   };
   for (const frame of approved.frames) {
     const pageIndex =
@@ -949,6 +1038,7 @@ function buildApprovedArtifacts(args: {
   fixture: CanonicalCandidateFixture;
   prepared: ReturnType<typeof prepareQaWizardCandidateReconciliation>;
   outputDir?: string;
+  approvedAt?: string;
 }) {
   const pending = JSON.parse(
     fs.readFileSync(
@@ -968,7 +1058,17 @@ function buildApprovedArtifacts(args: {
       'utf8',
     ),
   ) as BookVisualContractTemplate;
-  const approved = approveReconciliation({ reconciliation: pending, template });
+  const approved = approveReconciliation({
+    reconciliation: pending,
+    template,
+    approvedAt: args.approvedAt,
+  });
+  const candidate = JSON.parse(
+    fs.readFileSync(
+      path.join(args.fixture.repoRoot, args.fixture.candidatePath),
+      'utf8',
+    ),
+  ) as VisualContractCandidateArtifact;
   const snapshot = buildStorySourceAuthoritySnapshot({
     repoRoot: args.fixture.repoRoot,
     storyKey: STORY_KEY,
@@ -983,7 +1083,7 @@ function buildApprovedArtifacts(args: {
     ...(snapshot.content.authoredCoverAuthority
       ? { authoredCoverAuthority: snapshot.content.authoredCoverAuthority }
       : {}),
-    actionSemanticCoverage: approved.actionSemanticCoverageAuthority.records,
+    actionSemanticCoverage: candidate.actionSemanticCoverage,
   });
   expect(reviewBundle.readyForApproval).toBe(true);
   return {
@@ -997,6 +1097,111 @@ function buildApprovedArtifacts(args: {
       markdown: renderReconciliationReviewMarkdown(reviewBundle),
       write: true,
     }),
+  };
+}
+
+function reviewerDecisionsForPending(args: {
+  pending: SourcePromptReconciliation;
+  candidate: VisualContractCandidateArtifact;
+}): QaWizardReconciliationReviewerDecisions {
+  const visiblePages = new Set(
+    args.candidate.actionSemanticCoverage
+      .filter((record) => record.disposition.kind !== 'non_visual')
+      .map((record) => record.pageNumber),
+  );
+  const sourceRequirements = args.pending.frames.flatMap((frame) =>
+    frame.sourceRequirements
+      .filter((requirement) =>
+        !(
+          frame.frameKind === 'page' &&
+          requirement.sourceKind === 'story_prose' &&
+          visiblePages.has(frame.pageNumber)
+        ),
+      )
+      .map((requirement, index) => {
+        const pageIndex = frame.frameKind === 'page'
+          ? args.candidate.template.pageContracts.findIndex(
+              (page) => page.pageNumber === frame.pageNumber,
+            )
+          : -1;
+        const pathValue =
+          requirement.sourceKind === 'historical_image_direction'
+            ? {
+                path: `/pageContracts/${pageIndex}/camera`,
+                value: args.candidate.template.pageContracts[pageIndex]!.camera,
+                aspects: ['camera'] as const,
+              }
+            : {
+                path: '/coverContract/mustShow/0',
+                value: args.candidate.template.coverContract.mustShow[0],
+                aspects: ['narrative_meaning'] as const,
+              };
+        return {
+          frameKind: frame.frameKind,
+          pageNumber: frame.pageNumber,
+          sourceKind: requirement.sourceKind,
+          sourceTextSha256: crypto
+            .createHash('sha256')
+            .update(requirement.sourceText, 'utf8')
+            .digest('hex'),
+          visualBeats: [{
+            id: `review:${frame.frameKind}:${frame.pageNumber}:${index}`,
+            description: `Exact reviewer-owned source requirement ${frame.frameKind}:${frame.pageNumber}:${index}`,
+            aspects: [...pathValue.aspects],
+            disposition: 'preserved' as const,
+            contractEvidence: [{ path: pathValue.path, value: pathValue.value }],
+            justification: null,
+            supersessionReview: null,
+          }],
+        };
+      }),
+  );
+  return {
+    version: 'qa-wizard-reconciliation-reviewer-decisions/v1',
+    sourceRequirements,
+    presentationRequirements:
+      args.pending.presentationRequirements.requirements.map(
+        (requirement, index) => {
+          const base = {
+            pageNumber: requirement.pageNumber,
+            beatId: requirement.beatId,
+            sourceEvidenceId: requirement.sourceEvidenceId,
+          };
+          if (index === 1) {
+            const pageIndex = args.candidate.template.pageContracts.findIndex(
+              (page) => page.pageNumber === requirement.pageNumber,
+            );
+            const reboundIndex = 2;
+            return {
+              ...base,
+              kind: 'rebound' as const,
+              reboundPointer:
+                `/pageContracts/${pageIndex}/mustShow/${reboundIndex}`,
+              reboundValue:
+                args.candidate.template.pageContracts[pageIndex]!
+                  .mustShow[reboundIndex]!,
+              justification: null,
+            };
+          }
+          if (index === 2) {
+            return {
+              ...base,
+              kind: 'superseded' as const,
+              reboundPointer: null,
+              reboundValue: null,
+              justification:
+                'Exact reviewer decision: this presentation beat is intentionally omitted.',
+            };
+          }
+          return {
+            ...base,
+            kind: 'preserved' as const,
+            reboundPointer: null,
+            reboundValue: null,
+            justification: null,
+          };
+        },
+      ),
   };
 }
 
@@ -2081,6 +2286,48 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     });
     const approved = buildApprovedArtifacts({ fixture, prepared });
 
+    const reservedTimestampApproved = buildApprovedArtifacts({
+      fixture,
+      prepared,
+      outputDir: 'outputs/reserved-timestamp-approved',
+      approvedAt:
+        QA_WIZARD_RECONCILIATION_PROSPECTIVE_VALIDATION_TIMESTAMP,
+    });
+    const approvalsDirectory = path.join(
+      fixture.repoRoot,
+      'outputs/bridge/reconciliation-approvals',
+    );
+    const approvalsBeforeReservedTimestampAttempt = fs.existsSync(
+      approvalsDirectory,
+    )
+      ? fs.readdirSync(approvalsDirectory).sort()
+      : [];
+    expect(() =>
+      recordQaWizardReconciliationApproval({
+        repoRoot: fixture.repoRoot,
+        outputDir: 'outputs/bridge',
+        pendingManifestPath: prepared.manifestArtifact.path,
+        approvedReconciliationPath:
+          reservedTimestampApproved.artifacts.reconciliationPath,
+        approvedReviewBundlePath:
+          reservedTimestampApproved.artifacts.reviewBundlePath,
+        approvedReviewMarkdownPath:
+          reservedTimestampApproved.artifacts.markdownPath,
+        approvedBy: 'Guy',
+        approvedAt:
+          QA_WIZARD_RECONCILIATION_PROSPECTIVE_VALIDATION_TIMESTAMP,
+        write: true,
+      }),
+    ).toThrow(/identity or timestamp is invalid/i);
+    const approvalsAfterReservedTimestampAttempt = fs.existsSync(
+      approvalsDirectory,
+    )
+      ? fs.readdirSync(approvalsDirectory).sort()
+      : [];
+    expect(approvalsAfterReservedTimestampAttempt).toEqual(
+      approvalsBeforeReservedTimestampAttempt,
+    );
+
     expect(() =>
       advanceQaWizardApprovedReconciliation({
         repoRoot: fixture.repoRoot,
@@ -2263,5 +2510,785 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
         bridgeManifestPath: prepared.manifestArtifact.path,
       }),
     ).toThrow(/current reconciliation_approved/);
+  }, 60_000);
+
+  it('authors a fully visible pending review packet and records only a later exact Guy approval', async () => {
+    const fixture = await materializeCanonicalCandidate({
+      includePresentationRequirements: true,
+      includeNonVisualCoverage: true,
+    });
+    const outputDir = 'outputs/bridge';
+    const prepared = prepareQaWizardCandidateReconciliation({
+      ...prepareArgs(fixture, outputDir),
+      write: true,
+    });
+    const pending = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          fixture.repoRoot,
+          prepared.reconciliationArtifacts.reconciliationPath,
+        ),
+        'utf8',
+      ),
+    ) as SourcePromptReconciliation;
+    const candidate = JSON.parse(
+      fs.readFileSync(
+        path.join(fixture.repoRoot, fixture.candidatePath),
+        'utf8',
+      ),
+    ) as VisualContractCandidateArtifact;
+    const decisions = reviewerDecisionsForPending({ pending, candidate });
+    expect(
+      decisions.presentationRequirements.map((decision) => decision.kind),
+    ).toEqual(['preserved', 'rebound', 'superseded']);
+    const hostileDescription =
+      'Visible reviewer text\n```\n# FAKE APPROVED\n```\nstill visible';
+    decisions.sourceRequirements[0]!.visualBeats[0]!.description =
+      hostileDescription;
+    decisions.presentationRequirements[2]!.justification =
+      'Reviewed omission\n## FAKE READY: YES';
+    const decisionsPath = `${outputDir}/reviewer-decisions.json`;
+    writeJson(fixture.repoRoot, decisionsPath, decisions);
+
+    const cliRequestPath = path.join(
+      fixture.repoRoot,
+      outputDir,
+      'prepare-reviewed-request.json',
+    );
+    writeJson(fixture.repoRoot, `${outputDir}/prepare-reviewed-request.json`, {
+      repoRoot: fixture.repoRoot,
+      bridgeManifestPath: prepared.manifestArtifact.path,
+      reviewerDecisionsPath: decisionsPath,
+    });
+    const cliPreview = spawnSync(
+      process.execPath,
+      [
+        path.join(process.cwd(), 'node_modules', 'tsx', 'dist', 'cli.mjs'),
+        '--require',
+        path.join(
+          process.cwd(),
+          'scripts',
+          'shims',
+          'register-server-only.cjs',
+        ),
+        path.join(process.cwd(), 'scripts', 'qa-wizard-candidate-bridge.ts'),
+        'prepare-reviewed-reconciliation',
+        '--request',
+        cliRequestPath,
+        '--out',
+        outputDir,
+        '--write',
+        'false',
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        shell: false,
+        windowsHide: true,
+        env: { ...process.env, OPENAI_API_KEY: '' },
+      },
+    );
+    expect(cliPreview.status).toBe(0);
+    expect(JSON.parse(cliPreview.stdout)).toMatchObject({
+      status: 'reconciliation_content_review_preview_ready',
+      localImmutableWriteRequested: false,
+      contentReadyForGuyReview: true,
+      bridgeBoundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        productionWrites: 0,
+      },
+    });
+
+    const preview = prepareQaWizardReviewedReconciliation({
+      repoRoot: fixture.repoRoot,
+      outputDir,
+      bridgeManifestPath: prepared.manifestArtifact.path,
+      reviewerDecisionsPath: decisionsPath,
+      write: false,
+    });
+    expect(preview.contentReview.contentReadyForGuyReview).toBe(true);
+    expect(preview.contentReview.prospectiveBlockingIssues).toEqual([]);
+    expect(preview.pendingReconciliation.review).toEqual({
+      status: 'pending',
+      reviewedBy: null,
+      reviewedAt: null,
+    });
+    expect(
+      fs.existsSync(
+        path.join(
+          fixture.repoRoot,
+          outputDir,
+          'reconciliation-authoring-manifests',
+        ),
+      ),
+    ).toBe(false);
+
+    const authored = prepareQaWizardReviewedReconciliation({
+      repoRoot: fixture.repoRoot,
+      outputDir,
+      bridgeManifestPath: prepared.manifestArtifact.path,
+      reviewerDecisionsPath: decisionsPath,
+      write: true,
+    });
+    expect(authored.manifest).toMatchObject({
+      stage: 'reconciliation_content_pending_guy_review',
+      prospectiveValidation: { issueCount: 0 },
+      boundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        productionWrites: 0,
+      },
+    });
+    expect(authored.contentReviewMarkdown).toContain(
+      '# QA Wizard Reconciliation — Full Content Review',
+    );
+    expect(authored.contentReviewMarkdown).toContain(
+      decisions.sourceRequirements[0]!.visualBeats[0]!.id,
+    );
+    expect(authored.contentReviewMarkdown).toContain(
+      `\`\`\`\`text\n${hostileDescription}\n\`\`\`\``,
+    );
+    expect(authored.contentReviewMarkdown).toContain(
+      '```text\nReviewed omission\n## FAKE READY: YES\n```',
+    );
+    const expectedNonVisualCoverage = candidate.actionSemanticCoverage
+      .filter((record) => record.disposition.kind === 'non_visual')
+      .map((record) => ({
+        pageNumber: record.pageNumber,
+        beatId: record.beatId,
+        sourceEvidenceId: record.sourceEvidenceId,
+        sourcePhrase: record.sourcePhrase,
+        rationale: record.disposition.kind === 'non_visual'
+          ? record.disposition.rationale
+          : 'narrative_context',
+        reviewState: record.reviewState,
+      }));
+    expect(expectedNonVisualCoverage).toHaveLength(1);
+    expect(authored.contentReview.nonVisualCoverage).toEqual(
+      expectedNonVisualCoverage,
+    );
+    for (const record of expectedNonVisualCoverage) {
+      expect(authored.contentReviewMarkdown).toContain(record.beatId);
+      expect(authored.contentReviewMarkdown).toContain(record.sourceEvidenceId);
+      expect(authored.contentReviewMarkdown).toContain(record.sourcePhrase);
+      expect(authored.contentReviewMarkdown).toContain(record.rationale);
+      expect(authored.contentReviewMarkdown).toContain(record.reviewState);
+    }
+    const {
+      digestAlgorithm: _contentReviewDigestAlgorithm,
+      digest: _contentReviewDigest,
+      ...contentReviewPayload
+    } = authored.contentReview;
+    expect(authored.contentReview.digest).toBe(
+      canonicalJsonDigest(contentReviewPayload),
+    );
+    expect(
+      authored.pendingReconciliation.presentationRequirementDispositions
+        .entries.map((entry) => ({
+          kind: entry.kind,
+          review: entry.review,
+        })),
+    ).toEqual([
+      {
+        kind: 'rebound',
+        review: { status: 'pending', reviewedBy: null, reviewedAt: null },
+      },
+      {
+        kind: 'superseded',
+        review: { status: 'pending', reviewedBy: null, reviewedAt: null },
+      },
+    ]);
+    const approvalDirectoryBeforeDecision = path.join(
+      fixture.repoRoot,
+      outputDir,
+      'reconciliation-approvals',
+    );
+    expect(
+      fs.existsSync(approvalDirectoryBeforeDecision)
+        ? fs.readdirSync(approvalDirectoryBeforeDecision)
+        : [],
+    ).toEqual([]);
+    const prospectivePath = path.join(
+      fixture.repoRoot,
+      outputDir,
+      'reconciliations',
+      `${authored.contentReview.prospectiveApprovedReconciliationDigest}.json`,
+    );
+    expect(fs.existsSync(prospectivePath)).toBe(false);
+
+    const contentReviewAbsolute = path.join(
+      fixture.repoRoot,
+      authored.artifacts.contentReview.path,
+    );
+    const originalContentReviewBytes = fs.readFileSync(
+      contentReviewAbsolute,
+      'utf8',
+    );
+    const tamperedContentReview = JSON.parse(
+      originalContentReviewBytes,
+    ) as typeof authored.contentReview;
+    tamperedContentReview.nonVisualCoverage[0]!.sourcePhrase += ' tampered';
+    const {
+      digestAlgorithm: _tamperedContentReviewDigestAlgorithm,
+      digest: _tamperedContentReviewDigest,
+      ...tamperedContentReviewPayload
+    } = tamperedContentReview;
+    tamperedContentReview.digest = canonicalJsonDigest(
+      tamperedContentReviewPayload,
+    );
+    fs.writeFileSync(
+      contentReviewAbsolute,
+      canonicalContentAddressedJsonBytes(tamperedContentReview),
+      'utf8',
+    );
+    expect(() =>
+      recordQaWizardReviewedReconciliationApproval({
+        repoRoot: fixture.repoRoot,
+        outputDir,
+        authoringManifestPath: authored.artifacts.manifest.path,
+        approvedBy: 'Guy',
+        approvedAt: APPROVED_AT,
+        write: false,
+      }),
+    ).toThrow(/tampered|cannot be exactly replayed/i);
+    fs.writeFileSync(
+      contentReviewAbsolute,
+      originalContentReviewBytes,
+      'utf8',
+    );
+
+    for (const invalid of [
+      { approvedBy: 'Claude', approvedAt: APPROVED_AT },
+      {
+        approvedBy: 'Guy',
+        approvedAt: '2000-01-01T00:00:00.000Z',
+      },
+      { approvedBy: 'Guy', approvedAt: '2026-02-30T08:00:00.000Z' },
+      { approvedBy: 'Guy', approvedAt: '2026-08-17T08:00:00Z' },
+    ] as const) {
+      expect(() =>
+        recordQaWizardReviewedReconciliationApproval({
+          repoRoot: fixture.repoRoot,
+          outputDir,
+          authoringManifestPath: authored.artifacts.manifest.path,
+          approvedBy: invalid.approvedBy as 'Guy',
+          approvedAt: invalid.approvedAt,
+          write: true,
+        }),
+      ).toThrow(/identity or timestamp/);
+      expect(fs.existsSync(prospectivePath)).toBe(false);
+      expect(
+        fs.existsSync(approvalDirectoryBeforeDecision)
+          ? fs.readdirSync(approvalDirectoryBeforeDecision)
+          : [],
+      ).toEqual([]);
+    }
+
+    const approvalRequestPath = `${outputDir}/approve-reviewed-request.json`;
+    writeJson(fixture.repoRoot, approvalRequestPath, {
+      repoRoot: fixture.repoRoot,
+      authoringManifestPath: authored.artifacts.manifest.path,
+      approvedBy: 'Guy',
+      approvedAt: APPROVED_AT,
+    });
+    const approvalCli = (write: boolean) =>
+      spawnSync(
+        process.execPath,
+        [
+          path.join(process.cwd(), 'node_modules', 'tsx', 'dist', 'cli.mjs'),
+          '--require',
+          path.join(
+            process.cwd(),
+            'scripts',
+            'shims',
+            'register-server-only.cjs',
+          ),
+          path.join(process.cwd(), 'scripts', 'qa-wizard-candidate-bridge.ts'),
+          'approve-reviewed-reconciliation',
+          '--request',
+          path.join(fixture.repoRoot, approvalRequestPath),
+          '--out',
+          outputDir,
+          '--write',
+          String(write),
+        ],
+        {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          shell: false,
+          windowsHide: true,
+          env: { ...process.env, OPENAI_API_KEY: '' },
+        },
+      );
+    const approvalCliPreview = approvalCli(false);
+    expect(approvalCliPreview.status).toBe(0);
+    expect(JSON.parse(approvalCliPreview.stdout)).toMatchObject({
+      status: 'exact_reviewed_reconciliation_approval_preview_ready',
+      localImmutableWriteRequested: false,
+      bridgeBoundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        productionWrites: 0,
+      },
+    });
+
+    const approvalPreview = recordQaWizardReviewedReconciliationApproval({
+      repoRoot: fixture.repoRoot,
+      outputDir,
+      authoringManifestPath: authored.artifacts.manifest.path,
+      approvedBy: 'Guy',
+      approvedAt: APPROVED_AT,
+      write: false,
+    });
+    expect(approvalPreview.approvedReviewBundle.readyForApproval).toBe(true);
+    expect(approvalPreview.approvedReviewBundle.blockingIssues).toEqual([]);
+    expect(approvalPreview.approvalArtifact.created).toBe(false);
+    expect(fs.existsSync(prospectivePath)).toBe(false);
+
+    const approval = recordQaWizardReviewedReconciliationApproval({
+      repoRoot: fixture.repoRoot,
+      outputDir,
+      authoringManifestPath: authored.artifacts.manifest.path,
+      approvedBy: 'Guy',
+      approvedAt: APPROVED_AT,
+      write: true,
+    });
+    expect(approval.approvalArtifact.created).toBe(true);
+    expect(approval.approvedReconciliation.review).toEqual({
+      status: 'approved',
+      reviewedBy: 'Guy',
+      reviewedAt: APPROVED_AT,
+    });
+    const replay = recordQaWizardReviewedReconciliationApproval({
+      repoRoot: fixture.repoRoot,
+      outputDir,
+      authoringManifestPath: authored.artifacts.manifest.path,
+      approvedBy: 'Guy',
+      approvedAt: APPROVED_AT,
+      write: true,
+    });
+    expect(replay.approvalArtifact).toEqual({
+      ...approval.approvalArtifact,
+      created: false,
+    });
+    const approvalCliReplay = approvalCli(true);
+    expect(approvalCliReplay.status).toBe(0);
+    expect(JSON.parse(approvalCliReplay.stdout)).toMatchObject({
+      status: 'exact_reviewed_reconciliation_approval_recorded',
+      approvalArtifact: {
+        digest: approval.approvalArtifact.digest,
+        created: false,
+      },
+    });
+  }, 60_000);
+
+  it('rejects malformed, incomplete, stale, and cross-frame reviewer decisions before any authored packet write', async () => {
+    const fixture = await materializeCanonicalCandidate();
+    const outputDir = 'outputs/bridge';
+    const prepared = prepareQaWizardCandidateReconciliation({
+      ...prepareArgs(fixture, outputDir),
+      write: true,
+    });
+    const pending = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          fixture.repoRoot,
+          prepared.reconciliationArtifacts.reconciliationPath,
+        ),
+        'utf8',
+      ),
+    ) as SourcePromptReconciliation;
+    const candidate = JSON.parse(
+      fs.readFileSync(
+        path.join(fixture.repoRoot, fixture.candidatePath),
+        'utf8',
+      ),
+    ) as VisualContractCandidateArtifact;
+    const valid = reviewerDecisionsForPending({ pending, candidate });
+    const cases: Array<{
+      name: string;
+      mutate(value: Record<string, unknown>): void;
+    }> = [
+      {
+        name: 'extra-root-key',
+        mutate(value) {
+          value.hiddenApproval = true;
+        },
+      },
+      {
+        name: 'missing-source-requirement',
+        mutate(value) {
+          (value.sourceRequirements as unknown[]).shift();
+        },
+      },
+      {
+        name: 'duplicate-source-requirement',
+        mutate(value) {
+          const requirements = value.sourceRequirements as unknown[];
+          requirements.push(structuredClone(requirements[0]));
+        },
+      },
+      {
+        name: 'stale-source-text-digest',
+        mutate(value) {
+          const requirement = (value.sourceRequirements as Record<string, unknown>[])[0]!;
+          requirement.sourceTextSha256 = 'f'.repeat(64);
+        },
+      },
+      {
+        name: 'forbidden-direction-aspect',
+        mutate(value) {
+          const requirement = (value.sourceRequirements as Record<string, unknown>[])
+            .find((entry) => entry.sourceKind === 'historical_image_direction')!;
+          const beat = (requirement.visualBeats as Record<string, unknown>[])[0]!;
+          beat.aspects = ['narrative_meaning'];
+        },
+      },
+      {
+        name: 'cross-frame-direction-evidence',
+        mutate(value) {
+          const requirement = (value.sourceRequirements as Record<string, unknown>[])
+            .find((entry) => entry.sourceKind === 'historical_image_direction')!;
+          const beat = (requirement.visualBeats as Record<string, unknown>[])[0]!;
+          const evidence = (beat.contractEvidence as Record<string, unknown>[])[0]!;
+          evidence.path = '/pageContracts/1/camera';
+          evidence.value = candidate.template.pageContracts[1]!.camera;
+        },
+      },
+      {
+        name: 'extra-beat-key',
+        mutate(value) {
+          const requirement = (value.sourceRequirements as Record<string, unknown>[])[0]!;
+          const beat = (requirement.visualBeats as Record<string, unknown>[])[0]!;
+          beat.hidden = 'not reviewable';
+        },
+      },
+    ];
+    for (const candidateCase of cases) {
+      const hostile = structuredClone(valid) as unknown as Record<string, unknown>;
+      candidateCase.mutate(hostile);
+      const decisionsPath = `${outputDir}/${candidateCase.name}.json`;
+      writeJson(fixture.repoRoot, decisionsPath, hostile);
+      expect(() =>
+        prepareQaWizardReviewedReconciliation({
+          repoRoot: fixture.repoRoot,
+          outputDir,
+          bridgeManifestPath: prepared.manifestArtifact.path,
+          reviewerDecisionsPath: decisionsPath,
+          write: true,
+        }),
+      ).toThrow();
+    }
+    for (const category of [
+      'reconciliation-authoring-manifests',
+      'reconciliation-reviewer-plans',
+      'reconciliation-content-reviews',
+    ]) {
+      const directory = path.join(fixture.repoRoot, outputDir, category);
+      expect(fs.existsSync(directory) ? fs.readdirSync(directory) : []).toEqual([]);
+    }
+  }, 60_000);
+
+  it('rejects aliased, tampered, or colliding reviewer authority before partial pending or approved writes', async () => {
+    const fixture = await materializeCanonicalCandidate();
+    const outputDir = 'outputs/bridge';
+    const prepared = prepareQaWizardCandidateReconciliation({
+      ...prepareArgs(fixture, outputDir),
+      write: true,
+    });
+    const pending = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          fixture.repoRoot,
+          prepared.reconciliationArtifacts.reconciliationPath,
+        ),
+        'utf8',
+      ),
+    ) as SourcePromptReconciliation;
+    const candidate = JSON.parse(
+      fs.readFileSync(
+        path.join(fixture.repoRoot, fixture.candidatePath),
+        'utf8',
+      ),
+    ) as VisualContractCandidateArtifact;
+    const decisionsPath = `${outputDir}/reviewer-decisions.json`;
+    writeJson(
+      fixture.repoRoot,
+      decisionsPath,
+      reviewerDecisionsForPending({ pending, candidate }),
+    );
+    const request = {
+      repoRoot: fixture.repoRoot,
+      outputDir,
+      bridgeManifestPath: prepared.manifestArtifact.path,
+      reviewerDecisionsPath: decisionsPath,
+    };
+    const authoringPreview = prepareQaWizardReviewedReconciliation({
+      ...request,
+      write: false,
+    });
+
+    writeText(
+      fixture.repoRoot,
+      authoringPreview.artifacts.manifest.path,
+      '{"collision":true}\n',
+    );
+    expect(() =>
+      prepareQaWizardReviewedReconciliation({ ...request, write: true }),
+    ).toThrow(/immutable|conflicts/);
+    for (const relativePath of [
+      authoringPreview.artifacts.reviewerPlan.path,
+      authoringPreview.artifacts.reconciliation.reconciliationPath,
+      authoringPreview.artifacts.reconciliation.reviewBundlePath,
+      authoringPreview.artifacts.reconciliation.markdownPath,
+      authoringPreview.artifacts.contentReview.path,
+      authoringPreview.artifacts.contentReviewMarkdownPath,
+    ]) {
+      expect(fs.existsSync(path.join(fixture.repoRoot, relativePath))).toBe(false);
+    }
+    fs.unlinkSync(
+      path.join(fixture.repoRoot, authoringPreview.artifacts.manifest.path),
+    );
+
+    const aliasTarget = tempRoot('qa-wizard-reviewer-alias-');
+    fs.writeFileSync(
+      path.join(aliasTarget, 'reviewer-decisions.json'),
+      fs.readFileSync(path.join(fixture.repoRoot, decisionsPath)),
+    );
+    const aliasPath = path.join(fixture.repoRoot, outputDir, 'decision-alias');
+    fs.symlinkSync(aliasTarget, aliasPath, 'junction');
+    expect(() =>
+      prepareQaWizardReviewedReconciliation({
+        ...request,
+        reviewerDecisionsPath:
+          `${outputDir}/decision-alias/reviewer-decisions.json`,
+        write: false,
+      }),
+    ).toThrow(/symlink|junction|alias|outside/);
+    fs.unlinkSync(aliasPath);
+
+    const contentReviewsPath = path.join(
+      fixture.repoRoot,
+      outputDir,
+      'reconciliation-content-reviews',
+    );
+    const externalReviews = tempRoot('qa-wizard-review-write-alias-');
+    fs.symlinkSync(externalReviews, contentReviewsPath, 'junction');
+    expect(() =>
+      prepareQaWizardReviewedReconciliation({ ...request, write: true }),
+    ).toThrow(/symlink|junction|alias|outside/);
+    expect(fs.readdirSync(externalReviews)).toEqual([]);
+    fs.unlinkSync(contentReviewsPath);
+
+    const authored = prepareQaWizardReviewedReconciliation({
+      ...request,
+      write: true,
+    });
+    for (const relativePath of [
+      authored.artifacts.manifest.path,
+      authored.artifacts.reviewerPlan.path,
+      authored.artifacts.contentReview.path,
+      authored.artifacts.contentReviewMarkdownPath,
+      authored.artifacts.reconciliation.markdownPath,
+    ]) {
+      const absolute = path.join(fixture.repoRoot, relativePath);
+      const originalBytes = fs.readFileSync(absolute);
+      fs.writeFileSync(absolute, '{"tampered":true}\n', 'utf8');
+      expect(() =>
+        recordQaWizardReviewedReconciliationApproval({
+          repoRoot: fixture.repoRoot,
+          outputDir,
+          authoringManifestPath: authored.artifacts.manifest.path,
+          approvedBy: 'Guy',
+          approvedAt: APPROVED_AT,
+          write: false,
+        }),
+      ).toThrow();
+      fs.writeFileSync(absolute, originalBytes);
+    }
+
+    const manifestAbsolute = path.join(
+      fixture.repoRoot,
+      authored.artifacts.manifest.path,
+    );
+    const hardlinkPath = path.join(
+      fixture.repoRoot,
+      outputDir,
+      'manifest-hardlink.json',
+    );
+    fs.linkSync(manifestAbsolute, hardlinkPath);
+    expect(() =>
+      recordQaWizardReviewedReconciliationApproval({
+        repoRoot: fixture.repoRoot,
+        outputDir,
+        authoringManifestPath: authored.artifacts.manifest.path,
+        approvedBy: 'Guy',
+        approvedAt: APPROVED_AT,
+        write: false,
+      }),
+    ).toThrow(/unique regular file/);
+    fs.unlinkSync(hardlinkPath);
+
+    const approvalPreview = recordQaWizardReviewedReconciliationApproval({
+      repoRoot: fixture.repoRoot,
+      outputDir,
+      authoringManifestPath: authored.artifacts.manifest.path,
+      approvedBy: 'Guy',
+      approvedAt: APPROVED_AT,
+      write: false,
+    });
+    const approvalDirectory = path.join(
+      fixture.repoRoot,
+      outputDir,
+      'reconciliation-approvals',
+    );
+    const approvalDirectoryBackup = path.join(
+      fixture.repoRoot,
+      outputDir,
+      'reconciliation-approvals-safe-backup',
+    );
+    const externalApprovals = tempRoot('qa-wizard-approval-write-alias-');
+    fs.renameSync(approvalDirectory, approvalDirectoryBackup);
+    fs.symlinkSync(externalApprovals, approvalDirectory, 'junction');
+    expect(() =>
+      recordQaWizardReviewedReconciliationApproval({
+        repoRoot: fixture.repoRoot,
+        outputDir,
+        authoringManifestPath: authored.artifacts.manifest.path,
+        approvedBy: 'Guy',
+        approvedAt: APPROVED_AT,
+        write: true,
+      }),
+    ).toThrow(/symlink|junction|alias|outside/);
+    expect(fs.readdirSync(externalApprovals)).toEqual([]);
+    for (const relativePath of [
+      approvalPreview.approvedReconciliationArtifacts.reconciliationPath,
+      approvalPreview.approvedReconciliationArtifacts.reviewBundlePath,
+      approvalPreview.approvedReconciliationArtifacts.markdownPath,
+      approvalPreview.approvalArtifact.path,
+    ]) {
+      expect(fs.existsSync(path.join(fixture.repoRoot, relativePath))).toBe(false);
+    }
+    fs.unlinkSync(approvalDirectory);
+    fs.renameSync(approvalDirectoryBackup, approvalDirectory);
+  }, 60_000);
+
+  it('rejects self-consistent embedded coverage substitution before any approval artifact is written', async () => {
+    const fixture = await materializeCanonicalCandidate();
+    const outputDir = 'outputs/bridge';
+    const prepared = prepareQaWizardCandidateReconciliation({
+      ...prepareArgs(fixture, outputDir),
+      write: true,
+    });
+    const approved = buildApprovedArtifacts({
+      fixture,
+      prepared,
+      outputDir,
+    });
+    expect(() =>
+      buildQaWizardReconciliationApprovalAttestation({
+        pendingManifestDigest: prepared.manifest.digest,
+        reconciliation: approved.approved,
+        reviewBundle: {
+          ...approved.reviewBundle,
+          digest: 'f'.repeat(64),
+        },
+        reviewMarkdown: renderReconciliationReviewMarkdown(
+          approved.reviewBundle,
+        ),
+        approvedBy: 'Guy',
+        approvedAt: APPROVED_AT,
+      }),
+    ).toThrow(/incomplete or inconsistent/);
+    expect(() =>
+      buildQaWizardReconciliationApprovalAttestation({
+        pendingManifestDigest: prepared.manifest.digest,
+        reconciliation: approved.approved,
+        reviewBundle: approved.reviewBundle,
+        reviewMarkdown: 'not the canonical review markdown\n',
+        approvedBy: 'Guy',
+        approvedAt: APPROVED_AT,
+      }),
+    ).toThrow(/incomplete or inconsistent/);
+    const forged = structuredClone(approved.approved);
+    const records = forged.actionSemanticCoverageAuthority.records;
+    records[0] = {
+      ...records[0]!,
+      sourcePhrase: `${records[0]!.sourcePhrase} forged`,
+    };
+    const forgedCoverageDigest = canonicalJsonDigest(records);
+    forged.actionSemanticCoverageAuthority.actionSemanticCoverageDigest =
+      forgedCoverageDigest;
+    forged.presentationRequirements.actionSemanticCoverageDigest =
+      forgedCoverageDigest;
+    const snapshot = buildStorySourceAuthoritySnapshot({
+      repoRoot: fixture.repoRoot,
+      storyKey: STORY_KEY,
+      storyPath: fixture.storyPath,
+    });
+    const template = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          fixture.repoRoot,
+          prepared.manifest.visualContract.templatePath,
+        ),
+        'utf8',
+      ),
+    ) as BookVisualContractTemplate;
+    const forgedReview = buildReconciliationReviewBundle({
+      reconciliation: forged,
+      sourceIdentity: snapshot.content.sourceIdentity,
+      sourceAuthoritySnapshotDigest: snapshot.digest,
+      rawStorySource: snapshot.content.normalizedRawStorySource,
+      template,
+      ...(snapshot.content.authoredCoverAuthority
+        ? { authoredCoverAuthority: snapshot.content.authoredCoverAuthority }
+        : {}),
+      actionSemanticCoverage: records,
+    });
+    expect(forgedReview.readyForApproval).toBe(true);
+    const forgedArtifacts = persistReconciliationDraftBundle({
+      repoRoot: fixture.repoRoot,
+      outputDir,
+      reconciliation: forged,
+      reviewBundle: forgedReview,
+      markdown: renderReconciliationReviewMarkdown(forgedReview),
+      write: true,
+    });
+    const approvalsDir = path.join(
+      fixture.repoRoot,
+      outputDir,
+      'reconciliation-approvals',
+    );
+    const before = fs.existsSync(approvalsDir)
+      ? fs.readdirSync(approvalsDir).sort()
+      : [];
+    expect(() =>
+      recordQaWizardReconciliationApproval({
+        repoRoot: fixture.repoRoot,
+        outputDir,
+        pendingManifestPath: prepared.manifestArtifact.path,
+        approvedReconciliationPath: forgedArtifacts.reconciliationPath,
+        approvedReviewBundlePath: forgedArtifacts.reviewBundlePath,
+        approvedReviewMarkdownPath: forgedArtifacts.markdownPath,
+        approvedBy: 'Guy',
+        approvedAt: APPROVED_AT,
+        write: true,
+      }),
+    ).toThrow(/stale or incomplete/);
+    const after = fs.existsSync(approvalsDir)
+      ? fs.readdirSync(approvalsDir).sort()
+      : [];
+    expect(after).toEqual(before);
   }, 60_000);
 });

@@ -18,8 +18,10 @@ import {
   persistReconciliationDraftBundle,
   LEGACY_RECONCILIATION_REVIEW_BUNDLE_VERSION,
   RECONCILIATION_REVIEW_BUNDLE_VERSION,
+  RECONCILIATION_REVIEW_RENDERER_VERSION,
   renderLegacyReconciliationReviewMarkdownV2,
   renderReconciliationReviewMarkdown,
+  type ReconciliationReviewBundle,
 } from './reconciliationLifecycle';
 import {
   canonicalJsonDigest,
@@ -120,6 +122,9 @@ export const QA_WIZARD_CANDIDATE_VALIDATION_DOES_NOT_AUTHORIZE = [
 
 export const QA_WIZARD_RECONCILIATION_APPROVAL_ATTESTATION_VERSION =
   'qa-wizard-reconciliation-approval-attestation/v1' as const;
+
+export const QA_WIZARD_RECONCILIATION_PROSPECTIVE_VALIDATION_TIMESTAMP =
+  '2000-01-01T00:00:00.000Z' as const;
 
 export const QA_WIZARD_RECONCILIATION_APPROVAL_DOES_NOT_AUTHORIZE = [
   'blueprint_authoring',
@@ -550,7 +555,7 @@ function commandFlag(
     : null;
 }
 
-function resolveExistingContainedArtifact(args: {
+export function resolveExistingContainedArtifact(args: {
   repoRoot: string;
   relativePath: string;
   label: string;
@@ -2249,6 +2254,8 @@ export function qaWizardReconciliationApprovalAttestationIsValid(
     value.decision !== 'approved' ||
     value.approvedBy !== 'Guy' ||
     !isoTimestampIsValid(value.approvedAt) ||
+    value.approvedAt ===
+      QA_WIZARD_RECONCILIATION_PROSPECTIVE_VALIDATION_TIMESTAMP ||
     value.authorityScope !==
       'reconciliation_exact_content_approval_only' ||
     !Array.isArray(value.doesNotAuthorize) ||
@@ -2268,6 +2275,110 @@ export function qaWizardReconciliationApprovalAttestationIsValid(
     ...payload
   } = value;
   return value.digest === canonicalJsonDigest(payload);
+}
+
+export function buildQaWizardReconciliationApprovalAttestation(args: {
+  pendingManifestDigest: string;
+  reconciliation: SourcePromptReconciliation;
+  reviewBundle: ReconciliationReviewBundle;
+  reviewMarkdown: string;
+  approvedBy: 'Guy';
+  approvedAt: string;
+}): QaWizardReconciliationApprovalAttestation {
+  const {
+    digestAlgorithm: _reviewDigestAlgorithm,
+    digest: _reviewDigest,
+    ...reviewPayload
+  } = args.reviewBundle;
+  if (
+    args.approvedBy !== 'Guy' ||
+    !isoTimestampIsValid(args.approvedAt) ||
+    args.approvedAt ===
+      QA_WIZARD_RECONCILIATION_PROSPECTIVE_VALIDATION_TIMESTAMP ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(args.approvedAt) ||
+    new Date(args.approvedAt).toISOString() !== args.approvedAt ||
+    args.reconciliation.review.status !== 'approved' ||
+    args.reconciliation.review.reviewedBy !== args.approvedBy ||
+    args.reconciliation.review.reviewedAt !== args.approvedAt ||
+    args.reviewBundle.reconciliationDigest !==
+      canonicalJsonDigest(args.reconciliation) ||
+    args.reviewBundle.version !== RECONCILIATION_REVIEW_BUNDLE_VERSION ||
+    args.reviewBundle.rendererVersion !==
+      RECONCILIATION_REVIEW_RENDERER_VERSION ||
+    args.reviewBundle.digestAlgorithm !== 'canonical-json-sha256' ||
+    args.reviewBundle.digest !== canonicalJsonDigest(reviewPayload) ||
+    args.reviewBundle.blockingIssues.length !== 0 ||
+    args.reviewBundle.readyForApproval !== true ||
+    args.reviewMarkdown !==
+      renderReconciliationReviewMarkdown(args.reviewBundle)
+  ) {
+    throw new Error('reconciliation approval evidence is incomplete or inconsistent');
+  }
+  const payload = {
+    version: QA_WIZARD_RECONCILIATION_APPROVAL_ATTESTATION_VERSION,
+    pendingManifestDigest: args.pendingManifestDigest,
+    reconciliationVersion: args.reconciliation.version,
+    reconciliationDigest: canonicalJsonDigest(args.reconciliation),
+    reviewBundleVersion: args.reviewBundle.version,
+    reviewBundleDigest: args.reviewBundle.digest,
+    reviewMarkdownSha256: sha256Utf8(args.reviewMarkdown),
+    decision: 'approved' as const,
+    approvedBy: args.approvedBy,
+    approvedAt: args.approvedAt,
+    authorityScope: 'reconciliation_exact_content_approval_only' as const,
+    doesNotAuthorize: [
+      ...QA_WIZARD_RECONCILIATION_APPROVAL_DOES_NOT_AUTHORIZE,
+    ],
+  };
+  const attestation: QaWizardReconciliationApprovalAttestation = {
+    ...payload,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest: canonicalJsonDigest(payload),
+  };
+  if (!qaWizardReconciliationApprovalAttestationIsValid(attestation)) {
+    throw new Error('reconciliation approval attestation construction failed');
+  }
+  return attestation;
+}
+
+function persistQaWizardReconciliationApprovalAttestation(args: {
+  repoRoot: string;
+  outputDir: string;
+  attestation: QaWizardReconciliationApprovalAttestation;
+  write?: boolean;
+}): QaWizardCandidateBridgeArtifactWrite {
+  if (!qaWizardReconciliationApprovalAttestationIsValid(args.attestation)) {
+    throw new Error('reconciliation approval attestation is invalid');
+  }
+  const outputRoot = path.resolve(args.repoRoot, args.outputDir);
+  repoRelativePath(args.repoRoot, outputRoot);
+  const destinationPath = path.join(
+    outputRoot,
+    'reconciliation-approvals',
+    `${args.attestation.digest}.json`,
+  );
+  let persistence = { created: false };
+  if (args.write === true) {
+    const store = createContainedContentAddressedJsonArtifactStore({
+      repoRoot: args.repoRoot,
+      repositoryRealPath: fs.realpathSync(args.repoRoot),
+      outputDir: args.outputDir,
+      categories: ['reconciliation-approvals'] as const,
+      rejectSymlinkAliases: true,
+      errorPrefix: 'reconciliation approval attestation',
+    });
+    store.prepare();
+    persistence = store.persist({
+      category: 'reconciliation-approvals',
+      digest: args.attestation.digest,
+      value: args.attestation,
+    });
+  }
+  return {
+    path: repoRelativePath(args.repoRoot, destinationPath),
+    digest: args.attestation.digest,
+    created: persistence.created,
+  };
 }
 
 function loadQaWizardReconciliationApprovalAttestation(args: {
@@ -2324,7 +2435,12 @@ export function recordQaWizardReconciliationApproval(
     manifestPath: args.pendingManifestPath,
     outputDir: args.outputDir,
   });
-  if (args.approvedBy !== 'Guy' || !isoTimestampIsValid(args.approvedAt)) {
+  if (
+    args.approvedBy !== 'Guy' ||
+    !isoTimestampIsValid(args.approvedAt) ||
+    args.approvedAt ===
+      QA_WIZARD_RECONCILIATION_PROSPECTIVE_VALIDATION_TIMESTAMP
+  ) {
     throw new Error('reconciliation approval identity or timestamp is invalid');
   }
   const reconciliationAbsolute = resolveExistingContainedArtifact({
@@ -2374,8 +2490,7 @@ export function recordQaWizardReconciliationApproval(
     ...(snapshot.content.authoredCoverAuthority
       ? { authoredCoverAuthority: snapshot.content.authoredCoverAuthority }
       : {}),
-    actionSemanticCoverage:
-      reconciliation.actionSemanticCoverageAuthority.records,
+    actionSemanticCoverage: candidate.actionSemanticCoverage,
   });
   const persistedReview = readJsonObject(
     reviewAbsolute,
@@ -2393,30 +2508,14 @@ export function recordQaWizardReconciliationApproval(
   ) {
     throw new Error('reconciliation approval packet is stale or incomplete');
   }
-  const payload = {
-    version: QA_WIZARD_RECONCILIATION_APPROVAL_ATTESTATION_VERSION,
+  const attestation = buildQaWizardReconciliationApprovalAttestation({
     pendingManifestDigest: pending.digest,
-    reconciliationVersion: reconciliation.version,
-    reconciliationDigest: canonicalJsonDigest(reconciliation),
-    reviewBundleVersion: expectedReviewBundle.version,
-    reviewBundleDigest: expectedReviewBundle.digest,
-    reviewMarkdownSha256: sha256Utf8(expectedMarkdown),
-    decision: 'approved' as const,
-    approvedBy: 'Guy' as const,
+    reconciliation,
+    reviewBundle: expectedReviewBundle,
+    reviewMarkdown: expectedMarkdown,
+    approvedBy: args.approvedBy,
     approvedAt: args.approvedAt,
-    authorityScope: 'reconciliation_exact_content_approval_only' as const,
-    doesNotAuthorize: [
-      ...QA_WIZARD_RECONCILIATION_APPROVAL_DOES_NOT_AUTHORIZE,
-    ],
-  };
-  const attestation: QaWizardReconciliationApprovalAttestation = {
-    ...payload,
-    digestAlgorithm: 'canonical-json-sha256',
-    digest: canonicalJsonDigest(payload),
-  };
-  if (!qaWizardReconciliationApprovalAttestationIsValid(attestation)) {
-    throw new Error('reconciliation approval attestation construction failed');
-  }
+  });
   if (args.write === true) {
     prepareBridgeOutputRoot({
       repoRoot: args.repoRoot,
@@ -2431,37 +2530,15 @@ export function recordQaWizardReconciliationApproval(
     markdown: expectedMarkdown,
     write: args.write === true,
   });
-  const outputRoot = path.resolve(args.repoRoot, args.outputDir);
-  repoRelativePath(args.repoRoot, outputRoot);
-  const destinationPath = path.join(
-    outputRoot,
-    'reconciliation-approvals',
-    `${attestation.digest}.json`,
-  );
-  let persistence = { created: false };
-  if (args.write === true) {
-    const store = createContainedContentAddressedJsonArtifactStore({
-      repoRoot: args.repoRoot,
-      repositoryRealPath: fs.realpathSync(args.repoRoot),
-      outputDir: args.outputDir,
-      categories: ['reconciliation-approvals'] as const,
-      rejectSymlinkAliases: true,
-      errorPrefix: 'reconciliation approval attestation',
-    });
-    store.prepare();
-    persistence = store.persist({
-      category: 'reconciliation-approvals',
-      digest: attestation.digest,
-      value: attestation,
-    });
-  }
+  const artifact = persistQaWizardReconciliationApprovalAttestation({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    attestation,
+    write: args.write === true,
+  });
   return {
     attestation,
-    artifact: {
-      path: repoRelativePath(args.repoRoot, destinationPath),
-      digest: attestation.digest,
-      created: persistence.created,
-    },
+    artifact,
     approvedReconciliationArtifacts,
   };
 }
