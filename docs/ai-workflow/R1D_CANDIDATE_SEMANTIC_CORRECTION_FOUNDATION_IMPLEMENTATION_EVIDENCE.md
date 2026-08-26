@@ -86,10 +86,11 @@ frontiers containing the unreviewed presentation gap do not.
   `[spatial:<id>]` markers into the optional Visual Contract steering prompt.
   Enforcement is hard-off in Production but explicitly enabled by QA render
   runners. The current approved Chameleon package has no safety constraints
-  and therefore does not emit such markers through its active PVB route; a
-  future spatial-safety constraint would. Before such a package is rendered,
-  Guy must decide whether provider prompt prose should retain the stable
-  marker or use a distinct description-only projection.
+  and therefore emits no marker through the safety projector. Its page-8
+  action prose does contain `[spatial:sp_bed]`, so a QA prompt path that emits
+  action prose must not be described as marker-free. Before another steered
+  render, Guy must decide whether provider prompt prose should retain the
+  stable marker or use a distinct description-only projection.
 - This milestone does not add a lexical/free-prose cover contradiction
   detector. The real cover defect will be closed only by the typed
   `cover_visible_recurring_prop` overlay operation with exact before-state.

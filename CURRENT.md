@@ -68,9 +68,10 @@ identity, never throw before validation, and remain rejected with itemized
 validator errors. Candidate v9 still does not persist the projection version;
 the correction overlay/review must do so. The optional steering prompt remains
 hard-off in Production but is explicitly enabled by QA runners. The current
-Chameleon package has no safety constraints, so its active PVB prompt does not
-emit such markers; a future spatial-safety contract would require an explicit
-prompt-policy decision before render.
+Chameleon package has no safety constraints, so its safety projection emits no
+marker. Its page-8 action projection does contain `[spatial:sp_bed]`; the
+overall QA prompt path therefore must not be described as marker-free. An
+explicit prompt-policy decision is required before another steered render.
 
 The paid historical bridge-v4 chain must not be reconstructed with these
 current builders. The next milestone must load and re-attest its exact bytes,
