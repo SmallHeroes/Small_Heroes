@@ -2,7 +2,7 @@
 
 **Updated:** 2026-08-27
 **Maintainer:** Claude Code (temporary implementation owner for the order-package-authority milestone; Codex QA pending)
-**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..677c6644` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
+**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..608aeee0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`, `d1b320e1`, `608aeee0`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN PACKAGE CHAIN STOPPED AT THE PAID-ATTEMPT FENCE
 
@@ -187,6 +187,22 @@ readiness tx back (job-done never reached — worker re-enters fresh).
 End-to-end finalize regressions for all four cells. Round-6 battery: 41
 suites / 745 tests passed (22 env-gated staging skips), `tsc --noEmit` +
 `git diff --check` clean, zero provider operations.
+
+Round 7 (1 MAJOR): the round-6 loop spun against a CAS=0 caused by an
+ALREADY-DURABLE non-anchor disposition (the fresh select could not see
+status/deliveryHoldReason/manualReviewRequired) — three fruitless
+re-evaluations and a retryable abort on an order the world had already
+decided. `608aeee0` completes the convergence contract: each iteration
+first recognizes a governing terminal marker (`isDeliveryTerminalHold`)
+or the payment fence and concludes held under THAT disposition (zero
+CAS, zero rewrite, job done once, zero email); a CAS=0 on a clean row
+additionally classifies an ACTIVE STRONG HumanQaReviewCase (skip_weaker —
+exactly the CAS's NOT EXISTS set; weak/anchor cases do NOT classify);
+otherwise the round-6 re-evaluation/exhaustion behavior is byte-unchanged
+and `executeReadinessShipCas` is untouched. Hostile regressions for all
+six cells. Round-7 battery: 41 suites / 750 tests passed (22 env-gated
+staging skips), `tsc --noEmit` + `git diff --check` clean, zero provider
+operations.
 
 Total authoring spend $1.06 conservative across 4 provider calls, zero
 transport retries, no fallback, no candidate promoted. Per the milestone's

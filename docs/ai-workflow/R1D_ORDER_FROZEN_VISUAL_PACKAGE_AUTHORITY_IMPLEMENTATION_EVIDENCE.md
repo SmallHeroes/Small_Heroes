@@ -4,7 +4,7 @@
 **Implementation owner:** Claude Code (explicit temporary transfer from Codex by Guy)
 **Branch / worktree:** `codex/r1d-order-package-authority-binding` / `C:\GNart\Work\sh-order-package-authority`
 **Base:** `983a09ee835be92ddeaf1134a56a5d122b61a328`
-**Immutable code range:** `983a09ee..677c6644` — `f982f9f8` (authority binding), `c38a18ac` (prompt v20), `59efadb5` (prompt v21), `0e49b8f6` (first-handoff docs), `3cfbae8f` (Codex round-1 correction: transitions v22/v14, `..`-aliases, fresh-row gate, debug route), `fc8b08a0` (Codex round-2 correction: producing-snapshot delivery binding), `5e79c45f` (round-2 docs), `157fe750` (Codex round-3 correction: total producing-provenance invariant), `53c62285` (round-3 docs), `ce35ee42` (Codex round-4 correction: executable-SQL cache truth, barrier-owned inventory, repository-wide census, ON caller leg, anchor-release TOCTOU, debug-route producing provenance, send_ambiguous named exception), `f1dafa1b` (round-4 docs), `296fe47c` (Codex round-5 correction: one total snapshot invariant — exact caller/fresh/producing identity, fresh-derived anchor disposition, hold-write discipline, debug persistence re-proof, send_ambiguous identity binding, field-level census, production ON receipt branch), `2e3a511e` (round-5 docs), `677c6644` (Codex round-6 correction: legacy ship CAS=0 bounded fresh re-evaluation, retryable exhaustion abort, ON CAS=0 classification pinned). This document is finalized in the docs-only commit immediately following `677c6644` on the same branch.
+**Immutable code range:** `983a09ee..608aeee0` — `f982f9f8` (authority binding), `c38a18ac` (prompt v20), `59efadb5` (prompt v21), `0e49b8f6` (first-handoff docs), `3cfbae8f` (Codex round-1 correction: transitions v22/v14, `..`-aliases, fresh-row gate, debug route), `fc8b08a0` (Codex round-2 correction: producing-snapshot delivery binding), `5e79c45f` (round-2 docs), `157fe750` (Codex round-3 correction: total producing-provenance invariant), `53c62285` (round-3 docs), `ce35ee42` (Codex round-4 correction: executable-SQL cache truth, barrier-owned inventory, repository-wide census, ON caller leg, anchor-release TOCTOU, debug-route producing provenance, send_ambiguous named exception), `f1dafa1b` (round-4 docs), `296fe47c` (Codex round-5 correction: one total snapshot invariant — exact caller/fresh/producing identity, fresh-derived anchor disposition, hold-write discipline, debug persistence re-proof, send_ambiguous identity binding, field-level census, production ON receipt branch), `2e3a511e` (round-5 docs), `677c6644` (Codex round-6 correction: legacy ship CAS=0 bounded fresh re-evaluation, retryable exhaustion abort, ON CAS=0 classification pinned), `d1b320e1` (round-6 docs), `608aeee0` (Codex round-7 correction: CAS=0 re-evaluation classifies durable non-anchor dispositions — terminal markers, the payment fence, active strong QA cases). This document is finalized in the docs-only commit immediately following `608aeee0` on the same branch.
 **Decision Gate:** `docs/ai-workflow/R1D_ORDER_FROZEN_VISUAL_PACKAGE_AUTHORITY_DECISION_GATE.md` (gitignored, SHA-256 `341f3912…`)
 **External cost:** $1.06 conservative ($0.94 nominal), 4 provider calls, 0 transport retries, 0 fallbacks, 0 images, 0 renders
 
@@ -565,6 +565,46 @@ positive control shipping exactly once. The verified JSONB/cache, exact
 identity, and fresh-disposition behavior are untouched.
 
 Round-6 battery: 41 suites, 745 tests passed (22 environment-gated real-PG
+staging skips), `tsc --noEmit` exit 0, `git diff --check` clean, zero
+provider/live/render operations.
+
+## Codex re-gate round 7 — CAS=0 classifies durable dispositions (`608aeee0`)
+
+Codex's round-7 review (1 MAJOR): the round-6 loop spun against a ship
+CAS=0 CAUSED by an already-durable non-anchor disposition — the fresh
+select omitted `status`/`deliveryHoldReason`/`manualReviewRequired`, so a
+terminal marker, the payment fence, or an active strong QA case produced
+three fruitless re-evaluations and a retryable abort (zero job-done) on an
+order the world had already durably decided.
+
+`608aeee0` completes the convergence contract — shipped / recognized
+durable disposition / retryable abort ONLY when no durable disposition
+exists:
+
+- Each iteration first RECOGNIZES a governing durable disposition from the
+  now-selected Order fields: a terminal marker (`isDeliveryTerminalHold`,
+  the TS twin of the ship CAS's SQL blocklist) or the payment fence
+  concludes the stage held under THAT disposition — zero ship CAS
+  attempts, zero marker/fence rewrite, job done once, zero email; the
+  disposition's owner keeps its lifecycle.
+- A CAS=0 on a clean row classifies the one durable disposition the Order
+  row cannot show: an ACTIVE STRONG `HumanQaReviewCase` (the skip_weaker
+  shape), via exactly the set the CAS's `NOT EXISTS` rejects — found →
+  held under `human_qa_case:<kind>` after exactly one CAS attempt; a weak
+  (anchor) case does NOT classify.
+- Otherwise round-6 behavior is unchanged: a clear-anchor mutation
+  re-evaluates fresh to its correct durable anchor hold, and truly
+  unexplained repeated CAS=0 still exhausts into the retryable
+  `AuthorityHoldRaceError` with the job never marked done.
+
+`executeReadinessShipCas` is untouched; no blanket CAS=0→held conversion.
+Hostile regressions: concurrent safety_hold, concurrent
+contract_world_hold, payment fence (each zero-CAS/zero-rewrite
+conclusions), the skip_weaker strong-case cell (one CAS, case
+classification asserted), the weak-case exhaustion control, and all
+round-6 cells unchanged.
+
+Round-7 battery: 41 suites, 750 tests passed (22 environment-gated real-PG
 staging skips), `tsc --noEmit` exit 0, `git diff --check` clean, zero
 provider/live/render operations.
 
