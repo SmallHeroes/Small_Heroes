@@ -4,7 +4,7 @@
 **Implementation owner:** Claude Code (explicit temporary transfer from Codex by Guy)
 **Branch / worktree:** `codex/r1d-order-package-authority-binding` / `C:\GNart\Work\sh-order-package-authority`
 **Base:** `983a09ee835be92ddeaf1134a56a5d122b61a328`
-**Immutable code range:** `983a09ee..fc8b08a0` — `f982f9f8` (authority binding), `c38a18ac` (prompt v20), `59efadb5` (prompt v21), `0e49b8f6` (first-handoff docs), `3cfbae8f` (Codex round-1 correction: transitions v22/v14, `..`-aliases, fresh-row gate, debug route), `fc8b08a0` (Codex round-2 correction: producing-snapshot delivery binding). This document is finalized in the docs-only commit immediately following `fc8b08a0` on the same branch.
+**Immutable code range:** `983a09ee..157fe750` — `f982f9f8` (authority binding), `c38a18ac` (prompt v20), `59efadb5` (prompt v21), `0e49b8f6` (first-handoff docs), `3cfbae8f` (Codex round-1 correction: transitions v22/v14, `..`-aliases, fresh-row gate, debug route), `fc8b08a0` (Codex round-2 correction: producing-snapshot delivery binding), `5e79c45f` (round-2 docs), `157fe750` (Codex round-3 correction: total producing-provenance invariant). This document is finalized in the docs-only commit immediately following `157fe750` on the same branch.
 **Decision Gate:** `docs/ai-workflow/R1D_ORDER_FROZEN_VISUAL_PACKAGE_AUTHORITY_DECISION_GATE.md` (gitignored, SHA-256 `341f3912…`)
 **External cost:** $1.06 conservative ($0.94 nominal), 4 provider calls, 0 transport retries, 0 fallbacks, 0 images, 0 renders
 
@@ -177,7 +177,7 @@ identities are recorded here):
 | pre-live readiness evidence (v49) | `251677b62467fb009dc521d917247228ef53c356eff55dfa190a8d1783cee1b8` | `bf0d46fe7f82f0d883b68b85fe9309a894138fab723e1f23e491807053312974` |
 | canonical execution request (v49) | `aa1e5c85a86d23e965ee498f45fc828aa913bdd4696c859f9679ec708aef70dc` | `67ee1e807a257f1f92e37926c3a0c559cdde636b447be6f48285efe2200202b4` |
 
-The exact attempt-2 provider bytes are additionally TRACKED as test fixtures
+The exact attempt-2 captured structured payloads are additionally TRACKED as test fixtures
 under `lib/visual-contract-compiler/__tests__/fixtures/lantern-transition-frontier/`
 (initial draft + the payload-identical stagnating repair both paid repair
 calls returned + the arrival-scheme corrective repair). These are the exact
@@ -191,7 +191,7 @@ Offline proof of the remaining distance:
   `transition-scheme-proof.ts`, which pre-edited the draft and therefore
   proved only compiler acceptance):
   `lib/visual-contract-compiler/__tests__/lantern-transition-frontier.spec.ts`
-  drives the EXACT captured attempt-2 bytes through the REAL offline repair
+  drives the EXACT captured attempt-2 structured payloads through the REAL offline repair
   route. Queuing the captured stagnating repair twice reproduces the paid
   terminal exactly (`draft_validation_repair_stagnated`, complete census
   6→6→6, every issue a `page_transition_*` on pages 2,3,4,6,7,8); queuing the
@@ -293,7 +293,55 @@ missing producing snapshot after a clean fresh row, stamp↔bytes mismatch,
 contract-revision mismatch, payload/readUrl divergence, and the fully-bound
 package-backed OFF-path ship that proves no false park. Battery: 446 tests
 across 18 suites, `tsc --noEmit` exit 0, `git diff --check` clean; the
-transition/frontier, alias and debug-route suites all re-ran green.
+transition/frontier and alias suites all re-ran green, and the debug route
+gained a real route-boundary regression spec
+(`lib/__tests__/replicate-image-route-boundary.spec.ts`) in the round-3
+correction.
+
+## Codex re-gate round 3 — total producing-provenance invariant (`157fe750`)
+
+Codex's round-3 review (0 BLOCKER / 3 MAJOR) named the remaining root cause:
+producing provenance was not yet a TOTAL, atomic invariant shared by every
+post-render delivery consumer. `157fe750` closes all three MAJORs:
+
+1. **A→legacy laundering.** `requireProducingSnapshotBinding` no longer
+   early-returns for a fresh-legacy row: "legacy" is valid only when every
+   producing side is genuinely legacy. A producing cache carrying Visual
+   Package authority, a producing contract embedding a package revision, a
+   stamp without a producing contract (or vice versa), and a stamp↔bytes
+   mismatch all fail closed; a legacy freeze whose stamped legacy contract
+   matches the producing bytes still ships (pinned positive control). The
+   readiness-OFF path additionally holds when the CALLER'S snapshot is
+   package-shaped while the fresh row and producing snapshot read legacy.
+2. **Structural writer-fencing of the producing cache.**
+   `lib/generation-pipeline/pipeline-cache-store.ts` is now the only ordinary
+   cache writer: replacement semantics for ordinary keys, while the SQL
+   overlays the DATABASE row's own `visualContract`/`visualPackageAuthority`
+   onto every write, so an in-memory value for the producing keys cannot
+   reach disk outside the freeze's barrier mutation (whose writes bump
+   `inputVersion`, bound by every ship/send CAS). `saveCache`, job
+   re-seeding and the dev anchor-approval route use it; creation seeds are
+   stripped; `updateStage` type-excludes `pipelineCache`. The writer census
+   now covers `GenerationJob.pipelineCache` (window rule for spread
+   payloads, creation-seed exemption, pinned classifier cases) with zero
+   unprotected writers, and the eval→commit producing-cache drift is a
+   pinned TOCTOU abort-and-retry.
+3. **Total adoption.** Anchor-hold-release (flag-independent, plus a
+   canonical-readUrl requirement for package-backed direct sends), delivery
+   reissue and invalid-payload repair all run the same
+   `requireProducingSnapshotBinding` over the producing cache loaded in
+   their own fresh selects. Consumer census: package-delivery OFF/ON,
+   readiness commit, safety-release (via the commit), anchor release,
+   reissue, repair — one shared evaluator; the send-time CAS remains
+   transitively bound (manifest + inputVersion + fence + the structural
+   cache immutability above).
+
+Origin matrix pinned on both readiness branches: A/A/A eligible; A→B hold;
+A→legacy hold; legacy-produced→fresh-A hold; genuine legacy/legacy ships;
+missing/ambiguous cache-or-stamp hold; package-shaped caller over a legacy
+fresh row hold — every hold with zero ship CAS success and zero email.
+Round-3 battery: 468 tests across 21 suites, `tsc --noEmit` exit 0,
+`git diff --check` clean, zero provider/live/render operations.
 
 **Stop-rule closure:** the milestone brief states "If two consecutive
 paid/live attempts fail, stop spending and produce a causal map rather than

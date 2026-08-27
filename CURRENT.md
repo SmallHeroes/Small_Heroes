@@ -2,7 +2,7 @@
 
 **Updated:** 2026-08-27
 **Maintainer:** Claude Code (temporary implementation owner for the order-package-authority milestone; Codex QA pending)
-**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..fc8b08a0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
+**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..157fe750` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN PACKAGE CHAIN STOPPED AT THE PAID-ATTEMPT FENCE
 
@@ -58,7 +58,7 @@ lexically resolves parent segments and claims on boundary containment; the
 delivery gate validates the FRESH CAS-bound row; the debug image route runs
 full authority validation; and the tracked spec
 `lib/visual-contract-compiler/__tests__/lantern-transition-frontier.spec.ts`
-drives the EXACT captured attempt-2 bytes through the REAL repair route —
+drives the EXACT captured attempt-2 structured payloads through the REAL repair route —
 reproducing the paid 6→6→6 stagnation with the captured repair, converging
 6→0 to `outcome: candidate` with the arrival-scheme corrective repair
 (0 provider calls), and pinning the page-1/threshold-origin counterexamples.
@@ -76,6 +76,31 @@ fingerprint). `visualContractHash` and `illustrationStyle` join the tracked
 delivery-input writer set. The exact A→B adversarial regression holds on
 both branches with zero ship and zero email; genuine legacy behavior is
 byte-preserved.
+
+Round 3 (0 BLOCKER / 3 MAJOR): producing provenance was not yet a TOTAL
+invariant — an A-produced payload could still ship under a LEGACY-shaped
+fresh row, the producing cache keys were only policy-fenced, and three
+send surfaces had not adopted the binding. `157fe750` closes it:
+`requireProducingSnapshotBinding` now proves the legacy side too (a
+producing cache carrying package authority, a contract embedding a package
+revision, a stamp↔contract absence or bytes mismatch all fail closed; a
+stamped genuinely-legacy freeze still ships), the readiness-OFF path holds
+when the CALLER'S snapshot is package-shaped over a legacy fresh row, and a
+new structural store (`lib/generation-pipeline/pipeline-cache-store.ts`)
+makes the producing cache keys immutable outside the freeze barrier: every
+ordinary cache write overlays the DATABASE row's own
+`visualContract`/`visualPackageAuthority` in SQL, creation seeds are
+stripped, and the writer census now covers `GenerationJob.pipelineCache`
+with zero unprotected writers. Anchor-hold-release (plus a canonical-readUrl
+requirement for package-backed direct sends), delivery reissue and
+invalid-payload repair all run the same evaluator over the producing cache
+in their own fresh selects. The full origin matrix (A/A/A, A→B, A→legacy,
+legacy→A, genuine legacy, missing/ambiguous provenance, package-shaped
+caller) is pinned on both readiness branches with zero ship CAS success and
+zero email, the eval→commit producing-cache drift is a pinned TOCTOU
+abort-and-retry, and the debug image route gained a real route-boundary
+spec. Round-3 battery: 468 tests / 21 suites, `tsc --noEmit` and
+`git diff --check` clean, zero provider operations.
 
 Total authoring spend $1.06 conservative across 4 provider calls, zero
 transport retries, no fallback, no candidate promoted. Per the milestone's
