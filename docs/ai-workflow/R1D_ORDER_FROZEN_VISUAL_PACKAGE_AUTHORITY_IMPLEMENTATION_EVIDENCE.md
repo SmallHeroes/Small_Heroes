@@ -4,7 +4,7 @@
 **Implementation owner:** Claude Code (explicit temporary transfer from Codex by Guy)
 **Branch / worktree:** `codex/r1d-order-package-authority-binding` / `C:\GNart\Work\sh-order-package-authority`
 **Base:** `983a09ee835be92ddeaf1134a56a5d122b61a328`
-**Review range:** `983a09ee..HEAD` — at first handoff `f982f9f8`, `c38a18ac`, `59efadb5`, then `0e49b8f6` (this document) and the Codex-QA correction commit that amends it; the exact final head is the pushed branch tip
+**Immutable code range:** `983a09ee..fc8b08a0` — `f982f9f8` (authority binding), `c38a18ac` (prompt v20), `59efadb5` (prompt v21), `0e49b8f6` (first-handoff docs), `3cfbae8f` (Codex round-1 correction: transitions v22/v14, `..`-aliases, fresh-row gate, debug route), `fc8b08a0` (Codex round-2 correction: producing-snapshot delivery binding). This document is finalized in the docs-only commit immediately following `fc8b08a0` on the same branch.
 **Decision Gate:** `docs/ai-workflow/R1D_ORDER_FROZEN_VISUAL_PACKAGE_AUTHORITY_DECISION_GATE.md` (gitignored, SHA-256 `341f3912…`)
 **External cost:** $1.06 conservative ($0.94 nominal), 4 provider calls, 0 transport retries, 0 fallbacks, 0 images, 0 renders
 
@@ -154,9 +154,12 @@ future story, fixed at root):
    `after_transition`/`threshold`; `before_transition`/`steady` pages must
    stay in the previous page's zone), which the prompt never stated. The
    model's symmetric departure scheme was self-consistent under the prompt
-   text; two `book_surface_patch` repairs re-asserted byte-identical
-   transitions and the stagnation fence correctly stopped spend. Fixed in
-   v21 (`59efadb5`).
+   text; two `book_surface_patch` repairs re-asserted payload-identical
+   transitions and the stagnation fence correctly stopped spend. Partially
+   fixed in v21 (`59efadb5`); the COMPLETE transition correction is v22 plus
+   `book-surface-repair-prompt/v14` (the Codex-QA correction milestone below),
+   which added the page-1 and threshold-origin rules and put the identical
+   contract on the repair route itself.
 
 Durable per-attempt artifact digests (content-addressed filenames under each
 run root; the gitignored bytes remain on the implementation machine and their
@@ -176,8 +179,11 @@ identities are recorded here):
 
 The exact attempt-2 provider bytes are additionally TRACKED as test fixtures
 under `lib/visual-contract-compiler/__tests__/fixtures/lantern-transition-frontier/`
-(initial draft + the byte-identical stagnating repair both paid repair calls
-returned + the arrival-scheme corrective repair).
+(initial draft + the payload-identical stagnating repair both paid repair
+calls returned + the arrival-scheme corrective repair). These are the exact
+captured STRUCTURED payloads: parsed values and canonical payload digests
+match the run's replay evidence; raw provider file bytes do not survive
+re-serialization and are not claimed.
 
 Offline proof of the remaining distance:
 
@@ -250,6 +256,45 @@ MINOR findings; all are closed in the correction commit:
   review-range wording are corrected above; the paid receipt/readiness/
   request digests are recorded durably in the table above.
 
+## Codex re-gate round 2 — delivery producing-snapshot binding (`fc8b08a0`)
+
+Codex's re-gate (0 BLOCKER / 1 MAJOR / 2 doc MINORs; transitions, aliases and
+the debug route PASS) reproduced offline that a fresh Order row internally
+self-consistent under Package B authorized shipping a payload produced under
+Package A: the round-1 fresh-row gate proved consistency, not provenance.
+
+`fc8b08a0` adds `requireProducingSnapshotBinding` as the one shared delivery
+predicate: a package-backed Order's fresh authority must BE the producing
+snapshot's authority — the freeze-written `pipelineCache.visualPackageAuthority`
+must canonical-digest-equal the fresh Order authority, the Order's
+`visualContractHash` stamp must equal the canonical hash of the producing
+cache contract, and the contract-embedded
+`approvedRuntimeAuthority.packageRevisionDigest` must equal the fresh
+authority's revision. Genuine legacy Orders keep exact prior behavior.
+
+Readiness-OFF evaluates the binding on the same fresh CAS-bound read (now
+including the stamp, the producing cache and the Book payload rows) and
+additionally parks when the caller-supplied readUrl/cover/pdf/audio payload
+diverges from the fresh Book snapshot
+(`contract_world_hold:delivery_snapshot_binding_invalid`). Readiness-ON runs
+the identical binding before asset inspection, folds the producing cache
+authority digest and contract digest into the TOCTOU fingerprint, and records
+the producing authority digest in the blocked evidence/inputsHash; the
+in-transaction Outbox payload was already built from the freshly loaded Book,
+and the quality gate's contract-hash binding is now exercised by the
+package-bound fixture. Writer coverage tracks `visualContractHash` (its one
+post-creation writer is the freeze's barrier mutation, made lexically visible
+to the scan) and `illustrationStyle` (no post-creation writer today; any
+future one must cross the barrier).
+
+Adversarial regressions on BOTH branches: the exact A→B reproduction (fresh
+self-consistent B + producing A → hold, zero ship CAS success, zero email),
+missing producing snapshot after a clean fresh row, stamp↔bytes mismatch,
+contract-revision mismatch, payload/readUrl divergence, and the fully-bound
+package-backed OFF-path ship that proves no false park. Battery: 446 tests
+across 18 suites, `tsc --noEmit` exit 0, `git diff --check` clean; the
+transition/frontier, alias and debug-route suites all re-ran green.
+
 **Stop-rule closure:** the milestone brief states "If two consecutive
 paid/live attempts fail, stop spending and produce a causal map rather than
 patching the latest symptom." Both attempts failed; all paid operations
@@ -284,7 +329,10 @@ category TRANSITION, `dad` voice) on the branch preview
 ## Limitations and unresolved risks
 
 - The end-product objective (a delivered QA Wizard lantern book) was **not**
-  reached; it is blocked exclusively on the paid-attempt stop rule.
+  reached. It is blocked on the paid-attempt stop rule AND on Codex's re-gate
+  of the delivery producing-snapshot binding correction (the second re-gate
+  MAJOR, closed in the delivery-binding correction commit below and awaiting
+  independent verification).
 - A third authoring attempt samples a new draft; further undiscovered
   prompt-contract traps are possible (two were found in two attempts). Each
   has so far cost ~$0.5 and yielded a permanent general fix.

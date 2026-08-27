@@ -2,7 +2,7 @@
 
 **Updated:** 2026-08-27
 **Maintainer:** Claude Code (temporary implementation owner for the order-package-authority milestone; Codex QA pending)
-**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; review range `983a09ee..HEAD` (the pushed branch tip — `f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, plus the Codex-QA correction commit). The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
+**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..fc8b08a0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN PACKAGE CHAIN STOPPED AT THE PAID-ATTEMPT FENCE
 
@@ -47,11 +47,11 @@ but terminated `draft_validation_repair_stagnated` on six transition-pair
 issues: the sequence validator enforces an ARRIVAL scheme the prompt never
 stated → fixed in `59efadb5` (v21).
 
-Codex independent QA then held the range: the arrival contract was missing
-from the BookSurface REPAIR prompt (the route that actually stagnated), v21
-omitted the page-1/threshold-origin rules, `x/../…` parent-collapse aliases
-still classified as legacy, and the readiness-OFF delivery gate validated a
-stale caller snapshot. The correction commit closes all of it:
+Codex independent QA then held the range twice. Round 1: the arrival
+contract was missing from the BookSurface REPAIR prompt (the route that
+actually stagnated), v21 omitted the page-1/threshold-origin rules, `x/../…`
+parent-collapse aliases still classified as legacy, and the readiness-OFF
+delivery gate validated a stale caller snapshot. `3cfbae8f` closes all of it:
 `vc-template-prompt/v22` + `book-surface-repair-prompt/v14` state the
 identical arrival contract on both routes; the hostile namespace detector
 lexically resolves parent segments and claims on boundary containment; the
@@ -62,6 +62,20 @@ drives the EXACT captured attempt-2 bytes through the REAL repair route —
 reproducing the paid 6→6→6 stagnation with the captured repair, converging
 6→0 to `outcome: candidate` with the arrival-scheme corrective repair
 (0 provider calls), and pinning the page-1/threshold-origin counterexamples.
+
+Round 2 (0 BLOCKER / 1 MAJOR): a fresh Order row internally self-consistent
+under Package B could still authorize shipping a payload PRODUCED under
+Package A — consistency is not provenance. `fc8b08a0` adds the shared
+producing-snapshot binding (`requireProducingSnapshotBinding`): fresh
+authority ≡ freeze-written cache authority; the `visualContractHash` stamp ≡
+canonical hash of the producing cache contract; contract-embedded package
+revision ≡ fresh authority revision — enforced identically on readiness-OFF
+(fresh CAS-bound read, plus caller-payload ≡ fresh Book snapshot) and
+readiness-ON (pre-inspection gate + producing digests in the TOCTOU
+fingerprint). `visualContractHash` and `illustrationStyle` join the tracked
+delivery-input writer set. The exact A→B adversarial regression holds on
+both branches with zero ship and zero email; genuine legacy behavior is
+byte-preserved.
 
 Total authoring spend $1.06 conservative across 4 provider calls, zero
 transport retries, no fallback, no candidate promoted. Per the milestone's
