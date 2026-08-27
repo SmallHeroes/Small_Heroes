@@ -4,7 +4,7 @@
 **Implementation owner:** Claude Code (explicit temporary transfer from Codex by Guy)
 **Branch / worktree:** `codex/r1d-order-package-authority-binding` / `C:\GNart\Work\sh-order-package-authority`
 **Base:** `983a09ee835be92ddeaf1134a56a5d122b61a328`
-**Immutable code range:** `983a09ee..296fe47c` — `f982f9f8` (authority binding), `c38a18ac` (prompt v20), `59efadb5` (prompt v21), `0e49b8f6` (first-handoff docs), `3cfbae8f` (Codex round-1 correction: transitions v22/v14, `..`-aliases, fresh-row gate, debug route), `fc8b08a0` (Codex round-2 correction: producing-snapshot delivery binding), `5e79c45f` (round-2 docs), `157fe750` (Codex round-3 correction: total producing-provenance invariant), `53c62285` (round-3 docs), `ce35ee42` (Codex round-4 correction: executable-SQL cache truth, barrier-owned inventory, repository-wide census, ON caller leg, anchor-release TOCTOU, debug-route producing provenance, send_ambiguous named exception), `f1dafa1b` (round-4 docs), `296fe47c` (Codex round-5 correction: one total snapshot invariant — exact caller/fresh/producing identity, fresh-derived anchor disposition, hold-write discipline, debug persistence re-proof, send_ambiguous identity binding, field-level census, production ON receipt branch). This document is finalized in the docs-only commit immediately following `296fe47c` on the same branch.
+**Immutable code range:** `983a09ee..677c6644` — `f982f9f8` (authority binding), `c38a18ac` (prompt v20), `59efadb5` (prompt v21), `0e49b8f6` (first-handoff docs), `3cfbae8f` (Codex round-1 correction: transitions v22/v14, `..`-aliases, fresh-row gate, debug route), `fc8b08a0` (Codex round-2 correction: producing-snapshot delivery binding), `5e79c45f` (round-2 docs), `157fe750` (Codex round-3 correction: total producing-provenance invariant), `53c62285` (round-3 docs), `ce35ee42` (Codex round-4 correction: executable-SQL cache truth, barrier-owned inventory, repository-wide census, ON caller leg, anchor-release TOCTOU, debug-route producing provenance, send_ambiguous named exception), `f1dafa1b` (round-4 docs), `296fe47c` (Codex round-5 correction: one total snapshot invariant — exact caller/fresh/producing identity, fresh-derived anchor disposition, hold-write discipline, debug persistence re-proof, send_ambiguous identity binding, field-level census, production ON receipt branch), `2e3a511e` (round-5 docs), `677c6644` (Codex round-6 correction: legacy ship CAS=0 bounded fresh re-evaluation, retryable exhaustion abort, ON CAS=0 classification pinned). This document is finalized in the docs-only commit immediately following `677c6644` on the same branch.
 **Decision Gate:** `docs/ai-workflow/R1D_ORDER_FROZEN_VISUAL_PACKAGE_AUTHORITY_DECISION_GATE.md` (gitignored, SHA-256 `341f3912…`)
 **External cost:** $1.06 conservative ($0.94 nominal), 4 provider calls, 0 transport retries, 0 fallbacks, 0 images, 0 renders
 
@@ -523,6 +523,48 @@ force-allows the anchor leg, and the operator anchor-release/recommit paths
 pass no disposition at all.
 
 Round-5 battery: 41 suites, 740 tests passed (22 environment-gated real-PG
+staging skips), `tsc --noEmit` exit 0, `git diff --check` clean, zero
+provider/live/render operations.
+
+## Codex re-gate round 6 — legacy ship CAS=0 re-evaluation (`677c6644`)
+
+Codex's round-6 review found one broken boundary in the round-5 build: the
+readiness-OFF caller mishandled a ship CAS that matched 0 rows (correctly
+prevented by `producingAnchorBind`) — it logged, unconditionally marked the
+GenerationJob done/packaged, and returned `deliveryHeld: true` while the
+Order could remain `generating` with `deliveryHoldReason = null`. No-send
+safety held, but the order wedged, violating the durable-disposition
+invariant.
+
+`677c6644` makes the OFF branch's read→prove→derive→ship/park sequence a
+BOUNDED FRESH RE-EVALUATION LOOP (3 attempts): CAS=0 triggers a fresh
+re-read + re-proof + re-derivation, so Codex's hostile cell — clear anchor,
+`hard_band` flip between the disposition read and the ship CAS without an
+`inputVersion` change — converges to the CORRECT durable
+`anchor_low_confidence:hard_band` park (zero email, zero ready transition).
+Budget exhaustion (or a vanished order) throws
+`AuthorityHoldRaceError` — an explicit retryable abort owned by the chunk
+runner's standard failed+retryable+case recovery path. The job is marked
+done/packaged ONLY after a durable outcome (ship, or applied/superseded
+park) exists; `deliveryHeld` is only reported with that durable state; the
+soft-deliver warnings are captured from the exact iteration that shipped.
+
+The readiness-ON CAS=0 classification was examined and pinned: a band flip
+between eval and the in-tx reload drifts the TOCTOU fingerprint
+(`childAnchorLowConfidence` is a bound sub-value) and the SAME call
+re-evaluates to the correct durable anchor hold; a flip inside the
+in-tx-reload→CAS window raises `DeliveryFenceError`, which rolls the WHOLE
+readiness transaction back — the job-done write (sequenced after the CAS)
+is never reached, the package stage stays un-concluded, and the worker's
+next chunk re-enters it fresh. Recoverable re-entry on both windows.
+
+End-to-end `finalizePackageDelivery` regressions (not raw-CAS-only): the
+hostile flip cell, budget exhaustion (job never done, zero email, all
+three fresh reads asserted), the vanished order, and the same-source
+positive control shipping exactly once. The verified JSONB/cache, exact
+identity, and fresh-disposition behavior are untouched.
+
+Round-6 battery: 41 suites, 745 tests passed (22 environment-gated real-PG
 staging skips), `tsc --noEmit` exit 0, `git diff --check` clean, zero
 provider/live/render operations.
 

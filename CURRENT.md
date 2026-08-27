@@ -2,7 +2,7 @@
 
 **Updated:** 2026-08-27
 **Maintainer:** Claude Code (temporary implementation owner for the order-package-authority milestone; Codex QA pending)
-**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..296fe47c` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
+**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..677c6644` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN PACKAGE CHAIN STOPPED AT THE PAID-ATTEMPT FENCE
 
@@ -169,6 +169,24 @@ fence asserted) — 10 cells, both branches, positive and negative controls.
 Round-5 battery: 41 suites / 740 tests passed (22 env-gated staging
 skips), `tsc --noEmit` + `git diff --check` clean, zero provider
 operations.
+
+Round 6 (1 finding): the readiness-OFF caller mishandled a ship CAS=0 —
+log-only, then unconditional job done/packaged, `deliveryHeld:true` with
+no durable state (no-send safety held; the order wedged). `677c6644` makes
+the OFF read→prove→derive→ship/park sequence a bounded fresh
+re-evaluation loop (3 attempts): CAS=0 → fresh re-read + re-derivation, so
+the hostile band-flip cell converges to the CORRECT durable
+`anchor_low_confidence:hard_band` park (zero email, zero ready); budget
+exhaustion or a vanished order → `AuthorityHoldRaceError` retryable abort
+owned by the chunk runner's failed+retryable+case path; job done/packaged
+ONLY after a durable outcome; `deliveryHeld` only with durable state. The
+ON CAS=0 classification was examined and pinned: eval→in-tx flips drift
+the TOCTOU fingerprint (same-call re-evaluation to the durable hold);
+in-tx-reload→CAS flips raise `DeliveryFenceError`, which rolls the whole
+readiness tx back (job-done never reached — worker re-enters fresh).
+End-to-end finalize regressions for all four cells. Round-6 battery: 41
+suites / 745 tests passed (22 env-gated staging skips), `tsc --noEmit` +
+`git diff --check` clean, zero provider operations.
 
 Total authoring spend $1.06 conservative across 4 provider calls, zero
 transport retries, no fallback, no candidate promoted. Per the milestone's
