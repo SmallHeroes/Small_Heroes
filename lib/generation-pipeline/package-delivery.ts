@@ -10,7 +10,7 @@ import {
   executeReadinessShipCas,
   type CommitResult,
 } from './readiness-manifest';
-import { writeOrderHoldFenced, type HoldWriteResult } from './order-authority';
+import { isDeliveryTerminalHold, writeOrderHoldFenced, type HoldWriteResult } from './order-authority';
 import { resolveSafetyDeliveryGate, type SafetyDeliveryGate } from './safety-delivery-gate';
 import { resolveActiveRecoveryCaseInTx } from '@/lib/generation-chunked/exception-case';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
@@ -75,6 +75,33 @@ interface PackageDeliveryDeps {
   commit?: typeof commitBaseBookReadiness;
   send?: typeof sendBookReadyEmail;
   now?: () => Date;
+}
+
+/**
+ * (Codex round-7) The active strong Human-QA case for this order, if one exists — EXACTLY the set
+ * the ship CAS's NOT EXISTS rejects (`activeKey` ∈ {orderId:base_book, orderId:payment}, status
+ * `open`, kind ∈ safety/contract_world/payment_integrity). Mirrors the anchor-release route's
+ * skip_weaker guard: a strong case can be active while the Order marker reads weak/clear, so it
+ * cannot be inferred from Order fields alone.
+ */
+async function findActiveStrongHumanQaCase(
+  prisma: PrismaClient,
+  orderId: string,
+): Promise<{ kind: string } | null> {
+  for (const scope of ['base_book', 'payment'] as const) {
+    const reviewCase = await prisma.humanQaReviewCase.findUnique({
+      where: { activeKey: `${orderId}:${scope}` },
+      select: { kind: true, status: true },
+    });
+    if (
+      reviewCase &&
+      reviewCase.status === 'open' &&
+      ['safety', 'contract_world', 'payment_integrity'].includes(reviewCase.kind)
+    ) {
+      return { kind: reviewCase.kind };
+    }
+  }
+  return null;
 }
 
 /**
@@ -241,6 +268,9 @@ export async function finalizePackageDelivery(
       select: {
         inputVersion: true,
         deliveryFenceVersion: true,
+        status: true,
+        deliveryHoldReason: true,
+        manualReviewRequired: true,
         selectionFilename: true,
         storySourceHash: true,
         illustrationStyle: true,
@@ -267,6 +297,21 @@ export async function finalizePackageDelivery(
       throw new AuthorityHoldRaceError(args.order.id, 'lost', 'order_vanished_before_package_write');
     }
     const producingCache: unknown = cur.generationJob?.pipelineCache ?? null;
+
+    // (Codex round-7) CLASSIFY the current authoritative delivery state FIRST. A durable
+    // NON-ANCHOR disposition already governing this order — a terminal marker
+    // (safety_/contract_world_/quarantine_/manual_resolution_) or the payment fence
+    // (manualReviewRequired) — is exactly what the ship CAS would reject; spinning fresh
+    // re-evaluations against it (and then aborting retryably) would refuse to conclude a stage the
+    // world has already durably decided. Recognize it: the stage concludes held under THAT
+    // disposition, its owner keeps the marker/fence/case lifecycle, and nothing here rewrites it.
+    if (isDeliveryTerminalHold(cur.deliveryHoldReason) || cur.manualReviewRequired) {
+      heldReason = isDeliveryTerminalHold(cur.deliveryHoldReason)
+        ? cur.deliveryHoldReason
+        : 'payment_fence:manual_review_required';
+      durable = true;
+      break;
+    }
 
     // Durable identity + producing-snapshot gate — readiness-INDEPENDENT, evaluated on the SAME
     // FRESH row the ship CAS binds (never the caller's stale `args.order` snapshot): the caller's
@@ -365,9 +410,21 @@ export async function finalizePackageDelivery(
         durable = true;
         break;
       }
-      // (round-6) CAS=0 ⇒ the world moved under this evaluation (hold/fence/anchor-band). Never
-      // just log-and-continue to the job-done write: RE-EVALUATE FRESH so a band flip converges to
-      // its correct durable anchor hold on the next iteration.
+      // (Codex round-7) CAS=0 with a clean fresh row: the one durable disposition the Order row
+      // itself cannot show is an ACTIVE STRONG HumanQaReviewCase (the skip_weaker shape — a weaker
+      // marker rewrite left the strong case open; the ship CAS's NOT EXISTS rejects it). Classify
+      // it before re-evaluating: an open safety/contract_world/payment_integrity case IS a durable
+      // disposition owned by its reviewer — conclude held under it, never spin against it.
+      const strongCase = await findActiveStrongHumanQaCase(prisma, args.order.id);
+      if (strongCase) {
+        heldReason = `human_qa_case:${strongCase.kind}`;
+        durable = true;
+        break;
+      }
+      // (round-6) Otherwise the world moved under this evaluation (a hold/fence/anchor-band
+      // mutation still in flight). Never just log-and-continue to the job-done write: RE-EVALUATE
+      // FRESH so a band flip converges to its correct durable anchor hold on the next iteration —
+      // and truly unexplained repeated losses still exhaust into the retryable abort below.
       log.warn('Legacy ship CAS matched 0 rows — re-evaluating from a fresh snapshot', {
         orderId: args.order.id,
         attempt: attempt + 1,

@@ -274,6 +274,87 @@ describe('finalizePackageDelivery — legacy ship CAS=0 re-evaluation (Codex rou
   });
 });
 
+describe('finalizePackageDelivery — durable non-anchor dispositions are RECOGNIZED, never spun against (Codex round-7)', () => {
+  const CALL_ARGS = {
+    safetyGate: { held: false, reason: null },
+    readUrl: 'https://app/ready?orderId=o1',
+    pdfUrl: null,
+    firstAudioUrl: null,
+  } as const;
+  const rowWith = (over: Record<string, unknown>) => ({
+    childName: 'Test', inputVersion: 0, visualContractHash: null, deliveryFenceVersion: 0,
+    status: 'generating', deliveryHoldReason: null, manualReviewRequired: false,
+    selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+    storySourceHash: 'f'.repeat(64),
+    illustrationStyle: 'pencil_watercolor',
+    visualPackageAuthority: null,
+    generationJob: { pipelineCache: {} }, // clear anchor — the CAS rejection is NOT anchor-caused
+    ...over,
+  });
+
+  it.each([
+    ['concurrent safety_hold', { status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard_detected' }, 'safety_hold:hazard_detected'],
+    ['concurrent contract_world_hold', { status: 'needs_human_qa', deliveryHoldReason: 'contract_world_hold:world_drift' }, 'contract_world_hold:world_drift'],
+    ['payment/manual-review fence', { manualReviewRequired: true }, 'payment_fence:manual_review_required'],
+  ])('%s + clear anchor → RECOGNIZED durable disposition: zero ship CAS, zero marker rewrite, job done once, zero email, held', async (_label, freshOver, _expectedDisposition) => {
+    const prisma = db();
+    prisma.order.findUnique = vi.fn(async () => rowWith(freshOver)) as never;
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...CALL_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    // Codex's round-7 probe produced: 3 fresh reads, 3 CAS=0, retryable abort, 0 job done.
+    // Now: the FIRST fresh evaluation classifies the governing durable disposition and concludes.
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: true, manifest: null });
+    expect(prisma.$executeRaw).not.toHaveBeenCalled(); // no ship CAS spin, and the marker/fence is NEVER rewritten
+    // One loop read classifies; the second read is the best-effort post-commit case sync, not a re-evaluation.
+    expect(prisma.order.findUnique.mock.calls.length).toBeLessThanOrEqual(2);
+    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1); // the stage concludes under the existing disposition
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('skip_weaker: clear marker + clear anchor but an ACTIVE strong safety case → one CAS=0, then RECOGNIZED case disposition (no spin, no exhaustion abort)', async () => {
+    const prisma = db();
+    prisma.order.findUnique = vi.fn(async () => rowWith({})) as never;
+    prisma.$executeRaw = vi.fn(async () => 0) as never; // the CAS's NOT EXISTS rejects the ship
+    prisma.humanQaReviewCase.findUnique = vi.fn(async ({ where }: { where: { activeKey: string } }) =>
+      where.activeKey === 'o1:base_book' ? { kind: 'safety', status: 'open' } : null,
+    ) as never;
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...CALL_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: true });
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1); // exactly one CAS attempt — never a 3x spin
+    expect(prisma.humanQaReviewCase.findUnique).toHaveBeenCalled(); // the case classification ran
+    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('an OPEN but WEAK (anchor) case does NOT classify as durable — unexplained CAS=0 still exhausts retryably', async () => {
+    const prisma = db();
+    prisma.order.findUnique = vi.fn(async () => rowWith({})) as never;
+    prisma.$executeRaw = vi.fn(async () => 0) as never;
+    prisma.humanQaReviewCase.findUnique = vi.fn(async ({ where }: { where: { activeKey: string } }) =>
+      where.activeKey === 'o1:base_book' ? { kind: 'anchor', status: 'open' } : null,
+    ) as never;
+    const send = vi.fn();
+    await expect(
+      finalizePackageDelivery(
+        prisma as never,
+        { order, ...CALL_ARGS },
+        { readinessEnabled: () => false, send },
+      ),
+    ).rejects.toMatchObject({ name: 'AuthorityHoldRaceError', holdMarker: 'legacy_ship_reevaluation_exhausted' });
+    expect(prisma.generationJob.update).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+});
+
 describe('finalizePackageDelivery — hold-write result discipline (Codex round-5 finding 3)', () => {
   // A fresh row that fails the producing binding (A→legacy laundering) — the park path that binds
   // the observed inputVersion, so the fenced hold write can genuinely drift.
