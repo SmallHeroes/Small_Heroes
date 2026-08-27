@@ -535,7 +535,7 @@ describe('canonical live request materialization artifacts', () => {
       },
       promptAuthority: {
         initial: {
-          systemPromptVersion: 'vc-template-prompt/v19',
+          systemPromptVersion: 'vc-template-prompt/v20',
           userPromptVersion: 'vc-template-user-prompt/v17',
         },
         repair: {

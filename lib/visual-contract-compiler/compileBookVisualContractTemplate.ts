@@ -268,8 +268,14 @@ const CHILD_ID = 'child:hero';
 // output, not the support default. These are REQUESTED by the compiler; the injected caller executes them.
 const AUTHORING_REASONING_EFFORT =
   VISUAL_CONTRACT_AUTHORING_REASONING_EFFORT;
+// v20: resolve the closed-catalog classification trap. v19 forbade
+// presentation_requirement for every entity-acting beat while the compiler
+// terminally requires exactly that classification for a catalog-inexpressible
+// beat ("closed action catalog gap requires a same-page presentation
+// requirement classification") — leaving such beats no legal disposition and
+// making every honest draft terminal.
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v19' as const;
+  'vc-template-prompt/v20' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
   'vc-template-user-prompt/v17' as const;
 /** Normal bounded safety net after the initial authoring call. */
@@ -1530,15 +1536,15 @@ export function buildTemplateCompileSystemPrompt(): string {
     '  spatialConstraint=static; no movement/relation prose; source_phenomenon=exact same-page sourceEvidenceId;',
     '  no invented/fuzzy identity.',
     '- Page action/safety {kind:"spatial",id} MUST be an exact spatialNodes[].id from that page\'s exact zoneId;',
-    '  never use a location id, zone id, Set Board area id, prose label, another zone\'s node, or invented id;',
+    '  never a location/zone/area id, prose label, another zone\'s node, or an invented id;',
     '  otherwise use schema-valid entity/none.',
     '- actionSemanticCoverage: one per same-page source visual beat; exact sourceEvidenceId; beatId=beat:p{pageNumber}:{[a-z0-9_]+};',
     '  action_requirement copies bound same-page action beatId; represented_elsewhere copies one exact representedValue that occurs exactly once among structured, non-action, non-prose strings on that same page; the compiler binds its pointer;',
-    '  non_visual closed rationale; unsupported=closed_action_catalog_gap; omit source prose/imageDirection/self-approval.',
+    '  non_visual closed rationale; unsupported=closed_action_catalog_gap only if no state is depictable; omit source prose/imageDirection/self-approval.',
     `- presentation_requirement classes=${PRESENTATION_REQUIREMENT_CLASS_VALUES.join('|')}; use one exact same-page`,
-    '  zero-based mustShowIndex only for static state, light, composition, graphic sound,',
-    '  event not acting on an entity; never action/interaction/entity-acting phenomenon/movement/spatial relation,',
-    '  authored IDs, prose matching, fuzzy lookup, or force-fit.',
+    '  zero-based mustShowIndex for static state, light, composition, graphic sound, event not acting on an entity,',
+    '  or a catalog-inexpressible beat via a same-page mustShow item depicting it; never a catalog-expressible',
+    '  action, authored IDs, prose matching, fuzzy lookup, or force-fit.',
     `- Closed non_visual rationales: ${NON_VISUAL_RATIONALE_VALUES.join(' | ')}.`,
     '- For each given human, draft ONLY garments (each colour an explicit value) and forbiddenAppearance. Do NOT',
     '  output appearance (skinTone/hairColour/hairTexture/hairStyle) — the compiler injects those from a role policy.',

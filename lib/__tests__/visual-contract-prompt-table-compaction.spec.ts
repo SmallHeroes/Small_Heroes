@@ -675,20 +675,20 @@ describe('Visual Contract prompt authority-table compaction', () => {
     ).toBeGreaterThan(1_024);
     expect(fox).toEqual({
       storyKey: 'fox_uri_adventure',
-      upperBound: 49_995,
-      headroom: 14_005,
+      upperBound: 50_037,
+      headroom: 13_963,
     });
     expect(worst).toEqual({
       storyKey: 'lion_shaket_fantasy',
-      upperBound: 53_419,
-      headroom: 10_581,
+      upperBound: 53_461,
+      headroom: 10_539,
     });
     expect(provider.call).not.toHaveBeenCalled();
   });
 
   it('binds only the changed prompt authorities and fails closed on a genuinely over-budget synthetic input before provider reachability', async () => {
     expect(TEMPLATE_PROMPT_VERSION).toBe(
-      'vc-template-prompt/v19',
+      'vc-template-prompt/v20',
     );
     expect(TEMPLATE_USER_PROMPT_VERSION).toBe(
       'vc-template-user-prompt/v17',
@@ -779,7 +779,7 @@ describe('Visual Contract prompt authority-table compaction', () => {
     for (const prompt of [compilePrompt, repairPrompt]) {
       expect(prompt).toContain(invariant);
       expect(prompt).toContain("page's exact zoneId");
-      expect(prompt).toContain('location id, zone id, Set Board area id');
+      expect(prompt).toContain('location/zone/area id');
       expect(prompt).toContain('prose label');
       expect(prompt).toContain("another zone's node");
       expect(prompt).toContain('invented id');
