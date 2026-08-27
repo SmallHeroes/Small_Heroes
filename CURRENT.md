@@ -2,7 +2,7 @@
 
 **Updated:** 2026-08-27
 **Maintainer:** Claude Code (temporary implementation owner for the order-package-authority milestone; Codex QA pending)
-**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..ce35ee42` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
+**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..296fe47c` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN PACKAGE CHAIN STOPPED AT THE PAID-ATTEMPT FENCE
 
@@ -135,6 +135,40 @@ never resend) — and is the one qualification on "every send surface".
 Round-4 battery: 37 suites / 630 tests passed (22 env-gated staging skips),
 `tsc --noEmit` + `git diff --check` clean, zero provider operations; new
 devDependency `@electric-sql/pglite`.
+
+Round 5 (7 MAJOR / 1 MINOR): Codex demanded ONE restored total snapshot
+invariant rather than per-assertion patches; `296fe47c` rebuilds delivery
+around two primitives. `requireConsistentProducingIdentity` binds the
+CALLER'S exact delivery identity (package revision digest, or null for
+legacy) to the fresh row + producing snapshot by strict equality — A≠B and
+package↔legacy in BOTH directions fail closed
+(`delivery_snapshot_binding_invalid`); an invalid caller always parks. The
+anchor/delivery DISPOSITION is DERIVED from the fresh producing snapshot
+(`pipelineCache.childAnchorLowConfidence`) — `finalizePackageDelivery` and
+`CommitArgs` no longer accept caller gates (API change: anchor args
+removed; `callerPackageRevisionDigest` replaces the boolean claim);
+`requireHold` releases exactly the fresh-derived marker; the disposition
+source joins the TOCTOU fingerprint; and the ship CAS binds the observed
+band (`producingAnchorBind`, proven by executing the real statement on
+PGlite). Codex's hostile cell (caller A / fresh B / producing B / fresh
+hard_band / stale caller allow) holds on both branches with zero Outbox,
+ship CAS and email. The anchor release re-proves identity under the lock in
+BOTH directions; every terminal park is result-checked (drift/lost →
+`AuthorityHoldRaceError`, job never done without a durable disposition;
+superseded → the stronger marker governs); debug-route persistence
+re-proves identity in-tx after the provider call (legacy→package flip →
+zero writes); `send_ambiguous` additionally binds source order/scope and
+the canonical dedupeKey before any disposition; the census tracks
+childImageUrl/characterAnchors/childGender/childAge/coverImageUrl with
+exact field-set pins (regen anchor write moved inside the barrier; the
+photo-scrub pair pinned incl. `audit-child-photos`; field-level script
+signatures; shape-pinned raw SQL; mechanical retirement guards in all 13
+retired scripts); and the origin matrix runs through the REAL production
+ON receipt branch (`READINESS_MANIFEST_ENABLED=true`, `runAtomicOperation`
+fence asserted) — 10 cells, both branches, positive and negative controls.
+Round-5 battery: 41 suites / 740 tests passed (22 env-gated staging
+skips), `tsc --noEmit` + `git diff --check` clean, zero provider
+operations.
 
 Total authoring spend $1.06 conservative across 4 provider calls, zero
 transport retries, no fallback, no candidate promoted. Per the milestone's

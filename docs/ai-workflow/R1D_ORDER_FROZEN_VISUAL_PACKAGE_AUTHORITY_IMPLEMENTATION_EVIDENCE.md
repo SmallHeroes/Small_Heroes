@@ -4,7 +4,7 @@
 **Implementation owner:** Claude Code (explicit temporary transfer from Codex by Guy)
 **Branch / worktree:** `codex/r1d-order-package-authority-binding` / `C:\GNart\Work\sh-order-package-authority`
 **Base:** `983a09ee835be92ddeaf1134a56a5d122b61a328`
-**Immutable code range:** `983a09ee..ce35ee42` — `f982f9f8` (authority binding), `c38a18ac` (prompt v20), `59efadb5` (prompt v21), `0e49b8f6` (first-handoff docs), `3cfbae8f` (Codex round-1 correction: transitions v22/v14, `..`-aliases, fresh-row gate, debug route), `fc8b08a0` (Codex round-2 correction: producing-snapshot delivery binding), `5e79c45f` (round-2 docs), `157fe750` (Codex round-3 correction: total producing-provenance invariant), `53c62285` (round-3 docs), `ce35ee42` (Codex round-4 correction: executable-SQL cache truth, barrier-owned inventory, repository-wide census, ON caller leg, anchor-release TOCTOU, debug-route producing provenance, send_ambiguous named exception). This document is finalized in the docs-only commit immediately following `ce35ee42` on the same branch.
+**Immutable code range:** `983a09ee..296fe47c` — `f982f9f8` (authority binding), `c38a18ac` (prompt v20), `59efadb5` (prompt v21), `0e49b8f6` (first-handoff docs), `3cfbae8f` (Codex round-1 correction: transitions v22/v14, `..`-aliases, fresh-row gate, debug route), `fc8b08a0` (Codex round-2 correction: producing-snapshot delivery binding), `5e79c45f` (round-2 docs), `157fe750` (Codex round-3 correction: total producing-provenance invariant), `53c62285` (round-3 docs), `ce35ee42` (Codex round-4 correction: executable-SQL cache truth, barrier-owned inventory, repository-wide census, ON caller leg, anchor-release TOCTOU, debug-route producing provenance, send_ambiguous named exception), `f1dafa1b` (round-4 docs), `296fe47c` (Codex round-5 correction: one total snapshot invariant — exact caller/fresh/producing identity, fresh-derived anchor disposition, hold-write discipline, debug persistence re-proof, send_ambiguous identity binding, field-level census, production ON receipt branch). This document is finalized in the docs-only commit immediately following `296fe47c` on the same branch.
 **Decision Gate:** `docs/ai-workflow/R1D_ORDER_FROZEN_VISUAL_PACKAGE_AUTHORITY_DECISION_GATE.md` (gitignored, SHA-256 `341f3912…`)
 **External cost:** $1.06 conservative ($0.94 nominal), 4 provider calls, 0 transport retries, 0 fallbacks, 0 images, 0 renders
 
@@ -451,6 +451,80 @@ Round-4 battery: 37 suites, 630 tests passed (22 environment-gated real-PG
 staging skips), `tsc --noEmit` exit 0, `git diff --check` clean, zero
 provider/live/render operations. New devDependency: `@electric-sql/pglite`
 (offline real-Postgres engine; no network at test time).
+
+## Codex re-gate round 5 — one total snapshot invariant (`296fe47c`)
+
+Codex's round-5 review (7 MAJOR / 1 MINOR) demanded a single restored
+invariant, not per-assertion patches. `296fe47c` rebuilds delivery around
+two primitives; the round-4 JSONB/cache correction is byte-preserved.
+
+**The invariant.** `requireConsistentProducingIdentity` (one evaluator,
+`order-visual-package-authority.ts`) proves the fresh row ↔ producing
+snapshot binding AND binds the CALLER'S exact delivery identity — its
+package revision digest, or `null` for a genuinely legacy snapshot — to the
+fresh producing identity by STRICT equality: A≠B, package→legacy and
+legacy→package (both directions) all fail closed as
+`DeliverySnapshotIdentityError` →
+`contract_world_hold:delivery_snapshot_binding_invalid`; an INVALID caller
+snapshot can never be granted an identity and always parks. The
+delivery/anchor DISPOSITION is DERIVED from the authoritative fresh
+producing snapshot (`pipelineCache.childAnchorLowConfidence`, fail-closed
+on malformed shape) — `finalizePackageDelivery` and `CommitArgs` no longer
+accept any caller-supplied gate; `requireHold` is the one sanctioned human
+override (it releases exactly the fresh-derived marker); the disposition
+source joins the TOCTOU fingerprint; and the ship CAS binds the observed
+`childAnchorLowConfidence` value (`producingAnchorBind`), so a post-read
+band flip — which bumps no `inputVersion` — matches zero rows (executed on
+real PostgreSQL via the PGlite adapter, which splices composed `Prisma.sql`
+fragments exactly as Prisma's serializer does).
+
+Finding-by-finding: (1) the hostile cell — caller Package A / fresh Order B
+/ producing B / fresh `hard_band` while the stale caller believed allow —
+holds on BOTH branches with zero Outbox, zero ship CAS, zero email, plus
+the identity-consistent A/A/A + `hard_band` variant that isolates the
+anchor leg; (2) the anchor-release route re-proves the pre-lock identity
+UNDER the release lock — the downgrade direction (pre-read fully-bound
+package → in-lock genuinely legacy) now refuses alongside the upgrade
+direction; (3) every terminal park is result-checked:
+`input_drift`/`lost` → `AuthorityHoldRaceError` aborts the park transaction
+(the job is NEVER marked done/packaged; the chunk runner's standard
+failed+retryable+case path owns the redrive), `superseded` completes the
+stage under the stronger marker without touching its owner's case
+lifecycle, and only `applied` resolves recovery cases; (4) debug-route
+persistence re-proves the same identity from a fresh in-tx read inside the
+barrier before any write — a legacy→package flip during the provider call
+aborts with zero ImageAsset/Page mutations; (5) the `send_ambiguous`
+named-exception replay additionally binds source identity and the CANONICAL
+idempotency key before ANY disposition (a valid `payloadHash` under a
+drifted or cross-source `dedupeKey` refunds with zero replay, and a
+cross-source `sent` row can no longer resolve the wrong case as delivered —
+the strict check also exposed and fixed a non-canonical spec fixture key);
+(6) the census now tracks every real generation input (`childImageUrl`,
+`characterAnchors`, `childGender`, `childAge`, `coverImageUrl`): the regen
+flow's family-coherence anchor write moved INSIDE the barrier, the
+generation-stage anchor/cover writes and the child-photo privacy scrub
+(runtime + `scripts/audit-child-photos.ts`, resolving it) are sanctioned by
+EXACT model+method+field-set pins with helper-reference requirements, the
+script allowlist is field-level per site, raw SQL is SHAPE-pinned
+(statement counts + exact allowed SET columns / the exact four
+GenerationJob statements), and all 13 retired scripts carry a mechanical
+top-level retirement guard pinned by the census; (7) the origin matrix runs
+through the REAL production ON branch — `READINESS_MANIFEST_ENABLED=true`,
+real `commitBaseBookReadiness` through `runAtomicOperation`'s receipt fence
+with the recorded-result update asserted — 10 cells on both branches with
+positive and negative controls.
+
+The API change is deliberate: `finalizePackageDelivery` lost
+`deliveryGate`/`anchorLowConfidence`, `CommitArgs` lost
+`anchorAllowsDelivery`/`anchorOrderStatus`/`anchorReason`/
+`anchorLowConfidence` and carries `callerPackageRevisionDigest` instead of
+the round-4 boolean claim; the safety-release route consequently no longer
+force-allows the anchor leg, and the operator anchor-release/recommit paths
+pass no disposition at all.
+
+Round-5 battery: 41 suites, 740 tests passed (22 environment-gated real-PG
+staging skips), `tsc --noEmit` exit 0, `git diff --check` clean, zero
+provider/live/render operations.
 
 **Stop-rule closure:** the milestone brief states "If two consecutive
 paid/live attempts fail, stop spending and produce a causal map rather than
