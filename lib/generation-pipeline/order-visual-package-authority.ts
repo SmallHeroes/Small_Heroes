@@ -147,20 +147,69 @@ export function requireProducingSnapshotBinding(args: {
   pipelineCache: unknown;
 }): FrozenVisualPackageAuthority | null {
   const fresh = requireOrderVisualPackageAuthority(args.order);
-  if (fresh === null) return null;
-  const reasons: string[] = [];
   const cache =
     args.pipelineCache &&
     typeof args.pipelineCache === 'object' &&
     !Array.isArray(args.pipelineCache)
       ? (args.pipelineCache as Record<string, unknown>)
       : null;
+  const cacheAuthority = cache?.visualPackageAuthority ?? null;
+  const contract = cache?.visualContract ?? null;
+  const embedded =
+    contract && typeof contract === 'object' && !Array.isArray(contract)
+      ? (contract as Record<string, unknown>).approvedRuntimeAuthority
+      : null;
+  const embeddedRevision =
+    embedded && typeof embedded === 'object' && !Array.isArray(embedded)
+      ? (embedded as Record<string, unknown>).packageRevisionDigest
+      : undefined;
+  const stamp = args.order.visualContractHash?.trim() || null;
+
+  if (fresh === null) {
+    // "Legacy" is valid only when every producing side is genuinely legacy.
+    // A fresh row that LOOKS legacy while the producing snapshot says a
+    // package (authority present, or a contract embedding a package revision)
+    // is a package→legacy laundering of the frozen product truth; a stamp
+    // whose producing contract is missing or hash-mismatched is ambiguous
+    // provenance. All of it fails closed.
+    const reasons: string[] = [];
+    if (cacheAuthority != null) {
+      reasons.push(
+        'legacy Order but the producing snapshot carries Visual Package authority',
+      );
+    }
+    if (embeddedRevision !== undefined) {
+      reasons.push(
+        'legacy Order but the producing contract embeds a package revision',
+      );
+    }
+    if (stamp && contract == null) {
+      reasons.push(
+        'legacy Order has a frozen contract stamp but no producing contract',
+      );
+    } else if (stamp && contract != null) {
+      if (computeVisualContractHash(contract as BookVisualContract) !== stamp) {
+        reasons.push(
+          'legacy Order contract stamp does not match the producing contract bytes',
+        );
+      }
+    } else if (!stamp && contract != null) {
+      reasons.push(
+        'legacy Order has a producing contract but no frozen contract stamp',
+      );
+    }
+    if (reasons.length > 0) {
+      throw new OrderVisualPackageAuthorityError(reasons);
+    }
+    return null;
+  }
+
+  const reasons: string[] = [];
   if (!cache) {
     throw new OrderVisualPackageAuthorityError([
       'package-backed Order has no producing pipeline snapshot',
     ]);
   }
-  const cacheAuthority = cache.visualPackageAuthority ?? null;
   if (cacheAuthority == null) {
     reasons.push('producing snapshot carries no Visual Package authority');
   } else if (
@@ -170,11 +219,9 @@ export function requireProducingSnapshotBinding(args: {
       'producing snapshot authority differs from the fresh Order authority',
     );
   }
-  const contract = cache.visualContract ?? null;
   if (contract == null) {
     reasons.push('producing snapshot carries no frozen visual contract');
   } else {
-    const stamp = args.order.visualContractHash?.trim();
     if (!stamp) {
       reasons.push('package-backed Order has no frozen contract stamp');
     } else if (
@@ -184,12 +231,6 @@ export function requireProducingSnapshotBinding(args: {
         'Order contract stamp does not match the producing contract bytes',
       );
     }
-    const embedded = (contract as Record<string, unknown>)
-      .approvedRuntimeAuthority;
-    const embeddedRevision =
-      embedded && typeof embedded === 'object' && !Array.isArray(embedded)
-        ? (embedded as Record<string, unknown>).packageRevisionDigest
-        : undefined;
     if (embeddedRevision !== fresh.packageRevisionDigest) {
       reasons.push(
         'producing contract package revision differs from the fresh Order authority',

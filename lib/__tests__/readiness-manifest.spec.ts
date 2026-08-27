@@ -625,6 +625,80 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
   });
 
+  it('A→LEGACY laundering (readiness-ON): fresh legacy row over a package-produced snapshot → blocked before inspection', async () => {
+    const authorityA = validPackageAuthority(
+      'story-pipeline/04_approved_story_sources/accepted/readiness_fixture/' +
+        `revisions/${'a'.repeat(64)}/integrated.md`,
+      'b'.repeat(64),
+    );
+    const packageProducedLegacyRow = {
+      ...orderRowFull, // legacy selectionFilename + null authority
+      visualPackageAuthority: null,
+      generationJob: {
+        pipelineCache: {
+          visualPackageAuthority: authorityA,
+          visualContract: {
+            schemaVersion: 'fixture-contract/v1',
+            approvedRuntimeAuthority: {
+              packageRevisionDigest: authorityA.packageRevisionDigest,
+            },
+          },
+        },
+      },
+    };
+    const tx = mockTx(packageProducedLegacyRow);
+    const inspect = vi.fn(stubInspect);
+
+    const result = await commitBaseBookReadiness(
+      mockPrisma(tx, packageProducedLegacyRow) as never,
+      args(),
+      { inspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+
+    expect(result).toMatchObject({
+      manifestStatus: 'blocked',
+      enqueued: false,
+      orderStatus: 'needs_human_qa',
+      reason: 'contract_world_hold:visual_package_authority_invalid',
+    });
+    expect(inspect).not.toHaveBeenCalled();
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+  });
+
+  it('treats an eval→commit producing-cache mutation as TOCTOU drift (abort + fresh re-eval)', async () => {
+    // Out-of-tx eval sees a clean legacy row; the first in-tx reload sees a
+    // mutated producing cache → fingerprint drift → whole-tx retry → second
+    // reload sees the original row again → passes. Mirrors the existing
+    // authority-drift TOCTOU test, now for the producing snapshot itself.
+    const driftedCache = {
+      ...orderRowFull,
+      generationJob: {
+        pipelineCache: { visualContract: { schemaVersion: 'drifted/v1' } },
+      },
+    };
+    const tx = mockTx();
+    tx.order.findUnique = vi
+      .fn()
+      .mockResolvedValueOnce(driftedCache)
+      .mockResolvedValue(orderRowFull);
+    const prisma = {
+      order: { findUnique: vi.fn(async () => orderRowFull) },
+      qualityEvidence: {
+        findMany: vi.fn(async () => passingQualityRows(orderRowFull)),
+      },
+      $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)),
+    };
+
+    const result = await commitBaseBookReadiness(
+      prisma as never,
+      args(),
+      { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(result.manifestStatus).toBe('passed');
+  });
+
   it('hard-holds a package-backed Order whose producing pipeline snapshot is missing (readiness-ON)', async () => {
     const selectionFilename =
       'story-pipeline/04_approved_story_sources/accepted/readiness_fixture/' +

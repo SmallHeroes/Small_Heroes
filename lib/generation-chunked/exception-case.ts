@@ -16,7 +16,7 @@ import {
 import { isCanonicalReadUrl } from '@/lib/generation-pipeline/integrity-gate';
 import {
   OrderVisualPackageAuthorityError,
-  requireOrderVisualPackageAuthority,
+  requireProducingSnapshotBinding,
 } from '@/lib/generation-pipeline/order-visual-package-authority';
 
 export const EXCEPTION_SCOPE_BASE_BOOK = 'base_book';
@@ -371,6 +371,8 @@ export async function reissueConfirmedFailedDelivery(
           storySourceHash: true,
           illustrationStyle: true,
           visualPackageAuthority: true,
+          visualContractHash: true,
+          generationJob: { select: { pipelineCache: true } },
           book: {
             select: {
               readUrl: true,
@@ -413,11 +415,15 @@ export async function reissueConfirmedFailedDelivery(
     ) {
       return 'not_ready';
     }
-    // A reissue re-enqueues against a pre-existing manifest, so it must re-prove the durable package-authority
-    // predicate itself: an Order that reached `ready` before the authority gate existed (or through a legacy
-    // flag-off window) must not be re-delivered with invalid authority.
+    // A reissue re-enqueues against a pre-existing manifest, so it must re-prove the TOTAL producing-
+    // provenance invariant itself: the fresh authority must be the authority the payload was produced
+    // under (or every side genuinely legacy). An Order that reached `ready` before this gate existed, or
+    // whose frozen truth was re-pointed after render, must not be re-delivered.
     try {
-      requireOrderVisualPackageAuthority(order);
+      requireProducingSnapshotBinding({
+        order,
+        pipelineCache: order.generationJob?.pipelineCache ?? null,
+      });
     } catch (authorityError) {
       if (!(authorityError instanceof OrderVisualPackageAuthorityError)) {
         throw authorityError;

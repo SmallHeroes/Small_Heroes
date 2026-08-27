@@ -16,6 +16,7 @@ import { resolveActiveRecoveryCaseInTx } from '@/lib/generation-chunked/exceptio
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import {
   OrderVisualPackageAuthorityError,
+  orderRequiresVisualPackageAuthority,
   requireProducingSnapshotBinding,
 } from './order-visual-package-authority';
 
@@ -245,6 +246,30 @@ export async function finalizePackageDelivery(
         'contract_world_hold:visual_package_authority_invalid',
         error,
       );
+    }
+    if (!freshPackageBacked) {
+      // Caller-provenance leg of the origin matrix: when the CALLER'S snapshot of this Order is
+      // package-shaped (accepted reference — canonical or aliased — or a carried authority) while the
+      // fresh row and producing snapshot read legacy, someone re-pointed the frozen truth after the
+      // caller loaded it. A genuinely legacy delivery has a legacy caller snapshot too.
+      const argsClaimPackage = (() => {
+        try {
+          return (
+            orderRequiresVisualPackageAuthority(args.order) ||
+            args.order.visualPackageAuthority != null
+          );
+        } catch {
+          return true;
+        }
+      })();
+      if (argsClaimPackage) {
+        return parkAuthorityHold(
+          'contract_world_hold:delivery_snapshot_binding_invalid',
+          new Error(
+            'caller snapshot is package-shaped but the fresh Order and producing snapshot are legacy',
+          ),
+        );
+      }
     }
     if (freshPackageBacked) {
       // Payload ↔ fresh-snapshot binding: the email may only carry the exact

@@ -7,6 +7,7 @@ import {
   pickStage0Candidate,
 } from '@/lib/generation-pipeline/stage0-candidate-recovery';
 import { isDevEnvironment } from '@/lib/dev-only-guard';
+import { persistOrdinaryPipelineCache } from '@/lib/generation-pipeline/pipeline-cache-store';
 
 /**
  * Dev-only: mark the Stage 0 child anchor as human-approved so paid pages may proceed.
@@ -74,19 +75,21 @@ export async function POST(req: Request) {
       ? (order.characterAnchors as Record<string, unknown>)
       : {};
 
-  await prisma.$transaction([
-    prisma.generationJob.update({
+  await prisma.$transaction(async (tx) => {
+    // Cache persistence goes through the ordinary store, which structurally
+    // preserves the row's producing-provenance keys (freeze-barrier-only).
+    await persistOrdinaryPipelineCache(tx, orderId, nextCache);
+    await tx.generationJob.update({
       where: { orderId },
       data: {
-        pipelineCache: nextCache as object,
         status: 'pending',
         currentStage: 'dna',
         lastError: null,
         retryable: true,
         failedAt: null,
       },
-    }),
-    prisma.order.update({
+    });
+    await tx.order.update({
       where: { id: orderId },
       data: {
         status: 'generating',
@@ -103,8 +106,8 @@ export async function POST(req: Request) {
           },
         },
       },
-    }),
-  ]);
+    });
+  });
 
   return NextResponse.json({
     success: true,

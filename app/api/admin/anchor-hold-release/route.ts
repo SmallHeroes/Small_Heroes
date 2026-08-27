@@ -29,7 +29,7 @@ import { executeAnchorReleaseCas } from '@/lib/generation-pipeline/order-authori
 import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
 import {
   OrderVisualPackageAuthorityError,
-  requireOrderVisualPackageAuthority,
+  requireProducingSnapshotBinding,
 } from '@/lib/generation-pipeline/order-visual-package-authority';
 
 const log = createLogger({ subsystem: 'anchor-hold', route: '/api/admin/anchor-hold-release' });
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
+      generationJob: { select: { pipelineCache: true } },
       book: {
         include: {
           audioAsset: true,
@@ -97,20 +98,33 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: `Not releasable via anchor endpoint (reason=${holdReason || 'none'})` }, { status: 409 });
   }
 
-  // Durable package-authority guard, flag-INDEPENDENT: break-glass anchor release must never ship an Order whose
-  // frozen Visual Package authority is missing/mismatched (or a legacy Order carrying package authority). On
-  // readiness-ON the commit re-evaluates the same predicate in-tx; this early guard is what closes the
-  // readiness-OFF direct-send branch below, where no other authority check would run.
+  // Producing-provenance guard, flag-INDEPENDENT: break-glass anchor release must prove the SAME total
+  // invariant as every other delivery consumer — the fresh Order authority must BE the authority the
+  // producing pipeline snapshot rendered under (package↔package binding of cache authority, contract stamp
+  // and embedded package revision; legacy only when every producing side is genuinely legacy). On
+  // readiness-ON the commit re-evaluates the same predicate in-tx; this guard is what closes the
+  // readiness-OFF direct-send branch below, where no other provenance check would run.
   try {
-    requireOrderVisualPackageAuthority(order);
+    const binding = requireProducingSnapshotBinding({
+      order,
+      pipelineCache: order.generationJob?.pipelineCache ?? null,
+    });
+    if (binding !== null && !order.book.readUrl?.trim()) {
+      // Package-backed payload binding: the direct send may only carry the canonical
+      // snapshot readUrl — a constructed fallback URL is ambiguous provenance here.
+      return NextResponse.json(
+        { error: 'package-backed Order has no canonical readUrl — not releasable via anchor endpoint' },
+        { status: 409 },
+      );
+    }
   } catch (authorityError) {
     if (!(authorityError instanceof OrderVisualPackageAuthorityError)) throw authorityError;
-    log.warn('Anchor release refused — Order Visual Package authority invalid', {
+    log.warn('Anchor release refused — producing-snapshot binding failed', {
       orderId,
       reason: authorityError.message,
     });
     return NextResponse.json(
-      { error: 'Order Visual Package authority invalid — not releasable via anchor endpoint' },
+      { error: 'Order producing-snapshot binding invalid — not releasable via anchor endpoint' },
       { status: 409 },
     );
   }

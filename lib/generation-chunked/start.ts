@@ -5,6 +5,10 @@ import { chainGenerationWorker } from './chain-worker';
 import { GENERATION_VERSION } from './constants';
 import { assertEnvSeparation, assertProdGenerationAllowed } from './env-separation-guard';
 import type { PipelineCache } from '@/lib/generation-pipeline/types';
+import {
+  persistOrdinaryPipelineCache,
+  withoutProducingPipelineCacheKeys,
+} from '@/lib/generation-pipeline/pipeline-cache-store';
 
 const log = createLogger({ subsystem: 'chunked-gen', route: 'start' });
 
@@ -109,7 +113,11 @@ export async function startChunkedGeneration(
         currentStage: 'pending',
         triggerReason: reason,
         generationVersion: GENERATION_VERSION,
-        pipelineCache: (options?.pipelineCache ?? {}) as Prisma.InputJsonValue,
+        // Creation seeding cannot smuggle producing-provenance keys: only the
+        // freeze's barrier mutation may ever write them.
+        pipelineCache: withoutProducingPipelineCacheKeys(
+          options?.pipelineCache ?? {},
+        ),
       },
     });
   } catch (e) {
@@ -132,11 +140,17 @@ export async function startChunkedGeneration(
       lockedBy: null,
       leaseExpiresAt: null,
       ...(regenResumePatch ?? {}),
-      ...(options?.pipelineCache
-        ? { pipelineCache: options.pipelineCache as Prisma.InputJsonValue }
-        : {}),
     },
   });
+  if (options?.pipelineCache) {
+    // Re-seeding an EXISTING job goes through the ordinary cache store, which
+    // structurally preserves the row's own producing-provenance keys.
+    await persistOrdinaryPipelineCache(
+      prisma,
+      orderId,
+      options.pipelineCache,
+    );
+  }
 
   if (order.status !== 'generating') {
     const claimed = await prisma.order.updateMany({

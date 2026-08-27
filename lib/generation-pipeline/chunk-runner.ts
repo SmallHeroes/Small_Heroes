@@ -115,6 +115,7 @@ import { persistDeliveredQualityEvidence, persistQualityContext, type QaContext 
 import { coverArtifactKey, pageArtifactKey, makeQualityRegenReserver } from './quality-evidence';
 import { openExceptionCase } from '@/lib/generation-chunked/exception-case';
 import { finalizePackageDelivery, resolveSafetyDeliveryGate, isSafetyVerified } from './package-delivery';
+import { persistOrdinaryPipelineCache } from './pipeline-cache-store';
 import { imageAssetSafetyFields, coverSafetyFields } from './asset-safety-signal';
 import { bindPageSafetySha, bindCoverSafetySha } from './asset-safety-writer';
 import { inspectAsset } from './asset-integrity';
@@ -227,7 +228,13 @@ function requireRenderableFrozenContract(
   });
 }
 
-async function updateStage(orderId: string, stage: ChunkStage, extra?: Prisma.GenerationJobUpdateInput) {
+async function updateStage(
+  orderId: string,
+  stage: ChunkStage,
+  // pipelineCache is type-excluded: the producing-provenance keys may only be written by the freeze
+  // barrier, and every ordinary cache save goes through persistOrdinaryPipelineCache.
+  extra?: Omit<Prisma.GenerationJobUpdateInput, 'pipelineCache'>,
+) {
   await prisma.generationJob.update({
     where: { orderId },
     data: { currentStage: stage, ...extra },
@@ -239,10 +246,10 @@ async function saveCache(orderId: string, cache: PipelineCache) {
   // artifact path would not exist in the next invocation. Fail loud rather than render against a
   // phantom path. Local dev is unaffected (the guard only fires on a serverless runtime).
   if (isServerlessRuntime()) assertCacheHasNoLocalArtifactPaths(cache);
-  await prisma.generationJob.update({
-    where: { orderId },
-    data: { pipelineCache: cache as Prisma.InputJsonValue },
-  });
+  // Ordinary persistence is STRUCTURALLY unable to touch the producing-provenance keys
+  // (visualContract / visualPackageAuthority): the store overlays the DB row's own values for
+  // them, so only the freeze's delivery-input barrier mutation can ever write them.
+  await persistOrdinaryPipelineCache(prisma, orderId, cache);
 }
 
 /**

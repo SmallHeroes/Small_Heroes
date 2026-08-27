@@ -319,7 +319,9 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('readiness OFF: stale-INVALID args but fresh legacy-clean row → ships (fresh row is the authority)', async () => {
+  it('readiness OFF: PACKAGE-SHAPED caller snapshot + fresh legacy-clean row → hold (origin matrix, caller leg)', async () => {
+    // Round-3: a legacy fresh row must not launder a package-shaped caller
+    // snapshot — someone re-pointed the frozen truth after the caller loaded it.
     const prisma = dbWithFreshRow({
       selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
       storySourceHash: 'f'.repeat(64),
@@ -337,6 +339,84 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
         pdfUrl: null,
         firstAudioUrl: null,
       },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('readiness OFF: genuine legacy everywhere (caller, fresh row, producing snapshot) → ships (positive control)', async () => {
+    const prisma = dbWithFreshRow({
+      selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+      storySourceHash: 'f'.repeat(64),
+      illustrationStyle: 'pencil_watercolor',
+      visualPackageAuthority: null,
+    });
+    const send = vi.fn(async () => ({}));
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('readiness OFF: A→LEGACY laundering — fresh row legacy-clean but producing snapshot carries Package A → hold', async () => {
+    const prisma = dbWithFreshRow({
+      selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+      storySourceHash: 'f'.repeat(64),
+      illustrationStyle: 'pencil_watercolor',
+      visualPackageAuthority: null,
+      generationJob: {
+        pipelineCache: {
+          visualPackageAuthority: packageAuthority(REV_A),
+          visualContract: CONTRACT_A,
+        },
+      },
+    });
+    const send = vi.fn(async () => ({}));
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('readiness OFF: legacy fresh row with a stamp but no producing contract (ambiguous provenance) → hold', async () => {
+    const prisma = dbWithFreshRow({
+      selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+      storySourceHash: 'f'.repeat(64),
+      illustrationStyle: 'pencil_watercolor',
+      visualPackageAuthority: null,
+      visualContractHash: 'e'.repeat(64),
+    });
+    const send = vi.fn(async () => ({}));
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('readiness OFF: legacy fresh row whose stamped legacy contract matches the producing bytes → ships (legacy freeze preserved)', async () => {
+    const legacyContract = { schemaVersion: 'fixture-contract/v1' } as unknown as BookVisualContract;
+    const prisma = dbWithFreshRow({
+      selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+      storySourceHash: 'f'.repeat(64),
+      illustrationStyle: 'pencil_watercolor',
+      visualPackageAuthority: null,
+      visualContractHash: computeVisualContractHash(legacyContract),
+      generationJob: { pipelineCache: { visualContract: legacyContract } },
+    });
+    const send = vi.fn(async () => ({}));
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false });

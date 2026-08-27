@@ -17,7 +17,7 @@ import { createLogger } from '@/lib/logger';
 import { isCanonicalReadUrl } from '@/lib/generation-pipeline/integrity-gate';
 import {
   OrderVisualPackageAuthorityError,
-  requireOrderVisualPackageAuthority,
+  requireProducingSnapshotBinding,
 } from '@/lib/generation-pipeline/order-visual-package-authority';
 
 const log = createLogger({ subsystem: 'delivery-outbox' });
@@ -403,6 +403,8 @@ export async function repairInvalidPayloadDelivery(
           storySourceHash: true,
           illustrationStyle: true,
           visualPackageAuthority: true,
+          visualContractHash: true,
+          generationJob: { select: { pipelineCache: true } },
           book: {
             select: {
               readUrl: true,
@@ -434,10 +436,14 @@ export async function repairInvalidPayloadDelivery(
     ) {
       return 'not_repairable';
     }
-    // A payload repair re-arms a send against a pre-existing manifest, so it must re-prove the durable
-    // package-authority predicate itself before rebuilding the row.
+    // A payload repair re-arms a send against a pre-existing manifest, so it must re-prove the TOTAL
+    // producing-provenance invariant itself before rebuilding the row: the fresh authority must be the
+    // authority the payload was produced under (or every side genuinely legacy).
     try {
-      requireOrderVisualPackageAuthority(order);
+      requireProducingSnapshotBinding({
+        order,
+        pipelineCache: order.generationJob?.pipelineCache ?? null,
+      });
     } catch (authorityError) {
       if (!(authorityError instanceof OrderVisualPackageAuthorityError)) {
         throw authorityError;

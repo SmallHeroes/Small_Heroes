@@ -8,7 +8,7 @@ import {
 } from './helpers/repository-source-inventory';
 
 const ROOT = process.cwd();
-const MODEL_NAMES = new Set(['generatedBook', 'bookPage', 'imageAsset', 'order']);
+const MODEL_NAMES = new Set(['generatedBook', 'bookPage', 'imageAsset', 'order', 'generationJob']);
 const DELIVERY_ORDER_FIELDS = new Set([
   'customerEmail',
   'customerName',
@@ -203,7 +203,25 @@ function isDisplayOnlyException(site: WriterSite): boolean {
   return false;
 }
 
-function isDeliveryInputWriter(site: WriterSite): boolean {
+function isDeliveryInputWriter(site: WriterSite, sourceText?: string): boolean {
+  if (site.model === 'generationJob') {
+    // The job row is delivery-relevant ONLY through the producing pipeline
+    // snapshot: any prisma-level write carrying `pipelineCache` is a
+    // delivery-input write (the sanctioned writers — the freeze barrier's
+    // jsonb_set and the ordinary merge store that structurally preserves the
+    // producing keys — are raw SQL and thus outside this census by design).
+    if (site.dataFields) return site.dataFields.includes('pipelineCache');
+    // Fields unresolvable (spread / identifier payload): decide from the call
+    // window — a `pipelineCache:` KEY within it marks a cache write. Spread
+    // laundering through helper params is closed at the type level
+    // (updateStage excludes pipelineCache from its extra input).
+    if (!sourceText) return true;
+    const window = sourceText
+      .split(/\r?\n/)
+      .slice(Math.max(0, site.line - 1), site.line + 24)
+      .join('\n');
+    return /(^|[^A-Za-z])pipelineCache\s*:/.test(window);
+  }
   if (site.model !== 'order') return true;
   if (!site.dataFields) return true;
   return site.dataFields.some((field) => DELIVERY_ORDER_FIELDS.has(field));
@@ -214,6 +232,17 @@ function isOrderCreationException(site: WriterSite): boolean {
     site.model === 'order' &&
     site.method === 'create' &&
     site.relative === 'app/api/orders/route.ts'
+  );
+}
+
+function isJobCreationSeedException(site: WriterSite): boolean {
+  // Creating a job that does not exist yet has no producing provenance to
+  // protect, and the seed is stripped of the producing keys at the call site
+  // (withoutProducingPipelineCacheKeys).
+  return (
+    site.model === 'generationJob' &&
+    site.method === 'create' &&
+    site.relative === 'lib/generation-chunked/start.ts'
   );
 }
 
@@ -297,10 +326,11 @@ describe('P1-f #5 delivery-input writer coverage', () => {
 
     const unsafe = sites.filter(
       (site) =>
-        isDeliveryInputWriter(site) &&
+        isDeliveryInputWriter(site, sourceByRelative.get(site.relative)) &&
         !site.protectedByBarrier &&
         !isDisplayOnlyException(site) &&
         !isOrderCreationException(site) &&
+        !isJobCreationSeedException(site) &&
         !isReadinessCommitOrderStateWrite(site) &&
         !isExplicitReconciliationFulfillmentRoll(site) &&
         !isSanctionedSafetyWriterWrite(site) &&
@@ -314,7 +344,12 @@ describe('P1-f #5 delivery-input writer coverage', () => {
       (site) => site.relative.startsWith('app/api/dev/') && site.model !== 'order',
     );
     expect(devSites.length).toBeGreaterThan(0);
-    expect([...new Set(devSites.map((site) => site.relative))]).toEqual([
+    // generationJob joined the census: approve-child-anchor and resume carry job-STATE
+    // writes only (their pipelineCache persistence goes through the ordinary store /
+    // is absent — the empty unsafe list above proves neither writes the cache key).
+    expect([...new Set(devSites.map((site) => site.relative))].sort()).toEqual([
+      'app/api/dev/approve-child-anchor/route.ts',
+      'app/api/dev/generation/resume/route.ts',
       'app/api/dev/story-bank/route.ts',
     ]);
     expect(hasFlagOnDevWriteGuard('app/api/dev/story-bank/route.ts')).toBe(true);
@@ -390,13 +425,27 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     `;
     const sites = writerSitesFromSource('fixture.ts', fixture);
     // each frozen-field Order write is classified as a delivery-input writer (→ must be barrier-protected)…
-    const flaggedFields = sites.filter(isDeliveryInputWriter).flatMap((site) => site.dataFields ?? []);
+    const flaggedFields = sites.filter((site) => isDeliveryInputWriter(site)).flatMap((site) => site.dataFields ?? []);
     expect(flaggedFields).toEqual(
       expect.arrayContaining(['storySourceHash', 'selectionFilename', 'frozenProductVersion', 'expectedPageCount', 'visualPackageAuthority', 'visualContractHash', 'illustrationStyle']),
     );
     // …while a pure order-STATE write (no delivery input) is NOT flagged, so the classifier stays discriminating.
     const stateSite = sites.find((site) => site.dataFields?.includes('status'));
     expect(stateSite && isDeliveryInputWriter(stateSite)).toBe(false);
+
+    // GenerationJob: a pipelineCache write is a delivery-input write (producing provenance);
+    // a job-STATE write is not.
+    const jobFixture = `
+      async function j(tx: any) {
+        await tx.generationJob.update({ data: { pipelineCache: { textFinalized: true } } });
+        await tx.generationJob.update({ data: { status: 'pending', currentStage: 'dna' } });
+      }
+    `;
+    const jobSites = writerSitesFromSource('job-fixture.ts', jobFixture);
+    const cacheSite = jobSites.find((site) => site.dataFields?.includes('pipelineCache'));
+    const jobStateSite = jobSites.find((site) => site.dataFields?.includes('status'));
+    expect(cacheSite && isDeliveryInputWriter(cacheSite)).toBe(true);
+    expect(jobStateSite && isDeliveryInputWriter(jobStateSite)).toBe(false);
   });
 
   it('only treats the barrier callback transaction client as atomically protected', () => {
