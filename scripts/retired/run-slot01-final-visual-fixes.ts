@@ -12,20 +12,20 @@ import path from 'path';
 loadEnv({ path: '.env.local' });
 loadEnv();
 
-import './shims/register-server-only.cjs';
+import '../shims/register-server-only.cjs';
 
 import {
   buildRawVsNormalizedContactSheet,
   isBookColorNormalizeEnabled,
   normalizeRawDirToNormalized,
-} from '../lib/book-color-normalize';
+} from '../../lib/book-color-normalize';
 import {
   formatLocationPlanTable,
   resolvePageLocationPlan,
   resolveStoryLocationPlan,
-} from '../lib/story-location-bible';
-import { beatsFromStoryPages, formatBookShotPlanTable, isBookShotPlanValid, resolveBookShotPlan } from '../lib/book-shot-plan';
-import { loadStoryFromBank } from '../backend/providers/story-bank-loader';
+} from '../../lib/story-location-bible';
+import { beatsFromStoryPages, formatBookShotPlanTable, isBookShotPlanValid, resolveBookShotPlan } from '../../lib/book-shot-plan';
+import { loadStoryFromBank } from '../../backend/providers/story-bank-loader';
 
 const ORDER_DEFAULT = 'fee7e6a7-c069-4b74-b006-5a2395ea95b6';
 const BANK_FILE = path.join(process.cwd(), 'story-bank', 'v3-approved', 'fox_uri_adventure.md');

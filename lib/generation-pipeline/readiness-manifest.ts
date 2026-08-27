@@ -347,6 +347,17 @@ export interface CommitArgs {
   /** Anchor low-confidence telemetry for QA soft-deliver warnings (optional). */
   anchorLowConfidence?: AnchorLowConfidence;
   /**
+   * (Codex round-4 MAJOR 4) Caller-origin leg of the origin matrix. True when the DELIVERY CALLER'S
+   * snapshot of this Order claimed Visual Package authority (an accepted reference — canonical or
+   * aliased — or a carried authority envelope). The commit evaluates the FRESH row + producing
+   * snapshot itself; when those read genuinely legacy while the caller claimed package, someone
+   * re-pointed the frozen truth after the caller loaded it — the commit hard-holds
+   * (`contract_world_hold:delivery_snapshot_binding_invalid`) instead of shipping a laundered
+   * payload. Omitted/false → byte-identical to today (a genuinely legacy delivery has a legacy
+   * caller snapshot too).
+   */
+  callerVisualPackageClaim?: boolean;
+  /**
    * (re-gate round-3 P0) OPT-IN authorized-release precondition. Supplied ONLY by the flag-ON anchor-release
    * break-glass (app/api/admin/anchor-hold-release), NEVER by the normal post-generation delivery path. When set,
    * the final Order write additionally requires the row to STILL be held at EXACTLY this marker with no payment
@@ -749,15 +760,30 @@ interface ReadinessDecision {
  */
 function orderVisualPackageAuthorityDecision(
   order: OrderTruth,
+  callerVisualPackageClaim?: boolean,
 ): ReadinessDecision | null {
+  let reason: 'visual_package_authority_invalid' | 'delivery_snapshot_binding_invalid';
+  let issues: string[];
   try {
-    requireProducingSnapshotBinding({
+    const binding = requireProducingSnapshotBinding({
       order,
       pipelineCache: order.producingPipelineCache ?? null,
     });
-    return null;
+    // (Codex round-4 MAJOR 4) Caller-origin leg: the fresh row + producing snapshot read genuinely
+    // legacy, but the delivery CALLER'S snapshot was package-shaped — the frozen truth was
+    // re-pointed after the caller loaded it. Same reason (and thus the same
+    // `contract_world_hold:delivery_snapshot_binding_invalid` marker) as the readiness-OFF caller leg.
+    if (binding !== null || callerVisualPackageClaim !== true) return null;
+    reason = 'delivery_snapshot_binding_invalid';
+    issues = [
+      'caller snapshot is package-shaped but the fresh Order and producing snapshot are legacy',
+    ];
   } catch (error) {
     if (!(error instanceof OrderVisualPackageAuthorityError)) throw error;
+    reason = 'visual_package_authority_invalid';
+    issues = [...error.reasons];
+  }
+  {
     const authorityDigest = canonicalJsonDigest(
       order.visualPackageAuthority ?? null,
     );
@@ -767,7 +793,6 @@ function orderVisualPackageAuthorityDecision(
       !Array.isArray(order.producingPipelineCache)
         ? (order.producingPipelineCache as Record<string, unknown>)
         : null;
-    const reason = 'visual_package_authority_invalid';
     const evidence = {
       scope: BASE_BOOK_SCOPE,
       visualPackageAuthority: {
@@ -777,7 +802,7 @@ function orderVisualPackageAuthorityDecision(
         producingAuthorityDigest: canonicalJsonDigest(
           producingCache?.visualPackageAuthority ?? null,
         ),
-        issues: [...error.reasons],
+        issues,
       },
     };
     const inputsHash = createHash('sha256')
@@ -1111,7 +1136,7 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
     const loaded = await loadCommitInputs(prisma, args.orderId);
     if (!loaded) throw new Error('readiness_inputs_missing');
     const appBaseUrl = deps.appBaseUrl ?? readAppBaseUrl();
-    let decision = orderVisualPackageAuthorityDecision(loaded.order);
+    let decision = orderVisualPackageAuthorityDecision(loaded.order, args.callerVisualPackageClaim);
     let releaseRuntime: ReleaseRuntime | undefined;
     if (!decision) {
       const result = await evaluateBaseBookIntegrity(buildIntegrityInput(loaded.order, loaded.book, appBaseUrl), deps.inspect ?? inspectAsset);

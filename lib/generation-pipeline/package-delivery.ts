@@ -131,6 +131,22 @@ export async function finalizePackageDelivery(
     return { mode: 'safety_hold', deliveryHeld: true, manifest: null };
   }
 
+  // Caller-provenance leg of the origin matrix, computed ONCE for both branches: the CALLER'S
+  // snapshot of this Order is package-shaped (accepted reference — canonical or aliased — or a
+  // carried authority). A genuinely legacy delivery has a legacy caller snapshot too. On
+  // readiness-ON the claim is threaded into the commit (which re-proves the fresh row + producing
+  // snapshot in-tx); on readiness-OFF it is evaluated below against the fresh CAS-bound row.
+  const callerVisualPackageClaim = (() => {
+    try {
+      return (
+        orderRequiresVisualPackageAuthority(args.order) ||
+        args.order.visualPackageAuthority != null
+      );
+    } catch {
+      return true;
+    }
+  })();
+
   const readinessEnabled = deps.readinessEnabled ?? isReadinessManifestEnabled;
   if (readinessEnabled()) {
     const commit = deps.commit ?? commitBaseBookReadiness;
@@ -140,6 +156,7 @@ export async function finalizePackageDelivery(
       anchorOrderStatus: args.deliveryGate.orderStatus,
       anchorReason: args.deliveryGate.reason,
       anchorLowConfidence: args.anchorLowConfidence,
+      callerVisualPackageClaim,
     });
     // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: reconcile the review case AFTER commitBaseBookReadiness commits
     // its readiness tx. Opens an anchor case when the manifest parked for anchor QA; resolves it on a ready outcome.
@@ -248,21 +265,10 @@ export async function finalizePackageDelivery(
       );
     }
     if (!freshPackageBacked) {
-      // Caller-provenance leg of the origin matrix: when the CALLER'S snapshot of this Order is
-      // package-shaped (accepted reference — canonical or aliased — or a carried authority) while the
-      // fresh row and producing snapshot read legacy, someone re-pointed the frozen truth after the
-      // caller loaded it. A genuinely legacy delivery has a legacy caller snapshot too.
-      const argsClaimPackage = (() => {
-        try {
-          return (
-            orderRequiresVisualPackageAuthority(args.order) ||
-            args.order.visualPackageAuthority != null
-          );
-        } catch {
-          return true;
-        }
-      })();
-      if (argsClaimPackage) {
+      // Caller-provenance leg (see the shared computation above): a package-shaped caller over a
+      // genuinely legacy fresh row + producing snapshot means the frozen truth was re-pointed after
+      // the caller loaded it.
+      if (callerVisualPackageClaim) {
         return parkAuthorityHold(
           'contract_world_hold:delivery_snapshot_binding_invalid',
           new Error(

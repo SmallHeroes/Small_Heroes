@@ -21,6 +21,7 @@ import {
   findExistingPageImageAsset,
   shouldSkipPaidPageImageRegen,
 } from '../lib/generation-chunked/paid-artifact-guard';
+import { withoutBarrierOwnedPipelineCacheKeys } from '../lib/generation-pipeline/pipeline-cache-store';
 
 const prisma = new PrismaClient();
 
@@ -106,7 +107,8 @@ async function proofTimeoutResume(): Promise<ProofResult> {
         currentStage: 'page_images',
         textDone: true,
         imagesDone: false,
-        pipelineCache: {},
+        // Creation seeding cannot smuggle barrier-owned keys (writer census, MAJOR 2/3).
+        pipelineCache: withoutBarrierOwnedPipelineCacheKeys({} as never),
       },
     });
 

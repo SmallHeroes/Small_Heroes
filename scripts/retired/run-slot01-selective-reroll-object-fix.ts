@@ -12,7 +12,7 @@ import path from 'path';
 loadEnv({ path: '.env.local' });
 loadEnv();
 
-import './shims/register-server-only.cjs';
+import '../shims/register-server-only.cjs';
 
 const PAGES = '1,2,3,4,6,8,10,11';
 const OUT_ROOT = path.join(process.cwd(), 'outputs', 'sprint-11-runs', 'slot01-object-fix-reroll');

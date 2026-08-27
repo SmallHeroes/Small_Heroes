@@ -12,7 +12,7 @@ import type { Prisma } from '@prisma/client';
 loadEnv({ path: '.env.local' });
 loadEnv();
 
-import './shims/register-server-only.cjs';
+import '../shims/register-server-only.cjs';
 
 const DEFAULT_ORDER = '345ecd64-c9c2-4e0a-8f9d-a35de8d09883';
 const DEFAULT_PAGES = [2, 20];

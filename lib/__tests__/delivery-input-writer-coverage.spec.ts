@@ -6,6 +6,7 @@ import {
   createRepositorySourceInventory,
   STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS,
 } from './helpers/repository-source-inventory';
+import { BARRIER_OWNED_PIPELINE_CACHE_KEYS } from '@/lib/generation-pipeline/pipeline-cache-store';
 
 const ROOT = process.cwd();
 const MODEL_NAMES = new Set(['generatedBook', 'bookPage', 'imageAsset', 'order', 'generationJob']);
@@ -50,13 +51,66 @@ interface DelegateAlias {
   model: string;
   client: string | null;
 }
+// (Codex round-4 MAJOR 3) The census scans the WHOLE writable source surface:
+// operational scripts join the roots, and every supported source extension is
+// inventoried — a .mjs/.cjs/.js/.tsx writer is a writer.
 const repositorySources = createRepositorySourceInventory({
   root: ROOT,
-  roots: ['app', 'lib', 'backend'],
-  extensions: ['.ts'],
+  roots: ['app', 'lib', 'backend', 'scripts'],
+  extensions: ['.ts', '.tsx', '.js', '.mjs', '.cjs'],
   excludedEntryNames: ['node_modules', '__tests__'],
   excludeDotEntries: true,
 });
+
+const RETIRED_SCRIPTS_DIR = 'scripts/retired/';
+
+/**
+ * (Codex round-4 MAJOR 3) The exact, reviewable allowlist of ACTIVE operational
+ * scripts with direct delivery-row model writes. Scripts run operator-side
+ * against dev/staging fixtures, outside the runtime barrier — that bounded
+ * scope is sanctioned ONLY per-file and per-write-signature: a new writer
+ * script, or a new write shape inside an allowlisted one, fails the census and
+ * forces review. `pipelineCache` writes are NEVER sanctioned here (enforced
+ * separately below): an active script may seed a job only through
+ * `withoutBarrierOwnedPipelineCacheKeys`, and whole-cache updates live only in
+ * `scripts/retired/` (explicitly retired, see its README).
+ */
+const ACTIVE_SCRIPT_WRITER_ALLOWLIST: Record<string, readonly string[]> = {
+  'scripts/audit-child-photos.ts': ['order.update'],
+  'scripts/cancel-job.mjs': ['generationJob.updateMany'],
+  'scripts/dry-run-bunny-manifest.ts': ['order.create'],
+  'scripts/run-bunny-smoke-render.ts': [
+    'generatedBook.update',
+    'generationJob.create',
+    'generationJob.updateMany',
+    'imageAsset.delete',
+    'order.update',
+    'order.update',
+  ],
+  'scripts/run-five-page-gate-maia.ts': ['generationJob.update'],
+  'scripts/run-page20-gate-maia.ts': ['generationJob.update'],
+  'scripts/run-page8-gate-maia.ts': ['generationJob.update'],
+  'scripts/run-spot-regen-dini-entity-pages.ts': ['generationJob.update'],
+  'scripts/run-stage0-anchor-only.ts': ['generationJob.update'],
+  'scripts/seed-hash-proof-order.ts': ['order.create'],
+  'scripts/test-chunked-generation-resume.ts': [
+    'bookPage.create',
+    'bookPage.create',
+    'bookPage.create',
+    'bookPage.deleteMany',
+    'generatedBook.create',
+    'generatedBook.deleteMany',
+    'generationJob.create',
+    'generationJob.create',
+    'generationJob.deleteMany',
+    'imageAsset.create',
+    'imageAsset.create',
+    'imageAsset.deleteMany',
+    'order.create',
+    'order.deleteMany',
+    'order.update',
+  ],
+};
 
 function source(relative: string): string {
   return readFileSync(path.join(ROOT, relative), 'utf8');
@@ -139,8 +193,14 @@ function objectDataFields(call: ts.CallExpression): string[] | null {
   return fields.sort();
 }
 
+function scriptKindOf(relative: string): ts.ScriptKind {
+  if (relative.endsWith('.tsx')) return ts.ScriptKind.TSX;
+  if (relative.endsWith('.ts')) return ts.ScriptKind.TS;
+  return ts.ScriptKind.JS; // .js / .mjs / .cjs
+}
+
 function writerSitesFromSource(relative: string, text: string): WriterSite[] {
-  const file = ts.createSourceFile(relative, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const file = ts.createSourceFile(relative, text, ts.ScriptTarget.Latest, true, scriptKindOf(relative));
   const aliases = collectDelegateAliases(file);
   const sites: WriterSite[] = [];
 
@@ -216,11 +276,7 @@ function isDeliveryInputWriter(site: WriterSite, sourceText?: string): boolean {
     // laundering through helper params is closed at the type level
     // (updateStage excludes pipelineCache from its extra input).
     if (!sourceText) return true;
-    const window = sourceText
-      .split(/\r?\n/)
-      .slice(Math.max(0, site.line - 1), site.line + 24)
-      .join('\n');
-    return /(^|[^A-Za-z])pipelineCache\s*:/.test(window);
+    return /(^|[^A-Za-z])pipelineCache\s*:/.test(sourceWindow(site, sourceText, 24));
   }
   if (site.model !== 'order') return true;
   if (!site.dataFields) return true;
@@ -235,15 +291,46 @@ function isOrderCreationException(site: WriterSite): boolean {
   );
 }
 
-function isJobCreationSeedException(site: WriterSite): boolean {
-  // Creating a job that does not exist yet has no producing provenance to
-  // protect, and the seed is stripped of the producing keys at the call site
-  // (withoutProducingPipelineCacheKeys).
+function sourceWindow(site: WriterSite, sourceText: string | undefined, lines = 25): string {
+  if (!sourceText) return '';
+  return sourceText
+    .split(/\r?\n/)
+    .slice(Math.max(0, site.line - 1), site.line + lines)
+    .join('\n');
+}
+
+function isJobCreationSeedException(site: WriterSite, sourceText?: string): boolean {
+  // Creating a job that does not exist yet has no barrier-written state to
+  // protect — but ONLY when the seed is structurally stripped at the call site
+  // (the window must reference withoutBarrierOwnedPipelineCacheKeys, so a seed
+  // that could smuggle producing provenance or a Board binding never
+  // qualifies). (Codex round-4 MAJOR 2: creation/reseed paths must strip.)
   return (
     site.model === 'generationJob' &&
     site.method === 'create' &&
-    site.relative === 'lib/generation-chunked/start.ts'
+    sourceWindow(site, sourceText).includes('withoutBarrierOwnedPipelineCacheKeys')
   );
+}
+
+/**
+ * (Codex round-4 MAJOR 3) Script-side discipline. A retired script (scripts/retired/)
+ * is sanctioned wholesale — it is explicitly retired from operational use (README)
+ * and pinned by exact file list below. An ACTIVE script write is sanctioned only
+ * when its file + exact write signature is in ACTIVE_SCRIPT_WRITER_ALLOWLIST AND
+ * it is not a pipelineCache write (a stripped creation seed is the one exception,
+ * via isJobCreationSeedException). Signature pinning happens in its own test; this
+ * predicate only decides membership for the unsafe-scan.
+ */
+function isSanctionedScriptWrite(site: WriterSite, sourceText?: string): boolean {
+  if (!site.relative.startsWith('scripts/')) return false;
+  if (site.relative.startsWith(RETIRED_SCRIPTS_DIR)) return true;
+  if (!(site.relative in ACTIVE_SCRIPT_WRITER_ALLOWLIST)) return false;
+  if (site.model !== 'generationJob') return true;
+  // generationJob in an ACTIVE script: a cache write is sanctioned only as a
+  // stripped creation seed; job-STATE writes pass the isDeliveryInputWriter
+  // classifier anyway.
+  if (!isDeliveryInputWriter(site, sourceText)) return true;
+  return isJobCreationSeedException(site, sourceText);
 }
 
 function isReadinessCommitOrderStateWrite(site: WriterSite): boolean {
@@ -330,10 +417,11 @@ describe('P1-f #5 delivery-input writer coverage', () => {
         !site.protectedByBarrier &&
         !isDisplayOnlyException(site) &&
         !isOrderCreationException(site) &&
-        !isJobCreationSeedException(site) &&
+        !isJobCreationSeedException(site, sourceByRelative.get(site.relative)) &&
         !isReadinessCommitOrderStateWrite(site) &&
         !isExplicitReconciliationFulfillmentRoll(site) &&
         !isSanctionedSafetyWriterWrite(site) &&
+        !isSanctionedScriptWrite(site, sourceByRelative.get(site.relative)) &&
         !hasFlagOnDevWriteGuard(site.relative, sourceByRelative.get(site.relative)),
     );
     expect(
@@ -355,12 +443,128 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     expect(hasFlagOnDevWriteGuard('app/api/dev/story-bank/route.ts')).toBe(true);
   }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
+  it('pins the exact script-writer allowlist (active signatures + the retired set + its README)', () => {
+    const sources = repositorySources();
+    const sourceByRelative = new Map(sources.map((entry) => [entry.relative, entry.text]));
+    const scriptSites = sources
+      .filter(({ relative }) => relative.startsWith('scripts/'))
+      .flatMap(({ relative, text }) => writerSitesFromSource(relative, text));
+
+    const byFile = new Map<string, string[]>();
+    for (const site of scriptSites) {
+      const list = byFile.get(site.relative) ?? [];
+      list.push(`${site.model}.${site.method}`);
+      byFile.set(site.relative, list);
+    }
+
+    // Retired scripts: the exact file set is pinned (adding one is a reviewed decision) and each
+    // must actually be a writer (a non-writer does not belong in the retired-writers directory).
+    const retired = [...byFile.keys()].filter((file) => file.startsWith(RETIRED_SCRIPTS_DIR)).sort();
+    expect(retired).toEqual([
+      'scripts/retired/approve-mia-expression-partial.ts',
+      'scripts/retired/approve-mia-expression-sheet.ts',
+      'scripts/retired/configure-baby-dragon-anchor.ts',
+      'scripts/retired/generate-mia-child-expression-sheet.ts',
+      'scripts/retired/generate-shouting-variants-maia.ts',
+      'scripts/retired/run-family-coherence-pages.ts',
+      'scripts/retired/run-fox-uri-generalization-test.ts',
+      'scripts/retired/run-slot01-final-visual-fixes.ts',
+      'scripts/retired/run-slot01-fox-full-render.ts',
+      'scripts/retired/run-slot01-selective-reroll-object-fix.ts',
+      'scripts/retired/run-slot02-lion-bedtime-full-render.ts',
+      'scripts/retired/run-style02-five-page-sample.ts',
+      'scripts/retired/select-mia-shouting-anchor.ts',
+    ]);
+    expect(readFileSync(path.join(ROOT, 'scripts/retired/README.md'), 'utf8')).toContain(
+      'persistOrdinaryPipelineCache',
+    );
+
+    // Active scripts: every writer file and its exact write-signature multiset is pinned; no
+    // stale allowlist entries; and NO active script writes pipelineCache except a stripped
+    // creation seed (the structural rule the unsafe-scan enforces; re-asserted here directly).
+    const active = [...byFile.entries()].filter(([file]) => !file.startsWith(RETIRED_SCRIPTS_DIR));
+    const actual = Object.fromEntries(active.map(([file, sigs]) => [file, [...sigs].sort()]));
+    const pinned = Object.fromEntries(
+      Object.entries(ACTIVE_SCRIPT_WRITER_ALLOWLIST).map(([file, sigs]) => [file, [...sigs].sort()]),
+    );
+    expect(actual).toEqual(pinned);
+    for (const site of scriptSites) {
+      if (site.relative.startsWith(RETIRED_SCRIPTS_DIR) || site.model !== 'generationJob') continue;
+      const text = sourceByRelative.get(site.relative);
+      if (!isDeliveryInputWriter(site, text)) continue;
+      expect(
+        isJobCreationSeedException(site, text),
+        `${site.relative}:${site.line} — active scripts may write pipelineCache only as a stripped creation seed`,
+      ).toBe(true);
+    }
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
+
+  it('derives the barrier-owned pipelineCache key inventory from the jsonb_set writers and pins the store arms', () => {
+    // (Codex round-4 MAJOR 2) The inventory of barrier-owned keys is DERIVED from the actual
+    // barrier jsonb_set call sites, then pinned equal to BARRIER_OWNED_PIPELINE_CACHE_KEYS — a new
+    // barrier-owned key cannot appear without joining the structural store's protection set.
+    const derivedKeys = new Set<string>();
+    const writerFiles = new Set<string>();
+    for (const { relative, text } of repositorySources()) {
+      if (relative.startsWith(RETIRED_SCRIPTS_DIR)) continue;
+      for (const statement of text.matchAll(/SET\s+"pipelineCache"\s*=\s*jsonb_set[^`]*/g)) {
+        writerFiles.add(relative);
+        for (const key of statement[0].matchAll(/'\{(\w+)\}'/g)) derivedKeys.add(key[1]);
+      }
+    }
+    expect([...derivedKeys].sort()).toEqual([...BARRIER_OWNED_PIPELINE_CACHE_KEYS].sort());
+    expect([...writerFiles].sort()).toEqual([
+      'lib/generation-pipeline/ensure-frozen-visual-contract.ts',
+      'lib/generation-pipeline/set-identity-board-stage.ts',
+    ]);
+
+    // The ordinary store must carry a value-verbatim overlay arm for EVERY barrier-owned key — and
+    // never a normalizing function (jsonb_strip_nulls rewrites nested nulls recursively; the real-
+    // Postgres spec pipeline-cache-store.pg.spec.ts proves the executed semantics byte-for-byte).
+    const store = source('lib/generation-pipeline/pipeline-cache-store.ts');
+    const storeStatement = store.match(/UPDATE "GenerationJob"[^`]*/)?.[0] ?? '';
+    for (const key of BARRIER_OWNED_PIPELINE_CACHE_KEYS) {
+      expect(storeStatement).toContain(`"pipelineCache" ? '${key}'`);
+      expect(storeStatement).toContain(`jsonb_build_object('${key}', "pipelineCache" -> '${key}')`);
+    }
+    expect(storeStatement).not.toContain('jsonb_strip_nulls');
+    expect(storeStatement).not.toContain('INSERT');
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
+
+  it('migration SQL never rewrites GenerationJob.pipelineCache', () => {
+    const migrationSources = createRepositorySourceInventory({
+      root: ROOT,
+      roots: ['backend/migrations'],
+      extensions: ['.sql'],
+      excludedEntryNames: ['node_modules'],
+    })();
+    const offenders: string[] = [];
+    for (const { relative, text } of migrationSources) {
+      for (const match of text.matchAll(/\b(?:UPDATE|INSERT\s+INTO)\s+(?:public\.)?"?GenerationJob"?[^;]*/gi)) {
+        if (/pipelineCache/i.test(match[0])) offenders.push(relative);
+      }
+    }
+    expect(offenders).toEqual([]);
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
+
   it('has no raw SQL writer bypass for delivery-input tables', () => {
     const rawWrite =
-      /\b(?:UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(?:public\.)?["']?(GeneratedBook|BookPage|ImageAsset|Order)["']?/gi;
+      /\b(?:UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(?:public\.)?["']?(GeneratedBook|BookPage|ImageAsset|Order|GenerationJob)["']?/gi;
     const found: string[] = [];
     for (const { relative, text } of repositorySources()) {
       for (const match of text.matchAll(rawWrite)) {
+        if (
+          // (Codex round-4 MAJOR 3) Raw GenerationJob writes join the census. The exhaustive
+          // allowlist: the two barrier jsonb_set writers (single-key, inside
+          // withDeliveryInputMutation callbacks) and the structural ordinary store (whose SQL
+          // overlays the row's own barrier-owned keys). Nothing else may touch the table raw.
+          match[1] === 'GenerationJob' &&
+          (relative === 'lib/generation-pipeline/pipeline-cache-store.ts' ||
+            relative === 'lib/generation-pipeline/ensure-frozen-visual-contract.ts' ||
+            relative === 'lib/generation-pipeline/set-identity-board-stage.ts')
+        ) {
+          continue;
+        }
         if (
           match[1] === 'Order' &&
           // (delivery fence — Codex round-4/5) The readiness ship-CAS, the anchor-release CAS, and the shared

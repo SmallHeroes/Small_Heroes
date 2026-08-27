@@ -8,7 +8,7 @@ import path from 'path';
 loadEnv({ path: '.env.local' });
 loadEnv();
 
-import './shims/register-server-only.cjs';
+import '../shims/register-server-only.cjs';
 
 const ORDER_ID = '345ecd64-c9c2-4e0a-8f9d-a35de8d09883';
 const OUT_DIR = path.join(process.cwd(), 'outputs', 'stage0-experiment', ORDER_ID, 'expression-sheet');
@@ -31,7 +31,7 @@ async function main() {
   } = await import('@/lib/generation-pipeline/child-expression-sheet');
   const { resolveStyle01StoryWardrobeLock } = await import('@/lib/style01-story-wardrobe');
   const { resolveCompanionForOrder } = await import('@/lib/generation-pipeline/anchor-registry');
-  const { buildExpressionShoutingGrid } = await import('./lib/build-expression-shouting-grid');
+  const { buildExpressionShoutingGrid } = await import('../lib/build-expression-shouting-grid');
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
 

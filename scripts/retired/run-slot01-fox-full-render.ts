@@ -15,7 +15,7 @@ import path from 'path';
 loadEnv({ path: '.env.local' });
 loadEnv();
 
-import './shims/register-server-only.cjs';
+import '../shims/register-server-only.cjs';
 
 const STORY_FILE = 'fox_uri_adventure.md';
 const BANK_FILE = path.join(process.cwd(), 'story-bank', 'v3-approved', STORY_FILE);

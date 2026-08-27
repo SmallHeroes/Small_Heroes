@@ -665,6 +665,37 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
   });
 
+  it('(Codex round-4 MAJOR 4) caller-origin leg: package-shaped CALLER claim over a genuinely legacy fresh row → blocked before inspection', async () => {
+    // The fresh row + producing snapshot are genuinely legacy — the commit itself would pass — but
+    // the delivery caller declared its snapshot package-shaped: the frozen truth was re-pointed
+    // after the caller loaded it. Same marker family as the readiness-OFF caller leg, evaluated
+    // INSIDE the commit (the fresh in-tx read decides), zero enqueue, zero inspection.
+    const tx = mockTx();
+    const inspect = vi.fn(stubInspect);
+    const result = await commitBaseBookReadiness(
+      mockPrisma(tx) as never,
+      args({ callerVisualPackageClaim: true }),
+      { inspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+    expect(result).toMatchObject({
+      manifestStatus: 'blocked',
+      enqueued: false,
+      orderStatus: 'needs_human_qa',
+      reason: 'contract_world_hold:delivery_snapshot_binding_invalid',
+    });
+    expect(inspect).not.toHaveBeenCalled();
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+
+    // Genuine-legacy positive control: with the claim false/omitted the identical row still ships.
+    const tx2 = mockTx();
+    const shipped = await commitBaseBookReadiness(
+      mockPrisma(tx2) as never,
+      args(),
+      { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+    expect(shipped).toMatchObject({ manifestStatus: 'passed', orderStatus: 'ready', enqueued: true });
+  });
+
   it('treats an eval→commit producing-cache mutation as TOCTOU drift (abort + fresh re-eval)', async () => {
     // Out-of-tx eval sees a clean legacy row; the first in-tx reload sees a
     // mutated producing cache → fingerprint drift → whole-tx retry → second

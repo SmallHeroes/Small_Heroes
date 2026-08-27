@@ -66,6 +66,9 @@ describe('finalizePackageDelivery — flag boundary', () => {
       anchorAllowsDelivery: true,
       anchorOrderStatus: 'ready',
       anchorReason: null,
+      // (Codex round-4 MAJOR 4) the caller-origin claim is threaded into the commit on the ON
+      // branch (false here: a genuinely legacy caller snapshot).
+      callerVisualPackageClaim: false,
     });
     expect(prisma.order.update).not.toHaveBeenCalled();
     expect(prisma.generationJob.update).not.toHaveBeenCalled();

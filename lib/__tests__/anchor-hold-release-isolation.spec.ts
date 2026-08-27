@@ -45,10 +45,18 @@ async function loadRoute(opts: {
   paymentCase?: unknown;
   /** Overrides the row tx.$queryRaw returns under lock (defaults to echoing opts.order) — for marker-drift tests. */
   lockedRow?: { status: string; deliveryHoldReason: string | null };
+  /** (Codex round-4 MAJOR 5) Overrides the IN-TX release-truth snapshot (tx.order.findUnique under the lock) —
+   *  the injection point for a delivery-input mutation landing between the initial evaluation and the release.
+   *  Defaults to echoing opts.order at inputVersion 0 / fence 0. */
+  releaseTruth?: Record<string, unknown> | null;
 }) {
   const email = opts.email ?? vi.fn(async () => ({}));
   const orderUpdateMany = opts.orderUpdateMany ?? vi.fn(async () => ({ count: 1 }));
-  const releaseExec = vi.fn(async () => opts.releaseCount ?? 1); // the flag-off release CAS ($executeRaw) row count
+  const releaseExecCalls: unknown[][] = [];
+  const releaseExec = vi.fn(async (...args: unknown[]) => {
+    releaseExecCalls.push(args.slice(1)); // the CAS template values (orderId, marker, inputVersion, fence…)
+    return opts.releaseCount ?? 1; // the flag-off release CAS ($executeRaw) row count
+  });
   const postCommit = vi.fn(async () => {});
   const commit = opts.commit ?? vi.fn(async () => ({ enqueued: true, manifestStatus: 'passed', orderStatus: 'ready', reason: null, revision: 1 }));
   const lockedRow = opts.lockedRow ?? (opts.order as { status: string; deliveryHoldReason: string | null });
@@ -58,10 +66,31 @@ async function loadRoute(opts: {
     ),
     update: vi.fn(),
   };
+  const baseOrder = opts.order as Record<string, unknown>;
+  const releaseTruthRow =
+    opts.releaseTruth !== undefined
+      ? opts.releaseTruth
+      : {
+          inputVersion: 0,
+          deliveryFenceVersion: 0,
+          selectionFilename: baseOrder.selectionFilename ?? null,
+          storySourceHash: baseOrder.storySourceHash ?? null,
+          illustrationStyle: baseOrder.illustrationStyle ?? 'pencil_watercolor',
+          visualPackageAuthority: baseOrder.visualPackageAuthority ?? null,
+          visualContractHash: baseOrder.visualContractHash ?? null,
+          customerEmail: baseOrder.customerEmail,
+          customerName: baseOrder.customerName,
+          childName: baseOrder.childName,
+          paymentId: baseOrder.paymentId ?? null,
+          paymeTransactionId: baseOrder.paymeTransactionId ?? null,
+          stripeSessionId: baseOrder.stripeSessionId ?? null,
+          generationJob: baseOrder.generationJob ?? { pipelineCache: null },
+          book: baseOrder.book,
+        };
   const txClient = {
     $queryRaw: vi.fn(async () => [{ status: lockedRow.status, deliveryHoldReason: lockedRow.deliveryHoldReason }]),
     $executeRaw: releaseExec,
-    order: { updateMany: orderUpdateMany },
+    order: { updateMany: orderUpdateMany, findUnique: vi.fn(async () => releaseTruthRow) },
     humanQaReviewCase,
     operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn() },
   };
@@ -80,7 +109,7 @@ async function loadRoute(opts: {
     ReleasePreconditionError,
   }));
   const mod = await import('@/app/api/admin/anchor-hold-release/route');
-  return { POST: mod.POST, email, orderUpdateMany, releaseExec, postCommit, commit, caseUpdate: humanQaReviewCase.update };
+  return { POST: mod.POST, email, orderUpdateMany, releaseExec, releaseExecCalls, postCommit, commit, caseUpdate: humanQaReviewCase.update };
 }
 
 // ── AUTHORIZATION: identical across both flag states — no path may depend on the flag for its safety ────────────
@@ -285,6 +314,136 @@ describe('anchor-hold-release DELIVERY (flag-OFF: direct send)', () => {
     expect(email).toHaveBeenCalledTimes(1);
   });
 
+  it('(Codex round-4 MAJOR 5) delivery-input mutation between initial evaluation and release → 409, ZERO release CAS, ZERO email', async () => {
+    // The route's first read sees a clean genuinely-legacy anchor hold; by the time the release
+    // transaction re-reads UNDER the lock, the producing snapshot carries package authority (a
+    // freeze/re-point landed in the window). The in-tx re-proof must hold — never release the
+    // stale evaluation, never send the stale payload.
+    const { POST, email, releaseExec } = await loadRoute({
+      flagOn: false,
+      order: heldOrder('anchor_low_confidence:soft_band'),
+      releaseTruth: {
+        inputVersion: 1, // the mutation bumped it
+        deliveryFenceVersion: 0,
+        selectionFilename: null,
+        storySourceHash: null,
+        illustrationStyle: 'pencil_watercolor',
+        visualPackageAuthority: null,
+        visualContractHash: null,
+        customerEmail: 'c@e.com',
+        customerName: 'C',
+        childName: 'K',
+        paymentId: 'p',
+        paymeTransactionId: null,
+        stripeSessionId: null,
+        generationJob: { pipelineCache: { visualPackageAuthority: { version: 'produced-under-a-package' } } },
+        book: { readUrl: 'https://app/book/o1/read', coverImageUrl: null, pdfUrl: null, audioAsset: null, pages: [] },
+      },
+    });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(releaseExec).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+  });
+
+  it('(Codex round-4 MAJOR 5) the release CAS and the sent payload bind the SAME in-tx snapshot (inputVersion/fence/readUrl)', async () => {
+    // The in-tx snapshot moved on from the route's first read (inputVersion 7 / fence 3, a NEW
+    // canonical readUrl). The CAS must carry exactly the in-tx versions, and the email must carry
+    // the in-tx payload — never the pre-lock route read.
+    const { POST, email, releaseExecCalls } = await loadRoute({
+      flagOn: false,
+      order: heldOrder('anchor_low_confidence:soft_band'), // pre-tx readUrl: …/read
+      releaseTruth: {
+        inputVersion: 7,
+        deliveryFenceVersion: 3,
+        selectionFilename: null,
+        storySourceHash: null,
+        illustrationStyle: 'pencil_watercolor',
+        visualPackageAuthority: null,
+        visualContractHash: null,
+        customerEmail: 'c@e.com',
+        customerName: 'C',
+        childName: 'K',
+        paymentId: 'p',
+        paymeTransactionId: null,
+        stripeSessionId: null,
+        generationJob: { pipelineCache: null },
+        book: { readUrl: 'https://app/book/o1/read-v2', coverImageUrl: 'https://h/cover-v2.png', pdfUrl: 'https://h/book-v2.pdf', audioAsset: null, pages: [] },
+      },
+    });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(200);
+    // CAS values = the exact in-tx snapshot versions.
+    expect(releaseExecCalls).toHaveLength(1);
+    expect(releaseExecCalls[0]).toEqual(expect.arrayContaining(['o1', 'anchor_low_confidence:soft_band', 7, 3]));
+    // Email payload = the exact in-tx snapshot, not the stale pre-lock book.
+    expect(email).toHaveBeenCalledTimes(1);
+    expect(email).toHaveBeenCalledWith(
+      expect.objectContaining({
+        readUrl: 'https://app/book/o1/read-v2',
+        coverImageUrl: 'https://h/cover-v2.png',
+        pdfUrl: 'https://h/book-v2.pdf',
+      }),
+    );
+  });
+
+  it('(Codex round-4 MAJOR 5) package-backed under the lock but the canonical readUrl vanished → 409, no CAS, no email', async () => {
+    const AUTHORITY_SRC =
+      'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/' +
+      `revisions/${'a'.repeat(64)}/integrated.md`;
+    const contract = {
+      schemaVersion: 'fixture-contract/v1',
+      approvedRuntimeAuthority: { packageRevisionDigest: 'c'.repeat(64) },
+    };
+    const { computeVisualContractHash } = await import('@/lib/visual-contract-compiler/contractHash');
+    const AUTHORITY = {
+      version: 'frozen-visual-package-authority/v3',
+      manifestVersion: 'visual-package/v5',
+      storyKey: 'chameleon_koko_bedtime',
+      styleId: 'soft_hand_drawn_storybook',
+      packagePath: `visual-packages/approved/revisions/${'c'.repeat(64)}.visual-package.json`,
+      packageRevisionDigest: 'c'.repeat(64),
+      sourcePath: AUTHORITY_SRC,
+      sourceDigest: 'd'.repeat(64),
+      sourceRawDigest: 'b'.repeat(64),
+      blueprintDigest: 'e'.repeat(64),
+      authoringAuthorityDigest: 'f'.repeat(64),
+      planningApprovalDigest: '1'.repeat(64),
+      styleAuthorityDigest: '2'.repeat(64),
+      visualContractTemplateDigest: '3'.repeat(64),
+      reconciliationDigest: '4'.repeat(64),
+      layoutPolicyVersion: 'portrait-layout-compatibility/v1',
+    };
+    const packageFields = {
+      selectionFilename: AUTHORITY_SRC,
+      storySourceHash: 'b'.repeat(64),
+      illustrationStyle: 'pencil_watercolor',
+      visualPackageAuthority: AUTHORITY,
+      visualContractHash: computeVisualContractHash(contract as never),
+      generationJob: { pipelineCache: { visualPackageAuthority: AUTHORITY, visualContract: contract } },
+    };
+    const { POST, email, releaseExec } = await loadRoute({
+      flagOn: false,
+      order: heldOrder('anchor_low_confidence:soft_band', packageFields), // pre-tx: canonical readUrl present
+      releaseTruth: {
+        inputVersion: 2,
+        deliveryFenceVersion: 1,
+        customerEmail: 'c@e.com',
+        customerName: 'C',
+        childName: 'K',
+        paymentId: 'p',
+        paymeTransactionId: null,
+        stripeSessionId: null,
+        ...packageFields,
+        book: { readUrl: null, coverImageUrl: null, pdfUrl: null, audioAsset: null, pages: [] }, // canonical URL gone under lock
+      },
+    });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(releaseExec).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+  });
+
   it('a concurrent caller that loses the release CAS (0 rows) → 409, no send (exactly-once)', async () => {
     const { POST, email } = await loadRoute({
       flagOn: false, order: heldOrder('anchor_low_confidence:soft_band'),
@@ -322,7 +481,9 @@ describe('anchor-hold-release DELIVERY (flag-ON: Manifest/Outbox)', () => {
     // (re-gate round-3 P0) the authorized marker is threaded into the readiness commit as the release precondition.
     expect(commit).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ orderId: 'o1', anchorAllowsDelivery: true, requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' } }),
+      // (Codex round-4 MAJOR 4) the route also threads its own caller-origin claim into the commit
+      // (false here: a genuinely legacy order), so a mid-flight re-point to legacy would hold in-tx.
+      expect.objectContaining({ orderId: 'o1', anchorAllowsDelivery: true, requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' }, callerVisualPackageClaim: false }),
     );
     expect(email).not.toHaveBeenCalled(); // package-delivery.ts:104 invariant — flag-on never direct-sends
     expect(orderUpdateMany).not.toHaveBeenCalled(); // authorization did NOT flip status; commit owns the transition

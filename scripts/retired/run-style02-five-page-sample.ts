@@ -25,7 +25,7 @@ process.env.GENERATION_DISABLE_SELF_CHAIN = 'true';
 process.env.STYLE02_SELLABLE = 'true';
 delete process.env.PHASE2_STEP5_PROFILE;
 
-import './shims/register-server-only.cjs';
+import '../shims/register-server-only.cjs';
 
 const STORY_FILE = 'dragon_dini_fantasy.md';
 const COMPANION_ID = 'dragon_dini';

@@ -13,7 +13,7 @@ import path from 'path';
 loadEnv({ path: '.env.local' });
 loadEnv();
 
-import './shims/register-server-only.cjs';
+import '../shims/register-server-only.cjs';
 
 const STORY_FILE = 'fox_uri_adventure.md';
 const COMPANION_ID = 'fox_uri';

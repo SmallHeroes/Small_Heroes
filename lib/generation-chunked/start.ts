@@ -7,7 +7,7 @@ import { assertEnvSeparation, assertProdGenerationAllowed } from './env-separati
 import type { PipelineCache } from '@/lib/generation-pipeline/types';
 import {
   persistOrdinaryPipelineCache,
-  withoutProducingPipelineCacheKeys,
+  withoutBarrierOwnedPipelineCacheKeys,
 } from '@/lib/generation-pipeline/pipeline-cache-store';
 
 const log = createLogger({ subsystem: 'chunked-gen', route: 'start' });
@@ -113,9 +113,10 @@ export async function startChunkedGeneration(
         currentStage: 'pending',
         triggerReason: reason,
         generationVersion: GENERATION_VERSION,
-        // Creation seeding cannot smuggle producing-provenance keys: only the
-        // freeze's barrier mutation may ever write them.
-        pipelineCache: withoutProducingPipelineCacheKeys(
+        // Creation seeding cannot smuggle barrier-owned keys (producing
+        // provenance or a Board binding): only a barrier mutation may ever
+        // write them.
+        pipelineCache: withoutBarrierOwnedPipelineCacheKeys(
           options?.pipelineCache ?? {},
         ),
       },

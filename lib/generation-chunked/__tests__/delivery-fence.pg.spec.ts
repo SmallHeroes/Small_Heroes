@@ -278,7 +278,7 @@ describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleav
   // ── (Unit 5) anchor RELEASE CAS, real SQL ─────────────────────────────────────────────────────────────────────
   it('executeAnchorReleaseCas: releases a still-anchor-held order (1 row → ready, fence bumped)', async () => {
     await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band', deliveryFenceVersion: 5 });
-    expect(await executeAnchorReleaseCas(db, { orderId: 'o1', expectedHoldReason: 'anchor_low_confidence:soft_band' })).toBe(1);
+    expect(await executeAnchorReleaseCas(db, { orderId: 'o1', expectedHoldReason: 'anchor_low_confidence:soft_band', expectedInputVersion: 0, expectedDeliveryFenceVersion: 5 })).toBe(1);
     const row = await db.$queryRaw<Array<{ status: string; fence: number }>>`SELECT "status"::text AS status, "deliveryFenceVersion" AS fence FROM "Order" WHERE "id"='o1'`;
     expect(row[0].status).toBe('ready');
     expect(Number(row[0].fence)).toBe(6);
@@ -286,8 +286,18 @@ describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleav
   it('executeAnchorReleaseCas: blocked by an active SAFETY case even though the marker reads anchor (skip_weaker) → 0', async () => {
     await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' });
     await seedCase('safety');
-    expect(await executeAnchorReleaseCas(db, { orderId: 'o1', expectedHoldReason: 'anchor_low_confidence:soft_band' })).toBe(0);
+    expect(await executeAnchorReleaseCas(db, { orderId: 'o1', expectedHoldReason: 'anchor_low_confidence:soft_band', expectedInputVersion: 0, expectedDeliveryFenceVersion: 0 })).toBe(0);
     expect(await statusOf()).toBe('needs_human_qa'); // never released while a strong case is active
+  });
+  it('(Codex round-4 MAJOR 5) executeAnchorReleaseCas: a stale evaluated snapshot (inputVersion or fence moved) → 0, never released', async () => {
+    // A delivery-input mutation bumped inputVersion after the release evaluation captured 0 → CAS 0 rows.
+    await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band', inputVersion: 1 });
+    expect(await executeAnchorReleaseCas(db, { orderId: 'o1', expectedHoldReason: 'anchor_low_confidence:soft_band', expectedInputVersion: 0, expectedDeliveryFenceVersion: 0 })).toBe(0);
+    expect(await statusOf()).toBe('needs_human_qa');
+    // A hold write bumped the fence after the evaluation captured 0 → CAS 0 rows.
+    await db.$executeRaw`UPDATE "Order" SET "inputVersion" = 0, "deliveryFenceVersion" = 2 WHERE "id" = 'o1'`;
+    expect(await executeAnchorReleaseCas(db, { orderId: 'o1', expectedHoldReason: 'anchor_low_confidence:soft_band', expectedInputVersion: 0, expectedDeliveryFenceVersion: 0 })).toBe(0);
+    expect(await statusOf()).toBe('needs_human_qa');
   });
 
   // ── (Unit A / Codex round-6) the REAL send-time CAS (casClaimSendSlot) — not a replicated SELECT EXISTS ────────

@@ -346,6 +346,27 @@ describe('ExceptionCase autonomous processor', () => {
     expect(db.currentBudget()).toBeNull(); // window check fails before any consume — no budget row created
   });
 
+  it('(Codex round-4 MINOR 7) a payload whose bytes no longer match the enqueued payloadHash → refund, ZERO replay', async () => {
+    // The send_ambiguous replay is a NAMED EXCEPTION to the fresh producing-snapshot gate: it is a
+    // sanctioned CONTINUATION of the already-authorized provider attempt (the Outbox row exists only
+    // because a delivery gate passed at enqueue), allowed solely because it replays the EXACT
+    // captured payload under the EXACT idempotency key inside the provider dedup window. The
+    // payloadHash integrity check is what makes "exact" enforceable — a row whose payload bytes
+    // drifted is NOT that attempt any more and must never reach the provider again.
+    const state = exceptionCase();
+    const db = fakePrisma(state, outbox({
+      providerMessageId: null,
+      payloadHash: 'not-the-hash-of-the-stored-payload',
+    }));
+    const replayEmail = vi.fn();
+
+    await expect(processExceptionCase(db.prisma, state, deps({ replayEmail })))
+      .resolves.toBe('refund_pending');
+
+    expect(replayEmail).not.toHaveBeenCalled();
+    expect(db.currentCase().status).toBe('refund_pending');
+  });
+
   it('never blind-resends after the idempotency window and moves to refund', async () => {
     const state = exceptionCase();
     const db = fakePrisma(state, outbox({

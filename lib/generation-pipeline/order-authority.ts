@@ -166,13 +166,21 @@ export async function executeReadinessShipCas(
 /**
  * THE anchor-release (RELEASE) CAS (flag-OFF path). Flips needs_human_qa → ready ONLY IF the row is STILL held at
  * exactly the authorized anchor marker, with no payment fence and NO active strong Human-QA case (the skip_weaker
- * guard). The exact-marker match is the bind-equivalent — any competing hold that landed changed the marker (or set
- * manualReviewRequired / opened a strong case) → 0 rows. Bumps the fence so the release participates in the monotonic
- * sequence. Returns rows updated: 1 = released; 0 = a stronger hold is active or the marker moved.
+ * guard), AND (Codex round-4 MAJOR 5) still at the exact `inputVersion` + `deliveryFenceVersion` the in-tx release
+ * evaluation re-proved the producing-snapshot binding and captured the email payload under — every delivery-input
+ * writer bumps `inputVersion` through the barrier and every hold write bumps the fence, so a mutation between that
+ * evaluation and this write matches 0 rows. The exact-marker match remains the authorization bind. Bumps the fence
+ * so the release participates in the monotonic sequence. Returns rows updated: 1 = released; 0 = a stronger hold is
+ * active, the marker moved, or the evaluated snapshot went stale.
  */
 export async function executeAnchorReleaseCas(
   db: Db,
-  p: { orderId: string; expectedHoldReason: string },
+  p: {
+    orderId: string;
+    expectedHoldReason: string;
+    expectedInputVersion: number;
+    expectedDeliveryFenceVersion: number;
+  },
 ): Promise<number> {
   return db.$executeRaw`
     UPDATE "Order"
@@ -180,6 +188,8 @@ export async function executeAnchorReleaseCas(
      WHERE "id" = ${p.orderId}
        AND "status" = 'needs_human_qa'
        AND "deliveryHoldReason" = ${p.expectedHoldReason}
+       AND "inputVersion" = ${p.expectedInputVersion}
+       AND "deliveryFenceVersion" = ${p.expectedDeliveryFenceVersion}
        AND "manualReviewRequired" = false
        AND NOT EXISTS (
          SELECT 1 FROM "HumanQaReviewCase" c

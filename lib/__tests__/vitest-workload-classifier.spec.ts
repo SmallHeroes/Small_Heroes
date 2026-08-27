@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(340);
+    expect(partition.inventory).toHaveLength(342);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(320);
+    expect(partition.ordinary).toHaveLength(322);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -163,7 +163,13 @@ describe('Vitest workload classifier', () => {
       'lib/generation-pipeline/__tests__/pipeline-cache-store.spec.ts',
     );
     expect(partition.ordinary).toContain(
+      'lib/generation-pipeline/__tests__/pipeline-cache-store.pg.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
       'lib/__tests__/replicate-image-route-boundary.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/__tests__/package-delivery-origin-matrix.spec.ts',
     );
   });
 

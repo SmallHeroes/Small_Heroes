@@ -5,7 +5,7 @@ import { resolveImageModelMode, resolveReplicateImageModel } from '../../../../l
 import { withDeliveryInputMutation } from '../../../../lib/generation-pipeline/readiness-manifest';
 import {
   OrderVisualPackageAuthorityError,
-  requireOrderVisualPackageAuthority,
+  requireProducingSnapshotBinding,
 } from '../../../../lib/generation-pipeline/order-visual-package-authority';
 
 interface DebugImageRequest {
@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     const order = await prisma.order.findUnique({
       where: { id: body.orderId },
       include: {
+        generationJob: { select: { pipelineCache: true } },
         book: {
           include: {
             pages: {
@@ -52,11 +53,20 @@ export async function POST(req: NextRequest) {
 
     // A package-backed Order's pages may only be produced through the qualified provider seam
     // (chunk runner / single-page regen), which binds the Order-frozen package, contract and Boards.
-    // This debug route bypasses all of that, so it runs the FULL authority validation and proceeds
-    // only for a genuine legacy Order: a package-backed Order, a malformed/aliased accepted
-    // reference, AND a legacy Order carrying package authority (origin mix) are all refused.
+    // This debug route bypasses all of that, so it proves the FULL producing-snapshot provenance
+    // (Codex round-4 MAJOR 6: the Order shape alone is not enough — a legacy-looking Order whose
+    // producing pipeline snapshot carries package authority, a contract stamp mismatch, or an
+    // ambiguous stamp/contract pair must all refuse) and proceeds only for a genuinely legacy Order:
+    // a package-backed Order (even fully bound), a malformed/aliased accepted reference, a legacy
+    // Order carrying package authority, and every A→legacy/A→B/missing/ambiguous producing mix are
+    // refused BEFORE any provider call and before any persistence.
     try {
-      if (requireOrderVisualPackageAuthority(order) !== null) {
+      if (
+        requireProducingSnapshotBinding({
+          order,
+          pipelineCache: order.generationJob?.pipelineCache ?? null,
+        }) !== null
+      ) {
         return NextResponse.json(
           { error: 'package-backed Order pages cannot be mutated through the debug image route' },
           { status: 409 },
@@ -67,7 +77,7 @@ export async function POST(req: NextRequest) {
         throw authorityError;
       }
       return NextResponse.json(
-        { error: 'Order Visual Package authority is invalid — debug image route refused' },
+        { error: 'Order producing-snapshot provenance is invalid — debug image route refused' },
         { status: 409 },
       );
     }

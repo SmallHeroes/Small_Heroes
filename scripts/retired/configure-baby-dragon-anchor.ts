@@ -5,7 +5,7 @@ import path from 'path';
 loadEnv({ path: '.env.local' });
 loadEnv();
 
-import './shims/register-server-only.cjs';
+import '../shims/register-server-only.cjs';
 
 async function upsertEnvVar(envPath: string, key: string, value: string): Promise<void> {
   let text = '';

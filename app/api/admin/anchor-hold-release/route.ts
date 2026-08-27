@@ -101,14 +101,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // Producing-provenance guard, flag-INDEPENDENT: break-glass anchor release must prove the SAME total
   // invariant as every other delivery consumer — the fresh Order authority must BE the authority the
   // producing pipeline snapshot rendered under (package↔package binding of cache authority, contract stamp
-  // and embedded package revision; legacy only when every producing side is genuinely legacy). On
-  // readiness-ON the commit re-evaluates the same predicate in-tx; this guard is what closes the
-  // readiness-OFF direct-send branch below, where no other provenance check would run.
+  // and embedded package revision; legacy only when every producing side is genuinely legacy). This pre-tx
+  // pass is the CHEAP early refusal (and captures the caller-origin claim for the readiness commit); the
+  // AUTHORITATIVE re-proof runs INSIDE the release transaction below (Codex round-4 MAJOR 5) — a
+  // delivery-input mutation between this evaluation and the release must hold, not ship a stale payload.
+  let callerVisualPackageClaim: boolean;
   try {
     const binding = requireProducingSnapshotBinding({
       order,
       pipelineCache: order.generationJob?.pipelineCache ?? null,
     });
+    callerVisualPackageClaim = binding !== null;
     if (binding !== null && !order.book.readUrl?.trim()) {
       // Package-backed payload binding: the direct send may only carry the canonical
       // snapshot readUrl — a constructed fallback URL is ambiguous provenance here.
@@ -150,8 +153,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // twice), the OutboxReconciliationError → 409 handling, and the Manifest staleness re-eval.
   const flagOn = isReadinessManifestEnabled();
 
+  interface ReleasedEmailPayload {
+    customerEmail: string;
+    customerName: string | null;
+    childName: string;
+    readUrl: string;
+    coverImageUrl: string | null;
+    audioUrl: string | null;
+    pdfUrl: string | null;
+  }
   type ReleaseOutcome =
-    | { ok: true }
+    | { ok: true; email: ReleasedEmailPayload | null }
     | { ok: false; alreadyReleased: true }
     | { ok: false; alreadyReleased?: false; status: number; error: string };
   const outcome = await prisma.$transaction(async (tx): Promise<ReleaseOutcome> => {
@@ -187,14 +199,89 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // Authorized. Do NOT flip status or close the case here — commitBaseBookReadiness (below, out of this tx) OWNS
       // the transition + Outbox enqueue + staleness re-eval. The lock releases on commit; the guard has already
       // rejected any stronger PRE-EXISTING hold, so a stale re-park (not a hole) is the only thing readiness can do.
-      return { ok: true };
+      return { ok: true, email: null };
     }
-    // flag-OFF: authorize AND release atomically — then direct-send. (Codex round-5 Unit 4) The release CAS lives in
-    // the shared authority funnel (order-authority.ts): status+marker + no payment fence + NOT EXISTS an open
-    // safety/contract_world/payment_integrity case, all in one atomic write that also bumps the fence. Closes the
-    // `skip_weaker` combination where a normal path rewrote a safety_hold marker back to anchor while the safety
-    // CASE stayed active — the marker matches but the active strong case blocks the release.
-    const released = await executeAnchorReleaseCas(tx, { orderId: order.id, expectedHoldReason: holdReason });
+    // flag-OFF: authorize AND release atomically — then direct-send. (Codex round-4 MAJOR 5) Authority + payload are
+    // re-proved from ONE fresh snapshot read UNDER the release lock — never the pre-lock route read: the Order row
+    // is FOR-UPDATE-locked above, and every delivery-input writer of the job cache / Book payload bumps
+    // `Order.inputVersion` inside the barrier (so it either committed before this read or blocks on the lock). The
+    // release CAS binds the exact inputVersion + fence this snapshot carried, and the email payload is captured from
+    // the same snapshot — the CAS and the sent payload cannot disagree about which state was released.
+    const releaseTruth = await tx.order.findUnique({
+      where: { id: order.id },
+      select: {
+        inputVersion: true,
+        deliveryFenceVersion: true,
+        selectionFilename: true,
+        storySourceHash: true,
+        illustrationStyle: true,
+        visualPackageAuthority: true,
+        visualContractHash: true,
+        customerEmail: true,
+        customerName: true,
+        childName: true,
+        paymentId: true,
+        paymeTransactionId: true,
+        stripeSessionId: true,
+        generationJob: { select: { pipelineCache: true } },
+        book: {
+          select: {
+            readUrl: true,
+            coverImageUrl: true,
+            pdfUrl: true,
+            audioAsset: { select: { url: true } },
+            pages: {
+              where: { audioUrl: { not: null } },
+              orderBy: { pageNumber: 'asc' },
+              take: 1,
+              select: { audioUrl: true },
+            },
+          },
+        },
+      },
+    });
+    if (!releaseTruth?.book) {
+      return { ok: false, status: 409, error: 'No rendered book to release (under release lock)' };
+    }
+    let lockedPackageBacked: boolean;
+    try {
+      lockedPackageBacked =
+        requireProducingSnapshotBinding({
+          order: releaseTruth,
+          pipelineCache: releaseTruth.generationJob?.pipelineCache ?? null,
+        }) !== null;
+    } catch (authorityError) {
+      if (!(authorityError instanceof OrderVisualPackageAuthorityError)) throw authorityError;
+      log.warn('Anchor release refused — producing-snapshot binding failed under release lock', {
+        orderId,
+        reason: authorityError.message,
+      });
+      return {
+        ok: false,
+        status: 409,
+        error: 'Order producing-snapshot binding invalid under release lock — not released',
+      };
+    }
+    if (lockedPackageBacked && !releaseTruth.book.readUrl?.trim()) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'package-backed Order has no canonical readUrl — not releasable via anchor endpoint',
+      };
+    }
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
+    const accessKey = releaseTruth.paymentId ?? releaseTruth.paymeTransactionId ?? releaseTruth.stripeSessionId;
+    const lockedReadUrl =
+      releaseTruth.book.readUrl ??
+      (accessKey
+        ? `${appUrl}${ROUTES.ready}?orderId=${order.id}&accessKey=${encodeURIComponent(accessKey)}`
+        : `${appUrl}${ROUTES.ready}?orderId=${order.id}`);
+    const released = await executeAnchorReleaseCas(tx, {
+      orderId: order.id,
+      expectedHoldReason: holdReason,
+      expectedInputVersion: releaseTruth.inputVersion,
+      expectedDeliveryFenceVersion: releaseTruth.deliveryFenceVersion,
+    });
     if (released === 0) return { ok: false, status: 409, error: 'Release lost a concurrency race or a stronger hold is active' };
     // Close the active ANCHOR case + suppress its unsent operator notification in the SAME release tx.
     await resolveHumanQaCaseOnReleaseInTx(tx, {
@@ -203,7 +290,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       kinds: ['anchor'],
       actor: 'admin:anchor_release',
     });
-    return { ok: true };
+    return {
+      ok: true,
+      email: {
+        customerEmail: releaseTruth.customerEmail,
+        customerName: releaseTruth.customerName,
+        childName: releaseTruth.childName,
+        readUrl: lockedReadUrl,
+        coverImageUrl: releaseTruth.book.coverImageUrl,
+        audioUrl: releaseTruth.book.pages[0]?.audioUrl ?? releaseTruth.book.audioAsset?.url ?? null,
+        pdfUrl: releaseTruth.book.pdfUrl,
+      },
+    };
   });
 
   if (!outcome.ok) {
@@ -232,6 +330,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         anchorOrderStatus: 'ready',
         anchorReason: null,
         requireHold: { deliveryHoldReason: holdReason },
+        // (Codex round-4 MAJOR 4) Caller-origin leg: this route's own fresh read proved the binding
+        // above; if the commit's in-tx read then finds a legacy row while we saw package, the frozen
+        // truth was re-pointed mid-flight → the commit hard-holds instead of shipping.
+        callerVisualPackageClaim,
       });
       // Reconcile the anchor case with the committed outcome (resolved once `ready`; left open if it re-parked stale).
       await syncHumanQaHoldCasePostCommit(prisma, order.id);
@@ -270,34 +372,31 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // flag-OFF: the authorization tx already flipped the Order to `ready` + closed the anchor case. Reconcile
   // (idempotent) then DIRECT-send the withheld book-ready email exactly once — the status+marker CAS above guarantees
   // only ONE caller reaches here (a concurrent second caller matches 0 rows → 409; a sequential second call sees
-  // `ready` at the pre-read → alreadyReleased → no re-send).
+  // `ready` at the pre-read → alreadyReleased → no re-send). (Codex round-4 MAJOR 5) The payload is the one captured
+  // from the IN-TX release snapshot — the exact inputVersion/fence state the release CAS bound — never the stale
+  // pre-lock route read.
   await syncHumanQaHoldCasePostCommit(prisma, order.id);
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
-  const accessKey = order.paymentId ?? order.paymeTransactionId ?? order.stripeSessionId;
-  const readUrl =
-    order.book.readUrl ??
-    (accessKey
-      ? `${appUrl}${ROUTES.ready}?orderId=${order.id}&accessKey=${encodeURIComponent(accessKey)}`
-      : `${appUrl}${ROUTES.ready}?orderId=${order.id}`);
-
+  const email = outcome.email;
   let emailSent = false;
-  try {
-    await sendBookReadyEmail({
-      to: order.customerEmail,
-      customerName: order.customerName ?? order.childName,
-      childName: order.childName,
-      readUrl,
-      ...(listenUrlFromReadUrl(readUrl, order.id) ? { listenUrl: listenUrlFromReadUrl(readUrl, order.id) } : {}),
-      ...(order.book.coverImageUrl ? { coverImageUrl: order.book.coverImageUrl } : {}),
-      audioUrl: order.book.pages[0]?.audioUrl ?? order.book.audioAsset?.url ?? undefined,
-      pdfUrl: order.book.pdfUrl ?? undefined,
-    });
-    emailSent = true;
-    log.info('Delivery hold released + book-ready email sent', { orderId, was: order.deliveryHoldReason });
-  } catch (e) {
-    // Non-fatal: the order is already released/viewable; the email can be re-sent manually.
-    log.error('Release email failed (order already released)', e, { orderId });
+  if (email) {
+    try {
+      await sendBookReadyEmail({
+        to: email.customerEmail,
+        customerName: email.customerName ?? email.childName,
+        childName: email.childName,
+        readUrl: email.readUrl,
+        ...(listenUrlFromReadUrl(email.readUrl, order.id) ? { listenUrl: listenUrlFromReadUrl(email.readUrl, order.id) } : {}),
+        ...(email.coverImageUrl ? { coverImageUrl: email.coverImageUrl } : {}),
+        audioUrl: email.audioUrl ?? undefined,
+        pdfUrl: email.pdfUrl ?? undefined,
+      });
+      emailSent = true;
+      log.info('Delivery hold released + book-ready email sent', { orderId, was: order.deliveryHoldReason });
+    } catch (e) {
+      // Non-fatal: the order is already released/viewable; the email can be re-sent manually.
+      log.error('Release email failed (order already released)', e, { orderId });
+    }
   }
 
   return NextResponse.json({ released: true, orderId, status: 'ready', emailSent });

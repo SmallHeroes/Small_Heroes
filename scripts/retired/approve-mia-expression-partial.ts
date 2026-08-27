@@ -7,7 +7,7 @@ import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local' });
 loadEnv();
 
-import './shims/register-server-only.cjs';
+import '../shims/register-server-only.cjs';
 
 const ORDER_ID = '345ecd64-c9c2-4e0a-8f9d-a35de8d09883';
 const APPROVE_KINDS = ['neutral', 'happy', 'worried', 'action'] as const;

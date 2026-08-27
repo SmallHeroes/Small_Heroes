@@ -30,6 +30,7 @@ import { parsePipelineCache } from '../lib/generation-pipeline/helpers';
 import { assertCompanionSheetRenderable } from '../lib/style01-gptimage';
 import { resolveCompanionForOrder } from '../lib/generation-pipeline/anchor-registry';
 import { getWizardMeta } from '../lib/orderMeta';
+import { withoutBarrierOwnedPipelineCacheKeys } from '../lib/generation-pipeline/pipeline-cache-store';
 import {
   buildRawVsNormalizedContactSheet,
   isBookColorNormalizeEnabled,
@@ -240,13 +241,15 @@ async function main() {
         status: 'pending',
         currentStage: 'pending',
         triggerReason: 'bunny-smoke-render',
-        pipelineCache: {
+        // Creation seeding cannot smuggle barrier-owned keys (producing provenance / Board
+        // bindings): only a barrier mutation may ever write them (writer census, MAJOR 2/3).
+        pipelineCache: withoutBarrierOwnedPipelineCacheKeys({
           storyFilePath: bankFile,
           storyBankVersion: 'v3',
           selectionFilename: path.basename(bankFile),
           directionForV3: 'bedtime',
           challengeCategory: wizardMeta.challengeCategory ?? 'MEDICAL_PROCEDURE',
-        } as Prisma.InputJsonValue,
+        } as never),
       },
     });
     console.log('[smoke] generation job created (fresh cache, v3 bunny bank file)');
