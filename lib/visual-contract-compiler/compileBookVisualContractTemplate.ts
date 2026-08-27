@@ -274,8 +274,14 @@ const AUTHORING_REASONING_EFFORT =
 // beat ("closed action catalog gap requires a same-page presentation
 // requirement classification") — leaving such beats no legal disposition and
 // making every honest draft terminal.
+// v21: state the transition ARRIVAL scheme the sequence validator enforces
+// (analyzeTransitionSequence): a page whose zone differs from the previous
+// page must itself carry after_transition/threshold, and before_transition/
+// steady pages must stay in the previous page's zone. v20 described only
+// per-kind render zones, so a self-consistent departure-scheme draft failed
+// six transition-pair checks and stagnated through the BookSurface repairs.
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v20' as const;
+  'vc-template-prompt/v21' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
   'vc-template-user-prompt/v17' as const;
 /** Normal bounded safety net after the initial authoring call. */
@@ -1554,11 +1560,12 @@ export function buildTemplateCompileSystemPrompt(): string {
     '- Child wardrobe is book-locked. Set two nullable page override fields only for an explicit same-page Story Source clothing change; otherwise null/null; never infer.',
     '',
     'Topology: describe ONE location/zone graph in zones[] (each zone has a parent locationId). Stable-board area',
-    'zoneProjection uses exact zone ids; one_to_one carries exactly one and one_to_many carries at least two. The',
-    'compiler projects area nodes into those page zones; never assume an area id is a zone id. Every per-page',
-    'zoneId and every transition fromZoneId/toZoneId MUST be an EXACT id from that zones[] list. A zone change',
-    'between consecutive pages must be carried by a transition; before_transition renders in the ORIGIN zone,',
-    'after_transition in the DESTINATION, threshold at either endpoint. Do not restate zones with new ids.',
+    'zoneProjection uses exact zone ids; one_to_one carries one, one_to_many carries 2+. The compiler projects',
+    'area nodes into those zones; an area id is never a zone id. Every per-page zoneId and transition',
+    'fromZoneId/toZoneId MUST be an EXACT zones[] id. A page in a NEW zone MUST itself carry the arrival:',
+    "after_transition from the previous page's zone into its own, or threshold (own zone = an endpoint);",
+    "before_transition/steady declare NO arrival, so their page zone MUST equal the previous page's zone.",
+    'Do not restate zones with new ids.',
     '',
     'You MUST NOT output: a human\'s gender, pagesPresent, textEvidence, or aliases; page castIds or characterPresence;',
     'or any laterality (injectionArm/bandageArm/freeHand). Those are supplied by the deterministic extractor. Do not',
