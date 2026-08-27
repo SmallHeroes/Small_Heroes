@@ -16,7 +16,7 @@ import { resolveActiveRecoveryCaseInTx } from '@/lib/generation-chunked/exceptio
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import {
   OrderVisualPackageAuthorityError,
-  requireOrderVisualPackageAuthority,
+  requireProducingSnapshotBinding,
 } from './order-visual-package-authority';
 
 const log = createLogger({ subsystem: 'package-delivery' });
@@ -170,50 +170,110 @@ export async function finalizePackageDelivery(
       storySourceHash: true,
       illustrationStyle: true,
       visualPackageAuthority: true,
+      visualContractHash: true,
+      coverImageUrl: true,
+      generationJob: { select: { pipelineCache: true } },
+      book: {
+        select: {
+          readUrl: true,
+          coverImageUrl: true,
+          pdfUrl: true,
+          pages: {
+            orderBy: { pageNumber: 'asc' as const },
+            select: { audioUrl: true },
+          },
+        },
+      },
     },
   });
-  // Durable package-authority gate — readiness-INDEPENDENT, like the safety gate above, and evaluated on the
-  // SAME FRESH row the ship CAS binds (never the caller's stale `args.order` snapshot): an accepted-revision
-  // Order whose frozen Visual Package authority is missing/mismatched — or a legacy Order carrying package
-  // authority (origin mix) — must never reach `ready` or a customer email on the readiness-OFF legacy path.
-  // Post-read races are closed by the CAS's inputVersion binding: every writer of these delivery-input fields
-  // goes through withDeliveryInputMutation (writer-coverage guard) and bumps inputVersion, so a mutation after
-  // this read makes the ship CAS match zero rows. The readiness-ON branch re-proves the same predicate inside
-  // its own TOCTOU-fingerprinted transaction and produces the blocked-manifest evidence row instead.
+  // Durable package-authority + producing-snapshot gate — readiness-INDEPENDENT, like the safety gate above,
+  // and evaluated on the SAME FRESH row the ship CAS binds (never the caller's stale `args.order` snapshot).
+  // Beyond the fresh row's own validity, a package-backed Order must prove the artifacts being shipped were
+  // PRODUCED under this exact authority: the freeze-written pipeline snapshot's authority and frozen contract
+  // (whose canonical hash is the Order's `visualContractHash` stamp, and whose bytes embed the producing
+  // package revision) must all bind to the fresh authority — a fresh self-consistent Package B never
+  // authorizes a payload rendered under Package A. The caller-supplied readUrl/cover/pdf/audio payload must
+  // also equal the fresh Book row, so the email can only carry that same snapshot's artifacts. Post-read races
+  // are closed by the CAS's inputVersion binding: every writer of these delivery-input fields goes through
+  // withDeliveryInputMutation (writer-coverage guard) and bumps inputVersion, so a mutation after this read
+  // makes the ship CAS match zero rows. The readiness-ON branch re-proves the same predicates inside its own
+  // TOCTOU-fingerprinted transaction and produces the blocked-manifest evidence row instead.
+  const parkAuthorityHold = async (
+    holdMarker: string,
+    error: unknown,
+  ): Promise<PackageDeliveryResult> => {
+    await prisma.$transaction(async (tx) => {
+      await writeOrderHoldFenced(tx, {
+        orderId: args.order.id,
+        ...(cur ? { inputVersion: cur.inputVersion } : {}),
+        newStatus: 'needs_human_qa',
+        newHoldReason: holdMarker,
+        setPackageDone: true,
+      });
+      await tx.generationJob.update({
+        where: { orderId: args.order.id },
+        data: { status: 'done', currentStage: 'done', completedAt, packaged: true },
+      });
+      // Mirror the safety park: never let a stale recoverable case auto-refund
+      // or auto-redrive a book that must stay parked for human QA.
+      await resolveActiveRecoveryCaseInTx(tx, {
+        orderId: args.order.id,
+        kinds: ['infra_transient', 'integrity_blocked'],
+        reason: `authority_parked:${holdMarker.split(':').pop()}`,
+        now: completedAt,
+      });
+    });
+    await syncHumanQaHoldCasePostCommit(prisma, args.order.id);
+    log.error(
+      'Book-ready delivery withheld — fresh producing-snapshot binding failed (readiness-independent)',
+      error,
+      { orderId: args.order.id, holdMarker },
+    );
+    return { mode: 'authority_hold', deliveryHeld: true, manifest: null };
+  };
   if (cur) {
+    let freshPackageBacked = false;
     try {
-      requireOrderVisualPackageAuthority(cur);
+      freshPackageBacked =
+        requireProducingSnapshotBinding({
+          order: cur,
+          pipelineCache: cur.generationJob?.pipelineCache ?? null,
+        }) !== null;
     } catch (error) {
       if (!(error instanceof OrderVisualPackageAuthorityError)) throw error;
-      await prisma.$transaction(async (tx) => {
-        await writeOrderHoldFenced(tx, {
-          orderId: args.order.id,
-          inputVersion: cur.inputVersion,
-          newStatus: 'needs_human_qa',
-          newHoldReason:
-            'contract_world_hold:visual_package_authority_invalid',
-          setPackageDone: true,
-        });
-        await tx.generationJob.update({
-          where: { orderId: args.order.id },
-          data: { status: 'done', currentStage: 'done', completedAt, packaged: true },
-        });
-        // Mirror the safety park: never let a stale recoverable case auto-refund
-        // or auto-redrive a book that must stay parked for human QA.
-        await resolveActiveRecoveryCaseInTx(tx, {
-          orderId: args.order.id,
-          kinds: ['infra_transient', 'integrity_blocked'],
-          reason: 'authority_parked:visual_package_authority_invalid',
-          now: completedAt,
-        });
-      });
-      await syncHumanQaHoldCasePostCommit(prisma, args.order.id);
-      log.error(
-        'Book-ready delivery withheld — fresh Order Visual Package authority invalid (readiness-independent)',
+      return parkAuthorityHold(
+        'contract_world_hold:visual_package_authority_invalid',
         error,
-        { orderId: args.order.id },
       );
-      return { mode: 'authority_hold', deliveryHeld: true, manifest: null };
+    }
+    if (freshPackageBacked) {
+      // Payload ↔ fresh-snapshot binding: the email may only carry the exact
+      // artifacts of the row the gate just validated. The cover keeps the
+      // caller's book-then-order fallback; every field is byte-compared.
+      const freshFirstAudio =
+        cur.book?.pages.find((page) => page.audioUrl?.trim())?.audioUrl ?? null;
+      const expectedCover = cur.book?.coverImageUrl ?? cur.coverImageUrl ?? null;
+      const payloadMismatches: string[] = [];
+      if (args.readUrl !== (cur.book?.readUrl ?? null)) {
+        payloadMismatches.push('readUrl');
+      }
+      if ((args.coverImageUrl ?? null) !== expectedCover) {
+        payloadMismatches.push('coverImageUrl');
+      }
+      if ((args.pdfUrl ?? null) !== (cur.book?.pdfUrl ?? null)) {
+        payloadMismatches.push('pdfUrl');
+      }
+      if ((args.firstAudioUrl ?? null) !== freshFirstAudio) {
+        payloadMismatches.push('firstAudioUrl');
+      }
+      if (payloadMismatches.length > 0) {
+        return parkAuthorityHold(
+          'contract_world_hold:delivery_snapshot_binding_invalid',
+          new Error(
+            `delivery payload diverges from the fresh Book snapshot: ${payloadMismatches.join(', ')}`,
+          ),
+        );
+      }
     }
   }
   let shipped = false;

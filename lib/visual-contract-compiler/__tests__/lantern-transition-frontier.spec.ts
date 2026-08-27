@@ -17,11 +17,13 @@ import { storySourceSnapshotToTemplateInput } from '@/lib/visual-package/storySo
  * The EXACT captured transition frontier from paid lantern authoring attempt 2
  * (run root outputs/r1d-lantern-fresh-readiness-20260827T000426Z, receipt
  * 4a8fce8d…, terminal draft_validation_repair_stagnated). The fixtures are the
- * verbatim provider bytes: the initial draft and the byte-identical
- * BookSurface repair the model returned on BOTH paid repair calls. The
- * corrective fixture differs from the captured repair ONLY in the six flagged
- * pages' transitions, rewritten to the validator's arrival scheme — the exact
- * rewrite the v22/v14 prompt contract now instructs.
+ * exact captured STRUCTURED PAYLOADS (parsed values re-serialized from the
+ * replay evidence — canonical payload digests match the run; raw provider
+ * file bytes do not survive re-serialization): the initial draft and the
+ * payload-identical BookSurface repair the model returned on BOTH paid repair
+ * calls. The corrective fixture differs from the captured repair ONLY in the
+ * six flagged pages' transitions, rewritten to the validator's arrival
+ * scheme — the exact rewrite the v22/v14 prompt contract now instructs.
  *
  * This spec is the repair-ROUTE convergence proof Codex QA required: the same
  * frontier that stagnated 6→6→6 through the real book_surface_patch route

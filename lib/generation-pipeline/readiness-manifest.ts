@@ -52,7 +52,7 @@ import {
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import {
   OrderVisualPackageAuthorityError,
-  requireOrderVisualPackageAuthority,
+  requireProducingSnapshotBinding,
 } from './order-visual-package-authority';
 
 const log = createLogger({ subsystem: 'readiness-manifest' });
@@ -327,6 +327,9 @@ export interface OrderTruth {
   /** (WS0b) Active frozen visual-contract hash (null = none). Folded into the TOCTOU fingerprint + threaded to
    *  the quality gate so a row bound to a superseded contract is re-QA'd. */
   visualContractHash: string | null;
+  /** Producing pipeline snapshot (GenerationJob.pipelineCache). The delivery gate binds a package-backed
+   *  Order's fresh authority to the snapshot production actually ran under; null for orders without a job. */
+  producingPipelineCache?: Prisma.JsonValue | null;
 }
 export interface BookData {
   coverImageUrl: string | null;
@@ -612,7 +615,18 @@ function fingerprintOf(f: {
   customerEmail: string; customerName: string | null; childName: string; readUrl: string | null; pdfUrl: string | null; firstAudioUrl: string | null;
   cover: string | null; pages: Array<[number, string, string | null]>;
   quality: string; visualContractHash: string | null;
+  producingPipelineCache?: Prisma.JsonValue | null;
 }): string {
+  // Producing-snapshot binding inputs join the fingerprint: the delivery gate binds the fresh authority to the
+  // freeze-written cache authority and contract bytes, so a cache mutation between eval and commit must drift
+  // this hash (TOCTOU abort + fresh re-eval). Only the two bound sub-values participate — hashing the whole
+  // cache would turn unrelated cache writes into churn. For legacy orders both digest to constants.
+  const producingCache =
+    f.producingPipelineCache &&
+    typeof f.producingPipelineCache === 'object' &&
+    !Array.isArray(f.producingPipelineCache)
+      ? (f.producingPipelineCache as Record<string, unknown>)
+      : null;
   return createHash('sha256').update(JSON.stringify({
     // (delivery fence — Codex round-4 P0) deliveryFenceVersion joins the fingerprint: a hold write that bumps it
     // between the out-of-tx eval and the in-tx commit drifts this hash → early TOCTOU abort (before the manifest),
@@ -627,6 +641,8 @@ function fingerprintOf(f: {
       f.fulfillmentVersion,
       f.inputVersion,
       f.deliveryFenceVersion,
+      canonicalJsonDigest(producingCache?.visualPackageAuthority ?? null),
+      canonicalJsonDigest(producingCache?.visualContract ?? null),
     ],
     payload: [f.customerEmail, f.customerName, f.childName, f.readUrl, f.pdfUrl, f.firstAudioUrl],
     cover: f.cover, pages: f.pages,
@@ -642,6 +658,7 @@ function fingerprintOf(f: {
 const COMMIT_SELECT = {
   id: true, fulfillmentVersion: true, inputVersion: true, deliveryFenceVersion: true, expectedPageCount: true, storySourceHash: true, selectionFilename: true, frozenProductVersion: true, visualPackageAuthority: true, illustrationStyle: true,
   customerEmail: true, customerName: true, childName: true, visualContractHash: true,
+  generationJob: { select: { pipelineCache: true } },
   book: { select: { coverImageUrl: true, readUrl: true, pdfUrl: true, pages: { orderBy: { pageNumber: 'asc' as const }, select: { pageNumber: true, text: true, audioUrl: true, imageAsset: { select: { url: true, presentationUrl: true } } } } } },
 } as const;
 
@@ -651,7 +668,7 @@ async function loadCommitInputs(db: PrismaClient | Tx, orderId: string): Promise
   if (!o || !o.book) return null;
   const pages = o.book.pages.map((p) => ({ pageNumber: p.pageNumber, imageUrl: p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null, text: p.text }));
   const firstAudioUrl = o.book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
-  const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, inputVersion: o.inputVersion, deliveryFenceVersion: o.deliveryFenceVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, visualPackageAuthority: o.visualPackageAuthority, illustrationStyle: o.illustrationStyle, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName, visualContractHash: o.visualContractHash };
+  const order: OrderTruth = { id: o.id, fulfillmentVersion: o.fulfillmentVersion, inputVersion: o.inputVersion, deliveryFenceVersion: o.deliveryFenceVersion, expectedPageCount: o.expectedPageCount, storySourceHash: o.storySourceHash, selectionFilename: o.selectionFilename, frozenProductVersion: o.frozenProductVersion, visualPackageAuthority: o.visualPackageAuthority, illustrationStyle: o.illustrationStyle, customerEmail: o.customerEmail, customerName: o.customerName, childName: o.childName, visualContractHash: o.visualContractHash, producingPipelineCache: o.generationJob?.pipelineCache ?? null };
   const book: BookData = { coverImageUrl: o.book.coverImageUrl, readUrl: o.book.readUrl, pdfUrl: o.book.pdfUrl, firstAudioUrl, pages };
   const quality = await loadQualityEvidence(db, orderId);
   const fingerprint = fingerprintOf({
@@ -723,19 +740,33 @@ interface ReadinessDecision {
  * Delivery is never allowed to outlive a malformed package binding. This gate
  * runs before asset inspection and cannot be softened by QA_SOFT_DELIVER: an
  * accepted-revision Order must carry one exact, internally consistent package
- * authority; a genuine legacy Order must carry none.
+ * authority; a genuine legacy Order must carry none; and a package-backed
+ * Order's fresh authority must BE the producing snapshot's authority — the
+ * freeze-written cache authority and frozen contract (whose canonical hash is
+ * the Order's stamp and whose bytes embed the producing package revision)
+ * must all bind, so a fresh self-consistent Package B never authorizes a
+ * payload produced under Package A.
  */
 function orderVisualPackageAuthorityDecision(
   order: OrderTruth,
 ): ReadinessDecision | null {
   try {
-    requireOrderVisualPackageAuthority(order);
+    requireProducingSnapshotBinding({
+      order,
+      pipelineCache: order.producingPipelineCache ?? null,
+    });
     return null;
   } catch (error) {
     if (!(error instanceof OrderVisualPackageAuthorityError)) throw error;
     const authorityDigest = canonicalJsonDigest(
       order.visualPackageAuthority ?? null,
     );
+    const producingCache =
+      order.producingPipelineCache &&
+      typeof order.producingPipelineCache === 'object' &&
+      !Array.isArray(order.producingPipelineCache)
+        ? (order.producingPipelineCache as Record<string, unknown>)
+        : null;
     const reason = 'visual_package_authority_invalid';
     const evidence = {
       scope: BASE_BOOK_SCOPE,
@@ -743,6 +774,9 @@ function orderVisualPackageAuthorityDecision(
         status: 'blocked',
         reason,
         authorityDigest,
+        producingAuthorityDigest: canonicalJsonDigest(
+          producingCache?.visualPackageAuthority ?? null,
+        ),
         issues: [...error.reasons],
       },
     };
@@ -754,6 +788,10 @@ function orderVisualPackageAuthorityDecision(
           storySourceHash: order.storySourceHash,
           illustrationStyle: order.illustrationStyle,
           authorityDigest,
+          producingAuthorityDigest: canonicalJsonDigest(
+            producingCache?.visualPackageAuthority ?? null,
+          ),
+          visualContractHash: order.visualContractHash,
           inputVersion: order.inputVersion,
           deliveryFenceVersion: order.deliveryFenceVersion,
         }),

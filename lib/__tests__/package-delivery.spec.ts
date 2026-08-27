@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { finalizePackageDelivery, resolveSafetyDeliveryGate } from '@/lib/generation-pipeline/package-delivery';
+import { computeVisualContractHash } from '@/lib/visual-contract-compiler/contractHash';
+import type { BookVisualContract } from '@/lib/visual-contract-compiler/types';
 
 const order = {
   id: 'o1',
@@ -335,6 +337,125 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
         pdfUrl: null,
         firstAudioUrl: null,
       },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Producing-snapshot binding (Codex re-gate MAJOR): fresh self-consistent B must never
+  //    authorize artifacts produced under A ─────────────────────────────────────────────────
+  const packageAuthority = (revision: string) => ({
+    ...staleValidAuthority,
+    packagePath: `visual-packages/approved/revisions/${revision}.visual-package.json`,
+    packageRevisionDigest: revision,
+  });
+  const REV_A = 'a1'.repeat(32);
+  const REV_B = 'b2'.repeat(32);
+  const contractFor = (revision: string) =>
+    ({
+      schemaVersion: 'fixture-contract/v1',
+      approvedRuntimeAuthority: { packageRevisionDigest: revision },
+    }) as unknown as BookVisualContract;
+  const CONTRACT_A = contractFor(REV_A);
+  const CONTRACT_B = contractFor(REV_B);
+  const PAYLOAD_ARGS = {
+    deliveryGate: allowGate,
+    safetyGate: { held: false, reason: null },
+    readUrl: 'https://app/ready?orderId=o1',
+    pdfUrl: null,
+    firstAudioUrl: null,
+  };
+  /** A fully self-bound fresh row for authority `auth` produced under `contract` (stamp = its hash). */
+  function boundFreshRow(auth: Record<string, unknown>, contract: BookVisualContract, cacheAuth: Record<string, unknown> = auth) {
+    return {
+      selectionFilename: ACCEPTED_SELECTION,
+      storySourceHash: 'b'.repeat(64),
+      illustrationStyle: 'pencil_watercolor',
+      visualPackageAuthority: auth,
+      visualContractHash: computeVisualContractHash(contract),
+      coverImageUrl: null,
+      generationJob: {
+        pipelineCache: { visualPackageAuthority: cacheAuth, visualContract: contract },
+      },
+      book: { readUrl: 'https://app/ready?orderId=o1', coverImageUrl: null, pdfUrl: null, pages: [] },
+    };
+  }
+
+  it('A→B ADVERSARIAL: payload produced under Package A, fresh row self-consistent Package B → hold, zero ship, zero email', async () => {
+    // Fresh row IS internally valid under B; the producing snapshot (cache authority,
+    // contract bytes and stamp) all say A. Exactly Codex's reproduction.
+    const prisma = dbWithFreshRow({
+      ...boundFreshRow(packageAuthority(REV_B), CONTRACT_A, packageAuthority(REV_A)),
+    });
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order: { ...order, visualPackageAuthority: packageAuthority(REV_A) }, ...PAYLOAD_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true, manifest: null });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('stale/invalid producing snapshot + clean fresh row → hold (missing cache never ships)', async () => {
+    const row = boundFreshRow(packageAuthority(REV_B), CONTRACT_B);
+    const prisma = dbWithFreshRow({ ...row, generationJob: null });
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...PAYLOAD_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('contract stamp differing from the producing contract bytes → hold', async () => {
+    const row = boundFreshRow(packageAuthority(REV_B), CONTRACT_B);
+    const prisma = dbWithFreshRow({ ...row, visualContractHash: 'f'.repeat(64) });
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...PAYLOAD_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('producing contract embedding a different package revision → hold', async () => {
+    // Cache authority matches the fresh B, but the contract bytes were produced under A.
+    const row = boundFreshRow(packageAuthority(REV_B), CONTRACT_A);
+    const prisma = dbWithFreshRow(row);
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...PAYLOAD_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('caller payload diverging from the fresh Book snapshot (readUrl) → hold, zero ship, zero email', async () => {
+    const prisma = dbWithFreshRow(boundFreshRow(packageAuthority(REV_B), CONTRACT_B));
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...PAYLOAD_ARGS, readUrl: 'https://app/ready?orderId=SOMEONE-ELSE' },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('fully bound package-backed snapshot (authority=cache=contract=stamp=payload) → ships exactly once', async () => {
+    const prisma = dbWithFreshRow(boundFreshRow(packageAuthority(REV_B), CONTRACT_B));
+    const send = vi.fn(async () => ({}));
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...PAYLOAD_ARGS },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false });

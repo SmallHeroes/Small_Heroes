@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { computeVisualContractHash } from '@/lib/visual-contract-compiler/contractHash';
 import {
   commitBaseBookReadiness,
   casClaimSendSlot,
@@ -60,14 +61,17 @@ function validPackageAuthority(sourcePath: string, sourceRawDigest: string) {
 // must equal what the integrity gate's inspect computes (stubInspect hashes the same url), else the gate
 // blocks on a hash mismatch — exactly the anti-bypass we want, so tests seed matching hashes.
 const shaOf = (u: string | null | undefined) => createHash('sha256').update((u ?? '').trim()).digest('hex');
-type QRow = { artifactKey: string; assetSha256: string; verdict: string; evaluatorContractVersion: string; reason: string | null; regenCount: number };
+type QRow = { artifactKey: string; assetSha256: string; verdict: string; evaluatorContractVersion: string; reason: string | null; regenCount: number; contractHash: string | null };
 function passingQualityRows(orderRow: typeof orderRowFull): QRow[] {
+  // Evidence rows bind the contract they were validated under; for a package-bound order that is the
+  // Order's active stamp (else contract_stale → evidence_unknown blocks — exactly the anti-mix gate).
+  const contractHash = (orderRow as { visualContractHash?: string | null }).visualContractHash ?? null;
   const rows: QRow[] = [
-    { artifactKey: 'cover', assetSha256: shaOf(orderRow.book.coverImageUrl), verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, reason: null, regenCount: 0 },
+    { artifactKey: 'cover', assetSha256: shaOf(orderRow.book.coverImageUrl), verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, reason: null, regenCount: 0, contractHash },
   ];
   for (const p of orderRow.book.pages) {
     const delivered = p.imageAsset?.presentationUrl ?? p.imageAsset?.url ?? null;
-    rows.push({ artifactKey: `page:${p.pageNumber}`, assetSha256: shaOf(delivered), verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, reason: null, regenCount: 0 });
+    rows.push({ artifactKey: `page:${p.pageNumber}`, assetSha256: shaOf(delivered), verdict: 'passed', evaluatorContractVersion: QUALITY_EVALUATOR_CONTRACT_VERSION, reason: null, regenCount: 0, contractHash });
   }
   return rows;
 }
@@ -528,14 +532,27 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
       'story-pipeline/04_approved_story_sources/accepted/readiness_fixture/' +
       `revisions/${'a'.repeat(64)}/integrated.md`;
     const storySourceHash = 'b'.repeat(64);
+    const authority = validPackageAuthority(selectionFilename, storySourceHash);
+    const producingContract = {
+      schemaVersion: 'fixture-contract/v1',
+      approvedRuntimeAuthority: {
+        packageRevisionDigest: authority.packageRevisionDigest,
+      },
+    };
     const packageOrder = {
       ...orderRowFull,
       selectionFilename,
       storySourceHash,
-      visualPackageAuthority: validPackageAuthority(
-        selectionFilename,
-        storySourceHash,
+      visualPackageAuthority: authority,
+      visualContractHash: computeVisualContractHash(
+        producingContract as never,
       ),
+      generationJob: {
+        pipelineCache: {
+          visualPackageAuthority: authority,
+          visualContract: producingContract,
+        },
+      },
     };
     const tx = mockTx(packageOrder);
     const inspect = vi.fn(stubInspect);
@@ -553,6 +570,92 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     });
     expect(inspect).toHaveBeenCalledTimes(3);
     expect(tx.deliveryOutbox.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('A→B ADVERSARIAL (readiness-ON parity): fresh self-consistent Package B never authorizes a payload produced under Package A', async () => {
+    const selectionFilename =
+      'story-pipeline/04_approved_story_sources/accepted/readiness_fixture/' +
+      `revisions/${'a'.repeat(64)}/integrated.md`;
+    const storySourceHash = 'b'.repeat(64);
+    const authorityA = validPackageAuthority(selectionFilename, storySourceHash);
+    const authorityB = {
+      ...authorityA,
+      packagePath:
+        `visual-packages/approved/readiness_fixture/soft_hand_drawn_storybook/revisions/${'9'.repeat(64)}.visual-package.json`,
+      packageRevisionDigest: '9'.repeat(64),
+    };
+    const producingContractA = {
+      schemaVersion: 'fixture-contract/v1',
+      approvedRuntimeAuthority: {
+        packageRevisionDigest: authorityA.packageRevisionDigest,
+      },
+    };
+    const packageOrder = {
+      ...orderRowFull,
+      selectionFilename,
+      storySourceHash,
+      // Fresh row: internally valid under B. Producing snapshot: authority A + contract A.
+      visualPackageAuthority: authorityB,
+      visualContractHash: computeVisualContractHash(
+        producingContractA as never,
+      ),
+      generationJob: {
+        pipelineCache: {
+          visualPackageAuthority: authorityA,
+          visualContract: producingContractA,
+        },
+      },
+    };
+    const tx = mockTx(packageOrder);
+    const inspect = vi.fn(stubInspect);
+
+    const result = await commitBaseBookReadiness(
+      mockPrisma(tx, packageOrder) as never,
+      args(),
+      { inspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+
+    expect(result).toMatchObject({
+      manifestStatus: 'blocked',
+      enqueued: false,
+      orderStatus: 'needs_human_qa',
+      reason: 'contract_world_hold:visual_package_authority_invalid',
+    });
+    expect(inspect).not.toHaveBeenCalled();
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+  });
+
+  it('hard-holds a package-backed Order whose producing pipeline snapshot is missing (readiness-ON)', async () => {
+    const selectionFilename =
+      'story-pipeline/04_approved_story_sources/accepted/readiness_fixture/' +
+      `revisions/${'a'.repeat(64)}/integrated.md`;
+    const storySourceHash = 'b'.repeat(64);
+    const packageOrder = {
+      ...orderRowFull,
+      selectionFilename,
+      storySourceHash,
+      visualPackageAuthority: validPackageAuthority(
+        selectionFilename,
+        storySourceHash,
+      ),
+      generationJob: null,
+    };
+    const tx = mockTx(packageOrder);
+    const inspect = vi.fn(stubInspect);
+
+    const result = await commitBaseBookReadiness(
+      mockPrisma(tx, packageOrder) as never,
+      args(),
+      { inspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+
+    expect(result).toMatchObject({
+      manifestStatus: 'blocked',
+      enqueued: false,
+      orderStatus: 'needs_human_qa',
+      reason: 'contract_world_hold:visual_package_authority_invalid',
+    });
+    expect(inspect).not.toHaveBeenCalled();
   });
 
   it('PASS + anchor allows: one immutable manifest INSERT, enqueue, order ready, job done', async () => {
