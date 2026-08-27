@@ -1,8 +1,63 @@
 # SmallHeroes — Current Technical State
 
 **Updated:** 2026-08-27
-**Maintainer:** Codex
-**Working branch:** `codex/r1d-qa-wizard-downstream-lifecycle` in `C:\GNart\Work\sh-live-chameleon-v3`; remote-safe base `85b86fde4abbe3b5a3df9428d61391c00a1a18e9`; local provider-projection base `895b7f7b469a8249df4df63bed487f0ae8c39ab4` is unpushed pending corrective re-gate.
+**Maintainer:** Claude Code (temporary implementation owner for the order-package-authority milestone; Codex QA pending)
+**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; pushed head `59efadb5`; review range `983a09ee..59efadb5`. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
+
+## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN PACKAGE CHAIN STOPPED AT THE PAID-ATTEMPT FENCE
+
+Guy transferred implementation ownership of this milestone to Claude Code and
+resolved the product decision: the lantern/kindergarten story
+`3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a`
+(raw `9acf0433…`) is the Chameleon product lineage; `20a12801…` is legacy.
+
+**Landed (f982f9f8):** `Order.visualPackageAuthority` JSONB persistence
+(additive migration, applied + recorded on `small-heroes-staging` only), the
+exact resolver-selected authority frozen at creation, style-aware package
+selection, idempotent replay from the Order's own binding, and one central
+discriminator (`lib/generation-pipeline/order-visual-package-authority.ts`)
+enforced flags-independently across text finalization, freeze, render
+qualification, Boards, chunk runner, resume, single-page regen, readiness and
+delivery. Hardening beyond the base design: a shared hostile
+accepted-namespace detector (an aliased `./`//`//`/backslash/whitespace/case
+spelling now fails closed instead of degrading to the legacy companion
+selector), canonical-path + digest-name enforcement for authority envelopes
+and the immutable package loader (an alias can no longer let expected
+authority be reconstructed from the caller's own path), an eight-case
+readiness hard-hold family proven un-softenable under `QA_SOFT_DELIVER`, and
+authority re-proof on the readiness-OFF legacy ship path, break-glass anchor
+release, delivery reissue, invalid-payload repair and the debug image route.
+Provider egress: the final composed Style01 prompt is re-asserted after
+role-map/operator-note concatenation, the Set Identity Board prompt is
+asserted, and provider spatial projection v2 is pinned.
+`GENERATION_VERSION` 1→2; `style01-runtime-authority` v6→v7.
+
+**Lantern authoring (stopped by the explicit two-failure rule):** two paid
+canonical attempts under the corrected v54 chain failed on two DISTINCT
+prompt-contract traps, each then fixed generally and offline-verified:
+attempt 1 (`outputs/r1d-lantern-fresh-readiness-20260826T234631Z`,
+$0.41, 1 call) terminated `action_semantic_capability_gap` — prompt v19 left
+catalog-inexpressible entity-acting beats (p3 tail-tightens-satchel, p4
+distant key turning, p8 eye closing) no legal disposition → fixed in
+`c38a18ac` (vc-template-prompt v20). Attempt 2
+(`outputs/r1d-lantern-fresh-readiness-20260827T000426Z`, $0.65, 3 calls)
+produced a draft with ZERO capability gaps, the kindergarten guard in
+humanCast, a contradiction-free cover and 0/4 known defect-class signatures —
+but terminated `draft_validation_repair_stagnated` on six transition-pair
+issues: the sequence validator enforces an ARRIVAL scheme the prompt never
+stated → fixed in `59efadb5` (v21), with an offline harness proof that the
+exact attempt-2 draft with only those six transitions rewritten compiles to
+`outcome: candidate`, 0 issues, 0 provider calls
+(`transition-scheme-proof.ts` in the run root).
+
+Total authoring spend $1.06 conservative across 4 provider calls, zero
+transport retries, no fallback, no candidate promoted. Per the milestone's
+stop rule no third paid attempt was run; the current locator still selects
+legacy package `2b488f2d…`, and no Blueprint, Board, package, publication,
+Wizard order, payment or render happened. The next paid attempt (~$0.55)
+under v21 requires Guy's explicit go; the remaining chain after a clean
+candidate is documented in
+`docs/ai-workflow/R1D_ORDER_FROZEN_VISUAL_PACKAGE_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
 
 ## PROVIDER SPATIAL EGRESS — CORRECTIVE LOCAL GREEN; INDEPENDENT QA PENDING
 
