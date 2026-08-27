@@ -473,7 +473,7 @@ describe('atomic causal book-surface repair v13 typed input authority', () => {
       'book-surface-repair-schema/v7',
     );
     expect(BOOK_SURFACE_REPAIR_PROMPT_VERSION).toBe(
-      'book-surface-repair-prompt/v13',
+      'book-surface-repair-prompt/v14',
     );
     expect(BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION).toBe(
       'book-surface-repair-user-prompt/v13',
@@ -1923,20 +1923,20 @@ describe('atomic causal book-surface repair v13 typed input authority', () => {
       expect(accounting).toEqual(
         pageCount === 8
           ? {
-              systemBytes: 3_523,
+              systemBytes: 4_216,
               userBytes: 3_234,
               schemaBytes: 15_921,
               separatorBytes: 2,
               protocolAllowance: 4_096,
-              estimatedBytes: 26_776,
+              estimatedBytes: 27_469,
             }
           : {
-              systemBytes: 3_523,
+              systemBytes: 4_216,
               userBytes: 7_089,
               schemaBytes: 15_921,
               separatorBytes: 2,
               protocolAllowance: 4_096,
-              estimatedBytes: 30_631,
+              estimatedBytes: 31_324,
             },
       );
       expect(59_904 - accounting.estimatedBytes).toBeGreaterThanOrEqual(

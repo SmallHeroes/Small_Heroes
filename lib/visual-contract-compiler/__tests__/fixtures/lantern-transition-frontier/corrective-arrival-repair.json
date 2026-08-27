@@ -1,0 +1,115 @@
+{
+ "coverContract": null,
+ "pageStructuralPatches": [
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 2,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "kind": "after_transition",
+    "fromZoneId": "zone:home_craft_corner",
+    "toZoneId": "zone:hedge_path",
+    "cue": "The cart has rolled in from the craft corner onto the hedge-lined path."
+   },
+   "zoneId": null
+  },
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 3,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "kind": "after_transition",
+    "fromZoneId": "zone:hedge_path",
+    "toZoneId": "zone:market_arcade",
+    "cue": "The pursuit has carried the cart from the hedge path into the market arcade."
+   },
+   "zoneId": null
+  },
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 4,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "kind": "after_transition",
+    "fromZoneId": "zone:market_arcade",
+    "toZoneId": "zone:fountain_crossing",
+    "cue": "The chase has spilled out of the arcade to the round fountain crossing."
+   },
+   "zoneId": null
+  },
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 6,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "kind": "after_transition",
+    "fromZoneId": "zone:fountain_crossing",
+    "toZoneId": "zone:kindergarten_approach",
+    "cue": "The route has climbed from the fountain crossing onto the kindergarten approach."
+   },
+   "zoneId": null
+  },
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 7,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "kind": "after_transition",
+    "fromZoneId": "zone:kindergarten_approach",
+    "toZoneId": "zone:kindergarten_courtyard",
+    "cue": "The opened gate has admitted the delivery into the kindergarten courtyard."
+   },
+   "zoneId": null
+  },
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 8,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "kind": "after_transition",
+    "fromZoneId": "zone:kindergarten_courtyard",
+    "toZoneId": "zone:home_bedroom",
+    "cue": "The evening has returned home to the quiet bedroom."
+   },
+   "zoneId": null
+  }
+ ],
+ "presentationPatches": [],
+ "recurringProps": null
+}

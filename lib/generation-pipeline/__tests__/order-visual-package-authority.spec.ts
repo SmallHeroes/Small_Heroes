@@ -122,6 +122,27 @@ describe('Order Visual Package authority', () => {
           'accepted/../accepted/',
         ),
     ],
+    [
+      'leading parent-collapse alias',
+      (value: string) => `x/../${value}`,
+    ],
+    [
+      'nested parent-collapse alias',
+      (value: string) => `x/y/../../${value}`,
+    ],
+    [
+      'interior parent-collapse alias',
+      (value: string) =>
+        value.replace('story-pipeline/', 'story-pipeline/x/../'),
+    ],
+    [
+      'escaping parent alias',
+      (value: string) => `../${value}`,
+    ],
+    [
+      'embedded namespace alias',
+      (value: string) => `a/b/${value}`,
+    ],
   ])('rejects a noncanonical %s instead of degrading it to legacy', (_label, mutate) => {
     const order = currentPackageOrder();
     const selectionFilename = mutate(order.selectionFilename);

@@ -9,6 +9,7 @@ import {
   resolveCachedStoryFilePath,
   resolveFrozenOrderStorySelection,
   runtimeStoryKey,
+  storyRefClaimsAcceptedRevisionNamespace,
   toRepoRelativeStoryPath,
 } from '../story-path';
 
@@ -258,5 +259,37 @@ describe('story-path (0095 P0)', () => {
     ' story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/revisions/20a1280107a94ca0134c08351bc18565883ee358ce7ed1ca47ea797549bca1eb/integrated.md',
   ])('does not reinterpret legacy or escaping Order refs: %s', (value) => {
     expect(resolveFrozenOrderStorySelection(value)).toBeNull();
+  });
+
+  describe('storyRefClaimsAcceptedRevisionNamespace (hostile detector)', () => {
+    it.each([
+      ['canonical', ACCEPTED_REVISION],
+      ['self-directory', `./${ACCEPTED_REVISION}`],
+      ['rooted', `/${ACCEPTED_REVISION}`],
+      ['doubled separator', ACCEPTED_REVISION.replace('story-pipeline/', 'story-pipeline//')],
+      ['backslash', ACCEPTED_REVISION.replace(/\//g, '\\')],
+      ['whitespace', `  ${ACCEPTED_REVISION} `],
+      ['case alias', ACCEPTED_REVISION.replace('story-pipeline', 'Story-Pipeline')],
+      ['leading parent-collapse', `x/../${ACCEPTED_REVISION}`],
+      ['nested parent-collapse', `x/y/../../${ACCEPTED_REVISION}`],
+      ['interior parent-collapse', ACCEPTED_REVISION.replace('story-pipeline/', 'story-pipeline/x/../')],
+      ['escaping parent', `../${ACCEPTED_REVISION}`],
+      ['embedded namespace', `a/b/${ACCEPTED_REVISION}`],
+      ['embedded after escape', `a/../b/${ACCEPTED_REVISION}`],
+    ])('claims the namespace for a %s spelling', (_label, value) => {
+      expect(storyRefClaimsAcceptedRevisionNamespace(value)).toBe(true);
+    });
+
+    it.each([
+      ['legacy story-bank ref', 'story-bank/v3-approved/chameleon_koko_bedtime.md'],
+      ['legacy basename', 'chameleon_koko_bedtime.md'],
+      ['unrelated parent segments', 'a/../b/c.md'],
+      ['prefix sibling', 'story-pipeline/04_approved_story_sources/rejected/x/integrated.md'],
+      ['partial prefix segment', 'story-pipeline/04_approved_story_sources_accepted/x.md'],
+      ['empty', ''],
+      ['null-ish', undefined],
+    ])('does not claim for a %s', (_label, value) => {
+      expect(storyRefClaimsAcceptedRevisionNamespace(value)).toBe(false);
+    });
   });
 });

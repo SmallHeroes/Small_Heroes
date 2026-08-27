@@ -3,7 +3,10 @@ import { prisma } from '../../../../lib/prisma';
 import { generateImage } from '../../../../backend/providers/image';
 import { resolveImageModelMode, resolveReplicateImageModel } from '../../../../lib/replicate';
 import { withDeliveryInputMutation } from '../../../../lib/generation-pipeline/readiness-manifest';
-import { orderRequiresVisualPackageAuthority } from '../../../../lib/generation-pipeline/order-visual-package-authority';
+import {
+  OrderVisualPackageAuthorityError,
+  requireOrderVisualPackageAuthority,
+} from '../../../../lib/generation-pipeline/order-visual-package-authority';
 
 interface DebugImageRequest {
   orderId: string;
@@ -49,11 +52,22 @@ export async function POST(req: NextRequest) {
 
     // A package-backed Order's pages may only be produced through the qualified provider seam
     // (chunk runner / single-page regen), which binds the Order-frozen package, contract and Boards.
-    // This debug route bypasses all of that, so it refuses package-backed Orders outright — a
-    // malformed accepted-revision reference also throws here, which is the same fail-closed outcome.
-    if (orderRequiresVisualPackageAuthority(order)) {
+    // This debug route bypasses all of that, so it runs the FULL authority validation and proceeds
+    // only for a genuine legacy Order: a package-backed Order, a malformed/aliased accepted
+    // reference, AND a legacy Order carrying package authority (origin mix) are all refused.
+    try {
+      if (requireOrderVisualPackageAuthority(order) !== null) {
+        return NextResponse.json(
+          { error: 'package-backed Order pages cannot be mutated through the debug image route' },
+          { status: 409 },
+        );
+      }
+    } catch (authorityError) {
+      if (!(authorityError instanceof OrderVisualPackageAuthorityError)) {
+        throw authorityError;
+      }
       return NextResponse.json(
-        { error: 'package-backed Order pages cannot be mutated through the debug image route' },
+        { error: 'Order Visual Package authority is invalid — debug image route refused' },
         { status: 409 },
       );
     }

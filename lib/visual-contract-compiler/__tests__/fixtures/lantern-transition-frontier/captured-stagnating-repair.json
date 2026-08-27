@@ -1,0 +1,115 @@
+{
+ "coverContract": null,
+ "pageStructuralPatches": [
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 2,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "cue": "The cart turns from the hedge path toward the market.",
+    "fromZoneId": "zone:hedge_path",
+    "kind": "before_transition",
+    "toZoneId": "zone:market_arcade"
+   },
+   "zoneId": null
+  },
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 3,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "cue": "The labeled bread roll and pursuing cart leave the arcade toward the fountain.",
+    "fromZoneId": "zone:market_arcade",
+    "kind": "before_transition",
+    "toZoneId": "zone:fountain_crossing"
+   },
+   "zoneId": null
+  },
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 4,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "cue": "The route pauses at the fountain for the labels to be reconsidered.",
+    "fromZoneId": null,
+    "kind": "steady",
+    "toZoneId": null
+   },
+   "zoneId": null
+  },
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 6,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "cue": "The child opens the gate at the route threshold.",
+    "fromZoneId": "zone:kindergarten_approach",
+    "kind": "threshold",
+    "toZoneId": "zone:kindergarten_courtyard"
+   },
+   "zoneId": null
+  },
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 7,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "cue": "After the completed delivery, the story returns home for bedtime.",
+    "fromZoneId": "zone:kindergarten_courtyard",
+    "kind": "before_transition",
+    "toZoneId": "zone:home_bedroom"
+   },
+   "zoneId": null
+  },
+  {
+   "actionRequirements": null,
+   "camera": null,
+   "locationId": null,
+   "mustNotShow": null,
+   "mustShow": null,
+   "pageNumber": 8,
+   "propConstraints": null,
+   "propState": null,
+   "sameLocationAs": null,
+   "transition": {
+    "cue": "The final image remains in the quiet bedroom.",
+    "fromZoneId": null,
+    "kind": "steady",
+    "toZoneId": null
+   },
+   "zoneId": null
+  }
+ ],
+ "presentationPatches": [],
+ "recurringProps": null
+}

@@ -130,49 +130,7 @@ export async function finalizePackageDelivery(
     return { mode: 'safety_hold', deliveryHeld: true, manifest: null };
   }
 
-  // Durable package-authority gate — readiness-INDEPENDENT, like the safety gate above. An accepted-revision
-  // Order whose frozen Visual Package authority is missing/mismatched — or a legacy Order carrying package
-  // authority (origin mix) — must never reach `ready` or a customer email on the readiness-OFF legacy path.
-  // The readiness-ON path re-evaluates the same predicate inside its own TOCTOU-fingerprinted transaction and
-  // produces the blocked-manifest evidence row, so this pre-gate parks only when that transaction will not run.
   const readinessEnabled = deps.readinessEnabled ?? isReadinessManifestEnabled;
-  if (!readinessEnabled()) {
-    try {
-      requireOrderVisualPackageAuthority(args.order);
-    } catch (error) {
-      if (!(error instanceof OrderVisualPackageAuthorityError)) throw error;
-      const completedAt = deps.now?.() ?? new Date();
-      await prisma.$transaction(async (tx) => {
-        await writeOrderHoldFenced(tx, {
-          orderId: args.order.id,
-          newStatus: 'needs_human_qa',
-          newHoldReason:
-            'contract_world_hold:visual_package_authority_invalid',
-          setPackageDone: true,
-        });
-        await tx.generationJob.update({
-          where: { orderId: args.order.id },
-          data: { status: 'done', currentStage: 'done', completedAt, packaged: true },
-        });
-        // Mirror the safety park: never let a stale recoverable case auto-refund
-        // or auto-redrive a book that must stay parked for human QA.
-        await resolveActiveRecoveryCaseInTx(tx, {
-          orderId: args.order.id,
-          kinds: ['infra_transient', 'integrity_blocked'],
-          reason: 'authority_parked:visual_package_authority_invalid',
-          now: completedAt,
-        });
-      });
-      await syncHumanQaHoldCasePostCommit(prisma, args.order.id);
-      log.error(
-        'Book-ready delivery withheld — Order Visual Package authority invalid (readiness-independent)',
-        error,
-        { orderId: args.order.id },
-      );
-      return { mode: 'authority_hold', deliveryHeld: true, manifest: null };
-    }
-  }
-
   if (readinessEnabled()) {
     const commit = deps.commit ?? commitBaseBookReadiness;
     const manifest = await commit(prisma, {
@@ -205,8 +163,59 @@ export async function finalizePackageDelivery(
   // overwritten, and the email is gated on the ship CAS winning. Read fence + inputVersion to bind the CAS.
   const cur = await prisma.order.findUnique({
     where: { id: args.order.id },
-    select: { inputVersion: true, deliveryFenceVersion: true },
+    select: {
+      inputVersion: true,
+      deliveryFenceVersion: true,
+      selectionFilename: true,
+      storySourceHash: true,
+      illustrationStyle: true,
+      visualPackageAuthority: true,
+    },
   });
+  // Durable package-authority gate — readiness-INDEPENDENT, like the safety gate above, and evaluated on the
+  // SAME FRESH row the ship CAS binds (never the caller's stale `args.order` snapshot): an accepted-revision
+  // Order whose frozen Visual Package authority is missing/mismatched — or a legacy Order carrying package
+  // authority (origin mix) — must never reach `ready` or a customer email on the readiness-OFF legacy path.
+  // Post-read races are closed by the CAS's inputVersion binding: every writer of these delivery-input fields
+  // goes through withDeliveryInputMutation (writer-coverage guard) and bumps inputVersion, so a mutation after
+  // this read makes the ship CAS match zero rows. The readiness-ON branch re-proves the same predicate inside
+  // its own TOCTOU-fingerprinted transaction and produces the blocked-manifest evidence row instead.
+  if (cur) {
+    try {
+      requireOrderVisualPackageAuthority(cur);
+    } catch (error) {
+      if (!(error instanceof OrderVisualPackageAuthorityError)) throw error;
+      await prisma.$transaction(async (tx) => {
+        await writeOrderHoldFenced(tx, {
+          orderId: args.order.id,
+          inputVersion: cur.inputVersion,
+          newStatus: 'needs_human_qa',
+          newHoldReason:
+            'contract_world_hold:visual_package_authority_invalid',
+          setPackageDone: true,
+        });
+        await tx.generationJob.update({
+          where: { orderId: args.order.id },
+          data: { status: 'done', currentStage: 'done', completedAt, packaged: true },
+        });
+        // Mirror the safety park: never let a stale recoverable case auto-refund
+        // or auto-redrive a book that must stay parked for human QA.
+        await resolveActiveRecoveryCaseInTx(tx, {
+          orderId: args.order.id,
+          kinds: ['infra_transient', 'integrity_blocked'],
+          reason: 'authority_parked:visual_package_authority_invalid',
+          now: completedAt,
+        });
+      });
+      await syncHumanQaHoldCasePostCommit(prisma, args.order.id);
+      log.error(
+        'Book-ready delivery withheld — fresh Order Visual Package authority invalid (readiness-independent)',
+        error,
+        { orderId: args.order.id },
+      );
+      return { mode: 'authority_hold', deliveryHeld: true, manifest: null };
+    }
+  }
   let shipped = false;
   if (!cur) {
     log.error('Legacy delivery aborted — order vanished before the package write', { orderId: args.order.id });

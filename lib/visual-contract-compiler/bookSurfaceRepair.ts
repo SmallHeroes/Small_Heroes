@@ -46,8 +46,12 @@ export const BOOK_SURFACE_REPAIR_SCHEMA_VERSION =
   'book-surface-repair-schema/v7' as const;
 export const BOOK_SURFACE_REPAIR_SCHEMA_NAME =
   'BookSurfaceRepairPatch' as const;
+// v14: state the transition ARRIVAL contract the sequence validator enforces.
+// v13 handed the model the effective transitionAuthority chain but never the
+// rule, so a departure-scheme draft's repairs re-asserted the same invalid
+// transitions and the frontier stagnated 6→6→6 (two paid repair calls).
 export const BOOK_SURFACE_REPAIR_PROMPT_VERSION =
-  'book-surface-repair-prompt/v13' as const;
+  'book-surface-repair-prompt/v14' as const;
 export const BOOK_SURFACE_REPAIR_USER_PROMPT_VERSION =
   'book-surface-repair-user-prompt/v13' as const;
 
@@ -1842,6 +1846,7 @@ export function buildBookSurfaceRepairSystemPrompt(): string {
     'When actionRequirements is writable, return exactly one semantic action for every existing action index, in the same order. Never add, drop or reorder actions. The compiler reattaches the exact beatId and any source_phenomenon Source Evidence subject from its private authority before apply; never return or alter actionSemanticCoverage.',
     'For each presentation target, preserve the exact target order, copy its identities exactly, and choose one zero-based pointerChoiceIndex into that target\'s ordered permittedPointerValues. Never return a raw contractPointer. The overlapping page mustShow array is not writable; preserve it exactly so the compiler can resolve the authorized pointer/value locally.',
     'No raw validation prose is included. For writable propConstraints, use only the closed propConstraintViolations codes and their constraintIndex/relatedConstraintIndex positions. For writable transitions, use the closed transition subcauses and the one ordered effective transitionAuthority chain, including established zones and the prior threshold edge, to repair every coupled target atomically. Use only the typed targets, causes, exact projections, bounded diagnostic counts and read-only authority supplied in the decoded payload.',
+    "A transition is valid only as an ARRIVAL. Page 1 must be steady or before_transition. A later page whose zone differs from the previous page's zone must itself carry that arrival: after_transition with fromZoneId = the previous page's zone and toZoneId = its own zone, or threshold departing from the previous page's zone with its own zone as one endpoint (after_transition may instead continue the immediately preceding threshold's exact edge). before_transition/steady declare NO arriving move, so their page zone must equal the previous page's zone. Repair a transition frontier by rewriting the flagged pages' transitions to this scheme; never re-assert the current transitions unchanged.",
     'When recurringPropAuthority is non-null, preserve the exact recurring-prop ID order and resolve only its typed lifecycle invariant. Use lifecycleContext as read-only page visibility authority: every page before a non-null firstRevealPage must be listed forbidden, and no listed required page may precede it. Otherwise return recurringProps:null.',
     'When coverAuthority is non-null, repair its semantic fields and return a well-shaped cover identity. The compiler preserves an already-valid current location/zone/cast identity; when the current identity is invalid, it accepts only a replacement inside referenceAuthority and never invents a reference. Otherwise return coverContract:null.',
     'Preserve all valid semantics. Never infer or return unrelated page or global fields.',

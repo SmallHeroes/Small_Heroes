@@ -1,0 +1,2808 @@
+{
+ "cast": {
+  "child": {
+   "id": "child",
+   "role": "child",
+   "wardrobe": {
+    "description": "Book-locked practical evening outfit suitable for crafting and walking outdoors, with a simple layered silhouette and closed walking shoes.",
+    "forbidden": [
+     "wardrobe changes before the explicit bedtime change",
+     "school uniform",
+     "costume clothing",
+     "prominent logos",
+     "loose scarf"
+    ]
+   }
+  },
+  "companion": {
+   "id": "chameleon_koko",
+   "name": "קִים",
+   "role": "companion",
+   "wardrobe": {
+    "description": "Canonical tiny fabric shoulder satchel in warm mustard, worn from one shoulder with a small soft travel-bag strap; compact and visibly smaller than any guardian-sized bag.",
+    "forbidden": [
+     "scarf",
+     "striped scarf",
+     "neck scarf",
+     "patchwork",
+     "multicolor patches",
+     "pink spots",
+     "large knapsack",
+     "big backpack",
+     "dragon-sized bag",
+     "terracotta sash"
+    ]
+   }
+  }
+ },
+ "coverContract": {
+  "castIds": [
+   "child",
+   "chameleon_koko"
+  ],
+  "locationId": "location:neighborhood_route",
+  "mustNotShow": [
+   "kindergarten guard",
+   "bedtime pajamas",
+   "large backpack or scarf on the companion",
+   "multiple lanterns",
+   "motor vehicles",
+   "daylight"
+  ],
+  "mustShow": [
+   "Child and companion together beside the continuous route",
+   "Paper moon lantern riding on the puppy-sized delivery cart",
+   "Ordered route labels visibly connecting the journey",
+   "Companion's canonical tiny warm-mustard fabric shoulder satchel",
+   "Fountain and distant kindergarten gate establishing the destination"
+  ],
+  "timeOfDay": "night",
+  "worldType": "Gentle contemporary bedtime neighborhood adventure",
+  "zoneId": "zone:fountain_crossing"
+ },
+ "forbiddenGlobalElements": [
+  "motor traffic on the pedestrian route",
+  "dangerous road crossings",
+  "weapons",
+  "threatening strangers",
+  "commercial branding",
+  "oversized luggage for the companion",
+  "alternate companion accessories",
+  "replacement lantern designs",
+  "duplicate delivery carts",
+  "daylight on night pages",
+  "written labels other than simple route marks and the terminal moon drawing"
+ ],
+ "humanCast": [
+  {
+   "forbiddenAppearance": [
+    "police uniform",
+    "military uniform",
+    "security weapon",
+    "high-visibility emergency vest",
+    "prominent logos"
+   ],
+   "garments": [
+    {
+     "colour": {
+      "mode": "explicit",
+      "origin": {
+       "kind": "story_evidence",
+       "page": 7,
+       "paletteId": null,
+       "phrase": "שומרת הגן",
+       "policyId": null,
+       "version": null
+      },
+      "value": "deep navy blue"
+     },
+     "id": "garment:guard_jacket",
+     "label": "lightweight work jacket"
+    },
+    {
+     "colour": {
+      "mode": "explicit",
+      "origin": {
+       "kind": "policy_default",
+       "page": null,
+       "paletteId": null,
+       "phrase": null,
+       "policyId": "picture-book-supporting-cast-neutral-workwear",
+       "version": "v1"
+      },
+      "value": "charcoal gray"
+     },
+     "id": "garment:guard_trousers",
+     "label": "straight work trousers"
+    },
+    {
+     "colour": {
+      "mode": "explicit",
+      "origin": {
+       "kind": "policy_default",
+       "page": null,
+       "paletteId": null,
+       "phrase": null,
+       "policyId": "picture-book-supporting-cast-neutral-workwear",
+       "version": "v1"
+      },
+      "value": "dark brown"
+     },
+     "id": "garment:guard_shoes",
+     "label": "closed practical shoes"
+    }
+   ],
+   "id": "human:kindergarten_guard"
+  }
+ ],
+ "locations": [
+  {
+   "anchors": [
+    {
+     "description": "Stable work surface for paper crafting near the doorway.",
+     "id": "anchor:craft_table"
+    },
+    {
+     "description": "Route-facing threshold leading from the craft corner to the pedestrian path.",
+     "id": "anchor:home_exit"
+    },
+    {
+     "description": "Clear sightline through the bedroom window across rooftops.",
+     "id": "anchor:bedroom_view"
+    },
+    {
+     "description": "Distant kindergarten courtyard visible beyond the rooftops.",
+     "id": "anchor:kindergarten_view"
+    }
+   ],
+   "description": "A cozy home containing the evening craft corner and the nighttime bedroom, with outward views toward the neighborhood and distant kindergarten.",
+   "environmentClass": "indoor",
+   "id": "location:home",
+   "lighting": "Warm household light transitions to dim bedside glow and cool moonlight; exterior route light is visible through openings.",
+   "name": "Child's home",
+   "setIdentityId": "set:home",
+   "setReference": {
+    "prompt": "Character-free continuity board for one cozy contemporary home: an evening paper-craft corner beside an exterior doorway and a quiet bedroom with bed, broad windowsill, and a rooftop sightline toward the distant kindergarten. Show only fixed architecture, furniture, and environmental lighting; exclude portable objects and story actions.",
+    "status": "pending",
+    "storageKey": null,
+    "url": null
+   },
+   "timeOfDay": "mixed",
+   "topology": "The craft corner connects to the exterior route through its doorway; the bedroom is a separate interior zone with a window sightline toward the kindergarten."
+  },
+  {
+   "anchors": [
+    {
+     "description": "Continuous paved pedestrian surface supporting the route.",
+     "id": "anchor:path_surface"
+    },
+    {
+     "description": "Successive hedge edges bordering the early route.",
+     "id": "anchor:hedge_series"
+    },
+    {
+     "description": "Forward route bearing from the hedge path into the market arcade.",
+     "id": "anchor:market_direction"
+    },
+    {
+     "description": "Covered pedestrian line through the closing market.",
+     "id": "anchor:market_arcade"
+    },
+    {
+     "description": "Fixed bakery display position beside the service window.",
+     "id": "anchor:bakery_display"
+    },
+    {
+     "description": "Center point of the round neighborhood fountain.",
+     "id": "anchor:fountain_center"
+    },
+    {
+     "description": "Broad flat stone beside the fountain.",
+     "id": "anchor:fountain_stone"
+    },
+    {
+     "description": "Sightline from the fountain toward the route already traveled.",
+     "id": "anchor:route_back"
+    },
+    {
+     "description": "Sightline from the fountain toward the kindergarten.",
+     "id": "anchor:route_forward"
+    },
+    {
+     "description": "Final pedestrian bearing toward the kindergarten gate.",
+     "id": "anchor:gate_direction"
+    }
+   ],
+   "description": "A continuous child-scaled walking route running from hedge-lined garden paths through a closing market and fountain crossing to the kindergarten approach.",
+   "environmentClass": "outdoor",
+   "id": "location:neighborhood_route",
+   "lighting": "Fading blue evening deepens into moonlight, with fixed garden lamps, bakery-window spill, and fountain reflections marking successive route segments.",
+   "name": "Neighborhood pedestrian route",
+   "setIdentityId": "set:neighborhood_route",
+   "setReference": {
+    "prompt": "Character-free continuity board for one connected neighborhood pedestrian route after sunset: hedge-lined path, closing market arcade with bakery service window, round fountain with a broad flat stone, and a gently rising approach to the kindergarten gate. Preserve a clear sequential route and only fixed architecture and environmental light.",
+    "status": "pending",
+    "storageKey": null,
+    "url": null
+   },
+   "timeOfDay": "mixed",
+   "topology": "The route proceeds in order from hedge path to market arcade, then fountain crossing, then kindergarten approach; each segment is directly adjacent to the next."
+  },
+  {
+   "anchors": [
+    {
+     "description": "Main path leading inward from the pedestrian gate.",
+     "id": "anchor:courtyard_path"
+    },
+    {
+     "description": "Fixed overhead support centered above the courtyard path.",
+     "id": "anchor:lantern_hanging_point"
+    },
+    {
+     "description": "Fixed lock mechanism on the kindergarten gate.",
+     "id": "anchor:gate_lock"
+    }
+   ],
+   "description": "A welcoming kindergarten behind a lockable pedestrian gate, with a simple courtyard path and a fixed overhead hanging point.",
+   "environmentClass": "outdoor",
+   "id": "location:kindergarten",
+   "lighting": "Calm moonlight and fixed low courtyard illumination, with an overhead position suitable for a small warm path light.",
+   "name": "New kindergarten",
+   "setIdentityId": "set:kindergarten",
+   "setReference": {
+    "prompt": "Character-free continuity board for a small contemporary kindergarten entrance at night: lockable pedestrian gate, calm courtyard, clear inward path, and one fixed overhead hanging support centered above the path. Include only fixed architecture and environmental illumination.",
+    "status": "pending",
+    "storageKey": null,
+    "url": null
+   },
+   "timeOfDay": "night",
+   "topology": "The gate opens directly from the neighborhood approach into the courtyard path; the overhead support is centered along that path."
+  }
+ ],
+ "pageContracts": [
+  {
+   "actionRequirements": [
+    {
+     "beatId": "beat:p1:light_lantern",
+     "laterality": null,
+     "object": {
+      "id": "prop:moon_lantern",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "turns_on",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p1:hold_first_label",
+     "laterality": null,
+     "object": {
+      "id": "prop:route_labels",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "holds",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "chameleon_koko",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p1:touch_cart_button",
+     "laterality": null,
+     "object": {
+      "id": "prop:cart_button",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "touches",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "chameleon_koko",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p1:cart_starts_route",
+     "laterality": null,
+     "object": {
+      "id": "anchor:home_exit",
+      "kind": "anchor"
+     },
+     "polarity": "must",
+     "predicate": "moves",
+     "spatialConstraint": null,
+     "spatialEffect": {
+      "kind": "relation",
+      "relation": "toward",
+      "target": {
+       "id": "anchor:home_exit",
+       "kind": "anchor"
+      }
+     },
+     "subject": {
+      "entity": {
+       "id": "prop:delivery_cart",
+       "kind": "prop"
+      },
+      "kind": "entity"
+     }
+    }
+   ],
+   "actionSemanticCoverage": [
+    {
+     "beatId": "beat:p1:tomorrow_context",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "temporal_context"
+     },
+     "sourceEvidenceId": "se1_220acb765776b233505c851513ac75c9a745d348e6904bbf9f03bcea9776ebe8"
+    },
+    {
+     "beatId": "beat:p1:light_lantern",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_661a96fff41e5a60c70b03cc754205d2517dd882a9e93c8d9b66effe7b6190b3"
+    },
+    {
+     "beatId": "beat:p1:wish_dialogue",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "dialogue_only"
+     },
+     "sourceEvidenceId": "se1_0b33d13b2b7cf89ba54fa0d4dd3b4ffc8675f668178805dfae31cfc84dd12391"
+    },
+    {
+     "beatId": "beat:p1:hold_first_label",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_b1ebc2c84bc114ac767c8913ff805a88e0f17606c6684ea0115eafc5f5c401ab"
+    },
+    {
+     "beatId": "beat:p1:touch_cart_button",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_c7cd881d389dabb7900f1e55427b08f2eadb29a343a8a4c37ce11d7467a1bdca"
+    },
+    {
+     "beatId": "beat:p1:ring_sound",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 3,
+      "presentationClass": "graphic_sound_cue"
+     },
+     "sourceEvidenceId": "se1_520391c5e4f130213353b6171f86f9e4f851861a6bd666fdf8cdcd8c5e0b59d0"
+    },
+    {
+     "beatId": "beat:p1:cart_starts_route",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_0472cc54511c9500aad08d80db4c9edd57f211f22a522372d351695c5576a775"
+    }
+   ],
+   "camera": "Medium close three-quarter view balancing the craft table, cart, and open doorway; keep the lantern and button interaction readable in one action line.",
+   "childWardrobeOverrideDescription": null,
+   "childWardrobeOverrideSourceEvidenceId": null,
+   "companionStateId": null,
+   "companionStateSourceEvidenceId": null,
+   "locationId": "location:home",
+   "mustNotShow": [
+    "bread roll",
+    "kindergarten guard",
+    "bedtime pajamas",
+    "completed route-label ribbon",
+    "lantern already installed at the kindergarten"
+   ],
+   "mustShow": [
+    "Paper moon lantern glowing on the craft table",
+    "One route label drawn from the small mustard shoulder satchel",
+    "Companion contacting the delivery-cart button",
+    "Graphic sound cue “טְרִינְג!” near the cart",
+    "Delivery cart carrying the lantern as it starts toward the doorway"
+   ],
+   "pageNumber": 1,
+   "propConstraints": [
+    {
+     "anchorId": "anchor:craft_table",
+     "propId": "prop:moon_lantern",
+     "stateId": "state:lantern_lit_portable",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:home_exit",
+     "propId": "prop:delivery_cart",
+     "stateId": "state:cart_departing",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:home_exit",
+     "propId": "prop:cart_button",
+     "stateId": "state:button_activated",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:craft_table",
+     "propId": "prop:route_labels",
+     "stateId": "state:first_label_loose",
+     "visibility": "required"
+    },
+    {
+     "anchorId": null,
+     "propId": "prop:bread_roll",
+     "stateId": null,
+     "visibility": "forbidden"
+    }
+   ],
+   "propState": [
+    {
+     "propId": "prop:moon_lantern",
+     "state": "newly lit and resting in the delivery cart by the end of the scene"
+    },
+    {
+     "propId": "prop:delivery_cart",
+     "state": "activated and beginning to roll toward the exterior route"
+    },
+    {
+     "propId": "prop:cart_button",
+     "state": "just pressed"
+    },
+    {
+     "propId": "prop:route_labels",
+     "state": "first green route label newly removed from the satchel"
+    },
+    {
+     "propId": "prop:bread_roll",
+     "state": "not yet introduced"
+    }
+   ],
+   "sameLocationAs": null,
+   "transition": {
+    "cue": "The activated cart heads through the home doorway onto the outdoor route.",
+    "fromZoneId": "zone:home_craft_corner",
+    "kind": "before_transition",
+    "toZoneId": "zone:hedge_path"
+   },
+   "zoneId": "zone:home_craft_corner"
+  },
+  {
+   "actionRequirements": [
+    {
+     "beatId": "beat:p2:press_brake",
+     "laterality": null,
+     "object": {
+      "id": "prop:cart_button",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "pushes",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p2:attach_olive_label",
+     "laterality": null,
+     "object": {
+      "id": "prop:route_labels",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "places",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "chameleon_koko",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p2:cart_heads_market",
+     "laterality": null,
+     "object": {
+      "id": "anchor:market_direction",
+      "kind": "anchor"
+     },
+     "polarity": "must",
+     "predicate": "moves",
+     "spatialConstraint": null,
+     "spatialEffect": {
+      "kind": "relation",
+      "relation": "toward",
+      "target": {
+       "id": "anchor:market_direction",
+       "kind": "anchor"
+      }
+     },
+     "subject": {
+      "entity": {
+       "id": "prop:delivery_cart",
+       "kind": "prop"
+      },
+      "kind": "entity"
+     }
+    }
+   ],
+   "actionSemanticCoverage": [
+    {
+     "beatId": "beat:p2:cart_stopped",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 0,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_fe1161416cc4efbb8cfd698c285cdb783d33070c2ee359ee473555c5dfb11825"
+    },
+    {
+     "beatId": "beat:p2:arrival_dialogue",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "dialogue_only"
+     },
+     "sourceEvidenceId": "se1_7bf1b0fd9f3341fea78b04bd418251f76aee4e7120b4490a41bc0d63ad2f8406"
+    },
+    {
+     "beatId": "beat:p2:speech_context",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "narrative_context"
+     },
+     "sourceEvidenceId": "se1_6d8913a92e2ac6bf74649452750c241fc4e047e7abc3ecb010fbef940bfed6bb"
+    },
+    {
+     "beatId": "beat:p2:hedge_dialogue",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "dialogue_only"
+     },
+     "sourceEvidenceId": "se1_cb70263660d2605d1e690ad2fc7e743fea140ed861fb5744e4b34e58871baa12"
+    },
+    {
+     "beatId": "beat:p2:repeated_ringing",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 1,
+      "presentationClass": "graphic_sound_cue"
+     },
+     "sourceEvidenceId": "se1_07b68e17e63ae640e6151b8fa045c9561e04317d537ff95674521989e5c09aa4"
+    },
+    {
+     "beatId": "beat:p2:press_brake",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_1e25c1e147be387f4e104c67ed922c866e4810cbed244572157dd8745360fa56"
+    },
+    {
+     "beatId": "beat:p2:state_shift",
+     "disposition": {
+      "kind": "represented_elsewhere",
+      "representedValue": "alert_olive_shift"
+     },
+     "sourceEvidenceId": "se1_45bda7c2f4ba3fee767d175bfdb2b18976df038d4eaa98209be894fa9e4a6543"
+    },
+    {
+     "beatId": "beat:p2:attach_olive_label",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_5da3a98231b6d3af1e6ff6930bebed16e1a6d261b26fbcdb097ab8ebc434f0e7"
+    },
+    {
+     "beatId": "beat:p2:cart_heads_market",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_1f6359c86864330d38b305ff0bf2e81183020a4cf1100d6b05314b3fe3d1beb1"
+    }
+   ],
+   "camera": "Wide ground-level view down the hedge corridor, keeping the braked cart, repeated hedge rhythm, and forward market direction legible.",
+   "childWardrobeOverrideDescription": null,
+   "childWardrobeOverrideSourceEvidenceId": null,
+   "companionStateId": "alert_olive_shift",
+   "companionStateSourceEvidenceId": "se1_45bda7c2f4ba3fee767d175bfdb2b18976df038d4eaa98209be894fa9e4a6543",
+   "locationId": "location:neighborhood_route",
+   "mustNotShow": [
+    "bread roll",
+    "open bakery window",
+    "fountain",
+    "kindergarten guard",
+    "bedtime pajamas"
+   ],
+   "mustShow": [
+    "Delivery cart stopped squarely before a hedge",
+    "Graphic ringing cues repeating beside successive hedges",
+    "New route label visibly attached with the existing label"
+   ],
+   "pageNumber": 2,
+   "propConstraints": [
+    {
+     "anchorId": "anchor:path_surface",
+     "propId": "prop:moon_lantern",
+     "stateId": "state:lantern_on_cart",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:path_surface",
+     "propId": "prop:delivery_cart",
+     "stateId": "state:cart_braked",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:path_surface",
+     "propId": "prop:cart_button",
+     "stateId": "state:button_integrated",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:path_surface",
+     "propId": "prop:route_labels",
+     "stateId": "state:two_labels_attached",
+     "visibility": "required"
+    },
+    {
+     "anchorId": null,
+     "propId": "prop:bread_roll",
+     "stateId": null,
+     "visibility": "forbidden"
+    }
+   ],
+   "propState": [
+    {
+     "propId": "prop:moon_lantern",
+     "state": "secure in the stopped delivery cart"
+    },
+    {
+     "propId": "prop:delivery_cart",
+     "state": "braked on the hedge-lined path, then redirected toward the market"
+    },
+    {
+     "propId": "prop:cart_button",
+     "state": "integrated and visible on the cart"
+    },
+    {
+     "propId": "prop:route_labels",
+     "state": "green and olive labels retained together on the route system"
+    },
+    {
+     "propId": "prop:bread_roll",
+     "state": "not yet introduced"
+    }
+   ],
+   "sameLocationAs": null,
+   "transition": {
+    "cue": "The cart turns from the hedge path toward the market.",
+    "fromZoneId": "zone:hedge_path",
+    "kind": "before_transition",
+    "toZoneId": "zone:market_arcade"
+   },
+   "zoneId": "zone:hedge_path"
+  },
+  {
+   "actionRequirements": [
+    {
+     "beatId": "beat:p3:turn_cart_handle",
+     "laterality": null,
+     "object": null,
+     "polarity": "must",
+     "predicate": "turns",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p3:place_amber_label",
+     "laterality": null,
+     "object": {
+      "id": "prop:route_labels",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "places",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "chameleon_koko",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p3:cart_chases_roll",
+     "laterality": null,
+     "object": {
+      "id": "prop:bread_roll",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "moves",
+     "spatialConstraint": null,
+     "spatialEffect": {
+      "kind": "relation",
+      "relation": "toward",
+      "target": {
+       "id": "prop:bread_roll",
+       "kind": "prop"
+      }
+     },
+     "subject": {
+      "entity": {
+       "id": "prop:delivery_cart",
+       "kind": "prop"
+      },
+      "kind": "entity"
+     }
+    }
+   ],
+   "actionSemanticCoverage": [
+    {
+     "beatId": "beat:p3:cart_presents_lantern",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 0,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_e0af34d240b9d58fefae4d2d532f7217475b2daa45ef32bab05236e16121108f"
+    },
+    {
+     "beatId": "beat:p3:turn_cart_handle",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_ca3c4443f8d239c0aa515e970ee8e59f044a0a089f94056eaf96b697e8ff5216"
+    },
+    {
+     "beatId": "beat:p3:bakery_window_opens",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 1,
+      "presentationClass": "ambient_event"
+     },
+     "sourceEvidenceId": "se1_ca3c4443f8d239c0aa515e970ee8e59f044a0a089f94056eaf96b697e8ff5216"
+    },
+    {
+     "beatId": "beat:p3:state_shift",
+     "disposition": {
+      "kind": "represented_elsewhere",
+      "representedValue": "mismatched_amber_stripes"
+     },
+     "sourceEvidenceId": "se1_348c7f0dad4d1c143453c22cdde71f2fb69dcd46d3fadea92f0386c96f5855d4"
+    },
+    {
+     "beatId": "beat:p3:satchel_strap_state",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 2,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_4213c86404ee7df040bc6f66282723a1df964deb6de02bb9945138dccaa1b0ea"
+    },
+    {
+     "beatId": "beat:p3:round_glowing_dialogue",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "dialogue_only"
+     },
+     "sourceEvidenceId": "se1_10da29d7ee8c2642807516ab631fdbf56f9ead492438e34d5d76d959744f738d"
+    },
+    {
+     "beatId": "beat:p3:speech_context",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "narrative_context"
+     },
+     "sourceEvidenceId": "se1_e505f10c83c351e6f44ebfeda8b119dbc1afd29db67e53b433055ee16c3c5a89"
+    },
+    {
+     "beatId": "beat:p3:place_amber_label",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_66ddb4f9569ac846eedd782fae8a7b36af61da05d6bbdefe4999bd9990147cc8"
+    },
+    {
+     "beatId": "beat:p3:cart_chases_roll",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_66ddb4f9569ac846eedd782fae8a7b36af61da05d6bbdefe4999bd9990147cc8"
+    }
+   ],
+   "camera": "Close low-angle view along the cart handle toward the cucumber crate and open bakery window, with the bread roll establishing the outgoing route.",
+   "childWardrobeOverrideDescription": null,
+   "childWardrobeOverrideSourceEvidenceId": null,
+   "companionStateId": "mismatched_amber_stripes",
+   "companionStateSourceEvidenceId": "se1_348c7f0dad4d1c143453c22cdde71f2fb69dcd46d3fadea92f0386c96f5855d4",
+   "locationId": "location:neighborhood_route",
+   "mustNotShow": [
+    "fountain-centered staging",
+    "kindergarten guard",
+    "bedtime pajamas",
+    "route labels already formed into a ring",
+    "lantern installed overhead"
+   ],
+   "mustShow": [
+    "Cart presenting the moon lantern toward the cucumber crate",
+    "Bakery window open with strong amber light spilling into the arcade",
+    "Canonical small satchel strap visibly snug around the compact bag",
+    "Amber route label attached to the round bread roll"
+   ],
+   "pageNumber": 3,
+   "propConstraints": [
+    {
+     "anchorId": "anchor:market_arcade",
+     "propId": "prop:moon_lantern",
+     "stateId": "state:lantern_on_cart",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:market_arcade",
+     "propId": "prop:delivery_cart",
+     "stateId": "state:cart_redirected",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:market_arcade",
+     "propId": "prop:cart_button",
+     "stateId": "state:button_integrated",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:bakery_display",
+     "propId": "prop:route_labels",
+     "stateId": "state:amber_label_added",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:bakery_display",
+     "propId": "prop:bread_roll",
+     "stateId": "state:roll_labeled",
+     "visibility": "required"
+    }
+   ],
+   "propState": [
+    {
+     "propId": "prop:moon_lantern",
+     "state": "carried by the cart beside the produce display"
+    },
+    {
+     "propId": "prop:delivery_cart",
+     "state": "handle redirected toward the kindergarten before the cart pursues the bread roll"
+    },
+    {
+     "propId": "prop:cart_button",
+     "state": "integrated and visible on the cart"
+    },
+    {
+     "propId": "prop:route_labels",
+     "state": "earlier labels retained and amber label newly attached to the bread roll"
+    },
+    {
+     "propId": "prop:bread_roll",
+     "state": "newly revealed at the bakery and moving toward the fountain"
+    }
+   ],
+   "sameLocationAs": 2,
+   "transition": {
+    "cue": "The labeled bread roll and pursuing cart leave the arcade toward the fountain.",
+    "fromZoneId": "zone:market_arcade",
+    "kind": "before_transition",
+    "toZoneId": "zone:fountain_crossing"
+   },
+   "zoneId": "zone:market_arcade"
+  },
+  {
+   "actionRequirements": [
+    {
+     "beatId": "beat:p4:close_label_ring",
+     "laterality": null,
+     "object": {
+      "id": "prop:route_labels",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "closes",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p4:cart_returns",
+     "laterality": null,
+     "object": {
+      "id": "chameleon_koko",
+      "kind": "cast"
+     },
+     "polarity": "must",
+     "predicate": "moves",
+     "spatialConstraint": null,
+     "spatialEffect": {
+      "kind": "relation",
+      "relation": "toward",
+      "target": {
+       "id": "chameleon_koko",
+       "kind": "cast"
+      }
+     },
+     "subject": {
+      "entity": {
+       "id": "prop:delivery_cart",
+       "kind": "prop"
+      },
+      "kind": "entity"
+     }
+    }
+   ],
+   "actionSemanticCoverage": [
+    {
+     "beatId": "beat:p4:wet_labels",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 0,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_468347d0b45600dd7e3d82638d81ccae331a729ab4da6c23f3e90e4e149903f6"
+    },
+    {
+     "beatId": "beat:p4:idea_dialogue",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "dialogue_only"
+     },
+     "sourceEvidenceId": "se1_9aec3406f287bf4e3d47a812228f17c0c3bd6d5f49c2be0dfd6d4b6e3ec2a3f2"
+    },
+    {
+     "beatId": "beat:p4:close_label_ring",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_b9dc5d2611fc46f8f8bfe6ec54ede75739a42486d0d0402777946ae592ec0a9f"
+    },
+    {
+     "beatId": "beat:p4:first_tick",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 5,
+      "presentationClass": "graphic_sound_cue"
+     },
+     "sourceEvidenceId": "se1_cc0cb577a8d0f54083d1222b4bcda4160ffcce1cc24030c0f2ed11a250643c4e"
+    },
+    {
+     "beatId": "beat:p4:second_tick",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 5,
+      "presentationClass": "graphic_sound_cue"
+     },
+     "sourceEvidenceId": "se1_7966437fef65eefcc1b1242ecc69712573681db5ff2e37c14d3f5f3222807669"
+    },
+    {
+     "beatId": "beat:p4:fountain_loop",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 2,
+      "presentationClass": "ambient_event"
+     },
+     "sourceEvidenceId": "se1_c5da06cb4864392cd324a635057a04eeb7132b4f5d721a7d0c02d9361ff35575"
+    },
+    {
+     "beatId": "beat:p4:cart_returns",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_c5da06cb4864392cd324a635057a04eeb7132b4f5d721a7d0c02d9361ff35575"
+    },
+    {
+     "beatId": "beat:p4:roll_position",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 3,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_1832881b1e996ff5fe6735e73d715ad1c2d6292ecb3bd4bfd782959e5d0877a6"
+    },
+    {
+     "beatId": "beat:p4:order_dialogue",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "dialogue_only"
+     },
+     "sourceEvidenceId": "se1_8fbaa8312696ee7c3ac5c83d8ad11159667ce39308cbacd8554d9ac073a8bf75"
+    },
+    {
+     "beatId": "beat:p4:distant_lock",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 4,
+      "presentationClass": "ambient_event"
+     },
+     "sourceEvidenceId": "se1_a6df5fb02e40935d97f70a6a8736d2febddfbcec626425273900fdc5e7aa3d11"
+    }
+   ],
+   "camera": "Extreme wide overhead view revealing the fountain loop, cart return path, flat stone, and distant gate in one connected composition.",
+   "childWardrobeOverrideDescription": null,
+   "childWardrobeOverrideSourceEvidenceId": null,
+   "companionStateId": null,
+   "companionStateSourceEvidenceId": null,
+   "locationId": "location:neighborhood_route",
+   "mustNotShow": [
+    "bedroom",
+    "kindergarten guard",
+    "bedtime pajamas",
+    "blank terminal label",
+    "lantern already hanging above the courtyard path"
+   ],
+   "mustShow": [
+    "Three wet route labels stuck together beside the fountain",
+    "Wet labels arranged as a closed ring inside the delivery cart",
+    "Cart returning toward the companion after tracing the fountain loop",
+    "Bread roll resting on the companion's head",
+    "Distant kindergarten gate lock visibly turning",
+    "Combined graphic sound cue “טִיק! טַק!”"
+   ],
+   "pageNumber": 4,
+   "propConstraints": [
+    {
+     "anchorId": "anchor:fountain_center",
+     "propId": "prop:moon_lantern",
+     "stateId": "state:lantern_on_cart",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:fountain_center",
+     "propId": "prop:delivery_cart",
+     "stateId": "state:cart_fountain_loop",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:fountain_center",
+     "propId": "prop:cart_button",
+     "stateId": "state:button_integrated",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:fountain_center",
+     "propId": "prop:route_labels",
+     "stateId": "state:wet_closed_ring",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:fountain_center",
+     "propId": "prop:bread_roll",
+     "stateId": "state:roll_on_companion",
+     "visibility": "required"
+    }
+   ],
+   "propState": [
+    {
+     "propId": "prop:moon_lantern",
+     "state": "still carried in the delivery cart"
+    },
+    {
+     "propId": "prop:delivery_cart",
+     "state": "circling the fountain and returning"
+    },
+    {
+     "propId": "prop:cart_button",
+     "state": "integrated and visible on the cart"
+    },
+    {
+     "propId": "prop:route_labels",
+     "state": "three wet labels joined into a closed ring inside the cart"
+    },
+    {
+     "propId": "prop:bread_roll",
+     "state": "resting on the companion's head after the return"
+    }
+   ],
+   "sameLocationAs": 3,
+   "transition": {
+    "cue": "The route pauses at the fountain for the labels to be reconsidered.",
+    "fromZoneId": "zone:fountain_crossing",
+    "kind": "steady",
+    "toZoneId": "zone:fountain_crossing"
+   },
+   "zoneId": "zone:fountain_crossing"
+  },
+  {
+   "actionRequirements": [
+    {
+     "beatId": "beat:p5:place_labels_on_stone",
+     "laterality": null,
+     "object": {
+      "id": "prop:route_labels",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "places",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p5:look_back",
+     "laterality": null,
+     "object": {
+      "id": "anchor:route_back",
+      "kind": "anchor"
+     },
+     "polarity": "must",
+     "predicate": "looks_at",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "chameleon_koko",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p5:look_forward",
+     "laterality": null,
+     "object": {
+      "id": "anchor:route_forward",
+      "kind": "anchor"
+     },
+     "polarity": "must",
+     "predicate": "looks_at",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "chameleon_koko",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p5:open_label_ring",
+     "laterality": null,
+     "object": {
+      "id": "prop:route_labels",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "opens",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p5:place_blank_end",
+     "laterality": null,
+     "object": {
+      "id": "prop:route_labels",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "places",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    }
+   ],
+   "actionSemanticCoverage": [
+    {
+     "beatId": "beat:p5:place_labels_on_stone",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_82f365c25fcd51493e9d7b39ac0cb0c0a938fa67e2f4004ddfdb42a76275eeda"
+    },
+    {
+     "beatId": "beat:p5:garden_label_context",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 0,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_f05a045a0cf8ec299d211e54cca346b18b91a6ff78d31de32c078376319eaa04"
+    },
+    {
+     "beatId": "beat:p5:market_label_context",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 0,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_77fa57dc6fbdd512332fd70141848bc86bdfa6d8b585009bfda431755b9ee730"
+    },
+    {
+     "beatId": "beat:p5:bakery_label_context",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 0,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_c929e77182ab01b58d194d6aa1d0fd32ad618018c0c448020de218b56aae21b5"
+    },
+    {
+     "beatId": "beat:p5:state_shift",
+     "disposition": {
+      "kind": "represented_elsewhere",
+      "representedValue": "attuning_blue_green"
+     },
+     "sourceEvidenceId": "se1_ebc8039dd20d8d245a00cad00bedf32fec22a617ef2d1c290b3d825c07a87dc1"
+    },
+    {
+     "beatId": "beat:p5:look_back",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_2a21159ad1041fae5fb824295700927e7cc62e45c5085e01ca2ad0e3fc18e05b"
+    },
+    {
+     "beatId": "beat:p5:look_forward",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_2a21159ad1041fae5fb824295700927e7cc62e45c5085e01ca2ad0e3fc18e05b"
+    },
+    {
+     "beatId": "beat:p5:path_dialogue",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "dialogue_only"
+     },
+     "sourceEvidenceId": "se1_1b2780f52c4f49d06d1365951a467cd1adf276a8a7ef2b0d88ed23818d412f9e"
+    },
+    {
+     "beatId": "beat:p5:open_label_ring",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_410ae656f6c0c50a289eb7cddfcd30c7877430b474bbc773b5799c64c6ef43c6"
+    },
+    {
+     "beatId": "beat:p5:place_blank_end",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_410ae656f6c0c50a289eb7cddfcd30c7877430b474bbc773b5799c64c6ef43c6"
+    }
+   ],
+   "camera": "High-angle detail view centered on the stone and ordered labels, with route-back and route-forward sightlines entering opposite sides of the frame.",
+   "childWardrobeOverrideDescription": null,
+   "childWardrobeOverrideSourceEvidenceId": null,
+   "companionStateId": "attuning_blue_green",
+   "companionStateSourceEvidenceId": "se1_ebc8039dd20d8d245a00cad00bedf32fec22a617ef2d1c290b3d825c07a87dc1",
+   "locationId": "location:neighborhood_route",
+   "mustNotShow": [
+    "bread roll",
+    "kindergarten guard",
+    "bedtime pajamas",
+    "closed label ring",
+    "lantern already installed at the kindergarten"
+   ],
+   "mustShow": [
+    "Ordered route labels laid across the broad flat fountain stone",
+    "Label ring opened into a path ending with one blank label"
+   ],
+   "pageNumber": 5,
+   "propConstraints": [
+    {
+     "anchorId": "anchor:fountain_stone",
+     "propId": "prop:moon_lantern",
+     "stateId": "state:lantern_waiting_on_cart",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:fountain_stone",
+     "propId": "prop:delivery_cart",
+     "stateId": "state:cart_waiting",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:fountain_stone",
+     "propId": "prop:cart_button",
+     "stateId": "state:button_integrated",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:fountain_stone",
+     "propId": "prop:route_labels",
+     "stateId": "state:open_path_blank_end",
+     "visibility": "required"
+    },
+    {
+     "anchorId": null,
+     "propId": "prop:bread_roll",
+     "stateId": null,
+     "visibility": "forbidden"
+    }
+   ],
+   "propState": [
+    {
+     "propId": "prop:moon_lantern",
+     "state": "waiting in the delivery cart beside the stone"
+    },
+    {
+     "propId": "prop:delivery_cart",
+     "state": "stationary beside the fountain stone"
+    },
+    {
+     "propId": "prop:cart_button",
+     "state": "integrated and visible on the cart"
+    },
+    {
+     "propId": "prop:route_labels",
+     "state": "opened from a ring into an ordered path with a blank terminal label"
+    },
+    {
+     "propId": "prop:bread_roll",
+     "state": "no longer present"
+    }
+   ],
+   "sameLocationAs": 4,
+   "transition": {
+    "cue": "The opened label path establishes the final direction toward the kindergarten.",
+    "fromZoneId": "zone:fountain_crossing",
+    "kind": "before_transition",
+    "toZoneId": "zone:kindergarten_approach"
+   },
+   "zoneId": "zone:fountain_crossing"
+  },
+  {
+   "actionRequirements": [
+    {
+     "beatId": "beat:p6:thread_label_ribbon",
+     "laterality": null,
+     "object": {
+      "id": "prop:route_labels",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "places",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p6:hold_blank_label",
+     "laterality": null,
+     "object": {
+      "id": "prop:route_labels",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "holds",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p6:approach_gate",
+     "laterality": null,
+     "object": {
+      "id": "spatial:approach_gate",
+      "kind": "spatial"
+     },
+     "polarity": "must",
+     "predicate": "approaches",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p6:cart_moves_to_gate",
+     "laterality": null,
+     "object": {
+      "id": "spatial:approach_gate",
+      "kind": "spatial"
+     },
+     "polarity": "must",
+     "predicate": "moves",
+     "spatialConstraint": null,
+     "spatialEffect": {
+      "kind": "relation",
+      "relation": "toward",
+      "target": {
+       "id": "spatial:approach_gate",
+       "kind": "spatial"
+      }
+     },
+     "subject": {
+      "entity": {
+       "id": "prop:delivery_cart",
+       "kind": "prop"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p6:open_gate",
+     "laterality": null,
+     "object": {
+      "id": "spatial:approach_gate",
+      "kind": "spatial"
+     },
+     "polarity": "must",
+     "predicate": "opens",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    }
+   ],
+   "actionSemanticCoverage": [
+    {
+     "beatId": "beat:p6:thread_label_ribbon",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_6eab2d4dcc91cfc67637e11c73b40f8eb0e6a50357a9e8abf60038e8aeb180a6"
+    },
+    {
+     "beatId": "beat:p6:cart_stops_chasing",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 1,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_f6cda369f7112639b652bde7a5fd9f869c8359aeefda5b79b9921a79d66048e8"
+    },
+    {
+     "beatId": "beat:p6:state_shift",
+     "disposition": {
+      "kind": "represented_elsewhere",
+      "representedValue": "blended_moonlit_teal"
+     },
+     "sourceEvidenceId": "se1_121313b23a5bae06d94e5a126a1715f4b03d9ac539048674abc754adbb545ff6"
+    },
+    {
+     "beatId": "beat:p6:hold_blank_label",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_a0582429a152302a713b1f48c20e07cdd7602b558fb8a639da9466e0e1c406b5"
+    },
+    {
+     "beatId": "beat:p6:approach_gate",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_a0582429a152302a713b1f48c20e07cdd7602b558fb8a639da9466e0e1c406b5"
+    },
+    {
+     "beatId": "beat:p6:cart_moves_to_gate",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_a0582429a152302a713b1f48c20e07cdd7602b558fb8a639da9466e0e1c406b5"
+    },
+    {
+     "beatId": "beat:p6:open_gate",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_a0582429a152302a713b1f48c20e07cdd7602b558fb8a639da9466e0e1c406b5"
+    }
+   ],
+   "camera": "Medium wide low-angle view up the approach, using the ordered ribbon as a leading line from the cart to the gate.",
+   "childWardrobeOverrideDescription": null,
+   "childWardrobeOverrideSourceEvidenceId": null,
+   "companionStateId": "blended_moonlit_teal",
+   "companionStateSourceEvidenceId": "se1_121313b23a5bae06d94e5a126a1715f4b03d9ac539048674abc754adbb545ff6",
+   "locationId": "location:neighborhood_route",
+   "mustNotShow": [
+    "bread roll",
+    "kindergarten guard",
+    "bedtime pajamas",
+    "labels closed into a ring",
+    "lantern already hanging above the courtyard path"
+   ],
+   "mustShow": [
+    "Ordered route labels threaded as a ribbon through the delivery cart",
+    "Cart aligned with the intended route rather than nearby visual decoys",
+    "Blank terminal label held ready at the end of the ribbon",
+    "Kindergarten gate opening as the cart reaches the approach"
+   ],
+   "pageNumber": 6,
+   "propConstraints": [
+    {
+     "anchorId": "anchor:gate_direction",
+     "propId": "prop:moon_lantern",
+     "stateId": "state:lantern_final_route",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:gate_direction",
+     "propId": "prop:delivery_cart",
+     "stateId": "state:cart_guided",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:gate_direction",
+     "propId": "prop:cart_button",
+     "stateId": "state:button_integrated",
+     "visibility": "required"
+    },
+    {
+     "anchorId": "anchor:gate_direction",
+     "propId": "prop:route_labels",
+     "stateId": "state:ordered_ribbon_blank_end",
+     "visibility": "required"
+    },
+    {
+     "anchorId": null,
+     "propId": "prop:bread_roll",
+     "stateId": null,
+     "visibility": "forbidden"
+    }
+   ],
+   "propState": [
+    {
+     "propId": "prop:moon_lantern",
+     "state": "carried by the cart along the final moonlit path"
+    },
+    {
+     "propId": "prop:delivery_cart",
+     "state": "guided by the ordered label ribbon toward the gate"
+    },
+    {
+     "propId": "prop:cart_button",
+     "state": "integrated and visible on the cart"
+    },
+    {
+     "propId": "prop:route_labels",
+     "state": "threaded in change order as a ribbon, with the blank label held at its end"
+    },
+    {
+     "propId": "prop:bread_roll",
+     "state": "absent"
+    }
+   ],
+   "sameLocationAs": 5,
+   "transition": {
+    "cue": "The child opens the gate at the route threshold.",
+    "fromZoneId": "zone:kindergarten_approach",
+    "kind": "threshold",
+    "toZoneId": "zone:kindergarten_courtyard"
+   },
+   "zoneId": "zone:kindergarten_approach"
+  },
+  {
+   "actionRequirements": [
+    {
+     "beatId": "beat:p7:hold_lantern",
+     "laterality": null,
+     "object": {
+      "id": "prop:moon_lantern",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "holds",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p7:place_lantern",
+     "laterality": null,
+     "object": {
+      "id": "prop:moon_lantern",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "places",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p7:draw_moon",
+     "laterality": null,
+     "object": {
+      "id": "prop:route_labels",
+      "kind": "prop"
+     },
+     "polarity": "must",
+     "predicate": "draws",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    }
+   ],
+   "actionSemanticCoverage": [
+    {
+     "beatId": "beat:p7:guard_ready_to_close",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 0,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_60eaa66294b43dbd4129c560f38cd326894fe1e0294c73413ab7bebcfd48de30"
+    },
+    {
+     "beatId": "beat:p7:last_delivery_dialogue",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "dialogue_only"
+     },
+     "sourceEvidenceId": "se1_2b4b4a895006f10992238faf2f99c0a94fb102b4ab188bd543033f2298b99e79"
+    },
+    {
+     "beatId": "beat:p7:question_context",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "narrative_context"
+     },
+     "sourceEvidenceId": "se1_39107f9a1f90889345c416d018fe95fe40a79e763f7f1b0fd6584ec2caed4ec3"
+    },
+    {
+     "beatId": "beat:p7:first_delivery_dialogue",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "dialogue_only"
+     },
+     "sourceEvidenceId": "se1_7c7a6cc5fe7a0f7a88d38d99dff48b259dcb88d9afeb1a876709947499aefb58"
+    },
+    {
+     "beatId": "beat:p7:hold_lantern",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_cbedb6a4c138d13c4d63b13ff6415c369a87999a3e36acbf567bf7cbc5243bba"
+    },
+    {
+     "beatId": "beat:p7:place_lantern",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_cbedb6a4c138d13c4d63b13ff6415c369a87999a3e36acbf567bf7cbc5243bba"
+    },
+    {
+     "beatId": "beat:p7:draw_moon",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_cbedb6a4c138d13c4d63b13ff6415c369a87999a3e36acbf567bf7cbc5243bba"
+    },
+    {
+     "beatId": "beat:p7:lantern_light",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 3,
+      "presentationClass": "lighting_state"
+     },
+     "sourceEvidenceId": "se1_82f49569d4ef6fb262be0592fe7cc459a0a4701d3df1440379eadda9aaa962e0"
+    },
+    {
+     "beatId": "beat:p7:no_color_search",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "internal_state"
+     },
+     "sourceEvidenceId": "se1_fafd322736715d297dbc8f0b246c5b762d7e7e6cf94fb89b7cee155357ca36e7"
+    },
+    {
+     "beatId": "beat:p7:spare_label_stored",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 4,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_5bb787299365349ffdabb38b606757ecfab7987b253321efeb421337c7b03309"
+    }
+   ],
+   "camera": "Medium three-quarter view inside the courtyard, framing the guard at the gate, the child beneath the hanging support, and the completed label in the foreground.",
+   "childWardrobeOverrideDescription": null,
+   "childWardrobeOverrideSourceEvidenceId": null,
+   "companionStateId": null,
+   "companionStateSourceEvidenceId": null,
+   "locationId": "location:kindergarten",
+   "mustNotShow": [
+    "bedtime pajamas",
+    "bread roll",
+    "delivery cart inside the courtyard",
+    "closed label ring",
+    "large backpack or scarf on the companion"
+   ],
+   "mustShow": [
+    "Kindergarten guard poised beside the gate before closing",
+    "Paper moon lantern suspended from the fixed support above the courtyard path",
+    "Moon drawing completed on the terminal route label",
+    "Lantern switched on and casting a warm pool along the path",
+    "Fresh blank route label stored in the companion's tiny mustard shoulder satchel"
+   ],
+   "pageNumber": 7,
+   "propConstraints": [
+    {
+     "anchorId": "anchor:lantern_hanging_point",
+     "propId": "prop:moon_lantern",
+     "stateId": "state:lantern_installed_lit",
+     "visibility": "required"
+    },
+    {
+     "anchorId": null,
+     "propId": "prop:delivery_cart",
+     "stateId": null,
+     "visibility": "forbidden"
+    },
+    {
+     "anchorId": null,
+     "propId": "prop:cart_button",
+     "stateId": null,
+     "visibility": "forbidden"
+    },
+    {
+     "anchorId": "anchor:courtyard_path",
+     "propId": "prop:route_labels",
+     "stateId": "state:moon_terminal_and_spare",
+     "visibility": "required"
+    },
+    {
+     "anchorId": null,
+     "propId": "prop:bread_roll",
+     "stateId": null,
+     "visibility": "forbidden"
+    }
+   ],
+   "propState": [
+    {
+     "propId": "prop:moon_lantern",
+     "state": "installed above the courtyard path and switched on"
+    },
+    {
+     "propId": "prop:delivery_cart",
+     "state": "delivery complete outside the courtyard and not visible"
+    },
+    {
+     "propId": "prop:cart_button",
+     "state": "not visible with the absent cart"
+    },
+    {
+     "propId": "prop:route_labels",
+     "state": "ordered ribbon ends in a completed moon label; one new blank spare is stored"
+    },
+    {
+     "propId": "prop:bread_roll",
+     "state": "absent"
+    }
+   ],
+   "sameLocationAs": null,
+   "transition": {
+    "cue": "After the completed delivery, the story returns home for bedtime.",
+    "fromZoneId": "zone:kindergarten_courtyard",
+    "kind": "before_transition",
+    "toZoneId": "zone:home_bedroom"
+   },
+   "zoneId": "zone:kindergarten_courtyard"
+  },
+  {
+   "actionRequirements": [
+    {
+     "beatId": "beat:p8:enter_bed",
+     "laterality": null,
+     "object": {
+      "id": "spatial:bedroom_bed",
+      "kind": "spatial"
+     },
+     "polarity": "must",
+     "predicate": "climbs_onto",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "child",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    },
+    {
+     "beatId": "beat:p8:settle_on_sill",
+     "laterality": null,
+     "object": {
+      "id": "spatial:bedroom_windowsill",
+      "kind": "spatial"
+     },
+     "polarity": "must",
+     "predicate": "sits_on",
+     "spatialConstraint": null,
+     "spatialEffect": null,
+     "subject": {
+      "entity": {
+       "id": "chameleon_koko",
+       "kind": "cast"
+      },
+      "kind": "entity"
+     }
+    }
+   ],
+   "actionSemanticCoverage": [
+    {
+     "beatId": "beat:p8:pajamas_state",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 0,
+      "presentationClass": "static_state"
+     },
+     "sourceEvidenceId": "se1_393bdd0df44f58b12f253534d15eda0c23dbeeb6e73423a10c7868eb1ea4ff54"
+    },
+    {
+     "beatId": "beat:p8:enter_bed",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_393bdd0df44f58b12f253534d15eda0c23dbeeb6e73423a10c7868eb1ea4ff54"
+    },
+    {
+     "beatId": "beat:p8:settle_on_sill",
+     "disposition": {
+      "kind": "action_requirement"
+     },
+     "sourceEvidenceId": "se1_cf72b6288031e68cacc62a92cc3e18c3bdbe8be9f6b4266022c0008313816442"
+    },
+    {
+     "beatId": "beat:p8:distant_lantern",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 1,
+      "presentationClass": "lighting_state"
+     },
+     "sourceEvidenceId": "se1_6e720d2ac563fa5a2c868c45bd635d4948b8c8596c97dac186a0d3038eef85a3"
+    },
+    {
+     "beatId": "beat:p8:whisper_dialogue",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "dialogue_only"
+     },
+     "sourceEvidenceId": "se1_0c8b01522990090a019577dfc91fb96949ce9ed2261f8f5c08ffb1078a366135"
+    },
+    {
+     "beatId": "beat:p8:eyes_close_sequence",
+     "disposition": {
+      "kind": "non_visual",
+      "rationale": "temporal_context"
+     },
+     "sourceEvidenceId": "se1_bdc27f30844340d7cdcdaa4ec5f9b84ae72e424ec63eea9202f05f9d8d57508f"
+    },
+    {
+     "beatId": "beat:p8:quiet_night",
+     "disposition": {
+      "kind": "presentation_requirement",
+      "mustShowIndex": 2,
+      "presentationClass": "ambient_event"
+     },
+     "sourceEvidenceId": "se1_8f45fbb94e9acefe0af844803f3a59b226ef09d085339f812a7f044026653b70"
+    }
+   ],
+   "camera": "Medium close eye-level bedroom view with the bed and windowsill in the foreground and the distant kindergarten lantern clearly visible beyond the rooftops.",
+   "childWardrobeOverrideDescription": "Soft bedtime pajamas replacing the book-locked outdoor outfit for the home bedtime scene.",
+   "childWardrobeOverrideSourceEvidenceId": "se1_393bdd0df44f58b12f253534d15eda0c23dbeeb6e73423a10c7868eb1ea4ff54",
+   "companionStateId": null,
+   "companionStateSourceEvidenceId": null,
+   "locationId": "location:home",
+   "mustNotShow": [
+    "delivery cart",
+    "route labels",
+    "bread roll",
+    "kindergarten guard",
+    "outdoor clothing on the child",
+    "large backpack or scarf on the companion"
+   ],
+   "mustShow": [
+    "Child in soft pajamas settled beneath the bedcovers",
+    "Distant paper moon lantern blinking in the kindergarten courtyard beyond the rooftops",
+    "Quiet bedroom and still night settling into calm"
+   ],
+   "pageNumber": 8,
+   "propConstraints": [
+    {
+     "anchorId": "anchor:kindergarten_view",
+     "propId": "prop:moon_lantern",
+     "stateId": "state:distant_lantern_blink",
+     "visibility": "required"
+    },
+    {
+     "anchorId": null,
+     "propId": "prop:delivery_cart",
+     "stateId": null,
+     "visibility": "forbidden"
+    },
+    {
+     "anchorId": null,
+     "propId": "prop:cart_button",
+     "stateId": null,
+     "visibility": "forbidden"
+    },
+    {
+     "anchorId": null,
+     "propId": "prop:route_labels",
+     "stateId": null,
+     "visibility": "forbidden"
+    },
+    {
+     "anchorId": null,
+     "propId": "prop:bread_roll",
+     "stateId": null,
+     "visibility": "forbidden"
+    }
+   ],
+   "propState": [
+    {
+     "propId": "prop:moon_lantern",
+     "state": "installed at the distant kindergarten and blinking beyond the rooftops"
+    },
+    {
+     "propId": "prop:delivery_cart",
+     "state": "absent from the bedroom"
+    },
+    {
+     "propId": "prop:cart_button",
+     "state": "absent with the cart"
+    },
+    {
+     "propId": "prop:route_labels",
+     "state": "absent from the bedroom view"
+    },
+    {
+     "propId": "prop:bread_roll",
+     "state": "absent"
+    }
+   ],
+   "sameLocationAs": null,
+   "transition": {
+    "cue": "The final image remains in the quiet bedroom.",
+    "fromZoneId": "zone:home_bedroom",
+    "kind": "steady",
+    "toZoneId": "zone:home_bedroom"
+   },
+   "zoneId": "zone:home_bedroom"
+  }
+ ],
+ "recurringProps": [
+  {
+   "description": "A handmade paper lantern with a moon motif, sized to ride on the small delivery cart and later hang above the kindergarten path.",
+   "firstRevealPage": 1,
+   "id": "prop:moon_lantern",
+   "material": "folded paper over a lightweight internal frame",
+   "name": "Paper moon lantern",
+   "persistence": "Introduced at home, carried along the route, installed in the kindergarten courtyard, and visible from the bedroom across the rooftops.",
+   "scale": "small child-made lantern"
+  },
+  {
+   "description": "A compact low rolling cart with a handle, shallow carrying bed, brake, and route-control button.",
+   "firstRevealPage": 1,
+   "id": "prop:delivery_cart",
+   "material": "painted wood and quiet rubber wheels with simple metal fittings",
+   "name": "Night delivery cart",
+   "persistence": "Travels from the home craft corner through the route and reaches the kindergarten approach before the delivery is completed.",
+   "scale": "puppy-sized"
+  },
+  {
+   "description": "A small integrated control button on the delivery cart.",
+   "firstRevealPage": 1,
+   "id": "prop:cart_button",
+   "material": "smooth colored plastic set into the cart body",
+   "name": "Delivery-cart button",
+   "persistence": "Remains fixed to the delivery cart wherever the cart appears.",
+   "scale": "fingertip-sized"
+  },
+  {
+   "description": "Small writable route labels that can be attached, wetted, ordered into a ring, opened into a path, threaded into a ribbon, and completed with a moon mark.",
+   "firstRevealPage": 1,
+   "id": "prop:route_labels",
+   "material": "water-resistant paper with lightly adhesive backs and threading holes",
+   "name": "Route labels",
+   "persistence": "Accumulate and change arrangement from the first route label through the completed terminal label and the fresh spare label.",
+   "scale": "small hand-sized tags"
+  },
+  {
+   "description": "A small round bakery roll temporarily mistaken for a glowing route cue.",
+   "firstRevealPage": 3,
+   "id": "prop:bread_roll",
+   "material": "baked bread",
+   "name": "Bakery bread roll",
+   "persistence": "Appears at the bakery and remains through the fountain sequence only.",
+   "scale": "small palm-sized roll"
+  }
+ ],
+ "setBoardAuthorities": [
+  {
+   "areas": [
+    {
+     "id": "area:home_craft_corner",
+     "locationId": "location:home",
+     "spatialNodes": [
+      {
+       "description": "Stable child-height craft table.",
+       "id": "spatial:craft_table",
+       "kind": "furniture",
+       "stablePropId": null
+      },
+      {
+       "description": "Exterior doorway leading to the pedestrian route.",
+       "id": "spatial:home_doorway",
+       "kind": "doorway",
+       "stablePropId": null
+      },
+      {
+       "description": "Clear floor between table and doorway.",
+       "id": "spatial:craft_floor",
+       "kind": "floor",
+       "stablePropId": null
+      }
+     ],
+     "spatialRelations": [
+      {
+       "objectId": "spatial:home_doorway",
+       "relation": "adjacent_to",
+       "subjectId": "spatial:craft_table"
+      },
+      {
+       "relation": "centered_in",
+       "subjectId": "spatial:craft_floor"
+      }
+     ],
+     "zoneProjection": {
+      "cardinality": "one_to_one",
+      "zoneIds": [
+       "zone:home_craft_corner"
+      ]
+     }
+    },
+    {
+     "id": "area:home_bedroom",
+     "locationId": "location:home",
+     "spatialNodes": [
+      {
+       "description": "Stable bed beside the window wall.",
+       "id": "spatial:bedroom_bed",
+       "kind": "furniture",
+       "stablePropId": null
+      },
+      {
+       "description": "Window facing the rooftops and kindergarten.",
+       "id": "spatial:bedroom_window",
+       "kind": "window",
+       "stablePropId": null
+      },
+      {
+       "description": "Broad interior sill below the window.",
+       "id": "spatial:bedroom_windowsill",
+       "kind": "ledge",
+       "stablePropId": null
+      },
+      {
+       "description": "Clear floor beside the bed.",
+       "id": "spatial:bedroom_floor",
+       "kind": "floor",
+       "stablePropId": null
+      }
+     ],
+     "spatialRelations": [
+      {
+       "objectId": "spatial:bedroom_window",
+       "relation": "below",
+       "subjectId": "spatial:bedroom_windowsill"
+      },
+      {
+       "objectId": "spatial:bedroom_window",
+       "relation": "adjacent_to",
+       "subjectId": "spatial:bedroom_bed"
+      },
+      {
+       "relation": "centered_in",
+       "subjectId": "spatial:bedroom_floor"
+      }
+     ],
+     "zoneProjection": {
+      "cardinality": "one_to_one",
+      "zoneIds": [
+       "zone:home_bedroom"
+      ]
+     }
+    }
+   ],
+   "locations": [
+    {
+     "environmentClass": "indoor",
+     "lighting": "Fixed warm household illumination, dim bedside glow, and cool moonlight through windows.",
+     "locationId": "location:home",
+     "name": "Child's home",
+     "timeOfDay": "mixed"
+    }
+   ],
+   "setIdentityId": "set:home"
+  },
+  {
+   "areas": [
+    {
+     "id": "area:hedge_path",
+     "locationId": "location:neighborhood_route",
+     "spatialNodes": [
+      {
+       "description": "Paved pedestrian path between hedges.",
+       "id": "spatial:hedge_path_floor",
+       "kind": "floor",
+       "stablePropId": null
+      },
+      {
+       "description": "Dense fixed hedge boundary.",
+       "id": "spatial:hedge_edge",
+       "kind": "wall",
+       "stablePropId": null
+      }
+     ],
+     "spatialRelations": [
+      {
+       "objectId": "spatial:hedge_edge",
+       "relation": "adjacent_to",
+       "subjectId": "spatial:hedge_path_floor"
+      },
+      {
+       "relation": "centered_in",
+       "subjectId": "spatial:hedge_path_floor"
+      }
+     ],
+     "zoneProjection": {
+      "cardinality": "one_to_one",
+      "zoneIds": [
+       "zone:hedge_path"
+      ]
+     }
+    },
+    {
+     "id": "area:market_arcade",
+     "locationId": "location:neighborhood_route",
+     "spatialNodes": [
+      {
+       "description": "Pedestrian floor through the arcade.",
+       "id": "spatial:market_floor",
+       "kind": "floor",
+       "stablePropId": null
+      },
+      {
+       "description": "Fixed-position produce display crate.",
+       "id": "spatial:cucumber_crate",
+       "kind": "furniture",
+       "stablePropId": null
+      },
+      {
+       "description": "Bakery service window facing the arcade.",
+       "id": "spatial:bakery_window",
+       "kind": "window",
+       "stablePropId": null
+      }
+     ],
+     "spatialRelations": [
+      {
+       "objectId": "spatial:bakery_window",
+       "relation": "opposite_to",
+       "subjectId": "spatial:cucumber_crate"
+      },
+      {
+       "objectId": "spatial:market_floor",
+       "relation": "adjacent_to",
+       "subjectId": "spatial:cucumber_crate"
+      },
+      {
+       "objectId": "spatial:market_floor",
+       "relation": "adjacent_to",
+       "subjectId": "spatial:bakery_window"
+      }
+     ],
+     "zoneProjection": {
+      "cardinality": "one_to_one",
+      "zoneIds": [
+       "zone:market_arcade"
+      ]
+     }
+    },
+    {
+     "id": "area:fountain_crossing",
+     "locationId": "location:neighborhood_route",
+     "spatialNodes": [
+      {
+       "description": "Low circular fountain rim.",
+       "id": "spatial:fountain_basin",
+       "kind": "railing",
+       "stablePropId": null
+      },
+      {
+       "description": "Paved loop around the fountain.",
+       "id": "spatial:fountain_paving",
+       "kind": "floor",
+       "stablePropId": null
+      },
+      {
+       "description": "Broad flat stone beside the water.",
+       "id": "spatial:fountain_stone",
+       "kind": "ledge",
+       "stablePropId": null
+      }
+     ],
+     "spatialRelations": [
+      {
+       "relation": "centered_in",
+       "subjectId": "spatial:fountain_basin"
+      },
+      {
+       "objectId": "spatial:fountain_basin",
+       "relation": "adjacent_to",
+       "subjectId": "spatial:fountain_stone"
+      },
+      {
+       "objectId": "spatial:fountain_basin",
+       "relation": "adjacent_to",
+       "subjectId": "spatial:fountain_paving"
+      }
+     ],
+     "zoneProjection": {
+      "cardinality": "one_to_one",
+      "zoneIds": [
+       "zone:fountain_crossing"
+      ]
+     }
+    },
+    {
+     "id": "area:kindergarten_approach",
+     "locationId": "location:neighborhood_route",
+     "spatialNodes": [
+      {
+       "description": "Final paved path to the kindergarten.",
+       "id": "spatial:approach_path",
+       "kind": "floor",
+       "stablePropId": null
+      },
+      {
+       "description": "Kindergarten pedestrian gate viewed from outside.",
+       "id": "spatial:approach_gate",
+       "kind": "doorway",
+       "stablePropId": null
+      }
+     ],
+     "spatialRelations": [
+      {
+       "relation": "centered_in",
+       "subjectId": "spatial:approach_gate"
+      },
+      {
+       "objectId": "spatial:approach_gate",
+       "relation": "adjacent_to",
+       "subjectId": "spatial:approach_path"
+      }
+     ],
+     "zoneProjection": {
+      "cardinality": "one_to_one",
+      "zoneIds": [
+       "zone:kindergarten_approach"
+      ]
+     }
+    }
+   ],
+   "locations": [
+    {
+     "environmentClass": "outdoor",
+     "lighting": "Fixed garden lamps, bakery-window spill, fountain reflections, and moonlight along a continuous route.",
+     "locationId": "location:neighborhood_route",
+     "name": "Neighborhood pedestrian route",
+     "timeOfDay": "mixed"
+    }
+   ],
+   "setIdentityId": "set:neighborhood_route"
+  },
+  {
+   "areas": [
+    {
+     "id": "area:kindergarten_courtyard",
+     "locationId": "location:kindergarten",
+     "spatialNodes": [
+      {
+       "description": "Pedestrian gate viewed from inside.",
+       "id": "spatial:courtyard_gate",
+       "kind": "doorway",
+       "stablePropId": null
+      },
+      {
+       "description": "Main courtyard path.",
+       "id": "spatial:courtyard_path",
+       "kind": "floor",
+       "stablePropId": null
+      },
+      {
+       "description": "Fixed overhead hanging support.",
+       "id": "spatial:lantern_support",
+       "kind": "furniture",
+       "stablePropId": null
+      }
+     ],
+     "spatialRelations": [
+      {
+       "objectId": "spatial:courtyard_path",
+       "relation": "above",
+       "subjectId": "spatial:lantern_support"
+      },
+      {
+       "objectId": "spatial:courtyard_path",
+       "relation": "adjacent_to",
+       "subjectId": "spatial:courtyard_gate"
+      },
+      {
+       "relation": "centered_in",
+       "subjectId": "spatial:courtyard_path"
+      }
+     ],
+     "zoneProjection": {
+      "cardinality": "one_to_one",
+      "zoneIds": [
+       "zone:kindergarten_courtyard"
+      ]
+     }
+    }
+   ],
+   "locations": [
+    {
+     "environmentClass": "outdoor",
+     "lighting": "Fixed low courtyard illumination and calm moonlight.",
+     "locationId": "location:kindergarten",
+     "name": "New kindergarten",
+     "timeOfDay": "night"
+    }
+   ],
+   "setIdentityId": "set:kindergarten"
+  }
+ ],
+ "worldType": "A contemporary, walkable neighborhood rendered with gentle bedtime magic: familiar homes, garden paths, a closing market, a fountain crossing, and a kindergarten connected by one continuous pedestrian route at dusk and night.",
+ "zones": [
+  {
+   "description": "A compact crafting area beside the route-facing doorway.",
+   "id": "zone:home_craft_corner",
+   "locationId": "location:home",
+   "name": "Evening craft corner",
+   "spatialNodes": [
+    {
+     "bindsTo": {
+      "id": "anchor:craft_table",
+      "kind": "anchor"
+     },
+     "description": "Stable child-height craft table.",
+     "id": "spatial:craft_table",
+     "kind": "furniture"
+    },
+    {
+     "bindsTo": {
+      "id": "anchor:home_exit",
+      "kind": "anchor"
+     },
+     "description": "Exterior doorway leading to the pedestrian route.",
+     "id": "spatial:home_doorway",
+     "kind": "doorway"
+    },
+    {
+     "bindsTo": null,
+     "description": "Clear floor between table and doorway.",
+     "id": "spatial:craft_floor",
+     "kind": "floor"
+    }
+   ],
+   "spatialRelations": [
+    {
+     "objectId": "spatial:home_doorway",
+     "relation": "adjacent_to",
+     "subjectId": "spatial:craft_table"
+    },
+    {
+     "relation": "centered_in",
+     "subjectId": "spatial:craft_floor"
+    }
+   ],
+   "stableGeometry": [
+    "Craft table remains near the doorway without blocking it.",
+    "Open floor lane connects the table to the exterior threshold.",
+    "Doorway provides a clear view toward the first stretch of path."
+   ]
+  },
+  {
+   "description": "A quiet bedroom with the bed beside a window and broad sill overlooking rooftops.",
+   "id": "zone:home_bedroom",
+   "locationId": "location:home",
+   "name": "Nighttime bedroom",
+   "spatialNodes": [
+    {
+     "bindsTo": null,
+     "description": "Stable bed beside the window wall.",
+     "id": "spatial:bedroom_bed",
+     "kind": "furniture"
+    },
+    {
+     "bindsTo": {
+      "id": "anchor:bedroom_view",
+      "kind": "anchor"
+     },
+     "description": "Window facing the rooftops and kindergarten.",
+     "id": "spatial:bedroom_window",
+     "kind": "window"
+    },
+    {
+     "bindsTo": null,
+     "description": "Broad interior sill directly below the window.",
+     "id": "spatial:bedroom_windowsill",
+     "kind": "ledge"
+    },
+    {
+     "bindsTo": null,
+     "description": "Clear floor beside the bed.",
+     "id": "spatial:bedroom_floor",
+     "kind": "floor"
+    }
+   ],
+   "spatialRelations": [
+    {
+     "objectId": "spatial:bedroom_window",
+     "relation": "below",
+     "subjectId": "spatial:bedroom_windowsill"
+    },
+    {
+     "objectId": "spatial:bedroom_window",
+     "relation": "adjacent_to",
+     "subjectId": "spatial:bedroom_bed"
+    },
+    {
+     "relation": "centered_in",
+     "subjectId": "spatial:bedroom_floor"
+    }
+   ],
+   "stableGeometry": [
+    "Bed remains adjacent to the window wall.",
+    "Broad windowsill is below the window opening.",
+    "Window sightline reaches the distant kindergarten across rooftops."
+   ]
+  },
+  {
+   "description": "The first outdoor route segment, bordered by successive hedges after sunset.",
+   "id": "zone:hedge_path",
+   "locationId": "location:neighborhood_route",
+   "name": "Hedge-lined garden path",
+   "spatialNodes": [
+    {
+     "bindsTo": {
+      "id": "anchor:path_surface",
+      "kind": "anchor"
+     },
+     "description": "Paved pedestrian path between the hedges.",
+     "id": "spatial:hedge_path_floor",
+     "kind": "floor"
+    },
+    {
+     "bindsTo": {
+      "id": "anchor:hedge_series",
+      "kind": "anchor"
+     },
+     "description": "Dense fixed hedge boundary beside the path.",
+     "id": "spatial:hedge_edge",
+     "kind": "wall"
+    }
+   ],
+   "spatialRelations": [
+    {
+     "objectId": "spatial:hedge_edge",
+     "relation": "adjacent_to",
+     "subjectId": "spatial:hedge_path_floor"
+    },
+    {
+     "relation": "centered_in",
+     "subjectId": "spatial:hedge_path_floor"
+    }
+   ],
+   "stableGeometry": [
+    "Paved path remains centered between hedge edges.",
+    "Hedges recur at readable intervals along the route.",
+    "Forward route continues directly toward the market."
+   ]
+  },
+  {
+   "description": "A sheltered market passage with produce display and bakery service window.",
+   "id": "zone:market_arcade",
+   "locationId": "location:neighborhood_route",
+   "name": "Closing market arcade",
+   "spatialNodes": [
+    {
+     "bindsTo": {
+      "id": "anchor:market_arcade",
+      "kind": "anchor"
+     },
+     "description": "Pedestrian floor through the market arcade.",
+     "id": "spatial:market_floor",
+     "kind": "floor"
+    },
+    {
+     "bindsTo": null,
+     "description": "Fixed-position produce crate used for the closing display.",
+     "id": "spatial:cucumber_crate",
+     "kind": "furniture"
+    },
+    {
+     "bindsTo": {
+      "id": "anchor:bakery_display",
+      "kind": "anchor"
+     },
+     "description": "Opening service window facing the arcade.",
+     "id": "spatial:bakery_window",
+     "kind": "window"
+    }
+   ],
+   "spatialRelations": [
+    {
+     "objectId": "spatial:bakery_window",
+     "relation": "opposite_to",
+     "subjectId": "spatial:cucumber_crate"
+    },
+    {
+     "objectId": "spatial:market_floor",
+     "relation": "adjacent_to",
+     "subjectId": "spatial:cucumber_crate"
+    },
+    {
+     "objectId": "spatial:market_floor",
+     "relation": "adjacent_to",
+     "subjectId": "spatial:bakery_window"
+    }
+   ],
+   "stableGeometry": [
+    "Arcade floor carries the route through the market.",
+    "Produce display stands opposite the bakery service window.",
+    "Bakery window opens onto the pedestrian arcade."
+   ]
+  },
+  {
+   "description": "A round fountain junction with a broad flat stone along the route to the kindergarten.",
+   "id": "zone:fountain_crossing",
+   "locationId": "location:neighborhood_route",
+   "name": "Fountain crossing",
+   "spatialNodes": [
+    {
+     "bindsTo": {
+      "id": "anchor:fountain_center",
+      "kind": "anchor"
+     },
+     "description": "Low circular rim of the fountain basin.",
+     "id": "spatial:fountain_basin",
+     "kind": "railing"
+    },
+    {
+     "bindsTo": {
+      "id": "anchor:path_surface",
+      "kind": "anchor"
+     },
+     "description": "Paved loop surrounding the fountain.",
+     "id": "spatial:fountain_paving",
+     "kind": "floor"
+    },
+    {
+     "bindsTo": {
+      "id": "anchor:fountain_stone",
+      "kind": "anchor"
+     },
+     "description": "Broad flat stone beside the water.",
+     "id": "spatial:fountain_stone",
+     "kind": "ledge"
+    }
+   ],
+   "spatialRelations": [
+    {
+     "relation": "centered_in",
+     "subjectId": "spatial:fountain_basin"
+    },
+    {
+     "objectId": "spatial:fountain_basin",
+     "relation": "adjacent_to",
+     "subjectId": "spatial:fountain_stone"
+    },
+    {
+     "objectId": "spatial:fountain_basin",
+     "relation": "adjacent_to",
+     "subjectId": "spatial:fountain_paving"
+    }
+   ],
+   "stableGeometry": [
+    "Circular fountain is centered in the crossing.",
+    "Pedestrian paving loops around the fountain.",
+    "Broad flat stone sits beside the fountain on the kindergarten-facing side."
+   ]
+  },
+  {
+   "description": "The final moonlit pedestrian stretch rising gently to the closed kindergarten gate.",
+   "id": "zone:kindergarten_approach",
+   "locationId": "location:neighborhood_route",
+   "name": "Kindergarten approach",
+   "spatialNodes": [
+    {
+     "bindsTo": {
+      "id": "anchor:gate_direction",
+      "kind": "anchor"
+     },
+     "description": "Final paved path to the kindergarten.",
+     "id": "spatial:approach_path",
+     "kind": "floor"
+    },
+    {
+     "bindsTo": null,
+     "description": "Kindergarten pedestrian gate viewed from outside.",
+     "id": "spatial:approach_gate",
+     "kind": "doorway"
+    }
+   ],
+   "spatialRelations": [
+    {
+     "relation": "centered_in",
+     "subjectId": "spatial:approach_gate"
+    },
+    {
+     "objectId": "spatial:approach_gate",
+     "relation": "adjacent_to",
+     "subjectId": "spatial:approach_path"
+    }
+   ],
+   "stableGeometry": [
+    "Path remains unobstructed to the gate.",
+    "Gate spans the route boundary at the top of the approach.",
+    "Neighborhood route meets the gate squarely."
+   ]
+  },
+  {
+   "description": "The entrance courtyard immediately inside the gate, organized around a clear path.",
+   "id": "zone:kindergarten_courtyard",
+   "locationId": "location:kindergarten",
+   "name": "Kindergarten courtyard",
+   "spatialNodes": [
+    {
+     "bindsTo": {
+      "id": "anchor:gate_lock",
+      "kind": "anchor"
+     },
+     "description": "Pedestrian gate viewed from inside the courtyard.",
+     "id": "spatial:courtyard_gate",
+     "kind": "doorway"
+    },
+    {
+     "bindsTo": {
+      "id": "anchor:courtyard_path",
+      "kind": "anchor"
+     },
+     "description": "Main courtyard path.",
+     "id": "spatial:courtyard_path",
+     "kind": "floor"
+    },
+    {
+     "bindsTo": {
+      "id": "anchor:lantern_hanging_point",
+      "kind": "anchor"
+     },
+     "description": "Fixed overhead hanging support above the path.",
+     "id": "spatial:lantern_support",
+     "kind": "furniture"
+    }
+   ],
+   "spatialRelations": [
+    {
+     "objectId": "spatial:courtyard_path",
+     "relation": "above",
+     "subjectId": "spatial:lantern_support"
+    },
+    {
+     "objectId": "spatial:courtyard_path",
+     "relation": "adjacent_to",
+     "subjectId": "spatial:courtyard_gate"
+    },
+    {
+     "relation": "centered_in",
+     "subjectId": "spatial:courtyard_path"
+    }
+   ],
+   "stableGeometry": [
+    "Gate opens directly onto the courtyard path.",
+    "Fixed hanging support is centered above the path.",
+    "Courtyard remains visually open and welcoming."
+   ]
+  }
+ ]
+}

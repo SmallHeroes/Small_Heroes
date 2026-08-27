@@ -1261,7 +1261,7 @@ describe('exact zero-cost authoring preflight', () => {
       },
       promptAuthority: {
         initial: {
-        systemPromptVersion: 'vc-template-prompt/v21',
+        systemPromptVersion: 'vc-template-prompt/v22',
         userPromptVersion: 'vc-template-user-prompt/v17',
         },
         repair: {

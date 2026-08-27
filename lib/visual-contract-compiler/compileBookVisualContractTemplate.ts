@@ -280,8 +280,13 @@ const AUTHORING_REASONING_EFFORT =
 // steady pages must stay in the previous page's zone. v20 described only
 // per-kind render zones, so a self-consistent departure-scheme draft failed
 // six transition-pair checks and stagnated through the BookSurface repairs.
+// v22: complete the same contract — page 1 must be steady/before_transition
+// (opening threshold/after_transition is rejected) and threshold, like
+// after_transition, departs FROM the previous page's zone. The BookSurface
+// repair prompt (v14) now states the identical contract, so the repair route
+// can converge a transition frontier instead of stagnating.
 export const TEMPLATE_PROMPT_VERSION =
-  'vc-template-prompt/v21' as const;
+  'vc-template-prompt/v22' as const;
 export const TEMPLATE_USER_PROMPT_VERSION =
   'vc-template-user-prompt/v17' as const;
 /** Normal bounded safety net after the initial authoring call. */
@@ -1520,9 +1525,8 @@ export function completeStorySourcePromptTable(
 export function buildTemplateCompileSystemPrompt(): string {
   return [
     "You are a visual-continuity compiler for a children's picture book, producing a DRAFT for human review.",
-    'You are given DETERMINISTIC FACTS already extracted from the story text (recurring humans, their gender, the',
-    'pages they appear on, and any laterality). Those facts are AUTHORITATIVE and will be overlaid onto your output —',
-    'you MUST NOT restate or contradict them.',
+    'You are given DETERMINISTIC FACTS extracted from the story (recurring humans, gender, pages present,',
+    'laterality). They are AUTHORITATIVE, will be overlaid onto your output, and MUST NOT be restated or contradicted.',
     '',
     'Draft ONLY the DESCRIPTIVE fields:',
     '- worldType, locations[] (closed time; authored setIdentityId/setReference bindings), zones[] (with stableGeometry',
@@ -1562,14 +1566,14 @@ export function buildTemplateCompileSystemPrompt(): string {
     'Topology: describe ONE location/zone graph in zones[] (each zone has a parent locationId). Stable-board area',
     'zoneProjection uses exact zone ids; one_to_one carries one, one_to_many carries 2+. The compiler projects',
     'area nodes into those zones; an area id is never a zone id. Every per-page zoneId and transition',
-    'fromZoneId/toZoneId MUST be an EXACT zones[] id. A page in a NEW zone MUST itself carry the arrival:',
-    "after_transition from the previous page's zone into its own, or threshold (own zone = an endpoint);",
-    "before_transition/steady declare NO arrival, so their page zone MUST equal the previous page's zone.",
-    'Do not restate zones with new ids.',
+    'fromZoneId/toZoneId MUST be an EXACT zones[] id. Page 1: steady or before_transition only. A later page',
+    "in a NEW zone MUST itself carry the arrival, departing FROM the previous page's zone: after_transition into",
+    'its own zone, or threshold with its own zone as one endpoint; before_transition/steady declare NO arrival,',
+    "so their page zone MUST equal the previous page's zone. Do not restate zones with new ids.",
     '',
-    'You MUST NOT output: a human\'s gender, pagesPresent, textEvidence, or aliases; page castIds or characterPresence;',
-    'or any laterality (injectionArm/bandageArm/freeHand). Those are supplied by the deterministic extractor. Do not',
-    'invent a human who is not in the given facts.',
+    'You MUST NOT output: a human\'s gender, pagesPresent, textEvidence, aliases, page castIds/characterPresence, or',
+    'laterality (injectionArm/bandageArm/freeHand) — the deterministic extractor supplies them. Never invent a human',
+    'outside the given facts.',
     '',
     'Historical imageDirection is ADVISORY evidence only. It may help preserve visual action, interaction, expression,',
     'camera, composition, or staging. It MUST NOT select or change worldType, location, zone, set topology, cast,',

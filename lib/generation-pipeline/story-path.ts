@@ -55,12 +55,16 @@ export const ACCEPTED_REVISION_NAMESPACE_PREFIX =
  * Hostile accepted-namespace detector. A reference CLAIMS the accepted product
  * namespace when any plausible filesystem interpretation of it reaches into
  * that tree: surrounding whitespace is trimmed, backslashes fold to `/`,
- * duplicate separators collapse, self (`.`) segments drop, and the comparison
- * is case-insensitive (a case-aliased spelling resolves on Windows dev
- * filesystems). This function decides only namespace OWNERSHIP — it grants no
- * authority. Every caller must fail closed when a claiming reference does not
- * ALSO parse as the exact canonical byte spelling; classifying a noncanonical
- * claiming spelling as "legacy" is the path-authority bypass this closes.
+ * duplicate separators collapse, self (`.`) segments drop, parent (`..`)
+ * segments are lexically resolved (`x/../story-pipeline/…` and
+ * `story-pipeline/x/../04_…` both reach the tree), an escaping `..` keeps a
+ * sentinel (`../story-pipeline/…` is still a reach relative to an unknown
+ * parent), and both the resolved and unresolved spellings are compared
+ * case-insensitively at segment boundaries. This function decides only
+ * namespace OWNERSHIP — it grants no authority. Every caller must fail closed
+ * when a claiming reference does not ALSO parse as the exact canonical byte
+ * spelling; classifying a noncanonical claiming spelling as "legacy" is the
+ * path-authority bypass this closes.
  */
 export function storyRefClaimsAcceptedRevisionNamespace(
   value: unknown,
@@ -71,8 +75,24 @@ export function storyRefClaimsAcceptedRevisionNamespace(
     .split('/')
     .filter((segment) => segment !== '' && segment !== '.');
   if (segments.length === 0) return false;
-  return `${segments.join('/').toLowerCase()}/`.startsWith(
-    ACCEPTED_REVISION_NAMESPACE_PREFIX,
+  const resolved: string[] = [];
+  for (const segment of segments) {
+    if (segment === '..') {
+      if (
+        resolved.length > 0 &&
+        resolved[resolved.length - 1] !== '..'
+      ) {
+        resolved.pop();
+      } else {
+        resolved.push('..');
+      }
+    } else {
+      resolved.push(segment);
+    }
+  }
+  const needle = `/${ACCEPTED_REVISION_NAMESPACE_PREFIX}`;
+  return [segments, resolved].some((parts) =>
+    `/${parts.join('/').toLowerCase()}/`.includes(needle),
   );
 }
 

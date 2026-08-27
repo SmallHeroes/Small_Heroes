@@ -136,6 +136,24 @@ describe('accepted-revision text finalization boundary', () => {
     expect(mocks.selectCompanionStory).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['leading parent-collapse', `x/../${SOURCE_REF}`],
+    ['escaping parent', `../${SOURCE_REF}`],
+    [
+      'interior parent-collapse',
+      SOURCE_REF.replace('story-pipeline/', 'story-pipeline/x/../'),
+    ],
+  ])(
+    'fails closed on a %s alias of the accepted namespace instead of the legacy selector',
+    async (_label, selectionFilename) => {
+      await expect(
+        finalizeAndPersistStoryText(order({ selectionFilename }), {}),
+      ).rejects.toThrow('Product-accepted Story Source reference is invalid');
+      expect(mocks.loadStoryFromBank).not.toHaveBeenCalled();
+      expect(mocks.selectCompanionStory).not.toHaveBeenCalled();
+    },
+  );
+
   it('does not admit an accepted revision from cache without frozen Order authority', async () => {
     await expect(
       finalizeAndPersistStoryText(

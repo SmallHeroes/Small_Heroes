@@ -216,39 +216,119 @@ describe('finalizePackageDelivery — readiness-independent safety pre-gate (Fix
   });
 });
 
-describe('finalizePackageDelivery — readiness-independent package-authority gate', () => {
-  const packageOrderInvalid = {
+describe('finalizePackageDelivery — readiness-independent package-authority gate (FRESH row, never stale args)', () => {
+  const ACCEPTED_SELECTION =
+    'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/' +
+    `revisions/${'a'.repeat(64)}/integrated.md`;
+  // A structurally VALID authority envelope, consistent with ACCEPTED_SELECTION —
+  // the caller's snapshot is healthy; only the database row has drifted.
+  const staleValidAuthority = {
+    version: 'frozen-visual-package-authority/v3',
+    manifestVersion: 'visual-package/v5',
+    storyKey: 'chameleon_koko_bedtime',
+    styleId: 'soft_hand_drawn_storybook',
+    packagePath: `visual-packages/approved/revisions/${'c'.repeat(64)}.visual-package.json`,
+    packageRevisionDigest: 'c'.repeat(64),
+    sourcePath: ACCEPTED_SELECTION,
+    sourceDigest: 'd'.repeat(64),
+    sourceRawDigest: 'b'.repeat(64),
+    blueprintDigest: 'e'.repeat(64),
+    authoringAuthorityDigest: 'f'.repeat(64),
+    planningApprovalDigest: '1'.repeat(64),
+    styleAuthorityDigest: '2'.repeat(64),
+    visualContractTemplateDigest: '3'.repeat(64),
+    reconciliationDigest: '4'.repeat(64),
+    layoutPolicyVersion: 'portrait-layout-compatibility/v1',
+  };
+  const staleValidArgsOrder = {
     ...order,
-    selectionFilename:
-      'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/' +
-      `revisions/${'a'.repeat(64)}/integrated.md`,
+    selectionFilename: ACCEPTED_SELECTION,
     storySourceHash: 'b'.repeat(64),
-    visualPackageAuthority: null,
+    visualPackageAuthority: staleValidAuthority,
   };
 
-  it('readiness OFF + accepted-revision Order with missing authority → contract_world hold, no ship CAS, no email', async () => {
+  function dbWithFreshRow(freshRow: Record<string, unknown>) {
     const prisma = db();
+    // inputVersion/fence mirror the $queryRaw stub inside db() so the fenced
+    // hold write proceeds (real CAS semantics live in the PG harness).
+    prisma.order.findUnique = vi.fn(async () => ({
+      inputVersion: 0,
+      deliveryFenceVersion: 0,
+      ...freshRow,
+    }));
+    return prisma;
+  }
+
+  it('readiness OFF: stale-VALID args + fresh accepted row with NULL authority → hold, zero ship, zero email', async () => {
+    const prisma = dbWithFreshRow({
+      selectionFilename: ACCEPTED_SELECTION,
+      storySourceHash: 'b'.repeat(64),
+      illustrationStyle: 'pencil_watercolor',
+      visualPackageAuthority: null,
+    });
     const send = vi.fn();
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order: packageOrderInvalid, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order: staleValidArgsOrder, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true, manifest: null });
-    // The park goes through writeOrderHoldFenced ($executeRaw); the legacy ship path is never entered.
+    // The hold is the fenced park ($executeRaw via writeOrderHoldFenced); the ship path is never entered.
+    // (findUnique also serves the post-commit case sync, so assert presence, not count — the args
+    // snapshot was VALID, so mode=authority_hold itself proves the fresh row decided.)
+    expect(prisma.order.findUnique).toHaveBeenCalled();
     expect(prisma.$executeRaw).toHaveBeenCalled();
     expect(prisma.order.update).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
     expect(prisma.generationJob.update).toHaveBeenCalled();
   });
 
-  it('readiness OFF + legacy Order carrying package authority (origin mix) → same hold, no email', async () => {
-    const prisma = db();
+  it('readiness OFF: stale-VALID args + fresh row whose authority MISMATCHES its own frozen truth → hold, no email', async () => {
+    const prisma = dbWithFreshRow({
+      selectionFilename: ACCEPTED_SELECTION,
+      storySourceHash: '9'.repeat(64), // fresh digest no longer matches the stored authority
+      illustrationStyle: 'pencil_watercolor',
+      visualPackageAuthority: staleValidAuthority,
+    });
     const send = vi.fn();
     const result = await finalizePackageDelivery(
       prisma as never,
+      { order: staleValidArgsOrder, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('readiness OFF: fresh LEGACY row carrying package authority (origin mix) → hold, no email', async () => {
+    const prisma = dbWithFreshRow({
+      selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+      storySourceHash: 'f'.repeat(64),
+      illustrationStyle: 'pencil_watercolor',
+      visualPackageAuthority: { version: 'hostile' },
+    });
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('readiness OFF: stale-INVALID args but fresh legacy-clean row → ships (fresh row is the authority)', async () => {
+    const prisma = dbWithFreshRow({
+      selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+      storySourceHash: 'f'.repeat(64),
+      illustrationStyle: 'pencil_watercolor',
+      visualPackageAuthority: null,
+    });
+    const send = vi.fn(async () => ({}));
+    const result = await finalizePackageDelivery(
+      prisma as never,
       {
-        order: { ...order, visualPackageAuthority: { version: 'hostile' } },
+        order: { ...staleValidArgsOrder, visualPackageAuthority: null },
         deliveryGate: allowGate,
         safetyGate: { held: false, reason: null },
         readUrl: 'https://app/ready?orderId=o1',
@@ -257,8 +337,8 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
       },
       { readinessEnabled: () => false, send },
     );
-    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
-    expect(send).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false });
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it('readiness ON delegates the same predicate to the readiness commit (no pre-park, evidence-rich path)', async () => {
@@ -273,7 +353,7 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
     }));
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order: packageOrderInvalid, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order: { ...staleValidArgsOrder, visualPackageAuthority: null }, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => true, commit: commit as never, send },
     );
     expect(result).toMatchObject({ mode: 'manifest', deliveryHeld: true });

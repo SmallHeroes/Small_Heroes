@@ -535,7 +535,7 @@ describe('canonical live request materialization artifacts', () => {
       },
       promptAuthority: {
         initial: {
-          systemPromptVersion: 'vc-template-prompt/v21',
+          systemPromptVersion: 'vc-template-prompt/v22',
           userPromptVersion: 'vc-template-user-prompt/v17',
         },
         repair: {
@@ -543,7 +543,7 @@ describe('canonical live request materialization artifacts', () => {
           userPromptVersion: 'vc-repair-user-prompt/v15',
         },
         bookSurfaceRepair: {
-          systemPromptVersion: 'book-surface-repair-prompt/v13',
+          systemPromptVersion: 'book-surface-repair-prompt/v14',
           userPromptVersion: 'book-surface-repair-user-prompt/v13',
         },
       },
