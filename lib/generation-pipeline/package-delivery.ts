@@ -48,11 +48,16 @@ export interface PackageDeliveryResult {
 }
 
 /**
- * (Codex round-5 finding 3) An authority/safety/anchor PARK lost its hold write — writeOrderHoldFenced returned
- * `input_drift` or `lost`, meaning NO hold landed (the inputs moved, or the fence churned past the retry budget).
- * The park transaction rolls back with this error so the job is NEVER marked done/packaged without a durable
- * terminal disposition; the chunk runner's standard failure path (job failed + retryable + infra_transient case)
- * then owns the redrive, which re-evaluates everything FRESH. Never reported as an applied hold.
+ * (Codex round-5 finding 3 / round-6) The legacy delivery could not reach a DURABLE outcome and
+ * aborts RETRYABLY instead of concluding the package stage. Thrown when:
+ *   - a terminal PARK lost its hold write (`writeOrderHoldFenced` → `input_drift`/`lost`: no hold
+ *     landed — the park transaction rolls back);
+ *   - (round-6) the bounded legacy ship RE-EVALUATION loop exhausted — every fresh evaluation's
+ *     ship CAS matched 0 rows and no held disposition emerged (`legacy_ship_reevaluation_exhausted`);
+ *   - (round-6) the order vanished mid-package (`order_vanished_before_package_write`).
+ * In every case the job is NEVER marked done/packaged without a durable disposition; the chunk
+ * runner's standard failure path (job failed + retryable + infra_transient case) owns the redrive,
+ * which re-evaluates everything FRESH. Never reported as an applied hold or a held delivery.
  */
 export class AuthorityHoldRaceError extends Error {
   constructor(
@@ -213,53 +218,68 @@ export async function finalizePackageDelivery(
     };
   }
 
-  // (Codex round-5 P0-2) The legacy (readiness OFF) path is the LIVE customer delivery path in Production. Its
-  // writes are now fence-bound CAS writes — a hold that landed after safetyGate was read cannot be silently
-  // overwritten, and the email is gated on the ship CAS winning. Read fence + inputVersion to bind the CAS.
-  const cur = await prisma.order.findUnique({
-    where: { id: args.order.id },
-    select: {
-      inputVersion: true,
-      deliveryFenceVersion: true,
-      selectionFilename: true,
-      storySourceHash: true,
-      illustrationStyle: true,
-      visualPackageAuthority: true,
-      visualContractHash: true,
-      coverImageUrl: true,
-      generationJob: { select: { pipelineCache: true } },
-      book: {
-        select: {
-          readUrl: true,
-          coverImageUrl: true,
-          pdfUrl: true,
-          pages: {
-            orderBy: { pageNumber: 'asc' as const },
-            select: { audioUrl: true },
+  // (Codex round-5 P0-2 / round-6) The legacy (readiness OFF) path is the LIVE customer delivery
+  // path in Production. Its writes are fence-bound CAS writes, and (round-6) the whole
+  // read→prove→derive→ship/park sequence is a BOUNDED FRESH RE-EVALUATION LOOP: a ship CAS that
+  // matches 0 rows (a competing hold, a fence move, or an anchor-band flip on the producing
+  // snapshot — which bumps no inputVersion) is NEVER just logged. The next iteration re-reads the
+  // fresh row and re-derives the disposition, so a mid-flight band flip converges to the CORRECT
+  // durable anchor hold; when the loop budget exhausts without a durable outcome it throws
+  // AuthorityHoldRaceError (the chunk runner's standard failed+retryable+case path owns the
+  // redrive). The job is marked done/packaged ONLY after a durable outcome (ship or applied/
+  // superseded park) exists, and deliveryHeld is only ever reported with that durable state.
+  const LEGACY_SHIP_REEVALUATIONS = 3;
+  let shipped = false;
+  let shippedSoftDeliver = false;
+  let shippedWarnings: ReturnType<typeof buildQaWarningsFromAnchorHold> | null = null;
+  let heldReason: string | null = null;
+  let durable = false;
+
+  for (let attempt = 0; attempt < LEGACY_SHIP_REEVALUATIONS; attempt++) {
+    const cur = await prisma.order.findUnique({
+      where: { id: args.order.id },
+      select: {
+        inputVersion: true,
+        deliveryFenceVersion: true,
+        selectionFilename: true,
+        storySourceHash: true,
+        illustrationStyle: true,
+        visualPackageAuthority: true,
+        visualContractHash: true,
+        coverImageUrl: true,
+        generationJob: { select: { pipelineCache: true } },
+        book: {
+          select: {
+            readUrl: true,
+            coverImageUrl: true,
+            pdfUrl: true,
+            pages: {
+              orderBy: { pageNumber: 'asc' as const },
+              select: { audioUrl: true },
+            },
           },
         },
       },
-    },
-  });
-  // Durable identity + producing-snapshot gate — readiness-INDEPENDENT, like the safety gate above,
-  // and evaluated on the SAME FRESH row the ship CAS binds (never the caller's stale `args.order`
-  // snapshot). Beyond the fresh row's own validity, the caller's snapshot identity must BE the fresh
-  // producing identity (exact package revision, or legacy — both directions), and a package-backed
-  // Order must prove the artifacts being shipped were PRODUCED under this exact authority. The
-  // caller-supplied readUrl/cover/pdf/audio payload must also equal the fresh Book row, so the email
-  // can only carry that same snapshot's artifacts. Post-read races are closed by the CAS's
-  // inputVersion binding plus (round-5) the producing anchor-disposition bind. The readiness-ON
-  // branch re-proves the same predicates inside its own TOCTOU-fingerprinted transaction.
-  const producingCacheOf = (row: typeof cur): unknown =>
-    row?.generationJob?.pipelineCache ?? null;
-  if (cur) {
+    });
+    if (!cur) {
+      // (round-6) An order that vanished mid-package is NOT a silent fall-through: no durable
+      // disposition can exist, so the job must not be marked done — abort into the recovery path.
+      throw new AuthorityHoldRaceError(args.order.id, 'lost', 'order_vanished_before_package_write');
+    }
+    const producingCache: unknown = cur.generationJob?.pipelineCache ?? null;
+
+    // Durable identity + producing-snapshot gate — readiness-INDEPENDENT, evaluated on the SAME
+    // FRESH row the ship CAS binds (never the caller's stale `args.order` snapshot): the caller's
+    // snapshot identity must BE the fresh producing identity (exact package revision, or legacy —
+    // both directions), and a package-backed Order must prove the shipped artifacts were PRODUCED
+    // under this exact authority. Identity/payload failures park DURABLY (their own job-done).
     let freshPackageBacked = false;
     try {
       freshPackageBacked =
         requireConsistentProducingIdentity({
           callerPackageRevisionDigest,
           order: cur,
-          pipelineCache: producingCacheOf(cur),
+          pipelineCache: producingCache,
         }) !== null;
     } catch (error) {
       if (!(error instanceof OrderVisualPackageAuthorityError)) throw error;
@@ -309,49 +329,55 @@ export async function finalizePackageDelivery(
         );
       }
     }
-  }
 
-  // (Codex round-5) The anchor delivery DISPOSITION — derived from the authoritative fresh
-  // producing snapshot, never from a caller gate. A vanished row derives from null (fail-open is
-  // impossible: the ship CAS below matches zero rows for a missing order anyway).
-  const { gate: freshGate, lowConfidence: freshLowConfidence } =
-    deriveAnchorDeliveryDisposition(producingCacheOf(cur));
-  const softDeliver = canUseQaSoftDeliver();
-  const legacySoftDeliver = softDeliver && freshGate.held;
-  const legacyStatus = legacySoftDeliver ? 'ready' : freshGate.orderStatus;
-  const legacyHoldReason = legacySoftDeliver
-    ? `qa_soft_deliver:${freshGate.reason ?? 'held'}`
-    : freshGate.reason;
+    // (Codex round-5) The anchor delivery DISPOSITION — derived from THIS iteration's fresh
+    // producing snapshot, never from a caller gate.
+    const { gate: freshGate, lowConfidence: freshLowConfidence } =
+      deriveAnchorDeliveryDisposition(producingCache);
+    const softDeliver = canUseQaSoftDeliver();
+    const legacySoftDeliver = softDeliver && freshGate.held;
+    const legacyStatus = legacySoftDeliver ? 'ready' : freshGate.orderStatus;
+    const legacyHoldReason = legacySoftDeliver
+      ? `qa_soft_deliver:${freshGate.reason ?? 'held'}`
+      : freshGate.reason;
 
-  let shipped = false;
-  if (!cur) {
-    log.error('Legacy delivery aborted — order vanished before the package write', { orderId: args.order.id });
-  } else if (legacyStatus === 'ready') {
-    // SHIP via the shared ready CAS: flips to ready ONLY IF no competing hold (fence unchanged, no terminal marker,
-    // no payment fence, no active strong case) AND (round-5) the producing snapshot still carries the exact
-    // anchor-disposition source this ship was derived from. 0 rows ⇒ a hold/flip landed mid-flight ⇒ NOT shipped,
-    // NO email.
-    const producingCache = producingCacheOf(cur);
-    const observedAnchorSource =
-      producingCache && typeof producingCache === 'object' && !Array.isArray(producingCache)
-        ? ((producingCache as Record<string, unknown>).childAnchorLowConfidence ?? null)
-        : null;
-    const rows = await executeReadinessShipCas(prisma, {
-      orderId: args.order.id,
-      inputVersion: cur.inputVersion,
-      deliveryFenceVersion: cur.deliveryFenceVersion,
-      deliveryHoldReason: legacyHoldReason,
-      producingAnchorBind: { childAnchorLowConfidence: observedAnchorSource },
-    });
-    shipped = rows === 1;
-    if (!shipped) {
-      log.warn('Legacy ship aborted — a hold landed mid-flight (fence/marker/case/anchor-source); not shipped, no email', {
+    if (legacyStatus === 'ready') {
+      // SHIP via the shared ready CAS: flips to ready ONLY IF no competing hold (fence unchanged, no
+      // terminal marker, no payment fence, no active strong case) AND (round-5) the producing
+      // snapshot still carries the exact anchor-disposition source this ship was derived from.
+      const observedAnchorSource =
+        producingCache && typeof producingCache === 'object' && !Array.isArray(producingCache)
+          ? ((producingCache as Record<string, unknown>).childAnchorLowConfidence ?? null)
+          : null;
+      const rows = await executeReadinessShipCas(prisma, {
         orderId: args.order.id,
+        inputVersion: cur.inputVersion,
+        deliveryFenceVersion: cur.deliveryFenceVersion,
+        deliveryHoldReason: legacyHoldReason,
+        producingAnchorBind: { childAnchorLowConfidence: observedAnchorSource },
       });
+      if (rows === 1) {
+        shipped = true;
+        shippedSoftDeliver = legacySoftDeliver;
+        shippedWarnings = legacySoftDeliver
+          ? buildQaWarningsFromAnchorHold(freshLowConfidence, freshGate.reason)
+          : null;
+        durable = true;
+        break;
+      }
+      // (round-6) CAS=0 ⇒ the world moved under this evaluation (hold/fence/anchor-band). Never
+      // just log-and-continue to the job-done write: RE-EVALUATE FRESH so a band flip converges to
+      // its correct durable anchor hold on the next iteration.
+      log.warn('Legacy ship CAS matched 0 rows — re-evaluating from a fresh snapshot', {
+        orderId: args.order.id,
+        attempt: attempt + 1,
+        of: LEGACY_SHIP_REEVALUATIONS,
+      });
+      continue;
     }
-  } else {
-    // PARK via the shared hold funnel (bind + bump + never overwrite a stronger marker), result-checked:
-    // a lost/drifted hold write must never fall through to the job-done write below.
+
+    // HELD → PARK via the shared hold funnel (bind + bump + never overwrite a stronger marker),
+    // result-checked: applied/superseded are DURABLE; drift/lost throws and nothing below runs.
     await writeTerminalParkOrThrow(prisma, {
       orderId: args.order.id,
       inputVersion: cur.inputVersion,
@@ -359,7 +385,24 @@ export async function finalizePackageDelivery(
       newHoldReason: legacyHoldReason ?? 'anchor_low_confidence:held',
       setPackageDone: true,
     });
+    heldReason = freshGate.reason;
+    durable = true;
+    break;
   }
+
+  if (!durable) {
+    // (round-6) The re-evaluation budget exhausted without a ship or a durable hold — the world
+    // kept moving. Explicit RETRYABLE abort owned by the normal recovery path (chunk runner marks
+    // the job failed+retryable and opens the standard case); the job is NEVER marked done here.
+    throw new AuthorityHoldRaceError(
+      args.order.id,
+      'lost',
+      'legacy_ship_reevaluation_exhausted',
+    );
+  }
+
+  // A durable outcome exists (ship, or applied/superseded park) — only now may the package stage
+  // conclude.
   await prisma.generationJob.update({
     where: { orderId: args.order.id },
     data: {
@@ -373,12 +416,11 @@ export async function finalizePackageDelivery(
   // soft-deliver/ready outcome is not held, so syncHumanQaHoldCase re-reads and no-ops.
   await syncHumanQaHoldCasePostCommit(prisma, args.order.id);
 
-  // (Codex round-5 P0-2) The email is gated on the ship CAS having WON — never sent on a park, and never sent when
-  // the CAS lost to a mid-flight hold.
+  // (Codex round-5 P0-2) The email is gated on the ship CAS having WON — never sent on a park.
   if (!shipped) {
-    log.warn('Book-ready email withheld — not shipped (held for human QA or a hold landed mid-flight)', {
+    log.warn('Book-ready email withheld — held for human QA (durable hold written)', {
       orderId: args.order.id,
-      reason: freshGate.reason,
+      reason: heldReason,
     });
   } else {
     try {
@@ -392,14 +434,7 @@ export async function finalizePackageDelivery(
         ...(args.coverImageUrl ? { coverImageUrl: args.coverImageUrl } : {}),
         audioUrl: args.firstAudioUrl ?? undefined,
         pdfUrl: args.pdfUrl ?? undefined,
-        ...(legacySoftDeliver
-          ? {
-              qaWarnings: buildQaWarningsFromAnchorHold(
-                freshLowConfidence,
-                freshGate.reason,
-              ),
-            }
-          : {}),
+        ...(shippedSoftDeliver && shippedWarnings ? { qaWarnings: shippedWarnings } : {}),
       });
     } catch (error) {
       log.error('Ready email failed (non-fatal)', error, { orderId: args.order.id });

@@ -186,6 +186,41 @@ describe('commitBaseBookReadiness — authorized-release precondition (re-gate r
     expect(r).toMatchObject({ enqueued: false, manifestStatus: 'blocked', orderStatus: 'needs_human_qa' });
     expect(r.reason).toContain('safety_hold'); // reflects the hold that won
     expect(tx.$executeRaw).toHaveBeenCalledTimes(1); // never retried into a ship
+    // (Codex round-6) The DeliveryFenceError rolls the WHOLE readiness tx back — the job-done write
+    // (step 5, after the CAS) is never reached, so the package stage stays un-concluded and the
+    // worker's next chunk re-enters it for a fresh evaluation. The ON CAS=0 classification is a
+    // recoverable re-entry, never a wedged done/packaged order.
+    expect(tx.generationJob.update).not.toHaveBeenCalled();
+  });
+
+  it('(Codex round-6, ON hostile) band flips to hard_band between eval and the in-tx reload → TOCTOU re-eval lands the CORRECT durable anchor hold in the SAME call', async () => {
+    // Out-of-tx eval sees a CLEAR producing snapshot; the in-tx fingerprint reload sees hard_band
+    // (childAnchorLowConfidence is a fingerprinted bound sub-value) → drift → retry reloads FRESH →
+    // both sides now hard_band → the derived disposition holds durably. Zero enqueue, zero ship.
+    const heldRow = rowWithAnchorBand('hard_band', 0.29);
+    const tx = mockTx(heldRow); // in-tx loads always see the flipped row
+    const prisma = {
+      order: {
+        findUnique: vi.fn()
+          .mockResolvedValueOnce(orderRowFull) // attempt 1 out-of-tx eval: clear
+          .mockResolvedValue(heldRow), // attempt 2 out-of-tx eval: hard_band
+      },
+      qualityEvidence: { findMany: vi.fn(async () => passingQualityRows(heldRow)) },
+      $transaction: vi.fn(async (cb: (t: unknown) => unknown) => cb(tx)),
+    };
+    const r = await commitBaseBookReadiness(
+      prisma as never,
+      args(),
+      { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+    expect(r).toMatchObject({
+      manifestStatus: 'passed', // readiness itself passes…
+      enqueued: false, // …but the FRESH-derived anchor disposition holds delivery
+      orderStatus: 'needs_human_qa',
+      reason: 'anchor_low_confidence:hard_band',
+    });
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+    expect(prisma.order.findUnique.mock.calls.length).toBeGreaterThanOrEqual(2); // TOCTOU re-eval ran
   });
 
   it('ship CAS 0 rows with inputVersion CHANGED → TOCTOU retry (reload + re-eval), then ships', async () => {

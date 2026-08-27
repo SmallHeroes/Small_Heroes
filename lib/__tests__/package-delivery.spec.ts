@@ -170,6 +170,110 @@ describe('finalizePackageDelivery — flag boundary', () => {
   });
 });
 
+describe('finalizePackageDelivery — legacy ship CAS=0 re-evaluation (Codex round-6)', () => {
+  const clearRow = () => ({
+    childName: 'Test', inputVersion: 0, visualContractHash: null, deliveryFenceVersion: 0,
+    selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+    storySourceHash: 'f'.repeat(64),
+    illustrationStyle: 'pencil_watercolor',
+    visualPackageAuthority: null,
+    generationJob: { pipelineCache: {} },
+  });
+  const hardBandRow = () => ({
+    ...clearRow(),
+    generationJob: { pipelineCache: { childAnchorLowConfidence: { reason: 'hard_band', score: 0.29 } } },
+  });
+  const CALL_ARGS = {
+    safetyGate: { held: false, reason: null },
+    readUrl: 'https://app/ready?orderId=o1',
+    pdfUrl: null,
+    firstAudioUrl: null,
+  } as const;
+
+  it('HOSTILE (round-6): band flips to hard_band between disposition read and ship CAS → fresh re-evaluation lands the CORRECT durable anchor hold; zero email, job done only after the hold', async () => {
+    const prisma = db();
+    // Iteration 1 reads a CLEAR producing snapshot; the flip lands before its ship CAS → CAS=0.
+    // Iteration 2 re-reads FRESH, sees hard_band, and parks durably.
+    prisma.order.findUnique = vi.fn()
+      .mockResolvedValueOnce(clearRow())
+      .mockResolvedValue(hardBandRow());
+    const executeRawValues: unknown[][] = [];
+    prisma.$executeRaw = vi.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      executeRawValues.push(values);
+      // Call 1 = iteration 1's ship CAS → 0 rows (the band flipped under it). Later raw writes
+      // (iteration 2's fenced hold) apply.
+      return executeRawValues.length === 1 ? 0 : 1;
+    }) as never;
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...CALL_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    // Exactly one durable outcome: the CORRECT fresh anchor hold.
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: true, manifest: null });
+    expect(
+      executeRawValues.flat().includes('anchor_low_confidence:hard_band'),
+      `expected the fresh-derived anchor marker among raw params: ${JSON.stringify(executeRawValues)}`,
+    ).toBe(true);
+    expect(send).not.toHaveBeenCalled();
+    // Two fresh evaluations ran (the wedge would have stopped at one)…
+    expect(prisma.order.findUnique.mock.calls.length).toBeGreaterThanOrEqual(2);
+    // …and the job concluded exactly once, only after the durable hold existed.
+    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1);
+    expect(prisma.generationJob.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'done', packaged: true }) }),
+    );
+  });
+
+  it('re-evaluation budget exhausted (world keeps moving) → RETRYABLE AuthorityHoldRaceError; job NEVER done/packaged; zero email; no held claim', async () => {
+    const prisma = db();
+    prisma.order.findUnique = vi.fn(async () => clearRow()); // always derives a clear ship…
+    prisma.$executeRaw = vi.fn(async () => 0); // …and every ship CAS loses.
+    const send = vi.fn();
+    await expect(
+      finalizePackageDelivery(
+        prisma as never,
+        { order, ...CALL_ARGS },
+        { readinessEnabled: () => false, send },
+      ),
+    ).rejects.toMatchObject({ name: 'AuthorityHoldRaceError', holdMarker: 'legacy_ship_reevaluation_exhausted' });
+    expect(prisma.generationJob.update).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(prisma.order.findUnique).toHaveBeenCalledTimes(3); // the full bounded budget re-evaluated fresh
+  });
+
+  it('order vanished mid-package → RETRYABLE abort, never a silent job-done fall-through', async () => {
+    const prisma = db();
+    prisma.order.findUnique = vi.fn(async () => null) as never;
+    const send = vi.fn();
+    await expect(
+      finalizePackageDelivery(
+        prisma as never,
+        { order, ...CALL_ARGS },
+        { readinessEnabled: () => false, send },
+      ),
+    ).rejects.toMatchObject({ name: 'AuthorityHoldRaceError', holdMarker: 'order_vanished_before_package_write' });
+    expect(prisma.generationJob.update).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('positive control: the same-source clear evaluation still ships exactly once (one CAS, one email, job done)', async () => {
+    const prisma = db();
+    prisma.order.findUnique = vi.fn(async () => clearRow());
+    const send = vi.fn(async () => ({}));
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...CALL_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1); // exactly one ship CAS, no retries
+    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('finalizePackageDelivery — hold-write result discipline (Codex round-5 finding 3)', () => {
   // A fresh row that fails the producing binding (A→legacy laundering) — the park path that binds
   // the observed inputVersion, so the fenced hold write can genuinely drift.
