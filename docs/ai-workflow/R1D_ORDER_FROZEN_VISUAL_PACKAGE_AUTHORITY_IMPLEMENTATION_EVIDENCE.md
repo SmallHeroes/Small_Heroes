@@ -4,7 +4,7 @@
 **Implementation owner:** Claude Code (explicit temporary transfer from Codex by Guy)
 **Branch / worktree:** `codex/r1d-order-package-authority-binding` / `C:\GNart\Work\sh-order-package-authority`
 **Base:** `983a09ee835be92ddeaf1134a56a5d122b61a328`
-**Immutable code range:** `983a09ee..157fe750` — `f982f9f8` (authority binding), `c38a18ac` (prompt v20), `59efadb5` (prompt v21), `0e49b8f6` (first-handoff docs), `3cfbae8f` (Codex round-1 correction: transitions v22/v14, `..`-aliases, fresh-row gate, debug route), `fc8b08a0` (Codex round-2 correction: producing-snapshot delivery binding), `5e79c45f` (round-2 docs), `157fe750` (Codex round-3 correction: total producing-provenance invariant). This document is finalized in the docs-only commit immediately following `157fe750` on the same branch.
+**Immutable code range:** `983a09ee..ce35ee42` — `f982f9f8` (authority binding), `c38a18ac` (prompt v20), `59efadb5` (prompt v21), `0e49b8f6` (first-handoff docs), `3cfbae8f` (Codex round-1 correction: transitions v22/v14, `..`-aliases, fresh-row gate, debug route), `fc8b08a0` (Codex round-2 correction: producing-snapshot delivery binding), `5e79c45f` (round-2 docs), `157fe750` (Codex round-3 correction: total producing-provenance invariant), `53c62285` (round-3 docs), `ce35ee42` (Codex round-4 correction: executable-SQL cache truth, barrier-owned inventory, repository-wide census, ON caller leg, anchor-release TOCTOU, debug-route producing provenance, send_ambiguous named exception). This document is finalized in the docs-only commit immediately following `ce35ee42` on the same branch.
 **Decision Gate:** `docs/ai-workflow/R1D_ORDER_FROZEN_VISUAL_PACKAGE_AUTHORITY_DECISION_GATE.md` (gitignored, SHA-256 `341f3912…`)
 **External cost:** $1.06 conservative ($0.94 nominal), 4 provider calls, 0 transport retries, 0 fallbacks, 0 images, 0 renders
 
@@ -342,6 +342,115 @@ missing/ambiguous cache-or-stamp hold; package-shaped caller over a legacy
 fresh row hold — every hold with zero ship CAS success and zero email.
 Round-3 battery: 468 tests across 21 suites, `tsc --noEmit` exit 0,
 `git diff --check` clean, zero provider/live/render operations.
+
+## Codex re-gate round 4 — executable-SQL truth + boundary closure (`ce35ee42`)
+
+Codex's round-4 review (0 BLOCKER / 6 MAJOR / 1 MINOR) falsified the round-3
+claims at the integration and transaction boundaries. `ce35ee42` closes all
+of it; the round-3 evaluator core (`requireProducingSnapshotBinding`) is
+byte-preserved.
+
+1. **Ordinary persistence mutated frozen JSON (MAJOR 1).** The round-3 store
+   wrapped the DB-owned overlay in `jsonb_strip_nulls`, which PostgreSQL
+   applies RECURSIVELY: the real approved `a9c253d9…` contract template
+   (8 nested nulls in `transition`/`sameLocationAs` fields) had its canonical
+   digest rewritten `51901523…` → `6c28adf8…` on every ordinary cache write —
+   and the round-3 spec inspected SQL text, positively expecting the
+   destructive function, without ever executing SQL semantics. The store now
+   overlays key-existence-gated (`?`) CASE arms copying each present key
+   VERBATIM (nested nulls, null array entries, explicit top-level JSON null);
+   an absent key can never be created. The proof EXECUTES on real PostgreSQL
+   (PGlite, offline, part of the ordinary battery,
+   `lib/generation-pipeline/__tests__/pipeline-cache-store.pg.spec.ts`): the
+   store's own tagged-template statement, the REAL freeze write via
+   `ensureFrozenVisualContract`'s barrier callback, and the Board statement
+   extracted verbatim from module source — with both digests of the real
+   approved artifact pinned as constants.
+2. **`setIdentityBoards` joins the protection set (MAJOR 2).** The
+   barrier-owned inventory is now DERIVED: the census extracts every
+   `jsonb_set` path key targeting `pipelineCache` from the barrier writers
+   and pins set-equality with `BARRIER_OWNED_PIPELINE_CACHE_KEYS`
+   (`visualContract`, `visualPackageAuthority`, `setIdentityBoards`) — a new
+   barrier-owned key cannot appear without joining the store's protection.
+   Creation seeds strip the full set (`withoutBarrierOwnedPipelineCacheKeys`;
+   the census's seed exemption now requires that helper at the call site
+   rather than trusting a file path). Freeze-vs-ordinary and
+   Board-vs-ordinary run in BOTH commit orders on real SQL: the barrier value
+   wins deterministically, which is also why a receipt REPLAY (which skips
+   the already-applied barrier mutation) can never meet a cache an ordinary
+   write hollowed out.
+3. **Repository-wide writer census (MAJOR 3).** The census now scans
+   `app`/`lib`/`backend`/`scripts` across `.ts/.tsx/.js/.mjs/.cjs`, raw
+   `GenerationJob` SQL (exhaustive allowlist: the freeze writer, the Board
+   writer, the structural store), and migration SQL (no `pipelineCache`
+   rewrite anywhere). The ~15 direct script cache-writers found by Codex are
+   explicitly RETIRED — moved to `scripts/retired/` (exact file list pinned;
+   its README states why and what reviving one requires); the remaining
+   active operational scripts are sanctioned per-file AND per-exact-write-
+   signature (`ACTIVE_SCRIPT_WRITER_ALLOWLIST`), with `pipelineCache` writes
+   prohibited outside stripped creation seeds. Zero unprotected writers is
+   now empirically true repository-wide. **Honest bounded scope:** active
+   scripts are operator-run fixture harnesses executed against dev/staging
+   data outside the runtime barrier; that boundary is the allowlist itself —
+   a new writer script or a new write shape inside one fails the census.
+4. **Readiness-ON caller-origin leg (MAJOR 4).** Round 3's caller leg ran
+   only on the OFF branch — `finalizePackageDelivery` returned through the
+   readiness commit before reaching it, and `CommitArgs` carried no caller
+   shape, so a package-shaped caller over a genuinely legacy fresh row
+   shipped through ON (Codex's probe: manifest passed, enqueued, one Outbox
+   create, one ship CAS). `CommitArgs.callerVisualPackageClaim` now threads
+   the claim (computed once in `finalizePackageDelivery`, and independently
+   by the anchor-release route); the commit's authority decision blocks a
+   legacy fresh row + producing snapshot under a package claim BEFORE
+   inspection, with the same
+   `contract_world_hold:delivery_snapshot_binding_invalid` marker as the OFF
+   leg. The COMPLETE origin matrix now runs through the REAL ON and OFF
+   implementations (`lib/__tests__/package-delivery-origin-matrix.spec.ts`
+   drives the real `commitBaseBookReadiness` — no blocked-result mock):
+   A/A/A eligible; B-self-consistent/A, A→legacy, legacy→A(missing),
+   ambiguous-stamp, package-caller-over-legacy all hold with zero enqueue,
+   zero ready-ship CAS, zero email; genuine legacy stays eligible.
+5. **Anchor-release eval→release TOCTOU (MAJOR 5).** The flag-OFF release
+   had checked provenance on the pre-transaction read, locked only
+   status/reason, released through a CAS that bound neither `inputVersion`
+   nor authority, and emailed the stale pre-lock payload. The release
+   transaction now re-proves the producing binding and the package
+   canonical-readUrl rule from ONE fresh snapshot read UNDER the FOR UPDATE
+   lock; `executeAnchorReleaseCas` additionally binds that snapshot's exact
+   `inputVersion` + `deliveryFenceVersion`; and the sent email payload is
+   captured from the same in-tx snapshot. An injected delivery-input
+   mutation between the initial evaluation and the release yields 409, zero
+   release CAS, zero email (pinned in
+   `anchor-hold-release-isolation.spec.ts`, plus real-SQL staleness rows in
+   the PG harness). The valid ON path and genuine anchor release are
+   preserved (positive controls re-pinned).
+6. **Debug image route (MAJOR 6).** The route had loaded no GenerationJob
+   and checked only the Order shape, so a legacy-looking Order with a
+   package-shaped producing cache reached `generateImage` in Preview/dev. It
+   now loads the producing cache and runs `requireProducingSnapshotBinding`:
+   exact-package (fully bound), aliased reference, origin-mix, A→legacy,
+   A→B, missing snapshot and ambiguous stamp all refuse 409 with ZERO
+   provider calls and ZERO writes (the persistence barrier sentinel is
+   asserted untouched even when persistence is requested); genuine legacy —
+   including a stamped legacy freeze whose bytes match — still proceeds.
+7. **`send_ambiguous` reconciliation — a NAMED EXCEPTION (MINOR 7).** Ruling:
+   the ambiguous-send replay is a sanctioned CONTINUATION of an
+   already-authorized provider attempt, not a new send, and therefore does
+   not re-run the fresh producing-snapshot gate. Its bounds, each enforced
+   and pinned: the Outbox row exists only because a delivery gate passed at
+   enqueue; the replay carries the EXACT captured payload
+   (`hashPayload(payload) === payloadHash` — a drifted payload refunds with
+   zero replay, new test) under the EXACT `dedupeKey` as the provider
+   idempotency key; only within the provider's idempotency window (expiry
+   refunds, never resends); and its sole purpose is recovering the provider
+   message id for state reconciliation. Every OTHER post-render surface runs
+   the fresh gate — "every send surface" claims elsewhere in this document
+   are qualified by exactly this one named exception.
+
+Round-4 battery: 37 suites, 630 tests passed (22 environment-gated real-PG
+staging skips), `tsc --noEmit` exit 0, `git diff --check` clean, zero
+provider/live/render operations. New devDependency: `@electric-sql/pglite`
+(offline real-Postgres engine; no network at test time).
 
 **Stop-rule closure:** the milestone brief states "If two consecutive
 paid/live attempts fail, stop spending and produce a causal map rather than

@@ -2,7 +2,7 @@
 
 **Updated:** 2026-08-27
 **Maintainer:** Claude Code (temporary implementation owner for the order-package-authority milestone; Codex QA pending)
-**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..157fe750` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
+**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..ce35ee42` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN PACKAGE CHAIN STOPPED AT THE PAID-ATTEMPT FENCE
 
@@ -101,6 +101,40 @@ zero email, the eval→commit producing-cache drift is a pinned TOCTOU
 abort-and-retry, and the debug image route gained a real route-boundary
 spec. Round-3 battery: 468 tests / 21 suites, `tsc --noEmit` and
 `git diff --check` clean, zero provider operations.
+
+Round 4 (0 BLOCKER / 6 MAJOR / 1 MINOR): the round-3 claims were falsified
+at the integration and transaction boundaries; `ce35ee42` closes all of it
+with the evaluator core preserved. The ordinary cache store's
+`jsonb_strip_nulls` overlay was RECURSIVELY rewriting frozen contract bytes
+(the real approved `a9c253d9…` template's digest `51901523…` → `6c28adf8…`)
+— replaced by key-existence-gated verbatim CASE arms, proven by EXECUTING
+the store's exact statement, the real freeze write and the Board statement
+on actual PostgreSQL (PGlite, offline, in the ordinary battery, both
+digests pinned). `setIdentityBoards` joined the protection set as
+`BARRIER_OWNED_PIPELINE_CACHE_KEYS` — an inventory the census now DERIVES
+from the barrier `jsonb_set` sites and pins; both commit orders of
+freeze/Board-vs-ordinary are real-SQL-proven; seeds strip the full set. The
+census went repository-wide (scripts + all source extensions + raw
+GenerationJob SQL + migrations): the ~15 direct script cache-writers are
+explicitly retired to `scripts/retired/` (pinned list + README), active
+scripts sanctioned per-file/per-write-signature. Readiness-ON gained the
+caller-origin leg (`CommitArgs.callerVisualPackageClaim` →
+`contract_world_hold:delivery_snapshot_binding_invalid`), and the complete
+origin matrix now runs through the REAL ON and OFF implementations (real
+`commitBaseBookReadiness`, zero enqueue/ship-CAS/email on every hold cell).
+The anchor-release flag-OFF path re-proves authority + payload from ONE
+in-tx locked snapshot, its CAS binds that snapshot's exact
+inputVersion/fence, and the email carries the same snapshot (injected
+mid-window mutation → 409, zero release, zero email). The debug image route
+now proves full producing-snapshot provenance (A→legacy/A→B/missing/
+ambiguous/exact-package refuse with zero provider calls and zero writes).
+`send_ambiguous` reconciliation is ruled a NAMED EXCEPTION — a bounded
+continuation of an already-authorized attempt (exact payloadHash-verified
+payload, exact dedupeKey, provider idempotency window; otherwise refund,
+never resend) — and is the one qualification on "every send surface".
+Round-4 battery: 37 suites / 630 tests passed (22 env-gated staging skips),
+`tsc --noEmit` + `git diff --check` clean, zero provider operations; new
+devDependency `@electric-sql/pglite`.
 
 Total authoring spend $1.06 conservative across 4 provider calls, zero
 transport retries, no fallback, no candidate promoted. Per the milestone's
