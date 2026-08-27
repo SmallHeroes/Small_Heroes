@@ -13,6 +13,14 @@ import { config as loadEnv } from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 
+// ─── MECHANICAL RETIREMENT GUARD (Codex round-5) ───────────────────────────────────────────────
+// This script writes GenerationJob.pipelineCache / delivery rows DIRECTLY, bypassing the
+// delivery-input barrier and the structural cache store. It is retired: see scripts/retired/README.md.
+// Reviving it requires migrating its writes (persistOrdinaryPipelineCache / a barrier mutation)
+// and moving it back out of scripts/retired/.
+throw new Error('[retired-script] see scripts/retired/README.md — this script is mechanically non-operational');
+
+
 loadEnv({ path: '.env.local' });
 loadEnv();
 

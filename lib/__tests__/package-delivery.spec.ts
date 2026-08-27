@@ -15,13 +15,6 @@ const order = {
   visualPackageAuthority: null,
 };
 
-const allowGate = {
-  held: false,
-  orderStatus: 'ready' as const,
-  reason: null,
-  sendBookReadyEmail: true,
-};
-
 function db() {
   const client = {
     order: { update: vi.fn(async () => ({})), findUnique: vi.fn(async () => ({ childName: 'Test', inputVersion: 0, visualContractHash: null, deliveryFenceVersion: 0 })) },
@@ -56,19 +49,16 @@ describe('finalizePackageDelivery — flag boundary', () => {
     }));
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => true, commit: commit as never, send },
     );
 
     expect(result).toMatchObject({ mode: 'manifest', deliveryHeld: false });
+    // (Codex round-5) The commit receives ONLY the identity leg — no caller-supplied disposition:
+    // the commit derives the anchor gate from its own fresh producing snapshot.
     expect(commit).toHaveBeenCalledWith(prisma, {
       orderId: 'o1',
-      anchorAllowsDelivery: true,
-      anchorOrderStatus: 'ready',
-      anchorReason: null,
-      // (Codex round-4 MAJOR 4) the caller-origin claim is threaded into the commit on the ON
-      // branch (false here: a genuinely legacy caller snapshot).
-      callerVisualPackageClaim: false,
+      callerPackageRevisionDigest: null,
     });
     expect(prisma.order.update).not.toHaveBeenCalled();
     expect(prisma.generationJob.update).not.toHaveBeenCalled();
@@ -78,29 +68,24 @@ describe('finalizePackageDelivery — flag boundary', () => {
   it('flag-on preserves an anchor hold through the readiness commit and still never direct-sends', async () => {
     const prisma = db();
     const send = vi.fn();
-    const heldGate = {
-      held: true,
-      orderStatus: 'needs_human_qa' as const,
-      reason: 'anchor_low_confidence:soft_band',
-      sendBookReadyEmail: false,
-    };
+    // (Codex round-5) The anchor hold now originates INSIDE the commit (derived from the fresh
+    // producing snapshot); the caller supplies no gate. The commit result carries the hold.
     const commit = vi.fn(async () => ({
       manifestStatus: 'passed' as const,
       enqueued: false,
       orderStatus: 'needs_human_qa',
-      reason: heldGate.reason,
+      reason: 'anchor_low_confidence:soft_band',
       revision: 3,
     }));
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, deliveryGate: heldGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => true, commit: commit as never, send },
     );
     expect(result).toMatchObject({ mode: 'manifest', deliveryHeld: true });
     expect(commit).toHaveBeenCalledWith(prisma, expect.objectContaining({
-      anchorAllowsDelivery: false,
-      anchorOrderStatus: 'needs_human_qa',
-      anchorReason: heldGate.reason,
+      orderId: 'o1',
+      callerPackageRevisionDigest: null,
     }));
     expect(send).not.toHaveBeenCalled();
   });
@@ -117,7 +102,7 @@ describe('finalizePackageDelivery — flag boundary', () => {
     }));
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => true, commit: commit as never, send },
     );
     expect(result).toMatchObject({
@@ -137,7 +122,6 @@ describe('finalizePackageDelivery — flag boundary', () => {
       prisma as never,
       {
         order,
-        deliveryGate: allowGate,
         safetyGate: { held: false, reason: null },
         readUrl: 'https://app/ready?orderId=o1',
         pdfUrl: 'https://assets/book.pdf',
@@ -165,24 +149,75 @@ describe('finalizePackageDelivery — flag boundary', () => {
     });
   });
 
-  it('flag-off held path keeps the legacy hold and sends no email', async () => {
+  it('flag-off held path derives the anchor hold from the FRESH producing snapshot and sends no email', async () => {
     const prisma = db();
+    // (Codex round-5) The hold source is the fresh row's producing snapshot, never a caller gate.
+    prisma.order.findUnique = vi.fn(async () => ({
+      childName: 'Test', inputVersion: 0, visualContractHash: null, deliveryFenceVersion: 0,
+      generationJob: { pipelineCache: { childAnchorLowConfidence: { reason: 'hard_band', score: 0.42 } } },
+    }));
     const send = vi.fn();
-    const heldGate = {
-      held: true,
-      orderStatus: 'needs_human_qa' as const,
-      reason: 'anchor_low_confidence:hard_band',
-      sendBookReadyEmail: false,
-    };
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, deliveryGate: heldGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: true });
     // (delivery fence round-5) the legacy park is now writeOrderHoldFenced ($executeRaw + precedence), not order.update.
     expect(prisma.$executeRaw).toHaveBeenCalled();
     expect(prisma.order.update).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe('finalizePackageDelivery — hold-write result discipline (Codex round-5 finding 3)', () => {
+  // A fresh row that fails the producing binding (A→legacy laundering) — the park path that binds
+  // the observed inputVersion, so the fenced hold write can genuinely drift.
+  const launderedFreshRow = () => ({
+    childName: 'Test', inputVersion: 0, visualContractHash: null, deliveryFenceVersion: 0,
+    selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+    storySourceHash: 'f'.repeat(64),
+    illustrationStyle: 'pencil_watercolor',
+    visualPackageAuthority: null,
+    generationJob: { pipelineCache: { visualPackageAuthority: { version: 'produced-under-a-package' } } },
+  });
+
+  it('input_drift on the authority park → AuthorityHoldRaceError, job NEVER marked done/packaged, no applied-hold report', async () => {
+    const prisma = db();
+    // The fenced hold read sees a DRIFTED inputVersion (5 ≠ the observed 0) → writeOrderHoldFenced
+    // returns input_drift → the park tx must abort; the job-done write must never land.
+    prisma.$queryRaw = vi.fn(async () => [{ id: 'hqc-test', fence: 0, rank: 1, status: 'generating', inputVersion: 5 }]);
+    prisma.order.findUnique = vi.fn(async () => launderedFreshRow());
+    const send = vi.fn();
+    await expect(
+      finalizePackageDelivery(
+        prisma as never,
+        { order, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+        { readinessEnabled: () => false, send },
+      ),
+    ).rejects.toMatchObject({ name: 'AuthorityHoldRaceError', holdResult: 'input_drift' });
+    expect(prisma.generationJob.update).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('superseded (a STRONGER marker already governs) → held result stands, job done, recovery cases left to the stronger owner', async () => {
+    const prisma = db();
+    // The fenced hold read sees a rank-3 (safety) marker → writeOrderHoldFenced returns superseded:
+    // the stronger terminal marker IS the durable disposition — the package stage completes, but
+    // this park never touches the recovery-case lifecycle the stronger owner manages.
+    prisma.$queryRaw = vi.fn(async () => [{ id: 'hqc-test', fence: 0, rank: 3, status: 'needs_human_qa', inputVersion: 0 }]);
+    prisma.order.findUnique = vi.fn(async () => launderedFreshRow());
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(prisma.generationJob.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'done', packaged: true }) }),
+    );
+    expect(prisma.exceptionCase.updateMany).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
   });
 });
@@ -195,7 +230,7 @@ describe('finalizePackageDelivery — readiness-independent safety pre-gate (Fix
     const send = vi.fn();
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, deliveryGate: allowGate, safetyGate: heldSafety, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order, safetyGate: heldSafety, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'safety_hold', deliveryHeld: true });
@@ -212,7 +247,7 @@ describe('finalizePackageDelivery — readiness-independent safety pre-gate (Fix
     const send = vi.fn();
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, deliveryGate: allowGate, safetyGate: heldSafety, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order, safetyGate: heldSafety, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => true, commit: commit as never, send },
     );
     expect(result.mode).toBe('safety_hold');
@@ -274,7 +309,7 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
     const send = vi.fn();
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order: staleValidArgsOrder, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order: staleValidArgsOrder, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true, manifest: null });
@@ -298,7 +333,7 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
     const send = vi.fn();
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order: staleValidArgsOrder, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order: staleValidArgsOrder, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
@@ -315,7 +350,7 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
     const send = vi.fn();
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
@@ -336,7 +371,6 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
       prisma as never,
       {
         order: { ...staleValidArgsOrder, visualPackageAuthority: null },
-        deliveryGate: allowGate,
         safetyGate: { held: false, reason: null },
         readUrl: 'https://app/ready?orderId=o1',
         pdfUrl: null,
@@ -358,7 +392,7 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
     const send = vi.fn(async () => ({}));
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false });
@@ -381,7 +415,7 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
     const send = vi.fn(async () => ({}));
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
@@ -399,7 +433,7 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
     const send = vi.fn(async () => ({}));
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
@@ -419,7 +453,7 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
     const send = vi.fn(async () => ({}));
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false });
@@ -443,12 +477,21 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
   const CONTRACT_A = contractFor(REV_A);
   const CONTRACT_B = contractFor(REV_B);
   const PAYLOAD_ARGS = {
-    deliveryGate: allowGate,
     safetyGate: { held: false, reason: null },
     readUrl: 'https://app/ready?orderId=o1',
     pdfUrl: null,
     firstAudioUrl: null,
   };
+  /** (Codex round-5) A caller snapshot carrying the EXACT identity of `auth` — the identity leg
+   *  requires caller ≡ fresh producing identity, so package-backed positives need a matching caller. */
+  const packageCaller = (auth: Record<string, unknown>) =>
+    ({
+      ...order,
+      selectionFilename: ACCEPTED_SELECTION,
+      storySourceHash: 'b'.repeat(64),
+      visualPackageAuthority: auth,
+    }) as unknown as typeof staleValidArgsOrder;
+
   /** A fully self-bound fresh row for authority `auth` produced under `contract` (stamp = its hash). */
   function boundFreshRow(auth: Record<string, unknown>, contract: BookVisualContract, cacheAuth: Record<string, unknown> = auth) {
     return {
@@ -526,26 +569,82 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
     const send = vi.fn();
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, ...PAYLOAD_ARGS, readUrl: 'https://app/ready?orderId=SOMEONE-ELSE' },
+      { order: packageCaller(packageAuthority(REV_B)), ...PAYLOAD_ARGS, readUrl: 'https://app/ready?orderId=SOMEONE-ELSE' },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('fully bound package-backed snapshot (authority=cache=contract=stamp=payload) → ships exactly once', async () => {
+  it('fully bound package-backed snapshot (authority=cache=contract=stamp=payload, caller identity matching) → ships exactly once', async () => {
     const prisma = dbWithFreshRow(boundFreshRow(packageAuthority(REV_B), CONTRACT_B));
     const send = vi.fn(async () => ({}));
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order, ...PAYLOAD_ARGS },
+      { order: packageCaller(packageAuthority(REV_B)), ...PAYLOAD_ARGS },
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false });
     expect(send).toHaveBeenCalledTimes(1);
   });
 
-  it('readiness ON delegates the same predicate to the readiness commit (no pre-park, evidence-rich path)', async () => {
+  it('(Codex round-5 finding 1) caller Package A over a fully-bound self-consistent fresh Package B → hold (exact identity equality)', async () => {
+    const prisma = dbWithFreshRow(boundFreshRow(packageAuthority(REV_B), CONTRACT_B));
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order: packageCaller(packageAuthority(REV_A)), ...PAYLOAD_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('(Codex round-5 finding 1) HOSTILE CELL: caller A / fresh B / producing B, fresh producing snapshot holds hard_band while the stale caller believed allow → hold, zero ship, zero email', async () => {
+    const row = boundFreshRow(packageAuthority(REV_B), CONTRACT_B);
+    const prisma = dbWithFreshRow({
+      ...row,
+      generationJob: {
+        pipelineCache: {
+          ...(row.generationJob as { pipelineCache: Record<string, unknown> }).pipelineCache,
+          childAnchorLowConfidence: { reason: 'hard_band', score: 0.31 },
+        },
+      },
+    });
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order: packageCaller(packageAuthority(REV_A)), ...PAYLOAD_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    // The identity mismatch parks (contract_world) BEFORE any disposition; nothing ships, no email.
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('(Codex round-5 finding 1) identity-consistent A/A/A whose FRESH producing snapshot holds hard_band → anchor hold, zero ship, zero email (the stale caller cannot say allow)', async () => {
+    const row = boundFreshRow(packageAuthority(REV_B), CONTRACT_B);
+    const prisma = dbWithFreshRow({
+      ...row,
+      generationJob: {
+        pipelineCache: {
+          ...(row.generationJob as { pipelineCache: Record<string, unknown> }).pipelineCache,
+          childAnchorLowConfidence: { reason: 'hard_band', score: 0.31 },
+        },
+      },
+    });
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order: packageCaller(packageAuthority(REV_B)), ...PAYLOAD_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    // Identity binds; the DERIVED disposition holds → the legacy park path, never the ship CAS.
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: true });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('readiness ON delegates a VALID caller identity to the readiness commit (evidence-rich path)', async () => {
     const prisma = db();
     const send = vi.fn();
     const commit = vi.fn(async () => ({
@@ -557,11 +656,29 @@ describe('finalizePackageDelivery — readiness-independent package-authority ga
     }));
     const result = await finalizePackageDelivery(
       prisma as never,
-      { order: { ...staleValidArgsOrder, visualPackageAuthority: null }, deliveryGate: allowGate, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { order: staleValidArgsOrder, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
       { readinessEnabled: () => true, commit: commit as never, send },
     );
     expect(result).toMatchObject({ mode: 'manifest', deliveryHeld: true });
-    expect(commit).toHaveBeenCalledTimes(1);
+    // (Codex round-5) The commit receives the caller's EXACT package identity.
+    expect(commit).toHaveBeenCalledWith(prisma, {
+      orderId: 'o1',
+      callerPackageRevisionDigest: staleValidAuthority.packageRevisionDigest,
+    });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('(Codex round-5) readiness ON: an INVALID caller snapshot (accepted selection without authority) parks BEFORE the commit — zero commit calls', async () => {
+    const prisma = db();
+    const send = vi.fn();
+    const commit = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order: { ...staleValidArgsOrder, visualPackageAuthority: null }, safetyGate: { held: false, reason: null }, readUrl: 'https://app/ready?orderId=o1', pdfUrl: null, firstAudioUrl: null },
+      { readinessEnabled: () => true, commit: commit as never, send },
+    );
+    expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
+    expect(commit).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
   });
 });

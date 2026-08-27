@@ -181,4 +181,55 @@ describe('POST /api/debug/replicate-image — producing-snapshot authority bound
     expect(response.status).toBe(200);
     expect(H.generateImage).toHaveBeenCalledTimes(1);
   });
+
+  it('(Codex round-5 finding 4) legacy→package flip DURING the provider call → 409, ZERO ImageAsset/Page mutation', async () => {
+    // Pre-provider read: genuine legacy → the provider is legitimately called. A freeze lands
+    // during the provider call; the persistence barrier re-reads IN-TX and must abort with zero
+    // writes — the generated image is simply not persisted.
+    H.orderFindUnique.mockResolvedValue(orderRow());
+    const txUpsert = vi.fn();
+    const txOrderFindUnique = vi.fn(async () =>
+      // The in-tx re-read sees the flipped (package-shaped) order.
+      packageBacked(),
+    );
+    H.withDeliveryInputMutation.mockImplementation(
+      async (_db: unknown, _args: unknown, mutate: (tx: unknown) => Promise<unknown>) => {
+        const value = await mutate({
+          order: { findUnique: txOrderFindUnique },
+          imageAsset: { upsert: txUpsert },
+        });
+        return { value, inputVersion: 1, orderStatus: 'generating', readinessInvalidated: true };
+      },
+    );
+
+    const response = await POST(request(true));
+    expect(response.status).toBe(409);
+    const body = (await response.json()) as { persisted?: boolean };
+    expect(body.persisted).toBe(false);
+    expect(H.generateImage).toHaveBeenCalledTimes(1); // legacy legitimately reached the provider
+    expect(txOrderFindUnique).toHaveBeenCalledTimes(1); // the in-tx re-proof ran
+    expect(txUpsert).not.toHaveBeenCalled(); // ZERO ImageAsset/Page mutation
+  });
+
+  it('(Codex round-5 finding 4) persistence re-proof passes for a STILL-legacy order → exactly one upsert', async () => {
+    H.orderFindUnique.mockResolvedValue(orderRow());
+    const txUpsert = vi.fn(async () => ({ id: 'asset-1' }));
+    const txOrderFindUnique = vi.fn(async () => orderRow());
+    H.withDeliveryInputMutation.mockImplementation(
+      async (_db: unknown, _args: unknown, mutate: (tx: unknown) => Promise<unknown>) => {
+        const value = await mutate({
+          order: { findUnique: txOrderFindUnique },
+          imageAsset: { upsert: txUpsert },
+        });
+        return { value, inputVersion: 1, orderStatus: 'generating', readinessInvalidated: true };
+      },
+    );
+
+    const response = await POST(request(true));
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { persisted?: boolean; imageAssetId?: string };
+    expect(body.persisted).toBe(true);
+    expect(body.imageAssetId).toBe('asset-1');
+    expect(txUpsert).toHaveBeenCalledTimes(1);
+  });
 });

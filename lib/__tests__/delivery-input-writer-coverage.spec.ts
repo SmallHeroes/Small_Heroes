@@ -27,6 +27,16 @@ const DELIVERY_ORDER_FIELDS = new Set([
   'illustrationStyle',
   'fulfillmentVersion',
   'inputVersion',
+  // (Codex round-5 finding 6) EVERY real generation input joins the census:
+  // the child photo + anchor selections feed the render, the Order-level
+  // cover is a delivery-payload fallback, and gender/age personalize the
+  // book. Post-creation writers must be barrier-protected or carry an exact
+  // pinned field-level exception below.
+  'childImageUrl',
+  'characterAnchors',
+  'childGender',
+  'childAge',
+  'coverImageUrl',
 ]);
 const WRITE_METHODS = new Set([
   'create',
@@ -75,40 +85,52 @@ const RETIRED_SCRIPTS_DIR = 'scripts/retired/';
  * `withoutBarrierOwnedPipelineCacheKeys`, and whole-cache updates live only in
  * `scripts/retired/` (explicitly retired, see its README).
  */
+/** Exact per-site signature: `${model}.${method}[${sorted fields, or 'dynamic' for spread payloads}]`. */
+function siteSignature(site: WriterSite): string {
+  const fields = site.dataFields === null ? 'dynamic' : [...site.dataFields].sort().join(',');
+  return `${site.model}.${site.method}[${fields}]`;
+}
+
+// (Codex round-5 finding 6) Field-level pinning — a new FIELD inside an allowlisted write, not just
+// a new write, fails the census and forces review.
 const ACTIVE_SCRIPT_WRITER_ALLOWLIST: Record<string, readonly string[]> = {
-  'scripts/audit-child-photos.ts': ['order.update'],
-  'scripts/cancel-job.mjs': ['generationJob.updateMany'],
-  'scripts/dry-run-bunny-manifest.ts': ['order.create'],
-  'scripts/run-bunny-smoke-render.ts': [
-    'generatedBook.update',
-    'generationJob.create',
-    'generationJob.updateMany',
-    'imageAsset.delete',
-    'order.update',
-    'order.update',
+  // The operational twin of the runtime child-photo privacy scrub — same exact field shape,
+  // additionally gated by isSanctionedChildPhotoScrub (fields + scrub-builder reference).
+  'scripts/audit-child-photos.ts': ['order.update[characterAnchors,childImageUrl]'],
+  'scripts/cancel-job.mjs': ['generationJob.updateMany[currentStage,lastError,leaseExpiresAt,lockedBy,retryable,status]'],
+  'scripts/dry-run-bunny-manifest.ts': [
+    'order.create[addonsPrice,audioEnabled,avoidFree,avoidItems,basePrice,bookName,bundleEnabled,challengeFree,challengeItems,characterAnchors,childAge,childGender,childImageUrl,childName,childSuperpower,childTraits,customerEmail,customerName,dedication,familyContext,helperFree,helperItems,illustrationStyle,outcomeFree,outcomeItems,paymentProvider,pdfEnabled,status,storyDirection,storyLength,topic,totalPrice,videoEnabled]',
   ],
-  'scripts/run-five-page-gate-maia.ts': ['generationJob.update'],
-  'scripts/run-page20-gate-maia.ts': ['generationJob.update'],
-  'scripts/run-page8-gate-maia.ts': ['generationJob.update'],
-  'scripts/run-spot-regen-dini-entity-pages.ts': ['generationJob.update'],
-  'scripts/run-stage0-anchor-only.ts': ['generationJob.update'],
-  'scripts/seed-hash-proof-order.ts': ['order.create'],
+  'scripts/run-bunny-smoke-render.ts': [
+    'generatedBook.update[coverImageUrl]',
+    'generationJob.create[currentStage,orderId,pipelineCache,status,triggerReason]',
+    'generationJob.updateMany[currentStage,imagesDone,status]',
+    'imageAsset.delete[dynamic]',
+    'order.update[characterAnchors]',
+    'order.update[coverImageUrl]',
+  ],
+  'scripts/run-five-page-gate-maia.ts': ['generationJob.update[currentStage,imagesDone,lastError,retryable,status]'],
+  'scripts/run-page20-gate-maia.ts': ['generationJob.update[currentStage,imagesDone,lastError,retryable,status]'],
+  'scripts/run-page8-gate-maia.ts': ['generationJob.update[currentStage,imagesDone,lastError,retryable,status]'],
+  'scripts/run-spot-regen-dini-entity-pages.ts': ['generationJob.update[currentStage,imagesDone,lastError,retryable,status]'],
+  'scripts/run-stage0-anchor-only.ts': ['generationJob.update[currentStage,lastError,leaseExpiresAt,lockedBy,retryable,status]'],
+  'scripts/seed-hash-proof-order.ts': ['order.create[dynamic]'],
   'scripts/test-chunked-generation-resume.ts': [
-    'bookPage.create',
-    'bookPage.create',
-    'bookPage.create',
-    'bookPage.deleteMany',
-    'generatedBook.create',
-    'generatedBook.deleteMany',
-    'generationJob.create',
-    'generationJob.create',
-    'generationJob.deleteMany',
-    'imageAsset.create',
-    'imageAsset.create',
-    'imageAsset.deleteMany',
-    'order.create',
-    'order.deleteMany',
-    'order.update',
+    'bookPage.create[bookId,narrationText,pageNumber,text]',
+    'bookPage.create[bookId,narrationText,pageNumber,text]',
+    'bookPage.create[bookId,narrationText,pageNumber,text]',
+    'bookPage.deleteMany[dynamic]',
+    'generatedBook.create[coverText,orderId,title]',
+    'generatedBook.deleteMany[dynamic]',
+    'generationJob.create[currentStage,imagesDone,lastError,orderId,pageAttempts,retryable,status,textDone]',
+    'generationJob.create[currentStage,imagesDone,orderId,pipelineCache,status,textDone]',
+    'generationJob.deleteMany[dynamic]',
+    'imageAsset.create[idempotencyKey,pageId,prompt,provider,url]',
+    'imageAsset.create[idempotencyKey,pageId,prompt,provider,url]',
+    'imageAsset.deleteMany[dynamic]',
+    'order.create[addonsPrice,audioStatus,avoidItems,basePrice,challengeItems,childAge,childGender,childName,childTraits,customerEmail,customerName,helperItems,id,illustrationStyle,imageStatus,outcomeItems,packageStatus,paymentId,paymentProvider,status,storyLength,textStatus,topic,totalPrice]',
+    'order.deleteMany[dynamic]',
+    'order.update[imageStatus,lastError,status]',
   ],
 };
 
@@ -291,6 +313,57 @@ function isOrderCreationException(site: WriterSite): boolean {
   );
 }
 
+/**
+ * (Codex round-5 finding 6) The post-completion child-photo privacy scrub — the runtime deletion
+ * policy (lib/child-photo-deletion.ts) and its operational audit twin (scripts/audit-child-photos.ts).
+ * Sanctioned by EXACT model+method+fields: `order.update` writing exactly
+ * {childImageUrl, characterAnchors} through buildCharacterAnchorsAfterPhotoDeletion (the window must
+ * reference the scrub builder). Deliberately OUTSIDE the barrier: the scrub runs after
+ * completion/terminal failure and must not re-trigger packaging; a photo-dependent re-render after
+ * deletion is impossible by design (Track 4) — the scrub IS the durable record of that.
+ */
+const CHILD_PHOTO_SCRUB_FILES = new Set([
+  'lib/child-photo-deletion.ts',
+  'scripts/audit-child-photos.ts',
+]);
+function isSanctionedChildPhotoScrub(site: WriterSite, sourceText?: string): boolean {
+  return (
+    CHILD_PHOTO_SCRUB_FILES.has(site.relative) &&
+    site.model === 'order' &&
+    site.method === 'update' &&
+    site.dataFields !== null &&
+    [...(site.dataFields ?? [])].sort().join(',') === 'characterAnchors,childImageUrl' &&
+    sourceWindow(site, sourceText).includes('buildCharacterAnchorsAfterPhotoDeletion')
+  );
+}
+
+/**
+ * (Codex round-5 finding 6) GENERATION-STAGE input persistence: the Stage-0/cover writes that
+ * FREEZE anchors and the cover URL during the generation run itself — before the readiness
+ * evaluation that will bind them ever runs. Pinned by EXACT model+method+field-set per file; any
+ * new field or file fails the census. Post-delivery mutation flows do NOT qualify: the regen flow's
+ * anchor write goes through the barrier (single-page-image-regen), and every redrive that could
+ * re-enter these stages re-runs the readiness commit afterward.
+ */
+const GENERATION_STAGE_INPUT_FIELDSETS: Record<string, readonly string[]> = {
+  'lib/generation-pipeline/chunk-runner.ts': [
+    'characterAnchors',
+    'characterAnchors,childImageUrl',
+    'coverImageUrl',
+  ],
+  // Dev anchor approval resumes generation with the approved anchor in one write.
+  'app/api/dev/approve-child-anchor/route.ts': [
+    'characterAnchors,errorAt,lastError,status',
+  ],
+};
+function isGenerationStageInputPersistence(site: WriterSite): boolean {
+  const allowedFieldSets = GENERATION_STAGE_INPUT_FIELDSETS[site.relative];
+  if (!allowedFieldSets || site.model !== 'order' || site.method !== 'update') return false;
+  if (site.dataFields === null) return false;
+  const fieldSet = [...site.dataFields].sort().join(',');
+  return allowedFieldSets.includes(fieldSet);
+}
+
 function sourceWindow(site: WriterSite, sourceText: string | undefined, lines = 25): string {
   if (!sourceText) return '';
   return sourceText
@@ -421,6 +494,8 @@ describe('P1-f #5 delivery-input writer coverage', () => {
         !isReadinessCommitOrderStateWrite(site) &&
         !isExplicitReconciliationFulfillmentRoll(site) &&
         !isSanctionedSafetyWriterWrite(site) &&
+        !isSanctionedChildPhotoScrub(site, sourceByRelative.get(site.relative)) &&
+        !isGenerationStageInputPersistence(site) &&
         !isSanctionedScriptWrite(site, sourceByRelative.get(site.relative)) &&
         !hasFlagOnDevWriteGuard(site.relative, sourceByRelative.get(site.relative)),
     );
@@ -453,7 +528,7 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     const byFile = new Map<string, string[]>();
     for (const site of scriptSites) {
       const list = byFile.get(site.relative) ?? [];
-      list.push(`${site.model}.${site.method}`);
+      list.push(siteSignature(site));
       byFile.set(site.relative, list);
     }
 
@@ -478,6 +553,14 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     expect(readFileSync(path.join(ROOT, 'scripts/retired/README.md'), 'utf8')).toContain(
       'persistOrdinaryPipelineCache',
     );
+    // (Codex round-5 finding 6) MECHANICALLY non-operational: every retired script must throw its
+    // retirement guard before any DB work — the exact marker is pinned so removing it fails here.
+    for (const file of retired) {
+      expect(
+        sourceByRelative.get(file),
+        `${file} must carry the mechanical retirement guard`,
+      ).toContain("throw new Error('[retired-script]");
+    }
 
     // Active scripts: every writer file and its exact write-signature multiset is pinned; no
     // stale allowlist entries; and NO active script writes pipelineCache except a stripped
@@ -529,6 +612,96 @@ describe('P1-f #5 delivery-input writer coverage', () => {
     }
     expect(storeStatement).not.toContain('jsonb_strip_nulls');
     expect(storeStatement).not.toContain('INSERT');
+  }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
+
+  it('pins the exact raw-SQL statement shapes of every sanctioned raw writer (not file trust)', () => {
+    // (Codex round-5 finding 6) The raw allowlists are backed by SHAPE pinning: every raw
+    // `UPDATE "Order"` in the sanctioned files may SET only delivery-AUTHORITY columns, and every
+    // raw `UPDATE "GenerationJob"` must be one of the exact known cache-writer statements. A new
+    // SET column or a new statement shape fails here even inside an allowlisted file.
+    // Line-based SET-column extraction (statement bodies interpolate nested template literals, so
+    // whole-statement regexes truncate): from each `UPDATE "Order"` line until WHERE/RETURNING,
+    // collect the columns of line-leading assignments (the repo's SQL style); CASE internals
+    // (WHEN/THEN/ELSE lines) never lead with an assignment and are excluded by construction.
+    const rawOrderSetColumns = (text: string): string[][] => {
+      const lines = text.split(/\r?\n/);
+      const statements: string[][] = [];
+      for (let i = 0; i < lines.length; i++) {
+        if (!/UPDATE\s+"Order"/.test(lines[i])) continue;
+        const columns: string[] = [];
+        for (let j = i; j < Math.min(lines.length, i + 60); j++) {
+          const line = j === i ? lines[j].replace(/^[^]*UPDATE\s+"Order"[^S]*?(SET|$)/, '$1') : lines[j];
+          if (j > i && /^\s*(WHERE|RETURNING)\b/.test(line)) break;
+          if (/^\s*(?:SET\s+)?"(\w+)"\s*=/.test(line) || /^\s*SET\s+"/.test(line)) {
+            for (const m of line.matchAll(/"(\w+)"\s*=(?!=)/g)) columns.push(m[1]);
+          }
+        }
+        statements.push(columns);
+      }
+      return statements;
+    };
+    const RAW_ORDER_ALLOWED: Record<string, { statements: number; columns: Set<string> }> = {
+      // The shared authority funnel: hold/ship/release/transition CASes — authority columns only.
+      'lib/generation-pipeline/order-authority.ts': {
+        statements: 4,
+        columns: new Set(['status', 'packageStatus', 'deliveryHoldReason', 'manualReviewRequired', 'deliveryFenceVersion']),
+      },
+      // The delivery-input barrier's version-bump statements (flag-on + flag-off arms): the bump
+      // itself plus the frozen-truth COALESCE-if-null stamps and the redrive status stack.
+      'lib/generation-pipeline/readiness-manifest.ts': {
+        statements: 2,
+        columns: new Set([
+          'inputVersion', 'expectedPageCount', 'storySourceHash', 'selectionFilename', 'frozenProductVersion',
+          'status', 'packageStatus', 'imageStatus', 'deliveryHoldReason',
+        ]),
+      },
+      // The anchor-release route performs NO raw Order UPDATE itself (its lock is a SELECT FOR
+      // UPDATE; the release CAS lives in order-authority).
+      'app/api/admin/anchor-hold-release/route.ts': { statements: 0, columns: new Set() },
+    };
+    for (const [relative, allowed] of Object.entries(RAW_ORDER_ALLOWED)) {
+      const statements = rawOrderSetColumns(source(relative));
+      expect(statements, `${relative}: raw Order UPDATE statement count`).toHaveLength(allowed.statements);
+      for (const columns of statements) {
+        expect(columns.length, `${relative}: raw Order UPDATE with unparseable SET`).toBeGreaterThan(0);
+        for (const column of columns) {
+          expect(
+            allowed.columns.has(column),
+            `${relative}: raw Order UPDATE sets unsanctioned column "${column}"`,
+          ).toBe(true);
+        }
+      }
+    }
+
+    const jobStatements: string[] = [];
+    for (const relative of [
+      'lib/generation-pipeline/pipeline-cache-store.ts',
+      'lib/generation-pipeline/ensure-frozen-visual-contract.ts',
+      'lib/generation-pipeline/set-identity-board-stage.ts',
+    ]) {
+      const text = source(relative);
+      for (const statement of text.matchAll(/UPDATE\s+"GenerationJob"[^`]*/g)) {
+        jobStatements.push(statement[0].replace(/\s+/g, ' ').trim());
+      }
+    }
+    // Exactly four sanctioned raw GenerationJob statements exist: the ordinary store's overlay,
+    // the freeze's package (double jsonb_set) and legacy (single jsonb_set) arms, and the Board
+    // bind. Each must keep its exact shape.
+    expect(jobStatements).toHaveLength(4);
+    const shapes = {
+      storeOverlay: jobStatements.filter((s) => s.includes(`"pipelineCache" ? 'visualContract'`)),
+      freezeDouble: jobStatements.filter((s) => /jsonb_set\( jsonb_set\(/.test(s) && s.includes("'{visualPackageAuthority}'")),
+      freezeSingle: jobStatements.filter((s) => s.includes("'{visualContract}'") && !s.includes("'{visualPackageAuthority}'") && !s.includes('?')),
+      boardBind: jobStatements.filter((s) => s.includes("'{setIdentityBoards}'")),
+    };
+    expect(shapes.storeOverlay).toHaveLength(1);
+    expect(shapes.freezeDouble).toHaveLength(1);
+    expect(shapes.freezeSingle).toHaveLength(1);
+    expect(shapes.boardBind).toHaveLength(1);
+    for (const statement of jobStatements) {
+      expect(statement.startsWith('UPDATE "GenerationJob" SET "pipelineCache" =')).toBe(true);
+      expect(statement).not.toMatch(/jsonb_strip_nulls/);
+    }
   }, STRUCTURAL_REPOSITORY_SCAN_TIMEOUT_MS);
 
   it('migration SQL never rewrites GenerationJob.pipelineCache', () => {

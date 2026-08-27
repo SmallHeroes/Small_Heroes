@@ -14,6 +14,14 @@ loadEnv();
 
 import '../shims/register-server-only.cjs';
 
+// ─── MECHANICAL RETIREMENT GUARD (Codex round-5) ───────────────────────────────────────────────
+// This script writes GenerationJob.pipelineCache / delivery rows DIRECTLY, bypassing the
+// delivery-input barrier and the structural cache store. It is retired: see scripts/retired/README.md.
+// Reviving it requires migrating its writes (persistOrdinaryPipelineCache / a barrier mutation)
+// and moving it back out of scripts/retired/.
+throw new Error('[retired-script] see scripts/retired/README.md — this script is mechanically non-operational');
+
+
 const PAGES = '1,2,3,4,6,8,10,11';
 const OUT_ROOT = path.join(process.cwd(), 'outputs', 'sprint-11-runs', 'slot01-object-fix-reroll');
 const RAW_DIR = path.join(OUT_ROOT, 'raw');

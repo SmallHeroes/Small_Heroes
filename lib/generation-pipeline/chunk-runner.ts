@@ -160,7 +160,6 @@ import {
   evaluateAnchorEmbeddingScore,
   evaluateAnchorSemanticQa,
   isChildAnchorReviewApproved,
-  resolveAnchorDeliveryGate,
   resolveAnchorGateConfig,
 } from '@/lib/anchor-resemblance-gate';
 import {
@@ -2446,24 +2445,21 @@ async function runPackageStage(order: Order, cache: PipelineCache): Promise<void
     },
   );
 
-  // Delivery gate: a low-confidence anchor renders the book (for internal QA) but HOLDS it
-  // from customer delivery — status needs_human_qa + no book-ready email — until a human
-  // releases it. This is the consumer of childAnchorLowConfidence (set in Stage 0); without
-  // it a held anchor would ship silently. A clear anchor delivers normally.
-  const deliveryGate = resolveAnchorDeliveryGate(cache.childAnchorLowConfidence);
+  // Delivery gate: (Codex round-5) the anchor disposition is no longer computed here from the
+  // in-memory cache — finalizePackageDelivery/the readiness commit DERIVE it from the
+  // authoritative fresh producing snapshot (GenerationJob.pipelineCache.childAnchorLowConfidence),
+  // so a stale caller cache can never say "allow" over a fresh hard_band.
   // (Fix 1) Recompute the safety gate from the PERSISTED per-asset signal (crash-safe: a recovery run that resumes
   // at the package stage without re-rendering still reads the durable hazard). Readiness-independent.
   const safetyGate = await resolveSafetyDeliveryGate(prisma, order.id);
   const firstAudio = book.pages.find((p) => p.audioUrl?.trim())?.audioUrl ?? null;
   const deliveryResult = await finalizePackageDelivery(prisma, {
     order,
-    deliveryGate,
     safetyGate,
     readUrl,
     coverImageUrl: book.coverImageUrl ?? order.coverImageUrl,
     pdfUrl,
     firstAudioUrl: firstAudio,
-    anchorLowConfidence: cache.childAnchorLowConfidence,
   });
 
   logServerEvent('full_generation_completed', {

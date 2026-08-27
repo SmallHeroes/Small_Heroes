@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { finalizePackageDelivery } from '@/lib/generation-pipeline/package-delivery';
 import { commitBaseBookReadiness } from '@/lib/generation-pipeline/readiness-manifest';
@@ -9,23 +9,27 @@ import { computeVisualContractHash } from '@/lib/visual-contract-compiler/contra
 import type { BookVisualContract } from '@/lib/visual-contract-compiler/types';
 
 /**
- * (Codex round-4 MAJOR 4) The COMPLETE origin matrix through the REAL
+ * (Codex round-5 findings 1 + 7) The COMPLETE origin matrix through the REAL
  * readiness-ON and readiness-OFF delivery implementations — no blocked-result
- * commit mock anywhere. The ON branch runs `finalizePackageDelivery` →
- * the real `commitBaseBookReadiness` (only asset inspection and the DB client
- * are stubbed); the OFF branch runs the real fresh-row gate. Every hold cell
- * asserts ZERO Outbox enqueue, ZERO ready-ship CAS, and ZERO email; the
- * eligible cells prove the exact opposite so no false park hides behind the
- * matrix.
+ * commit mock anywhere, and the ON branch runs the ACTUAL PRODUCTION receipt
+ * branch: READINESS_MANIFEST_ENABLED=true, so `commitBaseBookReadiness` fences
+ * the commit through `runAtomicOperation` (receipt INSERT … RETURNING +
+ * result-recording update) exactly as in production. Only asset inspection and
+ * the DB client are stubbed.
  *
- * Matrix cells (fresh row / producing snapshot / caller):
- *   A/A/A                          → eligible (ships/enqueues)
- *   B(self-consistent)/A/B         → hold
- *   legacy/A-produced/legacy       → hold (A→legacy laundering)
- *   A/missing/A                    → hold (legacy→A: no producing snapshot)
- *   legacy/legacy/legacy           → eligible (genuine legacy)
- *   legacy+stamp/no contract       → hold (ambiguous provenance)
- *   legacy/legacy/PACKAGE-shaped   → hold (the round-4 caller-origin cell)
+ * Matrix cells (caller identity / fresh row / producing snapshot):
+ *   A/A/A                             → eligible (ships/enqueues)
+ *   B-caller/B-fresh/A-produced       → hold (producing mismatch)
+ *   A-caller/B-fresh/B-produced       → hold (round-5 EXACT caller identity)
+ *   legacy-caller/legacy/A-produced   → hold (A→legacy laundering)
+ *   A-caller/A-fresh/missing cache    → hold (no producing snapshot)
+ *   legacy/legacy/legacy              → eligible (genuine legacy)
+ *   legacy + stamp, no contract       → hold (ambiguous provenance)
+ *   A-caller over genuinely legacy    → hold (round-4 caller cell, both directions)
+ *   A/A/A + fresh hard_band           → ANCHOR hold (round-5: the disposition
+ *     derives from the fresh producing snapshot; a stale caller cannot allow)
+ *   A-caller/B fully bound + hard_band→ hold (round-5 HOSTILE cell: identity
+ *     mismatch parks before anything ships, zero Outbox/CAS/email)
  */
 
 const NOW = new Date('2026-08-27T12:00:00Z');
@@ -88,6 +92,12 @@ function boundRow(revision: string): RowShape {
     visualPackageAuthority: auth,
     visualContractHash: computeVisualContractHash(contract),
     pipelineCache: { visualPackageAuthority: auth, visualContract: contract },
+  };
+}
+function withAnchorBand(shape: RowShape, band: 'soft_band' | 'hard_band', score: number): RowShape {
+  return {
+    ...shape,
+    pipelineCache: { ...(shape.pipelineCache ?? {}), childAnchorLowConfidence: { reason: band, score } },
   };
 }
 const LEGACY_ROW: RowShape = {
@@ -162,7 +172,14 @@ function client(row: OrderRow) {
     deliveryOutbox: { findUnique: vi.fn(async () => null), create: vi.fn(async () => ({})), updateMany: vi.fn(async () => ({ count: 1 })) },
     humanQaReviewCase: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
     operatorNotificationOutbox: { findFirst: vi.fn(async () => null), update: vi.fn(async () => ({})) },
-    $queryRaw: vi.fn(async () => [{ id: 'hqc-test', fence: 0, rank: 1, status: 'generating', inputVersion: 0 }]),
+    // (Codex round-5 finding 7) The PRODUCTION receipt branch runs for real: the $queryRaw mock's
+    // non-empty row also serves the receipt INSERT … RETURNING (this attempt owns the operation),
+    // and the recorded-result update lands on atomicOperationReceipt below.
+    atomicOperationReceipt: {
+      findUnique: vi.fn(async () => null),
+      update: vi.fn(async () => ({})),
+    },
+    $queryRaw: vi.fn(async () => [{ id: 'receipt-1', fence: 0, rank: 1, status: 'generating', inputVersion: 0 }]),
     $executeRaw: vi.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
       executeRawSql.push([...strings].join('¶'));
       executeRawValues.push(values);
@@ -187,21 +204,22 @@ function writtenHoldMarkers(c: Client): string[] {
 }
 
 // Caller snapshots (what the delivery caller believes the Order is).
-const callerFor = (shape: RowShape) => ({
-  id: 'o1',
-  customerEmail: 'c@e.com',
-  customerName: 'Cust',
-  childName: 'Kid',
-  selectionFilename: shape.selectionFilename,
-  storySourceHash: shape.storySourceHash,
-  illustrationStyle: 'pencil_watercolor' as const,
-  visualPackageAuthority: shape.visualPackageAuthority,
-});
-const PACKAGE_CALLER = callerFor(boundRow(REV_A));
+const callerFor = (shape: RowShape) =>
+  ({
+    id: 'o1',
+    customerEmail: 'c@e.com',
+    customerName: 'Cust',
+    childName: 'Kid',
+    selectionFilename: shape.selectionFilename,
+    storySourceHash: shape.storySourceHash,
+    illustrationStyle: 'pencil_watercolor' as const,
+    visualPackageAuthority: shape.visualPackageAuthority,
+  }) as never;
+const PACKAGE_CALLER_A = callerFor(boundRow(REV_A));
+const PACKAGE_CALLER_B = callerFor(boundRow(REV_B));
 const LEGACY_CALLER = callerFor(LEGACY_ROW);
 
 const PAYLOAD = {
-  deliveryGate: { held: false, orderStatus: 'ready' as const, reason: null, sendBookReadyEmail: true },
   safetyGate: { held: false, reason: null },
   readUrl: READ_URL,
   coverImageUrl: 'https://h/cover.png',
@@ -209,23 +227,21 @@ const PAYLOAD = {
   firstAudioUrl: null,
 };
 
-async function run(
-  branch: 'on' | 'off',
-  row: OrderRow,
-  caller: ReturnType<typeof callerFor>,
-) {
+async function run(branch: 'on' | 'off', row: OrderRow, caller: typeof LEGACY_CALLER) {
   const c = client(row);
   const send = vi.fn(async () => ({}));
   const result = await finalizePackageDelivery(
     c as never,
-    { ...PAYLOAD, order: caller as never },
+    { ...PAYLOAD, order: caller },
     {
       readinessEnabled: () => branch === 'on',
       send,
       now: () => NOW,
       ...(branch === 'on'
         ? {
-            // The REAL commit — only inspection/time/origin injected. Never a result mock.
+            // The REAL commit — only inspection/time/origin injected. Never a result mock. With
+            // READINESS_MANIFEST_ENABLED=true (stubbed per test) this runs the PRODUCTION receipt
+            // branch through runAtomicOperation.
             commit: ((prisma: never, args: never) =>
               commitBaseBookReadiness(prisma, args, { inspect: stubInspect, now: () => NOW, appBaseUrl: APP })) as never,
           }
@@ -238,93 +254,149 @@ async function run(
 interface CellExpectation {
   name: string;
   row: RowShape;
-  caller: ReturnType<typeof callerFor>;
-  eligible: boolean;
+  caller: typeof LEGACY_CALLER;
+  outcome: 'eligible' | 'authority_hold' | 'anchor_hold';
 }
 const MATRIX: CellExpectation[] = [
-  { name: 'A/A/A fully bound', row: boundRow(REV_A), caller: PACKAGE_CALLER, eligible: true },
+  { name: 'A/A/A fully bound', row: boundRow(REV_A), caller: PACKAGE_CALLER_A, outcome: 'eligible' },
   {
-    name: 'fresh self-consistent B over A-produced snapshot',
+    name: 'B caller over B-fresh row whose producing snapshot is A',
     row: { ...boundRow(REV_B), pipelineCache: { visualPackageAuthority: packageAuthority(REV_A), visualContract: CONTRACT_A } },
-    caller: callerFor(boundRow(REV_B)),
-    eligible: false,
+    caller: PACKAGE_CALLER_B,
+    outcome: 'authority_hold',
+  },
+  {
+    name: '(round-5) caller Package A over a FULLY-BOUND self-consistent Package B (exact identity equality)',
+    row: boundRow(REV_B),
+    caller: PACKAGE_CALLER_A,
+    outcome: 'authority_hold',
   },
   {
     name: 'A→legacy laundering (legacy fresh row, A-produced snapshot)',
     row: { ...LEGACY_ROW, pipelineCache: { visualPackageAuthority: packageAuthority(REV_A), visualContract: CONTRACT_A } },
     caller: LEGACY_CALLER,
-    eligible: false,
+    outcome: 'authority_hold',
   },
   {
     name: 'legacy→A (package fresh row, missing producing snapshot)',
     row: { ...boundRow(REV_A), pipelineCache: {} },
-    caller: PACKAGE_CALLER,
-    eligible: false,
+    caller: PACKAGE_CALLER_A,
+    outcome: 'authority_hold',
   },
-  { name: 'genuine legacy everywhere', row: LEGACY_ROW, caller: LEGACY_CALLER, eligible: true },
+  { name: 'genuine legacy everywhere', row: LEGACY_ROW, caller: LEGACY_CALLER, outcome: 'eligible' },
   {
     name: 'ambiguous provenance (legacy fresh row + stamp, no producing contract)',
     row: { ...LEGACY_ROW, visualContractHash: 'e'.repeat(64) },
     caller: LEGACY_CALLER,
-    eligible: false,
+    outcome: 'authority_hold',
   },
   {
     name: 'PACKAGE-shaped caller over genuinely legacy fresh state (round-4 cell)',
     row: LEGACY_ROW,
-    caller: PACKAGE_CALLER,
-    eligible: false,
+    caller: PACKAGE_CALLER_A,
+    outcome: 'authority_hold',
+  },
+  {
+    name: '(round-5 HOSTILE) caller A / fresh B / producing B, fresh hard_band, stale caller believed allow',
+    row: withAnchorBand(boundRow(REV_B), 'hard_band', 0.31),
+    caller: PACKAGE_CALLER_A,
+    outcome: 'authority_hold',
+  },
+  {
+    name: '(round-5) identity-consistent A/A/A whose FRESH producing snapshot holds hard_band',
+    row: withAnchorBand(boundRow(REV_A), 'hard_band', 0.31),
+    caller: PACKAGE_CALLER_A,
+    outcome: 'anchor_hold',
   },
 ];
 
-describe('origin matrix through the REAL readiness-ON implementation', () => {
+describe('origin matrix through the REAL readiness-ON implementation (production receipt branch)', () => {
+  beforeEach(() => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'true');
+    vi.stubEnv('QA_SOFT_DELIVER', 'false');
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   for (const cell of MATRIX) {
-    it(`${cell.name} → ${cell.eligible ? 'ready + one enqueue' : 'hold, zero enqueue, zero ship CAS, zero email'}`, async () => {
+    it(`${cell.name} → ${cell.outcome === 'eligible' ? 'ready + one enqueue' : 'hold, zero enqueue, zero ship CAS, zero email'}`, async () => {
       const { c, send, result } = await run('on', orderRow(cell.row), cell.caller);
       expect(result.mode).toBe('manifest');
-      if (cell.eligible) {
+      if (cell.outcome === 'eligible') {
         expect(result.deliveryHeld).toBe(false);
         expect(result.manifest).toMatchObject({ manifestStatus: 'passed', enqueued: true, orderStatus: 'ready' });
         expect(c.deliveryOutbox.create).toHaveBeenCalledTimes(1);
         expect(shipCasCalls(c)).toHaveLength(1);
+        // The PRODUCTION receipt branch ran: the recorded result landed on the receipt row.
+        expect(c.atomicOperationReceipt.update).toHaveBeenCalledTimes(1);
       } else {
         expect(result.deliveryHeld).toBe(true);
-        expect(result.manifest).toMatchObject({ manifestStatus: 'blocked', enqueued: false, orderStatus: 'needs_human_qa' });
+        expect(result.manifest).toMatchObject({ enqueued: false, orderStatus: 'needs_human_qa' });
         expect(c.deliveryOutbox.create).not.toHaveBeenCalled();
         expect(shipCasCalls(c)).toHaveLength(0);
-        expect(
-          writtenHoldMarkers(c).some((marker) => marker.startsWith('contract_world_hold:')),
-          `expected a contract_world_hold marker, saw: ${writtenHoldMarkers(c).join(', ')}`,
-        ).toBe(true);
+        if (cell.outcome === 'authority_hold') {
+          expect(result.manifest).toMatchObject({ manifestStatus: 'blocked' });
+          expect(
+            writtenHoldMarkers(c).some((marker) => marker.startsWith('contract_world_hold:')),
+            `expected a contract_world_hold marker, saw: ${writtenHoldMarkers(c).join(', ')}`,
+          ).toBe(true);
+        } else {
+          // Anchor hold: readiness PASSES but the fresh-derived disposition holds delivery.
+          expect(result.manifest).toMatchObject({ manifestStatus: 'passed', reason: 'anchor_low_confidence:hard_band' });
+        }
       }
       // The ON branch NEVER direct-sends — eligible delivery goes through the Outbox.
       expect(send).not.toHaveBeenCalled();
     });
   }
 
-  it('the round-4 caller cell holds under the exact marker family (delivery_snapshot_binding_invalid)', async () => {
-    const { c } = await run('on', orderRow(LEGACY_ROW), PACKAGE_CALLER);
-    expect(
-      writtenHoldMarkers(c).some((marker) => marker === 'contract_world_hold:delivery_snapshot_binding_invalid'),
-      `markers: ${writtenHoldMarkers(c).join(', ')}`,
-    ).toBe(true);
+  it('the round-4/5 identity cells hold under the exact marker (delivery_snapshot_binding_invalid)', async () => {
+    for (const cell of [
+      { row: LEGACY_ROW, caller: PACKAGE_CALLER_A },
+      { row: boundRow(REV_B), caller: PACKAGE_CALLER_A },
+    ]) {
+      const { c } = await run('on', orderRow(cell.row), cell.caller);
+      expect(
+        writtenHoldMarkers(c).some((marker) => marker === 'contract_world_hold:delivery_snapshot_binding_invalid'),
+        `markers: ${writtenHoldMarkers(c).join(', ')}`,
+      ).toBe(true);
+    }
   });
 });
 
 describe('origin matrix through the REAL readiness-OFF implementation', () => {
+  beforeEach(() => {
+    vi.stubEnv('READINESS_MANIFEST_ENABLED', 'false');
+    vi.stubEnv('QA_SOFT_DELIVER', 'false');
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   for (const cell of MATRIX) {
-    it(`${cell.name} → ${cell.eligible ? 'ships + one email' : 'hold, zero ship CAS, zero email'}`, async () => {
+    it(`${cell.name} → ${cell.outcome === 'eligible' ? 'ships + one email' : 'hold, zero ship CAS, zero email'}`, async () => {
       const { c, send, result } = await run('off', orderRow(cell.row), cell.caller);
-      if (cell.eligible) {
+      if (cell.outcome === 'eligible') {
         expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false });
         expect(shipCasCalls(c)).toHaveLength(1);
         expect(send).toHaveBeenCalledTimes(1);
-      } else {
+      } else if (cell.outcome === 'authority_hold') {
         expect(result).toMatchObject({ mode: 'authority_hold', deliveryHeld: true });
         expect(shipCasCalls(c)).toHaveLength(0);
         expect(send).not.toHaveBeenCalled();
         expect(
           writtenHoldMarkers(c).some((marker) => marker.startsWith('contract_world_hold:')),
           `expected a contract_world_hold marker, saw: ${writtenHoldMarkers(c).join(', ')}`,
+        ).toBe(true);
+      } else {
+        // Anchor hold derived from the FRESH producing snapshot on the legacy branch.
+        expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: true });
+        expect(shipCasCalls(c)).toHaveLength(0);
+        expect(send).not.toHaveBeenCalled();
+        expect(
+          writtenHoldMarkers(c).some((marker) => marker === 'anchor_low_confidence:hard_band'),
+          `markers: ${writtenHoldMarkers(c).join(', ')}`,
         ).toBe(true);
       }
       expect(c.deliveryOutbox.create).not.toHaveBeenCalled(); // OFF never enqueues

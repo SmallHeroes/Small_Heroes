@@ -132,7 +132,7 @@ describe.skipIf(!RUN)('(Codex B′) receipt fence — 17-cycle live 6543-pooler 
         const outboxBefore = await prisma.deliveryOutbox.count({ where: { orderId: idC } });
         const commit = await commitBaseBookReadiness(
           prisma,
-          { orderId: idC, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null },
+          { orderId: idC },
           { inspect: stubInspect, appBaseUrl: APP, atomic: { afterCommit: ambiguousCommit(i, 'readiness_commit') } },
         );
         expect(commit.manifestStatus, `cycle ${i}: commit passed`).toBe('passed');

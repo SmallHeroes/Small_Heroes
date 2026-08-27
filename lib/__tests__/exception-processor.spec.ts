@@ -61,7 +61,9 @@ function outbox(overrides: Partial<DeliveryOutbox> = {}): DeliveryOutbox {
     manifestId: 'manifest_1',
     inputVersion: 1,
     fulfillmentVersion: 1,
-    dedupeKey: 'book-ready/order_1/base_book/1',
+    // Canonical key (deliveryDedupeKey maps base_book → base-book); the round-5 identity binding
+    // validates this exact reconstruction before any send_ambiguous disposition.
+    dedupeKey: 'book-ready/order_1/base-book/1',
     payload,
     payloadHash: hashPayload(payload),
     status: 'failed',
@@ -344,6 +346,53 @@ describe('ExceptionCase autonomous processor', () => {
     }))).resolves.toBe('refund_pending');
     expect(db.createdDeliveries).toHaveLength(0);
     expect(db.currentBudget()).toBeNull(); // window check fails before any consume — no budget row created
+  });
+
+  it('(Codex round-5 finding 5) a VALID payloadHash under a DRIFTED dedupeKey → refund, ZERO replay', async () => {
+    // The payload bytes are intact, but the idempotency key is not the canonical key for this
+    // row's own order+scope — replaying under it would continue SOME attempt, just not a provably
+    // authorized one for this identity. Zero replay, refund path.
+    const state = exceptionCase();
+    const db = fakePrisma(state, outbox({
+      providerMessageId: null,
+      dedupeKey: 'book-ready/order_OTHER/base-book/1',
+    }));
+    const replayEmail = vi.fn();
+
+    await expect(processExceptionCase(db.prisma, state, deps({ replayEmail })))
+      .resolves.toBe('refund_pending');
+
+    expect(replayEmail).not.toHaveBeenCalled();
+    expect(db.currentCase().status).toBe('refund_pending');
+  });
+
+  it('(Codex round-5 finding 5) a CROSS-SOURCE Outbox row (different order) never replays — and never resolves the wrong case as delivered', async () => {
+    // The case points (via sourceRef) at an Outbox row belonging to ANOTHER order. Even a `sent`
+    // row must not resolve THIS case as delivered; the identity check runs before every
+    // disposition. Zero replay, zero provider-state query, refund path.
+    const state = exceptionCase();
+    const foreignPayload = {
+      to: 'other@example.com', customerName: 'Other', childName: 'Kid',
+      readUrl: 'https://smallheroes.example/read/order_2', audioUrl: '', pdfUrl: '',
+    };
+    const db = fakePrisma(state, outbox({
+      orderId: 'order_2',
+      dedupeKey: 'book-ready/order_2/base-book/1',
+      payload: foreignPayload as never,
+      payloadHash: hashPayload(foreignPayload),
+      status: 'sent',
+      failureClass: null,
+      providerMessageId: 'email_foreign',
+    }));
+    const replayEmail = vi.fn();
+    const emailState = vi.fn();
+
+    await expect(processExceptionCase(db.prisma, state, deps({ replayEmail, emailState })))
+      .resolves.toBe('refund_pending');
+
+    expect(replayEmail).not.toHaveBeenCalled();
+    expect(emailState).not.toHaveBeenCalled();
+    expect(db.currentCase().status).toBe('refund_pending');
   });
 
   it('(Codex round-4 MINOR 7) a payload whose bytes no longer match the enqueued payloadHash → refund, ZERO replay', async () => {

@@ -29,6 +29,7 @@ import { executeAnchorReleaseCas } from '@/lib/generation-pipeline/order-authori
 import { OutboxReconciliationError } from '@/lib/generation-chunked/delivery-outbox';
 import {
   OrderVisualPackageAuthorityError,
+  requireConsistentProducingIdentity,
   requireProducingSnapshotBinding,
 } from '@/lib/generation-pipeline/order-visual-package-authority';
 
@@ -105,13 +106,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // pass is the CHEAP early refusal (and captures the caller-origin claim for the readiness commit); the
   // AUTHORITATIVE re-proof runs INSIDE the release transaction below (Codex round-4 MAJOR 5) — a
   // delivery-input mutation between this evaluation and the release must hold, not ship a stale payload.
-  let callerVisualPackageClaim: boolean;
+  let callerPackageRevisionDigest: string | null;
   try {
     const binding = requireProducingSnapshotBinding({
       order,
       pipelineCache: order.generationJob?.pipelineCache ?? null,
     });
-    callerVisualPackageClaim = binding !== null;
+    // (Codex round-5) The EXACT identity this route evaluated — bound both into the in-lock
+    // re-proof below (downgrade AND upgrade directions) and into the readiness commit's caller leg.
+    callerPackageRevisionDigest = binding?.packageRevisionDigest ?? null;
     if (binding !== null && !order.book.readUrl?.trim()) {
       // Package-backed payload binding: the direct send may only carry the canonical
       // snapshot readUrl — a constructed fallback URL is ambiguous provenance here.
@@ -245,8 +248,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
     let lockedPackageBacked: boolean;
     try {
+      // (Codex round-5 finding 2) THE total snapshot invariant under the release lock: the in-lock
+      // row + producing snapshot must bind AND carry the EXACT identity this route evaluated
+      // pre-lock — a pre-read package that reads legacy under the lock (downgrade), a pre-read
+      // legacy that reads package (upgrade), and an A→B repoint all refuse.
       lockedPackageBacked =
-        requireProducingSnapshotBinding({
+        requireConsistentProducingIdentity({
+          callerPackageRevisionDigest,
           order: releaseTruth,
           pipelineCache: releaseTruth.generationJob?.pipelineCache ?? null,
         }) !== null;
@@ -326,14 +334,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // book. On mismatch commitBaseBookReadiness throws ReleasePreconditionError → typed 409 below, nothing ships.
       const result = await commitBaseBookReadiness(prisma, {
         orderId: order.id,
-        anchorAllowsDelivery: true,
-        anchorOrderStatus: 'ready',
-        anchorReason: null,
+        // (Codex round-5) The commit DERIVES the anchor disposition from its own fresh producing
+        // snapshot; requireHold is the human release of exactly this marker, and the caller-identity
+        // leg holds if the frozen truth was re-pointed (any direction) after this route's read.
         requireHold: { deliveryHoldReason: holdReason },
-        // (Codex round-4 MAJOR 4) Caller-origin leg: this route's own fresh read proved the binding
-        // above; if the commit's in-tx read then finds a legacy row while we saw package, the frozen
-        // truth was re-pointed mid-flight → the commit hard-holds instead of shipping.
-        callerVisualPackageClaim,
+        callerPackageRevisionDigest,
       });
       // Reconcile the anchor case with the committed outcome (resolved once `ready`; left open if it re-parked stale).
       await syncHumanQaHoldCasePostCommit(prisma, order.id);

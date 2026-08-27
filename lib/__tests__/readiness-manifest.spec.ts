@@ -76,7 +76,14 @@ function passingQualityRows(orderRow: typeof orderRowFull): QRow[] {
   return rows;
 }
 
-const args = (over: Partial<CommitArgs> = {}): CommitArgs => ({ orderId: 'o1', anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null, ...over });
+// (Codex round-5) CommitArgs no longer carries a caller-supplied anchor disposition — the commit
+// derives it from the fresh producing snapshot. Tests that need an anchor hold seed the ROW's
+// generationJob.pipelineCache.childAnchorLowConfidence instead.
+const args = (over: Partial<CommitArgs> = {}): CommitArgs => ({ orderId: 'o1', ...over });
+const rowWithAnchorBand = (band: 'soft_band' | 'hard_band', score: number, base: typeof orderRowFull = orderRowFull) => ({
+  ...base,
+  generationJob: { pipelineCache: { childAnchorLowConfidence: { reason: band, score } } },
+});
 
 function mockTx(orderRow: unknown = orderRowFull) {
   return {
@@ -665,16 +672,16 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
   });
 
-  it('(Codex round-4 MAJOR 4) caller-origin leg: package-shaped CALLER claim over a genuinely legacy fresh row → blocked before inspection', async () => {
+  it('(Codex round-5) caller-identity leg: a PACKAGE caller identity over a genuinely legacy fresh row → blocked before inspection', async () => {
     // The fresh row + producing snapshot are genuinely legacy — the commit itself would pass — but
-    // the delivery caller declared its snapshot package-shaped: the frozen truth was re-pointed
+    // the delivery caller evaluated an exact package identity: the frozen truth was re-pointed
     // after the caller loaded it. Same marker family as the readiness-OFF caller leg, evaluated
     // INSIDE the commit (the fresh in-tx read decides), zero enqueue, zero inspection.
     const tx = mockTx();
     const inspect = vi.fn(stubInspect);
     const result = await commitBaseBookReadiness(
       mockPrisma(tx) as never,
-      args({ callerVisualPackageClaim: true }),
+      args({ callerPackageRevisionDigest: 'c'.repeat(64) }),
       { inspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
     );
     expect(result).toMatchObject({
@@ -686,14 +693,83 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     expect(inspect).not.toHaveBeenCalled();
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
 
-    // Genuine-legacy positive control: with the claim false/omitted the identical row still ships.
+    // Genuine-legacy caller (identity null) over the same legacy row: identity binds → ships.
     const tx2 = mockTx();
     const shipped = await commitBaseBookReadiness(
       mockPrisma(tx2) as never,
-      args(),
+      args({ callerPackageRevisionDigest: null }),
       { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
     );
     expect(shipped).toMatchObject({ manifestStatus: 'passed', orderStatus: 'ready', enqueued: true });
+  });
+
+  it('(Codex round-5) caller-identity leg: caller Package A over a fresh self-consistent Package B → blocked (exact digest equality)', async () => {
+    const authority = validPackageAuthority(
+      'story-pipeline/04_approved_story_sources/accepted/readiness_fixture/' +
+        `revisions/${'a'.repeat(64)}/integrated.md`,
+      'b'.repeat(64),
+    );
+    const contract = {
+      schemaVersion: 'fixture-contract/v1',
+      approvedRuntimeAuthority: { packageRevisionDigest: authority.packageRevisionDigest },
+    };
+    const boundRow = {
+      ...orderRowFull,
+      selectionFilename: authority.sourcePath,
+      storySourceHash: 'b'.repeat(64),
+      visualPackageAuthority: authority,
+      visualContractHash: computeVisualContractHash(contract as never),
+      generationJob: {
+        pipelineCache: { visualPackageAuthority: authority, visualContract: contract },
+      },
+    };
+    const tx = mockTx(boundRow);
+    const inspect = vi.fn(stubInspect);
+    const result = await commitBaseBookReadiness(
+      mockPrisma(tx, boundRow) as never,
+      args({ callerPackageRevisionDigest: 'a1'.repeat(32) }), // caller evaluated Package A; fresh is C
+      { inspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+    expect(result).toMatchObject({
+      manifestStatus: 'blocked',
+      enqueued: false,
+      orderStatus: 'needs_human_qa',
+      reason: 'contract_world_hold:delivery_snapshot_binding_invalid',
+    });
+    expect(inspect).not.toHaveBeenCalled();
+    expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
+
+    // Matching caller identity → the identical bound row ships.
+    const tx2 = mockTx(boundRow);
+    const shipped = await commitBaseBookReadiness(
+      mockPrisma(tx2, boundRow) as never,
+      args({ callerPackageRevisionDigest: authority.packageRevisionDigest }),
+      { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+    expect(shipped).toMatchObject({ manifestStatus: 'passed', orderStatus: 'ready', enqueued: true });
+  });
+
+  it('(Codex round-5) requireHold releases EXACTLY the fresh-derived anchor marker — and only that marker', async () => {
+    // Fresh producing snapshot holds hard_band; the human authorized releasing exactly that marker.
+    const heldRow = rowWithAnchorBand('hard_band', 0.31);
+    const tx = mockTx(heldRow);
+    const released = await commitBaseBookReadiness(
+      mockPrisma(tx, heldRow) as never,
+      args({ requireHold: { deliveryHoldReason: 'anchor_low_confidence:hard_band' } }),
+      { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+    expect(released).toMatchObject({ manifestStatus: 'passed', orderStatus: 'ready', enqueued: true });
+
+    // A requireHold for a DIFFERENT marker does not release the fresh-derived hold.
+    const tx2 = mockTx(heldRow);
+    const stillHeld = await commitBaseBookReadiness(
+      mockPrisma(tx2, heldRow) as never,
+      args({ requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' } }),
+      { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
+    );
+    expect(stillHeld.orderStatus).toBe('needs_human_qa');
+    expect(stillHeld.enqueued).toBe(false);
+    expect(tx2.deliveryOutbox.create).not.toHaveBeenCalled();
   });
 
   it('treats an eval→commit producing-cache mutation as TOCTOU drift (abort + fresh re-eval)', async () => {
@@ -871,9 +947,10 @@ describe('commitBaseBookReadiness — load-fresh + in-tx fingerprint + branches'
     }));
   });
 
-  it('PASS but anchor holds: manifest passed, NO enqueue, anchor hold preserved', async () => {
-    const tx = mockTx();
-    const r = await commitBaseBookReadiness(mockPrisma(tx) as never, args({ anchorAllowsDelivery: false, anchorOrderStatus: 'needs_human_qa', anchorReason: 'anchor_low_confidence:soft_band' }), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
+  it('PASS but the FRESH producing snapshot holds a soft band: manifest passed, NO enqueue, anchor hold derived (round-5)', async () => {
+    const row = rowWithAnchorBand('soft_band', 0.61);
+    const tx = mockTx(row);
+    const r = await commitBaseBookReadiness(mockPrisma(tx, row) as never, args(), { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' });
     expect(r.manifestStatus).toBe('passed');
     expect(r.enqueued).toBe(false);
     expect(tx.deliveryOutbox.create).not.toHaveBeenCalled();
@@ -1105,15 +1182,12 @@ describe('QA soft-deliver (QA_SOFT_DELIVER=true, non-prod)', () => {
   });
 
   it('anchor hold + passing readiness → ready + enqueue with anchor qaWarnings', async () => {
-    const tx = mockTx();
+    // (Codex round-5) The hold AND its telemetry both derive from the fresh producing snapshot.
+    const row = rowWithAnchorBand('hard_band', 0.147);
+    const tx = mockTx(row);
     const r = await commitBaseBookReadiness(
-      mockPrisma(tx) as never,
-      args({
-        anchorAllowsDelivery: false,
-        anchorOrderStatus: 'needs_human_qa',
-        anchorReason: 'anchor_low_confidence:hard_band',
-        anchorLowConfidence: { reason: 'hard_band', score: 0.147 },
-      }),
+      mockPrisma(tx, row) as never,
+      args(),
       { inspect: stubInspect, now: () => NOW, appBaseUrl: 'https://app.example.com' },
     );
     expect(r.manifestStatus).toBe('passed');

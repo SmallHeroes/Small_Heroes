@@ -2,7 +2,7 @@ import type { Order, PrismaClient } from '@prisma/client';
 import { sendBookReadyEmail } from '@/backend/lib/email';
 import { listenUrlFromReadUrl } from '@/lib/routes';
 import { createLogger } from '@/lib/logger';
-import type { AnchorLowConfidence } from '@/lib/anchor-resemblance-gate';
+import { deriveAnchorDeliveryDisposition } from '@/lib/anchor-resemblance-gate';
 import { buildQaWarningsFromAnchorHold, canUseQaSoftDeliver } from '@/lib/qa-soft-deliver';
 import {
   commitBaseBookReadiness,
@@ -10,14 +10,15 @@ import {
   executeReadinessShipCas,
   type CommitResult,
 } from './readiness-manifest';
-import { writeOrderHoldFenced } from './order-authority';
+import { writeOrderHoldFenced, type HoldWriteResult } from './order-authority';
 import { resolveSafetyDeliveryGate, type SafetyDeliveryGate } from './safety-delivery-gate';
 import { resolveActiveRecoveryCaseInTx } from '@/lib/generation-chunked/exception-case';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
 import {
+  DeliverySnapshotIdentityError,
   OrderVisualPackageAuthorityError,
-  orderRequiresVisualPackageAuthority,
-  requireProducingSnapshotBinding,
+  orderPackageIdentity,
+  requireConsistentProducingIdentity,
 } from './order-visual-package-authority';
 
 const log = createLogger({ subsystem: 'package-delivery' });
@@ -29,13 +30,6 @@ export type SafetyStatus = 'safe' | 'hazard' | 'unverified';
  */
 export function isSafetyVerified(status: SafetyStatus | null | undefined): boolean {
   return status === 'safe' || status === 'hazard';
-}
-
-export interface PackageDeliveryGate {
-  held: boolean;
-  orderStatus: Order['status'];
-  reason: string | null;
-  sendBookReadyEmail: boolean;
 }
 
 /**
@@ -53,6 +47,24 @@ export interface PackageDeliveryResult {
   manifest: CommitResult | null;
 }
 
+/**
+ * (Codex round-5 finding 3) An authority/safety/anchor PARK lost its hold write — writeOrderHoldFenced returned
+ * `input_drift` or `lost`, meaning NO hold landed (the inputs moved, or the fence churned past the retry budget).
+ * The park transaction rolls back with this error so the job is NEVER marked done/packaged without a durable
+ * terminal disposition; the chunk runner's standard failure path (job failed + retryable + infra_transient case)
+ * then owns the redrive, which re-evaluates everything FRESH. Never reported as an applied hold.
+ */
+export class AuthorityHoldRaceError extends Error {
+  constructor(
+    readonly orderId: string,
+    readonly holdResult: HoldWriteResult,
+    readonly holdMarker: string,
+  ) {
+    super(`[package-delivery] hold write lost the race (${holdResult}) for ${holdMarker} on ${orderId}`);
+    this.name = 'AuthorityHoldRaceError';
+  }
+}
+
 interface PackageDeliveryDeps {
   readinessEnabled?: () => boolean;
   commit?: typeof commitBaseBookReadiness;
@@ -64,6 +76,15 @@ interface PackageDeliveryDeps {
  * Finalize package delivery at the single package boundary.
  * Flag-on: Manifest + readiness + Outbox only; never a direct email.
  * Flag-off: preserve the legacy status/job/direct-email behavior exactly.
+ *
+ * (Codex round-5) THE TOTAL SNAPSHOT INVARIANT lives here and in the readiness commit, identically:
+ *   - IDENTITY: the caller's snapshot identity (exact package revision, or legacy) must equal the
+ *     authoritative fresh row + producing snapshot identity (`requireConsistentProducingIdentity`).
+ *     A≠B, package↔legacy in both directions, and an invalid caller snapshot all hard-hold.
+ *   - DISPOSITION: the anchor delivery disposition is DERIVED from the fresh producing snapshot
+ *     (`pipelineCache.childAnchorLowConfidence`), never accepted from the caller — a stale caller
+ *     gate can never say "allow" over a fresh hard_band. The OFF ship CAS additionally binds the
+ *     observed disposition source, and the readiness commit re-derives inside its own load.
  */
 export async function finalizePackageDelivery(
   prisma: PrismaClient,
@@ -79,7 +100,6 @@ export async function finalizePackageDelivery(
       | 'illustrationStyle'
       | 'visualPackageAuthority'
     >;
-    deliveryGate: PackageDeliveryGate;
     /** (Fix 1) The readiness-INDEPENDENT physical-safety gate (resolveSafetyDeliveryGate). Blocks BEFORE anything else. */
     safetyGate: SafetyDeliveryGate;
     readUrl: string;
@@ -87,20 +107,38 @@ export async function finalizePackageDelivery(
     coverImageUrl?: string | null;
     pdfUrl: string | null;
     firstAudioUrl: string | null;
-    anchorLowConfidence?: AnchorLowConfidence;
   },
   deps: PackageDeliveryDeps = {},
 ): Promise<PackageDeliveryResult> {
+  const completedAt = deps.now?.() ?? new Date();
+
+  /**
+   * (Codex round-5 finding 3) Result-checked terminal park through the shared funnel. `applied` and
+   * `superseded` are both DURABLE terminal dispositions (superseded = a STRONGER marker already
+   * governs — never overwritten, and the recovery-case cleanup is left to that marker's owner);
+   * `input_drift`/`lost` mean NO hold landed → throw, rolling back the surrounding transaction so
+   * the job is never marked done without a disposition.
+   */
+  const writeTerminalParkOrThrow = async (
+    db: Parameters<typeof writeOrderHoldFenced>[0],
+    p: Parameters<typeof writeOrderHoldFenced>[1],
+  ): Promise<Extract<HoldWriteResult, 'applied' | 'superseded'>> => {
+    const held = await writeOrderHoldFenced(db, p);
+    if (held === 'input_drift' || held === 'lost') {
+      throw new AuthorityHoldRaceError(p.orderId, held, p.newHoldReason);
+    }
+    return held;
+  };
+
   // (Fix 1) UNCONDITIONAL, readiness-INDEPENDENT physical-safety gate — evaluated BEFORE choosing manifest-vs-legacy.
   // A confirmed hazard OR an unconfirmed-safe artifact blocks `ready` + email on EVERY paid path (including the
   // legacy path that runs in Production with readiness OFF). Parked at needs_human_qa with the distinct `safety_hold:`
   // marker (start.ts refuses to redrive it). This is the guarantee: an unsafe/unverified image never delivers.
   if (args.safetyGate.held) {
-    const completedAt = deps.now?.() ?? new Date();
     await prisma.$transaction(async (tx) => {
       // (Codex round-5 Unit 2) The safety hard-hold goes through the shared funnel: bind + bump + precedence. Safety
       // is rank 3 (top) so it always overwrites a weaker marker; the fence bump is atomic with the hold write.
-      await writeOrderHoldFenced(tx, {
+      const held = await writeTerminalParkOrThrow(tx, {
         orderId: args.order.id,
         newStatus: 'needs_human_qa',
         newHoldReason: args.safetyGate.reason ?? 'safety_hold:held',
@@ -112,13 +150,16 @@ export async function finalizePackageDelivery(
       });
       // (Fix 5) Mirror the readiness-commit hard-hold park: RESOLVE any active recoverable case so a stale,
       // budget-exhausted infra_transient/integrity case can never auto-REFUND a book that must stay parked for
-      // human QA (a safety hold is never auto-redriven AND never auto-refunded).
-      await resolveActiveRecoveryCaseInTx(tx, {
-        orderId: args.order.id,
-        kinds: ['infra_transient', 'integrity_blocked'],
-        reason: `safety_parked:${args.safetyGate.reason ?? 'held'}`,
-        now: completedAt,
-      });
+      // human QA (a safety hold is never auto-redriven AND never auto-refunded). On `superseded` the stronger
+      // marker's own writer manages the case lifecycle — never touched from here.
+      if (held === 'applied') {
+        await resolveActiveRecoveryCaseInTx(tx, {
+          orderId: args.order.id,
+          kinds: ['infra_transient', 'integrity_blocked'],
+          reason: `safety_parked:${args.safetyGate.reason ?? 'held'}`,
+          now: completedAt,
+        });
+      }
     });
     // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: open the safety review case in its OWN tx. NEVER inside the
     // safety-park tx — a case-write rejection there would roll back the park itself (an unheld unsafe book = a
@@ -131,32 +172,35 @@ export async function finalizePackageDelivery(
     return { mode: 'safety_hold', deliveryHeld: true, manifest: null };
   }
 
-  // Caller-provenance leg of the origin matrix, computed ONCE for both branches: the CALLER'S
-  // snapshot of this Order is package-shaped (accepted reference — canonical or aliased — or a
-  // carried authority). A genuinely legacy delivery has a legacy caller snapshot too. On
-  // readiness-ON the claim is threaded into the commit (which re-proves the fresh row + producing
-  // snapshot in-tx); on readiness-OFF it is evaluated below against the fresh CAS-bound row.
-  const callerVisualPackageClaim = (() => {
-    try {
-      return (
-        orderRequiresVisualPackageAuthority(args.order) ||
-        args.order.visualPackageAuthority != null
-      );
-    } catch {
-      return true;
-    }
-  })();
+  // (Codex round-5) Caller-identity leg of the total snapshot invariant, computed ONCE for both
+  // branches: the EXACT delivery identity of the caller's snapshot — its package revision digest,
+  // or null for a genuinely legacy caller. An INVALID caller snapshot (mixed/malformed) can never
+  // be granted an identity and always parks.
+  let callerPackageRevisionDigest: string | null;
+  try {
+    callerPackageRevisionDigest = orderPackageIdentity(args.order);
+  } catch (error) {
+    if (!(error instanceof OrderVisualPackageAuthorityError)) throw error;
+    return parkAuthorityHold(
+      prisma,
+      args.order.id,
+      null,
+      completedAt,
+      'contract_world_hold:visual_package_authority_invalid',
+      error,
+      writeTerminalParkOrThrow,
+    );
+  }
 
   const readinessEnabled = deps.readinessEnabled ?? isReadinessManifestEnabled;
   if (readinessEnabled()) {
     const commit = deps.commit ?? commitBaseBookReadiness;
+    // (Codex round-5) The commit derives the anchor/delivery disposition from ITS OWN fresh load of
+    // the producing snapshot — no caller-supplied gate is accepted — and proves the identity leg
+    // against this caller digest in-decision.
     const manifest = await commit(prisma, {
       orderId: args.order.id,
-      anchorAllowsDelivery: args.deliveryGate.sendBookReadyEmail,
-      anchorOrderStatus: args.deliveryGate.orderStatus,
-      anchorReason: args.deliveryGate.reason,
-      anchorLowConfidence: args.anchorLowConfidence,
-      callerVisualPackageClaim,
+      callerPackageRevisionDigest,
     });
     // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: reconcile the review case AFTER commitBaseBookReadiness commits
     // its readiness tx. Opens an anchor case when the manifest parked for anchor QA; resolves it on a ready outcome.
@@ -169,13 +213,6 @@ export async function finalizePackageDelivery(
     };
   }
 
-  const completedAt = deps.now?.() ?? new Date();
-  const softDeliver = canUseQaSoftDeliver();
-  const legacySoftDeliver = softDeliver && args.deliveryGate.held;
-  const legacyStatus = legacySoftDeliver ? 'ready' : args.deliveryGate.orderStatus;
-  const legacyHoldReason = legacySoftDeliver
-    ? `qa_soft_deliver:${args.deliveryGate.reason ?? 'held'}`
-    : args.deliveryGate.reason;
   // (Codex round-5 P0-2) The legacy (readiness OFF) path is the LIVE customer delivery path in Production. Its
   // writes are now fence-bound CAS writes — a hold that landed after safetyGate was read cannot be silently
   // overwritten, and the email is gated on the ship CAS winning. Read fence + inputVersion to bind the CAS.
@@ -204,78 +241,39 @@ export async function finalizePackageDelivery(
       },
     },
   });
-  // Durable package-authority + producing-snapshot gate — readiness-INDEPENDENT, like the safety gate above,
-  // and evaluated on the SAME FRESH row the ship CAS binds (never the caller's stale `args.order` snapshot).
-  // Beyond the fresh row's own validity, a package-backed Order must prove the artifacts being shipped were
-  // PRODUCED under this exact authority: the freeze-written pipeline snapshot's authority and frozen contract
-  // (whose canonical hash is the Order's `visualContractHash` stamp, and whose bytes embed the producing
-  // package revision) must all bind to the fresh authority — a fresh self-consistent Package B never
-  // authorizes a payload rendered under Package A. The caller-supplied readUrl/cover/pdf/audio payload must
-  // also equal the fresh Book row, so the email can only carry that same snapshot's artifacts. Post-read races
-  // are closed by the CAS's inputVersion binding: every writer of these delivery-input fields goes through
-  // withDeliveryInputMutation (writer-coverage guard) and bumps inputVersion, so a mutation after this read
-  // makes the ship CAS match zero rows. The readiness-ON branch re-proves the same predicates inside its own
-  // TOCTOU-fingerprinted transaction and produces the blocked-manifest evidence row instead.
-  const parkAuthorityHold = async (
-    holdMarker: string,
-    error: unknown,
-  ): Promise<PackageDeliveryResult> => {
-    await prisma.$transaction(async (tx) => {
-      await writeOrderHoldFenced(tx, {
-        orderId: args.order.id,
-        ...(cur ? { inputVersion: cur.inputVersion } : {}),
-        newStatus: 'needs_human_qa',
-        newHoldReason: holdMarker,
-        setPackageDone: true,
-      });
-      await tx.generationJob.update({
-        where: { orderId: args.order.id },
-        data: { status: 'done', currentStage: 'done', completedAt, packaged: true },
-      });
-      // Mirror the safety park: never let a stale recoverable case auto-refund
-      // or auto-redrive a book that must stay parked for human QA.
-      await resolveActiveRecoveryCaseInTx(tx, {
-        orderId: args.order.id,
-        kinds: ['infra_transient', 'integrity_blocked'],
-        reason: `authority_parked:${holdMarker.split(':').pop()}`,
-        now: completedAt,
-      });
-    });
-    await syncHumanQaHoldCasePostCommit(prisma, args.order.id);
-    log.error(
-      'Book-ready delivery withheld — fresh producing-snapshot binding failed (readiness-independent)',
-      error,
-      { orderId: args.order.id, holdMarker },
-    );
-    return { mode: 'authority_hold', deliveryHeld: true, manifest: null };
-  };
+  // Durable identity + producing-snapshot gate — readiness-INDEPENDENT, like the safety gate above,
+  // and evaluated on the SAME FRESH row the ship CAS binds (never the caller's stale `args.order`
+  // snapshot). Beyond the fresh row's own validity, the caller's snapshot identity must BE the fresh
+  // producing identity (exact package revision, or legacy — both directions), and a package-backed
+  // Order must prove the artifacts being shipped were PRODUCED under this exact authority. The
+  // caller-supplied readUrl/cover/pdf/audio payload must also equal the fresh Book row, so the email
+  // can only carry that same snapshot's artifacts. Post-read races are closed by the CAS's
+  // inputVersion binding plus (round-5) the producing anchor-disposition bind. The readiness-ON
+  // branch re-proves the same predicates inside its own TOCTOU-fingerprinted transaction.
+  const producingCacheOf = (row: typeof cur): unknown =>
+    row?.generationJob?.pipelineCache ?? null;
   if (cur) {
     let freshPackageBacked = false;
     try {
       freshPackageBacked =
-        requireProducingSnapshotBinding({
+        requireConsistentProducingIdentity({
+          callerPackageRevisionDigest,
           order: cur,
-          pipelineCache: cur.generationJob?.pipelineCache ?? null,
+          pipelineCache: producingCacheOf(cur),
         }) !== null;
     } catch (error) {
       if (!(error instanceof OrderVisualPackageAuthorityError)) throw error;
       return parkAuthorityHold(
-        'contract_world_hold:visual_package_authority_invalid',
+        prisma,
+        args.order.id,
+        cur.inputVersion,
+        completedAt,
+        error instanceof DeliverySnapshotIdentityError
+          ? 'contract_world_hold:delivery_snapshot_binding_invalid'
+          : 'contract_world_hold:visual_package_authority_invalid',
         error,
+        writeTerminalParkOrThrow,
       );
-    }
-    if (!freshPackageBacked) {
-      // Caller-provenance leg (see the shared computation above): a package-shaped caller over a
-      // genuinely legacy fresh row + producing snapshot means the frozen truth was re-pointed after
-      // the caller loaded it.
-      if (callerVisualPackageClaim) {
-        return parkAuthorityHold(
-          'contract_world_hold:delivery_snapshot_binding_invalid',
-          new Error(
-            'caller snapshot is package-shaped but the fresh Order and producing snapshot are legacy',
-          ),
-        );
-      }
     }
     if (freshPackageBacked) {
       // Payload ↔ fresh-snapshot binding: the email may only carry the exact
@@ -299,35 +297,62 @@ export async function finalizePackageDelivery(
       }
       if (payloadMismatches.length > 0) {
         return parkAuthorityHold(
+          prisma,
+          args.order.id,
+          cur.inputVersion,
+          completedAt,
           'contract_world_hold:delivery_snapshot_binding_invalid',
           new Error(
             `delivery payload diverges from the fresh Book snapshot: ${payloadMismatches.join(', ')}`,
           ),
+          writeTerminalParkOrThrow,
         );
       }
     }
   }
+
+  // (Codex round-5) The anchor delivery DISPOSITION — derived from the authoritative fresh
+  // producing snapshot, never from a caller gate. A vanished row derives from null (fail-open is
+  // impossible: the ship CAS below matches zero rows for a missing order anyway).
+  const { gate: freshGate, lowConfidence: freshLowConfidence } =
+    deriveAnchorDeliveryDisposition(producingCacheOf(cur));
+  const softDeliver = canUseQaSoftDeliver();
+  const legacySoftDeliver = softDeliver && freshGate.held;
+  const legacyStatus = legacySoftDeliver ? 'ready' : freshGate.orderStatus;
+  const legacyHoldReason = legacySoftDeliver
+    ? `qa_soft_deliver:${freshGate.reason ?? 'held'}`
+    : freshGate.reason;
+
   let shipped = false;
   if (!cur) {
     log.error('Legacy delivery aborted — order vanished before the package write', { orderId: args.order.id });
   } else if (legacyStatus === 'ready') {
     // SHIP via the shared ready CAS: flips to ready ONLY IF no competing hold (fence unchanged, no terminal marker,
-    // no payment fence, no active strong case). 0 rows ⇒ a hold landed mid-flight ⇒ NOT shipped, NO email.
+    // no payment fence, no active strong case) AND (round-5) the producing snapshot still carries the exact
+    // anchor-disposition source this ship was derived from. 0 rows ⇒ a hold/flip landed mid-flight ⇒ NOT shipped,
+    // NO email.
+    const producingCache = producingCacheOf(cur);
+    const observedAnchorSource =
+      producingCache && typeof producingCache === 'object' && !Array.isArray(producingCache)
+        ? ((producingCache as Record<string, unknown>).childAnchorLowConfidence ?? null)
+        : null;
     const rows = await executeReadinessShipCas(prisma, {
       orderId: args.order.id,
       inputVersion: cur.inputVersion,
       deliveryFenceVersion: cur.deliveryFenceVersion,
       deliveryHoldReason: legacyHoldReason,
+      producingAnchorBind: { childAnchorLowConfidence: observedAnchorSource },
     });
     shipped = rows === 1;
     if (!shipped) {
-      log.warn('Legacy ship aborted — a hold landed mid-flight (fence/marker/case); not shipped, no email', {
+      log.warn('Legacy ship aborted — a hold landed mid-flight (fence/marker/case/anchor-source); not shipped, no email', {
         orderId: args.order.id,
       });
     }
   } else {
-    // PARK via the shared hold funnel (bind + bump + never overwrite a stronger marker).
-    await writeOrderHoldFenced(prisma, {
+    // PARK via the shared hold funnel (bind + bump + never overwrite a stronger marker), result-checked:
+    // a lost/drifted hold write must never fall through to the job-done write below.
+    await writeTerminalParkOrThrow(prisma, {
       orderId: args.order.id,
       inputVersion: cur.inputVersion,
       newStatus: legacyStatus,
@@ -353,7 +378,7 @@ export async function finalizePackageDelivery(
   if (!shipped) {
     log.warn('Book-ready email withheld — not shipped (held for human QA or a hold landed mid-flight)', {
       orderId: args.order.id,
-      reason: args.deliveryGate.reason,
+      reason: freshGate.reason,
     });
   } else {
     try {
@@ -370,8 +395,8 @@ export async function finalizePackageDelivery(
         ...(legacySoftDeliver
           ? {
               qaWarnings: buildQaWarningsFromAnchorHold(
-                args.anchorLowConfidence,
-                args.deliveryGate.reason,
+                freshLowConfidence,
+                freshGate.reason,
               ),
             }
           : {}),
@@ -386,4 +411,55 @@ export async function finalizePackageDelivery(
     deliveryHeld: !shipped,
     manifest: null,
   };
+}
+
+/**
+ * Terminal authority park through the shared funnel, result-checked (round-5 finding 3): the job is
+ * marked done/packaged only when a durable terminal disposition exists — either this park applied,
+ * or a STRONGER marker already governs (`superseded`, whose owner keeps its own case lifecycle). A
+ * lost/drifted hold write aborts the whole transaction via AuthorityHoldRaceError.
+ */
+async function parkAuthorityHold(
+  prisma: PrismaClient,
+  orderId: string,
+  observedInputVersion: number | null,
+  completedAt: Date,
+  holdMarker: string,
+  error: unknown,
+  writeTerminalParkOrThrow: (
+    db: Parameters<typeof writeOrderHoldFenced>[0],
+    p: Parameters<typeof writeOrderHoldFenced>[1],
+  ) => Promise<Extract<HoldWriteResult, 'applied' | 'superseded'>>,
+): Promise<PackageDeliveryResult> {
+  await prisma.$transaction(async (tx) => {
+    const held = await writeTerminalParkOrThrow(tx, {
+      orderId,
+      ...(observedInputVersion !== null ? { inputVersion: observedInputVersion } : {}),
+      newStatus: 'needs_human_qa',
+      newHoldReason: holdMarker,
+      setPackageDone: true,
+    });
+    await tx.generationJob.update({
+      where: { orderId },
+      data: { status: 'done', currentStage: 'done', completedAt, packaged: true },
+    });
+    // Mirror the safety park: never let a stale recoverable case auto-refund
+    // or auto-redrive a book that must stay parked for human QA. On
+    // `superseded` the stronger marker's owner manages the case lifecycle.
+    if (held === 'applied') {
+      await resolveActiveRecoveryCaseInTx(tx, {
+        orderId,
+        kinds: ['infra_transient', 'integrity_blocked'],
+        reason: `authority_parked:${holdMarker.split(':').pop()}`,
+        now: completedAt,
+      });
+    }
+  });
+  await syncHumanQaHoldCasePostCommit(prisma, orderId);
+  log.error(
+    'Book-ready delivery withheld — total snapshot invariant failed (readiness-independent)',
+    error,
+    { orderId, holdMarker },
+  );
+  return { mode: 'authority_hold', deliveryHeld: true, manifest: null };
 }

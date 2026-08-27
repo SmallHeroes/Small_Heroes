@@ -9,6 +9,7 @@ import {
   persistOrdinaryPipelineCache,
 } from '../pipeline-cache-store';
 import { ensureFrozenVisualContract } from '../ensure-frozen-visual-contract';
+import { executeReadinessShipCas } from '../order-authority';
 import type { PipelineCache } from '../types';
 
 /**
@@ -54,10 +55,44 @@ const STRIPPED_TEMPLATE_DIGEST =
 
 let pg: PGlite;
 
-/** Adapter: replay a Prisma tagged-template raw call against PGlite verbatim ($n params). */
+/**
+ * Adapter: replay a Prisma tagged-template raw call against PGlite verbatim. Composed
+ * `Prisma.sql` fragments (e.g. the ship CAS's terminal-hold blocklist and optional clauses) are
+ * SPLICED as SQL text with their own params renumbered — exactly what Prisma's serializer does —
+ * so the statement that executes here is the production statement.
+ */
+function flattenSql(
+  strings: TemplateStringsArray | readonly string[],
+  values: unknown[],
+): { text: string; params: unknown[] } {
+  let text = '';
+  const params: unknown[] = [];
+  strings.forEach((part, i) => {
+    text += part;
+    if (i < values.length) {
+      const value = values[i] as { strings?: readonly string[]; values?: unknown[] } | unknown;
+      if (
+        value &&
+        typeof value === 'object' &&
+        Array.isArray((value as { strings?: unknown }).strings) &&
+        Array.isArray((value as { values?: unknown }).values)
+      ) {
+        const fragment = value as { strings: readonly string[]; values: unknown[] };
+        const inner = flattenSql(fragment.strings, fragment.values);
+        const offset = params.length;
+        text += inner.text.replace(/\$(\d+)/g, (_, n: string) => `$${offset + Number(n)}`);
+        params.push(...inner.params);
+      } else {
+        params.push(value);
+        text += `$${params.length}`;
+      }
+    }
+  });
+  return { text, params };
+}
 function replayRaw(strings: TemplateStringsArray | readonly string[], values: unknown[]) {
-  const text = strings.reduce((acc, part, i) => acc + (i === 0 ? '' : `$${i}`) + part, '');
-  return pg.query(text, values as never[]);
+  const { text, params } = flattenSql(strings, values);
+  return pg.query(text, params as never[]);
 }
 const storeDb = {
   $executeRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
@@ -135,8 +170,20 @@ describe('pipeline-cache-store — REAL PostgreSQL semantics (PGlite)', () => {
   beforeAll(async () => {
     pg = new PGlite();
     await pg.exec(`
-      CREATE TABLE "Order" ("id" text PRIMARY KEY, "visualContractHash" text);
+      CREATE TYPE "OrderStatus" AS ENUM ('paid','generating','ready','partial','needs_human_qa','failed');
+      CREATE TYPE "GenerationStatus" AS ENUM ('pending','running','done','failed');
+      CREATE TABLE "Order" (
+        "id" text PRIMARY KEY,
+        "visualContractHash" text,
+        "status" "OrderStatus" DEFAULT 'generating',
+        "packageStatus" "GenerationStatus" DEFAULT 'pending',
+        "deliveryHoldReason" text,
+        "manualReviewRequired" boolean DEFAULT false,
+        "inputVersion" int DEFAULT 0,
+        "deliveryFenceVersion" int DEFAULT 0
+      );
       CREATE TABLE "GenerationJob" ("orderId" text PRIMARY KEY, "pipelineCache" jsonb);
+      CREATE TABLE "HumanQaReviewCase" ("id" text PRIMARY KEY, "activeKey" text, "status" text, "kind" text);
     `);
   });
   afterAll(async () => {
@@ -268,6 +315,57 @@ describe('pipeline-cache-store — REAL PostgreSQL semantics (PGlite)', () => {
       if (prevFreeze === undefined) delete process.env.VISUAL_CONTRACT_FREEZE;
       else process.env.VISUAL_CONTRACT_FREEZE = prevFreeze;
     }
+  });
+
+  it('(Codex round-5) the REAL ship CAS binds the observed anchor-disposition source — a flipped band matches ZERO rows', async () => {
+    // The exact production statement (executeReadinessShipCas) executes here: a ship derived from a
+    // clear anchor source must not win once the producing snapshot's childAnchorLowConfidence has
+    // been flipped by a concurrent ordinary write (which bumps no inputVersion).
+    const statusOf = async () =>
+      (await pg.query<{ status: string }>('SELECT "status"::text AS status FROM "Order" WHERE "id" = $1', ['o-cas'])).rows[0]?.status;
+    await seedJob('o-cas', { ordinary: 1 }); // childAnchorLowConfidence ABSENT → observed source null
+    const casDb = { $executeRaw: storeDb.$executeRaw } as never;
+
+    // Observed null ≡ row null → the ship wins.
+    expect(
+      await executeReadinessShipCas(casDb, {
+        orderId: 'o-cas',
+        inputVersion: 0,
+        deliveryFenceVersion: 0,
+        deliveryHoldReason: null,
+        producingAnchorBind: { childAnchorLowConfidence: null },
+      }),
+    ).toBe(1);
+    expect(await statusOf()).toBe('ready');
+
+    // Reset; flip the band on the producing snapshot AFTER the (simulated) eval observed null.
+    await pg.query(`UPDATE "Order" SET "status" = 'generating' WHERE "id" = $1`, ['o-cas']);
+    await pg.query(
+      `UPDATE "GenerationJob" SET "pipelineCache" = jsonb_set("pipelineCache", '{childAnchorLowConfidence}', $1::jsonb, true) WHERE "orderId" = $2`,
+      [JSON.stringify({ reason: 'hard_band', score: 0.3 }), 'o-cas'],
+    );
+    expect(
+      await executeReadinessShipCas(casDb, {
+        orderId: 'o-cas',
+        inputVersion: 0,
+        deliveryFenceVersion: 0,
+        deliveryHoldReason: null,
+        producingAnchorBind: { childAnchorLowConfidence: null }, // stale observation
+      }),
+    ).toBe(0);
+    expect(await statusOf()).toBe('generating'); // never shipped
+
+    // An eval that observed the CURRENT band value binds and wins.
+    expect(
+      await executeReadinessShipCas(casDb, {
+        orderId: 'o-cas',
+        inputVersion: 0,
+        deliveryFenceVersion: 0,
+        deliveryHoldReason: null,
+        producingAnchorBind: { childAnchorLowConfidence: { reason: 'hard_band', score: 0.3 } },
+      }),
+    ).toBe(1);
+    expect(await statusOf()).toBe('ready');
   });
 
   it('Board-vs-ordinary, BOTH commit orders: the barrier-written Board binding survives a stale replacement (the rollback Codex named)', async () => {

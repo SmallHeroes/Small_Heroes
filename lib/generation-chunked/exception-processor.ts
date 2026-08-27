@@ -22,6 +22,7 @@ import {
   ReissueBudgetExhaustedError,
 } from './exception-case';
 import {
+  deliveryDedupeKey,
   hashPayload,
   idempotencyWindowMs,
   repairInvalidPayloadDelivery,
@@ -39,8 +40,6 @@ import {
 import { QUALITY_REGEN_BUDGET, type HardHoldKind } from '@/lib/generation-pipeline/quality-evidence';
 import { reserveMarkAndClearRegen } from './clear-page-images-for-regen';
 import { syncHumanQaHoldCasePostCommit } from '@/lib/human-qa/sync-hold-case';
-import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
-import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger({ subsystem: 'exception-processor' });
@@ -131,18 +130,9 @@ function defaultDeps(): ExceptionProcessorDeps {
     parkForHardHoldQa: (prisma, orderId, artifactKeys, kind) =>
       parkOrderForHardHoldQa(prisma, orderId, artifactKeys, kind),
     recommitReadiness: async (prisma, orderId) => {
-      const job = await prisma.generationJob.findUnique({
-        where: { orderId },
-        select: { pipelineCache: true },
-      });
-      const cache = parsePipelineCache(job?.pipelineCache);
-      const gate = resolveAnchorDeliveryGate(cache.childAnchorLowConfidence);
-      const result = await commitBaseBookReadiness(prisma, {
-        orderId,
-        anchorAllowsDelivery: gate.sendBookReadyEmail,
-        anchorOrderStatus: gate.orderStatus,
-        anchorReason: gate.reason,
-      });
+      // (Codex round-5) The commit derives the anchor disposition from its OWN fresh load of the
+      // producing snapshot — the pre-load here became redundant and was removed with it.
+      const result = await commitBaseBookReadiness(prisma, { orderId });
       // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: reconcile the review case after the readiness tx commits
       // (opens an anchor case if it re-parked; resolves it on a ready recommit). Best-effort in its own tx.
       await syncHumanQaHoldCasePostCommit(prisma, orderId);
@@ -291,6 +281,25 @@ async function handleSendAmbiguous(
   const row = await prisma.deliveryOutbox.findUnique({ where: { id: exceptionCase.sourceRef } });
   if (!row) {
     return moveToRefund(prisma, exceptionCase, 'send_ambiguous_source_missing', now);
+  }
+  // (Codex round-5 finding 5) SOURCE-IDENTITY + CANONICAL-KEY binding, BEFORE any disposition
+  // (including the `sent` resolution — a cross-source row must not resolve the wrong case as
+  // delivered). The named send_ambiguous exception is a continuation of THIS order's authorized
+  // attempt only when: the Outbox row belongs to this case's exact order + scope, AND its
+  // dedupeKey is the exact canonical key for that identity (`deliveryDedupeKey(orderId, scope, N)`
+  // for the embedded fulfillment version) — a valid payloadHash with a drifted or cross-source
+  // key never replays.
+  const keyVersionSegment = row.dedupeKey.slice(row.dedupeKey.lastIndexOf('/') + 1);
+  const keyVersion = /^\d+$/.test(keyVersionSegment) ? Number(keyVersionSegment) : null;
+  const canonicalKey =
+    keyVersion !== null ? deliveryDedupeKey(row.orderId, row.scope, keyVersion) : null;
+  if (
+    row.orderId !== exceptionCase.orderId ||
+    row.scope !== exceptionCase.scope ||
+    canonicalKey === null ||
+    canonicalKey !== row.dedupeKey
+  ) {
+    return moveToRefund(prisma, exceptionCase, 'send_ambiguous_source_identity_mismatch', now);
   }
   if (row.status === 'sent') {
     return resolveCase(

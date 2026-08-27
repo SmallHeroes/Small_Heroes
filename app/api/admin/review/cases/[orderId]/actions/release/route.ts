@@ -56,11 +56,12 @@ export async function POST(req: NextRequest, context: RouteContext): Promise<Nex
   const release: SafetyReleaseRequest = { artifactKey, expectedMarker, overriddenHazards, assetSha256, overrideReason, actor, note };
 
   try {
+    // (Codex round-5) The commit derives the anchor disposition from its own fresh producing
+    // snapshot. A safety release on an order whose FRESH anchor band also holds now correctly
+    // refuses to ship (the release ships only when readiness would pass) instead of force-allowing
+    // the anchor leg with a caller-supplied `anchorAllowsDelivery: true`.
     const result = await commitBaseBookReadiness(prisma, {
       orderId,
-      anchorAllowsDelivery: true,
-      anchorOrderStatus: 'ready',
-      anchorReason: null,
       release,
     });
     if (result.orderStatus !== 'ready' || !result.enqueued) {

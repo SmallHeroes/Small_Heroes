@@ -142,10 +142,21 @@ export async function executeReadinessShipCas(
     deliveryFenceVersion: number;
     deliveryHoldReason: string | null;
     requireHoldReason?: string | null;
+    /**
+     * (Codex round-5) Bind the ship to the OBSERVED anchor-disposition source on the producing
+     * snapshot: the ship matches only while `GenerationJob.pipelineCache -> 'childAnchorLowConfidence'`
+     * still equals the exact value the delivery disposition was derived from. Ordinary cache writes do
+     * not bump `inputVersion`, so without this a post-read band flip could ship a stale "allow".
+     * Pass `{ childAnchorLowConfidence: <observed value or null> }`; omit to leave the SQL unchanged.
+     */
+    producingAnchorBind?: { childAnchorLowConfidence: unknown };
   },
 ): Promise<number> {
   const requireHoldClause = p.requireHoldReason
     ? Prisma.sql` AND "status" = 'needs_human_qa' AND "deliveryHoldReason" = ${p.requireHoldReason}`
+    : Prisma.empty;
+  const producingAnchorClause = p.producingAnchorBind
+    ? Prisma.sql` AND COALESCE((SELECT j."pipelineCache" -> 'childAnchorLowConfidence' FROM "GenerationJob" j WHERE j."orderId" = "Order"."id"), 'null'::jsonb) = ${JSON.stringify(p.producingAnchorBind.childAnchorLowConfidence ?? null)}::jsonb`
     : Prisma.empty;
   return db.$executeRaw`
     UPDATE "Order"
@@ -160,7 +171,7 @@ export async function executeReadinessShipCas(
           WHERE c."activeKey" IN (${p.orderId + ':base_book'}, ${p.orderId + ':payment'})
             AND c."status" = 'open'
             AND c."kind" IN ('safety', 'contract_world', 'payment_integrity')
-       )${requireHoldClause}`;
+       )${requireHoldClause}${producingAnchorClause}`;
 }
 
 /**

@@ -69,13 +69,16 @@ describe('qaWarnings builders', () => {
 });
 
 describe('readiness commit receipt binding (soft-deliver keyed)', () => {
-  const baseArgs = {
-    orderId: 'o1',
-    anchorAllowsDelivery: false,
-    anchorOrderStatus: 'needs_human_qa',
-    anchorReason: 'anchor_low_confidence:hard_band',
-    anchorLowConfidence: { reason: 'hard_band' as const, score: 0.12 },
+  // (Codex round-5) The anchor disposition is DERIVED (fresh producing snapshot) and passed to the
+  // receipt binding as its own parameter; CommitArgs carries only identity/requireHold/release.
+  const baseArgs = { orderId: 'o1' };
+  const heldAnchor = {
+    allows: false,
+    orderStatus: 'needs_human_qa',
+    reason: 'anchor_low_confidence:hard_band',
+    lowConfidence: { reason: 'hard_band' as const, score: 0.12 },
   };
+  const allowAnchor = { allows: true, orderStatus: 'ready', reason: null, lowConfidence: null };
   const blockedDecision = {
     status: 'blocked' as const,
     reason: 'quality_evidence_unknown:page:2',
@@ -98,22 +101,16 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
   };
 
   it('keys receipt on effective outcome, not the env flag — clean pass unchanged when flag toggles', () => {
-    const passArgs = {
-      orderId: 'o1',
-      anchorAllowsDelivery: true,
-      anchorOrderStatus: 'ready',
-      anchorReason: null,
-    };
-    const flagOff = buildReadinessCommitReceiptBinding(passArgs, 3, passedDecision, false);
-    const flagOn = buildReadinessCommitReceiptBinding(passArgs, 3, passedDecision, true);
+    const flagOff = buildReadinessCommitReceiptBinding(baseArgs, allowAnchor, 3, passedDecision, false);
+    const flagOn = buildReadinessCommitReceiptBinding(baseArgs, allowAnchor, 3, passedDecision, true);
     expect(flagOff.operationKey).toBe(flagOn.operationKey);
     expect(flagOff.payloadHash).toBe(flagOn.payloadHash);
     expect(flagOff.operationKey).not.toContain(':sd');
   });
 
   it('(round-6 Unit C) a plain HOLD and its soft-deliver SHIP key DIFFERENTLY — hold fence-independent, ship fence-bound', () => {
-    const hold = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, false);
-    const soft = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, true);
+    const hold = buildReadinessCommitReceiptBinding(baseArgs, heldAnchor, 3, blockedDecision, false);
+    const soft = buildReadinessCommitReceiptBinding(baseArgs, heldAnchor, 3, blockedDecision, true);
     // The soft-deliver flag flips the SAME blocked decision from a hold (needs_human_qa) to a soft SHIP (ready). Under
     // Unit C the plain hold is fence-INDEPENDENT (holdfenceNA) while the ship keeps its load-time fence (round-5 P1),
     // so they are now distinct operations. (Round-5 keyed BOTH on the same load-time fence → identical key.)
@@ -126,19 +123,19 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
   });
 
   it('includes scope in operationKey', () => {
-    const binding = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, true);
+    const binding = buildReadinessCommitReceiptBinding(baseArgs, heldAnchor, 3, blockedDecision, true);
     expect(binding.operationKey).toContain(`:${BASE_BOOK_SCOPE}:`);
   });
 
   it('(Slice A) a contract-world hard-hold is NEVER soft-delivered — holds even with QA_SOFT_DELIVER on', () => {
     const hardHold = { ...blockedDecision, reason: 'quality_failed:page:2', blockExceptionKind: 'quality_failed' as const, contractHardHold: true, hardHoldKind: 'contract_world' as const };
-    const soft = buildReadinessCommitReceiptBinding(baseArgs, 3, hardHold, true);
+    const soft = buildReadinessCommitReceiptBinding(baseArgs, heldAnchor, 3, hardHold, true);
     expect(soft.plan).toMatchObject({ enqueued: false, orderStatus: 'needs_human_qa', usesSoftDeliver: false });
   });
 
   it('(round-6 Unit C) anchor hold vs its soft-deliver ship: hold fence-independent, ship fence-bound (distinct keys)', () => {
-    const hold = buildReadinessCommitReceiptBinding(baseArgs, 2, passedDecision, false);
-    const soft = buildReadinessCommitReceiptBinding(baseArgs, 2, passedDecision, true);
+    const hold = buildReadinessCommitReceiptBinding(baseArgs, heldAnchor, 2, passedDecision, false);
+    const soft = buildReadinessCommitReceiptBinding(baseArgs, heldAnchor, 2, passedDecision, true);
     expect(hold.operationKey).not.toBe(soft.operationKey);
     expect(hold.operationKey).toContain(':holdfenceNA'); // anchor hold → needs_human_qa → fence-independent
     expect(soft.operationKey).toContain(':fence0');       // soft-deliver ships → fence-bound
@@ -152,8 +149,8 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
     // A hold BUMPS its own fence, so a fresh cross-worker redrive loads N+1. If the fence were in the key the redrive
     // would derive a NEW key and APPLY THE HOLD AGAIN (a second bump). Fence-independent → same key → the redrive
     // replays the recorded hold at the atomic short-circuit (exactly-once). This is the Codex round-6 Unit C fix.
-    const firstAtFence5 = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, false, 5);
-    const redriveAtFence6 = buildReadinessCommitReceiptBinding(baseArgs, 3, blockedDecision, false, 6);
+    const firstAtFence5 = buildReadinessCommitReceiptBinding(baseArgs, heldAnchor, 3, blockedDecision, false, 5);
+    const redriveAtFence6 = buildReadinessCommitReceiptBinding(baseArgs, heldAnchor, 3, blockedDecision, false, 6);
     expect(firstAtFence5.plan).toMatchObject({ enqueued: false, orderStatus: 'needs_human_qa' }); // it IS a plain hold
     expect(firstAtFence5.operationKey).toBe(redriveAtFence6.operationKey); // fence moved 5→6; key unchanged → replay
     expect(firstAtFence5.operationKey).toContain(':holdfenceNA');
@@ -162,17 +159,16 @@ describe('readiness commit receipt binding (soft-deliver keyed)', () => {
   });
 
   it('(round-5 P1, preserved) a SHIP keys ON the load-time fence: a redrive at a moved fence derives a DIFFERENT key → re-CAS, no stale ready replay', () => {
-    const passArgs = { orderId: 'o1', anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null };
-    const shipAt7 = buildReadinessCommitReceiptBinding(passArgs, 3, passedDecision, false, 7);
-    const shipAt8 = buildReadinessCommitReceiptBinding(passArgs, 3, passedDecision, false, 8); // a competing hold moved 7→8
+    const shipAt7 = buildReadinessCommitReceiptBinding(baseArgs, allowAnchor, 3, passedDecision, false, 7);
+    const shipAt8 = buildReadinessCommitReceiptBinding(baseArgs, allowAnchor, 3, passedDecision, false, 8); // a competing hold moved 7→8
     expect(shipAt7.plan).toMatchObject({ enqueued: true, orderStatus: 'ready' });
     expect(shipAt7.operationKey).toContain(':fence7');
     expect(shipAt7.operationKey).not.toBe(shipAt8.operationKey); // a stale ship cannot replay at a moved fence
   });
 
   it('(Unit C) an authorized RELEASE (requireHold → ship) carries the fence in its identity', () => {
-    const relArgs = { ...baseArgs, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null, requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' } };
-    const rel = buildReadinessCommitReceiptBinding(relArgs, 3, passedDecision, false, 4);
+    const relArgs = { ...baseArgs, requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' } };
+    const rel = buildReadinessCommitReceiptBinding(relArgs, allowAnchor, 3, passedDecision, false, 4);
     expect(rel.plan).toMatchObject({ orderStatus: 'ready' });
     expect(rel.operationKey).toContain(':rh:anchor_low_confidence:soft_band:');
     expect(rel.operationKey).toContain(':fence4'); // a release is a delivery-authorizing commit → fence-bound
@@ -220,23 +216,20 @@ describe('QA soft-deliver integration', () => {
       $transaction: vi.fn(),
     };
     prisma.$transaction.mockImplementation(async (cb: (t: unknown) => unknown) => cb(prisma));
+    // (Codex round-5) The hold derives from the FRESH producing snapshot, not a caller gate.
+    prisma.order.findUnique = vi.fn(async () => ({
+      childName: 'K', inputVersion: 0, visualContractHash: null, deliveryFenceVersion: 0,
+      generationJob: { pipelineCache: { childAnchorLowConfidence: { reason: 'hard_band', score: 0.12 } } },
+    }));
     const send = vi.fn(async () => ({}));
-    const heldGate = {
-      held: true,
-      orderStatus: 'needs_human_qa' as const,
-      reason: 'anchor_low_confidence:hard_band',
-      sendBookReadyEmail: false,
-    };
     const result = await finalizePackageDelivery(
       prisma as never,
       {
         order,
-        deliveryGate: heldGate,
         safetyGate: { held: false, reason: null },
         readUrl: 'https://app/ready?orderId=o1',
         pdfUrl: null,
         firstAudioUrl: null,
-        anchorLowConfidence: { reason: 'hard_band', score: 0.12 },
       },
       { readinessEnabled: () => false, send },
     );
@@ -265,23 +258,20 @@ describe('QA soft-deliver integration', () => {
       $transaction: vi.fn(),
     };
     prisma.$transaction.mockImplementation(async (cb: (t: unknown) => unknown) => cb(prisma));
+    // (Codex round-5) The hold derives from the FRESH producing snapshot, not a caller gate.
+    prisma.order.findUnique = vi.fn(async () => ({
+      childName: 'K', inputVersion: 0, visualContractHash: null, deliveryFenceVersion: 0,
+      generationJob: { pipelineCache: { childAnchorLowConfidence: { reason: 'hard_band', score: 0.12 } } },
+    }));
     const send = vi.fn(async () => ({}));
-    const heldGate = {
-      held: true,
-      orderStatus: 'needs_human_qa' as const,
-      reason: 'anchor_low_confidence:hard_band',
-      sendBookReadyEmail: false,
-    };
     const result = await finalizePackageDelivery(
       prisma as never,
       {
         order,
-        deliveryGate: heldGate,
         safetyGate: { held: false, reason: null },
         readUrl: 'https://app/ready?orderId=o1',
         pdfUrl: null,
         firstAudioUrl: null,
-        anchorLowConfidence: { reason: 'hard_band', score: 0.12 },
       },
       { readinessEnabled: () => false, send },
     );
@@ -309,7 +299,6 @@ describe('QA soft-deliver integration', () => {
       { order: { update: vi.fn() }, generationJob: { update: vi.fn() } } as never,
       {
         order,
-        deliveryGate: { held: false, orderStatus: 'ready', reason: null, sendBookReadyEmail: true },
         safetyGate: { held: false, reason: null },
         readUrl: 'https://app/ready?orderId=o1',
         pdfUrl: null,

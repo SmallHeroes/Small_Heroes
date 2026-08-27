@@ -34,6 +34,23 @@ export class OrderVisualPackageAuthorityError extends Error {
   }
 }
 
+/**
+ * (Codex round-5) The IDENTITY leg of the total snapshot invariant failed: the
+ * delivery caller's snapshot identity (exact package revision, or legacy) is
+ * not the identity of the authoritative fresh row + producing snapshot. A
+ * subclass so consumers can map it to the
+ * `contract_world_hold:delivery_snapshot_binding_invalid` marker while every
+ * existing `instanceof OrderVisualPackageAuthorityError` catch still holds.
+ */
+export class DeliverySnapshotIdentityError extends OrderVisualPackageAuthorityError {
+  readonly isDeliverySnapshotIdentityError = true as const;
+
+  constructor(reasons: readonly string[]) {
+    super(reasons);
+    this.name = 'DeliverySnapshotIdentityError';
+  }
+}
+
 function acceptedRevisionSelection(
   order: OrderVisualPackageAuthorityInput,
 ) {
@@ -241,4 +258,50 @@ export function requireProducingSnapshotBinding(args: {
     throw new OrderVisualPackageAuthorityError(reasons);
   }
   return fresh;
+}
+
+/**
+ * The delivery identity of one Order snapshot: the exact package revision
+ * digest for a package-backed Order, or `null` for a genuine legacy Order.
+ * Throws (fail-closed) for an invalid/mixed snapshot — an invalid caller can
+ * never be granted an identity that happens to match anything.
+ */
+export function orderPackageIdentity(
+  order: OrderVisualPackageAuthorityInput,
+): string | null {
+  return requireOrderVisualPackageAuthority(order)?.packageRevisionDigest ?? null;
+}
+
+/**
+ * (Codex round-5) THE total snapshot invariant, in one evaluator: prove the
+ * fresh row ↔ producing snapshot binding (`requireProducingSnapshotBinding`),
+ * then bind the CALLER'S snapshot identity to the fresh producing identity by
+ * EXACT equality — package A vs package B, package vs legacy, and legacy vs
+ * package (both directions) all fail closed as DeliverySnapshotIdentityError.
+ * `callerPackageRevisionDigest === undefined` means "no caller leg" (the
+ * caller identity is unknown/not applicable); `null` means the caller's
+ * snapshot was genuinely legacy. Returns the fresh binding (authority for a
+ * package-backed Order, `null` for genuine legacy) exactly like
+ * `requireProducingSnapshotBinding`.
+ */
+export function requireConsistentProducingIdentity(args: {
+  callerPackageRevisionDigest?: string | null;
+  order: OrderVisualPackageAuthorityInput & { visualContractHash?: string | null };
+  pipelineCache: unknown;
+}): FrozenVisualPackageAuthority | null {
+  const binding = requireProducingSnapshotBinding({
+    order: args.order,
+    pipelineCache: args.pipelineCache,
+  });
+  if (args.callerPackageRevisionDigest !== undefined) {
+    const freshIdentity = binding?.packageRevisionDigest ?? null;
+    if (args.callerPackageRevisionDigest !== freshIdentity) {
+      const describe = (identity: string | null) =>
+        identity === null ? 'genuinely legacy' : `package revision ${identity}`;
+      throw new DeliverySnapshotIdentityError([
+        `delivery caller snapshot identity (${describe(args.callerPackageRevisionDigest)}) differs from the fresh producing identity (${describe(freshIdentity)})`,
+      ]);
+    }
+  }
+  return binding;
 }

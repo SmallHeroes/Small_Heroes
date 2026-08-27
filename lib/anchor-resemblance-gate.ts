@@ -132,6 +132,41 @@ export function resolveAnchorDeliveryGate(lowConfidence: AnchorLowConfidence): A
   };
 }
 
+/**
+ * (Codex round-5) Derive the anchor delivery disposition from the AUTHORITATIVE
+ * fresh producing snapshot (`GenerationJob.pipelineCache`), never from a
+ * caller's in-memory copy of it — a stale caller cache that predates the
+ * anchor decision must not be able to say "allow" over a fresh `hard_band`.
+ * FAIL-CLOSED on shape: a truthy-but-malformed `childAnchorLowConfidence`
+ * value (unknown band, missing score) still HOLDS — it is treated as a
+ * low-confidence flag whose band could not be read, never as a clear anchor.
+ */
+export function deriveAnchorDeliveryDisposition(
+  producingPipelineCache: unknown,
+): { gate: AnchorDeliveryGate; lowConfidence: AnchorLowConfidence } {
+  const cache =
+    producingPipelineCache &&
+    typeof producingPipelineCache === 'object' &&
+    !Array.isArray(producingPipelineCache)
+      ? (producingPipelineCache as Record<string, unknown>)
+      : null;
+  const raw = cache?.childAnchorLowConfidence;
+  if (raw == null) {
+    return { gate: resolveAnchorDeliveryGate(null), lowConfidence: null };
+  }
+  const candidate =
+    typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as { reason?: unknown; score?: unknown })
+      : {};
+  const reason =
+    candidate.reason === 'soft_band' || candidate.reason === 'hard_band'
+      ? candidate.reason
+      : 'hard_band'; // unreadable band → the stricter band
+  const score = typeof candidate.score === 'number' ? candidate.score : 0;
+  const lowConfidence: AnchorLowConfidence = { reason, score };
+  return { gate: resolveAnchorDeliveryGate(lowConfidence), lowConfidence };
+}
+
 export function evaluateAnchorSemanticQa(params: {
   childGender: string | null | undefined;
   childPhotoDescription: string | null | undefined;

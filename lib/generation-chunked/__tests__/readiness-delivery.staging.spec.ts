@@ -56,7 +56,7 @@ describe.skipIf(!RUN)('#7-b delivery decision — staging real DB (flag on)', ()
 
       const commit = await commitBaseBookReadiness(
         prisma,
-        { orderId, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null },
+        { orderId },
         { inspect: fixtureInspect(), appBaseUrl: STAGING_APP_BASE_URL },
       );
       expect(commit.manifestStatus).toBe('passed');
@@ -113,7 +113,7 @@ describe.skipIf(!RUN)('#7-b delivery decision — staging real DB (flag on)', ()
 
       const commit = await commitBaseBookReadiness(
         prisma,
-        { orderId, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null },
+        { orderId },
         { inspect: fixtureInspect(), appBaseUrl: STAGING_APP_BASE_URL },
       );
       expect(commit.manifestStatus).toBe('blocked');
@@ -150,7 +150,7 @@ describe.skipIf(!RUN)('#7-b delivery decision — staging real DB (flag on)', ()
       await seedPassingBook(prisma, { orderId });
       const commit = await commitBaseBookReadiness(
         prisma,
-        { orderId, anchorAllowsDelivery: true, anchorOrderStatus: 'ready', anchorReason: null },
+        { orderId },
         { inspect: fixtureInspect(), appBaseUrl: STAGING_APP_BASE_URL },
       );
       expect(commit.manifestStatus).toBe('passed');

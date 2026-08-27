@@ -387,6 +387,70 @@ describe('anchor-hold-release DELIVERY (flag-OFF: direct send)', () => {
     );
   });
 
+  it('(Codex round-5 finding 2) DOWNGRADE direction: pre-read fully-bound Package A → in-lock genuinely legacy → 409, ZERO release CAS, ZERO email', async () => {
+    const AUTHORITY_SRC =
+      'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/' +
+      `revisions/${'a'.repeat(64)}/integrated.md`;
+    const contract = {
+      schemaVersion: 'fixture-contract/v1',
+      approvedRuntimeAuthority: { packageRevisionDigest: 'c'.repeat(64) },
+    };
+    const { computeVisualContractHash } = await import('@/lib/visual-contract-compiler/contractHash');
+    const AUTHORITY = {
+      version: 'frozen-visual-package-authority/v3',
+      manifestVersion: 'visual-package/v5',
+      storyKey: 'chameleon_koko_bedtime',
+      styleId: 'soft_hand_drawn_storybook',
+      packagePath: `visual-packages/approved/revisions/${'c'.repeat(64)}.visual-package.json`,
+      packageRevisionDigest: 'c'.repeat(64),
+      sourcePath: AUTHORITY_SRC,
+      sourceDigest: 'd'.repeat(64),
+      sourceRawDigest: 'b'.repeat(64),
+      blueprintDigest: 'e'.repeat(64),
+      authoringAuthorityDigest: 'f'.repeat(64),
+      planningApprovalDigest: '1'.repeat(64),
+      styleAuthorityDigest: '2'.repeat(64),
+      visualContractTemplateDigest: '3'.repeat(64),
+      reconciliationDigest: '4'.repeat(64),
+      layoutPolicyVersion: 'portrait-layout-compatibility/v1',
+    };
+    const { POST, email, releaseExec } = await loadRoute({
+      flagOn: false,
+      // Pre-read: fully bound package A with a canonical readUrl — passes the pre-tx guard.
+      order: heldOrder('anchor_low_confidence:soft_band', {
+        selectionFilename: AUTHORITY_SRC,
+        storySourceHash: 'b'.repeat(64),
+        illustrationStyle: 'pencil_watercolor',
+        visualPackageAuthority: AUTHORITY,
+        visualContractHash: computeVisualContractHash(contract as never),
+        generationJob: { pipelineCache: { visualPackageAuthority: AUTHORITY, visualContract: contract } },
+      }),
+      // Under the lock the order reads GENUINELY LEGACY — the frozen truth was re-pointed
+      // (downgrade direction). The exact-identity re-proof must refuse.
+      releaseTruth: {
+        inputVersion: 3,
+        deliveryFenceVersion: 1,
+        selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+        storySourceHash: 'f'.repeat(64),
+        illustrationStyle: 'pencil_watercolor',
+        visualPackageAuthority: null,
+        visualContractHash: null,
+        customerEmail: 'c@e.com',
+        customerName: 'C',
+        childName: 'K',
+        paymentId: 'p',
+        paymeTransactionId: null,
+        stripeSessionId: null,
+        generationJob: { pipelineCache: {} },
+        book: { readUrl: 'https://app/book/o1/read', coverImageUrl: null, pdfUrl: null, audioAsset: null, pages: [] },
+      },
+    });
+    const res = await POST(req({ secret: 'sek', orderId: 'o1' }));
+    expect(res.status).toBe(409);
+    expect(releaseExec).not.toHaveBeenCalled();
+    expect(email).not.toHaveBeenCalled();
+  });
+
   it('(Codex round-4 MAJOR 5) package-backed under the lock but the canonical readUrl vanished → 409, no CAS, no email', async () => {
     const AUTHORITY_SRC =
       'story-pipeline/04_approved_story_sources/accepted/chameleon_koko_bedtime/' +
@@ -481,9 +545,10 @@ describe('anchor-hold-release DELIVERY (flag-ON: Manifest/Outbox)', () => {
     // (re-gate round-3 P0) the authorized marker is threaded into the readiness commit as the release precondition.
     expect(commit).toHaveBeenCalledWith(
       expect.anything(),
-      // (Codex round-4 MAJOR 4) the route also threads its own caller-origin claim into the commit
-      // (false here: a genuinely legacy order), so a mid-flight re-point to legacy would hold in-tx.
-      expect.objectContaining({ orderId: 'o1', anchorAllowsDelivery: true, requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' }, callerVisualPackageClaim: false }),
+      // (Codex round-5) the route threads its exact caller IDENTITY (null = genuinely legacy) plus
+      // the authorized release marker; the commit derives the anchor disposition itself, so no
+      // anchor args are passed at all.
+      { orderId: 'o1', requireHold: { deliveryHoldReason: 'anchor_low_confidence:soft_band' }, callerPackageRevisionDigest: null },
     );
     expect(email).not.toHaveBeenCalled(); // package-delivery.ts:104 invariant — flag-on never direct-sends
     expect(orderUpdateMany).not.toHaveBeenCalled(); // authorization did NOT flip status; commit owns the transition

@@ -44,7 +44,6 @@ import {
   isReadinessManifestEnabled,
   withDeliveryInputMutation,
 } from '@/lib/generation-pipeline/readiness-manifest';
-import { resolveAnchorDeliveryGate } from '@/lib/anchor-resemblance-gate';
 import { isDeliveryTerminalHold } from '@/lib/generation-pipeline/order-authority';
 import { parsePipelineCache } from '@/lib/generation-pipeline/helpers';
 import {
@@ -69,6 +68,7 @@ import {
 } from '@/lib/generation-pipeline/runtime-blueprint-projection';
 import { resolveRuntimeBlueprintPdfOptimization } from '@/lib/generation-pipeline/runtime-blueprint-canvas';
 import type { ReceiptSafeValue } from '@/lib/generation-pipeline/atomic-operation';
+import { canonicalHash } from '@/lib/canonical-json';
 import { orderRequiresVisualPackageAuthority } from '@/lib/generation-pipeline/order-visual-package-authority';
 
 const regenLogger = createLogger({ subsystem: 'regen-page', route: '/api/debug/regen-page' });
@@ -870,15 +870,29 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
       childPhotoDescription,
       childStructured: dna.childStructured,
     });
-    await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        characterAnchors: persistFamilyCoherenceOnOrder(
-          order.characterAnchors,
-          familyCoherence
-        ) as Prisma.InputJsonValue,
+    // (Codex round-5 finding 6) This anchor write runs inside a POST-delivery mutation flow (the
+    // single-page regen), so it goes through the delivery-input barrier like the page-asset write
+    // that follows it: the coherence bundle it persists feeds the render, and the inputVersion bump
+    // invalidates any readiness computed over the previous anchors.
+    const anchorsWithCoherence = persistFamilyCoherenceOnOrder(
+      order.characterAnchors,
+      familyCoherence
+    ) as Prisma.InputJsonValue;
+    await withDeliveryInputMutation(
+      prisma,
+      {
+        orderId,
+        reason: 'page_asset_changed',
+        operationKey: `delivery_input:${orderId}:family_coherence:${canonicalHash(anchorsWithCoherence)}`,
+        mutationPayload: { characterAnchors: anchorsWithCoherence } as unknown as ReceiptSafeValue,
       },
-    });
+      async (tx) => {
+        await tx.order.update({
+          where: { id: orderId },
+          data: { characterAnchors: anchorsWithCoherence },
+        });
+      },
+    );
   }
 
   const supportingCharacters = approvedBlueprintFrame
@@ -1225,13 +1239,9 @@ export async function regenerateSinglePageImage(orderId: string, pageNumber: num
   }
 
   if (isReadinessManifestEnabled()) {
-    const deliveryGate = resolveAnchorDeliveryGate(pipelineCache.childAnchorLowConfidence);
-    await commitBaseBookReadiness(prisma, {
-      orderId,
-      anchorAllowsDelivery: deliveryGate.sendBookReadyEmail,
-      anchorOrderStatus: deliveryGate.orderStatus,
-      anchorReason: deliveryGate.reason,
-    });
+    // (Codex round-5) The commit derives the anchor disposition from its OWN fresh load of the
+    // producing snapshot — no caller-computed gate is accepted.
+    await commitBaseBookReadiness(prisma, { orderId });
     // (Human-QA Slice 1, re-gate P0-1) POST-COMMIT: reconcile the review case after the readiness recommit — a
     // page regen that lifts the anchor hold to ready resolves the anchor case; a re-park opens it. Own tx, best-effort.
     await syncHumanQaHoldCasePostCommit(prisma, orderId);

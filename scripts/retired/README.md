@@ -17,9 +17,14 @@ They are therefore RETIRED:
   Orders (staging or production). They remain in the repository for
   historical reference only (their outputs and evidence trails are cited in
   dated handoffs).
-- The writer census (`lib/__tests__/delivery-input-writer-coverage.spec.ts`)
-  scans `scripts/` and pins this directory as the ONLY place a direct
-  `pipelineCache` model write may exist. Adding such a write to an active
-  script fails the census; reviving one of these scripts requires migrating
-  its cache writes to `persistOrdinaryPipelineCache` (ordinary keys) or a
-  barrier mutation (barrier-owned keys) and moving it back out.
+- Every script here is MECHANICALLY non-operational: a top-level
+  `throw new Error('[retired-script] …')` guard sits directly after its
+  imports, so it exits before any DB work. The writer census
+  (`lib/__tests__/delivery-input-writer-coverage.spec.ts`) pins both the
+  exact file list and the presence of that guard marker.
+- The census scans `scripts/` and pins this directory as the ONLY place a
+  direct `pipelineCache` model write may exist. Adding such a write to an
+  active script fails the census; reviving one of these scripts requires
+  migrating its cache writes to `persistOrdinaryPipelineCache` (ordinary
+  keys) or a barrier mutation (barrier-owned keys), removing the guard, and
+  moving it back out.

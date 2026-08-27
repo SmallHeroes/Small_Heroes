@@ -39,7 +39,10 @@ import {
   mergeQaWarnings,
   type QaWarnings,
 } from '@/lib/qa-soft-deliver';
-import type { AnchorLowConfidence } from '@/lib/anchor-resemblance-gate';
+import {
+  deriveAnchorDeliveryDisposition,
+  type AnchorLowConfidence,
+} from '@/lib/anchor-resemblance-gate';
 import { runAtomicOperation, hashOperationPayload, type AtomicOperationDeps, type ReceiptSafeValue } from './atomic-operation';
 import { writeOrderHoldFenced, executeReadinessShipCas } from './order-authority';
 import { applyReleaseInTx, projectReleaseOntoQuality, ReleaseAdmissibilityError, type SafetyReleaseRequest, type ReleaseRuntime, type ReleaseApplied } from './safety-release';
@@ -51,8 +54,9 @@ import {
 } from '@/lib/generation-chunked/exception-case';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import {
+  DeliverySnapshotIdentityError,
   OrderVisualPackageAuthorityError,
-  requireProducingSnapshotBinding,
+  requireConsistentProducingIdentity,
 } from './order-visual-package-authority';
 
 const log = createLogger({ subsystem: 'readiness-manifest' });
@@ -340,23 +344,19 @@ export interface BookData {
 }
 export interface CommitArgs {
   orderId: string;
-  /** From the existing anchor delivery gate: does the anchor permit customer delivery? */
-  anchorAllowsDelivery: boolean;
-  anchorOrderStatus: string; // deliveryGate.orderStatus (e.g. 'ready' | 'needs_human_qa')
-  anchorReason: string | null;
-  /** Anchor low-confidence telemetry for QA soft-deliver warnings (optional). */
-  anchorLowConfidence?: AnchorLowConfidence;
   /**
-   * (Codex round-4 MAJOR 4) Caller-origin leg of the origin matrix. True when the DELIVERY CALLER'S
-   * snapshot of this Order claimed Visual Package authority (an accepted reference — canonical or
-   * aliased — or a carried authority envelope). The commit evaluates the FRESH row + producing
-   * snapshot itself; when those read genuinely legacy while the caller claimed package, someone
-   * re-pointed the frozen truth after the caller loaded it — the commit hard-holds
-   * (`contract_world_hold:delivery_snapshot_binding_invalid`) instead of shipping a laundered
-   * payload. Omitted/false → byte-identical to today (a genuinely legacy delivery has a legacy
-   * caller snapshot too).
+   * (Codex round-5) Caller-identity leg of the total snapshot invariant: the EXACT delivery
+   * identity of the caller's Order snapshot — its package revision digest, or `null` for a
+   * genuinely legacy caller snapshot. The commit evaluates the FRESH row + producing snapshot
+   * itself and requires EXACT identity equality (A≠B, package↔legacy in both directions all
+   * hard-hold with `contract_world_hold:delivery_snapshot_binding_invalid`). `undefined` = no
+   * caller leg (the caller identity is unknown/not applicable — byte-identical to before).
+   *
+   * The anchor/delivery DISPOSITION is deliberately NOT an argument any more: the commit derives
+   * it from the authoritative fresh producing snapshot (`pipelineCache.childAnchorLowConfidence`)
+   * inside its own load, so a stale caller gate can never say "allow" over a fresh hard_band.
    */
-  callerVisualPackageClaim?: boolean;
+  callerPackageRevisionDigest?: string | null;
   /**
    * (re-gate round-3 P0) OPT-IN authorized-release precondition. Supplied ONLY by the flag-ON anchor-release
    * break-glass (app/api/admin/anchor-hold-release), NEVER by the normal post-generation delivery path. When set,
@@ -442,6 +442,36 @@ export interface CommitResult {
   revision: number;
 }
 
+/**
+ * (Codex round-5) The anchor delivery disposition the commit acts on — derived
+ * from the AUTHORITATIVE fresh producing snapshot, never accepted from a
+ * caller. `allows` folds in the one sanctioned override: a human release
+ * (`requireHold`) whose authorized marker EQUALS the fresh-derived hold
+ * marker releases exactly that hold (the ship CAS then still pins the row's
+ * actual marker atomically).
+ */
+export interface AnchorDeliveryDisposition {
+  allows: boolean;
+  orderStatus: string;
+  reason: string | null;
+  lowConfidence: AnchorLowConfidence;
+}
+
+export function deriveCommitAnchorDisposition(
+  producingPipelineCache: unknown,
+  requireHold?: { deliveryHoldReason: string },
+): AnchorDeliveryDisposition {
+  const { gate, lowConfidence } = deriveAnchorDeliveryDisposition(producingPipelineCache);
+  const released = gate.held && requireHold?.deliveryHoldReason === gate.reason;
+  const held = gate.held && !released;
+  return {
+    allows: !held,
+    orderStatus: held ? gate.orderStatus : 'ready',
+    reason: held ? gate.reason : null,
+    lowConfidence,
+  };
+}
+
 /** Pure delivery plan for a readiness commit (no DB). Drives both runReadinessTxn and receipt keying. */
 export interface ReadinessDeliveryPlan {
   enqueued: boolean;
@@ -452,7 +482,7 @@ export interface ReadinessDeliveryPlan {
 }
 
 export function resolveReadinessDeliveryPlan(
-  args: CommitArgs,
+  anchor: Pick<AnchorDeliveryDisposition, 'allows' | 'orderStatus' | 'reason'>,
   decision: Pick<ReadinessDecision, 'status' | 'reason' | 'contractHardHold' | 'hardHoldKind'>,
   softDeliver: boolean,
 ): ReadinessDeliveryPlan {
@@ -481,7 +511,7 @@ export function resolveReadinessDeliveryPlan(
       usesSoftDeliver: true,
     };
   }
-  if (decision.status === 'passed' && args.anchorAllowsDelivery) {
+  if (decision.status === 'passed' && anchor.allows) {
     return {
       enqueued: true,
       orderStatus: 'ready',
@@ -490,11 +520,11 @@ export function resolveReadinessDeliveryPlan(
       usesSoftDeliver: false,
     };
   }
-  if (decision.status === 'passed' && softDeliver && !args.anchorAllowsDelivery) {
+  if (decision.status === 'passed' && softDeliver && !anchor.allows) {
     return {
       enqueued: true,
       orderStatus: 'ready',
-      deliveryHoldReason: `qa_soft_deliver:${args.anchorReason ?? 'anchor_hold'}`,
+      deliveryHoldReason: `qa_soft_deliver:${anchor.reason ?? 'anchor_hold'}`,
       skipExceptionCase: false,
       usesSoftDeliver: true,
     };
@@ -502,8 +532,8 @@ export function resolveReadinessDeliveryPlan(
   if (decision.status === 'passed') {
     return {
       enqueued: false,
-      orderStatus: args.anchorOrderStatus,
-      deliveryHoldReason: args.anchorReason,
+      orderStatus: anchor.orderStatus,
+      deliveryHoldReason: anchor.reason,
       skipExceptionCase: false,
       usesSoftDeliver: false,
     };
@@ -518,7 +548,7 @@ export function resolveReadinessDeliveryPlan(
 }
 
 function buildReadinessCommitMutationPayload(
-  args: CommitArgs,
+  anchor: AnchorDeliveryDisposition,
   decision: ReadinessDecision,
   inputVersion: number,
   anchorDisposition: string,
@@ -530,19 +560,19 @@ function buildReadinessCommitMutationPayload(
     if (decision.status === 'blocked') {
       const warnings = mergeQaWarnings(
         buildQaWarningsFromReadinessBlock({ reason: decision.reason, evidence: decision.evidence }),
-        args.anchorLowConfidence
-          ? buildQaWarningsFromAnchorHold(args.anchorLowConfidence)
+        anchor.lowConfidence
+          ? buildQaWarningsFromAnchorHold(anchor.lowConfidence)
           : null,
       );
       qaWarningsReason = warnings.wouldHaveReason;
-      anchorScore = warnings.anchor?.score ?? args.anchorLowConfidence?.score ?? null;
+      anchorScore = warnings.anchor?.score ?? anchor.lowConfidence?.score ?? null;
     } else {
       const warnings = buildQaWarningsFromAnchorHold(
-        args.anchorLowConfidence,
-        args.anchorReason,
+        anchor.lowConfidence,
+        anchor.reason,
       );
       qaWarningsReason = warnings.wouldHaveReason;
-      anchorScore = warnings.anchor?.score ?? args.anchorLowConfidence?.score ?? null;
+      anchorScore = warnings.anchor?.score ?? anchor.lowConfidence?.score ?? null;
     }
   }
   return {
@@ -561,19 +591,22 @@ function buildReadinessCommitMutationPayload(
 /** Receipt fence binding — keys the durable commit outcome, not the QA_SOFT_DELIVER env flag. */
 export function buildReadinessCommitReceiptBinding(
   args: CommitArgs,
+  anchor: AnchorDeliveryDisposition,
   inputVersion: number,
   decision: ReadinessDecision,
   softDeliver: boolean = canUseQaSoftDeliver(),
   deliveryFenceVersion: number = 0,
 ): { operationKey: string; payloadHash: string; plan: ReadinessDeliveryPlan } {
-  const anchorDisposition = `${args.anchorAllowsDelivery ? 1 : 0}:${args.anchorOrderStatus}:${args.anchorReason ?? ''}`;
+  // (Codex round-5) The disposition in the receipt identity is the FRESH-DERIVED one — the caller
+  // no longer supplies any disposition, so a stale caller gate cannot key (or replay) a commit.
+  const anchorDisposition = `${anchor.allows ? 1 : 0}:${anchor.orderStatus}:${anchor.reason ?? ''}`;
   // (delivery fence — Codex round-4 P1) The authorized-release CAPABILITY (requireHold + its exact marker) is part
   // of the receipt IDENTITY. Without it, a GUARDED anchor-release call (requireHold set) shares an operationKey with
   // an earlier UNGUARDED commit of the same payload → the fence replays the recorded result at atomic-operation.ts's
   // short-circuit and the precondition CAS never runs. Folding it into the key (and, via the key, the payloadHash)
   // means a guarded call can never be satisfied by an unguarded receipt.
   const releaseCapability = args.requireHold ? `rh:${args.requireHold.deliveryHoldReason}` : 'norh';
-  const plan = resolveReadinessDeliveryPlan(args, decision, softDeliver);
+  const plan = resolveReadinessDeliveryPlan(anchor, decision, softDeliver);
   // (delivery fence — Codex round-6 Unit C) The LOAD-TIME deliveryFenceVersion belongs in the receipt IDENTITY ONLY
   // for a commit that AUTHORIZES DELIVERY — a ship or an authorized release (⇔ plan.orderStatus === 'ready', the sole
   // deliverable outcome). Splitting by outcome:
@@ -591,7 +624,7 @@ export function buildReadinessCommitReceiptBinding(
   const operationKey =
     `readiness_commit:${args.orderId}:${BASE_BOOK_SCOPE}:${inputVersion}:${decision.inputsHash}:${anchorDisposition}:${releaseCapability}:${fenceIdentity}`;
   const mutationPayload = buildReadinessCommitMutationPayload(
-    args,
+    anchor,
     decision,
     inputVersion,
     anchorDisposition,
@@ -654,6 +687,10 @@ function fingerprintOf(f: {
       f.deliveryFenceVersion,
       canonicalJsonDigest(producingCache?.visualPackageAuthority ?? null),
       canonicalJsonDigest(producingCache?.visualContract ?? null),
+      // (Codex round-5) The fresh-derived anchor DISPOSITION source is a bound sub-value too: an
+      // eval→commit flip of the producing snapshot's childAnchorLowConfidence must drift this
+      // fingerprint (TOCTOU abort + fresh re-derivation), never ship the stale disposition.
+      canonicalJsonDigest(producingCache?.childAnchorLowConfidence ?? null),
     ],
     payload: [f.customerEmail, f.customerName, f.childName, f.readUrl, f.pdfUrl, f.firstAudioUrl],
     cover: f.cover, pages: f.pages,
@@ -760,27 +797,27 @@ interface ReadinessDecision {
  */
 function orderVisualPackageAuthorityDecision(
   order: OrderTruth,
-  callerVisualPackageClaim?: boolean,
+  callerPackageRevisionDigest?: string | null,
 ): ReadinessDecision | null {
   let reason: 'visual_package_authority_invalid' | 'delivery_snapshot_binding_invalid';
   let issues: string[];
   try {
-    const binding = requireProducingSnapshotBinding({
+    // (Codex round-5) THE total snapshot invariant: fresh row ↔ producing snapshot binding PLUS
+    // exact caller-identity equality (package A ≠ package B, package ↔ legacy in both directions).
+    requireConsistentProducingIdentity({
+      ...(callerPackageRevisionDigest !== undefined
+        ? { callerPackageRevisionDigest }
+        : {}),
       order,
       pipelineCache: order.producingPipelineCache ?? null,
     });
-    // (Codex round-4 MAJOR 4) Caller-origin leg: the fresh row + producing snapshot read genuinely
-    // legacy, but the delivery CALLER'S snapshot was package-shaped — the frozen truth was
-    // re-pointed after the caller loaded it. Same reason (and thus the same
-    // `contract_world_hold:delivery_snapshot_binding_invalid` marker) as the readiness-OFF caller leg.
-    if (binding !== null || callerVisualPackageClaim !== true) return null;
-    reason = 'delivery_snapshot_binding_invalid';
-    issues = [
-      'caller snapshot is package-shaped but the fresh Order and producing snapshot are legacy',
-    ];
+    return null;
   } catch (error) {
     if (!(error instanceof OrderVisualPackageAuthorityError)) throw error;
-    reason = 'visual_package_authority_invalid';
+    reason =
+      error instanceof DeliverySnapshotIdentityError
+        ? 'delivery_snapshot_binding_invalid'
+        : 'visual_package_authority_invalid';
     issues = [...error.reasons];
   }
   {
@@ -904,7 +941,7 @@ async function nextRevision(tx: Tx, orderId: string, scope: string): Promise<num
 // (runReadinessTxn) and re-exported here for existing importers (package-delivery, the PG harness, tests).
 export { executeReadinessShipCas };
 
-async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, decision: ReadinessDecision, now: Date, release?: ReleaseRuntime): Promise<CommitResult> {
+async function runReadinessTxn(tx: Tx, args: CommitArgs, anchor: AnchorDeliveryDisposition, loaded: LoadedInputs, decision: ReadinessDecision, now: Date, release?: ReleaseRuntime): Promise<CommitResult> {
   // (0) TOCTOU guard — the assets/text/frozen/QUALITY-EVIDENCE must not have changed between the (out-of-tx)
   // eval and now (the fingerprint folds in the quality evidence, so a re-QA between eval and commit drifts it). The
   // fingerprint is RAW (no projected override), so this still catches any genuine concurrent input change.
@@ -951,7 +988,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
 
   if (decision.status === 'blocked') {
     const softDeliver = canUseQaSoftDeliver();
-    const plan = resolveReadinessDeliveryPlan(args, decision, softDeliver);
+    const plan = resolveReadinessDeliveryPlan(anchor, decision, softDeliver);
     if (!plan.skipExceptionCase) {
       // (#7-a) BLOCKED manifest + readiness=blocked + order hold + ExceptionCase in ONE atomic tx; NO Outbox row on
       // any blocked path. quality_failed is a deterministic TERMINAL (→ refund_pending via its disposition);
@@ -1006,7 +1043,7 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
   let deliveryHoldReason: string | null;
   const softDeliver = canUseQaSoftDeliver();
   let qaWarnings: QaWarnings | undefined;
-  const plan = resolveReadinessDeliveryPlan(args, decision, softDeliver);
+  const plan = resolveReadinessDeliveryPlan(anchor, decision, softDeliver);
 
   if (decision.status === 'passed' && activeException) {
     // A refund/reconciliation/customer action is already authoritative. Do not deliver-and-refund.
@@ -1017,8 +1054,8 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
       reason: decision.reason,
       evidence: decision.evidence,
     });
-    if (args.anchorLowConfidence) {
-      qaWarnings = mergeQaWarnings(qaWarnings, buildQaWarningsFromAnchorHold(args.anchorLowConfidence));
+    if (anchor.lowConfidence) {
+      qaWarnings = mergeQaWarnings(qaWarnings, buildQaWarningsFromAnchorHold(anchor.lowConfidence));
     }
     // Immutable manifest stays blocked for audit; mutable pointer passes for Outbox CAS send-time check.
     await tx.bookReadiness.updateMany({
@@ -1038,12 +1075,12 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
     enqueued = plan.enqueued;
     orderStatus = plan.orderStatus;
     deliveryHoldReason = plan.deliveryHoldReason;
-  } else if (plan.enqueued && decision.status === 'passed' && args.anchorAllowsDelivery) {
+  } else if (plan.enqueued && decision.status === 'passed' && anchor.allows) {
     // (3) enqueue the delivery IN the same transaction (enqueue != send), then (4) mark the order ready.
     await enqueueDelivery(tx, { orderId: order.id, scope, fulfillmentVersion: order.fulfillmentVersion, manifestId: manifest.id, inputVersion: order.inputVersion, deliveryFenceVersion, payload: buildPayload(payloadSourceOf(order, book)), now });
     enqueued = true; orderStatus = 'ready'; deliveryHoldReason = null;
-  } else if (plan.usesSoftDeliver && decision.status === 'passed' && !args.anchorAllowsDelivery) {
-    qaWarnings = buildQaWarningsFromAnchorHold(args.anchorLowConfidence ?? null, args.anchorReason);
+  } else if (plan.usesSoftDeliver && decision.status === 'passed' && !anchor.allows) {
+    qaWarnings = buildQaWarningsFromAnchorHold(anchor.lowConfidence ?? null, anchor.reason);
     await enqueueDelivery(tx, {
       orderId: order.id,
       scope,
@@ -1070,12 +1107,24 @@ async function runReadinessTxn(tx: Tx, args: CommitArgs, loaded: LoadedInputs, d
   //     Delivery authority is thus SHARED: no caller opts in; every hold write participates via the fence.
   //   • HOLD/FAIL (readiness parks): the standard inputVersion CAS, and it BUMPS the fence (a hold write).
   if (orderStatus === 'ready') {
+    const inTxProducingCache =
+      inTx.order.producingPipelineCache &&
+      typeof inTx.order.producingPipelineCache === 'object' &&
+      !Array.isArray(inTx.order.producingPipelineCache)
+        ? (inTx.order.producingPipelineCache as Record<string, unknown>)
+        : null;
     const shipped = await executeReadinessShipCas(tx, {
       orderId: order.id,
       inputVersion: order.inputVersion,
       deliveryFenceVersion,
       deliveryHoldReason,
       requireHoldReason,
+      // (Codex round-5) The ship is bound to the exact anchor-disposition source observed in-tx —
+      // a concurrent ordinary cache write flipping the band between this read and the CAS matches
+      // zero rows instead of shipping a stale "allow".
+      producingAnchorBind: {
+        childAnchorLowConfidence: inTxProducingCache?.childAnchorLowConfidence ?? null,
+      },
     });
     if (shipped === 0) {
       // Distinguish a genuine inputVersion drift (→ retry FRESH) from a competing hold (→ NEVER retry into a ship).
@@ -1136,7 +1185,14 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
     const loaded = await loadCommitInputs(prisma, args.orderId);
     if (!loaded) throw new Error('readiness_inputs_missing');
     const appBaseUrl = deps.appBaseUrl ?? readAppBaseUrl();
-    let decision = orderVisualPackageAuthorityDecision(loaded.order, args.callerVisualPackageClaim);
+    // (Codex round-5) The anchor/delivery disposition is DERIVED from the authoritative fresh
+    // producing snapshot on every attempt (a TOCTOU reload re-derives); requireHold is the one
+    // sanctioned human override, releasing exactly the fresh-derived marker it authorized.
+    const anchor = deriveCommitAnchorDisposition(
+      loaded.order.producingPipelineCache ?? null,
+      args.requireHold,
+    );
+    let decision = orderVisualPackageAuthorityDecision(loaded.order, args.callerPackageRevisionDigest);
     let releaseRuntime: ReleaseRuntime | undefined;
     if (!decision) {
       const result = await evaluateBaseBookIntegrity(buildIntegrityInput(loaded.order, loaded.book, appBaseUrl), deps.inspect ?? inspectAsset);
@@ -1181,6 +1237,7 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
         const softDeliver = canUseQaSoftDeliver();
         const receipt = buildReadinessCommitReceiptBinding(
           args,
+          anchor,
           loaded.order.inputVersion,
           decision,
           softDeliver,
@@ -1193,7 +1250,7 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
             orderId: args.orderId,
             kind: 'readiness_commit',
             payloadHash: receipt.payloadHash,
-            run: (tx) => runReadinessTxn(tx, args, loaded, decision, now, releaseRuntime),
+            run: (tx) => runReadinessTxn(tx, args, anchor, loaded, decision, now, releaseRuntime),
           },
           deps.atomic,
         );
@@ -1201,7 +1258,7 @@ export async function commitBaseBookReadiness(prisma: PrismaClient, args: Commit
       // (release-as-readiness-mode) The release mode does more work in-tx (admissibility reads + both overrides +
       // transition + case close + audit + ship). A co-located prod DB commits it in well under a second; the wider
       // timeout guards the pathological / high-latency case without affecting the (receipt-fenced) normal path.
-      return await prisma.$transaction((tx) => runReadinessTxn(tx, args, loaded, decision, now, releaseRuntime), args.release ? { timeout: 20_000, maxWait: 10_000 } : undefined);
+      return await prisma.$transaction((tx) => runReadinessTxn(tx, args, anchor, loaded, decision, now, releaseRuntime), args.release ? { timeout: 20_000, maxWait: 10_000 } : undefined);
     } catch (e) {
       if ((isToctou(e) || isRevisionCollision(e)) && attempt < 5) {
         log.warn('Readiness commit retry', { orderId: args.orderId, attempt, reason: isToctou(e) ? 'toctou_drift' : 'revision_collision' });

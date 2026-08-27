@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { generateImage } from '../../../../backend/providers/image';
 import { resolveImageModelMode, resolveReplicateImageModel } from '../../../../lib/replicate';
-import { withDeliveryInputMutation } from '../../../../lib/generation-pipeline/readiness-manifest';
+import { withDeliveryInputMutation, type DeliveryInputMutationResult } from '../../../../lib/generation-pipeline/readiness-manifest';
 import {
   OrderVisualPackageAuthorityError,
+  requireConsistentProducingIdentity,
   requireProducingSnapshotBinding,
 } from '../../../../lib/generation-pipeline/order-visual-package-authority';
 
@@ -111,45 +112,94 @@ export async function POST(req: NextRequest) {
 
     let storedAssetId: string | null = null;
     if (body.persistToPage) {
-      const mutation = await withDeliveryInputMutation(
-        prisma,
-        {
-          orderId: order.id,
-          reason: 'debug_page_asset_changed',
-          operationKey: `delivery_input:${order.id}:page:${requestedPageNumber}:${generated.url}`,
-          mutationPayload: {
-            prompt: generated.prompt, url: generated.url, rawUrl: generated.rawUrl ?? null,
-            width: generated.width, height: generated.height,
-            provider: generated.provider, style: order.illustrationStyle,
+      // (Codex round-5 finding 4) The pre-provider check proved a GENUINE LEGACY order; the provider
+      // call takes real time, and a freeze/re-point can land inside that window. Persistence
+      // re-proves the SAME identity from a FRESH in-tx read BEFORE any write — a legacy→package
+      // (or any other) flip during the provider call aborts the mutation with ZERO ImageAsset/Page
+      // writes (the provider image is simply not persisted).
+      class DebugPersistenceProvenanceError extends Error {}
+      let mutation: DeliveryInputMutationResult<{ id: string }>;
+      try {
+        mutation = await withDeliveryInputMutation(
+          prisma,
+          {
+            orderId: order.id,
+            reason: 'debug_page_asset_changed',
+            operationKey: `delivery_input:${order.id}:page:${requestedPageNumber}:${generated.url}`,
+            mutationPayload: {
+              prompt: generated.prompt, url: generated.url, rawUrl: generated.rawUrl ?? null,
+              width: generated.width, height: generated.height,
+              provider: generated.provider, style: order.illustrationStyle,
+            },
           },
-        },
-        async (tx) => {
-          // Return a JSON-safe projection (P2 #4) — the receipt stores/replays this, so never a Prisma record.
-          const asset = await tx.imageAsset.upsert({
-            where: { pageId: targetPage.id },
-            update: {
-              provider: generated.provider,
-              prompt: generated.prompt,
-              url: generated.url,
-              rawUrl: generated.rawUrl ?? null,
-              width: generated.width,
-              height: generated.height,
-              style: order.illustrationStyle,
+          async (tx) => {
+            const fresh = await tx.order.findUnique({
+              where: { id: order.id },
+              select: {
+                selectionFilename: true,
+                storySourceHash: true,
+                illustrationStyle: true,
+                visualPackageAuthority: true,
+                visualContractHash: true,
+                generationJob: { select: { pipelineCache: true } },
+              },
+            });
+            if (!fresh) {
+              throw new DebugPersistenceProvenanceError('order vanished during the provider call');
+            }
+            try {
+              // The route only proceeds for genuine legacy → the evaluated caller identity is null;
+              // the fresh row + producing snapshot must still be exactly that.
+              requireConsistentProducingIdentity({
+                callerPackageRevisionDigest: null,
+                order: fresh,
+                pipelineCache: fresh.generationJob?.pipelineCache ?? null,
+              });
+            } catch (provenanceError) {
+              if (!(provenanceError instanceof OrderVisualPackageAuthorityError)) throw provenanceError;
+              throw new DebugPersistenceProvenanceError(provenanceError.message);
+            }
+            // Return a JSON-safe projection (P2 #4) — the receipt stores/replays this, so never a Prisma record.
+            const asset = await tx.imageAsset.upsert({
+              where: { pageId: targetPage.id },
+              update: {
+                provider: generated.provider,
+                prompt: generated.prompt,
+                url: generated.url,
+                rawUrl: generated.rawUrl ?? null,
+                width: generated.width,
+                height: generated.height,
+                style: order.illustrationStyle,
+              },
+              create: {
+                pageId: targetPage.id,
+                provider: generated.provider,
+                prompt: generated.prompt,
+                url: generated.url,
+                rawUrl: generated.rawUrl ?? null,
+                width: generated.width,
+                height: generated.height,
+                style: order.illustrationStyle,
+              },
+            });
+            return { id: asset.id };
+          },
+        );
+      } catch (persistError) {
+        if (persistError instanceof DebugPersistenceProvenanceError) {
+          return NextResponse.json(
+            {
+              error:
+                'Order provenance changed during the provider call — generated image NOT persisted',
+              detail: persistError.message,
+              imageUrl: generated.url,
+              persisted: false,
             },
-            create: {
-              pageId: targetPage.id,
-              provider: generated.provider,
-              prompt: generated.prompt,
-              url: generated.url,
-              rawUrl: generated.rawUrl ?? null,
-              width: generated.width,
-              height: generated.height,
-              style: order.illustrationStyle,
-            },
-          });
-          return { id: asset.id };
-        },
-      );
+            { status: 409 },
+          );
+        }
+        throw persistError;
+      }
       storedAssetId = mutation.value.id;
     }
 
