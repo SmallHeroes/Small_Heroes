@@ -947,14 +947,69 @@ under its existing limits; re-running materialization with a ten-second test
 timeout passed 21/21, including the two assertions measured at 5.275s and
 5.757s. No semantic assertion failed under sufficient execution time.
 
+## Round 15 — versioned corrected Candidate bridge ($0)
+
+Bridge manifest v5 introduces an exact optional correction authority. A normal
+current manifest carries `candidateCorrection: null`; a corrected manifest
+must bind the approved correction envelope and exact correction path/digest,
+original provider template digest, and effective approved template digest.
+The provider Candidate and its receipt-bound digest are never rewritten. Its
+Action Semantic Coverage remains the coverage authority. Only the template
+projection and reconciliation derived from Story Source + effective template +
+original Coverage change.
+
+The bridge loader replays the correction approval and full packet, the passed
+Candidate-validation attestation, Story Source snapshot, original Candidate,
+effective template projection, Supervisor authority and pending/approved
+reconciliation. The reviewer lifecycle uses the effective template for all
+JSON-pointer evidence and validation but preserves the original Candidate
+digest as provenance. Both direct approval and reviewer-authored approval feed
+the same effective template into Production Context. Legacy v4, v3, v2 and v1
+manifests remain exact read-only inputs; v5 is the only writable version.
+
+Real offline evidence:
+
+| Artifact | Digest / result |
+|---|---|
+| corrected bridge manifest v5 | `2d7e576a1fc3d00f9374c4ec35e0948e4f5b4005435ff367747b531e1cecd266` |
+| effective template projection | `2fe93bc90140dd4d6529262b361d86a4409f93f30a8cfad52b035176d7ea1c0d` |
+| original Candidate | `6f52a3181aad5e96304775e5f2b6462cfaf3261d9c11325f121992dff7b481e0` (unchanged) |
+| original Action Semantic Coverage | `20c4c1786b201cf791d51c074321b21465c58937b79ead3fd464236988d9077e` (unchanged) |
+| pending reconciliation | `459845334a2e45357afaf5333efa8ce0569f8ca0a1fa8e8765d39ce186cb5f2e` |
+| pending review bundle | `14816960d3205c33cdb465d0c0f7395240b312c6a3dbc024ba968f75744d9f7b` |
+| write/replay | first write `created:true`; exact replay `created:false` |
+| external counters | credentials/provider/image/network/database/Production all zero |
+
+The hermetic regression creates a valid receipt-bound Candidate with the same
+cover contradiction class, prepares and approves the closed correction, then
+advances the consumer repository HEAD. The ordinary current bridge rejects the
+stale attestation. The corrected bridge succeeds under the frozen historical
+authority, preserves Candidate bytes, reloads its own manifest, passes the
+strict CLI, authors reviewer evidence from the effective template, records a
+temporary exact approval, advances to `reconciliation_approved`, and reloads
+an identical Production Context. Separate legacy coverage proves v4–v1 replay
+without upgrading.
+
+Validation: 53/53 correction/Blueprint/package; 2/2 corrected bridge and
+legacy compatibility; full bridge 14/14 inside the repository resource
+partition. Literal `npm run check` remains honestly red: ordinary 4,039 pass /
+73 skip / the same nine missing ignored-`outputs/` fixtures in five unchanged
+files; resource 628 pass plus four Git-heavy tests that crossed their fixed
+five-second timeout and emitted the known `onTaskUpdate` RPC classification.
+All four re-passed in isolation with one worker and a ten-second test allowance
+(4.872–5.966s). Both TypeScript projects and `git diff --check` pass. No
+provider, live, paid, image, audio, Vision, database, Production, Wizard,
+payment or render operation ran.
+
+The real bridge is intentionally `reconciliation_pending`: Guy has not yet
+approved exact corrected reconciliation content. This milestone grants no
+Blueprint/package approval, publication, Wizard qualification or render.
+
 ## Remaining chain to the end product (documented, not executed)
 
-After Guy's explicit go for one further authoring attempt (~$0.55, under
-v22 + repair v14):
-capture-supervisor-result → attest-candidate-validation →
-prepare-reconciliation (git-clean+pushed gates) → prepare-reviewed-
-reconciliation (reviewer decision plan: cover + 8 image-direction
-requirements + one disposition per presentation record) →
+From the current corrected pending bridge:
+prepare-reviewed-reconciliation (reviewer decision plan: cover + 8
+image-direction requirements + one disposition per presentation record) →
 approve-reviewed-reconciliation (`approvedBy: "Guy"`) → advance →
 Board mints from the fresh candidate-template projection (LOW + Vision QA +
 `--approve`; commit + push `set-identity-boards/`) → Blueprint
@@ -973,13 +1028,9 @@ category TRANSITION, `dad` voice) on the branch preview
 ## Limitations and unresolved risks
 
 - The end-product objective (a delivered QA Wizard lantern book) was **not**
-  reached. It is blocked on the paid-attempt stop rule AND on Codex's re-gate
-  of the delivery producing-snapshot binding correction (the second re-gate
-  MAJOR, closed in the delivery-binding correction commit below and awaiting
-  independent verification).
-- A third authoring attempt samples a new draft; further undiscovered
-  prompt-contract traps are possible (two were found in two attempts). Each
-  has so far cost ~$0.5 and yielded a permanent general fix.
+  reached. The successful Candidate and approved cover correction now have a
+  current pending bridge; exact reconciliation content, independent QA,
+  Blueprint/package authority and the final Wizard render remain.
 - The outbox send-time CAS binds authority only transitively (fingerprint +
   writer barrier), not by re-reading `visualPackageAuthority` in the claim
   SQL; a future direct-SQL writer that skips the barrier would not be caught

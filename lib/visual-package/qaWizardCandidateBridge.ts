@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 
 import {
   buildProductionAuthoringContext,
+  buildProductionAuthoringContextFromApprovedReconciliation,
   PRODUCTION_AUTHORING_CONTEXT_VERSION,
   type ProductionAuthoringContext,
 } from './productionAuthoringContext';
@@ -12,6 +13,7 @@ import {
   assertVisualContractCandidateForReconciliation,
   buildLegacyProductionReconciliationDraftBundleV2,
   buildLegacyReconciliationReviewBundleV2,
+  buildProductionReconciliationDraftFromSourceSnapshot,
   buildProductionReconciliationDraftFromVisualContractCandidate,
   buildReconciliationReviewBundle,
   loadVisualContractCandidateForReconciliation,
@@ -93,8 +95,15 @@ import {
 } from './visualContractAuthoringReplayEvidence';
 import { loadTemplateForPackage } from './artifacts';
 import { validateBookVisualContractTemplate } from '../visual-contract-compiler';
+import {
+  loadApprovedCandidateCoverCorrection,
+  VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_APPROVAL_VERSION,
+  VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_VERSION,
+} from './visualContractCandidateCoverCorrection';
 
 export const QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION =
+  'qa-wizard-candidate-bridge-manifest/v5' as const;
+export const QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V4 =
   'qa-wizard-candidate-bridge-manifest/v4' as const;
 export const QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION =
   'qa-wizard-candidate-bridge-manifest/v3' as const;
@@ -160,6 +169,7 @@ export type QaWizardCandidateBridgeStage =
 export interface QaWizardCandidateBridgeManifest {
   version:
     | typeof QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
+    | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V4
     | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION
     | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V2
     | typeof QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1;
@@ -214,6 +224,18 @@ export interface QaWizardCandidateBridgeManifest {
     version: typeof QA_WIZARD_CANDIDATE_VALIDATION_ATTESTATION_VERSION;
     digest: string;
     path: string;
+  };
+  candidateCorrection?: null | {
+    approvalVersion:
+      typeof VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_APPROVAL_VERSION;
+    approvalDigest: string;
+    approvalPath: string;
+    correctionVersion:
+      typeof VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_VERSION;
+    correctionDigest: string;
+    correctionPath: string;
+    originalTemplateDigest: string;
+    effectiveTemplateDigest: string;
   };
   reconciliation: {
     version:
@@ -278,6 +300,11 @@ export interface PrepareQaWizardCandidateReconciliationRequest {
   supervisorExecutionResultPath: string;
   candidateValidationAttestationPath: string;
   write?: boolean;
+}
+
+export interface PrepareQaWizardCorrectedCandidateReconciliationRequest
+  extends PrepareQaWizardCandidateReconciliationRequest {
+  candidateCorrectionApprovalPath: string;
 }
 
 export interface AttestQaWizardCandidateValidationRequest {
@@ -655,6 +682,52 @@ function persistCandidateTemplateProjection(args: {
   };
 }
 
+function persistEffectiveTemplateProjection(args: {
+  repoRoot: string;
+  outputDir: string;
+  template: VisualContractCandidateArtifact['template'];
+  templateDigest: string;
+  write?: boolean;
+}): QaWizardCandidateBridgeArtifactWrite {
+  if (
+    canonicalJsonDigest(args.template) !== args.templateDigest ||
+    !validateBookVisualContractTemplate(args.template).ok
+  ) {
+    throw new Error(
+      'QA Wizard corrected template projection is invalid or misdigested',
+    );
+  }
+  const outputRoot = path.resolve(args.repoRoot, args.outputDir);
+  repoRelativePath(args.repoRoot, outputRoot);
+  const destinationPath = path.join(
+    outputRoot,
+    'candidate-template-projections',
+    `${args.templateDigest}.json`,
+  );
+  let persistence = { created: false };
+  if (args.write === true) {
+    const store = createContainedContentAddressedJsonArtifactStore({
+      repoRoot: args.repoRoot,
+      repositoryRealPath: fs.realpathSync(args.repoRoot),
+      outputDir: args.outputDir,
+      categories: ['candidate-template-projections'] as const,
+      rejectSymlinkAliases: true,
+      errorPrefix: 'QA Wizard corrected template projection',
+    });
+    store.prepare();
+    persistence = store.persist({
+      category: 'candidate-template-projections',
+      digest: args.templateDigest,
+      value: args.template,
+    });
+  }
+  return {
+    path: repoRelativePath(args.repoRoot, destinationPath),
+    digest: args.templateDigest,
+    created: persistence.created,
+  };
+}
+
 function loadAndValidateCandidateTemplateProjection(args: {
   repoRoot: string;
   bridgeOutputDir: string;
@@ -733,6 +806,108 @@ function loadAndValidateCandidateTemplateProjection(args: {
     );
   }
   return candidate;
+}
+
+function loadAndValidateCorrectedTemplateProjection(args: {
+  repoRoot: string;
+  bridgeOutputDir: string;
+  manifest: QaWizardCandidateBridgeManifest;
+}): {
+  candidate: VisualContractCandidateArtifact;
+  template: VisualContractCandidateArtifact['template'];
+} {
+  const correction = args.manifest.candidateCorrection;
+  const candidateValidation = args.manifest.candidateValidation;
+  if (!correction || !candidateValidation) {
+    throw new Error(
+      'QA Wizard corrected bridge lacks exact correction authority',
+    );
+  }
+  const loaded = loadApprovedCandidateCoverCorrection({
+    repoRoot: args.repoRoot,
+    approvalPath: correction.approvalPath,
+  });
+  const snapshot = buildStorySourceAuthoritySnapshot({
+    repoRoot: args.repoRoot,
+    storyKey: args.manifest.source.storyKey,
+    storyPath: args.manifest.source.storyPath,
+  });
+  assertValidStorySourceAuthoritySnapshot(snapshot);
+  const candidate = loadVisualContractCandidateForReconciliation({
+    repoRoot: args.repoRoot,
+    candidatePath: args.manifest.visualContract.candidatePath,
+    snapshot,
+    expectedTemplateDigest: correction.originalTemplateDigest,
+  });
+  const effective = loaded.packet.correction.effective;
+  const expectedProjectionPath =
+    `${args.bridgeOutputDir}/candidate-template-projections/${effective.templateDigest}.json`;
+  if (
+    loaded.approval.version !== correction.approvalVersion ||
+    loaded.approval.digest !== correction.approvalDigest ||
+    loaded.approval.correction.path !== correction.correctionPath ||
+    loaded.approval.correction.digest !== correction.correctionDigest ||
+    loaded.packet.correction.version !== correction.correctionVersion ||
+    loaded.packet.correction.digest !== correction.correctionDigest ||
+    loaded.approval.subject.storyKey !== args.manifest.source.storyKey ||
+    loaded.approval.subject.storyPath !== args.manifest.source.storyPath ||
+    loaded.approval.subject.sourceSnapshotDigest !==
+      args.manifest.source.snapshotDigest ||
+    loaded.approval.subject.candidateDigest !== candidate.digest ||
+    loaded.approval.subject.candidatePath !==
+      args.manifest.visualContract.candidatePath ||
+    loaded.approval.subject.candidateValidationAttestationDigest !==
+      candidateValidation.digest ||
+    loaded.approval.subject.candidateValidationAttestationPath !==
+      candidateValidation.path ||
+    loaded.approval.subject.templateDigest !== candidate.templateDigest ||
+    candidate.digest !== args.manifest.visualContract.candidateDigest ||
+    candidate.templateDigest !== correction.originalTemplateDigest ||
+    candidate.actionSemanticCoverageDigest !==
+      args.manifest.visualContract.actionSemanticCoverageDigest ||
+    loaded.packet.correction.effective.actionSemanticCoverageDigest !==
+      candidate.actionSemanticCoverageDigest ||
+    effective.templateDigest !== correction.effectiveTemplateDigest ||
+    effective.templateDigest !== args.manifest.visualContract.templateDigest ||
+    effective.template.schemaVersion !==
+      args.manifest.visualContract.templateSchemaVersion ||
+    args.manifest.visualContract.templatePath !== expectedProjectionPath
+  ) {
+    throw new Error(
+      'QA Wizard corrected bridge authority is stale or cross-bound',
+    );
+  }
+  const templateAbsolute = resolveExistingContainedArtifact({
+    repoRoot: args.repoRoot,
+    relativePath: args.manifest.visualContract.templatePath,
+    label: 'Visual Contract corrected template projection',
+  });
+  assertCanonicalJsonArtifact({
+    absolutePath: templateAbsolute,
+    value: effective.template,
+    digest: effective.templateDigest,
+    category: 'candidate-template-projections',
+    label: 'Visual Contract corrected template projection',
+  });
+  const loadedTemplate = loadTemplateForPackage({
+    repoRoot: args.repoRoot,
+    templatePath: args.manifest.visualContract.templatePath,
+    storyKey: args.manifest.source.storyKey,
+    source: snapshot.content.sourceIdentity,
+    expectedDigest: effective.templateDigest,
+  });
+  if (
+    loadedTemplate.issues.length > 0 ||
+    !loadedTemplate.template ||
+    !loadedTemplate.identity ||
+    canonicalContentAddressedJsonBytes(loadedTemplate.template) !==
+      canonicalContentAddressedJsonBytes(effective.template)
+  ) {
+    throw new Error(
+      'QA Wizard corrected template projection is invalid or tampered',
+    );
+  }
+  return { candidate, template: effective.template };
 }
 
 type LoadedCanonicalSupervisorAuthority = {
@@ -1398,6 +1573,8 @@ export function qaWizardCandidateBridgeManifestIsValid(
     !isObject(raw) ||
     (raw.version !== QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION &&
       raw.version !==
+        QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V4 &&
+      raw.version !==
         QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION &&
       raw.version !==
         QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V2 &&
@@ -1410,8 +1587,11 @@ export function qaWizardCandidateBridgeManifestIsValid(
   }
   const currentManifest =
     raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION;
-  const candidateValidationManifest =
+  const currentReconciliationManifest =
     currentManifest ||
+    raw.version === QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V4;
+  const candidateValidationManifest =
+    currentReconciliationManifest ||
     raw.version === QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION;
   const rootKeys = [
     'version',
@@ -1420,6 +1600,7 @@ export function qaWizardCandidateBridgeManifestIsValid(
     'supervisor',
     'visualContract',
     ...(candidateValidationManifest ? ['candidateValidation'] : []),
+    ...(currentManifest ? ['candidateCorrection'] : []),
     'reconciliation',
     'productionContext',
     'blueprint',
@@ -1528,6 +1709,32 @@ export function qaWizardCandidateBridgeManifestIsValid(
         !isDigest(raw.candidateValidation.digest) ||
         !nonEmpty(raw.candidateValidation.path)
       : raw.candidateValidation !== undefined) ||
+    (currentManifest
+      ? raw.candidateCorrection !== null &&
+        (!isObject(raw.candidateCorrection) ||
+          !exactKeys(raw.candidateCorrection, [
+            'approvalVersion',
+            'approvalDigest',
+            'approvalPath',
+            'correctionVersion',
+            'correctionDigest',
+            'correctionPath',
+            'originalTemplateDigest',
+            'effectiveTemplateDigest',
+          ]) ||
+          raw.candidateCorrection.approvalVersion !==
+            VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_APPROVAL_VERSION ||
+          !isDigest(raw.candidateCorrection.approvalDigest) ||
+          !nonEmpty(raw.candidateCorrection.approvalPath) ||
+          raw.candidateCorrection.correctionVersion !==
+            VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_VERSION ||
+          !isDigest(raw.candidateCorrection.correctionDigest) ||
+          !nonEmpty(raw.candidateCorrection.correctionPath) ||
+          !isDigest(raw.candidateCorrection.originalTemplateDigest) ||
+          !isDigest(raw.candidateCorrection.effectiveTemplateDigest) ||
+          raw.candidateCorrection.effectiveTemplateDigest !==
+            raw.visualContract.templateDigest)
+      : raw.candidateCorrection !== undefined) ||
     !isObject(raw.reconciliation) ||
     !exactKeys(raw.reconciliation, [
       'version',
@@ -1546,13 +1753,13 @@ export function qaWizardCandidateBridgeManifestIsValid(
       'pendingManifestDigest',
     ]) ||
     raw.reconciliation.version !==
-      (currentManifest
+      (currentReconciliationManifest
         ? SOURCE_PROMPT_RECONCILIATION_VERSION
         : LEGACY_SOURCE_PROMPT_RECONCILIATION_VERSION) ||
     !isDigest(raw.reconciliation.digest) ||
     !nonEmpty(raw.reconciliation.path) ||
     raw.reconciliation.reviewBundleVersion !==
-      (currentManifest
+      (currentReconciliationManifest
         ? RECONCILIATION_REVIEW_BUNDLE_VERSION
         : LEGACY_RECONCILIATION_REVIEW_BUNDLE_VERSION) ||
     !isDigest(raw.reconciliation.reviewBundleDigest) ||
@@ -2430,7 +2637,7 @@ export function recordQaWizardReconciliationApproval(
   if (pending.stage !== 'reconciliation_pending') {
     throw new Error('reconciliation approval requires a pending bridge manifest');
   }
-  assertSameBridgeOutputDir({
+  const bridgeOutputDir = assertSameBridgeOutputDir({
     repoRoot: args.repoRoot,
     manifestPath: args.pendingManifestPath,
     outputDir: args.outputDir,
@@ -2475,18 +2682,27 @@ export function recordQaWizardReconciliationApproval(
     storyKey: pending.source.storyKey,
     storyPath: pending.source.storyPath,
   });
-  const candidate = loadVisualContractCandidateForReconciliation({
-    repoRoot: args.repoRoot,
-    candidatePath: pending.visualContract.candidatePath,
-    snapshot,
-    expectedTemplateDigest: pending.visualContract.templateDigest,
-  });
+  const correctedAuthority = pending.candidateCorrection
+    ? loadAndValidateCorrectedTemplateProjection({
+        repoRoot: args.repoRoot,
+        bridgeOutputDir,
+        manifest: pending,
+      })
+    : null;
+  const candidate = correctedAuthority?.candidate ??
+    loadVisualContractCandidateForReconciliation({
+      repoRoot: args.repoRoot,
+      candidatePath: pending.visualContract.candidatePath,
+      snapshot,
+      expectedTemplateDigest: pending.visualContract.templateDigest,
+    });
+  const effectiveTemplate = correctedAuthority?.template ?? candidate.template;
   const expectedReviewBundle = buildReconciliationReviewBundle({
     reconciliation,
     sourceIdentity: snapshot.content.sourceIdentity,
     sourceAuthoritySnapshotDigest: snapshot.digest,
     rawStorySource: snapshot.content.normalizedRawStorySource,
-    template: candidate.template,
+    template: effectiveTemplate,
     ...(snapshot.content.authoredCoverAuthority
       ? { authoredCoverAuthority: snapshot.content.authoredCoverAuthority }
       : {}),
@@ -2604,6 +2820,7 @@ export function loadQaWizardCandidateBridgeManifest(args: {
   }
   const manifestHasCandidateValidation =
     raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION ||
+    raw.version === QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V4 ||
     raw.version === QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION;
   const candidateValidation =
     manifestHasCandidateValidation
@@ -2620,7 +2837,10 @@ export function loadQaWizardCandidateBridgeManifest(args: {
     ) {
       throw new Error('candidate_validation_not_passed');
     }
-    if (raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION) {
+    if (
+      raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION &&
+      raw.candidateCorrection === null
+    ) {
       const rebuiltCandidateValidation = attestQaWizardCandidateValidation({
         repoRoot: args.repoRoot,
         outputDir: path.posix.dirname(
@@ -2653,7 +2873,9 @@ export function loadQaWizardCandidateBridgeManifest(args: {
       candidateValidation.subject.sourceSnapshotDigest !== raw.source.snapshotDigest ||
       candidateValidation.subject.candidateDigest !== raw.visualContract.candidateDigest ||
       candidateValidation.subject.candidatePath !== raw.visualContract.candidatePath ||
-      candidateValidation.subject.templateDigest !== raw.visualContract.templateDigest ||
+      candidateValidation.subject.templateDigest !==
+        (raw.candidateCorrection?.originalTemplateDigest ??
+          raw.visualContract.templateDigest) ||
       candidateValidation.subject.actionSemanticCoverageDigest !==
         raw.visualContract.actionSemanticCoverageDigest ||
       candidateValidation.subject.sourceEvidenceCatalogDigest !==
@@ -2691,7 +2913,8 @@ export function loadQaWizardCandidateBridgeManifest(args: {
     candidatePath: raw.visualContract.candidatePath,
   };
   const supervisor =
-    raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
+    raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION &&
+    raw.candidateCorrection === null
       ? loadCanonicalSupervisorAuthority({
           ...supervisorArgs,
           ...(candidateValidation
@@ -2711,7 +2934,13 @@ export function loadQaWizardCandidateBridgeManifest(args: {
   ) {
     throw new Error('QA Wizard bridge Supervisor authority is stale or tampered');
   }
-  if (
+  if (raw.candidateCorrection) {
+    loadAndValidateCorrectedTemplateProjection({
+      repoRoot: args.repoRoot,
+      bridgeOutputDir,
+      manifest: raw,
+    });
+  } else if (
     raw.version !== QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1
   ) {
     loadAndValidateCandidateTemplateProjection({
@@ -2729,7 +2958,7 @@ export function loadQaWizardCandidateBridgeManifest(args: {
   }
   if (raw.stage === 'reconciliation_pending') {
     if (raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION) {
-      const reconstructedCurrent = prepareQaWizardCandidateReconciliation({
+      const reconstructionArgs = {
         repoRoot: args.repoRoot,
         outputDir: bridgeOutputDir,
         storyKey: raw.source.storyKey,
@@ -2746,7 +2975,14 @@ export function loadQaWizardCandidateBridgeManifest(args: {
         candidateValidationAttestationPath:
           raw.candidateValidation!.path,
         write: false,
-      });
+      };
+      const reconstructedCurrent = raw.candidateCorrection
+        ? prepareQaWizardCorrectedCandidateReconciliation({
+            ...reconstructionArgs,
+            candidateCorrectionApprovalPath:
+              raw.candidateCorrection.approvalPath,
+          })
+        : prepareQaWizardCandidateReconciliation(reconstructionArgs);
       if (
         canonicalContentAddressedJsonBytes(reconstructedCurrent.manifest) !==
         canonicalContentAddressedJsonBytes(raw)
@@ -2765,9 +3001,17 @@ export function loadQaWizardCandidateBridgeManifest(args: {
       repoRoot: args.repoRoot,
       candidatePath: raw.visualContract.candidatePath,
       snapshot,
-      expectedTemplateDigest: raw.visualContract.templateDigest,
+      expectedTemplateDigest:
+        raw.candidateCorrection?.originalTemplateDigest ??
+        raw.visualContract.templateDigest,
     });
-    let reconciliationTemplate = candidate.template;
+    let reconciliationTemplate = raw.candidateCorrection
+      ? loadAndValidateCorrectedTemplateProjection({
+          repoRoot: args.repoRoot,
+          bridgeOutputDir,
+          manifest: raw,
+        }).template
+      : candidate.template;
     if (
       raw.version === QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1
     ) {
@@ -2786,13 +3030,21 @@ export function loadQaWizardCandidateBridgeManifest(args: {
       }
       reconciliationTemplate = legacyTemplate.template;
     }
-    const rebuiltBundle =
-      raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION
-        ? buildProductionReconciliationDraftFromVisualContractCandidate({
+    const currentReconciliationManifest =
+      raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION ||
+      raw.version === QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V4;
+    const rebuiltBundle = currentReconciliationManifest
+      ? raw.candidateCorrection
+        ? buildProductionReconciliationDraftFromSourceSnapshot({
+            snapshot,
+            template: reconciliationTemplate,
+            actionSemanticCoverage: candidate.actionSemanticCoverage,
+          })
+        : buildProductionReconciliationDraftFromVisualContractCandidate({
             snapshot,
             candidate,
           })
-        : buildLegacyProductionReconciliationDraftBundleV2({
+      : buildLegacyProductionReconciliationDraftBundleV2({
             storyKey: snapshot.content.storyKey,
             sourceIdentity: snapshot.content.sourceIdentity,
             sourceAuthoritySnapshotDigest: snapshot.digest,
@@ -2878,7 +3130,9 @@ export function loadQaWizardCandidateBridgeManifest(args: {
       canonicalJsonDigest(pendingManifest.supervisor) !==
         canonicalJsonDigest(raw.supervisor) ||
       canonicalJsonDigest(pendingManifest.visualContract) !==
-        canonicalJsonDigest(raw.visualContract)
+        canonicalJsonDigest(raw.visualContract) ||
+      canonicalJsonDigest(pendingManifest.candidateCorrection ?? null) !==
+        canonicalJsonDigest(raw.candidateCorrection ?? null)
     ) {
       throw new Error(
         'QA Wizard bridge reconciliation approval is stale or tampered',
@@ -2905,8 +3159,24 @@ export function loadQaWizardCandidateBridgeManifest(args: {
       }),
       'approved reconciliation review bundle',
     );
-    if (raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION) {
-      const context = buildProductionAuthoringContext({
+    if (
+      raw.version === QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION ||
+      raw.version === QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V4
+    ) {
+      const context = raw.candidateCorrection
+        ? buildProductionAuthoringContextFromApprovedReconciliation({
+            repoRoot: args.repoRoot,
+            storyKey: raw.source.storyKey,
+            storyPath: raw.source.storyPath,
+            templatePath: raw.visualContract.templatePath,
+            reconciliationPath: raw.reconciliation.path,
+            expectedReconciliationDigest: raw.reconciliation.digest,
+            styleId: raw.productionContext!.styleId,
+            styleAuthorityPath: raw.productionContext!.styleAuthorityPath,
+            expectedStyleAuthorityDigest:
+              raw.productionContext!.styleAuthorityDigest,
+          })
+        : buildProductionAuthoringContext({
         repoRoot: args.repoRoot,
         storyKey: raw.source.storyKey,
         storyPath: raw.source.storyPath,
@@ -2917,7 +3187,7 @@ export function loadQaWizardCandidateBridgeManifest(args: {
         styleAuthorityPath: raw.productionContext!.styleAuthorityPath,
         expectedStyleAuthorityDigest:
           raw.productionContext!.styleAuthorityDigest,
-      });
+          });
       const expectedReviewBundle = buildReconciliationReviewBundle({
         reconciliation: context.reconciliation.content,
         sourceIdentity: context.sourceSnapshot.identity,
@@ -3051,18 +3321,31 @@ export function loadQaWizardApprovedProductionContext(args: {
     relativePath: manifest.productionContext.styleAuthorityPath,
     label: 'approved production style authority',
   });
-  const context = buildProductionAuthoringContext({
-    repoRoot: args.repoRoot,
-    storyKey: manifest.source.storyKey,
-    storyPath: manifest.source.storyPath,
-    templatePath: manifest.visualContract.templatePath,
-    reconciliationPath: manifest.reconciliation.path,
-    candidatePath: manifest.visualContract.candidatePath,
-    styleId: manifest.productionContext.styleId,
-    styleAuthorityPath: manifest.productionContext.styleAuthorityPath,
-    expectedStyleAuthorityDigest:
-      manifest.productionContext.styleAuthorityDigest,
-  });
+  const context = manifest.candidateCorrection
+    ? buildProductionAuthoringContextFromApprovedReconciliation({
+        repoRoot: args.repoRoot,
+        storyKey: manifest.source.storyKey,
+        storyPath: manifest.source.storyPath,
+        templatePath: manifest.visualContract.templatePath,
+        reconciliationPath: manifest.reconciliation.path,
+        expectedReconciliationDigest: manifest.reconciliation.digest,
+        styleId: manifest.productionContext.styleId,
+        styleAuthorityPath: manifest.productionContext.styleAuthorityPath,
+        expectedStyleAuthorityDigest:
+          manifest.productionContext.styleAuthorityDigest,
+      })
+    : buildProductionAuthoringContext({
+        repoRoot: args.repoRoot,
+        storyKey: manifest.source.storyKey,
+        storyPath: manifest.source.storyPath,
+        templatePath: manifest.visualContract.templatePath,
+        reconciliationPath: manifest.reconciliation.path,
+        candidatePath: manifest.visualContract.candidatePath,
+        styleId: manifest.productionContext.styleId,
+        styleAuthorityPath: manifest.productionContext.styleAuthorityPath,
+        expectedStyleAuthorityDigest:
+          manifest.productionContext.styleAuthorityDigest,
+      });
   if (
     context.version !== manifest.productionContext.version ||
     context.digest !== manifest.productionContext.digest ||
@@ -3242,8 +3525,12 @@ function assertCandidateValidationAttestationBindings(args: {
   }
 }
 
-export function prepareQaWizardCandidateReconciliation(
+function prepareQaWizardCandidateReconciliationInternal(
   args: PrepareQaWizardCandidateReconciliationRequest,
+  options: {
+    candidateCorrectionApprovalPath?: string;
+    historicalConsumerAuthority?: boolean;
+  } = {},
 ): {
   manifest: QaWizardCandidateBridgeManifest;
   manifestArtifact: QaWizardCandidateBridgeArtifactWrite;
@@ -3265,6 +3552,12 @@ export function prepareQaWizardCandidateReconciliation(
     ['canonical Supervisor execution request', args.supervisorExecutionRequestPath],
     ['canonical Supervisor execution result', args.supervisorExecutionResultPath],
     ['candidate validation attestation', args.candidateValidationAttestationPath],
+    ...(options.candidateCorrectionApprovalPath
+      ? [[
+          'candidate cover correction approval',
+          options.candidateCorrectionApprovalPath,
+        ] as const]
+      : []),
   ] as const) {
     resolveExistingContainedArtifact({
       repoRoot: args.repoRoot,
@@ -3276,7 +3569,7 @@ export function prepareQaWizardCandidateReconciliation(
     repoRoot: args.repoRoot,
     attestationPath: args.candidateValidationAttestationPath,
   });
-  const supervisor = loadCanonicalSupervisorAuthority({
+  const supervisorArgs = {
     repoRoot: args.repoRoot,
     freshReadinessPath: args.freshReadinessPath,
     executionRequestPath: args.supervisorExecutionRequestPath,
@@ -3285,8 +3578,13 @@ export function prepareQaWizardCandidateReconciliation(
     authoringReceiptPath: args.authoringReceiptPath,
     authoringReadinessPath: args.authoringReadinessPath,
     candidatePath: args.candidatePath,
-    consumerAuthority: candidateValidation.consumer,
-  });
+  };
+  const supervisor = options.historicalConsumerAuthority === true
+    ? loadCanonicalSupervisorArtifacts(supervisorArgs)
+    : loadCanonicalSupervisorAuthority({
+        ...supervisorArgs,
+        consumerAuthority: candidateValidation.consumer,
+      });
   const snapshot = buildStorySourceAuthoritySnapshot({
     repoRoot: args.repoRoot,
     storyKey: args.storyKey,
@@ -3303,11 +3601,56 @@ export function prepareQaWizardCandidateReconciliation(
     'Visual Contract candidate',
   ) as unknown as VisualContractCandidateArtifact;
   assertVisualContractCandidateForReconciliation({ snapshot, candidate });
-  const bundle =
-    buildProductionReconciliationDraftFromVisualContractCandidate({
-      snapshot,
-      candidate,
-    });
+  const approvedCorrection = options.candidateCorrectionApprovalPath
+    ? loadApprovedCandidateCoverCorrection({
+        repoRoot: args.repoRoot,
+        approvalPath: options.candidateCorrectionApprovalPath,
+      })
+    : null;
+  if (
+    approvedCorrection &&
+    (approvedCorrection.approval.subject.storyKey !== args.storyKey ||
+      approvedCorrection.approval.subject.storyPath !== args.storyPath ||
+      approvedCorrection.approval.subject.sourceSnapshotDigest !==
+        snapshot.digest ||
+      approvedCorrection.approval.subject.candidateDigest !== candidate.digest ||
+      approvedCorrection.approval.subject.candidatePath !== args.candidatePath ||
+      approvedCorrection.approval.subject
+        .candidateValidationAttestationDigest !== candidateValidation.digest ||
+      approvedCorrection.approval.subject
+        .candidateValidationAttestationPath !==
+        args.candidateValidationAttestationPath ||
+      approvedCorrection.approval.subject.templateDigest !==
+        candidate.templateDigest ||
+      approvedCorrection.packet.correction.original.templateDigest !==
+        candidate.templateDigest ||
+      approvedCorrection.packet.correction.original
+        .actionSemanticCoverageDigest !==
+        candidate.actionSemanticCoverageDigest ||
+      approvedCorrection.packet.correction.effective
+        .actionSemanticCoverageDigest !==
+        candidate.actionSemanticCoverageDigest)
+  ) {
+    throw new Error(
+      'approved Candidate cover correction is stale or cross-bound',
+    );
+  }
+  const effectiveTemplate = approvedCorrection
+    ? approvedCorrection.packet.correction.effective.template
+    : candidate.template;
+  const effectiveTemplateDigest = approvedCorrection
+    ? approvedCorrection.packet.correction.effective.templateDigest
+    : candidate.templateDigest;
+  const bundle = approvedCorrection
+    ? buildProductionReconciliationDraftFromSourceSnapshot({
+        snapshot,
+        template: effectiveTemplate,
+        actionSemanticCoverage: candidate.actionSemanticCoverage,
+      })
+    : buildProductionReconciliationDraftFromVisualContractCandidate({
+        snapshot,
+        candidate,
+      });
   const request = loadCanonicalRequest({
     repoRoot: args.repoRoot,
     requestPath: args.authoringRequestPath,
@@ -3463,27 +3806,37 @@ export function prepareQaWizardCandidateReconciliation(
     });
   }
 
-  const templateProjectionArtifact = persistCandidateTemplateProjection({
-    repoRoot: args.repoRoot,
-    outputDir: args.outputDir,
-    candidate,
-    write: args.write === true,
-  });
+  const templateProjectionArtifact = approvedCorrection
+    ? persistEffectiveTemplateProjection({
+        repoRoot: args.repoRoot,
+        outputDir: args.outputDir,
+        template: effectiveTemplate,
+        templateDigest: effectiveTemplateDigest,
+        write: args.write === true,
+      })
+    : persistCandidateTemplateProjection({
+        repoRoot: args.repoRoot,
+        outputDir: args.outputDir,
+        candidate,
+        write: args.write === true,
+      });
   if (args.write === true) {
-    loadAndValidateCandidateTemplateProjection({
-      repoRoot: args.repoRoot,
-      bridgeOutputDir: repoRelativePath(
-        args.repoRoot,
-        path.resolve(args.repoRoot, args.outputDir),
-      ),
-      storyKey: args.storyKey,
-      storyPath: args.storyPath,
-      candidatePath: args.candidatePath,
-      templatePath: templateProjectionArtifact.path,
-      expectedCandidateDigest: candidate.digest,
-      expectedTemplateDigest: candidate.templateDigest,
-      expectedTemplateSchemaVersion: candidate.template.schemaVersion,
-    });
+    if (!approvedCorrection) {
+      loadAndValidateCandidateTemplateProjection({
+        repoRoot: args.repoRoot,
+        bridgeOutputDir: repoRelativePath(
+          args.repoRoot,
+          path.resolve(args.repoRoot, args.outputDir),
+        ),
+        storyKey: args.storyKey,
+        storyPath: args.storyPath,
+        candidatePath: args.candidatePath,
+        templatePath: templateProjectionArtifact.path,
+        expectedCandidateDigest: candidate.digest,
+        expectedTemplateDigest: candidate.templateDigest,
+        expectedTemplateSchemaVersion: candidate.template.schemaVersion,
+      });
+    }
   }
 
   const sourceSnapshotArtifact = persistStorySourceAuthoritySnapshot({
@@ -3555,8 +3908,8 @@ export function prepareQaWizardCandidateReconciliation(
         args.repoRoot,
         resolveRepoPath(args.repoRoot, args.candidatePath),
       ),
-      templateSchemaVersion: candidate.template.schemaVersion,
-      templateDigest: candidate.templateDigest,
+      templateSchemaVersion: effectiveTemplate.schemaVersion,
+      templateDigest: effectiveTemplateDigest,
       templatePath: templateProjectionArtifact.path,
       receiptVersion: receipt.version,
       receiptDigest: receipt.digest,
@@ -3583,6 +3936,24 @@ export function prepareQaWizardCandidateReconciliation(
         resolveRepoPath(args.repoRoot, args.candidateValidationAttestationPath),
       ),
     },
+    candidateCorrection: approvedCorrection
+      ? {
+          approvalVersion: approvedCorrection.approval.version,
+          approvalDigest: approvedCorrection.approval.digest,
+          approvalPath: repoRelativePath(
+            args.repoRoot,
+            resolveRepoPath(
+              args.repoRoot,
+              options.candidateCorrectionApprovalPath!,
+            ),
+          ),
+          correctionVersion: approvedCorrection.packet.correction.version,
+          correctionDigest: approvedCorrection.packet.correction.digest,
+          correctionPath: approvedCorrection.approval.correction.path,
+          originalTemplateDigest: candidate.templateDigest,
+          effectiveTemplateDigest,
+        }
+      : null,
     reconciliation: {
       version: bundle.reconciliation.version,
       digest: bundle.reviewBundle.reconciliationDigest,
@@ -3620,6 +3991,25 @@ export function prepareQaWizardCandidateReconciliation(
     templateProjectionArtifact,
     reconciliationArtifacts,
   };
+}
+
+export function prepareQaWizardCandidateReconciliation(
+  args: PrepareQaWizardCandidateReconciliationRequest,
+) {
+  return prepareQaWizardCandidateReconciliationInternal(args);
+}
+
+export function prepareQaWizardCorrectedCandidateReconciliation(
+  args: PrepareQaWizardCorrectedCandidateReconciliationRequest,
+) {
+  const {
+    candidateCorrectionApprovalPath,
+    ...baseArgs
+  } = args;
+  return prepareQaWizardCandidateReconciliationInternal(baseArgs, {
+    candidateCorrectionApprovalPath,
+    historicalConsumerAuthority: true,
+  });
 }
 
 export function advanceQaWizardApprovedReconciliation(
@@ -3663,13 +4053,12 @@ export function advanceQaWizardApprovedReconciliation(
       label,
     });
   }
-  const context = buildProductionAuthoringContext({
+  const contextArgs = {
     repoRoot: args.repoRoot,
     storyKey: previous.source.storyKey,
     storyPath: previous.source.storyPath,
     templatePath: previous.visualContract.templatePath,
     reconciliationPath: args.approvedReconciliationPath,
-    candidatePath: previous.visualContract.candidatePath,
     styleId: args.styleId,
     styleAuthorityPath: args.styleAuthorityPath,
     ...(args.expectedStyleAuthorityDigest
@@ -3678,7 +4067,21 @@ export function advanceQaWizardApprovedReconciliation(
             args.expectedStyleAuthorityDigest,
         }
       : {}),
-  });
+  };
+  const context = previous.candidateCorrection
+    ? buildProductionAuthoringContextFromApprovedReconciliation({
+        ...contextArgs,
+        expectedReconciliationDigest: canonicalJsonDigest(
+          readJsonObject(
+            resolveRepoPath(args.repoRoot, args.approvedReconciliationPath),
+            'approved reconciliation',
+          ),
+        ),
+      })
+    : buildProductionAuthoringContext({
+        ...contextArgs,
+        candidatePath: previous.visualContract.candidatePath,
+      });
   if (
     context.reconciliation.content.review.status !== 'approved' ||
     context.reconciliation.content.review.reviewedBy !== 'Guy' ||

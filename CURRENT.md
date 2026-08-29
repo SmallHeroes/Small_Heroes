@@ -4,7 +4,53 @@
 **Maintainer:** Codex (Technical Owner; Claude Code independent QA pending while Claude is paused)
 **Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..608aeee0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`, `d1b320e1`, `608aeee0`), the round-9 corrective `96a50252` (docs `8c7474bc`), and the round-10 corrective `17670078` (immutable code range `8c7474bc..17670078`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
-## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN PACKAGE CHAIN STOPPED AT THE PAID-ATTEMPT FENCE
+## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN CORRECTED BRIDGE PENDING EXACT RECONCILIATION CONTENT
+
+### Round 15 — corrected Candidate bridge v5 implemented; exact reconciliation content remains pending
+
+The approved cover correction is now consumable without mutating or
+impersonating the receipt-bound Candidate. Bridge manifest v5 adds one closed
+`candidateCorrection` binding: ordinary Candidates carry exact `null`;
+corrected Candidates bind the immutable Guy approval, correction artifact,
+original template digest and effective template digest. The Candidate digest,
+authoring receipt and Action Semantic Coverage remain the original provider
+provenance; reconciliation, reviewer authoring and Production Context use the
+approved effective template. v4–v1 remain read-only and load without upgrade.
+
+The real offline bridge was written and replayed at
+`outputs/r1d-lantern-fresh-readiness-20260829T155643118Z/corrected-bridge`:
+
+- pending manifest `2d7e576a1fc3d00f9374c4ec35e0948e4f5b4005435ff367747b531e1cecd266`;
+- effective template `2fe93bc90140dd4d6529262b361d86a4409f93f30a8cfad52b035176d7ea1c0d`;
+- pending reconciliation `459845334a2e45357afaf5333efa8ce0569f8ca0a1fa8e8765d39ce186cb5f2e`;
+- pending review bundle `14816960d3205c33cdb465d0c0f7395240b312c6a3dbc024ba968f75744d9f7b`;
+- original Candidate `6f52a3181aad5e96304775e5f2b6462cfaf3261d9c11325f121992dff7b481e0`
+  and Coverage `20c4c1786b201cf791d51c074321b21465c58937b79ead3fd464236988d9077e`
+  unchanged.
+
+Preview, first immutable write and replay write resolve the same bytes; the
+replay reports `created:false`. A hermetic hostile regression moves the clean
+pushed consumer HEAD after Candidate attestation: the ordinary bridge rejects
+the stale consumer while the correction-approved historical bridge succeeds,
+reloads, authors reviewer evidence from the effective template, records a
+temporary exact approval, advances to `reconciliation_approved`, and reloads
+the same Production Context. Candidate bytes remain unchanged throughout.
+
+Validation: correction + Blueprint + package 53/53; corrected bridge and
+v4–v1 compatibility cells 2/2; the complete bridge file passed 14/14 in the
+repository resource partition. Literal `npm run check` remains honestly red:
+ordinary 4,039 pass / 73 skip / the same nine missing ignored-`outputs/`
+fixtures in five unchanged files; resource 628 pass plus four Git-heavy cells
+that crossed fixed five-second timeouts and emitted the known `onTaskUpdate`
+RPC classification. All four re-passed in isolation with one worker and a
+ten-second test allowance (measured 4.872–5.966s). Both TypeScript projects and
+`git diff --check` are clean. Provider/image/audio/network/database/Production
+operations: zero.
+
+This milestone does **not** approve the pending reconciliation and does not
+authorize Blueprint/package approval, Wizard qualification, provider calls or
+render. Next: finish the exact reviewer-decision packet, local green commit,
+then independent Claude Code QA when Claude resumes.
 
 ### Round 14 — exact Candidate cover correction approved; corrected bridge remains next
 

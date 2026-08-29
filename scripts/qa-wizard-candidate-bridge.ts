@@ -5,11 +5,13 @@ import {
   attestQaWizardCandidateValidation,
   captureQaWizardCanonicalSupervisorResultEvidence,
   prepareQaWizardCandidateReconciliation,
+  prepareQaWizardCorrectedCandidateReconciliation,
   recordQaWizardReconciliationApproval,
   type AdvanceQaWizardApprovedReconciliationRequest,
   type AttestQaWizardCandidateValidationRequest,
   type CaptureQaWizardCanonicalSupervisorResultRequest,
   type PrepareQaWizardCandidateReconciliationRequest,
+  type PrepareQaWizardCorrectedCandidateReconciliationRequest,
   type RecordQaWizardReconciliationApprovalRequest,
 } from '@/lib/visual-package/qaWizardCandidateBridge';
 import {
@@ -21,6 +23,10 @@ import {
 
 type PrepareRequest = Omit<
   PrepareQaWizardCandidateReconciliationRequest,
+  'outputDir' | 'write'
+>;
+type PrepareCorrectedRequest = Omit<
+  PrepareQaWizardCorrectedCandidateReconciliationRequest,
   'outputDir' | 'write'
 >;
 type AdvanceRequest = Omit<
@@ -56,6 +62,7 @@ function usage(): string {
     '  capture-supervisor-result --request <json> --out <repo-relative-dir> --write true|false',
     '  attest-candidate-validation --request <json> --out <repo-relative-dir> --write true|false',
     '  prepare-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
+    '  prepare-corrected-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
     '  prepare-reviewed-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
     '  approve-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
     '  approve-reviewed-reconciliation --request <json> --out <repo-relative-dir> --write true|false',
@@ -228,6 +235,45 @@ function execute(command: string, tokens: string[]): void {
       status: write
         ? 'awaiting_exact_reconciliation_content'
         : 'reconciliation_content_preview_ready',
+      localImmutableWriteRequested: write,
+      manifest: result.manifest,
+      manifestArtifact: result.manifestArtifact,
+      sourceSnapshotArtifact: result.sourceSnapshotArtifact,
+      reconciliationArtifacts: result.reconciliationArtifacts,
+      bridgeBoundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        productionWrites: 0,
+      },
+    });
+    return;
+  }
+  if (command === 'prepare-corrected-reconciliation') {
+    const result = prepareQaWizardCorrectedCandidateReconciliation({
+      ...readRequest<PrepareCorrectedRequest>(requestPath, [
+        'repoRoot',
+        'storyKey',
+        'storyPath',
+        'candidatePath',
+        'authoringRequestPath',
+        'authoringReceiptPath',
+        'authoringReadinessPath',
+        'freshReadinessPath',
+        'supervisorExecutionRequestPath',
+        'supervisorExecutionResultPath',
+        'candidateValidationAttestationPath',
+        'candidateCorrectionApprovalPath',
+      ]),
+      outputDir,
+      write,
+    });
+    output({
+      status: write
+        ? 'awaiting_exact_corrected_reconciliation_content'
+        : 'corrected_reconciliation_content_preview_ready',
       localImmutableWriteRequested: write,
       manifest: result.manifest,
       manifestArtifact: result.manifestArtifact,

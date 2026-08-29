@@ -10,6 +10,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+  QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION,
+  QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V4,
   QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION,
   QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V2,
   QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1,
@@ -37,6 +39,7 @@ import {
   persistVisualContractCandidate,
   prepareCanonicalPreLiveReadiness,
   prepareQaWizardCandidateReconciliation,
+  prepareQaWizardCorrectedCandidateReconciliation,
   prepareQaWizardReviewedReconciliation,
   projectLegacySourcePromptReconciliationV2,
   qaWizardCandidateBridgeManifestIsValid,
@@ -64,6 +67,12 @@ import {
   type OpenAIResponsesAuthoringTransport,
 } from '@/lib/visual-package/openaiResponsesVisualContractAuthoringAdapter';
 import {
+  prepareCandidateCoverCorrection,
+  recordCandidateCoverCorrectionApproval,
+  type CoverVisibleRecurringPropOperation,
+} from '@/lib/visual-package/visualContractCandidateCoverCorrection';
+import {
+  projectCoverMustNotShow,
   projectPageMustShow,
   type BookVisualContract,
   type BookVisualContractTemplate,
@@ -217,6 +226,7 @@ function fullyActionedDraft(
   snapshot: StorySourceAuthoritySnapshot,
   includePresentationRequirements = false,
   includeNonVisualCoverage = false,
+  includeCoverConflict = false,
 ): BookVisualContractTemplate & Record<string, unknown> {
   const draft = JSON.parse(
     fs.readFileSync(
@@ -291,6 +301,24 @@ function fullyActionedDraft(
       ]),
     ];
   }
+  if (includeCoverConflict) {
+    const prop = draft.recurringProps.find(
+      (candidate) => candidate.id === 'wall_stickers',
+    );
+    if (!prop) throw new Error('fixture cover-conflict prop is missing');
+    prop.firstRevealPage = 1;
+    draft.coverContract.mustShow.push(
+      'the colourful animal sticker wall clearly visible behind the child',
+    );
+    const [noSpoiler] = projectCoverMustNotShow({
+      ...draft,
+      recurringProps: [prop],
+    } as unknown as BookVisualContract);
+    if (!noSpoiler) {
+      throw new Error('fixture cover-conflict projection is missing');
+    }
+    draft.coverContract.mustNotShow.push(noSpoiler);
+  }
   return draft;
 }
 
@@ -298,11 +326,13 @@ function fullyActionedProviderWireDraft(
   snapshot: StorySourceAuthoritySnapshot,
   includePresentationRequirements = false,
   includeNonVisualCoverage = false,
+  includeCoverConflict = false,
 ): Record<string, unknown> {
   const finalDraft = fullyActionedDraft(
     snapshot,
     includePresentationRequirements,
     includeNonVisualCoverage,
+    includeCoverConflict,
   );
   finalDraft.coverContract.zoneId = finalDraft.pageContracts[0]!.zoneId;
   finalDraft.coverContract.castIds = [
@@ -472,6 +502,7 @@ function persistLegacyBridgeManifest(args: {
   const manifest = structuredClone(args.source);
   manifest.version =
     args.version ?? QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V1;
+  delete manifest.candidateCorrection;
   if (
     manifest.version !== QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION
   ) {
@@ -564,6 +595,7 @@ async function materializeCanonicalCandidate(
     supervisedAuthoring?: boolean;
     includePresentationRequirements?: boolean;
     includeNonVisualCoverage?: boolean;
+    includeCoverConflict?: boolean;
   } = {},
 ): Promise<CanonicalCandidateFixture> {
   const parent = tempRoot();
@@ -596,7 +628,12 @@ async function materializeCanonicalCandidate(
     request: provisionalRequest,
     snapshot: provisionalSnapshot,
     provider: canonicalProvider(
-      fullyActionedProviderWireDraft(provisionalSnapshot),
+      fullyActionedProviderWireDraft(
+        provisionalSnapshot,
+        false,
+        false,
+        options.includeCoverConflict === true,
+      ),
     ),
     requiredMode: 'live',
     requiredProviderEvidenceVersion:
@@ -665,6 +702,7 @@ async function materializeCanonicalCandidate(
           snapshot,
           options.includePresentationRequirements === true,
           options.includeNonVisualCoverage === true,
+          options.includeCoverConflict === true,
         ),
       ),
       requiredMode: 'live',
@@ -1424,7 +1462,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
       write: true,
     });
     expect(prepared.manifest.version).toBe(
-      'qa-wizard-candidate-bridge-manifest/v4',
+      'qa-wizard-candidate-bridge-manifest/v5',
     );
     expect(prepared.manifest.candidateValidation).toEqual({
       version: current.attestation.version,
@@ -1780,7 +1818,7 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     expect(JSON.parse(cliResult.stdout)).toMatchObject({
       status: 'awaiting_exact_reconciliation_content',
       manifest: {
-        version: 'qa-wizard-candidate-bridge-manifest/v4',
+          version: 'qa-wizard-candidate-bridge-manifest/v5',
         visualContract: {
           templatePath:
             `outputs/bridge-cli/candidate-template-projections/${candidate.templateDigest}.json`,
@@ -1979,12 +2017,328 @@ describe('QA Wizard real-candidate reconciliation bridge', () => {
     ).toThrow(/immutable|already exists|collision/i);
   }, 30_000);
 
-  it('replays exact legacy v3, v2, and v1 pending and approved manifests read-only without upgrading them', async () => {
+  it('bridges an exact approved Candidate correction without mutating Candidate provenance or trusting the current consumer HEAD', async () => {
+    const fixture = await materializeCanonicalCandidate({
+      includeCoverConflict: true,
+    });
+    const candidateAbsolute = path.join(
+      fixture.repoRoot,
+      fixture.candidatePath,
+    );
+    const candidateBytes = fs.readFileSync(candidateAbsolute, 'utf8');
+    const candidate = JSON.parse(candidateBytes) as VisualContractCandidateArtifact;
+    const prop = candidate.template.recurringProps.find(
+      (entry) => entry.id === 'wall_stickers',
+    );
+    const expectedCoverMustShowValue =
+      'the colourful animal sticker wall clearly visible behind the child';
+    if (!prop || prop.firstRevealPage !== 1) {
+      throw new Error('fixture Candidate cover lifecycle conflict is missing');
+    }
+    const [expectedCoverMustNotShowValue] = projectCoverMustNotShow({
+      ...candidate.template,
+      recurringProps: [prop],
+    } as unknown as BookVisualContract);
+    if (!expectedCoverMustNotShowValue) {
+      throw new Error('fixture Candidate no-spoiler projection is missing');
+    }
+    const operation: CoverVisibleRecurringPropOperation = {
+      kind: 'cover_visible_recurring_prop',
+      propId: prop.id,
+      expectedFirstRevealPage: 1,
+      expectedCoverMustShowIndex:
+        candidate.template.coverContract.mustShow.indexOf(
+          expectedCoverMustShowValue,
+        ),
+      expectedCoverMustShowValue,
+      expectedCoverMustNotShowIndex:
+        candidate.template.coverContract.mustNotShow.indexOf(
+          expectedCoverMustNotShowValue,
+        ),
+      expectedCoverMustNotShowValue,
+      decisionBasis: 'cover_hero_object_intentionally_visible',
+    };
+    expect(operation.expectedCoverMustShowIndex).toBeGreaterThanOrEqual(0);
+    expect(operation.expectedCoverMustNotShowIndex).toBeGreaterThanOrEqual(0);
+
+    const correctionPacket = prepareCandidateCoverCorrection({
+      repoRoot: fixture.repoRoot,
+      outputDir: 'outputs/corrected-candidate',
+      storyKey: STORY_KEY,
+      storyPath: fixture.storyPath,
+      candidatePath: fixture.candidatePath,
+      candidateValidationAttestationPath:
+        fixture.candidateValidationAttestationPath,
+      operations: [operation],
+      write: true,
+    });
+    const approvedCorrection = recordCandidateCoverCorrectionApproval({
+      repoRoot: fixture.repoRoot,
+      outputDir: 'outputs/corrected-candidate',
+      planPath: correctionPacket.artifacts.plan.path,
+      correctionPath: correctionPacket.artifacts.correction.path,
+      reviewPath: correctionPacket.artifacts.review.path,
+      reviewMarkdownPath: correctionPacket.artifacts.markdown.path,
+      approvedBy: 'Guy',
+      approvedAt: APPROVED_AT,
+      write: true,
+    });
+    expect(fs.readFileSync(candidateAbsolute, 'utf8')).toBe(candidateBytes);
+    expect(
+      approvedCorrection.packet.correction.effective.template.coverContract
+        .mustShow,
+    ).toEqual(candidate.template.coverContract.mustShow);
+    expect(
+      approvedCorrection.packet.correction.effective.template.coverContract
+        .mustNotShow,
+    ).not.toContain(expectedCoverMustNotShowValue);
+    expect(
+      approvedCorrection.packet.correction.effective.template.recurringProps
+        .find((entry) => entry.id === prop.id),
+    ).not.toHaveProperty('firstRevealPage');
+
+    writeText(
+      fixture.repoRoot,
+      'post-candidate-correction-consumer.txt',
+      'later consumer implementation\n',
+    );
+    git(fixture.repoRoot, ['add', 'post-candidate-correction-consumer.txt']);
+    git(fixture.repoRoot, ['commit', '-m', 'advance after Candidate correction']);
+    git(fixture.repoRoot, ['push']);
+    expect(() =>
+      prepareQaWizardCandidateReconciliation({
+        ...prepareArgs(fixture, 'outputs/ordinary-stale-bridge'),
+        write: false,
+      }),
+    ).toThrow(/candidate_validation_consumer_head_stale/);
+
+    const correctedArgs = {
+      ...prepareArgs(fixture, 'outputs/corrected-bridge'),
+      candidateCorrectionApprovalPath: approvedCorrection.artifact.path,
+    };
+    const preview = prepareQaWizardCorrectedCandidateReconciliation({
+      ...correctedArgs,
+      write: false,
+    });
+    const written = prepareQaWizardCorrectedCandidateReconciliation({
+      ...correctedArgs,
+      write: true,
+    });
+    expect(written.manifest).toEqual(preview.manifest);
+    expect(written.manifest.version).toBe(
+      QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION,
+    );
+    expect(written.manifest.visualContract.candidateDigest).toBe(
+      candidate.digest,
+    );
+    expect(written.manifest.visualContract.templateDigest).toBe(
+      approvedCorrection.packet.correction.effective.templateDigest,
+    );
+    expect(written.manifest.visualContract.actionSemanticCoverageDigest).toBe(
+      candidate.actionSemanticCoverageDigest,
+    );
+    expect(written.manifest.candidateCorrection).toMatchObject({
+      approvalDigest: approvedCorrection.approval.digest,
+      correctionDigest: approvedCorrection.packet.correction.digest,
+      originalTemplateDigest: candidate.templateDigest,
+      effectiveTemplateDigest:
+        approvedCorrection.packet.correction.effective.templateDigest,
+    });
+    expect(
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: written.manifestArtifact.path,
+      }),
+    ).toEqual(written.manifest);
+    expect(fs.readFileSync(candidateAbsolute, 'utf8')).toBe(candidateBytes);
+
+    const {
+      outputDir: _correctedCliOutputDir,
+      ...correctedCliRequest
+    } = correctedArgs;
+    const correctedCliRequestPath =
+      'outputs/corrected-bridge-cli-request.json';
+    writeJson(fixture.repoRoot, correctedCliRequestPath, correctedCliRequest);
+    const correctedCli = spawnSync(
+      process.execPath,
+      [
+        path.join(process.cwd(), 'node_modules', 'tsx', 'dist', 'cli.mjs'),
+        '--require',
+        path.join(
+          process.cwd(),
+          'scripts',
+          'shims',
+          'register-server-only.cjs',
+        ),
+        path.join(process.cwd(), 'scripts', 'qa-wizard-candidate-bridge.ts'),
+        'prepare-corrected-reconciliation',
+        '--request',
+        path.join(fixture.repoRoot, correctedCliRequestPath),
+        '--out',
+        'outputs/corrected-bridge-cli',
+        '--write',
+        'false',
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        shell: false,
+        windowsHide: true,
+      },
+    );
+    expect(correctedCli.status).toBe(0);
+    expect(JSON.parse(correctedCli.stdout)).toMatchObject({
+      status: 'corrected_reconciliation_content_preview_ready',
+      manifest: {
+        version: QA_WIZARD_CANDIDATE_BRIDGE_MANIFEST_VERSION,
+        visualContract: {
+          candidateDigest: candidate.digest,
+          templateDigest:
+            approvedCorrection.packet.correction.effective.templateDigest,
+        },
+        candidateCorrection: {
+          approvalDigest: approvedCorrection.approval.digest,
+          originalTemplateDigest: candidate.templateDigest,
+        },
+      },
+      bridgeBoundaryEvidence: {
+        credentialAccess: 'none',
+        providerCalls: 0,
+        imageCalls: 0,
+        networkCalls: 0,
+        databaseWrites: 0,
+        productionWrites: 0,
+      },
+    });
+
+    const pending = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          fixture.repoRoot,
+          written.reconciliationArtifacts.reconciliationPath,
+        ),
+        'utf8',
+      ),
+    ) as SourcePromptReconciliation;
+    const decisionsPath = 'outputs/corrected-reviewer-decisions.json';
+    writeJson(
+      fixture.repoRoot,
+      decisionsPath,
+      reviewerDecisionsForPending({ pending, candidate }),
+    );
+    const reviewed = prepareQaWizardReviewedReconciliation({
+      repoRoot: fixture.repoRoot,
+      outputDir: 'outputs/corrected-bridge',
+      bridgeManifestPath: written.manifestArtifact.path,
+      reviewerDecisionsPath: decisionsPath,
+      write: true,
+    });
+    expect(reviewed.reviewerPlan.templateDigest).toBe(
+      approvedCorrection.packet.correction.effective.templateDigest,
+    );
+    expect(reviewed.reviewerPlan.candidateDigest).toBe(candidate.digest);
+    expect(fs.readFileSync(candidateAbsolute, 'utf8')).toBe(candidateBytes);
+
+    const approved = buildApprovedArtifacts({
+      fixture,
+      prepared: written,
+      outputDir: 'outputs/corrected-bridge',
+    });
+    const directApprovalPreview = recordQaWizardReconciliationApproval({
+      repoRoot: fixture.repoRoot,
+      outputDir: 'outputs/corrected-bridge',
+      pendingManifestPath: written.manifestArtifact.path,
+      approvedReconciliationPath:
+        approved.artifacts.reconciliationPath,
+      approvedReviewBundlePath: approved.artifacts.reviewBundlePath,
+      approvedReviewMarkdownPath: approved.artifacts.markdownPath,
+      approvedBy: 'Guy',
+      approvedAt: APPROVED_AT,
+      write: false,
+    });
+    expect(directApprovalPreview.artifact.created).toBe(false);
+    const approval = recordQaWizardReviewedReconciliationApproval({
+      repoRoot: fixture.repoRoot,
+      outputDir: 'outputs/corrected-bridge',
+      authoringManifestPath: reviewed.artifacts.manifest.path,
+      approvedBy: 'Guy',
+      approvedAt: APPROVED_AT,
+      write: true,
+    });
+    const advanced = advanceQaWizardApprovedReconciliation({
+      repoRoot: fixture.repoRoot,
+      outputDir: 'outputs/corrected-bridge',
+      bridgeManifestPath: written.manifestArtifact.path,
+      approvedReconciliationPath:
+        approval.approvedReconciliationArtifacts.reconciliationPath,
+      approvedReviewBundlePath:
+        approval.approvedReconciliationArtifacts.reviewBundlePath,
+      approvedReviewMarkdownPath:
+        approval.approvedReconciliationArtifacts.markdownPath,
+      approvalAttestationPath: approval.approvalArtifact.path,
+      styleId: STYLE_ID,
+      styleAuthorityPath: STYLE01_PRODUCTION_STYLE_AUTHORITY_PATH,
+      write: true,
+    });
+    expect(advanced.manifest.stage).toBe('reconciliation_approved');
+    expect(advanced.context.template.identity.digest).toBe(
+      approvedCorrection.packet.correction.effective.templateDigest,
+    );
+    expect(advanced.context.reconciliation.content.review).toMatchObject({
+      status: 'approved',
+      reviewedBy: 'Guy',
+      reviewedAt: APPROVED_AT,
+    });
+    expect(
+      loadQaWizardApprovedProductionContext({
+        repoRoot: fixture.repoRoot,
+        bridgeManifestPath: advanced.manifestArtifact.path,
+      }).context.digest,
+    ).toBe(advanced.context.digest);
+    expect(fs.readFileSync(candidateAbsolute, 'utf8')).toBe(candidateBytes);
+  }, 30_000);
+
+  it('replays exact legacy v4, v3, v2, and v1 pending and approved manifests read-only without upgrading them', async () => {
     const fixture = await materializeCanonicalCandidate();
     const prepared = prepareQaWizardCandidateReconciliation({
       ...prepareArgs(fixture),
       write: true,
     });
+    const legacyV4Manifest = structuredClone(prepared.manifest);
+    legacyV4Manifest.version =
+      QA_WIZARD_CANDIDATE_BRIDGE_LEGACY_MANIFEST_VERSION_V4;
+    delete legacyV4Manifest.candidateCorrection;
+    const {
+      digestAlgorithm: _legacyV4DigestAlgorithm,
+      digest: _legacyV4Digest,
+      ...legacyV4Payload
+    } = legacyV4Manifest;
+    legacyV4Manifest.digest = canonicalJsonDigest(legacyV4Payload);
+    const legacyV4Path =
+      `outputs/bridge/bridge-manifests/${legacyV4Manifest.digest}.json`;
+    writeText(
+      fixture.repoRoot,
+      legacyV4Path,
+      canonicalContentAddressedJsonBytes(legacyV4Manifest),
+    );
+    expect(
+      loadQaWizardCandidateBridgeManifest({
+        repoRoot: fixture.repoRoot,
+        manifestPath: legacyV4Path,
+      }),
+    ).toEqual(legacyV4Manifest);
+    expect(() =>
+      recordQaWizardReconciliationApproval({
+        repoRoot: fixture.repoRoot,
+        outputDir: 'outputs/bridge',
+        pendingManifestPath: legacyV4Path,
+        approvedReconciliationPath: 'outputs/missing/reconciliation.json',
+        approvedReviewBundlePath: 'outputs/missing/review.json',
+        approvedReviewMarkdownPath: 'outputs/missing/review.md',
+        approvedBy: 'Guy',
+        approvedAt: APPROVED_AT,
+      }),
+    ).toThrow(/read-only/i);
     const legacyV2Pending = persistLegacyBridgeManifest({
       repoRoot: fixture.repoRoot,
       source: prepared.manifest,

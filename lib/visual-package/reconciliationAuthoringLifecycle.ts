@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { ActionSemanticCoverageRecord } from '@/lib/visual-contract-compiler/actionSemanticCoverage';
+import type { BookVisualContractTemplate } from '@/lib/visual-contract-compiler';
 
 import {
   buildQaWizardReconciliationApprovalAttestation,
@@ -16,6 +17,7 @@ import {
 } from './qaWizardCandidateBridge';
 import {
   approvePendingSourcePromptReconciliation,
+  buildProductionReconciliationDraftFromSourceSnapshot,
   buildProductionReconciliationDraftFromVisualContractCandidate,
   buildReconciliationReviewBundle,
   loadVisualContractCandidateForReconciliation,
@@ -53,6 +55,7 @@ import {
   writeImmutableLocalArtifact,
 } from './preRenderBlueprintLifecycle';
 import type { VisualContractCandidateArtifact } from './visualContractAuthoringLifecycle';
+import { loadTemplateForPackage } from './artifacts';
 
 export const QA_WIZARD_RECONCILIATION_REVIEWER_DECISIONS_VERSION =
   'qa-wizard-reconciliation-reviewer-decisions/v1' as const;
@@ -446,11 +449,18 @@ function validateReviewerDecisions(value: unknown): QaWizardReconciliationReview
   return structuredClone(value) as unknown as QaWizardReconciliationReviewerDecisions;
 }
 
+interface ReconciliationReviewVisualAuthority {
+  template: BookVisualContractTemplate;
+  templateDigest: string;
+  actionSemanticCoverage: ActionSemanticCoverageRecord[];
+  actionSemanticCoverageDigest: string;
+}
+
 function pageIndexForRecord(
-  candidate: VisualContractCandidateArtifact,
+  authority: ReconciliationReviewVisualAuthority,
   record: ActionSemanticCoverageRecord,
 ): number {
-  const pageIndex = candidate.template.pageContracts.findIndex(
+  const pageIndex = authority.template.pageContracts.findIndex(
     (page) => page.pageNumber === record.pageNumber,
   );
   if (pageIndex < 0) {
@@ -473,15 +483,15 @@ function presentationAspects(record: ActionSemanticCoverageRecord): Reconciliati
 }
 
 function evidenceForActionRecord(args: {
-  candidate: VisualContractCandidateArtifact;
+  authority: ReconciliationReviewVisualAuthority;
   record: ActionSemanticCoverageRecord;
 }): ReconciledVisualBeat['contractEvidence'] {
   if (args.record.disposition.kind !== 'action_requirement') {
     throw new Error('action evidence requires action coverage');
   }
-  const pageIndex = pageIndexForRecord(args.candidate, args.record);
+  const pageIndex = pageIndexForRecord(args.authority, args.record);
   const checkId = args.record.disposition.checkId;
-  const requirements = args.candidate.template.pageContracts[pageIndex]!
+  const requirements = args.authority.template.pageContracts[pageIndex]!
     .actionRequirements ?? [];
   const matches = requirements
     .map((requirement, index) => ({ requirement, index }))
@@ -499,16 +509,16 @@ function evidenceForActionRecord(args: {
 }
 
 function evidenceForRepresentedElsewhereRecord(args: {
-  candidate: VisualContractCandidateArtifact;
+  authority: ReconciliationReviewVisualAuthority;
   record: ActionSemanticCoverageRecord;
 }): ReconciledVisualBeat['contractEvidence'] {
   if (args.record.disposition.kind !== 'represented_elsewhere') {
     throw new Error('represented evidence requires represented coverage');
   }
-  const pageIndex = pageIndexForRecord(args.candidate, args.record);
+  const pageIndex = pageIndexForRecord(args.authority, args.record);
   const prefix = `/pageContracts/${pageIndex}/`;
   const resolved = resolveJsonPointer(
-    args.candidate.template,
+    args.authority.template,
     args.record.disposition.contractPointer,
   );
   if (
@@ -543,7 +553,7 @@ function dispositionEntry(args: {
 }
 
 function beatForCoverageRecord(args: {
-  candidate: VisualContractCandidateArtifact;
+  authority: ReconciliationReviewVisualAuthority;
   record: ActionSemanticCoverageRecord;
   presentationDecision?: QaWizardPresentationRequirementDecision;
 }): ReconciledVisualBeat | null {
@@ -612,6 +622,7 @@ interface LoadedAuthoringBase {
   manifest: QaWizardCandidateBridgeManifest;
   snapshot: StorySourceAuthoritySnapshot;
   candidate: VisualContractCandidateArtifact;
+  authority: ReconciliationReviewVisualAuthority;
   baseReconciliation: SourcePromptReconciliation;
 }
 
@@ -650,7 +661,9 @@ function loadAuthoringBase(args: {
     repoRoot: args.repoRoot,
     candidatePath: manifest.visualContract.candidatePath,
     snapshot,
-    expectedTemplateDigest: manifest.visualContract.templateDigest,
+    expectedTemplateDigest:
+      manifest.candidateCorrection?.originalTemplateDigest ??
+      manifest.visualContract.templateDigest,
   });
   if (
     candidate.digest !== manifest.visualContract.candidateDigest ||
@@ -659,10 +672,36 @@ function loadAuthoringBase(args: {
   ) {
     throw new Error('reconciliation authoring Candidate is stale');
   }
-  const base = buildProductionReconciliationDraftFromVisualContractCandidate({
-    snapshot,
-    candidate,
+  const loadedTemplate = loadTemplateForPackage({
+    repoRoot: args.repoRoot,
+    templatePath: manifest.visualContract.templatePath,
+    storyKey: manifest.source.storyKey,
+    source: snapshot.content.sourceIdentity,
+    expectedDigest: manifest.visualContract.templateDigest,
   });
+  if (
+    loadedTemplate.issues.length > 0 ||
+    !loadedTemplate.template ||
+    !loadedTemplate.identity
+  ) {
+    throw new Error('reconciliation authoring effective template is stale');
+  }
+  const authority: ReconciliationReviewVisualAuthority = {
+    template: loadedTemplate.template,
+    templateDigest: loadedTemplate.identity.digest,
+    actionSemanticCoverage: candidate.actionSemanticCoverage,
+    actionSemanticCoverageDigest: candidate.actionSemanticCoverageDigest,
+  };
+  const base = manifest.candidateCorrection
+    ? buildProductionReconciliationDraftFromSourceSnapshot({
+        snapshot,
+        template: authority.template,
+        actionSemanticCoverage: authority.actionSemanticCoverage,
+      })
+    : buildProductionReconciliationDraftFromVisualContractCandidate({
+        snapshot,
+        candidate,
+      });
   if (
     canonicalJsonDigest(base.reconciliation) !== manifest.reconciliation.digest ||
     base.reviewBundle.digest !== manifest.reconciliation.reviewBundleDigest
@@ -673,6 +712,7 @@ function loadAuthoringBase(args: {
     manifest,
     snapshot,
     candidate,
+    authority,
     baseReconciliation: base.reconciliation,
   };
 }
@@ -688,9 +728,9 @@ function buildReviewerPlan(args: {
     baseReconciliationDigest: canonicalJsonDigest(args.base.baseReconciliation),
     sourceSnapshotDigest: args.base.snapshot.digest,
     candidateDigest: args.base.candidate.digest,
-    templateDigest: args.base.candidate.templateDigest,
+    templateDigest: args.base.authority.templateDigest,
     actionSemanticCoverageDigest:
-      args.base.candidate.actionSemanticCoverageDigest,
+      args.base.authority.actionSemanticCoverageDigest,
     reviewerDecisionsDigest: canonicalJsonDigest(args.decisions),
     sourceRequirements: structuredClone(args.decisions.sourceRequirements),
     presentationRequirements:
@@ -754,9 +794,9 @@ function validatedPlan(args: {
       canonicalJsonDigest(args.base.baseReconciliation) &&
     args.plan.sourceSnapshotDigest === args.base.snapshot.digest &&
     args.plan.candidateDigest === args.base.candidate.digest &&
-    args.plan.templateDigest === args.base.candidate.templateDigest &&
+    args.plan.templateDigest === args.base.authority.templateDigest &&
     args.plan.actionSemanticCoverageDigest ===
-      args.base.candidate.actionSemanticCoverageDigest &&
+      args.base.authority.actionSemanticCoverageDigest &&
     args.plan.reviewerDecisionsDigest === canonicalJsonDigest(decisions) &&
     args.plan.digest === canonicalJsonDigest(payload)
   );
@@ -773,7 +813,7 @@ function applyReviewerPlan(args: {
   if (!pendingReviewIsExact(reconciliation.review)) {
     throw new Error('base reconciliation review is not exact pending');
   }
-  const coverage = args.base.candidate.actionSemanticCoverage;
+  const coverage = args.base.authority.actionSemanticCoverage;
   const visiblePages = new Set(
     coverage
       .filter((record) => record.disposition.kind !== 'non_visual')
@@ -866,7 +906,7 @@ function applyReviewerPlan(args: {
           ? presentationDecisions.get(presentationDecisionIdentity(record))
           : undefined;
         const beat = beatForCoverageRecord({
-          candidate: args.base.candidate,
+          authority: args.base.authority,
           record,
           ...(decision ? { presentationDecision: decision } : {}),
         });
@@ -899,12 +939,12 @@ function validationArgs(args: {
     sourceIdentity: args.base.snapshot.content.sourceIdentity,
     sourceAuthoritySnapshotDigest: args.base.snapshot.digest,
     rawStorySource: args.base.snapshot.content.normalizedRawStorySource,
-    template: args.base.candidate.template,
-    templateDigest: args.base.candidate.templateDigest,
+    template: args.base.authority.template,
+    templateDigest: args.base.authority.templateDigest,
     ...(args.base.snapshot.content.authoredCoverAuthority
       ? { authoredCoverAuthority: args.base.snapshot.content.authoredCoverAuthority }
       : {}),
-    actionSemanticCoverage: args.base.candidate.actionSemanticCoverage,
+    actionSemanticCoverage: args.base.authority.actionSemanticCoverage,
     requireComplete: true,
   };
 }
@@ -942,14 +982,14 @@ function buildContentReview(args: {
     reviewerPlanDigest: args.plan.digest,
     sourceSnapshotDigest: args.base.snapshot.digest,
     candidateDigest: args.base.candidate.digest,
-    templateDigest: args.base.candidate.templateDigest,
+    templateDigest: args.base.authority.templateDigest,
     actionSemanticCoverageDigest:
-      args.base.candidate.actionSemanticCoverageDigest,
+      args.base.authority.actionSemanticCoverageDigest,
     pendingReconciliationDigest: canonicalJsonDigest(args.pending),
     prospectiveApprovedReconciliationDigest:
       canonicalJsonDigest(args.prospectiveApproved),
     contentReadyForGuyReview: args.prospectiveIssues.length === 0,
-    coverageCensus: coverageCensus(args.base.candidate.actionSemanticCoverage),
+    coverageCensus: coverageCensus(args.base.authority.actionSemanticCoverage),
     sourceRequirements: args.pending.frames.flatMap((frame) =>
       frame.sourceRequirements.map((requirement) => ({
         frameKind: frame.frameKind,
@@ -958,7 +998,7 @@ function buildContentReview(args: {
         sourceText: requirement.sourceText,
         visualBeats: structuredClone(requirement.visualBeats),
       }))),
-    nonVisualCoverage: args.base.candidate.actionSemanticCoverage
+    nonVisualCoverage: args.base.authority.actionSemanticCoverage
       .filter(
         (record): record is ActionSemanticCoverageRecord & {
           disposition: Extract<
@@ -1313,9 +1353,9 @@ function buildAuthoringManifest(args: {
     source: { snapshotDigest: args.base.snapshot.digest },
     candidate: {
       digest: args.base.candidate.digest,
-      templateDigest: args.base.candidate.templateDigest,
+      templateDigest: args.base.authority.templateDigest,
       actionSemanticCoverageDigest:
-        args.base.candidate.actionSemanticCoverageDigest,
+        args.base.authority.actionSemanticCoverageDigest,
     },
     reviewerPlan: {
       version: QA_WIZARD_RECONCILIATION_REVIEWER_PLAN_VERSION,
@@ -1414,11 +1454,11 @@ export function prepareQaWizardReviewedReconciliation(
     sourceIdentity: base.snapshot.content.sourceIdentity,
     sourceAuthoritySnapshotDigest: base.snapshot.digest,
     rawStorySource: base.snapshot.content.normalizedRawStorySource,
-    template: base.candidate.template,
+    template: base.authority.template,
     ...(base.snapshot.content.authoredCoverAuthority
       ? { authoredCoverAuthority: base.snapshot.content.authoredCoverAuthority }
       : {}),
-    actionSemanticCoverage: base.candidate.actionSemanticCoverage,
+    actionSemanticCoverage: base.authority.actionSemanticCoverage,
   });
   const reviewMarkdown = renderReconciliationReviewMarkdown(reviewBundle);
   const contentReview = buildContentReview({
@@ -1567,11 +1607,11 @@ function replayAuthoredContent(args: {
     sourceIdentity: base.snapshot.content.sourceIdentity,
     sourceAuthoritySnapshotDigest: base.snapshot.digest,
     rawStorySource: base.snapshot.content.normalizedRawStorySource,
-    template: base.candidate.template,
+    template: base.authority.template,
     ...(base.snapshot.content.authoredCoverAuthority
       ? { authoredCoverAuthority: base.snapshot.content.authoredCoverAuthority }
       : {}),
-    actionSemanticCoverage: base.candidate.actionSemanticCoverage,
+    actionSemanticCoverage: base.authority.actionSemanticCoverage,
   });
   const contentReview = buildContentReview({
     base,
@@ -1720,11 +1760,11 @@ export function recordQaWizardReviewedReconciliationApproval(
     sourceIdentity: base.snapshot.content.sourceIdentity,
     sourceAuthoritySnapshotDigest: base.snapshot.digest,
     rawStorySource: base.snapshot.content.normalizedRawStorySource,
-    template: base.candidate.template,
+    template: base.authority.template,
     ...(base.snapshot.content.authoredCoverAuthority
       ? { authoredCoverAuthority: base.snapshot.content.authoredCoverAuthority }
       : {}),
-    actionSemanticCoverage: base.candidate.actionSemanticCoverage,
+    actionSemanticCoverage: base.authority.actionSemanticCoverage,
   });
   const approvedReviewMarkdown = renderReconciliationReviewMarkdown(
     approvedReviewBundle,
