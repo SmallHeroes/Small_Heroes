@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-**Updated:** 2026-08-27
+**Updated:** 2026-08-29
 **Maintainer:** Claude Code (temporary implementation owner for the order-package-authority milestone; Codex QA pending)
 **Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..608aeee0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`, `d1b320e1`, `608aeee0`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
@@ -203,6 +203,58 @@ and `executeReadinessShipCas` is untouched. Hostile regressions for all
 six cells. Round-7 battery: 41 suites / 750 tests passed (22 env-gated
 staging skips), `tsc --noEmit` + `git diff --check` clean, zero provider
 operations.
+
+Round 8 (1 MAJOR): the round-7 skip_weaker branch concluded the stage
+held with zero Order-authority write. The strong case classification
+broke the binding invariant: after the ship CAS=0 the code set
+`durable=true` and broke without writing any Order row — the Order
+remained `status='generating'`, `deliveryHoldReason=null`,
+`packageStatus='running'`. The status API maps only
+`status='needs_human_qa'` to `under_review`; the customer was
+permanently wedged. A bare case read also proved nothing at commit
+(case-close/supersede race window). Codex issued a HOLD on `608aeee0`.
+
+Round 9 (Claude Code corrective, 5 files): `canonicalStrongCaseRestoration`
+(PURE, exported, unit-tested) validates the case's immutable evidence
+before using it as Order authority — kind/scope/rawReason must be
+mutually compatible, or the call fails closed retryably (nothing lands).
+When valid, the canonical marker family is reconstituted verbatim:
+`safety_hold:` (rank 3, terminal, existing release lifecycle preserved),
+`contract_world_hold:` (rank 2, terminal), or `manualReviewRequired=true`
+with the coupon-fence rawReason (payment fence). `writeOrderHoldFenced`
+gains `requireOpenCaseId`: a EXISTS-based pre-read probes and an identical
+EXISTS clause in the UPDATE atomically re-prove the SAME case is still
+open at write time. `package-delivery.ts` uses both: on CAS=0 with a
+valid strong case it calls the shared hold funnel with all fences
+(`inputVersion`, `requireNotDelivered`, `requireOpenCaseId`). Only
+`'applied'` concludes the stage held (Order now `needs_human_qa` +
+canonical marker — status API returns `under_review`). `'superseded'`/
+`'input_drift'`/`'lost'` all re-evaluate fresh: a closed case ships
+cleanly on the next iteration; a stronger marker is recognized at the
+loop-top round-7 classification; unexplained repetitions exhaust
+retryably. `executeReadinessShipCas` is untouched.
+
+Hostile regressions (mock suite): 3-cell canonical-restoration matrix
+(safety/contract_world/payment_integrity — asserts persisted
+`needs_human_qa` + verbatim canonical marker + packageStatus done + case
+id bind + payment-fence flag in the hold UPDATE body); close-race cell
+(nothing lands, next iteration ships exactly once, zero false held+done);
+supersede-race cell (rank-3 > rank-2 → 'superseded', loop re-reads the
+terminal safety marker, concludes under that owner, no rewrite); malformed-
+evidence cell (3 ship CAS only, hold funnel never entered, retryable
+exhaustion, job never done). Status-route boundary cell: persisted
+`needs_human_qa` + canonical safety marker + `packageStatus=done` maps to
+`under_review`. Real-PG cell (PGlite, offline, no credentials): the
+`requireOpenCaseId` EXISTS bind in the real UPDATE SQL lands the hold
+when the case is open and returns `'lost'` with ZERO writes when the case
+is closed — real Postgres atomicity proven.
+
+Round-9 battery: 342 suites total (17 env-gated skipped); this branch:
+4645 passed / 18 failed (all 18 failures are pre-existing baselines in
+`lib/visual-package/__tests__/` unrelated to this milestone — baseline
+before this change: 4632 passed / 24 failed; this branch fixed 6 baseline
+failures and added 13 new passes). `tsc --noEmit` exit 0, `git diff
+--check` clean, zero provider operations.
 
 Total authoring spend $1.06 conservative across 4 provider calls, zero
 transport retries, no fallback, no candidate promoted. Per the milestone's

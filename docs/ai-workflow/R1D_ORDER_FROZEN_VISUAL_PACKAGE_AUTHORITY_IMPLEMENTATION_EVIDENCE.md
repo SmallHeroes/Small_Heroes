@@ -608,6 +608,60 @@ Round-7 battery: 41 suites, 750 tests passed (22 environment-gated real-PG
 staging skips), `tsc --noEmit` exit 0, `git diff --check` clean, zero
 provider/live/render operations.
 
+## Codex re-gate round 8 — HOLD; round 9 corrective (`608aeee0..HEAD`)
+
+Codex's round-8 review (1 MAJOR): the round-7 skip_weaker branch performed
+zero Order-authority writes. After the ship CAS returned 0 the code found
+a strong case, set `durable=true`, and broke. The Order stayed
+`status='generating'`, `deliveryHoldReason=null`, `packageStatus='running'`.
+The status API maps only `status='needs_human_qa'` → `under_review`; the
+customer was permanently wedged. A bare `findUnique` case read also gave
+no atomic proof at commit (close/supersede race window).
+
+**Round-9 corrective (Claude Code temporary implementation owner, 5 files,
+`608aeee0..HEAD`): `lib/generation-pipeline/order-authority.ts`,
+`lib/generation-pipeline/package-delivery.ts`,
+`lib/__tests__/package-delivery.spec.ts`,
+`lib/__tests__/generate-status-route.spec.ts`,
+`lib/generation-pipeline/__tests__/pipeline-cache-store.pg.spec.ts`.**
+
+`canonicalStrongCaseRestoration` (pure, exported) validates the case's
+immutable rawReason against its kind/scope before using it as Order
+authority. Valid restoration reconstitutes the canonical marker family
+verbatim: `safety_hold:` (rank 3, existing release lifecycle),
+`contract_world_hold:` (rank 2), or `manualReviewRequired=true` + coupon
+reason (payment fence, scope=payment). Incompatible rawReason → null →
+fail-closed `continue` (nothing landed, retryable exhaustion).
+
+`writeOrderHoldFenced` gains `requireOpenCaseId`: the fenced pre-read
+probes `EXISTS(... id=<caseId> AND status='open')` (early `'lost'` if
+closed) and the hold UPDATE carries the same EXISTS clause atomically.
+`package-delivery.ts` calls `writeOrderHoldFenced` with `inputVersion`,
+`requireNotDelivered`, and `requireOpenCaseId`. Only `'applied'` concludes
+held (Order is `needs_human_qa` + canonical marker; status API →
+`under_review`). `'superseded'`/`'input_drift'`/`'lost'` re-evaluate
+fresh: case close → next iteration ships; stronger marker → loop-top
+round-7 classification; repeated misses → retryable exhaustion.
+`executeReadinessShipCas` untouched.
+
+Test cells added: 3-cell canonical-restoration matrix (safety / contract_world
+/ payment_integrity — asserts `needs_human_qa` + verbatim canonical marker
++ `packageStatus` in the UPDATE body + `case-id` bind + payment-fence flag);
+close-race (nothing lands, ships cleanly on next iteration); supersede-race
+(rank 3 > rank 2 → 'superseded' immediately, loop-top recognizes the
+terminal safety marker); malformed-evidence (3 ship CAS only, hold funnel
+never entered, retryable exhaustion, job never done). Status-route boundary:
+persisted `needs_human_qa` + safety marker + packageStatus=done → `under_review`.
+Real-PG (PGlite offline): `requireOpenCaseId` EXISTS bind lands the hold
+when the case is open and returns `'lost'` with zero writes when closed.
+
+Round-9 battery: 342 suites total (17 env-gated skipped); 4645 passed /
+18 failed. All 18 failures are pre-existing baselines in
+`lib/visual-package/__tests__/` unrelated to this milestone (baseline
+before this change: 4632 passed / 24 failed — this branch improved by +13
+pass, −6 fail net). `tsc --noEmit` exit 0, `git diff --check` clean, zero
+provider/live/render operations.
+
 **Stop-rule closure:** the milestone brief states "If two consecutive
 paid/live attempts fail, stop spending and produce a causal map rather than
 patching the latest symptom." Both attempts failed; all paid operations
