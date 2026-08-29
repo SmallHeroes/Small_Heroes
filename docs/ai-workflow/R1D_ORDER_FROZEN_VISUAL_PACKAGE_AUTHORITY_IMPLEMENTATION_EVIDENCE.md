@@ -759,6 +759,88 @@ delivered row with a mismatched producing identity is NOT parked by this
 stage (retraction is forbidden); detection of post-delivery integrity drift
 belongs to its own audit surface, not the delivery loop.
 
+## Round 12 — the authorized product-story attempt SUCCEEDED (first clean Candidate)
+
+Guy authorized exactly one bounded paid authoring attempt on the product
+revision `3ef645415b3cdd5945baeaa275d97ae0aa0491bf30addbcc46208475278f534a`
+(no re-authorization was requested). Executed at branch HEAD `0ba9a767`
+(pushed, clean, single-writer verified across all worktrees).
+
+Offline preflight (all $0, all green, before any provider contact):
+
+- Source re-derived from disk with the production `normalizedTextDigest`:
+  `9acf0433…` exact. Negative bindings proven: accepted-root bus-stop
+  `story.md` → `1128839f…`; legacy `20a12801…/integrated.md` → `5efdd53a…`;
+  QA bank `story-bank/v3-approved/chameleon_koko_bedtime.md` → `ba71f2b3…`;
+  legacy package bound-source digest ≠ product digest. The legacy Visual
+  Package locator is not an input to the authoring chain at all.
+- Visual Directions: `visual-directions.json` sha256 `51e3bb3e…`
+  (canonical digest `bc8b3d7d…`), byte-pinned by the revision manifest;
+  all 8 prior-snapshot `pageImageDirections` proven composed projections
+  (setting + mainAction containment) of exactly this record.
+- Versions read from production sources (not docs):
+  `vc-template-prompt/v22`, `book-surface-repair-prompt/v14`,
+  `visual-contract-authoring-policy/v20`, request/receipt/readiness
+  v54/v57/v54, model `gpt-5.6-sol`, 7-call/6-repair budget.
+- Credential: exactly one `OPENAI_API_KEY` line present in the recorded
+  source path; never printed, never persisted.
+- Canonical harness checks: 10-file battery — 417 passed; the 8 failing
+  cells were the established 5-second parallel subprocess/Git timeouts and
+  re-passed 81/81 at `--testTimeout=30000 --maxWorkers=1` (the 2 residual
+  errors are the known post-assertion Vitest worker RPC noise).
+
+Run root `outputs/r1d-lantern-fresh-readiness-20260829T155643118Z`
+(gitignored bytes on the implementation machine; identities durable here):
+
+| Artifact | Digest / value |
+|---|---|
+| Fresh Readiness prepare | `ready_for_spend_gate`, evidence v49 `9cd9719044b9e5535e281ec67e17458398671c8fe15764355e6af5ddec2fd744` |
+| source snapshot (fresh rebuild) | `35fe04ab5601031735bd7bdd283bab7a8d897bc399427d592e39fe56aa1f6a6c` — byte-identical to the prior attempts' snapshot (content-addressed reproducibility) |
+| authoring request (v54) | `4fe7652c29ce620ba003990dfdf56a814493e43cb7b8382717c1e8ef3687e57d` |
+| live-request materialization | `5fa2e0d93a7ee6dffad5e088d762cda472147e9babb99b01de29676822c15f83` |
+| execution request (v49) | `b6a98e02838e1d8d6d4280d8bdcc33b259c3deb20b72ca7b7f49dacfdb9c4195`; supervisor `verify` → `ready`, zero reasons |
+| supervisor live result (v42) | `child_completed`, exit 0; captured artifact `3241a07a503be9dcacc361888dacf6ffbe42cc23d72db69be24de0599dafe99c` under `execution/canonical-live-execution-results/` |
+| authoring receipt (v57) | `96b187a350383bf6d2f4eb7250336ea1638b6930cac0e4f93e6c7bfcdfe73b19` — status `completed`, 2 calls / 1 repair (`initial → book_surface_patch`), complete census 1→0, failure `null` |
+| provider cost | nominal **$0.461044**, conservative **$0.507156**; tokens 9,783/18,655 (initial) + 5,851/489 (repair) |
+| CANDIDATE (v9) | `6f52a3181aad5e96304775e5f2b6462cfaf3261d9c11325f121992dff7b481e0`, template digest `9dbaa8a375375ce6cd10040ac70d1a9cc08c859a509c59b9b1157991799df9be`, 8 pages, 70 action-semantic coverage records, `human:kindergarten_guard` in `humanCast` |
+| authoring readiness (v54) | `fa0481553cf6083a10c68b3459e442a25fcb4a295b40e4702fb098fb23e9a3d3` |
+| structured replay evidence | `93157006482b7a84764e4243a6dbf7781accb55067b700dda552010e3679823d` |
+| candidate validation attestation (v1) | `845a68d86a870a090de2ae57d955a68dd2301bf6152227a91f13d0e473eb9702` — validation `passed`; `doesNotAuthorize` reconciliation approval, Blueprint authoring/approval, package authoring/approval, wizard qualification/render, provider call, image render, publication, deployment |
+
+No `approvedBy: "Guy"` was written anywhere; product acceptance and
+adversarial Codex QA both remain pending. One operator mis-step was made
+and corrected during capture: the first `capture-supervisor-result` used
+`--out …/bridge`, which the attestation's containment fence correctly
+rejected (`executionResultPath` must live under `<root>/execution`); the
+capture was re-run to the canonical location and the mis-located duplicate
+(same content address) was removed. The fence worked as designed.
+
+Round-12 validation on the final bytes: 5 files / 50 tests PASS
+(`story-product-resolver` 12, `visual-contract-prompt-table-compaction` 11,
+`lantern-transition-frontier` 9, `wizard-runtime-authority-preflight` 5,
+`qa-wizard-candidate-bridge` 13); `npx --no-install tsc --noEmit` exit 0;
+`git diff --check` clean. No image, audio, Board, Blueprint, package,
+locator, Wizard order, payment, render, deployment or production mutation.
+
+**Required general legacy-fallback correction (documented only — not
+implemented in this paid round):** `backend/providers/story-product-resolver.ts`
+branch 1 falls back to the v3-approved bank story whenever branch 0 is not
+render-qualified and `ENABLE_V3_APPROVED_BANK=true` — and
+`story-bank/v3-approved/chameleon_koko_bedtime.md` exists, so a superseded
+product lineage could silently sell the bank text if its v4 package were
+missing or disqualified. The general fail-closed rule must be
+authority-driven, never a storyKey special case: **a companion/direction
+whose accepted story-source lineage carries a product-accepted revision
+(`product-acceptance.json` in the accepted lineage) must never be served
+from the v3 bank — if its v4 package selection is not render-qualified, the
+resolver refuses (`StoryProductResolutionError`) instead of falling
+through.** Equivalent formulation: the v3-bank branch is only legal for
+storyKeys with NO accepted-revision product lineage. This derives entirely
+from artifacts the resolver can already read (the accepted lineage on
+disk), requires no new registry, and turns a silent wrong-story sale into
+an explicit refusal. It needs one regression cell: product lineage present
++ branch-0 disqualified → refusal, not bank fallback.
+
 ## Remaining chain to the end product (documented, not executed)
 
 After Guy's explicit go for one further authoring attempt (~$0.55, under

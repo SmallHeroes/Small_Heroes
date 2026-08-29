@@ -290,14 +290,52 @@ tests PASS; `npx --no-install tsc --noEmit` exit 0; `git diff --check`
 clean; zero provider/live/render/Wizard/payment operations. Awaiting
 Codex adversarial re-gate.
 
-Total authoring spend $1.06 conservative across 4 provider calls, zero
-transport retries, no fallback, no candidate promoted. Per the milestone's
-stop rule no third paid attempt was run; the current locator still selects
-legacy package `2b488f2d…`, and no Blueprint, Board, package, publication,
-Wizard order, payment or render happened. The next paid attempt (~$0.55)
-under v22 requires Guy's explicit go; the remaining chain after a clean
-candidate is documented in
-`docs/ai-workflow/R1D_ORDER_FROZEN_VISUAL_PACKAGE_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`.
+Round 12 (Guy-authorized bounded product-story attempt; Claude Code
+implementation): the ONE authorized paid authoring attempt on the product
+revision `3ef64541…` SUCCEEDED — the first clean Candidate this pipeline
+has produced. Run root
+`outputs/r1d-lantern-fresh-readiness-20260829T155643118Z` (gitignored
+bytes local; identities durable here). Offline preflight before any
+provider contact: source re-derived from disk (normalized `9acf0433…`,
+exact), negative bindings proven against the accepted-root bus-stop text
+(`1128839f…`), legacy revision `20a12801…` (`5efdd53a…`), the QA bank
+(`ba71f2b3…`) and the legacy package binding; visual-directions byte
+identity `51e3bb3e…` manifest-pinned with all 8 snapshot directions
+proven projections of it; v22/repair-v14/policy-v20/v54-v57-v54 read from
+production sources; credential presence confirmed unprinted; canonical
+harness cells green (417 passed, plus the 8 known 5s-parallel subprocess
+timeouts re-proven 81/81 at 30s single-thread). Fresh Readiness `prepare`
+→ `ready_for_spend_gate` (v49, evidence `9cd97190…`) with the fresh
+snapshot rebuild reproducing `35fe04ab…` byte-identically; supervisor
+`verify` → `ready`, zero reason codes. Live: `child_completed`, exit 0 —
+2 provider calls (initial + one `book_surface_patch`), complete census
+1→0, receipt `96b187a3…` (v57) status `completed`, nominal $0.461044 /
+conservative $0.507156. Candidate `6f52a318…`
+(visual-contract-candidate-artifact/v9, template `9dbaa8a3…`, 8 pages,
+70 action-semantic coverage records, `human:kindergarten_guard` present);
+authoring readiness `fa048155…` (v54); structured replay `93157006…`;
+supervisor result captured `3241a07a…` under
+`execution/canonical-live-execution-results/`; candidate validation
+attestation `845a68d8…`
+(`qa-wizard-candidate-validation-attestation/v1`, validation `passed`,
+explicit `doesNotAuthorize` for reconciliation approval, Blueprint,
+package, Wizard, render, publication and deployment). No `approvedBy`
+was written; Guy's product acceptance and Codex QA remain pending.
+Validation on the final bytes: focused 5-file battery 50/50
+(resolver 12, compaction 11, lantern frontier 9, runtime-authority
+preflight 5, candidate bridge 13), `tsc --noEmit` exit 0,
+`git diff --check` clean.
+
+Total authoring spend across the milestone is now $1.57 conservative
+($1.06 prior + $0.51 round-12) across 6 provider calls, zero transport
+retries, no fallback. The current locator STILL selects legacy package
+`2b488f2d…` — no Blueprint, Board, package, publication, locator change,
+Wizard order, payment or render happened in round 12. The remaining chain
+after this clean candidate is documented in
+`docs/ai-workflow/R1D_ORDER_FROZEN_VISUAL_PACKAGE_AUTHORITY_IMPLEMENTATION_EVIDENCE.md`,
+which also records the required general fail-closed correction for the
+superseded-lineage v3-bank fallback (documented only; not implemented in
+the paid round).
 
 ## PROVIDER SPATIAL EGRESS — CORRECTIVE LOCAL GREEN; INDEPENDENT QA PENDING
 
