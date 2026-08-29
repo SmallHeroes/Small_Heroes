@@ -1,12 +1,12 @@
 # SmallHeroes — Current Technical State
 
 **Updated:** 2026-08-29
-**Maintainer:** Codex (Technical Owner; Claude Code independent QA pending for Round 16)
+**Maintainer:** Codex (Technical Owner; Claude Code independent QA PASS for Round 16)
 **Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..608aeee0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`, `d1b320e1`, `608aeee0`), the round-9 corrective `96a50252` (docs `8c7474bc`), and the round-10 corrective `17670078` (immutable code range `8c7474bc..17670078`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN CORRECTED BRIDGE PENDING EXACT RECONCILIATION CONTENT
 
-### Round 16 — Blueprint provider-wire compaction implemented offline; independent QA pending
+### Round 16 — Blueprint provider-wire compaction independently PASSed; fresh live readiness next
 
 The first bounded Blueprint execution never reached the provider: it stopped at
 188,654 estimated input bytes versus the unchanged 64,000-byte conservative
@@ -41,13 +41,22 @@ documented nine missing ignored fixture assertions in five unchanged files. Its 
 only near-threshold Git/subprocess timeouts and known Vitest `onTaskUpdate` RPC
 timeouts; no semantic assertion failed. Claude independently inspected the
 diff/import graph and returned GO to commit, classifying those results as
-fixture baseline/test infrastructure rather than a changed hot path. Full
-independent range QA is still required before live.
+fixture baseline/test infrastructure rather than a changed hot path.
+
+Claude Code then independently reviewed immutable range
+`02fd2a7a47e864da3ec4dd3bcbfb420556eaf994..7c6b9e1bb30a771c0d14e0d4744f145547a54020`
+and returned **PASS (technical only)** with zero BLOCKER and zero MAJOR findings.
+It reproduced TypeScript, 71/71 admission tests and 10/10 legacy lifecycle
+tests, and accepted all eleven implementation claims. Its two non-blocking
+observations are recorded in the implementation evidence: compact repair
+source subjects preserve evidence IDs without resending source phrases, and
+malformed non-`worldPlan` drafts remain protected by the exact admission and
+marker gates rather than by compaction itself.
 
 No provider, image, audio, network, database, Candidate, Blueprint, package,
-locator, render, deployment or push action occurred. Next: focused local commit,
-Claude Code adversarial QA over the immutable range, then—only after PASS—one
-fresh bounded Blueprint authoring request under the unchanged policy.
+locator, render, deployment or push action occurred. Next: record this PASS in a
+docs-only local commit, satisfy canonical clean pushed Fresh Readiness, then run
+one fresh bounded Blueprint authoring request under the unchanged policy.
 
 ### Round 15 — corrected Candidate bridge v5 implemented; exact reconciliation content remains pending
 

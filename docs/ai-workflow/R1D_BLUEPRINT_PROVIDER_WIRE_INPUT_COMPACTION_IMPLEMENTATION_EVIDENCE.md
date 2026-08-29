@@ -1,6 +1,6 @@
 # R1D Blueprint Provider-Wire Input Compaction — Implementation Evidence
 
-Status: offline implementation complete; independent Claude Code re-gate pending. This evidence grants no live/provider/render authority by itself.
+Status: offline implementation complete; independent Claude Code re-gate PASS. This evidence grants no live/provider/render authority by itself.
 
 ## Problem and root cause
 
@@ -77,3 +77,14 @@ Claude Code should review the complete focused range, not only changed lines, an
 9. story-, child-, companion- or page-specific behavior.
 
 No live authoring should run before that independent PASS.
+
+## Independent QA result
+
+Claude Code independently reviewed immutable range `02fd2a7a47e864da3ec4dd3bcbfb420556eaf994..7c6b9e1bb30a771c0d14e0d4744f145547a54020` and returned **PASS (technical only)** with zero BLOCKER and zero MAJOR findings. It verified one commit, zero merges, 12 files, clean worktree and exact one-commit local divergence; independently ran TypeScript, the 71/71 admission subset and 10/10 legacy lifecycle tests; and accepted all eleven implementation claims.
+
+Two non-blocking observations remain explicit:
+
+- repair `source_phenomenon` subjects retain their canonical evidence ID but do not resend the already-bound source phrase;
+- a malformed non-`worldPlan` draft passes through the compact-draft helper unchanged, but exact admission and marker checks still stop it before call two when oversized or unsafe.
+
+Neither observation creates a provider, validation, receipt or legacy bypass. The PASS allows Codex to consider a fresh bounded live attempt only against Guy's separate standing authorization and a newly satisfied Fresh Readiness gate.
