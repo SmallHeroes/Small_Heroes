@@ -1,10 +1,53 @@
 # SmallHeroes — Current Technical State
 
 **Updated:** 2026-08-29
-**Maintainer:** Codex (Technical Owner; Claude Code independent QA pending while Claude is paused)
+**Maintainer:** Codex (Technical Owner; Claude Code independent QA pending for Round 16)
 **Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..608aeee0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`, `d1b320e1`, `608aeee0`), the round-9 corrective `96a50252` (docs `8c7474bc`), and the round-10 corrective `17670078` (immutable code range `8c7474bc..17670078`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN CORRECTED BRIDGE PENDING EXACT RECONCILIATION CONTENT
+
+### Round 16 — Blueprint provider-wire compaction implemented offline; independent QA pending
+
+The first bounded Blueprint execution never reached the provider: it stopped at
+188,654 estimated input bytes versus the unchanged 64,000-byte conservative
+ceiling, with zero dispatches and $0 spend. The root cause was the prompt
+serializing complete canonical evidence rather than the narrower instruction
+surface the provider owns.
+
+The offline correction now derives deterministic compact initial and repair
+wires from the already-validated Production Context. Complete Story Source,
+Visual Contract, reconciliation and style authority remain available for
+compiler-owned overlay and full post-call validation. Provider-visible free
+prose is marker-free; unresolved `[spatial:id]` syntax fails closed. Prompt v6
+is recorded for new authoring while existing v5 provenance remains accepted
+without artifact rewrites.
+
+Initial preflight and direct execution both account the exact system/user/schema
+bytes before provider or credential reachability. Repair diagnostics preserve
+complete identities, including missing-versus-explicit-null values, and collapse
+only identical duplicates. A repair that cannot fit the same 64,000-byte ceiling
+terminates as `repair_route_input_not_admissible` before another provider call,
+while retaining the complete sanitized local issue census.
+
+Exact approved eight-page census: initial 61,990 bytes (2,010 headroom),
+representative repair 62,554 (1,446 headroom), zero internal spatial markers.
+A hostile real-context 347-issue repair measured 111,706 bytes and stopped after
+exactly one injected call with all 347 diagnostics retained and no call two.
+
+Validation: TypeScript and diff hygiene PASS; compiler/runner admission 71/71;
+the broader Blueprint/Wizard battery passed 133/133 after the final
+missing-versus-null type tightening. Literal `npm run check` retains the
+documented nine missing ignored fixture assertions in five unchanged files. Its resource partition also emitted
+only near-threshold Git/subprocess timeouts and known Vitest `onTaskUpdate` RPC
+timeouts; no semantic assertion failed. Claude independently inspected the
+diff/import graph and returned GO to commit, classifying those results as
+fixture baseline/test infrastructure rather than a changed hot path. Full
+independent range QA is still required before live.
+
+No provider, image, audio, network, database, Candidate, Blueprint, package,
+locator, render, deployment or push action occurred. Next: focused local commit,
+Claude Code adversarial QA over the immutable range, then—only after PASS—one
+fresh bounded Blueprint authoring request under the unchanged policy.
 
 ### Round 15 — corrected Candidate bridge v5 implemented; exact reconciliation content remains pending
 

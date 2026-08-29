@@ -21,6 +21,7 @@ import {
   productionAuthoringReceiptVersionStatus,
   productionAuthoringRequestVersionStatus,
   productionBlueprintAuthoringPreflightIssues,
+  productionBlueprintInitialInputAccounting,
   runProductionBlueprintAuthoring,
   ProductionAuthoringProviderBoundaryError,
   type ProductionAuthoringProvider,
@@ -36,6 +37,7 @@ import type {
 } from '@/lib/visual-package/openaiResponsesVisualContractAuthoringAdapter';
 import {
   BLUEPRINT_AUTHORING_MAX_CALLS,
+  BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
   BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
   BLUEPRINT_AUTHORING_MODEL,
   BLUEPRINT_AUTHORING_REASONING_EFFORT,
@@ -46,6 +48,7 @@ import {
   nominalBlueprintAuthoringUsageCostUsd,
 } from '@/lib/visual-package/blueprintAuthoringPolicy';
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
+import { computeProductionAuthoringContextDigest } from '@/lib/visual-package/productionAuthoringContext';
 import { projectZoneStableGeometry } from '@/lib/visual-contract-compiler';
 
 import {
@@ -808,6 +811,52 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(cliSource).toContain(
       'Write surfaces are limited to explicit --write true for source/preflight review artifacts and source-authoring-live-request-materialize consuming repository-writer canonical materialization input for immutable future-live artifacts.',
     );
+  });
+
+  it('rejects an oversized projected prompt in preflight before a provider attempt or credential boundary', async () => {
+    const { context } = buildContext('multi_zone_transition');
+    const oversized = structuredClone(context);
+    oversized.validationContext.styleContent = {
+      ...(oversized.validationContext.styleContent as Record<string, unknown>),
+      oversizedPromptProbe: 'x'.repeat(BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS),
+    };
+    oversized.validationContext.style = {
+      ...oversized.validationContext.style,
+      digest: canonicalJsonDigest(
+        oversized.validationContext.styleContent,
+      ),
+    };
+    const { digest: _staleDigest, ...payload } = oversized;
+    oversized.digest = computeProductionAuthoringContextDigest(payload);
+    const request = requestFor(oversized, 'live');
+    const accounting = productionBlueprintInitialInputAccounting(oversized);
+    const provider = { call: vi.fn() };
+
+    expect(accounting.estimatedBytes).toBeGreaterThan(
+      BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+    );
+    expect(
+      productionBlueprintAuthoringPreflightIssues({
+        request,
+        context: oversized,
+      }),
+    ).toEqual([
+      `initial Blueprint prompt exceeds canonical input ceiling: ${accounting.estimatedBytes} > ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS}`,
+    ]);
+
+    const result = await runProductionBlueprintAuthoring({
+      request,
+      context: oversized,
+      provider,
+    });
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.code).toBe(
+      'input_token_ceiling_exceeded',
+    );
+    expect(result.receipt.attempts).toEqual([]);
+    expect(result.receipt.callCount).toBe(0);
+    expect(result.receipt.executionAttestation.evidenceKind).toBe('not_run');
+    expect(provider.call).not.toHaveBeenCalled();
   });
 
   it('records only strict receipt metadata and sanitized usage through a canonical live adapter', async () => {
@@ -1613,6 +1662,52 @@ describe('provider-isolated Blueprint authoring runner', () => {
     }
     const serialized = JSON.stringify(result.receipt);
     expect(serialized).not.toContain(rawDraftSentinel);
+    expect(serialized).not.toMatch(
+      /systemPrompt["']|userPrompt["']|responseBody|credential|apiKey|Bearer/i,
+    );
+    expect(serialized).not.toContain('"draft"');
+    expect(serialized).not.toContain('"output"');
+  });
+
+  it('records repair input ineligibility after one provider call without dispatching a repair', async () => {
+    const { context, materialized } = buildContext('single_location');
+    const oversizedInvalid = structuredClone(
+      providerDraft(materialized.fixture),
+    ) as {
+      frames: Array<{
+        narrative: { summary: string };
+        camera: unknown;
+      }>;
+    };
+    oversizedInvalid.frames[0]!.narrative.summary = 'x'.repeat(70_000);
+    oversizedInvalid.frames[1]!.camera = null;
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => ({
+        output: JSON.stringify(oversizedInvalid),
+        receipt: canonicalProviderReceipt(args),
+      })),
+    };
+
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+    });
+
+    expect(result.receipt.status).toBe('failed');
+    expect(result.receipt.failure?.code).toBe(
+      'repair_route_input_not_admissible',
+    );
+    expect(result.receipt.callCount).toBe(1);
+    expect(result.receipt.repairCount).toBe(0);
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(result.receipt.attempts).toHaveLength(1);
+    expect(
+      result.receipt.attempts[0]!.validationDiagnostics.count,
+    ).toBeGreaterThan(0);
+    expect(result.receipt.attempts[0]!.failureCode).toBeNull();
+    const serialized = JSON.stringify(result.receipt);
+    expect(serialized).not.toContain('x'.repeat(256));
     expect(serialized).not.toMatch(
       /systemPrompt["']|userPrompt["']|responseBody|credential|apiKey|Bearer/i,
     );

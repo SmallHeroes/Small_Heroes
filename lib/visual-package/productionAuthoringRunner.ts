@@ -8,6 +8,9 @@ import {
 import {
   PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS,
   PreRenderBlueprintAuthoringRepairExhaustedError,
+  PreRenderBlueprintRepairInputNotAdmissibleError,
+  buildPreRenderBlueprintAuthoringSystemPrompt,
+  buildPreRenderBlueprintAuthoringUserPrompt,
   compilePreRenderBookVisualBlueprint,
   preRenderBlueprintAuthoringInputErrors,
   type PreRenderBlueprintAuthoringCallOptions,
@@ -458,6 +461,29 @@ export function productionAuthoringRunRequestIssues(args: {
   }
 }
 
+export function productionBlueprintInitialInputAccounting(
+  context: ProductionAuthoringContext,
+): BlueprintAuthoringInputAccounting {
+  return blueprintAuthoringInputAccounting({
+    systemPrompt: buildPreRenderBlueprintAuthoringSystemPrompt(),
+    userPrompt: buildPreRenderBlueprintAuthoringUserPrompt(
+      context.validationContext,
+    ),
+    schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+  });
+}
+
+function productionBlueprintInitialPromptIssues(
+  context: ProductionAuthoringContext,
+): string[] {
+  const accounting = productionBlueprintInitialInputAccounting(context);
+  return accounting.estimatedBytes > BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS
+    ? [
+        `initial Blueprint prompt exceeds canonical input ceiling: ${accounting.estimatedBytes} > ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS}`,
+      ]
+    : [];
+}
+
 export function productionBlueprintAuthoringPreflightIssues(args: {
   request: ProductionAuthoringRunRequest;
   context: ProductionAuthoringContext;
@@ -465,7 +491,7 @@ export function productionBlueprintAuthoringPreflightIssues(args: {
   const issues = productionAuthoringRunRequestIssues(args);
   if (issues.length > 0) return issues;
   try {
-    return preRenderBlueprintAuthoringInputErrors(
+    const inputIssues = preRenderBlueprintAuthoringInputErrors(
       args.context.validationContext,
       {
         model: args.request.model,
@@ -473,8 +499,11 @@ export function productionBlueprintAuthoringPreflightIssues(args: {
         maxOutputTokens: args.request.maxOutputTokens,
         compositionPolicyVersion:
           PRE_RENDER_BLUEPRINT_COMPOSITION_POLICY_VERSION,
-      },
-    );
+        },
+      );
+    return inputIssues.length > 0
+      ? inputIssues
+      : productionBlueprintInitialPromptIssues(args.context);
   } catch {
     return ['production Blueprint authoring input cannot be validated'];
   }
@@ -623,11 +652,14 @@ export function aggregateProductionAuthoringExecutionAttestations(
     : aggregateAuthoringExecutionAttestations(providerReached);
 }
 
-function copyValidationExhaustionEvidence(args: {
-  error: PreRenderBlueprintAuthoringRepairExhaustedError;
+function copyValidationAttemptEvidence(args: {
+  sourceAttempts: ReadonlyArray<{
+    attempt: number;
+    errors: string[];
+  }>;
   receipts: ProductionAuthoringAttemptReceipt[];
 }): void {
-  for (const repairAttempt of args.error.attempts) {
+  for (const repairAttempt of args.sourceAttempts) {
     if (
       !Number.isSafeInteger(repairAttempt.attempt) ||
       repairAttempt.attempt < 1 ||
@@ -732,6 +764,33 @@ export async function runProductionBlueprintAuthoring(args: {
         code: 'context_invalid',
         diagnosticInputs: contextIssues,
         issueCodes: ['context_invalid'],
+      }),
+      authoringResult: null,
+    };
+  }
+  let promptIssues: string[];
+  try {
+    promptIssues = productionBlueprintInitialPromptIssues(args.context);
+  } catch {
+    return {
+      receipt: failureReceipt({
+        request: args.request,
+        attempts: [],
+        code: 'context_invalid',
+        diagnosticCountOverride: 1,
+        issueCodes: ['context_validation_failed'],
+      }),
+      authoringResult: null,
+    };
+  }
+  if (promptIssues.length > 0) {
+    return {
+      receipt: failureReceipt({
+        request: args.request,
+        attempts: [],
+        code: 'input_token_ceiling_exceeded',
+        diagnosticInputs: promptIssues,
+        issueCodes: ['input_token_ceiling_exceeded'],
       }),
       authoringResult: null,
     };
@@ -1253,9 +1312,12 @@ export async function runProductionBlueprintAuthoring(args: {
     });
     return { receipt, authoringResult };
   } catch (error) {
-    if (error instanceof PreRenderBlueprintAuthoringRepairExhaustedError) {
-      copyValidationExhaustionEvidence({
-        error,
+    if (
+      error instanceof PreRenderBlueprintAuthoringRepairExhaustedError ||
+      error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
+    ) {
+      copyValidationAttemptEvidence({
+        sourceAttempts: error.attempts,
         receipts: attempts,
       });
     }
@@ -1291,7 +1353,9 @@ export async function runProductionBlueprintAuthoring(args: {
       ? 'call_budget_exhausted'
       : providerFailure
         ? 'provider_call_failed'
-        : exactBoundaryFailure ??
+        : error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
+          ? 'repair_route_input_not_admissible'
+          : exactBoundaryFailure ??
           (error instanceof
               PreRenderBlueprintAuthoringRepairExhaustedError &&
             productionRepairExhaustionIsProven({
@@ -1308,14 +1372,16 @@ export async function runProductionBlueprintAuthoring(args: {
         code: failureCode,
         diagnosticInputs:
           error instanceof
-          PreRenderBlueprintAuthoringRepairExhaustedError
+            PreRenderBlueprintAuthoringRepairExhaustedError ||
+          error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
             ? error.attempts.flatMap(
                 (attempt) => attempt.errors,
               )
             : [],
         diagnosticCountOverride:
           error instanceof
-          PreRenderBlueprintAuthoringRepairExhaustedError
+            PreRenderBlueprintAuthoringRepairExhaustedError ||
+          error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
             ? error.attempts.reduce(
                 (sum, attempt) =>
                   sum + attempt.errors.length,

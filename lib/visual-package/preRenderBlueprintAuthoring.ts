@@ -5,17 +5,12 @@ import {
 } from '@/lib/visual-contract-compiler/propLifecycle';
 import { parseStorySourceContent } from '@/lib/visual-contract-compiler/storySourceContent';
 import { validateBookVisualContractTemplate } from '@/lib/visual-contract-compiler/validateTemplateContract';
-import {
-  ACTION_SEMANTIC_CATALOG,
-  ACTION_SEMANTIC_CATALOG_VERSION,
-} from '@/lib/visual-contract-compiler/actionSemanticCatalog';
 
 import { canonicalJsonDigest, normalizedTextDigest, nonEmpty } from './integrity';
 import {
   buildPreRenderBlueprintAuthoringAuthority,
   buildPreRenderBlueprintIdentity,
   finalizePreRenderBookVisualBlueprint,
-  projectPreRenderBlueprintReconciliationSemanticContent,
   validatePreRenderBookVisualBlueprint,
 } from './preRenderBlueprint';
 import {
@@ -39,6 +34,10 @@ import {
 import { canonicalPreRenderBlueprintTextSafeRegion } from './preRenderBlueprintLayoutPolicy';
 import { sourcePromptReconciliationIssues } from './sourcePromptReconciliation';
 import {
+  serializePreRenderBlueprintProviderWire,
+  serializePreRenderBlueprintRepairWire,
+} from './preRenderBlueprintProviderWire';
+import {
   assertOpenAIResponsesStructuredOutputSchemaCompatible,
 } from './openaiResponsesStructuredOutputSchemaCompatibility';
 import {
@@ -49,6 +48,11 @@ import {
   type PreRenderBlueprintAuthoringAttempt,
   type PreRenderBlueprintAuthoringProvenance,
 } from './preRenderBlueprintAuthoringContract';
+import {
+  BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+  blueprintAuthoringInputAccounting,
+  type BlueprintAuthoringInputAccounting,
+} from './blueprintAuthoringPolicy';
 
 export {
   PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION,
@@ -119,6 +123,37 @@ export class PreRenderBlueprintAuthoringRepairExhaustedError extends Error {
   }
 }
 
+export class PreRenderBlueprintRepairInputNotAdmissibleError extends Error {
+  constructor(
+    readonly attempts: PreRenderBlueprintAuthoringAttempt[],
+    readonly inputAccounting: BlueprintAuthoringInputAccounting,
+  ) {
+    super(
+      `Blueprint repair input is not admissible: ${inputAccounting.estimatedBytes} > ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS}`,
+    );
+    this.name = 'PreRenderBlueprintRepairInputNotAdmissibleError';
+  }
+}
+
+export type PreRenderBlueprintRepairDiagnostic =
+  | PreRenderBlueprintIssue
+  | {
+      code: 'draft_assembly_failed';
+      message: string;
+      field?: string;
+      expected?: unknown;
+      actual?: unknown;
+    };
+
+export type GroupedPreRenderBlueprintRepairDiagnostic = [
+  code: PreRenderBlueprintRepairDiagnostic['code'],
+  field: string | null,
+  message: string,
+  expected: readonly [present: 0 | 1, value: unknown],
+  actual: readonly [present: 0 | 1, value: unknown],
+  count: number,
+];
+
 function isObj(value: unknown): value is Obj {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -135,6 +170,49 @@ function clone<T>(value: T): T {
 
 function stableJson(value: unknown): string {
   return JSON.stringify(canonicalize(value));
+}
+
+/**
+ * Lossless grouping for the provider surface. Only byte-identical complete
+ * diagnostic identities collapse; no code, field, cause, expected value, or
+ * actual value is discarded.
+ */
+export function groupPreRenderBlueprintRepairDiagnostics(
+  diagnostics: readonly PreRenderBlueprintRepairDiagnostic[],
+): GroupedPreRenderBlueprintRepairDiagnostic[] {
+  const grouped = new Map<
+    string,
+    GroupedPreRenderBlueprintRepairDiagnostic
+  >();
+  for (const diagnostic of diagnostics) {
+    const expected = Object.prototype.hasOwnProperty.call(
+      diagnostic,
+      'expected',
+    )
+      ? ([1, diagnostic.expected ?? null] as const)
+      : ([0, null] as const);
+    const actual = Object.prototype.hasOwnProperty.call(
+      diagnostic,
+      'actual',
+    )
+      ? ([1, diagnostic.actual ?? null] as const)
+      : ([0, null] as const);
+    const identity = [
+      diagnostic.code,
+      diagnostic.field ?? null,
+      diagnostic.message,
+      expected,
+      actual,
+    ] as const;
+    const key = stableJson(identity);
+    const existing = grouped.get(key);
+    if (existing) {
+      existing[5] += 1;
+    } else {
+      grouped.set(key, [...identity, 1]);
+    }
+  }
+  return [...grouped.values()];
 }
 
 function parseDraft(raw: unknown): unknown {
@@ -389,109 +467,82 @@ export function preRenderBlueprintAuthoringInputErrors(
 }
 
 export function buildPreRenderBlueprintAuthoringSystemPrompt(): string {
-  const actionCatalog = ACTION_SEMANTIC_CATALOG.map(
-    (definition) =>
-      `${definition.predicate} (subjects=${definition.subjectKinds.join('|')}; object=${definition.objectRule}; objectKinds=${definition.objectKinds.join('|') || 'none'}; spatialResult=${definition.spatialEffectRule}; staticConstraint=${definition.spatialConstraintRule}[${definition.spatialConstraintRelations.join('|') || 'none'}]; laterality=${definition.lateralityAllowed ? 'allowed' : 'forbidden'})`,
-  ).join(', ');
   return [
-    "You author one whole-book, portrait 2:3 schematic Blueprint for a children's picture book.",
-    'Return exactly one strict JSON object matching the supplied schema. Never author one page at a time.',
-    '',
-    'AUTHORITY PRECEDENCE (highest first):',
-    '1. exact Story Source prose and authored product authority;',
-    '2. structured Visual Contract;',
-    '3. approved Source Prompt Reconciliation;',
-    '4. this Blueprint draft;',
-    '5. historical imageDirection, which is advisory presentation evidence only.',
-    '',
-    'Historical direction may affect only approved action, interaction, expression, camera, composition, or',
-    'staging beats. It never controls world, location, zone, cast, wardrobe, props, reveal timing, or prohibitions.',
-    'Every preserved/superseded conflict is already explicit in reconciliation; do not invent another disposition.',
-    '',
-    `ACTION SEMANTIC CATALOG (${ACTION_SEMANTIC_CATALOG_VERSION}; closed, no free text):`,
-    actionCatalog,
-    'Every action_space must explicitly support the typed subject kind, predicate, entity participants, and any',
-    'closed movement direction/relation and static-constraint relation. cast_group support includes every exact',
-    'same-page member in supportedEntities and current-frame placements. Every required movement action needs',
-    'both an action evidence placement and',
-    'an action_destination placement inside its unique action space. Relation movement also needs one exact typed',
-    'spatialTargetRegion whose geometry proves the destination relation; prose is never feasibility evidence.',
-    'Static constraints use current placements and never an action_destination. maximumActors counts every unique',
-    'cast entity subject and every cast_group member, never objects, prop subjects, or source phenomena.',
-    'All supported predicate/subject/result values must come from this catalog. Blueprint support does not',
-    'self-approve Action Semantic Coverage or Semantic Reconciliation.',
-    '',
-    'Author the complete connection graph, spatial affordances, reveal-safe supporting geometry, and one frame',
-    'for the cover plus every exact Story Source page. The compiler owns the text-safe regions and they are not',
-    'part of your output: reserve x=0,y=0,width=1000,height=250 on the cover and',
-    'x=0,y=750,width=1000,height=250 on every body page. Keep every key cast, action, action destination, and',
-    'required-prop placement outside its exact reserved band. Each frame must show placements, actions,',
-    'props, camera access, transitions, and safety support.',
-    'For eight or more body pages, author materially different cinematography: at least one true close_up, one wide,',
-    'at least three shot types and three camera angles, and never repeat one shot type three pages in a row. Camera',
-    'labels must match geometry: a close_up needs a key subject occupying at least 10% of the normalized frame; a',
-    'medium or over-shoulder frame must make a cast member materially larger than a distant wide figure. Across the',
-    'book, the largest cast scale must be at least 3.5x the smallest. Pixel nudges do not count as composition variety.',
-    'The compiler will overwrite all upstream deterministic identity, coverage, aspect-ratio, location/zone/cast,',
-    'lifecycle, and transition-kind fields after this call.',
-    'Do not include Board identities, image assets, render prompts, approval, lifecycle timestamps, or prose outside JSON.',
+    "Author one whole-book portrait 2:3 schematic Blueprint for a children's book.",
+    'Return exactly one strict-schema JSON object, never a page fragment or prose.',
+    'BLUEPRINT_PROVIDER_WIRE is validated compiler authority: preserve IDs and never infer omitted authority.',
+    'TUPLES: story=[page,text]; ref=[kind,id]; cast=[id,role,label,wardrobe,forbidden,stateAuthority];',
+    'prop=[id,name,description,scale,firstRevealPage]; location=[id,name,description,topology,anchors];',
+    'zone=[id,locationId,name,description,nodesOrLegacyGeometry,relations]; node=[id,kind,description,boundRef];',
+    'cover=[locationId,zoneId,castIds,mustShow,mustNotShow].',
+    'Page keys p/loc/zone/cast/show/hide/cam/shot/transition/sameLoc/props/actions/safety/castState/',
+    'childWardrobe/companionState are binding. prop=[id,state,visibility,stateId,anchorId];',
+    'transition=[kind,fromZone,toZone,cue]; safety=[subjectId,relation,targetRef];',
+    'castState=[castId,bodyState,injectionArm,bandageArm,freeHand].',
+    "Action sub is ['entity',ref], ['cast_group',ids], or ['source',evidenceId,phrase]. effect is",
+    "['direction',value] or ['relation',value,targetRef]; state=[relation,targetRef].",
+    'Build the complete connection graph, affordances, reveal-safe geometry, cover frame, and every page frame.',
+    'Use only declared IDs. Each action_space must support exact subject/predicate/entities/direction/relation;',
+    'cast_group includes every member and placement. Movement requires action plus action_destination placements;',
+    'relation movement requires spatialTargetRegion. Static constraints use current placements only.',
+    'maximumActors counts cast subjects/group members only. Prose never proves geometry.',
+    'Reserve cover x0,y0,w1000,h250 and body x0,y750,w1000,h250; keep key cast/actions/destinations/props clear.',
+    'For 8+ pages use a true close_up, a wide, 3+ shot types, 3+ angles, and no shot repeated 3 pages.',
+    'Geometry must justify camera labels; largest cast scale must be at least 3.5x the smallest.',
+    'Compiler overwrites identity, coverage, aspect ratio, location/zone/cast, lifecycle, text-safe, previous-frame,',
+    'and transition-kind fields. Never output Boards, assets, render prompts, approvals, timestamps, or extra prose.',
   ].join('\n');
 }
 
 export function buildPreRenderBlueprintAuthoringUserPrompt(
   context: PreRenderBlueprintValidationContext,
 ): string {
-  return [
-    `storyKey: ${context.template.storyKey ?? ''}`,
-    `styleId: ${context.style.styleId}`,
-    `styleAuthorityDigest: ${context.style.digest}`,
-    `authoringAuthorityInputs: source=${context.source.digest} contract=${context.templateIdentity.digest}`,
-    '',
-    'EXACT STORY SOURCE:',
-    context.rawStorySource,
-    '',
-    'STRUCTURED VISUAL CONTRACT (higher authority than Blueprint):',
-    stableJson(context.template),
-    '',
-    'APPROVED SOURCE PROMPT RECONCILIATION SEMANTICS:',
-    stableJson(
-      projectPreRenderBlueprintReconciliationSemanticContent(
-        context.reconciliation,
-      ),
-    ),
-    '',
-    'IMMUTABLE STYLE AUTHORITY CONTENT:',
-    stableJson(context.styleContent),
-  ].join('\n');
+  return `BLUEPRINT_PROVIDER_WIRE:\n${serializePreRenderBlueprintProviderWire(context)}`;
 }
 
-function buildRepairSystemPrompt(): string {
+export function buildPreRenderBlueprintRepairSystemPrompt(): string {
   return [
     'Repair one invalid WHOLE-BOOK Blueprint draft.',
     'Return the complete corrected strict JSON object, not a page fragment.',
-    'Preserve valid content and fix every supplied deterministic validation error.',
-    'The same authority precedence and prohibitions from the initial call remain binding.',
+    'Preserve valid creative content and fix every supplied deterministic validation error.',
+    'Grouped diagnostics are lossless [code,field,message,expectedSlot,actualSlot,count] identities; each slot is',
+    '[presentFlag,value], and count collapses only',
+    'byte-identical duplicates. Fix every row and every affected occurrence.',
+    'REPAIR_WIRE contains a compact authority index plus the complete previous provider-owned draft.',
+    'Authority refs list allowed cast, props, zones/spatial nodes, and anchors. Authority pages are',
+    '[page,location,zone,castIds,transition,propPlacement[id,visibility,anchor],actions,safety]. Repair action tuples',
+    'are [id,subject,predicate,object,effect,state,polarity,side]; repair source subjects omit already-bound prose.',
+    'Draft world is [connections,affordances,revealSafeGeometry]. Connection tuples are',
+    '[id,kind,from[zone,node],to[zone,node],bidirectional,traversalIds,openingIds,safeBoundaryIds].',
+    'Every affordance starts [id,kind,zone,footprint[x,y,w,h],consumers,...kindFields]. Consumer tuples use',
+    "['f',frameId], ['a',page,checkId], ['p',page,propId], ['t',page], or",
+    "['s',page,subjectId,relation,targetRef]. Kind fields follow the supplied output schema in schema order.",
+    'Affordance tails: traversal=[connectionId,direction,minClearance]; opening=[connectionId,openingNode,clearance];',
+    'placement_support=[supportRef,supportedRefs,maxOccupants]; action_space=[predicates,subjectKinds,entities,',
+    'directions,relations,constraintRelations,targetRegions,maxActors]; camera=[visibleRegion];',
+    'safe_boundary=[targetRef,permittedRegion]. Reveal-safe geometry=[id,zone,node,supportedPropIds].',
+    'Draft frames are [kind,pageNumber,narrative[purpose,summary],placements,camera,affordanceIds,continuity].',
+    'Placements are [id,subject[kind,id],region[x,y,w,h],depth,importance]. Camera is',
+    '[shot,angle,affordanceId]. Continuity is [connectionId,carryoverRefs]. Re-expand every tuple into the',
+    'named strict-schema object. Preserve exact IDs and unchanged valid values.',
     'The compiler owns text-safe geometry: keep the exact cover top 250 band and every body-page bottom 250 band',
     'clear of all key cast, action, action-destination, and required-prop placements; never return textSafeRegion.',
   ].join('\n');
 }
 
-function buildRepairUserPrompt(args: {
+export function buildPreRenderBlueprintRepairUserPrompt(args: {
+  context: PreRenderBlueprintValidationContext;
   previousDraft: unknown;
-  errors: string[];
-  originalUserPrompt: string;
+  diagnostics: readonly PreRenderBlueprintRepairDiagnostic[];
 }): string {
   return [
-    'VALIDATION ERRORS:',
-    ...args.errors.map((error, index) => `${index + 1}. ${error}`),
-    '',
-    'PREVIOUS WHOLE-BOOK DRAFT:',
-    typeof args.previousDraft === 'string'
-      ? args.previousDraft
-      : stableJson(args.previousDraft),
-    '',
-    'ORIGINAL AUTHORITATIVE INPUTS:',
-    args.originalUserPrompt,
+    'GROUPED VALIDATION DIAGNOSTICS [code,field,message,expectedSlot,actualSlot,count]:',
+    stableJson(groupPreRenderBlueprintRepairDiagnostics(args.diagnostics)),
+    'REPAIR_WIRE:',
+    serializePreRenderBlueprintRepairWire({
+      context: args.context,
+      previousDraft: args.previousDraft,
+    }),
   ].join('\n');
 }
 
@@ -550,6 +601,7 @@ export async function compilePreRenderBookVisualBlueprint(
     let parsedDraft: unknown = rawDraft;
     let candidate: PreRenderBookVisualBlueprint | null = null;
     let errors: string[] = [];
+    let repairDiagnostics: PreRenderBlueprintRepairDiagnostic[] = [];
     try {
       parsedDraft = parseDraft(rawDraft);
       candidate = assemblePreRenderBookVisualBlueprintFromDraft({
@@ -558,10 +610,16 @@ export async function compilePreRenderBookVisualBlueprint(
         compositionPolicyVersion: config.compositionPolicyVersion,
       });
       const validation = validatePreRenderBookVisualBlueprint(candidate, context);
-      if (!validation.ok) errors = issueText(validation.issues);
+      if (!validation.ok) {
+        errors = issueText(validation.issues);
+        repairDiagnostics = validation.issues;
+      }
     } catch (error) {
-      errors = [
-        `draft assembly failed: ${error instanceof Error ? error.message : String(error)}`,
+      const message =
+        error instanceof Error ? error.message : String(error);
+      errors = [`draft assembly failed: ${message}`];
+      repairDiagnostics = [
+        { code: 'draft_assembly_failed', message },
       ];
     }
 
@@ -597,15 +655,31 @@ export async function compilePreRenderBookVisualBlueprint(
         repairAttempts,
       );
     }
+    const repairSystemPrompt = buildPreRenderBlueprintRepairSystemPrompt();
+    const repairUserPrompt = buildPreRenderBlueprintRepairUserPrompt({
+      context,
+      previousDraft: parsedDraft,
+      diagnostics: repairDiagnostics,
+    });
+    const repairInputAccounting = blueprintAuthoringInputAccounting({
+      systemPrompt: repairSystemPrompt,
+      userPrompt: repairUserPrompt,
+      schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+    });
+    if (
+      repairInputAccounting.estimatedBytes >
+      BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS
+    ) {
+      throw new PreRenderBlueprintRepairInputNotAdmissibleError(
+        repairAttempts,
+        repairInputAccounting,
+      );
+    }
     try {
       callCount += 1;
       rawDraft = await deps.callAuthor(
-        buildRepairSystemPrompt(),
-        buildRepairUserPrompt({
-          previousDraft: parsedDraft,
-          errors,
-          originalUserPrompt: userPrompt,
-        }),
+        repairSystemPrompt,
+        repairUserPrompt,
         callOptions,
       );
     } catch (error) {

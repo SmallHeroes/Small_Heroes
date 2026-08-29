@@ -31,10 +31,10 @@ import type {
   PreRenderBookVisualBlueprint,
 } from './preRenderBlueprintTypes';
 import {
-  PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION,
   PRE_RENDER_BLUEPRINT_AUTHORING_PROVENANCE_VERSION,
   PRE_RENDER_BLUEPRINT_MAX_REPAIR_ATTEMPTS,
-  PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION,
+  preRenderBlueprintAuthoringPromptVersionIsSupported,
+  preRenderBlueprintRepairPromptVersionIsSupported,
   type PreRenderBlueprintAuthoringAttempt,
   type PreRenderBlueprintAuthoringProvenance,
 } from './preRenderBlueprintAuthoringContract';
@@ -269,7 +269,9 @@ function authoringProvenanceIssues(args: {
   if (
     provenance.draftSchemaVersion !==
       PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION ||
-    provenance.promptVersion !== PRE_RENDER_BLUEPRINT_AUTHORING_PROMPT_VERSION
+    !preRenderBlueprintAuthoringPromptVersionIsSupported(
+      provenance.promptVersion,
+    )
   ) {
     issues.push('authoring provenance schema or prompt version is unsupported');
   }
@@ -292,8 +294,9 @@ function authoringProvenanceIssues(args: {
   }
   if (
     provenance.passingAttempt > 1
-      ? provenance.repairPromptVersion !==
-        PRE_RENDER_BLUEPRINT_REPAIR_PROMPT_VERSION
+      ? !preRenderBlueprintRepairPromptVersionIsSupported(
+          provenance.repairPromptVersion,
+        )
       : provenance.repairPromptVersion !== undefined
   ) {
     issues.push('authoring provenance repair prompt version is inconsistent');

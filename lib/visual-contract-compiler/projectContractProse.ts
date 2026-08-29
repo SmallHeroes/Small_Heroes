@@ -35,6 +35,22 @@ import {
   isActionPredicate,
 } from './actionSemanticCatalog';
 
+/**
+ * Exact structural surface consumed by these prose projectors. Authored
+ * Templates and per-order Resolved contracts both satisfy it; appearance-only
+ * fields that differ between those layers are deliberately outside the type.
+ */
+export type ContractProseAuthority = Pick<
+  BookVisualContract,
+  | 'cast'
+  | 'forbiddenGlobalElements'
+  | 'locations'
+  | 'recurringProps'
+  | 'zones'
+> & {
+  humanCast?: Array<{ id: string; role: string }>;
+};
+
 /* ── Closed-enum prose tables ────────────────────────────────────────────────────────────────────
  * Explicit `Record<Kind, string>` maps rather than string munging: TS then fails the build if an enum member is
  * added without giving it prose, so a new relation can never silently project as an empty/garbled line.
@@ -113,7 +129,7 @@ function readableSpatialDescription(description: unknown): string {
 /** The page's own zone (never another zone — geometry is zone-scoped by construction). */
 function zoneOfPage(
   page: SpatialProjectionPageContext,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
 ): VisualZone | undefined {
   if (!page.zoneId) return undefined;
   return safeObjectElements<VisualZone>(contract.zones).find(
@@ -122,7 +138,7 @@ function zoneOfPage(
 }
 
 /** A cast member's readable label: authored name, else the human-cast role, else the raw id. */
-function castLabel(castId: string, contract: BookVisualContract): string {
+function castLabel(castId: string, contract: ContractProseAuthority): string {
   const cast = contract.cast;
   if (cast?.child?.id === castId) return cast.child.name ?? 'the child';
   if (cast?.companion?.id === castId) return cast.companion.name ?? 'the companion';
@@ -135,7 +151,7 @@ function castLabel(castId: string, contract: BookVisualContract): string {
 
 function castGroupLabel(
   castIds: readonly string[],
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
 ): string {
   const labels = castIds.map((castId) => castLabel(castId, contract));
   const members =
@@ -153,7 +169,7 @@ function castGroupLabel(
 function refLabel(
   ref: EntityRef,
   page: PageVisualContract,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
   spatialMode: SpatialReferenceProjectionMode,
 ): string {
   if (!isObj(ref) || typeof ref.kind !== 'string' || typeof ref.id !== 'string') {
@@ -257,7 +273,7 @@ export function projectActionPredicateProse(
 function actionProseLine(
   action: PageActionRequirement,
   page: PageVisualContract,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
   spatialMode: SpatialReferenceProjectionMode = 'description_v2',
 ): string | null {
   // This projector is called before the total contract validator on the compiler-owned
@@ -343,7 +359,7 @@ function actionProseLine(
 function safetyProseLine(
   safety: SafetyConstraint,
   page: PageVisualContract,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
   spatialMode: SpatialReferenceProjectionMode = 'description_v2',
 ): string | null {
   if (
@@ -360,7 +376,7 @@ function safetyProseLine(
  * Deterministic PROJECTION of a page's structured action beats → one prompt line. Empty string when the page
  * authors none, so the caller's `line()` helper filters it out and the prompt block stays byte-identical.
  */
-export function projectPageActionProse(page: PageVisualContract, contract: BookVisualContract): string {
+export function projectPageActionProse(page: PageVisualContract, contract: ContractProseAuthority): string {
   return projectPageActionProseWithSpatialMode(
     page,
     contract,
@@ -370,7 +386,7 @@ export function projectPageActionProse(page: PageVisualContract, contract: BookV
 
 function projectPageActionProseWithSpatialMode(
   page: PageVisualContract,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
   spatialMode: SpatialReferenceProjectionMode,
 ): string {
   const actions = safeObjectElements<PageActionRequirement>(page.actionRequirements);
@@ -385,7 +401,7 @@ function projectPageActionProseWithSpatialMode(
  * Deterministic PROJECTION of a page's structured hazard prohibitions → one prompt line. Empty string when the
  * page authors none (→ byte-identical prompt block).
  */
-export function projectPageSafetyProse(page: PageVisualContract, contract: BookVisualContract): string {
+export function projectPageSafetyProse(page: PageVisualContract, contract: ContractProseAuthority): string {
   return projectPageSafetyProseWithSpatialMode(
     page,
     contract,
@@ -395,7 +411,7 @@ export function projectPageSafetyProse(page: PageVisualContract, contract: BookV
 
 function projectPageSafetyProseWithSpatialMode(
   page: PageVisualContract,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
   spatialMode: SpatialReferenceProjectionMode,
 ): string {
   const safety = safeObjectElements<SafetyConstraint>(page.safetyConstraints);
@@ -473,7 +489,7 @@ function projectProviderSafeSpatialProseFromNodes(
 export function projectProviderSafeSpatialProse(
   value: string,
   page: SpatialProjectionPageContext,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
 ): string {
   return projectProviderSafeSpatialProseFromNodes(
     value,
@@ -490,7 +506,7 @@ export function projectProviderSafeSpatialProse(
  */
 export function projectProviderSafeBookSpatialProse(
   value: string,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
 ): string {
   return projectProviderSafeSpatialProseFromNodes(
     value,
@@ -513,7 +529,7 @@ export interface ProviderPagePromptProse {
 /** One provider-only projection for every free-prose page surface. */
 export function projectPageProviderPromptProse(
   page: PageVisualContract,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
 ): ProviderPagePromptProse {
   const forbiddenGlobalElements = (contract.forbiddenGlobalElements ?? []).map(
     (value) => projectProviderSafeBookSpatialProse(value, contract),
@@ -559,7 +575,7 @@ export function projectPageProviderPromptProse(
  * projection that dropped the name would silently empty that list and the gate would stop requiring the prop.
  * (Stage 5 fixes this properly by making the gate read `PagePropConstraint` directly.)
  */
-function propName(propId: string, contract: BookVisualContract): string {
+function propName(propId: string, contract: ContractProseAuthority): string {
   const prop = safeObjectElements<BookVisualContract['recurringProps'][number]>(
     contract.recurringProps,
   ).find((p) => p.id === propId);
@@ -573,7 +589,7 @@ function propName(propId: string, contract: BookVisualContract): string {
  * equality check would be false today. Stage 4 wires the sound rule — CONTAINMENT: every projected entry must be
  * present in the stored `mustShow`.
  */
-export function projectPageMustShow(page: PageVisualContract, contract: BookVisualContract): string[] {
+export function projectPageMustShow(page: PageVisualContract, contract: ContractProseAuthority): string[] {
   return projectPageMustShowWithSpatialMode(
     page,
     contract,
@@ -588,14 +604,14 @@ export function projectPageMustShow(page: PageVisualContract, contract: BookVisu
  */
 export function projectPageMustShowLegacySpatial(
   page: PageVisualContract,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
 ): string[] {
   return projectPageMustShowWithSpatialMode(page, contract, 'legacy_kind');
 }
 
 function projectPageMustShowWithSpatialMode(
   page: PageVisualContract,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
   spatialMode: SpatialReferenceProjectionMode,
 ): string[] {
   const out: string[] = [];
@@ -618,7 +634,7 @@ function projectPageMustShowWithSpatialMode(
  * negative action beats, and EVERY hazard (hazards are always prohibitions, so they can only land here — which is
  * what keeps them clear of the `mustShow`-only floor/bed staging lock). Pure + UNWIRED in Stage 3 (see above).
  */
-export function projectPageMustNotShow(page: PageVisualContract, contract: BookVisualContract): string[] {
+export function projectPageMustNotShow(page: PageVisualContract, contract: ContractProseAuthority): string[] {
   return projectPageMustNotShowWithSpatialMode(
     page,
     contract,
@@ -629,14 +645,14 @@ export function projectPageMustNotShow(page: PageVisualContract, contract: BookV
 /** See `projectPageMustShowLegacySpatial`. */
 export function projectPageMustNotShowLegacySpatial(
   page: PageVisualContract,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
 ): string[] {
   return projectPageMustNotShowWithSpatialMode(page, contract, 'legacy_kind');
 }
 
 function projectPageMustNotShowWithSpatialMode(
   page: PageVisualContract,
-  contract: BookVisualContract,
+  contract: ContractProseAuthority,
   spatialMode: SpatialReferenceProjectionMode,
 ): string[] {
   const out: string[] = [];
@@ -665,7 +681,7 @@ function projectPageMustNotShowWithSpatialMode(
  * from book-level data — which is exactly why `firstRevealPage` lives on the prop. Any prop with a lifecycle is by
  * definition revealed after page 0, so it is a cover spoiler. Pure + UNWIRED in Stage 3.
  */
-export function projectCoverMustNotShow(contract: BookVisualContract): string[] {
+export function projectCoverMustNotShow(contract: ContractProseAuthority): string[] {
   const out: string[] = [];
   for (const prop of safeObjectElements<BookVisualContract['recurringProps'][number]>(
     contract.recurringProps,

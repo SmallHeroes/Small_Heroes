@@ -13,6 +13,15 @@ import {
   validatePreRenderBookVisualBlueprint,
   type PreRenderBookVisualBlueprint,
 } from '@/lib/visual-package';
+import {
+  PreRenderBlueprintRepairInputNotAdmissibleError,
+  buildPreRenderBlueprintAuthoringSystemPrompt,
+  buildPreRenderBlueprintAuthoringUserPrompt,
+  buildPreRenderBlueprintRepairSystemPrompt,
+  buildPreRenderBlueprintRepairUserPrompt,
+  groupPreRenderBlueprintRepairDiagnostics,
+} from '@/lib/visual-package/preRenderBlueprintAuthoring';
+import { blueprintAuthoringInputAccounting } from '@/lib/visual-package/blueprintAuthoringPolicy';
 
 import {
   buildBlueprintFixture,
@@ -219,17 +228,22 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
 
       expect(calls).toHaveLength(1);
       expect(calls[0].system).toContain(
-        'exact Story Source prose and authored product authority',
+        'BLUEPRINT_PROVIDER_WIRE is validated compiler authority',
       );
       expect(calls[0].system).toContain(
-        'historical imageDirection, which is advisory',
+        'never infer omitted authority',
       );
       expect(calls[0].system).toContain(
-        'reserve x=0,y=0,width=1000,height=250 on the cover',
+        'Reserve cover x0,y0,w1000,h250',
       );
       expect(calls[0].system).toContain(
-        'x=0,y=750,width=1000,height=250 on every body page',
+        'body x0,y750,w1000,h250',
       );
+      expect(calls[0].user).toMatch(/^BLUEPRINT_PROVIDER_WIRE:\n\{/u);
+      expect(calls[0].user).not.toContain(
+        'actionSemanticCoverageAuthority',
+      );
+      expect(calls[0].user).not.toMatch(/\[spatial:/u);
       expect(calls[0].options).toMatchObject({
         model: CONFIG.model,
         reasoningEffort: CONFIG.reasoningEffort,
@@ -245,6 +259,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
         reasoningEffort: CONFIG.reasoningEffort,
         maxOutputTokens: CONFIG.maxOutputTokens,
         noFallback: true,
+        promptVersion: 'pre-render-blueprint-authoring-prompt/v6',
         passingAttempt: 1,
         callCount: 1,
       });
@@ -266,6 +281,199 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
       );
     },
   );
+
+  it('projects Template authority into a compact marker-free wire with exact unary and binary spatial relations', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const zone = fixture.context.template.zones[0]!;
+    zone.spatialNodes = [
+      {
+        id: 'node_center',
+        kind: 'floor',
+        description: 'the center of the room',
+      },
+      {
+        id: 'node_wall',
+        kind: 'wall',
+        description: 'the painted back wall',
+      },
+    ];
+    zone.spatialRelations = [
+      { relation: 'centered_in', subjectId: 'node_center' },
+      {
+        relation: 'adjacent_to',
+        subjectId: 'node_center',
+        objectId: 'node_wall',
+      },
+    ];
+    const user = buildPreRenderBlueprintAuthoringUserPrompt(fixture.context);
+    const wire = JSON.parse(
+      user.slice('BLUEPRINT_PROVIDER_WIRE:\n'.length),
+    ) as {
+      v: string;
+      story: unknown[];
+      world: { zones: unknown[][] };
+    };
+
+    expect(wire.v).toBe('pre-render-blueprint-provider-wire/v1');
+    expect(wire.story).toHaveLength(fixture.context.source.pageCount);
+    expect(wire.world.zones[0]![5]).toEqual([
+      ['centered_in', 'node_center', null],
+      ['adjacent_to', 'node_center', 'node_wall'],
+    ]);
+    expect(user).not.toMatch(/\[spatial:/u);
+    expect(user).not.toContain('actionSemanticCoverageAuthority');
+  });
+
+  it('fails closed instead of leaking an unresolved internal spatial marker', () => {
+    const fixture = buildBlueprintFixture('single_location');
+    fixture.context.template.pageContracts[0]!.mustShow.push(
+      'unresolved [spatial:not_in_this_zone]',
+    );
+    expect(() =>
+      buildPreRenderBlueprintAuthoringUserPrompt(fixture.context),
+    ).toThrow('unresolved internal spatial reference marker');
+  });
+
+  it('keeps both initial and compact whole-book repair prompts under the unchanged byte ceiling', () => {
+    const fixture = buildBlueprintFixture('journey_fantastical');
+    const initial = blueprintAuthoringInputAccounting({
+      systemPrompt: buildPreRenderBlueprintAuthoringSystemPrompt(),
+      userPrompt: buildPreRenderBlueprintAuthoringUserPrompt(fixture.context),
+      schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+    });
+    const previousDraft = wholeBookDraft(fixture.blueprint);
+    const repairUser = buildPreRenderBlueprintRepairUserPrompt({
+      context: fixture.context,
+      previousDraft,
+      diagnostics: [
+        {
+          code: 'schema_invalid',
+          message: 'representative deterministic validation failure',
+        },
+      ],
+    });
+    const repair = blueprintAuthoringInputAccounting({
+      systemPrompt: buildPreRenderBlueprintRepairSystemPrompt(),
+      userPrompt: repairUser,
+      schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+    });
+
+    expect(initial.estimatedBytes).toBeLessThanOrEqual(64_000);
+    expect(repair.estimatedBytes).toBeLessThanOrEqual(64_000);
+    expect(repairUser).not.toContain('worldPlan');
+    expect(repairUser).not.toMatch(/\[spatial:/u);
+  });
+
+  it('groups only byte-identical complete repair diagnostic identities', () => {
+    expect(
+      groupPreRenderBlueprintRepairDiagnostics([
+        {
+          code: 'text_safe_collision',
+          field: 'frames[1].placements[0]',
+          message: 'placement overlaps the reserved text-safe region',
+          expected: { maximumY: 750 },
+          actual: { y: 800 },
+        },
+        {
+          code: 'text_safe_collision',
+          field: 'frames[1].placements[0]',
+          message: 'placement overlaps the reserved text-safe region',
+          expected: { maximumY: 750 },
+          actual: { y: 800 },
+        },
+        {
+          code: 'text_safe_collision',
+          field: 'frames[1].placements[0]',
+          message: 'a different causal message must remain visible',
+          expected: { maximumY: 740 },
+          actual: { y: 800 },
+        },
+        {
+          code: 'schema_invalid',
+          message: 'explicit null differs from an absent expected value',
+          expected: null,
+        },
+        {
+          code: 'schema_invalid',
+          message: 'explicit null differs from an absent expected value',
+        },
+      ]),
+    ).toEqual([
+      [
+        'text_safe_collision',
+        'frames[1].placements[0]',
+        'placement overlaps the reserved text-safe region',
+        [1, { maximumY: 750 }],
+        [1, { y: 800 }],
+        2,
+      ],
+      [
+        'text_safe_collision',
+        'frames[1].placements[0]',
+        'a different causal message must remain visible',
+        [1, { maximumY: 740 }],
+        [1, { y: 800 }],
+        1,
+      ],
+      [
+        'schema_invalid',
+        null,
+        'explicit null differs from an absent expected value',
+        [1, null],
+        [0, null],
+        1,
+      ],
+      [
+        'schema_invalid',
+        null,
+        'explicit null differs from an absent expected value',
+        [0, null],
+        [0, null],
+        1,
+      ],
+    ]);
+  });
+
+  it('stops before a second provider call when the exact repair wire exceeds the unchanged ceiling', async () => {
+    const fixture = buildBlueprintFixture('single_location');
+    const oversizedInvalid = wholeBookDraft(fixture.blueprint) as {
+      frames: Array<{
+        narrative: { summary: string };
+        camera: unknown;
+      }>;
+    };
+    oversizedInvalid.frames[0]!.narrative.summary = 'x'.repeat(70_000);
+    oversizedInvalid.frames[1]!.camera = null;
+    let calls = 0;
+    let caught: unknown;
+
+    try {
+      await compilePreRenderBookVisualBlueprint(
+        fixture.context,
+        CONFIG,
+        {
+          callAuthor: async () => {
+            calls += 1;
+            return oversizedInvalid;
+          },
+        },
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(
+      PreRenderBlueprintRepairInputNotAdmissibleError,
+    );
+    const failure =
+      caught as PreRenderBlueprintRepairInputNotAdmissibleError;
+    expect(failure.inputAccounting.estimatedBytes).toBeGreaterThan(
+      64_000,
+    );
+    expect(failure.attempts).toHaveLength(1);
+    expect(failure.attempts[0]!.errors).not.toEqual([]);
+    expect(calls).toBe(1);
+  });
 
   it('overlays upstream authority after the draft and ignores attempted frame authority injection', async () => {
     const fixture = buildBlueprintFixture('no_companion');
@@ -341,7 +549,7 @@ describe('R1D-PVB-B — whole-book Blueprint authoring compiler', () => {
     expect(result.provenance).toMatchObject({
       passingAttempt: 2,
       callCount: 2,
-      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v5',
+      repairPromptVersion: 'pre-render-blueprint-repair-prompt/v6',
     });
     expect((calls[1] as { system: string }).system).toContain(
       'never return textSafeRegion',
