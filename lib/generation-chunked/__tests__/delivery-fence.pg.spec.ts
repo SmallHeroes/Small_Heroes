@@ -204,6 +204,18 @@ describe.skipIf(!RUN)('delivery fence — real Postgres READ COMMITTED interleav
     await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'coupon_over_cap', manualReviewRequired: true });
     expect(await ship()).toBe(0);
   });
+  it('(round-10) an already-DELIVERED `ready` row → 0 rows, never re-shipped (its marker survives verbatim)', async () => {
+    await seedOrder({ status: 'ready', deliveryHoldReason: 'qa_soft_deliver:soft_band' });
+    expect(await ship()).toBe(0);
+    expect(await statusOf()).toBe('ready');
+    const rows = await db.$queryRaw<Array<{ r: string | null }>>`SELECT "deliveryHoldReason" AS r FROM "Order" WHERE "id" = 'o1'`;
+    expect(rows[0].r).toBe('qa_soft_deliver:soft_band'); // a lost re-ship must not blank the shipped marker
+  });
+  it('(round-10) an already-DELIVERED `partial` row → 0 rows (the same non-retraction pair as requireNotDelivered)', async () => {
+    await seedOrder({ status: 'partial' });
+    expect(await ship()).toBe(0);
+    expect(await statusOf()).toBe('partial');
+  });
   it('an active strong Human-QA case (safety) present though marker reads anchor (skip_weaker) → 0 rows', async () => {
     await seedOrder({ status: 'needs_human_qa', deliveryHoldReason: 'anchor_low_confidence:soft_band' });
     await seedCase('safety');

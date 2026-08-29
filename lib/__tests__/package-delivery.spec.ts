@@ -462,6 +462,133 @@ describe('finalizePackageDelivery — durable non-anchor dispositions are RECOGN
   });
 });
 
+describe('finalizePackageDelivery — already-delivered convergence (Codex round-10)', () => {
+  const CALL_ARGS = {
+    safetyGate: { held: false, reason: null },
+    readUrl: 'https://app/ready?orderId=o1',
+    pdfUrl: null,
+    firstAudioUrl: null,
+  } as const;
+  const rowWith = (over: Record<string, unknown>) => ({
+    childName: 'Test', inputVersion: 0, visualContractHash: null, deliveryFenceVersion: 0,
+    status: 'generating', deliveryHoldReason: null, manualReviewRequired: false,
+    selectionFilename: 'story-bank/v3-approved/bunny_ometz_bedtime.md',
+    storySourceHash: 'f'.repeat(64),
+    illustrationStyle: 'pencil_watercolor',
+    visualPackageAuthority: null,
+    generationJob: { pipelineCache: {} },
+    ...over,
+  });
+  function flattenSqlArg(a: unknown): unknown[] {
+    if (a && typeof a === 'object' && 'strings' in (a as Record<string, unknown>) && 'values' in (a as Record<string, unknown>)) {
+      const sql = a as { strings: ReadonlyArray<string>; values: unknown[] };
+      return [sql.strings.join(' '), ...sql.values.flatMap(flattenSqlArg)];
+    }
+    return [a];
+  }
+  const boundArgsOf = (call: unknown[]) => call.slice(1).flatMap(flattenSqlArg);
+
+  it('HOSTILE (round-10, the reproduced race): the strong case closes and a COMPETING worker ships → this invocation converges NON-HELD with ZERO email and NO second ship', async () => {
+    const prisma = db();
+    // Iteration 1 reads a clean generating row; its ship CAS returns 0 (the strong case was still
+    // open in SQL). The case then closes and the OTHER worker ships. Iteration 2 reads `ready`.
+    prisma.order.findUnique = vi.fn(async () => rowWith({ status: 'ready' }))
+      .mockResolvedValueOnce(rowWith({})) as never;
+    // Case-derived hold funnel pre-read: the world is already delivered → requireNotDelivered
+    // returns 'superseded' (the non-retraction contract) and NO hold UPDATE is ever issued.
+    prisma.$queryRaw = vi.fn(async () => [{ fence: 1, rank: 1, status: 'ready', inputVersion: 0, caseOpen: false }]) as never;
+    // The ONE ship CAS (iteration 1) loses; nothing after it may ship again.
+    prisma.$executeRaw = vi.fn(async () => 1).mockResolvedValueOnce(0) as never;
+    prisma.humanQaReviewCase.findUnique = vi.fn(async ({ where }: { where: { activeKey: string } }) =>
+      where.activeKey === 'o1:base_book'
+        ? { id: 'case-1', kind: 'safety', status: 'open', rawReason: 'safety_hold:hazard:page:2:child_on_railing' }
+        : null,
+    ) as never;
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...CALL_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    // Non-held convergence: the book IS delivered (by the competing worker) — never a false held.
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false, manifest: null });
+    // EXACTLY one ship CAS ran (iteration 1's, which lost). The delivered row was never CAS'd
+    // again and no hold write ever landed — Codex's probe measured 2 CAS calls + 1 email here.
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    for (const call of prisma.$executeRaw.mock.calls) {
+      expect(boundArgsOf(call as unknown[])).not.toEqual(expect.arrayContaining(['needs_human_qa']));
+    }
+    // ZERO direct ready email from THIS invocation — the shipping worker owns the one email.
+    expect(send).not.toHaveBeenCalled();
+    // Coherent idempotent completion: the job concludes done/packaged exactly once.
+    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1);
+    expect(prisma.generationJob.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'done', packaged: true }) }),
+    );
+  });
+
+  it('order is READY at loop entry (even with a held-deriving producing snapshot) → NO ship CAS, NO park, NO email, non-held convergence', async () => {
+    const prisma = db();
+    // hard_band on the producing snapshot is deliberately hostile: pre-round-10 the disposition
+    // derivation would have tried to PARK (retract) the delivered row. The delivered-state
+    // classification concludes before any derivation.
+    prisma.order.findUnique = vi.fn(async () => rowWith({
+      status: 'ready',
+      generationJob: { pipelineCache: { childAnchorLowConfidence: { reason: 'hard_band', score: 0.29 } } },
+    })) as never;
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...CALL_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false, manifest: null });
+    expect(prisma.$executeRaw).not.toHaveBeenCalled(); // no ship CAS, no hold write — nothing to do
+    expect(send).not.toHaveBeenCalled();
+    // One loop read classifies; the second read is the best-effort post-commit case sync.
+    expect(prisma.order.findUnique.mock.calls.length).toBeLessThanOrEqual(2);
+    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('order is PARTIAL at loop entry → same non-retraction convergence: no CAS, no email, non-held, job concluded once', async () => {
+    const prisma = db();
+    prisma.order.findUnique = vi.fn(async () => rowWith({ status: 'partial' })) as never;
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...CALL_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    // `partial` is delivered under the SAME non-retraction contract as `ready`
+    // (writeOrderHoldFenced.requireNotDelivered and the shared ship CAS both name the pair):
+    // this stage neither re-ships, retracts, nor emails a partially-delivered book.
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false, manifest: null });
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('hold precedence preserved (round-7 before round-10): a delivered row that ALSO carries a terminal safety marker still concludes under the marker owner as held', async () => {
+    const prisma = db();
+    prisma.order.findUnique = vi.fn(async () => rowWith({
+      status: 'ready',
+      deliveryHoldReason: 'safety_hold:hazard_detected',
+    })) as never;
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...CALL_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    // The round-7 terminal classification fires FIRST — the marker's owner governs, exactly as
+    // before round-10 — so the new delivered-state recognition never weakens hold precedence.
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: true, manifest: null });
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('finalizePackageDelivery — hold-write result discipline (Codex round-5 finding 3)', () => {
   // A fresh row that fails the producing binding (A→legacy laundering) — the park path that binds
   // the observed inputVersion, so the fenced hold write can genuinely drift.

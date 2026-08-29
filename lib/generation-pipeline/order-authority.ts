@@ -146,9 +146,10 @@ export async function writeOrderHoldFenced(db: Db, p: HoldWriteArgs, maxRetries 
 /**
  * THE shared ready-transition (SHIP) CAS. Flips the order to `ready` ONLY IF, atomically at write time: inputVersion
  * unchanged (B4) AND the SHARED fence unchanged since load AND no payment fence AND no terminal safety_/contract_world_
- * marker AND no active strong Human-QA case. `requireHoldReason` (flag-ON anchor-release ONLY) additionally pins
- * status=needs_human_qa + the exact authorized marker. Returns rows updated: 1 = shipped; 0 = a competing hold (or an
- * input drift) blocked it. Exported so the real-PG harness exercises the EXACT production SQL (no drift).
+ * marker AND no active strong Human-QA case AND NOT already in a delivered state (`ready`/`partial`).
+ * `requireHoldReason` (flag-ON anchor-release ONLY) additionally pins status=needs_human_qa + the exact authorized marker.
+ * Returns rows updated: 1 = shipped; 0 = a competing hold (or an input drift, or already-delivered) blocked it.
+ * Exported so the real-PG harness exercises the EXACT production SQL (no drift).
  */
 export async function executeReadinessShipCas(
   db: Db,
@@ -181,6 +182,7 @@ export async function executeReadinessShipCas(
        AND "inputVersion" = ${p.inputVersion}
        AND "deliveryFenceVersion" = ${p.deliveryFenceVersion}
        AND "manualReviewRequired" = false
+       AND "status" NOT IN ('ready'::"OrderStatus", 'partial'::"OrderStatus")
        AND ${TERMINAL_HOLD_NOT_LIKE_SQL}
        AND NOT EXISTS (
          SELECT 1 FROM "HumanQaReviewCase" c

@@ -443,4 +443,32 @@ describe('pipeline-cache-store — REAL PostgreSQL semantics (PGlite)', () => {
     expect(await orderStatusOf('o-case-bind-1')).toBe('generating');
     expect(await holdReasonOf('o-case-bind-1')).toBeNull();
   });
+
+  it('(Codex round-10) the REAL ship CAS never matches a DELIVERED row: `ready` and `partial` reject (0 rows, bytes untouched); `generating` still ships', async () => {
+    // The shared production SQL changed (status NOT IN ('ready','partial')) — this executes the
+    // exact exported statement against real Postgres, per the round-10 requirement.
+    const casDb = { $executeRaw: storeDb.$executeRaw } as never;
+    const rowOf = async (id: string) =>
+      (await pg.query<{ status: string; hold: string | null; fence: number }>(
+        'SELECT "status"::text AS status, "deliveryHoldReason" AS hold, "deliveryFenceVersion" AS fence FROM "Order" WHERE "id" = $1',
+        [id],
+      )).rows[0];
+    const ship = (id: string) =>
+      executeReadinessShipCas(casDb, { orderId: id, inputVersion: 0, deliveryFenceVersion: 0, deliveryHoldReason: null });
+
+    // READY (already delivered by a competing worker; its post-ship marker must survive verbatim).
+    await pg.query(`INSERT INTO "Order" ("id","status","deliveryHoldReason") VALUES ('o-r10-ready','ready','qa_soft_deliver:soft_band')`);
+    expect(await ship('o-r10-ready')).toBe(0);
+    expect(await rowOf('o-r10-ready')).toEqual({ status: 'ready', hold: 'qa_soft_deliver:soft_band', fence: 0 });
+
+    // PARTIAL (partially delivered — the same non-retraction pair as writeOrderHoldFenced).
+    await pg.query(`INSERT INTO "Order" ("id","status") VALUES ('o-r10-partial','partial')`);
+    expect(await ship('o-r10-partial')).toBe(0);
+    expect(await rowOf('o-r10-partial')).toEqual({ status: 'partial', hold: null, fence: 0 });
+
+    // GENERATING (positive control): the exclusion must not block an ordinary clean ship.
+    await pg.query(`INSERT INTO "Order" ("id","status") VALUES ('o-r10-gen','generating')`);
+    expect(await ship('o-r10-gen')).toBe(1);
+    expect((await rowOf('o-r10-gen')).status).toBe('ready');
+  });
 });

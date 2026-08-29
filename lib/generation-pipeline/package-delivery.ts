@@ -300,6 +300,7 @@ export async function finalizePackageDelivery(
   let shippedWarnings: ReturnType<typeof buildQaWarningsFromAnchorHold> | null = null;
   let heldReason: string | null = null;
   let durable = false;
+  let alreadyDelivered = false;
 
   for (let attempt = 0; attempt < LEGACY_SHIP_REEVALUATIONS; attempt++) {
     const cur = await prisma.order.findUnique({
@@ -348,6 +349,21 @@ export async function finalizePackageDelivery(
       heldReason = isDeliveryTerminalHold(cur.deliveryHoldReason)
         ? cur.deliveryHoldReason
         : 'payment_fence:manual_review_required';
+      durable = true;
+      break;
+    }
+
+    // (Codex round-10) An already-DELIVERED state (`ready`/`partial`) is the OTHER durable
+    // disposition the classification must recognize: delivery is non-retractable (the same
+    // `status NOT IN ('ready','partial')` contract as writeOrderHoldFenced's requireNotDelivered
+    // and the shared ship CAS). This is exactly the case-close race's second half — the strong
+    // case closed and a COMPETING worker shipped; that worker owns the one direct ready email.
+    // Concluding here (before any disposition derivation) means: no ship CAS against a delivered
+    // row, no re-derived park trying to retract it, no duplicate email, and — critically — no
+    // spin into the retryable exhaustion against a state that can never change back. The stage
+    // converges NON-HELD (the book IS delivered) with coherent idempotent job/package completion.
+    if (cur.status === 'ready' || cur.status === 'partial') {
+      alreadyDelivered = true;
       durable = true;
       break;
     }
@@ -553,7 +569,13 @@ export async function finalizePackageDelivery(
   await syncHumanQaHoldCasePostCommit(prisma, args.order.id);
 
   // (Codex round-5 P0-2) The email is gated on the ship CAS having WON — never sent on a park.
-  if (!shipped) {
+  // (round-10) An already-delivered discovery sends NOTHING: the competing worker that shipped owns
+  // the one direct ready email; this invocation only concludes its own job/package bookkeeping.
+  if (alreadyDelivered) {
+    log.warn('Book-ready email suppressed — Order already delivered by a competing worker (non-retractable; no re-ship, no duplicate email)', {
+      orderId: args.order.id,
+    });
+  } else if (!shipped) {
     log.warn('Book-ready email withheld — held for human QA (durable hold written)', {
       orderId: args.order.id,
       reason: heldReason,
@@ -579,7 +601,10 @@ export async function finalizePackageDelivery(
 
   return {
     mode: 'legacy',
-    deliveryHeld: !shipped,
+    // (round-10) A discovered already-delivered state is NOT a hold: the book is delivered
+    // (non-retractable), so reporting held here would be a false held result. Only a genuine
+    // durable park reports deliveryHeld.
+    deliveryHeld: !shipped && !alreadyDelivered,
     manifest: null,
   };
 }
