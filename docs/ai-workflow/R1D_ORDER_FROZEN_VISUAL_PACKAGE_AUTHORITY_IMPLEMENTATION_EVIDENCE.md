@@ -670,6 +670,95 @@ no package assembly/publication, no locator change, no Wizard order, no
 payment, no render. The current locator still selects legacy package
 `2b488f2d…` bound to `20a12801…`.
 
+## Codex re-gate round 10 — already-delivered convergence (double-email closure)
+
+Codex empirically reproduced (real-function probe) the remaining race in the
+readiness-OFF loop: iteration 1 reads a clean `generating` row; the ship CAS
+returns 0 because an active strong `HumanQaReviewCase` exists; the case then
+closes and a COMPETING worker ships the Order; the round-9 case-derived hold
+sees `status='ready'` and returns `superseded` (`requireNotDelivered`); the
+next iteration re-reads the ALREADY-`ready` row, and `executeReadinessShipCas`
+matched that row again — this invocation shipped a second time and sent a
+second direct ready email (probe: 2 ship/hold CAS calls, 1 duplicate send,
+`result: legacy, deliveryHeld=false`).
+
+Round-10 corrective (2 layers, preserving the two authorized partial edits):
+
+1. **Shared ship CAS (SQL):** `executeReadinessShipCas` gains
+   `AND "status" NOT IN ('ready','partial')` — the exact non-retraction pair
+   `writeOrderHoldFenced.requireNotDelivered` already names. A delivered row
+   can never be re-shipped by ANY caller of the shared statement, so a lost
+   race can never blank a shipped row's `deliveryHoldReason` (e.g. a
+   `qa_soft_deliver:` marker) or re-fire the ready transition.
+2. **Loop classification (TS):** each fresh iteration now recognizes the
+   delivered state as the SECOND durable disposition, immediately after the
+   round-7 terminal-marker/payment-fence classification (hold precedence
+   byte-preserved: a delivered row that also carries a terminal marker still
+   concludes held under that marker's owner). `ready`/`partial` →
+   `alreadyDelivered`: the loop concludes BEFORE identity/payload validation
+   and disposition derivation — deliberate, because both remedies (ship or
+   park) are forbidden against a non-retractable delivered row. The stage
+   converges NON-HELD (`deliveryHeld:false` — the book IS delivered; reporting
+   held would be the false-held result round 9 forbids), sends ZERO email
+   (the competing worker that shipped owns the one direct ready email; a
+   distinct suppression log replaces the misleading "held for human QA" line),
+   and still performs the coherent idempotent job/package completion
+   (`generationJob` done/packaged once; post-commit case sync no-ops).
+
+Without layer 2, layer 1 alone converts the duplicate email into a new wedge:
+three CAS=0 iterations against a permanently-`ready` row would exhaust into
+`AuthorityHoldRaceError` and redrive forever. Without layer 1, layer 2 alone
+leaves every OTHER caller of the shared SQL able to re-ship a delivered row.
+Both are required.
+
+Hostile regressions (all six required cells):
+
+1. Reproduced race (case closes + competing worker ships): mock cell drives
+   iteration-1 generating + CAS=0 + strong case, funnel pre-read
+   `status='ready'` → `superseded`, iteration-2 fresh read `ready` → exactly
+   ONE ship CAS total, zero `needs_human_qa` writes, ZERO email,
+   `deliveryHeld:false`, job done once.
+2. `ready` at loop entry (with a deliberately hostile `hard_band` producing
+   snapshot): zero ship CAS, zero park (no retraction attempt), zero email,
+   non-held, ≤2 order reads.
+3. `partial` at loop entry: identical non-retraction convergence.
+4. Ordinary clean `generating` Order: the pre-existing round-6 positive
+   control (exactly one ship CAS, exactly one email, job done) passes
+   unchanged.
+5. Active strong case on a `generating` Order: the round-9 3-cell canonical
+   restoration matrix passes unchanged (durable hold still restored).
+6. Real-PG proof of the changed shared SQL (PGlite, offline, ordinary
+   battery): `ready` rejects (0 rows; status AND the shipped
+   `qa_soft_deliver:` marker byte-unchanged), `partial` rejects (0 rows),
+   `generating` still ships (1 row → `ready`). The docker-gated
+   `delivery-fence.pg.spec.ts` harness gained the same two rejection cells
+   (inert locally by design; lock-step with the PGlite proof).
+
+Plus a precedence pin: `ready` + terminal `safety_hold:` marker still
+concludes HELD under the marker owner (round-7 classification remains first).
+
+Red proof: with the delivered-state classification disabled
+(`if (false && …)` mutant), exactly the three delivered-state cells fail and
+the precedence pin stays green; reverted, the battery is green again.
+
+Round-10 battery: focused delivery/order-authority/status/PGlite —
+8 files / 188 tests passed (`package-delivery`, `package-delivery-origin-matrix`,
+`qa-soft-deliver`, `readiness-manifest`, `order-authority-guard`,
+`delivery-input-writer-coverage`, `generate-status-route`,
+`pipeline-cache-store.pg`). `npx --no-install tsc --noEmit` exit 0;
+`git diff --check` clean; zero provider/live/render/Wizard/payment operations.
+
+Round-10 limitations: the docker-gated `delivery-fence.pg.spec.ts` additions
+were not executed here (no throwaway Postgres in this environment — the
+harness is `describe.skipIf`-inert; the identical SQL is executed by the
+PGlite cell). The mock cells assert loop behavior with mocked CAS results;
+real READ COMMITTED interleaving of the full loop remains covered only at the
+statement level. `alreadyDelivered` intentionally skips identity/payload
+validation and anchor derivation for delivered rows (rationale above) — a
+delivered row with a mismatched producing identity is NOT parked by this
+stage (retraction is forbidden); detection of post-delivery integrity drift
+belongs to its own audit surface, not the delivery loop.
+
 ## Remaining chain to the end product (documented, not executed)
 
 After Guy's explicit go for one further authoring attempt (~$0.55, under

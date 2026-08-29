@@ -2,7 +2,7 @@
 
 **Updated:** 2026-08-29
 **Maintainer:** Claude Code (temporary implementation owner for the order-package-authority milestone; Codex QA pending)
-**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..608aeee0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`, `d1b320e1`, `608aeee0`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
+**Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..608aeee0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`, `d1b320e1`, `608aeee0`), the round-9 corrective `96a50252` (docs `8c7474bc`), and the round-10 corrective `17670078` (immutable code range `8c7474bc..17670078`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN PACKAGE CHAIN STOPPED AT THE PAID-ATTEMPT FENCE
 
@@ -255,6 +255,40 @@ Round-9 battery: 342 suites total (17 env-gated skipped); this branch:
 before this change: 4632 passed / 24 failed; this branch fixed 6 baseline
 failures and added 13 new passes). `tsc --noEmit` exit 0, `git diff
 --check` clean, zero provider operations.
+
+Round 10 (Codex-reproduced double-email race; Claude Code corrective):
+after the round-9 close race, the loop re-read the COMPETING worker's
+already-`ready` row and `executeReadinessShipCas` matched it again — a
+second ship and a second direct ready email (probe: 2 CAS calls, 1
+duplicate send). Two layers close it, preserving the two authorized
+partial edits: the shared ship CAS now excludes the delivered pair
+(`status NOT IN ('ready','partial')` — the same non-retraction set as
+`requireNotDelivered`), and each loop iteration classifies a delivered
+row as the second durable disposition (immediately AFTER the round-7
+terminal/payment classification, so hold precedence is byte-preserved)
+— concluding non-held (`deliveryHeld:false`; the book IS delivered),
+zero email (the shipping worker owns the one send; a distinct
+suppression log replaces the misleading held-for-QA line), no ship CAS
+and no retraction park against the delivered row, with the coherent
+idempotent job/package completion. Either layer alone is insufficient:
+SQL-only converts the duplicate email into a permanent retryable-
+exhaustion wedge; TS-only leaves other shared-CAS callers able to
+re-ship. Hostile cells: the reproduced race (ONE ship CAS total, zero
+`needs_human_qa` writes, zero email, non-held, job done once),
+ready-at-entry under a hostile `hard_band` snapshot (zero CAS/park/
+email), partial-at-entry, the unchanged round-6 one-ship-one-email
+positive control, the unchanged round-9 canonical-restoration matrix,
+a ready+`safety_hold:` precedence pin (still held under the marker
+owner), and a real-PG PGlite cell executing the changed shared SQL
+(ready and partial reject with bytes untouched — including a shipped
+`qa_soft_deliver:` marker — generating still ships); the docker-gated
+`delivery-fence.pg.spec.ts` harness carries the same two rejection
+cells in lock-step (inert locally). Red proof: disabling the
+classification fails exactly the three delivered-state cells. Round-10
+battery: focused delivery/order-authority/status/PGlite 8 files / 188
+tests PASS; `npx --no-install tsc --noEmit` exit 0; `git diff --check`
+clean; zero provider/live/render/Wizard/payment operations. Awaiting
+Codex adversarial re-gate.
 
 Total authoring spend $1.06 conservative across 4 provider calls, zero
 transport retries, no fallback, no candidate promoted. Per the milestone's
