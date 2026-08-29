@@ -87,19 +87,58 @@ interface PackageDeliveryDeps {
 async function findActiveStrongHumanQaCase(
   prisma: PrismaClient,
   orderId: string,
-): Promise<{ kind: string } | null> {
+): Promise<{ id: string; kind: string; scope: 'base_book' | 'payment'; rawReason: string } | null> {
   for (const scope of ['base_book', 'payment'] as const) {
     const reviewCase = await prisma.humanQaReviewCase.findUnique({
       where: { activeKey: `${orderId}:${scope}` },
-      select: { kind: true, status: true },
+      select: { id: true, kind: true, status: true, rawReason: true },
     });
     if (
       reviewCase &&
       reviewCase.status === 'open' &&
       ['safety', 'contract_world', 'payment_integrity'].includes(reviewCase.kind)
     ) {
-      return { kind: reviewCase.kind };
+      return { id: reviewCase.id, kind: reviewCase.kind, scope, rawReason: reviewCase.rawReason };
     }
+  }
+  return null;
+}
+
+/**
+ * (Codex round-9) PURE. The canonical Order disposition an active strong case RECONSTITUTES when the
+ * ship CAS rejected a clean Order row (skip_weaker shape). The case's immutable evidence
+ * (`rawReason` = the deliveryHoldReason marker verbatim at hold time) is used as authority ONLY when
+ * it is mutually compatible with the case's kind/scope — the restored marker keeps its own family's
+ * rank, terminality and release lifecycle (safety stays rank-3 `safety_hold:`, contract stays rank-2
+ * `contract_world_hold:`, payment restores the manual-review fence). Anything malformed — wrong
+ * scope, a rawReason from a different marker family, an empty reason — returns null and the caller
+ * FAILS CLOSED retryably: legacy evidence is never laundered into a marker that misstates the case.
+ */
+export function canonicalStrongCaseRestoration(reviewCase: {
+  kind: string;
+  scope: 'base_book' | 'payment';
+  rawReason: string;
+}): { newHoldReason: string; manualReviewRequired?: true } | null {
+  const raw = reviewCase.rawReason?.trim() ?? '';
+  if (reviewCase.kind === 'safety') {
+    return reviewCase.scope === 'base_book' && raw.startsWith('safety_hold:')
+      ? { newHoldReason: raw }
+      : null;
+  }
+  if (reviewCase.kind === 'contract_world') {
+    return reviewCase.scope === 'base_book' && raw.startsWith('contract_world_hold:')
+      ? { newHoldReason: raw }
+      : null;
+  }
+  if (reviewCase.kind === 'payment_integrity') {
+    // The payment fence's authority is `manualReviewRequired`, not a marker family; the coupon-fence
+    // reason is restored verbatim but must not impersonate a base_book marker family.
+    const impersonates = ['safety_hold:', 'contract_world_hold:', 'anchor_low_confidence:', 'qa_released:'].some(
+      (prefix) => raw.startsWith(prefix),
+    );
+    return reviewCase.scope === 'payment' && raw.length > 0 && !impersonates
+      ? { newHoldReason: raw, manualReviewRequired: true }
+      : null;
   }
   return null;
 }
@@ -410,16 +449,56 @@ export async function finalizePackageDelivery(
         durable = true;
         break;
       }
-      // (Codex round-7) CAS=0 with a clean fresh row: the one durable disposition the Order row
-      // itself cannot show is an ACTIVE STRONG HumanQaReviewCase (the skip_weaker shape — a weaker
-      // marker rewrite left the strong case open; the ship CAS's NOT EXISTS rejects it). Classify
-      // it before re-evaluating: an open safety/contract_world/payment_integrity case IS a durable
-      // disposition owned by its reviewer — conclude held under it, never spin against it.
+      // (Codex round-7 / round-9) CAS=0 with a clean fresh row: the one durable disposition the
+      // Order row itself cannot show is an ACTIVE STRONG HumanQaReviewCase (the skip_weaker shape —
+      // a weaker marker rewrite left the strong case open; the ship CAS's NOT EXISTS rejects it).
+      // (round-9) A bare case read is NOT sufficient authority to conclude the stage: the case's
+      // canonical Order disposition is RECONSTITUTED through the shared hold funnel — restoring the
+      // case's own marker family (safety→safety_hold: rank 3, contract→contract_world_hold: rank 2,
+      // payment→the manual-review fence), fenced + inputVersion-bound + ATOMICALLY re-proving the
+      // SAME case is still open in the hold UPDATE itself. Only an `applied` hold concludes the
+      // stage held (the customer-visible Order now maps to under_review); every other result —
+      // the case closed mid-flight, a stronger marker landed, a fence/input move, or malformed
+      // case evidence — re-evaluates FRESH (loop-top classification recognizes markers; a now-clean
+      // world ships; the unexplained remainder exhausts into the retryable abort).
       const strongCase = await findActiveStrongHumanQaCase(prisma, args.order.id);
       if (strongCase) {
-        heldReason = `human_qa_case:${strongCase.kind}`;
-        durable = true;
-        break;
+        const restoration = canonicalStrongCaseRestoration(strongCase);
+        if (!restoration) {
+          // Malformed legacy evidence (kind/scope/rawReason mutually incompatible): never launder
+          // it into Order authority — fail closed into the fresh re-evaluation/retryable abort.
+          log.error(
+            'Active strong Human-QA case carries non-canonical evidence — failing closed (no hold landed)',
+            new Error('strong case rawReason incompatible with its kind/scope'),
+            { orderId: args.order.id, caseId: strongCase.id, kind: strongCase.kind, scope: strongCase.scope },
+          );
+          continue;
+        }
+        const held = await writeOrderHoldFenced(prisma, {
+          orderId: args.order.id,
+          inputVersion: cur.inputVersion,
+          newStatus: 'needs_human_qa',
+          newHoldReason: restoration.newHoldReason,
+          ...(restoration.manualReviewRequired ? { manualReviewRequired: true } : {}),
+          setPackageDone: true,
+          requireNotDelivered: true,
+          requireOpenCaseId: strongCase.id,
+        });
+        if (held === 'applied') {
+          heldReason = restoration.newHoldReason;
+          durable = true;
+          break;
+        }
+        // superseded / input_drift / lost — the world moved (a stronger marker now governs, the
+        // case closed, or the fence/input advanced). NOTHING landed from here: re-evaluate fresh.
+        log.warn('Strong-case disposition write did not land — re-evaluating from a fresh snapshot', {
+          orderId: args.order.id,
+          caseId: strongCase.id,
+          holdResult: held,
+          attempt: attempt + 1,
+          of: LEGACY_SHIP_REEVALUATIONS,
+        });
+        continue;
       }
       // (round-6) Otherwise the world moved under this evaluation (a hold/fence/anchor-band
       // mutation still in flight). Never just log-and-continue to the job-done write: RE-EVALUATE

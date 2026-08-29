@@ -315,12 +315,97 @@ describe('finalizePackageDelivery — durable non-anchor dispositions are RECOGN
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('skip_weaker: clear marker + clear anchor but an ACTIVE strong safety case → one CAS=0, then RECOGNIZED case disposition (no spin, no exhaustion abort)', async () => {
+  // (Codex round-9) Flatten a mocked tagged-template call's interpolated args, unwrapping nested
+  // Prisma.Sql fragments into their SQL text + bound values, so a cell can assert the EXACT
+  // persisted disposition the hold funnel was asked to land.
+  function flattenSqlArg(a: unknown): unknown[] {
+    if (a && typeof a === 'object' && 'strings' in (a as Record<string, unknown>) && 'values' in (a as Record<string, unknown>)) {
+      const sql = a as { strings: ReadonlyArray<string>; values: unknown[] };
+      return [sql.strings.join(' '), ...sql.values.flatMap(flattenSqlArg)];
+    }
+    return [a];
+  }
+  const boundArgsOf = (call: unknown[]) => call.slice(1).flatMap(flattenSqlArg);
+  const strongCase = (over: Record<string, unknown> = {}) => ({
+    id: 'case-1', kind: 'safety', status: 'open', rawReason: 'safety_hold:hazard:page:2:child_on_railing', ...over,
+  });
+
+  it.each([
+    ['safety', 'o1:base_book', strongCase(), 'safety_hold:hazard:page:2:child_on_railing', false],
+    ['contract_world', 'o1:base_book', strongCase({ kind: 'contract_world', rawReason: 'contract_world_hold:world_drift:page:3' }), 'contract_world_hold:world_drift:page:3', false],
+    ['payment_integrity', 'o1:payment', strongCase({ kind: 'payment_integrity', rawReason: 'coupon_paid_late_over_cap' }), 'coupon_paid_late_over_cap', true],
+  ])('skip_weaker (round-9): clean Order + ACTIVE strong %s case → one CAS=0, then the case\'s CANONICAL disposition is reconstituted (fenced + same-case re-proved): needs_human_qa persisted, job done once, zero email', async (_kind, activeKey, reviewCase, expectedMarker, expectsPaymentFence) => {
     const prisma = db();
     prisma.order.findUnique = vi.fn(async () => rowWith({})) as never;
-    prisma.$executeRaw = vi.fn(async () => 0) as never; // the CAS's NOT EXISTS rejects the ship
+    // Hold-funnel pre-read: clean rank-1 row, and the SAME case still open (atomic re-proof probe).
+    prisma.$queryRaw = vi.fn(async () => [{ fence: 0, rank: 1, status: 'generating', inputVersion: 0, caseOpen: true }]) as never;
+    // 1st $executeRaw = the ship CAS (its NOT EXISTS rejects) → 0; 2nd = the hold UPDATE → applied.
+    prisma.$executeRaw = vi.fn(async () => 1).mockResolvedValueOnce(0) as never;
     prisma.humanQaReviewCase.findUnique = vi.fn(async ({ where }: { where: { activeKey: string } }) =>
-      where.activeKey === 'o1:base_book' ? { kind: 'safety', status: 'open' } : null,
+      where.activeKey === activeKey ? reviewCase : null,
+    ) as never;
+    const send = vi.fn();
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...CALL_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: true, manifest: null });
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2); // one ship CAS + exactly one hold write — never a spin
+    const holdArgs = boundArgsOf(prisma.$executeRaw.mock.calls[1] as unknown[]);
+    // The persisted customer-visible disposition: needs_human_qa (status API → under_review) + the
+    // case's verbatim canonical marker, atomically bound to the still-open case id.
+    expect(holdArgs).toEqual(expect.arrayContaining(['needs_human_qa', expectedMarker, 'case-1']));
+    // Package completion is coherent in the SAME hold write (packageStatus = done).
+    expect(holdArgs.some((a) => typeof a === 'string' && a.includes('packageStatus'))).toBe(true);
+    // The atomic same-case re-proof is IN the UPDATE itself, not just the pre-read.
+    expect(holdArgs.some((a) => typeof a === 'string' && a.includes('HumanQaReviewCase'))).toBe(true);
+    // payment_integrity restores the payment/manual-review fence; base_book kinds never touch it.
+    expect(holdArgs.some((a) => typeof a === 'string' && a.includes('manualReviewRequired'))).toBe(expectsPaymentFence);
+    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1); // the stage concludes once, with the durable hold
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('close race (round-9): the strong case closes between the CAS=0 classification read and the hold write → NOTHING lands (no false held), the fresh re-evaluation ships cleanly', async () => {
+    const prisma = db();
+    prisma.order.findUnique = vi.fn(async () => rowWith({})) as never;
+    // Hold-funnel pre-read: the case is NO LONGER open → the funnel returns 'lost' without writing.
+    prisma.$queryRaw = vi.fn(async () => [{ fence: 0, rank: 1, status: 'generating', inputVersion: 0, caseOpen: false }]) as never;
+    // 1st ship CAS → 0 (raced); the next iteration's ship CAS → 1 (the world is clean now).
+    prisma.$executeRaw = vi.fn(async () => 1).mockResolvedValueOnce(0) as never;
+    prisma.humanQaReviewCase.findUnique = vi.fn(async ({ where }: { where: { activeKey: string } }) =>
+      where.activeKey === 'o1:base_book' ? strongCase() : null,
+    ) as never;
+    const send = vi.fn(async () => ({}));
+    const result = await finalizePackageDelivery(
+      prisma as never,
+      { order, ...CALL_ARGS },
+      { readinessEnabled: () => false, send },
+    );
+    expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: false });
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2); // ship CAS ×2 — the hold UPDATE never ran
+    for (const call of prisma.$executeRaw.mock.calls) {
+      // No held-state write ever landed: a closed case is ZERO authority (never a false held+done).
+      expect(boundArgsOf(call as unknown[])).not.toEqual(expect.arrayContaining(['needs_human_qa']));
+    }
+    expect(send).toHaveBeenCalledTimes(1); // delivered exactly once
+    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('supersede race (round-9): a STRONGER marker (safety rank-3) arrives while the strong-case hold write tries to land a weaker marker (contract_world rank-2) → funnel returns superseded (rank strictly greater), the 2nd loop read recognizes the terminal safety marker, concludes under THAT owner (zero rewrite)', async () => {
+    const prisma = db();
+    // 1st loop read: clean row — the ship CAS fires and returns 0 (the strong case exists).
+    // 2nd loop read: a safety_hold: terminal marker now governs (a concurrent write landed it).
+    prisma.order.findUnique = vi
+      .fn(async () => rowWith({ status: 'needs_human_qa', deliveryHoldReason: 'safety_hold:hazard_detected' }))
+      .mockResolvedValueOnce(rowWith({})) as never;
+    // Hold-funnel pre-read: rank 3 (safety) > newRank 2 (contract_world) → 'superseded' immediately; no UPDATE fires.
+    prisma.$queryRaw = vi.fn(async () => [{ fence: 0, rank: 3, status: 'needs_human_qa', inputVersion: 0, caseOpen: true }]) as never;
+    prisma.$executeRaw = vi.fn(async () => 0) as never; // one ship CAS on the first iteration only
+    // The strong case is a contract_world case: restoration produces rank-2 marker.
+    const contractCase = strongCase({ kind: 'contract_world', rawReason: 'contract_world_hold:world_drift:page:3' });
+    prisma.humanQaReviewCase.findUnique = vi.fn(async ({ where }: { where: { activeKey: string } }) =>
+      where.activeKey === 'o1:base_book' ? contractCase : null,
     ) as never;
     const send = vi.fn();
     const result = await finalizePackageDelivery(
@@ -329,9 +414,31 @@ describe('finalizePackageDelivery — durable non-anchor dispositions are RECOGN
       { readinessEnabled: () => false, send },
     );
     expect(result).toMatchObject({ mode: 'legacy', deliveryHeld: true });
-    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1); // exactly one CAS attempt — never a 3x spin
-    expect(prisma.humanQaReviewCase.findUnique).toHaveBeenCalled(); // the case classification ran
-    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1);
+    // Only the one ship CAS: the hold-funnel pre-read returns 'superseded' (rank 3 > rank 2),
+    // so the hold UPDATE is never issued and the delivery loop re-evaluates fresh.
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(prisma.generationJob.update).toHaveBeenCalledTimes(1); // concluded under the safety owner's disposition
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('malformed case evidence (round-9): a strong safety case whose rawReason is NOT canonical for its kind → FAIL CLOSED, no hold landed, retryable exhaustion, job never done', async () => {
+    const prisma = db();
+    prisma.order.findUnique = vi.fn(async () => rowWith({})) as never;
+    prisma.$executeRaw = vi.fn(async () => 0) as never; // every ship CAS rejected by the case's NOT EXISTS
+    prisma.humanQaReviewCase.findUnique = vi.fn(async ({ where }: { where: { activeKey: string } }) =>
+      where.activeKey === 'o1:base_book' ? strongCase({ rawReason: 'anchor_low_confidence:soft_band' }) : null,
+    ) as never;
+    const send = vi.fn();
+    await expect(
+      finalizePackageDelivery(
+        prisma as never,
+        { order, ...CALL_ARGS },
+        { readinessEnabled: () => false, send },
+      ),
+    ).rejects.toMatchObject({ name: 'AuthorityHoldRaceError', holdMarker: 'legacy_ship_reevaluation_exhausted' });
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(3); // 3 ship CAS attempts only — laundered evidence never becomes a hold write
+    expect(prisma.$queryRaw).not.toHaveBeenCalled(); // the hold funnel was never even entered
+    expect(prisma.generationJob.update).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
   });
 

@@ -89,6 +89,15 @@ export interface HoldWriteArgs {
   requireNotDelivered?: boolean;
   /** B4 optimistic-concurrency bind (readiness): abort as input_drift if inputVersion changed. */
   inputVersion?: number;
+  /**
+   * (Codex round-9) Bind the hold to a SPECIFIC still-open HumanQaReviewCase: the write lands only
+   * while `HumanQaReviewCase.id = requireOpenCaseId AND status = 'open'` holds ATOMICALLY in the
+   * same UPDATE (and the fenced pre-read short-circuits to 'lost' when the case already closed).
+   * This is how a case-derived Order disposition proves the case still governs at commit — a bare
+   * case read is never sufficient authority. 'lost' here means NO hold landed; the caller
+   * re-evaluates fresh (it must never conclude done/held on it).
+   */
+  requireOpenCaseId?: string;
 }
 
 /**
@@ -99,27 +108,34 @@ export interface HoldWriteArgs {
  */
 export async function writeOrderHoldFenced(db: Db, p: HoldWriteArgs, maxRetries = 6): Promise<HoldWriteResult> {
   const newRank = markerRank(p.newHoldReason);
+  const openCaseProbe = p.requireOpenCaseId !== undefined
+    ? Prisma.sql`, EXISTS(SELECT 1 FROM "HumanQaReviewCase" c WHERE c."id" = ${p.requireOpenCaseId} AND c."status" = 'open') AS "caseOpen"`
+    : Prisma.empty;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const cur = await db.$queryRaw<Array<{ fence: number; rank: number; status: string; inputVersion: number }>>`
-      SELECT "deliveryFenceVersion" AS fence, ${CURRENT_RANK_SQL} AS rank, "status"::text AS status, "inputVersion" AS "inputVersion"
+    const cur = await db.$queryRaw<Array<{ fence: number; rank: number; status: string; inputVersion: number; caseOpen?: boolean }>>`
+      SELECT "deliveryFenceVersion" AS fence, ${CURRENT_RANK_SQL} AS rank, "status"::text AS status, "inputVersion" AS "inputVersion"${openCaseProbe}
         FROM "Order" WHERE "id" = ${p.orderId}`;
     if (cur.length === 0) return 'lost';
     const row = cur[0];
     if (Number(row.rank) > newRank) return 'superseded'; // a stronger marker is present → never overwrite
     if (p.requireNotDelivered && (row.status === 'ready' || row.status === 'partial')) return 'superseded';
     if (p.inputVersion !== undefined && row.inputVersion !== p.inputVersion) return 'input_drift';
+    if (p.requireOpenCaseId !== undefined && row.caseOpen !== true) return 'lost'; // the governing case closed → no authority, no hold
 
     const manualClause = p.manualReviewRequired !== undefined
       ? Prisma.sql`, "manualReviewRequired" = ${p.manualReviewRequired}` : Prisma.empty;
     const packageClause = p.setPackageDone ? Prisma.sql`, "packageStatus" = 'done'::"GenerationStatus"` : Prisma.empty;
     const inputBind = p.inputVersion !== undefined ? Prisma.sql` AND "inputVersion" = ${p.inputVersion}` : Prisma.empty;
     const notDeliveredBind = p.requireNotDelivered ? Prisma.sql` AND "status" NOT IN ('ready','partial')` : Prisma.empty;
+    const openCaseBind = p.requireOpenCaseId !== undefined
+      ? Prisma.sql` AND EXISTS(SELECT 1 FROM "HumanQaReviewCase" c WHERE c."id" = ${p.requireOpenCaseId} AND c."status" = 'open')`
+      : Prisma.empty;
     const updated = await db.$executeRaw`
       UPDATE "Order"
          SET "status" = ${p.newStatus}::"OrderStatus", "deliveryHoldReason" = ${p.newHoldReason}, "deliveryFenceVersion" = "deliveryFenceVersion" + 1${manualClause}${packageClause}
        WHERE "id" = ${p.orderId}
          AND "deliveryFenceVersion" = ${row.fence}
-         AND ${CURRENT_RANK_SQL} <= ${newRank}${inputBind}${notDeliveredBind}`;
+         AND ${CURRENT_RANK_SQL} <= ${newRank}${inputBind}${notDeliveredBind}${openCaseBind}`;
     if (updated === 1) return 'applied';
     // 0 rows — a concurrent authority write moved the fence (or a stronger marker / input drift / delivery landed).
     // Loop: the next read reclassifies (→ 'superseded' / 'input_drift' / retry the bare fence move).

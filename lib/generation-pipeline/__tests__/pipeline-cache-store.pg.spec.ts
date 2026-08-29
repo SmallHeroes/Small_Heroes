@@ -9,7 +9,7 @@ import {
   persistOrdinaryPipelineCache,
 } from '../pipeline-cache-store';
 import { ensureFrozenVisualContract } from '../ensure-frozen-visual-contract';
-import { executeReadinessShipCas } from '../order-authority';
+import { executeReadinessShipCas, writeOrderHoldFenced } from '../order-authority';
 import type { PipelineCache } from '../types';
 
 /**
@@ -391,5 +391,56 @@ describe('pipeline-cache-store — REAL PostgreSQL semantics (PGlite)', () => {
     await pg.query(text, [JSON.stringify(boardContext), 'o-board-2']);
     const two = await readCache('o-board-2');
     expect(two?.setIdentityBoards).toEqual(boardContext);
+  });
+
+  it('(Codex round-9) requireOpenCaseId: the EXISTS bind lands the hold ONLY while the SAME case is open — real SQL semantics', async () => {
+    // PGlite already has the HumanQaReviewCase table from the beforeAll DDL.
+    // $queryRaw adapter: flattenSql → pg.query, return rows array (writeOrderHoldFenced's SELECT path).
+    const queryRawAdapter = async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const { text, params } = flattenSql(strings as readonly string[], values);
+      const result = await pg.query<Record<string, unknown>>(text, params as never[]);
+      // PGlite returns boolean columns as booleans; the funnel checks === true, which is compatible.
+      return result.rows;
+    };
+    const holdDb = { $queryRaw: queryRawAdapter as never, $executeRaw: storeDb.$executeRaw } as never;
+    const orderStatusOf = async (id: string) =>
+      (await pg.query<{ status: string }>('SELECT "status"::text AS status FROM "Order" WHERE "id" = $1', [id])).rows[0]?.status;
+    const holdReasonOf = async (id: string) =>
+      (await pg.query<{ r: string | null }>('SELECT "deliveryHoldReason" AS r FROM "Order" WHERE "id" = $1', [id])).rows[0]?.r;
+
+    // Seed order + open case.
+    await pg.query(
+      `INSERT INTO "Order" ("id") VALUES ('o-case-bind-1')`,
+    );
+    await pg.query(
+      `INSERT INTO "HumanQaReviewCase" ("id", "status", "kind") VALUES ('case-open', 'open', 'safety')`,
+    );
+
+    // Attempt with an OPEN case → hold lands (applied).
+    const resultOpen = await writeOrderHoldFenced(holdDb, {
+      orderId: 'o-case-bind-1',
+      newStatus: 'needs_human_qa',
+      newHoldReason: 'safety_hold:hazard:pg_test',
+      requireOpenCaseId: 'case-open',
+    });
+    expect(resultOpen).toBe('applied');
+    expect(await orderStatusOf('o-case-bind-1')).toBe('needs_human_qa');
+    expect(await holdReasonOf('o-case-bind-1')).toBe('safety_hold:hazard:pg_test');
+
+    // Reset the Order to clean state; mark the case closed.
+    await pg.query(`UPDATE "Order" SET "status" = 'generating', "deliveryHoldReason" = NULL, "deliveryFenceVersion" = 0 WHERE "id" = 'o-case-bind-1'`);
+    await pg.query(`UPDATE "HumanQaReviewCase" SET "status" = 'resolved' WHERE "id" = 'case-open'`);
+
+    // Attempt with the SAME case id now CLOSED → funnel returns 'lost', no hold lands.
+    const resultClosed = await writeOrderHoldFenced(holdDb, {
+      orderId: 'o-case-bind-1',
+      newStatus: 'needs_human_qa',
+      newHoldReason: 'safety_hold:hazard:pg_test',
+      requireOpenCaseId: 'case-open',
+    });
+    expect(resultClosed).toBe('lost');
+    // Order is UNCHANGED — a closed case grants zero authority.
+    expect(await orderStatusOf('o-case-bind-1')).toBe('generating');
+    expect(await holdReasonOf('o-case-bind-1')).toBeNull();
   });
 });

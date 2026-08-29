@@ -188,6 +188,23 @@ describe('GET /api/generate/status', () => {
     expect('currentStage' in body).toBe(false);
   });
 
+  it('(round-9) the reconstituted strong-case disposition — needs_human_qa + restored canonical marker + packageStatus done — maps to under_review, never generating', async () => {
+    // The exact persisted shape finalizePackageDelivery's strong-case repair leaves behind a held
+    // result: the customer must see under_review, not a wedged "generating".
+    findUnique.mockResolvedValueOnce({
+      ...mockOrder,
+      status: 'needs_human_qa',
+      deliveryHoldReason: 'safety_hold:hazard:page:2:child_on_railing',
+      manualReviewRequired: false,
+      packageStatus: 'done',
+    });
+    const { GET } = await import('../../app/api/generate/status/route');
+    const res = await GET(statusRequest(VALID_CUID, VALID_KEY));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ status: 'under_review', childName: 'דנה' });
+  });
+
   it('returns readUrl for a ready order with a valid accessKey (and never leaks lastError)', async () => {
     findUnique.mockResolvedValueOnce({
       ...mockOrder,
