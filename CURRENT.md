@@ -1,10 +1,55 @@
 # SmallHeroes — Current Technical State
 
 **Updated:** 2026-08-29
-**Maintainer:** Claude Code (temporary implementation owner for the order-package-authority milestone; Codex QA pending)
+**Maintainer:** Codex (Technical Owner; Claude Code independent QA pending while Claude is paused)
 **Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..608aeee0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`, `d1b320e1`, `608aeee0`), the round-9 corrective `96a50252` (docs `8c7474bc`), and the round-10 corrective `17670078` (immutable code range `8c7474bc..17670078`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN PACKAGE CHAIN STOPPED AT THE PAID-ATTEMPT FENCE
+
+### Round 13 — successful Candidate cover contradiction closed offline; exact review pending
+
+The successful product-story Candidate
+`6f52a3181aad5e96304775e5f2b6462cfaf3261d9c11325f121992dff7b481e0`
+remains immutable. A new general, closed
+`cover_visible_recurring_prop` correction lane binds each operation to one
+exact Candidate, validation attestation, Story Source snapshot, recurring-prop
+identity/lifecycle, cover `mustShow` position/value and compiler-derived
+`mustNotShow` position/value. It can remove only the selected
+`firstRevealPage` and its exact no-spoiler projection; it cannot accept a raw
+path or replacement value, approve, call a provider, render, qualify the
+Wizard, publish or deploy. All target bytes are collision-preflighted before
+the first immutable write.
+
+Real offline artifacts under
+`outputs/r1d-lantern-fresh-readiness-20260829T155643118Z/cover-correction`:
+
+- Plan `cd76d90242e8a41972d8fd1f17bf1395aece8ec4fe60f2f131fd6598d26b5d47`;
+- effective correction `1662ea9dc4e66ccf217b2c49e42aa4a5644835d955d65b1413aa127e9d5d9c12`,
+  template `2fe93bc90140dd4d6529262b361d86a4409f93f30a8cfad52b035176d7ea1c0d`;
+- pending Review `e89b0639e391eb7ed6ab914fc1c85dbcd97945e1ae1d2ff5728a507fbf4fc522`.
+
+The correction preserves the positive cover requirements for the paper moon
+lantern, delivery cart and route-label ribbon, removes only those three
+page-1 lifecycle/no-spoiler contradictions, and preserves the page-3 bread
+roll and page-5 blank-label lifecycles. Full page contracts, cast, humanCast,
+wardrobe, companion state/satchel, camera authority and Action Semantic
+Coverage digest are unchanged. The original Candidate file SHA-256 remains
+`635efe0ae123836536d17c165cace5d93a411097aa700f72bb2acdee9373b3ca`.
+The Review is still `pending`, with `reviewedBy`/`reviewedAt` null; no approval
+or downstream authority exists yet. Provider/image/audio/network/database/
+Production operations in this round: zero.
+
+Focused validation: correction + cover-source-fidelity + workload-classifier
+22/22 PASS; both TypeScript projects and `git diff --check` exit 0. A hostile
+late-collision probe rejected before any Plan was created. The unchanged
+Candidate-bridge suite was also started independently but was stopped after
+several minutes of silent Windows fixture execution rather than represented
+as a PASS; its production code is untouched in this round. Literal
+`npm run check` reached 4,036 passing assertions and exposed the expected nine
+missing-local-output baseline failures plus one inventory-count change caused
+by this new spec; the latter was fixed and its 7-test classifier suite is now
+green. Independent Claude Code review remains mandatory and is deferred only
+because Claude is paused.
 
 Guy transferred implementation ownership of this milestone to Claude Code and
 resolved the product decision: the lantern/kindergarten story

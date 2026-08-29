@@ -841,6 +841,66 @@ disk), requires no new registry, and turns a silent wrong-story sale into
 an explicit refusal. It needs one regression cell: product lineage present
 + branch-0 disqualified → refusal, not bank fallback.
 
+## Round 13 — immutable cover semantic correction ($0)
+
+Codex resumed implementation while Claude Code was paused. The Round-12 paid
+Candidate was not edited or rebuilt. The additive implementation introduces:
+
+- `lib/visual-package/visualContractCandidateCoverCorrection.ts` — a closed
+  `cover_visible_recurring_prop` operation and content-addressed pending
+  Plan/Correction/Review preparation lifecycle;
+- `scripts/qa-wizard-candidate-cover-correction.ts` plus the package command
+  `qa-wizard-candidate-cover-correction` — strict offline prepare-only CLI;
+- `lib/visual-package/__tests__/visual-contract-candidate-cover-correction.spec.ts`
+  — exact-before-state, stale/cross-bound, duplicate, replay/no-op and
+  extra-key regressions.
+
+The operation binds an exact Story Source snapshot, Candidate, passed
+Candidate-validation attestation, recurring-prop identity, lifecycle,
+cover-positive index/value and compiler-derived no-spoiler index/value. It
+deletes only the bound `firstRevealPage` and exact derived cover prohibition.
+It cannot accept a JSON Pointer, raw patch or replacement text. The lifecycle
+validates the effective template and compares a normalized before-state with
+the result to prove zero unrelated drift. Before the first immutable write it
+preflights every JSON and Markdown target, so a late conflicting Correction
+cannot orphan a newly written Plan.
+
+Real-artifact preparation against Candidate
+`6f52a3181aad5e96304775e5f2b6462cfaf3261d9c11325f121992dff7b481e0`
+and validation attestation
+`845a68d86a870a090de2ae57d955a68dd2301bf6152227a91f13d0e473eb9702`
+produced:
+
+| Artifact | Digest / SHA-256 |
+|---|---|
+| correction Plan | `cd76d90242e8a41972d8fd1f17bf1395aece8ec4fe60f2f131fd6598d26b5d47`; file SHA-256 `f52d896e1114d0d117e16bb416c3fb924d259131fff1079a1c55ed2042ab52e3` |
+| effective Correction | `1662ea9dc4e66ccf217b2c49e42aa4a5644835d955d65b1413aa127e9d5d9c12`; effective template `2fe93bc90140dd4d6529262b361d86a4409f93f30a8cfad52b035176d7ea1c0d`; file SHA-256 `19d99f50ceab5e2e0ad4d3013e4ff3ebc1ccecc574093d8423b5db9a56e521ee` |
+| pending Review | `e89b0639e391eb7ed6ab914fc1c85dbcd97945e1ae1d2ff5728a507fbf4fc522`; JSON SHA-256 `d4a02d77570adbd11fb9466f6fbba66ab8eb0699258dc018d73781863912309b`; Markdown SHA-256 `d258270575d3873d50eb70149859682b07b37f3db5da73beda0ef7003b29c584` |
+| original Candidate | unchanged file SHA-256 `635efe0ae123836536d17c165cace5d93a411097aa700f72bb2acdee9373b3ca` |
+
+The effective template preserves all five cover `mustShow` entries. It removes
+only the lantern/cart/route-label page-1 no-spoiler projections and their
+three `firstRevealPage` fields; the bread-roll page-3 and blank-label page-5
+lifecycles remain. Full `pageContracts`, `cast`, `humanCast` and Action
+Semantic Coverage digest are byte/identity-equivalent to the Candidate. The
+Review is `pending` with null reviewer/timestamp and explicitly authorizes no
+approval, Blueprint, package, Wizard, provider, render, publication or deploy.
+
+Validation: correction + cover-source-fidelity + workload-classifier 22/22
+PASS; both TypeScript projects and `git diff --check` exit 0. The real CLI
+preview and immutable write replayed to
+the same identities with zero external counters. A hostile pre-existing
+Correction collision exited non-zero and `PLAN_CREATED=False`, proving the
+preflight stops before partial artifact output. The unchanged Candidate Bridge
+suite was started separately but stopped after several minutes of silent
+Windows fixture execution; it is not claimed as a PASS. Literal `npm run
+check` reached 4,036 passing assertions and exposed the established nine
+missing-local-output fixture failures plus one new-spec inventory count; the
+inventory expectation was corrected and its focused 7-test suite then passed.
+Independent Claude Code review remains pending while Claude is paused. No
+provider, image, audio, Vision, network, database, Production, Wizard, payment
+or render action ran.
+
 ## Remaining chain to the end product (documented, not executed)
 
 After Guy's explicit go for one further authoring attempt (~$0.55, under

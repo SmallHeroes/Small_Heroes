@@ -13,6 +13,7 @@
     "time-authority-set-board-rebind": "tsx --require ./scripts/shims/register-server-only.cjs scripts/time-authority-set-board-rebind.ts",
     "production-visual-lifecycle": "tsx --require ./scripts/shims/register-server-only.cjs scripts/production-visual-lifecycle.ts",
     "qa-wizard-candidate-bridge": "tsx --require ./scripts/shims/register-server-only.cjs scripts/qa-wizard-candidate-bridge.ts",
+    "qa-wizard-candidate-cover-correction": "tsx --require ./scripts/shims/register-server-only.cjs scripts/qa-wizard-candidate-cover-correction.ts",
     "qa-wizard-blueprint-authoring": "tsx --require ./scripts/shims/register-server-only.cjs scripts/qa-wizard-blueprint-authoring.ts",
     "qa-wizard-package": "tsx --require ./scripts/shims/register-server-only.cjs scripts/qa-wizard-package.ts",
     "visual-contract-repair-harness": "tsx --require ./scripts/shims/register-server-only.cjs scripts/visual-contract-repair-offline-harness.ts",
