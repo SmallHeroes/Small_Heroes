@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 import {
   projectCoverMustNotShow,
@@ -15,6 +16,7 @@ import {
 } from './canonicalLiveAuthoringArtifacts';
 import {
   canonicalJsonDigest,
+  isoTimestampIsValid,
   nonEmpty,
   repoRelativePath,
   resolveRepoPath,
@@ -39,8 +41,25 @@ export const VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_VERSION =
   'visual-contract-candidate-cover-correction/v1' as const;
 export const VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_REVIEW_VERSION =
   'visual-contract-candidate-cover-correction-review/v1' as const;
+export const VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_APPROVAL_VERSION =
+  'visual-contract-candidate-cover-correction-approval/v1' as const;
 
 export const VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_DOES_NOT_AUTHORIZE = [
+  'candidate_mutation',
+  'reconciliation_approval',
+  'blueprint_authoring',
+  'blueprint_approval',
+  'visual_package_authoring',
+  'visual_package_approval',
+  'wizard_qualification',
+  'wizard_render',
+  'provider_call',
+  'image_render',
+  'production_publication',
+  'deployment',
+] as const;
+
+export const VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_APPROVAL_DOES_NOT_AUTHORIZE = [
   'candidate_mutation',
   'reconciliation_approval',
   'blueprint_authoring',
@@ -150,6 +169,33 @@ export interface CandidateCoverCorrectionReview {
   digest: string;
 }
 
+export interface CandidateCoverCorrectionApproval {
+  version: typeof VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_APPROVAL_VERSION;
+  subject: CandidateCoverCorrectionPlan['subject'];
+  plan: {
+    digest: string;
+    path: string;
+  };
+  correction: {
+    digest: string;
+    path: string;
+    effectiveTemplateDigest: string;
+  };
+  review: {
+    digest: string;
+    path: string;
+    markdownPath: string;
+    markdownSha256: string;
+  };
+  decision: 'approved';
+  approvedBy: 'Guy';
+  approvedAt: string;
+  authorityScope: 'exact_candidate_cover_correction_approval_only';
+  doesNotAuthorize: string[];
+  digestAlgorithm: 'canonical-json-sha256';
+  digest: string;
+}
+
 export interface PrepareCandidateCoverCorrectionRequest {
   repoRoot: string;
   outputDir: string;
@@ -158,6 +204,18 @@ export interface PrepareCandidateCoverCorrectionRequest {
   candidatePath: string;
   candidateValidationAttestationPath: string;
   operations: CoverVisibleRecurringPropOperation[];
+  write?: boolean;
+}
+
+export interface RecordCandidateCoverCorrectionApprovalRequest {
+  repoRoot: string;
+  outputDir: string;
+  planPath: string;
+  correctionPath: string;
+  reviewPath: string;
+  reviewMarkdownPath: string;
+  approvedBy: 'Guy';
+  approvedAt: string;
   write?: boolean;
 }
 
@@ -178,6 +236,129 @@ function exactKeys(
   return (
     JSON.stringify(Object.keys(value).sort()) ===
     JSON.stringify([...keys].sort())
+  );
+}
+
+function digestValue(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+}
+
+function canonicalUtcTimestampIsValid(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) &&
+    isoTimestampIsValid(value) &&
+    new Date(value).toISOString() === value
+  );
+}
+
+function sha256Utf8(value: string): string {
+  return crypto.createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function normalizedAbsolute(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function readUniqueCanonicalJson(args: {
+  repoRoot: string;
+  artifactPath: string;
+  category: string;
+  label: string;
+}): Record<string, unknown> {
+  const absolute = resolveRepoPath(args.repoRoot, args.artifactPath);
+  let lexicalStat: fs.Stats;
+  let realPath: string;
+  let realStat: fs.Stats;
+  try {
+    lexicalStat = fs.lstatSync(absolute);
+    realPath = fs.realpathSync(absolute);
+    realStat = fs.statSync(realPath);
+  } catch {
+    throw new Error(`${args.label} is missing`);
+  }
+  if (
+    !lexicalStat.isFile() ||
+    lexicalStat.isSymbolicLink() ||
+    !realStat.isFile() ||
+    realStat.nlink !== 1 ||
+    normalizedAbsolute(realPath) !== normalizedAbsolute(absolute) ||
+    repoRelativePath(args.repoRoot, absolute) !== args.artifactPath ||
+    path.basename(path.dirname(absolute)) !== args.category
+  ) {
+    throw new Error(`${args.label} filesystem identity is invalid`);
+  }
+  let parsed: unknown;
+  const bytes = fs.readFileSync(absolute, 'utf8');
+  try {
+    parsed = JSON.parse(bytes) as unknown;
+  } catch {
+    throw new Error(`${args.label} JSON is invalid`);
+  }
+  if (
+    !objectValue(parsed) ||
+    !digestValue(parsed.digest) ||
+    path.basename(absolute) !== `${parsed.digest}.json` ||
+    bytes !== canonicalContentAddressedJsonBytes(parsed)
+  ) {
+    throw new Error(`${args.label} path or bytes are not canonical`);
+  }
+  return parsed;
+}
+
+function readUniqueUtf8(args: {
+  repoRoot: string;
+  artifactPath: string;
+  category: string;
+  label: string;
+}): string {
+  const absolute = resolveRepoPath(args.repoRoot, args.artifactPath);
+  let lexicalStat: fs.Stats;
+  let realPath: string;
+  let realStat: fs.Stats;
+  try {
+    lexicalStat = fs.lstatSync(absolute);
+    realPath = fs.realpathSync(absolute);
+    realStat = fs.statSync(realPath);
+  } catch {
+    throw new Error(`${args.label} is missing`);
+  }
+  if (
+    !lexicalStat.isFile() ||
+    lexicalStat.isSymbolicLink() ||
+    !realStat.isFile() ||
+    realStat.nlink !== 1 ||
+    normalizedAbsolute(realPath) !== normalizedAbsolute(absolute) ||
+    repoRelativePath(args.repoRoot, absolute) !== args.artifactPath ||
+    path.basename(path.dirname(absolute)) !== args.category
+  ) {
+    throw new Error(`${args.label} filesystem identity is invalid`);
+  }
+  return fs.readFileSync(absolute, 'utf8');
+}
+
+function correctionSubjectIsValid(value: unknown): boolean {
+  return (
+    objectValue(value) &&
+    exactKeys(value, [
+      'storyKey',
+      'storyPath',
+      'sourceSnapshotDigest',
+      'candidateDigest',
+      'candidatePath',
+      'candidateValidationAttestationDigest',
+      'candidateValidationAttestationPath',
+      'templateDigest',
+    ]) &&
+    nonEmpty(value.storyKey) &&
+    nonEmpty(value.storyPath) &&
+    digestValue(value.sourceSnapshotDigest) &&
+    digestValue(value.candidateDigest) &&
+    nonEmpty(value.candidatePath) &&
+    digestValue(value.candidateValidationAttestationDigest) &&
+    nonEmpty(value.candidateValidationAttestationPath) &&
+    digestValue(value.templateDigest)
   );
 }
 
@@ -733,4 +914,350 @@ export function prepareCandidateCoverCorrection(
     };
   }
   return { plan, correction, review, markdown, artifacts };
+}
+
+function validatedPlanEnvelope(
+  raw: Record<string, unknown>,
+): CandidateCoverCorrectionPlan {
+  if (
+    !exactKeys(raw, [
+      'version',
+      'subject',
+      'operations',
+      'authorityScope',
+      'digestAlgorithm',
+      'digest',
+    ]) ||
+    raw.version !==
+      VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_PLAN_VERSION ||
+    !correctionSubjectIsValid(raw.subject) ||
+    !Array.isArray(raw.operations) ||
+    raw.operations.length < 1 ||
+    raw.operations.length > 16 ||
+    raw.authorityScope !==
+      'pending_exact_cover_semantic_correction_review' ||
+    raw.digestAlgorithm !== 'canonical-json-sha256' ||
+    !digestValue(raw.digest)
+  ) {
+    throw new Error('candidate cover correction plan is invalid');
+  }
+  for (const operation of raw.operations) assertOperation(operation);
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = raw;
+  if (raw.digest !== canonicalJsonDigest(payload)) {
+    throw new Error('candidate cover correction plan digest is invalid');
+  }
+  return structuredClone(raw) as unknown as CandidateCoverCorrectionPlan;
+}
+
+function normalizedOutputDir(args: {
+  repoRoot: string;
+  outputDir: string;
+}): string {
+  return repoRelativePath(
+    args.repoRoot,
+    path.resolve(args.repoRoot, args.outputDir),
+  );
+}
+
+function replayCandidateCoverCorrectionPacket(args: {
+  repoRoot: string;
+  outputDir: string;
+  planPath: string;
+  correctionPath: string;
+  reviewPath: string;
+  reviewMarkdownPath: string;
+}): ReturnType<typeof prepareCandidateCoverCorrection> {
+  const outputDir = normalizedOutputDir(args);
+  const planRaw = readUniqueCanonicalJson({
+    repoRoot: args.repoRoot,
+    artifactPath: args.planPath,
+    category: 'candidate-cover-correction-plans',
+    label: 'candidate cover correction plan',
+  });
+  const plan = validatedPlanEnvelope(planRaw);
+  const correctionRaw = readUniqueCanonicalJson({
+    repoRoot: args.repoRoot,
+    artifactPath: args.correctionPath,
+    category: 'candidate-cover-corrections',
+    label: 'candidate cover correction artifact',
+  });
+  const reviewRaw = readUniqueCanonicalJson({
+    repoRoot: args.repoRoot,
+    artifactPath: args.reviewPath,
+    category: 'candidate-cover-correction-reviews',
+    label: 'candidate cover correction review',
+  });
+  const markdown = readUniqueUtf8({
+    repoRoot: args.repoRoot,
+    artifactPath: args.reviewMarkdownPath,
+    category: 'candidate-cover-correction-reviews',
+    label: 'candidate cover correction review markdown',
+  });
+  const replay = prepareCandidateCoverCorrection({
+    repoRoot: args.repoRoot,
+    outputDir,
+    storyKey: plan.subject.storyKey,
+    storyPath: plan.subject.storyPath,
+    candidatePath: plan.subject.candidatePath,
+    candidateValidationAttestationPath:
+      plan.subject.candidateValidationAttestationPath,
+    operations: plan.operations,
+    write: false,
+  });
+  if (
+    args.planPath !== replay.artifacts.plan.path ||
+    args.correctionPath !== replay.artifacts.correction.path ||
+    args.reviewPath !== replay.artifacts.review.path ||
+    args.reviewMarkdownPath !== replay.artifacts.markdown.path ||
+    canonicalContentAddressedJsonBytes(planRaw) !==
+      canonicalContentAddressedJsonBytes(replay.plan) ||
+    canonicalContentAddressedJsonBytes(correctionRaw) !==
+      canonicalContentAddressedJsonBytes(replay.correction) ||
+    canonicalContentAddressedJsonBytes(reviewRaw) !==
+      canonicalContentAddressedJsonBytes(replay.review) ||
+    markdown !== replay.markdown
+  ) {
+    throw new Error(
+      'candidate cover correction packet is stale, substituted, or tampered',
+    );
+  }
+  return replay;
+}
+
+export function buildCandidateCoverCorrectionApproval(args: {
+  packet: ReturnType<typeof prepareCandidateCoverCorrection>;
+  approvedBy: 'Guy';
+  approvedAt: string;
+}): CandidateCoverCorrectionApproval {
+  if (
+    args.approvedBy !== 'Guy' ||
+    !canonicalUtcTimestampIsValid(args.approvedAt)
+  ) {
+    throw new Error(
+      'candidate cover correction approval identity or timestamp is invalid',
+    );
+  }
+  const payload = {
+    version:
+      VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_APPROVAL_VERSION,
+    subject: args.packet.plan.subject,
+    plan: {
+      digest: args.packet.plan.digest,
+      path: args.packet.artifacts.plan.path,
+    },
+    correction: {
+      digest: args.packet.correction.digest,
+      path: args.packet.artifacts.correction.path,
+      effectiveTemplateDigest:
+        args.packet.correction.effective.templateDigest,
+    },
+    review: {
+      digest: args.packet.review.digest,
+      path: args.packet.artifacts.review.path,
+      markdownPath: args.packet.artifacts.markdown.path,
+      markdownSha256: sha256Utf8(args.packet.markdown),
+    },
+    decision: 'approved' as const,
+    approvedBy: args.approvedBy,
+    approvedAt: args.approvedAt,
+    authorityScope:
+      'exact_candidate_cover_correction_approval_only' as const,
+    doesNotAuthorize: [
+      ...VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_APPROVAL_DOES_NOT_AUTHORIZE,
+    ],
+  };
+  return withDigest(payload) as CandidateCoverCorrectionApproval;
+}
+
+function approvalShapeIsValid(
+  value: Record<string, unknown>,
+): boolean {
+  if (
+    !exactKeys(value, [
+      'version',
+      'subject',
+      'plan',
+      'correction',
+      'review',
+      'decision',
+      'approvedBy',
+      'approvedAt',
+      'authorityScope',
+      'doesNotAuthorize',
+      'digestAlgorithm',
+      'digest',
+    ]) ||
+    value.version !==
+      VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_APPROVAL_VERSION ||
+    !correctionSubjectIsValid(value.subject) ||
+    !objectValue(value.plan) ||
+    !exactKeys(value.plan, ['digest', 'path']) ||
+    !digestValue(value.plan.digest) ||
+    !nonEmpty(value.plan.path) ||
+    !objectValue(value.correction) ||
+    !exactKeys(value.correction, [
+      'digest',
+      'path',
+      'effectiveTemplateDigest',
+    ]) ||
+    !digestValue(value.correction.digest) ||
+    !nonEmpty(value.correction.path) ||
+    !digestValue(value.correction.effectiveTemplateDigest) ||
+    !objectValue(value.review) ||
+    !exactKeys(value.review, [
+      'digest',
+      'path',
+      'markdownPath',
+      'markdownSha256',
+    ]) ||
+    !digestValue(value.review.digest) ||
+    !nonEmpty(value.review.path) ||
+    !nonEmpty(value.review.markdownPath) ||
+    !digestValue(value.review.markdownSha256) ||
+    value.decision !== 'approved' ||
+    value.approvedBy !== 'Guy' ||
+    !canonicalUtcTimestampIsValid(value.approvedAt) ||
+    value.authorityScope !==
+      'exact_candidate_cover_correction_approval_only' ||
+    !Array.isArray(value.doesNotAuthorize) ||
+    canonicalJsonDigest(value.doesNotAuthorize) !==
+      canonicalJsonDigest(
+        VISUAL_CONTRACT_CANDIDATE_COVER_CORRECTION_APPROVAL_DOES_NOT_AUTHORIZE,
+      ) ||
+    value.digestAlgorithm !== 'canonical-json-sha256' ||
+    !digestValue(value.digest)
+  ) {
+    return false;
+  }
+  const {
+    digestAlgorithm: _digestAlgorithm,
+    digest: _digest,
+    ...payload
+  } = value;
+  return value.digest === canonicalJsonDigest(payload);
+}
+
+export function candidateCoverCorrectionApprovalIsStructurallyValid(
+  value: unknown,
+): boolean {
+  return objectValue(value) && approvalShapeIsValid(value);
+}
+
+export function recordCandidateCoverCorrectionApproval(
+  args: RecordCandidateCoverCorrectionApprovalRequest,
+): {
+  approval: CandidateCoverCorrectionApproval;
+  artifact: CandidateCoverCorrectionArtifactWrite;
+  packet: ReturnType<typeof prepareCandidateCoverCorrection>;
+} {
+  if (
+    args.approvedBy !== 'Guy' ||
+    !canonicalUtcTimestampIsValid(args.approvedAt)
+  ) {
+    throw new Error(
+      'candidate cover correction approval identity or timestamp is invalid',
+    );
+  }
+  const outputDir = normalizedOutputDir(args);
+  const packet = replayCandidateCoverCorrectionPacket({
+    ...args,
+    outputDir,
+  });
+  const approval = buildCandidateCoverCorrectionApproval({
+    packet,
+    approvedBy: args.approvedBy,
+    approvedAt: args.approvedAt,
+  });
+  if (
+    !approvalShapeIsValid(
+      approval as unknown as Record<string, unknown>,
+    )
+  ) {
+    throw new Error('candidate cover correction approval is invalid');
+  }
+  const artifactPath =
+    `${outputDir}/candidate-cover-correction-approvals/${approval.digest}.json`;
+  const destinationPath = resolveRepoPath(args.repoRoot, artifactPath);
+  assertImmutableBytesCompatible({
+    destinationPath,
+    bytes: canonicalContentAddressedJsonBytes(approval),
+    label: 'candidate cover correction approval',
+  });
+  let created = false;
+  if (args.write === true) {
+    const store = createContainedContentAddressedJsonArtifactStore({
+      repoRoot: args.repoRoot,
+      repositoryRealPath: fs.realpathSync(args.repoRoot),
+      outputDir,
+      categories: ['candidate-cover-correction-approvals'] as const,
+      rejectSymlinkAliases: true,
+      errorPrefix: 'candidate cover correction approval',
+    });
+    store.prepare();
+    created = store.persist({
+      category: 'candidate-cover-correction-approvals',
+      digest: approval.digest,
+      value: approval,
+    }).created;
+  }
+  return {
+    approval,
+    artifact: {
+      path: artifactPath,
+      digest: approval.digest,
+      created,
+    },
+    packet,
+  };
+}
+
+export function loadApprovedCandidateCoverCorrection(args: {
+  repoRoot: string;
+  approvalPath: string;
+}): {
+  approval: CandidateCoverCorrectionApproval;
+  packet: ReturnType<typeof prepareCandidateCoverCorrection>;
+} {
+  const raw = readUniqueCanonicalJson({
+    repoRoot: args.repoRoot,
+    artifactPath: args.approvalPath,
+    category: 'candidate-cover-correction-approvals',
+    label: 'candidate cover correction approval',
+  });
+  if (!approvalShapeIsValid(raw)) {
+    throw new Error(
+      'candidate cover correction approval is invalid or tampered',
+    );
+  }
+  const approval = raw as unknown as CandidateCoverCorrectionApproval;
+  const normalizedPath = repoRelativePath(
+    args.repoRoot,
+    resolveRepoPath(args.repoRoot, args.approvalPath),
+  );
+  const outputDir = path.posix.dirname(path.posix.dirname(normalizedPath));
+  const rebuilt = recordCandidateCoverCorrectionApproval({
+    repoRoot: args.repoRoot,
+    outputDir,
+    planPath: approval.plan.path,
+    correctionPath: approval.correction.path,
+    reviewPath: approval.review.path,
+    reviewMarkdownPath: approval.review.markdownPath,
+    approvedBy: approval.approvedBy,
+    approvedAt: approval.approvedAt,
+    write: false,
+  });
+  if (
+    rebuilt.artifact.path !== normalizedPath ||
+    canonicalContentAddressedJsonBytes(rebuilt.approval) !==
+      canonicalContentAddressedJsonBytes(approval)
+  ) {
+    throw new Error(
+      'candidate cover correction approval cannot be exactly replayed',
+    );
+  }
+  return { approval: rebuilt.approval, packet: rebuilt.packet };
 }

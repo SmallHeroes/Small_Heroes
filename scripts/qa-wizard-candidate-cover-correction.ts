@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 import {
   prepareCandidateCoverCorrection,
+  recordCandidateCoverCorrectionApproval,
   type CoverVisibleRecurringPropOperation,
 } from '@/lib/visual-package/visualContractCandidateCoverCorrection';
 
@@ -14,14 +15,25 @@ interface PrepareRequest {
   operations: CoverVisibleRecurringPropOperation[];
 }
 
+interface ApprovalRequest {
+  repoRoot: string;
+  planPath: string;
+  correctionPath: string;
+  reviewPath: string;
+  reviewMarkdownPath: string;
+  approvedBy: 'Guy';
+  approvedAt: string;
+}
+
 const ALLOWED_FLAGS = new Set(['--request', '--out', '--write']);
 
 function usage(): string {
   return [
     'QA Wizard Candidate cover semantic correction:',
     '  prepare --request <json> --out <repo-relative-dir> --write true|false',
+    '  approve --request <json> --out <repo-relative-dir> --write true|false',
     '',
-    'This offline entrypoint cannot approve, invoke a provider, render, publish, qualify the Wizard, or deploy.',
+    'This offline entrypoint can record Guy\'s exact correction approval. It cannot approve reconciliation or later stages, invoke a provider, render, publish, qualify the Wizard, or deploy.',
   ].join('\n');
 }
 
@@ -93,15 +105,89 @@ function readRequest(filePath: string): PrepareRequest {
   return value as unknown as PrepareRequest;
 }
 
+function readApprovalRequest(filePath: string): ApprovalRequest {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(filePath, 'utf8')) as unknown;
+  } catch {
+    throw new Error('request_invalid');
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('request_invalid');
+  }
+  const value = parsed as Record<string, unknown>;
+  const expected = [
+    'repoRoot',
+    'planPath',
+    'correctionPath',
+    'reviewPath',
+    'reviewMarkdownPath',
+    'approvedBy',
+    'approvedAt',
+  ];
+  if (
+    JSON.stringify(Object.keys(value).sort()) !==
+      JSON.stringify(expected.sort()) ||
+    typeof value.repoRoot !== 'string' ||
+    typeof value.planPath !== 'string' ||
+    typeof value.correctionPath !== 'string' ||
+    typeof value.reviewPath !== 'string' ||
+    typeof value.reviewMarkdownPath !== 'string' ||
+    value.approvedBy !== 'Guy' ||
+    typeof value.approvedAt !== 'string'
+  ) {
+    throw new Error('request_invalid');
+  }
+  return value as unknown as ApprovalRequest;
+}
+
 function main(): void {
   const [command, ...tokens] = process.argv.slice(2);
-  if (command !== 'prepare') {
+  if (command !== 'prepare' && command !== 'approve') {
     process.stderr.write(`${usage()}\n`);
     process.exitCode = 1;
     return;
   }
   try {
     const flags = parseFlags(tokens);
+    if (command === 'approve') {
+      const request = readApprovalRequest(required(flags, '--request'));
+      const result = recordCandidateCoverCorrectionApproval({
+        ...request,
+        outputDir: required(flags, '--out'),
+        write: writeValue(flags),
+      });
+      process.stdout.write(`${JSON.stringify({
+        status: !writeValue(flags)
+          ? 'candidate_cover_correction_approval_preview_ready'
+          : result.artifact.created
+            ? 'candidate_cover_correction_approval_written'
+            : 'candidate_cover_correction_approval_replayed',
+        approval: {
+          version: result.approval.version,
+          digest: result.approval.digest,
+          path: result.artifact.path,
+          decision: result.approval.decision,
+          approvedBy: result.approval.approvedBy,
+          approvedAt: result.approval.approvedAt,
+          created: result.artifact.created,
+        },
+        correction: {
+          digest: result.approval.correction.digest,
+          effectiveTemplateDigest:
+            result.approval.correction.effectiveTemplateDigest,
+        },
+        boundaryEvidence: {
+          credentialAccess: 'none',
+          providerCalls: 0,
+          imageCalls: 0,
+          networkCalls: 0,
+          databaseWrites: 0,
+          productionWrites: 0,
+        },
+      }, null, 2)}\n`);
+      return;
+    }
     const request = readRequest(required(flags, '--request'));
     const result = prepareCandidateCoverCorrection({
       ...request,

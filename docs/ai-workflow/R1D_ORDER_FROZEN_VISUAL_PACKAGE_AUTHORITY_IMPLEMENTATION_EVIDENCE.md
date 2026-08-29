@@ -901,6 +901,52 @@ Independent Claude Code review remains pending while Claude is paused. No
 provider, image, audio, Vision, network, database, Production, Wizard, payment
 or render action ran.
 
+## Round 14 — exact Candidate cover-correction approval
+
+Guy approved the exact Round-13 Plan, effective Correction and Review and
+explicitly limited the semantic change to removing lifecycle/no-spoiler
+authority from the paper moon lantern, delivery cart and route labels. The
+implementation adds a separate immutable approval envelope rather than
+rewriting the pending Review or the provider-produced Candidate.
+
+The recorder fails closed unless it can replay, byte-for-byte, the canonical
+Plan JSON, Correction JSON, Review JSON and Review Markdown from unique,
+non-aliased files, then re-run the full correction preparation against the
+original Candidate, passed validation attestation and current Story Source.
+Only exact approver `Guy` and a millisecond UTC timestamp that round-trips via
+`toISOString()` are accepted. The approval target is collision-preflighted
+before the content-addressed store is prepared; replay is immutable.
+
+| Artifact | Digest / evidence |
+|---|---|
+| approved Plan | `cd76d90242e8a41972d8fd1f17bf1395aece8ec4fe60f2f131fd6598d26b5d47` |
+| approved Correction | `1662ea9dc4e66ccf217b2c49e42aa4a5644835d955d65b1413aa127e9d5d9c12` |
+| approved Review | `e89b0639e391eb7ed6ab914fc1c85dbcd97945e1ae1d2ff5728a507fbf4fc522` |
+| effective template | `2fe93bc90140dd4d6529262b361d86a4409f93f30a8cfad52b035176d7ea1c0d` |
+| exact approval | `937ffe515bda0eff83eba03479b46cc7b38dc3b4b92bb86fab2380d691375586`; `approvedBy: Guy`; `approvedAt: 2026-08-29T17:45:11.966Z` |
+| approval path | `outputs/r1d-lantern-fresh-readiness-20260829T155643118Z/cover-correction/candidate-cover-correction-approvals/937ffe515bda0eff83eba03479b46cc7b38dc3b4b92bb86fab2380d691375586.json` |
+
+The CLI preview, first write and replay write all returned the same approval
+identity and zero credential/provider/image/network/database/Production
+counters. A separate `loadApprovedCandidateCoverCorrection` invocation replayed
+all three approved digests and the effective template digest. A lexically
+aliased approval path was rejected as an invalid filesystem identity. The
+approval explicitly does not authorize Candidate mutation, reconciliation,
+Blueprint/package approval, Wizard qualification or render, provider/image
+calls, publication or deployment.
+
+Final validation: correction/cover-source-fidelity/workload-classifier 24/24;
+Candidate bridge 13/13 inside the full resource partition; both TypeScript
+projects and `git diff --check` exit 0. Literal `npm run check` remained
+honestly red: ordinary 4,039 pass / 73 skip / the same nine missing ignored
+`outputs/` fixtures in five unchanged files. Resource-intensive ran 627
+assertions successfully but four Git-heavy assertions crossed their fixed
+five-second timeout under concurrent Windows load and produced four
+`onTaskUpdate` RPC errors. Re-running the readiness spec alone passed 14/14
+under its existing limits; re-running materialization with a ten-second test
+timeout passed 21/21, including the two assertions measured at 5.275s and
+5.757s. No semantic assertion failed under sufficient execution time.
+
 ## Remaining chain to the end product (documented, not executed)
 
 After Guy's explicit go for one further authoring attempt (~$0.55, under

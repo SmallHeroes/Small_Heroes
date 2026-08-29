@@ -6,7 +6,53 @@
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; LANTERN PACKAGE CHAIN STOPPED AT THE PAID-ATTEMPT FENCE
 
-### Round 13 — successful Candidate cover contradiction closed offline; exact review pending
+### Round 14 — exact Candidate cover correction approved; corrected bridge remains next
+
+Guy explicitly approved Plan
+`cd76d90242e8a41972d8fd1f17bf1395aece8ec4fe60f2f131fd6598d26b5d47`,
+Correction
+`1662ea9dc4e66ccf217b2c49e42aa4a5644835d955d65b1413aa127e9d5d9c12`
+and Review
+`e89b0639e391eb7ed6ab914fc1c85dbcd97945e1ae1d2ff5728a507fbf4fc522`,
+including removal of lifecycle/no-spoiler authority only from the paper moon
+lantern, delivery cart and route labels. The new closed approval lifecycle
+replays all four immutable packet files, the original Candidate, the passed
+Candidate-validation attestation and the Story Source before it can record
+Guy's exact decision. It rejects non-Guy identity, non-canonical or impossible
+UTC timestamps, extra/missing fields, content/path aliases, symlinks,
+hardlinks, stale bytes, substituted digests and output collisions.
+
+The canonical approval is
+`937ffe515bda0eff83eba03479b46cc7b38dc3b4b92bb86fab2380d691375586`
+at
+`outputs/r1d-lantern-fresh-readiness-20260829T155643118Z/cover-correction/candidate-cover-correction-approvals/937ffe515bda0eff83eba03479b46cc7b38dc3b4b92bb86fab2380d691375586.json`.
+It records `approvedBy: "Guy"`, `approvedAt:
+"2026-08-29T17:45:11.966Z"`, exact effective template
+`2fe93bc90140dd4d6529262b361d86a4409f93f30a8cfad52b035176d7ea1c0d`
+and still grants no Candidate mutation, reconciliation/Blueprint/package
+approval, Wizard qualification/render, provider/image call, publication or
+deployment authority. Preview, immutable write, replay-write and an
+independent loader replay all resolved the same identities; an aliased
+approval path failed closed. Provider/image/audio/network/database/Production
+operations in this round: zero.
+
+Validation: correction/cover-source-fidelity/workload-classifier 24/24;
+Candidate bridge 13/13 in the full resource partition; both TypeScript
+projects and `git diff --check` clean. The literal repository check retains
+only the documented baseline/infrastructure red: nine missing ignored-output
+fixtures, plus four fixed-five-second Git-heavy timeouts under concurrent
+Windows load. The readiness spec passed 14/14 alone, and materialization
+passed 21/21 with a ten-second runner allowance (the slow cells took 5.275s
+and 5.757s). No semantic assertion failed with sufficient execution time.
+
+This approval removes the product-decision blocker only. The next engineering
+milestone is the corrected Candidate bridge: it must consume this approved
+effective authority without mutating or impersonating the receipt-bound
+Candidate, then re-run reconciliation and every downstream authority gate.
+Independent Claude Code QA remains required after the focused commit; Claude
+is currently paused.
+
+### Round 13 — successful Candidate cover contradiction closed offline; exact review approved in Round 14
 
 The successful product-story Candidate
 `6f52a3181aad5e96304775e5f2b6462cfaf3261d9c11325f121992dff7b481e0`
@@ -35,9 +81,11 @@ roll and page-5 blank-label lifecycles. Full page contracts, cast, humanCast,
 wardrobe, companion state/satchel, camera authority and Action Semantic
 Coverage digest are unchanged. The original Candidate file SHA-256 remains
 `635efe0ae123836536d17c165cace5d93a411097aa700f72bb2acdee9373b3ca`.
-The Review is still `pending`, with `reviewedBy`/`reviewedAt` null; no approval
-or downstream authority exists yet. Provider/image/audio/network/database/
-Production operations in this round: zero.
+The Review artifact itself remains the immutable pending review input with
+`reviewedBy`/`reviewedAt` null; Round 14 records Guy's separate exact approval
+without rewriting it. No downstream reconciliation authority exists yet.
+Provider/image/audio/network/database/Production operations in this round:
+zero.
 
 Focused validation: correction + cover-source-fidelity + workload-classifier
 22/22 PASS; both TypeScript projects and `git diff --check` exit 0. A hostile

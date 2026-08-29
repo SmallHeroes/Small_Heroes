@@ -5,6 +5,8 @@ import type {
 } from '../../visual-contract-compiler';
 import {
   applyCoverVisibleRecurringPropOperations,
+  buildCandidateCoverCorrectionApproval,
+  candidateCoverCorrectionApprovalIsStructurallyValid,
   type CoverVisibleRecurringPropOperation,
 } from '../visualContractCandidateCoverCorrection';
 
@@ -92,6 +94,40 @@ function operations(): CoverVisibleRecurringPropOperation[] {
       decisionBasis: 'cover_hero_object_intentionally_visible',
     },
   ];
+}
+
+function approvalPacketFixture(): Parameters<
+  typeof buildCandidateCoverCorrectionApproval
+>[0]['packet'] {
+  const digest = (value: string) => value.repeat(64);
+  const subject = {
+    storyKey: 'fixture_story',
+    storyPath: 'story/fixture.md',
+    sourceSnapshotDigest: digest('1'),
+    candidateDigest: digest('2'),
+    candidatePath: `outputs/candidates/${digest('2')}.json`,
+    candidateValidationAttestationDigest: digest('3'),
+    candidateValidationAttestationPath:
+      `outputs/attestations/${digest('3')}.json`,
+    templateDigest: digest('4'),
+  };
+  return {
+    plan: { subject, digest: digest('5') },
+    correction: {
+      digest: digest('6'),
+      effective: { templateDigest: digest('7') },
+    },
+    review: { digest: digest('8') },
+    markdown: '# exact review\n',
+    artifacts: {
+      plan: { path: `outputs/plans/${digest('5')}.json` },
+      correction: { path: `outputs/corrections/${digest('6')}.json` },
+      review: { path: `outputs/reviews/${digest('8')}.json` },
+      markdown: { path: `outputs/reviews/${digest('8')}.md` },
+    },
+  } as unknown as Parameters<
+    typeof buildCandidateCoverCorrectionApproval
+  >[0]['packet'];
 }
 
 describe('Visual Contract Candidate cover correction', () => {
@@ -191,5 +227,59 @@ describe('Visual Contract Candidate cover correction', () => {
         ],
       }),
     ).toThrow('operation is invalid');
+  });
+
+  it('builds one closed exact Guy approval envelope', () => {
+    const approval = buildCandidateCoverCorrectionApproval({
+      packet: approvalPacketFixture(),
+      approvedBy: 'Guy',
+      approvedAt: '2026-08-29T17:30:00.000Z',
+    });
+
+    expect(candidateCoverCorrectionApprovalIsStructurallyValid(approval))
+      .toBe(true);
+    expect(approval.decision).toBe('approved');
+    expect(approval.approvedBy).toBe('Guy');
+    expect(approval.doesNotAuthorize).toContain('reconciliation_approval');
+    expect(approval.doesNotAuthorize).not.toContain(
+      'candidate_cover_correction_approval',
+    );
+  });
+
+  it('rejects noncanonical approval identity, time, shape and binding fields', () => {
+    const packet = approvalPacketFixture();
+    expect(() =>
+      buildCandidateCoverCorrectionApproval({
+        packet,
+        approvedBy: 'Codex' as 'Guy',
+        approvedAt: '2026-08-29T17:30:00.000Z',
+      }),
+    ).toThrow('identity or timestamp is invalid');
+    expect(() =>
+      buildCandidateCoverCorrectionApproval({
+        packet,
+        approvedBy: 'Guy',
+        approvedAt: '2026-02-30T17:30:00.000Z',
+      }),
+    ).toThrow('identity or timestamp is invalid');
+
+    const approval = buildCandidateCoverCorrectionApproval({
+      packet,
+      approvedBy: 'Guy',
+      approvedAt: '2026-08-29T17:30:00.000Z',
+    });
+    for (const hostile of [
+      { ...approval, hostileExtraKey: true },
+      { ...approval, approvedAt: '2026-08-29T17:30:00Z' },
+      { ...approval, doesNotAuthorize: [] },
+      {
+        ...approval,
+        subject: { ...approval.subject, candidateDigest: 'bad' },
+      },
+    ]) {
+      expect(
+        candidateCoverCorrectionApprovalIsStructurallyValid(hostile),
+      ).toBe(false);
+    }
   });
 });
