@@ -1661,21 +1661,23 @@ function failedReceiptRequestLinkageIsConsistent(args: {
  * Runner-private MINT AUTHORIZATION for sanitized failure captures, bound to the EXACT
  * IMMUTABLE mint-time CONTENT (not merely a mutable object identity). ONLY the same-stack
  * private derivation registers the captures it mints here, snapshotting the exact canonical
- * bytes at mint time. The sole capture-persistence entry point
+ * bytes at mint time. The dedicated capture-specific production persister
  * (`persistBlueprintAuthoringSanitizedFailureCapture`) refuses any capture that is not
  * registered OR whose current serialization does not byte-equal its mint-time snapshot, and
  * then writes the SNAPSHOT bytes (never bytes re-derived from the caller-visible object).
  *
- * This is the STRUCTURAL boundary that stops an exported composition
+ * This is the STRUCTURAL boundary on the capture-specific production PERSISTENCE API. It is
+ * NOT a claim that arbitrary code cannot write bytes (generic immutable writers exist); it
+ * stops an exported composition
  * (`blueprintAuthoringFailedCensusCorrelationDiagnostics` + `buildBlueprintAuthoringSanitizedFailureCapture`
- * + `persistBlueprintAuthoringSanitizedFailureCapture`) from PERSISTING a contradictory but
- * validator-valid capture artifact — including the harder attack of taking a legitimately
- * registered capture returned by `runProductionBlueprintAuthoring` and MUTATING it in place
- * (`Object.assign`/nested field/digest rewrite) while preserving its object reference:
- * captures are mutable and unfrozen, so identity alone is insufficient; the content snapshot
- * detects any post-mint mutation and the write uses the immutable snapshot bytes, closing the
- * TOCTOU/getter gap. The map is module-private (never exported), so no external code can
- * register a forgery.
+ * + `persistBlueprintAuthoringSanitizedFailureCapture`) — which CAN build a validator-valid
+ * in-memory contradictory capture — from PERSISTING it through this dedicated API, including
+ * the harder attack of taking a legitimately registered capture returned by
+ * `runProductionBlueprintAuthoring` and MUTATING it in place (`Object.assign`/nested
+ * field/digest rewrite) while preserving its object reference: captures are mutable and
+ * unfrozen, so identity alone is insufficient; the content snapshot detects any post-mint
+ * mutation and the write uses the immutable snapshot bytes, closing the TOCTOU/getter gap. The
+ * map is module-private (never exported), so no external code can register a forgery.
  */
 const runnerMintedFailureCaptureBytes = new WeakMap<
   BlueprintAuthoringSanitizedFailureCapture,
@@ -1700,12 +1702,13 @@ const runnerMintedFailureCaptureBytes = new WeakMap<
  * while passing the structurally-distinct diagnostic B. No pairwise text/digest map over the
  * supplied pair can resolve that. So identity honesty is provided STRUCTURALLY, not here:
  * the disposition-minting `deriveBlueprintAuthoringSanitizedFailureCaptureDisposition` is
- * runner-PRIVATE (not exported), and the runner only ever feeds it the compiler's OWN
- * single-stack error, whose per-position error strings ARE the canonical projections of its
- * own diagnostics. The minted capture is then durably content-addressed and atomically
- * linked to the receipt, and replay/recovery re-read that capture and NEVER re-derive. The
- * checks here are the receipt-consistency gate over that sealed input — defense in depth,
- * not the boundary.
+ * runner-PRIVATE (not exported); its capture-minting path is fed the compiler's OWN
+ * error/diagnostics in the same synchronous stack (its deterministic-failure caller passes
+ * `error: undefined` and cannot mint), whose per-position error strings ARE the canonical
+ * projections of those diagnostics. The minted capture is then content-addressed, atomically
+ * linked to the receipt by the lifecycle, and content-bound at the dedicated persister;
+ * replay/recovery re-read that capture and NEVER re-derive. The checks here are the
+ * receipt-consistency gate over that sealed input — defense in depth, not the boundary.
  */
 export function blueprintAuthoringFailedCensusCorrelationDiagnostics(args: {
   request: ProductionAuthoringRunRequest;
@@ -1832,16 +1835,26 @@ export function blueprintAuthoringFailedCensusCorrelationDiagnostics(args: {
 }
 
 /**
- * Mint the typed sanitized-failure-capture disposition for a failed run. This is the
- * census AUTHORITY, and it is deliberately runner-PRIVATE (not exported): only
- * `runProductionBlueprintAuthoring` and its deterministic-failure path call it, always over
- * the compiler's OWN single-stack error, whose per-position error strings ARE the canonical
- * projections of its own diagnostics. There is no exported API that accepts a
- * caller-supplied (errors, diagnostics) triple to mint a capture — so a colliding-text
- * substitution (a receipt error string produced from identity A paired with the distinct
- * diagnostic B) is structurally UNREACHABLE, not merely checked. The minted capture is
- * durably content-addressed and, by the lifecycle, atomically linked to this receipt;
- * replay/recovery re-read that capture and never re-derive.
+ * Mint the typed sanitized-failure-capture DISPOSITION for a failed run. This is the census
+ * disposition authority, and it is deliberately runner-PRIVATE (not exported). It has two
+ * runner-owned callers: the main `runProductionBlueprintAuthoring` failed path — which feeds
+ * it the compiler's OWN error/diagnostics in the same synchronous stack (per-position error
+ * strings ARE the canonical projections of those diagnostics) — and the deterministic-failure
+ * path, which passes `error: undefined` with no attempts and therefore cannot mint a capture
+ * (diagnostic-less absence).
+ *
+ * Boundary — stated precisely (NOT "no external caller can create a capture"): the exported
+ * checker (`blueprintAuthoringFailedCensusCorrelationDiagnostics`) and builder
+ * (`buildBlueprintAuthoringSanitizedFailureCapture`) CAN be composed to create a
+ * validator-valid, IN-MEMORY contradictory capture over delimiter-colliding evidence (an
+ * A-text receipt string with the distinct diagnostic B). What that composition CANNOT do is:
+ * become a runner-authorized disposition here; be registered in the mint-authorization
+ * content snapshot; persist through the dedicated capture-specific production persister
+ * (`persistBlueprintAuthoringSanitizedFailureCapture`, content-bound to the mint-time
+ * snapshot); or be adopted into authoritative terminal publication (the lifecycle publishes
+ * only this disposition and re-verifies linkage). A contradictory in-memory capture is
+ * therefore inert. The minted capture is content-addressed and, by the lifecycle, atomically
+ * linked to this receipt; replay/recovery re-read that capture and never re-derive.
  *
  * The receipt itself binds only the attempt TOPOLOGY and each attempt's category summary
  * ({count,codes}); it does NOT commit to the census structural identities. A durable
@@ -1928,9 +1941,9 @@ function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
       diagnostics: censusDiagnostics,
     });
     // Register this same-stack minted capture by its EXACT mint-time canonical bytes, so the
-    // sole persistence entry point will accept it AND reject any post-mint mutation. Only
-    // captures produced HERE — from the compiler's own error/diagnostics in this synchronous
-    // stack — are ever registered; an externally-built (or mutated) capture is not accepted.
+    // dedicated capture-specific persister will accept it AND reject any post-mint mutation.
+    // Only captures produced HERE — from the compiler's own error/diagnostics in this
+    // synchronous stack — are ever registered; an externally-built (or mutated) capture is not.
     runnerMintedFailureCaptureBytes.set(
       capture,
       blueprintAuthoringSanitizedFailureCaptureBytes(capture),

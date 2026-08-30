@@ -494,7 +494,18 @@ assertion) **PASS**; MAJOR 2 **HOLD** on the identity/totality invariant, plus a
 reproduced census-integrity MINOR. Both closed on top of `57e43f8c` in one commit. **This
 is not an F3 PASS — awaiting Codex re-gate.**
 
-### The remaining MAJOR — identity/totality now proven
+> **SUPERSEDED / FALSIFIED (Round 9/10):** the projection-based "identity proof" of this
+> Round-6 section is FALSE. The A/B delimiter collision (`{field:'x', message:'y (z): q'}` and
+> `{field:'x): y (z', message:'q'}`) projects two DISTINCT sanitized census identities to one
+> byte-identical string, so the position-wise projection comparison below does NOT prove the
+> errors and structured diagnostics are the SAME identities. What genuinely remains from this
+> section is DEFENSE-IN-DEPTH only: the topology / category-summary ({count,codes}) /
+> receipt-linkage / attempt-sequence consistency checks. Census-identity honesty is provided
+> STRUCTURALLY instead — the sealed runner-private same-stack disposition-mint authority plus the
+> content-bound persistence gate (Rounds 8–10) — never by the string projection. Read every
+> "identity"/"proves IDENTITY" claim below as superseded.
+
+### The remaining MAJOR — identity/totality [SUPERSEDED: NOT proven by the projection — see banner above]
 
 The round-5 census proof compared the persisted `{count,codes}` re-derived from
 `evidence.errors` and only checked `diagnostics.length === errors.length`; it never proved
@@ -772,9 +783,13 @@ caller-visible object, so contradictory bytes could be written. Closed on top of
 - Preserved: the private lifecycle publish-and-bind, replay/recovery, content addressing, privacy,
   and every valid callsite (the lifecycle persists the pristine same-stack capture, which passes).
   No schema, receipt version, budget, model, call-count, artifact, provider, live, or render change.
-- Re-audit: `persistBlueprintAuthoringSanitizedFailureCapture` is the ONLY capture writer; the
-  lifecycle `loadSanitizedFailureCaptureAuthority` re-derivation of bytes is read-side reload
-  verification, not a persistence path.
+- Re-audit: `persistBlueprintAuthoringSanitizedFailureCapture` is the only CAPTURE-SPECIFIC
+  PRODUCTION persister (the dedicated capture production path), with exactly one non-test
+  production caller (the lifecycle publish-and-bind); the lifecycle
+  `loadSanitizedFailureCaptureAuthority` re-derivation of bytes is read-side reload verification,
+  not a persistence path. This is not a claim that arbitrary code cannot write bytes — generic
+  exported immutable writers and test-fixture `fs` writes exist; the seal is on the
+  capture-specific production API, not on the filesystem.
 
 ### Truthfulness (counts/callers)
 

@@ -29,9 +29,13 @@ so contradictory bytes could be written. Closed on top of `b6557cd1`.
   the STRUCTURAL-SEAL enforcement (derive absent from module+barrel) and the real replay-valid
   provider-failure captured integration; deterministic/no-diagnostic failures stay capture-free
   and terminal publication/recovery/replay guards stay fail-closed.
-- **Re-audit.** `persistBlueprintAuthoringSanitizedFailureCapture` is confirmed the ONLY
-  capture writer (the lifecycle's `loadSanitizedFailureCaptureAuthority` re-derivation of bytes is
-  read-side reload verification, not a persistence path).
+- **Re-audit.** `persistBlueprintAuthoringSanitizedFailureCapture` is the only CAPTURE-SPECIFIC
+  PRODUCTION persister (the dedicated capture production path), with exactly one non-test
+  production caller (the lifecycle publish-and-bind); the lifecycle's
+  `loadSanitizedFailureCaptureAuthority` re-derivation of bytes is read-side reload verification,
+  not a persistence path. This is NOT a claim that arbitrary code cannot write bytes: generic
+  exported immutable writers and test-fixture `fs` writes exist and can emit bytes anywhere — the
+  seal is on the capture-specific production API, not on the filesystem.
 - **Truthfulness (counts/callers).** Corrected: `production-lifecycle-foundation.spec.ts` is
   **79** this round (was 78 at Round 9; the Round-9 doc erroneously said 80). Exact 8-spec total
   is **345** = 42 + 79 + 46 + 20 + 19 + 112 + 17 + 10. The persister has ONE production caller

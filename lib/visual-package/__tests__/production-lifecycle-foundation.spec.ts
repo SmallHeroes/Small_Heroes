@@ -2258,11 +2258,15 @@ describe('sanitized census correlation is a pure consistency gate, sealed for id
     });
   }
 
-  it('STRUCTURAL SEAL: the disposition-minting derivation is not exported, so a colliding-text substitution is unreachable', async () => {
-    // The identity-collision closure is STRUCTURAL, not a pairwise check. Prove the mint path
-    // is sealed: `deriveBlueprintAuthoringSanitizedFailureCaptureDisposition` is exported by
-    // neither the runner module nor the barrel, so no external caller can supply a
-    // fabricated (errors, diagnostics, receipt) triple to mint a capture.
+  it('STRUCTURAL SEAL: the disposition-minting derivation is not exported, so no external caller can mint a runner-authorized capture disposition', async () => {
+    // The identity-collision closure is STRUCTURAL, not a pairwise check. This does NOT mean an
+    // external caller cannot create a validator-valid in-memory capture (the exported
+    // checker+builder can — see the SEALED PERSISTENCE test); it means the runner-AUTHORIZED
+    // disposition path is sealed. Prove it:
+    // `deriveBlueprintAuthoringSanitizedFailureCaptureDisposition` is exported by neither the
+    // runner module nor the barrel, so no external caller can produce a runner-authorized
+    // disposition (one registered in the mint content-snapshot, hence persistable through the
+    // dedicated persister and adoptable into authoritative terminal publication).
     const runnerModule = await import(
       '@/lib/visual-package/productionAuthoringRunner'
     );
@@ -2274,10 +2278,11 @@ describe('sanitized census correlation is a pure consistency gate, sealed for id
       'deriveBlueprintAuthoringSanitizedFailureCaptureDisposition' in barrel,
     ).toBe(false);
     // Document the irreducible projection ambiguity the seal closes: A and B project to one
-    // byte-identical error string yet are DISTINCT sanitized census identities. Because only
-    // the runner (fed the compiler's own single-stack error, whose per-position errors ARE
-    // the projections of its own diagnostics) can mint, no [A]->[B] colliding substitution
-    // can be presented to mint B under an A-derived receipt.
+    // byte-identical error string yet are DISTINCT sanitized census identities. Only the runner
+    // (fed the compiler's own single-stack error, whose per-position errors ARE the projections
+    // of its own diagnostics) can mint an AUTHORIZED disposition, so an [A]->[B] colliding
+    // substitution cannot be presented to mint a persistable/adoptable B under an A-derived
+    // receipt — even though an inert in-memory B capture can still be built.
     const A: PreRenderBlueprintRepairDiagnostic = {
       code: 'schema_invalid',
       field: 'x',
@@ -2340,8 +2345,9 @@ describe('sanitized census correlation is a pure consistency gate, sealed for id
     });
     expect(blueprintAuthoringSanitizedFailureCaptureIsValid(contradictory)).toBe(true);
 
-    // 3) But the SOLE persistence entry point refuses it (not runner-minted) BEFORE any write
-    //    or path resolution -> no content-addressed contradictory artifact can be created.
+    // 3) But the dedicated capture-specific PRODUCTION persister refuses it (not runner-minted)
+    //    BEFORE any write or path resolution -> the in-memory contradictory capture (validator-
+    //    valid, per step 2) cannot become a content-addressed artifact through the capture API.
     expect(() =>
       persistBlueprintAuthoringSanitizedFailureCapture({
         repoRoot: materialized.repoRoot,
