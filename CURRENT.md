@@ -1,5 +1,55 @@
 # SmallHeroes — Current Technical State
 
+## R1D — Blueprint capture safety Round 10: CONTENT-bound mint-authorized persistence (F3 mutation-bypass MAJOR closed on top of Round 9) + count/caller truthfulness; F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed on top of `b6557cd1`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
+
+Codex re-gated `b6557cd1` HOLD: the Round-9 seal authorized persistence by MUTABLE OBJECT
+IDENTITY (a `WeakSet<capture>`), but `runProductionBlueprintAuthoring` is exported and returns
+the exact registered capture object, and captures are mutable/unfrozen. Attack: obtain the real
+registered capture `C`; mutate it in place into a different validator-valid capture
+(`Object.assign`/nested field/`digest` rewrite) preserving `C`'s reference; the persister only
+checked `WeakSet.has(C)` (still true) then re-derived bytes/path from the caller-visible object,
+so contradictory bytes could be written. Closed on top of `b6557cd1`.
+
+- **Content-bound mint authorization (the fix).** The runner now keeps a module-private
+  `WeakMap<capture, string>` mapping each same-stack-minted capture to its EXACT mint-time
+  canonical bytes (snapshot). `persistBlueprintAuthoringSanitizedFailureCapture` — the sole
+  capture-persistence entry point — now, BEFORE any path resolution or write: (1) requires the
+  capture to be registered (snapshot present), (2) requires its CURRENT serialization to
+  byte-equal the mint-time snapshot (any post-mint `Object.assign`/nested/`digest` mutation
+  changes the bytes and is rejected as `mutated after minting`), (3) full-validates the parsed
+  snapshot, and (4) writes the SNAPSHOT bytes with a path from the snapshot's own digest — never
+  bytes/fields re-read from the caller object, closing the TOCTOU/getter gap. The map is
+  module-private (never exported).
+- **Hostile + acceptance regressions.** A new test obtains a REAL registered capture from
+  `runProductionBlueprintAuthoring`, mutates the SAME reference into a different validator-valid
+  capture (recomputing its digest), and proves BOTH `write:false` and `write:true` fail closed
+  (`mutated after minting`) before any path resolution/write with ZERO artifact — a case that
+  PASSES against b6557cd1's identity WeakSet. The prior seal tests (fresh unregistered
+  composition cannot persist; a pristine runner-minted capture is accepted) are retained, as are
+  the STRUCTURAL-SEAL enforcement (derive absent from module+barrel) and the real replay-valid
+  provider-failure captured integration; deterministic/no-diagnostic failures stay capture-free
+  and terminal publication/recovery/replay guards stay fail-closed.
+- **Re-audit.** `persistBlueprintAuthoringSanitizedFailureCapture` is confirmed the ONLY
+  capture writer (the lifecycle's `loadSanitizedFailureCaptureAuthority` re-derivation of bytes is
+  read-side reload verification, not a persistence path).
+- **Truthfulness (counts/callers).** Corrected: `production-lifecycle-foundation.spec.ts` is
+  **79** this round (was 78 at Round 9; the Round-9 doc erroneously said 80). Exact 8-spec total
+  is **345** = 42 + 79 + 46 + 20 + 19 + 112 + 17 + 10. The persister has ONE production caller
+  (the lifecycle publish-and-bind) but IS called directly by the spec's seal regressions — the
+  Round-9 "zero test callers" phrasing is corrected. The Round-6/7 injectivity supersessions are
+  retained.
+- **F1 — paid exact-provider-input-token count: still HOLD (decision-blocked), numerically
+  unchanged.**
+
+Files: `lib/visual-package/productionAuthoringRunner.ts` (content-bound persist gate),
+`lib/visual-package/__tests__/production-lifecycle-foundation.spec.ts` (+1 mutation regression;
+seal tests). No schema/receipt-version/artifact/provider/live/render/deploy/budget/model/
+call-count change. `npx --no-install tsc --noEmit` clean; `git diff --check` clean; full 8-spec
+battery **345** green. Evidence: `docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_EVIDENCE.md`
+(Round 10).
+
+---
+
 ## R1D — Blueprint capture safety Round 9: mint-authorized capture PERSISTENCE seal + truthfulness corrections (F3 API-boundary MAJOR + injectivity MINOR closed on top of Round 8); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed on top of `f1c97b16`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
 
 Codex re-gated `f1c97b16` (28fb229e..f1c97b16): the disposition-minting derivation is correctly
@@ -44,10 +94,14 @@ authoritative terminal). Closed on top of `f1c97b16`.
 
 Files: `lib/visual-package/productionAuthoringRunner.ts` (mint-authorized persist gate),
 `lib/visual-package/preRenderBlueprintAuthoring.ts` (honest helper comment only). Tests
-(`production-lifecycle-foundation.spec.ts`, **80**): +2 seal tests (hostile composition cannot
-persist; real runner-minted capture is accepted). No schema/receipt-version/artifact/provider/
-live/render/deploy/budget/model/call-count change. `npx --no-install tsc --noEmit` clean;
-`git diff --check` clean; directly-affected lifecycle/capture suites green. Evidence:
+(`production-lifecycle-foundation.spec.ts`, **78** [Round-9 doc first stated 80 — corrected
+in Round 10]): +2 seal tests (hostile composition cannot persist; real runner-minted capture
+is accepted; the spec DIRECTLY calls the persister in these regressions — the persister has one
+PRODUCTION caller, the lifecycle publish-and-bind). [SUPERSEDED by Round 10: the identity-only
+WeakSet below is mutation-bypassable; Round 10 binds authorization to immutable mint-time
+content.] No schema/receipt-version/artifact/provider/live/render/deploy/budget/model/call-count
+change. `npx --no-install tsc --noEmit` clean; `git diff --check` clean; directly-affected
+lifecycle/capture suites green. Evidence:
 `docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_EVIDENCE.md` (Round 9).
 
 > **SUPERSEDED (Rounds 6–8 injectivity claims):** every statement below that the error-string

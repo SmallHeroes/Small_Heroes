@@ -707,11 +707,13 @@ capture" claim was false.
 
 - The runner keeps a module-private `WeakSet` of captures minted by the same-stack private
   derivation. `persistBlueprintAuthoringSanitizedFailureCapture` — the SOLE capture-persistence
-  entry point (one production caller: the lifecycle's `publishAndBindSanitizedFailureCapture`;
-  zero test callers) — now fails closed BEFORE any path resolution or write unless the capture is
-  registered. An externally-built capture is never registered, so no exported composition can
-  create/persist a content-addressed contradictory artifact. The WeakSet is never exported (no
-  forgery) and matches by object reference (an equal-looking rebuild is still unregistered).
+  entry point (one PRODUCTION caller: the lifecycle's `publishAndBindSanitizedFailureCapture`; it
+  is also called directly by the spec's seal regressions) — now fails closed BEFORE any path
+  resolution or write unless the capture is registered. An externally-built capture is never
+  registered, so no exported composition can create/persist a content-addressed contradictory
+  artifact. [SUPERSEDED by Round 10: this WeakSet matches by MUTABLE object reference and is
+  bypassable by in-place mutation of a legitimately-registered capture; Round 10 binds
+  authorization to immutable mint-time content.]
 - Preserved unchanged: the private lifecycle publish-and-bind authority, replay/recovery behavior,
   content addressing, privacy, and every valid callsite. No schema, receipt version, budget,
   model, call-count, artifact, provider, live, or render change.
@@ -729,18 +731,71 @@ capture" claim was false.
 
 ### Round-9 validation
 
-- `production-lifecycle-foundation.spec.ts` **80** (+2): the hostile A/B composition through the
-  exported checker+builder+persister proves persistence fails closed (`not minted by the sealed
-  runner authority`) while the built capture is validator-valid; a paired test proves a real
-  runner same-stack minted capture IS accepted by the persister. Retained: the STRUCTURAL-SEAL
-  enforcement (derive absent from module + barrel), the real replay-valid provider-failure
-  captured integration, the deterministic/no-diagnostic capture-free path, and the terminal
-  publication/recovery/replay guards.
+- `production-lifecycle-foundation.spec.ts` **78** (+2) [this figure was first mis-stated as 80;
+  corrected in Round 10]: the hostile A/B composition through the exported checker+builder+persister
+  proves persistence fails closed while the built capture is validator-valid; a paired test proves
+  a real runner same-stack minted capture IS accepted by the persister. Retained: the
+  STRUCTURAL-SEAL enforcement (derive absent from module + barrel), the real replay-valid
+  provider-failure captured integration, the deterministic/no-diagnostic capture-free path, and the
+  terminal publication/recovery/replay guards.
 - Directly-affected suites green: `qa-wizard-blueprint-authoring-lifecycle` **46**,
   `blueprint-admission-honesty-and-capture` **42**, `pre-render-blueprint-authoring` **19** +
   `pre-render-book-visual-blueprint` **112** (compiler/projection behavior unchanged),
-  `qa-wizard-blueprint-replacement-lifecycle` + `qa-wizard-package-lifecycle` **27**,
+  `qa-wizard-blueprint-replacement-lifecycle` **17** + `qa-wizard-package-lifecycle` **10**,
   `openai-responses-blueprint-authoring-adapter` **20**.
+- `npx --no-install tsc --noEmit` clean; `git diff --check` clean.
+
+No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts were not
+touched. F1 (paid exact-token count) remains a separate HOLD.
+
+## Round 10 — Codex re-gate of `b6557cd1`: content-bound mint authorization (mutation-bypass MAJOR)
+
+Codex re-gated `b6557cd1` HOLD: the Round-9 seal authorized persistence by MUTABLE object
+IDENTITY (`WeakSet<capture>`). Because `runProductionBlueprintAuthoring` is exported and returns
+the exact registered capture object, and captures are mutable/unfrozen, the seal is bypassable:
+obtain the real registered capture `C`; mutate it in place into a different validator-valid
+capture (`Object.assign` / nested field / `digest` rewrite) preserving `C`'s reference; the
+persister only checked `WeakSet.has(C)` (still true) then re-derived path/bytes from the
+caller-visible object, so contradictory bytes could be written. Closed on top of `b6557cd1`.
+
+### Content-bound mint authorization
+
+- The runner now keeps a module-private `WeakMap<capture, string>` mapping each same-stack-minted
+  capture to its EXACT mint-time canonical bytes (`blueprintAuthoringSanitizedFailureCaptureBytes`
+  captured at mint). `persistBlueprintAuthoringSanitizedFailureCapture`, BEFORE any path
+  resolution or write: (1) requires the capture registered (snapshot present) else `not minted by
+  the sealed runner authority`; (2) requires its CURRENT serialization to byte-equal the snapshot
+  else `mutated after minting` — any post-mint `Object.assign`/nested/`digest` mutation changes
+  the bytes; (3) full-validates the parsed snapshot else `invalid`; (4) writes the SNAPSHOT bytes
+  with a path from the snapshot's own digest — never bytes/fields re-read from the caller object,
+  closing the TOCTOU/getter gap.
+- Preserved: the private lifecycle publish-and-bind, replay/recovery, content addressing, privacy,
+  and every valid callsite (the lifecycle persists the pristine same-stack capture, which passes).
+  No schema, receipt version, budget, model, call-count, artifact, provider, live, or render change.
+- Re-audit: `persistBlueprintAuthoringSanitizedFailureCapture` is the ONLY capture writer; the
+  lifecycle `loadSanitizedFailureCaptureAuthority` re-derivation of bytes is read-side reload
+  verification, not a persistence path.
+
+### Truthfulness (counts/callers)
+
+- Corrected: `production-lifecycle-foundation.spec.ts` is **79** this round (78 at Round 9; the
+  Round-9 doc first mis-stated 80). Exact 8-spec total is **345** = 42 + 79 + 46 + 20 + 19 + 112 +
+  17 + 10. The persister has ONE production caller (the lifecycle publish-and-bind); the spec's
+  seal regressions call it directly (the Round-9 "zero test callers" phrasing is corrected). The
+  Round-6/7 injectivity supersessions are retained.
+
+### Round-10 validation
+
+- New mutation regression: obtains a REAL registered capture from `runProductionBlueprintAuthoring`,
+  mutates the SAME reference into a different validator-valid capture (recomputing its digest), and
+  proves BOTH `write:false` and `write:true` fail closed (`mutated after minting`) before any path
+  resolution/write with ZERO artifact — a case that PASSES against b6557cd1's identity WeakSet. The
+  pristine runner-minted capture still persists; the fresh-unregistered composition still fails.
+- Full 8-spec battery **345** green: `blueprint-admission-honesty-and-capture` **42**,
+  `production-lifecycle-foundation` **79**, `qa-wizard-blueprint-authoring-lifecycle` **46**,
+  `openai-responses-blueprint-authoring-adapter` **20**, `pre-render-blueprint-authoring` **19**,
+  `pre-render-book-visual-blueprint` **112**, `qa-wizard-blueprint-replacement-lifecycle` **17**,
+  `qa-wizard-package-lifecycle` **10**.
 - `npx --no-install tsc --noEmit` clean; `git diff --check` clean.
 
 No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts were not

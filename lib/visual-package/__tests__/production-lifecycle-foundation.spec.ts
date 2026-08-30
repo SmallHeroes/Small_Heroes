@@ -2004,6 +2004,82 @@ describe('production authoring run result totality + capture disposition', () =>
     ).not.toThrow();
   });
 
+  it('SEALED PERSISTENCE (mutation): a registered capture MUTATED in place after minting cannot be persisted', async () => {
+    // The harder attack: obtain a REAL registered capture from the runner, then mutate the
+    // SAME object reference into a DIFFERENT validator-valid capture (recomputing its digest).
+    // Object identity is preserved, so an identity-only authorization (b6557cd1's WeakSet)
+    // would still accept it; the CONTENT-bound authorization must reject it.
+    const sealDir = 'outputs/blueprint-authoring-seal-probe';
+    const { context, materialized } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => {
+        if (args.attempt === 1) {
+          return {
+            output: JSON.stringify({ invalid: true }),
+            receipt: canonicalProviderReceipt(args),
+          };
+        }
+        throw new Error('Bearer repair-secret provider failure');
+      }),
+    };
+    const result = await runProductionBlueprintAuthoring({ request, context, provider });
+    if (!productionAuthoringRunResultIsFailed(result)) {
+      throw new Error('expected a failed run');
+    }
+    const disposition = result.sanitizedFailureCaptureDisposition;
+    expect(disposition.kind).toBe('captured');
+    if (disposition.kind !== 'captured') return;
+    const registered = disposition.capture;
+
+    // Pristine registered capture IS persistable (proves the gate is not simply broken).
+    expect(() =>
+      persistBlueprintAuthoringSanitizedFailureCapture({
+        repoRoot: materialized.repoRoot,
+        outputDir: sealDir,
+        capture: registered,
+        write: false,
+      }),
+    ).not.toThrow();
+
+    // Mutate the SAME object in place into a different validator-valid capture, recomputing
+    // the digest exactly as the validator does (drop `digest`, keep everything else).
+    const mutable = registered as unknown as Record<string, unknown> & {
+      digest: string;
+    };
+    mutable.terminalFailureCode = 'mutated_failure_code';
+    const { digest: _drop, ...withoutDigest } = mutable;
+    mutable.digest = canonicalJsonDigest(withoutDigest);
+    // The mutated object is STILL validator-valid, but is no longer the mint-time content.
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(registered)).toBe(true);
+
+    const captureDir = path.join(
+      materialized.repoRoot,
+      sealDir,
+      'sanitized-failure-captures',
+    );
+    const before = fs.existsSync(captureDir) ? fs.readdirSync(captureDir).length : 0;
+    // Both write modes fail closed BEFORE any path resolution or write.
+    expect(() =>
+      persistBlueprintAuthoringSanitizedFailureCapture({
+        repoRoot: materialized.repoRoot,
+        outputDir: sealDir,
+        capture: registered,
+        write: false,
+      }),
+    ).toThrow(/mutated after minting/);
+    expect(() =>
+      persistBlueprintAuthoringSanitizedFailureCapture({
+        repoRoot: materialized.repoRoot,
+        outputDir: sealDir,
+        capture: registered,
+        write: true,
+      }),
+    ).toThrow(/mutated after minting/);
+    const after = fs.existsSync(captureDir) ? fs.readdirSync(captureDir).length : 0;
+    expect(after).toBe(before);
+  });
+
   it('the pure correlation checker returns null for a real diagnostic-bearing receipt with no correlatable source', async () => {
     // Produce a genuinely diagnostic-bearing REAL failed receipt via the runner, then hand the
     // pure consistency checker an error that carries NO matching structured diagnostics. The

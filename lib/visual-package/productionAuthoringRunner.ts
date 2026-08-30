@@ -74,6 +74,7 @@ import {
 import {
   buildBlueprintAuthoringSanitizedFailureCapture,
   blueprintAuthoringSanitizedFailureCaptureBytes,
+  blueprintAuthoringSanitizedFailureCaptureIsValid,
   blueprintAuthoringReceiptRequiresSanitizedCapture,
   type BlueprintAuthoringSanitizedFailureCapture,
   type BlueprintAuthoringSanitizedRoute,
@@ -1657,20 +1658,29 @@ function failedReceiptRequestLinkageIsConsistent(args: {
 }
 
 /**
- * Runner-private MINT AUTHORIZATION for sanitized failure captures. ONLY the same-stack
- * private derivation registers the captures it mints here; the sole capture-persistence
- * entry point (`persistBlueprintAuthoringSanitizedFailureCapture`) refuses any capture not
- * in this set. This is the STRUCTURAL boundary that stops an exported composition
+ * Runner-private MINT AUTHORIZATION for sanitized failure captures, bound to the EXACT
+ * IMMUTABLE mint-time CONTENT (not merely a mutable object identity). ONLY the same-stack
+ * private derivation registers the captures it mints here, snapshotting the exact canonical
+ * bytes at mint time. The sole capture-persistence entry point
+ * (`persistBlueprintAuthoringSanitizedFailureCapture`) refuses any capture that is not
+ * registered OR whose current serialization does not byte-equal its mint-time snapshot, and
+ * then writes the SNAPSHOT bytes (never bytes re-derived from the caller-visible object).
+ *
+ * This is the STRUCTURAL boundary that stops an exported composition
  * (`blueprintAuthoringFailedCensusCorrelationDiagnostics` + `buildBlueprintAuthoringSanitizedFailureCapture`
  * + `persistBlueprintAuthoringSanitizedFailureCapture`) from PERSISTING a contradictory but
- * validator-valid capture artifact from delimiter-colliding evidence: an externally built
- * capture object is never registered, so persistence fails closed and no content-addressed
- * artifact is ever created. The set is module-private (never exported), so no external code
- * can register a forgery, and identity is by object reference — an equal-looking rebuild is
- * still unregistered.
+ * validator-valid capture artifact — including the harder attack of taking a legitimately
+ * registered capture returned by `runProductionBlueprintAuthoring` and MUTATING it in place
+ * (`Object.assign`/nested field/digest rewrite) while preserving its object reference:
+ * captures are mutable and unfrozen, so identity alone is insufficient; the content snapshot
+ * detects any post-mint mutation and the write uses the immutable snapshot bytes, closing the
+ * TOCTOU/getter gap. The map is module-private (never exported), so no external code can
+ * register a forgery.
  */
-const runnerMintedFailureCaptures =
-  new WeakSet<BlueprintAuthoringSanitizedFailureCapture>();
+const runnerMintedFailureCaptureBytes = new WeakMap<
+  BlueprintAuthoringSanitizedFailureCapture,
+  string
+>();
 
 /**
  * PURE, NON-AUTHORITY census correlation checker. Returns the ORDERED census diagnostics
@@ -1917,10 +1927,14 @@ function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
       routes,
       diagnostics: censusDiagnostics,
     });
-    // Register this same-stack minted capture so the sole persistence entry point will
-    // accept it. Only captures produced HERE — from the compiler's own error/diagnostics in
-    // this synchronous stack — are ever registered; an externally-built capture is not.
-    runnerMintedFailureCaptures.add(capture);
+    // Register this same-stack minted capture by its EXACT mint-time canonical bytes, so the
+    // sole persistence entry point will accept it AND reject any post-mint mutation. Only
+    // captures produced HERE — from the compiler's own error/diagnostics in this synchronous
+    // stack — are ever registered; an externally-built (or mutated) capture is not accepted.
+    runnerMintedFailureCaptureBytes.set(
+      capture,
+      blueprintAuthoringSanitizedFailureCaptureBytes(capture),
+    );
     return { kind: 'captured', capture };
   } catch (error) {
     // A diagnostic-bearing failure whose capture cannot be derived (including a
@@ -1943,14 +1957,34 @@ export function persistBlueprintAuthoringSanitizedFailureCapture(args: {
   write?: boolean;
   hooks?: ImmutableWriteHooks;
 }): { capturePath: string; wrote: boolean } {
-  // STRUCTURAL SEAL: only a capture minted by the same-stack private derivation (registered
-  // in the runner-private authorization set) may be persisted. This runs BEFORE any path
-  // resolution or write, so an exported checker+builder+persister composition over
-  // delimiter-colliding evidence can neither write nor obtain a content-addressed path for a
-  // contradictory validator-valid capture — it fails closed here.
-  if (!runnerMintedFailureCaptures.has(args.capture)) {
+  // STRUCTURAL SEAL (content-bound). All of this runs BEFORE any path resolution or write, so
+  // an exported composition — including MUTATING a legitimately registered capture in place
+  // (same object reference, rewritten fields/digest) — fails closed here and leaves no
+  // artifact:
+  //  1) the capture must be registered by the same-stack private derivation, and
+  //  2) its CURRENT serialization must byte-equal the immutable mint-time snapshot (any
+  //     post-mint `Object.assign`/nested/digest mutation changes the bytes and is rejected).
+  // The write then uses the SNAPSHOT bytes and a path derived from the snapshot's own digest,
+  // never bytes/fields re-read from the caller-visible object — closing the TOCTOU/getter gap.
+  const snapshotBytes = runnerMintedFailureCaptureBytes.get(args.capture);
+  if (snapshotBytes === undefined) {
     throw new Error(
       'refusing to persist a sanitized failure capture not minted by the sealed runner authority',
+    );
+  }
+  if (
+    blueprintAuthoringSanitizedFailureCaptureBytes(args.capture) !== snapshotBytes
+  ) {
+    throw new Error(
+      'refusing to persist a sanitized failure capture mutated after minting',
+    );
+  }
+  // Belt-and-suspenders: the immutable snapshot must itself be a fully valid capture, and the
+  // canonical digest/path come from the snapshot alone.
+  const snapshotValue = JSON.parse(snapshotBytes) as { digest: string };
+  if (!blueprintAuthoringSanitizedFailureCaptureIsValid(snapshotValue)) {
+    throw new Error(
+      'refusing to persist an invalid sanitized failure capture',
     );
   }
   const root = path.resolve(args.repoRoot, args.outputDir);
@@ -1958,12 +1992,12 @@ export function persistBlueprintAuthoringSanitizedFailureCapture(args: {
   const absolute = path.join(
     root,
     'sanitized-failure-captures',
-    `${args.capture.digest}.json`,
+    `${snapshotValue.digest}.json`,
   );
   if (args.write === true) {
     writeImmutableLocalArtifact({
       destinationPath: absolute,
-      bytes: blueprintAuthoringSanitizedFailureCaptureBytes(args.capture),
+      bytes: snapshotBytes,
       hooks: args.hooks,
     });
   }
