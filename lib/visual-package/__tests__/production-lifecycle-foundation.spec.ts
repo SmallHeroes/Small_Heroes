@@ -55,6 +55,7 @@ import {
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
 import {
   PreRenderBlueprintAuthoringRepairExhaustedError,
+  preRenderBlueprintRepairDiagnosticErrorText,
   type PreRenderBlueprintRepairDiagnostic,
 } from '@/lib/visual-package/preRenderBlueprintAuthoring';
 import {
@@ -2009,19 +2010,25 @@ describe('production authoring run result totality + capture disposition', () =>
   });
 });
 
-describe('sanitized census bijection is proven, not assumed from attempt presence', () => {
-  // Two structurally distinct diagnostics (different messages) -> two census identities.
+describe('sanitized census bijection is proven by IDENTITY, not attempt presence', () => {
+  // Two structurally distinct diagnostics -> two census identities. Errors are derived
+  // from the SAME canonical projection the compiler uses, so these are genuinely
+  // identity-correlated evidence (the counterexamples below deliberately break that).
   const DIAG_ONE: PreRenderBlueprintRepairDiagnostic = {
     code: 'draft_assembly_failed',
-    message: 'm1',
+    message: 'alpha',
   };
   const DIAG_TWO: PreRenderBlueprintRepairDiagnostic = {
     code: 'draft_assembly_failed',
-    message: 'm2',
+    message: 'beta',
     // A retained (closed-vocabulary) field path makes this a DISTINCT sanitized identity
     // from DIAG_ONE, whose message alone is never retained.
     field: 'frames',
   };
+  const CORRELATED = [DIAG_ONE, DIAG_TWO];
+  const CORRELATED_ERRORS = CORRELATED.map(
+    preRenderBlueprintRepairDiagnosticErrorText,
+  );
 
   // The exact source/logic the runner uses to persist an attempt's validation summary.
   function persistedSummary(errors: string[]): {
@@ -2047,17 +2054,34 @@ describe('sanitized census bijection is proven, not assumed from attempt presenc
     } as unknown as ProductionAuthoringAttemptReceipt;
   }
 
+  // A genuinely identity-correlated source attempt: its error strings ARE the canonical
+  // projections of its structured diagnostics.
+  function correlatedSourceAttempt(
+    attempt: number,
+    diagnostics: PreRenderBlueprintRepairDiagnostic[],
+  ) {
+    return {
+      attempt,
+      errors: diagnostics.map(preRenderBlueprintRepairDiagnosticErrorText),
+      draft: null,
+      diagnostics,
+    };
+  }
+
   function deriveWith(args: {
     context: ProductionAuthoringContext;
     request: ProductionAuthoringRunRequest;
     attempts: ProductionAuthoringAttemptReceipt[];
     error: unknown;
+    // Optional distinct receipt-side attempt list to prove args.attempts must be
+    // canonically identical to failureReceipt.attempts.
+    failureReceiptAttempts?: ProductionAuthoringAttemptReceipt[];
   }) {
     const failureReceipt = {
       digest: canonicalJsonDigest({ receipt: 'terminal' }),
       requestDigest: canonicalJsonDigest({ request: 'terminal' }),
       failure: { code: 'draft_validation_repair_exhausted' as const },
-      attempts: args.attempts,
+      attempts: args.failureReceiptAttempts ?? args.attempts,
     } as unknown as Parameters<
       typeof deriveBlueprintAuthoringSanitizedFailureCaptureDisposition
     >[0]['failureReceipt'];
@@ -2076,16 +2100,15 @@ describe('sanitized census bijection is proven, not assumed from attempt presenc
     reasonCode: 'sanitized_census_correlation_unproven',
   } as const;
 
-  it('mints a complete capture on the valid, fully-correlated real shape', () => {
+  it('mints a complete capture on the true valid identity-correlated shape', () => {
     const { context } = buildContext('single_location');
     const request = requestFor(context, 'live');
-    const summary = persistedSummary(['e1', 'e2']);
     const disposition = deriveWith({
       context,
       request,
-      attempts: [receiptAttempt(1, summary)],
+      attempts: [receiptAttempt(1, persistedSummary(CORRELATED_ERRORS))],
       error: new PreRenderBlueprintAuthoringRepairExhaustedError([
-        { attempt: 1, errors: ['e1', 'e2'], draft: null, diagnostics: [DIAG_ONE, DIAG_TWO] },
+        correlatedSourceAttempt(1, CORRELATED),
       ]),
     });
     expect(disposition.kind).toBe('captured');
@@ -2098,17 +2121,38 @@ describe('sanitized census bijection is proven, not assumed from attempt presenc
     expect(disposition.capture.census.totalEmitted).toBe(2);
   });
 
-  it('rejects a receipt count that overstates the in-memory error source', () => {
+  it('rejects same count/codes/cardinality but UNRELATED diagnostic identities', () => {
     const { context } = buildContext('single_location');
     const request = requestFor(context, 'live');
-    // Receipt claims count 2 / codes X, but the in-memory attempt carries only 1 error
-    // (and 1 structured diagnostic) -> re-derived count 1 != persisted 2.
+    // Persisted summary re-derives exactly from the errors, and cardinality matches (2==2),
+    // but the structured diagnostics project to DIFFERENT strings than the persisted
+    // errors -> they are not the same evidence identities.
+    const unrelated: PreRenderBlueprintRepairDiagnostic[] = [
+      { code: 'draft_assembly_failed', message: 'gamma' },
+      { code: 'draft_assembly_failed', message: 'delta', field: 'frames' },
+    ];
     const disposition = deriveWith({
       context,
       request,
-      attempts: [receiptAttempt(1, persistedSummary(['e1', 'e2']))],
+      attempts: [receiptAttempt(1, persistedSummary(CORRELATED_ERRORS))],
       error: new PreRenderBlueprintAuthoringRepairExhaustedError([
-        { attempt: 1, errors: ['e1'], draft: null, diagnostics: [DIAG_ONE] },
+        { attempt: 1, errors: CORRELATED_ERRORS, draft: null, diagnostics: unrelated },
+      ]),
+    });
+    expect(disposition).toEqual(UNPROVEN);
+  });
+
+  it('rejects a receipt count that overstates the in-memory error source', () => {
+    const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    // Receipt claims count 2, but the in-memory attempt carries only 1 error/diagnostic
+    // -> re-derived count 1 != persisted 2.
+    const disposition = deriveWith({
+      context,
+      request,
+      attempts: [receiptAttempt(1, persistedSummary(CORRELATED_ERRORS))],
+      error: new PreRenderBlueprintAuthoringRepairExhaustedError([
+        correlatedSourceAttempt(1, [DIAG_ONE]),
       ]),
     });
     expect(disposition).toEqual(UNPROVEN);
@@ -2117,8 +2161,8 @@ describe('sanitized census bijection is proven, not assumed from attempt presenc
   it('rejects a code set the in-memory error source does not reproduce', () => {
     const { context } = buildContext('single_location');
     const request = requestFor(context, 'live');
-    // Same count (2), but the in-memory errors re-derive to a different code set (they
-    // include a JSON/decode-shaped error -> draft_schema_validation_failed).
+    // Same count (2), but the in-memory errors re-derive to a different code set (a
+    // JSON/decode-shaped error -> draft_schema_validation_failed).
     const disposition = deriveWith({
       context,
       request,
@@ -2138,29 +2182,85 @@ describe('sanitized census bijection is proven, not assumed from attempt presenc
   it('rejects a partial structured source (fewer diagnostics than raw errors)', () => {
     const { context } = buildContext('single_location');
     const request = requestFor(context, 'live');
-    // {count,codes} re-derive exactly, but the structured census source is incomplete:
-    // 2 raw errors, only 1 structured diagnostic -> cannot mint a truthful census.
+    // {count,codes} re-derive exactly, but only 1 structured diagnostic for 2 raw errors.
     const disposition = deriveWith({
       context,
       request,
-      attempts: [receiptAttempt(1, persistedSummary(['e1', 'e2']))],
+      attempts: [receiptAttempt(1, persistedSummary(CORRELATED_ERRORS))],
       error: new PreRenderBlueprintAuthoringRepairExhaustedError([
-        { attempt: 1, errors: ['e1', 'e2'], draft: null, diagnostics: [DIAG_ONE] },
+        { attempt: 1, errors: CORRELATED_ERRORS, draft: null, diagnostics: [DIAG_ONE] },
       ]),
     });
     expect(disposition).toEqual(UNPROVEN);
   });
 
-  it('rejects a duplicated attempt number in the structured evidence', () => {
+  it('rejects a duplicated SOURCE attempt number', () => {
     const { context } = buildContext('single_location');
     const request = requestFor(context, 'live');
     const disposition = deriveWith({
       context,
       request,
-      attempts: [receiptAttempt(1, persistedSummary(['e1', 'e2']))],
+      // Two receipt attempts so the duplicate source number is in-range (1..2).
+      attempts: [
+        receiptAttempt(1, persistedSummary(CORRELATED_ERRORS)),
+        receiptAttempt(2, { count: 0, codes: [] }),
+      ],
       error: new PreRenderBlueprintAuthoringRepairExhaustedError([
-        { attempt: 1, errors: ['e1', 'e2'], draft: null, diagnostics: [DIAG_ONE, DIAG_TWO] },
-        { attempt: 1, errors: ['e3'], draft: null, diagnostics: [DIAG_ONE] },
+        correlatedSourceAttempt(1, CORRELATED),
+        correlatedSourceAttempt(1, [DIAG_ONE]),
+      ]),
+    });
+    expect(disposition).toEqual(UNPROVEN);
+  });
+
+  it('rejects a duplicated RECEIPT attempt number (non-sequential)', () => {
+    const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    const disposition = deriveWith({
+      context,
+      request,
+      // Two receipt attempts both numbered 1 -> not a clean 1..N sequence.
+      attempts: [
+        receiptAttempt(1, persistedSummary(CORRELATED_ERRORS)),
+        receiptAttempt(1, { count: 0, codes: [] }),
+      ],
+      error: new PreRenderBlueprintAuthoringRepairExhaustedError([
+        correlatedSourceAttempt(1, CORRELATED),
+      ]),
+    });
+    expect(disposition).toEqual(UNPROVEN);
+  });
+
+  it('rejects an invalid / non-integer / out-of-range SOURCE attempt number', () => {
+    const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    const disposition = deriveWith({
+      context,
+      request,
+      attempts: [receiptAttempt(1, persistedSummary(CORRELATED_ERRORS))],
+      error: new PreRenderBlueprintAuthoringRepairExhaustedError([
+        correlatedSourceAttempt(1, CORRELATED),
+        // A non-integer source attempt number is rejected, never silently skipped.
+        { attempt: 1.5, errors: ['x'], draft: null, diagnostics: [DIAG_ONE] },
+      ]),
+    });
+    expect(disposition).toEqual(UNPROVEN);
+  });
+
+  it('rejects args.attempts that differ from the content-addressed failureReceipt.attempts', () => {
+    const { context } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    const disposition = deriveWith({
+      context,
+      request,
+      attempts: [receiptAttempt(1, persistedSummary(CORRELATED_ERRORS))],
+      // The content-addressed receipt commits to a DIFFERENT attempt list.
+      failureReceiptAttempts: [
+        receiptAttempt(1, persistedSummary(CORRELATED_ERRORS)),
+        receiptAttempt(2, { count: 0, codes: [] }),
+      ],
+      error: new PreRenderBlueprintAuthoringRepairExhaustedError([
+        correlatedSourceAttempt(1, CORRELATED),
       ]),
     });
     expect(disposition).toEqual(UNPROVEN);
@@ -2175,12 +2275,12 @@ describe('sanitized census bijection is proven, not assumed from attempt presenc
       context,
       request,
       attempts: [
-        receiptAttempt(1, persistedSummary(['e1', 'e2'])),
+        receiptAttempt(1, persistedSummary(CORRELATED_ERRORS)),
         receiptAttempt(2, { count: 0, codes: [] }),
       ],
       error: new PreRenderBlueprintAuthoringRepairExhaustedError([
-        { attempt: 1, errors: ['e1', 'e2'], draft: null, diagnostics: [DIAG_ONE, DIAG_TWO] },
-        { attempt: 2, errors: ['x'], draft: null, diagnostics: [DIAG_ONE] },
+        correlatedSourceAttempt(1, CORRELATED),
+        correlatedSourceAttempt(2, [DIAG_ONE]),
       ]),
     });
     expect(disposition).toEqual(UNPROVEN);
@@ -2195,11 +2295,11 @@ describe('sanitized census bijection is proven, not assumed from attempt presenc
       context,
       request,
       attempts: [
-        receiptAttempt(1, persistedSummary(['e1', 'e2'])),
+        receiptAttempt(1, persistedSummary(CORRELATED_ERRORS)),
         receiptAttempt(2, { count: 0, codes: [] }),
       ],
       error: new PreRenderBlueprintAuthoringRepairExhaustedError([
-        { attempt: 1, errors: ['e1', 'e2'], draft: null, diagnostics: [DIAG_ONE, DIAG_TWO] },
+        correlatedSourceAttempt(1, CORRELATED),
         { attempt: 2, errors: ['repair call failed: boom'], draft: null },
       ]),
     });

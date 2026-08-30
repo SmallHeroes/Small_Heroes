@@ -683,6 +683,26 @@ describe('sanitized failure capture — census completeness and prose/PII freedo
     ).toBe(false);
   });
 
+  it('rejects a forged census.fullCensusDigest even with a recomputed outer digest', () => {
+    const capture = clone(baseCapture()) as unknown as {
+      census: { fullCensusDigest: string };
+      digest: string;
+    };
+    // Forge the inner full-census digest to a well-formed but WRONG hex value, then
+    // recompute the outer capture digest so only the inner digest is inconsistent with
+    // the actual identities. This must still fail: fullCensusDigest is now exact-checked
+    // against canonicalJsonDigest(identities), not merely regex-validated.
+    expect(capture.census.fullCensusDigest).toMatch(/^[a-f0-9]{64}$/);
+    capture.census.fullCensusDigest = hex64('forged-full-census');
+    const { digest: _drop, ...rest } = capture as unknown as Record<string, unknown>;
+    capture.digest = canonicalJsonDigest(rest);
+    expect(
+      blueprintAuthoringSanitizedFailureCaptureIsValid(
+        capture as unknown as Record<string, unknown>,
+      ),
+    ).toBe(false);
+  });
+
   it('sanitizes an unsafe field into a redaction marker rather than leaking it', () => {
     expect(
       sanitizeBlueprintDiagnosticFieldPath('frames[2].placements[0]'),

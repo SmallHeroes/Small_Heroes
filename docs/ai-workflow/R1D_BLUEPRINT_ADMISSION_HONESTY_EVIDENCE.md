@@ -486,3 +486,65 @@ the census-correlation proof. Closed on top of `4a52c3d3` as one focused commit.
 
 No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts
 were not touched. F1 (paid exact-token count) remains a separate HOLD.
+
+## Round 6 — Codex re-gate of `57e43f8c`: MAJOR 1 PASS, MAJOR 2 identity HOLD + census-digest MINOR
+
+Codex re-gated `57e43f8c`: MAJOR 1 (shared replay/recovery/first-publication capture
+assertion) **PASS**; MAJOR 2 **HOLD** on the identity/totality invariant, plus a
+reproduced census-integrity MINOR. Both closed on top of `57e43f8c` in one commit. **This
+is not an F3 PASS — awaiting Codex re-gate.**
+
+### The remaining MAJOR — identity/totality now proven
+
+The round-5 census proof compared the persisted `{count,codes}` re-derived from
+`evidence.errors` and only checked `diagnostics.length === errors.length`; it never proved
+the errors and structured diagnostics were the SAME identities, iterated `args.attempts`
+(not the content-addressed `failureReceipt.attempts`), and silently skipped non-safe source
+attempt numbers. Closed as follows:
+
+- **One canonical projection at the compiler source.** New exported
+  `preRenderBlueprintRepairDiagnosticErrorText` reproduces the EXACT error string the
+  compiler persists (`draft assembly failed: <message>` for `draft_assembly_failed`;
+  `<code>[ (<field>)]: <message>` otherwise). The compiler's `issueText` and the
+  draft-assembly catch now both build their error strings through it, and the census
+  derivation projects each structured diagnostic through the SAME authority.
+- **Identity comparison, not cardinality.** For every diagnostic-bearing receipt attempt,
+  the projected structured-diagnostic array must equal the source `errors` array
+  position-for-position (subsumes the length check).
+- **Content-addressed receipt as source of truth.** Derivation requires
+  `canonicalJsonDigest(args.attempts) === canonicalJsonDigest(failureReceipt.attempts)`,
+  then iterates `failureReceipt.attempts`, which must be a clean 1..N sequence (rejects
+  duplicate/non-sequential receipt attempt numbers).
+- **Strict source attempt numbers.** A source attempt number that is non-safe-integer,
+  `< 1`, `> N`, or duplicated is REJECTED (never silently skipped).
+- All of missing/extra sources, count/code mismatch, partial cardinality, and identity
+  mismatch remain `sanitized_census_correlation_unproven`. The real repair-time
+  `provider_call_failed` shape (diagnostic-bearing attempt 1, diagnostic-less provider
+  failure attempt 2) is preserved.
+
+### Reproduced MINOR — census-integrity digest
+
+`blueprintAuthoringSanitizedFailureCaptureIsValid` now enforces
+`census.fullCensusDigest === canonicalJsonDigest(identities)` exactly, not just a hex regex,
+so a forged inner digest with a recomputed outer capture digest no longer validates.
+
+### Round-6 validation (serial)
+
+- `blueprint-admission-honesty-and-capture.spec.ts` **42** (+1): forged `fullCensusDigest`
+  with recomputed outer digest is rejected.
+- `production-lifecycle-foundation.spec.ts` **68** (+4 net): the census `describe` now proves
+  IDENTITY — a true identity-correlated shape mints a capture; same count/codes/cardinality
+  but unrelated identities, duplicate receipt attempt, invalid/non-integer/out-of-range
+  source attempt, and `args.attempts` ≠ `failureReceipt.attempts` each return
+  `sanitized_census_correlation_unproven`; count/code/partial/duplicate-source/extra and the
+  real `provider_call_failed` path preserved.
+- `qa-wizard-blueprint-authoring-lifecycle.spec.ts` **46** green (MAJOR 1 unchanged).
+- `openai-responses-blueprint-authoring-adapter.spec.ts` **20** green.
+- Behavior-preserving refactor confirmed: `pre-render-blueprint-authoring.spec.ts` **19** and
+  `pre-render-book-visual-blueprint.spec.ts` **112** green.
+- Directly-affected `qa-wizard-blueprint-replacement-lifecycle.spec.ts` +
+  `qa-wizard-package-lifecycle.spec.ts` (**27**) green.
+- `npx --no-install tsc --noEmit` clean; `git diff --check` clean.
+
+No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts
+were not touched. F1 (paid exact-token count) remains a separate HOLD.

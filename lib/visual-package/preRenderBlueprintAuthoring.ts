@@ -550,11 +550,28 @@ export function buildPreRenderBlueprintRepairUserPrompt(args: {
   ].join('\n');
 }
 
+/**
+ * The SINGLE canonical projection from one structured repair diagnostic to the EXACT
+ * error string the compiler persists for it. Both the compiler's error-string
+ * construction (validation `issueText` and the draft-assembly catch below) and every
+ * downstream identity-correlation authority (notably the sanitized-failure-capture census
+ * derivation) MUST use this one function, so a structured diagnostic and its persisted
+ * error string are provably the SAME evidence identity — never merely the same count.
+ *
+ *  - A `draft_assembly_failed` diagnostic reproduces `draft assembly failed: <message>`.
+ *  - Every other (validation) diagnostic reproduces `<code>[ (<field>)]: <message>`.
+ */
+export function preRenderBlueprintRepairDiagnosticErrorText(
+  diagnostic: PreRenderBlueprintRepairDiagnostic,
+): string {
+  if (diagnostic.code === 'draft_assembly_failed') {
+    return `draft assembly failed: ${diagnostic.message}`;
+  }
+  return `${diagnostic.code}${diagnostic.field ? ` (${diagnostic.field})` : ''}: ${diagnostic.message}`;
+}
+
 function issueText(issues: readonly PreRenderBlueprintIssue[]): string[] {
-  return issues.map(
-    (entry) =>
-      `${entry.code}${entry.field ? ` (${entry.field})` : ''}: ${entry.message}`,
-  );
+  return issues.map(preRenderBlueprintRepairDiagnosticErrorText);
 }
 
 export async function compilePreRenderBookVisualBlueprint(
@@ -631,10 +648,14 @@ export async function compilePreRenderBookVisualBlueprint(
     } catch (error) {
       const message =
         error instanceof Error ? error.message : String(error);
-      errors = [`draft assembly failed: ${message}`];
-      repairDiagnostics = [
-        { code: 'draft_assembly_failed', message },
-      ];
+      const diagnostic: PreRenderBlueprintRepairDiagnostic = {
+        code: 'draft_assembly_failed',
+        message,
+      };
+      repairDiagnostics = [diagnostic];
+      // Build the persisted error string from the SAME canonical projection, so the
+      // structured diagnostic and its error string can never drift apart.
+      errors = [preRenderBlueprintRepairDiagnosticErrorText(diagnostic)];
     }
 
     if (candidate && errors.length === 0) {

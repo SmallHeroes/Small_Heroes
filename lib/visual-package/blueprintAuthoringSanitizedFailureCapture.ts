@@ -841,6 +841,11 @@ function censusIsValid(value: unknown): value is BlueprintAuthoringSanitizedCens
   ) {
     return false;
   }
+  // The full-census digest must EXACTLY equal the recomputed digest over the retained
+  // identity list — not merely be a well-formed hex string. Otherwise a forged inner
+  // digest (with a recomputed outer capture digest) would validate even when it does not
+  // commit to the actual identities, defeating the census-integrity guarantee.
+  if (canonicalJsonDigest(identities) !== value.fullCensusDigest) return false;
   // Structural accounting invariants.
   if (value.retainedIdentities > value.distinctIdentities) return false;
   if (value.omittedDistinctIdentities !== value.distinctIdentities - value.retainedIdentities) {

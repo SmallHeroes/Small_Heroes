@@ -13,6 +13,7 @@ import {
   buildPreRenderBlueprintAuthoringUserPrompt,
   compilePreRenderBookVisualBlueprint,
   preRenderBlueprintAuthoringInputErrors,
+  preRenderBlueprintRepairDiagnosticErrorText,
   type PreRenderBlueprintAuthoringCallOptions,
   type PreRenderBlueprintAuthoringConfig,
   type PreRenderBlueprintAuthoringResult,
@@ -1620,20 +1621,26 @@ export async function runProductionBlueprintAuthoring(args: {
  * replayable terminal for it without one.
  *
  * The census is derived only from the in-memory structured diagnostic sources that are
- * proven to correspond, as a COMPLETE bijection, to the failed receipt's diagnostic-
- * bearing attempts: every such receipt attempt must have a matching in-memory source
- * whose raw errors re-derive to the EXACT persisted {count,codes} (rejecting a fabricated
- * or drifted summary) and whose structured diagnostics are complete for that attempt (one
- * structured diagnostic per raw error — cardinality linkage, not mere attempt-number
- * presence), and every in-memory source that carries structured diagnostics must map to a
- * matched receipt attempt (rejecting extra/duplicate/unmatched evidence). If that
- * bijection cannot be proven — a missing, partial, count/code-mismatched, duplicate, or
- * extra source, or a derived census that would be empty — the result is
- * `sanitized_census_correlation_unproven` `derivation_failed` (NOT an empty/partial census
- * minted merely to satisfy the binding). A census that overflows the fail-closed hard
- * bound is likewise `derivation_failed`. Every `derivation_failed` carries a sanitized
- * reason code — never a silent null — so the caller can drive it into the
- * incident/execution_state_uncertain path.
+ * proven to correspond, as a COMPLETE and IDENTITY-EXACT bijection, to the failed
+ * receipt's diagnostic-bearing attempts. The receipt-side source of truth is the
+ * content-addressed `failureReceipt.attempts` (the separately-passed `attempts` must be
+ * canonically identical first); those attempts must form a clean 1..N sequence; and every
+ * in-memory source attempt number must be a safe integer in 1..N and unique. For every
+ * diagnostic-bearing receipt attempt there must be a matching source whose raw errors
+ * re-derive to the EXACT persisted {count,codes} (rejecting a fabricated or drifted
+ * summary) AND whose structured diagnostics PROJECT, via the single canonical authority
+ * the compiler uses to build the error strings, to the source error array
+ * position-for-position (proving the structured census and the errors are the SAME
+ * identities, not merely the same count). Every source carrying structured diagnostics
+ * must map to a matched attempt (rejecting extra/unmatched evidence). If that bijection
+ * cannot be proven — a mismatched attempt list, non-sequential/duplicate receipt attempt,
+ * invalid/out-of-range/duplicate source attempt, missing, partial, count/code-mismatched,
+ * identity-mismatched, or extra source, or a derived census that would be empty — the
+ * result is `sanitized_census_correlation_unproven` `derivation_failed` (NOT an
+ * empty/partial census minted merely to satisfy the binding). A census that overflows the
+ * fail-closed hard bound is likewise `derivation_failed`. Every `derivation_failed`
+ * carries a sanitized reason code — never a silent null — so the caller can drive it into
+ * the incident/execution_state_uncertain path.
  *
  * A diagnostic-LESS boundary failure (no mandatory code, no attempt diagnostics) is an
  * explicit allowed absence: it binds no capture. Never reads raw draft/provider output —
@@ -1685,14 +1692,36 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
         rejectionReasonCode: 'repair_route_input_not_admissible',
       });
     }
-    // The only in-memory structured diagnostic source is the failing error's per-attempt
-    // evidence (raw structured diagnostics are never persisted into the receipt). Index it
-    // by attempt number, retaining BOTH the raw error strings (the exact source the
-    // receipt's `validationDiagnostics` summary was derived from — via
-    // `sanitizedAuthoringDiagnostics`) and the structured diagnostics (the census source),
-    // so the correlation below can PROVE — not merely assume from a matching attempt
-    // number — that the persisted summary and the structured census come from the same
-    // complete per-attempt evidence.
+    const correlationUnproven = {
+      kind: 'derivation_failed' as const,
+      reasonCode: 'sanitized_census_correlation_unproven' as const,
+    };
+    // Receipt-side source of truth is the CONTENT-ADDRESSED failed receipt's own attempts
+    // (the capture links to `failureReceipt`, whose digest commits to `attempts`). Require
+    // the separately-passed `args.attempts` to be canonically identical first, so the
+    // census can never be correlated against a different attempt list than the one the
+    // receipt digest actually binds.
+    if (
+      canonicalJsonDigest(args.attempts) !==
+      canonicalJsonDigest(args.failureReceipt.attempts)
+    ) {
+      return correlationUnproven;
+    }
+    const receiptAttempts = args.failureReceipt.attempts;
+    // Receipt attempts MUST be a clean 1..N sequence — no duplicate, missing, or
+    // non-sequential attempt number. A duplicate number would otherwise let one evidence
+    // source be counted into the census twice.
+    for (let index = 0; index < receiptAttempts.length; index += 1) {
+      if (receiptAttempts[index]!.attempt !== index + 1) {
+        return correlationUnproven;
+      }
+    }
+    // Index the in-memory structured source by attempt number, retaining BOTH the raw
+    // error strings (the exact source the receipt's `validationDiagnostics` summary was
+    // derived from) and the structured diagnostics (the census source). A non-safe,
+    // out-of-range (outside 1..N), or duplicated source attempt number is REJECTED — never
+    // silently skipped — so extra or malformed evidence cannot ride alongside a valid
+    // source.
     const evidenceByAttempt = new Map<
       number,
       { errors: string[]; diagnostics: PreRenderBlueprintRepairDiagnostic[] }
@@ -1702,14 +1731,13 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
       args.error instanceof PreRenderBlueprintRepairInputNotAdmissibleError
     ) {
       for (const attempt of args.error.attempts) {
-        if (!Number.isSafeInteger(attempt.attempt)) continue;
-        // A duplicated attempt number makes the receipt<->source bijection ambiguous:
-        // refuse rather than silently merge two sources under one identity.
-        if (evidenceByAttempt.has(attempt.attempt)) {
-          return {
-            kind: 'derivation_failed',
-            reasonCode: 'sanitized_census_correlation_unproven',
-          };
+        if (
+          !Number.isSafeInteger(attempt.attempt) ||
+          attempt.attempt < 1 ||
+          attempt.attempt > receiptAttempts.length ||
+          evidenceByAttempt.has(attempt.attempt)
+        ) {
+          return correlationUnproven;
         }
         evidenceByAttempt.set(attempt.attempt, {
           errors: Array.isArray(attempt.errors) ? [...attempt.errors] : [],
@@ -1717,32 +1745,29 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
         });
       }
     }
-    // Prove a COMPLETE bijection between every diagnostic-bearing receipt attempt and its
-    // in-memory structured source BEFORE minting any census:
+    // Prove a COMPLETE, IDENTITY-EXACT bijection between every diagnostic-bearing receipt
+    // attempt and its in-memory structured source BEFORE minting any census:
     //  - forward: every receipt attempt that persisted a non-empty validation-diagnostic
-    //    summary MUST have a matching in-memory source whose raw errors RE-DERIVE, under
-    //    the exact canonical logic used to persist them, to the EXACT {count,codes} the
-    //    receipt carries (rejects a fabricated or drifted summary — count- or code-
-    //    mismatch), and whose structured diagnostics are complete for that attempt: one
-    //    structured diagnostic per raw error (cardinality/identity linkage, not mere
-    //    presence — rejects a partial structured source);
-    //  - reverse: every in-memory source that carries structured diagnostics MUST map to a
-    //    matched diagnostic-bearing receipt attempt (rejects extra/unmatched evidence).
-    // Any violation is `sanitized_census_correlation_unproven`, driven into the incident
-    // path rather than minting a census the receipt does not fully and exactly account for.
+    //    summary MUST have a matching source whose raw errors RE-DERIVE, under the exact
+    //    canonical logic used to persist them, to the EXACT {count,codes} the receipt
+    //    carries (rejects a fabricated/drifted summary), AND whose structured diagnostics
+    //    PROJECT — via the single canonical authority the compiler uses to build the error
+    //    strings — to the source error array position-for-position (proves the structured
+    //    census and the errors are the SAME evidence identities, not merely equal in
+    //    count);
+    //  - reverse: every source that carries structured diagnostics MUST map to a matched
+    //    diagnostic-bearing receipt attempt (rejects extra/unmatched evidence).
+    // Any violation is `sanitized_census_correlation_unproven`.
     const censusDiagnostics: PreRenderBlueprintRepairDiagnostic[] = [];
     const matchedAttempts = new Set<number>();
-    for (const receiptAttempt of args.attempts) {
+    for (const receiptAttempt of receiptAttempts) {
       const persisted = receiptAttempt.validationDiagnostics;
       const attemptIsDiagnosticBearing =
         persisted.count > 0 || persisted.codes.length > 0;
       if (!attemptIsDiagnosticBearing) continue;
       const evidence = evidenceByAttempt.get(receiptAttempt.attempt);
       if (!evidence) {
-        return {
-          kind: 'derivation_failed',
-          reasonCode: 'sanitized_census_correlation_unproven',
-        };
+        return correlationUnproven;
       }
       const rederived = sanitizedAuthoringDiagnostics({
         inputs: evidence.errors,
@@ -1752,19 +1777,19 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
         rederived.count !== persisted.count ||
         JSON.stringify(rederived.codes) !== JSON.stringify(persisted.codes)
       ) {
-        return {
-          kind: 'derivation_failed',
-          reasonCode: 'sanitized_census_correlation_unproven',
-        };
+        return correlationUnproven;
       }
+      if (evidence.diagnostics.length === 0) {
+        return correlationUnproven;
+      }
+      const projected = evidence.diagnostics.map(
+        preRenderBlueprintRepairDiagnosticErrorText,
+      );
       if (
-        evidence.diagnostics.length === 0 ||
-        evidence.diagnostics.length !== evidence.errors.length
+        projected.length !== evidence.errors.length ||
+        projected.some((text, position) => text !== evidence.errors[position])
       ) {
-        return {
-          kind: 'derivation_failed',
-          reasonCode: 'sanitized_census_correlation_unproven',
-        };
+        return correlationUnproven;
       }
       matchedAttempts.add(receiptAttempt.attempt);
       censusDiagnostics.push(...evidence.diagnostics);
@@ -1774,19 +1799,13 @@ export function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args:
         evidence.diagnostics.length > 0 &&
         !matchedAttempts.has(attemptNumber)
       ) {
-        return {
-          kind: 'derivation_failed',
-          reasonCode: 'sanitized_census_correlation_unproven',
-        };
+        return correlationUnproven;
       }
     }
     // A required capture with an empty census would be a binding satisfied by nothing.
     // Never mint it; fail closed so the caller drives it into the incident path.
     if (censusDiagnostics.length === 0) {
-      return {
-        kind: 'derivation_failed',
-        reasonCode: 'sanitized_census_correlation_unproven',
-      };
+      return correlationUnproven;
     }
     return {
       kind: 'captured',

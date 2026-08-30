@@ -1,5 +1,56 @@
 # SmallHeroes — Current Technical State
 
+## R1D — Blueprint capture safety Round 6: census IDENTITY/totality proof + census-digest integrity (F3 MAJOR 2 + MINOR closed on top of Round 5 shared-assertion PASS); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed `57e43f8c` → new commit, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
+
+Codex re-gated Round-5 commit `57e43f8c`: **MAJOR 1** (one shared replay/recovery/
+first-publication capture-disposition assertion — exact required↔present equivalence,
+linkage to the CURRENT receipt, exact canonical containment, recovery asserts BEFORE
+writing the lookup) returned **PASS**. **MAJOR 2** (complete census bijection) returned
+**HOLD** because it proved cardinality but not identity/totality, plus a reproduced
+census-integrity MINOR. Both are closed here on top of `57e43f8c` in one focused commit.
+MAJOR 1 code/tests are unchanged. This is not an F3 PASS.
+
+- **MAJOR 2 — census bijection now proven by IDENTITY, not attempt presence.** A single
+  exported projection `preRenderBlueprintRepairDiagnosticErrorText` reproduces the EXACT
+  error string the compiler persists for each structured diagnostic (`draft assembly
+  failed: <message>` for `draft_assembly_failed`; `<code>[ (<field>)]: <message>`
+  otherwise). The compiler's `issueText` and the draft-assembly catch now build error
+  strings through it, and the census derivation projects each structured diagnostic
+  through the SAME authority and requires the projected array to equal the source `errors`
+  array position-for-position (identity, not just count). The receipt-side source of truth
+  is the content-addressed `failureReceipt.attempts` (derivation first requires
+  `canonicalJsonDigest(args.attempts) === canonicalJsonDigest(failureReceipt.attempts)`),
+  which must be a clean 1..N sequence; source attempt numbers that are non-safe-integer,
+  out of 1..N, or duplicated are rejected (never skipped). Missing/extra sources,
+  count/code mismatch, partial cardinality, and identity mismatch all remain
+  `sanitized_census_correlation_unproven`. The real repair-time `provider_call_failed`
+  shape (diagnostic-bearing attempt 1, diagnostic-less provider failure attempt 2) is
+  preserved.
+- **MINOR — census-integrity digest.** `blueprintAuthoringSanitizedFailureCaptureIsValid`
+  now enforces `census.fullCensusDigest === canonicalJsonDigest(identities)` exactly (not
+  just a hex regex), so a forged inner digest with a recomputed outer capture digest no
+  longer validates.
+- **F1 — paid exact-provider-input-token count: still HOLD (decision-blocked),
+  numerically unchanged.** No paid/provider/live behavior was touched.
+
+Files: `lib/visual-package/preRenderBlueprintAuthoring.ts` (canonical projection +
+`issueText`/assembly refactor), `lib/visual-package/productionAuthoringRunner.ts` (identity
+bijection), `lib/visual-package/blueprintAuthoringSanitizedFailureCapture.ts` (fullCensusDigest
+equality). Tests: `blueprint-admission-honesty-and-capture.spec.ts` (**42**, +1 forged
+fullCensusDigest), `production-lifecycle-foundation.spec.ts` (**68**: identity-correlated
+valid shape + unrelated-identity, duplicate-receipt-attempt, invalid/out-of-range
+source-attempt, and args↔receipt mismatch rejections), `qa-wizard-blueprint-authoring-lifecycle`
+(**46**, MAJOR 1 unchanged), `openai-responses-blueprint-authoring-adapter` (**20**). Refactor
+behavior-preserving: `pre-render-blueprint-authoring` (**19**) + `pre-render-book-visual-blueprint`
+(**112**) green. Directly-affected `qa-wizard-blueprint-replacement-lifecycle` +
+`qa-wizard-package-lifecycle` (**27**) green. `npx --no-install tsc --noEmit` clean;
+`git diff --check` clean. No provider/network/API/credential/live/render/DB/deploy/push;
+real `outputs/` untouched. Evidence: `docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_EVIDENCE.md`
+(Round 6). NOTE: Round 5 (`57e43f8c`, MAJOR 1 shared assertion + first census-bijection pass)
+was committed without a CURRENT.md entry; this section supersedes and records it.
+
+---
+
 ## R1D — Blueprint capture safety Round 4: total run-result + receipt-evidence capture requirement (F3 MAJOR A + B closed); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
 
 Codex's re-gate of the Round-3 F3 work returned HOLD on two related MAJOR findings.
