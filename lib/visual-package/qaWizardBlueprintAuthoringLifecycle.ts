@@ -333,6 +333,14 @@ export interface QaWizardBlueprintExecutionDependencies {
     afterClaim?: () => void;
     /** Test-only crash seam after the atomic receipt and before terminal authority. */
     afterReceipt?: () => void;
+    /**
+     * Test-only crash seam in the true cross-lane exposure window: AFTER the
+     * terminal ownership binding is durable but BEFORE the terminal manifest is
+     * published. It proves ownership becomes durable before the manifest is
+     * visible, so an abrupt crash here can never leave an unbound terminal for
+     * the other execution identity to scan and adopt.
+     */
+    afterTerminalBinding?: () => void;
     /** Test-only crash seam after terminal manifest and before request-keyed lookup. */
     afterTerminalManifest?: () => void;
     /** Test-only crash seam after the candidate-keyed approval decision. */
@@ -2899,6 +2907,96 @@ function loadExecutionRecord(args: {
   };
 }
 
+// Read-only scan of the terminal manifests that the given execution identity
+// could recover, applying the exact same ownership rules as recovery: never a
+// manifest bound to another identity, and — when this identity has its own
+// durable binding — only that exact bound manifest. This is the single source
+// of truth for both `recoverTerminalLookup` (which then materializes the
+// lookup) and the replacement orphan-eligibility census (which must classify a
+// predecessor without mutating disk). It writes nothing.
+function scanRecoverableTerminalManifests(args: {
+  repoRoot: string;
+  outputDir: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  executionIdentityDigest?: string;
+}): {
+  ownBinding: QaWizardBlueprintTerminalBinding | null;
+  terminals: LoadedQaWizardBlueprintManifest[];
+} {
+  const identityKey = ledgerKey(args);
+  const ownBinding = loadTerminalBindingForIdentity(args);
+  const foreignTerminals = foreignBoundTerminalManifestDigests({
+    repoRoot: args.repoRoot,
+    executionIdentityKey: identityKey,
+  });
+  const manifestDirectory = resolveRepoPath(
+    args.repoRoot,
+    path.posix.join(args.outputDir, 'blueprint-authoring-manifests'),
+  );
+  const terminals: LoadedQaWizardBlueprintManifest[] = [];
+  if (!fs.existsSync(manifestDirectory)) {
+    return { ownBinding, terminals };
+  }
+  for (const entry of fs.readdirSync(manifestDirectory, { withFileTypes: true })) {
+    if (!entry.isFile() || !/^[a-f0-9]{64}\.json$/.test(entry.name)) continue;
+    const manifestPath = repoRelativePath(
+      args.repoRoot,
+      path.join(manifestDirectory, entry.name),
+    );
+    const candidate = loadQaWizardBlueprintManifestAuthority({
+      repoRoot: args.repoRoot,
+      manifestPath,
+    });
+    if (
+      !['blueprint_candidate', 'authoring_failed'].includes(
+        candidate.manifest.stage,
+      ) ||
+      candidate.manifest.request.digest !== args.requestDigest ||
+      candidate.manifest.predecessor?.digest !== args.preflightManifestDigest
+    ) {
+      continue;
+    }
+    // Never adopt a terminal owned by another execution identity.
+    if (foreignTerminals.has(candidate.manifest.digest)) continue;
+    // When this identity has a durable binding, only its exact terminal counts.
+    if (ownBinding && candidate.manifest.digest !== ownBinding.terminalManifestDigest) {
+      continue;
+    }
+    terminals.push(candidate);
+  }
+  return { ownBinding, terminals };
+}
+
+// Read-only classification of whether the predecessor's own (ordinary) execution
+// identity has a terminal that ordinary recovery would adopt. This covers the
+// legacy pre-Round-2 crash state: a terminal manifest published WITHOUT a
+// terminal binding and WITHOUT a terminal lookup. Such a predecessor is
+// recoverable through the ordinary lane and therefore must NOT be treated as a
+// replacement-eligible orphan. Mutates nothing, so it is safe under a
+// `write:false` preparation.
+function classifyPredecessorRecoverableTerminal(args: {
+  repoRoot: string;
+  outputDir: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+}): 'none' | 'recoverable' | 'ambiguous' {
+  const { ownBinding, terminals } = scanRecoverableTerminalManifests(args);
+  if (terminals.length === 0) {
+    // A binding that names a now-missing terminal is a torn state, not orphan.
+    // (The caller also rejects an own binding directly; this is defense in depth.)
+    return ownBinding ? 'ambiguous' : 'none';
+  }
+  if (terminals.length === 1 && terminals[0]!.receipt !== null) {
+    return 'recoverable';
+  }
+  // Multiple matches, or a single match with no receipt: ordinary recovery would
+  // fail closed as execution_state_uncertain, so replacement must fail closed too.
+  return 'ambiguous';
+}
+
 function recoverTerminalLookup(args: {
   repoRoot: string;
   outputDir: string;
@@ -2930,47 +3028,12 @@ function recoverTerminalLookup(args: {
     throw new Error('Blueprint authoring execution claim is invalid or tampered');
   }
   // Recovery is bound to the exact execution identity via the terminal binding
-  // written before any crash seam. A manifest already bound to a different
-  // identity is never adoptable, so ordinary recovery can never consume a
-  // successor terminal and successor recovery can never consume an ordinary one.
-  const identityKey = ledgerKey(args);
-  const ownBinding = loadTerminalBindingForIdentity(args);
-  const foreignTerminals = foreignBoundTerminalManifestDigests({
-    repoRoot: args.repoRoot,
-    executionIdentityKey: identityKey,
-  });
-  const manifestDirectory = resolveRepoPath(
-    args.repoRoot,
-    path.posix.join(args.outputDir, 'blueprint-authoring-manifests'),
-  );
-  const terminals: LoadedQaWizardBlueprintManifest[] = [];
-  for (const entry of fs.readdirSync(manifestDirectory, { withFileTypes: true })) {
-    if (!entry.isFile() || !/^[a-f0-9]{64}\.json$/.test(entry.name)) continue;
-    const manifestPath = repoRelativePath(
-      args.repoRoot,
-      path.join(manifestDirectory, entry.name),
-    );
-    const candidate = loadQaWizardBlueprintManifestAuthority({
-      repoRoot: args.repoRoot,
-      manifestPath,
-    });
-    if (
-      !['blueprint_candidate', 'authoring_failed'].includes(
-        candidate.manifest.stage,
-      ) ||
-      candidate.manifest.request.digest !== args.requestDigest ||
-      candidate.manifest.predecessor?.digest !== args.preflightManifestDigest
-    ) {
-      continue;
-    }
-    // Never adopt a terminal owned by another execution identity.
-    if (foreignTerminals.has(candidate.manifest.digest)) continue;
-    // When this identity has a durable binding, only its exact terminal counts.
-    if (ownBinding && candidate.manifest.digest !== ownBinding.terminalManifestDigest) {
-      continue;
-    }
-    terminals.push(candidate);
-  }
+  // written before the terminal manifest is published. A manifest bound to a
+  // different identity is never adoptable, so ordinary recovery can never
+  // consume a successor terminal and successor recovery can never consume an
+  // ordinary one. The scan below is the same read-only source of truth used by
+  // the replacement orphan-eligibility census.
+  const { ownBinding, terminals } = scanRecoverableTerminalManifests(args);
   if (terminals.length === 0) {
     // A binding that names a now-missing (or foreign) terminal is a torn state,
     // not a clean "nothing to recover".
@@ -3397,23 +3460,42 @@ async function runBlueprintExecutionUnderClaim(
     doesNotAuthorize: [...BEFORE_APPROVAL_EXCLUSIONS],
   });
   executionPhase = 'terminal_manifest_publication';
-  const terminalManifestArtifact = persistManifest({
+  // Terminal identity ownership must become durable BEFORE the terminal manifest
+  // becomes globally visible. The manifest path and digest are deterministic
+  // from the already-built terminal manifest, so the ownership binding is
+  // published FIRST (write:false only computes the canonical path) and the
+  // manifest is published only after. If the process crashes in the interval,
+  // the manifest never appears without its ownership binding already durable:
+  // the other execution identity therefore cannot scan-and-adopt an unbound
+  // terminal, and this lane's own re-entry fails closed as
+  // execution_state_uncertain (recoverTerminalLookup sees a binding that names a
+  // missing terminal) with no provider redispatch. A dangling binding is a torn
+  // state, never an adoptable terminal.
+  const terminalManifestPath = persistManifest({
     repoRoot: args.repoRoot,
     outputDir,
     manifest: terminalManifest,
-    write: true,
-  });
-  // Bind this terminal manifest to the exact execution identity BEFORE the
-  // crash seam and the terminal lookup, so recovery can never cross lanes.
+    write: false,
+  }).path;
   persistTerminalBinding({
     repoRoot: args.repoRoot,
     authoringAuthorityDigest,
     requestDigest,
     preflightManifestDigest: preflight.manifest.digest,
     terminalManifestDigest: terminalManifest.digest,
-    terminalManifestPath: terminalManifestArtifact.path,
+    terminalManifestPath,
     executionIdentityDigest,
   });
+  deps.hooks?.afterTerminalBinding?.();
+  const terminalManifestArtifact = persistManifest({
+    repoRoot: args.repoRoot,
+    outputDir,
+    manifest: terminalManifest,
+    write: true,
+  });
+  if (terminalManifestArtifact.path !== terminalManifestPath) {
+    throw new Error('terminal manifest path diverged from its ownership binding');
+  }
   const executionRecord = buildExecutionRecord({
     authoringAuthorityDigest,
     requestDigest,
@@ -3815,6 +3897,28 @@ function loadPredecessorOrphanClaim(args: {
   ) {
     throw new Error('replacement predecessor has a recoverable terminal result');
   }
+  // A terminal binding is a Round-2 artifact. A legacy pre-Round-2 crash could
+  // publish a terminal manifest with NO binding and NO lookup; ordinary recovery
+  // still adopts it, so replacement must reject it too. This read-only census
+  // finds such a terminal without mutating disk (safe under write:false) — an
+  // exact single recoverable terminal is rejected as recoverable; any ambiguous
+  // or torn multi/none-receipt state fails closed rather than authorizing a
+  // second paid execution.
+  const recoverableTerminal = classifyPredecessorRecoverableTerminal({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+    requestDigest: args.requestDigest,
+    preflightManifestDigest: args.preflightManifestDigest,
+  });
+  if (recoverableTerminal === 'recoverable') {
+    throw new Error('replacement predecessor has a recoverable terminal result');
+  }
+  if (recoverableTerminal === 'ambiguous') {
+    throw new Error(
+      'replacement predecessor terminal state is ambiguous; not replacement eligible',
+    );
+  }
   const incident = loadExecutionIncident({
     ...gate,
     claimDigest: loaded.value.digest as string,
@@ -4073,7 +4177,16 @@ function loadValidatedReplacementAuthorization(args: {
       proposal.current.preflightManifestDigest ||
     authorization.predecessorClaimDigest !== proposal.predecessor.claimDigest ||
     authorization.predecessorClaimPath !== proposal.predecessor.claimPath ||
-    authorization.successorExecutionDigest !== recomputed
+    authorization.successorExecutionDigest !== recomputed ||
+    // Canonical time ordering is authority, not just a constructor courtesy.
+    // The builders enforce reviewedAt >= preparedAt and approvedAt >= reviewedAt,
+    // but individually self-valid content-addressed artifacts with hand-inverted
+    // timestamps and recomputed digests would otherwise reach execution. Every
+    // authority-bearing reload must re-derive both relations. Canonical UTC
+    // millisecond timestamps compare lexically as chronologically, and each
+    // field is validated as canonical UTC by the artifact validators above.
+    review.reviewedAt < proposal.preparedAt ||
+    authorization.approvedAt < review.reviewedAt
   ) {
     throw new Error('replacement authorization lineage is inconsistent or tampered');
   }

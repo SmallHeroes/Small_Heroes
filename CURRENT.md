@@ -115,6 +115,54 @@ ordinary v1 backward compatibility; (3) the exact claim/authorization
 tamper/cross-bind rejection surface; (4) MAJOR-4 lineage reload; (5) the CLI
 parser/dispatch and provider-unreachability.
 
+### R1D Round 3 — Codex QA HOLD corrected in place (Claude implementation; locally green, committed, not pushed)
+
+Codex re-gated the round-2 baseline at `bc20f5e4` and returned HOLD with four
+uncovered findings (2 BLOCKER, 2 MAJOR). Claude corrected all four in this same
+worktree with the smallest general form, ran local checks, and committed one
+focused local commit. Evidence:
+`docs/ai-workflow/R1D_ROUND3_BLUEPRINT_REPLACEMENT_QA_HOLD_FIX_EVIDENCE.md`.
+
+- BLOCKER 1 (crash-window cross-lane adoption): `runBlueprintExecutionUnderClaim`
+  now publishes the per-identity terminal **binding before** the terminal
+  manifest (manifest path is deterministic via `persistManifest({ write:false })`),
+  and asserts the published path equals the bound path. A crash in the interval
+  (new `afterTerminalBinding` seam) leaves the manifest invisible, so the other
+  identity has nothing to adopt and the owning lane's re-entry fails closed as
+  `execution_state_uncertain` with no redispatch. A dangling binding is a torn
+  state, never an adoptable terminal.
+- BLOCKER 2 (legacy unbound terminal): the read-only scan is extracted to
+  `scanRecoverableTerminalManifests` (single source of truth for recovery and
+  eligibility); `classifyPredecessorRecoverableTerminal` reuses it, and
+  `loadPredecessorOrphanClaim` now rejects a predecessor with a recoverable legacy
+  terminal manifest (no binding/lookup) as `recoverable`, and any
+  multiple/receiptless/torn state as `ambiguous` (fail closed), without mutating
+  disk under `write:false`.
+- MAJOR 3 (time ordering on reload): `loadValidatedReplacementAuthorization` now
+  re-derives `review.reviewedAt ≥ proposal.preparedAt` and
+  `authorization.approvedAt ≥ review.reviewedAt`, rejecting hand-authored
+  canonical inverted-time lineages before any slot/claim/provider. The pure
+  `buildBlueprintReplacementAuthorization` additionally requires
+  `review.proposalPath === proposalPath`.
+- MAJOR 4 (runnable CLI): added the `qa-wizard-blueprint-replacement`
+  `package.json` script (standard `tsx --require <server-only shim> <bin>` form,
+  no lockfile change); the CLI header now documents the canonical
+  `npm run qa-wizard-blueprint-replacement -- <command>` and the shim requirement;
+  the subprocess tests exactly mirror that command and a smoke reaches the strict
+  parser under it. `server-only` is not weakened.
+
+Local validation: `npx --no-install tsc --noEmit` clean; the touched surface —
+replacement lifecycle spec (17), legacy Blueprint lifecycle spec (34), CLI spec
+(16) — is 67/67 green. `git diff --check` clean. No provider/network/credential/
+render/DB/deploy/push occurred; the predecessor claim
+`466252b4…` is untouched (length 766, sha256 `900bd0c9…`), and no output
+artifact was modified.
+
+Codex re-gate targets: (1) the ownership→manifest ordering and the crash-seam
+regression proving the real interval; (2) the legacy-terminal census and ordinary
+recovery compatibility; (3) the reload time-ordering + builder `proposalPath`
+surface; (4) the canonical operator command and server-only integrity.
+
 ### Round 17 — terminal receipt authority unified; post-claim incidents now durable
 
 The first paid Blueprint attempt for the approved Chameleon chain published

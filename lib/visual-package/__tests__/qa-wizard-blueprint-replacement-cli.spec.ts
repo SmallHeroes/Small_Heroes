@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -15,6 +16,13 @@ const BIN = path.join(
   'scripts',
   'qa-wizard-blueprint-replacement-cli.ts',
 );
+// The tsx CLI entry that the `tsx` bin resolves to. Invoking it under the
+// server-only shim is byte-for-byte the process the canonical npm operator
+// command (`npm run qa-wizard-blueprint-replacement -- …`, i.e.
+// `tsx --require <shim> <bin>`) spawns.
+const TSX_CLI = path.join(REPO_ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+const CANONICAL_NPM_SCRIPT =
+  'tsx --require ./scripts/shims/register-server-only.cjs scripts/qa-wizard-blueprint-replacement-cli.ts';
 
 function capture(argv: string[]): {
   code: number;
@@ -36,10 +44,11 @@ function runSubprocess(args: string[]): {
   stdout: string;
   stderr: string;
 } {
+  // Exactly mirror the canonical operator command: `tsx --require <shim> <bin>`.
   const result = spawnSync(
     process.execPath,
-    ['--require', SHIM, '--import', 'tsx', BIN, ...args],
-    { cwd: REPO_ROOT, encoding: 'utf8' },
+    [TSX_CLI, '--require', SHIM, BIN, ...args],
+    { cwd: REPO_ROOT, encoding: 'utf8', shell: false, windowsHide: true },
   );
   return {
     status: result.status,
@@ -197,5 +206,35 @@ describe('QA Wizard Blueprint replacement CLI — hermetic subprocess', () => {
     expect(result.stdout).toBe('');
     expect(result.stderr.trim()).toMatch(/^error: /);
     expect(result.stderr).not.toMatch(/\n\s+at /);
+  });
+});
+
+describe('QA Wizard Blueprint replacement CLI — canonical operator command', () => {
+  it('exposes the documented npm script wired to the server-only shim and CLI bin', () => {
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'),
+    ) as { scripts?: Record<string, string> };
+    expect(pkg.scripts?.['qa-wizard-blueprint-replacement']).toBe(
+      CANONICAL_NPM_SCRIPT,
+    );
+  });
+
+  it('reaches the strict parser under the canonical command (past the server-only shim)', () => {
+    // Unknown command is a parser verdict: exit 2 with a single sanitized line —
+    // proving the shimmed import resolved and control reached argument parsing
+    // rather than crashing in `server-only`.
+    const unknown = runSubprocess(['unknown-cmd']);
+    expect(unknown.status).toBe(2);
+    expect(unknown.stdout).toBe('');
+    expect(unknown.stderr.trim()).toMatch(/^error: unknown command/);
+    expect(unknown.stderr).not.toMatch(/\n\s+at /);
+    // A known command missing a required flag is likewise a parser verdict.
+    const incomplete = runSubprocess([
+      'prepare-replacement',
+      '--repo-root',
+      '.',
+    ]);
+    expect(incomplete.status).toBe(2);
+    expect(incomplete.stderr).toMatch(/missing required flag/);
   });
 });

@@ -531,6 +531,14 @@ export function buildBlueprintReplacementAuthorization(args: {
   if (args.review.proposalDigest !== args.proposal.digest) {
     throw new Error('replacement authorization review is not bound to this proposal');
   }
+  // Bind the review to the proposal PATH as well as its digest. The filesystem
+  // reload (loadValidatedReplacementAuthorization) already enforces this
+  // relation; requiring it here too means the pure exported authority surface
+  // can never construct a lineage whose review points at a different proposal
+  // path than the authorization records — a lineage the reload would reject.
+  if (args.review.proposalPath !== args.proposalPath) {
+    throw new Error('replacement authorization review is not bound to this proposal path');
+  }
   if (args.note !== undefined && !blueprintReplacementReviewNoteIsValid(args.note)) {
     throw new Error('replacement authorization note must be a bounded sanitized code');
   }

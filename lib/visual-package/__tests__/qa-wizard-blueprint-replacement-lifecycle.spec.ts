@@ -45,6 +45,12 @@ import {
 import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from '../preRenderBlueprintDraftSchema';
 import type { ProductionAuthoringProvider } from '../productionAuthoringRunner';
 import { canonicalJsonDigest } from '../integrity';
+import { canonicalContentAddressedJsonBytes } from '../canonicalContentAddressedJson';
+import {
+  QA_WIZARD_BLUEPRINT_REPLACEMENT_APPROVER,
+  blueprintReplacementSuccessorExecutionDigest,
+  buildBlueprintReplacementAuthorization,
+} from '../qaWizardBlueprintReplacementAuthority';
 import {
   buildBlueprintFixture,
   buildVisualContractCandidateFixture,
@@ -312,6 +318,40 @@ async function orphanedPredecessor(subject: ReturnType<typeof setup>) {
     { recursive: true, force: true },
   );
   return { preflight, authoringAuthorityDigest, claimBefore };
+}
+
+/**
+ * Reconstructs the legacy pre-Round-2 crash state: a completed ordinary
+ * execution whose terminal MANIFEST (and receipt/lifecycle) remain on disk, but
+ * whose terminal binding and terminal lookup were never written. Ordinary
+ * recovery still adopts such a terminal, so it is recoverable — NOT an orphan.
+ * The predecessor claim bytes are left byte-for-byte intact.
+ */
+async function legacyUnboundTerminalPredecessor(subject: ReturnType<typeof setup>) {
+  const preflight = prepare(subject);
+  const completed = await executeQaWizardBlueprintLiveRequest(
+    {
+      repoRoot: subject.repoRoot,
+      preflightManifestPath: preflight.manifestPath,
+      outputDir: OUTPUT_DIR,
+      write: true,
+    },
+    { providerFactory: () => passingProvider(subject.fixture) },
+  );
+  const authoringAuthorityDigest =
+    completed.manifest.blueprint!.authoringAuthorityDigest;
+  const claimBefore = fs.readFileSync(
+    ledgerFile(subject.repoRoot, 'execution-claims', `${authoringAuthorityDigest}.json`),
+    'utf8',
+  );
+  // Round-2 wrote a terminal binding and lookup; a legacy crash predates both.
+  fs.rmSync(
+    ledgerFile(subject.repoRoot, 'terminal-lookups', `${authoringAuthorityDigest}.json`),
+  );
+  fs.rmSync(
+    ledgerFile(subject.repoRoot, 'terminal-bindings', `${authoringAuthorityDigest}.json`),
+  );
+  return { preflight, authoringAuthorityDigest, claimBefore, completed };
 }
 
 describe('QA Wizard Blueprint replacement (orphan-claim successor) lifecycle', () => {
@@ -606,6 +646,94 @@ async function approvedSuccessor(subject: ReturnType<typeof setup>) {
   return { ...orphan, proposal, review, authorization };
 }
 
+/**
+ * Writes a hand-authored, individually self-valid, content-addressed replacement
+ * ledger artifact (canonical bytes + recomputed digest) exactly as the honest
+ * writer would, but from arbitrary caller-supplied fields. This models an
+ * attacker with canonical tooling forging on-disk bytes; `payload` must exclude
+ * `digest`/`digestAlgorithm`.
+ */
+function writeHandAuthoredLedgerArtifact(
+  root: string,
+  category: 'replacement-reviews' | 'replacement-authorizations',
+  payload: Record<string, unknown>,
+): { digest: string; path: string } {
+  const digest = canonicalJsonDigest(payload);
+  const artifact = {
+    ...payload,
+    digestAlgorithm: 'canonical-json-sha256',
+    digest,
+  };
+  const relative = `${QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT}/${category}/${digest}.json`;
+  const destination = path.join(root, relative);
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.writeFileSync(destination, canonicalContentAddressedJsonBytes(artifact), 'utf8');
+  return { digest, path: relative };
+}
+
+/**
+ * Forges a fully self-consistent proposal→review→authorization lineage on disk
+ * whose ONLY defect is the caller-chosen canonical timestamps. Every digest,
+ * path relation and the recomputed successor identity match, so the lineage is
+ * rejectable only by re-deriving time ordering at authorization reload.
+ */
+function forgeInvertedTimeAuthorization(
+  subject: ReturnType<typeof setup>,
+  proposal: ReturnType<typeof prepareProposal>,
+  times: { reviewedAt: string; approvedAt: string },
+): { authorizationPath: string; authorizationDigest: string; successorExecutionDigest: string } {
+  const p = proposal.proposal;
+  const review = writeHandAuthoredLedgerArtifact(
+    subject.repoRoot,
+    'replacement-reviews',
+    {
+      version: 'qa-wizard-blueprint-replacement-review/v1',
+      proposalDigest: p.digest,
+      proposalPath: proposal.proposalPath,
+      disposition: 'recommend_replacement',
+      reviewedBy: 'claude_code',
+      reviewedAt: times.reviewedAt,
+      note: null,
+      scope: 'single_use_paid_blueprint_replacement_review',
+    },
+  );
+  const successorExecutionDigest = blueprintReplacementSuccessorExecutionDigest({
+    proposalDigest: p.digest,
+    reviewDigest: review.digest,
+    approvedBy: QA_WIZARD_BLUEPRINT_REPLACEMENT_APPROVER,
+    approvedAt: times.approvedAt,
+    predecessorClaimDigest: p.predecessor.claimDigest,
+    authoringAuthorityDigest: p.current.authoringAuthorityDigest,
+  });
+  const authorization = writeHandAuthoredLedgerArtifact(
+    subject.repoRoot,
+    'replacement-authorizations',
+    {
+      version: 'qa-wizard-blueprint-replacement-authorization/v1',
+      proposalDigest: p.digest,
+      proposalPath: proposal.proposalPath,
+      reviewDigest: review.digest,
+      reviewPath: review.path,
+      authoringAuthorityDigest: p.current.authoringAuthorityDigest,
+      requestDigest: p.current.requestDigest,
+      preflightManifestDigest: p.current.preflightManifestDigest,
+      predecessorClaimDigest: p.predecessor.claimDigest,
+      predecessorClaimPath: p.predecessor.claimPath,
+      successorExecutionDigest,
+      maxSuccessorExecutions: 1,
+      approvedBy: QA_WIZARD_BLUEPRINT_REPLACEMENT_APPROVER,
+      approvedAt: times.approvedAt,
+      note: null,
+      scope: 'single_use_paid_blueprint_replacement_authorization',
+    },
+  );
+  return {
+    authorizationPath: authorization.path,
+    authorizationDigest: authorization.digest,
+    successorExecutionDigest,
+  };
+}
+
 describe('QA Wizard Blueprint replacement — adversarial authority', () => {
   it('rejects a second approval that differs only by timestamp (one global slot)', async () => {
     const subject = setup();
@@ -852,5 +980,224 @@ describe('QA Wizard Blueprint replacement — adversarial authority', () => {
         approvedAt: '2026-08-26T09:15:00.000Z',
       }),
     ).toThrow(/approval must not precede the review/);
+  });
+
+  it('publishes terminal ownership before the terminal manifest so a crash cannot expose an unbound terminal', async () => {
+    const subject = setup();
+    const preflight = prepare(subject);
+    // Crash in the true exposure window: ownership binding durable, manifest not
+    // yet published. This is the actual publication interval — not the seam
+    // after both writes.
+    const providerCalls = vi.fn();
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        {
+          providerFactory: () => passingProvider(subject.fixture, providerCalls),
+          hooks: {
+            afterTerminalBinding() {
+              throw new Error('crash_between_ownership_and_manifest');
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    // Exactly one paid call; the torn state never redispatches the provider.
+    expect(providerCalls).toHaveBeenCalledTimes(1);
+
+    // The ordinary execution identity is the content authoring-authority key.
+    const claims = fs.readdirSync(ledgerFile(subject.repoRoot, 'execution-claims'));
+    expect(claims).toHaveLength(1);
+    const identity = claims[0]!.replace(/\.json$/, '');
+
+    // Ownership is durable — the terminal binding exists...
+    const bindingFile = ledgerFile(
+      subject.repoRoot,
+      'terminal-bindings',
+      `${identity}.json`,
+    );
+    expect(fs.existsSync(bindingFile)).toBe(true);
+    const binding = JSON.parse(fs.readFileSync(bindingFile, 'utf8')) as {
+      terminalManifestDigest: string;
+    };
+    // ...but the terminal manifest it owns is NOT yet visible: nothing for the
+    // other execution identity to scan and adopt.
+    const terminalManifestFile = path.join(
+      subject.repoRoot,
+      OUTPUT_DIR,
+      'blueprint-authoring-manifests',
+      `${binding.terminalManifestDigest}.json`,
+    );
+    expect(fs.existsSync(terminalManifestFile)).toBe(false);
+    // No terminal lookup was minted either.
+    expect(
+      fs.existsSync(
+        ledgerFile(subject.repoRoot, 'terminal-lookups', `${identity}.json`),
+      ),
+    ).toBe(false);
+
+    // Re-entry fails closed with zero further provider calls; a binding that
+    // names a missing terminal is a torn state, never an adoptable terminal.
+    const forbidden = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeQaWizardBlueprintLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          preflightManifestPath: preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: forbidden },
+      ),
+    ).rejects.toThrow('execution_state_uncertain');
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+
+  it('rejects replacement for a legacy unbound but recoverable predecessor terminal (write:false and write:true)', async () => {
+    const subject = setup();
+    const legacy = await legacyUnboundTerminalPredecessor(subject);
+    const base = {
+      repoRoot: subject.repoRoot,
+      preflightManifestPath: legacy.preflight.manifestPath,
+      outputDir: OUTPUT_DIR,
+      reason: 'orphan_claim_unknown_provider_outcome',
+      preparedBy: 'Codex',
+      preparedAt: PREPARED_AT,
+    } as const;
+    // A read-only preparation (write:false) rejects and writes no bytes.
+    expect(() =>
+      prepareBlueprintReplacementProposal({ ...base, write: false }),
+    ).toThrow(/recoverable terminal/);
+    // A write:true preparation rejects before any artifact is created.
+    expect(() =>
+      prepareBlueprintReplacementProposal({ ...base, write: true }),
+    ).toThrow(/recoverable terminal/);
+    for (const category of [
+      'replacement-proposals',
+      'replacement-reviews',
+      'replacement-authorizations',
+      'replacement-authorization-slots',
+    ]) {
+      const dir = ledgerFile(subject.repoRoot, category);
+      const entries = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+      expect(entries).toEqual([]);
+    }
+    // Predecessor claim bytes untouched.
+    expect(
+      fs.readFileSync(
+        ledgerFile(
+          subject.repoRoot,
+          'execution-claims',
+          `${legacy.authoringAuthorityDigest}.json`,
+        ),
+        'utf8',
+      ),
+    ).toBe(legacy.claimBefore);
+    // Compatibility: the ordinary lane still recovers this exact legacy terminal
+    // with zero provider calls — proving the predecessor really was recoverable.
+    const forbidden = vi.fn(() => passingProvider(subject.fixture));
+    const recovered = await executeQaWizardBlueprintLiveRequest(
+      {
+        repoRoot: subject.repoRoot,
+        preflightManifestPath: legacy.preflight.manifestPath,
+        outputDir: OUTPUT_DIR,
+        write: true,
+      },
+      { providerFactory: forbidden },
+    );
+    expect(recovered.replayed).toBe(true);
+    expect(recovered.manifest.digest).toBe(legacy.completed.manifest.digest);
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+
+  it('rejects a hand-authored canonical authorization whose approval predates its review before any slot/claim/provider', async () => {
+    const subject = setup();
+    const orphan = await orphanedPredecessor(subject);
+    const proposal = prepareProposal(subject, orphan.preflight.manifestPath);
+    // Self-consistent lineage, recomputed digests, but approvedAt < reviewedAt.
+    const forged = forgeInvertedTimeAuthorization(subject, proposal, {
+      reviewedAt: '2026-08-26T11:00:00.000Z',
+      approvedAt: APPROVED_AT,
+    });
+    const forbidden = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeBlueprintReplacementLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          authorizationPath: forged.authorizationPath,
+          authorizationDigest: forged.authorizationDigest,
+          preflightManifestPath: orphan.preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: forbidden },
+      ),
+    ).rejects.toThrow(/lineage is inconsistent or tampered/);
+    expect(forbidden).not.toHaveBeenCalled();
+    // No slot bound and no successor claim written: rejection precedes them.
+    const slotDir = ledgerFile(
+      subject.repoRoot,
+      'replacement-authorization-slots',
+    );
+    expect(fs.existsSync(slotDir) ? fs.readdirSync(slotDir) : []).toEqual([]);
+    expect(
+      fs.existsSync(
+        ledgerFile(
+          subject.repoRoot,
+          'execution-claims',
+          `${forged.successorExecutionDigest}.json`,
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects a hand-authored canonical authorization whose review predates the proposal before any slot/claim/provider', async () => {
+    const subject = setup();
+    const orphan = await orphanedPredecessor(subject);
+    const proposal = prepareProposal(subject, orphan.preflight.manifestPath);
+    // Only the proposal→review ordering is inverted; approval follows the review.
+    const forged = forgeInvertedTimeAuthorization(subject, proposal, {
+      reviewedAt: '2026-08-26T08:00:00.000Z',
+      approvedAt: APPROVED_AT,
+    });
+    const forbidden = vi.fn(() => passingProvider(subject.fixture));
+    await expect(
+      executeBlueprintReplacementLiveRequest(
+        {
+          repoRoot: subject.repoRoot,
+          authorizationPath: forged.authorizationPath,
+          authorizationDigest: forged.authorizationDigest,
+          preflightManifestPath: orphan.preflight.manifestPath,
+          outputDir: OUTPUT_DIR,
+          write: true,
+        },
+        { providerFactory: forbidden },
+      ),
+    ).rejects.toThrow(/lineage is inconsistent or tampered/);
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+
+  it('pure authorization builder rejects a review bound to a different proposal path', async () => {
+    const subject = setup();
+    const orphan = await orphanedPredecessor(subject);
+    const proposal = prepareProposal(subject, orphan.preflight.manifestPath);
+    const review = reviewProposal(subject, proposal);
+    // The review is bound to proposal.proposalPath; supplying a different path
+    // must be rejected by the pure builder, not only by the filesystem reload.
+    expect(() =>
+      buildBlueprintReplacementAuthorization({
+        proposal: proposal.proposal,
+        proposalPath: `${proposal.proposalPath}.tampered`,
+        review: review.review,
+        reviewPath: review.reviewPath,
+        approvedBy: QA_WIZARD_BLUEPRINT_REPLACEMENT_APPROVER,
+        approvedAt: APPROVED_AT,
+      }),
+    ).toThrow(/not bound to this proposal path/);
   });
 });
