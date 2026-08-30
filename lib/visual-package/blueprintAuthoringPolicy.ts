@@ -240,6 +240,39 @@ export function projectedMaximumBlueprintAuthoringCostUsd(): number {
   );
 }
 
+/**
+ * At most one exact input-token count probe can be dispatched per repair route (each repair
+ * whose conservative byte bound exceeds the ceiling), bounded by the repair budget.
+ */
+export const BLUEPRINT_AUTHORING_MAX_COUNT_PROBES = BLUEPRINT_AUTHORING_MAX_REPAIRS;
+
+/**
+ * Conservative worst-case USD reserve for ONE exact input-token count probe. A count probe is
+ * an input-only call (POST /responses/input_tokens returns a token count, no generation
+ * output), so it is reserved as worst-case 64K input tokens at the highest (cache-write) input
+ * price with the regional uplift, and ZERO output. Under the current constants this is $0.352.
+ * The count endpoint is NEVER treated as free.
+ */
+export function blueprintAuthoringCountProbeReserveUsd(): number {
+  return conservativeBlueprintAuthoringCostUsd({
+    inputTokens: BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+    outputTokens: 0,
+  });
+}
+
+/**
+ * Projected maximum exposure INCLUDING every possible count probe reserved as worst-case 64K
+ * input. Under current constants: 3 generation calls ($4.224) + 2 count probes ($0.704) =
+ * $4.928, i.e. $0.072 under the unchanged $5 hard ceiling.
+ */
+export function projectedMaximumBlueprintAuthoringCostWithCountProbesUsd(): number {
+  return ceilUsd(
+    projectedMaximumBlueprintAuthoringCostUsd() +
+      BLUEPRINT_AUTHORING_MAX_COUNT_PROBES *
+        blueprintAuthoringCountProbeReserveUsd(),
+  );
+}
+
 export function blueprintAuthoringReservedExposureUsd(args: {
   conservativeAccountedCostUsd: number;
   callsCompleted: number;

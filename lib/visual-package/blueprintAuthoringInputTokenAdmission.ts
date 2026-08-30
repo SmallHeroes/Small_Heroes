@@ -188,6 +188,105 @@ export interface BlueprintAuthoringInputTokenCountRequest {
   model: string;
 }
 
+/**
+ * The exact object literal the canonical count endpoint returns
+ * (`{ object: 'response.input_tokens', input_tokens: number }`).
+ */
+export const BLUEPRINT_AUTHORING_EXACT_INPUT_TOKEN_RESPONSE_OBJECT =
+  'response.input_tokens' as const;
+
+const BLUEPRINT_AUTHORING_EXACT_INPUT_TOKEN_RESPONSE_KEYS = [
+  'input_tokens',
+  'object',
+] as const;
+
+/**
+ * Fail-closed gate for the exact provider input-token count result. Requires EXACTLY
+ * `{ object: 'response.input_tokens', input_tokens: <non-negative safe integer> }` — no extra
+ * or missing keys, the exact object literal, and an integer count. Returns the count, else
+ * `null` (unavailable). Never throws; a float/negative/unsafe/missing/extra/wrong-object result
+ * is `null` so the admission decision fails closed above the ceiling.
+ */
+export function blueprintAuthoringExactInputTokenCountFromResponse(
+  value: unknown,
+): number | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const candidate = value as Record<string, unknown>;
+  if (
+    JSON.stringify(Object.keys(candidate).sort()) !==
+    JSON.stringify([...BLUEPRINT_AUTHORING_EXACT_INPUT_TOKEN_RESPONSE_KEYS])
+  ) {
+    return null;
+  }
+  if (
+    candidate.object !== BLUEPRINT_AUTHORING_EXACT_INPUT_TOKEN_RESPONSE_OBJECT
+  ) {
+    return null;
+  }
+  return nonNegativeSafeInteger(candidate.input_tokens)
+    ? candidate.input_tokens
+    : null;
+}
+
+/**
+ * The CANONICAL token-relevant request projection — the single shape shared and proven between
+ * the exact input-token count call and the generation call. It contains ONLY the fields that
+ * affect the provider's input-token count: exact `model`; the system+user `input`; `reasoning`
+ * effort; the structured-output `text.format` (type/name/schema/strict); `tools` []; `tool_choice`
+ * none; and explicit `truncation` disabled. It deliberately EXCLUDES output/transport controls
+ * (`service_tier`, `max_output_tokens`, `store`, `stream`) which do not change the input-token
+ * count and which the count endpoint does not accept. Count and generation must not silently
+ * differ on any field here; a canonical digest over this projection binds a count to its exact
+ * request body/route.
+ */
+export interface BlueprintAuthoringTokenRelevantRequestProjection {
+  model: string;
+  input: ReadonlyArray<{ role: 'system' | 'user'; content: string }>;
+  reasoning: { effort: string };
+  text: {
+    format: {
+      type: 'json_schema';
+      name: string;
+      schema: Record<string, unknown>;
+      strict: true;
+    };
+  };
+  tools: readonly [];
+  tool_choice: 'none';
+  truncation: 'disabled';
+}
+
+export function blueprintAuthoringTokenRelevantRequestProjection(args: {
+  model: string;
+  systemPrompt: string;
+  userPrompt: string;
+  reasoningEffort: string;
+  schemaName: string;
+  schema: Record<string, unknown>;
+}): BlueprintAuthoringTokenRelevantRequestProjection {
+  return {
+    model: args.model,
+    input: [
+      { role: 'system', content: args.systemPrompt },
+      { role: 'user', content: args.userPrompt },
+    ],
+    reasoning: { effort: args.reasoningEffort },
+    text: {
+      format: {
+        type: 'json_schema',
+        name: args.schemaName,
+        schema: args.schema,
+        strict: true,
+      },
+    },
+    tools: [],
+    tool_choice: 'none',
+    truncation: 'disabled',
+  };
+}
+
 export type BlueprintAuthoringInputTokenCounter = (
   request: BlueprintAuthoringInputTokenCountRequest,
 ) => number | null;

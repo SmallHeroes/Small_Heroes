@@ -1,5 +1,46 @@
 # SmallHeroes — Current Technical State
 
+## F1 — exact repair input-token admission: BOUNDARY 1 of N (additive offline foundations only; milestone IN PROGRESS, NOT complete, NOT ready for final re-gate); F3 PASS preserved (Claude implementation; locally green on top of `4c1076e7`, not pushed)
+
+F3 was awarded PASS (345/345, content-bound failure-capture authority, truthful evidence). F1 is
+the approved exact provider-authoritative REPAIR input-token admission milestone. It is a LARGE
+multi-boundary milestone (async count authority + real guarded `POST /v1/responses/input_tokens`
+transport; canonical shared request projection + per-route count cache; conservative $5 count-probe
+reservation; **receipt v6→v7 cutover** preserving legacy v6/older replay; **durable v7 census-identity
+commitment** carrying F3 forward into first-publication/replay/recovery; adapter byte-over-ceiling
+acceptance only with matching attested count; an 8-page/86-diagnostic offline harness + ~15 hostile
+regressions). Per the approved "focused green commits at safe internal boundaries" guidance, it is
+being delivered as a sequence of green boundaries; this is **Boundary 1 (foundations only)**.
+
+- **Boundary 1 (this commit) — additive, offline, zero-behavior-change foundations:**
+  - **C1 cost math** (`blueprintAuthoringPolicy.ts`): `blueprintAuthoringCountProbeReserveUsd()` =
+    worst-case 64K input-only conservative cost = **$0.352**; `BLUEPRINT_AUTHORING_MAX_COUNT_PROBES`
+    = 2 (= repair budget); `projectedMaximumBlueprintAuthoringCostWithCountProbesUsd()` = **$4.928**
+    (3 gen $4.224 + 2 probes $0.704), **$0.072 under the unchanged $5 ceiling**. The existing
+    `projectedMaximumBlueprintAuthoringCostUsd()` ($4.224) is unchanged.
+  - **A3 exact-count response gate** (`blueprintAuthoringInputTokenAdmission.ts`):
+    `blueprintAuthoringExactInputTokenCountFromResponse` requires EXACTLY
+    `{ object: 'response.input_tokens', input_tokens: <non-negative safe integer> }` and fails
+    closed (null) on any extra/missing key, wrong object, or float/negative/unsafe count.
+  - **B1 canonical token-relevant request projection**:
+    `blueprintAuthoringTokenRelevantRequestProjection` — model + system/user input + reasoning +
+    text.format(type/name/schema/strict) + tools [] + tool_choice none + explicit
+    truncation:disabled; deliberately EXCLUDES service_tier/max_output_tokens/store/stream (not
+    input-token-relevant, not accepted by the count endpoint). Digest-stable.
+  - Tests: new `blueprint-authoring-exact-count-foundation.spec.ts` (**6**). No existing behavior
+    changed (blueprint-admission **42** + production-lifecycle **79** unchanged). `tsc --noEmit`
+    clean; `git diff --check` clean. No provider/network/live/render/DB/deploy/credential/push.
+- **REMAINING boundaries (not yet implemented — the substantive + high-risk work):** async counter
+  rewired through compiler/runner; the real guarded count transport + separate count
+  attestation/evidence; runner per-route + request-digest count cache and count-probe reservation
+  wired into projected-max/dynamic accounting; adapter byte-over-ceiling acceptance with matching
+  attested count; **receipt v7 cutover + durable F3 census-identity commitment across
+  first-publication/replay/recovery** (touches the content-bound seals — highest risk); the
+  8-page/86-diagnostic harness and the ~15 hostile regressions. **This boundary is NOT the complete
+  F1 milestone and must not be re-gated as F1 PASS.**
+
+---
+
 ## R1D — Blueprint capture safety Round 10: CONTENT-bound mint-authorized persistence (F3 mutation-bypass MAJOR closed on top of Round 9) + count/caller truthfulness; F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed on top of `b6557cd1`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
 
 Codex re-gated `b6557cd1` HOLD: the Round-9 seal authorized persistence by MUTABLE OBJECT
