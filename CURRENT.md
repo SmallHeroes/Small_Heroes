@@ -6,6 +6,115 @@
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; BLUEPRINT POST-CLAIM UNCERTAINTY CORRECTION LOCALLY GREEN
 
+### R1D — orphan-claim replacement authority lane (Claude implementation; round-1 below is superseded by the R1D Round 2 correction that follows)
+
+Delegated to Claude Code as implementer (Guy → Codex manages → Claude implements
+→ Codex QAs). Goal: unblock exactly one human-approved successor Blueprint
+authoring execution after the historical single-use claim
+`466252b4a082ea6b98503bb2bc3e433a36408cfb61d1fd305afcbfa2b9804b64` became a
+durable but unresolved orphan (no receipt, terminal, lookup or incident), without
+deleting/retrying/impersonating that claim and without touching
+story/prompt/model/style/content authority.
+
+Implementation (offline only; no provider/network/credential/render/DB; no real
+approval or successor artifact minted):
+
+- New pure module `lib/visual-package/qaWizardBlueprintReplacementAuthority.ts`:
+  versioned `proposal → review → authorization` algebra, deterministic
+  `successorExecutionDigest` (content-addressed over proposal+review+exact Guy
+  approval+predecessor claim+content authority), a bounded sanitized `reason`
+  code, and a distinct replacement execution-claim shape whose extra keys and
+  `single_use_paid_replacement_blueprint_authoring` scope make it fail the
+  ordinary validator (no impersonation either way).
+- `lib/visual-package/qaWizardBlueprintAuthoringLifecycle.ts`: the entire execute
+  body was extracted into shared `runBlueprintExecutionUnderClaim(binding)`. The
+  ordinary lane is now a thin wrapper with a byte-behavior-identical binding
+  (execution identity = content authoring-authority digest, ordinary claim and
+  validator, no precheck). A new `executeBlueprintReplacementLiveRequest` binds to
+  the distinct successor execution identity and a precheck that (a) requires the
+  predecessor to remain an exact unresolved orphan (`loadPredecessorOrphanClaim`:
+  valid ordinary claim, exact bytes, no terminal lookup, no recoverable terminal,
+  no incident; a replacement-shaped predecessor is rejected as a nested
+  replacement) and (b) binds to the exact current preflight/request via the
+  content-addressed preflight digest. Ledger path helpers and the
+  record/incident loaders gained default-preserving optional
+  `executionIdentityDigest`/`claimIsValid`, so ordinary call sites are unchanged.
+  `prepare/review/approveBlueprintReplacementProposal` are Guy-only for approval
+  and persist content-addressed artifacts under new compiler-ledger categories
+  `replacement-{proposals,reviews,authorizations}`.
+- The successor Blueprint keeps the unchanged canonical `authoringAuthorityDigest`;
+  only its compiler-owned ledger identity differs, so its claim/incident/terminal
+  lookup can never collide with or overwrite the preserved predecessor.
+
+Tests: `lib/visual-package/__tests__/qa-wizard-blueprint-replacement-lifecycle.spec.ts`
+covers the full proposal→review→Guy-approval→one-successor-call→zero-call-replay
+path, content-authority preservation, distinct successor ledger addressing,
+predecessor-bytes preservation, non-Guy approval rejection, non-orphan rejection,
+ordinary-lane fence while the orphan is unresolved, and post-successor-claim crash
+→ incident with no provider retry.
+
+### R1D Round 2 — Codex QA HOLD corrected in place (Claude implementation; locally green, committed, not pushed)
+
+Codex returned HOLD on the round-1 lane (three load-bearing defects plus
+incomplete operational coverage). Claude corrected all findings in this same
+worktree, ran local checks, and committed one focused local commit. Evidence:
+`docs/ai-workflow/R1D_ROUND2_BLUEPRINT_REPLACEMENT_QA_HOLD_FIX_EVIDENCE.md`.
+
+- BLOCKER 1 (global single successor): a compiler-owned, immutable
+  predecessor-keyed successor slot (`replacement-authorization-slots/<predecessorClaimDigest>.json`,
+  in the single global ledger root) now records the one canonical
+  `successorExecutionDigest`. It is create-or-verified at approval and again in
+  the execute precheck before any claim/provider boundary. Any alternate
+  proposal/review/approval-timestamp — across output roots — converges on a
+  different successor digest, collides on the slot bytes, and fails closed
+  (`already bound to a different successor`). The declarative
+  `maxSuccessorExecutions` field is no longer load-bearing.
+- BLOCKER 2 (lane/execution-bound recovery): a per-execution-identity
+  `terminal-bindings/<identity>.json` is written immediately after the terminal
+  manifest and before any crash seam. `recoverTerminalLookup` now binds to the
+  exact identity and excludes any manifest bound to a different identity, so an
+  ordinary re-entry can never adopt a successor terminal (and vice versa) even
+  though the two manifests are byte-identical and share one category. Ordinary
+  v1 manifests/records are unchanged; recovery falls back to the legacy scan
+  only when no foreign binding claims the terminal.
+- MAJOR 3 (exact claim binding): the replacement lane's claim validator is now a
+  closure that compares a stored claim's embedded
+  authorization/proposal/review/predecessor lineage to the exact loaded
+  authorization, on initial reload, terminal-lookup load, claim-race and incident
+  re-entry — so a note-only (same-successor) authorization cannot replay or
+  cross-bind another authorization's terminal; it fails before the provider.
+- MAJOR 4 (lineage reload): `loadValidatedReplacementAuthorization` now
+  re-derives `review.proposalPath === authorization.proposalPath` and the full
+  proposal/review/authorization digest identities, rejecting self-consistent
+  cross-lineage artifacts.
+- MAJOR 5 (operational CLI): `lib/visual-package/qaWizardBlueprintReplacementCli.ts`
+  (entry `scripts/qa-wizard-blueprint-replacement-cli.ts`) adds strict
+  `prepare/review/approve/execute-replacement` commands — `--name value` only
+  (no `=`), no duplicate/unknown/positional/ambiguous flags, bounded sanitized
+  output, no raw exception/provider data; `execute-replacement` stays
+  provider-unreachable without the exact authorization.
+- Also fixed: the failing spec assertion (predecessor `claimDigest` is the
+  ordinary claim's canonical digest, not `authoringAuthorityDigest`, asserted
+  independently); canonical time ordering (`prepared ≤ reviewed ≤ approved`); and
+  a non-mutating orphan recoverability check so `write:false` preparation writes
+  nothing.
+
+Local validation: `npx --no-install tsc --noEmit` clean; the touched surface —
+replacement lifecycle spec (12, incl. the four round-1 cells plus adversarial
+cells), legacy Blueprint lifecycle spec (34), and the new CLI spec (14) — is
+60/60 green. The full `lib/visual-package/__tests__` battery passes except five
+heavy git/subprocess/real-entry specs that time out only under full-parallel
+worker saturation (`onTaskUpdate` timeouts); none import the changed modules and
+they pass in isolation. `git diff --check` clean. No provider/network/credential/
+render/DB/deploy/push occurred; the predecessor claim bytes/path/digest are
+untouched and no real authorization or successor artifact was minted.
+
+Codex re-gate targets: (1) the global predecessor-keyed slot (approval + execute
+fences, cross-output-root); (2) the terminal-binding recovery lane isolation and
+ordinary v1 backward compatibility; (3) the exact claim/authorization
+tamper/cross-bind rejection surface; (4) MAJOR-4 lineage reload; (5) the CLI
+parser/dispatch and provider-unreachability.
+
 ### Round 17 — terminal receipt authority unified; post-claim incidents now durable
 
 The first paid Blueprint attempt for the approved Chameleon chain published

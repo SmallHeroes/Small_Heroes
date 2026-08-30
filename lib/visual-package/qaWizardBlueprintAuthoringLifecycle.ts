@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -84,6 +85,21 @@ import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_VERSION,
 } from './preRenderBlueprintDraftSchema';
+import {
+  QA_WIZARD_BLUEPRINT_REPLACEMENT_APPROVER,
+  buildBlueprintReplacementAuthorization,
+  buildBlueprintReplacementExecutionClaim,
+  buildBlueprintReplacementProposal,
+  buildBlueprintReplacementReview,
+  blueprintReplacementAuthorizationIsValid,
+  blueprintReplacementExecutionClaimIsValid,
+  blueprintReplacementProposalIsValid,
+  blueprintReplacementReviewIsValid,
+  blueprintReplacementSuccessorExecutionDigest,
+  type QaWizardBlueprintReplacementAuthorization,
+  type QaWizardBlueprintReplacementProposal,
+  type QaWizardBlueprintReplacementReview,
+} from './qaWizardBlueprintReplacementAuthority';
 
 export const QA_WIZARD_BLUEPRINT_AUTHORING_MANIFEST_VERSION =
   'qa-wizard-blueprint-authoring-manifest/v1' as const;
@@ -95,6 +111,10 @@ export const QA_WIZARD_BLUEPRINT_EXECUTION_INCIDENT_VERSION =
   'qa-wizard-blueprint-execution-incident/v1' as const;
 export const QA_WIZARD_BLUEPRINT_APPROVAL_DECISION_VERSION =
   'qa-wizard-blueprint-approval-decision/v1' as const;
+export const QA_WIZARD_BLUEPRINT_TERMINAL_BINDING_VERSION =
+  'qa-wizard-blueprint-terminal-binding/v1' as const;
+export const QA_WIZARD_BLUEPRINT_REPLACEMENT_SLOT_VERSION =
+  'qa-wizard-blueprint-replacement-authorization-slot/v1' as const;
 
 export const QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT =
   'outputs/qa-wizard-blueprint-authoring-ledger-v1' as const;
@@ -423,6 +443,30 @@ const EXECUTION_INCIDENT_KEYS = [
   'requestDigest',
   'resolution',
   'scope',
+  'version',
+] as const;
+const TERMINAL_BINDING_KEYS = [
+  'authoringAuthorityDigest',
+  'digest',
+  'digestAlgorithm',
+  'executionIdentityDigest',
+  'preflightManifestDigest',
+  'requestDigest',
+  'scope',
+  'terminalManifestDigest',
+  'terminalManifestPath',
+  'version',
+] as const;
+const REPLACEMENT_SLOT_KEYS = [
+  'authoringAuthorityDigest',
+  'digest',
+  'digestAlgorithm',
+  'predecessorClaimDigest',
+  'predecessorClaimPath',
+  'preflightManifestDigest',
+  'requestDigest',
+  'scope',
+  'successorExecutionDigest',
   'version',
 ] as const;
 const APPROVAL_DECISION_KEYS = [
@@ -1833,6 +1877,8 @@ const COMPILER_LEDGER_CATEGORIES = [
   'approval-decisions',
   'execution-claims',
   'execution-incidents',
+  'replacement-authorization-slots',
+  'terminal-bindings',
   'terminal-lookups',
 ] as const;
 
@@ -2316,37 +2362,224 @@ function compilerLedgerArtifactPath(args: {
   });
 }
 
+// The compiler ledger keys claim/terminal/incident artifacts by an execution
+// identity digest. For an ordinary first execution the execution identity is
+// the content authoring-authority digest, so callers omit executionIdentityDigest
+// and behavior is unchanged. A replacement successor passes a distinct
+// executionIdentityDigest so its ledger addresses can never collide with or
+// impersonate the preserved predecessor claim.
+function ledgerKey(args: {
+  authoringAuthorityDigest: string;
+  executionIdentityDigest?: string;
+}): string {
+  return args.executionIdentityDigest ?? args.authoringAuthorityDigest;
+}
+
 function claimPath(args: {
   repoRoot: string;
   authoringAuthorityDigest: string;
+  executionIdentityDigest?: string;
 }): string {
   return compilerLedgerArtifactPath({
     repoRoot: args.repoRoot,
     category: 'execution-claims',
-    authorityDigest: args.authoringAuthorityDigest,
+    authorityDigest: ledgerKey(args),
   });
 }
 
 function terminalLookupPath(args: {
   repoRoot: string;
   authoringAuthorityDigest: string;
+  executionIdentityDigest?: string;
 }): string {
   return compilerLedgerArtifactPath({
     repoRoot: args.repoRoot,
     category: 'terminal-lookups',
-    authorityDigest: args.authoringAuthorityDigest,
+    authorityDigest: ledgerKey(args),
   });
 }
 
 function executionIncidentPath(args: {
   repoRoot: string;
   authoringAuthorityDigest: string;
+  executionIdentityDigest?: string;
 }): string {
   return compilerLedgerArtifactPath({
     repoRoot: args.repoRoot,
     category: 'execution-incidents',
-    authorityDigest: args.authoringAuthorityDigest,
+    authorityDigest: ledgerKey(args),
   });
+}
+
+// A terminal binding records — durably and per exact execution identity — which
+// terminal manifest one paid execution produced. It is written immediately
+// after the terminal manifest and before any crash seam, so terminal recovery
+// can bind a scanned manifest to the exact execution identity that authored it.
+// Ordinary and successor terminal manifests are content-identical and share the
+// manifest category, so without this binding a scan keyed only on
+// request/predecessor digests could adopt the other lane's terminal.
+interface QaWizardBlueprintTerminalBinding {
+  version: typeof QA_WIZARD_BLUEPRINT_TERMINAL_BINDING_VERSION;
+  executionIdentityDigest: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  terminalManifestDigest: string;
+  terminalManifestPath: string;
+  scope: 'single_blueprint_execution_terminal_binding';
+  digestAlgorithm: typeof DIGEST_ALGORITHM;
+  digest: string;
+}
+
+function terminalBindingPath(args: {
+  repoRoot: string;
+  authoringAuthorityDigest: string;
+  executionIdentityDigest?: string;
+}): string {
+  return compilerLedgerArtifactPath({
+    repoRoot: args.repoRoot,
+    category: 'terminal-bindings',
+    authorityDigest: ledgerKey(args),
+  });
+}
+
+function buildTerminalBinding(args: {
+  executionIdentityDigest: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  terminalManifestDigest: string;
+  terminalManifestPath: string;
+}): QaWizardBlueprintTerminalBinding {
+  return digestPayload({
+    version: QA_WIZARD_BLUEPRINT_TERMINAL_BINDING_VERSION,
+    executionIdentityDigest: args.executionIdentityDigest,
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+    requestDigest: args.requestDigest,
+    preflightManifestDigest: args.preflightManifestDigest,
+    terminalManifestDigest: args.terminalManifestDigest,
+    terminalManifestPath: args.terminalManifestPath,
+    scope: 'single_blueprint_execution_terminal_binding' as const,
+  });
+}
+
+function terminalBindingIsValid(
+  value: unknown,
+): value is QaWizardBlueprintTerminalBinding {
+  return (
+    exactKeys(value, TERMINAL_BINDING_KEYS) &&
+    value.version === QA_WIZARD_BLUEPRINT_TERMINAL_BINDING_VERSION &&
+    value.digestAlgorithm === DIGEST_ALGORITHM &&
+    [
+      value.executionIdentityDigest,
+      value.authoringAuthorityDigest,
+      value.requestDigest,
+      value.preflightManifestDigest,
+      value.terminalManifestDigest,
+      value.digest,
+    ].every((entry) => typeof entry === 'string' && HEX_SHA256.test(entry)) &&
+    typeof value.terminalManifestPath === 'string' &&
+    value.terminalManifestPath.length > 0 &&
+    value.scope === 'single_blueprint_execution_terminal_binding' &&
+    value.digest === canonicalJsonDigest(payloadWithoutDigest(value))
+  );
+}
+
+function persistTerminalBinding(args: {
+  repoRoot: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  terminalManifestDigest: string;
+  terminalManifestPath: string;
+  executionIdentityDigest?: string;
+}): void {
+  const binding = buildTerminalBinding({
+    executionIdentityDigest: ledgerKey(args),
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+    requestDigest: args.requestDigest,
+    preflightManifestDigest: args.preflightManifestDigest,
+    terminalManifestDigest: args.terminalManifestDigest,
+    terminalManifestPath: args.terminalManifestPath,
+  });
+  writeImmutableLocalArtifact({
+    destinationPath: resolveRepoPath(args.repoRoot, terminalBindingPath(args)),
+    bytes: canonicalContentAddressedJsonBytes(binding),
+    hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+  });
+}
+
+function loadTerminalBindingForIdentity(args: {
+  repoRoot: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  executionIdentityDigest?: string;
+}): QaWizardBlueprintTerminalBinding | null {
+  const artifactPath = terminalBindingPath(args);
+  const absolute = resolveRepoPath(args.repoRoot, artifactPath);
+  if (!fs.existsSync(absolute)) return null;
+  const key = ledgerKey(args);
+  const loaded = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath,
+    label: 'Blueprint authoring terminal binding',
+  });
+  if (
+    !terminalBindingIsValid(loaded.value) ||
+    loaded.value.executionIdentityDigest !== key ||
+    loaded.value.authoringAuthorityDigest !== args.authoringAuthorityDigest ||
+    loaded.value.requestDigest !== args.requestDigest ||
+    loaded.value.preflightManifestDigest !== args.preflightManifestDigest ||
+    path.basename(loaded.absolutePath) !== `${key}.json` ||
+    path.basename(path.dirname(loaded.absolutePath)) !== 'terminal-bindings' ||
+    repoRelativePath(args.repoRoot, loaded.absolutePath) !== artifactPath ||
+    loaded.rawBytes !== canonicalContentAddressedJsonBytes(loaded.value)
+  ) {
+    throw new Error('Blueprint authoring terminal binding is invalid or tampered');
+  }
+  return loaded.value;
+}
+
+// Collects the terminal manifest digests that are already bound to a DIFFERENT
+// execution identity. Terminal recovery never adopts such a manifest, so an
+// ordinary re-entry can never consume a successor's terminal (and vice versa),
+// even though the two manifests are byte-identical and share one category.
+function foreignBoundTerminalManifestDigests(args: {
+  repoRoot: string;
+  executionIdentityKey: string;
+}): Set<string> {
+  const directory = resolveRepoPath(
+    args.repoRoot,
+    path.posix.join(
+      QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+      'terminal-bindings',
+    ),
+  );
+  const foreign = new Set<string>();
+  if (!fs.existsSync(directory)) return foreign;
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (!entry.isFile() || !/^[a-f0-9]{64}\.json$/.test(entry.name)) continue;
+    const identity = entry.name.slice(0, -'.json'.length);
+    if (identity === args.executionIdentityKey) continue;
+    const loaded = readJsonObject({
+      repoRoot: args.repoRoot,
+      artifactPath: repoRelativePath(
+        args.repoRoot,
+        path.join(directory, entry.name),
+      ),
+      label: 'Blueprint authoring terminal binding',
+    });
+    if (
+      !terminalBindingIsValid(loaded.value) ||
+      loaded.value.executionIdentityDigest !== identity ||
+      loaded.rawBytes !== canonicalContentAddressedJsonBytes(loaded.value)
+    ) {
+      throw new Error('Blueprint authoring terminal binding is invalid or tampered');
+    }
+    foreign.add(loaded.value.terminalManifestDigest);
+  }
+  return foreign;
 }
 
 function approvalDecisionPath(args: {
@@ -2441,7 +2674,7 @@ function buildExecutionIncident(args: {
   authoringAuthorityDigest: string;
   requestDigest: string;
   preflightManifestDigest: string;
-  claim: QaWizardBlueprintExecutionClaim;
+  claim: { digest: string };
   claimPath: string;
   phase: QaWizardBlueprintExecutionIncidentPhase;
   receipt: ProductionAuthoringRunReceipt | null;
@@ -2479,6 +2712,7 @@ function loadExecutionIncident(args: {
   preflightManifestDigest: string;
   claimDigest: string;
   claimPath: string;
+  executionIdentityDigest?: string;
 }): { incident: QaWizardBlueprintExecutionIncident; path: string } | null {
   const artifactPath = executionIncidentPath(args);
   const absolute = resolveRepoPath(args.repoRoot, artifactPath);
@@ -2508,10 +2742,11 @@ function persistExecutionIncident(args: {
   authoringAuthorityDigest: string;
   requestDigest: string;
   preflightManifestDigest: string;
-  claim: QaWizardBlueprintExecutionClaim;
+  claim: { digest: string };
   claimPath: string;
   phase: QaWizardBlueprintExecutionIncidentPhase;
   receipt: ProductionAuthoringRunReceipt | null;
+  executionIdentityDigest?: string;
 }): { incident: QaWizardBlueprintExecutionIncident; path: string } {
   const incident = buildExecutionIncident(args);
   const artifactPath = executionIncidentPath(args);
@@ -2527,6 +2762,9 @@ function persistExecutionIncident(args: {
     preflightManifestDigest: args.preflightManifestDigest,
     claimDigest: args.claim.digest,
     claimPath: args.claimPath,
+    ...(args.executionIdentityDigest
+      ? { executionIdentityDigest: args.executionIdentityDigest }
+      : {}),
   });
   if (!loaded) {
     throw new Error('Blueprint authoring execution incident was not persisted');
@@ -2537,7 +2775,7 @@ function persistExecutionIncident(args: {
 function buildExecutionRecord(args: {
   authoringAuthorityDigest: string;
   requestDigest: string;
-  claim: QaWizardBlueprintExecutionClaim;
+  claim: { digest: string };
   claimPath: string;
   manifest: QaWizardBlueprintAuthoringManifest;
   manifestPath: string;
@@ -2587,7 +2825,11 @@ function loadExecutionRecord(args: {
   authoringAuthorityDigest: string;
   requestDigest: string;
   preflightManifestDigest: string;
+  executionIdentityDigest?: string;
+  claimIsValid?: (value: unknown) => boolean;
 }): QaWizardBlueprintExecutionResult | null {
+  const key = ledgerKey(args);
+  const claimIsValid = args.claimIsValid ?? executionClaimIsValid;
   const lookupPath = terminalLookupPath(args);
   const absolute = resolveRepoPath(args.repoRoot, lookupPath);
   if (!fs.existsSync(absolute)) return null;
@@ -2601,8 +2843,7 @@ function loadExecutionRecord(args: {
     loaded.value.authoringAuthorityDigest !== args.authoringAuthorityDigest ||
     loaded.value.requestDigest !== args.requestDigest ||
     loaded.value.claimPath !== claimPath(args) ||
-    path.basename(loaded.absolutePath) !==
-      `${args.authoringAuthorityDigest}.json` ||
+    path.basename(loaded.absolutePath) !== `${key}.json` ||
     path.basename(path.dirname(loaded.absolutePath)) !==
       'terminal-lookups' ||
     repoRelativePath(args.repoRoot, loaded.absolutePath) !== lookupPath ||
@@ -2616,13 +2857,12 @@ function loadExecutionRecord(args: {
     label: 'Blueprint authoring execution claim',
   });
   if (
-    !executionClaimIsValid(claim.value) ||
+    !claimIsValid(claim.value) ||
     claim.value.authoringAuthorityDigest !== args.authoringAuthorityDigest ||
     claim.value.requestDigest !== args.requestDigest ||
     claim.value.preflightManifestDigest !== args.preflightManifestDigest ||
     claim.value.digest !== loaded.value.claimDigest ||
-    path.basename(claim.absolutePath) !==
-      `${args.authoringAuthorityDigest}.json` ||
+    path.basename(claim.absolutePath) !== `${key}.json` ||
     path.basename(path.dirname(claim.absolutePath)) !==
       'execution-claims' ||
     repoRelativePath(args.repoRoot, claim.absolutePath) !== loaded.value.claimPath ||
@@ -2665,7 +2905,10 @@ function recoverTerminalLookup(args: {
   authoringAuthorityDigest: string;
   requestDigest: string;
   preflightManifestDigest: string;
+  executionIdentityDigest?: string;
+  claimIsValid?: (value: unknown) => boolean;
 }): QaWizardBlueprintExecutionResult | null {
+  const claimIsValid = args.claimIsValid ?? executionClaimIsValid;
   const expectedClaimPath = claimPath(args);
   const claimArtifact = readJsonObject({
     repoRoot: args.repoRoot,
@@ -2673,7 +2916,7 @@ function recoverTerminalLookup(args: {
     label: 'Blueprint authoring execution claim',
   });
   if (
-    !executionClaimIsValid(claimArtifact.value) ||
+    !claimIsValid(claimArtifact.value) ||
     claimArtifact.value.authoringAuthorityDigest !==
       args.authoringAuthorityDigest ||
     claimArtifact.value.requestDigest !== args.requestDigest ||
@@ -2686,6 +2929,16 @@ function recoverTerminalLookup(args: {
   ) {
     throw new Error('Blueprint authoring execution claim is invalid or tampered');
   }
+  // Recovery is bound to the exact execution identity via the terminal binding
+  // written before any crash seam. A manifest already bound to a different
+  // identity is never adoptable, so ordinary recovery can never consume a
+  // successor terminal and successor recovery can never consume an ordinary one.
+  const identityKey = ledgerKey(args);
+  const ownBinding = loadTerminalBindingForIdentity(args);
+  const foreignTerminals = foreignBoundTerminalManifestDigests({
+    repoRoot: args.repoRoot,
+    executionIdentityKey: identityKey,
+  });
   const manifestDirectory = resolveRepoPath(
     args.repoRoot,
     path.posix.join(args.outputDir, 'blueprint-authoring-manifests'),
@@ -2702,16 +2955,28 @@ function recoverTerminalLookup(args: {
       manifestPath,
     });
     if (
-      ['blueprint_candidate', 'authoring_failed'].includes(
+      !['blueprint_candidate', 'authoring_failed'].includes(
         candidate.manifest.stage,
-      ) &&
-      candidate.manifest.request.digest === args.requestDigest &&
-      candidate.manifest.predecessor?.digest === args.preflightManifestDigest
+      ) ||
+      candidate.manifest.request.digest !== args.requestDigest ||
+      candidate.manifest.predecessor?.digest !== args.preflightManifestDigest
     ) {
-      terminals.push(candidate);
+      continue;
     }
+    // Never adopt a terminal owned by another execution identity.
+    if (foreignTerminals.has(candidate.manifest.digest)) continue;
+    // When this identity has a durable binding, only its exact terminal counts.
+    if (ownBinding && candidate.manifest.digest !== ownBinding.terminalManifestDigest) {
+      continue;
+    }
+    terminals.push(candidate);
   }
-  if (terminals.length === 0) return null;
+  if (terminals.length === 0) {
+    // A binding that names a now-missing (or foreign) terminal is a torn state,
+    // not a clean "nothing to recover".
+    if (ownBinding) throw new Error('execution_state_uncertain');
+    return null;
+  }
   if (terminals.length !== 1 || terminals[0]!.receipt === null) {
     throw new Error('execution_state_uncertain');
   }
@@ -2722,7 +2987,7 @@ function recoverTerminalLookup(args: {
   const recordValue = buildExecutionRecord({
     authoringAuthorityDigest: args.authoringAuthorityDigest,
     requestDigest: args.requestDigest,
-    claim: claimArtifact.value,
+    claim: claimArtifact.value as { digest: string },
     claimPath: expectedClaimPath,
     manifest: terminal.manifest,
     manifestPath: terminal.manifestPath,
@@ -2773,13 +3038,45 @@ function blueprintAuthorityFromPersistence(args: {
   };
 }
 
-export async function executeQaWizardBlueprintLiveRequest(
+/**
+ * Binds one blueprint execution to a compiler-owned ledger identity and claim
+ * shape. The ordinary first execution binds to the content authoring-authority
+ * digest with the ordinary claim; a human-approved replacement successor binds
+ * to a distinct successor execution digest with the replacement claim, so the
+ * two lanes share this identical execute core without their ledger addresses
+ * ever colliding.
+ */
+interface BlueprintExecutionClaimBinding {
+  executionIdentity: (ctx: { authoringAuthorityDigest: string }) => string;
+  claimIsValid: (value: unknown) => boolean;
+  buildClaim: (ctx: {
+    preflight: LoadedQaWizardBlueprintManifest;
+    authoringAuthorityDigest: string;
+    requestDigest: string;
+  }) => { digest: string };
+  /**
+   * Lane-specific gate run after the current preflight/authority are resolved
+   * but before any ledger read or paid boundary. The replacement lane uses it
+   * to require an unresolved exact predecessor orphan and an exact approved
+   * authorization; the ordinary lane omits it.
+   */
+  precheck?: (ctx: {
+    repoRoot: string;
+    outputDir: string;
+    preflight: LoadedQaWizardBlueprintManifest;
+    authoringAuthorityDigest: string;
+    requestDigest: string;
+  }) => void;
+}
+
+async function runBlueprintExecutionUnderClaim(
   args: {
     repoRoot: string;
     preflightManifestPath: string;
     outputDir: string;
     write: true;
   },
+  binding: BlueprintExecutionClaimBinding,
   deps: QaWizardBlueprintExecutionDependencies = {},
 ): Promise<QaWizardBlueprintExecutionResult> {
   if (args.write !== true) {
@@ -2806,9 +3103,14 @@ export async function executeQaWizardBlueprintLiveRequest(
     preflight.context,
   );
   const requestDigest = canonicalJsonDigest(preflight.request);
+  const executionIdentityDigest = binding.executionIdentity({
+    authoringAuthorityDigest,
+  });
+  const claimIsValid = binding.claimIsValid;
   const executionClaimPath = claimPath({
     repoRoot: args.repoRoot,
     authoringAuthorityDigest,
+    executionIdentityDigest,
   });
   let existingTerminal: QaWizardBlueprintExecutionResult | null;
   try {
@@ -2818,6 +3120,8 @@ export async function executeQaWizardBlueprintLiveRequest(
       authoringAuthorityDigest,
       requestDigest,
       preflightManifestDigest: preflight.manifest.digest,
+      executionIdentityDigest,
+      claimIsValid,
     });
   } catch (cause) {
     throw executionStateUncertain(cause);
@@ -2836,7 +3140,7 @@ export async function executeQaWizardBlueprintLiveRequest(
         label: 'Blueprint authoring execution claim',
       });
       if (
-        !executionClaimIsValid(publishedClaim.value) ||
+        !claimIsValid(publishedClaim.value) ||
         publishedClaim.value.authoringAuthorityDigest !== authoringAuthorityDigest ||
         publishedClaim.value.requestDigest !== requestDigest ||
         publishedClaim.value.preflightManifestDigest !== preflight.manifest.digest ||
@@ -2852,6 +3156,8 @@ export async function executeQaWizardBlueprintLiveRequest(
         authoringAuthorityDigest,
         requestDigest,
         preflightManifestDigest: preflight.manifest.digest,
+        executionIdentityDigest,
+        claimIsValid,
       });
       if (recovered) return recovered;
       const incident = loadExecutionIncident({
@@ -2859,8 +3165,9 @@ export async function executeQaWizardBlueprintLiveRequest(
         authoringAuthorityDigest,
         requestDigest,
         preflightManifestDigest: preflight.manifest.digest,
-        claimDigest: publishedClaim.value.digest,
+        claimDigest: publishedClaim.value.digest as string,
         claimPath: executionClaimPath,
+        executionIdentityDigest,
       });
       if (incident) {
         throw executionStateUncertain(undefined, {
@@ -2877,17 +3184,27 @@ export async function executeQaWizardBlueprintLiveRequest(
     throw executionStateUncertain();
   }
 
+  // The lane gate runs only on the genuine first execution — after replay and
+  // the published-claim fence — so a successor's own terminal can never be
+  // mistaken for an unresolved predecessor on replay or crash recovery.
+  binding.precheck?.({
+    repoRoot: args.repoRoot,
+    outputDir,
+    preflight,
+    authoringAuthorityDigest,
+    requestDigest,
+  });
+
   prepareBlueprintLifecycleAuthorityDirectories({
     repoRoot: args.repoRoot,
     outputDir,
     authoringAuthorityDigest,
   });
 
-  const claim = buildExecutionClaim({
-    request: preflight.request,
-    preflightManifest: preflight.manifest,
-    preflightManifestPath: preflight.manifestPath,
+  const claim = binding.buildClaim({
+    preflight,
     authoringAuthorityDigest,
+    requestDigest,
   });
   let claimWrite: { created: boolean };
   let executionPhase: QaWizardBlueprintExecutionIncidentPhase =
@@ -2910,6 +3227,8 @@ export async function executeQaWizardBlueprintLiveRequest(
         authoringAuthorityDigest,
         requestDigest,
         preflightManifestDigest: preflight.manifest.digest,
+        executionIdentityDigest,
+        claimIsValid,
       });
       if (completedDuringClaimRace) return completedDuringClaimRace;
       const recovered = recoverTerminalLookup({
@@ -2918,6 +3237,8 @@ export async function executeQaWizardBlueprintLiveRequest(
         authoringAuthorityDigest,
         requestDigest,
         preflightManifestDigest: preflight.manifest.digest,
+        executionIdentityDigest,
+        claimIsValid,
       });
       if (recovered) return recovered;
       throw executionStateUncertain();
@@ -2935,7 +3256,7 @@ export async function executeQaWizardBlueprintLiveRequest(
       label: 'Blueprint authoring execution claim',
     });
     if (
-      !executionClaimIsValid(publishedClaim.value) ||
+      !claimIsValid(publishedClaim.value) ||
       publishedClaim.value.digest !== claim.digest ||
       publishedClaim.rawBytes !== canonicalContentAddressedJsonBytes(claim) ||
       repoRelativePath(args.repoRoot, publishedClaim.absolutePath) !==
@@ -3082,6 +3403,17 @@ export async function executeQaWizardBlueprintLiveRequest(
     manifest: terminalManifest,
     write: true,
   });
+  // Bind this terminal manifest to the exact execution identity BEFORE the
+  // crash seam and the terminal lookup, so recovery can never cross lanes.
+  persistTerminalBinding({
+    repoRoot: args.repoRoot,
+    authoringAuthorityDigest,
+    requestDigest,
+    preflightManifestDigest: preflight.manifest.digest,
+    terminalManifestDigest: terminalManifest.digest,
+    terminalManifestPath: terminalManifestArtifact.path,
+    executionIdentityDigest,
+  });
   const executionRecord = buildExecutionRecord({
     authoringAuthorityDigest,
     requestDigest,
@@ -3097,6 +3429,7 @@ export async function executeQaWizardBlueprintLiveRequest(
   const executionRecordPath = terminalLookupPath({
     repoRoot: args.repoRoot,
     authoringAuthorityDigest,
+    executionIdentityDigest,
   });
   writeImmutableLocalArtifact({
     destinationPath: resolveRepoPath(args.repoRoot, executionRecordPath),
@@ -3126,6 +3459,7 @@ export async function executeQaWizardBlueprintLiveRequest(
         claimPath: executionClaimPath,
         phase: executionPhase,
         receipt: terminalReceipt,
+        executionIdentityDigest,
       });
       throw executionStateUncertain(cause, {
         path: incident.path,
@@ -3141,6 +3475,695 @@ export async function executeQaWizardBlueprintLiveRequest(
       throw executionStateUncertain(cause);
     }
   }
+}
+
+const ordinaryExecutionClaimBinding: BlueprintExecutionClaimBinding = {
+  executionIdentity: (ctx) => ctx.authoringAuthorityDigest,
+  claimIsValid: executionClaimIsValid,
+  buildClaim: (ctx) =>
+    buildExecutionClaim({
+      request: ctx.preflight.request,
+      preflightManifest: ctx.preflight.manifest,
+      preflightManifestPath: ctx.preflight.manifestPath,
+      authoringAuthorityDigest: ctx.authoringAuthorityDigest,
+    }),
+};
+
+export async function executeQaWizardBlueprintLiveRequest(
+  args: {
+    repoRoot: string;
+    preflightManifestPath: string;
+    outputDir: string;
+    write: true;
+  },
+  deps: QaWizardBlueprintExecutionDependencies = {},
+): Promise<QaWizardBlueprintExecutionResult> {
+  return runBlueprintExecutionUnderClaim(
+    args,
+    ordinaryExecutionClaimBinding,
+    deps,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Replacement (orphan-claim successor) authority lane.
+//
+// The predecessor claim is never mutated, retried or impersonated. A durable
+// but unresolved orphan (a published claim with no recoverable terminal and no
+// incident) can only advance through an explicit, versioned proposal -> review
+// -> exact Guy approval, after which one — and only one — successor paid
+// execution runs under a distinct compiler-owned execution identity while the
+// resulting Blueprint keeps the unchanged canonical authoring authority.
+// ---------------------------------------------------------------------------
+
+const REPLACEMENT_LEDGER_CATEGORIES = [
+  'replacement-proposals',
+  'replacement-reviews',
+  'replacement-authorizations',
+] as const;
+
+export interface QaWizardBlueprintReplacementProposalResult {
+  proposal: QaWizardBlueprintReplacementProposal;
+  proposalPath: string;
+  wrote: boolean;
+}
+
+export interface QaWizardBlueprintReplacementReviewResult {
+  review: QaWizardBlueprintReplacementReview;
+  reviewPath: string;
+  proposalPath: string;
+  wrote: boolean;
+}
+
+export interface QaWizardBlueprintReplacementAuthorizationResult {
+  authorization: QaWizardBlueprintReplacementAuthorization;
+  authorizationPath: string;
+  proposalPath: string;
+  reviewPath: string;
+  successorExecutionDigest: string;
+  wrote: boolean;
+}
+
+function replacementLedgerArtifactPath(args: {
+  repoRoot: string;
+  category: (typeof REPLACEMENT_LEDGER_CATEGORIES)[number];
+  digest: string;
+}): string {
+  return relativeArtifactPath({
+    repoRoot: args.repoRoot,
+    outputDir: QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+    category: args.category,
+    fileName: `${args.digest}.json`,
+  });
+}
+
+function prepareReplacementLedgerDirectories(args: { repoRoot: string }): void {
+  const root = ensureContainedDirectory({
+    repoRoot: args.repoRoot,
+    directoryPath: resolveRepoPath(
+      args.repoRoot,
+      QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT,
+    ),
+  });
+  for (const category of REPLACEMENT_LEDGER_CATEGORIES) {
+    ensureContainedDirectory({
+      repoRoot: args.repoRoot,
+      directoryPath: path.join(root, category),
+      writable: true,
+    });
+  }
+}
+
+function persistReplacementLedgerArtifact(args: {
+  repoRoot: string;
+  category: (typeof REPLACEMENT_LEDGER_CATEGORIES)[number];
+  digest: string;
+  value: object;
+  write: boolean;
+}): { path: string; created: boolean } {
+  const artifactPath = replacementLedgerArtifactPath({
+    repoRoot: args.repoRoot,
+    category: args.category,
+    digest: args.digest,
+  });
+  const created = args.write
+    ? writeImmutableLocalArtifact({
+        destinationPath: resolveRepoPath(args.repoRoot, artifactPath),
+        bytes: canonicalContentAddressedJsonBytes(args.value),
+        hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+      }).created
+    : false;
+  return { path: artifactPath, created };
+}
+
+function loadReplacementLedgerArtifact(args: {
+  repoRoot: string;
+  category: (typeof REPLACEMENT_LEDGER_CATEGORIES)[number];
+  digest: string;
+  path: string;
+  label: string;
+  isValid: (value: unknown) => boolean;
+}): Record<string, unknown> {
+  const expectedPath = replacementLedgerArtifactPath({
+    repoRoot: args.repoRoot,
+    category: args.category,
+    digest: args.digest,
+  });
+  if (args.path !== expectedPath) {
+    throw new Error(`${args.label} path is noncanonical`);
+  }
+  const loaded = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: args.path,
+    label: args.label,
+  });
+  if (
+    !args.isValid(loaded.value) ||
+    (loaded.value as { digest?: unknown }).digest !== args.digest ||
+    path.basename(loaded.absolutePath) !== `${args.digest}.json` ||
+    path.basename(path.dirname(loaded.absolutePath)) !== args.category ||
+    repoRelativePath(args.repoRoot, loaded.absolutePath) !== expectedPath ||
+    loaded.rawBytes !== canonicalContentAddressedJsonBytes(loaded.value)
+  ) {
+    throw new Error(`${args.label} is stale or invalid`);
+  }
+  return loaded.value;
+}
+
+/**
+ * A predecessor-keyed successor slot is the compiler-owned decision that a
+ * single predecessor orphan claim authorizes exactly ONE successor execution
+ * globally. It is keyed by the predecessor claim digest and records the one
+ * canonical successor execution digest. Because it lives in the single global
+ * ledger root (not any output tree) and is written immutably, a second approval
+ * or execution whose lineage converges on a DIFFERENT successor identity —
+ * whether via an alternate proposal, review, approval timestamp or note, or a
+ * different output root — collides on the same slot bytes and fails before any
+ * provider is reached. Do not rely on the declarative `maxSuccessorExecutions`
+ * field or on honest callers.
+ */
+interface QaWizardBlueprintReplacementAuthorizationSlot {
+  version: typeof QA_WIZARD_BLUEPRINT_REPLACEMENT_SLOT_VERSION;
+  predecessorClaimDigest: string;
+  predecessorClaimPath: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+  successorExecutionDigest: string;
+  scope: 'single_use_paid_replacement_successor_slot';
+  digestAlgorithm: typeof DIGEST_ALGORITHM;
+  digest: string;
+}
+
+function replacementSlotPath(args: {
+  repoRoot: string;
+  predecessorClaimDigest: string;
+}): string {
+  return compilerLedgerArtifactPath({
+    repoRoot: args.repoRoot,
+    category: 'replacement-authorization-slots',
+    authorityDigest: args.predecessorClaimDigest,
+  });
+}
+
+function replacementSlotIsValid(
+  value: unknown,
+): value is QaWizardBlueprintReplacementAuthorizationSlot {
+  return (
+    exactKeys(value, REPLACEMENT_SLOT_KEYS) &&
+    value.version === QA_WIZARD_BLUEPRINT_REPLACEMENT_SLOT_VERSION &&
+    value.digestAlgorithm === DIGEST_ALGORITHM &&
+    [
+      value.predecessorClaimDigest,
+      value.authoringAuthorityDigest,
+      value.requestDigest,
+      value.preflightManifestDigest,
+      value.successorExecutionDigest,
+      value.digest,
+    ].every((entry) => typeof entry === 'string' && HEX_SHA256.test(entry)) &&
+    typeof value.predecessorClaimPath === 'string' &&
+    value.predecessorClaimPath.length > 0 &&
+    value.scope === 'single_use_paid_replacement_successor_slot' &&
+    value.digest === canonicalJsonDigest(payloadWithoutDigest(value))
+  );
+}
+
+/**
+ * Create-or-verify the immutable predecessor-keyed successor slot. Succeeds
+ * silently when the exact same successor is (re)bound; throws before any paid
+ * boundary when the predecessor is already bound to a different successor.
+ */
+function bindReplacementSuccessorSlot(args: {
+  repoRoot: string;
+  authorization: QaWizardBlueprintReplacementAuthorization;
+}): void {
+  ensureContainedDirectory({
+    repoRoot: args.repoRoot,
+    directoryPath: path.join(
+      resolveRepoPath(args.repoRoot, QA_WIZARD_BLUEPRINT_AUTHORING_LEDGER_ROOT),
+      'replacement-authorization-slots',
+    ),
+    writable: true,
+  });
+  const slot = digestPayload({
+    version: QA_WIZARD_BLUEPRINT_REPLACEMENT_SLOT_VERSION,
+    predecessorClaimDigest: args.authorization.predecessorClaimDigest,
+    predecessorClaimPath: args.authorization.predecessorClaimPath,
+    authoringAuthorityDigest: args.authorization.authoringAuthorityDigest,
+    requestDigest: args.authorization.requestDigest,
+    preflightManifestDigest: args.authorization.preflightManifestDigest,
+    successorExecutionDigest: args.authorization.successorExecutionDigest,
+    scope: 'single_use_paid_replacement_successor_slot' as const,
+  });
+  if (!replacementSlotIsValid(slot)) {
+    throw new Error('replacement successor slot construction is invalid');
+  }
+  const slotPath = replacementSlotPath({
+    repoRoot: args.repoRoot,
+    predecessorClaimDigest: args.authorization.predecessorClaimDigest,
+  });
+  try {
+    writeImmutableLocalArtifact({
+      destinationPath: resolveRepoPath(args.repoRoot, slotPath),
+      bytes: canonicalContentAddressedJsonBytes(slot),
+      hooks: containedPublishHooks({ repoRoot: args.repoRoot }),
+    });
+  } catch (cause) {
+    if (
+      cause instanceof Error &&
+      /immutable artifact collision/.test(cause.message)
+    ) {
+      throw new Error(
+        'replacement predecessor is already bound to a different successor',
+      );
+    }
+    throw cause;
+  }
+}
+
+/**
+ * Loads and asserts that the predecessor claim named by
+ * `authoringAuthorityDigest` is an exact, unresolved orphan: a valid ordinary
+ * single-use claim on disk with the exact bytes, and no terminal lookup, no
+ * recoverable terminal manifest and no incident. A replacement-shaped
+ * predecessor (a successor claim) is rejected as a nested replacement. The
+ * predecessor is only read, never mutated.
+ */
+function loadPredecessorOrphanClaim(args: {
+  repoRoot: string;
+  outputDir: string;
+  authoringAuthorityDigest: string;
+  requestDigest: string;
+  preflightManifestDigest: string;
+}): {
+  claim: QaWizardBlueprintExecutionClaim;
+  claimPath: string;
+  rawBytes: string;
+} {
+  const predecessorClaimPath = claimPath({
+    repoRoot: args.repoRoot,
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+  });
+  const absolute = resolveRepoPath(args.repoRoot, predecessorClaimPath);
+  if (!fs.existsSync(absolute)) {
+    throw new Error('replacement predecessor claim is missing');
+  }
+  const loaded = readJsonObject({
+    repoRoot: args.repoRoot,
+    artifactPath: predecessorClaimPath,
+    label: 'Blueprint replacement predecessor claim',
+  });
+  if (blueprintReplacementExecutionClaimIsValid(loaded.value)) {
+    throw new Error('replacement of a replacement is not permitted in this milestone');
+  }
+  if (
+    !executionClaimIsValid(loaded.value) ||
+    loaded.value.authoringAuthorityDigest !== args.authoringAuthorityDigest ||
+    loaded.value.requestDigest !== args.requestDigest ||
+    loaded.value.preflightManifestDigest !== args.preflightManifestDigest ||
+    path.basename(loaded.absolutePath) !==
+      `${args.authoringAuthorityDigest}.json` ||
+    path.basename(path.dirname(loaded.absolutePath)) !== 'execution-claims' ||
+    repoRelativePath(args.repoRoot, loaded.absolutePath) !==
+      predecessorClaimPath ||
+    loaded.rawBytes !== canonicalContentAddressedJsonBytes(loaded.value)
+  ) {
+    throw new Error('replacement predecessor claim is invalid or not the exact authority');
+  }
+  const gate = {
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    authoringAuthorityDigest: args.authoringAuthorityDigest,
+    requestDigest: args.requestDigest,
+    preflightManifestDigest: args.preflightManifestDigest,
+  } as const;
+  if (loadExecutionRecord(gate)) {
+    throw new Error('replacement predecessor already has a terminal result');
+  }
+  // Non-mutating recoverability check: a terminal binding for the predecessor's
+  // own identity proves the ordinary lane produced a terminal manifest, so the
+  // orphan is recoverable and not eligible for replacement. Using the binding
+  // (rather than the mutating recovery) guarantees a `write:false` preparation
+  // never writes a recovery lookup as a side effect.
+  if (
+    loadTerminalBindingForIdentity({
+      repoRoot: args.repoRoot,
+      authoringAuthorityDigest: args.authoringAuthorityDigest,
+      requestDigest: args.requestDigest,
+      preflightManifestDigest: args.preflightManifestDigest,
+    })
+  ) {
+    throw new Error('replacement predecessor has a recoverable terminal result');
+  }
+  const incident = loadExecutionIncident({
+    ...gate,
+    claimDigest: loaded.value.digest as string,
+    claimPath: predecessorClaimPath,
+  });
+  if (incident) {
+    throw new Error(
+      'replacement predecessor already has an incident; operator resolution differs',
+    );
+  }
+  return {
+    claim: loaded.value as unknown as QaWizardBlueprintExecutionClaim,
+    claimPath: predecessorClaimPath,
+    rawBytes: loaded.rawBytes,
+  };
+}
+
+export function prepareBlueprintReplacementProposal(args: {
+  repoRoot: string;
+  preflightManifestPath: string;
+  outputDir: string;
+  reason: string;
+  preparedBy: string;
+  preparedAt: string;
+  write?: boolean;
+}): QaWizardBlueprintReplacementProposalResult {
+  const preflight = loadQaWizardBlueprintManifestAuthority({
+    repoRoot: args.repoRoot,
+    manifestPath: args.preflightManifestPath,
+  });
+  if (preflight.manifest.stage !== 'live_request_preflight_passed') {
+    throw new Error('replacement proposal requires a preflight-passed manifest');
+  }
+  const outputDir = sameOutputDir({
+    repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
+    manifestPath: args.preflightManifestPath,
+  });
+  const authoringAuthorityDigest = expectedAuthoringAuthorityDigest(
+    preflight.context,
+  );
+  const requestDigest = canonicalJsonDigest(preflight.request);
+  const predecessor = loadPredecessorOrphanClaim({
+    repoRoot: args.repoRoot,
+    outputDir,
+    authoringAuthorityDigest,
+    requestDigest,
+    preflightManifestDigest: preflight.manifest.digest,
+  });
+  const proposal = buildBlueprintReplacementProposal({
+    reason: args.reason,
+    predecessor: {
+      claimVersion: predecessor.claim.version,
+      claimDigest: predecessor.claim.digest,
+      claimPath: predecessor.claimPath,
+      claimByteLength: Buffer.byteLength(predecessor.rawBytes, 'utf8'),
+      claimSha256: createHash('sha256')
+        .update(predecessor.rawBytes, 'utf8')
+        .digest('hex'),
+      authoringAuthorityDigest: predecessor.claim.authoringAuthorityDigest,
+      requestDigest: predecessor.claim.requestDigest,
+      preflightManifestDigest: predecessor.claim.preflightManifestDigest,
+      preflightManifestPath: predecessor.claim.preflightManifestPath,
+      requestedAt: predecessor.claim.requestedAt,
+    },
+    current: {
+      authoringAuthorityDigest,
+      requestDigest,
+      preflightManifestDigest: preflight.manifest.digest,
+      preflightManifestPath: preflight.manifestPath,
+      outputDir,
+      requestId: preflight.request.requestId,
+      requestedAt: preflight.request.requestedAt,
+    },
+    preparedBy: args.preparedBy,
+    preparedAt: args.preparedAt,
+  });
+  if (args.write === true) {
+    prepareReplacementLedgerDirectories({ repoRoot: args.repoRoot });
+  }
+  const persisted = persistReplacementLedgerArtifact({
+    repoRoot: args.repoRoot,
+    category: 'replacement-proposals',
+    digest: proposal.digest,
+    value: proposal,
+    write: args.write === true,
+  });
+  return {
+    proposal,
+    proposalPath: persisted.path,
+    wrote: args.write === true,
+  };
+}
+
+export function reviewBlueprintReplacementProposal(args: {
+  repoRoot: string;
+  proposalPath: string;
+  proposalDigest: string;
+  reviewedBy: string;
+  reviewedAt: string;
+  note?: string;
+  write?: boolean;
+}): QaWizardBlueprintReplacementReviewResult {
+  const proposal = loadReplacementLedgerArtifact({
+    repoRoot: args.repoRoot,
+    category: 'replacement-proposals',
+    digest: args.proposalDigest,
+    path: args.proposalPath,
+    label: 'Blueprint replacement proposal',
+    isValid: blueprintReplacementProposalIsValid,
+  }) as unknown as QaWizardBlueprintReplacementProposal;
+  const review = buildBlueprintReplacementReview({
+    proposal,
+    proposalPath: args.proposalPath,
+    reviewedBy: args.reviewedBy,
+    reviewedAt: args.reviewedAt,
+    ...(args.note ? { note: args.note } : {}),
+  });
+  if (args.write === true) {
+    prepareReplacementLedgerDirectories({ repoRoot: args.repoRoot });
+  }
+  const persisted = persistReplacementLedgerArtifact({
+    repoRoot: args.repoRoot,
+    category: 'replacement-reviews',
+    digest: review.digest,
+    value: review,
+    write: args.write === true,
+  });
+  return {
+    review,
+    reviewPath: persisted.path,
+    proposalPath: args.proposalPath,
+    wrote: args.write === true,
+  };
+}
+
+export function approveBlueprintReplacementProposal(args: {
+  repoRoot: string;
+  proposalPath: string;
+  proposalDigest: string;
+  reviewPath: string;
+  reviewDigest: string;
+  approvedBy: typeof QA_WIZARD_BLUEPRINT_REPLACEMENT_APPROVER;
+  approvedAt: string;
+  note?: string;
+  write?: boolean;
+}): QaWizardBlueprintReplacementAuthorizationResult {
+  if (args.approvedBy !== QA_WIZARD_BLUEPRINT_REPLACEMENT_APPROVER) {
+    throw new Error('replacement authorization is restricted to exact approver "Guy"');
+  }
+  const proposal = loadReplacementLedgerArtifact({
+    repoRoot: args.repoRoot,
+    category: 'replacement-proposals',
+    digest: args.proposalDigest,
+    path: args.proposalPath,
+    label: 'Blueprint replacement proposal',
+    isValid: blueprintReplacementProposalIsValid,
+  }) as unknown as QaWizardBlueprintReplacementProposal;
+  const review = loadReplacementLedgerArtifact({
+    repoRoot: args.repoRoot,
+    category: 'replacement-reviews',
+    digest: args.reviewDigest,
+    path: args.reviewPath,
+    label: 'Blueprint replacement review',
+    isValid: blueprintReplacementReviewIsValid,
+  }) as unknown as QaWizardBlueprintReplacementReview;
+  if (
+    review.proposalDigest !== proposal.digest ||
+    review.proposalPath !== args.proposalPath
+  ) {
+    throw new Error('replacement review is not bound to this proposal');
+  }
+  const authorization = buildBlueprintReplacementAuthorization({
+    proposal,
+    proposalPath: args.proposalPath,
+    review,
+    reviewPath: args.reviewPath,
+    approvedBy: args.approvedBy,
+    approvedAt: args.approvedAt,
+    ...(args.note ? { note: args.note } : {}),
+  });
+  if (args.write === true) {
+    prepareReplacementLedgerDirectories({ repoRoot: args.repoRoot });
+    // Bind the single global successor slot at approval time — the earliest
+    // fence. A conflicting second approval fails here before any competing
+    // authorization is persisted.
+    bindReplacementSuccessorSlot({ repoRoot: args.repoRoot, authorization });
+  }
+  const persisted = persistReplacementLedgerArtifact({
+    repoRoot: args.repoRoot,
+    category: 'replacement-authorizations',
+    digest: authorization.digest,
+    value: authorization,
+    write: args.write === true,
+  });
+  return {
+    authorization,
+    authorizationPath: persisted.path,
+    proposalPath: args.proposalPath,
+    reviewPath: args.reviewPath,
+    successorExecutionDigest: authorization.successorExecutionDigest,
+    wrote: args.write === true,
+  };
+}
+
+function loadValidatedReplacementAuthorization(args: {
+  repoRoot: string;
+  authorizationPath: string;
+  authorizationDigest: string;
+}): QaWizardBlueprintReplacementAuthorization {
+  const authorization = loadReplacementLedgerArtifact({
+    repoRoot: args.repoRoot,
+    category: 'replacement-authorizations',
+    digest: args.authorizationDigest,
+    path: args.authorizationPath,
+    label: 'Blueprint replacement authorization',
+    isValid: blueprintReplacementAuthorizationIsValid,
+  }) as unknown as QaWizardBlueprintReplacementAuthorization;
+  const proposal = loadReplacementLedgerArtifact({
+    repoRoot: args.repoRoot,
+    category: 'replacement-proposals',
+    digest: authorization.proposalDigest,
+    path: authorization.proposalPath,
+    label: 'Blueprint replacement proposal',
+    isValid: blueprintReplacementProposalIsValid,
+  }) as unknown as QaWizardBlueprintReplacementProposal;
+  const review = loadReplacementLedgerArtifact({
+    repoRoot: args.repoRoot,
+    category: 'replacement-reviews',
+    digest: authorization.reviewDigest,
+    path: authorization.reviewPath,
+    label: 'Blueprint replacement review',
+    isValid: blueprintReplacementReviewIsValid,
+  }) as unknown as QaWizardBlueprintReplacementReview;
+  const recomputed = blueprintReplacementSuccessorExecutionDigest({
+    proposalDigest: proposal.digest,
+    reviewDigest: review.digest,
+    approvedBy: authorization.approvedBy,
+    approvedAt: authorization.approvedAt,
+    predecessorClaimDigest: proposal.predecessor.claimDigest,
+    authoringAuthorityDigest: proposal.current.authoringAuthorityDigest,
+  });
+  if (
+    review.proposalDigest !== proposal.digest ||
+    // The creation path binds review to the proposal PATH as well as its
+    // digest; the reload must re-derive that same relation so a manually
+    // written cross-lineage review whose digest matches but whose proposalPath
+    // points elsewhere is rejected.
+    review.proposalPath !== authorization.proposalPath ||
+    proposal.digest !== authorization.proposalDigest ||
+    review.digest !== authorization.reviewDigest ||
+    authorization.authoringAuthorityDigest !==
+      proposal.current.authoringAuthorityDigest ||
+    authorization.requestDigest !== proposal.current.requestDigest ||
+    authorization.preflightManifestDigest !==
+      proposal.current.preflightManifestDigest ||
+    authorization.predecessorClaimDigest !== proposal.predecessor.claimDigest ||
+    authorization.predecessorClaimPath !== proposal.predecessor.claimPath ||
+    authorization.successorExecutionDigest !== recomputed
+  ) {
+    throw new Error('replacement authorization lineage is inconsistent or tampered');
+  }
+  return authorization;
+}
+
+export async function executeBlueprintReplacementLiveRequest(
+  args: {
+    repoRoot: string;
+    authorizationPath: string;
+    authorizationDigest: string;
+    preflightManifestPath: string;
+    outputDir: string;
+    write: true;
+  },
+  deps: QaWizardBlueprintExecutionDependencies = {},
+): Promise<QaWizardBlueprintExecutionResult> {
+  if (args.write !== true) {
+    throw new Error('execute-replacement requires write=true');
+  }
+  const authorization = loadValidatedReplacementAuthorization({
+    repoRoot: args.repoRoot,
+    authorizationPath: args.authorizationPath,
+    authorizationDigest: args.authorizationDigest,
+  });
+  // Lane-exact claim matcher: a stored replacement claim is only valid when its
+  // embedded authorization/proposal/review/predecessor lineage equals THIS
+  // loaded authorization. A different self-consistent authorization that
+  // converges on the same successor identity (e.g. note-only differences)
+  // therefore cannot replay or cross-bind another authorization's terminal.
+  const replacementClaimMatchesAuthorization = (value: unknown): boolean => {
+    if (!blueprintReplacementExecutionClaimIsValid(value)) return false;
+    return (
+      value.executionIdentityDigest ===
+        authorization.successorExecutionDigest &&
+      value.authoringAuthorityDigest ===
+        authorization.authoringAuthorityDigest &&
+      value.requestDigest === authorization.requestDigest &&
+      value.preflightManifestDigest ===
+        authorization.preflightManifestDigest &&
+      value.replacement.authorizationDigest === authorization.digest &&
+      value.replacement.authorizationPath === args.authorizationPath &&
+      value.replacement.proposalDigest === authorization.proposalDigest &&
+      value.replacement.reviewDigest === authorization.reviewDigest &&
+      value.replacement.predecessorClaimDigest ===
+        authorization.predecessorClaimDigest &&
+      value.replacement.predecessorClaimPath ===
+        authorization.predecessorClaimPath
+    );
+  };
+  const binding: BlueprintExecutionClaimBinding = {
+    executionIdentity: () => authorization.successorExecutionDigest,
+    claimIsValid: replacementClaimMatchesAuthorization,
+    buildClaim: (ctx) =>
+      buildBlueprintReplacementExecutionClaim({
+        authorization,
+        authorizationPath: args.authorizationPath,
+        requestedAt: ctx.preflight.request.requestedAt,
+        preflightManifestPath: ctx.preflight.manifestPath,
+      }),
+    precheck: (ctx) => {
+      // The preflight manifest is content-addressed, so an exact digest match
+      // binds this successor to the exact current preflight/request/story and
+      // rejects any cross-preflight, cross-request or cross-story attempt.
+      if (
+        authorization.authoringAuthorityDigest !==
+          ctx.authoringAuthorityDigest ||
+        authorization.requestDigest !== ctx.requestDigest ||
+        authorization.preflightManifestDigest !== ctx.preflight.manifest.digest
+      ) {
+        throw new Error('replacement authorization does not match the current preflight');
+      }
+      // The predecessor must remain an exact unresolved orphan at execute time,
+      // so a concurrent resolution cannot be double-dispatched.
+      loadPredecessorOrphanClaim({
+        repoRoot: ctx.repoRoot,
+        outputDir: ctx.outputDir,
+        authoringAuthorityDigest: ctx.authoringAuthorityDigest,
+        requestDigest: ctx.requestDigest,
+        preflightManifestDigest: ctx.preflight.manifest.digest,
+      });
+      // Global single-successor fence, before the claim and any provider: one
+      // predecessor claim digest authorizes exactly one successor identity.
+      bindReplacementSuccessorSlot({
+        repoRoot: ctx.repoRoot,
+        authorization,
+      });
+    },
+  };
+  return runBlueprintExecutionUnderClaim(args, binding, deps);
 }
 
 function assertImmutableBytesCompatible(args: {
