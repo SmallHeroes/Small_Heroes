@@ -70,6 +70,11 @@ import type { ProductionAuthoringAttemptReceipt } from '@/lib/visual-package/pro
 import { productionBlueprintAuthoringReceiptReplayIsValid } from '@/lib/visual-package/qaWizardBlueprintAuthoringLifecycle';
 import { computeProductionAuthoringContextDigest } from '@/lib/visual-package/productionAuthoringContext';
 import { projectZoneStableGeometry } from '@/lib/visual-contract-compiler';
+import {
+  BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+  blueprintAuthoringCountRequestProjection,
+  type BlueprintAuthoringInputTokenCountRequest,
+} from '@/lib/visual-package/blueprintAuthoringInputTokenAdmission';
 
 import {
   buildBlueprintFixture,
@@ -936,6 +941,114 @@ describe('provider-isolated Blueprint authoring runner', () => {
     expect(JSON.stringify(result.receipt)).not.toContain(
       'secret_debug_payload',
     );
+  });
+
+  it('uses one exact count to admit an over-byte repair and binds that proof to the next generation', async () => {
+    const { context, materialized } = buildContext('single_location');
+    const firstDraft = {
+      ...(providerDraft(materialized.fixture) as Record<string, unknown>),
+      worldPlan: 'x'.repeat(80_000),
+    };
+    const count = vi.fn(
+      async (
+        request: BlueprintAuthoringInputTokenCountRequest,
+      ) => ({
+        routeKind: 'repair' as const,
+        repairOrdinal: request.repairOrdinal,
+        countRequestDigest: canonicalJsonDigest(
+          blueprintAuthoringCountRequestProjection(request),
+        ),
+        outcome: 'counted' as const,
+        inputTokens: 50_000,
+        unavailableReason: null,
+        attestation: {
+          provider: 'openai' as const,
+          model: BLUEPRINT_AUTHORING_MODEL,
+          route: 'responses_input_tokens' as const,
+          evidenceVersion: BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+          transportDispatchCount: 1,
+          transportRetryCount: 0,
+          canonicalRouteConfirmed: true,
+          canonicalModelConfirmed: true,
+        },
+      }),
+    );
+    const firstUsageCost = conservativeBlueprintAuthoringCostUsd({
+      inputTokens: 120,
+      outputTokens: 80,
+    });
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => {
+        if (args.attempt === 1) {
+          return {
+            output: JSON.stringify(firstDraft),
+            receipt: canonicalProviderReceipt(args),
+          };
+        }
+        expect(args.inputAdmission).toMatchObject({
+          admitted: true,
+          basis: 'exact_provider_count',
+          exactInputTokens: 50_000,
+          ordinal: 1,
+          generationAttempt: 2,
+          probe: {
+            status: 'cache_miss',
+            transportDisposition: 'dispatched',
+          },
+        });
+        const usage = {
+          inputTokens: 50_000,
+          cachedInputTokens: 0,
+          cacheWriteInputTokens: 0,
+          outputTokens: 80,
+          reasoningTokens: 20,
+          totalTokens: 50_080,
+        };
+        return {
+          output: JSON.stringify(providerDraft(materialized.fixture)),
+          receipt: {
+            ...canonicalProviderReceipt(args),
+            usage: {
+              input_tokens: usage.inputTokens,
+              cached_input_tokens: usage.cachedInputTokens,
+              cache_write_input_tokens: usage.cacheWriteInputTokens,
+              output_tokens: usage.outputTokens,
+              reasoning_tokens: usage.reasoningTokens,
+              total_tokens: usage.totalTokens,
+            },
+            inputAccounting: args.inputAdmission.inputAccounting,
+            reservedExposureBeforeCallUsd:
+              blueprintAuthoringReservedExposureUsd({
+                conservativeAccountedCostUsd: firstUsageCost,
+                callsCompleted: 1,
+              }),
+            nominalEstimatedCostUsd:
+              nominalBlueprintAuthoringUsageCostUsd(usage),
+            conservativeCallCostUsd:
+              conservativeBlueprintAuthoringCostUsd({
+                inputTokens: usage.inputTokens,
+                outputTokens: usage.outputTokens,
+              }),
+          },
+        };
+      }),
+    };
+
+    const result = await runProductionBlueprintAuthoring({
+      request: requestFor(context, 'live'),
+      context,
+      provider,
+      inputTokenCounter: count,
+    });
+
+    expect(result.receipt.status).toBe('completed');
+    expect(result.receipt.callCount).toBe(2);
+    expect(result.receipt.repairCount).toBe(1);
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(count).toHaveBeenCalledTimes(1);
+    expect(
+      count.mock.calls[0]![0].userPrompt.length,
+    ).toBeGreaterThan(BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS);
   });
 
   it('rejects a noncanonical call budget before provider reachability', async () => {

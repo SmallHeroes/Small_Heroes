@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## F1 — exact repair input-token admission: Boundaries 1–2 + Boundary-2 HOLD correction locally green; milestone IN PROGRESS, NOT live-ready; F3 PASS preserved (Codex implementation continuing from Claude's interrupted partial work; not pushed)
+## F1 — exact repair input-token admission: Boundaries 1–3 locally green; milestone IN PROGRESS, NOT live-ready; F3 PASS preserved (Codex implementation; not pushed)
 
 F3 was awarded PASS (345/345, content-bound failure-capture authority, truthful evidence). F1 is
 the approved exact provider-authoritative REPAIR input-token admission milestone. It is a LARGE
@@ -56,12 +56,31 @@ being delivered as a sequence of green boundaries.
   GPT-5.6 Sol rule that input above 272K is priced at 2x for the full request, derives rather than
   duplicates the existing $5/$1.408/$0.352 constants, validates safe integer arithmetic, and proves
   the 326545/326546 and 272000/272001 budget edges. The fully admitted path remains $4.928.
-- **Current validation:** focused cross-boundary battery **394/394** passed; the count-adapter suite
-  is now **21** tests and the cost suite **10**; `npx --no-install tsc --noEmit` is clean. No provider,
-  credential, live, render, DB, deploy, network or push occurred.
-- **REMAINING boundaries (not yet implemented):** runner per-route + request-digest count cache and
-  count-probe reservation wired into projected-max/dynamic accounting; adapter byte-over-ceiling
-  acceptance with matching attested count; **receipt v7 cutover + durable F3 census-identity
+- **Boundary 3 — runner-owned cache, integer spend ledger, and generation proof:** the runner now
+  owns an in-flight-Promise cache keyed by repair ordinal + canonical request projection digest;
+  a duplicate consultation cannot dispatch or debit twice, while the same wire at a different
+  ordinal remains a distinct authorized route. Count-source invocation with absent/hostile
+  transport evidence is conservatively debited at `Q(U)`; only runner-owned `not_wired` and
+  reservation rejection are proven zero-dispatch. Every initial/repair route now receives one
+  exact, total admission record binding the route/ordinal/generation attempt, canonical wire and
+  byte-accounting digests, count result, probe disposition/debit, completed-generation debit,
+  cumulative total, continuation reservation, and admitted/rejected reason. One validator
+  recomputes every identity and integer-cost equation in both runner and canonical generation
+  adapter. The adapter requires this proof before credential access, admits an over-byte repair
+  only with a matching single-dispatch/zero-retry exact count <=64K, and requires returned usage
+  to equal that exact count. Generation debit is calculated directly in integer micro-USD (no
+  float USD round-trip). The compiler's repair-admission event is consumed exactly once by the
+  immediately following route; missing/duplicate/stale/prompt-mismatched proof fails pre-provider.
+  A cache hit remains deduplication evidence only and is explicitly forbidden from independently
+  authorizing generation, so a forged zero-debit hit cannot detach a count from its original cost.
+  The real Wizard lifecycle counter remains deliberately unwired until receipt v7 is atomic.
+- **Current validation:** Boundary-3 focused cross-boundary battery **193/193** across seven suites;
+  this includes an end-to-end fake-provider run whose >64K repair is opened by exactly one bound
+  50K count, in-flight/serial cache deduplication, ordinal separation, conservative unknown-
+  dispatch debit, budget-edge rejection, hostile proof mutations, exact-count/usage mismatch,
+  and pre-credential rejection. `npx --no-install tsc --noEmit` and `git diff --check` are clean.
+  No provider, credential, live, render, DB, deploy, network or push occurred.
+- **REMAINING boundaries (not yet implemented):** **receipt v7 cutover + durable F3 census-identity
   commitment across first-publication/replay/recovery** (touches the content-bound seals — highest
   risk); the 8-page/86-diagnostic harness and the ~15 hostile regressions. **NOT the complete F1
   milestone; must not be re-gated as F1 PASS.**

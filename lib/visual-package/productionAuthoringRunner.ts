@@ -19,7 +19,10 @@ import {
   type PreRenderBlueprintAuthoringResult,
   type PreRenderBlueprintRepairDiagnostic,
 } from './preRenderBlueprintAuthoring';
-import { PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA } from './preRenderBlueprintDraftSchema';
+import {
+  PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+  PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
+} from './preRenderBlueprintDraftSchema';
 import {
   writeImmutableLocalArtifact,
   type ImmutableWriteHooks,
@@ -69,8 +72,31 @@ import {
   type BlueprintAuthoringUsage,
 } from './blueprintAuthoringPolicy';
 import {
+  blueprintAuthoringCountRequestProjection,
+  blueprintAuthoringCountResultConsumptionReason,
   decideBlueprintAuthoringInputTokenAdmission,
+  type BlueprintAuthoringExactInputTokenCountResult,
+  type BlueprintAuthoringInputTokenAdmissionDecision,
+  type BlueprintAuthoringInputTokenCountRequest,
+  type BlueprintAuthoringInputTokenCounter,
 } from './blueprintAuthoringInputTokenAdmission';
+import {
+  BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD,
+  blueprintAuthoringContinuationReservationMicroUsd,
+  blueprintAuthoringGenerationMicroUsd,
+  blueprintAuthoringProbeDebitMicroUsd,
+  blueprintAuthoringProbeReservationMicroUsd,
+} from './blueprintAuthoringCountAwareCost';
+import {
+  BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
+  blueprintAuthoringAdmissionDecisionConsumptionReason,
+  blueprintAuthoringCountCacheKey,
+  blueprintAuthoringCountResultTransportWasDispatched,
+  blueprintAuthoringTokenRelevantRequestDigest,
+  type BlueprintAuthoringAdmissionDecisionRecord,
+  type BlueprintAuthoringAdmissionFailureReason,
+  type BlueprintAuthoringProbeCostEvidence,
+} from './blueprintAuthoringAdmissionLedger';
 import {
   buildBlueprintAuthoringSanitizedFailureCapture,
   blueprintAuthoringSanitizedFailureCaptureBytes,
@@ -222,6 +248,8 @@ export interface ProductionAuthoringProvider {
     systemPrompt: string;
     userPrompt: string;
     options: PreRenderBlueprintAuthoringCallOptions;
+    /** Runner-owned, count-aware proof for this exact generation wire. */
+    inputAdmission: BlueprintAuthoringAdmissionDecisionRecord;
   }): Promise<ProductionAuthoringProviderResponse>;
 }
 
@@ -897,10 +925,342 @@ function deterministicFailedRunResult(args: {
   );
 }
 
+interface RunnerCountProbeEvent {
+  requestKey: string;
+  probe: BlueprintAuthoringProbeCostEvidence;
+}
+
+function boundedCountUnavailableResult(args: {
+  request: BlueprintAuthoringInputTokenCountRequest;
+  reason:
+    | 'not_wired'
+    | 'count_transport_failed'
+    | 'count_evidence_invalid'
+    | 'count_cost_reservation_exceeded';
+}): BlueprintAuthoringExactInputTokenCountResult {
+  return {
+    routeKind: 'repair',
+    repairOrdinal: args.request.repairOrdinal,
+    countRequestDigest: canonicalJsonDigest(
+      blueprintAuthoringCountRequestProjection(args.request),
+    ),
+    outcome: 'unavailable',
+    inputTokens: null,
+    unavailableReason: args.reason,
+    attestation: null,
+  };
+}
+
+interface RunnerCountCacheEntry {
+  result: BlueprintAuthoringExactInputTokenCountResult;
+  firstProbe: BlueprintAuthoringProbeCostEvidence;
+}
+
+export interface BlueprintAuthoringRunnerCountAuthority {
+  counter: BlueprintAuthoringInputTokenCounter;
+  consumeProbeEvent(
+    request: BlueprintAuthoringInputTokenCountRequest,
+  ): RunnerCountProbeEvent | null;
+  cumulativeProbeDebitMicroUsd(): number;
+}
+
+/**
+ * Run-scoped exact-count authority. The cache stores the in-flight Promise before awaiting it,
+ * so concurrent/serial duplicate consultations of one route+ordinal+wire can never dispatch or
+ * debit twice. Any invoked source with absent/hostile transport evidence is charged at Q(U),
+ * never zero; only runner-owned `not_wired`/reservation rejection are proven pre-dispatch.
+ */
+export function createBlueprintAuthoringRunnerCountAuthority(args: {
+  source?: BlueprintAuthoringInputTokenCounter;
+  generationAccountedMicroUsd: () => number;
+}): BlueprintAuthoringRunnerCountAuthority {
+  const cache = new Map<string, Promise<RunnerCountCacheEntry>>();
+  const pendingEvents = new Map<string, RunnerCountProbeEvent[]>();
+  let cumulativeProbeDebitMicroUsd = 0;
+
+  const enqueue = (
+    requestKey: string,
+    probe: BlueprintAuthoringProbeCostEvidence,
+  ): void => {
+    const queue = pendingEvents.get(requestKey) ?? [];
+    queue.push({ requestKey, probe });
+    pendingEvents.set(requestKey, queue);
+  };
+
+  const counter: BlueprintAuthoringInputTokenCounter = async (request) => {
+    const requestKey = blueprintAuthoringCountCacheKey(request);
+    const cached = cache.get(requestKey);
+    if (cached) {
+      const entry = await cached;
+      enqueue(requestKey, {
+        status: 'cache_hit',
+        reservationBeforeDispatchMicroUsd: null,
+        debitMicroUsd: 0,
+        cumulativeDebitMicroUsd: cumulativeProbeDebitMicroUsd,
+        transportDisposition: 'not_dispatched',
+      });
+      return structuredClone(entry.result);
+    }
+
+    const accounting = blueprintAuthoringInputAccounting({
+      systemPrompt: request.systemPrompt,
+      userPrompt: request.userPrompt,
+      schema: request.schema,
+    });
+    const upperBound = accounting.estimatedBytes;
+    const generationAccounted = args.generationAccountedMicroUsd();
+    if (
+      !Number.isSafeInteger(generationAccounted) ||
+      generationAccounted < 0 ||
+      generationAccounted >
+        Number.MAX_SAFE_INTEGER - cumulativeProbeDebitMicroUsd
+    ) {
+      throw new Error('blueprint authoring count ledger state is invalid');
+    }
+    const accountedBeforeProbe =
+      generationAccounted + cumulativeProbeDebitMicroUsd;
+    const laterProbeRoutes =
+      BLUEPRINT_AUTHORING_MAX_REPAIRS - request.repairOrdinal;
+    // repair 1 authorizes generation attempt 2: two generations remain; repair 2: one.
+    const canonicalRemainingGenerationCalls =
+      BLUEPRINT_AUTHORING_MAX_CALLS - request.repairOrdinal;
+    if (laterProbeRoutes < 0) {
+      throw new Error('blueprint authoring count route budget is invalid');
+    }
+    const reservationBeforeDispatchMicroUsd =
+      blueprintAuthoringProbeReservationMicroUsd({
+        accountedMicroUsd: accountedBeforeProbe,
+        provenUpperBoundTokens: upperBound,
+        remainingGenerationCalls: canonicalRemainingGenerationCalls,
+        laterProbeRoutes,
+      });
+
+    const entryPromise = (async (): Promise<RunnerCountCacheEntry> => {
+      let result: BlueprintAuthoringExactInputTokenCountResult;
+      let status: BlueprintAuthoringProbeCostEvidence['status'];
+      let debitMicroUsd = 0;
+      let transportDisposition: BlueprintAuthoringProbeCostEvidence['transportDisposition'] =
+        'not_dispatched';
+      let recordedReservation: number | null = null;
+
+      if (!args.source) {
+        status = 'not_wired';
+        result = boundedCountUnavailableResult({ request, reason: 'not_wired' });
+      } else if (
+        reservationBeforeDispatchMicroUsd >
+        BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD
+      ) {
+        status = 'reservation_rejected';
+        recordedReservation = reservationBeforeDispatchMicroUsd;
+        result = boundedCountUnavailableResult({
+          request,
+          reason: 'count_cost_reservation_exceeded',
+        });
+      } else {
+        status = 'cache_miss';
+        recordedReservation = reservationBeforeDispatchMicroUsd;
+        let raw: unknown;
+        try {
+          raw = await args.source(request);
+        } catch {
+          raw = boundedCountUnavailableResult({
+            request,
+            reason: 'count_transport_failed',
+          });
+        }
+        const consumptionReason = blueprintAuthoringCountResultConsumptionReason(
+          raw,
+          request,
+          upperBound,
+        );
+        result =
+          consumptionReason === null || consumptionReason !== 'count_binding_mismatch'
+            ? structuredClone(raw as BlueprintAuthoringExactInputTokenCountResult)
+            : boundedCountUnavailableResult({
+                request,
+                reason: 'count_evidence_invalid',
+              });
+        const counted =
+          consumptionReason === null && result.outcome === 'counted';
+        debitMicroUsd = blueprintAuthoringProbeDebitMicroUsd({
+          outcome: counted ? 'counted' : 'malformed_after_dispatch',
+          ...(counted ? { exactInputTokens: result.inputTokens as number } : {}),
+          provenUpperBoundTokens: upperBound,
+        });
+        transportDisposition = blueprintAuthoringCountResultTransportWasDispatched(raw)
+          ? 'dispatched'
+          : 'assumed_dispatched';
+      }
+
+      if (
+        cumulativeProbeDebitMicroUsd >
+        Number.MAX_SAFE_INTEGER - debitMicroUsd
+      ) {
+        throw new Error('blueprint authoring probe debit overflow');
+      }
+      cumulativeProbeDebitMicroUsd += debitMicroUsd;
+      return {
+        result,
+        firstProbe: {
+          status,
+          reservationBeforeDispatchMicroUsd: recordedReservation,
+          debitMicroUsd,
+          cumulativeDebitMicroUsd: cumulativeProbeDebitMicroUsd,
+          transportDisposition,
+        },
+      };
+    })();
+    cache.set(requestKey, entryPromise);
+    const entry = await entryPromise;
+    enqueue(requestKey, entry.firstProbe);
+    return structuredClone(entry.result);
+  };
+
+  return {
+    counter,
+    consumeProbeEvent(request) {
+      const requestKey = blueprintAuthoringCountCacheKey(request);
+      const queue = pendingEvents.get(requestKey);
+      const event = queue?.shift() ?? null;
+      if (queue?.length === 0) pendingEvents.delete(requestKey);
+      return event;
+    },
+    cumulativeProbeDebitMicroUsd: () => cumulativeProbeDebitMicroUsd,
+  };
+}
+
+function buildRunnerAdmissionDecision(args: {
+  kind: 'initial' | 'repair';
+  ordinal: 0 | 1 | 2;
+  systemPrompt: string;
+  userPrompt: string;
+  options: PreRenderBlueprintAuthoringCallOptions;
+  inputAccounting: BlueprintAuthoringInputAccounting;
+  decision: BlueprintAuthoringInputTokenAdmissionDecision;
+  probe: BlueprintAuthoringProbeCostEvidence;
+  generationAccountedMicroUsdBeforeRoute: number;
+}): BlueprintAuthoringAdmissionDecisionRecord {
+  if (
+    args.decision.basis === 'invalid_accounting' ||
+    args.decision.conservativeUpperBoundTokens === null ||
+    args.ordinal !== (args.kind === 'initial' ? 0 : args.ordinal) ||
+    (args.kind === 'repair' && args.ordinal === 0)
+  ) {
+    throw new Error('blueprint authoring admission decision cannot be recorded');
+  }
+  const generationAttempt = (args.ordinal + 1) as 1 | 2 | 3;
+  const totalAccountedMicroUsdBeforeGeneration =
+    args.generationAccountedMicroUsdBeforeRoute +
+    args.probe.cumulativeDebitMicroUsd;
+  if (
+    !Number.isSafeInteger(totalAccountedMicroUsdBeforeGeneration) ||
+    totalAccountedMicroUsdBeforeGeneration < 0
+  ) {
+    throw new Error('blueprint authoring admission total cost is invalid');
+  }
+  const remainingGenerationCalls =
+    BLUEPRINT_AUTHORING_MAX_CALLS - args.ordinal;
+  const laterProbeRoutes =
+    BLUEPRINT_AUTHORING_MAX_REPAIRS - args.ordinal;
+  let continuationReservationMicroUsd: number | null = null;
+  let failureReason: BlueprintAuthoringAdmissionFailureReason | null = null;
+  if (!args.decision.admitted) {
+    failureReason =
+      args.decision.countResult?.unavailableReason ===
+      'count_cost_reservation_exceeded'
+        ? 'cost_ceiling_exceeded'
+        : args.decision.basis === 'exact_count_unavailable'
+          ? 'exact_count_unavailable'
+          : 'input_token_ceiling_exceeded';
+  } else {
+    continuationReservationMicroUsd =
+      blueprintAuthoringContinuationReservationMicroUsd({
+        accountedMicroUsd: totalAccountedMicroUsdBeforeGeneration,
+        remainingGenerationCalls,
+        laterProbeRoutes,
+      });
+    if (
+      continuationReservationMicroUsd >
+      BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD
+    ) {
+      failureReason = 'cost_ceiling_exceeded';
+    }
+  }
+  const admitted = args.decision.admitted && failureReason === null;
+  const base = {
+    version: BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
+    routeKind: args.kind,
+    ordinal: args.ordinal,
+    generationAttempt,
+    tokenRelevantRequestDigest:
+      blueprintAuthoringTokenRelevantRequestDigest({
+        model: args.options.model,
+        systemPrompt: args.systemPrompt,
+        userPrompt: args.userPrompt,
+        reasoningEffort: args.options.reasoningEffort,
+        schemaName: args.options.jsonSchema.name,
+        schema: args.options.jsonSchema.schema,
+      }),
+    inputAccounting: args.inputAccounting,
+    inputAccountingDigest: canonicalJsonDigest(args.inputAccounting),
+    basis: args.decision.basis,
+    ceilingTokens: args.decision.ceilingTokens,
+    conservativeUpperBoundTokens:
+      args.decision.conservativeUpperBoundTokens,
+    exactInputTokens: args.decision.exactInputTokens,
+    countResult: args.decision.countResult
+      ? structuredClone(args.decision.countResult)
+      : null,
+    probe: structuredClone(args.probe),
+    generationAccountedMicroUsdBeforeRoute:
+      args.generationAccountedMicroUsdBeforeRoute,
+    totalAccountedMicroUsdBeforeGeneration,
+  } satisfies Omit<
+    BlueprintAuthoringAdmissionDecisionRecord,
+    'admitted' | 'continuationReservationMicroUsd' | 'failureReason'
+  >;
+  const record: BlueprintAuthoringAdmissionDecisionRecord = admitted
+    ? {
+        ...base,
+        admitted: true,
+        continuationReservationMicroUsd:
+          continuationReservationMicroUsd as number,
+        failureReason: null,
+      }
+    : {
+        ...base,
+        admitted: false,
+        continuationReservationMicroUsd,
+        failureReason: failureReason as BlueprintAuthoringAdmissionFailureReason,
+      };
+  const priorProbeCumulativeDebitMicroUsd =
+    record.probe.cumulativeDebitMicroUsd - record.probe.debitMicroUsd;
+  const reason = blueprintAuthoringAdmissionDecisionConsumptionReason(record, {
+    attempt: generationAttempt,
+    kind: args.kind,
+    systemPrompt: args.systemPrompt,
+    userPrompt: args.userPrompt,
+    model: args.options.model,
+    reasoningEffort: args.options.reasoningEffort,
+    schemaName: args.options.jsonSchema.name,
+    schema: args.options.jsonSchema.schema,
+    generationAccountedMicroUsdBeforeRoute:
+      args.generationAccountedMicroUsdBeforeRoute,
+    priorProbeCumulativeDebitMicroUsd,
+    remainingGenerationCalls,
+    laterProbeRoutes,
+  });
+  if (reason !== null) {
+    throw new Error(`blueprint authoring admission record is invalid: ${reason}`);
+  }
+  return record;
+}
+
 export async function runProductionBlueprintAuthoring(args: {
   request: ProductionAuthoringRunRequest;
   context: ProductionAuthoringContext;
   provider?: ProductionAuthoringProvider;
+  inputTokenCounter?: BlueprintAuthoringInputTokenCounter;
 }): Promise<ProductionAuthoringRunResult> {
   let invalidRequest: string[];
   try {
@@ -1030,8 +1390,18 @@ export async function runProductionBlueprintAuthoring(args: {
   }
 
   const attempts: ProductionAuthoringAttemptReceipt[] = [];
+  const admissionDecisions: BlueprintAuthoringAdmissionDecisionRecord[] = [];
+  const pendingAdmissionByAttempt = new Map<
+    2 | 3,
+    BlueprintAuthoringAdmissionDecisionRecord
+  >();
   let callBudgetExhausted = false;
   let cumulativeConservativeCostUsd = 0;
+  let generationAccountedMicroUsd = 0;
+  const countAuthority = createBlueprintAuthoringRunnerCountAuthority({
+    source: args.inputTokenCounter,
+    generationAccountedMicroUsd: () => generationAccountedMicroUsd,
+  });
   try {
     const authoringResult = await compilePreRenderBookVisualBlueprint(
       args.context.validationContext,
@@ -1062,6 +1432,73 @@ export async function runProductionBlueprintAuthoring(args: {
           const inputAdmission = decideBlueprintAuthoringInputTokenAdmission({
             accounting: expectedInputAccounting,
           });
+          let admissionRecord: BlueprintAuthoringAdmissionDecisionRecord;
+          if (attempt === 1) {
+            admissionRecord = buildRunnerAdmissionDecision({
+              kind: 'initial',
+              ordinal: 0,
+              systemPrompt,
+              userPrompt,
+              options,
+              inputAccounting: expectedInputAccounting,
+              decision: inputAdmission,
+              probe: {
+                status: 'not_required',
+                reservationBeforeDispatchMicroUsd: null,
+                debitMicroUsd: 0,
+                cumulativeDebitMicroUsd:
+                  countAuthority.cumulativeProbeDebitMicroUsd(),
+                transportDisposition: 'not_dispatched',
+              },
+              generationAccountedMicroUsdBeforeRoute:
+                generationAccountedMicroUsd,
+            });
+            admissionDecisions.push(admissionRecord);
+          } else {
+            const repairAttempt = attempt as 2 | 3;
+            const pending = pendingAdmissionByAttempt.get(repairAttempt);
+            pendingAdmissionByAttempt.delete(repairAttempt);
+            if (!pending) {
+              throw new ProductionAuthoringProviderBoundaryError(
+                'provider_evidence_invalid',
+                {},
+                'boundary_reason_invalid',
+              );
+            }
+            admissionRecord = pending;
+          }
+          const admissionReason =
+            blueprintAuthoringAdmissionDecisionConsumptionReason(
+              admissionRecord,
+              {
+                attempt: attempt as 1 | 2 | 3,
+                kind,
+                systemPrompt,
+                userPrompt,
+                model: options.model,
+                reasoningEffort: options.reasoningEffort,
+                schemaName: options.jsonSchema.name,
+                schema: options.jsonSchema.schema,
+                generationAccountedMicroUsdBeforeRoute:
+                  generationAccountedMicroUsd,
+                priorProbeCumulativeDebitMicroUsd:
+                  admissionRecord.probe.cumulativeDebitMicroUsd -
+                  admissionRecord.probe.debitMicroUsd,
+                remainingGenerationCalls:
+                  BLUEPRINT_AUTHORING_MAX_CALLS -
+                  admissionRecord.ordinal,
+                laterProbeRoutes:
+                  BLUEPRINT_AUTHORING_MAX_REPAIRS -
+                  admissionRecord.ordinal,
+              },
+            );
+          if (admissionReason !== null) {
+            throw new ProductionAuthoringProviderBoundaryError(
+              'provider_evidence_invalid',
+              {},
+              'boundary_reason_invalid',
+            );
+          }
           const base = {
             attempt,
             kind,
@@ -1092,14 +1529,16 @@ export async function runProductionBlueprintAuthoring(args: {
           } satisfies ProductionAuthoringAttemptReceipt;
           try {
             if (
-              !inputAdmission.admitted ||
+              !admissionRecord.admitted ||
               !blueprintAuthoringSpendIsWithinCeiling(
                 expectedReservedExposureBeforeCallUsd,
               )
             ) {
               const failureCode: ProductionAuthoringAttemptFailureCode =
-                !inputAdmission.admitted
-                  ? 'input_token_ceiling_exceeded'
+                !admissionRecord.admitted
+                  ? admissionRecord.failureReason === 'cost_ceiling_exceeded'
+                    ? 'cost_ceiling_exceeded'
+                    : 'input_token_ceiling_exceeded'
                   : 'cost_ceiling_exceeded';
               attempts.push({
                 ...base,
@@ -1128,6 +1567,7 @@ export async function runProductionBlueprintAuthoring(args: {
               systemPrompt,
               userPrompt,
               options,
+              inputAdmission: structuredClone(admissionRecord),
             });
             const providerMatches =
               response.receipt.provider === 'openai';
@@ -1264,7 +1704,9 @@ export async function runProductionBlueprintAuthoring(args: {
               !received.usageEvidenceComplete ||
               !usage ||
               usage.inputTokens > BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS ||
-              usage.outputTokens > BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS
+              usage.outputTokens > BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS ||
+              (admissionRecord.exactInputTokens !== null &&
+                usage.inputTokens !== admissionRecord.exactInputTokens)
             ) {
               recordBoundaryFailure('usage_invalid', 'usage_invalid');
             }
@@ -1304,6 +1746,34 @@ export async function runProductionBlueprintAuthoring(args: {
             }
             cumulativeConservativeCostUsd =
               acceptedCumulativeConservativeCostUsd;
+            const acceptedGenerationMicroUsd =
+              blueprintAuthoringGenerationMicroUsd({
+                inputTokens: usage!.inputTokens,
+                outputTokens: usage!.outputTokens,
+              });
+            if (
+              generationAccountedMicroUsd >
+              Number.MAX_SAFE_INTEGER - acceptedGenerationMicroUsd
+            ) {
+              recordBoundaryFailure(
+                'cost_ceiling_exceeded',
+                'cost_evidence_mismatch',
+              );
+            }
+            generationAccountedMicroUsd += acceptedGenerationMicroUsd;
+            const countAwareAccountedMicroUsd =
+              generationAccountedMicroUsd +
+              countAuthority.cumulativeProbeDebitMicroUsd();
+            if (
+              !Number.isSafeInteger(countAwareAccountedMicroUsd) ||
+              countAwareAccountedMicroUsd >
+                BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD
+            ) {
+              recordBoundaryFailure(
+                'cost_ceiling_exceeded',
+                'cost_ceiling_exceeded',
+              );
+            }
             attempts.push(received);
             return output;
           } catch (error) {
@@ -1473,6 +1943,59 @@ export async function runProductionBlueprintAuthoring(args: {
             }
             throw error;
           }
+        },
+        inputTokenCounter: countAuthority.counter,
+        onInputAdmissionDecision: (event) => {
+          const ordinal = event.request.repairOrdinal;
+          const generationAttempt = (ordinal + 1) as 2 | 3;
+          if (pendingAdmissionByAttempt.has(generationAttempt)) {
+            throw new Error(
+              'duplicate Blueprint repair admission decision',
+            );
+          }
+          const probeEvent = countAuthority.consumeProbeEvent(event.request);
+          const probe = probeEvent?.probe ??
+            (event.inputAccounting.estimatedBytes <=
+            BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS
+              ? {
+                  status: 'not_required' as const,
+                  reservationBeforeDispatchMicroUsd: null,
+                  debitMicroUsd: 0,
+                  cumulativeDebitMicroUsd:
+                    countAuthority.cumulativeProbeDebitMicroUsd(),
+                  transportDisposition: 'not_dispatched' as const,
+                }
+              : null);
+          if (!probe) {
+            throw new Error(
+              'Blueprint repair admission is missing count-probe evidence',
+            );
+          }
+          const record = buildRunnerAdmissionDecision({
+            kind: 'repair',
+            ordinal,
+            systemPrompt: event.request.systemPrompt,
+            userPrompt: event.request.userPrompt,
+            options: {
+              model: event.request.model as typeof config.model,
+              reasoningEffort:
+                event.request.reasoningEffort as typeof config.reasoningEffort,
+              maxOutputTokens: config.maxOutputTokens,
+              jsonSchema: {
+                name: event.request.schemaName as typeof PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
+                schema: event.request.schema as typeof PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+                strict: true,
+              },
+              noFallback: true,
+            },
+            inputAccounting: event.inputAccounting,
+            decision: event.decision,
+            probe,
+            generationAccountedMicroUsdBeforeRoute:
+              generationAccountedMicroUsd,
+          });
+          admissionDecisions.push(record);
+          pendingAdmissionByAttempt.set(generationAttempt, record);
         },
       },
     );

@@ -55,9 +55,9 @@ describe('Vitest workload classifier', () => {
     );
     const partition = classifyVitestWorkloads(inventory, policy);
 
-    expect(partition.inventory).toHaveLength(345);
+    expect(partition.inventory).toHaveLength(350);
     expect(partition.resourceIntensive).toHaveLength(20);
-    expect(partition.ordinary).toHaveLength(325);
+    expect(partition.ordinary).toHaveLength(330);
     expect(new Set(partition.inventory).size).toBe(
       partition.inventory.length,
     );
@@ -92,6 +92,9 @@ describe('Vitest workload classifier', () => {
     );
     expect(partition.ordinary).toContain(
       'lib/visual-package/__tests__/openai-responses-blueprint-authoring-adapter.spec.ts',
+    );
+    expect(partition.ordinary).toContain(
+      'lib/visual-package/__tests__/blueprint-authoring-runner-count-authority.spec.ts',
     );
     expect(partition.ordinary).toContain(
       'lib/visual-package/__tests__/qa-wizard-blueprint-authoring-lifecycle.spec.ts',

@@ -5,6 +5,7 @@ import {
   BLUEPRINT_AUTHORING_MAX_GENERATION_MICRO_USD,
   BLUEPRINT_AUTHORING_MAX_SUCCESSFUL_PROBE_MICRO_USD,
   blueprintAuthoringFullyAdmittedWorstCaseMicroUsd,
+  blueprintAuthoringGenerationMicroUsd,
   blueprintAuthoringInputMicroUsd,
   blueprintAuthoringProbeDebitMicroUsd,
   blueprintAuthoringProbeReservationIsWithinCeiling,
@@ -55,6 +56,38 @@ describe('constants agree with the existing generation/probe cost helpers', () =
     expect(BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD).toBe(
       BLUEPRINT_AUTHORING_HARD_COST_CEILING_USD * 1_000_000,
     );
+  });
+
+  it('derives generation cost directly in integer micro-USD without a float round-trip', () => {
+    const cells = [
+      [0, 0],
+      [1, 1],
+      [1_000, 2_000],
+      [64_000, 48_000],
+      [63_999, 47_999],
+    ] as const;
+    for (const [inputTokens, outputTokens] of cells) {
+      expect(
+        blueprintAuthoringGenerationMicroUsd({ inputTokens, outputTokens }),
+      ).toBe(
+        Math.max(
+          0,
+          Math.round(
+            conservativeBlueprintAuthoringCostUsd({ inputTokens, outputTokens }) *
+              1_000_000,
+          ),
+        ),
+      );
+    }
+    expect(() =>
+      blueprintAuthoringGenerationMicroUsd({ inputTokens: -1, outputTokens: 0 }),
+    ).toThrow();
+    expect(() =>
+      blueprintAuthoringGenerationMicroUsd({
+        inputTokens: Number.MAX_SAFE_INTEGER,
+        outputTokens: 1,
+      }),
+    ).toThrow();
   });
 });
 

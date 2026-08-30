@@ -34,6 +34,23 @@ import {
   projectedMaximumBlueprintAuthoringCostUsd,
 } from '@/lib/visual-package/blueprintAuthoringPolicy';
 import {
+  BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
+  blueprintAuthoringTokenRelevantRequestDigest,
+  type BlueprintAuthoringAdmissionDecisionRecord,
+} from '@/lib/visual-package/blueprintAuthoringAdmissionLedger';
+import {
+  blueprintAuthoringContinuationReservationMicroUsd,
+  blueprintAuthoringGenerationMicroUsd,
+  blueprintAuthoringInputMicroUsd,
+  blueprintAuthoringProbeReservationMicroUsd,
+} from '@/lib/visual-package/blueprintAuthoringCountAwareCost';
+import {
+  BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+  blueprintAuthoringCountRequestProjection,
+  type BlueprintAuthoringInputTokenCountRequest,
+} from '@/lib/visual-package/blueprintAuthoringInputTokenAdmission';
+import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
+import {
   BlueprintAuthoringAdapterBoundaryError,
   buildOpenAIResponsesBlueprintAuthoringBody,
   createOpenAIResponsesBlueprintAuthoringAdapter,
@@ -102,14 +119,150 @@ function callArgs(
   attempt = 1,
   callOptions = options(),
   userPrompt = 'authoritative user prompt',
+  generationAccountedMicroUsdBeforeRoute =
+    (attempt - 1) *
+    blueprintAuthoringGenerationMicroUsd({
+      inputTokens: 1_000,
+      outputTokens: 2_000,
+    }),
 ) {
+  const systemPrompt = 'authoritative system prompt';
+  const inputAccounting = blueprintAuthoringInputAccounting({
+    systemPrompt,
+    userPrompt,
+    schema: callOptions.jsonSchema.schema,
+  });
+  const proofAttempt = Math.min(
+    BLUEPRINT_AUTHORING_MAX_CALLS,
+    Math.max(1, attempt),
+  ) as 1 | 2 | 3;
+  const ordinal = (proofAttempt - 1) as 0 | 1 | 2;
+  const continuationReservationMicroUsd =
+    blueprintAuthoringContinuationReservationMicroUsd({
+      accountedMicroUsd: generationAccountedMicroUsdBeforeRoute,
+      remainingGenerationCalls: BLUEPRINT_AUTHORING_MAX_CALLS - ordinal,
+      laterProbeRoutes: BLUEPRINT_AUTHORING_MAX_REPAIRS - ordinal,
+    });
+  const inputAdmission: BlueprintAuthoringAdmissionDecisionRecord = {
+    version: BLUEPRINT_AUTHORING_ADMISSION_LEDGER_VERSION,
+    routeKind: proofAttempt === 1 ? 'initial' : 'repair',
+    ordinal,
+    generationAttempt: proofAttempt,
+    tokenRelevantRequestDigest: blueprintAuthoringTokenRelevantRequestDigest({
+      model: callOptions.model,
+      systemPrompt,
+      userPrompt,
+      reasoningEffort: callOptions.reasoningEffort,
+      schemaName: callOptions.jsonSchema.name,
+      schema: callOptions.jsonSchema.schema,
+    }),
+    inputAccounting,
+    inputAccountingDigest: canonicalJsonDigest(inputAccounting),
+    admitted: true,
+    basis: 'conservative_upper_bound',
+    ceilingTokens: BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+    conservativeUpperBoundTokens: inputAccounting.estimatedBytes,
+    exactInputTokens: null,
+    countResult: null,
+    probe: {
+      status: 'not_required',
+      reservationBeforeDispatchMicroUsd: null,
+      debitMicroUsd: 0,
+      cumulativeDebitMicroUsd: 0,
+      transportDisposition: 'not_dispatched',
+    },
+    generationAccountedMicroUsdBeforeRoute,
+    totalAccountedMicroUsdBeforeGeneration:
+      generationAccountedMicroUsdBeforeRoute,
+    continuationReservationMicroUsd,
+    failureReason: null,
+  };
   return {
     attempt,
     kind: attempt === 1 ? ('initial' as const) : ('repair' as const),
-    systemPrompt: 'authoritative system prompt',
+    systemPrompt,
     userPrompt,
     options: callOptions,
+    inputAdmission,
   };
+}
+
+function exactRepairCallArgs(inputTokens = 50_000) {
+  const systemPrompt = 'authoritative system prompt';
+  const empty = blueprintAuthoringInputAccounting({
+    systemPrompt,
+    userPrompt: '',
+    schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+  });
+  const userPrompt = 'x'.repeat(
+    BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS + 10_000 - empty.estimatedBytes,
+  );
+  const generationBefore = blueprintAuthoringGenerationMicroUsd({
+    inputTokens: 1_000,
+    outputTokens: 2_000,
+  });
+  const args = callArgs(2, options(), userPrompt, generationBefore);
+  const accounting = args.inputAdmission.inputAccounting;
+  const countRequest: BlueprintAuthoringInputTokenCountRequest = {
+    routeKind: 'repair',
+    repairOrdinal: 1,
+    systemPrompt,
+    userPrompt,
+    schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+    model: BLUEPRINT_AUTHORING_MODEL,
+    reasoningEffort: BLUEPRINT_AUTHORING_REASONING_EFFORT,
+    schemaName: PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
+  };
+  const debit = blueprintAuthoringInputMicroUsd(inputTokens);
+  const reservation = blueprintAuthoringProbeReservationMicroUsd({
+    accountedMicroUsd: generationBefore,
+    provenUpperBoundTokens: accounting.estimatedBytes,
+    remainingGenerationCalls: 2,
+    laterProbeRoutes: 1,
+  });
+  const total = generationBefore + debit;
+  const continuation = blueprintAuthoringContinuationReservationMicroUsd({
+    accountedMicroUsd: total,
+    remainingGenerationCalls: 2,
+    laterProbeRoutes: 1,
+  });
+  args.inputAdmission = {
+    ...args.inputAdmission,
+    basis: 'exact_provider_count',
+    conservativeUpperBoundTokens: accounting.estimatedBytes,
+    exactInputTokens: inputTokens,
+    countResult: {
+      routeKind: 'repair',
+      repairOrdinal: 1,
+      countRequestDigest: canonicalJsonDigest(
+        blueprintAuthoringCountRequestProjection(countRequest),
+      ),
+      outcome: 'counted',
+      inputTokens,
+      unavailableReason: null,
+      attestation: {
+        provider: 'openai',
+        model: BLUEPRINT_AUTHORING_MODEL,
+        route: 'responses_input_tokens',
+        evidenceVersion: BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+        transportDispatchCount: 1,
+        transportRetryCount: 0,
+        canonicalRouteConfirmed: true,
+        canonicalModelConfirmed: true,
+      },
+    },
+    probe: {
+      status: 'cache_miss',
+      reservationBeforeDispatchMicroUsd: reservation,
+      debitMicroUsd: debit,
+      cumulativeDebitMicroUsd: debit,
+      transportDisposition: 'dispatched',
+    },
+    generationAccountedMicroUsdBeforeRoute: generationBefore,
+    totalAccountedMicroUsdBeforeGeneration: total,
+    continuationReservationMicroUsd: continuation,
+  };
+  return args;
 }
 
 describe('canonical OpenAI Responses Blueprint authoring policy', () => {
@@ -281,7 +434,7 @@ describe('canonical OpenAI Responses Blueprint authoring policy', () => {
     await expect(
       adapter.call(callArgs(2, options(), oversizedRepair)),
     ).rejects.toMatchObject({
-      code: 'input_ceiling_exceeded',
+      code: 'input_admission_invalid',
     });
     expect(readCredential).toHaveBeenCalledTimes(1);
     expect(transport.create).toHaveBeenCalledTimes(1);
@@ -331,7 +484,7 @@ describe('canonical OpenAI Responses Blueprint authoring policy', () => {
     await expect(
       rejected.call(callArgs(1, options(), `${exactPrompt}x`)),
     ).rejects.toMatchObject({
-      code: 'input_ceiling_exceeded',
+      code: 'input_admission_invalid',
       evidence: {
         inputAccounting: {
           estimatedBytes: BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS + 1,
@@ -340,6 +493,173 @@ describe('canonical OpenAI Responses Blueprint authoring policy', () => {
     });
     expect(rejectedCredential).not.toHaveBeenCalled();
     expect(rejectedTransport.create).not.toHaveBeenCalled();
+  });
+
+  it('admits an over-byte repair only with a bound <=64K exact-count proof', async () => {
+    const readCredential = vi.fn(() => 'not-a-real-key');
+    const transport = canonicalTransport((call) =>
+      call === 1
+        ? rawResponse()
+        : rawResponse({
+            id: 'resp-blueprint-exact-repair',
+            usage: {
+              input_tokens: 50_000,
+              input_tokens_details: {
+                cached_tokens: 0,
+                cache_write_tokens: 0,
+              },
+              output_tokens: 100,
+              output_tokens_details: { reasoning_tokens: 10 },
+              total_tokens: 50_100,
+            },
+          }),
+    );
+    const adapter = createOpenAIResponsesBlueprintAuthoringAdapter({
+      readCredential,
+      transport,
+    });
+    await adapter.call(callArgs());
+    const exactRepair = exactRepairCallArgs();
+    expect(exactRepair.inputAdmission.inputAccounting.estimatedBytes).toBe(
+      BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS + 10_000,
+    );
+    await expect(adapter.call(exactRepair)).resolves.toMatchObject({
+      receipt: { usage: { input_tokens: 50_000 } },
+    });
+    expect(readCredential).toHaveBeenCalledTimes(2);
+    expect(transport.create).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['missing field', (value: Record<string, unknown>) => {
+      delete value.inputAccountingDigest;
+    }],
+    ['extra field', (value: Record<string, unknown>) => {
+      value.hostileExtra = true;
+    }],
+    ['wire digest', (value: Record<string, unknown>) => {
+      value.tokenRelevantRequestDigest = '0'.repeat(64);
+    }],
+    ['cost equation', (value: Record<string, unknown>) => {
+      value.totalAccountedMicroUsdBeforeGeneration = 1;
+    }],
+  ])('rejects a %s in admission proof before credential/transport', async (_label, mutate) => {
+    const readCredential = vi.fn(() => 'not-a-real-key');
+    const transport = canonicalTransport();
+    const adapter = createOpenAIResponsesBlueprintAuthoringAdapter({
+      readCredential,
+      transport,
+    });
+    const args = callArgs();
+    mutate(args.inputAdmission as unknown as Record<string, unknown>);
+    await expect(adapter.call(args)).rejects.toMatchObject({
+      code: 'input_admission_invalid',
+    });
+    expect(readCredential).not.toHaveBeenCalled();
+    expect(transport.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects exact-count identity/ceiling contradictions before the repair credential read', async () => {
+    for (const mutate of [
+      (args: ReturnType<typeof exactRepairCallArgs>) => {
+        args.inputAdmission.ordinal = 2;
+      },
+      (args: ReturnType<typeof exactRepairCallArgs>) => {
+        if (args.inputAdmission.countResult) {
+          args.inputAdmission.countResult.countRequestDigest = 'f'.repeat(64);
+        }
+      },
+      (args: ReturnType<typeof exactRepairCallArgs>) => {
+        args.inputAdmission.exactInputTokens = 70_000;
+        if (args.inputAdmission.countResult) {
+          args.inputAdmission.countResult.inputTokens = 70_000;
+        }
+      },
+    ]) {
+      const readCredential = vi.fn(() => 'not-a-real-key');
+      const transport = canonicalTransport();
+      const adapter = createOpenAIResponsesBlueprintAuthoringAdapter({
+        readCredential,
+        transport,
+      });
+      await adapter.call(callArgs());
+      const repair = exactRepairCallArgs();
+      mutate(repair);
+      await expect(adapter.call(repair)).rejects.toMatchObject({
+        code: 'input_admission_invalid',
+      });
+      expect(readCredential).toHaveBeenCalledTimes(1);
+      expect(transport.create).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('never lets a cache-hit/zero-debit claim independently authorize generation', async () => {
+    const readCredential = vi.fn(() => 'not-a-real-key');
+    const transport = canonicalTransport();
+    const adapter = createOpenAIResponsesBlueprintAuthoringAdapter({
+      readCredential,
+      transport,
+    });
+    await adapter.call(callArgs());
+    const repair = exactRepairCallArgs();
+    const generationBefore =
+      repair.inputAdmission.generationAccountedMicroUsdBeforeRoute;
+    repair.inputAdmission.probe = {
+      status: 'cache_hit',
+      reservationBeforeDispatchMicroUsd: null,
+      debitMicroUsd: 0,
+      cumulativeDebitMicroUsd: 0,
+      transportDisposition: 'not_dispatched',
+    };
+    repair.inputAdmission.totalAccountedMicroUsdBeforeGeneration =
+      generationBefore;
+    repair.inputAdmission.continuationReservationMicroUsd =
+      blueprintAuthoringContinuationReservationMicroUsd({
+        accountedMicroUsd: generationBefore,
+        remainingGenerationCalls: 2,
+        laterProbeRoutes: 1,
+      });
+
+    await expect(adapter.call(repair)).rejects.toMatchObject({
+      code: 'input_admission_invalid',
+    });
+    expect(readCredential).toHaveBeenCalledTimes(1);
+    expect(transport.create).toHaveBeenCalledTimes(1);
+    expect(repair.inputAdmission.countResult?.attestation).toMatchObject({
+      transportDispatchCount: 1,
+      transportRetryCount: 0,
+    });
+  });
+
+  it('rejects provider usage that disagrees with an admitted exact count', async () => {
+    const readCredential = vi.fn(() => 'not-a-real-key');
+    const transport = canonicalTransport((call) =>
+      call === 1
+        ? rawResponse()
+        : rawResponse({
+            id: 'resp-blueprint-count-mismatch',
+            usage: {
+              input_tokens: 49_999,
+              input_tokens_details: {
+                cached_tokens: 0,
+                cache_write_tokens: 0,
+              },
+              output_tokens: 100,
+              output_tokens_details: { reasoning_tokens: 10 },
+              total_tokens: 50_099,
+            },
+          }),
+    );
+    const adapter = createOpenAIResponsesBlueprintAuthoringAdapter({
+      readCredential,
+      transport,
+    });
+    await adapter.call(callArgs());
+    await expect(adapter.call(exactRepairCallArgs())).rejects.toMatchObject({
+      code: 'usage_invalid',
+    });
+    expect(readCredential).toHaveBeenCalledTimes(2);
+    expect(transport.create).toHaveBeenCalledTimes(2);
   });
 
   it('uses zero retries, reserves all remaining calls, and closes at three calls', async () => {
@@ -369,8 +689,20 @@ describe('canonical OpenAI Responses Blueprint authoring policy', () => {
     });
     expect(readCredential).not.toHaveBeenCalled();
     const receipts = [];
+    const maximumGenerationMicroUsd =
+      blueprintAuthoringGenerationMicroUsd({
+        inputTokens: BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
+        outputTokens: BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
+      });
     for (let attempt = 1; attempt <= BLUEPRINT_AUTHORING_MAX_CALLS; attempt += 1) {
-      const response = await adapter.call(callArgs(attempt));
+      const response = await adapter.call(
+        callArgs(
+          attempt,
+          options(),
+          'authoritative user prompt',
+          (attempt - 1) * maximumGenerationMicroUsd,
+        ),
+      );
       receipts.push(response.receipt);
     }
     expect(transport.create).toHaveBeenCalledTimes(3);

@@ -52,6 +52,10 @@ export const BLUEPRINT_AUTHORING_COUNT_AWARE_MAX_PROBE_ROUTES =
   BLUEPRINT_AUTHORING_MAX_REPAIRS;
 
 const CACHE_WRITE_INPUT_MICRO_USD_PER_TOKEN_X2_UPLIFT = 11; // 5 (cache-write) * 1.1 uplift * 2
+const CONSERVATIVE_GENERATION_PRICE_TENTHS_MICRO_USD = {
+  input: 55, // $5 / 1M cache-write input * 1.1 regional uplift * 10
+  output: 220, // $20 / 1M output * 1.1 regional uplift * 10
+} as const;
 
 function nonNegativeSafeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
@@ -100,6 +104,37 @@ export function blueprintAuthoringInputMicroUsd(inputTokens: number): number {
     CACHE_WRITE_INPUT_MICRO_USD_PER_TOKEN_X2_UPLIFT,
     inputTokens,
   );
+}
+
+/**
+ * Conservative generation cost in integer micro-USD. This is the exact integer twin of
+ * `conservativeBlueprintAuthoringCostUsd` under the current price authority, but it never
+ * round-trips through a floating-point USD value:
+ *
+ *   ceil((5 * input + 20 * output) * 1.1)
+ *   = ceil((55 * input + 220 * output) / 10) micro-USD.
+ */
+export function blueprintAuthoringGenerationMicroUsd(args: {
+  inputTokens: number;
+  outputTokens: number;
+}): number {
+  if (
+    !nonNegativeSafeInteger(args.inputTokens) ||
+    !nonNegativeSafeInteger(args.outputTokens)
+  ) {
+    throw new Error('blueprint authoring generation token counts are invalid');
+  }
+  const numerator = safeIntegerSum([
+    safeIntegerProduct(
+      CONSERVATIVE_GENERATION_PRICE_TENTHS_MICRO_USD.input,
+      args.inputTokens,
+    ),
+    safeIntegerProduct(
+      CONSERVATIVE_GENERATION_PRICE_TENTHS_MICRO_USD.output,
+      args.outputTokens,
+    ),
+  ]);
+  return Math.ceil(numerator / 10);
 }
 
 export interface BlueprintAuthoringProbeReservation {

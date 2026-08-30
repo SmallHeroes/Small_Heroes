@@ -5,6 +5,7 @@ import {
   BLUEPRINT_AUTHORING_MAX_CALLS,
   BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS,
   BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
+  BLUEPRINT_AUTHORING_MAX_REPAIRS,
   BLUEPRINT_AUTHORING_MODEL,
   BLUEPRINT_AUTHORING_NO_FALLBACK,
   BLUEPRINT_AUTHORING_PROVIDER,
@@ -25,9 +26,15 @@ import {
   type BlueprintAuthoringUsage,
 } from './blueprintAuthoringPolicy';
 import {
-  blueprintAuthoringInputTokensExceedCeiling,
   blueprintAuthoringTokenRelevantRequestProjection,
 } from './blueprintAuthoringInputTokenAdmission';
+import {
+  BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD,
+  blueprintAuthoringGenerationMicroUsd,
+} from './blueprintAuthoringCountAwareCost';
+import {
+  blueprintAuthoringAdmissionDecisionConsumptionReason,
+} from './blueprintAuthoringAdmissionLedger';
 import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
@@ -65,6 +72,7 @@ export type BlueprintAuthoringAdapterBoundaryCode =
   | 'attempt_sequence_invalid'
   | 'call_budget_exhausted'
   | 'policy_mismatch'
+  | 'input_admission_invalid'
   | 'input_ceiling_exceeded'
   | 'spend_reservation_exceeded'
   | 'provider_call_failed'
@@ -96,6 +104,8 @@ function productionFailureCode(
     case 'policy_mismatch':
     case 'provider_identity_invalid':
       return 'provider_policy_mismatch';
+    case 'input_admission_invalid':
+      return 'provider_evidence_invalid';
     case 'input_ceiling_exceeded':
       return 'input_token_ceiling_exceeded';
   }
@@ -120,6 +130,7 @@ function adapterFailureEvidenceReason(
     case 'cost_ceiling_exceeded':
       return 'cost_ceiling_exceeded';
     case 'provider_evidence_invalid':
+    case 'input_admission_invalid':
       return 'boundary_reason_invalid';
     case 'adapter_terminal':
     case 'attempt_sequence_invalid':
@@ -320,6 +331,8 @@ export function createOpenAIResponsesBlueprintAuthoringAdapter(
     deps.readCredential ?? readOpenAIResponsesAuthoringCredential;
   let callsCompleted = 0;
   let conservativeAccountedCostUsd = 0;
+  let generationAccountedMicroUsd = 0;
+  let probeCumulativeDebitMicroUsd = 0;
   let terminal = false;
 
   return {
@@ -374,12 +387,50 @@ export function createOpenAIResponsesBlueprintAuthoringAdapter(
         executionAttestation:
           notRunAuthoringExecutionAttestation(),
       } satisfies ProductionAuthoringProviderBoundaryEvidence;
-      if (blueprintAuthoringInputTokensExceedCeiling(inputAccounting)) {
+      let admissionSnapshot: unknown;
+      try {
+        admissionSnapshot = structuredClone(args.inputAdmission);
+      } catch {
         closeAndThrow(
-          'input_ceiling_exceeded',
+          'input_admission_invalid',
           preDispatchEvidence,
         );
       }
+      const ordinal = (args.kind === 'initial' ? 0 : args.attempt - 1) as
+        | 0
+        | 1
+        | 2;
+      const admissionReason =
+        blueprintAuthoringAdmissionDecisionConsumptionReason(
+          admissionSnapshot,
+          {
+            attempt: args.attempt as 1 | 2 | 3,
+            kind: args.kind,
+            systemPrompt: args.systemPrompt,
+            userPrompt: args.userPrompt,
+            model: args.options.model,
+            reasoningEffort: args.options.reasoningEffort,
+            schemaName: args.options.jsonSchema.name,
+            schema: args.options.jsonSchema.schema,
+            generationAccountedMicroUsdBeforeRoute:
+              generationAccountedMicroUsd,
+            priorProbeCumulativeDebitMicroUsd:
+              probeCumulativeDebitMicroUsd,
+            remainingGenerationCalls:
+              BLUEPRINT_AUTHORING_MAX_CALLS - ordinal,
+            laterProbeRoutes:
+              BLUEPRINT_AUTHORING_MAX_REPAIRS - ordinal,
+            requireAdmitted: true,
+          },
+        );
+      if (admissionReason !== null) {
+        closeAndThrow(
+          'input_admission_invalid',
+          preDispatchEvidence,
+        );
+      }
+      const acceptedAdmission =
+        admissionSnapshot as typeof args.inputAdmission;
       if (
         !blueprintAuthoringSpendIsWithinCeiling(
           reservedExposureBeforeCallUsd,
@@ -529,7 +580,9 @@ export function createOpenAIResponsesBlueprintAuthoringAdapter(
       if (
         !usage ||
         usage.inputTokens > BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS ||
-        usage.outputTokens > BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS
+        usage.outputTokens > BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS ||
+        (acceptedAdmission.exactInputTokens !== null &&
+          usage.inputTokens !== acceptedAdmission.exactInputTokens)
       ) {
         closeAndThrow(
           'usage_invalid',
@@ -554,9 +607,42 @@ export function createOpenAIResponsesBlueprintAuthoringAdapter(
         );
       }
 
+      const generationDebitMicroUsd =
+        blueprintAuthoringGenerationMicroUsd({
+          inputTokens: acceptedUsage.inputTokens,
+          outputTokens: acceptedUsage.outputTokens,
+        });
+      if (
+        generationAccountedMicroUsd >
+        Number.MAX_SAFE_INTEGER - generationDebitMicroUsd
+      ) {
+        closeAndThrow(
+          'cost_ceiling_exceeded',
+          responseBoundaryEvidence,
+        );
+      }
+      const nextGenerationAccountedMicroUsd =
+        generationAccountedMicroUsd + generationDebitMicroUsd;
+      const nextTotalAccountedMicroUsd =
+        nextGenerationAccountedMicroUsd +
+        acceptedAdmission.probe.cumulativeDebitMicroUsd;
+      if (
+        !Number.isSafeInteger(nextTotalAccountedMicroUsd) ||
+        nextTotalAccountedMicroUsd >
+          BLUEPRINT_AUTHORING_HARD_CEILING_MICRO_USD
+      ) {
+        closeAndThrow(
+          'cost_ceiling_exceeded',
+          responseBoundaryEvidence,
+        );
+      }
+
       callsCompleted += 1;
       conservativeAccountedCostUsd =
         acceptedConservativeAccountedCostUsd;
+      generationAccountedMicroUsd = nextGenerationAccountedMicroUsd;
+      probeCumulativeDebitMicroUsd =
+        acceptedAdmission.probe.cumulativeDebitMicroUsd;
       return {
         output,
         receipt: {

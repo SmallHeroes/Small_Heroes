@@ -56,6 +56,7 @@ import {
 import {
   admitBlueprintAuthoringInputTokens,
   type BlueprintAuthoringInputTokenAdmissionDecision,
+  type BlueprintAuthoringInputTokenCountRequest,
   type BlueprintAuthoringInputTokenCounter,
 } from './blueprintAuthoringInputTokenAdmission';
 
@@ -105,6 +106,12 @@ export type PreRenderBlueprintAuthoringCaller = (
   userPrompt: string,
   options: PreRenderBlueprintAuthoringCallOptions,
 ) => Promise<unknown>;
+
+export interface PreRenderBlueprintInputAdmissionEvent {
+  request: BlueprintAuthoringInputTokenCountRequest;
+  inputAccounting: BlueprintAuthoringInputAccounting;
+  decision: BlueprintAuthoringInputTokenAdmissionDecision;
+}
 
 export interface PreRenderBlueprintAuthoringResult {
   blueprint: PreRenderBookVisualBlueprint;
@@ -610,6 +617,10 @@ export async function compilePreRenderBookVisualBlueprint(
      * default: admission then falls back to the proven conservative bound.
      */
     inputTokenCounter?: BlueprintAuthoringInputTokenCounter | null;
+    /** Same-stack observation of every evaluated repair admission, including final rejection. */
+    onInputAdmissionDecision?: (
+      event: PreRenderBlueprintInputAdmissionEvent,
+    ) => void;
   },
 ): Promise<PreRenderBlueprintAuthoringResult> {
   const inputErrors = preRenderBlueprintAuthoringInputErrors(context, config);
@@ -732,19 +743,25 @@ export async function compilePreRenderBookVisualBlueprint(
     if (attempt !== 1 && attempt !== 2) {
       throw new Error('Blueprint repair ordinal is outside the canonical repair budget');
     }
+    const countRequest: BlueprintAuthoringInputTokenCountRequest = {
+      routeKind: 'repair',
+      repairOrdinal: attempt,
+      systemPrompt: repairSystemPrompt,
+      userPrompt: repairUserPrompt,
+      schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+      model: config.model,
+      reasoningEffort: config.reasoningEffort,
+      schemaName: PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
+    };
     const repairAdmission = await admitBlueprintAuthoringInputTokens({
       accounting: repairInputAccounting,
       counter: deps.inputTokenCounter,
-      request: {
-        routeKind: 'repair',
-        repairOrdinal: attempt,
-        systemPrompt: repairSystemPrompt,
-        userPrompt: repairUserPrompt,
-        schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
-        model: config.model,
-        reasoningEffort: config.reasoningEffort,
-        schemaName: PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
-      },
+      request: countRequest,
+    });
+    deps.onInputAdmissionDecision?.({
+      request: countRequest,
+      inputAccounting: repairInputAccounting,
+      decision: repairAdmission,
     });
     if (!repairAdmission.admitted) {
       // Fail closed before a second provider call: the honest input-token quantity

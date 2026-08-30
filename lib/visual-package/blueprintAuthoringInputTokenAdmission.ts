@@ -325,7 +325,8 @@ export type BlueprintAuthoringCountUnavailableReason =
   | 'count_transport_failed'
   | 'count_route_unconfirmed'
   | 'count_response_invalid'
-  | 'count_evidence_invalid';
+  | 'count_evidence_invalid'
+  | 'count_cost_reservation_exceeded';
 
 const BLUEPRINT_AUTHORING_COUNT_UNAVAILABLE_REASONS = new Set<string>([
   'not_wired',
@@ -334,6 +335,7 @@ const BLUEPRINT_AUTHORING_COUNT_UNAVAILABLE_REASONS = new Set<string>([
   'count_route_unconfirmed',
   'count_response_invalid',
   'count_evidence_invalid',
+  'count_cost_reservation_exceeded',
 ]);
 
 /**
