@@ -28,6 +28,8 @@ import {
   blueprintAuthoringFailedCensusCorrelationDiagnostics,
   blueprintAuthoringReceiptRequiresSanitizedCapture,
   blueprintAuthoringSanitizedFailureCaptureIsValid,
+  buildBlueprintAuthoringSanitizedFailureCapture,
+  persistBlueprintAuthoringSanitizedFailureCapture,
   ProductionAuthoringProviderBoundaryError,
   type ProductionAuthoringProvider,
   type ProductionAuthoringContext,
@@ -1968,6 +1970,40 @@ describe('production authoring run result totality + capture disposition', () =>
     );
   });
 
+  it('the persister ACCEPTS a capture minted by the real runner same-stack path', async () => {
+    // The legit path: the runner mints the capture from the compiler's own error in the same
+    // stack and registers it in the private authorization set, so the sole persistence entry
+    // point accepts it (write:false -> no disk write, just proving the gate does not reject it).
+    const { context, materialized } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    const provider = {
+      call: vi.fn(async (args: ProductionProviderCallArgs) => {
+        if (args.attempt === 1) {
+          return {
+            output: JSON.stringify({ invalid: true }),
+            receipt: canonicalProviderReceipt(args),
+          };
+        }
+        throw new Error('Bearer repair-secret provider failure');
+      }),
+    };
+    const result = await runProductionBlueprintAuthoring({ request, context, provider });
+    if (!productionAuthoringRunResultIsFailed(result)) {
+      throw new Error('expected a failed run');
+    }
+    const disposition = result.sanitizedFailureCaptureDisposition;
+    expect(disposition.kind).toBe('captured');
+    if (disposition.kind !== 'captured') return;
+    expect(() =>
+      persistBlueprintAuthoringSanitizedFailureCapture({
+        repoRoot: materialized.repoRoot,
+        outputDir: 'outputs/blueprint-authoring-seal-probe',
+        capture: disposition.capture,
+        write: false,
+      }),
+    ).not.toThrow();
+  });
+
   it('the pure correlation checker returns null for a real diagnostic-bearing receipt with no correlatable source', async () => {
     // Produce a genuinely diagnostic-bearing REAL failed receipt via the runner, then hand the
     // pure consistency checker an error that carries NO matching structured diagnostics. The
@@ -2179,6 +2215,65 @@ describe('sanitized census correlation is a pure consistency gate, sealed for id
     expect(preRenderBlueprintRepairDiagnosticErrorText(A)).toBe(
       preRenderBlueprintRepairDiagnosticErrorText(B),
     );
+  });
+
+  it('SEALED PERSISTENCE: an exported checker+builder+persister composition over the A/B collision cannot persist a contradictory capture', () => {
+    const { context, materialized } = buildContext('single_location');
+    const request = requestFor(context, 'live');
+    const A: PreRenderBlueprintRepairDiagnostic = {
+      code: 'schema_invalid',
+      field: 'x',
+      message: 'y (z): q',
+    };
+    const B: PreRenderBlueprintRepairDiagnostic = {
+      code: 'schema_invalid',
+      field: 'x): y (z',
+      message: 'q',
+    };
+    const aText = preRenderBlueprintRepairDiagnosticErrorText(A);
+    // The projections collide: the receipt's single error string was produced from A.
+    expect(preRenderBlueprintRepairDiagnosticErrorText(B)).toBe(aText);
+
+    // 1) The exported PURE checker cannot tell B from A: it accepts A-text paired with the
+    //    structurally-distinct diagnostic B and returns [B].
+    const attempts = [receiptAttempt(1, persistedSummary([aText]))];
+    const diagnostics = correlate({
+      request,
+      attempts,
+      error: new PreRenderBlueprintAuthoringRepairExhaustedError([
+        { attempt: 1, errors: [aText], draft: null, diagnostics: [B] },
+      ]),
+    });
+    expect(diagnostics).toEqual([B]);
+
+    // 2) The exported builder creates a VALIDATOR-VALID, receipt-linked capture containing B.
+    const receipt = buildFailedReceipt(request, attempts);
+    const contradictory = buildBlueprintAuthoringSanitizedFailureCapture({
+      terminalFailureCode: 'draft_validation_repair_exhausted',
+      terminalReceiptDigest: receipt.digest,
+      requestDigest: receipt.requestDigest,
+      contextDigest: request.contextDigest,
+      routes: [
+        {
+          routeKind: 'initial',
+          ordinal: 0,
+          byteAccounting: productionBlueprintInitialInputAccounting(context),
+        },
+      ],
+      diagnostics: diagnostics!,
+    });
+    expect(blueprintAuthoringSanitizedFailureCaptureIsValid(contradictory)).toBe(true);
+
+    // 3) But the SOLE persistence entry point refuses it (not runner-minted) BEFORE any write
+    //    or path resolution -> no content-addressed contradictory artifact can be created.
+    expect(() =>
+      persistBlueprintAuthoringSanitizedFailureCapture({
+        repoRoot: materialized.repoRoot,
+        outputDir: 'outputs/blueprint-authoring-seal-probe',
+        capture: contradictory,
+        write: true,
+      }),
+    ).toThrow(/not minted by the sealed runner authority/);
   });
 
   it('accepts a genuinely consistent correlated source (does not over-reject)', () => {

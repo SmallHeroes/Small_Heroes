@@ -1657,6 +1657,22 @@ function failedReceiptRequestLinkageIsConsistent(args: {
 }
 
 /**
+ * Runner-private MINT AUTHORIZATION for sanitized failure captures. ONLY the same-stack
+ * private derivation registers the captures it mints here; the sole capture-persistence
+ * entry point (`persistBlueprintAuthoringSanitizedFailureCapture`) refuses any capture not
+ * in this set. This is the STRUCTURAL boundary that stops an exported composition
+ * (`blueprintAuthoringFailedCensusCorrelationDiagnostics` + `buildBlueprintAuthoringSanitizedFailureCapture`
+ * + `persistBlueprintAuthoringSanitizedFailureCapture`) from PERSISTING a contradictory but
+ * validator-valid capture artifact from delimiter-colliding evidence: an externally built
+ * capture object is never registered, so persistence fails closed and no content-addressed
+ * artifact is ever created. The set is module-private (never exported), so no external code
+ * can register a forgery, and identity is by object reference — an equal-looking rebuild is
+ * still unregistered.
+ */
+const runnerMintedFailureCaptures =
+  new WeakSet<BlueprintAuthoringSanitizedFailureCapture>();
+
+/**
  * PURE, NON-AUTHORITY census correlation checker. Returns the ORDERED census diagnostics
  * when the failed receipt's request linkage, attempt TOPOLOGY, and per-attempt category
  * summary ({count,codes}) are internally consistent with the compiler-owned structured
@@ -1893,17 +1909,19 @@ function deriveBlueprintAuthoringSanitizedFailureCaptureDisposition(args: {
         rejectionReasonCode: 'repair_route_input_not_admissible',
       });
     }
-    return {
-      kind: 'captured',
-      capture: buildBlueprintAuthoringSanitizedFailureCapture({
-        terminalFailureCode: args.failureCode,
-        terminalReceiptDigest: args.failureReceipt.digest,
-        requestDigest: args.failureReceipt.requestDigest,
-        contextDigest: args.request.contextDigest,
-        routes,
-        diagnostics: censusDiagnostics,
-      }),
-    };
+    const capture = buildBlueprintAuthoringSanitizedFailureCapture({
+      terminalFailureCode: args.failureCode,
+      terminalReceiptDigest: args.failureReceipt.digest,
+      requestDigest: args.failureReceipt.requestDigest,
+      contextDigest: args.request.contextDigest,
+      routes,
+      diagnostics: censusDiagnostics,
+    });
+    // Register this same-stack minted capture so the sole persistence entry point will
+    // accept it. Only captures produced HERE — from the compiler's own error/diagnostics in
+    // this synchronous stack — are ever registered; an externally-built capture is not.
+    runnerMintedFailureCaptures.add(capture);
+    return { kind: 'captured', capture };
   } catch (error) {
     // A diagnostic-bearing failure whose capture cannot be derived (including a
     // census that overflows the fail-closed hard bound) is torn state, not an
@@ -1925,6 +1943,16 @@ export function persistBlueprintAuthoringSanitizedFailureCapture(args: {
   write?: boolean;
   hooks?: ImmutableWriteHooks;
 }): { capturePath: string; wrote: boolean } {
+  // STRUCTURAL SEAL: only a capture minted by the same-stack private derivation (registered
+  // in the runner-private authorization set) may be persisted. This runs BEFORE any path
+  // resolution or write, so an exported checker+builder+persister composition over
+  // delimiter-colliding evidence can neither write nor obtain a content-addressed path for a
+  // contradictory validator-valid capture — it fails closed here.
+  if (!runnerMintedFailureCaptures.has(args.capture)) {
+    throw new Error(
+      'refusing to persist a sanitized failure capture not minted by the sealed runner authority',
+    );
+  }
   const root = path.resolve(args.repoRoot, args.outputDir);
   repoRelativePath(args.repoRoot, root);
   const absolute = path.join(

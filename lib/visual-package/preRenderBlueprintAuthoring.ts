@@ -551,23 +551,24 @@ export function buildPreRenderBlueprintRepairUserPrompt(args: {
 }
 
 /**
- * The SINGLE canonical projection from one structured repair diagnostic to the EXACT
- * error string the compiler persists for it. Both the compiler's error-string
- * construction (validation `issueText` and the draft-assembly catch below) and every
- * downstream identity-correlation authority (notably the sanitized-failure-capture census
- * derivation) MUST use this one function, so a structured diagnostic and its persisted
- * error string are provably the SAME evidence identity — never merely the same count.
+ * The SINGLE canonical, DETERMINISTIC projection from one structured repair diagnostic to
+ * the exact error string the compiler persists for it. Both the compiler's error-string
+ * construction (validation `issueText` and the draft-assembly catch below) and the census
+ * derivation's per-position consistency check use this one function.
  *
- * It is INJECTIVE with respect to EVERY field the sanitized census identity is keyed on:
- *  - `code` (the label: `draft assembly failed` for `draft_assembly_failed`, else the code),
- *  - the diagnostic `field` component (which fully determines the sanitized field
- *    presence/path/redaction the census records),
- *  - and the expected/actual PRESENCE, carried as safe booleans (never the values, so no
- *    PII is retained or leaked).
- * Two diagnostics that differ only in expected/actual presence — or, for
- * `draft_assembly_failed`, in `field` — therefore project to DISTINCT strings, so distinct
- * census identities can never share one error string (which would let a one-identity error
- * source mint a multi-identity census). The presence suffix adds no diagnostic-category
+ * NOT AN IDENTITY PROOF (do not rely on injectivity). This is a delimiter-joined human
+ * string, so it is AMBIGUOUS and NON-INJECTIVE with respect to the sanitized census
+ * identity: because `field`/`message` are arbitrary and are concatenated with `(`, `)`, and
+ * `: ` separators that can appear inside them, two diagnostics with DIFFERENT sanitized
+ * census identities can project to one byte-identical string. Concretely
+ * `{field:'x', message:'y (z): q'}` and `{field:'x): y (z', message:'q'}` project
+ * identically yet sanitize to different field paths. The census-integrity guarantee is
+ * therefore NOT provided by this projection; it is provided STRUCTURALLY by the sealed,
+ * runner-private, same-stack capture-minting authority in `productionAuthoringRunner`
+ * (`deriveBlueprintAuthoringSanitizedFailureCaptureDisposition`, not exported), whose only
+ * inputs are the compiler's own error/diagnostics, and by the mint-authorized persistence
+ * gate — never by string comparison. The presence suffix carries only expected/actual
+ * PRESENCE as booleans (never the values, so no PII), and adds no diagnostic-category
  * keyword, so the persisted receipt `{count,codes}` category summary is unchanged.
  */
 export function preRenderBlueprintRepairDiagnosticErrorText(

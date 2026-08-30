@@ -1,6 +1,65 @@
 # SmallHeroes — Current Technical State
 
-## R1D — Blueprint capture safety Round 8: STRUCTURAL SEAL of the census-mint authority (F3 identity collision closed by boundary, not pairwise check); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed on top of `28fb229e`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
+## R1D — Blueprint capture safety Round 9: mint-authorized capture PERSISTENCE seal + truthfulness corrections (F3 API-boundary MAJOR + injectivity MINOR closed on top of Round 8); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed on top of `f1c97b16`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
+
+Codex re-gated `f1c97b16` (28fb229e..f1c97b16): the disposition-minting derivation is correctly
+private, and terminal publication/recovery/replay guards are sound — but the SUPPORTED exports
+`blueprintAuthoringFailedCensusCorrelationDiagnostics` + `buildBlueprintAuthoringSanitizedFailureCapture`
++ `persistBlueprintAuthoringSanitizedFailureCapture` remained COMPOSABLE: over the A/B
+delimiter collision, the checker accepts A-text + diagnostic B, the builder makes a
+validator-valid receipt-linked capture containing B, and the persister writes a
+content-addressed artifact. So the Round-8 claim "no exported API can mint a capture" was FALSE
+for the standalone observability artifact (though it still could not be adopted as an
+authoritative terminal). Closed on top of `f1c97b16`.
+
+- **Mint-authorized persistence seal (the fix).** The runner keeps a module-private
+  `WeakSet` of captures minted by the same-stack private derivation. The SOLE
+  capture-persistence entry point, `persistBlueprintAuthoringSanitizedFailureCapture`, now
+  fails closed BEFORE any path resolution or write unless the capture is in that set. An
+  externally-built capture (from any exported composition) is never registered, so no exported
+  composition can create a content-addressed contradictory-capture artifact. The WeakSet is
+  never exported (no forgery) and matches by object reference (an equal-looking rebuild is still
+  unregistered). The private lifecycle publish-and-bind, replay/recovery, content addressing,
+  and privacy are unchanged; the real runner→lifecycle persist path (same-stack minted capture)
+  still works.
+- **Hostile + acceptance regressions.** A new test drives the exact A/B collision through the
+  exported checker+builder+persister and proves persistence fails closed (`not minted by the
+  sealed runner authority`) while the built capture is validator-valid; a paired test proves a
+  real runner same-stack minted capture IS accepted by the persister; the STRUCTURAL-SEAL
+  enforcement (derive absent from module + barrel) and the real replay-valid provider-failure
+  captured integration are retained; deterministic/no-diagnostic failures stay capture-free and
+  the terminal publication/recovery/replay guards stay fail-closed.
+- **Truthfulness corrections (MINOR).** The `preRenderBlueprintRepairDiagnosticErrorText` helper
+  comment no longer claims injectivity/identity-proof: it is now stated as deterministic/canonical
+  but delimiter-AMBIGUOUS and NON-injective (the A/B pair disproves injectivity), with the
+  census-integrity guarantee provided STRUCTURALLY by the sealed same-stack authority + the
+  persistence gate, not by the string. The prior Round-6/Round-7 injectivity claims in these docs
+  are marked SUPERSEDED/FALSIFIED (see the annotations below and in the evidence doc). The Round-8
+  caller wording is corrected: the two private callers do NOT both feed a compiler error — the
+  deterministic-failure caller passes `error: undefined` (empty attempts, diagnostic-less) and
+  cannot mint; ONLY the capture-minting path receives the compiler-owned error/diagnostics in the
+  same synchronous stack.
+- **F1 — paid exact-provider-input-token count: still HOLD (decision-blocked), numerically
+  unchanged.**
+
+Files: `lib/visual-package/productionAuthoringRunner.ts` (mint-authorized persist gate),
+`lib/visual-package/preRenderBlueprintAuthoring.ts` (honest helper comment only). Tests
+(`production-lifecycle-foundation.spec.ts`, **80**): +2 seal tests (hostile composition cannot
+persist; real runner-minted capture is accepted). No schema/receipt-version/artifact/provider/
+live/render/deploy/budget/model/call-count change. `npx --no-install tsc --noEmit` clean;
+`git diff --check` clean; directly-affected lifecycle/capture suites green. Evidence:
+`docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_EVIDENCE.md` (Round 9).
+
+> **SUPERSEDED (Rounds 6–8 injectivity claims):** every statement below that the error-string
+> projection is INJECTIVE, or that "distinct census identities can never share one error
+> string," or that "no exported API can mint a capture," is FALSIFIED by the A/B delimiter
+> collision and SUPERSEDED by this Round-9 section. Census-identity honesty is structural (the
+> sealed private same-stack mint authority + the mint-authorized persistence gate), not a
+> property of the string projection.
+
+---
+
+## R1D — Blueprint capture safety Round 8: STRUCTURAL SEAL of the census-mint authority (F3 identity collision closed by boundary, not pairwise check); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed `f1c97b16` on top of `28fb229e`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
 
 Codex intercepted the Round-8-in-progress `identityByErrorText` map as still insufficient: no
 pure check over an externally-supplied (errors, diagnostics) pair can resolve a
@@ -11,17 +70,19 @@ another pairwise check. Closed on top of `28fb229e`.
 
 - **Structural seal of the mint authority.** The disposition-minting
   `deriveBlueprintAuthoringSanitizedFailureCaptureDisposition` is now runner-PRIVATE (not
-  exported; the barrel re-export is gone with it). Its only callers are
-  `runProductionBlueprintAuthoring` and its deterministic-failure path, which always feed it
-  the compiler's OWN single-stack error, whose per-position error strings ARE the canonical
-  projections of its own diagnostics. There is no exported API that accepts a caller-supplied
-  (errors, diagnostics, receipt) triple to mint a capture, so a colliding-text `[A] -> [B]`
-  substitution is structurally UNREACHABLE, not merely checked. The minted capture is durably
-  content-addressed and, by the lifecycle, atomically linked to the receipt; replay/recovery
-  re-read that capture and NEVER re-derive (unchanged from MAJOR 1). An enforcement regression
-  asserts the function is absent from both the runner module and the barrel, and documents the
-  irreducible projection ambiguity (A/B project byte-identically yet are distinct sanitized
-  census identities) that the seal — not a pairwise map — closes.
+  exported; the barrel re-export is gone with it). It has exactly two runner-owned callers:
+  the main `runProductionBlueprintAuthoring` failed path — which feeds it the compiler's OWN
+  error/diagnostics in the same synchronous stack (per-position error strings ARE the canonical
+  projections of those diagnostics) — and the deterministic-failure path, which passes
+  `error: undefined` with no attempts and therefore cannot mint a capture (diagnostic-less).
+  [SUPERSEDED by Round 9: the Round-8 claim that "no exported API can mint a capture" was FALSE
+  — the exported checker + builder + persister could still compose to persist a contradictory
+  standalone artifact; Round 9 closes that with the mint-authorized persistence gate.] The
+  minted capture is content-addressed and, by the lifecycle, atomically linked to the receipt;
+  replay/recovery re-read that capture and NEVER re-derive (unchanged from MAJOR 1). An
+  enforcement regression asserts the function is absent from both the runner module and the
+  barrel, and documents the irreducible projection ambiguity (A/B project byte-identically yet
+  are distinct sanitized census identities) that the seal — not a pairwise map — closes.
 - **Pure, non-authority consistency checker.** The receipt-consistency invariants (request
   linkage + digest self-consistency, attempt topology/1..N sequence, args==receipt.attempts,
   per-attempt {count,codes} re-derivation, position-wise projection match including
@@ -56,21 +117,30 @@ Evidence: `docs/ai-workflow/R1D_BLUEPRINT_ADMISSION_HONESTY_EVIDENCE.md` (Round 
 
 ## R1D — Blueprint capture safety Round 7: census-identity INJECTIVITY (expected/actual presence) + failed-receipt binding honesty (F3 last identity collision closed on top of Round 6); F1 paid exact-token count remains HOLD (Claude implementation; locally green, committed `28fb229e` on top of `03b758b6`, not pushed; awaiting Codex re-gate — NOT a milestone PASS)
 
+> **SUPERSEDED (Round 9):** the "INJECTIVITY" framing of this section is FALSIFIED by the A/B
+> delimiter collision. The projection is delimiter-ambiguous and NON-injective; the
+> receipt-binding-honesty check is retained but is a NARROW linkage check, not the identity
+> boundary. Identity honesty is structural (sealed same-stack mint authority + Round-9
+> persistence gate).
+
 Codex's final re-gate of `03b758b6` found one last high-confidence identity collision plus a
 related receipt-binding honesty gap and a docs-exactness issue. All three are closed here on
 top of `03b758b6` in one tiny focused commit. Already-passing MAJOR 1 (shared
 replay/recovery/first-publication capture assertion) is untouched. This is not an F3 PASS.
 
-- **IDENTITY COLLISION — the correlation projection is now INJECTIVE wrt every
-  census-identity field.** The sanitized census identity is keyed on code + sanitized field
+- **IDENTITY COLLISION — [SUPERSEDED/FALSIFIED by Round 9: the projection is NOT injective;
+  the A/B delimiter collision projects two distinct census identities to one string. The
+  presence/field additions below are real and retained, but the "same text ⇒ same census
+  identity" / "distinct identities can never share one error string" claims are FALSE.
+  Identity honesty is structural, per Round 9, not a projection property.]** The sanitized
+  census identity is keyed on code + sanitized field
   (presence/path/redaction) + expectedPresent + actualPresent, but the Round-6
   `preRenderBlueprintRepairDiagnosticErrorText` omitted expected/actual presence (and, for
-  `draft_assembly_failed`, the field), so `[A,A]` errors could pair with `[A,B]` diagnostics,
-  pass the position-wise text check, and mint two census identities from a one-identity error
-  source. The projection now binds the field component for ALL diagnostics (including
+  `draft_assembly_failed`, the field). The projection now binds the field component for ALL
+  diagnostics (including
   `draft_assembly_failed`) and appends safe `expectedPresent`/`actualPresent` booleans (never
-  the VALUES — no PII). Same text ⇒ same census identity, so distinct identities can never
-  share one error string. The suffix adds no diagnostic-category keyword, so the persisted
+  the VALUES — no PII); this reduces (but, per the A/B collision, does NOT eliminate) text
+  collisions. The suffix adds no diagnostic-category keyword, so the persisted
   receipt `{count,codes}` category summary and privacy behavior are unchanged; the repair
   prompt still consumes structured diagnostics (`groupPreRenderBlueprintRepairDiagnostics`),
   so no provider wire/schema/validation body changed.
@@ -89,8 +159,9 @@ replay/recovery/first-publication capture assertion) is untouched. This is not a
 - **F1 — paid exact-provider-input-token count: still HOLD (decision-blocked), numerically
   unchanged.** No paid/provider/live behavior was touched.
 
-Files: `lib/visual-package/preRenderBlueprintAuthoring.ts` (injective projection),
-`lib/visual-package/productionAuthoringRunner.ts` (receipt-binding honesty check). Tests:
+Files: `lib/visual-package/preRenderBlueprintAuthoring.ts` (projection change — NON-injective,
+per Round 9; presence markers added), `lib/visual-package/productionAuthoringRunner.ts`
+(receipt-binding honesty check). Tests:
 `production-lifecycle-foundation.spec.ts` (**73**: expected-presence collision,
 actual-presence collision, draft_assembly_failed-with-field collision, forged-request-digest
 receipt, stale-digest receipt; the census fixtures now construct REAL content-addressed
@@ -114,8 +185,11 @@ writing the lookup) returned **PASS**. **MAJOR 2** (complete census bijection) r
 census-integrity MINOR. Both are closed here on top of `57e43f8c` in one focused commit.
 MAJOR 1 code/tests are unchanged. This is not an F3 PASS.
 
-- **MAJOR 2 — census bijection now proven by IDENTITY, not attempt presence.** A single
-  exported projection `preRenderBlueprintRepairDiagnosticErrorText` reproduces the EXACT
+- **MAJOR 2 — census bijection [SUPERSEDED by Round 9: the position-wise projection does NOT
+  prove identity — the A/B delimiter collision defeats it. The consistency checks below are
+  retained as a non-authority gate; identity honesty is structural (sealed same-stack mint
+  authority + persistence gate)].** A single
+  projection `preRenderBlueprintRepairDiagnosticErrorText` reproduces the EXACT
   error string the compiler persists for each structured diagnostic (`draft assembly
   failed: <message>` for `draft_assembly_failed`; `<code>[ (<field>)]: <message>`
   otherwise). The compiler's `issueText` and the draft-assembly catch now build error

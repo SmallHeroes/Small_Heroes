@@ -558,17 +558,24 @@ awaiting Codex re-gate.**
 
 ### Identity collision — projection made injective wrt every census-identity field
 
+> **SUPERSEDED / FALSIFIED (Round 9):** the "made injective" heading and the "same text ⇒ same
+> census identity / distinct census identities can never collapse onto one error string" claim
+> below are FALSE. The projection is delimiter-ambiguous and NON-injective: `{field:'x',
+> message:'y (z): q'}` and `{field:'x): y (z', message:'q'}` project to one byte-identical
+> string yet are distinct sanitized census identities. The presence/field additions are real and
+> retained, but they only REDUCE collisions; identity honesty is provided STRUCTURALLY (Round 8
+> seal + Round 9 mint-authorized persistence gate), not by the string. See the Round 9 section.
+
 The Round-6 `preRenderBlueprintRepairDiagnosticErrorText` was still many-to-one relative to
 the persisted census identity, which is keyed on code + sanitized field
 (presence/path/redaction) + expectedPresent + actualPresent: it omitted expected/actual
-presence for every diagnostic and, for `draft_assembly_failed`, ignored the field. So errors
-`[A,A]` could pair with diagnostics `[A,B]`, pass the position-wise text check, and mint two
-census identities from a one-identity error source.
+presence for every diagnostic and, for `draft_assembly_failed`, ignored the field.
 
 - The projection now binds the field component for ALL diagnostics (including
   `draft_assembly_failed`) and appends safe `[expectedPresent:X actualPresent:Y]` booleans —
-  never the expected/actual VALUES, so no PII is retained. Same text ⇒ same census identity,
-  so distinct census identities can never collapse onto one error string.
+  never the expected/actual VALUES, so no PII is retained. [SUPERSEDED: this REDUCES but does
+  NOT eliminate text collisions — see the A/B delimiter collision above; it is not an identity
+  proof.]
 - The suffix introduces no diagnostic-category keyword, so the persisted receipt
   `{count,codes}` category summary and the leak-free privacy behavior are unchanged (proved by
   the green runner/lifecycle/admission specs). The repair prompt still consumes structured
@@ -629,14 +636,17 @@ another pairwise check. Closed on top of `28fb229e`.
 ### The seal
 
 - `deriveBlueprintAuthoringSanitizedFailureCaptureDisposition` is now runner-PRIVATE (not
-  exported; the `export *` barrel no longer surfaces it). Its only callers are
-  `runProductionBlueprintAuthoring` and its deterministic-failure path, which always feed it the
-  compiler's OWN single-stack error, whose per-position error strings ARE the canonical
-  projections of its own diagnostics. There is no exported API that accepts a caller-supplied
-  triple to mint a capture, so a colliding-text `[A] -> [B]` substitution is structurally
-  UNREACHABLE. The minted capture is durably content-addressed and, by the lifecycle, atomically
-  linked to the receipt; replay/recovery re-read that capture and never re-derive (MAJOR 1,
-  unchanged).
+  exported; the `export *` barrel no longer surfaces it). It has exactly two runner-owned
+  callers: the main `runProductionBlueprintAuthoring` failed path, which feeds it the compiler's
+  OWN error/diagnostics in the same synchronous stack (per-position error strings ARE the
+  canonical projections of those diagnostics); and the deterministic-failure path, which passes
+  `error: undefined` with no attempts and therefore cannot mint a capture (diagnostic-less). The
+  minted capture is content-addressed and, by the lifecycle, atomically linked to the receipt;
+  replay/recovery re-read that capture and never re-derive (MAJOR 1, unchanged).
+  [SUPERSEDED by Round 9: the Round-8 claim "there is no exported API ... to mint a capture" was
+  FALSE — the exported checker + builder + persister could still compose to persist a
+  contradictory standalone artifact; Round 9 closes that with the mint-authorized persistence
+  gate.]
 - An ENFORCEMENT regression asserts the derivation is absent from both the runner module and the
   barrel, and documents the irreducible projection ambiguity (A/B project byte-identically yet
   are distinct sanitized census identities) that the seal — not a pairwise map — closes.
@@ -674,6 +684,63 @@ another pairwise check. Closed on top of `28fb229e`.
   `openai-responses-blueprint-authoring-adapter` **20**, `pre-render-blueprint-authoring` **19**
   (projection/compiler behavior unchanged), `pre-render-book-visual-blueprint` **112**,
   `qa-wizard-blueprint-replacement-lifecycle` + `qa-wizard-package-lifecycle` **27**.
+- `npx --no-install tsc --noEmit` clean; `git diff --check` clean.
+
+No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts were not
+touched. F1 (paid exact-token count) remains a separate HOLD.
+
+## Round 9 — Codex re-gate of `f1c97b16`: capture PERSISTENCE seal (API-boundary MAJOR) + injectivity MINOR
+
+Codex re-gated `f1c97b16`: the disposition-minting derivation is correctly private and terminal
+publication/recovery/replay guards are sound, but the SUPPORTED exports remained composable and a
+truthfulness MINOR remained. Both closed on top of `f1c97b16`.
+
+### API-boundary MAJOR — mint-authorized persistence seal
+
+Independently reproduced: `blueprintAuthoringFailedCensusCorrelationDiagnostics` +
+`buildBlueprintAuthoringSanitizedFailureCapture` + `persistBlueprintAuthoringSanitizedFailureCapture`
+compose. Over the A/B delimiter collision the checker accepts A-text + diagnostic B, the builder
+makes a validator-valid receipt-linked capture containing B, and the persister returns a
+content-addressed path / writes the file — a contradictory standalone observability artifact
+(though not adoptable as an authoritative terminal). So the Round-8 "no exported API can mint a
+capture" claim was false.
+
+- The runner keeps a module-private `WeakSet` of captures minted by the same-stack private
+  derivation. `persistBlueprintAuthoringSanitizedFailureCapture` — the SOLE capture-persistence
+  entry point (one production caller: the lifecycle's `publishAndBindSanitizedFailureCapture`;
+  zero test callers) — now fails closed BEFORE any path resolution or write unless the capture is
+  registered. An externally-built capture is never registered, so no exported composition can
+  create/persist a content-addressed contradictory artifact. The WeakSet is never exported (no
+  forgery) and matches by object reference (an equal-looking rebuild is still unregistered).
+- Preserved unchanged: the private lifecycle publish-and-bind authority, replay/recovery behavior,
+  content addressing, privacy, and every valid callsite. No schema, receipt version, budget,
+  model, call-count, artifact, provider, live, or render change.
+
+### Truthfulness MINOR
+
+- `preRenderBlueprintRepairDiagnosticErrorText`'s helper comment no longer claims injectivity /
+  identity proof: it is now stated as deterministic/canonical but delimiter-AMBIGUOUS and
+  NON-injective (the A/B pair disproves injectivity), with census integrity provided STRUCTURALLY
+  by the sealed same-stack authority + the persistence gate.
+- The Round-6/Round-7 injectivity assertions in CURRENT.md and this doc are marked
+  SUPERSEDED/FALSIFIED. The Round-8 caller wording is corrected: the deterministic caller passes
+  `error: undefined` and cannot mint; only the capture-minting path receives the compiler-owned
+  error/diagnostics in the same synchronous stack.
+
+### Round-9 validation
+
+- `production-lifecycle-foundation.spec.ts` **80** (+2): the hostile A/B composition through the
+  exported checker+builder+persister proves persistence fails closed (`not minted by the sealed
+  runner authority`) while the built capture is validator-valid; a paired test proves a real
+  runner same-stack minted capture IS accepted by the persister. Retained: the STRUCTURAL-SEAL
+  enforcement (derive absent from module + barrel), the real replay-valid provider-failure
+  captured integration, the deterministic/no-diagnostic capture-free path, and the terminal
+  publication/recovery/replay guards.
+- Directly-affected suites green: `qa-wizard-blueprint-authoring-lifecycle` **46**,
+  `blueprint-admission-honesty-and-capture` **42**, `pre-render-blueprint-authoring` **19** +
+  `pre-render-book-visual-blueprint` **112** (compiler/projection behavior unchanged),
+  `qa-wizard-blueprint-replacement-lifecycle` + `qa-wizard-package-lifecycle` **27**,
+  `openai-responses-blueprint-authoring-adapter` **20**.
 - `npx --no-install tsc --noEmit` clean; `git diff --check` clean.
 
 No provider/network/API/credential/live/render/DB/deploy/push; real `outputs/` artifacts were not
