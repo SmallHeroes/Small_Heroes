@@ -2,7 +2,7 @@
 
 ## Status
 
-Local implementation complete on `codex/r1d-order-package-authority-binding`, based on `cd43d71d466d2aa138cc5d5b1afae91be87d022a`. Independent Claude Code re-gate is pending. This document is evidence, not a technical PASS or permission to redispatch the historical paid authority.
+Implementation commit `8378f279` on `codex/r1d-order-package-authority-binding`, immutable review range `cd43d71d466d2aa138cc5d5b1afae91be87d022a..8378f279`. Claude Code independently returned technical **PASS** with zero BLOCKER and zero MAJOR findings. This document is evidence, not permission to redispatch the historical paid authority.
 
 ## Incident that triggered the change
 
@@ -62,3 +62,11 @@ Literal `npm run check` was also run and is honestly red for repository baseline
 No credential, provider, network, image, audio, database, Candidate, Blueprint, package, locator, render, deployment, historical-artifact mutation, or paid retry occurred during this correction.
 
 This change does not resolve, delete, supersede, or authorize redispatch of the historical orphan claim. After local commit and independent Claude Code PASS, a separate explicitly governed replacement-execution authority is required to make one new paid attempt while preserving the original claim and its uncertainty evidence.
+
+## Independent QA disposition
+
+Claude Code independently verified the exact eight-file topology, TypeScript, `git diff --check`, and both changed specs (`86/86` PASS). It accepted the shared terminal authority, full-lifecycle failed-terminal replay, incident canonical binding, tamper rejection, sanitization, provider-unreachable re-entry, terminal-recovery precedence, compatibility and documentation boundary.
+
+One valid non-blocking observation remains: adjacent attempt-bound terminal classification lists are still hand-maintained. A future newly introduced attempt-bound code could therefore fail closed at replay even though the shared terminal allowlist compiles. This does not affect any current runner code or weaken validation; it is recorded for a future exhaustiveness cleanup rather than expanding this incident milestone.
+
+Claude's second informational observation suggested that a claim-write failure could persist an incident without a durable claim. Codex rechecked the call ordering and rejected that observation: the claim write has its own earlier `try/catch`; the incident-producing `try` begins only after `claimWrite.created === true` and exact claim reload succeeds. A failed claim write therefore cannot enter `persistExecutionIncident`.

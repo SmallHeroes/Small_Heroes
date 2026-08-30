@@ -1,7 +1,7 @@
 # SmallHeroes — Current Technical State
 
 **Updated:** 2026-08-30
-**Maintainer:** Codex (Technical Owner; Round 17 independent Claude Code QA pending)
+**Maintainer:** Codex (Technical Owner; Round 17 independent Claude Code QA PASS)
 **Working branch:** `codex/r1d-order-package-authority-binding` in `C:\GNart\Work\sh-order-package-authority`; immutable code range `983a09ee..608aeee0` (`f982f9f8`, `c38a18ac`, `59efadb5`, `0e49b8f6`, `3cfbae8f`, `fc8b08a0`, `5e79c45f`, `157fe750`, `53c62285`, `ce35ee42`, `f1dafa1b`, `296fe47c`, `2e3a511e`, `677c6644`, `d1b320e1`, `608aeee0`), the round-9 corrective `96a50252` (docs `8c7474bc`), and the round-10 corrective `17670078` (immutable code range `8c7474bc..17670078`) plus the docs-only successor commit that finalizes this file. The prior Codex branch `codex/r1d-qa-wizard-downstream-lifecycle` (worktree `C:\GNart\Work\sh-live-chameleon-v3`) is historical for this milestone.
 
 ## ORDER-FROZEN VISUAL PACKAGE AUTHORITY — LANDED; BLUEPRINT POST-CLAIM UNCERTAINTY CORRECTION LOCALLY GREEN
@@ -49,6 +49,17 @@ No provider, network, credential, image, audio, database, Candidate, Blueprint,
 package, locator, render, deployment or paid retry occurred. Next: local green
 commit, independent Claude Code re-gate, then a separate governed replacement-
 execution authority; the old single-use claim must remain preserved.
+
+Claude Code independently reviewed immutable range
+`cd43d71d466d2aa138cc5d5b1afae91be87d022a..8378f279` and returned technical
+**PASS** with zero BLOCKER and zero MAJOR findings. It reran TypeScript and both
+changed specs (`86/86` PASS), and accepted all current-path claims. Its one
+valid non-blocking observation is a future fail-closed drift surface in adjacent
+attempt-bound terminal classification lists; no current emitted code is
+misclassified. A second suggested claim-write/incident window was rejected on
+recheck because claim publication is in an earlier separate `try/catch` and the
+incident-producing block begins only after a newly created claim is reloaded and
+validated.
 
 ### Round 16 — Blueprint provider-wire compaction independently PASSed; fresh live readiness next
 
