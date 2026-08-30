@@ -194,6 +194,7 @@ describe('canonical OpenAI Responses Blueprint authoring policy', () => {
       },
       tools: [],
       tool_choice: 'none',
+      truncation: 'disabled',
       store: false,
       stream: true,
     });

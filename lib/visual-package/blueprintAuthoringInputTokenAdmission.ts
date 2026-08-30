@@ -3,6 +3,7 @@ import {
   blueprintAuthoringInputAccountingIsValid,
   type BlueprintAuthoringInputAccounting,
 } from './blueprintAuthoringPolicy';
+import { canonicalJsonDigest } from './integrity';
 
 /**
  * Honest, offline, dependency-free Blueprint input-token admission authority.
@@ -181,11 +182,35 @@ export function blueprintAuthoringObservedInputTokensWithinBound(args: {
  * paid call/retry/cost evidence.
  */
 export interface BlueprintAuthoringInputTokenCountRequest {
-  routeKind: 'initial' | 'repair';
+  routeKind: 'repair';
+  /** The REAL repair ordinal (1 or 2 under the current budget) — not routeKind alone. */
+  repairOrdinal: 1 | 2;
   systemPrompt: string;
   userPrompt: string;
   schema: Record<string, unknown>;
   model: string;
+  /** The ACTUAL reasoning effort used for this route's generation (parity, not a hardcode). */
+  reasoningEffort: string;
+  /** The structured-output schema name used for this route's generation. */
+  schemaName: string;
+}
+
+/**
+ * The exact canonical token-relevant projection (and its digest) that BOTH the count request
+ * body and the actual generation body must reduce to. Building it from the count request makes
+ * the count evidence verifiable against the exact request without trusting the counter.
+ */
+export function blueprintAuthoringCountRequestProjection(
+  request: BlueprintAuthoringInputTokenCountRequest,
+): BlueprintAuthoringTokenRelevantRequestProjection {
+  return blueprintAuthoringTokenRelevantRequestProjection({
+    model: request.model,
+    systemPrompt: request.systemPrompt,
+    userPrompt: request.userPrompt,
+    reasoningEffort: request.reasoningEffort,
+    schemaName: request.schemaName,
+    schema: request.schema,
+  });
 }
 
 /**
@@ -243,7 +268,7 @@ export function blueprintAuthoringExactInputTokenCountFromResponse(
  */
 export interface BlueprintAuthoringTokenRelevantRequestProjection {
   model: string;
-  input: ReadonlyArray<{ role: 'system' | 'user'; content: string }>;
+  input: Array<{ role: 'system' | 'user'; content: string }>;
   reasoning: { effort: string };
   text: {
     format: {
@@ -253,7 +278,7 @@ export interface BlueprintAuthoringTokenRelevantRequestProjection {
       strict: true;
     };
   };
-  tools: readonly [];
+  tools: [];
   tool_choice: 'none';
   truncation: 'disabled';
 }
@@ -299,7 +324,17 @@ export type BlueprintAuthoringCountUnavailableReason =
   | 'count_model_unconfirmed'
   | 'count_transport_failed'
   | 'count_route_unconfirmed'
-  | 'count_response_invalid';
+  | 'count_response_invalid'
+  | 'count_evidence_invalid';
+
+const BLUEPRINT_AUTHORING_COUNT_UNAVAILABLE_REASONS = new Set<string>([
+  'not_wired',
+  'count_model_unconfirmed',
+  'count_transport_failed',
+  'count_route_unconfirmed',
+  'count_response_invalid',
+  'count_evidence_invalid',
+]);
 
 /**
  * Attestation for one exact input-token COUNT dispatch. It is deliberately its own object,
@@ -325,12 +360,176 @@ export interface BlueprintAuthoringCountTransportAttestation {
  * separate count-transport attestation (present iff a dispatch occurred).
  */
 export interface BlueprintAuthoringExactInputTokenCountResult {
-  routeKind: 'initial' | 'repair';
+  routeKind: 'repair';
+  repairOrdinal: 1 | 2;
   countRequestDigest: string;
   outcome: 'counted' | 'unavailable';
   inputTokens: number | null;
   unavailableReason: BlueprintAuthoringCountUnavailableReason | null;
   attestation: BlueprintAuthoringCountTransportAttestation | null;
+}
+
+const BLUEPRINT_AUTHORING_COUNT_RESULT_KEYS = [
+  'attestation',
+  'countRequestDigest',
+  'inputTokens',
+  'outcome',
+  'repairOrdinal',
+  'routeKind',
+  'unavailableReason',
+] as const;
+
+const BLUEPRINT_AUTHORING_COUNT_ATTESTATION_KEYS = [
+  'canonicalModelConfirmed',
+  'canonicalRouteConfirmed',
+  'evidenceVersion',
+  'model',
+  'provider',
+  'route',
+  'transportDispatchCount',
+  'transportRetryCount',
+] as const;
+
+function exactObjectKeys(
+  value: unknown,
+  keys: readonly string[],
+): value is Record<string, unknown> {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys])
+  );
+}
+
+function boundedRepairOrdinal(value: unknown): value is 1 | 2 {
+  return value === 1 || value === 2;
+}
+
+function boundedCountUnavailableReason(
+  value: unknown,
+): value is BlueprintAuthoringCountUnavailableReason {
+  return (
+    typeof value === 'string' &&
+    BLUEPRINT_AUTHORING_COUNT_UNAVAILABLE_REASONS.has(value)
+  );
+}
+
+function countAttestationShapeIsValid(
+  value: unknown,
+  request: BlueprintAuthoringInputTokenCountRequest,
+): value is BlueprintAuthoringCountTransportAttestation {
+  if (
+    !exactObjectKeys(
+      value,
+      BLUEPRINT_AUTHORING_COUNT_ATTESTATION_KEYS,
+    )
+  ) {
+    return false;
+  }
+  return (
+    value.provider === 'openai' &&
+    value.model === request.model &&
+    value.route === 'responses_input_tokens' &&
+    value.evidenceVersion === BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION &&
+    (value.transportDispatchCount === 0 ||
+      value.transportDispatchCount === 1) &&
+    value.transportRetryCount === 0 &&
+    typeof value.canonicalRouteConfirmed === 'boolean' &&
+    typeof value.canonicalModelConfirmed === 'boolean'
+  );
+}
+
+/**
+ * Exact, fail-closed check that a count result actually BELONGS to the given request and is a
+ * CONSUMABLE exact count. Used before admission trusts any count. It requires: the exact route
+ * kind + real repair ordinal; the canonical token-relevant projection digest recomputed from
+ * the request; the counted-vs-unavailable field invariants; and — for a consumable count — a
+ * complete attestation with the canonical model, exact count route + evidence version, canonical
+ * route/model confirmations, EXACTLY one transport dispatch, and zero retries. Any forged digest,
+ * forged route/ordinal, contradictory reason, or missing/incomplete attestation is not
+ * consumable. Returns `null` when consumable (with the exact token count also required to be a
+ * non-negative safe integer), else a bounded reason string.
+ */
+export function blueprintAuthoringCountResultConsumptionReason(
+  result: unknown,
+  request: BlueprintAuthoringInputTokenCountRequest,
+  conservativeUpperBoundTokens: number,
+): BlueprintAuthoringCountUnavailableReason | 'count_binding_mismatch' | null {
+  if (
+    request.routeKind !== 'repair' ||
+    !boundedRepairOrdinal(request.repairOrdinal) ||
+    !nonNegativeSafeInteger(conservativeUpperBoundTokens) ||
+    !exactObjectKeys(result, BLUEPRINT_AUTHORING_COUNT_RESULT_KEYS)
+  ) {
+    return 'count_binding_mismatch';
+  }
+  const expectedDigest = canonicalJsonDigest(
+    blueprintAuthoringCountRequestProjection(request),
+  );
+  if (
+    result.routeKind !== request.routeKind ||
+    result.repairOrdinal !== request.repairOrdinal ||
+    result.countRequestDigest !== expectedDigest
+  ) {
+    return 'count_binding_mismatch';
+  }
+  if (result.outcome === 'unavailable') {
+    if (
+      result.inputTokens !== null ||
+      !boundedCountUnavailableReason(result.unavailableReason)
+    ) {
+      return 'count_binding_mismatch';
+    }
+    if (result.attestation !== null) {
+      if (!countAttestationShapeIsValid(result.attestation, request)) {
+        return 'count_binding_mismatch';
+      }
+      const attestation = result.attestation;
+      if (
+        result.unavailableReason === 'count_response_invalid' &&
+        (attestation.transportDispatchCount !== 1 ||
+          attestation.canonicalRouteConfirmed !== true ||
+          attestation.canonicalModelConfirmed !== true)
+      ) {
+        return 'count_binding_mismatch';
+      }
+      if (
+        result.unavailableReason === 'count_route_unconfirmed' &&
+        attestation.canonicalRouteConfirmed === true &&
+        attestation.canonicalModelConfirmed === true
+      ) {
+        return 'count_binding_mismatch';
+      }
+    } else if (
+      result.unavailableReason === 'count_response_invalid' ||
+      result.unavailableReason === 'count_route_unconfirmed'
+    ) {
+      return 'count_binding_mismatch';
+    }
+    // A validly-unavailable result is bound evidence but never opens the lane.
+    return result.unavailableReason;
+  }
+  // Counted: require the exact-count field invariants and a complete canonical attestation.
+  if (
+    result.outcome !== 'counted' ||
+    !nonNegativeSafeInteger(result.inputTokens) ||
+    result.inputTokens > conservativeUpperBoundTokens ||
+    result.unavailableReason !== null
+  ) {
+    return 'count_binding_mismatch';
+  }
+  const attestation = result.attestation;
+  if (
+    !countAttestationShapeIsValid(attestation, request) ||
+    attestation.transportDispatchCount !== 1 ||
+    attestation.transportRetryCount !== 0 ||
+    attestation.canonicalRouteConfirmed !== true ||
+    attestation.canonicalModelConfirmed !== true
+  ) {
+    return 'count_binding_mismatch';
+  }
+  return null;
 }
 
 /**
@@ -449,15 +648,50 @@ export async function admitBlueprintAuthoringInputTokens(args: {
     blueprintAuthoringInputAccountingIsValid(args.accounting) &&
     args.accounting.estimatedBytes > BLUEPRINT_AUTHORING_INPUT_TOKEN_CEILING
   ) {
+    const request = args.request;
+    const expectedDigest = canonicalJsonDigest(
+      blueprintAuthoringCountRequestProjection(request),
+    );
     try {
-      countResult = await args.counter(args.request);
-      exactInputTokens =
-        countResult.outcome === 'counted' &&
-        nonNegativeSafeInteger(countResult.inputTokens)
-          ? countResult.inputTokens
-          : null;
+      const raw = await args.counter(request);
+      // Only CONSUME a count that is exactly bound to this request and carries a complete
+      // canonical single-dispatch attestation. A forged initial-route/forged-digest/
+      // contradictory-reason/null-attestation result never opens the lane; it becomes a
+      // durable, bounded unavailable decision — never a silently-dropped null.
+      const reason = blueprintAuthoringCountResultConsumptionReason(
+        raw,
+        request,
+        args.accounting.estimatedBytes,
+      );
+      if (reason === null) {
+        countResult = raw as BlueprintAuthoringExactInputTokenCountResult;
+        exactInputTokens = countResult.inputTokens;
+      } else if (reason !== 'count_binding_mismatch') {
+        countResult = raw as BlueprintAuthoringExactInputTokenCountResult;
+        exactInputTokens = null;
+      } else {
+        countResult = {
+          routeKind: request.routeKind,
+          repairOrdinal: request.repairOrdinal,
+          countRequestDigest: expectedDigest,
+          outcome: 'unavailable',
+          inputTokens: null,
+          unavailableReason: 'count_evidence_invalid',
+          attestation: null,
+        };
+        exactInputTokens = null;
+      }
     } catch {
-      countResult = null;
+      // A counter throw is explicit bounded unavailable evidence, not a disappeared null.
+      countResult = {
+        routeKind: request.routeKind,
+        repairOrdinal: request.repairOrdinal,
+        countRequestDigest: expectedDigest,
+        outcome: 'unavailable',
+        inputTokens: null,
+        unavailableReason: 'count_transport_failed',
+        attestation: null,
+      };
       exactInputTokens = null;
     }
   }

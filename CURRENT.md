@@ -1,6 +1,6 @@
 # SmallHeroes — Current Technical State
 
-## F1 — exact repair input-token admission: BOUNDARY 1 of N (additive offline foundations only; milestone IN PROGRESS, NOT complete, NOT ready for final re-gate); F3 PASS preserved (Claude implementation; locally green on top of `4c1076e7`, not pushed)
+## F1 — exact repair input-token admission: Boundaries 1–2 + Boundary-2 HOLD correction locally green; milestone IN PROGRESS, NOT live-ready; F3 PASS preserved (Codex implementation continuing from Claude's interrupted partial work; not pushed)
 
 F3 was awarded PASS (345/345, content-bound failure-capture authority, truthful evidence). F1 is
 the approved exact provider-authoritative REPAIR input-token admission milestone. It is a LARGE
@@ -10,7 +10,7 @@ reservation; **receipt v6→v7 cutover** preserving legacy v6/older replay; **du
 commitment** carrying F3 forward into first-publication/replay/recovery; adapter byte-over-ceiling
 acceptance only with matching attested count; an 8-page/86-diagnostic offline harness + ~15 hostile
 regressions). Per the approved "focused green commits at safe internal boundaries" guidance, it is
-being delivered as a sequence of green boundaries; this is **Boundary 1 (foundations only)**.
+being delivered as a sequence of green boundaries.
 
 - **Boundary 1 (this commit) — additive, offline, zero-behavior-change foundations:**
   - **C1 cost math** (`blueprintAuthoringPolicy.ts`): `blueprintAuthoringCountProbeReserveUsd()` =
@@ -41,8 +41,24 @@ being delivered as a sequence of green boundaries; this is **Boundary 1 (foundat
   `client.responses.inputTokens.count` with the token-relevant projection body, and an adapter that
   gates the response to exactly `{object:'response.input_tokens', input_tokens}`, fails closed
   (bounded reason) with no retry, and produces its OWN attestation (never touches generation
-  callCount/attestation). Not yet wired into the runner. Tests: new count-adapter spec (**15**);
-  admission-spec counters converted to async. Full battery **366** green; tsc + diff-check clean.
+  callCount/attestation). Independent QA then found two real HOLDs: a forged/mis-bound count result
+  could be consumed, and the fetch guard configured zero retries without enforcing one dispatch.
+  Both are now closed locally: count is repair-only with ordinal 1/2; the exact result is validated
+  as hostile `unknown` against exact keys, route/ordinal, canonical projection digest, field and
+  attestation invariants, one dispatch/zero retry, and the proven byte-derived upper bound; throws
+  become explicit bounded unavailable evidence. The guarded fetch rejects a second canonical
+  dispatch, and the adapter rejects any non-1/0 dispatch/retry attestation. The real SDK seam is
+  exercised offline for exact URL/body/method/redirect plus 500/302/malformed JSON, each one-shot.
+  Count and generation now consume the same token-relevant projection, including actual reasoning,
+  schema name/schema and explicit `truncation:'disabled'`.
+- **Count-aware cost foundation:** new integer micro-USD authority models the mutually exclusive
+  failed-probe and admitted-continuation branches before a count dispatch. It includes the current
+  GPT-5.6 Sol rule that input above 272K is priced at 2x for the full request, derives rather than
+  duplicates the existing $5/$1.408/$0.352 constants, validates safe integer arithmetic, and proves
+  the 326545/326546 and 272000/272001 budget edges. The fully admitted path remains $4.928.
+- **Current validation:** focused cross-boundary battery **394/394** passed; the count-adapter suite
+  is now **21** tests and the cost suite **10**; `npx --no-install tsc --noEmit` is clean. No provider,
+  credential, live, render, DB, deploy, network or push occurred.
 - **REMAINING boundaries (not yet implemented):** runner per-route + request-digest count cache and
   count-probe reservation wired into projected-max/dynamic accounting; adapter byte-over-ceiling
   acceptance with matching attested count; **receipt v7 cutover + durable F3 census-identity

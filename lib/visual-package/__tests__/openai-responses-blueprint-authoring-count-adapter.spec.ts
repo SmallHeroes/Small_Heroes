@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { InputTokenCountParams } from 'openai/resources/responses/input-tokens';
 
 import {
   BLUEPRINT_AUTHORING_MODEL,
   BLUEPRINT_AUTHORING_REASONING_EFFORT,
+  BLUEPRINT_AUTHORING_TIMEOUT_MS,
 } from '@/lib/visual-package/blueprintAuthoringPolicy';
 import {
   BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
   BLUEPRINT_AUTHORING_EXACT_INPUT_TOKEN_RESPONSE_OBJECT,
+  blueprintAuthoringCountRequestProjection,
   blueprintAuthoringTokenRelevantRequestProjection,
   type BlueprintAuthoringInputTokenCountRequest,
 } from '@/lib/visual-package/blueprintAuthoringInputTokenAdmission';
@@ -16,10 +19,12 @@ import {
 } from '@/lib/visual-package/preRenderBlueprintDraftSchema';
 import { canonicalJsonDigest } from '@/lib/visual-package/integrity';
 import { ProviderTransportGuardRejectionError } from '@/lib/visual-package/providerFailureDiagnostics';
+import { createProviderFailureBoundaryObservations } from '@/lib/visual-package/providerFailureDiagnostics';
 import {
   OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL,
   createGuardedOpenAIResponsesInputTokensFetch,
   createOpenAIResponsesBlueprintAuthoringCountAdapter,
+  openAIResponsesInputTokensCountTransport,
   type OpenAIResponsesInputTokensCountTransport,
 } from '@/lib/visual-package/openaiResponsesBlueprintAuthoringCountAdapter';
 
@@ -30,10 +35,13 @@ function repairRequest(
 ): BlueprintAuthoringInputTokenCountRequest {
   return {
     routeKind: 'repair',
+    repairOrdinal: 1,
     systemPrompt: 'SYSTEM',
     userPrompt: 'USER',
     schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     model: BLUEPRINT_AUTHORING_MODEL,
+    reasoningEffort: BLUEPRINT_AUTHORING_REASONING_EFFORT,
+    schemaName: PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
     ...overrides,
   };
 }
@@ -77,6 +85,7 @@ describe('exact input-token count adapter — happy path + evidence separation',
     expect(result.outcome).toBe('counted');
     expect(result.inputTokens).toBe(12_345);
     expect(result.routeKind).toBe('repair');
+    expect(result.repairOrdinal).toBe(1);
 
     // The count body is EXACTLY the shared token-relevant projection (no service_tier /
     // max_output_tokens / store / stream), and the digest binds the count to that body.
@@ -152,6 +161,27 @@ describe('exact input-token count adapter — fail-closed cases', () => {
     expect(JSON.stringify(result)).not.toMatch(/boom-secret|test-key/i);
   });
 
+  it('rejects a transport that reports more than one dispatch', async () => {
+    const counter = createOpenAIResponsesBlueprintAuthoringCountAdapter({
+      transport: {
+        count: async (req) => {
+          req.observations.transportDispatchStarted = true;
+          req.observations.transportDispatchCount += 2;
+          req.observations.canonicalRouteConfirmed = true;
+          return {
+            object: BLUEPRINT_AUTHORING_EXACT_INPUT_TOKEN_RESPONSE_OBJECT,
+            input_tokens: 1,
+          };
+        },
+      },
+      readCredential: readTestKey,
+    });
+    const result = await counter(repairRequest());
+    expect(result.outcome).toBe('unavailable');
+    expect(result.unavailableReason).toBe('count_route_unconfirmed');
+    expect(result.attestation?.transportDispatchCount).toBe(2);
+  });
+
   it('returns count_transport_failed when the credential read fails (no dispatch, no attestation)', async () => {
     const transport = fakeTransport({
       object: BLUEPRINT_AUTHORING_EXACT_INPUT_TOKEN_RESPONSE_OBJECT,
@@ -213,6 +243,16 @@ describe('input-tokens route guard is route-specific (does not broaden the gener
     expect(response.status).toBe(200);
   });
 
+  it('rejects a second otherwise-canonical dispatch before delegated fetch', async () => {
+    const delegated = vi.fn(async () => new Response('{}', { status: 200 }));
+    const guarded = createGuardedOpenAIResponsesInputTokensFetch(delegated);
+    await guarded(OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL, { method: 'POST' });
+    await expect(
+      guarded(OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL, { method: 'POST' }),
+    ).rejects.toMatchObject({ reason: 'duplicate_dispatch' });
+    expect(delegated).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects the GENERATION /v1/responses endpoint (route-specific, not broadened)', async () => {
     await expect(guard(GENERATION_ENDPOINT)).rejects.toBeInstanceOf(
       ProviderTransportGuardRejectionError,
@@ -247,4 +287,91 @@ describe('input-tokens route guard is route-specific (does not broaden the gener
       ).rejects.toBeInstanceOf(ProviderTransportGuardRejectionError);
     }
   });
+});
+
+describe('real OpenAI SDK inputTokens.count seam remains one-shot and offline', () => {
+  it('uses the exact canonical POST route/body once with redirect:error', async () => {
+    const originalFetch = globalThis.fetch;
+    const calls: Array<{ input: string | URL | Request; init?: RequestInit }> = [];
+    const delegated = (async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      calls.push({ input, init });
+      return new Response(
+        JSON.stringify({
+          object: BLUEPRINT_AUTHORING_EXACT_INPUT_TOKEN_RESPONSE_OBJECT,
+          input_tokens: 123,
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }) as typeof fetch;
+    globalThis.fetch = delegated;
+    try {
+      const request = repairRequest();
+      const observations = createProviderFailureBoundaryObservations({
+        adapterInvoked: true,
+        requestOptionsDigest: canonicalJsonDigest({ maxRetries: 0 }),
+      });
+      const result = await openAIResponsesInputTokensCountTransport.count({
+        apiKey: 'offline-sdk-seam-key',
+        body: blueprintAuthoringCountRequestProjection(
+          request,
+        ) as unknown as InputTokenCountParams,
+        requestOptions: { maxRetries: 0, timeout: BLUEPRINT_AUTHORING_TIMEOUT_MS },
+        observations,
+      });
+      expect(result).toMatchObject({ input_tokens: 123 });
+      expect(calls).toHaveLength(1);
+      const { input, init } = calls[0]!;
+      expect(new URL(input instanceof Request ? input.url : String(input)).href).toBe(
+        OPENAI_RESPONSES_INPUT_TOKENS_ENDPOINT_URL,
+      );
+      expect((init?.method ?? (input instanceof Request ? input.method : '')).toUpperCase()).toBe('POST');
+      expect(init?.redirect).toBe('error');
+      expect(JSON.parse(String(init?.body))).toEqual(
+        blueprintAuthoringCountRequestProjection(request),
+      );
+      expect(observations.transportDispatchCount).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  for (const [label, responseFactory] of [
+    ['500', () => new Response('{"error":"offline"}', { status: 500, headers: { 'content-type': 'application/json' } })],
+    ['302', () => new Response('', { status: 302, headers: { location: 'https://example.invalid' } })],
+    ['malformed JSON', () => new Response('{', { status: 200, headers: { 'content-type': 'application/json' } })],
+  ] as const) {
+    it(`fails closed with one dispatch and zero SDK retries on ${label}`, async () => {
+      const originalFetch = globalThis.fetch;
+      let dispatches = 0;
+      const delegated = (async () => {
+        dispatches += 1;
+        return responseFactory();
+      }) as typeof fetch;
+      globalThis.fetch = delegated;
+      try {
+        const request = repairRequest();
+        const observations = createProviderFailureBoundaryObservations({
+          adapterInvoked: true,
+          requestOptionsDigest: canonicalJsonDigest({ maxRetries: 0 }),
+        });
+        await expect(
+          openAIResponsesInputTokensCountTransport.count({
+            apiKey: 'offline-sdk-seam-key',
+            body: blueprintAuthoringCountRequestProjection(
+              request,
+            ) as unknown as InputTokenCountParams,
+            requestOptions: { maxRetries: 0, timeout: BLUEPRINT_AUTHORING_TIMEOUT_MS },
+            observations,
+          }),
+        ).rejects.toBeDefined();
+        expect(dispatches).toBe(1);
+        expect(observations.transportDispatchCount).toBe(1);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+  }
 });

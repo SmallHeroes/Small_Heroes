@@ -542,14 +542,17 @@ export class ProviderTransportGuardRejectionError extends Error {
     readonly reason:
       | 'unauthorized_destination'
       | 'non_post_request'
-      | 'unauthorized_identity_headers',
+      | 'unauthorized_identity_headers'
+      | 'duplicate_dispatch',
   ) {
     super(
       reason === 'unauthorized_destination'
         ? 'canonical OpenAI Responses transport rejected an unauthorized destination'
         : reason === 'non_post_request'
           ? 'canonical OpenAI Responses transport rejected a non-POST request'
-          : 'canonical OpenAI Responses transport rejected unauthorized identity headers',
+          : reason === 'unauthorized_identity_headers'
+            ? 'canonical OpenAI Responses transport rejected unauthorized identity headers'
+            : 'canonical OpenAI Responses transport rejected a duplicate dispatch',
     );
     this.name = 'ProviderTransportGuardRejectionError';
   }

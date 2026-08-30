@@ -24,7 +24,10 @@ import {
   nominalBlueprintAuthoringUsageCostUsd,
   type BlueprintAuthoringUsage,
 } from './blueprintAuthoringPolicy';
-import { blueprintAuthoringInputTokensExceedCeiling } from './blueprintAuthoringInputTokenAdmission';
+import {
+  blueprintAuthoringInputTokensExceedCeiling,
+  blueprintAuthoringTokenRelevantRequestProjection,
+} from './blueprintAuthoringInputTokenAdmission';
 import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
@@ -225,25 +228,22 @@ export function buildOpenAIResponsesBlueprintAuthoringBody(args: {
   ) {
     throw new BlueprintAuthoringAdapterBoundaryError('policy_mismatch');
   }
-  const body: ResponseCreateParamsStreaming = {
+  const tokenProjection = blueprintAuthoringTokenRelevantRequestProjection({
     model: BLUEPRINT_AUTHORING_MODEL,
+    systemPrompt: args.systemPrompt,
+    userPrompt: args.userPrompt,
+    reasoningEffort: args.options.reasoningEffort,
+    schemaName: args.options.jsonSchema.name,
+    schema: args.options.jsonSchema.schema,
+  });
+  const body: ResponseCreateParamsStreaming = {
+    ...tokenProjection,
+    reasoning: {
+      effort: tokenProjection.reasoning
+        .effort as typeof BLUEPRINT_AUTHORING_REASONING_EFFORT,
+    },
     service_tier: BLUEPRINT_AUTHORING_SERVICE_TIER,
     max_output_tokens: BLUEPRINT_AUTHORING_MAX_OUTPUT_TOKENS,
-    input: [
-      { role: 'system', content: args.systemPrompt },
-      { role: 'user', content: args.userPrompt },
-    ],
-    reasoning: { effort: BLUEPRINT_AUTHORING_REASONING_EFFORT },
-    text: {
-      format: {
-        type: 'json_schema',
-        name: PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
-        schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
-        strict: true,
-      },
-    },
-    tools: [],
-    tool_choice: 'none',
     store: BLUEPRINT_AUTHORING_STORE,
     stream: BLUEPRINT_AUTHORING_STREAM,
   };

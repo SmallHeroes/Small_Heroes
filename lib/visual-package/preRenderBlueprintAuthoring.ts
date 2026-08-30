@@ -55,6 +55,7 @@ import {
 } from './blueprintAuthoringPolicy';
 import {
   admitBlueprintAuthoringInputTokens,
+  type BlueprintAuthoringInputTokenAdmissionDecision,
   type BlueprintAuthoringInputTokenCounter,
 } from './blueprintAuthoringInputTokenAdmission';
 
@@ -131,6 +132,7 @@ export class PreRenderBlueprintRepairInputNotAdmissibleError extends Error {
   constructor(
     readonly attempts: PreRenderBlueprintAuthoringAttempt[],
     readonly inputAccounting: BlueprintAuthoringInputAccounting,
+    readonly inputAdmission: BlueprintAuthoringInputTokenAdmissionDecision,
   ) {
     super(
       `Blueprint repair input is not admissible against the ${BLUEPRINT_AUTHORING_MAX_INPUT_TOKENS} token ceiling (conservative input-token upper bound ${inputAccounting.estimatedBytes}; exact provider count not available or over ceiling)`,
@@ -727,15 +729,21 @@ export async function compilePreRenderBookVisualBlueprint(
       userPrompt: repairUserPrompt,
       schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
     });
+    if (attempt !== 1 && attempt !== 2) {
+      throw new Error('Blueprint repair ordinal is outside the canonical repair budget');
+    }
     const repairAdmission = await admitBlueprintAuthoringInputTokens({
       accounting: repairInputAccounting,
       counter: deps.inputTokenCounter,
       request: {
         routeKind: 'repair',
+        repairOrdinal: attempt,
         systemPrompt: repairSystemPrompt,
         userPrompt: repairUserPrompt,
         schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
         model: config.model,
+        reasoningEffort: config.reasoningEffort,
+        schemaName: PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
       },
     });
     if (!repairAdmission.admitted) {
@@ -746,6 +754,7 @@ export async function compilePreRenderBookVisualBlueprint(
       throw new PreRenderBlueprintRepairInputNotAdmissibleError(
         repairAttempts,
         repairInputAccounting,
+        repairAdmission,
       );
     }
     try {

@@ -10,16 +10,17 @@ import {
 import {
   BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
   blueprintAuthoringExactInputTokenCountFromResponse,
-  blueprintAuthoringTokenRelevantRequestProjection,
+  blueprintAuthoringCountRequestProjection,
   type BlueprintAuthoringCountTransportAttestation,
   type BlueprintAuthoringExactInputTokenCountResult,
   type BlueprintAuthoringInputTokenCountRequest,
   type BlueprintAuthoringInputTokenCounter,
 } from './blueprintAuthoringInputTokenAdmission';
+import { canonicalJsonDigest } from './integrity';
 import {
+  PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
   PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
 } from './preRenderBlueprintDraftSchema';
-import { canonicalJsonDigest } from './integrity';
 import {
   ProviderTransportGuardRejectionError,
   createProviderFailureBoundaryObservations,
@@ -106,6 +107,7 @@ export function createGuardedOpenAIResponsesInputTokensFetch(
   delegatedFetch: OpenAIResponsesAuthoringFetch,
   observations?: ProviderFailureBoundaryObservations,
 ): OpenAIResponsesAuthoringFetch {
+  let dispatchConsumed = false;
   return async (input, init) => {
     const url = requestUrl(input);
     if (
@@ -128,6 +130,10 @@ export function createGuardedOpenAIResponsesInputTokensFetch(
     if (FORBIDDEN_OPENAI_IDENTITY_HEADERS.some((name) => headers.has(name))) {
       throw new ProviderTransportGuardRejectionError('unauthorized_identity_headers');
     }
+    if (dispatchConsumed) {
+      throw new ProviderTransportGuardRejectionError('duplicate_dispatch');
+    }
+    dispatchConsumed = true;
     if (observations) {
       observations.transportDispatchStarted = true;
       observations.transportDispatchCount += 1;
@@ -212,20 +218,14 @@ export function createOpenAIResponsesBlueprintAuthoringCountAdapter(
   return async (
     request: BlueprintAuthoringInputTokenCountRequest,
   ): Promise<BlueprintAuthoringExactInputTokenCountResult> => {
-    const projection = blueprintAuthoringTokenRelevantRequestProjection({
-      model: request.model,
-      systemPrompt: request.systemPrompt,
-      userPrompt: request.userPrompt,
-      reasoningEffort: BLUEPRINT_AUTHORING_REASONING_EFFORT,
-      schemaName: PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
-      schema: request.schema,
-    });
+    const projection = blueprintAuthoringCountRequestProjection(request);
     const countRequestDigest = canonicalJsonDigest(projection);
     const unavailable = (
       unavailableReason: BlueprintAuthoringExactInputTokenCountResult['unavailableReason'],
       attestation: BlueprintAuthoringCountTransportAttestation | null,
     ): BlueprintAuthoringExactInputTokenCountResult => ({
       routeKind: request.routeKind,
+      repairOrdinal: request.repairOrdinal,
       countRequestDigest,
       outcome: 'unavailable',
       inputTokens: null,
@@ -237,6 +237,16 @@ export function createOpenAIResponsesBlueprintAuthoringCountAdapter(
     // without a dispatch.
     if (request.model !== BLUEPRINT_AUTHORING_MODEL) {
       return unavailable('count_model_unconfirmed', null);
+    }
+    if (
+      request.routeKind !== 'repair' ||
+      (request.repairOrdinal !== 1 && request.repairOrdinal !== 2) ||
+      request.reasoningEffort !== BLUEPRINT_AUTHORING_REASONING_EFFORT ||
+      request.schemaName !== PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME ||
+      canonicalJsonDigest(request.schema) !==
+        canonicalJsonDigest(PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA)
+    ) {
+      return unavailable('count_evidence_invalid', null);
     }
 
     const requestOptions = {
@@ -271,7 +281,12 @@ export function createOpenAIResponsesBlueprintAuthoringCountAdapter(
     }
 
     const attestation = countAttestation(observations);
-    if (!attestation.canonicalRouteConfirmed || !attestation.canonicalModelConfirmed) {
+    if (
+      attestation.transportDispatchCount !== 1 ||
+      attestation.transportRetryCount !== 0 ||
+      !attestation.canonicalRouteConfirmed ||
+      !attestation.canonicalModelConfirmed
+    ) {
       return unavailable('count_route_unconfirmed', attestation);
     }
     const inputTokens = blueprintAuthoringExactInputTokenCountFromResponse(raw);
@@ -280,6 +295,7 @@ export function createOpenAIResponsesBlueprintAuthoringCountAdapter(
     }
     return {
       routeKind: request.routeKind,
+      repairOrdinal: request.repairOrdinal,
       countRequestDigest,
       outcome: 'counted',
       inputTokens,

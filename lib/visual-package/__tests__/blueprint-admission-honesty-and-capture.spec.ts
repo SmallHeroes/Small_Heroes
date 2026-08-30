@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+  PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
   compilePreRenderBookVisualBlueprint,
   type PreRenderBookVisualBlueprint,
 } from '@/lib/visual-package';
@@ -18,13 +19,18 @@ import {
   type BlueprintAuthoringInputAccounting,
 } from '@/lib/visual-package/blueprintAuthoringPolicy';
 import {
+  BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
   BLUEPRINT_AUTHORING_INPUT_TOKEN_ADMISSION_POLICY_VERSION,
   BLUEPRINT_AUTHORING_INPUT_TOKEN_BOUND_BASIS,
+  admitBlueprintAuthoringInputTokens,
+  blueprintAuthoringCountRequestProjection,
   blueprintAuthoringConservativeInputTokenUpperBound,
   blueprintAuthoringInputTokensAreAdmissible,
   blueprintAuthoringInputTokensExceedCeiling,
   blueprintAuthoringObservedInputTokensWithinBound,
   decideBlueprintAuthoringInputTokenAdmission,
+  type BlueprintAuthoringExactInputTokenCountResult,
+  type BlueprintAuthoringInputTokenCountRequest,
   type BlueprintAuthoringInputTokenCounter,
 } from '@/lib/visual-package/blueprintAuthoringInputTokenAdmission';
 import {
@@ -84,6 +90,32 @@ function wholeBookDraft(blueprint: PreRenderBookVisualBlueprint): unknown {
 }
 
 const hex64 = (seed: string): string => canonicalJsonDigest({ seed });
+
+function countedResult(
+  request: BlueprintAuthoringInputTokenCountRequest,
+  inputTokens: number,
+): BlueprintAuthoringExactInputTokenCountResult {
+  return {
+    routeKind: 'repair',
+    repairOrdinal: request.repairOrdinal,
+    countRequestDigest: canonicalJsonDigest(
+      blueprintAuthoringCountRequestProjection(request),
+    ),
+    outcome: 'counted',
+    inputTokens,
+    unavailableReason: null,
+    attestation: {
+      provider: 'openai',
+      model: request.model,
+      route: 'responses_input_tokens',
+      evidenceVersion: BLUEPRINT_AUTHORING_COUNT_EVIDENCE_VERSION,
+      transportDispatchCount: 1,
+      transportRetryCount: 0,
+      canonicalRouteConfirmed: true,
+      canonicalModelConfirmed: true,
+    },
+  };
+}
 
 function initialAccountingFor(
   fixture: ReturnType<typeof buildBlueprintFixture>,
@@ -338,6 +370,17 @@ describe('exact provider-count admission (one honest token quantity, both routes
     estimatedBytes: 97051,
   };
 
+  const countRequest: BlueprintAuthoringInputTokenCountRequest = {
+    routeKind: 'repair',
+    repairOrdinal: 1,
+    systemPrompt: 'SYSTEM',
+    userPrompt: 'USER',
+    schema: PRE_RENDER_BLUEPRINT_DRAFT_JSON_SCHEMA,
+    model: CONFIG.model,
+    reasoningEffort: CONFIG.reasoningEffort,
+    schemaName: PRE_RENDER_BLUEPRINT_DRAFT_SCHEMA_NAME,
+  };
+
   it('decides on ONE token quantity: proven bound, exact count, or fail-closed', () => {
     // 1. Conservative bound within ceiling -> admit without consulting any count.
     expect(
@@ -377,6 +420,34 @@ describe('exact provider-count admission (one honest token quantity, both routes
     ).toBe(false);
   });
 
+  it('never consumes forged, contradictory, extra-key, or out-of-bound count evidence', async () => {
+    const valid = countedResult(countRequest, 50_000);
+    const hostile: unknown[] = [
+      { ...valid, routeKind: 'initial' },
+      { ...valid, repairOrdinal: 2 },
+      { ...valid, countRequestDigest: '0'.repeat(64) },
+      { ...valid, unavailableReason: 'count_response_invalid' },
+      { ...valid, attestation: null },
+      { ...valid, inputTokens: OVER_CEILING.estimatedBytes + 1 },
+      { ...valid, hostileExtraKey: true },
+      null,
+    ];
+    for (const raw of hostile) {
+      const decision = await admitBlueprintAuthoringInputTokens({
+        accounting: OVER_CEILING,
+        request: countRequest,
+        counter: async () =>
+          raw as BlueprintAuthoringExactInputTokenCountResult,
+      });
+      expect(decision.admitted).toBe(false);
+      expect(decision.basis).toBe('exact_count_unavailable');
+      expect(decision.countResult).toMatchObject({
+        outcome: 'unavailable',
+        unavailableReason: 'count_evidence_invalid',
+      });
+    }
+  });
+
   it('opens the repair lane on an exact count below the ceiling (bytes exceed it) and reaches the second author call', async () => {
     const fixture = buildBlueprintFixture('journey_fantastical', {
       pageCount: 8,
@@ -393,14 +464,7 @@ describe('exact provider-count admission (one honest token quantity, both routes
       counterRoutes.push(request.routeKind);
       // Exact provider count is well under the 64000 token ceiling even though the
       // repair wire's byte bound is far above it.
-      return {
-        routeKind: request.routeKind,
-        countRequestDigest: canonicalJsonDigest(request),
-        outcome: 'counted',
-        inputTokens: 50_000,
-        unavailableReason: null,
-        attestation: null,
-      };
+      return countedResult(request, 50_000);
     };
     const result = await compilePreRenderBookVisualBlueprint(
       fixture.context,
@@ -429,14 +493,8 @@ describe('exact provider-count admission (one honest token quantity, both routes
     oversized.frames[0]!.narrative.summary = 'x'.repeat(80_000);
     oversized.frames[1]!.camera = null;
     let calls = 0;
-    const counter: BlueprintAuthoringInputTokenCounter = async (request) => ({
-      routeKind: request.routeKind,
-      countRequestDigest: canonicalJsonDigest(request),
-      outcome: 'counted',
-      inputTokens: 70_000,
-      unavailableReason: null,
-      attestation: null,
-    });
+    const counter: BlueprintAuthoringInputTokenCounter = async (request) =>
+      countedResult(request, 70_000);
     let caught: unknown;
     try {
       await compilePreRenderBookVisualBlueprint(fixture.context, CONFIG, {
@@ -464,8 +522,11 @@ describe('exact provider-count admission (one honest token quantity, both routes
     oversized.frames[1]!.camera = null;
     let calls = 0;
     const counter: BlueprintAuthoringInputTokenCounter = async (request) => ({
-      routeKind: request.routeKind,
-      countRequestDigest: canonicalJsonDigest(request),
+      routeKind: 'repair',
+      repairOrdinal: request.repairOrdinal,
+      countRequestDigest: canonicalJsonDigest(
+        blueprintAuthoringCountRequestProjection(request),
+      ),
       outcome: 'unavailable',
       inputTokens: null,
       unavailableReason: 'not_wired',
